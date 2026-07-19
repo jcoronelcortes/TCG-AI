@@ -217,6 +217,10 @@ Zorua_N = 292
 Alakazam_ex = 743
 Abra = 741
 Kadabra = 742
+# Linea Mega Lopunny ex: Buneary (basico, id 848) -> Mega Lopunny ex (Stage 1,
+# id 849, ex de 2 premios). El basico atacante de este mazo es Buneary.
+Buneary = 848
+Mega_Lopunny_ex = 849
 Gardevoir_ex = 747
 Ralts = 745
 Kirlia = 746
@@ -270,7 +274,8 @@ Riolu = 677
 Mega_Lucario_ex = 678
 Duraludon = 169
 
-THREAT_PREEVO_IDS = {Riolu, Duraludon, Hops_Phantump, Dwebble_Grass, Dwebble_Fighting}
+THREAT_PREEVO_IDS = {Riolu, Duraludon, Hops_Phantump, Dwebble_Grass, Dwebble_Fighting,
+                     Buneary}
 
 # Dunsparce (id 65 = TEF, id 305 = JTG): NUNCA gustear con Boss's Orders (user
 # req). Son muros que se retiran/reposicionan con facilidad; subirlos al activo
@@ -295,7 +300,17 @@ EX_PREEVO_IDS = {
     Abra, Kadabra,
     Ralts, Kirlia,
     Marnies_Impidimp, Marnies_Morgrem,
+    Buneary,  # -> Mega Lopunny ex (id 849, ex de 2 premios)
 }
+
+# Pre-evoluciones de EX_PREEVO_IDS cuya forma FINAL es NON-ex (1 premio) en
+# este entorno, NO un ex de 2 premios. Abra -> Kadabra -> Alakazam (id 743) es
+# la unica: la constante `Alakazam_ex = 743` es un nombre enganoso; el dato de
+# la carta marca ex=False (1 premio). La logica de "negar una linea EX" (que
+# justifica gustear una pre-evo con Boss's para impedir un ATACANTE DE 2
+# PREMIOS) NO debe aplicar a esta linea: gustear+noquear la pre-evo rinde 1
+# premio, lo mismo que noquear al muro activo, asi que es un gusteo inutil.
+NONEX_FINAL_PREEVO_IDS = {Abra, Kadabra}
 
 _ID_NAME_EXPECTATIONS = {
     Teal_Mask_Ogerpon_ex: "Ogerpon", Chikorita: "Chikorita", Bayleef: "Bayleef",
@@ -845,25 +860,28 @@ def _update_cartas_tracking(obs, my_index, my_state):
 
 def get_card(obs: Observation, area: AreaType, index: int, player_index: int) -> Pokemon | Card | None:
     ps = obs.current.players[player_index]
-    match area:
-        case AreaType.DECK:
-            return obs.select.deck[index]
-        case AreaType.HAND:
-            return ps.hand[index]
-        case AreaType.DISCARD:
-            return ps.discard[index]
-        case AreaType.ACTIVE:
-            return ps.active[index]
-        case AreaType.BENCH:
-            return ps.bench[index]
-        case AreaType.PRIZE:
-            return ps.prize[index]
-        case AreaType.STADIUM:
-            return obs.current.stadium[index]
-        case AreaType.LOOKING:
-            return obs.current.looking[index]
-        case _:
-            return None
+    try:
+        match area:
+            case AreaType.DECK:
+                return obs.select.deck[index]
+            case AreaType.HAND:
+                return ps.hand[index]
+            case AreaType.DISCARD:
+                return ps.discard[index]
+            case AreaType.ACTIVE:
+                return ps.active[index]
+            case AreaType.BENCH:
+                return ps.bench[index]
+            case AreaType.PRIZE:
+                return ps.prize[index]
+            case AreaType.STADIUM:
+                return obs.current.stadium[index]
+            case AreaType.LOOKING:
+                return obs.current.looking[index]
+            case _:
+                return None
+    except (IndexError, AttributeError, TypeError):
+        return None
 
 def prize_count(pokemon: Pokemon) -> int:
     data = card_table[pokemon.id]
@@ -3182,6 +3200,7 @@ def agent(obs_dict: dict) -> list[int]:
                     _bo_pe_is_threat = _bo_pe.id in THREAT_PREEVO_IDS
                     _bo_pe_is_ex_preevo_energized = (
                         _bo_pe.id in EX_PREEVO_IDS
+                        and _bo_pe.id not in NONEX_FINAL_PREEVO_IDS
                         and len(_bo_pe.energies) >= 1
                         and _bo_can_ko_active
                         and prize_count(_bo_op_active) == prize_count(_bo_pe))
@@ -3195,6 +3214,7 @@ def agent(obs_dict: dict) -> list[int]:
                     # mismo que noquear al muro.
                     _bo_pe_is_ex_line_vs_wall = (
                         _bo_pe.id in EX_PREEVO_IDS
+                        and _bo_pe.id not in NONEX_FINAL_PREEVO_IDS
                         and _bo_can_ko_active
                         and len(_bo_op_active.energies) == 0
                         and prize_count(_bo_op_active) <= 1
@@ -4070,6 +4090,15 @@ def agent(obs_dict: dict) -> list[int]:
             and _can_attack_eff(_ara_act.id, len(_ara_act.energies))):
         _active_ready_attacker = True
 
+    # Numero de atacantes LISTOS (activo + banca) con energia suficiente para
+    # atacar ya. Sirve para decidir si merece la pena refrescar la mano (bajar
+    # Meowth ex -> Lillie's) o si ya tenemos atacantes de sobra.
+    _ready_attacker_count = 0
+    for _rac_p in (list(my_state.active or []) + list(my_state.bench or [])):
+        if (_rac_p is not None and _rac_p.id in MAIN_ATTACKERS
+                and _can_attack_eff(_rac_p.id, len(_rac_p.energies))):
+            _ready_attacker_count += 1
+
     _ctm_dipplin_low = False
     _ctm_tapu_high = False
     _ctm_tapu_ready = False
@@ -4716,6 +4745,23 @@ def agent(obs_dict: dict) -> list[int]:
         if pokemon.id == Chikorita and _physical_energy(energy_count) >= 1:
             return -1
 
+        # Regla (user, log 86607718 turno 2, vs Crustle, PERDIMOS): si empezamos
+        # el turno con un Chikorita en el ACTIVO y NINGUN Chikorita en la banca,
+        # la prioridad vs Crustle es RETIRARLO (para evolucionarlo a Meganium en
+        # la banca y subir un cuerpo util; Chikorita activo es un lastre de 1
+        # premio que no ataca al muro). Para poder retirar (coste 1) hace falta
+        # cargarle 1 Planta, asi que el adjunte de energia va al Chikorita ACTIVO
+        # (0 fisicas) POR ENCIMA de cargar atacantes de banca (p.ej. Tapu Bulu),
+        # siempre que exista un cuerpo en banca al que promover tras el retiro.
+        # Solo la 1a energia: la regla de "Chikorita max 1" de arriba sigue
+        # vigente. Va DESPUES del remate ganador (42000) para no bloquear un KO.
+        if (op_is_crustle_deck and active and pokemon.id == Chikorita
+                and _physical_energy(energy_count) == 0
+                and field_counts.get(Chikorita, 0) <= 1
+                and bench_count >= 1
+                and not state.energyAttached):
+            return 41500
+
         # Regla (user, log 85855786 paso 141, vs Alakazam, GANAMOS): si este
         # turno existe una jugada GANADORA / de 2 premios via Boss's Orders
         # (gustear al banco rival un objetivo que noqueamos para cobrar los
@@ -4759,19 +4805,32 @@ def agent(obs_dict: dict) -> list[int]:
             if _physical_energy(energy_count) >= _tapu_max_phys:
                 return -1
 
-        # Regla (user, vs Crustle): un Teal Mask Ogerpon ex no puede tener mas
-        # de 3 energias FISICAS cargadas (por adjunte manual o Teal Dance).
-        # Contra el muro Crustle (que inmuniza a nuestros ex) Ogerpon no puede
-        # atacar, asi que RESERVAMOS energia y no lo sobrecargamos. UNICA
-        # excepcion: cuando vamos a atacar y DERROTAR un Mega Kangaskhan ex con
-        # Hydrapple ex (op_kang_ko_target) -- ahi la energia extra en el tablero
-        # sube el dano de Syrup Storm, asi que si permitimos cargar mas.
+        # Regla (user, vs Crustle, log 86583376 paso 84): un Teal Mask Ogerpon
+        # ex no puede tener mas de DOS energias FISICAS cargadas (por adjunte
+        # manual o Ripening Charge). Contra el muro Crustle (que inmuniza a
+        # nuestros ex) Ogerpon no puede atacar al muro, asi que RESERVAMOS
+        # energia y no lo sobrecargamos. En BANCA el tope es DURO (max 2
+        # fisicas). UNICA excepcion para una 3a energia: cuando Ogerpon esta en
+        # el ACTIVO y esa energia HABILITA el KO del activo rival
+        # (_extra_energy_enables_ko) -- el activo rival no siempre es el muro
+        # inmune; puede ser un no-ex al que Ogerpon SI daña. Se conserva ademas
+        # el bypass op_kang_ko_target (KO de Mega Kangaskhan ex con Hydrapple
+        # ex, donde la energia extra en el tablero sube el dano de Syrup Storm).
         # len(energies) es EFECTIVA (Wild Growth de Meganium duplica cada
         # Planta) => se convierte a cartas FISICAS con _physical_energy.
         if (op_is_crustle_deck and pokemon.id == Teal_Mask_Ogerpon_ex
-                and not op_kang_ko_target
-                and _physical_energy(energy_count) >= 3):
-            return -1
+                and not op_kang_ko_target):
+            _crus_phys = _physical_energy(energy_count)
+            if not active:
+                if _crus_phys >= 2:
+                    return -1
+            else:
+                if _crus_phys >= 3:
+                    return -1
+                if (_crus_phys >= 2
+                        and not _extra_energy_enables_ko(
+                            Teal_Mask_Ogerpon_ex, energy_count)):
+                    return -1
 
         # Regla (user, vs Alakazam y vs Hop's): topes de energia para Teal Mask
         # Ogerpon ex (adjunte MANUAL o Ripening Charge). Base FISICA = 4 sin
@@ -6111,6 +6170,23 @@ def agent(obs_dict: dict) -> list[int]:
                         elif card.id == Applin:
                             score -= 70
 
+                        # Regla (user, log 86607718 turno 2, vs Crustle): al
+                        # PROMOVER (p.ej. tras retirar un Chikorita activo) cuando
+                        # NINGUN cuerpo puede atacar al muro este turno, subir un EX
+                        # tanque como muro desechable -- primer candidato Teal Mask
+                        # Ogerpon ex (210 HP) -- y RESERVAR a Tapu Bulu en la banca
+                        # (nuestro atacante clave que noquea a Crustle) para cargarlo
+                        # a salvo. Solo cuando NADIE ataca: si Tapu ya puede atacar,
+                        # su +80 vs Crustle sigue mandando. No aplica al reparto
+                        # Crustle + Mega Kangaskhan ex (_cm_use_ex).
+                        if (op_is_crustle_deck and not _cm_use_ex
+                                and not _can_attack_now
+                                and not _can_attack_with_attach):
+                            if card.id == Teal_Mask_Ogerpon_ex:
+                                score += 300
+                            elif card.id == Tapu_Bulu:
+                                score -= 300
+
                         _op_act_wsel = op_state.active[0] if op_state.active else None
                         if _op_act_wsel is not None and isinstance(card, Pokemon):
                             _op_act_wsel_data = card_table.get(_op_act_wsel.id)
@@ -7147,11 +7223,22 @@ def agent(obs_dict: dict) -> list[int]:
                             score = 300
 
                             _act_og_sel = my_state.active[0] if my_state.active else None
+                            # Ogerpon ACTIVO que aun no puede atacar (<3 efectivas)
+                            # pero que con UNA Planta via Teal Dance llegaria a >=3:
+                            # recuperar la Planta es prioritario. Teal Dance es una
+                            # HABILIDAD independiente del adjunte manual, por eso ya
+                            # NO se exige _active_needs_energy (que se apaga con
+                            # state.energyAttached); en su lugar se exige que la
+                            # Planta habilite realmente el ataque (len+unidad >= 3).
+                            # Cubre el pivote retirar->promover Ogerpon->Night
+                            # Stretcher->Teal Dance->atacar (user, log 86583929
+                            # turno 4 vs Alakazam). len(energies) es EFECTIVA (Wild
+                            # Growth de Meganium duplica cada Planta).
                             _act_og_can_teal_attack = (
                                 _act_og_sel is not None and
                                 _act_og_sel.id == Teal_Mask_Ogerpon_ex and
                                 len(_act_og_sel.energies) < 3 and
-                                _active_needs_energy and
+                                len(_act_og_sel.energies) + _grass_attach_unit() >= 3 and
                                 hand_counts[Basic_Grass_Energy] == 0)
                             # Hydrapple ex activo que aun no puede atacar (efectiva < 2)
                             # y sin Planta en mano: recuperar una ENERGIA para cargarlo
@@ -7471,7 +7558,21 @@ def agent(obs_dict: dict) -> list[int]:
                         # Si no se cumple ninguno, Meowth ex tiene prioridad para
                         # refrescar la mano, SIN importar lo que haya en la mano.
                         # -----------------------------------------------------
-                        _dp_lillie_played = discard_counts.get(Lillie_Determination, 0) >= 1
+                        # Fix (user, log 86585073 turno 4, vs Marnie, GANADA): que
+                        # ya se haya jugado una Lillie's Determination NO basta para
+                        # privilegiar a Dipplin/Hydrapple sobre Meowth ex en la
+                        # busqueda si AUN quedan Lillie's en el MAZO. Meowth ex (al
+                        # bajarlo, su habilidad Last-Ditch Catch busca un Supporter)
+                        # sigue siendo la mejor busqueda para refrescar la mano cuando
+                        # la linea Hydrapple no aporta ataque (Hydrapple ex es un ex
+                        # de 2 premios que aqui no puede atacar). Solo se privilegia a
+                        # Dipplin por "Lillie ya jugada" cuando el motor de Lillie's
+                        # esta AGOTADO (ninguna copia queda en el mazo); si aun hay
+                        # copias, Meowth ex conserva prioridad (_lillie_in_mazo, abajo).
+                        _dp_lillie_played = (
+                            discard_counts.get(Lillie_Determination, 0) >= 1
+                            and CARTAS_ACTIVAS_EN_MAZO.get(
+                                Lillie_Determination, {}).get(ESTADO_MAZO, 0) == 0)
 
                         _dp_applin_energy = 0
                         for _dp_bp in (my_state.bench or []):
@@ -8713,6 +8814,45 @@ def agent(obs_dict: dict) -> list[int]:
                                 and bench_count < 5):
 
                             score = 22500
+                        elif (_active_ready_attacker
+                                and field_counts[card.id] == 0
+                                and bench_count < 5
+                                and not state.supporterPlayed
+                                and hand_counts.get(Lillie_Determination, 0) == 0
+                                and CARTAS_ACTIVAS_EN_MAZO.get(
+                                    Lillie_Determination, {}).get(ESTADO_MAZO, 0) > 0
+                                and (len(my_state.hand) if my_state.hand else 0) <= 4
+                                and _ready_attacker_count <= 2
+                                and not (plan.attacker == 0
+                                         and plan.remain_hp is not None
+                                         and plan.remain_hp <= 0)
+                                and not watchtower_in_play
+                                and (not op_has_froslass
+                                     or _ready_attacker_count <= 1)):
+                            # Regla (user, logs 86592502 turno 9 vs Archaludon ex,
+                            # 86593647 turno 4 vs Mega Starmie ex y 86699707 paso 51
+                            # vs Marnie's Grimmsnarl ex, todas PERDIDAS):
+                            # EXCEPCION al veto de abajo. Aunque el activo YA pueda
+                            # atacar, si la MANO es DEBIL (<=4 cartas) y aun queda una
+                            # Lillie's Determination en el MAZO, bajar Meowth ex para
+                            # que su habilidad Last-Ditch Catch traiga Lillie's y
+                            # jugarla (baraja la mano y roba 6) da MUCHAS mas opciones
+                            # de juego y ataque que jugar un cuerpo REDUNDANTE (2o
+                            # Teal Mask Ogerpon ex, 21000) o lanzar un ataque DEBIL no
+                            # letal (Dipplin ~1100) vs un muro de 330 HP. Se exige que
+                            # haya un atacante listo pero POCOS (<=2: si ya hay muchos
+                            # listos no hace falta refrescar), que el ataque del activo
+                            # NO sea letal (si noquea, se ataca y se cobra el premio),
+                            # que no se haya jugado Supporter y que no este anulada su
+                            # habilidad (Watchtower siempre veta). Froslass tambien
+                            # veta EXCEPTO cuando nuestro UNICO atacante listo es el
+                            # propio activo (_ready_attacker_count <= 1) y su ataque
+                            # NO es letal: ahi no hay presion real (un chip vs el muro)
+                            # y cavar por Lillie's vale mas que el riesgo de banquear
+                            # Meowth ex ante Froslass (caso 86699707: activo Dipplin
+                            # chip vs Grimmsnarl ex 320 HP). Supera al cuerpo
+                            # redundante (21500 > 21000) para que Meowth ex gane.
+                            score = 21500
                         elif (_active_ready_attacker
                                 and field_counts[card.id] == 0):
                             # Regla (user, log 86511741 paso 57, vs Mega Abomasnow
@@ -11297,16 +11437,19 @@ def agent(obs_dict: dict) -> list[int]:
                         # Debe GANAR al adjunte manual a Dipplin (~31000).
                         score = 31600
                     elif (op_is_crustle_deck and not op_kang_ko_target
-                            and _physical_energy(_ogerpon_energy) >= 3):
-                        # Regla (user, vs Crustle): un Teal Mask Ogerpon ex no
-                        # puede tener mas de 3 energias FISICAS cargadas (por
-                        # adjunte manual o Teal Dance). Contra el muro Crustle
-                        # (que inmuniza a nuestros ex) Ogerpon no ataca, asi que
-                        # reservamos energia. UNICA excepcion: cuando vamos a
-                        # atacar y DERROTAR un Mega Kangaskhan ex con Hydrapple
-                        # ex (op_kang_ko_target), donde la energia extra en el
-                        # tablero sube el dano de Syrup Storm. len(energies) es
-                        # EFECTIVA (Wild Growth duplica) => se pasa a fisicas.
+                            and _physical_energy(_ogerpon_energy) >= 2):
+                        # Regla (user, vs Crustle, log 86583376 paso 84): un Teal
+                        # Mask Ogerpon ex no puede tener mas de DOS energias
+                        # FISICAS cargadas via Teal Dance. Contra el muro Crustle
+                        # (que inmuniza a nuestros ex) Ogerpon no ataca al muro,
+                        # asi que reservamos energia y no lo sobrecargamos. La
+                        # UNICA excepcion (Ogerpon ACTIVO cuya 3a energia habilita
+                        # el KO del activo rival) ya se resolvio arriba con
+                        # _td_ko_on_active (31500). Se conserva ademas el bypass
+                        # op_kang_ko_target (KO de Mega Kangaskhan ex con Hydrapple
+                        # ex, donde la energia extra sube el dano de Syrup Storm).
+                        # len(energies) es EFECTIVA (Wild Growth duplica) => se
+                        # pasa a cartas fisicas con _physical_energy.
                         score = -1
                     elif _crustle_atk_needs_grass:
 
@@ -11705,6 +11848,55 @@ def agent(obs_dict: dict) -> list[int]:
                         _hydra_lethal_promote = True
                         break
 
+            # Regla (user, log 86583929 turno 4, vs Alakazam, PERDIDA): pivote de
+            # KO con Teal Mask Ogerpon ex. Si el activo esta ESTANCADO (no puede
+            # noquear este turno, p.ej. un Fezandipiti ex sin las 3 energias de su
+            # ataque) y en la banca hay un Teal Mask Ogerpon ex que, al PROMOVERLO
+            # y usar Teal Dance, alcanza >=3 energias EFECTIVAS y su Myriad Leaf
+            # Shower NOQUEA al activo rival, retirar el activo para subir al Ogerpon
+            # y rematar. La Planta que necesita Teal Dance se obtiene de la mano o,
+            # con Night Stretcher, recuperando una Planta del descarte -- incluida
+            # la que el propio coste de retirada acaba de descartar del activo. El
+            # scorer greedy evaluaba a los Ogerpon de banca a su energia ACTUAL
+            # (via _grd_damage/_bench_attacker_can_ko, que exigen >=3 efectivas) y
+            # nunca modelaba la rampa de Teal Dance tras promover, por eso no "veia"
+            # esta linea. Solo si el rival NO inmuniza a nuestros ex (Ogerpon no
+            # daña a Crustle/Sylveon). len(energies) es EFECTIVA (Wild Growth de
+            # Meganium duplica cada Planta): sin Meganium un Ogerpon a 1 Planta
+            # llega a 2 tras Teal Dance (<3) y el detector no dispara.
+            _ogerpon_lethal_promote = False
+            if (_active_reloc is not None and can_switch
+                    and not _active_can_ko_now
+                    and _active_reloc.id != Teal_Mask_Ogerpon_ex
+                    and not op_has_ex_immune_active
+                    and op_state.active and op_state.active[0] is not None):
+                _olp_opa = op_state.active[0]
+                _olp_opa_hp = _olp_opa.hp or 0
+                _olp_op_e = len(_olp_opa.energies)
+                # Planta disponible para Teal Dance: en mano, o recuperable con
+                # Night Stretcher desde el descarte (o desde la energia que la
+                # retirada acaba de descartar del activo, que en nuestro mazo es
+                # Planta).
+                _olp_grass_ok = (
+                    hand_counts.get(Basic_Grass_Energy, 0) >= 1
+                    or (hand_counts.get(Night_Stretcher, 0) >= 1
+                        and (discard_counts.get(Basic_Grass_Energy, 0) >= 1
+                             or _physical_energy(len(_active_reloc.energies)) >= 1)))
+                if _olp_grass_ok:
+                    for _olp_bp in (my_state.bench or []):
+                        if _olp_bp is None or _olp_bp.id != Teal_Mask_Ogerpon_ex:
+                            continue
+                        _olp_eff_after = len(_olp_bp.energies) + _grass_attach_unit()
+                        if _olp_eff_after < 3:
+                            continue
+                        _olp_dmg = _our_effective_damage(
+                            _olp_bp, _olp_opa,
+                            30 + 30 * (_olp_eff_after + _olp_op_e),
+                            meganium_in_play, neutralization_zone_active)
+                        if _olp_dmg > 0 and _olp_opa_hp > 0 and _olp_dmg >= _olp_opa_hp:
+                            _ogerpon_lethal_promote = True
+                            break
+
             # Regla (user): un Tapu Bulu CARGADO en el activo que puede noquear
             # al Pokemon activo rival NO debe retirarse; debe atacar. Al no ser
             # ex, si lo noquean solo entrega 1 premio, asi que conviene rematar
@@ -11749,6 +11941,16 @@ def agent(obs_dict: dict) -> list[int]:
                 # Retirar el activo para promover al Hydrapple ex de banca cuyo
                 # Syrup Storm es LETAL y rematar. Maxima prioridad de retiro.
                 score = 9000
+            elif _ogerpon_lethal_promote:
+                # Retirar el activo estancado para promover un Teal Mask Ogerpon
+                # ex de banca y rematar con Myriad Leaf Shower tras Teal Dance
+                # (user, log 86583929 turno 4 vs Alakazam). Prioridad de retiro
+                # equiparada a la del pivote de Hydrapple: cobrar el premio AHORA.
+                # Las acciones posteriores (Night Stretcher para recuperar la
+                # Planta, Teal Dance sobre el nuevo activo y el ataque) ya las
+                # habilitan sus scorers (_td_ko_on_active da 31500 al Teal Dance
+                # que habilita el KO, y el scorer de ATTACK remata si es letal).
+                score = 8900
             elif (_op_active_is_cubchoo and can_switch
                     and not _cub_bench_attacker_ready):
                 # Matchup vs Cubchoo: su ataque deja a nuestro activo sin poder
@@ -12166,7 +12368,22 @@ def agent(obs_dict: dict) -> list[int]:
 
                     if active.id in (Chikorita, Bayleef, Meganium):
 
-                        if _has_bench_attacker and _bench_attacker_ready:
+                        # Regla (user, log 86607718 turno 2, vs Crustle, PERDIMOS):
+                        # vs Crustle, si el ACTIVO es un Chikorita y NO hay ningun
+                        # Chikorita en la banca, la prioridad es RETIRARLO (para
+                        # evolucionarlo a Meganium en banca y subir un cuerpo util),
+                        # AUNQUE en la banca no haya todavia un atacante LISTO (el
+                        # veto de "atacante de banca sin energia" de abajo lo
+                        # bloqueaba). Chikorita activo es un lastre que no daña al
+                        # muro. Requiere poder retirar (can_switch: ya cargamos 1
+                        # Planta al Chikorita, ver energy_score) y tener un cuerpo en
+                        # banca al que promover. La promocion prefiere un atacante y,
+                        # si no hay, un ex (Ogerpon ex primero, ver _best_promote).
+                        if (op_is_crustle_deck and active.id == Chikorita
+                                and field_counts.get(Chikorita, 0) <= 1
+                                and bench_count >= 1):
+                            score = 6500
+                        elif _has_bench_attacker and _bench_attacker_ready:
                             score = 6000
                         elif _fragile_doomed_pivot:
                             # Activo fragil condenado: retirar para subir un cuerpo
