@@ -1,0 +1,73 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+
+# --- Entornos virtuales ---
+.venv/
+venv/
+env/
+ENV/
+
+# --- Testing / cobertura ---
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+.mypy_cache/
+.ruff_cache/
+
+# --- Datos de partidas y salida generada (se ignora el CONTENIDO) ---
+# log/: logs de partida (dato local). registros/: salida de split_turns.py.
+# Se conservan las carpetas via .gitkeep; se ignora todo lo demas dentro.
+/log/*
+!/log/.gitkeep
+/registros/*
+!/registros/.gitkeep
+
+# --- Archivos del sistema operativo ---
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+desktop.ini
+
+# --- Editores / IDE ---
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# --- Temporales ---
+*.log
+*.tmp
+
+# --- Empaquetado / build de Python ---
+build/
+dist/
+*.egg-info/
+.eggs/
+*.egg
+
+# --- Jupyter ---
+.ipynb_checkpoints/
+
+# --- Entorno / secretos ---
+.env
+.env.*
+*.local
+
+# --- macOS extra ---
+.AppleDouble
+.LSOverride
+.Spotlight-V100
+.Trashes
+.fseventsd
+
+# --- NO ignorar (nota para mantenimiento) ---
+# Las librerias nativas del simulador (cg/*.dll, cg/*.so, cg/*.dylib) y los
+# datos de referencia (deck.csv, dataset/EN_Card_Data.csv, tests/fixtures/*.json)
+# SI se versionan: son necesarios para ejecutar el agente y las pruebas.
+# No agregar patrones *.so/*.dll/*.dylib/*.csv que los excluirian.
