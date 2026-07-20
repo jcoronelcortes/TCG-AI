@@ -644,3 +644,495 @@ def test_marnie_step51_meowth_priority_holds_without_froslass():
 
     result = m.agent(obs)
     assert result == [meowth_opt]
+
+
+# Registro 006 (paso 51) vs Alakazam: nuestro turno con la mano [Bayleef,
+# Boss's Orders, Night Stretcher, Lana's Aid], Hydrapple ex activo que aun no
+# puede atacar (1 energia), Ogerpon ex recien bajado a la banca y Meowth ex en
+# el DESCARTE. El agente terminaba el turno sin jugar entrenador ni atacar. Lo
+# correcto es jugar Night Stretcher para recuperar Meowth ex y encadenar
+# Meowth ex (Last-Ditch Catch) -> Lillie's Determination -> refrescar la mano.
+# Ademas, Lana's Aid NO puede recuperar Meowth ex (tiene Regla/Rule Box), asi
+# que no debe inflar el valor de la mano ni bloquear la linea.
+_STEP51_NS_FIXTURE = ROOT / "tests" / "fixtures" / "alakazam_ns_meowth_step51.json"
+
+
+def _load_ns_step51_obs():
+    with open(_STEP51_NS_FIXTURE, encoding="utf-8") as f:
+        return json.load(f)["observation"]
+
+
+def test_alakazam_step51_plays_night_stretcher_for_meowth():
+    obs = _load_ns_step51_obs()
+
+    play_map = _resolve_play_options(obs)
+    # El fixture debe ofrecer Night Stretcher como jugada.
+    assert m.Night_Stretcher in play_map.values()
+    ns_opt = next(i for i, cid in play_map.items() if cid == m.Night_Stretcher)
+
+    # La opcion de terminar el turno (type 14) es la ultima del select.
+    options = obs["select"]["option"]
+    pass_opt = next(i for i, o in enumerate(options)
+                    if o.get("type") == int(OptionType.END))
+
+    result = m.agent(obs)
+
+    assert result == [ns_opt], (
+        f"esperaba jugar Night Stretcher (opt {ns_opt}) para recuperar Meowth ex, "
+        f"obtuvo {result} (map={play_map})"
+    )
+    assert result != [pass_opt], "no debe terminar el turno sin desarrollar"
+
+
+# Registro 003 (paso 36) vs Archaludon ex (GANADA): en NUESTRO turno 3, tras
+# jugar Poke Pad y evolucionar Applin -> Dipplin, el activo Ogerpon ex esta
+# danado con 1 energia (no puede atacar) y la mano queda [Lillie's, Unfair
+# Stamp, Hydrapple ex, Meganium, Night Stretcher]. NO podemos evolucionar
+# Dipplin -> Hydrapple ex este turno (Dipplin acaba de aparecer, sin Forest) ni
+# atacar: el turno seria MUERTO. El agente terminaba el turno conservando la
+# linea de evolucion en vez de jugar Lillie's Determination. Lo correcto es
+# refrescar con Lillie's (roba 6, u 8 con 6 premios) para ver mas opciones.
+# El snapshot `_field_at_turn_start` (Applin en juego al inicio del turno, no
+# Dipplin) es clave, por eso se reproduce la SECUENCIA del turno, no una sola
+# observacion.
+_TURN3_SEQ_FIXTURE = ROOT / "tests" / "fixtures" / "archaludon_lillie_turn3_seq.json"
+
+
+def test_archaludon_step36_plays_lillie_not_end_on_dead_turn():
+    with open(_TURN3_SEQ_FIXTURE, encoding="utf-8") as f:
+        seq = json.load(f)["sequence"]
+
+    # Reproducir la secuencia del turno para fijar `_field_at_turn_start`.
+    final_obs = None
+    result = None
+    for item in seq:
+        obs = item["observation"]
+        result = m.agent(obs)
+        final_obs = obs
+
+    # Ultima decision (tac=4): debe jugar Lillie's Determination (opt 0), no END.
+    play_map = _resolve_play_options(final_obs)
+    assert m.Lillie_Determination in play_map.values()
+    lillie_opt = next(i for i, cid in play_map.items()
+                      if cid == m.Lillie_Determination)
+    options = final_obs["select"]["option"]
+    end_opt = next(i for i, o in enumerate(options)
+                   if o.get("type") == int(OptionType.END))
+
+    assert result == [lillie_opt], (
+        f"esperaba jugar Lillie's Determination (opt {lillie_opt}) para refrescar, "
+        f"obtuvo {result} (map={play_map})"
+    )
+    assert result != [end_opt], "no debe terminar un turno muerto sin refrescar"
+
+
+# Registro 004 (paso ~62) vs Iono (PERDIDA): en la busqueda de Ultra Ball, con
+# un Dipplin en juego evolucionable a Hydrapple ex ESTE turno (Forest en juego)
+# pero SIN energia para que Hydrapple ex ataque (Syrup Storm necesita 2; ya
+# adjuntamos energia este turno y el Dipplin tiene 0), traer Hydrapple ex lo deja
+# MUERTO. Como el motor Meowth ex -> Last-Ditch Catch -> Lillie's Determination
+# esta disponible (Meowth ex y Lillie's en el mazo, sin Supporter jugado, banca
+# con hueco), lo correcto es traer Meowth ex para refrescar la mano, no Hydrapple
+# ex. Buscar Hydrapple ex solo es correcto si PUEDE atacar este turno.
+_UB_MEOWTH_FIXTURE = ROOT / "tests" / "fixtures" / "iono_ub_meowth_not_hydra_step62.json"
+
+
+def _resolve_search_options(obs_dict):
+    """{posicion_en_option: card_id} para opciones de busqueda en el mazo."""
+    deck = obs_dict["select"].get("deck") or []
+    mapping = {}
+    for i, opt in enumerate(obs_dict["select"]["option"]):
+        if opt.get("type") == int(OptionType.CARD) and opt.get("area") == int(AreaType.DECK):
+            di = opt.get("index")
+            if di is not None and di < len(deck):
+                mapping[i] = deck[di]["id"]
+    return mapping
+
+
+def test_iono_ultraball_fetches_meowth_not_dead_hydrapple():
+    with open(_UB_MEOWTH_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+
+    search_map = _resolve_search_options(obs)
+    # El fixture debe ofrecer ambos como objetivos de busqueda.
+    assert m.Meowth_ex in search_map.values()
+    assert m.Hydrapple_ex in search_map.values()
+    meowth_opt = next(i for i, cid in search_map.items() if cid == m.Meowth_ex)
+    hydra_opt = next(i for i, cid in search_map.items() if cid == m.Hydrapple_ex)
+
+    result = m.agent(obs)
+
+    assert result == [meowth_opt], (
+        f"esperaba buscar Meowth ex (opt {meowth_opt}) para refrescar, obtuvo "
+        f"{result} (map={search_map})"
+    )
+    assert result != [hydra_opt], "no debe buscar un Hydrapple ex que no ataca este turno"
+
+
+# Registro 006 (paso 57) vs Alakazam (GANADA): en NUESTRO turno 6 ya tenemos un
+# atacante LISTO en el activo (Ogerpon ex cargado), otro en la banca y mas
+# atacantes cargables con la energia de la mano. Una Ultra Ball previa dejo
+# `_ub_meowth_pending`, que forzaba bajar Meowth ex para encadenar Lillie's; pero
+# Meowth ex es un cuerpo de 2 premios y aqui NO aporta ataque (ademas el Supporter
+# ya se jugo este turno, la Lillie's buscada ni se podria jugar). Con el activo ya
+# listo para atacar, NO se debe bajar Meowth ex: se ataca.
+_NO_MEOWTH_SEQ_FIXTURE = ROOT / "tests" / "fixtures" / "alakazam_no_redundant_meowth_turn6.json"
+
+
+def test_alakazam_step57_no_redundant_meowth_when_attacker_ready():
+    with open(_NO_MEOWTH_SEQ_FIXTURE, encoding="utf-8") as f:
+        seq = json.load(f)["sequence"]
+
+    # Reproducir la secuencia del turno (fija `_ub_meowth_pending` y el snapshot).
+    target = None
+    result = None
+    for item in seq:
+        obs = item["observation"]
+        result = m.agent(obs)
+        if item.get("tac") == 11 and item.get("status") == "ACTIVE":
+            target = obs
+            break
+
+    assert target is not None, "no se encontro la decision del paso 57 (tac=11)"
+    play_map = _resolve_play_options(target)
+    meowth_opts = [i for i, cid in play_map.items() if cid == m.Meowth_ex]
+    assert meowth_opts, "el fixture debe ofrecer jugar Meowth ex"
+    options = target["select"]["option"]
+    attack_opt = next(i for i, o in enumerate(options)
+                      if o.get("type") == int(OptionType.ATTACK))
+
+    # No debe bajar Meowth ex (cuerpo redundante); con un atacante listo, ataca.
+    assert result[0] not in meowth_opts, (
+        f"no debe jugar Meowth ex con un atacante ya listo; obtuvo {result} "
+        f"(meowth_opts={meowth_opts})"
+    )
+    assert result == [attack_opt], (
+        f"esperaba atacar (opt {attack_opt}) en vez de bajar Meowth ex, obtuvo {result}"
+    )
+
+
+# Registro 004 (paso 53) vs Archaludon ex (GANADA): con Fezandipiti ex activo,
+# Dawn (Supporter) en mano y el Supporter aun sin jugar, el agente decidia
+# RETIRAR a Fezandipiti ex (para promover un atacante) ANTES de jugar Dawn. Es
+# un error de secuencia: SIEMPRE se juega el Supporter antes de retirar (Dawn
+# busca la linea Applin -> Dipplin -> Hydrapple ex que se evoluciona con Forest
+# este mismo turno; recien despues conviene retirar y promover). El retiro no lo
+# bloquea jugar el Supporter, asi que debe posponerse.
+_DAWN_BEFORE_RETREAT_FIXTURE = ROOT / "tests" / "fixtures" / "archaludon_dawn_before_retreat_step53.json"
+
+
+def test_archaludon_step53_plays_dawn_before_retreat():
+    with open(_DAWN_BEFORE_RETREAT_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+
+    play_map = _resolve_play_options(obs)
+    assert m.Dawn in play_map.values(), "el fixture debe ofrecer jugar Dawn"
+    dawn_opt = next(i for i, cid in play_map.items() if cid == m.Dawn)
+    options = obs["select"]["option"]
+    retreat_opt = next(i for i, o in enumerate(options)
+                       if o.get("type") == int(OptionType.RETREAT))
+
+    result = m.agent(obs)
+
+    assert result == [dawn_opt], (
+        f"esperaba jugar Dawn (opt {dawn_opt}) ANTES de retirar, obtuvo {result} "
+        f"(map={play_map})"
+    )
+    assert result != [retreat_opt], "no debe retirar antes de jugar el Supporter"
+
+
+# Registro 010 (paso 64) vs Alakazam (GANADA): con Ogerpon ex activo (6 energias,
+# puede atacar), Boss's Orders + Ultra Ball en la mano, el activo rival es un
+# Dunsparce (FUERA de la linea Alakazam) y en la banca rival hay un Abra (741,
+# pre-evo de la linea). El agente jugaba Ultra Ball -> descartaba el Boss's como
+# coste y atacaba al Dunsparce. Es un error: la prioridad vs Alakazam es gustear
+# con Boss's la pre-evo de banca (Kadabra > Abra > Alakazam) y noquearla para
+# cortar el desarrollo del atacante Psiquico. Debe jugar Boss's ANTES que Ultra
+# Ball (que ademas quemaria el propio Boss's).
+_BOSS_BEFORE_UB_FIXTURE = ROOT / "tests" / "fixtures" / "alakazam_boss_before_ub_step64.json"
+
+
+def test_alakazam_step64_plays_boss_to_gust_abra_not_ultraball():
+    with open(_BOSS_BEFORE_UB_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+
+    play_map = _resolve_play_options(obs)
+    assert m.Boss_Orders in play_map.values(), "el fixture debe ofrecer jugar Boss's Orders"
+    assert m.Ultra_Ball in play_map.values(), "el fixture debe ofrecer jugar Ultra Ball"
+    boss_opt = next(i for i, cid in play_map.items() if cid == m.Boss_Orders)
+    ub_opt = next(i for i, cid in play_map.items() if cid == m.Ultra_Ball)
+
+    result = m.agent(obs)
+
+    assert result == [boss_opt], (
+        f"esperaba jugar Boss's Orders (opt {boss_opt}) para gustear el Abra, "
+        f"obtuvo {result} (map={play_map})"
+    )
+    assert result != [ub_opt], (
+        "no debe jugar Ultra Ball (quema el Boss's necesario para cortar la linea Alakazam)"
+    )
+
+
+# --- Refactor Prioridad 1: scorer puro `_score_boss_orders_play` -------------
+# Al extraer la rama de Boss's a una funcion pura que lee un DecisionContext, el
+# scoring se puede probar en AISLAMIENTO, sin fabricar una observacion completa.
+def _make_boss_ctx(**overrides):
+    base = dict(
+        state=SimpleNamespace(supporterPlayed=False, turn=6, energyAttached=False),
+        my_state=SimpleNamespace(discard=[], active=[None], bench=[], hand=[]),
+        op_state=SimpleNamespace(active=[None], bench=[]),
+        hand_counts={m.Boss_Orders: 1},
+        field_counts={},
+        supp_values={m.Boss_Orders: 700},
+        cartas_en_mazo={},
+        field_at_turn_start={},
+        bench_count=0,
+        my_hand_len=5,
+        my_prize=6,
+        op_prize=6,
+        meganium_in_play=False,
+        forest_in_play=False,
+        itchy_pollen_active=False,
+        has_hydrapple=False,
+        watchtower_in_play=False,
+        neutralization_zone_active=False,
+        mega_line_active=False,
+        active_needs_energy=False,
+        evolve_possible_in_play=False,
+        energy_starved_low_draw=False,
+        pp_playable_in_hand=False,
+        can_attack=False,
+        best_supp_in_hand_val=0,
+        best_supp_in_mazo_val=0,
+        op_is_alakazam_deck=False,
+        op_active_is_dunsparce=False,
+        op_has_ability_immune_active=False,
+        op_has_ex_immune_active=False,
+        op_has_ex_immune_bench=False,
+        op_is_control_deck=False,
+        op_is_slowking_deck=False,
+        op_is_gardevoir_deck=False,
+        op_is_zoroark_deck=False,
+        op_is_aggro_deck=False,
+        op_is_beedrill_deck=False,
+        op_is_crustle_deck=False,
+        op_is_cornerstone_deck=False,
+        op_is_fire_deck=False,
+        op_is_mirror=False,
+        op_kang_ko_target=False,
+        stadium_id=0,
+        ko_last_turn=False,
+        our_first_turn=False,
+        active_cant_attack=False,
+        bdg_retreat_ko=False,
+        supporter_boost=0,
+        we_go_first=False,
+        budew_op_index=-1,
+        budew_on_op_field=False,
+        lucario_sac_pivot=False,
+        win_via_boss_gust=False,
+        gust_2prize_via_boss=False,
+        boss_win_via_bench=False,
+        boss_dodge_redirect=False,
+        boss_defensive_gust=False,
+        boss_deny_alakazam_line=False,
+        boss_low_value_gust=False,
+        boss_prize_rank=0,
+    )
+    base.update(overrides)
+    # `hand_counts`/`field_counts` en produccion son defaultdict(int); los scorers
+    # usan acceso por corchete (p.ej. hand_counts[Basic_Grass_Energy],
+    # field_counts[Chikorita]). Coercionamos para que el contexto de prueba se
+    # comporte igual.
+    from collections import defaultdict
+    base["hand_counts"] = defaultdict(int, base["hand_counts"])
+    base["field_counts"] = defaultdict(int, base["field_counts"])
+    return m.DecisionContext(**base)
+
+
+def test_score_boss_orders_vetoed_when_supporter_already_played():
+    ctx = _make_boss_ctx(state=SimpleNamespace(supporterPlayed=True))
+    assert m._score_boss_orders_play(ctx) == -1
+
+
+def test_score_boss_orders_deny_alakazam_line_beats_default():
+    # El corte de linea Alakazam puntua en BOSS_SCORE_PRIZE_RANK_BASE, por encima
+    # del gusteo por defecto (2400 + val*1.4), replicando el registro 010.
+    deny = m._score_boss_orders_play(_make_boss_ctx(boss_deny_alakazam_line=True))
+    default = m._score_boss_orders_play(_make_boss_ctx())
+    assert deny == m.BOSS_SCORE_PRIZE_RANK_BASE
+    assert deny > default
+
+
+def test_score_boss_orders_win_via_bench_has_priority_over_deny():
+    # Una gustada letal a la banca (win_via_bench) mantiene su prioridad por
+    # encima del corte de linea (el orden del if/elif se conserva tras extraer).
+    ctx = _make_boss_ctx(boss_win_via_bench=True, boss_deny_alakazam_line=True)
+    assert m._score_boss_orders_play(ctx) == m.BOSS_SCORE_WIN_VIA_BENCH
+
+
+def test_score_unfair_stamp_dead_hand_scores_highest():
+    # Mano SIN uso alternativo (nada jugable): Unfair Stamp vale su maximo (7500).
+    ctx = _make_boss_ctx(hand_counts={m.Unfair_Stamp: 1})
+    assert m._score_unfair_stamp_play(ctx) == 7500
+
+
+def test_score_unfair_stamp_lower_when_hand_has_a_play():
+    # Con un item jugable en mano (Night Stretcher) el refresco vale menos (2500):
+    # conviene usar la mano antes de barajarla.
+    ctx = _make_boss_ctx(hand_counts={m.Unfair_Stamp: 1, m.Night_Stretcher: 1})
+    assert m._score_unfair_stamp_play(ctx) == 2500
+
+
+def _mazo(*ids):
+    """Deck-belief minimo: {id: {ESTADO_MAZO: 1}} para los ids dados."""
+    return {cid: {m.ESTADO_MAZO: 1} for cid in ids}
+
+
+def test_score_poke_pad_vetoed_when_nothing_searchable():
+    # Sin ningun Pokemon no-ex en el mazo, Poke Pad no busca nada.
+    ctx = _make_boss_ctx(state=SimpleNamespace(turn=6, energyAttached=False),
+                         cartas_en_mazo={})
+    assert m._score_poke_pad_play(ctx) == -1
+
+
+def test_score_poke_pad_enables_evolution_this_turn_scores_high():
+    # Bayleef en juego (desde inicio de turno) + Meganium en el mazo y no en mano:
+    # buscar Meganium habilita la evolucion ESTE turno -> score alto (>=22000).
+    ctx = _make_boss_ctx(
+        state=SimpleNamespace(turn=6, energyAttached=False),
+        cartas_en_mazo=_mazo(m.Meganium),
+        field_counts={m.Bayleef: 1},
+        field_at_turn_start={m.Bayleef: 1},
+        bench_count=2,
+    )
+    assert m._score_poke_pad_play(ctx) >= 22000
+
+
+def test_score_poke_pad_saves_resource_on_full_bench():
+    # Banca llena y sin pre-evo que evolucionar con una busqueda: se guarda (-1).
+    ctx = _make_boss_ctx(
+        state=SimpleNamespace(turn=6, energyAttached=False),
+        cartas_en_mazo=_mazo(m.Chikorita),
+        field_counts={},
+        bench_count=5,
+    )
+    assert m._score_poke_pad_play(ctx) == -1
+
+
+def test_score_night_stretcher_vetoed_when_discard_empty():
+    # Descarte vacio: no hay nada que recuperar.
+    ctx = _make_boss_ctx(
+        state=SimpleNamespace(turn=6, energyAttached=False, supporterPlayed=False),
+        my_state=SimpleNamespace(discard=[], active=[None], bench=[], hand=[]),
+    )
+    assert m._score_night_stretcher_play(ctx) == -1
+
+
+def test_score_night_stretcher_recovers_meowth_for_refresh_engine():
+    # Meowth ex en el descarte + motor de refresco viable (Supporter fuerte en el
+    # mazo, ninguno en mano, Supporter no jugado): se recupera. Registro 006 p51.
+    ctx = _make_boss_ctx(
+        state=SimpleNamespace(turn=6, energyAttached=False, supporterPlayed=False),
+        my_state=SimpleNamespace(
+            discard=[SimpleNamespace(id=m.Meowth_ex)], active=[None], bench=[], hand=[]),
+        bench_count=1,
+        best_supp_in_hand_val=0,
+        best_supp_in_mazo_val=700,
+    )
+    # best_recovery_value=830 -> tier 800..899 -> ns_score 11000.
+    assert m._score_night_stretcher_play(ctx) == 11000
+
+
+def test_score_forest_vetoed_when_forest_already_in_play():
+    # Si Forest of Vitality ya es el estadio en juego, no se vuelve a jugar.
+    ctx = _make_boss_ctx(
+        state=SimpleNamespace(turn=6, energyAttached=False),
+        stadium_id=m.Forest_of_Vitality,
+    )
+    assert m._score_forest_of_vitality_play(ctx) == -1
+
+
+def test_score_forest_high_when_enables_evolution_chain():
+    # Chikorita en juego + Bayleef en mano y sin Meganium: Forest habilita la
+    # cadena de evolucion este turno -> score alto (>=21900).
+    ctx = _make_boss_ctx(
+        state=SimpleNamespace(turn=6, energyAttached=False),
+        field_counts={m.Chikorita: 1},
+        hand_counts={m.Bayleef: 1},
+        stadium_id=0,
+    )
+    assert m._score_forest_of_vitality_play(ctx) >= 21900
+
+
+def test_score_bug_catching_set_vetoed_when_nothing_eligible():
+    # Mazo sin Pokemon Planta ni Energia elegible: no hay nada que coger.
+    ctx = _make_boss_ctx(
+        state=SimpleNamespace(turn=6, energyAttached=False),
+        cartas_en_mazo={},
+    )
+    assert m._score_bug_catching_set_play(ctx) == -1
+
+
+def test_score_bug_catching_set_positive_when_grass_energy_in_deck():
+    # Con Energia Planta en el mazo (elegible), la jugada tiene valor positivo.
+    ctx = _make_boss_ctx(
+        state=SimpleNamespace(turn=6, energyAttached=False),
+        cartas_en_mazo={m.Basic_Grass_Energy: {m.ESTADO_MAZO: 5}},
+    )
+    assert m._score_bug_catching_set_play(ctx) > 0
+
+
+def test_score_ultra_ball_vetoed_with_tiny_hand():
+    # Mano de <3 cartas: jugar Ultra Ball (coste de descartar 2) vaciaria la mano.
+    # Ruta fria del corte temprano `hand_size < 3` (turno medio, sin supervivencia).
+    ctx = _make_boss_ctx(
+        state=SimpleNamespace(turn=6, energyAttached=False, supporterPlayed=False),
+        my_state=SimpleNamespace(
+            discard=[], active=[None], bench=[],
+            hand=[SimpleNamespace(id=m.Ultra_Ball), SimpleNamespace(id=m.Boss_Orders)]),
+        bench_count=1,
+    )
+    assert m._score_ultra_ball_play(ctx) == -1
+
+
+def test_ub_cancel_stamp_false_without_unfair_stamp():
+    # Sin Unfair Stamp en mano, esta guarda nunca cancela.
+    ctx = _make_boss_ctx(hand_counts={m.Ultra_Ball: 1, m.Basic_Grass_Energy: 3})
+    assert m._ub_cancel_stamp(ctx) is False
+
+
+def test_ub_cancel_stamp_true_when_stamp_would_be_forced_fodder():
+    # Mano {Unfair Stamp, Ultra Ball}: sin fodder (0 descartables sin tocar el
+    # Stamp), jugar UB descartaria el Stamp -> se cancela.
+    ctx = _make_boss_ctx(hand_counts={m.Unfair_Stamp: 1, m.Ultra_Ball: 1})
+    assert m._ub_cancel_stamp(ctx) is True
+
+
+def test_ub_cancel_meowth_false_when_no_meowth_engine():
+    # Sin Meowth ex en mano (o sin Lillie's en mazo), la guarda de Meowth no aplica.
+    ctx = _make_boss_ctx(
+        state=SimpleNamespace(turn=6, energyAttached=False, supporterPlayed=False),
+        hand_counts={m.Ultra_Ball: 1},
+        cartas_en_mazo={},
+    )
+    assert m._ub_cancel_meowth(ctx) is False
+
+
+def test_score_lillie_vetoed_when_supporter_already_played():
+    # Ya se jugo el Supporter del turno: no se puede jugar otro.
+    ctx = _make_boss_ctx(
+        state=SimpleNamespace(turn=6, supporterPlayed=True),
+        my_state=SimpleNamespace(active=[None], bench=[], hand=[]),
+        hand_counts={m.Lillie_Determination: 1},
+    )
+    assert m._score_lillie_determination_play(ctx) == -1
+
+
+def test_score_lanas_aid_vetoed_when_supporter_already_played():
+    # Recibe el score entrante (10000) pero lo veta si ya se jugo el Supporter.
+    ctx = _make_boss_ctx(
+        state=SimpleNamespace(turn=6, supporterPlayed=True, energyAttached=False),
+        my_state=SimpleNamespace(active=[None], bench=[], hand=[], discard=[]),
+    )
+    assert m._score_lanas_aid_play(ctx, 10000) == -1
