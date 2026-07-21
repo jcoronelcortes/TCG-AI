@@ -890,6 +890,7 @@ def _make_boss_ctx(**overrides):
         my_hand_len=5,
         my_prize=6,
         op_prize=6,
+        op_hand_count=6,
         meganium_in_play=False,
         forest_in_play=False,
         itchy_pollen_active=False,
@@ -905,6 +906,8 @@ def _make_boss_ctx(**overrides):
         best_supp_in_hand_val=0,
         best_supp_in_mazo_val=0,
         op_is_alakazam_deck=False,
+        op_is_hop_deck=False,
+        op_is_comfey_deck=False,
         op_active_is_dunsparce=False,
         op_has_ability_immune_active=False,
         op_has_ex_immune_active=False,
@@ -1129,6 +1132,97 @@ def test_score_lillie_vetoed_when_supporter_already_played():
     assert m._score_lillie_determination_play(ctx) == -1
 
 
+def test_unfair_stamp_cedes_to_lillie_when_opp_hand_small():
+    # Regla (user): con Lillie's en mano y el rival con <=3 cartas, NO se juega
+    # Unfair Stamp (se cede a Lillie's).
+    ctx = _make_boss_ctx(
+        state=SimpleNamespace(turn=6, energyAttached=False, supporterPlayed=False),
+        hand_counts={m.Unfair_Stamp: 1, m.Lillie_Determination: 1},
+        op_hand_count=3,
+    )
+    assert m._score_unfair_stamp_play(ctx) == -1
+
+
+def test_unfair_stamp_not_ceded_when_opp_hand_large():
+    # Con el rival con >3 cartas la disrupcion sigue valiendo: Unfair Stamp NO cede.
+    ctx = _make_boss_ctx(
+        state=SimpleNamespace(turn=6, energyAttached=False, supporterPlayed=False),
+        hand_counts={m.Unfair_Stamp: 1, m.Lillie_Determination: 1},
+        op_hand_count=6,
+    )
+    assert m._score_unfair_stamp_play(ctx) > 0
+
+
+def _lillie_ctx(**over):
+    base = dict(
+        state=SimpleNamespace(turn=6, energyAttached=False, supporterPlayed=False),
+        my_state=SimpleNamespace(active=[None], bench=[],
+                                 hand=[SimpleNamespace(id=0) for _ in range(5)]),
+        hand_counts={m.Unfair_Stamp: 1, m.Lillie_Determination: 1},
+        ko_last_turn=True,
+    )
+    base.update(over)
+    return _make_boss_ctx(**base)
+
+
+def test_lillie_playable_when_stamp_in_hand_but_opp_hand_small():
+    # Con Unfair Stamp en mano + KO el turno pasado, normalmente Lillie's se veta;
+    # pero si el rival tiene <=3 cartas, Lillie's queda JUGABLE (gana la decision).
+    assert m._score_lillie_determination_play(_lillie_ctx(op_hand_count=3)) > 0
+
+
+def test_lillie_still_vetoed_by_stamp_when_opp_hand_large():
+    # Con el rival con >3 cartas se conserva el veto original: se prefiere el Stamp.
+    assert m._score_lillie_determination_play(_lillie_ctx(op_hand_count=6)) == -1
+
+
+def _og(energy_count):
+    # Teal Mask Ogerpon ex con `energy_count` Plantas -> atacante listo con >=3.
+    return SimpleNamespace(id=m.Teal_Mask_Ogerpon_ex, energies=[1] * energy_count)
+
+
+def _hop_lillie_ctx(**over):
+    # Registro 008 paso 84 vs Hops: activo + banca con atacantes listos, Boss's y
+    # Lillie's en mano, rival Hops. (ko_last_turn=False para no cruzar el veto de
+    # Unfair Stamp; sin Unfair Stamp en mano.)
+    base = dict(
+        state=SimpleNamespace(turn=8, energyAttached=False, supporterPlayed=False),
+        my_state=SimpleNamespace(active=[_og(4)], bench=[_og(4)],
+                                 hand=[SimpleNamespace(id=0) for _ in range(5)]),
+        hand_counts={m.Boss_Orders: 1, m.Lillie_Determination: 1},
+        op_is_hop_deck=True,
+        ko_last_turn=False,
+    )
+    base.update(over)
+    return _lillie_ctx(**base)
+
+
+def test_lillie_vetoed_vs_hops_with_boss_and_two_attackers():
+    # vs Hops con Boss's en mano y >=2 atacantes listos: NO jugar Lillie's (barajaria
+    # el Boss's al mazo); se guarda para responder a un Hops Phantump con cara.
+    assert m._score_lillie_determination_play(_hop_lillie_ctx()) == -1
+
+
+def test_lillie_playable_vs_hops_when_active_is_only_attacker():
+    # vs Hops con Boss's pero el activo es el UNICO atacante: SI se juega Lillie's
+    # (cavar por recursos), aunque baraje el Boss's.
+    ctx = _hop_lillie_ctx(
+        my_state=SimpleNamespace(active=[_og(4)], bench=[],
+                                 hand=[SimpleNamespace(id=0) for _ in range(5)]))
+    assert m._score_lillie_determination_play(ctx) > 0
+
+
+def test_lillie_playable_vs_hops_when_no_boss_in_hand():
+    # vs Hops SIN Boss's en mano: Lillie's se puede jugar con normalidad.
+    ctx = _hop_lillie_ctx(hand_counts={m.Lillie_Determination: 1})
+    assert m._score_lillie_determination_play(ctx) > 0
+
+
+def test_lillie_playable_with_boss_and_two_attackers_when_not_hops():
+    # La regla solo aplica vs Hops: contra otro mazo, Lillie's sigue jugable.
+    assert m._score_lillie_determination_play(_hop_lillie_ctx(op_is_hop_deck=False)) > 0
+
+
 def test_score_lanas_aid_vetoed_when_supporter_already_played():
     # Recibe el score entrante (10000) pero lo veta si ya se jugo el Supporter.
     ctx = _make_boss_ctx(
@@ -1136,3 +1230,702 @@ def test_score_lanas_aid_vetoed_when_supporter_already_played():
         my_state=SimpleNamespace(active=[None], bench=[], hand=[], discard=[]),
     )
     assert m._score_lanas_aid_play(ctx, 10000) == -1
+
+
+# Registro 014 (paso 146) vs Alakazam (GANADA): al gustear con Boss's Orders
+# (nuestro activo Meowth ex no puede atacar -> modo estorbo), el agente elegia un
+# Shaymin de la banca rival en vez de un Abra. Debe PRIORIZAR la linea Alakazam
+# (Abra/Kadabra/Alakazam) para cortar el desarrollo del atacante Psiquico.
+_BOSS_GUST_ABRA_FIXTURE = ROOT / "tests" / "fixtures" / "alakazam_boss_gust_abra_step146.json"
+
+
+def test_alakazam_step146_boss_gust_targets_abra_not_shaymin():
+    with open(_BOSS_GUST_ABRA_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+
+    # Mapear cada opcion (banca rival) a su id de Pokemon.
+    op_bench = obs["current"]["players"][0]["bench"]
+    opt_ids = {i: op_bench[o["index"]]["id"]
+               for i, o in enumerate(obs["select"]["option"])}
+    abra_opts = [i for i, cid in opt_ids.items() if cid == m.Abra]
+    shaymin_opts = [i for i, cid in opt_ids.items() if cid == 343]
+    assert abra_opts and shaymin_opts, f"fixture debe ofrecer Abra y Shaymin (map={opt_ids})"
+
+    result = m.agent(obs)
+
+    assert result[0] in abra_opts, (
+        f"esperaba gustear un Abra {abra_opts} (linea Alakazam), obtuvo {result} "
+        f"(map={opt_ids})"
+    )
+    assert result[0] not in shaymin_opts, "no debe gustear el Shaymin sobre la linea Alakazam"
+
+
+# Registro 010 (paso 76) vs Dragapult/Latias (GANADA): al gustear con Boss's
+# Orders (Tapu Bulu activo no puede atacar -> estorbo), el agente elegia la Latias
+# ex de la banca rival. Es un error: Latias ex (Skyliner) deja retirar GRATIS a
+# cualquier Basico (incluida ella), asi que gustear un Basico no traba nada. Debe
+# elegir un NO-basico (Drakloak). Nunca gustear Latias ex ni un Basico con Latias
+# ex en juego.
+_LATIAS_BOSS_GUST_FIXTURE = ROOT / "tests" / "fixtures" / "dragapult_latias_boss_gust_drakloak_step76.json"
+
+
+def test_boss_gust_avoids_latias_ex_and_basics_targets_drakloak():
+    with open(_LATIAS_BOSS_GUST_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+
+    op_bench = obs["current"]["players"][1]["bench"]
+    opt_ids = {i: op_bench[o["index"]]["id"]
+               for i, o in enumerate(obs["select"]["option"])}
+    latias_opts = [i for i, cid in opt_ids.items() if cid == m.Latias_ex]
+    dreepy_opts = [i for i, cid in opt_ids.items() if cid == 119]   # Dreepy (basico)
+    drakloak_opts = [i for i, cid in opt_ids.items() if cid == 120]  # Drakloak (stage 1)
+    assert latias_opts and drakloak_opts, f"fixture debe ofrecer Latias ex y Drakloak (map={opt_ids})"
+
+    result = m.agent(obs)
+
+    assert result[0] not in latias_opts, "no debe gustear la Latias ex"
+    assert result[0] not in dreepy_opts, "no debe gustear un Basico (Dreepy) con Latias ex en juego"
+    assert result[0] in drakloak_opts, (
+        f"esperaba gustear el Drakloak {drakloak_opts} (no-basico), obtuvo {result} (map={opt_ids})"
+    )
+
+
+# Registro 008 (paso 105) vs Alakazam (PERDIDA con codigo antiguo): al final del
+# turno, sin poder atacar (Hydrapple ex con 1 energia) y sin Supporter jugado,
+# con un Meowth ex en la mano y hueco en banca (incluso con OTRO Meowth ex ya en
+# banca), hay que JUGAR el Meowth ex (Last-Ditch Catch -> Lillie's) en vez de
+# terminar el turno. El codigo actual ya lo hace (motor Meowth->Lillie's); este
+# test bloquea la conducta para que no regrese.
+_MEOWTH_ENGINE_EOT_FIXTURE = ROOT / "tests" / "fixtures" / "alakazam_meowth_engine_end_of_turn_step105.json"
+
+
+def test_alakazam_step105_plays_meowth_engine_instead_of_ending_turn():
+    with open(_MEOWTH_ENGINE_EOT_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+
+    play_map = _resolve_play_options(obs)
+    assert m.Meowth_ex in play_map.values(), "el fixture debe ofrecer jugar Meowth ex"
+    meowth_opt = next(i for i, cid in play_map.items() if cid == m.Meowth_ex)
+    options = obs["select"]["option"]
+    end_opt = next(i for i, o in enumerate(options) if o.get("type") == int(OptionType.END))
+
+    result = m.agent(obs)
+
+    assert result == [meowth_opt], (
+        f"esperaba jugar Meowth ex (opt {meowth_opt}) para el motor Lillie's, "
+        f"obtuvo {result} (map={play_map})"
+    )
+    assert result != [end_opt], "no debe terminar el turno con Meowth ex jugable en la mano"
+
+
+# Registro 010 (paso 82) vs Alakazam (GANADA): con un Tapu Bulu CARGADO (4 energia)
+# en el activo que puede NOQUEAR al activo rival (Kadabra 80 HP; Tapu Bulu pega 220),
+# el agente retiraba el Tapu para pivotar a Hydrapple ex. Es incorrecto: nunca se
+# retira un Tapu Bulu del activo si puede derrotar al rival; debe ATACAR (Tapu Bulu
+# es no-ex -> 1 premio si lo noquean; la Hydrapple ex vale 2). El planificador greedy
+# promovia la Hydrapple ex de banca aun cuando el activo podia noquear.
+_TAPU_KO_FIXTURE = ROOT / "tests" / "fixtures" / "tapu_bulu_step82_active_ko.json"
+
+
+def test_alakazam_step82_tapu_bulu_attacks_instead_of_retreating():
+    with open(_TAPU_KO_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+
+    options = obs["select"]["option"]
+    attack_opt = next(i for i, o in enumerate(options)
+                      if o.get("type") == int(OptionType.ATTACK))
+    retreat_opt = next(i for i, o in enumerate(options)
+                       if o.get("type") == int(OptionType.RETREAT))
+
+    result = m.agent(obs)
+
+    assert result == [attack_opt], (
+        f"un Tapu Bulu activo que puede noquear debe ATACAR (opt {attack_opt}), "
+        f"obtuvo {result}"
+    )
+    assert result != [retreat_opt], "nunca retirar un Tapu Bulu que puede derrotar al rival"
+
+
+# Registro 004 (paso 35) vs Mega Lucario (GANADA): al resolver la busqueda (TO_HAND)
+# de una Ultra Ball, con Chikorita en el activo (solo chip, sin atacante real), un
+# Meowth ex ya en banca, Dipplin recien evolucionado y Bayleef solo en la MANO (no
+# hay Bayleef en juego -> un Meganium buscado seria INUTIL este turno, mera
+# preparacion), y con Meowth ex + Lillie's aun en el mazo y sin Supporter jugado,
+# hay que buscar el 2o Meowth ex (Last-Ditch Catch -> Lillie's, refrescar mano) en
+# vez del Meganium muerto. El codigo antiguo buscaba Meganium.
+_UB_MEOWTH_NOT_MEGANIUM_FIXTURE = ROOT / "tests" / "fixtures" / "lucario_ub_meowth_not_meganium_step35.json"
+
+
+def test_lucario_step35_ultraball_searches_meowth_not_dead_meganium():
+    with open(_UB_MEOWTH_NOT_MEGANIUM_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+
+    deck = obs["select"]["deck"]
+    options = obs["select"]["option"]
+    meowth_opt = next(i for i, o in enumerate(options)
+                      if deck[o["index"]]["id"] == m.Meowth_ex)
+    meganium_opt = next(i for i, o in enumerate(options)
+                        if deck[o["index"]]["id"] == m.Meganium)
+
+    result = m.agent(obs)
+
+    assert result == [meowth_opt], (
+        f"Ultra Ball debe buscar Meowth ex (opt {meowth_opt}) para el motor Lillie's, "
+        f"no un Meganium inutil (opt {meganium_opt}); obtuvo {result}"
+    )
+    assert result != [meganium_opt], "no buscar un Meganium que no se puede jugar este turno"
+
+
+# Registro 007 (paso 90) vs Alakazam (GANADA): tras un KO, al PROMOVER (TO_ACTIVE)
+# un nuevo activo, hay un Tapu Bulu CARGADO (4 energia, pega 220) en la banca que
+# NOQUEA al Alakazam ex activo (140 HP). El agente subia un Ogerpon ex (mas vida,
+# pero 2 premios); lo correcto es subir el Tapu Bulu (no-ex, 1 premio) que noquea
+# igual. Regla: promover SIEMPRE el Tapu Bulu cargado (o cargable con energia en
+# mano/Night Stretcher) que pueda derrotar al activo rival.
+_PROMOTE_TAPU_KO_FIXTURE = ROOT / "tests" / "fixtures" / "alakazam_promote_tapu_bulu_ko_step90.json"
+
+
+def test_alakazam_step90_promotes_tapu_bulu_ko_over_ogerpon_ex():
+    with open(_PROMOTE_TAPU_KO_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+
+    bench = obs["current"]["players"][1]["bench"]
+    options = obs["select"]["option"]
+    tapu_opt = next(i for i, o in enumerate(options)
+                    if bench[o["index"]]["id"] == m.Tapu_Bulu)
+    ogerpon_opts = [i for i, o in enumerate(options)
+                    if bench[o["index"]]["id"] == m.Teal_Mask_Ogerpon_ex]
+
+    result = m.agent(obs)
+
+    assert result == [tapu_opt], (
+        f"debe promover el Tapu Bulu cargado que noquea (opt {tapu_opt}), obtuvo {result}"
+    )
+    assert result[0] not in ogerpon_opts, "no promover un Ogerpon ex (2 premios) si Tapu Bulu noquea"
+
+
+# Registro 019 (paso 190) vs Dragapult (GANADA): en turno letal, con Boss's Orders
+# en mano, ~20 energias Planta (Syrup Storm del Hydrapple ex activo noquea a
+# cualquier ex) y el rival a 2 premios con Latias ex / Dragapult ex en banca, el
+# agente RETIRABA el activo (pivote defensivo, 6600) en vez de jugar Boss's para
+# gustear un ex y rematar con el activo (win_via_boss_gust, que valia solo 5600).
+# Un gusteo que GANA la partida debe superar cualquier retirada defensiva.
+_BOSS_WIN_GUST_FIXTURE = ROOT / "tests" / "fixtures" / "dragapult_boss_win_gust_not_retreat_step190.json"
+
+
+def test_dragapult_step190_plays_boss_win_gust_instead_of_retreating():
+    with open(_BOSS_WIN_GUST_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+
+    hand = obs["current"]["players"][1]["hand"]
+    options = obs["select"]["option"]
+    boss_opt = next(i for i, o in enumerate(options)
+                    if o.get("type") == int(OptionType.PLAY)
+                    and hand[o["index"]]["id"] == m.Boss_Orders)
+    retreat_opts = [i for i, o in enumerate(options)
+                    if o.get("type") == int(OptionType.RETREAT)]
+
+    result = m.agent(obs)
+
+    assert result == [boss_opt], (
+        f"debe jugar Boss's Orders (opt {boss_opt}) para gustear+rematar y ganar, "
+        f"obtuvo {result}"
+    )
+    assert result[0] not in retreat_opts, "no retirar el activo teniendo un gusteo ganador"
+
+
+# Registro 006 (paso 72) vs Hops (PERDIDA): con la BANCA LLENA (5 Pokemon) y
+# NINGUNA evolucion que buscar disponible en el MAZO (hay un Dipplin en juego pero
+# el Hydrapple ex ya no queda en el mazo), la Ultra Ball no puede banquear ni
+# evolucionar nada: es inutil y solo malgastaria 2 descartes. El agente la jugaba
+# igual (rescate de supervivencia que resucitaba el corte + desempate por indice 0
+# cuando el resto de jugadas tambien estaban vetadas). Debe CANCELARla y atacar.
+# Se replica la secuencia del turno para que el tracking del MAZO sepa que el
+# Hydrapple ex ya no esta (la Explorer's Guidance revela el mazo antes).
+_UB_CANCEL_FULL_BENCH_FIXTURE = ROOT / "tests" / "fixtures" / "hops_ultraball_cancel_full_bench_no_evo_step72.json"
+
+
+def test_hops_step72_cancels_useless_ultraball_full_bench_no_evo_in_deck():
+    with open(_UB_CANCEL_FULL_BENCH_FIXTURE, encoding="utf-8") as f:
+        seq = json.load(f)["sequence"]
+
+    final_obs = None
+    result = None
+    for item in seq:
+        final_obs = item["observation"]
+        result = m.agent(final_obs)
+
+    options = final_obs["select"]["option"]
+    hand = final_obs["current"]["players"][0]["hand"]
+    ub_opts = [i for i, o in enumerate(options)
+               if o.get("type") == int(OptionType.PLAY)
+               and hand[o["index"]]["id"] == m.Ultra_Ball]
+
+    assert result[0] not in ub_opts, (
+        "no jugar una Ultra Ball inutil (banca llena y sin evolucion en el mazo); "
+        f"obtuvo {result}"
+    )
+
+
+# Registro 004 (paso 28) vs Mega Starmie (PERDIDA): con un Teal Mask Ogerpon ex de
+# banca a 2 energias que TODAVIA puede usar Teal Dance este turno, el agente cargaba
+# una energia MANUALMENTE (al Ogerpon o a otro cuerpo) en vez de usar Teal Dance
+# primero. Teal Dance adjunta 1 Planta Y ROBA una carta, asi que tiene prioridad
+# sobre el adjunte manual (se pospone el adjunte hasta usar la habilidad). El orden
+# de jugada dejaba la habilidad (tier 0) por debajo del tier ENERGY de los adjuntes.
+_TEAL_DANCE_BEFORE_ATTACH_FIXTURE = ROOT / "tests" / "fixtures" / "starmie_teal_dance_before_attach_step28.json"
+
+
+def test_starmie_step28_teal_dance_before_manual_attach():
+    with open(_TEAL_DANCE_BEFORE_ATTACH_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+
+    options = obs["select"]["option"]
+    teal_opt = next(i for i, o in enumerate(options)
+                    if o.get("type") == int(OptionType.ABILITY))
+    _teal_slot = (options[teal_opt].get("area"), options[teal_opt].get("index"))
+    ogerpon_attach_opts = [
+        i for i, o in enumerate(options)
+        if o.get("type") == int(OptionType.ATTACH)
+        and (o.get("inPlayArea"), o.get("inPlayIndex")) == _teal_slot
+    ]
+
+    result = m.agent(obs)
+
+    assert result == [teal_opt], (
+        f"debe usar Teal Dance (opt {teal_opt}, adjunta + ROBA) antes de cargar "
+        f"energia manualmente al Ogerpon ex; obtuvo {result}"
+    )
+    assert result[0] not in ogerpon_attach_opts, (
+        "nunca cargar energia manualmente a un Ogerpon ex que aun puede usar Teal Dance"
+    )
+
+
+# Registro 004 (paso 29) vs Mega Starmie (PERDIDA): la Ultra Ball resuelve su
+# busqueda (TO_HAND) trayendo un Meganium (evolucionaria un Bayleef en juego), pero
+# NO hay ningun atacante USABLE este turno: el activo (Tapu Bulu, 0 energia, coste
+# de retirada 3) no puede atacar ni retirarse, asi que el Ogerpon ex cargado de
+# banca esta atascado. Con banca libre y el motor Meowth ex -> Lillie's disponible,
+# hay que traer Meowth ex (bajarlo -> Last-Ditch Catch -> Lillie's -> refrescar la
+# mano) en vez de una evolucion que no dara ataque ahora. Generaliza el caso del
+# paso 35: aqui la evolucion SI es jugable (hay Bayleef), pero igual no aporta ataque.
+_UB_NO_ATTACKER_MEOWTH_FIXTURE = ROOT / "tests" / "fixtures" / "starmie_ub_meowth_no_attacker_step29.json"
+
+
+def test_starmie_step29_ultraball_searches_meowth_when_no_usable_attacker():
+    with open(_UB_NO_ATTACKER_MEOWTH_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+
+    deck = obs["select"]["deck"]
+    options = obs["select"]["option"]
+    meowth_opt = next(i for i, o in enumerate(options)
+                      if deck[o["index"]]["id"] == m.Meowth_ex)
+    meganium_opts = [i for i, o in enumerate(options)
+                     if deck[o["index"]]["id"] == m.Meganium]
+
+    result = m.agent(obs)
+
+    assert result == [meowth_opt], (
+        f"sin atacante usable este turno, Ultra Ball debe buscar Meowth ex "
+        f"(opt {meowth_opt}) para el motor Lillie's; obtuvo {result}"
+    )
+    assert result[0] not in meganium_opts, (
+        "no buscar un Meganium (evolucion sin ataque este turno) cuando no hay atacante usable"
+    )
+
+
+# Registro 010 (paso 127) vs Alakazam (PERDIDA): con un Teal Mask Ogerpon ex (ex,
+# 2 premios) activo cargado que NOQUEA al Alakazam ex (140 HP) y un Meganium (no-ex,
+# 1 premio) cargado en banca que TAMBIEN lo noquea (140 base), el juego atacaba con
+# el Ogerpon. Contra Alakazam hay que atacar con cuerpos de 1 premio: retirar el ex
+# y promover el Meganium para que, si nos lo noquean, solo cedamos 1 premio y no 2.
+_ALAKAZAM_RETREAT_EX_FIXTURE = ROOT / "tests" / "fixtures" / "alakazam_retreat_ex_attack_meganium_step127.json"
+_ALAKAZAM_PROMOTE_MEGANIUM_FIXTURE = ROOT / "tests" / "fixtures" / "alakazam_promote_meganium_1prize_step127.json"
+
+
+def test_alakazam_step127_retreats_ex_to_attack_with_meganium():
+    with open(_ALAKAZAM_RETREAT_EX_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+
+    options = obs["select"]["option"]
+    retreat_opt = next(i for i, o in enumerate(options)
+                       if o.get("type") == int(OptionType.RETREAT))
+    attack_opt = next(i for i, o in enumerate(options)
+                      if o.get("type") == int(OptionType.ATTACK))
+
+    result = m.agent(obs)
+
+    assert result == [retreat_opt], (
+        f"vs Alakazam, con un Meganium (1 premio) que noquea en banca, debe RETIRAR "
+        f"el ex activo (opt {retreat_opt}) en vez de atacar con el ex (opt {attack_opt}); "
+        f"obtuvo {result}"
+    )
+
+
+def test_alakazam_step127_promotes_meganium_1prize_over_ex():
+    with open(_ALAKAZAM_PROMOTE_MEGANIUM_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+
+    bench = obs["current"]["players"][1]["bench"]
+    options = obs["select"]["option"]
+    meganium_opt = next(i for i, o in enumerate(options)
+                        if bench[o["index"]]["id"] == m.Meganium)
+    ex_opts = [i for i, o in enumerate(options)
+               if bench[o["index"]]["id"] in m.OUR_EX_IDS]
+
+    result = m.agent(obs)
+
+    assert result == [meganium_opt], (
+        f"vs Alakazam, al promover tras retirar debe subir el Meganium (1 premio, "
+        f"opt {meganium_opt}) que noquea, no un ex de 2 premios; obtuvo {result}"
+    )
+    assert result[0] not in ex_opts, "no promover un ex (2 premios) si Meganium noquea vs Alakazam"
+
+
+# Registro 008 (paso 84) vs Marnie/Froslass (PERDIDA): TURNO MUERTO -- el activo
+# (Hydrapple ex, 0 energia, coste de retirada 3) no puede ATACAR ni RETIRARSE, no
+# hay atacante de banca que subir y la mano (Tapu Bulu, Ogerpon ex, Meowth ex, Ultra
+# Ball) no tiene con que habilitar un ataque. Con hueco en banca y el motor de
+# refresco en el MAZO, hay que bajar Meowth ex (Last-Ditch Catch -> Lana's Aid /
+# Lillie's) en vez de un cuerpo redundante (Tapu Bulu). El veto de "no banquear
+# Meowth ex vs Froslass" tiene aqui una excepcion por turno muerto.
+_MARNIE_FROSLASS_MEOWTH_FIXTURE = ROOT / "tests" / "fixtures" / "marnie_froslass_meowth_dead_turn_step84.json"
+
+
+def test_marnie_froslass_step84_plays_meowth_dead_turn_not_tapu():
+    with open(_MARNIE_FROSLASS_MEOWTH_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+
+    hand = obs["current"]["players"][1]["hand"]
+    options = obs["select"]["option"]
+    meowth_opt = next(i for i, o in enumerate(options)
+                      if o.get("type") == int(OptionType.PLAY)
+                      and hand[o["index"]]["id"] == m.Meowth_ex)
+    tapu_opt = next(i for i, o in enumerate(options)
+                    if o.get("type") == int(OptionType.PLAY)
+                    and hand[o["index"]]["id"] == m.Tapu_Bulu)
+
+    result = m.agent(obs)
+
+    assert result == [meowth_opt], (
+        f"turno muerto vs Froslass: debe bajar Meowth ex (opt {meowth_opt}) para el "
+        f"motor Lana's/Lillie's, no Tapu Bulu (opt {tapu_opt}); obtuvo {result}"
+    )
+    assert result[0] != tapu_opt, "no bajar un cuerpo redundante (Tapu Bulu) en un turno muerto"
+
+
+# Registro 012 (paso 93) vs Archaludon/Duraludon (PERDIDA): el activo Teal Mask
+# Ogerpon ex (4 energias efectivas) hace 30+30*4 = 150 de dano; Duraludon (Metal)
+# RESISTE -30 a Planta, asi que el dano real es 120 y NO noquea al activo de 130 HP
+# (lo deja en 10). El calculo antiguo sumaba la energia del OBJETIVO (30+30*(4+1)=
+# 180 -> 150 tras resistencia) y creia que ya noqueaba, asi que cargaba Tapu Bulu
+# para el futuro en vez de rematar. Lo correcto: hacer Teal Dance en el activo (sube
+# a 6 efectivas -> 210 base -> 180 tras resistencia >= 130) para habilitar el KO.
+_DURALUDON_TEAL_DANCE_FIXTURE = ROOT / "tests" / "fixtures" / "duraludon_teal_dance_ko_resistance_step93.json"
+
+
+def test_duraludon_step93_teal_dance_for_ko_accounting_resistance():
+    with open(_DURALUDON_TEAL_DANCE_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+
+    options = obs["select"]["option"]
+    # Teal Dance (ability) sobre el ACTIVO Ogerpon ex (area 4)
+    teal_active_opt = next(
+        i for i, o in enumerate(options)
+        if o.get("type") == int(OptionType.ABILITY)
+        and o.get("area") == int(AreaType.ACTIVE))
+    # Cargar energia manual a un Tapu Bulu de banca (lo que hacia antes)
+    bench = obs["current"]["players"][0]["bench"]
+    tapu_attach_opts = [
+        i for i, o in enumerate(options)
+        if o.get("type") == int(OptionType.ATTACH)
+        and o.get("inPlayArea") == int(AreaType.BENCH)
+        and bench[o["inPlayIndex"]]["id"] == m.Tapu_Bulu]
+
+    result = m.agent(obs)
+
+    assert result == [teal_active_opt], (
+        f"debe hacer Teal Dance en el activo (opt {teal_active_opt}) para alcanzar el KO "
+        f"considerando la resistencia de Duraludon; obtuvo {result}"
+    )
+    assert result[0] not in tapu_attach_opts, (
+        "no cargar Tapu Bulu de banca cuando el activo aun no noquea (resistencia) y Teal Dance lo habilita"
+    )
+
+
+def test_ogerpon_damage_counts_own_energy_only_not_target():
+    from types import SimpleNamespace as _NS
+    tgt = _NS(id=169, hp=130, energies=[8, 8, 8], maxHp=130)  # 3 energia objetivo
+    og = _NS(id=m.Teal_Mask_Ogerpon_ex, hp=180, energies=[1, 1, 1, 1])
+    base = m._attacker_base_damage(m.Teal_Mask_Ogerpon_ex, tgt, 4,
+                                   grass_scale=0, teal_self_energy=4, bench_count=5)
+    assert base == 150, f"Ivy Bludgeon = 30+30*energia PROPIA (4) = 150, no cuenta la del objetivo; obtuvo {base}"
+
+
+# Registro 004 (paso 51) vs Cynthia's Garchomp (PERDIDA): al jugar Boss's Orders,
+# el juego gusteaba el Cynthia's Gible (basico, 70 HP) en vez de la MAYOR evolucion
+# de la linea -- Cynthia's Gabite (stage1) con Cynthia's Power Weight (170 HP), que
+# ademas tiene energia. Nuestro Ogerpon ex de banca (6 energias, x2 debilidad Planta
+# = 420) noquea cualquiera tras retirar+promover. Regla general de mazos de Fase 2
+# (Cynthia/Dragapult/Marnie; Alakazam tiene su regla propia): privilegiar SIEMPRE la
+# mayor linea evolutiva que podamos noquear.
+_CYNTHIA_BOSS_GUST_EVO_FIXTURE = ROOT / "tests" / "fixtures" / "cynthia_boss_gust_highest_evo_gabite_step51.json"
+
+
+def test_cynthia_step51_boss_gusts_highest_evolution_gabite_not_gible():
+    with open(_CYNTHIA_BOSS_GUST_EVO_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+
+    bench = obs["current"]["players"][0]["bench"]
+    options = obs["select"]["option"]
+    gabite_tool_opt = next(
+        i for i, o in enumerate(options)
+        if bench[o["index"]]["id"] == 380 and bench[o["index"]].get("tools"))
+    gible_opts = [i for i, o in enumerate(options)
+                  if bench[o["index"]]["id"] == 379]
+
+    result = m.agent(obs)
+
+    assert result == [gabite_tool_opt], (
+        f"Boss's debe gustear el Cynthia's Gabite (mayor evolucion, opt {gabite_tool_opt}) "
+        f"que podemos noquear, no el Gible basico; obtuvo {result}"
+    )
+    assert result[0] not in gible_opts, (
+        "no gustear el basico (Gible) cuando podemos noquear la evolucion superior (Gabite)"
+    )
+
+
+# Estrategia vs Comfey (mill/control; registro_005): detectado por Comfey (164) /
+# Bramblin (817) / Brambleghast (818). Regla 1 (estricta): SOLO bajar Teal Mask
+# Ogerpon ex, MAXIMO 2 en juego; vetar cualquier otro Pokemon (salvo arranque).
+# Regla 5: cancelar Ultra Ball si ya hay 2 Ogerpon ex en juego.
+def _comfey_main_obs(ogerpon_field, comfey=True):
+    import copy
+    base = json.load(open(
+        ROOT / "tests" / "fixtures" / "cynthia_boss_gust_highest_evo_gabite_step51.json",
+        encoding="utf-8"))["observation"]
+    o = copy.deepcopy(base)
+    cur = o["current"]; me = cur["players"][1]; op = cur["players"][0]
+    if comfey:
+        op["active"] = [{"appearThisTurn": False, "energies": [], "energyCards": [],
+                         "hp": 70, "id": 164, "maxHp": 70, "playerIndex": 0,
+                         "preEvolution": [], "serial": 900, "tools": []}]
+        op["bench"] = []
+    me["active"] = [{"appearThisTurn": False, "energies": [1, 1, 1], "energyCards": [],
+                     "hp": 210, "id": 96, "maxHp": 210, "playerIndex": 1,
+                     "preEvolution": [], "serial": 800, "tools": []}]
+    me["bench"] = [{"appearThisTurn": False, "energies": [], "energyCards": [], "hp": 210,
+                    "id": 96, "maxHp": 210, "playerIndex": 1, "preEvolution": [],
+                    "serial": 810 + k, "tools": []} for k in range(max(0, ogerpon_field - 1))]
+    me["hand"] = [{"id": 96, "playerIndex": 1, "serial": 820},
+                  {"id": 710, "playerIndex": 1, "serial": 821},
+                  {"id": 1121, "playerIndex": 1, "serial": 822}]
+    o["select"] = {"context": 0, "contextCard": None, "deck": None, "effect": None,
+                   "maxCount": 1, "minCount": 1, "type": 0, "remainDamageCounter": 0,
+                   "remainEnergyCost": 0,
+                   "option": [{"index": 0, "type": 7}, {"index": 1, "type": 7},
+                              {"index": 2, "type": 7}, {"type": 14}]}
+    cur["yourIndex"] = 1
+    return o
+
+
+def _score_by_hand_id(obs):
+    captured = {}
+    orig = m._debug_log_decision
+    def spy(context, select, scores, obs_, my_index, top_n=3):
+        captured["s"] = list(scores)
+    m._debug_log_decision = spy
+    m.DEBUG_DECISIONS = True
+    try:
+        m._init_cartas_tracking(); m.plan = m.AttackPlan()
+        m.agent(obs)
+    finally:
+        m._debug_log_decision = orig
+    me = obs["current"]["players"][1]
+    out = {}
+    for i, o in enumerate(obs["select"]["option"]):
+        if o.get("type") == int(OptionType.PLAY):
+            out[me["hand"][o["index"]]["id"]] = captured["s"][i]
+    return out
+
+
+def test_comfey_rule1_only_ogerpon_max_two_and_veto_others():
+    # Con 0 Ogerpon ex en juego: bajar Ogerpon ex OK, otro Pokemon vetado.
+    s0 = _score_by_hand_id(_comfey_main_obs(0, comfey=True))
+    assert s0[m.Teal_Mask_Ogerpon_ex] > 0, "vs Comfey debe poder bajar Teal Mask Ogerpon ex"
+    assert s0[m.Meganium] == -1, "vs Comfey NO se baja ningun Pokemon que no sea Ogerpon ex"
+    # Con 2 Ogerpon ex en juego: no bajar un 3o.
+    s2 = _score_by_hand_id(_comfey_main_obs(2, comfey=True))
+    assert s2[m.Teal_Mask_Ogerpon_ex] == -1, "maximo 2 Teal Mask Ogerpon ex vs Comfey"
+
+
+def test_comfey_rule5_cancel_ultraball_when_two_ogerpon():
+    s2 = _score_by_hand_id(_comfey_main_obs(2, comfey=True))
+    assert s2[m.Ultra_Ball] < 0, "vs Comfey con 2 Ogerpon ex, la Ultra Ball es inutil -> cancelar"
+
+
+def test_comfey_rules_do_not_fire_vs_other_decks():
+    # Control: sin Comfey, Meganium se baja normal y la Ultra Ball no se cancela.
+    s = _score_by_hand_id(_comfey_main_obs(0, comfey=False))
+    assert s[m.Meganium] > 0, "vs un mazo normal, la regla Ogerpon-only NO debe vetar otros Pokemon"
+
+
+# Estrategia vs Comfey — reglas de Entrenadores (user): las UNICAS cartas a jugar
+# son Lillie's Determination (SOLO con mano >=10), Lana's Aid (SOLO si recupera >=2
+# energias del descarte) y Boss's Orders (igual que siempre). El resto (Dawn, etc.)
+# no se juegan.
+def _comfey_supporter_obs(hand_size, grass_discard, comfey=True):
+    import copy
+    base = json.load(open(
+        ROOT / "tests" / "fixtures" / "cynthia_boss_gust_highest_evo_gabite_step51.json",
+        encoding="utf-8"))["observation"]
+    o = copy.deepcopy(base)
+    cur = o["current"]; me = cur["players"][1]; op = cur["players"][0]
+    cur["supporterPlayed"] = False; cur["stadiumPlayed"] = False
+    cur["energyAttached"] = False; cur["turn"] = 5
+    if comfey:
+        op["active"] = [{"appearThisTurn": False, "energies": [], "energyCards": [],
+                         "hp": 70, "id": 164, "maxHp": 70, "playerIndex": 0,
+                         "preEvolution": [], "serial": 900, "tools": []}]
+        op["bench"] = [{"appearThisTurn": False, "energies": [], "energyCards": [], "hp": 40,
+                        "id": 92, "maxHp": 40, "playerIndex": 0, "preEvolution": [],
+                        "serial": 901, "tools": []}]
+    me["active"] = [{"appearThisTurn": False, "energies": [1, 1, 1], "energyCards": [],
+                     "hp": 210, "id": 96, "maxHp": 210, "playerIndex": 1,
+                     "preEvolution": [], "serial": 800, "tools": []}]
+    me["bench"] = []
+    hand = [{"id": m.Lillie_Determination, "playerIndex": 1, "serial": 820},
+            {"id": m.Lanas_Aid, "playerIndex": 1, "serial": 821},
+            {"id": m.Dawn, "playerIndex": 1, "serial": 822}]
+    for k in range(max(0, hand_size - 3)):
+        hand.append({"id": 1, "playerIndex": 1, "serial": 830 + k})
+    me["hand"] = hand
+    me["discard"] = [{"id": 1, "playerIndex": 1, "serial": 700 + k}
+                     for k in range(grass_discard)]
+    o["select"] = {"context": 0, "contextCard": None, "deck": None, "effect": None,
+                   "maxCount": 1, "minCount": 1, "type": 0, "remainDamageCounter": 0,
+                   "remainEnergyCost": 0,
+                   "option": [{"index": 0, "type": 7}, {"index": 1, "type": 7},
+                              {"index": 2, "type": 7}, {"type": 14}]}
+    cur["yourIndex"] = 1
+    return o
+
+
+def test_comfey_lillie_only_with_ten_or_more_cards():
+    s10 = _score_by_hand_id(_comfey_supporter_obs(10, 1, comfey=True))
+    assert s10[m.Lillie_Determination] > 0, "vs Comfey con mano>=10 se puede jugar Lillie's"
+    s9 = _score_by_hand_id(_comfey_supporter_obs(9, 1, comfey=True))
+    assert s9[m.Lillie_Determination] == -1, "vs Comfey con mano<10 NO se juega Lillie's"
+
+
+def test_comfey_lana_only_when_recovers_two_energies():
+    s2 = _score_by_hand_id(_comfey_supporter_obs(9, 2, comfey=True))
+    assert s2[m.Lanas_Aid] > 0, "vs Comfey con >=2 energias en descarte, Lana's Aid es jugable"
+    s1 = _score_by_hand_id(_comfey_supporter_obs(9, 1, comfey=True))
+    assert s1[m.Lanas_Aid] == -1, "vs Comfey con <2 energias recuperables NO se juega Lana's Aid"
+
+
+def test_comfey_vetoes_other_trainers_like_dawn():
+    s = _score_by_hand_id(_comfey_supporter_obs(10, 2, comfey=True))
+    assert s[m.Dawn] == -1, "vs Comfey NO se juegan otros entrenadores (p.ej. Dawn)"
+    # Control: sin Comfey, Dawn se juega con normalidad.
+    sc = _score_by_hand_id(_comfey_supporter_obs(9, 2, comfey=False))
+    assert sc[m.Dawn] > 0, "vs un mazo normal, Dawn NO debe estar vetada por la regla Comfey"
+
+
+# Estrategia vs Comfey — Regla 2 (descarte por Xerosic's Machinations: quedarnos con
+# 3 cartas). Prioridad de MANTENER: energías > Night Stretcher > Lana's Aid > Unfair
+# Stamp > resto de entrenadores (y un Ogerpon ex que aún cabe, por encima de los
+# entrenadores). Regla 4 (activo confundido por Brambleghast): si hay atacante de
+# banca listo, retirar y atacar con él; si no, atacar con el confundido.
+def _comfey_discard_obs():
+    import copy
+    base = json.load(open(
+        ROOT / "tests" / "fixtures" / "cynthia_boss_gust_highest_evo_gabite_step51.json",
+        encoding="utf-8"))["observation"]
+    o = copy.deepcopy(base)
+    cur = o["current"]; me = cur["players"][1]; op = cur["players"][0]
+    op["active"] = [{"appearThisTurn": False, "energies": [], "energyCards": [], "hp": 70,
+                     "id": 164, "maxHp": 70, "playerIndex": 0, "preEvolution": [],
+                     "serial": 900, "tools": []}]
+    op["bench"] = []
+    me["active"] = [{"appearThisTurn": False, "energies": [1, 1, 1], "energyCards": [],
+                     "hp": 210, "id": 96, "maxHp": 210, "playerIndex": 1,
+                     "preEvolution": [], "serial": 800, "tools": []}]
+    me["bench"] = []
+    # hand: 2 grass, Night Stretcher, Lana's, Unfair Stamp, Dawn (rest), Ogerpon
+    me["hand"] = [{"id": 1, "serial": 1, "playerIndex": 1},
+                  {"id": 1, "serial": 2, "playerIndex": 1},
+                  {"id": m.Night_Stretcher, "serial": 3, "playerIndex": 1},
+                  {"id": m.Lanas_Aid, "serial": 4, "playerIndex": 1},
+                  {"id": m.Unfair_Stamp, "serial": 5, "playerIndex": 1},
+                  {"id": m.Dawn, "serial": 6, "playerIndex": 1},
+                  {"id": 96, "serial": 7, "playerIndex": 1}]
+    o["select"] = {"context": 8, "contextCard": None, "deck": None,
+                   "effect": {"id": 1197, "playerIndex": 1, "serial": 999},
+                   "maxCount": 4, "minCount": 4, "type": 1, "remainDamageCounter": 0,
+                   "remainEnergyCost": 0,
+                   "option": [{"area": 2, "index": i, "playerIndex": 1, "type": 3}
+                              for i in range(7)]}
+    cur["yourIndex"] = 1
+    return o
+
+
+def test_comfey_rule2_xerosic_keeps_energy_over_trainers():
+    obs = _comfey_discard_obs()
+    hand = obs["current"]["players"][1]["hand"]
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    discarded = set(m.agent(obs))  # indices de las 4 cartas a descartar
+    discarded_ids = [hand[obs["select"]["option"][i]["index"]]["id"] for i in discarded]
+    # Las energias se MANTIENEN (nunca se descartan).
+    assert m.Basic_Grass_Energy not in discarded_ids, "vs Comfey/Xerosic las energias se mantienen"
+    # El resto de entrenadores (Dawn) se descarta antes que Night Stretcher/Lana's.
+    assert m.Dawn in discarded_ids, "vs Comfey/Xerosic se descarta el resto de entrenadores (Dawn)"
+
+
+def _comfey_confused_obs(bench_ready):
+    import copy
+    base = json.load(open(
+        ROOT / "tests" / "fixtures" / "cynthia_boss_gust_highest_evo_gabite_step51.json",
+        encoding="utf-8"))["observation"]
+    o = copy.deepcopy(base)
+    cur = o["current"]; me = cur["players"][1]; op = cur["players"][0]
+    me["confused"] = True
+    cur["supporterPlayed"] = False; cur["energyAttached"] = False; cur["turn"] = 6
+    op["active"] = [{"appearThisTurn": False, "energies": [], "energyCards": [], "hp": 70,
+                     "id": 164, "maxHp": 70, "playerIndex": 0, "preEvolution": [],
+                     "serial": 900, "tools": []}]
+    op["bench"] = []
+    me["active"] = [{"appearThisTurn": False, "energies": [1, 1, 1], "energyCards": [],
+                     "hp": 210, "id": 96, "maxHp": 210, "playerIndex": 1,
+                     "preEvolution": [], "serial": 800, "tools": []}]
+    me["bench"] = [{"appearThisTurn": False, "energies": [1, 1, 1] if bench_ready else [],
+                    "energyCards": [], "hp": 210, "id": 96, "maxHp": 210, "playerIndex": 1,
+                    "preEvolution": [], "serial": 810, "tools": []}]
+    me["hand"] = []
+    o["select"] = {"context": 0, "contextCard": None, "deck": None, "effect": None,
+                   "maxCount": 1, "minCount": 1, "type": 0, "remainDamageCounter": 0,
+                   "remainEnergyCost": 0,
+                   "option": [{"attackId": 120, "type": 13}, {"type": 12}, {"type": 14}]}
+    cur["yourIndex"] = 1
+    return o
+
+
+def test_comfey_rule4_confused_active_retreats_to_bench_attacker():
+    obs = _comfey_confused_obs(bench_ready=True)
+    retreat_opt = next(i for i, o in enumerate(obs["select"]["option"])
+                       if o.get("type") == int(OptionType.RETREAT))
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    assert m.agent(obs) == [retreat_opt], (
+        "activo confundido con atacante de banca listo: retirar (promover el cuerpo NO confundido)"
+    )
+
+
+def test_comfey_rule4_confused_active_attacks_when_no_bench_attacker():
+    obs = _comfey_confused_obs(bench_ready=False)
+    attack_opt = next(i for i, o in enumerate(obs["select"]["option"])
+                      if o.get("type") == int(OptionType.ATTACK))
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    assert m.agent(obs) == [attack_opt], (
+        "activo confundido sin atacante de banca: atacar con el confundido (aceptar la moneda)"
+    )
