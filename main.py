@@ -363,6 +363,26 @@ except Exception:
 
 SCORE_WIN_GAME = 50000
 
+# Anclas BASE de la rama PLAY: puntaje de partida antes de ajustes por matchup /
+# situacion. El resto de scores de desarrollo se leen como "base +/- matiz".
+SCORE_DEVELOP_BASE = 20000   # base: bajar un Pokemon a la banca
+SCORE_ITEM_BASE = 10000      # base: jugar una carta que NO es Pokemon (item/supporter)
+# Base del valor generico de un Supporter (Boss's/Lana's/Dawn): score = BASE +
+# int(valor * 1.4) + supporter_boost. Usada por los 3 scorers de Supporter.
+SCORE_SUPPORTER_VALUE_BASE = 2400
+
+# --- Pisos de puntuacion (score floors) ---
+# Escala de valores negativos CON NOMBRE (robustez): dejan explicito el orden de
+# "no jugar" y evitan que una jugada real quede por debajo de un piso por error.
+# Migracion incremental de numeros magicos -> constantes; los valores son EXACTOS
+# a los que ya se usaban (renombrado puro, sin cambio de comportamiento).
+SCORE_VETO = -1          # jugada vetada / inutil (piso general, el mas comun)
+SCORE_CANCEL = -100      # cancelar por debajo del piso de veto (p.ej. Ultra Ball
+                         # inutil) para que el desempate por indice no la elija
+SCORE_USELESS_ATTACK = -5000  # atacar por 0 dano (rival inmune: ex/habilidad/muro)
+SCORE_NEVER = -10000     # nunca (p.ej. no descartar Unfair Stamp; END no letal)
+SCORE_FORBID = -100000   # prohibido absoluto (Dunsparce, retirada gratis)
+
 SCORE_LOOKAHEAD_EX_TRADE = 250
 SCORE_LOOKAHEAD_KO_TRADE = 120
 SCORE_LOOKAHEAD_SAFE = 60
@@ -1400,16 +1420,16 @@ def _score_boss_orders_play(ctx: DecisionContext) -> int:
     state = ctx.state
     hand_counts = ctx.hand_counts
     if state.supporterPlayed:
-        return -1
+        return SCORE_VETO
     if ctx.ko_last_turn and hand_counts.get(Unfair_Stamp, 0) >= 1:
-        return -1
+        return SCORE_VETO
     if (ctx.op_is_alakazam_deck and ctx.op_active_is_dunsparce
             and ctx.active_cant_attack):
         # Regla (user): vs mazo Alakazam, con un Dunsparce en el activo rival y
         # nuestro activo SIN poder atacar este turno, NO jugar Boss's Orders:
         # gustear un atacante Psiquico a la banca solo despejaria el muro y les
         # daria via libre para pegar; conviene mantener trabado a Dunsparce.
-        return -1
+        return SCORE_VETO
 
     # Gusteo GANADOR: nuestro ACTIVO noquea a un ex/objetivo de la banca rival y
     # con ello GANA la partida (toma los premios que faltan). Es la mejor jugada
@@ -1463,8 +1483,8 @@ def _score_boss_orders_play(ctx: DecisionContext) -> int:
     if ctx.boss_defensive_gust:
         return BOSS_SCORE_DEFENSIVE_GUST + supporter_boost
     if _boss_val <= 0:
-        return -1
-    return 2400 + int(_boss_val * 1.4) + supporter_boost
+        return SCORE_VETO
+    return SCORE_SUPPORTER_VALUE_BASE + int(_boss_val * 1.4) + supporter_boost
 
 
 def _score_unfair_stamp_play(ctx: DecisionContext) -> int:
@@ -1485,7 +1505,7 @@ def _score_unfair_stamp_play(ctx: DecisionContext) -> int:
     if (hand_counts.get(Lillie_Determination, 0) >= 1
             and ctx.op_hand_count <= 3
             and not state.supporterPlayed):
-        return -1
+        return SCORE_VETO
 
     _us_has_playable_pokemon = False
     if ctx.bench_count < 5:
@@ -1584,7 +1604,7 @@ def _score_poke_pad_play(ctx: DecisionContext) -> int:
                       and state.turn == 2 and not ctx.we_go_first)
 
     if not searchable:
-        pp_score = -1
+        pp_score = SCORE_VETO
 
     elif ((state.turn == 1 and ctx.we_go_first) or (state.turn == 2 and not ctx.we_go_first)):
         _pp_have_applin_t1 = (field_counts.get(Applin, 0) >= 1
@@ -1600,7 +1620,7 @@ def _score_poke_pad_play(ctx: DecisionContext) -> int:
         elif _pp_budew_dump:
             pp_score = 12400
         else:
-            pp_score = -1
+            pp_score = SCORE_VETO
 
     else:
         _pp_evolvable = ctx.field_at_turn_start if (not forest_in_play and ctx.field_at_turn_start) else field_counts
@@ -1651,7 +1671,7 @@ def _score_poke_pad_play(ctx: DecisionContext) -> int:
             elif Applin in searchable and bench_count < 5:
                 pp_score = 12600
             else:
-                pp_score = -1
+                pp_score = SCORE_VETO
 
     if (ctx.lucario_sac_pivot and Tapu_Bulu in searchable
             and field_counts.get(Tapu_Bulu, 0) == 0
@@ -1676,7 +1696,7 @@ def _score_poke_pad_play(ctx: DecisionContext) -> int:
 
     if (bench_count >= 5 and not _pp_evolve_needs_search
             and pp_score > 0 and not _pp_budew_dump):
-        pp_score = -1
+        pp_score = SCORE_VETO
 
     return pp_score
 
@@ -1710,7 +1730,7 @@ def _score_night_stretcher_play(ctx: DecisionContext) -> int:
     op_kang_ko_target = ctx.op_kang_ko_target
     _evolve_possible_in_play = ctx.evolve_possible_in_play
 
-    ns_score = -1
+    ns_score = SCORE_VETO
 
     discard_basics = []
     discard_evos = []
@@ -2063,7 +2083,7 @@ def _score_night_stretcher_play(ctx: DecisionContext) -> int:
         (field_counts.get(Dipplin, 0) >= 1 and Hydrapple_ex in discard_evos))
     if (bench_count >= 5 and not _ns_something_to_evolve
             and not _ns_energy_useful and ns_score > 0):
-        ns_score = -1
+        ns_score = SCORE_VETO
 
     if (op_kang_ko_target and
             Hydrapple_ex in discard_evos and
@@ -2090,13 +2110,13 @@ def _score_forest_of_vitality_play(ctx: DecisionContext) -> int:
     _our_first_turn_first = we_go_first and state.turn == 1
     _our_first_turn_second = (not we_go_first) and state.turn == 2
     if _our_first_turn_first:
-        return -1
+        return SCORE_VETO
     if _our_first_turn_second and stadium_id == 0:
-        return -1
+        return SCORE_VETO
     if _our_first_turn_second and stadium_id != 0 and stadium_id != Forest_of_Vitality:
         return 15000
     if stadium_id == Forest_of_Vitality:
-        return -1
+        return SCORE_VETO
 
     if ctx.neutralization_zone_active:
         score = 28000
@@ -2209,7 +2229,7 @@ def _score_bug_catching_set_play(ctx: DecisionContext) -> int:
     total_mazo = sum(v[ESTADO_MAZO] for v in CARTAS_ACTIVAS_EN_MAZO.values())
 
     if total_eligible_in_mazo == 0:
-        bcs_score = -1
+        bcs_score = SCORE_VETO
     else:
 
         if total_mazo <= 7:
@@ -2457,7 +2477,7 @@ def _ub_terminal_overrides(ctx, ub_score, _ub_survival_mode, hand_size, _our_fir
         _ub_first_turn_allowed = (
             _ub_ft_case1 or _ub_ft_case2 or _ub_ft_case3)
     if not _ub_first_turn_allowed:
-        ub_score = -1
+        ub_score = SCORE_VETO
 
     # SALVAGUARDA FINAL de banca llena (user, log 86210257
     # paso 86, GANADA vs Mega Starmie). Control EXTRA que tiene
@@ -2481,7 +2501,7 @@ def _ub_terminal_overrides(ctx, ub_score, _ub_survival_mode, hand_size, _our_fir
         # jugadas del turno tambien estan vetadas (ataque/retirada = -1), el
         # argmax prefiera ATACAR/PASAR antes que malgastar esta Ultra Ball
         # inutil por defecto (indice 0). (user, registro 006 paso 72 vs Hops.)
-        ub_score = -100
+        ub_score = SCORE_CANCEL
 
     # Secuencia (user, registro 010, paso 64 vs Alakazam): si esta
     # activo el corte de la linea Alakazam (`_boss_deny_alakazam_line`)
@@ -2825,7 +2845,7 @@ def _ub_target_score(ctx, _ubf) -> int:
             ub_best_target = max(ub_best_target, 850)
 
     if ub_best_target == 0:
-        ub_score = -1
+        ub_score = SCORE_VETO
     else:
 
         _ub_ns_in_hand = (hand_counts.get(Night_Stretcher, 0) >= 1)
@@ -2886,11 +2906,11 @@ def _ub_target_score(ctx, _ubf) -> int:
             # Board ya desarrollado con atacante listo:
             # no gastar Ultra Ball + descartes en un
             # objetivo de desarrollo de bajo valor.
-            ub_score = -1
+            ub_score = SCORE_VETO
         elif ub_best_target < 300 and safe_discards < 2:
-            ub_score = -1
+            ub_score = SCORE_VETO
         elif ub_best_target < 250:
-            ub_score = -1
+            ub_score = SCORE_VETO
         elif bench_count >= 5 and not _evolve_possible_in_play:
             # Banca LLENA + NINGUN Pokemon en juego que
             # evolucionar: la Ultra Ball solo llevaria la
@@ -2900,7 +2920,7 @@ def _ub_target_score(ctx, _ubf) -> int:
             # GUARDAR el recurso para cuando derriben un
             # Pokemon (banca con hueco) o haya algo que
             # evolucionar.
-            ub_score = -1
+            ub_score = SCORE_VETO
         else:
 
             if ub_best_target >= 900:
@@ -2970,7 +2990,7 @@ def _ub_target_score(ctx, _ubf) -> int:
                     _gust_2prize_via_boss)
                 if (_ub_lillie_forced_discard
                         and not _ub_winning_search):
-                    ub_score = -1
+                    ub_score = SCORE_VETO
 
     return ub_score
 
@@ -3016,7 +3036,7 @@ def _ub_score_before_overrides(ctx, _ubf) -> int:
     ub_score = 10000
 
     if hand_size < 3:
-        ub_score = -1
+        ub_score = SCORE_VETO
     elif bench_count >= 5 and not _ub_evolve_needs_search:
         # SALVAGUARDA temprana (corte duro): con la banca LLENA
         # y NINGUN Pokemon en juego que se pueda evolucionar CON UNA
@@ -3037,7 +3057,7 @@ def _ub_score_before_overrides(ctx, _ubf) -> int:
         # antes que malgastar la Ultra Ball + 2 descartes (user, registro 006
         # paso 72 vs Hops, PERDIDA: banca llena, buscaba un Hydrapple ex que no
         # quedaba en el mazo).
-        ub_score = -100
+        ub_score = SCORE_CANCEL
     else:
 
         _ub_cancel_for_stamp = _ub_cancel_stamp(ctx)
@@ -3046,7 +3066,7 @@ def _ub_score_before_overrides(ctx, _ubf) -> int:
         _ub_cancel_for_meowth = _ub_cancel_meowth(ctx)
         if (_ub_cancel_for_stamp or _ub_cancel_for_fez
                 or _ub_cancel_for_lillie or _ub_cancel_for_meowth):
-            ub_score = -1
+            ub_score = SCORE_VETO
 
         if not _ub_cancel_for_meowth and not _ub_cancel_for_stamp and not _ub_cancel_for_fez and not _ub_cancel_for_lillie:
             ub_score = _ub_target_score(ctx, _ubf)
@@ -3065,7 +3085,7 @@ def _score_ultra_ball_play(ctx) -> int:
     # agente ATAQUE/PASE en vez de malgastar la carta y sus 2 descartes).
     if (ctx.op_is_comfey_deck
             and ctx.field_counts.get(Teal_Mask_Ogerpon_ex, 0) >= 2):
-        return -100
+        return SCORE_CANCEL
     _ubf = _ub_derive_flags(ctx)
     ub_score = _ub_score_before_overrides(ctx, _ubf)
     ub_score = _ub_terminal_overrides(
@@ -3214,16 +3234,16 @@ def _score_lillie_determination_play(ctx: DecisionContext) -> int:
     # descarte de Xerosic's Machinations). Con menos de 10 cartas NO se juega. Con
     # >=10 se deja pasar al scoring normal (positivo).
     if ctx.op_is_comfey_deck and len(my_state.hand or []) < 10:
-        score = -1
+        score = SCORE_VETO
     elif _hop_keep_boss:
-        score = -1
+        score = SCORE_VETO
     elif (not ctx.op_is_comfey_deck
             and state.turn <= 2 and len(my_state.hand or []) >= 10
             and not _our_first_turn):
 
-        score = -1
+        score = SCORE_VETO
     elif state.supporterPlayed:
-        score = -1
+        score = SCORE_VETO
     elif (ko_last_turn and hand_counts.get(Unfair_Stamp, 0) >= 1
             and ctx.op_hand_count > 3):
 
@@ -3231,13 +3251,13 @@ def _score_lillie_determination_play(ctx: DecisionContext) -> int:
         # el Stamp (draw 5 + disrupcion) sobre Lillie's; PERO si el rival tiene 3 o
         # menos cartas en la mano la disrupcion aporta poco y se prefiere Lillie's,
         # asi que este veto solo aplica con la mano rival > 3.
-        score = -1
+        score = SCORE_VETO
     elif (op_is_alakazam_deck and
             hand_counts.get(Unfair_Stamp, 0) >= 1 and
             _ready_ex_attackers >= 2 and
             ctx.op_hand_count > 3):
 
-        score = -1
+        score = SCORE_VETO
     elif _our_first_turn:
         # Regla (user, log 86025936 paso 11): en NUESTRO primer
         # turno SIEMPRE se juega Lillie's Determination si esta en
@@ -3271,7 +3291,7 @@ def _score_lillie_determination_play(ctx: DecisionContext) -> int:
         # NO es ejecutable este turno (activo no puede atacar y sin
         # atacante de banca listo). Los remates ejecutables
         # (win_via_bench / dodge) si siguen vetando Lillie's.
-        score = -1
+        score = SCORE_VETO
     elif (hand_counts.get(Teal_Mask_Ogerpon_ex, 0) >= 1 and
             hand_counts.get(Basic_Grass_Energy, 0) >= 1 and
             bench_count < 5):
@@ -3327,7 +3347,7 @@ def _score_lillie_determination_play(ctx: DecisionContext) -> int:
         if not _lillie_evolve_now:
             score = 5000
         else:
-            score = -1
+            score = SCORE_VETO
     elif len(my_state.hand or []) <= 6:
 
         score = 5000
@@ -3416,7 +3436,7 @@ def _score_lillie_determination_play(ctx: DecisionContext) -> int:
                 pass
             else:
 
-                score = -1
+                score = SCORE_VETO
 
     return score
 
@@ -3435,7 +3455,7 @@ def _score_lanas_aid_play(ctx: DecisionContext, score: int) -> int:
     _supp_values = ctx.supp_values
 
     if state.supporterPlayed:
-        score = -1
+        score = SCORE_VETO
     elif ctx.op_is_comfey_deck and sum(
             1 for c in (my_state.discard or [])
             if getattr(c, 'id', None) == Basic_Grass_Energy) < 2:
@@ -3444,15 +3464,15 @@ def _score_lanas_aid_play(ctx: DecisionContext, score: int) -> int:
         # en el descarte). Nuestros unicos Pokemon vs Comfey son Ogerpon ex (Rule
         # Box: Lana's no los recupera), asi que su valor aqui es exclusivamente la
         # energia. Con menos de 2 energias recuperables NO se juega.
-        score = -1
+        score = SCORE_VETO
     elif ko_last_turn and hand_counts.get(Unfair_Stamp, 0) >= 1:
-        score = -1
+        score = SCORE_VETO
     else:
         _lana_val = _supp_values.get(Lanas_Aid, 0)
         if _lana_val <= 0:
-            score = -1
+            score = SCORE_VETO
         else:
-            score = 2400 + int(_lana_val * 1.4) + supporter_boost
+            score = SCORE_SUPPORTER_VALUE_BASE + int(_lana_val * 1.4) + supporter_boost
 
         if (_mega_line_active and score < 4500 and
                 not state.supporterPlayed and
@@ -4217,7 +4237,7 @@ def agent(obs_dict: dict) -> list[int]:
                 op_cards.append(pokemon)
 
         if state.turn >= 2 and len(my_cards) > 0 and len(op_cards) > 0:
-            best_score = -1
+            best_score = SCORE_VETO
             for i, my_pokemon in enumerate(my_cards):
                 if my_pokemon is None:
                     continue
@@ -4415,13 +4435,13 @@ def agent(obs_dict: dict) -> list[int]:
                         prize = 0
                         score = pokemon_score(op_pokemon)
                         if damage <= 0 and op_pokemon.id in EX_IMMUNE_IDS:
-                            score = -5000
+                            score = SCORE_USELESS_ATTACK
                         elif damage <= 0 and op_pokemon.id in ABILITY_IMMUNE_IDS:
-                            score = -5000
+                            score = SCORE_USELESS_ATTACK
                         elif damage <= 0 and _drednaw_shell_active:
-                            score = -5000
+                            score = SCORE_USELESS_ATTACK
                         elif damage <= 0 and neutralization_zone_active and my_is_ex:
-                            score = -5000
+                            score = SCORE_USELESS_ATTACK
                         elif op_pokemon.hp <= damage:
                             prize = prize_count(op_pokemon)
                         else:
@@ -4600,7 +4620,7 @@ def agent(obs_dict: dict) -> list[int]:
                                     score += 500
 
                         if my_prize <= prize:
-                            score = 50000
+                            score = SCORE_WIN_GAME
                         elif prize > 0:
 
                             remaining_after_ko = op_prize - prize
@@ -7016,7 +7036,7 @@ def agent(obs_dict: dict) -> list[int]:
         # Ripening Charge). len(energies) es EFECTIVA (Wild Growth de Meganium
         # DUPLICA cada Planta), asi que se convierte a cartas FISICAS.
         if pokemon.id == Chikorita and _physical_energy(energy_count) >= 1:
-            return -1
+            return SCORE_VETO
 
         # Regla (user, log 86607718 turno 2, vs Crustle, PERDIMOS): si empezamos
         # el turno con un Chikorita en el ACTIVO y NINGUN Chikorita en la banca,
@@ -7058,7 +7078,7 @@ def agent(obs_dict: dict) -> list[int]:
         # Va DESPUES del remate ganador (42000) para no bloquear un KO letal.
         if _feza_lucario_wall:
             if active:
-                return -1
+                return SCORE_VETO
             if (pokemon.id == Hydrapple_ex
                     and len(pokemon.energies) * _grass_mult() < 2):
                 return 41000
@@ -7076,7 +7096,7 @@ def agent(obs_dict: dict) -> list[int]:
         if pokemon.id == Tapu_Bulu:
             _tapu_max_phys = 2 if meganium_in_play else 4
             if _physical_energy(energy_count) >= _tapu_max_phys:
-                return -1
+                return SCORE_VETO
 
         # Regla (user, vs Crustle, log 86583376 paso 84): un Teal Mask Ogerpon
         # ex no puede tener mas de DOS energias FISICAS cargadas (por adjunte
@@ -7096,14 +7116,14 @@ def agent(obs_dict: dict) -> list[int]:
             _crus_phys = _physical_energy(energy_count)
             if not active:
                 if _crus_phys >= 2:
-                    return -1
+                    return SCORE_VETO
             else:
                 if _crus_phys >= 3:
-                    return -1
+                    return SCORE_VETO
                 if (_crus_phys >= 2
                         and not _extra_energy_enables_ko(
                             Teal_Mask_Ogerpon_ex, energy_count)):
-                    return -1
+                    return SCORE_VETO
 
         # Regla (user, vs Alakazam y vs Hop's): topes de energia para Teal Mask
         # Ogerpon ex (adjunte MANUAL o Ripening Charge). Base FISICA = 4 sin
@@ -7121,14 +7141,14 @@ def agent(obs_dict: dict) -> list[int]:
             _alk_phys = _physical_energy(energy_count)
             if not active:
                 if _alk_phys >= _alk_base_phys:
-                    return -1
+                    return SCORE_VETO
             else:
                 if _alk_phys >= _alk_base_phys + 1:
-                    return -1
+                    return SCORE_VETO
                 if (_alk_phys >= _alk_base_phys
                         and not _extra_energy_enables_ko(
                             Teal_Mask_Ogerpon_ex, energy_count)):
-                    return -1
+                    return SCORE_VETO
 
         # Matchup Cubchoo (user): topes de energia FISICA por Pokemon. Cubchoo
         # bloquea nuestro ataque el proximo turno, asi que no sobrecargamos y
@@ -7141,17 +7161,17 @@ def agent(obs_dict: dict) -> list[int]:
         if op_is_cubchoo_deck:
             _cub_phys = _physical_energy(energy_count)
             if pokemon.id == Teal_Mask_Ogerpon_ex and _cub_phys >= (2 if meganium_in_play else 4):
-                return -1
+                return SCORE_VETO
             if pokemon.id == Applin and _cub_phys >= 1:
-                return -1
+                return SCORE_VETO
             if pokemon.id == Dipplin and _cub_phys >= (1 if meganium_in_play else 2):
-                return -1
+                return SCORE_VETO
             if pokemon.id == Hydrapple_ex and _cub_phys >= (2 if meganium_in_play else 3):
-                return -1
+                return SCORE_VETO
             # Linea de Meganium (Chikorita/Bayleef/Meganium): tope de 3 energias
             # FISICAS en toda la linea (regla del usuario, cambio 4).
             if pokemon.id in (Chikorita, Bayleef, Meganium) and _cub_phys >= 3:
-                return -1
+                return SCORE_VETO
 
         # Estado de retirada del ACTIVO propio: para promover un Hydrapple ex
         # LETAL de BANCA hay que RETIRAR el activo, lo que exige energia FISICA
@@ -7294,7 +7314,7 @@ def agent(obs_dict: dict) -> list[int]:
                     if (_twt_bp is not None
                             and _twt_bp.id == Teal_Mask_Ogerpon_ex
                             and len(_twt_bp.energies) < 3):
-                        return -1
+                        return SCORE_VETO
 
         # Prioridad maxima: cargar Tapu Bulu de banca como atacante futuro
         # cuando el activo ya asegura el KO y Meganium esta en juego. Reusada
@@ -7306,7 +7326,7 @@ def agent(obs_dict: dict) -> list[int]:
 
         if (op_is_crustle_deck or op_is_cornerstone_deck) and \
                 pokemon.id == Meganium and energy_count >= 4:
-            return -1
+            return SCORE_VETO
 
         if is_confused and _conf_active is not None:
             if (not active and _conf_is_matchup_attacker(pokemon.id)
@@ -7389,7 +7409,7 @@ def agent(obs_dict: dict) -> list[int]:
                     return 39000
                 if pokemon.id == Meganium and energy_count * _grass_mult() < 4:
                     return 38000
-                return -1
+                return SCORE_VETO
 
             if pokemon.id == Tapu_Bulu:
 
@@ -7409,7 +7429,7 @@ def agent(obs_dict: dict) -> list[int]:
                     and field_counts.get(Bayleef, 0) >= 1
                     and hand_counts.get(Meganium, 0) >= 1)
                 if _meg_evolvable_now_tapu and energy_count * 2 >= 4:
-                    return -1
+                    return SCORE_VETO
 
                 # len(energies) YA es la energia EFECTIVA (la observacion duplica
                 # la Planta por Wild Growth): Wood Hammer necesita 4 efectivas.
@@ -7460,13 +7480,13 @@ def agent(obs_dict: dict) -> list[int]:
                     score = 50000
                 elif _ctm_tapu_high:
 
-                    score = -1
+                    score = SCORE_VETO
                 elif energy_count < 1:
                     score += 23000
                     if active:
                         score += 100
                 else:
-                    score = -1
+                    score = SCORE_VETO
             elif pokemon.id == Pinsir:
 
                 if energy_count < 2:
@@ -7628,7 +7648,7 @@ def agent(obs_dict: dict) -> list[int]:
                 and not neutralization_zone_active):
 
             if active:
-                return -1
+                return SCORE_VETO
             _raw_mb = len(pokemon.energies)
             if pokemon.id == Hydrapple_ex:
                 return 20000 if _raw_mb < 1 else -1
@@ -7641,19 +7661,19 @@ def agent(obs_dict: dict) -> list[int]:
                 return 17000 if _raw_mb < 2 else -1
             if pokemon.id == Tapu_Bulu:
                 return 16000 if _raw_mb < 2 else -1
-            return -1
+            return SCORE_VETO
 
         if (_active_hydra_capped and _bench_has_chargeable
                 and not op_is_crustle_deck and not op_is_cornerstone_deck
                 and not neutralization_zone_active):
             if active:
-                return -1
+                return SCORE_VETO
             _eff_bench_sc = energy_count * _grass_mult()
             if pokemon.id == Teal_Mask_Ogerpon_ex:
 
                 if energy_count < 3:
                     return 20000 - energy_count * 100
-                return -1
+                return SCORE_VETO
             if pokemon.id == Meganium:
                 return 18000 if energy_count < 2 else -1
             if pokemon.id == Hydrapple_ex:
@@ -7672,7 +7692,7 @@ def agent(obs_dict: dict) -> list[int]:
                 and not op_is_crustle_deck and not op_is_cornerstone_deck \
                 and not neutralization_zone_active:
             if pokemon.id in NON_ATTACKER_ENERGY_WASTE_IDS:
-                return -1
+                return SCORE_VETO
             return {
                 Hydrapple_ex: 30000,
                 Teal_Mask_Ogerpon_ex: 29000,
@@ -7691,7 +7711,7 @@ def agent(obs_dict: dict) -> list[int]:
                 and _active_pokemon.id != Hydrapple_ex
                 and _bench_hydra_pre_target):
             if active:
-                return -1
+                return SCORE_VETO
             if pokemon.id == Dipplin and energy_count < 1:
                 return 24000
             if pokemon.id == Applin and energy_count < 1:
@@ -8447,10 +8467,10 @@ def agent(obs_dict: dict) -> list[int]:
 
                 score = 10
                 if _meowth_skip_fetch:
-                    score = -1
+                    score = SCORE_VETO
             elif context == SelectContext.IS_FIRST:
 
-                score = -1
+                score = SCORE_VETO
                 we_go_first = True
             elif context == SelectContext.COIN_HEAD:
 
@@ -8776,7 +8796,7 @@ def agent(obs_dict: dict) -> list[int]:
                             if _meg_designated_attacker:
                                 score += 400
                             elif bench_count > 1:
-                                score = -10000
+                                score = SCORE_NEVER
 
                         if op_has_ex_immune_active and card.id not in OUR_EX_IDS:
                             score += 150
@@ -8945,7 +8965,7 @@ def agent(obs_dict: dict) -> list[int]:
                             # Excepcion (usuario): NUNCA gustear con Boss's Orders a
                             # un Dunsparce (ids 65 y 305). Descartado por completo
                             # como objetivo, en modo estorbo y en modo ofensivo.
-                            score = -100000
+                            score = SCORE_FORBID
                         elif _active_cant_attack_this_turn or _sel_active_cant_attack:
                             _rc_target = RETREAT_COST.get(card.id, 0)
                             _target_energy_cnt = len(card.energies) if hasattr(card, 'energies') else 0
@@ -8955,7 +8975,7 @@ def agent(obs_dict: dict) -> list[int]:
                                 # banco sin pagar nada, no estorba en absoluto.
                                 # NUNCA gustear un Pokemon de retirada gratis
                                 # (p.ej. Budew). Descartado por completo.
-                                score = -100000
+                                score = SCORE_FORBID
                             else:
                                 _stall_diff = _rc_target - _target_energy_cnt
 
@@ -8978,7 +8998,7 @@ def agent(obs_dict: dict) -> list[int]:
                                         _lat_forbid = True
 
                                 if _lat_forbid:
-                                    score = -100000
+                                    score = SCORE_FORBID
                                 elif _stall_diff >= 1:
                                     # Estorbo proporcional al coste de retirada NETO
                                     # (coste que el rival NO puede pagar con su
@@ -9397,7 +9417,7 @@ def agent(obs_dict: dict) -> list[int]:
                                         score += 100
 
                             if op_is_crustle_deck and card.id in (Dwebble_Grass, Dwebble_Fighting):
-                                score = -100000
+                                score = SCORE_FORBID
 
                             # Regla general: un Pokemon con coste de retirada GRATIS
                             # nunca es buen objetivo de Boss's Orders si NO lo vamos a
@@ -9405,7 +9425,7 @@ def agent(obs_dict: dict) -> list[int]:
                             # coste). Solo se permite gustearlo cuando es un KO real
                             # (prize), donde la retirada es irrelevante.
                             if RETREAT_COST.get(card.id, 0) <= 0 and not _boss_can_ko:
-                                score = -100000
+                                score = SCORE_FORBID
 
                 elif context == SelectContext.SETUP_ACTIVE_POKEMON:
 
@@ -9444,7 +9464,7 @@ def agent(obs_dict: dict) -> list[int]:
                             score = 7
                     elif card.id == Meowth_ex:
 
-                        score = -1
+                        score = SCORE_VETO
                     elif card.id == Fezandipiti_ex:
                         # Al comienzo de la partida (setup) NO bajamos Fezandipiti
                         # ex a la banca salvo que sea el UNICO Pokemon de la mano
@@ -9467,7 +9487,7 @@ def agent(obs_dict: dict) -> list[int]:
                             if op_bench_snipe_threat:
                                 score = 1
                         else:
-                            score = -1
+                            score = SCORE_VETO
                     elif card.id == Tapu_Bulu:
 
                         if meganium_in_play and (op_has_ex_immune_active or op_has_ex_immune_bench):
@@ -9475,7 +9495,7 @@ def agent(obs_dict: dict) -> list[int]:
                         elif op_is_crustle_deck:
                             score = 3
                         else:
-                            score = -1
+                            score = SCORE_VETO
                     elif card.id == Pinsir:
 
                         if op_is_crustle_deck or op_is_sylveon_deck or op_is_cornerstone_deck:
@@ -9483,7 +9503,7 @@ def agent(obs_dict: dict) -> list[int]:
                         elif op_has_ex_immune_active or op_has_ex_immune_bench:
                             score = 2
                         else:
-                            score = -1
+                            score = SCORE_VETO
 
                 elif context == SelectContext.TO_HAND:
                     score = 200 - hand_counts[card.id] * 100
@@ -9609,7 +9629,7 @@ def agent(obs_dict: dict) -> list[int]:
                                         (ko_last_turn or bench_count == 0)):
                                     score = 650
                                 else:
-                                    score = -1
+                                    score = SCORE_VETO
                             elif field_counts.get(Fezandipiti_ex, 0) == 0 and ko_last_turn:
                                 score = 650
                             else:
@@ -9848,7 +9868,7 @@ def agent(obs_dict: dict) -> list[int]:
                                 if field_counts.get(Fezandipiti_ex, 0) == 0 and bench_count == 0:
                                     score = 200
                                 else:
-                                    score = -1
+                                    score = SCORE_VETO
                             elif field_counts.get(Fezandipiti_ex, 0) == 0:
                                 score = 200
                             else:
@@ -10023,7 +10043,7 @@ def agent(obs_dict: dict) -> list[int]:
                                 _cc_sel_valid = (Tapu_Bulu, Pinsir, Applin, Chikorita,
                                                  Dipplin, Bayleef, Meganium)
                             if card.id not in _cc_sel_valid:
-                                score = -1
+                                score = SCORE_VETO
 
                     elif select.effect is not None and select.effect.id == Ultra_Ball:
 
@@ -10997,7 +11017,7 @@ def agent(obs_dict: dict) -> list[int]:
                         if card.id == Basic_Grass_Energy:
                             score = max(score, 900)
                         else:
-                            score = -1
+                            score = SCORE_VETO
 
                 elif context == SelectContext.DISCARD:
 
@@ -11211,7 +11231,7 @@ def agent(obs_dict: dict) -> list[int]:
                             score = 82
                         elif ko_last_turn and bench_count < 5:
 
-                            score = -10000
+                            score = SCORE_NEVER
                         else:
 
                             score = 38
@@ -11315,7 +11335,7 @@ def agent(obs_dict: dict) -> list[int]:
                             and _ns_disc_basic_energy
                             and state.energyAttached)
                         if _ns_only_dead_energy:
-                            score = -1
+                            score = SCORE_VETO
                         elif hand_counts.get(Night_Stretcher, 0) > 1:
                             score = 78
                         elif len(my_state.discard) <= 1:
@@ -11346,7 +11366,7 @@ def agent(obs_dict: dict) -> list[int]:
 
                     elif card.id == Unfair_Stamp:
 
-                        score = -10000
+                        score = SCORE_NEVER
 
                     # Estrategia vs Comfey (user, registro_005): descarte por
                     # Xerosic's Machinations (nos deja SOLO 3 cartas en la mano). La
@@ -11384,11 +11404,11 @@ def agent(obs_dict: dict) -> list[int]:
         elif o.type == OptionType.PLAY:
             card = get_card(obs, AreaType.HAND, o.index, my_index)
             if card is None:
-                score = -1
+                score = SCORE_VETO
             else:
                 data = card_table[card.id]
                 if data.cardType == CardType.POKEMON:
-                    score = 20000
+                    score = SCORE_DEVELOP_BASE
 
                     _block_4th_ex = False
                     if ((op_is_crustle_deck or op_is_cornerstone_deck)
@@ -11399,19 +11419,19 @@ def agent(obs_dict: dict) -> list[int]:
                             _block_4th_ex = True
 
                     if _block_4th_ex:
-                        score = -1
+                        score = SCORE_VETO
                     elif card.id == Chikorita:
 
                         _meg_line_count = field_counts[Chikorita] + field_counts[Bayleef] + field_counts[Meganium]
                         _max_meg_line = 2 if (op_is_crustle_deck or op_is_cornerstone_deck) else 1
                         if _meg_line_count >= _max_meg_line:
-                            score = -1
+                            score = SCORE_VETO
                         else:
                             _forest_avail = forest_in_play or hand_counts.get(Forest_of_Vitality, 0) >= 1
 
                             if (op_has_mega_starmie_active and
                                     not (_forest_avail and hand_counts.get(Bayleef, 0) >= 1)):
-                                score = -1
+                                score = SCORE_VETO
                             else:
                                 score = 21500
                                 if op_is_mirror or op_is_fire_deck or op_is_crustle_deck:
@@ -11444,22 +11464,22 @@ def agent(obs_dict: dict) -> list[int]:
                             forest_in_play and hand_counts.get(Dipplin, 0) >= 1)
 
                         if bench_count >= 5:
-                            score = -1
+                            score = SCORE_VETO
                         elif _dragapult_snipe_setup and not _applin_evolvable_now:
-                            score = -1
+                            score = SCORE_VETO
                         elif (op_is_cubchoo_deck and
                                 field_counts.get(Applin, 0) + field_counts.get(Dipplin, 0)
                                 + field_counts.get(Hydrapple_ex, 0) >= 1):
                             # Matchup Cubchoo (user): solo UNA linea
                             # Applin->Dipplin->Hydrapple ex en juego a la vez. Si ya
                             # hay un miembro de la linea en mesa, no bajar otro Applin.
-                            score = -1
+                            score = SCORE_VETO
                         else:
                             _forest_avail = forest_in_play or hand_counts.get(Forest_of_Vitality, 0) >= 1
 
                             if (op_has_mega_starmie_active and
                                     not (_forest_avail and hand_counts.get(Dipplin, 0) >= 1)):
-                                score = -1
+                                score = SCORE_VETO
                             else:
                                 score = 21200
 
@@ -11487,9 +11507,9 @@ def agent(obs_dict: dict) -> list[int]:
                                 not op_has_mega_kangaskhan and \
                                 field_counts[card.id] >= 2:
 
-                            score = -1
+                            score = SCORE_VETO
                         elif bench_count >= 5:
-                            score = -1
+                            score = SCORE_VETO
                         elif field_counts[card.id] >= 2:
 
                             if hand_counts.get(Basic_Grass_Energy, 0) >= 1:
@@ -11498,7 +11518,7 @@ def agent(obs_dict: dict) -> list[int]:
 
                                 score = 20500
                             else:
-                                score = -1
+                                score = SCORE_VETO
                         else:
                             score = 21000
                     elif card.id == Meowth_ex:
@@ -11506,7 +11526,7 @@ def agent(obs_dict: dict) -> list[int]:
                         if watchtower_in_play:
                             # Team Rocket's Watchtower anula la habilidad de
                             # Meowth ex (Pokemon incoloro): no bajarlo a la banca.
-                            score = -1
+                            score = SCORE_VETO
                         elif ((_win_via_boss_gust or _gust_2prize_via_boss)
                                 and hand_counts.get(Boss_Orders, 0) == 0
                                 and CARTAS_ACTIVAS_EN_MAZO.get(Boss_Orders, {}).get(ESTADO_MAZO, 0) > 0
@@ -11564,7 +11584,7 @@ def agent(obs_dict: dict) -> list[int]:
                             # Mask Ogerpon ex y acelerar energia con Teal Dance) o
                             # atacar directamente. La gustada LETAL con Boss's ya se
                             # resolvio en la rama anterior (_win_via_boss_gust).
-                            score = -1
+                            score = SCORE_VETO
                         elif (hand_counts.get(Lillie_Determination, 0) >= 1
                                 and field_counts[card.id] == 0):
                             # Regla (user): si YA tenemos Lillie's Determination EN
@@ -11577,13 +11597,13 @@ def agent(obs_dict: dict) -> list[int]:
                             # Si Lillie's NO esta en la mano pero SI en el mazo, este
                             # veto NO aplica: se deja pasar a `_meowth_devel_lillie`
                             # para bajar Meowth ex, BUSCAR Lillie's y jugarla.
-                            score = -1
+                            score = SCORE_VETO
                         elif (_bcs_playable_in_hand
                                 and hand_counts.get(Lillie_Determination, 0) >= 1
                                 and field_counts[card.id] == 0
                                 and not (_win_via_boss_gust or _gust_2prize_via_boss)):
 
-                            score = -1
+                            score = SCORE_VETO
                         elif (_meowth_devel_lillie
                                 and hand_counts.get(Meowth_ex, 0) >= 1
                                 and hand_counts.get(Lillie_Determination, 0) == 0
@@ -11594,7 +11614,7 @@ def agent(obs_dict: dict) -> list[int]:
                             score = 21800
                         elif _bcs_playable_in_hand and bench_count >= 1:
 
-                            score = -1
+                            score = SCORE_VETO
                         elif (field_counts[card.id] == 1
                                 and bench_count < 5
                                 and _active_cant_attack_this_turn
@@ -11607,12 +11627,12 @@ def agent(obs_dict: dict) -> list[int]:
 
                             score = 21700
                         elif field_counts[card.id] >= 1:
-                            score = -1
+                            score = SCORE_VETO
                         elif bench_count >= 5:
-                            score = -1
+                            score = SCORE_VETO
                         elif (hand_counts.get(Unfair_Stamp, 0) >= 1 and ko_last_turn):
 
-                            score = -1
+                            score = SCORE_VETO
                         elif state.turn == 1 and we_go_first:
 
                             _other_basics_in_hand = any(
@@ -11622,7 +11642,7 @@ def agent(obs_dict: dict) -> list[int]:
                             if bench_count == 0 and not _other_basics_in_hand:
                                 score = 19000
                             else:
-                                score = -1
+                                score = SCORE_VETO
                         elif state.turn == 2 and not we_go_first:
 
                             if (not state.supporterPlayed and
@@ -11631,9 +11651,9 @@ def agent(obs_dict: dict) -> list[int]:
                                     _best_supp_in_mazo_val >= 650):
                                 score = 20500
                             else:
-                                score = -1
+                                score = SCORE_VETO
                         elif state.supporterPlayed:
-                            score = -1
+                            score = SCORE_VETO
                         elif op_has_froslass:
                             # Normalmente NO se banca Meowth ex (2 premios) contra
                             # Froslass (pinga la banca). EXCEPCION (user, registro_008
@@ -11667,7 +11687,7 @@ def agent(obs_dict: dict) -> list[int]:
                                     and _mw_engine_in_mazo):
                                 score = 21600
                             else:
-                                score = -1
+                                score = SCORE_VETO
                         elif (_active_cant_attack_this_turn and
                               not state.supporterPlayed and
                               hand_counts.get(Lillie_Determination, 0) == 0 and
@@ -11680,7 +11700,7 @@ def agent(obs_dict: dict) -> list[int]:
                               not (op_is_crustle_deck or op_is_drednaw_deck or op_is_sylveon_deck) and
                               not (_best_supp_in_mazo_id == Boss_Orders and _best_supp_in_mazo_val >= 650)):
 
-                            score = -1
+                            score = SCORE_VETO
                         elif _best_supp_in_hand_val >= 500:
 
                             _boss_in_mazo = CARTAS_ACTIVAS_EN_MAZO.get(Boss_Orders, {}).get(ESTADO_MAZO, 0) > 0
@@ -11696,10 +11716,10 @@ def agent(obs_dict: dict) -> list[int]:
 
                                 score = 21500
                             else:
-                                score = -1
+                                score = SCORE_VETO
                         else:
 
-                            _meowth_score = -1
+                            _meowth_score = SCORE_VETO
                             _target_id = _best_supp_in_mazo_id
                             _target_val = _best_supp_in_mazo_val
 
@@ -11760,11 +11780,11 @@ def agent(obs_dict: dict) -> list[int]:
 
                         if _fez_prefer_teal_lillie:
 
-                            score = -1
+                            score = SCORE_VETO
                         elif field_counts[card.id] >= 1:
-                            score = -1
+                            score = SCORE_VETO
                         elif bench_count >= 5:
-                            score = -1
+                            score = SCORE_VETO
                         elif (op_is_lucario_deck or op_is_crustle_deck
                               or op_is_cornerstone_deck or op_is_sylveon_deck):
                             # Contra Mega Lucario (Lucha), Crustle, Cornerstone
@@ -11785,15 +11805,15 @@ def agent(obs_dict: dict) -> list[int]:
                             elif bench_count == 0:
                                 score = 500
                             else:
-                                score = -1
+                                score = SCORE_VETO
                         elif state.turn == 1:
 
                             if bench_count == 1:
                                 score = 15000
                             else:
-                                score = -1
+                                score = SCORE_VETO
                         else:
-                            fez_score = -1
+                            fez_score = SCORE_VETO
 
                             if ko_last_turn:
                                 fez_score = 22000
@@ -11834,14 +11854,14 @@ def agent(obs_dict: dict) -> list[int]:
                             op_has_ex_immune_active or op_has_ex_immune_bench)
 
                         if field_counts[card.id] >= 1:
-                            score = -1
+                            score = SCORE_VETO
                         elif (_tapu_in_play_count >= 4 and not _op_is_crustle_like and
                               meganium_in_play and not _tapu_first_turn):
 
                             score = 16000
                         elif _tapu_in_play_count > 2 and not op_is_crustle_deck:
 
-                            score = -1
+                            score = SCORE_VETO
                         elif op_is_crustle_deck:
 
                             score = 22000
@@ -11870,10 +11890,10 @@ def agent(obs_dict: dict) -> list[int]:
                             score = 21500
                         elif _tapu_first_turn:
 
-                            score = -1
+                            score = SCORE_VETO
                         elif not meganium_in_play:
 
-                            score = -1
+                            score = SCORE_VETO
                         else:
 
                             score = 16000
@@ -11891,7 +11911,7 @@ def agent(obs_dict: dict) -> list[int]:
                             score = TAPU_WAIT_FOR_ITEMS_SCORE
                     elif card.id == Pinsir:
 
-                        score = -1
+                        score = SCORE_VETO
 
                     if (_poke_pad_target_id > 0 and card.id == _poke_pad_target_id and
                             bench_count < 5):
@@ -11932,11 +11952,11 @@ def agent(obs_dict: dict) -> list[int]:
                             Chikorita, Bayleef, Meganium,
                             Teal_Mask_Ogerpon_ex, Meowth_ex)
                         if card.id not in _CUB_ALLOWED_PLAY:
-                            score = -1
+                            score = SCORE_VETO
                         elif (card.id == Teal_Mask_Ogerpon_ex
                                 and field_counts[card.id] >= 2):
                             # No mas de dos Teal Mask Ogerpon ex en juego.
-                            score = -1
+                            score = SCORE_VETO
                         elif card.id == Meowth_ex:
                             # Un solo Meowth ex y solo si hay una Lillie's
                             # Determination que buscar en el mazo (no ya en mano).
@@ -11946,7 +11966,7 @@ def agent(obs_dict: dict) -> list[int]:
                                 and CARTAS_ACTIVAS_EN_MAZO.get(
                                     Lillie_Determination, {}).get(ESTADO_MAZO, 0) > 0)
                             if not _cub_meowth_ok:
-                                score = -1
+                                score = SCORE_VETO
 
                     # Req H: vs Mega Lucario con un Riolu gusteable+noqueable en
                     # la banca rival y banca propia establecida, NO desarrollar
@@ -11957,7 +11977,7 @@ def agent(obs_dict: dict) -> list[int]:
                     # exige bench_count>=2, asi que el rescate anti-softlock de
                     # mas abajo (banca vacia) nunca entra en conflicto.
                     if _lucario_riolu_gust:
-                        score = -1
+                        score = SCORE_VETO
 
                     # Rescate anti-softlock: con la banca vacia, subir un basico
                     # que quedo en <=0 para poder desplegarlo (jugada legal).
@@ -12024,13 +12044,13 @@ def agent(obs_dict: dict) -> list[int]:
                             # Pokemon {C}: bajar Meowth ex ahora NO activaria
                             # Last-Ditch Catch (no busca Supporter). No lo jugamos
                             # hasta reemplazar el estadio (p.ej. con Forest).
-                            score = -1
+                            score = SCORE_VETO
                         elif _meowth_played_this_turn:
-                            score = -1
+                            score = SCORE_VETO
                         elif field_counts[Meowth_ex] >= 2:
-                            score = -1
+                            score = SCORE_VETO
                         elif field_counts[Meowth_ex] >= 1 and score <= 0:
-                            score = -1
+                            score = SCORE_VETO
 
                     # Estrategia vs Comfey (user, registro_005): SOLO bajar Teal
                     # Mask Ogerpon ex, MAXIMO 2 en juego, y nada mas. Es el mejor
@@ -12059,10 +12079,10 @@ def agent(obs_dict: dict) -> list[int]:
                                 else:
                                     score = 20000
                             else:
-                                score = -1
+                                score = SCORE_VETO
 
                 else:
-                    score = 10000
+                    score = SCORE_ITEM_BASE
 
                     supporter_boost = 500 if itchy_pollen_active else 0
                     if card.id == Forest_of_Vitality:
@@ -12091,15 +12111,15 @@ def agent(obs_dict: dict) -> list[int]:
                         score = _score_lillie_determination_play(ctx)
                     elif card.id == Dawn:
                         if state.supporterPlayed:
-                            score = -1
+                            score = SCORE_VETO
                         elif ko_last_turn and hand_counts.get(Unfair_Stamp, 0) >= 1:
-                            score = -1
+                            score = SCORE_VETO
                         else:
                             _dawn_val = _supp_values.get(Dawn, 0)
                             if _dawn_val <= 0:
-                                score = -1
+                                score = SCORE_VETO
                             else:
-                                score = 2400 + int(_dawn_val * 1.4) + supporter_boost
+                                score = SCORE_SUPPORTER_VALUE_BASE + int(_dawn_val * 1.4) + supporter_boost
                     elif card.id == Lanas_Aid:
                         # Refactor Prioridad 1: rama extraida a `_score_lanas_aid_play`.
                         score = _score_lanas_aid_play(ctx, score)
@@ -12115,7 +12135,7 @@ def agent(obs_dict: dict) -> list[int]:
                             and card.id not in (
                                 Lillie_Determination, Lanas_Aid, Boss_Orders,
                                 Ultra_Ball, Night_Stretcher)):
-                        score = -1
+                        score = SCORE_VETO
         elif o.type == OptionType.ATTACH:
             card = get_card(obs, AreaType.HAND, o.index, my_index)
             pokemon = get_card(obs, o.inPlayArea, o.inPlayIndex, my_index)
@@ -12133,7 +12153,7 @@ def agent(obs_dict: dict) -> list[int]:
                             # retirada y deja un atacante cargado a salvo).
                             score = 8500
                         else:
-                            score = -1
+                            score = SCORE_VETO
                     elif _tapu_sac_enable_retreat:
                         # Adjuntar energia al ex activo (2 premios) para alcanzar
                         # su coste de retirada y poder pivotar a un Tapu Bulu ya
@@ -12199,7 +12219,7 @@ def agent(obs_dict: dict) -> list[int]:
                     # via energy_score). Se veta SIEMPRE, sin importar el turno ni si
                     # es el unico objetivo de banca disponible.
                     if pokemon.id == Meowth_ex:
-                        score = -1
+                        score = SCORE_VETO
 
                 if _bcs_playable_in_hand and not itchy_pollen_active and score > 9000 \
                         and not (_tapu_future_charge
@@ -12215,7 +12235,7 @@ def agent(obs_dict: dict) -> list[int]:
                     # para subir al atacante no-ex que noquea al muro Crustle). Se
                     # veta cualquier adjunte manual para que no robe la Planta ni
                     # supere a Teal Dance por el tier ENERGY del orden de jugada.
-                    score = -1
+                    score = SCORE_VETO
 
                 # Teal Dance PRECEDE al adjunte manual (user, registro_004 paso
                 # 28, vs Mega Starmie): si vamos a cargar energia MANUALMENTE a
@@ -12231,7 +12251,7 @@ def agent(obs_dict: dict) -> list[int]:
                         and pokemon is not None
                         and pokemon.id == Teal_Mask_Ogerpon_ex
                         and (o.inPlayArea, o.inPlayIndex) in _teal_dance_slots):
-                    score = -1
+                    score = SCORE_VETO
 
         elif o.type == OptionType.EVOLVE:
             pokemon = get_card(obs, o.inPlayArea, o.inPlayIndex, my_index)
@@ -12261,7 +12281,7 @@ def agent(obs_dict: dict) -> list[int]:
 
                         score = 33000
                     elif op_is_crustle_deck:
-                        score = -1
+                        score = SCORE_VETO
                     elif op_is_fire_deck:
                         score = 33500
 
@@ -12337,7 +12357,7 @@ def agent(obs_dict: dict) -> list[int]:
                                         meganium_in_play, neutralization_zone_active)
                                     _hydra_kos = (_hydra_dmg > 0 and _hydra_dmg >= (_op_act_evo.hp or 0))
                                 if _dip_kos and not _hydra_kos:
-                                    score = -1
+                                    score = SCORE_VETO
 
                 elif card.id == Bayleef:
 
@@ -12366,7 +12386,7 @@ def agent(obs_dict: dict) -> list[int]:
                                 # evolucionarlo ya en la banca. Se mantiene el veto;
                                 # la logica de retiro sube un atacante de banca y el
                                 # Chikorita evoluciona despues desde la banca.
-                                score = -1
+                                score = SCORE_VETO
                             elif (hand_counts.get(Lillie_Determination, 0) >= 1
                                     and not state.supporterPlayed):
                                 # Escenario 2: no puede pagar la retirada con su
@@ -12378,9 +12398,9 @@ def agent(obs_dict: dict) -> list[int]:
                                 # Escenario 1 (variante): se le puede cargar energia
                                 # este turno para pagar la retirada -> retirar primero
                                 # y evolucionar en banca. Se mantiene el veto.
-                                score = -1
+                                score = SCORE_VETO
                             else:
-                                score = -1
+                                score = SCORE_VETO
                     else:
                         score = 32000
                         if op_is_fire_deck or op_is_mirror or op_is_crustle_deck:
@@ -12525,7 +12545,7 @@ def agent(obs_dict: dict) -> list[int]:
                         _td_ko_after = (_td_dmg_after > 0 and _td_dmg_after >= _td_op_hp)
                         _td_ko_on_active = (_td_ko_after and not _td_ko_now)
                     if hand_counts[Basic_Grass_Energy] < 1:
-                        score = -1
+                        score = SCORE_VETO
                     elif _td_ko_on_active:
 
                         score = 31500
@@ -12538,7 +12558,7 @@ def agent(obs_dict: dict) -> list[int]:
                         # Meganium, por eso convertimos a cartas fisicas antes de
                         # comparar. No se necesita mas energia para atacar.
                         # Excepcion: si habilita un KO (arriba, _td_ko_on_active).
-                        score = -1
+                        score = SCORE_VETO
                     elif (op_is_alakazam_deck
                             and _physical_energy(_ogerpon_energy)
                             >= (2 if meganium_in_play else 4)):
@@ -12550,7 +12570,7 @@ def agent(obs_dict: dict) -> list[int]:
                         # arriba por _td_ko_on_active (31500). Fuera de esa
                         # excepcion no sobrecargamos: reservamos energia.
                         # len(energies) es EFECTIVA => se pasa a cartas fisicas.
-                        score = -1
+                        score = SCORE_VETO
                     elif _teal_wall_pivot and o.area == AreaType.ACTIVE:
                         # Activo condenado (Teal Mask Ogerpon ex) que no puede
                         # atacar + Hydrapple ex (muro) en banca: usar Teal Dance
@@ -12583,7 +12603,7 @@ def agent(obs_dict: dict) -> list[int]:
                         # ex, donde la energia extra sube el dano de Syrup Storm).
                         # len(energies) es EFECTIVA (Wild Growth duplica) => se
                         # pasa a cartas fisicas con _physical_energy.
-                        score = -1
+                        score = SCORE_VETO
                     elif _crustle_atk_needs_grass:
 
                         score = 7500
@@ -12602,7 +12622,7 @@ def agent(obs_dict: dict) -> list[int]:
 
                             score = 31050
                         else:
-                            score = -1
+                            score = SCORE_VETO
                     elif _active_hydra_ready:
 
                         score = 31300
@@ -12658,7 +12678,7 @@ def agent(obs_dict: dict) -> list[int]:
                                 for _bp in (my_state.bench or []))
                             _ripen_wasted_vs_crustle = not _rip_bench_needs
                     if hand_counts[Basic_Grass_Energy] < 1:
-                        score = -1
+                        score = SCORE_VETO
                     elif _ripen_retreat_ko_pivot and o.area == AreaType.ACTIVE:
                         # Pivote Ripening -> retirar -> promover Tapu letal vs
                         # Crustle (user, log 86028607 turno 22): activo Hydrapple
@@ -12683,7 +12703,7 @@ def agent(obs_dict: dict) -> list[int]:
                         # _ripen_bench_tapu_ko_pivot (~L4395).
                         score = 31600
                     elif _ripen_wasted_vs_crustle:
-                        score = -1
+                        score = SCORE_VETO
                     elif _hydra_energy >= 2:
                         if _extra_energy_enables_ko(Hydrapple_ex, _hydra_energy):
                             score = 29000
@@ -12699,7 +12719,7 @@ def agent(obs_dict: dict) -> list[int]:
                             # Tapu Bulu se elige en energy_score (ATTACH_FROM).
                             score = 30000
                         else:
-                            score = -1
+                            score = SCORE_VETO
                     elif _active_needs_energy and not _enough_for_both and o.area != AreaType.ACTIVE:
 
                         score = 7500
@@ -12727,7 +12747,7 @@ def agent(obs_dict: dict) -> list[int]:
                     # Ademas, si tenemos Lillie's Determination en la mano (y aun
                     # no jugamos Supporter), la jugamos ANTES que la habilidad.
                     if _stamp_blocks_supp_chain or _lillie_blocks_fez_ability:
-                        score = -1
+                        score = SCORE_VETO
                     else:
                         score = 30000
                 elif card.id == Meowth_ex:
@@ -12746,7 +12766,7 @@ def agent(obs_dict: dict) -> list[int]:
             # retirar el activo la promocion volveria a subir un Pokemon de la
             # MISMA especie que el que estamos retirando, la retirada no cambia
             # nada y solo malgasta la energia del coste de retirada. Se cancela
-            # (score = -1) para dejar al Pokemon en el activo. Dos casos:
+            # (score = SCORE_VETO) para dejar al Pokemon en el activo. Dos casos:
             #   (a) todos los candidatos de banca son la misma especie que el
             #       activo (el unico candidato es el mismo Pokemon), o
             #   (b) la promocion prefiere subir un BASICO de 1 premio (tenemos
@@ -13095,7 +13115,7 @@ def agent(obs_dict: dict) -> list[int]:
                 # energia hasta dejar listo a un atacante de banca. Cuando ese
                 # atacante este cargado, _cub_bench_attacker_ready sera True y se
                 # permitira el retiro para subirlo y atacar en nuestro turno.
-                score = -1
+                score = SCORE_VETO
             elif (_lucario_sac_pivot and _lucario_sac_available
                     and bench_count >= 1 and can_switch):
                 # Retirar el Ogerpon ex para no entregar 2 premios al Mega Lucario;
@@ -13162,13 +13182,13 @@ def agent(obs_dict: dict) -> list[int]:
                 # es un atacante NO-ex (p.ej. Meganium) que SI golpea al muro
                 # inmune-a-ex (Crustle activo). NUNCA se retira: retirarlo solo
                 # promoveria un ex de banca que hace 0 al muro. Debe ATACAR.
-                score = -1
+                score = SCORE_VETO
             elif _grd_prefer_attack:
 
-                score = -1
+                score = SCORE_VETO
             elif _active_can_ko_now:
 
-                score = -1
+                score = SCORE_VETO
             elif plan.attacker >= 1:
 
                 _retreat_active = my_state.active[0] if my_state.active else None
@@ -13308,7 +13328,7 @@ def agent(obs_dict: dict) -> list[int]:
                 elif ((op_is_crustle_deck or op_is_cornerstone_deck) and
                       active.id == Teal_Mask_Ogerpon_ex):
                     if not can_switch:
-                        score = -1
+                        score = SCORE_VETO
                     else:
 
                         _tmo_ko_rival = False
@@ -13324,7 +13344,7 @@ def agent(obs_dict: dict) -> list[int]:
                             if _tmo_dmg >= (_opa_tmo.hp or 0) and _tmo_dmg > 0:
                                 _tmo_ko_rival = True
                         if _tmo_ko_rival:
-                            score = -1
+                            score = SCORE_VETO
                         else:
 
                             _tmo_attacker_ready = False
@@ -13358,7 +13378,7 @@ def agent(obs_dict: dict) -> list[int]:
                             if _tmo_attacker_ready:
                                 score = 3400
                             else:
-                                score = -1
+                                score = SCORE_VETO
                 elif (not can_attack) and can_switch and _bench_ready_for_retreat:
 
                     score = 3200
@@ -13374,7 +13394,7 @@ def agent(obs_dict: dict) -> list[int]:
                     if _cs_tapu_ready:
                         score = 3400
                     else:
-                        score = -1
+                        score = SCORE_VETO
 
                 elif (op_is_crustle_deck and can_switch and
                       active.id in OUR_EX_IDS):
@@ -13395,7 +13415,7 @@ def agent(obs_dict: dict) -> list[int]:
                             if _cr_dmg >= (_cr_op_act.hp or 0) and _cr_dmg > 0:
                                 _cr_ex_can_ko = True
                     if _cr_ex_can_ko:
-                        score = -1
+                        score = SCORE_VETO
                     else:
                         _crustle_bench_atk = False
                         for bp in my_state.bench:
@@ -13410,7 +13430,7 @@ def agent(obs_dict: dict) -> list[int]:
                         if _crustle_bench_atk:
                             score = 3400
                         else:
-                            score = -1
+                            score = SCORE_VETO
 
                 elif (active.id in OUR_EX_IDS and (not can_attack) and can_switch
                       and estimated_op_damage >= (active.hp or 0)
@@ -13418,11 +13438,11 @@ def agent(obs_dict: dict) -> list[int]:
                     score = 3300
 
                 elif active.id == Fezandipiti_ex and plan.attacker == 0:
-                    score = -1
+                    score = SCORE_VETO
 
                 elif (active.id == Fezandipiti_ex and
                       state.turn == 2 and not we_go_first):
-                    score = -1
+                    score = SCORE_VETO
 
                 elif active.id in NON_ATTACKERS:
 
@@ -13529,10 +13549,10 @@ def agent(obs_dict: dict) -> list[int]:
                             # atacar este turno: retirar ahora solo subiria un
                             # cuerpo que tampoco ataca. Mejor mantener el activo
                             # y seguir cargando al atacante de la banca.
-                            score = -1
+                            score = SCORE_VETO
                         elif _bench_has_only_non_attackers and _has_attacker_in_hand:
 
-                            score = -1
+                            score = SCORE_VETO
                         else:
                             score = 5500
                     elif active.id == Meowth_ex:
@@ -13593,12 +13613,12 @@ def agent(obs_dict: dict) -> list[int]:
                         elif _has_ready_bench_for_meowth:
                             score = 5000
                         else:
-                            score = -1
+                            score = SCORE_VETO
                     elif _has_bench_attacker:
                         score = 3000
                     elif _bench_has_only_non_attackers and _has_attacker_in_hand:
 
-                        score = -1
+                        score = SCORE_VETO
                     else:
                         score = 2500
 
@@ -13625,7 +13645,7 @@ def agent(obs_dict: dict) -> list[int]:
                         if _has_ready_bench:
                             score = 2500
                         else:
-                            score = -1
+                            score = SCORE_VETO
 
                     elif (can_switch
                           and estimated_op_damage > 0
@@ -13652,7 +13672,7 @@ def agent(obs_dict: dict) -> list[int]:
                         if _def_retreat_target:
                             score = 5600
                         else:
-                            score = -1
+                            score = SCORE_VETO
 
                     elif (active.id in (Hydrapple_ex, Tapu_Bulu) and
                           op_state.active and op_state.active[0] is not None and
@@ -13672,7 +13692,7 @@ def agent(obs_dict: dict) -> list[int]:
                         if _has_shell_bypass_bench:
                             score = 5500
                         else:
-                            score = -1
+                            score = SCORE_VETO
 
                     elif (active.id in OUR_EX_IDS and
                           op_state.active and op_state.active[0] is not None and
@@ -13695,7 +13715,7 @@ def agent(obs_dict: dict) -> list[int]:
                         if _has_nonex_bench:
                             score = 5500
                         else:
-                            score = -1
+                            score = SCORE_VETO
 
                     elif (neutralization_zone_active and active.id in OUR_EX_IDS):
                         _has_nz_bypass_bench = False
@@ -13725,13 +13745,13 @@ def agent(obs_dict: dict) -> list[int]:
                         if _has_nz_bypass_bench and not _op_act_has_rb:
                             score = 5000
                         else:
-                            score = -1
+                            score = SCORE_VETO
                     else:
-                        score = -1
+                        score = SCORE_VETO
                 else:
-                    score = -1
+                    score = SCORE_VETO
             else:
-                score = -1
+                score = SCORE_VETO
 
             # Cancelar la retirada si solo reubicaria al mismo Pokemon (misma
             # especie) al activo: es inutil y malgasta la energia del coste de
@@ -13742,7 +13762,7 @@ def agent(obs_dict: dict) -> list[int]:
             # moneda. Con dos Teal Mask Ogerpon ex (el plan del matchup) este es el
             # caso normal, asi que no se veta la retirada de escape de confusion.
             if _same_species_retreat and score > 0 and not _conf_should_retreat:
-                score = -1
+                score = SCORE_VETO
 
             # Pivote vs Alakazam (user, registro_010 paso 127): retirar el ex
             # activo para promover un cuerpo de 1 premio (Meganium/Tapu Bulu) que
@@ -13814,7 +13834,7 @@ def agent(obs_dict: dict) -> list[int]:
 
                     if _can_add_energy:
 
-                        score = -1
+                        score = SCORE_VETO
 
             if plan.attacker >= 1 and score > 0 and not _nonex_active_hits_wall:
                 _plan_atk_is_winning = False
@@ -13832,7 +13852,7 @@ def agent(obs_dict: dict) -> list[int]:
                         if _plan_active_energy >= _plan_rc:
                             _plan_can_retreat = True
                     if _plan_can_retreat:
-                        score = -1
+                        score = SCORE_VETO
 
             if (bench_count == 0 and hand_counts.get(Ultra_Ball, 0) >= 1):
                 _atk_hand_size = len(my_state.hand) if my_state.hand else 0
@@ -13858,7 +13878,7 @@ def agent(obs_dict: dict) -> list[int]:
                                 if _op_act_atk is not None and op_prize <= prize_count(_op_act_atk):
                                     _atk_is_winning = True
                             if not _atk_is_winning:
-                                score = -1
+                                score = SCORE_VETO
 
             if (state.turn == 2 and not we_go_first
                     and hand_counts.get(Lillie_Determination, 0) >= 1):
@@ -13869,7 +13889,7 @@ def agent(obs_dict: dict) -> list[int]:
                     == Lillie_Determination
                     for _lo in select.option)
                 if _lillie_playable_now:
-                    score = -1
+                    score = SCORE_VETO
 
             _atk_active = my_state.active[0] if my_state.active else None
             if (_atk_active is not None and _atk_active.id == Meowth_ex
@@ -13879,10 +13899,10 @@ def agent(obs_dict: dict) -> list[int]:
                 # (banca vacia), atacar nos dejaria sin Pokemon en juego =>
                 # perdemos la partida. Solo puede atacar si hay al menos un
                 # Pokemon en banca al que retroceder.
-                score = -1
+                score = SCORE_VETO
 
             if op_active_dodge_immune:
-                score = -1
+                score = SCORE_VETO
 
         elif o.type == OptionType.END:
 
@@ -13891,7 +13911,7 @@ def agent(obs_dict: dict) -> list[int]:
                     condition_risky_attack and
                     not (plan.remain_hp is not None and plan.remain_hp <= 0))
                 if _conf_should_attack or not _end_attack_is_risky:
-                    score = -10000
+                    score = SCORE_NEVER
 
         elif o.type == OptionType.SPECIAL_CONDITION:
 
@@ -13925,7 +13945,7 @@ def agent(obs_dict: dict) -> list[int]:
         scores.append(score)
 
     if select.effect is not None and select.effect.id == Poke_Pad and context == SelectContext.TO_HAND:
-        _best_pp_score = -1
+        _best_pp_score = SCORE_VETO
         _best_pp_id = 0
         for _pp_idx, _pp_opt in enumerate(select.option):
             if _pp_idx < len(scores) and scores[_pp_idx] > _best_pp_score:
@@ -13968,7 +13988,7 @@ def agent(obs_dict: dict) -> list[int]:
                     break
 
     if select.effect is not None and select.effect.id == Ultra_Ball and context == SelectContext.TO_HAND:
-        _best_ub_score = -1
+        _best_ub_score = SCORE_VETO
         _best_ub_id = 0
         for _ub_idx, _ub_opt in enumerate(select.option):
             if _ub_idx < len(scores) and scores[_ub_idx] > _best_ub_score:
