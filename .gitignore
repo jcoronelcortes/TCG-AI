@@ -71,3 +71,6 @@ dist/
 # datos de referencia (deck.csv, dataset/EN_Card_Data.csv, tests/fixtures/*.json)
 # SI se versionan: son necesarios para ejecutar el agente y las pruebas.
 # No agregar patrones *.so/*.dll/*.dylib/*.csv que los excluirian.
+kaggle_token.txt
+.kaggle/
+dataset/Card_ID List_EN.pdf

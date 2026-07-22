@@ -941,6 +941,8 @@ def _make_boss_ctx(**overrides):
         boss_deny_alakazam_line=False,
         boss_low_value_gust=False,
         boss_prize_rank=0,
+        boss_ko_threat_preevo=False,
+        has_ready_bench_attacker=True,
     )
     base.update(overrides)
     # `hand_counts`/`field_counts` en produccion son defaultdict(int); los scorers
@@ -1344,6 +1346,197 @@ def test_alakazam_step82_tapu_bulu_attacks_instead_of_retreating():
         f"obtuvo {result}"
     )
     assert result != [retreat_opt], "nunca retirar un Tapu Bulu que puede derrotar al rival"
+
+
+# Registro 023 (vs Archaludon ex, PERDIDA): con DOS Hydrapple ex en juego, el
+# activo es un Hydrapple ex FRAGIL (110/330) que puede atacar y noquear, y en
+# banca hay otro Hydrapple ex a VIDA COMPLETA (330/330) que, tras retirar el
+# activo, AUN noquea al Archaludon ex (Syrup Storm escala con el Grass total del
+# campo, que baja por el coste de retirada). El agente atacaba con el fragil, que
+# moria al turno siguiente cediendo 2 premios (derrota). Lo correcto: RETIRAR el
+# fragil y promover al tanque, que noquea igual y sobrevive. El pivote defensivo
+# excluia el caso activo-Hydrapple (`_ret_active.id != Hydrapple_ex`).
+_HYDRA_PIVOT_LOWHP_FIXTURE = ROOT / "tests" / "fixtures" / "archaludon_hydra_pivot_lowhp_active_step143.json"
+
+
+def test_archaludon_step143_retreats_low_hp_hydrapple_to_promote_full_hp_wall():
+    with open(_HYDRA_PIVOT_LOWHP_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+
+    options = obs["select"]["option"]
+    attack_opt = next(i for i, o in enumerate(options)
+                      if o.get("type") == int(OptionType.ATTACK))
+    retreat_opt = next(i for i, o in enumerate(options)
+                       if o.get("type") == int(OptionType.RETREAT))
+
+    result = m.agent(obs)
+
+    assert result == [retreat_opt], (
+        f"con dos Hydrapple ex, un activo fragil y un tanque de banca que noquea "
+        f"tras retirar, debe RETIRAR (opt {retreat_opt}) para promover al tanque; "
+        f"obtuvo {result}"
+    )
+    assert result != [attack_opt], "no atacar con el Hydrapple fragil (moriria dando 2 premios)"
+
+
+# Registro 007 (paso 78 vs Archaludon ex, GANADA con jugada suboptima): Hydrapple
+# ex activo cargado + >=2 atacantes, con Boss's Orders Y Lillie's Determination en
+# mano. El rival tiene un Cinderace no-ex (1 premio, poco peligroso) en el activo
+# y un Duraludon (1 premio, pre-evo de Archaludon ex = el atacante del mazo) en
+# banca que podemos gustear y NOQUEAR. El agente jugaba Lillie's (barajando el
+# Boss's al mazo). Correcto: jugar Boss's para gustear+noquear al Duraludon (mismo
+# premio que el Cinderace pero remueve al futuro atacante). El pivote fallaba por
+# (1) el veto de Lillie's solo aplicaba vs Hops y (2) con premios IGUALES el
+# codigo prefiere noquear el activo en vez de gustear la pre-evo amenaza.
+_BOSS_OVER_LILLIE_DURALUDON_FIXTURE = ROOT / "tests" / "fixtures" / "archaludon_boss_over_lillie_duraludon_step78.json"
+
+
+def test_archaludon_step78_plays_boss_to_gust_duraludon_not_lillie():
+    with open(_BOSS_OVER_LILLIE_DURALUDON_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+
+    options = obs["select"]["option"]
+    boss_opt = next(i for i, o in enumerate(options)
+                    if o.get("type") == int(OptionType.PLAY) and o["index"] == 0)
+    lillie_opt = next(i for i, o in enumerate(options)
+                      if o.get("type") == int(OptionType.PLAY) and o["index"] == 1)
+
+    result = m.agent(obs)
+
+    assert result == [boss_opt], (
+        f"debe jugar Boss's (opt {boss_opt}) para gustear+noquear al Duraludon "
+        f"(pre-evo de Archaludon ex), no Lillie's (opt {lillie_opt}); obtuvo {result}"
+    )
+    assert result != [lillie_opt], "no jugar Lillie's teniendo Boss's y atacantes de sobra"
+
+
+# Registro 003 (paso 17 vs Archaludon, PERDIDA): el agente bajaba Meowth ex para
+# buscar (Last-Ditch Catch) una Lillie's Determination cuando YA tenia una en la
+# mano (fetch redundante + expone un cuerpo de 2 premios). Con la energia ya
+# adjuntada y un Tapu Bulu como activo (no aplica la excepcion de primer-turno-
+# primero con basico solo != Tapu), debe jugar la Lillie's que ya tiene, NO Meowth.
+_NO_MEOWTH_HAVE_LILLIE_FIXTURE = ROOT / "tests" / "fixtures" / "archaludon_no_meowth_have_lillie_step18.json"
+
+
+def test_archaludon_step17_plays_lillie_not_meowth_when_lillie_in_hand():
+    with open(_NO_MEOWTH_HAVE_LILLIE_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+
+    options = obs["select"]["option"]
+    lillie_opt = next(i for i, o in enumerate(options)
+                      if o.get("type") == int(OptionType.PLAY) and o["index"] == 1)
+    meowth_opt = next(i for i, o in enumerate(options)
+                      if o.get("type") == int(OptionType.PLAY) and o["index"] == 3)
+
+    result = m.agent(obs)
+
+    assert result == [lillie_opt], (
+        f"debe jugar la Lillie's que ya tiene (opt {lillie_opt}), no bajar Meowth ex "
+        f"para buscar otra (opt {meowth_opt}); obtuvo {result}"
+    )
+    assert result != [meowth_opt], "no bajar Meowth ex para un fetch de Lillie's redundante"
+
+
+# Registro 012 (paso 241 vs Iono, GANADA con jugada suboptima): con 2 premios,
+# activo Ogerpon ex (4 energias, puede retirar), banca con Hydrapple ex (2 energias),
+# otro Ogerpon ex y Meganium, y Boss's + Lana's en mano; el rival tiene un Iono's
+# Bellibolt ex (280 HP, 2 premios) en banca. El agente jugaba Lana's Aid. Correcto:
+# jugar Boss's para gustear al Bellibolt ex y noquearlo tras RETIRAR el activo y
+# promover el Hydrapple ex (Syrup Storm escala con el Grass TOTAL del campo ~= 330),
+# ganando los 2 premios. La deteccion de win-via-gusteo solo miraba el ataque del
+# activo actual (Ogerpon 150 < 280), no el Hydrapple promovido tras retirar.
+_BOSS_WIN_RETREAT_PROMOTE_FIXTURE = ROOT / "tests" / "fixtures" / "iono_boss_win_retreat_promote_hydra_step241.json"
+
+
+def test_iono_step241_plays_boss_win_via_retreat_promote_not_lana():
+    with open(_BOSS_WIN_RETREAT_PROMOTE_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+
+    options = obs["select"]["option"]
+    boss_opt = next(i for i, o in enumerate(options)
+                    if o.get("type") == int(OptionType.PLAY) and o["index"] == 0)
+    lana_opt = next(i for i, o in enumerate(options)
+                    if o.get("type") == int(OptionType.PLAY) and o["index"] == 1)
+
+    result = m.agent(obs)
+
+    assert result == [boss_opt], (
+        f"debe jugar Boss's (opt {boss_opt}) para el remate ganador (gustear+noquear "
+        f"al Bellibolt ex tras retirar+promover Hydrapple), no Lana's (opt {lana_opt}); "
+        f"obtuvo {result}"
+    )
+    assert result != [lana_opt], "no jugar Lana's Aid cuando hay un remate ganador con Boss's"
+
+
+# Variante (user): el remate ganador con Boss's debe detectarse con CUALQUIER
+# atacante de banca, no solo Hydrapple ex. Aqui NO hay Hydrapple; el atacante de
+# banca es un Ogerpon ex con energia suficiente (Ivy Bludgeon = 30+30*10 = 330 >=
+# 280) que noquea al Bellibolt ex tras retirar+promover. Confirma que
+# `_bench_attacker_can_ko` evalua toda la banca (Ogerpon/Tapu/Meganium/etc).
+_BOSS_WIN_RETREAT_OGERPON_FIXTURE = ROOT / "tests" / "fixtures" / "iono_boss_win_retreat_promote_ogerpon_step241.json"
+
+
+def test_iono_step241_boss_win_via_bench_ogerpon_not_only_hydrapple():
+    with open(_BOSS_WIN_RETREAT_OGERPON_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+
+    options = obs["select"]["option"]
+    boss_opt = next(i for i, o in enumerate(options)
+                    if o.get("type") == int(OptionType.PLAY) and o["index"] == 0)
+    lana_opt = next(i for i, o in enumerate(options)
+                    if o.get("type") == int(OptionType.PLAY) and o["index"] == 1)
+
+    result = m.agent(obs)
+
+    assert result == [boss_opt], (
+        f"el remate ganador debe verse con un Ogerpon ex de banca (sin Hydrapple): "
+        f"Boss's (opt {boss_opt}), no Lana's (opt {lana_opt}); obtuvo {result}"
+    )
+    assert result != [lana_opt], "la deteccion de win-via-banca debe evaluar toda la banca, no solo Hydrapple"
+
+
+# Registro 005 (paso 51 vs Dragapult, PERDIDA): con Boss's + Lillie's en mano,
+# nuestro UNICO atacante es el activo (Ogerpon ex) y en banca solo hay BASICOS
+# (Tapu Bulu sin cargar, Applin, Bayleef) -> ningun atacante de banca listo. El
+# rival (Dragapult ex 320 HP en el activo) tiene un Drakloak/Dreepy gusteable de
+# 1 premio. El agente jugaba Boss's (gusteo de desarrollo para cortar la linea).
+# Correcto: jugar Lillie's para CAVAR, porque sin segundo atacante el gusteo no
+# encadena. Boss's sobre Lillie's solo tiene prioridad con un atacante de banca
+# real (!= Applin) listo.
+_DRAGAPULT_LILLIE_OVER_BOSS_FIXTURE = ROOT / "tests" / "fixtures" / "dragapult_lillie_over_boss_one_attacker_step51.json"
+
+
+def test_dragapult_step51_plays_lillie_over_boss_when_no_second_attacker():
+    with open(_DRAGAPULT_LILLIE_OVER_BOSS_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+
+    options = obs["select"]["option"]
+    boss_opt = next(i for i, o in enumerate(options)
+                    if o.get("type") == int(OptionType.PLAY) and o["index"] == 0)
+    lillie_opt = next(i for i, o in enumerate(options)
+                      if o.get("type") == int(OptionType.PLAY) and o["index"] == 1)
+
+    result = m.agent(obs)
+
+    assert result == [lillie_opt], (
+        f"con solo el activo como atacante (banca = basicos/Applin) debe CAVAR con "
+        f"Lillie's (opt {lillie_opt}), no gustear con Boss's (opt {boss_opt}); obtuvo {result}"
+    )
+    assert result != [boss_opt], "un gusteo de desarrollo no tiene prioridad sin un atacante de banca real"
+
+
+def test_boss_dev_gust_keeps_priority_with_ready_bench_attacker():
+    # Complemento: CON un atacante de banca listo (!= Applin), el gusteo de
+    # desarrollo (boss_prize_rank) SI mantiene prioridad -> Boss's no cede.
+    _hc = {m.Boss_Orders: 1, m.Lillie_Determination: 1}
+    ctx = _make_boss_ctx(boss_prize_rank=7, has_ready_bench_attacker=True,
+                         active_cant_attack=False, hand_counts=_hc)
+    assert m._score_boss_orders_play(ctx) > m.BOSS_SCORE_EMPTY_GUST, (
+        "con atacante de banca listo, el gusteo de desarrollo mantiene prioridad")
+    ctx_no = _make_boss_ctx(boss_prize_rank=7, has_ready_bench_attacker=False,
+                            active_cant_attack=False, hand_counts=dict(_hc))
+    assert m._score_boss_orders_play(ctx_no) == m.BOSS_SCORE_EMPTY_GUST, (
+        "sin atacante de banca real (y Lillie's en mano), el gusteo de desarrollo cede a Lillie's")
 
 
 # Registro 004 (paso 35) vs Mega Lucario (GANADA): al resolver la busqueda (TO_HAND)

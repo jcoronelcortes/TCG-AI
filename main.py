@@ -1412,6 +1412,8 @@ class DecisionContext:
     boss_deny_alakazam_line: bool
     boss_low_value_gust: bool
     boss_prize_rank: int
+    boss_ko_threat_preevo: bool
+    has_ready_bench_attacker: bool
 
 
 def _score_boss_orders_play(ctx: DecisionContext) -> int:
@@ -1465,6 +1467,29 @@ def _score_boss_orders_play(ctx: DecisionContext) -> int:
     if _boss_first_turn_cede:
         return BOSS_SCORE_EMPTY_GUST
     if _boss_empty_gust:
+        return BOSS_SCORE_EMPTY_GUST
+    # Cede a Lillie's cuando NO tenemos un atacante REAL de banca (user,
+    # registro_005 vs Dragapult): con Lillie's en mano, un gusteo de DESARROLLO
+    # (cortar la linea rival gusteando+noqueando un basico/pre-evo de 1 premio
+    # como Drakloak/Dreepy) NO tiene prioridad si ademas del activo solo tenemos
+    # BASICOS (Applin, Tapu sin cargar, etc.) y ningun atacante de banca listo:
+    # sin segundo atacante el gusteo no encadena y conviene CAVAR con Lillie's.
+    # `has_ready_bench_attacker` (=_bench_attacker_ready) solo cuenta atacantes
+    # reales listos (Hydrapple/Ogerpon/Dipplin/Tapu/Pinsir/Meganium con energia),
+    # nunca un Applin. Se exceptuan TODOS los gusteos valiosos: remate ganador
+    # (win_via_boss_gust arriba), win_via_bench, defensivo, dodge/redirect,
+    # pre-evo AMENAZA (Duraludon), linea Alakazam y muros immunes.
+    _boss_cede_dig = (
+        hand_counts.get(Lillie_Determination, 0) >= 1
+        and not ctx.has_ready_bench_attacker
+        and not ctx.boss_win_via_bench
+        and not ctx.boss_dodge_redirect
+        and not ctx.boss_defensive_gust
+        and not ctx.boss_ko_threat_preevo
+        and not ctx.boss_deny_alakazam_line
+        and not ctx.op_has_ability_immune_active
+        and not ctx.op_has_ex_immune_active)
+    if _boss_cede_dig:
         return BOSS_SCORE_EMPTY_GUST
     if (ctx.op_has_ability_immune_active or ctx.op_has_ex_immune_active) and _boss_val >= 900:
         return BOSS_SCORE_WALL_GUST + supporter_boost
@@ -3214,8 +3239,16 @@ def _score_lillie_determination_play(ctx: DecisionContext) -> int:
     # cavar por mas recursos). Con >= 2 atacantes LISTOS (activo + banca) NO se
     # juega Lillie's: se guarda el Boss's en la mano para la respuesta. Si no hay
     # Boss's en mano, Lillie's se puede jugar con normalidad.
+    # Generalizacion (user, registro_007 p78 vs Archaludon, GANADA): ademas de vs
+    # Hops, GUARDAR el Boss's (vetar Lillie's) cuando el rival tiene en la banca
+    # una PRE-EVOLUCION AMENAZA que podemos gustear y NOQUEAR (Duraludon ->
+    # Archaludon ex: el atacante real del mazo) y tenemos >= 2 atacantes listos.
+    # Lillie's barajaria el Boss's al mazo; con atacantes de sobra no hace falta
+    # cavar, y la prioridad es remover el atacante con Boss's. `_boss_ko_threat_preevo`
+    # NO se anula por `_active_attack_sufficient`, asi que aplica aunque el activo
+    # pudiera atacar al activo rival (p.ej. un Cinderace poco peligroso).
     _hop_keep_boss = False
-    if (ctx.op_is_hop_deck
+    if ((ctx.op_is_hop_deck or ctx.boss_ko_threat_preevo)
             and hand_counts.get(Boss_Orders, 0) >= 1
             and not _boss_win_via_bench):
         _lillie_ready_attackers = 0
@@ -3284,13 +3317,20 @@ def _score_lillie_determination_play(ctx: DecisionContext) -> int:
         score = 5800 + supporter_boost
     elif (not _boss_low_value_gust and
             hand_counts.get(Boss_Orders, 0) >= 1 and
-            ((_boss_prize_rank >= 1 and not _active_cant_attack_this_turn)
+            ((_boss_prize_rank >= 1 and not _active_cant_attack_this_turn
+              and (ctx.has_ready_bench_attacker or ctx.boss_ko_threat_preevo))
              or _boss_win_via_bench or _boss_dodge_redirect)):
 
         # No vetar Lillie's cuando el gusteo por `_boss_prize_rank`
         # NO es ejecutable este turno (activo no puede atacar y sin
         # atacante de banca listo). Los remates ejecutables
         # (win_via_bench / dodge) si siguen vetando Lillie's.
+        # ADEMAS (user, registro_005 vs Dragapult): un gusteo de DESARROLLO
+        # (prize_rank, cortar la linea rival) NO veta Lillie's si ademas del
+        # activo NO tenemos un atacante REAL de banca listo (`has_ready_bench_
+        # attacker`, que nunca cuenta un Applin); sin segundo atacante conviene
+        # CAVAR con Lillie's. Se exceptua la pre-evo AMENAZA (`boss_ko_threat_
+        # preevo`, p.ej. Duraludon), que sigue teniendo prioridad de gusteo.
         score = SCORE_VETO
     elif (hand_counts.get(Teal_Mask_Ogerpon_ex, 0) >= 1 and
             hand_counts.get(Basic_Grass_Energy, 0) >= 1 and
@@ -4852,8 +4892,23 @@ def agent(obs_dict: dict) -> list[int]:
                 _tapu_active_ko_here = (_tapu_dmg_here > 0
                                         and _tapu_dmg_here >= (_op_act_main.hp or 0))
 
+            # Incluye el caso en que el ACTIVO YA es un Hydrapple ex fragil
+            # (user, registro_023 vs Archaludon): con dos Hydrapple ex en juego,
+            # si el activo tiene POCA vida y en banca hay OTRO Hydrapple ex con
+            # MAS vida que, tras retirar, AUN noquea al activo rival, se promueve
+            # al tanque: noquea igual y sobrevive el contraataque (el fragil
+            # moriria y, al ser ex, cederia 2 premios). El ataque de Hydrapple
+            # (Syrup Storm) escala con el Grass TOTAL del campo, que BAJA por el
+            # coste de retirada; cuando el activo es Hydrapple se descuenta ese
+            # coste al comprobar el KO del de banca.
+            _piv_active_is_hydra = (_ret_active is not None
+                                    and _ret_active.id == Hydrapple_ex)
+            if _piv_active_is_hydra:
+                _piv_ret_cost = 0 if has_switch_card else RETREAT_COST.get(Hydrapple_ex, 2)
+                _piv_grass_after = max(0, total_grass - _retreat_cards(_piv_ret_cost))
+            else:
+                _piv_grass_after = total_grass
             if (can_switch and _op_act_main is not None and _ret_active is not None
-                    and _ret_active.id != Hydrapple_ex
                     and not _tapu_active_ko_here
                     and (active_ko_likely or active_hp_ratio <= 0.6)):
                 _piv_op_hp = _op_act_main.hp or 0
@@ -4864,12 +4919,17 @@ def agent(obs_dict: dict) -> list[int]:
                     # noquear); si ya esta danado no aporta la ventaja de muro.
                     if _piv_pk.hp < (_piv_pk.maxHp or 0):
                         continue
+                    # Con activo Hydrapple, el de banca debe tener MAS vida que el
+                    # activo; si no, pivotar no aporta (mismo ataque de campo) y
+                    # ademas pierde Grass por la retirada.
+                    if _piv_active_is_hydra and (_piv_pk.hp or 0) <= (_ret_active.hp or 0):
+                        continue
                     # Necesita energia PROPIA para atacar tras subir (Wild Growth
                     # incluido): el umbral efectivo de Hydrapple ex es 2.
                     if len(_piv_pk.energies) * _grass_mult() < 2:
                         continue
                     _piv_dmg = _our_effective_damage(
-                        _piv_pk, _op_act_main, 30 + 30 * total_grass,
+                        _piv_pk, _op_act_main, 30 + 30 * _piv_grass_after,
                         meganium_in_play, neutralization_zone_active)
                     if _piv_dmg > 0 and _piv_dmg >= _piv_op_hp:
                         plan.attacker = _piv_i
@@ -5422,6 +5482,40 @@ def agent(obs_dict: dict) -> list[int]:
 
                 values['_boss_win_via_bench'] = True
 
+            # Win via RETIRAR+PROMOVER (user, registro_012 p241 vs Iono, GANADA):
+            # el activo actual NO noquea al objetivo de banca, pero un atacante de
+            # BANCA (Hydrapple ex: Syrup Storm escala con el Grass TOTAL del campo,
+            # no con su energia propia) SI lo noquea tras RETIRAR el activo, y ese
+            # KO nos da los premios para GANAR. La deteccion anterior solo miraba
+            # el ataque del activo ACTUAL; por eso el juego no "veia" el remate y
+            # jugaba Lana's Aid en vez de Boss's Orders.
+            if (not _bo_win_via_bench and my_prize >= 1):
+                _bo_wr_active = my_state.active[0] if my_state.active else None
+                _bo_wr_switch = hand_counts.get(1123, 0) >= 1
+                _bo_wr_cost = 0 if _bo_wr_switch else (
+                    RETREAT_COST.get(_bo_wr_active.id, 1)
+                    if _bo_wr_active is not None else 1)
+                if (_bo_wr_active is not None
+                        and (_bo_wr_switch
+                             or len(_bo_wr_active.energies) >= _bo_wr_cost)):
+                    _bo_wr_grass_after = max(0, total_grass - _retreat_cards(_bo_wr_cost))
+                    for _bo_wr_tgt in op_state.bench:
+                        if _bo_wr_tgt is None:
+                            continue
+                        if (op_is_crustle_deck
+                                and _bo_wr_tgt.id in (Dwebble_Grass, Dwebble_Fighting)):
+                            continue
+                        if prize_count(_bo_wr_tgt) < my_prize:
+                            continue
+                        if _bench_attacker_can_ko(
+                                my_state, _bo_wr_tgt, meganium_in_play, total_grass,
+                                bench_count, _bo_wr_grass_after,
+                                neutralization_zone_active):
+                            _bo_win_via_bench = True
+                            values[Boss_Orders] = max(values.get(Boss_Orders, 0), 990)
+                            values['_boss_win_via_bench'] = True
+                            break
+
             _bo_deny_evo_target = False
             _bo_ko_active_wins = (_bo_can_ko_active
                                   and my_prize <= prize_count(_bo_op_active))
@@ -5495,8 +5589,20 @@ def agent(obs_dict: dict) -> list[int]:
                             bench_count, _bo_de_grass_after,
                             neutralization_zone_active)
                     if _bo_pe_ko:
+                        # Con una PRE-EVO AMENAZA (Duraludon->Archaludon ex) que
+                        # podemos noquear, solo se prefiere noquear el activo si
+                        # este rinde ESTRICTAMENTE mas premios; con premios IGUALES
+                        # gustear la pre-evo es mejor (mismo premio y REMUEVE al
+                        # atacante del mazo). Para los demas objetivos se mantiene
+                        # el criterio >= (user, registro_007 p78 vs Archaludon:
+                        # Cinderace no-ex activo = 1 premio, igual que Duraludon;
+                        # el juego noqueaba al Cinderace en vez de gustear Duraludon).
+                        _bo_active_prize_dominates = (
+                            prize_count(_bo_op_active) > prize_count(_bo_pe)
+                            if _bo_pe_is_threat
+                            else prize_count(_bo_op_active) >= prize_count(_bo_pe))
                         if (_bo_can_ko_active
-                                and prize_count(_bo_op_active) >= prize_count(_bo_pe)
+                                and _bo_active_prize_dominates
                                 and not _bo_pe_is_ex_line_vs_wall
                                 and not _bo_pe_is_energized_preevo_vs_bare_wall):
                             continue
@@ -6120,6 +6226,12 @@ def agent(obs_dict: dict) -> list[int]:
             _best_supp_in_hand_id = sid
 
     _boss_prize_rank = 0
+    # `_boss_ko_threat_preevo`: hay una PRE-EVOLUCION AMENAZA en la banca rival
+    # (Duraludon->Archaludon, etc.: THREAT_PREEVO_IDS) que podemos gustear y
+    # NOQUEAR este turno. A diferencia de `_boss_prize_rank`, NO se anula cuando
+    # el ataque al activo es "suficiente": sirve para decidir GUARDAR el Boss's
+    # (vetar Lillie's) aunque el activo pudiera atacar (user, registro_007 p78).
+    _boss_ko_threat_preevo = False
     if (context == SelectContext.MAIN
             and hand_counts.get(Boss_Orders, 0) >= 1
             and op_state.active and op_state.active[0] is not None):
@@ -6184,6 +6296,8 @@ def agent(obs_dict: dict) -> list[int]:
             _bpr_rank = _bpr_base + (0 if len(_bpr_tgt.energies) >= 1 else 1)
             if _boss_prize_rank == 0 or _bpr_rank < _boss_prize_rank:
                 _boss_prize_rank = _bpr_rank
+            if _bpr_tgt.id in THREAT_PREEVO_IDS:
+                _boss_ko_threat_preevo = True
 
     if _bo_active_attack_sufficient or _supp_values.get('_active_attack_sufficient'):
         _boss_prize_rank = 0
@@ -8394,6 +8508,8 @@ def agent(obs_dict: dict) -> list[int]:
         boss_deny_alakazam_line=_boss_deny_alakazam_line,
         boss_low_value_gust=_boss_low_value_gust,
         boss_prize_rank=_boss_prize_rank,
+        boss_ko_threat_preevo=_boss_ko_threat_preevo,
+        has_ready_bench_attacker=_bench_attacker_ready,
     )
 
     # Teal Dance PRECEDE al adjunte manual (user, registro_004 paso 28, vs
@@ -12051,6 +12167,31 @@ def agent(obs_dict: dict) -> list[int]:
                             score = SCORE_VETO
                         elif field_counts[Meowth_ex] >= 1 and score <= 0:
                             score = SCORE_VETO
+                        elif hand_counts.get(Lillie_Determination, 0) >= 1:
+                            # Regla (user, registro_003 p17 vs Archaludon): NUNCA
+                            # bajar Meowth ex para buscar (Last-Ditch Catch) una
+                            # Lillie's Determination si YA tenemos una en la mano:
+                            # el fetch es redundante y expone un cuerpo de 2 premios.
+                            # Primero se juega la Lillie's que tenemos. UNICA
+                            # EXCEPCION: nuestro PRIMER turno partiendo PRIMERO, con
+                            # la banca VACIA y un solo BASICO en el activo distinto
+                            # de Tapu Bulu (hace falta desarrollar banca). Si tras
+                            # jugar Lillie's seguimos sin banca, el rescate anti-
+                            # softlock (supporterPlayed=True, sin Lillie's en mano)
+                            # rehabilita bajar Meowth como ultimo recurso.
+                            _mw_act = my_state.active[0] if my_state.active else None
+                            _mw_act_data = (card_table.get(_mw_act.id)
+                                            if _mw_act is not None else None)
+                            _mw_lone_basic = (
+                                _mw_act is not None and _mw_act.id != Tapu_Bulu
+                                and _mw_act_data is not None
+                                and not getattr(_mw_act_data, 'stage1', False)
+                                and not getattr(_mw_act_data, 'stage2', False))
+                            _mw_dev_exc = (
+                                _our_first_turn and we_go_first
+                                and bench_count == 0 and _mw_lone_basic)
+                            if not _mw_dev_exc:
+                                score = SCORE_VETO
 
                     # Estrategia vs Comfey (user, registro_005): SOLO bajar Teal
                     # Mask Ogerpon ex, MAXIMO 2 en juego, y nada mas. Es el mejor
