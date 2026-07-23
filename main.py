@@ -3868,6 +3868,178 @@ def _score_lanas_aid_play(ctx: DecisionContext, score: int) -> int:
     return score
 
 
+# =============================================================================
+# MOTOR DE REGLAS (piloto fase 4): reglas con NOMBRE y TRAZA.
+#
+# Problema que resuelve: el scoring inline entierra cada regla como un if con
+# numeros magicos; cuando dos reglas colisionan (p.ej. un clamp que pisa un
+# score alto), encontrar la culpable exige instrumentar a mano. Aqui cada
+# regla es un objeto con nombre; el resolver deja una traza legible de que
+# regla fijo el score y que ajustes lo transformaron (visible con PTCG_DEBUG).
+#
+# Semantica IDENTICA al codigo que reemplaza:
+#   - _ReglaFija: cadena if/elif -> gana la PRIMERA cuyo `cuando` es True.
+#   - _Ajuste: transformaciones secuenciales posteriores (clamps, topes).
+# Piloto: rama Hydrapple ex del fetch de la Ultra Ball. Cero cambio de
+# comportamiento (verificado con suite + corpus dorado + invariantes).
+# =============================================================================
+
+class _ReglaFija:
+    __slots__ = ("nombre", "cuando", "valor")
+
+    def __init__(self, nombre, cuando, valor):
+        self.nombre = nombre
+        self.cuando = cuando  # ctx -> bool
+        self.valor = valor    # ctx -> score
+
+class _Ajuste:
+    __slots__ = ("nombre", "cuando", "aplicar")
+
+    def __init__(self, nombre, cuando, aplicar):
+        self.nombre = nombre
+        self.cuando = cuando    # (ctx, score) -> bool
+        self.aplicar = aplicar  # (ctx, score) -> score
+
+def _resolver_reglas(reglas, ajustes, ctx, defecto):
+    """Devuelve (score, traza). Primera regla que aplica + ajustes en orden."""
+    traza = []
+    score = defecto
+    for r in reglas:
+        if r.cuando(ctx):
+            score = r.valor(ctx)
+            traza.append(f"{r.nombre}={score}")
+            break
+    else:
+        traza.append(f"defecto={defecto}")
+    for a in ajustes:
+        if a.cuando(ctx, score):
+            nuevo = a.aplicar(ctx, score)
+            traza.append(f"{a.nombre}:{score}->{nuevo}" if nuevo != score
+                         else f"{a.nombre}(sin efecto)")
+            score = nuevo
+    return score, traza
+
+# --- Reglas del fetch de Ultra Ball -> Hydrapple ex -------------------------
+
+@dataclass
+class _CtxUBHydrapple:
+    hand: dict            # hand_counts
+    campo: dict           # field_counts
+    evolvable: dict       # _ub_evolvable (foto de inicio de turno)
+    dipplin_evo_atk: bool         # Dipplin activo evoluciona Y ataca este turno
+    op_ex_immune_active: bool
+    op_ex_immune_bench: bool
+    hydra_dead_prefer_meowth: bool  # _ub_hydra_dead_prefer_meowth
+
+def _ctx_ub_fetch_hydrapple(my_state, state, hand_counts, field_counts,
+                            ub_evolvable, op_ex_immune_active,
+                            op_ex_immune_bench, hydra_dead_prefer_meowth):
+    # Si el activo es un Dipplin que puede evolucionar a Hydrapple ex y
+    # atacar este turno (Syrup Storm requiere 2 de energia efectiva).
+    activo = my_state.active[0] if my_state.active else None
+    evo_atk = False
+    if (activo is not None
+            and activo.id == Dipplin
+            and ub_evolvable.get(Dipplin, 0) >= 1):
+        e_ahora = len(activo.energies)
+        puede_adjuntar = (not state.energyAttached
+                          and hand_counts.get(Basic_Grass_Energy, 0) >= 1)
+        e_despues = e_ahora + _grass_attach_unit()
+        req = ATTACK_ENERGY_REQ.get(Hydrapple_ex, 2)
+        if e_ahora >= req or (puede_adjuntar and e_despues >= req):
+            evo_atk = True
+    return _CtxUBHydrapple(
+        hand=hand_counts, campo=field_counts, evolvable=ub_evolvable,
+        dipplin_evo_atk=evo_atk,
+        op_ex_immune_active=op_ex_immune_active,
+        op_ex_immune_bench=op_ex_immune_bench,
+        hydra_dead_prefer_meowth=hydra_dead_prefer_meowth)
+
+def _uh_preparar_hydra_prox_turno(c):
+    """Con Dipplin ya en juego, Hydrapple ex esta a UNA sola evolucion:
+    conviene traerlo aunque NO se pueda evolucionar este mismo turno si
+    (A) Dipplin es el UNICO Pokemon de planta en juego, o (B) la linea
+    Meganium se desarrollaria pero NO se puede evolucionar a Meganium este
+    turno. EXCEPTO si conviene mas buscar Bayleef usable YA (Chikorita
+    evolucionable, sin Bayleef en mano, con Bayleef en el mazo)."""
+    grass_ids = (Applin, Dipplin, Hydrapple_ex, Chikorita, Bayleef,
+                 Meganium, Teal_Mask_Ogerpon_ex, Tapu_Bulu, Pinsir)
+    grass_en_juego = sum(c.campo.get(pid, 0) for pid in grass_ids)
+    dipplin_unico_grass = (grass_en_juego == c.campo.get(Dipplin, 0))
+
+    puede_evo_meganium_ya = (
+        not meganium_in_play and (
+            c.evolvable.get(Bayleef, 0) >= 1
+            or (c.evolvable.get(Chikorita, 0) >= 1
+                and (forest_in_play
+                     or c.hand.get(Forest_of_Vitality, 0) >= 1)
+                and c.hand.get(Bayleef, 0) >= 1)))
+    linea_meganium_dev = (
+        not meganium_in_play and (
+            c.hand.get(Bayleef, 0) >= 1
+            or c.hand.get(Meganium, 0) >= 1
+            or CARTAS_ACTIVAS_EN_MAZO.get(Bayleef, {}).get(ESTADO_MAZO, 0) > 0
+            or CARTAS_ACTIVAS_EN_MAZO.get(Meganium, {}).get(ESTADO_MAZO, 0) > 0))
+    buscar_bayleef_ya = (
+        not meganium_in_play
+        and c.evolvable.get(Chikorita, 0) >= 1
+        and c.hand.get(Bayleef, 0) == 0
+        and CARTAS_ACTIVAS_EN_MAZO.get(Bayleef, {}).get(ESTADO_MAZO, 0) > 0)
+
+    return (dipplin_unico_grass
+            or (linea_meganium_dev
+                and not puede_evo_meganium_ya
+                and not buscar_bayleef_ya))
+
+_REGLAS_UB_HYDRAPPLE = [
+    # Evolucionar el Dipplin activo Y atacar este turno vale mas que el
+    # refill de Fezandipiti (1050): prioridad maxima del fetch.
+    _ReglaFija("dipplin_evo_ataca",
+               lambda c: c.dipplin_evo_atk,
+               lambda c: 1200),
+    _ReglaFija("dipplin_evolucionable",
+               lambda c: c.evolvable.get(Dipplin, 0) >= 1,
+               lambda c: 980),
+    _ReglaFija("applin_evolucionable_full_linea",
+               lambda c: (c.evolvable.get(Applin, 0) >= 1
+                          and (forest_in_play
+                               or c.hand.get(Forest_of_Vitality, 0) >= 1)
+                          and c.hand.get(Dipplin, 0) >= 1),
+               lambda c: 900),
+    _ReglaFija("applin_evolucionable",
+               lambda c: c.evolvable.get(Applin, 0) >= 1,
+               lambda c: 180),
+    _ReglaFija("applin_en_campo",
+               lambda c: c.campo.get(Applin, 0) >= 1,
+               lambda c: 130),
+]
+
+_AJUSTES_UB_HYDRAPPLE = [
+    _Ajuste("preparar_hydra_prox_turno",
+            lambda c, s: (c.campo.get(Dipplin, 0) >= 1 and s < 860
+                          and _uh_preparar_hydra_prox_turno(c)),
+            lambda c, s: 860),
+    # Contra mazos con INMUNIDAD A EX (p.ej. Crustle), Hydrapple ex es un
+    # atacante ex que no puede danarlos: carta muerta, cede ante la linea
+    # Meganium o los atacantes no-ex. EXCEPCION `evo_doomed_hittable`: si
+    # evoluciona al Dipplin activo condenado y el activo rival NO es
+    # inmune (Kangaskhan ex), el clamp no aplica (pivote de evolucion y
+    # supervivencia: 80 PV -> 330 PV).
+    _Ajuste("clamp_ex_muerto_vs_crustle",
+            lambda c, s: (not (c.dipplin_evo_atk
+                               and not c.op_ex_immune_active)
+                          and (op_is_crustle_deck
+                               or c.op_ex_immune_active
+                               or c.op_ex_immune_bench)),
+            lambda c, s: min(s, 40)),
+    # Hydrapple ex quedaria muerto este turno (no ataca) y el motor de
+    # refresco Meowth ex -> Lillie's esta disponible: cede la busqueda a
+    # Meowth ex (1000), que rehace la mano.
+    _Ajuste("cede_a_meowth_refresco",
+            lambda c, s: c.hydra_dead_prefer_meowth,
+            lambda c, s: min(s, 150)),
+]
+
 def agent(obs_dict: dict) -> list[int]:
     obs = to_observation_class(obs_dict)
     if obs.select is None:
@@ -11490,144 +11662,24 @@ def agent(obs_dict: dict) -> list[int]:
                                 score = 25
 
                         elif card.id == Hydrapple_ex:
+                            # Rama migrada al MOTOR DE REGLAS (piloto fase
+                            # 4): definiciones y comentarios estrategicos en
+                            # _REGLAS_UB_HYDRAPPLE / _AJUSTES_UB_HYDRAPPLE
+                            # (antes de agent()). PTCG_DEBUG imprime la traza.
                             if not has_hydrapple:
-                                # Si el activo es un Dipplin que puede evolucionar
-                                # a Hydrapple ex y atacar este turno (Syrup Storm
-                                # requiere 2 de energia efectiva), priorizamos traer
-                                # Hydrapple ex por encima del refill de Fezandipiti
-                                # (1050): evolucionar y atacar vale mas que robar.
-                                _ub_active_pk = my_state.active[0] if my_state.active else None
-                                _ub_dipplin_evo_atk = False
-                                if (_ub_active_pk is not None
-                                        and _ub_active_pk.id == Dipplin
-                                        and _ub_evolvable.get(Dipplin, 0) >= 1):
-                                    _ub_dip_e_now = len(_ub_active_pk.energies)
-                                    _ub_dip_can_attach = (
-                                        not state.energyAttached
-                                        and hand_counts.get(Basic_Grass_Energy, 0) >= 1)
-                                    _ub_dip_e_after = _ub_dip_e_now + _grass_attach_unit()
-                                    _ub_req = ATTACK_ENERGY_REQ.get(Hydrapple_ex, 2)
-                                    if (_ub_dip_e_now >= _ub_req
-                                            or (_ub_dip_can_attach
-                                                and _ub_dip_e_after >= _ub_req)):
-                                        _ub_dipplin_evo_atk = True
-                                if _ub_dipplin_evo_atk:
-                                    score = 1200
-                                elif _ub_evolvable.get(Dipplin, 0) >= 1:
-                                    score = 980
-                                elif (_ub_evolvable.get(Applin, 0) >= 1 and
-                                      (forest_in_play or hand_counts.get(Forest_of_Vitality, 0) >= 1) and
-                                      hand_counts.get(Dipplin, 0) >= 1):
-                                    score = 900
-                                elif _ub_evolvable.get(Applin, 0) >= 1:
-
-                                    score = 180
-                                elif field_counts.get(Applin, 0) >= 1:
-
-                                    score = 130
-                                else:
-                                    score = 100
-
-                                # Preparar Hydrapple ex para el PROXIMO turno aunque
-                                # NO se pueda evolucionar este mismo turno (p.ej. Dipplin
-                                # acaba de evolucionar de Applin y no hay Forest en juego,
-                                # por lo que la foto de inicio de turno aun ve Applin y las
-                                # ramas anteriores solo dan 180). Con Dipplin ya en juego,
-                                # Hydrapple ex esta a UNA sola evolucion; conviene traerlo
-                                # a la mano si:
-                                #   (A) Dipplin es el UNICO Pokemon de planta en juego, o
-                                #   (B) la Ultra Ball desarrollaria la linea Meganium pero
-                                #       NO podemos evolucionar a Meganium este mismo turno
-                                #       (Dipplin->Hydrapple ex esta mas cerca que
-                                #       Chikorita->Bayleef->Meganium).
-                                if field_counts.get(Dipplin, 0) >= 1 and score < 860:
-                                    _uh_grass_ids = (
-                                        Applin, Dipplin, Hydrapple_ex, Chikorita,
-                                        Bayleef, Meganium, Teal_Mask_Ogerpon_ex,
-                                        Tapu_Bulu, Pinsir)
-                                    _uh_grass_in_play = sum(
-                                        field_counts.get(pid, 0) for pid in _uh_grass_ids)
-                                    _uh_dipplin_only_grass = (
-                                        _uh_grass_in_play == field_counts.get(Dipplin, 0))
-
-                                    _uh_can_evo_meganium_now = (
-                                        not meganium_in_play and (
-                                            _ub_evolvable.get(Bayleef, 0) >= 1
-                                            or (_ub_evolvable.get(Chikorita, 0) >= 1
-                                                and (forest_in_play
-                                                     or hand_counts.get(Forest_of_Vitality, 0) >= 1)
-                                                and hand_counts.get(Bayleef, 0) >= 1)))
-                                    _uh_meganium_line_dev = (
-                                        not meganium_in_play and (
-                                            hand_counts.get(Bayleef, 0) >= 1
-                                            or hand_counts.get(Meganium, 0) >= 1
-                                            or CARTAS_ACTIVAS_EN_MAZO.get(
-                                                Bayleef, {}).get(ESTADO_MAZO, 0) > 0
-                                            or CARTAS_ACTIVAS_EN_MAZO.get(
-                                                Meganium, {}).get(ESTADO_MAZO, 0) > 0))
-
-                                    # No prepar Hydrapple ex "para el proximo turno"
-                                    # si la linea Meganium SI se puede ADELANTAR este
-                                    # mismo turno buscando Bayleef: hay una Chikorita
-                                    # evolucionable ya (estaba al inicio del turno),
-                                    # sin Bayleef en mano y con Bayleef en el mazo.
-                                    # En ese caso conviene buscar Bayleef (usable YA)
-                                    # y no un Hydrapple ex que este turno queda muerto
-                                    # (p.ej. el Dipplin acaba de evolucionar y no puede
-                                    # evolucionar otra vez), y que ademas podria acabar
-                                    # barajado por una Lillie's Determination posterior.
-                                    _uh_bayleef_search_now = (
-                                        not meganium_in_play
-                                        and _ub_evolvable.get(Chikorita, 0) >= 1
-                                        and hand_counts.get(Bayleef, 0) == 0
-                                        and CARTAS_ACTIVAS_EN_MAZO.get(
-                                            Bayleef, {}).get(ESTADO_MAZO, 0) > 0)
-
-                                    if (_uh_dipplin_only_grass
-                                            or (_uh_meganium_line_dev
-                                                and not _uh_can_evo_meganium_now
-                                                and not _uh_bayleef_search_now)):
-                                        score = 860
-
-                                # Contra mazos con INMUNIDAD A EX (p.ej. Crustle),
-                                # Hydrapple ex es un atacante ex que NO puede hacer
-                                # dano a esos Pokemon: es una carta muerta. Degradar
-                                # su prioridad de busqueda para que la linea Meganium
-                                # (no-ex, que SI puede atacar a Crustle y ademas
-                                # duplica el dano de planta) o los atacantes no-ex
-                                # (Tapu Bulu, Pinsir) tengan preferencia como objetivo
-                                # de la Ultra Ball. Coherente con la logica de descarte,
-                                # que ya trata a Hydrapple ex como basura vs Crustle.
-                                # EXCEPCION a la degradacion vs Crustle: si el
-                                # Hydrapple ex es para EVOLUCIONAR al Dipplin activo
-                                # (que puede evolucionar Y atacar este mismo turno) y
-                                # el activo rival NO es inmune a ex (p.ej. Kangaskhan
-                                # ex), la evolucion NO es carta muerta: convierte un
-                                # Dipplin de 80 PV, que no noquea al activo y sera
-                                # derrotado el proximo turno, en un tanque de 330 PV que
-                                # sobrevive el golpe y ataca mejor a ese activo. El
-                                # Crustle de la banca no es el objetivo de este atacante;
-                                # el clamp (pensado para cuando Hydrapple ex quedaria
-                                # inutil como atacante de banca vs Crustle) no aplica a
-                                # este pivote de evolucion+supervivencia del activo.
-                                # No exigimos active_ko_likely: con Kangaskhan ex a baja
-                                # energia el modelo aun no proyecta el KO, pero el Dipplin
-                                # sigue siendo un atacante inferior que conviene mejorar.
-                                _ub_evo_doomed_hittable = (
-                                    _ub_dipplin_evo_atk
-                                    and not op_has_ex_immune_active)
-                                if (not _ub_evo_doomed_hittable and (
-                                        op_is_crustle_deck
-                                        or op_has_ex_immune_active
-                                        or op_has_ex_immune_bench)):
-                                    score = min(score, 40)
-
-                                # Hydrapple ex quedaria muerto este turno (no ataca) y
-                                # el motor de refresco Meowth ex -> Lillie's esta
-                                # disponible: cede la busqueda a Meowth ex, que rehace
-                                # la mano. Se degrada por debajo de Meowth ex (1000).
-                                if _ub_hydra_dead_prefer_meowth:
-                                    score = min(score, 150)
+                                _ub_hyd_ctx = _ctx_ub_fetch_hydrapple(
+                                    my_state, state, hand_counts,
+                                    field_counts, _ub_evolvable,
+                                    op_has_ex_immune_active,
+                                    op_has_ex_immune_bench,
+                                    _ub_hydra_dead_prefer_meowth)
+                                score, _ub_hyd_traza = _resolver_reglas(
+                                    _REGLAS_UB_HYDRAPPLE,
+                                    _AJUSTES_UB_HYDRAPPLE,
+                                    _ub_hyd_ctx, defecto=100)
+                                if os.environ.get("PTCG_DEBUG"):
+                                    print("[reglas ub->hydrapple]",
+                                          " | ".join(_ub_hyd_traza))
                             else:
                                 score = 20
 
