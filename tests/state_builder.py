@@ -286,6 +286,47 @@ class Escenario:
         }
         return self
 
+    def menu_attach_energia(self):
+        """Select MAIN minimo: adjuntar la 1a Basic Grass de la mano.
+
+        Genera una opcion ATTACH por CADA Pokemon propio en juego (activo
+        inPlayArea=4; banca inPlayArea=5/inPlayIndex=k) mas END, con el
+        mismo esquema que el simulador real. Requiere una Basic Grass en
+        mi_mano() y energia_jugada=False.
+        """
+        if self._energia_jugada:
+            raise EstadoInconsistente(
+                "menu_attach_energia() con energia_jugada=True no tendria "
+                "opciones ATTACH")
+        idx_e = next((i for i, c in enumerate(self._mi_mano)
+                      if c["id"] == BASIC_GRASS), None)
+        if idx_e is None:
+            raise EstadoInconsistente(
+                "menu_attach_energia() requiere una Basic Grass en mi_mano()")
+        opciones = []
+        if self._mi_activo is not None:
+            opciones.append({"type": int(OptionType.ATTACH),
+                             "area": int(AreaType.HAND), "index": idx_e,
+                             "inPlayArea": int(AreaType.ACTIVE),
+                             "inPlayIndex": 0})
+        for k in range(len(self._mi_banca)):
+            opciones.append({"type": int(OptionType.ATTACH),
+                             "area": int(AreaType.HAND), "index": idx_e,
+                             "inPlayArea": int(AreaType.BENCH),
+                             "inPlayIndex": k})
+        opciones.append({"type": int(OptionType.END)})
+        self._select = {
+            "type": int(SelectType.MAIN),
+            "context": int(SelectContext.MAIN),
+            "minCount": 1, "maxCount": 1,
+            "remainDamageCounter": 0, "remainEnergyCost": 0,
+            "option": opciones,
+            "deck": None,
+            "contextCard": None,
+            "effect": None,
+        }
+        return self
+
     # ------------------------------------------------------------------
     # Construccion final
     # ------------------------------------------------------------------
