@@ -328,7 +328,7 @@ DUNSPARCE_IDS = {65, 305}
 # rival NO es un Pokemon clave (p.ej. un muro sin energia). Ej.: en el mazo Hop
 # el atacante clave es Hop's Trevenant; su linea (Trevenant/Phantump) debe
 # cazarse en banca. La prioridad entre objetivos (con/sin energia, evolucion vs
-# pre-evo) la resuelve _boss_tier en la seleccion del objetivo (TO_ACTIVE):
+# pre-evo) la resuelve el ajuste tier_ko (_AJUSTES_GUST_OFENSIVO) al elegir objetivo:
 # Trevenant con energia > Trevenant sin energia > Phantump con energia >
 # Phantump sin energia.
 KEY_BENCH_ATTACKER_IDS = {Hops_Trevenant, Hops_Phantump}
@@ -4732,6 +4732,340 @@ _REGLAS_NS_DIPPLIN = [
                lambda c: 850),
 ]
 
+# --- Reglas del OBJETIVO del gusteo de Boss's Orders ------------------------
+# Dos modos, como el bloque original: ESTORBO (nuestro activo no puede atacar:
+# trabar al rival) y OFENSIVO (gustear para noquear o clavar). El score de
+# entrada del bucle de opciones es 0; las contribuciones son acumulativas
+# (_Ajuste). Dunsparce se descarta en el call site (regla del usuario: NUNCA
+# gustearlo, en ningun modo).
+
+@dataclass
+class _CtxGustObjetivo:
+    card_id: int
+    energia: int
+    rc0: int                 # RETREAT_COST.get(id, 0) (trabas)
+    rc1: int                 # RETREAT_COST.get(id, 1) (lineas evolutivas)
+    stall_diff: int          # rc0 - energia
+    is_ex: bool              # flag ex (sin mega)
+    is_exmega: bool          # ex o megaEx (tiers de KO)
+    is_stage1: bool
+    is_stage2: bool
+    tiene_tool: bool
+    can_ko: bool             # el activo (o banca tras retirar) lo noquea
+    tier_ko: int             # 1..8 si can_ko, 0 si no
+    plan_target_match: bool  # o.index == plan.target - 1
+    regust_energized: bool   # copia energizada del activo rival sin energia
+    linea_rank: int          # 0 basico / 1 stage1 / 2 stage2
+    linea_can_ko: bool       # estorbo: atacante de banca la noquea tras retirar
+    op_alakazam: bool
+    op_latias: bool
+    op_linea_dragapult: bool
+    op_linea_typhlosion: bool
+
+def _ctx_gust_objetivo(card, o, my_state, op_state, state, hand_counts,
+                       total_grass, bench_count, neutralization_zone_active,
+                       op_is_alakazam, op_latias, op_linea_dragapult,
+                       op_linea_typhlosion):
+    tgt_data = card_table.get(card.id)
+    energia = len(card.energies) if hasattr(card, 'energies') else 0
+    hp = card.hp if hasattr(card, 'hp') else 999
+    is_ex = bool(tgt_data and getattr(tgt_data, 'ex', False))
+    is_exmega = bool(tgt_data is not None and
+                     (getattr(tgt_data, 'ex', False) or
+                      getattr(tgt_data, 'megaEx', False)))
+    is_stage1 = bool(tgt_data and getattr(tgt_data, 'stage1', False))
+    is_stage2 = bool(tgt_data and getattr(tgt_data, 'stage2', False))
+
+    # KO por el ACTIVO: tabla de dano por atacante + debilidad/resistencia
+    # (salvo Fezandipiti, dano fijo) + inmunidades ex/habilidad.
+    can_ko = False
+    atk = my_state.active[0] if my_state.active else None
+    if atk is not None:
+        eff_e = len(atk.energies) * _grass_mult()
+        can_attach = (hand_counts.get(Basic_Grass_Energy, 0) >= 1
+                      and not state.energyAttached)
+        eff_after = eff_e + (_grass_attach_unit() if can_attach else 0)
+        dmg = 0
+        if atk.id == Hydrapple_ex and eff_after >= 2:
+            dmg = 30 + 30 * total_grass
+        elif atk.id == Dipplin and eff_after >= 1:
+            dmg = 20 * bench_count
+        elif atk.id == Teal_Mask_Ogerpon_ex and eff_after >= 3:
+            o_e = energia
+            m_e = len(atk.energies) + (1 if can_attach else 0)
+            dmg = 30 + 30 * (o_e + m_e)
+        elif atk.id == Tapu_Bulu and eff_after >= 4:
+            dmg = 220
+        elif atk.id == Fezandipiti_ex and eff_after >= 3:
+            dmg = 100
+        elif atk.id == Meganium and eff_after >= 4:
+            dmg = 140
+        elif atk.id == Bayleef and eff_after >= 2:
+            dmg = 60
+
+        eff_dmg = dmg
+        if atk.id != Fezandipiti_ex and tgt_data:
+            if getattr(tgt_data, 'weakness', None) == EnergyType.GRASS:
+                eff_dmg *= 2
+            elif getattr(tgt_data, 'resistance', None) == EnergyType.GRASS:
+                eff_dmg -= 30
+        if card.id in EX_IMMUNE_IDS and atk.id in OUR_EX_IDS:
+            eff_dmg = 0
+        if card.id in ABILITY_IMMUNE_IDS and atk.id in OUR_ABILITY_IDS:
+            eff_dmg = 0
+        if eff_dmg >= hp:
+            can_ko = True
+
+    # KO alternativo: retirar el activo y noquear con un atacante de banca.
+    if not can_ko and atk is not None:
+        switch_hand = hand_counts.get(1123, 0) >= 1
+        ret_cost = RETREAT_COST.get(atk.id, 1)
+        if switch_hand or len(atk.energies) >= ret_cost:
+            grass_after = max(0, total_grass
+                              - (0 if switch_hand else ret_cost))
+            if _bench_attacker_can_ko(
+                    my_state, card, meganium_in_play, total_grass,
+                    bench_count, grass_after, neutralization_zone_active):
+                can_ko = True
+
+    tier = 0
+    if can_ko:
+        con_e = energia >= 1
+        if is_exmega:
+            tier = 8 if con_e else 7
+        elif is_stage2:
+            tier = 6 if con_e else 5
+        elif is_stage1:
+            tier = 4 if con_e else 3
+        else:
+            tier = 2 if con_e else 1
+
+    # Estorbo: la MAYOR evolucion de la linea rival que un atacante de banca
+    # pueda noquear tras retirar el activo (registro_004 paso 51 vs Garchomp).
+    linea_rank = 2 if is_stage2 else (1 if is_stage1 else 0)
+    linea_can_ko = False
+    if linea_rank >= 1 and atk is not None:
+        switch_hand = hand_counts.get(1123, 0) >= 1
+        ret_cost = RETREAT_COST.get(atk.id, 1)
+        if switch_hand or len(atk.energies) >= ret_cost:
+            grass_after = max(0, total_grass
+                              - (0 if switch_hand else ret_cost))
+            if _bench_attacker_can_ko(
+                    my_state, card, meganium_in_play, total_grass,
+                    bench_count, grass_after, neutralization_zone_active):
+                linea_can_ko = True
+
+    op_act = op_state.active[0] if op_state.active else None
+    regust = (can_ko and op_act is not None and op_act.id == card.id
+              and len(op_act.energies) == 0 and energia >= 1)
+
+    return _CtxGustObjetivo(
+        card_id=card.id, energia=energia,
+        rc0=RETREAT_COST.get(card.id, 0), rc1=RETREAT_COST.get(card.id, 1),
+        stall_diff=RETREAT_COST.get(card.id, 0) - energia,
+        is_ex=is_ex, is_exmega=is_exmega,
+        is_stage1=is_stage1, is_stage2=is_stage2,
+        tiene_tool=bool(getattr(card, 'tools', None)),
+        can_ko=can_ko, tier_ko=tier,
+        plan_target_match=(o.index == plan.target - 1),
+        regust_energized=regust,
+        linea_rank=linea_rank, linea_can_ko=linea_can_ko,
+        op_alakazam=op_is_alakazam, op_latias=op_latias,
+        op_linea_dragapult=op_linea_dragapult,
+        op_linea_typhlosion=op_linea_typhlosion)
+
+def _gust_es_basico(card_id):
+    data = card_table.get(card_id)
+    return (data is not None
+            and not getattr(data, 'stage1', False)
+            and not getattr(data, 'stage2', False))
+
+def _v_gust_traba_neta(c):
+    v = 500 + c.stall_diff * 100
+    # Desempate (usuario): entre objetivos que traban IGUAL, evitar subir la
+    # PRE-EVOLUCION del atacante principal rival (podria evolucionar y atacar
+    # desde el activo). Penalizacion pequena que solo rompe empates.
+    if c.card_id in THREAT_PREEVO_IDS or c.card_id in EX_PREEVO_IDS:
+        v -= 50
+    return v
+
+_REGLAS_GUST_ESTORBO = [
+    # Coste de retirada GRATIS: el rival lo devuelve al banco sin pagar
+    # nada; no estorba en absoluto (p.ej. Budew). Descartado.
+    _ReglaFija("retirada_gratis",
+               lambda c: c.rc0 <= 0,
+               lambda c: SCORE_FORBID),
+    # Latias ex (Skyliner) deja retirar GRATIS a cualquier Basico: gustear
+    # un Basico no lo traba, y gustear a la propia Latias es inutil (user,
+    # registro 010 paso 76 vs Dragapult). El objetivo correcto es un
+    # NO-basico (p.ej. Drakloak).
+    _ReglaFija("latias_libera_basicos",
+               lambda c: (c.op_latias
+                          and (c.card_id == Latias_ex
+                               or _gust_es_basico(c.card_id))),
+               lambda c: SCORE_FORBID),
+    # Estorbo proporcional al coste de retirada NETO (el que el rival no
+    # puede pagar con su energia): a mayor coste sin energia, mas se traba.
+    _ReglaFija("traba_neta",
+               lambda c: c.stall_diff >= 1,
+               _v_gust_traba_neta),
+    # Ya puede pagar su propia retirada: mal objetivo (defecto -200).
+]
+
+_AJUSTES_GUST_ESTORBO = [
+    # Generalizacion Alakazam (user, registro_004 paso 51 vs Garchomp,
+    # PERDIDA): privilegiar SIEMPRE la MAYOR evolucion de la linea rival
+    # que un atacante de banca pueda NOQUEAR tras retirar. Sin esto, el
+    # modo estorbo prefiere el basico y deja crecer la linea rival.
+    _Ajuste("linea_rival_mayor_evolucion",
+            # c.rc0 > 0: en el original este override vive DENTRO del else
+            # de retirada-gratis; no debe rescatar un FORBID por rc0<=0.
+            lambda c, s: (c.rc0 > 0 and not c.op_alakazam
+                          and c.linea_rank >= 1 and c.linea_can_ko),
+            lambda c, s: max(s, 6000 + c.linea_rank * 3000
+                             + c.energia * 50
+                             + (300 if c.tiene_tool else 0))),
+    # Regla (user, registro 014 paso 146 vs Alakazam): en modo estorbo,
+    # PRIORIZAR la linea Alakazam sobre otros basicos de soporte; atrapar
+    # su pre-evo corta el desarrollo. Kadabra > Abra > Alakazam.
+    _Ajuste("linea_alakazam_estorbo",
+            lambda c, s: (c.op_alakazam
+                          and c.card_id in (Abra, Kadabra, Alakazam_ex)),
+            lambda c, s: s + {Kadabra: 350, Abra: 300,
+                              Alakazam_ex: 250}[c.card_id]),
+]
+
+def _gust_linea_evolutiva(c, id_final, id_medio, id_basico):
+    """Contribucion para mazos de linea evolutiva conocida (Dragapult,
+    Ethan's Typhlosion, Alakazam): clavar/derribar la pieza mas avanzada.
+    La fase 1 SIN energia queda CLAVADA (no paga retirada ni ataca) y
+    RETRASA la evolucion: mejor objetivo de disrupcion; el basico sin
+    energia tambien queda clavado (estorbo fuerte)."""
+    if c.card_id == id_final:
+        return 1200 if c.can_ko else 800
+    if c.card_id == id_medio:
+        if c.can_ko:
+            return 1000
+        return 700 if c.energia < c.rc1 else 300
+    if c.card_id == id_basico:
+        if c.can_ko:
+            return 400
+        return 500 if c.energia < c.rc1 else 200
+    if c.can_ko:
+        if c.is_ex:
+            return 900 + c.energia * 50
+        if c.is_stage1:
+            return 350 + c.energia * 50
+        return 250 + c.energia * 50
+    return 150
+
+def _gust_tiers_genericos(c):
+    """Mazo sin linea conocida: tiers por etapa/energia (KO / no-KO)."""
+    if c.can_ko:
+        if c.is_ex and c.energia >= 1:
+            return 1100
+        if c.is_ex:
+            return 1000
+        if c.is_stage2 and c.energia >= 1:
+            return 900
+        if c.is_stage2:
+            return 850
+        if c.is_stage1 and c.energia >= 1:
+            return 700
+        if c.is_stage1:
+            return 600
+        if c.card_id in THREAT_PREEVO_IDS:
+            return 550
+        if c.card_id == Budew:
+            return 500
+        if c.card_id == Munkidori:
+            return 450
+        if c.card_id == Snorunt:
+            return 400
+        if c.card_id in (Dwebble_Grass, Dwebble_Fighting):
+            return 380
+        if c.card_id in (Dreepy,):
+            return 350
+        if c.energia >= 1:
+            return 300
+        return 200
+    if c.is_ex and c.energia >= 1:
+        return 250
+    if c.is_ex:
+        return 200
+    if c.is_stage2 and c.energia >= 1:
+        return 180
+    if c.is_stage2:
+        return 160
+    if c.is_stage1 and c.energia >= 1:
+        return 150
+    if c.is_stage1:
+        return 130
+    if c.card_id == Froslass:
+        return 220
+    if c.card_id == Budew:
+        return 200
+    if c.card_id == Munkidori:
+        return 190
+    if c.card_id == Snorunt:
+        return 185
+    if c.card_id in (Dreepy, Drakloak):
+        return 180
+    if c.card_id in (Dwebble_Grass, Dwebble_Fighting):
+        return 178
+    return 100
+
+def _gust_linea_rival(c):
+    if c.op_linea_dragapult:
+        return _gust_linea_evolutiva(c, Dragapult_ex, Drakloak, Dreepy)
+    if c.op_linea_typhlosion:
+        return _gust_linea_evolutiva(c, Typhlosion, Quilava, Cyndaquil)
+    if c.op_alakazam:
+        return _gust_linea_evolutiva(c, Alakazam_ex, Kadabra, Abra)
+    return _gust_tiers_genericos(c)
+
+_AJUSTES_GUST_OFENSIVO = [
+    _Ajuste("objetivo_del_plan",
+            lambda c, s: c.plan_target_match,
+            lambda c, s: s + 100),
+    _Ajuste("tier_ko",
+            lambda c, s: c.can_ko,
+            lambda c, s: s + c.tier_ko * 3000),
+    # PRIORIDAD (user, log 86504664 paso 94, PERDIDA vs Archaludon): al
+    # poder NOQUEAR, una pre-evo ENERGIZADA de una linea ex (Duraludon ->
+    # Archaludon ex) borra un futuro atacante ex de 2 premios. Tier
+    # efectivo 6.5 (19500): sobre cualquier no-ex, bajo un ex real.
+    _Ajuste("preevo_ex_prioritaria",
+            lambda c, s: (c.can_ko and c.energia >= 1 and not c.is_exmega
+                          and c.card_id in EX_PREEVO_IDS),
+            lambda c, s: s + max(0, 19500 - c.tier_ko * 3000)),
+    # Sin KO posible: gustear como estorbo (mayor coste de retirada NETO)
+    # con el desempate anti pre-evo de amenaza.
+    _Ajuste("traba_sin_ko",
+            lambda c, s: not c.can_ko and c.stall_diff >= 1,
+            lambda c, s: s + c.stall_diff * 100
+            - (50 if (c.card_id in THREAT_PREEVO_IDS
+                      or c.card_id in EX_PREEVO_IDS) else 0)),
+    # Copia ENERGIZADA del activo rival sin energia: re-gustearla cobra la
+    # inversion del rival.
+    _Ajuste("regust_energizado",
+            lambda c, s: c.regust_energized,
+            lambda c, s: s + 200),
+    _Ajuste("linea_rival",
+            lambda c, s: True,
+            lambda c, s: s + _gust_linea_rival(c)),
+    # vs Crustle, el Dwebble NUNCA se gustea (forraje del muro).
+    _Ajuste("forbid_dwebble_vs_crustle",
+            lambda c, s: (op_is_crustle_deck
+                          and c.card_id in (Dwebble_Grass, Dwebble_Fighting)),
+            lambda c, s: SCORE_FORBID),
+    # Retirada GRATIS sin KO: el rival lo devuelve al banco sin coste;
+    # solo es gusteable cuando es un KO real.
+    _Ajuste("forbid_retirada_gratis_sin_ko",
+            lambda c, s: c.rc0 <= 0 and not c.can_ko,
+            lambda c, s: SCORE_FORBID),
+]
+
 _REGLAS_NS_BAYLEEF = [
     _ReglaFija("combo_chikorita_meganium_en_mano",
                lambda c: (c.hand.get(Chikorita, 0) >= 1
@@ -7073,7 +7407,7 @@ def agent(obs_dict: dict) -> list[int]:
             # jugada correcta es gustear ese atacante en vez de conformarnos con
             # noquear al activo inofensivo (mismo valor de premios). Marcamos la
             # bandera para NO dejar que la regla "atacar es suficiente" anule el
-            # Boss's Orders mas abajo. El objetivo concreto lo elige _boss_tier.
+            # Boss's Orders mas abajo. El objetivo concreto lo eligen los ajustes de _AJUSTES_GUST_OFENSIVO.
             _bo_gust_key_bench = False
             if (_bo_op_active.id not in KEY_BENCH_ATTACKER_IDS
                     and not _bo_win_via_bench and not _bo_deny_evo_target
@@ -7729,7 +8063,7 @@ def agent(obs_dict: dict) -> list[int]:
     # cortar la linea del atacante principal. `_boss_deny_evo` ya confirma
     # que hay una pre-evolucion ex gusteable y noqueable en la banca rival
     # (muro inofensivo en el activo); el objetivo concreto lo elige
-    # _boss_tier, que prefiere el Riolu por THREAT_PREEVO_IDS. Este flag
+    # el ajuste tier_ko/traba, que prefiere el Riolu por THREAT_PREEVO_IDS. Este flag
     # VETA los desarrollos (tier DEVELOP) mas abajo para que Boss's
     # (supporter, tier 0) sea la jugada elegida por encima de Meowth ex.
     # =================================================================
@@ -10903,472 +11237,28 @@ def agent(obs_dict: dict) -> list[int]:
                                     score = 5500
                     else:
 
+                        # Objetivo del GUSTEO de Boss's Orders: migrado al MOTOR DE
+                        # REGLAS (fase 4). Definiciones y comentarios estrategicos en
+                        # _REGLAS_GUST_ESTORBO / _AJUSTES_GUST_* (antes de agent()).
                         if card.id in DUNSPARCE_IDS:
-                            # Excepcion (usuario): NUNCA gustear con Boss's Orders a
-                            # un Dunsparce (ids 65 y 305). Descartado por completo
-                            # como objetivo, en modo estorbo y en modo ofensivo.
+                            # Regla (usuario): NUNCA gustear un Dunsparce (ids 65 y
+                            # 305), ni en modo estorbo ni en modo ofensivo.
                             score = SCORE_FORBID
-                        elif _active_cant_attack_this_turn or _sel_active_cant_attack:
-                            _rc_target = RETREAT_COST.get(card.id, 0)
-                            _target_energy_cnt = len(card.energies) if hasattr(card, 'energies') else 0
-
-                            if _rc_target <= 0:
-                                # Coste de retirada GRATIS: el rival lo devuelve al
-                                # banco sin pagar nada, no estorba en absoluto.
-                                # NUNCA gustear un Pokemon de retirada gratis
-                                # (p.ej. Budew). Descartado por completo.
-                                score = SCORE_FORBID
-                            else:
-                                _stall_diff = _rc_target - _target_energy_cnt
-
-                                # Latias ex (habilidad Skyliner) deja retirar GRATIS a
-                                # CUALQUIER Basico (incluida ella misma). Con Latias ex
-                                # en juego, gustear un Basico NO lo traba (se retira
-                                # gratis el proximo turno) y gustear a la propia Latias
-                                # ex es inutil. Regla (user, registro 010 paso 76 vs
-                                # Dragapult): NUNCA gustear Latias ex ni un Basico si
-                                # hay una Latias ex en juego; el objetivo correcto es un
-                                # NO-basico (p.ej. Drakloak). Descartado por completo.
-                                _lat_forbid = False
-                                if op_has_latias_ex:
-                                    _tgt_data = card_table.get(card.id)
-                                    _lat_tgt_is_basic = (
-                                        _tgt_data is not None
-                                        and not getattr(_tgt_data, 'stage1', False)
-                                        and not getattr(_tgt_data, 'stage2', False))
-                                    if card.id == Latias_ex or _lat_tgt_is_basic:
-                                        _lat_forbid = True
-
-                                if _lat_forbid:
-                                    score = SCORE_FORBID
-                                elif _stall_diff >= 1:
-                                    # Estorbo proporcional al coste de retirada NETO
-                                    # (coste que el rival NO puede pagar con su
-                                    # energia): a mayor coste sin energia, mas se
-                                    # traba. Prioriza el objetivo con mayor coste de
-                                    # retirada sin energias.
-                                    score += 500 + _stall_diff * 100
-                                    # DESEMPATE (usuario): entre objetivos que traban
-                                    # IGUAL (mismo coste de retirada neto), evitar
-                                    # subir la PRE-EVOLUCION del atacante principal
-                                    # del rival (p.ej. Riolu -> Mega Lucario ex):
-                                    # dejarla de activo le permite evolucionarla y
-                                    # atacar desde el puesto activo. Penalizacion
-                                    # pequena (<100) que SOLO rompe empates y NO
-                                    # invierte la prioridad de trabar mas.
-                                    if (card.id in THREAT_PREEVO_IDS
-                                            or card.id in EX_PREEVO_IDS):
-                                        score -= 50
-                                else:
-                                    # Ya puede pagar su propia retirada: mal objetivo.
-                                    score -= 200
-
-                                # Generalizacion de la regla Alakazam (user,
-                                # registro_004 paso 51, vs Cynthia's Garchomp,
-                                # PERDIDA): al gustear, privilegiar SIEMPRE la
-                                # MAYOR evolucion de la linea rival (stage2 >
-                                # stage1) siempre que nuestro atacante -el activo
-                                # no puede atacar aqui, pero un atacante de BANCA al
-                                # que podamos subir tras RETIRAR- pueda NOQUEARLA.
-                                # Aplica a mazos de Fase 2 (Cynthia's Garchomp,
-                                # Dragapult, Marnie); Alakazam conserva su regla
-                                # propia (abajo). Entre iguales se prefiere el mas
-                                # invertido (energia + herramienta). Sin esto, el
-                                # modo estorbo prefiere el basico (mas dificil de
-                                # retirar) y deja crecer la linea evolutiva rival.
-                                if (not op_is_alakazam_deck
-                                        and card.id not in DUNSPARCE_IDS):
-                                    _line_data = card_table.get(card.id)
-                                    _line_rank = (
-                                        2 if getattr(_line_data, 'stage2', False)
-                                        else (1 if getattr(_line_data, 'stage1', False)
-                                              else 0))
-                                    if _line_rank >= 1:
-                                        _line_act = my_state.active[0] if my_state.active else None
-                                        _line_can_ko = False
-                                        if _line_act is not None:
-                                            _line_switch = hand_counts.get(1123, 0) >= 1
-                                            _line_rc = RETREAT_COST.get(_line_act.id, 1)
-                                            if (_line_switch
-                                                    or len(_line_act.energies) >= _line_rc):
-                                                _line_grass_after = max(
-                                                    0, total_grass
-                                                    - (0 if _line_switch else _line_rc))
-                                                if _bench_attacker_can_ko(
-                                                        my_state, card, meganium_in_play,
-                                                        total_grass, bench_count,
-                                                        _line_grass_after,
-                                                        neutralization_zone_active):
-                                                    _line_can_ko = True
-                                        if _line_can_ko:
-                                            _line_tool = bool(getattr(card, 'tools', None))
-                                            score = max(
-                                                score,
-                                                6000 + _line_rank * 3000
-                                                + _target_energy_cnt * 50
-                                                + (300 if _line_tool else 0))
-
-                            # Regla (user, registro 014 paso 146 vs Alakazam): al
-                            # gustear como ESTORBO (nuestro activo no puede atacar),
-                            # PRIORIZAR la linea Alakazam (Abra/Kadabra/Alakazam) por
-                            # encima de otros basicos de soporte (p.ej. Shaymin).
-                            # Atrapar su pre-evo en el activo corta el desarrollo del
-                            # atacante Psiquico y obliga al rival a gastar recursos en
-                            # retirarla. Contrarresta el -50 de EX_PREEVO y desempata
-                            # la linea Kadabra > Abra > Alakazam.
-                            if op_is_alakazam_deck and card.id in (Abra, Kadabra, Alakazam_ex):
-                                score += {Kadabra: 350, Abra: 300, Alakazam_ex: 250}[card.id]
                         else:
-
-                            # plan.target (a que rival atacariamos) solo es
-                            # relevante cuando NO estamos en modo estorbo; dentro
-                            # del estorbo generaba desempates arbitrarios entre
-                            # basicos equivalentes.
-                            if o.index == plan.target - 1:
-                                score += 100
-
-                            _boss_tgt_data = card_table.get(card.id)
-                            _boss_tgt_is_ex = (_boss_tgt_data and getattr(_boss_tgt_data, 'ex', False))
-                            _boss_tgt_is_stage2 = (_boss_tgt_data and getattr(_boss_tgt_data, 'stage2', False))
-                            _boss_tgt_is_stage1 = (_boss_tgt_data and getattr(_boss_tgt_data, 'stage1', False))
-                            _boss_tgt_energy = len(card.energies) if hasattr(card, 'energies') else 0
-                            _boss_tgt_hp = card.hp if hasattr(card, 'hp') else 999
-
-                            _boss_can_ko = False
-                            _boss_our_dmg = 0
-                            _boss_atk = my_state.active[0] if my_state.active else None
-                            if _boss_atk is not None:
-                                _boss_atk_eff_e = len(_boss_atk.energies) * _grass_mult()
-                                _boss_can_attach_e = (hand_counts.get(Basic_Grass_Energy, 0) >= 1
-                                                     and not state.energyAttached)
-                                _boss_atk_after = _boss_atk_eff_e + (_grass_attach_unit() if _boss_can_attach_e else 0)
-
-                                if _boss_atk.id == Hydrapple_ex and _boss_atk_after >= 2:
-                                    _boss_our_dmg = 30 + 30 * total_grass
-                                elif _boss_atk.id == Dipplin and _boss_atk_after >= 1:
-                                    _boss_our_dmg = 20 * bench_count
-                                elif _boss_atk.id == Teal_Mask_Ogerpon_ex and _boss_atk_after >= 3:
-                                    _o_e = len(card.energies) if hasattr(card, 'energies') else 0
-                                    _m_e = len(_boss_atk.energies) + (1 if _boss_can_attach_e else 0)
-                                    _boss_our_dmg = 30 + 30 * (_o_e + _m_e)
-                                elif _boss_atk.id == Tapu_Bulu and _boss_atk_after >= 4:
-                                    _boss_our_dmg = 220
-                                elif _boss_atk.id == Fezandipiti_ex and _boss_atk_after >= 3:
-                                    _boss_our_dmg = 100
-                                elif _boss_atk.id == Meganium and _boss_atk_after >= 4:
-                                    _boss_our_dmg = 140
-                                elif _boss_atk.id == Bayleef and _boss_atk_after >= 2:
-                                    _boss_our_dmg = 60
-
-                                _boss_eff_dmg = _boss_our_dmg
-                                if _boss_atk.id != Fezandipiti_ex and _boss_tgt_data:
-                                    if getattr(_boss_tgt_data, 'weakness', None) == EnergyType.GRASS:
-                                        _boss_eff_dmg *= 2
-                                    elif getattr(_boss_tgt_data, 'resistance', None) == EnergyType.GRASS:
-                                        _boss_eff_dmg -= 30
-
-                                _boss_atk_is_ex = (_boss_atk.id in OUR_EX_IDS)
-                                if card.id in EX_IMMUNE_IDS and _boss_atk_is_ex:
-                                    _boss_eff_dmg = 0
-
-                                if card.id in ABILITY_IMMUNE_IDS and _boss_atk.id in OUR_ABILITY_IDS:
-                                    _boss_eff_dmg = 0
-
-                                if _boss_eff_dmg >= _boss_tgt_hp:
-                                    _boss_can_ko = True
-
-                            if not _boss_can_ko and _boss_atk is not None:
-                                _bo_switch_hand = hand_counts.get(1123, 0) >= 1
-                                _bo_ret_cost = RETREAT_COST.get(_boss_atk.id, 1)
-                                _bo_can_retreat = (_bo_switch_hand
-                                                   or len(_boss_atk.energies) >= _bo_ret_cost)
-                                if _bo_can_retreat:
-                                    _bo_grass_after = max(
-                                        0, total_grass - (0 if _bo_switch_hand else _bo_ret_cost))
-                                    if _bench_attacker_can_ko(
-                                            my_state, card, meganium_in_play, total_grass,
-                                            bench_count, _bo_grass_after,
-                                            neutralization_zone_active):
-                                        _boss_can_ko = True
-
-                            _boss_tier = 0
-                            if _boss_can_ko:
-                                _bt_has_e = _boss_tgt_energy >= 1
-                                _bt_is_exmega = (_boss_tgt_data is not None and
-                                                 (getattr(_boss_tgt_data, 'ex', False) or
-                                                  getattr(_boss_tgt_data, 'megaEx', False)))
-                                if _bt_is_exmega:
-                                    _boss_tier = 8 if _bt_has_e else 7
-                                elif _boss_tgt_is_stage2:
-                                    _boss_tier = 6 if _bt_has_e else 5
-                                elif _boss_tgt_is_stage1:
-                                    _boss_tier = 4 if _bt_has_e else 3
-                                else:
-                                    _boss_tier = 2 if _bt_has_e else 1
-                                score += _boss_tier * 3000
-
-                                # PRIORIDAD (user, log 86504664 paso 94, PERDIDA
-                                # vs Archaludon ex): al poder NOQUEAR, una pre-evo
-                                # ENERGIZADA de una linea ex (EX_PREEVO_IDS, p.ej.
-                                # Duraludon -> Archaludon ex) es objetivo PRIORITARIO:
-                                # noquearla borra un futuro atacante ex de 2 premios.
-                                # Por defecto un basico pre-evo cae en tier 2 (6000) y
-                                # perdia contra cualquier stage2 NO-ex (tier 6=18000,
-                                # p.ej. Cinderace). Le damos un tier efectivo 6.5
-                                # (19500): por encima de cualquier objetivo no-ex,
-                                # por debajo de un ex real en juego (tier 7-8).
-                                if (_bt_has_e and not _bt_is_exmega
-                                        and card.id in EX_PREEVO_IDS):
-                                    score += max(
-                                        0, 19500 - _boss_tier * 3000)
-
-                            # Sin posibilidad de KO: gusteamos como ESTORBO (nuestro
-                            # activo puede atacar pero no noquea a NINGUN objetivo).
-                            # En ese caso preferir el basico mas dificil de retirar,
-                            # es decir el de MAYOR (coste de retirada - energias
-                            # cargadas): a mayor coste NETO que el rival no puede
-                            # pagar, mas lo trabamos (regla del usuario). Empata con
-                            # el desempate del modo estorbo ofensivo/defensivo.
-                            if not _boss_can_ko:
-                                _bo_stall_diff = (RETREAT_COST.get(card.id, 0)
-                                                  - _boss_tgt_energy)
-                                if _bo_stall_diff >= 1:
-                                    score += _bo_stall_diff * 100
-                                    # Desempate entre objetivos que traban IGUAL:
-                                    # evitar dejar de activo la PRE-EVOLUCION del
-                                    # atacante principal del rival (p.ej. Riolu ->
-                                    # Mega Lucario ex), que podria evolucionar y
-                                    # atacar desde el puesto activo.
-                                    if (card.id in THREAT_PREEVO_IDS
-                                            or card.id in EX_PREEVO_IDS):
-                                        score -= 50
-
-                            _bo_sel_op_active = op_state.active[0] if op_state.active else None
-                            if (_boss_can_ko and _bo_sel_op_active is not None
-                                    and _bo_sel_op_active.id == card.id
-                                    and len(_bo_sel_op_active.energies) == 0
-                                    and _boss_tgt_energy >= 1):
-                                score += 200
-
-                            if op_has_dragapult or op_has_dreepy_line:
-                                if card.id == Dragapult_ex:
-                                    if _boss_can_ko:
-                                        score += 1200
-                                    else:
-                                        score += 800
-                                elif card.id == Drakloak:
-                                    if _boss_can_ko:
-                                        score += 1000
-                                    elif _boss_tgt_energy < RETREAT_COST.get(card.id, 1):
-                                        # Sin posibilidad de KO: subir al activo el
-                                        # Drakloak SIN energia RETRASA el ataque de
-                                        # Dragapult y ademas queda CLAVADO (no puede
-                                        # pagar su retirada ni atacar). Es el mejor
-                                        # objetivo de disrupcion.
-                                        score += 700
-                                    else:
-                                        # Drakloak CON energia: puede pagar su
-                                        # retirada y reposicionarse gratis, e incluso
-                                        # evolucionar a Dragapult ex ya con energia.
-                                        # Estorbo debil: peor que cualquier objetivo
-                                        # que quede CLAVADO sin energia.
-                                        score += 300
-                                elif card.id == Dreepy:
-                                    if _boss_can_ko:
-                                        score += 400
-                                    elif _boss_tgt_energy < RETREAT_COST.get(card.id, 1):
-                                        # Dreepy SIN energia para pagar su retirada:
-                                        # queda CLAVADO en el activo (no puede atacar
-                                        # ni retirarse). Estorbo fuerte, por encima de
-                                        # un Drakloak CON energia que se reposiciona
-                                        # gratis.
-                                        score += 500
-                                    else:
-                                        # Dreepy que si puede pagar su retirada:
-                                        # se reposiciona, estorba poco.
-                                        score += 200
-                                elif _boss_can_ko:
-
-                                    if _boss_tgt_is_ex:
-                                        score += 900 + (_boss_tgt_energy * 50)
-                                    elif _boss_tgt_is_stage1:
-                                        score += 350 + (_boss_tgt_energy * 50)
-                                    else:
-                                        score += 250 + (_boss_tgt_energy * 50)
-                                else:
-                                    score += 150
-                            elif op_has_typhlosion or op_has_ethan_preevo:
-                                # Mazo Ethan's Typhlosion (linea 352/353/354).
-                                # Misma logica que Dragapult: Typhlosion es el
-                                # atacante final (fase 2), Quilava la fase 1 clave
-                                # (su habilidad busca cartas de Ethan) y Cyndaquil el
-                                # basico. Priorizamos clavar/derribar la pieza mas
-                                # avanzada de su linea evolutiva.
-                                if card.id == Typhlosion:
-                                    if _boss_can_ko:
-                                        score += 1200
-                                    else:
-                                        score += 800
-                                elif card.id == Quilava:
-                                    if _boss_can_ko:
-                                        score += 1000
-                                    elif _boss_tgt_energy < RETREAT_COST.get(card.id, 1):
-                                        # Quilava SIN energia: queda CLAVADO en el
-                                        # activo (no puede pagar retirada ni atacar) y
-                                        # RETRASA la evolucion a Typhlosion. Mejor
-                                        # objetivo de disrupcion de la linea.
-                                        score += 700
-                                    else:
-                                        # Quilava CON energia: puede retirarse gratis
-                                        # y reposicionarse (incluso evolucionar ya con
-                                        # energia). Estorbo debil.
-                                        score += 300
-                                elif card.id == Cyndaquil:
-                                    if _boss_can_ko:
-                                        score += 400
-                                    elif _boss_tgt_energy < RETREAT_COST.get(card.id, 1):
-                                        # Cyndaquil SIN energia para pagar retirada:
-                                        # queda CLAVADO en el activo. Estorbo fuerte,
-                                        # por encima de un Quilava CON energia que se
-                                        # reposiciona gratis.
-                                        score += 500
-                                    else:
-                                        # Cyndaquil que si puede pagar su retirada:
-                                        # se reposiciona, estorba poco.
-                                        score += 200
-                                elif _boss_can_ko:
-
-                                    if _boss_tgt_is_ex:
-                                        score += 900 + (_boss_tgt_energy * 50)
-                                    elif _boss_tgt_is_stage1:
-                                        score += 350 + (_boss_tgt_energy * 50)
-                                    else:
-                                        score += 250 + (_boss_tgt_energy * 50)
-                                else:
-                                    score += 150
-                            elif op_is_alakazam_deck:
-                                # Mazo Alakazam ex (linea 741/742/743). Misma
-                                # logica que Dragapult/Ethan: Alakazam ex es el
-                                # atacante final (fase 2 ex), Kadabra la fase 1
-                                # (su habilidad Psychic Draw roba 2) y Abra el
-                                # basico. Priorizamos clavar/derribar la pieza
-                                # mas avanzada de su linea evolutiva.
-                                if card.id == Alakazam_ex:
-                                    if _boss_can_ko:
-                                        score += 1200
-                                    else:
-                                        score += 800
-                                elif card.id == Kadabra:
-                                    if _boss_can_ko:
-                                        score += 1000
-                                    elif _boss_tgt_energy < RETREAT_COST.get(card.id, 1):
-                                        # Kadabra SIN energia: queda CLAVADO en el
-                                        # activo (no puede pagar retirada ni
-                                        # atacar) y RETRASA la evolucion a Alakazam
-                                        # ex. Mejor objetivo de disrupcion.
-                                        score += 700
-                                    else:
-                                        # Kadabra CON energia: puede retirarse
-                                        # gratis y reposicionarse (incluso
-                                        # evolucionar ya con energia). Estorbo debil.
-                                        score += 300
-                                elif card.id == Abra:
-                                    if _boss_can_ko:
-                                        score += 400
-                                    elif _boss_tgt_energy < RETREAT_COST.get(card.id, 1):
-                                        # Abra SIN energia para pagar retirada:
-                                        # queda CLAVADO en el activo. Estorbo
-                                        # fuerte, por encima de un Kadabra CON
-                                        # energia que se reposiciona gratis.
-                                        score += 500
-                                    else:
-                                        # Abra que si puede pagar su retirada: se
-                                        # reposiciona, estorba poco.
-                                        score += 200
-                                elif _boss_can_ko:
-
-                                    if _boss_tgt_is_ex:
-                                        score += 900 + (_boss_tgt_energy * 50)
-                                    elif _boss_tgt_is_stage1:
-                                        score += 350 + (_boss_tgt_energy * 50)
-                                    else:
-                                        score += 250 + (_boss_tgt_energy * 50)
-                                else:
-                                    score += 150
+                            _gt_ctx = _ctx_gust_objetivo(
+                                card, o, my_state, op_state, state, hand_counts,
+                                total_grass, bench_count, neutralization_zone_active,
+                                op_is_alakazam_deck, op_has_latias_ex,
+                                (op_has_dragapult or op_has_dreepy_line),
+                                (op_has_typhlosion or op_has_ethan_preevo))
+                            if _active_cant_attack_this_turn or _sel_active_cant_attack:
+                                score = _resolver_con_traza(
+                                    "boss->objetivo/estorbo", _REGLAS_GUST_ESTORBO,
+                                    _AJUSTES_GUST_ESTORBO, _gt_ctx, defecto=-200)
                             else:
-
-                                if _boss_can_ko:
-
-                                    if _boss_tgt_is_ex and _boss_tgt_energy >= 1:
-                                        score += 1100
-                                    elif _boss_tgt_is_ex:
-                                        score += 1000
-                                    elif _boss_tgt_is_stage2 and _boss_tgt_energy >= 1:
-                                        score += 900
-                                    elif _boss_tgt_is_stage2:
-                                        score += 850
-                                    elif _boss_tgt_is_stage1 and _boss_tgt_energy >= 1:
-                                        score += 700
-                                    elif _boss_tgt_is_stage1:
-                                        score += 600
-                                    else:
-
-                                        if card.id in THREAT_PREEVO_IDS:
-                                            score += 550
-                                        elif card.id == Budew:
-                                            score += 500
-                                        elif card.id == Munkidori:
-                                            score += 450
-                                        elif card.id == Snorunt:
-                                            score += 400
-                                        elif card.id in (Dwebble_Grass, Dwebble_Fighting):
-                                            score += 380
-                                        elif card.id in (Dreepy,):
-                                            score += 350
-                                        elif _boss_tgt_energy >= 1:
-                                            score += 300
-                                        else:
-                                            score += 200
-                                else:
-
-                                    if _boss_tgt_is_ex and _boss_tgt_energy >= 1:
-                                        score += 250
-                                    elif _boss_tgt_is_ex:
-                                        score += 200
-                                    elif _boss_tgt_is_stage2 and _boss_tgt_energy >= 1:
-                                        score += 180
-                                    elif _boss_tgt_is_stage2:
-                                        score += 160
-                                    elif _boss_tgt_is_stage1 and _boss_tgt_energy >= 1:
-                                        score += 150
-                                    elif _boss_tgt_is_stage1:
-                                        score += 130
-                                    elif card.id == Froslass:
-                                        score += 220
-                                    elif card.id == Budew:
-                                        score += 200
-                                    elif card.id == Munkidori:
-                                        score += 190
-                                    elif card.id == Snorunt:
-                                        score += 185
-                                    elif card.id in (Dreepy, Drakloak):
-                                        score += 180
-                                    elif card.id in (Dwebble_Grass, Dwebble_Fighting):
-                                        score += 178
-                                    else:
-                                        score += 100
-
-                            if op_is_crustle_deck and card.id in (Dwebble_Grass, Dwebble_Fighting):
-                                score = SCORE_FORBID
-
-                            # Regla general: un Pokemon con coste de retirada GRATIS
-                            # nunca es buen objetivo de Boss's Orders si NO lo vamos a
-                            # noquear este turno (el rival lo devuelve al banco sin
-                            # coste). Solo se permite gustearlo cuando es un KO real
-                            # (prize), donde la retirada es irrelevante.
-                            if RETREAT_COST.get(card.id, 0) <= 0 and not _boss_can_ko:
-                                score = SCORE_FORBID
-
+                                score = _resolver_con_traza(
+                                    "boss->objetivo", [], _AJUSTES_GUST_OFENSIVO,
+                                    _gt_ctx, defecto=0)
                 elif context == SelectContext.SETUP_ACTIVE_POKEMON:
 
                     if card.id == Teal_Mask_Ogerpon_ex:
