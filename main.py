@@ -1723,182 +1723,185 @@ def _score_boss_orders_play(ctx: DecisionContext) -> int:
                                defecto=0)
 
 
+def _us_pokemon_jugable(c):
+    if c.bench_count >= 5:
+        return False
+    h, f = c.hand_counts, c.field_counts
+    if (h.get(Chikorita, 0) >= 1 and
+            f.get(Chikorita, 0) + f.get(Bayleef, 0) + f.get(Meganium, 0) == 0):
+        return True
+    if (h.get(Applin, 0) >= 1 and
+            f.get(Applin, 0) + f.get(Dipplin, 0) == 0):
+        return True
+    if (h.get(Teal_Mask_Ogerpon_ex, 0) >= 1 and
+            f.get(Teal_Mask_Ogerpon_ex, 0) < 2):
+        return True
+    if h.get(Tapu_Bulu, 0) >= 1 and f.get(Tapu_Bulu, 0) == 0:
+        return True
+    if (h.get(Meowth_ex, 0) >= 1 and f.get(Meowth_ex, 0) == 0
+            and not c.ko_last_turn):
+        return True
+    if h.get(Fezandipiti_ex, 0) >= 1 and f.get(Fezandipiti_ex, 0) == 0:
+        return True
+    return False
+
+def _us_evo_jugable(c):
+    h, f = c.hand_counts, c.field_counts
+    if h.get(Meganium, 0) >= 1 and f.get(Bayleef, 0) >= 1 and not c.meganium_in_play:
+        return True
+    if h.get(Bayleef, 0) >= 1 and f.get(Chikorita, 0) >= 1:
+        return True
+    if h.get(Hydrapple_ex, 0) >= 1 and f.get(Dipplin, 0) >= 1:
+        return True
+    if h.get(Dipplin, 0) >= 1 and f.get(Applin, 0) >= 1:
+        return True
+    return False
+
+def _us_item_jugable(c):
+    if c.itchy_pollen_active:
+        return False
+    h = c.hand_counts
+    return (h.get(Bug_Catching_Set, 0) >= 1
+            or (h.get(Ultra_Ball, 0) >= 1 and c.my_hand_len >= 3)
+            or h.get(Night_Stretcher, 0) >= 1
+            or h.get(Poke_Pad, 0) >= 1)
+
+def _us_bonus_matchup(c):
+    if c.op_is_alakazam_deck:
+        return 400
+    if c.op_is_control_deck or c.op_is_slowking_deck:
+        return 350
+    if c.op_is_gardevoir_deck:
+        return 300
+    if c.op_is_zoroark_deck:
+        return 250
+    return 0
+
+_REGLAS_STAMP_PLAY = [
+    # Regla (user): con Lillie's en mano y rival con <= 3 cartas, NO jugar
+    # el Sello: su disrupcion aporta poco y refrescar NUESTRA mano rinde
+    # mas (el Stamp barajaria la Lillie's; jugadas excluyentes).
+    _ReglaFija("cede_a_lillie_mano_rival_corta",
+               lambda c: (c.hand_counts.get(Lillie_Determination, 0) >= 1
+                          and c.op_hand_count <= 3
+                          and not c.state.supporterPlayed),
+               lambda c: SCORE_VETO),
+    # El valor base sube cuanto MENOS uso alternativo tenga la mano este
+    # turno (Pokemon/evo < item < energia/estadio < nada = 7500).
+    _ReglaFija("mano_con_pokemon_o_evo",
+               lambda c: _us_pokemon_jugable(c) or _us_evo_jugable(c),
+               lambda c: 2000),
+    _ReglaFija("mano_con_item",
+               _us_item_jugable,
+               lambda c: 2500),
+    _ReglaFija("mano_con_energia_o_estadio",
+               lambda c: ((c.hand_counts[Basic_Grass_Energy] >= 1
+                           and not c.state.energyAttached)
+                          or (c.hand_counts.get(Forest_of_Vitality, 0) >= 1
+                              and not c.forest_in_play)),
+               lambda c: 3000),
+]
+
+_AJUSTES_STAMP_PLAY = [
+    _Ajuste("turno_temprano",
+            lambda c, s: c.state.turn <= 4,
+            lambda c, s: s + 300),
+    _Ajuste("vamos_perdiendo_premios",
+            lambda c, s: c.my_prize > c.op_prize + 1,
+            lambda c, s: s + 200),
+    _Ajuste("bonus_matchup",
+            lambda c, s: _us_bonus_matchup(c) != 0,
+            lambda c, s: s + _us_bonus_matchup(c)),
+    _Ajuste("aggro_y_perdiendo",
+            lambda c, s: ((c.op_is_aggro_deck or c.op_is_beedrill_deck)
+                          and c.my_prize > c.op_prize),
+            lambda c, s: s + 350),
+]
+
 def _score_unfair_stamp_play(ctx: DecisionContext) -> int:
-    """Puntua la jugada de Unfair Stamp (refresco de mano). Extraido verbatim de
-    la rama `elif card.id == Unfair_Stamp`. El valor sube cuanto MENOS uso
-    alternativo tenga la mano este turno (Pokemon/evo < item < energia < nada)."""
-    state = ctx.state
-    hand_counts = ctx.hand_counts
-    field_counts = ctx.field_counts
+    """Puntua la jugada de Unfair Stamp (refresco de mano). Cuerpo migrado al
+    MOTOR DE REGLAS (fase 4): reglas y comentarios en _REGLAS_STAMP_PLAY."""
+    return _resolver_con_traza("stamp->play", _REGLAS_STAMP_PLAY,
+                               _AJUSTES_STAMP_PLAY, ctx, defecto=7500)
 
-    # Regla (user): si tenemos Lillie's Determination en la mano y el rival tiene
-    # 3 o menos cartas en la mano, NO jugar Unfair Stamp; se cede la prioridad a
-    # Lillie's Determination. Con la mano rival ya tan corta la disrupcion de
-    # Unfair Stamp aporta poco, y refrescar NUESTRA mano con Lillie's (robar 6/8)
-    # rinde mas. Unfair Stamp baraja la mano (incluida la Lillie's), asi que son
-    # jugadas mutuamente excluyentes; se prefiere Lillie's. Solo aplica con el
-    # Supporter del turno aun sin jugar (para que Lillie's sea jugable).
-    if (hand_counts.get(Lillie_Determination, 0) >= 1
-            and ctx.op_hand_count <= 3
-            and not state.supporterPlayed):
-        return SCORE_VETO
 
-    _us_has_playable_pokemon = False
-    if ctx.bench_count < 5:
-        if (hand_counts.get(Chikorita, 0) >= 1 and
-                field_counts.get(Chikorita, 0) + field_counts.get(Bayleef, 0) + field_counts.get(Meganium, 0) == 0):
-            _us_has_playable_pokemon = True
-        if (hand_counts.get(Applin, 0) >= 1 and
-                field_counts.get(Applin, 0) + field_counts.get(Dipplin, 0) == 0):
-            _us_has_playable_pokemon = True
-        if (hand_counts.get(Teal_Mask_Ogerpon_ex, 0) >= 1 and
-                field_counts.get(Teal_Mask_Ogerpon_ex, 0) < 2):
-            _us_has_playable_pokemon = True
-        if hand_counts.get(Tapu_Bulu, 0) >= 1 and field_counts.get(Tapu_Bulu, 0) == 0:
-            _us_has_playable_pokemon = True
-        if (hand_counts.get(Meowth_ex, 0) >= 1 and field_counts.get(Meowth_ex, 0) == 0
-                and not ctx.ko_last_turn):
-            _us_has_playable_pokemon = True
-        if hand_counts.get(Fezandipiti_ex, 0) >= 1 and field_counts.get(Fezandipiti_ex, 0) == 0:
-            _us_has_playable_pokemon = True
+def _xr_letal_proyectado(c):
+    """Disparo TEMPRANO anti-Alakazam: con mano rival 4-5, si el Alakazam YA
+    esta activo y su Powerful Hand proyectado (20 x (mano + 2)) NOQUEA a
+    nuestro activo, capar la mano AHORA (esperar mano >= 6 regala el KO)."""
+    if not (c.op_is_alakazam_deck and 4 <= c.op_hand_count < 6
+            and c.my_state.active and c.my_state.active[0] is not None):
+        return False
+    op_act = _active_of(c.op_state)
+    return (op_act is not None and op_act.id == Alakazam_ex
+            and 20 * (c.op_hand_count + 2)
+                >= (c.my_state.active[0].hp or 0))
 
-    _us_has_playable_evo = False
-    if hand_counts.get(Meganium, 0) >= 1 and field_counts.get(Bayleef, 0) >= 1 and not ctx.meganium_in_play:
-        _us_has_playable_evo = True
-    if hand_counts.get(Bayleef, 0) >= 1 and field_counts.get(Chikorita, 0) >= 1:
-        _us_has_playable_evo = True
-    if hand_counts.get(Hydrapple_ex, 0) >= 1 and field_counts.get(Dipplin, 0) >= 1:
-        _us_has_playable_evo = True
-    if hand_counts.get(Dipplin, 0) >= 1 and field_counts.get(Applin, 0) >= 1:
-        _us_has_playable_evo = True
+def _xr_copia_respaldo(c):
+    """2a copia de Xerosic accesible (mano o mazo): la 1a se juega TEMPRANO
+    (mano rival >= 4); el segundo cap tardio es destructivo. Sin respaldo,
+    timing conservador (user, julio 2026: -1 Poke Pad +1 Xerosic)."""
+    return (c.hand_counts.get(Xerosic_Machinations, 0) >= 2
+            or c.cartas_en_mazo.get(
+                Xerosic_Machinations, {}).get(ESTADO_MAZO, 0) >= 1)
 
-    _us_has_playable_item = False
-    if not ctx.itchy_pollen_active:
-        if hand_counts.get(Bug_Catching_Set, 0) >= 1:
-            _us_has_playable_item = True
-        if hand_counts.get(Ultra_Ball, 0) >= 1 and ctx.my_hand_len >= 3:
-            _us_has_playable_item = True
-        if hand_counts.get(Night_Stretcher, 0) >= 1:
-            _us_has_playable_item = True
-        if hand_counts.get(Poke_Pad, 0) >= 1:
-            _us_has_playable_item = True
+def _xr_gate_alakazam(c):
+    """vs Alakazam (la razon de ser de la carta): mano rival >= 6 (Powerful
+    Hand 120+), KO proyectado sobre nuestro activo, o copia de respaldo con
+    la mano rival ya creciendo (>= 4)."""
+    return (c.op_is_alakazam_deck
+            and (c.op_hand_count >= 6 or _xr_letal_proyectado(c)
+                 or (_xr_copia_respaldo(c) and c.op_hand_count >= 4)))
 
-    _us_has_energy_play = (hand_counts[Basic_Grass_Energy] >= 1 and not state.energyAttached)
-    _us_has_stadium_play = (hand_counts.get(Forest_of_Vitality, 0) >= 1 and not ctx.forest_in_play)
-
-    if _us_has_playable_pokemon or _us_has_playable_evo:
-        us_score = 2000
-    elif _us_has_playable_item:
-        us_score = 2500
-    elif _us_has_energy_play or _us_has_stadium_play:
-        us_score = 3000
-    else:
-        us_score = 7500
-
-    if state.turn <= 4:
-        us_score += 300
-    if ctx.my_prize > ctx.op_prize + 1:
-        us_score += 200
-    if ctx.op_is_alakazam_deck:
-        us_score += 400
-    elif ctx.op_is_control_deck or ctx.op_is_slowking_deck:
-        us_score += 350
-    elif ctx.op_is_gardevoir_deck:
-        us_score += 300
-    elif ctx.op_is_zoroark_deck:
-        us_score += 250
-    if (ctx.op_is_aggro_deck or ctx.op_is_beedrill_deck) and ctx.my_prize > ctx.op_prize:
-        us_score += 350
-    return us_score
-
+_REGLAS_XEROSIC_PLAY = [
+    _ReglaFija("supporter_ya_jugado",
+               lambda c: c.state.supporterPlayed,
+               lambda c: SCORE_VETO),
+    # Sin efecto si la mano rival ya tiene <= 3 (p.ej. tras Unfair Stamp
+    # este mismo turno): no quemar el Supporter para nada.
+    _ReglaFija("mano_rival_ya_corta",
+               lambda c: c.op_hand_count <= 3,
+               lambda c: SCORE_VETO),
+    # Con KO el turno pasado y Stamp en mano, el Sello va PRIMERO (es Item
+    # y rebaraja NUESTRA mano). Mismo gate que Boss's/Lana's/Dawn.
+    _ReglaFija("cede_a_unfair_stamp",
+               lambda c: (c.ko_last_turn
+                          and c.hand_counts.get(Unfair_Stamp, 0) >= 1),
+               lambda c: SCORE_VETO),
+    # Cede al gusteo LETAL de banca: cobrar un premio va primero (el Boss's
+    # jugara y supporterPlayed vetara este Xerosic en la re-evaluacion).
+    _ReglaFija("alakazam_cede_a_gusteo_letal",
+               lambda c: (_xr_gate_alakazam(c) and c.boss_win_via_bench
+                          and c.hand_counts.get(Boss_Orders, 0) >= 1),
+               lambda c: XEROSIC_SCORE_LAST_RESORT),
+    # Sin ataque y mano corta: el desarrollo (Lillie's) vale mas que la
+    # disrupcion este turno.
+    _ReglaFija("alakazam_cede_a_lillie_mano_corta",
+               lambda c: (_xr_gate_alakazam(c) and c.active_cant_attack
+                          and sum(c.hand_counts.values()) <= 3
+                          and c.hand_counts.get(Lillie_Determination, 0) >= 1),
+               lambda c: XEROSIC_SCORE_LAST_RESORT),
+    # Capar Powerful Hand: escala con la mano rival (5900-6200). Gana a
+    # Lillie's hydra-cargado (5800); bajo WIN_NOW/GUST_2PRIZE y pivotes.
+    _ReglaFija("alakazam_capar_mano",
+               _xr_gate_alakazam,
+               lambda c: (XEROSIC_SCORE_ALAKAZAM
+                          + min(300, 50 * (c.op_hand_count - 4))
+                          + c.supporter_boost)),
+    # Generico: quitarle 4+ cartas es valor real, pero sin Powerful Hand va
+    # por debajo de Lillie's/Lana's/Boss's utiles. Solo mano rival >= 7.
+    _ReglaFija("generico_mano_muy_grande",
+               lambda c: c.op_hand_count >= 7,
+               lambda c: XEROSIC_SCORE_GENERIC + c.supporter_boost),
+    # defecto: ultimo recurso (mano rival 4-6 sin matchup Alakazam).
+]
 
 def _score_xerosic_play(ctx: DecisionContext) -> int:
-    """Puntua jugar Xerosic's Machinations (id 1197): el RIVAL descarta cartas
-    de su mano hasta quedarse con 3. Regla (user): incorporada al mazo (-1 Poke
-    Pad) principalmente para el matchup Alakazam, cuyo ataque Powerful Hand hace
-    20 de dano POR CARTA en su mano (y roban masivamente con Psychic Draw y
-    Dudunsparce). Bajarlos a 3 cartas capa ese dano a ~60-100 el proximo turno
-    y les descarta recursos acumulados. Complementa a Unfair Stamp (que exige
-    KO previo); Xerosic NO lo exige."""
-    state = ctx.state
-    hand_counts = ctx.hand_counts
-    if state.supporterPlayed:
-        return SCORE_VETO
-    # Sin efecto si la mano rival ya tiene <= 3 cartas (p.ej. tras jugar
-    # Unfair Stamp este mismo turno: el rival quedo con 2 y la re-evaluacion
-    # greedy cae aqui). No quemar el Supporter del turno para nada.
-    if ctx.op_hand_count <= 3:
-        return SCORE_VETO
-    # Con KO el turno pasado y Unfair Stamp en mano, el Stamp va PRIMERO (es
-    # Item y rebaraja NUESTRA mano: no gastar el supporter antes). Mismo gate
-    # que usan Boss's/Lana's/Dawn (_stamp_blocks_supp_chain).
-    if ctx.ko_last_turn and hand_counts.get(Unfair_Stamp, 0) >= 1:
-        return SCORE_VETO
-
-    # Disparo TEMPRANO por amenaza letal proyectada (sugerencia 2 anti-
-    # Alakazam): con mano rival 4-5 la rama de abajo (>= 6) no entra, pero si
-    # el Alakazam YA esta en el activo rival y su Powerful Hand proyectado
-    # (20 x (mano + 2), misma proyeccion que _op_active_attack_damage_to)
-    # NOQUEA a nuestro activo, esperar el turno "reglamentario" de mano >= 6
-    # regala el KO: capar la mano AHORA. Acotado a activo rival = Alakazam
-    # (la amenaza es inmediata, no especulativa).
-    _xr_lethal_proj = False
-    if (ctx.op_is_alakazam_deck and 4 <= ctx.op_hand_count < 6
-            and ctx.my_state.active and ctx.my_state.active[0] is not None):
-        _xr_op_act = _active_of(ctx.op_state)
-        if (_xr_op_act is not None and _xr_op_act.id == Alakazam_ex
-                and 20 * (ctx.op_hand_count + 2)
-                    >= (ctx.my_state.active[0].hp or 0)):
-            _xr_lethal_proj = True
-
-    # 2a copia de Xerosic en el mazo (user, julio 2026: -1 Poke Pad +1
-    # Xerosic). Estrategia de DOBLE golpe vs Alakazam: jugar la 1a copia
-    # TEMPRANO (mano rival >= 4, sin esperar el pico de 6 ni la proyeccion
-    # letal) SIEMPRE que quede una copia de RESPALDO accesible (otra en mano
-    # o en el mazo). Antes, un solo Xerosic temprano los demoraba pero se
-    # recuperaban; con el respaldo, el segundo cap tardio es destructivo.
-    # Sin respaldo (ultima copia), se mantiene el timing conservador
-    # (mano >= 6 o letal proyectado) para no malgastarla.
-    _xr_backup_copy = (
-        hand_counts.get(Xerosic_Machinations, 0) >= 2
-        or ctx.cartas_en_mazo.get(
-            Xerosic_Machinations, {}).get(ESTADO_MAZO, 0) >= 1)
-
-    # vs Alakazam: la razon de ser de la carta. Cuando su mano ya es una
-    # amenaza real (>= 6 cartas = Powerful Hand 120+), el disparo temprano
-    # de arriba detecta KO proyectado sobre nuestro activo, o hay copia de
-    # respaldo y la mano rival ya crece (>= 4). Escala con la mano rival
-    # (6000-6200; con mano 4-5 queda en 5900). Gana a Lillie's hydra-cargado
-    # (5800, que ademas barajaria este Xerosic) y queda por debajo de los
-    # remates que cobran 2 premios (WIN_NOW 20000, GUST_2PRIZE 6800) y de
-    # los pivotes defensivos (~6500-6600).
-    if ctx.op_is_alakazam_deck and (ctx.op_hand_count >= 6 or _xr_lethal_proj
-                                    or (_xr_backup_copy
-                                        and ctx.op_hand_count >= 4)):
-        # Cede al gusteo LETAL de banca (mismo patron que la excepcion de
-        # Lillie's hydra-cargado): cobrar un premio va primero; el Boss's
-        # jugara y supporterPlayed vetara este Xerosic en la re-evaluacion.
-        if ctx.boss_win_via_bench and hand_counts.get(Boss_Orders, 0) >= 1:
-            return XEROSIC_SCORE_LAST_RESORT
-        # Excepcion: si NO podemos atacar y nuestra mano es corta, el
-        # desarrollo (Lillie's) vale mas que la disrupcion este turno.
-        _xr_my_hand = sum(hand_counts.values())
-        if (ctx.active_cant_attack and _xr_my_hand <= 3
-                and hand_counts.get(Lillie_Determination, 0) >= 1):
-            return XEROSIC_SCORE_LAST_RESORT
-        return (XEROSIC_SCORE_ALAKAZAM
-                + min(300, 50 * (ctx.op_hand_count - 4))
-                + ctx.supporter_boost)
-
-    # Generico (cualquier mazo): quitarle 4+ cartas al rival es valor real,
-    # pero sin la sinergia Powerful Hand va por debajo de Lillie's/Lana's/
-    # Boss's utiles. Solo con mano rival MUY grande (>= 7).
-    if ctx.op_hand_count >= 7:
-        return XEROSIC_SCORE_GENERIC + ctx.supporter_boost
-
-    # Mano rival 4-6 sin matchup Alakazam: ultimo recurso (solo se juega si
-    # ningun otro supporter tiene algo mejor que hacer este turno).
-    return XEROSIC_SCORE_LAST_RESORT
+    """Puntua jugar Xerosic's Machinations (id 1197): el rival descarta hasta
+    quedarse con 3. En el mazo por el matchup Alakazam (Powerful Hand hace 20
+    por carta de su mano). Cuerpo migrado al MOTOR DE REGLAS (fase 4)."""
+    return _resolver_con_traza("xerosic->play", _REGLAS_XEROSIC_PLAY, [],
+                               ctx, defecto=XEROSIC_SCORE_LAST_RESORT)
 
 
 def _score_poke_pad_play(ctx: DecisionContext) -> int:
@@ -2420,98 +2423,101 @@ def _score_night_stretcher_play(ctx: DecisionContext) -> int:
     return ns_score
 
 
-def _score_forest_of_vitality_play(ctx: DecisionContext) -> int:
-    """Puntua la jugada de Forest of Vitality (estadio que permite evolucionar el
-    mismo turno). Extraido verbatim de la rama `if card.id == Forest_of_Vitality`
-    (se elimino un print de depuracion residual que no afectaba al score)."""
-    state = ctx.state
-    hand_counts = ctx.hand_counts
-    field_counts = ctx.field_counts
-    meganium_in_play = ctx.meganium_in_play
-    has_hydrapple = ctx.has_hydrapple
-    stadium_id = ctx.stadium_id
-    we_go_first = ctx.we_go_first
+def _fv_cadena_evolutiva(c):
+    """Jugar Forest habilita evolucionar ESTE turno alguna linea presente
+    (o bajable desde la mano encadenando basico+evolucion)."""
+    h, f = c.hand_counts, c.field_counts
+    meg_fetchable = (
+        c.cartas_en_mazo.get(Meganium, {}).get(ESTADO_MAZO, 0) > 0 and
+        (h.get(Poke_Pad, 0) >= 1 or h.get(Ultra_Ball, 0) >= 1))
+    if f.get(Chikorita, 0) >= 1 and not c.meganium_in_play:
+        if h.get(Bayleef, 0) >= 1 or h.get(Meganium, 0) >= 1:
+            return True
+    if f.get(Bayleef, 0) >= 1 and not c.meganium_in_play:
+        if h.get(Meganium, 0) >= 1 or meg_fetchable:
+            return True
+    if f.get(Applin, 0) >= 1:
+        if h.get(Dipplin, 0) >= 1 or h.get(Hydrapple_ex, 0) >= 1:
+            return True
+    if f.get(Dipplin, 0) >= 1 and not c.has_hydrapple:
+        if h.get(Hydrapple_ex, 0) >= 1:
+            return True
+    if (h.get(Chikorita, 0) >= 1 and
+            f[Chikorita] + f[Bayleef] + f[Meganium] == 0 and
+            h.get(Bayleef, 0) >= 1):
+        return True
+    if (h.get(Applin, 0) >= 1 and
+            f[Applin] + f[Dipplin] == 0 and
+            h.get(Dipplin, 0) >= 1):
+        return True
+    return False
 
-    _our_first_turn_first = we_go_first and state.turn == 1
-    _our_first_turn_second = (not we_go_first) and state.turn == 2
-    if _our_first_turn_first:
-        return SCORE_VETO
-    if _our_first_turn_second and stadium_id == 0:
-        return SCORE_VETO
-    if _our_first_turn_second and stadium_id != 0 and stadium_id != Forest_of_Vitality:
+def _v_fv_neutralization(c):
+    f = c.field_counts
+    if (f.get(Chikorita, 0) >= 1 or f.get(Applin, 0) >= 1
+            or f.get(Dipplin, 0) >= 1):
+        return 29000
+    return 28000
+
+def _v_fv_cadena(c):
+    v = 22000 if c.stadium_id != 0 else 21900
+    if c.op_is_fire_deck or c.op_is_aggro_deck or c.op_is_beedrill_deck:
+        v += 200
+    return v
+
+def _v_fv_temprano(c):
+    if c.op_is_fire_deck or c.op_is_aggro_deck or c.op_is_mirror:
         return 15000
-    if stadium_id == Forest_of_Vitality:
-        return SCORE_VETO
+    return 14000
 
-    if ctx.neutralization_zone_active:
-        score = 28000
-        if (field_counts.get(Chikorita, 0) >= 1 or
-                field_counts.get(Applin, 0) >= 1 or
-                field_counts.get(Dipplin, 0) >= 1):
-            score = 29000
-        return score
+_REGLAS_FOREST_PLAY = [
+    _ReglaFija("t1_saliendo_primeros",
+               lambda c: c.we_go_first and c.state.turn == 1,
+               lambda c: SCORE_VETO),
+    _ReglaFija("t1_segundos_sin_estadio_rival",
+               lambda c: ((not c.we_go_first) and c.state.turn == 2
+                          and c.stadium_id == 0),
+               lambda c: SCORE_VETO),
+    _ReglaFija("t1_segundos_reemplaza_estadio",
+               lambda c: ((not c.we_go_first) and c.state.turn == 2
+                          and c.stadium_id != 0
+                          and c.stadium_id != Forest_of_Vitality),
+               lambda c: 15000),
+    _ReglaFija("forest_ya_en_juego",
+               lambda c: c.stadium_id == Forest_of_Vitality,
+               lambda c: SCORE_VETO),
+    # Neutralization Zone anula el DANO de nuestros ex a Pokemon de 1
+    # premio: removerla es lo mas urgente (29000 con linea grass en campo).
+    _ReglaFija("anular_neutralization_zone",
+               lambda c: c.neutralization_zone_active,
+               _v_fv_neutralization),
+    # Team Rocket's Watchtower APAGA el motor Meowth (anula Last-Ditch).
+    # Con el motor VIVO, reemplazarla es prioritario: 27000, bajo la
+    # Neutralization Zone y sobre la cadena evolutiva (21900-22000).
+    # (auditoria julio 2026, sugerencia 3)
+    _ReglaFija("reactivar_motor_meowth_vs_watchtower",
+               lambda c: (c.watchtower_in_play
+                          and c.field_counts.get(Meowth_ex, 0) < 2
+                          and (c.hand_counts.get(Meowth_ex, 0) >= 1
+                               or c.cartas_en_mazo.get(
+                                   Meowth_ex, {}).get(ESTADO_MAZO, 0) > 0)),
+               lambda c: 27000),
+    _ReglaFija("habilita_cadena_evolutiva",
+               _fv_cadena_evolutiva,
+               _v_fv_cadena),
+    _ReglaFija("reemplazar_estadio_rival",
+               lambda c: c.stadium_id != 0,
+               lambda c: 15000),
+    _ReglaFija("desarrollo_temprano",
+               lambda c: c.state.turn <= 4,
+               _v_fv_temprano),
+]
 
-    # Team Rocket's Watchtower APAGA el motor Meowth completo (anula Last-Ditch
-    # Catch, habilidad de Pokemon incoloro): mientras este en juego no se puede
-    # bajar ni buscar Meowth ex. Si el motor esta VIVO (Meowth disponible en
-    # mano/mazo con hueco en juego), reemplazar el estadio es prioritario:
-    # 27000, bajo la Neutralization Zone (28000-29000, anula nuestro DANO, mas
-    # urgente) y sobre la cadena evolutiva (21900-22000). Antes caia al 15000
-    # generico de "reemplazar estadio rival" y perdia contra el desarrollo
-    # (auditoria julio 2026, sugerencia 3).
-    if (ctx.watchtower_in_play
-            and field_counts.get(Meowth_ex, 0) < 2
-            and (hand_counts.get(Meowth_ex, 0) >= 1
-                 or ctx.cartas_en_mazo.get(
-                     Meowth_ex, {}).get(ESTADO_MAZO, 0) > 0)):
-        return 27000
-
-    _evo_chain = False
-
-    # Meganium buscable en el mazo con un buscador en mano (Poke Pad / Ultra Ball):
-    # jugar Forest habilita evolucionar ESTE turno un Bayleef hasta Meganium.
-    _meg_fetchable_fv = (
-        ctx.cartas_en_mazo.get(Meganium, {}).get(ESTADO_MAZO, 0) > 0 and
-        (hand_counts.get(Poke_Pad, 0) >= 1 or
-         hand_counts.get(Ultra_Ball, 0) >= 1))
-
-    if field_counts.get(Chikorita, 0) >= 1 and not meganium_in_play:
-        if hand_counts.get(Bayleef, 0) >= 1 or hand_counts.get(Meganium, 0) >= 1:
-            _evo_chain = True
-    if field_counts.get(Bayleef, 0) >= 1 and not meganium_in_play:
-        if hand_counts.get(Meganium, 0) >= 1 or _meg_fetchable_fv:
-            _evo_chain = True
-    if field_counts.get(Applin, 0) >= 1:
-        if hand_counts.get(Dipplin, 0) >= 1 or hand_counts.get(Hydrapple_ex, 0) >= 1:
-            _evo_chain = True
-    if field_counts.get(Dipplin, 0) >= 1 and not has_hydrapple:
-        if hand_counts.get(Hydrapple_ex, 0) >= 1:
-            _evo_chain = True
-
-    if (hand_counts.get(Chikorita, 0) >= 1 and
-            field_counts[Chikorita] + field_counts[Bayleef] + field_counts[Meganium] == 0 and
-            hand_counts.get(Bayleef, 0) >= 1):
-        _evo_chain = True
-    if (hand_counts.get(Applin, 0) >= 1 and
-            field_counts[Applin] + field_counts[Dipplin] == 0 and
-            hand_counts.get(Dipplin, 0) >= 1):
-        _evo_chain = True
-
-    if _evo_chain:
-        score = 21900
-        if stadium_id != 0:
-            score = 22000
-        if ctx.op_is_fire_deck or ctx.op_is_aggro_deck or ctx.op_is_beedrill_deck:
-            score += 200
-    elif stadium_id != 0:
-        score = 15000
-    elif state.turn <= 4:
-        score = 14000
-        if ctx.op_is_fire_deck or ctx.op_is_aggro_deck or ctx.op_is_mirror:
-            score = 15000
-    else:
-        score = 8000
-    return score
+def _score_forest_of_vitality_play(ctx: DecisionContext) -> int:
+    """Puntua la jugada de Forest of Vitality (estadio que permite evolucionar
+    el mismo turno). Cuerpo migrado al MOTOR DE REGLAS (fase 4)."""
+    return _resolver_con_traza("forest->play", _REGLAS_FOREST_PLAY, [],
+                               ctx, defecto=8000)
 
 
 def _score_bug_catching_set_play(ctx: DecisionContext) -> int:
