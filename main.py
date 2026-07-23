@@ -462,6 +462,64 @@ XEROSIC_SCORE_ALAKAZAM = 5900        # Xerosic vs Alakazam: capar Powerful Hand 
 XEROSIC_SCORE_GENERIC = 3380         # Xerosic generico con mano rival muy grande (>=7): valor de disrupcion, bajo Lillie's tipico (~3450)
 XEROSIC_SCORE_LAST_RESORT = 20       # sin efecto util claro: solo si ningun otro supporter puntua
 
+# =============================================================================
+# MOTOR DE REGLAS (fase 4): reglas con NOMBRE y TRAZA.
+#
+# Problema que resuelve: el scoring inline entierra cada regla como un if con
+# numeros magicos; cuando dos reglas colisionan (p.ej. un clamp que pisa un
+# score alto), encontrar la culpable exige instrumentar a mano. Aqui cada
+# regla es un objeto con nombre; el resolver deja una traza legible de que
+# regla fijo el score y que ajustes lo transformaron (visible con PTCG_DEBUG).
+#
+# Semantica IDENTICA al codigo que reemplaza:
+#   - _ReglaFija: cadena if/elif -> gana la PRIMERA cuyo `cuando` es True.
+#   - _Ajuste: transformaciones secuenciales posteriores (clamps, topes).
+# Bloques migrados: fetch de Ultra Ball (11 ramas), Night Stretcher (12),
+# _score_boss_orders_play. Cero cambio de comportamiento en cada migracion
+# (suite + corpus dorado + invariantes + self-play).
+# =============================================================================
+
+class _ReglaFija:
+    __slots__ = ("nombre", "cuando", "valor")
+
+    def __init__(self, nombre, cuando, valor):
+        self.nombre = nombre
+        self.cuando = cuando  # ctx -> bool
+        self.valor = valor    # ctx -> score
+
+class _Ajuste:
+    __slots__ = ("nombre", "cuando", "aplicar")
+
+    def __init__(self, nombre, cuando, aplicar):
+        self.nombre = nombre
+        self.cuando = cuando    # (ctx, score) -> bool
+        self.aplicar = aplicar  # (ctx, score) -> score
+
+def _resolver_reglas(reglas, ajustes, ctx, defecto):
+    """Devuelve (score, traza). Primera regla que aplica + ajustes en orden."""
+    traza = []
+    score = defecto
+    for r in reglas:
+        if r.cuando(ctx):
+            score = r.valor(ctx)
+            traza.append(f"{r.nombre}={score}")
+            break
+    else:
+        traza.append(f"defecto={defecto}")
+    for a in ajustes:
+        if a.cuando(ctx, score):
+            nuevo = a.aplicar(ctx, score)
+            traza.append(f"{a.nombre}:{score}->{nuevo}" if nuevo != score
+                         else f"{a.nombre}(sin efecto)")
+            score = nuevo
+    return score, traza
+
+def _resolver_con_traza(etiqueta, reglas, ajustes, ctx, defecto):
+    score, traza = _resolver_reglas(reglas, ajustes, ctx, defecto)
+    if os.environ.get("PTCG_DEBUG"):
+        print(f"[reglas {etiqueta}]", " | ".join(traza))
+    return score
+
 class AttackPlan:
     attacker = -1
     target = -1
@@ -1531,121 +1589,138 @@ class DecisionContext:
     boss_active_threat_dominates: bool = False
 
 
+def _boss_val_de(ctx):
+    return ctx.supp_values.get(Boss_Orders, 0)
+
+def _boss_empty_gust(ctx):
+    """Activo que NO puede atacar este turno (log 85799299 paso 50): el gusteo
+    no es ejecutable como remate; con Lillie's en mano refrescar rinde mas.
+    Se exceptuan los casos valiosos."""
+    return (ctx.active_cant_attack
+            and not ctx.boss_win_via_bench
+            and not ctx.boss_dodge_redirect
+            and not ctx.boss_defensive_gust
+            and not ctx.op_has_ability_immune_active
+            and not ctx.op_has_ex_immune_active
+            and ctx.hand_counts.get(Lillie_Determination, 0) >= 1)
+
+def _boss_first_turn_cede(ctx):
+    """En NUESTRO primer turno (log 86025936 paso 11) con Lillie's en mano
+    SIEMPRE se juega Lillie's; Boss's cede (un gusteo no cobra premio el
+    primer turno)."""
+    return (ctx.our_first_turn
+            and ctx.hand_counts.get(Lillie_Determination, 0) >= 1
+            and not ctx.state.supporterPlayed
+            and not ctx.boss_win_via_bench)
+
+def _boss_cede_dig(ctx):
+    """Cede a Lillie's cuando NO tenemos un atacante REAL de banca (user,
+    registro_005 vs Dragapult): un gusteo de DESARROLLO (cortar la linea
+    rival noqueando un basico/pre-evo de 1 premio) no tiene prioridad si
+    ademas del activo solo tenemos BASICOS y ningun atacante de banca
+    listo: sin segundo atacante el gusteo no encadena y conviene CAVAR.
+    `has_ready_bench_attacker` solo cuenta atacantes reales listos, nunca
+    un Applin. Se exceptuan TODOS los gusteos valiosos."""
+    return (ctx.hand_counts.get(Lillie_Determination, 0) >= 1
+            and not ctx.has_ready_bench_attacker
+            and not ctx.boss_win_via_bench
+            and not ctx.boss_dodge_redirect
+            and not ctx.boss_defensive_gust
+            and not ctx.boss_ko_threat_preevo
+            and not ctx.boss_deny_alakazam_line
+            and not ctx.op_has_ability_immune_active
+            and not ctx.op_has_ex_immune_active)
+
+_REGLAS_BOSS_PLAY = [
+    _ReglaFija("supporter_ya_jugado",
+               lambda c: c.state.supporterPlayed,
+               lambda c: SCORE_VETO),
+    # Con Unfair Stamp jugable (nos noquearon), el Sello va primero.
+    _ReglaFija("cede_a_unfair_stamp",
+               lambda c: (c.ko_last_turn
+                          and c.hand_counts.get(Unfair_Stamp, 0) >= 1),
+               lambda c: SCORE_VETO),
+    # Regla (user): vs Alakazam con Dunsparce activo rival y nuestro activo
+    # SIN ataque, NO gustear: despejaria el muro y les daria via libre;
+    # conviene mantener trabado a Dunsparce.
+    _ReglaFija("no_despejar_muro_dunsparce",
+               lambda c: (c.op_is_alakazam_deck and c.op_active_is_dunsparce
+                          and c.active_cant_attack),
+               lambda c: SCORE_VETO),
+    # Gusteo GANADOR: el ACTIVO noquea a un objetivo de banca y GANA la
+    # partida. Debe superar CUALQUIER retirada/pivote (~6500-6600); antes se
+    # puntuaba win_via_bench (5600) y el agente RETIRABA en vez de rematar
+    # (user, registro 019 paso 190 vs Dragapult, GANADA).
+    _ReglaFija("gusteo_ganador",
+               lambda c: c.win_via_boss_gust,
+               lambda c: BOSS_SCORE_WIN_NOW + c.supporter_boost),
+    # Gusteo de 2 PREMIOS (user, registro_008 paso 119 vs TR Mewtwo ex,
+    # GANADA): el activo ya noquea al activo rival (1 premio) pero un ex de
+    # banca noqueable da 2; `gust_2prize_via_boss` ya exige KO, >= 2 premios,
+    # > premios del activo y no trade-down. Bajo WIN_NOW, sobre pivotes.
+    _ReglaFija("gusteo_2_premios",
+               lambda c: c.gust_2prize_via_boss,
+               lambda c: BOSS_SCORE_GUST_2PRIZE + c.supporter_boost),
+    _ReglaFija("primer_turno_cede_a_lillie",
+               _boss_first_turn_cede,
+               lambda c: BOSS_SCORE_EMPTY_GUST),
+    _ReglaFija("gusteo_vacio_cede_a_lillie",
+               _boss_empty_gust,
+               lambda c: BOSS_SCORE_EMPTY_GUST),
+    _ReglaFija("sin_atacante_banca_cede_a_lillie",
+               _boss_cede_dig,
+               lambda c: BOSS_SCORE_EMPTY_GUST),
+    _ReglaFija("muro_inmune",
+               lambda c: ((c.op_has_ability_immune_active
+                           or c.op_has_ex_immune_active)
+                          and _boss_val_de(c) >= 900),
+               lambda c: BOSS_SCORE_WALL_GUST + c.supporter_boost),
+    _ReglaFija("dodge_redirect",
+               lambda c: c.boss_dodge_redirect,
+               lambda c: BOSS_SCORE_DODGE_REDIRECT + c.supporter_boost),
+    _ReglaFija("win_via_bench",
+               lambda c: c.boss_win_via_bench,
+               lambda c: BOSS_SCORE_WIN_VIA_BENCH + c.supporter_boost),
+    # Cortar la linea Alakazam: gustear+noquear su pre-evo de banca cuando
+    # el activo rival esta fuera de la linea (muro). Registro 010, paso 64.
+    _ReglaFija("cortar_linea_alakazam",
+               lambda c: c.boss_deny_alakazam_line,
+               lambda c: BOSS_SCORE_PRIZE_RANK_BASE + c.supporter_boost),
+    # Prioridad entre copias de la misma amenaza (user, registro_007 paso 80
+    # vs Archaludon): el activo rival (Hero's Cape + 3 energias) domina a su
+    # copia debil de banca -> ATACAR al activo y GUARDAR el Boss's. Corta
+    # las ramas de valor bajo/medio; los remates ya retornaron antes.
+    _ReglaFija("amenaza_activa_domina",
+               lambda c: c.boss_active_threat_dominates,
+               lambda c: BOSS_SCORE_EMPTY_GUST),
+    _ReglaFija("gusteo_low_value",
+               lambda c: c.boss_low_value_gust,
+               lambda c: BOSS_SCORE_LOW_VALUE_GUST + c.supporter_boost),
+    _ReglaFija("gusteo_por_prize_rank",
+               lambda c: c.boss_prize_rank >= 1,
+               lambda c: (BOSS_SCORE_PRIZE_RANK_BASE
+                          + (8 - c.boss_prize_rank) * 20
+                          + c.supporter_boost)),
+    _ReglaFija("gusteo_defensivo",
+               lambda c: c.boss_defensive_gust,
+               lambda c: BOSS_SCORE_DEFENSIVE_GUST + c.supporter_boost),
+    _ReglaFija("sin_valor",
+               lambda c: _boss_val_de(c) <= 0,
+               lambda c: SCORE_VETO),
+    # Fallback: valor generico del supporter.
+    _ReglaFija("valor_del_supporter",
+               lambda c: True,
+               lambda c: (SCORE_SUPPORTER_VALUE_BASE
+                          + int(_boss_val_de(c) * 1.4)
+                          + c.supporter_boost)),
+]
+
 def _score_boss_orders_play(ctx: DecisionContext) -> int:
-    """Puntua la jugada de Boss's Orders (id 1182). Extraido verbatim de la rama
-    `elif card.id == Boss_Orders` del bucle de scoring de agent()."""
-    state = ctx.state
-    hand_counts = ctx.hand_counts
-    if state.supporterPlayed:
-        return SCORE_VETO
-    if ctx.ko_last_turn and hand_counts.get(Unfair_Stamp, 0) >= 1:
-        return SCORE_VETO
-    if (ctx.op_is_alakazam_deck and ctx.op_active_is_dunsparce
-            and ctx.active_cant_attack):
-        # Regla (user): vs mazo Alakazam, con un Dunsparce en el activo rival y
-        # nuestro activo SIN poder atacar este turno, NO jugar Boss's Orders:
-        # gustear un atacante Psiquico a la banca solo despejaria el muro y les
-        # daria via libre para pegar; conviene mantener trabado a Dunsparce.
-        return SCORE_VETO
-
-    # Gusteo GANADOR: nuestro ACTIVO noquea a un ex/objetivo de la banca rival y
-    # con ello GANA la partida (toma los premios que faltan). Es la mejor jugada
-    # posible del turno y debe superar CUALQUIER retirada/pivote defensivo (que
-    # puntuan ~6500-6600). Antes, este gusteo ganador se puntuaba como
-    # win_via_bench (5600) y perdia contra el pivote de retirada de Hydrapple ex,
-    # por lo que el agente RETIRABA en vez de rematar. (user, registro 019 paso
-    # 190 vs Dragapult, GANADA: preferir Boss's -> gustear un ex y noquear con el
-    # activo, de preferencia Dragapult ex si lo puede derrotar.)
-    if ctx.win_via_boss_gust:
-        return BOSS_SCORE_WIN_NOW + ctx.supporter_boost
-
-    # Gusteo de 2 PREMIOS (user, registro_008 paso 119 vs Team Rocket Mewtwo ex,
-    # GANADA): nuestro ACTIVO ya puede noquear al activo rival (1 premio), pero en
-    # la banca rival hay un ex que TAMBIEN podemos noquear tras gustearlo y vale
-    # 2 premios (p.ej. Mewtwo ex). La jugada correcta es Boss's -> gustear ese ex
-    # y noquearlo: cobra 2 premios (no 1), elimina al atacante mas dificil de
-    # derrotar despues, y el activo de 1 premio que dejamos se noquea mas facil
-    # luego. `gust_2prize_via_boss` ya exige que noqueemos el ex de banca, que de
-    # >= 2 premios y > los del activo, y que NO sea un trade-down. Va por debajo
-    # del remate ganador (WIN_NOW) pero por encima de retiradas/pivotes (~6600) y,
-    # por supuesto, del ataque directo al activo.
-    if ctx.gust_2prize_via_boss:
-        return BOSS_SCORE_GUST_2PRIZE + ctx.supporter_boost
-
-    _boss_val = ctx.supp_values.get(Boss_Orders, 0)
-    supporter_boost = ctx.supporter_boost
-    # Si nuestro activo NO puede atacar este turno (log 85799299 paso 50) el
-    # gusteo NO es ejecutable como remate; con Lillie's en mano refrescar rinde
-    # mas, asi que cedemos la prioridad. Se exceptuan los casos valiosos.
-    _boss_empty_gust = (
-        ctx.active_cant_attack
-        and not ctx.boss_win_via_bench
-        and not ctx.boss_dodge_redirect
-        and not ctx.boss_defensive_gust
-        and not ctx.op_has_ability_immune_active
-        and not ctx.op_has_ex_immune_active
-        and hand_counts.get(Lillie_Determination, 0) >= 1)
-    # En NUESTRO primer turno (log 86025936 paso 11) con Lillie's en mano SIEMPRE
-    # se juega Lillie's; Boss's cede (un gusteo no cobra premio el primer turno).
-    _boss_first_turn_cede = (
-        ctx.our_first_turn
-        and hand_counts.get(Lillie_Determination, 0) >= 1
-        and not state.supporterPlayed
-        and not ctx.boss_win_via_bench)
-    if _boss_first_turn_cede:
-        return BOSS_SCORE_EMPTY_GUST
-    if _boss_empty_gust:
-        return BOSS_SCORE_EMPTY_GUST
-    # Cede a Lillie's cuando NO tenemos un atacante REAL de banca (user,
-    # registro_005 vs Dragapult): con Lillie's en mano, un gusteo de DESARROLLO
-    # (cortar la linea rival gusteando+noqueando un basico/pre-evo de 1 premio
-    # como Drakloak/Dreepy) NO tiene prioridad si ademas del activo solo tenemos
-    # BASICOS (Applin, Tapu sin cargar, etc.) y ningun atacante de banca listo:
-    # sin segundo atacante el gusteo no encadena y conviene CAVAR con Lillie's.
-    # `has_ready_bench_attacker` (=_bench_attacker_ready) solo cuenta atacantes
-    # reales listos (Hydrapple/Ogerpon/Dipplin/Tapu/Pinsir/Meganium con energia),
-    # nunca un Applin. Se exceptuan TODOS los gusteos valiosos: remate ganador
-    # (win_via_boss_gust arriba), win_via_bench, defensivo, dodge/redirect,
-    # pre-evo AMENAZA (Duraludon), linea Alakazam y muros immunes.
-    _boss_cede_dig = (
-        hand_counts.get(Lillie_Determination, 0) >= 1
-        and not ctx.has_ready_bench_attacker
-        and not ctx.boss_win_via_bench
-        and not ctx.boss_dodge_redirect
-        and not ctx.boss_defensive_gust
-        and not ctx.boss_ko_threat_preevo
-        and not ctx.boss_deny_alakazam_line
-        and not ctx.op_has_ability_immune_active
-        and not ctx.op_has_ex_immune_active)
-    if _boss_cede_dig:
-        return BOSS_SCORE_EMPTY_GUST
-    if (ctx.op_has_ability_immune_active or ctx.op_has_ex_immune_active) and _boss_val >= 900:
-        return BOSS_SCORE_WALL_GUST + supporter_boost
-    if ctx.boss_dodge_redirect:
-        return BOSS_SCORE_DODGE_REDIRECT + supporter_boost
-    if ctx.boss_win_via_bench:
-        return BOSS_SCORE_WIN_VIA_BENCH + supporter_boost
-    if ctx.boss_deny_alakazam_line:
-        # Cortar la linea Alakazam: gustear+noquear su pre-evo de banca cuando el
-        # activo rival esta fuera de la linea (muro). Registro 010, paso 64.
-        return BOSS_SCORE_PRIZE_RANK_BASE + supporter_boost
-    if ctx.boss_active_threat_dominates:
-        # Prioridad entre copias de la misma amenaza (user, registro_007 paso
-        # 80 vs Archaludon): el activo rival Duraludon (Hero's Cape + 3
-        # energias) domina a su copia debil de banca -> ATACAR al activo y
-        # GUARDAR el Boss's; no gustear la copia. Corta las ramas de valor
-        # bajo/medio (low-value 1500, prize-rank ~5200, defensivo, fallback);
-        # los remates (WIN_NOW/2-premios/win-via-bench/dodge) retornaron antes.
-        return BOSS_SCORE_EMPTY_GUST
-    if ctx.boss_low_value_gust:
-        return BOSS_SCORE_LOW_VALUE_GUST + supporter_boost
-    if ctx.boss_prize_rank >= 1:
-        return BOSS_SCORE_PRIZE_RANK_BASE + (8 - ctx.boss_prize_rank) * 20 + supporter_boost
-    if ctx.boss_defensive_gust:
-        return BOSS_SCORE_DEFENSIVE_GUST + supporter_boost
-    if _boss_val <= 0:
-        return SCORE_VETO
-    return SCORE_SUPPORTER_VALUE_BASE + int(_boss_val * 1.4) + supporter_boost
+    """Puntua la jugada de Boss's Orders (id 1182). Cuerpo migrado al MOTOR
+    DE REGLAS (fase 4): las reglas y sus comentarios estrategicos viven en
+    _REGLAS_BOSS_PLAY; PTCG_DEBUG imprime la traza."""
+    return _resolver_con_traza("boss->play", _REGLAS_BOSS_PLAY, [], ctx,
+                               defecto=0)
 
 
 def _score_unfair_stamp_play(ctx: DecisionContext) -> int:
@@ -3868,57 +3943,6 @@ def _score_lanas_aid_play(ctx: DecisionContext, score: int) -> int:
     return score
 
 
-# =============================================================================
-# MOTOR DE REGLAS (piloto fase 4): reglas con NOMBRE y TRAZA.
-#
-# Problema que resuelve: el scoring inline entierra cada regla como un if con
-# numeros magicos; cuando dos reglas colisionan (p.ej. un clamp que pisa un
-# score alto), encontrar la culpable exige instrumentar a mano. Aqui cada
-# regla es un objeto con nombre; el resolver deja una traza legible de que
-# regla fijo el score y que ajustes lo transformaron (visible con PTCG_DEBUG).
-#
-# Semantica IDENTICA al codigo que reemplaza:
-#   - _ReglaFija: cadena if/elif -> gana la PRIMERA cuyo `cuando` es True.
-#   - _Ajuste: transformaciones secuenciales posteriores (clamps, topes).
-# Piloto: rama Hydrapple ex del fetch de la Ultra Ball. Cero cambio de
-# comportamiento (verificado con suite + corpus dorado + invariantes).
-# =============================================================================
-
-class _ReglaFija:
-    __slots__ = ("nombre", "cuando", "valor")
-
-    def __init__(self, nombre, cuando, valor):
-        self.nombre = nombre
-        self.cuando = cuando  # ctx -> bool
-        self.valor = valor    # ctx -> score
-
-class _Ajuste:
-    __slots__ = ("nombre", "cuando", "aplicar")
-
-    def __init__(self, nombre, cuando, aplicar):
-        self.nombre = nombre
-        self.cuando = cuando    # (ctx, score) -> bool
-        self.aplicar = aplicar  # (ctx, score) -> score
-
-def _resolver_reglas(reglas, ajustes, ctx, defecto):
-    """Devuelve (score, traza). Primera regla que aplica + ajustes en orden."""
-    traza = []
-    score = defecto
-    for r in reglas:
-        if r.cuando(ctx):
-            score = r.valor(ctx)
-            traza.append(f"{r.nombre}={score}")
-            break
-    else:
-        traza.append(f"defecto={defecto}")
-    for a in ajustes:
-        if a.cuando(ctx, score):
-            nuevo = a.aplicar(ctx, score)
-            traza.append(f"{a.nombre}:{score}->{nuevo}" if nuevo != score
-                         else f"{a.nombre}(sin efecto)")
-            score = nuevo
-    return score, traza
-
 # --- Reglas del fetch de Ultra Ball -> Hydrapple ex -------------------------
 
 @dataclass
@@ -4175,12 +4199,6 @@ _REGLAS_UB_MEOWTH = [
                lambda c: c.any_supp_in_mazo,
                lambda c: 850),
 ]
-
-def _resolver_con_traza(etiqueta, reglas, ajustes, ctx, defecto):
-    score, traza = _resolver_reglas(reglas, ajustes, ctx, defecto)
-    if os.environ.get("PTCG_DEBUG"):
-        print(f"[reglas {etiqueta}]", " | ".join(traza))
-    return score
 
 # --- Reglas del fetch de Ultra Ball: ramas restantes ------------------------
 # Ctx COMPARTIDO por las ramas Ogerpon/Meganium/Bayleef/Dipplin/Chikorita/
