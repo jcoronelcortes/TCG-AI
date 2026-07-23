@@ -4417,6 +4417,321 @@ _REGLAS_UB_FEZ = [
                lambda c: 1050),
 ]
 
+# --- Reglas de la recuperacion de Night Stretcher ---------------------------
+# Un solo ctx para las 12 ramas. `evolvable_ns` replica la foto de inicio de
+# turno del bloque original (_field_at_turn_start si no hay Forest). Los
+# post-ajustes transversales (bonus por copias agotadas/premiadas y el veto
+# de whitelist vs Crustle/Cornerstone) se quedan inline: aplican a todas las
+# cartas por igual.
+
+@dataclass
+class _CtxNS:
+    hand: dict
+    campo: dict
+    evolvable_ns: dict
+    bench_count: int
+    total_grass: int
+    has_hydrapple: bool
+    active_needs_energy: bool
+    op_ex_immune_active: bool
+    op_ex_immune_bench: bool
+    op_is_lucario: bool
+    watchtower: bool
+    best_supp_hand_val: int
+    best_supp_mazo_val: int
+    turno: int
+    energy_attached: bool
+    supporter_played: bool
+    act_hyd_ripen: bool          # Hydrapple ex activo cargable con Ripening
+    act_og_can_teal_attack: bool  # Ogerpon activo que Teal Dance habilita
+    ns_bench_charge: bool        # vs Crustle: energia para atacante de banca
+
+def _ctx_ns_fetch(my_state, state, hand_counts, field_counts, bench_count,
+                  total_grass, has_hydrapple, active_needs_energy,
+                  op_ex_immune_active, op_ex_immune_bench, op_is_lucario,
+                  watchtower, best_supp_hand_val, best_supp_mazo_val):
+    activo = my_state.active[0] if my_state.active else None
+    # Ogerpon ACTIVO que aun no ataca (<3 efectivas) pero que con UNA Planta
+    # via Teal Dance (HABILIDAD, independiente del adjunte manual) llega a
+    # >=3. Pivote retirar->promover Ogerpon->NS->Teal Dance->atacar (user,
+    # log 86583929 turno 4 vs Alakazam). len(energies) es EFECTIVA.
+    act_og_can_teal_attack = (
+        activo is not None and
+        activo.id == Teal_Mask_Ogerpon_ex and
+        len(activo.energies) < 3 and
+        len(activo.energies) + _grass_attach_unit() >= 3 and
+        hand_counts[Basic_Grass_Energy] == 0)
+    # Hydrapple ex activo que aun no ataca (efectiva < 2) y sin Planta en
+    # mano: recuperar ENERGIA para cargarlo con Ripening Charge (habilidad).
+    act_hyd_ripen = (
+        activo is not None and
+        activo.id == Hydrapple_ex and
+        len(activo.energies) * _grass_mult() < 2 and
+        hand_counts[Basic_Grass_Energy] == 0)
+    # Matchup Crustle/Cornerstone: recuperar la Planta para CARGAR un
+    # atacante de banca cuando aun podemos adjuntarla este turno.
+    ns_bench_charge = False
+    if ((op_is_crustle_deck or op_is_cornerstone_deck) and
+            hand_counts[Basic_Grass_Energy] == 0 and
+            not state.energyAttached):
+        for bp in (my_state.bench or []):
+            if bp is None:
+                continue
+            if bp.id not in (Tapu_Bulu, Teal_Mask_Ogerpon_ex,
+                             Hydrapple_ex, Meganium):
+                continue
+            req = ATTACK_ENERGY_REQ.get(bp.id)
+            if req is None:
+                continue
+            if len(bp.energies) * _grass_mult() < req:
+                ns_bench_charge = True
+                break
+    evolvable_ns = (_field_at_turn_start
+                    if (not forest_in_play and _field_at_turn_start)
+                    else field_counts)
+    return _CtxNS(
+        hand=hand_counts, campo=field_counts, evolvable_ns=evolvable_ns,
+        bench_count=bench_count, total_grass=total_grass,
+        has_hydrapple=has_hydrapple,
+        active_needs_energy=active_needs_energy,
+        op_ex_immune_active=op_ex_immune_active,
+        op_ex_immune_bench=op_ex_immune_bench,
+        op_is_lucario=op_is_lucario, watchtower=watchtower,
+        best_supp_hand_val=best_supp_hand_val,
+        best_supp_mazo_val=best_supp_mazo_val,
+        turno=state.turn, energy_attached=state.energyAttached,
+        supporter_played=state.supporterPlayed,
+        act_hyd_ripen=act_hyd_ripen,
+        act_og_can_teal_attack=act_og_can_teal_attack,
+        ns_bench_charge=ns_bench_charge)
+
+def _v_ns_grass_sin_planta(c):
+    v = 600
+    if not c.energy_attached:
+        v = 700
+    if (c.campo.get(Teal_Mask_Ogerpon_ex, 0) >= 1
+            and c.hand.get(Basic_Grass_Energy, 0) == 0):
+        v = 750
+    return v
+
+_REGLAS_NS_GRASS = [
+    # Hydrapple ex ACTIVO sin ataque: cargarlo con Ripening Charge GANA
+    # sobre cualquier otro objetivo de recuperacion.
+    _ReglaFija("hydrapple_activo_ripening",
+               lambda c: c.act_hyd_ripen,
+               lambda c: 1300),
+    _ReglaFija("cargar_banca_vs_crustle",
+               lambda c: c.ns_bench_charge,
+               lambda c: 950),
+    _ReglaFija("activo_necesita_energia",
+               lambda c: (c.active_needs_energy
+                          and c.hand.get(Basic_Grass_Energy, 0) == 0
+                          and not c.energy_attached),
+               lambda c: 900),
+    _ReglaFija("ogerpon_teal_habilita",
+               lambda c: c.act_og_can_teal_attack,
+               lambda c: 900),
+    _ReglaFija("sin_planta_en_mano",
+               lambda c: c.hand.get(Basic_Grass_Energy, 0) == 0,
+               _v_ns_grass_sin_planta),
+    _ReglaFija("hydra_con_pocas_planta",
+               lambda c: c.has_hydrapple and c.total_grass < 4,
+               lambda c: 450),
+    _ReglaFija("exceso_planta_en_mano",
+               lambda c: c.hand.get(Basic_Grass_Energy, 0) >= 3,
+               lambda c: 100),
+]
+
+_REGLAS_NS_FEZ = [
+    _ReglaFija("refill_tras_ko",
+               lambda c: (c.campo.get(Fezandipiti_ex, 0) == 0
+                          and ko_last_turn and c.bench_count < 5),
+               lambda c: 850),
+    # vs Lucario (golpea banca): Fez solo como cuerpo de emergencia con
+    # banca vacia; si no, vetado.
+    _ReglaFija("vs_lucario",
+               lambda c: c.op_is_lucario,
+               lambda c: (200 if (c.campo.get(Fezandipiti_ex, 0) == 0
+                                  and c.bench_count == 0) else SCORE_VETO)),
+    _ReglaFija("primer_fez",
+               lambda c: c.campo.get(Fezandipiti_ex, 0) == 0,
+               lambda c: 200),
+]
+
+def _v_ns_chikorita_arrancar(c):
+    v = 800
+    if forest_in_play and (c.hand.get(Bayleef, 0) >= 1
+                           or c.hand.get(Meganium, 0) >= 1):
+        v = 950
+    elif c.hand.get(Bayleef, 0) >= 1:
+        v = 900
+    if CARTAS_ACTIVAS_EN_MAZO.get(Chikorita, {}).get(ESTADO_MAZO, 0) == 0:
+        v += 100
+    else:
+        v -= 100
+    return v
+
+_REGLAS_NS_CHIKORITA = [
+    _ReglaFija("arrancar_linea_meganium",
+               lambda c: (not meganium_in_play
+                          and (c.campo.get(Chikorita, 0)
+                               + c.campo.get(Bayleef, 0)
+                               + c.campo.get(Meganium, 0)) == 0),
+               _v_ns_chikorita_arrancar),
+]
+
+def _v_ns_applin_arrancar(c):
+    v = 700
+    if forest_in_play and (c.hand.get(Dipplin, 0) >= 1
+                           or c.hand.get(Hydrapple_ex, 0) >= 1):
+        v = 870
+    elif c.hand.get(Dipplin, 0) >= 1:
+        v = 800
+    if CARTAS_ACTIVAS_EN_MAZO.get(Applin, {}).get(ESTADO_MAZO, 0) == 0:
+        v += 100
+    else:
+        v -= 100
+    return v
+
+_REGLAS_NS_APPLIN = [
+    _ReglaFija("hydrapple_ya_en_juego",
+               lambda c: c.has_hydrapple,
+               lambda c: 35),
+    _ReglaFija("arrancar_linea_hydra",
+               lambda c: (c.campo.get(Applin, 0)
+                          + c.campo.get(Dipplin, 0)
+                          + c.campo.get(Hydrapple_ex, 0)) == 0,
+               _v_ns_applin_arrancar),
+    _ReglaFija("banca_corta",
+               lambda c: c.bench_count <= 1,
+               lambda c: 350),
+]
+
+def _v_ns_ogerpon_pocos(c):
+    v = 550
+    if c.campo.get(Teal_Mask_Ogerpon_ex, 0) == 0:
+        v = 700
+    if c.bench_count <= 1:
+        v += 100
+    if CARTAS_ACTIVAS_EN_MAZO.get(
+            Teal_Mask_Ogerpon_ex, {}).get(ESTADO_MAZO, 0) == 0:
+        v += 100
+    return v
+
+_REGLAS_NS_OGERPON = [
+    _ReglaFija("menos_de_dos_ogerpon",
+               lambda c: c.campo.get(Teal_Mask_Ogerpon_ex, 0) < 2,
+               _v_ns_ogerpon_pocos),
+    # 3er Ogerpon como acelerador de Syrup Storm (Teal Dance suma Grass).
+    _ReglaFija("tercer_ogerpon_para_syrup",
+               lambda c: (c.bench_count < 5
+                          and c.hand.get(Basic_Grass_Energy, 0) >= 1
+                          and c.campo.get(Hydrapple_ex, 0) >= 1),
+               lambda c: 500),
+]
+
+_REGLAS_NS_TAPU = [
+    _ReglaFija("tapu_ya_en_campo",
+               lambda c: c.campo.get(Tapu_Bulu, 0) >= 1,
+               lambda c: 15),
+    _ReglaFija("anti_ex_con_meganium",
+               lambda c: (meganium_in_play
+                          and (c.op_ex_immune_active
+                               or c.op_ex_immune_bench)),
+               lambda c: 800 if c.has_hydrapple else 700),
+    _ReglaFija("anti_ex",
+               lambda c: c.op_ex_immune_active or c.op_ex_immune_bench,
+               lambda c: 350),
+]
+
+_REGLAS_NS_PINSIR = [
+    _ReglaFija("anti_ex",
+               lambda c: (c.campo.get(Pinsir, 0) == 0
+                          and (op_is_crustle_deck
+                               or op_is_cornerstone_deck)),
+               lambda c: 850),
+]
+
+def _v_ns_meowth_fetch(c):
+    v = min(700, c.best_supp_mazo_val)
+    if CARTAS_ACTIVAS_EN_MAZO.get(Meowth_ex, {}).get(ESTADO_MAZO, 0) == 0:
+        v += 100
+    return v
+
+_REGLAS_NS_MEOWTH = [
+    _ReglaFija("t1_saliendo_primeros_no",
+               lambda c: c.turno == 1 and we_go_first,
+               lambda c: 10),
+    # Recuperar Meowth ex para bajarlo y que Last-Ditch busque un Supporter
+    # del mazo que supere lo que hay en mano.
+    _ReglaFija("fetch_supporter_del_mazo",
+               lambda c: (not c.watchtower
+                          and c.campo.get(Meowth_ex, 0) == 0
+                          and c.bench_count < 5
+                          and not c.supporter_played
+                          and c.best_supp_hand_val < 500
+                          and c.best_supp_mazo_val >= 400),
+               _v_ns_meowth_fetch),
+]
+
+_REGLAS_NS_HYDRAPPLE = [
+    _ReglaFija("dipplin_evolucionable",
+               lambda c: (c.evolvable_ns.get(Dipplin, 0) >= 1
+                          and not c.has_hydrapple),
+               lambda c: 980),
+    _ReglaFija("cadena_applin_dipplin_mano",
+               lambda c: (c.campo.get(Applin, 0) >= 1
+                          and c.hand.get(Dipplin, 0) >= 1
+                          and forest_in_play and not c.has_hydrapple),
+               lambda c: 960),
+]
+
+_REGLAS_NS_MEGANIUM = [
+    _ReglaFija("bayleef_evolucionable",
+               lambda c: (c.evolvable_ns.get(Bayleef, 0) >= 1
+                          and not meganium_in_play),
+               lambda c: 990),
+    _ReglaFija("cadena_chikorita_bayleef_mano",
+               lambda c: (c.campo.get(Chikorita, 0) >= 1
+                          and c.hand.get(Bayleef, 0) >= 1
+                          and forest_in_play and not meganium_in_play),
+               lambda c: 975),
+]
+
+_REGLAS_NS_DIPPLIN = [
+    _ReglaFija("combo_applin_hydra_en_mano",
+               lambda c: (c.hand.get(Applin, 0) >= 1
+                          and c.hand.get(Hydrapple_ex, 0) >= 1
+                          and forest_in_play and c.bench_count < 5),
+               lambda c: 970),
+    _ReglaFija("applin_en_mano_con_forest",
+               lambda c: (c.hand.get(Applin, 0) >= 1
+                          and forest_in_play and c.bench_count < 5),
+               lambda c: 880),
+    _ReglaFija("applin_evolucionable",
+               lambda c: (c.evolvable_ns.get(Applin, 0) >= 1
+                          and not c.has_hydrapple),
+               lambda c: 850),
+]
+
+_REGLAS_NS_BAYLEEF = [
+    _ReglaFija("combo_chikorita_meganium_en_mano",
+               lambda c: (c.hand.get(Chikorita, 0) >= 1
+                          and c.hand.get(Meganium, 0) >= 1
+                          and forest_in_play and c.bench_count < 5
+                          and not meganium_in_play),
+               lambda c: 985),
+    _ReglaFija("chikorita_en_mano_con_forest",
+               lambda c: (c.hand.get(Chikorita, 0) >= 1
+                          and forest_in_play and c.bench_count < 5
+                          and not meganium_in_play),
+               lambda c: 910),
+    _ReglaFija("chikorita_evolucionable",
+               lambda c: (c.evolvable_ns.get(Chikorita, 0) >= 1
+                          and not meganium_in_play),
+               lambda c: 870),
+]
+
 def agent(obs_dict: dict) -> list[int]:
     obs = to_observation_class(obs_dict)
     if obs.select is None:
@@ -11390,253 +11705,44 @@ def agent(obs_dict: dict) -> list[int]:
 
                         score = 50
 
-                        if card.id == Basic_Grass_Energy:
-                            score = 300
+                        # Bloque migrado al MOTOR DE REGLAS (fase 4):
+                        # definiciones y comentarios estrategicos en
+                        # _REGLAS_NS_* (antes de agent()). Los post-ajustes
+                        # transversales de abajo se conservan inline.
+                        _ns_ctx = _ctx_ns_fetch(
+                            my_state, state, hand_counts, field_counts,
+                            bench_count, total_grass, has_hydrapple,
+                            _active_needs_energy, op_has_ex_immune_active,
+                            op_has_ex_immune_bench, op_is_lucario_deck,
+                            watchtower_in_play, _best_supp_in_hand_val,
+                            _best_supp_in_mazo_val)
 
-                            _act_og_sel = my_state.active[0] if my_state.active else None
-                            # Ogerpon ACTIVO que aun no puede atacar (<3 efectivas)
-                            # pero que con UNA Planta via Teal Dance llegaria a >=3:
-                            # recuperar la Planta es prioritario. Teal Dance es una
-                            # HABILIDAD independiente del adjunte manual, por eso ya
-                            # NO se exige _active_needs_energy (que se apaga con
-                            # state.energyAttached); en su lugar se exige que la
-                            # Planta habilite realmente el ataque (len+unidad >= 3).
-                            # Cubre el pivote retirar->promover Ogerpon->Night
-                            # Stretcher->Teal Dance->atacar (user, log 86583929
-                            # turno 4 vs Alakazam). len(energies) es EFECTIVA (Wild
-                            # Growth de Meganium duplica cada Planta).
-                            _act_og_can_teal_attack = (
-                                _act_og_sel is not None and
-                                _act_og_sel.id == Teal_Mask_Ogerpon_ex and
-                                len(_act_og_sel.energies) < 3 and
-                                len(_act_og_sel.energies) + _grass_attach_unit() >= 3 and
-                                hand_counts[Basic_Grass_Energy] == 0)
-                            # Hydrapple ex activo que aun no puede atacar (efectiva < 2)
-                            # y sin Planta en mano: recuperar una ENERGIA para cargarlo
-                            # con Ripening Charge (habilidad, independiente del adjunte
-                            # manual, por eso no exige not state.energyAttached).
-                            _act_hyd_ripen = (
-                                _act_og_sel is not None and
-                                _act_og_sel.id == Hydrapple_ex and
-                                len(_act_og_sel.energies) * _grass_mult() < 2 and
-                                hand_counts[Basic_Grass_Energy] == 0)
-
-                            # Matchup Crustle/Cornerstone: recuperar la Energia Planta
-                            # para CARGAR un atacante de banca (Tapu Bulu y cia.) cuando
-                            # aun podemos adjuntarla este turno. Asegura que la energia
-                            # sea el objetivo preferido de Night Stretcher.
-                            _ns_bench_charge_sel = False
-                            if ((op_is_crustle_deck or op_is_cornerstone_deck) and
-                                    hand_counts[Basic_Grass_Energy] == 0 and
-                                    not state.energyAttached):
-                                for _nsc_bp in (my_state.bench or []):
-                                    if _nsc_bp is None:
-                                        continue
-                                    if _nsc_bp.id not in (Tapu_Bulu, Teal_Mask_Ogerpon_ex,
-                                                          Hydrapple_ex, Meganium):
-                                        continue
-                                    _nsc_req = ATTACK_ENERGY_REQ.get(_nsc_bp.id)
-                                    if _nsc_req is None:
-                                        continue
-                                    if len(_nsc_bp.energies) * _grass_mult() < _nsc_req:
-                                        _ns_bench_charge_sel = True
-                                        break
-
-                            if _act_hyd_ripen:
-                                # Hydrapple ex ACTIVO que aun no puede atacar: recuperar
-                                # energia para cargarlo con Ripening Charge GANA sobre
-                                # cualquier otro objetivo de recuperacion (Pokemon
-                                # incluidos). Solo cuando Hydrapple ex es el activo; si
-                                # no lo es, este caso no aplica y la logica sigue igual.
-                                score = 1300
-                            elif _ns_bench_charge_sel:
-                                # Cargar un atacante de banca vs Crustle: la Energia
-                                # Planta es el mejor objetivo de recuperacion.
-                                score = 950
-                            elif _active_needs_energy and hand_counts[Basic_Grass_Energy] == 0 and not state.energyAttached:
-                                score = 900
-                            elif _act_og_can_teal_attack:
-                                score = 900
-                            elif hand_counts[Basic_Grass_Energy] == 0:
-                                score = 600
-                                if not state.energyAttached:
-                                    score = 700
-                                ogerpon_bench = field_counts.get(Teal_Mask_Ogerpon_ex, 0)
-                                if ogerpon_bench >= 1 and hand_counts[Basic_Grass_Energy] == 0:
-                                    score = 750
-                            elif has_hydrapple and total_grass < 4:
-                                score = 450
-                            elif hand_counts[Basic_Grass_Energy] >= 3:
-                                score = 100
-
-                        elif card.id == Fezandipiti_ex:
-
-                            if field_counts.get(Fezandipiti_ex, 0) == 0 and ko_last_turn and bench_count < 5:
-                                score = 850
-                            elif op_is_lucario_deck:
-                                if field_counts.get(Fezandipiti_ex, 0) == 0 and bench_count == 0:
-                                    score = 200
-                                else:
-                                    score = SCORE_VETO
-                            elif field_counts.get(Fezandipiti_ex, 0) == 0:
-                                score = 200
-                            else:
-                                score = 10
-
-                        elif card.id == Chikorita:
-                            if not meganium_in_play:
-                                chikorita_line = field_counts.get(Chikorita, 0) + field_counts.get(Bayleef, 0) + field_counts.get(Meganium, 0)
-                                if chikorita_line == 0:
-                                    score = 800
-                                    if forest_in_play and (hand_counts.get(Bayleef, 0) >= 1 or hand_counts.get(Meganium, 0) >= 1):
-                                        score = 950
-                                    elif hand_counts.get(Bayleef, 0) >= 1:
-                                        score = 900
-
-                                    if CARTAS_ACTIVAS_EN_MAZO.get(Chikorita, {}).get(ESTADO_MAZO, 0) == 0:
-                                        score += 100
-                                    elif CARTAS_ACTIVAS_EN_MAZO.get(Chikorita, {}).get(ESTADO_MAZO, 0) > 0:
-                                        score -= 100
-                                else:
-                                    score = 40
-                            else:
-                                score = 40
-
-                        elif card.id == Applin:
-                            if not has_hydrapple:
-                                hydra_line = field_counts.get(Applin, 0) + field_counts.get(Dipplin, 0) + field_counts.get(Hydrapple_ex, 0)
-                                if hydra_line == 0:
-                                    score = 700
-                                    if forest_in_play and (hand_counts.get(Dipplin, 0) >= 1 or hand_counts.get(Hydrapple_ex, 0) >= 1):
-                                        score = 870
-                                    elif hand_counts.get(Dipplin, 0) >= 1:
-                                        score = 800
-
-                                    if CARTAS_ACTIVAS_EN_MAZO.get(Applin, {}).get(ESTADO_MAZO, 0) == 0:
-                                        score += 100
-                                    elif CARTAS_ACTIVAS_EN_MAZO.get(Applin, {}).get(ESTADO_MAZO, 0) > 0:
-                                        score -= 100
-                                elif bench_count <= 1:
-                                    score = 350
-                                else:
-                                    score = 80
-                            else:
-                                score = 35
-
-                        elif card.id == Teal_Mask_Ogerpon_ex:
-                            if field_counts.get(Teal_Mask_Ogerpon_ex, 0) < 2:
-                                score = 550
-                                if field_counts.get(Teal_Mask_Ogerpon_ex, 0) == 0:
-                                    score = 700
-                                if bench_count <= 1:
-                                    score += 100
-
-                                if CARTAS_ACTIVAS_EN_MAZO.get(Teal_Mask_Ogerpon_ex, {}).get(ESTADO_MAZO, 0) == 0:
-                                    score += 100
-                            elif (bench_count < 5 and
-                                  hand_counts.get(Basic_Grass_Energy, 0) >= 1 and
-                                  field_counts.get(Hydrapple_ex, 0) >= 1):
-
-                                score = 500
-                            else:
-                                score = 20
-
-                        elif card.id == Tapu_Bulu:
-                            if field_counts.get(Tapu_Bulu, 0) == 0:
-                                if meganium_in_play and (op_has_ex_immune_active or op_has_ex_immune_bench):
-                                    score = 700
-                                    if has_hydrapple:
-                                        score = 800
-                                elif op_has_ex_immune_active or op_has_ex_immune_bench:
-                                    score = 350
-                                else:
-                                    score = 50
-                            else:
-                                score = 15
-
-                        elif card.id == Pinsir:
-
-                            if field_counts.get(Pinsir, 0) == 0 and (
-                                    op_is_crustle_deck or op_is_cornerstone_deck):
-                                score = 850
-                            else:
-                                score = 15
-
-                        elif card.id == Meowth_ex:
-
-                            if state.turn == 1 and we_go_first:
-                                score = 10
-                            elif (not watchtower_in_play and
-                                    field_counts.get(Meowth_ex, 0) == 0 and
-                                    bench_count < 5 and
-                                    not state.supporterPlayed and
-                                    _best_supp_in_hand_val < 500 and _best_supp_in_mazo_val >= 400):
-                                score = min(700, _best_supp_in_mazo_val)
-
-                                if CARTAS_ACTIVAS_EN_MAZO.get(Meowth_ex, {}).get(ESTADO_MAZO, 0) == 0:
-                                    score += 100
-                            else:
-                                score = 15
-
-                        elif card.id == Hydrapple_ex:
-
-                            _ns_sel_evolvable = _field_at_turn_start if (not forest_in_play and _field_at_turn_start) else field_counts
-                            if _ns_sel_evolvable.get(Dipplin, 0) >= 1 and not has_hydrapple:
-                                score = 980
-
-                            elif (field_counts.get(Applin, 0) >= 1 and
-                                    hand_counts.get(Dipplin, 0) >= 1 and
-                                    forest_in_play and not has_hydrapple):
-                                score = 960
-                            else:
-                                score = 30
-
-                        elif card.id == Meganium:
-
-                            _ns_sel_evolvable = _field_at_turn_start if (not forest_in_play and _field_at_turn_start) else field_counts
-                            if _ns_sel_evolvable.get(Bayleef, 0) >= 1 and not meganium_in_play:
-                                score = 990
-
-                            elif (field_counts.get(Chikorita, 0) >= 1 and
-                                    hand_counts.get(Bayleef, 0) >= 1 and
-                                    forest_in_play and not meganium_in_play):
-                                score = 975
-                            else:
-                                score = 30
-
-                        elif card.id == Dipplin:
-
-                            if (hand_counts.get(Applin, 0) >= 1 and
-                                    hand_counts.get(Hydrapple_ex, 0) >= 1 and
-                                    forest_in_play and bench_count < 5):
-                                score = 970
-
-                            elif (hand_counts.get(Applin, 0) >= 1 and
-                                    forest_in_play and bench_count < 5):
-                                score = 880
-
-                            elif ((_field_at_turn_start if (not forest_in_play and _field_at_turn_start) else field_counts).get(Applin, 0) >= 1) and not has_hydrapple:
-                                score = 850
-                            else:
-                                score = 30
-
-                        elif card.id == Bayleef:
-
-                            if (hand_counts.get(Chikorita, 0) >= 1 and
-                                    hand_counts.get(Meganium, 0) >= 1 and
-                                    forest_in_play and bench_count < 5 and
-                                    not meganium_in_play):
-                                score = 985
-
-                            elif (hand_counts.get(Chikorita, 0) >= 1 and
-                                    forest_in_play and bench_count < 5 and
-                                    not meganium_in_play):
-                                score = 910
-
-                            elif ((_field_at_turn_start if (not forest_in_play and _field_at_turn_start) else field_counts).get(Chikorita, 0) >= 1) and not meganium_in_play:
-                                score = 870
-                            else:
-                                score = 30
+                        _ns_tablas = {
+                            Basic_Grass_Energy: ("ns->grass",
+                                                 _REGLAS_NS_GRASS, 300),
+                            Fezandipiti_ex: ("ns->fez", _REGLAS_NS_FEZ, 10),
+                            Chikorita: ("ns->chikorita",
+                                        _REGLAS_NS_CHIKORITA, 40),
+                            Applin: ("ns->applin", _REGLAS_NS_APPLIN, 80),
+                            Teal_Mask_Ogerpon_ex: ("ns->ogerpon",
+                                                   _REGLAS_NS_OGERPON, 20),
+                            Tapu_Bulu: ("ns->tapu", _REGLAS_NS_TAPU, 50),
+                            Pinsir: ("ns->pinsir", _REGLAS_NS_PINSIR, 15),
+                            Meowth_ex: ("ns->meowth",
+                                        _REGLAS_NS_MEOWTH, 15),
+                            Hydrapple_ex: ("ns->hydrapple",
+                                           _REGLAS_NS_HYDRAPPLE, 30),
+                            Meganium: ("ns->meganium",
+                                       _REGLAS_NS_MEGANIUM, 30),
+                            Dipplin: ("ns->dipplin", _REGLAS_NS_DIPPLIN, 30),
+                            Bayleef: ("ns->bayleef", _REGLAS_NS_BAYLEEF, 30),
+                        }
+                        _ns_entrada = _ns_tablas.get(card.id)
+                        if _ns_entrada is not None:
+                            _ns_et, _ns_reglas, _ns_defecto = _ns_entrada
+                            score = _resolver_con_traza(
+                                _ns_et, _ns_reglas, [], _ns_ctx,
+                                defecto=_ns_defecto)
 
                         if card.id in CARTAS_ACTIVAS_EN_MAZO and card.id != Basic_Grass_Energy:
                             entry = CARTAS_ACTIVAS_EN_MAZO[card.id]
