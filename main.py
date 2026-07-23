@@ -4176,6 +4176,247 @@ _REGLAS_UB_MEOWTH = [
                lambda c: 850),
 ]
 
+def _resolver_con_traza(etiqueta, reglas, ajustes, ctx, defecto):
+    score, traza = _resolver_reglas(reglas, ajustes, ctx, defecto)
+    if os.environ.get("PTCG_DEBUG"):
+        print(f"[reglas {etiqueta}]", " | ".join(traza))
+    return score
+
+# --- Reglas del fetch de Ultra Ball: ramas restantes ------------------------
+# Ctx COMPARTIDO por las ramas Ogerpon/Meganium/Bayleef/Dipplin/Chikorita/
+# Applin/Tapu/Pinsir/Fezandipiti. Los globals por turno (meganium_in_play,
+# forest_in_play, op_is_crustle_deck, op_is_cornerstone_deck, ko_last_turn,
+# CARTAS_ACTIVAS_EN_MAZO) se leen al vuelo desde los lambdas (agent() los
+# declara `global`).
+
+@dataclass
+class _CtxUBFetch:
+    hand: dict
+    campo: dict
+    evolvable: dict            # _ub_evolvable (foto de inicio de turno)
+    bench_count: int
+    prefer_meowth_develop: bool
+    t1_going_second_need_ogerpon: bool
+    t1_going_first_need_basic: bool
+    has_energy_for_teal: bool
+    dipplin_priority: bool
+    has_hydrapple: bool
+    op_ex_immune_active: bool
+    op_ex_immune_bench: bool
+
+def _forest_disponible(c):
+    return forest_in_play or c.hand.get(Forest_of_Vitality, 0) >= 1
+
+def _v_ub_ogerpon_t1_primeros(c):
+    v = 950
+    if c.hand.get(Basic_Grass_Energy, 0) >= 1:
+        v = 1000
+    if c.campo.get(Teal_Mask_Ogerpon_ex, 0) >= 1:
+        v = 200
+    return v
+
+def _v_ub_ogerpon_teal(c):
+    v = 700
+    if c.campo.get(Teal_Mask_Ogerpon_ex, 0) == 0:
+        v = 800
+    if c.hand.get(Basic_Grass_Energy, 0) >= 2:
+        v += 100
+    return v
+
+_REGLAS_UB_OGERPON = [
+    # Cede la busqueda a Meowth ex (refresco de mano): solo se traeria
+    # Ogerpon ex aqui si YA tuvieramos Lillie's en la mano.
+    _ReglaFija("cede_a_meowth_develop",
+               lambda c: c.prefer_meowth_develop,
+               lambda c: 200),
+    _ReglaFija("t1_segundos_necesita_ogerpon",
+               lambda c: c.t1_going_second_need_ogerpon,
+               lambda c: 1050),
+    _ReglaFija("t1_primeros_necesita_basico",
+               lambda c: c.t1_going_first_need_basic,
+               _v_ub_ogerpon_t1_primeros),
+    _ReglaFija("ya_dos_ogerpon",
+               lambda c: c.campo.get(Teal_Mask_Ogerpon_ex, 0) >= 2,
+               lambda c: 350 if (c.has_energy_for_teal
+                                 and c.bench_count < 5) else 15),
+    _ReglaFija("energia_para_teal_dance",
+               lambda c: c.has_energy_for_teal and c.bench_count < 5,
+               _v_ub_ogerpon_teal),
+    _ReglaFija("primer_ogerpon_banca_corta",
+               lambda c: (c.campo.get(Teal_Mask_Ogerpon_ex, 0) == 0
+                          and c.bench_count <= 2),
+               lambda c: 300),
+]
+
+_REGLAS_UB_MEGANIUM = [
+    _ReglaFija("meganium_ya_en_juego",
+               lambda c: meganium_in_play,
+               lambda c: 25),
+    _ReglaFija("bayleef_evolucionable",
+               lambda c: c.evolvable.get(Bayleef, 0) >= 1,
+               lambda c: 1000),
+    _ReglaFija("cadena_chikorita_completa",
+               lambda c: (c.evolvable.get(Chikorita, 0) >= 1
+                          and _forest_disponible(c)
+                          and c.hand.get(Bayleef, 0) >= 1),
+               lambda c: 950),
+    _ReglaFija("chikorita_evolucionable",
+               lambda c: c.evolvable.get(Chikorita, 0) >= 1,
+               lambda c: 200),
+    _ReglaFija("chikorita_en_campo",
+               lambda c: c.campo.get(Chikorita, 0) >= 1,
+               lambda c: 150),
+]
+
+_REGLAS_UB_BAYLEEF = [
+    _ReglaFija("meganium_ya_en_juego",
+               lambda c: meganium_in_play,
+               lambda c: 20),
+    _ReglaFija("bayleef_ya_en_campo",
+               lambda c: c.campo.get(Bayleef, 0) >= 1,
+               lambda c: 20),
+    # Ya hay un Bayleef EN LA MANO: buscar otro es redundante (uno basta
+    # para la unica Chikorita); no malgastar la UB ni su descarte.
+    _ReglaFija("bayleef_ya_en_mano",
+               lambda c: c.hand.get(Bayleef, 0) >= 1,
+               lambda c: 20),
+    _ReglaFija("chikorita_evolucionable",
+               lambda c: c.evolvable.get(Chikorita, 0) >= 1,
+               lambda c: 950 if (c.hand.get(Meganium, 0) >= 1
+                                 and forest_in_play) else 850),
+    _ReglaFija("chikorita_en_campo",
+               lambda c: c.campo.get(Chikorita, 0) >= 1,
+               lambda c: 200),
+]
+
+_REGLAS_UB_DIPPLIN = [
+    _ReglaFija("hydrapple_ya_en_juego",
+               lambda c: c.has_hydrapple,
+               lambda c: 20),
+    _ReglaFija("dipplin_ya_en_campo",
+               lambda c: c.campo.get(Dipplin, 0) >= 1,
+               lambda c: 20),
+    # Mismo criterio que Bayleef: duplicado redundante.
+    _ReglaFija("dipplin_ya_en_mano",
+               lambda c: c.hand.get(Dipplin, 0) >= 1,
+               lambda c: 20),
+    # Solo se privilegia a Dipplin con _dipplin_priority; si no, Meowth ex
+    # refresca mejor y Dipplin baja para no robarle la busqueda.
+    _ReglaFija("applin_evolucionable",
+               lambda c: c.evolvable.get(Applin, 0) >= 1,
+               lambda c: ((920 if (c.hand.get(Hydrapple_ex, 0) >= 1
+                                   and forest_in_play) else 800)
+                          if c.dipplin_priority else 150)),
+    _ReglaFija("applin_en_campo",
+               lambda c: c.campo.get(Applin, 0) >= 1,
+               lambda c: 200),
+    _ReglaFija("rival_anti_ex",
+               lambda c: c.op_ex_immune_active or c.op_ex_immune_bench,
+               lambda c: 600 if c.evolvable.get(Applin, 0) >= 1 else 150),
+]
+
+def _v_ub_chikorita_t1(c):
+    v = 850
+    if (c.campo.get(Applin, 0) >= 1
+            or c.campo.get(Teal_Mask_Ogerpon_ex, 0) >= 1):
+        v = 900
+    elif c.campo.get(Chikorita, 0) >= 1:
+        v = 200
+    if c.hand.get(Bayleef, 0) >= 1:
+        v += 50
+    return v
+
+def _v_ub_chikorita_arrancar(c):
+    if _forest_disponible(c) and c.hand.get(Bayleef, 0) >= 1:
+        return 880
+    if (CARTAS_ACTIVAS_EN_MAZO.get(Bayleef, {}).get(ESTADO_MAZO, 0) > 0
+            or CARTAS_ACTIVAS_EN_MAZO.get(Meganium, {}).get(ESTADO_MAZO, 0) > 0
+            or c.hand.get(Bayleef, 0) >= 1):
+        return 700
+    return 200
+
+_REGLAS_UB_CHIKORITA = [
+    _ReglaFija("t1_primeros_necesita_basico",
+               lambda c: c.t1_going_first_need_basic,
+               _v_ub_chikorita_t1),
+    _ReglaFija("meganium_ya_en_juego",
+               lambda c: meganium_in_play,
+               lambda c: 30),
+    _ReglaFija("linea_meganium_ya_iniciada",
+               lambda c: (c.campo.get(Chikorita, 0)
+                          + c.campo.get(Bayleef, 0)
+                          + c.campo.get(Meganium, 0)) > 0,
+               lambda c: 150),
+    _ReglaFija("arrancar_linea_meganium",
+               lambda c: True,
+               _v_ub_chikorita_arrancar),
+]
+
+def _v_ub_applin_t1(c):
+    v = 800
+    if (c.campo.get(Chikorita, 0) >= 1
+            or c.campo.get(Teal_Mask_Ogerpon_ex, 0) >= 1):
+        v = 850
+    elif c.campo.get(Applin, 0) >= 1:
+        v = 180
+    if c.hand.get(Dipplin, 0) >= 1:
+        v += 50
+    return v
+
+def _v_ub_applin_arrancar(c):
+    if _forest_disponible(c) and c.hand.get(Dipplin, 0) >= 1:
+        return 980 if c.hand.get(Hydrapple_ex, 0) >= 1 else 800
+    if (CARTAS_ACTIVAS_EN_MAZO.get(Dipplin, {}).get(ESTADO_MAZO, 0) > 0
+            or CARTAS_ACTIVAS_EN_MAZO.get(Hydrapple_ex, {}).get(ESTADO_MAZO, 0) > 0
+            or c.hand.get(Dipplin, 0) >= 1):
+        return 650
+    return 180
+
+_REGLAS_UB_APPLIN = [
+    _ReglaFija("t1_primeros_necesita_basico",
+               lambda c: c.t1_going_first_need_basic,
+               _v_ub_applin_t1),
+    _ReglaFija("hydrapple_ya_en_juego",
+               lambda c: c.has_hydrapple,
+               lambda c: 25),
+    _ReglaFija("linea_hydra_ya_iniciada",
+               lambda c: (c.campo.get(Applin, 0)
+                          + c.campo.get(Dipplin, 0)
+                          + c.campo.get(Hydrapple_ex, 0)) > 0,
+               lambda c: 120),
+    _ReglaFija("arrancar_linea_hydra",
+               lambda c: True,
+               _v_ub_applin_arrancar),
+]
+
+_REGLAS_UB_TAPU = [
+    _ReglaFija("tapu_ya_en_campo",
+               lambda c: c.campo.get(Tapu_Bulu, 0) >= 1,
+               lambda c: 15),
+    # Atacante no-ex contra rivales inmunes a ex, con Meganium duplicando
+    # su energia; mejor aun si Hydrapple ex ya cubre el rol ex.
+    _ReglaFija("anti_ex_con_meganium",
+               lambda c: (meganium_in_play
+                          and (c.op_ex_immune_active
+                               or c.op_ex_immune_bench)),
+               lambda c: 850 if c.has_hydrapple else 750),
+]
+
+_REGLAS_UB_PINSIR = [
+    _ReglaFija("anti_ex",
+               lambda c: (c.campo.get(Pinsir, 0) == 0
+                          and (op_is_crustle_deck
+                               or op_is_cornerstone_deck)),
+               lambda c: 900),
+]
+
+_REGLAS_UB_FEZ = [
+    _ReglaFija("refill_tras_ko",
+               lambda c: (c.campo.get(Fezandipiti_ex, 0) == 0
+                          and ko_last_turn and c.bench_count < 5),
+               lambda c: 1050),
+]
+
 def agent(obs_dict: dict) -> list[int]:
     obs = to_observation_class(obs_dict)
     if obs.select is None:
@@ -11637,10 +11878,23 @@ def agent(obs_dict: dict) -> list[int]:
                             and CARTAS_ACTIVAS_EN_MAZO.get(Meowth_ex, {}).get(ESTADO_MAZO, 0) > 0
                             and CARTAS_ACTIVAS_EN_MAZO.get(Lillie_Determination, {}).get(ESTADO_MAZO, 0) > 0)
 
+                        # Cadena migrada al MOTOR DE REGLAS (fase 4): las
+                        # definiciones y comentarios estrategicos viven en
+                        # _REGLAS_UB_* (antes de agent()). PTCG_DEBUG
+                        # imprime la traza de cada resolucion.
+                        _ub_fetch_ctx = _CtxUBFetch(
+                            hand=hand_counts, campo=field_counts,
+                            evolvable=_ub_evolvable, bench_count=bench_count,
+                            prefer_meowth_develop=_ub_prefer_meowth_develop,
+                            t1_going_second_need_ogerpon=_t1_going_second_need_ogerpon,
+                            t1_going_first_need_basic=_t1_going_first_need_basic,
+                            has_energy_for_teal=has_energy_for_teal,
+                            dipplin_priority=_dipplin_priority,
+                            has_hydrapple=has_hydrapple,
+                            op_ex_immune_active=op_has_ex_immune_active,
+                            op_ex_immune_bench=op_has_ex_immune_bench)
+
                         if card.id == Meowth_ex:
-                            # Rama migrada al MOTOR DE REGLAS (fase 4):
-                            # definiciones y comentarios estrategicos en
-                            # _REGLAS_UB_MEOWTH (antes de agent()).
                             _ub_meo_ctx = _ctx_ub_fetch_meowth(
                                 hand_counts, field_counts, bench_count,
                                 state.turn, watchtower_in_play,
@@ -11651,71 +11905,22 @@ def agent(obs_dict: dict) -> list[int]:
                                 _t1_going_second_meowth, _dipplin_priority,
                                 _active_cant_attack_this_turn,
                                 _mega_line_active, op_is_dragapult_dusknoir)
-                            score, _ub_meo_traza = _resolver_reglas(
-                                _REGLAS_UB_MEOWTH, [], _ub_meo_ctx,
-                                defecto=10)
-                            if os.environ.get("PTCG_DEBUG"):
-                                print("[reglas ub->meowth]",
-                                      " | ".join(_ub_meo_traza))
+                            score = _resolver_con_traza(
+                                "ub->meowth", _REGLAS_UB_MEOWTH, [],
+                                _ub_meo_ctx, defecto=10)
 
                         elif card.id == Teal_Mask_Ogerpon_ex:
-
-                            if _ub_prefer_meowth_develop:
-                                # Cede la busqueda a Meowth ex (refresco de mano):
-                                # solo se traeria Ogerpon ex aqui si YA tuvieramos
-                                # Lillie's en la mano (entonces _ub_prefer_meowth_
-                                # develop es False y se usan las ramas de abajo).
-                                score = 200
-                            elif _t1_going_second_need_ogerpon:
-                                score = 1050
-
-                            elif _t1_going_first_need_basic:
-                                _val = 950
-                                if hand_counts.get(Basic_Grass_Energy, 0) >= 1:
-                                    _val = 1000
-                                if field_counts.get(Teal_Mask_Ogerpon_ex, 0) >= 1:
-                                    _val = 200
-                                score = _val
-                            elif field_counts.get(Teal_Mask_Ogerpon_ex, 0) >= 2:
-                                if has_energy_for_teal and bench_count < 5:
-                                    score = 350
-                                else:
-                                    score = 15
-                            elif has_energy_for_teal and bench_count < 5:
-
-                                score = 700
-                                if field_counts.get(Teal_Mask_Ogerpon_ex, 0) == 0:
-                                    score = 800
-                                if hand_counts.get(Basic_Grass_Energy, 0) >= 2:
-                                    score += 100
-                            elif field_counts.get(Teal_Mask_Ogerpon_ex, 0) == 0 and bench_count <= 2:
-
-                                score = 300
-                            else:
-
-                                score = 100
+                            score = _resolver_con_traza(
+                                "ub->ogerpon", _REGLAS_UB_OGERPON, [],
+                                _ub_fetch_ctx, defecto=100)
 
                         elif state.turn == 2 and not we_go_first:
                             score = 10
 
                         elif card.id == Meganium:
-                            if not meganium_in_play:
-                                if _ub_evolvable.get(Bayleef, 0) >= 1:
-                                    score = 1000
-                                elif (_ub_evolvable.get(Chikorita, 0) >= 1 and
-                                      (forest_in_play or hand_counts.get(Forest_of_Vitality, 0) >= 1) and
-                                      hand_counts.get(Bayleef, 0) >= 1):
-                                    score = 950
-                                elif _ub_evolvable.get(Chikorita, 0) >= 1:
-
-                                    score = 200
-                                elif field_counts.get(Chikorita, 0) >= 1:
-
-                                    score = 150
-                                else:
-                                    score = 100
-                            else:
-                                score = 25
+                            score = _resolver_con_traza(
+                                "ub->meganium", _REGLAS_UB_MEGANIUM, [],
+                                _ub_fetch_ctx, defecto=100)
 
                         elif card.id == Hydrapple_ex:
                             # Rama migrada al MOTOR DE REGLAS (piloto fase
@@ -11729,167 +11934,48 @@ def agent(obs_dict: dict) -> list[int]:
                                     op_has_ex_immune_active,
                                     op_has_ex_immune_bench,
                                     _ub_hydra_dead_prefer_meowth)
-                                score, _ub_hyd_traza = _resolver_reglas(
+                                score = _resolver_con_traza(
+                                    "ub->hydrapple",
                                     _REGLAS_UB_HYDRAPPLE,
                                     _AJUSTES_UB_HYDRAPPLE,
                                     _ub_hyd_ctx, defecto=100)
-                                if os.environ.get("PTCG_DEBUG"):
-                                    print("[reglas ub->hydrapple]",
-                                          " | ".join(_ub_hyd_traza))
                             else:
                                 score = 20
 
                         elif card.id == Bayleef:
-                            if meganium_in_play:
-                                score = 20
-                            elif field_counts.get(Bayleef, 0) >= 1:
-
-                                score = 20
-                            elif hand_counts.get(Bayleef, 0) >= 1:
-                                # Ya tenemos un Bayleef EN LA MANO: buscar otro es
-                                # redundante (un solo Bayleef basta para evolucionar
-                                # a la unica Chikorita). No malgastar la Ultra Ball
-                                # ni su coste de descarte en un duplicado.
-                                score = 20
-                            elif _ub_evolvable.get(Chikorita, 0) >= 1:
-                                score = 850
-                                if hand_counts.get(Meganium, 0) >= 1 and forest_in_play:
-                                    score = 950
-                            elif field_counts.get(Chikorita, 0) >= 1:
-
-                                score = 200
-                            else:
-
-                                score = 150
+                            score = _resolver_con_traza(
+                                "ub->bayleef", _REGLAS_UB_BAYLEEF, [],
+                                _ub_fetch_ctx, defecto=150)
 
                         elif card.id == Dipplin:
-                            if has_hydrapple:
-                                score = 20
-                            elif field_counts.get(Dipplin, 0) >= 1:
-
-                                score = 20
-                            elif hand_counts.get(Dipplin, 0) >= 1:
-                                # Mismo criterio que Bayleef: ya hay un Dipplin en la
-                                # mano, buscar otro con Ultra Ball es redundante.
-                                score = 20
-                            elif _ub_evolvable.get(Applin, 0) >= 1:
-                                if _dipplin_priority:
-                                    score = 800
-                                    if hand_counts.get(Hydrapple_ex, 0) >= 1 and forest_in_play:
-                                        score = 920
-                                else:
-                                    # Sin ninguna de las 3 condiciones que privilegian
-                                    # a Dipplin, Meowth ex refresca mejor: Dipplin baja
-                                    # para no robarle la busqueda.
-                                    score = 150
-                            elif field_counts.get(Applin, 0) >= 1:
-
-                                score = 200
-                            elif op_has_ex_immune_active or op_has_ex_immune_bench:
-                                if _ub_evolvable.get(Applin, 0) >= 1:
-                                    score = 600
-                                else:
-                                    score = 150
-                            else:
-
-                                score = 150
+                            score = _resolver_con_traza(
+                                "ub->dipplin", _REGLAS_UB_DIPPLIN, [],
+                                _ub_fetch_ctx, defecto=150)
 
                         elif card.id == Chikorita:
-
-                            if _t1_going_first_need_basic:
-                                _val = 850
-                                if field_counts.get(Applin, 0) >= 1 or field_counts.get(Teal_Mask_Ogerpon_ex, 0) >= 1:
-                                    _val = 900
-                                elif field_counts.get(Chikorita, 0) >= 1:
-                                    _val = 200
-                                if hand_counts.get(Bayleef, 0) >= 1:
-                                    _val += 50
-                                score = _val
-                            elif not meganium_in_play:
-                                meganium_line = field_counts.get(Chikorita, 0) + field_counts.get(Bayleef, 0) + field_counts.get(Meganium, 0)
-                                if meganium_line == 0:
-
-                                    _bayleef_in_mazo = CARTAS_ACTIVAS_EN_MAZO.get(Bayleef, {}).get(ESTADO_MAZO, 0) > 0
-                                    _meganium_in_mazo = CARTAS_ACTIVAS_EN_MAZO.get(Meganium, {}).get(ESTADO_MAZO, 0) > 0
-                                    _has_bayleef_hand = hand_counts.get(Bayleef, 0) >= 1
-                                    _forest_available = (forest_in_play or hand_counts.get(Forest_of_Vitality, 0) >= 1)
-
-                                    if _forest_available and _has_bayleef_hand:
-                                        score = 880
-                                    elif _bayleef_in_mazo or _meganium_in_mazo or _has_bayleef_hand:
-                                        score = 700
-                                    else:
-
-                                        score = 200
-                                else:
-                                    score = 150
-                            else:
-                                score = 30
+                            score = _resolver_con_traza(
+                                "ub->chikorita", _REGLAS_UB_CHIKORITA, [],
+                                _ub_fetch_ctx, defecto=200)
 
                         elif card.id == Applin:
-
-                            if _t1_going_first_need_basic:
-                                _val = 800
-                                if field_counts.get(Chikorita, 0) >= 1 or field_counts.get(Teal_Mask_Ogerpon_ex, 0) >= 1:
-                                    _val = 850
-                                elif field_counts.get(Applin, 0) >= 1:
-                                    _val = 180
-                                if hand_counts.get(Dipplin, 0) >= 1:
-                                    _val += 50
-                                score = _val
-                            elif not has_hydrapple:
-                                hydra_line = field_counts.get(Applin, 0) + field_counts.get(Dipplin, 0) + field_counts.get(Hydrapple_ex, 0)
-                                if hydra_line == 0:
-
-                                    _dipplin_in_mazo = CARTAS_ACTIVAS_EN_MAZO.get(Dipplin, {}).get(ESTADO_MAZO, 0) > 0
-                                    _hydrapple_in_mazo = CARTAS_ACTIVAS_EN_MAZO.get(Hydrapple_ex, {}).get(ESTADO_MAZO, 0) > 0
-                                    _has_dipplin_hand = hand_counts.get(Dipplin, 0) >= 1
-                                    _forest_available = (forest_in_play or hand_counts.get(Forest_of_Vitality, 0) >= 1)
-
-                                    if _forest_available and _has_dipplin_hand:
-                                        if hand_counts.get(Hydrapple_ex, 0) >= 1:
-
-                                            score = 980
-                                        else:
-
-                                            score = 800
-                                    elif _dipplin_in_mazo or _hydrapple_in_mazo or _has_dipplin_hand:
-                                        score = 650
-                                    else:
-
-                                        score = 180
-                                else:
-                                    score = 120
-                            else:
-                                score = 25
+                            score = _resolver_con_traza(
+                                "ub->applin", _REGLAS_UB_APPLIN, [],
+                                _ub_fetch_ctx, defecto=180)
 
                         elif card.id == Tapu_Bulu:
-                            if field_counts.get(Tapu_Bulu, 0) == 0:
-
-                                if meganium_in_play and (op_has_ex_immune_active or op_has_ex_immune_bench):
-                                    score = 750
-                                    if has_hydrapple:
-                                        score = 850
-                                else:
-                                    score = 50
-                            else:
-                                score = 15
+                            score = _resolver_con_traza(
+                                "ub->tapu", _REGLAS_UB_TAPU, [],
+                                _ub_fetch_ctx, defecto=50)
 
                         elif card.id == Pinsir:
-
-                            if field_counts.get(Pinsir, 0) == 0 and (
-                                    op_is_crustle_deck or op_is_cornerstone_deck):
-                                score = 900
-                            else:
-                                score = 15
+                            score = _resolver_con_traza(
+                                "ub->pinsir", _REGLAS_UB_PINSIR, [],
+                                _ub_fetch_ctx, defecto=15)
 
                         elif card.id == Fezandipiti_ex:
-                            if (field_counts.get(Fezandipiti_ex, 0) == 0 and ko_last_turn and
-                                    bench_count < 5):
-
-                                score = 1050
-                            else:
-                                score = 10
+                            score = _resolver_con_traza(
+                                "ub->fez", _REGLAS_UB_FEZ, [],
+                                _ub_fetch_ctx, defecto=10)
 
                         if card.id in CARTAS_ACTIVAS_EN_MAZO:
                             entry = CARTAS_ACTIVAS_EN_MAZO[card.id]
