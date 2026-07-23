@@ -520,6 +520,23 @@ def _resolver_con_traza(etiqueta, reglas, ajustes, ctx, defecto):
         print(f"[reglas {etiqueta}]", " | ".join(traza))
     return score
 
+def _resolver_max(escenarios, ctx):
+    """Modo ARGMAX del motor: evalua TODOS los escenarios (misma forma que
+    _ReglaFija) y devuelve (mejor_valor, traza). A diferencia de la cadena
+    primera-que-aplica, aqui compiten todos los que disparan y gana el de
+    mayor valor (0 si ninguno dispara). Para acumuladores tipo
+    `best = max(best, ...)` sobre escenarios independientes."""
+    mejor, ganador, disparados = 0, None, 0
+    for e in escenarios:
+        if e.cuando(ctx):
+            disparados += 1
+            v = e.valor(ctx)
+            if v > mejor:
+                mejor, ganador = v, e.nombre
+    traza = (f"max:{ganador}={mejor} ({disparados} candidatos)"
+             if ganador else "max:ninguno=0")
+    return mejor, traza
+
 class AttackPlan:
     attacker = -1
     target = -1
@@ -2031,398 +2048,374 @@ def _score_poke_pad_play(ctx: DecisionContext) -> int:
                                _AJUSTES_PP_PLAY, ctx, defecto=SCORE_VETO)
 
 
+class _CtxNSPlay:
+    """Wrapper del DecisionContext para los escenarios de Night Stretcher:
+    anade el inventario del descarte (basics/evos/energia) y la foto
+    evolvable; el resto de campos delega en el ctx via __getattr__."""
+
+    _BASICOS = (Chikorita, Applin, Teal_Mask_Ogerpon_ex, Tapu_Bulu,
+                Meowth_ex, Fezandipiti_ex, Pinsir)
+    _EVOS = (Bayleef, Meganium, Dipplin, Hydrapple_ex)
+
+    def __init__(self, ctx):
+        self.c = ctx
+        basics, evos, energia = set(), set(), 0
+        for carta in ctx.my_state.discard:
+            if carta.id == Basic_Grass_Energy:
+                energia += 1
+            elif carta.id in self._BASICOS:
+                basics.add(carta.id)
+            elif carta.id in self._EVOS:
+                evos.add(carta.id)
+        self.basics, self.evos, self.energia = basics, evos, energia
+        self.evolvable = (ctx.field_at_turn_start
+                          if (not ctx.forest_in_play
+                              and ctx.field_at_turn_start)
+                          else ctx.field_counts)
+
+    def __getattr__(self, nombre):
+        return getattr(self.c, nombre)
+
+def _ns_energia_util_sin_planta(w):
+    return (w.energia >= 1
+            and w.hand_counts.get(Basic_Grass_Energy, 0) == 0)
+
+def _ns_e_activo_necesita(w):
+    """Energia del descarte para el ACTIVO que aun no llega a su coste de
+    ataque (o de retirada, para la linea Meganium) y no esta al tope."""
+    if not (_ns_energia_util_sin_planta(w)
+            and not w.state.energyAttached and w.my_state.active):
+        return False
+    act = w.my_state.active[0]
+    if act is None:
+        return False
+    e, eff = len(act.energies), len(act.energies) * _grass_mult()
+    if act.id == Hydrapple_ex:
+        return eff < 2 and e < 2
+    if act.id == Dipplin:
+        return e < 1
+    if act.id == Teal_Mask_Ogerpon_ex:
+        return eff < 3 and e < 3
+    if act.id == Tapu_Bulu:
+        return eff < 4 and e < 4
+    if act.id == Pinsir:
+        return eff < 2 and e < 2
+    if act.id in (Chikorita, Bayleef, Meganium):
+        rc = RETREAT_COST.get(act.id, 1)
+        return e < rc
+    return False
+
+def _ns_e_syrup_letal(w):
+    """La energia recuperada convierte el Syrup Storm del Hydrapple ACTIVO
+    en LETAL sobre el activo rival (no lo era sin ella)."""
+    if not (_ns_energia_util_sin_planta(w)
+            and not w.op_is_crustle_deck and not w.op_is_cornerstone_deck):
+        return False
+    act = w.my_state.active[0] if w.my_state.active else None
+    opp = (w.op_state.active[0]
+           if (w.op_state.active and w.op_state.active[0] is not None)
+           else None)
+    if act is None or act.id != Hydrapple_ex or opp is None:
+        return False
+    if len(act.energies) * _grass_mult() < 2:
+        return False
+    ahora = calc_syrup_storm_damage(w.my_state, w.meganium_in_play)
+    despues = ahora + 30 * _grass_attach_unit()
+    eff_ahora = _our_effective_damage(
+        act, opp, ahora, w.meganium_in_play, w.neutralization_zone_active)
+    eff_despues = _our_effective_damage(
+        act, opp, despues, w.meganium_in_play, w.neutralization_zone_active)
+    hp = opp.hp or 0
+    return eff_ahora < hp <= eff_despues and eff_despues > 0
+
+def _ns_hay_ogerpon_teal(w):
+    for bp in w.my_state.bench:
+        if (bp is not None and bp.id == Teal_Mask_Ogerpon_ex
+                and len(bp.energies) < 3):
+            return True
+    if w.my_state.active:
+        act = w.my_state.active[0]
+        if (act is not None and act.id == Teal_Mask_Ogerpon_ex
+                and len(act.energies) < 3):
+            return True
+    return False
+
+def _ns_e_cargar_banca_crustle(w):
+    if not (_ns_energia_util_sin_planta(w)
+            and not w.state.energyAttached):
+        return False
+    for bp in (w.my_state.bench or []):
+        if bp is None:
+            continue
+        if bp.id not in (Tapu_Bulu, Teal_Mask_Ogerpon_ex,
+                         Hydrapple_ex, Meganium):
+            continue
+        req = ATTACK_ENERGY_REQ.get(bp.id)
+        if req is None:
+            continue
+        if len(bp.energies) * _grass_mult() < req:
+            return True
+    return False
+
+def _E(nombre, cuando, valor):
+    return _ReglaFija(nombre, cuando,
+                      valor if callable(valor) else (lambda c, _v=valor: _v))
+
+_ESC_NS_RECUPERACION = [
+    # Combos completos (recuperar la pieza + evolucionar la linea entera).
+    _E("applin_combo_completo",
+       lambda w: (Applin in w.basics and w.hand_counts.get(Dipplin, 0) >= 1
+                  and w.hand_counts.get(Hydrapple_ex, 0) >= 1
+                  and w.forest_in_play and w.bench_count < 5), 980),
+    _E("dipplin_combo_completo",
+       lambda w: (Dipplin in w.evos and w.hand_counts.get(Applin, 0) >= 1
+                  and w.hand_counts.get(Hydrapple_ex, 0) >= 1
+                  and w.forest_in_play and w.bench_count < 5), 970),
+    _E("applin_con_dipplin_mano",
+       lambda w: (Applin in w.basics and w.hand_counts.get(Dipplin, 0) >= 1
+                  and w.forest_in_play and w.bench_count < 5), 900),
+    _E("dipplin_con_applin_mano",
+       lambda w: (Dipplin in w.evos and w.hand_counts.get(Applin, 0) >= 1
+                  and w.forest_in_play and w.bench_count < 5), 880),
+    _E("hydra_con_applin_campo",
+       lambda w: (Hydrapple_ex in w.evos
+                  and w.field_counts.get(Applin, 0) >= 1
+                  and w.hand_counts.get(Dipplin, 0) >= 1
+                  and w.forest_in_play), 960),
+    _E("hydra_dipplin_evolucionable",
+       lambda w: (Hydrapple_ex in w.evos
+                  and w.evolvable.get(Dipplin, 0) >= 1), 950),
+    _E("chikorita_combo_completo",
+       lambda w: (Chikorita in w.basics and not w.meganium_in_play
+                  and w.hand_counts.get(Bayleef, 0) >= 1
+                  and w.hand_counts.get(Meganium, 0) >= 1
+                  and w.forest_in_play and w.bench_count < 5), 990),
+    _E("bayleef_combo_completo",
+       lambda w: (Bayleef in w.evos and not w.meganium_in_play
+                  and w.hand_counts.get(Chikorita, 0) >= 1
+                  and w.hand_counts.get(Meganium, 0) >= 1
+                  and w.forest_in_play and w.bench_count < 5), 985),
+    _E("chikorita_con_bayleef_mano",
+       lambda w: (Chikorita in w.basics and not w.meganium_in_play
+                  and w.hand_counts.get(Bayleef, 0) >= 1
+                  and w.forest_in_play and w.bench_count < 5), 920),
+    _E("bayleef_con_chikorita_mano",
+       lambda w: (Bayleef in w.evos and not w.meganium_in_play
+                  and w.hand_counts.get(Chikorita, 0) >= 1
+                  and w.forest_in_play and w.bench_count < 5), 910),
+    _E("meganium_con_chikorita_campo",
+       lambda w: (Meganium in w.evos and not w.meganium_in_play
+                  and w.field_counts.get(Chikorita, 0) >= 1
+                  and w.hand_counts.get(Bayleef, 0) >= 1
+                  and w.forest_in_play), 975),
+    _E("meganium_bayleef_evolucionable",
+       lambda w: (Meganium in w.evos and not w.meganium_in_play
+                  and w.evolvable.get(Bayleef, 0) >= 1), 970),
+    # Arrancar lineas desde cero.
+    _E("applin_arrancar_linea",
+       lambda w: (Applin in w.basics and not w.has_hydrapple
+                  and (w.field_counts.get(Applin, 0)
+                       + w.field_counts.get(Dipplin, 0)) == 0
+                  and w.bench_count < 5), 700),
+    _E("chikorita_arrancar_linea",
+       lambda w: (Chikorita in w.basics and not w.meganium_in_play
+                  and (w.field_counts.get(Chikorita, 0)
+                       + w.field_counts.get(Bayleef, 0)
+                       + w.field_counts.get(Meganium, 0)) == 0
+                  and w.bench_count < 5), 750),
+    # Evolucion directa de una pre-evo YA en juego (valor segun Forest).
+    _E("dipplin_applin_evolucionable",
+       lambda w: (Dipplin in w.evos and not w.has_hydrapple
+                  and w.hand_counts.get(Dipplin, 0) == 0
+                  and w.evolvable.get(Applin, 0) >= 1),
+       lambda w: 880 if w.forest_in_play else 750),
+    _E("bayleef_chikorita_evolucionable",
+       lambda w: (Bayleef in w.evos and not w.meganium_in_play
+                  and w.hand_counts.get(Bayleef, 0) == 0
+                  and w.evolvable.get(Chikorita, 0) >= 1),
+       lambda w: 900 if w.forest_in_play else 780),
+    _E("meganium_directo",
+       lambda w: (Meganium in w.evos and not w.meganium_in_play
+                  and w.hand_counts.get(Meganium, 0) == 0
+                  and w.evolvable.get(Bayleef, 0) >= 1),
+       lambda w: 970 if w.forest_in_play else 900),
+    _E("hydra_directo",
+       lambda w: (Hydrapple_ex in w.evos and not w.has_hydrapple
+                  and w.hand_counts.get(Hydrapple_ex, 0) == 0
+                  and w.evolvable.get(Dipplin, 0) >= 1),
+       lambda w: 960 if w.forest_in_play else 950),
+    # Futuro con Forest (la evolucion esta en mano o en el mazo).
+    _E("applin_futuro_con_forest",
+       lambda w: (w.forest_in_play and w.bench_count < 5
+                  and Applin in w.basics
+                  and (w.field_counts.get(Applin, 0)
+                       + w.field_counts.get(Dipplin, 0)
+                       + w.field_counts.get(Hydrapple_ex, 0)) == 0
+                  and not w.has_hydrapple
+                  and (w.hand_counts.get(Dipplin, 0) >= 1
+                       or w.cartas_en_mazo.get(
+                           Dipplin, {}).get(ESTADO_MAZO, 0) > 0)), 870),
+    _E("chikorita_futuro_con_forest",
+       lambda w: (w.forest_in_play and w.bench_count < 5
+                  and Chikorita in w.basics
+                  and (w.field_counts.get(Chikorita, 0)
+                       + w.field_counts.get(Bayleef, 0)
+                       + w.field_counts.get(Meganium, 0)) == 0
+                  and not w.meganium_in_play
+                  and (w.hand_counts.get(Bayleef, 0) >= 1
+                       or w.cartas_en_mazo.get(
+                           Bayleef, {}).get(ESTADO_MAZO, 0) > 0)), 890),
+    # Cuerpos de valor puntual.
+    _E("tapu_vs_crustle",
+       lambda w: (Tapu_Bulu in w.basics
+                  and w.field_counts.get(Tapu_Bulu, 0) == 0
+                  and w.op_is_crustle_deck and w.bench_count < 5), 850),
+    _E("fez_tras_ko",
+       lambda w: (Fezandipiti_ex in w.basics
+                  and w.field_counts.get(Fezandipiti_ex, 0) == 0
+                  and w.ko_last_turn and w.bench_count < 5), 840),
+    _E("ogerpon_con_energia_mano",
+       lambda w: (Teal_Mask_Ogerpon_ex in w.basics
+                  and w.hand_counts.get(Basic_Grass_Energy, 0) >= 1
+                  and w.bench_count <= 3), 820),
+    # Recuperar Meowth ex para el motor de refresco (Last-Ditch ->
+    # Lillie's). Registro 006, paso 51 vs Alakazam.
+    _E("meowth_motor_refresco",
+       lambda w: (Meowth_ex in w.basics and not w.watchtower_in_play
+                  and w.field_counts.get(Meowth_ex, 0) == 0
+                  and w.bench_count < 5 and not w.state.supporterPlayed
+                  and w.best_supp_in_hand_val < 500
+                  and w.best_supp_in_mazo_val >= 400), 830),
+    # Energia del descarte.
+    _E("energia_activo_necesita", _ns_e_activo_necesita, 860),
+    _E("energia_hydra_ripening",
+       lambda w: (_ns_energia_util_sin_planta(w) and w.my_state.active
+                  and w.my_state.active[0] is not None
+                  and w.my_state.active[0].id == Hydrapple_ex
+                  and len(w.my_state.active[0].energies)
+                      * _grass_mult() < 2), 860),
+    _E("energia_syrup_letal", _ns_e_syrup_letal, 950),
+    _E("energia_teal_dance",
+       lambda w: (_ns_energia_util_sin_planta(w)
+                  and w.field_counts.get(Teal_Mask_Ogerpon_ex, 0) >= 1
+                  and _ns_hay_ogerpon_teal(w)), 800),
+    _E("energia_activo_sin_teal",
+       lambda w: (_ns_energia_util_sin_planta(w)
+                  and w.field_counts.get(Teal_Mask_Ogerpon_ex, 0) >= 1
+                  and not _ns_hay_ogerpon_teal(w)
+                  and not w.state.energyAttached
+                  and w.active_needs_energy), 860),
+    _E("energia_linea_mega_activa",
+       lambda w: (w.mega_line_active and _ns_energia_util_sin_planta(w)
+                  and not w.state.energyAttached), 950),
+]
+
+def _ns_crustle_basicos_permitidos(w):
+    if w.op_is_cornerstone_deck and not w.op_is_crustle_deck:
+        return (Tapu_Bulu, Pinsir)
+    return (Tapu_Bulu, Pinsir, Applin, Chikorita)
+
+def _ns_crustle_evos_permitidas(w):
+    if w.op_is_cornerstone_deck and not w.op_is_crustle_deck:
+        return ()
+    return (Dipplin, Bayleef, Meganium)
+
+_ESC_NS_CRUSTLE = [
+    # vs Crustle/Cornerstone SOLO se consideran recuperaciones de la
+    # whitelist no-ex (el bloque original REEMPLAZA el acumulador).
+    _E("basico_whitelist",
+       lambda w: (w.bench_count < 5
+                  and any(b in w.basics
+                          for b in _ns_crustle_basicos_permitidos(w))), 900),
+    _E("dipplin_con_applin",
+       lambda w: (Dipplin in _ns_crustle_evos_permitidas(w)
+                  and Dipplin in w.evos and not w.has_hydrapple
+                  and (w.field_counts.get(Applin, 0) >= 1
+                       or w.hand_counts.get(Applin, 0) >= 1)), 880),
+    _E("bayleef_con_chikorita",
+       lambda w: (Bayleef in _ns_crustle_evos_permitidas(w)
+                  and Bayleef in w.evos and not w.meganium_in_play
+                  and (w.field_counts.get(Chikorita, 0) >= 1
+                       or w.hand_counts.get(Chikorita, 0) >= 1)), 880),
+    _E("meganium_con_bayleef",
+       lambda w: (Meganium in _ns_crustle_evos_permitidas(w)
+                  and Meganium in w.evos and not w.meganium_in_play
+                  and (w.field_counts.get(Bayleef, 0) >= 1
+                       or w.hand_counts.get(Bayleef, 0) >= 1)), 900),
+    _E("energia_dipplin_activo_cero",
+       lambda w: (_ns_energia_util_sin_planta(w)
+                  and not w.state.energyAttached
+                  and w.my_state.active
+                  and w.my_state.active[0] is not None
+                  and w.my_state.active[0].id == Dipplin
+                  and len(w.my_state.active[0].energies) == 0), 900),
+    # Recuperar Hydrapple ex para el KO al Kangaskhan (op_kang_ko_target).
+    _E("hydra_para_kang_ko",
+       lambda w: (w.op_kang_ko_target and Hydrapple_ex in w.evos
+                  and not w.has_hydrapple
+                  and (w.field_counts.get(Dipplin, 0) >= 1
+                       or w.hand_counts.get(Dipplin, 0) >= 1)), 960),
+    # Cargar un atacante de banca antes de refrescar con Lillie's.
+    _E("energia_cargar_banca", _ns_e_cargar_banca_crustle, 850),
+]
+
+def _ns_banca_llena_guardar(w, ns_score):
+    """Corte de banca llena (como UB/Poke Pad) con excepciones: energia
+    util o una pre-evo en juego cuya evolucion este en el descarte."""
+    if w.bench_count < 5 or ns_score <= 0:
+        return False
+    energia_util = _ns_energia_util_sin_planta(w) and not w.state.energyAttached
+    if (_ns_energia_util_sin_planta(w) and w.my_state.active
+            and w.my_state.active[0] is not None
+            and w.my_state.active[0].id == Hydrapple_ex
+            and len(w.my_state.active[0].energies) * _grass_mult() < 2):
+        energia_util = True
+    algo_que_evolucionar = w.evolve_possible_in_play or (
+        (w.field_counts.get(Chikorita, 0) >= 1 and Bayleef in w.evos) or
+        (w.field_counts.get(Bayleef, 0) >= 1 and Meganium in w.evos) or
+        (w.field_counts.get(Applin, 0) >= 1 and Dipplin in w.evos) or
+        (w.field_counts.get(Dipplin, 0) >= 1 and Hydrapple_ex in w.evos))
+    return not algo_que_evolucionar and not energia_util
+
+_AJUSTES_NS_PLAY = [
+    _Ajuste("banca_llena_guardar",
+            lambda w, s: _ns_banca_llena_guardar(w, s),
+            lambda w, s: SCORE_VETO),
+    # Rescate anti-Kangaskhan: recuperar el Hydrapple ex que noquea al
+    # Mega Kangaskhan ex proyectado (op_kang_ko_target) domina todo.
+    _Ajuste("rescate_hydra_anti_kang",
+            lambda w, s: (w.op_kang_ko_target and Hydrapple_ex in w.evos
+                          and not w.has_hydrapple
+                          and (w.field_counts.get(Dipplin, 0) >= 1
+                               or w.hand_counts.get(Dipplin, 0) >= 1)),
+            lambda w, s: 34000),
+]
+
 def _score_night_stretcher_play(ctx: DecisionContext) -> int:
-    """Puntua la jugada de Night Stretcher (recupera un Pokemon o Energia basica
-    del descarte). Extraido verbatim de la rama `elif card.id == Night_Stretcher`:
-    acumula `best_recovery_value` sobre ~40 escenarios de recuperacion y lo mapea
-    a tiers de `ns_score`."""
-    # Rebind de campos del contexto para conservar el cuerpo original intacto.
-    state = ctx.state
-    my_state = ctx.my_state
-    op_state = ctx.op_state
-    hand_counts = ctx.hand_counts
-    field_counts = ctx.field_counts
-    bench_count = ctx.bench_count
-    forest_in_play = ctx.forest_in_play
-    meganium_in_play = ctx.meganium_in_play
-    has_hydrapple = ctx.has_hydrapple
-    _field_at_turn_start = ctx.field_at_turn_start
-    CARTAS_ACTIVAS_EN_MAZO = ctx.cartas_en_mazo
-    op_is_crustle_deck = ctx.op_is_crustle_deck
-    op_is_cornerstone_deck = ctx.op_is_cornerstone_deck
-    ko_last_turn = ctx.ko_last_turn
-    watchtower_in_play = ctx.watchtower_in_play
-    _best_supp_in_hand_val = ctx.best_supp_in_hand_val
-    _best_supp_in_mazo_val = ctx.best_supp_in_mazo_val
-    neutralization_zone_active = ctx.neutralization_zone_active
-    _active_needs_energy = ctx.active_needs_energy
-    _mega_line_active = ctx.mega_line_active
-    op_kang_ko_target = ctx.op_kang_ko_target
-    _evolve_possible_in_play = ctx.evolve_possible_in_play
-
-    ns_score = SCORE_VETO
-
-    discard_basics = []
-    discard_evos = []
-    discard_energy = 0
-    for c in my_state.discard:
-        if c.id == Basic_Grass_Energy:
-            discard_energy += 1
-        elif c.id in (Chikorita, Applin, Teal_Mask_Ogerpon_ex,
-                      Tapu_Bulu, Meowth_ex, Fezandipiti_ex, Pinsir):
-            if c.id not in discard_basics:
-                discard_basics.append(c.id)
-        elif c.id in (Bayleef, Meganium, Dipplin, Hydrapple_ex):
-            if c.id not in discard_evos:
-                discard_evos.append(c.id)
-
-    best_recovery_value = 0
-
-    if (Applin in discard_basics and
-            hand_counts.get(Dipplin, 0) >= 1 and
-            hand_counts.get(Hydrapple_ex, 0) >= 1 and
-            forest_in_play and bench_count < 5):
-        best_recovery_value = max(best_recovery_value, 980)
-
-    if (Dipplin in discard_evos and
-            hand_counts.get(Applin, 0) >= 1 and
-            hand_counts.get(Hydrapple_ex, 0) >= 1 and
-            forest_in_play and bench_count < 5):
-        best_recovery_value = max(best_recovery_value, 970)
-
-    if (Applin in discard_basics and
-            hand_counts.get(Dipplin, 0) >= 1 and
-            forest_in_play and bench_count < 5):
-        best_recovery_value = max(best_recovery_value, 900)
-
-    if (Dipplin in discard_evos and
-            hand_counts.get(Applin, 0) >= 1 and
-            forest_in_play and bench_count < 5):
-        best_recovery_value = max(best_recovery_value, 880)
-
-    if (Hydrapple_ex in discard_evos and
-            field_counts.get(Applin, 0) >= 1 and
-            hand_counts.get(Dipplin, 0) >= 1 and
-            forest_in_play):
-        best_recovery_value = max(best_recovery_value, 960)
-
-    _ns_evolvable = _field_at_turn_start if (not forest_in_play and _field_at_turn_start) else field_counts
-    if (Hydrapple_ex in discard_evos and
-            _ns_evolvable.get(Dipplin, 0) >= 1):
-        best_recovery_value = max(best_recovery_value, 950)
-
-    if (Chikorita in discard_basics and not meganium_in_play and
-            hand_counts.get(Bayleef, 0) >= 1 and
-            hand_counts.get(Meganium, 0) >= 1 and
-            forest_in_play and bench_count < 5):
-        best_recovery_value = max(best_recovery_value, 990)
-
-    if (Bayleef in discard_evos and not meganium_in_play and
-            hand_counts.get(Chikorita, 0) >= 1 and
-            hand_counts.get(Meganium, 0) >= 1 and
-            forest_in_play and bench_count < 5):
-        best_recovery_value = max(best_recovery_value, 985)
-
-    if (Chikorita in discard_basics and not meganium_in_play and
-            hand_counts.get(Bayleef, 0) >= 1 and
-            forest_in_play and bench_count < 5):
-        best_recovery_value = max(best_recovery_value, 920)
-
-    if (Bayleef in discard_evos and not meganium_in_play and
-            hand_counts.get(Chikorita, 0) >= 1 and
-            forest_in_play and bench_count < 5):
-        best_recovery_value = max(best_recovery_value, 910)
-
-    if (Meganium in discard_evos and not meganium_in_play and
-            field_counts.get(Chikorita, 0) >= 1 and
-            hand_counts.get(Bayleef, 0) >= 1 and
-            forest_in_play):
-        best_recovery_value = max(best_recovery_value, 975)
-
-    if (Meganium in discard_evos and not meganium_in_play and
-            _ns_evolvable.get(Bayleef, 0) >= 1):
-        best_recovery_value = max(best_recovery_value, 970)
-
-    if (Applin in discard_basics and
-            not has_hydrapple and
-            field_counts.get(Applin, 0) + field_counts.get(Dipplin, 0) == 0 and
-            bench_count < 5):
-        best_recovery_value = max(best_recovery_value, 700)
-
-    if (Chikorita in discard_basics and
-            not meganium_in_play and
-            field_counts.get(Chikorita, 0) + field_counts.get(Bayleef, 0) + field_counts.get(Meganium, 0) == 0 and
-            bench_count < 5):
-        best_recovery_value = max(best_recovery_value, 750)
-
-    _ns_evolvable_play = _field_at_turn_start if (not forest_in_play and _field_at_turn_start) else field_counts
-    if (Dipplin in discard_evos and
-            not has_hydrapple and
-            hand_counts.get(Dipplin, 0) == 0 and
-            _ns_evolvable_play.get(Applin, 0) >= 1):
-        if forest_in_play:
-            best_recovery_value = max(best_recovery_value, 880)
-        else:
-            best_recovery_value = max(best_recovery_value, 750)
-
-    if (Bayleef in discard_evos and
-            not meganium_in_play and
-            hand_counts.get(Bayleef, 0) == 0 and
-            _ns_evolvable_play.get(Chikorita, 0) >= 1):
-        if forest_in_play:
-            best_recovery_value = max(best_recovery_value, 900)
-        else:
-            best_recovery_value = max(best_recovery_value, 780)
-
-    if (Meganium in discard_evos and
-            not meganium_in_play and
-            hand_counts.get(Meganium, 0) == 0 and
-            _ns_evolvable_play.get(Bayleef, 0) >= 1):
-        if forest_in_play:
-            best_recovery_value = max(best_recovery_value, 970)
-        else:
-            best_recovery_value = max(best_recovery_value, 900)
-
-    if (Hydrapple_ex in discard_evos and
-            not has_hydrapple and
-            hand_counts.get(Hydrapple_ex, 0) == 0 and
-            _ns_evolvable_play.get(Dipplin, 0) >= 1):
-        if forest_in_play:
-            best_recovery_value = max(best_recovery_value, 960)
-        else:
-            best_recovery_value = max(best_recovery_value, 950)
-
-    if forest_in_play and bench_count < 5:
-
-        if (Applin in discard_basics and
-                field_counts.get(Applin, 0) + field_counts.get(Dipplin, 0) + field_counts.get(Hydrapple_ex, 0) == 0 and
-                not has_hydrapple and
-                (hand_counts.get(Dipplin, 0) >= 1 or
-                 CARTAS_ACTIVAS_EN_MAZO.get(Dipplin, {}).get(ESTADO_MAZO, 0) > 0)):
-            best_recovery_value = max(best_recovery_value, 870)
-
-        if (Chikorita in discard_basics and
-                field_counts.get(Chikorita, 0) + field_counts.get(Bayleef, 0) + field_counts.get(Meganium, 0) == 0 and
-                not meganium_in_play and
-                (hand_counts.get(Bayleef, 0) >= 1 or
-                 CARTAS_ACTIVAS_EN_MAZO.get(Bayleef, {}).get(ESTADO_MAZO, 0) > 0)):
-            best_recovery_value = max(best_recovery_value, 890)
-
-    if (Tapu_Bulu in discard_basics and
-            field_counts.get(Tapu_Bulu, 0) == 0 and
-            op_is_crustle_deck and bench_count < 5):
-        best_recovery_value = max(best_recovery_value, 850)
-
-    if (Fezandipiti_ex in discard_basics and
-            field_counts.get(Fezandipiti_ex, 0) == 0 and
-            ko_last_turn and bench_count < 5):
-        best_recovery_value = max(best_recovery_value, 840)
-
-    if (Teal_Mask_Ogerpon_ex in discard_basics and
-            hand_counts.get(Basic_Grass_Energy, 0) >= 1 and
-            bench_count <= 3):
-        best_recovery_value = max(best_recovery_value, 820)
-
-    # Recuperar Meowth ex del descarte para activar el motor de refresco (Meowth
-    # ex -> Last-Ditch Catch -> Lillie's). Registro 006, paso 51 vs Alakazam.
-    if (Meowth_ex in discard_basics and
-            not watchtower_in_play and
-            field_counts.get(Meowth_ex, 0) == 0 and
-            bench_count < 5 and
-            not state.supporterPlayed and
-            _best_supp_in_hand_val < 500 and
-            _best_supp_in_mazo_val >= 400):
-        best_recovery_value = max(best_recovery_value, 830)
-
-    if discard_energy >= 1 and not state.energyAttached:
-        _active_pokemon_ns = my_state.active[0] if my_state.active else None
-        if _active_pokemon_ns is not None and hand_counts[Basic_Grass_Energy] == 0:
-            _act_e = len(_active_pokemon_ns.energies)
-            _act_eff = _act_e * _grass_mult()
-            _needs_for_attack = False
-            _at_max = False
-            if _active_pokemon_ns.id == Hydrapple_ex:
-                _needs_for_attack = (_act_eff < 2)
-                _at_max = (_act_e >= 2)
-            elif _active_pokemon_ns.id == Dipplin:
-                _needs_for_attack = (_act_e < 1)
-                _at_max = (_act_e >= 1)
-            elif _active_pokemon_ns.id == Teal_Mask_Ogerpon_ex:
-                _needs_for_attack = (_act_eff < 3)
-                _at_max = (_act_e >= 3)
-            elif _active_pokemon_ns.id == Tapu_Bulu:
-                _needs_for_attack = (_act_eff < 4)
-                _at_max = (_act_e >= 4)
-            elif _active_pokemon_ns.id == Pinsir:
-                _needs_for_attack = (_act_eff < 2)
-                _at_max = (_act_e >= 2)
-            elif _active_pokemon_ns.id in (Chikorita, Bayleef, Meganium):
-                _rc = RETREAT_COST.get(_active_pokemon_ns.id, 1)
-                _needs_for_attack = (_act_e < _rc)
-                _at_max = (_act_e >= _rc)
-
-            if _needs_for_attack and not _at_max:
-                best_recovery_value = max(best_recovery_value, 860)
-
-    if discard_energy >= 1 and hand_counts[Basic_Grass_Energy] == 0:
-        _act_ns_rc = my_state.active[0] if my_state.active else None
-        if (_act_ns_rc is not None and _act_ns_rc.id == Hydrapple_ex
-                and len(_act_ns_rc.energies) * _grass_mult() < 2):
-            # Hydrapple ex activo que aun no ataca y sin Planta en mano: recuperar
-            # una energia del descarte para cargarlo con Ripening Charge.
-            best_recovery_value = max(best_recovery_value, 860)
-
-    if (discard_energy >= 1 and hand_counts[Basic_Grass_Energy] == 0 and
-            not op_is_crustle_deck and not op_is_cornerstone_deck):
-        _act_ns_leth = my_state.active[0] if my_state.active else None
-        _opp_ns_leth = op_state.active[0] if (op_state.active and op_state.active[0] is not None) else None
-        if (_act_ns_leth is not None and _act_ns_leth.id == Hydrapple_ex and
-                _opp_ns_leth is not None):
-            _mult_leth = _grass_mult()
-            _hyd_eff_leth = len(_act_ns_leth.energies) * _mult_leth
-            if _hyd_eff_leth >= 2:
-                _syrup_now = calc_syrup_storm_damage(my_state, meganium_in_play)
-                _syrup_after = _syrup_now + 30 * _grass_attach_unit()
-                _now_eff = _our_effective_damage(
-                    _act_ns_leth, _opp_ns_leth, _syrup_now,
-                    meganium_in_play, neutralization_zone_active)
-                _after_eff = _our_effective_damage(
-                    _act_ns_leth, _opp_ns_leth, _syrup_after,
-                    meganium_in_play, neutralization_zone_active)
-                _opp_hp_leth = _opp_ns_leth.hp or 0
-                if _now_eff < _opp_hp_leth <= _after_eff and _after_eff > 0:
-                    best_recovery_value = max(best_recovery_value, 950)
-
-    if (discard_energy >= 1 and
-            hand_counts[Basic_Grass_Energy] == 0 and
-            field_counts.get(Teal_Mask_Ogerpon_ex, 0) >= 1):
-
-        _ogerpon_can_teal = False
-        for _bp in my_state.bench:
-            if (_bp is not None and _bp.id == Teal_Mask_Ogerpon_ex
-                    and len(_bp.energies) < 3):
-                _ogerpon_can_teal = True
-                break
-        if not _ogerpon_can_teal and my_state.active:
-            _act_og = my_state.active[0]
-            if (_act_og is not None and _act_og.id == Teal_Mask_Ogerpon_ex
-                    and len(_act_og.energies) < 3):
-                _ogerpon_can_teal = True
-
-        if _ogerpon_can_teal:
-            best_recovery_value = max(best_recovery_value, 800)
-        elif not state.energyAttached:
-            if _active_needs_energy:
-                best_recovery_value = max(best_recovery_value, 860)
-
-    if (_mega_line_active and discard_energy >= 1 and
-            hand_counts[Basic_Grass_Energy] == 0 and not state.energyAttached):
-        best_recovery_value = max(best_recovery_value, 950)
-
-    if op_is_crustle_deck or op_is_cornerstone_deck:
-        if op_is_cornerstone_deck and not op_is_crustle_deck:
-            _cc_recover_basics = (Tapu_Bulu, Pinsir)
-            _cc_recover_evos = ()
-        else:
-            _cc_recover_basics = (Tapu_Bulu, Pinsir, Applin, Chikorita)
-            _cc_recover_evos = (Dipplin, Bayleef, Meganium)
-        _cc_recover_value = 0
-
-        for _cc_b in _cc_recover_basics:
-            if _cc_b in discard_basics and bench_count < 5:
-                _cc_recover_value = max(_cc_recover_value, 900)
-
-        if (Dipplin in _cc_recover_evos and Dipplin in discard_evos and
-                not has_hydrapple and
-                (field_counts.get(Applin, 0) >= 1 or
-                 hand_counts.get(Applin, 0) >= 1)):
-            _cc_recover_value = max(_cc_recover_value, 880)
-        if (Bayleef in _cc_recover_evos and Bayleef in discard_evos and
-                not meganium_in_play and
-                (field_counts.get(Chikorita, 0) >= 1 or
-                 hand_counts.get(Chikorita, 0) >= 1)):
-            _cc_recover_value = max(_cc_recover_value, 880)
-        if (Meganium in _cc_recover_evos and Meganium in discard_evos and
-                not meganium_in_play and
-                (field_counts.get(Bayleef, 0) >= 1 or
-                 hand_counts.get(Bayleef, 0) >= 1)):
-            _cc_recover_value = max(_cc_recover_value, 900)
-
-        if (discard_energy >= 1 and
-                hand_counts.get(Basic_Grass_Energy, 0) == 0 and
-                not state.energyAttached and
-                my_state.active and my_state.active[0] is not None and
-                my_state.active[0].id == Dipplin and
-                len(my_state.active[0].energies) == 0):
-            _cc_recover_value = max(_cc_recover_value, 900)
-
-        if (op_kang_ko_target and
-                Hydrapple_ex in discard_evos and
-                not has_hydrapple and
-                (field_counts.get(Dipplin, 0) >= 1 or
-                 hand_counts.get(Dipplin, 0) >= 1)):
-            _cc_recover_value = max(_cc_recover_value, 960)
-
-        best_recovery_value = _cc_recover_value
-
-    # Matchup de desgaste (Crustle / Cornerstone): recuperar Energia Planta para
-    # empezar a CARGAR un atacante de banca antes de refrescar con Lillie's.
-    if ((op_is_crustle_deck or op_is_cornerstone_deck) and
-            discard_energy >= 1 and
-            hand_counts.get(Basic_Grass_Energy, 0) == 0 and
-            not state.energyAttached):
-        for _ns_bp in (my_state.bench or []):
-            if _ns_bp is None:
-                continue
-            if _ns_bp.id not in (Tapu_Bulu, Teal_Mask_Ogerpon_ex,
-                                 Hydrapple_ex, Meganium):
-                continue
-            _ns_bp_req = ATTACK_ENERGY_REQ.get(_ns_bp.id)
-            if _ns_bp_req is None:
-                continue
-            if len(_ns_bp.energies) * _grass_mult() < _ns_bp_req:
-                best_recovery_value = max(best_recovery_value, 850)
-                break
-
-    if best_recovery_value >= 900:
-        ns_score = 11800
-    elif best_recovery_value >= 800:
-        ns_score = 11000
-    elif best_recovery_value >= 700:
-        ns_score = 10400
-    elif best_recovery_value > 0:
-        ns_score = 9800
-
-    # Corte de banca llena (igual que Ultra Ball / Poke Pad), con excepciones:
-    # energia basica util o una pre-evo en juego cuya siguiente etapa este en el
-    # descarte (se recupera y evoluciona).
-    _ns_energy_useful = (
-        discard_energy >= 1 and
-        hand_counts.get(Basic_Grass_Energy, 0) == 0 and
-        not state.energyAttached)
-    if (discard_energy >= 1 and
-            hand_counts.get(Basic_Grass_Energy, 0) == 0 and
-            my_state.active and my_state.active[0] is not None and
-            my_state.active[0].id == Hydrapple_ex and
-            len(my_state.active[0].energies) * _grass_mult() < 2):
-        _ns_energy_useful = True
-    _ns_something_to_evolve = _evolve_possible_in_play or (
-        (field_counts.get(Chikorita, 0) >= 1 and Bayleef in discard_evos) or
-        (field_counts.get(Bayleef, 0) >= 1 and Meganium in discard_evos) or
-        (field_counts.get(Applin, 0) >= 1 and Dipplin in discard_evos) or
-        (field_counts.get(Dipplin, 0) >= 1 and Hydrapple_ex in discard_evos))
-    if (bench_count >= 5 and not _ns_something_to_evolve
-            and not _ns_energy_useful and ns_score > 0):
-        ns_score = SCORE_VETO
-
-    if (op_kang_ko_target and
-            Hydrapple_ex in discard_evos and
-            not has_hydrapple and
-            (field_counts.get(Dipplin, 0) >= 1 or
-             hand_counts.get(Dipplin, 0) >= 1)):
-        ns_score = 34000
-
-    return ns_score
+    """Puntua la jugada de Night Stretcher (recupera Pokemon o Energia del
+    descarte). Cuerpo migrado al MOTOR DE REGLAS (fase 4) con el modo ARGMAX
+    (_resolver_max): ~30 escenarios de recuperacion compiten y el mejor se
+    mapea a tiers de score; vs Crustle/Cornerstone compite SOLO la lista de
+    whitelist (el original reemplaza el acumulador)."""
+    w = _CtxNSPlay(ctx)
+    if ctx.op_is_crustle_deck or ctx.op_is_cornerstone_deck:
+        mejor, traza_max = _resolver_max(_ESC_NS_CRUSTLE, w)
+    else:
+        mejor, traza_max = _resolver_max(_ESC_NS_RECUPERACION, w)
+    if mejor >= 900:
+        base = 11800
+    elif mejor >= 800:
+        base = 11000
+    elif mejor >= 700:
+        base = 10400
+    elif mejor > 0:
+        base = 9800
+    else:
+        base = SCORE_VETO
+    score, traza = _resolver_reglas([], _AJUSTES_NS_PLAY, w, defecto=base)
+    if os.environ.get("PTCG_DEBUG"):
+        print("[reglas ns->play]", traza_max, "|", " | ".join(traza))
+    return score
 
 
 def _fv_cadena_evolutiva(c):
