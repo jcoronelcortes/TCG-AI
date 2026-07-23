@@ -51,8 +51,16 @@ dist/
 .eggs/
 *.egg
 
+# --- Paquete de submission (salida de utils/empaquetar_proyecto.py) ---
+/submission.tar.gz
+
 # --- Jupyter ---
 .ipynb_checkpoints/
+# Notebooks de analisis de meta (pesados, no se versionan)
+/notebook/
+
+# --- Backups locales ---
+*.bak
 
 # --- Entorno / secretos ---
 .env

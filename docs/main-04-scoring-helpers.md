@@ -1,179 +1,141 @@
-# main.py — Utilidades de puntuación (líneas 687–1291)
+# main.py — Utilidades de puntuación
+
+> Documento descriptivo: se refiere al código por nombres de funciones y constantes, no por líneas.
 
 ## Rol en el agente
 
-Este bloque agrupa las funciones auxiliares que el resto de `agent()` invoca repetidamente para **convertir un `Pokemon`/opción en un número comparable** o para **resolver una opción abstracta a la carta real** que representa. No contienen lógica de turno ni acceden a `select.option` directamente (salvo `_debug_log_decision`, que es pura utilidad de diagnóstico): son funciones puras que reciben datos ya extraídos (contadores, banderas, el `state`) y devuelven un entero o una tupla de enteros.
+Este bloque agrupa las funciones auxiliares que el resto de `agent()` invoca repetidamente para **convertir un `Pokemon`/opción en un número comparable** o para **resolver una opción abstracta a la carta real** que representa. No contienen lógica de turno ni acceden a `select.option` directamente (salvo `_debug_log_decision`, que es pura utilidad de diagnóstico): son funciones que reciben datos ya extraídos (contadores, banderas, el `state` o un `DecisionContext`) y devuelven un entero.
 
-La pieza central del bloque es `_eval_ub_best_target` (972–1291), la función más larga: calcula, para cada posible objetivo de búsqueda de `Ultra Ball` (o de cualquier búsqueda equivalente en mazo), una puntuación de prioridad. El resto de funciones (`get_card`, `prize_count`, `count_total_grass_energy`, `calc_syrup_storm_damage`, `pokemon_score`, `_count_hand_play_options`) son utilidades más pequeñas que alimentan tanto a `_eval_ub_best_target` como a otras partes de `agent()` (valoración de Boss's Orders, cálculo de daño de Hydrapple ex, elección de objetivo de retiro, etc.).
+Tiene dos mitades. La primera son las **utilidades clásicas** (`get_card`, `prize_count`, `count_total_grass_energy`, `calc_syrup_storm_damage`, `pokemon_score`, `_count_hand_play_options`) y la función larga `_eval_ub_best_target`, que valora los objetivos de búsqueda de Ultra Ball. La segunda, producto del **refactor "Prioridad 1"**, es la familia de **scorers extraídos**: el `@dataclass DecisionContext` (entradas invariantes de una decisión, construidas una sola vez antes del bucle de scoring) y las funciones puras `_score_*_play(ctx)` que puntúan la jugada de cada carta no-Pokémon del mazo (Boss's Orders, Unfair Stamp, Xerosic, Poké Pad, Night Stretcher, Forest of Vitality, Bug Catching Set, Ultra Ball, Lillie's Determination, Lana's Aid). Cada extracción fue un refactor de comportamiento idéntico verificado por la suite de tests; el objetivo declarado en el comentario del código es que `agent()` acabe orquestando (construir ctx → mapear opción a su scorer → argmax) en vez de contener toda la lógica inline. Los valores que devuelven usan las constantes con nombre de `main-01` (`SCORE_VETO`, `SCORE_CANCEL`, `BOSS_SCORE_*`, `XEROSIC_SCORE_*`, `SCORE_SUPPORTER_VALUE_BASE`...).
 
-## Detalle por bloque
+## Detalle por bloque — utilidades clásicas
 
-### `_debug_log_decision` (687–711)
+### `_debug_log_decision`
 
-Imprime por `stderr` el ranking de las opciones evaluadas, pero **solo si `DEBUG_DECISIONS` es verdadero** (línea 688: `if not DEBUG_DECISIONS: return` — variable global activada por la variable de entorno `PTCG_DEBUG`, según el punto 5 de `docs/main.md`).
+Imprime por `stderr` el ranking de las opciones evaluadas, pero **solo si `DEBUG_DECISIONS` es verdadero** (variable global activada por la variable de entorno `PTCG_DEBUG`, ver `docs/main.md` §5).
+- **Entradas**: `context` (el `SelectContext` de la decisión), `select` (con `select.option`), `scores` (lista paralela de puntuaciones ya calculadas por el bucle principal), `obs`, `my_index`, y `top_n=3`.
+- **Cálculo**: ordena los índices por puntuación descendente, imprime la cabecera con el nombre del contexto y el número de opciones, y para cada una de las `top_n` mejores imprime `#rango idx=i score=... etiqueta`.
+- **Etiquetado**: intenta resolver la carta real de la opción con `get_card(obs, _opt.area, _opt.index, my_index)` y su `card_table[...].name`; si no hay carta (p. ej. una opción `YES`/`NO`), cae en `area=...`. Todo envuelto en `try/except Exception: pass` para que un fallo de depuración nunca rompa la decisión real.
+- **Razón estratégica**: es la herramienta principal para depurar por qué el agente eligió una opción concreta — muestra el top-3 con puntaje y nombre de carta sin instrumentar el bucle a mano.
 
-- **Entradas**: `context` (el `SelectContext` de la decisión), `select` (con `select.option`), `scores` (lista paralela de puntuaciones ya calculadas por el bucle principal), `obs`, `my_index`, y `top_n=3` (cuántas opciones del ranking mostrar).
-- **Cálculo**: ordena los índices `range(len(scores))` por `scores[i]` descendente (línea 692: `sorted(..., key=lambda i: scores[i], reverse=True)`), imprime la cabecera con el nombre del contexto y el número de opciones, y luego, para cada una de las `top_n` mejores, imprime `#rango idx=i score=scores[i] etiqueta`.
-- **Etiquetado de cada opción** (696–706): intenta resolver la carta real de la opción con `get_card(obs, _opt.area, _opt.index, my_index)`. Si existe, usa `card_table.get(_card.id)` y su atributo `.name`; si no hay carta (p.ej. una opción `YES`/`NO`), cae en `area=...` como etiqueta. Todo el bloque está envuelto en `try/except Exception: pass` (línea 705 y 709–710) para que un fallo de depuración nunca rompa la decisión real del agente.
-- **Razón estratégica**: es la herramienta principal para **depurar por qué el agente eligió una opción concreta** (ver sección 5 de `docs/main.md`): muestra el top-3 con su puntaje y nombre de carta, sin necesidad de instrumentar manualmente el bucle de puntuación.
+### `get_card`
 
-### `get_card` (861–885)
+Resuelve una opción `(area, index)` a la carta u objeto `Pokemon`/`Card` real que representa, dentro de la observación del jugador `player_index`. Un `match area` mapea cada valor de `AreaType` a la colección correspondiente: `DECK → obs.select.deck[index]` (cartas visibles del mazo en una búsqueda), `HAND/DISCARD/ACTIVE/BENCH/PRIZE → ps.<zona>[index]` del jugador, `STADIUM → obs.current.stadium[index]`, `LOOKING → obs.current.looking[index]` (cartas que el efecto en curso está "mirando"); cualquier otro valor → `None`. Si el índice está fuera de rango o el atributo no existe (`IndexError, AttributeError, TypeError`), devuelve `None` en lugar de propagar. **Por qué es clave**: las opciones que recibe el agente (`select.option`) son abstractas — solo indican `type`, `area` e `index` —, así que toda la lógica de puntuación que necesita saber "¿qué carta es esta opción?" pasa primero por `get_card`. Es la bisagra entre el formato crudo del motor y el razonamiento por nombre/ID de carta del resto de `main.py`.
 
-Resuelve una opción `(area, index)` a la carta u objeto `Pokemon`/`Card` real que representa, dentro de la observación del jugador `player_index`.
-
-- **Entradas**: `obs` (Observation), `area` (`AreaType`), `index` (posición dentro de esa zona), `player_index`.
-- **Salida**: el objeto `Pokemon | Card | None`.
-- **Mecanismo** (864–882): un `match area` que mapea cada valor de `AreaType` a la colección correspondiente del jugador `ps = obs.current.players[player_index]` o del estado global:
-  - `DECK` → `obs.select.deck[index]` (cartas visibles del mazo, p.ej. al buscar con Ultra Ball).
-  - `HAND` → `ps.hand[index]`.
-  - `DISCARD` → `ps.discard[index]`.
-  - `ACTIVE` → `ps.active[index]`.
-  - `BENCH` → `ps.bench[index]`.
-  - `PRIZE` → `ps.prize[index]`.
-  - `STADIUM` → `obs.current.stadium[index]`.
-  - `LOOKING` → `obs.current.looking[index]` (cartas que el efecto en curso está "mirando", p.ej. resultado de un vistazo al mazo).
-  - Cualquier otro valor → `None`.
-- **Manejo de errores** (883–884): si el índice está fuera de rango o el atributo no existe (`IndexError, AttributeError, TypeError`), devuelve `None` en lugar de propagar la excepción.
-- **Por qué es clave**: las opciones que recibe el agente (`select.option`) son abstractas — solo indican `type`, `area` e `index` —, así que **toda** la lógica de puntuación que necesita saber "¿qué carta es esta opción de `PLAY`/`EVOLVE`/`ATTACH`?" pasa primero por `get_card`. Es la bisagra entre el formato crudo del motor y el razonamiento por nombre/ID de carta que usa el resto de `main.py`.
-
-### `prize_count` (886–896)
+### `prize_count`
 
 Calcula cuántos premios se lleva el rival si este Pokémon es noqueado.
+- **Base**: `3` si `card_table[id].megaEx`, `2` si `.ex`, `1` en cualquier otro caso.
+- **Ajuste por Legacy Energy** (energía ACE SPEC, id 12 entre `energyCards`): `count -= 1` — refleja el efecto real de la carta; no modela su restricción de "una vez por partida", solo su presencia.
+- **Ajuste por Lillie's Pearl** (tool id 1172, restringida a Pokémon cuyo nombre contiene "Lillie"): `count -= 1`.
+- **Salida**: `max(0, count)`.
+- **Uso**: es el ingrediente principal de `pokemon_score` (`prize_count * 1000`) y de cualquier heurística en términos de "premios en juego": la escalera de Boss's Orders, el pivote 1-premio vs Alakazam (detección por `prize_count(bp) == 1` de cualquier no-ex de banca que noquee igual, ver memoria "Alakazam: atacar con cuerpos de 1 premio") y la prudencia de premios en la promoción (`_best_promote_card`).
 
-- **Base** (888): `data = card_table[pokemon.id]`; `count = 3` si `data.megaEx`, `2` si `data.ex`, `1` en cualquier otro caso (Pokémon normal).
-- **Ajuste por Legacy Energy** (889–891): si alguna de las `pokemon.energyCards` tiene `id == 12` (**Legacy Energy**, energía ACE SPEC), `count -= 1`. Esto refleja el efecto real de la carta ("si el Pokémon al que está adjunta es noqueado por daño de un ataque rival, ese jugador se lleva 1 premio menos"); la función no modela la restricción de "una vez por partida" de la carta real, solo su presencia.
-- **Ajuste por Lillie's Pearl** (892–894): si alguna herramienta (`pokemon.tools`) tiene `id == 1172` (**Lillie's Pearl**) y el nombre de la carta contiene `"Lillie"`, `count -= 1` (mismo efecto de reducción de premio, pero restringido a la línea Lillie's, como en la carta real).
-- **Salida**: `max(0, count)` — nunca negativo.
-- **Uso**: es el ingrediente principal de `pokemon_score` (línea 916: `score = prize_count(pokemon) * 1000`) y de cualquier heurística que deba razonar en términos de "premios en juego" (p.ej. la escalera de Boss's Orders, que prioriza noquear objetivos de más premios).
+### `count_total_grass_energy`
 
-### `count_total_grass_energy` (897–906)
+Suma las energías de tipo `EnergyType.GRASS` adjuntas a **todos** los Pokémon en juego propios (activo + banca). Alimenta directamente `calc_syrup_storm_damage` y el `total_grass` que usan los pivotes de Hydrapple (Syrup Storm escala con el Grass del campo).
 
-Suma las energías de tipo `EnergyType.GRASS` adjuntas a **todos** los Pokémon en juego propios (activo + banca), recorriendo `my_state.active + my_state.bench` (899) y, para cada Pokémon no nulo, sus `pokemon.energies` (902–904).
+### `calc_syrup_storm_damage`
 
-- **Entrada**: `my_state` (el estado del jugador, con `.active` y `.bench`).
-- **Salida**: entero, total de energías Planta en el campo.
-- **Uso**: alimenta directamente `calc_syrup_storm_damage`.
+Daño de *Syrup Storm* (Hydrapple ex): `30 + 30 * total_grass`, con `total_grass = count_total_grass_energy(my_state)`. El parámetro `has_meganium` existe pero su cuerpo es un `pass` — no aplica ningún ajuste extra porque la observación ya duplica las energías Planta físicas cuando hay Meganium (la "energía efectiva" del glosario); queda como gancho documentado. Se usa para estimar el daño de Hydrapple ex al planear ataques/KOs y en los pivotes activo-frágil→tanque.
 
-### `calc_syrup_storm_damage` (907–913)
+### `pokemon_score`
 
-Calcula el daño del ataque *Syrup Storm* (de Hydrapple ex) en función de la energía Planta total en el campo.
+Puntúa "cuánto vale" un Pokémon en juego, usado para decidir a qué objetivo proteger/retirar o qué Pokémon de banca es más valioso.
+- **Componente de premios**: `prize_count(pokemon) * 1000` — domina la puntuación.
+- **Energías y herramientas**: `+150` por energía adjunta, `+100` por tool — el "coste hundido" invertido.
+- **Etapa evolutiva**: `+250` si Stage 2, `+130` si Stage 1 — más caro de reponer.
+- **Penalizaciones por ID específico**: los ids `144, 322, 323, 337` reciben `-200` (piezas de bajo valor pese a lo anterior); el id `112` (`Munkidori`) con al menos 1 energía recibe `+300` (su valor sube al cargarse).
+- **Bonus por atacantes clave**: `Meganium` +350, `Gardevoir_ex` +400, `Typhlosion` +350, `Slowking` +400, `Dusknoir` +350, `Alakazam_ex` +300. Los nombres rivales delatan que `pokemon_score` también valora Pokémon **del oponente** (p. ej. al elegir el mejor objetivo de Boss's Orders).
+- **HP**: `score += pokemon.hp` como desempate fino.
 
-- **Fórmula** (912): `30 + 30 * total_grass`, donde `total_grass = count_total_grass_energy(my_state)`.
-- **Parámetro `has_meganium`** (909–911): existe pero el cuerpo del `if has_meganium: pass` está vacío — es decir, **actualmente no aplica ningún ajuste especial** cuando Meganium está en juego; el multiplicador de energía Planta ya se refleja en la propia cuenta física porque, según el glosario de `docs/main.md`, la observación ya duplica las energías Planta físicas cuando hay Meganium (la "energía efectiva" mencionada en la sección 2). El parámetro parece dejado como gancho para una futura distinción, pero hoy es un no-op.
-- **Uso**: sirve para estimar de antemano el daño de Hydrapple ex al planear ataques/KOs (usado en el análisis de amenaza y en el `AttackPlan`).
+### `_count_hand_play_options`
 
-### `pokemon_score` (914–945)
+Cuenta cuántas "jugadas" distintas ofrece la mano actual, como proxy de la calidad/flexibilidad de la mano (p. ej. para decidir si conviene refrescarla con Lillie's o Meowth ex). Devuelve la tupla `(play_options, supporters_in_hand)`:
+- **Evoluciones disponibles**: `+2` por cada evolución jugable detectada (Meganium/Bayleef/Hydrapple ex/Dipplin en mano con su pre-evo en juego) — el peso doble refleja que evolucionar es una jugada de alto valor.
+- **Supporters**: `supporters_in_hand` suma `Lillie_Determination + Boss_Orders + Dawn + Lanas_Aid + Xerosic_Machinations` en mano (Xerosic cuenta como Supporter desde su incorporación al mazo); se añade entero a `play_options` y se devuelve también por separado.
+- **Energía básica**: `+1` si hay `Basic_Grass_Energy` en mano y no se ha adjuntado aún este turno.
+- **Básicos de banca**: con banca no llena, `+1` por cada uno de `Chikorita`, `Applin`, `Teal_Mask_Ogerpon_ex` presente en mano.
 
-Puntúa "cuánto vale" un Pokémon propio en juego, usado para decidir, por ejemplo, a qué objetivo retirar/proteger o qué Pokémon de banca es más valioso.
+Su salida define `hand_is_weak` (pocas opciones y mano corta), consumida por `_eval_ub_best_target` y por la fase de valoración de objetivo de la Ultra Ball.
 
-- **Componente de premios** (916): `prize_count(pokemon) * 1000` — domina la puntuación; un Pokémon `ex` (2 premios) vale 1000 puntos más que un básico, uno Mega `ex` (3 premios) 2000 más.
-- **Energías y herramientas** (917–918): `+150` por cada energía adjunta, `+100` por cada herramienta adjunta — refleja el "coste hundido" invertido en ese Pokémon.
-- **Etapa evolutiva** (919–922): `+250` si es Stage 2 (`data.stage2`), `+130` si es Stage 1 (`data.stage1`) — un Pokémon más evolucionado es más caro de reponer.
-- **Penalizaciones por ID específico** (926–927): `pid in (144, 322, 323, 337)` → `-200`. Son IDs concretos (no resueltos por nombre en este fragmento) que el agente considera de bajo valor pese a lo anterior — probablemente pre-evoluciones o Pokémon de soporte que no interesa proteger a toda costa.
-- **Bonus por ID 112 con energía** (928–929): si `pid == 112` y tiene al menos 1 energía adjunta, `+300` — otro caso especial afinado a mano (probablemente una carta cuyo valor sube mucho en cuanto empieza a acumular energía, p.ej. un acelerador).
-- **Bonus por atacantes clave** (931–942): tabla de bonos fijos por identidad de carta:
-  - `Meganium` → `+350`
-  - `Gardevoir_ex` → `+400`
-  - `Typhlosion` → `+350`
-  - `Slowking` → `+400`
-  - `Dusknoir` → `+350`
-  - `Alakazam_ex` → `+300`
+### `_eval_ub_best_target`
 
-  Estos bonos identifican piezas motoras del propio mazo o amenazas rivales que se manejan con esta misma función (nombres que no pertenecen al mazo Planta descrito en `docs/main.md`, como `Gardevoir_ex`, `Typhlosion`, `Slowking`, `Dusknoir`, `Alakazam_ex`, sugieren que `pokemon_score` también se usa para valorar Pokémon **rivales**, p.ej. al decidir el mejor objetivo de Boss's Orders).
-- **HP** (943): `score += pokemon.hp` — suma directa de la vida restante como desempate fino.
-- **Salida**: entero total, usado como criterio de comparación relativa entre Pokémon (no es una puntuación de opción del bucle principal).
+Función central de la primera mitad: dado el estado del tablero/mano/mazo propio, calcula la **prioridad del mejor objetivo de búsqueda** (qué carta conviene traer con Ultra Ball) y devuelve el máximo acumulado (`ub_best_target`; `0` = "nada merece la búsqueda ahora"). El llamador (`_ub_target_score`, ver abajo) mapea ese valor a tiers de puntuación de la Ultra Ball. Recibe contadores de campo/mano, banderas de estado propio (`meganium_in_play`, `has_hydrapple`, `forest_in_play`, `has_energy_for_teal`), banderas del rival (`op_has_ex_immune_active/bench`, `op_is_crustle_deck`, `op_is_cornerstone_deck`, `op_active_is_budew`), valores del mejor Supporter disponible en mazo/mano, `supporters_in_hand`, `hand_is_weak`, `_we_go_first` y `watchtower_in_play` (la Watchtower anula Last-Ditch Catch, así que **desactiva todas las ramas de Meowth**).
 
-### `_count_hand_play_options` (946–971)
+Sus ramas, en orden:
+- **Turno 2 sin salida** (vamos segundos): prioriza buscar Meowth ex temprano para disparar *Last-Ditch Catch* — valor 1100 si queda `Lillie_Determination` en el mazo, 950 si en su lugar quedan `Dawn`/`Lana's Aid`; y, con banca vacía y sin básico jugable en mano pero un activo débil (Applin/Chikorita), buscar `Teal_Mask_Ogerpon_ex` (1050). Retorna temprano sin evaluar el resto.
+- **Turno 1 con salida**: la **regla anti-Budew** (si el rival abre con Budew activo, su *Itchy Pollen* nos bloqueará los Items el próximo turno; sin Lillie's ni Meowth a mano, se retorna directamente 1100 para traer Meowth ya y que su Habilidad busque una Lillie's, jugable incluso bajo el bloqueo); si ya hay desarrollo (banca o básico en mano) se retorna 0; en caso contrario se puntúa el mejor básico de apertura (`Teal_Mask_Ogerpon_ex` 950-1000 > `Chikorita` 850-950 > `Applin` 800-900, con matices por curva y evolución en mano). Retorna temprano.
+- **Meowth viable (mitad/final de partida)**: condición compuesta `meowth_viable` — sin bloqueo de Unfair Stamp tras KO (`_stamp_blocks_supp_chain`), Supporter del turno libre, sin Watchtower, **sin supporter en mano o con uno claramente inferior al mejor del mazo** (`_supp_in_hand_is_inferior`: el del mazo supera al de mano por >100), sin Meowth ya en campo, banca con hueco, Meowth en mazo y mejor supporter de mazo con valor >200. Excepción vs Crustle: se reactiva para ir a buscar específicamente un Boss's Orders de alto valor. El valor final es `_best_supp_in_mazo_val` con bonus por turno temprano (+200 con `turn <= 2`) o mano débil (+100).
+- **Refuerzo de Ogerpon**: con energía disponible y menos de 2 copias en campo, 650-750 (+100 con ≥2 energías en mano); caso de doble ataque con 2 Ogerpon ya en campo y Hydrapple en juego, valor basado en el bonus de *Teal Dance*.
+- **Cadenas de evolución Meganium y Hydrapple** (estructuras simétricas): la foto de "qué puede evolucionar" usa `_field_at_turn_start` cuando no hay Forest (una pieza evolucionada este mismo turno no puede volver a evolucionar), y `field_counts` con Forest. Prioridades: evolución inmediata disponible (1000/950) > pieza recién evolucionada sin Forest (solo 280, pura preparación) > buscar el eslabón intermedio que falta (850/800, solo si no está ya en mano) > encadenar con Forest disponible protegiendo descartes (`_prot`) > arrancar la línea desde cero (700→200 / 950→180 según lo encadenable).
+- **Objetivos secundarios**: Ogerpon sin energía (350, solo con banca corta), Tapu Bulu contra inmunes a ex con Meganium en juego (750/850), Pinsir contra Crustle/Cornerstone (900/950 — latente, Pinsir ya no está en el mazo), Meowth de refuerzo con prioridad capada (≤500, turnos tempranos), y **Fezandipiti ex tras KO** (`ko_last_turn` → 1050, aprovechar su Habilidad de robo).
 
-Cuenta cuántas "jugadas" distintas ofrece la mano actual, usado como proxy de la calidad/flexibilidad de la mano (p.ej. para decidir si conviene refrescarla con Lillie's Determination o Meowth ex).
+La regla "Meowth ex → Lillie's Determination" aparece así en tres formas (turno 2 sin salida, anti-Budew del turno 1, y `meowth_viable` general), coincidiendo con las memorias "Ultra Ball: buscar Meowth para Lillie's", "Jugar Meowth para refrescar mano débil" y "Ultra Ball: Meowth si no hay atacante usable".
 
-- **Entradas**: `hand_counts` (conteo de cartas en mano por ID), `field_counts` (conteo de Pokémon en juego por ID), `bench_count`, `energy_attached` (si ya se adjuntó energía este turno).
-- **Salida**: tupla `(play_options, supporters_in_hand)`.
-- **Evoluciones disponibles** (949–956): `+2` por cada evolución jugable detectada — Meganium en mano + Bayleef en juego; Bayleef en mano + Chikorita en juego; Hydrapple ex en mano + Dipplin en juego; Dipplin en mano + Applin en juego. El peso `+2` (frente a otros `+1`) refleja que evolucionar es una jugada de alto valor.
-- **Supporters** (958–961): `supporters_in_hand` = suma de `Lillie_Determination + Boss_Orders + Dawn + Lanas_Aid` en mano; se añade entero a `play_options` (cada supporter cuenta como 1 opción de jugada) y se devuelve también por separado.
-- **Energía básica** (963–964): `+1` si hay `Basic_Grass_Energy` en mano y **no** se ha adjuntado energía aún este turno.
-- **Básicos de banca** (966–969): si `bench_count < 5` (banca no llena), `+1` por cada uno de `Chikorita`, `Applin`, `Teal_Mask_Ogerpon_ex` presente en mano (posibilidad de bajar un básico nuevo a banca).
-- **Uso**: da una medida rápida de "cuántas cosas útiles puedo hacer con esta mano", empleada en las banderas de decisión sobre si conviene barajar/refrescar la mano (p.ej. `hand_is_weak`, mencionado como parámetro en `_eval_ub_best_target`).
+## Detalle por bloque — `DecisionContext` y scorers extraídos
 
-### `_eval_ub_best_target` (972–1291)
+### `DecisionContext`
 
-Función central de este bloque: dado el estado del tablero/mano/mazo propio, calcula la **prioridad de cada posible objetivo de búsqueda** (qué carta conviene traer con Ultra Ball u otro efecto de búsqueda equivalente) y devuelve el valor del **mejor** objetivo encontrado (`ub_best_target`, inicializado a `0` en la línea 980 y actualizado con `max()` en cada rama). Un valor de `0` significa "no hay ningún objetivo que merezca la pena buscar ahora". El llamador compara este valor contra el coste/beneficio de jugar la Ultra Ball en ese momento.
+`@dataclass` con las **entradas invariantes de una decisión**, construido una sola vez antes del bucle de scoring; los scorers lo tratan como **solo lectura**. Agrupa: los objetos de estado compartidos (`state`, `my_state`, `op_state`, `hand_counts`, `field_counts`, `supp_values`, `cartas_en_mazo` — referencia a `CARTAS_ACTIVAS_EN_MAZO` —, `field_at_turn_start`); recuentos de tablero y premios (`bench_count`, `my_hand_len`, `my_prize`, `op_prize`, `op_hand_count`); banderas de estado propio (`meganium_in_play`, `forest_in_play`, `itchy_pollen_active`, `has_hydrapple`, `watchtower_in_play`, `neutralization_zone_active`, `mega_line_active`, `active_needs_energy`, `evolve_possible_in_play`, `energy_starved_low_draw`, `pp_playable_in_hand`, `can_attack`, `best_supp_in_hand_val`, `best_supp_in_mazo_val`); las banderas de matchup (`op_is_alakazam_deck`, `op_is_hop_deck`, `op_is_comfey_deck`, `op_active_is_dunsparce`, `op_has_ability_immune_active`, `op_has_ex_immune_active/bench`, `op_is_control/slowking/gardevoir/zoroark/aggro/beedrill/crustle/cornerstone/fire`, `op_is_mirror`, `op_kang_ko_target`, `stadium_id`); las banderas de turno (`ko_last_turn`, `our_first_turn`, `active_cant_attack`, `bdg_retreat_ko`, `supporter_boost`, `we_go_first`, `budew_op_index`, `budew_on_op_field`, `lucario_sac_pivot`, `win_via_boss_gust`, `gust_2prize_via_boss`); y las banderas precalculadas de Boss's Orders (`boss_win_via_bench`, `boss_dodge_redirect`, `boss_defensive_gust`, `boss_deny_alakazam_line`, `boss_low_value_gust`, `boss_prize_rank`, `boss_ko_threat_preevo`, `has_ready_bench_attacker`). Al extraer más ramas se agregan los campos que necesiten.
 
-**Firma y preparación (972–984)**
+### `_score_boss_orders_play`
 
-Parámetros: contadores de campo (`field_counts`) y mano (`hand_counts`); banderas de estado del propio mazo (`meganium_in_play`, `has_hydrapple`, `forest_in_play`, `has_energy_for_teal`); banderas del rival (`op_has_ex_immune_active`, `op_has_ex_immune_bench`, `op_is_crustle_deck`, `op_is_cornerstone_deck`, `op_active_is_budew`); `op_prize`, `bench_count`, `state`, `ko_last_turn`; valores precomputados de la mejor carta de soporte disponible en mazo/mano (`_best_supp_in_mazo_val`, `_best_supp_in_hand_val`); `supporters_in_hand`, `hand_is_weak`; `_we_go_first`; `watchtower_in_play`.
+Materializa la escalera `BOSS_SCORE_*` de `main-01` (detalle táctico en `main-08`). Vetos iniciales (`SCORE_VETO`): Supporter ya jugado; Unfair Stamp pendiente tras KO; y la regla vs Alakazam con Dunsparce activo y nuestro activo sin poder atacar (gustear solo despejaría el muro rival). Luego, en orden: `win_via_boss_gust` → `BOSS_SCORE_WIN_NOW` (el gusteo que gana la partida supera cualquier retirada/pivote); `gust_2prize_via_boss` → `BOSS_SCORE_GUST_2PRIZE` (cobrar 2 premios gusteando un ex de banca en vez de 1 con el activo). Las cesiones a Lillie's devuelven `BOSS_SCORE_EMPTY_GUST`: `_boss_first_turn_cede` (nuestro primer turno con Lillie's en mano — un gusteo no cobra premio el primer turno), `_boss_empty_gust` (activo que no puede atacar y sin gusteo valioso) y `_boss_cede_dig` (gusteo de desarrollo con Lillie's en mano pero **sin atacante real de banca listo** — `has_ready_bench_attacker` nunca cuenta un Applin; memoria "Lillie's sobre Boss's sin atacante de banca"). El resto de la escalera: muro inmune → `WALL_GUST`; `boss_dodge_redirect` → `DODGE_REDIRECT`; `boss_win_via_bench` → `WIN_VIA_BENCH`; `boss_deny_alakazam_line` → `PRIZE_RANK_BASE` (cortar la línea Alakazam con el activo rival fuera de línea); `boss_low_value_gust` → `LOW_VALUE_GUST`; `boss_prize_rank >= 1` → `PRIZE_RANK_BASE + (8 - prize_rank) * 20`; `boss_defensive_gust` → `DEFENSIVE_GUST`; fallback al valor genérico `SCORE_SUPPORTER_VALUE_BASE + int(valor * 1.4)`. A todo salvo los vetos/cesiones se suma `supporter_boost` (500 bajo *Itchy Pollen*, cuando los Supporters son la única moneda).
 
-- `_bench_full = (bench_count >= 5)` (982): banca llena, no se puede bajar más básicos.
-- `_hand_total = sum(hand_counts.values())` (984): tamaño total de la mano, usado más adelante para calcular cuántas cartas "sobran" para descartar de forma segura tras evolucionar en cadena.
+### `_score_unfair_stamp_play`
 
-**Turno 2 sin salida (986–1012): búsqueda de Meowth ex temprano**
+Refresco de mano tras KO. Veto (regla del usuario): con Lillie's en mano y mano rival ≤3 y Supporter libre, cede a Lillie's (la disrupción ya aporta poco; ambas jugadas son excluyentes porque el Stamp baraja la propia Lillie's — memoria "Sello Injusto cede a Lillie's si mano rival corta"). El valor sube cuanto **menos** uso alternativo tenga la mano este turno: con Pokémon/evolución jugable 2000, con Item jugable 2500, con energía/estadio 3000, sin nada 7500; bonos por turno temprano, desventaja de premios y matchups de control (Alakazam +400, control/Slowking +350, Gardevoir +300, Zoroark +250, aggro/Beedrill con desventaja +350).
 
-Cuando es el turno 2 propio y el rival salió primero (`state.turn == 2 and not _we_go_first`):
-- Si aún no se jugó supporter, no hay `Lillie's Determination` en mano, hay menos de 2 `Meowth_ex` en campo, banca no llena, no hay `watchtower_in_play`, y queda al menos un `Meowth_ex` en el mazo (988–993): se prioriza buscar Meowth ex para bajarlo y disparar su Habilidad *Last-Ditch Catch* (busca un Supporter). El valor depende de qué haya en el mazo: `1100` si queda una `Lillie's Determination` en mazo (994–996), o `950` si en su lugar quedan `Dawn`/`Lana's Aid` (997–999).
-- Si la banca está vacía (`bench_count == 0`, línea 1001) y no hay ningún básico jugable en mano (`Chikorita, Applin, Teal_Mask_Ogerpon_ex, Tapu_Bulu, Meowth_ex, Fezandipiti_ex, Pinsir`) pero el activo es un básico débil (`Applin`/`Chikorita`, 1006–1007), se prioriza buscar `Teal_Mask_Ogerpon_ex` con valor `1050` (1008–1010) — es la única pieza capaz de aportar banca de forma inmediata y sólida.
-- **Retorna inmediatamente** en la línea 1012 (`return ub_best_target`): en este turno concreto no se evalúan las demás ramas (evoluciones, Tapu Bulu, etc.), solo estas dos prioridades tempranas.
+### `_score_xerosic_play`
 
-**Turno 1 con salida (1014–1067): reglas de apertura**
+El scorer del **motor Xerosic anti-Alakazam** (carta `Xerosic_Machinations`: el rival descarta hasta quedarse con 3 cartas; complementa a Unfair Stamp porque no exige KO previo). Vetos: Supporter jugado; mano rival ya ≤3 (p. ej. tras un Unfair Stamp del mismo turno — no quemar el Supporter para nada); Unfair Stamp pendiente tras KO (el Stamp es Item y va primero). El **disparo temprano** `_xr_lethal_proj`: con mano rival 4-5, si el Alakazam ya está activo y su *Powerful Hand* proyectado (`20 × (mano + 2)`, misma proyección que `_op_active_attack_damage_to`) noquea a nuestro activo, esperar la mano "reglamentaria" ≥6 regala el KO — se capa la mano ya. La rama principal vs Alakazam (`op_hand_count >= 6` o `_xr_lethal_proj`) devuelve `XEROSIC_SCORE_ALAKAZAM + min(300, 50 × (mano − 4)) + supporter_boost` (≈6000-6200), con dos cesiones a `XEROSIC_SCORE_LAST_RESORT`: gusteo letal de banca disponible (`boss_win_via_bench` con Boss's en mano — cobrar premio primero; el `supporterPlayed` vetará el Xerosic en la re-evaluación) y activo sin atacar + mano propia ≤3 + Lillie's en mano (desarrollo antes que disrupción). La rama genérica (cualquier mazo, mano rival ≥7) devuelve `XEROSIC_SCORE_GENERIC`; el resto, `XEROSIC_SCORE_LAST_RESORT`. Alrededor del scorer orbitan el resto del motor (documentado en `main-09`/`main-11`): el guard de Lillie's que no baraja el último Xerosic no re-buscable, el fetch de *Last-Ditch Catch* que lo prioriza (1260/1200 vs Alakazam; rama genérica 1100 con mano rival ≥7 y atacante fuerte), la reserva del último hueco de banca para Meowth y la protección del Xerosic en los descartes.
 
-Cuando es el turno 1 propio y salimos primero (`state.turn == 1 and _we_go_first`):
-- **Regla anti-Budew** (1014–1031): si el activo rival es Budew (`op_active_is_budew`), no tenemos `Lillie's Determination` ni `Meowth_ex` (ni en mano ni en campo), banca no llena, no se jugó supporter, no hay `watchtower_in_play`, y quedan copias de `Meowth_ex` y `Lillie's Determination` en el mazo: se **retorna directamente `1100`** (máxima prioridad, ignorando el resto de la función). La razón (comentada en 1015–1021): el ataque *Itchy Pollen* de Budew bloqueará los Items en nuestro próximo turno, así que hay que adelantarse **ahora** usando la Ultra Ball para traer Meowth ex, bajarlo y que su Habilidad busque una Lillie's Determination (un Supporter, jugable incluso bajo el bloqueo de Items) para el turno siguiente.
-- **Corte si ya hay desarrollo** (1033–1037): si hay algo en banca o ya hay un básico jugable en mano (`Chikorita, Applin, Teal_Mask_Ogerpon_ex, Tapu_Bulu, Fezandipiti_ex, Pinsir`), se **retorna `0`** — en el primer turno propio no tiene sentido gastar Ultra Ball si ya hay con qué desarrollar banca.
-- **Prioridad entre básicos** (1039–1066), si no se cortó antes: evalúa buscar el mejor básico disponible en mazo cuando el campo aún no lo tiene:
-  - `Teal_Mask_Ogerpon_ex` (1041–1046): `950` base, `1000` si además hay `Basic_Grass_Energy` en mano (para poder adjuntarle energía el mismo turno).
-  - `Chikorita` (1048–1055): `850` base; sube a `900` si ya hay `Applin` o `Teal_Mask_Ogerpon_ex` en campo (mejor curva de desarrollo); `+50` extra si hay `Bayleef` en mano (evolución inmediata al turno siguiente).
-  - `Applin` (1057–1064): `800` base; sube a `850` si ya hay `Chikorita` o `Teal_Mask_Ogerpon_ex` en campo; `+50` si hay `Dipplin` en mano.
-  - Se toma el máximo de las tres (`_best_t1_val`) y se retorna.
+### `_score_poke_pad_play`
 
-**Cálculo de "Meowth viable" (1069–1106): búsqueda de Meowth ex a mitad/final de partida**
+Poké Pad busca un Pokémon **sin Rule Box** (excluye la línea Hydrapple ex). Construye `searchable` filtrando `NON_RULEBOX_IDS` por `ESTADO_MAZO > 0` en `ctx.cartas_en_mazo`. Prioriza habilitar una evolución **este turno** (tiers 20000-23000 según el valor de la evolución, usando la misma foto `_field_at_turn_start`/Forest que la Ultra Ball); si no, asegurar básicos que faltan (12600-12800); en la apertura tiene ramas propias (Applin/Chikorita ausentes; `_pp_budew_dump` — vs Budew abriendo activo, volcar todas las Poké Pad en el único turno con Items permitidos). Rama `lucario_sac_pivot`: buscar Tapu Bulu como sacrificio de 1 premio (13000). Corte de banca llena estricto: sin pre-evo que necesite una **búsqueda** para evolucionar, se guarda el recurso (`SCORE_VETO`).
 
-- `_stamp_blocks_supp_chain` (1069): si hubo KO el turno anterior y tenemos `Unfair_Stamp` en mano, se asume que se preferirá jugar Unfair Stamp en vez de encadenar supporters vía Meowth (bandera que desactiva la búsqueda de Meowth más abajo).
-- `_supp_in_hand_is_inferior` (1071–1075): si ya hay un supporter en mano pero el mejor supporter disponible en mazo (`_best_supp_in_mazo_val`) supera en más de 100 puntos al mejor supporter en mano (`_best_supp_in_hand_val`), se considera que el supporter en mano es peor y **sí** merece la pena buscar otro vía Meowth.
-- `meowth_viable` (1077–1087): condición compuesta — no bloqueado por Unfair Stamp; no es el turno 1 yendo primero (ya cubierto arriba); no se jugó supporter este turno; no hay `watchtower_in_play`; **no hay supporter en mano O el que hay es inferior**; no hay ya un Meowth ex en campo; banca no llena; queda copia de Meowth ex en mazo; y el mejor supporter en mazo vale más de `200`.
-- **Excepción vs Crustle** (1089–1099): si `meowth_viable` es falso pero el rival es un mazo Crustle (`op_is_crustle_deck`), se reactiva si además hay `Boss's Orders` en mazo con valor ≥900, no se jugó supporter, banca no llena, no hay Meowth ex en campo ni Boss's Orders ya en mano — es decir, contra Crustle se relaja la condición de "sin supporter en mano" para poder ir a buscar específicamente un Boss's Orders de alto valor vía Meowth.
-- **Valor final de Meowth** (1100–1106): si `meowth_viable`, `meowth_val = _best_supp_in_mazo_val`, con bonus `+200` si `state.turn <= 2` (cuanto antes se dispare el motor de cartas, mejor) o `+100` si `hand_is_weak` (mano pobre que urge refrescar). Se actualiza `ub_best_target`.
+### `_score_night_stretcher_play`
 
-**Teal Mask Ogerpon ex — refuerzo de atacante (1108–1131)**
+Night Stretcher recupera un Pokémon o Energía básica del descarte. Es el scorer más largo de la familia: acumula `best_recovery_value` sobre ~40 escenarios de recuperación (relanzar el motor Meowth desde el descarte — memoria "Night Stretcher → Meowth → Lillie's" —, reponer energías para un atacante concreto, recuperar piezas de evolución perdidas) y lo mapea a tiers de `ns_score`. Su detalle táctico vive en `main-12`.
 
-- Con energía disponible para pagar su coste (`has_energy_for_teal`), menos de 2 copias en campo y banca no llena (1108): si queda copia en mazo, valor `650` (o `750` si aún no hay ninguna Ogerpon en campo), `+100` si hay ≥2 `Basic_Grass_Energy` en mano (1109–1115).
-- Caso especial de **doble ataque** (1117–1131): si ya hay ≥2 `Teal_Mask_Ogerpon_ex` en campo, banca no llena y hay `Hydrapple_ex` en campo (necesita el hueco de banca compartido con la línea Hydrapple), se calcula un valor basado en el daño extra de *Teal Dance*: `_td_dmg_bonus = 60 si meganium_in_play else 30`; `val = 500 + _td_dmg_bonus * 2` (estima el valor de poder rotar/golpear con dos Ogerpon), `+150` si hay ≥2 energías Planta en mano, `+50` extra si ya hay ≥2 en campo.
+### `_score_forest_of_vitality_play`
 
-**Cadena de evolución Meganium (1133–1192)**
+Forest of Vitality (nuestro estadio: permite evolucionar el mismo turno). Reglas de apertura: nunca en el primer turno yendo primeros; yendo segundos solo si hay que reemplazar un estadio rival (15000). Con la Forest ya en juego, veto. La escalera de reemplazo urgente:
+1. **`neutralization_zone_active`** → 28000, o 29000 si además hay una pre-evo propia en juego que evolucionar — la Zona anula nuestro daño de ex contra Pokémon de 1 premio, quitarla es lo más urgente (memoria "Estrategia vs Neutralization Zone").
+2. **Rama Watchtower** (auditoría julio 2026): `Team Rocket's Watchtower` **apaga el motor Meowth completo** (anula *Last-Ditch Catch*, habilidad de Pokémon incoloro). Si el motor está **vivo** (menos de 2 Meowth en campo y Meowth disponible en mano o mazo), reemplazar el estadio devuelve 27000 — bajo la Neutralization Zone (que anula daño, más urgente) y **sobre** la cadena evolutiva (21900-22000). Antes esta situación caía al 15000 genérico de "reemplazar estadio rival" y perdía contra el desarrollo.
+3. **`_evo_chain`** → 21900 (22000 si hay estadio rival que pisar): jugar la Forest habilita una evolución este turno — incluye el caso `_meg_fetchable_fv` (Meganium en mazo + un buscador Poké Pad/Ultra Ball en mano); +200 en matchups de presión (fuego/aggro/Beedrill).
+4. Reemplazo genérico de estadio rival → 15000; sin estadio, 14000 en turnos tempranos (15000 vs fuego/aggro/espejo); tarde y sin urgencia → 8000.
 
-`_evolvable` (1133) decide qué "foto" del campo usar para saber si algo es evolucionable este turno: si no hay `forest_in_play` y `_field_at_turn_start` tiene datos, usa el campo **al inicio del turno** (`_field_at_turn_start`); si no, usa `field_counts` (campo actual). La razón: sin Forest of Vitality, una pre-evolución bajada o evolucionada este mismo turno no puede volver a evolucionar hasta el turno siguiente, así que hay que razonar sobre lo que había *al empezar* el turno para no sobreestimar objetivos inutilizables.
+### `_score_bug_catching_set_play`
 
-Si `not meganium_in_play` (1135):
-- `Bayleef` ya evolucionable en campo (1136–1138): si queda `Meganium` en mazo, prioridad `1000` (evolución inmediata, máxima prioridad estructural).
-- Si no, pero hay `Chikorita` evolucionable y `Bayleef` ya en campo (1139–1153): si queda `Meganium` en mazo, `1000` si hay Forest (se puede evolucionar Chikorita→Bayleef→Meganium en la misma cadena), pero solo `280` si **no** hay Forest — porque el Bayleef fue evolucionado este mismo turno y no podrá volver a evolucionar hasta el turno próximo, así que buscar Meganium ahora es pura preparación sin efecto inmediato (comentario 1146–1152).
-- Si solo hay `Chikorita` evolucionable (1154–1192):
-  - Si queda `Bayleef` en mazo y **no** hay ya uno en mano (1156–1162): `850` (basta un Bayleef para evolucionar la única Chikorita; si ya hay uno en mano, buscar otro no aporta).
-  - Si no, y queda `Meganium` en mazo, hay Forest disponible (en juego o en mano) y hay `Bayleef` en mano (1164–1171): calcula `_prot` (cartas a "proteger" del descarte de Ultra Ball: 1, +1 más si no hay Forest en juego todavía) y solo prioriza `900` si sobran ≥2 cartas de mano tras restar la propia Ultra Ball y `_prot` — para no arriesgarse a un descarte forzado excesivo.
-  - Si el campo no tiene ninguna pieza de la línea (`Chikorita`+`Bayleef` == 0) y banca no llena (1173–1192): evalúa si conviene empezar la línea desde cero, distinguiendo si se puede encadenar directo a Meganium (`_can_chain_mega`, requiere Forest disponible y Bayleef en mano, con la misma protección de descartes) → `700`; si no se puede encadenar pero ya hay piezas de evolución en mazo o mano → `500`; si no hay nada de la línea aún → `200` (arrancar la línea desde el básico, prioridad baja).
+Bug Catching Set mira 7 cartas del mazo y coge una Planta/Energía. Estima con hipergeométrica la probabilidad de encontrar algo elegible (`p_find`, sobre los conteos reales de `ctx.cartas_en_mazo`) y ajusta el score base (10500) por tramos; suma bonos por piezas de evolución de alto valor aún en el mazo, por líneas incompletas y por hambre de energía (incluyendo `SCORE_BELIEF_DIG_ENERGY` cuando `energy_starved_low_draw`). Se autolimita a 9000 si hay una Poké Pad jugable en mano (que ella juegue primero).
 
-**Cadena de evolución Hydrapple ex (1194–1254)**
+### La familia Ultra Ball: `_score_ultra_ball_play` y sus fases
 
-Estructura simétrica a la de Meganium, aplicada a `Applin → Dipplin → Hydrapple_ex`, condicionada a `not has_hydrapple`:
-- `Dipplin` evolucionable en campo (1195–1197): `950` si queda `Hydrapple_ex` en mazo.
-- `Applin` evolucionable + `Dipplin` ya en campo (1198–1211): `950` con Forest, o solo `280` sin Forest (mismo razonamiento de "evolucionado este turno, no reutilizable hasta el siguiente").
-- Solo `Applin` evolucionable (1212–1254):
-  - Si queda `Dipplin` en mazo y no hay ya uno en mano (1214–1218): `800`.
-  - Si no, y queda `Hydrapple_ex` en mazo con Forest disponible y `Dipplin` en mano (1220–1227): `850` si sobran ≥2 cartas tras proteger.
-  - Si no hay ninguna pieza en campo y banca no llena (1228–1254): calcula `_can_chain_hydra` (Forest disponible + Dipplin en mano, con protección extra si además hay `Hydrapple_ex` en mano) → `950` si el propio Hydrapple ex ya está en mano (cadena completa de un tirón), o `600` si falta ese último eslabón; si no se puede encadenar, `450` con piezas disponibles en mazo/mano o `180` si no hay nada.
+La rama más compleja está descompuesta en un **pipeline de fases** (ver también `docs/main-refactor-ultra-ball-plan.md`):
+- **`_UBFlags` / `_ub_derive_flags` (fase A)**: flags derivados del contexto — `survival_mode` (banca vacía), `first_action_turn`, `hand_size`, `evolve_needs_search` (hay una pre-evo en juego cuya evolución falta en mano y está en el mazo; la búsqueda de Hydrapple no cuenta si el rival es inmune a ex — la rama TO_HAND la rebajaría a carta muerta), `evolve_now_search` (además se puede **completar** este turno, por Forest o por pre-evo presente desde el inicio del turno) y `developed_attacker_board` (atacante listo + ≥2 banqueados energizados: vetar desarrollo redundante).
+- **`_ub_cancel_stamp` / `_ub_cancel_fez` / `_ub_cancel_lillie` / `_ub_cancel_meowth` (fase C)**: predicados de **veto por coste** — jugar la UB descartaría como coste una carta valiosa (Unfair Stamp, Fezandipiti, Lillie's, Meowth) que no conviene perder.
+- **`_ub_target_score` (fase D)**: valora el mejor objetivo con `_eval_ub_best_target`, calcula `safe_discards` (cuántas cartas de la mano son descartables sin dolor: energías, duplicados, piezas ya en juego o re-buscables, con matices por Night Stretcher en mano y por la cadena Meowth) y mapea `ub_best_target` a tiers (12500/12000/11200/10500/10000), con penalizaciones por pocos descartes seguros, bono por mano débil, el deferral frente a Lillie's (posponer a 4500 salvo que la búsqueda habilite una evolución completable este turno o Lillie's robe 8 con 6 premios) y el veto de "no quemar Lillie's como coste" salvo búsqueda ganadora.
+- **`_ub_score_before_overrides` (fases B+C+D)**: cortes duros tempranos — mano <3 (`SCORE_VETO`), banca llena sin evolución que buscar (`SCORE_CANCEL`, por debajo del piso de veto para que el argmax prefiera atacar/pasar antes que malgastar la UB) — y luego los cancels y la valoración de objetivo.
+- **`_ub_terminal_overrides` (fase E, siempre al final)**: rescate de supervivencia (banca vacía, sin básico en mano pero sí en mazo → 25000, solo con hueco en banca), el descuento si hay Bug Catching Set jugable, el gate del primer turno (solo se permite la UB de apertura en los tres casos legítimos: banca vacía; motor Meowth→Lillie's viable yendo segundos; Budew rival activo), la **salvaguarda final de banca llena** (`SCORE_CANCEL`, con la última palabra sobre cualquier ruta anterior) y el deferral por `boss_deny_alakazam_line` (posponer la UB a 2000 mientras el Boss's del corte de línea siga en mano, para no descartarlo como coste).
+- **`_ub_engine_refresh_pivot`**: predicado del **motor UB→Meowth→Lillie's sobre el tier de energía** (registro_008 vs Archaludon, partida perdida que lo motivó). Condiciones: Supporter libre; ≥2 energías básicas en mano (forraje barato para el descarte de la UB); ni Lillie's ni Meowth ya en mano; banca subdesarrollada (≤1); Meowth y Lillie's aún en el mazo; menos de 2 Meowth en campo; y el activo **no noquea al activo rival ni con el adjunte del turno** (verificado con `_attacker_base_damage` + `_our_effective_damage`). Sin remate a la vista, ampliar recursos vale más que cargar energía suelta: la línea correcta es jugar la UB ya (descartando las 2 energías), buscar Meowth, bajarlo (*Last-Ditch* → Lillie's) y refrescar; el adjunte del turno sigue disponible tras el refresco.
+- **`_score_ultra_ball_play` (orquestador)**: primero dos atajos — estrategia vs Comfey (con 2 Ogerpon en campo la UB es inútil → `SCORE_CANCEL`) y el pivote de motor: si `_ub_engine_refresh_pivot(ctx)` es cierto, devuelve **31450** (sube al tier de energía, patrón Teal Dance: gana al adjunte manual ~31410 y a Ripening Charge sin pivote 30000, y queda bajo los pivotes de habilidad con KO/retirada 31500-31600) y arma el global `_ub_engine_pivot_turn` para que el **fetch** posterior de esa UB elija Meowth ex (cuando las energías ya se descartaron y las condiciones no se pueden recomputar). En el caso normal compone fase A → fases B+C+D → fase E.
 
-**Objetivos secundarios (1256–1288)**
+### `_score_lillie_determination_play`
 
-- **Teal Mask Ogerpon ex sin energía disponible** (1256–1259): si no hay energía para pagarlo (`not has_energy_for_teal`), banca no llena, menos de 2 copias en campo, aún no hay ninguna en campo y la banca tiene ≤2 Pokémon: prioridad baja `350` (bajarlo igualmente para tenerlo listo, aunque no se pueda atacar ya).
-- **Tapu Bulu contra inmunes a ex** (1261–1267): si no hay Tapu Bulu en campo, banca no llena, y el rival tiene un activo o banca inmune a ataques de Pokémon `ex` (`op_has_ex_immune_active/bench`) mientras Meganium está en juego (para poder pagar su coste de energía alto): valor `750`, o `850` si ya hay Hydrapple ex en juego (para no depender de un único atacante bloqueado).
-- **Pinsir contra Crustle/Cornerstone** (1269–1275): si no hay Pinsir en campo, banca no llena, y el rival es `op_is_crustle_deck` o `op_is_cornerstone_deck`: `900`, o `950` con Meganium en juego — Pinsir es aparentemente la respuesta específica a esos arquetipos.
-- **Meowth ex de refuerzo, prioridad baja** (1277–1283): condición residual — banca no llena, sin bloqueo de Unfair Stamp, mano no débil (`not hand_is_weak`, para no solaparse con la rama de arriba), sin supporter jugado ni en mano, sin Meowth ex en campo, mejor supporter en mazo ≥500: si `state.turn <= 4`, prioridad `min(_best_supp_in_mazo_val, 500)` (capada en 500 para no competir con las ramas de evolución/Ogerpon que valen más).
-- **Fezandipiti ex tras KO** (1285–1288): si no hay Fezandipiti ex en campo, banca no llena y `ko_last_turn` es verdadero: prioridad muy alta `1050` — aprovechar el hueco de premio/tempo recién generado con la Habilidad de Fezandipiti (probablemente para robar/afectar al rival mientras está en desventaja de premios).
+Lillie's Determination (baraja la mano y roba 6, u 8 con los 6 premios intactos). Cuida dos cosas: no barajar piezas de evolución pendientes (`_lillie_pending_evo` / `_lillie_evolve_now`, con la misma foto de inicio de turno que la Ultra Ball) y ceder/ganar prioridad frente a Boss's según el estado. Ramas principales: veto vs Comfey con mano <10 (devolver cartas al mazo es la defensa anti-mill, pero solo con mano grande); `_hop_keep_boss` (vs Hop **o** con una pre-evo amenaza gusteable `boss_ko_threat_preevo`, con Boss's en mano y ≥2 atacantes listos, no barajar el Boss's — memorias "Guardar Boss's vs Hops" y "Boss's gustea Duraludon sobre Lillie's"); veto con Supporter jugado; veto si Unfair Stamp va primero (solo con mano rival >3); el **guard anti-Alakazam del Xerosic**: si Lillie's barajaría el Xerosic de la mano y ya no queda forma de re-buscarlo (sin Meowth en mano ni en mazo, o ambos Meowth gastados), con mano rival ≥4 se veta Lillie's — cubre el hueco de mano rival 4-5 donde la escalera todavía no garantiza Xerosic > Lillie's; el primer turno propio siempre juega Lillie's (5000); `_hydra_active_charged` → 5800 (+`supporter_boost`) — con Hydrapple ex cargado en el activo, refrescar para potenciar Syrup Storm supera al Boss's que no gana (~5600), exceptuando el remate `boss_win_via_bench` y el dodge con Boss's en mano; el veto inverso cuando el Boss's en mano tiene un gusteo ejecutable con atacante real; y la gestión fina de evoluciones pendientes vs turno muerto (jugar Lillie's a 5000 si el turno sería muerto — memoria "Lillie's en turno muerto" — o vetar para evolucionar primero).
 
-**Retorno final (1290)**: `return ub_best_target`, el máximo acumulado por todas las ramas que no retornaron antes (las ramas de los turnos 1 y 2 especiales sí retornan de forma temprana, líneas 1012, 1031 y 1067).
+### `_score_lanas_aid_play`
+
+Lana's Aid recupera Pokémon no-ex + energías del descarte a la mano (no recupera ex por Rule Box). Vetos: Supporter jugado; vs Comfey si no recupera al menos 2 energías (nuestros únicos Pokémon en ese matchup son Ogerpon ex, irrecuperables); Unfair Stamp pendiente. Valor genérico `SCORE_SUPPORTER_VALUE_BASE + int(valor * 1.4) + supporter_boost`; rescate a 4500 si la línea Meganium activa se quedó sin energía y hay una en el descarte; y la cesión a Lillie's: si el activo no puede atacar y Lana's no **habilita** un ataque (`_lana_enables_attack` en `supp_values`), se recorta a 2000 — por debajo del 5000 de Lillie's pero jugable por si Lillie's está vetada por otra vía.
 
 ## Interacciones
 
-- `get_card` es usada por `_debug_log_decision` (línea 699) y, según el índice de `docs/main.md` (secciones 1 y 3), por todo el bucle de puntuación de `agent()` para traducir cada `select.option[i]` a la carta/Pokémon real antes de decidir su puntaje.
-- `prize_count` es el bloque base de `pokemon_score` (línea 916) y, según el glosario de `docs/main.md`, de la escalera de valoración de `Boss's Orders` (líneas ~2900–3590), que necesita saber cuántos premios vale cada objetivo posible.
-- `count_total_grass_energy` solo se usa dentro de `calc_syrup_storm_damage`.
-- `pokemon_score` y `_count_hand_play_options` alimentan banderas de decisión más adelante en `agent()` (p.ej. `hand_is_weak`, mencionado como parámetro de `_eval_ub_best_target`, y comparaciones de qué Pokémon proteger/retirar en la puntuación de `RETREAT`).
-- `_eval_ub_best_target` es invocada desde el bloque de puntuación de búsqueda de cartas (`Ultra Ball` y similares, rango 5970–8684 según `docs/main.md`) para fijar el puntaje de cada carta candidata a ser buscada en el mazo; sus banderas de entrada (`meganium_in_play`, `forest_in_play`, `op_is_crustle_deck`, `_best_supp_in_mazo_val`, `hand_is_weak`, etc.) se calculan en los bloques anteriores de `agent()` (detección de matchup, líneas 1477–1985; valoración de Supporters, líneas 3590–4489).
-- La regla "Meowth ex → Lillie's Determination" aparece dos veces con matices distintos: como prioridad temprana en el turno 2 sin salida (988–999, valor 1100/950) y como caso especial máximo contra Budew activo en el turno 1 con salida (1014–1031, retorno directo 1100); además como mecanismo general de mitad de partida vía `meowth_viable` (1069–1106). Esto coincide con la nota de memoria del usuario "Ultra Ball: buscar Meowth para Lillie's" y "Jugar Meowth para refrescar mano débil".
+- `get_card` es usada por `_debug_log_decision` y por todo el bucle de puntuación de `agent()` para traducir cada `select.option[i]` a la carta/Pokémon real antes de puntuarla.
+- `prize_count` alimenta `pokemon_score`, la escalera de Boss's Orders (`main-08`), el pivote 1-premio vs Alakazam y la prudencia de premios en la promoción.
+- `_eval_ub_best_target` es invocada desde `_ub_target_score`; sus banderas de entrada se calculan en la detección de matchup (`main-06`) y la valoración de Supporters (`main-09`), y llegan hoy empaquetadas en el `DecisionContext`.
+- Los scorers `_score_*_play` son llamados desde la rama `PLAY` del bucle de scoring de `agent()` (`main-12` documenta la orquestación y las ramas aún inline, como los Pokémon); comparten el `DecisionContext` construido una vez por decisión y las constantes con nombre de `main-01`.
+- `supporter_boost` (vale 500 bajo *Itchy Pollen*) se suma en todos los scorers de Supporter para que, con los Items bloqueados, el Supporter del turno nunca se quede sin jugar.
+- Las banderas `win_via_boss_gust`, `gust_2prize_via_boss`, `boss_*` y `has_ready_bench_attacker` se calculan **antes** del bucle (en la maquinaria de Boss's de `main-08`) y aquí solo se consumen; lo mismo ocurre con `lucario_sac_pivot` y `bdg_retreat_ko`.
+- `ctx.cartas_en_mazo` es la vista de solo lectura de `CARTAS_ACTIVAS_EN_MAZO` (`main-03`): todos los scorers de búsqueda filtran por `ESTADO_MAZO > 0` para no buscar cartas premiadas o agotadas.

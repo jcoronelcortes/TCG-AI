@@ -1,207 +1,93 @@
-# main.py — Escalera de puntuación de Boss's Orders (líneas 2858–3608)
+# main.py — Escalera de puntuación de Boss's Orders
+
+> Documento descriptivo: se refiere al código por nombres de funciones y constantes, no por líneas.
 
 ## Rol en el agente
 
-`Boss's Orders` es el Supporter que obliga al rival a subir un Pokémon de su banca al puesto activo. Es la única herramienta del mazo para forzar un intercambio favorable de premios (noquear a un objetivo concreto de banca, negar una evolución amenazante, o quitar de encima a un activo inmune/muro). Dentro de `evaluate_supporters()` (que arranca en la línea 2858, dentro de `agent()`), este bloque calcula `values[Boss_Orders]`: una puntuación que indica **cuánto conviene jugar Boss's Orders este turno**, sin decidir todavía a quién se sube al activo (esa elección concreta la hace `_boss_tier` y la escalera `BOSS_SCORE_*`, documentadas en otro fichero, ver «Interacciones»).
+`Boss's Orders` obliga al rival a subir un Pokémon de su banca al puesto activo. Es la única herramienta del mazo para forzar un intercambio favorable de premios (noquear un objetivo concreto de banca, negar una evolución amenazante, o quitarse de encima un muro inmune). Su valoración tiene **dos capas**:
 
-El bloque es una larga cadena `if/elif` de detección de matchup (arquetipo rival → prioridad fija) seguida de un segundo bloque mucho más fino que recalcula el valor con `max(values.get(Boss_Orders, 0), X)` en función de lo que realmente se puede noquear/negar esta vuelta, y de un tercer bloque específico para cuando **nuestro propio activo no puede atacar este turno** (defensivo/stall). El resultado se usa después tanto para decidir si el `PLAY` de la carta puntúa alto (líneas ~8684–11008) como para desempatar el objetivo concreto en la selección `TO_ACTIVE`.
+1. Dentro de `evaluate_supporters()` (función interna de `agent()`) se calcula `values[Boss_Orders]`: cuánto conviene jugar la carta este turno, mediante una escalera de arquetipos seguida de un bloque táctico fino que escribe además banderas auxiliares (`_boss_win_via_bench`, `_boss_deny_evo`, `_boss_deny_alakazam_line`, `_boss_gust_key_bench`, `_boss_dodge_redirect`, `_boss_defensive_gust`, `_boss_dipplin_combo`, `_active_attack_sufficient`) en el mismo diccionario `values`.
+2. En el bucle de scoring de PLAY, la rama de Boss's Orders está extraída a la función de módulo **`_score_boss_orders_play(ctx)`** (refactor Prioridad 1, con `DecisionContext`), que convierte esos valores y las banderas standalone (`_win_via_boss_gust`, `_gust_2prize_via_boss`, `_boss_prize_rank`, calculadas después de `evaluate_supporters`, ver `main-09`) en el puntaje final usando las constantes con nombre `BOSS_SCORE_*`.
 
-## Detalle por bloque
+La elección del objetivo concreto del gusteo (a quién se sube) no ocurre aquí: la resuelve `_boss_tier` y el manejador de selección `TO_ACTIVE`.
 
-### Preparación de banderas (líneas 2861–2896)
+## `evaluate_supporters()`: preparación y escalera de arquetipos
 
-- `_fez_active_can_attack` (2861-2869): `True` si nuestro activo es `Fezandipiti_ex` y ya tiene (o tendría tras adjuntar) energía efectiva ≥ 3. Si nuestro propio atacante ya está listo, gran parte del ladder posterior se anula (ver rama siguiente).
-- `_op_active_is_crustle` (2871-2872): el activo rival es `Crustle_Grass` o `Crustle_Fighting`.
-- `_tapu_can_attack` (2873-2875): `Tapu_Bulu` está en juego, `Meganium` está en juego (duplica energía Planta) y hay algún `Tapu_Bulu` propio (banca o activo) con ≥2 energías físicas — es decir, puede llegar a las 4 efectivas necesarias para su ataque de 220.
-- `crustle_gust_worth_it` (2877-2919): comentario explícito (2877-2884) — cuando nuestro activo es un Pokémon `ex` (`OUR_EX_IDS`) y el rival juega Crustle (`op_is_crustle_deck and op_has_ex_immune_active`), nuestro ataque al activo rival da 0 daño por la inmunidad de Crustle a `ex`. El bucle (2897-2917) recorre la banca rival buscando un objetivo al que **sí** hagamos daño (`_our_effective_damage > 0`, vía `_attacker_base_damage`) y que además podamos noquear (`can_ko_target`) o que **no pueda retirarse** (`target_cannot_retreat`, energía < `RETREAT_COST`). Basta un objetivo así para marcar `crustle_gust_worth_it = True`.
+### Banderas previas
 
-### Rama 0 — Crustle: bypass de la inmunidad ex (línea 2919-2920)
+- `_fez_active_can_attack`: nuestro activo es `Fezandipiti_ex` con ≥3 efectivas (contando el posible adjunte). Si ya está listo, gran parte de la escalera se apaga.
+- `_op_active_is_crustle`, `_tapu_can_attack` (Tapu Bulu + Meganium en juego y un Tapu con ≥2 energías físicas → llega a las 4 efectivas de su ataque de 220).
+- `crustle_gust_worth_it`: con nuestro ex activo bloqueado por la inmunidad de Crustle, busca en la banca rival un objetivo al que **sí** hagamos daño (`_attacker_base_damage` + `_our_effective_damage`) y que podamos noquear o que no pueda retirarse (energía < `RETREAT_COST`). Basta uno para marcarla.
 
-```python
-if crustle_gust_worth_it:
-    values[Boss_Orders] = BOSS_PRIORITY_CRUSTLE_GUST
-```
-`BOSS_PRIORITY_CRUSTLE_GUST = 990` (constante definida en línea 369). Es la prioridad más alta de todo el ladder de arquetipo: el comentario de la constante dice que debe superar tanto a los cebos de robo de Lillie's (~650) como al resto de la escalera. Razón: contra Crustle nuestro atacante `ex` está bloqueado en el activo; sin Boss's Orders simplemente no hacemos nada útil ese turno.
+### Ramas de arquetipo (valor base)
 
-### Rama 1 — Fezandipiti ya listo (línea 2921-2923)
+Cadena `if/elif` que fija un valor base por matchup en una escala interna ~0–1000 que después `_score_boss_orders_play` traduce:
 
-```python
-elif _fez_active_can_attack:
-    values[Boss_Orders] = 0
-```
-Si nuestro propio activo (`Fezandipiti_ex`) ya puede atacar este turno, no hace falta gustear: se prioriza el ataque normal y Boss's Orders queda a 0 (pendiente de que el segundo bloque, más abajo, lo vuelva a subir si hay una razón táctica concreta — pero ese bloque está guardado por `not _fez_active_can_attack`, ver línea 3066, así que en la práctica esta rama apaga TODO el resto salvo el tercer bloque de "activo no puede atacar").
+- **Crustle, bypass de inmunidad** (`crustle_gust_worth_it`) → `BOSS_PRIORITY_CRUSTLE_GUST` (990), la prioridad más alta de la escalera: con nuestro ex bloqueado al frente, sin Boss's no hacemos nada útil ese turno.
+- **Fezandipiti ya listo** → 0 (se prioriza el ataque normal; el bloque táctico está guardado por `not _fez_active_can_attack`, así que esta rama apaga casi todo salvo la rama de "activo sin poder atacar").
+- **Tapu Bulu vs banca de Crustle** → 950: mazo Crustle, Tapu puede atacar, el activo rival no es Crustle pero hay uno en banca — subirlo y noquearlo antes de que llegue a muro activo.
+- **Mazo Drednaw**: sin atacante que "salte" el escudo (`_has_shell_bypass_attacker`: Meganium cargado o Dipplin) y con objetivos de banca → 980; con bypass, 500 si el bypass es Meganium (ya puede atacar al Drednaw directamente) u 850 si es solo Dipplin.
+- **Sylveon / línea Eevee**: Eevee en banca aún evolucionable → 850; Sylveon inmune en **banca** (no activo) con un atacante no-ex propio listo que pueda noquearlo (`_has_nonex_attacker_sylveon`) → 900.
+- **Líneas evolutivas amenazantes por arquetipo** (valores 690–850): Froslass en banca (850), Budew fuera de posición (800), Snorunt (780), Munkidori (750), Dwebble en banca (740), Eevee genérico (750), Dreepy/Drakloak (700, solo si la banca tiene una etapa **más avanzada** que el activo, mapa `_DRAGAPULT_STAGE`), línea Ethan/Typhlosion (700, `_ETHAN_STAGE`), Gardevoir (730), Alakazam (700, `_ALAKAZAM_STAGE`), Slowking (710), Dragapult/Dusknoir (700), Zoroark (690). Cada rama exige que el activo rival no sea ya la amenaza (si lo es, no hace falta gustear).
+- **Respaldo genérico**: `plan.target >= 1` (el `AttackPlan` ya identificó objetivo de banca) → 650; rival a ≤2 premios → 500; si no, 0.
 
-### Rama 2 — Tapu Bulu vs banca de Crustle (línea 2924-2926)
+## Bloque táctico fino
 
-```python
-elif (op_is_crustle_deck and _tapu_can_attack and not _op_active_is_crustle and
-        op_has_crustle_bench):
-    values[Boss_Orders] = 950
-```
-Mazo Crustle, nuestro `Tapu_Bulu` (no-`ex`, no bloqueado por la inmunidad) puede atacar, el activo rival actual **no** es un Crustle, pero hay un Crustle en su banca. Razón: conviene subir ese Crustle de banca al activo para que Tapu Bulu lo noquee antes de que llegue a convertirse en el muro activo.
+Solo se ejecuta con `Boss_Orders` **en mano**, `not _fez_active_can_attack` y activo rival presente. Este gate in-hand es deliberado y **no se relajó** al construir el motor Meowth: la maquinaria de este bloque (con fallbacks de retirada+ataque de banca) es cara y está pensada para decidir el PLAY inmediato; el caso "Boss's en el MAZO" lo cubre el bloque standalone mano-O-mazo (`_win_via_boss_gust`/`_gust_2prize_via_boss`/`_deny_evo_via_boss`, ver `main-09`), que replica las condiciones de forma **conservadora** (solo daño del activo, sin fallback de banca) para alimentar el fetch de Last-Ditch Catch.
 
-### Rama 3 — Mazo Drednaw (líneas 2928-2960)
+### `_boss_dmg_to(_tgt, _wave_bench_override=None)`
 
-Solo se evalúa si el activo rival es `Drednaw`. Se detecta si tenemos un atacante que "salta" el escudo de Drednaw (`_has_shell_bypass_attacker`: `Meganium` con ≥4 energía efectiva o `Dipplin` con ≥1 energía) y si hay objetivos válidos en banca rival distintos de otro `Drednaw` (`_drednaw_bench_targets`).
-- Sin atacante bypass y con objetivos en banca → `980` (máxima prioridad de esta rama: no podemos golpear el escudo del Drednaw activo de ninguna forma, así que hay que ir a buscar otra cosa a la banca).
-- Con atacante bypass y objetivos en banca:
-  - Si el bypass es `Meganium` (`_meganium_can_attack`) → `500` (moderado: Meganium ya puede atacar directamente al Drednaw activo, gustear compite con eso).
-  - Si el bypass es solo `Dipplin` → `850` (más alto: Dipplin reparte daño de área limitado, conviene más ir a buscar un objetivo específico en banca).
+Función interna: daño estimado de **nuestro activo actual** contra un objetivo si se le sube al activo, considerando el posible adjunte del turno. Umbrales y fórmulas por atacante (Hydrapple `30+30×total_grass` con ≥2 efectivas; Ogerpon con ≥3; Tapu 220 con ≥4; Fezandipiti 100 con ≥3; Meganium 140 con ≥4; Dipplin `20×banca` con override opcional; Pinsir 100 con ≥2). Aplica inmunidad ex y de Habilidad, la **Zona de Neutralización** (nuestro ex contra un objetivo sin Rule Box → 0: gustearlo sería inútil), debilidad/resistencia Planta (salvo Fezandipiti) y el tope de Drednaw (≥200 → 0).
 
-### Rama 4 — Sylveon / línea Eevee (líneas 2961-2985)
+### Sub-bloques (cada uno sube el valor con `max()` y deja su bandera)
 
-- `op_is_sylveon_deck and op_has_eevee_bench` → `850`: hay un `Eevee` en banca rival (aún sin evolucionar a Sylveon inmune).
-- `op_is_sylveon_deck and op_has_ex_immune_bench and not op_has_ex_immune_active` (2964-2985): el `Sylveon`/inmune-`ex` está en la **banca**, no en el activo (así que nuestro `ex` sí podría estar atacando al activo actual). Solo se activa si tenemos un atacante no-`ex` propio listo (`Tapu_Bulu` ≥4, `Meganium` ≥4, `Dipplin` ≥1, `Pinsir` ≥2 de energía efectiva) — `_has_nonex_attacker_sylveon` — para asegurarse de que gustear al Sylveon de banca es viable (podríamos noquearlo con un atacante que la inmunidad no bloquea). Si se cumple → `900`.
+- **Objetivo activo y mejor banca**: `_bo_active_dmg` (0 si `op_active_dodge_immune`), `_bo_can_ko_active`, `_bo_best_bench_dmg`/`_bo_best_bench_prize`. **Guarda Dwebble** (log 86339758): vs Crustle, los `Dwebble_*` de banca se saltan — el manejador de selección ya los veta como objetivo de gusteo, así que tampoco deben *motivar* jugar la carta (sin la guarda, el agente jugaba Boss's persiguiendo un KO a Dwebble que nunca se ejecutaba y acababa subiendo un rival menos trabado).
+- **`_bo_dipplin_combo`** (→ 960): con Dipplin activo con energía, banca libre y un básico propio en mano (`_OUR_BASICS_COMBO`), comprueba si bajar el básico primero hace que `20×banca` alcance para noquear un objetivo de `HIGH_PRIORITY_BENCH_TARGETS`/`THREAT_PREEVO_IDS` que con la banca actual no caía → bandera `_boss_dipplin_combo`.
+- **`_bo_win_via_bench`** (→ 990): noquear el mejor objetivo de banca cubre los premios que nos faltan (`_bo_best_bench_prize >= my_prize`) y el KO del activo no logra lo mismo → bandera `_boss_win_via_bench`.
+- **`_bo_deny_evo_target` (negar línea evolutiva)**: para cada banca rival se comprueban: `_bo_pe_is_threat` (en `THREAT_PREEVO_IDS`: `Riolu`, `Duraludon`, `Hops_Phantump`, `Dwebble_*`, `Buneary`, **`Rockets_Tarountula`** — pre-evo barata del motor de la línea Rocket's Mewtwo, añadida en la auditoría); `_bo_pe_is_ex_preevo_energized` (en `EX_PREEVO_IDS` — que ahora incluye **la línea Cynthia: `Cynthias_Gible` y `Cynthias_Gabite`** — con ≥1 energía y premios iguales a los del activo; la guarda `NONEX_FINAL_PREEVO_IDS` excluye Abra/Kadabra porque su forma final `Alakazam_ex` vale 1 premio); `_bo_pe_is_ex_line_vs_wall` (activo rival = muro inofensivo sin energía y pre-evo ex en banca aunque esté sin cargar); y `_bo_pe_is_energized_preevo_vs_bare_wall` (log 86402439, línea Marnie: ambas etapas en `EX_PREEVO_IDS`, activo Impidimp desnudo → gustear el Morgrem energizado corta la línea de Grimmsnarl ex por el mismo premio). Si el daño directo no basta, hay fallback con `_bench_attacker_can_ko` tras retirar (`_bo_de_can_retreat`, contempla la carta de intercambio). El descarte por "el activo ya rinde igual o más premios" se refina con `_bo_active_prize_dominates`: para pre-evos AMENAZA solo domina si el activo rinde **estrictamente** más premios (registro_007 vs Archaludon: con premios iguales, gustear la pre-evo gana porque además remueve al atacante) **o** si el activo rival es él mismo una `THREAT_PREEVO_IDS` igual o más desarrollada (`energía >=` la de banca; registro_006: atacar al Duraludon grande con Hero's Cape en vez de gustear la copia débil de banca). La adición de la línea Cynthia corrige que el deny-evo jamás disparara vs Cynthia: el agente atacaba al muro Spiritomb en vez de gustear el Gabite energizado; la regla general es **privilegiar siempre cortar la línea evolutiva del atacante ex rival**. Bandera `_boss_deny_evo`.
+- **`_bo_deny_alakazam_line`** (→ 965; registro 010, GANADA): cuando el activo rival está **fuera** de la línea Alakazam (p.ej. un Dunsparce-muro) y en banca hay una pieza Abra/Kadabra/Alakazam noqueable (directa o tras retirar), se gustea para cortar el desarrollo del atacante Psíquico (prioridad de objetivo Kadabra > Abra > Alakazam, elegida por el manejador de selección). No contradice la regla "no gustear pre-evo de línea no-ex": esa aplica cuando el activo rival ya es de la línea (atacarlo ya la golpea); como Abra/Kadabra están en `NONEX_FINAL_PREEVO_IDS`, el deny-evo genérico los ignora y esta regla los cubre solo en el caso "activo fuera de línea". Bandera `_boss_deny_alakazam_line`.
+- **`_bo_gust_key_bench`** (→ 975): el activo rival no es un `KEY_BENCH_ATTACKER_IDS` (línea Hop: Trevenant/Phantump) pero sí lo hay en banca y es noqueable → cazar al atacante clave aunque el activo valga los mismos premios; la preferencia fina (evolución con energía > sin energía > pre-evo) la resuelve `_boss_tier`. Bandera `_boss_gust_key_bench`.
+- **Redirección por esquiva** (→ 985 con KO en banca, 970 con solo daño): con `op_active_dodge_immune` (Splashing Dodge con cara), atacar al activo no sirve este turno; se redirige el golpe a banca. Bandera `_boss_dodge_redirect`.
+- **Boost por diferencia de premios**: si el mejor objetivo de banca vale estrictamente más premios que el activo y no estamos "cambiando a la baja" (`_bo_trade_down`: dañar parcialmente un activo que vale más), el valor sube a `960 + 10 × diferencia`.
+- **Snipe de espejo sin energía** (→ 955): si el activo rival noqueable está sin energía y hay una copia idéntica energizada en banca, mejor noquear la copia cargada.
+- **Gusteo defensivo vs KO letal inminente** (→ 940): si nuestro activo (Básico/Fase 1) morirá el próximo turno (`estimated_op_damage >= hp`) y no hay razón ofensiva mejor, buscar en banca rival un Pokémon que no pueda retirarse ni noquearnos (aun adjuntando una energía, con la debilidad de nuestro activo aplicada), y subirlo para robarle al rival su turno de ataque letal. Bandera `_boss_defensive_gust` (variante in-hand; hay otra standalone vs Crustle en `main-09`).
+- **Downgrades a 0** ("atacar ya es suficiente"): si el KO directo del activo ya cierra/iguala lo necesario, o el mejor objetivo de banca no vale más que el activo energizado, o el daño al activo lo deja a ≤100 HP — el valor se pisa a 0 y se marca `_active_attack_sufficient`.
 
-### Ramas 5-14 — detección de línea evolutiva amenazante por arquetipo (líneas 2986-3057)
+### Rama "nuestro activo NO puede atacar este turno"
 
-Cada una comprueba si el activo rival **ya es** la amenaza (en cuyo caso no hace falta gustear, se salta la rama) y si en la banca hay una pieza de la línea evolutiva de ese arquetipo:
+Guardada por `_active_cant_attack_this_turn` (ver `main-07`) y Boss's en mano. Recolecta el daño potencial de todos los atacantes propios (incluidos Bayleef y Chikorita, con daños menores) asumiendo un adjunte, y busca KOs de alto valor en banca rival aplicando debilidad/resistencia, inmunidades y el tope de Drednaw: objetivo ex o Stage-2 noqueable → `_boss_ko_ex_value` (985); si no, objetivo con ≥1 energía → `_boss_ko_energy_value` (970). Sin KO valioso: si el propio activo rival está "atascado" (coste de retirada − energía ≥2), se deja trabado (valor 0 — mantenerlo ahí es gratis); si no, se busca un objetivo de **stall** en banca contra un umbral dinámico (1 si el activo rival no tiene coste de retirada, 2 en caso contrario; diferencia ≥2 → 975, si no → 900), con la guarda de `op_has_latias_ex`: solo cuentan Básicos, porque *Skyliner* retira gratis a las evoluciones. **Guarda Crustle** (log 86507974): solo se justifica el gusteo defensivo si el activo rival amenaza de forma inminente (puede atacar ya o le falta exactamente 1 energía para su ataque con daño); con ≥2 energías de distancia no hay ataque que neutralizar y el valor se fuerza a 0.
 
-| Rama | Condición | Score | Razón |
-|---|---|---|---|
-| Froslass (2986-2987) | `op_has_froslass` y el activo NO es ya `Froslass` | 850 | Froslass amenaza en banca, sacarla antes de que suba sola. |
-| Budew fuera de posición (2988-2989) | `budew_on_op_field and budew_op_index >= 1` | 800 | Budew (con *Itchy Pollen*) está en banca, no en activo; se prioriza sacarlo. |
-| Snorunt en banca (2990-2991) | `op_has_snorunt_bench` | 780 | Pre-evolución de Froslass detectada en banca. |
-| Munkidori (2992-2993) | `op_has_munkidori` y activo ≠ Munkidori | 750 | Munkidori (control) en banca. |
-| Dwebble en banca (2994-2995) | `op_has_dwebble_bench` | 740 | Pre-evolución de Crustle en banca (mazo aún no confirmado Crustle-activo). |
-| Eevee genérico (2996-2997) | `op_has_eevee_bench` | 750 | Cualquier miembro de `EEVEE_IDS` en banca (rama genérica, no exclusiva de Sylveon). |
-| Dreepy/Drakloak → Dragapult (2998-3013) | `op_has_dreepy_line`; compara `_DRAGAPULT_STAGE` del activo vs. mejor etapa en banca | 700 si la banca tiene una etapa **más avanzada** que el activo, si no `0` | Solo conviene gustear si eso saca una pieza más cerca de evolucionar a `Dragapult_ex` que la que ya está activa. |
-| Typhlosion / línea Ethan (3014-3028) | `op_has_typhlosion or op_has_ethan_preevo`; mismo patrón `_ETHAN_STAGE` (`Cyndaquil`1/`Quilava`2/`Typhlosion`3) | 700 / 0 | Igual lógica: solo si la banca tiene una etapa más avanzada. |
-| Gardevoir (3030-3032) | `op_is_gardevoir_deck` y hay `Ralts`/`Kirlia` en banca | 730 | — |
-| Alakazam (3033-3047) | `op_is_alakazam_deck`; mismo patrón `_ALAKAZAM_STAGE` (`Abra`1/`Kadabra`2/`Alakazam_ex`3, aunque el "ex" es engañoso, ver guarda `NONEX_FINAL_PREEVO_IDS` más abajo) | 700 / 0 | — |
-| Slowking (3049-3051) | `op_is_slowking_deck` y `Slowpoke` en banca | 710 | — |
-| Dragapult/Dusknoir (3052-3054) | `op_is_dragapult_dusknoir` y `Duskull`/`Dusclops` en banca | 700 | — |
-| Zoroark (3055-3057) | `op_is_zoroark_deck` y `Zorua_N` en banca | 690 | — |
+### Activo rival con inmunidad de Habilidad (Cornerstone)
 
-### Ramas de respaldo genérico (líneas 3058-3063)
+Bloque separado: si `op_has_ability_immune_active` y el atacante del plan (`plan.attacker`) ya está listo con o sin adjunte, gustear libera el bloqueo de Habilidad forzando el cambio de activo (→ 980); si el plan no tiene atacante listo, basta cualquier Pokémon propio no dependiente de Habilidad (`not in OUR_ABILITY_IDS`) que alcance su requisito de `_ATK_REQS_BOSS` con o sin adjunte (→ 960, `_has_non_ability_attacker_ready`).
 
-```python
-elif plan.target >= 1:
-    values[Boss_Orders] = 650
-elif op_prize <= 2:
-    values[Boss_Orders] = 500
-else:
-    values[Boss_Orders] = 0
-```
-Si ninguna regla de arquetipo aplicó: si el `AttackPlan` del turno ya identificó un objetivo válido (`plan.target >= 1`, calculado en el bloque de amenaza/plan previo, líneas ~1985-2900) se da una base de `650`; si el rival está a ≤2 premios de ganar se da `500` (presión defensiva genérica); si no, `0`.
+## `_score_boss_orders_play(ctx)`: del valor a la puntuación de PLAY
 
-> Estas 15 ramas de arquetipo (2919-3063) fijan un **valor base** por matchup. El siguiente bloque (3065-3409) lo puede **subir** con `max()` según haya o no una jugada táctica concreta esta vuelta, y en algunos casos lo **resetea a 0** de forma explícita cuando atacar normalmente ya es suficiente.
+Función de módulo con `DecisionContext`. Orden de resolución:
 
-### Bloque fino de valoración táctica (líneas 3065-3409)
+1. **Vetos** (`SCORE_VETO`): `supporterPlayed`; Unfair Stamp pendiente tras KO (el Stamp va primero); y la regla Dunsparce — vs Alakazam con Dunsparce activo rival y nuestro activo sin poder atacar, no despejar el muro.
+2. **`ctx.win_via_boss_gust` → `BOSS_SCORE_WIN_NOW`**: gusteo GANADOR (el activo noquea un objetivo de banca y con ello toma los premios que faltan). Debe superar cualquier retirada/pivote defensivo — antes se puntuaba como win_via_bench y el agente **retiraba en vez de rematar** (registro 019 vs Dragapult).
+3. **`ctx.gust_2prize_via_boss` → `BOSS_SCORE_GUST_2PRIZE`**: el activo ya noquea al activo rival (1 premio) pero un ex de banca noqueable vale 2 (registro_008 vs Rocket's Mewtwo ex): cobrar 2 premios y eliminar al atacante difícil. Por encima de retiradas/pivotes, por debajo del remate ganador.
+4. **Cesiones a Lillie's → `BOSS_SCORE_EMPTY_GUST`**: `_boss_first_turn_cede` (en nuestro primer turno con Lillie's en mano, Lillie's siempre va primero); `_boss_empty_gust` (activo sin poder atacar y sin razón valiosa: el gusteo no es ejecutable como remate); y `_boss_cede_dig` (con Lillie's en mano y **sin atacante real de banca listo** — `ctx.has_ready_bench_attacker`, que nunca cuenta un Applin —, un gusteo de desarrollo no encadena y conviene cavar; se exceptúan todos los gusteos valiosos, incluidos `boss_ko_threat_preevo` y `boss_deny_alakazam_line`).
+5. **Escalera de valor**: muro inmune activo con valor alto → `BOSS_SCORE_WALL_GUST`; `boss_dodge_redirect` → `BOSS_SCORE_DODGE_REDIRECT`; `boss_win_via_bench` → `BOSS_SCORE_WIN_VIA_BENCH`; `boss_deny_alakazam_line` → `BOSS_SCORE_PRIZE_RANK_BASE`; `boss_low_value_gust` → `BOSS_SCORE_LOW_VALUE_GUST`; `boss_prize_rank >= 1` → `BOSS_SCORE_PRIZE_RANK_BASE + (8 − rank) × 20`; `boss_defensive_gust` → `BOSS_SCORE_DEFENSIVE_GUST`.
+6. **Fallback**: sin valor positivo → veto; si no, `SCORE_SUPPORTER_VALUE_BASE + int(valor × 1.4)` (la conversión genérica valor-de-supporter → score de PLAY). Todas las ramas positivas suman `ctx.supporter_boost` (el empujón cuando la mano está "vacía" de alternativas).
 
-Solo se ejecuta si tenemos Boss's Orders en mano, nuestro Fezandipiti activo no está ya listo, y el rival tiene un activo:
-```python
-if (hand_counts.get(Boss_Orders, 0) >= 1 and not _fez_active_can_attack
-        and op_state.active and op_state.active[0] is not None):
-```
-
-#### `_boss_dmg_to(_tgt, ...)` — daño estimado si gusteamos y atacamos (líneas 3072-3112)
-Función interna que estima el daño que haría **nuestro activo actual** (`_bo_atk`) contra un objetivo `_tgt` si se le sube al puesto activo, considerando una posible energía adicional este turno (`_bo_attach`, solo si hay `Basic_Grass_Energy` en mano y no se adjuntó ya). Fórmulas de daño por atacante (idénticas a las usadas en el resto del motor): `Hydrapple_ex` (30+30×grass si ≥2 efectivas), `Teal_Mask_Ogerpon_ex` (30+30×energía propia+objetivo si ≥3), `Tapu_Bulu` (220 fijo si ≥4), `Fezandipiti_ex` (100 si ≥3), `Meganium` (140 si ≥4), `Dipplin` (20×banca, override opcional `_wave_bench_override`), `Pinsir` (100 si ≥2). Aplica después:
-- Inmunidad `ex` (`EX_IMMUNE_IDS` + atacante en `OUR_EX_IDS` → 0) y de habilidad (`ABILITY_IMMUNE_IDS` + atacante en `OUR_ABILITY_IDS` → 0).
-- Debilidad/resistencia Planta del objetivo (salvo cuando el atacante es `Fezandipiti_ex`, cuyo ataque no es de tipo Planta): ×2 si debilidad, −30 si resistencia.
-- Guarda especial `Drednaw`: si el daño calculado llega a ≥200, se anula a 0 (representa que Drednaw resiste/ignora ese golpe).
-
-#### Objetivo activo y mejor objetivo de banca (líneas 3114-3141)
-- `_bo_active_dmg`: 0 si `op_active_dodge_immune` (el rival acaba de esquivar con *Splashing Dodge* de Hop's Phantump y tiene inmunidad de un turno), si no `_boss_dmg_to(activo)`.
-- `_bo_can_ko_active`, `_bo_active_prize` (premios que valdría noquear al activo, solo si se puede noquear).
-- Bucle de banca (3122-3141) calcula `_bo_best_bench_dmg` y `_bo_best_bench_prize` (mejor objetivo noqueable). **Guarda log 86339758 (paso 98)**: si `op_is_crustle_deck`, se salta cualquier `Dwebble_Grass`/`Dwebble_Fighting` de banca — el manejador de selección ya veta a Dwebble como objetivo de gusteo (`score=-100000`), así que no debe poder *motivar* jugar Boss's Orders tampoco (si no, el agente jugaba Boss's persiguiendo un KO a Dwebble que nunca se ejecuta, y terminaba subiendo un objetivo peor).
-
-#### `_bo_dipplin_combo` — combo Dipplin + refuerzo de banca (líneas 3142-3166)
-Si nuestro activo es `Dipplin` con ≥1 energía y hay banca libre (`bench_count < 5`) y algún básico propio en mano (`_OUR_BASICS_COMBO = (Chikorita, Applin, Teal_Mask_Ogerpon_ex, Tapu_Bulu, Meowth_ex, Fezandipiti_ex, Pinsir)`), comprueba si **bajar ese básico primero** (banca+1, `_combo_bench`) permite que el ataque de área de Dipplin (`20×banca`) alcance para noquear un objetivo de `HIGH_PRIORITY_BENCH_TARGETS`/`THREAT_PREEVO_IDS` que con la banca actual **no** se podía noquear (`_boost_ko and not _cur_ko`). Si se cumple → `values[Boss_Orders] = max(…, 960)` y bandera `values['_boss_dipplin_combo'] = True`.
-
-#### `_bo_win_via_bench` — gusteo letal por premios (líneas 3168-3176)
-```python
-_bo_win_via_bench = (_bo_best_bench_prize > 0
-                     and _bo_best_bench_prize >= my_prize
-                     and not (_bo_can_ko_active and my_prize <= prize_count(_bo_op_active)))
-```
-Si noquear el mejor objetivo de banca ya cubre los premios que nos faltan para ganar (`_bo_best_bench_prize >= my_prize`) y noquear el activo actual **no** logra lo mismo, gustear para ganar tiene prioridad máxima → `max(…, 990)`, bandera `_boss_win_via_bench`.
-
-#### `_bo_deny_evo_target` — negar una línea evolutiva (líneas 3177-3260)
-Bloque comentado extensamente en el propio código (3207-3237). Solo se evalúa si aún no se ganó por banca ni por KO del activo. Para cada Pokémon de banca rival (con la misma guarda anti-Dwebble/Crustle del log 86339758, línea 3195-3198) se comprueban tres condiciones alternativas:
-- `_bo_pe_is_threat`: está en `THREAT_PREEVO_IDS` (`Riolu, Duraludon, Hops_Phantump, Dwebble_Grass, Dwebble_Fighting, Buneary`).
-- `_bo_pe_is_ex_preevo_energized`: está en `EX_PREEVO_IDS` **y no** en `NONEX_FINAL_PREEVO_IDS`, tiene ≥1 energía, y noquear el activo actual da el mismo número de premios que noquear esta pieza (`prize_count(_bo_op_active) == prize_count(_bo_pe)`). **Guarda `NONEX_FINAL_PREEVO_IDS = {Abra, Kadabra}`**: aunque `Abra`/`Kadabra` están en `EX_PREEVO_IDS`, su evolución final (`Alakazam_ex = 743`) es en realidad **no-ex de 1 premio** en este entorno (el nombre de la constante es engañoso, según el comentario de la línea 306-312); negar esa línea no vale más que noquear un muro cualquiera, así que se excluye explícitamente.
-- `_bo_pe_is_ex_line_vs_wall` (3215-3223): el activo rival es un **muro inofensivo sin energía** (`len(_bo_op_active.energies) == 0`, vale ≤1 premio, y no es él mismo parte de una línea `ex`/amenaza/atacante clave) y en banca hay una pre-evolución `ex` (aunque tenga 0 energía). Se gustea igualmente porque noquear el muro no corta ninguna amenaza, mientras que cortar la pre-evolución `ex` sí.
-- `_bo_pe_is_energized_preevo_vs_bare_wall` (3235-3237): variante para líneas donde **ambas** etapas están en `EX_PREEVO_IDS` (p. ej. Marnie: `Impidimp`→`Morgrem`→`Grimmsnarl_ex`, ambas pre-evos en `EX_PREEVO_IDS`), así que `_bo_pe_is_ex_line_vs_wall` no aplica (exige que el activo NO esté en `EX_PREEVO_IDS`). **Log 86402439 (paso 100)**: noquear el `Impidimp` desnudo del activo (1 premio, reemplazable) rinde lo mismo en premios que gustear+noquear el `Morgrem` energizado de banca (también 1 premio), pero gustear el Morgrem corta la línea del atacante principal (`Grimmsnarl_ex`) antes de que evolucione; por eso se prioriza el Morgrem energizado cuando el activo es un muro sin energía de la misma línea.
-
-Si el daño directo no basta, se comprueba si un atacante de banca propio podría rematar tras retirarse el activo (`_bench_attacker_can_ko`, sujeto a poder retirarse: `_bo_de_can_retreat`, contempla la carta `Switch`/id 1123 como retirada gratis). Solo se descarta el objetivo si noquear el activo ya iguala o supera los premios de negar la línea (`prize_count(_bo_op_active) >= prize_count(_bo_pe))`, salvo que sea uno de los dos casos "vs muro" (`_bo_pe_is_ex_line_vs_wall` / `_bo_pe_is_energized_preevo_vs_bare_wall`), que se priorizan igualmente. Si se encuentra un objetivo válido → `max(…, 965)`, bandera `_boss_deny_evo`.
-
-#### `_bo_gust_key_bench` — cazar al atacante clave del mazo rival (líneas 3261-3288)
-Comentario explicativo (3261-3268): si el activo rival **no** es un `KEY_BENCH_ATTACKER_IDS` (`Hops_Trevenant`, `Hops_Phantump` — atacante principal del mazo Hop) pero sí lo hay en banca y es noqueable (directo o vía retiro+ataque de banca), se prioriza gustear esa pieza aunque el activo actual valga los mismos premios. La elección fina entre Trevenant-con-energía > Trevenant-sin-energía > Phantump-con-energía > Phantump-sin-energía la resuelve `_boss_tier` en la selección de objetivo (fuera de este bloque). Si aplica → `max(…, 975)`, bandera `_boss_gust_key_bench`.
-
-#### Redirección por esquiva / dodge (líneas 3290-3296)
-```python
-if op_active_dodge_immune and not _bo_win_via_bench:
-    if _bo_best_bench_prize > 0:
-        values[Boss_Orders] = max(values.get(Boss_Orders, 0), 985)
-    elif _bo_best_bench_dmg > 0:
-        values[Boss_Orders] = max(values.get(Boss_Orders, 0), 970)
-```
-Si el activo rival tiene inmunidad temporal por el "dodge" de *Splashing Dodge* (Hop's Phantump, tras acertar cara en el volado, ver detección en líneas 1580-1609), atacarlo directamente no sirve de nada este turno: conviene redirigir el golpe a la banca. `985` si hay un objetivo noqueable en banca, `970` si solo hay daño parcial disponible.
-
-#### Boost por diferencia de premios (líneas 3298-3306)
-```python
-if _bo_best_bench_prize > _bo_active_prize and _bo_best_bench_prize > 0:
-    _bo_trade_down = (not _bo_can_ko_active and _bo_active_dmg > 0
-                      and _bo_active_prize_val > _bo_best_bench_prize)
-    if not _bo_trade_down:
-        _bo_prize_diff = _bo_best_bench_prize - _bo_active_prize
-        values[Boss_Orders] = max(values.get(Boss_Orders, 0), 960 + 10 * _bo_prize_diff)
-```
-Si el mejor objetivo de banca vale estrictamente más premios que el activo, y no estamos ya "cambiando a la baja" (dañando parcialmente un activo de más premios sin poder noquearlo), se sube el valor a `960 + 10 × diferencia_de_premios` — cuanto mayor la diferencia de premios ganados, mayor la prioridad.
-
-#### Snipe de espejo sin energía (líneas 3308-3315)
-Si podemos noquear el activo rival y este está **sin energía** (`len(_bo_op_active.energies) == 0`), se busca en banca una copia idéntica (`_bo_bp.id == _bo_op_active.id`) que sí tenga energía y sea noqueable — noquear la copia energizada en banca es mejor que noquear la copia desnuda activa. Si existe → `max(…, 955)`.
-
-#### Boss's Orders defensivo vs KO letal inminente (líneas 3317-3385)
-Comentario extenso (3317-3332): si nuestro activo va a ser noqueado el próximo turno (`estimated_op_damage >= hp del activo`) y no hay ninguna razón ofensiva mejor ya detectada (`not _bo_can_ko_active and not _bo_win_via_bench and not _bo_deny_evo_target and not _bo_gust_key_bench and not _bo_dipplin_combo`), y nuestro activo es un Básico o Fase 1 (`_bo_active_basic_or_s1`, ≤1 pre-evolución), se busca en banca rival un objetivo que:
-- no pueda retirarse este turno (`_bo_dg_e < _bo_dg_rc`), y
-- no pueda noquear a nuestro activo el próximo turno aun adjuntando 1 energía extra (`_bo_dg_dmg_vs_us < hp de nuestro activo`, aplicando debilidad Planta de nuestro activo al tipo del objetivo si corresponde).
-
-Si se encuentra, se sube al activo rival ese Pokémon inofensivo para "robarle" el turno de ataque letal al rival. Si aplica → `max(…, 940)`, bandera `_boss_defensive_gust`.
-
-#### Downgrades a 0 — "atacar ya es suficiente" (líneas 3387-3409)
-Tres controles que **fuerzan el valor a 0** (no usan `max`, lo pisan) cuando ya se puede lograr lo mismo sin gastar el Supporter:
-1. (3387-3399) Si `_bo_can_ko_active` y ninguna razón de banca/negación/combo aplicó: si `my_prize <= prize_count(activo)` (el KO directo ya cierra la partida o iguala lo necesario) → `0`. También si el mejor objetivo de banca no vale más premios que el activo y este ya tiene energía → `0`. También un caso específico `Crustle_Grass` con energía y banca no mejor → `0`.
-2. (3401-3409) Si el activo ya recibe algo de daño (`_bo_active_dmg > 0`) sin razón de banca/negación/combo/defensiva, y ese daño lo noquea o lo deja a ≤100 HP restante (`_bo_active_remaining <= 100`), se considera que el ataque normal "ya es suficiente" → `0` y bandera `_active_attack_sufficient`.
-
-### Boss's Orders cuando nuestro activo NO puede atacar este turno (líneas 3411-3608)
-
-Guardado por `_active_cant_attack_this_turn` (calculado antes, líneas ~2816-2856, con una estimación probabilística de si *Teal Dance* de Ogerpon dará energía) y por tener Boss's Orders en mano.
-
-#### Recolección de atacantes futuros (líneas 3416-3450)
-Recorre activo+banca (solo banca si `can_switch`) calculando el daño potencial de cada uno de nuestros atacantes principales (mismas fórmulas que `_boss_dmg_to`, más `Bayleef` 60 y `Chikorita` 30) asumiendo 1 energía extra adjuntable este turno.
-
-#### KO a objetivo de alto valor en banca (líneas 3452-3489)
-Para cada combinación (atacante propio, objetivo de banca rival) calcula el daño efectivo (aplicando debilidad/resistencia, inmunidad `ex`/habilidad, y el tope especial de `Drednaw` ≥200→0). Si algún atacante noquea:
-- objetivo `ex` o `stage2` → `_boss_ko_ex_value = max(…, 985)`.
-- si no, pero el objetivo tiene ≥1 energía → `_boss_ko_energy_value = max(…, 970)`.
-Se aplica el mayor de los dos a `values[Boss_Orders]`.
-
-#### Fallback: activo rival "atascado" o stall (líneas 3491-3535)
-Si no hay KO de alto valor disponible: se mide si el propio activo rival está atascado (`_op_active_stuck`, diferencia coste de retirada − energía ≥2). Si lo está, no hace falta forzar nada (`values[Boss_Orders] = 0` si no había ya un valor positivo — dejarlo atascado ahí es gratis). Si no está atascado, se busca en banca un objetivo de **stall** (diferencia retiro−energía ≥ `_stall_threshold`, que es 1 si el activo no tiene coste de retirada o 2 en caso contrario), con guarda extra: si `op_has_latias_ex`, solo cuentan Básicos (ni `stage1` ni `stage2`, porque Latias permite retirar gratis a evoluciones). Si el mejor candidato tiene diferencia ≥2 → `975`, si no → `900`.
-
-#### Guarda final Crustle — solo amenaza inminente (líneas 3536-3575)
-**Log 86507974 (paso 141)**: exclusivo de `op_is_crustle_deck` (y solo si no se disparó ya `crustle_gust_worth_it`, `_boss_ko_ex_value` ni `_boss_ko_energy_value`). Si nuestro activo no puede atacar, solo se justifica Boss's Orders defensivamente cuando el activo rival amenaza de forma **inminente**: puede atacar ya, o le falta exactamente 1 energía (`energía_actual + 1 >= coste_mínimo_del_ataque`). Si necesita ≥2 energías más, no hay nada que neutralizar todavía y se fuerza `values[Boss_Orders] = 0` (no gastar el Supporter en vano).
-
-### Activo rival con inmunidad de habilidad (Cornerstone Ogerpon) (líneas 3577-3608)
-Bloque separado, condicionado a `op_has_ability_immune_active and plan.target >= 1`:
-- Si nuestro atacante planificado (`plan.attacker`) ya está listo (con o sin adjunte de energía este turno) → `max(…, 980)`: gustear libera el bloqueo de habilidad forzando un cambio de activo.
-- `elif op_has_ability_immune_active and len(op_state.bench) >= 1` (3585-3607): si el plan no tiene atacante listo, busca cualquier Pokémon propio **no dependiente de habilidad** (`not in OUR_ABILITY_IDS`) que alcance el requisito de energía de `_ATK_REQS_BOSS = {Tapu_Bulu:4, Dipplin:1, Bayleef:2, Chikorita:1, Applin:1, Pinsir:2}`, con o sin adjunte este turno → `max(…, 960)`.
+Jerarquía numérica de las constantes: `BOSS_SCORE_WIN_NOW` (20000, techo: gana la partida) ≫ `BOSS_SCORE_GUST_2PRIZE` (6800, supera retiradas/pivotes ~6500-6600) > `XEROSIC_SCORE_ALAKAZAM` > Lillie's hydra-cargado > `BOSS_SCORE_WIN_VIA_BENCH` (5600) ≈ `BOSS_SCORE_WALL_GUST` (5500) ≈ `BOSS_SCORE_DODGE_REDIRECT` (5500) > `BOSS_SCORE_PRIZE_RANK_BASE` (5200, afinado por rank) > `BOSS_SCORE_LOW_VALUE_GUST` (1500) ≈ `BOSS_SCORE_DEFENSIVE_GUST` (1500) ≫ `BOSS_SCORE_EMPTY_GUST` (20, cede a Lillie's).
 
 ## Interacciones
 
-- **Constantes globales usadas**: `BOSS_PRIORITY_CRUSTLE_GUST = 990` (línea 369, exclusiva de esta rama). Las constantes `BOSS_SCORE_WIN_VIA_BENCH`, `BOSS_SCORE_WALL_GUST`, `BOSS_SCORE_DODGE_REDIRECT`, `BOSS_SCORE_PRIZE_RANK_BASE`, `BOSS_SCORE_LOW_VALUE_GUST`, `BOSS_SCORE_DEFENSIVE_GUST`, `BOSS_SCORE_EMPTY_GUST` (líneas 383-389) **no** se usan dentro de este bloque: se consumen mucho más adelante (líneas ~10662-10682) al puntuar las opciones `TO_ACTIVE` — es decir, una vez decidido *que sí* conviene jugar Boss's Orders (con el valor calculado aquí), otra escalera decide *a quién* subir.
-- Las banderas booleanas que este bloque escribe en `values` (`'_boss_win_via_bench'`, `'_boss_deny_evo'`, `'_boss_gust_key_bench'`, `'_boss_dodge_redirect'`, `'_boss_defensive_gust'`, `'_boss_dipplin_combo'`, `'_active_attack_sufficient'`) son leídas más adelante en `agent()` para justificar o vetar decisiones relacionadas (p. ej. si conviene jugar el `Boss_Orders` como `PLAY`, o si otra rama de ataque debe ceder prioridad).
-- Las variables `_win_via_boss_gust`, `_gust_2prize_via_boss` y `_boss_prize_rank` (calculadas más adelante, líneas 3831-4052, fuera de este rango) son un cálculo **independiente y posterior** dentro de la misma región de "Supporters y banderas de decisión" (documento `main-09-agent-supporters-and-flags.md`): reevalúan, ya con el `AttackPlan` cerrado, si Boss's Orders "gana la partida" o "gustea a un objetivo de 2 premios", y esas banderas sí se usan para vetar/forzar Lillie's Determination y para puntuar el `PLAY` real de la carta (líneas 4773, 5734-5744, 8025, 8810-8884, 9936) y en `_boss_tier` (líneas 6590-6625) para la selección `TO_ACTIVE`.
-- `DUNSPARCE_IDS` (línea 283, "nunca gustear con Boss's Orders") y `_boss_tier` no se usan dentro de este bloque de puntuación: actúan como veto en la selección de objetivo concreto (líneas 6468, 10616), no en si se juega o no la carta.
-- El bloque depende de banderas de matchup calculadas antes (`op_is_crustle_deck`, `op_is_drednaw_deck`, `op_is_sylveon_deck`, `op_has_froslass`, `budew_on_op_field`, `op_has_snorunt_bench`, `op_has_munkidori`, `op_has_dwebble_bench`, `op_has_eevee_bench`, `op_has_dreepy_line`, `op_has_typhlosion`/`op_has_ethan_preevo`, `op_is_gardevoir_deck`, `op_is_alakazam_deck`, `op_is_slowking_deck`, `op_is_dragapult_dusknoir`, `op_is_zoroark_deck`, `op_has_ability_immune_active`) que se detectan en el bloque de "Detección de matchup" (líneas ~1477-1985, `main-06-agent-matchup-detection.md`), inspeccionando activo **y** banca rival visibles.
-- Depende también de `plan.target` y `estimated_op_damage`, calculados en el bloque de amenaza/plan de ataque inmediatamente anterior (líneas ~1985-2900, `main-07-agent-threat-and-plan.md`), y de `_active_cant_attack_this_turn` (calculado en líneas 2816-2856, dentro de ese mismo bloque previo).
+- Las banderas escritas en `values` se releen como `_supp_values.get(...)` tras `evaluate_supporters()` y alimentan tanto `_score_boss_orders_play` (vía `DecisionContext`) como los vetos/forzados de otras jugadas (`_lucario_riolu_gust`, cesiones de Lillie's, fetch de Meowth).
+- `_win_via_boss_gust`, `_gust_2prize_via_boss`, `_deny_evo_via_boss` y `_boss_prize_rank`/`_boss_ko_threat_preevo` son cálculos **independientes y posteriores** (documento `main-09`): reevalúan con el `AttackPlan` cerrado y con Boss's en mano **o en el mazo**, y son los que habilitan el motor Meowth ex → Last-Ditch Catch → Boss's.
+- `DUNSPARCE_IDS` y `_boss_tier` actúan en la selección de objetivo (`TO_ACTIVE`), no aquí.
+- El bloque depende de las banderas de matchup de `main-06` y de `plan.target`/`estimated_op_damage`/`_active_cant_attack_this_turn` de `main-07`.
 
 ## Reglas derivadas de partidas
 
-- **log 86339758 (paso 98)** — mazo Crustle: NO gustear ni dejar que `Dwebble_Grass`/`Dwebble_Fighting` de banca *motiven* jugar Boss's Orders, porque el manejador de selección ya veta a Dwebble como objetivo (`score=-100000`). Aplicado en dos puntos: el bucle de mejor objetivo de banca (líneas 3132-3133) y el bucle de negación de línea evolutiva (líneas 3197-3198). Sin este veto, el agente jugaba Boss's persiguiendo un KO a Dwebble que nunca se ejecutaba, y terminaba subiendo al activo un Pokémon rival *menos* trabado (p. ej. Mega Kangaskhan ex con energía) en vez de dejar el más trabado (mayor coste de retirada neto) en el puesto activo.
-- **log 86402439 (paso 100)** — línea Marnie (`Impidimp` → `Morgrem` → `Grimmsnarl_ex`): cuando el activo rival es un `Impidimp` desnudo (0 energía, 1 premio) de la misma línea, gustear el `Morgrem` energizado de banca (también 1 premio) rinde el mismo premio inmediato pero además corta la evolución hacia `Grimmsnarl_ex` (atacante principal, 2 premios). Implementado en la bandera `_bo_pe_is_energized_preevo_vs_bare_wall` (líneas 3235-3237), que evita que la condición general de "activo ya vale igual o más premios" (línea 3250-3254) descarte este caso.
-- **log 86507974 (paso 141)** — exclusivo mazo Crustle: cuando nuestro activo no puede atacar este turno, solo se juega Boss's Orders por motivo puramente defensivo si el activo rival es una amenaza **inminente** (puede atacar ya, o solo le falta 1 energía). Si necesita 2 o más energías, no hay ataque que neutralizar todavía, así que se fuerza `values[Boss_Orders] = 0` para no gastar el Supporter en vano (líneas 3536-3575).
-- **Guarda `NONEX_FINAL_PREEVO_IDS`** (definida en línea 313, aplicada en líneas 3203 y 3217): `Abra`/`Kadabra` están en `EX_PREEVO_IDS` pero su evolución final (`Alakazam_ex`, id 743) es en realidad no-`ex` de 1 premio en este entorno — la lógica de "negar una línea `ex`" no debe aplicarse a esta línea, porque gustear+noquear la pre-evolución rinde exactamente lo mismo (1 premio) que noquear un muro cualquiera. Sin comentario de log asociado en este bloque, pero corresponde a la regla de memoria "Boss's: no gustear pre-evo de línea no-ex".
-- **`Buneary` en `THREAT_PREEVO_IDS` y `EX_PREEVO_IDS`** (líneas 278 y 303, comentario "-> Mega Lopunny ex (id 849, ex de 2 premios)"): al estar en ambos conjuntos, `Buneary` en banca activa directamente `_bo_pe_is_threat` en el bloque de negación de línea evolutiva (línea 3200), lo que corresponde a la regla de memoria "Boss's: gustear Buneary vs Mega Lopunny ex" (priorizar el gusteo a `Buneary` sobre golpear a un activo que no ataca).
+- **log 86339758** — Dwebble vetado como motivador y como objetivo del gusteo vs Crustle (aplicado en el mejor-objetivo de banca, en deny-evo y en las variantes standalone).
+- **log 86402439** — línea Marnie: gustear el Morgrem energizado en vez de noquear al Impidimp desnudo (`_bo_pe_is_energized_preevo_vs_bare_wall`).
+- **registro_006 vs Garchomp (GANADA con error)** — la línea Cynthia no estaba en `EX_PREEVO_IDS` y el deny-evo no disparaba; ahora se gustea el Gabite energizado en vez de atacar al muro.
+- **registro_006 vs Archaludon** — `_bo_active_prize_dominates`: si el activo rival es la misma amenaza (Duraludon con más energía/tools), atacarlo domina sobre gustear la copia débil de banca.
+- **log 86507974** — vs Crustle, gusteo defensivo solo ante amenaza inminente.
+- **registro 019 vs Dragapult** — el gusteo ganador debe superar la retirada (`BOSS_SCORE_WIN_NOW`).
+- **registro_008 vs Rocket's Mewtwo ex** — el gusteo de 2 premios supera el KO del activo de 1 (`BOSS_SCORE_GUST_2PRIZE`).
+- **registro 010 vs Alakazam** — `_boss_deny_alakazam_line`: cortar la línea cuando el activo rival está fuera de ella.

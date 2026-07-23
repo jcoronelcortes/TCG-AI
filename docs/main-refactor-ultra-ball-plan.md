@@ -1,5 +1,7 @@
 # Plan de descomposición — rama de scoring de Ultra Ball
 
+> Documento histórico del refactor de Ultra Ball (ya ejecutado). Se conserva como referencia de diseño. En el código actual, `_score_ultra_ball_play` orquesta `_ub_derive_flags` → `_ub_score_before_overrides` → `_ub_terminal_overrides`, y además incluye el pivote `_ub_engine_refresh_pivot` (motor UB→Meowth→Lillie's, puntúa la Ultra Ball a 31450).
+
 ## Progreso
 
 - **Paso 1 — extracción verbatim: HECHO.** `_score_ultra_ball_play(ctx)` (556→2
@@ -37,17 +39,17 @@ anteriores, **NO es plana**: entrelaza vetos de coste, búsqueda de objetivo y
 overrides terminales. Por eso no se reubica a ciegas: primero se mueve verbatim y
 después se descompone en pasos pequeños.
 
-## Anatomía actual (main.py ~10392–10947)
+## Anatomía de la rama original (hoy descompuesta en los helpers `_ub_*`)
 
 La rama calcula `ub_score` (base 10000) en **5 fases secuenciales**:
 
-| Fase | Líneas aprox | Qué hace | Salida |
+| Fase | Función resultante | Qué hace | Salida |
 |---|---|---|---|
-| **A. Contexto derivado** | 10394–10481 | `_ub_survival_mode`, `_ub_op_ex_immune`, `_ub_evolve_needs_search`, `_ub_evolve_now_search`, `_ub_bench_energized`, `_ub_developed_attacker_board`, `hand_size` | flags locales |
-| **B. Cortes duros tempranos** | 10482–10498 | `hand_size < 3` → −1; banca llena sin evo buscable → −1 | puede terminar |
-| **C. Vetos por coste de descarte** | 10500–10681 | 4 guardas independientes: ¿jugar UB sacrificaría una carta valiosa como coste? (`_ub_cancel_for_stamp` / `_fez` / `_lillie` / `_meowth`) | `ub_score=-1` o sigue |
-| **D. Valoración de objetivo + score** | 10683–10861 | `_eval_ub_best_target(...)` (helper ya extraído) + cadena Meowth→Lillie + conteo `safe_discards` + mapeo a tiers 10000–12500 + penalizaciones + deferral de Lillie's | `ub_score` principal |
-| **E. Overrides terminales** | 10863–10945 | rescate modo-supervivencia (→25000), Bug Catching Set (−1500), gate de primer turno (→−1), salvaguarda FINAL banca llena (→−1), deferral línea Alakazam (→2000) | `ub_score` final |
+| **A. Contexto derivado** | `_ub_derive_flags` | `_ub_survival_mode`, `_ub_op_ex_immune`, `_ub_evolve_needs_search`, `_ub_evolve_now_search`, `_ub_bench_energized`, `_ub_developed_attacker_board`, `hand_size` | flags locales |
+| **B. Cortes duros tempranos** | inicio de `_ub_score_before_overrides` | `hand_size < 3` → −1; banca llena sin evo buscable → −1 | puede terminar |
+| **C. Vetos por coste de descarte** | `_ub_cancel_{stamp,fez,lillie,meowth}` | 4 guardas independientes: ¿jugar UB sacrificaría una carta valiosa como coste? | `ub_score=-1` o sigue |
+| **D. Valoración de objetivo + score** | `_ub_target_score` | `_eval_ub_best_target(...)` (helper ya extraído) + cadena Meowth→Lillie + conteo `safe_discards` + mapeo a tiers 10000–12500 + penalizaciones + deferral de Lillie's | `ub_score` principal |
+| **E. Overrides terminales** | `_ub_terminal_overrides` | rescate modo-supervivencia (→25000), Bug Catching Set (−1500), gate de primer turno (→−1), salvaguarda FINAL banca llena (→−1), deferral línea Alakazam (→2000) | `ub_score` final |
 
 Observaciones clave:
 - Las Fases C y D repiten **5 veces** el patrón *"contar descartes seguros sin
@@ -55,14 +57,14 @@ Observaciones clave:
   seguras solo si su línea ya está en juego / en mazo / hay Night Stretcher; etc.).
   Es el mayor foco de duplicación.
 - La Fase D ya **delega** el núcleo a dos helpers de módulo:
-  `_count_hand_play_options` (L947) y `_eval_ub_best_target` (L973).
+  `_count_hand_play_options` y `_eval_ub_best_target`.
 - La Fase E son overrides terminales en orden; el último que aplica gana.
 
 ## ⚠️ Trampa de flujo de control (corregido tras revisión)
 
 Los cortes de las Fases B, C y D **NO son terminales**: ponen `ub_score = -1` pero
 la ejecución **continúa** hasta la Fase E, que corre SIEMPRE. En particular el
-rescate de modo-supervivencia (L10866) revisa `ub_score <= 0` y puede subirlo a
+rescate de modo-supervivencia (en `_ub_terminal_overrides`) revisa `ub_score <= 0` y puede subirlo a
 25000 justamente cuando un corte previo lo dejó en −1. Por eso el esqueleto NO
 puede hacer `return` temprano en B/C/D: se saltaría la Fase E y cambiaría el
 comportamiento. Todo debe **hilar `ub_score`** a través de las 5 fases.

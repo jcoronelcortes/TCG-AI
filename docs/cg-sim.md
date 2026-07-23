@@ -9,7 +9,7 @@ Gestiona la carga de la librería nativa del simulador y define las estructuras 
 - Resolución de la ruta de la librería según el sistema operativo.
 - Carga dinámica con `ctypes`.
 - Definición de `StartData` y `SerialData`.
-- Variable global `Battle` para compartir el estado de la partida.
+- Clase `Battle`, usada como contenedor compartido del estado de la partida (`battle_ptr`, `obs`).
 
 ## Notas
 

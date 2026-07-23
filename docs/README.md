@@ -1,45 +1,52 @@
 # Documentación del proyecto
 
-Esta carpeta agrupa la documentación por módulo. La documentación de `main.py` es de **bajo nivel**: explica en detalle la lógica y la estrategia de cada función y de cada bloque principal, para que un programador entienda qué hace cada parte del código y cómo funciona la lógica del juego.
+> Documento descriptivo: se refiere al código por nombres de funciones y constantes, no por líneas.
+
+Esta carpeta agrupa la documentación por módulo del agente para el *PTCG AI Battle Challenge*: `main.py` es el agente (puntuación de opciones + argmax), `cg/` el simulador de la competencia, y `utils/` y `deck/` las utilidades. La documentación de `main.py` es de **bajo nivel**: explica en detalle la lógica y la estrategia de cada función y de cada bloque principal.
 
 ## Punto de partida
 
-- **[main.md](main.md)** — Visión general, glosario compartido (mecanismo de selección por `scores`, energía efectiva/Meganium, `OptionType`/`SelectContext`, seguimiento de creencia, detección de matchup) y **mapa de regiones** con rangos de línea. **Empieza por aquí.**
+- **[main.md](main.md)** — Visión general del mecanismo (scores + argmax por `(tier, score)`), glosario compartido (energía efectiva/*Wild Growth*, `OptionType`/`SelectContext`, creencia `CARTAS_ACTIVAS_EN_MAZO`, detección de matchup e inferencia por descarte, `AttackPlan`, pivotes defensivos, motor Meowth ex) y **mapa temático** de los documentos numerados. **Empieza por aquí.**
 
 ## Documentación de bajo nivel de `main.py`
 
-Núcleo y ayudantes (antes de `agent()`):
+Cada archivo cubre una región del código, identificada por sus funciones y banderas (no por líneas). Núcleo y ayudantes (antes de `agent()`):
 
-1. [Constantes y configuración](main-01-constants-and-config.md) — líneas 1–389
-2. [Núcleo de cálculo: energía, daño y ataque](main-02-core-calc-helpers.md) — 391–667
-3. [Seguimiento de estado y creencia del mazo](main-03-state-tracking-and-belief.md) — 484–860
-4. [Utilidades de puntuación](main-04-scoring-helpers.md) — 687–1291
+1. [Constantes y configuración](main-01-constants-and-config.md) — carga de `deck.csv`, `card_table`, `RETREAT_COST`, constantes de ID, conjuntos estratégicos y constantes de puntuación `SCORE_*`/`BOSS_*`.
+2. [Núcleo de cálculo: energía, daño y ataque](main-02-core-calc-helpers.md) — `AttackPlan` y los ayudantes de energía efectiva, daño y "¿puede atacar?" (`_grass_mult`, `_can_attack_eff`, `_attacker_base_damage`, `_op_active_attack_damage_to`).
+3. [Seguimiento de estado y creencia del mazo](main-03-state-tracking-and-belief.md) — `CARTAS_ACTIVAS_EN_MAZO` (copias por zona), identificación de premios y heurísticas de probabilidad.
+4. [Utilidades de puntuación](main-04-scoring-helpers.md) — funciones puras de valoración (`get_card`, `pokemon_score`, `prize_count`, …) con `_eval_ub_best_target` como pieza central.
 
-Interior de `agent()` (líneas 1292–12919):
+Interior de `agent()`:
 
-5. [Preámbulo y conteos de tablero](main-05-agent-setup.md) — 1292–1476
-6. [Detección de matchup, debilidades e inmunidades](main-06-agent-matchup-detection.md) — 1477–1985
-7. [Análisis de amenaza y plan de ataque](main-07-agent-threat-and-plan.md) — 1985–2900
-8. [Escalera de puntuación de Boss's Orders](main-08-agent-boss-orders.md) — ~2900–3595
-9. [Valoración de Supporters y banderas de decisión](main-09-agent-supporters-and-flags.md) — 3595–4489
-10. [Puntuación de energía y contextos de cambio](main-10-agent-energy-and-switch.md) — 4489–5970
-11. [Bucle de puntuación — búsqueda y selección de cartas](main-11-agent-card-search-scoring.md) — 5970–8684
-12. [Bucle de puntuación — PLAY (jugar cartas)](main-12-agent-play-scoring.md) — 8684–11008
-13. [Bucle de puntuación — ATTACH / EVOLVE / ABILITY](main-13-agent-attach-evolve-ability.md) — 11008–11608
-14. [Bucle de puntuación — RETREAT](main-14-agent-retreat-scoring.md) — 11608–12609
-15. [Bucle de puntuación — ATTACK / END y finalización](main-15-agent-attack-end-finalize.md) — 12609–12919
+5. [Preámbulo y conteos de tablero](main-05-agent-setup.md) — conversión de la observación, reinicio de turno, actualización de la creencia y conteos compartidos.
+6. [Detección de matchup, debilidades e inmunidades](main-06-agent-matchup-detection.md) — el escáner del tablero rival: flags `op_is_*_deck`/`op_has_*` (incluida la inferencia por el descarte rival) y amenazas puntuales.
+7. [Análisis de amenaza y plan de ataque](main-07-agent-threat-and-plan.md) — cálculo del `AttackPlan` (KO, lookahead, trades) y los overrides de pivote que lo reescriben.
+8. [Escalera de puntuación de Boss's Orders](main-08-agent-boss-orders.md) — cuánto conviene jugar Boss's este turno: gusteos ganadores, deny-evo, muros y modo estorbo.
+9. [Valoración de Supporters y banderas de decisión](main-09-agent-supporters-and-flags.md) — umbrales de Lillie's/Dawn/Lana's y las banderas pre-computadas que vetan o fuerzan jugadas.
+10. [Puntuación de energía y contextos de cambio](main-10-agent-energy-and-switch.md) — `energy_score()` (a quién cargar la energía) y los contextos `ACTIVATE`/`SWITCH`/`TO_ACTIVE`/moneda.
+11. [Bucle de puntuación — búsqueda y selección de cartas](main-11-agent-card-search-scoring.md) — setup inicial, objetivo de Boss's, búsquedas `TO_HAND` (Ultra Ball, Bug Catching Set, Poke Pad, Night Stretcher, Meowth, Dawn), `DISCARD`, `DAMAGE` y `ATTACH_FROM`.
+12. [Bucle de puntuación — PLAY (jugar cartas)](main-12-agent-play-scoring.md) — bajar Pokémon y jugar Trainers/Estadio; invoca los scorers extraídos `_score_*_play(ctx)`.
+13. [Bucle de puntuación — ATTACH / EVOLVE / ABILITY](main-13-agent-attach-evolve-ability.md) — adjunte manual, evoluciones y habilidades (*Teal Dance*, *Ripening Charge*, *Flip the Script*, *Last-Ditch Catch*).
+14. [Bucle de puntuación — RETREAT](main-14-agent-retreat-scoring.md) — cuándo retirar al activo: pivotes, sacrificios y vetos.
+15. [Bucle de puntuación — ATTACK / END y finalización](main-15-agent-attack-end-finalize.md) — vetos del ataque, `END`, tiers de orden de jugada (`_play_order_tier`) y el `return` final.
+
+Documento histórico de diseño:
+
+- [Plan del refactor de Ultra Ball](main-refactor-ultra-ball-plan.md) — refactor ya ejecutado (`_score_ultra_ball_play` como orquestador); se conserva como referencia de método (extracción verbatim + verificación por hash).
 
 ## Integración con el simulador (`cg/`)
 
-- [cg.api](cg-api.md)
-- [cg.game](cg-game.md)
-- [cg.sim](cg-sim.md)
-- [cg.utils](cg-utils.md)
+- [cg.api](cg-api.md) — tipos, enumeraciones y conversión de observaciones.
+- [cg.game](cg-game.md) — capa de acceso a la lógica de batalla nativa.
+- [cg.sim](cg-sim.md) — carga de la librería nativa y estructuras `ctypes`.
+- [cg.utils](cg-utils.md) — conversión dict/JSON → dataclass.
 
-## Herramientas de depuración (`utils/`)
+## Herramientas (`utils/` y `deck/`)
 
-- [Reproducción de logs — `utils/log_replay.py`](utils-log-replay.md) — ejecuta `main.agent()` sobre un log real y compara con las acciones registradas.
-- `utils/split_turns.py` — divide un log en registros por turno (para aislar el turno a depurar).
+- [Reproducción de logs — `utils/log_replay.py` y `utils/split_turns.py`](utils-log-replay.md) — ejecuta `main.agent()` sobre un log real y compara con las acciones registradas; `split_turns` parte el log en registros por turno para reproducir decisiones.
+- [Empaquetado de la submission — `utils/empaquetar_proyecto.py`](utils-empaquetar-proyecto.md) — genera `submission.tar.gz` en la raíz con `main.py`, `deck.csv` y `cg/`.
+- [Imagen del mazo — `deck/render_deck_image.py`](deck-render-deck-image.md) — genera `deck/deck_en.jpg` a partir de `deck.csv` y los datos oficiales del challenge.
 
 ## Pruebas
 
@@ -51,4 +58,4 @@ pytest -q --cov=. --cov-report=term-missing
 
 Para depurar decisiones concretas contra partidas reales, ver [Reproducción de logs](utils-log-replay.md).
 
-> Nota: la documentación numerada `main-01…15` reemplaza a los antiguos documentos temáticos de `main.py`. Cada archivo indica en su título el rango de líneas exacto que cubre.
+> Nota: la documentación numerada `main-01…15` es un mapa **temático**; si dentro de algún documento aparecen rangos de línea, corresponden a la versión del código en que se escribió — localiza el código por los nombres de funciones y banderas.
