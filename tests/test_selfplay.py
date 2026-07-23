@@ -45,6 +45,20 @@ def test_torneo_minimo_alterna_asientos(instancias):
     assert stats["errores_candidato"] == 0 and stats["errores_base"] == 0
 
 
+def test_partida_vs_bot_rival(instancias):
+    # El bot generico pilota el mazo rival cosechado: la partida termina y
+    # NADIE pierde por forfeit (todas las elecciones del bot son legales).
+    a, _ = instancias
+    ruta = ROOT / "deck" / "rivales" / "crustle_kangaskhan.csv"
+    if not ruta.exists():
+        pytest.skip("mazo rival no cosechado (utils/cosechar_deck_rival.py)")
+    from utils.bot_rival import BotRival
+    r = sp.jugar_partida(a, BotRival(), deck1=sp.leer_deck(ruta))
+    assert r["ganador"] in (0, 1), f"partida sin ganador: {r}"
+    assert not str(r["result"]).startswith("error"), (
+        f"forfeit inesperado: {r}")
+
+
 def test_wilson_95():
     lo, hi = sp.wilson_95(50, 100)
     assert lo < 0.5 < hi

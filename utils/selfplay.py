@@ -16,6 +16,11 @@ Uso:
     python utils/selfplay.py --partidas 200 --base HEAD~1
         # candidato (main.py del arbol de trabajo) vs baseline (git ref)
     python utils/selfplay.py --partidas 200 --base HEAD --candidato otra.py
+    python utils/selfplay.py --partidas 200 --rival deck/rivales/crustle.csv
+        # candidato vs BOT generico pilotando un mazo rival (matchup)
+    python utils/selfplay.py --partidas 200 --rival ... --base HEAD~1
+        # DIFERENCIAL de matchup: candidato-vs-bot y base-vs-bot; el delta
+        # entre ambos winrates es la senal (el nivel absoluto del bot no)
 
 Salida: marcador, winrate del candidato con intervalo de Wilson 95%, split
 por asiento y errores/limites. Una partida donde un agente lanza excepcion o
@@ -63,9 +68,15 @@ def cargar_agente_de_git(ref, nombre):
     return cargar_agente(ruta, nombre)
 
 
-def leer_deck():
-    csv = (_ROOT / "deck.csv").read_text().split("\n")
+def leer_deck(ruta=None):
+    csv = Path(ruta or _ROOT / "deck.csv").read_text().split("\n")
     return [int(csv[i]) for i in range(60)]
+
+
+def _reset_si_aplica(mod):
+    # El bot rival no tiene tracking; solo las instancias de main.py.
+    if hasattr(mod, "_init_cartas_tracking"):
+        reset_agente(mod)
 
 
 def jugar_partida(agente_p0, agente_p1, deck0=None, deck1=None,
@@ -80,8 +91,8 @@ def jugar_partida(agente_p0, agente_p1, deck0=None, deck1=None,
     deck = leer_deck()
     deck0 = deck0 or deck
     deck1 = deck1 or deck
-    reset_agente(agente_p0)
-    reset_agente(agente_p1)
+    _reset_si_aplica(agente_p0)
+    _reset_si_aplica(agente_p1)
 
     obs, sd = game.battle_start(list(deck0), list(deck1))
     if obs is None:
@@ -126,8 +137,13 @@ def wilson_95(victorias, n):
     return (max(0.0, centro - delta), min(1.0, centro + delta))
 
 
-def torneo(candidato, base, partidas, progreso=None):
-    """Enfrenta candidato vs base alternando asientos. Devuelve stats."""
+def torneo(candidato, base, partidas, progreso=None,
+           deck_candidato=None, deck_base=None):
+    """Enfrenta candidato vs base alternando asientos. Devuelve stats.
+
+    deck_candidato/deck_base: listas de 60 ids; por defecto, deck.csv.
+    Cada mazo viaja con su agente al cambiar de asiento.
+    """
     stats = {
         "partidas": partidas, "candidato": 0, "base": 0, "limites": 0,
         "errores_candidato": 0, "errores_base": 0,
@@ -137,9 +153,11 @@ def torneo(candidato, base, partidas, progreso=None):
     }
     for i in range(partidas):
         asiento_cand = i % 2
-        p0, p1 = ((candidato, base) if asiento_cand == 0
-                  else (base, candidato))
-        r = jugar_partida(p0, p1)
+        if asiento_cand == 0:
+            p0, p1, d0, d1 = candidato, base, deck_candidato, deck_base
+        else:
+            p0, p1, d0, d1 = base, candidato, deck_base, deck_candidato
+        r = jugar_partida(p0, p1, deck0=d0, deck1=d1)
         stats["pasos_totales"] += r["pasos"]
         if isinstance(r["result"], str) and r["result"].startswith("error"):
             asiento_err = int(r["result"][-1])
@@ -206,10 +224,39 @@ def main(argv):
                     help="ruta del agente candidato (default: main.py)")
     ap.add_argument("--progreso", type=int, default=20,
                     help="imprime marcador cada N partidas (0 = nunca)")
+    ap.add_argument("--rival", default=None,
+                    help="csv de mazo rival: el oponente pasa a ser el BOT "
+                         "generico pilotando ese mazo (modo matchup)")
     args = ap.parse_args(argv)
 
     ruta_cand = _ROOT / args.candidato
     candidato = cargar_agente(ruta_cand, "agente_candidato")
+
+    if args.rival:
+        from bot_rival import BotRival
+        deck_rival = leer_deck(_ROOT / args.rival)
+        bot = BotRival()
+        stats = torneo(candidato, bot, args.partidas,
+                       progreso=args.progreso or None,
+                       deck_base=deck_rival)
+        print(informe(stats, args.candidato, f"bot+{args.rival}"))
+        if args.base:
+            base = cargar_agente_de_git(args.base, "agente_base")
+            stats_base = torneo(base, bot, args.partidas,
+                                progreso=args.progreso or None,
+                                deck_base=deck_rival)
+            print()
+            print(informe(stats_base, f"{args.base} (git)",
+                          f"bot+{args.rival}"))
+            dec_c = stats["candidato"] + stats["base"]
+            dec_b = stats_base["candidato"] + stats_base["base"]
+            wr_c = stats["candidato"] / dec_c if dec_c else 0
+            wr_b = stats_base["candidato"] / dec_b if dec_b else 0
+            print(f"\nDELTA de matchup (candidato - {args.base}): "
+                  f"{100 * (wr_c - wr_b):+.1f} puntos "
+                  f"({100 * wr_c:.1f}% vs {100 * wr_b:.1f}%)")
+        return 0
+
     if args.base:
         base = cargar_agente_de_git(args.base, "agente_base")
         etiqueta_base = f"{args.base} (git)"
