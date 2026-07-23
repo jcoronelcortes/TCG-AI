@@ -4040,6 +4040,142 @@ _AJUSTES_UB_HYDRAPPLE = [
             lambda c, s: min(s, 150)),
 ]
 
+# --- Reglas del fetch de Ultra Ball -> Meowth ex ----------------------------
+
+@dataclass
+class _CtxUBMeowth:
+    hand: dict                  # hand_counts
+    campo: dict                 # field_counts
+    bench_count: int
+    turno: int                  # state.turn
+    watchtower: bool            # watchtower_in_play (anula Last-Ditch)
+    supp_values: dict           # _supp_values
+    lillie_in_mazo: int
+    any_supp_in_mazo: bool
+    prefer_meowth_develop: bool     # _ub_prefer_meowth_develop
+    hydra_dead_prefer_meowth: bool  # _ub_hydra_dead_prefer_meowth
+    mega_dead_prefer_meowth: bool   # _ub_mega_dead_prefer_meowth
+    no_attacker_prefer_meowth: bool  # _ub_no_attacker_prefer_meowth
+    t1_going_second_meowth: bool
+    dipplin_priority: bool
+    active_cant_attack: bool    # _active_cant_attack_this_turn
+    mega_line_active: bool      # _mega_line_active
+    dragapult: bool             # op_is_dragapult_dusknoir
+
+def _ctx_ub_fetch_meowth(hand_counts, field_counts, bench_count, turno,
+                         watchtower, supp_values, prefer_meowth_develop,
+                         hydra_dead_prefer_meowth, mega_dead_prefer_meowth,
+                         no_attacker_prefer_meowth, t1_going_second_meowth,
+                         dipplin_priority, active_cant_attack,
+                         mega_line_active, dragapult):
+    return _CtxUBMeowth(
+        hand=hand_counts, campo=field_counts, bench_count=bench_count,
+        turno=turno, watchtower=watchtower, supp_values=supp_values,
+        lillie_in_mazo=CARTAS_ACTIVAS_EN_MAZO.get(
+            Lillie_Determination, {}).get(ESTADO_MAZO, 0),
+        any_supp_in_mazo=any(
+            CARTAS_ACTIVAS_EN_MAZO.get(sid, {}).get(ESTADO_MAZO, 0) > 0
+            for sid in (Lillie_Determination, Boss_Orders, Dawn, Lanas_Aid)),
+        prefer_meowth_develop=prefer_meowth_develop,
+        hydra_dead_prefer_meowth=hydra_dead_prefer_meowth,
+        mega_dead_prefer_meowth=mega_dead_prefer_meowth,
+        no_attacker_prefer_meowth=no_attacker_prefer_meowth,
+        t1_going_second_meowth=t1_going_second_meowth,
+        dipplin_priority=dipplin_priority,
+        active_cant_attack=active_cant_attack,
+        mega_line_active=mega_line_active,
+        dragapult=dragapult)
+
+def _um_boss_engine_vs_crustle(c):
+    """vs Crustle, Meowth ex sirve para traer Boss's Orders (gust) via
+    Last-Ditch: sin Boss's en mano, con copias en el mazo y con un gusteo
+    valioso proyectado (_supp_values)."""
+    return (op_is_crustle_deck
+            and c.hand.get(Boss_Orders, 0) == 0
+            and CARTAS_ACTIVAS_EN_MAZO.get(
+                Boss_Orders, {}).get(ESTADO_MAZO, 0) > 0
+            and c.supp_values.get(Boss_Orders, 0) >= 900)
+
+_REGLAS_UB_MEOWTH = [
+    # Team Rocket's Watchtower anula la habilidad de Meowth ex (Pokemon
+    # incoloro): no buscarlo con la Ultra Ball.
+    _ReglaFija("watchtower_anula_habilidad",
+               lambda c: c.watchtower,
+               lambda c: 10),
+    # Con Lillie's YA en mano el fetch de Meowth ex es redundante (su unico
+    # proposito es buscar Lillie's); mejor una evolucion util. EXCEPCION:
+    # vs Crustle, Meowth ex trae Boss's Orders (gust), no refresco. (user,
+    # log 86339167 paso 23, PERDIDA vs Mega Starmie)
+    _ReglaFija("lillie_ya_en_mano_redundante",
+               lambda c: (c.hand.get(Lillie_Determination, 0) >= 1
+                          and not _um_boss_engine_vs_crustle(c)),
+               lambda c: 10),
+    # Motor UB->Meowth->Lillie's (registro_008 paso 58 vs Archaludon,
+    # PERDIDA): la Ultra Ball se jugo POR el pivote; el fetch DEBE
+    # completar la cadena. Sobre desarrollo (1000-1250) y evoluciones.
+    _ReglaFija("engine_pivot_turn",
+               lambda c: _ub_engine_pivot_turn,
+               lambda c: 1300),
+    # Unico Pokemon en juego + sin Basico jugable + sin Lillie's en mano:
+    # bajar Meowth, buscar Lillie's y refrescar.
+    _ReglaFija("develop_unico_pokemon",
+               lambda c: c.prefer_meowth_develop,
+               lambda c: 1250),
+    # La unica evolucion grande (Hydrapple ex sobre Dipplin) quedaria
+    # muerta este turno: refrescar con Meowth/Lillie's abre mas opciones.
+    _ReglaFija("hydra_muerto_prefiere_meowth",
+               lambda c: c.hydra_dead_prefer_meowth,
+               lambda c: 1000),
+    # La linea Meganium no aporta este turno y no hay atacante listo.
+    _ReglaFija("meganium_muerto_prefiere_meowth",
+               lambda c: c.mega_dead_prefer_meowth,
+               lambda c: 1000),
+    # Sin atacante USABLE este turno (ni activo que ataque ni banca
+    # subible): el refresco supera a una evolucion sin ataque. >1000 para
+    # ganar a un Meganium jugable. (registro_004 paso 29 vs Mega Starmie)
+    _ReglaFija("sin_atacante_prefiere_meowth",
+               lambda c: c.no_attacker_prefer_meowth,
+               lambda c: 1250),
+    _ReglaFija("t1_saliendo_segundos",
+               lambda c: c.t1_going_second_meowth,
+               lambda c: 1200),
+    _ReglaFija("t1_saliendo_primeros_no",
+               lambda c: c.turno == 1 and we_go_first,
+               lambda c: 10),
+    _ReglaFija("ya_dos_meowth_en_juego",
+               lambda c: c.campo.get(Meowth_ex, 0) >= 2,
+               lambda c: 10),
+    _ReglaFija("un_meowth_y_activo_ataca",
+               lambda c: (c.campo.get(Meowth_ex, 0) >= 1
+                          and not c.active_cant_attack),
+               lambda c: 10),
+    _ReglaFija("banca_llena",
+               lambda c: c.bench_count >= 5,
+               lambda c: 10),
+    # Se cumple una condicion que privilegia a Dipplin: Meowth cede.
+    _ReglaFija("cede_a_dipplin_prioritario",
+               lambda c: c.dipplin_priority,
+               lambda c: 10),
+    _ReglaFija("linea_mega_activa_con_lillie",
+               lambda c: c.mega_line_active and c.lillie_in_mazo > 0,
+               lambda c: 1150),
+    _ReglaFija("vs_dragapult_con_lillie",
+               lambda c: c.dragapult and c.lillie_in_mazo > 0,
+               lambda c: 985),
+    _ReglaFija("motor_boss_vs_crustle",
+               _um_boss_engine_vs_crustle,
+               lambda c: 1100),
+    # Sin condicion que privilegie a Dipplin: Meowth ex tiene PRIORIDAD
+    # para refrescar (buscar Lillie's), sin importar la mano.
+    _ReglaFija("lillie_en_mazo_refresco",
+               lambda c: c.lillie_in_mazo > 0,
+               lambda c: 1000),
+    # Otro supporter en el mazo: refrescar igualmente.
+    _ReglaFija("otro_supporter_en_mazo",
+               lambda c: c.any_supp_in_mazo,
+               lambda c: 850),
+]
+
 def agent(obs_dict: dict) -> list[int]:
     obs = to_observation_class(obs_dict)
     if obs.select is None:
@@ -11362,7 +11498,8 @@ def agent(obs_dict: dict) -> list[int]:
                         # de 2 premios que aqui no puede atacar). Solo se privilegia a
                         # Dipplin por "Lillie ya jugada" cuando el motor de Lillie's
                         # esta AGOTADO (ninguna copia queda en el mazo); si aun hay
-                        # copias, Meowth ex conserva prioridad (_lillie_in_mazo, abajo).
+                        # copias, Meowth ex conserva prioridad (regla
+                        # lillie_en_mazo_refresco de _REGLAS_UB_MEOWTH).
                         _dp_lillie_played = (
                             discard_counts.get(Lillie_Determination, 0) >= 1
                             and CARTAS_ACTIVAS_EN_MAZO.get(
@@ -11501,106 +11638,25 @@ def agent(obs_dict: dict) -> list[int]:
                             and CARTAS_ACTIVAS_EN_MAZO.get(Lillie_Determination, {}).get(ESTADO_MAZO, 0) > 0)
 
                         if card.id == Meowth_ex:
-                            _lillie_in_mazo = CARTAS_ACTIVAS_EN_MAZO.get(
-                                Lillie_Determination, {}).get(ESTADO_MAZO, 0)
-                            _any_supp_in_mazo = any(
-                                CARTAS_ACTIVAS_EN_MAZO.get(sid, {}).get(ESTADO_MAZO, 0) > 0
-                                for sid in (Lillie_Determination, Boss_Orders, Dawn, Lanas_Aid))
-                            if watchtower_in_play:
-                                # Team Rocket's Watchtower anula la habilidad de
-                                # Meowth ex (Pokemon incoloro): no buscarlo con UB.
-                                score = 10
-                            elif (hand_counts.get(Lillie_Determination, 0) >= 1
-                                    and not (op_is_crustle_deck
-                                             and hand_counts.get(Boss_Orders, 0) == 0
-                                             and CARTAS_ACTIVAS_EN_MAZO.get(
-                                                 Boss_Orders, {}).get(ESTADO_MAZO, 0) > 0
-                                             and _supp_values.get(Boss_Orders, 0) >= 900)):
-                                # Regla (user, log 86339167 paso 23, PERDIDA vs Mega
-                                # Starmie): si YA tenemos una Lillie's Determination
-                                # en la MANO, no buscar Meowth ex con Ultra Ball. El
-                                # unico proposito de traer Meowth ex es que su
-                                # habilidad busque un Supporter (Lillie's) para
-                                # refrescar la mano; con Lillie's ya en mano es
-                                # redundante y desperdicia la Ultra Ball (y su coste
-                                # de descarte). Mejor buscar una evolucion util
-                                # (p.ej. Bayleef para evolucionar a Chikorita) y
-                                # luego jugar la Lillie's. EXCEPCION: vs Crustle,
-                                # donde Meowth ex sirve para traer Boss's Orders
-                                # (gust), no para refrescar la mano.
-                                score = 10
-                            elif _ub_engine_pivot_turn:
-                                # Motor UB->Meowth->Lillie's (user, registro_008
-                                # paso 58 vs Archaludon ex, PERDIDA): esta Ultra
-                                # Ball se jugo POR el pivote (activo que no
-                                # noquea, banca <=1, energias como forraje del
-                                # descarte). El fetch DEBE completar la cadena:
-                                # Meowth ex -> Last-Ditch -> Lillie's ->
-                                # refrescar y desarrollar la banca (Syrup Storm
-                                # escala con el Grass total). 1300: sobre las
-                                # ramas de desarrollo (1000-1250) y cualquier
-                                # evolucion (<=1000).
-                                score = 1300
-                            elif _ub_prefer_meowth_develop:
-                                # Unico Pokemon en juego + sin Basico jugable en
-                                # mano + sin Lillie's en mano: traer Meowth ex para
-                                # bajarlo, buscar Lillie's y refrescar la mano.
-                                score = 1250
-                            elif _ub_hydra_dead_prefer_meowth:
-                                # La unica evolucion "grande" disponible (Hydrapple ex
-                                # sobre un Dipplin en juego) quedaria muerta este turno.
-                                # Preferir traer Meowth ex para refrescar la mano con
-                                # Lillie's y abrir opciones de juego/ataque.
-                                score = 1000
-                            elif _ub_mega_dead_prefer_meowth:
-                                # La linea Meganium no aporta este turno (no hay Bayleef
-                                # en juego que evolucionar) y no tenemos atacante listo:
-                                # traer Meowth ex para refrescar con Lillie's en vez de
-                                # un Meganium inutil de preparacion.
-                                score = 1000
-                            elif _ub_no_attacker_prefer_meowth:
-                                # No hay atacante USABLE este turno (ni activo que
-                                # ataque, ni atacante de banca que podamos subir
-                                # porque el activo no puede retirarse). Traer Meowth
-                                # ex (refresco Lillie's) supera a evolucionar una
-                                # linea que no dara ataque ahora. Score > 1000 para
-                                # ganar a un Meganium/evolucion jugable (que puntua
-                                # hasta 1000 cuando su pre-evolucion esta en juego).
-                                score = 1250
-                            elif _t1_going_second_meowth:
-                                score = 1200
-                            elif state.turn == 1 and we_go_first:
-                                score = 10
-                            elif field_counts.get(Meowth_ex, 0) >= 2:
-                                score = 10
-                            elif (field_counts.get(Meowth_ex, 0) >= 1
-                                    and not _active_cant_attack_this_turn):
-                                score = 10
-                            elif bench_count >= 5:
-                                score = 10
-                            elif _dipplin_priority:
-                                # Se cumple una de las 3 condiciones que privilegian
-                                # a Dipplin: Meowth ex cede la busqueda (baja) para
-                                # que gane Dipplin.
-                                score = 10
-                            elif _mega_line_active and _lillie_in_mazo > 0:
-                                score = 1150
-                            elif op_is_dragapult_dusknoir and _lillie_in_mazo > 0:
-                                score = 985
-                            elif (op_is_crustle_deck and hand_counts.get(Boss_Orders, 0) == 0 and
-                                    CARTAS_ACTIVAS_EN_MAZO.get(Boss_Orders, {}).get(ESTADO_MAZO, 0) > 0 and
-                                    _supp_values.get(Boss_Orders, 0) >= 900):
-                                score = 1100
-                            elif _lillie_in_mazo > 0:
-                                # No hay condicion que privilegie a Dipplin: Meowth
-                                # ex tiene PRIORIDAD para refrescar la mano (buscar
-                                # Lillie's), sin importar lo que haya en la mano.
-                                score = 1000
-                            elif _any_supp_in_mazo:
-                                # Otro supporter en el mazo: refrescar igualmente.
-                                score = 850
-                            else:
-                                score = 10
+                            # Rama migrada al MOTOR DE REGLAS (fase 4):
+                            # definiciones y comentarios estrategicos en
+                            # _REGLAS_UB_MEOWTH (antes de agent()).
+                            _ub_meo_ctx = _ctx_ub_fetch_meowth(
+                                hand_counts, field_counts, bench_count,
+                                state.turn, watchtower_in_play,
+                                _supp_values, _ub_prefer_meowth_develop,
+                                _ub_hydra_dead_prefer_meowth,
+                                _ub_mega_dead_prefer_meowth,
+                                _ub_no_attacker_prefer_meowth,
+                                _t1_going_second_meowth, _dipplin_priority,
+                                _active_cant_attack_this_turn,
+                                _mega_line_active, op_is_dragapult_dusknoir)
+                            score, _ub_meo_traza = _resolver_reglas(
+                                _REGLAS_UB_MEOWTH, [], _ub_meo_ctx,
+                                defecto=10)
+                            if os.environ.get("PTCG_DEBUG"):
+                                print("[reglas ub->meowth]",
+                                      " | ".join(_ub_meo_traza))
 
                         elif card.id == Teal_Mask_Ogerpon_ex:
 
