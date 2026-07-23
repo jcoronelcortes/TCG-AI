@@ -2515,109 +2515,126 @@ def _score_forest_of_vitality_play(ctx: DecisionContext) -> int:
                                ctx, defecto=8000)
 
 
-def _score_bug_catching_set_play(ctx: DecisionContext) -> int:
-    """Puntua la jugada de Bug Catching Set (mira 7 cartas del mazo y coge una
-    Planta/Energia). Extraido verbatim de la rama `elif card.id == Bug_Catching_Set`:
-    estima la probabilidad de encontrar algo util y el valor de las piezas de
-    evolucion disponibles."""
-    state = ctx.state
-    hand_counts = ctx.hand_counts
-    field_counts = ctx.field_counts
-    meganium_in_play = ctx.meganium_in_play
-    has_hydrapple = ctx.has_hydrapple
-    CARTAS_ACTIVAS_EN_MAZO = ctx.cartas_en_mazo
+class _CtxBCS:
+    """Wrapper del DecisionContext para Bug Catching Set: precomputa las
+    estadisticas del mazo (elegibles, piezas de alto valor, p_find de 7
+    miradas) una sola vez; el resto delega via __getattr__."""
 
-    bcs_score = 10500
-
-    ogerpon_on_bench = field_counts.get(Teal_Mask_Ogerpon_ex, 0) >= 1
-    has_energy_for_teal = hand_counts[Basic_Grass_Energy] >= 1
-
-    if ogerpon_on_bench and has_energy_for_teal:
-        bcs_score -= 100
-
-    grass_pokemon_in_mazo = 0
-    energy_in_mazo = 0
-    high_value_in_mazo = 0
-
-    for cid, states in CARTAS_ACTIVAS_EN_MAZO.items():
-        if states[ESTADO_MAZO] <= 0:
-            continue
-        copies_in_mazo = states[ESTADO_MAZO]
-        cdata = card_table.get(cid)
-        if cid == Basic_Grass_Energy:
-            energy_in_mazo += copies_in_mazo
-        elif cdata and cdata.cardType == CardType.POKEMON:
-
-            if cdata.energyType == EnergyType.GRASS:
-                grass_pokemon_in_mazo += copies_in_mazo
-
-                if cid == Meganium and not meganium_in_play and (field_counts.get(Bayleef, 0) >= 1 or field_counts.get(Chikorita, 0) >= 1):
-                    high_value_in_mazo += copies_in_mazo
-                elif cid == Hydrapple_ex and not has_hydrapple and (field_counts.get(Dipplin, 0) >= 1 or field_counts.get(Applin, 0) >= 1):
-                    high_value_in_mazo += copies_in_mazo
-                elif cid == Bayleef and not meganium_in_play and field_counts.get(Chikorita, 0) >= 1:
-                    high_value_in_mazo += copies_in_mazo
-                elif cid == Dipplin and not has_hydrapple and field_counts.get(Applin, 0) >= 1:
-                    high_value_in_mazo += copies_in_mazo
-                elif cid == Chikorita and not meganium_in_play and field_counts.get(Chikorita, 0) + field_counts.get(Bayleef, 0) + field_counts.get(Meganium, 0) == 0:
-                    high_value_in_mazo += copies_in_mazo
-                elif cid == Applin and not has_hydrapple and field_counts.get(Applin, 0) + field_counts.get(Dipplin, 0) + field_counts.get(Hydrapple_ex, 0) == 0:
-                    high_value_in_mazo += copies_in_mazo
-                elif cid == Teal_Mask_Ogerpon_ex and field_counts.get(Teal_Mask_Ogerpon_ex, 0) < 2:
-                    high_value_in_mazo += copies_in_mazo
-
-    total_eligible_in_mazo = grass_pokemon_in_mazo + energy_in_mazo
-    total_mazo = sum(v[ESTADO_MAZO] for v in CARTAS_ACTIVAS_EN_MAZO.values())
-
-    if total_eligible_in_mazo == 0:
-        bcs_score = SCORE_VETO
-    else:
-
-        if total_mazo <= 7:
-            p_find = 1.0 if total_eligible_in_mazo > 0 else 0.0
+    def __init__(self, ctx):
+        self.c = ctx
+        f = ctx.field_counts
+        grass, energia, alto_valor = 0, 0, 0
+        for cid, states in ctx.cartas_en_mazo.items():
+            if states[ESTADO_MAZO] <= 0:
+                continue
+            copias = states[ESTADO_MAZO]
+            cdata = card_table.get(cid)
+            if cid == Basic_Grass_Energy:
+                energia += copias
+            elif cdata and cdata.cardType == CardType.POKEMON:
+                if cdata.energyType == EnergyType.GRASS:
+                    grass += copias
+                    if (cid == Meganium and not ctx.meganium_in_play
+                            and (f.get(Bayleef, 0) >= 1
+                                 or f.get(Chikorita, 0) >= 1)):
+                        alto_valor += copias
+                    elif (cid == Hydrapple_ex and not ctx.has_hydrapple
+                            and (f.get(Dipplin, 0) >= 1
+                                 or f.get(Applin, 0) >= 1)):
+                        alto_valor += copias
+                    elif (cid == Bayleef and not ctx.meganium_in_play
+                            and f.get(Chikorita, 0) >= 1):
+                        alto_valor += copias
+                    elif (cid == Dipplin and not ctx.has_hydrapple
+                            and f.get(Applin, 0) >= 1):
+                        alto_valor += copias
+                    elif (cid == Chikorita and not ctx.meganium_in_play
+                            and f.get(Chikorita, 0) + f.get(Bayleef, 0)
+                                + f.get(Meganium, 0) == 0):
+                        alto_valor += copias
+                    elif (cid == Applin and not ctx.has_hydrapple
+                            and f.get(Applin, 0) + f.get(Dipplin, 0)
+                                + f.get(Hydrapple_ex, 0) == 0):
+                        alto_valor += copias
+                    elif (cid == Teal_Mask_Ogerpon_ex
+                            and f.get(Teal_Mask_Ogerpon_ex, 0) < 2):
+                        alto_valor += copias
+        self.energia_mazo = energia
+        self.elegibles = grass + energia
+        self.alto_valor = alto_valor
+        total = sum(v[ESTADO_MAZO] for v in ctx.cartas_en_mazo.values())
+        self.total_mazo = total
+        if self.elegibles == 0:
+            self.p_find = 0.0
+        elif total <= 7:
+            self.p_find = 1.0
         else:
-            p_miss_all = 1.0
-            remaining = total_mazo
-            eligible_remaining = total_eligible_in_mazo
-            for _ in range(min(7, total_mazo)):
-                if remaining <= 0:
+            p_miss, restante = 1.0, total
+            for _ in range(min(7, total)):
+                if restante <= 0:
                     break
-                p_miss_all *= (remaining - eligible_remaining) / remaining
-                remaining -= 1
-            p_find = 1.0 - p_miss_all
+                p_miss *= (restante - self.elegibles) / restante
+                restante -= 1
+            self.p_find = 1.0 - p_miss
 
-        if p_find >= 0.9:
-            bcs_score += 800
-        elif p_find >= 0.7:
-            bcs_score += 500
-        elif p_find >= 0.5:
-            bcs_score += 200
-        else:
-            bcs_score -= 300
+    def __getattr__(self, nombre):
+        return getattr(self.c, nombre)
 
-        if high_value_in_mazo >= 3:
-            bcs_score += 600
-        elif high_value_in_mazo >= 2:
-            bcs_score += 400
-        elif high_value_in_mazo >= 1:
-            bcs_score += 200
+def _v_bcs_base(w):
+    v = 10500
+    if (w.field_counts.get(Teal_Mask_Ogerpon_ex, 0) >= 1
+            and w.hand_counts[Basic_Grass_Energy] >= 1):
+        v -= 100
+    return v
 
-        if not meganium_in_play and not has_hydrapple:
-            bcs_score += 300
-        elif not meganium_in_play or not has_hydrapple:
-            bcs_score += 150
+_REGLAS_BCS_PLAY = [
+    _ReglaFija("sin_elegibles_en_mazo",
+               lambda w: w.elegibles == 0,
+               lambda w: SCORE_VETO),
+    _ReglaFija("base",
+               lambda w: True,
+               _v_bcs_base),
+]
 
-        if hand_counts[Basic_Grass_Energy] == 0 and not state.energyAttached:
-            bcs_score += 200
+_AJUSTES_BCS_PLAY = [
+    _Ajuste("prob_encontrar",
+            lambda w, s: s > 0,
+            lambda w, s: s + (800 if w.p_find >= 0.9
+                              else (500 if w.p_find >= 0.7
+                                    else (200 if w.p_find >= 0.5
+                                          else -300)))),
+    _Ajuste("piezas_alto_valor",
+            lambda w, s: s > 0 and w.alto_valor >= 1,
+            lambda w, s: s + (600 if w.alto_valor >= 3
+                              else (400 if w.alto_valor >= 2 else 200))),
+    _Ajuste("lineas_incompletas",
+            lambda w, s: s > 0 and (not w.meganium_in_play
+                                    or not w.has_hydrapple),
+            lambda w, s: s + (300 if (not w.meganium_in_play
+                                      and not w.has_hydrapple) else 150)),
+    _Ajuste("energia_seca",
+            lambda w, s: (s > 0 and w.hand_counts[Basic_Grass_Energy] == 0
+                          and not w.state.energyAttached),
+            lambda w, s: s + 200),
+    _Ajuste("cavar_energia_belief",
+            lambda w, s: (s > 0 and w.hand_counts[Basic_Grass_Energy] == 0
+                          and not w.state.energyAttached
+                          and w.energy_starved_low_draw
+                          and w.energia_mazo > 0),
+            lambda w, s: s + SCORE_BELIEF_DIG_ENERGY),
+    # Con Poke Pad jugable (y sin Itchy Pollen), BCS cede: tope 9000.
+    _Ajuste("tope_si_pokepad_jugable",
+            lambda w, s: (w.pp_playable_in_hand
+                          and not w.itchy_pollen_active and s > 9000),
+            lambda w, s: 9000),
+]
 
-            if ctx.energy_starved_low_draw and energy_in_mazo > 0:
-                bcs_score += SCORE_BELIEF_DIG_ENERGY
-
-    score = bcs_score
-
-    if ctx.pp_playable_in_hand and not ctx.itchy_pollen_active and score > 9000:
-        score = 9000
-    return score
+def _score_bug_catching_set_play(ctx: DecisionContext) -> int:
+    """Puntua la jugada de Bug Catching Set (mira 7 y coge Planta/Energia).
+    Cuerpo migrado al MOTOR DE REGLAS (fase 4): estadisticas del mazo
+    precomputadas en _CtxBCS, contribuciones como ajustes con nombre."""
+    return _resolver_con_traza("bcs->play", _REGLAS_BCS_PLAY,
+                               _AJUSTES_BCS_PLAY, _CtxBCS(ctx), defecto=0)
 
 
 class _UBFlags(NamedTuple):
@@ -3878,70 +3895,67 @@ def _score_lillie_determination_play(ctx: DecisionContext) -> int:
     return score
 
 
+def _lana_veto_duro(c):
+    """Vetos que en el original RETORNAN sin pasar por los ajustes (los
+    ajustes de abajo no deben rescatarlos)."""
+    if c.state.supporterPlayed:
+        return True
+    if c.op_is_comfey_deck and sum(
+            1 for x in (c.my_state.discard or [])
+            if getattr(x, 'id', None) == Basic_Grass_Energy) < 2:
+        # vs Comfey (user, registro_005): Lana's SOLO para recuperar >= 2
+        # energias (nuestros Pokemon alli son ex: Lana's no los recupera).
+        return True
+    if c.ko_last_turn and c.hand_counts.get(Unfair_Stamp, 0) >= 1:
+        return True
+    return False
+
+_REGLAS_LANA_PLAY = [
+    _ReglaFija("veto_duro",
+               _lana_veto_duro,
+               lambda c: SCORE_VETO),
+    # sin_valor puede ser RESCATADO por suelo_linea_mega (fiel al original,
+    # donde ese max() vive tras la asignacion del veto por valor).
+    _ReglaFija("sin_valor",
+               lambda c: c.supp_values.get(Lanas_Aid, 0) <= 0,
+               lambda c: SCORE_VETO),
+    _ReglaFija("valor_del_supporter",
+               lambda c: True,
+               lambda c: (SCORE_SUPPORTER_VALUE_BASE
+                          + int(c.supp_values.get(Lanas_Aid, 0) * 1.4)
+                          + c.supporter_boost)),
+]
+
+_AJUSTES_LANA_PLAY = [
+    # Linea Meganium activa sin energia jugable: recuperar energia del
+    # descarte vale un suelo de 4500.
+    _Ajuste("suelo_linea_mega",
+            lambda c, s: (not _lana_veto_duro(c)
+                          and c.mega_line_active and s < 4500
+                          and not c.state.supporterPlayed
+                          and c.hand_counts.get(Basic_Grass_Energy, 0) == 0
+                          and not c.state.energyAttached
+                          and any(x.id == Basic_Grass_Energy
+                                  for x in c.my_state.discard)),
+            lambda c, s: max(s, 4500)),
+    # Regla (user, log 86509038 paso 62 vs Mega Lucario, PERDIDA): sin
+    # atacante este turno, Lana's solo supera a Lillie's si HABILITA un
+    # ataque; si no, cede (cap 2000, sigue jugable por si Lillie's cae).
+    _Ajuste("cede_a_lillie_sin_ataque",
+            lambda c, s: (not _lana_veto_duro(c) and s > 0
+                          and c.active_cant_attack
+                          and c.hand_counts.get(Lillie_Determination, 0) >= 1
+                          and not c.state.supporterPlayed
+                          and not c.supp_values.get('_lana_enables_attack')),
+            lambda c, s: min(s, 2000)),
+]
+
 def _score_lanas_aid_play(ctx: DecisionContext, score: int) -> int:
     """Puntua la jugada de Lana's Aid (recupera Pokemon no-ex + Energia del
-    descarte a la mano). Extraida verbatim; recibe el score entrante (10000) y lo
-    ajusta. Cede prioridad a Lillie's si no habilita ataque. Refactor Prioridad 1."""
-    state = ctx.state
-    my_state = ctx.my_state
-    hand_counts = ctx.hand_counts
-    ko_last_turn = ctx.ko_last_turn
-    supporter_boost = ctx.supporter_boost
-    _mega_line_active = ctx.mega_line_active
-    _active_cant_attack_this_turn = ctx.active_cant_attack
-    _supp_values = ctx.supp_values
-
-    if state.supporterPlayed:
-        score = SCORE_VETO
-    elif ctx.op_is_comfey_deck and sum(
-            1 for c in (my_state.discard or [])
-            if getattr(c, 'id', None) == Basic_Grass_Energy) < 2:
-        # Estrategia vs Comfey (user, registro_005): Lana's Aid SOLO se juega para
-        # RECUPERAR ENERGIAS, y solo si recupera al menos DOS (>=2 Energias Planta
-        # en el descarte). Nuestros unicos Pokemon vs Comfey son Ogerpon ex (Rule
-        # Box: Lana's no los recupera), asi que su valor aqui es exclusivamente la
-        # energia. Con menos de 2 energias recuperables NO se juega.
-        score = SCORE_VETO
-    elif ko_last_turn and hand_counts.get(Unfair_Stamp, 0) >= 1:
-        score = SCORE_VETO
-    else:
-        _lana_val = _supp_values.get(Lanas_Aid, 0)
-        if _lana_val <= 0:
-            score = SCORE_VETO
-        else:
-            score = SCORE_SUPPORTER_VALUE_BASE + int(_lana_val * 1.4) + supporter_boost
-
-        if (_mega_line_active and score < 4500 and
-                not state.supporterPlayed and
-                hand_counts.get(Basic_Grass_Energy, 0) == 0 and
-                not state.energyAttached):
-
-            _lana_has_energy_discard = any(
-                c.id == Basic_Grass_Energy for c in my_state.discard)
-            if _lana_has_energy_discard:
-                score = max(score, 4500)
-
-        # Regla (user, log 86509038 paso 62, vs Mega Lucario,
-        # PERDIDA): si NO tenemos un Pokemon que pueda atacar este
-        # turno (`_active_cant_attack_this_turn`), la UNICA razon
-        # para priorizar Lana's Aid sobre Lillie's Determination es
-        # recuperar basicos + energia que HABILITEN un ataque
-        # (`_lana_enables_attack`). En caso contrario Lillie's tiene
-        # prioridad: refrescar la mano (robar 6-8) rinde mas que
-        # recuperar piezas que no permiten atacar ya (en el log se
-        # recupero Tapu Bulu sin energia para cargarlo y se perdio la
-        # jugada de Lillie's). Se cede la prioridad bajando Lana's por
-        # debajo del score base de Lillie's (5000), pero se conserva
-        # jugable (2000) por si Lillie's estuviera vetada por otra via
-        # (asi Lana's sigue siendo el mejor supporter disponible).
-        if (score > 0
-                and _active_cant_attack_this_turn
-                and hand_counts.get(Lillie_Determination, 0) >= 1
-                and not state.supporterPlayed
-                and not _supp_values.get('_lana_enables_attack')):
-            score = min(score, 2000)
-
-    return score
+    descarte). Cuerpo migrado al MOTOR DE REGLAS (fase 4); el `score`
+    entrante se ignora (el original lo sobreescribia en todas las ramas)."""
+    return _resolver_con_traza("lana->play", _REGLAS_LANA_PLAY,
+                               _AJUSTES_LANA_PLAY, ctx, defecto=0)
 
 
 # --- Reglas del fetch de Ultra Ball -> Hydrapple ex -------------------------
