@@ -1904,129 +1904,131 @@ def _score_xerosic_play(ctx: DecisionContext) -> int:
                                ctx, defecto=XEROSIC_SCORE_LAST_RESORT)
 
 
+_PP_NON_RULEBOX_IDS = (Chikorita, Bayleef, Meganium, Applin, Dipplin,
+                       Tapu_Bulu)
+
+def _pp_buscables(c):
+    """Pokemon SIN Rule Box con copias en el mazo (lo unico que Poke Pad
+    puede buscar: excluye la linea Hydrapple ex y los demas ex)."""
+    cartas = c.cartas_en_mazo
+    return {cid: cartas[cid][ESTADO_MAZO] for cid in _PP_NON_RULEBOX_IDS
+            if cid in cartas and cartas[cid][ESTADO_MAZO] > 0}
+
+def _pp_es_t1(c):
+    return ((c.state.turn == 1 and c.we_go_first)
+            or (c.state.turn == 2 and not c.we_go_first))
+
+def _pp_budew_dump(c):
+    """Rival abre con Budew ACTIVO y vamos segundos: su Itchy Pollen bloquea
+    objetos nuestro proximo turno; este primer turno es el UNICO para usar
+    objetos -> jugar TODAS las Poke Pad ahora."""
+    return (c.budew_op_index == 0
+            and c.state.turn == 2 and not c.we_go_first)
+
+def _v_pp_t1(c):
+    s = _pp_buscables(c)
+    tiene_applin = (c.field_counts.get(Applin, 0) >= 1
+                    or c.hand_counts.get(Applin, 0) >= 1)
+    tiene_chik = (c.field_counts.get(Chikorita, 0) >= 1
+                  or c.hand_counts.get(Chikorita, 0) >= 1)
+    if not tiene_applin and Applin in s and c.bench_count < 5:
+        return 12800
+    if not tiene_chik and Chikorita in s and c.bench_count < 5:
+        return 12600
+    if _pp_budew_dump(c):
+        return 12400
+    return SCORE_VETO
+
+def _pp_evo_valor(c):
+    """Mejor evolucion habilitada ESTE turno por una busqueda de Poke Pad
+    (0 = ninguna). La foto evolvable es la de inicio de turno sin Forest."""
+    s = _pp_buscables(c)
+    h, f = c.hand_counts, c.field_counts
+    evolvable = (c.field_at_turn_start
+                 if (not c.forest_in_play and c.field_at_turn_start) else f)
+    v = 0
+    if (Meganium in s and not c.meganium_in_play
+            and h.get(Meganium, 0) == 0):
+        if evolvable.get(Bayleef, 0) >= 1:
+            v = max(v, 1200)
+        elif (c.forest_in_play and evolvable.get(Chikorita, 0) >= 1
+                and h.get(Bayleef, 0) >= 1):
+            v = max(v, 1100)
+    if (Bayleef in s and not c.meganium_in_play
+            and h.get(Bayleef, 0) == 0):
+        if evolvable.get(Chikorita, 0) >= 1:
+            v = max(v, 1000)
+            if c.forest_in_play and h.get(Meganium, 0) >= 1:
+                v = max(v, 1150)
+    if Dipplin in s and h.get(Dipplin, 0) == 0:
+        if evolvable.get(Applin, 0) >= 1:
+            v = max(v, 950)
+            if c.forest_in_play and h.get(Hydrapple_ex, 0) >= 1:
+                v = max(v, 1100)
+    return v
+
+def _pp_evolucion_pendiente_de_busqueda(c):
+    """Alguna pre-evo en juego cuya evolucion NO esta en mano pero SI en el
+    mazo: una busqueda la habilita (no cortar por banca llena)."""
+    h, f, cartas = c.hand_counts, c.field_counts, c.cartas_en_mazo
+    return ((f.get(Chikorita, 0) >= 1 and h.get(Bayleef, 0) == 0
+             and cartas.get(Bayleef, {}).get(ESTADO_MAZO, 0) > 0)
+            or (f.get(Bayleef, 0) >= 1 and h.get(Meganium, 0) == 0
+                and cartas.get(Meganium, {}).get(ESTADO_MAZO, 0) > 0)
+            or (f.get(Applin, 0) >= 1 and h.get(Dipplin, 0) == 0
+                and cartas.get(Dipplin, {}).get(ESTADO_MAZO, 0) > 0))
+
+_REGLAS_PP_PLAY = [
+    _ReglaFija("sin_buscables",
+               lambda c: not _pp_buscables(c),
+               lambda c: SCORE_VETO),
+    _ReglaFija("primer_turno",
+               _pp_es_t1,
+               _v_pp_t1),
+    _ReglaFija("evolucion_este_turno",
+               lambda c: _pp_evo_valor(c) > 0,
+               lambda c: (23000 if _pp_evo_valor(c) >= 1100
+                          else (22000 if _pp_evo_valor(c) >= 900
+                                else 20000))),
+    _ReglaFija("asegurar_chikorita",
+               lambda c: (Chikorita in _pp_buscables(c)
+                          and not c.meganium_in_play
+                          and (c.field_counts.get(Chikorita, 0)
+                               + c.field_counts.get(Bayleef, 0)
+                               + c.field_counts.get(Meganium, 0)) == 0
+                          and c.hand_counts.get(Chikorita, 0) == 0
+                          and c.bench_count < 5),
+               lambda c: 12800),
+    _ReglaFija("asegurar_applin",
+               lambda c: (Applin in _pp_buscables(c) and c.bench_count < 5),
+               lambda c: 12600),
+]
+
+_AJUSTES_PP_PLAY = [
+    # Buscar Tapu Bulu como sacrificio de 1 premio (pivote vs Lucario).
+    _Ajuste("sacrificio_lucario_tapu",
+            lambda c, s: (c.lucario_sac_pivot
+                          and Tapu_Bulu in _pp_buscables(c)
+                          and c.field_counts.get(Tapu_Bulu, 0) == 0
+                          and c.hand_counts.get(Tapu_Bulu, 0) == 0
+                          and c.bench_count < 5),
+            lambda c, s: 13000),
+    # Banca llena y sin pre-evo que evolucionar CON UNA BUSQUEDA: guardar
+    # el recurso (Poke Pad excluye la linea Dipplin->Hydrapple ex).
+    _Ajuste("banca_llena_guardar",
+            lambda c, s: (c.bench_count >= 5
+                          and not _pp_evolucion_pendiente_de_busqueda(c)
+                          and s > 0 and not _pp_budew_dump(c)),
+            lambda c, s: SCORE_VETO),
+]
+
 def _score_poke_pad_play(ctx: DecisionContext) -> int:
-    """Puntua la jugada de Poke Pad (busca un Pokemon SIN Rule Box del mazo).
-    Extraido verbatim de la rama `elif card.id == Poke_Pad`. Prioriza habilitar
-    una evolucion ESTE turno; si no, asegurar basicos; con banca llena y sin nada
-    que evolucionar, guarda el recurso."""
-    state = ctx.state
-    hand_counts = ctx.hand_counts
-    field_counts = ctx.field_counts
-    bench_count = ctx.bench_count
-    forest_in_play = ctx.forest_in_play
-    meganium_in_play = ctx.meganium_in_play
-    cartas = ctx.cartas_en_mazo
-
-    pp_score = 9800
-
-    NON_RULEBOX_IDS = (Chikorita, Bayleef, Meganium, Applin, Dipplin, Tapu_Bulu)
-    searchable = {}
-    for cid in NON_RULEBOX_IDS:
-        if cid in cartas and cartas[cid][ESTADO_MAZO] > 0:
-            searchable[cid] = cartas[cid][ESTADO_MAZO]
-
-    # Rival abre con Budew en el ACTIVO y vamos SEGUNDOS: su Itchy Pollen bloquea
-    # objetos en NUESTRO proximo turno, asi que este primer turno es el UNICO para
-    # usar objetos. En ese caso jugamos TODAS las Poke Pad ahora.
-    _pp_budew_dump = (ctx.budew_op_index == 0
-                      and state.turn == 2 and not ctx.we_go_first)
-
-    if not searchable:
-        pp_score = SCORE_VETO
-
-    elif ((state.turn == 1 and ctx.we_go_first) or (state.turn == 2 and not ctx.we_go_first)):
-        _pp_have_applin_t1 = (field_counts.get(Applin, 0) >= 1
-                              or hand_counts.get(Applin, 0) >= 1)
-        _pp_have_chik_t1 = (field_counts.get(Chikorita, 0) >= 1
-                            or hand_counts.get(Chikorita, 0) >= 1)
-        if (not _pp_have_applin_t1 and Applin in searchable
-                and bench_count < 5):
-            pp_score = 12800
-        elif (not _pp_have_chik_t1 and Chikorita in searchable
-                and bench_count < 5):
-            pp_score = 12600
-        elif _pp_budew_dump:
-            pp_score = 12400
-        else:
-            pp_score = SCORE_VETO
-
-    else:
-        _pp_evolvable = ctx.field_at_turn_start if (not forest_in_play and ctx.field_at_turn_start) else field_counts
-        _pp_can_evolve_this_turn = False
-        _pp_evo_value = 0
-
-        if (Meganium in searchable and not meganium_in_play and
-                hand_counts.get(Meganium, 0) == 0):
-            if _pp_evolvable.get(Bayleef, 0) >= 1:
-                _pp_can_evolve_this_turn = True
-                _pp_evo_value = max(_pp_evo_value, 1200)
-            elif forest_in_play and _pp_evolvable.get(Chikorita, 0) >= 1 and hand_counts.get(Bayleef, 0) >= 1:
-                _pp_can_evolve_this_turn = True
-                _pp_evo_value = max(_pp_evo_value, 1100)
-
-        if (Bayleef in searchable and not meganium_in_play and
-                hand_counts.get(Bayleef, 0) == 0):
-            if _pp_evolvable.get(Chikorita, 0) >= 1:
-                _pp_can_evolve_this_turn = True
-                _pp_evo_value = max(_pp_evo_value, 1000)
-                if forest_in_play and hand_counts.get(Meganium, 0) >= 1:
-                    _pp_evo_value = max(_pp_evo_value, 1150)
-
-        if (Dipplin in searchable and
-                hand_counts.get(Dipplin, 0) == 0):
-            if _pp_evolvable.get(Applin, 0) >= 1:
-                _pp_can_evolve_this_turn = True
-                _pp_evo_value = max(_pp_evo_value, 950)
-                if forest_in_play and hand_counts.get(Hydrapple_ex, 0) >= 1:
-                    _pp_evo_value = max(_pp_evo_value, 1100)
-
-        if _pp_can_evolve_this_turn:
-            if _pp_evo_value >= 1100:
-                pp_score = 23000
-            elif _pp_evo_value >= 900:
-                pp_score = 22000
-            else:
-                pp_score = 20000
-        else:
-            _pp_chik_line_on_bench = (
-                field_counts.get(Chikorita, 0) + field_counts.get(Bayleef, 0) + field_counts.get(Meganium, 0)) >= 1
-            _pp_chik_in_hand = hand_counts.get(Chikorita, 0) >= 1
-
-            if (Chikorita in searchable and not meganium_in_play and
-                    not _pp_chik_line_on_bench and not _pp_chik_in_hand and
-                    bench_count < 5):
-                pp_score = 12800
-            elif Applin in searchable and bench_count < 5:
-                pp_score = 12600
-            else:
-                pp_score = SCORE_VETO
-
-    if (ctx.lucario_sac_pivot and Tapu_Bulu in searchable
-            and field_counts.get(Tapu_Bulu, 0) == 0
-            and hand_counts.get(Tapu_Bulu, 0) == 0
-            and bench_count < 5):
-        # Buscar Tapu Bulu para usarlo como sacrificio de 1 premio.
-        pp_score = 13000
-
-    # Corte de banca llena (variante estricta): Poke Pad solo busca Pokemon SIN
-    # Rule Box, asi que EXCLUYE la linea Dipplin->Hydrapple ex. Con banca llena y
-    # sin pre-evo que evolucionar CON UNA BUSQUEDA, se guarda el recurso.
-    _pp_evolve_needs_search = (
-        (field_counts.get(Chikorita, 0) >= 1 and
-         hand_counts.get(Bayleef, 0) == 0 and
-         cartas.get(Bayleef, {}).get(ESTADO_MAZO, 0) > 0) or
-        (field_counts.get(Bayleef, 0) >= 1 and
-         hand_counts.get(Meganium, 0) == 0 and
-         cartas.get(Meganium, {}).get(ESTADO_MAZO, 0) > 0) or
-        (field_counts.get(Applin, 0) >= 1 and
-         hand_counts.get(Dipplin, 0) == 0 and
-         cartas.get(Dipplin, {}).get(ESTADO_MAZO, 0) > 0))
-
-    if (bench_count >= 5 and not _pp_evolve_needs_search
-            and pp_score > 0 and not _pp_budew_dump):
-        pp_score = SCORE_VETO
-
-    return pp_score
+    """Puntua la jugada de Poke Pad (busca un Pokemon SIN Rule Box). Prioriza
+    habilitar una evolucion ESTE turno; si no, asegurar basicos; con banca
+    llena y sin nada que evolucionar, guarda el recurso. Cuerpo migrado al
+    MOTOR DE REGLAS (fase 4)."""
+    return _resolver_con_traza("pokepad->play", _REGLAS_PP_PLAY,
+                               _AJUSTES_PP_PLAY, ctx, defecto=SCORE_VETO)
 
 
 def _score_night_stretcher_play(ctx: DecisionContext) -> int:
