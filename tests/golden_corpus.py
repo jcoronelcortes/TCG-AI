@@ -119,24 +119,67 @@ def describir_opcion(m, obs, idx):
     return etiqueta
 
 
+def _ids_de_nuestro_mazo():
+    csv = (_ROOT / "deck.csv").read_text().split("\n")
+    return {int(csv[i]) for i in range(60)}
+
+
+def nuestro_indice(data):
+    """Asiento (0 o 1) en el que jugamos NOSOTROS en este episodio.
+
+    No es siempre el 0: segun el emparejamiento podemos ser el jugador 1
+    (p.ej. episodio 87709673). Se decide por votacion: el asiento cuyas
+    cartas VISIBLES coinciden mas con deck.csv. Sin esto, el replay
+    alimentaba al agente con las observaciones del RIVAL (su `yourIndex`)
+    y ademas se saltaba todas nuestras decisiones.
+    """
+    mazo = _ids_de_nuestro_mazo()
+    votos = [0, 0]
+    for step in data.get("steps", []):
+        for item in step:
+            cur = (item.get("observation") or {}).get("current")
+            if not cur:
+                continue
+            for idx, jugador in enumerate(cur.get("players", [])):
+                vistas = []
+                for pk in (jugador.get("active") or []) + (
+                        jugador.get("bench") or []):
+                    if pk:
+                        vistas.append(pk.get("id"))
+                for carta in (jugador.get("discard") or []):
+                    vistas.append(carta.get("id"))
+                for carta in (jugador.get("hand") or []):
+                    vistas.append(carta.get("id"))
+                votos[idx] += sum(1 for cid in vistas if cid in mazo)
+    return 0 if votos[0] >= votos[1] else 1
+
+
 def reproducir_registro(m, ruta):
-    """Reproduce un registro desde frio y devuelve sus decisiones."""
+    """Reproduce un registro desde frio y devuelve NUESTRAS decisiones."""
     with open(ruta, encoding="utf-8") as f:
         data = json.load(f)
+    yo = nuestro_indice(data)
     reset_agente(m)
     decisiones = []
     for step in data.get("steps", []):
-        item = step[0]
-        obs = item.get("observation") or {}
-        if item.get("status") != "ACTIVE" or not obs.get("select"):
-            continue
-        eleccion = m.agent(obs)
-        decisiones.append({
-            "paso": obs.get("step"),
-            "contexto": obs["select"].get("context"),
-            "eleccion": list(eleccion),
-            "detalle": [describir_opcion(m, obs, i) for i in eleccion],
-        })
+        for item in step:
+            obs = item.get("observation") or {}
+            cur = obs.get("current") or {}
+            if (item.get("status") != "ACTIVE" or not obs.get("select")
+                    or cur.get("yourIndex") != yo):
+                continue
+            eleccion = m.agent(obs)
+            decisiones.append({
+                # Nuestras observaciones ACTIVE no traen "step" (solo lo
+                # llevan las INACTIVE del otro asiento): se identifica la
+                # decision por turno/accion, que si es estable.
+                "paso": obs.get("step"),
+                "turno": (obs.get("current") or {}).get("turn"),
+                "accion": (obs.get("current") or {}).get("turnActionCount"),
+                "contexto": obs["select"].get("context"),
+                "eleccion": list(eleccion),
+                "detalle": [describir_opcion(m, obs, i) for i in eleccion],
+            })
     return decisiones
 
 
@@ -187,9 +230,11 @@ def comparar(dorado, actual):
             continue
         for d_oro, d_hoy in zip(oro["decisiones"], hoy["decisiones"]):
             if d_oro["eleccion"] != d_hoy["eleccion"]:
+                _id = (f"paso {d_oro['paso']}" if d_oro.get("paso") is not None
+                       else f"turno {d_oro.get('turno')} accion {d_oro.get('accion')}")
                 flips.append({
                     "archivo": nombre,
-                    "paso": d_oro["paso"],
+                    "paso": _id,
                     "dorado": f"{d_oro['eleccion']} {d_oro['detalle']}",
                     "actual": f"{d_hoy['eleccion']} {d_hoy['detalle']}",
                 })
@@ -199,7 +244,7 @@ def comparar(dorado, actual):
 def formatear_flips(flips):
     lineas = []
     for f in flips:
-        lineas.append(f"  {f['archivo']} paso {f['paso']}:")
+        lineas.append(f"  {f['archivo']} {f['paso']}:")
         lineas.append(f"    dorado: {f['dorado']}")
         lineas.append(f"    actual: {f['actual']}")
     return "\n".join(lineas)

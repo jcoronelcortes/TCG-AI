@@ -10687,6 +10687,10 @@ def agent(obs_dict: dict) -> list[int]:
             if _akp_can_retreat and _akp_bench_ko_1prize and not _akp_win_now:
                 _alakazam_pivot_1prize = True
 
+    # Indices de adjuntes manuales que CEDEN ante una Teal Dance pendiente
+    # (ver la regla en la rama OptionType.ATTACH): ademas del cap de score, se
+    # les deja el tier 0 del orden de jugada para que el score decida.
+    _attach_cede_a_teal_dance = set()
     scores = []
     for o in select.option:
         score = 0
@@ -13860,6 +13864,55 @@ def agent(obs_dict: dict) -> list[int]:
                         and (o.inPlayArea, o.inPlayIndex) in _teal_dance_slots):
                     score = SCORE_VETO
 
+                # GENERALIZACION de la precedencia anterior (user, registro_002
+                # paso 20, vs Marnie): Teal Dance no solo precede al adjunte
+                # sobre el PROPIO Ogerpon. Mientras quede una Teal Dance por
+                # usar este turno, un adjunte manual que sea mero DESARROLLO
+                # (el objetivo NO queda listo para atacar con esa energia) cede
+                # ante ella. Teal Dance gasta la misma Planta de la mano, pero
+                # ademas ROBA una carta y NO consume el adjunte manual del
+                # turno: es estrictamente mejor que gastar el adjunte en un
+                # cuerpo que no va a atacar.
+                #
+                # En el registro, el Ogerpon ex ACTIVO ya habia usado su Teal
+                # Dance ese turno, asi que el adjunte al activo quedaba vetado
+                # por la regla de primer turno y la Teal Dance del Ogerpon ex de
+                # BANCA caia a la banda degradada (7500); el unico objetivo que
+                # quedaba, un Chikorita de banca, ganaba con 8400 (base 8000 de
+                # energy_score + boost de desarrollo) y desperdiciaba la unica
+                # Planta en un cuerpo que con 1 energia no es atacante.
+                #
+                # Se CAPA (no se veta) por debajo de la banda degradada de Teal
+                # Dance (7500) en vez de anular la jugada: si la habilidad
+                # estuviera vetada por otra via, el adjunte sigue siendo jugable
+                # y no se cuelga el turno. "Listo para atacar" exige ATACANTE
+                # REAL (MAIN_ATTACKERS): Chikorita/Applin/Bayleef figuran en
+                # ATTACK_ENERGY_REQ por su ataque de chip, pero no son atacantes.
+                #
+                # No basta con capar el score: el ORDEN DE JUGADA manda por
+                # tier y el adjunte manual vive en _TIER_ENERGY, mientras que
+                # una Teal Dance degradada (7500) se queda en tier 0 (su
+                # promocion exige >= 29000, guard que NO se toca: evita que una
+                # Teal Dance degradada aplaste por tier a Ripening Charge). Por
+                # eso el indice se marca aqui y mas abajo se deja el adjunte en
+                # tier 0, para que dentro del mismo tier decida el score
+                # (Teal Dance 7500 > adjunte capado 7000).
+                # Solo la BANDA DE DESARROLLO (< 9000: la base 8000 de
+                # energy_score y el boost de banca del primer turno, max 8900).
+                # Los adjuntes con override estrategico puntuan muy por encima
+                # (8500 sacrificio Lucario, 24000 pivote Tapu, 31000+ cargas,
+                # 41000 el que habilita retirada hacia un KO de banca) y NO son
+                # desarrollo: ceder ahi romperia lineas letales de este turno.
+                if (pokemon is not None and _teal_dance_slots
+                        and 0 < score < 9000
+                        and not (pokemon.id in MAIN_ATTACKERS
+                                 and _can_attack_eff(
+                                     pokemon.id,
+                                     len(pokemon.energies)
+                                     + _grass_attach_unit()))):
+                    score = min(score, 7000)
+                    _attach_cede_a_teal_dance.add(len(scores))
+
         elif o.type == OptionType.EVOLVE:
             pokemon = get_card(obs, o.inPlayArea, o.inPlayIndex, my_index)
             card = get_card(obs, AreaType.HAND, o.index, my_index)
@@ -15681,6 +15734,11 @@ def agent(obs_dict: dict) -> list[int]:
                 if (_tapu_future_charge
                         and _po_o.inPlayArea == AreaType.ACTIVE):
                     _po_is_ko_energy = False
+                if _po_i in _attach_cede_a_teal_dance:
+                    # Adjunte de mero desarrollo con una Teal Dance pendiente:
+                    # se queda en tier 0 junto a la habilidad para que decida
+                    # el score (Teal Dance 7500 > adjunte capado 7000).
+                    continue
                 _play_order_tier[_po_i] = (
                     _TIER_KO_ENERGY if _po_is_ko_energy else _TIER_ENERGY)
             elif _po_o.type == OptionType.PLAY:

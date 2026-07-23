@@ -4628,3 +4628,64 @@ def test_crustle_step69_immune_active_keeps_clamp():
         f"con un Crustle inmune de activo, Hydrapple ex vuelve a ser carta "
         f"muerta y el clamp debe aplicar (no se busca Hydrapple ex); obtuvo "
         f"{result} -> {ids}")
+
+
+# =====================================================================
+# Teal Dance sobre el desarrollo de banca (user, registro_002 paso 20,
+# episodio 87709673 vs Marnie): nuestro primer turno saliendo segundos. El
+# Ogerpon ex ACTIVO ya uso su Teal Dance, asi que el adjunte manual al activo
+# queda vetado por la regla de primer turno y la Teal Dance del Ogerpon ex de
+# BANCA cae a la banda degradada (7500). El unico objetivo restante, un
+# Chikorita de banca, ganaba con 8400 (base 8000 de energy_score + boost de
+# desarrollo) y ademas dominaba por TIER (adjunte = _TIER_ENERGY frente a la
+# habilidad en tier 0), desperdiciando la unica Planta en un cuerpo que con 1
+# energia NO es atacante. Fix: un adjunte de MERO DESARROLLO (banda < 9000 y
+# objetivo que no queda listo para atacar, exigiendo MAIN_ATTACKERS) cede ante
+# una Teal Dance pendiente: se capa a 7000 y se le deja el tier 0 para que
+# dentro del mismo tier decida el score.
+# =====================================================================
+_MARNIE_S20_FIXTURE = (
+    ROOT / "tests" / "fixtures"
+    / "marnie_step20_teal_dance_sobre_desarrollo.json")
+
+
+def _marnie_s20_replay(observation_key=None):
+    with open(_MARNIE_S20_FIXTURE, encoding="utf-8") as f:
+        data = json.load(f)
+    seq = data["sequence"]
+    for item in seq[:-1]:
+        m.agent(item["observation"])
+    obs = data[observation_key] if observation_key else seq[-1]["observation"]
+    return m.agent(obs), obs, data
+
+
+def test_marnie_step20_usa_teal_dance_en_vez_de_cargar_chikorita():
+    result, obs, _ = _marnie_s20_replay()
+    opt = obs["select"]["option"][result[0]]
+    assert opt.get("type") == int(OptionType.ABILITY), (
+        f"con una Teal Dance pendiente, el adjunte de desarrollo debe ceder: "
+        f"se esperaba la habilidad; obtuvo {result} -> {opt}")
+
+
+def test_marnie_step20_no_carga_energia_al_chikorita():
+    result, obs, _ = _marnie_s20_replay()
+    opt = obs["select"]["option"][result[0]]
+    if opt.get("type") != int(OptionType.ATTACH):
+        return  # no adjunta: la regla se respeto
+    me = obs["current"]["players"][obs["current"]["yourIndex"]]
+    destino = (me["active"][0] if opt.get("inPlayArea") == 4
+               else me["bench"][opt["inPlayIndex"]])
+    assert destino["id"] != m.Chikorita, (
+        f"nunca gastar la unica Planta en un Chikorita de banca (con 1 energia "
+        f"no es atacante) habiendo Teal Dance; obtuvo {result} -> {opt}")
+
+
+def test_marnie_step20_sin_teal_dance_el_adjunte_no_cede():
+    # Contrafactual de frontera: si la habilidad ya no esta disponible, el
+    # adjunte de desarrollo NO cede y vuelve a ser la mejor jugada.
+    result, obs, _ = _marnie_s20_replay(
+        observation_key="synthetic_sin_teal_dance")
+    opt = obs["select"]["option"][result[0]]
+    assert opt.get("type") == int(OptionType.ATTACH), (
+        f"sin Teal Dance pendiente el adjunte manual no debe cederle a nadie; "
+        f"obtuvo {result} -> {opt}")
