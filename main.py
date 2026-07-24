@@ -11394,7 +11394,17 @@ def agent(obs_dict: dict) -> list[int]:
                                     _gt_ctx, defecto=0)
                 elif context == SelectContext.SETUP_ACTIVE_POKEMON:
 
-                    if card.id == Teal_Mask_Ogerpon_ex:
+                    if card.id == Tapu_Bulu:
+                        # Regla (user): si al COMENZAR la partida tenemos un Tapu
+                        # Bulu en la mano, es SIEMPRE nuestro Pokemon inicial
+                        # activo. Es el atacante no-ex de referencia (1 premio,
+                        # 220 de dano con Wood Hammer, y el unico que dana a los
+                        # rivales que anulan ex o habilidades), asi que arranca
+                        # en el activo para ir cargandolo desde el turno 1 y no
+                        # exponer un ex de 2 premios de salida. Tope por encima
+                        # del Teal Mask Ogerpon ex (100), que era el preferido.
+                        score = 200
+                    elif card.id == Teal_Mask_Ogerpon_ex:
                         score = 100
                     elif card.id in (Chikorita, Applin) and hand_counts.get(card.id, 0) >= 2:
 

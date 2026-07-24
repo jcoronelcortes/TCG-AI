@@ -4856,3 +4856,56 @@ def test_marnie_step107_banca_desarrollada_no_baja_meowth():
     assert opt.get("type") == int(OptionType.ATTACK), (
         f"con la banca desarrollada no hace falta el cuerpo de repuesto; "
         f"obtuvo {result} -> {opt}")
+
+
+# =====================================================================
+# Pokemon inicial ACTIVO: Tapu Bulu SIEMPRE (user)
+# ---------------------------------------------------------------------
+# Si al comenzar la partida tenemos un Tapu Bulu en la mano, es nuestro
+# Pokemon inicial activo, por encima de cualquier otro basico (antes ganaba
+# Teal Mask Ogerpon ex y, sin el, Chikorita/Applin). Fixture: el setup REAL
+# de registro_000 (Tapu Bulu y Chikorita como unicos basicos de la mano).
+# =====================================================================
+_SETUP_TAPU_FIXTURE = ROOT / "tests" / "fixtures" / "setup_activo_tapu_bulu.json"
+
+
+def _setup_obs():
+    with open(_SETUP_TAPU_FIXTURE, encoding="utf-8") as f:
+        return copy.deepcopy(json.load(f)["observation"])
+
+
+def _basico_elegido(obs, result):
+    me = obs["current"]["players"][obs["current"]["yourIndex"]]
+    opt = obs["select"]["option"][result[0]]
+    return me["hand"][opt["index"]]["id"]
+
+
+def test_setup_activo_elige_tapu_bulu():
+    obs = _setup_obs()
+    assert obs["select"]["context"] == int(SelectContext.SETUP_ACTIVE_POKEMON)
+    assert _basico_elegido(obs, m.agent(obs)) == m.Tapu_Bulu, (
+        "con Tapu Bulu en la mano al comenzar la partida, es el Pokemon "
+        "inicial activo")
+
+
+def test_setup_activo_tapu_bulu_sobre_ogerpon():
+    # El Teal Mask Ogerpon ex era el preferido (score 100): Tapu Bulu lo supera.
+    obs = _setup_obs()
+    me = obs["current"]["players"][obs["current"]["yourIndex"]]
+    otro = next(o for o in obs["select"]["option"]
+                if me["hand"][o["index"]]["id"] != m.Tapu_Bulu)
+    me["hand"][otro["index"]]["id"] = m.Teal_Mask_Ogerpon_ex
+    assert _basico_elegido(obs, m.agent(obs)) == m.Tapu_Bulu, (
+        "Tapu Bulu (1 premio, atacante de referencia) va al activo antes que "
+        "el Teal Mask Ogerpon ex (2 premios)")
+
+
+def test_setup_activo_sin_tapu_no_cambia():
+    # Frontera: sin Tapu Bulu entre las opciones, la preferencia previa sigue
+    # intacta (Chikorita sobre el resto de basicos).
+    obs = _setup_obs()
+    me = obs["current"]["players"][obs["current"]["yourIndex"]]
+    obs["select"]["option"] = [o for o in obs["select"]["option"]
+                               if me["hand"][o["index"]]["id"] != m.Tapu_Bulu]
+    assert _basico_elegido(obs, m.agent(obs)) == m.Chikorita, (
+        "sin Tapu Bulu en la mano, la eleccion del inicial no cambia")

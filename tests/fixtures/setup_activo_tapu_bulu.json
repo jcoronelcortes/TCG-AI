@@ -1,0 +1,196 @@
+{
+ "descripcion": "Setup real de registro_000 (turno 0, accion 2): eleccion del Pokemon inicial ACTIVO con Tapu Bulu (mano idx 2) y Chikorita (mano idx 5) como unicos basicos.",
+ "origen": "registros/registro_000_pasos_001_hasta_005.json steps[1][1]",
+ "observation": {
+  "current": {
+   "energyAttached": false,
+   "firstPlayer": 1,
+   "looking": null,
+   "players": [
+    {
+     "active": [],
+     "asleep": false,
+     "bench": [],
+     "benchMax": 5,
+     "burned": false,
+     "confused": false,
+     "deckCount": 53,
+     "discard": [],
+     "hand": null,
+     "handCount": 7,
+     "paralyzed": false,
+     "poisoned": false,
+     "prize": []
+    },
+    {
+     "active": [],
+     "asleep": false,
+     "bench": [],
+     "benchMax": 5,
+     "burned": false,
+     "confused": false,
+     "deckCount": 53,
+     "discard": [],
+     "hand": [
+      {
+       "id": 1,
+       "playerIndex": 1,
+       "serial": 109
+      },
+      {
+       "id": 1231,
+       "playerIndex": 1,
+       "serial": 91
+      },
+      {
+       "id": 920,
+       "playerIndex": 1,
+       "serial": 82
+      },
+      {
+       "id": 1182,
+       "playerIndex": 1,
+       "serial": 88
+      },
+      {
+       "id": 1094,
+       "playerIndex": 1,
+       "serial": 95
+      },
+      {
+       "id": 917,
+       "playerIndex": 1,
+       "serial": 67
+      },
+      {
+       "id": 1261,
+       "playerIndex": 1,
+       "serial": 107
+      }
+     ],
+     "handCount": 7,
+     "paralyzed": false,
+     "poisoned": false,
+     "prize": []
+    }
+   ],
+   "result": -1,
+   "retreated": false,
+   "stadium": [],
+   "stadiumPlayed": false,
+   "supporterPlayed": false,
+   "turn": 0,
+   "turnActionCount": 2,
+   "yourIndex": 1
+  },
+  "logs": [
+   {
+    "cardId": 1,
+    "playerIndex": 1,
+    "serial": 109,
+    "type": 4
+   },
+   {
+    "cardId": 1231,
+    "playerIndex": 1,
+    "serial": 91,
+    "type": 4
+   },
+   {
+    "cardId": 920,
+    "playerIndex": 1,
+    "serial": 82,
+    "type": 4
+   },
+   {
+    "cardId": 1182,
+    "playerIndex": 1,
+    "serial": 88,
+    "type": 4
+   },
+   {
+    "cardId": 1094,
+    "playerIndex": 1,
+    "serial": 95,
+    "type": 4
+   },
+   {
+    "cardId": 917,
+    "playerIndex": 1,
+    "serial": 67,
+    "type": 4
+   },
+   {
+    "cardId": 1261,
+    "playerIndex": 1,
+    "serial": 107,
+    "type": 4
+   },
+   {
+    "playerIndex": 0,
+    "type": 5
+   },
+   {
+    "playerIndex": 0,
+    "type": 5
+   },
+   {
+    "playerIndex": 0,
+    "type": 5
+   },
+   {
+    "playerIndex": 0,
+    "type": 5
+   },
+   {
+    "playerIndex": 0,
+    "type": 5
+   },
+   {
+    "playerIndex": 0,
+    "type": 5
+   },
+   {
+    "playerIndex": 0,
+    "type": 5
+   },
+   {
+    "hasBasicPokemon": true,
+    "playerIndex": 1,
+    "type": 1
+   },
+   {
+    "hasBasicPokemon": true,
+    "playerIndex": 0,
+    "type": 1
+   }
+  ],
+  "remainingOverageTime": 599.048451,
+  "search_begin_input": "AGIAkBAGEAbICADBACEAEB-+CCJ-PHH-ZBDU-5KBwADG1bUlhfQ2s-MB1-fIB-VEQ-VBL-+BI-UBBCw*MXDCVABwACg-VBECABQ-gwCYABwACfQ-UBECABQ-gSCeBADfg-UBECABQ-gIDPBADf-VBECABQ-2LRgQACH8-UBBABgE-hm7QQACIE-UBBABgE-MFBAEew-UBECABQ-39gAEMACgABCACEAHMACgABFACE-BBBAEGwAWQACGQAVBACBoAVQEACFkAEBAPBABQAB+AG==",
+  "select": {
+   "context": 1,
+   "contextCard": null,
+   "deck": null,
+   "effect": null,
+   "maxCount": 1,
+   "minCount": 1,
+   "option": [
+    {
+     "area": 2,
+     "index": 2,
+     "playerIndex": 1,
+     "type": 3
+    },
+    {
+     "area": 2,
+     "index": 5,
+     "playerIndex": 1,
+     "type": 3
+    }
+   ],
+   "remainDamageCounter": 0,
+   "remainEnergyCost": 0,
+   "type": 1
+  }
+ }
+}
