@@ -3542,388 +3542,390 @@ def _score_ultra_ball_play(ctx) -> int:
     return ub_score
 
 
-def _score_lillie_determination_play(ctx: DecisionContext) -> int:
-    """Puntua la jugada de Lillie's Determination (baraja la mano y roba 6/8).
-    Extraida verbatim de la rama `elif card.id == Lillie_Determination`. Cuida no
-    barajar piezas de evolucion pendientes y cede/gana prioridad frente a Boss's
-    segun el estado. Cuerpo verbatim (refactor Prioridad 1)."""
-    score = 0
-    state = ctx.state
-    my_state = ctx.my_state
-    hand_counts = ctx.hand_counts
-    field_counts = ctx.field_counts
-    bench_count = ctx.bench_count
-    meganium_in_play = ctx.meganium_in_play
-    has_hydrapple = ctx.has_hydrapple
-    forest_in_play = ctx.forest_in_play
-    ko_last_turn = ctx.ko_last_turn
-    can_attack = ctx.can_attack
-    supporter_boost = ctx.supporter_boost
-    _field_at_turn_start = ctx.field_at_turn_start
-    op_is_alakazam_deck = ctx.op_is_alakazam_deck
-    _our_first_turn = ctx.our_first_turn
-    _active_cant_attack_this_turn = ctx.active_cant_attack
-    _bdg_retreat_ko = ctx.bdg_retreat_ko
-    _boss_win_via_bench = ctx.boss_win_via_bench
-    _boss_dodge_redirect = ctx.boss_dodge_redirect
-    _boss_low_value_gust = ctx.boss_low_value_gust
-    _boss_prize_rank = ctx.boss_prize_rank
+class _CtxLillie:
+    """Wrapper del DecisionContext para las reglas de Lillie's Determination:
+    precomputa los derivados que el bloque original calculaba al inicio
+    (atacantes ex listos, lineas de evolucion pendientes/evolucionables,
+    Hydrapple activo cargado, guarda del Boss's vs Hop's) y delega el resto
+    de campos en el ctx via __getattr__."""
 
-    _ready_ex_attackers = 0
-    _lillie_my_pkmn = (
-        [my_state.active[0]] if (my_state.active and my_state.active[0] is not None) else [])
-    _lillie_my_pkmn += [bp for bp in my_state.bench if bp is not None]
-    for _exp in _lillie_my_pkmn:
-        _exp_eff = len(_exp.energies) * _grass_mult()
-        if _exp.id == Hydrapple_ex and _exp_eff >= 2:
-            _ready_ex_attackers += 1
-        elif _exp.id == Teal_Mask_Ogerpon_ex and _exp_eff >= 3:
-            _ready_ex_attackers += 1
-        elif _exp.id == Fezandipiti_ex and _exp_eff >= 3:
-            _ready_ex_attackers += 1
+    def __init__(self, ctx):
+        self.c = ctx
+        my_state = ctx.my_state
+        hand_counts = ctx.hand_counts
+        field_counts = ctx.field_counts
+        meganium_in_play = ctx.meganium_in_play
+        has_hydrapple = ctx.has_hydrapple
+        forest_in_play = ctx.forest_in_play
+        _field_at_turn_start = ctx.field_at_turn_start
 
-    # Piezas de evolucion en mano cuya pre-evolucion YA esta en
-    # juego (activo o banca): si barajamos la mano con Lillie's
-    # Determination las devolveriamos al mazo y perderiamos la
-    # linea de evolucion. Detectamos esa situacion para NO jugar
-    # Lillie's hasta completar las evoluciones disponibles.
-    _lillie_pending_evo = False
-    if not meganium_in_play:
-        if (hand_counts.get(Bayleef, 0) >= 1 and
-                field_counts.get(Chikorita, 0) >= 1):
-            _lillie_pending_evo = True
-        if (hand_counts.get(Meganium, 0) >= 1 and
-                field_counts.get(Bayleef, 0) >= 1):
-            _lillie_pending_evo = True
-        if (forest_in_play and
-                hand_counts.get(Meganium, 0) >= 1 and
-                field_counts.get(Chikorita, 0) >= 1 and
-                hand_counts.get(Bayleef, 0) >= 1):
-            _lillie_pending_evo = True
-    if not has_hydrapple:
-        if (hand_counts.get(Dipplin, 0) >= 1 and
-                field_counts.get(Applin, 0) >= 1):
-            _lillie_pending_evo = True
-        if (hand_counts.get(Hydrapple_ex, 0) >= 1 and
-                field_counts.get(Dipplin, 0) >= 1):
-            _lillie_pending_evo = True
-        if (forest_in_play and
-                hand_counts.get(Hydrapple_ex, 0) >= 1 and
-                field_counts.get(Applin, 0) >= 1 and
-                hand_counts.get(Dipplin, 0) >= 1):
-            _lillie_pending_evo = True
+        self.hand_len = len(my_state.hand or [])
 
-    # Podemos EVOLUCIONAR realmente una de esas lineas ESTE
-    # turno? Solo cuenta si la pre-evolucion esta AHORA en juego
-    # (field_counts) y ademas puede evolucionar ya: o estaba en
-    # juego al inicio del turno (_field_at_turn_start, no salio
-    # este turno) o hay Forest of Vitality (permite evolucionar el
-    # mismo turno). Evita el falso positivo de contar como
-    # evolucionable un Pokemon que YA evoluciono este turno.
-    _lillie_evolve_now = False
-    if not meganium_in_play:
-        if (hand_counts.get(Bayleef, 0) >= 1 and
-                field_counts.get(Chikorita, 0) >= 1 and
-                (forest_in_play or
-                 _field_at_turn_start.get(Chikorita, 0) >= 1)):
-            _lillie_evolve_now = True
-        if (hand_counts.get(Meganium, 0) >= 1 and
-                field_counts.get(Bayleef, 0) >= 1 and
-                (forest_in_play or
-                 _field_at_turn_start.get(Bayleef, 0) >= 1)):
-            _lillie_evolve_now = True
-    if not has_hydrapple:
-        if (hand_counts.get(Dipplin, 0) >= 1 and
-                field_counts.get(Applin, 0) >= 1 and
-                (forest_in_play or
-                 _field_at_turn_start.get(Applin, 0) >= 1)):
-            _lillie_evolve_now = True
-        if (hand_counts.get(Hydrapple_ex, 0) >= 1 and
-                field_counts.get(Dipplin, 0) >= 1 and
-                (forest_in_play or
-                 _field_at_turn_start.get(Dipplin, 0) >= 1)):
-            _lillie_evolve_now = True
+        _ready_ex_attackers = 0
+        _lillie_my_pkmn = (
+            [my_state.active[0]] if (my_state.active and my_state.active[0] is not None) else [])
+        _lillie_my_pkmn += [bp for bp in my_state.bench if bp is not None]
+        for _exp in _lillie_my_pkmn:
+            _exp_eff = len(_exp.energies) * _grass_mult()
+            if _exp.id == Hydrapple_ex and _exp_eff >= 2:
+                _ready_ex_attackers += 1
+            elif _exp.id == Teal_Mask_Ogerpon_ex and _exp_eff >= 3:
+                _ready_ex_attackers += 1
+            elif _exp.id == Fezandipiti_ex and _exp_eff >= 3:
+                _ready_ex_attackers += 1
+        self.ready_ex_attackers = _ready_ex_attackers
 
-    # Hydrapple ex CARGADO en el activo (>=2 de Planta efectiva,
-    # listo para Syrup Storm): jugar Lillie's Determination tiene
-    # prioridad sobre Boss's Orders. Barajar la mano y robar 6-8
-    # busca mas Pokemon y energia para potenciar Syrup Storm (que
-    # escala con la energia Planta en juego); Hydrapple conserva su
-    # energia (Lillie's solo baraja la MANO) y ataca igual despues.
-    _hydra_active_charged = (
-        my_state.active and my_state.active[0] is not None
-        and my_state.active[0].id == Hydrapple_ex
-        and len(my_state.active[0].energies) * _grass_mult() >= 2)
+        # Piezas de evolucion en mano cuya pre-evolucion YA esta en juego
+        # (activo o banca): si barajamos la mano con Lillie's Determination
+        # las devolveriamos al mazo y perderiamos la linea de evolucion.
+        # Detectamos esa situacion para NO jugar Lillie's hasta completar las
+        # evoluciones disponibles.
+        _lillie_pending_evo = False
+        if not meganium_in_play:
+            if (hand_counts.get(Bayleef, 0) >= 1 and
+                    field_counts.get(Chikorita, 0) >= 1):
+                _lillie_pending_evo = True
+            if (hand_counts.get(Meganium, 0) >= 1 and
+                    field_counts.get(Bayleef, 0) >= 1):
+                _lillie_pending_evo = True
+            if (forest_in_play and
+                    hand_counts.get(Meganium, 0) >= 1 and
+                    field_counts.get(Chikorita, 0) >= 1 and
+                    hand_counts.get(Bayleef, 0) >= 1):
+                _lillie_pending_evo = True
+        if not has_hydrapple:
+            if (hand_counts.get(Dipplin, 0) >= 1 and
+                    field_counts.get(Applin, 0) >= 1):
+                _lillie_pending_evo = True
+            if (hand_counts.get(Hydrapple_ex, 0) >= 1 and
+                    field_counts.get(Dipplin, 0) >= 1):
+                _lillie_pending_evo = True
+            if (forest_in_play and
+                    hand_counts.get(Hydrapple_ex, 0) >= 1 and
+                    field_counts.get(Applin, 0) >= 1 and
+                    hand_counts.get(Dipplin, 0) >= 1):
+                _lillie_pending_evo = True
+        self.pending_evo = _lillie_pending_evo
 
-    # Regla (user, registro 008 paso 84 vs Hops): Boss's Orders es una carta CLAVE
-    # vs Hops (permite gustear y noquear a un Hops Phantump / Trevenant que saque
-    # CARA y noquee a nuestro activo). Lillie's Determination baraja TODA la mano
-    # al mazo (incluido el Boss's), asi que vs Hops, con Boss's en mano, solo se
-    # juega Lillie's si el ACTIVO es el UNICO atacante disponible (necesitamos
-    # cavar por mas recursos). Con >= 2 atacantes LISTOS (activo + banca) NO se
-    # juega Lillie's: se guarda el Boss's en la mano para la respuesta. Si no hay
-    # Boss's en mano, Lillie's se puede jugar con normalidad.
-    # Generalizacion (user, registro_007 p78 vs Archaludon, GANADA): ademas de vs
-    # Hops, GUARDAR el Boss's (vetar Lillie's) cuando el rival tiene en la banca
-    # una PRE-EVOLUCION AMENAZA que podemos gustear y NOQUEAR (Duraludon ->
-    # Archaludon ex: el atacante real del mazo) y tenemos >= 2 atacantes listos.
-    # Lillie's barajaria el Boss's al mazo; con atacantes de sobra no hace falta
-    # cavar, y la prioridad es remover el atacante con Boss's. `_boss_ko_threat_preevo`
-    # NO se anula por `_active_attack_sufficient`, asi que aplica aunque el activo
-    # pudiera atacar al activo rival (p.ej. un Cinderace poco peligroso).
-    _hop_keep_boss = False
-    if ((ctx.op_is_hop_deck or ctx.boss_ko_threat_preevo)
-            and hand_counts.get(Boss_Orders, 0) >= 1
-            and not _boss_win_via_bench):
-        _lillie_ready_attackers = 0
-        for _lra in _lillie_my_pkmn:
-            _lra_req = ATTACK_ENERGY_REQ.get(_lra.id)
-            if _lra_req is None:
-                continue
-            if len(_lra.energies) * _grass_mult() >= _lra_req:
-                _lillie_ready_attackers += 1
-        if _lillie_ready_attackers >= 2:
-            _hop_keep_boss = True
+        # Podemos EVOLUCIONAR realmente una de esas lineas ESTE turno? Solo
+        # cuenta si la pre-evolucion esta AHORA en juego (field_counts) y
+        # ademas puede evolucionar ya: o estaba en juego al inicio del turno
+        # (_field_at_turn_start, no salio este turno) o hay Forest of
+        # Vitality (permite evolucionar el mismo turno). Evita el falso
+        # positivo de contar como evolucionable un Pokemon que YA evoluciono
+        # este turno.
+        _lillie_evolve_now = False
+        if not meganium_in_play:
+            if (hand_counts.get(Bayleef, 0) >= 1 and
+                    field_counts.get(Chikorita, 0) >= 1 and
+                    (forest_in_play or
+                     _field_at_turn_start.get(Chikorita, 0) >= 1)):
+                _lillie_evolve_now = True
+            if (hand_counts.get(Meganium, 0) >= 1 and
+                    field_counts.get(Bayleef, 0) >= 1 and
+                    (forest_in_play or
+                     _field_at_turn_start.get(Bayleef, 0) >= 1)):
+                _lillie_evolve_now = True
+        if not has_hydrapple:
+            if (hand_counts.get(Dipplin, 0) >= 1 and
+                    field_counts.get(Applin, 0) >= 1 and
+                    (forest_in_play or
+                     _field_at_turn_start.get(Applin, 0) >= 1)):
+                _lillie_evolve_now = True
+            if (hand_counts.get(Hydrapple_ex, 0) >= 1 and
+                    field_counts.get(Dipplin, 0) >= 1 and
+                    (forest_in_play or
+                     _field_at_turn_start.get(Dipplin, 0) >= 1)):
+                _lillie_evolve_now = True
+        self.evolve_now = _lillie_evolve_now
 
-    # Estrategia vs Comfey (user, registro_005): Lillie's Determination SOLO se
-    # juega si tenemos 10 o MAS cartas en la mano. Baraja la mano al mazo, lo que
-    # nos DEVUELVE cartas al deck (evita deckearnos por Flower Shower y esquiva el
-    # descarte de Xerosic's Machinations). Con menos de 10 cartas NO se juega. Con
-    # >=10 se deja pasar al scoring normal (positivo).
-    if ctx.op_is_comfey_deck and len(my_state.hand or []) < 10:
-        score = SCORE_VETO
-    elif _hop_keep_boss:
-        score = SCORE_VETO
-    elif (not ctx.op_is_comfey_deck
-            and state.turn <= 2 and len(my_state.hand or []) >= 10
-            and not _our_first_turn):
+        # Hydrapple ex CARGADO en el activo (>=2 de Planta efectiva, listo
+        # para Syrup Storm): jugar Lillie's Determination tiene prioridad
+        # sobre Boss's Orders. Barajar la mano y robar 6-8 busca mas Pokemon
+        # y energia para potenciar Syrup Storm (que escala con la energia
+        # Planta en juego); Hydrapple conserva su energia (Lillie's solo
+        # baraja la MANO) y ataca igual despues.
+        self.hydra_active_charged = (
+            my_state.active and my_state.active[0] is not None
+            and my_state.active[0].id == Hydrapple_ex
+            and len(my_state.active[0].energies) * _grass_mult() >= 2)
 
-        score = SCORE_VETO
-    elif state.supporterPlayed:
-        score = SCORE_VETO
-    elif (ko_last_turn and hand_counts.get(Unfair_Stamp, 0) >= 1
-            and ctx.op_hand_count > 3):
+        # Regla (user, registro 008 paso 84 vs Hops): Boss's Orders es una
+        # carta CLAVE vs Hops (permite gustear y noquear a un Hops Phantump /
+        # Trevenant que saque CARA y noquee a nuestro activo). Lillie's
+        # Determination baraja TODA la mano al mazo (incluido el Boss's), asi
+        # que vs Hops, con Boss's en mano, solo se juega Lillie's si el
+        # ACTIVO es el UNICO atacante disponible (necesitamos cavar por mas
+        # recursos). Con >= 2 atacantes LISTOS (activo + banca) NO se juega
+        # Lillie's: se guarda el Boss's en la mano para la respuesta. Si no
+        # hay Boss's en mano, Lillie's se puede jugar con normalidad.
+        # Generalizacion (user, registro_007 p78 vs Archaludon, GANADA):
+        # ademas de vs Hops, GUARDAR el Boss's (vetar Lillie's) cuando el
+        # rival tiene en la banca una PRE-EVOLUCION AMENAZA que podemos
+        # gustear y NOQUEAR (Duraludon -> Archaludon ex: el atacante real del
+        # mazo) y tenemos >= 2 atacantes listos. Lillie's barajaria el Boss's
+        # al mazo; con atacantes de sobra no hace falta cavar, y la prioridad
+        # es remover el atacante con Boss's. `_boss_ko_threat_preevo` NO se
+        # anula por `_active_attack_sufficient`, asi que aplica aunque el
+        # activo pudiera atacar al activo rival (p.ej. un Cinderace poco
+        # peligroso).
+        _hop_keep_boss = False
+        if ((ctx.op_is_hop_deck or ctx.boss_ko_threat_preevo)
+                and hand_counts.get(Boss_Orders, 0) >= 1
+                and not ctx.boss_win_via_bench):
+            _lillie_ready_attackers = 0
+            for _lra in _lillie_my_pkmn:
+                _lra_req = ATTACK_ENERGY_REQ.get(_lra.id)
+                if _lra_req is None:
+                    continue
+                if len(_lra.energies) * _grass_mult() >= _lra_req:
+                    _lillie_ready_attackers += 1
+            if _lillie_ready_attackers >= 2:
+                _hop_keep_boss = True
+        self.hop_keep_boss = _hop_keep_boss
 
-        # EXCEPCION (user): con Unfair Stamp en mano normalmente se prefiere jugar
-        # el Stamp (draw 5 + disrupcion) sobre Lillie's; PERO si el rival tiene 3 o
-        # menos cartas en la mano la disrupcion aporta poco y se prefiere Lillie's,
-        # asi que este veto solo aplica con la mano rival > 3.
-        score = SCORE_VETO
-    elif (op_is_alakazam_deck
-            and hand_counts.get(Xerosic_Machinations, 0) >= 1
-            and ctx.op_hand_count >= 4
-            and ctx.cartas_en_mazo.get(
-                Xerosic_Machinations, {}).get(ESTADO_MAZO, 0) == 0
-            and hand_counts.get(Meowth_ex, 0) == 0
-            and (field_counts.get(Meowth_ex, 0) >= 2
-                 or ctx.cartas_en_mazo.get(
-                     Meowth_ex, {}).get(ESTADO_MAZO, 0) == 0)):
-        # Guard (sugerencia 3 anti-Alakazam): Lillie's BARAJARIA el Xerosic
-        # que tenemos en mano y ya NO queda forma de re-buscarlo (sin Meowth
-        # en mano ni en mazo, o con los 2 Meowth ya en juego y su Last-Ditch
-        # gastado). Con la mano rival >= 4 y creciendo, perder el unico
-        # acceso al cap de Powerful Hand justo antes de su pico es
-        # irrecuperable. Con mano rival >= 6 la escalera ya garantiza
-        # Xerosic (6000+) > Lillie's (5800); este veto cubre el hueco 4-5.
-        # Si el Xerosic aun es re-buscable, Lillie's sigue su curso normal
-        # (decision de diseno previa: Meowth lo re-busca). Con la 2a copia
-        # en el mazo (julio 2026) el veto tampoco aplica: barajar la de la
-        # mano no pierde el acceso (quedan copias robables en el mazo).
-        score = SCORE_VETO
-    elif (op_is_alakazam_deck and
-            hand_counts.get(Unfair_Stamp, 0) >= 1 and
-            _ready_ex_attackers >= 2 and
-            ctx.op_hand_count > 3):
-
-        score = SCORE_VETO
-    elif _our_first_turn:
-        # Regla (user, log 86025936 paso 11): en NUESTRO primer
-        # turno SIEMPRE se juega Lillie's Determination si esta en
-        # la mano, por encima de Boss's Orders. Se ignora el veto
-        # de mano >= 10 y el veto por prioridad de Boss's. La capa
-        # de orden de jugada mantiene Lillie's (tier 0, score 5000)
-        # DESPUES de los desarrollos/items de mayor score, asi que
-        # se baraja la mano al final del turno.
-        score = 5000
-    elif (_hydra_active_charged and not _lillie_pending_evo
-            and not _boss_win_via_bench
-            and not (_boss_dodge_redirect
-                     and hand_counts.get(Boss_Orders, 0) >= 1)):
-        # Prioridad Lillie's > Boss's con Hydrapple ex cargado en
-        # el activo. Puntua por ENCIMA del maximo de Boss's que no
-        # gana la partida (~5600); se exceptua `_boss_win_via_bench`
-        # (gustada letal a la banca) para no perder un remate.
-        # EXCEPCION (user, log 86343257 paso 99, PERDIDA vs Hop):
-        # si el activo rival es INMUNE por esquiva (Splashing Dodge
-        # con cara -> `_boss_dodge_redirect`) NO se puede atacar al
-        # activo este turno, asi que potenciar Syrup Storm con
-        # Lillie's es inutil; se cede la prioridad a Boss's Orders
-        # (5500) para gustear y noquear un objetivo de banca.
-        score = 5800 + supporter_boost
-    elif (not _boss_low_value_gust and
-            hand_counts.get(Boss_Orders, 0) >= 1 and
-            ((_boss_prize_rank >= 1 and not _active_cant_attack_this_turn
-              and (ctx.has_ready_bench_attacker or ctx.boss_ko_threat_preevo))
-             or _boss_win_via_bench or _boss_dodge_redirect)):
-
-        # No vetar Lillie's cuando el gusteo por `_boss_prize_rank`
-        # NO es ejecutable este turno (activo no puede atacar y sin
-        # atacante de banca listo). Los remates ejecutables
-        # (win_via_bench / dodge) si siguen vetando Lillie's.
-        # ADEMAS (user, registro_005 vs Dragapult): un gusteo de DESARROLLO
-        # (prize_rank, cortar la linea rival) NO veta Lillie's si ademas del
-        # activo NO tenemos un atacante REAL de banca listo (`has_ready_bench_
-        # attacker`, que nunca cuenta un Applin); sin segundo atacante conviene
-        # CAVAR con Lillie's. Se exceptua la pre-evo AMENAZA (`boss_ko_threat_
-        # preevo`, p.ej. Duraludon), que sigue teniendo prioridad de gusteo.
-        score = SCORE_VETO
-    elif (hand_counts.get(Teal_Mask_Ogerpon_ex, 0) >= 1 and
-            hand_counts.get(Basic_Grass_Energy, 0) >= 1 and
-            bench_count < 5):
-
-        score = 4500
-    elif (_lillie_pending_evo and state.turn > 2
-            and len(my_state.hand or []) > 4
-            and (_lillie_evolve_now
-                 or not (can_attack or _bdg_retreat_ko))):
-        # Tenemos en mano la evolucion (Bayleef/Meganium/Dipplin/
-        # Hydrapple ex) de un Pokemon que ya esta en juego. Primero
-        # se completan esas evoluciones (que puntuan ~31000-35000)
-        # y se juegan los items; Lillie's Determination se pospone
-        # para cuando no quede nada mas que evolucionar. Si la
-        # pre-evolucion esta en el activo y todavia no se puede
-        # evolucionar este turno (se difiere hasta banquearla), se
-        # conserva igualmente para NO descartar las piezas al
-        # barajar la mano. Corrige el caso en que se jugaba Lillie's
-        # con Bayleef+Meganium en mano y se perdia la linea.
-        # EXCEPCION 1: con 4 o menos cartas en mano en total, el
-        # valor de robar (Lillie's roba 6-8) supera el de conservar
-        # la linea, asi que NO se veta y se juega Lillie's.
-        # EXCEPCION 2: si NO podemos evolucionar la linea ESTE turno
-        # (`_lillie_evolve_now` False, p.ej. Bayleef recien
-        # evolucionado sin Forest) Y vamos a ATACAR este turno, NO
-        # se veta: atacar dejaria la Lillie's varada en la mano;
-        # mejor jugarla ahora (robar 6-8) antes del ataque. "Atacar
-        # este turno" incluye tanto el activo actual (`can_attack`)
-        # como noquear al activo rival RETIRANDO y promoviendo un
-        # atacante de banca listo (`_bdg_retreat_ko`). Solo se
-        # conserva la linea si de verdad podemos evolucionarla ya
-        # (evolucionar primero) o si NO vamos a cerrar el turno
-        # atacando (se guarda para el proximo turno).
-        # (user, log 86345042 paso 44, vs Mega Lucario, GANADA):
-        # con Hydrapple ex en mano + Dipplin en banca y un atacante
-        # de banca que ya noquea al Riolu activo (retirar+promover),
-        # el juego jugaba Boss's Orders en un gusteo sin premio en
-        # vez de refrescar; ahora `_bdg_retreat_ko` desbloquea
-        # Lillie's para buscar mas recursos (p.ej. el Estadio) antes
-        # de atacar.
-        # EXCEPCION 3 (user, registro 003 paso 36 vs Archaludon ex,
-        # GANADA): si NO podemos evolucionar la linea ESTE turno
-        # (`_lillie_evolve_now` False) hemos entrado a esta rama por
-        # el disyuntor `not (can_attack or _bdg_retreat_ko)`, es
-        # decir, el turno seria MUERTO (no evolucionamos, no
-        # atacamos, no retiramos-para-noquear). En ese caso conservar
-        # unas piezas que igualmente no bajaremos hoy es peor que
-        # refrescar: Lillie's roba 6 (u 8 con 6 premios) y abre nuevas
-        # opciones de energia/atacante. Solo se mantiene el veto
-        # (conservar la linea) cuando SI podemos evolucionar ya
-        # (`_lillie_evolve_now`): ahi se evoluciona primero y se
-        # difiere Lillie's para no barajar las piezas restantes.
-        if not _lillie_evolve_now:
-            score = 5000
-        else:
-            score = SCORE_VETO
-    elif len(my_state.hand or []) <= 6:
-
-        score = 5000
-    else:
-        score = 5000
-
+        # Rama final (mano > 6): version AMPLIA de las lineas pendientes /
+        # evolucionables del bloque original (condiciones transcritas fieles;
+        # difieren sutilmente de pending_evo/evolve_now de arriba).
         _has_pending_evolutions = False
-
         if (hand_counts.get(Bayleef, 0) >= 1 and
                 field_counts.get(Chikorita, 0) >= 1 and
                 not meganium_in_play):
             _has_pending_evolutions = True
-
         if (hand_counts.get(Meganium, 0) >= 1 and
                 field_counts.get(Bayleef, 0) >= 1 and
                 not meganium_in_play):
             _has_pending_evolutions = True
-
         if (hand_counts.get(Dipplin, 0) >= 1 and
                 field_counts.get(Applin, 0) >= 1 and
                 not has_hydrapple):
             _has_pending_evolutions = True
-
         if (hand_counts.get(Hydrapple_ex, 0) >= 1 and
                 field_counts.get(Dipplin, 0) >= 1 and
                 not has_hydrapple):
             _has_pending_evolutions = True
-
         if (hand_counts.get(Meganium, 0) >= 1 and
                 field_counts.get(Chikorita, 0) >= 1 and
                 forest_in_play and not meganium_in_play and
                 hand_counts.get(Bayleef, 0) >= 1):
             _has_pending_evolutions = True
-
         if (hand_counts.get(Hydrapple_ex, 0) >= 1 and
                 field_counts.get(Applin, 0) >= 1 and
                 forest_in_play and not has_hydrapple and
                 hand_counts.get(Dipplin, 0) >= 1):
             _has_pending_evolutions = True
+        self.pending_evo_amplia = _has_pending_evolutions
 
-        if _has_pending_evolutions:
-
-            _evolvable_now = _field_at_turn_start if (not forest_in_play and _field_at_turn_start) else field_counts
-            _can_evolve_now = False
-
-            if (hand_counts.get(Bayleef, 0) >= 1 and
-                    _evolvable_now.get(Chikorita, 0) >= 1 and
-                    not meganium_in_play):
-                _can_evolve_now = True
+        _evolvable_now = _field_at_turn_start if (not forest_in_play and _field_at_turn_start) else field_counts
+        _can_evolve_now = False
+        if (hand_counts.get(Bayleef, 0) >= 1 and
+                _evolvable_now.get(Chikorita, 0) >= 1 and
+                not meganium_in_play):
+            _can_evolve_now = True
+        if (hand_counts.get(Meganium, 0) >= 1 and
+                _evolvable_now.get(Bayleef, 0) >= 1 and
+                not meganium_in_play):
+            _can_evolve_now = True
+        if (hand_counts.get(Dipplin, 0) >= 1 and
+                _evolvable_now.get(Applin, 0) >= 1 and
+                not has_hydrapple):
+            _can_evolve_now = True
+        if (hand_counts.get(Hydrapple_ex, 0) >= 1 and
+                _evolvable_now.get(Dipplin, 0) >= 1 and
+                not has_hydrapple):
+            _can_evolve_now = True
+        if forest_in_play:
             if (hand_counts.get(Meganium, 0) >= 1 and
-                    _evolvable_now.get(Bayleef, 0) >= 1 and
-                    not meganium_in_play):
-                _can_evolve_now = True
-            if (hand_counts.get(Dipplin, 0) >= 1 and
-                    _evolvable_now.get(Applin, 0) >= 1 and
-                    not has_hydrapple):
+                    field_counts.get(Chikorita, 0) >= 1 and
+                    not meganium_in_play and
+                    hand_counts.get(Bayleef, 0) >= 1):
                 _can_evolve_now = True
             if (hand_counts.get(Hydrapple_ex, 0) >= 1 and
-                    _evolvable_now.get(Dipplin, 0) >= 1 and
-                    not has_hydrapple):
+                    field_counts.get(Applin, 0) >= 1 and
+                    not has_hydrapple and
+                    hand_counts.get(Dipplin, 0) >= 1):
                 _can_evolve_now = True
-            if forest_in_play:
-                if (hand_counts.get(Meganium, 0) >= 1 and
-                        field_counts.get(Chikorita, 0) >= 1 and
-                        not meganium_in_play and
-                        hand_counts.get(Bayleef, 0) >= 1):
-                    _can_evolve_now = True
-                if (hand_counts.get(Hydrapple_ex, 0) >= 1 and
-                        field_counts.get(Applin, 0) >= 1 and
-                        not has_hydrapple and
-                        hand_counts.get(Dipplin, 0) >= 1):
-                    _can_evolve_now = True
+        self.evolve_now_amplia = _can_evolve_now
 
-            if _can_evolve_now:
+    def __getattr__(self, nombre):
+        return getattr(self.c, nombre)
 
-                pass
-            elif state.turn <= 2:
 
-                pass
-            elif (hand_counts.get(Lanas_Aid, 0) >= 1 and
-                    not state.supporterPlayed):
+_REGLAS_LILLIE_PLAY = [
+    # Estrategia vs Comfey (user, registro_005): Lillie's Determination SOLO
+    # se juega si tenemos 10 o MAS cartas en la mano. Baraja la mano al mazo,
+    # lo que nos DEVUELVE cartas al deck (evita deckearnos por Flower Shower
+    # y esquiva el descarte de Xerosic's Machinations). Con menos de 10
+    # cartas NO se juega. Con >=10 se deja pasar al scoring normal (positivo).
+    _ReglaFija("comfey_mano_corta",
+               lambda c: c.op_is_comfey_deck and c.hand_len < 10,
+               lambda c: SCORE_VETO),
+    # Guardar el Boss's vs Hops / pre-evo amenaza (comentario en _CtxLillie).
+    _ReglaFija("hop_guarda_boss",
+               lambda c: c.hop_keep_boss,
+               lambda c: SCORE_VETO),
+    _ReglaFija("mano_gorda_turnos_1_2",
+               lambda c: (not c.op_is_comfey_deck
+                          and c.state.turn <= 2 and c.hand_len >= 10
+                          and not c.our_first_turn),
+               lambda c: SCORE_VETO),
+    _ReglaFija("supporter_ya_jugado",
+               lambda c: c.state.supporterPlayed,
+               lambda c: SCORE_VETO),
+    # EXCEPCION (user): con Unfair Stamp en mano normalmente se prefiere
+    # jugar el Stamp (draw 5 + disrupcion) sobre Lillie's; PERO si el rival
+    # tiene 3 o menos cartas en la mano la disrupcion aporta poco y se
+    # prefiere Lillie's, asi que este veto solo aplica con la mano rival > 3.
+    _ReglaFija("cede_a_unfair_stamp",
+               lambda c: (c.ko_last_turn
+                          and c.hand_counts.get(Unfair_Stamp, 0) >= 1
+                          and c.op_hand_count > 3),
+               lambda c: SCORE_VETO),
+    # Guard (sugerencia 3 anti-Alakazam): Lillie's BARAJARIA el Xerosic que
+    # tenemos en mano y ya NO queda forma de re-buscarlo (sin Meowth en mano
+    # ni en mazo, o con los 2 Meowth ya en juego y su Last-Ditch gastado).
+    # Con la mano rival >= 4 y creciendo, perder el unico acceso al cap de
+    # Powerful Hand justo antes de su pico es irrecuperable. Con mano rival
+    # >= 6 la escalera ya garantiza Xerosic (6000+) > Lillie's (5800); este
+    # veto cubre el hueco 4-5. Si el Xerosic aun es re-buscable, Lillie's
+    # sigue su curso normal (decision de diseno previa: Meowth lo re-busca).
+    # Con la 2a copia en el mazo (julio 2026) el veto tampoco aplica:
+    # barajar la de la mano no pierde el acceso (quedan copias robables).
+    _ReglaFija("no_barajar_ultimo_xerosic",
+               lambda c: (c.op_is_alakazam_deck
+                          and c.hand_counts.get(Xerosic_Machinations, 0) >= 1
+                          and c.op_hand_count >= 4
+                          and c.cartas_en_mazo.get(
+                              Xerosic_Machinations, {}).get(ESTADO_MAZO, 0) == 0
+                          and c.hand_counts.get(Meowth_ex, 0) == 0
+                          and (c.field_counts.get(Meowth_ex, 0) >= 2
+                               or c.cartas_en_mazo.get(
+                                   Meowth_ex, {}).get(ESTADO_MAZO, 0) == 0)),
+               lambda c: SCORE_VETO),
+    _ReglaFija("alakazam_stamp_dos_ex_listos",
+               lambda c: (c.op_is_alakazam_deck and
+                          c.hand_counts.get(Unfair_Stamp, 0) >= 1 and
+                          c.ready_ex_attackers >= 2 and
+                          c.op_hand_count > 3),
+               lambda c: SCORE_VETO),
+    # Regla (user, log 86025936 paso 11): en NUESTRO primer turno SIEMPRE se
+    # juega Lillie's Determination si esta en la mano, por encima de Boss's
+    # Orders. Se ignora el veto de mano >= 10 y el veto por prioridad de
+    # Boss's. La capa de orden de jugada mantiene Lillie's (tier 0, score
+    # 5000) DESPUES de los desarrollos/items de mayor score, asi que se
+    # baraja la mano al final del turno.
+    _ReglaFija("primer_turno_siempre",
+               lambda c: c.our_first_turn,
+               lambda c: 5000),
+    # Prioridad Lillie's > Boss's con Hydrapple ex cargado en el activo.
+    # Puntua por ENCIMA del maximo de Boss's que no gana la partida (~5600);
+    # se exceptua `_boss_win_via_bench` (gustada letal a la banca) para no
+    # perder un remate. EXCEPCION (user, log 86343257 paso 99, PERDIDA vs
+    # Hop): si el activo rival es INMUNE por esquiva (Splashing Dodge con
+    # cara -> `_boss_dodge_redirect`) NO se puede atacar al activo este
+    # turno, asi que potenciar Syrup Storm con Lillie's es inutil; se cede la
+    # prioridad a Boss's Orders (5500) para gustear y noquear un objetivo de
+    # banca.
+    _ReglaFija("hydra_cargado_sobre_boss",
+               lambda c: (c.hydra_active_charged and not c.pending_evo
+                          and not c.boss_win_via_bench
+                          and not (c.boss_dodge_redirect
+                                   and c.hand_counts.get(Boss_Orders, 0) >= 1)),
+               lambda c: 5800 + c.supporter_boost),
+    # No vetar Lillie's cuando el gusteo por `_boss_prize_rank` NO es
+    # ejecutable este turno (activo no puede atacar y sin atacante de banca
+    # listo). Los remates ejecutables (win_via_bench / dodge) si siguen
+    # vetando Lillie's. ADEMAS (user, registro_005 vs Dragapult): un gusteo
+    # de DESARROLLO (prize_rank, cortar la linea rival) NO veta Lillie's si
+    # ademas del activo NO tenemos un atacante REAL de banca listo
+    # (`has_ready_bench_attacker`, que nunca cuenta un Applin); sin segundo
+    # atacante conviene CAVAR con Lillie's. Se exceptua la pre-evo AMENAZA
+    # (`boss_ko_threat_preevo`, p.ej. Duraludon), que sigue teniendo
+    # prioridad de gusteo.
+    _ReglaFija("cede_a_boss_ejecutable",
+               lambda c: (not c.boss_low_value_gust and
+                          c.hand_counts.get(Boss_Orders, 0) >= 1 and
+                          ((c.boss_prize_rank >= 1
+                            and not c.active_cant_attack
+                            and (c.has_ready_bench_attacker
+                                 or c.boss_ko_threat_preevo))
+                           or c.boss_win_via_bench or c.boss_dodge_redirect)),
+               lambda c: SCORE_VETO),
+    _ReglaFija("ogerpon_jugable_primero",
+               lambda c: (c.hand_counts.get(Teal_Mask_Ogerpon_ex, 0) >= 1 and
+                          c.hand_counts.get(Basic_Grass_Energy, 0) >= 1 and
+                          c.bench_count < 5),
+               lambda c: 4500),
+    # Tenemos en mano la evolucion (Bayleef/Meganium/Dipplin/Hydrapple ex) de
+    # un Pokemon que ya esta en juego. Primero se completan esas evoluciones
+    # (que puntuan ~31000-35000) y se juegan los items; Lillie's
+    # Determination se pospone para cuando no quede nada mas que evolucionar.
+    # Si la pre-evolucion esta en el activo y todavia no se puede evolucionar
+    # este turno (se difiere hasta banquearla), se conserva igualmente para
+    # NO descartar las piezas al barajar la mano. Corrige el caso en que se
+    # jugaba Lillie's con Bayleef+Meganium en mano y se perdia la linea.
+    # EXCEPCION 1: con 4 o menos cartas en mano en total, el valor de robar
+    # (Lillie's roba 6-8) supera el de conservar la linea, asi que NO se veta
+    # y se juega Lillie's.
+    # EXCEPCION 2: si NO podemos evolucionar la linea ESTE turno
+    # (`_lillie_evolve_now` False, p.ej. Bayleef recien evolucionado sin
+    # Forest) Y vamos a ATACAR este turno, NO se veta: atacar dejaria la
+    # Lillie's varada en la mano; mejor jugarla ahora (robar 6-8) antes del
+    # ataque. "Atacar este turno" incluye tanto el activo actual
+    # (`can_attack`) como noquear al activo rival RETIRANDO y promoviendo un
+    # atacante de banca listo (`_bdg_retreat_ko`). Solo se conserva la linea
+    # si de verdad podemos evolucionarla ya (evolucionar primero) o si NO
+    # vamos a cerrar el turno atacando (se guarda para el proximo turno).
+    # (user, log 86345042 paso 44, vs Mega Lucario, GANADA): con Hydrapple ex
+    # en mano + Dipplin en banca y un atacante de banca que ya noquea al
+    # Riolu activo (retirar+promover), el juego jugaba Boss's Orders en un
+    # gusteo sin premio en vez de refrescar; ahora `_bdg_retreat_ko`
+    # desbloquea Lillie's para buscar mas recursos (p.ej. el Estadio) antes
+    # de atacar.
+    # EXCEPCION 3 (user, registro 003 paso 36 vs Archaludon ex, GANADA): si
+    # NO podemos evolucionar la linea ESTE turno (`_lillie_evolve_now` False)
+    # hemos entrado a esta rama por el disyuntor `not (can_attack or
+    # _bdg_retreat_ko)`, es decir, el turno seria MUERTO (no evolucionamos,
+    # no atacamos, no retiramos-para-noquear). En ese caso conservar unas
+    # piezas que igualmente no bajaremos hoy es peor que refrescar: Lillie's
+    # roba 6 (u 8 con 6 premios) y abre nuevas opciones de energia/atacante.
+    # Solo se mantiene el veto (conservar la linea) cuando SI podemos
+    # evolucionar ya (`_lillie_evolve_now`): ahi se evoluciona primero y se
+    # difiere Lillie's para no barajar las piezas restantes.
+    _ReglaFija("linea_pendiente",
+               lambda c: (c.pending_evo and c.state.turn > 2
+                          and c.hand_len > 4
+                          and (c.evolve_now
+                               or not (c.can_attack or c.bdg_retreat_ko))),
+               lambda c: 5000 if not c.evolve_now else SCORE_VETO),
+    _ReglaFija("refresco_mano_corta",
+               lambda c: c.hand_len <= 6,
+               lambda c: 5000),
+    # Rama final del original (mano > 6): score 5000 salvo que haya piezas
+    # pendientes SIN salida este turno. Transcrita fiel aunque su veto exige
+    # `hand_len < 7` y esta rama solo se alcanza con mano > 6: es inalcanzable
+    # (sub-rama muerta del original, se conserva por fidelidad).
+    _ReglaFija("conserva_piezas_sin_salida",
+               lambda c: (c.pending_evo_amplia
+                          and not c.evolve_now_amplia
+                          and c.state.turn > 2
+                          and not (c.hand_counts.get(Lanas_Aid, 0) >= 1
+                                   and not c.state.supporterPlayed)
+                          and c.hand_len < 7),
+               lambda c: SCORE_VETO),
+    _ReglaFija("refresco_generico",
+               lambda c: True,
+               lambda c: 5000),
+]
 
-                pass
-            elif len(my_state.hand or []) >= 7:
 
-                pass
-            else:
-
-                score = SCORE_VETO
-
-    return score
+def _score_lillie_determination_play(ctx: DecisionContext) -> int:
+    """Puntua la jugada de Lillie's Determination (baraja la mano y roba 6/8).
+    Cuerpo migrado al MOTOR DE REGLAS (fase 4): los derivados viven en
+    _CtxLillie y las reglas (con sus comentarios estrategicos) en
+    _REGLAS_LILLIE_PLAY; PTCG_DEBUG imprime la traza."""
+    return _resolver_con_traza("lillie->play", _REGLAS_LILLIE_PLAY, [],
+                               _CtxLillie(ctx), defecto=0)
 
 
 def _lana_veto_duro(c):
@@ -4793,6 +4795,705 @@ _REGLAS_NS_DIPPLIN = [
                           and not c.has_hydrapple),
                lambda c: 850),
 ]
+
+# --- Reglas del fetch TO_HAND de Bug Catching Set ---------------------------
+# Dispatch por TABLA (mismo patron que el fetch de Night Stretcher): reutiliza
+# _CtxNS (hand/campo/bench/flags); los globals por turno (meganium_in_play,
+# forest_in_play, ko_last_turn, op_is_crustle_deck, op_is_cornerstone_deck) se
+# leen al vuelo desde los lambdas. El bonus por copias premiadas se conserva
+# inline en el call site (post-ajuste transversal).
+
+_REGLAS_BCS_CHIKORITA = [
+    # Arrancar la linea de Meganium desde cero; con Forest y la evolucion en
+    # mano, el rush de evolucion sube la prioridad.
+    _ReglaFija("linea_desde_cero_rush",
+               lambda c: (not meganium_in_play
+                          and c.campo.get(Chikorita, 0)
+                          + c.campo.get(Bayleef, 0)
+                          + c.campo.get(Meganium, 0) == 0
+                          and forest_in_play
+                          and (c.hand.get(Bayleef, 0) >= 1
+                               or c.hand.get(Meganium, 0) >= 1)),
+               lambda c: 950),
+    _ReglaFija("linea_desde_cero",
+               lambda c: (not meganium_in_play
+                          and c.campo.get(Chikorita, 0)
+                          + c.campo.get(Bayleef, 0)
+                          + c.campo.get(Meganium, 0) == 0),
+               lambda c: 800),
+]
+
+_REGLAS_BCS_BAYLEEF = [
+    _ReglaFija("evo_inmediata_rush",
+               lambda c: (not meganium_in_play
+                          and c.campo.get(Chikorita, 0) >= 1
+                          and forest_in_play
+                          and c.hand.get(Meganium, 0) >= 1),
+               lambda c: 950),
+    _ReglaFija("evo_inmediata",
+               lambda c: (not meganium_in_play
+                          and c.campo.get(Chikorita, 0) >= 1),
+               lambda c: 850),
+    _ReglaFija("chikorita_en_mano",
+               lambda c: (not meganium_in_play
+                          and c.hand.get(Chikorita, 0) >= 1),
+               lambda c: 700),
+    _ReglaFija("sin_linea_en_juego",
+               lambda c: not meganium_in_play,
+               lambda c: 400),
+]
+
+_REGLAS_BCS_MEGANIUM = [
+    _ReglaFija("evo_inmediata",
+               lambda c: (not meganium_in_play
+                          and c.campo.get(Bayleef, 0) >= 1),
+               lambda c: 1000),
+    _ReglaFija("rush_desde_chikorita",
+               lambda c: (not meganium_in_play
+                          and c.campo.get(Chikorita, 0) >= 1
+                          and forest_in_play),
+               lambda c: 900),
+    _ReglaFija("sin_linea_en_juego",
+               lambda c: not meganium_in_play,
+               lambda c: 500),
+]
+
+_REGLAS_BCS_APPLIN = [
+    _ReglaFija("linea_desde_cero_rush",
+               lambda c: (not c.has_hydrapple
+                          and c.campo.get(Applin, 0)
+                          + c.campo.get(Dipplin, 0)
+                          + c.campo.get(Hydrapple_ex, 0) == 0
+                          and forest_in_play
+                          and (c.hand.get(Dipplin, 0) >= 1
+                               or c.hand.get(Hydrapple_ex, 0) >= 1)),
+               lambda c: 850),
+    _ReglaFija("linea_desde_cero",
+               lambda c: (not c.has_hydrapple
+                          and c.campo.get(Applin, 0)
+                          + c.campo.get(Dipplin, 0)
+                          + c.campo.get(Hydrapple_ex, 0) == 0),
+               lambda c: 700),
+    _ReglaFija("sin_hydrapple",
+               lambda c: not c.has_hydrapple,
+               lambda c: 200),
+]
+
+_REGLAS_BCS_DIPPLIN = [
+    _ReglaFija("evo_inmediata_rush",
+               lambda c: (not c.has_hydrapple
+                          and c.campo.get(Applin, 0) >= 1
+                          and forest_in_play
+                          and c.hand.get(Hydrapple_ex, 0) >= 1),
+               lambda c: 900),
+    _ReglaFija("evo_inmediata",
+               lambda c: (not c.has_hydrapple
+                          and c.campo.get(Applin, 0) >= 1),
+               lambda c: 800),
+    _ReglaFija("applin_en_mano",
+               lambda c: (not c.has_hydrapple
+                          and c.hand.get(Applin, 0) >= 1),
+               lambda c: 650),
+    # Atacante no-ex util contra los muros con proteccion-ex.
+    _ReglaFija("vs_muro_anti_ex",
+               lambda c: c.op_ex_immune_active or c.op_ex_immune_bench,
+               lambda c: 600),
+    _ReglaFija("sin_hydrapple",
+               lambda c: not c.has_hydrapple,
+               lambda c: 350),
+]
+
+_REGLAS_BCS_HYDRAPPLE = [
+    _ReglaFija("evo_inmediata",
+               lambda c: (not c.has_hydrapple
+                          and c.campo.get(Dipplin, 0) >= 1),
+               lambda c: 950),
+    _ReglaFija("rush_desde_applin",
+               lambda c: (not c.has_hydrapple
+                          and c.campo.get(Applin, 0) >= 1
+                          and forest_in_play),
+               lambda c: 850),
+    _ReglaFija("sin_hydrapple",
+               lambda c: not c.has_hydrapple,
+               lambda c: 400),
+]
+
+_REGLAS_BCS_OGERPON = [
+    # Hasta 2 Ogerpon en juego; con la banca corta, +100 (cuerpo temprano).
+    _ReglaFija("menos_de_dos",
+               lambda c: c.campo.get(Teal_Mask_Ogerpon_ex, 0) < 2,
+               lambda c: 700 if c.bench_count <= 2 else 600),
+    # 3er Ogerpon como acelerador de Syrup Storm (Teal Dance suma Grass).
+    _ReglaFija("acelerador_syrup",
+               lambda c: (c.bench_count < 5 and
+                          c.hand.get(Basic_Grass_Energy, 0) >= 1 and
+                          c.campo.get(Hydrapple_ex, 0) >= 1),
+               lambda c: 550),
+]
+
+_REGLAS_BCS_TAPU = [
+    _ReglaFija("anti_muro_con_meganium_e_hydra",
+               lambda c: (c.campo.get(Tapu_Bulu, 0) == 0
+                          and meganium_in_play
+                          and (c.op_ex_immune_active or c.op_ex_immune_bench)
+                          and c.has_hydrapple),
+               lambda c: 700),
+    _ReglaFija("anti_muro_con_meganium",
+               lambda c: (c.campo.get(Tapu_Bulu, 0) == 0
+                          and meganium_in_play
+                          and (c.op_ex_immune_active or c.op_ex_immune_bench)),
+               lambda c: 600),
+    _ReglaFija("primer_tapu",
+               lambda c: c.campo.get(Tapu_Bulu, 0) == 0,
+               lambda c: 50),
+]
+
+_REGLAS_BCS_PINSIR = [
+    _ReglaFija("anti_muro",
+               lambda c: (c.campo.get(Pinsir, 0) == 0 and
+                          (op_is_crustle_deck or op_is_cornerstone_deck)),
+               lambda c: 750),
+]
+
+_REGLAS_BCS_MEOWTH = [
+    # Motor de Supporters: solo si Last-Ditch va a rendir (sin Watchtower,
+    # Supporter libre, la mano floja y un Supporter valioso en el mazo).
+    _ReglaFija("motor_supporter",
+               lambda c: (not c.watchtower and
+                          c.campo.get(Meowth_ex, 0) == 0
+                          and not c.supporter_played and
+                          c.best_supp_hand_val < 500
+                          and c.best_supp_mazo_val >= 400),
+               lambda c: min(500, c.best_supp_mazo_val - 100)),
+]
+
+_REGLAS_BCS_FEZ = [
+    _ReglaFija("lucario_responde",
+               lambda c: (c.op_is_lucario
+                          and c.campo.get(Fezandipiti_ex, 0) == 0 and
+                          (ko_last_turn or c.bench_count == 0)),
+               lambda c: 650),
+    # vs Mega Lucario, fuera del arranque/respuesta se RESERVA (debil a Lucha).
+    _ReglaFija("lucario_reserva",
+               lambda c: c.op_is_lucario,
+               lambda c: SCORE_VETO),
+    _ReglaFija("tras_ko",
+               lambda c: (c.campo.get(Fezandipiti_ex, 0) == 0
+                          and ko_last_turn),
+               lambda c: 650),
+]
+
+_REGLAS_BCS_GRASS = [
+    _ReglaFija("sobran_plantas",
+               lambda c: c.hand.get(Basic_Grass_Energy, 0) >= 3,
+               lambda c: 150),
+    _ReglaFija("sin_planta_y_sin_adjunte",
+               lambda c: (c.hand.get(Basic_Grass_Energy, 0) == 0
+                          and not c.energy_attached),
+               lambda c: 650),
+    _ReglaFija("sin_planta",
+               lambda c: c.hand.get(Basic_Grass_Energy, 0) == 0,
+               lambda c: 550),
+    _ReglaFija("con_hydrapple",
+               lambda c: c.has_hydrapple,
+               lambda c: 400),
+]
+
+_TABLA_BCS_FETCH = {
+    Chikorita: ("bcs->chikorita", _REGLAS_BCS_CHIKORITA, 50),
+    Bayleef: ("bcs->bayleef", _REGLAS_BCS_BAYLEEF, 30),
+    Meganium: ("bcs->meganium", _REGLAS_BCS_MEGANIUM, 20),
+    Applin: ("bcs->applin", _REGLAS_BCS_APPLIN, 40),
+    Dipplin: ("bcs->dipplin", _REGLAS_BCS_DIPPLIN, 30),
+    Hydrapple_ex: ("bcs->hydrapple", _REGLAS_BCS_HYDRAPPLE, 25),
+    Teal_Mask_Ogerpon_ex: ("bcs->ogerpon", _REGLAS_BCS_OGERPON, 20),
+    Tapu_Bulu: ("bcs->tapu", _REGLAS_BCS_TAPU, 20),
+    Pinsir: ("bcs->pinsir", _REGLAS_BCS_PINSIR, 20),
+    Meowth_ex: ("bcs->meowth", _REGLAS_BCS_MEOWTH, 15),
+    Fezandipiti_ex: ("bcs->fez", _REGLAS_BCS_FEZ, 10),
+    Basic_Grass_Energy: ("bcs->grass", _REGLAS_BCS_GRASS, 350),
+}
+
+# --- Reglas del fetch TO_HAND de Poke Pad -----------------------------------
+# Poke Pad busca un Pokemon NO Rule-Box (basico o evolucion) hacia la MANO.
+# Tres modos del bloque original, aplanados en una sola cadena (la primera
+# regla que aplica gana, como el if/elif anidado): (1) PRIMER TURNO: asegurar
+# los basicos de las dos lineas; (2) EVO DIRECTA (`has_evo`): traer la
+# SIGUIENTE evolucion de un Pokemon que YA esta en el tablero ACTUAL —
+# deliberadamente NO la foto de inicio de turno (_field_at_turn_start): esa
+# foto ignora un Bayleef recien evolucionado y nos haria buscar un 2o Bayleef
+# redundante en vez del Meganium que SI completa la linea; (3) FALLBACK:
+# completar lineas desde la mano aunque la pre-evo no este en juego.
+
+class _CtxPPFetch:
+    """Ctx del fetch de Poke Pad: carta candidata + derivados del modo."""
+
+    def __init__(self, card_id, hand_counts, field_counts, bench_count,
+                 state):
+        self.card_id = card_id
+        self.hand = hand_counts
+        self.campo = field_counts
+        self.bench_count = bench_count
+        self.first_turn = ((state.turn == 1 and we_go_first) or
+                           (state.turn == 2 and not we_go_first))
+        self.have_chik = (field_counts.get(Chikorita, 0) >= 1 or
+                          hand_counts.get(Chikorita, 0) >= 1)
+        self.have_bay = (field_counts.get(Bayleef, 0) >= 1 or
+                         hand_counts.get(Bayleef, 0) >= 1)
+        self.have_applin = (field_counts.get(Applin, 0) >= 1 or
+                            hand_counts.get(Applin, 0) >= 1)
+        self.have_dipplin = (field_counts.get(Dipplin, 0) >= 1 or
+                             hand_counts.get(Dipplin, 0) >= 1)
+        has_evo = False
+        if not meganium_in_play and hand_counts.get(Meganium, 0) == 0:
+            if field_counts.get(Bayleef, 0) >= 1:
+                has_evo = True
+            elif (forest_in_play and field_counts.get(Chikorita, 0) >= 1 and
+                  hand_counts.get(Bayleef, 0) >= 1):
+                has_evo = True
+        if (not meganium_in_play and hand_counts.get(Bayleef, 0) == 0 and
+                field_counts.get(Chikorita, 0) >= 1):
+            has_evo = True
+        if (hand_counts.get(Dipplin, 0) == 0 and
+                field_counts.get(Applin, 0) >= 1):
+            has_evo = True
+        self.has_evo = has_evo
+
+
+_REGLAS_PP_FETCH = [
+    # (1) Primer turno: bajar los basicos de ambas lineas antes que nada.
+    _ReglaFija("t1_applin",
+               lambda c: (c.first_turn and c.card_id == Applin
+                          and not c.have_applin),
+               lambda c: 2000),
+    _ReglaFija("t1_chikorita",
+               lambda c: (c.first_turn and c.card_id == Chikorita
+                          and not c.have_chik),
+               lambda c: 1900),
+    _ReglaFija("t1_otro",
+               lambda c: c.first_turn,
+               lambda c: 10),
+    # (2) Evolucion directa de un Pokemon del tablero actual.
+    _ReglaFija("evo_meganium",
+               lambda c: (c.has_evo and c.card_id == Meganium
+                          and not meganium_in_play
+                          and c.hand.get(Meganium, 0) == 0
+                          and c.campo.get(Bayleef, 0) >= 1),
+               lambda c: 1000),
+    _ReglaFija("evo_meganium_rush",
+               lambda c: (c.has_evo and c.card_id == Meganium
+                          and not meganium_in_play
+                          and c.hand.get(Meganium, 0) == 0
+                          and forest_in_play
+                          and c.campo.get(Chikorita, 0) >= 1
+                          and c.hand.get(Bayleef, 0) >= 1),
+               lambda c: 900),
+    _ReglaFija("evo_bayleef_rush",
+               lambda c: (c.has_evo and c.card_id == Bayleef
+                          and not meganium_in_play
+                          and c.hand.get(Bayleef, 0) == 0
+                          and c.campo.get(Chikorita, 0) >= 1
+                          and forest_in_play
+                          and c.hand.get(Meganium, 0) >= 1),
+               lambda c: 950),
+    _ReglaFija("evo_bayleef",
+               lambda c: (c.has_evo and c.card_id == Bayleef
+                          and not meganium_in_play
+                          and c.hand.get(Bayleef, 0) == 0
+                          and c.campo.get(Chikorita, 0) >= 1),
+               lambda c: 850),
+    _ReglaFija("evo_dipplin_rush",
+               lambda c: (c.has_evo and c.card_id == Dipplin
+                          and c.hand.get(Dipplin, 0) == 0
+                          and c.campo.get(Applin, 0) >= 1
+                          and forest_in_play
+                          and c.hand.get(Hydrapple_ex, 0) >= 1),
+               lambda c: 920),
+    _ReglaFija("evo_dipplin",
+               lambda c: (c.has_evo and c.card_id == Dipplin
+                          and c.hand.get(Dipplin, 0) == 0
+                          and c.campo.get(Applin, 0) >= 1),
+               lambda c: 800),
+    _ReglaFija("evo_otro",
+               lambda c: c.has_evo,
+               lambda c: 10),
+    # (3) Fallback: completar lineas desde la mano.
+    _ReglaFija("fb_bayleef",
+               lambda c: (c.card_id == Bayleef and not meganium_in_play
+                          and c.have_chik and not c.have_bay),
+               lambda c: 850),
+    _ReglaFija("fb_dipplin",
+               lambda c: (c.card_id == Dipplin and c.have_applin
+                          and not c.have_dipplin),
+               lambda c: 800),
+    _ReglaFija("fb_meganium",
+               lambda c: (c.card_id == Meganium and not meganium_in_play
+                          and c.hand.get(Meganium, 0) == 0 and c.have_bay),
+               lambda c: 700),
+    _ReglaFija("fb_chikorita",
+               lambda c: (c.card_id == Chikorita and not meganium_in_play
+                          and c.campo.get(Chikorita, 0)
+                          + c.campo.get(Bayleef, 0)
+                          + c.campo.get(Meganium, 0) < 1
+                          and c.hand.get(Chikorita, 0) < 1
+                          and c.bench_count < 5),
+               lambda c: 800),
+    _ReglaFija("fb_applin",
+               lambda c: c.card_id == Applin and c.bench_count < 5,
+               lambda c: 650),
+]
+
+# --- Reglas del fetch de Supporter de Meowth ex (Last-Ditch Catch) ----------
+# Solo puntua Supporters (_MEOWTH_FETCH_SUPPS); el resto de candidatos
+# conserva el 50 base del call site. Los dos ajustes del else original
+# (bonus Boss's vs Crustle, cap de Dawn sin Forest) viven en el valor del
+# catch-all (_v_meowth_fetch_valor), fiel a la reasignacion secuencial.
+
+_MEOWTH_FETCH_SUPPS = (Boss_Orders, Dawn, Lillie_Determination,
+                       Lanas_Aid, Xerosic_Machinations)
+
+class _CtxMeowthFetch:
+    """Ctx del fetch de Last-Ditch: carta candidata + flags del turno."""
+
+    def __init__(self, card_id, sv, hand_counts, supp_values, hand_size,
+                 strong_attacker, op_hand_count, active_cant_attack,
+                 win_via_boss, gust2_via_boss, deny_evo_via_boss,
+                 devel_lillie, alakazam):
+        self.card_id = card_id
+        self.alakazam = alakazam
+        self.sv = sv
+        self.hand = hand_counts
+        self.supp_values = supp_values
+        self.hand_size = hand_size
+        self.strong_attacker = strong_attacker
+        self.op_hand_count = op_hand_count
+        self.active_cant_attack = active_cant_attack
+        self.win_via_boss = win_via_boss
+        self.gust2_via_boss = gust2_via_boss
+        self.deny_evo_via_boss = deny_evo_via_boss
+        self.devel_lillie = devel_lillie
+        self.no_energy_in_hand = (hand_counts.get(Basic_Grass_Energy, 0) == 0)
+
+
+def _v_meowth_fetch_valor(c):
+    score = c.sv
+    if c.card_id == Boss_Orders and op_is_crustle_deck:
+        score += 100
+    # Dawn (busca Basico+Fase1+Fase2 para armar la linea evolutiva) SOLO
+    # conviene buscarlo con Meowth ex si tenemos Forest of Vitality (1261) EN
+    # JUEGO, que deja evolucionar el mismo turno (rush). SIN Forest en juego
+    # no podemos acelerar la evolucion: refrescar la mano con Lillie's
+    # Determination da mas opciones de juego/ataque inmediatas. Por eso
+    # bajamos el Dawn por debajo del valor de Lillie's para que Meowth ex
+    # busque Lillie's, no Dawn. CON Forest en juego Dawn conserva su valor
+    # (consistente con el desempate Dawn/Lillie's de ~L6137). (user,
+    # registro_004 paso 53 vs Marnie's Grimmsnarl ex, PERDIDA.)
+    if (c.card_id == Dawn and not forest_in_play
+            and c.supp_values.get(Lillie_Determination, 0) > 0):
+        score = min(score,
+                    c.supp_values.get(Lillie_Determination, 0) - 50)
+    return score
+
+
+_REGLAS_MEOWTH_FETCH = [
+    # Remate ganador / 2 premios via Boss's Orders del MAZO.
+    _ReglaFija("boss_ganador",
+               lambda c: ((c.win_via_boss or c.gust2_via_boss)
+                          and c.card_id == Boss_Orders),
+               lambda c: 1300),
+    # Gusteo de VALOR (deny-evo) via motor Meowth (plan motor Meowth, mejora
+    # A): el Boss's del MAZO corta la pre-evo ENERGIZADA del atacante ex
+    # rival. 1280: bajo el remate ganador (1300), sobre Lillie's de
+    # refresco/desarrollo (1200-1250) -- con la amenaza en banca, cortar la
+    # linea prima sobre refrescar (user, registro_006 paso 82 vs Garchomp).
+    _ReglaFija("boss_deny_evo",
+               lambda c: (c.deny_evo_via_boss
+                          and c.card_id == Boss_Orders),
+               lambda c: 1280),
+    _ReglaFija("lillie_desarrollo",
+               lambda c: (c.devel_lillie
+                          and c.card_id == Lillie_Determination),
+               lambda c: 1250),
+    # Xerosic vs Alakazam (user): con la mano rival gorda (Powerful Hand =
+    # 20 x carta), Meowth ex busca Xerosic para capar el dano. Refinado
+    # (user, registro_004 paso 53 vs Alakazam, PERDIDA): si YA tenemos un
+    # atacante fuerte en juego (Hydrapple/Ogerpon), Xerosic manda AUNQUE
+    # nuestra mano quede vacia tras bajar el Meowth (la mano rival de 13
+    # cartas = Powerful Hand 260 que noquea todo lo nuestro; capar eso vale
+    # mas que refrescar con Lillie's cuando el ataque ya esta resuelto) ->
+    # 1260, sobre el Lillie's de desarrollo (1250) y el refresco por mano
+    # corta (1200), bajo el Boss's ganador (1300). Sin atacante fuerte se
+    # mantiene la regla previa (solo con mano >= 3, a 1200).
+    _ReglaFija("xerosic_alakazam",
+               lambda c: (c.card_id == Xerosic_Machinations
+                          and c.alakazam
+                          and c.op_hand_count >= 6
+                          and (c.hand_size >= 3 or c.strong_attacker)),
+               lambda c: 1260 if c.strong_attacker else 1200),
+    # Xerosic GENERICO en el fetch de Last-Ditch (plan motor Meowth, mejora
+    # B): contra CUALQUIER mazo con mano rival >= 7, quitarle 4+ cartas es
+    # valor real (el scorer generico de Xerosic ya lo juega a 3380 si esta
+    # en mano; antes ni era candidato del fetch fuera de Alakazam). 1100:
+    # bajo Lillie's de refresco/desarrollo (1200-1250) y los Boss's
+    # (1280/1300) -- solo si no hay mejor opcion. Guards:
+    # `strong_attacker` (con el ataque ya resuelto la disrupcion vale; SIN
+    # atacante fuerte, cavar con Lillie's -escaleras 1000-1200- va primero)
+    # y activo-que-no-ataca (que Xerosic no secuestre el fetch del TURNO
+    # MUERTO, cuyo sentido es traer Lana's/Lillie's para salir del atasco).
+    _ReglaFija("xerosic_generico",
+               lambda c: (c.card_id == Xerosic_Machinations
+                          and c.op_hand_count >= 7
+                          and c.strong_attacker
+                          and not c.active_cant_attack),
+               lambda c: 1100),
+    _ReglaFija("mano_corta",
+               lambda c: c.hand_size <= 2,
+               lambda c: (1200 if c.card_id == Lillie_Determination
+                          else min(c.sv, 100))),
+    _ReglaFija("atasco_sin_energia",
+               lambda c: c.active_cant_attack and c.no_energy_in_hand,
+               lambda c: (1200 if c.card_id == Lillie_Determination
+                          else min(c.sv, 150))),
+    _ReglaFija("atasco_sin_lillie_en_mano",
+               lambda c: (c.active_cant_attack and
+                          c.hand.get(Lillie_Determination, 0) == 0),
+               lambda c: (1200 if c.card_id == Lillie_Determination
+                          else min(c.sv, 150))),
+    _ReglaFija("sin_atacante_mano_media",
+               lambda c: not c.strong_attacker and c.hand_size <= 5,
+               lambda c: (1000 if c.card_id == Lillie_Determination
+                          else min(c.sv, 200))),
+    _ReglaFija("sin_atacante",
+               lambda c: not c.strong_attacker,
+               lambda c: (800 if c.card_id == Lillie_Determination
+                          else min(c.sv, 400))),
+    _ReglaFija("valor_del_supporter",
+               lambda c: True,
+               _v_meowth_fetch_valor),
+]
+
+# --- Reglas del fetch TO_HAND de Dawn ---------------------------------------
+# Dawn busca un Basico + una Fase 1 + una Fase 2: cada candidato se puntua
+# por tabla (mismo patron que NS/BCS, reutiliza _CtxNS). El eje del bloque es
+# `_dawn_forest_avail`: con Forest of Vitality EN JUEGO o EN MANO las lineas
+# se pueden evolucionar el mismo turno (rush), asi que las piezas de Fase 1/2
+# suben de valor aunque su pre-evo aun no este en el tablero.
+
+def _dawn_forest_avail(c):
+    return forest_in_play or c.hand.get(Forest_of_Vitality, 0) >= 1
+
+_REGLAS_DAWN_MEGANIUM = [
+    _ReglaFija("ya_en_juego",
+               lambda c: meganium_in_play, lambda c: 10),
+    _ReglaFija("evo_inmediata",
+               lambda c: c.campo.get(Bayleef, 0) >= 1, lambda c: 1000),
+    _ReglaFija("rush_desde_campo_con_bayleef",
+               lambda c: (c.campo.get(Chikorita, 0) >= 1
+                          and _dawn_forest_avail(c)
+                          and c.hand.get(Bayleef, 0) >= 1),
+               lambda c: 980),
+    _ReglaFija("rush_desde_campo",
+               lambda c: (c.campo.get(Chikorita, 0) >= 1
+                          and _dawn_forest_avail(c)),
+               lambda c: 950),
+    _ReglaFija("rush_desde_mano_con_bayleef",
+               lambda c: (c.hand.get(Chikorita, 0) >= 1
+                          and _dawn_forest_avail(c)
+                          and c.hand.get(Bayleef, 0) >= 1),
+               lambda c: 960),
+    _ReglaFija("rush_desde_mano",
+               lambda c: (c.hand.get(Chikorita, 0) >= 1
+                          and _dawn_forest_avail(c)),
+               lambda c: 920),
+]
+
+_REGLAS_DAWN_BAYLEEF = [
+    _ReglaFija("meganium_ya_en_juego",
+               lambda c: meganium_in_play, lambda c: 10),
+    # La evolucion inmediata sube si el Meganium que completa la linea es
+    # alcanzable (en mano o aun en el mazo).
+    _ReglaFija("evo_inmediata_rush",
+               lambda c: (c.campo.get(Chikorita, 0) >= 1
+                          and _dawn_forest_avail(c)
+                          and (c.hand.get(Meganium, 0) >= 1 or
+                               CARTAS_ACTIVAS_EN_MAZO.get(
+                                   Meganium, {}).get(ESTADO_MAZO, 0) > 0)),
+               lambda c: 970),
+    _ReglaFija("evo_inmediata",
+               lambda c: c.campo.get(Chikorita, 0) >= 1, lambda c: 900),
+    _ReglaFija("rush_desde_mano",
+               lambda c: (c.hand.get(Chikorita, 0) >= 1
+                          and _dawn_forest_avail(c)),
+               lambda c: 880),
+    _ReglaFija("con_chikorita_en_mano",
+               lambda c: (c.bench_count < 5
+                          and c.hand.get(Chikorita, 0) >= 1),
+               lambda c: 500),
+]
+
+_REGLAS_DAWN_CHIKORITA = [
+    _ReglaFija("meganium_ya_en_juego",
+               lambda c: meganium_in_play, lambda c: 10),
+    _ReglaFija("linea_en_juego",
+               lambda c: (c.campo.get(Chikorita, 0)
+                          + c.campo.get(Bayleef, 0)
+                          + c.campo.get(Meganium, 0) >= 1),
+               lambda c: 50),
+    _ReglaFija("banca_llena",
+               lambda c: c.bench_count >= 5, lambda c: 30),
+    _ReglaFija("rush_con_bayleef",
+               lambda c: (_dawn_forest_avail(c)
+                          and c.hand.get(Bayleef, 0) >= 1),
+               lambda c: 850),
+    _ReglaFija("rush",
+               lambda c: _dawn_forest_avail(c), lambda c: 800),
+    _ReglaFija("con_bayleef_en_mano",
+               lambda c: c.hand.get(Bayleef, 0) >= 1, lambda c: 700),
+]
+
+_REGLAS_DAWN_HYDRAPPLE = [
+    _ReglaFija("ya_en_juego",
+               lambda c: c.has_hydrapple, lambda c: 10),
+    _ReglaFija("evo_inmediata",
+               lambda c: c.campo.get(Dipplin, 0) >= 1, lambda c: 980),
+    _ReglaFija("rush_desde_campo_con_dipplin",
+               lambda c: (c.campo.get(Applin, 0) >= 1
+                          and _dawn_forest_avail(c)
+                          and c.hand.get(Dipplin, 0) >= 1),
+               lambda c: 960),
+    _ReglaFija("rush_desde_campo",
+               lambda c: (c.campo.get(Applin, 0) >= 1
+                          and _dawn_forest_avail(c)),
+               lambda c: 930),
+    _ReglaFija("rush_desde_mano_con_dipplin",
+               lambda c: (c.hand.get(Applin, 0) >= 1
+                          and _dawn_forest_avail(c)
+                          and c.hand.get(Dipplin, 0) >= 1),
+               lambda c: 940),
+    _ReglaFija("rush_desde_mano",
+               lambda c: (c.hand.get(Applin, 0) >= 1
+                          and _dawn_forest_avail(c)),
+               lambda c: 900),
+]
+
+_REGLAS_DAWN_DIPPLIN = [
+    _ReglaFija("redundante_con_hydrapple",
+               lambda c: (c.has_hydrapple
+                          and c.campo.get(Dipplin, 0) >= 1),
+               lambda c: 10),
+    _ReglaFija("evo_inmediata_rush",
+               lambda c: (c.campo.get(Applin, 0) >= 1
+                          and _dawn_forest_avail(c)
+                          and (c.hand.get(Hydrapple_ex, 0) >= 1 or
+                               CARTAS_ACTIVAS_EN_MAZO.get(
+                                   Hydrapple_ex, {}).get(ESTADO_MAZO, 0) > 0)),
+               lambda c: 950),
+    _ReglaFija("evo_inmediata",
+               lambda c: c.campo.get(Applin, 0) >= 1, lambda c: 880),
+    _ReglaFija("rush_desde_mano",
+               lambda c: (c.hand.get(Applin, 0) >= 1
+                          and _dawn_forest_avail(c)),
+               lambda c: 860),
+    _ReglaFija("con_applin_en_mano",
+               lambda c: (c.bench_count < 5
+                          and c.hand.get(Applin, 0) >= 1),
+               lambda c: 480),
+]
+
+_REGLAS_DAWN_APPLIN = [
+    _ReglaFija("linea_completa",
+               lambda c: (c.has_hydrapple
+                          and c.campo.get(Applin, 0)
+                          + c.campo.get(Dipplin, 0) >= 1),
+               lambda c: 10),
+    _ReglaFija("linea_doblada",
+               lambda c: (c.campo.get(Applin, 0)
+                          + c.campo.get(Dipplin, 0)
+                          + c.campo.get(Hydrapple_ex, 0) >= 2),
+               lambda c: 30),
+    _ReglaFija("banca_llena",
+               lambda c: c.bench_count >= 5, lambda c: 30),
+    _ReglaFija("rush_con_dipplin",
+               lambda c: (_dawn_forest_avail(c)
+                          and c.hand.get(Dipplin, 0) >= 1),
+               lambda c: 830),
+    _ReglaFija("rush",
+               lambda c: _dawn_forest_avail(c), lambda c: 780),
+    _ReglaFija("con_dipplin_en_mano",
+               lambda c: c.hand.get(Dipplin, 0) >= 1, lambda c: 680),
+]
+
+_REGLAS_DAWN_OGERPON = [
+    _ReglaFija("dos_en_juego",
+               lambda c: c.campo.get(Teal_Mask_Ogerpon_ex, 0) >= 2,
+               lambda c: 10),
+    _ReglaFija("banca_llena",
+               lambda c: c.bench_count >= 5, lambda c: 30),
+    _ReglaFija("primer_ogerpon",
+               lambda c: c.campo.get(Teal_Mask_Ogerpon_ex, 0) == 0,
+               lambda c: 500),
+]
+
+_REGLAS_DAWN_TAPU = [
+    _ReglaFija("ya_en_juego",
+               lambda c: c.campo.get(Tapu_Bulu, 0) >= 1, lambda c: 10),
+    _ReglaFija("anti_muro_con_meganium",
+               lambda c: ((op_is_crustle_deck or c.op_ex_immune_active
+                           or c.op_ex_immune_bench)
+                          and meganium_in_play),
+               lambda c: 700),
+    _ReglaFija("anti_muro",
+               lambda c: (op_is_crustle_deck or c.op_ex_immune_active
+                          or c.op_ex_immune_bench),
+               lambda c: 600),
+]
+
+_REGLAS_DAWN_FEZ = [
+    _ReglaFija("ya_en_juego",
+               lambda c: c.campo.get(Fezandipiti_ex, 0) >= 1, lambda c: 10),
+    _ReglaFija("tras_ko",
+               lambda c: ko_last_turn, lambda c: 500),
+]
+
+_REGLAS_DAWN_MEOWTH = [
+    _ReglaFija("ya_en_juego",
+               lambda c: c.campo.get(Meowth_ex, 0) >= 1, lambda c: 10),
+    _ReglaFija("motor_supporter",
+               lambda c: (not c.watchtower and not c.supporter_played
+                          and c.bench_count < 5),
+               lambda c: 300),
+]
+
+_REGLAS_DAWN_GRASS = [
+    _ReglaFija("sin_planta_y_sin_adjunte",
+               lambda c: (not c.energy_attached
+                          and c.hand.get(Basic_Grass_Energy, 0) == 0),
+               lambda c: 400),
+    _ReglaFija("sin_planta",
+               lambda c: c.hand.get(Basic_Grass_Energy, 0) == 0,
+               lambda c: 250),
+]
+
+_REGLAS_DAWN_FOREST = [
+    _ReglaFija("falta_forest",
+               lambda c: not forest_in_play and not _dawn_forest_avail(c),
+               lambda c: 600),
+]
+
+_TABLA_DAWN_FETCH = {
+    Meganium: ("dawn->meganium", _REGLAS_DAWN_MEGANIUM, 200),
+    Bayleef: ("dawn->bayleef", _REGLAS_DAWN_BAYLEEF, 150),
+    Chikorita: ("dawn->chikorita", _REGLAS_DAWN_CHIKORITA, 500),
+    Hydrapple_ex: ("dawn->hydrapple", _REGLAS_DAWN_HYDRAPPLE, 180),
+    Dipplin: ("dawn->dipplin", _REGLAS_DAWN_DIPPLIN, 130),
+    Applin: ("dawn->applin", _REGLAS_DAWN_APPLIN, 480),
+    Teal_Mask_Ogerpon_ex: ("dawn->ogerpon", _REGLAS_DAWN_OGERPON, 400),
+    Tapu_Bulu: ("dawn->tapu", _REGLAS_DAWN_TAPU, 100),
+    Fezandipiti_ex: ("dawn->fez", _REGLAS_DAWN_FEZ, 80),
+    Meowth_ex: ("dawn->meowth", _REGLAS_DAWN_MEOWTH, 50),
+    Basic_Grass_Energy: ("dawn->grass", _REGLAS_DAWN_GRASS, 80),
+    Forest_of_Vitality: ("dawn->forest", _REGLAS_DAWN_FOREST, 10),
+}
 
 # --- Reglas del OBJETIVO del gusteo de Boss's Orders ------------------------
 # Dos modos, como el bloque original: ESTORBO (nuestro activo no puede atacar:
@@ -11519,142 +12220,24 @@ def agent(obs_dict: dict) -> list[int]:
                     is_bcs_selection = (select.effect is not None and select.effect.id == Bug_Catching_Set)
 
                     if is_bcs_selection:
-
+                        # Bloque migrado al MOTOR DE REGLAS (fase 4):
+                        # definiciones y comentarios estrategicos en
+                        # _TABLA_BCS_FETCH / _REGLAS_BCS_* (antes de agent()).
+                        # El bonus por copias premiadas se conserva inline.
                         score = 100
-
-                        if card.id == Chikorita:
-                            if not meganium_in_play and field_counts.get(Chikorita, 0) + field_counts.get(Bayleef, 0) + field_counts.get(Meganium, 0) == 0:
-                                score = 800
-                                if forest_in_play and (hand_counts[Bayleef] >= 1 or hand_counts[Meganium] >= 1):
-                                    score = 950
-                            elif not meganium_in_play and field_counts.get(Chikorita, 0) + field_counts.get(Bayleef, 0) >= 1:
-                                score = 50
-                            else:
-                                score = 50
-
-                        elif card.id == Bayleef:
-                            if not meganium_in_play and field_counts.get(Chikorita, 0) >= 1:
-                                score = 850
-                                if forest_in_play and hand_counts[Meganium] >= 1:
-                                    score = 950
-                            elif not meganium_in_play and hand_counts[Chikorita] >= 1:
-                                score = 700
-                            elif not meganium_in_play:
-                                score = 400
-                            else:
-                                score = 30
-
-                        elif card.id == Meganium:
-                            if not meganium_in_play and (field_counts.get(Bayleef, 0) >= 1):
-                                score = 1000
-                            elif not meganium_in_play and field_counts.get(Chikorita, 0) >= 1 and forest_in_play:
-                                score = 900
-                            elif not meganium_in_play:
-                                score = 500
-                            else:
-                                score = 20
-
-                        elif card.id == Applin:
-                            if not has_hydrapple and field_counts.get(Applin, 0) + field_counts.get(Dipplin, 0) + field_counts.get(Hydrapple_ex, 0) == 0:
-                                score = 700
-                                if forest_in_play and (hand_counts[Dipplin] >= 1 or hand_counts[Hydrapple_ex] >= 1):
-                                    score = 850
-                            elif not has_hydrapple:
-                                score = 200
-                            else:
-                                score = 40
-
-                        elif card.id == Dipplin:
-                            if not has_hydrapple and field_counts.get(Applin, 0) >= 1:
-                                score = 800
-                                if forest_in_play and hand_counts[Hydrapple_ex] >= 1:
-                                    score = 900
-                            elif not has_hydrapple and hand_counts[Applin] >= 1:
-                                score = 650
-                            elif op_has_ex_immune_active or op_has_ex_immune_bench:
-                                score = 600
-                            elif not has_hydrapple:
-                                score = 350
-                            else:
-                                score = 30
-
-                        elif card.id == Hydrapple_ex:
-                            if not has_hydrapple and (field_counts.get(Dipplin, 0) >= 1):
-                                score = 950
-                            elif not has_hydrapple and field_counts.get(Applin, 0) >= 1 and forest_in_play:
-                                score = 850
-                            elif not has_hydrapple:
-                                score = 400
-                            else:
-                                score = 25
-
-                        elif card.id == Teal_Mask_Ogerpon_ex:
-                            if field_counts.get(Teal_Mask_Ogerpon_ex, 0) < 2:
-                                score = 600
-                                if bench_count <= 2:
-                                    score += 100
-                            elif (bench_count < 5 and
-                                  hand_counts.get(Basic_Grass_Energy, 0) >= 1 and
-                                  field_counts.get(Hydrapple_ex, 0) >= 1):
-
-                                score = 550
-                            else:
-                                score = 20
-
-                        elif card.id == Tapu_Bulu:
-                            if field_counts.get(Tapu_Bulu, 0) == 0:
-
-                                if meganium_in_play and (op_has_ex_immune_active or op_has_ex_immune_bench):
-                                    score = 600
-                                    if has_hydrapple:
-                                        score = 700
-                                else:
-                                    score = 50
-                            else:
-                                score = 20
-
-                        elif card.id == Pinsir:
-
-                            if field_counts.get(Pinsir, 0) == 0 and (
-                                    op_is_crustle_deck or op_is_cornerstone_deck):
-                                score = 750
-                            else:
-                                score = 20
-
-                        elif card.id == Meowth_ex:
-
-                            if (not watchtower_in_play and
-                                    field_counts.get(Meowth_ex, 0) == 0 and not state.supporterPlayed and
-                                    _best_supp_in_hand_val < 500 and _best_supp_in_mazo_val >= 400):
-
-                                score = min(500, _best_supp_in_mazo_val - 100)
-                            else:
-                                score = 15
-
-                        elif card.id == Fezandipiti_ex:
-                            if op_is_lucario_deck:
-                                if (field_counts.get(Fezandipiti_ex, 0) == 0 and
-                                        (ko_last_turn or bench_count == 0)):
-                                    score = 650
-                                else:
-                                    score = SCORE_VETO
-                            elif field_counts.get(Fezandipiti_ex, 0) == 0 and ko_last_turn:
-                                score = 650
-                            else:
-                                score = 10
-
-                        elif card.id == Basic_Grass_Energy:
-                            score = 350
-
-                            if hand_counts[Basic_Grass_Energy] == 0:
-                                score = 550
-                                if not state.energyAttached:
-                                    score = 650
-                            elif has_hydrapple:
-                                score = 400
-
-                            if hand_counts[Basic_Grass_Energy] >= 3:
-                                score = 150
+                        _bcs_ctx = _ctx_ns_fetch(
+                            my_state, state, hand_counts, field_counts,
+                            bench_count, total_grass, has_hydrapple,
+                            _active_needs_energy, op_has_ex_immune_active,
+                            op_has_ex_immune_bench, op_is_lucario_deck,
+                            watchtower_in_play, _best_supp_in_hand_val,
+                            _best_supp_in_mazo_val)
+                        _bcs_entrada = _TABLA_BCS_FETCH.get(card.id)
+                        if _bcs_entrada is not None:
+                            _bcs_et, _bcs_reglas, _bcs_defecto = _bcs_entrada
+                            score = _resolver_con_traza(
+                                _bcs_et, _bcs_reglas, [], _bcs_ctx,
+                                defecto=_bcs_defecto)
 
                         if card.id in CARTAS_ACTIVAS_EN_MAZO:
                             prized_copies = CARTAS_ACTIVAS_EN_MAZO[card.id][ESTADO_PREMIO]
@@ -11664,126 +12247,14 @@ def agent(obs_dict: dict) -> list[int]:
 
                     elif select.effect is not None and select.effect.id == Poke_Pad:
 
-                        score = 10
-
-                        _our_first_turn_pp = ((state.turn == 1 and we_go_first) or
-                                              (state.turn == 2 and not we_go_first))
-                        if _our_first_turn_pp:
-                            _pp_have_applin_sel = (field_counts.get(Applin, 0) >= 1
-                                                   or hand_counts.get(Applin, 0) >= 1)
-                            _pp_have_chik_sel = (field_counts.get(Chikorita, 0) >= 1
-                                                 or hand_counts.get(Chikorita, 0) >= 1)
-                            if card.id == Applin and not _pp_have_applin_sel:
-                                score = 2000
-                            elif card.id == Chikorita and not _pp_have_chik_sel:
-                                score = 1900
-                            else:
-                                score = 10
-                        else:
-
-                            # Poke Pad busca un Pokemon NO Rule-Box (basico o
-                            # evolucion) hacia la MANO. La regla correcta es mirar el
-                            # tablero ACTUAL y traer la SIGUIENTE evolucion de un
-                            # Pokemon que YA esta en banca, aunque no se pueda jugar
-                            # este mismo turno: sirve para el PROXIMO turno. Por eso NO
-                            # usamos la foto de inicio de turno (_field_at_turn_start):
-                            # esa foto ignora un Bayleef recien evolucionado y nos haria
-                            # buscar un 2o Bayleef redundante en vez del Meganium que SI
-                            # completa la linea (Chikorita->Bayleef->Meganium). Con el
-                            # tablero actual, un Bayleef en banca -> buscar Meganium.
-                            _pp_sel_evolvable = field_counts
-                            _pp_sel_has_evo = False
-
-                            if (not meganium_in_play and hand_counts.get(Meganium, 0) == 0):
-                                if _pp_sel_evolvable.get(Bayleef, 0) >= 1:
-                                    _pp_sel_has_evo = True
-                                elif (forest_in_play and _pp_sel_evolvable.get(Chikorita, 0) >= 1 and
-                                      hand_counts.get(Bayleef, 0) >= 1):
-                                    _pp_sel_has_evo = True
-
-                            if (not meganium_in_play and hand_counts.get(Bayleef, 0) == 0 and
-                                    _pp_sel_evolvable.get(Chikorita, 0) >= 1):
-                                _pp_sel_has_evo = True
-
-                            if (hand_counts.get(Dipplin, 0) == 0 and
-                                    _pp_sel_evolvable.get(Applin, 0) >= 1):
-                                _pp_sel_has_evo = True
-
-                            if _pp_sel_has_evo:
-
-                                if card.id == Meganium:
-                                    if not meganium_in_play and hand_counts.get(Meganium, 0) == 0:
-                                        if _pp_sel_evolvable.get(Bayleef, 0) >= 1:
-                                            score = 1000
-                                        elif (forest_in_play and _pp_sel_evolvable.get(Chikorita, 0) >= 1 and
-                                              hand_counts.get(Bayleef, 0) >= 1):
-                                            score = 900
-                                    else:
-                                        score = 10
-                                elif card.id == Bayleef:
-                                    if (not meganium_in_play and hand_counts.get(Bayleef, 0) == 0 and
-                                            _pp_sel_evolvable.get(Chikorita, 0) >= 1):
-                                        score = 850
-                                        if forest_in_play and hand_counts.get(Meganium, 0) >= 1:
-                                            score = 950
-                                    else:
-                                        score = 10
-                                elif card.id == Dipplin:
-                                    if (hand_counts.get(Dipplin, 0) == 0 and
-                                            _pp_sel_evolvable.get(Applin, 0) >= 1):
-                                        score = 800
-                                        if forest_in_play and hand_counts.get(Hydrapple_ex, 0) >= 1:
-                                            score = 920
-                                    else:
-                                        score = 10
-                                else:
-
-                                    score = 10
-                            else:
-
-                                _pp_have_chik = (field_counts.get(Chikorita, 0) >= 1 or
-                                                 hand_counts.get(Chikorita, 0) >= 1)
-                                _pp_have_bay = (field_counts.get(Bayleef, 0) >= 1 or
-                                                hand_counts.get(Bayleef, 0) >= 1)
-                                _pp_have_applin = (field_counts.get(Applin, 0) >= 1 or
-                                                   hand_counts.get(Applin, 0) >= 1)
-                                _pp_have_dipplin = (field_counts.get(Dipplin, 0) >= 1 or
-                                                    hand_counts.get(Dipplin, 0) >= 1)
-                                if card.id == Bayleef:
-                                    if (not meganium_in_play and _pp_have_chik and
-                                            not _pp_have_bay):
-                                        score = 850
-                                    else:
-                                        score = 10
-                                elif card.id == Dipplin:
-                                    if _pp_have_applin and not _pp_have_dipplin:
-                                        score = 800
-                                    else:
-                                        score = 10
-                                elif card.id == Meganium:
-
-                                    if (not meganium_in_play and
-                                            hand_counts.get(Meganium, 0) == 0 and
-                                            _pp_have_bay):
-                                        score = 700
-                                    else:
-                                        score = 10
-                                elif card.id == Chikorita:
-                                    _pp_chik_line_sel = (
-                                        field_counts.get(Chikorita, 0) + field_counts.get(Bayleef, 0) + field_counts.get(Meganium, 0)) >= 1
-                                    _pp_chik_hand_sel = hand_counts.get(Chikorita, 0) >= 1
-                                    if (not meganium_in_play and not _pp_chik_line_sel and
-                                            not _pp_chik_hand_sel and bench_count < 5):
-                                        score = 800
-                                    else:
-                                        score = 10
-                                elif card.id == Applin:
-                                    if bench_count < 5:
-                                        score = 650
-                                    else:
-                                        score = 10
-                                else:
-                                    score = 10
+                        # Bloque migrado al MOTOR DE REGLAS (fase 4):
+                        # definiciones y comentarios estrategicos en
+                        # _REGLAS_PP_FETCH (antes de agent()).
+                        score = _resolver_con_traza(
+                            "pp->fetch", _REGLAS_PP_FETCH, [],
+                            _CtxPPFetch(card.id, hand_counts, field_counts,
+                                        bench_count, state),
+                            defecto=10)
 
                     elif select.effect is not None and select.effect.id == Night_Stretcher:
 
@@ -12181,307 +12652,48 @@ def agent(obs_dict: dict) -> list[int]:
 
                     elif select.effect is not None and select.effect.id == Meowth_ex:
 
+                        # Bloque migrado al MOTOR DE REGLAS (fase 4):
+                        # definiciones y comentarios estrategicos en
+                        # _REGLAS_MEOWTH_FETCH (antes de agent()). Solo los
+                        # Supporters entran al motor; el resto conserva el 50.
                         score = 50
-
-                        _has_strong_attacker_sel = (
-                            field_counts.get(Hydrapple_ex, 0) >= 1 or
-                            field_counts.get(Teal_Mask_Ogerpon_ex, 0) >= 1)
-                        _hand_size_sel = len(my_state.hand) if my_state.hand else 0
-
-                        _supp_ids = (Boss_Orders, Dawn, Lillie_Determination,
-                                     Lanas_Aid, Xerosic_Machinations)
-                        if card.id in _supp_ids:
-                            _sv = _supp_values.get(card.id, 0)
-
-                            _no_energy_in_hand = (hand_counts.get(Basic_Grass_Energy, 0) == 0)
-
-                            if (_win_via_boss_gust or _gust_2prize_via_boss) and card.id == Boss_Orders:
-                                score = 1300
-                            elif _deny_evo_via_boss and card.id == Boss_Orders:
-                                # Gusteo de VALOR (deny-evo) via motor Meowth
-                                # (plan motor Meowth, mejora A): el Boss's del
-                                # MAZO corta la pre-evo ENERGIZADA del atacante
-                                # ex rival. 1280: bajo el remate ganador (1300),
-                                # sobre Lillie's de refresco/desarrollo
-                                # (1200-1250) -- con la amenaza en banca, cortar
-                                # la linea prima sobre refrescar (regla del
-                                # user, registro_006 paso 82 vs Garchomp).
-                                score = 1280
-                            elif _meowth_devel_lillie and card.id == Lillie_Determination:
-
-                                score = 1250
-                            elif (card.id == Xerosic_Machinations
-                                    and op_is_alakazam_deck
-                                    and getattr(op_state, 'handCount', 0) >= 6
-                                    and (_hand_size_sel >= 3
-                                         or _has_strong_attacker_sel)):
-                                # Xerosic vs Alakazam (user): con la mano rival
-                                # gorda (Powerful Hand = 20 x carta), Meowth ex
-                                # busca Xerosic para capar el dano. 1200: bajo
-                                # el Boss's ganador (1300) y el Lillie's de
-                                # desarrollo (1250); sobre el resto.
-                                # Refinado (user, registro_004 paso 53 vs
-                                # Alakazam, PERDIDA): si YA tenemos un atacante
-                                # fuerte en juego (Hydrapple/Ogerpon), Xerosic
-                                # manda AUNQUE nuestra mano quede vacia tras
-                                # bajar el Meowth (la mano rival de 13 cartas =
-                                # Powerful Hand 260 que noquea todo lo nuestro;
-                                # capar eso vale mas que refrescar con Lillie's
-                                # cuando el ataque ya esta resuelto) -> 1260,
-                                # sobre el Lillie's de desarrollo (1250) y el
-                                # refresco por mano corta (1200), bajo el Boss's
-                                # ganador (1300). Sin atacante fuerte se mantiene
-                                # la regla previa (solo con mano >= 3, a 1200).
-                                score = 1260 if _has_strong_attacker_sel else 1200
-                            elif (card.id == Xerosic_Machinations
-                                    and getattr(op_state, 'handCount', 0) >= 7
-                                    and _has_strong_attacker_sel
-                                    and not (_active_cant_attack_this_turn
-                                             or _sel_active_cant_attack)):
-                                # Xerosic GENERICO en el fetch de Last-Ditch
-                                # (plan motor Meowth, mejora B): contra
-                                # CUALQUIER mazo con mano rival >= 7, quitarle
-                                # 4+ cartas es valor real (el scorer generico de
-                                # Xerosic ya lo juega a 3380 si esta en mano;
-                                # antes ni era candidato del fetch fuera de
-                                # Alakazam). 1100: bajo Lillie's de refresco/
-                                # desarrollo (1200-1250) y los Boss's (1280/
-                                # 1300) -- solo si no hay mejor opcion. Guards:
-                                # `_has_strong_attacker_sel` (con el ataque ya
-                                # resuelto la disrupcion vale; SIN atacante
-                                # fuerte, cavar con Lillie's -escaleras 1000-
-                                # 1200- va primero) y activo-que-no-ataca (que
-                                # Xerosic no secuestre el fetch del TURNO
-                                # MUERTO, cuyo sentido es traer Lana's/Lillie's
-                                # para salir del atasco).
-                                score = 1100
-                            elif _hand_size_sel <= 2:
-
-                                if card.id == Lillie_Determination:
-                                    score = 1200
-                                else:
-                                    score = min(_sv, 100)
-                            elif ((_active_cant_attack_this_turn or _sel_active_cant_attack)
-                                    and _no_energy_in_hand):
-
-                                if card.id == Lillie_Determination:
-                                    score = 1200
-                                else:
-                                    score = min(_sv, 150)
-                            elif ((_active_cant_attack_this_turn or _sel_active_cant_attack) and
-                                    hand_counts.get(Lillie_Determination, 0) == 0):
-
-                                if card.id == Lillie_Determination:
-                                    score = 1200
-                                else:
-                                    score = min(_sv, 150)
-                            elif not _has_strong_attacker_sel and _hand_size_sel <= 5:
-
-                                if card.id == Lillie_Determination:
-                                    score = 1000
-                                else:
-                                    score = min(_sv, 200)
-                            elif not _has_strong_attacker_sel:
-
-                                if card.id == Lillie_Determination:
-                                    score = 800
-                                else:
-                                    score = min(_sv, 400)
-                            else:
-
-                                score = _sv
-
-                                if card.id == Boss_Orders and op_is_crustle_deck:
-                                    score += 100
-
-                                # Dawn (busca Basico+Fase1+Fase2 para armar la
-                                # linea evolutiva) SOLO conviene buscarlo con
-                                # Meowth ex si tenemos Forest of Vitality (1261)
-                                # EN JUEGO, que deja evolucionar el mismo turno
-                                # (rush). SIN Forest en juego no podemos acelerar
-                                # la evolucion: refrescar la mano con Lillie's
-                                # Determination da mas opciones de juego/ataque
-                                # inmediatas. Por eso bajamos el Dawn por debajo
-                                # del valor de Lillie's para que Meowth ex busque
-                                # Lillie's, no Dawn. CON Forest en juego Dawn
-                                # conserva su valor (consistente con el desempate
-                                # Dawn/Lillie's de ~L6137). (user, registro_004
-                                # paso 53 vs Marnie's Grimmsnarl ex, PERDIDA.)
-                                if (card.id == Dawn and not forest_in_play
-                                        and _supp_values.get(Lillie_Determination, 0) > 0):
-                                    score = min(
-                                        score,
-                                        _supp_values.get(Lillie_Determination, 0) - 50)
+                        if card.id in _MEOWTH_FETCH_SUPPS:
+                            _mf_ctx = _CtxMeowthFetch(
+                                card.id, _supp_values.get(card.id, 0),
+                                hand_counts, _supp_values,
+                                len(my_state.hand) if my_state.hand else 0,
+                                (field_counts.get(Hydrapple_ex, 0) >= 1 or
+                                 field_counts.get(Teal_Mask_Ogerpon_ex, 0) >= 1),
+                                getattr(op_state, 'handCount', 0),
+                                (_active_cant_attack_this_turn
+                                 or _sel_active_cant_attack),
+                                _win_via_boss_gust, _gust_2prize_via_boss,
+                                _deny_evo_via_boss, _meowth_devel_lillie,
+                                op_is_alakazam_deck)
+                            score = _resolver_con_traza(
+                                "meowth->fetch", _REGLAS_MEOWTH_FETCH, [],
+                                _mf_ctx, defecto=50)
 
                     elif select.effect is not None and select.effect.id == Dawn:
 
-                        score = 50
-                        _forest_avail = forest_in_play or hand_counts.get(Forest_of_Vitality, 0) >= 1
-
-                        if card.id == Meganium:
-                            if meganium_in_play:
-                                score = 10
-                            elif field_counts.get(Bayleef, 0) >= 1:
-
-                                score = 1000
-                            elif field_counts.get(Chikorita, 0) >= 1 and _forest_avail:
-
-                                if hand_counts.get(Bayleef, 0) >= 1:
-                                    score = 980
-                                else:
-                                    score = 950
-                            elif hand_counts.get(Chikorita, 0) >= 1 and _forest_avail:
-
-                                if hand_counts.get(Bayleef, 0) >= 1:
-                                    score = 960
-                                else:
-                                    score = 920
-                            else:
-                                score = 200
-
-                        elif card.id == Bayleef:
-                            if meganium_in_play:
-                                score = 10
-                            elif field_counts.get(Chikorita, 0) >= 1:
-
-                                score = 900
-                                if _forest_avail and (hand_counts.get(Meganium, 0) >= 1 or
-                                        CARTAS_ACTIVAS_EN_MAZO.get(Meganium, {}).get(ESTADO_MAZO, 0) > 0):
-                                    score = 970
-                            elif hand_counts.get(Chikorita, 0) >= 1 and _forest_avail:
-
-                                score = 880
-                            elif bench_count < 5 and hand_counts.get(Chikorita, 0) >= 1:
-
-                                score = 500
-                            else:
-                                score = 150
-
-                        elif card.id == Chikorita:
-                            if meganium_in_play:
-                                score = 10
-                            elif field_counts.get(Chikorita, 0) + field_counts.get(Bayleef, 0) + field_counts.get(Meganium, 0) >= 1:
-                                score = 50
-                            elif bench_count >= 5:
-                                score = 30
-                            elif _forest_avail and hand_counts.get(Bayleef, 0) >= 1:
-
-                                score = 850
-                            elif _forest_avail:
-
-                                score = 800
-                            elif hand_counts.get(Bayleef, 0) >= 1:
-
-                                score = 700
-                            else:
-
-                                score = 500
-
-                        elif card.id == Hydrapple_ex:
-                            if has_hydrapple:
-                                score = 10
-                            elif field_counts.get(Dipplin, 0) >= 1:
-
-                                score = 980
-                            elif field_counts.get(Applin, 0) >= 1 and _forest_avail:
-
-                                if hand_counts.get(Dipplin, 0) >= 1:
-                                    score = 960
-                                else:
-                                    score = 930
-                            elif hand_counts.get(Applin, 0) >= 1 and _forest_avail:
-
-                                if hand_counts.get(Dipplin, 0) >= 1:
-                                    score = 940
-                                else:
-                                    score = 900
-                            else:
-                                score = 180
-
-                        elif card.id == Dipplin:
-                            if has_hydrapple and field_counts.get(Dipplin, 0) >= 1:
-                                score = 10
-                            elif field_counts.get(Applin, 0) >= 1:
-
-                                score = 880
-                                if _forest_avail and (hand_counts.get(Hydrapple_ex, 0) >= 1 or
-                                        CARTAS_ACTIVAS_EN_MAZO.get(Hydrapple_ex, {}).get(ESTADO_MAZO, 0) > 0):
-                                    score = 950
-                            elif hand_counts.get(Applin, 0) >= 1 and _forest_avail:
-                                score = 860
-                            elif bench_count < 5 and hand_counts.get(Applin, 0) >= 1:
-                                score = 480
-                            else:
-                                score = 130
-
-                        elif card.id == Applin:
-                            if has_hydrapple and field_counts.get(Applin, 0) + field_counts.get(Dipplin, 0) >= 1:
-                                score = 10
-                            elif field_counts.get(Applin, 0) + field_counts.get(Dipplin, 0) + field_counts.get(Hydrapple_ex, 0) >= 2:
-                                score = 30
-                            elif bench_count >= 5:
-                                score = 30
-                            elif _forest_avail and hand_counts.get(Dipplin, 0) >= 1:
-                                score = 830
-                            elif _forest_avail:
-                                score = 780
-                            elif hand_counts.get(Dipplin, 0) >= 1:
-                                score = 680
-                            else:
-                                score = 480
-
-                        elif card.id == Teal_Mask_Ogerpon_ex:
-                            if field_counts.get(Teal_Mask_Ogerpon_ex, 0) >= 2:
-                                score = 10
-                            elif bench_count >= 5:
-                                score = 30
-                            else:
-                                score = 400
-                                if field_counts.get(Teal_Mask_Ogerpon_ex, 0) == 0:
-                                    score = 500
-
-                        elif card.id == Tapu_Bulu:
-                            if field_counts.get(Tapu_Bulu, 0) >= 1:
-                                score = 10
-                            elif op_is_crustle_deck or op_has_ex_immune_active or op_has_ex_immune_bench:
-                                score = 600
-                                if meganium_in_play:
-                                    score = 700
-                            else:
-                                score = 100
-
-                        elif card.id == Fezandipiti_ex:
-                            if field_counts.get(Fezandipiti_ex, 0) >= 1:
-                                score = 10
-                            elif ko_last_turn:
-                                score = 500
-                            else:
-                                score = 80
-
-                        elif card.id == Meowth_ex:
-                            if field_counts.get(Meowth_ex, 0) >= 1:
-                                score = 10
-                            elif not watchtower_in_play and not state.supporterPlayed and bench_count < 5:
-                                score = 300
-                            else:
-                                score = 50
-
-                        elif card.id == Basic_Grass_Energy:
-                            if not state.energyAttached and hand_counts[Basic_Grass_Energy] == 0:
-                                score = 400
-                            elif hand_counts[Basic_Grass_Energy] == 0:
-                                score = 250
-                            else:
-                                score = 80
-
-                        elif card.id == Forest_of_Vitality:
-                            if not forest_in_play and not _forest_avail:
-                                score = 600
-                            else:
-                                score = 10
-
+                        # Bloque migrado al MOTOR DE REGLAS (fase 4):
+                        # definiciones y comentarios estrategicos en
+                        # _TABLA_DAWN_FETCH / _REGLAS_DAWN_* (antes de
+                        # agent()).
+                        _dawn_ctx = _ctx_ns_fetch(
+                            my_state, state, hand_counts, field_counts,
+                            bench_count, total_grass, has_hydrapple,
+                            _active_needs_energy, op_has_ex_immune_active,
+                            op_has_ex_immune_bench, op_is_lucario_deck,
+                            watchtower_in_play, _best_supp_in_hand_val,
+                            _best_supp_in_mazo_val)
+                        _dawn_entrada = _TABLA_DAWN_FETCH.get(card.id)
+                        if _dawn_entrada is not None:
+                            _dawn_et, _dawn_reglas, _dawn_defecto = _dawn_entrada
+                            score = _resolver_con_traza(
+                                _dawn_et, _dawn_reglas, [], _dawn_ctx,
+                                defecto=_dawn_defecto)
                         else:
-
                             score = 50 - hand_counts.get(card.id, 0) * 30
 
                     else:
