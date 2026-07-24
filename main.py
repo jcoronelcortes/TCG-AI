@@ -13566,6 +13566,18 @@ def agent(obs_dict: dict) -> list[int]:
                             Applin, Dipplin, Hydrapple_ex,
                             Chikorita, Bayleef, Meganium,
                             Teal_Mask_Ogerpon_ex, Meowth_ex)
+                        # COLISION DE MATCHUPS (user, registro_004 turno 4): con
+                        # un Cornerstone Mask Ogerpon ex rival en juego, su
+                        # Cornerstone Stance anula el dano de TODOS nuestros
+                        # Pokemon CON habilidad -- incluidos Teal Mask Ogerpon ex
+                        # e Hydrapple ex, que esta lista SI permite. El unico
+                        # atacante real pasa a ser Tapu Bulu, que la lista
+                        # excluia: el agente bajaba un 2o Ogerpon ex (dano 0) y
+                        # dejaba a Tapu muerto en la mano. Se amplia la whitelist
+                        # con Tapu Bulu SOLO en ese caso; sin Cornerstone el plan
+                        # anti-Cubchoo queda intacto.
+                        if op_has_ability_immune_active or op_is_cornerstone_deck:
+                            _CUB_ALLOWED_PLAY = _CUB_ALLOWED_PLAY + (Tapu_Bulu,)
                         if card.id not in _CUB_ALLOWED_PLAY:
                             score = SCORE_VETO
                         elif (card.id == Teal_Mask_Ogerpon_ex

@@ -228,3 +228,64 @@ def test_sin_cornerstone_la_busqueda_no_cambia():
     assert elegida == m.Bayleef, (
         f"sin Cornerstone el fetch no debe cambiar; obtuvo "
         f"{m.card_table[elegida].name}")
+
+
+# ---------------------------------------------------------------------
+# Tapu Bulu es el UNICO atacante real vs Cornerstone (user, registro_004
+# turno 4): la whitelist anti-Cubchoo (`_CUB_ALLOWED_PLAY`) permitia Teal Mask
+# Ogerpon ex e Hydrapple ex -- que por su habilidad hacen dano CERO a
+# Cornerstone -- pero excluia a Tapu Bulu, el unico que si le pega. El agente
+# bajaba un 2o Ogerpon ex y dejaba a Tapu muerto en la mano.
+# ---------------------------------------------------------------------
+
+def _menu_con_tapu_en_mano(op_id):
+    """Menu principal vs un rival Cubchoo con Cornerstone (o no) de activo."""
+    return (Escenario(turno=6, paso=1, tac=1)
+            .mi_activo(pk(m.Teal_Mask_Ogerpon_ex, energias=[G], fisicas=1))
+            .mi_banca(pk(m.Bayleef, pre_evo=[m.Chikorita]))
+            .mi_mano(m.Basic_Grass_Energy, m.Tapu_Bulu)
+            .op_activo(pk(op_id, hp=210, max_hp=210))
+            .op_banca(pk(CUBCHOO))
+            .op_zonas(mano=4, mazo=40, premios=6)
+            .menu_attach_energia()
+            .construir())
+
+
+def _energia_va_a(obs, eleccion):
+    opt = obs["select"]["option"][eleccion[0]]
+    if opt.get("type") != 8:
+        return None
+    me = obs["current"]["players"][obs["current"]["yourIndex"]]
+    destino = (me["active"][0] if opt.get("inPlayArea") == 4
+               else me["bench"][opt["inPlayIndex"]])
+    return destino["id"]
+
+
+def test_cornerstone_energia_va_a_tapu_bulu():
+    # Con Tapu Bulu YA en banca, la energia debe cargarlo a el (unico atacante
+    # que dana a Cornerstone), no al Ogerpon ex de habilidad anulada.
+    obs = (Escenario(turno=6, paso=1, tac=1)
+           .mi_activo(pk(m.Teal_Mask_Ogerpon_ex, energias=[G], fisicas=1))
+           .mi_banca(pk(m.Tapu_Bulu), pk(m.Bayleef, pre_evo=[m.Chikorita]))
+           .mi_mano(m.Basic_Grass_Energy)
+           .op_activo(pk(CORNERSTONE, hp=210, max_hp=210))
+           .op_zonas(mano=4, mazo=40, premios=6)
+           .menu_attach_energia()
+           .construir())
+    assert _energia_va_a(obs, m.agent(obs)) == m.Tapu_Bulu, (
+        "vs Cornerstone la energia debe ir a Tapu Bulu: el Ogerpon ex tiene "
+        "habilidad y su dano queda anulado")
+
+
+def test_cornerstone_sin_el_la_energia_no_cambia():
+    # Frontera: sin Cornerstone el reparto de energia conserva su criterio.
+    obs = (Escenario(turno=6, paso=1, tac=1)
+           .mi_activo(pk(m.Teal_Mask_Ogerpon_ex, energias=[G], fisicas=1))
+           .mi_banca(pk(m.Tapu_Bulu), pk(m.Bayleef, pre_evo=[m.Chikorita]))
+           .mi_mano(m.Basic_Grass_Energy)
+           .op_activo(pk(CUBCHOO, hp=70, max_hp=70))
+           .op_zonas(mano=4, mazo=40, premios=6)
+           .menu_attach_energia()
+           .construir())
+    assert _energia_va_a(obs, m.agent(obs)) == m.Teal_Mask_Ogerpon_ex, (
+        "sin Cornerstone la energia sigue yendo al atacante habitual")
