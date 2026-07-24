@@ -5043,3 +5043,116 @@ def test_sin_bayleef_en_mano_el_chikorita_no_se_retira():
     assert opt.get("type") != int(OptionType.RETREAT), (
         f"sin Bayleef en mano no hay linea evolutiva que habilitar: no se "
         f"retira solo por retirar; obtuvo {opt}")
+
+
+# =====================================================================
+# Nunca cerrar el turno con un ataque de 0 de dano teniendo Lillie's
+# ---------------------------------------------------------------------
+# user, registro_009 paso 61 (turno 9 vs Dragapult, PERDIDA): Chikorita activo
+# 50/70, Tapu Bulu y Applin sin cargar en banca y en la mano Unfair Stamp +
+# Bayleef + Meganium + Meowth ex + Xerosic + Lillie's Determination, con 6
+# premios (Lillie's roba OCHO). El agente ataco con Growl (0 de dano) y dejo
+# TODA la mano muerta: el scorer de Lillie's la vetaba porque "hay una linea
+# evolucionable este turno" mientras la evolucion real estaba bloqueada.
+# =====================================================================
+_DRAGAPULT_P61_FIXTURE = (
+    ROOT / "tests" / "fixtures" / "dragapult_paso61_lillie_turno_esteril.json")
+
+
+def _dragapult_p61_obs():
+    with open(_DRAGAPULT_P61_FIXTURE, encoding="utf-8") as f:
+        return copy.deepcopy(json.load(f)["observation"])
+
+
+def _p61_sin_evolucion_ni_retirada(obs):
+    """Menu del deadlock real: ni evolucionar ni retirar, solo jugar o atacar."""
+    obs["select"]["option"] = [
+        o for o in obs["select"]["option"]
+        if o.get("type") not in (int(OptionType.EVOLVE), int(OptionType.RETREAT))]
+    return obs
+
+
+def test_p61_turno_esteril_juega_lillie_en_vez_de_growl():
+    obs = _p61_sin_evolucion_ni_retirada(_dragapult_p61_obs())
+    result = m.agent(obs)
+    opt = obs["select"]["option"][result[0]]
+    assert opt.get("type") == int(OptionType.PLAY), (
+        f"con la evolucion bloqueada, cerrar el turno con Growl (0 de dano) "
+        f"deja la mano muerta: hay que refrescar con Lillie's; obtuvo {opt}")
+    carta = _mi_lado(obs)["hand"][opt["index"]]["id"]
+    assert carta == m.Lillie_Determination, (
+        f"la jugada de rescate es Lillie's Determination (roba 6/8); obtuvo "
+        f"{m.card_table[carta].name}")
+
+
+def test_p61_con_ataque_real_no_dispara_el_rescate():
+    # Frontera: si el activo SI hace dano (Tapu Bulu cargado, Wood Hammer 220)
+    # el turno no es esteril y el rescate no se activa.
+    obs = _p61_sin_evolucion_ni_retirada(_dragapult_p61_obs())
+    me = _mi_lado(obs)
+    yo = obs["current"]["yourIndex"]
+    tapu = copy.deepcopy(me["bench"][0])
+    tapu["energies"] = [1, 1, 1, 1]
+    tapu["energyCards"] = [{"id": m.Basic_Grass_Energy, "playerIndex": yo,
+                            "serial": 200 + i} for i in range(4)]
+    me["bench"][0] = me["active"][0]
+    me["active"] = [tapu]
+    result = m.agent(obs)
+    opt = obs["select"]["option"][result[0]]
+    assert opt.get("type") == int(OptionType.ATTACK), (
+        f"con un ataque que si hace dano no hay turno esteril que rescatar; "
+        f"obtuvo {opt}")
+
+
+def test_p61_promueve_tapu_bulu_no_applin():
+    # Al retirar el Chikorita, el muro es Tapu Bulu (140 PV), no el Applin de
+    # 40 -- que ademas es pieza de la linea Hydrapple.
+    obs = _dragapult_p61_obs()
+    yo = obs["current"]["yourIndex"]
+    obs["select"] = {
+        "context": int(SelectContext.SWITCH), "type": 1,
+        "minCount": 1, "maxCount": 1, "contextCard": None, "deck": None,
+        "effect": None, "remainDamageCounter": 0, "remainEnergyCost": 0,
+        "option": [{"area": 5, "index": 0, "playerIndex": yo, "type": 3},
+                   {"area": 5, "index": 1, "playerIndex": yo, "type": 3}],
+    }
+    result = m.agent(obs)
+    banca = _mi_lado(obs)["bench"]
+    elegido = banca[obs["select"]["option"][result[0]]["index"]]["id"]
+    assert elegido == m.Tapu_Bulu, (
+        f"con Lillie's en mano y sin atacante listo se sube el basico de 1 "
+        f"premio mas resistente (Tapu Bulu 140), no el Applin de 40; obtuvo "
+        f"{m.card_table[elegido].name}")
+
+
+def test_p61_tras_evolucionar_en_banca_se_juega_lillie():
+    # Secuencia completa del turno: retirado y con el Bayleef ya en la banca,
+    # la mano se refresca con Lillie's antes de terminar. Se reproduce primero
+    # la observacion REAL del paso 61 para que el agente registre el campo al
+    # inicio del turno (sin eso, un Bayleef recien evolucionado parece
+    # "evolucionable ya" y Lillie's queda vetada por conservar la linea).
+    m.agent(_dragapult_p61_obs())
+    obs = _dragapult_p61_obs()
+    yo = obs["current"]["yourIndex"]
+    me = _mi_lado(obs)
+    bayleef = copy.deepcopy(me["active"][0])
+    bayleef.update({"id": m.Bayleef, "hp": 90, "maxHp": 110,
+                    "appearThisTurn": True, "energies": [], "energyCards": [],
+                    "preEvolution": [{"id": m.Chikorita, "playerIndex": yo,
+                                      "serial": 67}]})
+    me["active"] = [me["bench"][0]]                 # Tapu Bulu promovido
+    me["bench"] = [bayleef, me["bench"][1]]
+    me["hand"] = [c for c in me["hand"] if c["id"] != m.Bayleef]
+    obs["current"]["retreated"] = True
+    obs["select"]["option"] = [
+        {"index": 2, "type": int(OptionType.PLAY)},   # Meowth ex
+        {"index": 3, "type": int(OptionType.PLAY)},   # Xerosic
+        {"index": 4, "type": int(OptionType.PLAY)},   # Lillie's
+        {"type": int(OptionType.END)},
+    ]
+    result = m.agent(obs)
+    opt = obs["select"]["option"][result[0]]
+    carta = _mi_lado(obs)["hand"][opt["index"]]["id"] if opt.get("index") is not None else None
+    assert carta == m.Lillie_Determination, (
+        f"con la linea ya bajada y la mano sin recursos, el turno termina "
+        f"refrescando con Lillie's; obtuvo {opt}")

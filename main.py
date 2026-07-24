@@ -11368,6 +11368,18 @@ def agent(obs_dict: dict) -> list[int]:
                                     score = 6000
                                 else:
                                     score = 5500
+                                # Desempate por VIDA entre basicos de 1 premio
+                                # (user, registro_009 paso 61 vs Dragapult): la
+                                # regla de arriba nacio para preferir un basico
+                                # frente a un ex, pero entre DOS basicos subia
+                                # siempre el Applin de 40 PV -- un premio regalado
+                                # y ademas pieza de la linea Hydrapple que
+                                # queremos evolucionar en la banca. Con un cuerpo
+                                # de 1 premio realmente resistente disponible
+                                # (Tapu Bulu, 140 PV) el muro es ese: aguanta el
+                                # turno rival y es el que estamos cargando.
+                                if (card.hp or 0) >= 100:
+                                    score = 6100
                     else:
 
                         # Objetivo del GUSTEO de Boss's Orders: migrado al MOTOR DE
@@ -16021,6 +16033,65 @@ def agent(obs_dict: dict) -> list[int]:
                         and _po_ab_card.id == Teal_Mask_Ogerpon_ex
                         and scores[_po_i] >= 29000):
                     _play_order_tier[_po_i] = _TIER_ENERGY
+
+    # =================================================================
+    # RESCATE ANTI-TURNO ESTERIL (user, registro_009 paso 61 vs Dragapult,
+    # PERDIDA). Estado: Chikorita activo (50/70), Tapu Bulu y Applin en banca
+    # sin cargar, y en la mano Unfair Stamp + Bayleef + Meganium + Meowth ex +
+    # Xerosic + LILLIE'S DETERMINATION, con 6 premios (Lillie's roba OCHO). El
+    # agente cerro el turno con Growl (ataque de 0 de dano) y dejo TODA la mano
+    # muerta: el scorer de Lillie's la vetaba por `_lillie_evolve_now` (habia
+    # una linea evolutiva "evolucionable este turno") mientras la evolucion
+    # real estaba bloqueada por el veto de evolucionar en el activo, asi que
+    # ninguna de las dos jugadas ocurria.
+    #
+    # Red de seguridad independiente de que veto falle: si la MEJOR jugada del
+    # turno es terminar, o atacar con un ataque que NO hace dano alguno
+    # (Growl), el turno no produce NADA -- y refrescar la mano (robar 6/8)
+    # siempre es mejor que eso. Se levanta el veto de Lillie's y se pone por
+    # encima de esa jugada esteril. El ataque de 0 de dano se detecta con el
+    # dano IMPRESO del ataque ofrecido y con `_attacker_base_damage` (que cubre
+    # los ataques que escalan, p.ej. Do the Wave de Dipplin), asi que un ataque
+    # de chip real (que si quita vida) NO cuenta como turno esteril.
+    # Excepciones conservadas: vs Comfey Lillie's se reserva para no
+    # deckearnos, y vs Alakazam con Xerosic en mano no se baraja el cap de
+    # Powerful Hand.
+    if (context == SelectContext.MAIN and not state.supporterPlayed
+            and not op_is_comfey_deck
+            and not (op_is_alakazam_deck
+                     and hand_counts.get(Xerosic_Machinations, 0) >= 1)):
+        _rescate_lil = -1
+        for _wi, _wo in enumerate(select.option):
+            if _wi >= len(scores) or _wo.type != OptionType.PLAY:
+                continue
+            if scores[_wi] > 0:
+                continue
+            _wcard = get_card(obs, AreaType.HAND, _wo.index, my_index)
+            if _wcard is not None and _wcard.id == Lillie_Determination:
+                _rescate_lil = _wi
+                break
+        if _rescate_lil >= 0 and scores:
+            _mejor_i = max(range(len(scores)),
+                           key=lambda i: (_play_order_tier[i], scores[i]))
+            _mejor_o = select.option[_mejor_i]
+            _turno_esteril = False
+            if _mejor_o.type == OptionType.END or scores[_mejor_i] <= 0:
+                _turno_esteril = True
+            elif _mejor_o.type == OptionType.ATTACK:
+                _est_act = _active_of(my_state)
+                _est_op = _active_of(op_state)
+                _est_atk = attack_table.get(getattr(_mejor_o, 'attackId', None))
+                _est_impreso = getattr(_est_atk, 'damage', 0) or 0
+                _est_base = 0
+                if _est_act is not None:
+                    _est_e = len(_est_act.energies)
+                    _est_base = _attacker_base_damage(
+                        _est_act.id, _est_op, _est_e * _grass_mult(),
+                        grass_scale=total_grass, teal_self_energy=_est_e,
+                        bench_count=bench_count)
+                _turno_esteril = (_est_impreso <= 0 and _est_base <= 0)
+            if _turno_esteril:
+                scores[_rescate_lil] = max(1500, scores[_mejor_i] + 100)
 
     desc_indices = [i for i, _ in sorted(
         enumerate(scores),
