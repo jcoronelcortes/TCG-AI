@@ -13102,6 +13102,32 @@ def agent(obs_dict: dict) -> list[int]:
                             # redundante (21500 > 21000) para que Meowth ex gane.
                             score = 21500
                         elif (_active_ready_attacker
+                                and field_counts[card.id] == 0
+                                and bench_count <= 1
+                                and bench_count < 5
+                                and (active_ko_likely or active_hp_ratio <= 0.2)
+                                and not watchtower_in_play
+                                and not state.supporterPlayed
+                                and hand_counts.get(Lillie_Determination, 0) == 0
+                                and CARTAS_ACTIVAS_EN_MAZO.get(
+                                    Lillie_Determination, {}).get(ESTADO_MAZO, 0) > 0):
+                            # EXCEPCION al veto de abajo (user, registro_014 paso
+                            # 107, vs Marnie): el activo era un Teal Mask Ogerpon
+                            # ex a 10/210 PV -- se cae al primer golpe -- y la
+                            # banca tenia UN solo Pokemon. Aunque el activo sea un
+                            # atacante LISTO, bajar Meowth ex aqui es gratis: no
+                            # consume el ataque (se baja el Basico y se ataca
+                            # despues en el mismo turno) y encadena Last-Ditch
+                            # Catch -> Lillie's -> rehacer la mano, dando cuerpo
+                            # de repuesto para cuando caiga el activo y muchas mas
+                            # opciones de juego. El veto de abajo (log 86511741 vs
+                            # Mega Abomasnow) esta pensado para un activo SANO con
+                            # banca desarrollada, donde el cuerpo de 2 premios no
+                            # compensa; con el activo condenado y la banca vacia
+                            # la situacion se invierte. Se puntua por debajo del
+                            # refresco pleno (21500) y por encima del ataque.
+                            score = 21400
+                        elif (_active_ready_attacker
                                 and field_counts[card.id] == 0):
                             # Regla (user, log 86511741 paso 57, vs Mega Abomasnow
                             # ex, PERDIDA): si nuestro ACTIVO ya es un atacante

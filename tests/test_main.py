@@ -4803,3 +4803,56 @@ def test_dragapult_step138_con_hydra_sano_si_pivota():
     assert opt.get("type") == int(OptionType.RETREAT), (
         f"con el Hydrapple ex sano el pivote sigue siendo valido; obtuvo "
         f"{result} -> {opt}")
+
+
+# =====================================================================
+# Meowth ex con el activo CONDENADO y la banca corta (user, registro_014 paso
+# 107, episodio 87721175 vs Marnie): Teal Mask Ogerpon ex activo a 10/210 PV
+# (se cae al primer golpe) y UN solo Pokemon en banca, con Meowth ex en mano y
+# el Supporter del turno libre. El agente atacaba (1100) porque el veto "el
+# activo ya es atacante listo" (log 86511741 vs Mega Abomasnow) vetaba bajar
+# Meowth ex. Pero bajar Meowth es GRATIS: no consume el ataque (se baja el
+# Basico y se ataca despues en el mismo turno) y encadena Last-Ditch Catch ->
+# Lillie's -> rehacer la mano, dando cuerpo de repuesto para cuando caiga el
+# activo. El veto original esta pensado para un activo SANO con banca
+# desarrollada; con el activo condenado y la banca vacia se invierte.
+# =====================================================================
+_MARNIE_S107_FIXTURE = (
+    ROOT / "tests" / "fixtures" / "marnie_step107_meowth_activo_condenado.json")
+
+
+def _marnie_s107_replay(observation_key=None):
+    with open(_MARNIE_S107_FIXTURE, encoding="utf-8") as f:
+        data = json.load(f)
+    seq = data["sequence"]
+    for item in seq[:-1]:
+        m.agent(item["observation"])
+    obs = data[observation_key] if observation_key else seq[-1]["observation"]
+    return m.agent(obs), obs, data
+
+
+def test_marnie_step107_baja_meowth_con_activo_condenado():
+    result, obs, _ = _marnie_s107_replay()
+    assert _carta_jugada(obs, result) == m.Meowth_ex, (
+        f"con el activo a 10/210 y un solo cuerpo en banca, bajar Meowth ex "
+        f"(gratis, no consume el ataque) para encadenar Lillie's va primero; "
+        f"obtuvo {result}")
+
+
+def test_marnie_step107_activo_sano_no_baja_meowth():
+    # Frontera: con el activo SANO vuelve el veto original (atacar).
+    result, obs, _ = _marnie_s107_replay(observation_key="synthetic_activo_sano")
+    opt = obs["select"]["option"][result[0]]
+    assert opt.get("type") == int(OptionType.ATTACK), (
+        f"con el activo sano, un atacante listo no cede el turno a Meowth ex; "
+        f"obtuvo {result} -> {opt}")
+
+
+def test_marnie_step107_banca_desarrollada_no_baja_meowth():
+    # Frontera: con la banca desarrollada (3 cuerpos) tampoco se baja Meowth.
+    result, obs, _ = _marnie_s107_replay(
+        observation_key="synthetic_banca_desarrollada")
+    opt = obs["select"]["option"][result[0]]
+    assert opt.get("type") == int(OptionType.ATTACK), (
+        f"con la banca desarrollada no hace falta el cuerpo de repuesto; "
+        f"obtuvo {result} -> {opt}")
