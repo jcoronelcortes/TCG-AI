@@ -5966,6 +5966,24 @@ def agent(obs_dict: dict) -> list[int]:
                 if my_pokemon.id == Hydrapple_ex:
 
                     _syrup_grass = total_grass
+                    # Un Hydrapple ex de BANCA (i >= 1) solo ataca si RETIRAMOS
+                    # el activo, y ese retiro DESCARTA la energia del activo
+                    # para pagar su coste: Syrup Storm escala con el Grass del
+                    # campo, asi que hay que medirlo con el Grass que quedara
+                    # DESPUES del retiro (user, registro_011 paso 138 vs
+                    # Dragapult, PERDIDA). Alli el activo era un Tapu Bulu con
+                    # 3 Plantas (6 efectivas): con el Grass previo (10) el
+                    # Syrup Storm del Hydrapple de banca daba 330 y "noqueaba"
+                    # al Dragapult ex de 320, asi que el plan lo elegia como
+                    # atacante; al retirar se descartaban esas 3 Plantas y el
+                    # ataque real quedaba en 150. Mismo patron que
+                    # `_bo_grass_after` en la seleccion del gusteo.
+                    if i >= 1 and not has_switch_card:
+                        _sg_act = my_state.active[0] if my_state.active else None
+                        if _sg_act is not None:
+                            _syrup_grass = max(
+                                0, _syrup_grass
+                                - RETREAT_COST.get(_sg_act.id, 1))
                     if hand_counts.get(Basic_Grass_Energy, 0) >= 1 and not state.energyAttached:
                         _syrup_grass += _grass_attach_unit()
                     syrup_dmg = 30 + 30 * _syrup_grass
@@ -6369,7 +6387,32 @@ def agent(obs_dict: dict) -> list[int]:
                             elif _la_return <= my_pokemon.hp * 0.4:
                                 score += SCORE_LOOKAHEAD_SAFE
 
-                        if best_score < score:
+                        # Un atacante de BANCA solo puede atacar si RETIRAMOS
+                        # el activo para promoverlo, y entonces queda expuesto al
+                        # activo rival. Si ese golpe lo NOQUEA, el pivote regala
+                        # sus premios (user, registro_011 paso 138 vs Dragapult,
+                        # PERDIDA: el Hydrapple ex de banca estaba a 70/330 y el
+                        # rival a 2 premios, asi que promoverlo le entregaba la
+                        # partida; lo correcto era atacar con el Tapu Bulu activo,
+                        # ya cargado). Solo se admite si el KO que logramos GANA
+                        # la partida (SCORE_WIN_GAME, ya resuelto arriba).
+                        # Se mide con `_op_active_attack_damage_to` (resuelve
+                        # el ataque REAL del activo rival via attack_table), no
+                        # con `_op_best_damage_vs`, que aqui subestimaba el
+                        # golpe del Dragapult ex y dejaba pasar el pivote.
+                        _pbs_opa = (op_state.active[0]
+                                    if op_state.active and op_state.active[0] is not None
+                                    else None)
+                        _pivote_banca_suicida = False
+                        if i >= 1 and score != SCORE_WIN_GAME and _pbs_opa is not None:
+                            _pbs_dmg = max(
+                                _la_return,
+                                _op_active_attack_damage_to(
+                                    _pbs_opa, my_pokemon,
+                                    getattr(op_state, 'handCount', None)))
+                            _pivote_banca_suicida = (
+                                _pbs_dmg >= (my_pokemon.hp or 0))
+                        if best_score < score and not _pivote_banca_suicida:
                             best_score = score
                             plan.attacker = i
                             plan.target = j
@@ -6497,6 +6540,28 @@ def agent(obs_dict: dict) -> list[int]:
                     # es mejor que exponer/gastar la Hydrapple ex (2 premios).
                     if _ret_active.id == Tapu_Bulu and _act_can_ko:
                         _promote_hydra = False
+                    # El Hydrapple ex promovido queda EXPUESTO al activo rival:
+                    # si ese golpe lo NOQUEA, el pivote regala 2 premios (user,
+                    # registro_011 paso 138 vs Dragapult, PERDIDA: el Hydrapple
+                    # de banca estaba a 70/330 y el rival a 2 premios, asi que
+                    # promoverlo le entregaba la partida; lo correcto era atacar
+                    # con el Tapu Bulu activo, ya cargado). `_promote_hydra` se
+                    # activaba con solo `not _act_can_ko` -- "si el activo no
+                    # noquea, promueve" -- sin mirar si el Hydrapple sobrevive.
+                    # Solo se admite el pivote si SOBREVIVE al golpe proyectado
+                    # o si su propio KO ya gana la partida. Se usa
+                    # `_op_active_attack_damage_to` (resuelve el ataque REAL via
+                    # attack_table: aqui Phantom Dive, 200) porque el estimador
+                    # generico devolvia 0 para Dragapult ex.
+                    if _promote_hydra and _hydra_mc_pk is not None:
+                        _ph_gana = (_hydra_can_ko
+                                    and my_prize <= prize_count(_op_act_main))
+                        if not _ph_gana:
+                            _ph_dmg_rival = _op_active_attack_damage_to(
+                                _op_act_main, _hydra_mc_pk,
+                                getattr(op_state, 'handCount', None))
+                            if _ph_dmg_rival >= (_hydra_mc_pk.hp or 0):
+                                _promote_hydra = False
                     if _promote_hydra and plan.attacker != _hydra_mc_idx:
                         plan.attacker = _hydra_mc_idx
                         plan.target = 0
@@ -14674,13 +14739,34 @@ def agent(obs_dict: dict) -> list[int]:
                     and op_state.active and op_state.active[0] is not None):
                 _hlp_opa = op_state.active[0]
                 _hlp_opa_hp = _hlp_opa.hp or 0
+                # Syrup Storm escala con el Grass DEL CAMPO, y la retirada
+                # DESCARTA la energia del activo para pagar su coste: hay que
+                # medir el dano con el Grass que quedara DESPUES del retiro
+                # (user, registro_011 paso 138 vs Dragapult, PERDIDA). Alli el
+                # activo era un Tapu Bulu con 3 Plantas (6 efectivas): con el
+                # Grass previo (10) Syrup Storm daba 330 y "noqueaba" al
+                # Dragapult ex de 320, pero al retirar se descartaban esas 3
+                # Plantas y el ataque real quedaba en 150. Mismo patron que
+                # `_bo_grass_after` en la seleccion del gusteo.
+                _hlp_ret_cost = RETREAT_COST.get(_active_reloc.id, 1)
+                _hlp_grass_after = max(
+                    0, total_grass - (0 if has_switch_card else _hlp_ret_cost))
                 for _hlp_bp in (my_state.bench or []):
                     if _hlp_bp is None or _hlp_bp.id != Hydrapple_ex:
                         continue
                     if len(_hlp_bp.energies) * _grass_mult() < 2:
                         continue  # no puede pagar Syrup Storm
+                    # No promover un Hydrapple ex al que el activo rival NOQUEA
+                    # (user): regalaria 2 premios. En el registro el Hydrapple
+                    # estaba a 70/330 y el rival a 2 premios, asi que promoverlo
+                    # entregaba la partida. Lo correcto era atacar con el activo.
+                    _hlp_dmg_rival = _op_active_attack_damage_to(
+                        _hlp_opa, _hlp_bp,
+                        getattr(op_state, 'handCount', None))
+                    if _hlp_dmg_rival >= (_hlp_bp.hp or 0):
+                        continue
                     _hlp_dmg = _our_effective_damage(
-                        _hlp_bp, _hlp_opa, 30 + 30 * total_grass,
+                        _hlp_bp, _hlp_opa, 30 + 30 * _hlp_grass_after,
                         meganium_in_play, neutralization_zone_active)
                     if _hlp_dmg > 0 and _hlp_opa_hp > 0 and _hlp_dmg >= _hlp_opa_hp:
                         _hydra_lethal_promote = True

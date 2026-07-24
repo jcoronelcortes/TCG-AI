@@ -4748,3 +4748,58 @@ def test_alakazam_step85_sin_xerosic_vuelve_boss():
     assert _carta_jugada(obs, result) == m.Boss_Orders, (
         f"sin Xerosic en mano el gusteo de 2 premios sigue siendo correcto; "
         f"obtuvo {result} -> id {_carta_jugada(obs, result)}")
+
+
+# =====================================================================
+# No pivotar a un Hydrapple ex CONDENADO (user, registro_011 paso 138, episodio
+# 87713774 vs Dragapult ex, PERDIDA): Tapu Bulu activo con 6 energias efectivas
+# (listo para atacar) y un Hydrapple ex de banca a 70/330, con el rival a 2
+# premios. El agente retiraba el Tapu Bulu para promover el Hydrapple; Dragapult
+# ex (Phantom Dive, 200) lo noqueaba y cobraba sus 2 premios finales = derrota.
+# Tres bugs encadenados: (1) el Syrup Storm de un Hydrapple de BANCA se medía
+# con el Grass PREVIO al retiro (330 "letal" vs 320) cuando el retiro descarta
+# las Plantas del activo; (2) lo mismo en `_hydra_lethal_promote`; (3)
+# `_promote_hydra = _hydra_can_ko or (not _act_can_ko)` promovia sin comprobar
+# si el Hydrapple SOBREVIVE al golpe proyectado.
+# =====================================================================
+_DRAGAPULT_S138_FIXTURE = (
+    ROOT / "tests" / "fixtures"
+    / "dragapult_step138_no_pivote_hydra_condenado.json")
+
+
+def _dragapult_s138_replay(observation_key=None):
+    with open(_DRAGAPULT_S138_FIXTURE, encoding="utf-8") as f:
+        data = json.load(f)
+    seq = data["sequence"]
+    for item in seq[:-1]:
+        m.agent(item["observation"])
+    obs = data[observation_key] if observation_key else seq[-1]["observation"]
+    return m.agent(obs), obs, data
+
+
+def test_dragapult_step138_ataca_con_tapu_bulu():
+    result, obs, _ = _dragapult_s138_replay()
+    opt = obs["select"]["option"][result[0]]
+    assert opt.get("type") == int(OptionType.ATTACK), (
+        f"con el Tapu Bulu activo ya cargado y el Hydrapple ex de banca "
+        f"condenado (70/330 frente a Phantom Dive), lo correcto es ATACAR; "
+        f"obtuvo {result} -> {opt}")
+
+
+def test_dragapult_step138_no_retira_para_promover_hydra():
+    result, obs, _ = _dragapult_s138_replay()
+    opt = obs["select"]["option"][result[0]]
+    assert opt.get("type") != int(OptionType.RETREAT), (
+        f"promover un Hydrapple ex que el activo rival noquea regala 2 premios "
+        f"(los ultimos del rival); obtuvo {result} -> {opt}")
+
+
+def test_dragapult_step138_con_hydra_sano_si_pivota():
+    # Contrafactual de frontera: con el Hydrapple ex a 330/330 SOBREVIVE el
+    # golpe proyectado, asi que el pivote de promocion vuelve a ser legitimo.
+    result, obs, _ = _dragapult_s138_replay(
+        observation_key="synthetic_hydra_sano")
+    opt = obs["select"]["option"][result[0]]
+    assert opt.get("type") == int(OptionType.RETREAT), (
+        f"con el Hydrapple ex sano el pivote sigue siendo valido; obtuvo "
+        f"{result} -> {opt}")
