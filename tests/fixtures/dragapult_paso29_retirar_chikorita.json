@@ -1,0 +1,261 @@
+{
+ "descripcion": "registro_003 paso 29 (turno 3, vs Dragapult, PERDIDA): Chikorita activo con 1 Planta, Bayleef+Meganium en mano y Forest of Vitality en juego. El agente atacaba con Growl (0 de dano); lo correcto es RETIRAR, promover Tapu Bulu y montar la linea de Meganium en banca.",
+ "origen": "registros/registro_003_pasos_022_hasta_029.json (turno 3, accion 8)",
+ "observation": {
+  "current": {
+   "energyAttached": true,
+   "firstPlayer": 1,
+   "looking": null,
+   "players": [
+    {
+     "active": [
+      {
+       "appearThisTurn": false,
+       "energies": [],
+       "energyCards": [],
+       "hp": 30,
+       "id": 235,
+       "maxHp": 30,
+       "playerIndex": 0,
+       "preEvolution": [],
+       "serial": 17,
+       "tools": []
+      }
+     ],
+     "asleep": false,
+     "bench": [
+      {
+       "appearThisTurn": false,
+       "energies": [],
+       "energyCards": [],
+       "hp": 210,
+       "id": 184,
+       "maxHp": 210,
+       "playerIndex": 0,
+       "preEvolution": [],
+       "serial": 15,
+       "tools": []
+      },
+      {
+       "appearThisTurn": false,
+       "energies": [
+        2
+       ],
+       "energyCards": [
+        {
+         "id": 2,
+         "playerIndex": 0,
+         "serial": 56
+        }
+       ],
+       "hp": 70,
+       "id": 119,
+       "maxHp": 70,
+       "playerIndex": 0,
+       "preEvolution": [],
+       "serial": 6,
+       "tools": []
+      }
+     ],
+     "benchMax": 5,
+     "burned": false,
+     "confused": false,
+     "deckCount": 44,
+     "discard": [
+      {
+       "id": 1120,
+       "playerIndex": 0,
+       "serial": 28
+      },
+      {
+       "id": 1210,
+       "playerIndex": 0,
+       "serial": 47
+      }
+     ],
+     "hand": null,
+     "handCount": 4,
+     "paralyzed": false,
+     "poisoned": false,
+     "prize": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ]
+    },
+    {
+     "active": [
+      {
+       "appearThisTurn": false,
+       "energies": [
+        1
+       ],
+       "energyCards": [
+        {
+         "id": 1,
+         "playerIndex": 1,
+         "serial": 112
+        }
+       ],
+       "hp": 60,
+       "id": 917,
+       "maxHp": 70,
+       "playerIndex": 1,
+       "preEvolution": [],
+       "serial": 67,
+       "tools": []
+      }
+     ],
+     "asleep": false,
+     "bench": [
+      {
+       "appearThisTurn": false,
+       "energies": [],
+       "energyCards": [],
+       "hp": 140,
+       "id": 920,
+       "maxHp": 140,
+       "playerIndex": 1,
+       "preEvolution": [],
+       "serial": 82,
+       "tools": []
+      },
+      {
+       "appearThisTurn": true,
+       "energies": [],
+       "energyCards": [],
+       "hp": 40,
+       "id": 92,
+       "maxHp": 40,
+       "playerIndex": 1,
+       "preEvolution": [],
+       "serial": 74,
+       "tools": []
+      }
+     ],
+     "benchMax": 5,
+     "burned": false,
+     "confused": false,
+     "deckCount": 40,
+     "discard": [
+      {
+       "id": 1094,
+       "playerIndex": 1,
+       "serial": 95
+      },
+      {
+       "id": 1,
+       "playerIndex": 1,
+       "serial": 109
+      },
+      {
+       "id": 1231,
+       "playerIndex": 1,
+       "serial": 91
+      }
+     ],
+     "hand": [
+      {
+       "id": 1182,
+       "playerIndex": 1,
+       "serial": 88
+      },
+      {
+       "id": 1,
+       "playerIndex": 1,
+       "serial": 114
+      },
+      {
+       "id": 1,
+       "playerIndex": 1,
+       "serial": 120
+      },
+      {
+       "id": 1080,
+       "playerIndex": 1,
+       "serial": 102
+      },
+      {
+       "id": 709,
+       "playerIndex": 1,
+       "serial": 70
+      },
+      {
+       "id": 710,
+       "playerIndex": 1,
+       "serial": 72
+      }
+     ],
+     "handCount": 6,
+     "paralyzed": false,
+     "poisoned": false,
+     "prize": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ]
+    }
+   ],
+   "result": -1,
+   "retreated": false,
+   "stadium": [
+    {
+     "id": 1261,
+     "playerIndex": 1,
+     "serial": 107
+    }
+   ],
+   "stadiumPlayed": true,
+   "supporterPlayed": true,
+   "turn": 3,
+   "turnActionCount": 8,
+   "yourIndex": 1
+  },
+  "logs": [
+   {
+    "cardId": 92,
+    "playerIndex": 1,
+    "serial": 74,
+    "type": 10
+   }
+  ],
+  "remainingOverageTime": 598.387624,
+  "search_begin_input": "ABwAEgAKQAEEAUBABQAEEADcAKQAEEAHEBADBACEAEB-kCQwEAIKAOC+AgEQACQwEATFr-pERECDwYAJBg-ZBE-ZBCw-aBgADBwv-TBBAEO-VGFDABlJKAKY-ZBBgADFhyeGZGS-OBo-aBMADBfbVs-SBQADH-lFBAHC-NEQ-VBL-+BI-UBBCw-3LHcADCz-WBUC-vBB-xaLgADCK-WBUE-vBB-cD6wADLI-VBBABU-uBCE-bhBgBADrQ-VBDDQ-29ugQACLE-WBw0-icgADLQADCz-QBCABI-LjCVABwACiQAOCgA+CgAEEEABg-uBI-xGDFABgACug-UBECABQ-LFMYCACC7-VBQIB-MFXAEL0-UBBBQIA2QA3C-cXCYABwACm-VBEFABg-uBI-xQCeBADfg-UBECABQ-gIDPBADv-VBEDDQ-2LRgQACKg-UBBABw0-2VDgEACC1-VBQIB-MP7QQACLY-UBBBwI-MFBAEr-VBEDC-iIBAEtwADIk-PBEIABg-MFEADCh-VBQIM-iSEADCi-VBQIM-MZBAFkACgABEACQAH0ABKgUACP//AGwAP4A0BAEjgEADEADBbALBAETwAVBABD4AF",
+  "select": {
+   "context": 0,
+   "contextCard": null,
+   "deck": null,
+   "effect": null,
+   "maxCount": 1,
+   "minCount": 1,
+   "option": [
+    {
+     "area": 2,
+     "inPlayArea": 4,
+     "inPlayIndex": 0,
+     "index": 4,
+     "type": 9
+    },
+    {
+     "attackId": 1322,
+     "type": 13
+    },
+    {
+     "type": 12
+    },
+    {
+     "type": 14
+    }
+   ],
+   "remainDamageCounter": 0,
+   "remainEnergyCost": 0,
+   "type": 0
+  }
+ }
+}

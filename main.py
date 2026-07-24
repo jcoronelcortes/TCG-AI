@@ -15381,6 +15381,34 @@ def agent(obs_dict: dict) -> list[int]:
                                 _fragile_doomed_pivot = True
                                 break
 
+                    # Pivote de LINEA EVOLUTIVA (user, registro_003 paso 29 vs
+                    # Dragapult, PERDIDA): el activo es un Chikorita con Bayleef
+                    # en la mano. El scorer de EVOLVE ya VETA evolucionar en el
+                    # ACTIVO cuando la pre-evolucion puede pagar su retirada
+                    # ("conviene RETIRARLO primero y evolucionarlo ya en la
+                    # banca", ver la rama Bayleef/_is_active), pero aqui el
+                    # retiro quedaba vetado porque el atacante de banca (Tapu
+                    # Bulu) aun no tenia energia, asi que el agente se quedaba
+                    # con el Chikorita arriba y gastaba el turno en Growl (0 de
+                    # dano) con la linea de Meganium muerta en la mano. Retirar
+                    # es la jugada: sube un cuerpo con mas vida y el Chikorita
+                    # evoluciona en la BANCA -- con Forest of Vitality en juego,
+                    # incluso la cadena Chikorita->Bayleef->Meganium entera este
+                    # mismo turno. Ademas Wild Growth de Meganium DUPLICA cada
+                    # Planta: baja de 4 a 2 las Plantas FISICAS que Tapu Bulu
+                    # necesita para Wood Hammer. Solo si la pre-evolucion puede
+                    # evolucionar de verdad este turno (lleva en juego desde el
+                    # inicio del turno, o Forest lo permite aunque acabe de
+                    # jugarse) y hay un cuerpo en banca al que promover.
+                    _evo_line_bench_pivot = (
+                        can_switch
+                        and active.id == Chikorita
+                        and hand_counts.get(Bayleef, 0) >= 1
+                        and bench_count >= 1
+                        and not _active_can_ko_now
+                        and (forest_in_play
+                             or not getattr(active, 'appearThisTurn', False)))
+
                     if active.id in (Chikorita, Bayleef, Meganium):
 
                         # Regla (user, log 86607718 turno 2, vs Crustle, PERDIMOS):
@@ -15406,6 +15434,14 @@ def agent(obs_dict: dict) -> list[int]:
                             # atacante de banca no pueda atacar aun. Gana sobre atacar
                             # con un cuerpo que morira el proximo turno.
                             score = 5800
+                        elif _evo_line_bench_pivot:
+                            # Chikorita activo con Bayleef en mano: retirar para
+                            # montar la linea de Meganium en la BANCA (ver el
+                            # comentario del flag). Va por debajo de los pivotes
+                            # de rescate pero POR ENCIMA de los dos vetos de
+                            # "atacante de banca sin cargar", que son los que
+                            # dejaban al Chikorita atacando por chip.
+                            score = 5700
                         elif _has_bench_attacker and not _bench_attacker_ready:
                             # Hay un atacante en banca pero SIN energia para
                             # atacar este turno: retirar ahora solo subiria un

@@ -4909,3 +4909,137 @@ def test_setup_activo_sin_tapu_no_cambia():
                                if me["hand"][o["index"]]["id"] != m.Tapu_Bulu]
     assert _basico_elegido(obs, m.agent(obs)) == m.Chikorita, (
         "sin Tapu Bulu en la mano, la eleccion del inicial no cambia")
+
+
+# =====================================================================
+# Linea de Meganium: retirar el Chikorita activo en vez de atacar por chip
+# ---------------------------------------------------------------------
+# user, registro_003 paso 29 (turno 3 vs Dragapult, PERDIDA): Chikorita activo
+# con 1 Planta, Bayleef + Meganium en mano y Forest of Vitality en juego. El
+# agente atacaba con Growl (0 de dano) y dejaba la linea muerta en la mano: el
+# scorer de EVOLVE veta evolucionar en el ACTIVO ("retirar primero y evolucionar
+# en banca") pero el RETREAT quedaba vetado porque el Tapu Bulu de banca aun no
+# tenia energia. Lo correcto: RETIRAR, promover Tapu Bulu (140 PV) y evolucionar
+# el Chikorita en la BANCA -- con Forest, la cadena entera este mismo turno.
+# =====================================================================
+_DRAGAPULT_P29_FIXTURE = (
+    ROOT / "tests" / "fixtures" / "dragapult_paso29_retirar_chikorita.json")
+
+
+def _dragapult_p29_obs():
+    with open(_DRAGAPULT_P29_FIXTURE, encoding="utf-8") as f:
+        return copy.deepcopy(json.load(f)["observation"])
+
+
+def _mi_lado(obs):
+    return obs["current"]["players"][obs["current"]["yourIndex"]]
+
+
+def test_dragapult_p29_retira_chikorita_en_vez_de_atacar():
+    obs = _dragapult_p29_obs()
+    tipos = {o.get("type") for o in obs["select"]["option"]}
+    # El fixture debe ofrecer atacar, evolucionar en el activo y retirar.
+    assert {int(OptionType.ATTACK), int(OptionType.EVOLVE),
+            int(OptionType.RETREAT)} <= tipos
+    result = m.agent(obs)
+    opt = obs["select"]["option"][result[0]]
+    assert opt.get("type") == int(OptionType.RETREAT), (
+        f"con Bayleef en mano, el Chikorita activo se retira para montar la "
+        f"linea de Meganium en banca en vez de atacar con Growl (0 de dano); "
+        f"obtuvo {opt}")
+
+
+def test_dragapult_p29_promueve_tapu_bulu():
+    # Tras retirar, la promocion sube el cuerpo con mas vida (Tapu Bulu, 140)
+    # y no el Applin de 40 recien jugado.
+    obs = _dragapult_p29_obs()
+    yo = obs["current"]["yourIndex"]
+    obs["select"] = {
+        "context": int(SelectContext.SWITCH), "type": 1,
+        "minCount": 1, "maxCount": 1, "contextCard": None, "deck": None,
+        "effect": None, "remainDamageCounter": 0, "remainEnergyCost": 0,
+        "option": [{"area": 5, "index": 0, "playerIndex": yo, "type": 3},
+                   {"area": 5, "index": 1, "playerIndex": yo, "type": 3}],
+    }
+    result = m.agent(obs)
+    banca = _mi_lado(obs)["bench"]
+    elegido = banca[obs["select"]["option"][result[0]]["index"]]["id"]
+    assert elegido == m.Tapu_Bulu, (
+        f"al promover tras retirar el Chikorita se sube Tapu Bulu (140 PV), "
+        f"no el Applin de 40; obtuvo {m.card_table[elegido].name}")
+
+
+def _obs_tras_retirar():
+    """Estado sintetico: ya retiramos, Tapu Bulu activo y Chikorita en banca."""
+    obs = _dragapult_p29_obs()
+    yo = obs["current"]["yourIndex"]
+    me = _mi_lado(obs)
+    chiko = copy.deepcopy(me["active"][0])
+    chiko["energies"] = []          # la Planta pago el coste de retirada
+    chiko["energyCards"] = []
+    me["active"] = [me["bench"][0]]  # Tapu Bulu
+    me["bench"] = [chiko, me["bench"][1]]
+    obs["current"]["retreated"] = True
+    obs["select"] = {
+        "context": int(SelectContext.MAIN), "type": 0,
+        "minCount": 1, "maxCount": 1, "contextCard": None, "deck": None,
+        "effect": None, "remainDamageCounter": 0, "remainEnergyCost": 0,
+        "option": [
+            {"index": 0, "type": int(OptionType.PLAY)},          # Boss's Orders
+            {"area": 2, "inPlayArea": int(AreaType.BENCH), "inPlayIndex": 0,
+             "index": 4, "type": int(OptionType.EVOLVE)},        # Bayleef -> Chikorita
+            {"type": int(OptionType.END)},
+        ],
+    }
+    return obs, yo
+
+
+def test_dragapult_p29_evoluciona_chikorita_en_banca():
+    obs, _ = _obs_tras_retirar()
+    result = m.agent(obs)
+    opt = obs["select"]["option"][result[0]]
+    assert opt.get("type") == int(OptionType.EVOLVE), (
+        f"con el Chikorita ya en banca, Bayleef se juega sobre el; obtuvo {opt}")
+
+
+def test_dragapult_p29_completa_meganium_con_forest():
+    # Forest of Vitality permite evolucionar el Bayleef recien jugado: la cadena
+    # Chikorita -> Bayleef -> Meganium se completa en el mismo turno.
+    obs, yo = _obs_tras_retirar()
+    me = _mi_lado(obs)
+    bayleef = copy.deepcopy(me["bench"][0])
+    bayleef["id"] = m.Bayleef
+    bayleef["hp"], bayleef["maxHp"] = 100, 110
+    bayleef["appearThisTurn"] = True
+    bayleef["preEvolution"] = [{"id": m.Chikorita, "playerIndex": yo,
+                                "serial": 67}]
+    me["bench"][0] = bayleef
+    me["hand"] = [c for c in me["hand"] if c["id"] != m.Bayleef]
+    obs["select"]["option"] = [
+        {"index": 0, "type": int(OptionType.PLAY)},
+        {"area": 2, "inPlayArea": int(AreaType.BENCH), "inPlayIndex": 0,
+         "index": 4, "type": int(OptionType.EVOLVE)},            # Meganium
+        {"type": int(OptionType.END)},
+    ]
+    assert m.card_table[me["hand"][4]["id"]].name == "Meganium"
+    result = m.agent(obs)
+    opt = obs["select"]["option"][result[0]]
+    assert opt.get("type") == int(OptionType.EVOLVE), (
+        f"con Forest of Vitality el Bayleef evoluciona a Meganium el mismo "
+        f"turno (Wild Growth deja a Tapu Bulu atacando con 2 Plantas); "
+        f"obtuvo {opt}")
+
+
+def test_sin_bayleef_en_mano_el_chikorita_no_se_retira():
+    # Frontera: sin la evolucion en la mano no hay linea que montar, asi que el
+    # pivote no dispara y el Chikorita conserva su comportamiento previo.
+    obs = _dragapult_p29_obs()
+    me = _mi_lado(obs)
+    me["hand"] = [c for c in me["hand"] if c["id"] != m.Bayleef]
+    obs["select"]["option"] = [o for o in obs["select"]["option"]
+                               if o.get("type") != int(OptionType.EVOLVE)]
+    result = m.agent(obs)
+    opt = obs["select"]["option"][result[0]]
+    assert opt.get("type") != int(OptionType.RETREAT), (
+        f"sin Bayleef en mano no hay linea evolutiva que habilitar: no se "
+        f"retira solo por retirar; obtuvo {opt}")
