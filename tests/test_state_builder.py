@@ -177,3 +177,54 @@ def test_builder_rechaza_sobrante_distinto_de_premios():
            .fetch_ultra_ball())
     with pytest.raises(EstadoInconsistente):
         esc.construir()
+
+
+# ---------------------------------------------------------------------
+# Linea Meganium prioritaria vs Cornerstone Mask Ogerpon ex (user,
+# registro_004 turno 4): su Cornerstone Stance anula el dano de TODOS
+# nuestros Pokemon CON habilidad (Teal Mask Ogerpon ex, Hydrapple ex,
+# Dipplin...), asi que el unico atacante real es Tapu Bulu. Meganium tampoco
+# le hace dano -- tambien tiene habilidad -- pero su Wild Growth DUPLICA cada
+# Planta, de modo que con el en juego Tapu ataca con 2 Plantas FISICAS en vez
+# de 4. Montar la linea es por tanto prioritario en este matchup.
+#
+# Escenario SINTETICO (no existe en los registros vigentes: ninguno llega a
+# jugar Ultra Ball frente a Cornerstone), justo el caso para el StateBuilder.
+# ---------------------------------------------------------------------
+CORNERSTONE = 117
+CUBCHOO = 506
+
+
+def _fetch_ub_vs(op_id):
+    """Fetch de Ultra Ball con Chikorita en banca y la linea en el mazo."""
+    obs = (Escenario(turno=6, paso=1, tac=1)
+           .mi_activo(pk(m.Teal_Mask_Ogerpon_ex, energias=[G], fisicas=1))
+           .mi_banca(pk(m.Chikorita))
+           .mi_mano()
+           .op_activo(pk(op_id, hp=210, max_hp=210))
+           .op_zonas(mano=4, mazo=40, premios=6)
+           .mazo(m.Meganium, m.Bayleef, m.Tapu_Bulu, m.Teal_Mask_Ogerpon_ex,
+                 m.Hydrapple_ex, m.Applin, m.Chikorita, m.Meowth_ex)
+           .fetch_ultra_ball()
+           .resto_al_descarte()
+           .construir())
+    eleccion = m.agent(obs)
+    sel = obs["select"]
+    return sel["deck"][sel["option"][eleccion[0]]["index"]]["id"]
+
+
+def test_cornerstone_prioriza_linea_meganium():
+    elegida = _fetch_ub_vs(CORNERSTONE)
+    assert elegida in (m.Meganium, m.Bayleef), (
+        f"vs Cornerstone, Wild Growth deja a Tapu Bulu atacando con 2 Plantas "
+        f"fisicas en vez de 4: completar la linea Meganium es la busqueda "
+        f"prioritaria; obtuvo {m.card_table[elegida].name}")
+
+
+def test_sin_cornerstone_la_busqueda_no_cambia():
+    # Frontera: sin Cornerstone la prioridad de matchup no aplica y el fetch
+    # conserva su comportamiento normal (Bayleef, evolucion inmediata).
+    elegida = _fetch_ub_vs(CUBCHOO)
+    assert elegida == m.Bayleef, (
+        f"sin Cornerstone el fetch no debe cambiar; obtuvo "
+        f"{m.card_table[elegida].name}")

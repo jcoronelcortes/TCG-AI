@@ -4304,6 +4304,15 @@ _REGLAS_UB_MEGANIUM = [
     _ReglaFija("meganium_ya_en_juego",
                lambda c: meganium_in_play,
                lambda c: 25),
+    # vs Cornerstone: Wild Growth duplica cada Planta y baja el coste de
+    # Tapu Bulu -- el UNICO atacante que dana a Cornerstone -- de 4 Plantas
+    # fisicas a 2. Con la linea ya iniciada en juego, completarla es la
+    # busqueda prioritaria aunque Meganium en si no pueda danarlo.
+    _ReglaFija("linea_mega_habilita_tapu_vs_cornerstone",
+               lambda c: (op_is_cornerstone_deck
+                          and (c.campo.get(Chikorita, 0) >= 1
+                               or c.campo.get(Bayleef, 0) >= 1)),
+               lambda c: 1050),
     _ReglaFija("bayleef_evolucionable",
                lambda c: c.evolvable.get(Bayleef, 0) >= 1,
                lambda c: 1000),
@@ -4332,6 +4341,13 @@ _REGLAS_UB_BAYLEEF = [
     _ReglaFija("bayleef_ya_en_mano",
                lambda c: c.hand.get(Bayleef, 0) >= 1,
                lambda c: 20),
+    # vs Cornerstone, Bayleef es el paso intermedio hacia Meganium (que
+    # duplica la Planta y deja a Tapu Bulu atacando con 2 fisicas) y ademas
+    # es uno de los dos cuerpos SIN habilidad que si le hacen dano.
+    _ReglaFija("linea_mega_vs_cornerstone",
+               lambda c: (op_is_cornerstone_deck
+                          and c.campo.get(Chikorita, 0) >= 1),
+               lambda c: 1000),
     _ReglaFija("chikorita_evolucionable",
                lambda c: c.evolvable.get(Chikorita, 0) >= 1,
                lambda c: 950 if (c.hand.get(Meganium, 0) >= 1
@@ -14035,7 +14051,17 @@ def agent(obs_dict: dict) -> list[int]:
 
                 if card.id == Meganium:
                     score = 35000
-                    if op_is_fire_deck or op_is_mirror or op_is_crustle_deck:
+                    # vs Cornerstone Mask Ogerpon ex (user, registro_004 turno 4):
+                    # su Cornerstone Stance anula el dano de TODOS nuestros Pokemon
+                    # CON habilidad (Teal Mask Ogerpon ex, Hydrapple ex, Dipplin...),
+                    # asi que el unico atacante real es Tapu Bulu (Bayleef solo hace
+                    # chip). Meganium no dana a Cornerstone -- tambien tiene
+                    # habilidad -- pero su Wild Growth DUPLICA cada Planta, y con el
+                    # en juego Tapu Bulu ataca con 2 Plantas FISICAS en vez de 4.
+                    # Montar la linea es por tanto prioritario en este matchup.
+                    if (op_is_fire_deck or op_is_mirror or op_is_crustle_deck
+                            or op_has_ability_immune_active
+                            or op_is_cornerstone_deck):
                         score = 35500
 
                     if pokemon.id == Chikorita:
