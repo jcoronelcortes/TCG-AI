@@ -750,3 +750,69 @@ def test_pivote_ogerpon_sin_planta_no_malgasta_el_retiro():
     assert pasos == ["END"], (
         f"sin Planta alcanzable el pivote no dispara: retirar solo pagaria "
         f"una energia para subir un Ogerpon que no ataca; obtuvo {pasos}")
+
+
+# ---------------------------------------------------------------------
+# Deteccion del arquetipo Cornerstone por el NO-ex (386) y por el DESCARTE
+# (fase 8: la autopsia vs el mazo sintetico cornerstone_cubchoo mostro 112
+# turnos esteriles en 35 derrotas; con solo Cubchoo/Beartic a la vista el
+# flag `op_is_cornerstone_deck` no disparaba y la whitelist anti-Cubchoo
+# vetaba PLAY Tapu Bulu -- la win condition del matchup -- 38 veces).
+# ---------------------------------------------------------------------
+CORNERSTONE_NOEX = 386
+
+
+def _menu_con_tapu(op_activo, op_banca=(), op_descarte=()):
+    esc = (Escenario(turno=6, paso=1, tac=1)
+           .mi_activo(pk(m.Teal_Mask_Ogerpon_ex, energias=[G], fisicas=1))
+           .mi_banca(pk(m.Chikorita))
+           .mi_mano(m.Tapu_Bulu, m.Basic_Grass_Energy)
+           .op_activo(pk(op_activo, hp=70, max_hp=70)))
+    if op_banca:
+        esc = esc.op_banca(*[pk(b) for b in op_banca])
+    if op_descarte:
+        esc = esc.op_descarte(*op_descarte)
+    # menu_attach_energia() da el select minimo del builder; se reemplaza
+    # abajo por el menu PLAY que ejercita la whitelist.
+    obs = (esc.op_zonas(mano=4, mazo=38, premios=6)
+           .menu_attach_energia().construir())
+    yo = obs["current"]["players"][0]
+    i_tapu = next(i for i, c in enumerate(yo["hand"])
+                  if c["id"] == m.Tapu_Bulu)
+    obs["select"] = {"context": int(m.SelectContext.MAIN), "type": 0,
+                     "minCount": 1, "maxCount": 1, "contextCard": None,
+                     "deck": None, "effect": None, "remainDamageCounter": 0,
+                     "remainEnergyCost": 0,
+                     "option": [{"type": int(m.OptionType.PLAY),
+                                 "index": i_tapu},
+                                {"type": int(m.OptionType.END)}]}
+    return obs
+
+
+def test_cornerstone_noex_en_banca_permite_tapu():
+    # El no-ex 386 no inmuniza (sin habilidad) pero delata el arquetipo: la
+    # whitelist anti-Cubchoo debe ampliarse con Tapu Bulu.
+    obs = _menu_con_tapu(CUBCHOO, op_banca=(CORNERSTONE_NOEX,))
+    r = m.agent(obs)
+    assert obs["select"]["option"][r[0]]["type"] == int(m.OptionType.PLAY), (
+        "con un Cornerstone no-ex en la banca rival, Tapu Bulu (la win "
+        "condition del matchup) debe poder bajarse")
+
+
+def test_cornerstone_en_descarte_permite_tapu():
+    # Verlo en el DESCARTE tambien identifica el mazo (flag de PLAN; el
+    # posicional op_has_ability_immune_active sigue atado al tablero).
+    obs = _menu_con_tapu(CUBCHOO, op_descarte=(CORNERSTONE_NOEX,))
+    r = m.agent(obs)
+    assert obs["select"]["option"][r[0]]["type"] == int(m.OptionType.PLAY), (
+        "con un Cornerstone en el descarte rival, el plan del matchup "
+        "cambia y Tapu Bulu debe poder bajarse")
+
+
+def test_cubchoo_puro_sigue_vetando_tapu():
+    # Frontera: sin rastro de Cornerstone, el plan anti-Cubchoo del usuario
+    # queda INTACTO (Tapu Bulu no se juega vs el mazo Cubchoo puro).
+    obs = _menu_con_tapu(CUBCHOO, op_banca=(CUBCHOO,))
+    r = m.agent(obs)
+    assert obs["select"]["option"][r[0]]["type"] == int(m.OptionType.END), (
+        "vs Cubchoo puro la whitelist del usuario excluye a Tapu Bulu")

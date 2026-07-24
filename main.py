@@ -216,6 +216,11 @@ Marnies_Impidimp = 646
 Marnies_Morgrem = 647
 Latias_ex = 184
 Cornerstone_Mask_Ogerpon_ex = 117
+# Cornerstone Mask Ogerpon NO-ex (sin habilidad, atacable): no inmuniza,
+# pero DELATA el arquetipo Cornerstone (fase 8: autopsia vs el mazo
+# cornerstone_cubchoo — con solo el no-ex/Cubchoo a la vista el flag no
+# disparaba y la whitelist anti-Cubchoo vetaba a Tapu Bulu 38 veces).
+Cornerstone_Mask_Ogerpon = 386
 Mega_Kangaskhan_ex = 756
 
 Hops_Phantump = 878
@@ -6247,7 +6252,8 @@ def agent(obs_dict: dict) -> list[int]:
             op_has_ex_immune_active = True
         if op_active_id in ABILITY_IMMUNE_IDS:
             op_has_ability_immune_active = True
-        if op_active_id == Cornerstone_Mask_Ogerpon_ex:
+        if op_active_id in (Cornerstone_Mask_Ogerpon_ex,
+                            Cornerstone_Mask_Ogerpon):
             op_is_cornerstone_deck = True
         if op_active_id == Crustle_Fighting:
             op_has_sturdy_crustle = True
@@ -6320,7 +6326,8 @@ def agent(obs_dict: dict) -> list[int]:
         if pokemon is not None:
             if pokemon.id in EX_IMMUNE_IDS:
                 op_has_ex_immune_bench = True
-            if pokemon.id == Cornerstone_Mask_Ogerpon_ex:
+            if pokemon.id in (Cornerstone_Mask_Ogerpon_ex,
+                              Cornerstone_Mask_Ogerpon):
                 op_is_cornerstone_deck = True
             if pokemon.id == Crustle_Fighting:
                 op_has_sturdy_crustle = True
@@ -6425,6 +6432,12 @@ def agent(obs_dict: dict) -> list[int]:
             op_is_control_deck = True
         elif _dcid in (Raging_Bolt_ex, Lugia_VSTAR):
             op_is_aggro_deck = True
+        elif _dcid in (Cornerstone_Mask_Ogerpon_ex, Cornerstone_Mask_Ogerpon):
+            # Flag de PLAN del matchup (linea Meganium prioritaria, whitelist
+            # con Tapu Bulu): verlo en el descarte identifica el mazo. El flag
+            # POSICIONAL del muro (op_has_ability_immune_active) sigue
+            # dependiendo solo del tablero.
+            op_is_cornerstone_deck = True
 
     # Eevee ex (id 249) NO es el muro Sylveon: es un ex atacable. Si el rival
     # sigue la linea Eevee ex y no hay ningun muro inmune real (Sylveon) en
@@ -10065,7 +10078,14 @@ def agent(obs_dict: dict) -> list[int]:
 
         # Matchup Cubchoo (user): topes de energia FISICA por Pokemon. Cubchoo
         # bloquea nuestro ataque el proximo turno, asi que no sobrecargamos y
-        # RESERVAMOS energias en la MANO para pagar retiradas. IMPORTANTE: la
+        # RESERVAMOS energias en la MANO para pagar retiradas. DECISION DEL
+        # USUARIO (jul 2026, tras la autopsia del mazo mixto Cornerstone/
+        # Cubchoo): estos topes NO se relajan aunque el matchup sea el mixto.
+        # La razon de la reserva es que estos mazos juegan Boss's Orders y
+        # otros partidarios que CAMBIAN nuestro activo: sin energia en mano no
+        # se paga la retirada del cuerpo equivocado que nos subieron, y no se
+        # vuelve al atacante correcto. La energia "muerta en mano" que ve la
+        # autopsia (ATTACH vetado) es el precio deliberado de ese seguro. IMPORTANTE: la
         # observacion DUPLICA cada Planta fisica cuando Meganium esta en juego
         # (Wild Growth), asi que len(energies) es EFECTIVA; la convertimos a
         # cartas FISICAS (_cub_phys) para aplicar los topes que el usuario
