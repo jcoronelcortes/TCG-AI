@@ -4689,3 +4689,62 @@ def test_marnie_step20_sin_teal_dance_el_adjunte_no_cede():
     assert opt.get("type") == int(OptionType.ATTACH), (
         f"sin Teal Dance pendiente el adjunte manual no debe cederle a nadie; "
         f"obtuvo {result} -> {opt}")
+
+
+# =====================================================================
+# Xerosic's Machinations sobre Boss's Orders (user, registro_006 paso 85,
+# episodio 87709507 vs Alakazam ex, PERDIDA): nuestro Hydrapple ex activo (10
+# PV) noquea al Alakazam ex y en mano hay Boss's Orders y Xerosic con el rival
+# a 16 CARTAS. El agente jugo Boss's (gusteo de 2 premios, 6800) en vez de
+# Xerosic (6200) y dejo la mano rival intacta: su Powerful Hand (20 x carta de
+# su mano) siguio pegando 320 y arraso. Regla: vs Alakazam, capar la mano tiene
+# prioridad sobre Boss's; Boss's solo la tiene cuando GANA la partida
+# (`win_via_boss_gust`, WIN_NOW 20000). Fix: nueva regla
+# `alakazam_prioridad_sobre_boss` (XEROSIC_SCORE_SOBRE_BOSS=7000, sobre
+# GUST_2PRIZE) y la cesion pasa a exigir el gusteo GANADOR (antes cedia ante
+# `boss_win_via_bench`, que solo cobra un premio).
+# =====================================================================
+_ALAKAZAM_S85_FIXTURE = (
+    ROOT / "tests" / "fixtures" / "alakazam_step85_xerosic_sobre_boss.json")
+
+
+def _alakazam_s85_replay(observation_key=None):
+    with open(_ALAKAZAM_S85_FIXTURE, encoding="utf-8") as f:
+        data = json.load(f)
+    seq = data["sequence"]
+    for item in seq[:-1]:
+        m.agent(item["observation"])
+    obs = data[observation_key] if observation_key else seq[-1]["observation"]
+    return m.agent(obs), obs, data
+
+
+def _carta_jugada(obs, result):
+    opt = obs["select"]["option"][result[0]]
+    if opt.get("type") != int(OptionType.PLAY):
+        return None
+    mano = obs["current"]["players"][obs["current"]["yourIndex"]]["hand"]
+    return mano[opt["index"]]["id"]
+
+
+def test_alakazam_step85_juega_xerosic_y_no_boss():
+    result, obs, _ = _alakazam_s85_replay()
+    assert _carta_jugada(obs, result) == m.Xerosic_Machinations, (
+        f"con el rival a 16 cartas, capar la mano (Powerful Hand = 20 x carta) "
+        f"tiene prioridad sobre un gusteo que no gana la partida; obtuvo "
+        f"{result} -> id {_carta_jugada(obs, result)}")
+
+
+def test_alakazam_step85_no_gasta_el_boss_orders():
+    result, obs, _ = _alakazam_s85_replay()
+    assert _carta_jugada(obs, result) != m.Boss_Orders, (
+        f"Boss's Orders solo tiene prioridad cuando GANA la partida; obtuvo "
+        f"{result}")
+
+
+def test_alakazam_step85_sin_xerosic_vuelve_boss():
+    # Contrafactual: sin Xerosic en mano, Boss's vuelve a ser la jugada.
+    result, obs, _ = _alakazam_s85_replay(
+        observation_key="synthetic_sin_xerosic")
+    assert _carta_jugada(obs, result) == m.Boss_Orders, (
+        f"sin Xerosic en mano el gusteo de 2 premios sigue siendo correcto; "
+        f"obtuvo {result} -> id {_carta_jugada(obs, result)}")

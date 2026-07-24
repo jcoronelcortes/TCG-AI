@@ -461,6 +461,7 @@ BOSS_SCORE_EMPTY_GUST = 20           # gusteo NO ejecutable: ceder a Lillie's
 XEROSIC_SCORE_ALAKAZAM = 5900        # Xerosic vs Alakazam: capar Powerful Hand (20 x mano rival). Sobre Lillie's hydra-cargado (5800); bajo GUST_2PRIZE (6800) y pivotes defensivos (~6600). Cede a boss_win_via_bench via guard propio
 XEROSIC_SCORE_GENERIC = 3380         # Xerosic generico con mano rival muy grande (>=7): valor de disrupcion, bajo Lillie's tipico (~3450)
 XEROSIC_SCORE_LAST_RESORT = 20       # sin efecto util claro: solo si ningun otro supporter puntua
+XEROSIC_SCORE_SOBRE_BOSS = 7000      # vs Alakazam con Boss's en mano: capar la mano supera a CUALQUIER gusteo que no GANE la partida (sobre GUST_2PRIZE 6800); el gusteo ganador (WIN_NOW 20000) sigue por encima
 
 # =============================================================================
 # MOTOR DE REGLAS (fase 4): reglas con NOMBRE y TRAZA.
@@ -1885,10 +1886,13 @@ _REGLAS_XEROSIC_PLAY = [
                lambda c: (c.ko_last_turn
                           and c.hand_counts.get(Unfair_Stamp, 0) >= 1),
                lambda c: SCORE_VETO),
-    # Cede al gusteo LETAL de banca: cobrar un premio va primero (el Boss's
-    # jugara y supporterPlayed vetara este Xerosic en la re-evaluacion).
-    _ReglaFija("alakazam_cede_a_gusteo_letal",
-               lambda c: (_xr_gate_alakazam(c) and c.boss_win_via_bench
+    # Boss's Orders solo tiene prioridad cuando GANA la partida (user,
+    # registro_006 paso 85): ahi Xerosic cede y el Boss's (WIN_NOW 20000)
+    # remata. Antes se cedia tambien ante `boss_win_via_bench` (un gusteo
+    # letal que solo cobra UN premio), y con ello el agente cambiaba capar
+    # la mano rival por un premio suelto.
+    _ReglaFija("alakazam_cede_a_gusteo_ganador",
+               lambda c: (_xr_gate_alakazam(c) and c.win_via_boss_gust
                           and c.hand_counts.get(Boss_Orders, 0) >= 1),
                lambda c: XEROSIC_SCORE_LAST_RESORT),
     # Sin ataque y mano corta: el desarrollo (Lillie's) vale mas que la
@@ -1898,6 +1902,21 @@ _REGLAS_XEROSIC_PLAY = [
                           and sum(c.hand_counts.values()) <= 3
                           and c.hand_counts.get(Lillie_Determination, 0) >= 1),
                lambda c: XEROSIC_SCORE_LAST_RESORT),
+    # PRIORIDAD SOBRE BOSS'S (user, registro_006 paso 85 vs Alakazam,
+    # PERDIDA): con Boss's Orders en mano y el rival a 16 cartas, el agente
+    # jugo Boss's (gusteo de 2 premios, 6800) en vez de Xerosic (6200) y
+    # dejo la mano rival intacta: su Powerful Hand (20 x carta de su mano)
+    # siguio pegando 320 y arraso. Capar la mano vale mas que cualquier
+    # gusteo que NO gane la partida; el gusteo GANADOR ya retorno arriba
+    # (regla `alakazam_cede_a_gusteo_ganador`). Se puntua por encima de
+    # BOSS_SCORE_GUST_2PRIZE (6800), que era la banda que ganaba, y por
+    # debajo de BOSS_SCORE_WIN_NOW (20000).
+    _ReglaFija("alakazam_prioridad_sobre_boss",
+               lambda c: (_xr_gate_alakazam(c)
+                          and c.hand_counts.get(Boss_Orders, 0) >= 1),
+               lambda c: (XEROSIC_SCORE_SOBRE_BOSS
+                          + min(300, 50 * (c.op_hand_count - 4))
+                          + c.supporter_boost)),
     # Capar Powerful Hand: escala con la mano rival (5900-6200). Gana a
     # Lillie's hydra-cargado (5800); bajo WIN_NOW/GUST_2PRIZE y pivotes.
     _ReglaFija("alakazam_capar_mano",
