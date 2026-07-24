@@ -545,3 +545,208 @@ def test_combo_myriad_sin_remate_no_gasta_la_planta():
     assert _tipo_elegido(obs, m.agent(obs)) != int(m.OptionType.ABILITY), (
         "sin remate de premios via Boss's, el Ogerpon con 4 energias que ya "
         "noquea no gasta otra Planta en Teal Dance")
+
+
+# ---------------------------------------------------------------------
+# Pivote Ogerpon retirar->KO, validacion END-TO-END (user, log 86583929
+# turno 4 vs Alakazam; memoria ogerpon-retreat-ko-pivot). La regla abarca
+# VARIAS decisiones encadenadas y solo se habia verificado el RETIRO aislado.
+# Aqui se camina la cadena completa con transiciones simuladas: activo
+# Fezandipiti ex estancado (1 energia, su ataque pide 3) + Ogerpon ex de
+# banca a 2 energias que con la Planta de Teal Dance llega a 3 y NOQUEA al
+# Abra activo rival (Myriad 30+30*3=120 >= 50).
+#   Caso A (Planta en MANO):    TD banca -> RETREAT -> promueve Ogerpon -> ATTACK
+#   Caso B (Planta en DESCARTE): NS -> recupera -> TD banca -> RETREAT ->
+#                                promueve Ogerpon -> ATTACK
+#   Caso C (sin Planta alcanzable): no malgasta el retiro (END).
+# ---------------------------------------------------------------------
+import copy
+
+ABRA_ALAKAZAM = 741     # Abra de la linea Alakazam (50 PV)
+KADABRA_ALK = 742
+
+
+def _pivote_obs(caso):
+    esc = (Escenario(turno=6, paso=40, tac=1)
+           .mi_activo(pk(m.Fezandipiti_ex, energias=[G], fisicas=1))
+           .mi_banca(pk(m.Teal_Mask_Ogerpon_ex, energias=[G, G], fisicas=2),
+                     pk(m.Applin)))
+    if caso == "A":
+        esc = esc.mi_mano(m.Basic_Grass_Energy)
+    else:
+        esc = esc.mi_mano(m.Night_Stretcher, m.Basic_Grass_Energy)
+    obs = (esc
+           .op_activo(pk(ABRA_ALAKAZAM, hp=50, max_hp=50))
+           .op_banca(pk(KADABRA_ALK, hp=80, max_hp=80))
+           .op_zonas(mano=5, mazo=34, premios=6)
+           .menu_teal_dance()  # el walker regenera el menu en cada paso
+           .construir())
+    yo = obs["current"]["players"][0]
+    if caso in ("B", "C"):
+        # la Planta se construyo en mano (exigencia del builder); en el
+        # escenario real esta en el DESCARTE (caso B) o no existe (caso C)
+        planta = next(c for c in yo["hand"] if c["id"] == m.Basic_Grass_Energy)
+        yo["hand"] = [c for c in yo["hand"] if c is not planta]
+        yo["discard"] = list(yo["discard"]) + [planta]
+    if caso == "C":
+        yo["hand"] = [c for c in yo["hand"] if c["id"] != m.Night_Stretcher]
+        yo["discard"] = [c for c in yo["discard"]
+                         if c["id"] != m.Basic_Grass_Energy]
+    yo["handCount"] = len(yo["hand"])
+    return obs
+
+
+def _pivote_menu_main(obs):
+    """Menu MAIN realista para el estado actual (regenerado en cada paso)."""
+    yo = obs["current"]["players"][0]
+    ops = []
+    if any(c["id"] == m.Basic_Grass_Energy for c in yo["hand"]):
+        if yo["active"][0]["id"] == m.Teal_Mask_Ogerpon_ex:
+            ops.append({"type": 10, "area": 4, "index": 0})
+        for k, bp in enumerate(yo["bench"]):
+            if bp["id"] == m.Teal_Mask_Ogerpon_ex:
+                ops.append({"type": 10, "area": 5, "index": k})
+        if not obs["current"]["energyAttached"]:
+            i_e = next(i for i, c in enumerate(yo["hand"])
+                       if c["id"] == m.Basic_Grass_Energy)
+            ops.append({"type": 8, "area": 2, "index": i_e,
+                        "inPlayArea": 4, "inPlayIndex": 0})
+            for k in range(len(yo["bench"])):
+                ops.append({"type": 8, "area": 2, "index": i_e,
+                            "inPlayArea": 5, "inPlayIndex": k})
+    for i, c in enumerate(yo["hand"]):
+        if c["id"] == m.Night_Stretcher:
+            ops.append({"type": 7, "index": i})
+    act = yo["active"][0]
+    if act["id"] == m.Teal_Mask_Ogerpon_ex and len(act["energies"]) >= 3:
+        ops.append({"type": 13, "attackId": 120})
+    if len(act["energies"]) >= 1 and not obs["current"]["retreated"]:
+        ops.append({"type": 12})
+    ops.append({"type": 14})
+    obs["select"] = {"context": 0, "type": 0, "minCount": 1, "maxCount": 1,
+                     "contextCard": None, "deck": None, "effect": None,
+                     "remainDamageCounter": 0, "remainEnergyCost": 0,
+                     "option": ops}
+    return obs
+
+
+def _pivote_caminar(obs, max_pasos=10):
+    """Ejecuta la cadena; devuelve la lista de etiquetas de las decisiones."""
+    obs = _pivote_menu_main(copy.deepcopy(obs))
+    pasos = []
+    for _ in range(max_pasos):
+        r = m.agent(obs)
+        o = obs["select"]["option"][r[0]]
+        t = int(o["type"])
+        cur = obs["current"]
+        yo = cur["players"][0]
+        regen = True
+        if t == 12:                                   # RETREAT + promocion
+            act = yo["active"][0]
+            yo["discard"] = list(yo["discard"]) + [act["energyCards"].pop()]
+            act["energies"] = act["energies"][:-1]
+            cur["retreated"] = True
+            pasos.append("RETREAT")
+            obs["select"] = {"context": int(m.SelectContext.SWITCH), "type": 1,
+                             "minCount": 1, "maxCount": 1, "contextCard": None,
+                             "deck": None, "effect": None,
+                             "remainDamageCounter": 0, "remainEnergyCost": 0,
+                             "option": [{"area": 5, "index": k,
+                                         "playerIndex": 0, "type": 3}
+                                        for k in range(len(yo["bench"]))]}
+            regen = False
+        elif t == 3 and obs["select"]["context"] == int(m.SelectContext.SWITCH):
+            k = o["index"]
+            nuevo, anterior = yo["bench"][k], yo["active"][0]
+            yo["active"] = [nuevo]
+            yo["bench"] = ([bp for i, bp in enumerate(yo["bench"]) if i != k]
+                           + [anterior])
+            pasos.append(f"PROMUEVE {m.card_table[nuevo['id']].name}")
+        elif t == 7:                                  # PLAY Night Stretcher
+            carta = yo["hand"][o["index"]]
+            yo["hand"] = [c for i, c in enumerate(yo["hand"])
+                          if i != o["index"]]
+            yo["discard"] = list(yo["discard"]) + [carta]
+            yo["handCount"] = len(yo["hand"])
+            pasos.append("PLAY NS")
+            cands = [i for i, c in enumerate(yo["discard"])
+                     if c["id"] == m.Basic_Grass_Energy]
+            obs["select"] = {"context": int(m.SelectContext.TO_HAND), "type": 1,
+                             "minCount": 1, "maxCount": 1, "contextCard": None,
+                             "deck": None,
+                             "effect": {"id": m.Night_Stretcher,
+                                        "playerIndex": 0, "serial": 999},
+                             "remainDamageCounter": 0, "remainEnergyCost": 0,
+                             "option": [{"area": 3, "index": i,
+                                         "playerIndex": 0, "type": 3}
+                                        for i in cands]}
+            regen = False
+        elif t == 3 and obs["select"]["context"] == int(m.SelectContext.TO_HAND):
+            carta = yo["discard"][o["index"]]
+            yo["discard"] = [c for j, c in enumerate(yo["discard"])
+                             if j != o["index"]]
+            yo["hand"] = list(yo["hand"]) + [carta]
+            yo["handCount"] = len(yo["hand"])
+            pasos.append(f"RECUPERA {m.card_table[carta['id']].name}")
+        elif t == 10:                                 # Teal Dance
+            i_e = next(i for i, c in enumerate(yo["hand"])
+                       if c["id"] == m.Basic_Grass_Energy)
+            e_card = yo["hand"][i_e]
+            yo["hand"] = [c for i, c in enumerate(yo["hand"]) if i != i_e]
+            yo["handCount"] = len(yo["hand"])
+            tgt = (yo["active"][0] if o["area"] == 4
+                   else yo["bench"][o["index"]])
+            tgt["energies"] = list(tgt["energies"]) + [int(G)]
+            tgt["energyCards"] = list(tgt["energyCards"]) + [e_card]
+            pasos.append("TEAL DANCE")
+        elif t == 8:                                  # adjunte manual
+            e_card = yo["hand"][o["index"]]
+            yo["hand"] = [c for i, c in enumerate(yo["hand"])
+                          if i != o["index"]]
+            yo["handCount"] = len(yo["hand"])
+            tgt = (yo["active"][0] if o["inPlayArea"] == 4
+                   else yo["bench"][o["inPlayIndex"]])
+            tgt["energies"] = list(tgt["energies"]) + [int(G)]
+            tgt["energyCards"] = list(tgt["energyCards"]) + [e_card]
+            cur["energyAttached"] = True
+            pasos.append("ATTACH")
+        elif t == 13:
+            pasos.append("ATTACK")
+            return pasos, obs
+        else:
+            pasos.append("END")
+            return pasos, obs
+        if regen:
+            obs = _pivote_menu_main(obs)
+    raise AssertionError(f"cadena sin cierre: {pasos}")
+
+
+def _pivote_asserts_ko(pasos, obs):
+    assert pasos[-1] == "ATTACK", pasos
+    act = obs["current"]["players"][0]["active"][0]
+    opa = obs["current"]["players"][1]["active"][0]
+    assert act["id"] == m.Teal_Mask_Ogerpon_ex and len(act["energies"]) >= 3
+    dmg = 30 + 30 * (len(act["energies"]) + len(opa["energies"]))
+    assert dmg >= opa["hp"], (dmg, opa["hp"])
+
+
+def test_pivote_ogerpon_retreat_ko_planta_en_mano():
+    pasos, obs = _pivote_caminar(_pivote_obs("A"))
+    assert pasos == ["TEAL DANCE", "RETREAT",
+                     "PROMUEVE Teal Mask Ogerpon ex", "ATTACK"], pasos
+    _pivote_asserts_ko(pasos, obs)
+
+
+def test_pivote_ogerpon_retreat_ko_planta_via_night_stretcher():
+    pasos, obs = _pivote_caminar(_pivote_obs("B"))
+    assert pasos == ["PLAY NS", "RECUPERA Basic {G} Energy", "TEAL DANCE",
+                     "RETREAT", "PROMUEVE Teal Mask Ogerpon ex",
+                     "ATTACK"], pasos
+    _pivote_asserts_ko(pasos, obs)
+
+
+def test_pivote_ogerpon_sin_planta_no_malgasta_el_retiro():
+    pasos, _ = _pivote_caminar(_pivote_obs("C"))
+    assert pasos == ["END"], (
+        f"sin Planta alcanzable el pivote no dispara: retirar solo pagaria "
+        f"una energia para subir un Ogerpon que no ataca; obtuvo {pasos}")
