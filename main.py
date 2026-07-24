@@ -8228,15 +8228,36 @@ def agent(obs_dict: dict) -> list[int]:
             and (hand_counts.get(Boss_Orders, 0) >= 1
                  or CARTAS_ACTIVAS_EN_MAZO.get(Boss_Orders, {}).get(ESTADO_MAZO, 0) > 0)):
         _mbw_atk = my_state.active[0]
-        _mbw_attach = (hand_counts.get(Basic_Grass_Energy, 0) >= 1
-                       and not state.energyAttached)
+        _mbw_grass_hand = hand_counts.get(Basic_Grass_Energy, 0)
+        _mbw_attach = (_mbw_grass_hand >= 1 and not state.energyAttached)
+        # Teal Dance del PROPIO activo (user, pendiente del combo Myriad): la
+        # habilidad adjunta OTRA Planta de la mano y es INDEPENDIENTE del
+        # adjunte manual, asi que la energia alcanzable este turno puede ser +2
+        # (adjunte + Teal Dance) y no +1. Sin modelarla, el remate ganador via
+        # Boss's no se detectaba en cuanto el adjunte manual ya estaba gastado
+        # (energyAttached) aunque la habilidad siguiera disponible. Se detecta
+        # como en el resto del fichero: por la opcion ABILITY del menu, que el
+        # motor solo ofrece si la habilidad es usable. El total extra no puede
+        # superar las Plantas que hay en la mano (ambas salen de ahi).
+        _mbw_td = (_mbw_atk is not None
+                   and _mbw_atk.id == Teal_Mask_Ogerpon_ex
+                   and _mbw_grass_hand >= 1
+                   and any(o.type == OptionType.ABILITY
+                           and o.area == AreaType.ACTIVE
+                           for o in select.option))
+        _mbw_extra = min(_mbw_grass_hand,
+                         (1 if _mbw_attach else 0) + (1 if _mbw_td else 0))
 
         def _mbw_dmg_to(_tgt):
             if _mbw_atk is None or _tgt is None:
                 return 0
             _eff = len(_mbw_atk.energies) * _grass_mult()
-            _eff_after = _eff + (_grass_attach_unit() if _mbw_attach else 0)
-            _atk_e = len(_mbw_atk.energies) + (1 if _mbw_attach else 0)
+            # Energia EFECTIVA tras las cargas pendientes de este turno. Cada
+            # Planta adjuntada suma `_grass_attach_unit()` (2 con Meganium), asi
+            # que la energia propia de Myriad es la MISMA magnitud efectiva
+            # (antes `_atk_e` sumaba +1 en crudo y con Meganium se quedaba corta).
+            _eff_after = _eff + _mbw_extra * _grass_attach_unit()
+            _atk_e = _eff_after
             # Dano base via la tabla unica _attacker_base_damage (misma formula
             # y umbrales que antes; el remate debilidad/resistencia/inmunidad
             # queda inline debajo para conservar el comportamiento exacto de
@@ -14463,7 +14484,26 @@ def agent(obs_dict: dict) -> list[int]:
                         score = 7500
                     elif _ogerpon_energy >= 3:
 
-                        if _extra_energy_enables_ko(Teal_Mask_Ogerpon_ex, _ogerpon_energy):
+                        if (o.area == AreaType.ACTIVE
+                                and (_win_via_boss_gust or _gust_2prize_via_boss)):
+                            # Combo Myriad ganador (user, registro_012 paso 227
+                            # vs Iono, PERDIDA): este turno hay un remate via
+                            # Boss's Orders (gustear de la banca rival un
+                            # objetivo que NOQUEAMOS para cobrar los premios que
+                            # faltan) y el atacante es este Ogerpon activo. Sin
+                            # esta rama, el veto de abajo ("ya tiene >=3 energias
+                            # y ya noquea al activo rival, no gastes mas Plantas")
+                            # mataba la habilidad, y como el adjunte manual al
+                            # activo esta vetado a su vez por la PRECEDENCIA de
+                            # Teal Dance, la energia acababa en un cuerpo de
+                            # banca y la linea ganadora se perdia. El objetivo
+                            # del gusteo no es el activo rival: la energia extra
+                            # es justo la que sube Myriad hasta su vida. Score
+                            # sobre las demas ramas de Teal Dance (31600) y
+                            # >= 29000, para conservar el tier ENERGY y jugarse
+                            # ANTES del PLAY de Boss's (tier 0).
+                            score = 31700
+                        elif _extra_energy_enables_ko(Teal_Mask_Ogerpon_ex, _ogerpon_energy):
                             score = 29000
                         elif _active_already_kos and o.area != AreaType.ACTIVE:
 

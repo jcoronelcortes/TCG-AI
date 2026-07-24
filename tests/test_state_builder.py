@@ -411,3 +411,137 @@ def test_tope_base_por_matchup():
     assert m._ogerpon_base_phys_cap(True, True) == 2
     assert m._ogerpon_base_phys_cap(False, False) == 4
     assert m._ogerpon_base_phys_cap(True, False) == 2
+
+
+# ---------------------------------------------------------------------
+# Combo Myriad ganador: Teal Dance -> Boss's Orders -> gusteo -> ataque
+# (user, registro_012 paso 227 vs Iono, PERDIDA; escenario SINTETICO porque
+# los registros son datos locales transitorios). A 2 premios, con Teal Mask
+# Ogerpon ex activo (4 energias), 1 Planta + Boss's en mano y un Iono's
+# Bellibolt ex (280 PV, 4 energias) en la banca rival, la linea GANA:
+# Teal Dance deja al Ogerpon en 5 -> Boss's sube al Bellibolt ->
+# Myriad = 30 + 30*(5+4) = 300 >= 280 -> KO de 2 premios.
+# El bloqueo era doble: Teal Dance vetada ("ya tiene >=3 energias y ya noquea
+# al activo rival") y el adjunte manual al activo vetado por la PRECEDENCIA de
+# Teal Dance, asi que la energia acababa en un cuerpo de banca.
+# ---------------------------------------------------------------------
+BELLIBOLT_EX = 269      # Iono's Bellibolt ex, 280 PV, 2 premios
+KILOWATTREL = 271       # Iono's Kilowattrel, 120 PV
+MYRIAD_ATK = 120
+
+
+def _esc_combo_myriad(energias=4, plantas=1, energia_jugada=False,
+                      premios_propios=2):
+    # `menu_teal_dance()` exige una Planta en la mano (la habilidad la adjunta
+    # DE la mano); para los pasos posteriores de la cadena (`plantas=0`) se
+    # construye con ella y luego se mueve al descarte, que es justo donde acaba
+    # tras usarse.
+    obs = (Escenario(turno=12, paso=227, tac=1,
+                     premios_propios=premios_propios,
+                     energia_jugada=energia_jugada)
+           .mi_activo(pk(m.Teal_Mask_Ogerpon_ex, energias=[G] * energias,
+                         fisicas=energias))
+           .mi_banca(pk(m.Applin))
+           .mi_mano(m.Basic_Grass_Energy, m.Boss_Orders)
+           .op_activo(pk(KILOWATTREL, hp=120, max_hp=120))
+           .op_banca(pk(BELLIBOLT_EX, hp=280, max_hp=280,
+                        energias=[G, G, G, G]))
+           .op_zonas(mano=5, mazo=30, premios=3)
+           .menu_teal_dance()
+           .construir())
+    if plantas == 0:
+        me = obs["current"]["players"][obs["current"]["yourIndex"]]
+        sobra = [c for c in me["hand"] if c["id"] == m.Basic_Grass_Energy]
+        me["hand"] = [c for c in me["hand"] if c["id"] != m.Basic_Grass_Energy]
+        me["handCount"] = len(me["hand"])
+        me["discard"] = list(me["discard"]) + sobra
+    return obs
+
+
+def _menu_combo(obs, con_ability=True, con_attach=True):
+    """Menu MAIN realista: Teal Dance + PLAY Boss's + adjuntes + ataque."""
+    me = obs["current"]["players"][obs["current"]["yourIndex"]]
+    i_boss = next(i for i, c in enumerate(me["hand"]) if c["id"] == m.Boss_Orders)
+    i_e = next((i for i, c in enumerate(me["hand"])
+                if c["id"] == m.Basic_Grass_Energy), None)
+    ops = []
+    if con_ability:
+        ops.append({"type": int(m.OptionType.ABILITY),
+                    "area": int(m.AreaType.ACTIVE), "index": 0})
+    ops.append({"type": int(m.OptionType.PLAY), "index": i_boss})
+    if con_attach and i_e is not None:
+        for area, idx in ((int(m.AreaType.ACTIVE), 0), (int(m.AreaType.BENCH), 0)):
+            ops.append({"type": int(m.OptionType.ATTACH), "area": 2, "index": i_e,
+                        "inPlayArea": area, "inPlayIndex": idx})
+    ops += [{"type": int(m.OptionType.ATTACK), "attackId": MYRIAD_ATK},
+            {"type": int(m.OptionType.RETREAT)}, {"type": int(m.OptionType.END)}]
+    obs["select"]["option"] = ops
+    return obs
+
+
+def _tipo_elegido(obs, eleccion):
+    return int(obs["select"]["option"][eleccion[0]]["type"])
+
+
+def test_combo_myriad_usa_teal_dance_para_el_remate():
+    obs = _menu_combo(_esc_combo_myriad())
+    assert _tipo_elegido(obs, m.agent(obs)) == int(m.OptionType.ABILITY), (
+        "con un remate ganador via Boss's, la energia del turno va al Ogerpon "
+        "ACTIVO por Teal Dance (adjunta y roba), no a un cuerpo de banca")
+
+
+def test_combo_myriad_teal_dance_con_el_adjunte_ya_gastado():
+    # La habilidad es INDEPENDIENTE del adjunte manual: aunque la energia del
+    # turno ya se haya jugado, Teal Dance sigue sumando la 5a energia y el
+    # remate debe detectarse igual (antes `_mbw_dmg_to` solo modelaba el +1 del
+    # adjunte y el remate se perdia).
+    obs = _menu_combo(_esc_combo_myriad(energia_jugada=True), con_attach=False)
+    assert _tipo_elegido(obs, m.agent(obs)) == int(m.OptionType.ABILITY), (
+        "con el adjunte manual gastado, Teal Dance sigue siendo la carga que "
+        "habilita el remate ganador")
+
+
+def test_combo_myriad_juega_boss_tras_teal_dance():
+    # Segundo paso de la cadena: Ogerpon ya en 5 energias, sin Planta en mano.
+    obs = _menu_combo(_esc_combo_myriad(energias=5, plantas=0),
+                      con_ability=False, con_attach=False)
+    assert _tipo_elegido(obs, m.agent(obs)) == int(m.OptionType.PLAY), (
+        "con el Ogerpon ya cargado, la jugada es Boss's Orders para subir al "
+        "objetivo de 2 premios, no atacar al activo rival")
+
+
+def test_combo_myriad_gustea_el_bellibolt():
+    # Tercer paso: eleccion del objetivo del gusteo.
+    obs = _esc_combo_myriad(energias=5, plantas=0)
+    yo = obs["current"]["yourIndex"]
+    obs["select"] = {
+        "context": int(m.SelectContext.TO_ACTIVE), "type": 1,
+        "minCount": 1, "maxCount": 1, "contextCard": None, "deck": None,
+        "effect": None, "remainDamageCounter": 0, "remainEnergyCost": 0,
+        "option": [{"area": 5, "index": 0, "playerIndex": 1 - yo, "type": 3}],
+    }
+    eleccion = m.agent(obs)
+    rival = obs["current"]["players"][1 - yo]
+    objetivo = rival["bench"][obs["select"]["option"][eleccion[0]]["index"]]["id"]
+    assert objetivo == BELLIBOLT_EX, (
+        f"el gusteo debe subir al Bellibolt ex (2 premios, letal con Myriad); "
+        f"obtuvo {m.card_table[objetivo].name}")
+
+
+def test_combo_myriad_sin_remate_no_gasta_la_planta():
+    # Frontera: sin objetivo de premios en la banca rival (solo un Kilowattrel
+    # de 1 premio que ya noqueamos), vuelve el veto de no sobrecargar: la
+    # energia NO va al Ogerpon activo via Teal Dance.
+    obs = (Escenario(turno=12, paso=227, tac=1, premios_propios=2)
+           .mi_activo(pk(m.Teal_Mask_Ogerpon_ex, energias=[G] * 4, fisicas=4))
+           .mi_banca(pk(m.Applin))
+           .mi_mano(m.Basic_Grass_Energy, m.Boss_Orders)
+           .op_activo(pk(KILOWATTREL, hp=120, max_hp=120))
+           .op_banca(pk(KILOWATTREL, hp=120, max_hp=120))
+           .op_zonas(mano=5, mazo=30, premios=3)
+           .menu_teal_dance()
+           .construir())
+    obs = _menu_combo(obs)
+    assert _tipo_elegido(obs, m.agent(obs)) != int(m.OptionType.ABILITY), (
+        "sin remate de premios via Boss's, el Ogerpon con 4 energias que ya "
+        "noquea no gasta otra Planta en Teal Dance")
