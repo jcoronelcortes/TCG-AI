@@ -289,3 +289,125 @@ def test_cornerstone_sin_el_la_energia_no_cambia():
            .construir())
     assert _energia_va_a(obs, m.agent(obs)) == m.Teal_Mask_Ogerpon_ex, (
         "sin Cornerstone la energia sigue yendo al atacante habitual")
+
+
+# ---------------------------------------------------------------------
+# Tope de energia del Teal Mask Ogerpon ex vs el mazo de Hop's (user):
+# maximo 3 energias FISICAS sin Meganium en juego / 2 con Meganium. La UNICA
+# razon para pasarse (adjunte manual, Ripening Charge o Teal Dance) es que el
+# Ogerpon este en el ACTIVO y le falte esa energia para NOQUEAR al activo
+# rival. Escenarios SINTETICOS (los registros vs Hop's no llegan a 3 cargas).
+# ---------------------------------------------------------------------
+TREVENANT = 879     # Hop's Trevenant (140 PV): activa op_is_hop_deck
+
+
+def _jugada_elegida(obs, eleccion):
+    """('ABILITY', None) para Teal Dance; ('ATTACH', id destino) para adjunte."""
+    opt = obs["select"]["option"][eleccion[0]]
+    if opt.get("type") == int(m.OptionType.ABILITY):
+        return ("ABILITY", None)
+    if opt.get("type") != int(m.OptionType.ATTACH):
+        return ("OTRA", opt.get("type"))
+    me = obs["current"]["players"][obs["current"]["yourIndex"]]
+    destino = (me["active"][0] if opt.get("inPlayArea") == int(m.AreaType.ACTIVE)
+               else me["bench"][opt["inPlayIndex"]])
+    return ("ATTACH", destino["id"])
+
+
+def _esc_hop(activo, banca, op_energias=(), menu="attach"):
+    esc = (Escenario(turno=8, paso=1, tac=1)
+           .mi_activo(activo)
+           .mi_banca(*banca)
+           .mi_mano(m.Basic_Grass_Energy)
+           .op_activo(pk(TREVENANT, hp=140, max_hp=140, energias=list(op_energias)))
+           .op_zonas(mano=4, mazo=40, premios=4))
+    esc = esc.menu_teal_dance() if menu == "teal" else esc.menu_attach_energia()
+    return esc.construir()
+
+
+def test_hop_tope_3_energias_ogerpon_banca():
+    # 3 fisicas en el Ogerpon de BANCA = tope alcanzado: la energia va a otro
+    # cuerpo (antes el tope era 4 y se sobrecargaba al Ogerpon).
+    obs = _esc_hop(pk(m.Dipplin, pre_evo=[m.Applin], energias=[G], fisicas=1),
+                   [pk(m.Teal_Mask_Ogerpon_ex, energias=[G, G, G], fisicas=3)])
+    tipo, destino = _jugada_elegida(obs, m.agent(obs))
+    assert (tipo, destino) != ("ATTACH", m.Teal_Mask_Ogerpon_ex), (
+        "vs Hop's un Ogerpon de banca con 3 energias fisicas esta en su tope: "
+        "no se le adjunta una 4a")
+
+
+def test_hop_dos_energias_ogerpon_banca_sigue_permitido():
+    # Frontera: con 2 fisicas el tope no aplica y la carga sigue siendo valida.
+    obs = _esc_hop(pk(m.Dipplin, pre_evo=[m.Applin], energias=[G], fisicas=1),
+                   [pk(m.Teal_Mask_Ogerpon_ex, energias=[G, G], fisicas=2)])
+    assert _jugada_elegida(obs, m.agent(obs)) == ("ATTACH", m.Teal_Mask_Ogerpon_ex), (
+        "con 2 energias fisicas el Ogerpon aun no llega al tope de Hop's")
+
+
+def test_hop_cuarta_energia_solo_si_habilita_el_ko():
+    # EXCEPCION: Ogerpon ACTIVO con 3 fisicas; Myriad hace 30+30*(3+0)=120 y no
+    # noquea al Trevenant de 140, pero con la 4a llega a 150 => se permite.
+    obs = _esc_hop(pk(m.Teal_Mask_Ogerpon_ex, energias=[G, G, G], fisicas=3),
+                   [pk(m.Tapu_Bulu, energias=[G, G, G], fisicas=3)])
+    assert _jugada_elegida(obs, m.agent(obs)) == ("ATTACH", m.Teal_Mask_Ogerpon_ex), (
+        "la 4a energia se permite cuando es la que HABILITA el KO del activo "
+        "rival desde el Ogerpon activo")
+
+
+def test_hop_cuarta_energia_vetada_si_el_ogerpon_ya_noquea():
+    # Sin la excepcion: el Ogerpon activo YA noquea (30+30*(3+2 energias del
+    # rival) = 180 >= 140), asi que la 4a energia sobra y va a otro atacante.
+    obs = _esc_hop(pk(m.Teal_Mask_Ogerpon_ex, energias=[G, G, G], fisicas=3),
+                   [pk(m.Tapu_Bulu, energias=[G, G, G], fisicas=3)],
+                   op_energias=[G, G])
+    tipo, destino = _jugada_elegida(obs, m.agent(obs))
+    assert (tipo, destino) != ("ATTACH", m.Teal_Mask_Ogerpon_ex), (
+        "si el Ogerpon activo ya noquea, la energia extra no habilita nada: "
+        "el tope de Hop's la reserva para otro cuerpo")
+
+
+def test_hop_teal_dance_respeta_el_tope():
+    # Teal Dance tambien adjunta: con 3 fisicas en el Ogerpon de banca queda
+    # vetada (antes se usaba y lo dejaba en 4).
+    obs = _esc_hop(pk(m.Dipplin, pre_evo=[m.Applin], energias=[G], fisicas=1),
+                   [pk(m.Teal_Mask_Ogerpon_ex, energias=[G, G, G], fisicas=3)],
+                   menu="teal")
+    assert _jugada_elegida(obs, m.agent(obs))[0] != "ABILITY", (
+        "Teal Dance sobre un Ogerpon de banca en su tope (3 fisicas vs Hop's) "
+        "sobrecargaria: debe quedar vetada")
+
+
+def test_hop_teal_dance_permitida_si_habilita_el_ko():
+    # La excepcion del ACTIVO tambien vale para Teal Dance (adjunta + ROBA).
+    obs = _esc_hop(pk(m.Teal_Mask_Ogerpon_ex, energias=[G, G, G], fisicas=3),
+                   [pk(m.Tapu_Bulu, energias=[G, G, G], fisicas=3)],
+                   menu="teal")
+    assert _jugada_elegida(obs, m.agent(obs))[0] == "ABILITY", (
+        "con el Ogerpon activo a una energia del KO, Teal Dance es la jugada "
+        "(adjunta la Planta y ademas roba)")
+
+
+def test_hop_tope_2_energias_con_meganium():
+    # Con Meganium en juego (Wild Growth duplica) el tope baja a 2 fisicas.
+    obs = (Escenario(turno=8, paso=1, tac=1)
+           .mi_activo(pk(m.Meganium, pre_evo=[m.Chikorita, m.Bayleef]))
+           .mi_banca(pk(m.Teal_Mask_Ogerpon_ex, energias=[G, G, G, G], fisicas=2),
+                     pk(m.Tapu_Bulu))
+           .mi_mano(m.Basic_Grass_Energy)
+           .op_activo(pk(TREVENANT, hp=140, max_hp=140))
+           .op_zonas(mano=4, mazo=40, premios=4)
+           .menu_attach_energia()
+           .construir())
+    tipo, destino = _jugada_elegida(obs, m.agent(obs))
+    assert (tipo, destino) != ("ATTACH", m.Teal_Mask_Ogerpon_ex), (
+        "con Meganium en juego 2 Plantas fisicas ya son 4 efectivas: el "
+        "Ogerpon de banca esta en su tope")
+
+
+def test_tope_base_por_matchup():
+    # Frontera de matchup: el tope de 3 fisicas es SOLO de Hop's; vs Alakazam
+    # (el otro matchup con tope) la base sigue siendo 4 sin Meganium.
+    assert m._ogerpon_base_phys_cap(False, True) == 3
+    assert m._ogerpon_base_phys_cap(True, True) == 2
+    assert m._ogerpon_base_phys_cap(False, False) == 4
+    assert m._ogerpon_base_phys_cap(True, False) == 2

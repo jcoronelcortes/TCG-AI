@@ -47,6 +47,7 @@ G = int(EnergyType.GRASS)
 
 BASIC_GRASS = 1        # id de la Basic Grass Energy (deck.csv)
 ULTRA_BALL = 1121      # id de la Ultra Ball (deck.csv)
+TEAL_MASK_OGERPON_EX = 96    # id del Teal Mask Ogerpon ex (habilidad Teal Dance)
 _PREMIOS_DEFECTO = 6
 
 
@@ -314,6 +315,56 @@ class Escenario:
                              "area": int(AreaType.HAND), "index": idx_e,
                              "inPlayArea": int(AreaType.BENCH),
                              "inPlayIndex": k})
+        opciones.append({"type": int(OptionType.END)})
+        self._select = {
+            "type": int(SelectType.MAIN),
+            "context": int(SelectContext.MAIN),
+            "minCount": 1, "maxCount": 1,
+            "remainDamageCounter": 0, "remainEnergyCost": 0,
+            "option": opciones,
+            "deck": None,
+            "contextCard": None,
+            "effect": None,
+        }
+        return self
+
+    def menu_teal_dance(self):
+        """Select MAIN con la HABILIDAD Teal Dance ademas del adjunte manual.
+
+        Emite una opcion ABILITY (area ACTIVE/BENCH, index del slot) por cada
+        Teal Mask Ogerpon ex propio en juego, las opciones ATTACH de la 1a
+        Basic Grass de la mano y END, como el menu real de un turno en el que
+        aun no se ha adjuntado energia.
+        """
+        idx_e = next((i for i, c in enumerate(self._mi_mano)
+                      if c["id"] == BASIC_GRASS), None)
+        if idx_e is None:
+            raise EstadoInconsistente(
+                "menu_teal_dance() requiere una Basic Grass en mi_mano(): "
+                "Teal Dance adjunta una Planta DE LA MANO")
+        opciones = []
+        if (self._mi_activo is not None
+                and self._mi_activo["id"] == TEAL_MASK_OGERPON_EX):
+            opciones.append({"type": int(OptionType.ABILITY),
+                             "area": int(AreaType.ACTIVE), "index": 0})
+        for k, p in enumerate(self._mi_banca):
+            if p["id"] == TEAL_MASK_OGERPON_EX:
+                opciones.append({"type": int(OptionType.ABILITY),
+                                 "area": int(AreaType.BENCH), "index": k})
+        if not opciones:
+            raise EstadoInconsistente(
+                "menu_teal_dance() requiere un Teal Mask Ogerpon ex en juego")
+        if not self._energia_jugada:
+            if self._mi_activo is not None:
+                opciones.append({"type": int(OptionType.ATTACH),
+                                 "area": int(AreaType.HAND), "index": idx_e,
+                                 "inPlayArea": int(AreaType.ACTIVE),
+                                 "inPlayIndex": 0})
+            for k in range(len(self._mi_banca)):
+                opciones.append({"type": int(OptionType.ATTACH),
+                                 "area": int(AreaType.HAND), "index": idx_e,
+                                 "inPlayArea": int(AreaType.BENCH),
+                                 "inPlayIndex": k})
         opciones.append({"type": int(OptionType.END)})
         self._select = {
             "type": int(SelectType.MAIN),

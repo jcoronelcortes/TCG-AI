@@ -584,6 +584,18 @@ def _physical_energy(effective_len):
     return effective_len // 2 if meganium_in_play else effective_len
 
 
+def _ogerpon_base_phys_cap(meganium, is_hop):
+    # Tope BASE de energias FISICAS de un Teal Mask Ogerpon ex (regla del user).
+    # Con Meganium en juego: 2 fisicas (Wild Growth las duplica => 4 efectivas,
+    # de sobra para Myriad Leaf Shower, coste 3). Sin Meganium: 3 vs el mazo de
+    # Hop's ("no puede tener mas de tres energias cargadas") y 4 en el resto de
+    # matchups con tope (Alakazam). Fuente unica de verdad para el adjunte
+    # manual, Ripening Charge y Teal Dance.
+    if meganium:
+        return 2
+    return 3 if is_hop else 4
+
+
 def _retreat_cards(retreat_cost):
     # Numero de cartas de energia FISICAS necesarias para pagar `retreat_cost`
     # (expresado en unidades EFECTIVAS). Con Meganium cada Planta paga por dos
@@ -9303,18 +9315,20 @@ def agent(obs_dict: dict) -> list[int]:
                     return SCORE_VETO
 
         # Regla (user, vs Alakazam y vs Hop's): topes de energia para Teal Mask
-        # Ogerpon ex (adjunte MANUAL o Ripening Charge). Base FISICA = 4 sin
-        # Meganium en juego / 2 con Meganium (Wild Growth duplica cada Planta,
-        # asi que 2 fisicas = 4 efectivas = listo para Myriad Leaf Shower coste
-        # 3). En BANCA el tope es DURO: no sobrecargamos, reservamos energia. En
-        # el ACTIVO se permite UNA energia FISICA extra (la 5a sin Meganium / la
-        # 3a con Meganium) SOLO si esa energia es la que HABILITA el KO al activo
-        # rival (_extra_energy_enables_ko: el dano actual no noquea pero con +1
-        # si). Una linea GANADORA via Boss's ya devolvio 42000 arriba, asi que
-        # este tope no bloquea remates letales. len(energies) es EFECTIVA => se
+        # Ogerpon ex (adjunte MANUAL o Ripening Charge). Base FISICA con Meganium
+        # en juego = 2 (Wild Growth duplica cada Planta, asi que 2 fisicas = 4
+        # efectivas = listo para Myriad Leaf Shower coste 3). Sin Meganium: 4 vs
+        # Alakazam y 3 vs Hop's (user: "un Ogerpon no puede tener mas de tres
+        # energias cargadas si no tenemos Meganium en juego, o dos si esta
+        # Meganium"). En BANCA el tope es DURO: no sobrecargamos, reservamos
+        # energia. En el ACTIVO se permite UNA energia FISICA extra SOLO si esa
+        # energia es la que HABILITA el KO al activo rival
+        # (_extra_energy_enables_ko: el dano actual no noquea pero con +1 si).
+        # Una linea GANADORA via Boss's ya devolvio 42000 arriba, asi que este
+        # tope no bloquea remates letales. len(energies) es EFECTIVA => se
         # convierte a cartas FISICAS con _physical_energy.
         if (op_is_alakazam_deck or op_is_hop_deck) and pokemon.id == Teal_Mask_Ogerpon_ex:
-            _alk_base_phys = 2 if meganium_in_play else 4
+            _alk_base_phys = _ogerpon_base_phys_cap(meganium_in_play, op_is_hop_deck)
             _alk_phys = _physical_energy(energy_count)
             if not active:
                 if _alk_phys >= _alk_base_phys:
@@ -14371,16 +14385,19 @@ def agent(obs_dict: dict) -> list[int]:
                         # comparar. No se necesita mas energia para atacar.
                         # Excepcion: si habilita un KO (arriba, _td_ko_on_active).
                         score = SCORE_VETO
-                    elif (op_is_alakazam_deck
+                    elif ((op_is_alakazam_deck or op_is_hop_deck)
                             and _physical_energy(_ogerpon_energy)
-                            >= (2 if meganium_in_play else 4)):
-                        # Regla (user, vs Alakazam): tope de energia para Teal
-                        # Mask Ogerpon ex via Teal Dance. Base FISICA = 4 sin
-                        # Meganium / 2 con Meganium (Wild Growth duplica cada
-                        # Planta). En BANCA es DURO; en el ACTIVO la 5a/3a energia
-                        # solo se permite si HABILITA el KO, caso ya resuelto
-                        # arriba por _td_ko_on_active (31500). Fuera de esa
-                        # excepcion no sobrecargamos: reservamos energia.
+                            >= _ogerpon_base_phys_cap(meganium_in_play,
+                                                      op_is_hop_deck)):
+                        # Regla (user, vs Alakazam y vs Hop's): tope de energia
+                        # para Teal Mask Ogerpon ex via Teal Dance. Base FISICA =
+                        # 2 con Meganium (Wild Growth duplica cada Planta), 3 sin
+                        # Meganium vs Hop's y 4 sin Meganium vs Alakazam. En
+                        # BANCA es DURO; en el ACTIVO la energia extra solo se
+                        # permite si HABILITA el KO al activo rival, caso ya
+                        # resuelto arriba por _td_ko_on_active (31500) -- la
+                        # UNICA razon para pasar del tope con Teal Dance. Fuera
+                        # de esa excepcion no sobrecargamos: reservamos energia.
                         # len(energies) es EFECTIVA => se pasa a cartas fisicas.
                         score = SCORE_VETO
                     elif _teal_wall_pivot and o.area == AreaType.ACTIVE:
