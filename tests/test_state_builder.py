@@ -816,3 +816,210 @@ def test_cubchoo_puro_sigue_vetando_tapu():
     r = m.agent(obs)
     assert obs["select"]["option"][r[0]]["type"] == int(m.OptionType.END), (
         "vs Cubchoo puro la whitelist del usuario excluye a Tapu Bulu")
+
+
+# ---------------------------------------------------------------------
+# Estrategia vs Raging Bolt ex: DESCUADRE DE PREMIOS (user, registro_002
+# paso 27 vs Raging Bolt/Ogerpon, PERDIDA). Todo su mazo son ex de 2 premios
+# y Bellowing Thunder noquea de un golpe a cualquiera de nuestros ex: si
+# nuestro activo ex NO puede noquear, se baja un cuerpo de 1 premio (Tapu
+# Bulu), se retira el ex y se pone el 1-premio delante — el KO rival paga 1
+# premio y no 2. Cadena real del paso 27, caminada con transiciones.
+# ---------------------------------------------------------------------
+
+def _raging_obs(tapu_en_banca=False, ogerpon_cargado=False, bolt_hp=240):
+    act = pk(m.Teal_Mask_Ogerpon_ex,
+             energias=[G] * (4 if ogerpon_cargado else 1),
+             fisicas=(4 if ogerpon_cargado else 1))
+    banca = [pk(m.Teal_Mask_Ogerpon_ex, energias=[G, G], fisicas=2),
+             pk(m.Meowth_ex)]
+    mano = [m.Forest_of_Vitality, m.Dawn, m.Xerosic_Machinations,
+            m.Meganium, m.Basic_Grass_Energy, m.Forest_of_Vitality]
+    if tapu_en_banca:
+        banca.append(pk(m.Tapu_Bulu, aparecio=True))
+    else:
+        mano.insert(4, m.Tapu_Bulu)
+    return (Escenario(turno=2, paso=27, tac=14, primer_jugador=0,
+                      energia_jugada=True, partidario_jugado=True)
+            .mi_activo(act)
+            .mi_banca(*banca)
+            .mi_mano(*mano)
+            .mi_descarte(m.Night_Stretcher, m.Forest_of_Vitality,
+                         m.Ultra_Ball, m.Lillie_Determination)
+            .op_activo(pk(m.Raging_Bolt_ex, hp=bolt_hp, max_hp=240))
+            .op_banca(pk(m.Teal_Mask_Ogerpon_ex, energias=[G], fisicas=1),
+                      pk(m.Teal_Mask_Ogerpon_ex, energias=[G], fisicas=1),
+                      pk(m.Teal_Mask_Ogerpon_ex))
+            .op_zonas(mano=2, mazo=44, premios=6)
+            .menu_teal_dance()   # el walker regenera el menu en cada paso
+            .construir())
+
+
+def _raging_menu(obs):
+    yo = obs["current"]["players"][0]
+    act = yo["active"][0]
+    ops = []
+    for i, c in enumerate(yo["hand"]):
+        if c["id"] in (m.Forest_of_Vitality, m.Tapu_Bulu):
+            if (c["id"] == m.Forest_of_Vitality
+                    and (obs["current"]["stadiumPlayed"]
+                         or obs["current"]["stadium"])):
+                continue
+            ops.append({"type": int(m.OptionType.PLAY), "index": i})
+    if (act["id"] == m.Teal_Mask_Ogerpon_ex
+            and len(act["energies"]) >= 3):
+        ops.append({"type": int(m.OptionType.ATTACK), "attackId": 120})
+    if len(act["energies"]) >= 1 and not obs["current"]["retreated"]:
+        ops.append({"type": int(m.OptionType.RETREAT)})
+    ops.append({"type": int(m.OptionType.END)})
+    obs["select"] = {"context": int(m.SelectContext.MAIN), "type": 0,
+                     "minCount": 1, "maxCount": 1, "contextCard": None,
+                     "deck": None, "effect": None, "remainDamageCounter": 0,
+                     "remainEnergyCost": 0, "option": ops}
+    return obs
+
+
+def _raging_caminar(obs, max_pasos=10):
+    pasos = []
+    obs = _raging_menu(copy.deepcopy(obs))
+    for _ in range(max_pasos):
+        r = m.agent(obs)
+        o = obs["select"]["option"][r[0]]
+        t = int(o["type"])
+        yo = obs["current"]["players"][0]
+        if t == int(m.OptionType.PLAY):
+            carta = yo["hand"][o["index"]]
+            yo["hand"] = [c for i, c in enumerate(yo["hand"])
+                          if i != o["index"]]
+            yo["handCount"] = len(yo["hand"])
+            if carta["id"] == m.Forest_of_Vitality:
+                obs["current"]["stadium"] = [carta]
+                obs["current"]["stadiumPlayed"] = True
+                pasos.append("FOREST")
+            else:
+                d = m.card_table[carta["id"]]
+                yo["bench"] = list(yo["bench"]) + [
+                    {"id": carta["id"], "serial": carta["serial"],
+                     "playerIndex": 0, "hp": d.hp, "maxHp": d.hp,
+                     "appearThisTurn": True, "energies": [],
+                     "energyCards": [], "tools": [], "preEvolution": []}]
+                pasos.append(f"BAJA {d.name}")
+        elif t == int(m.OptionType.RETREAT):
+            act = yo["active"][0]
+            yo["discard"] = list(yo["discard"]) + [act["energyCards"].pop()]
+            act["energies"] = act["energies"][:-1]
+            obs["current"]["retreated"] = True
+            pasos.append("RETREAT")
+            obs["select"] = {"context": int(m.SelectContext.SWITCH),
+                             "type": 1, "minCount": 1, "maxCount": 1,
+                             "contextCard": None, "deck": None,
+                             "effect": None, "remainDamageCounter": 0,
+                             "remainEnergyCost": 0,
+                             "option": [{"area": 5, "index": k,
+                                         "playerIndex": 0, "type": 3}
+                                        for k in range(len(yo["bench"]))]}
+            r2 = m.agent(obs)
+            k = obs["select"]["option"][r2[0]]["index"]
+            nuevo = yo["bench"][k]
+            yo["bench"] = [b for i, b in enumerate(yo["bench"])
+                           if i != k] + [act]
+            yo["active"] = [nuevo]
+            pasos.append(f"PROMUEVE {m.card_table[nuevo['id']].name}")
+        else:
+            pasos.append("ATTACK" if t == int(m.OptionType.ATTACK) else "END")
+            break
+        obs = _raging_menu(obs)
+    return pasos, obs["current"]["players"][0]["active"][0]
+
+
+def test_raging_bolt_descuadre_cadena_completa():
+    pasos, activo_final = _raging_caminar(_raging_obs())
+    assert "BAJA Tapu Bulu" in pasos and "RETREAT" in pasos, pasos
+    assert "PROMUEVE Tapu Bulu" in pasos, pasos
+    assert activo_final["id"] == m.Tapu_Bulu, (
+        f"vs Raging Bolt (todo ex de 2 premios), el turno debe terminar con "
+        f"un cuerpo de 1 premio delante; termino {activo_final['id']}: {pasos}")
+
+
+def test_raging_bolt_con_1premio_en_banca_no_baja_otro_y_retira():
+    # Con el Tapu YA en banca no hace falta bajar otro cuerpo: la cadena va
+    # directa a retirar y promoverlo.
+    pasos, activo_final = _raging_caminar(_raging_obs(tapu_en_banca=True))
+    assert "RETREAT" in pasos and "PROMUEVE Tapu Bulu" in pasos, pasos
+    assert not any(p.startswith("BAJA") for p in pasos), pasos
+    assert activo_final["id"] == m.Tapu_Bulu, pasos
+
+
+def test_raging_bolt_con_ko_disponible_no_sacrifica():
+    # Frontera: el Ogerpon activo cargado NOQUEA al Bolt danado (Myriad
+    # 30+30*4=150 >= 120): se ataca, no se regala el tempo del descuadre.
+    pasos, activo_final = _raging_caminar(
+        _raging_obs(ogerpon_cargado=True, bolt_hp=120))
+    assert "RETREAT" not in pasos, pasos
+    assert pasos[-1] == "ATTACK", pasos
+    assert activo_final["id"] == m.Teal_Mask_Ogerpon_ex, pasos
+
+
+# ---------------------------------------------------------------------
+# Estrategia vs Mega Abomasnow ex: DESCUADRE DE PREMIOS (user, registro_002
+# paso 14 y registro_004 paso 17, vs Snover -> Mega Abomasnow ex). Su linea
+# one-shotea a cualquiera de nuestros ex; con dos Ogerpon ex en juego y sin
+# poder noquear al activo (Ogerpon con 1 energia, Myriad cuesta 3), la linea
+# correcta es bajar un cuerpo de 1 premio (Tapu Bulu) y ponerlo delante.
+# EXCEPCION (user): la regla NO aplica en nuestro primer turno partiendo
+# PRIMEROS -- el rival aun no puede noquearnos su siguiente turno.
+# ---------------------------------------------------------------------
+
+def _abomasnow_obs(primer_jugador=1, turno=2, tapu_en_banca=False):
+    # Ogerpon ex activo con 1 sola energia: NO puede usar Myriad Leaf Shower
+    # (cuesta 3) => no noquea al Snover => se dispara el descuadre.
+    act = pk(m.Teal_Mask_Ogerpon_ex, energias=[G], fisicas=1)
+    banca = [pk(m.Teal_Mask_Ogerpon_ex, energias=[G, G], fisicas=2),
+             pk(m.Meowth_ex)]
+    mano = [m.Forest_of_Vitality, m.Dawn, m.Xerosic_Machinations,
+            m.Meganium, m.Basic_Grass_Energy, m.Forest_of_Vitality]
+    if tapu_en_banca:
+        banca.append(pk(m.Tapu_Bulu, aparecio=True))
+    else:
+        mano.insert(4, m.Tapu_Bulu)
+    return (Escenario(turno=turno, paso=14, tac=7, primer_jugador=primer_jugador,
+                      energia_jugada=True, partidario_jugado=True)
+            .mi_activo(act)
+            .mi_banca(*banca)
+            .mi_mano(*mano)
+            .op_activo(pk(m.Snover))
+            .op_banca(pk(m.Snover))
+            .op_zonas(mano=5, mazo=41, premios=6)
+            .menu_teal_dance()   # el walker regenera el menu en cada paso
+            .construir())
+
+
+def test_abomasnow_descuadre_cadena_completa():
+    # Yendo SEGUNDOS (nuestro primer turno es el turno 2), la regla aplica:
+    # bajar Tapu Bulu, retirar el Ogerpon ex y ponerlo delante.
+    pasos, activo_final = _raging_caminar(_abomasnow_obs())
+    assert "BAJA Tapu Bulu" in pasos and "RETREAT" in pasos, pasos
+    assert "PROMUEVE Tapu Bulu" in pasos, pasos
+    assert activo_final["id"] == m.Tapu_Bulu, (
+        f"vs Mega Abomasnow ex, sin poder noquear, el turno debe terminar con "
+        f"un cuerpo de 1 premio delante; termino {activo_final['id']}: {pasos}")
+
+
+def test_abomasnow_primer_turno_primeros_no_sacrifica():
+    # EXCEPCION (user): en NUESTRO primer turno partiendo PRIMEROS la regla NO
+    # aplica -- el rival aun no puede noquearnos su siguiente turno, no se
+    # sacrifica el desarrollo temprano. No se retira el ex.
+    pasos, activo_final = _raging_caminar(
+        _abomasnow_obs(primer_jugador=0, turno=1))
+    assert "RETREAT" not in pasos, pasos
+    assert activo_final["id"] == m.Teal_Mask_Ogerpon_ex, (
+        f"primer turno partiendo primeros: el descuadre no aplica; "
+        f"termino {activo_final['id']}: {pasos}")
+
+
+def test_abomasnow_primeros_pero_turno_posterior_si_sacrifica():
+    # Frontera de la excepcion: la excepcion es SOLO el turno 1. Partiendo
+    # primeros pero en un turno posterior (turno 3) la regla vuelve a aplicar.
+    pasos, activo_final = _raging_caminar(
+        _abomasnow_obs(primer_jugador=0, turno=3))
+    assert "RETREAT" in pasos and activo_final["id"] == m.Tapu_Bulu, pasos

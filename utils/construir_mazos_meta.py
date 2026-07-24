@@ -112,6 +112,24 @@ MAZOS = {
         1121: 3,  # Ultra Ball
         5: 30,    # Basic {P} Energy
     },
+    # Raging Bolt ex (registro_002, jul 2026): TODO ex de 2 premios. Su
+    # Bellowing Thunder descarta energias basicas y pega 70 por cada una:
+    # one-shot a cualquiera de nuestros ex. Los Teal Mask Ogerpon ex rivales
+    # aceleran la energia. OJO: el bot generico solo descarta 1 energia en el
+    # select del ataque (~70 de dano), asi que el NIVEL absoluto del matchup
+    # no es senal; sirve para ejercitar la deteccion y el descuadre.
+    "raging_bolt": {
+        63: 3,    # Raging Bolt ex
+        96: 4,    # Teal Mask Ogerpon ex
+        1121: 4,  # Ultra Ball
+        1124: 3,  # Pokemon Catcher
+        1122: 2,  # Pokegear 3.0
+        1127: 2,  # Tera Orb
+        1094: 2,  # Bug Catching Set
+        1: 16,    # Basic {G} Energy (para los Ogerpon / forraje del Bolt)
+        4: 12,    # Basic {L} Energy
+        6: 12,    # Basic {F} Energy
+    },
     # Cornerstone Mask Ogerpon ex (anula el dano de Pokemon CON habilidad;
     # Demolish {F}{C}{C}) + linea Cubchoo/Beartic (Sheer Cold {W}{W}{W}{C}).
     # El matchup de la colision de whitelists (memoria del proyecto).

@@ -5156,3 +5156,51 @@ def test_p61_tras_evolucionar_en_banca_se_juega_lillie():
     assert carta == m.Lillie_Determination, (
         f"con la linea ya bajada y la mano sin recursos, el turno termina "
         f"refrescando con Lillie's; obtuvo {opt}")
+
+
+# =====================================================================
+# Confusion pivot vs muro inmune EN BANCA (user, registro_006 paso 64 vs
+# Crustle, GANADA): el activo Dipplin a 10 PV y CONFUNDIDO atacaba -- si falla
+# la moneda de confusion se auto-noquea -- en vez de RETIRARSE (Meganium hace
+# que su Planta pague el coste de retirada 2) y subir el Ogerpon ex cargado que
+# noquea al Munkidori activo. El bug: `_conf_ex_immune_match` usaba flags de
+# MAZO (op_is_crustle_deck) y de BANCA, que valen aunque el activo rival sea
+# ATACABLE, y excluian al Ogerpon ex del set de atacantes del pivote. El muro
+# inmune solo veta promover un ex cuando esta EN EL ACTIVO rival.
+# =====================================================================
+_REG006 = ROOT / "registros" / "registro_006_pasos_061_hasta_066.json"
+
+
+def _reg006_step64_obs():
+    import copy as _c
+    import json as _j
+    data = _j.load(open(_REG006, encoding="utf-8"))
+    return _c.deepcopy(data["steps"][3][1]["observation"])
+
+
+def _tipo_elegido(obs):
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    res = m.agent(obs)
+    return obs["select"]["option"][res[0]].get("type")
+
+
+def test_confusion_pivot_retira_a_ex_si_activo_rival_atacable():
+    # Activo rival = Munkidori (atacable): retirar el Dipplin confundido y subir
+    # el Ogerpon ex cargado que lo noquea, en vez de arriesgar el auto-KO.
+    obs = _reg006_step64_obs()
+    assert _tipo_elegido(obs) == int(OptionType.RETREAT), (
+        "confundido a 10 PV con Ogerpon ex cargado en banca y activo rival "
+        "atacable (Munkidori): retirar, no atacar con el confundido")
+
+
+def test_confusion_no_retira_a_ex_si_activo_rival_es_muro_inmune():
+    # Frontera: si el muro inmune a ex (Crustle) esta EN EL ACTIVO rival, el
+    # Ogerpon ex no lo dana -> promoverlo es inutil; se ataca con el confundido.
+    obs = _reg006_step64_obs()
+    opp = obs["current"]["players"][1 - obs["current"]["yourIndex"]]
+    opp["active"][0]["id"] = m.Crustle_Grass
+    opp["active"][0]["maxHp"] = 150
+    opp["active"][0]["hp"] = 60
+    assert _tipo_elegido(obs) != int(OptionType.RETREAT), (
+        "con el muro inmune (Crustle) en el ACTIVO rival, promover el ex es "
+        "inutil: no se retira a un ex que no puede noquear")

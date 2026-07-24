@@ -260,6 +260,12 @@ Ralts = 745
 Kirlia = 746
 Raging_Bolt_ex = 63
 Lugia_VSTAR = 337
+# Linea Mega Abomasnow ex: Snover (basico, id 722) -> Mega Abomasnow ex (Mega
+# ex de 3 premios, id 723). Su atacante one-shotea a cualquiera de nuestros ex,
+# igual que Raging Bolt/Bellowing Thunder: mismo plan de DESCUADRE DE PREMIOS
+# (poner un cuerpo de 1 premio delante cuando no podemos noquear al activo).
+Snover = 722
+Mega_Abomasnow_ex = 723
 Dusknoir = 133
 Duskull = 131
 Dusclops = 132
@@ -380,7 +386,8 @@ _ID_NAME_EXPECTATIONS = {
     Cornerstone_Mask_Ogerpon_ex: "Ogerpon", Slowking: "Slowking", Slowpoke: "Slowpoke",
     Zoroark_N: "Zoroark", Zorua_N: "Zorua", Kadabra: "Kadabra",
     Gardevoir_ex: "Gardevoir", Ralts: "Ralts", Kirlia: "Kirlia",
-    Raging_Bolt_ex: "Raging Bolt", Dusknoir: "Dusknoir", Duskull: "Duskull",
+    Raging_Bolt_ex: "Raging Bolt", Snover: "Snover",
+    Mega_Abomasnow_ex: "Abomasnow", Dusknoir: "Dusknoir", Duskull: "Duskull",
     Dusclops: "Dusclops", Typhlosion: "Typhlosion", Cyndaquil: "Cyndaquil",
     Quilava: "Quilava", Drednaw: "Drednaw", Chewtle: "Chewtle",
 }
@@ -6245,6 +6252,8 @@ def agent(obs_dict: dict) -> list[int]:
     op_is_cubchoo_deck = False
     op_is_hop_deck = False
     op_is_comfey_deck = False
+    op_is_raging_bolt_deck = False
+    op_is_abomasnow_deck = False
     op_active_is_dunsparce = False
     if op_state.active and op_state.active[0] is not None:
         op_active_id = op_state.active[0].id
@@ -6322,6 +6331,10 @@ def agent(obs_dict: dict) -> list[int]:
             op_is_zoroark_deck = True
         if op_active_id in (Raging_Bolt_ex, Lugia_VSTAR):
             op_is_aggro_deck = True
+        if op_active_id == Raging_Bolt_ex:
+            op_is_raging_bolt_deck = True
+        if op_active_id in (Snover, Mega_Abomasnow_ex):
+            op_is_abomasnow_deck = True
     for idx, pokemon in enumerate(op_state.bench):
         if pokemon is not None:
             if pokemon.id in EX_IMMUNE_IDS:
@@ -6402,6 +6415,10 @@ def agent(obs_dict: dict) -> list[int]:
                 op_is_zoroark_deck = True
             if pokemon.id in (Raging_Bolt_ex, Lugia_VSTAR):
                 op_is_aggro_deck = True
+            if pokemon.id == Raging_Bolt_ex:
+                op_is_raging_bolt_deck = True
+            if pokemon.id in (Snover, Mega_Abomasnow_ex):
+                op_is_abomasnow_deck = True
 
     # Inferencia de arquetipo por el DESCARTE rival (auditoria julio 2026,
     # sugerencia 7): la deteccion por Pokemon EN JUEGO llega tarde contra
@@ -6430,7 +6447,12 @@ def agent(obs_dict: dict) -> list[int]:
         elif _dcid in (Slowpoke, Slowking):
             op_is_slowking_deck = True
             op_is_control_deck = True
-        elif _dcid in (Raging_Bolt_ex, Lugia_VSTAR):
+        elif _dcid == Raging_Bolt_ex:
+            op_is_aggro_deck = True
+            op_is_raging_bolt_deck = True
+        elif _dcid in (Snover, Mega_Abomasnow_ex):
+            op_is_abomasnow_deck = True
+        elif _dcid == Lugia_VSTAR:
             op_is_aggro_deck = True
         elif _dcid in (Cornerstone_Mask_Ogerpon_ex, Cornerstone_Mask_Ogerpon):
             # Flag de PLAN del matchup (linea Meganium prioritaria, whitelist
@@ -6446,6 +6468,21 @@ def agent(obs_dict: dict) -> list[int]:
     if op_has_non_immune_eevee_ex and not (op_has_ex_immune_active or op_has_ex_immune_bench):
         op_is_crustle_deck = False
         op_is_sylveon_deck = False
+
+    # DESCUADRE DE PREMIOS (user): matchups cuyo atacante ONE-SHOTEA a cualquiera
+    # de nuestros ex -> Raging Bolt (Bellowing Thunder) y Mega Abomasnow ex. La
+    # regla: siempre que nuestro activo sea un ex que NO puede noquear al activo
+    # rival este turno, poner delante un cuerpo de UN premio (bajar un basico no-ex
+    # de la mano y/o retirar el ex para promoverlo) -- si nos noquean ceden 1
+    # premio y no 2, y su mazo (todo ex de 2-3 premios) necesita KOs grandes para
+    # ganar a tiempo. EXCEPCION (user, registro_002 vs Mega Abomasnow ex): la regla
+    # NO aplica en NUESTRO primer turno partiendo PRIMEROS -- ese primer turno no
+    # atacamos y el rival aun no puede noquearnos su siguiente turno, asi que
+    # sacrificar desarrollo temprano solo nos atrasa. Si vamos SEGUNDOS (nuestro
+    # primer turno es turno 2) o en cualquier turno posterior, SI aplica.
+    _descuadre_matchup = (
+        (op_is_raging_bolt_deck or op_is_abomasnow_deck)
+        and not (state.turn == 1 and we_go_first))
 
     total_grass = count_total_grass_energy(my_state)
 
@@ -6605,8 +6642,19 @@ def agent(obs_dict: dict) -> list[int]:
                         break
 
     _conf_active = my_state.active[0] if my_state.active else None
-    _conf_ex_immune_match = (op_is_crustle_deck or op_is_cornerstone_deck or
-                             op_has_ex_immune_active or op_has_ex_immune_bench)
+    # El muro inmune a ex (Crustle/Sylveon) o a habilidad (Cornerstone) solo veta
+    # promover un ex CUANDO ESTA EN EL ACTIVO rival: es a quien atacaria el ex
+    # tras el pivote de confusion. Con el muro en la BANCA rival y un Pokemon
+    # ATACABLE en el activo (p.ej. Munkidori en un mazo Crustle), nuestro Ogerpon
+    # ex SI lo noquea, asi que debe contar como atacante valido del pivote (user,
+    # registro_006 paso 64 vs Crustle: el Dipplin activo a 10 PV y CONFUNDIDO
+    # atacaba -- arriesgando el auto-KO si falla la moneda -- en vez de retirarse
+    # (Meganium hace que su Planta pague el coste de retirada 2) y subir el
+    # Ogerpon ex cargado que noquea al Munkidori). Los flags de MAZO
+    # (op_is_crustle_deck/op_is_cornerstone_deck) y el de banca
+    # (op_has_ex_immune_bench) son demasiado amplios: valen aunque el activo sea
+    # atacable, y vetaban el pivote ganador.
+    _conf_ex_immune_match = (op_has_ex_immune_active or op_has_ability_immune_active)
 
     def _conf_can_attack_pkmn(_p):
         if _p is None:
@@ -11706,6 +11754,23 @@ def agent(obs_dict: dict) -> list[int]:
                                 and prize_count(card) <= 1):
                             score += 3000
 
+                        # DESCUADRE DE PREMIOS al promover (user, vs Raging Bolt y
+                        # Mega Abomasnow ex). Si NADIE en la banca puede noquear al
+                        # activo rival este turno, el promovido va a caer ante su
+                        # one-shot: subir el cuerpo de 1 premio (muro barato), nunca
+                        # un ex de 2. Con un atacante capaz de noquear, la promocion
+                        # normal (que ya lo prefiere) sigue mandando.
+                        if _descuadre_matchup and prize_count(card) <= 1:
+                            _rb_opa = _active_of(op_state)
+                            _rb_alguien_ko = (
+                                _rb_opa is not None
+                                and _bench_attacker_can_ko(
+                                    my_state, _rb_opa, meganium_in_play,
+                                    total_grass, bench_count, total_grass,
+                                    neutralization_zone_active))
+                            if not _rb_alguien_ko:
+                                score += 2500
+
                         # Al retirar un activo CONFUNDIDO, priorizar subir a un
                         # atacante del matchup que YA pueda atacar (p.ej. Dipplin
                         # vs Crustle) por encima de un muro que no ataca este
@@ -12073,7 +12138,14 @@ def agent(obs_dict: dict) -> list[int]:
                         # para cualquier activo: Mega/normal -> el que pega mas
                         # fuerte (Hydrapple ex); Crustle/Cornerstone -> el mejor
                         # no-ex / no-habilidad.
-                        if _best_promote_card is not None and card is _best_promote_card:
+                        if (_best_promote_card is not None
+                                and card is _best_promote_card
+                                and not (_descuadre_matchup
+                                         and _best_promote_key is not None
+                                         and _best_promote_key[0] == 0)):
+                            # vs Raging Bolt / Mega Abomasnow, un "mejor candidato"
+                            # que NO noquea es solo un ex condenado: sin el bono, el
+                            # +2500 del cuerpo de 1 premio decide el muro.
                             score += 4000
 
                         # Regla (user) vs Mega Lucario sin atacante en banca:
@@ -13840,6 +13912,37 @@ def agent(obs_dict: dict) -> list[int]:
                         if score < 21500:
                             score = 21500
 
+                    # DESCUADRE DE PREMIOS (user, registro_002 paso 27 vs Raging
+                    # Bolt/Ogerpon PERDIDA; y registro_002 vs Mega Abomasnow ex):
+                    # estos mazos ONE-SHOTEAN a cualquiera de nuestros ex (Raging
+                    # Bolt con Bellowing Thunder; Mega Abomasnow ex con su ataque).
+                    # Siempre que nuestro activo sea un ex que NO puede noquear al
+                    # activo rival este turno, bajar un cuerpo de UN premio (Tapu
+                    # Bulu el preferido: es ademas el atacante no-ex) para luego
+                    # retirar el ex y ponerlo delante -- si nos noquean, ceden 1
+                    # premio y no 2, y el rival necesita KOs de 2-3 para ganar.
+                    # Solo si aun no hay un cuerpo de 1 premio en la banca (con uno
+                    # basta para el pivote). `_descuadre_matchup` ya excluye nuestro
+                    # primer turno partiendo primeros. (sin guard de score: el boost
+                    # debe anteponerse a los vetos genericos de desarrollo, que no
+                    # conocen este plan)
+                    if _descuadre_matchup:
+                        _rb_act = my_state.active[0] if my_state.active else None
+                        _rb_data = card_table.get(card.id)
+                        _rb_es_1premio_basico = (
+                            _rb_data is not None
+                            and not _rb_data.ex and not _rb_data.megaEx
+                            and not _rb_data.stage1 and not _rb_data.stage2)
+                        _rb_banca_con_1premio = any(
+                            bp is not None and prize_count(bp) == 1
+                            for bp in (my_state.bench or []))
+                        if (_rb_es_1premio_basico
+                                and _rb_act is not None
+                                and _rb_act.id in OUR_EX_IDS
+                                and not _active_already_kos
+                                and not _rb_banca_con_1premio):
+                            score = 21850 if card.id == Tapu_Bulu else 21700
+
                     # Matchup Cubchoo (user, cambio 5): la banca SOLO puede tener,
                     # vs este mazo, la linea de Hydrapple ex (Applin/Dipplin/
                     # Hydrapple ex, una), la linea de Meganium (Chikorita/Bayleef/
@@ -15236,6 +15339,23 @@ def agent(obs_dict: dict) -> list[int]:
                 _bp_cub is not None and _conf_can_attack_pkmn(_bp_cub)
                 for _bp_cub in (my_state.bench or []))
 
+            # DESCUADRE DE PREMIOS (user, registro_002 paso 27 vs Raging Bolt; y
+            # vs Mega Abomasnow ex). Nuestro activo es un ex de 2 premios que NO
+            # puede noquear al activo rival este turno y hay un cuerpo de UN
+            # premio en la banca (bajado por la regla del PLAY o previo):
+            # RETIRAR el ex y promover el 1-premio. Su atacante one-shotea a
+            # cualquiera de los nuestros, asi que quien este delante va a caer:
+            # que el KO rival pague 1 premio y no 2 (su mazo, todo ex de 2-3
+            # premios, necesita KOs grandes para ganar a tiempo).
+            _raging_sac_pivot = (
+                _descuadre_matchup
+                and _active_reloc is not None
+                and _active_reloc.id in OUR_EX_IDS
+                and not _active_can_ko_now
+                and can_switch
+                and any(bp is not None and prize_count(bp) == 1
+                        for bp in (my_state.bench or [])))
+
             if _hydra_lethal_promote:
                 # Retirar el activo para promover al Hydrapple ex de banca cuyo
                 # Syrup Storm es LETAL y rematar. Maxima prioridad de retiro.
@@ -15309,6 +15429,12 @@ def agent(obs_dict: dict) -> list[int]:
                 # noquear ahora (_active_can_ko_now). El plan apunta a Tapu, asi que
                 # la opcion de ATACAR con el activo queda suprimida (plan.attacker>=1).
                 score = 6600
+            elif _raging_sac_pivot:
+                # Descuadre vs Raging Bolt (ver el flag arriba). 6540: junto a
+                # los demas sacrificios de premios (6450-6600), sobre el veto
+                # generico "el activo puede atacar" (_grd_prefer_attack) que
+                # aqui seria un error: atacar sin noquear regala 2 premios.
+                score = 6540
             elif _prize_denial_pivot:
                 # Negacion de premios (user): retirar el ex activo CONDENADO (2
                 # premios) que si atacamos igual moriria el proximo turno dando al
