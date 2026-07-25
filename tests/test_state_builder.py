@@ -1085,3 +1085,46 @@ def test_activo_atacable_no_desvia_a_meowth():
     assert tipo == int(m.OptionType.ATTACK), (
         f"con el activo rival ATACABLE (Mega Lucario), Hydrapple ex debe ATACAR "
         f"(330), no desviarse al motor Meowth-inmune; eligio tipo {tipo}")
+
+
+# ---------------------------------------------------------------------
+# Iron Thorns ex ("Initialization") en el ACTIVO rival apaga las habilidades
+# de los Pokemon con Rule Box de AMBOS lados (plan jul 2026, P1.4). El agente
+# no debe planear alrededor de Last-Ditch Catch: con Iron Thorns delante,
+# buscar Meowth ex "para el fetch de Supporter" es una carta muerta -- mismo
+# tratamiento que Team Rocket's Watchtower (`meowth_ability_lock`).
+# ---------------------------------------------------------------------
+
+def _fetch_ub_motor_meowth_vs(op_id):
+    """UB con mano vacia y motor de refresco disponible en el mazo."""
+    obs = (Escenario(turno=6, paso=1, tac=1)
+           .mi_activo(pk(m.Teal_Mask_Ogerpon_ex, energias=[G], fisicas=1))
+           .mi_banca(pk(m.Chikorita))
+           .mi_mano()
+           .op_activo(pk(op_id, hp=230, max_hp=230))
+           .op_zonas(mano=4, mazo=40, premios=6)
+           .mazo(m.Meowth_ex, m.Lillie_Determination, m.Tapu_Bulu,
+                 m.Hydrapple_ex, m.Applin, m.Chikorita)
+           .fetch_ultra_ball()
+           .resto_al_descarte()
+           .construir())
+    eleccion = m.agent(obs)
+    sel = obs["select"]
+    return sel["deck"][sel["option"][eleccion[0]]["index"]]["id"]
+
+
+def test_iron_thorns_activo_veta_fetch_de_meowth():
+    elegida = _fetch_ub_motor_meowth_vs(m.Iron_Thorns_ex)
+    assert elegida != m.Meowth_ex, (
+        "con Iron Thorns ex de activo rival (Initialization anula Last-Ditch "
+        "Catch), Ultra Ball no debe buscar Meowth ex para el motor de "
+        f"Supporter; obtuvo {m.card_table[elegida].name}")
+
+
+def test_sin_iron_thorns_el_motor_meowth_sigue_vivo():
+    # Frontera: con un activo rival neutro (Snorunt) el mismo escenario SI
+    # busca Meowth ex (motor de refresco Last-Ditch -> Lillie's).
+    elegida = _fetch_ub_motor_meowth_vs(103)  # Snorunt
+    assert elegida == m.Meowth_ex, (
+        f"sin lock de habilidades el fetch del motor no debe cambiar; obtuvo "
+        f"{m.card_table[elegida].name}")

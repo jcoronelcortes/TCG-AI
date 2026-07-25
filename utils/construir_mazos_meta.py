@@ -145,6 +145,53 @@ MAZOS = {
         6: 17,    # Basic {F} Energy
         3: 17,    # Basic {W} Energy
     },
+    # Iron Thorns ex (plan jul 2026, P1.4): "Initialization" en el activo anula
+    # las habilidades con Rule Box de AMBOS lados -> apaga Teal Dance, Ripening
+    # Charge, Last-Ditch Catch y Flip the Script a la vez. Ejercita el
+    # `meowth_ability_lock` y el plan B por la linea sin Rule Box (Meganium /
+    # Tapu Bulu). Zapdos como segundo atacante {L} simple para el bot.
+    "iron_thorns": {
+        37: 4,    # Iron Thorns ex (Volt Cyclone {L}{C}{C} 140)
+        953: 3,   # Zapdos TWM (Thunderbolt {L}{L}{C} 190)
+        1121: 4,  # Ultra Ball
+        1227: 4,  # Lillie's Determination
+        1182: 3,  # Boss's Orders
+        1120: 4,  # Crushing Hammer
+        1124: 3,  # Pokemon Catcher
+        1122: 2,  # Pokegear 3.0
+        4: 33,    # Basic {L} Energy
+    },
+    # Aggro Fuego (plan jul 2026, P1.7): TODO nuestro mazo salvo Meowth y
+    # Fezandipiti es debil a {R} (x2). Gouging Fire ex (basico ex): Heat Blast
+    # {R}{C} 60 -> 120 con debilidad ya noquea Ogerpon/Applin; Blaze Blitz
+    # {R}{R}{C} 260 one-shotea todo. Hearthflame Ogerpon no-ex acompana
+    # (Searing Flame {R}{R}{C} 80 -> 160) para el descuadre de premios.
+    "fuego_gouging": {
+        46: 4,    # Gouging Fire ex
+        358: 3,   # Hearthflame Mask Ogerpon (no-ex)
+        1121: 4,  # Ultra Ball
+        1227: 4,  # Lillie's Determination
+        1182: 3,  # Boss's Orders
+        1120: 4,  # Crushing Hammer
+        1124: 2,  # Pokemon Catcher
+        1122: 2,  # Pokegear 3.0
+        2: 34,    # Basic {R} Energy
+    },
+    # Item-lock (plan jul 2026, P1.5): Jellicent ex "Oceanic Curse" bloquea
+    # nuestros Items MIENTRAS este en el activo; Budew (Itchy Pollen) cubre los
+    # turnos en que Jellicent no esta delante. Con 10+ items en nuestro mazo
+    # (UBx4/BCSx4/NSx2/Stamp/PokePad) ejercita la re-priorizacion de
+    # Supporters/habilidades del flag `itchy_pollen_active` generalizado.
+    "jellicent_lock": {
+        597: 4,   # Frillish (Oceanic Gloom: tambien traba items)
+        598: 3,   # Jellicent ex (Power Press {P}{C} 80)
+        235: 3,   # Budew
+        1121: 4,  # Ultra Ball
+        1227: 4,  # Lillie's Determination
+        1182: 3,  # Boss's Orders
+        1120: 4,  # Crushing Hammer
+        5: 35,    # Basic {P} Energy
+    },
 }
 
 

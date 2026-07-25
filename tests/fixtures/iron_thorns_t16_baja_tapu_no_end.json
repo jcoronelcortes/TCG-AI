@@ -1,0 +1,422 @@
+{
+ "descripcion": "Autopsia iron_thorns p007 turno 16 (plan jul 2026 P1.4 plan B): Iron Thorns ex activo rival (lock de habilidades), Tapu Bulu en mano y el agente cerraba con END. Correcto: BAJAR Tapu Bulu (atacante sin habilidad).",
+ "observation": {
+  "select": {
+   "type": 0,
+   "context": 0,
+   "minCount": 1,
+   "maxCount": 1,
+   "remainDamageCounter": 0,
+   "remainEnergyCost": 0,
+   "option": [
+    {
+     "type": 7,
+     "index": 0
+    },
+    {
+     "type": 7,
+     "index": 1
+    },
+    {
+     "type": 7,
+     "index": 2
+    },
+    {
+     "type": 7,
+     "index": 3
+    },
+    {
+     "type": 14
+    }
+   ],
+   "deck": null,
+   "contextCard": null,
+   "effect": null
+  },
+  "logs": [
+   {
+    "type": 6,
+    "playerIndex": 1,
+    "cardId": 96,
+    "serial": 63,
+    "fromArea": 5,
+    "toArea": 4
+   },
+   {
+    "type": 3,
+    "playerIndex": 0
+   },
+   {
+    "type": 2,
+    "playerIndex": 1
+   },
+   {
+    "type": 4,
+    "playerIndex": 1,
+    "cardId": 1071,
+    "serial": 79
+   }
+  ],
+  "current": {
+   "turn": 16,
+   "turnActionCount": 1,
+   "yourIndex": 1,
+   "firstPlayer": 0,
+   "supporterPlayed": false,
+   "stadiumPlayed": false,
+   "energyAttached": false,
+   "retreated": false,
+   "result": -1,
+   "stadium": [
+    {
+     "id": 1261,
+     "serial": 106,
+     "playerIndex": 1
+    }
+   ],
+   "looking": null,
+   "players": [
+    {
+     "active": [
+      {
+       "id": 37,
+       "serial": 4,
+       "playerIndex": 0,
+       "hp": 230,
+       "maxHp": 230,
+       "appearThisTurn": false,
+       "energies": [
+        4,
+        4
+       ],
+       "energyCards": [
+        {
+         "id": 4,
+         "serial": 56,
+         "playerIndex": 0
+        },
+        {
+         "id": 4,
+         "serial": 52,
+         "playerIndex": 0
+        }
+       ],
+       "tools": [],
+       "preEvolution": []
+      }
+     ],
+     "bench": [
+      {
+       "id": 953,
+       "serial": 9,
+       "playerIndex": 0,
+       "hp": 120,
+       "maxHp": 120,
+       "appearThisTurn": false,
+       "energies": [
+        4,
+        4,
+        4,
+        4,
+        4,
+        4
+       ],
+       "energyCards": [
+        {
+         "id": 4,
+         "serial": 43,
+         "playerIndex": 0
+        },
+        {
+         "id": 4,
+         "serial": 51,
+         "playerIndex": 0
+        },
+        {
+         "id": 4,
+         "serial": 59,
+         "playerIndex": 0
+        },
+        {
+         "id": 4,
+         "serial": 33,
+         "playerIndex": 0
+        },
+        {
+         "id": 4,
+         "serial": 32,
+         "playerIndex": 0
+        },
+        {
+         "id": 4,
+         "serial": 40,
+         "playerIndex": 0
+        }
+       ],
+       "tools": [],
+       "preEvolution": []
+      },
+      {
+       "id": 953,
+       "serial": 8,
+       "playerIndex": 0,
+       "hp": 120,
+       "maxHp": 120,
+       "appearThisTurn": false,
+       "energies": [],
+       "energyCards": [],
+       "tools": [],
+       "preEvolution": []
+      }
+     ],
+     "benchMax": 5,
+     "deckCount": 29,
+     "discard": [
+      {
+       "id": 1122,
+       "serial": 29,
+       "playerIndex": 0
+      },
+      {
+       "id": 1227,
+       "serial": 14,
+       "playerIndex": 0
+      },
+      {
+       "id": 1124,
+       "serial": 27,
+       "playerIndex": 0
+      },
+      {
+       "id": 1121,
+       "serial": 12,
+       "playerIndex": 0
+      },
+      {
+       "id": 1120,
+       "serial": 23,
+       "playerIndex": 0
+      },
+      {
+       "id": 1182,
+       "serial": 20,
+       "playerIndex": 0
+      },
+      {
+       "id": 1124,
+       "serial": 25,
+       "playerIndex": 0
+      },
+      {
+       "id": 1227,
+       "serial": 17,
+       "playerIndex": 0
+      },
+      {
+       "id": 1120,
+       "serial": 21,
+       "playerIndex": 0
+      },
+      {
+       "id": 1227,
+       "serial": 15,
+       "playerIndex": 0
+      },
+      {
+       "id": 1122,
+       "serial": 28,
+       "playerIndex": 0
+      },
+      {
+       "id": 1227,
+       "serial": 16,
+       "playerIndex": 0
+      },
+      {
+       "id": 4,
+       "serial": 48,
+       "playerIndex": 0
+      },
+      {
+       "id": 1121,
+       "serial": 10,
+       "playerIndex": 0
+      }
+     ],
+     "prize": [
+      null,
+      null
+     ],
+     "handCount": 4,
+     "hand": null,
+     "poisoned": false,
+     "burned": false,
+     "asleep": false,
+     "paralyzed": false,
+     "confused": false
+    },
+    {
+     "active": [
+      {
+       "id": 96,
+       "serial": 63,
+       "playerIndex": 1,
+       "hp": 210,
+       "maxHp": 210,
+       "appearThisTurn": false,
+       "energies": [],
+       "energyCards": [],
+       "tools": [],
+       "preEvolution": []
+      }
+     ],
+     "bench": [
+      {
+       "id": 96,
+       "serial": 64,
+       "playerIndex": 1,
+       "hp": 70,
+       "maxHp": 210,
+       "appearThisTurn": false,
+       "energies": [
+        1
+       ],
+       "energyCards": [
+        {
+         "id": 1,
+         "serial": 121,
+         "playerIndex": 1
+        }
+       ],
+       "tools": [],
+       "preEvolution": []
+      },
+      {
+       "id": 140,
+       "serial": 81,
+       "playerIndex": 1,
+       "hp": 210,
+       "maxHp": 210,
+       "appearThisTurn": false,
+       "energies": [],
+       "energyCards": [],
+       "tools": [],
+       "preEvolution": []
+      }
+     ],
+     "benchMax": 5,
+     "deckCount": 31,
+     "discard": [
+      {
+       "id": 1227,
+       "serial": 86,
+       "playerIndex": 1
+      },
+      {
+       "id": 1227,
+       "serial": 84,
+       "playerIndex": 1
+      },
+      {
+       "id": 1261,
+       "serial": 107,
+       "playerIndex": 1
+      },
+      {
+       "id": 1261,
+       "serial": 105,
+       "playerIndex": 1
+      },
+      {
+       "id": 1121,
+       "serial": 98,
+       "playerIndex": 1
+      },
+      {
+       "id": 1097,
+       "serial": 100,
+       "playerIndex": 1
+      },
+      {
+       "id": 1,
+       "serial": 112,
+       "playerIndex": 1
+      },
+      {
+       "id": 920,
+       "serial": 83,
+       "playerIndex": 1
+      },
+      {
+       "id": 709,
+       "serial": 69,
+       "playerIndex": 1
+      },
+      {
+       "id": 917,
+       "serial": 68,
+       "playerIndex": 1
+      },
+      {
+       "id": 150,
+       "serial": 78,
+       "playerIndex": 1
+      },
+      {
+       "id": 93,
+       "serial": 75,
+       "playerIndex": 1
+      },
+      {
+       "id": 92,
+       "serial": 74,
+       "playerIndex": 1
+      },
+      {
+       "id": 1,
+       "serial": 119,
+       "playerIndex": 1
+      }
+     ],
+     "prize": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     "handCount": 4,
+     "hand": [
+      {
+       "id": 1071,
+       "serial": 80,
+       "playerIndex": 1
+      },
+      {
+       "id": 1121,
+       "serial": 99,
+       "playerIndex": 1
+      },
+      {
+       "id": 920,
+       "serial": 82,
+       "playerIndex": 1
+      },
+      {
+       "id": 1071,
+       "serial": 79,
+       "playerIndex": 1
+      }
+     ],
+     "poisoned": false,
+     "burned": false,
+     "asleep": false,
+     "paralyzed": false,
+     "confused": false
+    }
+   ]
+  },
+  "search_begin_input": "EAFEAKQAEEAbEAOQAMEBADBACEAEB-kCHQAICMAP5ABQAYEACQACBABIABHQAUFq-pEQQCCQgAKg-ZBE-ZBB0-ZBDgADB0OGwwXFBkRFQ8cEDABK-DBIAEKzM7ISABoODQ-LGE/ABkBRAKY-ZBBAEFBjUk8-QBf-aB4ADBWVGtpYmRwU0VETktKdw-DBQADHk-kFB-VEQ-VBL-+BI-UBBCw-NFlAEiQ-VBEABg-2LuQMACDEB-UBBQI-2BLkDACCu-WBUC-2BBhBADMABE-UBDDQ-LFGEEACCt-WBMN-MFywQACKo-WBwI-2BMsEADbABQ-UBMN-2BDLBADLQE-UBDABg-2BywQADkB-VBw0-hIngQACPI-WBw0-2BGABEADLABQ-UBMN-MFYABQACMU-WBw0-LFBkBAD+w-VBDDQ-LFGQEACCr-WBMC-2BBiBADKwE-UBDDQ-2BYgQACKg-WBw0-hIBAEPAECu-QBCABI-3BQADDsAErg-QBgC-3VEAE+QADK4-QBIABg-hIEAEmAEK4-QBIABg-MPQAEuABQ-UBMC-iIQADDCAErg-QBgC-3BEAEDwEACIk-QBIABg-2LBAFEBACCJ-QBCABI-hIBAEOcADCu-QBCABI-2LGAEDb-VBQQF-tBQABgAGBgAEigAOj-FBEFB-tBEABI-HKlQMACP0-UBBABwo-2BMUCACD8-VBQME-MPXAEDQB-TBBABwo-2BF0AEzABQ-TBQMK-hIJYAEyABQ-TBQME-3BvBADOABE-TBECABQ-2BLwQACNE-UBBABgE-2BIwAENABQ-TBQUC-tBQAICYABwAC/w-UBECABQ-2BmABMACPM-UBBABwQ-2BMsEACDX-VBQMN-MFywQACL8-UBBABw0-hmYQQACO-VBBABw0-2BGEEACDt-VBQIB-2BBJBAD5Q-UBEDDQ-LPO0EACDe-VBQMC-2BDtBADxw-UBEHABg-2B7QQACN0-UBBABwI-MPBAE6g-UBEDC-4VQADDUB-TBBABwg-MFBAE6QADIo-PBEIABg-2VBQAEcAPcACQAMcACgAMcACwAM4AagADDoADCNAEBwADI4AvEADBPAWEAI="
+ }
+}

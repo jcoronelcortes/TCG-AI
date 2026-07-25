@@ -298,6 +298,96 @@ ABILITY_IMMUNE_IDS = {Cornerstone_Mask_Ogerpon_ex}
 
 OUR_ABILITY_IDS = {Teal_Mask_Ogerpon_ex, Hydrapple_ex, Meganium, Fezandipiti_ex, Meowth_ex, Dipplin}
 
+# --- Supervivencia al KO y nuevas inmunidades (plan jul 2026, P0.1/P1.6) -----
+# Cuerpos que SOBREVIVEN un golpe letal estando a vida COMPLETA quedandose a
+# 10 PV: Crustle 533 ("Sturdy", ya modelado) y Pikachu ex 210 ("Resolute
+# Heart", faltaba). El dano efectivo se capa a hp-10 en _our_effective_damage,
+# asi que todo `can_ko` que pase por ahi hereda el cap automaticamente.
+Pikachu_ex_Resolute = 210
+FULL_HP_SURVIVE_IDS = {Crustle_Fighting, Pikachu_ex_Resolute}
+
+# Mega Hawlucha ex ("Tenacious Body"): ante un golpe letal tira moneda y con
+# cara sobrevive a 10 PV -> el KO NUNCA esta garantizado. Survival Brace (tool
+# 1155): a vida completa sobrevive al KO a 10 PV. Los evaluadores de REMATE
+# (wins_now / SCORE_WIN_GAME / _active_attack_wins_now) consultan
+# _ko_no_garantizado para no declarar una victoria que depende de una moneda o
+# de una tool; el dano normal NO se altera (atacarlos sigue teniendo valor).
+Mega_Hawlucha_ex = 886
+Survival_Brace = 1155
+
+# Farigiraf ex ("Armor Tail"): inmune al dano de ataques de BASICOS ex. De
+# nuestro mazo anula a Ogerpon ex / Meowth ex / Fezandipiti ex; Hydrapple ex es
+# Etapa 2 y SI lo dana, igual que los no-ex (Tapu Bulu, Meganium, Bayleef...).
+Farigiraf_ex = 83
+OUR_BASIC_EX_IDS = {Teal_Mask_Ogerpon_ex, Meowth_ex, Fezandipiti_ex}
+
+# --- Bloqueo de items del rival (plan jul 2026, P1.5) ------------------------
+# Ademas del Itchy Pollen de Budew (ya modelado por log de ataque), bloquean
+# nuestros items: Jellicent ex 598 ("Oceanic Curse") y Tyranitar 290 ("Daunting
+# Gaze") MIENTRAS esten en el activo rival, y Galvantula ex 161 con Fulgurite
+# (attackId 210) durante nuestro turno siguiente. Con 10+ items en el mazo
+# (UBx4/BCSx4/NSx2/Stamp/PokePad) el motor entero depende de detectarlos.
+Jellicent_ex = 598
+Tyranitar_Daunting = 290
+Galvantula_ex = 161
+FULGURITE_ATTACK_ID = 210
+OP_ITEM_LOCK_ACTIVE_IDS = {Jellicent_ex, Tyranitar_Daunting}
+
+# --- Bloqueo de habilidades por Iron Thorns ex (plan jul 2026, P1.4) ---------
+# Iron Thorns ex 37 ("Initialization") en el ACTIVO rival: los Pokemon con Rule
+# Box de AMBOS lados pierden sus habilidades -> se apagan Teal Dance, Ripening
+# Charge, Last-Ditch Catch y Flip the Script a la vez (nuestro motor entero).
+# NO afecta a los sin Rule Box (Meganium Wild Growth y Dipplin siguen vivos:
+# Dipplin no tiene Rule Box; Festival Lead requiere estadio que no jugamos).
+OUR_RULEBOX_ABILITY_IDS = {Teal_Mask_Ogerpon_ex, Hydrapple_ex, Fezandipiti_ex,
+                           Meowth_ex}
+
+# --- Denegacion de premios del rival (plan jul 2026, P0.2) -------------------
+# Munkidori ex 139 ("Oh No You Don't"): si el rival tiene Pecharunt ex 141 en
+# juego, su KO rinde 1 premio MENOS. Mega Gengar ex 772 ("Shadowy
+# Concealment"): mientras este en juego, el KO de un Pokemon {D} rival por un
+# ex NUESTRO rinde 1 premio menos. Sin esto, `wins_now`/SCORE_WIN_GAME pueden
+# declarar una victoria a la que le falta 1 premio. Se consultan via
+# `prize_count_op` (solo para Pokemon DEL RIVAL: nuestro Fezandipiti ex
+# tambien es {D} y NO debe verse afectado).
+Munkidori_ex = 139
+Pecharunt_ex = 141
+Mega_Gengar_ex = 772
+
+# --- Burst de banca rival (plan jul 2026, P0.3) ------------------------------
+# Dusknoir 133 ("Cursed Blast": 13 contadores = 130) y Dusclops 132 (5 = 50)
+# aportan dano EXTRA desde la banca ADEMAS del ataque del activo rival (la
+# habilidad se usa y LUEGO atacan). `active_ko_likely` debe sumarlo o los
+# pivotes defensivos creen que el muro sobrevive un golpe que en realidad
+# llega con +130.
+OP_BENCH_BURST = {Dusknoir: 130, Dusclops: 50}
+
+# Dano AUTOMATICO que el ataque del rival reparte a UN Pokemon de NUESTRA banca
+# (user, registro_006/008 vs Marnie's Grimmsnarl ex, PERDIDA). Shadow Bullet
+# hace 180 al activo Y 30 a un banquillo CADA turno, asi que nuestros cuerpos de
+# poca vida (Dipplin 80, Applin 40, Chikorita 70) mueren solos y regalan premios
+# sin que el rival gaste nada. El agente era ciego a ese goteo: `op_bench_snipe_
+# threat` era un booleano que solo se leia en el setup. Aqui se cuantifica para
+# poder proyectar QUE cuerpo muere el proximo turno y decidir si conviene curarlo
+# (Ripening Charge cura 30) o evolucionarlo (la evolucion resetea la vida).
+# Valores del texto de cada ataque; el default 30 es el caso conservador.
+OP_BENCH_SNIPE_DAMAGE = {
+    Grimmsnarl_ex: 30,       # Shadow Bullet: 180 + 30 a 1 banquillo
+    Dragapult_ex: 60,        # Phantom Dive: 6 contadores repartibles (60 a uno)
+    Mega_Starmie_ex: 50,     # Jetting Blow: 120 + 50 a 1 banquillo
+    Mega_Greninja_ex: 120,   # Mirage Barrage: 120 a 2 Pokemon
+}
+OP_BENCH_SNIPE_DEFAULT = 30
+
+# Curacion de Ripening Charge (Hydrapple ex) al Pokemon que recibe la Planta.
+RIPENING_HEAL = 30
+# Score del OBJETIVO de Ripening Charge cuando la habilidad se usa para curar.
+RIPEN_HEAL_TARGET_SCORE = 39500
+# Score de la HABILIDAD Ripening Charge jugada por su curacion: sobre la Teal
+# Dance de desarrollo (31050) y bajo la que habilita un KO (31500) o los pivotes
+# de retirada (31600). >= 29000 para que suba al tier ENERGY y compita alli.
+RIPEN_HEAL_ABILITY_SCORE = 31250
+
 NON_ATTACKER_ENERGY_WASTE_IDS = {Meowth_ex, Fezandipiti_ex}
 
 HIGH_PRIORITY_BENCH_TARGETS = {Budew, Munkidori, Froslass, Snorunt, Dreepy, Drakloak, Dwebble_Grass, Dwebble_Fighting}
@@ -571,6 +661,11 @@ def _grass_mult():
     return 1
 
 
+# Dano proyectado del snipe rival a UN Pokemon de nuestra banca (se recalcula
+# cada llamada a agent() a partir de OP_BENCH_SNIPE_DAMAGE y del campo rival).
+_op_bench_snipe_dmg = 0
+
+
 def _grass_attach_unit():
     # Energia EFECTIVA que aporta UNA energia basica de Planta recien adjuntada
     # (desde la mano o recuperada). Con Wild Growth de Meganium en juego una
@@ -606,6 +701,76 @@ def _ogerpon_base_phys_cap(meganium, is_hop):
     if meganium:
         return 2
     return 3 if is_hop else 4
+
+
+# Nuestras DOS lineas de evolucion, de basico a etapa 2.
+EVO_LINES = (
+    (Applin, Dipplin, Hydrapple_ex),
+    (Chikorita, Bayleef, Meganium),
+)
+
+
+def _evo_link_state(hand_counts, field_counts):
+    """Clasifica cada EVOLUCION de nuestras lineas para el fetch de la Ultra
+    Ball. Devuelve `(necesarios, huerfanos)`:
+
+      huerfano  = su PRE-EVOLUCION no esta ni en juego ni en la mano: traerla es
+                  una carta MUERTA, no se puede jugar (user, registro_006 paso
+                  79 vs Marnie, PERDIDA: con un Applin en banca y NINGUN Dipplin
+                  en juego ni en mano, la Ultra Ball buscaba Hydrapple ex -- que
+                  no puede evolucionar nada -- en vez del Dipplin que faltaba).
+      necesario = eslabon INTERMEDIO que falta (su pre-evolucion esta en juego,
+                  no lo tenemos en mano ni en juego) Y que ademas DESBLOQUEA la
+                  etapa 2, que ahora mismo es huerfana. Es "la siguiente
+                  evolucion que se necesita en la banca".
+
+    La etapa 2 nunca entra en `necesarios`: cuando ES el eslabon que falta ya la
+    puntuan sus propias ramas (Hydrapple ex 980 / Meganium 1000), que ademas
+    aplican los clamps de matchup (ex muerto vs Crustle, cesion al motor de
+    refresco de Meowth ex). Subirla aqui pisaria esos clamps.
+
+    Se mira el campo ACTUAL (no la foto de inicio de turno): tener el eslabon en
+    la mano ya es progreso aunque la evolucion no pueda completarse este turno.
+    """
+    necesarios, huerfanos = set(), set()
+    for linea in EVO_LINES:
+        linea_completa = field_counts.get(linea[-1], 0) >= 1
+        faltan = []
+        for pre, evo in zip(linea, linea[1:]):
+            if (field_counts.get(pre, 0) == 0
+                    and hand_counts.get(pre, 0) == 0):
+                huerfanos.add(evo)
+            elif (not linea_completa
+                    and field_counts.get(pre, 0) >= 1
+                    and field_counts.get(evo, 0) == 0
+                    and hand_counts.get(evo, 0) == 0):
+                faltan.append(evo)
+        # Solo el eslabon intermedio cuya etapa 2 quedo huerfana.
+        for evo in faltan:
+            if evo != linea[-1] and linea[-1] in huerfanos:
+                necesarios.add(evo)
+    return necesarios, huerfanos
+
+
+def _ripen_energy_capped(pokemon, ogerpon_phys_cap=None):
+    """True si `pokemon` ya esta en su TOPE de energias fisicas, es decir si
+    `energy_score` vetaria dirigirle una Planta mas. Espeja los topes duros de
+    energy_score (Chikorita 1, Applin 1, Tapu Bulu 2/4, Ogerpon por matchup)
+    para que la curacion de Ripening Charge nunca apunte a un cuerpo vetado.
+    `ogerpon_phys_cap` es el tope FISICO de Teal Mask Ogerpon ex del matchup
+    (Cubchoo/Alakazam/Hop's); None = sin tope de matchup."""
+    phys = _physical_energy(len(getattr(pokemon, 'energies', []) or []))
+    pid = getattr(pokemon, 'id', 0)
+    if pid in (Chikorita, Applin):
+        return phys >= 1
+    if pid == Tapu_Bulu:
+        return phys >= (2 if meganium_in_play else 4)
+    if pid == Teal_Mask_Ogerpon_ex:
+        if op_is_crustle_deck and phys >= 2:
+            return True
+        if ogerpon_phys_cap is not None and phys >= ogerpon_phys_cap:
+            return True
+    return False
 
 
 def _retreat_cards(retreat_cost):
@@ -660,6 +825,24 @@ _ub_engine_pivot_turn = False
 
 _dodge_immune_serial = None
 _dodge_immune_turn = -1
+
+# Ajuste terminal de PROMOCION (ver "SUPERVIVENCIA AL PROMOVER"). El condenado
+# baja lo bastante como para ceder ante cualquier superviviente real (el caso
+# medido: Ogerpon cargado 4557 -> -1443, por debajo del Hydrapple ex a 259).
+PROMO_DOOMED_PENALTY = 6000
+# Sin supervivientes, cada premio extra que regalamos cuesta esto.
+PROMO_PRIZE_PENALTY = 1500
+# El que NOQUEA al activo rival se promueve por encima de cualquiera que no lo
+# haga, tanque incluido (user). Por encima del score maximo de las ramas de
+# promocion (9500 = `_promote_setup_ko_attacker`) para que sea una GARANTIA y no
+# dependa de que el noqueador saque mas base que el tanque: `_ko_prefer_basic_general`
+# da 8500+ a un basico de 1 premio y el muro resistente 6100, asi que un
+# noqueador a ~4500 podia perder. Entre varios noqueadores decide el score base.
+PROMO_KO_BONUS = 20000
+
+# Serial del Pokemon ACTIVO cuya HABILIDAD ofrecio el ultimo MENU PRINCIPAL del
+# turno (None si ninguna). Ver el bloque que lo actualiza dentro de agent().
+_td_ability_serial = None
 
 ESTADO_MAZO = "MAZO"
 ESTADO_BANCA = "BANCA"
@@ -777,6 +960,11 @@ def _our_effective_damage(my_pokemon, op_pokemon, base_damage,
     if op_pokemon.id in ABILITY_IMMUNE_IDS and my_has_ability:
         return 0
 
+    # Farigiraf ex ("Armor Tail"): inmune al dano de ataques de BASICOS ex.
+    # Solo Hydrapple ex (Etapa 2) y los no-ex lo danan (plan jul 2026, P1.6).
+    if op_pokemon.id == Farigiraf_ex and my_pokemon.id in OUR_BASIC_EX_IDS:
+        return 0
+
     if not is_fez:
         if data.weakness == EnergyType.GRASS:
             damage *= 2
@@ -786,11 +974,45 @@ def _our_effective_damage(my_pokemon, op_pokemon, base_damage,
     if op_pokemon.id == Drednaw and damage >= 200:
         return 0
 
-    if (op_pokemon.id == Crustle_Fighting and
+    # Sturdy (Crustle 533) / Resolute Heart (Pikachu ex 210): a vida COMPLETA
+    # sobreviven al golpe letal quedandose a 10 PV -> cap a hp-10 (P0.1).
+    if (op_pokemon.id in FULL_HP_SURVIVE_IDS and
             op_pokemon.hp == op_pokemon.maxHp and damage >= op_pokemon.hp):
         damage = op_pokemon.hp - 10
 
     return max(0, int(damage))
+
+
+def _ko_no_garantizado(op_pokemon):
+    """True si el KO del defensor NO esta garantizado aunque el dano proyectado
+    sea letal: Mega Hawlucha ex (Tenacious Body: moneda, con cara sobrevive a
+    10 PV) o Survival Brace (tool 1155: a vida completa sobrevive a 10 PV).
+
+    Lo consultan SOLO los evaluadores de REMATE que declaran victoria segura
+    (`wins_now`, SCORE_WIN_GAME, `_active_attack_wins_now`): contra estos
+    cuerpos "ganar este turno" puede fallar y regalar el turno de vuelta. El
+    dano/can_ko normal NO se toca (atacarlos sigue siendo la mejor jugada la
+    mayoria de veces). Los que sobreviven a vida completa via Sturdy/Resolute
+    Heart (FULL_HP_SURVIVE_IDS) no necesitan este predicado porque
+    `_our_effective_damage` ya capa su dano a hp-10 y el can_ko sale False."""
+    if op_pokemon is None:
+        return False
+    if op_pokemon.id == Mega_Hawlucha_ex:
+        return True
+    if (op_pokemon.hp == op_pokemon.maxHp
+            and any(getattr(_t, 'id', 0) == Survival_Brace
+                    for _t in (getattr(op_pokemon, 'tools', None) or []))):
+        return True
+    return False
+
+class _ProjTarget(NamedTuple):
+    """Objetivo ligero para proyectar el dano rival contra un cuerpo que aun no
+    esta en juego (p.ej. la EVOLUCION de una pre-evo de banca). Solo necesita
+    `id` (para debilidad/resistencia via card_table); `tools`/`energies` vacios."""
+    id: int
+    tools: tuple = ()
+    energies: tuple = ()
+
 
 def _op_active_attack_damage_to(op_active, target, op_hand_count=None):
     """Maximo dano IMPRESO que el activo rival puede hacerle a `target`.
@@ -1139,6 +1361,33 @@ def prize_count(pokemon: Pokemon) -> int:
             count -= 1
     return max(0, count)
 
+
+# Flags por turno (P0.2): denegacion de premios activa en el campo RIVAL.
+# Se refrescan al inicio de agent() junto a meganium_in_play.
+_op_prize_denial_pecharunt = False   # Pecharunt ex (141) en el campo rival
+_op_prize_denial_gengar = False      # Mega Gengar ex (772) en el campo rival
+
+
+def prize_count_op(pokemon: Pokemon) -> int:
+    """prize_count para Pokemon DEL RIVAL: aplica la denegacion de premios de
+    su lado (P0.2). Munkidori ex con Pecharunt ex en juego rinde 1 menos; con
+    Mega Gengar ex en juego, el KO de un {D} rival por un ex nuestro rinde 1
+    menos (conservador: casi todos nuestros atacantes son ex, asi que se asume
+    la reduccion siempre). Usar SOLO sobre Pokemon del rival: los premios que
+    entregan NUESTROS cuerpos (p.ej. nuestro Fezandipiti ex, tambien {D}) se
+    siguen midiendo con prize_count."""
+    count = prize_count(pokemon)
+    if count <= 0:
+        return 0
+    if _op_prize_denial_pecharunt and pokemon.id == Munkidori_ex:
+        count -= 1
+    if _op_prize_denial_gengar:
+        _pd_data = card_table.get(pokemon.id)
+        if (_pd_data is not None
+                and getattr(_pd_data, 'energyType', None) == EnergyType.DARKNESS):
+            count -= 1
+    return max(0, count)
+
 def count_total_grass_energy(my_state) -> int:
     total = 0
     for pokemon in my_state.active + my_state.bench:
@@ -1222,7 +1471,7 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
                          has_energy_for_teal, _we_go_first=False,
                          _best_supp_in_hand_val=0,
                          op_is_crustle_deck=False, op_is_cornerstone_deck=False,
-                         op_active_is_budew=False, watchtower_in_play=False):
+                         op_active_is_budew=False, meowth_ability_lock=False):
     ub_best_target = 0
 
     _bench_full = (bench_count >= 5)
@@ -1235,7 +1484,7 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
                 hand_counts.get(Lillie_Determination, 0) == 0 and
                 field_counts.get(Meowth_ex, 0) < 2 and
                 bench_count < 5 and
-                not watchtower_in_play and
+                not meowth_ability_lock and
                 CARTAS_ACTIVAS_EN_MAZO.get(Meowth_ex, {}).get(ESTADO_MAZO, 0) > 0):
             _lillie_in_mazo = CARTAS_ACTIVAS_EN_MAZO.get(Lillie_Determination, {}).get(ESTADO_MAZO, 0)
             if _lillie_in_mazo > 0:
@@ -1271,7 +1520,7 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
                 field_counts.get(Meowth_ex, 0) == 0 and
                 bench_count < 5 and
                 not state.supporterPlayed and
-                not watchtower_in_play and
+                not meowth_ability_lock and
                 CARTAS_ACTIVAS_EN_MAZO.get(Meowth_ex, {}).get(ESTADO_MAZO, 0) > 0 and
                 CARTAS_ACTIVAS_EN_MAZO.get(Lillie_Determination, {}).get(ESTADO_MAZO, 0) > 0):
             return 1100
@@ -1324,7 +1573,7 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
         not _stamp_blocks_supp_chain and
         not (state.turn <= 1 and _we_go_first) and
         not state.supporterPlayed and
-        not watchtower_in_play and
+        not meowth_ability_lock and
         (supporters_in_hand == 0 or _supp_in_hand_is_inferior) and
         field_counts.get(Meowth_ex, 0) == 0 and
         bench_count < 5 and
@@ -1337,7 +1586,7 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
         _boss_val_ub = _best_supp_in_mazo_val
         if (_boss_in_mazo and _boss_val_ub >= 900 and
                 not state.supporterPlayed and
-                not watchtower_in_play and
+                not meowth_ability_lock and
                 field_counts.get(Meowth_ex, 0) == 0 and
                 bench_count < 5 and
                 hand_counts.get(Boss_Orders, 0) == 0 and
@@ -1573,6 +1822,7 @@ class DecisionContext:
     itchy_pollen_active: bool
     has_hydrapple: bool
     watchtower_in_play: bool
+    meowth_ability_lock: bool   # watchtower O Iron Thorns activo (P1.4)
     neutralization_zone_active: bool
     mega_line_active: bool
     active_needs_energy: bool
@@ -1924,6 +2174,22 @@ _REGLAS_XEROSIC_PLAY = [
     _ReglaFija("alakazam_cede_a_lillie_mano_corta",
                lambda c: (_xr_gate_alakazam(c) and c.active_cant_attack
                           and sum(c.hand_counts.values()) <= 3
+                          and c.hand_counts.get(Lillie_Determination, 0) >= 1),
+               lambda c: XEROSIC_SCORE_LAST_RESORT),
+    # Con la mano rival ya MINIMA (<= 4: capar solo le quita 1 carta) el valor
+    # de disrupcion de Xerosic es marginal (Powerful Hand baja 20 de dano); si
+    # tenemos Lillie's Determination en mano (refresco + desarrollo, sobre todo
+    # cuando la buscamos con Meowth ex y por tanto es la jugada prevista) esta
+    # vale mas. Cede el Supporter del turno a Lillie's (user, registro_002 paso
+    # 17 vs Alakazam, PERDIDA: turno 2, rival con 4 cartas, el agente jugo
+    # Xerosic en vez de la Lillie's recien buscada con Meowth ex). Distinto de
+    # `alakazam_cede_a_lillie_mano_corta` (que gatea NUESTRA mano <= 3 + activo
+    # que no ataca): aqui el gate es la mano RIVAL minima, sin condicion sobre
+    # la nuestra. Va ANTES de `alakazam_prioridad_sobre_boss`/`_capar_mano`
+    # porque esas dispararian 7000/5900 aunque solo se le quite 1 carta.
+    _ReglaFija("alakazam_cede_a_lillie_mano_rival_minima",
+               lambda c: (_xr_gate_alakazam(c)
+                          and c.op_hand_count <= 4
                           and c.hand_counts.get(Lillie_Determination, 0) >= 1),
                lambda c: XEROSIC_SCORE_LAST_RESORT),
     # PRIORIDAD SOBRE BOSS'S (user, registro_006 paso 85 vs Alakazam,
@@ -2324,7 +2590,7 @@ _ESC_NS_RECUPERACION = [
     # Recuperar Meowth ex para el motor de refresco (Last-Ditch ->
     # Lillie's). Registro 006, paso 51 vs Alakazam.
     _E("meowth_motor_refresco",
-       lambda w: (Meowth_ex in w.basics and not w.watchtower_in_play
+       lambda w: (Meowth_ex in w.basics and not w.meowth_ability_lock
                   and w.field_counts.get(Meowth_ex, 0) == 0
                   and w.bench_count < 5 and not w.state.supporterPlayed
                   and w.best_supp_in_hand_val < 500
@@ -2814,7 +3080,7 @@ def _ub_terminal_overrides(ctx, ub_score, _ub_survival_mode, hand_size, _our_fir
     field_counts = ctx.field_counts
     itchy_pollen_active = ctx.itchy_pollen_active
     we_go_first = ctx.we_go_first
-    watchtower_in_play = ctx.watchtower_in_play
+    watchtower_in_play = ctx.meowth_ability_lock
     budew_on_op_field = ctx.budew_on_op_field
     budew_op_index = ctx.budew_op_index
     CARTAS_ACTIVAS_EN_MAZO = ctx.cartas_en_mazo
@@ -3175,6 +3441,48 @@ def _ub_cancel_meowth(ctx) -> bool:
     return _ub_cancel_for_meowth
 
 
+def _alakazam_dig_xerosic_engine(c) -> bool:
+    """vs Alakazam con la mano rival en zona de Powerful Hand (>= 6 cartas =
+    20 x (6+2) = 160+ de dano proyectado): ¿podemos MONTAR el cap de Xerosic's
+    Machinations ESTE turno via el motor Ultra Ball -> Meowth ex -> Last-Ditch
+    Catch (busca Xerosic) -> jugar Xerosic? Xerosic reduce la mano rival y con
+    ella el dano de Powerful Hand; con un atacante ya listo NO conviene gastar
+    el Supporter del turno en Lillie's (refresco redundante) -- se reserva para
+    Xerosic y se cava Meowth con la Ultra Ball.
+
+    Requisitos: mazo Alakazam + mano rival >= 6 + Supporter sin jugar; Xerosic
+    en el MAZO (si ya esta en mano, su propia escalera lo juega, no hay que
+    cavar); Meowth alcanzable (en mano, o en el mazo con Ultra Ball para
+    cavarlo); hueco de banca y Last-Ditch libre (field Meowth < 2). Usado por el
+    veto de Lillie's y por la prioridad de Ultra Ball. Deck-agnostico dentro del
+    matchup Alakazam. `c` puede ser el DecisionContext o el _CtxLillie (ambos
+    exponen estos campos, este ultimo por delegacion).
+
+    Umbral mano rival >= 7 (no >= 6 como el gate de JUGAR Xerosic): cavar la
+    disrupcion consume un turno entero (Ultra Ball + Meowth + Supporter, sin
+    refrescar), inversion que solo se justifica con la mano rival claramente
+    inflada -- alineado con `xerosic_generico` del fetch. Con 6 cartas (mano
+    base al turno 3-4) el refresco de Lillie's puede valer mas que la disrupcion,
+    asi que ahi no se veta ni se prioriza la Ultra Ball."""
+    if not (getattr(c, 'op_is_alakazam_deck', False)
+            and c.op_hand_count >= 7
+            and not c.state.supporterPlayed):
+        return False
+    hand = c.hand_counts
+    if hand.get(Xerosic_Machinations, 0) >= 1:
+        return False
+    if c.cartas_en_mazo.get(
+            Xerosic_Machinations, {}).get(ESTADO_MAZO, 0) < 1:
+        return False
+    if c.field_counts.get(Meowth_ex, 0) >= 2 or c.bench_count >= 5:
+        return False
+    _meowth_in_hand = hand.get(Meowth_ex, 0) >= 1
+    _meowth_diggable = (
+        c.cartas_en_mazo.get(Meowth_ex, {}).get(ESTADO_MAZO, 0) >= 1
+        and hand.get(Ultra_Ball, 0) >= 1)
+    return _meowth_in_hand or _meowth_diggable
+
+
 def _ub_target_score(ctx, _ubf) -> int:
     """Fase D de Ultra Ball (ruta NO cancelada): valora el mejor objetivo de
     busqueda y mapea a tiers de ub_score, con penalizaciones por descartes y
@@ -3191,7 +3499,7 @@ def _ub_target_score(ctx, _ubf) -> int:
     meganium_in_play = ctx.meganium_in_play
     has_hydrapple = ctx.has_hydrapple
     ko_last_turn = ctx.ko_last_turn
-    watchtower_in_play = ctx.watchtower_in_play
+    watchtower_in_play = ctx.meowth_ability_lock
     itchy_pollen_active = ctx.itchy_pollen_active
     can_attack = ctx.can_attack
     _field_at_turn_start = ctx.field_at_turn_start
@@ -3412,7 +3720,7 @@ def _ub_score_before_overrides(ctx, _ubf) -> int:
     meganium_in_play = ctx.meganium_in_play
     has_hydrapple = ctx.has_hydrapple
     ko_last_turn = ctx.ko_last_turn
-    watchtower_in_play = ctx.watchtower_in_play
+    watchtower_in_play = ctx.meowth_ability_lock
     itchy_pollen_active = ctx.itchy_pollen_active
     can_attack = ctx.can_attack
     _field_at_turn_start = ctx.field_at_turn_start
@@ -3547,6 +3855,20 @@ def _score_ultra_ball_play(ctx) -> int:
         global _ub_engine_pivot_turn
         _ub_engine_pivot_turn = True
         return 31450
+    # vs Alakazam con la mano rival gorda (Powerful Hand): montar el cap de
+    # Xerosic via Ultra Ball -> Meowth ex -> Last-Ditch -> Xerosic (user,
+    # registro_008 paso 75, GANADA suboptima: el agente jugaba Lillie's
+    # -refresco redundante con Hydrapple ex cargado + 3 atacantes de banca- en
+    # vez de cavar la disrupcion). Prioridad de disrupcion en la banda Xerosic
+    # (5950): sobre el ataque (que cerraria el turno sin capar Powerful Hand) y
+    # sobre Lillie's (que ademas gasta el Supporter del turno), bajo los remates
+    # ganadores y el gusteo de 2 premios. Solo cuando hay que CAVAR Meowth (no
+    # en mano). Arma `_ub_engine_pivot_turn` para que el FETCH elija Meowth ex y
+    # continue la cadena (su Last-Ditch busca Xerosic por `xerosic_alakazam`).
+    if (_alakazam_dig_xerosic_engine(ctx)
+            and ctx.hand_counts.get(Meowth_ex, 0) == 0):
+        _ub_engine_pivot_turn = True
+        return 5950
     _ubf = _ub_derive_flags(ctx)
     ub_score = _ub_score_before_overrides(ctx, _ubf)
     ub_score = _ub_terminal_overrides(
@@ -3849,6 +4171,22 @@ _REGLAS_LILLIE_PLAY = [
                           c.hand_counts.get(Unfair_Stamp, 0) >= 1 and
                           c.ready_ex_attackers >= 2 and
                           c.op_hand_count > 3),
+               lambda c: SCORE_VETO),
+    # vs Alakazam con la mano rival grande (Powerful Hand): si podemos MONTAR el
+    # cap de Xerosic ESTE turno -- Ultra Ball -> Meowth ex -> Last-Ditch busca
+    # Xerosic -> jugar Xerosic -- y ya tenemos un atacante LISTO, NO gastar el
+    # Supporter del turno en Lillie's (refresco redundante que ademas baraja la
+    # Ultra Ball y el Boss's). Reservarlo para Xerosic, que capa el dano de
+    # Powerful Hand (20 x carta de su mano). El guard de atacante-listo
+    # (Hydrapple ex cargado o un ex de banca listo) evita sacrificar el refresco
+    # cuando el tablero es pobre y de verdad hace falta cavar. Va DESPUES de
+    # `no_barajar_ultimo_xerosic` (Xerosic ya en mano) y ANTES de
+    # `hydra_cargado_sobre_boss` (5800), que era quien jugaba Lillie's aqui.
+    # Ver `_alakazam_dig_xerosic_engine`.
+    _ReglaFija("alakazam_reserva_supporter_para_xerosic",
+               lambda c: (_alakazam_dig_xerosic_engine(c)
+                          and (c.hydra_active_charged
+                               or c.ready_ex_attackers >= 1)),
                lambda c: SCORE_VETO),
     # Regla (user, log 86025936 paso 11): en NUESTRO primer turno SIEMPRE se
     # juega Lillie's Determination si esta en la mano, por encima de Boss's
@@ -4234,7 +4572,8 @@ _REGLAS_UB_MEOWTH = [
     # log 86339167 paso 23, PERDIDA vs Mega Starmie)
     _ReglaFija("lillie_ya_en_mano_redundante",
                lambda c: (c.hand.get(Lillie_Determination, 0) >= 1
-                          and not _um_boss_engine_vs_crustle(c)),
+                          and not _um_boss_engine_vs_crustle(c)
+                          and not _ub_engine_pivot_turn),
                lambda c: 10),
     # Motor UB->Meowth->Lillie's (registro_008 paso 58 vs Archaludon,
     # PERDIDA): la Ultra Ball se jugo POR el pivote; el fetch DEBE
@@ -4592,6 +4931,7 @@ class _CtxNS:
     act_hyd_ripen: bool          # Hydrapple ex activo cargable con Ripening
     act_og_can_teal_attack: bool  # Ogerpon activo que Teal Dance habilita
     ns_bench_charge: bool        # vs Crustle: energia para atacante de banca
+    ns_evo_saves_doomed: bool    # Hydrapple ex salva a un Dipplin condenado
 
 def _ctx_ns_fetch(my_state, state, hand_counts, field_counts, bench_count,
                   total_grass, has_hydrapple, active_needs_energy,
@@ -4633,6 +4973,26 @@ def _ctx_ns_fetch(my_state, state, hand_counts, field_counts, bench_count,
             if len(bp.energies) * _grass_mult() < req:
                 ns_bench_charge = True
                 break
+    # Recuperar Hydrapple ex para EVOLUCIONAR un Dipplin de banca CONDENADO por
+    # el snipe automatico del rival (user, registro_006/008 vs Marnie's
+    # Grimmsnarl ex, PERDIDA): con el Dipplin a <= 30 de vida, Shadow Bullet lo
+    # mata solo el proximo turno y regala un premio gratis. La evolucion resetea
+    # la vida (80 -> 330) y de paso convierte el cuerpo condenado en un muro, asi
+    # que salvarlo vale MAS que cualquier recuperacion de desarrollo o de energia
+    # (que solo suma dano cuando el KO ya esta asegurado). A diferencia de
+    # `dipplin_evolucionable`, esta regla NO exige que falte un Hydrapple ex en
+    # juego: aqui la evolucion no es desarrollo, es rescate.
+    ns_evo_saves_doomed = False
+    if _op_bench_snipe_dmg > 0 and hand_counts.get(Hydrapple_ex, 0) == 0:
+        for _nsd in (my_state.bench or []):
+            if _nsd is None or _nsd.id != Dipplin:
+                continue
+            if (_nsd.hp or 0) > _op_bench_snipe_dmg:
+                continue  # sobrevive el goteo de este turno: no urge
+            if getattr(_nsd, 'appearThisTurn', False) and not forest_in_play:
+                continue  # evoluciono este turno: no se puede volver a evolucionar
+            ns_evo_saves_doomed = True
+            break
     evolvable_ns = (_field_at_turn_start
                     if (not forest_in_play and _field_at_turn_start)
                     else field_counts)
@@ -4650,7 +5010,8 @@ def _ctx_ns_fetch(my_state, state, hand_counts, field_counts, bench_count,
         supporter_played=state.supporterPlayed,
         act_hyd_ripen=act_hyd_ripen,
         act_og_can_teal_attack=act_og_can_teal_attack,
-        ns_bench_charge=ns_bench_charge)
+        ns_bench_charge=ns_bench_charge,
+        ns_evo_saves_doomed=ns_evo_saves_doomed)
 
 def _v_ns_grass_sin_planta(c):
     v = 600
@@ -4822,6 +5183,11 @@ _REGLAS_NS_MEOWTH = [
 ]
 
 _REGLAS_NS_HYDRAPPLE = [
+    # Rescate del Dipplin condenado por el snipe: gana a la energia (<=950) y a
+    # todo el desarrollo. Ver `ns_evo_saves_doomed` en `_ctx_ns_fetch`.
+    _ReglaFija("salvar_dipplin_condenado_snipe",
+               lambda c: c.ns_evo_saves_doomed,
+               lambda c: 1200),
     _ReglaFija("dipplin_evolucionable",
                lambda c: (c.evolvable_ns.get(Dipplin, 0) >= 1
                           and not c.has_hydrapple),
@@ -5223,8 +5589,11 @@ class _CtxMeowthFetch:
     def __init__(self, card_id, sv, hand_counts, supp_values, hand_size,
                  strong_attacker, op_hand_count, active_cant_attack,
                  win_via_boss, gust2_via_boss, deny_evo_via_boss,
-                 devel_lillie, alakazam):
+                 devel_lillie, alakazam, first_turn=False):
         self.card_id = card_id
+        # Nuestro PRIMER turno: la linea anti-donk baja Meowth ex aunque el
+        # Supporter ya este en mano, y su fetch conserva la excepcion.
+        self.first_turn = first_turn
         self.alakazam = alakazam
         self.sv = sv
         self.hand = hand_counts
@@ -5261,6 +5630,20 @@ def _v_meowth_fetch_valor(c):
 
 
 _REGLAS_MEOWTH_FETCH = [
+    # COPIA REDUNDANTE (user, registro_010 paso 118 vs Alakazam, GANADA con
+    # error): solo se juega UN Supporter por turno, asi que traer una 2a copia
+    # de uno que YA esta en la mano no aporta absolutamente nada -- se gasto el
+    # Meowth ex (un cuerpo de 2 premios en banca) para duplicar una carta. En
+    # aquel turno el fetch trajo un segundo Xerosic's Machinations teniendo uno
+    # en mano, en vez del Boss's Orders que era justo lo que el motor que bajo
+    # el Meowth queria. Va PRIMERO en la cadena: ninguna otra rama debe poder
+    # rescatar un duplicado. 40 (no veto) porque el prompt exige elegir una
+    # carta: si TODOS los candidatos fueran duplicados hay que quedarse con
+    # alguno. Deck-agnostico.
+    _ReglaFija("copia_ya_en_mano",
+               lambda c: (c.hand.get(c.card_id, 0) >= 1
+                          and not c.first_turn),
+               lambda c: 40),
     # Remate ganador / 2 premios via Boss's Orders del MAZO.
     _ReglaFija("boss_ganador",
                lambda c: ((c.win_via_boss or c.gust2_via_boss)
@@ -5336,6 +5719,35 @@ _REGLAS_MEOWTH_FETCH = [
                lambda c: True,
                _v_meowth_fetch_valor),
 ]
+
+
+def _meowth_fetch_prediccion(hand_counts, supp_values, hand_size,
+                             strong_attacker, op_hand_count,
+                             active_cant_attack, win_via_boss, gust2_via_boss,
+                             deny_evo_via_boss, devel_lillie, alakazam,
+                             cartas_en_mazo, first_turn=False):
+    """(id, valor) del Supporter que Last-Ditch Catch traeria AHORA MISMO.
+
+    Reproduce el fetch REAL (`_REGLAS_MEOWTH_FETCH`, el mismo tablero) sobre
+    los Supporters que siguen en el MAZO, para poder decidir ANTES de gastar el
+    Meowth ex si la busqueda aporta algo. `hand_size` debe ser el de DESPUES de
+    bajar el Meowth (una carta menos), que es cuando se resuelve el fetch.
+    Devuelve (None, 0) si no queda ningun Supporter en el mazo.
+    """
+    mejor_id, mejor_val = None, 0
+    for _sid in _MEOWTH_FETCH_SUPPS:
+        if cartas_en_mazo.get(_sid, {}).get(ESTADO_MAZO, 0) <= 0:
+            continue
+        _ctx = _CtxMeowthFetch(
+            _sid, supp_values.get(_sid, 0), hand_counts, supp_values,
+            hand_size, strong_attacker, op_hand_count, active_cant_attack,
+            win_via_boss, gust2_via_boss, deny_evo_via_boss, devel_lillie,
+            alakazam, first_turn)
+        _val, _ = _resolver_reglas(_REGLAS_MEOWTH_FETCH, [], _ctx, 50)
+        if _val > mejor_val:
+            mejor_id, mejor_val = _sid, _val
+    return mejor_id, mejor_val
+
 
 # --- Reglas del fetch TO_HAND de Dawn ---------------------------------------
 # Dawn busca un Basico + una Fase 1 + una Fase 2: cada candidato se puntua
@@ -5605,7 +6017,7 @@ def _ctx_gust_objetivo(card, o, my_state, op_state, state, hand_counts,
     is_exmega = bool(tgt_data is not None and
                      (getattr(tgt_data, 'ex', False) or
                       getattr(tgt_data, 'megaEx', False)))
-    prizes = prize_count(card)
+    prizes = prize_count_op(card)
     is_stage1 = bool(tgt_data and getattr(tgt_data, 'stage1', False))
     is_stage2 = bool(tgt_data and getattr(tgt_data, 'stage2', False))
 
@@ -5636,16 +6048,12 @@ def _ctx_gust_objetivo(card, o, my_state, op_state, state, hand_counts,
         elif atk.id == Bayleef and eff_after >= 2:
             dmg = 60
 
-        eff_dmg = dmg
-        if atk.id != Fezandipiti_ex and tgt_data:
-            if getattr(tgt_data, 'weakness', None) == EnergyType.GRASS:
-                eff_dmg *= 2
-            elif getattr(tgt_data, 'resistance', None) == EnergyType.GRASS:
-                eff_dmg -= 30
-        if card.id in EX_IMMUNE_IDS and atk.id in OUR_EX_IDS:
-            eff_dmg = 0
-        if card.id in ABILITY_IMMUNE_IDS and atk.id in OUR_ABILITY_IDS:
-            eff_dmg = 0
+        # Evaluador CENTRAL de dano (P0.1): la copia inline aplicaba debilidad
+        # e inmunidades ex/habilidad pero ignoraba Drednaw (anula >=200),
+        # Sturdy/Resolute Heart (cap a hp-10), Armor Tail de Farigiraf y la
+        # Neutralization Zone -> `can_ko`/`wins_now` podian declarar KOs falsos.
+        eff_dmg = _our_effective_damage(atk, card, dmg, meganium_in_play,
+                                        neutralization_zone_active)
         if eff_dmg >= hp:
             can_ko = True
 
@@ -5707,7 +6115,10 @@ def _ctx_gust_objetivo(card, o, my_state, op_state, state, hand_counts,
         rc0=RETREAT_COST.get(card.id, 0), rc1=RETREAT_COST.get(card.id, 1),
         stall_diff=RETREAT_COST.get(card.id, 0) - energia,
         is_ex=is_ex, is_exmega=is_exmega, is_megaex=is_megaex,
-        prizes=prizes, wins_now=(can_ko and prizes >= my_prize),
+        # `wins_now` exige ademas KO GARANTIZADO (P0.1): contra Tenacious Body
+        # (moneda) o Survival Brace el remate puede fallar y regalar el turno.
+        prizes=prizes, wins_now=(can_ko and prizes >= my_prize
+                                 and not _ko_no_garantizado(card)),
         is_stage1=is_stage1, is_stage2=is_stage2,
         tiene_tool=bool(getattr(card, 'tools', None)),
         can_ko=can_ko, tier_ko=tier,
@@ -5971,6 +6382,8 @@ def agent(obs_dict: dict) -> list[int]:
     global _ub_engine_pivot_turn
     global _dodge_immune_serial
     global _dodge_immune_turn
+    global _op_bench_snipe_dmg
+    global _td_ability_serial
 
     if state.firstPlayer >= 0:
         we_go_first = (state.firstPlayer == state.yourIndex)
@@ -5988,6 +6401,9 @@ def agent(obs_dict: dict) -> list[int]:
         _ub_meowth_pending = False
 
         _ub_engine_pivot_turn = False
+
+        # El cache de habilidad del activo es POR TURNO (ver mas abajo).
+        _td_ability_serial = None
 
     field_counts = defaultdict(int)
     hand_counts = defaultdict(int)
@@ -6045,6 +6461,10 @@ def agent(obs_dict: dict) -> list[int]:
           CARTAS_ACTIVAS_EN_MAZO.get(Hydrapple_ex, {}).get(ESTADO_MAZO, 0) > 0))
     )
 
+    # Eslabon de evolucion que de verdad hace falta buscar / evoluciones
+    # huerfanas (sin su pre-evolucion). Ver `_evo_link_state`.
+    _evo_necesarios, _evo_huerfanos = _evo_link_state(hand_counts, field_counts)
+
     stadium_id = 0
     for card in state.stadium:
         stadium_id = card.id
@@ -6060,6 +6480,29 @@ def agent(obs_dict: dict) -> list[int]:
     # juego. No conviene bajar Meowth ex ni buscarlo con Ultra Ball hasta poder
     # reemplazar el estadio (p.ej. con Forest of Vitality).
     watchtower_in_play = (stadium_id == Team_Rockets_Watchtower)
+
+    # Iron Thorns ex ("Initialization") en el ACTIVO rival (P1.4): anula las
+    # habilidades de TODOS los Pokemon con Rule Box de ambos lados. Teal
+    # Dance / Ripening / Flip the Script desaparecen del menu (lo impone el
+    # motor del juego), pero el agente ademas NO debe planear alrededor de
+    # Last-Ditch Catch (bajar o buscar Meowth ex "para el fetch"): mismo
+    # efecto que Team Rocket's Watchtower sobre Meowth. A diferencia del
+    # estadio, Forest NO lo arregla (hay que sacar a Iron Thorns del activo:
+    # KO o gusteo), por eso `watchtower_in_play` se mantiene puro para las
+    # reglas de contra-estadio y este OR alimenta los gates del motor Meowth.
+    op_iron_thorns_active = bool(
+        op_state.active and op_state.active[0] is not None
+        and op_state.active[0].id == Iron_Thorns_ex)
+    meowth_ability_lock = watchtower_in_play or op_iron_thorns_active
+
+    # Denegacion de premios del campo rival (P0.2): refresca los flags que
+    # consulta `prize_count_op` (Pecharunt ex -> Munkidori ex rinde 1 menos;
+    # Mega Gengar ex -> sus {D} rinden 1 menos ante nuestros ex).
+    global _op_prize_denial_pecharunt, _op_prize_denial_gengar
+    _op_field_ids = {p.id for p in ((op_state.active or [])
+                                    + (op_state.bench or [])) if p is not None}
+    _op_prize_denial_pecharunt = Pecharunt_ex in _op_field_ids
+    _op_prize_denial_gengar = Mega_Gengar_ex in _op_field_ids
 
     is_poisoned = my_state.poisoned
     is_burned = my_state.burned
@@ -6221,6 +6664,21 @@ def agent(obs_dict: dict) -> list[int]:
                         op_active, my_active,
                         getattr(op_state, 'handCount', None)))
 
+            # Burst de banca rival (P0.3): Dusknoir 133 ("Cursed Blast": 13
+            # contadores = 130) y Dusclops 132 (5 = 50) meten dano EXTRA desde
+            # cualquier posicion ADEMAS del ataque del activo (usan la
+            # habilidad, se noquean solos y LUEGO atacan). Sin sumarlo, los
+            # pivotes defensivos creen que el muro sobrevive un golpe que en
+            # realidad llega con +130. Se suma el MAYOR burst disponible (una
+            # sola habilidad por proyeccion: conservador sin sobre-disparar).
+            # Aplica aunque el activo rival no pueda atacar: la habilidad no
+            # necesita ataque.
+            _op_burst = 0
+            for _ob_p in ((op_state.active or []) + (op_state.bench or [])):
+                if _ob_p is not None and _ob_p.id in OP_BENCH_BURST:
+                    _op_burst = max(_op_burst, OP_BENCH_BURST[_ob_p.id])
+            estimated_op_damage += _op_burst
+
             if estimated_op_damage >= my_active.hp:
                 active_ko_likely = True
             elif my_active.hp <= 60 and op_energy >= 2:
@@ -6245,11 +6703,26 @@ def agent(obs_dict: dict) -> list[int]:
                         _teal_wall_pivot = True
                         break
 
+    # Bloqueo de ITEMS rival (P1.5). El flag conserva su nombre historico
+    # (`itchy_pollen_active`, por el Itchy Pollen de Budew) pero desde el plan
+    # jul 2026 significa "NO podemos jugar Items este turno" por CUALQUIER
+    # fuente: (a) Itchy Pollen de Budew (ataque rival el turno pasado),
+    # (b) Fulgurite de Galvantula ex (idem, attackId 210), (c) Jellicent ex
+    # "Oceanic Curse" o Tyranitar "Daunting Gaze" MIENTRAS esten en el activo
+    # rival. Con 10+ items en el mazo (UBx4/BCSx4/NSx2/Stamp/PokePad) todos
+    # los consumidores del flag re-priorizan Supporters/habilidades.
     itchy_pollen_active = False
     for log in obs.logs:
         if hasattr(log, 'type') and log.type == LogType.ATTACK:
             if log.cardId == Budew and log.playerIndex != my_index:
                 itchy_pollen_active = True
+            elif (log.cardId == Galvantula_ex
+                    and getattr(log, 'attackId', None) == FULGURITE_ATTACK_ID
+                    and log.playerIndex != my_index):
+                itchy_pollen_active = True
+    if (op_state.active and op_state.active[0] is not None
+            and op_state.active[0].id in OP_ITEM_LOCK_ACTIVE_IDS):
+        itchy_pollen_active = True
 
     op_active_dodge_immune = False
     _dodge_pending_serial = None
@@ -6333,6 +6806,10 @@ def agent(obs_dict: dict) -> list[int]:
     op_is_comfey_deck = False
     op_is_raging_bolt_deck = False
     op_is_abomasnow_deck = False
+    # Iron Thorns ex en el CAMPO rival (P1.4 plan B): aunque no este de activo
+    # todavia, su presencia anuncia el lock de habilidades -> el plan pivota a
+    # los atacantes SIN habilidad con Rule Box (Tapu Bulu, linea Meganium).
+    op_is_iron_thorns_deck = False
     op_active_is_dunsparce = False
     if op_state.active and op_state.active[0] is not None:
         op_active_id = op_state.active[0].id
@@ -6414,6 +6891,8 @@ def agent(obs_dict: dict) -> list[int]:
             op_is_raging_bolt_deck = True
         if op_active_id in (Snover, Mega_Abomasnow_ex):
             op_is_abomasnow_deck = True
+        if op_active_id == Iron_Thorns_ex:
+            op_is_iron_thorns_deck = True
     for idx, pokemon in enumerate(op_state.bench):
         if pokemon is not None:
             if pokemon.id in EX_IMMUNE_IDS:
@@ -6458,6 +6937,8 @@ def agent(obs_dict: dict) -> list[int]:
                 op_is_cubchoo_deck = True
             if pokemon.id in (Hops_Phantump, Hops_Trevenant):
                 op_is_hop_deck = True
+            if pokemon.id == Iron_Thorns_ex:
+                op_is_iron_thorns_deck = True
 
             bench_data = card_table.get(pokemon.id)
             if bench_data and bench_data.energyType == EnergyType.FIRE:
@@ -6547,6 +7028,20 @@ def agent(obs_dict: dict) -> list[int]:
     if op_has_non_immune_eevee_ex and not (op_has_ex_immune_active or op_has_ex_immune_bench):
         op_is_crustle_deck = False
         op_is_sylveon_deck = False
+
+    # Dano proyectado del snipe rival sobre UN Pokemon de nuestra banca por turno
+    # (ver OP_BENCH_SNIPE_DAMAGE). Se toma el MAXIMO entre los snipers que el
+    # rival tiene EN JUEGO: es el goteo que hay que sobrevivir cada turno.
+    _op_bench_snipe_dmg = 0
+    if op_bench_snipe_threat:
+        for _bs_pk in ([_active_of(op_state)] + list(op_state.bench or [])):
+            if _bs_pk is None:
+                continue
+            if _bs_pk.id in OP_BENCH_SNIPE_DAMAGE:
+                _op_bench_snipe_dmg = max(
+                    _op_bench_snipe_dmg, OP_BENCH_SNIPE_DAMAGE[_bs_pk.id])
+        if _op_bench_snipe_dmg == 0:
+            _op_bench_snipe_dmg = OP_BENCH_SNIPE_DEFAULT
 
     # DESCUADRE DE PREMIOS (user): matchups cuyo atacante ONE-SHOTEA a cualquiera
     # de nuestros ex -> Raging Bolt (Bellowing Thunder) y Mega Abomasnow ex. La
@@ -7033,6 +7528,12 @@ def agent(obs_dict: dict) -> list[int]:
                         if op_pokemon.id in ABILITY_IMMUNE_IDS and my_has_ability:
                             damage = 0
 
+                        # Farigiraf ex "Armor Tail" (P1.6): inmune a nuestros
+                        # BASICOS ex; solo Hydrapple ex y los no-ex lo danan.
+                        if (op_pokemon.id == Farigiraf_ex
+                                and my_pokemon.id in OUR_BASIC_EX_IDS):
+                            damage = 0
+
                         _drednaw_shell_active = (op_pokemon.id == Drednaw and damage > 0)
 
                         if damage > 0 and my_pokemon.id != Fezandipiti_ex:
@@ -7059,10 +7560,13 @@ def agent(obs_dict: dict) -> list[int]:
                             score = SCORE_USELESS_ATTACK
                         elif damage <= 0 and _drednaw_shell_active:
                             score = SCORE_USELESS_ATTACK
+                        elif (damage <= 0 and op_pokemon.id == Farigiraf_ex
+                                and my_pokemon.id in OUR_BASIC_EX_IDS):
+                            score = SCORE_USELESS_ATTACK
                         elif damage <= 0 and neutralization_zone_active and my_is_ex:
                             score = SCORE_USELESS_ATTACK
                         elif op_pokemon.hp <= damage:
-                            prize = prize_count(op_pokemon)
+                            prize = prize_count_op(op_pokemon)
                         else:
                             score *= damage / max(1, op_pokemon.hp)
                         score += base_score
@@ -7247,7 +7751,11 @@ def agent(obs_dict: dict) -> list[int]:
                             and op_pokemon.hp <= damage
                             and not any(b is not None
                                         for b in (op_state.bench or [])))
-                        if my_prize <= prize or _ko_wins_no_bench:
+                        # KO GARANTIZADO (P0.1): vs Tenacious Body (moneda) o
+                        # Survival Brace no se declara SCORE_WIN_GAME; el KO
+                        # sigue puntuando por la via normal (prize/score).
+                        if ((my_prize <= prize or _ko_wins_no_bench)
+                                and not _ko_no_garantizado(op_pokemon)):
                             score = SCORE_WIN_GAME
                         elif prize > 0:
 
@@ -7455,7 +7963,7 @@ def agent(obs_dict: dict) -> list[int]:
                     # generico devolvia 0 para Dragapult ex.
                     if _promote_hydra and _hydra_mc_pk is not None:
                         _ph_gana = (_hydra_can_ko
-                                    and my_prize <= prize_count(_op_act_main))
+                                    and my_prize <= prize_count_op(_op_act_main))
                         if not _ph_gana:
                             _ph_dmg_rival = _op_active_attack_damage_to(
                                 _op_act_main, _hydra_mc_pk,
@@ -7640,7 +8148,7 @@ def agent(obs_dict: dict) -> list[int]:
                     and _ret_active.id in OUR_EX_IDS
                     and (active_ko_likely or active_hp_ratio <= 0.5
                          or _tapu_proactive_lead)
-                    and my_prize > prize_count(_op_act_main)):
+                    and my_prize > prize_count_op(_op_act_main)):
                 _tsac_op_hp = _op_act_main.hp or 0
                 _tsac_bench_kos = False
                 for _tsac_i, _tsac_pk in enumerate(my_cards):
@@ -7701,7 +8209,7 @@ def agent(obs_dict: dict) -> list[int]:
                 # Si el propio activo puede tomar un KO que nos hace GANAR ya,
                 # atacamos (no retiramos).
                 _pdp_active_wins_now = False
-                if my_prize <= prize_count(_op_act_main):
+                if my_prize <= prize_count_op(_op_act_main):
                     _pdp_ae = len(_ret_active.energies)
                     _pdp_aeff = _pdp_ae * _grass_mult()
                     _pdp_abase = 0
@@ -8166,7 +8674,7 @@ def agent(obs_dict: dict) -> list[int]:
 
             _bo_active_dmg = 0 if op_active_dodge_immune else _boss_dmg_to(_bo_op_active)
             _bo_can_ko_active = (_bo_active_dmg >= (_bo_op_active.hp or 0) and _bo_active_dmg > 0)
-            _bo_active_prize = prize_count(_bo_op_active) if _bo_can_ko_active else 0
+            _bo_active_prize = prize_count_op(_bo_op_active) if _bo_can_ko_active else 0
 
             _bo_best_bench_prize = 0
             _bo_best_bench_dmg = 0
@@ -8186,7 +8694,7 @@ def agent(obs_dict: dict) -> list[int]:
                 if _bo_bp_dmg > _bo_best_bench_dmg:
                     _bo_best_bench_dmg = _bo_bp_dmg
                 if _bo_bp_dmg >= (_bo_bp.hp or 0) and _bo_bp_dmg > 0:
-                    _bo_bp_prize = prize_count(_bo_bp)
+                    _bo_bp_prize = prize_count_op(_bo_bp)
                     if _bo_bp_prize > _bo_best_bench_prize:
                         _bo_best_bench_prize = _bo_bp_prize
 
@@ -8219,7 +8727,7 @@ def agent(obs_dict: dict) -> list[int]:
             _bo_win_via_bench = (_bo_best_bench_prize > 0
                                  and _bo_best_bench_prize >= my_prize
                                  and not (_bo_can_ko_active
-                                          and my_prize <= prize_count(_bo_op_active)))
+                                          and my_prize <= prize_count_op(_bo_op_active)))
             if _bo_win_via_bench:
                 values[Boss_Orders] = max(values.get(Boss_Orders, 0), 990)
 
@@ -8248,7 +8756,7 @@ def agent(obs_dict: dict) -> list[int]:
                         if (op_is_crustle_deck
                                 and _bo_wr_tgt.id in (Dwebble_Grass, Dwebble_Fighting)):
                             continue
-                        if prize_count(_bo_wr_tgt) < my_prize:
+                        if prize_count_op(_bo_wr_tgt) < my_prize:
                             continue
                         if _bench_attacker_can_ko(
                                 my_state, _bo_wr_tgt, meganium_in_play, total_grass,
@@ -8261,7 +8769,7 @@ def agent(obs_dict: dict) -> list[int]:
 
             _bo_deny_evo_target = False
             _bo_ko_active_wins = (_bo_can_ko_active
-                                  and my_prize <= prize_count(_bo_op_active))
+                                  and my_prize <= prize_count_op(_bo_op_active))
 
             _bo_cur_act = my_state.active[0] if my_state.active else None
             _bo_de_switch = hand_counts.get(1123, 0) >= 1
@@ -8288,7 +8796,7 @@ def agent(obs_dict: dict) -> list[int]:
                         and _bo_pe.id not in NONEX_FINAL_PREEVO_IDS
                         and len(_bo_pe.energies) >= 1
                         and _bo_can_ko_active
-                        and prize_count(_bo_op_active) == prize_count(_bo_pe))
+                        and prize_count_op(_bo_op_active) == prize_count_op(_bo_pe))
                     # Negar una linea EX desde la banca AUNQUE la pre-evolucion NO
                     # tenga energia: cuando el activo rival es un muro inofensivo
                     # sin energia (noquearlo no corta ninguna amenaza) y en la
@@ -8302,7 +8810,7 @@ def agent(obs_dict: dict) -> list[int]:
                         and _bo_pe.id not in NONEX_FINAL_PREEVO_IDS
                         and _bo_can_ko_active
                         and len(_bo_op_active.energies) == 0
-                        and prize_count(_bo_op_active) <= 1
+                        and prize_count_op(_bo_op_active) <= 1
                         and _bo_op_active.id not in EX_PREEVO_IDS
                         and _bo_op_active.id not in THREAT_PREEVO_IDS
                         and _bo_op_active.id not in KEY_BENCH_ATTACKER_IDS)
@@ -8320,6 +8828,26 @@ def agent(obs_dict: dict) -> list[int]:
                     _bo_pe_is_energized_preevo_vs_bare_wall = (
                         _bo_pe_is_ex_preevo_energized
                         and len(_bo_op_active.energies) == 0)
+                    # Negar una linea EX cuando el activo rival esta FUERA de esa
+                    # linea (noquearlo no la toca), aunque TENGA energia. Generaliza
+                    # `_bo_pe_is_energized_preevo_vs_bare_wall` (que exige activo con
+                    # 0 energia): con premios IGUALES, gustear+noquear la pre-evo ex
+                    # energizada de banca (Morgrem -> Grimmsnarl ex) corta al atacante
+                    # principal, mientras que noquear un activo AJENO a la linea
+                    # (Munkidori, un soporte de 1 premio) rinde el mismo premio pero
+                    # deja viva la evolucion. El activo debe ser un objetivo AJENO:
+                    # ni pre-evo ex, ni pre-evo amenaza, ni atacante clave de banca
+                    # (si el activo YA fuese de esa clase, noquearlo ya aportaria, y
+                    # la comparacion de premios de abajo decide). La igualdad de
+                    # premios ya viene garantizada por `_bo_pe_is_ex_preevo_energized`
+                    # (prize_count activo == prize_count pre-evo). (user, registro_004
+                    # paso 47 vs Marnie: activo Munkidori 1e + Morgrem energizado en
+                    # banca; el juego jugaba Dawn/estadio en vez de Boss's al Morgrem.)
+                    _bo_pe_is_energized_preevo_off_line = (
+                        _bo_pe_is_ex_preevo_energized
+                        and _bo_op_active.id not in EX_PREEVO_IDS
+                        and _bo_op_active.id not in THREAT_PREEVO_IDS
+                        and _bo_op_active.id not in KEY_BENCH_ATTACKER_IDS)
                     if not (_bo_pe_is_threat or _bo_pe_is_ex_preevo_energized
                             or _bo_pe_is_ex_line_vs_wall):
                         continue
@@ -8354,14 +8882,15 @@ def agent(obs_dict: dict) -> list[int]:
                             _bo_op_active.id in THREAT_PREEVO_IDS
                             and len(_bo_op_active.energies) >= len(_bo_pe.energies))
                         _bo_active_prize_dominates = (
-                            (prize_count(_bo_op_active) > prize_count(_bo_pe)
+                            (prize_count_op(_bo_op_active) > prize_count_op(_bo_pe)
                              or _bo_active_is_threat_ko)
                             if _bo_pe_is_threat
-                            else prize_count(_bo_op_active) >= prize_count(_bo_pe))
+                            else prize_count_op(_bo_op_active) >= prize_count_op(_bo_pe))
                         if (_bo_can_ko_active
                                 and _bo_active_prize_dominates
                                 and not _bo_pe_is_ex_line_vs_wall
-                                and not _bo_pe_is_energized_preevo_vs_bare_wall):
+                                and not _bo_pe_is_energized_preevo_vs_bare_wall
+                                and not _bo_pe_is_energized_preevo_off_line):
                             continue
                         _bo_deny_evo_target = True
                         break
@@ -8445,7 +8974,7 @@ def agent(obs_dict: dict) -> list[int]:
 
             if _bo_best_bench_prize > _bo_active_prize and _bo_best_bench_prize > 0:
 
-                _bo_active_prize_val = prize_count(_bo_op_active)
+                _bo_active_prize_val = prize_count_op(_bo_op_active)
                 _bo_trade_down = (not _bo_can_ko_active and _bo_active_dmg > 0
                                   and _bo_active_prize_val > _bo_best_bench_prize)
                 if not _bo_trade_down:
@@ -8535,7 +9064,7 @@ def agent(obs_dict: dict) -> list[int]:
             if (_bo_can_ko_active and not _bo_win_via_bench and not _bo_deny_evo_target
                     and not _bo_dipplin_combo and not _bo_gust_key_bench
                     and not _bo_deny_alakazam_line):
-                _bo_active_prize_now = prize_count(_bo_op_active)
+                _bo_active_prize_now = prize_count_op(_bo_op_active)
                 if my_prize <= _bo_active_prize_now:
                     values[Boss_Orders] = 0
                 elif (_bo_active_prize_now >= _bo_best_bench_prize
@@ -9097,6 +9626,27 @@ def agent(obs_dict: dict) -> list[int]:
                 _best_supp_in_mazo_val = val
                 _best_supp_in_mazo_id = sid
 
+    # DISPONIBILIDAD DE TEAL DANCE, ESTABLE DURANTE TODO EL TURNO (user).
+    # Las habilidades solo aparecen como opciones en el MENU PRINCIPAL; en los
+    # prompts encadenados (buscar en el mazo, elegir el objetivo de un adjunte,
+    # descartar...) el select NO las lista. Leer `select.option` desde esos
+    # prompts daba SIEMPRE "Teal Dance no disponible", asi que el MISMO turno
+    # proyectaba distinto dano segun el prompt en que estuvieramos: el motor
+    # bajaba Meowth ex "para buscar Boss's Orders" (flag calculado en el menu,
+    # CON Teal Dance) y dos pasos despues el fetch valoraba ese mismo Boss's a 0
+    # (flag SIN Teal Dance) y se llevaba otra carta (registro_010 pasos 118/120).
+    # Se cachea el SERIAL del activo cuya habilidad ofrecio el ultimo menu
+    # principal del turno: entre menu y menu el estado de la habilidad no puede
+    # cambiar, y exigir el serial evita arrastrar el cache si retiramos y
+    # promovemos otro Pokemon.
+    if context == SelectContext.MAIN:
+        _td_ability_serial = None
+        _td_act = _active_of(my_state)
+        if _td_act is not None and any(
+                o.type == OptionType.ABILITY and o.area == AreaType.ACTIVE
+                for o in select.option):
+            _td_ability_serial = getattr(_td_act, 'serial', None)
+
     _gust_2prize_via_boss = False
     _win_via_boss_gust = False
     _deny_evo_via_boss = False
@@ -9121,9 +9671,8 @@ def agent(obs_dict: dict) -> list[int]:
         _mbw_td = (_mbw_atk is not None
                    and _mbw_atk.id == Teal_Mask_Ogerpon_ex
                    and _mbw_grass_hand >= 1
-                   and any(o.type == OptionType.ABILITY
-                           and o.area == AreaType.ACTIVE
-                           for o in select.option))
+                   and _td_ability_serial is not None
+                   and getattr(_mbw_atk, 'serial', None) == _td_ability_serial)
         _mbw_extra = min(_mbw_grass_hand,
                          (1 if _mbw_attach else 0) + (1 if _mbw_td else 0))
 
@@ -9165,7 +9714,7 @@ def agent(obs_dict: dict) -> list[int]:
         _mbw_act = op_state.active[0]
         _mbw_act_dmg = _mbw_dmg_to(_mbw_act)
         _mbw_act_ko = (_mbw_act_dmg >= (_mbw_act.hp or 0) and _mbw_act_dmg > 0)
-        _mbw_act_wins = _mbw_act_ko and my_prize <= prize_count(_mbw_act)
+        _mbw_act_wins = _mbw_act_ko and my_prize <= prize_count_op(_mbw_act)
 
         if not _mbw_act_wins:
             for _mbw_bp in op_state.bench:
@@ -9176,11 +9725,11 @@ def agent(obs_dict: dict) -> list[int]:
                     continue
                 _mbw_bp_dmg = _mbw_dmg_to(_mbw_bp)
                 if (_mbw_bp_dmg >= (_mbw_bp.hp or 0) and _mbw_bp_dmg > 0
-                        and my_prize <= prize_count(_mbw_bp)):
+                        and my_prize <= prize_count_op(_mbw_bp)):
                     _win_via_boss_gust = True
                     break
 
-            _mbw_act_prize = prize_count(_mbw_act) if _mbw_act_ko else 0
+            _mbw_act_prize = prize_count_op(_mbw_act) if _mbw_act_ko else 0
             _mbw_best_bench_prize = 0
             for _mbw_bp2 in op_state.bench:
                 if _mbw_bp2 is None:
@@ -9190,11 +9739,11 @@ def agent(obs_dict: dict) -> list[int]:
                     continue
                 _mbw_bp2_dmg = _mbw_dmg_to(_mbw_bp2)
                 if _mbw_bp2_dmg >= (_mbw_bp2.hp or 0) and _mbw_bp2_dmg > 0:
-                    _mbw_bp2_pr = prize_count(_mbw_bp2)
+                    _mbw_bp2_pr = prize_count_op(_mbw_bp2)
                     if _mbw_bp2_pr > _mbw_best_bench_prize:
                         _mbw_best_bench_prize = _mbw_bp2_pr
             _mbw_trade_down = (not _mbw_act_ko and _mbw_act_dmg > 0
-                               and prize_count(_mbw_act) > _mbw_best_bench_prize)
+                               and prize_count_op(_mbw_act) > _mbw_best_bench_prize)
             if (_mbw_best_bench_prize >= 2
                     and _mbw_best_bench_prize > _mbw_act_prize
                     and not _mbw_trade_down):
@@ -9211,7 +9760,7 @@ def agent(obs_dict: dict) -> list[int]:
             # la linea evolutiva del atacante ex rival. Espejo conservador:
             # solo dano del ACTIVO (sin fallback de banca tras retirar).
             if not _win_via_boss_gust and not _gust_2prize_via_boss:
-                _dev_act_prize = prize_count(_mbw_act)
+                _dev_act_prize = prize_count_op(_mbw_act)
                 for _dev_pe in op_state.bench:
                     if _dev_pe is None:
                         continue
@@ -9240,7 +9789,7 @@ def agent(obs_dict: dict) -> list[int]:
                     # `_bo_pe_is_energized_preevo_vs_bare_wall` (activo muro
                     # desnudo de <=1 premio: noquearlo no corta nada).
                     if ((_mbw_act_ko
-                         and _dev_act_prize == prize_count(_dev_pe))
+                         and _dev_act_prize == prize_count_op(_dev_pe))
                             or (len(_mbw_act.energies) == 0
                                 and _dev_act_prize <= 1)):
                         _deny_evo_via_boss = True
@@ -9773,33 +10322,30 @@ def agent(obs_dict: dict) -> list[int]:
     def _extra_energy_enables_ko(pokemon_id: int, current_energy: int) -> bool:
         if _op_active_hp <= 0:
             return False
+        if not (op_state.active and op_state.active[0] is not None):
+            return False
         _mult = _grass_attach_unit()
+        _op_act = op_state.active[0]
+
+        # Evaluador CENTRAL (P0.1): la copia inline solo aplicaba debilidad/
+        # resistencia; contra Drednaw (anula >=200), Sturdy/Resolute Heart o
+        # Crustle (inmune a ex) creia que una energia extra "habilitaba" un KO
+        # inexistente y desperdiciaba la carga.
+        def _eff(_base):
+            return _our_effective_damage(
+                _ProjTarget(pokemon_id), _op_act, _base,
+                meganium_in_play, neutralization_zone_active)
 
         if pokemon_id == Hydrapple_ex:
-
-            _dmg_now = 30 + 30 * total_grass
-            _dmg_extra = 30 + 30 * (total_grass + _mult)
-            if _op_active_weakness_grass:
-                _dmg_now *= 2
-                _dmg_extra *= 2
-            elif _op_active_resistance_grass:
-                _dmg_now = max(0, _dmg_now - 30)
-                _dmg_extra = max(0, _dmg_extra - 30)
+            _dmg_now = _eff(30 + 30 * total_grass)
+            _dmg_extra = _eff(30 + 30 * (total_grass + _mult))
             return _dmg_now < _op_active_hp <= _dmg_extra
 
         if pokemon_id == Teal_Mask_Ogerpon_ex:
-            _op_e = 0
-            if op_state.active and op_state.active[0] is not None:
-                _op_e = len(op_state.active[0].energies)
+            _op_e = len(_op_act.energies)
             _my_eff = current_energy
-            _dmg_now = 30 + 30 * (_my_eff + _op_e)
-            _dmg_extra = 30 + 30 * (_my_eff + _mult + _op_e)
-            if _op_active_weakness_grass:
-                _dmg_now *= 2
-                _dmg_extra *= 2
-            elif _op_active_resistance_grass:
-                _dmg_now = max(0, _dmg_now - 30)
-                _dmg_extra = max(0, _dmg_extra - 30)
+            _dmg_now = _eff(30 + 30 * (_my_eff + _op_e))
+            _dmg_extra = _eff(30 + 30 * (_my_eff + _mult + _op_e))
             return _dmg_now < _op_active_hp <= _dmg_extra
 
         return False
@@ -9809,7 +10355,6 @@ def agent(obs_dict: dict) -> list[int]:
 
         _ak_eff = len(_active_pokemon.energies)
         _ak_dmg = 0
-        _ak_is_grass = True
         if _active_pokemon.id == Teal_Mask_Ogerpon_ex and _ak_eff >= 3:
             _ak_op_e = (len(op_state.active[0].energies)
                         if (op_state.active and op_state.active[0] is not None) else 0)
@@ -9826,13 +10371,19 @@ def agent(obs_dict: dict) -> list[int]:
             # Cruel Arrow: 100 de dano FIJO (tipo Oscuridad, no Planta) a
             # cualquier Pokemon. Cuenta como KO del activo rival para habilitar
             # la carga del atacante futuro (Tapu Bulu). No aplica la debilidad /
-            # resistencia a Planta porque no es dano de Planta.
+            # resistencia a Planta porque no es dano de Planta
+            # (_our_effective_damage lo sabe via `is_fez`).
             _ak_dmg = 100
-            _ak_is_grass = False
-        if _ak_dmg > 0 and _ak_is_grass and _op_active_weakness_grass:
-            _ak_dmg *= 2
-        elif _ak_dmg > 0 and _ak_is_grass and _op_active_resistance_grass:
-            _ak_dmg = max(0, _ak_dmg - 30)
+        # Evaluador CENTRAL (P0.1): la copia inline solo aplicaba debilidad/
+        # resistencia, asi que `_active_already_kos` podia declarar un KO falso
+        # vs Crustle (inmune a ex), Drednaw (anula >=200), Sturdy/Resolute
+        # Heart (sobreviven a 10) o Cornerstone. `_our_effective_damage` ya
+        # salta la debilidad para Fezandipiti (dano fijo), cubriendo
+        # `_ak_is_grass`.
+        if _ak_dmg > 0 and op_state.active and op_state.active[0] is not None:
+            _ak_dmg = _our_effective_damage(
+                _active_pokemon, op_state.active[0], _ak_dmg,
+                meganium_in_play, neutralization_zone_active)
         _active_already_kos = (_ak_dmg >= _op_active_hp)
 
     # ¿El ataque del ACTIVO este turno GANA la partida? (user, registro_009 paso
@@ -9862,7 +10413,10 @@ def agent(obs_dict: dict) -> list[int]:
         and can_attack
         and not is_confused
         and op_state.active and op_state.active[0] is not None
-        and (my_prize <= prize_count(op_state.active[0])
+        # KO GARANTIZADO (P0.1): vs Tenacious Body/Survival Brace el "remate"
+        # puede fallar la moneda; no se le da prioridad absoluta de victoria.
+        and not _ko_no_garantizado(op_state.active[0])
+        and (my_prize <= prize_count_op(op_state.active[0])
              or _op_bench_empty))
 
     # KO LETAL de Ogerpon por DOBLE carga en un turno (user, log 85803267 turno
@@ -9894,10 +10448,12 @@ def agent(obs_dict: dict) -> list[int]:
             # Myriad cuenta la energia de AMBOS activos (_otml_op_e existia
             # sin usarse).
             _otml_dmg = 30 + 30 * (_otml_e_after + _otml_op_e)
-            if _op_active_weakness_grass:
-                _otml_dmg *= 2
-            elif _op_active_resistance_grass:
-                _otml_dmg = max(0, _otml_dmg - 30)
+            # Evaluador CENTRAL (P0.1): ademas de debilidad/resistencia aplica
+            # Drednaw, Sturdy/Resolute Heart e inmunidades a ex.
+            if op_state.active and op_state.active[0] is not None:
+                _otml_dmg = _our_effective_damage(
+                    _active_pokemon, op_state.active[0], _otml_dmg,
+                    meganium_in_play, neutralization_zone_active)
             if _otml_e_after >= 3 and _otml_dmg >= _op_active_hp:
                 _ogerpon_td_manual_lethal = True
 
@@ -10142,7 +10698,7 @@ def agent(obs_dict: dict) -> list[int]:
             and (active_ko_likely
                  or (estimated_op_damage > 0
                      and estimated_op_damage >= (_my_active_pk.hp or 0)))
-            and not (my_prize <= prize_count(op_state.active[0]))):
+            and not (my_prize <= prize_count_op(op_state.active[0]))):
         _fesp_opa = op_state.active[0]
         _fesp_opa_hp = _fesp_opa.hp or 0
         for _fesp_bp in (my_state.bench or []):
@@ -11403,6 +11959,61 @@ def agent(obs_dict: dict) -> list[int]:
                     score -= 60
         return score
 
+    # --- Ripening Charge como CURA: salvar un cuerpo condenado por el snipe ---
+    # (user, registro_006/008 pasos 96-122 vs Marnie's Grimmsnarl ex, PERDIDA.)
+    # Ripening Charge no solo ADJUNTA una Planta: CURA 30 al Pokemon que la
+    # recibe. Cuando el Dipplin de banca esta a 20/80 y Shadow Bullet le mete 30
+    # automaticos cada turno, ese cuerpo muere solo y regala un premio; curarlo
+    # (20 -> 50) lo hace SOBREVIVIR. El agente adjuntaba esa misma Planta a mano
+    # (adjunte manual, sin curacion) o vetaba la habilidad por "no sobrecargar",
+    # perdiendo 30 de vida GRATIS: la energia acaba en el mismo campo, asi que
+    # Syrup Storm (escala con el Grass TOTAL) hace exactamente el mismo dano.
+    #
+    # `_ripen_heal_serial` = serial del cuerpo al que dirigir la Planta. Solo se
+    # arma cuando la curacion CAMBIA el resultado (el cuerpo muere al golpe
+    # proyectado y con +30 sobrevive), nunca como curacion cosmetica. Se calcula
+    # DESPUES de `energy_score` para poder consultar sus prioridades: si alguna
+    # carga vale >= 41000 hay un REMATE/pivote letal pendiente y la Planta no se
+    # desvia a curar. Ante varios candidatos gana el de MENOS vida (el que muere
+    # antes) y, a igualdad, el de banca (el activo tiene ademas la retirada).
+    _ripen_heal_serial = None
+    if (field_counts.get(Hydrapple_ex, 0) >= 1
+            and hand_counts.get(Basic_Grass_Energy, 0) >= 1
+            and not neutralization_zone_active):
+        _rh_cands = ([(True, _p) for _p in (my_state.active or []) if _p is not None]
+                     + [(False, _p) for _p in (my_state.bench or []) if _p is not None])
+        _rh_lethal_pending = any(
+            energy_score(_p, _act) >= 41000 for _act, _p in _rh_cands)
+        if not _rh_lethal_pending:
+            _rh_og_cap = None
+            if op_is_cubchoo_deck:
+                _rh_og_cap = 2 if meganium_in_play else 4
+            elif op_is_alakazam_deck or op_is_hop_deck:
+                _rh_og_cap = _ogerpon_base_phys_cap(
+                    meganium_in_play, op_is_hop_deck)
+            _rh_best = None
+            _rh_best_key = None
+            for _rh_act, _rh_pk in _rh_cands:
+                _rh_hp = _rh_pk.hp or 0
+                _rh_max = _rh_pk.maxHp or 0
+                if _rh_hp <= 0 or _rh_hp >= _rh_max:
+                    continue  # sin dano: la curacion no rinde nada
+                if _ripen_energy_capped(_rh_pk, _rh_og_cap):
+                    continue  # tope duro de energia: no dirigir la Planta ahi
+                # Golpe proyectado: al activo el mejor ataque rival; a la banca
+                # el snipe automatico. Curar SALVA si ahora muere y despues no.
+                _rh_thr = (estimated_op_damage if _rh_act else _op_bench_snipe_dmg)
+                if _rh_thr <= 0 or _rh_thr < _rh_hp:
+                    continue
+                if _rh_thr >= min(_rh_max, _rh_hp + RIPENING_HEAL):
+                    continue  # la curacion no basta: seguiria muriendo
+                _rh_key = (_rh_hp, 1 if _rh_act else 0)
+                if _rh_best_key is None or _rh_key < _rh_best_key:
+                    _rh_best_key = _rh_key
+                    _rh_best = _rh_pk
+            if _rh_best is not None:
+                _ripen_heal_serial = getattr(_rh_best, 'serial', None)
+
     _sel_active_cant_attack = False
     _sel_active_pkmn = my_state.active[0] if my_state.active else None
     if _sel_active_pkmn is not None:
@@ -11429,6 +12040,43 @@ def agent(obs_dict: dict) -> list[int]:
         and hand_counts.get(Lillie_Determination, 0) >= 1
         and not _win_via_boss_gust and not _gust_2prize_via_boss
     )
+
+    # Nuestro PRIMER turno de juego (mismo criterio que el bloque de Ultra
+    # Ball): la linea anti-donk baja Meowth ex aunque el Supporter ya este en
+    # la mano, asi que las reglas de "copia redundante" no aplican todavia.
+    _our_first_action_turn = (
+        (state.turn == 1 and we_go_first) or
+        (state.turn == 2 and not we_go_first))
+
+    # BUSQUEDA REDUNDANTE DE MEOWTH EX (user, registro_010 paso 118 vs
+    # Alakazam, GANADA con error): bajar Meowth ex solo vale por su Last-Ditch
+    # Catch, asi que ANTES de gastarlo hay que mirar QUE Supporter traeria de
+    # verdad; si ESE MISMO Supporter ya esta en la mano, la busqueda no aporta
+    # nada y ademas expone un cuerpo de 2 premios en la banca. Lo correcto es
+    # cancelar el Meowth y seguir el turno jugando ese Supporter.
+    #
+    # La prediccion usa el MISMO motor que el fetch real
+    # (`_REGLAS_MEOWTH_FETCH`), no una lista de casos: por eso vale para
+    # CUALQUIER mazo y para cualquier Supporter. Los guards existentes miraban
+    # `_best_supp_in_hand_val`, que solo pondera Boss's/Dawn/Lillie's/Lana's --
+    # con Xerosic's Machinations en mano valia 0 y el veto nunca disparaba,
+    # que es justo lo que paso aqui: se bajo Meowth ex teniendo ya el Xerosic
+    # que el fetch acabo trayendo (una 2a copia inutil).
+    #
+    # `hand_size - 1` porque el fetch se resuelve DESPUES de banquear el Meowth.
+    _meowth_fetch_id, _meowth_fetch_val = _meowth_fetch_prediccion(
+        hand_counts, _supp_values,
+        max(0, (len(my_state.hand) if my_state.hand else 0) - 1),
+        (field_counts.get(Hydrapple_ex, 0) >= 1
+         or field_counts.get(Teal_Mask_Ogerpon_ex, 0) >= 1),
+        getattr(op_state, 'handCount', 0),
+        (_active_cant_attack_this_turn or _sel_active_cant_attack),
+        _win_via_boss_gust, _gust_2prize_via_boss, _deny_evo_via_boss,
+        _meowth_devel_lillie, op_is_alakazam_deck,
+        CARTAS_ACTIVAS_EN_MAZO, _our_first_action_turn)
+    _meowth_fetch_redundante = (
+        _meowth_fetch_id is not None
+        and hand_counts.get(_meowth_fetch_id, 0) >= 1)
 
     # Cuando vamos por detras en premios y el unico gusteo de Boss's Orders es
     # un objetivo de bajo valor (basico/pre-evo de 1 premio, rank alto) que no
@@ -11789,6 +12437,88 @@ def agent(obs_dict: dict) -> list[int]:
             if _ak_1prize_prom is not None:
                 _best_promote_card = _ak_1prize_prom
 
+        # Tanque via EVOLUCION sobre atacante CONDENADO (user, registro_013 paso
+        # 99 vs Mega Lucario ex, PERDIDA): al promover tras un KO, si NADIE en la
+        # banca NOQUEA al activo rival (`_best_promote_key[0] == 0`) y el candidato
+        # normal es un ex de 2+ premios que MUERE al golpe proyectado (Ogerpon ex
+        # 210 vs los 270 del Mega Lucario -> regala 2 premios), pero una PRE-EVO de
+        # banca (Dipplin) puede EVOLUCIONAR el proximo turno a un cuerpo que
+        # SOBREVIVE (Hydrapple ex 330 > 270), promover esa pre-evo: cede 0 premios
+        # y aguanta el golpe para seguir en juego. Generaliza el "tanque
+        # recargable" de arriba (que exige el tanque YA en banca) a la via de
+        # EVOLUCION (la evolucion esta en la MANO). El atacante de 1 premio que
+        # NOQUEA (Tapu/Meganium, ramas de arriba) mantiene la prioridad: esto solo
+        # actua cuando no hay KO posible. La prioridad del usuario es: (1) 1-premio
+        # que noquea; (2) el que mejor AGUANTE un golpe futuro -aqui-; (3) sacrificar
+        # el 1-premio menos necesario (ramas basic-prefer de abajo). Deck-agnostico.
+        # Se dispara cuando NO hay atacante que noquee al activo rival: o el mejor
+        # candidato es un ex de 2+ premios condenado (`_best_promote_key[0]==0`),
+        # o directamente no hay cuerpo que pueda atacar este turno
+        # (`_best_promote_card is None`, p.ej. sin energia para adjuntar). En ambos
+        # casos la prioridad (2) del usuario -"el que mejor AGUANTE un golpe
+        # futuro"- manda: si NINGUN cuerpo de banca sobrevive al golpe proyectado
+        # tal cual, pero una PRE-EVO puede EVOLUCIONAR el proximo turno a un cuerpo
+        # que SOBREVIVE, promover esa pre-evo.
+        _ev_no_koer = (_best_promote_card is None
+                       or (_best_promote_key is not None
+                           and _best_promote_key[0] == 0
+                           and prize_count(_best_promote_card) >= 2))
+        if _forced_ko_promote and _ev_no_koer and _op_prom_remain > 0:
+            _ev_op_act = _active_of(op_state)
+            _ev_hand = getattr(op_state, 'handCount', None)
+            # ¿Sobrevive algun cuerpo TAL CUAL (sin evolucionar) al golpe
+            # proyectado? Si si, no forzamos la via de evolucion (la logica normal
+            # decide; evitamos colateral). Solo actuamos cuando NADA aguanta.
+            _ev_survivor_asis = False
+            for _sb in my_state.bench:
+                if _sb is None or not isinstance(_sb, Pokemon):
+                    continue
+                _sb_hit = _op_active_attack_damage_to(_ev_op_act, _sb, _ev_hand)
+                if _sb_hit > 0 and _sb_hit < (getattr(_sb, 'hp', 0) or 0):
+                    _ev_survivor_asis = True
+                    break
+            if not _ev_survivor_asis:
+                _ev_best = None
+                _ev_best_hp = -1
+                for _ev_pb in my_state.bench:
+                    if _ev_pb is None or not isinstance(_ev_pb, Pokemon):
+                        continue
+                    if getattr(_ev_pb, 'appearThisTurn', False):
+                        continue  # recien salio: no evoluciona el proximo turno
+                    _ev_pb_data = card_table.get(_ev_pb.id)
+                    _ev_pb_name = getattr(_ev_pb_data, 'name', None)
+                    if _ev_pb_name is None:
+                        continue
+                    # Evolucion DIRECTA en la mano cuya pre-evo es este cuerpo.
+                    _ev_to_id = None
+                    for _hid, _hn in hand_counts.items():
+                        if _hn <= 0:
+                            continue
+                        _hd = card_table.get(_hid)
+                        if (_hd is not None
+                                and getattr(_hd, 'evolvesFrom', None) == _ev_pb_name):
+                            _ev_to_id = _hid
+                            break
+                    if _ev_to_id is None:
+                        continue
+                    _ev_to_data = card_table.get(_ev_to_id)
+                    # CardData expone la vida base como `.hp` (no `.maxHp`); los
+                    # Pokemon del TABLERO si tienen `.maxHp`/`.hp` (actual).
+                    _ev_max = getattr(_ev_to_data, 'hp', 0) or 0
+                    # El dano ya sufrido por la pre-evo se conserva al evolucionar.
+                    _ev_dmg_taken = ((getattr(_ev_pb, 'maxHp', 0) or 0)
+                                     - (getattr(_ev_pb, 'hp', 0) or 0))
+                    _ev_survive_hp = _ev_max - max(0, _ev_dmg_taken)
+                    _ev_op_hit = _op_active_attack_damage_to(
+                        _ev_op_act, _ProjTarget(_ev_to_id), _ev_hand)
+                    if _ev_op_hit <= 0 or _ev_op_hit >= _ev_survive_hp:
+                        continue  # la evolucion tampoco sobrevive
+                    if _ev_survive_hp > _ev_best_hp:
+                        _ev_best_hp = _ev_survive_hp
+                        _ev_best = _ev_pb
+                if _ev_best is not None:
+                    _best_promote_card = _ev_best
+
     # Regla (user) vs Mega Lucario: cuando el rival nos NOQUEA un Pokemon y en
     # la banca NO hay NINGUN atacante capaz de atacar este turno
     # (`_best_promote_card is None`), preferimos SIEMPRE promover primero un
@@ -11937,6 +12667,60 @@ def agent(obs_dict: dict) -> list[int]:
                     _promote_setup_ko_attacker = _psb
     # ------------------------------------------------------------------
 
+    # --- SUPERVIVENCIA AL PROMOVER (user, registro_005 paso 64 vs Archaludon,
+    # PERDIDA) -----------------------------------------------------------------
+    # Al elegir que cuerpo sube al activo, lo PRIMERO es si aguanta el ataque
+    # del activo rival. En aquel turno Archaludon ex pegaba 220: solo el
+    # Hydrapple ex (330 PV) sobrevivia, y el agente subio un Teal Mask Ogerpon ex
+    # de 210 PV con SEIS energias (4557 frente a 259) -- moria sin haber noqueado
+    # (Myriad proyectaba 300 contra 400 PV) y regalaba 2 premios y toda la carga.
+    #
+    # Dos criterios, en este orden, deck-agnosticos:
+    #   1) si ALGUN candidato sobrevive, los que mueren se penalizan;
+    #   2) si NINGUNO sobrevive, gana el que entregue MENOS premios.
+    #
+    # Excepcion: un candidato que NOQUEA al activo rival conserva su score. Ahi
+    # el intercambio (cobrar premio aunque muera) es correcto y ya lo gobiernan
+    # las reglas de arriba; esta regla solo ordena a los que NO cobran nada.
+    _promo_op_act = _active_of(op_state)
+    _promo_survivors = 0
+    _promo_min_prize = None
+
+    def _promo_survives(_pk):
+        """El candidato aguanta el ataque proyectado del activo rival."""
+        if _promo_op_act is None or _pk is None:
+            return True
+        return _op_active_attack_damage_to(_promo_op_act, _pk) < (_pk.hp or 0)
+
+    def _promo_kos_op(_pk):
+        """El candidato NOQUEA al activo rival tras promoverlo (con su energia
+        actual mas el adjunte manual si aun queda por gastar)."""
+        if _promo_op_act is None or _pk is None:
+            return False
+        _pe = len(_pk.energies) * _grass_mult()
+        if not state.energyAttached and hand_counts.get(Basic_Grass_Energy, 0) >= 1:
+            _pe += _grass_attach_unit()
+        _pbase = _attacker_base_damage(
+            _pk.id, _promo_op_act, _pe, grass_scale=total_grass,
+            teal_self_energy=_pe, bench_count=bench_count)
+        if _pbase <= 0:
+            return False
+        _peff = _our_effective_damage(
+            _pk, _promo_op_act, _pbase, meganium_in_play,
+            neutralization_zone_active)
+        return _peff >= (_promo_op_act.hp or 0)
+
+    if (context == SelectContext.SWITCH or context == SelectContext.TO_ACTIVE):
+        for _pb in my_state.bench:
+            if _pb is None:
+                continue
+            if _promo_survives(_pb):
+                _promo_survivors += 1
+            _pp = prize_count(_pb)
+            if _promo_min_prize is None or _pp < _promo_min_prize:
+                _promo_min_prize = _pp
+    # ------------------------------------------------------------------
+
     # Regla (user, log 86345562 p55): al PROMOVER (retiro o KO) cuando NINGUN
     # cuerpo de la banca puede atacar este turno y tenemos Lillie's Determination
     # en mano para refrescar la mano, preferimos subir un BASICO de 1 premio
@@ -12025,6 +12809,7 @@ def agent(obs_dict: dict) -> list[int]:
         itchy_pollen_active=itchy_pollen_active,
         has_hydrapple=has_hydrapple,
         watchtower_in_play=watchtower_in_play,
+        meowth_ability_lock=meowth_ability_lock,
         neutralization_zone_active=neutralization_zone_active,
         mega_line_active=_mega_line_active,
         active_needs_energy=_active_needs_energy,
@@ -12134,7 +12919,7 @@ def agent(obs_dict: dict) -> list[int]:
                                          neutralization_zone_active) >= _akp_op_hp:
                     _akp_bench_ko_1prize = True
                     break
-            _akp_prizes_from_ko = prize_count(_akp_op)
+            _akp_prizes_from_ko = prize_count_op(_akp_op)
             _akp_my_left = len([p for p in (my_state.prize or []) if p is None])
             _akp_win_now = _akp_my_left <= _akp_prizes_from_ko
             if _akp_can_retreat and _akp_bench_ko_1prize and not _akp_win_now:
@@ -12215,7 +13000,7 @@ def agent(obs_dict: dict) -> list[int]:
                     if _dmg_eff <= 0:
                         score = 1
                     elif _dmg_eff >= _dmg_tgt_hp:
-                        score = (10000 + 1000 * prize_count(card)
+                        score = (10000 + 1000 * prize_count_op(card)
                                  + 10 * energy_count + _dmg_tgt_hp // 10)
                     else:
                         score = 100 + int(100 * _dmg_eff / max(1, _dmg_tgt_hp))
@@ -12770,6 +13555,52 @@ def agent(obs_dict: dict) -> list[int]:
                         if (_promote_setup_ko_attacker is not None
                                 and card is _promote_setup_ko_attacker):
                             score = 9500
+
+                        # ANTI-CUBCHOO: no promover un cuerpo que quedaria CLAVADO
+                        # (user, registro_036 paso 146). Mismo principio que el veto
+                        # de evolucion vs Cubchoo: contra un mazo que bloquea y
+                        # descarta energia, subir al activo un Pokemon con coste de
+                        # retirada ALTO que no puede pagarlo lo deja atrapado alli.
+                        # Al retirar tras Teal Dance, Hydrapple ex (retirada 3, 2
+                        # energias efectivas -> clavado) ganaba 623 a 555 al Teal
+                        # Mask Ogerpon ex (retirada 1, 4 energias), que ademas
+                        # tambien NOQUEA y conserva la movilidad para el proximo
+                        # pivote. Es una PENALIZACION, no un veto: si el cuerpo
+                        # lento es la unica opcion, sigue siendo el promovido.
+                        if (op_is_cubchoo_deck and score > 0
+                                and isinstance(card, Pokemon)):
+                            _cp_rc = RETREAT_COST.get(card.id, 1)
+                            if _cp_rc >= 3 and len(card.energies) < _cp_rc:
+                                score -= 300
+
+                        # SUPERVIVENCIA (user, registro_005 paso 64). Ajuste
+                        # TERMINAL: va despues de todas las ramas de promocion
+                        # para tener la ultima palabra. Ver el bloque que calcula
+                        # `_promo_survivors` / `_promo_min_prize`.
+                        if (score > 0 and isinstance(card, Pokemon)
+                                and _promo_op_act is not None
+                                and _promo_kos_op(card)):
+                            # PRIORIDAD DEL QUE NOQUEA (user): subir el atacante
+                            # cargado en vez del tanque SOLO cuando ese atacante
+                            # noquea al rival. Cobrar el premio manda aunque
+                            # despues muera; si no noquea, gobiernan la
+                            # supervivencia y los premios de abajo.
+                            score += PROMO_KO_BONUS
+                        elif (score > 0 and isinstance(card, Pokemon)
+                                and _promo_op_act is not None):
+                            if _promo_survivors > 0:
+                                # 1) Hay quien aguanta: el que muere sin cobrar
+                                #    premio deja de ser candidato. Penalizacion
+                                #    (no veto) para conservar el orden relativo
+                                #    entre los condenados si no queda otra.
+                                if not _promo_survives(card):
+                                    score -= PROMO_DOOMED_PENALTY
+                            elif _promo_min_prize is not None:
+                                # 2) No aguanta nadie: entregar los MENOS premios
+                                #    posibles. Refuerza las reglas de descuadre
+                                #    que ya prefieren un cuerpo de 1 premio.
+                                score -= (PROMO_PRIZE_PENALTY
+                                          * (prize_count(card) - _promo_min_prize))
                     else:
 
                         # Objetivo del GUSTEO de Boss's Orders: migrado al MOTOR DE
@@ -12899,7 +13730,7 @@ def agent(obs_dict: dict) -> list[int]:
                             bench_count, total_grass, has_hydrapple,
                             _active_needs_energy, op_has_ex_immune_active,
                             op_has_ex_immune_bench, op_is_lucario_deck,
-                            watchtower_in_play, _best_supp_in_hand_val,
+                            meowth_ability_lock, _best_supp_in_hand_val,
                             _best_supp_in_mazo_val)
                         _bcs_entrada = _TABLA_BCS_FETCH.get(card.id)
                         if _bcs_entrada is not None:
@@ -12938,7 +13769,7 @@ def agent(obs_dict: dict) -> list[int]:
                             bench_count, total_grass, has_hydrapple,
                             _active_needs_energy, op_has_ex_immune_active,
                             op_has_ex_immune_bench, op_is_lucario_deck,
-                            watchtower_in_play, _best_supp_in_hand_val,
+                            meowth_ability_lock, _best_supp_in_hand_val,
                             _best_supp_in_mazo_val)
 
                         _ns_tablas = {
@@ -13039,7 +13870,7 @@ def agent(obs_dict: dict) -> list[int]:
                             _ub_only_active_in_play
                             and _ub_no_playable_basic_hand
                             and hand_counts.get(Lillie_Determination, 0) == 0
-                            and not watchtower_in_play
+                            and not meowth_ability_lock
                             and field_counts.get(Meowth_ex, 0) < 2
                             and bench_count < 5
                             and CARTAS_ACTIVAS_EN_MAZO.get(Meowth_ex, {}).get(ESTADO_MAZO, 0) > 0
@@ -13133,7 +13964,7 @@ def agent(obs_dict: dict) -> list[int]:
                         _ub_hydra_dead_prefer_meowth = (
                             _ub_hydra_evolvable_now
                             and not _ub_hydra_can_attack_now
-                            and not watchtower_in_play
+                            and not meowth_ability_lock
                             and field_counts.get(Meowth_ex, 0) < 2
                             and bench_count < 5
                             and not state.supporterPlayed
@@ -13165,7 +13996,7 @@ def agent(obs_dict: dict) -> list[int]:
                             and not _ub_mega_evolvable_now
                             and not _ub_mega_chain_now
                             and not _active_ready_attacker
-                            and not watchtower_in_play
+                            and not meowth_ability_lock
                             and field_counts.get(Meowth_ex, 0) < 2
                             and bench_count < 5
                             and not state.supporterPlayed
@@ -13200,7 +14031,7 @@ def agent(obs_dict: dict) -> list[int]:
                             or (_ub_active_can_retreat and _ub_bench_ready_attacker))
                         _ub_no_attacker_prefer_meowth = (
                             not _ub_usable_attacker
-                            and not watchtower_in_play
+                            and not meowth_ability_lock
                             and field_counts.get(Meowth_ex, 0) < 2
                             and bench_count < 5
                             and not state.supporterPlayed
@@ -13228,7 +14059,7 @@ def agent(obs_dict: dict) -> list[int]:
                         if card.id == Meowth_ex:
                             _ub_meo_ctx = _ctx_ub_fetch_meowth(
                                 hand_counts, field_counts, bench_count,
-                                state.turn, watchtower_in_play,
+                                state.turn, meowth_ability_lock,
                                 _supp_values, _ub_prefer_meowth_develop,
                                 _ub_hydra_dead_prefer_meowth,
                                 _ub_mega_dead_prefer_meowth,
@@ -13320,6 +14151,30 @@ def agent(obs_dict: dict) -> list[int]:
                             if hand_counts.get(card.id, 0) >= 1:
                                 score -= 150
 
+                        # ORDEN DE LA LINEA DE EVOLUCION (user, registro_006
+                        # paso 79 vs Marnie, PERDIDA). Con un Applin en banca y
+                        # NINGUN Dipplin (ni en juego ni en mano), la Ultra Ball
+                        # traia Hydrapple ex -- que no puede evolucionar nada y
+                        # se queda muerto en la mano -- porque su rama
+                        # `applin_evolucionable` (180) mas el bonus de copia
+                        # premiada (+150 = 330) superaba al Dipplin (150), que
+                        # es el eslabon que de VERDAD falta. La linea de
+                        # Meganium ya lo hacia bien (Bayleef 850 > Meganium
+                        # 200); esto iguala la de Hydrapple.
+                        # Va DESPUES del bonus de escasez para tener la ULTIMA
+                        # palabra: ese +150 es el que resucitaba la carta
+                        # muerta. Si el eslabon no esta en el mazo no aparece
+                        # entre las opciones, y con la banca llena la propia
+                        # Ultra Ball ya se CANCELA antes de jugarse
+                        # (`_evolve_possible_in_play`).
+                        if card.id in _evo_huerfanos:
+                            score = min(score, 30)
+                        elif card.id in _evo_necesarios and score >= 50:
+                            # `score >= 50` respeta los clamps de "carta
+                            # muerta" (20/25/40) por si una rama futura los
+                            # aplica a un eslabon intermedio.
+                            score = max(score, 900)
+
                     elif select.effect is not None and select.effect.id == Meowth_ex:
 
                         # Bloque migrado al MOTOR DE REGLAS (fase 4):
@@ -13339,7 +14194,7 @@ def agent(obs_dict: dict) -> list[int]:
                                  or _sel_active_cant_attack),
                                 _win_via_boss_gust, _gust_2prize_via_boss,
                                 _deny_evo_via_boss, _meowth_devel_lillie,
-                                op_is_alakazam_deck)
+                                op_is_alakazam_deck, _our_first_action_turn)
                             score = _resolver_con_traza(
                                 "meowth->fetch", _REGLAS_MEOWTH_FETCH, [],
                                 _mf_ctx, defecto=50)
@@ -13355,7 +14210,7 @@ def agent(obs_dict: dict) -> list[int]:
                             bench_count, total_grass, has_hydrapple,
                             _active_needs_energy, op_has_ex_immune_active,
                             op_has_ex_immune_bench, op_is_lucario_deck,
-                            watchtower_in_play, _best_supp_in_hand_val,
+                            meowth_ability_lock, _best_supp_in_hand_val,
                             _best_supp_in_mazo_val)
                         _dawn_entrada = _TABLA_DAWN_FETCH.get(card.id)
                         if _dawn_entrada is not None:
@@ -13865,6 +14720,15 @@ def agent(obs_dict: dict) -> list[int]:
                     score = 50
                 elif context == SelectContext.ATTACH_FROM:
                     score = energy_score(card, o.area == AreaType.ACTIVE)
+                    # Objetivo de Ripening Charge cuando la habilidad se juega
+                    # POR LA CURACION (ver `_ripen_heal_serial`): la Planta va al
+                    # cuerpo que muere al golpe proyectado y que con +30 sobrevive.
+                    # 39500 gana a todo el desarrollo normal y queda BAJO el
+                    # atacante futuro (_tapu_future_charge, 40000) y bajo las
+                    # cargas letales (41000/42000), que ademas ya vetan el flag.
+                    if (_ripen_heal_serial is not None and score > 0
+                            and getattr(card, 'serial', None) == _ripen_heal_serial):
+                        score = max(score, RIPEN_HEAL_TARGET_SCORE)
 
         elif o.type == OptionType.PLAY:
             card = get_card(obs, AreaType.HAND, o.index, my_index)
@@ -13993,7 +14857,7 @@ def agent(obs_dict: dict) -> list[int]:
                             score = 21000
                     elif card.id == Meowth_ex:
 
-                        if watchtower_in_play:
+                        if meowth_ability_lock:
                             # Team Rocket's Watchtower anula la habilidad de
                             # Meowth ex (Pokemon incoloro): no bajarlo a la banca.
                             score = SCORE_VETO
@@ -14114,7 +14978,7 @@ def agent(obs_dict: dict) -> list[int]:
                                 and _meowth_ld_free
                                 and bench_count <= 1
                                 and not state.supporterPlayed
-                                and not watchtower_in_play
+                                and not meowth_ability_lock
                                 and not op_has_froslass
                                 and hand_counts.get(Lillie_Determination, 0) == 0
                                 and CARTAS_ACTIVAS_EN_MAZO.get(
@@ -14161,7 +15025,7 @@ def agent(obs_dict: dict) -> list[int]:
                                 and not (plan.attacker == 0
                                          and plan.remain_hp is not None
                                          and plan.remain_hp <= 0)
-                                and not watchtower_in_play
+                                and not meowth_ability_lock
                                 and (not op_has_froslass
                                      or _ready_attacker_count <= 1)):
                             # Regla (user, logs 86592502 turno 9 vs Archaludon ex,
@@ -14193,7 +15057,7 @@ def agent(obs_dict: dict) -> list[int]:
                                 and bench_count <= 1
                                 and bench_count < 5
                                 and (active_ko_likely or active_hp_ratio <= 0.2)
-                                and not watchtower_in_play
+                                and not meowth_ability_lock
                                 and not state.supporterPlayed
                                 and hand_counts.get(Lillie_Determination, 0) == 0
                                 and CARTAS_ACTIVAS_EN_MAZO.get(
@@ -14399,6 +15263,20 @@ def agent(obs_dict: dict) -> list[int]:
                                 _meowth_score = 20000
 
                             score = _meowth_score
+
+                        # VALIDACION FINAL: el Supporter que el Last-Ditch Catch
+                        # traeria YA esta en la mano -> la busqueda es redundante
+                        # y bajar Meowth ex solo regala un cuerpo de 2 premios.
+                        # Se cancela la jugada (el turno sigue y el Supporter se
+                        # juega por su propia escalera). Va al FINAL de la cadena
+                        # para tener la ultima palabra tambien sobre los motores
+                        # de arriba (Boss's ganador 22500, deny-evo 22000...):
+                        # esos miran solo si el BOSS'S esta en mano, no cual
+                        # seria el fetch real -- en el registro_010 el motor
+                        # apuntaba a Boss's pero el fetch acabo trayendo el
+                        # Xerosic que ya teniamos. Ver `_meowth_fetch_prediccion`.
+                        if _meowth_fetch_redundante and score > 0:
+                            score = SCORE_VETO
                     elif card.id == Fezandipiti_ex:
 
                         # Con Lillie's Determination + Teal Mask Ogerpon ex +
@@ -14489,7 +15367,8 @@ def agent(obs_dict: dict) -> list[int]:
                         _op_is_crustle_like = (
                             op_is_crustle_deck or op_has_ability_immune_active or
                             op_is_cornerstone_deck or op_is_sylveon_deck or
-                            op_has_ex_immune_active or op_has_ex_immune_bench)
+                            op_has_ex_immune_active or op_has_ex_immune_bench or
+                            op_is_iron_thorns_deck)
 
                         if field_counts[card.id] >= 1:
                             score = SCORE_VETO
@@ -14497,7 +15376,8 @@ def agent(obs_dict: dict) -> list[int]:
                               meganium_in_play and not _tapu_first_turn):
 
                             score = 16000
-                        elif _tapu_in_play_count > 2 and not op_is_crustle_deck:
+                        elif (_tapu_in_play_count > 2 and not op_is_crustle_deck
+                                and not op_is_iron_thorns_deck):
 
                             score = SCORE_VETO
                         elif op_is_crustle_deck:
@@ -14508,6 +15388,15 @@ def agent(obs_dict: dict) -> list[int]:
                         elif op_has_ability_immune_active or op_is_cornerstone_deck:
 
                             score = 22500
+                        elif op_is_iron_thorns_deck:
+                            # Iron Thorns ex (P1.4 plan B, autopsia iron_thorns
+                            # p007 t16): con Initialization delante, Teal Dance /
+                            # Ripening / Last-Ditch estan muertas y el agente
+                            # cerraba el turno con Tapu Bulu EN MANO (66 turnos
+                            # esteriles en 15 derrotas). Tapu es el atacante
+                            # manual sin habilidad: bajarlo es el plan A, como
+                            # vs Cornerstone.
+                            score = 22000
                         elif op_is_sylveon_deck:
 
                             score = 22000
@@ -14816,7 +15705,7 @@ def agent(obs_dict: dict) -> list[int]:
                             field_counts[Meowth_ex] >
                             _field_at_turn_start.get(Meowth_ex, 0)
                             if _field_at_turn_start is not None else False)
-                        if watchtower_in_play:
+                        if meowth_ability_lock:
                             # Team Rocket's Watchtower anula la habilidad de los
                             # Pokemon {C}: bajar Meowth ex ahora NO activaria
                             # Last-Ditch Catch (no busca Supporter). No lo jugamos
@@ -15415,6 +16304,36 @@ def agent(obs_dict: dict) -> list[int]:
 
                                 score = 8000
 
+                # ANTI-CUBCHOO: NO evolucionar a un cuerpo LENTO que no llega a
+                # su ataque (user, registro_034 paso 131 vs Cubchoo, PERDIDA).
+                # Ese mazo bloquea y descarta energia, asi que un Pokemon con
+                # coste de retirada ALTO (Hydrapple ex: 3) que ademas NO alcanza
+                # su requisito de ataque queda CLAVADO: ni ataca ni se retira, y
+                # regala un cuerpo de 2 premios plantado en el activo. En aquel
+                # turno el Dipplin activo tenia 0 energias y aun asi se
+                # evoluciono a Hydrapple ex (33000), quedando inutil el resto de
+                # la partida.
+                #
+                # El gate es el COSTE DE RETIRADA (>= 3), que es la razon real:
+                # en nuestro mazo solo lo cumple Hydrapple ex (Meganium/Bayleef/
+                # Dipplin cuestan 2), pero asi cubre cualquier evolucion futura
+                # igual de lenta. Va al FINAL de la rama para tener la ultima
+                # palabra sobre las subidas de score de arriba.
+                #
+                # SOLO vs Cubchoo (`op_is_cubchoo_deck`): en el resto de
+                # matchups la evolucion es desarrollo normal -- se recarga y se
+                # retira sin problema, y el muro de 330 PV compensa.
+                if (op_is_cubchoo_deck and score > 0
+                        and RETREAT_COST.get(card.id, 1) >= 3):
+                    # Energia con la que contaria el cuerpo YA evolucionado: la
+                    # que hereda de la pre-evolucion mas el adjunte manual si
+                    # sigue disponible este turno.
+                    _cub_evo_eff = _pkmn_energy
+                    if _has_energy_in_hand:
+                        _cub_evo_eff += _grass_attach_unit()
+                    if _cub_evo_eff < ATTACK_ENERGY_REQ.get(card.id, 99):
+                        score = SCORE_VETO
+
                 if has_condition and _is_active and score > 0:
                     score += condition_urgency
 
@@ -15446,13 +16365,16 @@ def agent(obs_dict: dict) -> list[int]:
                         _td_op_hp = _td_op_act.hp or 0
                         _td_eff_now = _ogerpon_energy
                         _td_eff_after = _ogerpon_energy + _grass_attach_unit()
-                        # Ivy Bludgeon = 30 + 30 por Energia Planta PROPIA (no del
-                        # objetivo). Se pasa por _our_effective_damage para aplicar
-                        # debilidad Y RESISTENCIA correctamente (user, registro_012
-                        # paso 93: Duraludon resiste -30 a Planta, asi que Teal
-                        # Dance habilita el KO al pasar de 4 a >=5 energias
-                        # efectivas). `card` es el propio Teal Mask Ogerpon ex.
-                        # Myriad cuenta la energia de AMBOS activos.
+                        # Myriad Leaf Shower = 30 + 30 por CADA energia unida a
+                        # AMBOS activos (la propia MAS la del activo rival); de ahi
+                        # el `_td_eff_now + _td_opp_e` de abajo. (El comentario
+                        # anterior decia "solo energia propia": era un error ya
+                        # corregido en `_attacker_base_damage`, el codigo siempre
+                        # sumo las dos.) Se pasa por _our_effective_damage para
+                        # aplicar debilidad Y RESISTENCIA (user, registro_012 paso
+                        # 93: Duraludon resiste -30 a Planta, asi que Teal Dance
+                        # habilita el KO al pasar de 4 a >=5 energias efectivas).
+                        # `card` es el propio Teal Mask Ogerpon ex.
                         _td_opp_e = len(getattr(_td_op_act, 'energies', []) or [])
                         _td_base_now = (30 + 30 * (_td_eff_now + _td_opp_e)
                                         if _td_eff_now >= 3 else 0)
@@ -15479,6 +16401,31 @@ def agent(obs_dict: dict) -> list[int]:
                         and _ogerpon_energy < 3)
                     if hand_counts[Basic_Grass_Energy] < 1:
                         score = SCORE_VETO
+                    elif _attach_enable_retreat_ko and o.area == AreaType.ACTIVE:
+                        # TEAL DANCE que habilita la retirada hacia un atacante de
+                        # banca LETAL (user, registro_036 paso 146 vs Cubchoo).
+                        # `_attach_enable_retreat_ko` ya detecta la linea completa
+                        # -- activo sin energia para retirarse + atacante de banca
+                        # que NOQUEA -- y le da 41000 al adjunte MANUAL sobre el
+                        # activo. Pero si ese activo es un Teal Mask Ogerpon ex con
+                        # Teal Dance viva, el adjunte manual se veta por la
+                        # precedencia "Teal Dance antes que el adjunte" y la linea
+                        # se perdia entera: el agente acababa cargando un cuerpo de
+                        # banca cualquiera (alli, un Tapu Bulu a 10 PV) y el KO no
+                        # ocurria.
+                        #
+                        # La precedencia es correcta -- Teal Dance adjunta la misma
+                        # Planta Y ADEMAS ROBA --, lo que faltaba era que la propia
+                        # Teal Dance heredase la prioridad de esa linea letal. Va
+                        # ANTES de los topes de energia por matchup (Cubchoo,
+                        # Alakazam/Hop's, Crustle): esto no es sobrecargar, es la
+                        # unica forma de pagar el coste de retirada.
+                        #
+                        # `_teal_dance_ko_pivot`/`_teal_wall_pivot` (31600) cubren
+                        # solo el caso del MURO inmune con un atacante NO-ex; aqui
+                        # el activo rival es atacable y el letal de banca es otro
+                        # ex, asi que ninguno de los dos disparaba.
+                        score = 41000
                     elif _td_ko_on_active or _td_is_lethal_focus:
 
                         score = 31500
@@ -15673,6 +16620,18 @@ def agent(obs_dict: dict) -> list[int]:
                             # (2 fisicas = 4 efectivas con Meganium). El objetivo
                             # Tapu Bulu se elige en energy_score (ATTACH_FROM).
                             score = 30000
+                        elif _ripen_heal_serial is not None:
+                            # Ripening Charge por su CURACION (user, registro_008
+                            # paso 122 vs Marnie's Grimmsnarl ex, PERDIDA): el
+                            # Hydrapple ya llega a su ataque, asi que la rama de
+                            # abajo VETABA la habilidad y la ultima Planta de la
+                            # mano se iba por el adjunte MANUAL (14000) -- misma
+                            # energia en el campo pero SIN los 30 de curacion.
+                            # Con el Dipplin de banca a 20/80 y Shadow Bullet
+                            # metiendo 30 automaticos cada turno, esos 30 son la
+                            # diferencia entre conservar el cuerpo y regalar un
+                            # premio. El objetivo se fija en ATTACH_FROM.
+                            score = RIPEN_HEAL_ABILITY_SCORE
                         else:
                             score = SCORE_VETO
                     elif _active_needs_energy and not _enough_for_both and o.area != AreaType.ACTIVE:
@@ -15939,7 +16898,7 @@ def agent(obs_dict: dict) -> list[int]:
                 and _active_reloc.id != Hydrapple_ex
                 and (_active_reloc.maxHp or 0) < 330
                 and op_state.active and op_state.active[0] is not None
-                and not (my_prize <= prize_count(op_state.active[0])))
+                and not (my_prize <= prize_count_op(op_state.active[0])))
             _hydra_lethal_promote = False
             if (_active_reloc is not None and can_switch
                     and (not _active_can_ko_now or _active_ex_fragile_pivot)
@@ -16922,8 +17881,33 @@ def agent(obs_dict: dict) -> list[int]:
             # (p.ej. Beartic Sheer Cold sobre un cuerpo fragil), se permite la
             # retirada de rescate. La regla se limita a este matchup: contra
             # cualquier otro mazo la retirada-pivote sigue siendo correcta.
+            # EXCEPCION: retirada que NOQUEA y no destruye inversion (user,
+            # registro_036 paso 146). Las dos reglas del usuario conviven asi:
+            #
+            #  - registro_004 p47 (PASAR): el activo es un Ogerpon ex con TRES
+            #    Plantas fisicas encima. Retirar tira una de esas tres: destruye
+            #    energia ya invertida en el tablero, que es justo el recurso que
+            #    el control de Cubchoo nos niega. Aunque haya KO detras, se pasa.
+            #  - registro_036 p146 (RETIRAR): el activo tiene CERO energia -- no
+            #    ataca ni se retira, es peso muerto. La Planta la ponemos nosotros
+            #    ESE turno (Teal Dance, que ademas roba) con el unico proposito de
+            #    pagar la retirada. No se destruye nada acumulado: se convierte
+            #    una carta de la mano en un premio.
+            #
+            # Discriminante: energia FISICA del activo <= coste de retirada, es
+            # decir que no queda excedente que perder. Mas `_bdg_retreat_ko` (el
+            # mismo detector de `_attach_enable_retreat_ko`) para exigir que haya
+            # KO de verdad y no un pivote pelado.
+            _cc_ret_cost_pre = (RETREAT_COST.get(_active_reloc.id, 1)
+                                if _active_reloc is not None else 1)
+            _cc_cashes_dead_body = (
+                _bdg_retreat_ko
+                and _active_reloc is not None
+                and _physical_energy(
+                    len(_active_reloc.energies)) <= _cc_ret_cost_pre)
             if (op_is_cubchoo_deck and score > 0 and not active_ko_likely
                     and not _cubchoo_lock_stuck
+                    and not _cc_cashes_dead_body
                     and _active_reloc is not None):
                 _cc_ret_cost = RETREAT_COST.get(_active_reloc.id, 1)
                 _cc_wastes_energy = (
@@ -16992,7 +17976,7 @@ def agent(obs_dict: dict) -> list[int]:
                 _plan_atk_is_winning = False
                 if plan.remain_hp is not None and plan.remain_hp <= 0:
                     _op_act_plan = op_state.active[0] if op_state.active else None
-                    if _op_act_plan is not None and my_prize <= prize_count(_op_act_plan):
+                    if _op_act_plan is not None and my_prize <= prize_count_op(_op_act_plan):
                         _plan_atk_is_winning = True
                 if not _plan_atk_is_winning:
 
@@ -17027,7 +18011,7 @@ def agent(obs_dict: dict) -> list[int]:
                             _atk_is_winning = False
                             if plan.remain_hp is not None and plan.remain_hp <= 0:
                                 _op_act_atk = op_state.active[0] if op_state.active else None
-                                if _op_act_atk is not None and op_prize <= prize_count(_op_act_atk):
+                                if _op_act_atk is not None and op_prize <= prize_count_op(_op_act_atk):
                                     _atk_is_winning = True
                             if not _atk_is_winning:
                                 score = SCORE_VETO
@@ -17283,17 +18267,24 @@ def agent(obs_dict: dict) -> list[int]:
                     _play_order_tier[_po_i] = _TIER_ENERGY
                 elif (_po_ab_card is not None
                         and _po_ab_card.id == Hydrapple_ex
-                        and _po_o.area == AreaType.ACTIVE
-                        and _ripen_retreat_ko_pivot
                         and scores[_po_i] >= 29000):
-                    # Ripening Charge en el Hydrapple ex ACTIVO bloqueado (user,
-                    # registro_008 paso 82 vs Cubchoo): debe competir en TIER con
-                    # la Teal Dance de banca (que sube a tier ENERGY) para cargar
-                    # el activo hacia su coste de retirada y habilitar el pivote
-                    # retirar->promover atacante listo. Sin esto la Ripening
-                    # quedaba en tier 0 y la Teal Dance de banca la dominaba por
-                    # tier pese a su menor score, regando la energia en un Ogerpon
-                    # de banca y desperdiciando el turno (sin atacar).
+                    # Ripening Charge debe competir en el TIER de ENERGIA con Teal
+                    # Dance (arriba), igual que ella, cuando puntua como jugada
+                    # REAL (>= 29000). Cubre DOS casos:
+                    #   * el Hydrapple ex ACTIVO bloqueado del pivote retirar->
+                    #     promover (registro_008 paso 82 vs Cubchoo), y
+                    #   * cargar el Hydrapple ex de BANCA VACIO como ATACANTE
+                    #     FUTURO (user, registro_006 paso 80 vs Mega Lucario): sin
+                    #     esto la Ripening (31150) quedaba en tier 0 y la Teal Dance
+                    #     de un Ogerpon YA cargado (tier ENERGY, 31050) la dominaba
+                    #     por TIER pese a su MENOR score -> se regaba la energia en
+                    #     el Ogerpon sobrecargado y el Hydrapple ex se quedaba sin
+                    #     energia para un ataque futuro.
+                    # Dentro del tier decide el score, que ya codifica la prioridad
+                    # correcta: Teal Dance que HABILITA un KO (31500) > cargar el
+                    # Hydrapple de banca (31150) > Teal Dance de Ogerpon cargado
+                    # (31050). Las Ripening DEGRADADAS (7500: reservas) quedan en
+                    # tier 0 (mismo guard que Teal Dance).
                     _play_order_tier[_po_i] = _TIER_ENERGY
 
     # =================================================================
@@ -17356,6 +18347,58 @@ def agent(obs_dict: dict) -> list[int]:
                 scores[_rescate_lil] = max(1500, scores[_mejor_i] + 100)
 
     # =================================================================
+    # RESCATE DE TURNO MUERTO CON MEOWTH EX (user, registro_002 paso 18 vs
+    # Cubchoo, PERDIDA). Hermano del rescate de Lillie's de arriba, para cuando
+    # la Lillie's NO esta en la mano sino en el MAZO: si la MEJOR jugada del
+    # turno es TERMINAR y tenemos un Meowth ex en la mano cuyo Last-Ditch Catch
+    # puede traer un Supporter JUGABLE este turno, bajarlo es estrictamente
+    # mejor que no hacer nada -- refresca la mano y abre opciones. En aquel
+    # turno 2 el activo era un Meowth ex que no ataca, la banca era Tapu Bulu
+    # (0 energias, necesita 4) y un Applin, la mano no tenia ninguna jugada, y
+    # el agente cerro el turno con un Meowth ex en la mano que ademas ACABABA DE
+    # BUSCAR con una Ultra Ball (dos descartes gastados en una carta que luego
+    # se nego a jugar).
+    #
+    # Va DESPUES de todos los vetos y solo pisa el "no hacer nada", asi que
+    # ninguna regla de matchup se debilita mientras quede cualquier jugada real:
+    # el veto anti-Cubchoo de un 2o Meowth ex (`field_counts[Meowth_ex] == 0`)
+    # sigue vigente en todo turno que produzca algo. Deck-agnostico.
+    if (context == SelectContext.MAIN and scores
+            and not state.supporterPlayed
+            and not meowth_ability_lock
+            and bench_count < 5
+            and _meowth_ld_free
+            and field_counts.get(Meowth_ex, 0) < 2
+            and hand_counts.get(Meowth_ex, 0) >= 1
+            # SIN NINGUN ATACANTE LISTO: el turno esta muerto por falta de
+            # DESARROLLO, que es justo lo que arregla refrescar la mano. Con
+            # atacantes listos un turno muerto significa otra cosa (el activo
+            # rival es un muro inmune, estamos bloqueados...) y ahi anadir un
+            # cuerpo de 2 premios no destraba nada: el plan es Boss's/pivote.
+            # Sin este gate el rescate disparaba en turnos 12-16 con 2-4
+            # atacantes listos contra el muro de Cornerstone.
+            and _ready_attacker_count == 0
+            # El fetch tiene que aportar algo: Supporter en el MAZO que no
+            # tengamos ya en la mano (ver `_meowth_fetch_prediccion`).
+            and _meowth_fetch_id is not None
+            and not _meowth_fetch_redundante):
+        _mw_rescate = -1
+        for _mwi, _mwo in enumerate(select.option):
+            if _mwi >= len(scores) or _mwo.type != OptionType.PLAY:
+                continue
+            _mwcard = get_card(obs, AreaType.HAND, _mwo.index, my_index)
+            if _mwcard is not None and _mwcard.id == Meowth_ex:
+                _mw_rescate = _mwi
+                break
+        if _mw_rescate >= 0:
+            _mw_mejor_i = max(range(len(scores)),
+                              key=lambda i: (_play_order_tier[i], scores[i]))
+            _mw_mejor_o = select.option[_mw_mejor_i]
+            if (_mw_mejor_o.type == OptionType.END
+                    or scores[_mw_mejor_i] <= 0):
+                scores[_mw_rescate] = max(1500, scores[_mw_mejor_i] + 100)
+
+    # =================================================================
     # RED DE SEGURIDAD ANTI-BANCA-VACIA (user, registro_002 paso 15 vs Mega
     # Starmie ex, PERDIDA): NUNCA terminar el turno con la banca VACIA si podemos
     # desarrollarla. Con un solo basico en el activo y sin banca, si el rival
@@ -17381,7 +18424,7 @@ def agent(obs_dict: dict) -> list[int]:
         if (_sb_best_o.type == OptionType.ATTACK
                 and plan.remain_hp is not None and plan.remain_hp <= 0):
             _sb_opa = op_state.active[0] if op_state.active else None
-            if _sb_opa is not None and op_prize <= prize_count(_sb_opa):
+            if _sb_opa is not None and op_prize <= prize_count_op(_sb_opa):
                 _sb_wins = True
         if _sb_sterile and not _sb_wins:
             _sb_fetch_i = -1
