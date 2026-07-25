@@ -18487,6 +18487,60 @@ def agent(obs_dict: dict) -> list[int]:
                 _play_order_tier[_sb_pick] = max(
                     _play_order_tier[_sb_pick], _play_order_tier[_sb_best_i])
 
+    # =================================================================
+    # RED ANTI-TURNO-ESTERIL con Ultra Ball (autopsias jul 2026: el cluster de
+    # turnos 2 esteriles con UB vetada aparecio en CUATRO matchups distintos --
+    # iron_thorns, cornerstone, comfey y crustle_kangaskhan, 13/31 hallazgos t2
+    # en este ultimo). La red anterior solo cubre banca VACIA; esta cubre el
+    # resto: si la mejor jugada del turno es TERMINAR (o cualquier cosa de
+    # score <= 0) y una Ultra Ball vetada tiene un objetivo UTIL en el mazo,
+    # cavar con la UB siempre produce mas que END. "Util" = un basico
+    # desplegable (banca con hueco) o una EVOLUCION enlazada a un cuerpo ya en
+    # juego (jugable el proximo turno). Guardas: no vs Comfey (alli quemar 2
+    # cartas del mazo alimenta el mill y el plan tiene su propia allowlist),
+    # no vs Cubchoo (el END conservador es politica deliberada del matchup:
+    # [[anti-cubchoo-no-retirada-pivote]]) y no si atacar ya gana.
+    if (context == SelectContext.MAIN and scores and bench_count > 0
+            and not op_is_comfey_deck
+            and not op_is_cubchoo_deck
+            and sum(hand_counts.values()) >= 3):
+        _st_best_i = max(range(len(scores)),
+                         key=lambda i: (_play_order_tier[i], scores[i]))
+        _st_best_o = select.option[_st_best_i]
+        _st_sterile = (_st_best_o.type == OptionType.END
+                       or scores[_st_best_i] <= 0)
+        _st_wins = False
+        if (_st_best_o.type == OptionType.ATTACK
+                and plan.remain_hp is not None and plan.remain_hp <= 0):
+            _st_opa = op_state.active[0] if op_state.active else None
+            if _st_opa is not None and op_prize <= prize_count_op(_st_opa):
+                _st_wins = True
+        if _st_sterile and not _st_wins:
+            _st_en_mazo = lambda cid: (
+                CARTAS_ACTIVAS_EN_MAZO.get(cid, {}).get(ESTADO_MAZO, 0) > 0)
+            _st_basico_util = (bench_count < 5 and any(
+                _st_en_mazo(_b) for _b in (
+                    Chikorita, Applin, Teal_Mask_Ogerpon_ex, Tapu_Bulu,
+                    Meowth_ex, Fezandipiti_ex)))
+            _st_evo_util = (
+                (field_counts.get(Applin, 0) >= 1 and _st_en_mazo(Dipplin))
+                or (field_counts.get(Chikorita, 0) >= 1 and _st_en_mazo(Bayleef))
+                or (field_counts.get(Bayleef, 0) >= 1 and _st_en_mazo(Meganium))
+                or (field_counts.get(Dipplin, 0) >= 1 and _st_en_mazo(Hydrapple_ex)))
+            if _st_basico_util or _st_evo_util:
+                for _sti, _sto in enumerate(select.option):
+                    if _sti >= len(scores) or _sto.type != OptionType.PLAY:
+                        continue
+                    if scores[_sti] > 0:
+                        continue
+                    _stc = get_card(obs, AreaType.HAND, _sto.index, my_index)
+                    if _stc is not None and _stc.id == Ultra_Ball:
+                        scores[_sti] = max(200, scores[_st_best_i] + 100)
+                        _play_order_tier[_sti] = max(
+                            _play_order_tier[_sti],
+                            _play_order_tier[_st_best_i])
+                        break
+
     desc_indices = [i for i, _ in sorted(
         enumerate(scores),
         key=lambda x: (_play_order_tier[x[0]], x[1]),

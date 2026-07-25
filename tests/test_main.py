@@ -6365,8 +6365,11 @@ def test_never_ends_turn_with_empty_bench_plays_ultraball():
 
 
 def test_empty_bench_net_does_not_fire_with_bench_present():
-    # Control: con un Pokemon YA en banca, la red no aplica (bench_count>0) y el
-    # agente conserva su conducta (no se fuerza la Ultra Ball).
+    # Control: con un Pokemon YA en banca, la red anti-banca-vacia no aplica
+    # (bench_count>0). Desde el plan jul 2026 existe ADEMAS la red
+    # anti-turno-esteril (que si puede rehabilitar la Ultra Ball con banca
+    # presente); para aislar el control de la red ORIGINAL, se desactiva la
+    # nueva poniendo un Comfey en la banca rival (guarda op_is_comfey_deck).
     import copy
     with open(_EMPTY_BENCH_FIXTURE, encoding="utf-8") as f:
         obs = copy.deepcopy(json.load(f)["observation"])
@@ -6374,6 +6377,11 @@ def test_empty_bench_net_does_not_fire_with_bench_present():
     me["bench"] = [{"appearThisTurn": False, "energies": [], "energyCards": [],
                     "hp": 70, "id": 1071, "maxHp": 170, "playerIndex": 0,
                     "preEvolution": [], "serial": 900, "tools": []}]
+    op = obs["current"]["players"][1]
+    op.setdefault("bench", []).append(
+        {"appearThisTurn": False, "energies": [], "energyCards": [],
+         "hp": 70, "id": 164, "maxHp": 70, "playerIndex": 1,
+         "preEvolution": [], "serial": 901, "tools": []})
     m._init_cartas_tracking(); m.plan = m.AttackPlan()
     chosen = m.agent(obs)
     o = m.to_observation_class(obs)
@@ -7605,3 +7613,26 @@ def test_comfey_t8_juega_bug_catching_set():
         f"vs Comfey con 0 Plantas en mano, Bug Catching Set (surtidor de "
         f"energia) debe jugarse (opts {bcs_opts}); obtuvo {result} "
         f"(map={play_map})")
+
+
+# Red anti-turno-esteril con Ultra Ball (plan jul 2026): el cluster de turnos 2
+# esteriles con UB vetada aparecio en 4 matchups (iron_thorns, cornerstone,
+# comfey, crustle_kangaskhan: 13/31 hallazgos t2). Con banca NO vacia, si la
+# mejor jugada es END y la UB tiene objetivo util en el mazo, se rehabilita.
+# Guardas: no vs Comfey (mill) ni vs Cubchoo (END conservador deliberado).
+_STERIL_UB_FIXTURE = (
+    ROOT / "tests" / "fixtures" / "crustle_t2_red_esteril_juega_ub.json")
+
+
+def test_red_esteril_rehabilita_ultra_ball_con_banca():
+    with open(_STERIL_UB_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+
+    play_map = _resolve_play_options(obs)
+    ub_opts = [i for i, cid in play_map.items() if cid == _ULTRA_BALL]
+    assert ub_opts
+
+    result = m.agent(obs)
+    assert result[0] in ub_opts, (
+        f"turno esteril con UB vetada y objetivo util en mazo: la red debe "
+        f"jugar la Ultra Ball (opts {ub_opts}); obtuvo {result} (map={play_map})")
