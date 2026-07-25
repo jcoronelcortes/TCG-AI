@@ -7581,3 +7581,27 @@ def test_cornerstone_t2_baja_tapu_en_vez_de_end():
         f"vs Cornerstone, con Tapu Bulu en mano el turno 2 no se cierra con "
         f"END: se baja el unico atacante del matchup (opt {tapu_opt}); "
         f"obtuvo {result} (map={play_map})")
+
+
+# Autopsia comfey p014 (turno 8, plan jul 2026): la allowlist anti-Comfey
+# vetaba Bug Catching Set y en 178/186 turnos esteriles tardios teniamos 0
+# Plantas en mano (Hammer/Fan secan la mesa y sin surtidor no hay adjunte ni
+# Teal Dance): perdiamos por premios sin cobrar ninguno en partidas de 40+
+# turnos. BCS entra en la allowlist (y se conserva en el descarte de Xerosic).
+_COMFEY_BCS_FIXTURE = (
+    ROOT / "tests" / "fixtures" / "comfey_t8_juega_bug_catching_set.json")
+
+
+def test_comfey_t8_juega_bug_catching_set():
+    with open(_COMFEY_BCS_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+
+    play_map = _resolve_play_options(obs)
+    assert m.Bug_Catching_Set in play_map.values()
+    bcs_opts = [i for i, cid in play_map.items() if cid == m.Bug_Catching_Set]
+
+    result = m.agent(obs)
+    assert result[0] in bcs_opts, (
+        f"vs Comfey con 0 Plantas en mano, Bug Catching Set (surtidor de "
+        f"energia) debe jugarse (opts {bcs_opts}); obtuvo {result} "
+        f"(map={play_map})")

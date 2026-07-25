@@ -14719,6 +14719,10 @@ def agent(obs_dict: dict) -> list[int]:
                                      else 120)
                         elif card.id == Night_Stretcher:
                             score = 300
+                        elif card.id == Bug_Catching_Set:
+                            # Surtidor de Plantas del matchup (ver allowlist):
+                            # se conserva junto a NS/Lana's, bajo la energia.
+                            score = 350
                         elif card.id == Lanas_Aid:
                             score = 400
                         elif card.id == Unfair_Stamp:
@@ -15868,10 +15872,18 @@ def agent(obs_dict: dict) -> list[int]:
                     # items y estadios- NO se juegan: se descartan/ignoran (-1). Las
                     # reglas propias de Lillie's (mano>=10) y Lana's (>=2 energias) ya
                     # se aplicaron arriba; aqui solo se veta lo que NO esta en la lista.
+                    # Bug Catching Set ENTRA en la lista (autopsia comfey jul
+                    # 2026): en 178/186 turnos esteriles tardios teniamos 0
+                    # Plantas en MANO (Hammer/Fan nos secan y el veto de BCS
+                    # cortaba el surtidor) -> sin Planta no hay adjunte NI Teal
+                    # Dance y Myriad nunca llega a 3 energias: perdiamos por
+                    # premios SIN COBRAR NI UNO en partidas de 40+ turnos. BCS
+                    # trae hasta 2 Plantas/Pokemon {G} del top-7; el coste de
+                    # adelgazar el mazo 2 cartas es menor que no atacar nunca.
                     if (op_is_comfey_deck and score > 0
                             and card.id not in (
                                 Lillie_Determination, Lanas_Aid, Boss_Orders,
-                                Ultra_Ball, Night_Stretcher)):
+                                Ultra_Ball, Night_Stretcher, Bug_Catching_Set)):
                         score = SCORE_VETO
         elif o.type == OptionType.ATTACH:
             card = get_card(obs, AreaType.HAND, o.index, my_index)
