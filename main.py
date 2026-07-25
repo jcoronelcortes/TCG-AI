@@ -4148,6 +4148,19 @@ _REGLAS_LILLIE_PLAY = [
                           and c.state.turn <= 2 and c.hand_len >= 10
                           and not c.our_first_turn),
                lambda c: SCORE_VETO),
+    # FRENO DE DECK-OUT (autopsia crustle_kangaskhan jul 2026): en partidas
+    # largas vs muro+curacion el motor de robo quema 8-15 cartas por turno y
+    # hubo deck-outs REALES (mazo 0 en t20-22). Lillie's baraja la mano al
+    # mazo y roba 6: su delta de mazo es (mano - 6). Con el mazo CRITICO
+    # (<=10) se veta solo en la franja donde ademas es un refresco de lujo:
+    # mano 4-6 (neta negativa/cero y aun hay jugadas). Con mano <=3 (atasco
+    # real) sigue siendo la salida; con mano >=7 DEVUELVE cartas al mazo
+    # (anti-deck-out) y tambien pasa. Vs Comfey gobierna su propia regla.
+    _ReglaFija("freno_deckout_mazo_critico",
+               lambda c: (not c.op_is_comfey_deck
+                          and getattr(c.my_state, 'deckCount', 60) <= 10
+                          and 4 <= c.hand_len < 7),
+               lambda c: SCORE_VETO),
     _ReglaFija("supporter_ya_jugado",
                lambda c: c.state.supporterPlayed,
                lambda c: SCORE_VETO),
@@ -16694,6 +16707,13 @@ def agent(obs_dict: dict) -> list[int]:
                     # Ademas, si tenemos Lillie's Determination en la mano (y aun
                     # no jugamos Supporter), la jugamos ANTES que la habilidad.
                     if _stamp_blocks_supp_chain or _lillie_blocks_fez_ability:
+                        score = SCORE_VETO
+                    elif getattr(my_state, 'deckCount', 60) <= 4:
+                        # FRENO DE DECK-OUT (autopsia crustle jul 2026): con
+                        # el mazo en <=4, robar 3 con Flip the Script deja el
+                        # mazo a <=1 y el robo obligatorio del proximo turno
+                        # nos pone al borde de perder por deck-out. El draw
+                        # opcional no vale la partida.
                         score = SCORE_VETO
                     else:
                         score = 30000
