@@ -10998,6 +10998,29 @@ def agent(obs_dict: dict) -> list[int]:
                     return 10
                 return SCORE_VETO
 
+        # Regla (user, registro_004 paso 43, episodio 88120517 vs Marnie's
+        # Grimmsnarl, GANADA con error): un Dipplin puede tener como MAXIMO 1
+        # energia FISICA -- Do the Wave cuesta 1 y su dano NO escala con
+        # energia, asi que la 2a se desperdicia y le gana el sitio a Teal
+        # Dance / a cargar un Ogerpon hacia Myriad. Excepciones (espejo de la
+        # regla de Applin):
+        #   (a) evolucion a Hydrapple ESTE turno (Hydrapple ex en mano y el
+        #       Dipplin NO aparecio/evoluciono este turno): la 2a energia cae
+        #       de inmediato en el Hydrapple (2 efectivas = Syrup Storm
+        #       listo). Un Dipplin evolucionado ESTE turno no puede volver a
+        #       evolucionar, asi que ahi NO hay excepcion (el caso del
+        #       registro: 2a energia a un Dipplin recien evolucionado).
+        #   (b) Hydrapple ex NUESTRO ya en juego: ultimo recurso (10), la
+        #       energia en campo potencia Syrup Storm pero solo si no queda
+        #       nada mejor que cargar.
+        if pokemon.id == Dipplin and _physical_energy(energy_count) >= 1:
+            _dip_evolve_now = (hand_counts.get(Hydrapple_ex, 0) >= 1
+                               and not getattr(pokemon, 'appearThisTurn', False))
+            if not _dip_evolve_now:
+                if field_counts.get(Hydrapple_ex, 0) >= 1:
+                    return 10
+                return SCORE_VETO
+
         # Regla (user, log 86607718 turno 2, vs Crustle, PERDIMOS): si empezamos
         # el turno con un Chikorita en el ACTIVO y NINGUN Chikorita en la banca,
         # la prioridad vs Crustle es RETIRARLO (para evolucionarlo a Meganium en

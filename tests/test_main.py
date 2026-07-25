@@ -7740,3 +7740,27 @@ def test_alakazam_step85_meowth_engine_sobre_boss():
         f"con la mano rival gorda y Xerosic en el mazo, bajar Meowth ex "
         f"(Last-Ditch -> Xerosic) supera el gusteo de Boss's; jugo "
         f"{m.card_table[elegida].name}")
+
+
+# Registro 004 paso 43 vs Marnie's Grimmsnarl (episodio 88120517): el agente
+# cargaba una 2a energia a un Dipplin RECIEN evolucionado (no podia volver a
+# evolucionar; Do the Wave cuesta 1 y su dano no escala con energia) por
+# encima de Teal Dance. Regla espejo de la de Applin: Dipplin max 1 energia
+# FISICA; excepciones (a) Hydrapple ex en mano y el Dipplin puede evolucionar
+# YA (no aparecio este turno) y (b) Hydrapple en juego como ultimo recurso.
+_MARNIE_DIPPLIN_FIXTURE = (
+    ROOT / "tests" / "fixtures" / "marnie_step43_dipplin_max_una_energia.json")
+
+
+def test_marnie_step43_no_sobrecargar_dipplin_recien_evolucionado():
+    with open(_MARNIE_DIPPLIN_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+    _reset_estado_registro_008()
+    result = m.agent(obs)
+    opt = obs["select"]["option"][result[0]]
+    # La 2a energia al Dipplin (ATTACH a banca1) queda vetada; la jugada
+    # elegida es Teal Dance (ABILITY, type 10) de cualquiera de los Ogerpon.
+    assert opt.get("type") != 8 or opt.get("inPlayIndex") != 1, (
+        f"no se debe cargar la 2a energia al Dipplin recien evolucionado: {opt}")
+    assert opt.get("type") == 10, (
+        f"la linea correcta es Teal Dance (energia al Ogerpon + robo); {opt}")
