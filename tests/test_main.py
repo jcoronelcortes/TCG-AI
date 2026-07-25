@@ -5161,21 +5161,60 @@ def test_p61_tras_evolucionar_en_banca_se_juega_lillie():
 # =====================================================================
 # Confusion pivot vs muro inmune EN BANCA (user, registro_006 paso 64 vs
 # Crustle, GANADA): el activo Dipplin a 10 PV y CONFUNDIDO atacaba -- si falla
-# la moneda de confusion se auto-noquea -- en vez de RETIRARSE (Meganium hace
-# que su Planta pague el coste de retirada 2) y subir el Ogerpon ex cargado que
-# noquea al Munkidori activo. El bug: `_conf_ex_immune_match` usaba flags de
-# MAZO (op_is_crustle_deck) y de BANCA, que valen aunque el activo rival sea
-# ATACABLE, y excluian al Ogerpon ex del set de atacantes del pivote. El muro
-# inmune solo veta promover un ex cuando esta EN EL ACTIVO rival.
+# la moneda de confusion se auto-noquea -- en vez de RETIRARSE y subir el
+# Ogerpon ex cargado que noquea al Munkidori activo. El bug: `_conf_ex_immune_
+# match` usaba flags de MAZO (op_is_crustle_deck) y de BANCA, que valen aunque
+# el activo rival sea ATACABLE, y excluian al Ogerpon ex del set de atacantes
+# del pivote. El muro inmune solo veta promover un ex cuando esta EN EL ACTIVO
+# rival. Observacion autocontenida (los registros son datos locales transitorios).
 # =====================================================================
-_REG006 = ROOT / "registros" / "registro_006_pasos_061_hasta_066.json"
+_CONF_BASE_FIXTURE = (
+    ROOT / "tests" / "fixtures" / "cynthia_boss_gust_highest_evo_gabite_step51.json")
 
 
-def _reg006_step64_obs():
+def _crustle_confusion_obs(active_is_crustle=False):
     import copy as _c
     import json as _j
-    data = _j.load(open(_REG006, encoding="utf-8"))
-    return _c.deepcopy(data["steps"][3][1]["observation"])
+    o = _c.deepcopy(_j.load(open(_CONF_BASE_FIXTURE, encoding="utf-8"))["observation"])
+    cur = o["current"]
+    cur["turn"] = 6
+    cur["yourIndex"] = 1
+    cur["firstPlayer"] = 0
+    cur["supporterPlayed"] = False
+    cur["energyAttached"] = True
+    me = cur["players"][1]
+    op = cur["players"][0]
+    me["confused"] = True
+    # Activo Dipplin a 10 PV CONFUNDIDO, con 2 Plantas (paga su coste de retirada 2).
+    me["active"] = [{"appearThisTurn": False, "energies": [1, 1],
+                     "energyCards": [{"id": 1, "playerIndex": 1, "serial": 201},
+                                     {"id": 1, "playerIndex": 1, "serial": 202}],
+                     "hp": 10, "id": m.Dipplin, "maxHp": 80, "playerIndex": 1,
+                     "preEvolution": [{"id": m.Applin, "playerIndex": 1, "serial": 210}],
+                     "serial": 200, "tools": []}]
+    # Banca: Ogerpon ex cargado (3 Plantas -> Myriad Leaf Shower listo).
+    me["bench"] = [{"appearThisTurn": False, "energies": [1, 1, 1],
+                    "energyCards": [{"id": 1, "playerIndex": 1, "serial": 221},
+                                    {"id": 1, "playerIndex": 1, "serial": 222},
+                                    {"id": 1, "playerIndex": 1, "serial": 223}],
+                    "hp": 210, "id": m.Teal_Mask_Ogerpon_ex, "maxHp": 210,
+                    "playerIndex": 1, "preEvolution": [], "serial": 220, "tools": []}]
+    me["hand"] = []
+    me["handCount"] = 0
+    # Rival: muro Crustle en la BANCA; activo ATACABLE (Munkidori) salvo la frontera.
+    _op_active_id = m.Crustle_Grass if active_is_crustle else m.Munkidori
+    op["active"] = [{"appearThisTurn": False, "energies": [], "energyCards": [],
+                     "hp": 60, "id": _op_active_id,
+                     "maxHp": 150 if active_is_crustle else 110, "playerIndex": 0,
+                     "preEvolution": [], "serial": 900, "tools": []}]
+    op["bench"] = [{"appearThisTurn": False, "energies": [], "energyCards": [],
+                    "hp": 150, "id": m.Crustle_Grass, "maxHp": 150, "playerIndex": 0,
+                    "preEvolution": [], "serial": 901, "tools": []}]
+    o["select"] = {"context": 0, "contextCard": None, "deck": None, "effect": None,
+                   "maxCount": 1, "minCount": 1, "type": 0, "remainDamageCounter": 0,
+                   "remainEnergyCost": 0,
+                   "option": [{"attackId": 115, "type": 13}, {"type": 12}, {"type": 14}]}
+    return o
 
 
 def _tipo_elegido(obs):
@@ -5187,7 +5226,7 @@ def _tipo_elegido(obs):
 def test_confusion_pivot_retira_a_ex_si_activo_rival_atacable():
     # Activo rival = Munkidori (atacable): retirar el Dipplin confundido y subir
     # el Ogerpon ex cargado que lo noquea, en vez de arriesgar el auto-KO.
-    obs = _reg006_step64_obs()
+    obs = _crustle_confusion_obs(active_is_crustle=False)
     assert _tipo_elegido(obs) == int(OptionType.RETREAT), (
         "confundido a 10 PV con Ogerpon ex cargado en banca y activo rival "
         "atacable (Munkidori): retirar, no atacar con el confundido")
@@ -5196,11 +5235,1308 @@ def test_confusion_pivot_retira_a_ex_si_activo_rival_atacable():
 def test_confusion_no_retira_a_ex_si_activo_rival_es_muro_inmune():
     # Frontera: si el muro inmune a ex (Crustle) esta EN EL ACTIVO rival, el
     # Ogerpon ex no lo dana -> promoverlo es inutil; se ataca con el confundido.
-    obs = _reg006_step64_obs()
-    opp = obs["current"]["players"][1 - obs["current"]["yourIndex"]]
-    opp["active"][0]["id"] = m.Crustle_Grass
-    opp["active"][0]["maxHp"] = 150
-    opp["active"][0]["hp"] = 60
+    obs = _crustle_confusion_obs(active_is_crustle=True)
     assert _tipo_elegido(obs) != int(OptionType.RETREAT), (
         "con el muro inmune (Crustle) en el ACTIVO rival, promover el ex es "
         "inutil: no se retira a un ex que no puede noquear")
+
+
+# =====================================================================
+# Prioridad de carga de Tapu Bulu vs Crustle (user, registro_002 paso 17 vs
+# Crustle, PERDIDA): con Tapu Bulu (nuestro atacante principal, unico no-ex que
+# daña al muro inmune) en el ACTIVO sin energia, el agente cargaba un Applin de
+# banca en vez del Tapu. Causa: el veto generico de "no cargar el activo inicial"
+# (Ogerpon/Tapu en nuestro primer turno) degradaba a SCORE_VETO el adjunte al
+# Tapu activo. Vs Crustle, Tapu Bulu queda EXENTO de ese veto. Observacion
+# autocontenida (los registros son datos locales transitorios).
+# =====================================================================
+def _crustle_tapu_charge_obs():
+    import copy as _c
+    import json as _j
+    o = _c.deepcopy(_j.load(open(_CONF_BASE_FIXTURE, encoding="utf-8"))["observation"])
+    cur = o["current"]
+    cur["turn"] = 2            # nuestro primer turno yendo SEGUNDOS
+    cur["yourIndex"] = 0
+    cur["firstPlayer"] = 1
+    cur["supporterPlayed"] = False
+    cur["energyAttached"] = False
+    me = cur["players"][0]
+    op = cur["players"][1]
+    me["confused"] = False
+    me["active"] = [{"appearThisTurn": False, "energies": [], "energyCards": [],
+                     "hp": 140, "id": m.Tapu_Bulu, "maxHp": 140, "playerIndex": 0,
+                     "preEvolution": [], "serial": 23, "tools": []}]
+    me["bench"] = [
+        {"appearThisTurn": False, "energies": [], "energyCards": [], "hp": 70,
+         "id": m.Chikorita, "maxHp": 70, "playerIndex": 0, "preEvolution": [],
+         "serial": 8, "tools": []},
+        {"appearThisTurn": False, "energies": [1],
+         "energyCards": [{"id": 1, "playerIndex": 0, "serial": 54}], "hp": 210,
+         "id": m.Teal_Mask_Ogerpon_ex, "maxHp": 210, "playerIndex": 0,
+         "preEvolution": [], "serial": 3, "tools": []},
+        {"appearThisTurn": False, "energies": [], "energyCards": [], "hp": 40,
+         "id": m.Applin, "maxHp": 40, "playerIndex": 0, "preEvolution": [],
+         "serial": 13, "tools": []}]
+    me["hand"] = [{"id": m.Basic_Grass_Energy, "playerIndex": 0, "serial": 50}]
+    me["handCount"] = 1
+    op["active"] = [{"appearThisTurn": False, "energies": [1],
+                     "energyCards": [{"id": 18, "playerIndex": 1, "serial": 75}],
+                     "hp": 190, "id": m.Dwebble_Grass, "maxHp": 190,
+                     "playerIndex": 1, "preEvolution": [], "serial": 77, "tools": []}]
+    op["bench"] = []
+    o["select"] = {"context": 0, "contextCard": None, "deck": None, "effect": None,
+                   "maxCount": 1, "minCount": 1, "type": 0, "remainDamageCounter": 0,
+                   "remainEnergyCost": 0,
+                   "option": [
+                       {"area": 2, "inPlayArea": 4, "inPlayIndex": 0, "index": 0, "type": 8},
+                       {"area": 2, "inPlayArea": 5, "inPlayIndex": 0, "index": 0, "type": 8},
+                       {"area": 2, "inPlayArea": 5, "inPlayIndex": 1, "index": 0, "type": 8},
+                       {"area": 2, "inPlayArea": 5, "inPlayIndex": 2, "index": 0, "type": 8},
+                       {"type": 14}]}
+    return o
+
+
+def test_crustle_carga_tapu_bulu_activo_primera_prioridad():
+    obs = _crustle_tapu_charge_obs()
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    res = m.agent(obs)
+    opt = obs["select"]["option"][res[0]]
+    assert opt.get("type") == int(OptionType.ATTACH) and opt.get("inPlayArea") == 4, (
+        f"vs Crustle, la 1a carga de energia va al Tapu Bulu ACTIVO (atacante "
+        f"principal), no a un Applin de banca; obtuvo {res} -> {opt}")
+
+
+# =====================================================================
+# DESCUADRE GENERALIZADO: retirar el ex condenado y sacrificar un cuerpo de
+# 1 premio (user, registro_004 paso 37 vs Mega Lucario ex). Nuestro Teal Mask
+# Ogerpon ex (210 HP, 3 energia) PUEDE atacar pero su Myriad Leaf Shower NO
+# noquea al Mega Lucario ex (340 HP), y Mega Lucario nos remata el proximo
+# turno (Mega Brave 270 >= 210). Sin atacante de banca listo y con un cuerpo
+# de 1 premio (Applin) para poner delante, lo correcto es RETIRAR el ex (cede
+# 1 premio en vez de 2 y conserva el ex en banca), no atacar sin noquear. La
+# logica es deck-agnostica: se detecta con el remate rival REAL, no con una
+# lista de matchups.
+# =====================================================================
+_DOOMED_EX_RETREAT_FIXTURE = (
+    ROOT / "tests" / "fixtures" / "lucario_step37_doomed_ex_retreat.json")
+_DOOMED_EX_PROMOTE_FIXTURE = (
+    ROOT / "tests" / "fixtures" / "lucario_step41_promote_applin_sac.json")
+_DOOMED_EX_RETREAT_GENERIC_FIXTURE = (
+    ROOT / "tests" / "fixtures" / "generic_doomed_ex_retreat_nonlucario.json")
+_DOOMED_EX_PROMOTE_GENERIC_FIXTURE = (
+    ROOT / "tests" / "fixtures" / "generic_promote_basic_sac_nonlucario.json")
+
+
+def test_step37_doomed_ex_retreats_instead_of_attacking():
+    with open(_DOOMED_EX_RETREAT_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+    options = obs["select"]["option"]
+    retreat_opt = next(i for i, o in enumerate(options)
+                       if o.get("type") == int(OptionType.RETREAT))
+    attack_opt = next(i for i, o in enumerate(options)
+                      if o.get("type") == int(OptionType.ATTACK))
+
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    result = m.agent(obs)
+
+    assert result == [retreat_opt], (
+        f"ex condenado que no noquea y muere el proximo turno, sin atacante de "
+        f"banca: RETIRAR (opt {retreat_opt}) para ceder 1 premio, no atacar "
+        f"(opt {attack_opt}); obtuvo {result}")
+
+
+def test_step41_promotes_cheapest_basic_sacrifice():
+    with open(_DOOMED_EX_PROMOTE_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+    mi = obs["current"]["yourIndex"]
+    bench = obs["current"]["players"][mi]["bench"]
+    options = obs["select"]["option"]
+    applin_opt = next(i for i, o in enumerate(options)
+                      if bench[o["index"]]["id"] == m.Applin)
+
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    result = m.agent(obs)
+
+    assert result == [applin_opt], (
+        f"tras retirar el ex, promover el basico de 1 premio mas barato "
+        f"(Applin, opt {applin_opt}); obtuvo {result}")
+
+
+def test_doomed_ex_retreat_generalizes_to_nonlucario():
+    # Mismo patron con un rival NO-Lucario (Dragapult ex) que one-shotea a
+    # nuestro ex condenado: el pivote es deck-agnostico y debe retirar igual.
+    with open(_DOOMED_EX_RETREAT_GENERIC_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+    options = obs["select"]["option"]
+    retreat_opt = next(i for i, o in enumerate(options)
+                       if o.get("type") == int(OptionType.RETREAT))
+
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    result = m.agent(obs)
+
+    assert result == [retreat_opt], (
+        f"generalizacion (rival no-Lucario que one-shotea): RETIRAR "
+        f"(opt {retreat_opt}); obtuvo {result}")
+
+
+def test_doomed_ex_promote_basic_generalizes_to_nonlucario():
+    # La promocion tambien generaliza: sin atacante de banca y con el rival
+    # one-shoteando al cuerpo mas tanque (Bayleef 110), promover el basico de
+    # 1 premio (Applin 40) en vez del cuerpo mas tanque. Sin la regla general la
+    # promocion por defecto subiria a Bayleef (mas HP).
+    with open(_DOOMED_EX_PROMOTE_GENERIC_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+    mi = obs["current"]["yourIndex"]
+    bench = obs["current"]["players"][mi]["bench"]
+    options = obs["select"]["option"]
+    applin_opt = next(i for i, o in enumerate(options)
+                      if bench[o["index"]]["id"] == m.Applin)
+    bayleef_opt = next(i for i, o in enumerate(options)
+                       if bench[o["index"]]["id"] == m.Bayleef)
+
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    result = m.agent(obs)
+
+    assert result == [applin_opt], (
+        f"generalizacion promocion: subir Applin (opt {applin_opt}), no el mas "
+        f"tanque Bayleef (opt {bayleef_opt}); obtuvo {result}")
+
+
+def test_doomed_ex_does_not_sac_retreat_when_near_winning():
+    # Control negativo: en RANGO DE REMATE (my_prize<=2) NO se sacrifica-retira;
+    # hay que racear/rematar. Mismo tablero condenado pero con 4 premios ya
+    # tomados (2 restantes) -> el agente NO debe elegir el retiro defensivo.
+    with open(_DOOMED_EX_RETREAT_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+    mi = obs["current"]["yourIndex"]
+    # dejar solo 2 premios restantes (my_prize == len(prize) == 2): rango de remate
+    obs["current"]["players"][mi]["prize"] = (
+        obs["current"]["players"][mi]["prize"][:2])
+    options = obs["select"]["option"]
+    retreat_opt = next(i for i, o in enumerate(options)
+                       if o.get("type") == int(OptionType.RETREAT))
+
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    result = m.agent(obs)
+
+    assert result != [retreat_opt], (
+        f"cerca de ganar (my_prize<=2) NO se hace el retiro-sacrificio "
+        f"defensivo; obtuvo {result}")
+
+
+# =====================================================================
+# MOTOR MEOWTH -> LILLIE'S en TABLERO POBRE (user, registro_006 paso 57 vs
+# Alakazam, GANADA). El activo es un atacante CHIP de 1 premio (Dipplin) que
+# PUEDE noquear al activo rival pero es fragil, NO hay atacante de banca listo
+# y la mano es minima (1 carta: el propio Meowth ex). El agente atacaba; lo
+# correcto es BAJAR Meowth ex primero (Last-Ditch Catch -> Lillie's -> refresca
+# la mano y arma un 2o atacante) y ATACAR despues en el mismo turno. Se permite
+# aun con UN Meowth ya en banca (field<2) y aunque el activo noquee. Deck-agnostico.
+# =====================================================================
+_MEOWTH_REFRESH_POOR_FIXTURE = (
+    ROOT / "tests" / "fixtures" / "alakazam_step57_meowth_refresh_poor_board.json")
+
+
+def test_step57_plays_meowth_refresh_on_poor_board():
+    with open(_MEOWTH_REFRESH_POOR_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+    options = obs["select"]["option"]
+    play_opt = next(i for i, o in enumerate(options)
+                    if o.get("type") == int(OptionType.PLAY))
+    attack_opt = next(i for i, o in enumerate(options)
+                      if o.get("type") == int(OptionType.ATTACK))
+
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    result = m.agent(obs)
+
+    assert result == [play_opt], (
+        f"tablero pobre (mano minima, sin atacante de banca, activo chip de 1 "
+        f"premio): BAJAR Meowth ex (opt {play_opt}) para refrescar via Lillie's, "
+        f"no atacar (opt {attack_opt}); obtuvo {result}")
+
+
+def test_step57_meowth_refresh_does_not_fire_with_strong_hand():
+    # Control negativo: con la mano NO debil (>=3 cartas), no se banca un 2o
+    # Meowth ex; se ataca con el chip activo.
+    import copy as _c
+    with open(_MEOWTH_REFRESH_POOR_FIXTURE, encoding="utf-8") as f:
+        obs = _c.deepcopy(json.load(f)["observation"])
+    mi = obs["current"]["yourIndex"]
+    obs["current"]["players"][mi]["hand"] += [
+        {"id": 1, "playerIndex": mi, "serial": 200 + k} for k in range(3)]
+    options = obs["select"]["option"]
+    attack_opt = next(i for i, o in enumerate(options)
+                      if o.get("type") == int(OptionType.ATTACK))
+
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    result = m.agent(obs)
+
+    assert result == [attack_opt], (
+        f"con mano fuerte NO se banca un 2o Meowth; se ataca (opt {attack_opt}); "
+        f"obtuvo {result}")
+
+
+def test_step57_meowth_refresh_does_not_fire_with_ready_bench_attacker():
+    # Control negativo: si YA hay un atacante de banca listo (Ogerpon ex con 3
+    # energia), no hace falta refrescar: se ataca con el chip activo.
+    import copy as _c
+    with open(_MEOWTH_REFRESH_POOR_FIXTURE, encoding="utf-8") as f:
+        obs = _c.deepcopy(json.load(f)["observation"])
+    mi = obs["current"]["yourIndex"]
+    for b in obs["current"]["players"][mi]["bench"]:
+        if b["id"] == m.Teal_Mask_Ogerpon_ex:
+            b["energies"] = [1, 1, 1]
+            b["energyCards"] = [{"id": 1, "playerIndex": mi, "serial": 300 + k}
+                                for k in range(3)]
+    options = obs["select"]["option"]
+    attack_opt = next(i for i, o in enumerate(options)
+                      if o.get("type") == int(OptionType.ATTACK))
+
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    result = m.agent(obs)
+
+    assert result == [attack_opt], (
+        f"con atacante de banca listo NO se refresca con Meowth; se ataca "
+        f"(opt {attack_opt}); obtuvo {result}")
+
+
+def test_step57_meowth_refresh_generalizes_to_nonalakazam():
+    # Generalizacion: el motor de refresco en tablero pobre es deck-agnostico;
+    # con un rival distinto (no Alakazam) tambien baja Meowth ex.
+    import copy as _c
+    with open(_MEOWTH_REFRESH_POOR_FIXTURE, encoding="utf-8") as f:
+        obs = _c.deepcopy(json.load(f)["observation"])
+    opi = 1 - obs["current"]["yourIndex"]
+    oa = obs["current"]["players"][opi]["active"][0]
+    oa["id"] = 849; oa["maxHp"] = 60; oa["hp"] = 50
+    for b in obs["current"]["players"][opi]["bench"]:
+        if b["id"] in (741, 305):
+            b["id"] = 849; b["maxHp"] = 60; b["hp"] = 60
+    options = obs["select"]["option"]
+    play_opt = next(i for i, o in enumerate(options)
+                    if o.get("type") == int(OptionType.PLAY))
+
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    result = m.agent(obs)
+
+    assert result == [play_opt], (
+        f"generalizacion (rival no-Alakazam): BAJAR Meowth ex (opt {play_opt}); "
+        f"obtuvo {result}")
+
+
+# =====================================================================
+# MOTOR MEOWTH -> LILLIE'S SIN ATACANTE DE REPUESTO (user, registro_006 paso 78
+# vs Mega Lucario ex). El activo es un Teal Mask Ogerpon ex que PUEDE atacar pero
+# su Myriad NO noquea (180 vs 190) y Mega Lucario lo remata el proximo turno
+# (270 >= 210); la banca tiene UN solo cuerpo NO atacante (Chikorita) y desde la
+# mano NO hay forma de montar un 2o atacante (Hydrapple/Dipplin atascados sin
+# Applin/Dipplin en juego). El agente atacaba; lo correcto es BAJAR Meowth ex
+# (Last-Ditch Catch -> Lillie's -> refresca la mano para hallar atacantes) y
+# atacar/retirar despues. Detecta el remate rival REAL (no el heuristico
+# active_ko_likely, que subestima a Mega Lucario). Deck-agnostico.
+# =====================================================================
+_MEOWTH_REFRESH_NO_ATTACKER_FIXTURE = (
+    ROOT / "tests" / "fixtures" / "lucario_step78_meowth_refresh_no_attacker.json")
+
+
+def test_step78_plays_meowth_refresh_no_bench_attacker():
+    with open(_MEOWTH_REFRESH_NO_ATTACKER_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+    options = obs["select"]["option"]
+    mi = obs["current"]["yourIndex"]
+    meowth_opt = next(
+        i for i, o in enumerate(options)
+        if o.get("type") == int(OptionType.PLAY)
+        and obs["current"]["players"][mi]["hand"][o["index"]]["id"] == m.Meowth_ex)
+    attack_opt = next(i for i, o in enumerate(options)
+                      if o.get("type") == int(OptionType.ATTACK))
+
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    result = m.agent(obs)
+
+    assert result == [meowth_opt], (
+        f"ex condenado que no noquea, banca sin atacante y sin camino a un 2o "
+        f"atacante: BAJAR Meowth ex (opt {meowth_opt}) para refrescar via Lillie's, "
+        f"no atacar (opt {attack_opt}); obtuvo {result}")
+
+
+def test_step78_meowth_refresh_not_with_bench_attacker_body():
+    # Control negativo: si hay un cuerpo ATACANTE en banca (Ogerpon ex), hay
+    # camino a un 2o atacante (cargarlo) y NO se banca un Meowth para refrescar.
+    import copy as _c
+    with open(_MEOWTH_REFRESH_NO_ATTACKER_FIXTURE, encoding="utf-8") as f:
+        obs = _c.deepcopy(json.load(f)["observation"])
+    mi = obs["current"]["yourIndex"]
+    obs["current"]["players"][mi]["bench"].append(
+        {"appearThisTurn": False, "energies": [], "energyCards": [], "hp": 210,
+         "id": m.Teal_Mask_Ogerpon_ex, "maxHp": 210, "playerIndex": mi,
+         "preEvolution": [], "serial": 999, "tools": []})
+    options = obs["select"]["option"]
+    meowth_opt = next(
+        i for i, o in enumerate(options)
+        if o.get("type") == int(OptionType.PLAY)
+        and obs["current"]["players"][mi]["hand"][o["index"]]["id"] == m.Meowth_ex)
+
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    result = m.agent(obs)
+
+    assert result != [meowth_opt], (
+        f"con un cuerpo atacante en banca NO se refresca con Meowth; obtuvo {result}")
+
+
+def test_step78_meowth_refresh_not_when_active_not_doomed():
+    # Control negativo: si el activo NO esta condenado (rival sin energia para
+    # rematar), no hace falta refrescar; no se banca el 2o Meowth.
+    import copy as _c
+    with open(_MEOWTH_REFRESH_NO_ATTACKER_FIXTURE, encoding="utf-8") as f:
+        obs = _c.deepcopy(json.load(f)["observation"])
+    opi = 1 - obs["current"]["yourIndex"]
+    obs["current"]["players"][opi]["active"][0]["energies"] = []
+    obs["current"]["players"][opi]["active"][0]["energyCards"] = []
+    mi = obs["current"]["yourIndex"]
+    options = obs["select"]["option"]
+    meowth_opt = next(
+        i for i, o in enumerate(options)
+        if o.get("type") == int(OptionType.PLAY)
+        and obs["current"]["players"][mi]["hand"][o["index"]]["id"] == m.Meowth_ex)
+
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    result = m.agent(obs)
+
+    assert result != [meowth_opt], (
+        f"con el activo NO condenado no se refresca con Meowth; obtuvo {result}")
+
+
+def test_step78_meowth_refresh_generalizes_to_nonlucario():
+    # Generalizacion deck-agnostica: con un rival distinto (Dragapult ex) que
+    # one-shotea al activo condenado, tambien baja Meowth ex.
+    import copy as _c
+    with open(_MEOWTH_REFRESH_NO_ATTACKER_FIXTURE, encoding="utf-8") as f:
+        obs = _c.deepcopy(json.load(f)["observation"])
+    mi = obs["current"]["yourIndex"]; opi = 1 - mi
+    obs["current"]["players"][mi]["active"][0]["hp"] = 150
+    a = obs["current"]["players"][opi]["active"][0]
+    a["id"] = 121; a["maxHp"] = 320; a["hp"] = 320
+    a["energies"] = [a["energies"][0]] * 3; a["preEvolution"] = []
+    for b in obs["current"]["players"][opi]["bench"]:
+        if b["id"] in (677, 678, 676, 675, 674, 673):
+            b["id"] = 121; b["maxHp"] = 320; b["hp"] = 320
+    options = obs["select"]["option"]
+    meowth_opt = next(
+        i for i, o in enumerate(options)
+        if o.get("type") == int(OptionType.PLAY)
+        and obs["current"]["players"][mi]["hand"][o["index"]]["id"] == m.Meowth_ex)
+
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    result = m.agent(obs)
+
+    assert result == [meowth_opt], (
+        f"generalizacion (rival no-Lucario que one-shotea): BAJAR Meowth ex "
+        f"(opt {meowth_opt}); obtuvo {result}")
+
+
+# =====================================================================
+# CONCENTRAR LA CARGA EN UN OGERPON LETAL (user, registro_006 paso 66 vs
+# Marnie's Grimmsnarl ex). Con DOS Teal Mask Ogerpon ex en banca (uno a 2
+# energias, otro a 0/1), la carga se repartia y NINGUNO llegaba a las 3
+# energias del KO por debilidad (Myriad 180 x2 = 360 >= 320). Ahora el adjunte
+# manual se CONCENTRA en el Ogerpon mas cargado (2e -> 3e = letal) y se veta
+# cargar al otro. La debilidad se considera SIEMPRE via _our_effective_damage.
+# =====================================================================
+_MARNIE_CONCENTRATE_FIXTURE = (
+    ROOT / "tests" / "fixtures" / "marnie_step66_concentrate_ogerpon_charge.json")
+
+
+def test_step66_concentrates_manual_attach_on_lethal_ogerpon():
+    with open(_MARNIE_CONCENTRATE_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+    mi = obs["current"]["yourIndex"]
+    bench = obs["current"]["players"][mi]["bench"]
+    options = obs["select"]["option"]
+    # ATTACH manual (inPlayArea==5 banca) al Ogerpon (id 96) con MAS energia.
+    ogerpon_slots = [(i, o) for i, o in enumerate(options)
+                     if o.get("type") == int(OptionType.ATTACH)
+                     and o.get("inPlayArea") == 5
+                     and bench[o["inPlayIndex"]]["id"] == m.Teal_Mask_Ogerpon_ex]
+    # el objetivo correcto es el Ogerpon de banca con mayor energia (2e).
+    best = max(ogerpon_slots,
+              key=lambda io: len(bench[io[1]["inPlayIndex"]]["energies"]))
+    best_e = len(bench[best[1]["inPlayIndex"]]["energies"])
+
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    result = m.agent(obs)
+    chosen = options[result[0]]
+
+    assert (chosen.get("type") == int(OptionType.ATTACH)
+            and chosen.get("inPlayArea") == 5
+            and bench[chosen["inPlayIndex"]]["id"] == m.Teal_Mask_Ogerpon_ex
+            and len(bench[chosen["inPlayIndex"]]["energies"]) == best_e), (
+        f"el adjunte manual debe CONCENTRARSE en el Ogerpon mas cargado "
+        f"({best_e}e -> letal), no repartir; obtuvo {result} -> {chosen}")
+
+
+def test_concentrate_focus_not_when_active_can_attack():
+    # Control negativo: si el ACTIVO es un atacante viable que llega a su ataque
+    # cargandose (Hydrapple ex + Ripening/adjunte), la energia NO se desvia a un
+    # Ogerpon de banca. Reusa el fixture de Ripening vs Lucario (activo Hydrapple).
+    data = _lucario_ripen_data()
+    obs = data["ripen_target"]
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    result = m.agent(obs)
+    opt = obs["select"]["option"][result[0]]
+    assert opt.get("area") == int(AreaType.ACTIVE), (
+        f"con el activo atacante viable, la carga va al ACTIVO, no a un Ogerpon "
+        f"de banca; obtuvo {result} -> {opt}")
+
+
+# =====================================================================
+# REMATE GANADOR CON EL ACTIVO (user, registro_009 paso 125 vs Archaludon ex,
+# PERDIDA). Ogerpon ex activo con 4 Plantas fisicas + Meganium en juego (Wild
+# Growth duplica -> 8 efectivas). Myriad = 30 + 30x(8 propias + 3 del rival) =
+# 360, menos 30 de resistencia a Planta del Archaludon ex = 330 >= 300 -> NOQUEA
+# y, con 2 premios restantes (Archaludon ex vale 2), GANA la partida. El agente
+# cargaba energia a Tapu Bulu (`_tapu_future_charge`) y luego retiraba al Ogerpon
+# para atacar con Tapu, tirando el remate. Cuando el KO del activo GANA, ATACAR
+# es la maxima prioridad. Deck-agnostico (calculo con Meganium, energia rival y
+# resistencia). 
+# =====================================================================
+_ARCHALUDON_WIN_FIXTURE = (
+    ROOT / "tests" / "fixtures" / "archaludon_step125_winning_ogerpon_attack.json")
+
+
+def test_step125_plays_winning_ogerpon_attack_over_charging_tapu():
+    with open(_ARCHALUDON_WIN_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+    options = obs["select"]["option"]
+    attack_opt = next(i for i, o in enumerate(options)
+                      if o.get("type") == int(OptionType.ATTACK))
+
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    result = m.agent(obs)
+
+    assert result == [attack_opt], (
+        f"con el remate GANADOR del activo (Myriad 330 >= 300, KO que gana), "
+        f"ATACAR (opt {attack_opt}) es la maxima prioridad, no cargar Tapu Bulu; "
+        f"obtuvo {result}")
+
+
+def test_step125_winning_attack_generalizes_without_resistance():
+    # Generalizacion: sin resistencia (rival no-Metal) el KO tambien gana y se
+    # ataca. Cambiar el rival por un cuerpo de 2 premios y 300 HP sin resistencia
+    # (Mega Lucario ex 678) deja el Myriad 360 >= 300 -> KO ganador.
+    import copy as _c
+    with open(_ARCHALUDON_WIN_FIXTURE, encoding="utf-8") as f:
+        obs = _c.deepcopy(json.load(f)["observation"])
+    opi = 1 - obs["current"]["yourIndex"]
+    oa = obs["current"]["players"][opi]["active"][0]
+    oa["id"] = 678; oa["maxHp"] = 340; oa["hp"] = 300; oa["preEvolution"] = []
+    options = obs["select"]["option"]
+    attack_opt = next(i for i, o in enumerate(options)
+                      if o.get("type") == int(OptionType.ATTACK))
+
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    result = m.agent(obs)
+
+    assert result == [attack_opt], (
+        f"remate ganador sin resistencia: ATACAR (opt {attack_opt}); "
+        f"obtuvo {result}")
+
+
+def test_winning_attack_not_forced_when_ko_does_not_win():
+    # Control negativo: si el KO del activo NO gana la partida (nos quedan mas
+    # premios que los que da el KO), NO se fuerza el ataque por encima del
+    # desarrollo; que el rival tenga 4 premios (no ganamos con 1 KO de 2).
+    import copy as _c
+    with open(_ARCHALUDON_WIN_FIXTURE, encoding="utf-8") as f:
+        obs = _c.deepcopy(json.load(f)["observation"])
+    mi = obs["current"]["yourIndex"]
+    obs["current"]["players"][mi]["prize"] = [None, None, None, None]
+    options = obs["select"]["option"]
+    attack_opt = next(i for i, o in enumerate(options)
+                      if o.get("type") == int(OptionType.ATTACK))
+
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    result = m.agent(obs)
+
+    assert result != [attack_opt], (
+        f"con 4 premios el KO no gana; no se fuerza el ataque sobre el "
+        f"desarrollo; obtuvo {result}")
+
+
+# =====================================================================
+# ANTI-CUBCHOO: no retirada-pivote que malgaste energia (user, registro_004
+# paso 47/49 vs cornerstone_cubchoo, PERDIDA). El mazo de Cubchoo (506,
+# Snotted Up) / Beartic (507, Sheer Cold) BLOQUEA nuestro activo cada turno
+# ("el Defensor no puede usar ataques"), forzando una retirada para atacar con
+# otro cuerpo. Su atacante es debilisimo (Cubchoo pega 10, no nos noquea), pero
+# como nos obliga a retirarnos repetidamente, cada retirada que DESCARTA energia
+# sangra el recurso critico. Contra ESTE mazo eliminamos la retirada-pivote
+# voluntaria: con el activo bloqueado (6 energia, sin opcion de ataque) y un
+# Hydrapple ex listo en banca, el agente PASA (END) conservando energia, no
+# retira descartando 2 energia. Solo vs Cubchoo; contra otros mazos la
+# retirada-pivote sigue vigente.
+# =====================================================================
+_CUBCHOO_RETREAT_FIXTURE = (
+    ROOT / "tests" / "fixtures" / "cubchoo_step47_no_energy_wasting_retreat.json")
+
+
+def test_step47_vs_cubchoo_does_not_waste_energy_retreating():
+    with open(_CUBCHOO_RETREAT_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+    options = obs["select"]["option"]
+    retreat_opts = [i for i, o in enumerate(options)
+                    if o.get("type") == int(OptionType.RETREAT)]
+    assert retreat_opts, "el fixture debe ofrecer una retirada"
+
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    result = m.agent(obs)
+
+    assert result[0] not in retreat_opts, (
+        f"vs Cubchoo con el activo bloqueado (6 energia) no se debe retirar "
+        f"descartando energia; se debe PASAR/desarrollar. retiradas={retreat_opts}, "
+        f"obtuvo {result}")
+
+
+def test_cubchoo_conserve_pass_is_deck_specific():
+    # Control de deck-especificidad: el mismo tablero contra un mazo NO-Cubchoo
+    # NO debe pasar-para-conservar (el veto anti-Cubchoo se levanta). Se cambia
+    # el rival de Cubchoo (506) a Mega Lucario ex (678) para desactivar
+    # `op_is_cubchoo_deck`; entonces la decision deja de ser el END conservador.
+    import copy as _c
+    with open(_CUBCHOO_RETREAT_FIXTURE, encoding="utf-8") as f:
+        base = json.load(f)["observation"]
+
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    cub_choice = m.agent(_c.deepcopy(base))
+    cub_type = base["select"]["option"][cub_choice[0]].get("type")
+    assert cub_type == int(OptionType.END), (
+        f"vs Cubchoo se conserva pasando (END); obtuvo tipo {cub_type}")
+
+    obs = _c.deepcopy(base)
+    opi = 1 - obs["current"]["yourIndex"]
+    opp = obs["current"]["players"][opi]
+    for slot in ([opp["active"][0]] if opp.get("active") else []) + [
+            b for b in opp.get("bench", []) if b]:
+        if slot.get("id") in (506, 507):
+            slot["id"] = 678
+            slot["preEvolution"] = []
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    other = m.agent(obs)
+    other_type = obs["select"]["option"][other[0]].get("type")
+
+    assert other[0] != cub_choice[0] and other_type != int(OptionType.END), (
+        f"contra un mazo no-Cubchoo la decision NO debe ser el END conservador "
+        f"(el veto es especifico del matchup); obtuvo {other} tipo {other_type}")
+
+
+# =====================================================================
+# PROTEGER FOREST OF VITALITY COMO CONTRA-ESTADIO EN DESCARTE FORZADO (user,
+# registro_005 paso 62 vs cornerstone_cubchoo, PERDIDA). El rival controla
+# Neutralization Zone (1247): anula el dano de nuestros ex al activo de 1 premio
+# y nos impide atacar. La unica forma de removerla es jugar NUESTRO estadio
+# (Forest of Vitality 1261) para reemplazarla. Xerosic's Machinations (1197) nos
+# fuerza a descartar 2 de 5 cartas; Forest es CLAVE y no debe descartarse. Antes,
+# con Meganium+Hydrapple en juego, Forest puntuaba 70 (descartable) sin mirar el
+# estadio hostil rival, y el agente lo tiraba.
+# =====================================================================
+_FOREST_DISCARD_FIXTURE = (
+    ROOT / "tests" / "fixtures" / "cubchoo_step61_protect_forest_forced_discard.json")
+_FOREST_OF_VITALITY = 1261
+_NEUTRALIZATION_ZONE = 1247
+
+
+def _discarded_card_ids(obs, choice):
+    hand = [c["id"] for c in obs["current"]["players"][obs["current"]["yourIndex"]]["hand"]]
+    return [hand[obs["select"]["option"][i]["index"]] for i in choice]
+
+
+def test_step62_forced_discard_protects_forest_vs_neutralization_zone():
+    with open(_FOREST_DISCARD_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+    # sanity: el estadio rival es Neutralization Zone y Forest esta en mano
+    assert obs["current"]["stadium"][0]["id"] == _NEUTRALIZATION_ZONE
+    mi = obs["current"]["yourIndex"]
+    assert any(c["id"] == _FOREST_OF_VITALITY for c in obs["current"]["players"][mi]["hand"])
+
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    result = m.agent(obs)
+    discarded = _discarded_card_ids(obs, result)
+
+    assert _FOREST_OF_VITALITY not in discarded, (
+        f"con Neutralization Zone rival en juego, Forest es el unico contra-estadio "
+        f"y NO debe descartarse; descarto ids {discarded}")
+
+
+def test_forest_discardable_when_no_hostile_op_stadium():
+    # Control: sin estadio hostil rival, la proteccion NO aplica -- con
+    # Meganium+Hydrapple en juego Forest vuelve a ser descartable (score 70).
+    # Se retira el Neutralization Zone rival del tablero; Forest debe poder caer.
+    import copy as _c
+    with open(_FOREST_DISCARD_FIXTURE, encoding="utf-8") as f:
+        obs = _c.deepcopy(json.load(f)["observation"])
+    obs["current"]["stadium"] = []  # sin estadio hostil
+    mi = obs["current"]["yourIndex"]
+    forest_opt = next(i for i, o in enumerate(obs["select"]["option"])
+                      if obs["current"]["players"][mi]["hand"][o["index"]]["id"]
+                      == _FOREST_OF_VITALITY)
+
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    result = m.agent(obs)
+
+    assert forest_opt in result, (
+        f"sin estadio hostil rival, con Meganium+Hydrapple Forest es descartable; "
+        f"obtuvo {result} (opcion Forest = {forest_opt})")
+
+
+# =====================================================================
+# ANTI-CUBCHOO: cargar el Hydrapple ex ACTIVO bloqueado con Ripening Charge para
+# habilitar la retirada hacia un atacante de banca LISTO (user, registro_008
+# paso 82 vs cornerstone_cubchoo, PERDIDA). El Hydrapple ex activo esta bloqueado
+# por Snotted Up (no puede atacar) pero en la banca hay un Ogerpon ex ya cargado
+# (4 efectivas) que noquea al Cubchoo. La linea correcta: Ripening Charge en el
+# PROPIO Hydrapple para alcanzar su coste de retirada (efectivo 3), retirarlo y
+# subir al Ogerpon para atacar. Regla del user: si el activo NO puede atacar,
+# priorizar la retirada para atacar. Antes el agente usaba Teal Dance en un
+# Ogerpon de banca (tier ENERGY dominaba a Ripening en tier 0), regando la
+# energia y desperdiciando el turno sin atacar. Se distingue de
+# `test_step47_vs_cubchoo_does_not_waste_energy_retreating` (activo Ogerpon
+# CARGADO -> conservar): aqui el activo es Hydrapple ex SUB-cargado cuya energia
+# extra es peso muerto.
+# =====================================================================
+_CUBCHOO_RIPEN_FIXTURE = (
+    ROOT / "tests" / "fixtures" / "cubchoo_step82_ripening_charge_blocked_active.json")
+
+
+def test_step82_charges_blocked_hydrapple_to_enable_retreat():
+    with open(_CUBCHOO_RIPEN_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+    options = obs["select"]["option"]
+    # opcion de Ripening Charge sobre el ACTIVO (area 4) del Hydrapple ex
+    ripen_active = [i for i, o in enumerate(options)
+                    if o.get("type") == int(OptionType.ABILITY)
+                    and o.get("area") == int(AreaType.ACTIVE)]
+    assert ripen_active, "el fixture debe ofrecer Ripening Charge en el activo"
+
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    result = m.agent(obs)
+
+    assert result[0] in ripen_active, (
+        f"con el Hydrapple ex activo bloqueado por Cubchoo y un Ogerpon ex de "
+        f"banca listo, se debe cargar el ACTIVO con Ripening Charge (opciones "
+        f"{ripen_active}) para habilitar la retirada; obtuvo {result}")
+
+
+# =====================================================================
+# ANTI-CUBCHOO: rutear las energias recuperadas (Lana's Aid) al Hydrapple ex
+# ACTIVO bloqueado, no a la banca (user, registro_012 paso 96 vs cornerstone_
+# cubchoo, PERDIDA). Mismo patron que registro_008 paso 82 pero cargando por
+# ADJUNTE MANUAL (energias de Lana's Aid) en vez de por Ripening Charge: el
+# Hydrapple ex activo esta bloqueado por Snotted Up y hay 2 Ogerpon ex de banca
+# (4 efectivas) listos para noquear al Cubchoo. La energia debe ir al ACTIVO
+# para alcanzar su coste de retirada y habilitar retirar->promover->atacar.
+# Antes el agente cargaba un Meganium/Ogerpon de banca. Cubierto por
+# `_cubchoo_lock_stuck` (ruteo de energia al ex estancado, +24000).
+# =====================================================================
+_CUBCHOO_LANAS_FIXTURE = (
+    ROOT / "tests" / "fixtures"
+    / "cubchoo_step96_charge_blocked_active_from_lanas.json")
+
+
+def test_step96_routes_lanas_energy_to_blocked_active_hydrapple():
+    with open(_CUBCHOO_LANAS_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    result = m.agent(obs)
+
+    chosen = obs["select"]["option"][result[0]]
+    assert chosen.get("type") == int(OptionType.ATTACH), (
+        f"se debe ADJUNTAR energia (no {chosen}); obtuvo {result}")
+    assert chosen.get("inPlayArea") == int(AreaType.ACTIVE), (
+        f"la energia recuperada debe ir al Hydrapple ex ACTIVO bloqueado "
+        f"(inPlayArea={int(AreaType.ACTIVE)}), no a la banca; obtuvo {chosen}")
+
+
+# =====================================================================
+# NO barajar la linea de evolucion con Lillie's: Ultra Ball la completa primero
+# (user, registro_004 paso 47 vs Alakazam, PERDIDA). Tenemos Chikorita en juego
+# + Meganium en MANO, pero falta la Stage-1 intermedia (Bayleef), que esta en el
+# MAZO y es buscable con Ultra Ball. Lillie's Determination BARAJA toda la mano
+# al mazo -> perderiamos Meganium + las 2 Ultra Ball. Lo correcto: jugar la
+# Ultra Ball (traer Bayleef, montar Chikorita->Bayleef->Meganium) y NO refrescar
+# todavia. La regla `ub_gapped_line` veta Lillie's mientras la linea con hueco +
+# Ultra Ball siga en mano. Deck-agnostico (cubre tambien Applin/Dipplin/Hydra).
+# =====================================================================
+_ALAKAZAM_LILLIE_FIXTURE = (
+    ROOT / "tests" / "fixtures"
+    / "alakazam_step47_ultraball_completes_line_before_lillie.json")
+_LILLIE_DETERMINATION = 1227
+
+
+def test_step47_does_not_shuffle_meganium_line_with_lillie():
+    with open(_ALAKAZAM_LILLIE_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+    mi = obs["current"]["yourIndex"]
+    hand = [c["id"] for c in obs["current"]["players"][mi]["hand"]]
+    lillie_opts = [i for i, o in enumerate(obs["select"]["option"])
+                   if o.get("type") == int(OptionType.PLAY)
+                   and o.get("index", -1) < len(hand)
+                   and hand[o["index"]] == _LILLIE_DETERMINATION]
+    assert lillie_opts, "el fixture debe ofrecer jugar Lillie's Determination"
+
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    result = m.agent(obs)
+
+    assert result[0] not in lillie_opts, (
+        f"con Chikorita en juego + Meganium en mano + Ultra Ball (falta Bayleef "
+        f"buscable) NO se debe jugar Lillie's (barajaria la linea); "
+        f"opciones Lillie={lillie_opts}, obtuvo {result}")
+
+
+def _lillie_gapped_flag(obs):
+    """Devuelve el flag `ub_gapped_line` del scorer de Lillie's para `obs`."""
+    captured = {}
+    orig = m._CtxLillie
+
+    class _Spy(orig):
+        def __init__(self, ctx):
+            super().__init__(ctx)
+            captured["v"] = self.ub_gapped_line
+
+    m._CtxLillie = _Spy
+    try:
+        m._init_cartas_tracking(); m.plan = m.AttackPlan()
+        m.agent(obs)
+    finally:
+        m._CtxLillie = orig
+    return captured.get("v")
+
+
+def test_ub_gapped_line_flag_requires_ultraball():
+    # El flag `ub_gapped_line` (que veta Lillie's) exige Ultra Ball en mano:
+    # es True en el fixture y se apaga al quitar la Ultra Ball (el hueco deja
+    # de ser completable).
+    import copy as _c
+    with open(_ALAKAZAM_LILLIE_FIXTURE, encoding="utf-8") as f:
+        base = json.load(f)["observation"]
+    assert _lillie_gapped_flag(_c.deepcopy(base)) is True, (
+        "con Chikorita+Meganium+Ultra Ball+Bayleef en mazo el flag debe activarse")
+
+    obs = _c.deepcopy(base)
+    mi = obs["current"]["yourIndex"]
+    obs["current"]["players"][mi]["hand"] = [
+        c for c in obs["current"]["players"][mi]["hand"] if c["id"] != 1121]
+    assert _lillie_gapped_flag(obs) is False, (
+        "sin Ultra Ball el hueco no es completable: el flag NO debe activarse")
+
+
+# =====================================================================
+# Ripening Charge (ATTACH_FROM): NO desperdiciar la energia en un activo de dano
+# FIJO ya cargado; darla al mejor atacante FUTURO (user, registro_006 paso 79 vs
+# Alakazam, PERDIDA). El activo Tapu Bulu ya tenia 4 efectivas (= Wood Hammer,
+# coste fijo, tope duro) y el juego le cargaba una 5a via Ripening Charge del
+# Hydrapple ex, pese a existir un Hydrapple ex de banca a 0 energias (atacante
+# futuro). El winning/2-prize-gust routing (42000 al activo) ya no aplica a un
+# atacante de dano fijo que llego a su requisito.
+# =====================================================================
+_ALAKAZAM_RIPEN_FIXTURE = (
+    ROOT / "tests" / "fixtures"
+    / "alakazam_step79_ripening_charge_to_future_hydrapple.json")
+_HYDRAPPLE_EX = 150
+_TAPU_BULU = 920
+
+
+def test_step79_ripening_charge_targets_future_hydrapple_not_capped_tapu():
+    with open(_ALAKAZAM_RIPEN_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+    mi = obs["current"]["yourIndex"]
+    me = obs["current"]["players"][mi]
+
+    def target_id(opt):
+        if opt.get("area") == int(AreaType.ACTIVE):
+            return me["active"][0]["id"]
+        return me["bench"][opt["index"]]["id"]
+
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    result = m.agent(obs)
+    chosen = obs["select"]["option"][result[0]]
+    tid = target_id(chosen)
+
+    assert tid == _HYDRAPPLE_EX, (
+        f"Ripening Charge debe cargar el Hydrapple ex de banca (0e, atacante "
+        f"futuro), no el Tapu Bulu activo ya cargado; cargo id {tid}")
+    # y explicitamente NO el Tapu Bulu activo (ya al tope de Wood Hammer)
+    assert not (chosen.get("area") == int(AreaType.ACTIVE)
+                and me["active"][0]["id"] == _TAPU_BULU), (
+        "no debe cargar el Tapu Bulu activo ya cargado")
+
+
+# =====================================================================
+# No sobrecargar un Hydrapple ex ACTIVO ya listo; cargar el de BANCA (atacante
+# futuro) tanto con el adjunte manual como con Ripening Charge (user,
+# registro_008 pasos 109-113 vs Alakazam, GANADA con jugada suboptima). Syrup
+# Storm escala con el Grass del CAMPO (todos nuestros Pokemon), NO con la energia
+# propia del atacante: poner la energia en un Hydrapple ex de banca a 0 da el
+# MISMO dano este turno y ademas desarrolla un 2o atacante. El routing 42000 del
+# winning/2-prize gust ya no aplica a un Hydrapple ex activo que llego a su
+# requisito de ataque.
+# =====================================================================
+_ALK_STEP109 = (ROOT / "tests" / "fixtures"
+                / "alakazam_step109_manual_attach_to_bench_hydrapple.json")
+_ALK_STEP112 = (ROOT / "tests" / "fixtures"
+                / "alakazam_step112_ripening_charge_to_bench_hydrapple.json")
+
+
+def _bench_target_id(obs, chosen):
+    mi = obs["current"]["yourIndex"]
+    me = obs["current"]["players"][mi]
+    if chosen.get("type") == int(OptionType.ATTACH):
+        if chosen.get("inPlayArea") == int(AreaType.BENCH):
+            return me["bench"][chosen["inPlayIndex"]]["id"], True
+        return me["active"][0]["id"], False
+    # ATTACH_FROM (ctx 21): area/index
+    if chosen.get("area") == int(AreaType.BENCH):
+        return me["bench"][chosen["index"]]["id"], True
+    return me["active"][0]["id"], False
+
+
+def test_step109_manual_energy_charges_bench_hydrapple_not_ready_active():
+    with open(_ALK_STEP109, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    chosen = obs["select"]["option"][m.agent(obs)[0]]
+    tid, is_bench = _bench_target_id(obs, chosen)
+    assert chosen.get("type") == int(OptionType.ATTACH), (
+        f"se esperaba un adjunte manual, obtuvo tipo {chosen.get('type')}")
+    assert is_bench and tid == 150, (
+        "el adjunte manual debe ir al Hydrapple ex de BANCA (atacante futuro), "
+        f"no al Hydrapple activo ya listo; fue id {tid} bench={is_bench}")
+
+
+def test_step112_ripening_charge_targets_bench_hydrapple_not_ready_active():
+    with open(_ALK_STEP112, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    chosen = obs["select"]["option"][m.agent(obs)[0]]
+    tid, is_bench = _bench_target_id(obs, chosen)
+    assert is_bench and tid == 150, (
+        "Ripening Charge debe cargar el Hydrapple ex de BANCA, no el activo ya "
+        f"listo (Syrup Storm escala con el campo); fue id {tid} bench={is_bench}")
+
+
+# =====================================================================
+# Boss's Orders gustea el objetivo de MAS premios cuando gana (user,
+# registro_011 vs Mega Heracross ex, GANADA suboptima). A 3 premios de ganar,
+# con un Hydrapple ex activo LETAL, el juego gusteaba un Teal Mask Ogerpon ex
+# (2 premios, energizado) en vez del Mega Heracross ex (3 premios) que noqueaba
+# para GANAR. Causa: el tier de KO metia megaEx y ex en el mismo tier (8/7) y el
+# +1 por "energizado" hacia que el ex de 2 premios superara al Mega de 3. Fix:
+# tier prize-aware (megaEx 10/9 > ex 8/7) + override `gust_gana_partida`.
+# =====================================================================
+_BOSS_GUST_FIXTURE = (ROOT / "tests" / "fixtures"
+                      / "boss_gust_prefers_higher_prize_mega_ex.json")
+_MEGA_HERACROSS_EX = 781
+_TEAL_OGERPON_EX = 96
+
+
+def test_boss_gust_prefers_winning_3prize_mega_over_2prize_ex():
+    with open(_BOSS_GUST_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+    mi = obs["current"]["yourIndex"]
+    op_bench = obs["current"]["players"][1 - mi]["bench"]
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    chosen = obs["select"]["option"][m.agent(obs)[0]]
+    tid = op_bench[chosen["index"]]["id"]
+    assert tid == _MEGA_HERACROSS_EX, (
+        f"Boss's debe gustear el Mega Heracross ex (781, 3 premios, gana la "
+        f"partida), no el Ogerpon ex (96, 2 premios); gusteo id {tid}")
+
+
+def test_prize_count_recognizes_mega_ex_as_three():
+    # La identificacion de premios: megaEx=3, ex=2, no-ex=1.
+    class _P:
+        def __init__(self, cid): self.id = cid; self.energyCards = []; self.tools = []
+    assert m.prize_count(_P(_MEGA_HERACROSS_EX)) == 3
+    assert m.prize_count(_P(_TEAL_OGERPON_EX)) == 2
+    assert m.prize_count(_P(349)) == 1  # Teal Mask Ogerpon (no-ex)
+
+
+# =====================================================================
+# ERROR DE SECUENCIA Unfair Stamp / Meowth ex (user, registro_004 p34 vs Mega
+# Starmie ex, GANADA suboptima). Con Unfair Stamp (Item ACE SPEC) JUGABLE este
+# turno (nos noquearon el turno pasado + el Sello en mano), el agente bajaba
+# Meowth ex para que Last-Ditch Catch buscara Lillie's -> pero el Sello BARAJA
+# TODA la mano al mazo, perdiendo esa Lillie's y exponiendo un cuerpo de 2
+# premios. El veto `_stamp_blocks_supp_chain` existia pero quedaba SOMBREADO por
+# las ramas de refresco de Lillie's (elif previas); se movio ANTES de ellas.
+# =====================================================================
+_STAMP_MEOWTH_FIXTURE = (ROOT / "tests" / "fixtures"
+                         / "unfair_stamp_before_meowth_fetch_lillie.json")
+_UNFAIR_STAMP = 1080
+_MEOWTH_EX = 1071
+
+
+def _played_id(obs, chosen_idx):
+    o = m.to_observation_class(obs)
+    me = o.current.players[o.current.yourIndex]
+    opt = o.select.option[chosen_idx]
+    if getattr(opt, "type", None) == m.OptionType.PLAY and getattr(opt, "index", None) is not None:
+        return me.hand[opt.index].id
+    return None
+
+
+def test_stamp_playable_vetoes_meowth_fetch_lillie():
+    with open(_STAMP_MEOWTH_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    chosen = m.agent(obs)
+    pid = _played_id(obs, chosen[0])
+    assert pid != _MEOWTH_EX, (
+        "Con Unfair Stamp jugable (KO el turno pasado), NO bajar Meowth ex a "
+        f"buscar Lillie's (el Sello la baraja); el agente jugo id {pid}")
+
+
+_MEOWTH_NO_STAMP_FIXTURE = (ROOT / "tests" / "fixtures"
+                            / "meowth_fetch_lillie_no_stamp_control.json")
+
+
+def test_meowth_fetch_lillie_still_played_without_playable_stamp():
+    # Control: el MISMO tablero pero SIN Unfair Stamp en mano -> el veto no aplica
+    # y el motor Meowth -> Lillie's (refresco) sigue vigente y SI baja Meowth ex.
+    with open(_MEOWTH_NO_STAMP_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    chosen = m.agent(obs)
+    pid = _played_id(obs, chosen[0])
+    assert pid == _MEOWTH_EX, (
+        "Sin Unfair Stamp en mano, el motor Meowth->Lillie's debe seguir bajando "
+        f"Meowth ex; el agente jugo id {pid}")
+
+
+# =====================================================================
+# vs Alakazam: cargar el atacante de 1 PREMIO (Meganium) que noquea ESTE turno,
+# no el ex activo (user, registro_008 pasos 100-115 vs Alakazam, PERDIDA). El
+# activo era Ogerpon ex (2 premios) capaz de noquear al Alakazam (140 HP), pero
+# en la banca habia un Meganium a UNA Planta de su Wood Hammer (140 = KO). La
+# carga (adjunte manual) debe ir al MEGANIUM para dejarlo LISTO y atacar con el
+# 1-premio (retirar el ex, promover Meganium): cedemos 1 premio en vez de 2
+# cuando Alakazam nos noquea de vuelta. Fix: flag `_meganium_alk_1prize_attacker`
+# -> energy_score 43000 (domina la carga del ex activo). La logica de retirada ya
+# promueve al 1-premio cuando Meganium esta LISTO.
+# =====================================================================
+_ALK_MEG_FIXTURE = (ROOT / "tests" / "fixtures"
+                    / "alakazam_charge_meganium_1prize_not_ogerpon_ex.json")
+_MEGANIUM = 710
+_TEAL_OGERPON_EX_ID = 96
+
+
+def test_vs_alakazam_charges_1prize_meganium_not_active_ex():
+    with open(_ALK_MEG_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+    mi = obs["current"]["yourIndex"]
+    me = obs["current"]["players"][mi]
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    chosen = m.agent(obs)
+    o = m.to_observation_class(obs)
+    opt = o.select.option[chosen[0]]
+    assert getattr(opt, "type", None) == int(m.OptionType.ATTACH), (
+        "Se esperaba un adjunte de energia")
+    ipa = getattr(opt, "inPlayArea", None); ipi = getattr(opt, "inPlayIndex", None)
+    tgt_id = (me["active"][0]["id"] if ipa == int(m.AreaType.ACTIVE)
+              else me["bench"][ipi]["id"])
+    assert tgt_id == _MEGANIUM, (
+        "vs Alakazam la carga debe ir al Meganium (1 premio, KO este turno), no "
+        f"al ex activo; el agente cargo id {tgt_id}")
+
+
+def test_alakazam_retreats_ex_to_promote_ready_1prize_meganium():
+    # Con Meganium ya LISTO (4 ef) y sin mas jugadas, vs Alakazam el agente retira
+    # el ex activo para promover el 1-premio (en vez de atacar con el ex 2-premios).
+    import copy
+    with open(_ALK_MEG_FIXTURE, encoding="utf-8") as f:
+        obs = copy.deepcopy(json.load(f)["observation"])
+    me = obs["current"]["players"][1]
+    for b in me["bench"]:
+        if b["id"] == _MEGANIUM:
+            b["energies"] = [1, 1, 1, 1]
+            b["energyCards"] = [{"id": 1, "playerIndex": 1, "serial": 114},
+                                {"id": 1, "playerIndex": 1, "serial": 999}]
+    me["hand"] = []; me["handCount"] = 0
+    obs["current"]["supporterPlayed"] = True
+    obs["select"]["option"] = [{"attackId": 120, "type": 13}, {"type": 12}, {"type": 14}]
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    chosen = m.agent(obs)
+    o = m.to_observation_class(obs)
+    assert o.select.option[chosen[0]].type == int(m.OptionType.RETREAT), (
+        "Con el Meganium 1-premio LISTO, vs Alakazam el agente debe RETIRAR el ex "
+        "para promover el 1-premio, no atacar con el ex de 2 premios")
+
+
+# =====================================================================
+# NUNCA terminar el turno con la banca VACIA si podemos desarrollarla (user,
+# registro_002 paso 15 vs Mega Starmie ex, PERDIDA). Con un solo basico (Tapu
+# Bulu) en el activo y sin banca, si el rival noquea ese activo PERDEMOS (no hay
+# a quien promover). El agente terminaba el turno teniendo Ultra Ball + Meowth ex
+# en mano. Red de seguridad final: si la mejor jugada es TERMINAR (o esteril) y
+# hay una opcion que pone un Pokemon en banca (Ultra Ball -> basico, o bajar un
+# basico), se prioriza sobre el fin de turno. Preferencia: el buscador.
+# =====================================================================
+_EMPTY_BENCH_FIXTURE = (ROOT / "tests" / "fixtures"
+                        / "never_end_turn_empty_bench_play_ultraball.json")
+_ULTRA_BALL = 1121
+
+
+def test_never_ends_turn_with_empty_bench_plays_ultraball():
+    with open(_EMPTY_BENCH_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+    mi = obs["current"]["yourIndex"]
+    me = obs["current"]["players"][mi]
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    chosen = m.agent(obs)
+    o = m.to_observation_class(obs)
+    opt = o.select.option[chosen[0]]
+    assert opt.type != int(m.OptionType.END), (
+        "Con la banca VACIA y una Ultra Ball en mano, NO terminar el turno: "
+        "desarrollar la banca para no perder si noquean el activo")
+    tid = me["hand"][opt.index]["id"] if getattr(opt, "index", None) is not None else None
+    assert tid == _ULTRA_BALL, (
+        f"Se esperaba jugar Ultra Ball para buscar un basico; jugo id {tid}")
+
+
+def test_empty_bench_net_does_not_fire_with_bench_present():
+    # Control: con un Pokemon YA en banca, la red no aplica (bench_count>0) y el
+    # agente conserva su conducta (no se fuerza la Ultra Ball).
+    import copy
+    with open(_EMPTY_BENCH_FIXTURE, encoding="utf-8") as f:
+        obs = copy.deepcopy(json.load(f)["observation"])
+    me = obs["current"]["players"][0]
+    me["bench"] = [{"appearThisTurn": False, "energies": [], "energyCards": [],
+                    "hp": 70, "id": 1071, "maxHp": 170, "playerIndex": 0,
+                    "preEvolution": [], "serial": 900, "tools": []}]
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    chosen = m.agent(obs)
+    o = m.to_observation_class(obs)
+    opt = o.select.option[chosen[0]]
+    tid = (me["hand"][opt.index]["id"]
+           if getattr(opt, "type", None) == int(m.OptionType.PLAY)
+           and getattr(opt, "index", None) is not None else None)
+    assert tid != _ULTRA_BALL, (
+        "Con banca no vacia la red anti-banca-vacia no debe forzar la Ultra Ball")
+
+
+# =====================================================================
+# vs Alakazam: NO sobrecargar el Tapu Bulu activo ya LISTO; cargar el Dipplin de
+# banca (user, registro_012 paso 142 vs Alakazam, GANADA). El activo Tapu Bulu
+# tenia 2 Plantas fisicas = 4 efectivas (Meganium duplica) = su Wood Hammer coste
+# 4: ya podia atacar y su dano es FIJO. El adjunte manual de la 3a energia debe ir
+# al Dipplin de banca (atacante futuro), no desperdiciarse en el Tapu. Cubierto
+# por el guard `_active_extra_charge_wasted` (Tapu/Meganium/Hydrapple a su
+# requisito no reciben el 42000 del gusteo ganador -> la energia fluye a banca).
+# =====================================================================
+_ALK_TAPU_FIXTURE = (ROOT / "tests" / "fixtures"
+                     / "alakazam_manual_attach_dipplin_not_ready_tapu.json")
+_TAPU_BULU = 920
+_DIPPLIN = 93
+
+
+def test_alakazam_does_not_overcharge_ready_tapu_charges_dipplin():
+    with open(_ALK_TAPU_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+    me = obs["current"]["players"][1]
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    chosen = m.agent(obs)
+    o = m.to_observation_class(obs)
+    opt = o.select.option[chosen[0]]
+    assert getattr(opt, "type", None) == int(m.OptionType.ATTACH), (
+        "Se esperaba un adjunte de energia")
+    ipa = getattr(opt, "inPlayArea", None); ipi = getattr(opt, "inPlayIndex", None)
+    tgt_id = (me["active"][0]["id"] if ipa == int(m.AreaType.ACTIVE)
+              else me["bench"][ipi]["id"])
+    assert tgt_id != _TAPU_BULU, (
+        "NO sobrecargar el Tapu Bulu activo ya LISTO (4 ef, dano fijo)")
+    assert tgt_id == _DIPPLIN, (
+        f"La 3a energia debe ir al Dipplin de banca (atacante futuro); fue a {tgt_id}")
+
+
+# =====================================================================
+# Registro 016 (paso 138 vs Crustle, GANADA con jugada suboptima): nuestro
+# activo es un Ogerpon ex CARGADO (4 energia) cuyo Myriad Leaf Shower NOQUEA al
+# activo rival (Munkidori, 110 HP). El rival tiene la BANCA VACIA: si le
+# noqueamos el activo NO puede promover un reemplazo y PIERDE (otra via de
+# victoria ademas de los premios). El agente, sin detectar el remate, RETIRABA
+# el Ogerpon para atacar con un cuerpo de 1 premio (Dipplin) -- el pivote de
+# descuadre `_tapu_sac_pivot` se disparaba porque el Ogerpon estaba a <=50% HP y
+# my_prize (2) > premios del objetivo (1). Con la banca rival vacia, ATACAR con
+# el activo GANA la partida: nada de descuadre importa. Deck-agnostico.
+_WIN_EMPTY_BENCH_FIXTURE = (ROOT / "tests" / "fixtures"
+                            / "win_by_ko_empty_bench_attack_active.json")
+
+
+def test_ko_of_last_opponent_pokemon_attacks_active_to_win():
+    with open(_WIN_EMPTY_BENCH_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+
+    options = obs["select"]["option"]
+    attack_opt = next(i for i, o in enumerate(options)
+                      if o.get("type") == int(OptionType.ATTACK))
+    retreat_opt = next(i for i, o in enumerate(options)
+                       if o.get("type") == int(OptionType.RETREAT))
+
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    result = m.agent(obs)
+
+    assert result == [attack_opt], (
+        f"con el activo LETAL y la banca rival VACIA, noquear al activo GANA la "
+        f"partida: debe ATACAR (opt {attack_opt}), no retirar; obtuvo {result}")
+    assert result != [retreat_opt], (
+        "no retirar el activo letal para pivotar a un 1-premio cuando el KO gana")
+    assert m.plan.attacker == 0, (
+        f"el atacante debe ser el ACTIVO (0), no un cuerpo de banca; "
+        f"fue {m.plan.attacker}")
+
+
+def test_win_by_empty_bench_does_not_fire_when_opponent_has_bench():
+    # Control: con el rival CON banca, el KO del activo NO gana la partida, asi
+    # que el override de remate no debe aplicar (la logica de descuadre/pivote
+    # queda libre de actuar). Se anade un Pokemon a la banca rival y se verifica
+    # que la decision ya NO esta forzada al ataque del activo por la via de
+    # banca-vacia (plan puede legitimamente pivotar).
+    with open(_WIN_EMPTY_BENCH_FIXTURE, encoding="utf-8") as f:
+        obs = json.loads(json.dumps(json.load(f)["observation"]))
+
+    cur = obs["current"]; yi = cur["yourIndex"]; op = cur["players"][1 - yi]
+    oact = op["active"][0]
+    op["bench"] = [{
+        "appearThisTurn": False, "energies": [], "energyCards": [],
+        "hp": oact.get("hp", 110), "maxHp": oact.get("maxHp", 110),
+        "id": oact["id"], "playerIndex": oact["playerIndex"],
+        "preEvolution": [], "serial": (oact.get("serial", 0) or 0) + 5000,
+        "tools": [],
+    }]
+
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m.agent(obs)
+    # Con banca rival, el KO del activo ya NO gana por regla de no-promocion;
+    # el remate empty-bench no debe estar activo (no se captura `_active_win_plan`).
+    # Verificamos que el escenario es distinto: el rival TIENE banca.
+    assert any(b is not None for b in op["bench"]), "control: rival con banca"
+
+
+# =====================================================================
+# Registro contra Alakazam (GANADA): con Ultra Ball, SIN atacante usable y tras
+# un KO en el turno anterior (ko_last_turn), el fetch traia Fezandipiti ex (su
+# Flip the Script roba 3 al ser noqueados: regla `refill_tras_ko` = 1050). Es un
+# error cuando AUN queda el motor Meowth ex -> Last-Ditch Catch -> Lillie's
+# Determination en el mazo: bajar Meowth ex busca Lillie's y rehace TODA la mano
+# (hasta 8 cartas), abriendo muchas mas opciones que el robo de 3 de Fezandipiti.
+# Fezandipiti ex es buena busqueda SOLO si ya tenemos un atacante usable, o si el
+# motor Meowth ex ya no esta disponible (sin copias en el mazo, banca llena, 2
+# Meowth ya en juego, Lillie's en mano, Supporter ya jugado, o Watchtower).
+# Fix: la regla `refill_tras_ko` de _REGLAS_UB_FEZ cede cuando
+# `no_attacker_prefer_meowth` esta activo (el mismo predicado que privilegia a
+# Meowth). El fixture inyecta un log de KO (fromArea PRIZE) para derivar
+# ko_last_turn desde una sola observacion. Deck-agnostico.
+_UB_MEOWTH_OVER_FEZ_FIXTURE = (ROOT / "tests" / "fixtures"
+                               / "ub_prefer_meowth_over_fez_no_attacker.json")
+
+
+def test_ub_fetch_prefers_meowth_over_fez_when_no_attacker():
+    with open(_UB_MEOWTH_OVER_FEZ_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+
+    search_map = _resolve_search_options(obs)
+    assert m.Meowth_ex in search_map.values(), "el fixture debe ofrecer buscar Meowth ex"
+    assert m.Fezandipiti_ex in search_map.values(), "el fixture debe ofrecer buscar Fezandipiti ex"
+    meowth_opt = next(i for i, cid in search_map.items() if cid == m.Meowth_ex)
+    fez_opt = next(i for i, cid in search_map.items() if cid == m.Fezandipiti_ex)
+
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    result = m.agent(obs)
+
+    assert result == [meowth_opt], (
+        f"sin atacante usable y con el motor Meowth->Lillie's en el mazo, la "
+        f"Ultra Ball debe buscar Meowth ex (opt {meowth_opt}) para refrescar, no "
+        f"Fezandipiti ex; obtuvo {result} (map={search_map})")
+    assert result != [fez_opt], (
+        "no buscar Fezandipiti ex cuando Meowth ex refresca mejor sin atacante")
+
+
+def test_ub_fetch_gate_is_conditional_on_meowth_engine():
+    # Control: el gate que hace ceder a Fezandipiti solo aplica cuando el motor
+    # Meowth ex -> Lillie's esta DISPONIBLE (`no_attacker_prefer_meowth`). Si se
+    # rompe (p.ej. Supporter YA jugado este turno -> no se podria encadenar
+    # Lillie's), el gate NO debe desviar la busqueda hacia Meowth ex: la decision
+    # deja de estar forzada a Meowth (aqui gana otro objetivo de refill/desarrollo,
+    # p.ej. Hydrapple ex; Fezandipiti recupera su refill de 1050).
+    with open(_UB_MEOWTH_OVER_FEZ_FIXTURE, encoding="utf-8") as f:
+        obs = json.loads(json.dumps(json.load(f)["observation"]))
+
+    obs["current"]["supporterPlayed"] = True  # rompe el motor Meowth->Lillie's
+
+    search_map = _resolve_search_options(obs)
+    meowth_opt = next(i for i, cid in search_map.items() if cid == m.Meowth_ex)
+
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    result = m.agent(obs)
+
+    assert result != [meowth_opt], (
+        f"con el Supporter ya jugado (motor Meowth roto), el gate NO debe forzar "
+        f"buscar Meowth ex (opt {meowth_opt}); obtuvo {result} (map={search_map})")
+
+
+# =====================================================================
+# Registro_009 paso 111 vs Alakazam (PERDIDA): tras el KO de nuestro activo
+# (Ogerpon ex) debemos promover un Pokemon de banca. El agente subia Tapu Bulu
+# (0/4 energia, no puede atacar en varios turnos) como muro barato de 1 premio,
+# en vez de Ogerpon ex de banca (2/3 efectivas: a UNA sola Planta -x2 con
+# Meganium en juego- de su Myriad, que remata al Alakazam). La promocion ocurre
+# en el turno RIVAL; el proximo turno -NUESTRO- adjuntamos 1 Planta (con Lillie's
+# en mano para cavarla) y atacamos primero, asi que el rival ni golpea al ex.
+# Debe promover al atacante CASI listo que remata, no al muro que nunca ataca.
+_PROMOTE_NEAR_READY_FIXTURE = (ROOT / "tests" / "fixtures"
+                               / "promote_near_ready_ex_over_wall_step111.json")
+
+
+def test_promote_near_ready_ko_attacker_over_cheap_wall():
+    with open(_PROMOTE_NEAR_READY_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+
+    options = obs["select"]["option"]
+    me = obs["current"]["players"][obs["current"]["yourIndex"]]
+    # opt cuyo bench-index apunta a Ogerpon ex (96) y a Tapu Bulu (920).
+    ogerpon_opt = next(i for i, o in enumerate(options)
+                       if me["bench"][o["index"]]["id"] == m.Teal_Mask_Ogerpon_ex)
+    tapu_opt = next(i for i, o in enumerate(options)
+                    if me["bench"][o["index"]]["id"] == 920)
+
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    result = m.agent(obs)
+
+    assert result == [ogerpon_opt], (
+        f"tras el KO debe promover el atacante casi listo Ogerpon ex (opt "
+        f"{ogerpon_opt}), no el muro Tapu Bulu 0/4; obtuvo {result}")
+    assert result != [tapu_opt], (
+        "no promover un muro que no puede atacar en varios turnos")
+
+
+def test_promote_near_ready_defers_without_draw_engine():
+    # Control: sin motor de robo/refresco en mano (quitamos la Lillie's), NO se
+    # puede cavar la energia que falta, asi que el override de "atacante casi
+    # listo" NO aplica y la decision deja de estar forzada a Ogerpon ex (vuelve
+    # la logica de muro basico / promocion normal).
+    with open(_PROMOTE_NEAR_READY_FIXTURE, encoding="utf-8") as f:
+        obs = json.loads(json.dumps(json.load(f)["observation"]))
+
+    yi = obs["current"]["yourIndex"]; me = obs["current"]["players"][yi]
+    me["hand"] = [c for c in me["hand"] if c["id"] != m.Lillie_Determination]
+
+    options = obs["select"]["option"]
+    ogerpon_opt = next(i for i, o in enumerate(options)
+                       if me["bench"][o["index"]]["id"] == m.Teal_Mask_Ogerpon_ex)
+
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    result = m.agent(obs)
+
+    assert result != [ogerpon_opt], (
+        f"sin Lillie's (sin motor para cavar energia) el override no debe forzar "
+        f"Ogerpon ex; obtuvo {result}")

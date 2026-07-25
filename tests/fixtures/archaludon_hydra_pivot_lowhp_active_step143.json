@@ -201,7 +201,20 @@
             }
           ],
           "asleep": false,
-          "bench": [],
+          "bench": [
+            {
+              "appearThisTurn": false,
+              "energies": [],
+              "energyCards": [],
+              "hp": 130,
+              "maxHp": 130,
+              "id": 169,
+              "playerIndex": 1,
+              "preEvolution": [],
+              "serial": 1068,
+              "tools": []
+            }
+          ],
           "benchMax": 5,
           "burned": false,
           "confused": false,

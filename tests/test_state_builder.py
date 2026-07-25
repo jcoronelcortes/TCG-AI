@@ -1023,3 +1023,65 @@ def test_abomasnow_primeros_pero_turno_posterior_si_sacrifica():
     pasos, activo_final = _raging_caminar(
         _abomasnow_obs(primer_jugador=0, turno=3))
     assert "RETREAT" in pasos and activo_final["id"] == m.Tapu_Bulu, pasos
+
+
+# ---------------------------------------------------------------------
+# Activo rival INMUNE -> motor Boss's para gustear la banca (user).
+# Escenario: Hydrapple ex activo (puede 330) vs Cornerstone Mask Ogerpon ex
+# activo (anula a nuestros Pokemon CON habilidad -> atacarlo = 0 dano) con un
+# Mega Lucario ex en la banca rival, y Meowth ex en la mano. La jugada correcta
+# NO es atacar al Cornerstone (0), sino bajar Meowth ex para que Last-Ditch
+# Catch busque un Boss's Orders (en el mazo), gustear el Mega Lucario y atacarlo.
+# ---------------------------------------------------------------------
+MEGA_LUCARIO = 678
+
+
+def _menu_inmune_activo(op_activo_id, op_banca_id):
+    esc = (Escenario(turno=8, paso=100, tac=0,
+                     partidario_jugado=False, estadio_jugado=True,
+                     premios_propios=4)
+           .mi_activo(pk(m.Hydrapple_ex, energias=[G, G, G, G], fisicas=4))
+           .mi_banca(pk(m.Teal_Mask_Ogerpon_ex, energias=[G, G, G, G], fisicas=4),
+                     pk(m.Teal_Mask_Ogerpon_ex, energias=[G, G, G], fisicas=3))
+           .mi_mano(m.Meowth_ex)
+           .op_activo(pk(op_activo_id, energias=[C], fisicas=1))
+           .op_banca(pk(op_banca_id, energias=[], fisicas=0))
+           .op_zonas(mano=5, mazo=28, premios=4))
+    esc._select = {
+        "context": int(m.SelectContext.MAIN), "contextCard": None, "deck": None,
+        "effect": None, "maxCount": 1, "minCount": 1,
+        "option": [
+            {"index": 0, "type": 7},          # PLAY Meowth ex
+            {"attackId": 195, "type": 13},    # ATTACK Hydrapple Syrup Storm
+            {"type": 14},                     # END
+        ],
+        "remainDamageCounter": 0, "remainEnergyCost": 0, "type": 0,
+    }
+    return esc.construir()
+
+
+def test_activo_inmune_juega_meowth_para_gustear_banca():
+    obs = _menu_inmune_activo(CORNERSTONE, MEGA_LUCARIO)
+    m._init_cartas_tracking()
+    m.plan = m.AttackPlan()
+    dec = m.agent(obs)
+    tipo = obs["select"]["option"][dec[0]]["type"]
+    assert tipo == int(m.OptionType.PLAY), (
+        f"con el activo rival INMUNE (Cornerstone) y un Mega Lucario gusteable "
+        f"en banca, debe JUGAR Meowth ex (motor Boss's), no atacar al muro por "
+        f"0; eligio tipo {tipo}")
+
+
+def test_activo_atacable_no_desvia_a_meowth():
+    # Frontera: si el activo rival NO es inmune (Mega Lucario ex de activo, sin
+    # la habilidad Cornerstone), `_meowth_immune_boss_engine` NO aplica -- el
+    # Hydrapple ex SI le pega (330), asi que el agente ATACA en vez de desviarse
+    # a jugar Meowth ex por la via del motor de inmunidad.
+    obs = _menu_inmune_activo(MEGA_LUCARIO, CORNERSTONE)
+    m._init_cartas_tracking()
+    m.plan = m.AttackPlan()
+    dec = m.agent(obs)
+    tipo = obs["select"]["option"][dec[0]]["type"]
+    assert tipo == int(m.OptionType.ATTACK), (
+        f"con el activo rival ATACABLE (Mega Lucario), Hydrapple ex debe ATACAR "
+        f"(330), no desviarse al motor Meowth-inmune; eligio tipo {tipo}")
