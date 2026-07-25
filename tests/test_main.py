@@ -998,6 +998,7 @@ def _make_boss_ctx(**overrides):
         boss_prize_rank=0,
         boss_ko_threat_preevo=False,
         has_ready_bench_attacker=True,
+        active_ko_likely=False,
     )
     base.update(overrides)
     # `hand_counts`/`field_counts` en produccion son defaultdict(int); los scorers
@@ -7685,3 +7686,30 @@ def test_starmie_step74_baja_fez_con_flip_script_viva():
     assert elegida == m.Fezandipiti_ex, (
         f"con KO sufrido el turno anterior, bajar Fezandipiti ex (Flip the "
         f"Script roba 3) supera al resto; jugo {m.card_table[elegida].name}")
+
+
+# Registro 004 turno 4 vs Team Rocket (PERDIDA): activo Ogerpon ex 30/210
+# CONDENADO con 3 energias, banca solo Tapu Bulu 1e (ningun relevo listo). El
+# interbloqueo `cede_a_boss_ejecutable` (Lillie's cede a Boss's) +
+# `boss_ko_threat_preevo` (Boss's puntua el KO de 1 premio del Spidops debil)
+# gastaba el Supporter en un gusteo que dejaba el tablero sin plan. Fix
+# deck-agnostico: con `active_ko_likely and not has_ready_bench_attacker`,
+# el gusteo de premios cede a Lillie's en AMBAS reglas; el gusteo GANADOR
+# (win_via_bench / dodge_redirect) sigue dominando.
+_ROCKET_LILLIE_FIXTURE = (
+    ROOT / "tests" / "fixtures" / "rocket_t4_lillie_sobre_boss_condenado.json")
+
+
+def test_rocket_t4_lillie_sobre_boss_con_activo_condenado():
+    with open(_ROCKET_LILLIE_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+    _reset_estado_registro_008()
+    result = m.agent(obs)
+    me = obs["current"]["players"][obs["current"]["yourIndex"]]
+    opt = obs["select"]["option"][result[0]]
+    assert opt.get("type") == int(OptionType.PLAY), f"esperaba PLAY, {opt}"
+    elegida = me["hand"][opt["index"]]["id"]
+    assert elegida == m.Lillie_Determination, (
+        f"con el activo condenado y sin relevo en banca, el gusteo de +1 "
+        f"premio cede a Lillie's (cavar el plan futuro); jugo "
+        f"{m.card_table[elegida].name}")

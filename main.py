@@ -1873,6 +1873,10 @@ class DecisionContext:
     boss_prize_rank: int
     boss_ko_threat_preevo: bool
     has_ready_bench_attacker: bool
+    # El ACTIVO propio esta CONDENADO (active_ko_likely): las reglas de
+    # Boss's/Lillie's lo consultan para no gastar el Supporter en un gusteo
+    # de premios cuando no hay relevo en banca (registro_004 vs Team Rocket).
+    active_ko_likely: bool
     # El ACTIVO rival es una pre-evo AMENAZA (THREAT_PREEVO_IDS) que DOMINA a
     # todas sus copias de banca (herramienta de vida como Hero's Cape, o >=
     # energias) y nuestro activo puede atacarlo: NO gastar Boss's en gustear la
@@ -1913,12 +1917,23 @@ def _boss_cede_dig(ctx):
     listo: sin segundo atacante el gusteo no encadena y conviene CAVAR.
     `has_ready_bench_attacker` solo cuenta atacantes reales listos, nunca
     un Applin. Se exceptuan TODOS los gusteos valiosos."""
+    # ACTIVO CONDENADO SIN RELEVO (user, registro_004 t4 vs Team Rocket,
+    # PERDIDA; deck-agnostico): con el activo a punto de morir
+    # (active_ko_likely) y NINGUN atacante de banca listo, un gusteo de
+    # premios que NO gana la partida (boss_ko_threat_preevo: +1 premio del
+    # Spidops debil) deja el tablero sin plan -- el rival noquea, promovemos
+    # un cuerpo sin energia y la mano muerta no rehace nada. Ahi el KO cede
+    # a Lillie's (cavar atacantes futuros); el gusteo GANADOR
+    # (boss_win_via_bench / win_via_boss_gust) sigue dominando.
+    _condenado_sin_relevo = (ctx.active_ko_likely
+                             and not ctx.has_ready_bench_attacker)
     return (ctx.hand_counts.get(Lillie_Determination, 0) >= 1
             and not ctx.has_ready_bench_attacker
             and not ctx.boss_win_via_bench
             and not ctx.boss_dodge_redirect
             and not ctx.boss_defensive_gust
-            and not ctx.boss_ko_threat_preevo
+            and not (ctx.boss_ko_threat_preevo
+                     and not _condenado_sin_relevo)
             and not ctx.boss_deny_alakazam_line
             and not ctx.op_has_ability_immune_active
             and not ctx.op_has_ex_immune_active)
@@ -4256,7 +4271,11 @@ _REGLAS_LILLIE_PLAY = [
                           ((c.boss_prize_rank >= 1
                             and not c.active_cant_attack
                             and (c.has_ready_bench_attacker
-                                 or c.boss_ko_threat_preevo))
+                                 or (c.boss_ko_threat_preevo
+                                     # activo CONDENADO sin relevo: el KO de
+                                     # premios no veta el refresco (esp. la
+                                     # simetria con _boss_cede_dig).
+                                     and not c.active_ko_likely)))
                            or c.boss_win_via_bench or c.boss_dodge_redirect)),
                lambda c: SCORE_VETO),
     _ReglaFija("ogerpon_jugable_primero",
@@ -12885,6 +12904,7 @@ def agent(obs_dict: dict) -> list[int]:
         boss_active_threat_dominates=_bo_act_threat_dom,
         boss_prize_rank=_boss_prize_rank,
         boss_ko_threat_preevo=_boss_ko_threat_preevo,
+        active_ko_likely=active_ko_likely,
         has_ready_bench_attacker=_bench_attacker_ready,
     )
 
