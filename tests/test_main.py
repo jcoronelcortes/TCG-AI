@@ -7713,3 +7713,30 @@ def test_rocket_t4_lillie_sobre_boss_con_activo_condenado():
         f"con el activo condenado y sin relevo en banca, el gusteo de +1 "
         f"premio cede a Lillie's (cavar el plan futuro); jugo "
         f"{m.card_table[elegida].name}")
+
+
+# Registro 008 paso 85 vs Alakazam (episodio 88119461, PERDIDA): mano rival de
+# 15 cartas (Powerful Hand 20x17 = 340 one-shotea cualquier cosa nuestra),
+# Meowth ex EN MANO, Xerosic en el MAZO y el Supporter libre. El motor "Meowth
+# en mano -> Xerosic" (21500) disparaba pero el veto generico "nunca bajar
+# Meowth con Lillie's ya en mano" (registro_003, fetch redundante) lo pisaba y
+# el agente jugaba Boss's/Poke Pad dejando el canon cargado. La excepcion
+# `_alk_meowth_hand_engine` levanta ese veto: el fetch apunta al Xerosic, no a
+# una Lillie's redundante.
+_ALK_MEOWTH_ENGINE_FIXTURE = (
+    ROOT / "tests" / "fixtures" / "alakazam_step85_meowth_engine_sobre_boss.json")
+
+
+def test_alakazam_step85_meowth_engine_sobre_boss():
+    with open(_ALK_MEOWTH_ENGINE_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+    _reset_estado_registro_008()
+    result = m.agent(obs)
+    me = obs["current"]["players"][obs["current"]["yourIndex"]]
+    opt = obs["select"]["option"][result[0]]
+    assert opt.get("type") == int(OptionType.PLAY), f"esperaba PLAY, {opt}"
+    elegida = me["hand"][opt["index"]]["id"]
+    assert elegida == m.Meowth_ex, (
+        f"con la mano rival gorda y Xerosic en el mazo, bajar Meowth ex "
+        f"(Last-Ditch -> Xerosic) supera el gusteo de Boss's; jugo "
+        f"{m.card_table[elegida].name}")

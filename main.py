@@ -15555,15 +15555,17 @@ def agent(obs_dict: dict) -> list[int]:
                         if score <= 0:
                             score = 21000
 
-                    if (card.id == Meowth_ex and op_is_alakazam_deck
-                            and not state.supporterPlayed
-                            and getattr(op_state, 'handCount', 0) >= 6
-                            and hand_counts.get(Xerosic_Machinations, 0) == 0
-                            and CARTAS_ACTIVAS_EN_MAZO.get(
-                                Xerosic_Machinations, {}).get(ESTADO_MAZO, 0) > 0
-                            and field_counts[Meowth_ex] < 2 and _meowth_ld_free
-                            and bench_count < 5
-                            and not _stamp_blocks_supp_chain):
+                    _alk_meowth_hand_engine = (
+                        card.id == Meowth_ex and op_is_alakazam_deck
+                        and not state.supporterPlayed
+                        and getattr(op_state, 'handCount', 0) >= 6
+                        and hand_counts.get(Xerosic_Machinations, 0) == 0
+                        and CARTAS_ACTIVAS_EN_MAZO.get(
+                            Xerosic_Machinations, {}).get(ESTADO_MAZO, 0) > 0
+                        and field_counts[Meowth_ex] < 2 and _meowth_ld_free
+                        and bench_count < 5
+                        and not _stamp_blocks_supp_chain)
+                    if _alk_meowth_hand_engine:
                         # Motor Xerosic vs Alakazam con Meowth ex YA en mano
                         # (user, registro_006 paso 76 vs Alakazam, GANADA): con
                         # el Supporter libre, la mano rival gorda (>=6 -> Powerful
@@ -15793,7 +15795,19 @@ def agent(obs_dict: dict) -> list[int]:
                             score = SCORE_VETO
                         elif field_counts[Meowth_ex] >= 1 and score <= 0:
                             score = SCORE_VETO
-                        elif hand_counts.get(Lillie_Determination, 0) >= 1:
+                        elif (hand_counts.get(Lillie_Determination, 0) >= 1
+                              # EXCEPCION motor Xerosic vs Alakazam (user,
+                              # registro_008 paso 85, episodio 88119461,
+                              # PERDIDA): con la mano rival GORDA (15 cartas ->
+                              # Powerful Hand 20x17=340 nos one-shotea) el fetch
+                              # de Last-Ditch NO apunta a Lillie's sino al
+                              # XEROSIC del mazo (capar la mano rival a 3). Que
+                              # haya una Lillie's en mano no lo hace redundante:
+                              # la escalera del fetch vs Alakazam con mano rival
+                              # >=6 ya elige Xerosic. Sin esta excepcion el veto
+                              # pisaba el 21500 del motor y el agente gusteaba
+                              # con Boss's dejando Powerful Hand cargado.
+                              and not _alk_meowth_hand_engine):
                             # Regla (user, registro_003 p17 vs Archaludon): NUNCA
                             # bajar Meowth ex para buscar (Last-Ditch Catch) una
                             # Lillie's Determination si YA tenemos una en la mano:
