@@ -13835,11 +13835,21 @@ def agent(obs_dict: dict) -> list[int]:
                                 score += 150
 
                         if op_is_crustle_deck or op_is_cornerstone_deck:
+                            # La ENERGIA es matchup-agnostica y NUNCA se veta
+                            # (registro_008 paso 75 vs Mega Starmie con
+                            # Cornerstone de TECH en banca): la whitelist
+                            # aplastaba la Planta (1300, habilitaba el Syrup
+                            # Storm del Hydrapple activo ESTE turno via el
+                            # adjunte manual pendiente) y recuperaba un Tapu
+                            # Bulu muerto en mano (50). La Planta ademas carga
+                            # al propio Tapu, el atacante de estos matchups.
                             if op_is_cornerstone_deck and not op_is_crustle_deck:
-                                _cc_sel_valid = (Tapu_Bulu, Pinsir)
+                                _cc_sel_valid = (Tapu_Bulu, Pinsir,
+                                                 Basic_Grass_Energy)
                             else:
                                 _cc_sel_valid = (Tapu_Bulu, Pinsir, Applin, Chikorita,
-                                                 Dipplin, Bayleef, Meganium)
+                                                 Dipplin, Bayleef, Meganium,
+                                                 Basic_Grass_Energy)
                             if card.id not in _cc_sel_valid:
                                 score = SCORE_VETO
 
@@ -14778,7 +14788,15 @@ def agent(obs_dict: dict) -> list[int]:
                             # gustear la banca cuando el activo es inmune): no
                             # cuenta como un 4o atacante ex y no se bloquea.
                             and not (card.id == Meowth_ex
-                                     and _meowth_immune_boss_engine)):
+                                     and _meowth_immune_boss_engine)
+                            # Fezandipiti ex con Flip the Script VIVA
+                            # (ko_last_turn) tampoco es un "4o atacante": bajarlo
+                            # roba 3 cartas ESTE turno (registro_008 paso 74 vs
+                            # Mega Starmie con Cornerstone de tech: el bloqueo
+                            # del 4o ex aplastaba el 22000 del refill y el draw
+                            # se perdia). Sin la habilidad viva, el veto sigue.
+                            and not (card.id == Fezandipiti_ex
+                                     and ko_last_turn)):
                         _ex_in_play = sum(field_counts.get(_ex_id, 0)
                                           for _ex_id in OUR_EX_IDS)
                         if _ex_in_play >= 3:

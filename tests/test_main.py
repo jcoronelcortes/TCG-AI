@@ -7636,3 +7636,52 @@ def test_red_esteril_rehabilita_ultra_ball_con_banca():
     assert result[0] in ub_opts, (
         f"turno esteril con UB vetada y objetivo util en mazo: la red debe "
         f"jugar la Ultra Ball (opts {ub_opts}); obtuvo {result} (map={play_map})")
+
+
+# Registro 008 vs Mega Starmie/Froslass con Cornerstone ex de TECH en banca
+# rival (PERDIDA, jul 2026). Dos errores del mismo turno 8:
+# (a) paso 75: la whitelist anti-Cornerstone del fetch de Night Stretcher
+#     vetaba la ENERGIA (matchup-agnostica) y recuperaba un Tapu Bulu muerto;
+#     la Planta habilitaba el Syrup Storm del Hydrapple activo ESTE turno.
+# (b) paso 74: el bloqueo del 4o ex vs Crustle/Cornerstone aplastaba a
+#     Fezandipiti ex con Flip the Script VIVA (ko_last_turn): robar 3 ahora.
+_STARMIE_NS_FIXTURE = (
+    ROOT / "tests" / "fixtures" / "starmie_step75_ns_recupera_energia.json")
+_STARMIE_FEZ_FIXTURE = (
+    ROOT / "tests" / "fixtures" / "starmie_step74_baja_fez_flip_script.json")
+
+
+def _reset_estado_registro_008():
+    m._init_cartas_tracking()
+    m._cartas_first_scan_done = False
+    m._cartas_last_turn = -1
+    m._prev_op_prize = 6
+    m._ko_detected_this_turn = False
+    m.plan = m.AttackPlan()
+
+
+def test_starmie_step75_ns_recupera_energia_no_tapu():
+    with open(_STARMIE_NS_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+    _reset_estado_registro_008()
+    result = m.agent(obs)
+    me = obs["current"]["players"][obs["current"]["yourIndex"]]
+    opt = obs["select"]["option"][result[0]]
+    elegida = me["discard"][opt["index"]]["id"]
+    assert elegida == m.Basic_Grass_Energy, (
+        f"NS debe recuperar la Planta (habilita Syrup Storm este turno), no "
+        f"{m.card_table[elegida].name}")
+
+
+def test_starmie_step74_baja_fez_con_flip_script_viva():
+    with open(_STARMIE_FEZ_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+    _reset_estado_registro_008()
+    result = m.agent(obs)
+    me = obs["current"]["players"][obs["current"]["yourIndex"]]
+    opt = obs["select"]["option"][result[0]]
+    assert opt.get("type") == int(OptionType.PLAY), f"esperaba PLAY, {opt}"
+    elegida = me["hand"][opt["index"]]["id"]
+    assert elegida == m.Fezandipiti_ex, (
+        f"con KO sufrido el turno anterior, bajar Fezandipiti ex (Flip the "
+        f"Script roba 3) supera al resto; jugo {m.card_table[elegida].name}")
