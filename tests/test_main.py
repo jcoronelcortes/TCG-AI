@@ -7556,3 +7556,28 @@ def test_iron_thorns_t16_baja_tapu_en_vez_de_end():
         f"vs Iron Thorns ex activo, con Tapu Bulu en mano el turno no se "
         f"cierra con END: se baja el atacante sin habilidad (opt {tapu_opt}); "
         f"obtuvo {result} (map={play_map})")
+
+
+# Autopsia cornerstone_cubchoo p004 (turno 2, plan jul 2026): con el rival
+# Cornerstone (386 activo, ex 117 en banca), Applin activo y una mano con
+# Tapu Bulu + 2x Forest + UB, el agente cerraba con END (122 turnos esteriles
+# en 41 derrotas). Dos vetos raiz: la aglomeracion de Tapu (>2 en juego) no
+# eximia a Cornerstone -- el matchup donde Tapu es EL atacante -- y Forest se
+# vetaba en el primer turno saliendo segundos aun con copia REDUNDANTE en mano.
+_CORNERSTONE_TAPU_FIXTURE = (
+    ROOT / "tests" / "fixtures" / "cornerstone_t2_baja_tapu_no_end.json")
+
+
+def test_cornerstone_t2_baja_tapu_en_vez_de_end():
+    with open(_CORNERSTONE_TAPU_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+
+    play_map = _resolve_play_options(obs)
+    assert m.Tapu_Bulu in play_map.values()
+    tapu_opt = next(i for i, cid in play_map.items() if cid == m.Tapu_Bulu)
+
+    result = m.agent(obs)
+    assert result == [tapu_opt], (
+        f"vs Cornerstone, con Tapu Bulu en mano el turno 2 no se cierra con "
+        f"END: se baja el unico atacante del matchup (opt {tapu_opt}); "
+        f"obtuvo {result} (map={play_map})")

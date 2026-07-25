@@ -2778,6 +2778,21 @@ _REGLAS_FOREST_PLAY = [
     _ReglaFija("t1_saliendo_primeros",
                lambda c: c.we_go_first and c.state.turn == 1,
                lambda c: SCORE_VETO),
+    # Copia REDUNDANTE de Forest en el primer turno saliendo segundos
+    # (autopsia cornerstone_cubchoo p004, plan jul 2026): con >=2 Forest en la
+    # MANO y una cadena evolutiva a la que Forest le sirve (Applin/Chikorita
+    # con su evolucion disponible), guardarlas todas es sobre-conservador. Se
+    # juega una aunque el rival no tenga estadio: el mazo lleva 4 copias, la
+    # extra es peso muerto y si el estadio sobrevive la cadena dispara el
+    # proximo turno. El gate `_fv_cadena_evolutiva` evita gastarla en manos
+    # sin linea (medicion vs comfey: sin el gate el matchup bajaba ~10pts).
+    # El veto de abajo sigue cubriendo el caso de copia UNICA.
+    _ReglaFija("t1_segundos_copia_redundante",
+               lambda c: ((not c.we_go_first) and c.state.turn == 2
+                          and c.stadium_id == 0
+                          and c.hand_counts.get(Forest_of_Vitality, 0) >= 2
+                          and _fv_cadena_evolutiva(c)),
+               lambda c: 12000),
     _ReglaFija("t1_segundos_sin_estadio_rival",
                lambda c: ((not c.we_go_first) and c.state.turn == 2
                           and c.stadium_id == 0),
@@ -15377,7 +15392,13 @@ def agent(obs_dict: dict) -> list[int]:
 
                             score = 16000
                         elif (_tapu_in_play_count > 2 and not op_is_crustle_deck
-                                and not op_is_iron_thorns_deck):
+                                and not op_is_iron_thorns_deck
+                                # Cornerstone (autopsia p004 t2): Tapu Bulu es
+                                # EL atacante del matchup (los Ogerpon/Hydrapple
+                                # con habilidad hacen 0); la aglomeracion no
+                                # justifica dejarlo muerto en mano.
+                                and not op_is_cornerstone_deck
+                                and not op_has_ability_immune_active):
 
                             score = SCORE_VETO
                         elif op_is_crustle_deck:

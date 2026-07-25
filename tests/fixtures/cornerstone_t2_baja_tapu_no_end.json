@@ -1,0 +1,262 @@
+{
+ "descripcion": "Autopsia cornerstone_cubchoo p004 turno 2 (plan jul 2026): activo Applin, mano con Tapu Bulu + 2x Forest, rival Cornerstone (386 activo, 117 en banca). El agente cerraba con END. Correcto: BAJAR Tapu Bulu (el atacante del matchup); Forest deja de vetarse con copia redundante.",
+ "observation": {
+  "select": {
+   "type": 0,
+   "context": 0,
+   "minCount": 1,
+   "maxCount": 1,
+   "remainDamageCounter": 0,
+   "remainEnergyCost": 0,
+   "option": [
+    {
+     "type": 7,
+     "index": 1
+    },
+    {
+     "type": 7,
+     "index": 3
+    },
+    {
+     "type": 7,
+     "index": 4
+    },
+    {
+     "type": 7,
+     "index": 6
+    },
+    {
+     "type": 14
+    }
+   ],
+   "deck": null,
+   "contextCard": null,
+   "effect": null
+  },
+  "logs": [
+   {
+    "type": 10,
+    "playerIndex": 0,
+    "cardId": 96,
+    "serial": 5
+   }
+  ],
+  "current": {
+   "turn": 2,
+   "turnActionCount": 12,
+   "yourIndex": 0,
+   "firstPlayer": 1,
+   "supporterPlayed": true,
+   "stadiumPlayed": false,
+   "energyAttached": true,
+   "retreated": false,
+   "result": -1,
+   "stadium": [],
+   "looking": null,
+   "players": [
+    {
+     "active": [
+      {
+       "id": 92,
+       "serial": 13,
+       "playerIndex": 0,
+       "hp": 40,
+       "maxHp": 40,
+       "appearThisTurn": false,
+       "energies": [],
+       "energyCards": [],
+       "tools": [],
+       "preEvolution": []
+      }
+     ],
+     "bench": [
+      {
+       "id": 1071,
+       "serial": 19,
+       "playerIndex": 0,
+       "hp": 170,
+       "maxHp": 170,
+       "appearThisTurn": true,
+       "energies": [],
+       "energyCards": [],
+       "tools": [],
+       "preEvolution": []
+      },
+      {
+       "id": 96,
+       "serial": 4,
+       "playerIndex": 0,
+       "hp": 210,
+       "maxHp": 210,
+       "appearThisTurn": true,
+       "energies": [
+        1,
+        1
+       ],
+       "energyCards": [
+        {
+         "id": 1,
+         "serial": 56,
+         "playerIndex": 0
+        },
+        {
+         "id": 1,
+         "serial": 49,
+         "playerIndex": 0
+        }
+       ],
+       "tools": [],
+       "preEvolution": []
+      },
+      {
+       "id": 96,
+       "serial": 5,
+       "playerIndex": 0,
+       "hp": 210,
+       "maxHp": 210,
+       "appearThisTurn": true,
+       "energies": [],
+       "energyCards": [],
+       "tools": [],
+       "preEvolution": []
+      }
+     ],
+     "benchMax": 5,
+     "deckCount": 39,
+     "discard": [
+      {
+       "id": 1094,
+       "serial": 35,
+       "playerIndex": 0
+      },
+      {
+       "id": 1227,
+       "serial": 26,
+       "playerIndex": 0
+      }
+     ],
+     "prize": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     "handCount": 7,
+     "hand": [
+      {
+       "id": 709,
+       "serial": 10,
+       "playerIndex": 0
+      },
+      {
+       "id": 1261,
+       "serial": 45,
+       "playerIndex": 0
+      },
+      {
+       "id": 1227,
+       "serial": 25,
+       "playerIndex": 0
+      },
+      {
+       "id": 1121,
+       "serial": 38,
+       "playerIndex": 0
+      },
+      {
+       "id": 1261,
+       "serial": 46,
+       "playerIndex": 0
+      },
+      {
+       "id": 150,
+       "serial": 17,
+       "playerIndex": 0
+      },
+      {
+       "id": 920,
+       "serial": 23,
+       "playerIndex": 0
+      }
+     ],
+     "poisoned": false,
+     "burned": false,
+     "asleep": false,
+     "paralyzed": false,
+     "confused": false
+    },
+    {
+     "active": [
+      {
+       "id": 386,
+       "serial": 67,
+       "playerIndex": 1,
+       "hp": 110,
+       "maxHp": 110,
+       "appearThisTurn": false,
+       "energies": [
+        6
+       ],
+       "energyCards": [
+        {
+         "id": 6,
+         "serial": 97,
+         "playerIndex": 1
+        }
+       ],
+       "tools": [],
+       "preEvolution": []
+      }
+     ],
+     "bench": [
+      {
+       "id": 506,
+       "serial": 68,
+       "playerIndex": 1,
+       "hp": 70,
+       "maxHp": 70,
+       "appearThisTurn": false,
+       "energies": [],
+       "energyCards": [],
+       "tools": [],
+       "preEvolution": []
+      },
+      {
+       "id": 117,
+       "serial": 64,
+       "playerIndex": 1,
+       "hp": 210,
+       "maxHp": 210,
+       "appearThisTurn": false,
+       "energies": [],
+       "energyCards": [],
+       "tools": [],
+       "preEvolution": []
+      }
+     ],
+     "benchMax": 5,
+     "deckCount": 46,
+     "discard": [],
+     "prize": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ],
+     "handCount": 4,
+     "hand": null,
+     "poisoned": false,
+     "burned": false,
+     "asleep": false,
+     "paralyzed": false,
+     "confused": false
+    }
+   ]
+  },
+  "search_begin_input": "ABgAEwAPEAUBAGEADUAXEBAGEAEB-+CDC-lFQ0DEwQFAIBg-ZBHAECi0ZJi4RFw-LBCc-aBgADCMa-TBCAEODE-TGFDABkRALY-ZBB-aBu-1CQADGE-kFB-VEQ-VBL-+BI-UBBCw-MFBgAErg-VBFABgAHQADGApB-ABYAEME-VBBQIA2Q-UODFABgACu-WBCABQ-gIBcAEig-VBEABg-2LlgADL4-WBgE-MFvBADn-WBFABgA1B-ALmABMACL8-WBgE-LFDLBADuw-VBCABQ-2BywQACM-XBw0-hcRgQACK0-WBw0-hIYQQACLw-WBgE-2VO0EACC6-WBIB-2BDtBADvQ-VBCABQ-hIBAEsQADK4-QBIABg-3VQADK8ADCu-QBCABI-LZB1AEmg-UBEFABg-sBQ-zGCCABQACiQ-UBEEABg-2B+gEACJc-UBBBQI*MfBGAEmQADIk-PBEIABg*2lBBQAEcACQAMcACwAMcABBANcABBgAM4A0EAE7QADP8AEiAEigEADEAEaALBAETwAVBAI"
+ }
+}
