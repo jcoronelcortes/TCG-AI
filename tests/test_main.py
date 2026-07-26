@@ -7764,3 +7764,27 @@ def test_marnie_step43_no_sobrecargar_dipplin_recien_evolucionado():
         f"no se debe cargar la 2a energia al Dipplin recien evolucionado: {opt}")
     assert opt.get("type") == 10, (
         f"la linea correcta es Teal Dance (energia al Ogerpon + robo); {opt}")
+
+
+# Registro 002 pasos 24/27 vs Ceruledge (episodio 88148744, PERDIDA): en
+# nuestro PRIMER turno de accion, con la banca ya poblada (4/5) y la mano
+# llena de valor futuro (Xerosic, Unfair Stamp, Lana's, Dipplin, Meganium),
+# la red anti-turno-esteril rehabilitaba la Ultra Ball (200) y el agente
+# encadeno DOS UB descartando Xerosic+Meganium+Lana's+Dipplin por 2 Meowth ex
+# muertos en mano. Guarda nueva: en turn <= 2 la red solo aplica con banca
+# <= 2 (el caso crustle t2 con banca 1 que la motivo sigue cubierto); la UB
+# legitima de primer turno con tablero hecho es solo el caso Budew/Dragapult
+# de `_ub_first_turn_allowed`.
+_CERULEDGE_UB_FIXTURE = (
+    ROOT / "tests" / "fixtures" / "ceruledge_t2_no_ub_banca_poblada.json")
+
+
+def test_ceruledge_t2_no_juega_ub_con_banca_poblada():
+    with open(_CERULEDGE_UB_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+    _reset_estado_registro_008()
+    result = m.agent(obs)
+    opt = obs["select"]["option"][result[0]]
+    assert opt.get("type") == int(OptionType.END), (
+        f"primer turno con banca 4/5 y mano rica: la UB no se juega (quema 2 "
+        f"cartas utiles por un basico redundante); esperaba END, {opt}")

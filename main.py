@@ -18595,9 +18595,19 @@ def agent(obs_dict: dict) -> list[int]:
     # cartas del mazo alimenta el mill y el plan tiene su propia allowlist),
     # no vs Cubchoo (el END conservador es politica deliberada del matchup:
     # [[anti-cubchoo-no-retirada-pivote]]) y no si atacar ya gana.
+    # GUARDA DE PRIMER TURNO (user, registro_002 pasos 24/27 vs Ceruledge,
+    # PERDIDA): en nuestro primer turno de accion (turn <= 2) la red solo
+    # aplica con banca <= 2 (desarrollo REAL pendiente, como el caso crustle
+    # t2 con banca 1 que la motivo). Con la banca ya poblada (4/5) y la mano
+    # llena de valor futuro (Xerosic/Stamp/Lana's/evoluciones), la UB quema 2
+    # cartas utiles para traer un basico redundante: el agente encadeno DOS
+    # UB descartando Xerosic+Meganium+Lana's+Dipplin por 2 Meowth ex muertos.
+    # La unica UB legitima de primer turno con tablero hecho es la del caso
+    # Budew/Dragapult, que vive en `_ub_first_turn_allowed`, no aqui.
     if (context == SelectContext.MAIN and scores and bench_count > 0
             and not op_is_comfey_deck
             and not op_is_cubchoo_deck
+            and (state.turn > 2 or bench_count <= 2)
             and sum(hand_counts.values()) >= 3):
         _st_best_i = max(range(len(scores)),
                          key=lambda i: (_play_order_tier[i], scores[i]))
