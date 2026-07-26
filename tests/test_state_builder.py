@@ -1128,3 +1128,73 @@ def test_sin_iron_thorns_el_motor_meowth_sigue_vivo():
     assert elegida == m.Meowth_ex, (
         f"sin lock de habilidades el fetch del motor no debe cambiar; obtuvo "
         f"{m.card_table[elegida].name}")
+
+
+# =====================================================================
+# Motor UB de PRIMER turno saliendo SEGUNDOS (user, jul 2026): la UNICA
+# razon de jugar Ultra Ball en nuestro primer turno de accion saliendo
+# segundos (fuera de banca vacia / Budew activo rival) es BUSCAR MEOWTH EX
+# cuando NO tenemos Lillie's Determination y necesitamos jugar una
+# (Last-Ditch Catch la trae del mazo). Gate `_ub_ft_case2`. Estos tests
+# pinnan el contrato completo tras los gates de la red anti-turno-esteril
+# (a7df1ce / 57db985), que usan otra via (score 200) y no deben afectarlo.
+# =====================================================================
+
+def _escenario_t2_saliendo_segundo(mano):
+    return (Escenario(turno=2, tac=1, primer_jugador=1)
+            .mi_activo(pk(m.Tapu_Bulu))
+            .mi_banca(pk(m.Chikorita))
+            .mi_mano(*mano)
+            .op_activo(pk(103, hp=60, max_hp=60))
+            .op_zonas(mano=6, mazo=40, premios=6)
+            .mazo(m.Meowth_ex, m.Lillie_Determination, m.Tapu_Bulu,
+                  m.Hydrapple_ex, m.Applin, m.Teal_Mask_Ogerpon_ex)
+            .fetch_ultra_ball()
+            .resto_al_descarte()
+            .construir())
+
+
+def _menu_main(obs, opciones):
+    obs["select"] = {"context": 0, "contextCard": None, "deck": None,
+                     "effect": None, "maxCount": 1, "minCount": 1, "type": 0,
+                     "remainDamageCounter": 0, "remainEnergyCost": 0,
+                     "option": opciones}
+    return obs
+
+
+def test_ub_t1_segundos_sin_lillie_busca_el_motor_meowth():
+    # Sin Lillie's NI Meowth en mano, con ambos en el MAZO: la UB de primer
+    # turno saliendo segundos SI se juega (motor Last-Ditch -> Lillie's).
+    obs = _menu_main(
+        _escenario_t2_saliendo_segundo([m.Ultra_Ball, m.Basic_Grass_Energy,
+                                        m.Chikorita]),
+        [{"index": 0, "type": 7}, {"index": 2, "type": 7}, {"type": 14}])
+    eleccion = m.agent(obs)
+    opt = obs["select"]["option"][eleccion[0]]
+    assert opt.get("type") == 7 and opt.get("index") == 0, (
+        f"la UB del motor Meowth->Lillie's debe jugarse en t2 saliendo "
+        f"segundos sin Lillie's en mano; obtuvo {opt}")
+
+
+def test_ub_t1_segundos_fetch_elige_meowth():
+    obs = _escenario_t2_saliendo_segundo([m.Basic_Grass_Energy, m.Chikorita])
+    eleccion = m.agent(obs)
+    sel = obs["select"]
+    elegida = sel["deck"][sel["option"][eleccion[0]]["index"]]["id"]
+    assert elegida == m.Meowth_ex, (
+        f"el fetch de la UB de primer turno debe traer Meowth ex (motor de "
+        f"Lillie's); obtuvo {m.card_table[elegida].name}")
+
+
+def test_ub_t1_segundos_con_lillie_en_mano_se_veta():
+    # Control: con la Lillie's YA en mano el motor no hace falta y la UB de
+    # primer turno vuelve a estar vetada (se juega la Lillie's).
+    obs = _menu_main(
+        _escenario_t2_saliendo_segundo([m.Ultra_Ball, m.Lillie_Determination,
+                                        m.Basic_Grass_Energy]),
+        [{"index": 0, "type": 7}, {"index": 1, "type": 7}, {"type": 14}])
+    eleccion = m.agent(obs)
+    opt = obs["select"]["option"][eleccion[0]]
+    assert opt.get("type") == 7 and opt.get("index") == 1, (
+        f"con Lillie's en mano se juega la Lillie's y la UB queda vetada; "
+        f"obtuvo {opt}")
