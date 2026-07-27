@@ -55,6 +55,11 @@ Conversión **inversa** a la de `_grass_attach_unit`: convierte una cantidad de 
 
 Calcula cuántas cartas de energía **físicas** hacen falta para pagar un coste de retirada expresado en unidades efectivas, usando división con techo (`-(-retreat_cost // _grass_attach_unit())`). Devuelve `0` si el coste es `<= 0`. La división con techo importa estratégicamente: con Meganium, un coste de retirada de 3 efectivas no se paga con 1.5 cartas — hacen falta 2 Plantas físicas, y esa carta "de más" es relevante para decidir si retirarse es viable con la mano/banca actual.
 
+
+### `_retreat_grass_units(retreat_cost)`
+
+Unidades **efectivas** de Planta que **desaparecen del campo** al pagar una retirada de `retreat_cost` símbolos: `_retreat_cards(coste) × _grass_attach_unit()`. Es el valor que hay que restar de `total_grass` al proyectar *Syrup Storm* tras un retiro — el coste se paga con **cartas enteras** y con *Wild Growth* cada Planta vale **dos** unidades, así que restar el coste en símbolos (o el número de cartas) **sobrestima** el daño por ese factor. Sin ella, el plan creía que un Hydrapple ex de banca noqueaba tras retirar (registro_006 paso 78 vs Archaludon ex: 10−1 = 9 unidades → 330−30 = 300 sobre 270 PV) cuando la realidad eran 8 unidades → 240; con ese KO fantasma se vetaba el ataque del activo, que **sí** noqueaba, y el turno acababa cobrando 1 premio en vez de 2. La usan los 9 sitios que proyectan "Planta tras retirar".
+
 ### `ATTACK_ENERGY_REQ` y `MAIN_ATTACKERS`
 
 ```python
@@ -141,7 +146,29 @@ Recorre **todos los Pokémon de la banca propia** (`my_state.bench`) y comprueba
 3. Llama a `_attacker_base_damage` con `grass_scale=retreat_grass_after`, `teal_self_energy` = su propia energía y `bench_count` para el daño base.
 4. Si `base > 0`, aplica `_our_effective_damage` con `meganium_active`/`neutral_zone` y compara contra el HP del objetivo: si lo iguala o supera, devuelve `True` inmediatamente (early-return al primer atacante de banca que sirva).
 
+### `_bench_attacker_best_damage(...)`
+
+```python
+def _bench_attacker_best_damage(my_state, target, meganium_active, bench_count,
+                                retreat_grass_after, neutral_zone,
+                                min_body_hp=0):
+```
+
+Hermano **no letal** del anterior: en vez de "¿alguien remata?" responde "¿cuánto es lo MÁXIMO que sacaríamos hoy si promovemos a alguien de banca?", devolviendo el mejor daño efectivo (`0` si nadie está listo). Mismo recorrido y mismas fórmulas (`_attacker_base_damage` con `grass_scale=retreat_grass_after` + `_our_effective_damage`), sin el early-return: se queda con el máximo. `min_body_hp` descarta candidatos con menos HP que el umbral, que es como se replica la guarda "no cambiar un ex por un cuerpo peor" del scorer de RETREAT (`main-14`) desde el lado del adjunte.
+
+Existe porque toda la familia de pivotes de retirada exigía KO: cuando el atacante de banca solo puede hacer **chip** (activo rival de 300-400 PV, resistencia Planta, Full Metal Lab), ninguna regla disparaba y el turno se cerraba sin atacar. Lo consume `_attach_enable_retreat_attack` (`main-13`).
+
 Si ningún Pokémon de banca alcanza el KO, devuelve `False`. El parámetro `retreat_grass_after` se reutiliza como `grass_scale` — es decir, se está proyectando el daño de Hydrapple ex **después** de una retirada/cambio de energía, no con el estado actual literal (Syrup Storm baja si el retiro descarta Grass del campo). Esta función es la pieza clave que permite al agente responder "¿me conviene retirar al activo y dejar que la banca remate?" (usada en la evaluación de Boss's Orders y en la puntuación de RETREAT).
+
+### `_grass_unlocks_active_retreat`
+
+Devuelve `(ko, chip)`: **¿una Planta MÁS sobre el ACTIVO paga su coste de retirada y habilita atacar con un cuerpo de banca?** Es el núcleo común de la línea *"Planta al activo → RETIRAR → atacar con el de banca"*, y lo consumen **dos rutas distintas**:
+
+- el **adjunte manual** (`_attach_enable_retreat_ko` / `_attach_enable_retreat_attack`, que además exigen que el adjunte del turno siga libre), y
+- las **habilidades de carga** (`_ability_unlock_retreat_ko` / `_ability_unlock_retreat_attack`): *Ripening Charge* adjunta a cualquiera de nuestros Pokémon y **no consume el adjunte manual**, así que la línea sigue viva con `state.energyAttached` ya puesto. Antes ese caso era invisible — las dos banderas del adjunte se apagan con `energyAttached` — y el turno moría sin atacar con el activo bloqueado y un atacante listo mirando desde la banca (registro_014 pasos 137/141 vs Alakazam).
+
+Devuelve `(False, False)` si no hay nada que desbloquear: el activo ya paga su retirada (`e >= rc`), una Planta no le alcanza (`e + _grass_attach_unit() < rc`), o con esa Planta **ataca él** (`_can_attack_eff` → entonces no se retira). El `chip` solo se evalúa si el activo no puede atacar este turno y aplica la guarda "no cambiar un ex por un cuerpo peor" (`min_body_hp`). El Grass del campo tras retirar se aproxima descontando `_retreat_grass_units(rc)` (la retirada descarta cartas enteras).
+
 
 ## Interacciones
 

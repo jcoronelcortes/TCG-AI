@@ -29,7 +29,7 @@ El agente NO usa árboles de búsqueda: **puntúa cada opción** y elige la de m
 
 1. `scores = []`; se recorre `for o in select.option:` y a cada opción se le asigna un `score` según su `o.type` (ver `OptionType`) y el contexto. `scores.append(score)`.
 2. Convención de puntaje: **mayor = mejor**. Un `score = -1` (o negativo) es un **veto** (opción no deseada). Valores altos y "redondos" (p.ej. `21500`, `40000`, `50000`) son prioridades fuertes fijadas por reglas de matchup; suelen sobrescribir el puntaje base con `max()` o asignación directa.
-3. En contexto `MAIN` se aplica además un **orden de jugada por tiers** (`_play_order_tier`): energía-de-KO > estadio > desarrollo de Pokémon/evolución > Poke Pad > Bug Catching Set > carga de energía > resto. Solo reordena opciones con `score > 0`, así que los vetos se respetan.
+3. En contexto `MAIN` se aplica además un **orden de jugada por tiers** (`_play_order_tier`): energía-de-KO > estadio > evolución (y bajar básicos si no hay BCS pendiente) > Poke Pad > Bug Catching Set > bajar básicos con BCS pendiente > carga de energía > resto. Solo reordena opciones con `score > 0`, así que los vetos se respetan.
 4. Se ordenan los índices por la clave `(tier, score)` descendente y se devuelven los primeros `maxCount` (con reglas extra para `SETUP_BENCH_POKEMON` y vetos de estadio del primer turno).
 
 > Para entender una decisión concreta: el puntaje de una opción se fija en su rama `elif o.type == OptionType.X` dentro del gran bucle (o en un scorer extraído `_score_*`, ver abajo); los vetos/prioridades se calculan **antes** del bucle como banderas (`_win_via_boss_gust`, `_meowth_devel_lillie`, `op_is_crustle_deck`, `plan.*`, …).

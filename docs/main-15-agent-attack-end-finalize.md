@@ -99,15 +99,19 @@ Mismo patrón para `Ultra_Ball`: si la carta con mejor puntaje entre las opcione
 
 ### Orden de jugada por tiers en contexto `MAIN`
 
-El bloque impone, dentro de las opciones ya puntuadas positivamente, la secuencia **1) estadio → 2) básicos/evoluciones → 3) Poke Pad → 4) Bug Catching Set → 5) cargar energía**, con la energía que resuelve un KO este turno conservando prioridad máxima. Solo aplica en `context == SelectContext.MAIN` y solo reordena opciones con `scores[i] > 0` — los vetos nunca son "ascendidos" por un tier alto.
+El bloque impone, dentro de las opciones ya puntuadas positivamente, la secuencia **1) estadio → 2) evoluciones (y básicos si no hay BCS pendiente) → 3) Poke Pad → 4) Bug Catching Set → 5) bajar básicos con un BCS pendiente → 6) cargar energía**, con la energía que resuelve un KO este turno conservando prioridad máxima. Solo aplica en `context == SelectContext.MAIN` y solo reordena opciones con `scores[i] > 0` — los vetos nunca son "ascendidos" por un tier alto.
+
+**BCS antes de bajar un Pokémon** (user, log 88166559 paso 6 vs Archaludon, GANADA con error): mirar los 7 de arriba y coger hasta 2 Pokémon {G} / Energía Planta cambia **qué** cuerpo bajamos y con **qué** lo cargamos, así que decidir el cuerpo antes de esa información es decidir a ciegas. En ese log el agente bajó el Meowth ex (motor Lillie's, 21800) con el BCS (12200) en la mano y el BCS acabó trayendo un Chikorita — cuerpo de UN premio, mejor candidato que un ex de dos — con el slot ya gastado; en el turno 3 bajó los DOS Ogerpon ex y jugó el BCS con la banca ya **llena**, así que el Applin encontrado no pudo bajar. Reordenar no cuesta nada: jugar el BCS no consume la bajada, ni el adjunte, ni el ataque. Se implementa **demotando la bajada** de Pokémon a `_TIER_DEVELOP_TRAS_BCS` y **no** promoviendo el BCS, para que las EVOLUCIONES conserven `_TIER_DEVELOP` y sigan precediéndolo (promoverlo adelantaba también la evolución a Hydrapple ex y rompía sus dos tests). Consecuencia transitiva aceptada: con BCS y Poke Pad a la vez en mano, la bajada cede también al Poke Pad — coherente, ambos son cartas de cavar 7 antes de comprometerse. La democión exige que el BCS esté **ofrecido en el menú y con `score > 0`** (`_bcs_play_idx`): si no fuera jugable, posponer el cuerpo lo dejaría sin bajar. Los tiers se renumeran ×10 para insertar el nivel nuevo conservando todos los demás órdenes relativos.
 
 ```python
-_TIER_KO_ENERGY = 6
-_TIER_STADIUM = 5
-_TIER_DEVELOP = 4
-_TIER_POKE_PAD = 3
-_TIER_BUG_SET = 2
-_TIER_ENERGY = 1
+_TIER_WIN_ATTACK = 70
+_TIER_KO_ENERGY = 60
+_TIER_STADIUM = 50
+_TIER_DEVELOP = 40
+_TIER_POKE_PAD = 30
+_TIER_BUG_SET = 20
+_TIER_DEVELOP_TRAS_BCS = 15   # bajar un Pokemon cede al BCS pendiente
+_TIER_ENERGY = 10
 ```
 
 El resto de opciones (`ATTACK`/`END`/Supporters/Ultra Ball normal/habilidades no promovidas) se queda en el tier por defecto `0` y compite solo por `score`. Asignación:
@@ -115,7 +119,7 @@ El resto de opciones (`ATTACK`/`END`/Supporters/Ultra Ball normal/habilidades no
 - **`OptionType.EVOLVE`** → siempre `_TIER_DEVELOP`: evolucionar se juega antes que cargar energía o Poke Pad.
 - **`OptionType.ATTACH`**: se calcula `_po_is_ko_energy` — cierto si `plan.energy` (el plan requiere justo esta energía), `plan.remain_hp <= 0`, `plan.attacker >= 0`, y el adjunte apunta exactamente al Pokémon designado (activo si `plan.attacker == 0`, o el índice de banca `plan.attacker == 1 + inPlayIndex`). Si es así, `_TIER_KO_ENERGY`; si no, `_TIER_ENERGY`.
   - **Excepción `_tapu_future_charge`**: si el flag está activo (el activo YA noquea con su energía actual, Meganium en juego, Tapu Bulu de banca por cargar) y el adjunte apunta al **activo**, se fuerza `_po_is_ko_energy = False`. Sin esta exclusión, el tier 6 del adjunte al activo aplastaba (6 > 1) la carga de Tapu Bulu de banca (score 40000 pero tier ENERGY), desperdiciando la energía en un atacante ya listo; al bajarlo a tier ENERGY, el desempate dentro del tier lo gana Tapu por score.
-- **`OptionType.PLAY`**: `Poke_Pad` → `_TIER_POKE_PAD`; `Bug_Catching_Set` → `_TIER_BUG_SET`; **`Ultra_Ball` con `scores[i] > 31000` → `_TIER_ENERGY`** — es la Ultra Ball del motor `_ub_engine_refresh_pivot` (31450, doc 12): los ítems van en tier 0 y el adjunte manual (tier ENERGY, ~31410) la aplastaba por tier pese al score; subirla al tier ENERGY hace que dentro del tier decida el score (31450 > 31410), mismo patrón que Teal Dance. La UB normal (≤12500) conserva su tier 0; `CardType.STADIUM` → `_TIER_STADIUM`; `CardType.POKEMON` → `_TIER_DEVELOP`. Cualquier otro `PLAY` (Supporters, Night Stretcher, Unfair Stamp…) queda en tier 0.
+- **`OptionType.PLAY`**: `Poke_Pad` → `_TIER_POKE_PAD`; `Bug_Catching_Set` → `_TIER_BUG_SET`; **`Ultra_Ball` con `scores[i] > 31000` → `_TIER_ENERGY`** — es la Ultra Ball del motor `_ub_engine_refresh_pivot` (31450, doc 12): los ítems van en tier 0 y el adjunte manual (tier ENERGY, ~31410) la aplastaba por tier pese al score; subirla al tier ENERGY hace que dentro del tier decida el score (31450 > 31410), mismo patrón que Teal Dance. La UB normal (≤12500) conserva su tier 0; `CardType.STADIUM` → `_TIER_STADIUM`; `CardType.POKEMON` → `_TIER_DEVELOP`, o **`_TIER_DEVELOP_TRAS_BCS` si hay un Bug Catching Set jugable en el menú** (`_bcs_play_idx >= 0`). Cualquier otro `PLAY` (Supporters, Night Stretcher, Unfair Stamp…) queda en tier 0.
 - **`OptionType.ABILITY`**: si la carta es `Teal_Mask_Ogerpon_ex` (**Teal Dance**) → `_TIER_ENERGY`. Teal Dance adjunta 1 Planta Y roba una carta, así que debe jugarse ANTES que cualquier adjunte manual; sin esto quedaba en tier 0 (por debajo del tier ENERGY de los adjuntes) y el orden anteponía una carga manual pese a que Teal Dance puntúa más alto, desperdiciando el robo. Dentro del tier decide el score (Teal Dance ~31500 gana al adjunte ~31410). Las cargas de KO letal siguen en `_TIER_KO_ENERGY`. Las demás habilidades (Ripening Charge incluida) quedan en tier 0.
 
 ### Ordenación final, debug y casos especiales de `return`

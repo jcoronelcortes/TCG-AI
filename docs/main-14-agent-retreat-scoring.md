@@ -99,6 +99,10 @@ Activo Ogerpon: veto sin `can_switch`; veto si él mismo remata (Myriad corregid
 
 `(not can_attack) and can_switch and _bench_ready_for_retreat` → `3200`.
 
+**Guarda "no cambiar un ex por un cuerpo peor"** (user, registro_009 vs Archaludon ex): si el activo está en `OUR_EX_IDS`, el `3200` solo se concede cuando algún atacante **listo** de banca (`ATTACK_ENERGY_REQ` con energía efectiva suficiente) (a) **noquea** al activo rival —medido con `_attacker_base_damage` + `_our_effective_damage` y `grass_scale = total_grass − _retreat_grass_units(coste)`— o (b) tiene **al menos tanta vida** como el que baja (pivote a un muro igual o mayor). Si no, `SCORE_VETO`: cambiar un Hydrapple ex de 330 PV por un Ogerpon ex de 210 "porque el segundo puede atacar" tira el muro y deja delante un cuerpo de 2 premios más fácil de derrotar. Con el activo no-ex la rama queda como antes.
+
+Nótese el prerrequisito `can_switch`: si el activo **no tiene energía para pagar su propio coste de retirada**, esta rama (y todas las demás de este bloque) ni siquiera se evalúan, porque el motor no ofrece la opción `RETREAT`. Quien desbloquea el caso es el adjunte al activo desde `main-13`: `_attach_enable_retreat_ko` cuando el cuerpo de banca remata y `_attach_enable_retreat_attack` cuando solo hace chip — este último replica la guarda de arriba (`min_body_hp`) para no habilitar una retirada que después se vetaría aquí.
+
 #### Cornerstone con activo dependiente de habilidad
 
 Activo en `OUR_ABILITY_IDS` contra Cornerstone Mask Ogerpon ex activo: `3400` con Tapu Bulu ≥4 en banca, si no veto.

@@ -27,38 +27,61 @@ from pathlib import Path
 _ROOT = Path(__file__).resolve().parents[1]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
+_TESTS = _ROOT / "tests"
+if str(_TESTS) not in sys.path:
+    sys.path.insert(0, str(_TESTS))
 
 from cg.api import CardType, all_card_data
+from golden_corpus import nuestro_indice
 
 
 def cosechar_series(rutas):
-    """{serial: card_id} de todas las cartas rivales vistas (serial >= 60)."""
+    """{serial: card_id} de todas las cartas RIVALES vistas.
+
+    El asiento propio se decide por votacion contra deck.csv (`nuestro_indice`,
+    espejo del corpus dorado): no siempre somos el jugador 0. Antes se leia
+    `step[0]` (la perspectiva del asiento 0, que puede ser el RIVAL) y se
+    filtraba por `serial >= 60` (los seriales son por jugador, asi que eso
+    tambien asumia que los nuestros eran 0-59): en un episodio jugado desde el
+    asiento 1 el resultado era una copia de NUESTRO propio mazo. Cada carta
+    trae `playerIndex`, asi que la pertenencia se lee de ahi.
+    """
     serials = {}
 
-    def ver(c):
-        if c and c.get("serial") is not None and c["serial"] >= 60:
-            serials[c["serial"]] = c["id"]
+    def ver(c, rival):
+        if (c and c.get("serial") is not None
+                and c.get("playerIndex") == rival):
+            serials[(rival, c["serial"])] = c["id"]
 
     for ruta in rutas:
         with open(ruta, encoding="utf-8") as f:
             data = json.load(f)
+        yo = nuestro_indice(data)
+        rival = 1 - yo
         for step in data.get("steps", []):
-            obs = step[0].get("observation") or {}
+            obs = None
+            for item in step:
+                _o = item.get("observation") or {}
+                if (_o.get("current") or {}).get("yourIndex") == yo:
+                    obs = _o
+                    break
+            if obs is None:
+                continue
             cur = obs.get("current")
             if not cur:
                 continue
-            op = cur["players"][1 - cur["yourIndex"]]
+            op = cur["players"][rival]
             for p in (op.get("active") or []) + (op.get("bench") or []):
                 if not p:
                     continue
-                ver(p)
+                ver(p, rival)
                 for c in (p.get("energyCards", []) + p.get("tools", [])
                           + p.get("preEvolution", [])):
-                    ver(c)
+                    ver(c, rival)
             for c in op.get("discard", []):
-                ver(c)
+                ver(c, rival)
             for c in (cur.get("stadium") or []):
-                ver(c)
+                ver(c, rival)
     return serials
 
 
