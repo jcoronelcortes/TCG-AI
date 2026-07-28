@@ -31,6 +31,10 @@ Interior de `agent()`:
 14. [Bucle de puntuación — RETREAT](main-14-agent-retreat-scoring.md) — cuándo retirar al activo: pivotes, sacrificios y vetos.
 15. [Bucle de puntuación — ATTACK / END y finalización](main-15-agent-attack-end-finalize.md) — vetos del ataque, `END`, tiers de orden de jugada (`_play_order_tier`) y el `return` final.
 
+Transversal:
+
+16. [Grand Tree: motor de evolución instantánea](main-16-grand-tree.md) — el estadio compartido id 1249: cadenas derivadas del mazo, qué línea construir, la habilidad, el tier `_TIER_STADIUM_ABILITY`, la retención del Forest of Vitality y la búsqueda del Básico raíz.
+
 Documento histórico de diseño:
 
 - [Plan del refactor de Ultra Ball](main-refactor-ultra-ball-plan.md) — refactor ya ejecutado (`_score_ultra_ball_play` como orquestador); se conserva como referencia de método (extracción verbatim + verificación por hash).

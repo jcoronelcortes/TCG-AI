@@ -116,6 +116,10 @@ Interior de `agent()`:
 - **[main-14 — RETREAT](main-14-agent-retreat-scoring.md)**: cuándo retirar al activo — pivotes, sacrificios, vetos y posponer el retiro hasta jugar el Supporter.
 - **[main-15 — ATTACK / END y finalización](main-15-agent-attack-end-finalize.md)**: los vetos del ataque, `END`, y la finalización (overrides de Poke Pad/Ultra Ball, tiers de orden de jugada `_play_order_tier`, ordenación y `return`).
 
+Transversal (toca varias regiones a la vez):
+
+- **[main-16 — Grand Tree: motor de evolución instantánea](main-16-grand-tree.md)**: el estadio compartido `Grand_Tree` (id 1249) — cadenas evolutivas derivadas del mazo (`_CADENAS_MAZO`), elección del cuerpo a construir (`_gt_planes`), la habilidad en la rama `ABILITY`, el tier `_TIER_STADIUM_ABILITY`, la retención del Forest of Vitality y el *fetch* de la raíz.
+
 > Nota: si algún documento numerado cita rangos de línea, corresponden a la versión del código en que se escribió; para localizar el código usa siempre los **nombres de funciones y banderas**.
 
 Integración con el simulador (`cg/`): ver [cg.api](cg-api.md), [cg.game](cg-game.md), [cg.sim](cg-sim.md), [cg.utils](cg-utils.md). Herramientas: ver [Reproducción de logs](utils-log-replay.md), [Empaquetado de submission](utils-empaquetar-proyecto.md) y [Render de la imagen del mazo](deck-render-deck-image.md).

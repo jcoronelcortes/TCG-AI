@@ -46,8 +46,11 @@ C = int(EnergyType.COLORLESS)
 G = int(EnergyType.GRASS)
 
 BASIC_GRASS = 1        # id de la Basic Grass Energy (deck.csv)
+BOSS_ORDERS = 1182     # id de Boss's Orders (deck.csv)
 ULTRA_BALL = 1121      # id de la Ultra Ball (deck.csv)
 TEAL_MASK_OGERPON_EX = 96    # id del Teal Mask Ogerpon ex (habilidad Teal Dance)
+FOREST_OF_VITALITY = 1261    # id del estadio propio (deck.csv)
+GRAND_TREE = 1249      # id del estadio ACE SPEC de evolucion instantanea
 _PREMIOS_DEFECTO = 6
 
 
@@ -193,8 +196,18 @@ class Escenario:
         self._mi_descarte = [self._tomar(cid, "descarte") for cid in ids]
         return self
 
-    def estadio(self, card_id):
-        self._estadio = self._tomar(card_id, "estadio")
+    def estadio(self, card_id, del_rival=False):
+        """Estadio en mesa.
+
+        `del_rival=True` para estadios que NO estan en deck.csv (los baja el
+        rival): no consumen pool propio. Es el caso de Grand Tree, cuya
+        habilidad es de uso compartido -- la usan los DOS jugadores.
+        """
+        if del_rival:
+            self._estadio = {"id": card_id, "playerIndex": 1,
+                             "serial": next(self._serial_op)}
+        else:
+            self._estadio = self._tomar(card_id, "estadio")
         return self
 
     def mazo(self, *ids):
@@ -375,6 +388,263 @@ class Escenario:
             "deck": None,
             "contextCard": None,
             "effect": None,
+        }
+        return self
+
+    def menu_mano(self, con_retirada=False, con_adjunte=False):
+        """Select MAIN generico: una opcion PLAY por cada carta de la mano, mas
+        (opcionalmente) las ATTACH de la 1a Basic Grass y/o RETREAT, mas END.
+
+        Pensado para escenarios donde lo que se mide es QUE carta se juega, sin
+        el ruido de un menu completo del simulador.
+        """
+        opciones = [{"type": int(OptionType.PLAY), "index": i}
+                    for i in range(len(self._mi_mano))]
+        if con_adjunte:
+            idx_e = next((i for i, c in enumerate(self._mi_mano)
+                          if c["id"] == BASIC_GRASS), None)
+            if idx_e is None:
+                raise EstadoInconsistente(
+                    "menu_mano(con_adjunte=True) requiere una Basic Grass en "
+                    "mi_mano()")
+            if self._mi_activo is not None:
+                opciones.append({"type": int(OptionType.ATTACH),
+                                 "area": int(AreaType.HAND), "index": idx_e,
+                                 "inPlayArea": int(AreaType.ACTIVE),
+                                 "inPlayIndex": 0})
+            for k in range(len(self._mi_banca)):
+                opciones.append({"type": int(OptionType.ATTACH),
+                                 "area": int(AreaType.HAND), "index": idx_e,
+                                 "inPlayArea": int(AreaType.BENCH),
+                                 "inPlayIndex": k})
+        if con_retirada:
+            opciones.append({"type": int(OptionType.RETREAT)})
+        opciones.append({"type": int(OptionType.END)})
+        self._select = {
+            "type": int(SelectType.MAIN),
+            "context": int(SelectContext.MAIN),
+            "minCount": 1, "maxCount": 1,
+            "remainDamageCounter": 0, "remainEnergyCost": 0,
+            "option": opciones,
+            "deck": None,
+            "contextCard": None,
+            "effect": None,
+        }
+        return self
+
+    def fetch_descarte(self, efecto_id):
+        """Select TO_HAND de una carta de RECUPERACION (Night Stretcher, Lana's
+        Aid...) sobre el descarte propio ya declarado. Consume una copia de
+        `efecto_id` del pool (la carta 'en efecto')."""
+        if not self._mi_descarte:
+            raise EstadoInconsistente(
+                "fetch_descarte() requiere haber declarado antes mi_descarte(...)")
+        self._efecto = self._tomar(efecto_id, "efecto (recuperacion en juego)")
+        opciones = [{"type": int(OptionType.CARD),
+                     "area": int(AreaType.DISCARD), "index": i,
+                     "playerIndex": 0}
+                    for i in range(len(self._mi_descarte))]
+        self._select = {
+            "type": int(SelectType.CARD),
+            "context": int(SelectContext.TO_HAND),
+            "minCount": 1, "maxCount": 1,
+            "remainDamageCounter": 0, "remainEnergyCost": 0,
+            "option": opciones,
+            "deck": None,
+            "contextCard": None,
+            "effect": self._efecto,
+        }
+        return self
+
+    def objetivo_carga_habilidad(self, banca_idx=None):
+        """Select ATTACH_FROM: a QUE Pokemon propio adjunta la Planta una
+        habilidad de carga ya activada (Ripening Charge de Hydrapple ex...).
+
+        Emite una opcion CARD por el activo (area ACTIVE) y una por cada slot de
+        banca (area BENCH), igual que el simulador real. El portador de la
+        habilidad es el activo o, si se indica `banca_idx`, ese slot de banca:
+        ya esta en juego, asi que NO consume otra copia del pool.
+        """
+        if self._mi_activo is None:
+            raise EstadoInconsistente(
+                "objetivo_carga_habilidad() requiere mi_activo(...)")
+        portador = (self._mi_activo if banca_idx is None
+                    else self._mi_banca[banca_idx])
+        self._efecto = {"id": portador["id"], "playerIndex": 0,
+                        "serial": portador["serial"]}
+        opciones = [{"type": int(OptionType.CARD),
+                     "area": int(AreaType.ACTIVE), "index": 0,
+                     "playerIndex": 0}]
+        opciones += [{"type": int(OptionType.CARD),
+                      "area": int(AreaType.BENCH), "index": k,
+                      "playerIndex": 0}
+                     for k in range(len(self._mi_banca))]
+        self._select = {
+            "type": int(SelectType.CARD),
+            "context": int(SelectContext.ATTACH_FROM),
+            "minCount": 1, "maxCount": 1,
+            "remainDamageCounter": 0, "remainEnergyCost": 0,
+            "option": opciones,
+            "deck": None,
+            "contextCard": None,
+            "effect": self._efecto,
+        }
+        return self
+
+    def promocion_desde_banca(self):
+        """Select TO_ACTIVE: promover un Pokemon de la banca tras retirar/KO."""
+        if not self._mi_banca:
+            raise EstadoInconsistente(
+                "promocion_desde_banca() requiere mi_banca(...)")
+        self._select = {
+            "type": int(SelectType.CARD),
+            "context": int(SelectContext.TO_ACTIVE),
+            "minCount": 1, "maxCount": 1,
+            "remainDamageCounter": 0, "remainEnergyCost": 0,
+            "option": [{"type": int(OptionType.CARD),
+                        "area": int(AreaType.BENCH), "index": k,
+                        "playerIndex": 0}
+                       for k in range(len(self._mi_banca))],
+            "deck": None,
+            "contextCard": None,
+            "effect": None,
+        }
+        return self
+
+    def menu_gusteo(self):
+        """Select de OBJETIVO de Boss's Orders: una opcion por cada Pokemon de
+        la BANCA RIVAL. Consume una copia de Boss's Orders del pool (la carta
+        'en efecto', ya jugada) y marca el Supporter como gastado."""
+        if not self._op_banca:
+            raise EstadoInconsistente("menu_gusteo() requiere op_banca(...)")
+        self._tomar(BOSS_ORDERS, "efecto")
+        self._partidario_jugado = True
+        self._select = {
+            "type": int(SelectType.CARD),
+            "context": int(SelectContext.SWITCH),
+            "minCount": 1, "maxCount": 1,
+            "remainDamageCounter": 0, "remainEnergyCost": 0,
+            "option": [{"type": int(OptionType.CARD),
+                        "area": int(AreaType.BENCH), "index": k,
+                        "playerIndex": 1}
+                       for k in range(len(self._op_banca))],
+            "deck": None,
+            "contextCard": None,
+            "effect": {"id": BOSS_ORDERS, "playerIndex": 0, "serial": 500},
+        }
+        return self
+
+    def menu_grand_tree(self, con_forest=False, con_evolucion_mano=False):
+        """Select MAIN con la HABILIDAD del estadio Grand Tree.
+
+        Emite la opcion ABILITY sobre el area STADIUM (como hace el simulador
+        con las habilidades de estadio), opcionalmente el PLAY de una Forest of
+        Vitality de la mano y/o las EVOLVE disponibles desde la mano, y END.
+        """
+        if self._estadio is None or self._estadio["id"] != GRAND_TREE:
+            raise EstadoInconsistente(
+                "menu_grand_tree() requiere estadio(GRAND_TREE, ...)")
+        opciones = [{"type": int(OptionType.ABILITY),
+                     "area": int(AreaType.STADIUM), "index": 0}]
+        if con_forest:
+            idx = next((i for i, c in enumerate(self._mi_mano)
+                        if c["id"] == FOREST_OF_VITALITY), None)
+            if idx is None:
+                raise EstadoInconsistente(
+                    "menu_grand_tree(con_forest=True) requiere una Forest of "
+                    "Vitality en mi_mano()")
+            opciones.append({"type": int(OptionType.PLAY), "index": idx})
+        if con_evolucion_mano:
+            en_juego = ([self._mi_activo] if self._mi_activo else []) + self._mi_banca
+            for i, c in enumerate(self._mi_mano):
+                data = _CARD_TABLE.get(c["id"])
+                pre = getattr(data, "evolvesFrom", None) if data else None
+                if not pre:
+                    continue
+                for j, p in enumerate(en_juego):
+                    p_data = _CARD_TABLE.get(p["id"])
+                    if p_data is None or p_data.name != pre:
+                        continue
+                    opciones.append({
+                        "type": int(OptionType.EVOLVE),
+                        "area": int(AreaType.HAND), "index": i,
+                        "inPlayArea": int(AreaType.ACTIVE if j == 0
+                                          else AreaType.BENCH),
+                        "inPlayIndex": 0 if j == 0 else j - 1})
+        opciones.append({"type": int(OptionType.END)})
+        self._select = {
+            "type": int(SelectType.MAIN),
+            "context": int(SelectContext.MAIN),
+            "minCount": 1, "maxCount": 1,
+            "remainDamageCounter": 0, "remainEnergyCost": 0,
+            "option": opciones,
+            "deck": None,
+            "contextCard": None,
+            "effect": None,
+        }
+        return self
+
+    def seleccion_grand_tree_en_juego(self):
+        """Sub-seleccion "que Pokemon MIO evoluciona" servida por Grand Tree.
+
+        Una opcion CARD por cada Pokemon propio en juego, con `select.effect`
+        apuntando al estadio.
+        """
+        if self._estadio is None or self._estadio["id"] != GRAND_TREE:
+            raise EstadoInconsistente(
+                "seleccion_grand_tree_* requiere estadio(GRAND_TREE, ...)")
+        opciones = []
+        if self._mi_activo is not None:
+            opciones.append({"type": int(OptionType.CARD),
+                             "area": int(AreaType.ACTIVE), "index": 0,
+                             "playerIndex": 0})
+        for k in range(len(self._mi_banca)):
+            opciones.append({"type": int(OptionType.CARD),
+                             "area": int(AreaType.BENCH), "index": k,
+                             "playerIndex": 0})
+        self._select = {
+            "type": int(SelectType.CARD),
+            "context": int(SelectContext.EVOLVES_FROM),
+            "minCount": 1, "maxCount": 1,
+            "remainDamageCounter": 0, "remainEnergyCost": 0,
+            "option": opciones,
+            "deck": None,
+            "contextCard": None,
+            "effect": dict(self._estadio),
+        }
+        return self
+
+    def seleccion_grand_tree_mazo(self, *ids):
+        """Sub-seleccion "que carta traigo del mazo" servida por Grand Tree.
+
+        `ids` son las cartas OFRECIDAS (ya declaradas en `mazo(...)`); se
+        emiten como opciones CARD sobre el area DECK.
+        """
+        if self._estadio is None or self._estadio["id"] != GRAND_TREE:
+            raise EstadoInconsistente(
+                "seleccion_grand_tree_* requiere estadio(GRAND_TREE, ...)")
+        if self._mazo_visible is None:
+            raise EstadoInconsistente(
+                "seleccion_grand_tree_mazo() requiere mazo(...) declarado")
+        opciones = []
+        for cid in ids:
+            idx = next((i for i, c in enumerate(self._mazo_visible)
+                        if c["id"] == cid), None)
+            if idx is None:
+                raise EstadoInconsistente(
+                    f"la carta {cid} no esta en el mazo declarado")
+            opciones.append({"type": int(OptionType.CARD),
+                             "area": int(AreaType.DECK), "index": idx,
+                             "playerIndex": 0})
+        self._select = {
+            "type": int(SelectType.CARD),
+            "context": int(SelectContext.TO_FIELD),
+            "minCount": 1, "maxCount": 1,
+            "remainDamageCounter": 0, "remainEnergyCost": 0,
+            "option": opciones,
+            "deck": list(self._mazo_visible),
+            "contextCard": None,
+            "effect": dict(self._estadio),
         }
         return self
 
