@@ -1957,6 +1957,14 @@ def calc_syrup_storm_damage(my_state, has_meganium: bool) -> int:
         pass
     return 30 + 30 * total_grass
 
+# NOTA (paso 4b plan jul 2026, MEDIDO Y REVERTIDO): se intento un freno de
+# deck-out para Teal Dance (mazo <=5 -> vetar las bandas degradadas <=7500,
+# espejo de los frenos de Lillie's y BCS; la habilidad ADEMAS roba 1 del
+# mazo). Midio NEGATIVO consistente vs Comfey (-1.8 en 1000 y -1.1 en 2000
+# partidas por rama; agregado ~-1.3) con beneficio en crustle dentro del
+# ruido (+1.6): contra MILL el reloj del mazo lo quema el RIVAL -- ahorrar
+# robos propios no compra turnos y el tempo de energia hacia Myriad lo es
+# todo. Mismo criterio que el barrido de a8c8163 (exencion Cubchoo).
 def pokemon_score(pokemon: Pokemon) -> int:
     data = card_table[pokemon.id]
     score = prize_count(pokemon) * 1000
@@ -9964,31 +9972,19 @@ def agent(obs_dict: dict) -> list[int]:
                 if _d <= 0:
                     return 0
 
-                if _tgt.id in EX_IMMUNE_IDS and _bo_atk.id in OUR_EX_IDS:
-                    return 0
-                if _tgt.id in ABILITY_IMMUNE_IDS and _bo_atk.id in OUR_ABILITY_IDS:
-                    return 0
-
-                _td = card_table.get(_tgt.id)
-                # Neutralization Zone (id 1247, user): la zona EVITA todo el dano a
-                # un Pokemon SIN recuadro de regla (1 premio) causado por un atacante
-                # CON recuadro de regla (nuestros ex). Si vamos a gustear un objetivo
-                # y atacarlo con nuestro ex ACTIVO, y ese objetivo es no-ex, el dano
-                # es 0: gustearlo con Boss's Orders es inutil. Solo gusteamos con el
-                # ex a objetivos CON recuadro (otro ex del rival). Los atacantes
-                # no-ex (Meganium/Tapu Bulu/Pinsir/Dipplin) danan con normalidad.
-                if (neutralization_zone_active and _bo_atk.id in OUR_EX_IDS
-                        and not (_td and (_td.ex or _td.megaEx))):
-                    return 0
-                if _bo_atk.id != Fezandipiti_ex and _td:
-                    if _td.weakness == EnergyType.GRASS:
-                        _d *= 2
-                    elif _td.resistance == EnergyType.GRASS:
-                        _d -= 30
-
-                if _tgt.id == Drednaw and _d >= 200:
-                    return 0
-                return _d
+                # Evaluador CENTRAL de dano (paso 9 plan jul 2026, auditoria
+                # de call sites): la copia inline aplicaba inmunidades ex/
+                # habilidad, Neutralization Zone, debilidad/resistencia (salvo
+                # Fezandipiti, dano fijo) y Drednaw, pero ignoraba Sturdy/
+                # Resolute Heart (FULL_HP_SURVIVE_IDS: a vida completa el dano
+                # se capa a hp-10) y el Armor Tail de Farigiraf ex (inmune a
+                # Basicos ex) -> `_bo_can_ko_active`/los KOs de banca del
+                # gusteo podian declarar un remate FALSO sobre esos cuerpos y
+                # quemar el Boss's en una "victoria" que no ocurria. La misma
+                # migracion que fca07a1 hizo en ~30 sitios (P0.1).
+                return _our_effective_damage(
+                    _bo_atk, _tgt, _d, meganium_in_play,
+                    neutralization_zone_active)
 
             _bo_op_active = op_state.active[0]
 
