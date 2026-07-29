@@ -41,6 +41,7 @@ for _p in (_ROOT, _ROOT / "utils", _ROOT / "tests"):
         sys.path.insert(0, str(_p))
 
 import main as m
+from cg.api import OptionType
 
 MAX_NODOS = 30000
 
@@ -171,6 +172,30 @@ def _slots(yo):
     return out
 
 
+def _menu_real(obs):
+    """(tipos, play_ids) del menu REAL del simulador en el nodo RAIZ, o
+    (None, None) si no aplica (paso 6b plan jul 2026). Solo se consulta con
+    `_respetar_menu` (hallazgos de autopsia: su primer select MAIN trae el
+    menu completo y ya refleja locks de habilidad, bloqueos de item -- Budew
+    --, retiradas imposibles, etc.); los escenarios SINTETICOS (--demo,
+    StateBuilder) construyen menus parciales a proposito y no se filtran.
+    Los nodos SIMULADOS (tras la primera transicion) tampoco: ahi el menu
+    grabado ya no describe el estado."""
+    if not obs.get("_respetar_menu") or obs.get("_simulado"):
+        return None, None
+    opts = (obs.get("select") or {}).get("option") or []
+    if not opts:
+        return None, None
+    tipos = {int(o.get("type", -1)) for o in opts}
+    hand = _yo(obs).get("hand") or []
+    play_ids = set()
+    for o in opts:
+        if (int(o.get("type", -1)) == int(OptionType.PLAY)
+                and o.get("index") is not None and o["index"] < len(hand)):
+            play_ids.add(hand[o["index"]]["id"])
+    return tipos, play_ids
+
+
 def acciones_legales(obs):
     yo, op = _yo(obs), _op(obs)
     cur = obs["current"]
@@ -179,8 +204,18 @@ def acciones_legales(obs):
     grass_en_mano = m.Basic_Grass_Energy in mano_ids
     forest = _forest_en_juego(obs)
 
+    # Filtro de legalidad por el menu real (solo nodo raiz de hallazgos).
+    _tipos_menu, _play_ids_menu = _menu_real(obs)
+
+    def _permitido(tipo):
+        return _tipos_menu is None or int(tipo) in _tipos_menu
+
+    def _play_ok(cid):
+        return _play_ids_menu is None or cid in _play_ids_menu
+
     # adjunte manual
-    if grass_en_mano and not cur.get("energyAttached"):
+    if (grass_en_mano and not cur.get("energyAttached")
+            and _permitido(OptionType.ATTACH)):
         for nombre, p in _slots(yo):
             def ap(obs, _n=nombre):
                 o2 = copy.deepcopy(obs)
@@ -194,7 +229,8 @@ def acciones_legales(obs):
 
     # Teal Dance (una por Ogerpon por turno; el robo no se modela).
     # Habilidad de un EX: anulada bajo _lock_habilidades_ex.
-    if grass_en_mano and not _lock_habilidades_ex(obs):
+    if (grass_en_mano and not _lock_habilidades_ex(obs)
+            and _permitido(OptionType.ABILITY)):
         for nombre, p in _slots(yo):
             if (p["id"] == m.Teal_Mask_Ogerpon_ex
                     and p["serial"] not in obs.get("_td_usadas", ())):
@@ -209,7 +245,8 @@ def acciones_legales(obs):
 
     # Ripening Charge (Hydrapple ex: adjunta 1 Planta de la mano a cualquiera).
     # Habilidad de un EX: anulada bajo _lock_habilidades_ex.
-    if grass_en_mano and not _lock_habilidades_ex(obs):
+    if (grass_en_mano and not _lock_habilidades_ex(obs)
+            and _permitido(OptionType.ABILITY)):
         for _, hyd in _slots(yo):
             if (hyd["id"] == m.Hydrapple_ex
                     and hyd["serial"] not in obs.get("_rc_usadas", ())):
@@ -227,7 +264,7 @@ def acciones_legales(obs):
                 break
 
     # evolucion (mano -> pre-evo en juego; Forest permite el mismo turno)
-    for cid in set(mano_ids):
+    for cid in set(mano_ids) if _permitido(OptionType.EVOLVE) else ():
         data = m.card_table.get(cid)
         if not data or not (data.stage1 or data.stage2):
             continue
@@ -261,7 +298,8 @@ def acciones_legales(obs):
 
     # retirada + promocion (coste en energias efectivas, v1)
     act = yo["active"][0] if yo.get("active") and yo["active"][0] else None
-    if act is not None and not cur.get("retreated"):
+    if (act is not None and not cur.get("retreated")
+            and _permitido(OptionType.RETREAT)):
         coste = m.card_table[act["id"]].retreatCost
         if len(act.get("energies") or []) >= coste:
             for k, bp in enumerate(yo.get("bench") or []):
@@ -286,7 +324,7 @@ def acciones_legales(obs):
                     (f"RETREAT->{m.card_table[bp['id']].name}", ap))
 
     # Night Stretcher: recuperar una Planta del descarte (v1: solo energia)
-    if (m.Night_Stretcher in mano_ids
+    if (m.Night_Stretcher in mano_ids and _play_ok(m.Night_Stretcher)
             and any(c["id"] == m.Basic_Grass_Energy
                     for c in (yo.get("discard") or []))):
         def ap(obs):
@@ -305,6 +343,7 @@ def acciones_legales(obs):
 
     # Boss's Orders: subir un objetivo de la banca rival
     if (m.Boss_Orders in mano_ids and not cur.get("supporterPlayed")
+            and _play_ok(m.Boss_Orders)
             and any(b for b in (op.get("bench") or []))):
         for k, bp in enumerate(op.get("bench") or []):
             if not bp:
@@ -326,6 +365,7 @@ def acciones_legales(obs):
 
     # Forest of Vitality
     if (m.Forest_of_Vitality in mano_ids and not forest
+            and _play_ok(m.Forest_of_Vitality)
             and not cur.get("stadiumPlayed")):
         def ap(obs):
             o2 = copy.deepcopy(obs)
@@ -336,9 +376,12 @@ def acciones_legales(obs):
             return o2
         acciones.append(("FOREST", ap))
 
-    # ataque del activo (terminal)
+    # ataque del activo (terminal). En el nodo raiz el menu real manda: si el
+    # simulador no ofrecio ATTACK (energia insuficiente, condicion), el
+    # modelo no lo inventa; tras cualquier transicion vuelve a decidir el
+    # modelo (un adjunte simulado puede habilitar el ataque).
     dano, opa = _dano_activo(obs)
-    if dano > 0:
+    if dano > 0 and _permitido(OptionType.ATTACK):
         acciones.append(("ATTACK", None))
     acciones.append(("END", None))
     return acciones
@@ -362,10 +405,18 @@ def evaluar_terminal(obs, ataca):
     return (int(gana), premios, dano, desarrollo)
 
 
-def explorar(obs, max_nodos=MAX_NODOS):
-    """Devuelve (mejor_puntaje, mejor_linea) explorando el turno completo."""
+def explorar(obs, max_nodos=MAX_NODOS, respetar_menu=False):
+    """Devuelve (mejor_puntaje, mejor_linea) explorando el turno completo.
+
+    Con `respetar_menu` (paso 6b), el nodo RAIZ solo genera acciones cuyo
+    tipo aparece en el menu real de la observacion (ver _menu_real): para
+    hallazgos de autopsia, donde el menu del simulador ya refleja locks y
+    bloqueos que el modelo v1 no conoce. Los escenarios sinteticos (--demo)
+    no lo activan: sus menus son parciales a proposito."""
     inicial = copy.deepcopy(obs)
     inicial.setdefault("_evoluciones", 0)
+    if respetar_menu:
+        inicial["_respetar_menu"] = True
     mejor = [None, None]
     vistos = set()
     nodos = [0]
@@ -382,6 +433,9 @@ def explorar(obs, max_nodos=MAX_NODOS):
                 continue
             sig = estado_sig = None
             nuevo = aplicar(estado)
+            # Tras la primera transicion el estado es SIMULADO: el menu
+            # grabado ya no lo describe y la legalidad vuelve al modelo.
+            nuevo["_simulado"] = True
             estado_sig = _firma(nuevo)
             if estado_sig in vistos:
                 continue
@@ -396,7 +450,8 @@ def comparar_hallazgo(ruta, indice=0, max_nodos=MAX_NODOS):
     data = json.loads(Path(ruta).read_text())
     h = data["hallazgos"][indice]
     obs = h["observation"]
-    puntaje, linea, nodos = explorar(obs, max_nodos)
+    # Hallazgo real de autopsia: el menu del simulador manda en el nodo raiz.
+    puntaje, linea, nodos = explorar(obs, max_nodos, respetar_menu=True)
     print(f"{Path(ruta).name} [{h['detector']} turno {h['turno']}]")
     print(f"  agente en la partida: {h['detalle']}")
     print(f"  mejor linea del explorador ({nodos} nodos): "
