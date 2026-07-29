@@ -1198,3 +1198,64 @@ def test_ub_t1_segundos_con_lillie_en_mano_se_veta():
     assert opt.get("type") == 7 and opt.get("index") == 1, (
         f"con Lillie's en mano se juega la Lillie's y la UB queda vetada; "
         f"obtuvo {opt}")
+
+
+# ---------------------------------------------------------------------------
+# Tope de Teal Dance en Ogerpon EXTENDIDO a Cornerstone (autopsia v2.1 p025
+# t20, ciclo jul 2026). Cornerstone Stance anula el dano de nuestros Pokemon
+# CON habilidad: el Ogerpon no ataca en ese matchup y sobrecargarlo via Teal
+# Dance mata de hambre a Tapu Bulu (EL atacante). Mismo patron de extension
+# que d801d57 (whitelist anti-Cubchoo ampliada con el muro inmune en juego).
+
+def _esc_corner_td(ogerpon_fisicas):
+    return (Escenario(turno=8, paso=1, tac=1)
+            .mi_activo(pk(m.Tapu_Bulu, energias=[G], fisicas=1))
+            .mi_banca(pk(m.Teal_Mask_Ogerpon_ex,
+                         energias=[G] * ogerpon_fisicas,
+                         fisicas=ogerpon_fisicas))
+            .mi_mano(m.Basic_Grass_Energy)
+            .op_activo(pk(117, hp=210, max_hp=210))   # Cornerstone Mask O. ex
+            .op_zonas(mano=4, mazo=40, premios=4)
+            .menu_teal_dance()
+            .construir())
+
+
+def test_cornerstone_td_tope_2_fisicas_redirige_a_tapu():
+    # Ogerpon de banca YA con 2 fisicas: Teal Dance vetada; la Planta de la
+    # mano va al Tapu Bulu (la regla cornerstone->Tapu +22000 de energy_score
+    # por fin recibe la energia).
+    obs = _esc_corner_td(ogerpon_fisicas=2)
+    tipo, destino = _jugada_elegida(obs, m.agent(obs))
+    assert (tipo, destino) == ("ATTACH", m.Tapu_Bulu), (
+        f"vs Cornerstone un Ogerpon con 2 fisicas esta en su tope: la energia "
+        f"va a Tapu Bulu; obtuvo {(tipo, destino)}")
+
+
+def test_cornerstone_td_una_fisica_sigue_permitida():
+    # Frontera del tope: con 1 fisica el Ogerpon aun no llega al tope. La
+    # Teal Dance no esta VETADA (puede perder contra otras cargas por score,
+    # pero el tope no la mata): comprobamos que el veto no dispara mirando
+    # que la eleccion NO es END y que si gana una carga, es legitima.
+    obs = _esc_corner_td(ogerpon_fisicas=1)
+    tipo, destino = _jugada_elegida(obs, m.agent(obs))
+    assert tipo in ("ABILITY", "ATTACH"), (
+        f"con 1 fisica el turno sigue produciendo (TD o adjunte); "
+        f"obtuvo {(tipo, destino)}")
+
+
+def test_generico_td_dos_fisicas_sin_muro_no_capa():
+    # Control inverso: sin Cornerstone/Crustle/muro delante (rival neutro,
+    # Kilowattrel 271) el tope no aplica y la Teal Dance del Ogerpon con 2
+    # fisicas sigue viva.
+    obs = (Escenario(turno=8, paso=1, tac=1)
+           .mi_activo(pk(m.Tapu_Bulu, energias=[G], fisicas=1))
+           .mi_banca(pk(m.Teal_Mask_Ogerpon_ex, energias=[G, G], fisicas=2))
+           .mi_mano(m.Basic_Grass_Energy)
+           .op_activo(pk(271, hp=120, max_hp=120))    # Kilowattrel
+           .op_zonas(mano=4, mazo=40, premios=4)
+           .menu_teal_dance()
+           .construir())
+    tipo, _ = _jugada_elegida(obs, m.agent(obs))
+    assert tipo == "ABILITY", (
+        f"sin muro anti-habilidad el tope no aplica: Teal Dance sigue siendo "
+        f"la jugada (adjunta + ROBA); obtuvo {tipo}")

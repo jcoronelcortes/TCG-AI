@@ -18598,7 +18598,9 @@ def agent(obs_dict: dict) -> list[int]:
                         # de coste 1 para subir a Tapu y noquear el proximo paso.
                         # Debe GANAR al adjunte manual a Dipplin (~31000).
                         score = 31600
-                    elif (op_is_crustle_deck and not op_kang_ko_target
+                    elif (((op_is_crustle_deck and not op_kang_ko_target)
+                            or op_is_cornerstone_deck
+                            or op_has_ability_immune_active)
                             and _physical_energy(_ogerpon_energy) >= 2):
                         # Regla (user, vs Crustle, log 86583376 paso 84): un Teal
                         # Mask Ogerpon ex no puede tener mas de DOS energias
@@ -18612,6 +18614,22 @@ def agent(obs_dict: dict) -> list[int]:
                         # ex, donde la energia extra sube el dano de Syrup Storm).
                         # len(energies) es EFECTIVA (Wild Growth duplica) => se
                         # pasa a cartas fisicas con _physical_energy.
+                        #
+                        # EXTENSION a Cornerstone (autopsia v2.1 p025 t20, ciclo
+                        # jul 2026; mismo patron que d801d57 amplio la whitelist
+                        # anti-Cubchoo): Cornerstone Stance anula el dano de
+                        # nuestros Pokemon CON habilidad, asi que este Ogerpon
+                        # tampoco ataca alli -- y el agente le acumulo 3 fisicas
+                        # via Teal Dance (un cuerpo muerto de 6 efectivas)
+                        # mientras Tapu Bulu, EL atacante del matchup, moria de
+                        # hambre a 1 fisica con la mano sin energia. El tope de
+                        # 2 redirige el excedente: la regla de energy_score
+                        # "cornerstone -> Tapu +22000" ya existia y ahora la
+                        # energia le llega. `op_has_ability_immune_active` cubre
+                        # ademas cualquier muro anti-habilidad posicional
+                        # (Sylveon...). La excepcion _td_ko_on_active (arriba)
+                        # sigue cubriendo el activo rival atacable del mazo
+                        # mixto (Cubchoo/Beartic delante).
                         score = SCORE_VETO
                     elif _crustle_atk_needs_grass:
 

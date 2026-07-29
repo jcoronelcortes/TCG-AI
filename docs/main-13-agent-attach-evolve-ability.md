@@ -133,7 +133,7 @@ Orden de evaluación:
 4. Tope vs Alakazam: misma regla física → veto (la energía extra del activo solo vía `_td_ko_on_active`).
 5. `_teal_wall_pivot` en el ACTIVO → **`31600`** — Ogerpon condenado que no puede atacar + Hydrapple sano en banca: Teal Dance roba y habilita la retirada de coste 1 para pivotar al muro. Debe ganar al adjunte manual (~31200).
 6. `_teal_dance_ko_pivot` en el ACTIVO → **`31600`** — Ogerpon bloqueado por el muro con atacante no-ex listo en banca; Teal Dance habilita la retirada.
-7. Tope vs Crustle (`not op_kang_ko_target`, físicas ≥2) → veto.
+7. Tope vs Crustle (`not op_kang_ko_target`) **o vs Cornerstone / muro anti-habilidad en juego** (`op_is_cornerstone_deck or op_has_ability_immune_active`; extensión jul 2026, autopsia v2.1 p025 t20: el agente acumulaba 3 físicas vía Teal Dance en un Ogerpon que hace 0 contra Cornerstone Stance mientras Tapu Bulu moría de hambre — gate +6.2 en cornerstone), físicas ≥2 → veto.
 8. `_crustle_atk_needs_grass` → `7500` (otro atacante necesita esa Planta).
 9. `_reserve_energy_for_hydra_evolve` fuera del activo → `7500` (reservar la Planta para la evolución del Dipplin activo).
 10. `_ogerpon_energy >= 3` (ya listo): `29000` si `_extra_energy_enables_ko`; `31050` si el activo ya noquea y el área no es el activo; `31050` si es el activo con atacante de banca listo y sin KO propio; resto → veto (no sobrecargar).
