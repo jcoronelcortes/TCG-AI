@@ -258,6 +258,14 @@ def detectar(m, decisiones):
                 "paso_cierre": ultimo["paso"],
                 "eleccion_cierre": ultimo["eleccion"],
                 "opciones_primer_main": opciones_no_end,
+                # v2.1: el turno COMPLETO paso a paso (todos los selects MAIN
+                # con su observacion y eleccion). Los fallos multi-paso (el
+                # plan del primer MAIN muere a mitad de turno: p.ej. Boss's
+                # positivo al abrir y el cierre llega sin gusteo) solo se
+                # diagnostican reproduciendo la secuencia entera.
+                "pasos_turno": [
+                    {"paso": d["paso"], "eleccion": d["eleccion"],
+                     "observation": d["obs"]} for d in mains],
             })
     return hallazgos
 

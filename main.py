@@ -9793,6 +9793,23 @@ def agent(obs_dict: dict) -> list[int]:
                     crustle_gust_worth_it = True
                     break
 
+            # NOTA (ciclo jul 2026, MEDIDO Y REVERTIDO): se intento extender
+            # este detector con el KO ALTERNATIVO tras retirar (autopsia
+            # v2.1 crustle p049 t10: Fez ex trabado delante, Dipplin de
+            # banca noquea al Dwebble gusteado 80>=70; `worth_it` quedaba
+            # False y Lillie's 4500 se quemaba el Supporter con el premio
+            # servido), junto con el modo POR CANDIDATO en la seleccion de
+            # objetivo (un can_ko evalua en ofensivo aunque el activo este
+            # trabado). La linea puntual es real (fixture del paso 72), pero
+            # el agregado midio NEGATIVO consistente en TRES tiradas
+            # independientes vs crustle (-1.5 y -2.1 con n=1000, -1.0 con
+            # n=2000; ~-1.4 agregado con n=4000/rama). Hipotesis del coste:
+            # el premio del Dwebble QUEMA uno de los 2 Boss's que el endgame
+            # necesita (win_via_boss_gust) y expone al cuerpo promovido al
+            # contragolpe. Si se reintenta: exigir que el promovido
+            # SOBREVIVA el remate rival proyectado o que el premio cierre la
+            # partida, y medir contra este mismo registro.
+
         if crustle_gust_worth_it:
             values[Boss_Orders] = BOSS_PRIORITY_CRUSTLE_GUST
         elif _fez_active_can_attack:
@@ -15405,6 +15422,14 @@ def agent(obs_dict: dict) -> list[int]:
                                 (op_has_dragapult or op_has_dreepy_line),
                                 (op_has_typhlosion or op_has_ethan_preevo),
                                 my_prize=my_prize)
+                            # NOTA (ciclo jul 2026, MEDIDO Y REVERTIDO): se
+                            # intento decidir el modo POR CANDIDATO (con
+                            # `not _gt_ctx.can_ko` en esta condicion) para
+                            # que un objetivo noqueable tras retirar --
+                            # Dwebble 650 vs Kangaskhan-traba 800 -- evaluara
+                            # en ofensivo con el activo trabado. Ver la nota
+                            # gemela en `crustle_gust_worth_it`: -1.4 puntos
+                            # vs crustle con n=4000/rama, revertido en bloque.
                             if _active_cant_attack_this_turn or _sel_active_cant_attack:
                                 score = _resolver_con_traza(
                                     "boss->objetivo/estorbo", _REGLAS_GUST_ESTORBO,

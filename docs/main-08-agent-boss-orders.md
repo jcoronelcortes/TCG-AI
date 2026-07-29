@@ -17,7 +17,7 @@ La elección del objetivo concreto del gusteo (a quién se sube) no ocurre aquí
 
 - `_fez_active_can_attack`: nuestro activo es `Fezandipiti_ex` con ≥3 efectivas (contando el posible adjunte). Si ya está listo, gran parte de la escalera se apaga.
 - `_op_active_is_crustle`, `_tapu_can_attack` (Tapu Bulu + Meganium en juego y un Tapu con ≥2 energías físicas → llega a las 4 efectivas de su ataque de 220).
-- `crustle_gust_worth_it`: con nuestro ex activo bloqueado por la inmunidad de Crustle, busca en la banca rival un objetivo al que **sí** hagamos daño (`_attacker_base_damage` + `_our_effective_damage`) y que podamos noquear o que no pueda retirarse (energía < `RETREAT_COST`). Basta uno para marcarla.
+- `crustle_gust_worth_it`: con nuestro ex activo bloqueado por la inmunidad de Crustle, busca en la banca rival un objetivo al que **sí** hagamos daño (`_attacker_base_damage` + `_our_effective_damage`) y que podamos noquear o que no pueda retirarse (energía < `RETREAT_COST`). Basta uno para marcarla. *Nota (jul 2026, medido y revertido)*: se intentó extenderlo con el KO alternativo tras retirar (`_bench_attacker_can_ko`) junto con el modo por candidato en la selección de objetivo; midió -1.4 puntos vs crustle (n=4000/rama, negativo consistente en 3 tiradas) — hipótesis: quemaba uno de los 2 Boss's del endgame y exponía al promovido. Detalle en la nota del código.
 
 ### Ramas de arquetipo (valor base)
 

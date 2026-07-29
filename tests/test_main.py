@@ -7795,6 +7795,15 @@ def test_boss_no_deslockea_sin_motor_que_despertar():
         f"des-lockeo; obtuvo {result} (map={play_map})")
 
 
+# NOTA (ciclo jul 2026, MEDIDO Y REVERTIDO): aqui vivieron los tests de la
+# cadena "Boss's -> Dwebble via retirada" (fixture crustle p049 paso 72:
+# crustle_gust_worth_it con KO alternativo tras retirar + modo del gusteo
+# por candidato). La linea puntual era real, pero el agregado midio -1.4
+# puntos vs crustle (n=4000/rama, negativo consistente en 3 tiradas) y se
+# revirtio en bloque; ver las notas en main.py junto a
+# `crustle_gust_worth_it` y al selector de modo del objetivo.
+
+
 def test_gust_estorbo_forbid_iron_thorns():
     """El modo ESTORBO nunca sube un Iron Thorns ex: crea/mantiene el lock
     sobre nuestro propio motor (regla estorbo_crea_lock_iron_thorns)."""

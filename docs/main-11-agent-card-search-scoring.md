@@ -114,7 +114,7 @@ Rama `else` del mismo contexto (`o.playerIndex` del rival): a qué Pokémon de s
 
 #### Modo estorbo (nuestro activo no puede atacar)
 
-Si `_active_cant_attack_this_turn or _sel_active_cant_attack`, Boss's se usa como **estorbo**: se prioriza el mayor coste de retirada neto (`_stall_diff = coste − energía`), `score += 500 + _stall_diff × 100`. Coste de retirada 0 → `SCORE_FORBID` (el rival lo cambia gratis). `op_has_latias_ex` (habilidad *Skyliner*): nunca gustear a la propia Latias ex ni a un básico (se retiran gratis) → `SCORE_FORBID`; el objetivo correcto es un no-básico (p.ej. Drakloak). Desempate: `−50` a `THREAT_PREEVO_IDS`/`EX_PREEVO_IDS` (no dejar activa una pre-evo que evolucionaría y atacaría desde ahí).
+Si `_active_cant_attack_this_turn or _sel_active_cant_attack`, Boss's se usa como **estorbo**: se prioriza el mayor coste de retirada neto (`_stall_diff = coste − energía`), `score += 500 + _stall_diff × 100`. *Nota (jul 2026, medido y revertido)*: se intentó decidir el modo por candidato (`can_ko` — que incluye el KO tras retirar — evaluaba en ofensivo aunque el activo estuviera trabado); midió -1.4 vs crustle con n=4000/rama y se revirtió en bloque con la extensión de `crustle_gust_worth_it` (ver notas en el código). Coste de retirada 0 → `SCORE_FORBID` (el rival lo cambia gratis). `op_has_latias_ex` (habilidad *Skyliner*): nunca gustear a la propia Latias ex ni a un básico (se retiran gratis) → `SCORE_FORBID`; el objetivo correcto es un no-básico (p.ej. Drakloak). Desempate: `−50` a `THREAT_PREEVO_IDS`/`EX_PREEVO_IDS` (no dejar activa una pre-evo que evolucionaría y atacaría desde ahí).
 
 Dos sobreescrituras dentro del estorbo:
 
