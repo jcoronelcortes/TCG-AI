@@ -103,6 +103,32 @@ Aplica al `base_damage` (ya calculado por `_attacker_base_damage`) todas las reg
 
 Devuelve `max(0, int(damage))`. Si `op_pokemon is None` o `base_damage is None`, devuelve `0`; si el rival no tiene entrada en `card_table`, devuelve `max(0, base_damage)` sin modificadores (fallback seguro).
 
+### `_attack_self_damage(...)` y la familia del **auto-daño**
+
+```python
+def _autodano_spec(attack_id)                                  # (n, opcional, azar, por_contador) | None
+def _attack_self_damage(attack_id, attacker=None, incierto=False)
+def _self_damage_of_pokemon(pokemon, incierto=False)
+def _self_ko_by_own_attack(pokemon, incierto=False)
+```
+
+Muchos ataques se hacen daño **a sí mismos** (*"This Pokémon also does 30 damage to itself"*, Wood Hammer de nuestro Tapu Bulu entre ellos). Ese dato **no existe como campo** de `Attack`: vive únicamente en su `text`, así que `_autodano_spec` lo parsea con expresión regular una sola vez por `attackId` y lo cachea (`_AUTODANO_CACHE`). Es deck-agnóstico: cubre los ~49 ataques con auto-daño de la base, no solo el nuestro.
+
+El parser distingue **cuatro familias**, y solo la primera es daño seguro. Para clasificar mira la oración del match **y la anterior**, porque el condicionante suele vivir en la previa:
+
+| Familia | Ejemplo | `_attack_self_damage` | `incierto=True` |
+| --- | --- | --- | --- |
+| **Obligatorio fijo** | *"This Pokémon also does 30 damage to itself."* (Wood Hammer 1326) | `30` | `30` |
+| **Opcional** (`You may`) | *"You may do 30 more damage. If you do, this Pokémon also does 30 damage to itself."* (Superpower 144); *"You may have this Pokémon also **do** 60 damage to itself…"* (Voltaic Fist 1171 — de ahí el `do(?:es)?` de la regex) | `0` | `0` |
+| **Azar** (moneda) | *"Flip 2 coins. If both of them are tails, this Pokémon also does 90 damage to itself."* (Reckless Abandon 662) | `0` | `90` |
+| **Escala por contadores** | *"…also does 10 damage to itself for each damage counter on it."* (Vanguard Punch 51) | `10 × contadores` de `attacker` | ídem |
+
+Una moneda en **otra** oración no contamina la clasificación: *Thump-Thump Boom* (364) — *"This Pokémon does 100 damage to itself. Flip a coin…"* — se lee como obligatorio (`100`).
+
+`_self_damage_of_pokemon` sube un nivel: dado un Pokémon **en juego**, devuelve el auto-daño del ataque que usaría hoy — el **peor** de entre los ataques cuyo coste de energía ya puede pagar (`len(Attack.energies) <= len(pokemon.energies)`, ambas en unidades efectivas). Tomar el máximo es el lado **seguro** para los frenos que lo consumen: su única consecuencia es *dejar de reclamar* una victoria absoluta (el agente vuelve a la puntuación normal), nunca reclamar una que no existe. Con energía insuficiente para el ataque no hay auto-daño que temer y devuelve `0`.
+
+`_self_ko_by_own_attack` es el predicado final: `auto_daño > 0 and auto_daño >= pokemon.hp`, es decir **el ataque nos noquea a nosotros mismos**. Lo consumen los flags del *remate suicida* (`_suicide_hands_op_win` / `_suicide_only_draws` / `_suicide_loses`, doc 07), el veto de `ATTACK` (doc 15), el relevo de retirada (doc 14) y el bono de promoción al rematador (doc 11). Origen: user, episodio 88696693 registro_016 paso 184 vs Marnie's Grimmsnarl (**EMPATE**) — Tapu Bulu a 20 PV remató al Impidimp de 70 con un premio por lado, y los 30 de Wood Hammer lo mataron a la vez: cada jugador cobró su último premio y la partida acabó 0-0.
+
 ### `_op_active_attack_damage_to(op_active, target, op_hand_count=None)`
 
 La contraparte **defensiva** de `_our_effective_damage`: máximo daño que el activo rival puede hacerle a `target` (un Pokémon nuestro). Resuelve los IDs de ataque del rival vía `attack_table` — los `card.attacks` de `card_table` son ints, no objetos, por lo que la versión anidada `_op_best_damage_vs` (definida dentro de `agent()`, ver `main-07`) que hace `getattr(id, 'damage')` sobre esos ints daba siempre 0 para este propósito; esta función es la que lee el daño impreso real. Solo considera ataques cuyo coste (nº de energías) el rival puede pagar **asumiendo 1 energía adjuntada el próximo turno** (`avail = len(energies) + 1`). Devuelve 0 si el ataque no se puede leer (daño `None`, p. ej. ataques que ponen contadores) — el llamador queda conservador.

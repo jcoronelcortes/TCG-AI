@@ -34,12 +34,15 @@ from collections import Counter
 from pathlib import Path
 
 from cg.api import (AreaType, CardType, EnergyType, OptionType, SelectContext,
-                    SelectType, all_card_data)
+                    SelectType, all_attack, all_card_data)
 
 _ROOT = Path(__file__).resolve().parents[1]
 
 # Datos de carta para defaults (HP maximo, deteccion de Pokemon).
 _CARD_TABLE = {c.cardId: c for c in all_card_data()}
+# Ataques por id: `menu_mano(con_ataque=True)` necesita el coste para emitir
+# solo los ataques que el activo puede pagar (como hace el simulador).
+_ATTACK_TABLE = {a.attackId: a for a in all_attack()}
 
 # Energias abreviadas para specs legibles.
 C = int(EnergyType.COLORLESS)
@@ -391,12 +394,16 @@ class Escenario:
         }
         return self
 
-    def menu_mano(self, con_retirada=False, con_adjunte=False):
+    def menu_mano(self, con_retirada=False, con_adjunte=False,
+                  con_ataque=False):
         """Select MAIN generico: una opcion PLAY por cada carta de la mano, mas
-        (opcionalmente) las ATTACH de la 1a Basic Grass y/o RETREAT, mas END.
+        (opcionalmente) las ATTACH de la 1a Basic Grass, RETREAT y/o los ATTACK
+        del activo, mas END.
 
         Pensado para escenarios donde lo que se mide es QUE carta se juega, sin
-        el ruido de un menu completo del simulador.
+        el ruido de un menu completo del simulador. `con_ataque` emite un ATTACK
+        por cada ataque del activo cuyo coste de energia puede pagar YA (mismo
+        criterio que el simulador), para poder medir ataque-vs-retirada.
         """
         opciones = [{"type": int(OptionType.PLAY), "index": i}
                     for i in range(len(self._mi_mano))]
@@ -417,6 +424,20 @@ class Escenario:
                                  "area": int(AreaType.HAND), "index": idx_e,
                                  "inPlayArea": int(AreaType.BENCH),
                                  "inPlayIndex": k})
+        if con_ataque:
+            if self._mi_activo is None:
+                raise EstadoInconsistente(
+                    "menu_mano(con_ataque=True) requiere mi_activo(...)")
+            _act_data = _CARD_TABLE.get(self._mi_activo["id"])
+            _disp = len(self._mi_activo["energies"])
+            for _aid in (getattr(_act_data, 'attacks', None) or ()):
+                _atk = _ATTACK_TABLE.get(_aid)
+                if _atk is None:
+                    continue
+                if len(getattr(_atk, 'energies', None) or ()) > _disp:
+                    continue
+                opciones.append({"type": int(OptionType.ATTACK),
+                                 "attackId": _aid})
         if con_retirada:
             opciones.append({"type": int(OptionType.RETREAT)})
         opciones.append({"type": int(OptionType.END)})
@@ -488,6 +509,34 @@ class Escenario:
             "deck": None,
             "contextCard": None,
             "effect": self._efecto,
+        }
+        return self
+
+    def promocion_tras_retirada(self):
+        """Select SWITCH: elegir quien SUBE de la banca al retirar el activo.
+
+        Es el prompt que el simulador emite justo despues de pagar el coste de
+        retirada (verificado con `cg.api.search_begin/search_step`: contexto
+        SWITCH, opciones CARD sobre la BANCA propia). Se distingue de
+        `promocion_desde_banca` (TO_ACTIVE), que es la promocion FORZADA tras un
+        KO y puede caer en el turno rival.
+        """
+        if not self._mi_banca:
+            raise EstadoInconsistente(
+                "promocion_tras_retirada() requiere mi_banca(...)")
+        self._retirado = True
+        self._select = {
+            "type": int(SelectType.CARD),
+            "context": int(SelectContext.SWITCH),
+            "minCount": 1, "maxCount": 1,
+            "remainDamageCounter": 0, "remainEnergyCost": 0,
+            "option": [{"type": int(OptionType.CARD),
+                        "area": int(AreaType.BENCH), "index": k,
+                        "playerIndex": 0}
+                       for k in range(len(self._mi_banca))],
+            "deck": None,
+            "contextCard": None,
+            "effect": None,
         }
         return self
 

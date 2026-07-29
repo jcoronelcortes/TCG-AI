@@ -58,6 +58,7 @@ Los flags se resuelven en una escalera estricta — cada rama gana sobre las sig
 
 | Score | Condición | Razón |
 | --- | --- | --- |
+| `9600` | `_suicide_swap_win_promote` | **Relevo del remate suicida**: el ataque del activo noquea pero su auto-daño lo mata y con ese cadáver el rival cobra su último premio (empate o derrota); en banca hay un rematador que gana limpio. Es la única jugada que convierte el 0-0 en victoria, así que precede incluso a los pivotes letales de Hydrapple/Ogerpon — persiguen el MISMO premio con menos urgencia. |
 | `9000` | `_hydra_lethal_promote` | Prioridad máxima: pivote letal a Hydrapple ex de banca, cobrar el premio ya. |
 | `8900` | `_ogerpon_lethal_promote` | Pivote letal a Ogerpon de banca vía Teal Dance. |
 | `SCORE_VETO` | `_op_active_is_cubchoo` sin `_cub_bench_attacker_ready` | Subir un cuerpo que TAMPOCO ataca solo lo expone al mismo bloqueo; se espera al atacante cargado. |
@@ -152,11 +153,12 @@ Para el resto de `NON_ATTACKERS`: `3000` con atacante en banca; veto con solo no
 
 ### Filtros transversales de cierre
 
-Tres comprobaciones se aplican al final, sobre el score ya asignado:
+Estas comprobaciones se aplican al final, sobre el score ya asignado:
 
-1. **`_same_species_retreat`**: cancela (`SCORE_VETO`) cualquier score positivo — salvo la excepción de confusión (`_conf_should_retreat`), ver arriba.
+1. **`_same_species_retreat`**: cancela (`SCORE_VETO`) cualquier score positivo — salvo la excepción de confusión (`_conf_should_retreat`), ver arriba, y salvo `_suicide_swap_win_promote` (si el relevo GANA, la especie no decide nada).
 2. **`_alakazam_pivot_1prize` → `max(score, 6000)`**: el pivote 1-premio vs Alakazam (doc 10: retirar el ex activo y promover CUALQUIER cuerpo de `prize_count == 1` que noquee — Dipplin/Meganium/Tapu/Pinsir) debe superar al ataque del ex (~1100) para que el motor retire en vez de atacar; el filtro siguiente ("Supporter antes de retirar") puede igualmente posponerlo a 2000, respetando ese orden.
-3. **Supporter antes de retirar**: si `score > 2000` y `not state.supporterPlayed` y hay un Supporter de desarrollo jugable con valor (`Dawn`/`Lillie_Determination`/`Lanas_Aid` en mano con `_supp_values > 0`), el retiro se **pospone**: `score = 2000`, por debajo de la jugada del Supporter (≥2400). Retirar no se bloquea (sigue disponible después): el motor juega primero el Supporter (p.ej. Dawn busca la línea que se evoluciona con Forest este mismo turno) y re-evalúa el retiro en la siguiente decisión.
+3. **Supporter antes de retirar**: si `score > 2000` y `not state.supporterPlayed` y hay un Supporter de desarrollo jugable con valor (`Dawn`/`Lillie_Determination`/`Lanas_Aid` en mano con `_supp_values > 0`), el retiro se **pospone**: `score = 2000`, por debajo de la jugada del Supporter (≥2400). Retirar no se bloquea (sigue disponible después): el motor juega primero el Supporter (p.ej. Dawn busca la línea que se evoluciona con Forest este mismo turno) y re-evalúa el retiro en la siguiente decisión. **Excepción `_suicide_swap_win_promote`**: ese relevo CIERRA la partida este turno, así que no hay "resto del turno" al que el Supporter pueda aportar nada — y posponer el retiro es justo lo que dejaba al agente atacando con el suicida y firmando el empate (en el registro_016 paso 184 había una Lana's Aid en mano, que capaba el 9600 a 2000).
+4. **Anti-Cubchoo**: el veto que conserva energía cuando la retirada-pivote solo cambiaría de atacante también exime `_suicide_swap_win_promote` — guardar energía para turnos futuros no significa nada si no hay turno futuro.
 
 ## Interacciones
 

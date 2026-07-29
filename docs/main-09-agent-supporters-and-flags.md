@@ -119,6 +119,19 @@ Solo vs `op_is_crustle_deck` con las tres piezas clave (Dipplin, Tapu Bulu, Mega
 - `_active_already_kos`: el activo ya noquea **sin** adjuntes adicionales (Fezandipiti sin ajuste Planta: su Cruel Arrow no es de tipo Planta).
 - `_ogerpon_td_manual_lethal` (log 85803267): letal de Ogerpon que requiere **dos** cargas en el mismo turno (adjunte manual + Teal Dance); el escáner codicioso solo evalúa +1 energía por opción, así que este flag cubre el caso para no despriorizar el adjunte manual.
 
+### El remate suicida: `_suicide_hands_op_win` / `_suicide_only_draws` / `_suicide_loses` / `_suicide_swap_win_promote`
+
+Junto a `_active_attack_wins_now` (el remate ganador con el activo, que sube el ATTACK a `99000` y al tier máximo) se calculan los flags del **remate suicida**, que corrigen la pieza que faltaba en esa declaración de victoria: **el KO de nuestro propio cuerpo también paga premios**.
+
+- `_active_self_ko_now`: el activo puede atacar y su ataque lo **noquea a sí mismo** (`_self_ko_by_own_attack`, doc 02, medido con `incierto=True`: un remate que *puede* matarnos no merece prioridad absoluta).
+- `_active_self_ko_prizes`: `prize_count` de nuestro activo — los premios que el rival cobra por ese cadáver.
+- **`_suicide_hands_op_win`** = auto-KO **y** `op_prize <= _active_self_ko_prizes`: nuestro cadáver le **cierra la cuenta** al rival. Se resta directamente de `_active_attack_wins_now` (ese remate no gana).
+- **`_suicide_only_draws`**: además nuestro KO cerraba la nuestra → los dos KOs son simultáneos y la partida acaba **0-0, EMPATE**.
+- **`_suicide_loses`**: el rival llega a 0 y nosotros **no** → atacar **regala** la partida.
+- **`_suicide_swap_winner` / `_suicide_swap_win_promote`**: el **relevo**. Con `can_switch`, busca en banca un atacante que ya pueda atacar con su energía actual y cuyo daño efectivo noquee al activo rival cobrando los premios que faltan (o con la banca rival vacía), midiendo el Grass del campo **después** de pagar la retirada (`_retreat_grass_units`, igual que `_hlp_grass_after`) porque *Syrup Storm* escala con él. El relevo no puede repetir el problema: se descarta si él también se suicida y con ello el rival llega a 0. Lo consumen el score `9600` de RETREAT y su tier `_TIER_WIN_ATTACK` (doc 14/15), y el veto de ATTACK (doc 15).
+
+Origen: user, episodio 88696693 registro_016 paso 184 vs Marnie's Grimmsnarl (**EMPATE**) — Tapu Bulu activo a 20/140 con 6 energías remataba al Impidimp de 70 PV con **un premio por lado**; *Wood Hammer* hace 30 a sí mismo, así que murió en el mismo instante y cada jugador cobró su último premio. El Teal Mask Ogerpon ex de banca, ya a 6 energías, ganaba limpio tras retirar (Myriad `30 + 30 × 6 = 210 ≥ 70`); verificado conduciendo el simulador real con `cg.api.search_begin/search_step`: `result=2` (empate) por la línea del agente, `result=0` (victoria) por la de la retirada.
+
 Más adelante en el mismo pre-cómputo (antes del bucle de scoring) se calculan flags hermanos que consumen estas piezas: `_fragile_ex_sac_pivot` y `_ripen_retreat_ko_pivot` (Ripening Charge habilita la retirada del ex frágil condenado para promover un cuerpo de 1 premio) y `_alakazam_pivot_1prize` (pivote 1-premio vs Alakazam **generalizado por `prize_count == 1`**, ya sin whitelist: incluye Dipplin — `20 × (banca − 1)` al promoverlo — y cualquier no-ex que noquee igual).
 
 ## Interacciones

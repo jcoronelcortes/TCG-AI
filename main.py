@@ -1441,6 +1441,114 @@ def _ko_no_garantizado(op_pokemon):
         return True
     return False
 
+
+# --- AUTO-DANO DEL PROPIO ATAQUE (Wood Hammer y compania) -------------------
+# Muchos ataques se hacen dano A SI MISMOS ("This Pokemon also does 30 damage to
+# itself"). Ese dato NO vive en ningun campo de `Attack`: solo en su TEXTO, asi
+# que se parsea una vez por attackId y se cachea. Deck-agnostico: cubre los ~49
+# ataques con auto-dano de la base, no solo el Wood Hammer de nuestro Tapu Bulu.
+#
+# Tres familias, y solo la PRIMERA es dano seguro:
+#   * OBLIGATORIO fijo -- "This Pokemon also does 30 damage to itself." -> 30.
+#   * OPCIONAL -- "You may do 30 more damage. If you do, this Pokemon also does
+#     30 damage to itself." / "You may have this Pokemon also do 60 damage to
+#     itself..." -> 0: la decision es NUESTRA, no se asume el auto-dano.
+#   * AZAR -- "Flip 2 coins. If both of them are tails, this Pokemon also does
+#     90 damage to itself." -> 0 en el calculo CIERTO; el peor caso se obtiene
+#     con `incierto=True` (lo que consultan los frenos prudentes).
+# Y una escala: "...10 damage to itself for each damage counter on it"
+# (Vanguard Punch), que se resuelve con el dano ya recibido por el atacante.
+import re as _re_autodano
+
+# `do` sin la -s cubre la forma opcional "You may have this Pokemon also DO 60
+# damage to itself..." (Voltaic Fist), que si no quedaba sin clasificar.
+_RE_AUTODANO = _re_autodano.compile(
+    r"do(?:es)?\s+(\d+)\s+damage\s+to\s+itself", _re_autodano.IGNORECASE)
+_RE_AUTODANO_ESCALA = _re_autodano.compile(
+    r"to\s+itself\s+for\s+each\s+damage\s+counter", _re_autodano.IGNORECASE)
+_AUTODANO_CACHE: dict = {}
+
+
+def _autodano_spec(attack_id):
+    """(n, opcional, azar, por_contador) del auto-dano del ataque; None si no lo
+    tiene. El "You may" y el "Flip 2 coins" que condicionan el auto-dano viven a
+    menudo en la oracion ANTERIOR, asi que el contexto abarca las dos."""
+    if attack_id in _AUTODANO_CACHE:
+        return _AUTODANO_CACHE[attack_id]
+    spec = None
+    _atk = attack_table.get(attack_id)
+    texto = (getattr(_atk, 'text', None) or '') if _atk is not None else ''
+    _m = _RE_AUTODANO.search(texto)
+    if _m is not None:
+        _ini = texto.rfind('.', 0, _m.start()) + 1
+        _fin = texto.find('.', _m.end())
+        _frase = texto[_ini:_fin if _fin != -1 else len(texto)]
+        _prev = texto[texto.rfind('.', 0, max(0, _ini - 1)) + 1:_ini]
+        _ctx = (_prev + ' ' + _frase).lower()
+        spec = (int(_m.group(1)),
+                'you may' in _ctx,
+                any(_w in _ctx for _w in ('flip', 'coin', 'heads', 'tails')),
+                bool(_RE_AUTODANO_ESCALA.search(_frase)))
+    _AUTODANO_CACHE[attack_id] = spec
+    return spec
+
+
+def _attack_self_damage(attack_id, attacker=None, incierto=False):
+    """Auto-dano que el ataque `attack_id` inflige a su PROPIO portador.
+
+    Devuelve el dano CIERTO: 0 si es opcional (lo decidimos nosotros) o si
+    depende de una moneda. Con `incierto=True` devuelve el PEOR caso."""
+    spec = _autodano_spec(attack_id)
+    if spec is None:
+        return 0
+    _n, _opcional, _azar, _por_contador = spec
+    if _opcional:
+        return 0
+    if _azar and not incierto:
+        return 0
+    if _por_contador:
+        if attacker is None:
+            return 0
+        _cont = max(0, ((attacker.maxHp or 0) - (attacker.hp or 0)) // 10)
+        return _n * _cont
+    return _n
+
+
+def _self_damage_of_pokemon(pokemon, incierto=False):
+    """Auto-dano del ataque que `pokemon` usaria HOY: el PEOR de entre los
+    ataques cuyo coste de energia puede pagar ya.
+
+    Los frenos de remate suicida se calculan ANTES del bucle de opciones, donde
+    todavia no se conoce el attackId elegido; tomar el maximo es el lado seguro,
+    porque su unica consecuencia es DEJAR de reclamar una victoria absoluta (el
+    agente vuelve a la puntuacion normal), nunca reclamar una que no existe.
+    `len(energies)` ya es energia EFECTIVA y `Attack.energies` es la lista de
+    unidades del coste, asi que se comparan directamente."""
+    if pokemon is None:
+        return 0
+    _data = card_table.get(pokemon.id)
+    if _data is None or not getattr(_data, 'attacks', None):
+        return 0
+    _disp = len(pokemon.energies)
+    _peor = 0
+    for _aid in _data.attacks:
+        _atk = attack_table.get(_aid)
+        if _atk is None:
+            continue
+        if len(getattr(_atk, 'energies', []) or []) > _disp:
+            continue  # no puede pagar ese ataque
+        _peor = max(_peor, _attack_self_damage(_aid, pokemon, incierto))
+    return _peor
+
+
+def _self_ko_by_own_attack(pokemon, incierto=False):
+    """True si el auto-dano del ataque de `pokemon` lo NOQUEA a el mismo."""
+    if pokemon is None:
+        return False
+    _auto = _self_damage_of_pokemon(pokemon, incierto)
+    return _auto > 0 and _auto >= (pokemon.hp or 0)
+
+
 class _ProjTarget(NamedTuple):
     """Objetivo ligero para proyectar el dano rival contra un cuerpo que aun no
     esta en juego (p.ej. la EVOLUCION de una pre-evo de banca). Solo necesita
@@ -11836,6 +11944,41 @@ def agent(obs_dict: dict) -> list[int]:
     # sin detectar el remate, RETIRABA el Ogerpon para atacar con un 1-premio
     # (Dipplin) -- tirando la victoria inmediata. ATACAR es la maxima prioridad.
     # `_op_bench_empty` se computo antes (junto a op_cards).
+    #
+    # --- REMATE SUICIDA: el KO que EMPATA (o REGALA) en vez de ganar --------
+    # (user, registro_016 paso 184 vs Marnie's Grimmsnarl, EMPATE.) Nuestro Tapu
+    # Bulu ACTIVO, a 20/140 PV y cargado, remataba al Impidimp rival (Wood Hammer
+    # 220 >= 70) con UN premio restante para cada lado, asi que el agente marco
+    # `_active_attack_wins_now` y ataco con prioridad absoluta (99000). Pero Wood
+    # Hammer "also does 30 damage to itself": el propio ataque NOQUEO a Tapu Bulu,
+    # el rival cobro SU ultimo premio en el mismo instante y la partida acabo 0-0,
+    # EMPATE. En la banca esperaba un Teal Mask Ogerpon ex con 6 energias: retirar
+    # (coste 3) y rematar con Myriad Leaf Shower (30+30x6 = 210 >= 70) GANABA
+    # limpio -- verificado contra el simulador real (result 0 = victoria) frente
+    # al result 2 (empate) de la linea que jugo el agente.
+    #
+    # Al agente le faltaban DOS datos, ninguno deducible del dano infligido:
+    #   1. el AUTO-DANO del ataque (ahora `_attack_self_damage`, leido del texto
+    #      de la carta), y
+    #   2. que el KO de NUESTRO propio cuerpo tambien PAGA PREMIOS: con el rival
+    #      a `op_prize` premios, dejarle un cadaver de `prize_count` >= op_prize
+    #      le cierra la cuenta a el TAMBIEN.
+    # De ahi los tres estados del remate suicida:
+    #   * `_suicide_hands_op_win`: el rival llega a 0 con nuestro cadaver.
+    #   * `_suicide_only_draws`  : ademas NUESTRO KO gana -> EMPATE, no victoria.
+    #   * `_suicide_loses`       : el rival llega a 0 y nosotros NO -> DERROTA.
+    # El auto-dano se mide con el peor caso (`incierto=True`): un remate que
+    # PUEDE matarnos y cerrarle la cuenta al rival no merece prioridad absoluta.
+    _active_self_ko_now = (
+        _active_pokemon is not None
+        and can_attack
+        and not is_confused
+        and _self_ko_by_own_attack(_active_pokemon, incierto=True))
+    _active_self_ko_prizes = (prize_count(_active_pokemon)
+                              if _active_self_ko_now else 0)
+    _suicide_hands_op_win = (_active_self_ko_now
+                             and op_prize <= _active_self_ko_prizes)
+
     _active_attack_wins_now = (
         _active_already_kos
         and can_attack
@@ -11844,8 +11987,67 @@ def agent(obs_dict: dict) -> list[int]:
         # KO GARANTIZADO (P0.1): vs Tenacious Body/Survival Brace el "remate"
         # puede fallar la moneda; no se le da prioridad absoluta de victoria.
         and not _ko_no_garantizado(op_state.active[0])
+        # El remate que nos MATA y le cierra la cuenta al rival NO gana: empata
+        # (los dos KOs son simultaneos y cada uno cobra su ultimo premio).
+        and not _suicide_hands_op_win
         and (my_prize <= prize_count_op(op_state.active[0])
              or _op_bench_empty))
+
+    # El remate suicida EMPATA si nuestro KO tambien cerraba la cuenta; si no,
+    # directamente REGALA la partida (nos matamos por nada).
+    _suicide_ko_would_win = (
+        _suicide_hands_op_win
+        and _active_already_kos
+        and op_state.active and op_state.active[0] is not None
+        and not _ko_no_garantizado(op_state.active[0])
+        and (my_prize <= prize_count_op(op_state.active[0])
+             or _op_bench_empty))
+    _suicide_only_draws = _suicide_hands_op_win and _suicide_ko_would_win
+    _suicide_loses = _suicide_hands_op_win and not _suicide_ko_would_win
+
+    # RELEVO DEL SUICIDA: atacante de BANCA que, promovido tras retirar, gana la
+    # partida LIMPIO (noquea, cobra los premios que faltan y NO se suicida).
+    # Mide el dano con el Grass que quedara DESPUES de pagar la retirada (el
+    # coste descarta cartas enteras del activo: mismo cuidado que
+    # `_hlp_grass_after`), porque Syrup Storm escala con el Grass del CAMPO.
+    _suicide_swap_winner = None
+    if (_suicide_hands_op_win and can_switch and _active_pokemon is not None
+            and op_state.active and op_state.active[0] is not None
+            and not _ko_no_garantizado(op_state.active[0])):
+        _ssw_opa = op_state.active[0]
+        _ssw_opa_hp = _ssw_opa.hp or 0
+        _ssw_gana_premios = (my_prize <= prize_count_op(_ssw_opa)
+                             or _op_bench_empty)
+        _ssw_grass_after = max(
+            0, total_grass - (0 if has_switch_card else _retreat_grass_units(
+                RETREAT_COST.get(_active_pokemon.id, 1))))
+        if _ssw_gana_premios and _ssw_opa_hp > 0:
+            for _ssw_bp in (my_state.bench or []):
+                if _ssw_bp is None or not isinstance(_ssw_bp, Pokemon):
+                    continue
+                _ssw_e = len(_ssw_bp.energies)
+                if not _can_attack_eff(_ssw_bp.id, _ssw_e):
+                    continue  # no ataca hoy con la energia que ya tiene
+                # El relevo no puede repetir el problema: si el, al atacar,
+                # tambien se suicida y con ello el rival llega a 0, no sirve.
+                if (_self_ko_by_own_attack(_ssw_bp, incierto=True)
+                        and op_prize <= prize_count(_ssw_bp)):
+                    continue
+                _ssw_base = _attacker_base_damage(
+                    _ssw_bp.id, _ssw_opa, _ssw_e * _grass_mult(),
+                    grass_scale=_ssw_grass_after, teal_self_energy=_ssw_e,
+                    bench_count=bench_count)
+                if _ssw_base <= 0:
+                    continue
+                if _our_effective_damage(
+                        _ssw_bp, _ssw_opa, _ssw_base, meganium_in_play,
+                        neutralization_zone_active) >= _ssw_opa_hp:
+                    _suicide_swap_winner = _ssw_bp
+                    break
+
+    # Retirar para dar paso al relevo: es la jugada que convierte el empate (o la
+    # derrota) en victoria, asi que manda por encima de todo lo demas.
+    _suicide_swap_win_promote = (_suicide_swap_winner is not None)
 
     # Syrup Storm cuenta la Planta de TODOS nuestros Pokemon, no solo la del
     # atacante: con el Hydrapple ex ACTIVO ya listo para atacar, UNA Planta mas
@@ -14880,6 +15082,56 @@ def agent(obs_dict: dict) -> list[int]:
                             score += card.hp // 10
 
                         score += energy_count
+
+                        # PROMOVER AL REMATADOR QUE GANA LA PARTIDA (user,
+                        # registro_016 paso 184 vs Marnie's Grimmsnarl, EMPATE).
+                        # Al retirar, la promocion elegia por "mas tanque que
+                        # pueda atacar": subia el Hydrapple ex de 290 PV (350 +
+                        # 29 + 60 + 250 = 689) por delante del Teal Mask Ogerpon
+                        # ex ya cargado (500 + 10 + 6 = 516)... y el Hydrapple sin
+                        # energia no remataba, mientras el Ogerpon a 6 energias
+                        # cerraba la partida con Myriad Leaf Shower. Cuando el
+                        # candidato NOQUEA al activo rival y ese KO nos da los
+                        # premios que faltan (o el rival no tiene banca para
+                        # reemplazarlo), promoverlo es decisivo: no hay turno
+                        # siguiente que proteger.
+                        #
+                        # Solo en `SelectContext.SWITCH`, que es la promocion de
+                        # NUESTRA retirada voluntaria: ocurre siempre en nuestro
+                        # turno y antes de atacar, asi que el remate esta
+                        # disponible de verdad. La promocion FORZADA tras un KO
+                        # (TO_ACTIVE) puede caer en el turno RIVAL, donde no se
+                        # ataca y lo correcto sigue siendo el muro; por eso no se
+                        # incluye. `_ko_no_garantizado` y el auto-dano del propio
+                        # candidato se comprueban igual que en el resto de
+                        # evaluadores de remate: un rematador que se suicida y con
+                        # ello cierra la cuenta del rival no gana nada.
+                        if context == SelectContext.SWITCH:
+                            _wp_opa = _active_of(op_state)
+                            _wp_opa_hp = (_wp_opa.hp or 0) if _wp_opa is not None else 0
+                            _wp_e = energy_count
+                            if (_wp_opa is not None and _wp_opa_hp > 0
+                                    and (_can_attack_now or _can_attack_with_attach)
+                                    and not _ko_no_garantizado(_wp_opa)
+                                    and (my_prize <= prize_count_op(_wp_opa)
+                                         or not any(b is not None
+                                                    for b in (op_state.bench or [])))
+                                    and not (_self_ko_by_own_attack(card, incierto=True)
+                                             and op_prize <= prize_count(card))):
+                                if not _can_attack_now:
+                                    _wp_e = energy_count + _grass_attach_unit()
+                                _wp_base = _attacker_base_damage(
+                                    card.id, _wp_opa, _wp_e * _grass_mult(),
+                                    grass_scale=total_grass, teal_self_energy=_wp_e,
+                                    bench_count=bench_count)
+                                if (_wp_base > 0 and _our_effective_damage(
+                                        card, _wp_opa, _wp_base, meganium_in_play,
+                                        neutralization_zone_active) >= _wp_opa_hp):
+                                    # Con la energia YA encima el remate es seguro;
+                                    # si depende de un adjunte pendiente, vale algo
+                                    # menos (pero sigue por encima de todo bono de
+                                    # muro/desarrollo de este bloque).
+                                    score += 20000 if _can_attack_now else 18000
 
                         # Negacion de premios al promover (user): si al rival le
                         # faltan <=2 premios para ganar, preferir DECISIVAMENTE
@@ -19307,7 +19559,20 @@ def agent(obs_dict: dict) -> list[int]:
                 if _des_op_dmg >= (_active_reloc.hp or 0):
                     _doomed_ex_sac_pivot = True
 
-            if _hydra_lethal_promote:
+            if _suicide_swap_win_promote:
+                # RELEVO DEL REMATE SUICIDA (user, registro_016 paso 184 vs
+                # Marnie's Grimmsnarl, EMPATE): el ataque del activo noquea pero
+                # su AUTO-DANO lo mata, y con ese cadaver el rival cobra su
+                # ultimo premio -> empate (o derrota). En la banca hay un
+                # rematador que gana LIMPIO: retirar para promoverlo es la unica
+                # jugada que convierte el 0-0 en victoria, asi que va por encima
+                # de cualquier otro motivo de retiro (incluidos los pivotes
+                # letales de Hydrapple/Ogerpon, que persiguen el MISMO premio con
+                # menos urgencia). El tier de orden de jugada (`_TIER_WIN_ATTACK`)
+                # la sube ademas por encima de cargas y desarrollo, que si no
+                # dominarian por TIER pese a su menor score.
+                score = 9600
+            elif _hydra_lethal_promote:
                 # Retirar el activo para promover al Hydrapple ex de banca cuyo
                 # Syrup Storm es LETAL y rematar. Maxima prioridad de retiro.
                 score = 9000
@@ -20077,7 +20342,8 @@ def agent(obs_dict: dict) -> list[int]:
             # SI aporta: el nuevo activo NO esta confundido y puede atacar sin la
             # moneda. Con dos Teal Mask Ogerpon ex (el plan del matchup) este es el
             # caso normal, asi que no se veta la retirada de escape de confusion.
-            if _same_species_retreat and score > 0 and not _conf_should_retreat:
+            if (_same_species_retreat and score > 0 and not _conf_should_retreat
+                    and not _suicide_swap_win_promote):
                 score = SCORE_VETO
 
             # Pivote vs Alakazam (user, registro_010 paso 127): retirar el ex
@@ -20099,7 +20365,12 @@ def agent(obs_dict: dict) -> list[int]:
             # despues), asi que se POSPONE: se rebaja su score por debajo de la
             # jugada del Supporter (>=2400) para que el motor elija primero el
             # Supporter y re-evalue el retiro en la siguiente decision.
-            if (score > 2000 and not state.supporterPlayed):
+            # EXCEPCION: el relevo del remate suicida CIERRA la partida este turno
+            # (user, registro_016 paso 184). No hay "resto del turno" al que el
+            # Supporter pueda aportar nada, y posponer el retiro es justo lo que
+            # deja al agente atacando con el suicida y firmando el empate.
+            if (score > 2000 and not state.supporterPlayed
+                    and not _suicide_swap_win_promote):
                 _rt_supp_first = any(
                     hand_counts.get(_sid, 0) >= 1 and _supp_values.get(_sid, 0) > 0
                     for _sid in (Dawn, Lillie_Determination, Lanas_Aid))
@@ -20146,9 +20417,12 @@ def agent(obs_dict: dict) -> list[int]:
                 and _active_reloc is not None
                 and _physical_energy(
                     len(_active_reloc.energies)) <= _cc_ret_cost_pre)
+            # El relevo del remate suicida gana la partida AHORA: conservar
+            # energia para turnos futuros no significa nada si no hay futuro.
             if (op_is_cubchoo_deck and score > 0 and not active_ko_likely
                     and not _cubchoo_lock_stuck
                     and not _cc_cashes_dead_body
+                    and not _suicide_swap_win_promote
                     and _active_reloc is not None):
                 _cc_ret_cost = RETREAT_COST.get(_active_reloc.id, 1)
                 _cc_wastes_energy = (
@@ -20172,6 +20446,24 @@ def agent(obs_dict: dict) -> list[int]:
             # la sube al maximo para que se ejecute YA y cierre la partida.
             if _active_attack_wins_now and plan.attacker == 0:
                 score = 99000
+
+            # REMATE SUICIDA (user, registro_016 paso 184 vs Marnie's Grimmsnarl,
+            # EMPATE): el AUTO-DANO del ataque noquea a nuestro propio activo y,
+            # con ese cadaver, el rival cobra el ultimo premio que le falta. Dos
+            # frenos, con motivos distintos:
+            #   * `_suicide_loses`: nuestro KO NO cierra nuestra cuenta, asi que
+            #     atacar REGALA la partida. Se veta siempre -- pasar es
+            #     estrictamente mejor que perder.
+            #   * `_suicide_only_draws`: los dos KOs cierran las dos cuentas ->
+            #     EMPATE. Solo se veta si existe el relevo de banca que gana
+            #     LIMPIO (`_suicide_swap_win_promote`); sin relevo, el empate es
+            #     el mejor resultado disponible y se ataca igual.
+            # `plan.attacker == 0` acota los frenos al ataque DEL ACTIVO, que es
+            # el unico cuerpo cuyo auto-dano midieron los flags.
+            if (plan.attacker == 0
+                    and (_suicide_loses
+                         or (_suicide_only_draws and _suicide_swap_win_promote))):
+                score = SCORE_VETO
 
             if condition_risky_attack:
                 if _conf_should_attack:
@@ -20472,6 +20764,15 @@ def agent(obs_dict: dict) -> list[int]:
                     and _active_attack_wins_now and plan.attacker == 0):
                 # Remate ganador con el activo: tier MAXIMO para ejecutarlo antes
                 # que cualquier carga/desarrollo y cerrar la partida (paso 125).
+                _play_order_tier[_po_i] = _TIER_WIN_ATTACK
+            elif (_po_o.type == OptionType.RETREAT
+                    and _suicide_swap_win_promote):
+                # Relevo del remate suicida (user, registro_016 paso 184): mismo
+                # tier que el remate ganador, porque es la MISMA jugada -- cerrar
+                # la partida este turno, solo que el rematador esta en la banca.
+                # Sin este tier, la retirada (score 9600, tier 0) la aplastaba por
+                # ORDEN cualquier carga de energia (tier ENERGY) pese a valer
+                # menos: el turno se gastaba en adjuntar y el remate no llegaba.
                 _play_order_tier[_po_i] = _TIER_WIN_ATTACK
             elif _po_o.type == OptionType.EVOLVE:
                 _play_order_tier[_po_i] = _TIER_DEVELOP

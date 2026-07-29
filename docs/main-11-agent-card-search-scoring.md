@@ -39,7 +39,7 @@ La rama hace `scores.append` y `continue` propia, sin pasar por el resto del buc
 
 ### `SWITCH` / `TO_ACTIVE` — promover nuestro propio Pokémon
 
-`o.playerIndex == my_index` cubre dos disparadores con la misma puntuación: promover tras un KO del activo, y elegir a quién subir tras una retirada voluntaria.
+`o.playerIndex == my_index` cubre dos disparadores con casi la misma puntuación: promover tras un KO del activo (`TO_ACTIVE`) y elegir a quién subir tras una retirada voluntaria (`SWITCH`). La única regla que los distingue es el bono "promover al rematador que GANA la partida" (abajo), exclusivo de `SWITCH`.
 
 #### Sacrificio dirigido para Mega Lucario ex
 
@@ -48,6 +48,14 @@ Con `_lucario_sac_context` activo (doc 10), el objetivo es **entregar el mínimo
 #### ¿Puede atacar? — base de puntuación
 
 `_can_attack_now` usa `_can_attack_eff`/`ATTACK_ENERGY_REQ` (incluye Pinsir). `_can_attack_with_attach` añade el adjunte de este turno — la Planta puede venir de la mano **o de Night Stretcher con Planta en el descarte** (`_ns_grass_recover_switch`), y se permite aunque ya se haya adjuntado si es promoción forzada por activo vacío (`_forced_promote_switch`). Base: puede atacar ya = 500; podría con adjunte = 350; resto = 100. Encima se suma `hp // 10` y `energy_count` — a igualdad, el cuerpo más grande y cargado.
+
+#### Promover al rematador que GANA la partida (`+20000` / `+18000`)
+
+Solo en `context == SelectContext.SWITCH`, es decir la promoción de **nuestra retirada voluntaria**: ocurre siempre en nuestro turno y antes de atacar, así que el remate está disponible de verdad. Si el candidato puede atacar (ya o con el adjunte pendiente), su daño efectivo (`_attacker_base_damage` + `_our_effective_damage`) noquea al activo rival, ese KO nos da los premios que faltan (`my_prize <= prize_count_op(activo_rival)`) **o** la banca rival está vacía, el KO está garantizado (`_ko_no_garantizado`) y el candidato **no** se suicida cerrándole la cuenta al rival (`_self_ko_by_own_attack`, doc 02) → `+20000` con la energía ya encima, `+18000` si depende de un adjunte pendiente. No hay turno siguiente que proteger, así que este bono domina cualquier otro de este bloque.
+
+La promoción **forzada** tras un KO (`TO_ACTIVE`) queda deliberadamente fuera: puede caer en el turno **rival**, donde no se ataca y lo correcto sigue siendo el criterio de siempre (el muro más tanque).
+
+Origen: user, registro_016 paso 184 vs Marnie's Grimmsnarl (**EMPATE**). Tras retirar el Tapu Bulu suicida, la escalera de "puede atacar + más tanque" subía el Hydrapple ex de 290 PV (`350 + 29 + 60 + 250 = 689`, sin energía y por tanto sin remate) por delante del Teal Mask Ogerpon ex ya a 6 energías (`500 + 10 + 6 = 516`), que cerraba la partida con Myriad Leaf Shower `30 + 30 × 6 = 210 ≥ 70`. Retirar bien y promover mal cerraba el turno sin cobrar el premio.
 
 #### Negación de premios y confusión
 

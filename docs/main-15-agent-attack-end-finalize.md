@@ -24,6 +24,17 @@ Base `1000` (en ausencia de vetos, atacar suele ser la mejor jugada tras haber j
 - Si no, pero el ataque planeado noquearía (`plan.remain_hp <= 0`): `+50` — el premio del KO justifica un empujón moderado.
 - Resto: `−500` — con atacante de banca listo y sin KO garantizado, no se arriesga el golpe confuso; la lógica de retirada (doc 14) promueve al de banca.
 
+### `ATTACK`: remate ganador y **remate suicida**
+
+`_active_attack_wins_now and plan.attacker == 0` → `score = 99000`: si el ataque del activo noquea y **gana la partida**, es la jugada de máxima prioridad absoluta (por encima de cualquier carga/desarrollo/Teal Dance), y el tier `_TIER_WIN_ATTACK` la ejecuta primero.
+
+Justo después vienen los dos frenos del **remate suicida** (flags en doc 09, auto-daño en doc 02), acotados a `plan.attacker == 0` porque el activo es el único cuerpo cuyo auto-daño midieron los flags:
+
+- **`_suicide_loses` → `SCORE_VETO` siempre**: el auto-daño nos noquea y con ese cadáver el rival llega a 0, mientras nuestro ataque **no** cierra nuestra cuenta. Atacar es perder; pasar es estrictamente mejor.
+- **`_suicide_only_draws` → `SCORE_VETO` solo si existe el relevo** (`_suicide_swap_win_promote`): los dos KOs cierran las dos cuentas → empate. Con un rematador de banca que gana limpio, se retira (doc 14, score `9600`); **sin relevo el empate es el mejor resultado disponible y se ataca igual**.
+
+Nótese que `_suicide_hands_op_win` ya está restado dentro de `_active_attack_wins_now`, así que el `99000` nunca se concede a un remate que solo empata.
+
 ### `ATTACK`: Hydrapple ex — ceder el turno a desarrollo si no hay KO
 
 Cuando el activo es Hydrapple ex, `itchy_pollen_active` es falso y el ataque planeado **no** noquea, se comprueba si hay una forma productiva de invertir la acción de energía del turno (`_can_add_energy`): Planta en mano con el adjunte libre; Ogerpon en juego + Planta (Teal Dance); Ogerpon en MANO con banca libre y Planta (bajarlo y cargarlo); o Ultra Ball jugable (mano ≥3) con Planta, banca libre y un Ogerpon aún en el mazo (`CARTAS_ACTIVAS_EN_MAZO`). Si cualquiera aplica → `score = SCORE_VETO`: mejor desarrollar que golpear sin rematar con Hydrapple.
@@ -116,6 +127,8 @@ _TIER_ENERGY = 10
 
 El resto de opciones (`ATTACK`/`END`/Supporters/Ultra Ball normal/habilidades no promovidas) se queda en el tier por defecto `0` y compite solo por `score`. Asignación:
 
+- **`OptionType.ATTACK` con `_active_attack_wins_now and plan.attacker == 0`** → `_TIER_WIN_ATTACK`: cerrar la partida antes que cualquier carga o desarrollo.
+- **`OptionType.RETREAT` con `_suicide_swap_win_promote`** → `_TIER_WIN_ATTACK` también: es la MISMA jugada (cerrar la partida este turno), solo que el rematador está en la banca. Sin este tier, la retirada (score `9600`, tier `0`) la aplastaba por **orden** cualquier carga de energía (tier ENERGY) pese a valer menos — en el registro_016 paso 184 el adjunte de la Planta puntuaba `41000` —, el turno se gastaba adjuntando y el remate no llegaba.
 - **`OptionType.EVOLVE`** → siempre `_TIER_DEVELOP`: evolucionar se juega antes que cargar energía o Poke Pad.
 - **`OptionType.ATTACH`**: se calcula `_po_is_ko_energy` — cierto si `plan.energy` (el plan requiere justo esta energía), `plan.remain_hp <= 0`, `plan.attacker >= 0`, y el adjunte apunta exactamente al Pokémon designado (activo si `plan.attacker == 0`, o el índice de banca `plan.attacker == 1 + inPlayIndex`). Si es así, `_TIER_KO_ENERGY`; si no, `_TIER_ENERGY`.
   - **Excepción `_tapu_future_charge`**: si el flag está activo (el activo YA noquea con su energía actual, Meganium en juego, Tapu Bulu de banca por cargar) y el adjunte apunta al **activo**, se fuerza `_po_is_ko_energy = False`. Sin esta exclusión, el tier 6 del adjunte al activo aplastaba (6 > 1) la carga de Tapu Bulu de banca (score 40000 pero tier ENERGY), desperdiciando la energía en un atacante ya listo; al bajarlo a tier ENERGY, el desempate dentro del tier lo gana Tapu por score.
