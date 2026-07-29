@@ -1144,6 +1144,47 @@ def test_score_bug_catching_set_positive_when_grass_energy_in_deck():
     assert m._score_bug_catching_set_play(ctx) > 0
 
 
+# Freno de deck-out de BCS (paso 4 plan jul 2026; autopsia v2 vs crustle:
+# 4/19 derrotas por DECKOUT): con mazo <=8, BCS adelgaza el reloj y se veta.
+# Excepcion energia seca (el caso anti-mill vs Comfey de b393426): sin Planta
+# en mano y adjunte pendiente, cavar energia habilita atacar HOY.
+
+def test_bcs_freno_deckout_mazo_critico():
+    ctx = _make_boss_ctx(
+        state=SimpleNamespace(turn=20, energyAttached=False),
+        my_state=SimpleNamespace(deckCount=8, discard=[], active=[None],
+                                 bench=[], hand=[]),
+        cartas_en_mazo={m.Basic_Grass_Energy: {m.ESTADO_MAZO: 3}},
+        hand_counts={m.Basic_Grass_Energy: 2},  # HAY Planta en mano
+    )
+    assert m._score_bug_catching_set_play(ctx) == -1
+
+
+def test_bcs_freno_cede_con_energia_seca():
+    # Mismo mazo critico pero SIN Planta en mano y adjunte pendiente: el BCS
+    # sigue jugable (es la via de energia del plan anti-mill).
+    ctx = _make_boss_ctx(
+        state=SimpleNamespace(turn=20, energyAttached=False),
+        my_state=SimpleNamespace(deckCount=8, discard=[], active=[None],
+                                 bench=[], hand=[]),
+        cartas_en_mazo={m.Basic_Grass_Energy: {m.ESTADO_MAZO: 3}},
+        hand_counts={},
+    )
+    assert m._score_bug_catching_set_play(ctx) > 0
+
+
+def test_bcs_freno_no_aplica_con_mazo_sano():
+    # Frontera: con mazo 9+ el freno no dispara.
+    ctx = _make_boss_ctx(
+        state=SimpleNamespace(turn=20, energyAttached=False),
+        my_state=SimpleNamespace(deckCount=9, discard=[], active=[None],
+                                 bench=[], hand=[]),
+        cartas_en_mazo={m.Basic_Grass_Energy: {m.ESTADO_MAZO: 3}},
+        hand_counts={m.Basic_Grass_Energy: 2},
+    )
+    assert m._score_bug_catching_set_play(ctx) > 0
+
+
 def test_score_ultra_ball_vetoed_with_tiny_hand():
     # Mano de <3 cartas: jugar Ultra Ball (coste de descartar 2) vaciaria la mano.
     # Ruta fria del corte temprano `hand_size < 3` (turno medio, sin supervivencia).
@@ -7638,6 +7679,149 @@ def test_iron_thorns_t16_baja_tapu_en_vez_de_end():
         f"vs Iron Thorns ex activo, con Tapu Bulu en mano el turno no se "
         f"cierra con END: se baja el atacante sin habilidad (opt {tapu_opt}); "
         f"obtuvo {result} (map={play_map})")
+
+
+# Autopsia iron_thorns p030 (turno 2, paso 1 plan jul 2026): Iron Thorns ex
+# YA de activo rival y NUESTRO activo es Tapu Bulu; en mano hay un SEGUNDO
+# Tapu Bulu y el agente cerraba con END con 7 cartas. Causa: el veto de copia
+# redundante (field_counts >= 1) se evaluaba ANTES de las ramas de matchup,
+# asi que el respaldo del UNICO atacante del matchup (con Teal Dance /
+# Ripening / Last-Ditch anuladas por Initialization) moria en mano. La
+# excepcion `_tapu_backup_vs_lock` baja el 2o Tapu cuando el unico Tapu en
+# juego es el ACTIVO (sin relevo si cae) y el rival anula nuestro motor.
+_IRON_THORNS_2TAPU_FIXTURE = (
+    ROOT / "tests" / "fixtures" / "iron_thorns_t2_baja_segundo_tapu.json")
+
+
+def test_iron_thorns_t2_baja_segundo_tapu_como_respaldo():
+    with open(_IRON_THORNS_2TAPU_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+
+    play_map = _resolve_play_options(obs)
+    assert m.Tapu_Bulu in play_map.values()
+    tapu_opt = next(i for i, cid in play_map.items() if cid == m.Tapu_Bulu)
+
+    result = m.agent(obs)
+    assert result == [tapu_opt], (
+        f"vs Iron Thorns ex activo con Tapu Bulu ACTIVO nuestro, el 2o Tapu "
+        f"de la mano se baja como respaldo del unico atacante (opt "
+        f"{tapu_opt}); obtuvo {result} (map={play_map})")
+
+
+def test_generico_segundo_tapu_sigue_vetado_sin_lock():
+    """Control inverso: sin muro/lock enfrente el veto de copia se mantiene."""
+    with open(_IRON_THORNS_2TAPU_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+
+    # El rival deja de ser Iron Thorns ex: activo neutro sin lock ni
+    # inmunidades (Applin) -> ningun flag de matchup dispara.
+    op_index = 1 - obs["current"]["yourIndex"]
+    obs["current"]["players"][op_index]["active"][0]["id"] = m.Applin
+
+    play_map = _resolve_play_options(obs)
+    tapu_opt = next(i for i, cid in play_map.items() if cid == m.Tapu_Bulu)
+
+    result = m.agent(obs)
+    assert result != [tapu_opt], (
+        f"sin lock enfrente, el 2o Tapu Bulu sigue vetado (copia "
+        f"redundante); obtuvo {result} (map={play_map})")
+
+
+# Autopsia iron_thorns p018 (turno 10, paso 3 plan jul 2026): Iron Thorns ex
+# de ACTIVO rival (Initialization lockea Teal Dance / Ripening / Last-Ditch),
+# no-lockers en su banca, Ogerpon ex en la nuestra y Meowth ex + 2x Boss's
+# Orders en mano -- y el agente cerraba con END (`sin_valor=-1`). El lock es
+# POSICIONAL: gustear un no-locker al activo rival lo apaga en el acto.
+# Nueva regla `gusteo_deslockea_habilidades` (BOSS_SCORE_UNLOCK_GUST).
+_IRON_THORNS_UNLOCK_FIXTURE = (
+    ROOT / "tests" / "fixtures" / "iron_thorns_t10_boss_deslockea.json")
+
+
+def test_iron_thorns_t10_boss_deslockea_habilidades():
+    with open(_IRON_THORNS_UNLOCK_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+
+    play_map = _resolve_play_options(obs)
+    assert m.Boss_Orders in play_map.values()
+    boss_opt = next(i for i, cid in play_map.items() if cid == m.Boss_Orders)
+
+    result = m.agent(obs)
+    assert result == [boss_opt], (
+        f"con Iron Thorns ex activo rival y no-lockers en su banca, Boss's "
+        f"se juega para DES-LOCKEAR el motor (opt {boss_opt}); obtuvo "
+        f"{result} (map={play_map})")
+
+
+def test_boss_no_deslockea_si_banca_rival_toda_iron_thorns():
+    """Control inverso A: sin no-locker que subir, el gusteo no apaga nada."""
+    with open(_IRON_THORNS_UNLOCK_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+
+    op_index = 1 - obs["current"]["yourIndex"]
+    for b in obs["current"]["players"][op_index]["bench"]:
+        if b is not None:
+            b["id"] = m.Iron_Thorns_ex
+
+    play_map = _resolve_play_options(obs)
+    boss_opt = next(i for i, cid in play_map.items() if cid == m.Boss_Orders)
+
+    result = m.agent(obs)
+    assert result != [boss_opt], (
+        f"con la banca rival TODA Iron Thorns el gusteo mantiene el lock: "
+        f"Boss's sigue vetado; obtuvo {result} (map={play_map})")
+
+
+def test_boss_no_deslockea_sin_motor_que_despertar():
+    """Control inverso B: sin Ogerpon/Hydrapple en juego ni Meowth en mano,
+    el des-lockeo no compra nada HOY y Boss's se conserva."""
+    with open(_IRON_THORNS_UNLOCK_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+
+    cur = obs["current"]
+    yo = cur["players"][cur["yourIndex"]]
+    for b in yo["bench"]:
+        if b is not None and b["id"] == m.Teal_Mask_Ogerpon_ex:
+            b["id"] = m.Tapu_Bulu
+    for c in yo["hand"]:
+        if c["id"] == m.Meowth_ex:
+            c["id"] = m.Xerosic_Machinations
+
+    play_map = _resolve_play_options(obs)
+    boss_opt = next(i for i, cid in play_map.items() if cid == m.Boss_Orders)
+
+    result = m.agent(obs)
+    assert result != [boss_opt], (
+        f"sin habilidades que despertar, Boss's no se quema en el "
+        f"des-lockeo; obtuvo {result} (map={play_map})")
+
+
+def test_gust_estorbo_forbid_iron_thorns():
+    """El modo ESTORBO nunca sube un Iron Thorns ex: crea/mantiene el lock
+    sobre nuestro propio motor (regla estorbo_crea_lock_iron_thorns)."""
+    def _ctx(card_id):
+        return m._CtxGustObjetivo(
+            card_id=card_id, energia=0, rc0=2, rc1=2, stall_diff=2,
+            is_ex=True, is_exmega=True, is_megaex=False, prizes=2,
+            wins_now=False, is_stage1=False, is_stage2=False,
+            tiene_tool=False, can_ko=False, tier_ko=0,
+            plan_target_match=False, regust_energized=False,
+            linea_rank=0, linea_can_ko=False, op_alakazam=False,
+            op_latias=False, op_linea_dragapult=False,
+            op_linea_typhlosion=False)
+
+    s_iron, _ = m._resolver_reglas(
+        m._REGLAS_GUST_ESTORBO, m._AJUSTES_GUST_ESTORBO,
+        _ctx(m.Iron_Thorns_ex), defecto=-200)
+    assert s_iron == m.SCORE_FORBID, (
+        f"estorbo con Iron Thorns ex debe ser FORBID; obtuvo {s_iron}")
+
+    # Control: otro ex con la misma traba neta conserva su valor de estorbo.
+    s_otro, _ = m._resolver_reglas(
+        m._REGLAS_GUST_ESTORBO, m._AJUSTES_GUST_ESTORBO,
+        _ctx(m.Alakazam_ex), defecto=-200)
+    assert s_otro > 0, (
+        f"un ex no-locker con traba neta sigue siendo estorbo valido; "
+        f"obtuvo {s_otro}")
 
 
 # Autopsia cornerstone_cubchoo p004 (turno 2, plan jul 2026): con el rival

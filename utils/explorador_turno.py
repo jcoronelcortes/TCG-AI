@@ -110,6 +110,20 @@ def _forest_en_juego(obs):
                for s in (obs["current"].get("stadium") or []))
 
 
+def _lock_habilidades_ex(obs):
+    """Las habilidades de nuestros Pokemon EX estan anuladas (paso 6 plan jul
+    2026): Iron Thorns ex en el ACTIVO rival (Initialization) o Team Rocket's
+    Watchtower como estadio. Sin esto el explorador proponia lineas ilegales
+    (TEAL DANCE x3 contra Iron Thorns ex activo, hallazgo p029) y contaminaba
+    el juicio de las autopsias justo en el matchup mas debil."""
+    op = _op(obs)
+    act = (op.get("active") or [None])[0]
+    if act and act.get("id") == m.Iron_Thorns_ex:
+        return True
+    return any(s["id"] == m.Team_Rockets_Watchtower
+               for s in (obs["current"].get("stadium") or []))
+
+
 def _dano_activo(obs):
     """(dano_efectivo, objetivo_dict) del ataque de nuestro activo."""
     yo, op = _yo(obs), _op(obs)
@@ -178,8 +192,9 @@ def acciones_legales(obs):
                 return o2
             acciones.append((f"ATTACH->{m.card_table[p['id']].name}", ap))
 
-    # Teal Dance (una por Ogerpon por turno; el robo no se modela)
-    if grass_en_mano:
+    # Teal Dance (una por Ogerpon por turno; el robo no se modela).
+    # Habilidad de un EX: anulada bajo _lock_habilidades_ex.
+    if grass_en_mano and not _lock_habilidades_ex(obs):
         for nombre, p in _slots(yo):
             if (p["id"] == m.Teal_Mask_Ogerpon_ex
                     and p["serial"] not in obs.get("_td_usadas", ())):
@@ -192,8 +207,9 @@ def acciones_legales(obs):
                     return o2
                 acciones.append(("TEAL DANCE", ap))
 
-    # Ripening Charge (Hydrapple ex: adjunta 1 Planta de la mano a cualquiera)
-    if grass_en_mano:
+    # Ripening Charge (Hydrapple ex: adjunta 1 Planta de la mano a cualquiera).
+    # Habilidad de un EX: anulada bajo _lock_habilidades_ex.
+    if grass_en_mano and not _lock_habilidades_ex(obs):
         for _, hyd in _slots(yo):
             if (hyd["id"] == m.Hydrapple_ex
                     and hyd["serial"] not in obs.get("_rc_usadas", ())):

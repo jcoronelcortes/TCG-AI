@@ -14,6 +14,19 @@ propio agente (main._attacker_base_damage / main._our_effective_damage):
   - turno_esteril: un turno completo cerrado con END o con un ataque de 0 de
     dano teniendo >= 4 cartas en la mano (la clase del paso 61 vs Dragapult).
 
+v2 (paso 5 plan jul 2026):
+  - La observacion grabada del turno_esteril es la del PRIMER select MAIN del
+    turno (menu completo: ahi esta la decision que perdio el valor), no la
+    del END final -- que a veces solo ofrecia END y era irreproducible
+    (hallazgos p029/p043 vs iron_thorns). El cierre queda en paso_cierre/
+    eleccion_cierre; opciones_primer_main cuenta las jugadas no-END legales
+    que el menu ofrecia (valor dejado en mesa).
+  - Cada derrota se clasifica por MODO (clasificar_derrota): premios /
+    bench_out / deckout / desconocido; las partidas al LIMITE de pasos
+    tambien se autopsian (modo "limite"). El modo viaja en cada hallazgo y
+    el resumen imprime la distribucion: contra stall (crustle) separa las
+    derrotas por deck-out de las de premios sin mirar deckCount a mano.
+
 Cada hallazgo se escribe como JSON con la OBSERVACION completa del paso (el
 formato de los fixtures de tests/) en registros/autopsia/ (git-ignored, datos
 locales transitorios): listo para reproducir con main.agent(), convertir en
@@ -46,8 +59,10 @@ MANO_MINIMA_ESTERIL = 4
 def jugar_grabando(agente, rival, deck_propio, deck_rival, asiento):
     """Juega una partida grabando NUESTRAS decisiones.
 
-    Devuelve (resultado, decisiones) con resultado en {"gana", "pierde",
-    "limite", "forfeit"} y decisiones = [{obs, eleccion, paso}].
+    Devuelve (resultado, decisiones, obs_final) con resultado en {"gana",
+    "pierde", "limite", "forfeit"}, decisiones = [{obs, eleccion, paso}] y
+    obs_final = la ultima observacion vista (terminal salvo forfeit/limite),
+    para clasificar el MODO de la derrota.
     """
     from cg import game
 
@@ -66,18 +81,51 @@ def jugar_grabando(agente, rival, deck_propio, deck_rival, asiento):
             try:
                 eleccion = agentes[yi].agent(obs)
             except Exception:
-                return ("forfeit" if yi == asiento else "gana"), decisiones
+                return (("forfeit" if yi == asiento else "gana"),
+                        decisiones, obs)
             if yi == asiento:
                 decisiones.append({"obs": obs, "eleccion": list(eleccion),
                                    "paso": pasos})
             obs = game.battle_select(eleccion)
             pasos += 1
         if obs["current"]["result"] == -1:
-            return "limite", decisiones
-        return ("gana" if obs["current"]["result"] == asiento
-                else "pierde"), decisiones
+            return "limite", decisiones, obs
+        return (("gana" if obs["current"]["result"] == asiento
+                 else "pierde"), decisiones, obs)
     finally:
         game.battle_finish()
+
+
+def clasificar_derrota(obs_final, asiento, resultado):
+    """Clasifica COMO se perdio la partida mirando la observacion final.
+
+    Modos: "premios" (el rival completo sus premios), "bench_out" (nos
+    quedamos sin Pokemon en juego con premios rivales pendientes), "deckout"
+    (mazo a 0 con premios rivales pendientes), "limite" (la partida llego a
+    MAX_PASOS sin resultado) y "desconocido" (ninguna senal clara). El orden
+    de las comprobaciones importa: bench_out y deckout solo se declaran si al
+    rival AUN le faltaban premios (si no, la causa dominante es "premios").
+    """
+    if resultado == "limite":
+        return "limite"
+    try:
+        cur = obs_final["current"]
+        yo = cur["players"][asiento]
+        op = cur["players"][1 - asiento]
+    except (KeyError, IndexError, TypeError):
+        return "desconocido"
+    # Convencion del resto del archivo: una entrada None en prize es un
+    # premio que a ese jugador AUN LE FALTA cobrar.
+    op_restantes = sum(1 for p in (op.get("prize") or []) if p is None)
+    activos = [p for p in (yo.get("active") or []) if p]
+    banca = [p for p in (yo.get("bench") or []) if p]
+    if op_restantes > 0 and not activos and not banca:
+        return "bench_out"
+    if op_restantes > 0 and (yo.get("deckCount") or 0) <= 0:
+        return "deckout"
+    if op_restantes == 0:
+        return "premios"
+    return "desconocido"
 
 
 # --------------------------------------------------------------------------
@@ -190,15 +238,26 @@ def detectar(m, decisiones):
             if atk is not None and (atk.damage or 0) == 0 and dano == 0:
                 esteril = True
         if esteril:
+            # v2: la observacion util es la del PRIMER select MAIN del turno
+            # (menu completo -- reproducible con main.agent() y barrible con
+            # el explorador); el END final a veces solo ofrecia END. El
+            # cierre queda en paso_cierre/eleccion_cierre.
+            primero = mains[0]
+            opciones_no_end = sum(
+                1 for o in primero["obs"]["select"]["option"]
+                if int(o.get("type", -1)) != int(OptionType.END))
             hallazgos.append({
                 "detector": "turno_esteril",
                 "critico": False,
-                "turno": turno, "paso": ultimo["paso"],
+                "turno": turno, "paso": primero["paso"],
                 "detalle": (f"turno cerrado con "
                             f"{'END' if t == int(OptionType.END) else 'ataque de 0'}"
                             f" y {mano} cartas en mano"),
-                "eleccion": ultimo["eleccion"],
-                "observation": ultimo["obs"],
+                "eleccion": primero["eleccion"],
+                "observation": primero["obs"],
+                "paso_cierre": ultimo["paso"],
+                "eleccion_cierre": ultimo["eleccion"],
+                "opciones_primer_main": opciones_no_end,
             })
     return hallazgos
 
@@ -220,17 +279,26 @@ def autopsia(rival_csv, partidas, espejo=False, destino=None):
         etiqueta = Path(rival_csv).stem
 
     marcador = Counter()
+    modos = Counter()
     total_hallazgos = []
+    modo_por_partida = {}
     for i in range(partidas):
-        resultado, decisiones = jugar_grabando(
+        resultado, decisiones, obs_final = jugar_grabando(
             agente, rival, deck_propio, deck_rival, asiento=i % 2)
         marcador[resultado] += 1
-        if resultado not in ("pierde", "forfeit"):
+        # v2: las partidas al LIMITE tambien se autopsian (vs stall son
+        # el modo de fallo interesante), ademas de derrotas y forfeits.
+        if resultado not in ("pierde", "forfeit", "limite"):
             continue
+        modo = clasificar_derrota(obs_final, asiento=i % 2,
+                                  resultado=resultado)
+        modos[modo] += 1
+        modo_por_partida[i] = modo
         for h in detectar(m, decisiones):
             h["partida"] = i
             h["rival"] = etiqueta
             h["resultado"] = resultado
+            h["modo_derrota"] = modo
             total_hallazgos.append(h)
 
     # persistir: un archivo por partida con hallazgos
@@ -240,10 +308,14 @@ def autopsia(rival_csv, partidas, espejo=False, destino=None):
     for num, hs in por_partida.items():
         ruta = destino / f"{etiqueta}_p{num:03d}.json"
         ruta.write_text(json.dumps(
-            {"rival": etiqueta, "partida": num, "hallazgos": hs},
+            {"rival": etiqueta, "partida": num,
+             "modo_derrota": modo_por_partida.get(num, "desconocido"),
+             "hallazgos": hs},
             ensure_ascii=False, indent=1))
 
     print(f"[{etiqueta}] {dict(marcador)}")
+    if modos:
+        print(f"  modo de derrota: {dict(modos.most_common())}")
     resumen = Counter((h["detector"], h["critico"]) for h in total_hallazgos)
     for (det, critico), n in resumen.most_common():
         print(f"  {det}{' CRITICO' if critico else ''}: {n} "

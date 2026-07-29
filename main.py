@@ -612,6 +612,7 @@ BOSS_SCORE_DODGE_REDIRECT = 5500     # redireccion por esquiva (dodge)
 BOSS_SCORE_PRIZE_RANK_BASE = 5200    # gusteo que habilita KO (afinado por prize_rank)
 BOSS_SCORE_LOW_VALUE_GUST = 1500     # gusteo de bajo valor
 BOSS_SCORE_DEFENSIVE_GUST = 1500     # gusteo defensivo (vs Crustle)
+BOSS_SCORE_UNLOCK_GUST = 2600        # gustear para DES-LOCKEAR habilidades (Iron Thorns ex activo)
 BOSS_SCORE_EMPTY_GUST = 20           # gusteo NO ejecutable: ceder a Lillie's
 XEROSIC_SCORE_ALAKAZAM = 5900        # Xerosic vs Alakazam: capar Powerful Hand (20 x mano rival). Sobre Lillie's hydra-cargado (5800); bajo GUST_2PRIZE (6800) y pivotes defensivos (~6600). Cede a boss_win_via_bench via guard propio
 XEROSIC_SCORE_GENERIC = 3380         # Xerosic generico con mano rival muy grande (>=7): valor de disrupcion, bajo Lillie's tipico (~3450)
@@ -2519,6 +2520,31 @@ def _boss_cede_dig(ctx):
             and not ctx.op_has_ability_immune_active
             and not ctx.op_has_ex_immune_active)
 
+
+def _boss_unlock_gust(ctx):
+    """Gustear para DES-LOCKEAR habilidades (autopsia iron_thorns p018 t10,
+    paso 3 plan jul 2026): con Iron Thorns ex de ACTIVO rival, Initialization
+    anula Teal Dance / Ripening / Last-Ditch / Flip the Script -- todo nuestro
+    motor. El lock es POSICIONAL: subir con Boss's cualquier cuerpo NO-locker
+    de su banca lo apaga en el acto (a diferencia de Watchtower, que es
+    estadio y el gusteo no lo toca). En 6 turnos muertos de la autopsia el
+    agente tenia Boss's en mano, banca rival con no-lockers... y END
+    (`sin_valor`). Encadena ademas con Meowth ex EN MANO: Boss's primero
+    (des-lockea), Meowth despues -> Last-Ditch ya funciona.
+    Guards: Iron Thorns ex en el ACTIVO rival, un no-locker en su banca que
+    subir, y que el des-lockeo nos sirva HOY (Ogerpon ex / Hydrapple ex en
+    juego, o Meowth ex en mano)."""
+    act = ctx.op_state.active[0] if ctx.op_state.active else None
+    if act is None or act.id != Iron_Thorns_ex:
+        return False
+    if not any(b is not None and b.id != Iron_Thorns_ex
+               for b in (ctx.op_state.bench or [])):
+        return False
+    return (ctx.field_counts.get(Teal_Mask_Ogerpon_ex, 0) >= 1
+            or ctx.field_counts.get(Hydrapple_ex, 0) >= 1
+            or ctx.hand_counts.get(Meowth_ex, 0) >= 1)
+
+
 _REGLAS_BOSS_PLAY = [
     _ReglaFija("supporter_ya_jugado",
                lambda c: c.state.supporterPlayed,
@@ -2581,6 +2607,12 @@ _REGLAS_BOSS_PLAY = [
     _ReglaFija("amenaza_activa_domina",
                lambda c: c.boss_active_threat_dominates,
                lambda c: BOSS_SCORE_EMPTY_GUST),
+    # Des-lockear las habilidades gusteando un no-locker (ver el docstring
+    # de _boss_unlock_gust). Tras los remates y las cesiones a Lillie's;
+    # sobre low_value/defensivo/sin_valor, que era donde moria (-1).
+    _ReglaFija("gusteo_deslockea_habilidades",
+               _boss_unlock_gust,
+               lambda c: BOSS_SCORE_UNLOCK_GUST + c.supporter_boost),
     _ReglaFija("gusteo_low_value",
                lambda c: c.boss_low_value_gust,
                lambda c: BOSS_SCORE_LOW_VALUE_GUST + c.supporter_boost),
@@ -3813,6 +3845,19 @@ def _v_bcs_base(w):
 _REGLAS_BCS_PLAY = [
     _ReglaFija("sin_elegibles_en_mazo",
                lambda w: w.elegibles == 0,
+               lambda w: SCORE_VETO),
+    # Freno de deck-out (paso 4 plan jul 2026; autopsia v2 vs crustle: 4/19
+    # derrotas POR DECKOUT y cola de deckCount 0-5 en t20+, el pendiente de
+    # a7df1ce). Con el mazo critico -- mismo umbral familiar que el freno de
+    # Lillie's (<=10), aqui <=8 -- Bug Catching Set adelgaza 1-2 cartas del
+    # mazo: puro reloj perdido contra un rival stall. EXCEPCION energia seca
+    # (la que motivo el BCS del plan anti-mill vs Comfey, b393426): sin
+    # Planta en mano y con el adjunte del turno pendiente, cavar la energia
+    # habilita atacar HOY, y eso vale mas que el reloj.
+    _ReglaFija("freno_deckout_mazo_critico",
+               lambda w: (getattr(w.my_state, 'deckCount', 60) <= 8
+                          and not (w.hand_counts[Basic_Grass_Energy] == 0
+                                   and not w.state.energyAttached)),
                lambda w: SCORE_VETO),
     _ReglaFija("base",
                lambda w: True,
@@ -7335,6 +7380,15 @@ _REGLAS_GUST_ESTORBO = [
                lambda c: (c.op_latias
                           and (c.card_id == Latias_ex
                                or _gust_es_basico(c.card_id))),
+               lambda c: SCORE_FORBID),
+    # Subir un Iron Thorns ex como ESTORBO es un tiro en el pie: su
+    # Initialization en el activo LOCKEA nuestras habilidades (Teal Dance /
+    # Ripening / Last-Ditch) -- si ya habia uno delante, el gusteo que debia
+    # des-lockear (gusteo_deslockea_habilidades) lo mantiene; si no lo
+    # habia, lo crea. En modo OFENSIVO no aplica: gustearlo para NOQUEARLO
+    # cobra 2 premios y se lo lleva del tablero.
+    _ReglaFija("estorbo_crea_lock_iron_thorns",
+               lambda c: c.card_id == Iron_Thorns_ex,
                lambda c: SCORE_FORBID),
     # Estorbo proporcional al coste de retirada NETO (el que el rival no
     # puede pagar con su energia): a mayor coste sin energia, mas se traba.
@@ -17161,8 +17215,28 @@ def agent(obs_dict: dict) -> list[int]:
                             op_has_ex_immune_active or op_has_ex_immune_bench or
                             op_is_iron_thorns_deck)
 
+                        # Respaldo del UNICO atacante del matchup (autopsia
+                        # iron_thorns p030 t2, paso 1 plan jul 2026): contra un
+                        # rival que anula nuestro motor de habilidades o hace 0
+                        # nuestro dano ex (_op_is_crustle_like), Tapu Bulu es EL
+                        # atacante -- y si el unico que tenemos en juego es el
+                        # ACTIVO, cuando caiga no hay relevo. El veto de copia
+                        # redundante (abajo) se evaluaba ANTES de las ramas de
+                        # matchup y el 2o Tapu moria en mano (END con 7 cartas).
+                        # Guards: exactamente 1 en juego, ese 1 es el activo, y
+                        # el matchup es de muro/lock. 21800: bajo la prioridad
+                        # de la 1a copia (22000+), sobre el desarrollo generico.
+                        _tapu_backup_vs_lock = (
+                            field_counts[card.id] == 1 and
+                            _op_is_crustle_like and
+                            my_state.active and my_state.active[0] is not None
+                            and my_state.active[0].id == Tapu_Bulu)
+
                         if field_counts[card.id] >= 1:
-                            score = SCORE_VETO
+                            if _tapu_backup_vs_lock:
+                                score = 21800
+                            else:
+                                score = SCORE_VETO
                         elif (_tapu_in_play_count >= 4 and not _op_is_crustle_like and
                               meganium_in_play and not _tapu_first_turn):
 
