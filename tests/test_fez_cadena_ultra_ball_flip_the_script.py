@@ -194,11 +194,10 @@ def test_paso91_el_bloqueo_circular_existe_de_verdad():
     not _REGISTRO.exists(),
     reason=("necesita la SECUENCIA de menus del registro (episodio 88710543), "
             "que es dato local transitorio: `utils/split_turns.py` lo "
-            "reescribe con cada partida nueva. Los pasos 91/95/102 siguen "
-            "cubiertos por sus fixtures; lo que queda dormido es el traspaso "
-            "de `_ub_fez_pending` ENTRE menus, que por definicion necesita "
-            "dos menus consecutivos. Para revivirlo: re-split de ese episodio, "
-            "o una version sintetica con tests/state_builder.py"))
+            "reescribe con cada partida nueva. COBERTURA YA RESTITUIDA en "
+            "tests/test_fez_pending_sintetico.py, que fabrica la secuencia con "
+            "el StateBuilder (y por tanto es inmune a la rotacion). Este test "
+            "se conserva por si el episodio vuelve a estar en disco."))
 def test_turno_completo_la_ultra_ball_deja_el_fezandipiti_pendiente():
     """Punta a punta sobre el registro: la Ultra Ball elige Fezandipiti ex, eso
     fija `_ub_fez_pending`, y el menu siguiente lo BAJA (antes se jugaba el
