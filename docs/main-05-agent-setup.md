@@ -41,7 +41,9 @@ Como `agent()` se invoca una vez por cada decisión (varias veces por turno), la
 | `_field_at_turn_start` | Foto de `field_counts` tomada en la primera llamada de cada turno. |
 | `_poke_pad_target_id` | Carta objetivo pendiente de un Poke Pad ya jugado (el handler de selección la prioriza). |
 | `_ub_meowth_pending` | Una Ultra Ball resuelta **este turno** eligió buscar Meowth ex: obliga a bajarlo mientras el Supporter siga libre (entrada de alta prioridad en PLAY, motor Meowth→Lillie's). |
+| `_ub_fez_pending` | Hermano del anterior para la cadena UB → Fezandipiti ex → *Flip the Script*: una Ultra Ball de **este turno** eligió buscar Fezandipiti ex, así que el cuerpo baja aunque otro veto lo mate (la búsqueda ya se pagó con dos descartes y el único motivo de cavarlo es cobrar el robo de 3 hoy). |
 | `_ub_engine_pivot_turn` | Armado por `_ub_engine_refresh_pivot` (la Ultra Ball se puntuó como pivote de refresco del motor): fuerza que el FETCH de esa Ultra Ball elija Meowth ex. |
+| `_ld_supp_comprometido` | Id del Supporter que trajo el *Last-Ditch Catch* de un Meowth ex bajado **este turno** (`appearThisTurn`: el cuerpo de 2 premios ya está pagado). Mientras el hueco de Supporter siga libre, ese id se queda con el turno: piso `SCORE_LD_SUPP_COMPROMETIDO` (8000) en su `PLAY`, por encima de la banda normal de cualquier otro Supporter. |
 | `_dodge_immune_serial` / `_dodge_immune_turn` | Persistencia de la inmunidad por *Splashing Dodge* (ver `main-06`). |
 
 ### Detección de quién empieza
@@ -50,7 +52,7 @@ Como `agent()` se invoca una vez por cada decisión (varias veces por turno), la
 
 ### Reinicio de estado al cambiar de turno
 
-El `if pre_turn != state.turn:` es el único punto donde se detecta la **frontera entre turnos**. Al cruzarla: se actualiza `pre_turn`, se crea un `AttackPlan()` nuevo (se descarta el plan del turno anterior), se marca `_field_at_turn_start = None` (se recalculará con el campo del turno nuevo), se resetea `_ko_detected_this_turn`, y se limpian los tres flags de encadenamiento de un solo turno: `_poke_pad_target_id`, `_ub_meowth_pending` y `_ub_engine_pivot_turn` (objetivos/motores pendientes de turnos anteriores ya no aplican).
+El `if pre_turn != state.turn:` es el único punto donde se detecta la **frontera entre turnos**. Al cruzarla: se actualiza `pre_turn`, se crea un `AttackPlan()` nuevo (se descarta el plan del turno anterior), se marca `_field_at_turn_start = None` (se recalculará con el campo del turno nuevo), se resetea `_ko_detected_this_turn`, y se limpian los cinco flags de encadenamiento de un solo turno: `_poke_pad_target_id`, `_ub_meowth_pending`, `_ub_fez_pending`, `_ub_engine_pivot_turn` y `_ld_supp_comprometido` (objetivos/motores/compromisos pendientes de turnos anteriores ya no aplican).
 
 ### Conteos de campo, mano y descarte
 

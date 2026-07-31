@@ -86,6 +86,31 @@ Predicado central de "¿puede atacar ya?": busca el requisito en `ATTACK_ENERGY_
 
 Justo después se declaran los globales de estado de partida que se reinician entre turnos/partidas: `forest_in_play`, `ko_last_turn`, `_ko_detected_this_turn`, `_prev_op_prize`, `we_go_first`, los flags de matchup `op_is_crustle_deck`/`op_is_cornerstone_deck`/`op_has_mega_kangaskhan`, `_field_at_turn_start`, `_poke_pad_target_id`, `_ub_meowth_pending` (una Ultra Ball de este turno eligió buscar Meowth ex — obliga a bajarlo con Supporter libre), `_ub_engine_pivot_turn` (el pivote `_ub_engine_refresh_pivot` puntuó la Ultra Ball al tier de energía; el **fetch** posterior de esa UB lo consume para elegir Meowth ex, porque en ese momento las energías ya se descartaron y las condiciones del pivote no se pueden recomputar; se resetea por turno), y el par `_dodge_immune_serial`/`_dodge_immune_turn` (rastrea inmunidad temporal por "esquiva" detectada).
 
+### `_plan_de_planta(...)` — la lectura de mesa **en clave de energía**
+
+```python
+@dataclass
+class _PlanPlanta:
+    unidad, en_mano, slots_hoy, nuevas_utiles_hoy: int
+    desbloquea_hoy: bool
+    cartas_para_atacar, pendiente, demanda: int
+```
+
+Responde a una sola pregunta: **¿cuántas Plantas NUEVAS sabe usar el campo, y alguna de ellas pone a atacar a un cuerpo HOY?** Es la lectura compartida por las dos decisiones que tocan la recuperación de energía del descarte — **jugar** la carta (`_score_lanas_aid_play`, vía `_lana_energy_enables_attack`) y **qué levantar** con ella (rama `Lanas_Aid` del contexto `TO_HAND`, ver `main-11`) —, para que no puedan discrepar.
+
+Cómo mide:
+
+- **Déficit en CARTAS, no en símbolos.** `len(energies)` ya es efectiva y `_grass_attach_unit()` es lo que suma UNA Planta física, así que lo que le falta a un cuerpo es `ceil((ATTACK_ENERGY_REQ[id] - efectiva) / unidad)`. Con dos Meganium en juego un Tapu Bulu a 2 efectivas está a **una** carta de sus 4, no a dos.
+- **Solo `MAIN_ATTACKERS`.** Chikorita y Applin tienen coste en `ATTACK_ENERGY_REQ` pero no son cuerpos con los que se ataca: si contaran, un Applin de banca inventaría demanda de energía.
+- **Vías de adjunte reales del turno.** `slots_hoy` = adjunte manual (si `state.energyAttached` sigue en `False`) + `_grass_ability_slots(...)`. Al repartir hacia un cuerpo concreto, *Teal Dance* solo puede cargar a **su propio portador** y *Ripening Charge* / el adjunte manual, a cualquiera.
+- **`habilidades_apagadas`** (la bandera `meowth_ability_lock`: Team Rocket's Watchtower o Iron Thorns activo) borra las dos vías de habilidad. Sin este corte el plan da por vivas Teal Dance/Ripening bajo el lock e **inventa desbloqueos que no existen** — medido: −3.9 puntos de winrate vs el mazo de Iron Thorns.
+- **`puede_cambiar`** decide si los cuerpos de BANCA pueden contar para `desbloquea_hoy` (sin retirada ni carta de cambio no atacan hoy, estén cargados o no). A `pendiente` suman siempre: es demanda a dos turnos.
+- **`demanda` = `min(tope, pendiente - en_mano)`**, no la capacidad de adjunte de este turno. La recuperación va a la **mano**, y una Planta guardada sigue sirviendo el turno siguiente; con todos los atacantes cargados la demanda es 0 y la energía deja de valer.
+
+### `_pokemon_injugable(card_id, field_counts, bench_count, bench_max)`
+
+`True` si traer ese Pokémon a la mano trae una **carta muerta**: no se puede poner en juego ni hoy ni el turno siguiente. Todo se reduce al hueco de banca — con `bench_count < bench_max` nada está muerto (cabe cualquier Básico, y una evolución huérfana puede completarse banqueando su pre-evolución). Con la banca **llena**: un Básico no entra de ninguna forma; una evolución solo vive si su pre-evolución está **en juego** (evoluciona sobre ella sin ocupar hueco) — tenerla en la mano no basta, bajarla exigiría el hueco que no hay. Deck-agnóstico: las etapas salen de `EVO_LINES` y el tipo, de `card_table`. **No es un veto**: quien lo usa debe dejar la opción elegible como último recurso, porque las recuperaciones tienen `minCount >= 1` y a veces todo el descarte es carta muerta.
+
 ### `_our_effective_damage(...)`
 
 ```python
@@ -185,6 +210,19 @@ Hermano **no letal** del anterior: en vez de "¿alguien remata?" responde "¿cu�
 Existe porque toda la familia de pivotes de retirada exigía KO: cuando el atacante de banca solo puede hacer **chip** (activo rival de 300-400 PV, resistencia Planta, Full Metal Lab), ninguna regla disparaba y el turno se cerraba sin atacar. Lo consume `_attach_enable_retreat_attack` (`main-13`).
 
 Si ningún Pokémon de banca alcanza el KO, devuelve `False`. El parámetro `retreat_grass_after` se reutiliza como `grass_scale` — es decir, se está proyectando el daño de Hydrapple ex **después** de una retirada/cambio de energía, no con el estado actual literal (Syrup Storm baja si el retiro descarta Grass del campo). Esta función es la pieza clave que permite al agente responder "¿me conviene retirar al activo y dejar que la banca remate?" (usada en la evaluación de Boss's Orders y en la puntuación de RETREAT).
+
+### Ataques que eligen objetivo (*snipe*): `SNIPE_ANY_TARGET_IDS`, `_snipe_targets`, `_snipe_target_score`, `_snipe_best_target`
+
+*Cruel Arrow* (Fezandipiti ex) hace **100 fijos a UNO CUALQUIERA** de los Pokémon del rival, activo o banca ("no apliques Debilidad y Resistencia a los Pokémon en Banca"). Todo el resto del scorer mide el ataque del **activo** contra el **activo rival**, así que con un muro delante el turno parecía estéril y ganaban los pivotes de retirada — tirando un premio gratis (user, registro_004 paso 54 vs Alakazam: Fezandipiti ex con 4 efectivas contra un Alakazam de 140, con dos Kadabra de 80 noqueables en la banca).
+
+Estas cuatro piezas son la **fuente única de verdad** del snipe; las comparten el planificador (decidir si atacar en vez de retirar) y la selección real del objetivo en el menú de `DAMAGE` (`main-11`), que por tanto no pueden divergir.
+
+- `SNIPE_ANY_TARGET_IDS` — conjunto de atacantes nuestros cuyo ataque elige objetivo. Hoy solo `Fezandipiti_ex`.
+- `_snipe_targets(op_state)` — activo + banca rival, en ese orden.
+- `_snipe_target_score(damage, target)` — ranking de un objetivo con el daño **ya efectivo**: KO (`10000 + 1000×premios + 10×energía + hp//10`, o sea más premios > más cargado > más vida = más desarrollado) > chip proporcional (`100 + 100×daño/hp`) > inmune (`1`, último recurso porque la selección es obligatoria).
+- `_snipe_best_target(attacker, op_state, effective_energy, ...)` — devuelve `(objetivo, daño_efectivo, es_ko)` del mejor objetivo, o `(None, 0, False)` si el atacante no snipea o no llega al coste. El daño sale de `_our_effective_damage`, que ya aplica inmunidad a ex (Crustle), Neutralization Zone, Sturdy/Resolute Heart y el salto de debilidad/resistencia propio de Fezandipiti (su daño es fijo, no de Planta).
+
+Consumidores en `agent()`: `_active_snipe_ko_now` / `_active_snipe_ko_prizes` (el activo SÍ puede noquear hoy → `_active_can_ko_now` en RETREAT, `main-14`), `_snipe_attack_wins_now` (el snipe también cierra la partida → `_active_attack_wins_now`, `main-15`) y la banda `8500 + 100×premios` de ATTACK.
 
 ### `_grass_unlocks_active_retreat`
 

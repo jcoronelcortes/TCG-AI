@@ -33,6 +33,7 @@ def reset_main_state():
     m._field_at_turn_start = {}
     m._poke_pad_target_id = 0
     m._ub_meowth_pending = False
+    m._ld_supp_comprometido = 0
     m._dodge_immune_serial = None
     m._dodge_immune_turn = -1
     m._op_prize_denial_pecharunt = False
@@ -6390,6 +6391,72 @@ def test_meowth_fetch_lillie_still_played_without_playable_stamp():
 
 
 # =====================================================================
+# MISMO ERROR DE SECUENCIA, pero por la rama del MOTOR BOSS'S (user,
+# registro_008 paso 90 vs Alakazam, GANADA suboptima). El veto
+# `_stamp_blocks_supp_chain` estaba DEBAJO de los motores Boss's via Meowth
+# (_win_via_boss_gust/_gust_2prize_via_boss 22500, _deny_evo_via_boss 22000,
+# _meowth_immune_boss_engine 22000), exentos con el argumento de que "el Boss's
+# que buscan se JUEGA este turno, no se baraja". El argumento es FALSO: TODOS
+# los scorers de `_SUPP_PLAY_IDS` (Boss's, Xerosic, Lillie's, Dawn, Lana's)
+# vetan con `cede_a_unfair_stamp`, asi que ese Boss's NO se puede jugar este
+# turno y el Sello lo devuelve al mazo. En el paso 90 (Fezandipiti ex de 210 PV
+# en la banca rival, rematable por Wood Hammer -> `_gust_2prize_via_boss`) el
+# agente bajaba Meowth ex, cavaba el Boss's, jugaba el Sello -- que lo barajaba
+# -- y solo lo recupero por SUERTE entre las 5 cartas robadas. El veto se movio
+# ARRIBA de todos esos motores.
+# =====================================================================
+_STAMP_MEOWTH_BOSS_FIXTURE = (
+    ROOT / "tests" / "fixtures"
+    / "alakazam_step90_no_meowth_boss_con_unfair_stamp.json")
+_MEOWTH_BOSS_NO_STAMP_FIXTURE = (
+    ROOT / "tests" / "fixtures"
+    / "alakazam_step90_meowth_boss_sin_stamp_control.json")
+
+
+def test_stamp_playable_vetoes_meowth_fetch_boss():
+    # Paso 90 real: mano con Unfair Stamp JUGABLE (nos noquearon el turno
+    # pasado) + Xerosic, y un Boss's en el mazo que gustearia al Fezandipiti ex
+    # rival. No se baja Meowth ex: el Sello va antes y barajaria ese Boss's.
+    with open(_STAMP_MEOWTH_BOSS_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    chosen = m.agent(obs)
+    pid = _played_id(obs, chosen[0])
+    assert pid != _MEOWTH_EX, (
+        "Con Unfair Stamp jugable, NO bajar Meowth ex a cavar un Boss's Orders "
+        "que el propio Sello devuelve al mazo (y que `cede_a_unfair_stamp` "
+        f"impide jugar este turno); el agente jugo id {pid}")
+
+
+def test_stamp_playable_no_bloquea_el_supporter_del_turno():
+    # El Sello sigue JUGABLE en el menu tras el veto: el veto solo frena el
+    # fetch de Meowth, no la secuencia items -> Unfair Stamp.
+    with open(_STAMP_MEOWTH_BOSS_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+    o = m.to_observation_class(obs)
+    me = o.current.players[o.current.yourIndex]
+    assert any(getattr(opt, "type", None) == m.OptionType.PLAY
+               and me.hand[opt.index].id == _UNFAIR_STAMP
+               for opt in o.select.option), "el Sello debe seguir en el menu"
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    assert m.agent(obs), "el agente debe elegir alguna opcion"
+
+
+def test_meowth_fetch_boss_still_played_without_playable_stamp():
+    # Control: MISMO tablero sin el Sello (ni el Xerosic, que se llevaria el
+    # hueco de Supporter por `_meowth_fetch_pierde_el_turno`) -> el motor
+    # Boss's via Meowth ex sigue intacto y SI baja Meowth ex.
+    with open(_MEOWTH_BOSS_NO_STAMP_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    chosen = m.agent(obs)
+    pid = _played_id(obs, chosen[0])
+    assert pid == _MEOWTH_EX, (
+        "Sin Unfair Stamp jugable, el motor Boss's via Meowth ex (gustear+"
+        f"noquear un ex de 2 premios) debe seguir vigente; el agente jugo id {pid}")
+
+
+# =====================================================================
 # vs Alakazam: cargar el atacante de 1 PREMIO (Meganium) que noquea ESTE turno,
 # no el ex activo (user, registro_008 pasos 100-115 vs Alakazam, PERDIDA). El
 # activo era Ogerpon ex (2 premios) capaz de noquear al Alakazam (140 HP), pero
@@ -7341,6 +7408,85 @@ def test_meowth_fetch_prediccion_detecta_el_duplicado():
 
 
 # ============================================================================
+# EL SUPPORTER DEL TURNO YA ESTA EN LA MANO (user, registro_004 paso 36 vs
+# Alakazam, episodio 88700047, GANADA con error). Solo se juega UN Supporter por
+# turno: antes de gastar el Meowth ex hay que saber CUAL se va a jugar. Si el
+# ganador es uno que ya tenemos en la mano, el que traiga el Last-Ditch Catch no
+# se puede jugar hoy y el Meowth solo regala un cuerpo de 2 premios.
+# Distinto de `_meowth_fetch_redundante` (copia de algo que ya esta en mano):
+# aqui el fetch trae algo NUEVO y util, pero PIERDE el hueco del turno.
+# ============================================================================
+
+def test_no_baja_meowth_si_el_supporter_del_turno_ya_esta_en_mano():
+    obs = _load_fixture_obs(
+        "alakazam_no_meowth_si_el_supporter_del_turno_esta_en_mano.json")
+    me = obs["current"]["players"][obs["current"]["yourIndex"]]
+    opts = obs["select"]["option"]
+    meowth = next(i for i, o in enumerate(opts)
+                  if o.get("type") == int(m.OptionType.PLAY)
+                  and me["hand"][o["index"]]["id"] == m.Meowth_ex)
+    # El escenario exige el Xerosic en mano y NINGUNA Lillie's: el fetch la
+    # traeria del mazo, pero el Xerosic se lleva el Supporter del turno.
+    en_mano = [c["id"] for c in me["hand"]]
+    assert m.Xerosic_Machinations in en_mano
+    assert m.Lillie_Determination not in en_mano
+    m._init_cartas_tracking()
+    m.plan = m.AttackPlan()
+    m.pre_turn = 0
+    result = m.agent(obs)
+    assert result != [meowth], (
+        f"el Supporter del turno (Xerosic, ya en mano) gana a la Lillie's que "
+        f"traeria el Last-Ditch: bajar Meowth ex (opt {meowth}) regala 2 "
+        f"premios para nada; obtuvo {result}")
+
+
+def test_supp_play_score_ordena_por_la_escala_que_decide():
+    # La escala del FETCH (`_REGLAS_MEOWTH_FETCH`) y la de JUGADA se
+    # contradecian: la primera ponia Lillie's (1200) sobre Xerosic (<=150), la
+    # segunda al reves. `_supp_play_score` es la que DECIDE, asi que la
+    # prediccion del Meowth tiene que hacerse en ella.
+    from collections import defaultdict
+    ctx = _make_boss_ctx(
+        op_is_alakazam_deck=True,
+        op_hand_count=13,
+        hand_counts={m.Xerosic_Machinations: 1, m.Meowth_ex: 1},
+    )
+    val_xerosic = m._supp_play_score(ctx, m.Xerosic_Machinations)
+    # La Lillie's se valora sobre la mano de DESPUES del fetch (entra al hueco
+    # que deja el Meowth), que es el tablero en el que se decidiria.
+    mano_post = defaultdict(int, {m.Xerosic_Machinations: 1,
+                                  m.Lillie_Determination: 1})
+    ctx_post = m._dc_replace(ctx, hand_counts=mano_post)
+    val_lillie = m._supp_play_score(ctx_post, m.Lillie_Determination)
+    # (aqui la Lillie's queda incluso VETADA por `no_barajar_ultimo_xerosic`:
+    # con el Xerosic en mano, barajarlo es peor que refrescar.)
+    assert val_xerosic > val_lillie, (
+        f"Xerosic ({val_xerosic}) debe ganar a la Lillie's buscada "
+        f"({val_lillie}) en la escala de JUGADA")
+    mejor_id, mejor_val = m._mejor_supporter_de_mano(ctx_post, mano_post)
+    assert mejor_id == m.Xerosic_Machinations and mejor_val == val_xerosic
+
+
+def test_supp_play_score_deja_pasar_el_fetch_que_gana_la_partida():
+    # Contrapeso: si lo que el fetch traeria es un Boss's Orders que GANA la
+    # partida, gana el hueco del turno y el Meowth ex debe seguir bajandose.
+    from collections import defaultdict
+    ctx = _make_boss_ctx(
+        op_is_alakazam_deck=True,
+        op_hand_count=13,
+        hand_counts={m.Xerosic_Machinations: 1, m.Meowth_ex: 1},
+    )
+    mano_post = defaultdict(int, {m.Xerosic_Machinations: 1, m.Boss_Orders: 1})
+    ctx_post = m._dc_replace(ctx, hand_counts=mano_post,
+                             win_via_boss_gust=True)
+    val_boss = m._supp_play_score(ctx_post, m.Boss_Orders)
+    mejor_id, mejor_val = m._mejor_supporter_de_mano(ctx_post, mano_post)
+    assert mejor_id == m.Boss_Orders, (
+        f"el gusteo GANADOR ({val_boss}) debe llevarse el turno; "
+        f"gano {mejor_id} con {mejor_val}")
+
+
+# ============================================================================
 # COHERENCIA MENU <-> PROMPT (user, registro_010 pasos 118/120 vs Alakazam).
 # Las HABILIDADES solo se listan como opciones en el MENU PRINCIPAL. Los motores
 # que proyectan dano leian `select.option` para saber si Teal Dance seguia
@@ -7363,8 +7509,24 @@ def test_alakazam_el_fetch_sigue_el_plan_del_menu_boss_orders():
     m.plan = m.AttackPlan()
     m.pre_turn = 0
     m._td_ability_serial = None
-    assert m.agent(menu) == [meowth], (
-        "el escenario parte de que el motor Boss's baja Meowth ex")
+    xerosic = next(i for i, o in enumerate(menu["select"]["option"])
+                   if o.get("type") == int(m.OptionType.PLAY)
+                   and me["hand"][o["index"]]["id"] == m.Xerosic_Machinations)
+    # En ESTE tablero el Meowth ex ya NO se baja: `_meowth_fetch_pierde_el_turno`
+    # (registro_004 paso 36) descubre que el Boss's del fetch (gusteo de 2
+    # premios, 6800) PIERDE el unico hueco de Supporter del turno contra el
+    # Xerosic que ya esta en la mano (7300) -- que es literalmente la escala
+    # tuneada del agente: XEROSIC_SCORE_SOBRE_BOSS (7000) > GUST_2PRIZE (6800),
+    # "capar la mano supera a cualquier gusteo que no GANE la partida". Bajar el
+    # Meowth para buscar una carta que no se va a jugar regalaba 2 premios.
+    decision = m.agent(menu)
+    assert decision != [meowth], (
+        f"con el Xerosic en mano el fetch del Boss's no se juega este turno: "
+        f"no debe bajarse el Meowth ex (opt {meowth}); obtuvo {decision}")
+    assert xerosic >= 0
+    # Lo que ESTE test protege sigue en pie: si el Last-Ditch llega a resolverse
+    # el MISMO turno, el prompt debe traer lo que el menu tenia en mente (el
+    # Boss's), no revalorarlo sin la Teal Dance ya gastada.
     # Mismo turno, prompt encadenado: el fetch debe traer lo que motivo la jugada.
     mazo = fetch["select"]["deck"]
     result = m.agent(fetch)
@@ -8209,6 +8371,141 @@ def test_ub_si_busca_la_evolucion_cuando_la_preevo_ya_puede_evolucionar():
         f"contrafactual: con el Applin asentado la evolucion SI es jugable "
         f"este turno y la red debe cavar; esperaba PLAY, {opt}")
     assert me["hand"][opt["index"]]["id"] == _ULTRA_BALL
+
+
+# ============================================================================
+# NO CAVAR CON ULTRA BALL UN POKEMON QUE NO SE VA A JUGAR (user, registro_004
+# paso 35 vs Cynthia's Garchomp, episodio 88701502, GANADA con error).
+#
+# Turno 4: Teal Mask Ogerpon ex activo con 3 Plantas (remate listo), banca
+# Bayleef + Ogerpon ex + Meowth ex RECIEN BAJADO (su Last-Ditch ya habia traido
+# el Boss's Orders), y en la mano {Night Stretcher, Ultra Ball, Xerosic, Tapu
+# Bulu, Boss's Orders, Meganium, 2 Plantas}. La jugada correcta -- y la que el
+# agente acabo haciendo -- era Boss's Orders (subir al Cynthia's Gible) y
+# noquear. Pero ANTES jugo una Ultra Ball que no necesitaba: descarto TAPU BULU
+# + XEROSIC para cavar un SEGUNDO Meowth ex... que la propia rama PLAY veto
+# despues (score -1) y se quedo muerto en la mano.
+#
+# Dos lados de la MISMA regla del user ("la Ultra Ball solo se juega para buscar
+# un Pokemon que necesitamos JUGAR"), los dos por incoherencia con lo que la
+# rama PLAY hara luego:
+#   (1) `_ub_cavar_meowth_se_juega`: la cadena UB -> Meowth ex -> Last-Ditch ->
+#       Supporter miraba solo `field_counts[Meowth_ex] < 2`, pero la carta
+#       permite UNA Last-Ditch por turno: con el Meowth de la banca aparecido
+#       ESTE turno la habilidad ya estaba gastada (`_meowth_ld_free` False) y el
+#       segundo cuerpo no buscaria NADA. La rama PLAY ya lo exigia en sus dos
+#       rutas (`_ub_meowth_pending` y el rescate 21700); el lado de la JUGADA de
+#       la Ultra Ball era el unico que no lo comprobaba.
+#   (2) la rama Bayleef -> Meganium (1000) de `_eval_ub_best_target` no miraba si
+#       el Meganium YA estaba en la mano. Sus ramas hermanas (Bayleef, Dipplin)
+#       si lo hacen, y `_ub_evolve_needs_search` documenta el criterio: con la
+#       evolucion en la mano la linea evoluciona SIN Ultra Ball.
+# ============================================================================
+_UB_NO_CAVA_2O_MEOWTH_FIXTURE = (
+    ROOT / "tests" / "fixtures"
+    / "cynthia_no_ub_para_cavar_segundo_meowth_step35.json")
+
+
+def _ub_cynthia_obs(mutar=None):
+    with open(_UB_NO_CAVA_2O_MEOWTH_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+    if mutar is not None:
+        mutar(obs)
+    m._init_cartas_tracking()
+    m.plan = m.AttackPlan()
+    m.pre_turn = 0
+    m._td_ability_serial = None
+    me = obs["current"]["players"][obs["current"]["yourIndex"]]
+    play = {}
+    for i, o in enumerate(obs["select"]["option"]):
+        if o.get("type") == int(OptionType.PLAY):
+            play[me["hand"][o["index"]]["id"]] = i
+    return obs, play, m.agent(obs)
+
+
+def test_no_juega_ub_para_cavar_un_segundo_meowth_con_last_ditch_gastado():
+    obs, play, result = _ub_cynthia_obs()
+    assert result != [play[_ULTRA_BALL]], (
+        f"el Meowth ex de la banca aparecio este turno (Last-Ditch gastada): "
+        f"un 2o Meowth ex no buscaria nada y la rama PLAY lo veta, asi que la "
+        f"Ultra Ball (opt {play[_ULTRA_BALL]}) no debe jugarse; obtuvo {result}")
+    assert result == [play[m.Boss_Orders]], (
+        f"con el activo cargado la jugada del turno es Boss's Orders "
+        f"(opt {play[m.Boss_Orders]}) y noquear; obtuvo {result}")
+
+
+def test_si_juega_ub_por_el_segundo_meowth_si_la_last_ditch_sigue_libre():
+    # Contrafactual (1): el MISMO tablero con el Meowth ex de un turno ANTERIOR.
+    # La Last-Ditch esta libre, el 2o Meowth SI buscaria Supporter y la rama
+    # PLAY lo baja (`_ub_meowth_pending`) -> la cadena se completa y se cava.
+    def _asentar_meowth(obs):
+        me = obs["current"]["players"][obs["current"]["yourIndex"]]
+        for pk in me["bench"]:
+            if pk["id"] == m.Meowth_ex:
+                pk["appearThisTurn"] = False
+    obs, play, result = _ub_cynthia_obs(_asentar_meowth)
+    assert result == [play[_ULTRA_BALL]], (
+        f"con la Last-Ditch libre la cadena UB->Meowth->Supporter si produce: "
+        f"esperaba jugar la Ultra Ball (opt {play[_ULTRA_BALL]}); obtuvo {result}")
+
+
+def test_ub_no_cava_la_evolucion_que_ya_esta_en_la_mano():
+    # Unitario de la rama Bayleef->Meganium: con el Meganium EN LA MANO la linea
+    # evoluciona sin Ultra Ball, asi que esa rama no puede justificar la
+    # busqueda (1000). Sin el en la mano, si.
+    def _target(hand_counts):
+        return m._eval_ub_best_target(
+            {m.Bayleef: 1}, hand_counts,
+            meganium_in_play=False, has_hydrapple=False, forest_in_play=False,
+            op_has_ex_immune_active=False, op_has_ex_immune_bench=False,
+            op_prize=6, bench_count=1,
+            state=SimpleNamespace(turn=6, supporterPlayed=True,
+                                  energyAttached=True),
+            ko_last_turn=False, _best_supp_in_mazo_val=0,
+            supporters_in_hand=0, hand_is_weak=False,
+            has_energy_for_teal=False, _we_go_first=False,
+            _best_supp_in_hand_val=0, op_is_crustle_deck=False,
+            op_is_cornerstone_deck=False, op_active_is_budew=False,
+            meowth_ability_lock=False)
+
+    con_meganium = _target({m.Meganium: 1})
+    sin_meganium = _target({})
+    assert sin_meganium >= 1000, (
+        f"sin el Meganium en la mano hay que cavarlo; objetivo {sin_meganium}")
+    assert con_meganium < 1000, (
+        f"con el Meganium ya en la mano la Ultra Ball no aporta a esa linea; "
+        f"objetivo {con_meganium}")
+
+
+def test_ub_si_cava_la_evolucion_cuando_no_esta_en_la_mano():
+    # Contrafactual (2): sin el Meganium en la mano, la linea Bayleef->Meganium
+    # SI necesita la busqueda y la Ultra Ball vuelve a jugarse.
+    def _quitar_meganium(obs):
+        me = obs["current"]["players"][obs["current"]["yourIndex"]]
+        pos = next(i for i, c in enumerate(me["hand"])
+                   if c["id"] == m.Meganium)
+        del me["hand"][pos]
+        for o in obs["select"]["option"]:
+            if o.get("type") == int(OptionType.PLAY) and o["index"] > pos:
+                o["index"] -= 1
+    obs, play, result = _ub_cynthia_obs(_quitar_meganium)
+    assert result == [play[_ULTRA_BALL]], (
+        f"sin el Meganium en la mano la Fase 2 de la linea si hay que cavarla: "
+        f"esperaba la Ultra Ball (opt {play[_ULTRA_BALL]}); obtuvo {result}")
+
+
+def test_ub_cavar_meowth_se_juega_pide_la_last_ditch_libre():
+    # Unitario del helper: la regla de la carta (UNA Last-Ditch por turno) manda
+    # sobre el conteo de cuerpos.
+    ctx_libre = _make_boss_ctx(field_counts={m.Meowth_ex: 1},
+                              meowth_ld_free=True)
+    ctx_gastada = _make_boss_ctx(field_counts={m.Meowth_ex: 1},
+                                 meowth_ld_free=False)
+    ctx_dos = _make_boss_ctx(field_counts={m.Meowth_ex: 2},
+                             meowth_ld_free=True)
+    assert m._ub_cavar_meowth_se_juega(ctx_libre) is True
+    assert m._ub_cavar_meowth_se_juega(ctx_gastada) is False
+    assert m._ub_cavar_meowth_se_juega(ctx_dos) is False
 
 
 # Registro 006 paso 78 vs Archaludon ex (episodio 88154185, PERDIDA). Turno 6:

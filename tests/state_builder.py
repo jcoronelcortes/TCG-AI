@@ -453,10 +453,16 @@ class Escenario:
         }
         return self
 
-    def fetch_descarte(self, efecto_id):
+    def fetch_descarte(self, efecto_id, cuantas=1, solo=None):
         """Select TO_HAND de una carta de RECUPERACION (Night Stretcher, Lana's
         Aid...) sobre el descarte propio ya declarado. Consume una copia de
-        `efecto_id` del pool (la carta 'en efecto')."""
+        `efecto_id` del pool (la carta 'en efecto').
+
+        `cuantas` es el `maxCount` del menu: 1 para Night Stretcher, 3 para
+        Lana's Aid. `solo` restringe las opciones a esos ids del descarte, como
+        hace el simulador con los filtros de la carta (Lana's Aid solo ofrece
+        Pokemon SIN Regla y Energias Basicas: nada de ex).
+        """
         if not self._mi_descarte:
             raise EstadoInconsistente(
                 "fetch_descarte() requiere haber declarado antes mi_descarte(...)")
@@ -464,11 +470,15 @@ class Escenario:
         opciones = [{"type": int(OptionType.CARD),
                      "area": int(AreaType.DISCARD), "index": i,
                      "playerIndex": 0}
-                    for i in range(len(self._mi_descarte))]
+                    for i, carta in enumerate(self._mi_descarte)
+                    if solo is None or carta["id"] in solo]
+        if not opciones:
+            raise EstadoInconsistente(
+                "fetch_descarte(solo=...) no deja ninguna opcion en el descarte")
         self._select = {
             "type": int(SelectType.CARD),
             "context": int(SelectContext.TO_HAND),
-            "minCount": 1, "maxCount": 1,
+            "minCount": 1, "maxCount": max(1, min(cuantas, len(opciones))),
             "remainDamageCounter": 0, "remainEnergyCost": 0,
             "option": opciones,
             "deck": None,

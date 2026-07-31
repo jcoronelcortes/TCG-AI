@@ -33,6 +33,8 @@ Regla: se evalúa **todo el campo rival** con el daño **efectivo** — `_attack
 2. **Nadie muere**: chip al que **más cerca** queda del KO — `score = 100 + 100 × daño_efectivo / hp`.
 3. **Inmunes** (daño efectivo ≤ 0): `score = 1` — último recurso (la selección es obligatoria).
 
+Ese ranking ya no vive aquí: es `_snipe_target_score(daño_efectivo, card)` (doc 02), **la misma función** que usa `_snipe_best_target` cuando el planificador decide si atacar en vez de retirar. Compartirla es lo que garantiza que el objetivo que hace que el ataque valga la pena sea exactamente el que se acaba eligiendo en este menú: con dos escalas separadas, el planificador podía prometer un KO de banca y el menú apuntar a otro sitio.
+
 La rama hace `scores.append` y `continue` propia, sin pasar por el resto del bucle.
 
 ---
@@ -190,7 +192,11 @@ Busca un Pokémon sin Rule Box hacia la mano. En nuestro primer turno prioriza c
 
 #### Night Stretcher
 
-Recupera del descarte un Pokémon **o** una energía básica. La energía Planta domina en orden de prioridad:
+Recupera del descarte un Pokémon **o** una energía básica. Por encima de todo lo demás está el **motor de ROBO en un turno muerto** (`motor_de_robo_turno_muerto`, primera regla de `ns->meowth` tras el guard del turno 1 y de `ns->fez`; user, registro_008 paso 67 vs Alakazam, PERDIDA): si `_sin_ataque_hoy` dice que **ningún** cuerpo llega a atacar este turno y la mano queda seca (≤2 cartas tras pagar la búsqueda), lo único que produce valor es rehacer la mano — **Meowth ex 1250** (al bajarlo, *Last-Ditch Catch* busca un Supporter del mazo y Lillie's rehace la mano entera) y, en segundo lugar, **Fezandipiti ex 1200** (*Flip the Script* roba 3, y **solo** si nos noquearon un Pokémon el turno anterior: sin `ko_reciente` la habilidad no existe y el cuerpo de 2 premios es un regalo). Ambas exigen que el cuerpo se pueda BAJAR y que la habilidad PRODUZCA: sin Watchtower/lock, con hueco en banca, con el Supporter del turno libre y la *Last-Ditch* sin gastar (`ld_free`) para Meowth; el Fez respeta además el veto vs Lucario (golpea banca). Los valores quedan por encima de todo el desarrollo (el máximo era `bayleef_evolucionable` 990 + 200 del bono por última copia = 1190) y por debajo de la energía que produce un ataque HOY (1300/1400), que nunca coexiste con un turno muerto. En el registro se recuperó un Meganium con el Bayleef a 0 energías: no atacaba, no se jugaba, y el turno terminó con 0 cartas en mano y sin atacante. Este par de reglas es también la única excepción —junto a la energía— al veto de whitelist vs Crustle/Cornerstone del cierre del bloque.
+
+`_sin_ataque_hoy` (deck-agnóstico, mide con `ATTACK_ENERGY_REQ`, no con listas de matchup) recorre tres pasadas: (1) el ACTIVO ya paga su ataque con la energía que tiene; (2) hay un atacante LISTO en banca **y** el activo puede pagar su retirada para subirlo (un atacante atascado en banca no es un atacante); (3) queda ruta de carga abierta (`_grass_attach_route_open`: adjunte manual libre o una habilidad tipo *Teal Dance*/*Ripening Charge* viva) y UNA Planta más convierte al activo —o al cuerpo de banca promovible— en atacante. No usa `_active_ready_attacker` a propósito: ese flag depende de `can_attack`, que solo se calcula en el menú MAIN y vale `False` en los sub-menús `TO_HAND` donde vive esta decisión.
+
+Después, la energía Planta domina en orden de prioridad:
 
 1. `_act_hyd_ripen` (1300): Hydrapple ex activo que no llega a 2 efectivas y sin Planta en mano — recuperar energía para cargarlo vía *Ripening Charge* (habilidad independiente del adjunte manual, no exige `energyAttached` libre).
 2. `_ns_bench_charge_sel` (950): vs Crustle/Cornerstone, cargar un atacante de banca que no llega a su requisito.
@@ -199,7 +205,7 @@ Recupera del descarte un Pokémon **o** una energía básica. La energía Planta
 5. Sin Planta en mano en general (600/700; 750 con Ogerpon ex en banca).
 6. Con Hydrapple en juego y poca energía total (450); con ≥3 copias en mano, 100.
 
-Para Pokémon, repite el patrón de "completar la línea en juego" (Hydrapple ex 980 con Dipplin en juego; Meganium 990 con Bayleef; etc.), usando `_field_at_turn_start` cuando NO hay Forest (no recomendar piezas injugables este turno).
+Para Pokémon, repite el patrón de "completar la línea en juego" (Hydrapple ex 980 con Dipplin en juego; Meganium 990 con Bayleef; etc.), usando `_field_at_turn_start` cuando NO hay Forest (no recomendar piezas injugables este turno). Todo ese desarrollo cede al motor de robo cuando el turno está muerto (arriba).
 
 #### Ultra Ball
 
@@ -212,7 +218,7 @@ El bloque más largo del tramo. Banderas de contexto antes de puntuar cada carta
 - `_ub_hydra_dead_prefer_meowth` / `_ub_mega_dead_prefer_meowth`: la evolución "grande" disponible (Hydrapple sin energía para atacar / Meganium sin Bayleef en juego) quedaría **muerta** este turno y no hay atacante listo → preferir Meowth ex (motor Lillie's).
 - `_ub_no_attacker_prefer_meowth`: generalización — no hay **atacante usable** este turno (ni activo que ataque, ni atacante de banca listo que se pueda subir porque el activo no puede pagar su retirada) → traer Meowth ex aunque la evolución sea jugable.
 
-Escalera de `Meowth_ex` como objetivo: **regla del PRIMER TURNO (`primer_turno_solo_para_lillie`, primera de la cadena) → 10** si en NUESTRO primer turno (`_um_es_primer_turno`) la Lillie's ya está en la mano o no queda ninguna viva en el mazo — en el turno 1 Meowth ex solo se cava para traer Lillie's, y ni `_ub_engine_pivot_turn` ni el motor de Boss's vs Crustle levantan esta regla; Watchtower → 10; Lillie's ya en mano → 10 (salvo excepción vs Crustle donde Meowth busca Boss's); **`_ub_engine_pivot_turn` → 1300** (esta Ultra Ball se jugó por el pivote `_ub_engine_refresh_pivot`, ver doc 12: el fetch DEBE completar la cadena Meowth→Last-Ditch→Lillie's; sobre cualquier evolución); `_ub_prefer_meowth_develop` → 1250; `_ub_hydra_dead_prefer_meowth`/`_ub_mega_dead_prefer_meowth` → 1000; `_ub_no_attacker_prefer_meowth` → 1250; `_t1_going_second_meowth` → 1200; vetos blandos (primer turno yendo primero, 2 copias en juego, un Meowth con activo que ataca, banca llena, `_dipplin_priority`) → 10; `_mega_line_active` con Lillie's en mazo → 1150; vs Dragapult-Dusknoir → 985; vs Crustle con Boss's valioso en mazo → 1100; Lillie's en mazo → 1000; otro Supporter en mazo → 850; nada → 10.
+Escalera de `Meowth_ex` como objetivo: **regla del PRIMER TURNO (`primer_turno_solo_para_lillie`, primera de la cadena) → 10** si en NUESTRO primer turno (`_um_es_primer_turno`) la Lillie's ya está en la mano o no queda ninguna viva en el mazo — en el turno 1 Meowth ex solo se cava para traer Lillie's, y ni `_ub_engine_pivot_turn` ni el motor de Boss's vs Crustle levantan esta regla; Watchtower → 10; **`last_ditch_no_produce` → 10** si el Supporter del turno YA se jugó (`supporter_played`: el que traiga el fetch nace muerto en la mano, y la rama PLAY ya vetaba bajar el Meowth por eso mismo) o si la única *Last-Ditch* del turno ya se gastó (`not ld_free`, ver `_meowth_ld_free` / `_ub_cavar_meowth_se_juega`) — va junto a Watchtower porque es el mismo veto: la habilidad no puede producir nada, y Meowth ex no vale por su cuerpo (2 premios). Sin ella, `lillie_en_mazo_refresco` daba 1000 mirando solo si quedaba Lillie's en el mazo y el agente encadenaba dos Ultra Ball por dos Meowth ex muertos (registro_006 pasos 98-104 vs Mega Lucario ex, PERDIDA); Lillie's ya en mano → 10 (salvo excepción vs Crustle donde Meowth busca Boss's); **`_ub_engine_pivot_turn` → 1300** (esta Ultra Ball se jugó por el pivote `_ub_engine_refresh_pivot`, ver doc 12: el fetch DEBE completar la cadena Meowth→Last-Ditch→Lillie's; sobre cualquier evolución); `_ub_prefer_meowth_develop` → 1250; `_ub_hydra_dead_prefer_meowth`/`_ub_mega_dead_prefer_meowth` → 1000; `_ub_no_attacker_prefer_meowth` → 1250; `_t1_going_second_meowth` → 1200; vetos blandos (primer turno yendo primero, 2 copias en juego, un Meowth con activo que ataca, banca llena, `_dipplin_priority`) → 10; `_mega_line_active` con Lillie's en mazo → 1150; vs Dragapult-Dusknoir → 985; vs Crustle con Boss's valioso en mazo → 1100; Lillie's en mazo → 1000; otro Supporter en mazo → 850; nada → 10.
 
 Resto de objetivos, siguiendo "completar la línea más cercana a jugarse": `Teal_Mask_Ogerpon_ex` (hasta 800/1050 en aperturas; 350/700+100 con energía para Teal Dance), `Meganium` (hasta 1000), `Hydrapple_ex` (1200 si el Dipplin activo evolucionaría y atacaría YA; 980/900; **860** para prepararlo al próximo turno si Dipplin es el único Planta en juego o la línea Meganium no es evolucionable ya; degradado a ≤40 vs inmunes-a-ex; ≤150 con `_ub_hydra_dead_prefer_meowth`), `Bayleef`/`Dipplin`/`Chikorita`/`Applin` (500–980 por cercanía; duplicados en mano → 20), `Tapu_Bulu` (750/850 con Meganium+inmune-a-ex), `Pinsir` (900 vs Crustle/Cornerstone), `Fezandipiti_ex` (1050 tras KO con hueco en banca). Cierre: `+150` si la mayoría de copias está en premios; `−150` si ya hay una copia en mano.
 
@@ -237,9 +243,27 @@ Mismo patrón de "completar la línea más avanzada" con `_forest_avail` (en jue
 
 #### Rama genérica
 
-Para efectos no reconocidos (p.ej. Lana's Aid): bonos/penalizaciones modestos (±50 a ±200) con la misma idea de completar líneas no duplicadas.
+Para efectos no reconocidos: bonos/penalizaciones modestos (±50 a ±200) con la misma idea de completar líneas no duplicadas. Es la escalera de "formas de línea evolutiva": mira **qué eslabón me falta**, no la energía ni el hueco de banca.
 
-Excepción final vs Cubchoo: para `Night_Stretcher`/`Lanas_Aid`, se fuerza recuperar solo `Basic_Grass_Energy` (`max(score, 900)`) y se vetan los Pokémon — el turno post-Cubchoo se usa para recargar energía.
+#### Lana's Aid — **la mesa decide qué se levanta**
+
+Lana's Aid recupera hasta **3** cartas del descarte entre Pokémon **sin Regla** y Energías Básicas. Su rama corre **después** de la escalera genérica (que le sirve de base para el desarrollo) y sustituye dos cosas: el valor de la **Planta** y el de los Pokémon que **no se pueden jugar**.
+
+La lectura de mesa la hace `_plan_de_planta` (ver `main-02`), y el resultado se reparte en bandas:
+
+| banda | constante | cuándo |
+| --- | --- | --- |
+| desbloqueo | `LANA_SEL_PLANTA_DESBLOQUEA` = 1400 | las primeras `cartas_para_atacar` Plantas, cuando `desbloquea_hoy`: ponen a atacar a un cuerpo **este turno** |
+| demanda | `LANA_SEL_PLANTA_DEMANDA` = 900 | Plantas hasta `demanda`: un atacante en juego las sigue pidiendo (valen aunque no se adjunten hoy — van a la mano) |
+| desarrollo | escalera genérica, ~150–280 | Pokémon que **sí** se pueden poner en juego |
+| sobrante | `LANA_SEL_PLANTA_SOBRANTE` = 120 | más Plantas de las que la mesa sabe usar |
+| carta muerta | `LANA_SEL_INJUGABLE` = 5 | `_pokemon_injugable`: último recurso (el menú tiene `minCount >= 1`) |
+
+El **ordinal** (`_lana_orden_planta`, precalculado antes del bucle) es lo que hace posible la escalera: los `score` se calculan por **carta**, así que sin numerar las copias de Planta las cuatro empatarían arriba y se llevarían las 3 elecciones aunque la mesa solo supiera usar una.
+
+> **Origen** (user, episodio 88776459 registro_018 paso 118 vs Crustle, PERDIDA). Tapu Bulu activo con 2 energías efectivas (Wood Hammer pide 4) y **dos Meganium** en juego — una Planta física vale `{G}{G}`, así que estaba a **una carta** de atacar y el adjunte del turno seguía libre. Banca **llena** (5/5), y en el descarte 4 Plantas, 2 Applin y 1 Dipplin. El agente jugó Lana's Aid (la carta correcta) y levantó **2 Applin + 1 Dipplin**: con la banca llena el Básico no entra, y el Dipplin no tenía ningún Applin en juego sobre el que evolucionar. Tres cartas muertas y el turno murió sin atacar. La causa: Lana's Aid no tenía rama propia y caía a la genérica, cuyos números (Applin 260 > Dipplin 250 > Planta 240) decidían el menú. Regresión: `tests/test_lana_recupera_energia_no_basicos.py`.
+
+Excepción final vs Cubchoo: para `Night_Stretcher`/`Lanas_Aid`, se fuerza recuperar solo `Basic_Grass_Energy` (`max(score, 900)`) y se vetan los Pokémon — el turno post-Cubchoo se usa para recargar energía. Va **después** de la rama de Lana's, así que la whitelist de matchup sigue mandando.
 
 ---
 

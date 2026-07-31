@@ -165,13 +165,23 @@ Orden:
 #### Flip the Script — Fezandipiti ex
 
 ```python
-if _stamp_blocks_supp_chain or _lillie_blocks_fez_ability:
-    score = SCORE_VETO
+if getattr(my_state, 'deckCount', 60) <= 4:
+    score = SCORE_VETO                      # freno de deck-out (veto de VALOR)
 else:
-    score = 30000
+    score = FEZ_DRAW_ABILITY_SCORE          # 31700
+    _ab_order_blockers = (...)              # Unfair Stamp / Lillie's activos
+    if _ab_order_blockers:
+        _ability_order_veto[len(scores)] = (score, _ab_order_blockers)
+        score = SCORE_VETO                  # veto de ORDEN (DIFERIBLE)
 ```
 
-Secuenciación explícita: con `Unfair_Stamp` jugable este turno (`_stamp_blocks_supp_chain`), el Stamp va **primero** (si no, barajaría de vuelta las 3 cartas robadas; con el orden correcto quedan 5 del Stamp + 3 de la habilidad = 8). Análogamente, con Lillie's en mano sin Supporter jugado (`_lillie_blocks_fez_ability`), Lillie's va antes. Al desbloquearse (la carta bloqueante se jugó), vuelve a `30000`.
+**Banda `FEZ_DRAW_ABILITY_SCORE` = 31700: el robo va ANTES de gastar la energía del turno** (user, registro_006 pasos 95-102, episodio 88710543 vs Mega Lucario). Con el `30000` anterior la habilidad perdía menú tras menú contra Teal Dance (31300) y Ripening Charge (31100) y el turno se cerraba **sin usarla**: es gratis, es UNA VEZ POR TURNO y su condición (que nos noquearan) muere con el turno, mientras que un adjunte que no remata se puede hacer después sin perder nada. Además el orden correcto es este por **información**: las 3 cartas nuevas pueden traer Plantas, así que decidir los adjuntes después del robo es estrictamente mejor. La habilidad sube también al **tier ENERGY** en el bloque de tiers (doc 15) con el mismo guard que Teal Dance/Ripening (`score >= 29000`): en tier 0 cualquier carga promovida la pisaría por ORDEN pese a puntuar menos. Sigue **por debajo** de las bandas LETALES de esas mismas habilidades (41000/41900: la que habilita el KO de HOY va primero) y del remate GANADOR (`_TIER_WIN_ATTACK`): si la partida se cierra este turno, robar 3 no aporta nada.
+
+Secuenciación explícita: con `Unfair_Stamp` jugable este turno (`_stamp_blocks_supp_chain`), el Stamp va **primero** (si no, barajaría de vuelta las 3 cartas robadas; con el orden correcto quedan 5 del Stamp + 3 de la habilidad = 8). Análogamente, con Lillie's en mano sin Supporter jugado (`_lillie_blocks_fez_ability`), Lillie's va antes. Al desbloquearse (la carta bloqueante se jugó), vuelve a `31700`.
+
+**Los dos bloqueos son vetos de ORDEN, no de VALOR, y por eso se registran como DIFERIBLES** en `_ability_order_veto` (`{índice de opción: (score_real, ids bloqueadores)}`) en vez de matar la habilidad ahí mismo. El bloque *REVOCAR VETOS DE ORDEN* del final de `agent()` (doc 15) los levanta cuando el "primero X" no va a ocurrir. Motivo (user, registro_006 paso 78 vs Archaludon ex, PERDIDA): la habilidad se vetaba por "primero Lillie's", Lillie's se vetaba por `cede_a_boss_ejecutable` y Boss's se degradaba a 20 por `sin_atacante_banca_cede_a_lillie` — **bloqueo circular**: ninguna de las tres se jugaba, el ataque (1100) ganaba el menú y el robo de 3 se perdía para siempre (Flip the Script es una vez por turno y su condición de activación se va con el turno).
+
+El **freno de deck-out** (mazo ≤4: robar 3 nos deja al borde de perder por deck-out) se evalúa **antes** y es un veto de VALOR: la revocación nunca lo levanta.
 
 #### Last-Ditch Catch — Meowth ex
 

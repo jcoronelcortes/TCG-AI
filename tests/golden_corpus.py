@@ -71,6 +71,8 @@ def reset_agente(m):
     m._field_at_turn_start = {}
     m._poke_pad_target_id = 0
     m._ub_meowth_pending = False
+    m._ub_fez_pending = False
+    m._ld_supp_comprometido = 0
     m._dodge_immune_serial = None
     m._dodge_immune_turn = -1
 
