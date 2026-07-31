@@ -18897,7 +18897,32 @@ def agent(obs_dict: dict) -> list[int]:
                             _cf_need_starter = (
                                 _cf_og_field == 0 and _cf_og_hand == 0
                                 and not _cf_has_body)
-                            if _cf_need_starter:
+                            # RELEVO ANTI-BENCH-OUT (autopsia comfey jul 2026):
+                            # con la BANCA VACIA -- aunque el activo siga vivo,
+                            # que es justo lo que `_cf_has_body` no distinguia --
+                            # bajar un Basico no es "avanzar el plan", es no
+                            # perder la partida en el acto: si noquean al activo
+                            # y no hay relevo, es bench-out y se acabo. Y a
+                            # diferencia de todo lo demas que este plan restringe,
+                            # bajar un cuerpo de la MANO no adelgaza el mazo ni
+                            # una carta, que es lo unico que la defensa anti-mill
+                            # tiene que proteger; "vs Comfey solo se baja Teal
+                            # Mask Ogerpon ex" dice con QUE atacamos, no obliga a
+                            # quedarse sin cuerpos. Medido (n=250): el bench-out
+                            # es el 82% de nuestras derrotas vs comfey (14 de 17;
+                            # 5.6% de las partidas frente al 0.4-2% del resto de
+                            # matchups), con mediana en el turno 5. En el menu
+                            # capturado, con CERO Pokemon en banca, el PLAY del
+                            # Fezandipiti ex valia 22000 y esta rama lo aplastaba
+                            # a -1. Solo BASICOS: una Fase 1/2 no se banquea.
+                            _cf_data = card_table.get(card.id)
+                            _cf_es_basico = (
+                                _cf_data is not None
+                                and not getattr(_cf_data, 'stage1', False)
+                                and not getattr(_cf_data, 'stage2', False))
+                            _cf_relevo_urgente = (bench_count == 0
+                                                  and _cf_es_basico)
+                            if _cf_need_starter or _cf_relevo_urgente:
                                 if card.id == Applin:
                                     score = 21000
                                 elif card.id == Chikorita:
