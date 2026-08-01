@@ -26,6 +26,41 @@ Si falta desarrollar alguna de las dos líneas (`not (meganium_in_play and has_h
 
 Recorre el descarte propio contando `discard_basic_energy` (copias de `Basic_Grass_Energy`) y los básicos recuperables. **Corrección Rule Box** (registro 006 vs Alakazam): Lana's Aid solo recupera Pokémon **sin Regla**, así que los ex (Ogerpon, Meowth, Fezandipiti) **no** cuentan como objetivo — contarlos inflaba el valor (p.ej. 700 por un Meowth ex en el descarte) y ese "valor fantasma" bloqueaba la línea Night Stretcher → Meowth ex → Lillie's al elevar `_best_supp_in_hand_val`. Con algo recuperable, base 300 más bonos: +400/+200 por banca casi vacía (≤1/≤2), +350 por Chikorita recuperable con su línea totalmente caída, +300 análogo para Applin, +200 por Ogerpon escaso (<2 en juego), +200 con `forest_in_play` y básicos Planta recuperables, +150 con ≥3 recuperables, y bonos anti-Crustle (+350 Tapu Bulu recuperable sin copia en juego, +200 Applin con la línea vacía).
 
+### Puerta de utilidad: lo que se levanta tiene que poder jugarse
+
+Los bonos de arriba se cobran sobre una base de 300 que solo exige
+`total_recoverable >= 1`, es decir, **cartas en el descarte** — sin mirar ni el
+hueco de banca ni las vías de adjunte. Con la banca llena eso gastaba el
+Supporter del turno en carta muerta (episodio **88904232** paso 140 vs Marnie —
+partida **GANADA**: la fuga no costó el partido, pero es fuga igual: Hydrapple ex
+activo, banca 5/5, descarte **sin** Plantas y con un único Applin; el menú de
+recuperación tenía **una sola** opción y era un Básico que no entra en juego de
+ninguna forma). La capa de SELECCIÓN sí lee la mesa
+(`_pokemon_injugable`, `_plan_de_planta`), pero para entonces la carta ya está
+jugada: el veto tenía que subir un escalón.
+
+Regla del user — *Lana's se juega SOLO si hace falta algo que se pueda poner en
+juego ESTE turno* —, con la misma lectura de mesa que decide luego qué se
+levanta, en dos escalones:
+
+1. **Veto** (`lana_val = 0`, que dispara `sin_valor` en `_score_lanas_aid_play`)
+   si nada de lo recuperable entra en juego hoy: ningún Pokémon jugable
+   (`_pokemon_injugable`: con la banca llena un Básico está muerto y una
+   evolución solo vive si su pre-evolución está **en juego**) **y** ninguna vía
+   de adjunte viva (`_plan_de_planta().slots_hoy`) para una Planta del descarte.
+2. **Techo** `LANA_PLAY_SIN_DEMANDA` (100 → score ~2540) si lo jugable **no
+   hace falta**. Dos formas: Energía que nadie pide (`nuevas_utiles_hoy == 0`,
+   la mano ya tiene más Plantas de las que caben hoy; o `demanda == 0`, todos
+   los atacantes en juego llegan ya a `ATTACK_ENERGY_REQ`) y **Pokémon que cabe
+   en la banca pero que ningún bono reclama** (`_lana_val_bonos ==
+   LANA_PLAY_BASE_RECUPERABLE`, es decir: ni banca corta, ni línea caída, ni
+   Forest, ni ≥3 recuperables, ni bono de matchup — solo "hay una carta ahí
+   abajo"). `_lana_val_bonos` se congela **antes** del suelo de 950 por energía,
+   que es una razón distinta. Techo y no veto porque la carta sigue siendo
+   jugable: solo cede el Supporter del turno a cualquier otro con valor real.
+   Exento el caso `_lana_energy_enables_attack` (950), y el suelo de línea
+   Meganium (4500) sigue rescatando desde los ajustes, que corren después.
+
 ### `_lana_energy_enables_attack`
 
 Detecta cuando Lana's **habilita un ataque este mismo turno** — la única razón para anteponerla a Lillie's sin atacante listo. Exige energía básica en el descarte y que `_plan_de_planta` (ver `main-02`) diga `desbloquea_hoy` con `cartas_para_atacar <= discard_basic_energy`. Si aplica, `lana_val` sube a 950 (prioridad casi máxima) y se exporta como `values['_lana_enables_attack']` para que la capa de PLAY distinga este caso al comparar Lana's contra Lillie's.
@@ -39,7 +74,7 @@ Detecta cuando Lana's **habilita un ataque este mismo turno** — la única raz�
 - **`Dawn` de emergencia tras KO propio**: con `ko_last_turn`, `Dawn` en mano y sin Lillie's/Meowth/Ultra Ball, sin Fezandipiti en juego pero con copias en el mazo (`CARTAS_ACTIVAS_EN_MAZO`) y banca libre → `values[Dawn] = 1100` (por encima de todo: reconstruir el tablero con hasta 3 Pokémon) y Boss's/Lana's recortados a 200.
 - **Veto de Boss's sin objetivo distinguible**: si ningún Pokémon de banca rival difiere del activo (`_bo_has_distinct_target`: id distinto o mismo id con distinta energía), gustear es un no-op → valor 0.
 - **Veto de Boss's vs Crustle sin condiciones**: exige activo rival Crustle/Dwebble (`_cru_act_ok`) y algún no-Dwebble en su banca (`_cru_has_nondwebble_bench`); si falta cualquiera, valor 0 (reservar el Supporter para objetivos relevantes). **El corte no se aplica si `crustle_gust_worth_it`** (episodio 88620891 paso 78, PERDIDA): esa rama es justamente la que ya comprobó que nuestro ex está bloqueado por el muro y que en la banca rival hay un cuerpo al que dañamos y noqueamos (o trabamos), y subió Boss's a `BOSS_PRIORITY_CRUSTLE_GUST` (990). Con la banca rival llena solo de Dwebble, el corte anulaba ese 990 recién calculado y el turno moría sin premios atacando a un Crustle inmune.
-- **`Dawn` con banca llena vs Alakazam**: solo se juega si de verdad falta una evolución alcanzable (mapa `_ALK_DAWN_EVO`: pre-evo en juego, evolución no en mano y aún disponible en el mazo, `_alk_dawn_need_evo`); si no, valor 0 — con banca llena Dawn solo adelgaza el mazo y arriesga perder por deckout.
+- **`Dawn` con banca llena** (`bench_count >= bench_max`): solo se juega si de verdad falta una evolución alcanzable (`_dawn_need_evo`: pre-evo en juego, evolución no en mano y aún disponible en el mazo); si no, valor 0 — con banca llena Dawn solo adelgaza el mazo y arriesga perder por deckout. **Nació vs Alakazam** (mapa fijo `_ALK_DAWN_EVO` bajo `op_is_alakazam_deck`) y se **generalizó a todos los matchups** con el episodio 88904232 paso 140 vs Marnie: es la misma puerta de utilidad que la de Lana's Aid — lo que el Supporter trae a la mano tiene que poder ponerse en juego — y no tenía nada de específico de Alakazam. Con Lana's ya vetada allí, el Supporter del turno se iba en un Dawn que con la banca 5/5 y las dos líneas ya evolucionadas solo podía traer cartas inertes. Los pares pre→evo salen ahora de `EVO_LINES`.
 
 ## Xerosic's Machinations y el guard de Lillie's
 
@@ -157,5 +192,6 @@ Más adelante en el mismo pre-cómputo (antes del bucle de scoring) se calculan 
 - **registro_006 vs Garchomp / vs Archaludon** — el deny-evo mano-O-mazo privilegia cortar la línea ex rival, salvo que el activo rival sea la misma amenaza más desarrollada.
 - **registro_007 vs Archaludon** — `_boss_ko_threat_preevo` guarda el Boss's (veta Lillie's) aunque el activo pueda atacar.
 - **registro 006 paso 51 vs Alakazam** — Lana's Aid no cuenta Pokémon con Rule Box: el valor fantasma bloqueaba la línea Night Stretcher → Meowth → Lillie's.
+- **episodio 88904232 paso 140 vs Marnie (GANADA)** — la puerta de utilidad de los Supporters que traen cartas a la mano. *Primera regla que no sale de una derrota*: el Supporter tirado no costó ese partido (se cerró 1-5 en premios), pero es una fuga reproducible y el self-play la cobra (+2.2 pp en el matchup). Ojo con citar `registro_NNN`: los registros son datos locales transitorios y el nombre se recicla — el ancla estable es el `EpisodeId`. Con la banca llena y un único Applin recuperable (ni una Planta en el descarte), la base de 300 gastaba el Supporter del turno en una carta que no entra en juego. **Lana's Aid**: veto si nada de lo recuperable se puede jugar hoy; techo `LANA_PLAY_SIN_DEMANDA` si lo jugable no hace falta (energía que nadie pide, o Pokémon que cabe pero que ningún bono reclama). **Dawn**: la regla de banca llena, hasta ahora exclusiva de Alakazam, pasa a correr en todos los matchups — si no, el Supporter se salvaba cambiando de carta. Corpus dorado: un único flip, el paso 140 pasa de jugar Lana's a **atacar** (el mismo KO que la partida real hizo después de tirar el Supporter).
 - **log 85803267** — `_ogerpon_td_manual_lethal`: letal de dos cargas (adjunte + Teal Dance) invisible para el escáner de +1 energía.
 - **registro_006 paso 78 vs Archaludon ex** — *asimetría conocida, medida y mantenida* entre `cede_a_boss_ejecutable` (Lillie's) y `sin_atacante_banca_cede_a_lillie` / `_boss_cede_dig` (Boss's). El lado de Boss's consulta `active_ko_likely` **o** `active_doomed_real` — se le añadió el segundo porque el primero es ciego (`_op_best_damage_vs` devuelve siempre 0) —; el lado de Lillie's mira solo `active_ko_likely`. En la ventana exacta *(sin atacante de banca listo + pre-evo AMENAZA gusteable + activo condenado solo según `attack_table`)* las dos reglas **se ceden el turno la una a la otra**: Lillie's a `−1` y Boss's a `20`, y el slot de Supporter se pierde entero. Cerrar la asimetría se midió: **−0.39 puntos, n=7000 por rama, 4 matchups** (archaludon −0.5, crustle −0.7, alakazam −0.5, dragapult +0.3; p=0.40) → **revertido**. Mecanismo probable del signo: Lillie's **baraja la mano en el mazo**, así que cambiaba un Boss's Orders vivo (y el Bayleef de la línea Meganium) por 8 cartas al azar con el activo muriéndose igual. El turno perdido lo rescata ahora el veto de ORDEN diferible de *Flip the Script* (doc 15): sin bloqueador jugable cobra el robo de 3 en vez de cerrar atacando. La ventana queda fijada por `test_paso78_la_ventana_exacta_del_bloqueo_circular`.

@@ -36,6 +36,15 @@ Uso:
     python utils/autopsia.py --rival deck/rivales/cornerstone_cubchoo.csv --partidas 100
     python utils/autopsia.py --espejo --partidas 100
     python utils/autopsia.py --todos --partidas 60   # todos los mazos de deck/rivales/
+    python utils/autopsia.py --rival ... --partidas 400 --censo   # + contraste
+
+v3 (ago 2026): `--censo`. Los detectores solo miran DERROTAS y solo emiten en
+los turnos que ya fallaron; eso reproduce un fallo, pero no dice que lo CAUSA.
+Sin grupo de control, un rasgo frecuente en las derrotas no se distingue de un
+rasgo frecuente y punto -- dos hipotesis se cayeron justo asi. `censo_de_turnos`
+levanta una fila compacta (sin observaciones) por turno de TODAS las partidas,
+ganadas incluidas, y `resumen_censo` imprime cada rasgo como
+derrota% vs victoria% y su DIFERENCIA, que es lo unico que explica algo.
 """
 
 import argparse
@@ -174,6 +183,99 @@ def _dano_letal_activo(m, obs):
     return m._our_effective_damage(a, o, base, meganium, False), o
 
 
+def censo_de_turnos(m, decisiones):
+    """Una fila COMPACTA por turno propio, para TODAS las partidas -- ganadas
+    incluidas.
+
+    Los detectores de abajo solo miran derrotas y solo emiten en los turnos que
+    ya fallaron. Eso basta para reproducir un fallo concreto, pero no para
+    decidir QUE lo causa: sin grupo de control, cualquier patron frecuente en
+    las derrotas parece la causa aunque sea igual de frecuente en las victorias.
+    Dos hipotesis se cayeron justo asi (ago 2026): "la Planta se va a la banca
+    con el activo atascado" resulto ser el 15% de los casos, y el enrutado por
+    Ripening Charge midio negativo.
+
+    El censo no guarda observaciones -- solo los rasgos que se pueden contar --,
+    asi que cabe para miles de partidas y permite contrastar
+    `derrota vs victoria` en la misma tanda. Para reproducir un turno concreto
+    siguen estando los `pasos_turno` de los detectores.
+
+    Rasgos por turno: si atacamos, estado del ACTIVO (atacar / retirarse), si
+    hay atacante LISTO esperando en banca, municion de energia y como cerro.
+    """
+    filas = []
+    por_turno = {}
+    for d in decisiones:
+        por_turno.setdefault(d["obs"]["current"]["turn"], []).append(d)
+
+    for turno, ds in sorted(por_turno.items()):
+        mains = [d for d in ds
+                 if (d["obs"].get("select") or {}).get("context")
+                 == int(SelectContext.MAIN)]
+        if not mains:
+            continue
+        primero, ultimo = mains[0], mains[-1]
+        yo, _ = _mi_lado(primero["obs"])
+        # Los recursos de UNA VEZ POR TURNO se leen del ULTIMO select, no del
+        # primero: en el primero no se ha jugado nada todavia y salen siempre
+        # sin gastar en los dos grupos (rasgo vacio). Aqui miden lo que de
+        # verdad interesa, lo que el turno se dejo sin usar.
+        cur = ultimo["obs"]["current"]
+        act = (yo.get("active") or [None])[0]
+        mano = yo.get("hand") or []
+
+        # ¿El ACTIVO esta atascado? Ni llega a su coste de ataque ni puede pagar
+        # su retirada con la energia que ya lleva encima.
+        atascado = puede_atacar = puede_retirar = None
+        if act is not None:
+            req = m.ATTACK_ENERGY_REQ.get(act["id"])
+            e = len(act["energies"])
+            puede_atacar = None if req is None else (e * m._grass_mult() >= req)
+            puede_retirar = e >= m.RETREAT_COST.get(act["id"], 1)
+            atascado = (puede_atacar is False) and not puede_retirar
+
+        # Atacante REAL de banca que ya llega a su coste: lo que el atasco
+        # deja encerrado detras.
+        listos_banca = sum(
+            1 for b in (yo.get("bench") or [])
+            if b["id"] in m.MAIN_ATTACKERS
+            and len(b["energies"]) * m._grass_mult()
+            >= (m.ATTACK_ENERGY_REQ.get(b["id"]) or 99))
+
+        eleccion_cierre = None
+        if ultimo["eleccion"]:
+            eleccion_cierre = int(ultimo["obs"]["select"]["option"][
+                ultimo["eleccion"][0]].get("type", -1))
+        ataco = any(
+            int(d["obs"]["select"]["option"][d["eleccion"][0]].get("type", -1))
+            == int(OptionType.ATTACK)
+            for d in mains if d["eleccion"])
+
+        filas.append({
+            "turno": turno,
+            "selects": len(mains),
+            "ataco": ataco,
+            "cierre": eleccion_cierre,
+            "mano": len(mano),
+            "opciones_no_end": sum(
+                1 for o in primero["obs"]["select"]["option"]
+                if int(o.get("type", -1)) != int(OptionType.END)),
+            "activo": None if act is None else act["id"],
+            "activo_hp": None if act is None else act["hp"],
+            "activo_energias": None if act is None else len(act["energies"]),
+            "puede_atacar": puede_atacar,
+            "puede_retirar": puede_retirar,
+            "atascado": atascado,
+            "listos_banca": listos_banca,
+            "plantas_mano": sum(1 for c in mano
+                                if c["id"] == m.Basic_Grass_Energy),
+            "adjunte_gastado": bool(cur.get("energyAttached")),
+            "supporter_gastado": bool(cur.get("supporterPlayed")),
+            "mis_premios": sum(1 for p in (yo.get("prize") or []) if p is None),
+        })
+    return filas
+
+
 def detectar(m, decisiones):
     hallazgos = []
 
@@ -270,7 +372,65 @@ def detectar(m, decisiones):
     return hallazgos
 
 
-def autopsia(rival_csv, partidas, espejo=False, destino=None):
+def resumen_censo(censo, etiqueta):
+    """Contraste DERROTA vs VICTORIA sobre el censo de turnos.
+
+    Cada rasgo se imprime como su frecuencia por turno en cada grupo y la
+    DIFERENCIA. Lo que importa es la diferencia, no el nivel: un rasgo que sale
+    en el 40% de los turnos de las derrotas y en el 39% de los de las victorias
+    no explica nada, por llamativo que parezca leyendo una partida suelta.
+    """
+    perd = [f for f in censo if f["resultado"] != "gana"]
+    gana = [f for f in censo if f["resultado"] == "gana"]
+    if not perd or not gana:
+        print("  censo: hace falta al menos una victoria y una derrota")
+        return
+    rasgos = {
+        "turno sin atacar": lambda f: not f["ataco"],
+        "activo ATASCADO (ni ataca ni retira)": lambda f: f["atascado"] is True,
+        "atascado + atacante listo en banca":
+            lambda f: f["atascado"] is True and f["listos_banca"] >= 1,
+        "sin atacante listo en ningun sitio":
+            lambda f: f["listos_banca"] == 0 and f["puede_atacar"] is not True,
+        "sin Plantas en la mano": lambda f: f["plantas_mano"] == 0,
+        "adjunte del turno sin gastar": lambda f: not f["adjunte_gastado"],
+        "supporter del turno sin gastar": lambda f: not f["supporter_gastado"],
+        "cierre con END": lambda f: f["cierre"] == int(OptionType.END),
+    }
+    print(f"  censo [{etiqueta}]: {len(perd)} turnos en derrotas vs "
+          f"{len(gana)} en victorias")
+    print(f"    {'rasgo':40}{'derrota':>9}{'victoria':>10}{'dif':>8}")
+    filas = []
+    for nombre, f in rasgos.items():
+        pp = 100 * sum(1 for x in perd if f(x)) / len(perd)
+        pg = 100 * sum(1 for x in gana if f(x)) / len(gana)
+        filas.append((pp - pg, nombre, pp, pg))
+    for dif, nombre, pp, pg in sorted(filas, reverse=True):
+        print(f"    {nombre:40}{pp:8.1f}%{pg:9.1f}%{dif:+8.1f}")
+    # Rachas de atasco: un turno atascado suelto es ruido; una racha larga es
+    # una partida jugada entera desde detras de un muro propio.
+    for grupo, nombre in ((perd, "derrotas"), (gana, "victorias")):
+        rachas, actual, por_partida = [], 0, None
+        for f in grupo:
+            if f["partida"] != por_partida:
+                if actual:
+                    rachas.append(actual)
+                actual, por_partida = 0, f["partida"]
+            if f["atascado"] is True:
+                actual += 1
+            else:
+                if actual:
+                    rachas.append(actual)
+                actual = 0
+        if actual:
+            rachas.append(actual)
+        largas = [r for r in rachas if r >= 3]
+        print(f"    rachas de atasco en {nombre}: {len(rachas)} "
+              f"(>=3 turnos seguidos: {len(largas)}, "
+              f"max {max(rachas) if rachas else 0})")
+
+
+def autopsia(rival_csv, partidas, espejo=False, destino=None, censar=False):
     import main as m
     destino = destino or (_ROOT / "registros" / "autopsia")
     destino.mkdir(parents=True, exist_ok=True)
@@ -290,10 +450,19 @@ def autopsia(rival_csv, partidas, espejo=False, destino=None):
     modos = Counter()
     total_hallazgos = []
     modo_por_partida = {}
+    censo = []
     for i in range(partidas):
         resultado, decisiones, obs_final = jugar_grabando(
             agente, rival, deck_propio, deck_rival, asiento=i % 2)
         marcador[resultado] += 1
+        # CENSO: se levanta de TODAS las partidas, ganadas incluidas. Es el
+        # grupo de CONTROL -- sin el, un patron frecuente en las derrotas no se
+        # distingue de un patron frecuente y punto.
+        if censar:
+            for fila in censo_de_turnos(m, decisiones):
+                fila["partida"] = i
+                fila["resultado"] = resultado
+                censo.append(fila)
         # v2: las partidas al LIMITE tambien se autopsian (vs stall son
         # el modo de fallo interesante), ademas de derrotas y forfeits.
         if resultado not in ("pierde", "forfeit", "limite"):
@@ -330,6 +499,11 @@ def autopsia(rival_csv, partidas, espejo=False, destino=None):
               f"(en {len(por_partida)} partidas perdidas)")
     if not total_hallazgos:
         print("  sin hallazgos en las derrotas")
+    if censar:
+        (destino / f"{etiqueta}_censo.json").write_text(json.dumps(
+            {"rival": etiqueta, "partidas": partidas, "turnos": censo},
+            ensure_ascii=False))
+        resumen_censo(censo, etiqueta)
     return total_hallazgos
 
 
@@ -340,19 +514,22 @@ def main(argv):
     ap.add_argument("--todos", action="store_true",
                     help="autopsia contra todos los mazos de deck/rivales/")
     ap.add_argument("--partidas", type=int, default=100)
+    ap.add_argument("--censo", action="store_true",
+                    help="censo de turnos de TODAS las partidas (ganadas "
+                         "incluidas) y contraste derrota-vs-victoria")
     args = ap.parse_args(argv)
 
     if args.todos:
         for ruta in sorted((_ROOT / "deck" / "rivales").glob("*.csv")):
-            autopsia(ruta, args.partidas)
+            autopsia(ruta, args.partidas, censar=args.censo)
         return 0
     if args.espejo:
-        autopsia(None, args.partidas, espejo=True)
+        autopsia(None, args.partidas, espejo=True, censar=args.censo)
         return 0
     if not args.rival:
         print("indica --rival, --espejo o --todos")
         return 1
-    autopsia(args.rival, args.partidas)
+    autopsia(args.rival, args.partidas, censar=args.censo)
     return 0
 
 

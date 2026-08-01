@@ -607,6 +607,21 @@ LANA_SEL_PLANTA_DEMANDA = 900      # Planta que un atacante en juego aun pide
 LANA_SEL_PLANTA_SOBRANTE = 120     # mas Plantas de las que la mesa sabe usar
 LANA_SEL_INJUGABLE = 5             # no se puede poner en juego: ultimo recurso
 
+# Valor BASE de la capa PLAY por tener algo recuperable en el descarte, antes de
+# los bonos de necesidad (banca corta, linea caida, Forest, >=3 recuperables,
+# matchup). Que `lana_val` se quede EXACTAMENTE en esta base significa "hay una
+# carta ahi abajo, pero la mesa no la pide".
+LANA_PLAY_BASE_RECUPERABLE = 300
+
+# Techo del VALOR de jugar Lana's Aid (capa PLAY) cuando lo que se puede poner
+# en juego hoy no hace falta: Energia que nadie pide (todos los atacantes en
+# juego llegan ya a `ATTACK_ENERGY_REQ`, o la mano tiene mas Plantas de las que
+# caben este turno) o un Pokemon que cabe en la banca pero que ningun bono
+# reclama. Con `SCORE_SUPPORTER_VALUE_BASE` = 2400 y el factor 1.4, deja la
+# jugada en ~2540: sigue siendo jugable, pero cede el Supporter del turno a
+# cualquier otro con valor real (Dawn generico ~2680, Lillie's 5000).
+LANA_PLAY_SIN_DEMANDA = 100
+
 # Prioridad de Boss's Orders cuando, frente a Crustle, nuestro activo ex esta
 # bloqueado pero hay un objetivo en la banca rival al que si podemos pegar y que
 # podemos noquear o dejar sin poder retirarse. Debe superar a los cebos de robo
@@ -8407,6 +8422,10 @@ def agent(obs_dict: dict) -> list[int]:
     has_ogerpon = False
     has_hydrapple = False
     bench_count = 0
+    # Tope de banca del estado; los estados sinteticos de los tests no siempre
+    # lo traen, y las puertas de utilidad de Supporter ("¿cabe lo que traigo?")
+    # lo consultan en cada turno.
+    bench_max = getattr(my_state, 'benchMax', None) or 5
 
     for card in my_state.active + my_state.bench:
         if card is None:
@@ -11438,7 +11457,7 @@ def agent(obs_dict: dict) -> list[int]:
 
         total_recoverable = len(discard_basic_pokemon) + discard_basic_energy
         if total_recoverable >= 1:
-            lana_val = 300
+            lana_val = LANA_PLAY_BASE_RECUPERABLE
             if bench_count <= 1:
                 lana_val += 400
             elif bench_count <= 2:
@@ -11462,6 +11481,13 @@ def agent(obs_dict: dict) -> list[int]:
                         field_counts.get(Applin, 0) + field_counts.get(Dipplin, 0) == 0):
                     lana_val += 200
 
+        # Valor SOLO de los bonos de necesidad (banca corta, linea caida,
+        # Forest, >=3 recuperables, matchup): se congela ANTES del suelo de 950
+        # por energia, que es una razon distinta. `> LANA_PLAY_BASE_RECUPERABLE`
+        # es "algun bono se cobro", es decir, la mesa PIDE lo que hay ahi
+        # abajo -- y no solo "hay una carta recuperable".
+        _lana_val_bonos = lana_val
+
         # ¿La ENERGIA del descarte habilita un ataque? Antes esto solo sabia
         # mirar a Hydrapple ex (activo, o de banca con un cambio disponible), y
         # por eso callaba con un Tapu Bulu activo a una Planta de disparar Wood
@@ -11482,6 +11508,50 @@ def agent(obs_dict: dict) -> list[int]:
         if _lana_energy_enables_attack:
 
             lana_val = max(lana_val, 950)
+
+        # LO QUE SE LEVANTA TIENE QUE PODER JUGARSE (user, episodio 88904232
+        # paso 140 vs Marnie, GANADA -- la fuga no costo la partida, pero es
+        # fuga igual). Mesa: Hydrapple ex activo, banca LLENA (5/5),
+        # descarte SIN Plantas y con un unico Applin. Lana's Aid solo podia
+        # levantar ese Applin -- un Basico que con la banca llena no entra de
+        # ninguna forma, y de una linea que ya estaba evolucionada en el activo.
+        # El agente gasto el Supporter del turno para meter en la mano una carta
+        # MUERTA. La causa: el bloque de arriba cobra su base de 300 por
+        # "total_recoverable >= 1", que solo cuenta cartas del descarte y no
+        # mira ni el hueco de banca ni las vias de adjunte.
+        #
+        # La regla del user: Lana's se juega SOLO si de verdad hace falta algo
+        # que se pueda poner en juego ESTE turno -- Pokemon jugables o Energia
+        # adjuntable. Se aplica en dos escalones, con la MISMA lectura de mesa
+        # que decide luego que se levanta (`_pokemon_injugable` / `_plan_de_planta`):
+        #
+        #   1. VETO si nada de lo recuperable puede entrar en juego hoy: ningun
+        #      Pokemon jugable (`_pokemon_injugable`: banca llena mata a un
+        #      Basico, y una evolucion solo vive si su pre-evolucion esta EN
+        #      JUEGO) y ninguna via de adjunte viva para una Planta.
+        #   2. TECHO si lo jugable no hace FALTA: Energia que NADIE pide (todos
+        #      los atacantes en juego ya llegan a `ATTACK_ENERGY_REQ`, o la mano
+        #      ya tiene mas Plantas de las que caben hoy), o un Pokemon que cabe
+        #      en la banca pero que ningun bono de necesidad reclama (la linea
+        #      ya esta en juego, la banca no esta corta...). Es techo y no veto
+        #      porque la carta sigue siendo jugable: solo cede el turno a
+        #      cualquier otro Supporter util.
+        _lana_pk_jugable = any(
+            not _pokemon_injugable(_pid, field_counts, bench_count,
+                                   bench_max)
+            for _pid in discard_basic_pokemon)
+        _lana_pk_necesario = (_lana_pk_jugable
+                              and _lana_val_bonos > LANA_PLAY_BASE_RECUPERABLE)
+        _lana_energia_jugable = (discard_basic_energy >= 1
+                                 and _lana_plan_play.slots_hoy >= 1)
+        _lana_energia_util = (_lana_energia_jugable
+                              and _lana_plan_play.nuevas_utiles_hoy >= 1
+                              and _lana_plan_play.demanda >= 1)
+        if not (_lana_pk_jugable or _lana_energia_jugable):
+            lana_val = 0
+        elif not (_lana_pk_necesario or _lana_energia_util
+                  or _lana_energy_enables_attack):
+            lana_val = min(lana_val, LANA_PLAY_SIN_DEMANDA)
 
         values[Lanas_Aid] = lana_val
         # Se expone para la capa de scoring PLAY: distingue el caso en que Lana's
@@ -11544,32 +11614,39 @@ def agent(obs_dict: dict) -> list[int]:
             if not _cru_act_ok or not _cru_has_nondwebble_bench:
                 values[Boss_Orders] = 0
 
-        # Regla (user, vs Alakazam): con la BANCA LLENA (bench_count >= 5) solo
-        # jugamos Dawn si REALMENTE nos falta una evolucion (Fase 1 / Fase 2)
-        # para un Pokemon que YA tenemos en juego (banca o activo) y que
-        # podriamos evolucionar. Dawn busca hasta 3 Pokemon del mazo a la mano
-        # (adelgaza el mazo); con banca llena no podemos bajar basicos nuevos,
-        # asi que si NO necesitamos ninguna evolucion, jugar Dawn solo roba /
-        # vacia el mazo de mas y arriesga PERDER por deckout (no quedan cartas
-        # que robar). En ese caso NO se juega (valor 0). Solo se considera
-        # "necesaria" una evolucion si tenemos la pre-evolucion en juego, NO
-        # tenemos su evolucion en la mano y esa evolucion sigue disponible en el
-        # mazo (Dawn puede traerla).
-        if op_is_alakazam_deck and bench_count >= 5:
-            _ALK_DAWN_EVO = {
-                Chikorita: Bayleef,
-                Bayleef: Meganium,
-                Applin: Dipplin,
-                Dipplin: Hydrapple_ex,
-            }
-            _alk_dawn_need_evo = False
-            for _alk_lo, _alk_hi in _ALK_DAWN_EVO.items():
-                if (field_counts.get(_alk_lo, 0) >= 1
-                        and hand_counts.get(_alk_hi, 0) < 1
-                        and CARTAS_ACTIVAS_EN_MAZO.get(_alk_hi, {}).get(ESTADO_MAZO, 0) > 0):
-                    _alk_dawn_need_evo = True
+        # Regla (user, vs Alakazam): con la BANCA LLENA solo jugamos Dawn si
+        # REALMENTE nos falta una evolucion (Fase 1 / Fase 2) para un Pokemon
+        # que YA tenemos en juego (banca o activo) y que podriamos evolucionar.
+        # Dawn busca hasta 3 Pokemon del mazo a la mano (adelgaza el mazo); con
+        # banca llena no podemos bajar basicos nuevos, asi que si NO
+        # necesitamos ninguna evolucion, jugar Dawn solo roba / vacia el mazo de
+        # mas y arriesga PERDER por deckout (no quedan cartas que robar). En ese
+        # caso NO se juega (valor 0). Solo se considera "necesaria" una
+        # evolucion si tenemos la pre-evolucion en juego, NO tenemos su
+        # evolucion en la mano y esa evolucion sigue disponible en el mazo (Dawn
+        # puede traerla).
+        #
+        # GENERALIZADA A TODOS LOS MATCHUPS (user, episodio 88904232 paso 140
+        # vs Marnie): es la MISMA puerta de utilidad que la de Lana's Aid
+        # de mas arriba -- lo que el Supporter trae a la mano tiene que poder
+        # ponerse en juego --, y no tenia nada de especifico de Alakazam. En ese
+        # paso, con Lana's ya vetada, el Supporter del turno se iba en un Dawn
+        # que con la banca 5/5 y las dos lineas ya evolucionadas (Meganium +
+        # Hydrapple ex en juego) solo podia traer cartas inertes. Los pares
+        # pre->evo salen ahora de `EVO_LINES` en vez de una tabla fija.
+        if bench_count >= bench_max:
+            _dawn_need_evo = False
+            for _dw_linea in EVO_LINES:
+                for _dw_pre, _dw_evo in zip(_dw_linea, _dw_linea[1:]):
+                    if (field_counts.get(_dw_pre, 0) >= 1
+                            and hand_counts.get(_dw_evo, 0) < 1
+                            and CARTAS_ACTIVAS_EN_MAZO.get(
+                                _dw_evo, {}).get(ESTADO_MAZO, 0) > 0):
+                        _dawn_need_evo = True
+                        break
+                if _dawn_need_evo:
                     break
-            if not _alk_dawn_need_evo:
+            if not _dawn_need_evo:
                 values[Dawn] = 0
 
         return values
