@@ -63,6 +63,9 @@ from cg.api import OptionType, SelectContext
 
 MAX_PASOS = 3000
 MANO_MINIMA_ESTERIL = 4
+# Carta de cambio de la lista propia: la misma id que en main.py activa
+# `has_switch_card` (retirada gratis sin pagar energia).
+CARTA_CAMBIO = 1123
 
 
 def jugar_grabando(agente, rival, deck_propio, deck_rival, asiento):
@@ -242,6 +245,41 @@ def censo_de_turnos(m, decisiones):
             and len(b["energies"]) * m._grass_mult()
             >= (m.ATTACK_ENERGY_REQ.get(b["id"]) or 99))
 
+        # ¿Habia ESCAPATORIA del atasco? Es la pregunta que decide la FORMA del
+        # arreglo: si la habia y no se tomo, es un problema de PUNTUACION; si no
+        # la habia, ninguna regla de scoring lo toca y hay que subir aguas
+        # arriba (que cuerpo se promueve y con que coste de retirada).
+        # Tres vias, las mismas que reconoce el agente:
+        #   * el menu OFRECE retirada (`can_switch`) en algun select del turno;
+        #   * carta de cambio en la mano (id 1123, la que activa `has_switch_
+        #     card`);
+        #   * la retirada se vuelve pagable con la carga que AUN cabe hoy.
+        # La ultima espeja `_grass_unlocks_active_retreat`: `energies` ya viene
+        # en simbolos EFECTIVOS y cada Planta fisica nueva aporta `unidad`
+        # (2 con Meganium en juego por Wild Growth), asi que el deficit se mide
+        # en CARTAS.
+        retirada_en_menu = any(
+            int(o.get("type", -1)) == int(OptionType.RETREAT)
+            for d in mains for o in d["obs"]["select"]["option"])
+        cambio_en_mano = any(c["id"] == CARTA_CAMBIO for c in mano)
+        retirada_pagable_hoy = False
+        if act is not None and not puede_retirar:
+            campo = [act] + [b for b in (yo.get("bench") or []) if b]
+            unidad = 2 if any(b["id"] == m.Meganium for b in campo) else 1
+            # Vias de adjunte que pueden dejar una Planta EN EL ACTIVO hoy:
+            # el manual si sigue libre, Ripening Charge de cada Hydrapple ex
+            # (carga a cualquiera) y Teal Dance solo si el ACTIVO es el Ogerpon.
+            vias = (0 if cur.get("energyAttached") else 1)
+            vias += sum(1 for b in campo if b["id"] == m.Hydrapple_ex)
+            if act["id"] == m.Teal_Mask_Ogerpon_ex:
+                vias += 1
+            plantas = sum(1 for c in mano if c["id"] == m.Basic_Grass_Energy)
+            falta = m.RETREAT_COST.get(act["id"], 1) - len(act["energies"])
+            necesarias = -(-falta // unidad)
+            retirada_pagable_hoy = 1 <= necesarias <= min(vias, plantas)
+        escapatoria = bool(retirada_en_menu or cambio_en_mano
+                           or retirada_pagable_hoy)
+
         eleccion_cierre = None
         if ultimo["eleccion"]:
             eleccion_cierre = int(ultimo["obs"]["select"]["option"][
@@ -266,6 +304,10 @@ def censo_de_turnos(m, decisiones):
             "puede_atacar": puede_atacar,
             "puede_retirar": puede_retirar,
             "atascado": atascado,
+            "escapatoria": escapatoria,
+            "retirada_en_menu": retirada_en_menu,
+            "cambio_en_mano": cambio_en_mano,
+            "retirada_pagable_hoy": retirada_pagable_hoy,
             "listos_banca": listos_banca,
             "plantas_mano": sum(1 for c in mano
                                 if c["id"] == m.Basic_Grass_Energy),
@@ -390,6 +432,10 @@ def resumen_censo(censo, etiqueta):
         "activo ATASCADO (ni ataca ni retira)": lambda f: f["atascado"] is True,
         "atascado + atacante listo en banca":
             lambda f: f["atascado"] is True and f["listos_banca"] >= 1,
+        "atascado SIN escapatoria (no arreglable puntuando)":
+            lambda f: f["atascado"] is True and not f.get("escapatoria"),
+        "atascado CON escapatoria y no se tomo":
+            lambda f: f["atascado"] is True and bool(f.get("escapatoria")),
         "sin atacante listo en ningun sitio":
             lambda f: f["listos_banca"] == 0 and f["puede_atacar"] is not True,
         "sin Plantas en la mano": lambda f: f["plantas_mano"] == 0,
