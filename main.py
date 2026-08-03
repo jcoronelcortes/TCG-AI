@@ -188,20 +188,6 @@ Team_Rockets_Watchtower = 1256
 # y enciende la habilidad Festival Lead de CUALQUIER Dipplin en juego (el suyo
 # y el nuestro). Ver `FESTIVAL_LEAD_IDS` y `_festival_grounds_in_play`.
 Festival_Grounds = 1245
-# Spikemuth Gym (1259): estadio del arquetipo Marnie's Grimmsnarl ex. "Una vez
-# durante el turno de CADA jugador, ese jugador puede buscar en su baraja 1
-# Pokemon de Marnie, revelarlo y ponerlo en su mano."
-#
-# Nominalmente COMPARTIDO, pero de una sola cara en la practica: nosotros no
-# jugamos ningun Pokemon de Marnie, asi que solo les busca a ELLOS. A diferencia
-# de Festival Grounds -que tambien enciende nuestro Dipplin y por eso llega
-# filtrado por `_festival_lead_hostil`-, quitarlo NUNCA nos cuesta nada, asi que
-# no necesita filtro: si esta en mesa, es suyo y es motor puro del rival.
-#
-# Medido sobre el top-100 del leaderboard (decks_competidores/, ago 2026): el
-# 49% de los mazos lo lleva, y los que lo llevan lo llevan a 4 copias. Es el
-# estadio mas extendido del meta con diferencia y el agente no lo veia.
-Spikemuth_Gym = 1259
 # Grand Tree (Stadium ACE SPEC): "Una vez durante el turno de CADA jugador, ese
 # jugador puede buscar en su baraja 1 Pokemon de Fase 1 que evolucione de uno de
 # sus Pokemon Basicos y ponerlo sobre el para evolucionarlo. Si evoluciono asi,
@@ -307,19 +293,6 @@ POWERFUL_HAND_ATTACK_ID = 1072
 # llamador pase un parametro extra volveriamos al mismo 0 silencioso en la
 # mayoria de los sitios.
 DO_THE_WAVE_ATTACK_ID = 115
-
-# Rapid-Fire Combo (Mega Kangaskhan ex 756): 200 impresos + 50 por cada CARA,
-# lanzando monedas hasta la primera cruz. El numero de caras es una geometrica
-# de p=1/2, cuya media es 1, asi que la esperanza del bonus es +50 y el dano
-# medio real es 250 (y >= 250 la mitad de las veces).
-#
-# El 200 impreso deja a nuestro Teal Mask Ogerpon ex (210 PV) "a salvo" de un
-# golpe que lo mata el 50% de las veces. Medido sobre el meta real: el winrate
-# contra las listas Crustle cae de forma monotona con las copias de Mega
-# Kangaskhan ex (0 -> 88.0%, 2 -> 79.8%, 4 -> 70.9%), asi que la amenaza del
-# matchup es el Kangaskhan, no el muro que le da nombre.
-RAPID_FIRE_COMBO_ATTACK_ID = 1092
-RAPID_FIRE_COMBO_BONUS_ESPERADO = 50
 
 # Festival Lead (habilidad de Dipplin 93): con Festival Grounds EN MESA, este
 # Pokemon puede usar un ataque suyo DOS veces; si el primero noquea a nuestro
@@ -2259,25 +2232,6 @@ PROMO_KO_BONUS = 20000
 # y un empate a -10000 dejaria el desempate al azar del orden de opciones, justo
 # entre el cuerpo que aguanta y el que nos hace perder.
 PROMO_MATCH_POINT_VETO = -30000
-# Promocion frente a un MURO INMUNE a nuestros ex (Crustle/Sylveon): bono al
-# candidato que le hace ALGUN dano, cuando existe otro que le hace CERO.
-#
-# No es un duplicado de PROMO_KO_BONUS: ahi la pregunta es "remata", aqui es
-# "hace algo". Contra un Crustle de 150 PV rematar de un golpe pide un Tapu
-# Bulu a 4 energias -- de nuestros no-ex es el UNICO que llega (220); Meganium
-# a 4 se queda en 140 y Dipplin hace 80 --, asi que el bono del KO casi nunca
-# se cobra y la eleccion la decidian supervivencia y premios, que prefieren el
-# ex de mas vida... que al muro le hace 0.
-#
-# Medido (60 partidas vs crustle_wall_2): en 40 promociones con el muro
-# enfrente habia un no-ex cargado en 24, y solo se subia en 11. En 11 (27.5%)
-# se promovia un ex a CERO energias -- el estado que la sonda por turno
-# encontro en los 22 turnos secos.
-#
-# 4000 lo situa por encima de PROMO_DOOMED_PENALTY (6000) solo parcialmente y
-# muy por debajo de PROMO_KO_BONUS (20000) y del veto de match point: reordena
-# dentro de la banda de supervivencia sin desactivar ninguna regla anterior.
-PROMO_HITS_WALL_BONUS = 4000
 
 # Serial del Pokemon ACTIVO cuya HABILIDAD ofrecio el ultimo MENU PRINCIPAL del
 # turno (None si ninguna). Ver el bloque que lo actualiza dentro de agent().
@@ -2636,8 +2590,7 @@ def _tiene_rule_box(card_id) -> bool:
     return bool(getattr(_d, 'ex', False) or getattr(_d, 'megaEx', False))
 
 
-def _op_active_attack_damage_to(op_active, target, op_hand_count=None,
-                                proyectar_moneda=False):
+def _op_active_attack_damage_to(op_active, target, op_hand_count=None):
     """Maximo dano IMPRESO que el activo rival puede hacerle a `target`.
 
     Resuelve los IDs de ataque via `attack_table` (los `card.attacks` son ints,
@@ -2662,24 +2615,6 @@ def _op_active_attack_damage_to(op_active, target, op_hand_count=None,
     BANCA rival. La escala se lee del flag por turno `_op_bench_count` (ver
     DO_THE_WAVE_ATTACK_ID): asi la ven TODOS los llamadores, sin depender de que
     cada uno recuerde pasar un parametro extra.
-
-    EXCEPCION 3 -- Rapid-Fire Combo (Mega Kangaskhan ex 756, attackId 1092):
-    dano impreso 200, pero la carta lanza monedas hasta sacar cruz y suma +50
-    por cada cara. La esperanza del bonus es exactamente +50 (media de una
-    geometrica con p=1/2), asi que el dano REAL medio es 250, y el 50% de las
-    veces es >= 250.
-
-    Esa diferencia decide un matchup entero: nuestro Teal Mask Ogerpon ex tiene
-    210 PV, asi que con el 200 impreso el modelo lo da por VIVO ante un golpe
-    que lo mata la mitad de las veces. Medido sobre el meta real, el winrate
-    contra las listas Crustle cae de forma monotona con las copias de Mega
-    Kangaskhan ex que lleven: 0 copias -> 88.0%, 2 -> 79.8%, 4 -> 70.9%.
-
-    Por eso el bonus es OPT-IN (`proyectar_moneda`) y no automatico: esta
-    funcion alimenta a la vez al estimador de RIESGO (`active_ko_likely`, que
-    sobreestima a proposito) y a `_active_doomed_real`, que exige CERTEZA para
-    regalar un cuerpo. El 200 impreso es el suelo garantizado y se queda como
-    default; el 250 es la esperanza y solo lo pide quien mide riesgo.
     """
     if op_active is None or target is None:
         return 0
@@ -2699,8 +2634,6 @@ def _op_active_attack_damage_to(op_active, target, op_hand_count=None,
             _dmg = 20 * (op_hand_count + 2)
         elif _aid == DO_THE_WAVE_ATTACK_ID:
             _dmg = max(_dmg, 20 * _op_bench_count)
-        elif _aid == RAPID_FIRE_COMBO_ATTACK_ID and proyectar_moneda:
-            _dmg += RAPID_FIRE_COMBO_BONUS_ESPERADO
         if _need <= avail and _dmg > best:
             best = _dmg
     if best <= 0:
@@ -6171,8 +6104,7 @@ def _ub_cancel_meowth(ctx) -> bool:
 
 
 def _contra_estadio_urgente(neutralization_zone_active, watchtower_in_play,
-                            forest_in_play, festival_lead_hostil=False,
-                            spikemuth_in_play=False) -> bool:
+                            forest_in_play, festival_lead_hostil=False) -> bool:
     """¿Hay un estadio RIVAL en mesa que apaga parte de nuestro motor -o
     enciende el suyo- y que nuestro estadio quitaria? Con nuestro Forest ya en
     mesa no hay nada que levantar.
@@ -6187,18 +6119,12 @@ def _contra_estadio_urgente(neutralization_zone_active, watchtower_in_play,
         Es el unico de los tres que es de DOBLE FILO (nuestro Dipplin tambien
         lo gana), por eso llega ya filtrado en `festival_lead_hostil`: solo
         cuenta cuando hemos visto la linea Applin/Dipplin del rival.
-      * Spikemuth Gym: no apaga nada nuestro, pero es el buscador que sostiene
-        al arquetipo mas jugado del meta (49% del top-100, siempre a 4 copias)
-        y solo busca Pokemon de Marnie, que nosotros no llevamos. Por eso NO
-        necesita el filtro de "hostil" que si necesita Festival Grounds: no hay
-        ninguna posicion en la que quitarlo nos perjudique.
-
     Un solo predicado para las DOS caras de la misma decision: el scorer de
     DESCARTE lo usa para no soltar la carta y la rama PLAY para no vetarla. Que
     vivieran separados producia el peor resultado posible -- conservar en la
     mano una carta que luego era ilegal jugar (log 88359220)."""
     return ((neutralization_zone_active or watchtower_in_play
-             or festival_lead_hostil or spikemuth_in_play)
+             or festival_lead_hostil)
             and not forest_in_play)
 
 
@@ -10019,12 +9945,6 @@ def agent(obs_dict: dict) -> list[int]:
     # reemplazar el estadio (p.ej. con Forest of Vitality).
     watchtower_in_play = (stadium_id == Team_Rockets_Watchtower)
 
-    # Spikemuth Gym: buscador de Pokemon de Marnie una vez por turno. No apaga
-    # nada nuestro, pero es el MOTOR de consistencia del arquetipo mas jugado
-    # del meta y solo funciona para ellos (no llevamos Pokemon de Marnie), asi
-    # que levantarlo con nuestro Forest es ganancia limpia.
-    spikemuth_in_play = (stadium_id == Spikemuth_Gym)
-
     # Iron Thorns ex ("Initialization") en el ACTIVO rival (P1.4): anula las
     # habilidades de TODOS los Pokemon con Rule Box de ambos lados. Teal
     # Dance / Ripening / Flip the Script desaparecen del menu (lo impone el
@@ -10302,20 +10222,12 @@ def agent(obs_dict: dict) -> list[int]:
             # nuestros ex. Se acota al activo Dipplin por la misma razon que
             # Alakazam: no alterar la lectura de "activo condenado" en el resto
             # de matchups (log 88971843: el agente creia que Dipplin pegaba 0).
-            # Mega Kangaskhan ex: mismo caso pero al reves -- el dano impreso SI
-            # se lee, y aun asi subestima. Rapid-Fire Combo suma +50 de media
-            # por las monedas, de modo que su 200 impreso son 250 reales: la
-            # diferencia entre creer vivo y dar por condenado a nuestro Teal
-            # Mask Ogerpon ex (210 PV). Aqui se proyecta la ESPERANZA porque
-            # este es el estimador de RIESGO; `_active_doomed_real`, que exige
-            # certeza para regalar un cuerpo, sigue con el 200 garantizado.
-            if op_active.id in (Alakazam_ex, Dipplin, Mega_Kangaskhan_ex):
+            if op_active.id in (Alakazam_ex, Dipplin):
                 estimated_op_damage = max(
                     estimated_op_damage,
                     _op_active_attack_damage_to(
                         op_active, my_active,
-                        getattr(op_state, 'handCount', None),
-                        proyectar_moneda=True))
+                        getattr(op_state, 'handCount', None)))
 
             # Burst de banca rival (P0.3): Dusknoir 133 ("Cursed Blast": 13
             # contadores = 130) y Dusclops 132 (5 = 50) meten dano EXTRA desde
@@ -17738,39 +17650,6 @@ def agent(obs_dict: dict) -> list[int]:
             neutralization_zone_active)
         return _peff >= (_promo_op_act.hp or 0)
 
-    def _promo_dana_op(_pk):
-        """El candidato le hace ALGUN dano al activo rival tras promoverlo.
-
-        Mismo calculo que `_promo_kos_op` pero sin exigir el KO. Existe porque
-        contra un muro inmune a nuestros ex (Crustle/Sylveon) la diferencia que
-        decide no es "remata / no remata" sino "hace algo / hace CERO": ahi el
-        KO de un golpe pide un Tapu Bulu a 4 energias contra 150 PV, casi nunca
-        disponible, mientras un Dipplin a 2 ya pega 80.
-        """
-        if _promo_op_act is None or _pk is None:
-            return False
-        _pe = len(_pk.energies) * _grass_mult()
-        if not state.energyAttached and hand_counts.get(Basic_Grass_Energy, 0) >= 1:
-            _pe += _grass_attach_unit()
-        _pbase = _attacker_base_damage(
-            _pk.id, _promo_op_act, _pe, grass_scale=total_grass,
-            teal_self_energy=_pe, bench_count=max(0, bench_count - 1))
-        if _pbase <= 0:
-            return False
-        return _our_effective_damage(
-            _pk, _promo_op_act, _pbase, meganium_in_play,
-            neutralization_zone_active) > 0
-
-    # ¿Hay ALGUN candidato que dane al muro? Solo se calcula frente a un activo
-    # rival inmune a nuestros ex, que es donde "hacer 0" deja de ser un matiz y
-    # pasa a ser el turno entero perdido. Si ninguno llega, el bono no aplica y
-    # mandan supervivencia y premios como siempre.
-    _promo_hay_quien_dana_muro = False
-    if op_has_ex_immune_active and (context == SelectContext.SWITCH
-                                    or context == SelectContext.TO_ACTIVE):
-        _promo_hay_quien_dana_muro = any(
-            _pb is not None and _promo_dana_op(_pb) for _pb in my_state.bench)
-
     if (context == SelectContext.SWITCH or context == SelectContext.TO_ACTIVE):
         for _pb in my_state.bench:
             if _pb is None:
@@ -18971,14 +18850,6 @@ def agent(obs_dict: dict) -> list[int]:
                             # despues muera; si no noquea, gobiernan la
                             # supervivencia y los premios de abajo.
                             score += PROMO_KO_BONUS
-                        elif (_promo_hay_quien_dana_muro
-                                and isinstance(card, Pokemon)
-                                and _promo_dana_op(card)):
-                            # Contra el muro inmune, subir un cuerpo que le hace
-                            # CERO regala el turno entero. Solo se aplica si hay
-                            # alternativa: si ninguno le llega, este bono no
-                            # existe y deciden supervivencia y premios.
-                            score += PROMO_HITS_WALL_BONUS
                         elif (_promote_setup_ko_attacker is not None
                                 and card is _promote_setup_ko_attacker
                                 and _promo_llega_a_atacar):
@@ -20027,8 +19898,7 @@ def agent(obs_dict: dict) -> list[int]:
                         # solo se juega desde la mano.
                         _forest_counters_op_stadium = _contra_estadio_urgente(
                             neutralization_zone_active, watchtower_in_play,
-                            forest_in_play, _festival_lead_hostil,
-                            spikemuth_in_play)
+                            forest_in_play, _festival_lead_hostil)
                         if (_forest_counters_op_stadium
                                 and hand_counts.get(Forest_of_Vitality, 0) <= 1):
                             score = 2
@@ -21793,8 +21663,7 @@ def agent(obs_dict: dict) -> list[int]:
                         data.cardType == CardType.STADIUM
                         and _contra_estadio_urgente(
                             neutralization_zone_active, watchtower_in_play,
-                            forest_in_play, _festival_lead_hostil,
-                            spikemuth_in_play))
+                            forest_in_play, _festival_lead_hostil))
                     if (op_is_comfey_deck and score > 0
                             and not _quita_candado_rival
                             and card.id not in (
@@ -21833,8 +21702,7 @@ def agent(obs_dict: dict) -> list[int]:
                         # Solo se juega para BORRAR un estadio rival molesto.
                         score = (14000 if _contra_estadio_urgente(
                             neutralization_zone_active, watchtower_in_play,
-                            forest_in_play, _festival_lead_hostil,
-                            spikemuth_in_play) else SCORE_VETO)
+                            forest_in_play, _festival_lead_hostil) else SCORE_VETO)
 
                 # Bajar el BASICO que sirve de raiz a Grand Tree (regla del
                 # user: conseguirlo "para asi luego jugar el estadio"). Bono
