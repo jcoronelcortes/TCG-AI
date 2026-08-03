@@ -1,8 +1,21 @@
-"""Matriz de matchups: winrate del agente contra CADA mazo de deck/rivales/.
+"""Matriz de matchups: winrate del agente contra CADA mazo rival.
 
-Fase 8 de la arquitectura de mejora de estrategia. Recorre todos los CSV de
-deck/rivales/ (los arquetipos sinteticos de utils/construir_mazos_meta.py mas
-los cosechados) y juega N partidas contra el bot generico con cada uno,
+Por defecto mide contra `deck/rivales_reales/` -- las listas REALES del
+leaderboard (utils/rivales_reales.py), con su peso de meta.
+
+Los sinteticos de `deck/rivales/` siguen ahi pero YA NO son el default, y
+conviene saber por que: medido contra el top-300, **8 de sus 17 mazos son
+arquetipos que no existen en el meta** (Comfey, Iron Thorns, Jellicent, Raging
+Bolt, Cornerstone/Cubchoo, Hop's, Fuego Gouging, Comfey/Yveltal). Como la matriz
+pondera todos los mazos por igual salvo que se pase --pesos, ejecutarla contra
+esa carpeta gastaba casi la mitad del presupuesto de partidas en rivales
+imaginarios -- y un cambio que ganase ahi y perdiese contra Marnie parecia
+bueno. Se conservan porque siguen sirviendo para probar MECANICAS concretas
+(el lock de Iron Thorns, el mill de Comfey) que el meta actual no ofrece.
+
+
+Fase 8 de la arquitectura de mejora de estrategia. Recorre todos los CSV de la
+carpeta de rivales y juega N partidas contra el bot generico con cada uno,
 alternando asientos. Imprime la tabla ordenada del matchup mas debil al mas
 fuerte, con el intervalo de Wilson 95% y los forfeits.
 
@@ -10,6 +23,13 @@ Con --base <ref-git> imprime ademas el DELTA por matchup contra esa version:
 detecta cuando una regla nueva mejora un matchup degradando otro (la clase de
 colision Cubchoo/Cornerstone). OJO con el ruido: con 200 partidas el delta
 oscila +-7 puntos; solo los deltas grandes y consistentes son senal.
+
+Ese +-7 esta CONFIRMADO por medicion directa (ago 2026): en una corrida a 200
+partidas con --base, los 83 mazos que no podian verse afectados por el cambio
+-- codigo behavioralmente identico en los dos brazos -- se movieron entre -6.5
+y +7.5 puntos. De ahi que el default de --partidas suba a 400 y que exista
+--control-carta: el aviso estaba escrito desde el principio y aun asi es facil
+leer como senal un delta que cabe entero dentro del ruido.
 
 Con --pesos (y el corpus de utils/rivales_reales.py) el resumen deja de ser una
 media simple: cada matchup pesa lo que ese arquetipo pesa en el meta real. Es la
@@ -193,7 +213,9 @@ def main(argv):
                     help="ref de git: imprime el delta por matchup")
     ap.add_argument("--solo", default=None,
                     help="lista de mazos separada por comas (default: todos)")
-    ap.add_argument("--rivales", default=str(_ROOT / "deck" / "rivales"))
+    ap.add_argument("--rivales", default=str(_ROOT / "deck" / "rivales_reales"),
+                    help="carpeta de mazos rivales (default: deck/rivales_reales, "
+                         "las listas REALES del leaderboard con sus pesos)")
     ap.add_argument("--pesos", action="store_true",
                     help="pondera por frecuencia real en el meta (necesita el "
                          "pesos.csv de utils/rivales_reales.py)")
