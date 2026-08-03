@@ -41,7 +41,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT / "utils"))
 
-from pureza import analizar, BUILTINS, _mapa_paquete  # noqa: E402
+from pureza import analizar, BUILTINS, _mapa_paquete, nombres_libres  # noqa: E402
 
 CABECERA = '''"""{titulo}
 
@@ -100,21 +100,32 @@ def planificar(lote, main_py):
         for n in spec["nombres"]:
             donde[n] = mod
 
+    # Un lote puede listar `def`/`class` y tambien ASIGNACIONES: las tablas
+    # `_REGLAS_*`/`_AJUSTES_*` del motor de reglas son datos que pertenecen al
+    # modulo de su carta, y sin ellas el scorer no puede irse.
+    nodos = dict(a["definiciones"])
+    libres = dict(a["libres"])
+    for n, nodo in a["asignaciones"].items():
+        nodos.setdefault(n, nodo)
+        libres.setdefault(n, nombres_libres(nodo))
+
     problemas = []
     for n in donde:
-        if n not in a["definiciones"]:
-            problemas.append(f"{n}: no es una definicion de nivel de modulo de main.py")
-        elif n not in a["movibles"]:
+        if n not in nodos:
+            problemas.append(f"{n}: no esta a nivel de modulo en main.py")
+        elif n in a["definiciones"] and n not in a["movibles"]:
             problemas.append(f"{n}: NO es puro ({a['razon'].get(n, '?')})")
+        elif n in a["asignaciones"] and n in a["mutables"]:
+            problemas.append(f"{n}: es estado MUTABLE, no una tabla constante")
 
     plan = {}
     for mod, spec in lote.items():
         nombres = spec["nombres"]
         imports_stdlib, imports_from, del_paquete, cruzados = set(), {}, {}, {}
         for n in nombres:
-            if n not in a["libres"]:
+            if n not in libres:
                 continue
-            for libre in a["libres"][n]:
+            for libre in libres[n]:
                 if libre in BUILTINS or libre in nombres:
                     continue
                 if libre in donde and donde[libre] != mod:
@@ -145,7 +156,7 @@ def planificar(lote, main_py):
 
         rangos = []
         for n in nombres:
-            rangos.append((_bloque_con_comentarios(lineas, a["definiciones"][n]), n))
+            rangos.append((_bloque_con_comentarios(lineas, nodos[n]), n))
         rangos.sort()
         plan[mod] = {
             "titulo": spec.get("titulo", "Extraido de main.py."),

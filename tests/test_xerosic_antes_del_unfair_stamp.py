@@ -190,8 +190,15 @@ def test_si_xerosic_no_va_a_jugarse_el_sello_no_cede():
     """Guard de `cede_el_orden_a_xerosic`: si algún otro rail tumba a Xerosic a
     `XEROSIC_SCORE_LAST_RESORT` (p.ej. `alakazam_cede_a_gusteo_ganador`, donde
     el turno lo decide un Boss's), el Sello no le cede el paso a nadie."""
-    orig = m._score_xerosic_play
-    m._score_xerosic_play = lambda ctx: m.XEROSIC_SCORE_LAST_RESORT
+    # Xerosic hay que parchearlo en `ptcg.decision.disrupcion`, NO en `main`:
+    # quien lo consulta es `_score_unfair_stamp_play`, que vive en ese mismo
+    # modulo y resuelve el nombre en SU espacio. `main` solo tiene una copia del
+    # binding (llego por `import *`), asi que parchearla ahi no llega al scorer.
+    # El Sello si se parchea en `main`, porque quien lo llama es `agent()`.
+    from ptcg.decision import disrupcion
+
+    orig = disrupcion._score_xerosic_play
+    disrupcion._score_xerosic_play = lambda ctx: m.XEROSIC_SCORE_LAST_RESORT
     try:
         obs = _obs()
         visto = {}
@@ -208,7 +215,7 @@ def test_si_xerosic_no_va_a_jugarse_el_sello_no_cede():
         finally:
             m._score_unfair_stamp_play = orig_stamp
     finally:
-        m._score_xerosic_play = orig
+        disrupcion._score_xerosic_play = orig
     assert visto["stamp"] > 0, visto
 
 
