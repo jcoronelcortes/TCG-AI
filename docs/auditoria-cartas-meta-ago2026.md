@@ -102,6 +102,42 @@ ANTES de que existan `total_grass` y las banderas de matchup, así que no se
 puede calcular ahí el daño exacto con `_attacker_base_damage` (ocho tests
 revientan con `UnboundLocalError`).
 
+## Cynthia Garchomp — 5.3% del meta
+
+**Hallazgo verificado y NO implementado: Cynthia's Roserade (carta 342).**
+
+Su habilidad *Cheer* dice: «Attacks used by your Cynthia's Pokémon do **30 more
+damage** to your opponent's Active Pokémon (before applying Weakness and
+Resistance)». Está en el **100% de las listas**, con **3.1 copias de media**, y
+`main.py` no conoce la carta.
+
+Mecánica verificada contra el motor (30 partidas). El daño que encaja nuestro
+activo se desplaza exactamente +30 cuando Roserade está en su campo:
+
+| Sin Roserade | Con Roserade |
+|---|---|
+| 40 | **70** |
+| 100 | **130** |
+| — | 160 |
+
+Los pares 40→70 y 100→130 son el mismo ataque con +30. El 160 sugiere que
+**varias copias acumulan** (el texto no lleva cláusula de "no se acumula").
+
+Consecuencia: `_op_active_attack_damage_to` y `_op_best_damage_vs` subestiman su
+daño en 30 o más siempre que Roserade esté en juego, que es siempre en este
+arquetipo. Es la misma clase de hueco que Rapid-Fire Combo.
+
+**Por qué NO se implementa.** Es exactamente el mismo tipo de cambio que la
+proyección de Rapid-Fire Combo (+50 al daño estimado de Mega Kangaskhan): se
+implementó, midió NEUTRO y se revirtió. Aquí el peso es aún menor (5.3% frente
+al 9% de Crustle), así que el resultado esperado es el mismo con menos margen.
+Se deja documentado y medido para que, si algún día el gate recupera
+resolución, no haya que redescubrirlo.
+
+Otras cartas del arquetipo, sin impacto: **Cynthia's Power Weight** (+70 PV,
+tool) llega ya sumado en el `hp` de la observación, igual que Hero's Cape;
+**Fighting Gong**, **Hilda** y **Surfer** son consistencia rival.
+
 ---
 
 ## Estado del gate al cerrar la auditoría
