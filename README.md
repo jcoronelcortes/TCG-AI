@@ -120,9 +120,27 @@ La documentación detallada por módulo está disponible en [docs/README.md](doc
 
 ## Dependencias
 
-- Python 3.10+ (recomendado)
-- Las dependencias internas del simulador definidas en `cg/`.
-- El proyecto usa `ctypes` para integrar con la librería nativa de simulación.
+**El agente no tiene ninguna dependencia de terceros, y es deliberado.** `main.py`,
+`utils/` y el simulador vendorizado en `cg/` usan sólo la biblioteca estándar más
+`ctypes` para la librería nativa, porque el agente se ejecuta en el entorno de
+competición de Kaggle, donde no se instala nada. Antes de importar un paquete de
+terceros en `main.py` o en `utils/`, comprobar que ese entorno lo tiene.
+
+- Python 3.10+ (probado con 3.11.5).
+- Las dependencias internas del simulador definidas en `cg/` (incluidas en el repo).
+
+Lo que sí necesita instalarse es el entorno de **desarrollo**:
+
+```bash
+python -m pip install -r requirements-dev.txt   # pytest, pytest-cov, hypothesis
+python -m pytest -q
+```
+
+Sin `hypothesis`, `tests/test_invariantes.py` no colecciona y pytest aborta la
+corrida entera con un error de colección — no lo salta.
+
+`requirements-render.txt` (pillow, numpy, pandas) es aparte y **opcional**: sólo
+lo usa `deck/render_deck_image.py`.
 
 ## Objetivo del proyecto
 

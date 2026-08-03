@@ -1,0 +1,11 @@
+# Dependencias OPCIONALES de un solo script: `deck/render_deck_image.py`, que
+# dibuja la imagen del mazo. No hacen falta ni para el agente ni para la suite
+# de pruebas, y por eso van aparte de `requirements-dev.txt` (instalar pandas y
+# numpy solo para correr los tests seria peaje gratis).
+#
+#   python -m pip install -r requirements-render.txt
+#   python deck/render_deck_image.py
+
+pillow>=9.4
+numpy>=1.24
+pandas>=2.0

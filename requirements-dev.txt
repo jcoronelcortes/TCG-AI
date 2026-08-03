@@ -1,0 +1,26 @@
+# Dependencias de DESARROLLO (pruebas y gates).
+#
+# EL AGENTE NO NECESITA NINGUNA DE ESTAS. `main.py`, `utils/` y el simulador
+# vendorizado en `cg/` usan SOLO la biblioteca estandar de Python mas `ctypes`
+# para la libreria nativa; esa es una restriccion deliberada, porque el agente
+# se ejecuta en el entorno de competicion de Kaggle, donde no se instala nada.
+# Antes de importar un paquete de terceros en `main.py` o en `utils/`, comprobar
+# que ese entorno lo tiene.
+#
+#   python -m pip install -r requirements-dev.txt
+#   python -m pytest -q
+#
+# Probado con Python 3.11.5. Los pines son SUELOS (>=), no anclajes: aqui no hay
+# nada que reproducir bit a bit, solo evitar versiones demasiado viejas.
+
+# Runner de la suite (924 pruebas).
+pytest>=7.4
+
+# Cobertura: `pytest -q --cov=. --cov-report=term-missing` (ver README).
+pytest-cov>=4.1
+
+# Pruebas basadas en propiedades de la fase 5: tests/test_invariantes.py, que
+# genera tableros con el StateBuilder y comprueba invariantes del agente. Sin
+# este paquete ese fichero NI SIQUIERA COLECCIONA y pytest aborta la corrida
+# entera con un error de coleccion -- no lo salta.
+hypothesis>=6.100
