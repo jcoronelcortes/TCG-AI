@@ -28,12 +28,25 @@ def test_sin_infracciones_de_arquitectura():
 
 
 def test_los_mutables_se_derivan_del_codigo():
-    """La lista de globals no esta escrita a mano: sale de las sentencias
-    `global` de main.py (y, tras la Ola 3, de EstadoAgente)."""
+    """La lista de globals no esta escrita a mano.
+
+    Sale de las sentencias `global` de main.py MAS los campos de `EstadoAgente`.
+    A medida que la Ola 3 avanza, el estado se mueve de lo primero a lo segundo,
+    asi que lo que se comprueba es que el linter lo sigue ALLA DONDE VIVA -- no
+    cuantos quedan en main.py, que legitimamente baja en cada paso.
+    """
     mutables = la.nombres_mutables()
     assert len(mutables) >= 30, f"solo {len(mutables)} mutables detectados"
     for esperado in ("plan", "ko_last_turn", "CARTAS_ACTIVAS_EN_MAZO"):
-        assert esperado in mutables
+        assert esperado in mutables, f"{esperado} dejo de vigilarse"
+
+
+def test_el_estado_ya_migrado_sigue_vigilado():
+    """Los campos que ya viven en EstadoAgente no pueden salirse de R1."""
+    mutables = la.nombres_mutables()
+    migrados = [n for n in ("_ub_meowth_pending", "_poke_pad_target_id",
+                            "_ld_supp_comprometido") if n in mutables]
+    assert len(migrados) == 3, f"solo se vigilan {migrados}"
 
 
 # ---------------------------------------------------------------------------

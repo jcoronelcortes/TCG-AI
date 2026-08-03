@@ -52,11 +52,29 @@ def _main_mod():
 
 
 def reset_agente(m):
-    """Espejo del fixture autouse `reset_main_state` de tests/test_main.py."""
+    """Espejo del fixture autouse `reset_main_state` de tests/test_main.py.
+
+    El estado que persiste entre turnos vive en `ESTADO` desde la Ola 3, y su
+    `reset()` es la UNICA fuente de los valores iniciales. Antes se fijaba campo
+    a campo con `m.<campo> = ...`, lo que dependia del puente de compatibilidad
+    de main.py -- y ese puente solo se instala cuando main.py se importa como
+    modulo, no cuando selfplay lo carga con `module_from_spec` sin registrarlo en
+    sys.modules. Ahi las asignaciones iban a un atributo muerto, el reinicio no
+    ocurria y el estado se filtraba de una partida a la siguiente.
+    """
     m._init_cartas_tracking()
     m._cartas_first_scan_done = False
     m._cartas_prizes_identified = False
     m._cartas_last_turn = -1
+
+    estado = getattr(m, "ESTADO", None)
+    if estado is not None:
+        estado.reset()
+        return
+
+    # Rama de COMPATIBILIDAD: main.py anterior a la Ola 3, donde el estado son
+    # globals del modulo. utils/sombra.py compara la version actual contra un
+    # baseline congelado, asi que este reinicio tiene que servir a las dos.
     m.plan = m.AttackPlan()
     m.pre_turn = 0
     m.meganium_in_play = False
@@ -75,6 +93,8 @@ def reset_agente(m):
     m._ld_supp_comprometido = 0
     m._dodge_immune_serial = None
     m._dodge_immune_turn = -1
+    m._op_prize_denial_pecharunt = False
+    m._op_prize_denial_gengar = False
 
 
 def _nombre(m, cid):

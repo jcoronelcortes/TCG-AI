@@ -57,6 +57,21 @@ def nombres_mutados(arbol):
     pura y se movria a un modulo de datos, escondiendo estado de turno dentro de
     lo que parece una tabla fija.
     """
+    # Solo cuentan los nombres LIGADOS A NIVEL DE MODULO. Sin este filtro, las
+    # locales de `agent()` que se mutan (`score.append(...)`, `hand_counts[x]=y`)
+    # entrarian en la lista y bloquearian por error definiciones que solo
+    # comparten nombre con ellas.
+    de_modulo = set()
+    for n in arbol.body:
+        if isinstance(n, ast.Assign):
+            for t in n.targets:
+                if isinstance(t, ast.Name):
+                    de_modulo.add(t.id)
+        elif isinstance(n, (ast.AnnAssign, ast.AugAssign)) and isinstance(n.target, ast.Name):
+            de_modulo.add(n.target.id)
+        elif isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            de_modulo.add(n.name)
+
     mutados = set()
     for n in ast.walk(arbol):
         if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute):
@@ -67,7 +82,7 @@ def nombres_mutados(arbol):
                 mutados.add(n.value.id)
         elif isinstance(n, ast.AugAssign) and isinstance(n.target, ast.Name):
             mutados.add(n.target.id)
-    return mutados
+    return mutados & de_modulo
 
 
 def _args_de(nodo):

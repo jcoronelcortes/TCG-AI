@@ -59,8 +59,15 @@ def nombres_mutables():
     if agente.is_file():
         arbol = ast.parse(agente.read_text(encoding="utf-8"))
         for nodo in ast.walk(arbol):
+            # campos anotados (`x: int`) y, sobre todo, los de `reset()`
+            # (`self.x = ...`), que es como se declaran en EstadoAgente.
             if isinstance(nodo, ast.AnnAssign) and isinstance(nodo.target, ast.Name):
                 nombres.add(nodo.target.id)
+            elif isinstance(nodo, ast.Assign):
+                for t in nodo.targets:
+                    if (isinstance(t, ast.Attribute) and isinstance(t.value, ast.Name)
+                            and t.value.id == "self"):
+                        nombres.add(t.attr)
     return nombres
 
 

@@ -48,10 +48,40 @@ MAX_PASOS = 3000
 
 
 def cargar_agente(ruta, nombre):
-    """Carga una instancia independiente de un modulo de agente."""
-    spec = importlib.util.spec_from_file_location(nombre, str(ruta))
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
+    """Carga una instancia independiente de un modulo de agente.
+
+    INDEPENDIENTE INCLUYE SU PROPIO ARBOL `ptcg/`. Desde la Ola 3 del refactor el
+    estado que persiste entre turnos vive en `ptcg.estado.agente.ESTADO`, no en
+    los globals de main.py. Si se deja `ptcg` en sys.modules, las dos instancias
+    importan el MISMO singleton y se pisan el estado: el enfrentamiento deja de
+    medir nada y sombra.py reporta flips fantasma (58 en 20 partidas la primera
+    vez que paso). Vaciando `ptcg*` antes de cada carga, cada main.py construye
+    su propio arbol; los modulos ya cargados conservan sus referencias directas,
+    asi que la instancia anterior sigue funcionando con el suyo.
+
+    `cg` NO se toca: `cg/sim.py` llama a `GameInitialize()` al importarse y
+    hacerlo dos veces ABORTA el interprete.
+    """
+    def _ramas_ptcg():
+        return [k for k in sys.modules if k == "ptcg" or k.startswith("ptcg.")]
+
+    previos = {k: sys.modules[k] for k in _ramas_ptcg()}
+    for k in previos:
+        del sys.modules[k]
+    try:
+        spec = importlib.util.spec_from_file_location(nombre, str(ruta))
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+    finally:
+        # Y se DEVUELVE el arbol ambiental a sys.modules. La instancia recien
+        # creada ya guarda referencias directas al suyo, asi que conserva su
+        # propio ESTADO; pero si se dejara el proceso sin el arbol original,
+        # cualquier `from ptcg... import` posterior crearia una SEGUNDA copia
+        # del paquete -- y quien parchease ahi no afectaria al agente que ya
+        # estaba cargado (paso: contaminaba tests/test_xerosic_*).
+        for k in _ramas_ptcg():
+            del sys.modules[k]
+        sys.modules.update(previos)
     return mod
 
 
