@@ -1758,11 +1758,53 @@ def _retreat_grass_units(retreat_cost):
 # Requisitos de energia EFECTIVA para atacar, por carta (fuente unica de verdad).
 # len(energies) YA es energia efectiva (la observacion duplica la Planta por
 # Wild Growth), asi que se compara directamente contra estos valores.
+# Nighttime Mine (carta 1266): "los ataques de cada Pokemon Tera en juego (de
+# LOS DOS jugadores) cuestan {C} mas". OJO con el numero: 1266 tambien es el id
+# del ATAQUE Splashing_Dodge_Atk, pero son espacios de nombres distintos
+# (card_table vs attack_table).
+#
+# Nos afecta de lleno: Teal Mask Ogerpon ex es nuestro UNICO Tera y llevamos 4.
+# Con la mina en mesa su ataque pasa de 3 a 4 energias. Medido sobre el meta
+# real (decks_competidores/, top-300): el 80% de las listas Alakazam la lleva a
+# 2 copias, y Alakazam es el 19.7% del meta.
+#
+# Verificado contra el motor (30 partidas): con la mina en mesa y 3 energias el
+# menu NO ofrece ATTACK (13 casos); con 4 si (22). Sin mina, 3 basta (56). El
+# agente creia que Ogerpon estaba listo y no lo estaba.
+Nighttime_Mine = 1266
+# Nuestros Pokemon Tera, los unicos a los que la mina les sube el coste.
+OUR_TERA_IDS = {Teal_Mask_Ogerpon_ex}
+
 ATTACK_ENERGY_REQ = {
     Hydrapple_ex: 2, Dipplin: 1, Teal_Mask_Ogerpon_ex: 3,
     Tapu_Bulu: 4, Fezandipiti_ex: 3, Meganium: 4, Pinsir: 2,
     Bayleef: 2, Applin: 1, Chikorita: 1,
 }
+
+# Coste BASE, inmutable. `ATTACK_ENERGY_REQ` es la "fuente unica de verdad" que
+# leen ~50 sitios, asi que el impuesto de Nighttime Mine se aplica ajustando ese
+# diccionario UNA VEZ por llamada a agent() (ver `_aplicar_impuesto_tera`) en vez
+# de tocar los 50 puntos de lectura. Se recalcula SIEMPRE desde esta base, de
+# modo que el valor no se acumula entre llamadas ni entre partidas.
+_ATTACK_ENERGY_REQ_BASE = dict(ATTACK_ENERGY_REQ)
+
+
+def _aplicar_impuesto_tera(stadium_cards) -> bool:
+    """Sube +1 el coste de nuestros Tera si Nighttime Mine esta en mesa.
+
+    Devuelve si la mina esta activa. Debe llamarse al PRINCIPIO de agent(),
+    antes de cualquier puntuacion: si se hiciera mas abajo, los bloques que ya
+    hubieran leido el coste seguirian con el valor viejo -- el mismo fallo que
+    documenta el techo de `energy_score` (por eso va en el envoltorio y no al
+    final de la funcion).
+    """
+    activa = any(getattr(c, 'id', 0) == Nighttime_Mine
+                 for c in (stadium_cards or []))
+    for _tid in OUR_TERA_IDS:
+        _base = _ATTACK_ENERGY_REQ_BASE.get(_tid)
+        if _base is not None:
+            ATTACK_ENERGY_REQ[_tid] = _base + (1 if activa else 0)
+    return activa
 
 # Atacantes principales evaluados en los bloques de listo-para-atacar.
 MAIN_ATTACKERS = (
@@ -9802,6 +9844,11 @@ def agent(obs_dict: dict) -> list[int]:
     op_state = state.players[1 - my_index]
     my_prize = len(my_state.prize)
     op_prize = len(op_state.prize)
+
+    # Impuesto de Nighttime Mine sobre nuestros Tera. Va AQUI, antes de
+    # cualquier puntuacion, porque ~50 sitios leen ATTACK_ENERGY_REQ y todos
+    # tienen que ver el coste ya corregido.
+    nighttime_mine_in_play = _aplicar_impuesto_tera(state.stadium)
 
     _update_cartas_tracking(obs, my_index, my_state)
 
