@@ -5,6 +5,8 @@ Extraido VERBATIM de main.py por utils/extraer_definiciones.py
 utils/pureza.py: nada de aqui toca el estado mutable ni las tablas de runtime.
 """
 
+from ptcg.estado.agente import ESTADO
+from ptcg.cartas.ids import Boss_Orders, Dawn, Lillie_Determination
 from ptcg.cartas.ids import Basic_Grass_Energy, Boss_Orders, Dawn, Lanas_Aid, Lillie_Determination, Xerosic_Machinations
 
 
@@ -43,7 +45,28 @@ class _CtxMeowthFetch:
         self.devel_lillie = devel_lillie
         self.no_energy_in_hand = (hand_counts.get(Basic_Grass_Energy, 0) == 0)
 
+
+def _v_meowth_fetch_valor(c):
+    score = c.sv
+    if c.card_id == Boss_Orders and ESTADO.op_is_crustle_deck:
+        score += 100
+    # Dawn (busca Basico+Fase1+Fase2 para armar la linea evolutiva) SOLO
+    # conviene buscarlo con Meowth ex si tenemos Forest of Vitality (1261) EN
+    # JUEGO, que deja evolucionar el mismo turno (rush). SIN Forest en juego
+    # no podemos acelerar la evolucion: refrescar la mano con Lillie's
+    # Determination da mas opciones de juego/ataque inmediatas. Por eso
+    # bajamos el Dawn por debajo del valor de Lillie's para que Meowth ex
+    # busque Lillie's, no Dawn. CON Forest en juego Dawn conserva su valor
+    # (consistente con el desempate Dawn/Lillie's de ~L6137). (user,
+    # registro_004 paso 53 vs Marnie's Grimmsnarl ex, PERDIDA.)
+    if (c.card_id == Dawn and not ESTADO.forest_in_play
+            and c.supp_values.get(Lillie_Determination, 0) > 0):
+        score = min(score,
+                    c.supp_values.get(Lillie_Determination, 0) - 50)
+    return score
+
 __all__ = [
     '_CtxMeowthFetch',
     '_MEOWTH_FETCH_SUPPS',
+    '_v_meowth_fetch_valor',
 ]

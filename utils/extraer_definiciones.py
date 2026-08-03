@@ -136,6 +136,11 @@ def planificar(lote, main_py):
                     # de QUE modulo del paquete viene: `card_table` esta en
                     # ptcg.cartas.tablas, no en ptcg.cartas.ids.
                     origen_mod = mapa.get(libre)
+                    # Al FUSIONAR, el nombre puede vivir ya en el propio modulo
+                    # destino (lo puso un lote anterior): importarlo seria un
+                    # auto-import y revienta con "partially initialized module".
+                    if origen_mod == mod.replace("/", ".").removesuffix(".py"):
+                        continue
                     if origen_mod is None:
                         problemas.append(f"{mod}: `{libre}` esta en el paquete pero "
                                          "no se sabe en que modulo")

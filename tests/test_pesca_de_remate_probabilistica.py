@@ -62,6 +62,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import main as m
+from parcheo import parchear
 from state_builder import Escenario, G, pk
 
 OGERPON = m.Teal_Mask_Ogerpon_ex
@@ -235,7 +236,7 @@ def test_paso49_juega_lillie_para_pescar_no_boss():
 def test_paso49_contrafactual_sin_pesca_vuelve_a_gustear(monkeypatch):
     """Control: si la pesca no se mide (umbral inalcanzable), reaparece el
     Boss's del registro. Es el cambio que la regla introduce, no otro."""
-    monkeypatch.setattr(m, "PESCA_PROB_MIN", 1.1)
+    parchear(monkeypatch, "PESCA_PROB_MIN", 1.1)
     obs = _fixture()
     assert m.agent(obs) == [_idx_play_de(obs, BOSS)]
 

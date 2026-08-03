@@ -10,6 +10,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import main as m
+from parcheo import parchear
 from cg.api import AreaType, EnergyType, LogType, OptionType, SelectContext
 
 
@@ -401,8 +402,10 @@ def test_eval_ub_best_target_returns_non_negative_value():
 
 
 def test_our_effective_damage_applies_weakness_and_resistance(monkeypatch):
-    monkeypatch.setattr(
-        m,
+    # `card_table` esta ligado en main y en trece modulos de ptcg/: hay que
+    # fijarlo en todos, o la funcion bajo prueba lee el de SU modulo.
+    parchear(
+        monkeypatch,
         "card_table",
         {
             9001: SimpleNamespace(ex=False, megaEx=False, weakness=EnergyType.GRASS, resistance=EnergyType.FIRE, name="Weak"),

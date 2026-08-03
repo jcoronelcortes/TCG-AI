@@ -5,6 +5,8 @@ Extraido VERBATIM de main.py por utils/extraer_definiciones.py
 utils/pureza.py: nada de aqui toca el estado mutable ni las tablas de runtime.
 """
 
+from ptcg.estado.agente import ESTADO
+from ptcg.cartas.ids import Forest_of_Vitality
 from ptcg.cartas.ids import Basic_Grass_Energy, Dawn, Lanas_Aid, Lillie_Determination, SCORE_SUPPORTER_VALUE_BASE, SCORE_VETO
 from ptcg.motor.contexto import DecisionContext
 from ptcg.motor.reglas import _Ajuste, _ReglaFija, _resolver_con_traza
@@ -99,6 +101,10 @@ def _score_dawn_play(ctx: DecisionContext) -> int:
     return (SCORE_SUPPORTER_VALUE_BASE + int(_dawn_val * 1.4)
             + ctx.supporter_boost)
 
+
+def _dawn_forest_avail(c):
+    return ESTADO.forest_in_play or c.hand.get(Forest_of_Vitality, 0) >= 1
+
 __all__ = [
     '_robo_de_lillie',
     '_lana_veto_duro',
@@ -106,4 +112,5 @@ __all__ = [
     '_score_dawn_play',
     '_REGLAS_LANA_PLAY',
     '_AJUSTES_LANA_PLAY',
+    '_dawn_forest_avail',
 ]

@@ -5,6 +5,8 @@ Extraido VERBATIM de main.py por utils/extraer_definiciones.py
 utils/pureza.py: nada de aqui toca el estado mutable ni las tablas de runtime.
 """
 
+from ptcg.estado.agente import ESTADO
+from ptcg.cartas.ids import Applin, Bayleef, Chikorita, Dipplin, Meganium
 from ptcg.cartas.ids import Applin, Bayleef, Chikorita, Dipplin, Hydrapple_ex, Meganium, SCORE_VETO, Tapu_Bulu
 from ptcg.estado.claves import ESTADO_MAZO
 from ptcg.motor.contexto import DecisionContext
@@ -147,6 +149,41 @@ def _score_poke_pad_play(ctx: DecisionContext) -> int:
     return _resolver_con_traza("pokepad->play", _REGLAS_PP_PLAY,
                                _AJUSTES_PP_PLAY, ctx, defecto=SCORE_VETO)
 
+
+class _CtxPPFetch:
+    """Ctx del fetch de Poke Pad: carta candidata + derivados del modo."""
+
+    def __init__(self, card_id, hand_counts, field_counts, bench_count,
+                 state):
+        self.card_id = card_id
+        self.hand = hand_counts
+        self.campo = field_counts
+        self.bench_count = bench_count
+        self.first_turn = ((state.turn == 1 and ESTADO.we_go_first) or
+                           (state.turn == 2 and not ESTADO.we_go_first))
+        self.have_chik = (field_counts.get(Chikorita, 0) >= 1 or
+                          hand_counts.get(Chikorita, 0) >= 1)
+        self.have_bay = (field_counts.get(Bayleef, 0) >= 1 or
+                         hand_counts.get(Bayleef, 0) >= 1)
+        self.have_applin = (field_counts.get(Applin, 0) >= 1 or
+                            hand_counts.get(Applin, 0) >= 1)
+        self.have_dipplin = (field_counts.get(Dipplin, 0) >= 1 or
+                             hand_counts.get(Dipplin, 0) >= 1)
+        has_evo = False
+        if not ESTADO.meganium_in_play and hand_counts.get(Meganium, 0) == 0:
+            if field_counts.get(Bayleef, 0) >= 1:
+                has_evo = True
+            elif (ESTADO.forest_in_play and field_counts.get(Chikorita, 0) >= 1 and
+                  hand_counts.get(Bayleef, 0) >= 1):
+                has_evo = True
+        if (not ESTADO.meganium_in_play and hand_counts.get(Bayleef, 0) == 0 and
+                field_counts.get(Chikorita, 0) >= 1):
+            has_evo = True
+        if (hand_counts.get(Dipplin, 0) == 0 and
+                field_counts.get(Applin, 0) >= 1):
+            has_evo = True
+        self.has_evo = has_evo
+
 __all__ = [
     '_pp_buscables',
     '_pp_es_t1',
@@ -158,4 +195,5 @@ __all__ = [
     '_REGLAS_PP_PLAY',
     '_AJUSTES_PP_PLAY',
     '_PP_NON_RULEBOX_IDS',
+    '_CtxPPFetch',
 ]

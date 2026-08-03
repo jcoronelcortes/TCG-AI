@@ -10,8 +10,16 @@ partida sin lanzar ninguna excepcion.
             import; cuando main.py lo reasigna, el modulo sigue viendo el valor
             viejo. Silencioso. Se accede siempre por objeto: `estado.ko_last_turn`.
 
-  R2  (pureza)  Nada bajo cartas/, motor/ o calculo/ puede tocar el estado.
-            Es lo que mantiene esos modulos reutilizables y testeables solos.
+  R2  (pureza)  Nada bajo cartas/ ni motor/ puede tocar el estado.
+            `cartas/` son datos y `motor/` es el resolvedor de reglas generico:
+            ambos se leen y se prueban sin montar una partida.
+
+            `calculo/` SI puede: se intento dejarlo puro y el codigo demostro que
+            no lo es. La energia efectiva depende de si Meganium esta en juego, y
+            el coste de ataque del impuesto de Nighttime Mine; pasar eso por
+            parametros a `_can_attack_eff`, `_physical_energy` y compania seria
+            REESCRIBIR la logica, no moverla -- justo lo que este refactor no
+            hace. La frontera util quedo en datos/reglas, no en calculo.
 
   R3  (I1b) En main.py, nada liga un nombre nuevo DESPUES de `def agent`.
             El contenedor se queda con el ULTIMO callable del namespace: un
@@ -35,7 +43,7 @@ PROJECT_ROOT = SCRIPT_DIR.parent
 
 MAIN_PY = PROJECT_ROOT / "main.py"
 PAQUETE = PROJECT_ROOT / "ptcg"          # aun no existe antes de la Ola 1
-SUBPAQUETES_PUROS = ("cartas", "motor", "calculo")
+SUBPAQUETES_PUROS = ("cartas", "motor")
 
 # Nombre del modulo dueño del estado mutable (Ola 3).
 MODULO_ESTADO = "estado"

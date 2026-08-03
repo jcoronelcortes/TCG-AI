@@ -104,9 +104,25 @@ def test_r1_detecta_un_mutable_importado_por_nombre(tmp_path, monkeypatch):
 
 def test_r2_detecta_estado_en_un_modulo_puro(tmp_path, monkeypatch):
     paquete = tmp_path / "ptcg"
-    (paquete / "calculo").mkdir(parents=True)
+    (paquete / "cartas").mkdir(parents=True)
     (paquete / "__init__.py").write_text("")
-    (paquete / "calculo" / "dano.py").write_text("from ptcg.estado import ESTADO\n")
+    (paquete / "cartas" / "ids.py").write_text("from ptcg.estado import ESTADO\n")
     monkeypatch.setattr(la, "PAQUETE", paquete)
     fallos = la.regla_2_pureza()
     assert [f[0] for f in fallos] == ["R2"]
+
+
+def test_r2_permite_estado_en_calculo(tmp_path, monkeypatch):
+    """`calculo/` NO es puro y no debe fingirlo.
+
+    La energia efectiva depende de si Meganium esta en juego y el coste de
+    ataque del impuesto de Nighttime Mine: `_can_attack_eff` y `_physical_energy`
+    leen ESTADO por naturaleza. Se intento la frontera en `calculo/` y el codigo
+    la rechazo; la frontera util es datos (`cartas/`) + reglas (`motor/`).
+    """
+    paquete = tmp_path / "ptcg"
+    (paquete / "calculo").mkdir(parents=True)
+    (paquete / "__init__.py").write_text("")
+    (paquete / "calculo" / "energia.py").write_text("from ptcg.estado.agente import ESTADO\n")
+    monkeypatch.setattr(la, "PAQUETE", paquete)
+    assert la.regla_2_pureza() == []

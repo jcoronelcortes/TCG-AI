@@ -5,6 +5,8 @@ Extraido VERBATIM de main.py por utils/extraer_definiciones.py
 utils/pureza.py: nada de aqui toca el estado mutable ni las tablas de runtime.
 """
 
+from ptcg.estado.agente import ESTADO
+from ptcg.cartas.ids import Forest_of_Vitality
 from cg.api import AreaType
 from typing import NamedTuple
 from ptcg.cartas.ids import Applin, Bayleef, Chikorita, Dipplin, Hydrapple_ex, Meganium, Poke_Pad, Ultra_Ball
@@ -108,6 +110,10 @@ def _v_fv_temprano(c):
         return 15000
     return 14000
 
+
+def _forest_disponible(c):
+    return ESTADO.forest_in_play or c.hand.get(Forest_of_Vitality, 0) >= 1
+
 __all__ = [
     '_GrandTreePlan',
     '_gt_slots_propios',
@@ -117,4 +123,5 @@ __all__ = [
     '_v_fv_neutralization',
     '_v_fv_cadena',
     '_v_fv_temprano',
+    '_forest_disponible',
 ]
