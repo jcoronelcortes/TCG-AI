@@ -308,6 +308,19 @@ POWERFUL_HAND_ATTACK_ID = 1072
 # mayoria de los sitios.
 DO_THE_WAVE_ATTACK_ID = 115
 
+# Rapid-Fire Combo (Mega Kangaskhan ex 756): 200 impresos + 50 por cada CARA,
+# lanzando monedas hasta la primera cruz. El numero de caras es una geometrica
+# de p=1/2, cuya media es 1, asi que la esperanza del bonus es +50 y el dano
+# medio real es 250 (y >= 250 la mitad de las veces).
+#
+# El 200 impreso deja a nuestro Teal Mask Ogerpon ex (210 PV) "a salvo" de un
+# golpe que lo mata el 50% de las veces. Medido sobre el meta real: el winrate
+# contra las listas Crustle cae de forma monotona con las copias de Mega
+# Kangaskhan ex (0 -> 88.0%, 2 -> 79.8%, 4 -> 70.9%), asi que la amenaza del
+# matchup es el Kangaskhan, no el muro que le da nombre.
+RAPID_FIRE_COMBO_ATTACK_ID = 1092
+RAPID_FIRE_COMBO_BONUS_ESPERADO = 50
+
 # Festival Lead (habilidad de Dipplin 93): con Festival Grounds EN MESA, este
 # Pokemon puede usar un ataque suyo DOS veces; si el primero noquea a nuestro
 # activo, ataca OTRA VEZ en cuanto elegimos el reemplazo. Es decir: bajo ese
@@ -2604,7 +2617,8 @@ def _tiene_rule_box(card_id) -> bool:
     return bool(getattr(_d, 'ex', False) or getattr(_d, 'megaEx', False))
 
 
-def _op_active_attack_damage_to(op_active, target, op_hand_count=None):
+def _op_active_attack_damage_to(op_active, target, op_hand_count=None,
+                                proyectar_moneda=False):
     """Maximo dano IMPRESO que el activo rival puede hacerle a `target`.
 
     Resuelve los IDs de ataque via `attack_table` (los `card.attacks` son ints,
@@ -2629,6 +2643,24 @@ def _op_active_attack_damage_to(op_active, target, op_hand_count=None):
     BANCA rival. La escala se lee del flag por turno `_op_bench_count` (ver
     DO_THE_WAVE_ATTACK_ID): asi la ven TODOS los llamadores, sin depender de que
     cada uno recuerde pasar un parametro extra.
+
+    EXCEPCION 3 -- Rapid-Fire Combo (Mega Kangaskhan ex 756, attackId 1092):
+    dano impreso 200, pero la carta lanza monedas hasta sacar cruz y suma +50
+    por cada cara. La esperanza del bonus es exactamente +50 (media de una
+    geometrica con p=1/2), asi que el dano REAL medio es 250, y el 50% de las
+    veces es >= 250.
+
+    Esa diferencia decide un matchup entero: nuestro Teal Mask Ogerpon ex tiene
+    210 PV, asi que con el 200 impreso el modelo lo da por VIVO ante un golpe
+    que lo mata la mitad de las veces. Medido sobre el meta real, el winrate
+    contra las listas Crustle cae de forma monotona con las copias de Mega
+    Kangaskhan ex que lleven: 0 copias -> 88.0%, 2 -> 79.8%, 4 -> 70.9%.
+
+    Por eso el bonus es OPT-IN (`proyectar_moneda`) y no automatico: esta
+    funcion alimenta a la vez al estimador de RIESGO (`active_ko_likely`, que
+    sobreestima a proposito) y a `_active_doomed_real`, que exige CERTEZA para
+    regalar un cuerpo. El 200 impreso es el suelo garantizado y se queda como
+    default; el 250 es la esperanza y solo lo pide quien mide riesgo.
     """
     if op_active is None or target is None:
         return 0
@@ -2648,6 +2680,8 @@ def _op_active_attack_damage_to(op_active, target, op_hand_count=None):
             _dmg = 20 * (op_hand_count + 2)
         elif _aid == DO_THE_WAVE_ATTACK_ID:
             _dmg = max(_dmg, 20 * _op_bench_count)
+        elif _aid == RAPID_FIRE_COMBO_ATTACK_ID and proyectar_moneda:
+            _dmg += RAPID_FIRE_COMBO_BONUS_ESPERADO
         if _need <= avail and _dmg > best:
             best = _dmg
     if best <= 0:
@@ -10249,12 +10283,20 @@ def agent(obs_dict: dict) -> list[int]:
             # nuestros ex. Se acota al activo Dipplin por la misma razon que
             # Alakazam: no alterar la lectura de "activo condenado" en el resto
             # de matchups (log 88971843: el agente creia que Dipplin pegaba 0).
-            if op_active.id in (Alakazam_ex, Dipplin):
+            # Mega Kangaskhan ex: mismo caso pero al reves -- el dano impreso SI
+            # se lee, y aun asi subestima. Rapid-Fire Combo suma +50 de media
+            # por las monedas, de modo que su 200 impreso son 250 reales: la
+            # diferencia entre creer vivo y dar por condenado a nuestro Teal
+            # Mask Ogerpon ex (210 PV). Aqui se proyecta la ESPERANZA porque
+            # este es el estimador de RIESGO; `_active_doomed_real`, que exige
+            # certeza para regalar un cuerpo, sigue con el 200 garantizado.
+            if op_active.id in (Alakazam_ex, Dipplin, Mega_Kangaskhan_ex):
                 estimated_op_damage = max(
                     estimated_op_damage,
                     _op_active_attack_damage_to(
                         op_active, my_active,
-                        getattr(op_state, 'handCount', None)))
+                        getattr(op_state, 'handCount', None),
+                        proyectar_moneda=True))
 
             # Burst de banca rival (P0.3): Dusknoir 133 ("Cursed Blast": 13
             # contadores = 130) y Dusclops 132 (5 = 50) meten dano EXTRA desde
