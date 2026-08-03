@@ -17,9 +17,18 @@ diferencia entre "gano a 8 de 17 mazos" y "gano el X% de las partidas que voy a
 jugar en ladder" -- con la media simple, un +10 contra un arquetipo que juega el
 1% del campo tapa un -1 contra el que juega el 41%.
 
+`--control-carta <id>` separa los mazos que llevan esa carta (los que el cambio
+PUEDE afectar) de los que no, y compara los deltas de ambos grupos. El grupo de
+control ejecuta codigo behavioralmente identico en los dos brazos, asi que su
+dispersion ES el ruido de esa misma corrida. Es la unica forma barata de saber
+si un delta es senal: medido aqui, a 200 partidas por matchup el control llega a
+moverse de -6.5 a +7.5 puntos, asi que un delta pequeno sin este desglose no
+significa nada.
+
 Uso:
-    python utils/matriz_matchups.py --partidas 200
+    python utils/matriz_matchups.py --partidas 400
     python utils/matriz_matchups.py --partidas 400 --base HEAD~1
+    python utils/matriz_matchups.py --base HEAD~1 --control-carta 1266
     python utils/matriz_matchups.py --solo dragapult,hops
     python utils/matriz_matchups.py --rivales deck/rivales_reales --pesos
     python utils/matriz_matchups.py --rivales deck/rivales_reales --pesos --base HEAD~1
@@ -79,6 +88,59 @@ def cargar_pesos(directorio):
     return pesos
 
 
+def _lleva_carta(ruta, card_id):
+    try:
+        return card_id in [int(x) for x in ruta.read_text().split() if x.strip()]
+    except (OSError, ValueError):
+        return False
+
+
+def informe_control(filas, base_por_mazo, rutas, card_id):
+    """Separa AFECTADOS (mazos con la carta) de CONTROL y compara sus deltas.
+
+    Es la unica forma barata de saber si un delta es senal: los mazos que NO
+    llevan la carta ejecutan codigo behavioralmente identico en los dos brazos,
+    asi que su dispersion ES el ruido de esa misma corrida -- sin necesidad de
+    correr una calibracion aparte.
+
+    Medido en esta sesion: a 200 partidas por matchup el grupo de control llega
+    a moverse de -6.5 a +7.5 puntos. Cualquier delta de los afectados que quepa
+    en ese rango no es senal.
+    """
+    por_nombre = {r.stem: r for r in rutas}
+    con, sin = [], []
+    for f in filas:
+        if f["mazo"] not in base_por_mazo:
+            continue
+        delta = f["wr"] - base_por_mazo[f["mazo"]]["wr"]
+        dprem = None
+        bp = base_por_mazo[f["mazo"]].get("dif_premios")
+        if f["dif_premios"] is not None and bp is not None:
+            dprem = f["dif_premios"] - bp
+        ruta = por_nombre.get(f["mazo"])
+        destino = con if (ruta is not None and _lleva_carta(ruta, card_id)) else sin
+        destino.append((f["mazo"], delta, dprem))
+
+    if not con or not sin:
+        print(f"\n(control: no se puede separar por la carta {card_id}; "
+              f"afectados={len(con)}, control={len(sin)})")
+        return
+
+    print(f"\n=== GRUPO DE CONTROL (carta {card_id}) ===")
+    for etiqueta, grupo in (("AFECTADOS", con), ("CONTROL  ", sin)):
+        ds = [d for _, d, _ in grupo]
+        ps = [p for _, _, p in grupo if p is not None]
+        positivos = sum(1 for d in ds if d > 0)
+        linea = (f"  {etiqueta} n={len(ds):>2}  delta wr {100 * sum(ds) / len(ds):+6.2f}"
+                 f"  rango {100 * min(ds):+.1f} a {100 * max(ds):+.1f}"
+                 f"  positivos {positivos}/{len(ds)}")
+        if ps:
+            linea += f"  delta premios {sum(ps) / len(ps):+.3f}"
+        print(linea)
+    print("  Si el delta de AFECTADOS cabe en el rango de CONTROL, es ruido: "
+          "el control corre codigo identico en los dos brazos.")
+
+
 def winrate_ponderado(filas, pesos):
     """(winrate esperado en ladder, cobertura de meta medida).
 
@@ -119,8 +181,13 @@ def medir(agente, partidas, rutas):
 
 def main(argv):
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--partidas", type=int, default=200,
-                    help="partidas por matchup (default 200)")
+    ap.add_argument("--control-carta", type=int, default=None, metavar="ID",
+                    help="id de carta que define el grupo AFECTADO: separa los "
+                         "mazos que la llevan de los que no y compara los dos "
+                         "deltas. Sin esto, un delta no se distingue del ruido")
+    ap.add_argument("--partidas", type=int, default=400,
+                    help="partidas por matchup (default 400). Medido: a 200 el "
+                         "ruido por matchup llega a +-6.5 puntos")
     ap.add_argument("--candidato", default="main.py")
     ap.add_argument("--base", default=None,
                     help="ref de git: imprime el delta por matchup")
@@ -190,6 +257,12 @@ def main(argv):
         print(linea)
     peor = min(filas, key=lambda x: x["wr"])
     print(f"\nMatchup mas debil: {peor['mazo']} ({100 * peor['wr']:.1f}%)")
+
+    if args.control_carta is not None and base_por_mazo:
+        informe_control(filas, base_por_mazo, rutas, args.control_carta)
+    elif args.control_carta is not None:
+        print("\n(--control-carta necesita --base: sin baseline no hay deltas "
+              "que separar)")
 
     if pesos:
         wr_pond, cobertura = winrate_ponderado(filas, pesos)
