@@ -102,14 +102,17 @@ def medir(agente, partidas, rutas):
         dec = stats["candidato"] + stats["base"]
         wr = stats["candidato"] / dec if dec else 0.0
         lo, hi = sp.wilson_95(stats["candidato"], dec)
+        pc, pb, dif_premios = sp.premios_por_partida(stats)
         filas.append({
             "mazo": ruta.stem, "wr": wr, "lo": lo, "hi": hi,
             "decididas": dec, "limites": stats["limites"],
             "forfeits": stats["errores_candidato"],
             "forfeits_bot": stats["errores_base"],
+            "premios": pc, "premios_bot": pb, "dif_premios": dif_premios,
         })
+        extra = "" if dif_premios is None else f" premios {dif_premios:+.2f}"
         print(f"  {ruta.stem}: {100 * wr:.1f}% "
-              f"[{100 * lo:.1f}-{100 * hi:.1f}] "
+              f"[{100 * lo:.1f}-{100 * hi:.1f}]{extra} "
               f"(forfeits nuestros {stats['errores_candidato']})", flush=True)
     return filas
 
@@ -172,6 +175,8 @@ def main(argv):
             linea += f"  meta={100 * pesos.get(f['mazo'], 0.0):4.1f}%"
         if f["forfeits"]:
             linea += f"  FORFEITS={f['forfeits']}"
+        if f["dif_premios"] is not None:
+            linea += f"  prem={f['dif_premios']:+.2f}"
         if f["mazo"] in base_por_mazo:
             delta = f["wr"] - base_por_mazo[f["mazo"]]["wr"]
             linea += f"  delta={100 * delta:+.1f}"
@@ -179,6 +184,9 @@ def main(argv):
                 # Lo que ese delta mueve el winrate de ladder: un +10 contra un
                 # arquetipo del 1% vale 10 veces menos que un +1 contra el 41%.
                 linea += f" (pond {100 * delta * pesos.get(f['mazo'], 0.0):+.2f})"
+            base_prem = base_por_mazo[f["mazo"]].get("dif_premios")
+            if f["dif_premios"] is not None and base_prem is not None:
+                linea += f"  dprem={f['dif_premios'] - base_prem:+.2f}"
         print(linea)
     peor = min(filas, key=lambda x: x["wr"])
     print(f"\nMatchup mas debil: {peor['mazo']} ({100 * peor['wr']:.1f}%)")
@@ -212,6 +220,20 @@ def main(argv):
             print(f"  aviso: {len(sin_peso)} mazo(s) sin peso, excluidos del "
                   f"ponderado: {', '.join(sorted(sin_peso)[:5])}"
                   + (" ..." if len(sin_peso) > 5 else ""))
+        # Diferencial de premios ponderado: la metrica con resolucion. El
+        # winrate contra el bot esta saturado (>93%) y no puede arbitrar un
+        # cambio; los premios si graduan.
+        prem = [f for f in filas if f["dif_premios"] is not None]
+        if prem:
+            cob_p = sum(pesos.get(f["mazo"], 0.0) for f in prem)
+            if cob_p > 0:
+                dif_pond = sum(pesos.get(f["mazo"], 0.0) * f["dif_premios"]
+                               for f in prem) / cob_p
+                print(f"\n  DIFERENCIAL DE PREMIOS ponderado: {dif_pond:+.3f} "
+                      f"por partida")
+                print("  (premios que cobramos menos los que cobra el rival; "
+                      "tiene resolucion donde el winrate ya no)")
+
         if base_por_mazo:
             filas_base = [base_por_mazo[f["mazo"]] for f in filas
                           if f["mazo"] in base_por_mazo]
@@ -221,6 +243,14 @@ def main(argv):
                       f"DELTA PONDERADO = {100 * (wr_pond - wr_base):+.2f} puntos")
                 print("  (este delta, y no la media simple, es lo que decide "
                       "si el cambio gana partidas en ladder)")
+            base_prem = [b for b in filas_base if b.get("dif_premios") is not None]
+            if prem and base_prem:
+                cob_b = sum(pesos.get(b["mazo"], 0.0) for b in base_prem)
+                if cob_b > 0 and cob_p > 0:
+                    dif_b = sum(pesos.get(b["mazo"], 0.0) * b["dif_premios"]
+                                for b in base_prem) / cob_b
+                    print(f"  premios baseline: {dif_b:+.3f}   "
+                          f"DELTA DE PREMIOS = {dif_pond - dif_b:+.3f} por partida")
     return 0
 
 

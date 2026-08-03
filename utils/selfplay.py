@@ -79,12 +79,52 @@ def _reset_si_aplica(mod):
         reset_agente(mod)
 
 
+def _premios_restantes(obs):
+    """Premios que le QUEDAN a cada asiento, o None si no se pueden leer."""
+    try:
+        jugadores = obs["current"]["players"]
+        return [len(jugadores[i].get("prize") or []) for i in (0, 1)]
+    except (KeyError, IndexError, TypeError):
+        return None
+
+
+def _premios_tomados(pico, final):
+    """Premios TOMADOS por cada asiento = lo que ha bajado su PROPIO monton.
+
+    Cada jugador roba de SU monton al noquear, asi que el contador de premios
+    de un asiento mide lo que ha cobrado EL, no lo que le han cobrado.
+    Verificado sobre el simulador: en 20 de 25 partidas el ganador termina con
+    su propio monton a 0 y en ninguna con el del rival a 0 (las otras 5 se
+    ganaron por bench-out o deckout, sin agotar premios).
+
+    `pico` es el MAXIMO de premios visto durante la partida, no la lectura de
+    `battle_start`: ahi el reparto aun no ha ocurrido y los dos montones valen
+    0, con lo que el diferencial salia identicamente 0 en TODOS los matchups.
+    Como el monton solo puede bajar, su pico ES el reparto inicial, y de paso
+    no hay que fijar el 6 a fuego.
+
+    Devuelve [None, None] si no se pudo leer, para que el agregado sepa
+    distinguir "0 premios" de "no medido".
+    """
+    if not pico or not final or max(pico) <= 0:
+        return [None, None]
+    return [max(0, pico[i] - final[i]) for i in (0, 1)]
+
+
 def jugar_partida(agente_p0, agente_p1, deck0=None, deck1=None,
                   max_pasos=MAX_PASOS):
     """Juega una partida completa. Devuelve un dict con el desenlace.
 
     result: 0/1 (ganador), "limite" (tope de pasos) o "error_pX" (el agente
     del asiento X lanzo excepcion o eligio una opcion invalida -> pierde).
+
+    `premios_tomados`: [p0, p1], los premios que cobro cada asiento. Es la
+    metrica de RESOLUCION del harness: el winrate contra el bot generico esta
+    saturado (>93% ponderado) y no puede arbitrar un cambio, pero los premios
+    si graduan -- contra Marnie las tres partidas de referencia se perdieron
+    POR UN PREMIO, y esa magnitud desaparece al colapsarla en gano/perdio.
+    Ojo: una partida se puede ganar sin cobrar los 6 (bench-out, deckout), asi
+    que el diferencial de premios NO es un winrate disfrazado: mide otra cosa.
     """
     from cg import game
 
@@ -99,6 +139,19 @@ def jugar_partida(agente_p0, agente_p1, deck0=None, deck1=None,
         raise RuntimeError(
             f"battle_start fallo: errorPlayer={sd.errorPlayer} "
             f"errorType={sd.errorType}")
+    # Pico de premios por asiento. En `battle_start` los montones aun valen 0
+    # (no se han repartido), asi que el inicial se descubre sobre la marcha.
+    premios_pico = [0, 0]
+
+    def _mirar_premios():
+        actual = _premios_restantes(obs)
+        if actual:
+            for i in (0, 1):
+                if actual[i] > premios_pico[i]:
+                    premios_pico[i] = actual[i]
+        return actual
+
+    _mirar_premios()
     agentes = {0: agente_p0, 1: agente_p1}
     pasos = 0
     primer_jugador = -1
@@ -112,15 +165,21 @@ def jugar_partida(agente_p0, agente_p1, deck0=None, deck1=None,
                 obs = game.battle_select(eleccion)
             except Exception:
                 return {"result": f"error_p{yi}", "ganador": 1 - yi,
-                        "pasos": pasos, "primer_jugador": primer_jugador}
+                        "pasos": pasos, "primer_jugador": primer_jugador,
+                        "premios_tomados": _premios_tomados(
+                            premios_pico, _premios_restantes(obs))}
+            _mirar_premios()
             pasos += 1
+        premios = _premios_tomados(premios_pico, _premios_restantes(obs))
         if obs["current"]["result"] == -1:
             return {"result": "limite", "ganador": None, "pasos": pasos,
-                    "primer_jugador": primer_jugador}
+                    "primer_jugador": primer_jugador,
+                    "premios_tomados": premios}
         ganador = obs["current"]["result"]
         return {"result": ganador, "ganador": ganador, "pasos": pasos,
                 "primer_jugador": obs["current"]["firstPlayer"]
-                if primer_jugador == -1 else primer_jugador}
+                if primer_jugador == -1 else primer_jugador,
+                "premios_tomados": premios}
     finally:
         game.battle_finish()
 
@@ -150,6 +209,10 @@ def torneo(candidato, base, partidas, progreso=None,
         "cand_j0": [0, 0], "cand_j1": [0, 0],  # [victorias, jugadas]
         "cand_primero": [0, 0], "cand_segundo": [0, 0],
         "pasos_totales": 0,
+        # Metrica de RESOLUCION: el winrate esta saturado contra el bot, los
+        # premios no. Se acumulan por AGENTE (no por asiento), porque el
+        # candidato alterna de asiento en cada partida.
+        "premios_candidato": 0, "premios_base": 0, "partidas_con_premios": 0,
     }
     for i in range(partidas):
         asiento_cand = i % 2
@@ -159,6 +222,11 @@ def torneo(candidato, base, partidas, progreso=None,
             p0, p1, d0, d1 = base, candidato, deck_base, deck_candidato
         r = jugar_partida(p0, p1, deck0=d0, deck1=d1)
         stats["pasos_totales"] += r["pasos"]
+        premios = r.get("premios_tomados") or [None, None]
+        if premios[0] is not None and premios[1] is not None:
+            stats["premios_candidato"] += premios[asiento_cand]
+            stats["premios_base"] += premios[1 - asiento_cand]
+            stats["partidas_con_premios"] += 1
         if isinstance(r["result"], str) and r["result"].startswith("error"):
             asiento_err = int(r["result"][-1])
             if asiento_err == asiento_cand:
@@ -189,6 +257,16 @@ def _pct(v, n):
     return f"{100 * v / n:.1f}%" if n else "n/a"
 
 
+def premios_por_partida(stats):
+    """(premios/partida del candidato, de la base, diferencial). None si no hay."""
+    n = stats.get("partidas_con_premios") or 0
+    if not n:
+        return (None, None, None)
+    pc = stats["premios_candidato"] / n
+    pb = stats["premios_base"] / n
+    return (pc, pb, pc - pb)
+
+
 def informe(stats, etiqueta_cand, etiqueta_base):
     dec = stats["candidato"] + stats["base"]
     lo, hi = wilson_95(stats["candidato"], dec) if dec else (0, 1)
@@ -211,6 +289,14 @@ def informe(stats, etiqueta_cand, etiqueta_base):
         f"base {stats['errores_base']}",
         f"Pasos totales: {stats['pasos_totales']}",
     ]
+    pc, pb, dif = premios_por_partida(stats)
+    if pc is not None:
+        lineas.append(
+            f"Premios/partida: candidato {pc:.2f} - {pb:.2f} base  "
+            f"(diferencial {dif:+.2f})")
+        lineas.append(
+            "  el winrate se satura contra el bot; el diferencial de premios "
+            "gradua y detecta cambios que el marcador no ve")
     return "\n".join(lineas)
 
 

@@ -66,3 +66,50 @@ def test_wilson_95():
     assert sp.wilson_95(0, 0) == (0.0, 1.0)
     lo0, _ = sp.wilson_95(0, 20)
     assert lo0 == 0.0
+
+
+# --------------------------------------------------------------------------
+# Diferencial de premios: la metrica de RESOLUCION
+# --------------------------------------------------------------------------
+# El winrate contra el bot generico esta saturado (>93% ponderado), asi que no
+# puede arbitrar un cambio. Los premios si graduan: una derrota 4-6 y una 0-6
+# son la misma linea en el marcador y muy distinta cosa.
+
+def test_la_partida_reporta_premios_tomados(instancias):
+    a, b = instancias
+    r = sp.jugar_partida(a, b)
+    p = r["premios_tomados"]
+    assert p[0] is not None and p[1] is not None, (
+        "los premios deben poder leerse del tablero final")
+    assert 0 <= p[0] <= 6 and 0 <= p[1] <= 6
+    # Se ganan 6 premios como maximo, y el ganador no puede haber cobrado
+    # menos que el perdedor.
+    if r["ganador"] is not None:
+        assert p[r["ganador"]] >= p[1 - r["ganador"]]
+
+
+def test_el_pico_no_se_toma_de_battle_start(instancias):
+    """Regresion del bug que hacia el diferencial identicamente 0.
+
+    `battle_start` devuelve el tablero ANTES de repartir premios: los dos
+    montones valen 0 ahi. Tomandolo como inicial, `tomados` salia 0 en todas
+    las partidas y todos los matchups marcaban +0.00. El pico se descubre
+    durante la partida.
+    """
+    assert sp._premios_tomados([0, 0], [4, 5]) == [None, None], (
+        "sin pico valido no se debe inventar un 0: es 'no medido'")
+    assert sp._premios_tomados([6, 6], [4, 5]) == [2, 1]
+    # El monton solo baja; un final por encima del pico no puede dar negativo.
+    assert sp._premios_tomados([6, 6], [6, 6]) == [0, 0]
+
+
+def test_el_torneo_agrega_premios_por_agente(instancias):
+    a, b = instancias
+    stats = sp.torneo(a, b, 2)
+    assert stats["partidas_con_premios"] == 2
+    pc, pb, dif = sp.premios_por_partida(stats)
+    assert pc is not None and pb is not None
+    assert abs(dif - (pc - pb)) < 1e-9
+    # En el espejo ambos lados son el mismo agente: el diferencial no puede
+    # ser sistematico, solo ruido de dos partidas.
+    assert 0 <= pc <= 6 and 0 <= pb <= 6
