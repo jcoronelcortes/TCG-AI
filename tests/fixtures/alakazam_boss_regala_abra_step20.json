@@ -1,0 +1,277 @@
+{
+ "origen": "registros/registro_002_pasos_015_hasta_022.json",
+ "paso": 20,
+ "nota": "Turno 2 vs Alakazam (PERDIDA, episodio 88906640): sin atacante y con el activo rival (Fezandipiti ex, 0 energias, ataque de coste 3) inofensivo, el agente jugaba Boss's Orders y subia un Abra -- la pre-evolucion de su UNICA linea atacante.",
+ "observation": {
+  "current": {
+   "energyAttached": true,
+   "firstPlayer": 0,
+   "looking": null,
+   "players": [
+    {
+     "active": [
+      {
+       "appearThisTurn": false,
+       "energies": [],
+       "energyCards": [],
+       "hp": 210,
+       "id": 140,
+       "maxHp": 210,
+       "playerIndex": 0,
+       "preEvolution": [],
+       "serial": 33,
+       "tools": []
+      }
+     ],
+     "asleep": false,
+     "bench": [
+      {
+       "appearThisTurn": false,
+       "energies": [],
+       "energyCards": [],
+       "hp": 50,
+       "id": 741,
+       "maxHp": 50,
+       "playerIndex": 0,
+       "preEvolution": [],
+       "serial": 12,
+       "tools": []
+      },
+      {
+       "appearThisTurn": false,
+       "energies": [],
+       "energyCards": [],
+       "hp": 50,
+       "id": 741,
+       "maxHp": 50,
+       "playerIndex": 0,
+       "preEvolution": [],
+       "serial": 11,
+       "tools": []
+      },
+      {
+       "appearThisTurn": false,
+       "energies": [],
+       "energyCards": [],
+       "hp": 50,
+       "id": 741,
+       "maxHp": 50,
+       "playerIndex": 0,
+       "preEvolution": [],
+       "serial": 14,
+       "tools": []
+      },
+      {
+       "appearThisTurn": false,
+       "energies": [],
+       "energyCards": [],
+       "hp": 50,
+       "id": 741,
+       "maxHp": 50,
+       "playerIndex": 0,
+       "preEvolution": [],
+       "serial": 13,
+       "tools": []
+      },
+      {
+       "appearThisTurn": false,
+       "energies": [],
+       "energyCards": [],
+       "hp": 70,
+       "id": 305,
+       "maxHp": 70,
+       "playerIndex": 0,
+       "preEvolution": [],
+       "serial": 18,
+       "tools": []
+      }
+     ],
+     "benchMax": 5,
+     "burned": false,
+     "confused": false,
+     "deckCount": 40,
+     "discard": [
+      {
+       "id": 1086,
+       "playerIndex": 0,
+       "serial": 23
+      },
+      {
+       "id": 1086,
+       "playerIndex": 0,
+       "serial": 25
+      },
+      {
+       "id": 1152,
+       "playerIndex": 0,
+       "serial": 50
+      },
+      {
+       "id": 1152,
+       "playerIndex": 0,
+       "serial": 51
+      }
+     ],
+     "hand": null,
+     "handCount": 4,
+     "paralyzed": false,
+     "poisoned": false,
+     "prize": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ]
+    },
+    {
+     "active": [
+      {
+       "appearThisTurn": false,
+       "energies": [
+        1
+       ],
+       "energyCards": [
+        {
+         "id": 1,
+         "playerIndex": 1,
+         "serial": 112
+        }
+       ],
+       "hp": 210,
+       "id": 96,
+       "maxHp": 210,
+       "playerIndex": 1,
+       "preEvolution": [],
+       "serial": 64,
+       "tools": []
+      }
+     ],
+     "asleep": false,
+     "bench": [
+      {
+       "appearThisTurn": false,
+       "energies": [
+        1,
+        1
+       ],
+       "energyCards": [
+        {
+         "id": 1,
+         "playerIndex": 1,
+         "serial": 113
+        },
+        {
+         "id": 1,
+         "playerIndex": 1,
+         "serial": 114
+        }
+       ],
+       "hp": 210,
+       "id": 96,
+       "maxHp": 210,
+       "playerIndex": 1,
+       "preEvolution": [],
+       "serial": 65,
+       "tools": []
+      }
+     ],
+     "benchMax": 5,
+     "burned": false,
+     "confused": false,
+     "deckCount": 44,
+     "discard": [],
+     "hand": [
+      {
+       "id": 1184,
+       "playerIndex": 1,
+       "serial": 90
+      },
+      {
+       "id": 1182,
+       "playerIndex": 1,
+       "serial": 88
+      },
+      {
+       "id": 150,
+       "playerIndex": 1,
+       "serial": 78
+      },
+      {
+       "id": 1080,
+       "playerIndex": 1,
+       "serial": 102
+      },
+      {
+       "id": 920,
+       "playerIndex": 1,
+       "serial": 83
+      }
+     ],
+     "handCount": 5,
+     "paralyzed": false,
+     "poisoned": false,
+     "prize": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ]
+    }
+   ],
+   "result": -1,
+   "retreated": false,
+   "stadium": [],
+   "stadiumPlayed": false,
+   "supporterPlayed": false,
+   "turn": 2,
+   "turnActionCount": 6,
+   "yourIndex": 1
+  },
+  "logs": [
+   {
+    "cardId": 1,
+    "cardIdTarget": 96,
+    "playerIndex": 1,
+    "serial": 114,
+    "serialTarget": 65,
+    "type": 11
+   }
+  ],
+  "remainingOverageTime": 598.7849389999999,
+  "search_begin_input": "ABgAEYAPEAbEADQAXEBADBACEAEB-+CCu-lFSEFDABsODRIAFBg-ZBE-ZBCg-ZBBAEBcZMjM-rHFACUEALY-ZBBQADFpYTmZT-PBs-1CwADHFwcg-hFB-VEQ-VBL-+BI-UBBCw-ic5QIACJs-VBBQE-2BOUCACCa-WBUB-2BDlABgACnw-VBFABQ-2B5QIACJ4-VBBQE-2LDEBACCn-WBUC-MPPgQACJw-WBw0-MF+BADo-WBDDQ-LZIwADCJ-WBQC-M3gABQACKM-WBw0-2BIABEACCm-WBMN-2pBgAEig-UBEEABgAHQADG-qBYAEJc-UBBBQIAHEADBg-ppJYADCH-VBQIB-MPmABMACKw-UBBABgE-LPCeBADh-VBECABQ-LFKABEACCD-VBQIB-hmDgEACCI-VBQIB-3fBAEqwADIo-PBEIABg-3BQADKkADCX-PBBCABI-3BEADCtAElw-PBQgC-MtBAFcACQAMcABBANwAP4A0CAEIgADCIAUBAETwAVBABCYAF",
+  "select": {
+   "context": 0,
+   "contextCard": null,
+   "deck": null,
+   "effect": null,
+   "maxCount": 1,
+   "minCount": 1,
+   "option": [
+    {
+     "index": 1,
+     "type": 7
+    },
+    {
+     "index": 4,
+     "type": 7
+    },
+    {
+     "type": 12
+    },
+    {
+     "type": 14
+    }
+   ],
+   "remainDamageCounter": 0,
+   "remainEnergyCost": 0,
+   "type": 0
+  }
+ },
+ "accion_registrada": [
+  0
+ ]
+}

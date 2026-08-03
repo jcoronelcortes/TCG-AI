@@ -139,9 +139,17 @@ class _Ctx:
 
 
 def test_veto_con_la_mano_del_log():
-    """{Dawn, Xerosic, Ultra Ball}: el unico forraje es el Dawn (1 < 2)."""
+    """{Dawn, Xerosic, Ultra Ball}: NO hay forraje (0 < 2).
+
+    El Dawn tampoco cuenta: con el Supporter del turno libre y una sola copia
+    de refresco en mano, el bloque SelectContext.DISCARD lo puntua 3, POR
+    DEBAJO del Xerosic vs Alakazam (5) -- lo conserva y suelta el Xerosic en su
+    lugar. Antes se contaba como forraje (1); el veto saltaba igual porque
+    1 < 2, pero la misma sobrecuenta SI dejaba pasar la Ultra Ball cuando en la
+    mano habia un Boss's ademas del Supporter de refresco (registro_004 pasos
+    43-64 vs Alakazam)."""
     ctx = _Ctx({m.Dawn: 1, m.Xerosic_Machinations: 1, m.Ultra_Ball: 1})
-    assert m._ub_forraje_real(ctx, m.Xerosic_Machinations) == 1
+    assert m._ub_forraje_real(ctx, m.Xerosic_Machinations) == 0
     assert m._ub_cancel_xerosic(ctx)
     assert m._ub_coste_destruye_carta_mejor(ctx)
 

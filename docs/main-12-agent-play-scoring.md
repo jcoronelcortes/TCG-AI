@@ -26,6 +26,7 @@ Máximo de línea Meganium: 2 copias vs Crustle/Cornerstone, 1 en el resto (`_ma
 - `_dragapult_snipe_setup` (Dragapult ex rival cargado Fuego+Psíquico con activo rival de retirada gratis): si Applin no puede evolucionar ya (Forest en juego + Dipplin en mano), veto — bajar Applin lo expone al snipe.
 - Veto con banca llena, y vs Cubchoo si ya hay un miembro de la línea Hydrapple en juego (una sola línea viva).
 - Veto con Mega Starmie ex activo sin evolución inmediata.
+- **`_applin_regalado`** (Fase E3 del plan de Marnie): mismo veto, pero con el umbral sacado de la **ventana de regalo** en vez de una lista de mazos. Un Applin recién bajado tiene 40 PV impresos y **no** tiene habilidad, así que no paga el goteo de *Freezing Shroud*; lo que lo mata es el snipe automático (30) más **un solo** contador movido por *Adrena-Brain*. Si `_ventana_de_regalo` alcanza esos 40 PV y no se puede encadenar a Dipplin este turno (`_applin_evolvable_now` = Forest **en juego** + Dipplin en mano), el básico no se baja: se reservan las piezas para montar Applin→Dipplin→Hydrapple ex de una vez. Sin Munkidori en mesa `_op_movable_dmg` es 0, el snipe pelado no llega a 40 y la regla no se enciende. Tests: `tests/test_marnie_fase_c_y_e_higiene_de_banca.py`.
 - Base `21200`, `20800` con un Applin ya en juego; `+200` con Forest+Dipplin; `+300` vs fuego/agresivo sin Hydrapple; con `op_bench_snipe_threat` sin Forest, la línea iniciada baja a `18000` y `−500` extra sin Dipplin en mano.
 
 ### Teal Mask Ogerpon ex
@@ -61,7 +62,7 @@ Meowth ex (*Last-Ditch Catch*: al bajarlo busca un Supporter del mazo) tiene la 
 
 - `_fez_prefer_teal_lillie`: con Lillie's en mano, Supporter sin jugar, Ogerpon en mano (<2 en juego) y Planta en mano → veto (dejar ganar a Ogerpon 21000: Teal Dance + Lillie's rinde más que *Flip the Script*).
 - Veto con copia en juego o banca llena.
-- Vs Lucario/Crustle/Cornerstone/Sylveon: vale 2 premios y su habilidad solo sirve tras ser noqueado — con `ko_last_turn` → `22000` (`22500` con mano ≤3); si no, solo último recurso con banca vacía → `500`; resto veto.
+- Vs Lucario/Crustle/Cornerstone/Sylveon **y con `op_has_froslass`** (Fase E1 del plan de Marnie): vale 2 premios y su habilidad solo sirve tras ser noqueado — con `ko_last_turn` → `22000` (`22500` con mano ≤3); si no, solo último recurso con banca vacía → `500`; resto veto. Froslass entra en esa lista porque Fezandipiti ex **tiene habilidad**: paga 20 por ronda y por Froslass sin que el rival gaste nada, y son 2 premios que *Adrena-Brain* puede rematar en la banca. Meowth ex ya estaba protegido por su propia rama (`elif op_has_froslass`).
 - Turno 1 con banca de 1 → `15000`; si no, veto.
 - Caso general: `22000`/`22500` con `ko_last_turn`; sin KO y banca ≤2, si toda la banca son básicos (`_all_bench_basics`) y el rival no es Lucario → `max(fez_score, 15000)`.
 

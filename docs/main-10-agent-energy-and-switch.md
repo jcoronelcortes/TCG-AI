@@ -34,7 +34,25 @@ Antes de definir `energy_score`, el agente calcula varias condiciones fijas para
 
 Casi todas estas banderas son "recetas de log real" (los comentarios citan la partida concreta que las motivó) que `energy_score` consulta para resolver secuencias de varios pasos (cargar → retirar → promover → rematar) con un scorer que solo mira un paso a la vez.
 
-### `energy_score(pokemon, active)` — base y desempate
+### `energy_score` = `_energy_score_base` + el techo del cuerpo CONDENADO
+
+La cascada de reglas que describe el resto de este documento vive en
+`_energy_score_base(pokemon, active)`. `energy_score` es un **envoltorio** de tres
+líneas que aplica un único techo al valor que salga: si el score está por debajo
+de `SCORE_CARGA_LETAL_FLOOR` (41000) y `_cuerpo_condenado(pokemon, active)` dice
+que el rival puede cobrar ese cuerpo antes de nuestro próximo turno, el score baja
+a `SCORE_CARGA_CONDENADA` (20) conservando el orden relativo entre condenados.
+
+El envoltorio no es un adorno de estilo: `_energy_score_base` tiene **~60
+`return` repartidos** (topes por matchup, bandas de banca a 0, pivotes de
+retirada, remates) y la cola genérica es una rama minoritaria, así que un techo
+escrito al final del cuerpo de la función **disparaba 0 veces** sobre 929
+decisiones reales. Por debajo de 41000 hay desarrollo; de ahí para arriba hay
+energía que cobra o niega un premio HOY, y a esa el techo no la toca. Ver la
+sección 11 de `docs/plan-matchup-marnie-froslass-munkidori.md` y
+`tests/test_marnie_fase_c_y_e_higiene_de_banca.py`.
+
+### `_energy_score_base(pokemon, active)` — base y desempate
 
 ```python
 score = 8000 + (getattr(pokemon, 'hp', 0) or 0) / 100000.0

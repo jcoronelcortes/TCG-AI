@@ -110,6 +110,13 @@ EX_IMMUNE_IDS = {Crustle_Grass, Crustle_Fighting, Sylveon}
 ```
 Pokémon rivales con la regla de "inmunidad a ataques de Pokémon ex". **Ambas variantes de Crustle** comparten la habilidad anti-ex: la Fighting (533) activaba `op_is_crustle_deck` pero faltaba en este conjunto, así que el cálculo de daño puntual creía que nuestros ex sí la dañaban — corregido en la auditoría de julio 2026. Se usa para saber cuándo nuestros atacantes ex (`Ogerpon ex`, `Hydrapple ex`, etc.) **no pueden dañarlos** y hay que rodear el bloqueo con un atacante no-ex o con Boss's Orders hacia otro objetivo (ver la memoria "Ogerpon energy cap vs Crustle" y las reglas anti-Crustle en `main-09`).
 
+#### `CRUSTLE_LINE_IDS` y `_op_juega_crustle(op_state)`
+```python
+CRUSTLE_LINE_IDS = {Crustle_Grass, Crustle_Fighting,
+                    Dwebble_Grass, Dwebble_Fighting}
+```
+La **línea** Crustle, pre-evo incluida, con su predicado de tablero `_op_juega_crustle(op_state)` (¿hay alguna en el activo o la banca rival?). Existe porque `op_is_crustle_deck` **no** significa "el rival juega Crustle" sino "el rival tiene un muro inmune a ex": también se enciende con `Sylveon` y con `EEVEE_IDS`. Para las decisiones que dependen de la **inmunidad** (a quién puede dañar nuestro ex, cuándo rodear el muro) el flag es lo correcto; para las que dependen de cómo está **construido** el mazo Crustle —señaladamente `t1_segundos_crustle_estadio_antes_de_lillie` (docs 04 y 15), que baja el estadio en nuestro primer turno porque ese mazo apenas juega estadio— hay que mirar esta lista, no el flag.
+
 #### `ABILITY_IMMUNE_IDS`
 ```python
 ABILITY_IMMUNE_IDS = {Cornerstone_Mask_Ogerpon_ex}

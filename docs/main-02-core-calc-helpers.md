@@ -107,6 +107,22 @@ Cómo mide:
 - **`puede_cambiar`** decide si los cuerpos de BANCA pueden contar para `desbloquea_hoy` (sin retirada ni carta de cambio no atacan hoy, estén cargados o no). A `pendiente` suman siempre: es demanda a dos turnos.
 - **`demanda` = `min(tope, pendiente - en_mano)`**, no la capacidad de adjunte de este turno. La recuperación va a la **mano**, y una Planta guardada sigue sirviendo el turno siguiente; con todos los atacantes cargados la demanda es 0 y la energía deja de valer.
 
+### `_prob_al_menos(...)` y `_pesca_de_remate(...)` — el ataque que depende del **robo**
+
+`_plan_de_planta` responde en booleano: *¿las Plantas de la MANO desbloquean un ataque hoy?* Cuando las Plantas que faltan no están en la mano sino en el **mazo**, y hay un refresco jugable (Lillie's Determination roba 6, u 8 con los 6 premios intactos), la pregunta correcta ya no es booleana sino **probabilística**. Estas dos piezas son la fuente única de esa respuesta, y el **único sitio del fichero donde el agente razona con azar**.
+
+- **`_prob_al_menos(exitos, poblacion, robo, k)`** — hipergeométrica: probabilidad de robar al menos `k` copias. `exitos` sale de la creencia de mazo (`CARTAS_ACTIVAS_EN_MAZO`), que cuenta **lo no visto**: mazo **más** premios boca abajo. Por eso el llamador mete también los premios en `poblacion` — son cartas indistinguibles del mazo desde nuestro lado —, lo que deja la estimación **ligeramente conservadora** (registro_004: 11 Plantas no vistas en 48 → 0.60, frente al 0.63 real de las 10 que quedaban en el mazo de 42). Conservador es lo que se quiere en un *gate*.
+- **`_pesca_de_remate(...) -> _PescaRemate | None`** — el hermano **consciente del daño** de `_plan_de_planta`. Comparte su aritmética (déficit en cartas, vías dirigibles a *ese* cuerpo: manual + Ripening Charge de cada Hydrapple ex + Teal Dance solo sobre su propio portador, `habilidades_apagadas` incluido) y le añade lo que aquélla no mira: **a quién** se ataca (siempre el activo rival ACTUAL), cuánto **daño** sale (`_attacker_base_damage` + `_our_effective_damage`) y cuántos **premios** cobra. Devuelve el mejor plan por `(letal, premios, probabilidad, daño, activo antes que banca)`.
+
+Dos detalles que son reglas, no implementación:
+
+- **`baraja_la_mano=True`** (Lillie's, Unfair Stamp) modela el coste real del refresco: las Plantas que hubiera en la mano **vuelven al mazo**, así que no descuentan del déficit y se suman a los `outs`.
+- **Si la MANO ya desbloquea el ataque, no hay pesca**: se salta ese cuerpo. Barajar justo la energía que gana el turno sería el peor error posible; el adjunte puntúa en su propio tier y se juega antes, y si solo cubre parte del déficit la reevaluación vuelve aquí con una carta menos que pescar (y, por tanto, más probabilidad).
+
+Cuerpos de BANCA: solo entran si la retirada es pagable (`puede_cambiar` + energía del activo ≥ coste, o carta de cambio), y el Grass del campo que escala a *Syrup Storm* se mide **después** del retiro (`_retreat_grass_units`).
+
+Lo consumen `_pesca_remate_valida` → la regla `pescar_energia_para_remate` de Lillie's (`main-09`) y la cesión `cede_a_pesca_de_remate` de Boss's (`main-08`).
+
 ### `_pokemon_injugable(card_id, field_counts, bench_count, bench_max)`
 
 `True` si traer ese Pokémon a la mano trae una **carta muerta**: no se puede poner en juego ni hoy ni el turno siguiente. Todo se reduce al hueco de banca — con `bench_count < bench_max` nada está muerto (cabe cualquier Básico, y una evolución huérfana puede completarse banqueando su pre-evolución). Con la banca **llena**: un Básico no entra de ninguna forma; una evolución solo vive si su pre-evolución está **en juego** (evoluciona sobre ella sin ocupar hueco) — tenerla en la mano no basta, bajarla exigiría el hueco que no hay. Deck-agnóstico: las etapas salen de `EVO_LINES` y el tipo, de `card_table`. **No es un veto**: quien lo usa debe dejar la opción elegible como último recurso, porque las recuperaciones tienen `minCount >= 1` y a veces todo el descarte es carta muerta.

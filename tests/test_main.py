@@ -2643,6 +2643,146 @@ def test_alakazam_reserve_allows_line_pieces():
         f"obtuvo {result}")
 
 
+# La reserva de banca vale TAMBIEN con un Meowth ex YA en la banca (user,
+# registro_010 paso 150 vs Alakazam, PERDIDA -- log 88903365). Lo que se
+# reserva no es "el primer Meowth" sino la LAST-DITCH CATCH del turno: el
+# Meowth de banca de turnos anteriores ya gasto la suya, pero uno NUEVO desde
+# la mano vuelve a buscar (mismo criterio que `_alakazam_dig_xerosic_engine` y
+# que la rama PLAY de Meowth ex: < 2 copias en campo + `_meowth_ld_free`).
+# Estado del paso: banca 4/5 (Bayleef, Ogerpon ex, Hydrapple ex, Meowth ex),
+# 3er Teal Mask Ogerpon ex en la mano, 2 Ultra Ball, mano rival 12 (Powerful
+# Hand = 240) y el rival a 2 premios. Con `field_counts[Meowth_ex] == 0` la
+# reserva no disparaba: el 3er Ogerpon ex llenaba la banca, la Ultra Ball cavo
+# el 2o Meowth ex -- que se quedo MUERTO en la mano -- y sin Xerosic el rival
+# gusteo con Boss's Orders un Ogerpon ex de banca y lo noqueo (220 >= 210) para
+# sus 2 ultimos premios.
+_ALK_RESERVE_MEOWTH_EN_BANCA_FIXTURE = (
+    ROOT / "tests" / "fixtures"
+    / "alakazam_step150_reserva_con_meowth_en_banca.json")
+
+
+def _alk_reserve_obs():
+    with open(_ALK_RESERVE_MEOWTH_EN_BANCA_FIXTURE, encoding="utf-8") as f:
+        return _copy.deepcopy(json.load(f)["observation"])
+
+
+def _alk_reserve_run(obs):
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    return m.agent(obs)
+
+
+def test_alakazam_reserve_slot_con_meowth_ya_en_banca():
+    obs = _alk_reserve_obs()
+    me = obs["current"]["players"][0]
+    assert [b["id"] for b in me["bench"]] == [709, 96, 150, 1071]
+    assert me["hand"][3]["id"] == 96  # 3er Teal Mask Ogerpon ex (duplicado)
+    result = _alk_reserve_run(obs)
+    assert result != [3], (
+        f"con un Meowth ex de turnos anteriores en banca la Last-Ditch sigue "
+        f"libre: el ultimo slot se reserva y NO se baja el 3er Ogerpon ex; "
+        f"obtuvo {result}")
+    assert result == [27], (
+        f"la jugada correcta es Ripening Charge sobre el Hydrapple ex de banca "
+        f"(opt 27); obtuvo {result}")
+
+
+# En el tablero real DOS reglas independientes vetan ese 3er Ogerpon ex: la
+# reserva de banca y el veto del cuerpo ex REDUNDANTE con Powerful Hand letal
+# (abajo). Para aislar cada una, los controles de la reserva bajan la mano rival
+# a 8 cartas: Powerful Hand proyectado = 20 x (8+2) = 200 < 210 PV del Ogerpon
+# ex, asi que el segundo veto se apaga -- y 8 sigue por encima del umbral >= 7
+# del motor Xerosic, que es lo que la reserva protege.
+_ALK_MANO_RIVAL_SIN_REMATE = 8
+
+
+def _alk_sin_remate(obs):
+    obs["current"]["players"][1]["handCount"] = _ALK_MANO_RIVAL_SIN_REMATE
+    return obs
+
+
+def test_alakazam_reserve_off_si_last_ditch_ya_gastada():
+    # Control negativo: el Meowth ex de banca APARECIO ESTE TURNO -> su
+    # Last-Ditch ya se gasto y un 2o Meowth no buscaria nada. Sin motor que
+    # ocupe el hueco no hay nada que reservar: el cuerpo vuelve a bajarse.
+    obs = _alk_sin_remate(_alk_reserve_obs())
+    for b in obs["current"]["players"][0]["bench"]:
+        if b["id"] == 1071:
+            b["appearThisTurn"] = True
+    result = _alk_reserve_run(obs)
+    assert result == [3], (
+        f"con la Last-Ditch del turno gastada la reserva no aplica; "
+        f"obtuvo {result}")
+
+
+def test_alakazam_reserve_off_sin_meowth_alcanzable():
+    # Control negativo: la 2a copia de Meowth ex esta en el DESCARTE -> no
+    # queda cuerpo que pueda ocupar el hueco reservado.
+    obs = _alk_sin_remate(_alk_reserve_obs())
+    obs["current"]["players"][0]["discard"].append(
+        {"id": 1071, "playerIndex": 0, "serial": 19})
+    result = _alk_reserve_run(obs)
+    assert result == [3], (
+        f"sin Meowth ex alcanzable la reserva no aplica; obtuvo {result}")
+
+
+def test_alakazam_reserve_off_sin_xerosic_en_mazo():
+    # Control negativo: el 2o Xerosic tambien al descarte -> no hay disrupcion
+    # que cavar, el hueco no vale mas que el cuerpo.
+    obs = _alk_sin_remate(_alk_reserve_obs())
+    obs["current"]["players"][0]["discard"].append(
+        {"id": 1197, "playerIndex": 0, "serial": 62})
+    result = _alk_reserve_run(obs)
+    assert result == [3], (
+        f"sin Xerosic en el mazo la reserva no aplica; obtuvo {result}")
+
+
+# CUERPO ex REDUNDANTE CON POWERFUL HAND LETAL (user, mismo registro_010): la
+# reserva de banca solo cubre el caso "banca 4/5". El principio es mas amplio:
+# vs Alakazam el remate rival es Boss's Orders + Powerful Hand (20 x su mano),
+# asi que un ex DUPLICADO cuyo PV ya cabe en ese dano, con el rival a <= 2
+# premios, solo puede perder la partida. Se aisla del veto de la reserva
+# mandando la 2a copia de Meowth ex al descarte (reserva OFF: sin cuerpo que
+# ocupe el hueco no hay nada que reservar).
+
+
+def _alk_sin_reserva(obs):
+    obs["current"]["players"][0]["discard"].append(
+        {"id": 1071, "playerIndex": 0, "serial": 19})
+    return obs
+
+
+def test_alakazam_no_baja_ex_redundante_con_powerful_hand_letal():
+    obs = _alk_sin_reserva(_alk_reserve_obs())
+    op = obs["current"]["players"][1]
+    assert op["handCount"] == 12 and len(op["prize"]) == 2
+    assert m._powerful_hand_proyectado(op["handCount"]) >= 210  # PV Ogerpon ex
+    result = _alk_reserve_run(obs)
+    assert result != [3], (
+        f"con Powerful Hand proyectado 280 >= 210 PV y el rival a 2 premios, "
+        f"un 3er Teal Mask Ogerpon ex es un remate servido: no se baja; "
+        f"obtuvo {result}")
+
+
+def test_alakazam_ex_redundante_ok_si_powerful_hand_no_remata():
+    # Control negativo: mano rival 8 -> 20 x 10 = 200 < 210 PV. El cuerpo NO
+    # muere de un golpe, el veto no aplica y el duplicado vuelve a bajarse.
+    obs = _alk_sin_remate(_alk_sin_reserva(_alk_reserve_obs()))
+    result = _alk_reserve_run(obs)
+    assert result == [3], (
+        f"si Powerful Hand no remata al cuerpo, el veto no aplica; "
+        f"obtuvo {result}")
+
+
+def test_alakazam_ex_redundante_ok_si_rival_lejos_de_premios():
+    # Control negativo: el rival a 4 premios. Aunque Powerful Hand remate, un
+    # objetivo mas no cierra la partida: el desarrollo normal sigue.
+    obs = _alk_sin_reserva(_alk_reserve_obs())
+    obs["current"]["players"][1]["prize"] = [None] * 4
+    result = _alk_reserve_run(obs)
+    assert result == [3], (
+        f"con el rival a 4 premios el veto no aplica; obtuvo {result}")
+
+
 # DISCARD (user): vs Alakazam el Xerosic se PROTEGE al pagar costes de descarte
 # (es la carta que capa Powerful Hand); en otros mazos es descartable medio.
 # Mano de la seleccion: [Xerosic, Bug Catching Set, Poke Pad, Forest], descartar 2.
@@ -6770,27 +6910,59 @@ def test_promote_near_ready_ko_attacker_over_cheap_wall():
         "no promover un muro que no puede atacar en varios turnos")
 
 
-def test_promote_near_ready_defers_without_draw_engine():
-    # Control: sin motor de robo/refresco en mano (quitamos la Lillie's), NO se
-    # puede cavar la energia que falta, asi que el override de "atacante casi
-    # listo" NO aplica y la decision deja de estar forzada a Ogerpon ex (vuelve
-    # la logica de muro basico / promocion normal).
+def _promote_near_ready_obs(sin_lillie=False, sin_fez=False):
     with open(_PROMOTE_NEAR_READY_FIXTURE, encoding="utf-8") as f:
         obs = json.loads(json.dumps(json.load(f)["observation"]))
-
     yi = obs["current"]["yourIndex"]; me = obs["current"]["players"][yi]
-    me["hand"] = [c for c in me["hand"] if c["id"] != m.Lillie_Determination]
+    if sin_lillie:
+        me["hand"] = [c for c in me["hand"] if c["id"] != m.Lillie_Determination]
+    if sin_fez:
+        me["bench"] = [b for b in me["bench"] if b["id"] != m.Fezandipiti_ex]
+        obs["select"]["option"] = [
+            {"area": 5, "index": i, "playerIndex": yi, "type": 3}
+            for i in range(len(me["bench"]))]
+    return obs
 
-    options = obs["select"]["option"]
-    ogerpon_opt = next(i for i, o in enumerate(options)
+
+def test_promote_near_ready_defers_without_draw_engine():
+    # Control: SIN ningun motor de robo, no se puede cavar la energia que falta,
+    # asi que el override de "atacante casi listo" NO aplica y la decision
+    # vuelve a la logica de muro basico / promocion normal.
+    #
+    # Hay que quitar DOS motores, no uno. Antes este control solo quitaba la
+    # Lillie's de la mano y daba por hecho que ya no quedaba forma de cavar; pero
+    # el tablero conserva un **Fezandipiti ex en la banca** y la promocion ocurre
+    # justo despues de un KO, que es el disparador de Flip the Script: el proximo
+    # turno roba 3. Esa via (ruta `d` de `_ps_can_find_energy`) es real y ahora
+    # esta modelada, asi que el control tiene que apagarla tambien para medir lo
+    # que dice medir. Ver `test_promote_near_ready_fez_draw_engine_is_enough`.
+    obs = _promote_near_ready_obs(sin_lillie=True, sin_fez=True)
+    me = obs["current"]["players"][obs["current"]["yourIndex"]]
+    ogerpon_opt = next(i for i, o in enumerate(obs["select"]["option"])
                        if me["bench"][o["index"]]["id"] == m.Teal_Mask_Ogerpon_ex)
 
     m._init_cartas_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
 
     assert result != [ogerpon_opt], (
-        f"sin Lillie's (sin motor para cavar energia) el override no debe forzar "
-        f"Ogerpon ex; obtuvo {result}")
+        f"sin motor de robo alguno el override no debe forzar Ogerpon ex; "
+        f"obtuvo {result}")
+
+
+def test_promote_near_ready_fez_draw_engine_is_enough():
+    # Sin Lillie's pero CON el Fezandipiti ex en banca: Flip the Script (roba 3,
+    # disparada por el KO que nos obliga a promover) es motor suficiente para
+    # buscar la Planta que falta, y el Ogerpon ex a 2/3 conserva la salida
+    # (retirada 1, lleva 2 energias) por si el robo falla. Se promueve el
+    # atacante casi listo, no el Tapu Bulu 0/4 con retirada 3.
+    obs = _promote_near_ready_obs(sin_lillie=True)
+    me = obs["current"]["players"][obs["current"]["yourIndex"]]
+    assert any(b and b["id"] == m.Fezandipiti_ex for b in me["bench"])
+    ogerpon_opt = next(i for i, o in enumerate(obs["select"]["option"])
+                       if me["bench"][o["index"]]["id"] == m.Teal_Mask_Ogerpon_ex)
+
+    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    assert m.agent(obs) == [ogerpon_opt]
 
 
 # vs Alakazam con la mano rival grande (Powerful Hand = 20 x carta): reservar el
