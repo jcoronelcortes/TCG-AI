@@ -28,8 +28,22 @@ card_table = {c.cardId: c for c in all_card}
 attack_table = {a.attackId: a for a in all_attack()}
 
 
+# Indice NOMBRE -> dato de carta: `evolvesFrom` guarda el NOMBRE de la
+# pre-evolucion, asi que subir una cadena exige resolver nombres. Cubre TODAS
+# las cartas del entorno (no solo las de nuestro mazo): las lineas que hay que
+# leer aqui son las RIVALES.
+_CARD_BY_NAME = {}
+
+# Indice inverso NOMBRE -> cartas que evolucionan DE ese nombre. Complementa a
+# `_CARD_BY_NAME` (que sube por la cadena) para poder BAJAR por ella y saber en
+# que termina una linea rival. Cubre TODAS las cartas del entorno.
+_EVOLUCIONES_POR_NOMBRE = {}
+
+
 __all__ = [
     'all_card',
     'card_table',
     'attack_table',
+    '_CARD_BY_NAME',
+    '_EVOLUCIONES_POR_NOMBRE',
 ]

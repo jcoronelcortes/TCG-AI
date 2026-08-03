@@ -22,6 +22,7 @@ EL RESET ES UNO SOLO
   actualizar cada vez que nace un global. Ahora `reset()` es la unica fuente.
 """
 
+from ptcg.cartas.costes import ATTACK_ENERGY_REQ_BASE
 from ptcg.motor.plan import AttackPlan
 
 # Valor centinela de `_log_turno_en_curso`: aun no se sabe de que turno son los
@@ -119,6 +120,21 @@ class EstadoAgente:
         self._op_prize_denial_pecharunt = False   # Pecharunt ex (141) en el campo rival
         self._op_prize_denial_gengar = False      # Mega Gengar ex (772) en el campo rival
         self._festival_grounds_in_play = False  # Festival Grounds (1245) en mesa, de quien sea
+
+        # --- coste de ataque EFECTIVO de este turno ---------------------------
+        # Copia de la tabla base sobre la que `_aplicar_impuesto_tera` aplica el
+        # +1 de Nighttime Mine a nuestros Tera. Se recalcula SIEMPRE desde la
+        # base, para que el impuesto no se acumule entre turnos ni entre partidas.
+        self.ATTACK_ENERGY_REQ = dict(ATTACK_ENERGY_REQ_BASE)
+
+        # --- creencia sobre el mazo -------------------------------------------
+        # `CARTAS_ACTIVAS_EN_MAZO[card_id][ZONA]` = cuantas copias hay en cada
+        # zona. Lo llena `_init_cartas_tracking()` desde deck.csv y lo van
+        # moviendo `_move_card_state` y `_update_cartas_tracking`.
+        self.CARTAS_ACTIVAS_EN_MAZO = {}
+        self._cartas_first_scan_done = False
+        self._cartas_prizes_identified = False
+        self._cartas_last_turn = -1
 
         # --- dano rival proyectado -------------------------------------------
         # Dano proyectado del snipe rival a UN Pokemon de nuestra banca (se recalcula

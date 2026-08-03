@@ -62,15 +62,20 @@ def reset_agente(m):
     sys.modules. Ahi las asignaciones iban a un atributo muerto, el reinicio no
     ocurria y el estado se filtraba de una partida a la siguiente.
     """
+    estado = getattr(m, "ESTADO", None)
+    if estado is not None:
+        # ORDEN: primero `reset()` -- que deja CARTAS_ACTIVAS_EN_MAZO vacio -- y
+        # DESPUES el escaneo que lo llena desde deck.csv. Al reves, el reset
+        # borraba el tracking recien construido y el agente empezaba cada
+        # partida creyendo que su mazo esta vacio.
+        estado.reset()
+        m._init_cartas_tracking()
+        return
+
     m._init_cartas_tracking()
     m._cartas_first_scan_done = False
     m._cartas_prizes_identified = False
     m._cartas_last_turn = -1
-
-    estado = getattr(m, "ESTADO", None)
-    if estado is not None:
-        estado.reset()
-        return
 
     # Rama de COMPATIBILIDAD: main.py anterior a la Ola 3, donde el estado son
     # globals del modulo. utils/sombra.py compara la version actual contra un

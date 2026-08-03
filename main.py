@@ -52,6 +52,7 @@ if _mod is not None:
     _mod.__class__ = _MainConEstado
 
 from ptcg.cartas.ids import *  # noqa: F401,F403
+from ptcg.cartas.costes import ATTACK_ENERGY_REQ_BASE  # noqa: F401
 from ptcg.cartas.tablas import *  # noqa: F401,F403
 from ptcg.cartas.grupos import *  # noqa: F401,F403
 from ptcg.motor.plan import *  # noqa: F401,F403
@@ -377,11 +378,6 @@ def _physical_energy(effective_len):
 
 _CARD_NAME = {cid: (c.name or "") for cid, c in card_table.items()}
 
-# Indice NOMBRE -> dato de carta: `evolvesFrom` guarda el NOMBRE de la
-# pre-evolucion, asi que subir una cadena exige resolver nombres. Cubre TODAS
-# las cartas del entorno (no solo las de nuestro mazo): las lineas que hay que
-# leer aqui son las RIVALES.
-_CARD_BY_NAME = {}
 for _cbn in card_table.values():
     _CARD_BY_NAME.setdefault(_cbn.name or "", _cbn)
 
@@ -450,10 +446,6 @@ def _supera_en_evolucion(pkmn, otro):
     return _misma_linea_evolutiva(getattr(pkmn, 'id', 0), getattr(otro, 'id', 0))
 
 
-# Indice inverso NOMBRE -> cartas que evolucionan DE ese nombre. Complementa a
-# `_CARD_BY_NAME` (que sube por la cadena) para poder BAJAR por ella y saber en
-# que termina una linea rival. Cubre TODAS las cartas del entorno.
-_EVOLUCIONES_POR_NOMBRE = {}
 for _epn in card_table.values():
     _epn_pre = getattr(_epn, 'evolvesFrom', None)
     if _epn_pre:
@@ -840,18 +832,12 @@ def _retreat_grass_units(retreat_cost):
     y el log del ataque confirma los 240."""
     return _retreat_cards(retreat_cost) * _grass_attach_unit()
 
-ATTACK_ENERGY_REQ = {
-    Hydrapple_ex: 2, Dipplin: 1, Teal_Mask_Ogerpon_ex: 3,
-    Tapu_Bulu: 4, Fezandipiti_ex: 3, Meganium: 4, Pinsir: 2,
-    Bayleef: 2, Applin: 1, Chikorita: 1,
-}
 
 # Coste BASE, inmutable. `ATTACK_ENERGY_REQ` es la "fuente unica de verdad" que
 # leen ~50 sitios, asi que el impuesto de Nighttime Mine se aplica ajustando ese
 # diccionario UNA VEZ por llamada a agent() (ver `_aplicar_impuesto_tera`) en vez
 # de tocar los 50 puntos de lectura. Se recalcula SIEMPRE desde esta base, de
 # modo que el valor no se acumula entre llamadas ni entre partidas.
-_ATTACK_ENERGY_REQ_BASE = dict(ATTACK_ENERGY_REQ)
 
 
 def _aplicar_impuesto_tera(stadium_cards) -> bool:
@@ -866,9 +852,9 @@ def _aplicar_impuesto_tera(stadium_cards) -> bool:
     activa = any(getattr(c, 'id', 0) == Nighttime_Mine
                  for c in (stadium_cards or []))
     for _tid in OUR_TERA_IDS:
-        _base = _ATTACK_ENERGY_REQ_BASE.get(_tid)
+        _base = ATTACK_ENERGY_REQ_BASE.get(_tid)
         if _base is not None:
-            ATTACK_ENERGY_REQ[_tid] = _base + (1 if activa else 0)
+            ESTADO.ATTACK_ENERGY_REQ[_tid] = _base + (1 if activa else 0)
     return activa
 
 # Atacantes principales evaluados en los bloques de listo-para-atacar.
@@ -888,7 +874,7 @@ def _can_attack_eff(card_id, raw_energy):
     # para que ninguna regla lo trate como atacante -- ver el veto duro de
     # Meowth ex en banca. Derivar el coste del dato de carta aqui lo convertiria
     # en atacante en ~20 puntos del fichero.
-    _req = ATTACK_ENERGY_REQ.get(card_id)
+    _req = ESTADO.ATTACK_ENERGY_REQ.get(card_id)
     return _req is not None and raw_energy >= _req
 
 
@@ -987,7 +973,7 @@ def _plan_de_planta(my_state, state, field_counts, hand_counts, tope=3,
     for cuerpo, es_activo in cuerpos:
         if cuerpo is None or cuerpo.id not in MAIN_ATTACKERS:
             continue
-        req = ATTACK_ENERGY_REQ.get(cuerpo.id)
+        req = ESTADO.ATTACK_ENERGY_REQ.get(cuerpo.id)
         if req is None:
             continue
         falta = req - len(cuerpo.energies)
@@ -1135,7 +1121,7 @@ def _pesca_de_remate(my_state, op_state, state, hand_counts, field_counts,
             continue
         if not es_activo and not retirada_pagable:
             continue                      # cargado o no, hoy no llega al frente
-        req = ATTACK_ENERGY_REQ.get(cuerpo.id)
+        req = ESTADO.ATTACK_ENERGY_REQ.get(cuerpo.id)
         if req is None:
             continue
         falta = req - len(cuerpo.energies)
@@ -1267,26 +1253,21 @@ PROMO_MATCH_POINT_VETO = -30000
 
 
 
-CARTAS_ACTIVAS_EN_MAZO = {}
-_cartas_first_scan_done = False
-_cartas_prizes_identified = False
-_cartas_last_turn = -1
 
 def _init_cartas_tracking():
-    global CARTAS_ACTIVAS_EN_MAZO, _cartas_first_scan_done, _cartas_prizes_identified
-    CARTAS_ACTIVAS_EN_MAZO = {}
-    _cartas_first_scan_done = False
-    _cartas_prizes_identified = False
+    ESTADO.CARTAS_ACTIVAS_EN_MAZO = {}
+    ESTADO._cartas_first_scan_done = False
+    ESTADO._cartas_prizes_identified = False
     for card_id in my_deck:
-        if card_id not in CARTAS_ACTIVAS_EN_MAZO:
-            CARTAS_ACTIVAS_EN_MAZO[card_id] = {
+        if card_id not in ESTADO.CARTAS_ACTIVAS_EN_MAZO:
+            ESTADO.CARTAS_ACTIVAS_EN_MAZO[card_id] = {
                 ESTADO_MAZO: 0,
                 ESTADO_BANCA: 0,
                 ESTADO_MANO: 0,
                 ESTADO_PREMIO: 0,
                 ESTADO_DESCARTE: 0,
             }
-        CARTAS_ACTIVAS_EN_MAZO[card_id][ESTADO_MAZO] += 1
+        ESTADO.CARTAS_ACTIVAS_EN_MAZO[card_id][ESTADO_MAZO] += 1
 
     # Los marcadores de la ventana del KO abarcan DOS turnos (ver
     # `_rastrear_ventana_de_ko`), asi que no los limpia el reset por turno de
@@ -1308,17 +1289,17 @@ def _reset_ventana_de_ko():
 _init_cartas_tracking()
 
 def _move_card_state(card_id, from_state, to_state):
-    if card_id in CARTAS_ACTIVAS_EN_MAZO:
-        if CARTAS_ACTIVAS_EN_MAZO[card_id][from_state] > 0:
-            CARTAS_ACTIVAS_EN_MAZO[card_id][from_state] -= 1
-            CARTAS_ACTIVAS_EN_MAZO[card_id][to_state] += 1
+    if card_id in ESTADO.CARTAS_ACTIVAS_EN_MAZO:
+        if ESTADO.CARTAS_ACTIVAS_EN_MAZO[card_id][from_state] > 0:
+            ESTADO.CARTAS_ACTIVAS_EN_MAZO[card_id][from_state] -= 1
+            ESTADO.CARTAS_ACTIVAS_EN_MAZO[card_id][to_state] += 1
             return True
     return False
 
 def _belief_deck_and_prizes():
     deck = 0
     prize = 0
-    for counts in CARTAS_ACTIVAS_EN_MAZO.values():
+    for counts in ESTADO.CARTAS_ACTIVAS_EN_MAZO.values():
         deck += counts.get(ESTADO_MAZO, 0)
         prize += counts.get(ESTADO_PREMIO, 0)
     return deck, prize
@@ -1331,7 +1312,7 @@ def _prob_draw_any(target_ids, draws=1):
     target_set = set(target_ids)
     deck = 0
     hits = 0
-    for cid, counts in CARTAS_ACTIVAS_EN_MAZO.items():
+    for cid, counts in ESTADO.CARTAS_ACTIVAS_EN_MAZO.items():
         n = counts.get(ESTADO_MAZO, 0)
         deck += n
         if cid in target_set:
@@ -1349,7 +1330,7 @@ def _prob_draw_any(target_ids, draws=1):
     return 1.0 - p_none
 
 def _prob_card_accessible(card_id):
-    counts = CARTAS_ACTIVAS_EN_MAZO.get(card_id)
+    counts = ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(card_id)
     if not counts:
         return 0.0
     in_deck = counts.get(ESTADO_MAZO, 0)
@@ -1624,7 +1605,7 @@ def _attacker_base_damage(attacker_id, target, effective_energy,
     Devuelve 0 si el atacante no llega a su requisito de energia
     (ATTACK_ENERGY_REQ, fuente unica de verdad).
     """
-    req = ATTACK_ENERGY_REQ
+    req = ESTADO.ATTACK_ENERGY_REQ
     if attacker_id == Hydrapple_ex and effective_energy >= req[Hydrapple_ex]:
         return 30 + 30 * grass_scale
     if attacker_id == Teal_Mask_Ogerpon_ex and effective_energy >= req[Teal_Mask_Ogerpon_ex]:
@@ -1900,8 +1881,7 @@ def _debug_log_decision(context, select, scores, obs, my_index, top_n=3):
         pass
 
 def _first_turn_scan(my_state):
-    global _cartas_first_scan_done
-    if _cartas_first_scan_done:
+    if ESTADO._cartas_first_scan_done:
         return
 
     if my_state.hand:
@@ -1921,7 +1901,7 @@ def _first_turn_scan(my_state):
 
     for card in my_state.discard:
         _move_card_state(card.id, ESTADO_MAZO, ESTADO_DESCARTE)
-    _cartas_first_scan_done = True
+    ESTADO._cartas_first_scan_done = True
 
 def _area_to_estado(area):
     if area == AreaType.DECK:
@@ -2032,7 +2012,7 @@ def _identify_prizes(obs, my_state=None):
     for card in obs.select.deck:
         deck_counts[card.id] += 1
 
-    for cid, entry in CARTAS_ACTIVAS_EN_MAZO.items():
+    for cid, entry in ESTADO.CARTAS_ACTIVAS_EN_MAZO.items():
         total_copies = sum(entry.values())
         in_deck = deck_counts.get(cid, 0)
         hidden = total_copies - entry[ESTADO_MANO] - entry[ESTADO_BANCA] - entry[ESTADO_DESCARTE]
@@ -2061,8 +2041,8 @@ def _sync_from_state(my_state):
     for card in my_state.discard:
         actual[card.id][ESTADO_DESCARTE] += 1
 
-    for cid in CARTAS_ACTIVAS_EN_MAZO:
-        entry = CARTAS_ACTIVAS_EN_MAZO[cid]
+    for cid in ESTADO.CARTAS_ACTIVAS_EN_MAZO:
+        entry = ESTADO.CARTAS_ACTIVAS_EN_MAZO[cid]
         real_mano = actual[cid][ESTADO_MANO]
         real_banca = actual[cid][ESTADO_BANCA]
         real_descarte = actual[cid][ESTADO_DESCARTE]
@@ -2082,16 +2062,15 @@ def _sync_from_state(my_state):
         entry[ESTADO_MAZO] = remaining - known_premio
 
 def _update_cartas_tracking(obs, my_index, my_state):
-    global _cartas_first_scan_done, _cartas_last_turn
 
-    if obs.current.turn == 1 and _cartas_last_turn > 1:
+    if obs.current.turn == 1 and ESTADO._cartas_last_turn > 1:
         _init_cartas_tracking()
         ESTADO.op_is_crustle_deck = False
         ESTADO.op_is_cornerstone_deck = False
         ESTADO.op_has_mega_kangaskhan = False
-    _cartas_last_turn = obs.current.turn
+    ESTADO._cartas_last_turn = obs.current.turn
 
-    if not _cartas_first_scan_done and obs.current is not None:
+    if not ESTADO._cartas_first_scan_done and obs.current is not None:
 
         _first_turn_scan(my_state)
     else:
@@ -2227,11 +2206,11 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
                 field_counts.get(Meowth_ex, 0) < 2 and
                 bench_count < 5 and
                 not meowth_ability_lock and
-                CARTAS_ACTIVAS_EN_MAZO.get(Meowth_ex, {}).get(ESTADO_MAZO, 0) > 0):
-            _lillie_in_mazo = CARTAS_ACTIVAS_EN_MAZO.get(Lillie_Determination, {}).get(ESTADO_MAZO, 0)
+                ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Meowth_ex, {}).get(ESTADO_MAZO, 0) > 0):
+            _lillie_in_mazo = ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Lillie_Determination, {}).get(ESTADO_MAZO, 0)
             if _lillie_in_mazo > 0:
                 ub_best_target = max(ub_best_target, 1100)
-            elif any(CARTAS_ACTIVAS_EN_MAZO.get(sid, {}).get(ESTADO_MAZO, 0) > 0
+            elif any(ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(sid, {}).get(ESTADO_MAZO, 0) > 0
                      for sid in (Dawn, Lanas_Aid)):
                 ub_best_target = max(ub_best_target, 950)
 
@@ -2243,7 +2222,7 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
             _active_is_weak_basic = any(field_counts.get(pid, 0) >= 1
                                         for pid in (Applin, Chikorita))
             if not _has_basic_in_hand_t1s and _active_is_weak_basic:
-                if CARTAS_ACTIVAS_EN_MAZO.get(Teal_Mask_Ogerpon_ex, {}).get(ESTADO_MAZO, 0) > 0:
+                if ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Teal_Mask_Ogerpon_ex, {}).get(ESTADO_MAZO, 0) > 0:
                     ub_best_target = max(ub_best_target, 1050)
 
         return ub_best_target
@@ -2263,8 +2242,8 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
                 bench_count < 5 and
                 not state.supporterPlayed and
                 not meowth_ability_lock and
-                CARTAS_ACTIVAS_EN_MAZO.get(Meowth_ex, {}).get(ESTADO_MAZO, 0) > 0 and
-                CARTAS_ACTIVAS_EN_MAZO.get(Lillie_Determination, {}).get(ESTADO_MAZO, 0) > 0):
+                ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Meowth_ex, {}).get(ESTADO_MAZO, 0) > 0 and
+                ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Lillie_Determination, {}).get(ESTADO_MAZO, 0) > 0):
             return 1100
 
         _has_basic_in_hand = any(hand_counts.get(pid, 0) >= 1
@@ -2276,14 +2255,14 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
         _best_t1_val = 0
 
         if (field_counts.get(Teal_Mask_Ogerpon_ex, 0) == 0 and
-                CARTAS_ACTIVAS_EN_MAZO.get(Teal_Mask_Ogerpon_ex, {}).get(ESTADO_MAZO, 0) > 0):
+                ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Teal_Mask_Ogerpon_ex, {}).get(ESTADO_MAZO, 0) > 0):
             _val = 950
             if hand_counts.get(Basic_Grass_Energy, 0) >= 1:
                 _val = 1000
             _best_t1_val = max(_best_t1_val, _val)
 
         if (field_counts.get(Chikorita, 0) == 0 and
-                CARTAS_ACTIVAS_EN_MAZO.get(Chikorita, {}).get(ESTADO_MAZO, 0) > 0):
+                ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Chikorita, {}).get(ESTADO_MAZO, 0) > 0):
             _val = 850
             if field_counts.get(Applin, 0) >= 1 or field_counts.get(Teal_Mask_Ogerpon_ex, 0) >= 1:
                 _val = 900
@@ -2292,7 +2271,7 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
             _best_t1_val = max(_best_t1_val, _val)
 
         if (field_counts.get(Applin, 0) == 0 and
-                CARTAS_ACTIVAS_EN_MAZO.get(Applin, {}).get(ESTADO_MAZO, 0) > 0):
+                ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Applin, {}).get(ESTADO_MAZO, 0) > 0):
             _val = 800
             if field_counts.get(Chikorita, 0) >= 1 or field_counts.get(Teal_Mask_Ogerpon_ex, 0) >= 1:
                 _val = 850
@@ -2325,12 +2304,12 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
         (supporters_in_hand == 0 or _supp_in_hand_is_inferior) and
         field_counts.get(Meowth_ex, 0) == 0 and
         bench_count < 5 and
-        CARTAS_ACTIVAS_EN_MAZO.get(Meowth_ex, {}).get(ESTADO_MAZO, 0) > 0 and
+        ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Meowth_ex, {}).get(ESTADO_MAZO, 0) > 0 and
         _best_supp_in_mazo_val > 200
     )
 
     if not meowth_viable and op_is_crustle_deck:
-        _boss_in_mazo = CARTAS_ACTIVAS_EN_MAZO.get(Boss_Orders, {}).get(ESTADO_MAZO, 0) > 0
+        _boss_in_mazo = ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Boss_Orders, {}).get(ESTADO_MAZO, 0) > 0
         _boss_val_ub = _best_supp_in_mazo_val
         if (_boss_in_mazo and _boss_val_ub >= 900 and
                 not state.supporterPlayed and
@@ -2338,7 +2317,7 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
                 field_counts.get(Meowth_ex, 0) == 0 and
                 bench_count < 5 and
                 hand_counts.get(Boss_Orders, 0) == 0 and
-                CARTAS_ACTIVAS_EN_MAZO.get(Meowth_ex, {}).get(ESTADO_MAZO, 0) > 0):
+                ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Meowth_ex, {}).get(ESTADO_MAZO, 0) > 0):
             meowth_viable = True
     if meowth_viable:
         meowth_val = _best_supp_in_mazo_val
@@ -2349,7 +2328,7 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
         ub_best_target = max(ub_best_target, meowth_val)
 
     if has_energy_for_teal and field_counts.get(Teal_Mask_Ogerpon_ex, 0) < 2 and bench_count < 5:
-        if CARTAS_ACTIVAS_EN_MAZO.get(Teal_Mask_Ogerpon_ex, {}).get(ESTADO_MAZO, 0) > 0:
+        if ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Teal_Mask_Ogerpon_ex, {}).get(ESTADO_MAZO, 0) > 0:
             val = 650
             if field_counts.get(Teal_Mask_Ogerpon_ex, 0) == 0:
                 val = 750
@@ -2361,7 +2340,7 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
             field_counts.get(Teal_Mask_Ogerpon_ex, 0) >= 2 and
             bench_count < 5 and
             field_counts.get(Hydrapple_ex, 0) >= 1):
-        if CARTAS_ACTIVAS_EN_MAZO.get(Teal_Mask_Ogerpon_ex, {}).get(ESTADO_MAZO, 0) > 0:
+        if ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Teal_Mask_Ogerpon_ex, {}).get(ESTADO_MAZO, 0) > 0:
 
             _td_dmg_bonus = 60 if meganium_in_play else 30
             val = 500 + _td_dmg_bonus * 2
@@ -2384,12 +2363,12 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
             # linea evoluciona SIN Ultra Ball y buscar una 2a copia no aporta
             # nada -- solo quema la carta y 2 descartes (user, registro_004 paso
             # 35 vs Cynthia's Garchomp: Meganium en mano y aun asi cavaba).
-            if (CARTAS_ACTIVAS_EN_MAZO.get(Meganium, {}).get(ESTADO_MAZO, 0) > 0
+            if (ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Meganium, {}).get(ESTADO_MAZO, 0) > 0
                     and hand_counts.get(Meganium, 0) == 0):
                 ub_best_target = max(ub_best_target, 1000)
         elif _evolvable.get(Chikorita, 0) >= 1 and field_counts.get(Bayleef, 0) >= 1:
 
-            if CARTAS_ACTIVAS_EN_MAZO.get(Meganium, {}).get(ESTADO_MAZO, 0) > 0:
+            if ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Meganium, {}).get(ESTADO_MAZO, 0) > 0:
                 if forest_in_play:
 
                     ub_best_target = max(ub_best_target, 1000)
@@ -2404,7 +2383,7 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
                     ub_best_target = max(ub_best_target, 280)
         elif _evolvable.get(Chikorita, 0) >= 1:
 
-            if (CARTAS_ACTIVAS_EN_MAZO.get(Bayleef, {}).get(ESTADO_MAZO, 0) > 0
+            if (ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Bayleef, {}).get(ESTADO_MAZO, 0) > 0
                     and hand_counts.get(Bayleef, 0) == 0):
                 # Solo vale buscar Bayleef si NO tenemos ya uno en la mano:
                 # con una Chikorita en juego, un unico Bayleef basta para
@@ -2412,7 +2391,7 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
                 # para esta linea (y gastaria 2 cartas de descarte por un duplicado).
                 ub_best_target = max(ub_best_target, 850)
 
-            elif (CARTAS_ACTIVAS_EN_MAZO.get(Meganium, {}).get(ESTADO_MAZO, 0) > 0 and
+            elif (ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Meganium, {}).get(ESTADO_MAZO, 0) > 0 and
                   (forest_in_play or hand_counts.get(Forest_of_Vitality, 0) >= 1) and
                   hand_counts.get(Bayleef, 0) >= 1):
                 _prot = 1
@@ -2422,9 +2401,9 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
                     ub_best_target = max(ub_best_target, 900)
 
         elif not _bench_full and field_counts.get(Chikorita, 0) + field_counts.get(Bayleef, 0) == 0:
-            if CARTAS_ACTIVAS_EN_MAZO.get(Chikorita, {}).get(ESTADO_MAZO, 0) > 0:
-                _has_mega_evo_in_mazo = (CARTAS_ACTIVAS_EN_MAZO.get(Bayleef, {}).get(ESTADO_MAZO, 0) > 0 or
-                                         CARTAS_ACTIVAS_EN_MAZO.get(Meganium, {}).get(ESTADO_MAZO, 0) > 0)
+            if ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Chikorita, {}).get(ESTADO_MAZO, 0) > 0:
+                _has_mega_evo_in_mazo = (ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Bayleef, {}).get(ESTADO_MAZO, 0) > 0 or
+                                         ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Meganium, {}).get(ESTADO_MAZO, 0) > 0)
                 _has_mega_evo_in_hand = (hand_counts.get(Bayleef, 0) >= 1 or hand_counts.get(Meganium, 0) >= 1)
                 _forest_available = (forest_in_play or hand_counts.get(Forest_of_Vitality, 0) >= 1)
 
@@ -2446,13 +2425,13 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
         if _evolvable.get(Dipplin, 0) >= 1:
             # Con el Hydrapple ex YA en la mano la linea evoluciona sin Ultra
             # Ball (ver la rama gemela de Meganium arriba).
-            if (CARTAS_ACTIVAS_EN_MAZO.get(
+            if (ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(
                     Hydrapple_ex, {}).get(ESTADO_MAZO, 0) > 0
                     and hand_counts.get(Hydrapple_ex, 0) == 0):
                 ub_best_target = max(ub_best_target, 950)
         elif _evolvable.get(Applin, 0) >= 1 and field_counts.get(Dipplin, 0) >= 1:
 
-            if CARTAS_ACTIVAS_EN_MAZO.get(Hydrapple_ex, {}).get(ESTADO_MAZO, 0) > 0:
+            if ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Hydrapple_ex, {}).get(ESTADO_MAZO, 0) > 0:
                 if forest_in_play:
                     ub_best_target = max(ub_best_target, 950)
                 else:
@@ -2466,13 +2445,13 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
                     ub_best_target = max(ub_best_target, 280)
         elif _evolvable.get(Applin, 0) >= 1:
 
-            if (CARTAS_ACTIVAS_EN_MAZO.get(Dipplin, {}).get(ESTADO_MAZO, 0) > 0
+            if (ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Dipplin, {}).get(ESTADO_MAZO, 0) > 0
                     and hand_counts.get(Dipplin, 0) == 0):
                 # Mismo criterio que Bayleef: no buscar Dipplin si ya hay uno en
                 # la mano (un Dipplin basta para evolucionar la unica Applin).
                 ub_best_target = max(ub_best_target, 800)
 
-            elif (CARTAS_ACTIVAS_EN_MAZO.get(Hydrapple_ex, {}).get(ESTADO_MAZO, 0) > 0 and
+            elif (ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Hydrapple_ex, {}).get(ESTADO_MAZO, 0) > 0 and
                   (forest_in_play or hand_counts.get(Forest_of_Vitality, 0) >= 1) and
                   hand_counts.get(Dipplin, 0) >= 1):
                 _prot = 1
@@ -2481,9 +2460,9 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
                 if _hand_total - 1 - _prot >= 2:
                     ub_best_target = max(ub_best_target, 850)
         elif not _bench_full and field_counts.get(Applin, 0) + field_counts.get(Dipplin, 0) == 0:
-            if CARTAS_ACTIVAS_EN_MAZO.get(Applin, {}).get(ESTADO_MAZO, 0) > 0:
-                _has_hydra_evo_in_mazo = (CARTAS_ACTIVAS_EN_MAZO.get(Dipplin, {}).get(ESTADO_MAZO, 0) > 0 or
-                                           CARTAS_ACTIVAS_EN_MAZO.get(Hydrapple_ex, {}).get(ESTADO_MAZO, 0) > 0)
+            if ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Applin, {}).get(ESTADO_MAZO, 0) > 0:
+                _has_hydra_evo_in_mazo = (ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Dipplin, {}).get(ESTADO_MAZO, 0) > 0 or
+                                           ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Hydrapple_ex, {}).get(ESTADO_MAZO, 0) > 0)
                 _has_hydra_evo_in_hand = (hand_counts.get(Dipplin, 0) >= 1 or hand_counts.get(Hydrapple_ex, 0) >= 1)
                 _forest_available = (forest_in_play or hand_counts.get(Forest_of_Vitality, 0) >= 1)
 
@@ -2509,12 +2488,12 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
                         ub_best_target = max(ub_best_target, 180)
 
     if not _bench_full and not has_energy_for_teal and field_counts.get(Teal_Mask_Ogerpon_ex, 0) < 2:
-        if CARTAS_ACTIVAS_EN_MAZO.get(Teal_Mask_Ogerpon_ex, {}).get(ESTADO_MAZO, 0) > 0:
+        if ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Teal_Mask_Ogerpon_ex, {}).get(ESTADO_MAZO, 0) > 0:
             if field_counts.get(Teal_Mask_Ogerpon_ex, 0) == 0 and bench_count <= 2:
                 ub_best_target = max(ub_best_target, 350)
 
     if not _bench_full and field_counts.get(Tapu_Bulu, 0) == 0:
-        if CARTAS_ACTIVAS_EN_MAZO.get(Tapu_Bulu, {}).get(ESTADO_MAZO, 0) > 0:
+        if ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Tapu_Bulu, {}).get(ESTADO_MAZO, 0) > 0:
             if meganium_in_play and (op_has_ex_immune_active or op_has_ex_immune_bench):
                 val = 750
                 if has_hydrapple:
@@ -2522,7 +2501,7 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
                 ub_best_target = max(ub_best_target, val)
 
     if not _bench_full and field_counts.get(Pinsir, 0) == 0:
-        if CARTAS_ACTIVAS_EN_MAZO.get(Pinsir, {}).get(ESTADO_MAZO, 0) > 0:
+        if ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Pinsir, {}).get(ESTADO_MAZO, 0) > 0:
             if op_is_crustle_deck or op_is_cornerstone_deck:
                 val = 900
                 if meganium_in_play:
@@ -2533,12 +2512,12 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
             not hand_is_weak and not state.supporterPlayed and
             field_counts.get(Meowth_ex, 0) == 0 and supporters_in_hand == 0 and
             _best_supp_in_mazo_val >= 500):
-        if CARTAS_ACTIVAS_EN_MAZO.get(Meowth_ex, {}).get(ESTADO_MAZO, 0) > 0:
+        if ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Meowth_ex, {}).get(ESTADO_MAZO, 0) > 0:
             if state.turn <= 4:
                 ub_best_target = max(ub_best_target, min(_best_supp_in_mazo_val, 500))
 
     if not _bench_full and field_counts.get(Fezandipiti_ex, 0) == 0:
-        if CARTAS_ACTIVAS_EN_MAZO.get(Fezandipiti_ex, {}).get(ESTADO_MAZO, 0) > 0:
+        if ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Fezandipiti_ex, {}).get(ESTADO_MAZO, 0) > 0:
             if ko_last_turn:
                 ub_best_target = max(ub_best_target, 1050)
 
@@ -2880,7 +2859,7 @@ def _ns_umbral_energia_util(card_id):
     if card_id in _NS_UMBRAL_POR_RETIRADA:
         return RETREAT_COST.get(card_id, 1)
     if card_id in _NS_UMBRAL_POR_ATAQUE:
-        return ATTACK_ENERGY_REQ.get(card_id)
+        return ESTADO.ATTACK_ENERGY_REQ.get(card_id)
     if card_id in _DECK_POKEMON_IDS:
         return None
     return _coste_de_ataque_min(card_id)
@@ -3128,7 +3107,7 @@ def _ns_e_cargar_banca_crustle(w):
         if bp.id not in (Tapu_Bulu, Teal_Mask_Ogerpon_ex,
                          Hydrapple_ex, Meganium):
             continue
-        req = ATTACK_ENERGY_REQ.get(bp.id)
+        req = ESTADO.ATTACK_ENERGY_REQ.get(bp.id)
         if req is None:
             continue
         if len(bp.energies) * _grass_mult() < req:
@@ -4755,7 +4734,7 @@ def _ctx_ub_fetch_hydrapple(my_state, state, hand_counts, field_counts,
         puede_adjuntar = (not state.energyAttached
                           and hand_counts.get(Basic_Grass_Energy, 0) >= 1)
         e_despues = e_ahora + _grass_attach_unit()
-        req = ATTACK_ENERGY_REQ.get(Hydrapple_ex, 2)
+        req = ESTADO.ATTACK_ENERGY_REQ.get(Hydrapple_ex, 2)
         if e_ahora >= req or (puede_adjuntar and e_despues >= req):
             evo_atk = True
     return _CtxUBHydrapple(
@@ -4788,13 +4767,13 @@ def _uh_preparar_hydra_prox_turno(c):
         not ESTADO.meganium_in_play and (
             c.hand.get(Bayleef, 0) >= 1
             or c.hand.get(Meganium, 0) >= 1
-            or CARTAS_ACTIVAS_EN_MAZO.get(Bayleef, {}).get(ESTADO_MAZO, 0) > 0
-            or CARTAS_ACTIVAS_EN_MAZO.get(Meganium, {}).get(ESTADO_MAZO, 0) > 0))
+            or ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Bayleef, {}).get(ESTADO_MAZO, 0) > 0
+            or ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Meganium, {}).get(ESTADO_MAZO, 0) > 0))
     buscar_bayleef_ya = (
         not ESTADO.meganium_in_play
         and c.evolvable.get(Chikorita, 0) >= 1
         and c.hand.get(Bayleef, 0) == 0
-        and CARTAS_ACTIVAS_EN_MAZO.get(Bayleef, {}).get(ESTADO_MAZO, 0) > 0)
+        and ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Bayleef, {}).get(ESTADO_MAZO, 0) > 0)
 
     return (dipplin_unico_grass
             or (linea_meganium_dev
@@ -4864,10 +4843,10 @@ def _ctx_ub_fetch_meowth(hand_counts, field_counts, bench_count, turno,
     return _CtxUBMeowth(
         hand=hand_counts, campo=field_counts, bench_count=bench_count,
         turno=turno, watchtower=watchtower, supp_values=supp_values,
-        lillie_in_mazo=CARTAS_ACTIVAS_EN_MAZO.get(
+        lillie_in_mazo=ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(
             Lillie_Determination, {}).get(ESTADO_MAZO, 0),
         any_supp_in_mazo=any(
-            CARTAS_ACTIVAS_EN_MAZO.get(sid, {}).get(ESTADO_MAZO, 0) > 0
+            ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(sid, {}).get(ESTADO_MAZO, 0) > 0
             for sid in (Lillie_Determination, Boss_Orders, Dawn, Lanas_Aid)),
         prefer_meowth_develop=prefer_meowth_develop,
         hydra_dead_prefer_meowth=hydra_dead_prefer_meowth,
@@ -4888,7 +4867,7 @@ def _um_boss_engine_vs_crustle(c):
     valioso proyectado (_supp_values)."""
     return (ESTADO.op_is_crustle_deck
             and c.hand.get(Boss_Orders, 0) == 0
-            and CARTAS_ACTIVAS_EN_MAZO.get(
+            and ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(
                 Boss_Orders, {}).get(ESTADO_MAZO, 0) > 0
             and c.supp_values.get(Boss_Orders, 0) >= 900)
 
@@ -5148,8 +5127,8 @@ _REGLAS_UB_DIPPLIN = [
 def _v_ub_chikorita_arrancar(c):
     if _forest_disponible(c) and c.hand.get(Bayleef, 0) >= 1:
         return 880
-    if (CARTAS_ACTIVAS_EN_MAZO.get(Bayleef, {}).get(ESTADO_MAZO, 0) > 0
-            or CARTAS_ACTIVAS_EN_MAZO.get(Meganium, {}).get(ESTADO_MAZO, 0) > 0
+    if (ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Bayleef, {}).get(ESTADO_MAZO, 0) > 0
+            or ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Meganium, {}).get(ESTADO_MAZO, 0) > 0
             or c.hand.get(Bayleef, 0) >= 1):
         return 700
     return 200
@@ -5175,8 +5154,8 @@ _REGLAS_UB_CHIKORITA = [
 def _v_ub_applin_arrancar(c):
     if _forest_disponible(c) and c.hand.get(Dipplin, 0) >= 1:
         return 980 if c.hand.get(Hydrapple_ex, 0) >= 1 else 800
-    if (CARTAS_ACTIVAS_EN_MAZO.get(Dipplin, {}).get(ESTADO_MAZO, 0) > 0
-            or CARTAS_ACTIVAS_EN_MAZO.get(Hydrapple_ex, {}).get(ESTADO_MAZO, 0) > 0
+    if (ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Dipplin, {}).get(ESTADO_MAZO, 0) > 0
+            or ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Hydrapple_ex, {}).get(ESTADO_MAZO, 0) > 0
             or c.hand.get(Dipplin, 0) >= 1):
         return 650
     return 180
@@ -5352,7 +5331,7 @@ def _ctx_ns_fetch(my_state, state, hand_counts, field_counts, bench_count,
             if bp.id not in (Tapu_Bulu, Teal_Mask_Ogerpon_ex,
                              Hydrapple_ex, Meganium):
                 continue
-            req = ATTACK_ENERGY_REQ.get(bp.id)
+            req = ESTADO.ATTACK_ENERGY_REQ.get(bp.id)
             if req is None:
                 continue
             if len(bp.energies) * _grass_mult() < req:
@@ -5497,7 +5476,7 @@ def _v_ns_chikorita_arrancar(c):
         v = 950
     elif c.hand.get(Bayleef, 0) >= 1:
         v = 900
-    if CARTAS_ACTIVAS_EN_MAZO.get(Chikorita, {}).get(ESTADO_MAZO, 0) == 0:
+    if ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Chikorita, {}).get(ESTADO_MAZO, 0) == 0:
         v += 100
     else:
         v -= 100
@@ -5519,7 +5498,7 @@ def _v_ns_applin_arrancar(c):
         v = 870
     elif c.hand.get(Dipplin, 0) >= 1:
         v = 800
-    if CARTAS_ACTIVAS_EN_MAZO.get(Applin, {}).get(ESTADO_MAZO, 0) == 0:
+    if ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Applin, {}).get(ESTADO_MAZO, 0) == 0:
         v += 100
     else:
         v -= 100
@@ -5545,7 +5524,7 @@ def _v_ns_ogerpon_pocos(c):
         v = 700
     if c.bench_count <= 1:
         v += 100
-    if CARTAS_ACTIVAS_EN_MAZO.get(
+    if ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(
             Teal_Mask_Ogerpon_ex, {}).get(ESTADO_MAZO, 0) == 0:
         v += 100
     return v
@@ -5590,7 +5569,7 @@ _REGLAS_NS_PINSIR = [
 
 def _v_ns_meowth_fetch(c):
     v = min(700, c.best_supp_mazo_val)
-    if CARTAS_ACTIVAS_EN_MAZO.get(Meowth_ex, {}).get(ESTADO_MAZO, 0) == 0:
+    if ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Meowth_ex, {}).get(ESTADO_MAZO, 0) == 0:
         v += 100
     return v
 
@@ -6229,7 +6208,7 @@ _REGLAS_DAWN_BAYLEEF = [
                lambda c: (c.campo.get(Chikorita, 0) >= 1
                           and _dawn_forest_avail(c)
                           and (c.hand.get(Meganium, 0) >= 1 or
-                               CARTAS_ACTIVAS_EN_MAZO.get(
+                               ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(
                                    Meganium, {}).get(ESTADO_MAZO, 0) > 0)),
                lambda c: 970),
     _ReglaFija("evo_inmediata",
@@ -6298,7 +6277,7 @@ _REGLAS_DAWN_DIPPLIN = [
                lambda c: (c.campo.get(Applin, 0) >= 1
                           and _dawn_forest_avail(c)
                           and (c.hand.get(Hydrapple_ex, 0) >= 1 or
-                               CARTAS_ACTIVAS_EN_MAZO.get(
+                               ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(
                                    Hydrapple_ex, {}).get(ESTADO_MAZO, 0) > 0)),
                lambda c: 950),
     _ReglaFija("evo_inmediata",
@@ -6828,16 +6807,16 @@ def agent(obs_dict: dict) -> list[int]:
     _evolve_possible_in_play = (
         (field_counts.get(Chikorita, 0) >= 1 and
          (hand_counts.get(Bayleef, 0) >= 1 or
-          CARTAS_ACTIVAS_EN_MAZO.get(Bayleef, {}).get(ESTADO_MAZO, 0) > 0)) or
+          ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Bayleef, {}).get(ESTADO_MAZO, 0) > 0)) or
         (field_counts.get(Bayleef, 0) >= 1 and
          (hand_counts.get(Meganium, 0) >= 1 or
-          CARTAS_ACTIVAS_EN_MAZO.get(Meganium, {}).get(ESTADO_MAZO, 0) > 0)) or
+          ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Meganium, {}).get(ESTADO_MAZO, 0) > 0)) or
         (field_counts.get(Applin, 0) >= 1 and
          (hand_counts.get(Dipplin, 0) >= 1 or
-          CARTAS_ACTIVAS_EN_MAZO.get(Dipplin, {}).get(ESTADO_MAZO, 0) > 0)) or
+          ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Dipplin, {}).get(ESTADO_MAZO, 0) > 0)) or
         (field_counts.get(Dipplin, 0) >= 1 and
          (hand_counts.get(Hydrapple_ex, 0) >= 1 or
-          CARTAS_ACTIVAS_EN_MAZO.get(Hydrapple_ex, {}).get(ESTADO_MAZO, 0) > 0))
+          ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Hydrapple_ex, {}).get(ESTADO_MAZO, 0) > 0))
     )
 
     # Eslabon de evolucion que de verdad hace falta buscar / evoluciones
@@ -8886,7 +8865,7 @@ def agent(obs_dict: dict) -> list[int]:
                         # rival necesita para ganar (no-ex): asi el KO no cierra.
                         if prize_count(_pdp_pk) >= op_prize:
                             continue
-                        _pdp_req = ATTACK_ENERGY_REQ.get(_pdp_pk.id)
+                        _pdp_req = ESTADO.ATTACK_ENERGY_REQ.get(_pdp_pk.id)
                         if _pdp_req is None:
                             continue
                         _pdp_e = len(_pdp_pk.energies)
@@ -8982,7 +8961,7 @@ def agent(obs_dict: dict) -> list[int]:
                                 continue
                             if _pdx_pk.id not in OUR_EX_IDS:
                                 continue
-                            _pdx_req = ATTACK_ENERGY_REQ.get(_pdx_pk.id)
+                            _pdx_req = ESTADO.ATTACK_ENERGY_REQ.get(_pdx_pk.id)
                             if _pdx_req is None:
                                 continue
                             _pdx_eff = len(_pdx_pk.energies) * _grass_mult()
@@ -9052,7 +9031,7 @@ def agent(obs_dict: dict) -> list[int]:
         if _act_stall is not None:
             # Fuente unica de valores: ATTACK_ENERGY_REQ (solo atacantes
             # principales, mismo conjunto de claves que antes).
-            _ATK_REQS_STALL = {k: ATTACK_ENERGY_REQ[k] for k in MAIN_ATTACKERS}
+            _ATK_REQS_STALL = {k: ESTADO.ATTACK_ENERGY_REQ[k] for k in MAIN_ATTACKERS}
             _stall_req = _ATK_REQS_STALL.get(_act_stall.id, 999)
             _stall_eff = len(_act_stall.energies) * _grass_mult()
             _stall_can_attach = (hand_counts.get(Basic_Grass_Energy, 0) >= 1
@@ -9062,10 +9041,10 @@ def agent(obs_dict: dict) -> list[int]:
 
             if _stall_after < _stall_req:
 
-                _nrg_deck = CARTAS_ACTIVAS_EN_MAZO.get(
+                _nrg_deck = ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(
                     Basic_Grass_Energy, {}).get(ESTADO_MAZO, 0)
                 _deck_total = max(1, sum(
-                    v.get(ESTADO_MAZO, 0) for v in CARTAS_ACTIVAS_EN_MAZO.values()))
+                    v.get(ESTADO_MAZO, 0) for v in ESTADO.CARTAS_ACTIVAS_EN_MAZO.values()))
 
                 _td_stall = sum(
                     1 for p in (list(my_state.active or []) + list(my_state.bench))
@@ -10262,7 +10241,7 @@ def agent(obs_dict: dict) -> list[int]:
                 hand_counts.get(Meowth_ex, 0) == 0 and
                 hand_counts.get(Ultra_Ball, 0) == 0 and
                 field_counts.get(Fezandipiti_ex, 0) == 0 and
-                CARTAS_ACTIVAS_EN_MAZO.get(Fezandipiti_ex, {}).get(ESTADO_MAZO, 0) > 0 and
+                ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Fezandipiti_ex, {}).get(ESTADO_MAZO, 0) > 0 and
                 bench_count < 5):
             values[Dawn] = 1100
 
@@ -10328,7 +10307,7 @@ def agent(obs_dict: dict) -> list[int]:
                 for _dw_pre, _dw_evo in zip(_dw_linea, _dw_linea[1:]):
                     if (field_counts.get(_dw_pre, 0) >= 1
                             and hand_counts.get(_dw_evo, 0) < 1
-                            and CARTAS_ACTIVAS_EN_MAZO.get(
+                            and ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(
                                 _dw_evo, {}).get(ESTADO_MAZO, 0) > 0):
                         _dawn_need_evo = True
                         break
@@ -10543,7 +10522,7 @@ def agent(obs_dict: dict) -> list[int]:
     _best_supp_in_mazo_val = 0
     _best_supp_in_mazo_id = None
     for sid in (Boss_Orders, Dawn, Lillie_Determination, Lanas_Aid):
-        if CARTAS_ACTIVAS_EN_MAZO.get(sid, {}).get(ESTADO_MAZO, 0) > 0:
+        if ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(sid, {}).get(ESTADO_MAZO, 0) > 0:
             val = _supp_values.get(sid, 0)
             if val > _best_supp_in_mazo_val:
                 _best_supp_in_mazo_val = val
@@ -10582,7 +10561,7 @@ def agent(obs_dict: dict) -> list[int]:
             and op_state.active and op_state.active[0] is not None
             and op_state.bench
             and (hand_counts.get(Boss_Orders, 0) >= 1
-                 or CARTAS_ACTIVAS_EN_MAZO.get(Boss_Orders, {}).get(ESTADO_MAZO, 0) > 0)):
+                 or ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Boss_Orders, {}).get(ESTADO_MAZO, 0) > 0)):
         _mbw_atk = my_state.active[0]
         _mbw_grass_hand = hand_counts.get(Basic_Grass_Energy, 0)
         _mbw_attach = (_mbw_grass_hand >= 1 and not state.energyAttached)
@@ -10924,7 +10903,7 @@ def agent(obs_dict: dict) -> list[int]:
     if (not state.supporterPlayed
             and (hand_counts.get(Meowth_ex, 0) >= 1
                  or field_counts.get(Meowth_ex, 0) >= 1)
-            and (CARTAS_ACTIVAS_EN_MAZO.get(Lillie_Determination, {}).get(ESTADO_MAZO, 0) > 0
+            and (ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Lillie_Determination, {}).get(ESTADO_MAZO, 0) > 0
                  or hand_counts.get(Lillie_Determination, 0) >= 1)):
         _mdl_in_play = 0
         for _mdl_p in (list(my_state.active or []) + list(my_state.bench or [])):
@@ -10958,7 +10937,7 @@ def agent(obs_dict: dict) -> list[int]:
         field_counts.get(Meowth_ex, 0) < 2
         and _meowth_ld_free
         and (hand_counts.get(Meowth_ex, 0) >= 1
-             or CARTAS_ACTIVAS_EN_MAZO.get(
+             or ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(
                  Meowth_ex, {}).get(ESTADO_MAZO, 0) > 0))
 
     # ¿Nuestro ACTIVO ya es un atacante LISTO para atacar este turno? (activo en
@@ -11016,7 +10995,7 @@ def agent(obs_dict: dict) -> list[int]:
     _meowth_immune_boss_engine = (
         _boss_gust_immune_active
         and hand_counts.get(Boss_Orders, 0) == 0
-        and CARTAS_ACTIVAS_EN_MAZO.get(
+        and ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(
             Boss_Orders, {}).get(ESTADO_MAZO, 0) > 0
         and not state.supporterPlayed
         and _meowth_ld_free
@@ -11262,7 +11241,7 @@ def agent(obs_dict: dict) -> list[int]:
 
     _bcs_playable_in_hand = False
     if hand_counts.get(Bug_Catching_Set, 0) >= 1:
-        for _bcs_cid, _bcs_states in CARTAS_ACTIVAS_EN_MAZO.items():
+        for _bcs_cid, _bcs_states in ESTADO.CARTAS_ACTIVAS_EN_MAZO.items():
             if _bcs_states[ESTADO_MAZO] <= 0:
                 continue
             if _bcs_cid == Basic_Grass_Energy:
@@ -11277,7 +11256,7 @@ def agent(obs_dict: dict) -> list[int]:
     _pp_playable_in_hand = False
     if hand_counts.get(Poke_Pad, 0) >= 1:
         for _pp_cid in (Chikorita, Bayleef, Meganium, Applin, Dipplin, Tapu_Bulu):
-            _pp_states = CARTAS_ACTIVAS_EN_MAZO.get(_pp_cid)
+            _pp_states = ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(_pp_cid)
             if _pp_states is not None and _pp_states[ESTADO_MAZO] > 0:
                 _pp_playable_in_hand = True
                 break
@@ -11295,7 +11274,7 @@ def agent(obs_dict: dict) -> list[int]:
                        or (state.turn == 2 and not ESTADO.we_go_first))
     _lillie_available = (
         hand_counts.get(Lillie_Determination, 0) >= 1
-        or CARTAS_ACTIVAS_EN_MAZO.get(
+        or ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(
             Lillie_Determination, {}).get(ESTADO_MAZO, 0) > 0)
     _meowth_hand_only_card = (
         hand_counts.get(Meowth_ex, 0) >= 1
@@ -11305,7 +11284,7 @@ def agent(obs_dict: dict) -> list[int]:
         and bench_count == 0
         and field_counts.get(Meowth_ex, 0) == 0
         and _meowth_hand_only_card
-        and CARTAS_ACTIVAS_EN_MAZO.get(
+        and ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(
             Lillie_Determination, {}).get(ESTADO_MAZO, 0) > 0)
 
     # DONK PROYECTADO EN NUESTRO PRIMER TURNO (bandera de tablero, no depende de
@@ -11696,7 +11675,7 @@ def agent(obs_dict: dict) -> list[int]:
             and not _active_already_kos
             and _op_active_hp > 0
             and hand_counts.get(Basic_Grass_Energy, 0) >= 1):
-        _cav_req = ATTACK_ENERGY_REQ.get(_active_pokemon.id)
+        _cav_req = ESTADO.ATTACK_ENERGY_REQ.get(_active_pokemon.id)
         if _cav_req is None:
             _cav_req = _coste_de_ataque_min(_active_pokemon.id)
         _cav_e = len(_active_pokemon.energies)
@@ -12162,7 +12141,7 @@ def agent(obs_dict: dict) -> list[int]:
             if (_fesp_bp is None or _fesp_bp.id in OUR_EX_IDS
                     or _fesp_bp.id not in MAIN_ATTACKERS):
                 continue
-            _fesp_req = ATTACK_ENERGY_REQ.get(_fesp_bp.id)
+            _fesp_req = ESTADO.ATTACK_ENERGY_REQ.get(_fesp_bp.id)
             if _fesp_req is None:
                 continue
             _fesp_e = len(_fesp_bp.energies)
@@ -12258,7 +12237,7 @@ def agent(obs_dict: dict) -> list[int]:
         _rbtk_act_eff = len(_my_active_pk.energies) * _grass_mult()
         if _rbtk_act_eff >= _rbtk_rc:
             _rbtk_unit = _grass_attach_unit()
-            _rbtk_req = ATTACK_ENERGY_REQ.get(Tapu_Bulu, 4)
+            _rbtk_req = ESTADO.ATTACK_ENERGY_REQ.get(Tapu_Bulu, 4)
             for _rbtk_bp in (my_state.bench or []):
                 if _rbtk_bp is None or _rbtk_bp.id != Tapu_Bulu:
                     continue
@@ -12306,7 +12285,7 @@ def agent(obs_dict: dict) -> list[int]:
         if (_olf_active.id in (Hydrapple_ex, Teal_Mask_Ogerpon_ex)
                 and _olf_a_grass):
             _olf_a_extra += _grass_attach_unit()
-        if _olf_a_eff + _olf_a_extra >= ATTACK_ENERGY_REQ.get(_olf_active.id, 99):
+        if _olf_a_eff + _olf_a_extra >= ESTADO.ATTACK_ENERGY_REQ.get(_olf_active.id, 99):
             _olf_active_viable = True
 
     # El foco NO se activa cuando la Planta de este turno tiene un destino mas
@@ -12515,7 +12494,7 @@ def agent(obs_dict: dict) -> list[int]:
         if active and (_win_via_boss_gust or _gust_2prize_via_boss):
             _active_extra_charge_wasted = (
                 pokemon.id in (Tapu_Bulu, Meganium, Hydrapple_ex)
-                and energy_count >= ATTACK_ENERGY_REQ.get(pokemon.id, 99))
+                and energy_count >= ESTADO.ATTACK_ENERGY_REQ.get(pokemon.id, 99))
             if not _active_extra_charge_wasted:
                 return 42000
 
@@ -13651,7 +13630,7 @@ def agent(obs_dict: dict) -> list[int]:
     _sel_active_pkmn = my_state.active[0] if my_state.active else None
     if _sel_active_pkmn is not None:
         # Fuente unica de requisitos: ATTACK_ENERGY_REQ.
-        _sel_req = ATTACK_ENERGY_REQ.get(_sel_active_pkmn.id)
+        _sel_req = ESTADO.ATTACK_ENERGY_REQ.get(_sel_active_pkmn.id)
         if _sel_req is not None:
             _sel_mult = _grass_mult()
             _sel_eff_now = len(_sel_active_pkmn.energies) * _sel_mult
@@ -13733,7 +13712,7 @@ def agent(obs_dict: dict) -> list[int]:
         (_active_cant_attack_this_turn or _sel_active_cant_attack),
         _win_via_boss_gust, _gust_2prize_via_boss, _deny_evo_via_boss,
         _meowth_devel_lillie, op_is_alakazam_deck,
-        CARTAS_ACTIVAS_EN_MAZO, _our_first_action_turn)
+        ESTADO.CARTAS_ACTIVAS_EN_MAZO, _our_first_action_turn)
     _meowth_fetch_redundante = (
         _meowth_fetch_id is not None
         and hand_counts.get(_meowth_fetch_id, 0) >= 1)
@@ -13969,7 +13948,7 @@ def agent(obs_dict: dict) -> list[int]:
                     _op_prom_active, _pb, getattr(op_state, 'handCount', None))
                 if _pb_hit_now >= (getattr(_pb, 'hp', 0) or 0):
                     continue  # muere antes de poder atacar: no es candidato
-            _pb_req = ATTACK_ENERGY_REQ.get(_pb.id)
+            _pb_req = ESTADO.ATTACK_ENERGY_REQ.get(_pb.id)
             if _pb_req is None:
                 continue
             _pb_en_eff = len(_pb.energies)
@@ -14089,7 +14068,7 @@ def agent(obs_dict: dict) -> list[int]:
                     _rt_hp = getattr(_rt_pb, 'hp', 0) or 0
                     if _rt_hit >= _rt_hp:
                         continue  # tampoco sobrevive: no es tanque
-                    _rt_req = ATTACK_ENERGY_REQ.get(Hydrapple_ex, 2)
+                    _rt_req = ESTADO.ATTACK_ENERGY_REQ.get(Hydrapple_ex, 2)
                     _rt_deficit = _rt_req - len(_rt_pb.energies)
                     if _rt_deficit <= 0:
                         continue  # ya atacaria: el bucle normal lo evaluo
@@ -14114,7 +14093,7 @@ def agent(obs_dict: dict) -> list[int]:
             for _tb in my_state.bench:
                 if _tb is None or not isinstance(_tb, Pokemon) or _tb.id != Tapu_Bulu:
                     continue
-                _tb_req = ATTACK_ENERGY_REQ.get(Tapu_Bulu, 4)
+                _tb_req = ESTADO.ATTACK_ENERGY_REQ.get(Tapu_Bulu, 4)
                 _tb_eff = len(_tb.energies)
                 if _tb_eff < _tb_req and _prom_can_attach:
                     _tb_eff += _grass_attach_unit()
@@ -14150,7 +14129,7 @@ def agent(obs_dict: dict) -> list[int]:
                 # de `_alakazam_pivot_1prize`.
                 if _mb.id not in (Meganium, Tapu_Bulu, Dipplin, Pinsir):
                     continue
-                _mb_req = ATTACK_ENERGY_REQ.get(_mb.id)
+                _mb_req = ESTADO.ATTACK_ENERGY_REQ.get(_mb.id)
                 if _mb_req is None:
                     continue
                 _mb_eff = len(_mb.energies)
@@ -14350,7 +14329,7 @@ def agent(obs_dict: dict) -> list[int]:
         # arrancan en el turno 1 (este empieza en el turno 9). El total del mazo
         # (suma de todas las zonas) SI es fiable (se conserva).
         _ps_grass_total = sum(
-            CARTAS_ACTIVAS_EN_MAZO.get(Basic_Grass_Energy, {}).values())
+            ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Basic_Grass_Energy, {}).values())
         _ps_grass_visible = (
             hand_counts.get(Basic_Grass_Energy, 0)
             + discard_counts.get(Basic_Grass_Energy, 0))
@@ -14395,7 +14374,7 @@ def agent(obs_dict: dict) -> list[int]:
         # menos las VISIBLES (mano + descarte), mismo criterio observacional que
         # `_ps_grass_hidden` para no depender del contador por-zona.
         def _ps_hidden_copies(_cid):
-            _tot = sum(CARTAS_ACTIVAS_EN_MAZO.get(_cid, {}).values())
+            _tot = sum(ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(_cid, {}).values())
             return _tot - (hand_counts.get(_cid, 0)
                            + discard_counts.get(_cid, 0))
 
@@ -14466,7 +14445,7 @@ def agent(obs_dict: dict) -> list[int]:
             for _psb in my_state.bench:
                 if _psb is None or not isinstance(_psb, Pokemon):
                     continue
-                _ps_req = ATTACK_ENERGY_REQ.get(_psb.id)
+                _ps_req = ESTADO.ATTACK_ENERGY_REQ.get(_psb.id)
                 if _ps_req is None:
                     continue
                 # Con SOLO la ruta (d) viva -el robo a ciegas de Flip the
@@ -14632,7 +14611,7 @@ def agent(obs_dict: dict) -> list[int]:
             if _cmp is None or not isinstance(_cmp, Pokemon):
                 continue
             if _cmp.id in (Teal_Mask_Ogerpon_ex, Hydrapple_ex):
-                _cm_req = ATTACK_ENERGY_REQ.get(_cmp.id)
+                _cm_req = ESTADO.ATTACK_ENERGY_REQ.get(_cmp.id)
                 if _cm_req is None:
                     continue
                 _cm_e = len(_cmp.energies)
@@ -14665,7 +14644,7 @@ def agent(obs_dict: dict) -> list[int]:
     _gt_veta_etapa_ex = (ESTADO.op_is_crustle_deck or op_is_sylveon_deck
                          or op_has_ex_immune_active or op_has_ex_immune_bench)
     _gt_planes_turno = (
-        _gt_planes(my_state, CARTAS_ACTIVAS_EN_MAZO, field_counts,
+        _gt_planes(my_state, ESTADO.CARTAS_ACTIVAS_EN_MAZO, field_counts,
                    _our_first_turn, veta_etapa_ex=_gt_veta_etapa_ex,
                    activo_condenado=(active_ko_likely or _active_doomed_real))
         if grand_tree_in_play else [])
@@ -14694,7 +14673,7 @@ def agent(obs_dict: dict) -> list[int]:
                               or (hand_counts.get(Grand_Tree, 0) >= 1
                                   and not state.stadiumPlayed))
     _gt_ranking_basicos = (
-        _gt_basicos_deseados(CARTAS_ACTIVAS_EN_MAZO, field_counts,
+        _gt_basicos_deseados(ESTADO.CARTAS_ACTIVAS_EN_MAZO, field_counts,
                              veta_etapa_ex=_gt_veta_etapa_ex)
         if _gt_estadio_disponible else {})
     # Solo se BUSCA un Basico si no hay ya uno en juego que sirva de raiz el
@@ -14716,7 +14695,7 @@ def agent(obs_dict: dict) -> list[int]:
             and hand_counts.get(Lillie_Determination, 0) >= 1):
         _pesca_remate = _pesca_de_remate(
             my_state, op_state, state, hand_counts, field_counts,
-            grass_en_mazo=CARTAS_ACTIVAS_EN_MAZO.get(
+            grass_en_mazo=ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(
                 Basic_Grass_Energy, {}).get(ESTADO_MAZO, 0),
             robo=_robo_de_lillie(my_prize),
             baraja_la_mano=True,
@@ -14735,7 +14714,7 @@ def agent(obs_dict: dict) -> list[int]:
         hand_counts=hand_counts,
         field_counts=field_counts,
         supp_values=_supp_values,
-        cartas_en_mazo=CARTAS_ACTIVAS_EN_MAZO,
+        cartas_en_mazo=ESTADO.CARTAS_ACTIVAS_EN_MAZO,
         field_at_turn_start=ESTADO._field_at_turn_start,
         bench_count=bench_count,
         my_hand_len=len(my_state.hand or []),
@@ -15870,7 +15849,7 @@ def agent(obs_dict: dict) -> list[int]:
                                 and _promo_survivors > 0
                                 and _promo_survives(card)
                                 and not _promo_kos_op(card)):
-                            _tb_req = ATTACK_ENERGY_REQ.get(card.id)
+                            _tb_req = ESTADO.ATTACK_ENERGY_REQ.get(card.id)
                             if _tb_req is None:
                                 _tb_pasos = 3      # no ataca: lo mas lejos
                             else:
@@ -16027,9 +16006,9 @@ def agent(obs_dict: dict) -> list[int]:
                                 _bcs_et, _bcs_reglas, [], _bcs_ctx,
                                 defecto=_bcs_defecto)
 
-                        if card.id in CARTAS_ACTIVAS_EN_MAZO:
-                            prized_copies = CARTAS_ACTIVAS_EN_MAZO[card.id][ESTADO_PREMIO]
-                            total_copies = sum(CARTAS_ACTIVAS_EN_MAZO[card.id].values())
+                        if card.id in ESTADO.CARTAS_ACTIVAS_EN_MAZO:
+                            prized_copies = ESTADO.CARTAS_ACTIVAS_EN_MAZO[card.id][ESTADO_PREMIO]
+                            total_copies = sum(ESTADO.CARTAS_ACTIVAS_EN_MAZO[card.id].values())
                             if prized_copies > 0 and total_copies - prized_copies <= 1:
                                 score += 100
 
@@ -16095,8 +16074,8 @@ def agent(obs_dict: dict) -> list[int]:
                                 _ns_et, _ns_reglas, [], _ns_ctx,
                                 defecto=_ns_defecto)
 
-                        if card.id in CARTAS_ACTIVAS_EN_MAZO and card.id != Basic_Grass_Energy:
-                            entry = CARTAS_ACTIVAS_EN_MAZO[card.id]
+                        if card.id in ESTADO.CARTAS_ACTIVAS_EN_MAZO and card.id != Basic_Grass_Energy:
+                            entry = ESTADO.CARTAS_ACTIVAS_EN_MAZO[card.id]
                             if entry[ESTADO_MAZO] == 0 and entry[ESTADO_PREMIO] >= 1:
                                 score += 200
                             elif entry[ESTADO_MAZO] == 0 and entry[ESTADO_PREMIO] == 0:
@@ -16151,8 +16130,8 @@ def agent(obs_dict: dict) -> list[int]:
                             hand_counts.get(Lillie_Determination, 0) == 0 and
                             field_counts.get(Meowth_ex, 0) < 2 and
                             bench_count < 5 and
-                            CARTAS_ACTIVAS_EN_MAZO.get(Meowth_ex, {}).get(ESTADO_MAZO, 0) > 0 and
-                            CARTAS_ACTIVAS_EN_MAZO.get(Lillie_Determination, {}).get(ESTADO_MAZO, 0) > 0)
+                            ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Meowth_ex, {}).get(ESTADO_MAZO, 0) > 0 and
+                            ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Lillie_Determination, {}).get(ESTADO_MAZO, 0) > 0)
 
                         _t1_going_second_need_ogerpon = (
                             state.turn == 2 and not ESTADO.we_go_first and
@@ -16192,8 +16171,8 @@ def agent(obs_dict: dict) -> list[int]:
                             and not meowth_ability_lock
                             and field_counts.get(Meowth_ex, 0) < 2
                             and bench_count < 5
-                            and CARTAS_ACTIVAS_EN_MAZO.get(Meowth_ex, {}).get(ESTADO_MAZO, 0) > 0
-                            and CARTAS_ACTIVAS_EN_MAZO.get(Lillie_Determination, {}).get(ESTADO_MAZO, 0) > 0)
+                            and ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Meowth_ex, {}).get(ESTADO_MAZO, 0) > 0
+                            and ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Lillie_Determination, {}).get(ESTADO_MAZO, 0) > 0)
 
                         # -----------------------------------------------------
                         # Prioridad Dipplin vs Meowth ex en la busqueda (user):
@@ -16223,7 +16202,7 @@ def agent(obs_dict: dict) -> list[int]:
                         # lillie_en_mazo_refresco de _REGLAS_UB_MEOWTH).
                         _dp_lillie_played = (
                             discard_counts.get(Lillie_Determination, 0) >= 1
-                            and CARTAS_ACTIVAS_EN_MAZO.get(
+                            and ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(
                                 Lillie_Determination, {}).get(ESTADO_MAZO, 0) == 0)
 
                         _dp_applin_energy = 0
@@ -16235,11 +16214,11 @@ def agent(obs_dict: dict) -> list[int]:
                         _dp_anti_ex = (
                             (ESTADO.op_is_crustle_deck or op_is_sylveon_deck or
                              ESTADO.op_is_cornerstone_deck)
-                            and _dp_applin_energy >= ATTACK_ENERGY_REQ.get(Dipplin, 1))
+                            and _dp_applin_energy >= ESTADO.ATTACK_ENERGY_REQ.get(Dipplin, 1))
 
                         _dp_can_grass_now = (not state.energyAttached and
                                              hand_counts.get(Basic_Grass_Energy, 0) >= 1)
-                        _dp_hydra_req = ATTACK_ENERGY_REQ.get(Hydrapple_ex, 2)
+                        _dp_hydra_req = ESTADO.ATTACK_ENERGY_REQ.get(Hydrapple_ex, 2)
                         _dp_hydra_line = (
                             ESTADO.forest_in_play and
                             hand_counts.get(Hydrapple_ex, 0) >= 1 and
@@ -16301,7 +16280,7 @@ def agent(obs_dict: dict) -> list[int]:
                                     and hand_counts.get(Basic_Grass_Energy, 0) >= 1)
                                 _ub_hdip_after = _ub_best_dip_e + (
                                     _grass_attach_unit() if _ub_hdip_can_attach else 0)
-                                if _ub_hdip_after >= ATTACK_ENERGY_REQ.get(Hydrapple_ex, 2):
+                                if _ub_hdip_after >= ESTADO.ATTACK_ENERGY_REQ.get(Hydrapple_ex, 2):
                                     _ub_hydra_can_attack_now = True
                         _ub_hydra_dead_prefer_meowth = (
                             _ub_hydra_evolvable_now
@@ -16311,8 +16290,8 @@ def agent(obs_dict: dict) -> list[int]:
                             and bench_count < 5
                             and not state.supporterPlayed
                             and hand_counts.get(Lillie_Determination, 0) == 0
-                            and CARTAS_ACTIVAS_EN_MAZO.get(Meowth_ex, {}).get(ESTADO_MAZO, 0) > 0
-                            and CARTAS_ACTIVAS_EN_MAZO.get(Lillie_Determination, {}).get(ESTADO_MAZO, 0) > 0)
+                            and ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Meowth_ex, {}).get(ESTADO_MAZO, 0) > 0
+                            and ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Lillie_Determination, {}).get(ESTADO_MAZO, 0) > 0)
 
                         # Analogo a _ub_hydra_dead_prefer_meowth, pero para la linea
                         # Meganium (Chikorita->Bayleef->Meganium). Un Meganium traido
@@ -16343,8 +16322,8 @@ def agent(obs_dict: dict) -> list[int]:
                             and bench_count < 5
                             and not state.supporterPlayed
                             and hand_counts.get(Lillie_Determination, 0) == 0
-                            and CARTAS_ACTIVAS_EN_MAZO.get(Meowth_ex, {}).get(ESTADO_MAZO, 0) > 0
-                            and CARTAS_ACTIVAS_EN_MAZO.get(Lillie_Determination, {}).get(ESTADO_MAZO, 0) > 0)
+                            and ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Meowth_ex, {}).get(ESTADO_MAZO, 0) > 0
+                            and ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Lillie_Determination, {}).get(ESTADO_MAZO, 0) > 0)
 
                         # Regla (user, registro_004 paso 29, vs Mega Starmie):
                         # generaliza _ub_mega_dead_prefer_meowth. Aunque una
@@ -16378,8 +16357,8 @@ def agent(obs_dict: dict) -> list[int]:
                             and bench_count < 5
                             and not state.supporterPlayed
                             and hand_counts.get(Lillie_Determination, 0) == 0
-                            and CARTAS_ACTIVAS_EN_MAZO.get(Meowth_ex, {}).get(ESTADO_MAZO, 0) > 0
-                            and CARTAS_ACTIVAS_EN_MAZO.get(Lillie_Determination, {}).get(ESTADO_MAZO, 0) > 0)
+                            and ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Meowth_ex, {}).get(ESTADO_MAZO, 0) > 0
+                            and ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Lillie_Determination, {}).get(ESTADO_MAZO, 0) > 0)
 
                         # Cadena migrada al MOTOR DE REGLAS (fase 4): las
                         # definiciones y comentarios estrategicos viven en
@@ -16484,8 +16463,8 @@ def agent(obs_dict: dict) -> list[int]:
                                 "ub->fez", _REGLAS_UB_FEZ, [],
                                 _ub_fetch_ctx, defecto=10)
 
-                        if card.id in CARTAS_ACTIVAS_EN_MAZO:
-                            entry = CARTAS_ACTIVAS_EN_MAZO[card.id]
+                        if card.id in ESTADO.CARTAS_ACTIVAS_EN_MAZO:
+                            entry = ESTADO.CARTAS_ACTIVAS_EN_MAZO[card.id]
                             prized = entry[ESTADO_PREMIO]
                             total_copies = sum(entry.values())
                             accessible = total_copies - prized
@@ -16731,8 +16710,8 @@ def agent(obs_dict: dict) -> list[int]:
 
                     _has_recovery = (hand_counts.get(Night_Stretcher, 0) >= 1 or
                                     hand_counts.get(Lanas_Aid, 0) >= 1 or
-                                    CARTAS_ACTIVAS_EN_MAZO.get(Night_Stretcher, {}).get(ESTADO_MAZO, 0) > 0 or
-                                    CARTAS_ACTIVAS_EN_MAZO.get(Lanas_Aid, {}).get(ESTADO_MAZO, 0) > 0)
+                                    ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Night_Stretcher, {}).get(ESTADO_MAZO, 0) > 0 or
+                                    ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Lanas_Aid, {}).get(ESTADO_MAZO, 0) > 0)
 
                     _ns_in_hand = (hand_counts.get(Night_Stretcher, 0) >= 1)
 
@@ -16794,7 +16773,7 @@ def agent(obs_dict: dict) -> list[int]:
                         if _ns_in_hand:
                             score += 5
 
-                        energy_in_mazo = CARTAS_ACTIVAS_EN_MAZO.get(Basic_Grass_Energy, {}).get(ESTADO_MAZO, 0)
+                        energy_in_mazo = ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Basic_Grass_Energy, {}).get(ESTADO_MAZO, 0)
                         if energy_in_mazo >= 5:
                             score += 5
 
@@ -16826,7 +16805,7 @@ def agent(obs_dict: dict) -> list[int]:
                             score = 88
                         elif ESTADO.meganium_in_play and has_hydrapple:
                             score = 70
-                        elif CARTAS_ACTIVAS_EN_MAZO.get(Forest_of_Vitality, {}).get(ESTADO_MAZO, 0) >= 2:
+                        elif ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Forest_of_Vitality, {}).get(ESTADO_MAZO, 0) >= 2:
                             score = 55
                         else:
                             score = 15
@@ -16841,7 +16820,7 @@ def agent(obs_dict: dict) -> list[int]:
                             # evoluciones), asi que en ese caso cae a las ramas de
                             # abajo y queda mas descartable que un supporter sin jugar.
                             score = 3
-                        elif CARTAS_ACTIVAS_EN_MAZO.get(Meganium, {}).get(ESTADO_MAZO, 0) >= 1:
+                        elif ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Meganium, {}).get(ESTADO_MAZO, 0) >= 1:
                             score = 40
                         else:
                             score = 20
@@ -16853,7 +16832,7 @@ def agent(obs_dict: dict) -> list[int]:
                             score = 3
                         elif hand_counts.get(Bayleef, 0) > 1:
                             score = 75
-                        elif CARTAS_ACTIVAS_EN_MAZO.get(Bayleef, {}).get(ESTADO_MAZO, 0) >= 1:
+                        elif ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Bayleef, {}).get(ESTADO_MAZO, 0) >= 1:
                             score = 50
                         else:
                             score = 25
@@ -16917,7 +16896,7 @@ def agent(obs_dict: dict) -> list[int]:
                             score = 3
                         elif (hand_counts.get(Dipplin, 0) >= 1 and
                               (ESTADO.forest_in_play or hand_counts.get(Forest_of_Vitality, 0) >= 1) and
-                              CARTAS_ACTIVAS_EN_MAZO.get(Applin, {}).get(ESTADO_MAZO, 0) > 0):
+                              ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Applin, {}).get(ESTADO_MAZO, 0) > 0):
                             score = 3
                         else:
                             score = 12
@@ -16937,7 +16916,7 @@ def agent(obs_dict: dict) -> list[int]:
                             score = 5
                         elif (hand_counts.get(Hydrapple_ex, 0) >= 1 and
                               (ESTADO.forest_in_play or hand_counts.get(Forest_of_Vitality, 0) >= 1) and
-                              CARTAS_ACTIVAS_EN_MAZO.get(Applin, {}).get(ESTADO_MAZO, 0) > 0):
+                              ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Applin, {}).get(ESTADO_MAZO, 0) > 0):
                             score = 3
                         elif op_has_ex_immune_active or op_has_ex_immune_bench:
                             score = 8
@@ -17402,7 +17381,7 @@ def agent(obs_dict: dict) -> list[int]:
                             score = SCORE_VETO
                         elif ((_win_via_boss_gust or _gust_2prize_via_boss)
                                 and hand_counts.get(Boss_Orders, 0) == 0
-                                and CARTAS_ACTIVAS_EN_MAZO.get(Boss_Orders, {}).get(ESTADO_MAZO, 0) > 0
+                                and ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Boss_Orders, {}).get(ESTADO_MAZO, 0) > 0
                                 and field_counts[card.id] < 2
                                 and _meowth_ld_free
                                 and bench_count < 5):
@@ -17424,7 +17403,7 @@ def agent(obs_dict: dict) -> list[int]:
                             score = 22500
                         elif (_deny_evo_via_boss
                                 and hand_counts.get(Boss_Orders, 0) == 0
-                                and CARTAS_ACTIVAS_EN_MAZO.get(
+                                and ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(
                                     Boss_Orders, {}).get(ESTADO_MAZO, 0) > 0
                                 and field_counts[card.id] < 2
                                 and _meowth_ld_free
@@ -17465,7 +17444,7 @@ def agent(obs_dict: dict) -> list[int]:
                                 and bench_count < 5
                                 and not state.supporterPlayed
                                 and hand_counts.get(Lillie_Determination, 0) == 0
-                                and CARTAS_ACTIVAS_EN_MAZO.get(
+                                and ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(
                                     Lillie_Determination, {}).get(ESTADO_MAZO, 0) > 0
                                 and (len(my_state.hand) if my_state.hand else 0) <= 2
                                 and _ready_attacker_count <= 1
@@ -17499,7 +17478,7 @@ def agent(obs_dict: dict) -> list[int]:
                                 and not meowth_ability_lock
                                 and not op_has_froslass
                                 and hand_counts.get(Lillie_Determination, 0) == 0
-                                and CARTAS_ACTIVAS_EN_MAZO.get(
+                                and ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(
                                     Lillie_Determination, {}).get(ESTADO_MAZO, 0) > 0
                                 and _active_ready_attacker
                                 and _ready_attacker_count <= 1
@@ -17536,7 +17515,7 @@ def agent(obs_dict: dict) -> list[int]:
                                 and bench_count < 5
                                 and not state.supporterPlayed
                                 and hand_counts.get(Lillie_Determination, 0) == 0
-                                and CARTAS_ACTIVAS_EN_MAZO.get(
+                                and ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(
                                     Lillie_Determination, {}).get(ESTADO_MAZO, 0) > 0
                                 and (len(my_state.hand) if my_state.hand else 0) <= 4
                                 and _ready_attacker_count <= 2
@@ -17578,7 +17557,7 @@ def agent(obs_dict: dict) -> list[int]:
                                 and not meowth_ability_lock
                                 and not state.supporterPlayed
                                 and hand_counts.get(Lillie_Determination, 0) == 0
-                                and CARTAS_ACTIVAS_EN_MAZO.get(
+                                and ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(
                                     Lillie_Determination, {}).get(ESTADO_MAZO, 0) > 0):
                             # EXCEPCION al veto de abajo (user, registro_014 paso
                             # 107, vs Marnie): el activo era un Teal Mask Ogerpon
@@ -17630,7 +17609,7 @@ def agent(obs_dict: dict) -> list[int]:
                         elif (_meowth_devel_lillie
                                 and hand_counts.get(Meowth_ex, 0) >= 1
                                 and hand_counts.get(Lillie_Determination, 0) == 0
-                                and CARTAS_ACTIVAS_EN_MAZO.get(Lillie_Determination, {}).get(ESTADO_MAZO, 0) > 0
+                                and ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Lillie_Determination, {}).get(ESTADO_MAZO, 0) > 0
                                 and field_counts[card.id] == 0
                                 and bench_count < 5):
 
@@ -17643,7 +17622,7 @@ def agent(obs_dict: dict) -> list[int]:
                                 and _active_cant_attack_this_turn
                                 and not state.supporterPlayed
                                 and hand_counts.get(Lillie_Determination, 0) == 0
-                                and CARTAS_ACTIVAS_EN_MAZO.get(
+                                and ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(
                                     Lillie_Determination, {}).get(ESTADO_MAZO, 0) > 0
                                 and not op_has_froslass
                                 and not (state.turn == 1 and ESTADO.we_go_first)):
@@ -17694,9 +17673,9 @@ def agent(obs_dict: dict) -> list[int]:
                                 and len(_mw_act_reloc.energies)
                                 >= RETREAT_COST.get(_mw_act_reloc.id, 1))
                             _mw_engine_in_mazo = (
-                                CARTAS_ACTIVAS_EN_MAZO.get(
+                                ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(
                                     Lillie_Determination, {}).get(ESTADO_MAZO, 0) > 0
-                                or CARTAS_ACTIVAS_EN_MAZO.get(
+                                or ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(
                                     Lanas_Aid, {}).get(ESTADO_MAZO, 0) > 0)
                             if (_active_cant_attack_this_turn
                                     and not _mw_can_retreat
@@ -17711,7 +17690,7 @@ def agent(obs_dict: dict) -> list[int]:
                         elif (_active_cant_attack_this_turn and
                               not state.supporterPlayed and
                               hand_counts.get(Lillie_Determination, 0) == 0 and
-                              CARTAS_ACTIVAS_EN_MAZO.get(Lillie_Determination, {}).get(ESTADO_MAZO, 0) > 0):
+                              ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Lillie_Determination, {}).get(ESTADO_MAZO, 0) > 0):
 
                             score = 21800
                         elif (bench_count >= 1 and
@@ -17723,7 +17702,7 @@ def agent(obs_dict: dict) -> list[int]:
                             score = SCORE_VETO
                         elif _best_supp_in_hand_val >= 500:
 
-                            _boss_in_mazo = CARTAS_ACTIVAS_EN_MAZO.get(Boss_Orders, {}).get(ESTADO_MAZO, 0) > 0
+                            _boss_in_mazo = ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Boss_Orders, {}).get(ESTADO_MAZO, 0) > 0
                             _boss_val = _supp_values.get(Boss_Orders, 0)
                             if ESTADO.op_is_crustle_deck and _boss_in_mazo and _boss_val >= 900 and hand_counts.get(Boss_Orders, 0) == 0:
                                 score = 21500
@@ -18062,7 +18041,7 @@ def agent(obs_dict: dict) -> list[int]:
                         and not state.supporterPlayed
                         and getattr(op_state, 'handCount', 0) >= 6
                         and hand_counts.get(Xerosic_Machinations, 0) == 0
-                        and CARTAS_ACTIVAS_EN_MAZO.get(
+                        and ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(
                             Xerosic_Machinations, {}).get(ESTADO_MAZO, 0) > 0
                         and field_counts[Meowth_ex] < 2 and _meowth_ld_free
                         and bench_count < 5
@@ -18173,7 +18152,7 @@ def agent(obs_dict: dict) -> list[int]:
                             _cub_meowth_ok = (
                                 field_counts[Meowth_ex] == 0
                                 and hand_counts.get(Lillie_Determination, 0) == 0
-                                and CARTAS_ACTIVAS_EN_MAZO.get(
+                                and ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(
                                     Lillie_Determination, {}).get(ESTADO_MAZO, 0) > 0)
                             if not _cub_meowth_ok:
                                 score = SCORE_VETO
@@ -18213,7 +18192,7 @@ def agent(obs_dict: dict) -> list[int]:
                     # `_alk_ld_engine_vivo` (calculado junto a `_meowth_ld_free`).
                     if (op_is_alakazam_deck and bench_count == 4
                             and _alk_ld_engine_vivo
-                            and CARTAS_ACTIVAS_EN_MAZO.get(
+                            and ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(
                                 Xerosic_Machinations, {}).get(ESTADO_MAZO, 0) > 0
                             and score > 0
                             and card.id != Meowth_ex):
@@ -18603,7 +18582,7 @@ def agent(obs_dict: dict) -> list[int]:
                         # turno: bajarlo ahora solo se lo REGALA al rival, que
                         # si podra usarlo en el suyo.
                         score = SCORE_VETO
-                    elif _gt_planes(my_state, CARTAS_ACTIVAS_EN_MAZO,
+                    elif _gt_planes(my_state, ESTADO.CARTAS_ACTIVAS_EN_MAZO,
                                     field_counts, _our_first_turn,
                                     veta_etapa_ex=_gt_veta_etapa_ex):
                         # Hay una cadena que se cobra EN ESTE MISMO TURNO: el
@@ -18999,7 +18978,7 @@ def agent(obs_dict: dict) -> list[int]:
                                 if _has_energy_in_hand:
                                     _hydra_eff += _grass_attach_unit()
                                 _hydra_kos = False
-                                if _hydra_eff >= ATTACK_ENERGY_REQ[Hydrapple_ex]:
+                                if _hydra_eff >= ESTADO.ATTACK_ENERGY_REQ[Hydrapple_ex]:
                                     _hydra_grass = total_grass + (1 if _has_energy_in_hand else 0)
                                     _hydra_dmg = _our_effective_damage(
                                         pokemon, _op_act_evo, 30 + 30 * _hydra_grass,
@@ -19172,7 +19151,7 @@ def agent(obs_dict: dict) -> list[int]:
                     _cub_evo_eff = _pkmn_energy
                     if _has_energy_in_hand:
                         _cub_evo_eff += _grass_attach_unit()
-                    if _cub_evo_eff < ATTACK_ENERGY_REQ.get(card.id, 99):
+                    if _cub_evo_eff < ESTADO.ATTACK_ENERGY_REQ.get(card.id, 99):
                         score = SCORE_VETO
 
                 if has_condition and _is_active and score > 0:
@@ -20572,7 +20551,7 @@ def agent(obs_dict: dict) -> list[int]:
                         for _xx_bp in (my_state.bench or []):
                             if _xx_bp is None:
                                 continue
-                            _xx_req = ATTACK_ENERGY_REQ.get(_xx_bp.id)
+                            _xx_req = ESTADO.ATTACK_ENERGY_REQ.get(_xx_bp.id)
                             if _xx_req is None:
                                 continue
                             _xx_e = len(_xx_bp.energies)
@@ -20703,7 +20682,7 @@ def agent(obs_dict: dict) -> list[int]:
                     for bp in my_state.bench:
                         if bp is None or bp.id not in STRATEGIC_ATTACKERS:
                             continue
-                        _bar_req = ATTACK_ENERGY_REQ.get(bp.id)
+                        _bar_req = ESTADO.ATTACK_ENERGY_REQ.get(bp.id)
                         if _bar_req is None:
                             continue
                         _bar_eff = len(bp.energies) * _grass_mult()
@@ -21193,7 +21172,7 @@ def agent(obs_dict: dict) -> list[int]:
 
                     if (hand_counts.get(Ultra_Ball, 0) >= 1 and
                             bench_count < 5 and _energy_in_hand >= 1 and
-                            CARTAS_ACTIVAS_EN_MAZO.get(Teal_Mask_Ogerpon_ex, {}).get(ESTADO_MAZO, 0) > 0):
+                            ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Teal_Mask_Ogerpon_ex, {}).get(ESTADO_MAZO, 0) > 0):
                         _hand_size_atk = len(my_state.hand) if my_state.hand else 0
                         if _hand_size_atk >= 3:
                             _can_add_energy = True
@@ -21233,7 +21212,7 @@ def agent(obs_dict: dict) -> list[int]:
                         _atk_has_basic_mazo = False
                         for _atk_bid in (Chikorita, Applin, Teal_Mask_Ogerpon_ex,
                                          Tapu_Bulu, Meowth_ex, Fezandipiti_ex, Pinsir):
-                            if CARTAS_ACTIVAS_EN_MAZO.get(_atk_bid, {}).get(ESTADO_MAZO, 0) > 0:
+                            if ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(_atk_bid, {}).get(ESTADO_MAZO, 0) > 0:
                                 _atk_has_basic_mazo = True
                                 break
                         if _atk_has_basic_mazo:
@@ -21954,7 +21933,7 @@ def agent(obs_dict: dict) -> list[int]:
                 if _sbd is None:
                     continue
                 if (_sbc.id == Ultra_Ball and _sb_fetch_i < 0
-                        and any(CARTAS_ACTIVAS_EN_MAZO.get(_b, {}).get(
+                        and any(ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(_b, {}).get(
                                     ESTADO_MAZO, 0) > 0
                                 for _b in _sb_basics_deck)):
                     _sb_fetch_i = _sbi
@@ -22058,7 +22037,7 @@ def agent(obs_dict: dict) -> list[int]:
                 _st_wins = True
         if _st_sterile and not _st_wins:
             _st_en_mazo = lambda cid: (
-                CARTAS_ACTIVAS_EN_MAZO.get(cid, {}).get(ESTADO_MAZO, 0) > 0)
+                ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(cid, {}).get(ESTADO_MAZO, 0) > 0)
             # EXCEPCION de bloqueo de items (user): con Budew en el campo rival
             # -- o contra Dragapult, que lo lleva y puede bajarlo -- la Ultra
             # Ball es "usala o pierdela": el proximo turno no se podran jugar
