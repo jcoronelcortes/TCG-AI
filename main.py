@@ -6119,6 +6119,7 @@ def _contra_estadio_urgente(neutralization_zone_active, watchtower_in_play,
         Es el unico de los tres que es de DOBLE FILO (nuestro Dipplin tambien
         lo gana), por eso llega ya filtrado en `festival_lead_hostil`: solo
         cuenta cuando hemos visto la linea Applin/Dipplin del rival.
+
     Un solo predicado para las DOS caras de la misma decision: el scorer de
     DESCARTE lo usa para no soltar la carta y la rama PLAY para no vetarla. Que
     vivieran separados producia el peor resultado posible -- conservar en la
