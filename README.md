@@ -26,6 +26,20 @@ El proyecto usa datos de cartas y un mazo propio definido en `deck.csv`. La lóg
 - `deck.csv`
   - Lista de 60 IDs de cartas que definen el mazo del agente.
 
+- `decks_competidores/`
+  - Mazos reales del top-100 del leaderboard de Kaggle, recuperados por
+    `utils/descargar_mazos_competidores.py` (60 IDs por archivo, un ID por línea).
+  - `indice.csv` clasifica cada mazo por arquetipo y guarda su posición y puntaje.
+
+- `deck/rivales_reales/`
+  - El corpus anterior deduplicado (100 mazos → 39 listas únicas) y cribado por
+    pilotabilidad, generado por `utils/rivales_reales.py`.
+  - `pesos.csv` da a cada lista su frecuencia real en el meta; es lo que consume
+    `utils/matriz_matchups.py --pesos` para calcular el winrate esperado en ladder
+    en vez de una media simple entre arquetipos que no se juegan por igual.
+  - `no_pilotables/` guarda las listas que el bot genérico no sabe ejecutar: no
+    son un fallo, son la parte del meta que el harness todavía no puede medir.
+
 - `EN_Card_Data.csv`
   - Datos de referencia sobre cartas en inglés, probablemente usado para análisis o comparación.
 
