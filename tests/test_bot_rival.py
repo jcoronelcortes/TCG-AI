@@ -223,7 +223,12 @@ def test_con_ataque_disponible_no_se_retira(bot):
     assert bot.agent(o) == [1]
 
 
-def test_promueve_al_cuerpo_con_mas_energia(bot):
+def test_promueve_al_atacante_y_no_al_que_lleva_energia(bot):
+    """Grimmsnarl ex (180 de ataque) por delante de Froslass, que no pega.
+
+    Este caso pasaba ya con la regla vieja ("el que mas energia lleva"), asi
+    que no distingue las dos politicas: el que si lo hace es el de abajo.
+    """
     o = obs(sel(SelectContext.TO_ACTIVE,
                 [{"type": 3, "area": int(AreaType.BENCH), "index": 0,
                   "playerIndex": 1},
@@ -232,6 +237,30 @@ def test_promueve_al_cuerpo_con_mas_energia(bot):
             None, [pk(FROSLASS, 90, 90, 0), pk(GRIMMSNARL, 320, 320, 2)],
             pk(OGERPON, 210, 210), [])
     assert bot.agent(o) == [1]
+
+
+def test_el_motor_de_apoyo_no_sube_de_activo_por_llevar_energia(bot):
+    """El caso que motivo el cambio de politica (ago 2026).
+
+    Munkidori lleva la energia Oscura porque su Adrena-Brain la EXIGE, pero es
+    una habilidad de BANCA: subirlo de activo regala el motor. Con la regla
+    vieja ("el que mas energia lleva") ganaba Munkidori y el bot pasaba el
+    51.5% de sus pasos con el delante mientras Grimmsnarl ex, su unico
+    atacante, esperaba detras -- cobrando 0 premios en 30 de 40 partidas.
+
+    Grimmsnarl ex entra SECO a proposito: el dano que decide es el POTENCIAL,
+    porque la politica de ATTACH de este bot carga al activo y el atacante
+    recien promovido se carga solo en los turnos siguientes.
+    """
+    o = obs(sel(SelectContext.TO_ACTIVE,
+                [{"type": 3, "area": int(AreaType.BENCH), "index": 0,
+                  "playerIndex": 1},
+                 {"type": 3, "area": int(AreaType.BENCH), "index": 1,
+                  "playerIndex": 1}]),
+            None, [pk(MUNKIDORI, 110, 110, 2), pk(GRIMMSNARL, 320, 320, 0)],
+            pk(OGERPON, 210, 210), [])
+    assert bot.agent(o) == [1], (
+        "sube el ATACANTE aunque este seco, no la pieza de apoyo cargada")
 
 
 def test_gustea_al_cuerpo_que_puede_noquear(bot):
