@@ -66,6 +66,8 @@ dist/
 *.bak
 # Copias-ablacion de main.py para experimentos A/B locales (pesadas)
 /_v_*.py
+# Instantaneas de main.py previas a un cambio grande (main_pre_lana.py, ~1.2 MB)
+/main_pre_*.py
 
 # --- Entorno / secretos ---
 .env
