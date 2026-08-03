@@ -2259,6 +2259,25 @@ PROMO_KO_BONUS = 20000
 # y un empate a -10000 dejaria el desempate al azar del orden de opciones, justo
 # entre el cuerpo que aguanta y el que nos hace perder.
 PROMO_MATCH_POINT_VETO = -30000
+# Promocion frente a un MURO INMUNE a nuestros ex (Crustle/Sylveon): bono al
+# candidato que le hace ALGUN dano, cuando existe otro que le hace CERO.
+#
+# No es un duplicado de PROMO_KO_BONUS: ahi la pregunta es "remata", aqui es
+# "hace algo". Contra un Crustle de 150 PV rematar de un golpe pide un Tapu
+# Bulu a 4 energias -- de nuestros no-ex es el UNICO que llega (220); Meganium
+# a 4 se queda en 140 y Dipplin hace 80 --, asi que el bono del KO casi nunca
+# se cobra y la eleccion la decidian supervivencia y premios, que prefieren el
+# ex de mas vida... que al muro le hace 0.
+#
+# Medido (60 partidas vs crustle_wall_2): en 40 promociones con el muro
+# enfrente habia un no-ex cargado en 24, y solo se subia en 11. En 11 (27.5%)
+# se promovia un ex a CERO energias -- el estado que la sonda por turno
+# encontro en los 22 turnos secos.
+#
+# 4000 lo situa por encima de PROMO_DOOMED_PENALTY (6000) solo parcialmente y
+# muy por debajo de PROMO_KO_BONUS (20000) y del veto de match point: reordena
+# dentro de la banda de supervivencia sin desactivar ninguna regla anterior.
+PROMO_HITS_WALL_BONUS = 4000
 
 # Serial del Pokemon ACTIVO cuya HABILIDAD ofrecio el ultimo MENU PRINCIPAL del
 # turno (None si ninguna). Ver el bloque que lo actualiza dentro de agent().
@@ -17719,6 +17738,39 @@ def agent(obs_dict: dict) -> list[int]:
             neutralization_zone_active)
         return _peff >= (_promo_op_act.hp or 0)
 
+    def _promo_dana_op(_pk):
+        """El candidato le hace ALGUN dano al activo rival tras promoverlo.
+
+        Mismo calculo que `_promo_kos_op` pero sin exigir el KO. Existe porque
+        contra un muro inmune a nuestros ex (Crustle/Sylveon) la diferencia que
+        decide no es "remata / no remata" sino "hace algo / hace CERO": ahi el
+        KO de un golpe pide un Tapu Bulu a 4 energias contra 150 PV, casi nunca
+        disponible, mientras un Dipplin a 2 ya pega 80.
+        """
+        if _promo_op_act is None or _pk is None:
+            return False
+        _pe = len(_pk.energies) * _grass_mult()
+        if not state.energyAttached and hand_counts.get(Basic_Grass_Energy, 0) >= 1:
+            _pe += _grass_attach_unit()
+        _pbase = _attacker_base_damage(
+            _pk.id, _promo_op_act, _pe, grass_scale=total_grass,
+            teal_self_energy=_pe, bench_count=max(0, bench_count - 1))
+        if _pbase <= 0:
+            return False
+        return _our_effective_damage(
+            _pk, _promo_op_act, _pbase, meganium_in_play,
+            neutralization_zone_active) > 0
+
+    # ¿Hay ALGUN candidato que dane al muro? Solo se calcula frente a un activo
+    # rival inmune a nuestros ex, que es donde "hacer 0" deja de ser un matiz y
+    # pasa a ser el turno entero perdido. Si ninguno llega, el bono no aplica y
+    # mandan supervivencia y premios como siempre.
+    _promo_hay_quien_dana_muro = False
+    if op_has_ex_immune_active and (context == SelectContext.SWITCH
+                                    or context == SelectContext.TO_ACTIVE):
+        _promo_hay_quien_dana_muro = any(
+            _pb is not None and _promo_dana_op(_pb) for _pb in my_state.bench)
+
     if (context == SelectContext.SWITCH or context == SelectContext.TO_ACTIVE):
         for _pb in my_state.bench:
             if _pb is None:
@@ -18919,6 +18971,14 @@ def agent(obs_dict: dict) -> list[int]:
                             # despues muera; si no noquea, gobiernan la
                             # supervivencia y los premios de abajo.
                             score += PROMO_KO_BONUS
+                        elif (_promo_hay_quien_dana_muro
+                                and isinstance(card, Pokemon)
+                                and _promo_dana_op(card)):
+                            # Contra el muro inmune, subir un cuerpo que le hace
+                            # CERO regala el turno entero. Solo se aplica si hay
+                            # alternativa: si ninguno le llega, este bono no
+                            # existe y deciden supervivencia y premios.
+                            score += PROMO_HITS_WALL_BONUS
                         elif (_promote_setup_ko_attacker is not None
                                 and card is _promote_setup_ko_attacker
                                 and _promo_llega_a_atacar):
