@@ -260,3 +260,105 @@ def test_sin_froslass_ni_munkidori_la_ventana_no_cambia():
     p = _P()
     p.id, p.hp, p.maxHp = MEGANIUM, 90, 160
     assert m._ventana_de_regalo(p, False, m._op_bench_snipe_dmg) == m._op_bench_snipe_dmg
+
+
+# --------------------------------------------------------------------------
+# La ventana se mide por CARTA, no por arquetipo
+# --------------------------------------------------------------------------
+# Medido sobre el top-100 real del leaderboard (decks_competidores/, ago 2026):
+# Munkidori NO es exclusivo de Marnie. Aparece en 55 de los 100 mazos, y de
+# esos, 6 no son Marnie: los CINCO mazos Dragapult del top-100 lo llevan (5 de
+# 5) mas un Crustle. Froslass si es exclusivo del arquetipo (49 de 49).
+#
+# La nota de "Contencion" del plan (docs/plan-matchup-marnie-froslass-munkidori)
+# decia que solo los dos mazos de Marnie de deck/rivales/ llevaban estas piezas,
+# asi que ninguna otra medicion de matchup podia moverse. Contra el meta real
+# eso ya no se sostiene: tocar la ventana mueve tambien el matchup Dragapult.
+#
+# El codigo YA hace lo correcto (la ventana se calcula desde las CARTAS en mesa,
+# no desde el arquetipo). Esto lo FIJA: si alguien "optimiza" gateando la
+# ventana por mazo de Marnie, estos tests lo cazan.
+#
+# OJO con la municion, que es lo que hace distinto este matchup: Adrena-Brain
+# solo mueve contadores que YA existen en el tablero rival. En Marnie la
+# municion es renovable (su propio Froslass carga 10 por chequeo sobre cada
+# cuerpo con habilidad, incluidos sus Munkidori). En un mazo Dragapult SIN
+# Froslass la unica municion son los contadores que NOSOTROS le hemos puesto:
+# con su tablero intacto el movible es 0 -- y eso es correcto, no un fallo.
+
+def test_munkidori_enciende_la_ventana_tambien_fuera_de_marnie():
+    """Rival Dragapult con Munkidori: sin un solo Pokemon de Marnie en mesa."""
+    obs = (Escenario(turno=8, paso=60, tac=3)
+           .mi_activo(pk(HYDRAPPLE, hp=300, energias=[G, G],
+                         fisicas=1, pre_evo=[APPLIN, DIPPLIN]))
+           .mi_banca(pk(MEGANIUM, hp=90, pre_evo=[CHIKORITA, BAYLEEF]),
+                     pk(OGERPON, hp=80, energias=[G, G, G], fisicas=3))
+           .mi_mano(m.Basic_Grass_Energy)
+           .op_activo(pk(m.Dragapult_ex, hp=200, max_hp=320, energias=[D, D]))
+           .op_banca(pk(MUNKIDORI, hp=110, max_hp=110, energias=[D]))
+           .op_zonas(mano=5, mazo=20, premios=5)
+           .mazo()
+           .resto_al_descarte()
+           .objetivo_carga_habilidad()
+           .construir())
+    m.agent(obs)
+    assert m._op_chip_per_round == 0, (
+        "sin Froslass no hay goteo: el chip es exclusivo de esa carta")
+    assert m._op_movable_dmg <= 120, "no puede mover mas contadores de los que hay"
+    assert m._op_movable_dmg == 30, (
+        "Adrena-Brain amenaza igual desde un mazo Dragapult: la ventana se "
+        "mide por la CARTA en mesa, no por el arquetipo rival")
+
+
+def test_la_ventana_crece_con_munkidori_sin_marnie_en_mesa():
+    """El daño movible entra en la ventana aunque el rival no sea Marnie."""
+    obs = (Escenario(turno=8, paso=60, tac=3)
+           .mi_activo(pk(HYDRAPPLE, hp=300, energias=[G, G],
+                         fisicas=1, pre_evo=[APPLIN, DIPPLIN]))
+           .mi_banca(pk(MEGANIUM, hp=90, pre_evo=[CHIKORITA, BAYLEEF]),
+                     pk(OGERPON, hp=80, energias=[G, G, G], fisicas=3))
+           .mi_mano(m.Basic_Grass_Energy)
+           .op_activo(pk(m.Dragapult_ex, hp=200, max_hp=320, energias=[D, D]))
+           .op_banca(pk(MUNKIDORI, hp=110, max_hp=110, energias=[D]))
+           .op_zonas(mano=5, mazo=20, premios=5)
+           .mazo()
+           .resto_al_descarte()
+           .objetivo_carga_habilidad()
+           .construir())
+    m.agent(obs)
+
+    class _P:
+        pass
+    p = _P()
+    p.id, p.hp, p.maxHp = MEGANIUM, 90, 160
+    ventana = m._ventana_de_regalo(p, False, m._op_bench_snipe_dmg)
+    assert ventana == m._op_bench_snipe_dmg + 30, (
+        "la ventana suma los 30 dirigibles de Adrena-Brain aunque enfrente no "
+        "haya ni un Pokemon de Marnie")
+
+
+def test_sin_froslass_el_munkidori_sin_municion_no_amenaza():
+    """Control del anterior: mismo tablero, pero el rival INTACTO.
+
+    Adrena-Brain solo mueve contadores existentes. Sin Froslass que los
+    fabrique y sin dano nuestro sobre su mesa, no hay nada que mover: el
+    movible es 0 y la ventana vuelve a ser el snipe pelado. Es la diferencia
+    real entre el matchup Marnie (municion renovable) y un Dragapult que
+    simplemente lleva Munkidori.
+    """
+    obs = (Escenario(turno=8, paso=60, tac=3)
+           .mi_activo(pk(HYDRAPPLE, hp=300, energias=[G, G],
+                         fisicas=1, pre_evo=[APPLIN, DIPPLIN]))
+           .mi_banca(pk(MEGANIUM, hp=90, pre_evo=[CHIKORITA, BAYLEEF]),
+                     pk(OGERPON, hp=80, energias=[G, G, G], fisicas=3))
+           .mi_mano(m.Basic_Grass_Energy)
+           .op_activo(pk(m.Dragapult_ex, hp=320, max_hp=320, energias=[D, D]))
+           .op_banca(pk(MUNKIDORI, hp=110, max_hp=110, energias=[D]))
+           .op_zonas(mano=5, mazo=20, premios=5)
+           .mazo()
+           .resto_al_descarte()
+           .objetivo_carga_habilidad()
+           .construir())
+    m.agent(obs)
+    assert m._op_movable_dmg == 0, (
+        "con el tablero rival intacto no hay contadores que mover")

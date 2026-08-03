@@ -188,6 +188,20 @@ Team_Rockets_Watchtower = 1256
 # y enciende la habilidad Festival Lead de CUALQUIER Dipplin en juego (el suyo
 # y el nuestro). Ver `FESTIVAL_LEAD_IDS` y `_festival_grounds_in_play`.
 Festival_Grounds = 1245
+# Spikemuth Gym (1259): estadio del arquetipo Marnie's Grimmsnarl ex. "Una vez
+# durante el turno de CADA jugador, ese jugador puede buscar en su baraja 1
+# Pokemon de Marnie, revelarlo y ponerlo en su mano."
+#
+# Nominalmente COMPARTIDO, pero de una sola cara en la practica: nosotros no
+# jugamos ningun Pokemon de Marnie, asi que solo les busca a ELLOS. A diferencia
+# de Festival Grounds -que tambien enciende nuestro Dipplin y por eso llega
+# filtrado por `_festival_lead_hostil`-, quitarlo NUNCA nos cuesta nada, asi que
+# no necesita filtro: si esta en mesa, es suyo y es motor puro del rival.
+#
+# Medido sobre el top-100 del leaderboard (decks_competidores/, ago 2026): el
+# 49% de los mazos lo lleva, y los que lo llevan lo llevan a 4 copias. Es el
+# estadio mas extendido del meta con diferencia y el agente no lo veia.
+Spikemuth_Gym = 1259
 # Grand Tree (Stadium ACE SPEC): "Una vez durante el turno de CADA jugador, ese
 # jugador puede buscar en su baraja 1 Pokemon de Fase 1 que evolucione de uno de
 # sus Pokemon Basicos y ponerlo sobre el para evolucionarlo. Si evoluciono asi,
@@ -6104,7 +6118,8 @@ def _ub_cancel_meowth(ctx) -> bool:
 
 
 def _contra_estadio_urgente(neutralization_zone_active, watchtower_in_play,
-                            forest_in_play, festival_lead_hostil=False) -> bool:
+                            forest_in_play, festival_lead_hostil=False,
+                            spikemuth_in_play=False) -> bool:
     """¿Hay un estadio RIVAL en mesa que apaga parte de nuestro motor -o
     enciende el suyo- y que nuestro estadio quitaria? Con nuestro Forest ya en
     mesa no hay nada que levantar.
@@ -6119,13 +6134,18 @@ def _contra_estadio_urgente(neutralization_zone_active, watchtower_in_play,
         Es el unico de los tres que es de DOBLE FILO (nuestro Dipplin tambien
         lo gana), por eso llega ya filtrado en `festival_lead_hostil`: solo
         cuenta cuando hemos visto la linea Applin/Dipplin del rival.
+      * Spikemuth Gym: no apaga nada nuestro, pero es el buscador que sostiene
+        al arquetipo mas jugado del meta (49% del top-100, siempre a 4 copias)
+        y solo busca Pokemon de Marnie, que nosotros no llevamos. Por eso NO
+        necesita el filtro de "hostil" que si necesita Festival Grounds: no hay
+        ninguna posicion en la que quitarlo nos perjudique.
 
     Un solo predicado para las DOS caras de la misma decision: el scorer de
     DESCARTE lo usa para no soltar la carta y la rama PLAY para no vetarla. Que
     vivieran separados producia el peor resultado posible -- conservar en la
     mano una carta que luego era ilegal jugar (log 88359220)."""
     return ((neutralization_zone_active or watchtower_in_play
-             or festival_lead_hostil)
+             or festival_lead_hostil or spikemuth_in_play)
             and not forest_in_play)
 
 
@@ -9945,6 +9965,12 @@ def agent(obs_dict: dict) -> list[int]:
     # juego. No conviene bajar Meowth ex ni buscarlo con Ultra Ball hasta poder
     # reemplazar el estadio (p.ej. con Forest of Vitality).
     watchtower_in_play = (stadium_id == Team_Rockets_Watchtower)
+
+    # Spikemuth Gym: buscador de Pokemon de Marnie una vez por turno. No apaga
+    # nada nuestro, pero es el MOTOR de consistencia del arquetipo mas jugado
+    # del meta y solo funciona para ellos (no llevamos Pokemon de Marnie), asi
+    # que levantarlo con nuestro Forest es ganancia limpia.
+    spikemuth_in_play = (stadium_id == Spikemuth_Gym)
 
     # Iron Thorns ex ("Initialization") en el ACTIVO rival (P1.4): anula las
     # habilidades de TODOS los Pokemon con Rule Box de ambos lados. Teal
@@ -19899,7 +19925,8 @@ def agent(obs_dict: dict) -> list[int]:
                         # solo se juega desde la mano.
                         _forest_counters_op_stadium = _contra_estadio_urgente(
                             neutralization_zone_active, watchtower_in_play,
-                            forest_in_play, _festival_lead_hostil)
+                            forest_in_play, _festival_lead_hostil,
+                            spikemuth_in_play)
                         if (_forest_counters_op_stadium
                                 and hand_counts.get(Forest_of_Vitality, 0) <= 1):
                             score = 2
@@ -21664,7 +21691,8 @@ def agent(obs_dict: dict) -> list[int]:
                         data.cardType == CardType.STADIUM
                         and _contra_estadio_urgente(
                             neutralization_zone_active, watchtower_in_play,
-                            forest_in_play, _festival_lead_hostil))
+                            forest_in_play, _festival_lead_hostil,
+                            spikemuth_in_play))
                     if (op_is_comfey_deck and score > 0
                             and not _quita_candado_rival
                             and card.id not in (
@@ -21703,7 +21731,8 @@ def agent(obs_dict: dict) -> list[int]:
                         # Solo se juega para BORRAR un estadio rival molesto.
                         score = (14000 if _contra_estadio_urgente(
                             neutralization_zone_active, watchtower_in_play,
-                            forest_in_play, _festival_lead_hostil) else SCORE_VETO)
+                            forest_in_play, _festival_lead_hostil,
+                            spikemuth_in_play) else SCORE_VETO)
 
                 # Bajar el BASICO que sirve de raiz a Grand Tree (regla del
                 # user: conseguirlo "para asi luego jugar el estadio"). Bono

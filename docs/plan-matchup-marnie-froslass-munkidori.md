@@ -701,3 +701,25 @@ el suelo de ruido del simulador, y el +0.6 de la tabla esta muy por debajo.
 Froslass o Munkidori (ids 104/112), asi que ninguna otra medicion de matchup
 puede moverse. Tests: `tests/test_marnie_fase_c_y_e_higiene_de_banca.py` (9, con
 grupo de control en cada uno).
+
+> **Actualizacion (ago 2026) — esa contencion ya NO se sostiene contra el meta
+> real.** Medido sobre el top-100 del leaderboard (`decks_competidores/`):
+>
+> - **Froslass (104) si es exclusiva de Marnie**: 49 de 49.
+> - **Munkidori (112) NO lo es**: esta en 55 de los 100 mazos, y 6 de ellos no
+>   son Marnie -- los **cinco** mazos Dragapult del top-100 lo llevan, mas un
+>   Crustle.
+>
+> Consecuencia practica: tocar la ventana mueve tambien el matchup **Dragapult**,
+> asi que ya no vale leer un cambio de esta familia solo por los mazos de Marnie.
+> El corpus `deck/rivales_reales/` (con sus pesos de meta) es el que hay que usar
+> para medirlo.
+>
+> El codigo no necesito cambio: la ventana se calcula desde las CARTAS en mesa,
+> no desde el arquetipo, asi que ya trataba bien esos mazos. Lo que faltaba era
+> fijarlo -- `tests/test_marnie_ventana_de_regalo.py` incluye ahora tres casos
+> con rival **Dragapult**. Ojo con el matiz que sale ahi: Adrena-Brain solo mueve
+> contadores que YA existen, y sin Froslass que los fabrique la unica municion es
+> el dano que hayamos puesto nosotros. Con el tablero rival intacto el movible es
+> **0, y eso es correcto** -- es la diferencia real entre Marnie (municion
+> renovable) y un Dragapult que simplemente lleva Munkidori.
