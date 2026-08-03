@@ -59,6 +59,78 @@ TAM_PAGINA_LEADERBOARD = 200
 ENERGIAS_BASICAS = set(range(1, 9))
 MAX_COPIAS = 4
 
+# Reglas de arquetipo, copiadas del notebook publicado. Se evaluan de arriba
+# abajo: los hibridos especificos van ANTES que las reglas de una sola carta.
+#   "all" -> deben estar todas las cartas marcadoras
+#   "any" -> basta con una
+ARQUETIPOS: list[dict[str, Any]] = [
+    {"nombre": "Great Tusk / Crustle", "all": ["Great Tusk", "Crustle"]},
+    {"nombre": "Marnie Grimmsnarl", "any": ["Marnie's Grimmsnarl ex"]},
+    {"nombre": "Cynthia Garchomp", "any": ["Cynthia's Garchomp ex"]},
+    {"nombre": "Mega Lucario", "any": ["Mega Lucario ex"]},
+    {"nombre": "Archaludon", "any": ["Archaludon ex"]},
+    {"nombre": "Crustle Wall", "any": ["Crustle"]},
+    {"nombre": "Dragapult", "any": ["Dragapult ex"]},
+    {"nombre": "Mega Starmie", "any": ["Mega Starmie ex"]},
+    {"nombre": "Starmie", "any": ["Starmie ex", "Starmie"]},
+    {"nombre": "Mega Gardevoir", "any": ["Mega Gardevoir ex"]},
+    {"nombre": "Alakazam", "any": ["Alakazam ex", "Alakazam"]},
+    {"nombre": "Iono Bellibolt", "any": ["Iono's Bellibolt ex"]},
+    {"nombre": "Festival Lead", "any": ["Dipplin"]},
+    {"nombre": "Hop Trevenant", "any": ["Hop's Trevenant"]},
+    {"nombre": "Hop Snorlax", "any": ["Hop's Snorlax"]},
+    {"nombre": "Mega Kangaskhan", "any": ["Mega Kangaskhan ex"]},
+    {"nombre": "Chandelure", "any": ["Chandelure ex", "Chandelure"]},
+    {"nombre": "Mega Greninja", "any": ["Mega Greninja ex"]},
+    {"nombre": "Mega Clefable", "any": ["Mega Clefable ex"]},
+    {"nombre": "Team Rocket Mewtwo", "any": ["Team Rocket's Mewtwo ex"]},
+    # Anadidas tras medir el top-100 de ago 2026: eran los unicos mazos que
+    # caian al fallback "Otro /". Van AL FINAL a proposito, para que no puedan
+    # robarle un mazo a ninguna regla anterior ya validada.
+    # El hibrido va antes que sus dos piezas sueltas: hay listas que juegan
+    # 2 Buneary + 2 Mega Lopunny ex Y 2 Snorunt + 2 Mega Froslass ex a partes
+    # iguales, y llamarlas por una sola mitad seria arbitrario.
+    {"nombre": "Mega Lopunny / Mega Froslass", "all": ["Mega Lopunny ex", "Mega Froslass ex"]},
+    {"nombre": "Ogerpon Verde", "any": ["Teal Mask Ogerpon ex"]},
+    {"nombre": "Mega Lopunny", "any": ["Mega Lopunny ex"]},
+    {"nombre": "Mega Froslass", "any": ["Mega Froslass ex"]},
+]
+
+
+def clave_carta(nombre: Any) -> str:
+    """Normaliza un nombre de carta para comparar (apostrofes tipograficos, etc.)."""
+    import unicodedata
+
+    texto = unicodedata.normalize("NFKC", str(nombre or ""))
+    texto = texto.replace("’", "'").replace("‘", "'")
+    return re.sub(r"\s+", " ", texto.strip()).casefold()
+
+
+def clasificar_arquetipo(
+    mazo: list[int], nombres: dict[int, str], pokemon: set[int]
+) -> str:
+    """Etiqueta el mazo por cartas marcadoras; si no hay regla, cae al Pokemon ex."""
+    if not nombres:
+        return ""
+    presentes = {clave_carta(nombres.get(cid, "")) for cid in mazo}
+    for regla in ARQUETIPOS:
+        exigidas = {clave_carta(n) for n in regla.get("all", [])}
+        alguna = {clave_carta(n) for n in regla.get("any", [])}
+        if (not exigidas or exigidas.issubset(presentes)) and (not alguna or alguna & presentes):
+            return regla["nombre"]
+
+    # Sin regla: el Pokemon ex mas repetido es la etiqueta mas honesta.
+    conteo: Counter[str] = Counter()
+    for cid, n in Counter(mazo).items():
+        if cid in pokemon:
+            conteo[str(nombres.get(cid, ""))] += n
+    if not conteo:
+        return "Desconocido"
+    ex = [(n, nom) for nom, n in conteo.items() if clave_carta(nom).endswith(" ex")]
+    candidatos = ex or [(n, nom) for nom, n in conteo.items()]
+    _, elegido = sorted(candidatos, key=lambda t: (-t[0], t[1]))[0]
+    return f"Otro / {elegido}"
+
 
 # ---------------------------------------------------------------------------
 # Credenciales
@@ -500,6 +572,88 @@ def guardar_cache(ruta: Path, datos: dict[str, Any]) -> None:
 # ---------------------------------------------------------------------------
 # Escritura de resultados
 # ---------------------------------------------------------------------------
+def fila_de_indice(
+    archivo: str,
+    mazo: list[int],
+    posicion: Any,
+    puntaje: Any,
+    nombres: dict[int, str],
+    ace_spec: set[int],
+    pokemon: set[int],
+) -> dict[str, Any]:
+    """Construye la fila de indice de un mazo (una sola definicion de columnas)."""
+    conteo = Counter(mazo)
+    principal = ""
+    if nombres:
+        # Pokemon mas repetido. OJO: no es el arquetipo -- suele ser una pieza
+        # de apoyo a 4 copias. La columna `arquetipo` es la que clasifica.
+        candidatas = [(n, cid) for cid, n in conteo.items() if cid in pokemon]
+        if not candidatas:
+            candidatas = [(n, cid) for cid, n in conteo.items() if cid not in ENERGIAS_BASICAS]
+        if candidatas:
+            _, cid = max(candidatas, key=lambda t: (t[0], -t[1]))
+            principal = nombres.get(cid, "")
+    return {
+        "archivo": archivo,
+        "posicion_leaderboard": posicion,
+        "puntaje": puntaje,
+        "arquetipo": clasificar_arquetipo(mazo, nombres, pokemon),
+        "cartas": len(mazo),
+        "ids_distintos": len(conteo),
+        "energias_basicas": sum(n for cid, n in conteo.items() if cid in ENERGIAS_BASICAS),
+        "ace_spec": sum(n for cid, n in conteo.items() if cid in ace_spec),
+        "pokemon_mas_repetido": principal,
+        "avisos": "; ".join(validar_mazo(mazo, ace_spec)),
+    }
+
+
+def escribir_indice(dir_salida: Path, filas: list[dict[str, Any]]) -> None:
+    import csv
+
+    columnas = list(filas[0].keys()) if filas else ["archivo"]
+    with (dir_salida / "indice.csv").open("w", encoding="utf-8-sig", newline="") as fh:
+        escritor = csv.DictWriter(fh, fieldnames=columnas)
+        escritor.writeheader()
+        escritor.writerows(filas)
+
+
+def regenerar_indice(
+    dir_salida: Path, nombres: dict[int, str], ace_spec: set[int], pokemon: set[int]
+) -> int:
+    """Rehace indice.csv leyendo los mazos ya guardados, SIN tocar la API.
+
+    El leaderboard se mueve con las horas, asi que volver a descargar cambiaria
+    el top-N y renumeraria mazos ya publicados. Este modo solo recalcula las
+    columnas derivadas del mazo y conserva posicion/puntaje del indice previo.
+    """
+    import csv
+
+    previo: dict[str, dict[str, str]] = {}
+    ruta_previa = dir_salida / "indice.csv"
+    if ruta_previa.is_file():
+        with ruta_previa.open(encoding="utf-8-sig", newline="") as fh:
+            for fila in csv.DictReader(fh):
+                previo[fila.get("archivo", "")] = fila
+
+    filas: list[dict[str, Any]] = []
+    for ruta in sorted(dir_salida.glob("mazo_*.csv")):
+        mazo = [int(x) for x in ruta.read_text(encoding="utf-8").split() if x.strip()]
+        anterior = previo.get(ruta.name, {})
+        filas.append(
+            fila_de_indice(
+                ruta.name,
+                mazo,
+                anterior.get("posicion_leaderboard", ""),
+                anterior.get("puntaje", ""),
+                nombres,
+                ace_spec,
+                pokemon,
+            )
+        )
+    escribir_indice(dir_salida, filas)
+    return len(filas)
+
+
 def escribir_mazos(
     recolector: Recolector,
     filas_lb: list[dict[str, Any]],
@@ -526,37 +680,19 @@ def escribir_mazos(
         (dir_salida / nombre).write_text(
             "\n".join(str(cid) for cid in mazo) + "\n", encoding="utf-8"
         )
-        avisos = validar_mazo(mazo, ace_spec)
-        conteo = Counter(mazo)
-        principal = ""
-        if nombres:
-            # Pokemon mas repetido: etiqueta util para ojear el arquetipo de un
-            # vistazo. Si el mazo no trae Pokemon reconocibles, cae a cualquier
-            # carta que no sea energia basica.
-            candidatas = [(n, cid) for cid, n in conteo.items() if cid in pokemon]
-            if not candidatas:
-                candidatas = [(n, cid) for cid, n in conteo.items() if cid not in ENERGIAS_BASICAS]
-            if candidatas:
-                _, cid = max(candidatas, key=lambda t: (t[0], -t[1]))
-                principal = nombres.get(cid, "")
         indice.append(
-            {
-                "archivo": nombre,
-                "posicion_leaderboard": dato["posicion"],
-                "puntaje": puntaje_por_posicion.get(dato["posicion"], ""),
-                "cartas": len(mazo),
-                "ids_distintos": len(conteo),
-                "energias_basicas": sum(n for cid, n in conteo.items() if cid in ENERGIAS_BASICAS),
-                "ace_spec": sum(n for cid, n in conteo.items() if cid in ace_spec),
-                "carta_mas_repetida": principal,
-                "avisos": "; ".join(avisos),
-            }
+            fila_de_indice(
+                nombre,
+                mazo,
+                dato["posicion"],
+                puntaje_por_posicion.get(dato["posicion"], ""),
+                nombres,
+                ace_spec,
+                pokemon,
+            )
         )
 
-    with (dir_salida / "indice.csv").open("w", encoding="utf-8-sig", newline="") as fh:
-        escritor = csv.DictWriter(fh, fieldnames=list(indice[0].keys()) if indice else ["archivo"])
-        escritor.writeheader()
-        escritor.writerows(indice)
+    escribir_indice(dir_salida, indice)
 
     n_extra = 0
     if recolector.extra:
@@ -584,10 +720,27 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--max-episodios", type=int, default=3, help="replays a probar por competidor antes de rendirse")
     parser.add_argument("--intervalo", type=float, default=INTERVALO_PETICION_S, help="segundos entre peticiones a la API")
     parser.add_argument("--sin-extra", action="store_true", help="no guardar los mazos rivales fuera del top-N")
+    parser.add_argument(
+        "--solo-indice",
+        action="store_true",
+        help="rehace indice.csv desde los mazos ya guardados, sin llamar a la API "
+        "(evita que un leaderboard cambiado renumere los mazos existentes)",
+    )
     parser.add_argument("--conservar-replays", action="store_true", help="no borrar los replays descargados (~4 MB cada uno)")
     args = parser.parse_args(argv)
 
     PACER.intervalo = float(args.intervalo)
+
+    # Este modo no necesita credenciales ni el SDK: solo lee lo que ya hay en disco.
+    if args.solo_indice:
+        nombres, ace_spec, pokemon = cargar_cartas()
+        dir_salida = Path(args.salida)
+        if not dir_salida.is_dir():
+            print(f"ERROR: no existe la carpeta {dir_salida}", file=sys.stderr)
+            return 1
+        n = regenerar_indice(dir_salida, nombres, ace_spec, pokemon)
+        print(f"indice.csv regenerado con {n} mazos (sin llamadas a la API)")
+        return 0
 
     cargar_credenciales()
     try:
