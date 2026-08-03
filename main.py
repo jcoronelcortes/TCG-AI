@@ -14,6 +14,13 @@ from cg.api import AreaType, CardType, EnergyType, Observation, SelectContext, O
 # en el contenedor de Kaggle el directorio del agente solo esta en sys.path
 # mientras se ejecuta este modulo, asi que un import diferido no resolveria.
 from ptcg.cartas.ids import *  # noqa: F401,F403
+from ptcg.cartas.tablas import *  # noqa: F401,F403
+from ptcg.cartas.grupos import *  # noqa: F401,F403
+from ptcg.motor.plan import *  # noqa: F401,F403
+from ptcg.motor.reglas import *  # noqa: F401,F403
+from ptcg.calculo.dano import *  # noqa: F401,F403
+from ptcg.calculo.energia import *  # noqa: F401,F403
+from ptcg.calculo.probabilidad import *  # noqa: F401,F403
 
 # =============================================================================
 # CONVENCIONES DEL AGENTE (leer antes de tocar puntuaciones o energia)
@@ -48,26 +55,8 @@ my_deck = []
 for i in range(60):
     my_deck.append(int(csv[i]))
 
-all_card = all_card_data()
-card_table = {c.cardId: c for c in all_card}
-# Tabla ataque-id -> objeto Attack (name/damage/energies). Los `card.attacks`
-# son IDs (ints), no objetos, por lo que _op_best_damage_vs (que hace
-# getattr(id, 'damage')) siempre da 0. Esta tabla permite RESOLVER el dano real
-# del ataque del activo rival cuando se necesita (ver _op_active_attack_damage_to).
-attack_table = {a.attackId: a for a in all_attack()}
 
 
-def _powerful_hand_proyectado(op_hand_count: int) -> int:
-    """Dano de Powerful Hand proyectado al PROXIMO turno rival.
-
-    Mismo modelo que `_op_active_attack_damage_to`: 20 x (mano + 2), donde el
-    +2 es el robo del turno + el Psychic Draw de evolucionar. Vive suelto (y no
-    detras de "su activo es un Alakazam") porque el Alakazam que rematara puede
-    estar todavia en la BANCA rival: en su turno promueve, evoluciona y ataca.
-    Dentro del matchup `op_is_alakazam_deck` es la unica linea atacante del
-    mazo (Abra -> Kadabra -> Alakazam), asi que proyectarla siempre es correcto.
-    """
-    return 20 * (max(0, op_hand_count) + 2)
 
 
 def _alakazam_relevo_de_atacante(op_state):
@@ -284,83 +273,17 @@ def _stamp_pendiente(c) -> bool:
 # (suite + corpus dorado + invariantes + self-play).
 # =============================================================================
 
-class _ReglaFija:
-    __slots__ = ("nombre", "cuando", "valor")
 
-    def __init__(self, nombre, cuando, valor):
-        self.nombre = nombre
-        self.cuando = cuando  # ctx -> bool
-        self.valor = valor    # ctx -> score
 
-class _Ajuste:
-    __slots__ = ("nombre", "cuando", "aplicar")
 
-    def __init__(self, nombre, cuando, aplicar):
-        self.nombre = nombre
-        self.cuando = cuando    # (ctx, score) -> bool
-        self.aplicar = aplicar  # (ctx, score) -> score
 
-def _resolver_reglas(reglas, ajustes, ctx, defecto):
-    """Devuelve (score, traza). Primera regla que aplica + ajustes en orden."""
-    traza = []
-    score = defecto
-    for r in reglas:
-        if r.cuando(ctx):
-            score = r.valor(ctx)
-            traza.append(f"{r.nombre}={score}")
-            break
-    else:
-        traza.append(f"defecto={defecto}")
-    for a in ajustes:
-        if a.cuando(ctx, score):
-            nuevo = a.aplicar(ctx, score)
-            traza.append(f"{a.nombre}:{score}->{nuevo}" if nuevo != score
-                         else f"{a.nombre}(sin efecto)")
-            score = nuevo
-    return score, traza
 
-def _resolver_con_traza(etiqueta, reglas, ajustes, ctx, defecto):
-    score, traza = _resolver_reglas(reglas, ajustes, ctx, defecto)
-    if os.environ.get("PTCG_DEBUG"):
-        print(f"[reglas {etiqueta}]", " | ".join(traza))
-    return score
-
-def _resolver_max(escenarios, ctx):
-    """Modo ARGMAX del motor: evalua TODOS los escenarios (misma forma que
-    _ReglaFija) y devuelve (mejor_valor, traza). A diferencia de la cadena
-    primera-que-aplica, aqui compiten todos los que disparan y gana el de
-    mayor valor (0 si ninguno dispara). Para acumuladores tipo
-    `best = max(best, ...)` sobre escenarios independientes."""
-    mejor, ganador, disparados = 0, None, 0
-    for e in escenarios:
-        if e.cuando(ctx):
-            disparados += 1
-            v = e.valor(ctx)
-            if v > mejor:
-                mejor, ganador = v, e.nombre
-    traza = (f"max:{ganador}={mejor} ({disparados} candidatos)"
-             if ganador else "max:ninguno=0")
-    return mejor, traza
-
-class AttackPlan:
-    attacker = -1
-    target = -1
-    attack_index = -1
-    remain_hp = -1
-    energy = False
 
 plan = AttackPlan()
 pre_turn = 0
 meganium_in_play = False
 
 
-def _grass_mult():
-    # La observacion del juego YA aplica Wild Growth de Meganium: cada energia
-    # basica de Planta FISICA aparece DUPLICADA en la lista `energies`, por lo
-    # que len(energies) ES la energia EFECTIVA. Por eso este multiplicador es 1
-    # (se conserva como funcion para que los sitios `crudo * _grass_mult()`
-    # heredados sigan devolviendo la energia efectiva sin reescribirlos).
-    return 1
 
 
 # Dano proyectado del snipe rival a UN Pokemon de nuestra banca (se recalcula
@@ -451,23 +374,6 @@ def _physical_energy(effective_len):
     return effective_len // 2 if meganium_in_play else effective_len
 
 
-def _ogerpon_base_phys_cap(meganium, is_hop):
-    # Tope BASE de energias FISICAS de un Teal Mask Ogerpon ex (regla del user).
-    # Con Meganium en juego: 2 fisicas (Wild Growth las duplica => 4 efectivas,
-    # de sobra para Myriad Leaf Shower, coste 3). Sin Meganium: 3 vs el mazo de
-    # Hop's ("no puede tener mas de tres energias cargadas") y 4 en el resto de
-    # matchups con tope (Alakazam). Fuente unica de verdad para el adjunte
-    # manual, Ripening Charge y Teal Dance.
-    if meganium:
-        return 2
-    return 3 if is_hop else 4
-
-
-# Nuestras DOS lineas de evolucion, de basico a etapa 2.
-EVO_LINES = (
-    (Applin, Dipplin, Hydrapple_ex),
-    (Chikorita, Bayleef, Meganium),
-)
 
 
 # =============================================================================
@@ -671,53 +577,6 @@ _DECK_POKEMON_IDS = frozenset(
 
 # Basicos del mazo que ABREN una cadena (tienen al menos una Fase 1 en el mazo).
 _GT_BASICOS_CON_CADENA = frozenset(b for b, _s1, _s2 in _CADENAS_MAZO)
-
-
-# =============================================================================
-# GRAND TREE (id 1249): MOTOR DE EVOLUCION INSTANTANEA
-# -----------------------------------------------------------------------------
-# Con el estadio en mesa (lo haya bajado quien lo haya bajado) ganamos, UNA VEZ
-# POR TURNO y GRATIS, una cadena entera Basico -> Fase 1 -> Fase 2 sacada del
-# mazo. Es la jugada de desarrollo mas rentable del turno: no gasta la carta de
-# la mano, no gasta el adjunte, no gasta el ataque y ademas ADELGAZA el mazo.
-#
-# QUE CUERPO CONSTRUIR (regla del user, generalizada a cualquier mazo):
-#   * Si ya tenemos en juego una de nuestras Etapas 2 y NO la otra, se completa
-#     LA QUE FALTA -> el bono `GT_VALOR_DIVERSIFICAR`. En este mazo eso es
-#     exactamente "con Meganium en juego -> Hydrapple ex" y "con Hydrapple ex en
-#     juego -> Meganium".
-#   * Si YA tenemos las dos (o ninguna), decide el VALOR del cuerpo resultante
-#     (`_gt_valor_cuerpo`: PV + bono por Habilidad) -> gana la copia del cuerpo
-#     mas fuerte. En este mazo eso es "con ambos en juego -> un segundo
-#     Hydrapple ex" (330 PV + Ripening Charge frente a 160 PV de Meganium).
-#     `GT_VALOR_DIVERSIFICAR` (1200) es deliberadamente mayor que cualquier
-#     diferencia de cuerpo razonable, para que la diversificacion mande cuando
-#     aplica.
-#   * A igualdad, se prefiere el Basico con MAS energia ya invertida (misma
-#     convencion que la rama EVOLVE: `9000 + energia`).
-#
-# MATCHUPS: contra un rival que INMUNIZA a nuestros Pokemon ex (Crustle,
-# Sylveon...), la Etapa 2 ex se descarta y la cadena se queda EXPRESAMENTE en
-# Fase 1 (`stage2_id == 0`): el paso 2 de la carta es opcional ("puede"), y
-# regalar un cuerpo de 2 premios que no puede danar al muro es peor que no
-# evolucionar. Espeja el veto de la rama EVOLVE de Hydrapple ex vs Crustle.
-# =============================================================================
-
-# Bandas de score de la HABILIDAD del estadio (rama ABILITY). Van por encima de
-# la evolucion desde la mano (Meganium 35000 / Hydrapple ex 33000) porque Grand
-# Tree NO consume la carta de la mano: si ambas jugadas estan disponibles,
-# primero la gratis.
-GT_SCORE_CADENA_COMPLETA = 36000
-GT_SCORE_SOLO_FASE1 = 34000
-# Bono al FETCH (Ultra Ball / Bug Catching Set / Poke Pad / Night Stretcher) del
-# Basico que habilita el estadio, y a bajarlo despues de la mano. Deliberadamente
-# pequenos: son desempates, no deben pisar las prioridades ya existentes.
-GT_FETCH_BONUS = 600
-GT_PLAY_BASICO_BONUS = 500
-# Componentes del valor de un plan (ver la cabecera del bloque).
-GT_VALOR_ETAPA2 = 2000
-GT_VALOR_DIVERSIFICAR = 1200
-GT_PENAL_ACTIVO_CONDENADO = 1500
 
 
 class _GrandTreePlan(NamedTuple):
@@ -1030,27 +889,6 @@ def _retreat_grass_units(retreat_cost):
     y el log del ataque confirma los 240."""
     return _retreat_cards(retreat_cost) * _grass_attach_unit()
 
-
-# Requisitos de energia EFECTIVA para atacar, por carta (fuente unica de verdad).
-# len(energies) YA es energia efectiva (la observacion duplica la Planta por
-# Wild Growth), asi que se compara directamente contra estos valores.
-# Nighttime Mine (carta 1266): "los ataques de cada Pokemon Tera en juego (de
-# LOS DOS jugadores) cuestan {C} mas". OJO con el numero: 1266 tambien es el id
-# del ATAQUE Splashing_Dodge_Atk, pero son espacios de nombres distintos
-# (card_table vs attack_table).
-#
-# Nos afecta de lleno: Teal Mask Ogerpon ex es nuestro UNICO Tera y llevamos 4.
-# Con la mina en mesa su ataque pasa de 3 a 4 energias. Medido sobre el meta
-# real (decks_competidores/, top-300): el 80% de las listas Alakazam la lleva a
-# 2 copias, y Alakazam es el 19.7% del meta.
-#
-# Verificado contra el motor (30 partidas): con la mina en mesa y 3 energias el
-# menu NO ofrece ATTACK (13 casos); con 4 si (22). Sin mina, 3 basta (56). El
-# agente creia que Ogerpon estaba listo y no lo estaba.
-Nighttime_Mine = 1266
-# Nuestros Pokemon Tera, los unicos a los que la mina les sube el coste.
-OUR_TERA_IDS = {Teal_Mask_Ogerpon_ex}
-
 ATTACK_ENERGY_REQ = {
     Hydrapple_ex: 2, Dipplin: 1, Teal_Mask_Ogerpon_ex: 3,
     Tapu_Bulu: 4, Fezandipiti_ex: 3, Meganium: 4, Pinsir: 2,
@@ -1245,35 +1083,6 @@ def _plan_de_planta(my_state, state, field_counts, hand_counts, tope=3,
 # Supporter? Estas dos piezas son la fuente unica de esa respuesta.
 
 
-def _prob_al_menos(exitos, poblacion, robo, k):
-    """Hipergeometrica: P(robar AL MENOS `k` copias) sacando `robo` cartas de
-    un mazo de `poblacion` con `exitos` copias vivas.
-
-    Es el UNICO sitio del fichero donde el agente razona con azar; el resto
-    decide con el tablero visible. `exitos` sale de la creencia de mazo
-    (`CARTAS_ACTIVAS_EN_MAZO`), que cuenta lo que NO se ha visto: mazo + premios
-    boca abajo. Por eso el llamador mete tambien los premios en `poblacion` --
-    son cartas indistinguibles del mazo desde nuestro lado--, lo que deja la
-    estimacion LIGERAMENTE conservadora (en el registro_004: 11 Plantas no
-    vistas en 48 -> 0.60, frente al 0.63 real de las 10 que quedaban en el mazo
-    de 42). Conservador es lo que se quiere en un gate."""
-    if k <= 0:
-        return 1.0
-    if exitos <= 0 or robo <= 0 or poblacion <= 0 or k > exitos:
-        return 0.0
-    robo = min(robo, poblacion)
-    if k > robo:
-        return 0.0
-    fallos = poblacion - exitos
-    total = _comb(poblacion, robo)
-    if total <= 0:
-        return 0.0
-    menos_de_k = 0
-    for i in range(0, k):
-        if i > exitos or (robo - i) > fallos or (robo - i) < 0:
-            continue
-        menos_de_k += _comb(exitos, i) * _comb(fallos, robo - i)
-    return max(0.0, min(1.0, 1.0 - menos_de_k / total))
 
 
 @dataclass
@@ -1756,27 +1565,6 @@ def _our_effective_damage(my_pokemon, op_pokemon, base_damage,
     return max(0, int(damage))
 
 
-def _ko_no_garantizado(op_pokemon):
-    """True si el KO del defensor NO esta garantizado aunque el dano proyectado
-    sea letal: Mega Hawlucha ex (Tenacious Body: moneda, con cara sobrevive a
-    10 PV) o Survival Brace (tool 1155: a vida completa sobrevive a 10 PV).
-
-    Lo consultan SOLO los evaluadores de REMATE que declaran victoria segura
-    (`wins_now`, SCORE_WIN_GAME, `_active_attack_wins_now`): contra estos
-    cuerpos "ganar este turno" puede fallar y regalar el turno de vuelta. El
-    dano/can_ko normal NO se toca (atacarlos sigue siendo la mejor jugada la
-    mayoria de veces). Los que sobreviven a vida completa via Sturdy/Resolute
-    Heart (FULL_HP_SURVIVE_IDS) no necesitan este predicado porque
-    `_our_effective_damage` ya capa su dano a hp-10 y el can_ko sale False."""
-    if op_pokemon is None:
-        return False
-    if op_pokemon.id == Mega_Hawlucha_ex:
-        return True
-    if (op_pokemon.hp == op_pokemon.maxHp
-            and any(getattr(_t, 'id', 0) == Survival_Brace
-                    for _t in (getattr(op_pokemon, 'tools', None) or []))):
-        return True
-    return False
 
 
 # --- AUTO-DANO DEL PROPIO ATAQUE (Wood Hammer y compania) -------------------
@@ -1886,13 +1674,6 @@ def _self_ko_by_own_attack(pokemon, incierto=False):
     return _auto > 0 and _auto >= (pokemon.hp or 0)
 
 
-class _ProjTarget(NamedTuple):
-    """Objetivo ligero para proyectar el dano rival contra un cuerpo que aun no
-    esta en juego (p.ej. la EVOLUCION de una pre-evo de banca). Solo necesita
-    `id` (para debilidad/resistencia via card_table); `tools`/`energies` vacios."""
-    id: int
-    tools: tuple = ()
-    energies: tuple = ()
 
 
 def _tiene_rule_box(card_id) -> bool:
@@ -2086,16 +1867,6 @@ def _bench_attacker_best_damage(my_state, target, meganium_active, bench_count,
 SNIPE_ANY_TARGET_IDS = frozenset({Fezandipiti_ex})
 
 
-def _snipe_targets(op_state):
-    """Pokemon rivales alcanzables por un ataque-snipe: activo + banca."""
-    out = []
-    if op_state is None:
-        return out
-    for _p in (list(getattr(op_state, 'active', None) or [])
-               + list(getattr(op_state, 'bench', None) or [])):
-        if _p is not None:
-            out.append(_p)
-    return out
 
 
 def _snipe_target_score(damage, target):
@@ -2552,22 +2323,7 @@ def prize_count_op(pokemon: Pokemon) -> int:
             count -= 1
     return max(0, count)
 
-def count_total_grass_energy(my_state) -> int:
-    total = 0
-    for pokemon in my_state.active + my_state.bench:
-        if pokemon is None:
-            continue
-        for e in pokemon.energies:
-            if e == EnergyType.GRASS:
-                total += 1
-    return total
 
-def calc_syrup_storm_damage(my_state, has_meganium: bool) -> int:
-    total_grass = count_total_grass_energy(my_state)
-    if has_meganium:
-
-        pass
-    return 30 + 30 * total_grass
 
 # NOTA (paso 4b plan jul 2026, MEDIDO Y REVERTIDO): se intento un freno de
 # deck-out para Teal Dance (mazo <=5 -> vetar las bandas degradadas <=7500,
@@ -4238,9 +3994,6 @@ def _ns_e_cargar_banca_crustle(w):
             return True
     return False
 
-def _E(nombre, cuando, valor):
-    return _ReglaFija(nombre, cuando,
-                      valor if callable(valor) else (lambda c, _v=valor: _v))
 
 _ESC_NS_RECUPERACION = [
     # Combos completos (recuperar la pieza + evolucionar la linea entera).

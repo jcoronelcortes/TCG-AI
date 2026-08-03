@@ -35,8 +35,9 @@ Transversal:
 
 16. [Grand Tree: motor de evolución instantánea](main-16-grand-tree.md) — el estadio compartido id 1249: cadenas derivadas del mazo, qué línea construir, la habilidad, el tier `_TIER_STADIUM_ABILITY`, la retención del Forest of Vitality y la búsqueda del Básico raíz.
 
-Documento histórico de diseño:
+Documentos de refactor:
 
+- [Arquitectura objetivo y proceso por olas](main-refactor-arquitectura.md) — **plan vigente**: en qué paquete se parte `main.py` (25 333 líneas, de las que `agent()` son 15 500), en qué orden, y con qué puerta de verificación (`utils/sombra.py` + los 930 tests) se demuestra que cada paso no cambia ni una decisión.
 - [Plan del refactor de Ultra Ball](main-refactor-ultra-ball-plan.md) — refactor ya ejecutado (`_score_ultra_ball_play` como orquestador); se conserva como referencia de método (extracción verbatim + verificación por hash).
 
 ## Integración con el simulador (`cg/`)
@@ -49,7 +50,10 @@ Documento histórico de diseño:
 ## Herramientas (`utils/` y `deck/`)
 
 - [Reproducción de logs — `utils/log_replay.py` y `utils/split_turns.py`](utils-log-replay.md) — ejecuta `main.agent()` sobre un log real y compara con las acciones registradas; `split_turns` parte el log en registros por turno para reproducir decisiones.
-- [Empaquetado de la submission — `utils/empaquetar_proyecto.py`](utils-empaquetar-proyecto.md) — genera `submission.tar.gz` en la raíz con `main.py`, `deck.csv` y `cg/`.
+- [Empaquetado de la submission — `utils/empaquetar_proyecto.py`](utils-empaquetar-proyecto.md) — genera `submission.tar.gz` en la raíz con `main.py`, `deck.csv` y los paquetes locales que `main.py` importa (hoy `cg/`; la lista se **deriva** de sus imports, no está escrita a mano).
+- `utils/extraer_puros.py` — mecanismo de las olas 1-2: mueve a un módulo del paquete los bindings **puros** de un rango de `main.py`, por rangos de líneas (para que los comentarios viajen con lo que documentan) y descartando los nombres que se mutan en algún sitio (`my_deck` es el caso: parece constante y no lo es). Tiene *dry run* por defecto.
+- `utils/lint_arquitectura.py` — cuatro reglas AST del refactor (R1 mutables importados por nombre · R2 pureza de `cartas/motor/calculo` · R3 `def agent` es lo último de `main.py` · R4 imports perezosos de paquetes propios e `import main`). Corre con la suite vía `tests/test_arquitectura.py`. Ver [arquitectura del refactor](main-refactor-arquitectura.md).
+- `utils/sombra.py` — gate de equivalencia del refactor: juega self-play con la versión PRE y consulta a la POST con la misma observación; cualquier discrepancia es un flip. `python utils/sombra.py <pre.py> <post.py> [n_espejo] [n_rival]` (posicionales, sin etiquetas).
 - [Imagen del mazo — `deck/render_deck_image.py`](deck-render-deck-image.md) — genera `deck/deck_en.jpg` a partir de `deck.csv` y los datos oficiales del challenge.
 
 ## Pruebas
