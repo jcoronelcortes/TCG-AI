@@ -38,6 +38,22 @@ import selfplay as sp
 from bot_rival import BotRival
 
 
+def es_mazo(ruta):
+    """¿El CSV es una lista de 60 ids y no otra cosa?
+
+    El directorio de rivales contiene tambien `pesos.csv`, y podria contener
+    cualquier otro CSV auxiliar. Sin este filtro la matriz intenta leerlo como
+    mazo y revienta DESPUES de haber jugado todos los matchups buenos.
+    """
+    try:
+        lineas = [x for x in ruta.read_text(encoding="utf-8-sig").split() if x.strip()]
+    except (OSError, UnicodeDecodeError):
+        return False
+    if len(lineas) != 60:
+        return False
+    return all(x.lstrip("-").isdigit() for x in lineas)
+
+
 def cargar_pesos(directorio):
     """Peso de meta por mazo, desde el pesos.csv de utils/rivales_reales.py.
 
@@ -113,7 +129,11 @@ def main(argv):
                          "pesos.csv de utils/rivales_reales.py)")
     args = ap.parse_args(argv)
 
-    rutas = sorted(Path(args.rivales).glob("*.csv"))
+    todos = sorted(Path(args.rivales).glob("*.csv"))
+    rutas = [r for r in todos if es_mazo(r)]
+    omitidos = [r.name for r in todos if r not in rutas]
+    if omitidos:
+        print(f"(no son mazos, se omiten: {', '.join(omitidos)})")
     if args.solo:
         quiere = {s.strip() for s in args.solo.split(",")}
         rutas = [r for r in rutas if r.stem in quiere]
