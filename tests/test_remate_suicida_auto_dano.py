@@ -43,6 +43,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import main as m
+from parcheo import parcheado
 from state_builder import G, Escenario, pk
 
 TAPU = m.Tapu_Bulu             # 920: Wood Hammer 220, -30 a si mismo
@@ -285,10 +286,9 @@ def _scores(obs):
         capturado.setdefault("scores", list(scores))
         return original(context, select, scores, o, my_index, top_n)
 
-    m._debug_log_decision = espia
-    try:
+    # El espia se instala en TODOS los modulos que ligan el nombre: quien
+    # lo llama vive ahora en ptcg/turno/finalize.py, no en main.
+    with parcheado("_debug_log_decision", espia):
         m.agent(obs)
-    finally:
-        m._debug_log_decision = original
     assert "scores" in capturado, "el agente no puntuo el menu"
     return capturado["scores"]

@@ -63,6 +63,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import main as m
+from parcheo import instalar
 
 _FIXTURE = (ROOT / "tests" / "fixtures"
             / "cornerstone_cubchoo_sube_tapu_no_ataca_por_0.json")
@@ -123,7 +124,7 @@ def _scores(obs):
         visto["scores"] = list(scores)
         return orig(context, select, scores, obs_, my_index, top_n)
 
-    m._debug_log_decision = espia
+    _restaurar_espia = instalar("_debug_log_decision", espia)
     prev = m.DEBUG_DECISIONS
     m.DEBUG_DECISIONS = True
     try:

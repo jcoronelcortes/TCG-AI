@@ -52,6 +52,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import main as m
+from parcheo import instalar
 
 _FIXTURE = (ROOT / "tests" / "fixtures"
             / "comfey_banca_vacia_baja_relevo.json")
@@ -120,16 +121,20 @@ def _jugada(obs, eleccion):
 
 def _scores(obs):
     visto = {}
-    orig = m._debug_log_decision
-    m._debug_log_decision = lambda ctx, sel, sc, ob, mi, top_n=3: visto.setdefault(
-        "s", list(sc))
-    prev = m.DEBUG_DECISIONS
-    m.DEBUG_DECISIONS = True
+
+    def espia(ctx, sel, sc, ob, mi, top_n=3):
+        visto.setdefault("s", list(sc))
+
+    # `_debug_log_decision` y `DEBUG_DECISIONS` viven en ptcg/motor/depuracion.py,
+    # y quien los consulta esta en ptcg/turno/finalize.py: hay que fijarlos en
+    # todos los modulos que los ligan, no solo en `main`.
+    _restaurar_espia = instalar("_debug_log_decision", espia)
+    _restaurar_flag = instalar("DEBUG_DECISIONS", True)
     try:
         m.agent(obs)
     finally:
-        m._debug_log_decision = orig
-        m.DEBUG_DECISIONS = prev
+        _restaurar_flag()
+        _restaurar_espia()
     return visto["s"]
 
 

@@ -10,7 +10,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import main as m
-from parcheo import parchear
+from parcheo import parchear, instalar
 from cg.api import AreaType, EnergyType, LogType, OptionType, SelectContext
 
 
@@ -2120,13 +2120,13 @@ def _score_by_hand_id(obs):
     orig = m._debug_log_decision
     def spy(context, select, scores, obs_, my_index, top_n=3):
         captured["s"] = list(scores)
-    m._debug_log_decision = spy
+    _restaurar_spy = instalar("_debug_log_decision", spy)
     m.DEBUG_DECISIONS = True
     try:
         m._init_cartas_tracking(); m.plan = m.AttackPlan()
         m.agent(obs)
     finally:
-        m._debug_log_decision = orig
+        _restaurar_spy()
     me = obs["current"]["players"][1]
     out = {}
     for i, o in enumerate(obs["select"]["option"]):

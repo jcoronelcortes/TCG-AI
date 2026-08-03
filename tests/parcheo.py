@@ -22,6 +22,7 @@ LA SOLUCION
 """
 
 import sys
+from contextlib import contextmanager
 
 
 def _modulos_del_agente():
@@ -45,3 +46,46 @@ def parchear(monkeypatch, nombre, valor):
             monkeypatch.setattr(mod, nombre, valor, raising=False)
             tocados += 1
     return tocados
+
+
+@contextmanager
+def parcheado(nombre, valor):
+    """Igual que `parchear`, pero sin `monkeypatch` y como gestor de contexto.
+
+    Para los tests que instalan un espia a mano con try/finally:
+
+        with parcheado("_debug_log_decision", espia):
+            m.agent(obs)
+    """
+    previos = [(mod, getattr(mod, nombre))
+               for mod in _modulos_del_agente() if hasattr(mod, nombre)]
+    for mod, _ in previos:
+        setattr(mod, nombre, valor)
+    try:
+        yield len(previos)
+    finally:
+        for mod, viejo in previos:
+            setattr(mod, nombre, viejo)
+
+
+def instalar(nombre, valor):
+    """Fija `nombre = valor` en todos los modulos y devuelve el restaurador.
+
+    Variante para los tests que ya tienen su try/finally montado: sustituye la
+    asignacion y la restauracion linea por linea, sin reestructurar el test.
+
+        _restaurar = instalar("_debug_log_decision", espia)
+        try:
+            m.agent(obs)
+        finally:
+            _restaurar()
+    """
+    previos = [(mod, getattr(mod, nombre))
+               for mod in _modulos_del_agente() if hasattr(mod, nombre)]
+    for mod, _ in previos:
+        setattr(mod, nombre, valor)
+
+    def restaurar():
+        for mod, viejo in previos:
+            setattr(mod, nombre, viejo)
+    return restaurar
