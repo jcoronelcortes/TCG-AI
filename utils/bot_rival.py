@@ -25,10 +25,8 @@ Politica:
     origen = el cuerpo PROPIO mas danado, cantidad = la MAXIMA ofrecida,
     destino = el cuerpo rival que MUERE con esos contadores (a mas premios,
     mejor) y, si ninguno muere, el de MENOS vida.
-  - Elegir ACTIVO propio (promocion tras KO, destino de retirada): el de mayor
-    dano POTENCIAL contra el activo rival (ignorando el coste, porque la
-    politica de ATTACH carga al activo y el atacante recien subido se carga
-    solo); desempata el dano que YA puede pagar, luego energia y vida.
+  - Elegir ACTIVO propio (promocion tras KO, destino de retirada): el que mas
+    energia lleva y, a igualdad, el de mas vida.
   - Objetivo de GUSTEO (Boss's y familia: un SWITCH sobre la banca RIVAL): el
     que puede NOQUEAR, a mas premios mejor; si ninguno, el de menos vida.
   - Si/No: SI, salvo mulligan y "seguir devolucionando" (NO).
@@ -44,6 +42,31 @@ contra ese motor medida con el bot viejo salia NEUTRA por construccion.
 El nivel absoluto del bot cambia con esto; los DELTAS entre versiones de
 main.py siguen siendo comparables (ambos lados juegan contra el mismo bot),
 pero los winrates absolutos historicos ya NO son comparables con los nuevos.
+
+DEFECTO CONOCIDO Y MEDIDO (ago 2026), que se deja a proposito: pilotando la
+lista Marnie dominante del meta, la promocion por "el que mas energia lleva"
+sube a MUNKIDORI de activo el 51.5% de los pasos -- lleva la Oscura porque su
+Adrena-Brain la exige, pero esa es una habilidad de BANCA-- mientras
+Grimmsnarl ex, su unico atacante, solo esta delante el 13.8%. El bot cobra
+0.80 premios de media (0 premios en 30 de 40 partidas) pese a montar el
+tablero bien: saca Grimmsnarl ex a mesa el 83% de las partidas.
+
+Se PROBO ordenar la promocion por dano potencial y se REVIRTIO. El bot juega
+mejor su motor (Grimmsnarl activo 13.8% -> 23.5%, premios 0.80 -> 1.25), pero
+no compra lo que se buscaba: contra esa lista nuestro winrate solo baja de
+96.8% a 96.0% -- sigue igual de saturado-- y el ponderado del meta no se mueve
+(94.0% -> 93.9%). A cambio ablanda otros matchups: ogerpon_verde_1 cae de
+87.8% a 83.8%. Tambien se probo relevar hacia el mejor atacante de banca:
+peor todavia, porque retirar DESCARTA la energia y el bot se desangra
+(premios 1.20 -> 0.35).
+
+Conclusion para quien lo retome: la saturacion contra Marnie no sale de la
+promocion, sino de que el bot no encadena Froslass + Adrena-Brain como un
+humano (en los registros reales ese mazo cobra 7 de 18 premios SIN atacar).
+Cerrar esa brecha pide un piloto especifico del arquetipo, no otra heuristica
+generica -- y eso rompe la propiedad que hace util a este bot: ser EL MISMO
+para todos los mazos. Mientras tanto, contra Marnie la metrica con resolucion
+es el DIFERENCIAL DE PREMIOS (+4.63 de 6 posibles), no el winrate.
 """
 
 import sys
@@ -144,22 +167,6 @@ class BotRival:
         return max((self._dano_efectivo(atacante, defensor, aid)
                     for aid in (data.attacks or ())), default=0)
 
-    def _dano_pagable_de(self, atacante, defensor):
-        """Como `_mejor_dano_de`, pero solo con los ataques que YA puede pagar."""
-        data = self._cartas.get((atacante or {}).get("id"))
-        if data is None:
-            return 0
-        disponibles = len((atacante or {}).get("energies") or [])
-        mejor = 0
-        for aid in (data.attacks or ()):
-            atk = self._ataques.get(aid)
-            if atk is None:
-                continue
-            if len(getattr(atk, "energies", None) or []) > disponibles:
-                continue
-            mejor = max(mejor, self._dano_efectivo(atacante, defensor, aid))
-        return mejor
-
     def _habilidad_pide_energia(self, card_id):
         """La habilidad de la carta esta CONDICIONADA a llevar energia."""
         data = self._cartas.get(card_id)
@@ -238,16 +245,6 @@ class BotRival:
         retiradas = por_tipo.get(int(OptionType.RETREAT))
         if not ataques and retiradas:
             return [retiradas[0]]
-
-        # RELEVO hacia el mejor atacante: PROBADO Y DESCARTADO (ago 2026).
-        # Con Munkidori clavado de activo el 43% de los pasos parecia el paso
-        # natural, pero retirar DESCARTA la energia adjunta: el bot se
-        # desangraba y llegaba menos veces a atacar. Medido sobre la lista
-        # Marnie dominante, empeoraba justo lo que pretendia arreglar --
-        # premios del bot 1.20 -> 0.35, Grimmsnarl ex activo 24.6% -> 13.1% --
-        # y nuestro winrate volvia a subir de 90.0% a 95.0%. Si alguien lo
-        # retoma: el coste de la retirada tiene que entrar en la cuenta, no
-        # basta con comparar dano.
 
         if ataques:
             cur = obs.get("current") or {}
@@ -409,32 +406,11 @@ class BotRival:
             orden = sorted(rivales, key=clave_gusteo)
             return sorted(orden[:min(k, len(rivales))])
 
-        # ATACANTE primero, no "el que mas energia lleva". Medido pilotando la
-        # lista Marnie dominante del meta: con el criterio de energia el bot
-        # ponia delante a MUNKIDORI el 51.5% de sus pasos -- su motor de apoyo,
-        # que lleva la Oscura para Adrena-Brain-- mientras Grimmsnarl ex, su
-        # unico atacante real, solo estaba activo el 13.8%. Resultado: cobraba
-        # 0 premios en 30 de 40 partidas (media 0.80) pese a montar el tablero
-        # bien (Grimmsnarl ex en mesa el 83% de las partidas). El bot se
-        # regalaba sus propias piezas de apoyo como cuerpo activo.
-        #
-        # Se ordena por dano POTENCIAL (ignorando el coste, como
-        # `_mejor_dano_de`) y no por el pagable: la politica de ATTACH de este
-        # bot carga al ACTIVO, asi que el atacante grande recien promovido se
-        # carga solo en los turnos siguientes. El pagable-ahora queda de
-        # desempate para no subir un cuerpo inerte teniendo uno listo.
-        op_activo = None
-        if (1 - yo) < len(jugadores):
-            op_activo = ((jugadores[1 - yo] or {}).get("active") or [None])[0]
-
         def clave_propia(i):
             pk = self._pokemon_de(obs, opciones[i], indice_propio=yo)
             if not pk:
-                return (0, 0, 0, 0)
-            return (-self._mejor_dano_de(pk, op_activo),
-                    -self._dano_pagable_de(pk, op_activo),
-                    -len(pk.get("energies") or []),
-                    -(pk.get("hp") or 0))
+                return (0, 0)
+            return (-len(pk.get("energies") or []), -(pk.get("hp") or 0))
 
         orden = sorted(range(len(opciones)), key=clave_propia)
         return sorted(orden[:min(k, len(opciones))])
