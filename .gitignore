@@ -87,3 +87,10 @@ dist/
 kaggle_token.txt
 .kaggle/
 dataset/Card_ID List_EN.pdf
+
+# --- Descarga de mazos de competidores ---
+# Los CSV de decks_competidores/ SI se versionan (son el corpus para el
+# simulador). Lo que se ignora es el andamiaje de la descarga: el cache de
+# reanudacion y los replays crudos (~4 MB cada uno).
+decks_competidores/.mazos_cache.json
+decks_competidores/.cache_replays/
