@@ -1,0 +1,16 @@
+# Phase 5, batch B -- the rules engine (ptcg/motor/reglas.py) and its two
+# classes, which are built 426 times across the scorers.
+#
+# The `nombre` field becomes `name`, but WHAT it holds does not change: the
+# rule labels stay in Spanish, because they are quoted in docs and in the
+# decision write-ups. The field moves, the data does not.
+_ReglaFija	_FixedRule
+_Ajuste	_Adjustment
+_resolver_reglas	_resolve_rules
+_resolver_con_traza	_resolve_with_trace
+_resolver_max	_resolve_max
+reglas	rules
+ajustes	adjustments
+defecto	default
+cuando	when
+aplicar	apply

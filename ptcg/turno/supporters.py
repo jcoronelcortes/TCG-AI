@@ -11,7 +11,7 @@ from ptcg.calculo.dano import _attacker_base_damage, _bench_attacker_can_ko, _ou
 from ptcg.calculo.energia import _grass_attach_unit, _grass_mult, _retreat_grass_units
 from ptcg.cartas.grupos import EVO_LINES
 from ptcg.cartas.ids import ABILITY_IMMUNE_IDS, Abra, Alakazam_ex, Applin, BOSS_PRIORITY_CRUSTLE_GUST, Basic_Grass_Energy, Bayleef, Boss_Orders, Chikorita, Crustle_Fighting, Crustle_Grass, Dawn, Dipplin, Drednaw, Dusclops, Duskull, Dwebble_Fighting, Dwebble_Grass, EX_IMMUNE_IDS, EX_PREEVO_IDS, Fezandipiti_ex, Froslass, HIGH_PRIORITY_BENCH_TARGETS, Hydrapple_ex, KEY_BENCH_ATTACKER_IDS, Kadabra, Kirlia, LANA_PLAY_BASE_RECUPERABLE, LANA_PLAY_SIN_DEMANDA, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Munkidori, NONEX_FINAL_PREEVO_IDS, OUR_ABILITY_IDS, OUR_EX_IDS, Pinsir, RETREAT_COST, Ralts, Slowpoke, THREAT_PREEVO_IDS, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Zorua_N
-from ptcg.cartas.lineas import _pokemon_injugable, _preevo_de_linea_ex, _supera_en_evolucion
+from ptcg.cartas.lineas import _pokemon_injugable, _preevo_of_ex_line, _is_more_evolved_than
 from ptcg.cartas.tablas import card_table
 from ptcg.decision.boss_orders import _gust_releva_al_atacante
 from ptcg.estado.agente import ESTADO
@@ -570,9 +570,9 @@ def evaluate_supporters(tc):
                 # is irrelevant when what cuts the line is the STAGE).
                 _bo_pe_outranks_active = (
                     _bo_can_ko_active
-                    and _supera_en_evolucion(_bo_pe, _bo_op_active)
+                    and _is_more_evolved_than(_bo_pe, _bo_op_active)
                     and prize_count_op(_bo_op_active) == prize_count_op(_bo_pe)
-                    and _preevo_de_linea_ex(_bo_pe.id))
+                    and _preevo_of_ex_line(_bo_pe.id))
                 if not (_bo_pe_is_threat or _bo_pe_is_ex_preevo_energized
                         or _bo_pe_is_ex_line_vs_wall
                         or _bo_pe_outranks_active):
@@ -626,7 +626,7 @@ def evaluate_supporters(tc):
                     # which only looked at the active's energy and not at its
                     # STAGE.
                     _bo_active_outranks_pe = (
-                        _supera_en_evolucion(_bo_op_active, _bo_pe)
+                        _is_more_evolved_than(_bo_op_active, _bo_pe)
                         and prize_count_op(_bo_op_active) >= prize_count_op(_bo_pe))
                     if (_bo_can_ko_active
                             and (_bo_active_outranks_pe

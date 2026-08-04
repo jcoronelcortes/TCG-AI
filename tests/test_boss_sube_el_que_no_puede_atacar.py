@@ -202,7 +202,7 @@ def test_los_muros_pasan_por_muertos_y_por_eso_existe_gust_trampa_ids():
     bare they give a deficit of 3 and the criterion would call them "dead". They are exactly the
     bodies we do NOT want in front, which is why `GUST_TRAMPA_IDS` excludes them from
     `sin_ko_prefiere_cuerpo_muerto`. It pins the premise of that list."""
-    for trampa in sorted(m.GUST_TRAMPA_IDS):
+    for trampa in sorted(m.GUST_TRAP_IDS):
         pk = _pk(trampa, 0)
         assert m._op_attack_deficit(pk) >= 2
         assert m._op_body_is_harmless(pk) is True

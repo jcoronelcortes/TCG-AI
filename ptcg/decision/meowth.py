@@ -5,7 +5,7 @@ Extracted VERBATIM from main.py by utils/extraer_definiciones.py
 utils/pureza.py: nothing here touches mutable state or the runtime tables.
 """
 
-from ptcg.motor.reglas import _ReglaFija
+from ptcg.motor.reglas import _FixedRule
 from ptcg.cartas.ids import Boss_Orders, Lillie_Determination, Xerosic_Machinations
 from ptcg.estado.agente import ESTADO
 from ptcg.cartas.ids import Boss_Orders, Dawn, Lillie_Determination
@@ -84,11 +84,11 @@ _REGLAS_MEOWTH_FETCH = [
     # Dawn...) may hijack the first-turn fetch. Deck-agnostic: if the deck has
     # no reachable Lillie's (`lillie_alcanzable`), the rule degrades nobody and
     # the normal ladder decides.
-    _ReglaFija("primer_turno_solo_lillie",
+    _FixedRule("primer_turno_solo_lillie",
                lambda c: (c.first_turn
                           and c.card_id == Lillie_Determination),
                lambda c: 1400),
-    _ReglaFija("primer_turno_resto_cede_a_lillie",
+    _FixedRule("primer_turno_resto_cede_a_lillie",
                lambda c: c.first_turn and c.lillie_alcanzable,
                lambda c: min(c.sv, 40)),
     # REDUNDANT COPY (user, registro_010 step 118 vs Alakazam, WON with a
@@ -101,12 +101,12 @@ _REGLAS_MEOWTH_FETCH = [
     # may rescue a duplicate. 40 (not a veto) because the prompt requires
     # choosing a card: if ALL the candidates were duplicates we still have to
     # keep one. Deck-agnostic.
-    _ReglaFija("copia_ya_en_mano",
+    _FixedRule("copia_ya_en_mano",
                lambda c: (c.hand.get(c.card_id, 0) >= 1
                           and not c.first_turn),
                lambda c: 40),
     # Winning finisher / 2 prizes via a Boss's Orders from the DECK.
-    _ReglaFija("boss_ganador",
+    _FixedRule("boss_ganador",
                lambda c: ((c.win_via_boss or c.gust2_via_boss)
                           and c.card_id == Boss_Orders),
                lambda c: 1300),
@@ -116,11 +116,11 @@ _REGLAS_MEOWTH_FETCH = [
     # finisher (1300), above the refill/development Lillie's (1200-1250) --
     # with the threat on the bench, cutting the line beats refilling (user,
     # registro_006 step 82 vs Garchomp).
-    _ReglaFija("boss_deny_evo",
+    _FixedRule("boss_deny_evo",
                lambda c: (c.deny_evo_via_boss
                           and c.card_id == Boss_Orders),
                lambda c: 1280),
-    _ReglaFija("lillie_desarrollo",
+    _FixedRule("lillie_desarrollo",
                lambda c: (c.devel_lillie
                           and c.card_id == Lillie_Determination),
                lambda c: 1250),
@@ -134,7 +134,7 @@ _REGLAS_MEOWTH_FETCH = [
     # already settled) -> 1260, above the development Lillie's (1250) and the
     # short-hand refill (1200), below the winning Boss's (1300). Without a
     # strong attacker the previous rule stands (only with hand >= 3, at 1200).
-    _ReglaFija("xerosic_alakazam",
+    _FixedRule("xerosic_alakazam",
                lambda c: (c.card_id == Xerosic_Machinations
                           and c.alakazam
                           and c.op_hand_count >= 6
@@ -151,34 +151,34 @@ _REGLAS_MEOWTH_FETCH = [
     # 1000-1200 -- comes first) and an active-that-cannot-attack (so Xerosic
     # does not hijack the DEAD TURN fetch, whose whole point is to bring
     # Lana's/Lillie's to get out of the jam).
-    _ReglaFija("xerosic_generico",
+    _FixedRule("xerosic_generico",
                lambda c: (c.card_id == Xerosic_Machinations
                           and c.op_hand_count >= 7
                           and c.strong_attacker
                           and not c.active_cant_attack),
                lambda c: 1100),
-    _ReglaFija("mano_corta",
+    _FixedRule("mano_corta",
                lambda c: c.hand_size <= 2,
                lambda c: (1200 if c.card_id == Lillie_Determination
                           else min(c.sv, 100))),
-    _ReglaFija("atasco_sin_energia",
+    _FixedRule("atasco_sin_energia",
                lambda c: c.active_cant_attack and c.no_energy_in_hand,
                lambda c: (1200 if c.card_id == Lillie_Determination
                           else min(c.sv, 150))),
-    _ReglaFija("atasco_sin_lillie_en_mano",
+    _FixedRule("atasco_sin_lillie_en_mano",
                lambda c: (c.active_cant_attack and
                           c.hand.get(Lillie_Determination, 0) == 0),
                lambda c: (1200 if c.card_id == Lillie_Determination
                           else min(c.sv, 150))),
-    _ReglaFija("sin_atacante_mano_media",
+    _FixedRule("sin_atacante_mano_media",
                lambda c: not c.strong_attacker and c.hand_size <= 5,
                lambda c: (1000 if c.card_id == Lillie_Determination
                           else min(c.sv, 200))),
-    _ReglaFija("sin_atacante",
+    _FixedRule("sin_atacante",
                lambda c: not c.strong_attacker,
                lambda c: (800 if c.card_id == Lillie_Determination
                           else min(c.sv, 400))),
-    _ReglaFija("valor_del_supporter",
+    _FixedRule("valor_del_supporter",
                lambda c: True,
                _v_meowth_fetch_valor),
 ]

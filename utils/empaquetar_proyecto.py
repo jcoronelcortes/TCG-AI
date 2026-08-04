@@ -55,22 +55,22 @@ def paquetes_locales_de(ruta_py, raiz=PROJECT_ROOT):
     assumed to be the standard library and is not packaged.
     """
     encontrados = {}
-    for nombre in _raices_importadas(ruta_py):
-        if nombre in encontrados:
+    for name in _raices_importadas(ruta_py):
+        if name in encontrados:
             continue
-        pkg = raiz / nombre
-        mod = raiz / f"{nombre}.py"
+        pkg = raiz / name
+        mod = raiz / f"{name}.py"
         if (pkg / "__init__.py").is_file():
-            encontrados[nombre] = pkg
+            encontrados[name] = pkg
         elif mod.is_file():
-            encontrados[nombre] = mod
+            encontrados[name] = mod
     return [encontrados[k] for k in sorted(encontrados)]
 
 
 def _filtro_sin_pycache(tarinfo):
     """Excludes __pycache__ and compiled files from the package."""
-    nombre = Path(tarinfo.name)
-    if "__pycache__" in nombre.parts or nombre.suffix in (".pyc", ".pyo"):
+    name = Path(tarinfo.name)
+    if "__pycache__" in name.parts or name.suffix in (".pyc", ".pyo"):
         return None
     return tarinfo
 

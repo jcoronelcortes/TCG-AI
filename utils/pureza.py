@@ -213,10 +213,10 @@ def analizar(main_py=None):
     cambio = True
     while cambio:
         cambio = False
-        for nombre in sorted(movibles):
-            for libre in libres[nombre]:
+        for name in sorted(movibles):
+            for libre in libres[name]:
                 if (libre in BUILTINS or libre in importados or libre in del_paquete
-                        or libre in movibles or libre == nombre or libre in const_main):
+                        or libre in movibles or libre == name or libre in const_main):
                     continue
                 if libre in mutables:
                     motivo = f"estado mutable `{libre}`"
@@ -226,8 +226,8 @@ def analizar(main_py=None):
                     motivo = f"definicion bloqueada `{libre}`"
                 else:
                     motivo = f"desconocido `{libre}`"
-                movibles.discard(nombre)
-                razon[nombre] = motivo
+                movibles.discard(name)
+                razon[name] = motivo
                 cambio = True
                 break
 

@@ -281,17 +281,17 @@ def test_la_linea_ex_se_deriva_del_dato_de_carta():
     for cid in (IMPIDIMP, MORGREM, m.Cynthias_Gible, m.Cynthias_Gabite,
                 m.Dreepy, m.Drakloak, m.Ralts, m.Kirlia, m.Duraludon,
                 m.Riolu, m.Buneary, m.Applin, m.Dipplin):
-        assert m._linea_culmina_en_ex(cid), cid
+        assert m._line_ends_in_ex(cid), cid
 
 
 def test_la_linea_alakazam_queda_fuera():
     """Abra -> Kadabra -> Alakazam ends in a 1-prize body: gusting its
     pre-evolution yields the same as attacking from the front. That is
     [[boss-no-gustear-preevo-linea-no-ex]], and here it comes for free from the card data."""
-    assert not m._linea_culmina_en_ex(m.Abra)
-    assert not m._linea_culmina_en_ex(m.Kadabra)
-    assert not m._linea_culmina_en_ex(m.Dwebble_Grass)
-    assert not m._linea_culmina_en_ex(m.Hops_Phantump)
+    assert not m._line_ends_in_ex(m.Abra)
+    assert not m._line_ends_in_ex(m.Kadabra)
+    assert not m._line_ends_in_ex(m.Dwebble_Grass)
+    assert not m._line_ends_in_ex(m.Hops_Phantump)
 
 
 def test_el_helper_es_SUPERCONJUNTO_de_la_lista_curada():
@@ -300,7 +300,7 @@ def test_el_helper_es_SUPERCONJUNTO_de_la_lista_curada():
     Last-Ditch). The replacement is only valid if it does NOT lose any line
     somebody hand-listed after losing a game."""
     perdidas = [cid for cid in (m.EX_PREEVO_IDS - m.NONEX_FINAL_PREEVO_IDS)
-                if not m._preevo_de_linea_ex(cid)]
+                if not m._preevo_of_ex_line(cid)]
     assert perdidas == [], [m.card_table[c].name for c in perdidas]
 
 
@@ -310,7 +310,7 @@ def test_el_helper_cubre_lineas_que_la_lista_curada_no_tenia():
     FRILLISH = 597
     assert m.card_table[FRILLISH].name == "Frillish"
     assert FRILLISH not in m.EX_PREEVO_IDS
-    assert m._preevo_de_linea_ex(FRILLISH)
+    assert m._preevo_of_ex_line(FRILLISH)
 
 
 def test_dunsparce_no_motiva_un_gusteo_que_tiene_prohibido():
@@ -319,15 +319,15 @@ def test_dunsparce_no_motiva_un_gusteo_que_tiene_prohibido():
     target spends (or searches for) the Boss's only to bring something else up: it is the
     Dwebble failure of log 86339758."""
     for cid in m.DUNSPARCE_IDS:
-        assert m._linea_culmina_en_ex(cid), "la linea SI acaba en ex..."
-        assert not m._preevo_de_linea_ex(cid), "...pero no debe motivar el gusteo"
+        assert m._line_ends_in_ex(cid), "la linea SI acaba en ex..."
+        assert not m._preevo_of_ex_line(cid), "...pero no debe motivar el gusteo"
 
 
 def test_la_cima_de_una_linea_no_culmina_en_nada():
     # A Stage 2 (or a Basic with no evolution) has nothing above it any more.
-    assert not m._linea_culmina_en_ex(GRIMMSNARL)
-    assert not m._linea_culmina_en_ex(HYDRAPPLE)
-    assert not m._linea_culmina_en_ex(m.Teal_Mask_Ogerpon_ex)
+    assert not m._line_ends_in_ex(GRIMMSNARL)
+    assert not m._line_ends_in_ex(HYDRAPPLE)
+    assert not m._line_ends_in_ex(m.Teal_Mask_Ogerpon_ex)
     # What is not a Pokemon (or does not exist) has no line.
-    assert not m._linea_culmina_en_ex(BOSS)
-    assert not m._linea_culmina_en_ex(-12345)
+    assert not m._line_ends_in_ex(BOSS)
+    assert not m._line_ends_in_ex(-12345)

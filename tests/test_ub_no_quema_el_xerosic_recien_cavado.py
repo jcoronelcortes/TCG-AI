@@ -142,7 +142,7 @@ class _Ctx:
         self.op_has_ex_immune_bench = False
         self.has_hydrapple = False
         self.forest_in_play = False
-        self.cartas_en_mazo = {}
+        self.cards_in_deck = {}
 
 
 def test_la_lillie_protegida_no_es_forraje():

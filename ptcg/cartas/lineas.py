@@ -9,7 +9,7 @@ from cg.api import CardType
 from collections import defaultdict
 from ptcg.cartas.grupos import EVO_LINES
 from ptcg.cartas.ids import DUNSPARCE_IDS, _ID_NAME_EXPECTATIONS
-from ptcg.cartas.tablas import _CARD_BY_NAME, _EVOLUCIONES_POR_NOMBRE, card_table
+from ptcg.cartas.tablas import _CARD_BY_NAME, _EVOLUTIONS_BY_NAME, card_table
 
 
 def _validate_id_constants():
@@ -29,7 +29,7 @@ def _validate_id_constants():
     return mismatches
 
 
-def _etapa_evolutiva(card_id):
+def _evolution_stage(card_id):
     """Stage of `card_id`: 0 Basic, 1 Stage 1, 2 Stage 2. None if not a Pokemon.
 
     It comes from the card data (`basic`/`stage1`/`stage2`), not from
@@ -45,7 +45,7 @@ def _etapa_evolutiva(card_id):
     return 0 if getattr(data, 'basic', False) else None
 
 
-def _raiz_de_linea(card_id):
+def _line_root(card_id):
     """Name of the BASIC of `card_id`'s evolution chain (None if unknown).
 
     It walks up `evolvesFrom` until there is no pre-evolution. If an
@@ -55,27 +55,27 @@ def _raiz_de_linea(card_id):
     data = card_table.get(card_id)
     if data is None or data.cardType != CardType.POKEMON:
         return None
-    nombre = data.name or None
+    name = data.name or None
     vistos = set()
     while data is not None and getattr(data, 'evolvesFrom', None):
         pre = data.evolvesFrom
         if pre in vistos:                # corrupt chain: break the loop
             break
         vistos.add(pre)
-        nombre = pre
+        name = pre
         data = _CARD_BY_NAME.get(pre)
-    return nombre
+    return name
 
 
-def _misma_linea_evolutiva(a_id, b_id):
+def _same_evolution_line(a_id, b_id):
     """True if the two ids are links of the SAME Basic->S1->S2 chain."""
     if a_id == b_id:
         return True
-    raiz = _raiz_de_linea(a_id)
-    return raiz is not None and raiz == _raiz_de_linea(b_id)
+    raiz = _line_root(a_id)
+    return raiz is not None and raiz == _line_root(b_id)
 
 
-def _supera_en_evolucion(pkmn, otro):
+def _is_more_evolved_than(pkmn, otro):
     """True if `pkmn` is a MORE EVOLVED link of the SAME line as `otro`.
 
     User's rule (registro_008 step 93 vs Cynthia's Garchomp ex, WON with a
@@ -86,14 +86,14 @@ def _supera_en_evolucion(pkmn, otro):
     """
     if pkmn is None or otro is None:
         return False
-    e_pkmn = _etapa_evolutiva(getattr(pkmn, 'id', 0))
-    e_otro = _etapa_evolutiva(getattr(otro, 'id', 0))
+    e_pkmn = _evolution_stage(getattr(pkmn, 'id', 0))
+    e_otro = _evolution_stage(getattr(otro, 'id', 0))
     if e_pkmn is None or e_otro is None or e_pkmn <= e_otro:
         return False
-    return _misma_linea_evolutiva(getattr(pkmn, 'id', 0), getattr(otro, 'id', 0))
+    return _same_evolution_line(getattr(pkmn, 'id', 0), getattr(otro, 'id', 0))
 
 
-def _linea_culmina_en_ex(card_id):
+def _line_ends_in_ex(card_id):
     """True if ABOVE `card_id` its chain reaches an ex/megaEx Pokemon.
 
     Deck-agnostic: it walks down `evolvesFrom` (names, not ids) from the card,
@@ -112,18 +112,18 @@ def _linea_culmina_en_ex(card_id):
     pendientes = [data.name or ""]
     vistos = set()
     while pendientes:
-        nombre = pendientes.pop()
-        if not nombre or nombre in vistos:
+        name = pendientes.pop()
+        if not name or name in vistos:
             continue
-        vistos.add(nombre)
-        for evo in _EVOLUCIONES_POR_NOMBRE.get(nombre, ()):
+        vistos.add(name)
+        for evo in _EVOLUTIONS_BY_NAME.get(name, ()):
             if getattr(evo, 'ex', False) or getattr(evo, 'megaEx', False):
                 return True
             pendientes.append(evo.name or "")
     return False
 
 
-def _preevo_de_linea_ex(card_id):
+def _preevo_of_ex_line(card_id):
     """Is `card_id` a link worth GUSTING in order to cut an ex line?
 
     It replaces the curated list `EX_PREEVO_IDS` (minus
@@ -139,10 +139,10 @@ def _preevo_de_linea_ex(card_id):
     """
     if card_id in DUNSPARCE_IDS:
         return False
-    return _linea_culmina_en_ex(card_id)
+    return _line_ends_in_ex(card_id)
 
 
-def _construir_cadenas_de_mazo(deck_ids):
+def _build_deck_chains(deck_ids):
     """Derives the complete evolution chains from the deck.
 
     Returns `(evo_por_nombre, cadenas)`:
@@ -157,32 +157,32 @@ def _construir_cadenas_de_mazo(deck_ids):
     considered.
     """
     ids = set(deck_ids)
-    por_nombre = defaultdict(set)
+    by_name = defaultdict(set)
     for cid in ids:
         data = card_table.get(cid)
         if data is None or data.cardType != CardType.POKEMON:
             continue
         pre = getattr(data, 'evolvesFrom', None)
         if pre:
-            por_nombre[pre].add(cid)
-    evo_por_nombre = {nombre: tuple(sorted(v)) for nombre, v in por_nombre.items()}
+            by_name[pre].add(cid)
+    evo_by_name = {name: tuple(sorted(v)) for name, v in by_name.items()}
 
     cadenas = []
     for cid in sorted(ids):
         data = card_table.get(cid)
         if data is None or data.cardType != CardType.POKEMON or not data.basic:
             continue
-        for s1 in evo_por_nombre.get(data.name, ()):
+        for s1 in evo_by_name.get(data.name, ()):
             s1_data = card_table.get(s1)
             if s1_data is None:
                 continue
-            s2s = evo_por_nombre.get(s1_data.name, ())
+            s2s = evo_by_name.get(s1_data.name, ())
             if s2s:
                 for s2 in s2s:
                     cadenas.append((cid, s1, s2))
             else:
                 cadenas.append((cid, s1, 0))
-    return evo_por_nombre, tuple(cadenas)
+    return evo_by_name, tuple(cadenas)
 
 
 def _evo_link_state(hand_counts, field_counts):
@@ -210,13 +210,13 @@ def _evo_link_state(hand_counts, field_counts):
     """
     necesarios, huerfanos = set(), set()
     for linea in EVO_LINES:
-        linea_completa = field_counts.get(linea[-1], 0) >= 1
+        full_line = field_counts.get(linea[-1], 0) >= 1
         faltan = []
         for pre, evo in zip(linea, linea[1:]):
             if (field_counts.get(pre, 0) == 0
                     and hand_counts.get(pre, 0) == 0):
                 huerfanos.add(evo)
-            elif (not linea_completa
+            elif (not full_line
                     and field_counts.get(pre, 0) >= 1
                     and field_counts.get(evo, 0) == 0
                     and hand_counts.get(evo, 0) == 0):
@@ -275,7 +275,7 @@ def _validate_id_constants():
     return mismatches
 
 
-def _etapa_evolutiva(card_id):
+def _evolution_stage(card_id):
     """Stage of `card_id`: 0 Basic, 1 Stage 1, 2 Stage 2. None if not a Pokemon.
 
     It comes from the card data (`basic`/`stage1`/`stage2`), not from
@@ -291,7 +291,7 @@ def _etapa_evolutiva(card_id):
     return 0 if getattr(data, 'basic', False) else None
 
 
-def _raiz_de_linea(card_id):
+def _line_root(card_id):
     """Name of the BASIC of `card_id`'s evolution chain (None if unknown).
 
     It walks up `evolvesFrom` until there is no pre-evolution. If an
@@ -301,27 +301,27 @@ def _raiz_de_linea(card_id):
     data = card_table.get(card_id)
     if data is None or data.cardType != CardType.POKEMON:
         return None
-    nombre = data.name or None
+    name = data.name or None
     vistos = set()
     while data is not None and getattr(data, 'evolvesFrom', None):
         pre = data.evolvesFrom
         if pre in vistos:                # corrupt chain: break the loop
             break
         vistos.add(pre)
-        nombre = pre
+        name = pre
         data = _CARD_BY_NAME.get(pre)
-    return nombre
+    return name
 
 
-def _misma_linea_evolutiva(a_id, b_id):
+def _same_evolution_line(a_id, b_id):
     """True if the two ids are links of the SAME Basic->S1->S2 chain."""
     if a_id == b_id:
         return True
-    raiz = _raiz_de_linea(a_id)
-    return raiz is not None and raiz == _raiz_de_linea(b_id)
+    raiz = _line_root(a_id)
+    return raiz is not None and raiz == _line_root(b_id)
 
 
-def _supera_en_evolucion(pkmn, otro):
+def _is_more_evolved_than(pkmn, otro):
     """True if `pkmn` is a MORE EVOLVED link of the SAME line as `otro`.
 
     User's rule (registro_008 step 93 vs Cynthia's Garchomp ex, WON with a
@@ -332,14 +332,14 @@ def _supera_en_evolucion(pkmn, otro):
     """
     if pkmn is None or otro is None:
         return False
-    e_pkmn = _etapa_evolutiva(getattr(pkmn, 'id', 0))
-    e_otro = _etapa_evolutiva(getattr(otro, 'id', 0))
+    e_pkmn = _evolution_stage(getattr(pkmn, 'id', 0))
+    e_otro = _evolution_stage(getattr(otro, 'id', 0))
     if e_pkmn is None or e_otro is None or e_pkmn <= e_otro:
         return False
-    return _misma_linea_evolutiva(getattr(pkmn, 'id', 0), getattr(otro, 'id', 0))
+    return _same_evolution_line(getattr(pkmn, 'id', 0), getattr(otro, 'id', 0))
 
 
-def _linea_culmina_en_ex(card_id):
+def _line_ends_in_ex(card_id):
     """True if ABOVE `card_id` its chain reaches an ex/megaEx Pokemon.
 
     Deck-agnostic: it walks down `evolvesFrom` (names, not ids) from the card,
@@ -358,18 +358,18 @@ def _linea_culmina_en_ex(card_id):
     pendientes = [data.name or ""]
     vistos = set()
     while pendientes:
-        nombre = pendientes.pop()
-        if not nombre or nombre in vistos:
+        name = pendientes.pop()
+        if not name or name in vistos:
             continue
-        vistos.add(nombre)
-        for evo in _EVOLUCIONES_POR_NOMBRE.get(nombre, ()):
+        vistos.add(name)
+        for evo in _EVOLUTIONS_BY_NAME.get(name, ()):
             if getattr(evo, 'ex', False) or getattr(evo, 'megaEx', False):
                 return True
             pendientes.append(evo.name or "")
     return False
 
 
-def _preevo_de_linea_ex(card_id):
+def _preevo_of_ex_line(card_id):
     """Is `card_id` a link worth GUSTING in order to cut an ex line?
 
     It replaces the curated list `EX_PREEVO_IDS` (minus
@@ -385,10 +385,10 @@ def _preevo_de_linea_ex(card_id):
     """
     if card_id in DUNSPARCE_IDS:
         return False
-    return _linea_culmina_en_ex(card_id)
+    return _line_ends_in_ex(card_id)
 
 
-def _construir_cadenas_de_mazo(deck_ids):
+def _build_deck_chains(deck_ids):
     """Derives the complete evolution chains from the deck.
 
     Returns `(evo_por_nombre, cadenas)`:
@@ -403,32 +403,32 @@ def _construir_cadenas_de_mazo(deck_ids):
     considered.
     """
     ids = set(deck_ids)
-    por_nombre = defaultdict(set)
+    by_name = defaultdict(set)
     for cid in ids:
         data = card_table.get(cid)
         if data is None or data.cardType != CardType.POKEMON:
             continue
         pre = getattr(data, 'evolvesFrom', None)
         if pre:
-            por_nombre[pre].add(cid)
-    evo_por_nombre = {nombre: tuple(sorted(v)) for nombre, v in por_nombre.items()}
+            by_name[pre].add(cid)
+    evo_by_name = {name: tuple(sorted(v)) for name, v in by_name.items()}
 
     cadenas = []
     for cid in sorted(ids):
         data = card_table.get(cid)
         if data is None or data.cardType != CardType.POKEMON or not data.basic:
             continue
-        for s1 in evo_por_nombre.get(data.name, ()):
+        for s1 in evo_by_name.get(data.name, ()):
             s1_data = card_table.get(s1)
             if s1_data is None:
                 continue
-            s2s = evo_por_nombre.get(s1_data.name, ())
+            s2s = evo_by_name.get(s1_data.name, ())
             if s2s:
                 for s2 in s2s:
                     cadenas.append((cid, s1, s2))
             else:
                 cadenas.append((cid, s1, 0))
-    return evo_por_nombre, tuple(cadenas)
+    return evo_by_name, tuple(cadenas)
 
 
 def _evo_link_state(hand_counts, field_counts):
@@ -456,13 +456,13 @@ def _evo_link_state(hand_counts, field_counts):
     """
     necesarios, huerfanos = set(), set()
     for linea in EVO_LINES:
-        linea_completa = field_counts.get(linea[-1], 0) >= 1
+        full_line = field_counts.get(linea[-1], 0) >= 1
         faltan = []
         for pre, evo in zip(linea, linea[1:]):
             if (field_counts.get(pre, 0) == 0
                     and hand_counts.get(pre, 0) == 0):
                 huerfanos.add(evo)
-            elif (not linea_completa
+            elif (not full_line
                     and field_counts.get(pre, 0) >= 1
                     and field_counts.get(evo, 0) == 0
                     and hand_counts.get(evo, 0) == 0):
@@ -504,23 +504,23 @@ def _pokemon_injugable(card_id, field_counts, bench_count, bench_max):
     return True                          # a Basic with the bench full
 
 __all__ = [
-    '_etapa_evolutiva',
-    '_raiz_de_linea',
-    '_misma_linea_evolutiva',
-    '_supera_en_evolucion',
-    '_linea_culmina_en_ex',
-    '_preevo_de_linea_ex',
-    '_construir_cadenas_de_mazo',
+    '_evolution_stage',
+    '_line_root',
+    '_same_evolution_line',
+    '_is_more_evolved_than',
+    '_line_ends_in_ex',
+    '_preevo_of_ex_line',
+    '_build_deck_chains',
     '_evo_link_state',
     '_pokemon_injugable',
     '_validate_id_constants',
-    '_etapa_evolutiva',
-    '_raiz_de_linea',
-    '_misma_linea_evolutiva',
-    '_supera_en_evolucion',
-    '_linea_culmina_en_ex',
-    '_preevo_de_linea_ex',
-    '_construir_cadenas_de_mazo',
+    '_evolution_stage',
+    '_line_root',
+    '_same_evolution_line',
+    '_is_more_evolved_than',
+    '_line_ends_in_ex',
+    '_preevo_of_ex_line',
+    '_build_deck_chains',
     '_evo_link_state',
     '_pokemon_injugable',
     '_validate_id_constants',

@@ -108,13 +108,13 @@ def _ctx(card_id, energia=0, can_ko=False, op_linea_dragapult=False):
 
 
 def _ofensivo(ctx):
-    score, _ = m._resolver_reglas([], m._AJUSTES_GUST_OFENSIVO, ctx, defecto=0)
+    score, _ = m._resolve_rules([], m._AJUSTES_GUST_OFENSIVO, ctx, default=0)
     return score
 
 
 def _estorbo(ctx):
-    score, _ = m._resolver_reglas(m._REGLAS_GUST_ESTORBO,
-                                 m._AJUSTES_GUST_ESTORBO, ctx, defecto=-200)
+    score, _ = m._resolve_rules(m._REGLAS_GUST_ESTORBO,
+                                 m._AJUSTES_GUST_ESTORBO, ctx, default=-200)
     return score
 
 
@@ -155,7 +155,7 @@ def test_con_ko_mandan_los_tiers_y_el_cuerpo_muerto_no_los_pisa():
 def test_los_muros_y_el_locker_no_cobran_el_bono():
     """Cost 3 => bare they pass for harmless, but bringing them up is the trap:
     they cancel our attackers or switch off our abilities from the active spot."""
-    for trampa in sorted(m.GUST_TRAMPA_IDS):
+    for trampa in sorted(m.GUST_TRAP_IDS):
         c = _ctx(trampa)
         assert c.cuerpo_inofensivo, f"{trampa} deberia ser 'inofensivo' por coste"
         sin_bono = _ofensivo(c)

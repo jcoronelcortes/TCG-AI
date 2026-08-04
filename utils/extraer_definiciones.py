@@ -214,7 +214,7 @@ def main():
             print("  -", p)
         return 1
 
-    if not args.aplicar:
+    if not args.apply:
         print("\n(dry run; usa --aplicar para escribir)")
         return 0
 

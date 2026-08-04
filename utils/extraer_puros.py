@@ -107,12 +107,12 @@ def planificar(main_py, desde, hasta):
         ok = False
         if (isinstance(nodo, ast.Assign) and len(nodo.targets) == 1
                 and isinstance(nodo.targets[0], ast.Name)):
-            nombre = nodo.targets[0].id
-            if _es_puro(nodo.value, puros) and nombre not in mutados:
-                puros[nombre] = True
+            name = nodo.targets[0].id
+            if _es_puro(nodo.value, puros) and name not in mutados:
+                puros[name] = True
                 ok = True
                 if desde <= a <= hasta:
-                    movibles[a] = (b, nombre)
+                    movibles[a] = (b, name)
         if not ok or not (desde <= a <= hasta):
             bloqueadas.update(range(a, b + 1))
 
@@ -185,7 +185,7 @@ def main():
     for a, b in rangos:
         print(f"  {a:6d}-{b:<6d} ({b - a + 1:4d} l)  {lineas[a - 1].strip()[:56]}")
 
-    if not args.aplicar:
+    if not args.apply:
         print("\n(dry run; usa --aplicar para escribir)")
         return 0
 

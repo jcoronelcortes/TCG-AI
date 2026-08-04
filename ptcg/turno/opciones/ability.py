@@ -10,7 +10,7 @@ from ptcg.calculo.carta import get_card
 from ptcg.calculo.dano import _our_effective_damage
 from ptcg.calculo.energia import _grass_attach_unit, _grass_mult, _ogerpon_base_phys_cap, _physical_energy
 from ptcg.cartas.grupos import GT_SCORE_CADENA_COMPLETA, GT_SCORE_SOLO_FASE1
-from ptcg.cartas.ids import Basic_Grass_Energy, Dipplin, FEZ_DRAW_ABILITY_SCORE, Fezandipiti_ex, Grand_Tree, Hydrapple_ex, Lillie_Determination, Meganium, Meowth_ex, Pinsir, RIPEN_HEAL_ABILITY_SCORE, RIPEN_HEAL_EX_ABILITY_SCORE, SCORE_CARGA_ACTIVO_ATAQUE, SCORE_CARGA_ACTIVO_REMATE, SCORE_VETO, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Unfair_Stamp
+from ptcg.cartas.ids import Basic_Grass_Energy, Dipplin, FEZ_DRAW_ABILITY_SCORE, Fezandipiti_ex, Grand_Tree, Hydrapple_ex, Lillie_Determination, Meganium, Meowth_ex, Pinsir, RIPEN_HEAL_ABILITY_SCORE, RIPEN_HEAL_EX_ABILITY_SCORE, SCORE_CHARGE_ACTIVE_ATTACK, SCORE_CHARGE_ACTIVE_FINISHER, SCORE_VETO, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Unfair_Stamp
 from ptcg.estado.agente import ESTADO
 
 
@@ -154,11 +154,11 @@ def puntuar(tc, o, score):
                     # The ACTIVE that reaches its LETHAL attack with this charge is
                     # this very Ogerpon: its Teal Dance attaches the Grass AND
                     # DRAWS, so it inherits the finisher band.
-                    score = SCORE_CARGA_ACTIVO_REMATE
+                    score = SCORE_CHARGE_ACTIVE_FINISHER
                 elif _carga_activo_habilita_ataque and o.area == AreaType.ACTIVE:
                     # Mirror without a KO: the Grass lets the active Ogerpon attack
                     # (and draws) on a turn that would otherwise be sterile.
-                    score = SCORE_CARGA_ACTIVO_ATAQUE
+                    score = SCORE_CHARGE_ACTIVE_ATTACK
                 elif ((_carga_activo_remata or _carga_activo_habilita_ataque)
                         and o.area != AreaType.ACTIVE
                         and hand_counts[Basic_Grass_Energy]
@@ -400,11 +400,11 @@ def puntuar(tc, o, score):
                     # the manual attachment is not enough (or is already spent).
                     # The target -- the ACTIVE -- is fixed by energy_score /
                     # ATTACH_FROM with the same band.
-                    score = SCORE_CARGA_ACTIVO_REMATE
+                    score = SCORE_CHARGE_ACTIVE_FINISHER
                 elif _carga_activo_habilita_ataque:
                     # Mirror without a KO: without this charge the active does not
                     # attack and the turn closes blank.
-                    score = SCORE_CARGA_ACTIVO_ATAQUE
+                    score = SCORE_CHARGE_ACTIVE_ATTACK
                 elif _ripen_retreat_ko_pivot and o.area == AreaType.ACTIVE:
                     # Ripening -> retreat -> promote a lethal Tapu pivot vs
                     # Crustle (user, log 86028607 turn 22): active Hydrapple

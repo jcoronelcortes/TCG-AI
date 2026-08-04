@@ -344,7 +344,7 @@ OUR_ABILITY_IDS = {Teal_Mask_Ogerpon_ex, Hydrapple_ex, Meganium, Fezandipiti_ex,
 # switches off Teal Dance / Ripening / Last-Ditch / Flip the Script from the
 # ACTIVE spot. All five have attacks costing 3, so bare they pass as "harmless"
 # (`_op_cuerpo_inofensivo`) and would take the preference of a gust without a KO.
-GUST_TRAMPA_IDS = EX_IMMUNE_IDS | ABILITY_IMMUNE_IDS | {Iron_Thorns_ex}
+GUST_TRAP_IDS = EX_IMMUNE_IDS | ABILITY_IMMUNE_IDS | {Iron_Thorns_ex}
 
 # --- Surviving a KO and new immunities (jul 2026 plan, P0.1/P1.6) ------------
 # Bodies that SURVIVE a lethal hit at FULL HP by staying at 10 HP: Crustle 533
@@ -519,7 +519,7 @@ FEZ_DRAW_ABILITY_SCORE = 31700
 # the ACTIVE pays no retreat cost and does not depend on the retreat being
 # legal. Below the WINNING finisher via Boss's (42000) and the 1-prize attacker
 # vs Alakazam (43000), which settle the game / the prize trade.
-SCORE_CARGA_ACTIVO_REMATE = 41900
+SCORE_CHARGE_ACTIVE_FINISHER = 41900
 # `_carga_activo_habilita_ataque` (the attack does not finish but does CHIP
 # damage and without that charge the turn would be STERILE): 31300. Its value is
 # NOT in winning duels, but in SKIPPING the energy_score branches that degraded
@@ -531,7 +531,7 @@ SCORE_CARGA_ACTIVO_REMATE = 41900
 # (31500) -- with no finisher in sight for the turn, refilling the hand or
 # drawing still rules over chip damage. Without a KO there is no hurry: the
 # turn's attachment is still alive after those plays.
-SCORE_CARGA_ACTIVO_ATAQUE = 31300
+SCORE_CHARGE_ACTIVE_ATTACK = 31300
 
 NON_ATTACKER_ENERGY_WASTE_IDS = {Meowth_ex, Fezandipiti_ex}
 
@@ -668,9 +668,9 @@ SCORE_BELIEF_DIG_ENERGY = 250
 # a body in play is still asking for, and only then development (which the
 # generic scorer scores, in the ~150-280 band). See `_pokemon_injugable` for the
 # dead-card floor.
-LANA_SEL_PLANTA_DESBLOQUEA = 1400  # the Grass that enables an attack this turn
-LANA_SEL_PLANTA_DEMANDA = 900      # Grass an attacker in play still asks for
-LANA_SEL_PLANTA_SOBRANTE = 120     # more Grass than the board can use
+LANA_SEL_GRASS_UNLOCKS = 1400  # the Grass that enables an attack this turn
+LANA_SEL_GRASS_DEMAND = 900      # Grass an attacker in play still asks for
+LANA_SEL_GRASS_SURPLUS = 120     # more Grass than the board can use
 LANA_SEL_INJUGABLE = 5             # it cannot be put into play: last resort
 
 # BASE value of the PLAY layer for having something recoverable in the discard,
@@ -728,7 +728,7 @@ XEROSIC_SCORE_SOBRE_BOSS = 7000      # vs Alakazam with Boss's in hand: capping 
 # above the hydra-charged Lillie's (5800): a probable 2-prize KO is worth more
 # than any development gust, and gusting also DEGRADES the target (Myriad Leaf
 # Shower scales with the energy on the opposing active).
-LILLIE_SCORE_PESCA_REMATE = 5900
+LILLIE_SCORE_FISHING = 5900
 # Minimum probability for the fishing to OVERRIDE Lillie's ordering vetoes (an
 # Ultra Ball that completes a line, yielding to an executable gust...). The case
 # that motivates it comes out at 0.63 (2 Grass out of 10 live, drawing 8 from
@@ -871,7 +871,7 @@ __all__ = [
     'CRUSTLE_LINE_IDS',
     'ABILITY_IMMUNE_IDS',
     'OUR_ABILITY_IDS',
-    'GUST_TRAMPA_IDS',
+    'GUST_TRAP_IDS',
     'Pikachu_ex_Resolute',
     'FULL_HP_SURVIVE_IDS',
     'Mega_Hawlucha_ex',
@@ -901,8 +901,8 @@ __all__ = [
     'SCORE_CARGA_CONDENADA',
     'SCORE_CARGA_LETAL_FLOOR',
     'FEZ_DRAW_ABILITY_SCORE',
-    'SCORE_CARGA_ACTIVO_REMATE',
-    'SCORE_CARGA_ACTIVO_ATAQUE',
+    'SCORE_CHARGE_ACTIVE_FINISHER',
+    'SCORE_CHARGE_ACTIVE_ATTACK',
     'NON_ATTACKER_ENERGY_WASTE_IDS',
     'HIGH_PRIORITY_BENCH_TARGETS',
     'META_BENCH_TARGETS',
@@ -936,9 +936,9 @@ __all__ = [
     'SCORE_LOOKAHEAD_PROMOTE_KO',
     'SCORE_LOOKAHEAD_PROMOTE_SAFE',
     'SCORE_BELIEF_DIG_ENERGY',
-    'LANA_SEL_PLANTA_DESBLOQUEA',
-    'LANA_SEL_PLANTA_DEMANDA',
-    'LANA_SEL_PLANTA_SOBRANTE',
+    'LANA_SEL_GRASS_UNLOCKS',
+    'LANA_SEL_GRASS_DEMAND',
+    'LANA_SEL_GRASS_SURPLUS',
     'LANA_SEL_INJUGABLE',
     'LANA_PLAY_BASE_RECUPERABLE',
     'LANA_PLAY_SIN_DEMANDA',
@@ -958,7 +958,7 @@ __all__ = [
     'XEROSIC_SCORE_GENERIC',
     'XEROSIC_SCORE_LAST_RESORT',
     'XEROSIC_SCORE_SOBRE_BOSS',
-    'LILLIE_SCORE_PESCA_REMATE',
+    'LILLIE_SCORE_FISHING',
     'FISHING_PROB_MIN',
     'FISHING_PRIZES_MIN',
     'XEROSIC_STAMP_ORDEN_MIN_OP_HAND',

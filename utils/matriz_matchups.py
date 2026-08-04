@@ -98,11 +98,11 @@ def cargar_pesos(directorio):
     pesos = {}
     with ruta.open(encoding="utf-8-sig", newline="") as fh:
         for fila in csv.DictReader(fh):
-            nombre = str(fila.get("archivo", ""))
-            if nombre.endswith(".csv"):
-                nombre = nombre[:-4]
+            name = str(fila.get("archivo", ""))
+            if name.endswith(".csv"):
+                name = name[:-4]
             try:
-                pesos[nombre] = float(fila.get("peso_meta") or 0.0)
+                pesos[name] = float(fila.get("peso_meta") or 0.0)
             except ValueError:
                 continue
     return pesos
@@ -127,7 +127,7 @@ def informe_control(filas, base_por_mazo, rutas, card_id):
     to move from -6.5 to +7.5 points. Any delta of the affected decks that fits
     in that range is not signal.
     """
-    por_nombre = {r.stem: r for r in rutas}
+    by_name = {r.stem: r for r in rutas}
     con, sin = [], []
     for f in filas:
         if f["mazo"] not in base_por_mazo:
@@ -137,7 +137,7 @@ def informe_control(filas, base_por_mazo, rutas, card_id):
         bp = base_por_mazo[f["mazo"]].get("dif_premios")
         if f["dif_premios"] is not None and bp is not None:
             dprem = f["dif_premios"] - bp
-        ruta = por_nombre.get(f["mazo"])
+        ruta = by_name.get(f["mazo"])
         destino = con if (ruta is not None and _lleva_carta(ruta, card_id)) else sin
         destino.append((f["mazo"], delta, dprem))
 

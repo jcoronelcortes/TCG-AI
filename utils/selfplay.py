@@ -47,7 +47,7 @@ from golden_corpus import reset_agente  # a mirror of the tests' reset
 MAX_PASOS = 3000
 
 
-def cargar_agente(ruta, nombre):
+def cargar_agente(ruta, name):
     """Loads an independent instance of an agent module.
 
     INDEPENDENT INCLUDES ITS OWN `ptcg/` TREE. Since wave 3 of the refactor the
@@ -69,7 +69,7 @@ def cargar_agente(ruta, nombre):
     for k in previos:
         del sys.modules[k]
     try:
-        spec = importlib.util.spec_from_file_location(nombre, str(ruta))
+        spec = importlib.util.spec_from_file_location(name, str(ruta))
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
     finally:
@@ -85,17 +85,17 @@ def cargar_agente(ruta, nombre):
     return mod
 
 
-def cargar_agente_de_git(ref, nombre):
+def cargar_agente_de_git(ref, name):
     """Loads the main.py version of a git ref (the baseline)."""
     fuente = subprocess.run(
         ["git", "show", f"{ref}:main.py"], cwd=_ROOT, capture_output=True,
         text=True, check=True).stdout
     with tempfile.NamedTemporaryFile(
-            "w", suffix=".py", prefix=f"main_{nombre}_",
+            "w", suffix=".py", prefix=f"main_{name}_",
             delete=False) as f:
         f.write(fuente)
         ruta = f.name
-    return cargar_agente(ruta, nombre)
+    return cargar_agente(ruta, name)
 
 
 def leer_deck(ruta=None):

@@ -5,7 +5,7 @@ Extracted VERBATIM from main.py by utils/extraer_definiciones.py
 utils/pureza.py: nothing here touches mutable state or the runtime tables.
 """
 
-from ptcg.motor.reglas import _ReglaFija
+from ptcg.motor.reglas import _FixedRule
 from ptcg.cartas.ids import Applin, Basic_Grass_Energy, Bayleef, Chikorita, Dipplin, Fezandipiti_ex, Hydrapple_ex, Meganium, Meowth_ex, Pinsir, SCORE_VETO, Tapu_Bulu, Teal_Mask_Ogerpon_ex
 from ptcg.calculo.energia import _can_attack_eff, _grass_attach_route_open, _grass_attach_unit, _retreat_grass_units
 from ptcg.calculo.dano import _attacker_base_damage, _op_active_attack_damage_to, _our_effective_damage
@@ -44,8 +44,8 @@ class _CtxNSPlay:
                                            ctx.field_at_turn_start,
                                            ctx.forest_in_play)
 
-    def __getattr__(self, nombre):
-        return getattr(self.c, nombre)
+    def __getattr__(self, name):
+        return getattr(self.c, name)
 
 
 def _ns_energia_util_sin_planta(w):
@@ -570,32 +570,32 @@ _REGLAS_NS_GRASS = [
     # The Grass that FINISHES (a lethal Syrup Storm THIS turn) beats any other
     # recovery, evolutions included (registro_006 step 68 vs Mega Abomasnow ex): a
     # prize today is worth more than development for tomorrow.
-    _ReglaFija("planta_remata_syrup_storm",
+    _FixedRule("planta_remata_syrup_storm",
                lambda c: c.grass_enables_syrup_ko,
                lambda c: 1400),
     # An ACTIVE Hydrapple ex with no attack: charging it with Ripening Charge WINS
     # over any other recovery target.
-    _ReglaFija("hydrapple_activo_ripening",
+    _FixedRule("hydrapple_activo_ripening",
                lambda c: c.act_hyd_ripen,
                lambda c: 1300),
-    _ReglaFija("cargar_banca_vs_crustle",
+    _FixedRule("cargar_banca_vs_crustle",
                lambda c: c.ns_bench_charge,
                lambda c: 950),
-    _ReglaFija("activo_necesita_energia",
+    _FixedRule("activo_necesita_energia",
                lambda c: (c.active_needs_energy
                           and c.hand.get(Basic_Grass_Energy, 0) == 0
                           and not c.energy_attached),
                lambda c: 900),
-    _ReglaFija("ogerpon_teal_habilita",
+    _FixedRule("ogerpon_teal_habilita",
                lambda c: c.act_og_can_teal_attack,
                lambda c: 900),
-    _ReglaFija("sin_planta_en_mano",
+    _FixedRule("sin_planta_en_mano",
                lambda c: c.hand.get(Basic_Grass_Energy, 0) == 0,
                _v_ns_grass_sin_planta),
-    _ReglaFija("hydra_con_pocas_planta",
+    _FixedRule("hydra_con_pocas_planta",
                lambda c: c.has_hydrapple and c.total_grass < 4,
                lambda c: 450),
-    _ReglaFija("exceso_planta_en_mano",
+    _FixedRule("exceso_planta_en_mano",
                lambda c: c.hand.get(Basic_Grass_Energy, 0) >= 3,
                lambda c: 100),
 ]
@@ -605,29 +605,29 @@ _REGLAS_NS_FEZ = [
     # Second option of the engine: it yields to Meowth ex (1250), which rebuilds the
     # whole hand via Lillie's instead of drawing 3. The veto vs Lucario is respected
     # (it hits the bench: a 2-prize ex there is a prize given away).
-    _ReglaFija("motor_de_robo_turno_muerto",
+    _FixedRule("motor_de_robo_turno_muerto",
                lambda c: (c.turno_muerto and c.mano_agotada
                           and not c.op_is_lucario
                           and _ns_motor_fez_vivo(c)),
                lambda c: 1200),
-    _ReglaFija("refill_tras_ko",
+    _FixedRule("refill_tras_ko",
                lambda c: (c.campo.get(Fezandipiti_ex, 0) == 0
                           and ESTADO.ko_last_turn and c.bench_count < 5),
                lambda c: 850),
     # vs Lucario (which hits the bench): Fez only as an emergency body with an
     # empty bench; otherwise vetoed.
-    _ReglaFija("vs_lucario",
+    _FixedRule("vs_lucario",
                lambda c: c.op_is_lucario,
                lambda c: (200 if (c.campo.get(Fezandipiti_ex, 0) == 0
                                   and c.bench_count == 0) else SCORE_VETO)),
-    _ReglaFija("primer_fez",
+    _FixedRule("primer_fez",
                lambda c: c.campo.get(Fezandipiti_ex, 0) == 0,
                lambda c: 200),
 ]
 
 
 _REGLAS_NS_CHIKORITA = [
-    _ReglaFija("arrancar_linea_meganium",
+    _FixedRule("arrancar_linea_meganium",
                lambda c: (not ESTADO.meganium_in_play
                           and (c.campo.get(Chikorita, 0)
                                + c.campo.get(Bayleef, 0)
@@ -637,26 +637,26 @@ _REGLAS_NS_CHIKORITA = [
 
 
 _REGLAS_NS_APPLIN = [
-    _ReglaFija("hydrapple_ya_en_juego",
+    _FixedRule("hydrapple_ya_en_juego",
                lambda c: c.has_hydrapple,
                lambda c: 35),
-    _ReglaFija("arrancar_linea_hydra",
+    _FixedRule("arrancar_linea_hydra",
                lambda c: (c.campo.get(Applin, 0)
                           + c.campo.get(Dipplin, 0)
                           + c.campo.get(Hydrapple_ex, 0)) == 0,
                _v_ns_applin_arrancar),
-    _ReglaFija("banca_corta",
+    _FixedRule("banca_corta",
                lambda c: c.bench_count <= 1,
                lambda c: 350),
 ]
 
 
 _REGLAS_NS_OGERPON = [
-    _ReglaFija("menos_de_dos_ogerpon",
+    _FixedRule("menos_de_dos_ogerpon",
                lambda c: c.campo.get(Teal_Mask_Ogerpon_ex, 0) < 2,
                _v_ns_ogerpon_pocos),
     # A 3rd Ogerpon as a Syrup Storm accelerator (Teal Dance adds Grass).
-    _ReglaFija("tercer_ogerpon_para_syrup",
+    _FixedRule("tercer_ogerpon_para_syrup",
                lambda c: (c.bench_count < 5
                           and c.hand.get(Basic_Grass_Energy, 0) >= 1
                           and c.campo.get(Hydrapple_ex, 0) >= 1),
@@ -666,25 +666,25 @@ _REGLAS_NS_OGERPON = [
 
 _REGLAS_NS_TAPU = [
     # vs Dragapult with the board already built it cannot be PUT DOWN: not recovered.
-    _ReglaFija("dragapult_no_lo_baja",
+    _FixedRule("dragapult_no_lo_baja",
                lambda c: c.dragapult_no_tapu,
                lambda c: SCORE_VETO),
-    _ReglaFija("tapu_ya_en_campo",
+    _FixedRule("tapu_ya_en_campo",
                lambda c: c.campo.get(Tapu_Bulu, 0) >= 1,
                lambda c: 15),
-    _ReglaFija("anti_ex_con_meganium",
+    _FixedRule("anti_ex_con_meganium",
                lambda c: (ESTADO.meganium_in_play
                           and (c.op_ex_immune_active
                                or c.op_ex_immune_bench)),
                lambda c: 800 if c.has_hydrapple else 700),
-    _ReglaFija("anti_ex",
+    _FixedRule("anti_ex",
                lambda c: c.op_ex_immune_active or c.op_ex_immune_bench,
                lambda c: 350),
 ]
 
 
 _REGLAS_NS_PINSIR = [
-    _ReglaFija("anti_ex",
+    _FixedRule("anti_ex",
                lambda c: (c.campo.get(Pinsir, 0) == 0
                           and (ESTADO.op_is_crustle_deck
                                or ESTADO.op_is_cornerstone_deck)),
@@ -693,18 +693,18 @@ _REGLAS_NS_PINSIR = [
 
 
 _REGLAS_NS_MEOWTH = [
-    _ReglaFija("t1_saliendo_primeros_no",
+    _FixedRule("t1_saliendo_primeros_no",
                lambda c: c.turno == 1 and ESTADO.we_go_first,
                lambda c: 10),
     # First option of the draw engine on a dead turn: it beats ALL development
     # (see the comment block about _ns_motor_meowth_vivo).
-    _ReglaFija("motor_de_robo_turno_muerto",
+    _FixedRule("motor_de_robo_turno_muerto",
                lambda c: (c.turno_muerto and c.mano_agotada
                           and _ns_motor_meowth_vivo(c)),
                lambda c: 1250),
     # Recover Meowth ex to put it down so Last-Ditch fetches a Supporter from the
     # deck that beats what is in hand.
-    _ReglaFija("fetch_supporter_del_mazo",
+    _FixedRule("fetch_supporter_del_mazo",
                lambda c: (not c.watchtower
                           and c.campo.get(Meowth_ex, 0) == 0
                           and c.bench_count < 5
@@ -718,14 +718,14 @@ _REGLAS_NS_MEOWTH = [
 _REGLAS_NS_HYDRAPPLE = [
     # Rescue of the Dipplin doomed by the snipe: it beats energy (<=950) and all
     # development. See `ns_evo_saves_doomed` in `_ctx_ns_fetch`.
-    _ReglaFija("salvar_dipplin_condenado_snipe",
+    _FixedRule("salvar_dipplin_condenado_snipe",
                lambda c: c.ns_evo_saves_doomed,
                lambda c: 1200),
-    _ReglaFija("dipplin_evolucionable",
+    _FixedRule("dipplin_evolucionable",
                lambda c: (c.evolvable_ns.get(Dipplin, 0) >= 1
                           and not c.has_hydrapple),
                lambda c: 980),
-    _ReglaFija("cadena_applin_dipplin_mano",
+    _FixedRule("cadena_applin_dipplin_mano",
                lambda c: (c.campo.get(Applin, 0) >= 1
                           and c.hand.get(Dipplin, 0) >= 1
                           and ESTADO.forest_in_play and not c.has_hydrapple),
@@ -734,11 +734,11 @@ _REGLAS_NS_HYDRAPPLE = [
 
 
 _REGLAS_NS_MEGANIUM = [
-    _ReglaFija("bayleef_evolucionable",
+    _FixedRule("bayleef_evolucionable",
                lambda c: (c.evolvable_ns.get(Bayleef, 0) >= 1
                           and not ESTADO.meganium_in_play),
                lambda c: 990),
-    _ReglaFija("cadena_chikorita_bayleef_mano",
+    _FixedRule("cadena_chikorita_bayleef_mano",
                lambda c: (c.campo.get(Chikorita, 0) >= 1
                           and c.hand.get(Bayleef, 0) >= 1
                           and ESTADO.forest_in_play and not ESTADO.meganium_in_play),
@@ -747,16 +747,16 @@ _REGLAS_NS_MEGANIUM = [
 
 
 _REGLAS_NS_DIPPLIN = [
-    _ReglaFija("combo_applin_hydra_en_mano",
+    _FixedRule("combo_applin_hydra_en_mano",
                lambda c: (c.hand.get(Applin, 0) >= 1
                           and c.hand.get(Hydrapple_ex, 0) >= 1
                           and ESTADO.forest_in_play and c.bench_count < 5),
                lambda c: 970),
-    _ReglaFija("applin_en_mano_con_forest",
+    _FixedRule("applin_en_mano_con_forest",
                lambda c: (c.hand.get(Applin, 0) >= 1
                           and ESTADO.forest_in_play and c.bench_count < 5),
                lambda c: 880),
-    _ReglaFija("applin_evolucionable",
+    _FixedRule("applin_evolucionable",
                lambda c: (c.evolvable_ns.get(Applin, 0) >= 1
                           and not c.has_hydrapple),
                lambda c: 850),
@@ -764,18 +764,18 @@ _REGLAS_NS_DIPPLIN = [
 
 
 _REGLAS_NS_BAYLEEF = [
-    _ReglaFija("combo_chikorita_meganium_en_mano",
+    _FixedRule("combo_chikorita_meganium_en_mano",
                lambda c: (c.hand.get(Chikorita, 0) >= 1
                           and c.hand.get(Meganium, 0) >= 1
                           and ESTADO.forest_in_play and c.bench_count < 5
                           and not ESTADO.meganium_in_play),
                lambda c: 985),
-    _ReglaFija("chikorita_en_mano_con_forest",
+    _FixedRule("chikorita_en_mano_con_forest",
                lambda c: (c.hand.get(Chikorita, 0) >= 1
                           and ESTADO.forest_in_play and c.bench_count < 5
                           and not ESTADO.meganium_in_play),
                lambda c: 910),
-    _ReglaFija("chikorita_evolucionable",
+    _FixedRule("chikorita_evolucionable",
                lambda c: (c.evolvable_ns.get(Chikorita, 0) >= 1
                           and not ESTADO.meganium_in_play),
                lambda c: 870),

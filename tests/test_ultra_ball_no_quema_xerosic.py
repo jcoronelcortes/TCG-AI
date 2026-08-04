@@ -129,7 +129,7 @@ class _Ctx:
         self.has_hydrapple = False
         self.forest_in_play = False
         self.meganium_in_play = False
-        self.cartas_en_mazo = dict(mazo or {})
+        self.cards_in_deck = dict(mazo or {})
         self.win_via_boss_gust = False
         self.active_cant_attack = False
         self.supporter_boost = 0

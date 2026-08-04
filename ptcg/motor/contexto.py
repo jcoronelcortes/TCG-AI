@@ -33,7 +33,7 @@ class DecisionContext:
     hand_counts: dict
     field_counts: dict
     supp_values: dict
-    cartas_en_mazo: dict
+    cards_in_deck: dict
     field_at_turn_start: dict
     # Board / prize counts
     bench_count: int
@@ -55,7 +55,7 @@ class DecisionContext:
     pp_playable_in_hand: bool
     can_attack: bool
     best_supp_in_hand_val: int
-    best_supp_in_mazo_val: int
+    best_supp_in_deck_val: int
     # Matchup / opposing wall flags
     op_is_alakazam_deck: bool
     op_is_hop_deck: bool
@@ -163,7 +163,7 @@ class DecisionContext:
     # consulted by Lillie's `pescar_energia_para_remate` rule and by Boss's
     # `cede_a_pesca_de_remate` yield (registro_004 step 49 vs Marnie).
     # Default None: unit tests build the ctx directly.
-    pesca_remate: object = None
+    finisher_fishing: object = None
     # ITEM LOCK THREAT: the opponent can leave us without Items on OUR next turn
     # (Budew on their field, or a Dragapult deck, which runs it). See
     # `_bloqueo_de_items_inminente`: with that hanging over us an Item is not a

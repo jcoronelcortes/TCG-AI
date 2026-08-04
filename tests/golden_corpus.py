@@ -250,17 +250,17 @@ def comparar(dorado, actual):
     cambiados, flips = [], []
     faltantes = sorted(set(dorado) - set(actual))
     nuevos = sorted(set(actual) - set(dorado))
-    for nombre in sorted(set(dorado) & set(actual)):
-        oro, hoy = dorado[nombre], actual[nombre]
+    for name in sorted(set(dorado) & set(actual)):
+        oro, hoy = dorado[name], actual[name]
         if oro["md5"] != hoy["md5"]:
-            cambiados.append(nombre)
+            cambiados.append(name)
             continue
         for d_oro, d_hoy in zip(oro["decisiones"], hoy["decisiones"]):
             if d_oro["eleccion"] != d_hoy["eleccion"]:
                 _id = (f"paso {d_oro['paso']}" if d_oro.get("paso") is not None
                        else f"turno {d_oro.get('turno')} accion {d_oro.get('accion')}")
                 flips.append({
-                    "archivo": nombre,
+                    "archivo": name,
                     "paso": _id,
                     "dorado": f"{d_oro['eleccion']} {d_oro['detalle']}",
                     "actual": f"{d_hoy['eleccion']} {d_hoy['detalle']}",

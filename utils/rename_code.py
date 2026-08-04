@@ -19,6 +19,8 @@ The map is a TSV, one rename per line, with an optional third column:
     old_name<TAB>new_name
     old_name<TAB>new_name<TAB>str     # also rewrite exact string literals
     old_name<TAB>new_name<TAB>mod     # also rewrite it inside import paths
+    old_name<TAB>new_name<TAB>code    # identifier only: the matching literals
+                                      # are something else, and were checked
 
 `str` is for the handful of names that are also written as strings: the targets
 of `monkeypatch.setattr(mod, "name")` and the path constants of the
@@ -72,6 +74,7 @@ def project_files(paths):
 
 def read_map(path):
     renames, in_strings, in_modules = {}, set(), set()
+    checked_strings = set()
     for raw in Path(path).read_text(encoding="utf-8").splitlines():
         line = raw.split("#", 1)[0].strip()
         if not line:
@@ -86,7 +89,9 @@ def read_map(path):
             in_strings.add(old)
         elif flag == "mod":
             in_modules.add(old)
-    return renames, in_strings, in_modules
+        elif flag == "code":
+            checked_strings.add(old)
+    return renames, in_strings, in_modules, checked_strings
 
 
 # ------------------------------------------------------------------ token pass
@@ -102,9 +107,10 @@ def rewrite(src, renames, in_strings, in_modules=frozenset()):
     in_all = 0             # bracket depth inside an `__all__ = [...]`
     for tok in tokenize.generate_tokens(io.StringIO(src).readline):
         text = tok.string
-        # `__all__` holds names as STRINGS, and `import *` reads them from
-        # there: leaving them behind breaks the star imports at load time.
-        if tok.type == tokenize.NAME and text == "__all__":
+        # `__all__` and `__slots__` hold names as STRINGS -- one is what
+        # `import *` reads, the other is what the attributes are called.
+        # Leaving them behind breaks the star imports, or the class, at runtime.
+        if tok.type == tokenize.NAME and text in ("__all__", "__slots__"):
             in_all = -1                       # armed, waiting for the bracket
         elif in_all == -1 and tok.type == tokenize.OP and text in "([":
             in_all = 1
@@ -243,8 +249,9 @@ class _Symbolic(ast.NodeTransformer):
         return node
 
     def visit_Assign(self, node):
-        # `__all__` is the export list `import *` reads: its strings are names.
-        if any(isinstance(t, ast.Name) and t.id == "__all__"
+        # `__all__` (what `import *` reads) and `__slots__` (what the
+        # attributes are called) hold names as strings.
+        if any(isinstance(t, ast.Name) and t.id in ("__all__", "__slots__")
                for t in node.targets) \
                 and isinstance(node.value, (ast.List, ast.Tuple)):
             for e in node.value.elts:
@@ -299,7 +306,7 @@ def scopes(tree):
     return out
 
 
-def cmd_report(renames, in_strings, in_modules, files):
+def cmd_report(renames, in_strings, in_modules, files, checked=frozenset()):
     hits, collisions = {}, {}
     for f in files:
         src = f.read_text(encoding="utf-8")
@@ -387,9 +394,19 @@ def cmd_report(renames, in_strings, in_modules, files):
             tree = ast.parse(f.read_text(encoding="utf-8"))
         except SyntaxError:
             continue
+        handled = set()          # `__all__` / `__slots__`: the tool moves those
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Assign) \
+                    and any(isinstance(t, ast.Name)
+                            and t.id in ("__all__", "__slots__")
+                            for t in node.targets) \
+                    and isinstance(node.value, (ast.List, ast.Tuple)):
+                handled.update(id(e) for e in node.value.elts)
         for node in ast.walk(tree):
             if isinstance(node, ast.Constant) and isinstance(node.value, str) \
-                    and node.value in renames and node.value not in in_strings:
+                    and node.value in renames and node.value not in in_strings \
+                    and node.value not in checked \
+                    and id(node) not in handled:
                 as_string.setdefault(node.value, set()).add(f.relative_to(ROOT))
 
     missing = [o for o in renames if o not in hits]
@@ -451,9 +468,11 @@ def main():
         print(__doc__)
         return 2
     cmd, map_path, paths = sys.argv[1], sys.argv[2], sys.argv[3:]
-    renames, in_strings, in_modules = read_map(map_path)
+    renames, in_strings, in_modules, checked = read_map(map_path)
     files = project_files(paths)
-    return {"report": cmd_report, "apply": cmd_apply,
+    if cmd == "report":
+        return cmd_report(renames, in_strings, in_modules, files, checked)
+    return {"apply": cmd_apply,
             "verify": cmd_verify}[cmd](renames, in_strings, in_modules, files)
 
 

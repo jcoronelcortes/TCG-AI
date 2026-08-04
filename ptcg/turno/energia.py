@@ -8,7 +8,7 @@ was in main.py.
 from cg.api import Pokemon
 from ptcg.calculo.dano import _our_effective_damage
 from ptcg.calculo.energia import _can_attack_eff, _grass_attach_unit, _grass_mult, _ogerpon_base_phys_cap, _physical_energy
-from ptcg.cartas.ids import Applin, Basic_Grass_Energy, Bayleef, Chikorita, Dipplin, Fezandipiti_ex, Hydrapple_ex, Meganium, Meowth_ex, NON_ATTACKER_ENERGY_WASTE_IDS, OUR_EX_IDS, Pinsir, RETREAT_COST, SCORE_CARGA_ACTIVO_ATAQUE, SCORE_CARGA_ACTIVO_REMATE, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex
+from ptcg.cartas.ids import Applin, Basic_Grass_Energy, Bayleef, Chikorita, Dipplin, Fezandipiti_ex, Hydrapple_ex, Meganium, Meowth_ex, NON_ATTACKER_ENERGY_WASTE_IDS, OUR_EX_IDS, Pinsir, RETREAT_COST, SCORE_CHARGE_ACTIVE_ATTACK, SCORE_CHARGE_ACTIVE_FINISHER, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex
 from ptcg.cartas.tablas import card_table
 from ptcg.estado.agente import ESTADO
 from ptcg.turno.energia_ctx import CtxEnergyScoreBase  # noqa: F401
@@ -91,7 +91,7 @@ def _energy_score_base(tc, pokemon, active):
     # (OptionType.ATTACH) and the target of Ripening Charge
     # (SelectContext.ATTACH_FROM), both of which score through here.
     if active and _carga_activo_remata:
-        return SCORE_CARGA_ACTIVO_REMATE
+        return SCORE_CHARGE_ACTIVE_FINISHER
 
     # TARGET of the line "Grass to the ACTIVE -> RETREAT -> attack with the
     # benched one" (user, registro_006 step 101 vs Alakazam, LOST). The four
@@ -491,7 +491,7 @@ def _energy_score_base(tc, pokemon, active):
     # paying a retreat. It goes AFTER all the lethal lines (41000+), which still
     # rule, and BEFORE the charges of FUTURE attackers.
     if active and _carga_activo_habilita_ataque:
-        return SCORE_CARGA_ACTIVO_ATAQUE
+        return SCORE_CHARGE_ACTIVE_ATTACK
 
     # Rule (user, log 85857426 step 37, vs Mega Lucario, WE LOST): do NOT waste the
     # manual attachment on a doomed ACTIVE Tapu Bulu. If the active is a Tapu Bulu

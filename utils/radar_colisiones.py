@@ -321,14 +321,14 @@ def radar(agente, deck_rival, partidas):
         for _t, menus in turnos.items():
             if not menus:
                 continue
-            for nombre, fn in SITUACIONES:
+            for name, fn in SITUACIONES:
                 try:
                     aplica, resuelta = fn(agente, menus)
                 except Exception:
                     continue
                 if aplica:
-                    cnt[nombre][0] += 1
-                    cnt[nombre][1] += int(resuelta)
+                    cnt[name][0] += 1
+                    cnt[name][1] += int(resuelta)
     return cnt
 
 

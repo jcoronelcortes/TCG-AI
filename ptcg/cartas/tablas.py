@@ -39,7 +39,7 @@ _CARD_BY_NAME = {}
 # `_CARD_BY_NAME` (which walks up the chain) so the chain can also be walked
 # DOWN, to know what an opposing line ends in. It covers ALL the cards in the
 # environment.
-_EVOLUCIONES_POR_NOMBRE = {}
+_EVOLUTIONS_BY_NAME = {}
 
 
 __all__ = [
@@ -47,5 +47,5 @@ __all__ = [
     'card_table',
     'attack_table',
     '_CARD_BY_NAME',
-    '_EVOLUCIONES_POR_NOMBRE',
+    '_EVOLUTIONS_BY_NAME',
 ]

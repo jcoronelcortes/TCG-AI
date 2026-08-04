@@ -5,7 +5,7 @@ Extracted VERBATIM from main.py by utils/extraer_definiciones.py
 utils/pureza.py: nothing here touches mutable state or the runtime tables.
 """
 
-from ptcg.motor.reglas import _Ajuste, _ReglaFija
+from ptcg.motor.reglas import _Adjustment, _FixedRule
 from ptcg.cartas.ids import Applin, Bayleef, Chikorita, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Hydrapple_ex, Lillie_Determination, Meganium, Meowth_ex, Pinsir, Tapu_Bulu, Teal_Mask_Ogerpon_ex
 from ptcg.decision.estadios import _forest_disponible
 from ptcg.calculo.energia import _grass_attach_unit
@@ -45,7 +45,7 @@ def _ub_derive_flags(ctx) -> _UBFlags:
     forest_in_play = ctx.forest_in_play
     can_attack = ctx.can_attack
     _field_at_turn_start = ctx.field_at_turn_start
-    CARTAS_ACTIVAS_EN_MAZO = ctx.cartas_en_mazo
+    CARTAS_ACTIVAS_EN_MAZO = ctx.cards_in_deck
     op_is_crustle_deck = ctx.op_is_crustle_deck
     op_has_ex_immune_active = ctx.op_has_ex_immune_active
     op_has_ex_immune_bench = ctx.op_has_ex_immune_bench
@@ -160,7 +160,7 @@ def _ub_terminal_overrides(ctx, ub_score, _ub_survival_mode, hand_size, _our_fir
     watchtower_in_play = ctx.meowth_ability_lock
     budew_on_op_field = ctx.budew_on_op_field
     budew_op_index = ctx.budew_op_index
-    CARTAS_ACTIVAS_EN_MAZO = ctx.cartas_en_mazo
+    CARTAS_ACTIVAS_EN_MAZO = ctx.cards_in_deck
     _evolve_possible_in_play = ctx.evolve_possible_in_play
     _boss_deny_alakazam_line = ctx.boss_deny_alakazam_line
 
@@ -277,7 +277,7 @@ def _ub_cancel_stamp(ctx) -> bool:
     has_hydrapple = ctx.has_hydrapple
     forest_in_play = ctx.forest_in_play
     meganium_in_play = ctx.meganium_in_play
-    CARTAS_ACTIVAS_EN_MAZO = ctx.cartas_en_mazo
+    CARTAS_ACTIVAS_EN_MAZO = ctx.cards_in_deck
 
     _ub_cancel_for_stamp = False
     if hand_counts.get(Unfair_Stamp, 0) >= 1:
@@ -319,7 +319,7 @@ def _ub_cancel_fez(ctx) -> bool:
     has_hydrapple = ctx.has_hydrapple
     forest_in_play = ctx.forest_in_play
     meganium_in_play = ctx.meganium_in_play
-    CARTAS_ACTIVAS_EN_MAZO = ctx.cartas_en_mazo
+    CARTAS_ACTIVAS_EN_MAZO = ctx.cards_in_deck
 
     _ub_cancel_for_fez = False
     if (ko_last_turn and
@@ -364,7 +364,7 @@ def _ub_forraje_real(ctx, protegida) -> int:
     op_has_ex_immune_bench = ctx.op_has_ex_immune_bench
     has_hydrapple = ctx.has_hydrapple
     forest_in_play = ctx.forest_in_play
-    CARTAS_ACTIVAS_EN_MAZO = ctx.cartas_en_mazo
+    CARTAS_ACTIVAS_EN_MAZO = ctx.cards_in_deck
 
     _ub_discardable_without_lillie = 0
     for _ub_llid, _ub_llcnt in hand_counts.items():
@@ -567,7 +567,7 @@ def _ub_cancel_meowth(ctx) -> bool:
     has_hydrapple = ctx.has_hydrapple
     forest_in_play = ctx.forest_in_play
     meganium_in_play = ctx.meganium_in_play
-    CARTAS_ACTIVAS_EN_MAZO = ctx.cartas_en_mazo
+    CARTAS_ACTIVAS_EN_MAZO = ctx.cards_in_deck
 
     _ub_cancel_for_meowth = False
     if (hand_counts.get(Meowth_ex, 0) >= 1 and
@@ -770,14 +770,14 @@ def _alakazam_dig_xerosic_engine(c) -> bool:
     hand = c.hand_counts
     if hand.get(Xerosic_Machinations, 0) >= 1:
         return False
-    if c.cartas_en_mazo.get(
+    if c.cards_in_deck.get(
             Xerosic_Machinations, {}).get(ESTADO_MAZO, 0) < 1:
         return False
     if c.field_counts.get(Meowth_ex, 0) >= 2 or c.bench_count >= 5:
         return False
     _meowth_in_hand = hand.get(Meowth_ex, 0) >= 1
     _meowth_diggable = (
-        c.cartas_en_mazo.get(Meowth_ex, {}).get(ESTADO_MAZO, 0) >= 1
+        c.cards_in_deck.get(Meowth_ex, {}).get(ESTADO_MAZO, 0) >= 1
         and hand.get(Ultra_Ball, 0) >= 1)
     return _meowth_in_hand or _meowth_diggable
 
@@ -1275,7 +1275,7 @@ def _ub_engine_refresh_pivot(ctx) -> bool:
     # An underdeveloped bench: the whole reason for the refill (growing the field).
     if ctx.bench_count > 1:
         return False
-    cartas = ctx.cartas_en_mazo
+    cartas = ctx.cards_in_deck
     if cartas.get(Meowth_ex, {}).get(ESTADO_MAZO, 0) <= 0:
         return False
     if cartas.get(Lillie_Determination, {}).get(ESTADO_MAZO, 0) <= 0:
@@ -1435,29 +1435,29 @@ def _v_ub_applin_arrancar(c):
 _REGLAS_UB_HYDRAPPLE = [
     # Evolving the active Dipplin AND attacking this turn is worth more than the
     # Fezandipiti refill (1050): the fetch's top priority.
-    _ReglaFija("dipplin_evo_ataca",
+    _FixedRule("dipplin_evo_ataca",
                lambda c: c.dipplin_evo_atk,
                lambda c: 1200),
-    _ReglaFija("dipplin_evolucionable",
+    _FixedRule("dipplin_evolucionable",
                lambda c: c.evolvable.get(Dipplin, 0) >= 1,
                lambda c: 980),
-    _ReglaFija("applin_evolucionable_full_linea",
+    _FixedRule("applin_evolucionable_full_linea",
                lambda c: (c.evolvable.get(Applin, 0) >= 1
                           and (ESTADO.forest_in_play
                                or c.hand.get(Forest_of_Vitality, 0) >= 1)
                           and c.hand.get(Dipplin, 0) >= 1),
                lambda c: 900),
-    _ReglaFija("applin_evolucionable",
+    _FixedRule("applin_evolucionable",
                lambda c: c.evolvable.get(Applin, 0) >= 1,
                lambda c: 180),
-    _ReglaFija("applin_en_campo",
+    _FixedRule("applin_en_campo",
                lambda c: c.campo.get(Applin, 0) >= 1,
                lambda c: 130),
 ]
 
 
 _AJUSTES_UB_HYDRAPPLE = [
-    _Ajuste("preparar_hydra_prox_turno",
+    _Adjustment("preparar_hydra_prox_turno",
             lambda c, s: (c.campo.get(Dipplin, 0) >= 1 and s < 860
                           and _uh_preparar_hydra_prox_turno(c)),
             lambda c, s: 860),
@@ -1467,7 +1467,7 @@ _AJUSTES_UB_HYDRAPPLE = [
     # evolves the doomed active Dipplin and the opposing active is NOT
     # immune (Kangaskhan ex), the clamp does not apply (an evolution and
     # survival pivot: 80 HP -> 330 HP).
-    _Ajuste("clamp_ex_muerto_vs_crustle",
+    _Adjustment("clamp_ex_muerto_vs_crustle",
             lambda c, s: (not (c.dipplin_evo_atk
                                and not c.op_ex_immune_active)
                           and (ESTADO.op_is_crustle_deck
@@ -1477,7 +1477,7 @@ _AJUSTES_UB_HYDRAPPLE = [
     # Hydrapple ex would be dead this turn (it does not attack) and the
     # Meowth ex -> Lillie's refill engine is available: it yields the search to
     # Meowth ex (1000), which rebuilds the hand.
-    _Ajuste("cede_a_meowth_refresco",
+    _Adjustment("cede_a_meowth_refresco",
             lambda c, s: c.hydra_dead_prefer_meowth,
             lambda c, s: min(s, 150)),
 ]
@@ -1492,14 +1492,14 @@ _REGLAS_UB_MEOWTH = [
     # both cases the Ultra Ball searches for something else (an evolution line, an
     # attacker). It goes FIRST: neither the pivot engine nor the Boss's vs Crustle
     # engine lifts this rule on the first turn.
-    _ReglaFija("primer_turno_solo_para_lillie",
+    _FixedRule("primer_turno_solo_para_lillie",
                lambda c: (_um_es_primer_turno(c)
                           and (c.hand.get(Lillie_Determination, 0) >= 1
                                or c.lillie_in_mazo <= 0)),
                lambda c: 10),
     # Team Rocket's Watchtower cancels Meowth ex's ability (a Colorless
     # Pokemon): do not search for it with the Ultra Ball.
-    _ReglaFija("watchtower_anula_habilidad",
+    _FixedRule("watchtower_anula_habilidad",
                lambda c: c.watchtower,
                lambda c: 10),
     # ITEM LOCK TOMORROW: the Ultra Ball was played EXACTLY to dig out this
@@ -1508,7 +1508,7 @@ _REGLAS_UB_MEOWTH = [
     # `last_ditch_no_produce`: it is true that the ability produces nothing today --
     # that is the point, the Meowth ex is put down TOMORROW, when there will be no
     # Items left to search for it and the Supporter slot is free again.
-    _ReglaFija("bloqueo_de_items_manana",
+    _FixedRule("bloqueo_de_items_manana",
                lambda c: c.meowth_manana,
                lambda c: 1250),
     # THE LAST-DITCH HAS TO BE ABLE TO PRODUCE SOMETHING THIS TURN (user,
@@ -1529,14 +1529,14 @@ _REGLAS_UB_MEOWTH = [
     # bodies. It goes with the "the ability does not work" vetoes (Watchtower) and
     # above the pivot engines, which in any case require a free Supporter
     # (`_ub_engine_refresh_pivot` / `_alakazam_dig_xerosic_engine`).
-    _ReglaFija("last_ditch_no_produce",
+    _FixedRule("last_ditch_no_produce",
                lambda c: c.supporter_played or not c.ld_free,
                lambda c: 10),
     # With Lillie's ALREADY in hand the Meowth ex fetch is redundant (its only
     # purpose is to search for Lillie's); a useful evolution is better. EXCEPTION:
     # vs Crustle, Meowth ex brings Boss's Orders (a gust), not a refill. (user,
     # log 86339167 step 23, LOST vs Mega Starmie)
-    _ReglaFija("lillie_ya_en_mano_redundante",
+    _FixedRule("lillie_ya_en_mano_redundante",
                lambda c: (c.hand.get(Lillie_Determination, 0) >= 1
                           and not _um_boss_engine_vs_crustle(c)
                           and not ESTADO._ub_engine_pivot_turn),
@@ -1544,65 +1544,65 @@ _REGLAS_UB_MEOWTH = [
     # UB->Meowth->Lillie's engine (registro_008 step 58 vs Archaludon,
     # LOST): the Ultra Ball was played FOR the pivot; the fetch MUST
     # complete the chain. Above development (1000-1250) and evolutions.
-    _ReglaFija("engine_pivot_turn",
+    _FixedRule("engine_pivot_turn",
                lambda c: ESTADO._ub_engine_pivot_turn,
                lambda c: 1300),
     # The only Pokemon in play + no playable Basic + no Lillie's in hand:
     # put Meowth down, search for Lillie's and refill.
-    _ReglaFija("develop_unico_pokemon",
+    _FixedRule("develop_unico_pokemon",
                lambda c: c.prefer_meowth_develop,
                lambda c: 1250),
     # The only big evolution (Hydrapple ex on top of Dipplin) would be
     # dead this turn: refilling with Meowth/Lillie's opens more options.
-    _ReglaFija("hydra_muerto_prefiere_meowth",
+    _FixedRule("hydra_muerto_prefiere_meowth",
                lambda c: c.hydra_dead_prefer_meowth,
                lambda c: 1000),
     # The Meganium line adds nothing this turn and there is no ready attacker.
-    _ReglaFija("meganium_muerto_prefiere_meowth",
+    _FixedRule("meganium_muerto_prefiere_meowth",
                lambda c: c.mega_dead_prefer_meowth,
                lambda c: 1000),
     # With no USABLE attacker this turn (neither an active that attacks nor a
     # promotable benched one): the refill beats an evolution without an attack.
     # >1000 to beat a playable Meganium. (registro_004 step 29 vs Mega Starmie)
-    _ReglaFija("sin_atacante_prefiere_meowth",
+    _FixedRule("sin_atacante_prefiere_meowth",
                lambda c: c.no_attacker_prefer_meowth,
                lambda c: 1250),
-    _ReglaFija("t1_saliendo_segundos",
+    _FixedRule("t1_saliendo_segundos",
                lambda c: c.t1_going_second_meowth,
                lambda c: 1200),
-    _ReglaFija("t1_saliendo_primeros_no",
+    _FixedRule("t1_saliendo_primeros_no",
                lambda c: c.turno == 1 and ESTADO.we_go_first,
                lambda c: 10),
-    _ReglaFija("ya_dos_meowth_en_juego",
+    _FixedRule("ya_dos_meowth_en_juego",
                lambda c: c.campo.get(Meowth_ex, 0) >= 2,
                lambda c: 10),
-    _ReglaFija("un_meowth_y_activo_ataca",
+    _FixedRule("un_meowth_y_activo_ataca",
                lambda c: (c.campo.get(Meowth_ex, 0) >= 1
                           and not c.active_cant_attack),
                lambda c: 10),
-    _ReglaFija("banca_llena",
+    _FixedRule("banca_llena",
                lambda c: c.bench_count >= 5,
                lambda c: 10),
     # A condition that favours Dipplin holds: Meowth yields.
-    _ReglaFija("cede_a_dipplin_prioritario",
+    _FixedRule("cede_a_dipplin_prioritario",
                lambda c: c.dipplin_priority,
                lambda c: 10),
-    _ReglaFija("linea_mega_activa_con_lillie",
+    _FixedRule("linea_mega_activa_con_lillie",
                lambda c: c.mega_line_active and c.lillie_in_mazo > 0,
                lambda c: 1150),
-    _ReglaFija("vs_dragapult_con_lillie",
+    _FixedRule("vs_dragapult_con_lillie",
                lambda c: c.dragapult and c.lillie_in_mazo > 0,
                lambda c: 985),
-    _ReglaFija("motor_boss_vs_crustle",
+    _FixedRule("motor_boss_vs_crustle",
                _um_boss_engine_vs_crustle,
                lambda c: 1100),
     # No condition favouring Dipplin: Meowth ex has PRIORITY to refill
     # (searching for Lillie's), regardless of the hand.
-    _ReglaFija("lillie_en_mazo_refresco",
+    _FixedRule("lillie_en_mazo_refresco",
                lambda c: c.lillie_in_mazo > 0,
                lambda c: 1000),
     # Another supporter in the deck: refill anyway.
-    _ReglaFija("otro_supporter_en_mazo",
+    _FixedRule("otro_supporter_en_mazo",
                lambda c: c.any_supp_in_mazo,
                lambda c: 850),
 ]
@@ -1611,23 +1611,23 @@ _REGLAS_UB_MEOWTH = [
 _REGLAS_UB_OGERPON = [
     # It yields the search to Meowth ex (hand refill): Ogerpon ex would only
     # be brought here if we ALREADY had a Lillie's in hand.
-    _ReglaFija("cede_a_meowth_develop",
+    _FixedRule("cede_a_meowth_develop",
                lambda c: c.prefer_meowth_develop,
                lambda c: 200),
-    _ReglaFija("t1_segundos_necesita_ogerpon",
+    _FixedRule("t1_segundos_necesita_ogerpon",
                lambda c: c.t1_going_second_need_ogerpon,
                lambda c: 1050),
-    _ReglaFija("t1_primeros_necesita_basico",
+    _FixedRule("t1_primeros_necesita_basico",
                lambda c: c.t1_going_first_need_basic,
                _v_ub_ogerpon_t1_primeros),
-    _ReglaFija("ya_dos_ogerpon",
+    _FixedRule("ya_dos_ogerpon",
                lambda c: c.campo.get(Teal_Mask_Ogerpon_ex, 0) >= 2,
                lambda c: 350 if (c.has_energy_for_teal
                                  and c.bench_count < 5) else 15),
-    _ReglaFija("energia_para_teal_dance",
+    _FixedRule("energia_para_teal_dance",
                lambda c: c.has_energy_for_teal and c.bench_count < 5,
                _v_ub_ogerpon_teal),
-    _ReglaFija("primer_ogerpon_banca_corta",
+    _FixedRule("primer_ogerpon_banca_corta",
                lambda c: (c.campo.get(Teal_Mask_Ogerpon_ex, 0) == 0
                           and c.bench_count <= 2),
                lambda c: 300),
@@ -1635,134 +1635,134 @@ _REGLAS_UB_OGERPON = [
 
 
 _REGLAS_UB_MEGANIUM = [
-    _ReglaFija("meganium_ya_en_juego",
+    _FixedRule("meganium_ya_en_juego",
                lambda c: ESTADO.meganium_in_play,
                lambda c: 25),
     # vs Cornerstone: Wild Growth doubles every Grass and lowers the cost of
     # Tapu Bulu -- the ONLY attacker that damages Cornerstone -- from 4 physical
     # Grass to 2. With the line already started in play, completing it is the
     # priority search even though Meganium itself cannot damage it.
-    _ReglaFija("linea_mega_habilita_tapu_vs_cornerstone",
+    _FixedRule("linea_mega_habilita_tapu_vs_cornerstone",
                lambda c: (ESTADO.op_is_cornerstone_deck
                           and (c.campo.get(Chikorita, 0) >= 1
                                or c.campo.get(Bayleef, 0) >= 1)),
                lambda c: 1050),
-    _ReglaFija("bayleef_evolucionable",
+    _FixedRule("bayleef_evolucionable",
                lambda c: c.evolvable.get(Bayleef, 0) >= 1,
                lambda c: 1000),
-    _ReglaFija("cadena_chikorita_completa",
+    _FixedRule("cadena_chikorita_completa",
                lambda c: (c.evolvable.get(Chikorita, 0) >= 1
                           and _forest_disponible(c)
                           and c.hand.get(Bayleef, 0) >= 1),
                lambda c: 950),
-    _ReglaFija("chikorita_evolucionable",
+    _FixedRule("chikorita_evolucionable",
                lambda c: c.evolvable.get(Chikorita, 0) >= 1,
                lambda c: 200),
-    _ReglaFija("chikorita_en_campo",
+    _FixedRule("chikorita_en_campo",
                lambda c: c.campo.get(Chikorita, 0) >= 1,
                lambda c: 150),
 ]
 
 
 _REGLAS_UB_BAYLEEF = [
-    _ReglaFija("meganium_ya_en_juego",
+    _FixedRule("meganium_ya_en_juego",
                lambda c: ESTADO.meganium_in_play,
                lambda c: 20),
-    _ReglaFija("bayleef_ya_en_campo",
+    _FixedRule("bayleef_ya_en_campo",
                lambda c: c.campo.get(Bayleef, 0) >= 1,
                lambda c: 20),
     # There is already a Bayleef IN HAND: searching for another is redundant (one
     # is enough for the only Chikorita); do not waste the UB or its discard.
-    _ReglaFija("bayleef_ya_en_mano",
+    _FixedRule("bayleef_ya_en_mano",
                lambda c: c.hand.get(Bayleef, 0) >= 1,
                lambda c: 20),
     # vs Cornerstone, Bayleef is the intermediate step towards Meganium (which
     # doubles the Grass and leaves Tapu Bulu attacking with 2 physical) and it is
     # also one of the two bodies WITHOUT an ability that do damage it.
-    _ReglaFija("linea_mega_vs_cornerstone",
+    _FixedRule("linea_mega_vs_cornerstone",
                lambda c: (ESTADO.op_is_cornerstone_deck
                           and c.campo.get(Chikorita, 0) >= 1),
                lambda c: 1000),
-    _ReglaFija("chikorita_evolucionable",
+    _FixedRule("chikorita_evolucionable",
                lambda c: c.evolvable.get(Chikorita, 0) >= 1,
                lambda c: 950 if (c.hand.get(Meganium, 0) >= 1
                                  and ESTADO.forest_in_play) else 850),
-    _ReglaFija("chikorita_en_campo",
+    _FixedRule("chikorita_en_campo",
                lambda c: c.campo.get(Chikorita, 0) >= 1,
                lambda c: 200),
 ]
 
 
 _REGLAS_UB_DIPPLIN = [
-    _ReglaFija("hydrapple_ya_en_juego",
+    _FixedRule("hydrapple_ya_en_juego",
                lambda c: c.has_hydrapple,
                lambda c: 20),
-    _ReglaFija("dipplin_ya_en_campo",
+    _FixedRule("dipplin_ya_en_campo",
                lambda c: c.campo.get(Dipplin, 0) >= 1,
                lambda c: 20),
     # Same criterion as Bayleef: a redundant duplicate.
-    _ReglaFija("dipplin_ya_en_mano",
+    _FixedRule("dipplin_ya_en_mano",
                lambda c: c.hand.get(Dipplin, 0) >= 1,
                lambda c: 20),
     # Dipplin is only favoured with _dipplin_priority; otherwise Meowth ex
     # refills better and Dipplin drops so as not to steal its search.
-    _ReglaFija("applin_evolucionable",
+    _FixedRule("applin_evolucionable",
                lambda c: c.evolvable.get(Applin, 0) >= 1,
                lambda c: ((920 if (c.hand.get(Hydrapple_ex, 0) >= 1
                                    and ESTADO.forest_in_play) else 800)
                           if c.dipplin_priority else 150)),
-    _ReglaFija("applin_en_campo",
+    _FixedRule("applin_en_campo",
                lambda c: c.campo.get(Applin, 0) >= 1,
                lambda c: 200),
-    _ReglaFija("rival_anti_ex",
+    _FixedRule("rival_anti_ex",
                lambda c: c.op_ex_immune_active or c.op_ex_immune_bench,
                lambda c: 600 if c.evolvable.get(Applin, 0) >= 1 else 150),
 ]
 
 
 _REGLAS_UB_CHIKORITA = [
-    _ReglaFija("t1_primeros_necesita_basico",
+    _FixedRule("t1_primeros_necesita_basico",
                lambda c: c.t1_going_first_need_basic,
                _v_ub_chikorita_t1),
-    _ReglaFija("meganium_ya_en_juego",
+    _FixedRule("meganium_ya_en_juego",
                lambda c: ESTADO.meganium_in_play,
                lambda c: 30),
-    _ReglaFija("linea_meganium_ya_iniciada",
+    _FixedRule("linea_meganium_ya_iniciada",
                lambda c: (c.campo.get(Chikorita, 0)
                           + c.campo.get(Bayleef, 0)
                           + c.campo.get(Meganium, 0)) > 0,
                lambda c: 150),
-    _ReglaFija("arrancar_linea_meganium",
+    _FixedRule("arrancar_linea_meganium",
                lambda c: True,
                _v_ub_chikorita_arrancar),
 ]
 
 
 _REGLAS_UB_APPLIN = [
-    _ReglaFija("t1_primeros_necesita_basico",
+    _FixedRule("t1_primeros_necesita_basico",
                lambda c: c.t1_going_first_need_basic,
                _v_ub_applin_t1),
-    _ReglaFija("hydrapple_ya_en_juego",
+    _FixedRule("hydrapple_ya_en_juego",
                lambda c: c.has_hydrapple,
                lambda c: 25),
-    _ReglaFija("linea_hydra_ya_iniciada",
+    _FixedRule("linea_hydra_ya_iniciada",
                lambda c: (c.campo.get(Applin, 0)
                           + c.campo.get(Dipplin, 0)
                           + c.campo.get(Hydrapple_ex, 0)) > 0,
                lambda c: 120),
-    _ReglaFija("arrancar_linea_hydra",
+    _FixedRule("arrancar_linea_hydra",
                lambda c: True,
                _v_ub_applin_arrancar),
 ]
 
 
 _REGLAS_UB_TAPU = [
-    _ReglaFija("tapu_ya_en_campo",
+    _FixedRule("tapu_ya_en_campo",
                lambda c: c.campo.get(Tapu_Bulu, 0) >= 1,
                lambda c: 15),
     # A non-ex attacker against ex-immune opponents, with Meganium doubling
     # its energy; better still if Hydrapple ex already covers the ex role.
-    _ReglaFija("anti_ex_con_meganium",
+    _FixedRule("anti_ex_con_meganium",
                lambda c: (ESTADO.meganium_in_play
                           and (c.op_ex_immune_active
                                or c.op_ex_immune_bench)),
@@ -1771,7 +1771,7 @@ _REGLAS_UB_TAPU = [
 
 
 _REGLAS_UB_PINSIR = [
-    _ReglaFija("anti_ex",
+    _FixedRule("anti_ex",
                lambda c: (c.campo.get(Pinsir, 0) == 0
                           and (ESTADO.op_is_crustle_deck
                                or ESTADO.op_is_cornerstone_deck)),
@@ -1790,7 +1790,7 @@ _REGLAS_UB_FEZ = [
     # (user). Fez yields and its branch falls back to the default (10); Meowth ex
     # (`sin_atacante_prefiere_meowth`=1250 or other refill branches) wins the
     # search. Deck-agnostic.
-    _ReglaFija("refill_tras_ko",
+    _FixedRule("refill_tras_ko",
                lambda c: (c.campo.get(Fezandipiti_ex, 0) == 0
                           and ESTADO.ko_last_turn and c.bench_count < 5
                           and not c.no_attacker_prefer_meowth),

@@ -29,12 +29,12 @@ def _modulos_del_agente():
     for mod in list(sys.modules.values()):
         if mod is None:
             continue
-        nombre = getattr(mod, "__name__", "")
-        if nombre == "main" or nombre == "ptcg" or nombre.startswith("ptcg."):
+        name = getattr(mod, "__name__", "")
+        if name == "main" or name == "ptcg" or name.startswith("ptcg."):
             yield mod
 
 
-def parchear(monkeypatch, nombre, valor):
+def parchear(monkeypatch, name, value):
     """Sets `nombre = valor` in every agent module that has it.
 
     It returns how many modules were touched; 0 means the name does not exist in
@@ -42,14 +42,14 @@ def parchear(monkeypatch, nombre, valor):
     """
     tocados = 0
     for mod in _modulos_del_agente():
-        if hasattr(mod, nombre):
-            monkeypatch.setattr(mod, nombre, valor, raising=False)
+        if hasattr(mod, name):
+            monkeypatch.setattr(mod, name, value, raising=False)
             tocados += 1
     return tocados
 
 
 @contextmanager
-def parcheado(nombre, valor):
+def parcheado(name, value):
     """Like `parchear`, but without `monkeypatch` and as a context manager.
 
     For the tests that install a spy by hand with try/finally:
@@ -57,18 +57,18 @@ def parcheado(nombre, valor):
         with parcheado("_debug_log_decision", espia):
             m.agent(obs)
     """
-    previos = [(mod, getattr(mod, nombre))
-               for mod in _modulos_del_agente() if hasattr(mod, nombre)]
+    previos = [(mod, getattr(mod, name))
+               for mod in _modulos_del_agente() if hasattr(mod, name)]
     for mod, _ in previos:
-        setattr(mod, nombre, valor)
+        setattr(mod, name, value)
     try:
         yield len(previos)
     finally:
         for mod, viejo in previos:
-            setattr(mod, nombre, viejo)
+            setattr(mod, name, viejo)
 
 
-def instalar(nombre, valor):
+def instalar(name, value):
     """Sets `nombre = valor` in every module and returns the restorer.
 
     A variant for the tests that already have their try/finally set up: it replaces the
@@ -80,12 +80,12 @@ def instalar(nombre, valor):
         finally:
             _restaurar()
     """
-    previos = [(mod, getattr(mod, nombre))
-               for mod in _modulos_del_agente() if hasattr(mod, nombre)]
+    previos = [(mod, getattr(mod, name))
+               for mod in _modulos_del_agente() if hasattr(mod, name)]
     for mod, _ in previos:
-        setattr(mod, nombre, valor)
+        setattr(mod, name, value)
 
     def restaurar():
         for mod, viejo in previos:
-            setattr(mod, nombre, viejo)
+            setattr(mod, name, viejo)
     return restaurar

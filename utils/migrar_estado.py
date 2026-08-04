@@ -114,16 +114,16 @@ def migrar(texto, campos):
 
     # 1) rewrite the Name nodes, per line and from right to left
     por_linea = {}
-    for ln, col, nombre in v.hits:
-        por_linea.setdefault(ln, []).append((col, nombre))
+    for ln, col, name in v.hits:
+        por_linea.setdefault(ln, []).append((col, name))
     for ln, sitios in por_linea.items():
         linea = lineas[ln - 1]
-        for col, nombre in sorted(sitios, reverse=True):
-            if linea[col:col + len(nombre)] != nombre:
+        for col, name in sorted(sitios, reverse=True):
+            if linea[col:col + len(name)] != name:
                 raise AssertionError(
-                    f"linea {ln} col {col}: se esperaba {nombre!r} y hay "
-                    f"{linea[col:col + len(nombre)]!r}")
-            linea = linea[:col] + f"{OBJETO}.{nombre}" + linea[col + len(nombre):]
+                    f"linea {ln} col {col}: se esperaba {name!r} y hay "
+                    f"{linea[col:col + len(name)]!r}")
+            linea = linea[:col] + f"{OBJETO}.{name}" + linea[col + len(name):]
         lineas[ln - 1] = linea
 
     # 2) remove (or prune) the `global` statements
@@ -173,7 +173,7 @@ def main():
     print(f"campos      : {len(campos)}")
     print(f"reescrituras: {n}")
     print(f"`global` podados/eliminados: {g}")
-    if not args.aplicar:
+    if not args.apply:
         print("\n(dry run; usa --aplicar para escribir)")
         return 0
     ast.parse(nuevo)          # do not write something that does not parse

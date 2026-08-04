@@ -1,0 +1,30 @@
+# Phase 5, batch A -- ptcg/cartas/: the score constants and the evolution-line
+# machinery. Applied repo-wide: these names are read from everywhere.
+#
+# Left alone: EX_PREEVO_IDS, THREAT_PREEVO_IDS, NONEX_FINAL_PREEVO_IDS ("preevo"
+# is the English short form we already use in the docs).
+#
+# `linea_completa` is flagged `code`: there is a RULE LABEL spelled the same
+# way in main.py (`_ReglaFija("linea_completa", ...)`) and those labels stay
+# in Spanish -- the variable moves, the label does not.
+GT_PENAL_ACTIVO_CONDENADO	GT_PENALTY_DOOMED_ACTIVE
+GT_VALOR_DIVERSIFICAR	GT_VALUE_DIVERSIFY
+GT_VALOR_ETAPA2	GT_VALUE_STAGE2
+GUST_TRAMPA_IDS	GUST_TRAP_IDS
+LANA_SEL_PLANTA_DEMANDA	LANA_SEL_GRASS_DEMAND
+LANA_SEL_PLANTA_DESBLOQUEA	LANA_SEL_GRASS_UNLOCKS
+LANA_SEL_PLANTA_SOBRANTE	LANA_SEL_GRASS_SURPLUS
+LILLIE_SCORE_PESCA_REMATE	LILLIE_SCORE_FISHING
+SCORE_CARGA_ACTIVO_ATAQUE	SCORE_CHARGE_ACTIVE_ATTACK
+SCORE_CARGA_ACTIVO_REMATE	SCORE_CHARGE_ACTIVE_FINISHER
+_construir_cadenas_de_mazo	_build_deck_chains
+_etapa_evolutiva	_evolution_stage
+_linea_culmina_en_ex	_line_ends_in_ex
+_misma_linea_evolutiva	_same_evolution_line
+_preevo_de_linea_ex	_preevo_of_ex_line
+_raiz_de_linea	_line_root
+_supera_en_evolucion	_is_more_evolved_than
+_EVOLUCIONES_POR_NOMBRE	_EVOLUTIONS_BY_NAME
+evo_por_nombre	evo_by_name
+linea_completa	full_line	code
+por_nombre	by_name

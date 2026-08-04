@@ -138,7 +138,7 @@ def _finisher_fishing_valid(c):
     clears on the next re-evaluation, so yielding here does not cost the
     finisher -- and if the evolution is NOT playable today, shuffling its pieces
     away would cost the line."""
-    p = getattr(c, 'pesca_remate', None)
+    p = getattr(c, 'finisher_fishing', None)
     return bool(p is not None
                 and not c.state.supporterPlayed
                 and not c.can_attack

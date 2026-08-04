@@ -1,0 +1,7 @@
+# Phase 5, batch C -- the last Spanish fields of the DecisionContext.
+#
+# `pesca_remate` is read with `getattr(c, 'pesca_remate', None)`, so the string
+# has to move with the field: it carries the `str` flag.
+best_supp_in_mazo_val	best_supp_in_deck_val
+cartas_en_mazo	cards_in_deck
+pesca_remate	finisher_fishing	str

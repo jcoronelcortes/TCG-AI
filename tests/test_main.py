@@ -942,7 +942,7 @@ def _make_boss_ctx(**overrides):
         hand_counts={m.Boss_Orders: 1},
         field_counts={},
         supp_values={m.Boss_Orders: 700},
-        cartas_en_mazo={},
+        cards_in_deck={},
         field_at_turn_start={},
         bench_count=0,
         my_hand_len=5,
@@ -963,7 +963,7 @@ def _make_boss_ctx(**overrides):
         pp_playable_in_hand=False,
         can_attack=False,
         best_supp_in_hand_val=0,
-        best_supp_in_mazo_val=0,
+        best_supp_in_deck_val=0,
         op_is_alakazam_deck=False,
         op_is_hop_deck=False,
         op_is_comfey_deck=False,
@@ -1057,7 +1057,7 @@ def _mazo(*ids):
 def test_score_poke_pad_vetoed_when_nothing_searchable():
     # With no non-ex Pokemon in the deck, Poke Pad searches for nothing.
     ctx = _make_boss_ctx(state=SimpleNamespace(turn=6, energyAttached=False),
-                         cartas_en_mazo={})
+                         cards_in_deck={})
     assert m._score_poke_pad_play(ctx) == -1
 
 
@@ -1066,7 +1066,7 @@ def test_score_poke_pad_enables_evolution_this_turn_scores_high():
     # searching for Meganium enables the evolution THIS turn -> a high score (>=22000).
     ctx = _make_boss_ctx(
         state=SimpleNamespace(turn=6, energyAttached=False),
-        cartas_en_mazo=_mazo(m.Meganium),
+        cards_in_deck=_mazo(m.Meganium),
         field_counts={m.Bayleef: 1},
         field_at_turn_start={m.Bayleef: 1},
         bench_count=2,
@@ -1078,7 +1078,7 @@ def test_score_poke_pad_saves_resource_on_full_bench():
     # A full bench and no pre-evo to evolve with a search: it is kept (-1).
     ctx = _make_boss_ctx(
         state=SimpleNamespace(turn=6, energyAttached=False),
-        cartas_en_mazo=_mazo(m.Chikorita),
+        cards_in_deck=_mazo(m.Chikorita),
         field_counts={},
         bench_count=5,
     )
@@ -1103,7 +1103,7 @@ def test_score_night_stretcher_recovers_meowth_for_refresh_engine():
             discard=[SimpleNamespace(id=m.Meowth_ex)], active=[None], bench=[], hand=[]),
         bench_count=1,
         best_supp_in_hand_val=0,
-        best_supp_in_mazo_val=700,
+        best_supp_in_deck_val=700,
     )
     # best_recovery_value=830 -> tier 800..899 -> ns_score 11000.
     assert m._score_night_stretcher_play(ctx) == 11000
@@ -1134,7 +1134,7 @@ def test_score_bug_catching_set_vetoed_when_nothing_eligible():
     # A deck with no Grass Pokemon or eligible Energy: there is nothing to take.
     ctx = _make_boss_ctx(
         state=SimpleNamespace(turn=6, energyAttached=False),
-        cartas_en_mazo={},
+        cards_in_deck={},
     )
     assert m._score_bug_catching_set_play(ctx) == -1
 
@@ -1143,7 +1143,7 @@ def test_score_bug_catching_set_positive_when_grass_energy_in_deck():
     # With Grass Energy in the deck (eligible), the play has positive value.
     ctx = _make_boss_ctx(
         state=SimpleNamespace(turn=6, energyAttached=False),
-        cartas_en_mazo={m.Basic_Grass_Energy: {m.ESTADO_MAZO: 5}},
+        cards_in_deck={m.Basic_Grass_Energy: {m.ESTADO_MAZO: 5}},
     )
     assert m._score_bug_catching_set_play(ctx) > 0
 
@@ -1158,7 +1158,7 @@ def test_bcs_freno_deckout_mazo_critico():
         state=SimpleNamespace(turn=20, energyAttached=False),
         my_state=SimpleNamespace(deckCount=8, discard=[], active=[None],
                                  bench=[], hand=[]),
-        cartas_en_mazo={m.Basic_Grass_Energy: {m.ESTADO_MAZO: 3}},
+        cards_in_deck={m.Basic_Grass_Energy: {m.ESTADO_MAZO: 3}},
         hand_counts={m.Basic_Grass_Energy: 2},  # there IS Grass in hand
     )
     assert m._score_bug_catching_set_play(ctx) == -1
@@ -1171,7 +1171,7 @@ def test_bcs_freno_cede_con_energia_seca():
         state=SimpleNamespace(turn=20, energyAttached=False),
         my_state=SimpleNamespace(deckCount=8, discard=[], active=[None],
                                  bench=[], hand=[]),
-        cartas_en_mazo={m.Basic_Grass_Energy: {m.ESTADO_MAZO: 3}},
+        cards_in_deck={m.Basic_Grass_Energy: {m.ESTADO_MAZO: 3}},
         hand_counts={},
     )
     assert m._score_bug_catching_set_play(ctx) > 0
@@ -1183,7 +1183,7 @@ def test_bcs_freno_no_aplica_con_mazo_sano():
         state=SimpleNamespace(turn=20, energyAttached=False),
         my_state=SimpleNamespace(deckCount=9, discard=[], active=[None],
                                  bench=[], hand=[]),
-        cartas_en_mazo={m.Basic_Grass_Energy: {m.ESTADO_MAZO: 3}},
+        cards_in_deck={m.Basic_Grass_Energy: {m.ESTADO_MAZO: 3}},
         hand_counts={m.Basic_Grass_Energy: 2},
     )
     assert m._score_bug_catching_set_play(ctx) > 0
@@ -1220,7 +1220,7 @@ def test_ub_cancel_meowth_false_when_no_meowth_engine():
     ctx = _make_boss_ctx(
         state=SimpleNamespace(turn=6, energyAttached=False, supporterPlayed=False),
         hand_counts={m.Ultra_Ball: 1},
-        cartas_en_mazo={},
+        cards_in_deck={},
     )
     assert m._ub_cancel_meowth(ctx) is False
 
@@ -7296,10 +7296,10 @@ def test_alakazam_holds_xerosic_plays_it_not_meowth_fetch():
 #       (evolving resets the life: 80 -> 330).
 # ============================================================================
 
-def _load_fixture_obs(nombre):
+def _load_fixture_obs(name):
     import json as _json
     return _json.load(open(
-        ROOT / "tests" / "fixtures" / nombre, encoding="utf-8"))["observation"]
+        ROOT / "tests" / "fixtures" / name, encoding="utf-8"))["observation"]
 
 
 def _idx_ability(obs, card_id):
@@ -8155,16 +8155,16 @@ def test_gust_estorbo_forbid_iron_thorns():
             op_latias=False, op_linea_dragapult=False,
             op_linea_typhlosion=False)
 
-    s_iron, _ = m._resolver_reglas(
+    s_iron, _ = m._resolve_rules(
         m._REGLAS_GUST_ESTORBO, m._AJUSTES_GUST_ESTORBO,
-        _ctx(m.Iron_Thorns_ex), defecto=-200)
+        _ctx(m.Iron_Thorns_ex), default=-200)
     assert s_iron == m.SCORE_FORBID, (
         f"estorbo con Iron Thorns ex debe ser FORBID; obtuvo {s_iron}")
 
     # Control: another ex with the same net stuckness keeps its nuisance value.
-    s_otro, _ = m._resolver_reglas(
+    s_otro, _ = m._resolve_rules(
         m._REGLAS_GUST_ESTORBO, m._AJUSTES_GUST_ESTORBO,
-        _ctx(m.Alakazam_ex), defecto=-200)
+        _ctx(m.Alakazam_ex), default=-200)
     assert s_otro > 0, (
         f"un ex no-locker con traba neta sigue siendo estorbo valido; "
         f"obtuvo {s_otro}")

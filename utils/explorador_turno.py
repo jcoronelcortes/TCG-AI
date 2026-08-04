@@ -216,8 +216,8 @@ def acciones_legales(obs):
     # manual attachment
     if (grass_en_mano and not cur.get("energyAttached")
             and _permitido(OptionType.ATTACH)):
-        for nombre, p in _slots(yo):
-            def ap(obs, _n=nombre):
+        for name, p in _slots(yo):
+            def ap(obs, _n=name):
                 o2 = copy.deepcopy(obs)
                 y2 = _yo(o2)
                 carta = _quitar_de_mano(y2, m.Basic_Grass_Energy)
@@ -231,10 +231,10 @@ def acciones_legales(obs):
     # An EX ability: cancelled under _lock_habilidades_ex.
     if (grass_en_mano and not _lock_habilidades_ex(obs)
             and _permitido(OptionType.ABILITY)):
-        for nombre, p in _slots(yo):
+        for name, p in _slots(yo):
             if (p["id"] == m.Teal_Mask_Ogerpon_ex
                     and p["serial"] not in obs.get("_td_usadas", ())):
-                def ap(obs, _n=nombre, _s=p["serial"]):
+                def ap(obs, _n=name, _s=p["serial"]):
                     o2 = copy.deepcopy(obs)
                     y2 = _yo(o2)
                     carta = _quitar_de_mano(y2, m.Basic_Grass_Energy)
@@ -250,8 +250,8 @@ def acciones_legales(obs):
         for _, hyd in _slots(yo):
             if (hyd["id"] == m.Hydrapple_ex
                     and hyd["serial"] not in obs.get("_rc_usadas", ())):
-                for nombre, p in _slots(yo):
-                    def ap(obs, _n=nombre, _s=hyd["serial"]):
+                for name, p in _slots(yo):
+                    def ap(obs, _n=name, _s=hyd["serial"]):
                         o2 = copy.deepcopy(obs)
                         y2 = _yo(o2)
                         carta = _quitar_de_mano(y2, m.Basic_Grass_Energy)
@@ -268,13 +268,13 @@ def acciones_legales(obs):
         data = m.card_table.get(cid)
         if not data or not (data.stage1 or data.stage2):
             continue
-        for nombre, p in _slots(yo):
+        for name, p in _slots(yo):
             pdata = m.card_table.get(p["id"])
             if not pdata or data.evolvesFrom != pdata.name:
                 continue
             if p.get("appearThisTurn") and not forest:
                 continue
-            def ap(obs, _cid=cid, _n=nombre):
+            def ap(obs, _cid=cid, _n=name):
                 o2 = copy.deepcopy(obs)
                 y2 = _yo(o2)
                 carta = _quitar_de_mano(y2, _cid)
@@ -425,14 +425,14 @@ def explorar(obs, max_nodos=MAX_NODOS, respetar_menu=False):
         if nodos[0] >= max_nodos:
             return
         nodos[0] += 1
-        for etiqueta, aplicar in acciones_legales(estado):
-            if aplicar is None:  # terminal: ATTACK or END
+        for etiqueta, apply in acciones_legales(estado):
+            if apply is None:  # terminal: ATTACK or END
                 p = evaluar_terminal(estado, etiqueta == "ATTACK")
                 if mejor[0] is None or p > mejor[0]:
                     mejor[0], mejor[1] = p, linea + [etiqueta]
                 continue
             sig = estado_sig = None
-            nuevo = aplicar(estado)
+            nuevo = apply(estado)
             # After the first transition the state is SIMULATED: the recorded
             # menu no longer describes it and legality goes back to the model.
             nuevo["_simulado"] = True

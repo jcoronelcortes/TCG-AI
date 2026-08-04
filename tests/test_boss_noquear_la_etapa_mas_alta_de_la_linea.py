@@ -190,37 +190,37 @@ def test_control_con_el_basico_delante_el_boss_si_se_juega():
 # ---------------------------------------------------------------------------
 
 def test_la_etapa_sale_del_dato_de_carta():
-    assert m._etapa_evolutiva(GIBLE) == 0
-    assert m._etapa_evolutiva(GABITE) == 1
-    assert m._etapa_evolutiva(GARCHOMP) == 2
+    assert m._evolution_stage(GIBLE) == 0
+    assert m._evolution_stage(GABITE) == 1
+    assert m._evolution_stage(GARCHOMP) == 2
     # Our own line and Marnie's, without touching EVO_LINES.
-    assert [m._etapa_evolutiva(c) for c in (m.Applin, m.Dipplin, HYDRAPPLE)] == [0, 1, 2]
-    assert [m._etapa_evolutiva(c) for c in (IMPIDIMP, MORGREM,
+    assert [m._evolution_stage(c) for c in (m.Applin, m.Dipplin, HYDRAPPLE)] == [0, 1, 2]
+    assert [m._evolution_stage(c) for c in (IMPIDIMP, MORGREM,
                                             m.Grimmsnarl_ex)] == [0, 1, 2]
     # What is not a Pokemon (or does not exist) has no stage.
-    assert m._etapa_evolutiva(BOSS) is None
-    assert m._etapa_evolutiva(-12345) is None
+    assert m._evolution_stage(BOSS) is None
+    assert m._evolution_stage(-12345) is None
 
 
 def test_la_linea_se_reconstruye_subiendo_por_evolves_from():
-    assert m._misma_linea_evolutiva(GIBLE, GARCHOMP)
-    assert m._misma_linea_evolutiva(GARCHOMP, GABITE)
-    assert m._misma_linea_evolutiva(GIBLE, GIBLE)
+    assert m._same_evolution_line(GIBLE, GARCHOMP)
+    assert m._same_evolution_line(GARCHOMP, GABITE)
+    assert m._same_evolution_line(GIBLE, GIBLE)
     # Cynthia's Roselia -> Roserade is ANOTHER line of the SAME deck.
-    assert not m._misma_linea_evolutiva(GIBLE, ROSELIA)
+    assert not m._same_evolution_line(GIBLE, ROSELIA)
     # And the homonymous lines of another trainer do not mix with ours.
-    assert not m._misma_linea_evolutiva(GABITE, m.Dipplin)
+    assert not m._same_evolution_line(GABITE, m.Dipplin)
 
 
 def test_supera_en_evolucion_exige_misma_linea_y_etapa_mayor():
-    assert m._supera_en_evolucion(_pkm(GABITE), _pkm(GIBLE))
-    assert m._supera_en_evolucion(_pkm(GARCHOMP), _pkm(GIBLE))
-    assert m._supera_en_evolucion(_pkm(MORGREM), _pkm(IMPIDIMP))
+    assert m._is_more_evolved_than(_pkm(GABITE), _pkm(GIBLE))
+    assert m._is_more_evolved_than(_pkm(GARCHOMP), _pkm(GIBLE))
+    assert m._is_more_evolved_than(_pkm(MORGREM), _pkm(IMPIDIMP))
     # The other way round NO: it is precisely the case the deny-evo exists for.
-    assert not m._supera_en_evolucion(_pkm(GIBLE), _pkm(GABITE))
+    assert not m._is_more_evolved_than(_pkm(GIBLE), _pkm(GABITE))
     # The same stage, or stages of DIFFERENT lines: there is no step to compare.
-    assert not m._supera_en_evolucion(_pkm(GABITE), _pkm(GABITE))
-    assert not m._supera_en_evolucion(_pkm(GABITE), _pkm(ROSELIA))
-    assert not m._supera_en_evolucion(_pkm(m.Dipplin), _pkm(GIBLE))
-    assert not m._supera_en_evolucion(None, _pkm(GIBLE))
-    assert not m._supera_en_evolucion(_pkm(GABITE), None)
+    assert not m._is_more_evolved_than(_pkm(GABITE), _pkm(GABITE))
+    assert not m._is_more_evolved_than(_pkm(GABITE), _pkm(ROSELIA))
+    assert not m._is_more_evolved_than(_pkm(m.Dipplin), _pkm(GIBLE))
+    assert not m._is_more_evolved_than(None, _pkm(GIBLE))
+    assert not m._is_more_evolved_than(_pkm(GABITE), None)

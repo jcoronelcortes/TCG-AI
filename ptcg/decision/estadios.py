@@ -22,7 +22,7 @@ class _GrandTreePlan(NamedTuple):
     basic_id: int
     stage1_id: int
     stage2_id: int     # 0 = the chain stops EXPRESSLY at Stage 1
-    valor: int
+    value: int
 
 
 def _gt_slots_propios(my_state):
@@ -45,10 +45,10 @@ def _gt_valor_cuerpo(card_id):
     data = card_table.get(card_id)
     if data is None:
         return 0
-    valor = data.hp or 0
+    value = data.hp or 0
     if getattr(data, 'skills', None):
-        valor += 40
-    return valor
+        value += 40
+    return value
 
 
 def _gt_premios_de(card_id):
@@ -65,7 +65,7 @@ def _fv_cadena_evolutiva(c):
     can be put down from hand by chaining basic+evolution)."""
     h, f = c.hand_counts, c.field_counts
     meg_fetchable = (
-        c.cartas_en_mazo.get(Meganium, {}).get(ESTADO_MAZO, 0) > 0 and
+        c.cards_in_deck.get(Meganium, {}).get(ESTADO_MAZO, 0) > 0 and
         (h.get(Poke_Pad, 0) >= 1 or h.get(Ultra_Ball, 0) >= 1))
     if f.get(Chikorita, 0) >= 1 and not c.meganium_in_play:
         if h.get(Bayleef, 0) >= 1 or h.get(Meganium, 0) >= 1:

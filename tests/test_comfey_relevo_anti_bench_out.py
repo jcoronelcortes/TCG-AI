@@ -138,15 +138,15 @@ def _scores(obs):
     return visto["s"]
 
 
-def _flag_de_agent(obs, nombre):
+def _flag_de_agent(obs, name):
     """Reads a LOCAL variable of `agent()` on return."""
     capt = {}
 
     def tr(frame, ev, arg):
         if frame.f_code.co_name != "agent":
             return None
-        if ev == "return" and nombre in frame.f_locals:
-            capt[nombre] = frame.f_locals[nombre]
+        if ev == "return" and name in frame.f_locals:
+            capt[name] = frame.f_locals[name]
         return tr
 
     sys.settrace(tr)
@@ -154,7 +154,7 @@ def _flag_de_agent(obs, nombre):
         m.agent(obs)
     finally:
         sys.settrace(None)
-    return capt.get(nombre)
+    return capt.get(name)
 
 
 def _idx_de(obs, card_id):

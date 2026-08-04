@@ -121,16 +121,16 @@ def _scores(obs):
     # The spies are installed in ALL the modules that bind the name: the one that
     # calls the scorers now lives in ptcg/turno/puntuacion.py, not in `main`.
     restauradores = []
-    for clave, nombre in (("stamp", "_score_unfair_stamp_play"),
+    for clave, name in (("stamp", "_score_unfair_stamp_play"),
                           ("xerosic", "_score_xerosic_play")):
-        orig = getattr(m, nombre)
+        orig = getattr(m, name)
 
         def espia(ctx, _orig=orig, _clave=clave):
             r = _orig(ctx)
             visto[_clave] = r
             return r
 
-        restauradores.append(instalar(nombre, espia))
+        restauradores.append(instalar(name, espia))
     try:
         m.agent(obs)
     finally:

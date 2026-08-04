@@ -1,0 +1,10 @@
+# Phase 5, batch B2 -- the other two fields of the rules engine. They travel
+# apart because `nombre` and `valor` are common words: they also name locals in
+# utils/ and tests/, and moving them all at once is only safe once `report`
+# says no two of them share a scope.
+#
+# `nombre` is flagged `code`: the string "nombre" is also a DICT KEY in
+# utils/ (deck descriptors, the subprocess result of the submission test).
+# Those are data, some of it written to disk, and they stay as they are.
+nombre	name	code
+valor	value

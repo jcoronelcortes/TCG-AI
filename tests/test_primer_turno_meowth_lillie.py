@@ -66,8 +66,8 @@ def reset_main_state():
     m._init_cartas_tracking()
 
 
-def _fixture_obs(nombre):
-    with open(FIXTURES / nombre, encoding="utf-8") as f:
+def _fixture_obs(name):
+    with open(FIXTURES / name, encoding="utf-8") as f:
         return json.load(f)["observation"]
 
 
@@ -122,10 +122,10 @@ def test_sin_lillie_en_el_mazo_el_primer_turno_no_degrada_al_resto():
     rule caps nobody and the normal ladder decides."""
     mazo = {m.Xerosic_Machinations: {m.ESTADO_MAZO: 2}}
     supp = {m.Xerosic_Machinations: 600}
-    objetivo, valor = m._meowth_fetch_prediccion(
+    objetivo, value = m._meowth_fetch_prediccion(
         {}, supp, 5, True, 8, False, False, False, False, False, True,
         mazo, first_turn=True)
-    assert objetivo == m.Xerosic_Machinations and valor > 40
+    assert objetivo == m.Xerosic_Machinations and value > 40
 
 
 # ---------------------------------------------------------------------------
@@ -144,8 +144,8 @@ def _ctx_ub_meowth(hand, turno=1, lillie_in_mazo=4):
 
 
 def _valor_ub_meowth(ctx):
-    valor, _ = m._resolver_reglas(m._REGLAS_UB_MEOWTH, [], ctx, 50)
-    return valor
+    value, _ = m._resolve_rules(m._REGLAS_UB_MEOWTH, [], ctx, 50)
+    return value
 
 
 def test_ub_no_cava_meowth_en_primer_turno_con_lillie_en_mano():
@@ -188,7 +188,7 @@ class _CtxXerosic:
         self.state = self._State(turn)
         self.we_go_first = we_go_first
         self.hand_counts = {m.Ultra_Ball: 1}
-        self.cartas_en_mazo = {m.Xerosic_Machinations: {m.ESTADO_MAZO: 2},
+        self.cards_in_deck = {m.Xerosic_Machinations: {m.ESTADO_MAZO: 2},
                                m.Meowth_ex: {m.ESTADO_MAZO: 1}}
         self.field_counts = {}
         self.bench_count = 1

@@ -195,20 +195,20 @@ MAZOS = {
 }
 
 
-def validar(nombre, mazo):
+def validar(name, mazo):
     total = sum(mazo.values())
-    assert total == 60, f"{nombre}: {total} cartas (deben ser 60)"
+    assert total == 60, f"{name}: {total} cartas (deben ser 60)"
     tiene_basico = False
     for cid, n in mazo.items():
         carta = _CARTAS.get(cid)
-        assert carta is not None, f"{nombre}: id {cid} no existe en el pool"
+        assert carta is not None, f"{name}: id {cid} no existe en el pool"
         if cid not in _ENERGIAS_BASICAS:
-            assert n <= 4, f"{nombre}: {n}x {carta.name} (max 4)"
+            assert n <= 4, f"{name}: {n}x {carta.name} (max 4)"
         if getattr(carta, "aceSpec", False):
-            assert n == 1, f"{nombre}: ACE SPEC {carta.name} debe ser x1"
+            assert n == 1, f"{name}: ACE SPEC {carta.name} debe ser x1"
         if (carta.cardType == CardType.POKEMON and carta.basic):
             tiene_basico = True
-    assert tiene_basico, f"{nombre}: sin Pokemon Basico"
+    assert tiene_basico, f"{name}: sin Pokemon Basico"
 
 
 def como_lista(mazo):
@@ -221,9 +221,9 @@ def como_lista(mazo):
 def escribir(destino):
     destino.mkdir(parents=True, exist_ok=True)
     rutas = []
-    for nombre, mazo in MAZOS.items():
-        validar(nombre, mazo)
-        ruta = destino / f"{nombre}.csv"
+    for name, mazo in MAZOS.items():
+        validar(name, mazo)
+        ruta = destino / f"{name}.csv"
         ruta.write_text("\n".join(str(c) for c in como_lista(mazo)) + "\n")
         rutas.append(ruta)
         resumen = ", ".join(

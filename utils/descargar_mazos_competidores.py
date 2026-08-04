@@ -97,11 +97,11 @@ ARQUETIPOS: list[dict[str, Any]] = [
 ]
 
 
-def clave_carta(nombre: Any) -> str:
+def clave_carta(name: Any) -> str:
     """Normalises a card name for comparison (typographic apostrophes, etc.)."""
     import unicodedata
 
-    texto = unicodedata.normalize("NFKC", str(nombre or ""))
+    texto = unicodedata.normalize("NFKC", str(name or ""))
     texto = texto.replace("’", "'").replace("‘", "'")
     return re.sub(r"\s+", " ", texto.strip()).casefold()
 
@@ -161,20 +161,20 @@ def cargar_credenciales() -> None:
 # ---------------------------------------------------------------------------
 # Normalising the SDK's objects
 # ---------------------------------------------------------------------------
-def normalizar(valor: Any) -> Any:
-    if valor is None or isinstance(valor, (str, int, float, bool)):
-        return valor
-    if isinstance(valor, datetime):
-        return valor.isoformat()
-    if isinstance(valor, (list, tuple)):
-        return [normalizar(v) for v in valor]
-    if isinstance(valor, dict):
-        return {str(k): normalizar(v) for k, v in valor.items()}
-    if hasattr(valor, "to_dict"):
-        return normalizar(valor.to_dict())
-    if hasattr(valor, "name") and hasattr(valor, "value"):
-        return valor.name
-    crudo = getattr(valor, "__dict__", {})
+def normalizar(value: Any) -> Any:
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, (list, tuple)):
+        return [normalizar(v) for v in value]
+    if isinstance(value, dict):
+        return {str(k): normalizar(v) for k, v in value.items()}
+    if hasattr(value, "to_dict"):
+        return normalizar(value.to_dict())
+    if hasattr(value, "name") and hasattr(value, "value"):
+        return value.name
+    crudo = getattr(value, "__dict__", {})
     return {
         str(k).lstrip("_"): normalizar(v)
         for k, v in crudo.items()
@@ -183,21 +183,21 @@ def normalizar(valor: Any) -> Any:
 
 
 def como_dict(obj: Any) -> dict[str, Any]:
-    valor = normalizar(obj)
-    return valor if isinstance(valor, dict) else {}
+    value = normalizar(obj)
+    return value if isinstance(value, dict) else {}
 
 
-def primero(mapa: dict[str, Any], *claves: str, defecto: Any = None) -> Any:
+def primero(mapa: dict[str, Any], *claves: str, default: Any = None) -> Any:
     for clave in claves:
         if clave in mapa and mapa[clave] is not None:
             return mapa[clave]
-    return defecto
+    return default
 
 
-def a_float(valor: Any) -> float:
-    if valor is None:
+def a_float(value: Any) -> float:
+    if value is None:
         return math.nan
-    texto = str(valor).replace(",", "").strip()
+    texto = str(value).replace(",", "").strip()
     m = re.search(r"[-+]?\d+(?:\.\d+)?", texto)
     return float(m.group(0)) if m else math.nan
 
@@ -253,14 +253,14 @@ def estado_http(exc: Exception) -> int | None:
 def reintentar_tras(exc: Exception) -> float | None:
     resp = getattr(exc, "response", None)
     cabeceras = getattr(resp, "headers", None) or getattr(exc, "headers", None) or {}
-    valor = cabeceras.get("Retry-After") or cabeceras.get("retry-after")
-    if valor is None:
+    value = cabeceras.get("Retry-After") or cabeceras.get("retry-after")
+    if value is None:
         return None
     try:
-        return max(0.0, float(valor))
+        return max(0.0, float(value))
     except (TypeError, ValueError):
         try:
-            momento = parsedate_to_datetime(str(valor))
+            momento = parsedate_to_datetime(str(value))
             if momento.tzinfo is None:
                 momento = momento.replace(tzinfo=timezone.utc)
             return max(0.0, (momento - datetime.now(timezone.utc)).total_seconds())
@@ -446,8 +446,8 @@ def listar_episodios(api, submission_id: int) -> list[dict[str, Any]]:
         eid = primero(fila, "id", "episodeId", "episode_id")
         if eid is None:
             continue
-        tipo = str(primero(fila, "type", defecto="PUBLIC"))
-        estado = str(primero(fila, "state", defecto="COMPLETED"))
+        tipo = str(primero(fila, "type", default="PUBLIC"))
+        estado = str(primero(fila, "state", default="COMPLETED"))
         if "PUBLIC" not in tipo.upper():
             continue
         if not re.search(r"COMPLETE", estado, flags=re.IGNORECASE):
@@ -528,11 +528,11 @@ class Recolector:
         mazos = extraer_mazos(replay)
         if not mazos:
             return
-        agentes = primero(episodio, "agents", defecto=[]) or []
+        agentes = primero(episodio, "agents", default=[]) or []
         por_asiento: dict[int, dict[str, Any]] = {}
         for orden, agente in enumerate(agentes):
             fila = como_dict(agente)
-            idx = primero(fila, "index", defecto=orden)
+            idx = primero(fila, "index", default=orden)
             try:
                 por_asiento[int(idx)] = fila
             except (TypeError, ValueError):
@@ -675,14 +675,14 @@ def escribir_mazos(
     indice: list[dict[str, Any]] = []
     for numero, dato in enumerate(recuperados, start=1):
         mazo = dato["mazo"]
-        nombre = f"mazo_{numero:03d}.csv"
+        name = f"mazo_{numero:03d}.csv"
         # The project's format: one Card ID per line, no header.
-        (dir_salida / nombre).write_text(
+        (dir_salida / name).write_text(
             "\n".join(str(cid) for cid in mazo) + "\n", encoding="utf-8"
         )
         indice.append(
             fila_de_indice(
-                nombre,
+                name,
                 mazo,
                 dato["posicion"],
                 puntaje_por_posicion.get(dato["posicion"], ""),

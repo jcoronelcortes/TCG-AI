@@ -5,13 +5,13 @@ Extracted VERBATIM from main.py by utils/extraer_definiciones.py
 utils/pureza.py: nothing here touches mutable state or the runtime tables.
 """
 
-from ptcg.motor.reglas import _ReglaFija
+from ptcg.motor.reglas import _FixedRule
 from ptcg.estado.agente import ESTADO
 from ptcg.cartas.ids import Applin, Bayleef, Chikorita, Dipplin, Meganium
 from ptcg.cartas.ids import Applin, Bayleef, Chikorita, Dipplin, Hydrapple_ex, Meganium, SCORE_VETO, Tapu_Bulu
 from ptcg.estado.claves import ESTADO_MAZO
 from ptcg.motor.contexto import DecisionContext
-from ptcg.motor.reglas import _Ajuste, _ReglaFija, _resolver_con_traza
+from ptcg.motor.reglas import _Adjustment, _FixedRule, _resolve_with_trace
 
 
 _PP_NON_RULEBOX_IDS = (Chikorita, Bayleef, Meganium, Applin, Dipplin,
@@ -22,7 +22,7 @@ def _pp_buscables(c):
     """Pokemon WITHOUT a Rule Box that still have copies in the deck (the only
     thing Poke Pad can search for: it excludes the Hydrapple ex line and the
     other ex)."""
-    cartas = c.cartas_en_mazo
+    cartas = c.cards_in_deck
     return {cid: cartas[cid][ESTADO_MAZO] for cid in _PP_NON_RULEBOX_IDS
             if cid in cartas and cartas[cid][ESTADO_MAZO] > 0}
 
@@ -88,7 +88,7 @@ def _pp_evo_valor(c):
 def _pp_evolucion_pendiente_de_busqueda(c):
     """Some pre-evolution in play whose evolution is NOT in hand but IS in the
     deck: a search enables it (do not cut off because the bench is full)."""
-    h, f, cartas = c.hand_counts, c.field_counts, c.cartas_en_mazo
+    h, f, cartas = c.hand_counts, c.field_counts, c.cards_in_deck
     return ((f.get(Chikorita, 0) >= 1 and h.get(Bayleef, 0) == 0
              and cartas.get(Bayleef, {}).get(ESTADO_MAZO, 0) > 0)
             or (f.get(Bayleef, 0) >= 1 and h.get(Meganium, 0) == 0
@@ -98,18 +98,18 @@ def _pp_evolucion_pendiente_de_busqueda(c):
 
 
 _REGLAS_PP_PLAY = [
-    _ReglaFija("sin_buscables",
+    _FixedRule("sin_buscables",
                lambda c: not _pp_buscables(c),
                lambda c: SCORE_VETO),
-    _ReglaFija("primer_turno",
+    _FixedRule("primer_turno",
                _pp_es_t1,
                _v_pp_t1),
-    _ReglaFija("evolucion_este_turno",
+    _FixedRule("evolucion_este_turno",
                lambda c: _pp_evo_valor(c) > 0,
                lambda c: (23000 if _pp_evo_valor(c) >= 1100
                           else (22000 if _pp_evo_valor(c) >= 900
                                 else 20000))),
-    _ReglaFija("asegurar_chikorita",
+    _FixedRule("asegurar_chikorita",
                lambda c: (Chikorita in _pp_buscables(c)
                           and not c.meganium_in_play
                           and (c.field_counts.get(Chikorita, 0)
@@ -118,7 +118,7 @@ _REGLAS_PP_PLAY = [
                           and c.hand_counts.get(Chikorita, 0) == 0
                           and c.bench_count < 5),
                lambda c: 12800),
-    _ReglaFija("asegurar_applin",
+    _FixedRule("asegurar_applin",
                lambda c: (Applin in _pp_buscables(c) and c.bench_count < 5),
                lambda c: 12600),
 ]
@@ -126,7 +126,7 @@ _REGLAS_PP_PLAY = [
 
 _AJUSTES_PP_PLAY = [
     # Search for Tapu Bulu as a 1-prize sacrifice (pivot vs Lucario).
-    _Ajuste("sacrificio_lucario_tapu",
+    _Adjustment("sacrificio_lucario_tapu",
             lambda c, s: (c.lucario_sac_pivot
                           and Tapu_Bulu in _pp_buscables(c)
                           and c.field_counts.get(Tapu_Bulu, 0) == 0
@@ -135,7 +135,7 @@ _AJUSTES_PP_PLAY = [
             lambda c, s: 13000),
     # Bench full and no pre-evolution to evolve WITH A SEARCH: keep the
     # resource (Poke Pad excludes the Dipplin->Hydrapple ex line).
-    _Ajuste("banca_llena_guardar",
+    _Adjustment("banca_llena_guardar",
             lambda c, s: (c.bench_count >= 5
                           and not _pp_evolucion_pendiente_de_busqueda(c)
                           and s > 0 and not _pp_budew_dump(c)),
@@ -148,8 +148,8 @@ def _score_poke_pad_play(ctx: DecisionContext) -> int:
     prioritises enabling an evolution THIS turn; failing that, securing basics;
     with a full bench and nothing to evolve, it keeps the resource. Body
     migrated to the RULES ENGINE (phase 4)."""
-    return _resolver_con_traza("pokepad->play", _REGLAS_PP_PLAY,
-                               _AJUSTES_PP_PLAY, ctx, defecto=SCORE_VETO)
+    return _resolve_with_trace("pokepad->play", _REGLAS_PP_PLAY,
+                               _AJUSTES_PP_PLAY, ctx, default=SCORE_VETO)
 
 
 class _CtxPPFetch:
@@ -189,25 +189,25 @@ class _CtxPPFetch:
 
 _REGLAS_PP_FETCH = [
     # (1) First turn: put down the basics of both lines before anything else.
-    _ReglaFija("t1_applin",
+    _FixedRule("t1_applin",
                lambda c: (c.first_turn and c.card_id == Applin
                           and not c.have_applin),
                lambda c: 2000),
-    _ReglaFija("t1_chikorita",
+    _FixedRule("t1_chikorita",
                lambda c: (c.first_turn and c.card_id == Chikorita
                           and not c.have_chik),
                lambda c: 1900),
-    _ReglaFija("t1_otro",
+    _FixedRule("t1_otro",
                lambda c: c.first_turn,
                lambda c: 10),
     # (2) Direct evolution of a Pokemon on the current board.
-    _ReglaFija("evo_meganium",
+    _FixedRule("evo_meganium",
                lambda c: (c.has_evo and c.card_id == Meganium
                           and not ESTADO.meganium_in_play
                           and c.hand.get(Meganium, 0) == 0
                           and c.campo.get(Bayleef, 0) >= 1),
                lambda c: 1000),
-    _ReglaFija("evo_meganium_rush",
+    _FixedRule("evo_meganium_rush",
                lambda c: (c.has_evo and c.card_id == Meganium
                           and not ESTADO.meganium_in_play
                           and c.hand.get(Meganium, 0) == 0
@@ -215,7 +215,7 @@ _REGLAS_PP_FETCH = [
                           and c.campo.get(Chikorita, 0) >= 1
                           and c.hand.get(Bayleef, 0) >= 1),
                lambda c: 900),
-    _ReglaFija("evo_bayleef_rush",
+    _FixedRule("evo_bayleef_rush",
                lambda c: (c.has_evo and c.card_id == Bayleef
                           and not ESTADO.meganium_in_play
                           and c.hand.get(Bayleef, 0) == 0
@@ -223,41 +223,41 @@ _REGLAS_PP_FETCH = [
                           and ESTADO.forest_in_play
                           and c.hand.get(Meganium, 0) >= 1),
                lambda c: 950),
-    _ReglaFija("evo_bayleef",
+    _FixedRule("evo_bayleef",
                lambda c: (c.has_evo and c.card_id == Bayleef
                           and not ESTADO.meganium_in_play
                           and c.hand.get(Bayleef, 0) == 0
                           and c.campo.get(Chikorita, 0) >= 1),
                lambda c: 850),
-    _ReglaFija("evo_dipplin_rush",
+    _FixedRule("evo_dipplin_rush",
                lambda c: (c.has_evo and c.card_id == Dipplin
                           and c.hand.get(Dipplin, 0) == 0
                           and c.campo.get(Applin, 0) >= 1
                           and ESTADO.forest_in_play
                           and c.hand.get(Hydrapple_ex, 0) >= 1),
                lambda c: 920),
-    _ReglaFija("evo_dipplin",
+    _FixedRule("evo_dipplin",
                lambda c: (c.has_evo and c.card_id == Dipplin
                           and c.hand.get(Dipplin, 0) == 0
                           and c.campo.get(Applin, 0) >= 1),
                lambda c: 800),
-    _ReglaFija("evo_otro",
+    _FixedRule("evo_otro",
                lambda c: c.has_evo,
                lambda c: 10),
     # (3) Fallback: complete lines from hand.
-    _ReglaFija("fb_bayleef",
+    _FixedRule("fb_bayleef",
                lambda c: (c.card_id == Bayleef and not ESTADO.meganium_in_play
                           and c.have_chik and not c.have_bay),
                lambda c: 850),
-    _ReglaFija("fb_dipplin",
+    _FixedRule("fb_dipplin",
                lambda c: (c.card_id == Dipplin and c.have_applin
                           and not c.have_dipplin),
                lambda c: 800),
-    _ReglaFija("fb_meganium",
+    _FixedRule("fb_meganium",
                lambda c: (c.card_id == Meganium and not ESTADO.meganium_in_play
                           and c.hand.get(Meganium, 0) == 0 and c.have_bay),
                lambda c: 700),
-    _ReglaFija("fb_chikorita",
+    _FixedRule("fb_chikorita",
                lambda c: (c.card_id == Chikorita and not ESTADO.meganium_in_play
                           and c.campo.get(Chikorita, 0)
                           + c.campo.get(Bayleef, 0)
@@ -265,7 +265,7 @@ _REGLAS_PP_FETCH = [
                           and c.hand.get(Chikorita, 0) < 1
                           and c.bench_count < 5),
                lambda c: 800),
-    _ReglaFija("fb_applin",
+    _FixedRule("fb_applin",
                lambda c: c.card_id == Applin and c.bench_count < 5,
                lambda c: 650),
 ]

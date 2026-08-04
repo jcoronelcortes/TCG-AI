@@ -447,15 +447,15 @@ def resumen_censo(censo, etiqueta):
           f"{len(gana)} en victorias")
     print(f"    {'rasgo':40}{'derrota':>9}{'victoria':>10}{'dif':>8}")
     filas = []
-    for nombre, f in rasgos.items():
+    for name, f in rasgos.items():
         pp = 100 * sum(1 for x in perd if f(x)) / len(perd)
         pg = 100 * sum(1 for x in gana if f(x)) / len(gana)
-        filas.append((pp - pg, nombre, pp, pg))
-    for dif, nombre, pp, pg in sorted(filas, reverse=True):
-        print(f"    {nombre:40}{pp:8.1f}%{pg:9.1f}%{dif:+8.1f}")
+        filas.append((pp - pg, name, pp, pg))
+    for dif, name, pp, pg in sorted(filas, reverse=True):
+        print(f"    {name:40}{pp:8.1f}%{pg:9.1f}%{dif:+8.1f}")
     # Jam streaks: a single stuck turn is noise; a long streak is
     # a whole game played from behind a wall of our own making.
-    for grupo, nombre in ((perd, "derrotas"), (gana, "victorias")):
+    for grupo, name in ((perd, "derrotas"), (gana, "victorias")):
         rachas, actual, por_partida = [], 0, None
         for f in grupo:
             if f["partida"] != por_partida:
@@ -471,7 +471,7 @@ def resumen_censo(censo, etiqueta):
         if actual:
             rachas.append(actual)
         largas = [r for r in rachas if r >= 3]
-        print(f"    rachas de atasco en {nombre}: {len(rachas)} "
+        print(f"    rachas de atasco en {name}: {len(rachas)} "
               f"(>=3 turnos seguidos: {len(largas)}, "
               f"max {max(rachas) if rachas else 0})")
 

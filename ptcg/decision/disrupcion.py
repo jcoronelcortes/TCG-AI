@@ -14,7 +14,7 @@ from ptcg.calculo.tablero import _active_of
 from ptcg.cartas.ids import Alakazam_ex, Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Hydrapple_ex, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, Poke_Pad, SCORE_VETO, STAMP_MAX_HAND_SACRIFICADA, STAMP_MIN_OP_HAND, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, XEROSIC_SCORE_ALAKAZAM, XEROSIC_SCORE_GENERIC, XEROSIC_SCORE_LAST_RESORT, XEROSIC_SCORE_SOBRE_BOSS, XEROSIC_STAMP_ORDEN_MIN_OP_HAND, Xerosic_Machinations
 from ptcg.estado.claves import ESTADO_MAZO
 from ptcg.motor.contexto import DecisionContext
-from ptcg.motor.reglas import _Ajuste, _ReglaFija, _resolver_con_traza
+from ptcg.motor.reglas import _Adjustment, _FixedRule, _resolve_with_trace
 
 
 def _sello_merece_jugarse(op_hand_count, my_hand_len) -> bool:
@@ -148,7 +148,7 @@ _REGLAS_STAMP_PLAY = [
     # ordering veto: no other card of the turn revokes it, it only changes if the
     # board changes (e.g. our own hand drops by playing items). See
     # `_sello_merece_jugarse`.
-    _ReglaFija("sin_disrupcion_ni_refresco",
+    _FixedRule("sin_disrupcion_ni_refresco",
                lambda c: not _sello_merece_jugarse(c.op_hand_count,
                                                    c.my_hand_len),
                lambda c: SCORE_VETO),
@@ -158,7 +158,7 @@ _REGLAS_STAMP_PLAY = [
     # of its guards knocks it down to `XEROSIC_SCORE_LAST_RESORT` -- e.g.
     # `alakazam_cede_a_gusteo_ganador`, where a Boss's decides the turn -- the
     # Stamp yields to nobody and is played normally. See `_xr_antes_del_sello`.
-    _ReglaFija("cede_el_orden_a_xerosic",
+    _FixedRule("cede_el_orden_a_xerosic",
                lambda c: (_xr_antes_del_sello(c)
                           and _score_xerosic_play(c)
                           > XEROSIC_SCORE_LAST_RESORT),
@@ -166,20 +166,20 @@ _REGLAS_STAMP_PLAY = [
     # Rule (user): with Lillie's in hand and the opponent at <= 3 cards, do NOT
     # play the Stamp: its disruption adds little and refilling OUR hand pays
     # more (the Stamp would shuffle the Lillie's away; mutually exclusive plays).
-    _ReglaFija("cede_a_lillie_mano_rival_corta",
+    _FixedRule("cede_a_lillie_mano_rival_corta",
                lambda c: (c.hand_counts.get(Lillie_Determination, 0) >= 1
                           and c.op_hand_count <= 3
                           and not c.state.supporterPlayed),
                lambda c: SCORE_VETO),
     # The base value rises the LESS alternative use the hand has this turn
     # (Pokemon/evo < item < energy/stadium < nothing = 7500).
-    _ReglaFija("mano_con_pokemon_o_evo",
+    _FixedRule("mano_con_pokemon_o_evo",
                lambda c: _us_pokemon_jugable(c) or _us_evo_jugable(c),
                lambda c: 2000),
-    _ReglaFija("mano_con_item",
+    _FixedRule("mano_con_item",
                _us_item_jugable,
                lambda c: 2500),
-    _ReglaFija("mano_con_energia_o_estadio",
+    _FixedRule("mano_con_energia_o_estadio",
                lambda c: ((c.hand_counts[Basic_Grass_Energy] >= 1
                            and not c.state.energyAttached)
                           or (c.hand_counts.get(Forest_of_Vitality, 0) >= 1
@@ -194,16 +194,16 @@ _REGLAS_STAMP_PLAY = [
 # `bonus_matchup` vs Alakazam -- which is exactly the matchup where the ordering
 # veto `cede_el_orden_a_xerosic` lives.
 _AJUSTES_STAMP_PLAY = [
-    _Ajuste("turno_temprano",
+    _Adjustment("turno_temprano",
             lambda c, s: s > 0 and c.state.turn <= 4,
             lambda c, s: s + 300),
-    _Ajuste("vamos_perdiendo_premios",
+    _Adjustment("vamos_perdiendo_premios",
             lambda c, s: s > 0 and c.my_prize > c.op_prize + 1,
             lambda c, s: s + 200),
-    _Ajuste("bonus_matchup",
+    _Adjustment("bonus_matchup",
             lambda c, s: s > 0 and _us_bonus_matchup(c) != 0,
             lambda c, s: s + _us_bonus_matchup(c)),
-    _Ajuste("aggro_y_perdiendo",
+    _Adjustment("aggro_y_perdiendo",
             lambda c, s: (s > 0
                           and (c.op_is_aggro_deck or c.op_is_beedrill_deck)
                           and c.my_prize > c.op_prize),
@@ -214,8 +214,8 @@ _AJUSTES_STAMP_PLAY = [
 def _score_unfair_stamp_play(ctx: DecisionContext) -> int:
     """Scores playing Unfair Stamp (hand refill). Body migrated to the RULES
     ENGINE (phase 4): rules and comments in _REGLAS_STAMP_PLAY."""
-    return _resolver_con_traza("stamp->play", _REGLAS_STAMP_PLAY,
-                               _AJUSTES_STAMP_PLAY, ctx, defecto=7500)
+    return _resolve_with_trace("stamp->play", _REGLAS_STAMP_PLAY,
+                               _AJUSTES_STAMP_PLAY, ctx, default=7500)
 
 
 def _xr_letal_proyectado(c):
@@ -237,7 +237,7 @@ def _xr_copia_respaldo(c):
     (opposing hand >= 4); the second late cap is destructive. Without a backup,
     conservative timing (user, july 2026: -1 Poke Pad +1 Xerosic)."""
     return (c.hand_counts.get(Xerosic_Machinations, 0) >= 2
-            or c.cartas_en_mazo.get(
+            or c.cards_in_deck.get(
                 Xerosic_Machinations, {}).get(ESTADO_MAZO, 0) >= 1)
 
 
@@ -251,12 +251,12 @@ def _xr_gate_alakazam(c):
 
 
 _REGLAS_XEROSIC_PLAY = [
-    _ReglaFija("supporter_ya_jugado",
+    _FixedRule("supporter_ya_jugado",
                lambda c: c.state.supporterPlayed,
                lambda c: SCORE_VETO),
     # No effect if the opposing hand is already <= 3 (e.g. after an Unfair Stamp
     # this same turn): do not burn the Supporter for nothing.
-    _ReglaFija("mano_rival_ya_corta",
+    _FixedRule("mano_rival_ya_corta",
                lambda c: c.op_hand_count <= 3,
                lambda c: SCORE_VETO),
     # With a KO last turn and the Stamp in hand, the Stamp goes FIRST (it is an
@@ -265,7 +265,7 @@ _REGLAS_XEROSIC_PLAY = [
     # reversed -- the Stamp only returns those cards to the deck, Xerosic
     # DISCARDS them, and both fit in the same turn. See `_xr_antes_del_sello`;
     # the other side of the change is `cede_el_orden_a_xerosic` in the Stamp.
-    _ReglaFija("cede_a_unfair_stamp",
+    _FixedRule("cede_a_unfair_stamp",
                lambda c: (_stamp_pendiente(c)
                           and not _xr_antes_del_sello(c)),
                lambda c: SCORE_VETO),
@@ -274,13 +274,13 @@ _REGLAS_XEROSIC_PLAY = [
     # finishes. It used to yield to `boss_win_via_bench` too (a lethal gust that
     # only takes ONE prize), and with that the agent traded capping the opposing
     # hand for a single prize.
-    _ReglaFija("alakazam_cede_a_gusteo_ganador",
+    _FixedRule("alakazam_cede_a_gusteo_ganador",
                lambda c: (_xr_gate_alakazam(c) and c.win_via_boss_gust
                           and c.hand_counts.get(Boss_Orders, 0) >= 1),
                lambda c: XEROSIC_SCORE_LAST_RESORT),
     # No attack and a short hand: development (Lillie's) is worth more than
     # disruption this turn.
-    _ReglaFija("alakazam_cede_a_lillie_mano_corta",
+    _FixedRule("alakazam_cede_a_lillie_mano_corta",
                lambda c: (_xr_gate_alakazam(c) and c.active_cant_attack
                           and sum(c.hand_counts.values()) <= 3
                           and c.hand_counts.get(Lillie_Determination, 0) >= 1),
@@ -297,7 +297,7 @@ _REGLAS_XEROSIC_PLAY = [
     # no condition on ours. It goes BEFORE
     # `alakazam_prioridad_sobre_boss`/`_capar_mano` because those would fire
     # 7000/5900 even when only 1 card is taken away.
-    _ReglaFija("alakazam_cede_a_lillie_mano_rival_minima",
+    _FixedRule("alakazam_cede_a_lillie_mano_rival_minima",
                lambda c: (_xr_gate_alakazam(c)
                           and c.op_hand_count <= 4
                           and c.hand_counts.get(Lillie_Determination, 0) >= 1),
@@ -311,7 +311,7 @@ _REGLAS_XEROSIC_PLAY = [
     # `alakazam_cede_a_gusteo_ganador`). It is scored above
     # BOSS_SCORE_GUST_2PRIZE (6800), which was the band that used to win, and
     # below BOSS_SCORE_WIN_NOW (20000).
-    _ReglaFija("alakazam_prioridad_sobre_boss",
+    _FixedRule("alakazam_prioridad_sobre_boss",
                lambda c: (_xr_gate_alakazam(c)
                           and c.hand_counts.get(Boss_Orders, 0) >= 1),
                lambda c: (XEROSIC_SCORE_SOBRE_BOSS
@@ -319,14 +319,14 @@ _REGLAS_XEROSIC_PLAY = [
                           + c.supporter_boost)),
     # Capping Powerful Hand: it scales with the opposing hand (5900-6200). It beats
     # a hydra-charged Lillie's (5800); below WIN_NOW/GUST_2PRIZE and the pivots.
-    _ReglaFija("alakazam_capar_mano",
+    _FixedRule("alakazam_capar_mano",
                _xr_gate_alakazam,
                lambda c: (XEROSIC_SCORE_ALAKAZAM
                           + min(300, 50 * (c.op_hand_count - 4))
                           + c.supporter_boost)),
     # Generic: taking 4+ cards away is real value, but without Powerful Hand it goes
     # below a useful Lillie's/Lana's/Boss's. Only with an opposing hand >= 7.
-    _ReglaFija("generico_mano_muy_grande",
+    _FixedRule("generico_mano_muy_grande",
                lambda c: c.op_hand_count >= 7,
                lambda c: XEROSIC_SCORE_GENERIC + c.supporter_boost),
     # default: last resort (opposing hand 4-6 without the Alakazam matchup).
@@ -338,8 +338,8 @@ def _score_xerosic_play(ctx: DecisionContext) -> int:
     down to 3 cards. It is in the deck because of the Alakazam matchup (Powerful
     Hand does 20 per card in their hand). Body migrated to the RULES ENGINE
     (phase 4)."""
-    return _resolver_con_traza("xerosic->play", _REGLAS_XEROSIC_PLAY, [],
-                               ctx, defecto=XEROSIC_SCORE_LAST_RESORT)
+    return _resolve_with_trace("xerosic->play", _REGLAS_XEROSIC_PLAY, [],
+                               ctx, default=XEROSIC_SCORE_LAST_RESORT)
 
 __all__ = [
     '_xr_antes_del_sello',

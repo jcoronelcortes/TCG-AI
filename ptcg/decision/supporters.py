@@ -9,7 +9,7 @@ from ptcg.estado.agente import ESTADO
 from ptcg.cartas.ids import Forest_of_Vitality
 from ptcg.cartas.ids import Basic_Grass_Energy, Dawn, Lanas_Aid, Lillie_Determination, SCORE_SUPPORTER_VALUE_BASE, SCORE_VETO
 from ptcg.motor.contexto import DecisionContext
-from ptcg.motor.reglas import _Ajuste, _ReglaFija, _resolver_con_traza
+from ptcg.motor.reglas import _Adjustment, _FixedRule, _resolve_with_trace
 from ptcg.decision.disrupcion import _stamp_pendiente
 
 
@@ -36,15 +36,15 @@ def _lana_veto_duro(c):
 
 
 _REGLAS_LANA_PLAY = [
-    _ReglaFija("veto_duro",
+    _FixedRule("veto_duro",
                _lana_veto_duro,
                lambda c: SCORE_VETO),
     # sin_valor can be RESCUED by suelo_linea_mega (faithful to the original,
     # where that max() lives after the assignment of the value veto).
-    _ReglaFija("sin_valor",
+    _FixedRule("sin_valor",
                lambda c: c.supp_values.get(Lanas_Aid, 0) <= 0,
                lambda c: SCORE_VETO),
-    _ReglaFija("valor_del_supporter",
+    _FixedRule("valor_del_supporter",
                lambda c: True,
                lambda c: (SCORE_SUPPORTER_VALUE_BASE
                           + int(c.supp_values.get(Lanas_Aid, 0) * 1.4)
@@ -55,7 +55,7 @@ _REGLAS_LANA_PLAY = [
 _AJUSTES_LANA_PLAY = [
     # Meganium line active with no playable energy: recovering energy from
     # the discard is worth a floor of 4500.
-    _Ajuste("suelo_linea_mega",
+    _Adjustment("suelo_linea_mega",
             lambda c, s: (not _lana_veto_duro(c)
                           and c.mega_line_active and s < 4500
                           and not c.state.supporterPlayed
@@ -67,7 +67,7 @@ _AJUSTES_LANA_PLAY = [
     # Rule (user, log 86509038 step 62 vs Mega Lucario, LOST): with no
     # attacker this turn, Lana's only beats Lillie's if it ENABLES an attack;
     # otherwise it yields (cap 2000, still playable in case Lillie's falls).
-    _Ajuste("cede_a_lillie_sin_ataque",
+    _Adjustment("cede_a_lillie_sin_ataque",
             lambda c, s: (not _lana_veto_duro(c) and s > 0
                           and c.active_cant_attack
                           and c.hand_counts.get(Lillie_Determination, 0) >= 1
@@ -81,8 +81,8 @@ def _score_lanas_aid_play(ctx: DecisionContext, score: int) -> int:
     """Scores playing Lana's Aid (recovers non-ex Pokemon + Energy from the
     discard). Body migrated to the RULES ENGINE (phase 4); the incoming `score`
     is ignored (the original overwrote it in every branch)."""
-    return _resolver_con_traza("lana->play", _REGLAS_LANA_PLAY,
-                               _AJUSTES_LANA_PLAY, ctx, defecto=0)
+    return _resolve_with_trace("lana->play", _REGLAS_LANA_PLAY,
+                               _AJUSTES_LANA_PLAY, ctx, default=0)
 
 
 def _score_dawn_play(ctx: DecisionContext) -> int:

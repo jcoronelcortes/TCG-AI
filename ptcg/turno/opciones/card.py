@@ -11,7 +11,7 @@ from ptcg.calculo.dano import _attacker_base_damage, _bench_attacker_can_ko, _ko
 from ptcg.calculo.energia import _can_attack_eff, _grass_attach_route_open, _grass_attach_unit, _grass_mult
 from ptcg.calculo.tablero import _active_of, _count_hand_play_options
 from ptcg.cartas.grupos import GT_FETCH_BONUS
-from ptcg.cartas.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, DUNSPARCE_IDS, Dawn, Dipplin, Drednaw, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, LANA_SEL_INJUGABLE, LANA_SEL_PLANTA_DEMANDA, LANA_SEL_PLANTA_DESBLOQUEA, LANA_SEL_PLANTA_SOBRANTE, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, OUR_ABILITY_IDS, OUR_EX_IDS, Pinsir, Poke_Pad, RETREAT_COST, RIPEN_HEAL_TARGET_SCORE, SCORE_FORBID, SCORE_LOOKAHEAD_PROMOTE_KO, SCORE_LOOKAHEAD_PROMOTE_SAFE, SCORE_NEVER, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, Xerosic_Machinations
+from ptcg.cartas.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, DUNSPARCE_IDS, Dawn, Dipplin, Drednaw, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, LANA_SEL_INJUGABLE, LANA_SEL_GRASS_DEMAND, LANA_SEL_GRASS_UNLOCKS, LANA_SEL_GRASS_SURPLUS, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, OUR_ABILITY_IDS, OUR_EX_IDS, Pinsir, Poke_Pad, RETREAT_COST, RIPEN_HEAL_TARGET_SCORE, SCORE_FORBID, SCORE_LOOKAHEAD_PROMOTE_KO, SCORE_LOOKAHEAD_PROMOTE_SAFE, SCORE_NEVER, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, Xerosic_Machinations
 from ptcg.cartas.lineas import _pokemon_injugable
 from ptcg.cartas.puntuacion import MAIN_ATTACKERS, PROMO_DOOMED_PENALTY, PROMO_KO_BONUS, PROMO_MATCH_POINT_VETO, PROMO_PRIZE_PENALTY
 from ptcg.cartas.tablas import card_table
@@ -22,7 +22,7 @@ from ptcg.decision.poke_pad import _CtxPPFetch, _REGLAS_PP_FETCH
 from ptcg.decision.ultra_ball import _AJUSTES_UB_HYDRAPPLE, _CtxUBFetch, _REGLAS_UB_APPLIN, _REGLAS_UB_BAYLEEF, _REGLAS_UB_CHIKORITA, _REGLAS_UB_DIPPLIN, _REGLAS_UB_FEZ, _REGLAS_UB_HYDRAPPLE, _REGLAS_UB_MEGANIUM, _REGLAS_UB_MEOWTH, _REGLAS_UB_OGERPON, _REGLAS_UB_PINSIR, _REGLAS_UB_TAPU, _contra_estadio_urgente, _ctx_ub_fetch_hydrapple, _ctx_ub_fetch_meowth
 from ptcg.estado.agente import ESTADO
 from ptcg.estado.claves import ESTADO_MAZO, ESTADO_PREMIO
-from ptcg.motor.reglas import _resolver_con_traza
+from ptcg.motor.reglas import _resolve_with_trace
 
 
 def puntuar(tc, o, score):
@@ -1029,13 +1029,13 @@ def puntuar(tc, o, score):
                         # in `crustle_gust_worth_it`: -1.4 points
                         # vs crustle with n=4000/branch, reverted as a block.
                         if _active_cant_attack_this_turn or _sel_active_cant_attack:
-                            score = _resolver_con_traza(
+                            score = _resolve_with_trace(
                                 "boss->objetivo/estorbo", _REGLAS_GUST_ESTORBO,
-                                _AJUSTES_GUST_ESTORBO, _gt_ctx, defecto=-200)
+                                _AJUSTES_GUST_ESTORBO, _gt_ctx, default=-200)
                         else:
-                            score = _resolver_con_traza(
+                            score = _resolve_with_trace(
                                 "boss->objetivo", [], _AJUSTES_GUST_OFENSIVO,
-                                _gt_ctx, defecto=0)
+                                _gt_ctx, default=0)
             elif context == SelectContext.SETUP_ACTIVE_POKEMON:
         
                 if card.id == Tapu_Bulu:
@@ -1146,9 +1146,9 @@ def puntuar(tc, o, score):
                     _bcs_entrada = _TABLA_BCS_FETCH.get(card.id)
                     if _bcs_entrada is not None:
                         _bcs_et, _bcs_reglas, _bcs_defecto = _bcs_entrada
-                        score = _resolver_con_traza(
+                        score = _resolve_with_trace(
                             _bcs_et, _bcs_reglas, [], _bcs_ctx,
-                            defecto=_bcs_defecto)
+                            default=_bcs_defecto)
         
                     if card.id in ESTADO.CARTAS_ACTIVAS_EN_MAZO:
                         prized_copies = ESTADO.CARTAS_ACTIVAS_EN_MAZO[card.id][ESTADO_PREMIO]
@@ -1161,11 +1161,11 @@ def puntuar(tc, o, score):
                     # Block migrated to the RULES ENGINE (phase 4):
                     # definitions and strategic comments in
                     # _REGLAS_PP_FETCH (before agent()).
-                    score = _resolver_con_traza(
+                    score = _resolve_with_trace(
                         "pp->fetch", _REGLAS_PP_FETCH, [],
                         _CtxPPFetch(card.id, hand_counts, field_counts,
                                     bench_count, state),
-                        defecto=10)
+                        default=10)
         
                 elif select.effect is not None and select.effect.id == Night_Stretcher:
         
@@ -1214,9 +1214,9 @@ def puntuar(tc, o, score):
                     _ns_entrada = _ns_tablas.get(card.id)
                     if _ns_entrada is not None:
                         _ns_et, _ns_reglas, _ns_defecto = _ns_entrada
-                        score = _resolver_con_traza(
+                        score = _resolve_with_trace(
                             _ns_et, _ns_reglas, [], _ns_ctx,
-                            defecto=_ns_defecto)
+                            default=_ns_defecto)
         
                     if card.id in ESTADO.CARTAS_ACTIVAS_EN_MAZO and card.id != Basic_Grass_Energy:
                         entry = ESTADO.CARTAS_ACTIVAS_EN_MAZO[card.id]
@@ -1535,22 +1535,22 @@ def puntuar(tc, o, score):
                             supporter_played=state.supporterPlayed,
                             ld_free=_meowth_ld_free,
                             meowth_manana=_ub_meowth_para_manana(ctx))
-                        score = _resolver_con_traza(
+                        score = _resolve_with_trace(
                             "ub->meowth", _REGLAS_UB_MEOWTH, [],
-                            _ub_meo_ctx, defecto=10)
+                            _ub_meo_ctx, default=10)
         
                     elif card.id == Teal_Mask_Ogerpon_ex:
-                        score = _resolver_con_traza(
+                        score = _resolve_with_trace(
                             "ub->ogerpon", _REGLAS_UB_OGERPON, [],
-                            _ub_fetch_ctx, defecto=100)
+                            _ub_fetch_ctx, default=100)
         
                     elif state.turn == 2 and not ESTADO.we_go_first:
                         score = 10
         
                     elif card.id == Meganium:
-                        score = _resolver_con_traza(
+                        score = _resolve_with_trace(
                             "ub->meganium", _REGLAS_UB_MEGANIUM, [],
-                            _ub_fetch_ctx, defecto=100)
+                            _ub_fetch_ctx, default=100)
         
                     elif card.id == Hydrapple_ex:
                         # Branch migrated to the RULES ENGINE (phase 4
@@ -1564,48 +1564,48 @@ def puntuar(tc, o, score):
                                 op_has_ex_immune_active,
                                 op_has_ex_immune_bench,
                                 _ub_hydra_dead_prefer_meowth)
-                            score = _resolver_con_traza(
+                            score = _resolve_with_trace(
                                 "ub->hydrapple",
                                 _REGLAS_UB_HYDRAPPLE,
                                 _AJUSTES_UB_HYDRAPPLE,
-                                _ub_hyd_ctx, defecto=100)
+                                _ub_hyd_ctx, default=100)
                         else:
                             score = 20
         
                     elif card.id == Bayleef:
-                        score = _resolver_con_traza(
+                        score = _resolve_with_trace(
                             "ub->bayleef", _REGLAS_UB_BAYLEEF, [],
-                            _ub_fetch_ctx, defecto=150)
+                            _ub_fetch_ctx, default=150)
         
                     elif card.id == Dipplin:
-                        score = _resolver_con_traza(
+                        score = _resolve_with_trace(
                             "ub->dipplin", _REGLAS_UB_DIPPLIN, [],
-                            _ub_fetch_ctx, defecto=150)
+                            _ub_fetch_ctx, default=150)
         
                     elif card.id == Chikorita:
-                        score = _resolver_con_traza(
+                        score = _resolve_with_trace(
                             "ub->chikorita", _REGLAS_UB_CHIKORITA, [],
-                            _ub_fetch_ctx, defecto=200)
+                            _ub_fetch_ctx, default=200)
         
                     elif card.id == Applin:
-                        score = _resolver_con_traza(
+                        score = _resolve_with_trace(
                             "ub->applin", _REGLAS_UB_APPLIN, [],
-                            _ub_fetch_ctx, defecto=180)
+                            _ub_fetch_ctx, default=180)
         
                     elif card.id == Tapu_Bulu:
-                        score = _resolver_con_traza(
+                        score = _resolve_with_trace(
                             "ub->tapu", _REGLAS_UB_TAPU, [],
-                            _ub_fetch_ctx, defecto=50)
+                            _ub_fetch_ctx, default=50)
         
                     elif card.id == Pinsir:
-                        score = _resolver_con_traza(
+                        score = _resolve_with_trace(
                             "ub->pinsir", _REGLAS_UB_PINSIR, [],
-                            _ub_fetch_ctx, defecto=15)
+                            _ub_fetch_ctx, default=15)
         
                     elif card.id == Fezandipiti_ex:
-                        score = _resolver_con_traza(
+                        score = _resolve_with_trace(
                             "ub->fez", _REGLAS_UB_FEZ, [],
-                            _ub_fetch_ctx, defecto=10)
+                            _ub_fetch_ctx, default=10)
         
                     if card.id in ESTADO.CARTAS_ACTIVAS_EN_MAZO:
                         entry = ESTADO.CARTAS_ACTIVAS_EN_MAZO[card.id]
@@ -1664,9 +1664,9 @@ def puntuar(tc, o, score):
                             _deny_evo_via_boss, _meowth_devel_lillie,
                             op_is_alakazam_deck, _our_first_action_turn,
                             _ld_lillie_ofrecida)
-                        score = _resolver_con_traza(
+                        score = _resolve_with_trace(
                             "meowth->fetch", _REGLAS_MEOWTH_FETCH, [],
-                            _mf_ctx, defecto=50)
+                            _mf_ctx, default=50)
         
                 elif select.effect is not None and select.effect.id == Dawn:
         
@@ -1685,9 +1685,9 @@ def puntuar(tc, o, score):
                     _dawn_entrada = _TABLA_DAWN_FETCH.get(card.id)
                     if _dawn_entrada is not None:
                         _dawn_et, _dawn_reglas, _dawn_defecto = _dawn_entrada
-                        score = _resolver_con_traza(
+                        score = _resolve_with_trace(
                             _dawn_et, _dawn_reglas, [], _dawn_ctx,
-                            defecto=_dawn_defecto)
+                            default=_dawn_defecto)
                     else:
                         score = 50 - hand_counts.get(card.id, 0) * 30
         
@@ -1800,11 +1800,11 @@ def puntuar(tc, o, score):
                         _lana_orden = _lana_orden_planta.get(len(scores), 0)
                         if (_lana_plan.unlocks_today
                                 and _lana_orden < _lana_plan.cards_to_attack):
-                            score = LANA_SEL_PLANTA_DESBLOQUEA
+                            score = LANA_SEL_GRASS_UNLOCKS
                         elif _lana_orden < _lana_plan.demanda:
-                            score = LANA_SEL_PLANTA_DEMANDA
+                            score = LANA_SEL_GRASS_DEMAND
                         else:
-                            score = LANA_SEL_PLANTA_SOBRANTE
+                            score = LANA_SEL_GRASS_SURPLUS
                     elif _pokemon_injugable(card.id, field_counts,
                                             bench_count,
                                             my_state.benchMax):

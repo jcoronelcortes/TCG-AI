@@ -250,8 +250,8 @@ def _gust_ctx(card_id, can_ko=False, energia=0):
 
 
 def _estorbo(ctx):
-    score, _ = m._resolver_reglas(m._REGLAS_GUST_ESTORBO,
-                                 m._AJUSTES_GUST_ESTORBO, ctx, defecto=-200)
+    score, _ = m._resolve_rules(m._REGLAS_GUST_ESTORBO,
+                                 m._AJUSTES_GUST_ESTORBO, ctx, default=-200)
     return score
 
 

@@ -112,11 +112,11 @@ def main():
         asiento = i % 2
         steps, resultado = _grabar_partida(
             agente, bot, deck_nuestro, sp.leer_deck(rival), asiento)
-        nombre = f"registro_{i:03d}_{rival.stem}_asiento{asiento}.json"
-        (REGISTROS / nombre).write_text(
+        name = f"registro_{i:03d}_{rival.stem}_asiento{asiento}.json"
+        (REGISTROS / name).write_text(
             json.dumps({"steps": steps}, ensure_ascii=False), encoding="utf-8")
         total_pasos += len(steps)
-        print(f"  {nombre}  {len(steps):4d} pasos  resultado={resultado}")
+        print(f"  {name}  {len(steps):4d} pasos  resultado={resultado}")
 
     print(f"\n{len(elegidos)} registros, {total_pasos} pasos en {REGISTROS}")
     print("Ahora: python tests/golden_corpus.py --actualizar")
