@@ -58,6 +58,7 @@ Transversal:
 
 Documentos de refactor:
 
+- [Matriz de matchups (ago 2026)](matriz-matchups-ago2026.md) — dónde pierde el agente contra los 89 mazos REALES del leaderboard: 93,1 % ponderado, y **Crustle wall como debilidad principal** (8,7 % del meta a 75,3 %), por delante de Marnie pese a que Marnie es el 43 %.
 - [Arquitectura del refactor y proceso por olas](main-refactor-arquitectura.md) — **refactor TERMINADO y validado en competición**: `main.py` 25 333 → 10 042 líneas en 45 módulos, con 0 flips en 90 577 decisiones. Empieza por su §0: el resultado, lo que quedó sin extraer y las siete lecciones que costaron caro.
 - [Plan del refactor de Ultra Ball](main-refactor-ultra-ball-plan.md) — refactor ya ejecutado (`_score_ultra_ball_play` como orquestador); se conserva como referencia de método (extracción verbatim + verificación por hash).
 
