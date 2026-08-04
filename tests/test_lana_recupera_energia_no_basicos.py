@@ -119,7 +119,7 @@ def _chosen_cards(obs, choice):
 # The real step 118
 # ---------------------------------------------------------------------------
 
-def test_paso118_levanta_las_tres_energias():
+def test_step118_picks_up_the_three_energies():
     with open(_FIXTURE, encoding="utf-8") as f:
         fixture = json.load(f)
     obs = fixture["observation"]
@@ -136,7 +136,7 @@ def test_paso118_levanta_las_tres_energias():
     assert _chosen_cards(obs, m.agent(obs)) == [GRASS, GRASS, GRASS]
 
 
-def test_paso118_una_planta_pone_a_atacar_al_tapu_bulu():
+def test_step118_one_grass_puts_the_tapu_bulu_in_attack_range():
     """The core of the board reading: with Meganium in play the Tapu Bulu is
     ONE Grass card away from being able to attack, and the turn's attachment is still free."""
     with open(_FIXTURE, encoding="utf-8") as f:
@@ -164,7 +164,7 @@ def test_paso118_una_planta_pone_a_atacar_al_tapu_bulu():
     assert plan.demanda == 3          # the Meganium/Ogerpon ask for the rest
 
 
-def test_paso118_applin_y_dipplin_son_cartas_muertas():
+def test_step118_applin_and_dipplin_are_dead_cards():
     """Bench 5/5 and no Applin in play: neither does the Basic fit nor does the Stage 1
     evolve anything."""
     with open(_FIXTURE, encoding="utf-8") as f:
@@ -211,7 +211,7 @@ def _plan(active, bench=(), hand=(), energy_played=False, cambio=False):
                              can_switch=cambio)
 
 
-def test_plan_todos_cargados_no_hay_demanda():
+def test_plan_all_charged_means_no_demand():
     """With no deficit there is no demand: energy stops being worth anything even if
     there are attachments left free."""
     plan = _plan(pk(TAPU, energies=[G] * 4, fisicas=4),
@@ -220,7 +220,7 @@ def test_plan_todos_cargados_no_hay_demanda():
     assert not plan.unlocks_today
 
 
-def test_plan_sin_adjunte_libre_no_desbloquea_pero_sigue_habiendo_demanda():
+def test_plan_with_no_free_attachment_it_unlocks_nothing_but_demand_remains():
     """With the manual attachment spent and no charging abilities, the Grass does not reach
     the field TODAY -- but it goes to hand and the attacker goes on asking for it."""
     plan = _plan(pk(TAPU, energies=[G] * 2, fisicas=2), energy_played=True)
@@ -228,21 +228,21 @@ def test_plan_sin_adjunte_libre_no_desbloquea_pero_sigue_habiendo_demanda():
     assert plan.demanda >= 1
 
 
-def test_plan_la_planta_de_la_mano_ya_desbloquea():
+def test_plan_the_grass_already_in_hand_unlocks_it():
     """With the Grass already in hand, recovering another unlocks nothing: the
     detector cannot charge twice for the same attack."""
     plan = _plan(pk(TAPU, energies=[G] * 2, fisicas=2), hand=[GRASS])
     assert not plan.unlocks_today
 
 
-def test_plan_atacante_de_banca_solo_desbloquea_si_podemos_cambiar():
+def test_plan_a_bench_attacker_only_unlocks_if_we_can_switch():
     bench = [pk(MEGANIUM, energies=[G] * 2, fisicas=1)]
     active = pk(MEOWTH)               # Meowth ex is not a MAIN_ATTACKER
     assert not _plan(active, bench=bench).unlocks_today
     assert _plan(active, bench=bench, cambio=True).unlocks_today
 
 
-def test_plan_con_las_habilidades_apagadas_solo_queda_el_adjunte_manual():
+def test_plan_with_abilities_off_only_the_manual_attachment_is_left():
     """Under Watchtower / Iron Thorns (`meowth_ability_lock`) there is no Teal Dance
     or Ripening Charge: treating those routes as alive invents unlocks that do not
     exist (measured: -3.9 points of winrate vs the Iron Thorns deck)."""
@@ -270,7 +270,7 @@ def test_plan_con_las_habilidades_apagadas_solo_queda_el_adjunte_manual():
     assert apagadas.slots_today == 1 and not apagadas.unlocks_today
 
 
-def test_plan_los_no_atacantes_no_inventan_demanda():
+def test_plan_non_attackers_do_not_invent_demand():
     """Chikorita and Applin have a cost in `ATTACK_ENERGY_REQ` but are not in
     `MAIN_ATTACKERS`: with them on the bench the board asks for no energy."""
     plan = _plan(pk(TAPU, energies=[G] * 4, fisicas=4),
@@ -282,13 +282,13 @@ def test_plan_los_no_atacantes_no_inventan_demanda():
 # `_pokemon_injugable`: the dead-card floor
 # ---------------------------------------------------------------------------
 
-def test_injugable_con_hueco_en_banca_nada_esta_muerto():
+def test_unplayable_with_a_bench_slot_nothing_is_dead():
     campo = {MEGANIUM: 1}
     assert not m._pokemon_injugable(APPLIN, campo, 3, 5)
     assert not m._pokemon_injugable(DIPPLIN, campo, 3, 5)
 
 
-def test_injugable_banca_llena_la_evolucion_vive_si_su_preevo_esta_en_juego():
+def test_unplayable_full_bench_the_evolution_lives_if_its_preevo_is_in_play():
     """The Dipplin is still playable with a full bench if there is an Applin in
     play: it evolves on top of it, it takes no slot."""
     campo = {APPLIN: 1, MEGANIUM: 4}
@@ -296,7 +296,7 @@ def test_injugable_banca_llena_la_evolucion_vive_si_su_preevo_esta_en_juego():
     assert m._pokemon_injugable(APPLIN, campo, 5, 5)
 
 
-def test_injugable_no_aplica_a_lo_que_no_es_pokemon():
+def test_unplayable_does_not_apply_to_what_is_not_a_pokemon():
     assert not m._pokemon_injugable(GRASS, {}, 5, 5)
     assert not m._pokemon_injugable(LANA, {}, 5, 5)
 
@@ -321,7 +321,7 @@ def _seleccion_lana(active, bench, discard, hand=(), energy_played=False):
     return obs, _chosen_cards(obs, m.agent(obs))
 
 
-def test_seleccion_banca_llena_la_energia_gana_al_desarrollo():
+def test_selection_full_bench_the_energy_beats_development():
     """registro_018, synthetically."""
     _, elegidas = _seleccion_lana(
         active=pk(TAPU, energies=[G] * 2, fisicas=1),
@@ -332,7 +332,7 @@ def test_seleccion_banca_llena_la_energia_gana_al_desarrollo():
     assert elegidas == [GRASS, GRASS, GRASS]
 
 
-def test_seleccion_sin_demanda_de_energia_vuelve_el_desarrollo():
+def test_selection_with_no_energy_demand_development_returns():
     """Boundary: with the active ALREADY charged and room on the bench, the energy is surplus and
     the recovery goes back to being development (starting the Hydrapple line)."""
     _, elegidas = _seleccion_lana(
@@ -343,7 +343,7 @@ def test_seleccion_sin_demanda_de_energia_vuelve_el_desarrollo():
     assert APPLIN in elegidas, elegidas
 
 
-def test_seleccion_solo_la_planta_que_hace_falta_cobra_la_banda_alta():
+def test_selection_only_the_needed_grass_gets_the_high_band():
     """With a demand of ONE Grass and room on the bench, the SECOND choice is already
     development: the ordinal stops four tied copies taking the whole
     menu (the surplus Grass falls to `LANA_SEL_PLANTA_SOBRANTE`, below

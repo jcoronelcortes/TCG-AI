@@ -110,7 +110,7 @@ def _log(**campos):
 # 1. The record: a KO between turns -> the body is NOT played
 # ---------------------------------------------------------------------------
 
-def test_ko_entre_turnos_no_baja_fezandipiti():
+def test_a_ko_between_turns_does_not_play_fezandipiti():
     previa, decision = _load(_FIX_BETWEEN_TURNS)
 
     # The real menu offered playing the Fezandipiti ex.
@@ -135,7 +135,7 @@ def test_ko_entre_turnos_no_baja_fezandipiti():
         f"ultimo hueco de banca a cambio de nada; jugo {plays[choice[0]]}")
 
 
-def test_el_menu_del_motor_manda_sobre_la_inferencia_de_logs():
+def test_the_engine_menu_rules_over_the_log_inference():
     """Without the window logs, the Stamp missing from the menu already gives it away.
 
     It is the backup oracle: `ko_last_turn` arrives True because of the prize the
@@ -152,7 +152,7 @@ def test_el_menu_del_motor_manda_sobre_la_inferencia_de_logs():
 # 2. The other side: a KO INSIDE the rival's turn -> the clause IS satisfied
 # ---------------------------------------------------------------------------
 
-def test_ko_por_habilidad_dentro_del_turno_rival_si_habilita():
+def test_a_ko_by_ability_inside_the_opponent_turn_does_enable_it():
     previa, decision = _load(_FIX_OPPONENT_TURN)
 
     # Adrena-Brain (Munkidori) moved 3 counters and killed our Ogerpon ex
@@ -195,7 +195,7 @@ def test_clasificador_de_ventana(logs, dentro, fuera):
     assert m._own_ko_outside_op_turn == fuera
 
 
-def test_el_cuerpo_del_rival_y_las_energias_no_son_kos_nuestros():
+def test_the_opponent_body_and_the_energies_are_not_our_kos():
     m._reset_ventana_de_ko()
     m._rastrear_ventana_de_ko([
         _log(type=m.LogType.TURN_START, playerIndex=0),
@@ -213,7 +213,7 @@ def test_el_cuerpo_del_rival_y_las_energias_no_son_kos_nuestros():
     assert m._own_ko_outside_op_turn == -99
 
 
-def test_partida_nueva_borra_la_ventana():
+def test_a_new_game_clears_the_window():
     """Self-play chains episodes in the same process."""
     m._rastrear_ventana_de_ko([
         _log(type=m.LogType.TURN_START, playerIndex=0),

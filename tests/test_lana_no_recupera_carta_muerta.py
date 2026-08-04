@@ -178,7 +178,7 @@ def _lana_value(obs):
 # 1. The scenario: without it, the test measures nothing
 # ---------------------------------------------------------------------------
 
-def test_el_fixture_es_la_recuperacion_muerta():
+def test_the_fixture_is_the_dead_recovery():
     o = _obs()
     yo = o["current"]["yourIndex"]
     mio = o["current"]["players"][yo]
@@ -206,7 +206,7 @@ def test_el_fixture_es_la_recuperacion_muerta():
 # 2. The decision
 # ---------------------------------------------------------------------------
 
-def test_no_juega_lana_para_recuperar_una_carta_muerta():
+def test_it_does_not_play_lana_to_recover_a_dead_card():
     obs = _obs()
     lana = _hand_option(obs, m.Lanas_Aid)
     assert m.agent(obs) != [lana], (
@@ -214,11 +214,11 @@ def test_no_juega_lana_para_recuperar_una_carta_muerta():
         "nada en juego: gastar el Supporter del turno en ella es tirarlo")
 
 
-def test_el_valor_de_jugada_queda_vetado():
+def test_the_play_value_ends_up_vetoed():
     assert _lana_value(_obs()) == 0
 
 
-def test_el_turno_se_va_en_atacar_y_el_supporter_se_conserva():
+def test_the_turn_goes_into_attacking_and_the_supporter_is_kept():
     """The complete outcome: neither Lana's nor Dawn (which with the bench full and the
     two lines already evolved brings nothing playable either). The turn is spent
     on the KO --- which in the real game was also made, AFTER throwing away the
@@ -233,7 +233,7 @@ def test_el_turno_se_va_en_atacar_y_el_supporter_se_conserva():
 # 3. The limits: when something to put into play IS needed, Lana's comes back
 # ---------------------------------------------------------------------------
 
-def test_con_hueco_en_banca_el_applin_es_jugable_pero_no_necesario():
+def test_with_a_bench_slot_the_applin_is_playable_but_not_needed():
     # The slot makes it playable, but the Applin->Hydrapple line is already in the
     # active spot and the bench is not short: no bonus claims it -> a ceiling.
     v = _lana_value(_obs(hueco_en_banca=1))
@@ -242,7 +242,7 @@ def test_con_hueco_en_banca_el_applin_es_jugable_pero_no_necesario():
         f"turno; obtuvo {v}")
 
 
-def test_con_la_banca_corta_el_cuerpo_del_descarte_si_hace_falta():
+def test_with_a_short_bench_the_body_in_the_discard_is_needed():
     # With the bench at 2 bodies, recovering a Basic IS a real need
     # (the short-bench bonus): Lana's recovers all its value.
     v = _lana_value(_obs(hueco_en_banca=3))
@@ -251,7 +251,7 @@ def test_con_la_banca_corta_el_cuerpo_del_descarte_si_hace_falta():
         f"falta; obtuvo {v}")
 
 
-def test_con_planta_en_el_descarte_y_demanda_real_lana_vale():
+def test_with_grass_in_the_discard_and_real_demand_lana_is_worth_it():
     # A Tapu Bulu at 0/4 on the bench + Grass in the discard + the attachment unspent:
     # there is energy that can be played TODAY and somebody asking for it.
     v = _lana_value(_obs(planta_en_descarte=3, tapu_sin_energia=True))
@@ -260,7 +260,7 @@ def test_con_planta_en_el_descarte_y_demanda_real_lana_vale():
         f"'nadie la pide'; obtuvo {v}")
 
 
-def test_planta_jugable_pero_que_no_llega_al_campo_hoy_cede_el_turno():
+def test_grass_that_cannot_reach_the_field_today_yields_the_turn():
     # The same Grass in the discard, but the HAND already has more than fits
     # this turn: what is recovered puts nothing on the field today. The card is still
     # playable (a ceiling, not a veto), it merely yields the turn's Supporter.
@@ -300,7 +300,7 @@ def _dawn_value(obs):
     return capturado["v"]
 
 
-def test_el_fixture_tiene_las_dos_lineas_ya_evolucionadas():
+def test_the_fixture_has_both_lines_already_evolved():
     o = _obs()
     yo = o["current"]["yourIndex"]
     mio = o["current"]["players"][yo]
@@ -314,17 +314,17 @@ def test_el_fixture_tiene_las_dos_lineas_ya_evolucionadas():
     assert _hand_option(o, m.Dawn) is not None
 
 
-def test_no_juega_dawn_con_la_banca_llena_y_nada_que_evolucionar():
+def test_it_does_not_play_dawn_with_a_full_bench_and_nothing_to_evolve():
     assert _dawn_value(_obs()) == 0
 
 
-def test_con_una_evolucion_pendiente_dawn_vuelve_a_valer():
+def test_with_a_pending_evolution_dawn_is_worth_it_again():
     # An Applin on the bench: Dawn can bring the Dipplin from the deck and evolve it
     # without taking a bench slot.
     assert _dawn_value(_obs(evo_pendiente=True)) > 0
 
 
-def test_con_hueco_en_banca_dawn_conserva_su_valor():
+def test_with_a_bench_slot_dawn_keeps_its_value():
     # The gate only bites with the bench FULL: with a slot, any Basic
     # Dawn brings can be put down.
     assert _dawn_value(_obs(hueco_en_banca=1)) > 0

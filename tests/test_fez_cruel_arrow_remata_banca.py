@@ -203,7 +203,7 @@ def test_cruel_arrow_aims_at_the_kadabra_not_the_active():
     assert (elegido["id"], elegido["hp"]) == (KADABRA, 80)
 
 
-def test_cruel_arrow_prefiere_el_kadabra_sobre_abra_y_dunsparce():
+def test_cruel_arrow_prefers_the_kadabra_over_abra_and_dunsparce():
     """Among the three bodies that die, the most developed one (Stage 1, 80 HP)."""
     obs = _obs(_FIX_DMG)
     rival = obs["current"]["players"][0]
@@ -241,7 +241,7 @@ def test_the_snipe_is_only_for_attackers_that_choose_a_target():
                                 False, False) == (None, 0, False)
 
 
-def test_snipe_respeta_la_inmunidad_a_ex():
+def test_the_snipe_respects_ex_immunity():
     """Fezandipiti ex is an ex: against a wall that makes our ex useless the snipe
     does 0 and proposes no KO (the chip still chooses the least bad one)."""
     obs = _obs(_FIX_DMG)

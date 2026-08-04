@@ -162,7 +162,7 @@ def test_do_the_wave_has_zero_printed_damage():
 # 2. The damage projection
 # ---------------------------------------------------------------------------
 
-def test_proyecta_do_the_wave_y_el_brave_bangle():
+def test_it_projects_do_the_wave_and_the_brave_bangle():
     obs = _obs()
     m.agent(obs)                                   # it refreshes the per-turn flags
     assert m._op_bench_count == 5
@@ -187,7 +187,7 @@ def test_proyecta_do_the_wave_y_el_brave_bangle():
     assert m._op_active_attack_damage_to(op_act2, m._ProjTarget(OGERPON)) == 100
 
 
-def test_brave_bangle_no_suma_si_el_portador_tiene_rule_box():
+def test_brave_bangle_does_not_add_if_the_bearer_has_a_rule_box():
     """The tool only counts if the bearer has NO Rule Box."""
     assert m._tiene_rule_box(OGERPON) is True      # Pokemon ex
     assert m._tiene_rule_box(TAPU) is False

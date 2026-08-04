@@ -256,7 +256,7 @@ def test_with_the_wall_gone_the_veto_returns():
     assert m.agent(o) != [_idx_tapu_bulu(o)]
 
 
-def test_el_veto_no_toca_otros_matchups():
+def test_the_veto_does_not_touch_other_matchups():
     """With no Dragapult across the table, the same board still plays Tapu Bulu."""
     o = _obs()
     yo = o["current"]["yourIndex"]

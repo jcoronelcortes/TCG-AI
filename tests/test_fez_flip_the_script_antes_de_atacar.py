@@ -148,7 +148,7 @@ def test_paso78_usa_flip_the_script_en_vez_de_atacar():
     assert _play(obs, m.agent(obs)) == ("ABILITY", FEZ)
 
 
-def test_paso78_el_bloqueo_circular_existe_de_verdad():
+def test_step78_the_circular_block_really_exists():
     """Documents the state that made the mistake inevitable: the ability's
     blocker (Lillie's) is in hand and offered, but is NOT playable."""
     obs = _obs_fixture()

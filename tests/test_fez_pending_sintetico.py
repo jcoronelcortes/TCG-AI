@@ -168,7 +168,7 @@ def _play(obs, choice):
 # 1. The scenario: without these conditions the chain does not exist
 # ---------------------------------------------------------------------------
 
-def test_el_escenario_tiene_flip_the_script_viva_y_hueco_en_banca():
+def test_the_scenario_has_flip_the_script_alive_and_a_bench_slot():
     _build_turn()
     obs = _menu_fetch()
     m.agent(obs)
@@ -185,14 +185,14 @@ def test_el_escenario_tiene_flip_the_script_viva_y_hueco_en_banca():
 # 2. The chain, menu by menu
 # ---------------------------------------------------------------------------
 
-def test_menuA_la_ultra_ball_busca_el_fezandipiti_y_arma_el_pendiente():
+def test_menu_a_the_ultra_ball_searches_the_fezandipiti_and_arms_the_pending_flag():
     _build_turn()
     obs = _menu_fetch()
     assert _play(obs, m.agent(obs)) == ("CARTA", FEZ)
     assert m._ub_fez_pending is True
 
 
-def test_menuB_el_cuerpo_pagado_baja_antes_que_el_sello():
+def test_menu_b_the_paid_body_is_played_before_the_stamp():
     _build_turn()
     m.agent(_menu_fetch())                # it arms `_ub_fez_pending`
     obs = _menu_play_body()
@@ -218,14 +218,14 @@ def test_menuB_el_cuerpo_pagado_baja_antes_que_el_sello():
 # can be pinned —and what really protects the chain— is the Stamp's
 # band, which is observable and does discriminate.
 
-def test_el_sello_cede_al_cuerpo_jugable_y_esa_es_la_primera_defensa():
+def test_the_stamp_yields_to_the_playable_body_and_that_is_the_first_defence():
     """The first line: with the Fez PLAYABLE the Stamp scores in the low band."""
     _build_turn()
     m._ub_fez_pending = False
     assert _stamp_score(_menu_play_body()) == 2000
 
 
-def test_con_la_banca_llena_el_sello_recupera_su_banda_alta():
+def test_with_a_full_bench_the_stamp_recovers_its_high_band():
     """A counterfactual proving the 2000 is caused by the playable body and not
     by something else: with the bench at 5 the Fez can no longer be played, the hand is left
     with nothing to do and the Stamp rises to its default (7500)."""

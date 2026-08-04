@@ -74,14 +74,14 @@ def reset_main_state():
 # Tables derived from the deck (deck-agnostic)
 # ---------------------------------------------------------------------------
 
-def test_cadenas_derivadas_del_mazo():
+def test_chains_derived_from_the_deck():
     """The chains are read from `evolvesFrom`, not from a hand-written list."""
     assert (APPLIN, DIPPLIN, HYDRAPPLE) in m._DECK_CHAINS
     assert (CHIKORITA, BAYLEEF, MEGANIUM) in m._DECK_CHAINS
     assert m._GT_BASICS_WITH_CHAIN == frozenset({APPLIN, CHIKORITA})
 
 
-def test_valor_cuerpo_prefiere_hydrapple_sobre_meganium():
+def test_body_value_prefers_hydrapple_over_meganium():
     """Hydrapple ex (330 HP + an ability) is the best body in the deck: it is the one
     that rules when diversification does not apply (both Stage 2s already in play)."""
     assert m._gt_body_value(HYDRAPPLE) > m._gt_body_value(MEGANIUM)
@@ -116,7 +116,7 @@ def _planes(active, bench, hand=(), deck=None, veta_ex=False,
                         first_turn, vetoes_ex_stage=veta_ex)
 
 
-def test_con_meganium_en_juego_se_completa_hydrapple():
+def test_with_meganium_in_play_hydrapple_gets_completed():
     """The user's rule: having Meganium, the chain that gets built is
     Hydrapple ex's (diversify)."""
     planes = _planes(
@@ -128,7 +128,7 @@ def test_con_meganium_en_juego_se_completa_hydrapple():
     assert planes[0].stage2_id == HYDRAPPLE
 
 
-def test_con_hydrapple_en_juego_se_completa_meganium():
+def test_with_hydrapple_in_play_meganium_gets_completed():
     """The mirror rule: having Hydrapple ex, Meganium gets built."""
     planes = _planes(
         active=pk(OGERPON, energies=[G, G, G]),
@@ -139,7 +139,7 @@ def test_con_hydrapple_en_juego_se_completa_meganium():
     assert planes[0].stage2_id == MEGANIUM
 
 
-def test_con_ambos_en_juego_se_hace_un_segundo_hydrapple():
+def test_with_both_in_play_a_second_hydrapple_is_built():
     """The user's rule: with Meganium AND Hydrapple ex on the table, the extra copy
     that matters is Hydrapple ex's (the strongest body)."""
     planes = _planes(
@@ -152,7 +152,7 @@ def test_con_ambos_en_juego_se_hace_un_segundo_hydrapple():
     assert planes[0].stage2_id == HYDRAPPLE
 
 
-def test_matchup_anti_ex_prefiere_la_linea_no_ex():
+def test_an_anti_ex_matchup_prefers_the_non_ex_line():
     """Against a rival that makes ex immune, the Stage 2 ex is discarded and the
     non-ex chain (Meganium) wins: building a 2-prize ex that cannot damage
     the wall is worse than not doing it."""
@@ -168,7 +168,7 @@ def test_matchup_anti_ex_prefiere_la_linea_no_ex():
     assert applin and applin[0].stage2_id == 0
 
 
-def test_basico_que_salio_este_turno_no_es_objetivo():
+def test_a_basic_played_this_turn_is_not_a_target():
     """The card forbids evolving a Basic put into play this turn."""
     planes = _planes(
         active=pk(OGERPON, energies=[G, G, G]),
@@ -177,7 +177,7 @@ def test_basico_que_salio_este_turno_no_es_objetivo():
     assert any(p.basic_id == CHIKORITA for p in planes)
 
 
-def test_primer_turno_sin_planes():
+def test_the_first_turn_has_no_plans():
     """The card forbids evolving Basics on our first turn."""
     planes = _planes(
         active=pk(OGERPON, energies=[G]),
@@ -186,7 +186,7 @@ def test_primer_turno_sin_planes():
     assert planes == []
 
 
-def test_prefiere_banca_con_el_activo_condenado():
+def test_it_prefers_the_bench_when_the_active_is_doomed():
     """With the active about to die, turning it into a body worth MORE prizes
     yields the turn to a bench Basic."""
     esc = (Escenario(turn=8, step=40)
@@ -224,7 +224,7 @@ def _obs_menu(hand=(), bench=None, with_forest=False, deck=None, turn=8):
     return esc.menu_grand_tree_options(with_forest=with_forest).build()
 
 
-def test_se_usa_la_habilidad_del_estadio_rival():
+def test_the_opponent_stadium_ability_is_used():
     """The stadium is shared: with the rival's Grand Tree on the table, the best
     play of the turn is its ability (a free chain)."""
     obs = _obs_menu()
@@ -232,7 +232,7 @@ def test_se_usa_la_habilidad_del_estadio_rival():
     assert obs["select"]["option"][choice[0]]["type"] == int(m.OptionType.ABILITY)
 
 
-def test_la_habilidad_precede_al_reemplazo_por_forest():
+def test_the_ability_comes_before_replacing_with_forest():
     """The user's rule: with Forest of Vitality in hand, FIRST the Grand Tree
     ability and THEN the stadium replacement."""
     obs = _obs_menu(hand=[FOREST_OF_VITALITY], with_forest=True)
@@ -241,7 +241,7 @@ def test_la_habilidad_precede_al_reemplazo_por_forest():
     assert elegida["type"] == int(m.OptionType.ABILITY)
 
 
-def test_sin_plan_ejecutable_el_forest_se_juega():
+def test_with_no_executable_plan_the_forest_is_played():
     """With no evolvable Basic (both came out this turn) the ability holds
     nothing back: the Forest replaces the rival stadium as usual."""
     obs = _obs_menu(hand=[FOREST_OF_VITALITY], with_forest=True,
@@ -252,7 +252,7 @@ def test_sin_plan_ejecutable_el_forest_se_juega():
     assert elegida["type"] == int(m.OptionType.PLAY)
 
 
-def test_la_habilidad_precede_a_evolucionar_desde_la_mano():
+def test_the_ability_comes_before_evolving_from_hand():
     """Grand Tree does not spend a card from hand: it is cashed in before the manual
     evolution, which is still available afterwards."""
     esc = (Escenario(turn=8, step=40)
@@ -271,7 +271,7 @@ def test_la_habilidad_precede_a_evolucionar_desde_la_mano():
 # Sub-selections of the ability
 # ---------------------------------------------------------------------------
 
-def test_seleccion_del_pokemon_a_evolucionar_sigue_al_plan():
+def test_choosing_the_pokemon_to_evolve_follows_the_plan():
     """With Meganium in play, the sub-selection picks the Applin (Hydrapple ex's
     chain), not the Chikorita."""
     esc = (Escenario(turn=8, step=41)
@@ -289,7 +289,7 @@ def test_seleccion_del_pokemon_a_evolucionar_sigue_al_plan():
     assert bench[elegida["index"]]["id"] == APPLIN
 
 
-def test_seleccion_de_carta_del_mazo_sigue_al_plan():
+def test_choosing_the_card_from_the_deck_follows_the_plan():
     """Offered Dipplin and Bayleef, it brings the link of the plan (Dipplin)."""
     esc = (Escenario(turn=8, step=41)
            .my_active(pk(OGERPON, energies=[G, G, G]))
@@ -306,7 +306,7 @@ def test_seleccion_de_carta_del_mazo_sigue_al_plan():
     assert obs["select"]["deck"][elegida["index"]]["id"] == DIPPLIN
 
 
-def test_paso_2_trae_la_etapa_2_aunque_el_plan_ya_no_apunte_al_basico():
+def test_step_2_brings_the_stage_2_even_if_the_plan_no_longer_points_at_the_basic():
     """With step 1 resolved, the Basic is already a Stage 1 and `_gt_plan` stops
     pointing at it; the deck-agnostic criterion (an evolution whose pre-evolution is in
     play) still brings the Hydrapple ex."""
@@ -328,7 +328,7 @@ def test_paso_2_trae_la_etapa_2_aunque_el_plan_ya_no_apunte_al_basico():
 # Getting the root: a fetch in the deck / discard
 # ---------------------------------------------------------------------------
 
-def test_ultra_ball_busca_el_basico_raiz_si_no_hay_ninguno():
+def test_the_ultra_ball_searches_the_root_basic_if_there_is_none():
     """The user's rule: with no root Basic in play, the turn's search brings the
     one that opens the Grand Tree chain."""
     esc = (Escenario(turn=8, step=30)
@@ -348,7 +348,7 @@ def test_ultra_ball_busca_el_basico_raiz_si_no_hay_ninguno():
     assert obs["select"]["deck"][elegida["index"]]["id"] == APPLIN
 
 
-def test_sin_grand_tree_el_bono_de_fetch_no_existe():
+def test_without_grand_tree_the_fetch_bonus_does_not_exist():
     """The whole engine is INERT without the stadium on the table: the same board without
     Grand Tree does not force the search for the root Basic."""
     def _fetch(stadium):
@@ -381,7 +381,7 @@ def test_sin_grand_tree_el_bono_de_fetch_no_existe():
     assert sin != APPLIN
 
 
-def test_con_raiz_en_juego_no_se_fuerza_la_busqueda():
+def test_with_the_root_in_play_the_search_is_not_forced():
     """With an Applin already on the bench the root exists: the bonus does not apply and
     the rest of the deck's priorities rule."""
     esc = (Escenario(turn=8, step=30)

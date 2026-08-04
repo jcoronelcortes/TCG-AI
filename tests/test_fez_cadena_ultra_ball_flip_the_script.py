@@ -173,7 +173,7 @@ def test_step91_plays_the_fezandipiti_before_the_unfair_stamp():
     assert _play(obs, m.agent(obs)) == ("PLAY", FEZ)
 
 
-def test_paso91_el_bloqueo_circular_existe_de_verdad():
+def test_step91_the_circular_block_really_exists():
     """It documents the state that made it inevitable: a Boss's in hand unplayed
     (Req H active), a playable Unfair Stamp (we were knocked out) and room on the bench."""
     obs = _obs(_FIX_STEP91)
@@ -281,7 +281,7 @@ def test_synthetic_req_h_no_longer_vetoes_the_fezandipiti_with_a_live_ability():
     assert _play(obs, m.agent(obs)) == ("PLAY", FEZ)
 
 
-def test_sintetico_req_h_sigue_vetando_el_desarrollo_normal():
+def test_synthetic_req_h_still_vetoes_ordinary_development():
     """The Req H veto has not been disabled: a development body (Chikorita)
     still yields the play to the Boss's."""
     obs = _escenario_lucario([CHIKORITA, BOSS])
@@ -311,7 +311,7 @@ def _escenario_teal_lillie(hand):
     return obs
 
 
-def test_sintetico_ub_fez_pending_completa_la_busqueda_pagada():
+def test_synthetic_ub_fez_pending_completes_the_paid_search():
     """`_fez_prefer_teal_lillie` (Lillie's + Ogerpon ex + Grass in hand) vetoes
     playing the Fezandipiti... unless the Ultra Ball has just paid for it."""
     obs = _escenario_teal_lillie([FEZ, LILLIE, OGERPON, GRASS])

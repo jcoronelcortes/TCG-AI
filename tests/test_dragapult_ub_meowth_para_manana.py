@@ -215,7 +215,7 @@ def test_menu_a_the_ultra_ball_beats_the_chikorita_attack():
     assert _play(obs, m.agent(obs)) == ("PLAY", ULTRA_BALL)
 
 
-def test_menuB_el_fetch_de_la_busqueda_pagada_trae_el_meowth_ex():
+def test_menu_b_the_paid_search_fetches_the_meowth_ex():
     obs = _menu_fetch()
     assert _play(obs, m.agent(obs)) == ("CARTA", MEOWTH), (
         "la Ultra Ball se pagó EXACTAMENTE por este cuerpo; sin la regla "

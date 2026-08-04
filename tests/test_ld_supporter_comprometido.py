@@ -155,7 +155,7 @@ def _reproducir(obs_list):
 # 1. The real turn: the chain gets cashed in
 # ---------------------------------------------------------------------------
 
-def test_paso22_juega_la_lillie_que_trajo_el_last_ditch():
+def test_step22_plays_the_lillie_the_last_ditch_brought():
     hecho = _reproducir(_observaciones())
     # The chain, step by step: the Meowth ex is played...
     assert hecho[9] == ("PLAY", MEOWTH)
@@ -165,7 +165,7 @@ def test_paso22_juega_la_lillie_que_trajo_el_last_ditch():
     assert hecho[13] == ("PLAY", LILLIE)
 
 
-def test_paso22_el_menu_ofrecia_de_verdad_las_dos_jugadas():
+def test_step22_the_menu_really_offered_both_plays():
     """Without both in the menu the test would discriminate nothing."""
     obs13 = _by_action(_observaciones())[13]
     plays = _plays(obs13)
@@ -174,7 +174,7 @@ def test_paso22_el_menu_ofrecia_de_verdad_las_dos_jugadas():
     assert ("PLAY", XEROSIC) in plays, plays
 
 
-def test_paso22_el_compromiso_es_lo_unico_que_decide():
+def test_step22_the_commitment_is_the_only_thing_that_decides():
     """It documents the state that made the mistake inevitable: with the board of that
     menu, the Lillie's scorer VETOES it (`no_barajar_ultimo_xerosic`) and the Dawn
     one scores positive. Without the commitment, Dawn wins."""
@@ -202,7 +202,7 @@ def test_paso22_el_compromiso_es_lo_unico_que_decide():
 # 2. The commitment is only born from the PAID body
 # ---------------------------------------------------------------------------
 
-def test_el_last_ditch_gratis_no_compromete_el_turno():
+def test_a_free_last_ditch_does_not_commit_the_turn():
     """A Meowth ex from PREVIOUS turns searches for free: it can keep the
     Supporter for the next turn and the rest of the hand rules. It is replicated
     by switching off `appearThisTurn` on the benched Meowth."""
@@ -217,7 +217,7 @@ def test_el_last_ditch_gratis_no_compromete_el_turno():
     assert hecho[13] == ("PLAY", DAWN)         # the scorer decides, as before
 
 
-def test_el_compromiso_se_resetea_por_turno():
+def test_the_commitment_resets_each_turn():
     """The committed Supporter holds for THIS turn: if the turn changes without
     it having been played, the commitment falls (it does not drag vetoes into the next turn).
     """
@@ -259,7 +259,7 @@ def _armar(obs, sid):
     m._ld_supp_comprometido = sid
 
 
-def test_el_compromiso_gana_el_hueco_a_cualquier_otro_supporter():
+def test_the_commitment_wins_the_slot_over_any_other_supporter():
     """With the commitment armed, any OTHER Supporter in hand yields the
     slot -- it is tested with a pair of cards different from the record's."""
     obs = _synthetic_menu([BOSS, XEROSIC])
@@ -274,7 +274,7 @@ def test_el_compromiso_gana_el_hueco_a_cualquier_otro_supporter():
     assert _play(obs, m.agent(obs)) == ("PLAY", XEROSIC)
 
 
-def test_el_piso_esta_por_encima_de_la_banda_normal_de_supporters():
+def test_the_floor_sits_above_the_normal_supporter_band():
     """The rule is A SINGLE gesture (a floor with `max()`), without vetoing the rest: that
     only works if the floor beats the normal band of any Supporter.
     Pinning the margin here stops a future scorer from overtaking it silently.
@@ -302,7 +302,7 @@ def test_el_piso_esta_por_encima_de_la_banda_normal_de_supporters():
         assert m._supp_play_score(ctx, sid) < m.SCORE_LD_SUPP_COMPROMETIDO
 
 
-def test_el_compromiso_no_aplica_con_el_hueco_ya_gastado():
+def test_the_commitment_does_not_apply_once_the_slot_is_spent():
     """`supporterPlayed` rules: the commitment does not resurrect a spent slot."""
     obs = _synthetic_menu([BOSS, XEROSIC])
     obs["current"]["supporterPlayed"] = True
@@ -310,7 +310,7 @@ def test_el_compromiso_no_aplica_con_el_hueco_ya_gastado():
     assert _play(obs, m.agent(obs))[1] != BOSS
 
 
-def test_el_compromiso_se_desarma_si_su_carta_ya_no_esta_ofrecida():
+def test_the_commitment_disarms_if_its_card_is_no_longer_offered():
     """If the committed Supporter disappears from hand (the cost of an Ultra
     Ball, a shuffle...) the rule must not leave the rest of the menu vetoed."""
     obs = _synthetic_menu([XEROSIC, m.Ultra_Ball])

@@ -124,7 +124,7 @@ def test_invariante_fetch_ub_robusto(active_id, active_energies, bench,
     rival=st.sampled_from(OPPONENT_ROSTER),
     turn=st.integers(min_value=2, max_value=10),
 )
-def test_invariante_applin_max_una_energia(applin_active, companiero,
+def test_invariant_applin_at_most_one_energy(applin_active, companiero,
                                            extra_bench, energies_comp,
                                            rival, turn):
     reset_agente(m)

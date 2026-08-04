@@ -112,7 +112,7 @@ def _played_card(obs, choice):
 # 1. The scenario: without these pieces there is no block to break
 # ---------------------------------------------------------------------------
 
-def test_el_paso_116_tiene_las_dos_mitades_del_bloqueo():
+def test_step_116_has_both_halves_of_the_block():
     obs = _frames()[-1]
     yo = obs["current"]["players"][0]
     hand = [c["id"] for c in yo["hand"]]
@@ -133,14 +133,14 @@ def test_el_paso_116_tiene_las_dos_mitades_del_bloqueo():
 # 2. The correction, measured WITHOUT the net that was covering it
 # ---------------------------------------------------------------------------
 
-def test_paso116_juega_lillie_aunque_no_venga_de_un_last_ditch():
+def test_step116_plays_lillie_even_when_it_did_not_come_from_a_last_ditch():
     obs, choice = _replay(anular_marca_ld=True)
     assert _played_card(obs, choice) == LILLIE, (
         "con la Lillie's como único Supporter y la Ultra Ball vetada por esa "
         "misma Lillie's, ceder el paso tira el hueco de Supporter del turno")
 
 
-def test_paso116_tambien_la_juega_por_la_via_del_last_ditch():
+def test_step116_also_plays_it_through_the_last_ditch_route():
     """The `_ld_supp_comprometido` net still stands: the two routes agree."""
     obs, choice = _replay(anular_marca_ld=False)
     assert _played_card(obs, choice) == LILLIE
@@ -177,7 +177,7 @@ def _ctx_lillie_of_step116(mutar=None):
     return capturado.get("v")
 
 
-def test_guarda2_con_otro_supporter_en_mano_el_veto_aguanta():
+def test_guard2_with_another_supporter_in_hand_the_veto_holds():
     """Contrast for the second guard: it is enough to add a Boss's Orders to the hand
     for the turn's slot to stop being wasted -- and then keeping
     the line is the right thing again."""
@@ -193,7 +193,7 @@ def test_guarda2_con_otro_supporter_en_mano_el_veto_aguanta():
         "de Lillie's no desperdicia nada y conserva la línea")
 
 
-def test_guarda1_el_veto_por_coste_ajeno_no_rompe_el_bloqueo():
+def test_guard1_an_unrelated_cost_veto_does_not_break_the_block():
     """Contrast for the first guard, on the step that created the rule: there the
     Ultra Ball is also vetoed, but through `_ub_cancel_meowth` (its cost would
     take the Meowth ex), not through the Lillie's. That veto lifts by itself within
