@@ -195,7 +195,7 @@ def analizar(main_py=None):
         if isinstance(n, ast.Global):
             mutables.update(n.names)
     # Mutable state that is NOT declared `global`: module-level dicts/lists
-    # that somebody rewrites (see `nombres_mutados`).
+    # that somebody rewrites (see `mutated_names`).
     mutables |= mutated_names(tree)
 
     definiciones, asignaciones = {}, {}

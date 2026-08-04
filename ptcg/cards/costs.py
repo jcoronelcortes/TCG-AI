@@ -1,7 +1,7 @@
 """BASE attack cost of our attackers.
 
 This is the untaxed table: the cost printed on the card. `_aplicar_impuesto_tera`
-builds the turn's EFFECTIVE table from it (`ESTADO.ATTACK_ENERGY_REQ`),
+builds the turn's EFFECTIVE table from it (`AGENT_STATE.ATTACK_ENERGY_REQ`),
 adding +1 to our Tera Pokemon while Nighttime Mine is on the field.
 
 It lived in main.py as `ATTACK_ENERGY_REQ` until wave 3 and was the subtlest

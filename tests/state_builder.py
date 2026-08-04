@@ -40,7 +40,7 @@ _ROOT = Path(__file__).resolve().parents[1]
 
 # Card data for the defaults (maximum HP, Pokemon detection).
 _CARD_TABLE = {c.cardId: c for c in all_card_data()}
-# Attacks by id: `menu_mano(con_ataque=True)` needs the cost to emit
+# Attacks by id: `menu_hand(with_attack=True)` needs the cost to emit
 # only the attacks the active can pay for (as the simulator does).
 _ATTACK_TABLE = {a.attackId: a for a in all_attack()}
 
@@ -202,7 +202,7 @@ class Escenario:
     def stadium(self, card_id, of_the_opponent=False):
         """The stadium on the field.
 
-        `del_rival=True` for stadiums that are NOT in deck.csv (the opponent plays
+        `of_the_opponent=True` for stadiums that are NOT in deck.csv (the opponent plays
         them): they do not consume our own pool. That is the case of Grand Tree, whose
         ability is of shared use -- BOTH players use it.
         """
@@ -309,7 +309,7 @@ class Escenario:
         It generates one ATTACH option per EACH of our Pokemon in play (the active
         inPlayArea=4; the bench inPlayArea=5/inPlayIndex=k) plus END, with the
         same shape as the real simulator. It requires a Basic Grass in
-        mi_mano() and energia_jugada=False.
+        my_hand() and energy_played=False.
         """
         if self._energy_played:
             raise EstadoInconsistente(
@@ -401,7 +401,7 @@ class Escenario:
         options of the active, plus END.
 
         Designed for scenarios where what is measured is WHICH card is played, without
-        the noise of a complete simulator menu. `con_ataque` emits one ATTACK
+        the noise of a complete simulator menu. `with_attack` emits one ATTACK
         per attack of the active whose energy cost it can ALREADY pay (the same
         criterion as the simulator), so attack-vs-retreat can be measured.
         """
@@ -493,7 +493,7 @@ class Escenario:
 
         It emits one CARD option for the active (area ACTIVE) and one per bench
         slot (area BENCH), just like the real simulator. The bearer of the
-        ability is the active or, if `banca_idx` is given, that bench slot:
+        ability is the active or, if `bench_idx` is given, that bench slot:
         it is already in play, so it does NOT consume another copy from the pool.
         """
         if self._my_active is None:
@@ -528,7 +528,7 @@ class Escenario:
         It is the prompt the simulator emits right after paying the retreat
         cost (verified with `cg.api.search_begin/search_step`: a SWITCH
         context, CARD options over our own BENCH). It is distinct from
-        `promocion_desde_banca` (TO_ACTIVE), which is the FORCED promotion after a
+        `promote_from_bench` (TO_ACTIVE), which is the FORCED promotion after a
         KO and can fall on the opponent's turn.
         """
         if not self._my_bench:

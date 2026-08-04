@@ -27,7 +27,7 @@ turn's Supporter was spent to move a card from the discard to the hand.
 
 Cause: the PLAY layer collected its base of 300 for `total_recoverable >= 1`,
 which only counts cards in the discard. The SELECTION layer does know how to read the board
-(`_pokemon_injugable`, `_plan_de_planta`; see
+(`_pokemon_injugable`, `_grass_plan`; see
 `test_lana_recupera_energia_no_basicos`), but by then the card is already
 played: the veto had to move up a level.
 
@@ -37,8 +37,8 @@ SAME board reading that then decides what is picked up:
 
   1. A VETO (`lana_val = 0`) if nothing recoverable enters play today: no
      playable Pokemon (`_pokemon_injugable`) and no live attachment route
-     (`_plan_de_planta().slots_hoy`) for a Grass from the discard.
-  2. A CEILING (`LANA_PLAY_SIN_DEMANDA`) if what is playable is not NEEDED: Energy that
+     (`_grass_plan().slots_hoy`) for a Grass from the discard.
+  2. A CEILING (`LANA_PLAY_NO_DEMAND`) if what is playable is not NEEDED: Energy that
      NOBODY asks for (every attacker in play already reaches `ATTACK_ENERGY_REQ`,
      or the hand has more Grass than fits today), or a Pokemon that fits
      on the bench but that no need bonus is claiming

@@ -166,12 +166,12 @@ def test_step78_the_circular_block_really_exists():
 
 def test_step78_the_exact_window_of_the_circular_block():
     """Pins the ctx window in which the two rules yield the turn to each other, so
-    that a future change in `cede_a_boss_ejecutable` / `_boss_cede_dig` does not
+    that a future change in `cede_a_boss_ejecutable` / `_boss_yields_to_dig` does not
     move it unnoticed: no bench attacker ready, a gustable pre-evo THREAT
     and an active doomed ONLY according to `attack_table`.
 
     Closing the asymmetry (making `cede_a_boss_ejecutable` also look at
-    `active_doomed_real`, as `_boss_cede_dig` does) was MEASURED and came out at -0.39
+    `active_doomed_real`, as `_boss_yields_to_dig` does) was MEASURED and came out at -0.39
     points with n=7000 per branch across 4 matchups; see the rule's comment in
     main.py. Here the turn is rescued by the deferrable ORDER veto: with no playable
     blocker, Flip the Script cashes in the draw of 3."""
@@ -220,7 +220,7 @@ def _escenario(hand, with_attack=True):
     """The board of step 78 rebuilt with the StateBuilder, with a parametric hand.
 
     The ABILITY option of the benched Fezandipiti ex (slot 4) is added by hand, which
-    `menu_mano` does not emit, right before the turn-closing options.
+    `menu_hand` does not emit, right before the turn-closing options.
     """
     esc = (Escenario(turn=6, step=78, tac=7)
            .my_active(pk(OGERPON, energies=[G, G, G]))

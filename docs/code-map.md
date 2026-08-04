@@ -70,7 +70,7 @@ have to.
 
 | Module | Purpose |
 | --- | --- |
-| `agent_state.py` | `ESTADO`: the mutable state that survives between turns (the plan, who goes first, whether we got knocked out, pending search commitments, opponent-archetype flags). One object, never reassigned. |
+| `agent_state.py` | `AGENT_STATE`: the mutable state that survives between turns (the plan, who goes first, whether we got knocked out, pending search commitments, opponent-archetype flags). One object, never reassigned. |
 | `tracking.py` | The belief about our own deck: initial scan, card movement between zones, prize identification. |
 | `zones.py` | The zone keys used by that tracking (deck / hand / in play / discard / prize). |
 | `logs.py` | Reading the observation's event log, including the knockout window. |
@@ -98,7 +98,7 @@ This is the body of what used to be one enormous function, split by phase.
 | Module | Purpose |
 | --- | --- |
 | `scoring.py` | The dispatcher: sends each menu option to the branch for its type. |
-| `opciones/` | One module per option type: `play`, `card`, `retreat`, `evolve`, `attach`, `ability`, `attack`, and the short ones together in `menores`. |
+| `opciones/` | One module per option type: `play`, `card`, `retreat`, `evolve`, `attach`, `ability`, `attack`, and the short ones together in `minor`. |
 | `supporters.py` | Valuing every Supporter in hand for this turn. |
 | `energy.py` | Who deserves the energy attachment this turn. |
 | `finalize.py` | The close of the turn: play-order tiers, last-second rescues, and the final choice. |

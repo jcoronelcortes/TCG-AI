@@ -7,7 +7,7 @@ stadium is played FIRST and the Lillie's AFTERWARDS.
 Why the general veto does not hold here. The agent vetoes any stadium on
 OUR first turn (`_our_first_turn_guard` in `agent()` + the rules
 `t1_saliendo_primeros` / `t1_segundos_sin_estadio_rival` of
-`_REGLAS_FOREST_PLAY`): playing it that early is giving it to a rival who
+`_RULES_FOREST_PLAY`): playing it that early is giving it to a rival who
 replaces it on their next turn. Against Crustle that premise does not hold -- the
 deck does not play a stadium, or carries one or two loose copies --, so the Forest
 stays on the table.

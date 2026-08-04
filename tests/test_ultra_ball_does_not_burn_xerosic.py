@@ -20,7 +20,7 @@ A double loss, and both avoidable:
 
 The correction is a fifth cost veto, `_ub_cancel_xerosic`, sibling of the ones
 that already protect Unfair Stamp / Fezandipiti ex / Lillie's / Meowth ex: if the
-hand's real fodder (`_ub_forraje_real`) does not reach 2 cards without touching the
+hand's real fodder (`_ub_real_fodder`) does not reach 2 cards without touching the
 Xerosic, the Ultra Ball COSTS more than it brings and is vetoed. With 2+ filler cards
 it does not fire: the Ultra Ball is an Item and coexists with the turn's Supporter.
 """
@@ -102,7 +102,7 @@ def test_step_56_plays_xerosic_not_the_ultra_ball():
 # ---------------------------------------------------------------------------
 
 class _Ctx:
-    """The minimum `_ub_cancel_xerosic` / `_ub_forraje_real` consult."""
+    """The minimum `_ub_cancel_xerosic` / `_ub_real_fodder` consult."""
 
     class _State:
         def __init__(self, supporter_played):
@@ -191,7 +191,7 @@ def test_with_no_xerosic_in_hand_there_is_no_veto():
 
 
 # ---------------------------------------------------------------------------
-# Extracting `_ub_forraje_real` does not change the Lillie's veto
+# Extracting `_ub_real_fodder` does not change the Lillie's veto
 # ---------------------------------------------------------------------------
 
 def test_real_fodder_respects_the_evolution_pieces():

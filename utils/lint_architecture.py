@@ -53,7 +53,7 @@ def mutable_names():
     """The mutable globals between turns, DERIVED from the code (not by hand).
 
     Before wave 3 they live in main.py and are detected by their
-    `global` statements. Afterwards they become attributes of `EstadoAgente`, and then the
+    `global` statements. Afterwards they become attributes of `AgentState`, and then the
     source is that module: the names are no longer loose globals, so R1
     stops having anything to watch in main.py and moves on to watching the package.
     """

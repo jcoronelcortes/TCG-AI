@@ -36,21 +36,21 @@ numbers -- Applin 260 > Dipplin 250 > Grass 240 -- decided the menu.
 
 The fix, in two pieces that share the SAME board reading:
 
- 1. `_plan_de_planta`: it walks the `MAIN_ATTACKERS` in play, measures their deficit
+ 1. `_grass_plan`: it walks the `MAIN_ATTACKERS` in play, measures their deficit
     in Grass CARDS (`ceil((req - effective) / unit)`) and counts the turn's real
     attachment routes (manual + `_grass_ability_slots`: Teal Dance only
     charges its bearer, Ripening Charge anyone). It returns `demanda` and
-    `desbloquea_hoy`/`cartas_para_atacar`.
+    `unlocks_today`/`cards_to_attack`.
  2. The `Lanas_Aid` branch of the `TO_HAND` context, in three bands
-    (`LANA_SEL_PLANTA_DESBLOQUEA` > `LANA_SEL_PLANTA_DEMANDA` > development >
-    `LANA_SEL_PLANTA_SOBRANTE`/`LANA_SEL_INJUGABLE`), with the ordinal
-    `_lana_orden_planta` so that only the FIRST `demanda` Grass get the
+    (`LANA_SEL_GRASS_UNLOCKS` > `LANA_SEL_GRASS_DEMAND` > development >
+    `LANA_SEL_GRASS_SURPLUS`/`LANA_SEL_INJUGABLE`), with the ordinal
+    `_lana_grass_order` so that only the FIRST `demanda` Grass get the
     high band -- otherwise, four tied copies would take all 3 choices
     even if the board could only use one.
 
 Along the way, `_lana_energy_enables_attack` (the PLAY layer, which decides whether Lana's Aid
 deserves the 950 points against Lillie's) switches to the same
-`_plan_de_planta`: before it only knew how to look at Hydrapple ex and that is why it stayed silent with
+`_grass_plan`: before it only knew how to look at Hydrapple ex and that is why it stayed silent with
 a Tapu Bulu one Grass away from firing.
 """
 
@@ -184,7 +184,7 @@ def test_step118_applin_and_dipplin_are_dead_cards():
 
 
 # ---------------------------------------------------------------------------
-# `_plan_de_planta`: the board reading, in isolation
+# `_grass_plan`: the board reading, in isolation
 # ---------------------------------------------------------------------------
 
 def _plan(active, bench=(), hand=(), energy_played=False, cambio=False):
@@ -346,7 +346,7 @@ def test_selection_with_no_energy_demand_development_returns():
 def test_selection_only_the_needed_grass_gets_the_high_band():
     """With a demand of ONE Grass and room on the bench, the SECOND choice is already
     development: the ordinal stops four tied copies taking the whole
-    menu (the surplus Grass falls to `LANA_SEL_PLANTA_SOBRANTE`, below
+    menu (the surplus Grass falls to `LANA_SEL_GRASS_SURPLUS`, below
     the Applin that starts the Hydrapple line)."""
     obs, elegidas = _seleccion_lana(
         active=pk(TAPU, energies=[G] * 2, fisicas=1),

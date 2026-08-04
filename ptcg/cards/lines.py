@@ -145,8 +145,8 @@ def _preevo_of_ex_line(card_id):
 def _build_deck_chains(deck_ids):
     """Derives the complete evolution chains from the deck.
 
-    Returns `(evo_por_nombre, cadenas)`:
-      evo_por_nombre: name of the pre-evolution -> tuple of DECK ids that evolve
+    Returns `(evo_by_name, cadenas)`:
+      evo_by_name: name of the pre-evolution -> tuple of DECK ids that evolve
                       from it.
       cadenas:        tuple of `(basic_id, stage1_id, stage2_id_or_0)`. The same
                       pre-evolution can have several evolutions (copies from
@@ -391,8 +391,8 @@ def _preevo_of_ex_line(card_id):
 def _build_deck_chains(deck_ids):
     """Derives the complete evolution chains from the deck.
 
-    Returns `(evo_por_nombre, cadenas)`:
-      evo_por_nombre: name of the pre-evolution -> tuple of DECK ids that evolve
+    Returns `(evo_by_name, cadenas)`:
+      evo_by_name: name of the pre-evolution -> tuple of DECK ids that evolve
                       from it.
       cadenas:        tuple of `(basic_id, stage1_id, stage2_id_or_0)`. The same
                       pre-evolution can have several evolutions (copies from

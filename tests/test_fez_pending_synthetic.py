@@ -134,7 +134,7 @@ def _menu_fetch():
             .my_hand(STAMP)
             .deck(FEZ, CHIKORITA, APPLIN)
             # `fetch_ultra_ball()` consumes an Ultra Ball from the pool (the card "in
-            # effect"), so it goes BEFORE `resto_al_descarte()`, which takes
+            # effect"), so it goes BEFORE `rest_to_discard()`, which takes
             # everything left over. The other way round, the builder's strict
             # accounting runs out of copies and aborts.
             .fetch_ultra_ball()
@@ -148,7 +148,7 @@ def _menu_play_body(full_bench=False):
     esc = Escenario(turn=TURN, step=91, tac=6, own_prizes=3)
     return (_campo(esc, full_bench=full_bench)
             .my_hand(STAMP, FEZ)
-            .deck(CHIKORITA, APPLIN)      # `resto_al_descarte()` requires it
+            .deck(CHIKORITA, APPLIN)      # `rest_to_discard()` requires it
             .rest_to_discard()
             .menu_hand()
             .build())

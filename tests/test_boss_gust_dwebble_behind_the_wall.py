@@ -15,7 +15,7 @@ Boss's trapped in hand (only one Supporter fits per turn).
 Cause: TWO coupled rules from log 86339758, which assume that vs Crustle a
 Dwebble never deserves the gust (it is wall fodder: it evolves into Crustle):
 
-1. `_AJUSTES_GUST_ESTORBO / forbid_dwebble_vs_crustle` -> SCORE_FORBID on the
+1. `_ADJUST_GUST_NUISANCE / forbid_dwebble_vs_crustle` -> SCORE_FORBID on the
    Dwebble as the gust TARGET.
 2. In `evaluate_supporters`, the cut-off `_cru_has_nondwebble_bench` set
    `values[Boss_Orders] = 0` if the rival bench held only Dwebble -- so as not to
@@ -24,7 +24,7 @@ Dwebble never deserves the gust (it is wall fodder: it evolves into Crustle):
 Cut-off (2) silently overrode `crustle_gust_worth_it`, the branch that ALREADY
 detected exactly this case and raised Boss's to `BOSS_PRIORITY_CRUSTLE_GUST` (990).
 
-The exemption is deck-agnostic at its core: `muro_bloquea_activo` measures that
+The exemption is deck-agnostic at its core: `wall_blocks_active` measures that
 our ACTIVE does 0 effective damage to the rival active via `_our_effective_damage`
 (it holds for Mysterious Rock Inn, Cornerstone Stance, Sylveon...), not a list of
 ids. Only the veto's exemption is still bounded to `op_is_crustle_deck`, which is

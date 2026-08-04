@@ -157,7 +157,7 @@ class DecisionContext:
     # turn (registro_010 step 144). See the `_win_ko_active_via_promote` block.
     # Default False: unit tests build the ctx directly.
     win_ko_active_via_promote: bool = False
-    # FINISHER FISHING (`_PescaRemate` or None): the turn has no attack available,
+    # FINISHER FISHING (`_FinisherFishing` or None): the turn has no attack available,
     # but the refill DRAW may bring the energy that unlocks one -- with its
     # hypergeometric probability already computed over the deck belief. It is
     # consulted by Lillie's `pescar_energia_para_remate` rule and by Boss's
@@ -168,7 +168,7 @@ class DecisionContext:
     # (Budew on their field, or a Dragapult deck, which runs it). See
     # `_bloqueo_de_items_inminente`: with that hanging over us an Item is not a
     # resource to keep, it is a resource that EXPIRES -- consulted by
-    # `_ub_meowth_para_manana`.
+    # `_ub_meowth_for_tomorrow`.
     # Default False: unit tests build the ctx directly.
     item_lock_incoming: bool = False
 

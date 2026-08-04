@@ -80,7 +80,7 @@ def _energy_score_base(tc, pokemon, active):
 
     energy_count = len(pokemon.energies)
 
-    # ATTACKING WITH THE ACTIVE COMES FIRST (see `_carga_activo_remata`): if the
+    # ATTACKING WITH THE ACTIVE COMES FIRST (see `_charge_active_finishes`): if the
     # energy that can still move this turn leaves the ACTIVE at its attack cost
     # and that attack KNOCKS OUT, the charge goes to the ACTIVE, full stop. It
     # goes FIRST in the whole function, ahead of the Ogerpon charging focus and
@@ -483,7 +483,7 @@ def _energy_score_base(tc, pokemon, active):
     if _ripen_retreat_ko_pivot and active and pokemon.id == Hydrapple_ex:
         return 41000
 
-    # NON-lethal mirror of `_carga_activo_remata` (see the flag): the charge leaves
+    # NON-lethal mirror of `_charge_active_finishes` (see the flag): the charge leaves
     # the ACTIVE at its attack cost but the attack does not finish. It is still the
     # only way to attack today (there is no ready, promotable benched attacker), and
     # chip damage is worth infinitely more than closing the turn without attacking

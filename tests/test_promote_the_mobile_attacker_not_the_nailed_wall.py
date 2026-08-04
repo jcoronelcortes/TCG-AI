@@ -36,7 +36,7 @@ Fix, in two halves that hold each other up:
    ex is {D}); what does kill it is Iron Thorns, which cancels every ability with a Rule
    Box. It counts with the Fezandipiti already in play or in hand with a bench slot free.
 
-2. **`_ps_conserva_salida`: route (d) requires the promoted body to be able to RETREAT**
+2. **`_ps_keeps_its_way_out`: route (d) requires the promoted body to be able to RETREAT**
    with the energy it already carries. Drawing 3 does not *search out* the Grass, so the
    plan may fail -- and that is why it is only accepted while it stays reversible: if
    the Grass does not show up, next turn the Ogerpon retreats (cost 1, it carries 2)
@@ -216,7 +216,7 @@ def test_with_no_reachable_grass_there_is_no_engine():
 
 
 def test_if_the_near_attacker_would_be_nailed_down_the_draw_engine_is_not_enough(monkeypatch):
-    """`_ps_conserva_salida` in isolation: the same board, the same distance to the finisher,
+    """`_ps_keeps_its_way_out` in isolation: the same board, the same distance to the finisher,
     but with the Ogerpon ex's retreat raised to 3 (it cannot pay it with
     its 2 energies). The plan stops being reversible -if the draw fails we
     get nailed down all the same- and the blind draw is no longer enough: the wall returns."""

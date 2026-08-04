@@ -38,7 +38,7 @@ from golden_corpus import our_index
 def harvest_series(paths):
     """{serial: card_id} of every OPPOSING card seen.
 
-    Our own seat is decided by a vote against deck.csv (`nuestro_indice`,
+    Our own seat is decided by a vote against deck.csv (`our_index`,
     mirroring the golden corpus): we are not always player 0. It used to read
     `step[0]` (the perspective of seat 0, which can be the OPPONENT) and
     filtered by `serial >= 60` (the serials are per player, so that

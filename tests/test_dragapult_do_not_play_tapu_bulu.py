@@ -41,11 +41,11 @@ the chain than the generic crowding veto (`_tapu_in_play_count > 2`).
 Fix: `_dragapult_no_tapu`, computed just once and applied in the four
 places that decide the same thing, so that searching and playing cannot contradict
 each other ([[state-builder-escenarios-sinteticos]] documents the same pattern in
-`_matchup_permite_bajar`):
+`_matchup_allows_playing`):
 
   * the PLAY branch (first of the chain),
   * the Bug Catching Set / Night Stretcher / Dawn fetches,
-  * `_matchup_permite_bajar`, used by the sterile-turn rescue net.
+  * `_matchup_allows_playing`, used by the sterile-turn rescue net.
 
 The veto **yields to the wall** (`_op_is_crustle_like`): if on top of that there is something
 on the table that cancels abilities or makes our ex immune, Tapu Bulu is again the only

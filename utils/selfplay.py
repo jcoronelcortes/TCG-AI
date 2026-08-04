@@ -75,7 +75,7 @@ def load_agent(path, name):
     finally:
         # And the ambient tree is RETURNED to sys.modules. The instance just
         # created already keeps direct references to its own, so it keeps its
-        # own ESTADO; but if the process were left without the original tree,
+        # own AGENT_STATE; but if the process were left without the original tree,
         # any later `from ptcg... import` would create a SECOND copy
         # of the package -- and whoever patched there would not affect the agent that was
         # already loaded (it happened: it contaminated tests/test_xerosic_*).

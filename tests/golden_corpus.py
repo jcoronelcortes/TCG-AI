@@ -54,7 +54,7 @@ def _main_mod():
 def reset_agent(m):
     """A mirror of the autouse fixture `reset_main_state` of tests/test_main.py.
 
-    The state that persists between turns lives in `ESTADO` since wave 3, and its
+    The state that persists between turns lives in `AGENT_STATE` since wave 3, and its
     `reset()` is the ONLY source of the initial values. It used to be set field
     by field with `m.<field> = ...`, which depended on main.py's compatibility
     bridge -- and that bridge is only installed when main.py is imported as a
@@ -64,7 +64,7 @@ def reset_agent(m):
     """
     state = getattr(m, "AGENT_STATE", None)
     if state is not None:
-        # ORDER: first `reset()` -- which leaves CARTAS_ACTIVAS_EN_MAZO empty -- and
+        # ORDER: first `reset()` -- which leaves ACTIVE_CARDS_IN_DECK empty -- and
         # THEN the scan that fills it from deck.csv. The other way round, the reset
         # erased the tracking that had just been built and the agent started each
         # game believing its deck is empty.

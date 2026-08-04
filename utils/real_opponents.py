@@ -34,7 +34,7 @@ It does two things, and the second is the important one:
    reported, because knowing which part of the meta we cannot measure is information,
    not a failure.
 
-Output in deck/rivales_reales/:
+Output in deck/real_opponents/:
     <archetype>_<n>.csv   one real list per file (60 ids, the project's format)
     pesos.csv             the meta weight and screening result of each list
     no_pilotables/        the rejected lists, for inspection
@@ -45,7 +45,7 @@ Usage:
     python utils/real_opponents.py --sin-criba         # dedupe only (fast)
 
 Afterwards, the matrix consumes the corpus and its weights:
-    python utils/matchup_matrix.py --rivales deck/rivales_reales --pesos
+    python utils/matchup_matrix.py --rivales deck/real_opponents --pesos
 """
 
 import argparse

@@ -343,7 +343,7 @@ OUR_ABILITY_IDS = {Teal_Mask_Ogerpon_ex, Hydrapple_ex, Meganium, Fezandipiti_ex,
 # Cornerstone vs abilities) and the LOCKER Iron Thorns ex, whose Initialization
 # switches off Teal Dance / Ripening / Last-Ditch / Flip the Script from the
 # ACTIVE spot. All five have attacks costing 3, so bare they pass as "harmless"
-# (`_op_cuerpo_inofensivo`) and would take the preference of a gust without a KO.
+# (`_op_body_is_harmless`) and would take the preference of a gust without a KO.
 GUST_TRAP_IDS = EX_IMMUNE_IDS | ABILITY_IMMUNE_IDS | {Iron_Thorns_ex}
 
 # --- Surviving a KO and new immunities (jul 2026 plan, P0.1/P1.6) ------------
@@ -358,7 +358,7 @@ FULL_HP_SURVIVE_IDS = {Crustle_Fighting, Pikachu_ex_Resolute}
 # on heads survives at 10 HP -> the KO is NEVER guaranteed. Survival Brace (tool
 # 1155): at full HP it survives the KO at 10 HP. The FINISHER evaluators
 # (wins_now / SCORE_WIN_GAME / _active_attack_wins_now) consult
-# _ko_no_garantizado so as not to declare a victory that depends on a coin flip
+# _ko_not_guaranteed so as not to declare a victory that depends on a coin flip
 # or a tool; normal damage is NOT altered (attacking them is still worth it).
 Mega_Hawlucha_ex = 886
 Survival_Brace = 1155
@@ -376,7 +376,7 @@ OUR_BASIC_EX_IDS = {Teal_Mask_Ogerpon_ex, Meowth_ex, Fezandipiti_ex}
 # of the PLAY branch -- because the RESCUE NETS of the finalisation block have
 # to consult the same plan: digging out with Ultra Ball a body that the plan
 # itself will veto when putting it down does not save a dead turn, it only burns
-# two cards from hand (see `_matchup_permite_bajar`).
+# two cards from hand (see `_matchup_allows_playing`).
 CUBCHOO_ALLOWED_PLAY_IDS = (Applin, Dipplin, Hydrapple_ex,
                             Chikorita, Bayleef, Meganium,
                             Teal_Mask_Ogerpon_ex, Meowth_ex)
@@ -513,14 +513,14 @@ FEZ_DRAW_ABILITY_SCORE = 31700
 # agent()): charging the ACTIVE up to its ATTACK COST using ALL the charging
 # routes still alive this turn (the manual attachment + the charging abilities).
 #
-# `_carga_activo_remata` (the resulting attack KNOCKS OUT the opposing active):
+# `_charge_active_finishes` (the resulting attack KNOCKS OUT the opposing active):
 # 41900. Above ALL the "indirect" lethal charges -- promoting a benched attacker
 # (41000), the charging focus of an Ogerpon (41700) -- because attacking with
 # the ACTIVE pays no retreat cost and does not depend on the retreat being
 # legal. Below the WINNING finisher via Boss's (42000) and the 1-prize attacker
 # vs Alakazam (43000), which settle the game / the prize trade.
 SCORE_CHARGE_ACTIVE_FINISHER = 41900
-# `_carga_activo_habilita_ataque` (the attack does not finish but does CHIP
+# `_charge_active_enables_attack` (the attack does not finish but does CHIP
 # damage and without that charge the turn would be STERILE): 31300. Its value is
 # NOT in winning duels, but in SKIPPING the energy_score branches that degraded
 # the charge to the active (the `score - 100` of `active_ko_likely`, the veto of
@@ -575,7 +575,7 @@ DUNSPARCE_IDS = {65, 305}
 # the Hop deck the key attacker is Hop's Trevenant; its line
 # (Trevenant/Phantump) has to be hunted on the bench. The priority between
 # targets (with/without energy, evolution vs pre-evolution) is resolved by the
-# tier_ko adjustment (_AJUSTES_GUST_OFENSIVO) when choosing the target:
+# tier_ko adjustment (_ADJUST_GUST_OFFENSIVE) when choosing the target:
 # Trevenant with energy > Trevenant without energy > Phantump with energy >
 # Phantump without energy.
 KEY_BENCH_ATTACKER_IDS = {Hops_Trevenant, Hops_Phantump}
@@ -664,7 +664,7 @@ SCORE_BELIEF_DIG_ENERGY = 250
 # --- Scale of Lana's Aid RECOVERY (TO_HAND context) -------------------------
 # Lana's picks up to 3 cards from the discard, among Pokemon WITHOUT a Rule Box
 # and Basic Energies. The choice is ruled by the board reading of
-# `_plan_de_planta`: first the Grass that enables an attack TODAY, then the ones
+# `_grass_plan`: first the Grass that enables an attack TODAY, then the ones
 # a body in play is still asking for, and only then development (which the
 # generic scorer scores, in the ~150-280 band). See `_pokemon_injugable` for the
 # dead-card floor.
@@ -721,7 +721,7 @@ XEROSIC_SCORE_ALAKAZAM = 5900        # Xerosic vs Alakazam: cap Powerful Hand (2
 XEROSIC_SCORE_GENERIC = 3380         # generic Xerosic with a very large opposing hand (>=7): disruption value, below a typical Lillie's (~3450)
 XEROSIC_SCORE_LAST_RESORT = 20       # no clear useful effect: only if no other supporter scores
 XEROSIC_SCORE_SOBRE_BOSS = 7000      # vs Alakazam with Boss's in hand: capping the hand beats ANY gust that does not WIN the game (above GUST_2PRIZE 6800); the winning gust (WIN_NOW 20000) is still higher
-# --- FINISHER FISHING (see `_pesca_de_remate`) ------------------------------
+# --- FINISHER FISHING (see `_finisher_fishing`) ------------------------------
 # Lillie's Determination when the turn has no attack available and the draw may
 # bring the energy that unlocks a KO. It is placed above the whole Boss's ladder
 # that does not WIN the game or take 2 prizes RIGHT NOW (GUST_2PRIZE 6800) and

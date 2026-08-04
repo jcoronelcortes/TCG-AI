@@ -40,14 +40,14 @@ can always wait. When the draw is the ONLY line that attacks this turn,
 that is false -- and how much it is worth depends on a number the agent never
 computed: the probability that the draw brings the energy.
 
-THE FIX: `_pesca_de_remate` + `_prob_al_menos`
+THE FIX: `_finisher_fishing` + `_prob_al_menos`
 ----------------------------------------------
-`_pesca_de_remate` is the DAMAGE-AWARE sibling of `_plan_de_planta`:
+`_finisher_fishing` is the DAMAGE-AWARE sibling of `_grass_plan`:
 it shares its attachment arithmetic (how many Grass are missing, which routes can
 point at that body today) and adds who is attacked, how much damage comes out and
 how many prizes it takes. `_prob_al_menos` (hypergeometric over the deck
-belief) measures whether the draw brings them. With a prize KO at >= `PESCA_PROB_MIN`,
-Lillie's rises to `LILLIE_SCORE_PESCA_REMATE` (5900, above the whole
+belief) measures whether the draw brings them. With a prize KO at >= `FISHING_PROB_MIN`,
+Lillie's rises to `LILLIE_SCORE_FISHING` (5900, above the whole
 Boss's ladder that does not win the game) and Boss's yields the turn.
 """
 
@@ -118,7 +118,7 @@ def _idx_play_of(obs, card_id):
 
 
 def _spy_on_fishing(monkeypatch):
-    """Captures the `_PescaRemate` the agent computes in the decision."""
+    """Captures the `_FinisherFishing` the agent computes in the decision."""
     capturado = {}
     original = m._finisher_fishing
 
@@ -248,8 +248,8 @@ def test_step49_counterfactual_with_no_fishing_it_gusts_again(monkeypatch):
 def _escenario_paso49(grass_in_deck=10, grass_in_hand=0, with_attachment=False):
     """A synthetic replica of step 49 with the deck parameterised.
 
-    grass_en_mazo: LIVE Grass in the deck (the rest goes to the discard).
-    grass_en_mano: Grass already in hand (0 = like the real one).
+    grass_in_deck: LIVE Grass in the deck (the rest goes to the discard).
+    grass_in_hand: Grass already in hand (0 = like the real one).
     """
     hand = [LILLIE, BOSS, LILLIE, m.Hydrapple_ex, m.Ultra_Ball]
     hand += [GRASS] * grass_in_hand
@@ -274,7 +274,7 @@ def _escenario_paso49(grass_in_deck=10, grass_in_hand=0, with_attachment=False):
     # that makes the Ultra Ball "complete a line", as in the record).
     # `_pool` (private) = what is left of deck.csv after placing the field and the hand.
     # The Grass that does not go to the deck is declared in the DISCARD (visible), so
-    # that the deck belief sees exactly `grass_en_mazo` outs.
+    # that the deck belief sees exactly `grass_in_deck` outs.
     n_grass = min(grass_in_deck, esc._pool[GRASS])
     esc.my_discard(*([GRASS] * (esc._pool[GRASS] - n_grass)))
     relleno = [cid for cid in sorted(esc._pool.elements()) if cid != GRASS]
@@ -285,7 +285,7 @@ def _escenario_paso49(grass_in_deck=10, grass_in_hand=0, with_attachment=False):
                 + relleno[:max(0, min(38 - n_grass, len(relleno) - 6))])
     esc.deck(*deck_ids).rest_to_discard()
     obs = esc.menu_hand(with_attachment=with_attachment).build()
-    # `menu_mano` emits one PLAY per EACH card in hand; the simulator does not. The
+    # `menu_hand` emits one PLAY per EACH card in hand; the simulator does not. The
     # two that were not in the menu on the real step are removed: the Hydrapple ex
     # (an evolution without its Dipplin in play -- exactly what makes the Ultra Ball
     # "complete a line" and veto Lillie's) and the Grass, which are played through

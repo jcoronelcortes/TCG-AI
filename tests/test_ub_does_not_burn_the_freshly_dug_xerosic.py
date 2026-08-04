@@ -11,7 +11,7 @@ worked: the Xerosic ended up in hand.
 And then the agent threw it in the bin. With the hand at {Boss's, Lillie's,
 Ultra Ball, Xerosic}:
 
-  * `_ub_forraje_real(prot=Xerosic)` counted **2** -- the Boss's and the Lillie's --
+  * `_ub_real_fodder(prot=Xerosic)` counted **2** -- the Boss's and the Lillie's --
     so `_ub_cancel_xerosic` did NOT fire;
   * the SECOND Ultra Ball scored 11400 (a target worth 800, the item band) and
     beat the Xerosic (7200);
@@ -27,7 +27,7 @@ Balance: Tapu Bulu, two Boss's Orders, the Xerosic and both Ultra Balls lost
 to end up playing EXACTLY the Supporter the whole chain existed to avoid
 playing, with the rival hand intact.
 
-The cause is a single one: `_ub_forraje_real` overcounted. It already excluded from the fodder
+The cause is a single one: `_ub_real_fodder` overcounted. It already excluded from the fodder
 what the DISCARD scorer protects MORE than the protected card (evolution
 pieces, Fezandipiti ex after a KO, a Meowth ex still playable -- see the adjustment
 of log 86401283), but not the **refresh Supporters**: with the turn's Supporter
@@ -124,7 +124,7 @@ def test_step_50_plays_the_xerosic_not_the_second_ultra_ball():
 # ---------------------------------------------------------------------------
 
 class _Ctx:
-    """The minimum `_ub_forraje_real` consults."""
+    """The minimum `_ub_real_fodder` consults."""
 
     class _State:
         def __init__(self, supporter_played):

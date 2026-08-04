@@ -35,7 +35,7 @@ pieces:
     active KNOCKS IT OUT this turn. The damage is measured with the central evaluator
     `_our_effective_damage`, which applies the *Sturdy* cap of Crustle 533
     (at full life it survives on 10 HP): there there is NO KO and the rule stays quiet.
- 2. The rule `rematar_muro_inmune_antes_de_gustear` of `_REGLAS_BOSS_PLAY`,
+ 2. The rule `rematar_muro_inmune_antes_de_gustear` of `_RULES_BOSS_PLAY`,
     right below the WINNING gust: it vetoes playing Boss's. The flag also switches off
     `gust_2prize_via_boss`/`_deny_evo_via_boss`, which feed the
     Meowth ex -> Last-Ditch -> Boss's engine (digging the card is not worth it either).

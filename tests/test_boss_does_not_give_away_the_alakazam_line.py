@@ -28,7 +28,7 @@ Two independent mistakes in the same play:
 2. **In THIS matchup bringing up the line is doing their work for them.** Abra -> Kadabra ->
    Alakazam is the deck's only attacking line. The only gust without a KO that
    pays off is the reverse one -- their Kadabra/Alakazam is already active WITH energy and we
-   send it to the bench in exchange for a body that does not attack (`relevo`).
+   send it to the bench in exchange for a body that does not attack (`relief`).
    -> `no_regalar_linea_alakazam`.
 
 The evaluation the gust came out of was the `elif op_is_alakazam_deck` branch
@@ -178,7 +178,7 @@ def test_relief_only_swaps_an_attacker_for_a_non_attacker():
 
 
 # ---------------------------------------------------------------------------
-# 3. The rules of `_REGLAS_BOSS_PLAY`
+# 3. The rules of `_RULES_BOSS_PLAY`
 # ---------------------------------------------------------------------------
 
 def _boss_ctx(**over):

@@ -237,7 +237,7 @@ def evaluate_supporters(tc):
     # not even compare: seeing the pre-evolution on their bench was enough.
     #
     # None of them required a KO. Now all of them go through
-    # `_gust_releva_al_atacante`: without a KO, a gust only costs the opponent
+    # `_gust_relieves_the_attacker`: without a KO, a gust only costs the opponent
     # a turn if it swaps a body that ATTACKS for one that cannot. The gusts
     # that DO take prizes are scored apart and with the KO already verified:
     # `_bo_deny_evo_target` (965), `_bo_gust_key_bench` (975),
@@ -263,8 +263,8 @@ def evaluate_supporters(tc):
         # brought up and attacked with it.
         #
         # The only gust without a KO that pays off in this matchup is the RELIEF of
-        # their attacker (`_alakazam_relevo_de_atacante`), but that LIFTS THE VETO
-        # (`_boss_regala_linea_alakazam`), it does not buy priority: the engine
+        # their attacker (`_alakazam_attacker_relief`), but that LIFTS THE VETO
+        # (`_boss_gives_away_alakazam_line`), it does not buy priority: the engine
         # Night Stretcher -> Meowth ex -> Lillie's competes for the SAME Supporter
         # of the turn (the Last-Ditch fetches one to play it) and that engine is
         # measured (registro_006 step 51). The gusts that do take prizes are scored
@@ -373,7 +373,7 @@ def evaluate_supporters(tc):
         # dealing 20 per round to each of our bodies with an ability. Without
         # a KO, that gust is worse than playing nothing.
         #
-        # It is the same gate `_gust_releva_al_atacante` imposes on the
+        # It is the same gate `_gust_relieves_the_attacker` imposes on the
         # evolution-line decks, but here the criterion is harder (a KO, not
         # relief): the value of these pieces is in SWITCHING THEM OFF, and a
         # live Froslass in the active spot does exactly the same damage as on
@@ -562,8 +562,8 @@ def evaluate_supporters(tc):
                 # had 1) and `off_line` requires an active UNRELATED to the
                 # line (the Impidimp is its own pre-evolution).
                 # Deck-agnostic by double entry: the STAGE comes from the card
-                # data (`_supera_en_evolucion`) and "it is worth the Boss's"
-                # comes from the chain ending in an ex (`_preevo_de_linea_ex`),
+                # data (`_is_more_evolved_than`) and "it is worth the Boss's"
+                # comes from the chain ending in an ex (`_preevo_of_ex_line`),
                 # not from per-deck lists. The equality of prizes is required
                 # explicitly here because this predicate does not go through
                 # `_bo_pe_is_ex_preevo_energized` (the pre-evolution's energy
@@ -686,7 +686,7 @@ def evaluate_supporters(tc):
         # is to gust that attacker instead of settling for knocking out the
         # harmless active (same prize value). We set the flag so the "attacking
         # is enough" rule does not cancel the Boss's Orders further down. The
-        # specific target is chosen by the adjustments of _AJUSTES_GUST_OFENSIVO.
+        # specific target is chosen by the adjustments of _ADJUST_GUST_OFFENSIVE.
         _bo_gust_key_bench = False
         if (_bo_op_active.id not in KEY_BENCH_ATTACKER_IDS
                 and not _bo_win_via_bench and not _bo_deny_evo_target
@@ -1154,7 +1154,7 @@ def evaluate_supporters(tc):
     # how to look at Hydrapple ex (active, or benched with a switch available),
     # which is why it stayed silent with an active Tapu Bulu one Grass away
     # from firing Wood Hammer (registro_018 step 118 vs Crustle, LOST). Now it
-    # is resolved by `_plan_de_planta`, which walks ALL the `MAIN_ATTACKERS` in
+    # is resolved by `_grass_plan`, which walks ALL the `MAIN_ATTACKERS` in
     # play with `ATTACK_ENERGY_REQ` and counts the real attachment routes
     # (manual, Teal Dance, Ripening Charge). It is the SAME reading that then
     # decides what is picked up from the discard, so playing the card and using
@@ -1185,7 +1185,7 @@ def evaluate_supporters(tc):
     # The user's rule: Lana's is played ONLY if we really need something that
     # can be put into play THIS turn -- playable Pokemon or attachable Energy.
     # It is applied in two steps, with the SAME board reading that then decides
-    # what is picked up (`_pokemon_injugable` / `_plan_de_planta`):
+    # what is picked up (`_pokemon_injugable` / `_grass_plan`):
     #
     #   1. VETO if nothing recoverable can enter play today: no playable
     #      Pokemon (`_pokemon_injugable`: a full bench kills a Basic, and an

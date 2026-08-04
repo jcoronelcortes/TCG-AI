@@ -313,13 +313,13 @@ def _gust_opponent_line(c):
 def _gust_relieves_the_attacker(op_state):
     """Deck-agnostic: does the gust swap an ATTACKER for a dead body?
 
-    It is the generalisation of `_alakazam_relevo_de_atacante` to the other
+    It is the generalisation of `_alakazam_attacker_relief` to the other
     evolution-line decks. A gust WITHOUT a KO only costs the opponent a turn
     when their ACTIVE can attack (or will be able to with one attachment) and
     the body that comes up canNOT: there the invested energy is left stranded on
     the bench and coming back means paying a retreat. If their active does not
     attack any more, there is nothing to relieve -- and Boss's also gives them
-    the retreat for free (`_boss_gusteo_sin_proposito`).
+    the retreat for free (`_boss_gust_without_purpose`).
 
     Discarded as relief:
       * Dunsparce: a FORBIDDEN gust target (user's rule);
@@ -328,7 +328,7 @@ def _gust_relieves_the_attacker(op_state):
         attack cost today says nothing. That is exactly what happened in
         registro_002 step 20 with the Abra -> Kadabra.
 
-    NOTE: vs Alakazam `_alakazam_relevo_de_atacante` still rules, and it DOES
+    NOTE: vs Alakazam `_alakazam_attacker_relief` still rules, and it DOES
     accept a bare Abra as relief (an explicit rule from the user). Here the Abra
     would be discarded for being a threat pre-evolution -- and its attack costs
     1 anyway, so it is not "harmless" by cost either.
@@ -382,7 +382,7 @@ def _grass_unlocks_active_retreat(my_state, op_state, meganium_active,
     `budget` is the charging BUDGET: how many Grass energies can still land on
     the ACTIVE this turn (an unspent manual attachment + charging abilities that
     can point at it, bounded by the available Grass). It mirrors the budget of
-    `_carga_activo_remata`, which already computed the active's ATTACK cost that
+    `_charge_active_finishes`, which already computed the active's ATTACK cost that
     way -- here it was missing and the line was limited to ONE Grass (user,
     episode 88631738 step 77): with a retreat cost of 2 or 3 symbols and two
     live charging routes, the retreat was payable and the detector did not see
@@ -454,8 +454,8 @@ def _boss_gives_away_alakazam_line(ctx):
     requiring a KO.
 
     The only gust without a KO that is allowed is the RELIEF of their attacker
-    (`_alakazam_relevo_de_atacante`). Any reason with a prize behind it
-    (`_boss_motivo_con_premio`) rules over this veto."""
+    (`_alakazam_attacker_relief`). Any reason with a prize behind it
+    (`_boss_reason_with_prize`) rules over this veto."""
     if not ctx.op_is_alakazam_deck or _boss_reason_with_prize(ctx):
         return False
     return not _alakazam_attacker_relief(ctx.op_state)
@@ -467,9 +467,9 @@ def _boss_gust_without_purpose(ctx):
     Boss's Orders is, for the opponent, a FREE RETREAT. Giving it away only pays
     off for one of two reasons: taking a prize we cannot take from the front, or
     moving out of the way the body that is going to hit us. If their ACTIVE
-    cannot attack even on their next turn (`_op_activo_inofensivo`: all its
+    cannot attack even on their next turn (`_op_active_is_harmless`: all its
     attacks cost more than energies+1) the second reason does not exist, and
-    `_boss_motivo_con_premio` already ruled out the first: the gust only moves
+    `_boss_reason_with_prize` already ruled out the first: the gust only moves
     bodies around, spends the turn's Supporter and leaves the opponent better
     placed.
 
@@ -520,7 +520,7 @@ class _CtxGustObjetivo:
     # gives 0 prizes.
     wall_blocks_active: bool = False
     # The target could NOT attack from the active spot on the opponent's next turn
-    # even with one energy attached (`_op_cuerpo_inofensivo`, measured by COST). It
+    # even with one energy attached (`_op_body_is_harmless`, measured by COST). It
     # is the datum that decides the target when there is NO KO: bringing up a dead
     # body costs them the turn; bringing up one that attacks does their work.
     body_is_harmless: bool = False
@@ -592,7 +592,7 @@ def _ctx_gust_target(card, o, my_state, op_state, state, hand_counts,
 
     # PRIZE-AWARE KO tiers (user, registro_011 vs Mega Heracross ex): a megaEx
     # yields 3 PRIZES, an ex 2. Before, both fell into `is_exmega` (tier 8/7) and
-    # the +1 for "charged" (con_e) made a CHARGED 2-prize ex (tier 8) beat a
+    # the +1 for "charged" (with_energy) made a CHARGED 2-prize ex (tier 8) beat a
     # 3-prize megaEx WITHOUT energy (tier 7): the game gusted the Ogerpon ex (2)
     # instead of the Mega (3) that won the game. Now the megaEx has its own tier
     # ABOVE the ex (10/9 vs 8/7), so that a Mega with no energy (9 -> 27000) beats
@@ -635,7 +635,7 @@ def _ctx_gust_target(card, o, my_state, op_state, state, hand_counts,
     # prizes and the turn's only prize is on the opposing BENCH. It covers any
     # cancellation that `_our_effective_damage` already models (Crustle's Mysterious
     # Rock Inn, Cornerstone Stance, Sylveon...), not a list of ids. The exemption of
-    # the anti-Dwebble veto in `_AJUSTES_GUST_ESTORBO` consumes it.
+    # the anti-Dwebble veto in `_ADJUST_GUST_NUISANCE` consumes it.
     wall_blocks_active = False
     if atk is not None and op_act is not None:
         _mb_raw = len(atk.energies) + (
@@ -711,10 +711,10 @@ _ADJUST_GUST_OFFENSIVE = [
             lambda c, s: True,
             lambda c, s: s + _gust_opponent_line(c)),
     # WITHOUT a KO what rules is WHO COMES UP to the active spot, not which is the
-    # biggest piece on their bench. The two bands of `_gust_linea_rival` score it
-    # backwards: `_gust_linea_evolutiva` gives 800 to the FINAL EVOLUTION (Dragapult
+    # biggest piece on their bench. The two bands of `_gust_opponent_line` score it
+    # backwards: `_gust_evolution_line` gives 800 to the FINAL EVOLUTION (Dragapult
     # ex, Typhlosion, Alakazam) -- above the 700 of the pinned Stage 1, which its own
-    # docstring calls "the best disruption target" -- and `_gust_tiers_genericos`
+    # docstring calls "the best disruption target" -- and `_gust_generic_tiers`
     # gives 250 to a CHARGED ex, the ceiling of its no-KO band. Without a KO that
     # means putting in front of us, and for free (Boss's pays their retreat),
     # precisely the body they wanted to attack with.
@@ -724,7 +724,7 @@ _ADJUST_GUST_OFFENSIVE = [
     # that cannot finish us off... and then the selector brought up another one.
     #
     # +1500 beats the whole no-KO band (100-1200) and does not touch the KO tiers
-    # (>= 3000), which are gated by `can_ko`. `GUST_TRAMPA_IDS` excludes the walls
+    # (>= 3000), which are gated by `can_ko`. `GUST_TRAP_IDS` excludes the walls
     # and the locker: their attacks cost 3, so bare they would pass as harmless and
     # they are exactly the bodies we do NOT want in front.
     _Adjustment("sin_ko_prefiere_cuerpo_muerto",

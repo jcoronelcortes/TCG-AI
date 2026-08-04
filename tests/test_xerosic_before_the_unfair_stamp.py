@@ -26,12 +26,12 @@ ORDER — and they do different things with those 18 cards:
   discard FOR GOOD**; the Stamp leaves them at 2 all the same. The same board at the
   end of the turn, with half the rival deck dead.
 
-Why it failed: `cede_a_unfair_stamp` in `_REGLAS_XEROSIC_PLAY` vetoed
+Why it failed: `cede_a_unfair_stamp` in `_RULES_XEROSIC_PLAY` vetoed
 Xerosic **whenever** the Stamp was playable. That veto is right for
 Lillie's/Dawn/Lana's (the Stamp would shuffle away what they have just brought) but not for
 Xerosic, whose effect is immediate and irreversible and which the Stamp cannot undo.
 
-Fix (`_xr_antes_del_sello`, deck-agnostic): with the Stamp playable, Xerosic
+Fix (`_xr_before_the_stamp`, deck-agnostic): with the Stamp playable, Xerosic
 in hand, the Supporter slot free and the rival hand >=
 `XEROSIC_STAMP_ORDEN_MIN_OP_HAND` (10), the order is reversed — Xerosic keeps
 its score and it is the **Stamp** that yields (`cede_el_orden_a_xerosic`). It is an ORDER

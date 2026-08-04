@@ -15,11 +15,11 @@ end up pivoting: a first attempt counted 85 of 113 as "something else" and that 
 an artefact, not a finding.
 
 The turns that end DRY are dumped (the complete observation of the first MAIN,
-in the format of the tests/ fixtures) into registros/sonda_muro/ so the
+in the format of the tests/ fixtures) into registros/wall_probe/ so the
 decision can be reproduced with main.agent() and one can read what scored above the relief.
 
 Usage:
-    python utils/wall_probe.py --rival deck/rivales_reales/crustle_wall_2.csv
+    python utils/wall_probe.py --rival deck/real_opponents/crustle_wall_2.csv
     python utils/wall_probe.py --rival ... --partidas 80 --volcar 15
 """
 

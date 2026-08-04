@@ -53,9 +53,9 @@ from ptcg.turn.energy import _energy_score_base as _energy_score_base_impl  # no
 from ptcg.turn.energy_ctx import CtxEnergyScoreBase  # noqa: F401
 
 # =============================================================================
-# Compatibility bridge: `main.<state field>` <-> `ESTADO.<field>`
+# Compatibility bridge: `main.<state field>` <-> `AGENT_STATE.<field>`
 # -----------------------------------------------------------------------------
-# The state that persists between turns lives in `ESTADO` (ptcg/estado/agente.py),
+# The state that persists between turns lives in `AGENT_STATE` (ptcg/estado/agente.py),
 # but the suite sets and reads it as an attribute of `main` in ~1,285 places.
 # Without this bridge those writes would go to a dead attribute: the tests WOULD
 # KEEP PASSING while the agent reads state that nobody updates -- exactly the
@@ -68,7 +68,7 @@ from ptcg.turn.energy_ctx import CtxEnergyScoreBase  # noqa: F401
 #
 # In the Kaggle container it is NOT installed: there main.py runs with exec()
 # over an empty dict, so there is no module object and `__name__` does not even
-# exist. The submission runs the pure `ESTADO.x` path, which is the one
+# exist. The submission runs the pure `AGENT_STATE.x` path, which is the one
 # tests/test_submission.py exercises (loading with the real loader, not with
 # `import`).
 # =============================================================================
@@ -163,8 +163,8 @@ except Exception:
 # PTCG_DEBUG).
 #
 # Semantics IDENTICAL to the code it replaces:
-#   - _ReglaFija: an if/elif chain -> the FIRST one whose `cuando` is True wins.
-#   - _Ajuste: sequential transformations applied afterwards (clamps, ceilings).
+#   - _FixedRule: an if/elif chain -> the FIRST one whose `when` is True wins.
+#   - _Adjustment: sequential transformations applied afterwards (clamps, ceilings).
 # Migrated blocks: the Ultra Ball fetch (11 branches), Night Stretcher (12),
 # _score_boss_orders_play. Zero behaviour change in each migration
 # (suite + golden corpus + invariants + self-play).
@@ -241,7 +241,7 @@ _EVO_BY_NAME, _DECK_CHAINS = _build_deck_chains(my_deck)
 # curated configuration (ATTACK_ENERGY_REQ / MAIN_ATTACKERS / per-card caps)
 # knows and excludes on purpose" from "a body it simply does not know". The
 # former must stay excluded; the latter can be resolved from the card data.
-# See `_ns_umbral_energia_util`.
+# See `_ns_useful_energy_threshold`.
 _DECK_POKEMON_IDS = frozenset(
     cid for cid in set(my_deck)
     if (card_table.get(cid) is not None
@@ -322,7 +322,7 @@ def _gt_score_seleccion(o, card, plan, planes, my_state, field_counts):
       * any other area (DECK / LOOKING) -> "which card do I bring": the plan's
         Stage 2 first, then the Stage 1, and underneath a deck-agnostic
         criterion (any evolution whose pre-evolution is in play, valued by
-        `_gt_valor_cuerpo` and with a bonus if we do not have that body yet).
+        `_gt_body_value` and with a bonus if we do not have that body yet).
 
     It never returns a veto: these selections are usually mandatory once the
     ability has been activated, and being left with no valid option would be
@@ -414,7 +414,7 @@ MAIN_ATTACKERS = (
 
 
 # --- FINISHER FISHING: the attack that today depends only on the DRAW --------
-# `_plan_de_planta` answers "how many NEW Grass energies from HAND unlock an
+# `_grass_plan` answers "how many NEW Grass energies from HAND unlock an
 # attack today". When those Grass energies are NOT in hand but in the DECK and
 # we have a playable refill (Lillie's draws 6/8), the right question is no
 # longer boolean but PROBABILISTIC: with what probability does the draw bring
@@ -517,7 +517,7 @@ def _init_cards_tracking():
     # The KO window markers span TWO turns (see
     # `_rastrear_ventana_de_ko`), so `agent()`'s per-turn reset does not clear
     # them. They are cleared here, which is the NEW GAME hook: it is called by
-    # `_update_cartas_tracking` when the turn counter goes back to 1 (the
+    # `_update_cards_tracking` when the turn counter goes back to 1 (the
     # self-play harness chains thousands of episodes in the same process) and
     # also by the test resets. Without this, a between-turns KO from the
     # previous episode would lower a legitimate `ko_last_turn` of the next one.
@@ -728,11 +728,11 @@ def _rastrear_ventana_de_ko(logs, my_index, turn):
     `TURN_END`) and, every time one of OUR Pokemon leaves Active/Bench for the
     discard, it notes the `state.turn` in the appropriate marker:
 
-      * inside the OPPONENT's turn -> `_ko_propio_en_turno_rival`
+      * inside the OPPONENT's turn -> `_own_ko_inside_op_turn`
         (this is the KO that enables Flip the Script and Unfair Stamp; it does
         not matter whether it was done by an attack or by an ability that moves
         counters)
-      * BETWEEN TURNS or during OUR turn -> `_ko_propio_fuera_del_turno_rival`
+      * BETWEEN TURNS or during OUR turn -> `_own_ko_outside_op_turn`
         (it enables nothing: Freezing Shroud and company kill in no-man's land,
         and a recoil self-KO happens on our own turn)
 
@@ -740,7 +740,7 @@ def _rastrear_ventana_de_ko(logs, my_index, turn):
     contiguous, so the opponent's `TURN_END` may have arrived in the previous
     observation (a forced selection during their turn) and the KO in the
     next one. While we have not seen any turn marker the state is
-    `_TURNO_LOG_DESCONOCIDO` and nothing is classified: with no evidence nothing
+    `_TURN_LOG_UNKNOWN` and nothing is classified: with no evidence nothing
     is lowered.
     """
 
@@ -893,10 +893,10 @@ _RULES_BOSS_PLAY = [
     # FINISHER FISHING (user, registro_004 step 49 vs Marnie, LOST): with
     # no attack possible this turn, the Supporter slot is worth more fishing
     # with Lillie's for the energy that unlocks a prize KO (see
-    # `_pesca_de_remate`) than gusting. The gust also changes the opposing
+    # `_finisher_fishing`) than gusting. The gust also changes the opposing
     # active exactly when that active IS the target of the finisher being fished for.
     # It comes after the CERTAIN finishers (winning gust, 2 prizes, match point),
-    # which `_pesca_remate_valida` already exempts.
+    # which `_finisher_fishing_valid` already exempts.
     _FixedRule("cede_a_pesca_de_remate",
                lambda c: (_finisher_fishing_valid(c)
                           and c.hand_counts.get(Lillie_Determination, 0) >= 1),
@@ -944,7 +944,7 @@ _RULES_BOSS_PLAY = [
     # the three branches that require neither a KO nor a threat: `gusteo_low_value`,
     # `gusteo_defensivo` and above all the `valor_del_supporter` reserve, which is
     # the one that played the Boss's of registro_002 step 20 (2400 + 200*1.4 = 2680).
-    # Both conditions exempt themselves with `_boss_motivo_con_premio`,
+    # Both conditions exempt themselves with `_boss_reason_with_prize`,
     # so `gusteo_por_prize_rank` (which requires a KO) and `gusteo_defensivo` (which
     # requires the opponent's finisher) are still reachable below.
     _FixedRule("no_regalar_linea_alakazam",
@@ -978,7 +978,7 @@ _RULES_BOSS_PLAY = [
 def _score_boss_orders_play(ctx: DecisionContext) -> int:
     """Scores playing Boss's Orders (id 1182). Body migrated to the RULES
     ENGINE (phase 4): the rules and their strategic comments live in
-    _REGLAS_BOSS_PLAY; PTCG_DEBUG prints the trace."""
+    _RULES_BOSS_PLAY; PTCG_DEBUG prints the trace."""
     return _resolve_with_trace("boss->play", _RULES_BOSS_PLAY, [], ctx,
                                default=0)
 
@@ -1018,7 +1018,7 @@ def _score_boss_orders_play(ctx: DecisionContext) -> int:
 
 # Threshold of "energy still useful on the ACTIVE", by body family.
 # This used to be a chain of `if act.id == ...` inside
-# `_ns_activo_no_llega_al_coste`; extracting it to tables makes it possible to add
+# `_ns_active_below_its_cost`; extracting it to tables makes it possible to add
 # the deck-agnostic fallback without touching any of the already measured
 # decisions.
 #
@@ -1033,8 +1033,8 @@ _NS_THRESHOLD_BY_RETREAT = frozenset({Chikorita, Bayleef, Meganium})
 # bodies (Cruel Arrow costs 3, Last-Ditch Catch does not attack), and pouring a
 # single energy into them advances no plan. When the active is one of them and
 # there is a finisher on the bench, the right play is not to charge them but to
-# RETREAT them -- that is covered by `_ns_e_retirada_letal` /
-# `_ns_e_retirada_chip`.
+# RETREAT them -- that is covered by `_ns_e_retreat_lethal` /
+# `_ns_e_retreat_chip`.
 _NS_THRESHOLD_BY_ATTACK = frozenset({Hydrapple_ex, Dipplin, Teal_Mask_Ogerpon_ex,
                                    Tapu_Bulu, Pinsir})
 
@@ -1044,13 +1044,13 @@ def _ns_useful_energy_threshold(card_id):
     contributing. `None` = recovering energy for that body contributes nothing.
 
     Three levels, from most specific to most general:
-      1. CURATED tables of the current deck (`_NS_UMBRAL_POR_RETIRADA` /
-         `_NS_UMBRAL_POR_ATAQUE`): they encode measured strategy and always rule;
+      1. CURATED tables of the current deck (`_NS_THRESHOLD_BY_RETREAT` /
+         `_NS_THRESHOLD_BY_ATTACK`): they encode measured strategy and always rule;
       2. the other Pokemon of deck.csv (`_DECK_POKEMON_IDS`) -> `None`: the
          configuration knows them and excludes them ON PURPOSE (Meowth ex,
          Fezandipiti ex); deriving them from the card data would undo that
          decision;
-      3. any other body -> `_coste_de_ataque_min`, derived from the card data.
+      3. any other body -> `_min_attack_cost`, derived from the card data.
          This is the DECK-AGNOSTIC branch: with another deck.csv the function
          stops returning `False` blindly and reasons with the real attack cost.
     """
@@ -1065,7 +1065,7 @@ def _ns_useful_energy_threshold(card_id):
 
 def _ns_active_below_its_cost(w):
     """The ACTIVE still does not reach its useful energy threshold
-    (`_ns_umbral_energia_util`), neither in EFFECTIVE energy nor in PHYSICAL
+    (`_ns_useful_energy_threshold`), neither in EFFECTIVE energy nor in PHYSICAL
     cards.
 
     Both are checked because with Meganium in play `len(energies)` comes
@@ -1091,7 +1091,7 @@ def _ns_e_active_needs(w):
 
 
 def _ns_e_active_below_cost(w):
-    """Like `_ns_e_activo_necesita` but also accepting the charge by
+    """Like `_ns_e_active_needs` but also accepting the charge by
     ABILITY when the turn's manual attachment has already been spent."""
     return (_ns_useful_energy_without_grass(w)
             and _ns_active_below_its_cost(w)
@@ -1252,10 +1252,10 @@ _ESC_NS_RECUPERACION = [
     _E("energia_remate_via_promocion", _ns_e_finisher_via_promotion, 950),
     # THE GRASS THAT PAYS THE RETREAT (user, registro_021 turn 21): a blocked
     # active with no energy + a READY benched attacker that finishes, and the only
-    # copy of Grass is in the DISCARD. `_ns_e_remate_via_promocion` does NOT cover
+    # copy of Grass is in the DISCARD. `_ns_e_finisher_via_promotion` does NOT cover
     # this case -- it requires `len(act.energies) >= cost`, that is, that the retreat
-    # can ALREADY be paid -- and neither does `_ns_e_activo_necesita`: it goes
-    # through `_ns_activo_no_llega_al_coste`, a per-card table that returns False
+    # can ALREADY be paid -- and neither does `_ns_e_active_needs`: it goes
+    # through `_ns_active_below_its_cost`, a per-card table that returns False
     # for everything that is not of the Meganium/Hydrapple/Ogerpon/Tapu/Pinsir line
     # (Fezandipiti ex, Meowth ex and any body from another deck fall outside).
     # Without these two scenarios the ARGMAX gave 0 -> SCORE_VETO -> END with the
@@ -1337,7 +1337,7 @@ def _ns_full_bench_keep(w, ns_score):
     # cut-off vetoed the Night Stretcher that enabled the finisher: Syrup Storm
     # 30+30x10 = 330 against 350 HP, and the Grass from the discard (via Teal Dance
     # on a benched Ogerpon) raised it to 390. A real charging route is required
-    # (`_ns_ruta_de_carga_abierta`) so as not to recover a dead Grass.
+    # (`_ns_charge_route_open`) so as not to recover a dead Grass.
     if not useful_energy:
         if _ns_e_syrup_letal(w) and _ns_charge_route_open(w):
             useful_energy = True
@@ -1373,7 +1373,7 @@ _AJUSTES_NS_PLAY = [
 def _score_night_stretcher_play(ctx: DecisionContext) -> int:
     """Scores playing Night Stretcher (it recovers a Pokemon or Energy from the
     discard). Body migrated to the RULES ENGINE (phase 4) with the ARGMAX mode
-    (_resolver_max): ~30 recovery scenarios compete and the best one is
+    (_resolve_max): ~30 recovery scenarios compete and the best one is
     mapped to score tiers; vs Crustle/Cornerstone ONLY the whitelist competes
     (the original replaces the accumulator)."""
     w = _CtxNSPlay(ctx)
@@ -1411,7 +1411,7 @@ _RULES_FOREST_PLAY = [
     # with its evolution available), keeping them all is over-conservative. One is
     # played even if the opponent has no stadium: the deck runs 4 copies, the
     # extra one is dead weight and if the stadium survives the chain fires
-    # next turn. The `_fv_cadena_evolutiva` gate avoids spending it on hands
+    # next turn. The `_fv_evolution_chain` gate avoids spending it on hands
     # with no line (measurement vs comfey: without the gate the matchup dropped ~10pts).
     # The veto below still covers the single-copy case.
     _FixedRule("t1_segundos_copia_redundante",
@@ -1557,7 +1557,7 @@ def _ub_meowth_for_tomorrow(ctx) -> bool:
     tomorrow there are no Items.
 
     The ONLY exception to "the Ultra Ball is only played for a Pokemon we are
-    going to PLAY this turn" (`_ub_cavar_meowth_se_juega`), and the mirror image
+    going to PLAY this turn" (`_ub_dig_meowth_gets_played`), and the mirror image
     of the one the sterile-turn rescue net already had: with the Item lock
     hanging over us (`_bloqueo_de_items_inminente`) the Ultra Ball is not a
     resource to keep, it is a resource that EXPIRES.
@@ -1577,7 +1577,7 @@ def _ub_meowth_for_tomorrow(ctx) -> bool:
 
     The board was the worst possible one -- a Fezandipiti ex 3 energies away from
     attacking (one per turn) and a Meganium in hand with no Bayleef under it:
-    `_sin_atacante_para_manana`. The correct line is to dig out the Meowth ex NOW
+    `_no_attacker_for_tomorrow`. The correct line is to dig out the Meowth ex NOW
     and put it down next turn (Pokemon and abilities are NOT blocked by
     Itchy Pollen), where its *Last-Ditch Catch* brings a Lillie's Determination
     -- a Supporter, also playable under the lock.
@@ -1665,7 +1665,7 @@ def _ub_target_score(ctx, _ubf) -> int:
     # Chain UB -> Meowth ex -> Last-Ditch Catch -> Supporter. `field_counts < 2`
     # was NOT enough: with ONE Meowth ex already in play the PLAY branch vetoes the
     # second body, so the Ultra Ball dug out a card that was then not played
-    # (registro_004 step 35). See `_ub_cavar_meowth_se_juega`.
+    # (registro_004 step 35). See `_ub_dig_meowth_gets_played`.
     if (not _stamp_pendiente(ctx) and
             hand_counts.get(Meowth_ex, 0) == 0 and
             hand_counts.get(Lillie_Determination, 0) == 0 and
@@ -1682,7 +1682,7 @@ def _ub_target_score(ctx, _ubf) -> int:
 
     # The SAME chain, shifted by one turn: with the Item lock hanging over us the
     # Meowth ex is dug out TODAY even though it can only be put down TOMORROW (see
-    # `_ub_meowth_para_manana`). It is the only branch that does not require the
+    # `_ub_meowth_for_tomorrow`). It is the only branch that does not require the
     # target to be used this turn, because it is the only one where keeping the
     # Ultra Ball is the same as throwing it away.
     if _ub_meowth_for_tomorrow(ctx):
@@ -2081,7 +2081,7 @@ class _CtxLillie:
         # The deference only makes sense if the Ultra Ball can be played for
         # something OTHER than this very Lillie's, so the way is given except in
         # that circular case. It is the same failure -- and the same way of breaking it
-        # -- as in the Stamp<->Supporter pair (`_sello_merece_jugarse`: "the way was
+        # -- as in the Stamp<->Supporter pair (`_stamp_worth_playing`: "the way was
         # given to a card that was no longer going to be played").
         #
         # The Ultra Ball's full score is deliberately NOT consulted: the
@@ -2176,7 +2176,7 @@ class _CtxLillie:
         # finisher read from attack_table) and there is NO ready benched attacker, there
         # is nobody to hand over to: reserving the Boss's condemns the turn.
         # There what rules is DIGGING with Lillie's (draw 6, or 8 with 6 prizes) to
-        # find an attacker/energy. The same criterion as `_boss_cede_dig`.
+        # find an attacker/energy. The same criterion as `_boss_yields_to_dig`.
         _lillie_doomed_without_relief = (
             (ctx.active_ko_likely or ctx.active_doomed_real)
             and not ctx.has_ready_bench_attacker)
@@ -2419,11 +2419,11 @@ _RULES_LILLIE_PLAY = [
                                  or (c.boss_ko_threat_preevo
                                      # a DOOMED active with no relief: the prize
                                      # KO does not veto the refill (esp. the
-                                     # symmetry with _boss_cede_dig).
+                                     # symmetry with _boss_yields_to_dig).
                                      #
                                      # A KNOWN, MEASURED AND KEPT ASYMMETRY
                                      # (user, registro_006 step 78 vs Archaludon
-                                     # ex): `_boss_cede_dig` consults
+                                     # ex): `_boss_yields_to_dig` consults
                                      # `active_ko_likely OR active_doomed_real`
                                      # -- the second was added because the
                                      # first is BLIND (`_op_best_damage_vs`
@@ -2540,7 +2540,7 @@ def _score_lillie_determination_play(ctx: DecisionContext) -> int:
     """Scores playing Lillie's Determination (shuffle the hand and draw 6/8).
     Body migrated to the RULES ENGINE (phase 4): the derived values live in
     _CtxLillie and the rules (with their strategic comments) in
-    _REGLAS_LILLIE_PLAY; PTCG_DEBUG prints the trace."""
+    _RULES_LILLIE_PLAY; PTCG_DEBUG prints the trace."""
     return _resolve_with_trace("lillie->play", _RULES_LILLIE_PLAY, [],
                                _CtxLillie(ctx), default=0)
 
@@ -2667,7 +2667,7 @@ _RULES_UB_MEOWTH = [
                lambda c: c.watchtower,
                lambda c: 10),
     # ITEM LOCK TOMORROW: the Ultra Ball was played EXACTLY to dig out this
-    # body (`_ub_meowth_para_manana`, registro_002 step 17 vs Dragapult), so
+    # body (`_ub_meowth_for_tomorrow`, registro_002 step 17 vs Dragapult), so
     # the fetch has to complete the purchase. It goes ABOVE
     # `last_ditch_no_produce`: it is true that the ability produces nothing today --
     # that is the point, the Meowth ex is put down TOMORROW, when there will be no
@@ -2685,7 +2685,7 @@ _RULES_UB_MEOWTH = [
     #      the Meowth through [[no-meowth-si-supporter-ya-jugado]]).
     #   2) `not ld_free`: some Meowth ex in play APPEARED THIS TURN, so
     #      the turn's only Last-Ditch is already spent (see `_meowth_ld_free` and
-    #      `_ub_cavar_meowth_se_juega`).
+    #      `_ub_dig_meowth_gets_played`).
     # On that turn 6 we had played Lillie's and the Ultra Ball still brought
     # a Meowth ex (1000, beating Chikorita/Meganium/Bayleef); the agent chained
     # a SECOND Ultra Ball to dig out the other Meowth ex and ended up attacking
@@ -2775,7 +2775,7 @@ _RULES_UB_MEOWTH = [
 # A ctx SHARED by the Ogerpon/Meganium/Bayleef/Dipplin/Chikorita/
 # Applin/Tapu/Pinsir/Fezandipiti branches. The per-turn globals (meganium_in_play,
 # forest_in_play, op_is_crustle_deck, op_is_cornerstone_deck, ko_last_turn,
-# CARTAS_ACTIVAS_EN_MAZO) are read on the fly from the lambdas (agent() declares
+# ACTIVE_CARDS_IN_DECK) are read on the fly from the lambdas (agent() declares
 # them `global`).
 
 
@@ -2980,7 +2980,7 @@ _RULES_UB_FEZ = [
 def _no_attacker_for_tomorrow(my_state, hand_counts, field_counts) -> bool:
     """True if NO body of ours will get to attack NEXT turn.
 
-    It looks one turn FURTHER than `_sin_ataque_hoy`: for the bodies ALREADY in
+    It looks one turn FURTHER than `_no_attack_today`: for the bodies ALREADY in
     play it counts next turn's attachment (one more Grass, in EFFECTIVE units)
     and the evolutions the hand can complete on a pre-evolution on the board (the
     evolution inherits the body's energy). It does not count the Basics
@@ -3046,7 +3046,7 @@ _RULES_NS_GRASS = [
 
 # --- The DRAW engine on a dead turn ----------------------------------------
 # (user, registro_008 step 67 vs Alakazam, LOST). With the turn DEAD for
-# attacking (`turno_muerto`) and the hand dry (`mano_agotada`), the recovery has
+# attacking (`dead_turn`) and the hand dry (`hand_exhausted`), the recovery has
 # to bring the body that REBUILDS THE HAND, not development:
 #   1st Meowth ex   -> when put down, Last-Ditch Catch searches for a Supporter
 #                      from the deck (Lillie's Determination rebuilds the WHOLE hand).
@@ -3058,7 +3058,7 @@ _RULES_NS_GRASS = [
 # attack, and we were left with 0 cards in hand and no attacker. The scores go
 # above ALL development (990 + 200 from the last-copy bonus = 1190)
 # and below the energy that produces an attack TODAY (1300/1400), which never
-# coexists with `turno_muerto`. Deck-agnostic: the dead turn is measured over
+# coexists with `dead_turn`. Deck-agnostic: the dead turn is measured over
 # `ATTACK_ENERGY_REQ`, not over a list of matchups.
 
 
@@ -3159,7 +3159,7 @@ _RULES_NS_MEOWTH = [
                lambda c: c.turn == 1 and AGENT_STATE.we_go_first,
                lambda c: 10),
     # First option of the draw engine on a dead turn: it beats ALL development
-    # (see the comment block about _ns_motor_meowth_vivo).
+    # (see the comment block about _ns_meowth_engine_alive).
     _FixedRule("motor_de_robo_turno_muerto",
                lambda c: (c.dead_turn and c.hand_exhausted
                           and _ns_meowth_engine_alive(c)),
@@ -3543,7 +3543,7 @@ _RULES_PP_FETCH = [
 # It only scores Supporters (_MEOWTH_FETCH_SUPPS); the other candidates
 # keep the base 50 from the call site. The two adjustments of the original else
 # (the Boss's bonus vs Crustle, the Dawn cap without Forest) live in the value of
-# the catch-all (_v_meowth_fetch_valor), faithful to the sequential reassignment.
+# the catch-all (_v_meowth_fetch_value), faithful to the sequential reassignment.
 
 
 
@@ -3672,7 +3672,7 @@ def _meowth_fetch_prediccion(hand_counts, supp_values, hand_size,
                              cards_in_deck, first_turn=False):
     """(id, value) of the Supporter Last-Ditch Catch would bring RIGHT NOW.
 
-    It reproduces the REAL fetch (`_REGLAS_MEOWTH_FETCH`, the same board) over
+    It reproduces the REAL fetch (`_RULES_MEOWTH_FETCH`, the same board) over
     the Supporters still in the DECK, so it can be decided BEFORE spending the
     Meowth ex whether the search contributes anything. `hand_size` must be the one
     AFTER putting the Meowth down (one card fewer), which is when the fetch is
@@ -3924,7 +3924,7 @@ _TABLA_DAWN_FETCH = {
 # Two modes, like the original block: NUISANCE (our active cannot attack:
 # jam the opponent) and OFFENSIVE (gust to knock out or pin down). The entry
 # score of the option loop is 0; the contributions are cumulative
-# (_Ajuste). Dunsparce is discarded at the call site (user's rule: NEVER
+# (_Adjustment). Dunsparce is discarded at the call site (user's rule: NEVER
 # gust it, in any mode).
 
 
@@ -3934,27 +3934,27 @@ _TABLA_DAWN_FETCH = {
 # GRADUATING THE ATTACK AXIS: MEASURED AND REVERTED (Aug 2026).
 #
 # `sin_ko_prefiere_cuerpo_muerto` (+1500) is a BOOLEAN with a horizon of ONE
-# energy (`_op_cuerpo_inofensivo` = deficit >= 2): it separates those who can
+# energy (`_op_body_is_harmless` = deficit >= 2): it separates those who can
 # attack next turn from those who cannot, but it leaves all the dead bodies
 # TIED with each other. Since the RETREAT axis is graduated (`stall_diff` x
 # 100), the same treatment was tried for the ATTACK one: +200 for each energy
 # missing ABOVE the 2 that already earn the +1500, capped at 2 steps, with the
-# same three guards (no KO / dead body / `GUST_TRAMPA_IDS` excluded).
+# same three guards (no KO / dead body / `GUST_TRAP_IDS` excluded).
 #
 # It was dropped for being INERT, not harmful. The bonus altered some score in 142 of
 # 535 target decisions (1400 games, 7 matchups) and changed the chosen
 # target in ZERO. The reason lies in the shape of the band: in 117 of the 144
 # decisions with a bonusable candidate the gap to the chosen one was 0 -- the
 # body with a deficit of 3 was ALREADY the argmax through other routes (a graduated
-# `traba_sin_ko` + `_gust_linea_rival`), so the bonus only fattened an existing
+# `traba_sin_ko` + `_gust_opponent_line`), so the bonus only fattened an existing
 # advantage. In the remaining 27 the gap was a KO tier (>= 3000) or the deliberate
 # preference for cutting the evolution line: exactly what a tie-break must not
 # overturn. The winrate was consistent with that -- neutral and below the gate's
 # resolution (n=3000/branch x 5 matchups: aggregate -0.14 against the control, with
 # a NULL control drift of -0.06; no individual delta leaves the null range).
 #
-# What DOES remain from the attempt is `_op_deficit_de_ataque`: the graduated axis
-# exists as a primitive and `_op_cuerpo_inofensivo` is explicitly its threshold, which
+# What DOES remain from the attempt is `_op_attack_deficit`: the graduated axis
+# exists as a primitive and `_op_body_is_harmless` is explicitly its threshold, which
 # is where the confusion was. If some day a tie-break inside the band is needed,
 # the datum is already measured; what is not needed is the bonus.
 
@@ -4004,11 +4004,11 @@ _ADJUST_GUST_OFFENSIVE = [
             lambda c, s: True,
             lambda c, s: s + _gust_opponent_line(c)),
     # WITHOUT a KO what rules is WHO COMES UP to the active spot, not which is the
-    # biggest piece on their bench. The two bands of `_gust_linea_rival` score it
-    # backwards: `_gust_linea_evolutiva` gives 800 to the FINAL EVOLUTION (Dragapult
+    # biggest piece on their bench. The two bands of `_gust_opponent_line` score it
+    # backwards: `_gust_evolution_line` gives 800 to the FINAL EVOLUTION (Dragapult
     # ex, Typhlosion, Alakazam) -- above the 700 of the pinned Stage 1, which
     # its own docstring calls "the best disruption target" -- and
-    # `_gust_tiers_genericos` gives 250 to a CHARGED ex, the ceiling of its no-KO
+    # `_gust_generic_tiers` gives 250 to a CHARGED ex, the ceiling of its no-KO
     # band. Without a KO that means putting in front of us, and for free (Boss's pays
     # their retreat), precisely the body they wanted to attack with.
     #
@@ -4017,7 +4017,7 @@ _ADJUST_GUST_OFFENSIVE = [
     # body that cannot finish us off... and then the selector brought up another one.
     #
     # +1500 beats the whole no-KO band (100-1200) and does not touch the KO tiers
-    # (>= 3000), which are gated by `can_ko`. `GUST_TRAMPA_IDS` excludes the
+    # (>= 3000), which are gated by `can_ko`. `GUST_TRAP_IDS` excludes the
     # walls and the locker: their attacks cost 3, so bare they would pass as
     # harmless and they are exactly the bodies we do NOT want in front.
     _Adjustment("sin_ko_prefiere_cuerpo_muerto",
@@ -5176,7 +5176,7 @@ def agent(obs_dict: dict) -> list[int]:
         # It is used as a guard for the "extra Grass via Night Stretcher" projection
         # below: if the active finishes, the recovered Grass unlocks
         # no new KO and the Night Stretcher will NOT be played
-        # (`_ns_e_remate_via_promocion` carries the same guard). Without this mirror
+        # (`_ns_e_finisher_via_promotion` carries the same guard). Without this mirror
         # the plan would project a bench KO that depends on a card nobody
         # is going to play and would veto the active's attack.
         _plan_act_kos_now = False
@@ -5208,7 +5208,7 @@ def agent(obs_dict: dict) -> list[int]:
             # The KO the ACTIVE already achieves on each target `j`, noted as
             # (the active's CURRENT HP, the prizes it hands over). It is filled by
             # the i == 0 pass -- the active is always `my_cards[0]` and is walked first --
-            # and consumed by `_pivote_banca_sin_ganancia` further down, which is the one that
+            # and consumed by `_bench_pivot_no_gain` further down, which is the one that
             # compares the benched candidate against the body ALREADY in front.
             _atk_act_ko = {}
             for i, my_pokemon in enumerate(my_cards):
@@ -5246,7 +5246,7 @@ def agent(obs_dict: dict) -> list[int]:
                     # discard, Night Stretcher recovers it: it counts as a source
                     # of energy when measuring the finisher (user, registro_006 step 78
                     # vs Archaludon ex, LOST -- see
-                    # `_ns_e_remate_via_promocion`, which is what then PAYS for
+                    # `_ns_e_finisher_via_promotion`, which is what then PAYS for
                     # playing it, so this projection is not a mirage).
                     _sg_route = _grass_attach_route_open(
                         state, field_counts, abilities_off=meowth_ability_lock)
@@ -6703,7 +6703,7 @@ def agent(obs_dict: dict) -> list[int]:
     _deny_evo_via_boss = False
     # The EX-IMMUNE WALL (Crustle / Sylveon) is the opposing ACTIVE and our
     # active KNOCKS IT OUT TODAY -> killing it comes FIRST (see the
-    # `rematar_muro_inmune_antes_de_gustear` rule of _REGLAS_BOSS_PLAY).
+    # `rematar_muro_inmune_antes_de_gustear` rule of _RULES_BOSS_PLAY).
     _ex_immune_wall_ko_ready = False
     if (not state.supporterPlayed
             and my_state.active and my_state.active[0] is not None
@@ -6861,7 +6861,7 @@ def agent(obs_dict: dict) -> list[int]:
                         continue
                     # A CHARGED pre-evolution of an ex line (2 prizes at the end);
                     # the Alakazam line (a non-ex final form, 1 prize) is excluded.
-                    # The class comes from the CARD DATA (`_preevo_de_linea_ex`),
+                    # The class comes from the CARD DATA (`_preevo_of_ex_line`),
                     # not from `EX_PREEVO_IDS`: the curated list covered the lines
                     # somebody hand-listed after losing a game, and
                     # left out any other one in the environment (e.g. Frillish ->
@@ -6935,8 +6935,8 @@ def agent(obs_dict: dict) -> list[int]:
     # of `state.energyAttached`, for the ABILITY route.
     #
     # The charging BUDGET towards the ACTIVE (the same computation as
-    # `_carga_activo_remata`): the manual attachment if it is still free + the abilities that
-    # can point at the active (`_grass_ability_slots_activo`), bounded by the
+    # `_charge_active_finishes`): the manual attachment if it is still free + the abilities that
+    # can point at the active (`_grass_ability_slots_active`), bounded by the
     # Grass in hand. The floor of 1 preserves the historical behaviour for
     # the consumers that bring their own Grass from outside the hand (the Night
     # Stretcher recovers it from the DISCARD: there `hand_counts` is 0 and the single-Grass
@@ -7803,11 +7803,11 @@ def agent(obs_dict: dict) -> list[int]:
     #
     # What is measured here is the REAL BUDGET of energy that can still
     # land ON THE ACTIVE this turn: the manual attachment (if it was not spent) plus the
-    # charging abilities that can point at it (`_grass_ability_slots_activo`),
+    # charging abilities that can point at it (`_grass_ability_slots_active`),
     # limited by the Grass in hand. If with that budget the active
     # reaches its attack cost and the attack does damage, the charge goes to the ACTIVE.
     # None of this depends on the opponent or on our own deck: the cost comes from
-    # ATTACK_ENERGY_REQ (with `_coste_de_ataque_min` as a fallback derived from the
+    # ATTACK_ENERGY_REQ (with `_min_attack_cost` as a fallback derived from the
     # card data) and the damage from the central evaluators.
     _charge_active_missing = 0        # charging units still missing
     _charge_active_finishes = False   # ...and the resulting attack KNOCKS OUT
@@ -8604,7 +8604,7 @@ def agent(obs_dict: dict) -> list[int]:
 
         CAP, do not veto, and only BELOW the lethal floor (41000): everything that
         reaches that band is energy that takes or denies a prize TODAY --
-        `_carga_activo_remata`, the retreat pivots, `_win_via_boss_gust` --
+        `_charge_active_finishes`, the retreat pivots, `_win_via_boss_gust` --
         and there the body does not die without having paid. What is below is
         development, and developing a body the opponent cashes in tonight is
         handing them the Grass. The relative ORDER between doomed bodies is preserved
@@ -8765,7 +8765,7 @@ def agent(obs_dict: dict) -> list[int]:
     # cancel the Meowth and carry on the turn playing that Supporter.
     #
     # The prediction uses the SAME engine as the real fetch
-    # (`_REGLAS_MEOWTH_FETCH`), not a list of cases: that is why it holds for
+    # (`_RULES_MEOWTH_FETCH`), not a list of cases: that is why it holds for
     # ANY deck and for any Supporter. The existing guards looked at
     # `_best_supp_in_hand_val`, which only weighs Boss's/Dawn/Lillie's/Lana's --
     # with a Xerosic's Machinations in hand it was worth 0 and the veto never fired,
@@ -8923,7 +8923,7 @@ def agent(obs_dict: dict) -> list[int]:
     # ITEM LOCK THREAT (Budew's Itchy Pollen). It is computed a single
     # time and consumed by both faces of the same decision: the sterile-turn
     # rescue net (finalisation) and the UB->Meowth->Lillie's chain via
-    # `_ub_meowth_para_manana`. See `_bloqueo_de_items_inminente`.
+    # `_ub_meowth_for_tomorrow`. See `_bloqueo_de_items_inminente`.
     _item_lock_incoming = _bloqueo_de_items_inminente(
         budew_on_op_field, op_has_dragapult, op_has_dreepy_line)
 
@@ -9394,7 +9394,7 @@ def agent(obs_dict: dict) -> list[int]:
         # HIDDEN Grass (in the deck or prizes) = the deck's total - the VISIBLE Grass
         # (hand + discard + attached to our Pokemon). It is computed from the
         # observation so as NOT to depend on the per-zone counter
-        # `CARTAS_ACTIVAS_EN_MAZO[MAZO]`, which goes out of sync in records that do not
+        # `ACTIVE_CARDS_IN_DECK[MAZO]`, which goes out of sync in records that do not
         # start on turn 1 (this one starts on turn 9). The deck total
         # (the sum of all zones) IS reliable (it is preserved).
         _ps_grass_total = sum(
@@ -9468,7 +9468,7 @@ def agent(obs_dict: dict) -> list[int]:
         # `_ps_can_find_energy` because it is the weakest of the four -- it draws
         # blind, it does not search -- and that is why it carries TWO guards of its own: below, the
         # promoted body is required to keep its EXIT
-        # (`_ps_conserva_salida`), and here, that the KO it buys is really worth it.
+        # (`_ps_keeps_its_way_out`), and here, that the KO it buys is really worth it.
         #
         # A WALL MATCHUP (MEASURED): the bet is not made against a deck that
         # structurally neutralises our ex -- ex immunity (Crustle /
@@ -9753,7 +9753,7 @@ def agent(obs_dict: dict) -> list[int]:
     _gt_quiere_basico = (bool(_gt_basics_ranking) and not _gt_root_in_play
                          and bench_count < 5)
 
-    # FINISHER FISHING (see `_pesca_de_remate`): with Lillie's Determination in
+    # FINISHER FISHING (see `_finisher_fishing`): with Lillie's Determination in
     # hand and the turn's Supporter free, is there an attack that TODAY only
     # depends on the draw bringing Grass? It is computed a single time, only in
     # MAIN (outside it there is no Supporter play to decide) and only with the
@@ -9880,7 +9880,7 @@ def agent(obs_dict: dict) -> list[int]:
     # of the same resource.
     #
     # And why comparing on the fetch's scale was not enough: the two scales
-    # ORDER THINGS THE OPPOSITE WAY. `_REGLAS_MEOWTH_FETCH` scored Lillie's 1200 vs Xerosic
+    # ORDER THINGS THE OPPOSITE WAY. `_RULES_MEOWTH_FETCH` scored Lillie's 1200 vs Xerosic
     # <=150 (the `atasco_sin_lillie_en_mano` branch), while the play scorer
     # scores Xerosic 7300 vs Lillie's 5000. The scale that DECIDES is the play
     # one, so the prediction has to be made there: both sides are measured
@@ -10001,7 +10001,7 @@ def agent(obs_dict: dict) -> list[int]:
 
     # LANA'S AID: the board reading for the RECOVERY (the TO_HAND context).
     # `_lana_plan` says how much Grass the field can use and whether any of it unlocks
-    # an attack today; `_lana_orden_planta` numbers the menu's Grass options
+    # an attack today; `_lana_grass_order` numbers the menu's Grass options
     # (0, 1, 2...) so that only the FIRST `demanda` ones get the high band: the
     # scores are computed per card, so without the ordinal the 4 copies of Grass
     # would tie and sweep the menu even if the board could only use one.

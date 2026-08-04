@@ -6,11 +6,11 @@ alive for it (the manual attachment + abilities that can point at it: Ripening C
 any Hydrapple ex, Teal Dance if the active itself is the Ogerpon). If it gets there
 and the attack does damage, the energy goes to the ACTIVE:
 
-  * `_carga_activo_remata` (the attack KNOCKS OUT)  -> SCORE_CARGA_ACTIVO_REMATE,
+  * `_charge_active_finishes` (the attack KNOCKS OUT)  -> SCORE_CHARGE_ACTIVE_FINISHER,
     ahead of charging a BENCH attacker to promote it (41000) and of
     Ogerpon's charging focus (41700);
-  * `_carga_activo_habilita_ataque` (only a chip, but without that charge the turn
-    would be STERILE) -> SCORE_CARGA_ACTIVO_ATAQUE, above Teal Dance (31500) and the
+  * `_charge_active_enables_attack` (only a chip, but without that charge the turn
+    would be STERILE) -> SCORE_CHARGE_ACTIVE_ATTACK, above Teal Dance (31500) and the
     retreat pivots by ability (31600).
 
 The originating case (user, episode 88433181, registro_006 step 67 vs Marnie's

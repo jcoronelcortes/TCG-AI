@@ -13,7 +13,7 @@ WHY IT EXISTS
   it is needed without waiting to download replays.
 
 WHAT IT PLAYS AGAINST
-  Against the REAL leaderboard decks (`deck/rivales_reales/`), piloted by
+  Against the REAL leaderboard decks (`deck/real_opponents/`), piloted by
   the generic bot -- not against ourselves. A mirror corpus would measure a
   much narrower distribution of boards, and it would also be redundant with
   `utils/shadow.py`, which already plays self-play. What the corpus contributes is a
@@ -23,13 +23,13 @@ WHAT IT PLAYS AGAINST
 FORMAT
   The same as the replays: `{"steps": [[{"status", "observation"}], ...]}`. The
   local engine gives one observation per step (that of the player who acts), so
-  each step carries a single item; `reproducir_registro` filters by ACTIVE status,
+  each step carries a single item; `replay_record` filters by ACTIVE status,
   the presence of `select` and `yourIndex`, and that fits just the same.
 
 Usage:
     python utils/record_corpus.py                    # 12 games, 12 opponents
     python utils/record_corpus.py --partidas 20
-    python utils/record_corpus.py --rivales deck/rivales_reales --semilla 3
+    python utils/record_corpus.py --rivales deck/real_opponents --semilla 3
 """
 
 import argparse

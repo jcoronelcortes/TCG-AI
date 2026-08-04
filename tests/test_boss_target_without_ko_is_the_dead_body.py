@@ -4,12 +4,12 @@ The third piece of the [[boss-no-regalar-la-linea-alakazam]] family. The two
 previous ones fixed WHEN Boss's Orders is played; this one fixes WHO it brings up
 once it is played and there is no KO.
 
-The two bands of `_gust_linea_rival` scored it backwards:
+The two bands of `_gust_opponent_line` scored it backwards:
 
-  * `_gust_linea_evolutiva` gives **800 to the FINAL EVOLUTION** (Dragapult ex,
+  * `_gust_evolution_line` gives **800 to the FINAL EVOLUTION** (Dragapult ex,
     Typhlosion, Alakazam) with no KO -- above the 700 of the stuck Stage 1,
     which its OWN docstring calls "the best disruption target";
-  * `_gust_tiers_genericos` gives **250 to a CHARGED ex**, the ceiling of its band
+  * `_gust_generic_tiers` gives **250 to a CHARGED ex**, the ceiling of its band
     with no KO, above any stuck body.
 
 With no KO that is putting in front of us -- and for free, because Boss's pays their retreat --
@@ -23,7 +23,7 @@ body that cannot pay for its attack even by attaching one energy. +1500 beats
 the whole no-KO band (100-1200) and does not touch the KO tiers (>= 3000), which are
 gated by `can_ko`.
 
-`GUST_TRAMPA_IDS` is the mandatory exception: Crustle, Sylveon, Cornerstone and
+`GUST_TRAP_IDS` is the mandatory exception: Crustle, Sylveon, Cornerstone and
 Iron Thorns ex have **cost-3** attacks, so bare they pass for
 "harmless" -- and they are exactly the bodies we do NOT want in front (they cancel
 our attackers or switch off our abilities from the active spot).
@@ -80,7 +80,7 @@ def reset_main_state():
 
 
 def _stub(card_id, energy=0):
-    """A minimal Pokemon that `prize_count_op` and `_op_cuerpo_inofensivo` understand."""
+    """A minimal Pokemon that `prize_count_op` and `_op_body_is_harmless` understand."""
     return SimpleNamespace(id=card_id, energies=[1] * energy,
                            energyCards=[], tools=[])
 
@@ -123,7 +123,7 @@ def _estorbo(ctx):
 # ---------------------------------------------------------------------------
 
 def test_the_no_ko_band_used_to_reward_the_final_evolution():
-    """`_gust_linea_evolutiva` still gives 800 to the final one and 700 to the stuck
+    """`_gust_evolution_line` still gives 800 to the final one and 700 to the stuck
     Stage 1: the contribution has NOT been touched, it has been overlaid."""
     final = m._gust_evolution_line(_ctx(DRAGAPULT, energy=1),
                                     DRAGAPULT, DRAKLOAK, DREEPY)
@@ -201,8 +201,8 @@ def _board(active_energies):
                       pk(DUSCLOPS, hp=90, max_hp=90))
             .op_zonas(hand=5, deck=25, prizes=4)
             .deck()
-            # `menu_gusteo()` consumes a Boss's Orders from the pool (the card "in
-            # effect"), so it goes BEFORE `resto_al_descarte()`.
+            # `menu_gust()` consumes a Boss's Orders from the pool (the card "in
+            # effect"), so it goes BEFORE `rest_to_discard()`.
             .menu_gust()
             .rest_to_discard()
             .build())

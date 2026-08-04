@@ -301,7 +301,7 @@ SITUACIONES = (
     # A SANITY CHECK, not a detector: it comes out at 100% in every deck measured
     # (when the active knocks out, we always attack). Its value is being the canary
     # of the radar's own damage arithmetic -- if one day it drops below 100%,
-    # either the agent broke or `_dano` broke.
+    # either the agent broke or `_damage` broke.
     ("remata_si_puede", _s_remata_si_puede),
     ("juega_supporter", _s_supporter_unplayed),
     ("pone_energia", _s_energy_unattached),

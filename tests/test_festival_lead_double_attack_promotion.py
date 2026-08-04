@@ -226,7 +226,7 @@ def test_the_promoted_tapu_finishes_next_turn():
 # ---------------------------------------------------------------------------
 
 def test_festival_grounds_makes_the_counter_stadium_urgent():
-    """`_contra_estadio_urgente` governs BOTH faces: not letting the Forest go in
+    """`_counter_stadium_urgent` governs BOTH faces: not letting the Forest go in
     a forced discard and not vetoing its play."""
     # A hostile stadium and no Forest of ours on the table -> urgent.
     assert m._counter_stadium_urgent(False, False, False, True) is True

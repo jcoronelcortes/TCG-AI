@@ -19,14 +19,14 @@ from math import comb as _comb
 
 
 def _prob_al_menos(successes, population, draws, k):
-    """Hypergeometric: P(drawing AT LEAST `k` copies) when drawing `robo`
-    cards from a deck of `poblacion` with `exitos` live copies.
+    """Hypergeometric: P(drawing AT LEAST `k` copies) when drawing `draws`
+    cards from a deck of `population` with `successes` live copies.
 
     This is the ONLY place in the file where the agent reasons about chance;
-    everything else decides from the visible board. `exitos` comes from the deck
-    belief (`CARTAS_ACTIVAS_EN_MAZO`), which counts what has NOT been seen: deck
+    everything else decides from the visible board. `successes` comes from the deck
+    belief (`ACTIVE_CARDS_IN_DECK`), which counts what has NOT been seen: deck
     + face-down prizes. That is why the caller also puts the prizes into
-    `poblacion` -- from our side they are indistinguishable from deck cards --
+    `population` -- from our side they are indistinguishable from deck cards --
     which leaves the estimate SLIGHTLY conservative (in registro_004: 11 unseen
     Grass out of 48 -> 0.60, against the real 0.63 of the 10 left in a 42-card
     deck). Conservative is what a gate wants."""
@@ -130,7 +130,7 @@ def _finisher_fishing_valid(c):
     Gates (all required): a free Supporter slot; NO attack possible this turn
     (neither with the active nor by promoting an already charged benched body --
     if we can attack, the normal ladder rules); the plan TAKES a prize with
-    probability >= `PESCA_PROB_MIN`; and no GUARANTEED finisher on the board
+    probability >= `FISHING_PROB_MIN`; and no GUARANTEED finisher on the board
     (winning gust or dodge), which always beats a probable KO.
 
     `pending_evo` (a direct evolution in hand with its pre-evolution in play)
@@ -161,7 +161,7 @@ def _finisher_fishing(my_state, op_state, state, hand_counts, field_counts,
     """The BEST attack this turn's draw can unlock, with its probability.
     `None` if there is none.
 
-    DAMAGE-AWARE sibling of `_plan_de_planta`: it shares its attachment
+    DAMAGE-AWARE sibling of `_grass_plan`: it shares its attachment
     arithmetic (cards = ceil(deficit / `_grass_attach_unit()`), routes that can
     be aimed at a specific body -- manual + Ripening Charge on each Hydrapple ex
     + Teal Dance only on the Ogerpon itself) and adds what that one does not
@@ -180,7 +180,7 @@ def _finisher_fishing(my_state, op_state, state, hand_counts, field_counts,
     discarding BOTH Lillie's, which were already dead cards with the Supporter
     spent.
 
-    `baraja_la_mano=True` (Lillie's, Unfair Stamp) models the real cost of the
+    `shuffles_hand=True` (Lillie's, Unfair Stamp) models the real cost of the
     refill: any Grass in hand goes BACK to the deck, so it does not count
     against the deficit and is added to the `outs`.
 
@@ -211,7 +211,7 @@ def _finisher_fishing(my_state, op_state, state, hand_counts, field_counts,
     # immediate resource and reappears as outs in the deck.
     useful_in_hand = 0 if shuffles_hand else grass_in_hand
     outs = grass_in_deck + (grass_in_hand if shuffles_hand else 0)
-    # `grass_en_mazo` comes from the belief, which counts EVERYTHING unseen: deck +
+    # `grass_in_deck` comes from the belief, which counts EVERYTHING unseen: deck +
     # prizes. The population has to count them the same way so the probability is
     # not inflated (see `_prob_al_menos`). The Supporter being played does not go
     # back to the deck: it is discarded, hence the -1.
@@ -248,7 +248,7 @@ def _finisher_fishing(my_state, op_state, state, hand_counts, field_counts,
             continue                      # already attacks: this is not fishing
         cards_needed = -(-missing // unit)
         # Routes that can point at THIS body today (same criterion as
-        # `_plan_de_planta`): Teal Dance only charges its bearer.
+        # `_grass_plan`): Teal Dance only charges its bearer.
         targetable = manual_slots + n_hydrapple
         if body.id == Teal_Mask_Ogerpon_ex and not abilities_off:
             targetable += 1
@@ -257,7 +257,7 @@ def _finisher_fishing(my_state, op_state, state, hand_counts, field_counts,
             continue                      # not even with every route does it attack today
         if cards_needed <= min(grass_in_hand, targetable):
             # The HAND already unlocks it: this is not fishing, it is a charge --
-            # and with `baraja_la_mano` it would also be the worst possible
+            # and with `shuffles_hand` it would also be the worst possible
             # mistake (shuffling away exactly the energy that wins the turn).
             # The attachment scores in its own tier and is played EARLIER; if it
             # only covers part of the deficit, the later re-evaluation comes back

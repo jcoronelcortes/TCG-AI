@@ -19,8 +19,8 @@ a pure gift" is false; what turns the energy into a gift is not the excess
 but the **KO**, exactly as the plan's own diagnosis says ("while
 the body LIVES the energy is not wasted; the waste happens at the KO").
 
-So the rule is the other half: `_cuerpo_condenado` + the ceiling
-`SCORE_CARGA_CONDENADA`. Two design decisions:
+So the rule is the other half: `_doomed_body` + the ceiling
+`SCORE_CHARGE_DOOMED`. Two design decisions:
 
   * the window is measured **COMPLETE** (with Adrena-Brain's aimable damage), the
     opposite of Ripening Charge's healing, which uses the GUARANTEED one. There a
@@ -132,7 +132,7 @@ def _board_with_wounded_meganium(with_drip=True):
     INTACT benched Ogerpon ex. It reproduces the real flip of step 172 of
     `registros/marnie/partida_1`, where the Grass went to the dying Meganium.
 
-    `con_goteo=False` is the CONTROL group: the same board with an opponent without
+    `with_drip=False` is the CONTROL group: the same board with an opponent without
     Froslass or Munkidori, where the window is 0 and the rule does not exist.
     """
     opponent_bench = ([pk(FROSLASS, hp=90, max_hp=90),
@@ -207,7 +207,7 @@ def _board_to_play_fez(with_froslass=True, opponent_prizes=6):
     bench be all Basics, so the bench is a Tapu Bulu (with a Bayleef the branch is
     not reached and the control would not distinguish anything).
 
-    `premios_rival=5` means the opponent took a prize: the tracking deduces
+    `opponent_prizes=5` means the opponent took a prize: the tracking deduces
     that we were knocked out and `ko_last_turn` switches Flip the Script on.
     """
     opponent_bench = ([pk(FROSLASS, hp=90, max_hp=90)] if with_froslass
@@ -247,8 +247,8 @@ def test_without_froslass_fezandipiti_is_played():
 def _board_to_play_applin(with_munkidori=True, with_chain=False):
     """A development turn with an Applin in hand.
 
-    `con_munkidori=True` puts the snipe (30) + one Adrena-Brain (30) on the board:
-    the 40 HP of the freshly played Applin fall inside the window. `con_cadena`
+    `with_munkidori=True` puts the snipe (30) + one Adrena-Brain (30) on the board:
+    the 40 HP of the freshly played Applin fall inside the window. `with_chain`
     adds the Dipplin in hand and the Forest in play, so the Applin
     evolves the same turn and leaves the window.
     """

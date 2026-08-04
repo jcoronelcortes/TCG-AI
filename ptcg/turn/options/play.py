@@ -338,7 +338,7 @@ def puntuar(tc, o, score):
                         # _deny_evo_via_boss 22000, _meowth_immune_boss_engine
                         # 22000), exempt on the argument that they "search for
                         # a Boss's that IS PLAYED this turn, it is not shuffled". That
-                        # argument is FALSE: `_REGLAS_BOSS_PLAY` vetoes the Boss's
+                        # argument is FALSE: `_RULES_BOSS_PLAY` vetoes the Boss's
                         # with `cede_a_unfair_stamp` (and the same is done by the
                         # Xerosic/Lillie's/Dawn/Lana's scorers: ALL the
                         # `_SUPP_PLAY_IDS` yield to the Stamp), so the fetched Boss's
@@ -746,7 +746,7 @@ def puntuar(tc, o, score):
                     # pointed at Boss's but the fetch ended up bringing the
                     # Xerosic we already had. See `_meowth_fetch_prediccion`.
                     #
-                    # `_meowth_fetch_pierde_el_turno` is the other half of the
+                    # `_meowth_fetch_loses_the_turn` is the other half of the
                     # same check: the fetch would bring something we do NOT have,
                     # but a Supporter from hand takes the turn's ONLY
                     # slot, so the fetched card is not played
@@ -1034,7 +1034,7 @@ def puntuar(tc, o, score):
                     # (registro_006 p76, registro_008 p85, registro_010 p147)
                     # have `_meowth_devel_lillie` False -- a board that is already
                     # developed or with no Lillie's in hand -- so
-                    # `_meowth_fetch_ya_en_mano` is False and they still put the
+                    # `_meowth_fetch_already_in_hand` is False and they still put the
                     # Meowth down to dig out the Xerosic.
                     and not _meowth_fetch_already_in_hand)
                 if _alk_meowth_hand_engine:
@@ -1068,7 +1068,7 @@ def puntuar(tc, o, score):
                 # retreat the ex and put it in front -- if we are knocked out, we
                 # concede 1 prize and not 2, and the opponent needs KOs of 2-3 to win.
                 # Only if there is not already a 1-prize body on the bench (one
-                # is enough for the pivot). `_descuadre_matchup` already excludes our
+                # is enough for the pivot). `_prize_mismatch_matchup` already excludes our
                 # first turn when going first. (no score guard: the boost
                 # has to come before the generic development vetoes, which do not
                 # know about this plan)
@@ -1162,7 +1162,7 @@ def puntuar(tc, o, score):
                 # It is also required that a Meowth ex remain REACHABLE (hand or
                 # deck): with no body to fill the slot there is nothing to
                 # reserve. The three conditions live together in
-                # `_alk_ld_engine_vivo` (computed alongside `_meowth_ld_free`).
+                # `_alk_ld_engine_alive` (computed alongside `_meowth_ld_free`).
                 if (op_is_alakazam_deck and bench_count == 4
                         and _alk_ld_engine_alive
                         and AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(

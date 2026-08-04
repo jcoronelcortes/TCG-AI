@@ -112,7 +112,7 @@ def puntuar(tc, o, score):
                     # turn (31300+, 31500, 41000).
                     score = 31200
                 elif (AGENT_STATE.plan.attacker == 0 and AGENT_STATE.plan.energy
-                        # The band of `_carga_activo_habilita_ataque` (31300) is
+                        # The band of `_charge_active_enables_attack` (31300) is
                         # calibrated against the UB engine (31450) and Teal Dance
                         # (31500): the tie-break bonus would cross it.
                         and not _charge_active_enables_attack):

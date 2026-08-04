@@ -42,7 +42,7 @@ def _stamp_pendiente(c) -> bool:
     The SINGLE source of the ordering vetoes that step aside for it (Boss's,
     Lillie's, Lana's, Dawn, Xerosic, the Meowth -> Last-Ditch chain and the
     Fezandipiti ability). It used to be enough that "we got knocked out + the
-    Stamp is still in hand", but ever since `_sello_merece_jugarse` can VETO the
+    Stamp is still in hand", but ever since `_stamp_worth_playing` can VETO the
     Stamp, that gate alone would have paralysed the turn: the way was given to a
     card that was no longer going to be played. By sharing the predicate, when
     the Stamp waits (opposing hand <= 2 and our own hand large) the Supporters
@@ -147,7 +147,7 @@ _RULES_STAMP_PLAY = [
     # cheap refill (we sacrifice > 4 cards) the Stamp is NOT played. It is not an
     # ordering veto: no other card of the turn revokes it, it only changes if the
     # board changes (e.g. our own hand drops by playing items). See
-    # `_sello_merece_jugarse`.
+    # `_stamp_worth_playing`.
     _FixedRule("sin_disrupcion_ni_refresco",
                lambda c: not _stamp_worth_playing(c.op_hand_count,
                                                    c.my_hand_len),
@@ -157,7 +157,7 @@ _RULES_STAMP_PLAY = [
     # required to be REALLY going to be played (a score above last resort): if any
     # of its guards knocks it down to `XEROSIC_SCORE_LAST_RESORT` -- e.g.
     # `alakazam_cede_a_gusteo_ganador`, where a Boss's decides the turn -- the
-    # Stamp yields to nobody and is played normally. See `_xr_antes_del_sello`.
+    # Stamp yields to nobody and is played normally. See `_xr_before_the_stamp`.
     _FixedRule("cede_el_orden_a_xerosic",
                lambda c: (_xr_before_the_stamp(c)
                           and _score_xerosic_play(c)
@@ -213,7 +213,7 @@ _AJUSTES_STAMP_PLAY = [
 
 def _score_unfair_stamp_play(ctx: DecisionContext) -> int:
     """Scores playing Unfair Stamp (hand refill). Body migrated to the RULES
-    ENGINE (phase 4): rules and comments in _REGLAS_STAMP_PLAY."""
+    ENGINE (phase 4): rules and comments in _RULES_STAMP_PLAY."""
     return _resolve_with_trace("stamp->play", _RULES_STAMP_PLAY,
                                _AJUSTES_STAMP_PLAY, ctx, default=7500)
 
@@ -263,7 +263,7 @@ _RULES_XEROSIC_PLAY = [
     # Item and re-shuffles OUR hand). Same gate as Boss's/Lana's/Dawn.
     # EXCEPTION (user, jul 2026): with a GIANT opposing hand the order is
     # reversed -- the Stamp only returns those cards to the deck, Xerosic
-    # DISCARDS them, and both fit in the same turn. See `_xr_antes_del_sello`;
+    # DISCARDS them, and both fit in the same turn. See `_xr_before_the_stamp`;
     # the other side of the change is `cede_el_orden_a_xerosic` in the Stamp.
     _FixedRule("cede_a_unfair_stamp",
                lambda c: (_stamp_pendiente(c)

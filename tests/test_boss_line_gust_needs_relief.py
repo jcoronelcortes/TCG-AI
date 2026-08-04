@@ -19,7 +19,7 @@ evolve and attack with. The clean case is in the test below: with their
 the Supporter swapping one for the other -- and the Drakloak evolves into another
 Dragapult ex in the active spot.
 
-Now all six go through `_gust_releva_al_atacante`: with no KO, a gust only
+Now all six go through `_gust_relieves_the_attacker`: with no KO, a gust only
 costs the rival a turn when it swaps a body that ATTACKS for one that cannot
 pay for its attack. Discarded as relief are Dunsparce (a forbidden target) and
 threat pre-evolutions (they evolve IN THE ACTIVE SPOT and attack with the new

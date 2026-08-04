@@ -159,7 +159,7 @@ class BotRival:
         return base
 
     def _best_damage_of(self, attacker, defensor):
-        """The best effective damage `atacante` can do to `defensor` with
+        """The best effective damage `attacker` can do to `defensor` with
         any of its attacks (without checking whether it can pay the cost)."""
         data = self._cards.get((attacker or {}).get("id"))
         if data is None:

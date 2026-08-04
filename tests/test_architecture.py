@@ -30,7 +30,7 @@ def test_no_architecture_violations():
 def test_mutables_are_derived_from_the_code():
     """The list of globals is not hand-written.
 
-    It comes from main.py's `global` statements PLUS the fields of `EstadoAgente`.
+    It comes from main.py's `global` statements PLUS the fields of `AgentState`.
     As wave 3 advances, the state moves from the former to the latter,
     so what is checked is that the linter follows it WHEREVER IT LIVES -- not
     how many are left in main.py, which legitimately goes down at every step.
@@ -117,7 +117,7 @@ def test_r2_allows_state_in_calc(tmp_path, monkeypatch):
 
     The effective energy depends on whether Meganium is in play and the attack
     cost on the Nighttime Mine tax: `_can_attack_eff` and `_physical_energy`
-    read ESTADO by nature. The boundary at `calculo/` was attempted and the code
+    read AGENT_STATE by nature. The boundary at `calculo/` was attempted and the code
     rejected it; the useful boundary is data (`cards/`) + rules (`engine/`).
     """
     package = tmp_path / "ptcg"

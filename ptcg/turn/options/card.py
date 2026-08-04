@@ -287,7 +287,7 @@ def puntuar(tc, o, score):
                     # FORCED promotion after a KO (TO_ACTIVE) can fall on the
                     # OPPONENT's turn, where nobody attacks and the wall is still
                     # the right answer; that is why it is not included.
-                    # `_ko_no_garantizado` and the candidate's own self-damage are
+                    # `_ko_not_guaranteed` and the candidate's own self-damage are
                     # checked just like in the other finisher evaluators: a
                     # finisher that kills itself and with that closes the
                     # opponent's count wins nothing.
@@ -943,7 +943,7 @@ def puntuar(tc, o, score):
                     #   * the one that GETS to attack and KNOCKS OUT is exempt:
                     #     there we take a prize before dying and the play can
                     #     close the game in our favour. Under Festival
-                    #     Lead `_promo_llega_a_atacar` is already False for the
+                    #     Lead `_promo_gets_to_attack` is already False for the
                     #     doomed ones, so the exemption does not open.
                     #
                     # With the opposing damage unreadable (a projection of 0) EVERYBODY
@@ -1007,7 +1007,7 @@ def puntuar(tc, o, score):
         
                     # Target of the Boss's Orders GUST: migrated to the RULES
                     # ENGINE (phase 4). Definitions and strategic comments in
-                    # _REGLAS_GUST_ESTORBO / _AJUSTES_GUST_* (before agent()).
+                    # _RULES_GUST_NUISANCE / _AJUSTES_GUST_* (before agent()).
                     if card.id in DUNSPARCE_IDS:
                         # Rule (user): NEVER gust a Dunsparce (ids 65 and
                         # 305), neither in nuisance mode nor in offensive mode.
@@ -1160,7 +1160,7 @@ def puntuar(tc, o, score):
         
                     # Block migrated to the RULES ENGINE (phase 4):
                     # definitions and strategic comments in
-                    # _REGLAS_PP_FETCH (before agent()).
+                    # _RULES_PP_FETCH (before agent()).
                     score = _resolve_with_trace(
                         "pp->fetch", _RULES_PP_FETCH, [],
                         _CtxPPFetch(card.id, hand_counts, field_counts,
@@ -1343,7 +1343,7 @@ def puntuar(tc, o, score):
                     # by "Lillie already played" when the Lillie's engine
                     # is EXHAUSTED (no copy left in the deck); if there are still
                     # copies, Meowth ex keeps priority (rule
-                    # lillie_en_mazo_refresco of _REGLAS_UB_MEOWTH).
+                    # lillie_en_mazo_refresco of _RULES_UB_MEOWTH).
                     _dp_lillie_played = (
                         discard_counts.get(Lillie_Determination, 0) >= 1
                         and AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(
@@ -1380,7 +1380,7 @@ def puntuar(tc, o, score):
                     # steps of the records and 0 as well in the synthetic
                     # scenario built on purpose for it. The reason is
                     # that `cede_a_dipplin_prioritario` (10) lives at the END of
-                    # `_REGLAS_UB_MEOWTH`, behind the
+                    # `_RULES_UB_MEOWTH`, behind the
                     # `hydra_muerto_prefiere_meowth` /
                     # `meganium_muerto_prefiere_meowth` /
                     # `sin_atacante_prefiere_meowth` family (1000-1250), which is
@@ -1555,7 +1555,7 @@ def puntuar(tc, o, score):
                     elif card.id == Hydrapple_ex:
                         # Branch migrated to the RULES ENGINE (phase 4
                         # pilot): definitions and strategic comments in
-                        # _REGLAS_UB_HYDRAPPLE / _AJUSTES_UB_HYDRAPPLE
+                        # _RULES_UB_HYDRAPPLE / _AJUSTES_UB_HYDRAPPLE
                         # (before agent()). PTCG_DEBUG prints the trace.
                         if not has_hydrapple:
                             _ub_hyd_ctx = _ctx_ub_fetch_hydrapple(
@@ -1647,7 +1647,7 @@ def puntuar(tc, o, score):
         
                     # Block migrated to the RULES ENGINE (phase 4):
                     # definitions and strategic comments in
-                    # _REGLAS_MEOWTH_FETCH (before agent()). Only the
+                    # _RULES_MEOWTH_FETCH (before agent()). Only the
                     # Supporters enter the engine; the rest keep the 50.
                     score = 50
                     if card.id in _MEOWTH_FETCH_SUPPS:
@@ -1782,7 +1782,7 @@ def puntuar(tc, o, score):
                 # (Applin 260 > Dipplin 250 > Grass 240) decided the menu.
                 #
                 # Here they are replaced by the board reading, in three bands:
-                #   1. `desbloquea_hoy`: the Grass that puts a body in attack range
+                #   1. `unlocks_today`: the Grass that puts a body in attack range
                 #      THIS turn. A prize today beats any
                 #      development -- the same criterion as `ns->grass`.
                 #   2. `demanda`: the ones an attacker IN PLAY is still
@@ -1792,7 +1792,7 @@ def puntuar(tc, o, score):
                 # And development loses its value if the card cannot be
                 # put into play (`_pokemon_injugable`).
                 #
-                # The ordinal (`_lana_orden_planta`) is what avoids the
+                # The ordinal (`_lana_grass_order`) is what avoids the
                 # symmetric failure: with a demand of 1 and 4 Grass in the discard, without
                 # it all 4 would tie at the top and take all 3 choices.
                 if _lana_plan is not None:

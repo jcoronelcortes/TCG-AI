@@ -101,7 +101,7 @@ def _load():
 def _decision(extra_hand=0, op_hand=None):
     """Runs the real decision of step 99 and returns (choice, the Stamp's score).
 
-    `mano_extra` fattens OUR hand with dead Grass Energies (the turn's energy
+    `extra_hand` fattens OUR hand with dead Grass Energies (the turn's energy
     is already attached): they are exactly the cards the Stamp would shuffle
     into the deck. They are added at the END so as not to shift the `index` of the
     menu's PLAY options.

@@ -46,7 +46,7 @@ another, so most of them are gated on these flags.
 
 ## Where we stand (August 2026)
 
-Measured against the **89 real leaderboard decks** in `deck/rivales_reales/`,
+Measured against the **89 real leaderboard decks** in `deck/real_opponents/`,
 400 games per matchup, weighted by how often each list actually appears:
 
 ```bash

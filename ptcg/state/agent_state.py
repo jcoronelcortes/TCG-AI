@@ -1,15 +1,15 @@
-"""`EstadoAgente`: the mutable state that persists BETWEEN turns.
+"""`AgentState`: the mutable state that persists BETWEEN turns.
 
 Wave 3 of the refactor (docs/project-history.md). Up to here everything was a
 verbatim move; this is the first thing that REWRITES code, because every
-`ko_last_turn` becomes `ESTADO.ko_last_turn`.
+`ko_last_turn` becomes `AGENT_STATE.ko_last_turn`.
 
 WHY AN OBJECT AND NOT LOOSE NAMES
   `from ptcg.estado.agente import ko_last_turn` COPIES the value at import time:
   when main.py reassigns it, the module that imported it that way keeps seeing
   the old value. It raises no exception, it breaks no test that sets the global
   on its own -- the agent simply decides badly in a real game. With an object
-  there is nothing to copy: `ESTADO` is never reassigned, only its fields, and
+  there is nothing to copy: `AGENT_STATE` is never reassigned, only its fields, and
   every module looks at the same one. utils/lint_architecture.py (R1) watches it.
 
   It has already happened twice with names that were NOT state and still behaved
@@ -25,7 +25,7 @@ THERE IS ONLY ONE RESET
 from ptcg.cards.costs import ATTACK_ENERGY_REQ_BASE
 from ptcg.engine.plan import AttackPlan
 
-# Sentinel value of `_log_turno_en_curso`: we do not know yet which turn the
+# Sentinel value of `_log_current_turn`: we do not know yet which turn the
 # logs we are reading belong to.
 _TURN_LOG_UNKNOWN = -1
 
@@ -71,7 +71,7 @@ class AgentState:
         # brought; while the Supporter slot is still free, that id keeps the turn (the
         # other Supporters in hand yield). Reset every turn.
         #
-        # It is the OTHER HALF of `_meowth_fetch_pierde_el_turno`: that one predicts,
+        # It is the OTHER HALF of `_meowth_fetch_loses_the_turn`: that one predicts,
         # BEFORE benching the Meowth, that the fetch is going to win the slot; this one
         # COLLECTS on the prediction afterwards. It is only armed with a PAID body
         # (`appearThisTurn`): the Last-Ditch of a Meowth from previous turns is free and
@@ -131,9 +131,9 @@ class AgentState:
         self.ATTACK_ENERGY_REQ = dict(ATTACK_ENERGY_REQ_BASE)
 
         # --- belief about the deck --------------------------------------------
-        # `CARTAS_ACTIVAS_EN_MAZO[card_id][ZONE]` = how many copies are in each
-        # zone. `_init_cartas_tracking()` fills it from deck.csv and
-        # `_move_card_state` and `_update_cartas_tracking` move it around.
+        # `ACTIVE_CARDS_IN_DECK[card_id][ZONE]` = how many copies are in each
+        # zone. `_init_cards_tracking()` fills it from deck.csv and
+        # `_move_card_state` and `_update_cards_tracking` move it around.
         self.ACTIVE_CARDS_IN_DECK = {}
         self._cards_first_scan_done = False
         self._cards_prizes_identified = False

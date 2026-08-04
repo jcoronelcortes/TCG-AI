@@ -440,7 +440,7 @@ def _ub_real_fodder(ctx, protegida) -> int:
             # Meowth ex -> Last-Ditch -> Xerosic (5950 > Lillie's 5000) burning Tapu
             # Bulu + a Boss's, and the chain DID get the Xerosic into hand.
             # With the hand already at {Boss's, Lillie's, Ultra Ball, Xerosic},
-            # `_ub_forraje_real(prot=Xerosic)` counted 2 (Boss's + Lillie's), so
+            # `_ub_real_fodder(prot=Xerosic)` counted 2 (Boss's + Lillie's), so
             # `_ub_cancel_xerosic` did NOT fire: the SECOND Ultra Ball (11400,
             # a value-800 target) beat the Xerosic (7200) and paid its cost with
             # the Boss's and with THE XEROSIC ITSELF. Then it dug out a second Meowth
@@ -703,7 +703,7 @@ def _bloqueo_de_items_inminente(budew_on_op_field, op_has_dragapult,
     It is the same notion the sterile turn rescue net already used
     (`agent()`'s finalisation), now with a name and shared with the
     UB->Meowth->Lillie's chain, which under this threat can dig TODAY for a body
-    that is played TOMORROW (`_ub_meowth_para_manana`)."""
+    that is played TOMORROW (`_ub_meowth_for_tomorrow`)."""
     return bool(budew_on_op_field or op_has_dragapult or op_has_dreepy_line)
 
 
@@ -712,7 +712,7 @@ def _ub_cost_destroys_better_card(ctx) -> bool:
     BETTER than what the search brings? It groups the four cost vetoes of
     phase C (`_ub_cancel_stamp` / `_ub_cancel_fez` / `_ub_cancel_lillie` /
     `_ub_cancel_meowth` / `_ub_cancel_xerosic`): they all share the same count
-    (`_ub_forraje_real`) -- the cards in hand that the DISCARD scorer WOULD let
+    (`_ub_real_fodder`) -- the cards in hand that the DISCARD scorer WOULD let
     go (real fodder) are enumerated and, if fewer than 2 remain, paying for the
     Ultra Ball means burning the Supporter / the evolution piece / the protected
     body.
@@ -844,7 +844,7 @@ class _CtxUBMeowth:
     supporter_played: bool = False  # state.supporterPlayed
     ld_free: bool = True        # _meowth_ld_free (Last-Ditch unspent)
     # The Ultra Ball was paid for to dig out the Meowth ex that will be put down
-    # TOMORROW, under the Item lock of Itchy Pollen (see `_ub_meowth_para_manana`):
+    # TOMORROW, under the Item lock of Itchy Pollen (see `_ub_meowth_for_tomorrow`):
     # the fetch MUST complete that purchase even if the Last-Ditch produces nothing
     # today.
     meowth_tomorrow: bool = False
@@ -1008,7 +1008,7 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
         return ub_best_target
 
     # The Stamp only blocks the Supporter chain if it is really going to be played
-    # (a card rule: `_sello_merece_jugarse`). Without `op_hand_count` the gate
+    # (a card rule: `_stamp_worth_playing`). Without `op_hand_count` the gate
     # falls back to the previous behaviour.
     _stamp_blocks_supp_chain = (ko_last_turn
                                 and hand_counts.get(Unfair_Stamp, 0) >= 1
@@ -1503,7 +1503,7 @@ _RULES_UB_MEOWTH = [
                lambda c: c.watchtower,
                lambda c: 10),
     # ITEM LOCK TOMORROW: the Ultra Ball was played EXACTLY to dig out this
-    # body (`_ub_meowth_para_manana`, registro_002 step 17 vs Dragapult), so
+    # body (`_ub_meowth_for_tomorrow`, registro_002 step 17 vs Dragapult), so
     # the fetch has to complete the purchase. It goes ABOVE
     # `last_ditch_no_produce`: it is true that the ability produces nothing today --
     # that is the point, the Meowth ex is put down TOMORROW, when there will be no
@@ -1521,7 +1521,7 @@ _RULES_UB_MEOWTH = [
     #      the Meowth through [[no-meowth-si-supporter-ya-jugado]]).
     #   2) `not ld_free`: some Meowth ex in play APPEARED THIS TURN, so
     #      the turn's only Last-Ditch is already spent (see `_meowth_ld_free` and
-    #      `_ub_cavar_meowth_se_juega`).
+    #      `_ub_dig_meowth_gets_played`).
     # On that turn 6 we had played Lillie's and the Ultra Ball still brought
     # a Meowth ex (1000, beating Chikorita/Meganium/Bayleef); the agent chained
     # a SECOND Ultra Ball to dig out the other Meowth ex and ended up attacking

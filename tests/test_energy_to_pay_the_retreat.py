@@ -9,9 +9,9 @@ five-step chain:
     Night Stretcher -> Grass to hand -> attach to the ACTIVE -> RETREAT ->
     promote the finisher -> KO
 
-The agent ended the turn (END). Cause: `_ns_e_activo_paga_retirada` -- the
+The agent ended the turn (END). Cause: `_ns_e_active_pays_retreat` -- the
 deck-agnostic detector of that line -- was only wired to the FULL BENCH
-cut-off (`_ns_banca_llena_guardar`), never to `_ESC_NS_RECUPERACION`, which is the
+cut-off (`_ns_full_bench_keep`), never to `_ESC_NS_RECUPERACION`, which is the
 list that produces the SCORE. With the bench not full the ARGMAX gave 0 and the
 Night Stretcher's scorer returned SCORE_VETO.
 
@@ -167,7 +167,7 @@ def test_with_the_energy_attached_it_retreats():
 
 
 # ---------------------------------------------------------------------------
-# The useful-energy threshold on the ACTIVE (`_ns_umbral_energia_util`)
+# The useful-energy threshold on the ACTIVE (`_ns_useful_energy_threshold`)
 # ---------------------------------------------------------------------------
 
 def _umbral_viejo(cid, e):

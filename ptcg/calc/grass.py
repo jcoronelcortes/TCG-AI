@@ -15,7 +15,7 @@ from dataclasses import dataclass
 
 @dataclass
 class _PlanPlanta:
-    """Reading of the BOARD in ENERGY terms (see `_plan_de_planta`)."""
+    """Reading of the BOARD in ENERGY terms (see `_grass_plan`)."""
     unit: int              # EFFECTIVE energy provided by ONE physical Grass
     in_hand: int             # Grass already available in hand
     slots_today: int           # Grass attachments that still fit THIS turn
@@ -23,12 +23,12 @@ class _PlanPlanta:
     unlocks_today: bool     # a NEW Grass puts a body in attack range TODAY
     cards_to_attack: int  # NEW Grass that this unlock requires
     pendiente: int           # Grass demanded by every attacker in play
-    demanda: int             # NEW Grass the board can use (<= `tope`)
+    demanda: int             # NEW Grass the board can use (<= `cap`)
 
 
 @dataclass
 class _PlanPlanta:
-    """Reading of the BOARD in ENERGY terms (see `_plan_de_planta`)."""
+    """Reading of the BOARD in ENERGY terms (see `_grass_plan`)."""
     unit: int              # EFFECTIVE energy provided by ONE physical Grass
     in_hand: int             # Grass already available in hand
     slots_today: int           # Grass attachments that still fit THIS turn
@@ -36,7 +36,7 @@ class _PlanPlanta:
     unlocks_today: bool     # a NEW Grass puts a body in attack range TODAY
     cards_to_attack: int  # NEW Grass that this unlock requires
     pendiente: int           # Grass demanded by every attacker in play
-    demanda: int             # NEW Grass the board can use (<= `tope`)
+    demanda: int             # NEW Grass the board can use (<= `cap`)
 
 
 def _grass_plan(my_state, state, field_counts, hand_counts, cap=3,
@@ -70,12 +70,12 @@ def _grass_plan(my_state, state, field_counts, hand_counts, cap=3,
     really attack with", so a benched Chikorita or Applin never invents energy
     demand (`ATTACK_ENERGY_REQ` does assign them a cost).
 
-    `desbloquea_hoy` only looks at the ACTIVE, unless `puede_cambiar` says a
+    `unlocks_today` only looks at the ACTIVE, unless `can_switch` says a
     retreat/switch is available: a charged benched attacker does not attack
     today if it cannot come up. Benched bodies do always add to `pendiente`,
     which is two-turn demand.
 
-    `habilidades_apagadas` (Team Rocket's Watchtower / Iron Thorns active, the
+    `abilities_off` (Team Rocket's Watchtower / Iron Thorns active, the
     `meowth_ability_lock` flag) erases both ABILITY routes: with the lock on,
     only the manual attachment is left, and treating Teal Dance/Ripening as
     alive invents unlocks that do not exist.

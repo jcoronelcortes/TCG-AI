@@ -150,7 +150,7 @@ def _ns_charge_route_open(w):
 
 
 def _ns_charge_route_to_active(w):
-    """Same as `_ns_ruta_de_carga_abierta` but requiring that the Grass can
+    """Same as `_ns_charge_route_open` but requiring that the Grass can
     reach the ACTIVE: the manual attachment goes wherever we want, Ripening
     Charge too (it attaches to 1 of your Pokemon) and Teal Dance only to the
     Ogerpon itself."""
@@ -187,7 +187,7 @@ def _ns_e_retreat_lethal(w):
 
 
 def _ns_e_retreat_chip(w):
-    """NON-lethal version of `_ns_e_retirada_letal`: the benched attacker only
+    """NON-lethal version of `_ns_e_retreat_lethal`: the benched attacker only
     does CHIP damage, but the active cannot attack in any way this turn
     (`ability_unlock_retreat_attack` already requires it), so the chip damage is
     worth infinitely more than closing the turn at 0. Same criterion as
@@ -202,15 +202,15 @@ def _ns_e_active_pays_retreat(w):
     """Energy from the discard so the ACTIVE pays its RETREAT COST and a benched
     body comes up to attack (user, registro_014 step 141 vs Alakazam).
 
-    `_ns_activo_no_llega_al_coste` only contemplates the retreat of the MEGANIUM
+    `_ns_active_below_its_cost` only contemplates the retreat of the MEGANIUM
     LINE (Chikorita/Bayleef/Meganium); with an active Fezandipiti ex at 0
     energies and a ready benched Hydrapple ex it returned False, so the Night
     Stretcher that recovered the Grass from the discard was vetoed for a full
     bench and the turn died without attacking.
 
     Union of the two variants above. The FULL BENCH cut-off consumes it
-    (`_ns_banca_llena_guardar`); the play's SCORE is produced by
-    `_ns_e_retirada_letal` / `_ns_e_retirada_chip` as scenarios of
+    (`_ns_full_bench_keep`); the play's SCORE is produced by
+    `_ns_e_retreat_lethal` / `_ns_e_retreat_chip` as scenarios of
     `_ESC_NS_RECUPERACION`."""
     return _ns_e_retreat_lethal(w) or _ns_e_retreat_chip(w)
 
@@ -337,7 +337,7 @@ def _ns_e_finisher_via_promotion(w):
     # crustle_kangaskhan; with them it goes back to positive):
     #   (a) the promoted body is EXPOSED to the opposing active: if that hit knocks
     #       it out, the pivot gives away its prizes (same guard as
-    #       `_pivote_banca_suicida`);
+    #       `_bench_pivot_suicidal`);
     #   (b) the KO has to be worth 2+ prizes or WIN the game: burning the Night
     #       Stretcher and an energy for a single prize does not pay off.
     _prizes = prize_count_op(opp)
@@ -492,7 +492,7 @@ def _ctx_ns_fetch(my_state, state, hand_counts, field_counts, bench_count,
     # to attack today and an empty hand, recovering an EVOLUTION is preparation
     # that never gets played -- the opponent knocks out the active and next turn we
     # still have no cards. The only thing that produces value is the DRAW engine.
-    # `mano_agotada` measures the hand ALREADY without the search card (it was paid
+    # `hand_exhausted` measures the hand ALREADY without the search card (it was paid
     # when playing it), so 0 = we are left dry.
     dead_turn = _no_attack_today(my_state, state, field_counts,
                                    abilities_off=watchtower)
@@ -697,7 +697,7 @@ _RULES_NS_MEOWTH = [
                lambda c: c.turn == 1 and AGENT_STATE.we_go_first,
                lambda c: 10),
     # First option of the draw engine on a dead turn: it beats ALL development
-    # (see the comment block about _ns_motor_meowth_vivo).
+    # (see the comment block about _ns_meowth_engine_alive).
     _FixedRule("motor_de_robo_turno_muerto",
                lambda c: (c.dead_turn and c.hand_exhausted
                           and _ns_meowth_engine_alive(c)),

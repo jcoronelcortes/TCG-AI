@@ -87,7 +87,7 @@ def _op_body_is_harmless(pkmn):
     """`pkmn` (opponent) CANNOT attack on its next turn EVEN by attaching one
     energy: ALL of its attacks cost more than `energies + 1`.
 
-    This is the THRESHOLD of `_op_deficit_de_ataque` (deficit >= 2): with a
+    This is the THRESHOLD of `_op_attack_deficit` (deficit >= 2): with a
     deficit of 1 the opponent's attachment for the turn already pays for the
     attack. It returns False when the deficit cannot be known -- "harmless" is
     never concluded on suspicion -- and also with a zero-cost attack, which they
@@ -98,7 +98,7 @@ def _op_body_is_harmless(pkmn):
 
 
 def _op_active_is_harmless(op_state):
-    """`_op_cuerpo_inofensivo` applied to the opposing ACTIVE."""
+    """`_op_body_is_harmless` applied to the opposing ACTIVE."""
     return _op_body_is_harmless(op_state.active[0] if op_state.active else None)
 
 
@@ -208,7 +208,7 @@ def _op_body_is_harmless(pkmn):
     """`pkmn` (opponent) CANNOT attack on its next turn EVEN by attaching one
     energy: ALL of its attacks cost more than `energies + 1`.
 
-    This is the THRESHOLD of `_op_deficit_de_ataque` (deficit >= 2): with a
+    This is the THRESHOLD of `_op_attack_deficit` (deficit >= 2): with a
     deficit of 1 the opponent's attachment for the turn already pays for the
     attack. It returns False when the deficit cannot be known -- "harmless" is
     never concluded on suspicion -- and also with a zero-cost attack, which they
@@ -219,7 +219,7 @@ def _op_body_is_harmless(pkmn):
 
 
 def _op_active_is_harmless(op_state):
-    """`_op_cuerpo_inofensivo` applied to the opposing ACTIVE."""
+    """`_op_body_is_harmless` applied to the opposing ACTIVE."""
     return _op_body_is_harmless(op_state.active[0] if op_state.active else None)
 
 

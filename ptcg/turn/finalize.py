@@ -164,7 +164,7 @@ def finalizar(tc):
         stadium_id != 0 and stadium_id != Forest_of_Vitality)
     # vs CRUSTLE, GOING SECOND: the stadium goes down BEFORE the Lillie's
     # (user's rule). Ordering mirror of the rule
-    # `t1_segundos_crustle_estadio_antes_de_lillie` of `_REGLAS_FOREST_PLAY`:
+    # `t1_segundos_crustle_estadio_antes_de_lillie` of `_RULES_FOREST_PLAY`:
     # without this exception the hard veto here (-99999) crushed the score that
     # rule grants and the stadium went back into the deck with Lillie's shuffle.
     # The Crustle deck does not play a stadium (or runs one or two copies), so
@@ -216,7 +216,7 @@ def finalizar(tc):
     # equally covers the case "I put down an Ogerpon, use Teal Dance and a BCS comes
     # out": the freshly drawn BCS is played BEFORE the next body.
     #
-    # It is implemented by DEMOTING the Pokemon drop (tier `_TIER_DEVELOP_TRAS_BCS`)
+    # It is implemented by DEMOTING the Pokemon drop (tier `_TIER_DEVELOP_AFTER_BCS`)
     # instead of promoting the BCS: that way the rule touches ONLY what the user
     # asked for -- EVOLUTIONS keep `_TIER_DEVELOP` and still precede the BCS
     # (promoting it also advanced the evolution into Hydrapple ex and broke its two
@@ -325,7 +325,7 @@ def finalizar(tc):
     # and then immediately played the DAWN it already had in hand: the freshly
     # fetched Lillie's stayed dead and the 2-prize body on the bench was free.
     #
-    # Why the previous vetoes were not enough: `_meowth_fetch_pierde_el_turno`
+    # Why the previous vetoes were not enough: `_meowth_fetch_loses_the_turn`
     # PREDICTS, before benching the Meowth, that the fetch takes the Supporter
     # slot -- but it is not evaluated on OUR FIRST TURN (the anti-donk line
     # benches the Meowth anyway) and, above all, it forces nothing AFTER the fetch.
@@ -372,7 +372,7 @@ def finalizar(tc):
         # The Grand Tree ability goes ABOVE any stadium play: if we put ours down
         # first (Forest, tier STADIUM), the Grand Tree would go to the discard
         # with the free chain uncashed. The `esperar_habilidad_grand_tree` veto of
-        # `_REGLAS_FOREST_PLAY` covers the same case by score; this tier covers it
+        # `_RULES_FOREST_PLAY` covers the same case by score; this tier covers it
         # by ORDER, which is what really rules when two plays live in different
         # tiers.
         _TIER_STADIUM_ABILITY = 55
@@ -648,7 +648,7 @@ def finalizar(tc):
             # The fetch has to contribute something: a Supporter in the DECK that
             # we do not already have in hand (see `_meowth_fetch_prediccion`) and
             # that does not lose the turn's ONLY Supporter slot against one we
-            # already have (`_meowth_fetch_pierde_el_turno`).
+            # already have (`_meowth_fetch_loses_the_turn`).
             and _meowth_fetch_id is not None
             and not _meowth_fetch_redundante
             and not _meowth_fetch_loses_the_turn):
@@ -741,7 +741,7 @@ def finalizar(tc):
     # Comfey the plan only allows putting Teal Mask Ogerpon ex down (max 2), so
     # digging any OTHER body brings a card the plan itself will veto when
     # putting it down -- two cards of hand for nothing. Asked via
-    # `_matchup_permite_bajar`, the net stops firing in those cases just as
+    # `_matchup_allows_playing`, the net stops firing in those cases just as
     # before, but it DOES fire when the target fits the plan: an Ogerpon ex with
     # <2 in play is exactly what the matchup wants to search for, and the Ultra
     # Ball is on its item allowlist. The reason the old comment cited ("burning
@@ -824,7 +824,7 @@ def finalizar(tc):
             _st_item_lock = _item_lock_incoming
             # The matchup plan filters the targets: a body the PLAY branch
             # will veto when putting it down saves no turn (see
-            # `_matchup_permite_bajar`). With no restrictive plan it filters
+            # `_matchup_allows_playing`). With no restrictive plan it filters
             # nothing.
             _st_plan_ok = lambda cid: _matchup_allows_playing(
                 cid, field_counts, op_is_comfey_deck, op_is_cubchoo_deck,
@@ -839,7 +839,7 @@ def finalizar(tc):
             # (`_meowth_ld_free`), the PLAY branch will veto it when putting it
             # down and the Ultra Ball will have burned 2 cards for a dead card.
             # Same criterion as the fetch (`last_ditch_no_produce`) and as
-            # `_ub_cavar_meowth_se_juega`.
+            # `_ub_dig_meowth_gets_played`.
             _st_meowth_useful = (not state.supporterPlayed
                                and not meowth_ability_lock
                                and _meowth_ld_free
@@ -923,7 +923,7 @@ def finalizar(tc):
             # and that inequality does not change because the turn is dead: END
             # keeps the Supporter / the evolution piece for the next turn, which
             # is strictly more than trading them for a redundant basic. See
-            # `_ub_coste_destruye_carta_mejor`.
+            # `_ub_cost_destroys_better_card`.
             if _ub_cost_destroys_better_card(ctx):
                 _st_basic_useful = False
                 _st_evo_useful = False

@@ -44,14 +44,14 @@ and none of its three exceptions covered this board:
 All three looked at the active's ENERGY, never at its STAGE. The fix
 (`_bo_pe_outranks_active`) is the exact mirror of the stage veto that already existed
 in the opposite direction, and it is deck-agnostic by double entry: the stage comes
-from the card data (`_supera_en_evolucion`) and the "it is worth the Boss's" from the
-chain ending in an ex (`_linea_culmina_en_ex`), not from per-deck lists.
+from the card data (`_is_more_evolved_than`) and the "it is worth the Boss's" from the
+chain ending in an ex (`_line_ends_in_ex`), not from per-deck lists.
 
 Measurement: 1 single flip in the 63 decisions of ours in episode 89224411 (the
 one of this step). The golden corpus unchanged. Self-play vs the bot (700 games per
 branch): Marnie 95.0% vs 93.9%, Cynthia 99.4% vs 98.7%, Dragapult 97.3% = 97.3%.
 
-Later unification (`_preevo_de_linea_ex`)
+Later unification (`_preevo_of_ex_line`)
 -----------------------------------------
 The standalone block `_deny_evo_via_boss` -- the one that feeds the Meowth ex
 -> Last-Ditch Catch -> Boss's engine when the card is in the DECK -- classified the
@@ -60,7 +60,7 @@ a game (the Cynthia line was added that way). Now it uses the same card-data
 helper, with the `DUNSPARCE_IDS` guard (their line culminates in Dudunsparce ex but
 the gust has them FORBIDDEN as targets: motivating a gust towards a vetoed
 target is the Dwebble failure of log 86339758). It is an exact superset of the
-list -- pinned by `test_el_helper_es_SUPERCONJUNTO_de_la_lista_curada` -- and it adds
+list -- pinned by `test_the_helper_is_a_superset_of_the_curated_list` -- and it adds
 three cards across the whole meta: Frillish (jellicent_lock, with its Jellicent ex IN ITS
 OWN DECK), Applin/Dipplin (festival_lead) and Snorunt (marnie).
 
@@ -273,7 +273,7 @@ def test_the_rule_is_not_about_the_marnie_line(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# 3. `_linea_culmina_en_ex`, in isolation (deck-agnostic)
+# 3. `_line_ends_in_ex`, in isolation (deck-agnostic)
 # ---------------------------------------------------------------------------
 
 def test_the_ex_line_is_derived_from_the_card_data():
@@ -295,7 +295,7 @@ def test_the_alakazam_line_stays_out():
 
 
 def test_the_helper_is_a_superset_of_the_curated_list():
-    """`_preevo_de_linea_ex` replaces `EX_PREEVO_IDS` in the standalone block
+    """`_preevo_of_ex_line` replaces `EX_PREEVO_IDS` in the standalone block
     `_deny_evo_via_boss` (a Boss's searched from the DECK with Meowth ex ->
     Last-Ditch). The replacement is only valid if it does NOT lose any line
     somebody hand-listed after losing a game."""

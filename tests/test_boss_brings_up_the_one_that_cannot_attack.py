@@ -37,7 +37,7 @@ The three numbers that decide (the user's rule) and that this step separates:
 Looking at attached energies and retreat cost is not enough: by those two numbers
 the Dragapult ex and the bare Drakloak **tie** (both at 0 energies, both with
 retreat 1). The only thing that separates them is how many energies they need to
-**start attacking**, which is what `_op_cuerpo_inofensivo` measures -- by COST
+**start attacking**, which is what `_op_body_is_harmless` measures -- by COST
 read from the card data, never by printed damage (Powerful Hand, Cruel Arrow and
 both attacks of Gardevoir ex are listed as 0 and all of them really hit).
 
@@ -169,12 +169,12 @@ def test_budew_is_never_a_dead_body_its_attack_costs_zero():
 
 
 # ---------------------------------------------------------------------------
-# 3. The graduated axis: `_op_cuerpo_inofensivo` is a THRESHOLD of something measurable
+# 3. The graduated axis: `_op_body_is_harmless` is a THRESHOLD of something measurable
 # ---------------------------------------------------------------------------
-# The boolean is not a primitive datum: it is `_op_deficit_de_ataque >= 2`. Having it
+# The boolean is not a primitive datum: it is `_op_attack_deficit >= 2`. Having it
 # separate is what made it visible that the horizon is ONE energy, and it is the datum
 # on which the graduated tie-break inside the band was tested (and discarded as inert)
-# -- see the "MEASURED AND REVERTED" note next to `_v_gust_traba_neta`.
+# -- see the "MEASURED AND REVERTED" note next to `_v_gust_net_stuck`.
 
 def test_attack_deficit_is_the_graduated_axis_behind_harmless_body():
     assert m._op_attack_deficit(_pk(DRAGAPULT, 0)) == 1     # it attacks with 1
@@ -200,7 +200,7 @@ def test_an_unknown_deficit_invents_nothing():
 def test_walls_pass_for_dead_which_is_why_gust_trap_ids_exists():
     """Crustle, Sylveon, Cornerstone and Iron Thorns ex have cost-3 attacks:
     bare they give a deficit of 3 and the criterion would call them "dead". They are exactly the
-    bodies we do NOT want in front, which is why `GUST_TRAMPA_IDS` excludes them from
+    bodies we do NOT want in front, which is why `GUST_TRAP_IDS` excludes them from
     `sin_ko_prefiere_cuerpo_muerto`. It pins the premise of that list."""
     for trampa in sorted(m.GUST_TRAP_IDS):
         pk = _pk(trampa, 0)

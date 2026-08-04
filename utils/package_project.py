@@ -28,7 +28,7 @@ OUTPUT = PROJECT_ROOT / "submission.tar.gz"
 
 
 def _raices_importadas(py_path):
-    """Top-level names imported by `ruta_py` (module imports only).
+    """Top-level names imported by `py_path` (module imports only).
 
     `from cg.api import X` -> "cg";  `import os` -> "os".
     Imports inside functions are ignored: in the Kaggle container they are
@@ -48,7 +48,7 @@ def _raices_importadas(py_path):
 
 
 def paquetes_locales_de(py_path, raiz=PROJECT_ROOT):
-    """PROJECT packages/modules that `ruta_py` imports, in a stable order.
+    """PROJECT packages/modules that `py_path` imports, in a stable order.
 
     It returns paths to package directories (`cg/`, `ptcg/`) and to loose
     modules (`something.py`) that live at the root. Anything that does not exist in the project is
@@ -76,7 +76,7 @@ def _filter_without_pycache(tarinfo):
 
 
 def build(target_path=OUTPUT, main_py=MAIN_PY, deck_csv=DECK_CSV):
-    """Writes the tar.gz to `destino` and returns the list of included paths."""
+    """Writes the tar.gz to `target_path` and returns the list of included paths."""
     for path in (main_py, deck_csv):
         if not path.exists():
             raise FileNotFoundError(f"Archivo requerido no encontrado: {path}")

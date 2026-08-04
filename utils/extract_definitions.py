@@ -22,7 +22,7 @@ The batch is described in a Python file with a `MODULOS` dict:
     MODULOS = {
         "ptcg/motor/reglas.py": {
             "titulo": "Rules engine: ...",
-            "nombres": ["_ReglaFija", "_Ajuste", "_resolver_reglas"],
+            "nombres": ["_FixedRule", "_Adjustment", "_resolve_rules"],
         },
     }
 

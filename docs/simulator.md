@@ -39,7 +39,7 @@ throughout the documentation and the code.
 | `deck.csv` | Our deck: 60 card IDs, one per line. This exact format is what every deck file in the project uses. |
 | `dataset/EN_Card_Data.csv` | Official English card reference data for the challenge. |
 | `dataset/Card_ID List_EN.pdf` | The official card list, used by the deck-image renderer. |
-| `deck/rivales_reales/` | Real leaderboard lists, deduplicated and screened for whether the generic bot can pilot them, with a weights file giving each list its true meta frequency. Lists the bot cannot pilot are kept aside — they are not a failure, they are the part of the meta the harness cannot measure yet. |
+| `deck/real_opponents/` | Real leaderboard lists, deduplicated and screened for whether the generic bot can pilot them, with a weights file giving each list its true meta frequency. Lists the bot cannot pilot are kept aside — they are not a failure, they are the part of the meta the harness cannot measure yet. |
 | `deck/rivales/` | Hand-built synthetic archetype decks, kept for exercising mechanics the current meta does not offer. |
 | `decks_competidores/` | The raw download: 60-card lists from the top of the leaderboard, plus an index classifying each by archetype, position and score. |
 

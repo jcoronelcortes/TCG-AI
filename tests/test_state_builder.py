@@ -59,9 +59,9 @@ def reset_main_state():
 def _escenario_paso69(op_active="kangaskhan", dipplin_energy=2):
     """A synthetic replica of step 69 of registro_008 with variants.
 
-    op_activo: "kangaskhan" (hittable by ex) or "crustle" (immune to ex,
+    op_active: "kangaskhan" (hittable by ex) or "crustle" (immune to ex,
         with the Kangaskhan relegated to the bench).
-    energia_dipplin: 2 = as in the real one (1 physical x Meganium = [G, G], it attacks
+    dipplin_energy: 2 = as in the real one (1 physical x Meganium = [G, G], it attacks
         after evolving); 0 = no energy (it does not attack after evolving).
     """
     kang = pk(KANGASKHAN, hp=160, max_hp=400, energies=[C, G, C, C],
@@ -100,7 +100,7 @@ def _escenario_paso69(op_active="kangaskhan", dipplin_energy=2):
                  m.Ultra_Ball, m.Boss_Orders, m.Xerosic_Machinations,
                  m.Lillie_Determination, m.Lillie_Determination,
                  m.Forest_of_Vitality, m.Forest_of_Vitality)
-           # NOTE: fetch_ultra_ball() BEFORE resto_al_descarte(), so that
+           # NOTE: fetch_ultra_ball() BEFORE rest_to_discard(), so that
            # the Ultra Ball "in effect" is reserved from the pool and does not end up in the
            # discard (the strict accounting detects it if they are swapped).
            .fetch_ultra_ball()
@@ -432,7 +432,7 @@ MYRIAD_ATK = 120
 
 def _esc_combo_myriad(energies=4, grass_cards=1, energy_played=False,
                       own_prizes=2):
-    # `menu_teal_dance()` requires a Grass in hand (the ability attaches it
+    # `menu_teal_dance_options()` requires a Grass in hand (the ability attaches it
     # FROM the hand); for the later steps of the chain (`plantas=0`) it is
     # built with it and then moved to the discard, which is exactly where it ends up
     # after being used.
@@ -772,7 +772,7 @@ def _menu_with_tapu(op_active, op_bench=(), op_discard=()):
         esc = esc.op_bench(*[pk(b) for b in op_bench])
     if op_discard:
         esc = esc.op_discard(*op_discard)
-    # menu_attach_energia() gives the builder's minimal select; it is replaced
+    # menu_attach_energy() gives the builder's minimal select; it is replaced
     # below by the PLAY menu that exercises the whitelist.
     obs = (esc.op_zonas(hand=4, deck=38, prizes=6)
            .menu_attach_energy().build())

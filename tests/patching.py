@@ -17,7 +17,7 @@ THE SOLUTION
   it immune to the refactor waves still to come: moving a function from one
   module no longer breaks the test that isolated it.
 
-  For mutable state it is NOT needed: it lives in `ESTADO`, which is an object and is
+  For mutable state it is NOT needed: it lives in `AGENT_STATE`, which is an object and is
   never reassigned (see ptcg/estado/agente.py).
 """
 
@@ -50,7 +50,7 @@ def patch_name(monkeypatch, name, value):
 
 @contextmanager
 def parcheado(name, value):
-    """Like `parchear`, but without `monkeypatch` and as a context manager.
+    """Like `patch_name`, but without `monkeypatch` and as a context manager.
 
     For the tests that install a spy by hand with try/finally:
 

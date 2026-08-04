@@ -26,7 +26,7 @@ losses** vs comfey (14 of 17) and 50% vs comfey_yveltal_nz (7 of 14) — 5.6% an
 2.8% of all games, against the 0.4-2% of the other matchups —, with the
 median at **turn 5**.
 
-Fix: `_cf_relevo_urgente` (an empty bench + a BASIC card) joins the exception
+Fix: `_cf_relief_urgent` (an empty bench + a BASIC card) joins the exception
 alongside `_cf_need_starter`. It is the same shape as the counter-stadium exception
 that already lives in the anti-Comfey whitelist of the Trainers branch: *a
 matchup whitelist describes which cards advance the plan, and it cannot veto

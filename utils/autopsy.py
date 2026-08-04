@@ -41,9 +41,9 @@ Usage:
 v3 (Aug 2026): `--censo`. The detectors only look at LOSSES and only emit on
 the turns that already failed; that reproduces a failure, but it does not say what CAUSES it.
 Without a control group, a trait that is frequent in the losses cannot be told apart from a
-trait that is simply frequent -- two hypotheses fell exactly that way. `censo_de_turnos`
+trait that is simply frequent -- two hypotheses fell exactly that way. `turn_census`
 builds a compact row (with no observations) per turn of ALL the games,
-wins included, and `resumen_censo` prints each trait as
+wins included, and `census_summary` prints each trait as
 loss% vs win% and their DIFFERENCE, which is the only thing that explains anything.
 """
 
@@ -114,7 +114,7 @@ def clasificar_derrota(obs_final, asiento, result):
     Modes: "premios" (the opponent completed their prizes), "bench_out" (we
     were left with no Pokemon in play while the opponent still had prizes pending), "deckout"
     (the deck at 0 with the opponent's prizes pending), "limite" (the game reached
-    MAX_PASOS with no result) and "desconocido" (no clear signal). The order
+    MAX_STEPS with no result) and "desconocido" (no clear signal). The order
     of the checks matters: bench_out and deckout are only declared if the
     opponent was STILL missing prizes (otherwise the dominant cause is "premios").
     """
@@ -255,7 +255,7 @@ def turn_census(m, decisiones):
         #     card` on);
         #   * the retreat becomes payable with the charge that STILL fits today.
         # The last one mirrors `_grass_unlocks_active_retreat`: `energies` already comes
-        # in EFFECTIVE symbols and each new physical Grass provides `unidad`
+        # in EFFECTIVE symbols and each new physical Grass provides `unit`
         # (2 with Meganium in play through Wild Growth), so the deficit is measured
         # in CARDS.
         retreat_in_menu = any(

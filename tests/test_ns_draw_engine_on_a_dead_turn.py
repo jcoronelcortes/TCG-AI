@@ -25,7 +25,7 @@ only looks at whether there is an unevolved Bayleef in play) and `ns->meowth`'s
 gave 800 at most (`fetch_supporter_del_mazo`, capped at `min(700, the value of the best
 Supporter in the deck)`). Development ALWAYS won.
 
-Fix (deck-agnostic): `_sin_ataque_hoy` measures with `ATTACK_ENERGY_REQ` whether
+Fix (deck-agnostic): `_no_attack_today` measures with `ATTACK_ENERGY_REQ` whether
 some body gets to attack today -- the active as it stands, a bench attacker
 the active can bring up by paying its retreat, or either of the two with ONE
 energy more if a charging route is still open. If nobody gets there and the hand runs dry

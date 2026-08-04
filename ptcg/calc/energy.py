@@ -182,7 +182,7 @@ def _can_attack_eff(card_id, raw_energy):
     # effective energy (the observation applies Wild Growth), so it is compared
     # directly.
     #
-    # It is deliberately NOT generalised to `_coste_de_ataque_min`:
+    # It is deliberately NOT generalised to `_min_attack_cost`:
     # `ATTACK_ENERGY_REQ` is not just card data, it is the CURATED list of "bodies
     # we really attack with". Meowth ex (which has an attack) is out precisely so
     # that no rule treats it as an attacker -- see the hard veto of Meowth ex on

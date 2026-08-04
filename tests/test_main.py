@@ -1050,7 +1050,7 @@ def test_score_unfair_stamp_lower_when_hand_has_a_play():
 
 
 def _deck(*ids):
-    """A minimal deck-belief: {id: {ESTADO_MAZO: 1}} for the given ids."""
+    """A minimal deck-belief: {id: {ZONE_DECK: 1}} for the given ids."""
     return {cid: {m.ZONE_DECK: 1} for cid in ids}
 
 
@@ -6587,7 +6587,7 @@ def test_a_playable_stamp_does_not_block_the_turn_supporter():
 
 def test_meowth_fetch_boss_still_played_without_playable_stamp():
     # Control: the SAME board without the Stamp (nor the Xerosic, which would take the
-    # Supporter slot through `_meowth_fetch_pierde_el_turno`) -> the
+    # Supporter slot through `_meowth_fetch_loses_the_turn`) -> the
     # Boss's-via-Meowth-ex engine is intact and DOES play Meowth ex.
     with open(_MEOWTH_BOSS_NO_STAMP_FIXTURE, encoding="utf-8") as f:
         obs = json.load(f)["observation"]
@@ -6826,7 +6826,7 @@ def test_win_by_empty_bench_does_not_fire_when_opponent_has_bench():
 # Fezandipiti ex is a good search ONLY if we already have a usable attacker, or if the
 # Meowth ex engine is no longer available (no copies in the deck, a full bench, 2
 # Meowth already in play, a Lillie's in hand, the Supporter already played, or a Watchtower).
-# Fix: the `refill_tras_ko` rule of _REGLAS_UB_FEZ yields when
+# Fix: the `refill_tras_ko` rule of _RULES_UB_FEZ yields when
 # `no_attacker_prefer_meowth` is active (the same predicate that favours
 # Meowth). The fixture injects a KO log (fromArea PRIZE) to derive
 # ko_last_turn from a single observation. Deck-agnostic.
@@ -7616,7 +7616,7 @@ def test_meowth_is_not_played_if_the_turn_supporter_is_already_in_hand():
 
 
 def test_supp_play_score_orders_by_the_scale_that_decides():
-    # The FETCH scale (`_REGLAS_MEOWTH_FETCH`) and the PLAY scale
+    # The FETCH scale (`_RULES_MEOWTH_FETCH`) and the PLAY scale
     # contradicted each other: the first put Lillie's (1200) above Xerosic (<=150), the
     # second the other way round. `_supp_play_score` is the one that DECIDES, so the
     # Meowth's prediction has to be made in it.
@@ -7687,7 +7687,7 @@ def test_alakazam_the_fetch_follows_the_menu_plan_boss_orders():
     xerosic = next(i for i, o in enumerate(menu["select"]["option"])
                    if o.get("type") == int(m.OptionType.PLAY)
                    and me["hand"][o["index"]]["id"] == m.Xerosic_Machinations)
-    # On THIS board the Meowth ex is NO longer played: `_meowth_fetch_pierde_el_turno`
+    # On THIS board the Meowth ex is NO longer played: `_meowth_fetch_loses_the_turn`
     # (registro_004 step 36) discovers that the fetch's Boss's (a 2-prize gust,
     # 6800) LOSES the turn's only Supporter slot against the
     # Xerosic already in hand (7300) -- which is literally the agent's tuned
@@ -8402,7 +8402,7 @@ def test_ceruledge_t2_does_not_play_the_ub_with_a_populated_bench():
 # 390 and knocks out. The agent attacked for 330 all the same.
 #
 # Two chained failures:
-#   1) `_ns_banca_llena_guardar` (the full-bench cut-off) vetoed the Night
+#   1) `_ns_full_bench_keep` (the full-bench cut-off) vetoed the Night
 #      Stretcher: it considered the energy "useless" through `state.energyAttached`,
 #      ignoring that Teal Dance / Ripening Charge are ABILITIES and can still
 #      attach it.
@@ -8564,7 +8564,7 @@ def test_the_ub_does_search_the_evolution_when_the_preevo_can_already_evolve():
 # Two sides of the SAME rule of the user ("the Ultra Ball is only played to search for
 # a Pokemon we need to PLAY"), both through incoherence with what the
 # PLAY branch will do later:
-#   (1) `_ub_cavar_meowth_se_juega`: the chain UB -> Meowth ex -> Last-Ditch ->
+#   (1) `_ub_dig_meowth_gets_played`: the chain UB -> Meowth ex -> Last-Ditch ->
 #       Supporter only looked at `field_counts[Meowth_ex] < 2`, but the card
 #       allows ONE Last-Ditch per turn: with the bench Meowth having appeared
 #       THIS turn the ability was already spent (`_meowth_ld_free` False) and the
@@ -8775,7 +8775,7 @@ def test_archaludon_step78d_the_night_stretcher_recovers_the_grass():
 # 300 - 30 = 270 and fell 30 short of the KO; the agent attacked anyway (or retreated).
 # With a Grass from the discard via Night Stretcher + Teal Dance on the
 # active itself: 30+30x(8+3) = 360 - 30 = 330 >= 300 -> a KO and a WIN. This is the case
-# `_ns_e_remate_con_el_activo` covers.
+# `_ns_e_finisher_with_active` covers.
 _ARCHA_P123_FIXTURE = (
     ROOT / "tests" / "fixtures" / "archaludon_step123_ns_remate_ganador.json")
 
@@ -8919,7 +8919,7 @@ def test_archaludon_step98b_retreats_to_attack_with_meganium():
 # the Last-Ditch Catch prompt REJECTED the fetch (`_meowth_skip_fetch`): the same
 # board, two opposite answers. The cost: a 2-prize body given away on the
 # bench, the Lillie's played anyway and zero value. The correction ties the engine to the
-# SAME board predicate as the ability (`_meowth_fetch_ya_en_mano`), so
+# SAME board predicate as the ability (`_meowth_fetch_already_in_hand`), so
 # the two decisions can no longer contradict each other -- deck-agnostic, and the
 # cases that justified the engine (registro_006 p76, registro_008 p85,
 # registro_010 p147) still play the Meowth to dig the Xerosic.
@@ -8980,7 +8980,7 @@ def test_alakazam_step16_the_meowth_engine_and_the_ability_do_not_contradict():
 #     the Applin it found could not be played. It is the case the user describes
 #     ("I play an Ogerpon, I do Teal Dance and a BCS comes up").
 # The rule is implemented in the tier layer by demoting the PLAYING of Pokemon
-# (`_TIER_DEVELOP_TRAS_BCS`), not by promoting the BCS: EVOLUTIONS keep their
+# (`_TIER_DEVELOP_AFTER_BCS`), not by promoting the BCS: EVOLUTIONS keep their
 # tier and still precede the BCS (pinned by the two Hydrapple ex tests of
 # `test_cubchoo_*_evoluciona_hydrapple_*`).
 _BCS_BEFORE_MEOWTH = (
@@ -9048,7 +9048,7 @@ def test_archaludon_step36_plays_the_bcs_before_playing_the_ogerpon():
 #      Chikorita with 1 Grass as a "ready attacker" (Growl: 0 damage), saw 2
 #      attackers and VETOED the Lillie's; now it only counts MAIN_ATTACKERS and it also
 #      yields with a doomed active and no relief.
-#   2. `_boss_cede_dig` did not yield because `active_ko_likely` was False (its
+#   2. `_boss_yields_to_dig` did not yield because `active_ko_likely` was False (its
 #      estimator `_op_best_damage_vs` does not resolve the rival damage and always gives 0);
 #      now it also consults `active_doomed_real` (the REAL finisher via attack_table).
 # The turn's SEQUENCE is reproduced: `_field_at_turn_start` is key (the
@@ -9126,7 +9126,7 @@ def test_lucario_step57_plays_lillie_not_boss_orders():
 #   * step 141: with no Grass in hand the ability does not even appear in the menu.
 #     The Night Stretcher would recover one from the discard, but it was vetoed through the
 #     full bench: its list of "useful energy" only contemplated the retreat of the MEGANIUM
-#     LINE. Now `_ns_e_activo_paga_retirada` covers it, deck-agnostic.
+#     LINE. Now `_ns_e_active_pays_retreat` covers it, deck-agnostic.
 _ALK_T14_SEQ = (
     ROOT / "tests" / "fixtures" / "alakazam_t14_ruta_de_ataque_por_retirada.json")
 
@@ -9271,7 +9271,7 @@ def test_alakazam_step137_ripening_charge_aims_at_the_active():
 # The contract (deck-agnostic): the net revokes CONSERVATISM vetoes ("there is no
 # useful target", "it is early"), never the COST veto, which is card
 # arithmetic and does not change because the turn is dead. See
-# `_ub_coste_destruye_carta_mejor`.
+# `_ub_cost_destroys_better_card`.
 # =====================================================================
 _UB_LILLIE_COST_FIXTURE = (
     ROOT / "tests" / "fixtures" / "comfey_t1_primeros_no_ub_que_quema_lillie.json")
@@ -9334,7 +9334,7 @@ def test_the_ub_cost_vetoes_only_when_real_fodder_is_missing():
 # prohibition by DECK was a proxy for a specific question: vs Comfey the plan
 # only allows playing Teal Mask Ogerpon ex (max 2), so digging any other
 # body brings a card the plan itself will veto when playing it. Asked via
-# `_matchup_permite_bajar`, the net is still off in that case but it DOES dig
+# `_matchup_allows_playing`, the net is still off in that case but it DOES dig
 # when the target fits the plan --- which is exactly what the matchup wants.
 # (vs Cubchoo the exemption is kept: the conservative END is matchup policy
 # and the self-play gate backed it up, -1.3 points when lifting it.)
@@ -9403,7 +9403,7 @@ def test_comfey_dead_turn_does_not_dig_if_the_plan_allows_nothing_to_be_played()
 #
 # The deck-agnostic contract: a whitelist describes WHICH cards advance the
 # plan; it can never veto the card that LIFTS A RIVAL LOCK that disables
-# that very plan. See `_contra_estadio_urgente`, shared with the DISCARD
+# that very plan. See `_counter_stadium_urgent`, shared with the DISCARD
 # scorer (which already protected this card: something was being kept in hand that
 # was then illegal to play).
 # =====================================================================

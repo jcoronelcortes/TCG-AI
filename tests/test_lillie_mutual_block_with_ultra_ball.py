@@ -26,7 +26,7 @@ correct:
 
 Both fire at once, no card is played and the turn's Supporter slot is
 thrown away. It is the same failure already corrected in the
-Stamp ↔ Supporter pair (`_sello_merece_jugarse`: «it yielded the way to a card that was
+Stamp ↔ Supporter pair (`_stamp_worth_playing`: «it yielded the way to a card that was
 no longer going to be played»).
 
 It was covered up by chance by `_ld_supp_comprometido` -- the score floor that forces

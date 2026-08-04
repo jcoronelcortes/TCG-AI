@@ -18,7 +18,7 @@ the game stayed there as decoration.
 
 And the board did not allow waiting: the Fezandipiti ex needs 3 energies (one per
 turn) and the Meganium in hand had no Bayleef underneath -> **tomorrow it does not attack
-either** (`_sin_atacante_para_manana`).
+either** (`_no_attacker_for_tomorrow`).
 
 Rule (user): against Dragapult (or with any Budew on the opposing field), with no
 hand that starts the attack, the Ultra Ball is played to dig out **Meowth ex**. It
@@ -30,20 +30,20 @@ Pokémon nor abilities nor Supporters are blocked by *Itchy Pollen*; Items are.
 Cause: `_eval_ub_best_target` returned 0 and the Ultra Ball fell to `SCORE_CANCEL`
 (-100), below the Chikorita's attack (1000). The two branches that could dig
 out the Meowth ex require `not supporterPlayed` -- "the Ultra Ball is only played for
-a Pokémon we are going to PLAY this turn", `_ub_cavar_meowth_se_juega` --, and
+a Pokémon we are going to PLAY this turn", `_ub_dig_meowth_gets_played` --, and
 the sterile-turn rescue net, which DOES know about the Item block, does not switch on
 because the turn was not sterile: there was a real attack.
 
-Fix: `_ub_meowth_para_manana`, the only branch that buys for the next
+Fix: `_ub_meowth_for_tomorrow`, the only branch that buys for the next
 turn, because it is the only one in which keeping the Ultra Ball amounts to throwing it away.
 Its two new pieces are shared with whoever already decided the same thing:
 
   * `_bloqueo_de_items_inminente` -- a Budew on the opposing field or a Dragapult deck; the
     same predicate the sterile-turn net used inline;
-  * `_sin_atacante_para_manana` -- one turn further than `_sin_ataque_hoy`:
+  * `_no_attacker_for_tomorrow` -- one turn further than `_no_attack_today`:
     it counts next turn's attachment and the evolutions the hand completes.
 
-The fetch has its own half (`bloqueo_de_items_manana` in `_REGLAS_UB_MEOWTH`,
+The fetch has its own half (`bloqueo_de_items_manana` in `_RULES_UB_MEOWTH`,
 above `last_ditch_no_produce`): without it the already paid-for search would have
 brought back anything else.
 """
@@ -150,7 +150,7 @@ def _campo(esc, fez_energies=0, extra_hand=()):
             .op_zonas(hand=5, deck=43, prizes=6))
 
 
-# NOTE: `menu_mano()` emits a PLAY option for EACH card in hand, without the
+# NOTE: `menu_hand()` emits a PLAY option for EACH card in hand, without the
 # simulator's legality filter. That is why the record's Meganium (Stage 2
 # with no Bayleef underneath: the real game NEVER offers it) is left out of the hands
 # of the synthetic MAIN menus -- otherwise the agent "plays" it and the scenario
@@ -243,7 +243,7 @@ def test_control_with_no_lock_threat_the_ultra_ball_is_kept():
 
 def test_control_with_an_attacker_one_energy_away_the_ultra_ball_is_kept():
     # Fezandipiti ex at 2 energies: next turn's attachment puts it in
-    # attack range (Cruel Arrow, 3) -> `_sin_atacante_para_manana` is False.
+    # attack range (Cruel Arrow, 3) -> `_no_attacker_for_tomorrow` is False.
     obs = _menu_main(fez_energies=2)
     assert _play(obs, m.agent(obs)) != ("PLAY", ULTRA_BALL)
 

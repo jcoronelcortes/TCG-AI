@@ -1,8 +1,8 @@
-"""Migrates module state from main.py to `ESTADO.<field>` (wave 3 of the refactor).
+"""Migrates module state from main.py to `AGENT_STATE.<field>` (wave 3 of the refactor).
 
 WHY IT IS DIFFERENT FROM THE PREVIOUS WAVES
   Waves 1, 2 and 4 MOVE lines without touching them. This one REWRITES them: `ko_last_turn`
-  becomes `ESTADO.ko_last_turn` in every place. That is why the equivalence gate
+  becomes `AGENT_STATE.ko_last_turn` in every place. That is why the equivalence gate
   (utils/shadow.py) stops being a safety net and becomes the main instrument.
 
 WHY NOT `ast.unparse`
@@ -94,7 +94,7 @@ class _Ambito(ast.NodeVisitor):
                 self.globales_decl.append(node)
             return
         if isinstance(node, ast.Attribute):
-            # `ESTADO.plan` already migrated: do not touch the `plan` again
+            # `AGENT_STATE.plan` already migrated: do not touch the `plan` again
             if isinstance(node.value, ast.Name) and node.value.id == OBJETO:
                 return
         if isinstance(node, ast.Name) and node.id in self.fields and node.id in globales:

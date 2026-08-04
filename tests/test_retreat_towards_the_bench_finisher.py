@@ -205,7 +205,7 @@ def test_with_meganium_an_active_that_can_already_retreat_does_not_fire_the_line
     pays its cost-1 retreat and there is nothing to unlock.
 
     Careful when reading it: the attachment STILL goes to the active on that board, but through
-    another rule (`_carga_activo_remata`) -- with 4 effective units Cruel Arrow becomes
+    another rule (`_charge_active_finishes`) -- with 4 effective units Cruel Arrow becomes
     playable and knocks out the 80 HP Shaymin. Attacking beats pivoting."""
     obs = (_escenario_meganium(active=pk(FEZANDIPITI, energies=[G, G], fisicas=1))
            .menu_hand(with_attachment=True).build())
@@ -347,8 +347,8 @@ def test_88631738_when_promoting_the_hydrapple_that_finishes_comes_up():
 # The detector measured exactly ONE Grass (`e + unit < rc` -> no line), so
 # a trapped active with a retreat cost >1 was invisible even when the turn's live
 # routes covered it easily. Now the real charging BUDGET towards the ACTIVE is
-# measured (a free manual attachment + `_grass_ability_slots_activo`,
-# bounded by the Grass in hand), just like `_carga_activo_remata` does for the
+# measured (a free manual attachment + `_grass_ability_slots_active`,
+# bounded by the Grass in hand), just like `_charge_active_finishes` does for the
 # ATTACK cost.
 
 
@@ -367,7 +367,7 @@ def _detector_presupuesto(obs, budget):
 
 def _scenario_cost_3(active_e=1, hand=(GRASS, GRASS, ULTRA_BALL),
                        energy_played=False):
-    """An active with a retreat cost of 3 (Tapu Bulu) at `activo_e` energies: it is
+    """An active with a retreat cost of 3 (Tapu Bulu) at `active_e` energies: it is
     TWO Grass short, and there are two live routes (the manual attachment + Ripening)."""
     return (Escenario(turn=8, step=40, energy_played=energy_played)
             .my_active(pk(TAPU, energies=[G] * active_e))

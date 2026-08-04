@@ -31,7 +31,7 @@ def puntuar(tc, o, score):
                 # to step 1 throws the whole chain away. The preference for NOT
                 # building an ex Stage 2 against an opponent that makes them
                 # useless is applied where it is safe: in the CHOICE of the
-                # target (`_gt_planes(..., veta_etapa_ex=True)` leaves that chain
+                # target (`_gt_planes(..., vetoes_ex_stage=True)` leaves that chain
                 # at Stage 1 and makes the non-ex line win).
                 score = 10000
             elif context == SelectContext.ACTIVATE:

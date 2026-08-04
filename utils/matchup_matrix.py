@@ -1,6 +1,6 @@
 """Matchup matrix: the agent's winrate against EACH opposing deck.
 
-By default it measures against `deck/rivales_reales/` -- the REAL leaderboard
+By default it measures against `deck/real_opponents/` -- the REAL leaderboard
 lists (utils/real_opponents.py), with their meta weight.
 
 The synthetic ones in `deck/rivales/` are still there but they are NO LONGER the default, and
@@ -50,8 +50,8 @@ Usage:
     python utils/matchup_matrix.py --partidas 400 --base HEAD~1
     python utils/matchup_matrix.py --base HEAD~1 --control-carta 1266
     python utils/matchup_matrix.py --solo dragapult,hops
-    python utils/matchup_matrix.py --rivales deck/rivales_reales --pesos
-    python utils/matchup_matrix.py --rivales deck/rivales_reales --pesos --base HEAD~1
+    python utils/matchup_matrix.py --rivales deck/real_opponents --pesos
+    python utils/matchup_matrix.py --rivales deck/real_opponents --pesos --base HEAD~1
 """
 
 import argparse

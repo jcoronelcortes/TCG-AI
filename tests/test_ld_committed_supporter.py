@@ -26,7 +26,7 @@ given away, free, for nothing.
 
 Cause: NOBODY forced the search to be cashed in.
 
-  * `_meowth_fetch_pierde_el_turno` PREDICTS, before putting the Meowth down, that the
+  * `_meowth_fetch_loses_the_turn` PREDICTS, before putting the Meowth down, that the
     fetch will take the Supporter slot -- but it is not evaluated on OUR
     FIRST TURN (the anti-donk line puts the Meowth down anyway) and, above all, it does not
     force anything AFTER the fetch;

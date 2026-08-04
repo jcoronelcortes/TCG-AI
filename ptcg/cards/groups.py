@@ -34,14 +34,14 @@ EVO_LINES = (
 #
 # WHICH BODY TO BUILD (user's rule, generalised to any deck):
 #   * If we already have one of our Stage 2s in play and NOT the other, the
-#     MISSING one is completed -> the `GT_VALOR_DIVERSIFICAR` bonus. In this deck
+#     MISSING one is completed -> the `GT_VALUE_DIVERSIFY` bonus. In this deck
 #     that is exactly "with Meganium in play -> Hydrapple ex" and "with Hydrapple
 #     ex in play -> Meganium".
 #   * If we ALREADY have both (or neither), the VALUE of the resulting body
-#     decides (`_gt_valor_cuerpo`: HP + a bonus for having an Ability) -> the copy
+#     decides (`_gt_body_value`: HP + a bonus for having an Ability) -> the copy
 #     of the stronger body wins. In this deck that is "with both in play -> a
 #     second Hydrapple ex" (330 HP + Ripening Charge against Meganium's 160 HP).
-#     `GT_VALOR_DIVERSIFICAR` (1200) is deliberately larger than any reasonable
+#     `GT_VALUE_DIVERSIFY` (1200) is deliberately larger than any reasonable
 #     body difference, so that diversifying rules when it applies.
 #   * On a tie, the Basic with MORE energy already invested is preferred (same
 #     convention as the EVOLVE branch: `9000 + energy`).

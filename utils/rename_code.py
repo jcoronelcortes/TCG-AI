@@ -30,7 +30,7 @@ architecture lint. Nothing else touches strings -- rule labels stay as they are.
 
 `mod` is for renaming a module or package, and it has to be explicit: the parts
 of a dotted import path are ordinary NAME tokens, so without this the first
-local called `dano` would silently turn `ptcg.calculo.dano` into a module that
+local called `damage` would silently turn `ptcg.calculo.dano` into a module that
 does not exist. Names imported FROM a module are identifiers, not path parts,
 and are always renamed.
 

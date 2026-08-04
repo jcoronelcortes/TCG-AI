@@ -63,7 +63,7 @@ The repository ships the simulator, so you can play full games without Kaggle:
 python utils/selfplay.py --partidas 100
 
 # agent vs a real leaderboard deck piloted by the generic bot
-python utils/selfplay.py --partidas 200 --rival deck/rivales_reales/crustle_wall_2.csv
+python utils/selfplay.py --partidas 200 --rival deck/real_opponents/crustle_wall_2.csv
 ```
 
 To see how the agent performs against the whole known meta:

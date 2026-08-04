@@ -39,7 +39,7 @@ dominates". That exception was written for the **INVERSE** case of the Marnie
 line (an active **Impidimp**, a bare BASIC, with a charged **Morgrem** STAGE 1 on the bench): there
 gusting DOES go up a step. It only looked at the active's ENERGY, never at its STAGE.
 
-The fix is a stage veto (`_supera_en_evolucion`, deck-agnostic: it comes from
+The fix is a stage veto (`_is_more_evolved_than`, deck-agnostic: it comes from
 `basic`/`stage1`/`stage2` and from the `evolvesFrom` chain of the card data) that
 overrides the three exceptions when the active is a more evolved link of the
 SAME line and does not yield fewer prizes.
