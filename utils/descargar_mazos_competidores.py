@@ -206,10 +206,10 @@ def a_float(value: Any) -> float:
 # Pacer + retries
 # ---------------------------------------------------------------------------
 class FalloDePeticion(RuntimeError):
-    def __init__(self, etiqueta: str, estado: int | None, intentos: int):
-        self.estado = estado
+    def __init__(self, etiqueta: str, state: int | None, intentos: int):
+        self.state = state
         self.intentos = intentos
-        detail = f"HTTP {estado}" if estado is not None else "error de red"
+        detail = f"HTTP {state}" if state is not None else "error de red"
         super().__init__(f"{etiqueta} fallo tras {intentos} intento(s) ({detail}).")
 
 
@@ -279,19 +279,19 @@ def llamar(etiqueta: str, func: Callable, *args, **kwargs):
             return func(*args, **kwargs)
         except Exception as exc:  # noqa: BLE001 - the SDK raises heterogeneous types
             last = exc
-            estado = estado_http(exc)
-            ERRORES[f"http_{estado}" if estado is not None else type(exc).__name__] += 1
+            state = estado_http(exc)
+            ERRORES[f"http_{state}" if state is not None else type(exc).__name__] += 1
             # A 429 is skipped immediately: insisting only makes the limit worse.
-            if estado == 429:
+            if state == 429:
                 break
-            recuperable = estado is None or estado in ESTADOS_REINTENTABLES
+            recuperable = state is None or state in ESTADOS_REINTENTABLES
             if not recuperable or intento == MAX_REINTENTOS - 1:
                 break
             espera = min(
                 MAX_ESPERA_REINTENTO_S,
                 max(reintentar_tras(exc) or 0.0, 2.0 * (2**intento)) + random.uniform(0.25, 1.25),
             )
-            print(f"  [reintento] {etiqueta}: {estado or type(exc).__name__}; espero {espera:.1f}s")
+            print(f"  [reintento] {etiqueta}: {state or type(exc).__name__}; espero {espera:.1f}s")
             time.sleep(espera)
     raise FalloDePeticion(etiqueta, estado_http(last) if last else None, intentos) from last
 
@@ -447,10 +447,10 @@ def listar_episodios(api, submission_id: int) -> list[dict[str, Any]]:
         if eid is None:
             continue
         tipo = str(first(row, "type", default="PUBLIC"))
-        estado = str(first(row, "state", default="COMPLETED"))
+        state = str(first(row, "state", default="COMPLETED"))
         if "PUBLIC" not in tipo.upper():
             continue
-        if not re.search(r"COMPLETE", estado, flags=re.IGNORECASE):
+        if not re.search(r"COMPLETE", state, flags=re.IGNORECASE):
             continue
         row["id"] = int(eid)
         output.append(row)
@@ -530,8 +530,8 @@ class Recolector:
             return
         agentes = first(episodio, "agents", default=[]) or []
         por_asiento: dict[int, dict[str, Any]] = {}
-        for orden, agente in enumerate(agentes):
-            row = como_dict(agente)
+        for orden, agent_state in enumerate(agentes):
+            row = como_dict(agent_state)
             idx = first(row, "index", default=orden)
             try:
                 por_asiento[int(idx)] = row
@@ -539,8 +539,8 @@ class Recolector:
                 por_asiento[orden] = row
 
         for asiento, deck in decks.items():
-            agente = por_asiento.get(asiento, {})
-            sid = first(agente, "submissionId", "submission_id")
+            agent_state = por_asiento.get(asiento, {})
+            sid = first(agent_state, "submissionId", "submission_id")
             if sid is None:
                 continue
             sid = int(sid)
@@ -839,7 +839,7 @@ def main(argv: list[str] | None = None) -> int:
                 replay = download_replay(api, eid, dir_cache)
             except FalloDePeticion as exc:
                 fallos["replay"] += 1
-                if exc.estado == 429:
+                if exc.state == 429:
                     print(f"  pos {posicion:>3}: HTTP 429, se salta")
                     break
                 continue

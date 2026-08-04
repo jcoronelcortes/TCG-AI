@@ -48,11 +48,11 @@ RECORDS = _ROOT / "registros"
 MAX_STEPS = 3000
 
 
-def _record_game(agente, bot, deck_nuestro, opponent_deck, nuestro_asiento):
+def _record_game(agent_state, bot, deck_nuestro, opponent_deck, nuestro_asiento):
     """Plays a game and returns its `steps` in replay format."""
     from cg import game
 
-    sp._reset_si_aplica(agente)
+    sp._reset_si_aplica(agent_state)
     sp._reset_si_aplica(bot)
     d0, d1 = ((deck_nuestro, opponent_deck) if nuestro_asiento == 0
               else (opponent_deck, deck_nuestro))
@@ -60,7 +60,7 @@ def _record_game(agente, bot, deck_nuestro, opponent_deck, nuestro_asiento):
     if obs is None:
         raise RuntimeError(f"battle_start fallo: errorType={sd.errorType}")
 
-    agentes = {nuestro_asiento: agente, 1 - nuestro_asiento: bot}
+    agentes = {nuestro_asiento: agent_state, 1 - nuestro_asiento: bot}
     steps, n_steps = [], 0
     while obs["current"]["result"] == -1 and n_steps < MAX_STEPS:
         yi = obs["current"]["yourIndex"]
@@ -96,7 +96,7 @@ def main():
     elegidos = [rivales[(args.semilla + i * step) % len(rivales)]
                 for i in range(args.partidas)]
 
-    agente = sp.load_agent(_ROOT / args.main, "corpus_agente")
+    agent_state = sp.load_agent(_ROOT / args.main, "corpus_agente")
     from bot_rival import BotRival
     bot = BotRival()
     deck_nuestro = sp.read_deck()
@@ -106,13 +106,13 @@ def main():
         viejo.unlink()
 
     total_steps = 0
-    for i, rival in enumerate(elegidos):
+    for i, opponent in enumerate(elegidos):
         # Alternating seats: our decisions are not the same going
         # first as going second, and the corpus must cover both.
         asiento = i % 2
         steps, result = _record_game(
-            agente, bot, deck_nuestro, sp.read_deck(rival), asiento)
-        name = f"registro_{i:03d}_{rival.stem}_asiento{asiento}.json"
+            agent_state, bot, deck_nuestro, sp.read_deck(opponent), asiento)
+        name = f"registro_{i:03d}_{opponent.stem}_asiento{asiento}.json"
         (RECORDS / name).write_text(
             json.dumps({"steps": steps}, ensure_ascii=False), encoding="utf-8")
         total_steps += len(steps)

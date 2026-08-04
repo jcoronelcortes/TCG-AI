@@ -126,10 +126,10 @@ def _idx_play_boss(obs):
 def test_the_mate_existed_the_bench_ogerpon_knocks_out_the_grimmsnarl():
     obs = m.to_observation_class(_fixture()["observation"])
     st = obs.current
-    yo, rival = st.players[1], st.players[0]
+    yo, opponent = st.players[1], st.players[0]
 
     assert len(yo.prize) == 2, "nos faltaban DOS premios"
-    opa = rival.active[0]
+    opa = opponent.active[0]
     assert opa.id == GRIMMSNARL and opa.hp == 310
     assert m.prize_count_op(opa) == 2, "el Grimmsnarl ex vale 2 premios"
 
@@ -156,7 +156,7 @@ def test_the_mate_existed_the_bench_ogerpon_knocks_out_the_grimmsnarl():
 
     # No gust from the rival bench takes the 2 prizes that are missing.
     assert all(m.prize_count_op(b) == 1
-               for b in rival.bench if b is not None)
+               for b in opponent.bench if b is not None)
 
 
 # ---------------------------------------------------------------------------

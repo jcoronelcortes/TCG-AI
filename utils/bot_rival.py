@@ -185,29 +185,29 @@ class BotRival:
         cur = obs.get("current") or {}
         if cur.get("turn") != self._turn:
             self._reset_turn(cur.get("turn"))
-        contexto = sel.get("context")
+        context = sel.get("context")
 
-        if contexto == int(SelectContext.MAIN):
+        if context == int(SelectContext.MAIN):
             return self._menu_principal(obs, options)
 
-        if contexto in (int(SelectContext.REMOVE_DAMAGE_COUNTER_COUNT),
+        if context in (int(SelectContext.REMOVE_DAMAGE_COUNTER_COUNT),
                         int(SelectContext.DAMAGE_COUNTER_COUNT)):
             return self._cuantos_contadores(options)
 
-        if contexto == int(SelectContext.REMOVE_DAMAGE_COUNTER):
+        if context == int(SelectContext.REMOVE_DAMAGE_COUNTER):
             return self._origen_de_contadores(obs, options, sel)
 
-        if contexto in (int(SelectContext.DAMAGE_COUNTER),
+        if context in (int(SelectContext.DAMAGE_COUNTER),
                         int(SelectContext.DAMAGE_COUNTER_ANY)):
             return self._destino_de_contadores(obs, options, sel)
 
-        if contexto in (int(SelectContext.SWITCH),
+        if context in (int(SelectContext.SWITCH),
                         int(SelectContext.TO_ACTIVE)):
             return self._pick_active(obs, options, sel)
 
         tipos = {o.get("type") for o in options}
         if int(OptionType.YES) in tipos or int(OptionType.NO) in tipos:
-            return self._si_no(contexto, options)
+            return self._si_no(context, options)
 
         minimo = sel.get("minCount") or 0
         k = minimo if minimo > 0 else min(1, sel.get("maxCount") or 1)
@@ -417,8 +417,8 @@ class BotRival:
 
     # -- yes / no -----------------------------------------------------------
 
-    def _si_no(self, contexto, options):
-        prefiere_no = contexto in (int(SelectContext.MULLIGAN),
+    def _si_no(self, context, options):
+        prefiere_no = context in (int(SelectContext.MULLIGAN),
                                    int(SelectContext.MORE_DEVOLVE))
         buscado = int(OptionType.NO) if prefiere_no else int(OptionType.YES)
         for i, o in enumerate(options):

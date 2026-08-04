@@ -521,8 +521,8 @@ def test_myriad_combo_gusts_the_bellibolt():
         "option": [{"area": 5, "index": 0, "playerIndex": 1 - yo, "type": 3}],
     }
     choice = m.agent(obs)
-    rival = obs["current"]["players"][1 - yo]
-    target = rival["bench"][obs["select"]["option"][choice[0]]["index"]]["id"]
+    opponent = obs["current"]["players"][1 - yo]
+    target = opponent["bench"][obs["select"]["option"][choice[0]]["index"]]["id"]
     assert target == BELLIBOLT_EX, (
         f"el gusteo debe subir al Bellibolt ex (2 premios, letal con Myriad); "
         f"obtuvo {m.card_table[target].name}")

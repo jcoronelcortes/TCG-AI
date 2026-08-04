@@ -86,18 +86,18 @@ def _valid_choice(obs, choice):
         [m.Hydrapple_ex, m.Tapu_Bulu, m.Meganium, m.Chikorita,
          m.Basic_Grass_Energy, m.Lillie_Determination, m.Ultra_Ball,
          m.Forest_of_Vitality]), max_size=6),
-    rival=st.sampled_from(OPPONENT_ROSTER),
+    opponent=st.sampled_from(OPPONENT_ROSTER),
     turn=st.integers(min_value=2, max_value=10),
 )
 def test_invariante_fetch_ub_robusto(active_id, active_energies, bench,
-                                     hand, extra_deck, rival, turn):
+                                     hand, extra_deck, opponent, turn):
     reset_agente(m)
     try:
         esc = (Escenario(turn=turn, step=1, tac=1)
                .my_active(pk(active_id, energies=active_energies))
                .my_bench(*bench)
                .my_hand(*hand)
-               .op_active(rival)
+               .op_active(opponent)
                .op_zonas(hand=5, deck=30, prizes=6)
                # the deck always carries a searchable Pokemon + random extras
                .deck(m.Teal_Mask_Ogerpon_ex, *extra_deck)
@@ -121,12 +121,12 @@ def test_invariante_fetch_ub_robusto(active_id, active_energies, bench,
     companiero=st.sampled_from(OWN_ROSTER),
     extra_bench=st.lists(st.sampled_from(OWN_ROSTER), max_size=2),
     energies_comp=st.integers(min_value=0, max_value=2),
-    rival=st.sampled_from(OPPONENT_ROSTER),
+    opponent=st.sampled_from(OPPONENT_ROSTER),
     turn=st.integers(min_value=2, max_value=10),
 )
 def test_invariant_applin_at_most_one_energy(applin_active, companiero,
                                            extra_bench, energies_comp,
-                                           rival, turn):
+                                           opponent, turn):
     reset_agente(m)
     applin = pk(m.Applin, energies=[G], fisicas=1)
     comp = pk(companiero, energies=energies_comp)
@@ -141,7 +141,7 @@ def test_invariant_applin_at_most_one_energy(applin_active, companiero,
         obs = (esc
                .my_hand(m.Basic_Grass_Energy)  # without Dipplin+Hydrapple: no
                # the complete-evolution-this-turn exception applies
-               .op_active(rival)
+               .op_active(opponent)
                .op_zonas(hand=5, deck=30, prizes=6)
                .menu_attach_energy()
                .build())

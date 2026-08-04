@@ -48,16 +48,16 @@ def harvest_series(paths):
     """
     serials = {}
 
-    def ver(c, rival):
+    def ver(c, opponent):
         if (c and c.get("serial") is not None
-                and c.get("playerIndex") == rival):
-            serials[(rival, c["serial"])] = c["id"]
+                and c.get("playerIndex") == opponent):
+            serials[(opponent, c["serial"])] = c["id"]
 
     for path in paths:
         with open(path, encoding="utf-8") as f:
             data = json.load(f)
         yo = our_index(data)
-        rival = 1 - yo
+        opponent = 1 - yo
         for step in data.get("steps", []):
             obs = None
             for item in step:
@@ -70,18 +70,18 @@ def harvest_series(paths):
             cur = obs.get("current")
             if not cur:
                 continue
-            op = cur["players"][rival]
+            op = cur["players"][opponent]
             for p in (op.get("active") or []) + (op.get("bench") or []):
                 if not p:
                     continue
-                ver(p, rival)
+                ver(p, opponent)
                 for c in (p.get("energyCards", []) + p.get("tools", [])
                           + p.get("preEvolution", [])):
-                    ver(c, rival)
+                    ver(c, opponent)
             for c in op.get("discard", []):
-                ver(c, rival)
+                ver(c, opponent)
             for c in (cur.get("stadium") or []):
-                ver(c, rival)
+                ver(c, opponent)
     return serials
 
 

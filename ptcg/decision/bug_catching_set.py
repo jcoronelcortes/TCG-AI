@@ -5,14 +5,14 @@ Extracted VERBATIM from main.py by utils/extraer_definiciones.py
 utils/pureza.py: nothing here touches mutable state or the runtime tables.
 """
 
-from ptcg.motor.reglas import _resolve_with_trace
-from ptcg.motor.contexto import DecisionContext
-from ptcg.estado.claves import ZONE_DECK
-from ptcg.cartas.tablas import card_table
-from ptcg.cartas.ids import Applin, Basic_Grass_Energy, Bayleef, Chikorita, Dipplin, Hydrapple_ex, Meganium, Teal_Mask_Ogerpon_ex
+from ptcg.engine.rules import _resolve_with_trace
+from ptcg.engine.context import DecisionContext
+from ptcg.state.zones import ZONE_DECK
+from ptcg.cards.tables import card_table
+from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Chikorita, Dipplin, Hydrapple_ex, Meganium, Teal_Mask_Ogerpon_ex
 from cg.api import CardType, EnergyType
-from ptcg.cartas.ids import Basic_Grass_Energy, SCORE_BELIEF_DIG_ENERGY, SCORE_VETO, Teal_Mask_Ogerpon_ex
-from ptcg.motor.reglas import _Adjustment, _FixedRule
+from ptcg.cards.ids import Basic_Grass_Energy, SCORE_BELIEF_DIG_ENERGY, SCORE_VETO, Teal_Mask_Ogerpon_ex
+from ptcg.engine.rules import _Adjustment, _FixedRule
 
 
 def _v_bcs_base(w):

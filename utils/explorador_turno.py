@@ -421,18 +421,18 @@ def explore(obs, max_nodos=MAX_NODOS, respetar_menu=False):
     vistos = set()
     nodos = [0]
 
-    def dfs(estado, line):
+    def dfs(state, line):
         if nodos[0] >= max_nodos:
             return
         nodos[0] += 1
-        for etiqueta, apply in acciones_legales(estado):
+        for etiqueta, apply in acciones_legales(state):
             if apply is None:  # terminal: ATTACK or END
-                p = evaluar_terminal(estado, etiqueta == "ATTACK")
+                p = evaluar_terminal(state, etiqueta == "ATTACK")
                 if best[0] is None or p > best[0]:
                     best[0], best[1] = p, line + [etiqueta]
                 continue
             sig = estado_sig = None
-            nuevo = apply(estado)
+            nuevo = apply(state)
             # After the first transition the state is SIMULATED: the recorded
             # menu no longer describes it and legality goes back to the model.
             nuevo["_simulado"] = True

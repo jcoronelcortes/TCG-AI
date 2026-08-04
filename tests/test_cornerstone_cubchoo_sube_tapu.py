@@ -143,9 +143,9 @@ def test_the_fixture_is_the_wall_scenario():
     o = _obs()
     yo = o["current"]["yourIndex"]
     mio = o["current"]["players"][yo]
-    rival = o["current"]["players"][1 - yo]
+    opponent = o["current"]["players"][1 - yo]
 
-    assert rival["active"][0]["id"] == CORNERSTONE
+    assert opponent["active"][0]["id"] == CORNERSTONE
     assert mio["active"][0]["id"] == OGERPON              # it has an Ability -> it does 0
     assert OGERPON in m.OUR_ABILITY_IDS
     assert CORNERSTONE in m.ABILITY_IMMUNE_IDS

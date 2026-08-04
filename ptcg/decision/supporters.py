@@ -5,12 +5,12 @@ Extracted VERBATIM from main.py by utils/extraer_definiciones.py
 utils/pureza.py: nothing here touches mutable state or the runtime tables.
 """
 
-from ptcg.estado.agente import AGENT_STATE
-from ptcg.cartas.ids import Forest_of_Vitality
-from ptcg.cartas.ids import Basic_Grass_Energy, Dawn, Lanas_Aid, Lillie_Determination, SCORE_SUPPORTER_VALUE_BASE, SCORE_VETO
-from ptcg.motor.contexto import DecisionContext
-from ptcg.motor.reglas import _Adjustment, _FixedRule, _resolve_with_trace
-from ptcg.decision.disrupcion import _stamp_pendiente
+from ptcg.state.agent_state import AGENT_STATE
+from ptcg.cards.ids import Forest_of_Vitality
+from ptcg.cards.ids import Basic_Grass_Energy, Dawn, Lanas_Aid, Lillie_Determination, SCORE_SUPPORTER_VALUE_BASE, SCORE_VETO
+from ptcg.engine.context import DecisionContext
+from ptcg.engine.rules import _Adjustment, _FixedRule, _resolve_with_trace
+from ptcg.decision.disruption import _stamp_pendiente
 
 
 def _lillie_draw_count(my_prize):

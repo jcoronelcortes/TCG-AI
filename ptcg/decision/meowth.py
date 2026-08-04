@@ -5,11 +5,11 @@ Extracted VERBATIM from main.py by utils/extraer_definiciones.py
 utils/pureza.py: nothing here touches mutable state or the runtime tables.
 """
 
-from ptcg.motor.reglas import _FixedRule
-from ptcg.cartas.ids import Boss_Orders, Lillie_Determination, Xerosic_Machinations
-from ptcg.estado.agente import AGENT_STATE
-from ptcg.cartas.ids import Boss_Orders, Dawn, Lillie_Determination
-from ptcg.cartas.ids import Basic_Grass_Energy, Boss_Orders, Dawn, Lanas_Aid, Lillie_Determination, Xerosic_Machinations
+from ptcg.engine.rules import _FixedRule
+from ptcg.cards.ids import Boss_Orders, Lillie_Determination, Xerosic_Machinations
+from ptcg.state.agent_state import AGENT_STATE
+from ptcg.cards.ids import Boss_Orders, Dawn, Lillie_Determination
+from ptcg.cards.ids import Basic_Grass_Energy, Boss_Orders, Dawn, Lanas_Aid, Lillie_Determination, Xerosic_Machinations
 
 
 _MEOWTH_FETCH_SUPPS = (Boss_Orders, Dawn, Lillie_Determination,

@@ -105,11 +105,11 @@ def _planes(active, bench, hand=(), deck=None, veta_ex=False,
         esc = esc.deck(*deck).rest_to_discard()
     obs = esc.menu_grand_tree_options().build()
     m.agent(obs)  # syncs the module's card tracking
-    estado = obs["current"]["players"][0]
+    state = obs["current"]["players"][0]
     from cg.api import to_observation_class
     my_state = to_observation_class(obs).current.players[0]
     field = {}
-    for p in [estado["active"][0]] + estado["bench"]:
+    for p in [state["active"][0]] + state["bench"]:
         if p is not None:
             field[p["id"]] = field.get(p["id"], 0) + 1
     return m._gt_planes(my_state, m.ACTIVE_CARDS_IN_DECK, field,

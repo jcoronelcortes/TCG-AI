@@ -43,10 +43,10 @@ PROJECT_ROOT = SCRIPT_DIR.parent
 
 MAIN_PY = PROJECT_ROOT / "main.py"
 PAQUETE = PROJECT_ROOT / "ptcg"          # it does not exist yet before wave 1
-SUBPAQUETES_PUROS = ("cartas", "motor")
+SUBPAQUETES_PUROS = ("cards", "engine")
 
 # The name of the module that owns the mutable state (wave 3).
-MODULO_ESTADO = "estado"
+MODULO_ESTADO = "state"
 
 
 def mutable_names():
@@ -63,9 +63,9 @@ def mutable_names():
         for nodo in ast.walk(arbol):
             if isinstance(nodo, ast.Global):
                 names.update(nodo.names)
-    agente = PAQUETE / MODULO_ESTADO / "agente.py"
-    if agente.is_file():
-        arbol = ast.parse(agente.read_text(encoding="utf-8"))
+    agent_state = PAQUETE / MODULO_ESTADO / "agent_state.py"
+    if agent_state.is_file():
+        arbol = ast.parse(agent_state.read_text(encoding="utf-8"))
         for nodo in ast.walk(arbol):
             # annotated fields (`x: int`) and, above all, those of `reset()`
             # (`self.x = ...`), which is how they are declared in EstadoAgente.

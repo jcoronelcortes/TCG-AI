@@ -1,0 +1,38 @@
+# Phase 13 -- the file and directory names of ptcg/. The files moved with
+# `git mv`; this map rewrites the import paths that point at them.
+#
+# Every entry is flagged `mod`, which is the only flag that lets a rename
+# reach inside a dotted import path. `cartas` and `motor` also carry the
+# lint's string constants (`SUBPAQUETES_PUROS`) and the fixtures of
+# test_arquitectura.py; those two files get map 18b, because the SAME words
+# are data keys elsewhere ("cartas": len(deck), "turno", "contexto",
+# "opciones", "rival" in the autopsy and corpus JSON) and must not move there.
+cartas	cards	mod_code
+motor	engine	mod_code
+calculo	calc	mod_code
+estado	state	mod_code
+turno	turn	mod_code
+opciones	options	mod_code
+carta	card	mod
+dano	damage	mod
+energia	energy	mod
+planta	grass	mod
+probabilidad	probability	mod
+rival	opponent	mod_code
+tablero	board	mod
+costes	costs	mod
+grupos	groups	mod
+lineas	lines	mod
+puntuacion	scoring	mod
+tablas	tables	mod
+disrupcion	disruption	mod
+estadios	stadiums	mod
+contexto	context	mod_code
+depuracion	debug	mod
+reglas	rules	mod
+agente	agent_state	mod
+claves	zones	mod
+ctx_puntuacion	ctx_scoring	mod
+energia_ctx	energy_ctx	mod
+puntuacion_centinela	scoring_sentinel	mod
+menores	minor	mod

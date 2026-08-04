@@ -104,25 +104,25 @@ def test_r1_catches_a_mutable_imported_by_name(tmp_path, monkeypatch):
 
 def test_r2_catches_state_in_a_pure_module(tmp_path, monkeypatch):
     paquete = tmp_path / "ptcg"
-    (paquete / "cartas").mkdir(parents=True)
+    (paquete / "cards").mkdir(parents=True)
     (paquete / "__init__.py").write_text("")
-    (paquete / "cartas" / "ids.py").write_text("from ptcg.estado import ESTADO\n")
+    (paquete / "cards" / "ids.py").write_text("from ptcg.state import AGENT_STATE\n")
     monkeypatch.setattr(la, "PAQUETE", paquete)
     fallos = la.rule_2_purity()
     assert [f[0] for f in fallos] == ["R2"]
 
 
 def test_r2_permite_estado_en_calculo(tmp_path, monkeypatch):
-    """`calculo/` is NOT pure and must not pretend to be.
+    """`calc/` is NOT pure and must not pretend to be.
 
     The effective energy depends on whether Meganium is in play and the attack
     cost on the Nighttime Mine tax: `_can_attack_eff` and `_physical_energy`
     read ESTADO by nature. The boundary at `calculo/` was attempted and the code
-    rejected it; the useful boundary is data (`cartas/`) + rules (`motor/`).
+    rejected it; the useful boundary is data (`cards/`) + rules (`engine/`).
     """
     paquete = tmp_path / "ptcg"
-    (paquete / "calculo").mkdir(parents=True)
+    (paquete / "calc").mkdir(parents=True)
     (paquete / "__init__.py").write_text("")
-    (paquete / "calculo" / "energia.py").write_text("from ptcg.estado.agente import ESTADO\n")
+    (paquete / "calc" / "energy.py").write_text("from ptcg.state.agent_state import AGENT_STATE\n")
     monkeypatch.setattr(la, "PAQUETE", paquete)
     assert la.rule_2_purity() == []

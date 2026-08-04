@@ -5,21 +5,21 @@ Extracted VERBATIM from main.py by utils/extraer_definiciones.py
 utils/pureza.py: nothing here touches mutable state or the runtime tables.
 """
 
-from ptcg.motor.reglas import _Adjustment, _FixedRule
-from ptcg.cartas.ids import Applin, Bayleef, Chikorita, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Hydrapple_ex, Lillie_Determination, Meganium, Meowth_ex, Pinsir, Tapu_Bulu, Teal_Mask_Ogerpon_ex
-from ptcg.decision.estadios import _forest_disponible
-from ptcg.calculo.energia import _grass_attach_unit
-from ptcg.calculo.dano import _attacker_base_damage, _our_effective_damage
-from ptcg.estado.agente import AGENT_STATE
-from ptcg.decision.disrupcion import _stamp_worth_playing
-from ptcg.cartas.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Chikorita, Dawn, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Hydrapple_ex, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Pinsir, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Unfair_Stamp
-from ptcg.calculo.tablero import _active_of
-from ptcg.calculo.energia import count_total_grass_energy
+from ptcg.engine.rules import _Adjustment, _FixedRule
+from ptcg.cards.ids import Applin, Bayleef, Chikorita, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Hydrapple_ex, Lillie_Determination, Meganium, Meowth_ex, Pinsir, Tapu_Bulu, Teal_Mask_Ogerpon_ex
+from ptcg.decision.stadiums import _forest_disponible
+from ptcg.calc.energy import _grass_attach_unit
+from ptcg.calc.damage import _attacker_base_damage, _our_effective_damage
+from ptcg.state.agent_state import AGENT_STATE
+from ptcg.decision.disruption import _stamp_worth_playing
+from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Chikorita, Dawn, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Hydrapple_ex, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Pinsir, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Unfair_Stamp
+from ptcg.calc.board import _active_of
+from ptcg.calc.energy import count_total_grass_energy
 from dataclasses import dataclass
 from typing import NamedTuple
-from ptcg.cartas.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, CUBCHOO_ALLOWED_PLAY_IDS, Chikorita, Dawn, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Hydrapple_ex, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, Pinsir, SCORE_CANCEL, SCORE_VETO, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, XEROSIC_SCORE_LAST_RESORT, Xerosic_Machinations
-from ptcg.estado.claves import ZONE_DECK
-from ptcg.decision.disrupcion import _score_xerosic_play
+from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, CUBCHOO_ALLOWED_PLAY_IDS, Chikorita, Dawn, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Hydrapple_ex, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, Pinsir, SCORE_CANCEL, SCORE_VETO, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, XEROSIC_SCORE_LAST_RESORT, Xerosic_Machinations
+from ptcg.state.zones import ZONE_DECK
+from ptcg.decision.disruption import _score_xerosic_play
 from ptcg.decision.poke_pad import _pp_es_t1
 
 

@@ -309,12 +309,12 @@ SITUACIONES = (
 )
 
 
-def radar(agente, opponent_deck, partidas):
+def radar(agent_state, opponent_deck, partidas):
     from bot_rival import BotRival
     cnt = collections.defaultdict(lambda: [0, 0])   # name -> [applies, resolved]
     for i in range(partidas):
         _res, dec, _fin = au.play_recording(
-            agente, BotRival(), agente.my_deck, opponent_deck, i % 2)
+            agent_state, BotRival(), agent_state.my_deck, opponent_deck, i % 2)
         turns = collections.defaultdict(list)
         for d in dec:
             turns[d["obs"]["current"]["turn"]].append(d)
@@ -323,7 +323,7 @@ def radar(agente, opponent_deck, partidas):
                 continue
             for name, fn in SITUACIONES:
                 try:
-                    aplica, resuelta = fn(agente, menus)
+                    aplica, resuelta = fn(agent_state, menus)
                 except Exception:
                     continue
                 if aplica:
@@ -340,7 +340,7 @@ def main(argv):
                     help="lista de mazos separada por comas")
     args = ap.parse_args(argv)
 
-    agente = sp.load_agent(_ROOT / args.candidato, "agente_radar")
+    agent_state = sp.load_agent(_ROOT / args.candidato, "agente_radar")
     decks = sorted((_ROOT / "deck" / "rivales").glob("*.csv"))
     if args.solo:
         querer = {s.strip() for s in args.solo.split(",")}
@@ -349,7 +349,7 @@ def main(argv):
     filas = {}
     for path in decks:
         deck = sp.read_deck(path)
-        filas[path.stem] = radar(agente, deck, args.partidas)
+        filas[path.stem] = radar(agent_state, deck, args.partidas)
         print(f"  {path.stem}: hecho", flush=True)
 
     names = [n for n, _ in SITUACIONES]

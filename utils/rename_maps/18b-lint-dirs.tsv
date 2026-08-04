@@ -1,0 +1,9 @@
+# Phase 13 -- the directory names the architecture lint and its test spell out
+# as STRINGS. Applied ONLY to those two files: the same words are data keys in
+# utils/ and in the corpus snapshot, and there they stay.
+cartas	cards	str
+motor	engine	str
+estado	state	str
+calculo	calc	str
+energia	energy	str
+agente	agent_state	str

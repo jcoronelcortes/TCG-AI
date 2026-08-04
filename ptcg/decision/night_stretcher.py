@@ -5,19 +5,19 @@ Extracted VERBATIM from main.py by utils/extraer_definiciones.py
 utils/pureza.py: nothing here touches mutable state or the runtime tables.
 """
 
-from ptcg.motor.reglas import _FixedRule
-from ptcg.cartas.ids import Applin, Basic_Grass_Energy, Bayleef, Chikorita, Dipplin, Fezandipiti_ex, Hydrapple_ex, Meganium, Meowth_ex, Pinsir, SCORE_VETO, Tapu_Bulu, Teal_Mask_Ogerpon_ex
-from ptcg.calculo.energia import _can_attack_eff, _grass_attach_route_open, _grass_attach_unit, _retreat_grass_units
-from ptcg.calculo.dano import _attacker_base_damage, _op_active_attack_damage_to, _our_effective_damage
-from ptcg.calculo.carta import prize_count_op
-from ptcg.estado.claves import ZONE_DECK
-from ptcg.estado.agente import AGENT_STATE
-from ptcg.cartas.ids import Applin, Basic_Grass_Energy, Bayleef, Chikorita, Dipplin, Hydrapple_ex, Meganium, Meowth_ex, RETREAT_COST, Tapu_Bulu, Teal_Mask_Ogerpon_ex
-from ptcg.calculo.tablero import _active_of, _evolvable_counts
-from ptcg.calculo.energia import _grass_mult, calc_syrup_storm_damage, count_total_grass_energy
+from ptcg.engine.rules import _FixedRule
+from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Chikorita, Dipplin, Fezandipiti_ex, Hydrapple_ex, Meganium, Meowth_ex, Pinsir, SCORE_VETO, Tapu_Bulu, Teal_Mask_Ogerpon_ex
+from ptcg.calc.energy import _can_attack_eff, _grass_attach_route_open, _grass_attach_unit, _retreat_grass_units
+from ptcg.calc.damage import _attacker_base_damage, _op_active_attack_damage_to, _our_effective_damage
+from ptcg.calc.card import prize_count_op
+from ptcg.state.zones import ZONE_DECK
+from ptcg.state.agent_state import AGENT_STATE
+from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Chikorita, Dipplin, Hydrapple_ex, Meganium, Meowth_ex, RETREAT_COST, Tapu_Bulu, Teal_Mask_Ogerpon_ex
+from ptcg.calc.board import _active_of, _evolvable_counts
+from ptcg.calc.energy import _grass_mult, calc_syrup_storm_damage, count_total_grass_energy
 from dataclasses import dataclass
-from ptcg.calculo.tablero import _evolvable_counts
-from ptcg.cartas.ids import Applin, Basic_Grass_Energy, Bayleef, Chikorita, Dipplin, Fezandipiti_ex, Hydrapple_ex, Meganium, Meowth_ex, Pinsir, Tapu_Bulu, Teal_Mask_Ogerpon_ex
+from ptcg.calc.board import _evolvable_counts
+from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Chikorita, Dipplin, Fezandipiti_ex, Hydrapple_ex, Meganium, Meowth_ex, Pinsir, Tapu_Bulu, Teal_Mask_Ogerpon_ex
 
 
 class _CtxNSPlay:

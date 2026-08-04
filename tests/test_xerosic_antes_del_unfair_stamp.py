@@ -198,10 +198,10 @@ def test_if_xerosic_is_not_going_to_be_played_the_stamp_does_not_yield():
     # module and resolves the name in ITS namespace. `main` only has a copy of the
     # binding (it arrived via `import *`), so patching it there does not reach the scorer.
     # The Stamp IS patched in `main`, because the one that calls it is `agent()`.
-    from ptcg.decision import disrupcion
+    from ptcg.decision import disruption
 
-    orig = disrupcion._score_xerosic_play
-    disrupcion._score_xerosic_play = lambda ctx: m.XEROSIC_SCORE_LAST_RESORT
+    orig = disruption._score_xerosic_play
+    disruption._score_xerosic_play = lambda ctx: m.XEROSIC_SCORE_LAST_RESORT
     try:
         obs = _obs()
         visto = {}
@@ -218,7 +218,7 @@ def test_if_xerosic_is_not_going_to_be_played_the_stamp_does_not_yield():
         finally:
             _rest_score_unfair_stamp_play()
     finally:
-        disrupcion._score_xerosic_play = orig
+        disruption._score_xerosic_play = orig
     assert visto["stamp"] > 0, visto
 
 

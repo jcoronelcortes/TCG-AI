@@ -348,14 +348,14 @@ def main(argv):
     cand_path = _ROOT / args.candidato
     candidato = load_agent(cand_path, "agente_candidato")
 
-    if args.rival:
+    if args.opponent:
         from bot_rival import BotRival
-        opponent_deck = read_deck(_ROOT / args.rival)
+        opponent_deck = read_deck(_ROOT / args.opponent)
         bot = BotRival()
         stats = torneo(candidato, bot, args.partidas,
                        progreso=args.progreso or None,
                        deck_base=opponent_deck)
-        print(informe(stats, args.candidato, f"bot+{args.rival}"))
+        print(informe(stats, args.candidato, f"bot+{args.opponent}"))
         if args.base:
             base = load_agent_from_git(args.base, "agente_base")
             stats_base = torneo(base, bot, args.partidas,
@@ -363,7 +363,7 @@ def main(argv):
                                 deck_base=opponent_deck)
             print()
             print(informe(stats_base, f"{args.base} (git)",
-                          f"bot+{args.rival}"))
+                          f"bot+{args.opponent}"))
             dec_c = stats["candidato"] + stats["base"]
             dec_b = stats_base["candidato"] + stats_base["base"]
             wr_c = stats["candidato"] / dec_c if dec_c else 0

@@ -5,13 +5,13 @@ Extracted VERBATIM from main.py by utils/extraer_definiciones.py
 utils/pureza.py: nothing here touches mutable state or the runtime tables.
 """
 
-from ptcg.motor.reglas import _FixedRule
-from ptcg.estado.agente import AGENT_STATE
-from ptcg.cartas.ids import Applin, Bayleef, Chikorita, Dipplin, Meganium
-from ptcg.cartas.ids import Applin, Bayleef, Chikorita, Dipplin, Hydrapple_ex, Meganium, SCORE_VETO, Tapu_Bulu
-from ptcg.estado.claves import ZONE_DECK
-from ptcg.motor.contexto import DecisionContext
-from ptcg.motor.reglas import _Adjustment, _FixedRule, _resolve_with_trace
+from ptcg.engine.rules import _FixedRule
+from ptcg.state.agent_state import AGENT_STATE
+from ptcg.cards.ids import Applin, Bayleef, Chikorita, Dipplin, Meganium
+from ptcg.cards.ids import Applin, Bayleef, Chikorita, Dipplin, Hydrapple_ex, Meganium, SCORE_VETO, Tapu_Bulu
+from ptcg.state.zones import ZONE_DECK
+from ptcg.engine.context import DecisionContext
+from ptcg.engine.rules import _Adjustment, _FixedRule, _resolve_with_trace
 
 
 _PP_NON_RULEBOX_IDS = (Chikorita, Bayleef, Meganium, Applin, Dipplin,

@@ -128,7 +128,7 @@ def test_the_fixture_is_the_promotion_under_festival_grounds():
     o = _obs()
     yo = o["current"]["yourIndex"]
     mio = o["current"]["players"][yo]
-    rival = o["current"]["players"][1 - yo]
+    opponent = o["current"]["players"][1 - yo]
 
     assert not mio["active"]                       # they knocked out our active
     assert o["select"]["context"] == 4             # promotion menu
@@ -138,18 +138,18 @@ def test_the_fixture_is_the_promotion_under_festival_grounds():
     assert o["current"]["stadium"][0]["playerIndex"] == 1 - yo
 
     # Their active is the Dipplin with Festival Lead and Brave Bangle.
-    assert rival["active"][0]["id"] == DIPPLIN
+    assert opponent["active"][0]["id"] == DIPPLIN
     assert DIPPLIN in m.FESTIVAL_LEAD_IDS
-    assert [t["id"] for t in rival["active"][0]["tools"]] == [m.Brave_Bangle]
+    assert [t["id"] for t in opponent["active"][0]["tools"]] == [m.Brave_Bangle]
     assert not m._tiene_rule_box(DIPPLIN)          # the Bangle DOES apply to it
 
     # Opponent at MATCH POINT: one more KO and we lose.
-    assert len(rival["prize"]) == 1
+    assert len(opponent["prize"]) == 1
 
     # The bench: two that survive 100 (Meganium, Tapu) and two that do not.
     assert [(b["id"], b["hp"]) for b in mio["bench"]] == [
         (MEGANIUM, 160), (DIPPLIN, 80), (CHIKORITA, 70), (TAPU, 140)]
-    assert len(rival["bench"]) == 5                # Do the Wave = 20 x 5 = 100
+    assert len(opponent["bench"]) == 5                # Do the Wave = 20 x 5 = 100
 
 
 def test_do_the_wave_has_zero_printed_damage():

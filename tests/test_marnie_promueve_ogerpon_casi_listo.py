@@ -126,12 +126,12 @@ def test_the_fixture_is_the_promotion_after_the_ko():
     o = _obs()
     yo = o["current"]["yourIndex"]
     mio = o["current"]["players"][yo]
-    rival = o["current"]["players"][1 - yo]
+    opponent = o["current"]["players"][1 - yo]
 
     assert not mio["active"]                       # they knocked out our active
     assert o["select"]["context"] == 4             # promotion menu
-    assert rival["active"][0]["id"] == GRIMMSNARL
-    assert rival["active"][0]["hp"] == 310
+    assert opponent["active"][0]["id"] == GRIMMSNARL
+    assert opponent["active"][0]["hp"] == 310
 
     # A Grass weakness: the Ogerpon ex hits double.
     assert m.card_table[GRIMMSNARL].weakness == m.card_table[OGERPON].energyType

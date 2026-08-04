@@ -130,9 +130,9 @@ def test_the_fixture_is_the_wounded_wall_at_90_hp():
              if b is not None and b.id == HYDRAPPLE)) == 2
 
     # Their Alakazam dies to Myriad Leaf Shower: 30 + 30*(4 ours + 1 theirs) = 180.
-    rival = riv["active"][0]
-    assert rival["id"] == ALAKAZAM and rival["hp"] == 140
-    assert 30 + 30 * (4 + len(rival["energies"])) >= rival["hp"]
+    opponent = riv["active"][0]
+    assert opponent["id"] == ALAKAZAM and opponent["hp"] == 140
+    assert 30 + 30 * (4 + len(opponent["energies"])) >= opponent["hp"]
 
 
 # ---------------------------------------------------------------------------

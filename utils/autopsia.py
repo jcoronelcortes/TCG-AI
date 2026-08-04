@@ -68,7 +68,7 @@ MIN_HAND_STERILE = 4
 SWITCH_CARD = 1123
 
 
-def play_recording(agente, rival, own_deck, opponent_deck, asiento):
+def play_recording(agent_state, opponent, own_deck, opponent_deck, asiento):
     """Plays a game recording OUR decisions.
 
     It returns (result, decisions, final_obs) with the result in {"gana",
@@ -78,14 +78,14 @@ def play_recording(agente, rival, own_deck, opponent_deck, asiento):
     """
     from cg import game
 
-    sp._reset_si_aplica(agente)
-    sp._reset_si_aplica(rival)
+    sp._reset_si_aplica(agent_state)
+    sp._reset_si_aplica(opponent)
     decks = ((own_deck, opponent_deck) if asiento == 0
              else (opponent_deck, own_deck))
     obs, sd = game.battle_start(list(decks[0]), list(decks[1]))
     if obs is None:
         raise RuntimeError(f"battle_start fallo: {sd.errorType}")
-    agentes = {asiento: agente, 1 - asiento: rival}
+    agentes = {asiento: agent_state, 1 - asiento: opponent}
     decisiones, steps = [], 0
     try:
         while obs["current"]["result"] == -1 and steps < MAX_STEPS:
@@ -481,14 +481,14 @@ def autopsia(opponent_csv, partidas, espejo=False, destino=None, censar=False):
     destino = destino or (_ROOT / "registros" / "autopsia")
     destino.mkdir(parents=True, exist_ok=True)
 
-    agente = sp.load_agent(_ROOT / "main.py", "agente_autopsia")
+    agent_state = sp.load_agent(_ROOT / "main.py", "agente_autopsia")
     own_deck = sp.read_deck()
     if espejo:
-        rival = sp.load_agent(_ROOT / "main.py", "rival_autopsia")
+        opponent = sp.load_agent(_ROOT / "main.py", "rival_autopsia")
         opponent_deck, etiqueta = own_deck, "espejo"
     else:
         from bot_rival import BotRival
-        rival = BotRival()
+        opponent = BotRival()
         opponent_deck = sp.read_deck(opponent_csv)
         etiqueta = Path(opponent_csv).stem
 
@@ -499,7 +499,7 @@ def autopsia(opponent_csv, partidas, espejo=False, destino=None, censar=False):
     censo = []
     for i in range(partidas):
         result, decisiones, obs_final = play_recording(
-            agente, rival, own_deck, opponent_deck, asiento=i % 2)
+            agent_state, opponent, own_deck, opponent_deck, asiento=i % 2)
         marcador[result] += 1
         # THE CENSUS: it is built from ALL the games, wins included. It is the
         # CONTROL group -- without it, a pattern that is frequent in the losses cannot be
@@ -572,10 +572,10 @@ def main(argv):
     if args.espejo:
         autopsia(None, args.partidas, espejo=True, censar=args.censo)
         return 0
-    if not args.rival:
+    if not args.opponent:
         print("indica --rival, --espejo o --todos")
         return 1
-    autopsia(args.rival, args.partidas, censar=args.censo)
+    autopsia(args.opponent, args.partidas, censar=args.censo)
     return 0
 
 

@@ -117,8 +117,8 @@ def _play(obs, choice):
 def _pk_elegido(obs, choice):
     """The opposing Pokemon pointed at by option `eleccion` of the DAMAGE menu."""
     o = obs["select"]["option"][choice[0]]
-    rival = obs["current"]["players"][o["playerIndex"]]
-    zona = rival["active"] if o["area"] == int(m.AreaType.ACTIVE) else rival["bench"]
+    opponent = obs["current"]["players"][o["playerIndex"]]
+    zona = opponent["active"] if o["area"] == int(m.AreaType.ACTIVE) else opponent["bench"]
     return zona[o["index"]]
 
 
@@ -179,16 +179,16 @@ def test_step54_cruel_arrow_cannot_reach_the_active_but_can_reach_the_bench():
     obs = _menu_step54()
     st = m.to_observation_class(obs).current
     active = st.players[1].active[0]
-    rival = st.players[0]
+    opponent = st.players[0]
 
     assert active.id == FEZ
     assert len(active.energies) >= 3                  # Cruel Arrow available
-    assert rival.active[0].id == ALAKAZAM
-    assert rival.active[0].hp == 140                  # 100 does NOT knock it out
+    assert opponent.active[0].id == ALAKAZAM
+    assert opponent.active[0].hp == 140                  # 100 does NOT knock it out
     assert any(p is not None and p.id == KADABRA and p.hp == 80
-               for p in rival.bench)                  # 100 DOES knock it out
+               for p in opponent.bench)                  # 100 DOES knock it out
 
-    target, damage, es_ko = m._snipe_best_target(active, rival, len(active.energies),
+    target, damage, es_ko = m._snipe_best_target(active, opponent, len(active.energies),
                                                  m.meganium_in_play, False)
     assert (target.id, damage, es_ko) == (KADABRA, 100, True)
 
@@ -206,8 +206,8 @@ def test_cruel_arrow_aims_at_the_kadabra_not_the_active():
 def test_cruel_arrow_prefers_the_kadabra_over_abra_and_dunsparce():
     """Among the three bodies that die, the most developed one (Stage 1, 80 HP)."""
     obs = _obs(_FIX_DMG)
-    rival = obs["current"]["players"][0]
-    hp = {p["id"]: p["hp"] for p in rival["bench"]}
+    opponent = obs["current"]["players"][0]
+    hp = {p["id"]: p["hp"] for p in opponent["bench"]}
     assert hp[ABRA] == 50 and hp[DUNSPARCE] == 70 and hp[KADABRA] == 80
 
     from main import _snipe_target_score as sc
@@ -247,11 +247,11 @@ def test_the_snipe_respects_ex_immunity():
     obs = _obs(_FIX_DMG)
     st = m.to_observation_class(obs).current
     active = st.players[1].active[0]
-    rival = st.players[0]
+    opponent = st.players[0]
     inmune = next(iter(m.EX_IMMUNE_IDS))
-    for p in [rival.active[0]] + [b for b in rival.bench if b is not None]:
+    for p in [opponent.active[0]] + [b for b in opponent.bench if b is not None]:
         p.id = inmune
-    target, damage, es_ko = m._snipe_best_target(active, rival,
+    target, damage, es_ko = m._snipe_best_target(active, opponent,
                                                  len(active.energies),
                                                  m.meganium_in_play, False)
     assert damage == 0 and es_ko is False
@@ -285,11 +285,11 @@ def test_the_snipe_yields_to_a_ko_worth_more_prizes_without_closing_the_turn():
     blank -- hence the `plan.attacker <= 0` guard of `_active_snipe_ko_now`.
     """
     obs = copy.deepcopy(_obs(_FIX_MAIN))
-    rival = obs["current"]["players"][0]["active"][0]
+    opponent = obs["current"]["players"][0]["active"][0]
     archaludon = m.card_table[190]
     assert archaludon.ex and archaludon.hp == 300
-    rival["id"] = 190
-    rival["hp"] = rival["maxHp"] = archaludon.hp
+    opponent["id"] = 190
+    opponent["hp"] = opponent["maxHp"] = archaludon.hp
     # A benched Ogerpon with energy to spare to finish the wall.
     obs["current"]["players"][1]["bench"][1]["energies"] = [1] * 12
 

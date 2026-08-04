@@ -249,13 +249,13 @@ def _detector(obs):
     """(ko, chip) of the shared core over the built state."""
     o = m.to_observation_class(obs)
     st = o.current
-    mio, rival = st.players[0], st.players[1]
+    mio, opponent = st.players[0], st.players[1]
     m.meganium_in_play = False
     total_grass = sum(len(p.energies)
                       for p in ([mio.active[0]] if mio.active else []) + list(mio.bench)
                       if p is not None)
     return m._grass_unlocks_active_retreat(
-        mio, rival, False, total_grass, len(mio.bench), False, False)
+        mio, opponent, False, total_grass, len(mio.bench), False, False)
 
 
 def test_the_detector_sees_the_lethal_line():
@@ -355,13 +355,13 @@ def test_88631738_when_promoting_the_hydrapple_that_finishes_comes_up():
 def _detector_presupuesto(obs, budget):
     o = m.to_observation_class(obs)
     st = o.current
-    mio, rival = st.players[0], st.players[1]
+    mio, opponent = st.players[0], st.players[1]
     m.meganium_in_play = False
     total_grass = sum(len(p.energies)
                       for p in ([mio.active[0]] if mio.active else []) + list(mio.bench)
                       if p is not None)
     return m._grass_unlocks_active_retreat(
-        mio, rival, False, total_grass, len(mio.bench), False, False,
+        mio, opponent, False, total_grass, len(mio.bench), False, False,
         budget=budget)
 
 

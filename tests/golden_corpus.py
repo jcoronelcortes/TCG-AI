@@ -62,13 +62,13 @@ def reset_agente(m):
     sys.modules. There the assignments went to a dead attribute, the reset did
     not happen and the state leaked from one game to the next.
     """
-    estado = getattr(m, "AGENT_STATE", None)
-    if estado is not None:
+    state = getattr(m, "AGENT_STATE", None)
+    if state is not None:
         # ORDER: first `reset()` -- which leaves CARTAS_ACTIVAS_EN_MAZO empty -- and
         # THEN the scan that fills it from deck.csv. The other way round, the reset
         # erased the tracking that had just been built and the agent started each
         # game believing its deck is empty.
-        estado.reset()
+        state.reset()
         m._init_cards_tracking()
         return
 

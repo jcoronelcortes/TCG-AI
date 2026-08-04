@@ -175,12 +175,12 @@ def winrate_ponderado(filas, pesos):
     return total / cobertura, cobertura
 
 
-def medir(agente, partidas, paths):
+def medir(agent_state, partidas, paths):
     bot = BotRival()
     filas = []
     for path in paths:
         opponent_deck = sp.read_deck(path)
-        stats = sp.torneo(agente, bot, partidas, deck_base=opponent_deck)
+        stats = sp.torneo(agent_state, bot, partidas, deck_base=opponent_deck)
         dec = stats["candidato"] + stats["base"]
         wr = stats["candidato"] / dec if dec else 0.0
         lo, hi = sp.wilson_95(stats["candidato"], dec)
@@ -241,9 +241,9 @@ def main(argv):
               f"Generalo con: python utils/rivales_reales.py", file=sys.stderr)
         return 1
 
-    agente = sp.load_agent(_ROOT / args.candidato, "agente_matriz")
+    agent_state = sp.load_agent(_ROOT / args.candidato, "agente_matriz")
     print(f"candidato={args.candidato}, {args.partidas} partidas por matchup")
-    filas = medir(agente, args.partidas, paths)
+    filas = medir(agent_state, args.partidas, paths)
 
     base_by_deck = {}
     if args.base:

@@ -47,7 +47,7 @@ them are archetypes that do not exist in the current meta, and measuring against
 them spent half the budget on imaginary opponents. They remain useful for
 exercising **mechanics** the real meta does not offer (item lock, mill).
 
-### `bot_rival.py` — the reference opponent
+### `bot_opponent.py` — the reference opponent
 
 The generic bot that pilots any deck legally and consistently. It is not a good
 player and does not try to be: because its policy is fixed and deterministic,
@@ -100,7 +100,7 @@ turns are dumped as replayable observations.
 | `descargar_mazos_competidores.py` | Downloads the exact 60-card lists of the top leaderboard competitors from their public replays. Resumable. `--top 100` |
 | `rivales_reales.py` | Turns those lists into *measurable* opponents: deduplicates them (100 decks are ~39 unique lists), keeps each one's meta weight, and screens out lists the generic bot cannot pilot — an unpilotable list measures the bot getting stuck, not the matchup, and returns a falsely high winrate. |
 | `construir_mazos_meta.py` | Hand-built synthetic archetype decks, for mechanics the real meta does not currently offer. |
-| `cosechar_deck_rival.py` | Rebuilds a plausible 60-card opponent list from what was visible in local game records. |
+| `cosechar_deck_opponent.py` | Rebuilds a plausible 60-card opponent list from what was visible in local game records. |
 
 ---
 

@@ -21,6 +21,8 @@ The map is a TSV, one rename per line, with an optional third column:
     old_name<TAB>new_name<TAB>mod     # also rewrite it inside import paths
     old_name<TAB>new_name<TAB>code    # identifier only: the matching literals
                                       # are something else, and were checked
+    old_name<TAB>new_name<TAB>mod_code  # both of the above: a module path whose
+                                      # same-spelled literals are data
 
 `str` is for the handful of names that are also written as strings: the targets
 of `monkeypatch.setattr(mod, "name")` and the path constants of the
@@ -90,6 +92,9 @@ def read_map(path):
         elif flag == "mod":
             in_modules.add(old)
         elif flag == "code":
+            checked_strings.add(old)
+        elif flag == "mod_code":          # a module path, and its literals stay
+            in_modules.add(old)
             checked_strings.add(old)
     return renames, in_strings, in_modules, checked_strings
 

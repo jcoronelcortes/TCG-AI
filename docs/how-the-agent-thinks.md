@@ -111,7 +111,7 @@ reading a stale value forever — silently, with every test still green. See
 | Choose a target / a card to fetch | the CARD branch, one rule per searching card |
 | End turn | scored like anything else — ending is a decision too |
 
-Each of these lives in its own module under `ptcg/turno/opciones/`; the cards
+Each of these lives in its own module under `ptcg/turn/options/`; the cards
 with real strategy behind them (Boss's Orders, Ultra Ball, Night Stretcher,
 disruption…) get a dedicated module under `ptcg/decision/`. See the
 [Code map](code-map.md).

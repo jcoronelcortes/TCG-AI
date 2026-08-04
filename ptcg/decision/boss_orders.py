@@ -5,20 +5,20 @@ Extracted VERBATIM from main.py by utils/extraer_definiciones.py
 utils/pureza.py: nothing here touches mutable state or the runtime tables.
 """
 
-from ptcg.cartas.ids import Dwebble_Fighting, Dwebble_Grass, EX_PREEVO_IDS, GUST_TRAP_IDS, SCORE_FORBID, THREAT_PREEVO_IDS
-from ptcg.calculo.rival import _alakazam_attacker_relief, _op_active_is_harmless, _op_body_is_harmless
-from ptcg.calculo.energia import _can_attack_eff, _grass_attach_unit, _retreat_grass_units
-from ptcg.calculo.dano import _attacker_base_damage, _bench_attacker_best_damage, _bench_attacker_can_ko, _our_effective_damage
-from ptcg.calculo.carta import prize_count_op
-from ptcg.estado.agente import AGENT_STATE
-from ptcg.cartas.ids import Basic_Grass_Energy, Bayleef, DUNSPARCE_IDS, Dipplin, EX_PREEVO_IDS, Fezandipiti_ex, Hydrapple_ex, Meganium, OUR_EX_IDS, RETREAT_COST, THREAT_PREEVO_IDS, Tapu_Bulu, Teal_Mask_Ogerpon_ex
-from ptcg.calculo.tablero import _active_of
-from ptcg.calculo.energia import _grass_mult
-from ptcg.calculo.dano import _ko_not_guaranteed
+from ptcg.cards.ids import Dwebble_Fighting, Dwebble_Grass, EX_PREEVO_IDS, GUST_TRAP_IDS, SCORE_FORBID, THREAT_PREEVO_IDS
+from ptcg.calc.opponent import _alakazam_attacker_relief, _op_active_is_harmless, _op_body_is_harmless
+from ptcg.calc.energy import _can_attack_eff, _grass_attach_unit, _retreat_grass_units
+from ptcg.calc.damage import _attacker_base_damage, _bench_attacker_best_damage, _bench_attacker_can_ko, _our_effective_damage
+from ptcg.calc.card import prize_count_op
+from ptcg.state.agent_state import AGENT_STATE
+from ptcg.cards.ids import Basic_Grass_Energy, Bayleef, DUNSPARCE_IDS, Dipplin, EX_PREEVO_IDS, Fezandipiti_ex, Hydrapple_ex, Meganium, OUR_EX_IDS, RETREAT_COST, THREAT_PREEVO_IDS, Tapu_Bulu, Teal_Mask_Ogerpon_ex
+from ptcg.calc.board import _active_of
+from ptcg.calc.energy import _grass_mult
+from ptcg.calc.damage import _ko_not_guaranteed
 from dataclasses import dataclass
-from ptcg.cartas.ids import ALAKAZAM_ATTACKER_IDS, ALAKAZAM_LINE_IDS, Abra, Alakazam_ex, Boss_Orders, Budew, Cyndaquil, Dragapult_ex, Drakloak, Dreepy, Dwebble_Fighting, Dwebble_Grass, EX_PREEVO_IDS, Froslass, GUST_TRAP_IDS, Hydrapple_ex, Iron_Thorns_ex, Kadabra, Latias_ex, Lillie_Determination, Meowth_ex, Munkidori, Quilava, SCORE_FORBID, Snorunt, THREAT_PREEVO_IDS, Teal_Mask_Ogerpon_ex, Typhlosion
-from ptcg.cartas.tablas import card_table
-from ptcg.motor.reglas import _Adjustment, _FixedRule
+from ptcg.cards.ids import ALAKAZAM_ATTACKER_IDS, ALAKAZAM_LINE_IDS, Abra, Alakazam_ex, Boss_Orders, Budew, Cyndaquil, Dragapult_ex, Drakloak, Dreepy, Dwebble_Fighting, Dwebble_Grass, EX_PREEVO_IDS, Froslass, GUST_TRAP_IDS, Hydrapple_ex, Iron_Thorns_ex, Kadabra, Latias_ex, Lillie_Determination, Meowth_ex, Munkidori, Quilava, SCORE_FORBID, Snorunt, THREAT_PREEVO_IDS, Teal_Mask_Ogerpon_ex, Typhlosion
+from ptcg.cards.tables import card_table
+from ptcg.engine.rules import _Adjustment, _FixedRule
 
 
 def _boss_val_de(ctx):

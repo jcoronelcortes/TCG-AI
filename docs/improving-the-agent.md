@@ -48,7 +48,7 @@ nothing — validate the new test by injecting the bug and watching it go red.
 ## 4. Change the rule
 
 Rules live where the decision lives: per-card modules under `ptcg/decision/`,
-option branches under `ptcg/turno/opciones/`. See the [Code map](code-map.md).
+option branches under `ptcg/turn/options/`. See the [Code map](code-map.md).
 
 Two placement rules that keep costing time when ignored:
 

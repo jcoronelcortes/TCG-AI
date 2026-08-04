@@ -138,7 +138,7 @@ def _spy_on_fishing(monkeypatch):
 def test_the_finisher_existed_myriad_with_three_energies_knocks_out_the_grimmsnarl():
     obs = m.to_observation_class(_fixture())
     st = obs.current
-    yo, rival = st.players[0], st.players[1]
+    yo, opponent = st.players[0], st.players[1]
 
     active = yo.active[0]
     assert active.id == OGERPON and active.hp == 30
@@ -147,7 +147,7 @@ def test_the_finisher_existed_myriad_with_three_energies_knocks_out_the_grimmsna
     assert not any(c["id"] == GRASS for c in _fixture()["current"]
                    ["players"][0]["hand"]), "ni una Planta en la mano"
 
-    opa = rival.active[0]
+    opa = opponent.active[0]
     assert opa.id == GRIMMSNARL and opa.hp == 320
     assert m.prize_count_op(opa) == 2, "el Grimmsnarl ex vale DOS premios"
 
@@ -163,9 +163,9 @@ def test_the_gust_downgrades_the_finisher_target():
     """Myriad scales with the energy of BOTH actives: bringing up the bare Snorunt
     swaps a hit of 360 for one of 120."""
     obs = m.to_observation_class(_fixture())
-    rival = obs.current.players[1]
+    opponent = obs.current.players[1]
     active = obs.current.players[0].active[0]
-    snorunt = next(b for b in rival.bench if b is not None and b.id == SNORUNT)
+    snorunt = next(b for b in opponent.bench if b is not None and b.id == SNORUNT)
 
     base_snorunt = m._attacker_base_damage(OGERPON, snorunt, 3, grass_scale=3,
                                            teal_self_energy=3, bench_count=5)

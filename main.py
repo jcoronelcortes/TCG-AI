@@ -13,44 +13,44 @@ from cg.api import AreaType, CardType, EnergyType, Observation, SelectContext, O
 # refactor; see docs/project-history.md. It goes AT THE TOP on purpose:
 # in the Kaggle container the agent's directory is only on sys.path
 # while this module runs, so a deferred import would not resolve.
-from ptcg.estado.agente import AGENT_STATE, AgentState  # noqa: F401
-from ptcg.cartas.costes import ATTACK_ENERGY_REQ_BASE  # noqa: F401
-from ptcg.cartas.grupos import *  # noqa: F401,F403
-from ptcg.cartas.ids import *  # noqa: F401,F403
-from ptcg.cartas.lineas import *  # noqa: F401,F403
-from ptcg.cartas.tablas import *  # noqa: F401,F403
-from ptcg.motor.contexto import *  # noqa: F401,F403
-from ptcg.motor.plan import *  # noqa: F401,F403
-from ptcg.motor.reglas import *  # noqa: F401,F403
-from ptcg.estado.claves import *  # noqa: F401,F403
-from ptcg.estado.logs import *  # noqa: F401,F403
-from ptcg.estado.tracking import *  # noqa: F401,F403
-from ptcg.calculo.carta import *  # noqa: F401,F403
-from ptcg.calculo.dano import *  # noqa: F401,F403
-from ptcg.calculo.energia import *  # noqa: F401,F403
-from ptcg.calculo.planta import *  # noqa: F401,F403
-from ptcg.calculo.probabilidad import *  # noqa: F401,F403
-from ptcg.calculo.rival import *  # noqa: F401,F403
-from ptcg.calculo.tablero import *  # noqa: F401,F403
+from ptcg.state.agent_state import AGENT_STATE, AgentState  # noqa: F401
+from ptcg.cards.costs import ATTACK_ENERGY_REQ_BASE  # noqa: F401
+from ptcg.cards.groups import *  # noqa: F401,F403
+from ptcg.cards.ids import *  # noqa: F401,F403
+from ptcg.cards.lines import *  # noqa: F401,F403
+from ptcg.cards.tables import *  # noqa: F401,F403
+from ptcg.engine.context import *  # noqa: F401,F403
+from ptcg.engine.plan import *  # noqa: F401,F403
+from ptcg.engine.rules import *  # noqa: F401,F403
+from ptcg.state.zones import *  # noqa: F401,F403
+from ptcg.state.logs import *  # noqa: F401,F403
+from ptcg.state.tracking import *  # noqa: F401,F403
+from ptcg.calc.card import *  # noqa: F401,F403
+from ptcg.calc.damage import *  # noqa: F401,F403
+from ptcg.calc.energy import *  # noqa: F401,F403
+from ptcg.calc.grass import *  # noqa: F401,F403
+from ptcg.calc.probability import *  # noqa: F401,F403
+from ptcg.calc.opponent import *  # noqa: F401,F403
+from ptcg.calc.board import *  # noqa: F401,F403
 from ptcg.decision.boss_orders import *  # noqa: F401,F403
 from ptcg.decision.bug_catching_set import *  # noqa: F401,F403
-from ptcg.decision.disrupcion import *  # noqa: F401,F403
-from ptcg.decision.estadios import *  # noqa: F401,F403
+from ptcg.decision.disruption import *  # noqa: F401,F403
+from ptcg.decision.stadiums import *  # noqa: F401,F403
 from ptcg.decision.meowth import *  # noqa: F401,F403
 from ptcg.decision.night_stretcher import *  # noqa: F401,F403
 from ptcg.decision.poke_pad import *  # noqa: F401,F403
 from ptcg.decision.supporters import *  # noqa: F401,F403
 from ptcg.decision.ultra_ball import *  # noqa: F401,F403
-from ptcg.cartas.puntuacion import *  # noqa: F401,F403
-from ptcg.motor.depuracion import *  # noqa: F401,F403
-from ptcg.turno.ctx import TurnoCtx  # noqa: F401
-from ptcg.turno.finalize import finalizar  # noqa: F401
-from ptcg.turno.ctx_puntuacion import PuntuacionCtx  # noqa: F401
-from ptcg.turno.puntuacion import puntuar_opcion, _SALTAR  # noqa: F401
-from ptcg.turno.supporters import evaluate_supporters as _evaluate_supporters_impl  # noqa: F401
-from ptcg.turno.supporters_ctx import CtxEvaluateSupporters  # noqa: F401
-from ptcg.turno.energia import _energy_score_base as _energy_score_base_impl  # noqa: F401
-from ptcg.turno.energia_ctx import CtxEnergyScoreBase  # noqa: F401
+from ptcg.cards.scoring import *  # noqa: F401,F403
+from ptcg.engine.debug import *  # noqa: F401,F403
+from ptcg.turn.ctx import TurnoCtx  # noqa: F401
+from ptcg.turn.finalize import finalizar  # noqa: F401
+from ptcg.turn.ctx_scoring import PuntuacionCtx  # noqa: F401
+from ptcg.turn.scoring import puntuar_opcion, _SALTAR  # noqa: F401
+from ptcg.turn.supporters import evaluate_supporters as _evaluate_supporters_impl  # noqa: F401
+from ptcg.turn.supporters_ctx import CtxEvaluateSupporters  # noqa: F401
+from ptcg.turn.energy import _energy_score_base as _energy_score_base_impl  # noqa: F401
+from ptcg.turn.energy_ctx import CtxEnergyScoreBase  # noqa: F401
 
 # =============================================================================
 # Compatibility bridge: `main.<state field>` <-> `ESTADO.<field>`

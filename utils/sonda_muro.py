@@ -92,7 +92,7 @@ def play(m, opponent_deck, partidas, volcar, destino):
         agentes = {asiento: m, 1 - asiento: BotRival()}
         steps = 0
         current_turn = None
-        estado = None  # the current turn's dict, if it qualifies
+        state = None  # the current turn's dict, if it qualifies
         try:
             while obs["current"]["result"] == -1 and steps < 3000:
                 yi = obs["current"]["yourIndex"]
@@ -100,33 +100,33 @@ def play(m, opponent_deck, partidas, volcar, destino):
                 if yi == asiento and _es_main(obs):
                     if turn != current_turn:
                         # It closes the previous turn before opening the new one.
-                        if estado is not None:
-                            summary[estado["desenlace"]] += 1
-                            if estado["desenlace"] == "seco" and len(secos) < volcar:
-                                secos.append(estado["obs"])
+                        if state is not None:
+                            summary[state["desenlace"]] += 1
+                            if state["desenlace"] == "seco" and len(secos) < volcar:
+                                secos.append(state["obs"])
                         current_turn = turn
-                        estado = ({"desenlace": "seco", "obs": obs}
+                        state = ({"desenlace": "seco", "obs": obs}
                                   if _califica(m, obs, asiento) else None)
                 try:
                     choice = agentes[yi].agent(obs)
                 except Exception:
                     break
-                if estado is not None and yi == asiento and _es_main(obs):
+                if state is not None and yi == asiento and _es_main(obs):
                     t = _tipo_elegido(obs, choice)
                     if t == int(OptionType.ATTACK):
-                        estado["desenlace"] = "ataca"
-                    elif t == int(OptionType.RETREAT) and estado["desenlace"] == "seco":
+                        state["desenlace"] = "ataca"
+                    elif t == int(OptionType.RETREAT) and state["desenlace"] == "seco":
                         # Retreating is the pivot; if it then attacks, "attacks" rules.
-                        estado["desenlace"] = "retira"
+                        state["desenlace"] = "retira"
                 try:
                     obs = game.battle_select(choice)
                 except Exception:
                     break
                 steps += 1
-            if estado is not None:
-                summary[estado["desenlace"]] += 1
-                if estado["desenlace"] == "seco" and len(secos) < volcar:
-                    secos.append(estado["obs"])
+            if state is not None:
+                summary[state["desenlace"]] += 1
+                if state["desenlace"] == "seco" and len(secos) < volcar:
+                    secos.append(state["obs"])
         finally:
             game.battle_finish()
 
@@ -150,12 +150,12 @@ def main(argv):
     args = ap.parse_args(argv)
 
     import main as m
-    opponent_deck = sp.read_deck(args.rival)
+    opponent_deck = sp.read_deck(args.opponent)
     summary, n_secos = play(m, opponent_deck, args.partidas, args.volcar,
                              Path(args.destino))
 
     total = sum(summary.values())
-    print(f"rival={Path(args.rival).stem}  partidas={args.partidas}")
+    print(f"rival={Path(args.opponent).stem}  partidas={args.partidas}")
     print(f"turnos que EMPIEZAN atascados tras el muro con respuesta lista: {total}")
     if not total:
         print("  (ninguno: el estado no se dio, no hay nada que concluir)")
