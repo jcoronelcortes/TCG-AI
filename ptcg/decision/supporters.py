@@ -13,7 +13,7 @@ from ptcg.motor.reglas import _Adjustment, _FixedRule, _resolve_with_trace
 from ptcg.decision.disrupcion import _stamp_pendiente
 
 
-def _robo_de_lillie(my_prize):
+def _lillie_draw_count(my_prize):
     """Cards drawn by Lillie's Determination: 6, or 8 with all 6 prizes
     untouched (the card's text)."""
     return 8 if my_prize == 6 else 6
@@ -35,7 +35,7 @@ def _lana_veto_duro(c):
     return False
 
 
-_REGLAS_LANA_PLAY = [
+_RULES_LANA_PLAY = [
     _FixedRule("veto_duro",
                _lana_veto_duro,
                lambda c: SCORE_VETO),
@@ -81,7 +81,7 @@ def _score_lanas_aid_play(ctx: DecisionContext, score: int) -> int:
     """Scores playing Lana's Aid (recovers non-ex Pokemon + Energy from the
     discard). Body migrated to the RULES ENGINE (phase 4); the incoming `score`
     is ignored (the original overwrote it in every branch)."""
-    return _resolve_with_trace("lana->play", _REGLAS_LANA_PLAY,
+    return _resolve_with_trace("lana->play", _RULES_LANA_PLAY,
                                _AJUSTES_LANA_PLAY, ctx, default=0)
 
 
@@ -106,11 +106,11 @@ def _dawn_forest_avail(c):
     return AGENT_STATE.forest_in_play or c.hand.get(Forest_of_Vitality, 0) >= 1
 
 __all__ = [
-    '_robo_de_lillie',
+    '_lillie_draw_count',
     '_lana_veto_duro',
     '_score_lanas_aid_play',
     '_score_dawn_play',
-    '_REGLAS_LANA_PLAY',
+    '_RULES_LANA_PLAY',
     '_AJUSTES_LANA_PLAY',
     '_dawn_forest_avail',
 ]

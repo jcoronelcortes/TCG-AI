@@ -386,7 +386,7 @@ def test_eval_ub_best_target_returns_non_negative_value():
         bench_count=1,
         state=state,
         ko_last_turn=False,
-        _best_supp_in_mazo_val=0,
+        _best_supp_in_deck_val=0,
         supporters_in_hand=0,
         hand_is_weak=False,
         has_energy_for_teal=False,
@@ -471,7 +471,7 @@ def test_eval_ub_best_target_handles_turn_two_and_turn_one_branches():
         bench_count=1,
         state=SimpleNamespace(turn=2, supporterPlayed=False),
         ko_last_turn=False,
-        _best_supp_in_mazo_val=900,
+        _best_supp_in_deck_val=900,
         supporters_in_hand=0,
         hand_is_weak=False,
         has_energy_for_teal=False,
@@ -497,7 +497,7 @@ def test_eval_ub_best_target_handles_turn_two_and_turn_one_branches():
         bench_count=0,
         state=SimpleNamespace(turn=1, supporterPlayed=False),
         ko_last_turn=False,
-        _best_supp_in_mazo_val=0,
+        _best_supp_in_deck_val=0,
         supporters_in_hand=0,
         hand_is_weak=False,
         has_energy_for_teal=False,
@@ -5399,10 +5399,10 @@ def test_p61_turno_esteril_juega_lillie_en_vez_de_growl():
     assert opt.get("type") == int(OptionType.PLAY), (
         f"con la evolucion bloqueada, cerrar el turno con Growl (0 de dano) "
         f"deja la mano muerta: hay que refrescar con Lillie's; obtuvo {opt}")
-    carta = _mi_lado(obs)["hand"][opt["index"]]["id"]
-    assert carta == m.Lillie_Determination, (
+    card = _mi_lado(obs)["hand"][opt["index"]]["id"]
+    assert card == m.Lillie_Determination, (
         f"la jugada de rescate es Lillie's Determination (roba 6/8); obtuvo "
-        f"{m.card_table[carta].name}")
+        f"{m.card_table[card].name}")
 
 
 def test_p61_con_ataque_real_no_dispara_el_rescate():
@@ -5472,8 +5472,8 @@ def test_p61_tras_evolucionar_en_banca_se_juega_lillie():
     ]
     result = m.agent(obs)
     opt = obs["select"]["option"][result[0]]
-    carta = _mi_lado(obs)["hand"][opt["index"]]["id"] if opt.get("index") is not None else None
-    assert carta == m.Lillie_Determination, (
+    card = _mi_lado(obs)["hand"][opt["index"]]["id"] if opt.get("index") is not None else None
+    assert card == m.Lillie_Determination, (
         f"con la linea ya bajada y la mano sin recursos, el turno termina "
         f"refrescando con Lillie's; obtuvo {opt}")
 
@@ -7416,7 +7416,7 @@ def test_marnie_night_stretcher_recovers_hydrapple_to_save_dipplin():
     opts = obs["select"]["option"]
     hydra = next(i for i, o in enumerate(opts)
                  if me["discard"][o["index"]]["id"] == m.Hydrapple_ex)
-    energia = next(i for i, o in enumerate(opts)
+    energy = next(i for i, o in enumerate(opts)
                    if me["discard"][o["index"]]["id"] == m.Basic_Grass_Energy)
     m._init_cards_tracking()
     m.plan = m.AttackPlan()
@@ -7424,7 +7424,7 @@ def test_marnie_night_stretcher_recovers_hydrapple_to_save_dipplin():
     result = m.agent(obs)
     assert result == [hydra], (
         f"debe recuperar Hydrapple ex (opt {hydra}) para salvar al Dipplin "
-        f"condenado, no la energia redundante (opt {energia}); obtuvo {result}")
+        f"condenado, no la energia redundante (opt {energy}); obtuvo {result}")
 
 
 def test_marnie_night_stretcher_healthy_dipplin_keeps_energy():
@@ -7764,11 +7764,11 @@ def test_cubchoo_con_jugada_real_sigue_vetando_el_segundo_meowth():
     obs = _copy.deepcopy(_load_fixture_obs("cubchoo_turno_muerto_baja_meowth.json"))
     obs["current"]["energyAttached"] = False
     me = obs["current"]["players"][obs["current"]["yourIndex"]]
-    energia = next(i for i, c in enumerate(me["hand"])
+    energy = next(i for i, c in enumerate(me["hand"])
                    if c["id"] == m.Basic_Grass_Energy)
     obs["select"]["option"].insert(0, {
         "area": 2, "inPlayArea": 5, "inPlayIndex": 0,
-        "index": energia, "type": int(m.OptionType.ATTACH)})
+        "index": energy, "type": int(m.OptionType.ATTACH)})
     opts = obs["select"]["option"]
     meowth = next(i for i, o in enumerate(opts)
                   if o.get("type") == int(m.OptionType.PLAY)
@@ -8146,24 +8146,24 @@ def test_gust_estorbo_forbid_iron_thorns():
     on our own engine (the rule estorbo_crea_lock_iron_thorns)."""
     def _ctx(card_id):
         return m._CtxGustObjetivo(
-            card_id=card_id, energia=0, rc0=2, rc1=2, stall_diff=2,
+            card_id=card_id, energy=0, rc0=2, rc1=2, stall_diff=2,
             is_ex=True, is_exmega=True, is_megaex=False, prizes=2,
             wins_now=False, is_stage1=False, is_stage2=False,
             tiene_tool=False, can_ko=False, tier_ko=0,
             plan_target_match=False, regust_energized=False,
-            linea_rank=0, linea_can_ko=False, op_alakazam=False,
-            op_latias=False, op_linea_dragapult=False,
-            op_linea_typhlosion=False)
+            line_rank=0, line_can_ko=False, op_alakazam=False,
+            op_latias=False, op_dragapult_line=False,
+            op_typhlosion_line=False)
 
     s_iron, _ = m._resolve_rules(
-        m._REGLAS_GUST_ESTORBO, m._AJUSTES_GUST_ESTORBO,
+        m._RULES_GUST_NUISANCE, m._ADJUST_GUST_NUISANCE,
         _ctx(m.Iron_Thorns_ex), default=-200)
     assert s_iron == m.SCORE_FORBID, (
         f"estorbo con Iron Thorns ex debe ser FORBID; obtuvo {s_iron}")
 
     # Control: another ex with the same net stuckness keeps its nuisance value.
     s_otro, _ = m._resolve_rules(
-        m._REGLAS_GUST_ESTORBO, m._AJUSTES_GUST_ESTORBO,
+        m._RULES_GUST_NUISANCE, m._ADJUST_GUST_NUISANCE,
         _ctx(m.Alakazam_ex), default=-200)
     assert s_otro > 0, (
         f"un ex no-locker con traba neta sigue siendo estorbo valido; "
@@ -8636,7 +8636,7 @@ def test_ub_no_cava_la_evolucion_que_ya_esta_en_la_mano():
             op_prize=6, bench_count=1,
             state=SimpleNamespace(turn=6, supporterPlayed=True,
                                   energyAttached=True),
-            ko_last_turn=False, _best_supp_in_mazo_val=0,
+            ko_last_turn=False, _best_supp_in_deck_val=0,
             supporters_in_hand=0, hand_is_weak=False,
             has_energy_for_teal=False, _we_go_first=False,
             _best_supp_in_hand_val=0, op_is_crustle_deck=False,
@@ -8678,9 +8678,9 @@ def test_ub_cavar_meowth_se_juega_pide_la_last_ditch_libre():
                                  meowth_ld_free=False)
     ctx_dos = _make_boss_ctx(field_counts={m.Meowth_ex: 2},
                              meowth_ld_free=True)
-    assert m._ub_cavar_meowth_se_juega(ctx_libre) is True
-    assert m._ub_cavar_meowth_se_juega(ctx_gastada) is False
-    assert m._ub_cavar_meowth_se_juega(ctx_dos) is False
+    assert m._ub_dig_meowth_gets_played(ctx_libre) is True
+    assert m._ub_dig_meowth_gets_played(ctx_gastada) is False
+    assert m._ub_dig_meowth_gets_played(ctx_dos) is False
 
 
 # Record 006 step 78 vs Archaludon ex (episode 88154185, LOST). Turn 6:

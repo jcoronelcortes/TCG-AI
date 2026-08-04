@@ -149,14 +149,14 @@ def test_la_lillie_protegida_no_es_forraje():
     """The exact hand of step 50: the only real fodder is the Boss's."""
     ctx = _Ctx({m.Boss_Orders: 1, m.Lillie_Determination: 1,
                 m.Ultra_Ball: 1, m.Xerosic_Machinations: 1})
-    assert m._ub_forraje_real(ctx, m.Xerosic_Machinations) == 1
+    assert m._ub_real_fodder(ctx, m.Xerosic_Machinations) == 1
 
 
 def test_el_dawn_protegido_tampoco_es_forraje():
     """Dawn scores 3 with `_protect_refresh_supporter`: it does not fall first either."""
     ctx = _Ctx({m.Boss_Orders: 1, m.Dawn: 1,
                 m.Ultra_Ball: 1, m.Xerosic_Machinations: 1})
-    assert m._ub_forraje_real(ctx, m.Xerosic_Machinations) == 1
+    assert m._ub_real_fodder(ctx, m.Xerosic_Machinations) == 1
 
 
 def test_con_el_supporter_del_turno_ya_jugado_si_es_forraje():
@@ -165,7 +165,7 @@ def test_con_el_supporter_del_turno_ya_jugado_si_es_forraje():
     ctx = _Ctx({m.Boss_Orders: 1, m.Lillie_Determination: 1,
                 m.Ultra_Ball: 1, m.Xerosic_Machinations: 1},
                supporter_played=True)
-    assert m._ub_forraje_real(ctx, m.Xerosic_Machinations) == 2
+    assert m._ub_real_fodder(ctx, m.Xerosic_Machinations) == 2
 
 
 def test_la_copia_sobrante_de_lillie_si_es_forraje():
@@ -173,7 +173,7 @@ def test_la_copia_sobrante_de_lillie_si_es_forraje():
     in the discard block): with two Lillie's the fodder counts them again."""
     ctx = _Ctx({m.Lillie_Determination: 2, m.Ultra_Ball: 1,
                 m.Xerosic_Machinations: 1})
-    assert m._ub_forraje_real(ctx, m.Xerosic_Machinations) == 2
+    assert m._ub_real_fodder(ctx, m.Xerosic_Machinations) == 2
 
 
 def test_protegiendo_la_propia_lillie_el_dawn_sigue_siendo_forraje():
@@ -181,4 +181,4 @@ def test_protegiendo_la_propia_lillie_el_dawn_sigue_siendo_forraje():
     scorer lets the Dawn go (55) before the Lillie's, so it counts."""
     ctx = _Ctx({m.Lillie_Determination: 1, m.Dawn: 1,
                 m.Boss_Orders: 1, m.Ultra_Ball: 1})
-    assert m._ub_forraje_real(ctx, m.Lillie_Determination) == 2
+    assert m._ub_real_fodder(ctx, m.Lillie_Determination) == 2

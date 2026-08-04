@@ -23,7 +23,7 @@ def _v_bcs_base(w):
     return v
 
 
-_REGLAS_BCS_PLAY = [
+_RULES_BCS_PLAY = [
     _FixedRule("sin_elegibles_en_mazo",
                lambda w: w.elegibles == 0,
                lambda w: SCORE_VETO),
@@ -54,9 +54,9 @@ _AJUSTES_BCS_PLAY = [
                                     else (200 if w.p_find >= 0.5
                                           else -300)))),
     _Adjustment("piezas_alto_valor",
-            lambda w, s: s > 0 and w.alto_valor >= 1,
-            lambda w, s: s + (600 if w.alto_valor >= 3
-                              else (400 if w.alto_valor >= 2 else 200))),
+            lambda w, s: s > 0 and w.high_value >= 1,
+            lambda w, s: s + (600 if w.high_value >= 3
+                              else (400 if w.high_value >= 2 else 200))),
     _Adjustment("lineas_incompletas",
             lambda w, s: s > 0 and (not w.meganium_in_play
                                     or not w.has_hydrapple),
@@ -70,7 +70,7 @@ _AJUSTES_BCS_PLAY = [
             lambda w, s: (s > 0 and w.hand_counts[Basic_Grass_Energy] == 0
                           and not w.state.energyAttached
                           and w.energy_starved_low_draw
-                          and w.energia_mazo > 0),
+                          and w.energy_in_deck > 0),
             lambda w, s: s + SCORE_BELIEF_DIG_ENERGY),
     # With Poke Pad playable (and without Itchy Pollen), BCS yields: cap 9000.
     _Adjustment("tope_si_pokepad_jugable",
@@ -88,47 +88,47 @@ class _CtxBCS:
     def __init__(self, ctx):
         self.c = ctx
         f = ctx.field_counts
-        grass, energia, alto_valor = 0, 0, 0
+        grass, energy, high_value = 0, 0, 0
         for cid, states in ctx.cards_in_deck.items():
             if states[ZONE_DECK] <= 0:
                 continue
             copias = states[ZONE_DECK]
             cdata = card_table.get(cid)
             if cid == Basic_Grass_Energy:
-                energia += copias
+                energy += copias
             elif cdata and cdata.cardType == CardType.POKEMON:
                 if cdata.energyType == EnergyType.GRASS:
                     grass += copias
                     if (cid == Meganium and not ctx.meganium_in_play
                             and (f.get(Bayleef, 0) >= 1
                                  or f.get(Chikorita, 0) >= 1)):
-                        alto_valor += copias
+                        high_value += copias
                     elif (cid == Hydrapple_ex and not ctx.has_hydrapple
                             and (f.get(Dipplin, 0) >= 1
                                  or f.get(Applin, 0) >= 1)):
-                        alto_valor += copias
+                        high_value += copias
                     elif (cid == Bayleef and not ctx.meganium_in_play
                             and f.get(Chikorita, 0) >= 1):
-                        alto_valor += copias
+                        high_value += copias
                     elif (cid == Dipplin and not ctx.has_hydrapple
                             and f.get(Applin, 0) >= 1):
-                        alto_valor += copias
+                        high_value += copias
                     elif (cid == Chikorita and not ctx.meganium_in_play
                             and f.get(Chikorita, 0) + f.get(Bayleef, 0)
                                 + f.get(Meganium, 0) == 0):
-                        alto_valor += copias
+                        high_value += copias
                     elif (cid == Applin and not ctx.has_hydrapple
                             and f.get(Applin, 0) + f.get(Dipplin, 0)
                                 + f.get(Hydrapple_ex, 0) == 0):
-                        alto_valor += copias
+                        high_value += copias
                     elif (cid == Teal_Mask_Ogerpon_ex
                             and f.get(Teal_Mask_Ogerpon_ex, 0) < 2):
-                        alto_valor += copias
-        self.energia_mazo = energia
-        self.elegibles = grass + energia
-        self.alto_valor = alto_valor
+                        high_value += copias
+        self.energy_in_deck = energy
+        self.elegibles = grass + energy
+        self.high_value = high_value
         total = sum(v[ZONE_DECK] for v in ctx.cards_in_deck.values())
-        self.total_mazo = total
+        self.deck_total = total
         if self.elegibles == 0:
             self.p_find = 0.0
         elif total <= 7:
@@ -150,12 +150,12 @@ def _score_bug_catching_set_play(ctx: DecisionContext) -> int:
     """Scores playing Bug Catching Set (look at 7 and take Grass/Energy).
     Body migrated to the RULES ENGINE (phase 4): deck statistics precomputed in
     _CtxBCS, contributions expressed as named adjustments."""
-    return _resolve_with_trace("bcs->play", _REGLAS_BCS_PLAY,
+    return _resolve_with_trace("bcs->play", _RULES_BCS_PLAY,
                                _AJUSTES_BCS_PLAY, _CtxBCS(ctx), default=0)
 
 __all__ = [
     '_v_bcs_base',
-    '_REGLAS_BCS_PLAY',
+    '_RULES_BCS_PLAY',
     '_AJUSTES_BCS_PLAY',
     '_CtxBCS',
     '_score_bug_catching_set_play',

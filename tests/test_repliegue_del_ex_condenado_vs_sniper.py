@@ -78,7 +78,7 @@ def _cierre_de_turno(activo_rival="grimmsnarl", hp_ogerpon=30):
     else:
         act_rival, banca_rival = morgrem, grimm
 
-    esc = (Escenario(turno=4, paso=55, tac=8, primer_jugador=1,
+    esc = (Escenario(turn=4, paso=55, tac=8, primer_jugador=1,
                      partidario_jugado=True)
            .mi_activo(pk(m.Teal_Mask_Ogerpon_ex, hp=hp_ogerpon,
                          energias=[G], fisicas=1))

@@ -173,7 +173,7 @@ def test_la_planta_va_al_ogerpon_ex_no_al_meganium():
 
     The third Ogerpon (130 HP) is OUTSIDE its window of 100 and does not compete.
     """
-    obs = (Escenario(turno=10, paso=121, tac=6)
+    obs = (Escenario(turn=10, paso=121, tac=6)
            .mi_activo(pk(HYDRAPPLE, hp=70, energias=[G, G],
                          fisicas=1, pre_evo=[APPLIN, DIPPLIN]))
            .mi_banca(pk(MEGANIUM, hp=110, pre_evo=[CHIKORITA, BAYLEEF]),
@@ -211,7 +211,7 @@ def test_el_dano_movible_es_elastico_no_condena_a_media_mesa():
     body per turn, so healing is still worth it: it forces the opponent to spend it.
     Between the two, the one worth MORE PRIZES wins, the Ogerpon ex.
     """
-    obs = (Escenario(turno=14, paso=167, tac=5, premios_propios=3)
+    obs = (Escenario(turn=14, paso=167, tac=5, premios_propios=3)
            .mi_activo(pk(HYDRAPPLE, hp=110, energias=[G, G],
                          fisicas=1, pre_evo=[APPLIN, DIPPLIN]))
            .mi_banca(pk(MEGANIUM, hp=30, pre_evo=[CHIKORITA, BAYLEEF]),
@@ -238,7 +238,7 @@ def test_el_dano_movible_es_elastico_no_condena_a_media_mesa():
 
 def test_sin_froslass_ni_munkidori_la_ventana_no_cambia():
     """Against a deck without those pieces, chip and movable damage are 0."""
-    obs = (Escenario(turno=8, paso=60, tac=3)
+    obs = (Escenario(turn=8, paso=60, tac=3)
            .mi_activo(pk(HYDRAPPLE, hp=300, energias=[G, G],
                          fisicas=1, pre_evo=[APPLIN, DIPPLIN]))
            .mi_banca(pk(MEGANIUM, hp=90, pre_evo=[CHIKORITA, BAYLEEF]),
@@ -288,7 +288,7 @@ def test_sin_froslass_ni_munkidori_la_ventana_no_cambia():
 
 def test_munkidori_enciende_la_ventana_tambien_fuera_de_marnie():
     """A Dragapult opponent with Munkidori: without a single Marnie Pokemon on the field."""
-    obs = (Escenario(turno=8, paso=60, tac=3)
+    obs = (Escenario(turn=8, paso=60, tac=3)
            .mi_activo(pk(HYDRAPPLE, hp=300, energias=[G, G],
                          fisicas=1, pre_evo=[APPLIN, DIPPLIN]))
            .mi_banca(pk(MEGANIUM, hp=90, pre_evo=[CHIKORITA, BAYLEEF]),
@@ -312,7 +312,7 @@ def test_munkidori_enciende_la_ventana_tambien_fuera_de_marnie():
 
 def test_la_ventana_crece_con_munkidori_sin_marnie_en_mesa():
     """The movable damage enters the window even if the opponent is not Marnie."""
-    obs = (Escenario(turno=8, paso=60, tac=3)
+    obs = (Escenario(turn=8, paso=60, tac=3)
            .mi_activo(pk(HYDRAPPLE, hp=300, energias=[G, G],
                          fisicas=1, pre_evo=[APPLIN, DIPPLIN]))
            .mi_banca(pk(MEGANIUM, hp=90, pre_evo=[CHIKORITA, BAYLEEF]),
@@ -346,7 +346,7 @@ def test_sin_froslass_el_munkidori_sin_municion_no_amenaza():
     difference between the Marnie matchup (renewable ammunition) and a Dragapult that
     simply runs Munkidori.
     """
-    obs = (Escenario(turno=8, paso=60, tac=3)
+    obs = (Escenario(turn=8, paso=60, tac=3)
            .mi_activo(pk(HYDRAPPLE, hp=300, energias=[G, G],
                          fisicas=1, pre_evo=[APPLIN, DIPPLIN]))
            .mi_banca(pk(MEGANIUM, hp=90, pre_evo=[CHIKORITA, BAYLEEF]),

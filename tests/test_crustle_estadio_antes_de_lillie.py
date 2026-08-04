@@ -86,7 +86,7 @@ def _escenario(op_basico=DWEBBLE, con_lillie=True, partidario_jugado=False,
     mano = [m.Forest_of_Vitality, m.Basic_Grass_Energy, m.Ultra_Ball]
     if con_lillie:
         mano.append(m.Lillie_Determination)
-    esc = (Escenario(turno=2, paso=7, tac=0,
+    esc = (Escenario(turn=2, paso=7, tac=0,
                      primer_jugador=primer_jugador,
                      partidario_jugado=partidario_jugado)
            .mi_activo(pk(m.Tapu_Bulu))

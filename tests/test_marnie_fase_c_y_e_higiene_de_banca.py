@@ -138,7 +138,7 @@ def _mesa_con_meganium_herido(con_goteo=True):
     banca_rival = ([pk(FROSLASS, hp=90, max_hp=90),
                     pk(MUNKIDORI, hp=110, max_hp=110, energias=[G], fisicas=1)]
                    if con_goteo else [pk(MORGREM, hp=100, max_hp=100)])
-    return (Escenario(turno=12, paso=172, tac=1)
+    return (Escenario(turn=12, paso=172, tac=1)
             .mi_activo(pk(HYDRAPPLE, hp=110, max_hp=330, energias=[G, G],
                           fisicas=2, pre_evo=[APPLIN, DIPPLIN]))
             .mi_banca(pk(MEGANIUM, hp=30, max_hp=160,
@@ -180,7 +180,7 @@ def test_el_activo_que_ataca_hoy_no_cuenta_como_condenado():
     # The ACTIVE that is inside the window but ATTACKS this turn with that same Grass is
     # not doomed: the energy is cashed in before the opponent plays. An active Ogerpon
     # at 60 HP with 2 energies -> the 3rd pays for its Myriad Leaf Shower.
-    obs = (Escenario(turno=12, paso=1, tac=1)
+    obs = (Escenario(turn=12, paso=1, tac=1)
            .mi_activo(pk(OGERPON, hp=60, max_hp=210, energias=[G, G], fisicas=2))
            .mi_banca(pk(BAYLEEF, hp=100, max_hp=100, pre_evo=[CHIKORITA]))
            .mi_mano(GRASS)
@@ -212,7 +212,7 @@ def _mesa_para_bajar_fez(con_froslass=True, premios_rival=6):
     """
     banca_rival = ([pk(FROSLASS, hp=90, max_hp=90)] if con_froslass
                    else [pk(MORGREM, hp=100, max_hp=100)])
-    return (Escenario(turno=6, paso=1, tac=1)
+    return (Escenario(turn=6, paso=1, tac=1)
             .mi_activo(pk(OGERPON, hp=210, max_hp=210, energias=[G, G, G],
                           fisicas=3))
             .mi_banca(pk(TAPU, hp=140, max_hp=140))
@@ -257,7 +257,7 @@ def _mesa_para_bajar_applin(con_munkidori=True, con_cadena=False):
         banca_rival.append(pk(MUNKIDORI, hp=110, max_hp=110,
                               energias=[G], fisicas=1))
     mano = [APPLIN, GRASS] + ([DIPPLIN] if con_cadena else [])
-    esc = (Escenario(turno=6, paso=1, tac=1)
+    esc = (Escenario(turn=6, paso=1, tac=1)
            .mi_activo(pk(OGERPON, hp=210, max_hp=210, energias=[G, G, G],
                          fisicas=3))
            .mi_banca(pk(TAPU, hp=140, max_hp=140))

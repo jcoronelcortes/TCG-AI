@@ -173,10 +173,10 @@ def nuestro_indice(data):
                         jugador.get("bench") or []):
                     if pk:
                         vistas.append(pk.get("id"))
-                for carta in (jugador.get("discard") or []):
-                    vistas.append(carta.get("id"))
-                for carta in (jugador.get("hand") or []):
-                    vistas.append(carta.get("id"))
+                for card in (jugador.get("discard") or []):
+                    vistas.append(card.get("id"))
+                for card in (jugador.get("hand") or []):
+                    vistas.append(card.get("id"))
                 votos[idx] += sum(1 for cid in vistas if cid in mazo)
     return 0 if votos[0] >= votos[1] else 1
 

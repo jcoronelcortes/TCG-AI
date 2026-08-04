@@ -200,13 +200,13 @@ def validar(name, mazo):
     assert total == 60, f"{name}: {total} cartas (deben ser 60)"
     tiene_basico = False
     for cid, n in mazo.items():
-        carta = _CARTAS.get(cid)
-        assert carta is not None, f"{name}: id {cid} no existe en el pool"
+        card = _CARTAS.get(cid)
+        assert card is not None, f"{name}: id {cid} no existe en el pool"
         if cid not in _ENERGIAS_BASICAS:
-            assert n <= 4, f"{name}: {n}x {carta.name} (max 4)"
-        if getattr(carta, "aceSpec", False):
-            assert n == 1, f"{name}: ACE SPEC {carta.name} debe ser x1"
-        if (carta.cardType == CardType.POKEMON and carta.basic):
+            assert n <= 4, f"{name}: {n}x {card.name} (max 4)"
+        if getattr(card, "aceSpec", False):
+            assert n == 1, f"{name}: ACE SPEC {card.name} debe ser x1"
+        if (card.cardType == CardType.POKEMON and card.basic):
             tiene_basico = True
     assert tiene_basico, f"{name}: sin Pokemon Basico"
 

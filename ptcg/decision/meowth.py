@@ -48,7 +48,7 @@ class _CtxMeowthFetch:
         self.no_energy_in_hand = (hand_counts.get(Basic_Grass_Energy, 0) == 0)
 
 
-def _v_meowth_fetch_valor(c):
+def _v_meowth_fetch_value(c):
     score = c.sv
     if c.card_id == Boss_Orders and AGENT_STATE.op_is_crustle_deck:
         score += 100
@@ -68,7 +68,7 @@ def _v_meowth_fetch_valor(c):
     return score
 
 
-_REGLAS_MEOWTH_FETCH = [
+_RULES_MEOWTH_FETCH = [
     # FIRST TURN = ONLY LILLIE'S (user, log 88461779 step 16 vs Alakazam,
     # LOST). On OUR first turn the only reason to bench a Meowth ex is to
     # bring Lillie's Determination: turn 1 does not attack, does not evolve
@@ -180,12 +180,12 @@ _REGLAS_MEOWTH_FETCH = [
                           else min(c.sv, 400))),
     _FixedRule("valor_del_supporter",
                lambda c: True,
-               _v_meowth_fetch_valor),
+               _v_meowth_fetch_value),
 ]
 
 __all__ = [
     '_CtxMeowthFetch',
     '_MEOWTH_FETCH_SUPPS',
-    '_v_meowth_fetch_valor',
-    '_REGLAS_MEOWTH_FETCH',
+    '_v_meowth_fetch_value',
+    '_RULES_MEOWTH_FETCH',
 ]

@@ -100,8 +100,8 @@ def _pk(card_id, energias=0):
     return SimpleNamespace(id=card_id, energies=[1] * energias)
 
 
-def _op(activo, banca):
-    return SimpleNamespace(active=[activo] if activo else [], bench=list(banca))
+def _op(active, banca):
+    return SimpleNamespace(active=[active] if active else [], bench=list(banca))
 
 
 # ---------------------------------------------------------------------------
@@ -236,22 +236,22 @@ def test_una_preevo_de_amenaza_de_activo_no_dispara_el_veto_generico():
 # 4. The gust TARGET: with no KO no other attacker of the line is promoted
 # ---------------------------------------------------------------------------
 
-def _gust_ctx(card_id, can_ko=False, energia=0):
+def _gust_ctx(card_id, can_ko=False, energy=0):
     return m._CtxGustObjetivo(
-        card_id=card_id, energia=energia,
+        card_id=card_id, energy=energy,
         rc0=m.RETREAT_COST.get(card_id, 0), rc1=m.RETREAT_COST.get(card_id, 1),
-        stall_diff=m.RETREAT_COST.get(card_id, 0) - energia,
+        stall_diff=m.RETREAT_COST.get(card_id, 0) - energy,
         is_ex=False, is_exmega=False, is_megaex=False, prizes=1, wins_now=False,
         is_stage1=(card_id == KADABRA), is_stage2=(card_id == ALAKAZAM),
         tiene_tool=False, can_ko=can_ko, tier_ko=5 if can_ko else 0,
         plan_target_match=False, regust_energized=False,
-        linea_rank=0, linea_can_ko=False, op_alakazam=True,
-        op_latias=False, op_linea_dragapult=False, op_linea_typhlosion=False)
+        line_rank=0, line_can_ko=False, op_alakazam=True,
+        op_latias=False, op_dragapult_line=False, op_typhlosion_line=False)
 
 
 def _estorbo(ctx):
-    score, _ = m._resolve_rules(m._REGLAS_GUST_ESTORBO,
-                                 m._AJUSTES_GUST_ESTORBO, ctx, default=-200)
+    score, _ = m._resolve_rules(m._RULES_GUST_NUISANCE,
+                                 m._ADJUST_GUST_NUISANCE, ctx, default=-200)
     return score
 
 

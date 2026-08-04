@@ -87,13 +87,13 @@ def _eleccion_valida(obs, eleccion):
          m.Basic_Grass_Energy, m.Lillie_Determination, m.Ultra_Ball,
          m.Forest_of_Vitality]), max_size=6),
     rival=st.sampled_from(ROSTER_RIVAL),
-    turno=st.integers(min_value=2, max_value=10),
+    turn=st.integers(min_value=2, max_value=10),
 )
 def test_invariante_fetch_ub_robusto(activo_id, energias_activo, banca,
-                                     mano, mazo_extra, rival, turno):
+                                     mano, mazo_extra, rival, turn):
     reset_agente(m)
     try:
-        esc = (Escenario(turno=turno, paso=1, tac=1)
+        esc = (Escenario(turn=turn, paso=1, tac=1)
                .mi_activo(pk(activo_id, energias=energias_activo))
                .mi_banca(*banca)
                .mi_mano(*mano)
@@ -122,16 +122,16 @@ def test_invariante_fetch_ub_robusto(activo_id, energias_activo, banca,
     banca_extra=st.lists(st.sampled_from(ROSTER_PROPIO), max_size=2),
     energias_comp=st.integers(min_value=0, max_value=2),
     rival=st.sampled_from(ROSTER_RIVAL),
-    turno=st.integers(min_value=2, max_value=10),
+    turn=st.integers(min_value=2, max_value=10),
 )
 def test_invariante_applin_max_una_energia(applin_en_activo, companiero,
                                            banca_extra, energias_comp,
-                                           rival, turno):
+                                           rival, turn):
     reset_agente(m)
     applin = pk(m.Applin, energias=[G], fisicas=1)
     comp = pk(companiero, energias=energias_comp)
     try:
-        esc = Escenario(turno=turno, paso=1, tac=0)
+        esc = Escenario(turn=turn, paso=1, tac=0)
         if applin_en_activo:
             esc.mi_activo(applin).mi_banca(comp, *banca_extra)
             pos_applin = ("activo", None)

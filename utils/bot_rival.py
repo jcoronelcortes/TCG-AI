@@ -101,8 +101,8 @@ class BotRival:
 
     # -- utilities ----------------------------------------------------------
 
-    def _reset_turno(self, turno):
-        self._turno = turno
+    def _reset_turno(self, turn):
+        self._turno = turn
         self._habilidades_usadas = set()
         self._activaciones = 0
         self._contadores = 1
@@ -132,7 +132,7 @@ class BotRival:
             pk = pk[0] if pk else None
         return pk if isinstance(pk, dict) else None
 
-    def _premios(self, pk):
+    def _prizes(self, pk):
         data = self._cartas.get((pk or {}).get("id"))
         if data is None:
             return 1
@@ -296,13 +296,13 @@ class BotRival:
         cur = obs.get("current") or {}
         yo = cur.get("yourIndex", 0)
         jugadores = cur.get("players") or []
-        activo = None
+        active = None
         if yo < len(jugadores):
-            activo = ((jugadores[yo] or {}).get("active") or [None])[0]
+            active = ((jugadores[yo] or {}).get("active") or [None])[0]
         al_activo = [i for i in adjuntes
                      if opciones[i].get("inPlayArea") == int(AreaType.ACTIVE)]
 
-        if activo and len(activo.get("energies") or []) >= 1:
+        if active and len(active.get("energies") or []) >= 1:
             for i in adjuntes:
                 destino = self._pokemon_de(
                     obs,
@@ -363,7 +363,7 @@ class BotRival:
             hp = pk.get("hp") or 0
             if i in rivales:
                 # First the ones that DIE, and among them the ones worth more prizes.
-                return (0 if hp <= damage else 1, -self._premios(pk), hp)
+                return (0 if hp <= damage else 1, -self._prizes(pk), hp)
             # If only its own bodies are left, the one that hurts least: the healthiest.
             return (2, 0, -hp)
 
@@ -401,7 +401,7 @@ class BotRival:
                     return (2, 0, 0)
                 hp = pk.get("hp") or 0
                 muere = self._mejor_dano_de(mi_activo, pk) >= hp
-                return (0 if muere else 1, -self._premios(pk), hp)
+                return (0 if muere else 1, -self._prizes(pk), hp)
 
             orden = sorted(rivales, key=clave_gusteo)
             return sorted(orden[:min(k, len(rivales))])

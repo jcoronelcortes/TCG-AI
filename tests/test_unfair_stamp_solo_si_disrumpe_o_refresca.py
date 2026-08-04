@@ -190,21 +190,21 @@ def test_con_la_mano_rival_larga_el_sello_vuelve_aunque_sacrifiquemos_mucho():
 
 def test_borde_de_la_mano_propia():
     """Sacrificing 4 passes; sacrificing 5 no longer does (hand = sacrifice + the Stamp)."""
-    assert m._sello_merece_jugarse(1, m.STAMP_MAX_HAND_SACRIFICADA + 1)
-    assert not m._sello_merece_jugarse(1, m.STAMP_MAX_HAND_SACRIFICADA + 2)
+    assert m._stamp_worth_playing(1, m.STAMP_MAX_HAND_SACRIFICADA + 1)
+    assert not m._stamp_worth_playing(1, m.STAMP_MAX_HAND_SACRIFICADA + 2)
 
 
 def test_borde_de_la_mano_rival():
     """The Stamp leaves the rival at 2: with 2 it takes nothing, with 3 it takes 1."""
     mano_grande = m.STAMP_MAX_HAND_SACRIFICADA + 5
-    assert not m._sello_merece_jugarse(m.STAMP_MIN_OP_HAND - 1, mano_grande)
-    assert m._sello_merece_jugarse(m.STAMP_MIN_OP_HAND, mano_grande)
+    assert not m._stamp_worth_playing(m.STAMP_MIN_OP_HAND - 1, mano_grande)
+    assert m._stamp_worth_playing(m.STAMP_MIN_OP_HAND, mano_grande)
 
 
 def test_sin_datos_no_inventa_jugadas():
     """The rule only SUBTRACTS: without `op_hand_count` at hand it behaves as before."""
-    assert m._sello_merece_jugarse(None, 99)
-    assert m._sello_merece_jugarse(99, None)
+    assert m._stamp_worth_playing(None, 99)
+    assert m._stamp_worth_playing(99, None)
 
 
 # ---------------------------------------------------------------------------

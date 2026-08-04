@@ -78,7 +78,7 @@ def _escenario_paso69(op_activo="kangaskhan", energia_dipplin=2):
     else:
         dipplin = pk(m.Dipplin, energias=[], fisicas=0, pre_evo=[m.Applin])
 
-    esc = (Escenario(turno=8, paso=69, tac=3, primer_jugador=1)
+    esc = (Escenario(turn=8, paso=69, tac=3, primer_jugador=1)
            .mi_activo(dipplin)
            .mi_banca(pk(m.Meganium, pre_evo=[m.Chikorita, m.Bayleef]),
                      pk(m.Teal_Mask_Ogerpon_ex, energias=[G, G], fisicas=1),
@@ -197,7 +197,7 @@ CUBCHOO = 506
 
 def _fetch_ub_vs(op_id):
     """An Ultra Ball fetch with a Chikorita on the bench and the line in the deck."""
-    obs = (Escenario(turno=6, paso=1, tac=1)
+    obs = (Escenario(turn=6, paso=1, tac=1)
            .mi_activo(pk(m.Teal_Mask_Ogerpon_ex, energias=[G], fisicas=1))
            .mi_banca(pk(m.Chikorita))
            .mi_mano()
@@ -240,7 +240,7 @@ def test_sin_cornerstone_la_busqueda_no_cambia():
 
 def _menu_con_tapu_en_mano(op_id):
     """The main menu vs a Cubchoo rival with Cornerstone (or not) as the active."""
-    return (Escenario(turno=6, paso=1, tac=1)
+    return (Escenario(turn=6, paso=1, tac=1)
             .mi_activo(pk(m.Teal_Mask_Ogerpon_ex, energias=[G], fisicas=1))
             .mi_banca(pk(m.Bayleef, pre_evo=[m.Chikorita]))
             .mi_mano(m.Basic_Grass_Energy, m.Tapu_Bulu)
@@ -264,7 +264,7 @@ def _energia_va_a(obs, eleccion):
 def test_cornerstone_energia_va_a_tapu_bulu():
     # With Tapu Bulu ALREADY on the bench, the energy must charge it (the only attacker
     # that damages Cornerstone), not the Ogerpon ex with its ability cancelled.
-    obs = (Escenario(turno=6, paso=1, tac=1)
+    obs = (Escenario(turn=6, paso=1, tac=1)
            .mi_activo(pk(m.Teal_Mask_Ogerpon_ex, energias=[G], fisicas=1))
            .mi_banca(pk(m.Tapu_Bulu), pk(m.Bayleef, pre_evo=[m.Chikorita]))
            .mi_mano(m.Basic_Grass_Energy)
@@ -279,7 +279,7 @@ def test_cornerstone_energia_va_a_tapu_bulu():
 
 def test_cornerstone_sin_el_la_energia_no_cambia():
     # Boundary: without Cornerstone the energy distribution keeps its criterion.
-    obs = (Escenario(turno=6, paso=1, tac=1)
+    obs = (Escenario(turn=6, paso=1, tac=1)
            .mi_activo(pk(m.Teal_Mask_Ogerpon_ex, energias=[G], fisicas=1))
            .mi_banca(pk(m.Tapu_Bulu), pk(m.Bayleef, pre_evo=[m.Chikorita]))
            .mi_mano(m.Basic_Grass_Energy)
@@ -314,9 +314,9 @@ def _jugada_elegida(obs, eleccion):
     return ("ATTACH", destino["id"])
 
 
-def _esc_hop(activo, banca, op_energias=(), menu="attach"):
-    esc = (Escenario(turno=8, paso=1, tac=1)
-           .mi_activo(activo)
+def _esc_hop(active, banca, op_energias=(), menu="attach"):
+    esc = (Escenario(turn=8, paso=1, tac=1)
+           .mi_activo(active)
            .mi_banca(*banca)
            .mi_mano(m.Basic_Grass_Energy)
            .op_activo(pk(TREVENANT, hp=140, max_hp=140, energias=list(op_energias)))
@@ -389,7 +389,7 @@ def test_hop_teal_dance_permitida_si_habilita_el_ko():
 
 def test_hop_tope_2_energias_con_meganium():
     # With Meganium in play (Wild Growth doubles) the cap drops to 2 physical.
-    obs = (Escenario(turno=8, paso=1, tac=1)
+    obs = (Escenario(turn=8, paso=1, tac=1)
            .mi_activo(pk(m.Meganium, pre_evo=[m.Chikorita, m.Bayleef]))
            .mi_banca(pk(m.Teal_Mask_Ogerpon_ex, energias=[G, G, G, G], fisicas=2),
                      pk(m.Tapu_Bulu))
@@ -436,7 +436,7 @@ def _esc_combo_myriad(energias=4, plantas=1, energia_jugada=False,
     # FROM the hand); for the later steps of the chain (`plantas=0`) it is
     # built with it and then moved to the discard, which is exactly where it ends up
     # after being used.
-    obs = (Escenario(turno=12, paso=227, tac=1,
+    obs = (Escenario(turn=12, paso=227, tac=1,
                      premios_propios=premios_propios,
                      energia_jugada=energia_jugada)
            .mi_activo(pk(m.Teal_Mask_Ogerpon_ex, energias=[G] * energias,
@@ -532,7 +532,7 @@ def test_combo_myriad_sin_remate_no_gasta_la_planta():
     # Boundary: with no prize target on the rival bench (only a Kilowattrel
     # worth 1 prize that we already knock out), the no-overcharging veto returns: the
     # energy does NOT go to the active Ogerpon via Teal Dance.
-    obs = (Escenario(turno=12, paso=227, tac=1, premios_propios=2)
+    obs = (Escenario(turn=12, paso=227, tac=1, premios_propios=2)
            .mi_activo(pk(m.Teal_Mask_Ogerpon_ex, energias=[G] * 4, fisicas=4))
            .mi_banca(pk(m.Applin))
            .mi_mano(m.Basic_Grass_Energy, m.Boss_Orders)
@@ -567,7 +567,7 @@ KADABRA_ALK = 742
 
 
 def _pivote_obs(caso):
-    esc = (Escenario(turno=6, paso=40, tac=1)
+    esc = (Escenario(turn=6, paso=40, tac=1)
            .mi_activo(pk(m.Fezandipiti_ex, energias=[G], fisicas=1))
            .mi_banca(pk(m.Teal_Mask_Ogerpon_ex, energias=[G, G], fisicas=2),
                      pk(m.Applin)))
@@ -663,10 +663,10 @@ def _pivote_caminar(obs, max_pasos=10):
                            + [anterior])
             pasos.append(f"PROMUEVE {m.card_table[nuevo['id']].name}")
         elif t == 7:                                  # PLAY Night Stretcher
-            carta = yo["hand"][o["index"]]
+            card = yo["hand"][o["index"]]
             yo["hand"] = [c for i, c in enumerate(yo["hand"])
                           if i != o["index"]]
-            yo["discard"] = list(yo["discard"]) + [carta]
+            yo["discard"] = list(yo["discard"]) + [card]
             yo["handCount"] = len(yo["hand"])
             pasos.append("PLAY NS")
             cands = [i for i, c in enumerate(yo["discard"])
@@ -682,12 +682,12 @@ def _pivote_caminar(obs, max_pasos=10):
                                         for i in cands]}
             regen = False
         elif t == 3 and obs["select"]["context"] == int(m.SelectContext.TO_HAND):
-            carta = yo["discard"][o["index"]]
+            card = yo["discard"][o["index"]]
             yo["discard"] = [c for j, c in enumerate(yo["discard"])
                              if j != o["index"]]
-            yo["hand"] = list(yo["hand"]) + [carta]
+            yo["hand"] = list(yo["hand"]) + [card]
             yo["handCount"] = len(yo["hand"])
-            pasos.append(f"RECUPERA {m.card_table[carta['id']].name}")
+            pasos.append(f"RECUPERA {m.card_table[card['id']].name}")
         elif t == 10:                                 # Teal Dance
             i_e = next(i for i, c in enumerate(yo["hand"])
                        if c["id"] == m.Basic_Grass_Energy)
@@ -763,7 +763,7 @@ CORNERSTONE_NOEX = 386
 
 
 def _menu_con_tapu(op_activo, op_banca=(), op_descarte=()):
-    esc = (Escenario(turno=6, paso=1, tac=1)
+    esc = (Escenario(turn=6, paso=1, tac=1)
            .mi_activo(pk(m.Teal_Mask_Ogerpon_ex, energias=[G], fisicas=1))
            .mi_banca(pk(m.Chikorita))
            .mi_mano(m.Tapu_Bulu, m.Basic_Grass_Energy)
@@ -839,7 +839,7 @@ def _raging_obs(tapu_en_banca=False, ogerpon_cargado=False, bolt_hp=240):
         banca.append(pk(m.Tapu_Bulu, aparecio=True))
     else:
         mano.insert(4, m.Tapu_Bulu)
-    return (Escenario(turno=2, paso=27, tac=14, primer_jugador=0,
+    return (Escenario(turn=2, paso=27, tac=14, primer_jugador=0,
                       energia_jugada=True, partidario_jugado=True)
             .mi_activo(act)
             .mi_banca(*banca)
@@ -888,18 +888,18 @@ def _raging_caminar(obs, max_pasos=10):
         t = int(o["type"])
         yo = obs["current"]["players"][0]
         if t == int(m.OptionType.PLAY):
-            carta = yo["hand"][o["index"]]
+            card = yo["hand"][o["index"]]
             yo["hand"] = [c for i, c in enumerate(yo["hand"])
                           if i != o["index"]]
             yo["handCount"] = len(yo["hand"])
-            if carta["id"] == m.Forest_of_Vitality:
-                obs["current"]["stadium"] = [carta]
+            if card["id"] == m.Forest_of_Vitality:
+                obs["current"]["stadium"] = [card]
                 obs["current"]["stadiumPlayed"] = True
                 pasos.append("FOREST")
             else:
-                d = m.card_table[carta["id"]]
+                d = m.card_table[card["id"]]
                 yo["bench"] = list(yo["bench"]) + [
-                    {"id": carta["id"], "serial": carta["serial"],
+                    {"id": card["id"], "serial": card["serial"],
                      "playerIndex": 0, "hp": d.hp, "maxHp": d.hp,
                      "appearThisTurn": True, "energies": [],
                      "energyCards": [], "tools": [], "preEvolution": []}]
@@ -970,7 +970,7 @@ def test_raging_bolt_con_ko_disponible_no_sacrifica():
 # FIRST -- the rival cannot knock us out on their next turn yet.
 # ---------------------------------------------------------------------
 
-def _abomasnow_obs(primer_jugador=1, turno=2, tapu_en_banca=False):
+def _abomasnow_obs(primer_jugador=1, turn=2, tapu_en_banca=False):
     # An active Ogerpon ex with a single energy: it canNOT use Myriad Leaf Shower
     # (it costs 3) => it does not knock out the Snover => the mismatch fires.
     act = pk(m.Teal_Mask_Ogerpon_ex, energias=[G], fisicas=1)
@@ -982,7 +982,7 @@ def _abomasnow_obs(primer_jugador=1, turno=2, tapu_en_banca=False):
         banca.append(pk(m.Tapu_Bulu, aparecio=True))
     else:
         mano.insert(4, m.Tapu_Bulu)
-    return (Escenario(turno=turno, paso=14, tac=7, primer_jugador=primer_jugador,
+    return (Escenario(turn=turn, paso=14, tac=7, primer_jugador=primer_jugador,
                       energia_jugada=True, partidario_jugado=True)
             .mi_activo(act)
             .mi_banca(*banca)
@@ -1010,7 +1010,7 @@ def test_abomasnow_primer_turno_primeros_no_sacrifica():
     # apply -- the rival cannot knock us out on their next turn yet, early
     # development is not sacrificed. The ex is not retreated.
     pasos, activo_final = _raging_caminar(
-        _abomasnow_obs(primer_jugador=0, turno=1))
+        _abomasnow_obs(primer_jugador=0, turn=1))
     assert "RETREAT" not in pasos, pasos
     assert activo_final["id"] == m.Teal_Mask_Ogerpon_ex, (
         f"primer turno partiendo primeros: el descuadre no aplica; "
@@ -1021,7 +1021,7 @@ def test_abomasnow_primeros_pero_turno_posterior_si_sacrifica():
     # The exception's boundary: the exception belongs ONLY to turn 1. Going
     # first but on a later turn (turn 3) the rule applies again.
     pasos, activo_final = _raging_caminar(
-        _abomasnow_obs(primer_jugador=0, turno=3))
+        _abomasnow_obs(primer_jugador=0, turn=3))
     assert "RETREAT" in pasos and activo_final["id"] == m.Tapu_Bulu, pasos
 
 
@@ -1037,7 +1037,7 @@ MEGA_LUCARIO = 678
 
 
 def _menu_inmune_activo(op_activo_id, op_banca_id):
-    esc = (Escenario(turno=8, paso=100, tac=0,
+    esc = (Escenario(turn=8, paso=100, tac=0,
                      partidario_jugado=False, estadio_jugado=True,
                      premios_propios=4)
            .mi_activo(pk(m.Hydrapple_ex, energias=[G, G, G, G], fisicas=4))
@@ -1097,7 +1097,7 @@ def test_activo_atacable_no_desvia_a_meowth():
 
 def _fetch_ub_motor_meowth_vs(op_id):
     """A UB with an empty hand and the refresh engine available in the deck."""
-    obs = (Escenario(turno=6, paso=1, tac=1)
+    obs = (Escenario(turn=6, paso=1, tac=1)
            .mi_activo(pk(m.Teal_Mask_Ogerpon_ex, energias=[G], fisicas=1))
            .mi_banca(pk(m.Chikorita))
            .mi_mano()
@@ -1141,7 +1141,7 @@ def test_sin_iron_thorns_el_motor_meowth_sigue_vivo():
 # =====================================================================
 
 def _escenario_t2_saliendo_segundo(mano):
-    return (Escenario(turno=2, tac=1, primer_jugador=1)
+    return (Escenario(turn=2, tac=1, primer_jugador=1)
             .mi_activo(pk(m.Tapu_Bulu))
             .mi_banca(pk(m.Chikorita))
             .mi_mano(*mano)
@@ -1208,7 +1208,7 @@ def test_ub_t1_segundos_con_lillie_en_mano_se_veta():
 # as d801d57 (the anti-Cubchoo whitelist extended with the immune wall in play).
 
 def _esc_corner_td(ogerpon_fisicas):
-    return (Escenario(turno=8, paso=1, tac=1)
+    return (Escenario(turn=8, paso=1, tac=1)
             .mi_activo(pk(m.Tapu_Bulu, energias=[G], fisicas=1))
             .mi_banca(pk(m.Teal_Mask_Ogerpon_ex,
                          energias=[G] * ogerpon_fisicas,
@@ -1247,7 +1247,7 @@ def test_generico_td_dos_fisicas_sin_muro_no_capa():
     # The inverse control: with no Cornerstone/Crustle/wall in front (a neutral rival,
     # Kilowattrel 271) the cap does not apply and the Teal Dance of the Ogerpon with 2
     # physical is still alive.
-    obs = (Escenario(turno=8, paso=1, tac=1)
+    obs = (Escenario(turn=8, paso=1, tac=1)
            .mi_activo(pk(m.Tapu_Bulu, energias=[G], fisicas=1))
            .mi_banca(pk(m.Teal_Mask_Ogerpon_ex, energias=[G, G], fisicas=2))
            .mi_mano(m.Basic_Grass_Energy)

@@ -101,10 +101,10 @@ def _como_spec(x):
 
 class Escenario:
 
-    def __init__(self, turno=2, paso=1, tac=0, primer_jugador=0,
+    def __init__(self, turn=2, paso=1, tac=0, primer_jugador=0,
                  energia_jugada=False, partidario_jugado=False,
                  estadio_jugado=False, retirado=False, premios_propios=None):
-        self._turno = turno
+        self._turno = turn
         self._paso = paso
         self._tac = tac
         self._primer_jugador = primer_jugador
@@ -149,13 +149,13 @@ class Escenario:
 
     def _pokemon_mio(self, spec):
         spec = _como_spec(spec)
-        carta = self._tomar(spec["id"], "campo")
+        card = self._tomar(spec["id"], "campo")
         e_cards = [self._tomar(BASIC_GRASS, "energia adjunta")
                    for _ in range(spec["fisicas"])]
         pre = [self._tomar(cid, "pre-evolucion") for cid in spec["pre_evo"]]
         tools = [self._tomar(cid, "herramienta") for cid in spec["tools"]]
         return {
-            "id": spec["id"], "serial": carta["serial"], "playerIndex": 0,
+            "id": spec["id"], "serial": card["serial"], "playerIndex": 0,
             "hp": spec["hp"], "maxHp": spec["maxHp"],
             "appearThisTurn": spec["aparecio"],
             "energies": spec["energias"], "energyCards": e_cards,
@@ -286,8 +286,8 @@ class Escenario:
         opciones = [
             {"type": int(OptionType.CARD), "area": int(AreaType.DECK),
              "index": i, "playerIndex": 0}
-            for i, carta in enumerate(self._mazo_visible)
-            if es_candidato(carta["id"])]
+            for i, card in enumerate(self._mazo_visible)
+            if es_candidato(card["id"])]
         if not opciones:
             raise EstadoInconsistente(
                 "fetch_ultra_ball() sin ningun candidato en el mazo declarado")
@@ -470,8 +470,8 @@ class Escenario:
         opciones = [{"type": int(OptionType.CARD),
                      "area": int(AreaType.DISCARD), "index": i,
                      "playerIndex": 0}
-                    for i, carta in enumerate(self._mi_descarte)
-                    if solo is None or carta["id"] in solo]
+                    for i, card in enumerate(self._mi_descarte)
+                    if solo is None or card["id"] in solo]
         if not opciones:
             raise EstadoInconsistente(
                 "fetch_descarte(solo=...) no deja ninguna opcion en el descarte")

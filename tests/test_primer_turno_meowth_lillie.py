@@ -132,11 +132,11 @@ def test_sin_lillie_en_el_mazo_el_primer_turno_no_degrada_al_resto():
 # Not digging Meowth ex with an Ultra Ball if the Lillie's is already in hand
 # ---------------------------------------------------------------------------
 
-def _ctx_ub_meowth(hand, turno=1, lillie_in_mazo=4):
+def _ctx_ub_meowth(hand, turn=1, lillie_in_deck=4):
     return m._CtxUBMeowth(
-        hand=hand, campo={}, bench_count=1, turno=turno, watchtower=False,
-        supp_values={m.Lillie_Determination: 900}, lillie_in_mazo=lillie_in_mazo,
-        any_supp_in_mazo=True, prefer_meowth_develop=True,
+        hand=hand, campo={}, bench_count=1, turn=turn, watchtower=False,
+        supp_values={m.Lillie_Determination: 900}, lillie_in_deck=lillie_in_deck,
+        any_supp_in_deck=True, prefer_meowth_develop=True,
         hydra_dead_prefer_meowth=False, mega_dead_prefer_meowth=False,
         no_attacker_prefer_meowth=False, t1_going_second_meowth=False,
         dipplin_priority=False, active_cant_attack=True,
@@ -144,7 +144,7 @@ def _ctx_ub_meowth(hand, turno=1, lillie_in_mazo=4):
 
 
 def _valor_ub_meowth(ctx):
-    value, _ = m._resolve_rules(m._REGLAS_UB_MEOWTH, [], ctx, 50)
+    value, _ = m._resolve_rules(m._RULES_UB_MEOWTH, [], ctx, 50)
     return value
 
 
@@ -157,7 +157,7 @@ def test_ub_no_cava_meowth_en_primer_turno_con_lillie_en_mano():
 
 def test_ub_no_cava_meowth_en_primer_turno_sin_lillie_en_el_mazo():
     m.we_go_first = True
-    ctx = _ctx_ub_meowth({m.Ultra_Ball: 1}, lillie_in_mazo=0)
+    ctx = _ctx_ub_meowth({m.Ultra_Ball: 1}, lillie_in_deck=0)
     assert _valor_ub_meowth(ctx) <= 10
 
 
@@ -194,9 +194,9 @@ class _CtxXerosic:
         self.bench_count = 1
 
 
-@pytest.mark.parametrize("turno,primeros", [(1, True), (2, False)])
-def test_motor_xerosic_no_arranca_en_nuestro_primer_turno(turno, primeros):
-    assert not m._alakazam_dig_xerosic_engine(_CtxXerosic(turno, primeros))
+@pytest.mark.parametrize("turn, primeros", [(1, True), (2, False)])
+def test_motor_xerosic_no_arranca_en_nuestro_primer_turno(turn, primeros):
+    assert not m._alakazam_dig_xerosic_engine(_CtxXerosic(turn, primeros))
 
 
 def test_motor_xerosic_sigue_activo_en_turnos_posteriores():

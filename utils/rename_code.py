@@ -105,8 +105,20 @@ def rewrite(src, renames, in_strings, in_modules=frozenset()):
     lines = src.splitlines(keepends=True)
     state = None           # None | "path" (dotted module path) | "names"
     in_all = 0             # bracket depth inside an `__all__ = [...]`
+    param = 0              # 1 after `parametrize`, 2 after its `(`
     for tok in tokenize.generate_tokens(io.StringIO(src).readline):
         text = tok.string
+        # `@pytest.mark.parametrize("turno,primeros", ...)` names the test's
+        # arguments INSIDE a string. Rename the signature and leave it behind
+        # and pytest fails at collection: "function uses no argument".
+        if tok.type == tokenize.NAME and text == "parametrize":
+            param = 1
+        elif param == 1 and tok.type == tokenize.OP and text == "(":
+            param = 2
+        elif param == 2:
+            if tok.type == tokenize.STRING:
+                text = _rename_argnames(text, renames)
+            param = 0
         # `__all__` and `__slots__` hold names as STRINGS -- one is what
         # `import *` reads, the other is what the attributes are called.
         # Leaving them behind breaks the star imports, or the class, at runtime.
@@ -151,6 +163,21 @@ def rewrite(src, renames, in_strings, in_modules=frozenset()):
         pos = end
     pieces.append(_slice(lines, pos, (len(lines) + 1, 0)))
     return "".join(pieces)
+
+
+def _rename_argnames(literal, renames):
+    """`"turno,primeros"` -> `"turn,primeros"`: pytest argument names."""
+    for quote in ('"""', "'''", '"', "'"):
+        if literal.startswith(quote) and literal.endswith(quote):
+            inner = literal[len(quote):-len(quote)]
+            parts = [p.strip() for p in inner.split(",")]
+            if not parts or not all(p.isidentifier() for p in parts if p):
+                return literal
+            if not any(p in renames for p in parts):
+                return literal          # do not reformat what does not move
+            moved = ", ".join(renames.get(p, p) for p in parts if p)
+            return quote + moved + quote
+    return literal
 
 
 def _slice(lines, start, end):
@@ -247,6 +274,20 @@ class _Symbolic(ast.NodeTransformer):
         if isinstance(node.value, str) and node.value in self.s:
             node.value = self.r[node.value]
         return node
+
+    def visit_Call(self, node):
+        # `parametrize("turno,primeros", ...)`: the test's argument names live
+        # in a string, and pytest matches them against the signature.
+        f = node.func
+        called = f.attr if isinstance(f, ast.Attribute) else getattr(f, "id", "")
+        if called == "parametrize" and node.args \
+                and isinstance(node.args[0], ast.Constant) \
+                and isinstance(node.args[0].value, str):
+            parts = [p.strip() for p in node.args[0].value.split(",")]
+            if all(p.isidentifier() for p in parts if p) \
+                    and any(p in self.r for p in parts):
+                node.args[0].value = ", ".join(self._n(p) for p in parts if p)
+        return self.generic_visit(node)
 
     def visit_Assign(self, node):
         # `__all__` (what `import *` reads) and `__slots__` (what the

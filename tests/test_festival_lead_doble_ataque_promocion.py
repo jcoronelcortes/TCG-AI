@@ -229,15 +229,15 @@ def test_festival_grounds_hace_urgente_el_contra_estadio():
     """`_contra_estadio_urgente` governs BOTH faces: not letting the Forest go in
     a forced discard and not vetoing its play."""
     # A hostile stadium and no Forest of ours on the table -> urgent.
-    assert m._contra_estadio_urgente(False, False, False, True) is True
+    assert m._counter_stadium_urgent(False, False, False, True) is True
     # With our Forest already on the table there is nothing to put up.
-    assert m._contra_estadio_urgente(False, False, True, True) is False
+    assert m._counter_stadium_urgent(False, False, True, True) is False
     # Without the opposing Applin/Dipplin line the flag arrives switched off: the stadium is
     # DOUBLE-EDGED and removing it would also switch off our Dipplin.
-    assert m._contra_estadio_urgente(False, False, False, False) is False
+    assert m._counter_stadium_urgent(False, False, False, False) is False
     # It does not break the two siblings that were already there.
-    assert m._contra_estadio_urgente(True, False, False, False) is True
-    assert m._contra_estadio_urgente(False, True, False, False) is True
+    assert m._counter_stadium_urgent(True, False, False, False) is True
+    assert m._counter_stadium_urgent(False, True, False, False) is True
 
 
 def test_apagar_festival_lead_va_antes_que_la_cadena_evolutiva():

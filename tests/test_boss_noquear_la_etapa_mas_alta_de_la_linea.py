@@ -173,11 +173,11 @@ def test_control_con_el_basico_delante_el_boss_si_se_juega():
     gusting DOES go up a step -- and the Boss's is played again."""
     o = _obs()
     riv = o["current"]["players"][1 - o["current"]["yourIndex"]]
-    activo, banca = riv["active"][0], riv["bench"][1]
-    activo["id"], banca["id"] = GIBLE, GABITE
-    activo["hp"] = activo["maxHp"] = 70
+    active, banca = riv["active"][0], riv["bench"][1]
+    active["id"], banca["id"] = GIBLE, GABITE
+    active["hp"] = active["maxHp"] = 70
     banca["hp"] = banca["maxHp"] = 100
-    activo["preEvolution"] = []
+    active["preEvolution"] = []
     banca["preEvolution"] = [{"id": GIBLE, "playerIndex": 0, "serial": 4}]
 
     assert m.agent(o) == [_idx(o, type=7, index=8)], (

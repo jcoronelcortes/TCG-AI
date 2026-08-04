@@ -149,9 +149,9 @@ def test_veto_con_la_mano_del_log():
     hand held a Boss's on top of the refresh Supporter (registro_004 steps
     43-64 vs Alakazam)."""
     ctx = _Ctx({m.Dawn: 1, m.Xerosic_Machinations: 1, m.Ultra_Ball: 1})
-    assert m._ub_forraje_real(ctx, m.Xerosic_Machinations) == 0
+    assert m._ub_real_fodder(ctx, m.Xerosic_Machinations) == 0
     assert m._ub_cancel_xerosic(ctx)
-    assert m._ub_coste_destruye_carta_mejor(ctx)
+    assert m._ub_cost_destroys_better_card(ctx)
 
 
 def test_no_veta_si_hay_forraje_de_sobra():
@@ -159,7 +159,7 @@ def test_no_veta_si_hay_forraje_de_sobra():
     an Item and a Supporter coexist in the same turn."""
     ctx = _Ctx({m.Xerosic_Machinations: 1, m.Ultra_Ball: 1,
                 m.Basic_Grass_Energy: 2})
-    assert m._ub_forraje_real(ctx, m.Xerosic_Machinations) == 2
+    assert m._ub_real_fodder(ctx, m.Xerosic_Machinations) == 2
     assert not m._ub_cancel_xerosic(ctx)
 
 
@@ -200,12 +200,12 @@ def test_forraje_real_respeta_las_piezas_de_evolucion():
     ctx = _Ctx({m.Meganium: 1, m.Basic_Grass_Energy: 1,
                 m.Lillie_Determination: 1, m.Ultra_Ball: 1},
                campo={m.Bayleef: 1})
-    assert m._ub_forraje_real(ctx, m.Lillie_Determination) == 1
+    assert m._ub_real_fodder(ctx, m.Lillie_Determination) == 1
     assert m._ub_cancel_lillie(ctx)
 
 
 def test_forraje_real_no_cuenta_el_unfair_stamp():
     ctx = _Ctx({m.Unfair_Stamp: 1, m.Basic_Grass_Energy: 1,
                 m.Lillie_Determination: 1, m.Ultra_Ball: 1})
-    assert m._ub_forraje_real(ctx, m.Lillie_Determination) == 1
+    assert m._ub_real_fodder(ctx, m.Lillie_Determination) == 1
     assert m._ub_cancel_lillie(ctx)

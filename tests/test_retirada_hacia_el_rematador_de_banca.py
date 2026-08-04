@@ -87,17 +87,17 @@ def reset_main_state():
     m._init_cards_tracking()
 
 
-def _escenario(activo=None, banca=None, mano=(GRASS, ULTRA_BALL),
+def _escenario(active=None, banca=None, mano=(GRASS, ULTRA_BALL),
                energia_jugada=True, op_hp=140, op_energias=1):
     """The record's board: a trapped active + a ready benched finisher."""
-    activo = activo if activo is not None else pk(APPLIN)
+    active = active if active is not None else pk(APPLIN)
     banca = banca if banca is not None else [
         pk(OGERPON, energias=[G] * 6, fisicas=3),   # ALREADY lethal: 30+30*(6+1)=240
         pk(HYDRAPPLE),                              # the bearer of Ripening Charge
         pk(MEOWTH),
     ]
-    return (Escenario(turno=6, paso=101, energia_jugada=energia_jugada)
-            .mi_activo(activo)
+    return (Escenario(turn=6, paso=101, energia_jugada=energia_jugada)
+            .mi_activo(active)
             .mi_banca(*banca)
             .mi_mano(*mano)
             .op_activo(pk(ALAKAZAM, hp=op_hp, energias=[G] * op_energias))
@@ -169,10 +169,10 @@ def test_el_adjunte_manual_tambien_va_al_activo_atrapado():
 # above had it on the field.
 
 
-def _escenario_meganium(activo=None, mano=(GRASS, ULTRA_BALL)):
-    activo = activo if activo is not None else pk(FEZANDIPITI)
-    return (Escenario(turno=10, paso=106, energia_jugada=False)
-            .mi_activo(activo)
+def _escenario_meganium(active=None, mano=(GRASS, ULTRA_BALL)):
+    active = active if active is not None else pk(FEZANDIPITI)
+    return (Escenario(turn=10, paso=106, energia_jugada=False)
+            .mi_activo(active)
             .mi_banca(pk(MEGANIUM, energias=[G, G], fisicas=1),
                       pk(OGERPON, energias=[G] * 6, fisicas=3),
                       pk(OGERPON, energias=[G] * 4, fisicas=2),
@@ -207,7 +207,7 @@ def test_con_meganium_el_activo_que_ya_se_retira_no_dispara_la_linea():
     Careful when reading it: the attachment STILL goes to the active on that board, but through
     another rule (`_carga_activo_remata`) -- with 4 effective units Cruel Arrow becomes
     playable and knocks out the 80 HP Shaymin. Attacking beats pivoting."""
-    obs = (_escenario_meganium(activo=pk(FEZANDIPITI, energias=[G, G], fisicas=1))
+    obs = (_escenario_meganium(active=pk(FEZANDIPITI, energias=[G, G], fisicas=1))
            .menu_mano(con_adjunte=True).construir())
     assert _detector(obs) == (False, False)
 
@@ -216,7 +216,7 @@ def test_con_meganium_sin_nada_que_desbloquear_la_planta_vuelve_a_la_banca():
     """A DESTINATION boundary: the active does not win for being the active. With the
     Fezandipiti ex already able to retreat AND to attack, the Grass unlocks
     nothing and goes back to the normal bench distribution."""
-    obs = (_escenario_meganium(activo=pk(FEZANDIPITI, energias=[G] * 4, fisicas=2))
+    obs = (_escenario_meganium(active=pk(FEZANDIPITI, energias=[G] * 4, fisicas=2))
            .menu_mano(con_adjunte=True).construir())
     o = obs["select"]["option"][m.agent(obs)[0]]
     assert o["type"] == int(m.OptionType.ATTACH)
@@ -228,14 +228,14 @@ def test_con_meganium_sin_nada_que_desbloquear_la_planta_vuelve_a_la_banca():
 # ---------------------------------------------------------------------------
 
 def test_con_la_planta_puesta_el_activo_se_retira():
-    obs = (_escenario(activo=pk(APPLIN, energias=[G]), mano=(ULTRA_BALL,))
+    obs = (_escenario(active=pk(APPLIN, energias=[G]), mano=(ULTRA_BALL,))
            .menu_mano(con_retirada=True).construir())
     o = obs["select"]["option"][m.agent(obs)[0]]
     assert o["type"] == int(m.OptionType.RETREAT)
 
 
 def test_al_promover_sube_el_rematador():
-    obs = (_escenario(activo=pk(APPLIN, energias=[G]), mano=(ULTRA_BALL,))
+    obs = (_escenario(active=pk(APPLIN, energias=[G]), mano=(ULTRA_BALL,))
            .promocion_desde_banca().construir())
     idx = obs["select"]["option"][m.agent(obs)[0]]["index"]
     assert obs["current"]["players"][0]["bench"][idx]["id"] == OGERPON
@@ -266,7 +266,7 @@ def test_detector_ve_la_linea_letal():
 def test_si_el_activo_remata_con_esa_planta_no_se_retira():
     """Boundary: attacking with the active comes first. With an active Dipplin whose
     attack (20 x bench) knocks the opponent out, the retreat line does NOT switch on."""
-    obs = (_escenario(activo=pk(DIPPLIN), op_hp=60)
+    obs = (_escenario(active=pk(DIPPLIN), op_hp=60)
            .objetivo_carga_habilidad(banca_idx=1).construir())
     assert _detector(obs) == (False, False)
 
@@ -280,7 +280,7 @@ def test_sin_rematador_de_banca_no_hay_linea():
 
 
 def test_si_el_activo_ya_paga_su_retirada_no_hay_nada_que_desbloquear():
-    obs = (_escenario(activo=pk(APPLIN, energias=[G]))
+    obs = (_escenario(active=pk(APPLIN, energias=[G]))
            .objetivo_carga_habilidad(banca_idx=1).construir())
     assert _detector(obs) == (False, False)
 
@@ -297,12 +297,12 @@ def test_si_el_activo_ya_paga_su_retirada_no_hay_nada_que_desbloquear():
 MEGA_STARMIE = 1031                 # 330 HP, at 240 in the record
 
 
-def _escenario_88631738(activo=None, mano=(GRASS, GRASS, ULTRA_BALL),
+def _escenario_88631738(active=None, mano=(GRASS, GRASS, ULTRA_BALL),
                         energia_jugada=True):
-    activo = activo if activo is not None else pk(MEOWTH, hp=50)
-    return (Escenario(turno=8, paso=77, energia_jugada=energia_jugada,
+    active = active if active is not None else pk(MEOWTH, hp=50)
+    return (Escenario(turn=8, paso=77, energia_jugada=energia_jugada,
                       partidario_jugado=True)
-            .mi_activo(activo)
+            .mi_activo(active)
             .mi_banca(pk(OGERPON, energias=[G] * 4, fisicas=2),
                       pk(HYDRAPPLE, hp=280, energias=[G] * 4, fisicas=2),
                       pk(FEZANDIPITI),
@@ -323,7 +323,7 @@ def test_88631738_la_habilidad_carga_al_activo_con_el_adjunte_ya_gastado():
 
 
 def test_88631738_con_la_planta_puesta_el_activo_se_retira():
-    obs = (_escenario_88631738(activo=pk(MEOWTH, hp=50, energias=[G, G],
+    obs = (_escenario_88631738(active=pk(MEOWTH, hp=50, energias=[G, G],
                                          fisicas=1),
                                mano=(ULTRA_BALL,))
            .menu_mano(con_retirada=True).construir())
@@ -332,7 +332,7 @@ def test_88631738_con_la_planta_puesta_el_activo_se_retira():
 
 
 def test_88631738_al_promover_sube_el_hydrapple_que_remata():
-    obs = (_escenario_88631738(activo=pk(MEOWTH, hp=50, energias=[G, G],
+    obs = (_escenario_88631738(active=pk(MEOWTH, hp=50, energias=[G, G],
                                          fisicas=1),
                                mano=(ULTRA_BALL,))
            .promocion_desde_banca().construir())
@@ -369,7 +369,7 @@ def _escenario_coste_3(activo_e=1, mano=(GRASS, GRASS, ULTRA_BALL),
                        energia_jugada=False):
     """An active with a retreat cost of 3 (Tapu Bulu) at `activo_e` energies: it is
     TWO Grass short, and there are two live routes (the manual attachment + Ripening)."""
-    return (Escenario(turno=8, paso=40, energia_jugada=energia_jugada)
+    return (Escenario(turn=8, paso=40, energia_jugada=energia_jugada)
             .mi_activo(pk(TAPU, energias=[G] * activo_e))
             .mi_banca(pk(OGERPON, energias=[G] * 6, fisicas=3),
                       pk(HYDRAPPLE),

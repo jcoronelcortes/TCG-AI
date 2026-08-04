@@ -13,7 +13,7 @@ from ptcg.cartas.grupos import EVO_LINES
 from ptcg.cartas.ids import ABILITY_IMMUNE_IDS, Abra, Alakazam_ex, Applin, BOSS_PRIORITY_CRUSTLE_GUST, Basic_Grass_Energy, Bayleef, Boss_Orders, Chikorita, Crustle_Fighting, Crustle_Grass, Dawn, Dipplin, Drednaw, Dusclops, Duskull, Dwebble_Fighting, Dwebble_Grass, EX_IMMUNE_IDS, EX_PREEVO_IDS, Fezandipiti_ex, Froslass, HIGH_PRIORITY_BENCH_TARGETS, Hydrapple_ex, KEY_BENCH_ATTACKER_IDS, Kadabra, Kirlia, LANA_PLAY_BASE_RECUPERABLE, LANA_PLAY_SIN_DEMANDA, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Munkidori, NONEX_FINAL_PREEVO_IDS, OUR_ABILITY_IDS, OUR_EX_IDS, Pinsir, RETREAT_COST, Ralts, Slowpoke, THREAT_PREEVO_IDS, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Zorua_N
 from ptcg.cartas.lineas import _pokemon_injugable, _preevo_of_ex_line, _is_more_evolved_than
 from ptcg.cartas.tablas import card_table
-from ptcg.decision.boss_orders import _gust_releva_al_atacante
+from ptcg.decision.boss_orders import _gust_relieves_the_attacker
 from ptcg.estado.agente import AGENT_STATE
 from ptcg.estado.claves import ZONE_DECK
 from ptcg.turno.supporters_ctx import CtxEvaluateSupporters  # noqa: F401
@@ -245,12 +245,12 @@ def evaluate_supporters(tc):
     # kept so the relative order between matchups does not move when the relief
     # DOES exist.
     elif op_has_dreepy_line:
-        values[Boss_Orders] = 700 if _gust_releva_al_atacante(op_state) else 0
+        values[Boss_Orders] = 700 if _gust_relieves_the_attacker(op_state) else 0
     elif op_has_typhlosion or op_has_ethan_preevo:
-        values[Boss_Orders] = 700 if _gust_releva_al_atacante(op_state) else 0
+        values[Boss_Orders] = 700 if _gust_relieves_the_attacker(op_state) else 0
     elif op_is_gardevoir_deck and any(
         p is not None and p.id in (Ralts, Kirlia) for p in op_state.bench):
-        values[Boss_Orders] = 730 if _gust_releva_al_atacante(op_state) else 0
+        values[Boss_Orders] = 730 if _gust_relieves_the_attacker(op_state) else 0
     elif op_is_alakazam_deck:
         # vs Alakazam this branch does NOT invent value for the gust.
         #
@@ -274,13 +274,13 @@ def evaluate_supporters(tc):
 
     elif op_is_slowking_deck and any(
         p is not None and p.id == Slowpoke for p in op_state.bench):
-        values[Boss_Orders] = 710 if _gust_releva_al_atacante(op_state) else 0
+        values[Boss_Orders] = 710 if _gust_relieves_the_attacker(op_state) else 0
     elif op_is_dragapult_dusknoir and any(
         p is not None and p.id in (Duskull, Dusclops) for p in op_state.bench):
-        values[Boss_Orders] = 700 if _gust_releva_al_atacante(op_state) else 0
+        values[Boss_Orders] = 700 if _gust_relieves_the_attacker(op_state) else 0
     elif op_is_zoroark_deck and any(
         p is not None and p.id == Zorua_N for p in op_state.bench):
-        values[Boss_Orders] = 690 if _gust_releva_al_atacante(op_state) else 0
+        values[Boss_Orders] = 690 if _gust_relieves_the_attacker(op_state) else 0
     elif AGENT_STATE.plan.target >= 1:
         values[Boss_Orders] = 650
     elif op_prize <= 2:

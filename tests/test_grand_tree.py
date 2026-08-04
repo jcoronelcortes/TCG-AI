@@ -84,18 +84,18 @@ def test_cadenas_derivadas_del_mazo():
 def test_valor_cuerpo_prefiere_hydrapple_sobre_meganium():
     """Hydrapple ex (330 HP + an ability) is the best body in the deck: it is the one
     that rules when diversification does not apply (both Stage 2s already in play)."""
-    assert m._gt_valor_cuerpo(HYDRAPPLE) > m._gt_valor_cuerpo(MEGANIUM)
+    assert m._gt_body_value(HYDRAPPLE) > m._gt_body_value(MEGANIUM)
 
 
 # ---------------------------------------------------------------------------
 # Choosing the target: the user's priority rule
 # ---------------------------------------------------------------------------
 
-def _planes(activo, banca, mano=(), mazo=None, veta_ex=False,
+def _planes(active, banca, mano=(), mazo=None, veta_ex=False,
             primer_turno=False):
     """Runs `_gt_planes` on a minimal synthetic board."""
-    esc = (Escenario(turno=8, paso=40)
-           .mi_activo(activo)
+    esc = (Escenario(turn=8, paso=40)
+           .mi_activo(active)
            .mi_banca(*banca)
            .mi_mano(*mano)
            .estadio(GRAND_TREE, del_rival=True)
@@ -120,7 +120,7 @@ def test_con_meganium_en_juego_se_completa_hydrapple():
     """The user's rule: having Meganium, the chain that gets built is
     Hydrapple ex's (diversify)."""
     planes = _planes(
-        activo=pk(OGERPON, energias=[G, G, G]),
+        active=pk(OGERPON, energias=[G, G, G]),
         banca=[pk(MEGANIUM, pre_evo=[CHIKORITA, BAYLEEF]),
                pk(APPLIN), pk(CHIKORITA)])
     assert planes
@@ -131,7 +131,7 @@ def test_con_meganium_en_juego_se_completa_hydrapple():
 def test_con_hydrapple_en_juego_se_completa_meganium():
     """The mirror rule: having Hydrapple ex, Meganium gets built."""
     planes = _planes(
-        activo=pk(OGERPON, energias=[G, G, G]),
+        active=pk(OGERPON, energias=[G, G, G]),
         banca=[pk(HYDRAPPLE, pre_evo=[APPLIN, DIPPLIN]),
                pk(APPLIN), pk(CHIKORITA)])
     assert planes
@@ -143,7 +143,7 @@ def test_con_ambos_en_juego_se_hace_un_segundo_hydrapple():
     """The user's rule: with Meganium AND Hydrapple ex on the table, the extra copy
     that matters is Hydrapple ex's (the strongest body)."""
     planes = _planes(
-        activo=pk(OGERPON, energias=[G, G, G]),
+        active=pk(OGERPON, energias=[G, G, G]),
         banca=[pk(HYDRAPPLE, pre_evo=[APPLIN, DIPPLIN]),
                pk(MEGANIUM, pre_evo=[CHIKORITA, BAYLEEF]),
                pk(APPLIN), pk(CHIKORITA)])
@@ -157,7 +157,7 @@ def test_matchup_anti_ex_prefiere_la_linea_no_ex():
     non-ex chain (Meganium) wins: building a 2-prize ex that cannot damage
     the wall is worse than not doing it."""
     planes = _planes(
-        activo=pk(OGERPON, energias=[G, G, G]),
+        active=pk(OGERPON, energias=[G, G, G]),
         banca=[pk(APPLIN), pk(CHIKORITA)],
         veta_ex=True)
     assert planes
@@ -171,7 +171,7 @@ def test_matchup_anti_ex_prefiere_la_linea_no_ex():
 def test_basico_que_salio_este_turno_no_es_objetivo():
     """The card forbids evolving a Basic put into play this turn."""
     planes = _planes(
-        activo=pk(OGERPON, energias=[G, G, G]),
+        active=pk(OGERPON, energias=[G, G, G]),
         banca=[pk(APPLIN, aparecio=True), pk(CHIKORITA)])
     assert all(p.basic_id != APPLIN for p in planes)
     assert any(p.basic_id == CHIKORITA for p in planes)
@@ -180,7 +180,7 @@ def test_basico_que_salio_este_turno_no_es_objetivo():
 def test_primer_turno_sin_planes():
     """The card forbids evolving Basics on our first turn."""
     planes = _planes(
-        activo=pk(OGERPON, energias=[G]),
+        active=pk(OGERPON, energias=[G]),
         banca=[pk(APPLIN), pk(CHIKORITA)],
         primer_turno=True)
     assert planes == []
@@ -189,7 +189,7 @@ def test_primer_turno_sin_planes():
 def test_prefiere_banca_con_el_activo_condenado():
     """With the active about to die, turning it into a body worth MORE prizes
     yields the turn to a bench Basic."""
-    esc = (Escenario(turno=8, paso=40)
+    esc = (Escenario(turn=8, paso=40)
            .mi_activo(pk(APPLIN, hp=10))
            .mi_banca(pk(APPLIN))
            .estadio(GRAND_TREE, del_rival=True)
@@ -210,9 +210,9 @@ def test_prefiere_banca_con_el_activo_condenado():
 # The ability is USED (main menu)
 # ---------------------------------------------------------------------------
 
-def _obs_menu(mano=(), banca=None, con_forest=False, mazo=None, turno=8):
+def _obs_menu(mano=(), banca=None, con_forest=False, mazo=None, turn=8):
     banca = banca if banca is not None else [pk(APPLIN), pk(CHIKORITA)]
-    esc = (Escenario(turno=turno, paso=40)
+    esc = (Escenario(turn=turn, paso=40)
            .mi_activo(pk(OGERPON, energias=[G, G, G]))
            .mi_banca(*banca)
            .mi_mano(*mano)
@@ -255,7 +255,7 @@ def test_sin_plan_ejecutable_el_forest_se_juega():
 def test_la_habilidad_precede_a_evolucionar_desde_la_mano():
     """Grand Tree does not spend a card from hand: it is cashed in before the manual
     evolution, which is still available afterwards."""
-    esc = (Escenario(turno=8, paso=40)
+    esc = (Escenario(turn=8, paso=40)
            .mi_activo(pk(OGERPON, energias=[G, G, G]))
            .mi_banca(pk(APPLIN), pk(CHIKORITA))
            .mi_mano(BAYLEEF)
@@ -274,7 +274,7 @@ def test_la_habilidad_precede_a_evolucionar_desde_la_mano():
 def test_seleccion_del_pokemon_a_evolucionar_sigue_al_plan():
     """With Meganium in play, the sub-selection picks the Applin (Hydrapple ex's
     chain), not the Chikorita."""
-    esc = (Escenario(turno=8, paso=41)
+    esc = (Escenario(turn=8, paso=41)
            .mi_activo(pk(OGERPON, energias=[G, G, G]))
            .mi_banca(pk(MEGANIUM, pre_evo=[CHIKORITA, BAYLEEF]),
                      pk(APPLIN), pk(CHIKORITA))
@@ -291,7 +291,7 @@ def test_seleccion_del_pokemon_a_evolucionar_sigue_al_plan():
 
 def test_seleccion_de_carta_del_mazo_sigue_al_plan():
     """Offered Dipplin and Bayleef, it brings the link of the plan (Dipplin)."""
-    esc = (Escenario(turno=8, paso=41)
+    esc = (Escenario(turn=8, paso=41)
            .mi_activo(pk(OGERPON, energias=[G, G, G]))
            .mi_banca(pk(MEGANIUM, pre_evo=[CHIKORITA, BAYLEEF]),
                      pk(APPLIN), pk(CHIKORITA))
@@ -310,7 +310,7 @@ def test_paso_2_trae_la_etapa_2_aunque_el_plan_ya_no_apunte_al_basico():
     """With step 1 resolved, the Basic is already a Stage 1 and `_gt_plan` stops
     pointing at it; the deck-agnostic criterion (an evolution whose pre-evolution is in
     play) still brings the Hydrapple ex."""
-    esc = (Escenario(turno=8, paso=42)
+    esc = (Escenario(turn=8, paso=42)
            .mi_activo(pk(OGERPON, energias=[G, G, G]))
            .mi_banca(pk(DIPPLIN, pre_evo=[APPLIN]))
            .estadio(GRAND_TREE, del_rival=True)
@@ -331,7 +331,7 @@ def test_paso_2_trae_la_etapa_2_aunque_el_plan_ya_no_apunte_al_basico():
 def test_ultra_ball_busca_el_basico_raiz_si_no_hay_ninguno():
     """The user's rule: with no root Basic in play, the turn's search brings the
     one that opens the Grand Tree chain."""
-    esc = (Escenario(turno=8, paso=30)
+    esc = (Escenario(turn=8, paso=30)
            .mi_activo(pk(OGERPON, energias=[G, G, G]))
            .mi_banca(pk(TAPU, energias=[G, G]))
            .mi_mano(GRASS, GRASS)
@@ -352,7 +352,7 @@ def test_sin_grand_tree_el_bono_de_fetch_no_existe():
     """The whole engine is INERT without the stadium on the table: the same board without
     Grand Tree does not force the search for the root Basic."""
     def _fetch(estadio):
-        esc = (Escenario(turno=8, paso=30)
+        esc = (Escenario(turn=8, paso=30)
                .mi_activo(pk(OGERPON, energias=[G, G, G]))
                .mi_banca(pk(TAPU, energias=[G, G]))
                .mi_mano(GRASS, GRASS)
@@ -384,7 +384,7 @@ def test_sin_grand_tree_el_bono_de_fetch_no_existe():
 def test_con_raiz_en_juego_no_se_fuerza_la_busqueda():
     """With an Applin already on the bench the root exists: the bonus does not apply and
     the rest of the deck's priorities rule."""
-    esc = (Escenario(turno=8, paso=30)
+    esc = (Escenario(turn=8, paso=30)
            .mi_activo(pk(OGERPON, energias=[G, G, G]))
            .mi_banca(pk(APPLIN, aparecio=True))
            .mi_mano(GRASS, GRASS)

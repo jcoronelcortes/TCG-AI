@@ -129,11 +129,11 @@ def test_step67_ripening_charge_apunta_al_activo():
 
     # Simulating the next step: the manual attachment already put 1 Grass on the active
     # (1 is left for the cost of Syrup Storm, which the ability must supply).
-    energia = next(c for c in mio["hand"] if c["id"] == ENERGIA)
-    mio["hand"] = [c for c in mio["hand"] if c is not energia]
+    energy = next(c for c in mio["hand"] if c["id"] == ENERGIA)
+    mio["hand"] = [c for c in mio["hand"] if c is not energy]
     mio["handCount"] = len(mio["hand"])
     mio["active"][0]["energies"] = [G]
-    mio["active"][0]["energyCards"] = [energia]
+    mio["active"][0]["energyCards"] = [energy]
     cur["energyAttached"] = True
     # A menu with only the live abilities (each Hydrapple's Ripening) and END.
     obs["select"]["option"] = [
@@ -177,7 +177,7 @@ def test_activo_ogerpon_carga_a_si_mismo_para_rematar():
     On the bench there is a Hydrapple ex at 0 energies, the "development" target that
     used to take the Grass.
     """
-    obs = (Escenario(turno=8, paso=90, tac=2)
+    obs = (Escenario(turn=8, paso=90, tac=2)
            .mi_activo(pk(OGERPON, energias=[G, G]))
            .mi_banca(pk(HYDRAPPLE, pre_evo=[APPLIN, DIPPLIN]), MEOWTH)
            .mi_mano(ENERGIA, ENERGIA)
@@ -197,7 +197,7 @@ def test_activo_ogerpon_carga_a_si_mismo_para_rematar():
 
 def test_activo_sin_remate_pero_turno_esteril_tambien_carga_al_activo():
     """With no KO available, charging the active is the only way to attack today."""
-    obs = (Escenario(turno=8, paso=90, tac=2)
+    obs = (Escenario(turn=8, paso=90, tac=2)
            .mi_activo(pk(HYDRAPPLE, energias=[G], pre_evo=[APPLIN, DIPPLIN]))
            .mi_banca(pk(APPLIN), MEOWTH)
            .mi_mano(ENERGIA)
@@ -221,7 +221,7 @@ def test_activo_que_ya_ataca_no_acapara_la_energia():
     The active Hydrapple ex with 2 energies already attacks; the Grass must follow the
     normal distribution (bench development), not stay on the active.
     """
-    obs = (Escenario(turno=8, paso=90, tac=2)
+    obs = (Escenario(turn=8, paso=90, tac=2)
            .mi_activo(pk(HYDRAPPLE, energias=[G, G], pre_evo=[APPLIN, DIPPLIN]))
            .mi_banca(pk(OGERPON), MEOWTH)
            .mi_mano(ENERGIA)

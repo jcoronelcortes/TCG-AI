@@ -16,7 +16,7 @@ from ptcg.calculo.tablero import _active_of
 from ptcg.cartas.ids import Applin, Bayleef, Bug_Catching_Set, Chikorita, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, Lillie_Determination, Meganium, Meowth_ex, Pinsir, Poke_Pad, SCORE_USELESS_ATTACK, SCORE_VETO, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Xerosic_Machinations
 from ptcg.cartas.puntuacion import SCORE_LD_SUPP_COMPROMETIDO, _SUPP_PLAY_IDS
 from ptcg.cartas.tablas import attack_table, card_table
-from ptcg.decision.ultra_ball import _matchup_permite_bajar, _ub_coste_destruye_carta_mejor
+from ptcg.decision.ultra_ball import _matchup_allows_playing, _ub_cost_destroys_better_card
 from ptcg.estado.agente import AGENT_STATE
 from ptcg.estado.claves import ZONE_DECK
 from ptcg.motor.depuracion import _debug_log_decision
@@ -826,7 +826,7 @@ def finalizar(tc):
             # will veto when putting it down saves no turn (see
             # `_matchup_permite_bajar`). With no restrictive plan it filters
             # nothing.
-            _st_plan_ok = lambda cid: _matchup_permite_bajar(
+            _st_plan_ok = lambda cid: _matchup_allows_playing(
                 cid, field_counts, op_is_comfey_deck, op_is_cubchoo_deck,
                 cubchoo_allow_tapu=(op_has_ability_immune_active
                                     or AGENT_STATE.op_is_cornerstone_deck),
@@ -924,7 +924,7 @@ def finalizar(tc):
             # keeps the Supporter / the evolution piece for the next turn, which
             # is strictly more than trading them for a redundant basic. See
             # `_ub_coste_destruye_carta_mejor`.
-            if _ub_coste_destruye_carta_mejor(ctx):
+            if _ub_cost_destroys_better_card(ctx):
                 _st_basico_util = False
                 _st_evo_util = False
             if _st_basico_util or _st_evo_util:

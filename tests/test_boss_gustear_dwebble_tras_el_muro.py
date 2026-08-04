@@ -87,7 +87,7 @@ def _escenario(op_activo=None, op_banca=None, mano=(BOSS, XEROSIC, ULTRA_BALL)):
     (Syrup Storm 390) and a rival bench with only Dwebble."""
     op_activo = op_activo if op_activo is not None else pk(CRUSTLE)
     op_banca = op_banca if op_banca is not None else [pk(DWEBBLE), pk(DWEBBLE)]
-    return (Escenario(turno=8, paso=78, energia_jugada=True)
+    return (Escenario(turn=8, paso=78, energia_jugada=True)
             .mi_activo(pk(HYDRAPPLE, hp=210, energias=[G, G], fisicas=1))
             .mi_banca(pk(MEGANIUM),
                       pk(OGERPON, energias=[G] * 4, fisicas=2),
@@ -165,7 +165,7 @@ def test_sin_muro_el_dwebble_sigue_vetado_como_objetivo():
 def test_con_muro_pero_sin_KO_el_dwebble_sigue_vetado():
     """Boundary: the exemption requires a REAL KO. With our own active lacking enough
     energy to attack, the Dwebble is not a prize and the veto holds."""
-    obs = (Escenario(turno=8, paso=78, energia_jugada=True)
+    obs = (Escenario(turn=8, paso=78, energia_jugada=True)
            .mi_activo(pk(HYDRAPPLE, hp=210))          # 0 energies: it does not attack
            .mi_banca(pk(MEOWTH))
            .mi_mano(BOSS, ULTRA_BALL)

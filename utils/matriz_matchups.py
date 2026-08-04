@@ -307,8 +307,8 @@ def main(argv):
         )[:3] if t[0] > 0]
         if sangria:
             print("\n  Donde se pierden mas puntos de ladder:")
-            for coste, f in sangria:
-                print(f"    {f['mazo']:<28} {100 * coste:5.2f} pts  "
+            for cost, f in sangria:
+                print(f"    {f['mazo']:<28} {100 * cost:5.2f} pts  "
                       f"(meta {100 * pesos.get(f['mazo'], 0.0):.0f}%, "
                       f"ganamos {100 * f['wr']:.1f}%)")
         if sin_peso:

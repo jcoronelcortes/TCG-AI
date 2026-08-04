@@ -222,7 +222,7 @@ def _escenario(mano, con_ataque=True):
     The ABILITY option of the benched Fezandipiti ex (slot 4) is added by hand, which
     `menu_mano` does not emit, right before the turn-closing options.
     """
-    esc = (Escenario(turno=6, paso=78, tac=7)
+    esc = (Escenario(turn=6, paso=78, tac=7)
            .mi_activo(pk(OGERPON, energias=[G, G, G]))
            .mi_banca(pk(BAYLEEF, pre_evo=[m.Chikorita]), MEOWTH, APPLIN,
                      APPLIN, pk(FEZ, aparecio=True))
@@ -283,7 +283,7 @@ def test_sintetico_lillie_jugable_manda_primero():
 def test_sintetico_deck_out_sigue_vetando_la_habilidad():
     """The deck-out brake is a VALUE veto, not an ORDER one: the revocation does not
     lift it even with a hand free of blockers."""
-    esc = (Escenario(turno=6, paso=78, tac=7)
+    esc = (Escenario(turn=6, paso=78, tac=7)
            .mi_activo(pk(OGERPON, energias=[G, G, G]))
            .mi_banca(pk(FEZ, aparecio=True))
            .mi_mano(BOSS)

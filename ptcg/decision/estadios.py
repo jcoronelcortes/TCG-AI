@@ -28,17 +28,17 @@ class _GrandTreePlan(NamedTuple):
 def _gt_slots_propios(my_state):
     """`(area, index, pokemon)` of every Pokemon of ours in play."""
     salida = []
-    activo = (my_state.active[0]
+    active = (my_state.active[0]
               if getattr(my_state, 'active', None) else None)
-    if activo is not None:
-        salida.append((AreaType.ACTIVE, 0, activo))
+    if active is not None:
+        salida.append((AreaType.ACTIVE, 0, active))
     for k, pkmn in enumerate(getattr(my_state, 'bench', None) or []):
         if pkmn is not None:
             salida.append((AreaType.BENCH, k, pkmn))
     return salida
 
 
-def _gt_valor_cuerpo(card_id):
+def _gt_body_value(card_id):
     """Deck-agnostic value of the body an evolution leaves behind: HP (dominant
     term) + a bonus for having an Ability. Printed damage is not used because
     the attacks that scale (Syrup Storm, Do the Wave) declare it as 0."""
@@ -51,7 +51,7 @@ def _gt_valor_cuerpo(card_id):
     return value
 
 
-def _gt_premios_de(card_id):
+def _gt_prizes_of(card_id):
     """Prizes that card hands over when knocked out (without tools or denial:
     here it is only used to compare Basic vs evolution)."""
     data = card_table.get(card_id)
@@ -60,7 +60,7 @@ def _gt_premios_de(card_id):
     return 3 if data.megaEx else 2 if data.ex else 1
 
 
-def _fv_cadena_evolutiva(c):
+def _fv_evolution_chain(c):
     """Playing Forest enables evolving some line present THIS turn (or one that
     can be put down from hand by chaining basic+evolution)."""
     h, f = c.hand_counts, c.field_counts
@@ -98,7 +98,7 @@ def _v_fv_neutralization(c):
     return 28000
 
 
-def _v_fv_cadena(c):
+def _v_fv_chain(c):
     v = 22000 if c.stadium_id != 0 else 21900
     if c.op_is_fire_deck or c.op_is_aggro_deck or c.op_is_beedrill_deck:
         v += 200
@@ -117,11 +117,11 @@ def _forest_disponible(c):
 __all__ = [
     '_GrandTreePlan',
     '_gt_slots_propios',
-    '_gt_valor_cuerpo',
-    '_gt_premios_de',
-    '_fv_cadena_evolutiva',
+    '_gt_body_value',
+    '_gt_prizes_of',
+    '_fv_evolution_chain',
     '_v_fv_neutralization',
-    '_v_fv_cadena',
+    '_v_fv_chain',
     '_v_fv_temprano',
     '_forest_disponible',
 ]

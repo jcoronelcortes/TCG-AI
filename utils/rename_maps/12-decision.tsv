@@ -1,0 +1,140 @@
+# Phase 7 -- ptcg/decision/: one module per card, and the strategy vocabulary
+# that lives in them (gust, finisher, relief, doomed, fodder, stuck).
+# Applied repo-wide, because main.py and the tests call almost all of it.
+#
+# The rule TABLES are renamed (`_REGLAS_UB_MEOWTH` -> `_RULES_UB_MEOWTH`); the
+# rule LABELS inside them are not, they are data.
+#
+# `cartas -> cards` is safe now: the renamer leaves dotted import paths alone
+# unless the map says `mod`, so `from ptcg.cartas.ids import ...` is untouched
+# and only the local variables move. The package waves in its own phase.
+#
+# Three of the generic locals are flagged `code`: the identifier moves, the
+# literals spelled the same do not, and each was looked at.
+#   "turno"  -- a KEY of the golden corpus snapshot on disk, and of the
+#              autopsy output. Renaming it would invalidate the snapshot.
+#   "cartas" -- the package DIRECTORY, which the architecture lint names as
+#              a string. It waves with the package rename.
+#   "activo" -- a position label in fixtures and in the autopsy JSON.
+
+# --- the rule tables ---------------------------------------------------------
+_REGLAS_BCS_PLAY	_RULES_BCS_PLAY
+_REGLAS_STAMP_PLAY	_RULES_STAMP_PLAY
+_REGLAS_XEROSIC_PLAY	_RULES_XEROSIC_PLAY
+_REGLAS_MEOWTH_FETCH	_RULES_MEOWTH_FETCH
+_REGLAS_LANA_PLAY	_RULES_LANA_PLAY
+_REGLAS_PP_FETCH	_RULES_PP_FETCH
+_REGLAS_PP_PLAY	_RULES_PP_PLAY
+_REGLAS_GUST_ESTORBO	_RULES_GUST_NUISANCE
+_AJUSTES_GUST_ESTORBO	_ADJUST_GUST_NUISANCE
+_AJUSTES_GUST_OFENSIVO	_ADJUST_GUST_OFFENSIVE
+_REGLAS_NS_APPLIN	_RULES_NS_APPLIN
+_REGLAS_NS_BAYLEEF	_RULES_NS_BAYLEEF
+_REGLAS_NS_CHIKORITA	_RULES_NS_CHIKORITA
+_REGLAS_NS_DIPPLIN	_RULES_NS_DIPPLIN
+_REGLAS_NS_FEZ	_RULES_NS_FEZ
+_REGLAS_NS_GRASS	_RULES_NS_GRASS
+_REGLAS_NS_HYDRAPPLE	_RULES_NS_HYDRAPPLE
+_REGLAS_NS_MEGANIUM	_RULES_NS_MEGANIUM
+_REGLAS_NS_MEOWTH	_RULES_NS_MEOWTH
+_REGLAS_NS_OGERPON	_RULES_NS_OGERPON
+_REGLAS_NS_PINSIR	_RULES_NS_PINSIR
+_REGLAS_NS_TAPU	_RULES_NS_TAPU
+_REGLAS_UB_APPLIN	_RULES_UB_APPLIN
+_REGLAS_UB_BAYLEEF	_RULES_UB_BAYLEEF
+_REGLAS_UB_CHIKORITA	_RULES_UB_CHIKORITA
+_REGLAS_UB_DIPPLIN	_RULES_UB_DIPPLIN
+_REGLAS_UB_FEZ	_RULES_UB_FEZ
+_REGLAS_UB_HYDRAPPLE	_RULES_UB_HYDRAPPLE
+_REGLAS_UB_MEGANIUM	_RULES_UB_MEGANIUM
+_REGLAS_UB_MEOWTH	_RULES_UB_MEOWTH
+_REGLAS_UB_OGERPON	_RULES_UB_OGERPON
+_REGLAS_UB_PINSIR	_RULES_UB_PINSIR
+_REGLAS_UB_TAPU	_RULES_UB_TAPU
+
+# --- Boss's Orders -----------------------------------------------------------
+_boss_cede_dig	_boss_yields_to_dig
+_boss_first_turn_cede	_boss_first_turn_yields
+_boss_gusteo_sin_proposito	_boss_gust_without_purpose
+_boss_motivo_con_premio	_boss_reason_with_prize
+_boss_regala_linea_alakazam	_boss_gives_away_alakazam_line
+_condenado_sin_relevo	_doomed_without_relief
+_ctx_gust_objetivo	_ctx_gust_target
+_gust_es_basico	_gust_is_basic
+_gust_linea_evolutiva	_gust_evolution_line
+_gust_linea_rival	_gust_opponent_line
+_gust_releva_al_atacante	_gust_relieves_the_attacker
+_gust_tiers_genericos	_gust_generic_tiers
+_v_gust_traba_neta	_v_gust_net_stuck
+cuerpo_inofensivo	body_is_harmless
+linea_can_ko	line_can_ko
+linea_rank	line_rank
+muro_bloquea_activo	wall_blocks_active
+op_linea_dragapult	op_dragapult_line
+op_linea_typhlosion	op_typhlosion_line
+con_e	with_energy
+
+# --- the other cards ---------------------------------------------------------
+_sello_merece_jugarse	_stamp_worth_playing
+_xr_antes_del_sello	_xr_before_the_stamp
+_fv_cadena_evolutiva	_fv_evolution_chain
+_v_fv_cadena	_v_fv_chain
+_gt_premios_de	_gt_prizes_of
+_gt_valor_cuerpo	_gt_body_value
+_v_meowth_fetch_valor	_v_meowth_fetch_value
+_pp_evo_valor	_pp_evo_value
+_pp_evolucion_pendiente_de_busqueda	_pp_evolution_pending_search
+_robo_de_lillie	_lillie_draw_count
+alto_valor	high_value
+energia_mazo	energy_in_deck
+total_mazo	deck_total
+
+# --- Night Stretcher ---------------------------------------------------------
+_ns_e_activo_paga_retirada	_ns_e_active_pays_retreat
+_ns_e_cargar_banca_crustle	_ns_e_charge_bench_crustle
+_ns_e_remate_con_el_activo	_ns_e_finisher_with_active
+_ns_e_remate_via_promocion	_ns_e_finisher_via_promotion
+_ns_e_retirada_chip	_ns_e_retreat_chip
+_ns_e_retirada_letal	_ns_e_retreat_lethal
+_ns_energia_util_sin_planta	_ns_useful_energy_without_grass
+_ns_hay_ogerpon_teal	_ns_has_ogerpon_teal
+_ns_motor_fez_vivo	_ns_fez_engine_alive
+_ns_motor_meowth_vivo	_ns_meowth_engine_alive
+_ns_ruta_de_carga_abierta	_ns_charge_route_open
+_ns_ruta_de_carga_hasta_el_activo	_ns_charge_route_to_active
+_v_ns_grass_sin_planta	_v_ns_grass_none_in_hand
+_sin_ataque_hoy	_no_attack_today
+mano_agotada	hand_exhausted
+tras_retirar	after_retreat
+turno_muerto	dead_turn
+best_supp_mazo_val	best_supp_deck_val
+
+# --- Ultra Ball --------------------------------------------------------------
+_best_supp_in_mazo_val	_best_supp_in_deck_val
+_boss_in_mazo	_boss_in_deck
+_contra_estadio_urgente	_counter_stadium_urgent
+_has_hydra_evo_in_mazo	_has_hydra_evo_in_deck
+_has_mega_evo_in_mazo	_has_mega_evo_in_deck
+_lillie_in_mazo	_lillie_in_deck
+_matchup_permite_bajar	_matchup_allows_playing
+_ub_cavar_meowth_se_juega	_ub_dig_meowth_gets_played
+_ub_coste_destruye_carta_mejor	_ub_cost_destroys_better_card
+_ub_forraje_real	_ub_real_fodder
+_ub_has_basic_in_mazo	_ub_has_basic_in_deck
+_uh_preparar_hydra_prox_turno	_uh_prepare_hydra_next_turn
+_um_es_primer_turno	_um_is_first_turn
+any_supp_in_mazo	any_supp_in_deck
+buscar_bayleef_ya	search_bayleef_now
+grass_en_juego	grass_in_play
+lillie_in_mazo	lillie_in_deck
+linea_meganium_dev	meganium_line_dev
+meowth_manana	meowth_tomorrow
+
+# --- generic locals ----------------------------------------------------------
+activo	active	code
+carta	card
+cartas	cards	code
+coste	cost
+energia	energy
+turno	turn	code
+_premios	_prizes

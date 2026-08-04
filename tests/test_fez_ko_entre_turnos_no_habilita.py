@@ -190,7 +190,7 @@ def _ko_propio(serial=1, area=m.AreaType.BENCH):
 ])
 def test_clasificador_de_ventana(logs, dentro, fuera):
     m._reset_ventana_de_ko()
-    m._rastrear_ventana_de_ko(logs, my_index=1, turno=9)
+    m._rastrear_ventana_de_ko(logs, my_index=1, turn=9)
     assert m._own_ko_inside_op_turn == dentro
     assert m._own_ko_outside_op_turn == fuera
 
@@ -208,7 +208,7 @@ def test_el_cuerpo_del_rival_y_las_energias_no_son_kos_nuestros():
         # our pre-evolution to the discard (the same card we already counted)
         _log(type=m.LogType.MOVE_CARD, playerIndex=1, cardId=m.Applin, serial=7,
              fromArea=m.AreaType.PRE_EVOLUTION, toArea=m.AreaType.DISCARD),
-    ], my_index=1, turno=9)
+    ], my_index=1, turn=9)
     assert m._own_ko_inside_op_turn == -99
     assert m._own_ko_outside_op_turn == -99
 
@@ -218,7 +218,7 @@ def test_partida_nueva_borra_la_ventana():
     m._rastrear_ventana_de_ko([
         _log(type=m.LogType.TURN_START, playerIndex=0),
         _log(type=m.LogType.TURN_END, playerIndex=0), _ko_propio()],
-        my_index=1, turno=9)
+        my_index=1, turn=9)
     assert m._own_ko_outside_op_turn == 9
     m._init_cards_tracking()
     assert m._own_ko_outside_op_turn == -99

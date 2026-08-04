@@ -140,9 +140,9 @@ def test_el_remate_existia_myriad_con_tres_energias_noquea_al_grimmsnarl():
     st = obs.current
     yo, rival = st.players[0], st.players[1]
 
-    activo = yo.active[0]
-    assert activo.id == OGERPON and activo.hp == 30
-    assert len(activo.energies) == 1, "1 de las 3 energias de Myriad"
+    active = yo.active[0]
+    assert active.id == OGERPON and active.hp == 30
+    assert len(active.energies) == 1, "1 de las 3 energias de Myriad"
     assert m.ATTACK_ENERGY_REQ[OGERPON] == 3
     assert not any(c["id"] == GRASS for c in _fixture()["current"]
                    ["players"][0]["hand"]), "ni una Planta en la mano"
@@ -155,7 +155,7 @@ def test_el_remate_existia_myriad_con_tres_energias_noquea_al_grimmsnarl():
     base = m._attacker_base_damage(OGERPON, opa, 3, grass_scale=3,
                                    teal_self_energy=3, bench_count=5)
     assert base == 180
-    damage = m._our_effective_damage(activo, opa, base, False, False)
+    damage = m._our_effective_damage(active, opa, base, False, False)
     assert damage == 360 >= (opa.hp or 0), "debilidad Planta: 180 x 2"
 
 
@@ -164,12 +164,12 @@ def test_el_gusteo_degrada_el_objetivo_del_remate():
     swaps a hit of 360 for one of 120."""
     obs = m.to_observation_class(_fixture())
     rival = obs.current.players[1]
-    activo = obs.current.players[0].active[0]
+    active = obs.current.players[0].active[0]
     snorunt = next(b for b in rival.bench if b is not None and b.id == SNORUNT)
 
     base_snorunt = m._attacker_base_damage(OGERPON, snorunt, 3, grass_scale=3,
                                            teal_self_energy=3, bench_count=5)
-    dano_snorunt = m._our_effective_damage(activo, snorunt, base_snorunt,
+    dano_snorunt = m._our_effective_damage(active, snorunt, base_snorunt,
                                            False, False)
     assert dano_snorunt == 120, "sin energia rival que sumar y sin debilidad"
     assert m.prize_count_op(snorunt) == 1 < 2
@@ -199,9 +199,9 @@ def test_prob_al_menos_fronteras():
 
 
 def test_el_robo_de_lillie_es_ocho_solo_con_los_seis_premios():
-    assert m._robo_de_lillie(6) == 8
-    assert m._robo_de_lillie(5) == 6
-    assert m._robo_de_lillie(1) == 6
+    assert m._lillie_draw_count(6) == 8
+    assert m._lillie_draw_count(5) == 6
+    assert m._lillie_draw_count(1) == 6
 
 
 # ---------------------------------------------------------------------------
@@ -254,7 +254,7 @@ def _escenario_paso49(grass_in_deck=10, grass_en_mano=0, con_adjunte=False):
     mano = [LILLIE, BOSS, LILLIE, m.Hydrapple_ex, m.Ultra_Ball]
     mano += [GRASS] * grass_en_mano
 
-    esc = (Escenario(turno=4, paso=49, tac=1, primer_jugador=1)
+    esc = (Escenario(turn=4, paso=49, tac=1, primer_jugador=1)
            .mi_activo(pk(OGERPON, hp=30, energias=[G], fisicas=1))
            .mi_banca(pk(m.Meowth_ex),
                      pk(m.Fezandipiti_ex, hp=180, energias=[G], fisicas=1),
@@ -338,7 +338,7 @@ def test_frontera_de_probabilidad(monkeypatch):
 def test_la_pesca_exitosa_se_convierte_en_ataque():
     """Closing the loop: with the 3 energies already placed (the fishing came off) and the
     hand empty, the 30 HP Ogerpon ex ATTACKS -- it neither retreats nor closes the turn."""
-    esc = (Escenario(turno=4, paso=49, tac=6, primer_jugador=1,
+    esc = (Escenario(turn=4, paso=49, tac=6, primer_jugador=1,
                      energia_jugada=True, partidario_jugado=True)
            .mi_activo(pk(OGERPON, hp=30, energias=[G, G, G], fisicas=3))
            .mi_banca(pk(m.Meowth_ex),

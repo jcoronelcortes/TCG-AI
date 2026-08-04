@@ -147,7 +147,7 @@ def test_sin_energia_para_pagar_el_ataque_no_hay_auto_dano():
 def _paso_184(op_premios=1, mis_premios=1, tapu_hp=20, ogerpon_energias=6):
     """The exact board of step 184. Meganium on the bench => each physical Grass
     counts DOUBLE, so 3 energy cards give 6 effective units."""
-    return (Escenario(turno=16, paso=184, tac=1,
+    return (Escenario(turn=16, paso=184, tac=1,
                       premios_propios=mis_premios)
             .mi_activo(pk(TAPU, hp=tapu_hp, energias=[G] * 6, fisicas=3))
             .mi_banca(pk(MEGANIUM, hp=80, pre_evo=[m.Chikorita, BAYLEEF]),
@@ -187,7 +187,7 @@ def test_sin_relevo_en_banca_el_empate_es_el_mejor_resultado_y_no_se_veta():
     attack is NOT vetoed (passing also ends in a draw, but gives away the turn).
     The veto is measured rather than the choice because, with energy in hand, attaching it
     scores higher than attacking through rules PRIOR to this change."""
-    obs = (Escenario(turno=16, paso=184, tac=1, premios_propios=1)
+    obs = (Escenario(turn=16, paso=184, tac=1, premios_propios=1)
            .mi_activo(pk(TAPU, hp=20, energias=[G] * 6, fisicas=3))
            .mi_banca(pk(MEGANIUM, hp=80, pre_evo=[m.Chikorita, BAYLEEF]))
            .mi_mano(GRASS)
@@ -219,7 +219,7 @@ def test_el_remate_suicida_que_PIERDE_se_veta_aunque_no_haya_relevo():
     """A worse case than the draw: our attack does NOT knock out (a 380 HP Duraludon
     survives the 220), so the self-damage only HANDS the rival their last
     prize. There, attacking is losing: it is vetoed with no need for a relief body."""
-    obs = (Escenario(turno=16, paso=184, tac=1, premios_propios=3)
+    obs = (Escenario(turn=16, paso=184, tac=1, premios_propios=3)
            .mi_activo(pk(TAPU, hp=20, energias=[G] * 6, fisicas=3))
            .mi_banca(pk(MEGANIUM, hp=80, pre_evo=[m.Chikorita, BAYLEEF]))
            .mi_mano(GRASS)

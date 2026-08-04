@@ -16,7 +16,7 @@ from ptcg.decision.bug_catching_set import _score_bug_catching_set_play
 from ptcg.decision.disrupcion import _score_unfair_stamp_play, _score_xerosic_play
 from ptcg.decision.poke_pad import _score_poke_pad_play
 from ptcg.decision.supporters import _score_dawn_play, _score_lanas_aid_play
-from ptcg.decision.ultra_ball import _contra_estadio_urgente
+from ptcg.decision.ultra_ball import _counter_stadium_urgent
 from ptcg.estado.agente import AGENT_STATE
 from ptcg.estado.claves import ZONE_DECK
 
@@ -32,7 +32,7 @@ def puntuar(tc, o, score):
     _bcs_playable_in_hand = tc._bcs_playable_in_hand
     _best_supp_in_hand_val = tc._best_supp_in_hand_val
     _best_supp_in_mazo_id = tc._best_supp_in_mazo_id
-    _best_supp_in_mazo_val = tc._best_supp_in_mazo_val
+    _best_supp_in_deck_val = tc._best_supp_in_deck_val
     _deny_evo_via_boss = tc._deny_evo_via_boss
     _descuadre_matchup = tc._descuadre_matchup
     _dragapult_no_tapu = tc._dragapult_no_tapu
@@ -620,7 +620,7 @@ def puntuar(tc, o, score):
                         if (not state.supporterPlayed and
                                 _best_supp_in_hand_val < 500 and
                                 _best_supp_in_mazo_id == Lillie_Determination and
-                                _best_supp_in_mazo_val >= 650):
+                                _best_supp_in_deck_val >= 650):
                             score = 20500
                         else:
                             score = SCORE_VETO
@@ -670,20 +670,20 @@ def puntuar(tc, o, score):
                           hand_counts.get(Lillie_Determination, 0) >= 1 and
                           hand_counts.get(Ultra_Ball, 0) >= 1 and
                           not (AGENT_STATE.op_is_crustle_deck or op_is_drednaw_deck or op_is_sylveon_deck) and
-                          not (_best_supp_in_mazo_id == Boss_Orders and _best_supp_in_mazo_val >= 650)):
+                          not (_best_supp_in_mazo_id == Boss_Orders and _best_supp_in_deck_val >= 650)):
         
                         score = SCORE_VETO
                     elif _best_supp_in_hand_val >= 500:
         
-                        _boss_in_mazo = AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Boss_Orders, {}).get(ZONE_DECK, 0) > 0
+                        _boss_in_deck = AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Boss_Orders, {}).get(ZONE_DECK, 0) > 0
                         _boss_val = _supp_values.get(Boss_Orders, 0)
-                        if AGENT_STATE.op_is_crustle_deck and _boss_in_mazo and _boss_val >= 900 and hand_counts.get(Boss_Orders, 0) == 0:
+                        if AGENT_STATE.op_is_crustle_deck and _boss_in_deck and _boss_val >= 900 and hand_counts.get(Boss_Orders, 0) == 0:
                             score = 21500
-                        elif (op_is_drednaw_deck and _boss_in_mazo and _boss_val >= 650
+                        elif (op_is_drednaw_deck and _boss_in_deck and _boss_val >= 650
                               and hand_counts.get(Boss_Orders, 0) == 0):
         
                             score = 21500
-                        elif (op_is_sylveon_deck and _boss_in_mazo and _boss_val >= 650
+                        elif (op_is_sylveon_deck and _boss_in_deck and _boss_val >= 650
                               and hand_counts.get(Boss_Orders, 0) == 0):
         
                             score = 21500
@@ -693,7 +693,7 @@ def puntuar(tc, o, score):
         
                         _meowth_score = SCORE_VETO
                         _target_id = _best_supp_in_mazo_id
-                        _target_val = _best_supp_in_mazo_val
+                        _target_val = _best_supp_in_deck_val
         
                         if _target_id == Boss_Orders and _target_val >= 650:
         
@@ -1531,7 +1531,7 @@ def puntuar(tc, o, score):
                 # branch. +20 points.
                 _quita_candado_rival = (
                     data.cardType == CardType.STADIUM
-                    and _contra_estadio_urgente(
+                    and _counter_stadium_urgent(
                         neutralization_zone_active, watchtower_in_play,
                         AGENT_STATE.forest_in_play, _festival_lead_hostil))
                 if (op_is_comfey_deck and score > 0
@@ -1570,7 +1570,7 @@ def puntuar(tc, o, score):
                 else:
                     # With no root there is nothing to evolve: it is kept.
                     # It is only played to REMOVE an annoying opposing stadium.
-                    score = (14000 if _contra_estadio_urgente(
+                    score = (14000 if _counter_stadium_urgent(
                         neutralization_zone_active, watchtower_in_play,
                         AGENT_STATE.forest_in_play, _festival_lead_hostil) else SCORE_VETO)
         

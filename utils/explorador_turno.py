@@ -151,15 +151,15 @@ def _dano_activo(obs):
 
 def _quitar_de_mano(yo, card_id):
     i = next(i for i, c in enumerate(yo["hand"]) if c["id"] == card_id)
-    carta = yo["hand"][i]
+    card = yo["hand"][i]
     yo["hand"] = [c for j, c in enumerate(yo["hand"]) if j != i]
     yo["handCount"] = len(yo["hand"])
-    return carta
+    return card
 
 
-def _adjunta(p, carta):
+def _adjunta(p, card):
     p["energies"] = list(p.get("energies") or []) + [1]
-    p["energyCards"] = list(p.get("energyCards") or []) + [carta]
+    p["energyCards"] = list(p.get("energyCards") or []) + [card]
 
 
 def _slots(yo):
@@ -220,9 +220,9 @@ def acciones_legales(obs):
             def ap(obs, _n=name):
                 o2 = copy.deepcopy(obs)
                 y2 = _yo(o2)
-                carta = _quitar_de_mano(y2, m.Basic_Grass_Energy)
+                card = _quitar_de_mano(y2, m.Basic_Grass_Energy)
                 tgt = dict(_slots(y2))[_n]
-                _adjunta(tgt, carta)
+                _adjunta(tgt, card)
                 o2["current"]["energyAttached"] = True
                 return o2
             acciones.append((f"ATTACH->{m.card_table[p['id']].name}", ap))
@@ -237,8 +237,8 @@ def acciones_legales(obs):
                 def ap(obs, _n=name, _s=p["serial"]):
                     o2 = copy.deepcopy(obs)
                     y2 = _yo(o2)
-                    carta = _quitar_de_mano(y2, m.Basic_Grass_Energy)
-                    _adjunta(dict(_slots(y2))[_n], carta)
+                    card = _quitar_de_mano(y2, m.Basic_Grass_Energy)
+                    _adjunta(dict(_slots(y2))[_n], card)
                     o2["_td_usadas"] = tuple(obs.get("_td_usadas", ())) + (_s,)
                     return o2
                 acciones.append(("TEAL DANCE", ap))
@@ -254,8 +254,8 @@ def acciones_legales(obs):
                     def ap(obs, _n=name, _s=hyd["serial"]):
                         o2 = copy.deepcopy(obs)
                         y2 = _yo(o2)
-                        carta = _quitar_de_mano(y2, m.Basic_Grass_Energy)
-                        _adjunta(dict(_slots(y2))[_n], carta)
+                        card = _quitar_de_mano(y2, m.Basic_Grass_Energy)
+                        _adjunta(dict(_slots(y2))[_n], card)
                         o2["_rc_usadas"] = tuple(
                             obs.get("_rc_usadas", ())) + (_s,)
                         return o2
@@ -277,17 +277,17 @@ def acciones_legales(obs):
             def ap(obs, _cid=cid, _n=name):
                 o2 = copy.deepcopy(obs)
                 y2 = _yo(o2)
-                carta = _quitar_de_mano(y2, _cid)
+                card = _quitar_de_mano(y2, _cid)
                 tgt = dict(_slots(y2))[_n]
                 previo = {k: tgt[k] for k in tgt}
                 tgt["preEvolution"] = (list(tgt.get("preEvolution") or [])
                                        + [{"id": previo["id"],
-                                           "playerIndex": carta["playerIndex"],
+                                           "playerIndex": card["playerIndex"],
                                            "serial": previo["serial"]}])
                 dano_actual = (previo.get("maxHp") or 0) - (previo.get("hp") or 0)
                 nueva = m.card_table[_cid]
                 tgt["id"] = _cid
-                tgt["serial"] = carta["serial"]
+                tgt["serial"] = card["serial"]
                 tgt["maxHp"] = nueva.hp
                 tgt["hp"] = max(1, nueva.hp - dano_actual)
                 tgt["appearThisTurn"] = True
@@ -300,12 +300,12 @@ def acciones_legales(obs):
     act = yo["active"][0] if yo.get("active") and yo["active"][0] else None
     if (act is not None and not cur.get("retreated")
             and _permitido(OptionType.RETREAT)):
-        coste = m.card_table[act["id"]].retreatCost
-        if len(act.get("energies") or []) >= coste:
+        cost = m.card_table[act["id"]].retreatCost
+        if len(act.get("energies") or []) >= cost:
             for k, bp in enumerate(yo.get("bench") or []):
                 if not bp:
                     continue
-                def ap(obs, _k=k, _coste=coste):
+                def ap(obs, _k=k, _coste=cost):
                     o2 = copy.deepcopy(obs)
                     y2 = _yo(o2)
                     a2 = y2["active"][0]
@@ -334,9 +334,9 @@ def acciones_legales(obs):
             y2["discard"] = list(y2["discard"]) + [ns]
             i = next(i for i, c in enumerate(y2["discard"])
                      if c["id"] == m.Basic_Grass_Energy)
-            carta = y2["discard"][i]
+            card = y2["discard"][i]
             y2["discard"] = [c for j, c in enumerate(y2["discard"]) if j != i]
-            y2["hand"] = list(y2["hand"]) + [carta]
+            y2["hand"] = list(y2["hand"]) + [card]
             y2["handCount"] = len(y2["hand"])
             return o2
         acciones.append(("NS->PLANTA", ap))
@@ -370,8 +370,8 @@ def acciones_legales(obs):
         def ap(obs):
             o2 = copy.deepcopy(obs)
             y2 = _yo(o2)
-            carta = _quitar_de_mano(y2, m.Forest_of_Vitality)
-            o2["current"]["stadium"] = [carta]
+            card = _quitar_de_mano(y2, m.Forest_of_Vitality)
+            o2["current"]["stadium"] = [card]
             o2["current"]["stadiumPlayed"] = True
             return o2
         acciones.append(("FOREST", ap))
@@ -399,8 +399,8 @@ def evaluar_terminal(obs, ataca):
             faltan = sum(1 for p in (yo.get("prize") or []) if p is None)
             gana = prizes >= faltan
             damage = opa["hp"]
-    energia = sum(len(p.get("energies") or []) for p in _pokes(yo))
-    desarrollo = (len(_pokes(yo)) * 10 + energia
+    energy = sum(len(p.get("energies") or []) for p in _pokes(yo))
+    desarrollo = (len(_pokes(yo)) * 10 + energy
                   + obs.get("_evoluciones", 0) * 5)
     return (int(gana), prizes, damage, desarrollo)
 
@@ -465,7 +465,7 @@ def demo_combo_myriad():
     from state_builder import Escenario, pk, G
     import golden_corpus as gc
     gc.reset_agente(m)
-    obs = (Escenario(turno=12, paso=227, tac=1, premios_propios=2)
+    obs = (Escenario(turn=12, paso=227, tac=1, premios_propios=2)
            .mi_activo(pk(m.Teal_Mask_Ogerpon_ex, energias=[G] * 4, fisicas=4))
            .mi_banca(pk(m.Applin))
            .mi_mano(m.Basic_Grass_Energy, m.Boss_Orders)

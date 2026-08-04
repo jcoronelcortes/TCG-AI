@@ -88,8 +88,8 @@ def _pkm(card_id, energias=0):
     return SimpleNamespace(id=card_id, energies=[1] * energias)
 
 
-def _op(activo, banca):
-    return SimpleNamespace(active=[activo] if activo else [], bench=list(banca))
+def _op(active, banca):
+    return SimpleNamespace(active=[active] if active else [], bench=list(banca))
 
 
 # ---------------------------------------------------------------------------
@@ -128,11 +128,11 @@ def test_cuerpo_inofensivo_es_conservador_con_lo_que_no_sabe():
 def test_relevo_exige_atacante_delante_y_cuerpo_muerto_detras():
     # Their Dragapult ex attacks (Jet Headbutt costs 1) and the bench Dusclops cannot
     # pay for its cost-2 attack: swapping one for the other costs them the turn.
-    assert m._gust_releva_al_atacante(
+    assert m._gust_relieves_the_attacker(
         _op(_pkm(DRAGAPULT, 1), [_pkm(DUSCLOPS)]))
     # If their active no longer attacks there is nothing to relieve (and the gust also
     # gives them the free retreat).
-    assert not m._gust_releva_al_atacante(
+    assert not m._gust_relieves_the_attacker(
         _op(_pkm(m.Fezandipiti_ex, 0), [_pkm(DUSCLOPS)]))
 
 
@@ -140,15 +140,15 @@ def test_una_preevo_de_amenaza_no_es_relevo():
     """The Drakloak cannot attack today, but it evolves IN THE ACTIVE SPOT into another
     Dragapult ex and attacks with it: it is the same mistake as Abra -> Kadabra."""
     assert DRAKLOAK in m.EX_PREEVO_IDS
-    assert not m._gust_releva_al_atacante(
+    assert not m._gust_relieves_the_attacker(
         _op(_pkm(DRAGAPULT, 1), [_pkm(DRAKLOAK)]))
     # ...but if behind it there is ALSO a genuinely dead body, the relief exists.
-    assert m._gust_releva_al_atacante(
+    assert m._gust_relieves_the_attacker(
         _op(_pkm(DRAGAPULT, 1), [_pkm(DRAKLOAK), _pkm(DUSCLOPS)]))
 
 
 def test_dunsparce_nunca_es_relevo():
-    assert not m._gust_releva_al_atacante(
+    assert not m._gust_relieves_the_attacker(
         _op(_pkm(DRAGAPULT, 1), [_pkm(DUNSPARCE)]))
 
 
@@ -159,7 +159,7 @@ def test_dunsparce_nunca_es_relevo():
 def _tablero(banca_extra=()):
     """Our turn with no attacker (Ogerpon ex at 1/3) and with Boss's Orders as the
     only card in hand: the menu is PLAY Boss's | END."""
-    return (Escenario(turno=6, paso=70, tac=2, premios_propios=5)
+    return (Escenario(turn=6, paso=70, tac=2, premios_propios=5)
             .mi_activo(pk(OGERPON, energias=[G], fisicas=1))
             .mi_banca(pk(OGERPON))
             .op_activo(pk(DRAGAPULT, hp=320, max_hp=320, energias=[G]))

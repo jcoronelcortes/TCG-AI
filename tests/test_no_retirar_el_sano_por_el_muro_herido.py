@@ -111,15 +111,15 @@ def test_el_fixture_es_el_muro_herido_a_90_pv():
     mio = o["current"]["players"][yo]
     riv = o["current"]["players"][1 - yo]
 
-    activo = mio["active"][0]
+    active = mio["active"][0]
     hydra = next(b for b in mio["bench"] if b and b["id"] == HYDRAPPLE)
 
     # The one in front is INTACT; the bench "wall" is at 90 of 330.
-    assert activo["id"] == OGERPON and activo["hp"] == activo["maxHp"] == 210
+    assert active["id"] == OGERPON and active["hp"] == active["maxHp"] == 210
     assert hydra["maxHp"] == 330 and hydra["hp"] == 90
 
     # Both can attack NOW: Ogerpon with 4 energies (req 3), Hydrapple with 2.
-    assert len(activo["energies"]) == 4
+    assert len(active["energies"]) == 4
     assert len(hydra["energies"]) == 2
 
     # Both are ex: the swap DENIES no prize (2 in both cases).

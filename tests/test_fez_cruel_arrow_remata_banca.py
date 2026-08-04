@@ -178,17 +178,17 @@ def test_paso54_cruel_arrow_no_llega_al_activo_pero_si_a_la_banca():
     turn is sterile, measured against the WHOLE opposing field there is a prize."""
     obs = _menu_paso54()
     st = m.to_observation_class(obs).current
-    activo = st.players[1].active[0]
+    active = st.players[1].active[0]
     rival = st.players[0]
 
-    assert activo.id == FEZ
-    assert len(activo.energies) >= 3                  # Cruel Arrow available
+    assert active.id == FEZ
+    assert len(active.energies) >= 3                  # Cruel Arrow available
     assert rival.active[0].id == ALAKAZAM
     assert rival.active[0].hp == 140                  # 100 does NOT knock it out
     assert any(p is not None and p.id == KADABRA and p.hp == 80
                for p in rival.bench)                  # 100 DOES knock it out
 
-    objetivo, damage, es_ko = m._snipe_best_target(activo, rival, len(activo.energies),
+    objetivo, damage, es_ko = m._snipe_best_target(active, rival, len(active.energies),
                                                  m.meganium_in_play, False)
     assert (objetivo.id, damage, es_ko) == (KADABRA, 100, True)
 
@@ -226,9 +226,9 @@ def test_cruel_arrow_prefiere_el_kadabra_sobre_abra_y_dunsparce():
 def test_snipe_sin_energia_no_propone_nada():
     obs = _obs(_FIX_DMG)
     st = m.to_observation_class(obs).current
-    activo = st.players[1].active[0]
-    activo.energies = activo.energies[:2]             # Cruel Arrow costs 3
-    assert m._snipe_best_target(activo, st.players[0], 2,
+    active = st.players[1].active[0]
+    active.energies = active.energies[:2]             # Cruel Arrow costs 3
+    assert m._snipe_best_target(active, st.players[0], 2,
                                 False, False) == (None, 0, False)
 
 
@@ -246,13 +246,13 @@ def test_snipe_respeta_la_inmunidad_a_ex():
     does 0 and proposes no KO (the chip still chooses the least bad one)."""
     obs = _obs(_FIX_DMG)
     st = m.to_observation_class(obs).current
-    activo = st.players[1].active[0]
+    active = st.players[1].active[0]
     rival = st.players[0]
     inmune = next(iter(m.EX_IMMUNE_IDS))
     for p in [rival.active[0]] + [b for b in rival.bench if b is not None]:
         p.id = inmune
-    objetivo, damage, es_ko = m._snipe_best_target(activo, rival,
-                                                 len(activo.energies),
+    objetivo, damage, es_ko = m._snipe_best_target(active, rival,
+                                                 len(active.energies),
                                                  m.meganium_in_play, False)
     assert damage == 0 and es_ko is False
 

@@ -245,11 +245,11 @@ def test_con_la_fase_1_ya_de_activo_no_se_gasta_el_boss():
     the active, attacking it is free and the Boss's is kept."""
     o = _obs()
     riv = o["current"]["players"][1 - o["current"]["yourIndex"]]
-    activo, banca = riv["active"][0], riv["bench"][3]
-    activo["id"], banca["id"] = MORGREM, IMPIDIMP
-    activo["hp"] = activo["maxHp"] = 100
+    active, banca = riv["active"][0], riv["bench"][3]
+    active["id"], banca["id"] = MORGREM, IMPIDIMP
+    active["hp"] = active["maxHp"] = 100
     banca["hp"] = banca["maxHp"] = 70
-    activo["preEvolution"] = [{"id": IMPIDIMP, "playerIndex": 0, "serial": 900}]
+    active["preEvolution"] = [{"id": IMPIDIMP, "playerIndex": 0, "serial": 900}]
     banca["preEvolution"] = []
 
     assert m.agent(o) == [_idx(o, type=13)], (
@@ -262,11 +262,11 @@ def test_la_regla_no_es_de_la_linea_marnie(monkeypatch):
     Dragapult ex line resolves the same way, without touching any per-deck list."""
     o = _obs()
     riv = o["current"]["players"][1 - o["current"]["yourIndex"]]
-    activo, banca = riv["active"][0], riv["bench"][3]
-    activo["id"], banca["id"] = m.Dreepy, m.Drakloak
-    activo["hp"] = activo["maxHp"] = 60
+    active, banca = riv["active"][0], riv["bench"][3]
+    active["id"], banca["id"] = m.Dreepy, m.Drakloak
+    active["hp"] = active["maxHp"] = 60
     banca["hp"] = banca["maxHp"] = 90
-    activo["preEvolution"] = []
+    active["preEvolution"] = []
     banca["preEvolution"] = [{"id": m.Dreepy, "playerIndex": 0, "serial": 900}]
 
     assert m.agent(o) == [_idx(o, type=7, index=_mano_idx(o, BOSS))]

@@ -211,7 +211,7 @@ def censo_de_turnos(m, decisiones):
     for d in decisiones:
         por_turno.setdefault(d["obs"]["current"]["turn"], []).append(d)
 
-    for turno, ds in sorted(por_turno.items()):
+    for turn, ds in sorted(por_turno.items()):
         mains = [d for d in ds
                  if (d["obs"].get("select") or {}).get("context")
                  == int(SelectContext.MAIN)]
@@ -290,7 +290,7 @@ def censo_de_turnos(m, decisiones):
             for d in mains if d["eleccion"])
 
         filas.append({
-            "turno": turno,
+            "turno": turn,
             "selects": len(mains),
             "ataco": ataco,
             "cierre": eleccion_cierre,
@@ -326,7 +326,7 @@ def detectar(m, decisiones):
     for d in decisiones:
         por_turno.setdefault(d["obs"]["current"]["turn"], []).append(d)
 
-    for turno, ds in sorted(por_turno.items()):
+    for turn, ds in sorted(por_turno.items()):
         mains = [d for d in ds
                  if (d["obs"].get("select") or {}).get("context")
                  == int(SelectContext.MAIN)]
@@ -356,7 +356,7 @@ def detectar(m, decisiones):
                     hallazgos.append({
                         "detector": "letal_perdido",
                         "critico": bool(gana),
-                        "turno": turno, "paso": d["paso"],
+                        "turno": turn, "paso": d["paso"],
                         "detalle": (f"KO disponible ({damage} >= "
                                     f"{opa.hp}) y el turno cerro "
                                     f"sin atacar"),
@@ -393,7 +393,7 @@ def detectar(m, decisiones):
             hallazgos.append({
                 "detector": "turno_esteril",
                 "critico": False,
-                "turno": turno, "paso": primero["paso"],
+                "turno": turn, "paso": primero["paso"],
                 "detalle": (f"turno cerrado con "
                             f"{'END' if t == int(OptionType.END) else 'ataque de 0'}"
                             f" y {mano} cartas en mano"),

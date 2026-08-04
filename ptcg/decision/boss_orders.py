@@ -38,7 +38,7 @@ def _boss_empty_gust(ctx):
             and ctx.hand_counts.get(Lillie_Determination, 0) >= 1)
 
 
-def _boss_first_turn_cede(ctx):
+def _boss_first_turn_yields(ctx):
     """On OUR first turn (log 86025936 step 11) with Lillie's in hand,
     Lillie's is ALWAYS played; Boss's yields (a gust takes no prize on the
     first turn)."""
@@ -48,7 +48,7 @@ def _boss_first_turn_cede(ctx):
             and not ctx.boss_win_via_bench)
 
 
-def _boss_cede_dig(ctx):
+def _boss_yields_to_dig(ctx):
     """It yields to Lillie's when we have no REAL benched attacker (user,
     registro_005 vs Dragapult): a DEVELOPMENT gust (cutting the opposing line
     by knocking out a 1-prize basic/pre-evolution) has no priority if, besides
@@ -70,7 +70,7 @@ def _boss_cede_dig(ctx):
     # opposing attack (always 0); the Mega Lucario ex in front already had the 2
     # energies of Mega Brave (270) and knocked it out for sure. The REAL finisher
     # read from attack_table is also consulted so the yield fires.
-    _condenado_sin_relevo = ((ctx.active_ko_likely or ctx.active_doomed_real)
+    _doomed_without_relief = ((ctx.active_ko_likely or ctx.active_doomed_real)
                              and not ctx.has_ready_bench_attacker)
     return (ctx.hand_counts.get(Lillie_Determination, 0) >= 1
             and not ctx.has_ready_bench_attacker
@@ -78,7 +78,7 @@ def _boss_cede_dig(ctx):
             and not ctx.boss_dodge_redirect
             and not ctx.boss_defensive_gust
             and not (ctx.boss_ko_threat_preevo
-                     and not _condenado_sin_relevo)
+                     and not _doomed_without_relief)
             and not ctx.boss_deny_alakazam_line
             and not ctx.op_has_ability_immune_active
             and not ctx.op_has_ex_immune_active)
@@ -108,7 +108,7 @@ def _boss_unlock_gust(ctx):
             or ctx.hand_counts.get(Meowth_ex, 0) >= 1)
 
 
-def _boss_motivo_con_premio(ctx):
+def _boss_reason_with_prize(ctx):
     """Does the gust have a REAL reason behind it? The common denominator of the
     two vetoes below: if any of this is alive, the Boss's is played and they
     decide the target. It covers the finishers (winning the game, 2 prizes, a KO
@@ -126,14 +126,14 @@ def _boss_motivo_con_premio(ctx):
             or bool(v.get('_boss_gust_key_bench')))
 
 
-def _gust_es_basico(card_id):
+def _gust_is_basic(card_id):
     data = card_table.get(card_id)
     return (data is not None
             and not getattr(data, 'stage1', False)
             and not getattr(data, 'stage2', False))
 
 
-def _v_gust_traba_neta(c):
+def _v_gust_net_stuck(c):
     v = 500 + c.stall_diff * 100
     # Tie-break (user): between targets that jam things up EQUALLY, avoid bringing
     # up the PRE-EVOLUTION of the opponent's main attacker (it could evolve and
@@ -143,7 +143,7 @@ def _v_gust_traba_neta(c):
     return v
 
 
-_REGLAS_GUST_ESTORBO = [
+_RULES_GUST_NUISANCE = [
     # FREE retreat cost: the opponent sends it back to the bench without paying
     # anything; it does not get in the way at all (e.g. Budew). Discarded.
     _FixedRule("retirada_gratis",
@@ -156,7 +156,7 @@ _REGLAS_GUST_ESTORBO = [
     _FixedRule("latias_libera_basicos",
                lambda c: (c.op_latias
                           and (c.card_id == Latias_ex
-                               or _gust_es_basico(c.card_id))),
+                               or _gust_is_basic(c.card_id))),
                lambda c: SCORE_FORBID),
     # Bringing up an Iron Thorns ex as a NUISANCE is shooting ourselves in the
     # foot: its Initialization in the active spot LOCKS our abilities (Teal Dance /
@@ -171,12 +171,12 @@ _REGLAS_GUST_ESTORBO = [
     # cannot pay with their energy): the higher the unpaid cost, the more it jams.
     _FixedRule("traba_neta",
                lambda c: c.stall_diff >= 1,
-               _v_gust_traba_neta),
+               _v_gust_net_stuck),
     # It can already pay its own retreat: a bad target (default -200).
 ]
 
 
-_AJUSTES_GUST_ESTORBO = [
+_ADJUST_GUST_NUISANCE = [
     # Alakazam generalisation (user, registro_004 step 51 vs Garchomp, LOST):
     # ALWAYS favour the HIGHEST evolution of the opposing line that a benched
     # attacker can KNOCK OUT after retreating. Without this, nuisance mode
@@ -185,9 +185,9 @@ _AJUSTES_GUST_ESTORBO = [
             # c.rc0 > 0: in the original this override lives INSIDE the else of the
             # free-retreat case; it must not rescue a FORBID caused by rc0<=0.
             lambda c, s: (c.rc0 > 0 and not c.op_alakazam
-                          and c.linea_rank >= 1 and c.linea_can_ko),
-            lambda c, s: max(s, 6000 + c.linea_rank * 3000
-                             + c.energia * 50
+                          and c.line_rank >= 1 and c.line_can_ko),
+            lambda c, s: max(s, 6000 + c.line_rank * 3000
+                             + c.energy * 50
                              + (300 if c.tiene_tool else 0))),
     # Rule (user, registro 014 step 146 vs Alakazam): in nuisance mode,
     # PRIORITISE the Alakazam line over other support basics; trapping their
@@ -212,13 +212,13 @@ _AJUSTES_GUST_ESTORBO = [
     # at who cannot pay their ATTACK. `s > 0` so it does not rescue a SCORE_FORBID
     # from the rules above.
     _Adjustment("sin_ko_prefiere_cuerpo_muerto",
-            lambda c, s: (s > 0 and not c.can_ko and c.cuerpo_inofensivo
+            lambda c, s: (s > 0 and not c.can_ko and c.body_is_harmless
                           and c.card_id not in GUST_TRAP_IDS),
             lambda c, s: s + 1500),
 ]
 
 
-def _gust_linea_evolutiva(c, id_final, id_medio, id_basico):
+def _gust_evolution_line(c, id_final, id_medio, id_basico):
     """Contribution for decks with a known evolution line (Dragapult,
     Ethan's Typhlosion, Alakazam): pin down / take out the most advanced piece.
     A Stage 1 WITHOUT energy is left PINNED (it pays no retreat and does not
@@ -229,32 +229,32 @@ def _gust_linea_evolutiva(c, id_final, id_medio, id_basico):
     if c.card_id == id_medio:
         if c.can_ko:
             return 1000
-        return 700 if c.energia < c.rc1 else 300
+        return 700 if c.energy < c.rc1 else 300
     if c.card_id == id_basico:
         if c.can_ko:
             return 400
-        return 500 if c.energia < c.rc1 else 200
+        return 500 if c.energy < c.rc1 else 200
     if c.can_ko:
         if c.is_ex:
-            return 900 + c.energia * 50
+            return 900 + c.energy * 50
         if c.is_stage1:
-            return 350 + c.energia * 50
-        return 250 + c.energia * 50
+            return 350 + c.energy * 50
+        return 250 + c.energy * 50
     return 150
 
 
-def _gust_tiers_genericos(c):
+def _gust_generic_tiers(c):
     """A deck with no known line: tiers by stage/energy (KO / no-KO)."""
     if c.can_ko:
-        if c.is_ex and c.energia >= 1:
+        if c.is_ex and c.energy >= 1:
             return 1100
         if c.is_ex:
             return 1000
-        if c.is_stage2 and c.energia >= 1:
+        if c.is_stage2 and c.energy >= 1:
             return 900
         if c.is_stage2:
             return 850
-        if c.is_stage1 and c.energia >= 1:
+        if c.is_stage1 and c.energy >= 1:
             return 700
         if c.is_stage1:
             return 600
@@ -270,18 +270,18 @@ def _gust_tiers_genericos(c):
             return 380
         if c.card_id in (Dreepy,):
             return 350
-        if c.energia >= 1:
+        if c.energy >= 1:
             return 300
         return 200
-    if c.is_ex and c.energia >= 1:
+    if c.is_ex and c.energy >= 1:
         return 250
     if c.is_ex:
         return 200
-    if c.is_stage2 and c.energia >= 1:
+    if c.is_stage2 and c.energy >= 1:
         return 180
     if c.is_stage2:
         return 160
-    if c.is_stage1 and c.energia >= 1:
+    if c.is_stage1 and c.energy >= 1:
         return 150
     if c.is_stage1:
         return 130
@@ -300,17 +300,17 @@ def _gust_tiers_genericos(c):
     return 100
 
 
-def _gust_linea_rival(c):
-    if c.op_linea_dragapult:
-        return _gust_linea_evolutiva(c, Dragapult_ex, Drakloak, Dreepy)
-    if c.op_linea_typhlosion:
-        return _gust_linea_evolutiva(c, Typhlosion, Quilava, Cyndaquil)
+def _gust_opponent_line(c):
+    if c.op_dragapult_line:
+        return _gust_evolution_line(c, Dragapult_ex, Drakloak, Dreepy)
+    if c.op_typhlosion_line:
+        return _gust_evolution_line(c, Typhlosion, Quilava, Cyndaquil)
     if c.op_alakazam:
-        return _gust_linea_evolutiva(c, Alakazam_ex, Kadabra, Abra)
-    return _gust_tiers_genericos(c)
+        return _gust_evolution_line(c, Alakazam_ex, Kadabra, Abra)
+    return _gust_generic_tiers(c)
 
 
-def _gust_releva_al_atacante(op_state):
+def _gust_relieves_the_attacker(op_state):
     """Deck-agnostic: does the gust swap an ATTACKER for a dead body?
 
     It is the generalisation of `_alakazam_relevo_de_atacante` to the other
@@ -436,7 +436,7 @@ def _grass_unlocks_active_retreat(my_state, op_state, meganium_active,
     return False, chip > act_dmg
 
 
-def _boss_regala_linea_alakazam(ctx):
+def _boss_gives_away_alakazam_line(ctx):
     """VETO vs Alakazam (user, registro_002 step 20, LOST -- ep. 88906640).
 
     Turn 2: our Ogerpon ex at 1/3 energies (no attack), their active a
@@ -456,12 +456,12 @@ def _boss_regala_linea_alakazam(ctx):
     The only gust without a KO that is allowed is the RELIEF of their attacker
     (`_alakazam_relevo_de_atacante`). Any reason with a prize behind it
     (`_boss_motivo_con_premio`) rules over this veto."""
-    if not ctx.op_is_alakazam_deck or _boss_motivo_con_premio(ctx):
+    if not ctx.op_is_alakazam_deck or _boss_reason_with_prize(ctx):
         return False
     return not _alakazam_attacker_relief(ctx.op_state)
 
 
-def _boss_gusteo_sin_proposito(ctx):
+def _boss_gust_without_purpose(ctx):
     """Deck-agnostic VETO: a gust without a KO against a HARMLESS opposing active.
 
     Boss's Orders is, for the opponent, a FREE RETREAT. Giving it away only pays
@@ -482,7 +482,7 @@ def _boss_gusteo_sin_proposito(ctx):
     EXCEPTION: if their active is a known threat pre-evolution
     (THREAT_PREEVO_IDS / EX_PREEVO_IDS) its current attack is not read -- it
     evolves and attacks with the new body -- so it is not vetoed."""
-    if _boss_motivo_con_premio(ctx):
+    if _boss_reason_with_prize(ctx):
         return False
     act = ctx.op_state.active[0] if ctx.op_state.active else None
     if act is not None and (act.id in THREAT_PREEVO_IDS
@@ -494,7 +494,7 @@ def _boss_gusteo_sin_proposito(ctx):
 @dataclass
 class _CtxGustObjetivo:
     card_id: int
-    energia: int
+    energy: int
     rc0: int                 # RETREAT_COST.get(id, 0) (jams)
     rc1: int                 # RETREAT_COST.get(id, 1) (evolution lines)
     stall_diff: int          # rc0 - energy
@@ -510,28 +510,28 @@ class _CtxGustObjetivo:
     tier_ko: int             # 1..8 if can_ko, 0 otherwise
     plan_target_match: bool  # o.index == plan.target - 1
     regust_energized: bool   # charged copy of an opposing active with no energy
-    linea_rank: int          # 0 basic / 1 stage1 / 2 stage2
-    linea_can_ko: bool       # nuisance: a benched attacker knocks it out after retreating
+    line_rank: int          # 0 basic / 1 stage1 / 2 stage2
+    line_can_ko: bool       # nuisance: a benched attacker knocks it out after retreating
     op_alakazam: bool
     op_latias: bool
-    op_linea_dragapult: bool
-    op_linea_typhlosion: bool
+    op_dragapult_line: bool
+    op_typhlosion_line: bool
     # The opposing ACTIVE cancels our damage (a wall): attacking from the front
     # gives 0 prizes.
-    muro_bloquea_activo: bool = False
+    wall_blocks_active: bool = False
     # The target could NOT attack from the active spot on the opponent's next turn
     # even with one energy attached (`_op_cuerpo_inofensivo`, measured by COST). It
     # is the datum that decides the target when there is NO KO: bringing up a dead
     # body costs them the turn; bringing up one that attacks does their work.
-    cuerpo_inofensivo: bool = False
+    body_is_harmless: bool = False
 
 
-def _ctx_gust_objetivo(card, o, my_state, op_state, state, hand_counts,
+def _ctx_gust_target(card, o, my_state, op_state, state, hand_counts,
                        total_grass, bench_count, neutralization_zone_active,
-                       op_is_alakazam, op_latias, op_linea_dragapult,
-                       op_linea_typhlosion, my_prize=6):
+                       op_is_alakazam, op_latias, op_dragapult_line,
+                       op_typhlosion_line, my_prize=6):
     tgt_data = card_table.get(card.id)
-    energia = len(card.energies) if hasattr(card, 'energies') else 0
+    energy = len(card.energies) if hasattr(card, 'energies') else 0
     hp = card.hp if hasattr(card, 'hp') else 999
     is_ex = bool(tgt_data and getattr(tgt_data, 'ex', False))
     is_megaex = bool(tgt_data and getattr(tgt_data, 'megaEx', False))
@@ -557,7 +557,7 @@ def _ctx_gust_objetivo(card, o, my_state, op_state, state, hand_counts,
         elif atk.id == Dipplin and eff_after >= 1:
             dmg = 20 * bench_count
         elif atk.id == Teal_Mask_Ogerpon_ex and eff_after >= 3:
-            o_e = energia
+            o_e = energy
             m_e = len(atk.energies) + (1 if can_attach else 0)
             dmg = 30 + 30 * (o_e + m_e)
         elif atk.id == Tapu_Bulu and eff_after >= 4:
@@ -599,23 +599,23 @@ def _ctx_gust_objetivo(card, o, my_state, op_state, state, hand_counts,
     # a charged ex (8 -> 24000). Deck-agnostic.
     tier = 0
     if can_ko:
-        con_e = energia >= 1
+        with_energy = energy >= 1
         if is_megaex:
-            tier = 10 if con_e else 9
+            tier = 10 if with_energy else 9
         elif is_ex:
-            tier = 8 if con_e else 7
+            tier = 8 if with_energy else 7
         elif is_stage2:
-            tier = 6 if con_e else 5
+            tier = 6 if with_energy else 5
         elif is_stage1:
-            tier = 4 if con_e else 3
+            tier = 4 if with_energy else 3
         else:
-            tier = 2 if con_e else 1
+            tier = 2 if with_energy else 1
 
     # Nuisance: the HIGHEST evolution of the opposing line that a benched attacker
     # can knock out after retreating the active (registro_004 step 51 vs Garchomp).
-    linea_rank = 2 if is_stage2 else (1 if is_stage1 else 0)
-    linea_can_ko = False
-    if linea_rank >= 1 and atk is not None:
+    line_rank = 2 if is_stage2 else (1 if is_stage1 else 0)
+    line_can_ko = False
+    if line_rank >= 1 and atk is not None:
         switch_hand = hand_counts.get(1123, 0) >= 1
         ret_cost = RETREAT_COST.get(atk.id, 1)
         if switch_hand or len(atk.energies) >= ret_cost:
@@ -624,11 +624,11 @@ def _ctx_gust_objetivo(card, o, my_state, op_state, state, hand_counts,
             if _bench_attacker_can_ko(
                     my_state, card, AGENT_STATE.meganium_in_play, total_grass,
                     bench_count, grass_after, neutralization_zone_active):
-                linea_can_ko = True
+                line_can_ko = True
 
     op_act = op_state.active[0] if op_state.active else None
     regust = (can_ko and op_act is not None and op_act.id == card.id
-              and len(op_act.energies) == 0 and energia >= 1)
+              and len(op_act.energies) == 0 and energy >= 1)
 
     # WALL IN THE ACTIVE SPOT (deck-agnostic): if our ACTIVE does not do a SINGLE
     # point of damage to the opposing active, attacking from the front takes no
@@ -636,7 +636,7 @@ def _ctx_gust_objetivo(card, o, my_state, op_state, state, hand_counts,
     # cancellation that `_our_effective_damage` already models (Crustle's Mysterious
     # Rock Inn, Cornerstone Stance, Sylveon...), not a list of ids. The exemption of
     # the anti-Dwebble veto in `_AJUSTES_GUST_ESTORBO` consumes it.
-    muro_bloquea_activo = False
+    wall_blocks_active = False
     if atk is not None and op_act is not None:
         _mb_raw = len(atk.energies) + (
             1 if (hand_counts.get(Basic_Grass_Energy, 0) >= 1
@@ -644,14 +644,14 @@ def _ctx_gust_objetivo(card, o, my_state, op_state, state, hand_counts,
         _mb_base = _attacker_base_damage(
             atk.id, op_act, _mb_raw * _grass_mult(), grass_scale=total_grass,
             teal_self_energy=_mb_raw, bench_count=bench_count)
-        muro_bloquea_activo = _our_effective_damage(
+        wall_blocks_active = _our_effective_damage(
             atk, op_act, _mb_base, AGENT_STATE.meganium_in_play,
             neutralization_zone_active) <= 0
 
     return _CtxGustObjetivo(
-        card_id=card.id, energia=energia,
+        card_id=card.id, energy=energy,
         rc0=RETREAT_COST.get(card.id, 0), rc1=RETREAT_COST.get(card.id, 1),
-        stall_diff=RETREAT_COST.get(card.id, 0) - energia,
+        stall_diff=RETREAT_COST.get(card.id, 0) - energy,
         is_ex=is_ex, is_exmega=is_exmega, is_megaex=is_megaex,
         # `wins_now` also requires a GUARANTEED KO (P0.1): against Tenacious Body
         # (a coin flip) or Survival Brace the finisher can fail and hand the turn back.
@@ -662,15 +662,15 @@ def _ctx_gust_objetivo(card, o, my_state, op_state, state, hand_counts,
         can_ko=can_ko, tier_ko=tier,
         plan_target_match=(o.index == AGENT_STATE.plan.target - 1),
         regust_energized=regust,
-        linea_rank=linea_rank, linea_can_ko=linea_can_ko,
+        line_rank=line_rank, line_can_ko=line_can_ko,
         op_alakazam=op_is_alakazam, op_latias=op_latias,
-        op_linea_dragapult=op_linea_dragapult,
-        op_linea_typhlosion=op_linea_typhlosion,
-        muro_bloquea_activo=muro_bloquea_activo,
-        cuerpo_inofensivo=_op_body_is_harmless(card))
+        op_dragapult_line=op_dragapult_line,
+        op_typhlosion_line=op_typhlosion_line,
+        wall_blocks_active=wall_blocks_active,
+        body_is_harmless=_op_body_is_harmless(card))
 
 
-_AJUSTES_GUST_OFENSIVO = [
+_ADJUST_GUST_OFFENSIVE = [
     _Adjustment("objetivo_del_plan",
             lambda c, s: c.plan_target_match,
             lambda c, s: s + 100),
@@ -692,7 +692,7 @@ _AJUSTES_GUST_OFENSIVO = [
     # Archaludon ex) erases a future 2-prize ex attacker. Effective tier
     # 6.5 (19500): above any non-ex, below a real ex.
     _Adjustment("preevo_ex_prioritaria",
-            lambda c, s: (c.can_ko and c.energia >= 1 and not c.is_exmega
+            lambda c, s: (c.can_ko and c.energy >= 1 and not c.is_exmega
                           and c.card_id in EX_PREEVO_IDS),
             lambda c, s: s + max(0, 19500 - c.tier_ko * 3000)),
     # No KO possible: gust as a nuisance (the highest NET retreat cost) with the
@@ -709,7 +709,7 @@ _AJUSTES_GUST_OFENSIVO = [
             lambda c, s: s + 200),
     _Adjustment("linea_rival",
             lambda c, s: True,
-            lambda c, s: s + _gust_linea_rival(c)),
+            lambda c, s: s + _gust_opponent_line(c)),
     # WITHOUT a KO what rules is WHO COMES UP to the active spot, not which is the
     # biggest piece on their bench. The two bands of `_gust_linea_rival` score it
     # backwards: `_gust_linea_evolutiva` gives 800 to the FINAL EVOLUTION (Dragapult
@@ -728,7 +728,7 @@ _AJUSTES_GUST_OFENSIVO = [
     # and the locker: their attacks cost 3, so bare they would pass as harmless and
     # they are exactly the bodies we do NOT want in front.
     _Adjustment("sin_ko_prefiere_cuerpo_muerto",
-            lambda c, s: (not c.can_ko and c.cuerpo_inofensivo
+            lambda c, s: (not c.can_ko and c.body_is_harmless
                           and c.card_id not in GUST_TRAP_IDS),
             lambda c, s: s + 1500),
     # vs Crustle, the Dwebble is NEVER gusted (wall fodder)... UNLESS the opposing
@@ -742,7 +742,7 @@ _AJUSTES_GUST_OFENSIVO = [
     _Adjustment("forbid_dwebble_vs_crustle",
             lambda c, s: (AGENT_STATE.op_is_crustle_deck
                           and c.card_id in (Dwebble_Grass, Dwebble_Fighting)
-                          and not (c.muro_bloquea_activo and c.can_ko)),
+                          and not (c.wall_blocks_active and c.can_ko)),
             lambda c, s: SCORE_FORBID),
     # FREE retreat without a KO: the opponent sends it back to the bench at no
     # cost; it is only worth gusting when it is a real KO.
@@ -754,22 +754,22 @@ _AJUSTES_GUST_OFENSIVO = [
 __all__ = [
     '_boss_val_de',
     '_boss_empty_gust',
-    '_boss_first_turn_cede',
-    '_boss_cede_dig',
+    '_boss_first_turn_yields',
+    '_boss_yields_to_dig',
     '_boss_unlock_gust',
-    '_boss_motivo_con_premio',
-    '_gust_es_basico',
-    '_v_gust_traba_neta',
-    '_gust_linea_evolutiva',
-    '_gust_tiers_genericos',
-    '_gust_linea_rival',
-    '_REGLAS_GUST_ESTORBO',
-    '_AJUSTES_GUST_ESTORBO',
-    '_gust_releva_al_atacante',
-    '_boss_regala_linea_alakazam',
-    '_boss_gusteo_sin_proposito',
+    '_boss_reason_with_prize',
+    '_gust_is_basic',
+    '_v_gust_net_stuck',
+    '_gust_evolution_line',
+    '_gust_generic_tiers',
+    '_gust_opponent_line',
+    '_RULES_GUST_NUISANCE',
+    '_ADJUST_GUST_NUISANCE',
+    '_gust_relieves_the_attacker',
+    '_boss_gives_away_alakazam_line',
+    '_boss_gust_without_purpose',
     '_CtxGustObjetivo',
-    '_ctx_gust_objetivo',
+    '_ctx_gust_target',
     '_grass_unlocks_active_retreat',
-    '_AJUSTES_GUST_OFENSIVO',
+    '_ADJUST_GUST_OFFENSIVE',
 ]

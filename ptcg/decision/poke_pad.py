@@ -22,9 +22,9 @@ def _pp_buscables(c):
     """Pokemon WITHOUT a Rule Box that still have copies in the deck (the only
     thing Poke Pad can search for: it excludes the Hydrapple ex line and the
     other ex)."""
-    cartas = c.cards_in_deck
-    return {cid: cartas[cid][ZONE_DECK] for cid in _PP_NON_RULEBOX_IDS
-            if cid in cartas and cartas[cid][ZONE_DECK] > 0}
+    cards = c.cards_in_deck
+    return {cid: cards[cid][ZONE_DECK] for cid in _PP_NON_RULEBOX_IDS
+            if cid in cards and cards[cid][ZONE_DECK] > 0}
 
 
 def _pp_es_t1(c):
@@ -55,7 +55,7 @@ def _v_pp_t1(c):
     return SCORE_VETO
 
 
-def _pp_evo_valor(c):
+def _pp_evo_value(c):
     """Best evolution enabled THIS turn by a Poke Pad search (0 = none). The
     evolvable snapshot is the start-of-turn one when there is no Forest."""
     s = _pp_buscables(c)
@@ -85,19 +85,19 @@ def _pp_evo_valor(c):
     return v
 
 
-def _pp_evolucion_pendiente_de_busqueda(c):
+def _pp_evolution_pending_search(c):
     """Some pre-evolution in play whose evolution is NOT in hand but IS in the
     deck: a search enables it (do not cut off because the bench is full)."""
-    h, f, cartas = c.hand_counts, c.field_counts, c.cards_in_deck
+    h, f, cards = c.hand_counts, c.field_counts, c.cards_in_deck
     return ((f.get(Chikorita, 0) >= 1 and h.get(Bayleef, 0) == 0
-             and cartas.get(Bayleef, {}).get(ZONE_DECK, 0) > 0)
+             and cards.get(Bayleef, {}).get(ZONE_DECK, 0) > 0)
             or (f.get(Bayleef, 0) >= 1 and h.get(Meganium, 0) == 0
-                and cartas.get(Meganium, {}).get(ZONE_DECK, 0) > 0)
+                and cards.get(Meganium, {}).get(ZONE_DECK, 0) > 0)
             or (f.get(Applin, 0) >= 1 and h.get(Dipplin, 0) == 0
-                and cartas.get(Dipplin, {}).get(ZONE_DECK, 0) > 0))
+                and cards.get(Dipplin, {}).get(ZONE_DECK, 0) > 0))
 
 
-_REGLAS_PP_PLAY = [
+_RULES_PP_PLAY = [
     _FixedRule("sin_buscables",
                lambda c: not _pp_buscables(c),
                lambda c: SCORE_VETO),
@@ -105,9 +105,9 @@ _REGLAS_PP_PLAY = [
                _pp_es_t1,
                _v_pp_t1),
     _FixedRule("evolucion_este_turno",
-               lambda c: _pp_evo_valor(c) > 0,
-               lambda c: (23000 if _pp_evo_valor(c) >= 1100
-                          else (22000 if _pp_evo_valor(c) >= 900
+               lambda c: _pp_evo_value(c) > 0,
+               lambda c: (23000 if _pp_evo_value(c) >= 1100
+                          else (22000 if _pp_evo_value(c) >= 900
                                 else 20000))),
     _FixedRule("asegurar_chikorita",
                lambda c: (Chikorita in _pp_buscables(c)
@@ -137,7 +137,7 @@ _AJUSTES_PP_PLAY = [
     # resource (Poke Pad excludes the Dipplin->Hydrapple ex line).
     _Adjustment("banca_llena_guardar",
             lambda c, s: (c.bench_count >= 5
-                          and not _pp_evolucion_pendiente_de_busqueda(c)
+                          and not _pp_evolution_pending_search(c)
                           and s > 0 and not _pp_budew_dump(c)),
             lambda c, s: SCORE_VETO),
 ]
@@ -148,7 +148,7 @@ def _score_poke_pad_play(ctx: DecisionContext) -> int:
     prioritises enabling an evolution THIS turn; failing that, securing basics;
     with a full bench and nothing to evolve, it keeps the resource. Body
     migrated to the RULES ENGINE (phase 4)."""
-    return _resolve_with_trace("pokepad->play", _REGLAS_PP_PLAY,
+    return _resolve_with_trace("pokepad->play", _RULES_PP_PLAY,
                                _AJUSTES_PP_PLAY, ctx, default=SCORE_VETO)
 
 
@@ -187,7 +187,7 @@ class _CtxPPFetch:
         self.has_evo = has_evo
 
 
-_REGLAS_PP_FETCH = [
+_RULES_PP_FETCH = [
     # (1) First turn: put down the basics of both lines before anything else.
     _FixedRule("t1_applin",
                lambda c: (c.first_turn and c.card_id == Applin
@@ -275,12 +275,12 @@ __all__ = [
     '_pp_es_t1',
     '_pp_budew_dump',
     '_v_pp_t1',
-    '_pp_evo_valor',
-    '_pp_evolucion_pendiente_de_busqueda',
+    '_pp_evo_value',
+    '_pp_evolution_pending_search',
     '_score_poke_pad_play',
-    '_REGLAS_PP_PLAY',
+    '_RULES_PP_PLAY',
     '_AJUSTES_PP_PLAY',
     '_PP_NON_RULEBOX_IDS',
     '_CtxPPFetch',
-    '_REGLAS_PP_FETCH',
+    '_RULES_PP_FETCH',
 ]

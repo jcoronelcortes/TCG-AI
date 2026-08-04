@@ -15,11 +15,11 @@ from ptcg.cartas.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bu
 from ptcg.cartas.lineas import _pokemon_injugable
 from ptcg.cartas.puntuacion import MAIN_ATTACKERS, PROMO_DOOMED_PENALTY, PROMO_KO_BONUS, PROMO_MATCH_POINT_VETO, PROMO_PRIZE_PENALTY
 from ptcg.cartas.tablas import card_table
-from ptcg.decision.boss_orders import _AJUSTES_GUST_ESTORBO, _AJUSTES_GUST_OFENSIVO, _REGLAS_GUST_ESTORBO, _ctx_gust_objetivo
-from ptcg.decision.meowth import _CtxMeowthFetch, _MEOWTH_FETCH_SUPPS, _REGLAS_MEOWTH_FETCH
-from ptcg.decision.night_stretcher import _REGLAS_NS_APPLIN, _REGLAS_NS_BAYLEEF, _REGLAS_NS_CHIKORITA, _REGLAS_NS_DIPPLIN, _REGLAS_NS_FEZ, _REGLAS_NS_GRASS, _REGLAS_NS_HYDRAPPLE, _REGLAS_NS_MEGANIUM, _REGLAS_NS_MEOWTH, _REGLAS_NS_OGERPON, _REGLAS_NS_PINSIR, _REGLAS_NS_TAPU, _ctx_ns_fetch, _ns_motor_fez_vivo, _ns_motor_meowth_vivo
-from ptcg.decision.poke_pad import _CtxPPFetch, _REGLAS_PP_FETCH
-from ptcg.decision.ultra_ball import _AJUSTES_UB_HYDRAPPLE, _CtxUBFetch, _REGLAS_UB_APPLIN, _REGLAS_UB_BAYLEEF, _REGLAS_UB_CHIKORITA, _REGLAS_UB_DIPPLIN, _REGLAS_UB_FEZ, _REGLAS_UB_HYDRAPPLE, _REGLAS_UB_MEGANIUM, _REGLAS_UB_MEOWTH, _REGLAS_UB_OGERPON, _REGLAS_UB_PINSIR, _REGLAS_UB_TAPU, _contra_estadio_urgente, _ctx_ub_fetch_hydrapple, _ctx_ub_fetch_meowth
+from ptcg.decision.boss_orders import _ADJUST_GUST_NUISANCE, _ADJUST_GUST_OFFENSIVE, _RULES_GUST_NUISANCE, _ctx_gust_target
+from ptcg.decision.meowth import _CtxMeowthFetch, _MEOWTH_FETCH_SUPPS, _RULES_MEOWTH_FETCH
+from ptcg.decision.night_stretcher import _RULES_NS_APPLIN, _RULES_NS_BAYLEEF, _RULES_NS_CHIKORITA, _RULES_NS_DIPPLIN, _RULES_NS_FEZ, _RULES_NS_GRASS, _RULES_NS_HYDRAPPLE, _RULES_NS_MEGANIUM, _RULES_NS_MEOWTH, _RULES_NS_OGERPON, _RULES_NS_PINSIR, _RULES_NS_TAPU, _ctx_ns_fetch, _ns_fez_engine_alive, _ns_meowth_engine_alive
+from ptcg.decision.poke_pad import _CtxPPFetch, _RULES_PP_FETCH
+from ptcg.decision.ultra_ball import _AJUSTES_UB_HYDRAPPLE, _CtxUBFetch, _RULES_UB_APPLIN, _RULES_UB_BAYLEEF, _RULES_UB_CHIKORITA, _RULES_UB_DIPPLIN, _RULES_UB_FEZ, _RULES_UB_HYDRAPPLE, _RULES_UB_MEGANIUM, _RULES_UB_MEOWTH, _RULES_UB_OGERPON, _RULES_UB_PINSIR, _RULES_UB_TAPU, _counter_stadium_urgent, _ctx_ub_fetch_hydrapple, _ctx_ub_fetch_meowth
 from ptcg.estado.agente import AGENT_STATE
 from ptcg.estado.claves import ZONE_DECK, ZONE_PRIZE
 from ptcg.motor.reglas import _resolve_with_trace
@@ -36,7 +36,7 @@ def puntuar(tc, o, score):
     _best_promote_card = tc._best_promote_card
     _best_promote_key = tc._best_promote_key
     _best_supp_in_hand_val = tc._best_supp_in_hand_val
-    _best_supp_in_mazo_val = tc._best_supp_in_mazo_val
+    _best_supp_in_deck_val = tc._best_supp_in_deck_val
     _bp = tc._bp
     _cm_use_ex = tc._cm_use_ex
     _conf_is_matchup_attacker = tc._conf_is_matchup_attacker
@@ -1013,7 +1013,7 @@ def puntuar(tc, o, score):
                         # 305), neither in nuisance mode nor in offensive mode.
                         score = SCORE_FORBID
                     else:
-                        _gt_ctx = _ctx_gust_objetivo(
+                        _gt_ctx = _ctx_gust_target(
                             card, o, my_state, op_state, state, hand_counts,
                             total_grass, bench_count, neutralization_zone_active,
                             op_is_alakazam_deck, op_has_latias_ex,
@@ -1030,11 +1030,11 @@ def puntuar(tc, o, score):
                         # vs crustle with n=4000/branch, reverted as a block.
                         if _active_cant_attack_this_turn or _sel_active_cant_attack:
                             score = _resolve_with_trace(
-                                "boss->objetivo/estorbo", _REGLAS_GUST_ESTORBO,
-                                _AJUSTES_GUST_ESTORBO, _gt_ctx, default=-200)
+                                "boss->objetivo/estorbo", _RULES_GUST_NUISANCE,
+                                _ADJUST_GUST_NUISANCE, _gt_ctx, default=-200)
                         else:
                             score = _resolve_with_trace(
-                                "boss->objetivo", [], _AJUSTES_GUST_OFENSIVO,
+                                "boss->objetivo", [], _ADJUST_GUST_OFFENSIVE,
                                 _gt_ctx, default=0)
             elif context == SelectContext.SETUP_ACTIVE_POKEMON:
         
@@ -1141,7 +1141,7 @@ def puntuar(tc, o, score):
                         _active_needs_energy, op_has_ex_immune_active,
                         op_has_ex_immune_bench, op_is_lucario_deck,
                         meowth_ability_lock, _best_supp_in_hand_val,
-                        _best_supp_in_mazo_val,
+                        _best_supp_in_deck_val,
                         dragapult_no_tapu=_dragapult_no_tapu)
                     _bcs_entrada = _TABLA_BCS_FETCH.get(card.id)
                     if _bcs_entrada is not None:
@@ -1162,7 +1162,7 @@ def puntuar(tc, o, score):
                     # definitions and strategic comments in
                     # _REGLAS_PP_FETCH (before agent()).
                     score = _resolve_with_trace(
-                        "pp->fetch", _REGLAS_PP_FETCH, [],
+                        "pp->fetch", _RULES_PP_FETCH, [],
                         _CtxPPFetch(card.id, hand_counts, field_counts,
                                     bench_count, state),
                         default=10)
@@ -1181,7 +1181,7 @@ def puntuar(tc, o, score):
                         _active_needs_energy, op_has_ex_immune_active,
                         op_has_ex_immune_bench, op_is_lucario_deck,
                         meowth_ability_lock, _best_supp_in_hand_val,
-                        _best_supp_in_mazo_val,
+                        _best_supp_in_deck_val,
                         grass_enables_syrup_ko=(
                             (_grass_anywhere_enables_syrup_ko
                              or _grass_enables_promote_ko)
@@ -1193,23 +1193,23 @@ def puntuar(tc, o, score):
         
                     _ns_tablas = {
                         Basic_Grass_Energy: ("ns->grass",
-                                             _REGLAS_NS_GRASS, 300),
-                        Fezandipiti_ex: ("ns->fez", _REGLAS_NS_FEZ, 10),
+                                             _RULES_NS_GRASS, 300),
+                        Fezandipiti_ex: ("ns->fez", _RULES_NS_FEZ, 10),
                         Chikorita: ("ns->chikorita",
-                                    _REGLAS_NS_CHIKORITA, 40),
-                        Applin: ("ns->applin", _REGLAS_NS_APPLIN, 80),
+                                    _RULES_NS_CHIKORITA, 40),
+                        Applin: ("ns->applin", _RULES_NS_APPLIN, 80),
                         Teal_Mask_Ogerpon_ex: ("ns->ogerpon",
-                                               _REGLAS_NS_OGERPON, 20),
-                        Tapu_Bulu: ("ns->tapu", _REGLAS_NS_TAPU, 50),
-                        Pinsir: ("ns->pinsir", _REGLAS_NS_PINSIR, 15),
+                                               _RULES_NS_OGERPON, 20),
+                        Tapu_Bulu: ("ns->tapu", _RULES_NS_TAPU, 50),
+                        Pinsir: ("ns->pinsir", _RULES_NS_PINSIR, 15),
                         Meowth_ex: ("ns->meowth",
-                                    _REGLAS_NS_MEOWTH, 15),
+                                    _RULES_NS_MEOWTH, 15),
                         Hydrapple_ex: ("ns->hydrapple",
-                                       _REGLAS_NS_HYDRAPPLE, 30),
+                                       _RULES_NS_HYDRAPPLE, 30),
                         Meganium: ("ns->meganium",
-                                   _REGLAS_NS_MEGANIUM, 30),
-                        Dipplin: ("ns->dipplin", _REGLAS_NS_DIPPLIN, 30),
-                        Bayleef: ("ns->bayleef", _REGLAS_NS_BAYLEEF, 30),
+                                   _RULES_NS_MEGANIUM, 30),
+                        Dipplin: ("ns->dipplin", _RULES_NS_DIPPLIN, 30),
+                        Bayleef: ("ns->bayleef", _RULES_NS_BAYLEEF, 30),
                     }
                     _ns_entrada = _ns_tablas.get(card.id)
                     if _ns_entrada is not None:
@@ -1248,11 +1248,11 @@ def puntuar(tc, o, score):
                         # repeats with no cards. Same exception as the
                         # ENERGY above (see `_ns_motor_*_vivo`).
                         _cc_motor = (
-                            _ns_ctx.turno_muerto and _ns_ctx.mano_agotada
+                            _ns_ctx.dead_turn and _ns_ctx.hand_exhausted
                             and ((card.id == Meowth_ex
-                                  and _ns_motor_meowth_vivo(_ns_ctx))
+                                  and _ns_meowth_engine_alive(_ns_ctx))
                                  or (card.id == Fezandipiti_ex
-                                     and _ns_motor_fez_vivo(_ns_ctx))))
+                                     and _ns_fez_engine_alive(_ns_ctx))))
                         if card.id not in _cc_sel_valid and not _cc_motor:
                             score = SCORE_VETO
         
@@ -1534,14 +1534,14 @@ def puntuar(tc, o, score):
                             _mega_line_active, op_is_dragapult_dusknoir,
                             supporter_played=state.supporterPlayed,
                             ld_free=_meowth_ld_free,
-                            meowth_manana=_ub_meowth_para_manana(ctx))
+                            meowth_tomorrow=_ub_meowth_para_manana(ctx))
                         score = _resolve_with_trace(
-                            "ub->meowth", _REGLAS_UB_MEOWTH, [],
+                            "ub->meowth", _RULES_UB_MEOWTH, [],
                             _ub_meo_ctx, default=10)
         
                     elif card.id == Teal_Mask_Ogerpon_ex:
                         score = _resolve_with_trace(
-                            "ub->ogerpon", _REGLAS_UB_OGERPON, [],
+                            "ub->ogerpon", _RULES_UB_OGERPON, [],
                             _ub_fetch_ctx, default=100)
         
                     elif state.turn == 2 and not AGENT_STATE.we_go_first:
@@ -1549,7 +1549,7 @@ def puntuar(tc, o, score):
         
                     elif card.id == Meganium:
                         score = _resolve_with_trace(
-                            "ub->meganium", _REGLAS_UB_MEGANIUM, [],
+                            "ub->meganium", _RULES_UB_MEGANIUM, [],
                             _ub_fetch_ctx, default=100)
         
                     elif card.id == Hydrapple_ex:
@@ -1566,7 +1566,7 @@ def puntuar(tc, o, score):
                                 _ub_hydra_dead_prefer_meowth)
                             score = _resolve_with_trace(
                                 "ub->hydrapple",
-                                _REGLAS_UB_HYDRAPPLE,
+                                _RULES_UB_HYDRAPPLE,
                                 _AJUSTES_UB_HYDRAPPLE,
                                 _ub_hyd_ctx, default=100)
                         else:
@@ -1574,37 +1574,37 @@ def puntuar(tc, o, score):
         
                     elif card.id == Bayleef:
                         score = _resolve_with_trace(
-                            "ub->bayleef", _REGLAS_UB_BAYLEEF, [],
+                            "ub->bayleef", _RULES_UB_BAYLEEF, [],
                             _ub_fetch_ctx, default=150)
         
                     elif card.id == Dipplin:
                         score = _resolve_with_trace(
-                            "ub->dipplin", _REGLAS_UB_DIPPLIN, [],
+                            "ub->dipplin", _RULES_UB_DIPPLIN, [],
                             _ub_fetch_ctx, default=150)
         
                     elif card.id == Chikorita:
                         score = _resolve_with_trace(
-                            "ub->chikorita", _REGLAS_UB_CHIKORITA, [],
+                            "ub->chikorita", _RULES_UB_CHIKORITA, [],
                             _ub_fetch_ctx, default=200)
         
                     elif card.id == Applin:
                         score = _resolve_with_trace(
-                            "ub->applin", _REGLAS_UB_APPLIN, [],
+                            "ub->applin", _RULES_UB_APPLIN, [],
                             _ub_fetch_ctx, default=180)
         
                     elif card.id == Tapu_Bulu:
                         score = _resolve_with_trace(
-                            "ub->tapu", _REGLAS_UB_TAPU, [],
+                            "ub->tapu", _RULES_UB_TAPU, [],
                             _ub_fetch_ctx, default=50)
         
                     elif card.id == Pinsir:
                         score = _resolve_with_trace(
-                            "ub->pinsir", _REGLAS_UB_PINSIR, [],
+                            "ub->pinsir", _RULES_UB_PINSIR, [],
                             _ub_fetch_ctx, default=15)
         
                     elif card.id == Fezandipiti_ex:
                         score = _resolve_with_trace(
-                            "ub->fez", _REGLAS_UB_FEZ, [],
+                            "ub->fez", _RULES_UB_FEZ, [],
                             _ub_fetch_ctx, default=10)
         
                     if card.id in AGENT_STATE.ACTIVE_CARDS_IN_DECK:
@@ -1665,7 +1665,7 @@ def puntuar(tc, o, score):
                             op_is_alakazam_deck, _our_first_action_turn,
                             _ld_lillie_ofrecida)
                         score = _resolve_with_trace(
-                            "meowth->fetch", _REGLAS_MEOWTH_FETCH, [],
+                            "meowth->fetch", _RULES_MEOWTH_FETCH, [],
                             _mf_ctx, default=50)
         
                 elif select.effect is not None and select.effect.id == Dawn:
@@ -1680,7 +1680,7 @@ def puntuar(tc, o, score):
                         _active_needs_energy, op_has_ex_immune_active,
                         op_has_ex_immune_bench, op_is_lucario_deck,
                         meowth_ability_lock, _best_supp_in_hand_val,
-                        _best_supp_in_mazo_val,
+                        _best_supp_in_deck_val,
                         dragapult_no_tapu=_dragapult_no_tapu)
                     _dawn_entrada = _TABLA_DAWN_FETCH.get(card.id)
                     if _dawn_entrada is not None:
@@ -1937,7 +1937,7 @@ def puntuar(tc, o, score):
                     # agent threw it away -- losing the only way to recover the
                     # attack. Our own stadium in the DISCARD does not count:
                     # it is only played from hand.
-                    _forest_counters_op_stadium = _contra_estadio_urgente(
+                    _forest_counters_op_stadium = _counter_stadium_urgent(
                         neutralization_zone_active, watchtower_in_play,
                         AGENT_STATE.forest_in_play, _festival_lead_hostil)
                     if (_forest_counters_op_stadium

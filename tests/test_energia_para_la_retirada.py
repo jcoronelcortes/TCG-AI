@@ -74,7 +74,7 @@ def _escenario(mano, banca=None, energia_activo=0, descarte=(GRASS, GRASS),
                energia_jugada=False, retirado=False, op_hp=70):
     banca = banca if banca is not None else [pk(TAPU, energias=[G, G, G, G]),
                                              pk(MEOWTH)]
-    return (Escenario(turno=12, paso=40, energia_jugada=energia_jugada,
+    return (Escenario(turn=12, paso=40, energia_jugada=energia_jugada,
                       retirado=retirado)
             .mi_activo(pk(FEZANDIPITI, energias=[G] * energia_activo))
             .mi_banca(*banca)

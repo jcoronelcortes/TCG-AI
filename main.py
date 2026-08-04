@@ -277,7 +277,7 @@ def _gt_planes(my_state, cards_in_deck, field_counts, our_first_turn,
         data = card_table.get(pkmn.id)
         if data is None or not data.basic:
             continue
-        energia = len(getattr(pkmn, 'energies', None) or [])
+        energy = len(getattr(pkmn, 'energies', None) or [])
         for basico, s1, s2 in _CADENAS_MAZO:
             if basico != pkmn.id:
                 continue
@@ -289,13 +289,13 @@ def _gt_planes(my_state, cards_in_deck, field_counts, our_first_turn,
                 if s2_data is not None and (s2_data.ex or s2_data.megaEx):
                     s2_ok = False
             final = s2 if s2_ok else s1
-            value = _gt_valor_cuerpo(final) + energia
+            value = _gt_body_value(final) + energy
             if s2_ok:
                 value += GT_VALUE_STAGE2
             if field_counts.get(final, 0) == 0:
                 value += GT_VALUE_DIVERSIFY
             if (activo_condenado and area == AreaType.ACTIVE
-                    and _gt_premios_de(final) > _gt_premios_de(basico)):
+                    and _gt_prizes_of(final) > _gt_prizes_of(basico)):
                 # The active is doomed: turning it into a body worth MORE
                 # prizes before it is knocked out gives away the difference. It is not
                 # a veto (if it is the only plan, it is still worth it for the
@@ -351,7 +351,7 @@ def _gt_score_seleccion(o, card, plan, planes, my_state, field_counts):
         pre = getattr(data, 'evolvesFrom', None)
         if pre and any(_CARD_NAME.get(getattr(p, 'id', 0)) == pre
                        for _a, _i, p in _gt_slots_propios(my_state)):
-            return (1000 + _gt_valor_cuerpo(cid)
+            return (1000 + _gt_body_value(cid)
                     + (500 if field_counts.get(cid, 0) == 0 else 0))
     return 1
 
@@ -370,7 +370,7 @@ def _gt_basicos_deseados(cards_in_deck, field_counts, veta_etapa_ex=False):
             if s2_data is not None and (s2_data.ex or s2_data.megaEx):
                 s2_ok = False
         final = s2 if s2_ok else s1
-        value = _gt_valor_cuerpo(final) + (GT_VALUE_STAGE2 if s2_ok else 0)
+        value = _gt_body_value(final) + (GT_VALUE_STAGE2 if s2_ok else 0)
         if field_counts.get(final, 0) == 0:
             value += GT_VALUE_DIVERSIFY
         if value > ranking.get(basico, -1):
@@ -721,7 +721,7 @@ import os as _os_dbg
 
 
 
-def _rastrear_ventana_de_ko(logs, my_index, turno):
+def _rastrear_ventana_de_ko(logs, my_index, turn):
     """Classifies OUR KOs by the turn window in which they happened.
 
     It walks the batch of logs keeping track of the current turn (`TURN_START` /
@@ -773,9 +773,9 @@ def _rastrear_ventana_de_ko(logs, my_index, turno):
         if AGENT_STATE._log_current_turn == _TURN_LOG_UNKNOWN:
             continue
         if AGENT_STATE._log_current_turn == 1 - my_index:
-            AGENT_STATE._own_ko_inside_op_turn = turno
+            AGENT_STATE._own_ko_inside_op_turn = turn
         else:
-            AGENT_STATE._own_ko_outside_op_turn = turno
+            AGENT_STATE._own_ko_outside_op_turn = turn
 
 
 
@@ -902,13 +902,13 @@ _REGLAS_BOSS_PLAY = [
                           and c.hand_counts.get(Lillie_Determination, 0) >= 1),
                lambda c: BOSS_SCORE_EMPTY_GUST),
     _FixedRule("primer_turno_cede_a_lillie",
-               _boss_first_turn_cede,
+               _boss_first_turn_yields,
                lambda c: BOSS_SCORE_EMPTY_GUST),
     _FixedRule("gusteo_vacio_cede_a_lillie",
                _boss_empty_gust,
                lambda c: BOSS_SCORE_EMPTY_GUST),
     _FixedRule("sin_atacante_banca_cede_a_lillie",
-               _boss_cede_dig,
+               _boss_yields_to_dig,
                lambda c: BOSS_SCORE_EMPTY_GUST),
     _FixedRule("muro_inmune",
                lambda c: ((c.op_has_ability_immune_active
@@ -948,10 +948,10 @@ _REGLAS_BOSS_PLAY = [
     # so `gusteo_por_prize_rank` (which requires a KO) and `gusteo_defensivo` (which
     # requires the opponent's finisher) are still reachable below.
     _FixedRule("no_regalar_linea_alakazam",
-               _boss_regala_linea_alakazam,
+               _boss_gives_away_alakazam_line,
                lambda c: SCORE_VETO),
     _FixedRule("gusteo_sin_proposito",
-               _boss_gusteo_sin_proposito,
+               _boss_gust_without_purpose,
                lambda c: SCORE_VETO),
     _FixedRule("gusteo_low_value",
                lambda c: c.boss_low_value_gust,
@@ -1085,7 +1085,7 @@ def _ns_activo_no_llega_al_coste(w):
 def _ns_e_activo_necesita(w):
     """Energy from the discard for the ACTIVE that still does not reach its attack
     cost (or its retreat cost, for the Meganium line) and is not at the cap."""
-    return (_ns_energia_util_sin_planta(w)
+    return (_ns_useful_energy_without_grass(w)
             and not w.state.energyAttached
             and _ns_activo_no_llega_al_coste(w))
 
@@ -1093,9 +1093,9 @@ def _ns_e_activo_necesita(w):
 def _ns_e_activo_por_debajo_del_coste(w):
     """Like `_ns_e_activo_necesita` but also accepting the charge by
     ABILITY when the turn's manual attachment has already been spent."""
-    return (_ns_energia_util_sin_planta(w)
+    return (_ns_useful_energy_without_grass(w)
             and _ns_activo_no_llega_al_coste(w)
-            and _ns_ruta_de_carga_hasta_el_activo(w))
+            and _ns_charge_route_to_active(w))
 
 
 
@@ -1241,15 +1241,15 @@ _ESC_NS_RECUPERACION = [
     # Energy from the discard.
     _E("energia_activo_necesita", _ns_e_activo_necesita, 860),
     _E("energia_hydra_ripening",
-       lambda w: (_ns_energia_util_sin_planta(w) and w.my_state.active
+       lambda w: (_ns_useful_energy_without_grass(w) and w.my_state.active
                   and w.my_state.active[0] is not None
                   and w.my_state.active[0].id == Hydrapple_ex
                   and len(w.my_state.active[0].energies)
                       * _grass_mult() < 2), 860),
     _E("energia_syrup_letal", _ns_e_syrup_letal, 950),
     # Same tier as finishing with the active: today's prize rules.
-    _E("energia_remate_con_el_activo", _ns_e_remate_con_el_activo, 950),
-    _E("energia_remate_via_promocion", _ns_e_remate_via_promocion, 950),
+    _E("energia_remate_con_el_activo", _ns_e_finisher_with_active, 950),
+    _E("energia_remate_via_promocion", _ns_e_finisher_via_promotion, 950),
     # THE GRASS THAT PAYS THE RETREAT (user, registro_021 turn 21): a blocked
     # active with no energy + a READY benched attacker that finishes, and the only
     # copy of Grass is in the DISCARD. `_ns_e_remate_via_promocion` does NOT cover
@@ -1261,20 +1261,20 @@ _ESC_NS_RECUPERACION = [
     # Without these two scenarios the ARGMAX gave 0 -> SCORE_VETO -> END with the
     # finisher on the table. Tier 950 (lethal) = the other finishers: today's prize
     # rules. Tier 860 (chip) = the same band as `energia_activo_necesita`.
-    _E("energia_retirada_letal", _ns_e_retirada_letal, 950),
-    _E("energia_retirada_chip", _ns_e_retirada_chip, 860),
+    _E("energia_retirada_letal", _ns_e_retreat_lethal, 950),
+    _E("energia_retirada_chip", _ns_e_retreat_chip, 860),
     _E("energia_teal_dance",
-       lambda w: (_ns_energia_util_sin_planta(w)
+       lambda w: (_ns_useful_energy_without_grass(w)
                   and w.field_counts.get(Teal_Mask_Ogerpon_ex, 0) >= 1
-                  and _ns_hay_ogerpon_teal(w)), 800),
+                  and _ns_has_ogerpon_teal(w)), 800),
     _E("energia_activo_sin_teal",
-       lambda w: (_ns_energia_util_sin_planta(w)
+       lambda w: (_ns_useful_energy_without_grass(w)
                   and w.field_counts.get(Teal_Mask_Ogerpon_ex, 0) >= 1
-                  and not _ns_hay_ogerpon_teal(w)
+                  and not _ns_has_ogerpon_teal(w)
                   and not w.state.energyAttached
                   and w.active_needs_energy), 860),
     _E("energia_linea_mega_activa",
-       lambda w: (w.mega_line_active and _ns_energia_util_sin_planta(w)
+       lambda w: (w.mega_line_active and _ns_useful_energy_without_grass(w)
                   and not w.state.energyAttached), 950),
 ]
 
@@ -1303,7 +1303,7 @@ _ESC_NS_CRUSTLE = [
                   and (w.field_counts.get(Bayleef, 0) >= 1
                        or w.hand_counts.get(Bayleef, 0) >= 1)), 900),
     _E("energia_dipplin_activo_cero",
-       lambda w: (_ns_energia_util_sin_planta(w)
+       lambda w: (_ns_useful_energy_without_grass(w)
                   and not w.state.energyAttached
                   and w.my_state.active
                   and w.my_state.active[0] is not None
@@ -1316,7 +1316,7 @@ _ESC_NS_CRUSTLE = [
                   and (w.field_counts.get(Dipplin, 0) >= 1
                        or w.hand_counts.get(Dipplin, 0) >= 1)), 960),
     # Charge a benched attacker before refilling with Lillie's.
-    _E("energia_cargar_banca", _ns_e_cargar_banca_crustle, 850),
+    _E("energia_cargar_banca", _ns_e_charge_bench_crustle, 850),
 ]
 
 def _ns_banca_llena_guardar(w, ns_score):
@@ -1324,8 +1324,8 @@ def _ns_banca_llena_guardar(w, ns_score):
     energy or a pre-evolution in play whose evolution is in the discard."""
     if w.bench_count < 5 or ns_score <= 0:
         return False
-    energia_util = _ns_energia_util_sin_planta(w) and not w.state.energyAttached
-    if (_ns_energia_util_sin_planta(w) and w.my_state.active
+    energia_util = _ns_useful_energy_without_grass(w) and not w.state.energyAttached
+    if (_ns_useful_energy_without_grass(w) and w.my_state.active
             and w.my_state.active[0] is not None
             and w.my_state.active[0].id == Hydrapple_ex
             and len(w.my_state.active[0].energies) * _grass_mult() < 2):
@@ -1339,15 +1339,15 @@ def _ns_banca_llena_guardar(w, ns_score):
     # on a benched Ogerpon) raised it to 390. A real charging route is required
     # (`_ns_ruta_de_carga_abierta`) so as not to recover a dead Grass.
     if not energia_util:
-        if _ns_e_syrup_letal(w) and _ns_ruta_de_carga_abierta(w):
+        if _ns_e_syrup_letal(w) and _ns_charge_route_open(w):
             energia_util = True
-        elif _ns_e_remate_con_el_activo(w):
+        elif _ns_e_finisher_with_active(w):
             energia_util = True
-        elif _ns_e_remate_via_promocion(w):
+        elif _ns_e_finisher_via_promotion(w):
             energia_util = True
         elif _ns_e_activo_por_debajo_del_coste(w):
             energia_util = True
-        elif _ns_e_activo_paga_retirada(w):
+        elif _ns_e_active_pays_retreat(w):
             energia_util = True
     algo_que_evolucionar = w.evolve_possible_in_play or (
         (w.field_counts.get(Chikorita, 0) >= 1 and Bayleef in w.evos) or
@@ -1418,7 +1418,7 @@ _REGLAS_FOREST_PLAY = [
                lambda c: ((not c.we_go_first) and c.state.turn == 2
                           and c.stadium_id == 0
                           and c.hand_counts.get(Forest_of_Vitality, 0) >= 2
-                          and _fv_cadena_evolutiva(c)),
+                          and _fv_evolution_chain(c)),
                lambda c: 12000),
     # vs CRUSTLE: THE STADIUM BEFORE THE LILLIE'S (user's rule).
     # The general veto on stadiums during OUR first turn exists so as not to hand
@@ -1499,8 +1499,8 @@ _REGLAS_FOREST_PLAY = [
                lambda c: c.festival_lead_hostil,
                lambda c: 26000),
     _FixedRule("habilita_cadena_evolutiva",
-               _fv_cadena_evolutiva,
-               _v_fv_cadena),
+               _fv_evolution_chain,
+               _v_fv_chain),
     _FixedRule("reemplazar_estadio_rival",
                lambda c: c.stadium_id != 0,
                lambda c: 15000),
@@ -1635,7 +1635,7 @@ def _ub_target_score(ctx, _ubf) -> int:
     _mega_line_active = ctx.mega_line_active
     _evolve_possible_in_play = ctx.evolve_possible_in_play
     _best_supp_in_hand_val = ctx.best_supp_in_hand_val
-    _best_supp_in_mazo_val = ctx.best_supp_in_deck_val
+    _best_supp_in_deck_val = ctx.best_supp_in_deck_val
     _win_via_boss_gust = ctx.win_via_boss_gust
     _gust_2prize_via_boss = ctx.gust_2prize_via_boss
     _boss_deny_alakazam_line = ctx.boss_deny_alakazam_line
@@ -1654,7 +1654,7 @@ def _ub_target_score(ctx, _ubf) -> int:
         field_counts, hand_counts, meganium_in_play, has_hydrapple,
         forest_in_play, op_has_ex_immune_active, op_has_ex_immune_bench,
         op_prize, bench_count, state, ko_last_turn,
-        _best_supp_in_mazo_val, _ub_supporters_in_hand, _ub_hand_is_weak,
+        _best_supp_in_deck_val, _ub_supporters_in_hand, _ub_hand_is_weak,
         _ub_has_energy_for_teal, we_go_first,
         _best_supp_in_hand_val,
         op_is_crustle_deck, op_is_cornerstone_deck,
@@ -1670,14 +1670,14 @@ def _ub_target_score(ctx, _ubf) -> int:
             hand_counts.get(Meowth_ex, 0) == 0 and
             hand_counts.get(Lillie_Determination, 0) == 0 and
             not state.supporterPlayed and
-            _ub_cavar_meowth_se_juega(ctx) and
+            _ub_dig_meowth_gets_played(ctx) and
             bench_count < 5 and
             ACTIVE_CARDS_IN_DECK.get(Meowth_ex, {}).get(ZONE_DECK, 0) > 0 and
             ACTIVE_CARDS_IN_DECK.get(Lillie_Determination, {}).get(ZONE_DECK, 0) > 0):
 
         if _ub_hand_is_weak or _mega_line_active:
             ub_best_target = max(ub_best_target, 950)
-        elif _best_supp_in_mazo_val >= 600:
+        elif _best_supp_in_deck_val >= 600:
             ub_best_target = max(ub_best_target, 850)
 
     # The SAME chain, shifted by one turn: with the Item lock hanging over us the
@@ -1882,7 +1882,7 @@ def _ub_score_before_overrides(ctx, _ubf) -> int:
     _mega_line_active = ctx.mega_line_active
     _evolve_possible_in_play = ctx.evolve_possible_in_play
     _best_supp_in_hand_val = ctx.best_supp_in_hand_val
-    _best_supp_in_mazo_val = ctx.best_supp_in_deck_val
+    _best_supp_in_deck_val = ctx.best_supp_in_deck_val
     _win_via_boss_gust = ctx.win_via_boss_gust
     _gust_2prize_via_boss = ctx.gust_2prize_via_boss
     _boss_deny_alakazam_line = ctx.boss_deny_alakazam_line
@@ -2337,7 +2337,7 @@ _REGLAS_LILLIE_PLAY = [
     _FixedRule("alakazam_stamp_dos_ex_listos",
                lambda c: (c.op_is_alakazam_deck and
                           c.hand_counts.get(Unfair_Stamp, 0) >= 1 and
-                          _sello_merece_jugarse(c.op_hand_count,
+                          _stamp_worth_playing(c.op_hand_count,
                                                 c.my_hand_len) and
                           c.ready_ex_attackers >= 2 and
                           c.op_hand_count > 3),
@@ -2591,7 +2591,7 @@ def _mejor_supporter_de_mano(ctx: DecisionContext, hand_counts=None):
 
 
 
-_REGLAS_UB_HYDRAPPLE = [
+_RULES_UB_HYDRAPPLE = [
     # Evolving the active Dipplin AND attacking this turn is worth more than the
     # Fezandipiti refill (1050): the fetch's top priority.
     _FixedRule("dipplin_evo_ataca",
@@ -2617,7 +2617,7 @@ _REGLAS_UB_HYDRAPPLE = [
 _AJUSTES_UB_HYDRAPPLE = [
     _Adjustment("preparar_hydra_prox_turno",
             lambda c, s: (c.campo.get(Dipplin, 0) >= 1 and s < 860
-                          and _uh_preparar_hydra_prox_turno(c)),
+                          and _uh_prepare_hydra_next_turn(c)),
             lambda c, s: 860),
     # Against decks with EX IMMUNITY (e.g. Crustle), Hydrapple ex is an
     # ex attacker that cannot damage them: a dead card, it yields to the
@@ -2647,7 +2647,7 @@ _AJUSTES_UB_HYDRAPPLE = [
 
 
 
-_REGLAS_UB_MEOWTH = [
+_RULES_UB_MEOWTH = [
     # FIRST TURN: the Ultra Ball only digs for Meowth ex to bring Lillie's
     # Determination (user, log 88461779 vs Alakazam, LOST). If the Lillie's
     # is ALREADY in hand there is nothing to search for (and the veto on playing
@@ -2657,9 +2657,9 @@ _REGLAS_UB_MEOWTH = [
     # attacker). It goes FIRST: neither the pivot engine nor the Boss's vs Crustle
     # engine lifts this rule on the first turn.
     _FixedRule("primer_turno_solo_para_lillie",
-               lambda c: (_um_es_primer_turno(c)
+               lambda c: (_um_is_first_turn(c)
                           and (c.hand.get(Lillie_Determination, 0) >= 1
-                               or c.lillie_in_mazo <= 0)),
+                               or c.lillie_in_deck <= 0)),
                lambda c: 10),
     # Team Rocket's Watchtower cancels Meowth ex's ability (a Colorless
     # Pokemon): do not search for it with the Ultra Ball.
@@ -2673,7 +2673,7 @@ _REGLAS_UB_MEOWTH = [
     # that is the point, the Meowth ex is put down TOMORROW, when there will be no
     # Items left to search for it and the Supporter slot is free again.
     _FixedRule("bloqueo_de_items_manana",
-               lambda c: c.meowth_manana,
+               lambda c: c.meowth_tomorrow,
                lambda c: 1250),
     # THE LAST-DITCH HAS TO BE ABLE TO PRODUCE SOMETHING THIS TURN (user,
     # registro_006 steps 98-104 vs Mega Lucario ex, LOST). Meowth ex is worth
@@ -2735,7 +2735,7 @@ _REGLAS_UB_MEOWTH = [
                lambda c: c.t1_going_second_meowth,
                lambda c: 1200),
     _FixedRule("t1_saliendo_primeros_no",
-               lambda c: c.turno == 1 and AGENT_STATE.we_go_first,
+               lambda c: c.turn == 1 and AGENT_STATE.we_go_first,
                lambda c: 10),
     _FixedRule("ya_dos_meowth_en_juego",
                lambda c: c.campo.get(Meowth_ex, 0) >= 2,
@@ -2752,10 +2752,10 @@ _REGLAS_UB_MEOWTH = [
                lambda c: c.dipplin_priority,
                lambda c: 10),
     _FixedRule("linea_mega_activa_con_lillie",
-               lambda c: c.mega_line_active and c.lillie_in_mazo > 0,
+               lambda c: c.mega_line_active and c.lillie_in_deck > 0,
                lambda c: 1150),
     _FixedRule("vs_dragapult_con_lillie",
-               lambda c: c.dragapult and c.lillie_in_mazo > 0,
+               lambda c: c.dragapult and c.lillie_in_deck > 0,
                lambda c: 985),
     _FixedRule("motor_boss_vs_crustle",
                _um_boss_engine_vs_crustle,
@@ -2763,11 +2763,11 @@ _REGLAS_UB_MEOWTH = [
     # No condition favouring Dipplin: Meowth ex has PRIORITY
     # to refill (searching for Lillie's), regardless of the hand.
     _FixedRule("lillie_en_mazo_refresco",
-               lambda c: c.lillie_in_mazo > 0,
+               lambda c: c.lillie_in_deck > 0,
                lambda c: 1000),
     # Another supporter in the deck: refill anyway.
     _FixedRule("otro_supporter_en_mazo",
-               lambda c: c.any_supp_in_mazo,
+               lambda c: c.any_supp_in_deck,
                lambda c: 850),
 ]
 
@@ -2782,7 +2782,7 @@ _REGLAS_UB_MEOWTH = [
 
 
 
-_REGLAS_UB_OGERPON = [
+_RULES_UB_OGERPON = [
     # It yields the search to Meowth ex (hand refill): Ogerpon ex would only
     # be brought here if we ALREADY had a Lillie's in hand.
     _FixedRule("cede_a_meowth_develop",
@@ -2807,7 +2807,7 @@ _REGLAS_UB_OGERPON = [
                lambda c: 300),
 ]
 
-_REGLAS_UB_MEGANIUM = [
+_RULES_UB_MEGANIUM = [
     _FixedRule("meganium_ya_en_juego",
                lambda c: AGENT_STATE.meganium_in_play,
                lambda c: 25),
@@ -2836,7 +2836,7 @@ _REGLAS_UB_MEGANIUM = [
                lambda c: 150),
 ]
 
-_REGLAS_UB_BAYLEEF = [
+_RULES_UB_BAYLEEF = [
     _FixedRule("meganium_ya_en_juego",
                lambda c: AGENT_STATE.meganium_in_play,
                lambda c: 20),
@@ -2864,7 +2864,7 @@ _REGLAS_UB_BAYLEEF = [
                lambda c: 200),
 ]
 
-_REGLAS_UB_DIPPLIN = [
+_RULES_UB_DIPPLIN = [
     _FixedRule("hydrapple_ya_en_juego",
                lambda c: c.has_hydrapple,
                lambda c: 20),
@@ -2892,7 +2892,7 @@ _REGLAS_UB_DIPPLIN = [
 
 
 
-_REGLAS_UB_CHIKORITA = [
+_RULES_UB_CHIKORITA = [
     _FixedRule("t1_primeros_necesita_basico",
                lambda c: c.t1_going_first_need_basic,
                _v_ub_chikorita_t1),
@@ -2911,7 +2911,7 @@ _REGLAS_UB_CHIKORITA = [
 
 
 
-_REGLAS_UB_APPLIN = [
+_RULES_UB_APPLIN = [
     _FixedRule("t1_primeros_necesita_basico",
                lambda c: c.t1_going_first_need_basic,
                _v_ub_applin_t1),
@@ -2928,7 +2928,7 @@ _REGLAS_UB_APPLIN = [
                _v_ub_applin_arrancar),
 ]
 
-_REGLAS_UB_TAPU = [
+_RULES_UB_TAPU = [
     _FixedRule("tapu_ya_en_campo",
                lambda c: c.campo.get(Tapu_Bulu, 0) >= 1,
                lambda c: 15),
@@ -2941,7 +2941,7 @@ _REGLAS_UB_TAPU = [
                lambda c: 850 if c.has_hydrapple else 750),
 ]
 
-_REGLAS_UB_PINSIR = [
+_RULES_UB_PINSIR = [
     _FixedRule("anti_ex",
                lambda c: (c.campo.get(Pinsir, 0) == 0
                           and (AGENT_STATE.op_is_crustle_deck
@@ -2949,7 +2949,7 @@ _REGLAS_UB_PINSIR = [
                lambda c: 900),
 ]
 
-_REGLAS_UB_FEZ = [
+_RULES_UB_FEZ = [
     # Refill after a KO with Flip the Script (a benched Fezandipiti ex draws 3 when
     # we are knocked out). It is a good search IF we already have a usable attacker
     # or if the Meowth ex -> Last-Ditch -> Lillie's engine is NOT available. But if
@@ -3010,7 +3010,7 @@ def _sin_atacante_para_manana(my_state, hand_counts, field_counts) -> bool:
 
 
 
-_REGLAS_NS_GRASS = [
+_RULES_NS_GRASS = [
     # The Grass that FINISHES (a lethal Syrup Storm THIS turn) beats any other
     # recovery, evolutions included (registro_006 step 68 vs Mega
     # Abomasnow ex): a prize today is worth more than development for tomorrow.
@@ -3035,7 +3035,7 @@ _REGLAS_NS_GRASS = [
                lambda c: 900),
     _FixedRule("sin_planta_en_mano",
                lambda c: c.hand.get(Basic_Grass_Energy, 0) == 0,
-               _v_ns_grass_sin_planta),
+               _v_ns_grass_none_in_hand),
     _FixedRule("hydra_con_pocas_planta",
                lambda c: c.has_hydrapple and c.total_grass < 4,
                lambda c: 450),
@@ -3065,14 +3065,14 @@ _REGLAS_NS_GRASS = [
 
 
 
-_REGLAS_NS_FEZ = [
+_RULES_NS_FEZ = [
     # Second option of the engine: it yields to Meowth ex (1250), which rebuilds the
     # whole hand via Lillie's instead of drawing 3. The veto vs Lucario is respected
     # (it hits the bench: a 2-prize ex there is a prize given away).
     _FixedRule("motor_de_robo_turno_muerto",
-               lambda c: (c.turno_muerto and c.mano_agotada
+               lambda c: (c.dead_turn and c.hand_exhausted
                           and not c.op_is_lucario
-                          and _ns_motor_fez_vivo(c)),
+                          and _ns_fez_engine_alive(c)),
                lambda c: 1200),
     _FixedRule("refill_tras_ko",
                lambda c: (c.campo.get(Fezandipiti_ex, 0) == 0
@@ -3090,7 +3090,7 @@ _REGLAS_NS_FEZ = [
 ]
 
 
-_REGLAS_NS_CHIKORITA = [
+_RULES_NS_CHIKORITA = [
     _FixedRule("arrancar_linea_meganium",
                lambda c: (not AGENT_STATE.meganium_in_play
                           and (c.campo.get(Chikorita, 0)
@@ -3100,7 +3100,7 @@ _REGLAS_NS_CHIKORITA = [
 ]
 
 
-_REGLAS_NS_APPLIN = [
+_RULES_NS_APPLIN = [
     _FixedRule("hydrapple_ya_en_juego",
                lambda c: c.has_hydrapple,
                lambda c: 35),
@@ -3115,7 +3115,7 @@ _REGLAS_NS_APPLIN = [
 ]
 
 
-_REGLAS_NS_OGERPON = [
+_RULES_NS_OGERPON = [
     _FixedRule("menos_de_dos_ogerpon",
                lambda c: c.campo.get(Teal_Mask_Ogerpon_ex, 0) < 2,
                _v_ns_ogerpon_pocos),
@@ -3127,7 +3127,7 @@ _REGLAS_NS_OGERPON = [
                lambda c: 500),
 ]
 
-_REGLAS_NS_TAPU = [
+_RULES_NS_TAPU = [
     # vs Dragapult with the board already built it cannot be PUT DOWN: not recovered.
     _FixedRule("dragapult_no_lo_baja",
                lambda c: c.dragapult_no_tapu,
@@ -3145,7 +3145,7 @@ _REGLAS_NS_TAPU = [
                lambda c: 350),
 ]
 
-_REGLAS_NS_PINSIR = [
+_RULES_NS_PINSIR = [
     _FixedRule("anti_ex",
                lambda c: (c.campo.get(Pinsir, 0) == 0
                           and (AGENT_STATE.op_is_crustle_deck
@@ -3154,15 +3154,15 @@ _REGLAS_NS_PINSIR = [
 ]
 
 
-_REGLAS_NS_MEOWTH = [
+_RULES_NS_MEOWTH = [
     _FixedRule("t1_saliendo_primeros_no",
-               lambda c: c.turno == 1 and AGENT_STATE.we_go_first,
+               lambda c: c.turn == 1 and AGENT_STATE.we_go_first,
                lambda c: 10),
     # First option of the draw engine on a dead turn: it beats ALL development
     # (see the comment block about _ns_motor_meowth_vivo).
     _FixedRule("motor_de_robo_turno_muerto",
-               lambda c: (c.turno_muerto and c.mano_agotada
-                          and _ns_motor_meowth_vivo(c)),
+               lambda c: (c.dead_turn and c.hand_exhausted
+                          and _ns_meowth_engine_alive(c)),
                lambda c: 1250),
     # Recover Meowth ex to put it down so Last-Ditch fetches a Supporter from the
     # deck that beats what is in hand.
@@ -3172,11 +3172,11 @@ _REGLAS_NS_MEOWTH = [
                           and c.bench_count < 5
                           and not c.supporter_played
                           and c.best_supp_hand_val < 500
-                          and c.best_supp_mazo_val >= 400),
+                          and c.best_supp_deck_val >= 400),
                _v_ns_meowth_fetch),
 ]
 
-_REGLAS_NS_HYDRAPPLE = [
+_RULES_NS_HYDRAPPLE = [
     # Rescue of the Dipplin doomed by the snipe: it beats energy (<=950) and
     # all development. See `ns_evo_saves_doomed` in `_ctx_ns_fetch`.
     _FixedRule("salvar_dipplin_condenado_snipe",
@@ -3193,7 +3193,7 @@ _REGLAS_NS_HYDRAPPLE = [
                lambda c: 960),
 ]
 
-_REGLAS_NS_MEGANIUM = [
+_RULES_NS_MEGANIUM = [
     _FixedRule("bayleef_evolucionable",
                lambda c: (c.evolvable_ns.get(Bayleef, 0) >= 1
                           and not AGENT_STATE.meganium_in_play),
@@ -3205,7 +3205,7 @@ _REGLAS_NS_MEGANIUM = [
                lambda c: 975),
 ]
 
-_REGLAS_NS_DIPPLIN = [
+_RULES_NS_DIPPLIN = [
     _FixedRule("combo_applin_hydra_en_mano",
                lambda c: (c.hand.get(Applin, 0) >= 1
                           and c.hand.get(Hydrapple_ex, 0) >= 1
@@ -3392,8 +3392,8 @@ _REGLAS_BCS_MEOWTH = [
                           c.campo.get(Meowth_ex, 0) == 0
                           and not c.supporter_played and
                           c.best_supp_hand_val < 500
-                          and c.best_supp_mazo_val >= 400),
-               lambda c: min(500, c.best_supp_mazo_val - 100)),
+                          and c.best_supp_deck_val >= 400),
+               lambda c: min(500, c.best_supp_deck_val - 100)),
 ]
 
 _REGLAS_BCS_FEZ = [
@@ -3456,7 +3456,7 @@ _TABLA_BCS_FETCH = {
 
 
 
-_REGLAS_PP_FETCH = [
+_RULES_PP_FETCH = [
     # (1) First turn: put down the basics of both lines before anything else.
     _FixedRule("t1_applin",
                lambda c: (c.first_turn and c.card_id == Applin
@@ -3550,7 +3550,7 @@ _REGLAS_PP_FETCH = [
 
 
 
-_REGLAS_MEOWTH_FETCH = [
+_RULES_MEOWTH_FETCH = [
     # FIRST TURN = ONLY LILLIE'S (user, log 88461779 step 16 vs Alakazam,
     # LOST). On OUR first turn the only reason to put a Meowth ex down
     # is to bring Lillie's Determination: turn 1 does not attack, does not
@@ -3661,7 +3661,7 @@ _REGLAS_MEOWTH_FETCH = [
                           else min(c.sv, 400))),
     _FixedRule("valor_del_supporter",
                lambda c: True,
-               _v_meowth_fetch_valor),
+               _v_meowth_fetch_value),
 ]
 
 
@@ -3689,7 +3689,7 @@ def _meowth_fetch_prediccion(hand_counts, supp_values, hand_size,
             hand_size, strong_attacker, op_hand_count, active_cant_attack,
             win_via_boss, gust2_via_boss, deny_evo_via_boss, devel_lillie,
             alakazam, first_turn, _lillie_alcanzable)
-        _val, _ = _resolve_rules(_REGLAS_MEOWTH_FETCH, [], _ctx, 50)
+        _val, _ = _resolve_rules(_RULES_MEOWTH_FETCH, [], _ctx, 50)
         if _val > mejor_val:
             mejor_id, mejor_val = _sid, _val
     return mejor_id, mejor_val
@@ -3963,7 +3963,7 @@ _TABLA_DAWN_FETCH = {
 
 
 
-_AJUSTES_GUST_OFENSIVO = [
+_ADJUST_GUST_OFFENSIVE = [
     _Adjustment("objetivo_del_plan",
             lambda c, s: c.plan_target_match,
             lambda c, s: s + 100),
@@ -3985,7 +3985,7 @@ _AJUSTES_GUST_OFENSIVO = [
     # Archaludon ex) erases a future 2-prize ex attacker. Effective
     # tier 6.5 (19500): above any non-ex, below a real ex.
     _Adjustment("preevo_ex_prioritaria",
-            lambda c, s: (c.can_ko and c.energia >= 1 and not c.is_exmega
+            lambda c, s: (c.can_ko and c.energy >= 1 and not c.is_exmega
                           and c.card_id in EX_PREEVO_IDS),
             lambda c, s: s + max(0, 19500 - c.tier_ko * 3000)),
     # No KO possible: gust as a nuisance (the highest NET retreat cost)
@@ -4002,7 +4002,7 @@ _AJUSTES_GUST_OFENSIVO = [
             lambda c, s: s + 200),
     _Adjustment("linea_rival",
             lambda c, s: True,
-            lambda c, s: s + _gust_linea_rival(c)),
+            lambda c, s: s + _gust_opponent_line(c)),
     # WITHOUT a KO what rules is WHO COMES UP to the active spot, not which is the
     # biggest piece on their bench. The two bands of `_gust_linea_rival` score it
     # backwards: `_gust_linea_evolutiva` gives 800 to the FINAL EVOLUTION (Dragapult
@@ -4021,7 +4021,7 @@ _AJUSTES_GUST_OFENSIVO = [
     # walls and the locker: their attacks cost 3, so bare they would pass as
     # harmless and they are exactly the bodies we do NOT want in front.
     _Adjustment("sin_ko_prefiere_cuerpo_muerto",
-            lambda c, s: (not c.can_ko and c.cuerpo_inofensivo
+            lambda c, s: (not c.can_ko and c.body_is_harmless
                           and c.card_id not in GUST_TRAP_IDS),
             lambda c, s: s + 1500),
     # vs Crustle, the Dwebble is NEVER gusted (wall fodder)... UNLESS the
@@ -4035,7 +4035,7 @@ _AJUSTES_GUST_OFENSIVO = [
     _Adjustment("forbid_dwebble_vs_crustle",
             lambda c, s: (AGENT_STATE.op_is_crustle_deck
                           and c.card_id in (Dwebble_Grass, Dwebble_Fighting)
-                          and not (c.muro_bloquea_activo and c.can_ko)),
+                          and not (c.wall_blocks_active and c.can_ko)),
             lambda c, s: SCORE_FORBID),
     # FREE retreat without a KO: the opponent sends it back to the bench at no cost;
     # it is only worth gusting when it is a real KO.
@@ -4044,7 +4044,7 @@ _AJUSTES_GUST_OFENSIVO = [
             lambda c, s: SCORE_FORBID),
 ]
 
-_REGLAS_NS_BAYLEEF = [
+_RULES_NS_BAYLEEF = [
     _FixedRule("combo_chikorita_meganium_en_mano",
                lambda c: (c.hand.get(Chikorita, 0) >= 1
                           and c.hand.get(Meganium, 0) >= 1
@@ -4356,7 +4356,7 @@ def agent(obs_dict: dict) -> list[int]:
     # it must block neither the ability nor the Supporter chain.
     _stamp_blocks_supp_chain = (
         AGENT_STATE.ko_last_turn and hand_counts.get(Unfair_Stamp, 0) >= 1
-        and _sello_merece_jugarse(getattr(op_state, 'handCount', 0),
+        and _stamp_worth_playing(getattr(op_state, 'handCount', 0),
                                   len(my_state.hand or [])))
 
     # Order Lillie's Determination -> Flip the Script (user's request): if
@@ -6668,13 +6668,13 @@ def agent(obs_dict: dict) -> list[int]:
 
     _boss_deny_alakazam_line = bool(_supp_values.get('_boss_deny_alakazam_line'))
 
-    _best_supp_in_mazo_val = 0
+    _best_supp_in_deck_val = 0
     _best_supp_in_mazo_id = None
     for sid in (Boss_Orders, Dawn, Lillie_Determination, Lanas_Aid):
         if AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(sid, {}).get(ZONE_DECK, 0) > 0:
             val = _supp_values.get(sid, 0)
-            if val > _best_supp_in_mazo_val:
-                _best_supp_in_mazo_val = val
+            if val > _best_supp_in_deck_val:
+                _best_supp_in_deck_val = val
                 _best_supp_in_mazo_id = sid
 
     # TEAL DANCE AVAILABILITY, STABLE THROUGHOUT THE TURN (user).
@@ -9766,7 +9766,7 @@ def agent(obs_dict: dict) -> list[int]:
             my_state, op_state, state, hand_counts, field_counts,
             grass_in_deck=AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(
                 Basic_Grass_Energy, {}).get(ZONE_DECK, 0),
-            draws=_robo_de_lillie(my_prize),
+            draws=_lillie_draw_count(my_prize),
             shuffles_hand=True,
             meganium_in_play=AGENT_STATE.meganium_in_play,
             neutralization_zone_active=neutralization_zone_active,
@@ -9805,7 +9805,7 @@ def agent(obs_dict: dict) -> list[int]:
         pp_playable_in_hand=_pp_playable_in_hand,
         can_attack=can_attack,
         best_supp_in_hand_val=_best_supp_in_hand_val,
-        best_supp_in_deck_val=_best_supp_in_mazo_val,
+        best_supp_in_deck_val=_best_supp_in_deck_val,
         op_is_alakazam_deck=op_is_alakazam_deck,
         op_is_hop_deck=op_is_hop_deck,
         op_is_comfey_deck=op_is_comfey_deck,

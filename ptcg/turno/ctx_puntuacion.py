@@ -49,7 +49,7 @@ class PuntuacionCtx:
     _best_promote_key: Any = None
     _best_supp_in_hand_val: Any = None
     _best_supp_in_mazo_id: Any = None
-    _best_supp_in_mazo_val: Any = None
+    _best_supp_in_deck_val: Any = None
     _bp: Any = None
     _bp_e: Any = None
     _bp_eff: Any = None

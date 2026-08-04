@@ -129,7 +129,7 @@ def _campo(esc, banca_llena=False):
 
 def _menu_fetch():
     """Menu A: the Ultra Ball fetch, with a Fezandipiti ex in the deck."""
-    esc = Escenario(turno=TURNO, paso=90, tac=5, premios_propios=3)
+    esc = Escenario(turn=TURNO, paso=90, tac=5, premios_propios=3)
     return (_campo(esc)
             .mi_mano(STAMP)
             .mazo(FEZ, CHIKORITA, APPLIN)
@@ -145,7 +145,7 @@ def _menu_fetch():
 def _menu_bajar(banca_llena=False):
     """Menu B: the next MAIN. A THIN hand (Stamp + Fez) so the Stamp
     scores in its high band and the test really discriminates."""
-    esc = Escenario(turno=TURNO, paso=91, tac=6, premios_propios=3)
+    esc = Escenario(turn=TURNO, paso=91, tac=6, premios_propios=3)
     return (_campo(esc, banca_llena=banca_llena)
             .mi_mano(STAMP, FEZ)
             .mazo(CHIKORITA, APPLIN)      # `resto_al_descarte()` requires it

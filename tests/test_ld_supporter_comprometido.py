@@ -238,7 +238,7 @@ def test_el_compromiso_se_resetea_por_turno():
 def _menu_sintetico(mano):
     """A neutral board (a mid game turn, with no special matchup) with `mano` in hand
     and a menu of one PLAY per card."""
-    return (Escenario(turno=8, paso=60, tac=4)
+    return (Escenario(turn=8, paso=60, tac=4)
             .mi_activo(pk(OGERPON, energias=[G, G]))
             .mi_banca(pk(MEOWTH, aparecio=True), APPLIN)
             .mi_mano(*mano)

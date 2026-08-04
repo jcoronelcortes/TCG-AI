@@ -159,7 +159,7 @@ def test_el_turno_esta_muerto_en_ataque():
     for p in list(my_state.active or []) + list(my_state.bench or []):
         if p is not None:
             field[p.id] = field.get(p.id, 0) + 1
-    assert m._sin_ataque_hoy(my_state, obs.current, field) is True
+    assert m._no_attack_today(my_state, obs.current, field) is True
 
 
 def test_una_energia_en_el_bayleef_resucita_el_turno():
@@ -177,12 +177,12 @@ def test_una_energia_en_el_bayleef_resucita_el_turno():
             field[p.id] = field.get(p.id, 0) + 1
     # The active pays its retreat (so it can BRING UP the bench one) and the Bayleef
     # is left one energy away from attacking.
-    activo = my_state.active[0]
-    activo.energies = [5] * m.RETREAT_COST.get(activo.id, 1)
+    active = my_state.active[0]
+    active.energies = [5] * m.RETREAT_COST.get(active.id, 1)
     for b in my_state.bench:
         if b is not None and b.id == m.Bayleef:
             b.energies = [5]
-    assert m._sin_ataque_hoy(my_state, obs.current, field) is False
+    assert m._no_attack_today(my_state, obs.current, field) is False
 
 
 # ---------------------------------------------------------------------------

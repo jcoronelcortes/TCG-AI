@@ -79,42 +79,42 @@ def reset_main_state():
     m._init_cards_tracking()
 
 
-def _stub(card_id, energia=0):
+def _stub(card_id, energy=0):
     """A minimal Pokemon that `prize_count_op` and `_op_cuerpo_inofensivo` understand."""
-    return SimpleNamespace(id=card_id, energies=[1] * energia,
+    return SimpleNamespace(id=card_id, energies=[1] * energy,
                            energyCards=[], tools=[])
 
 
-def _ctx(card_id, energia=0, can_ko=False, op_linea_dragapult=False):
+def _ctx(card_id, energy=0, can_ko=False, op_dragapult_line=False):
     """A `_CtxGustObjetivo` with the data DERIVED from the real card, so that the
     test does not stay glued to made-up numbers."""
     d = m.card_table.get(card_id)
     return m._CtxGustObjetivo(
-        card_id=card_id, energia=energia,
+        card_id=card_id, energy=energy,
         rc0=m.RETREAT_COST.get(card_id, 0), rc1=m.RETREAT_COST.get(card_id, 1),
-        stall_diff=m.RETREAT_COST.get(card_id, 0) - energia,
+        stall_diff=m.RETREAT_COST.get(card_id, 0) - energy,
         is_ex=bool(getattr(d, 'ex', False)), is_exmega=bool(getattr(d, 'ex', False)),
         is_megaex=bool(getattr(d, 'megaEx', False)),
-        prizes=m.prize_count_op(_stub(card_id, energia)),
+        prizes=m.prize_count_op(_stub(card_id, energy)),
         wins_now=False,
         is_stage1=bool(getattr(d, 'stage1', False)),
         is_stage2=bool(getattr(d, 'stage2', False)),
         tiene_tool=False, can_ko=can_ko, tier_ko=5 if can_ko else 0,
         plan_target_match=False, regust_energized=False,
-        linea_rank=0, linea_can_ko=False, op_alakazam=False,
-        op_latias=False, op_linea_dragapult=op_linea_dragapult,
-        op_linea_typhlosion=False,
-        cuerpo_inofensivo=m._op_body_is_harmless(_stub(card_id, energia)))
+        line_rank=0, line_can_ko=False, op_alakazam=False,
+        op_latias=False, op_dragapult_line=op_dragapult_line,
+        op_typhlosion_line=False,
+        body_is_harmless=m._op_body_is_harmless(_stub(card_id, energy)))
 
 
 def _ofensivo(ctx):
-    score, _ = m._resolve_rules([], m._AJUSTES_GUST_OFENSIVO, ctx, default=0)
+    score, _ = m._resolve_rules([], m._ADJUST_GUST_OFFENSIVE, ctx, default=0)
     return score
 
 
 def _estorbo(ctx):
-    score, _ = m._resolve_rules(m._REGLAS_GUST_ESTORBO,
-                                 m._AJUSTES_GUST_ESTORBO, ctx, default=-200)
+    score, _ = m._resolve_rules(m._RULES_GUST_NUISANCE,
+                                 m._ADJUST_GUST_NUISANCE, ctx, default=-200)
     return score
 
 
@@ -125,9 +125,9 @@ def _estorbo(ctx):
 def test_la_banda_sin_ko_premiaba_a_la_evolucion_final():
     """`_gust_linea_evolutiva` still gives 800 to the final one and 700 to the stuck
     Stage 1: the contribution has NOT been touched, it has been overlaid."""
-    final = m._gust_linea_evolutiva(_ctx(DRAGAPULT, energia=1),
+    final = m._gust_evolution_line(_ctx(DRAGAPULT, energy=1),
                                     DRAGAPULT, DRAKLOAK, DREEPY)
-    medio = m._gust_linea_evolutiva(_ctx(DRAKLOAK), DRAGAPULT, DRAKLOAK, DREEPY)
+    medio = m._gust_evolution_line(_ctx(DRAKLOAK), DRAGAPULT, DRAKLOAK, DREEPY)
     assert final == 800 and medio == 700
 
 
@@ -137,18 +137,18 @@ def test_la_banda_sin_ko_premiaba_a_la_evolucion_final():
 
 def test_sin_ko_el_cuerpo_muerto_gana_a_la_evolucion_final():
     # Their 2nd Dragapult ex with 1 energy ALREADY attacks (Jet Headbutt costs 1).
-    atacante = _ctx(DRAGAPULT, energia=1, op_linea_dragapult=True)
+    atacante = _ctx(DRAGAPULT, energy=1, op_dragapult_line=True)
     # The bare Dusclops cannot pay for its cost-2 attack.
-    muerto = _ctx(DUSCLOPS, op_linea_dragapult=True)
-    assert not atacante.cuerpo_inofensivo and muerto.cuerpo_inofensivo
+    muerto = _ctx(DUSCLOPS, op_dragapult_line=True)
+    assert not atacante.body_is_harmless and muerto.body_is_harmless
     assert _ofensivo(muerto) > _ofensivo(atacante)
 
 
 def test_con_ko_mandan_los_tiers_y_el_cuerpo_muerto_no_los_pisa():
     """The bonus is gated by `not can_ko`: knocking out a 2-prize ex still
     beats bringing up a dead body."""
-    ko_ex = _ctx(DRAGAPULT, energia=1, can_ko=True, op_linea_dragapult=True)
-    muerto = _ctx(DUSCLOPS, op_linea_dragapult=True)
+    ko_ex = _ctx(DRAGAPULT, energy=1, can_ko=True, op_dragapult_line=True)
+    muerto = _ctx(DUSCLOPS, op_dragapult_line=True)
     assert _ofensivo(ko_ex) > _ofensivo(muerto)
 
 
@@ -157,7 +157,7 @@ def test_los_muros_y_el_locker_no_cobran_el_bono():
     they cancel our attackers or switch off our abilities from the active spot."""
     for trampa in sorted(m.GUST_TRAP_IDS):
         c = _ctx(trampa)
-        assert c.cuerpo_inofensivo, f"{trampa} deberia ser 'inofensivo' por coste"
+        assert c.body_is_harmless, f"{trampa} deberia ser 'inofensivo' por coste"
         sin_bono = _ofensivo(c)
         assert sin_bono < _ofensivo(_ctx(DUSCLOPS)), (
             f"{trampa} esta en GUST_TRAMPA_IDS: no puede cobrar los +1500")
@@ -174,7 +174,7 @@ def test_estorbo_desempata_hacia_el_que_no_puede_atacar():
     assert m.RETREAT_COST[m.Gardevoir_ex] == m.RETREAT_COST[DUSCLOPS] == 2
     ataca = _ctx(m.Gardevoir_ex)
     muerto = _ctx(DUSCLOPS)
-    assert not ataca.cuerpo_inofensivo and muerto.cuerpo_inofensivo
+    assert not ataca.body_is_harmless and muerto.body_is_harmless
     assert _estorbo(muerto) > _estorbo(ataca)
 
 
@@ -192,7 +192,7 @@ def _tablero(energias_activo):
     """An active Bayleef (60 damage: it knocks out nothing on the board) against a
     Dragapult ex. On their bench, another Dragapult ex with 1 energy -- ready to
     attack -- and a bare Dusclops."""
-    return (Escenario(turno=8, paso=80, tac=4, premios_propios=4)
+    return (Escenario(turn=8, paso=80, tac=4, premios_propios=4)
             .mi_activo(pk(BAYLEEF, energias=[G] * energias_activo,
                           fisicas=energias_activo, pre_evo=[CHIKORITA]))
             .mi_banca(pk(CHIKORITA))

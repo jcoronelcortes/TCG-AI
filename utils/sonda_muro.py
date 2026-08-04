@@ -96,15 +96,15 @@ def jugar(m, deck_rival, partidas, volcar, destino):
         try:
             while obs["current"]["result"] == -1 and pasos < 3000:
                 yi = obs["current"]["yourIndex"]
-                turno = obs["current"]["turn"]
+                turn = obs["current"]["turn"]
                 if yi == asiento and _es_main(obs):
-                    if turno != turno_actual:
+                    if turn != turno_actual:
                         # It closes the previous turn before opening the new one.
                         if estado is not None:
                             resumen[estado["desenlace"]] += 1
                             if estado["desenlace"] == "seco" and len(secos) < volcar:
                                 secos.append(estado["obs"])
-                        turno_actual = turno
+                        turno_actual = turn
                         estado = ({"desenlace": "seco", "obs": obs}
                                   if _califica(m, obs, asiento) else None)
                 try:

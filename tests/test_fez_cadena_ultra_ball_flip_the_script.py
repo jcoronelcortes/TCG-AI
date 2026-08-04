@@ -254,7 +254,7 @@ def test_paso102_el_remate_ganador_sigue_por_encima_del_robo():
 
 def _escenario_lucario(mano, con_ataque=True):
     """The board of step 91 rebuilt with the StateBuilder, with a parametric hand."""
-    esc = (Escenario(turno=6, paso=91, tac=6)
+    esc = (Escenario(turn=6, paso=91, tac=6)
            .mi_activo(pk(HYDRA, energias=[G, G], pre_evo=[APPLIN, DIPPLIN]))
            .mi_banca(MEOWTH, pk(MEGANIUM, pre_evo=[CHIKORITA, BAYLEEF]),
                      pk(OGERPON, energias=[G]), OGERPON)
@@ -294,7 +294,7 @@ def _escenario_teal_lillie(mano):
     """A board with ONE single Ogerpon ex in play: with Lillie's + Ogerpon ex +
     Grass in hand, `_fez_prefer_teal_lillie` switches on, which vetoes playing the
     Fezandipiti in order to prefer Teal + Teal Dance + Lillie's."""
-    esc = (Escenario(turno=6, paso=91, tac=6)
+    esc = (Escenario(turn=6, paso=91, tac=6)
            .mi_activo(pk(HYDRA, energias=[G, G], pre_evo=[APPLIN, DIPPLIN]))
            .mi_banca(MEOWTH, pk(MEGANIUM, pre_evo=[CHIKORITA, BAYLEEF]),
                      pk(OGERPON, energias=[G]))
@@ -325,7 +325,7 @@ def test_sintetico_ub_fez_pending_completa_la_busqueda_pagada():
 
 def test_sintetico_pending_no_rompe_los_limites_fisicos():
     """The override does not fill an already complete bench (a PHYSICAL limit)."""
-    esc = (Escenario(turno=6, paso=91, tac=6)
+    esc = (Escenario(turn=6, paso=91, tac=6)
            .mi_activo(pk(HYDRA, energias=[G, G], pre_evo=[APPLIN, DIPPLIN]))
            .mi_banca(MEOWTH, pk(MEGANIUM, pre_evo=[CHIKORITA, BAYLEEF]),
                      pk(OGERPON, energias=[G]), OGERPON, APPLIN)

@@ -158,7 +158,7 @@ def _escenario(op_activo=None, mi_activo=None, premios_propios=None,
     op_activo = op_activo if op_activo is not None else pk(CRUSTLE)
     mi_activo = (mi_activo if mi_activo is not None
                  else pk(TAPU, energias=[G] * 4, fisicas=4))
-    return (Escenario(turno=8, paso=47, energia_jugada=True,
+    return (Escenario(turn=8, paso=47, energia_jugada=True,
                       premios_propios=premios_propios)
             .mi_activo(mi_activo)
             .mi_banca(pk(MEGANIUM), pk(MEOWTH))

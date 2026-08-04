@@ -103,15 +103,15 @@ def test_el_fixture_es_el_cambio_por_el_cuerpo_de_50pv():
     mio = o["current"]["players"][yo]
     riv = o["current"]["players"][1 - yo]
 
-    activo = mio["active"][0]
+    active = mio["active"][0]
     banca = [b for b in mio["bench"] if b]
     gemelo = next(b for b in banca if b["id"] == OGERPON)
 
     # The one in front is HEALTHY; the bench one is at 50 of 210.
-    assert activo["id"] == OGERPON and activo["hp"] == 210
+    assert active["id"] == OGERPON and active["hp"] == 210
     assert gemelo["id"] == OGERPON and gemelo["hp"] == 50
     # Both have the same 4 effective energies: the same attack.
-    assert len(activo["energies"]) == len(gemelo["energies"]) == 4
+    assert len(active["energies"]) == len(gemelo["energies"]) == 4
 
     # Both are ex: the swap DENIES no prize (2 in both cases).
     assert m.prize_count_op(
@@ -150,8 +150,8 @@ def test_el_activo_aguanta_nueve_veces_mas_que_el_candidato():
                        for b in riv.bench if b is not None), default=0)
         return (pkm.hp or 0) - amenaza
 
-    activo = mio.active[0]
+    active = mio.active[0]
     gemelo = next(b for b in mio.bench if b is not None and b.id == OGERPON)
     assert margen(gemelo) == 20        # 50 - 30 (Kadabra)
-    assert margen(activo) == 180       # 210 - 30
-    assert margen(activo) > margen(gemelo)
+    assert margen(active) == 180       # 210 - 30
+    assert margen(active) > margen(gemelo)

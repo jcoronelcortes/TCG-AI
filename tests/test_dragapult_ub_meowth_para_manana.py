@@ -159,7 +159,7 @@ def _menu_main(fez_energias=0, mano=(GRASS, GRASS, GRASS, BOSS, BOSS,
                                      ULTRA_BALL, FOREST),
                op_generico=False, partidario_jugado=True):
     """Menu A: the MAIN of step 17 (the turn's energy already attached)."""
-    esc = Escenario(turno=TURNO, paso=17, tac=6, primer_jugador=1,
+    esc = Escenario(turn=TURNO, paso=17, tac=6, primer_jugador=1,
                     energia_jugada=True,
                     partidario_jugado=partidario_jugado)
     esc = _campo(esc, fez_energias=fez_energias)
@@ -178,7 +178,7 @@ def _menu_main(fez_energias=0, mano=(GRASS, GRASS, GRASS, BOSS, BOSS,
 
 def _menu_fetch():
     """Menu B: the fetch of the Ultra Ball just played."""
-    esc = Escenario(turno=TURNO, paso=18, tac=7, primer_jugador=1,
+    esc = Escenario(turn=TURNO, paso=18, tac=7, primer_jugador=1,
                     energia_jugada=True, partidario_jugado=True)
     return (_campo(esc)
             .mi_mano(GRASS, BOSS, BOSS, MEGANIUM, FOREST)
@@ -192,7 +192,7 @@ def _menu_manana():
     """Menu C: OUR next turn, already under the Itchy Pollen. Items
     cannot be played (that is why there is none in hand) but the
     Meowth ex can: its Last-Ditch Catch brings the Lillie's."""
-    obs = (Escenario(turno=TURNO + 2, paso=30, tac=1, primer_jugador=1)
+    obs = (Escenario(turn=TURNO + 2, paso=30, tac=1, primer_jugador=1)
            .mi_activo(pk(CHIKORITA, energias=[G], fisicas=1))
            .mi_banca(pk(FEZ))
            .op_activo(pk(BUDEW))

@@ -187,9 +187,9 @@ def test_paso118_applin_y_dipplin_son_cartas_muertas():
 # `_plan_de_planta`: the board reading, in isolation
 # ---------------------------------------------------------------------------
 
-def _plan(activo, banca=(), mano=(), energia_jugada=False, cambio=False):
-    obs = (Escenario(turno=10, energia_jugada=energia_jugada)
-           .mi_activo(activo)
+def _plan(active, banca=(), mano=(), energia_jugada=False, cambio=False):
+    obs = (Escenario(turn=10, energia_jugada=energia_jugada)
+           .mi_activo(active)
            .mi_banca(*banca)
            .mi_mano(*mano)
            .op_activo(pk(CRUSTLE))
@@ -237,20 +237,20 @@ def test_plan_la_planta_de_la_mano_ya_desbloquea():
 
 def test_plan_atacante_de_banca_solo_desbloquea_si_podemos_cambiar():
     banca = [pk(MEGANIUM, energias=[G] * 2, fisicas=1)]
-    activo = pk(MEOWTH)               # Meowth ex is not a MAIN_ATTACKER
-    assert not _plan(activo, banca=banca).unlocks_today
-    assert _plan(activo, banca=banca, cambio=True).unlocks_today
+    active = pk(MEOWTH)               # Meowth ex is not a MAIN_ATTACKER
+    assert not _plan(active, banca=banca).unlocks_today
+    assert _plan(active, banca=banca, cambio=True).unlocks_today
 
 
 def test_plan_con_las_habilidades_apagadas_solo_queda_el_adjunte_manual():
     """Under Watchtower / Iron Thorns (`meowth_ability_lock`) there is no Teal Dance
     or Ripening Charge: treating those routes as alive invents unlocks that do not
     exist (measured: -3.9 points of winrate vs the Iron Thorns deck)."""
-    activo = pk(OGERPON, energias=[G], fisicas=1)      # 1 of 3 effective
+    active = pk(OGERPON, energias=[G], fisicas=1)      # 1 of 3 effective
     banca = [pk(OGERPON, energias=[G] * 2, fisicas=2)]
 
-    obs = (Escenario(turno=10)
-           .mi_activo(activo).mi_banca(*banca)
+    obs = (Escenario(turn=10)
+           .mi_activo(active).mi_banca(*banca)
            .op_activo(pk(CRUSTLE)).op_zonas(mano=5, mazo=30, prizes=6)
            .menu_mano().construir())
     o = m.to_observation_class(obs)
@@ -305,10 +305,10 @@ def test_injugable_no_aplica_a_lo_que_no_es_pokemon():
 # The selection, synthetically
 # ---------------------------------------------------------------------------
 
-def _seleccion_lana(activo, banca, descarte, mano=(), energia_jugada=False):
-    obs = (Escenario(turno=10, partidario_jugado=True,
+def _seleccion_lana(active, banca, descarte, mano=(), energia_jugada=False):
+    obs = (Escenario(turn=10, partidario_jugado=True,
                      energia_jugada=energia_jugada)
-           .mi_activo(activo)
+           .mi_activo(active)
            .mi_banca(*banca)
            .mi_mano(*mano)
            .mi_descarte(*descarte)
@@ -324,7 +324,7 @@ def _seleccion_lana(activo, banca, descarte, mano=(), energia_jugada=False):
 def test_seleccion_banca_llena_la_energia_gana_al_desarrollo():
     """registro_018, synthetically."""
     _, elegidas = _seleccion_lana(
-        activo=pk(TAPU, energias=[G] * 2, fisicas=1),
+        active=pk(TAPU, energias=[G] * 2, fisicas=1),
         banca=[pk(MEGANIUM, energias=[G] * 2, fisicas=1), pk(MEOWTH),
                pk(MEGANIUM), pk(OGERPON, energias=[G] * 2, fisicas=1),
                pk(OGERPON)],
@@ -336,7 +336,7 @@ def test_seleccion_sin_demanda_de_energia_vuelve_el_desarrollo():
     """Boundary: with the active ALREADY charged and room on the bench, the energy is surplus and
     the recovery goes back to being development (starting the Hydrapple line)."""
     _, elegidas = _seleccion_lana(
-        activo=pk(TAPU, energias=[G] * 4, fisicas=4),
+        active=pk(TAPU, energias=[G] * 4, fisicas=4),
         banca=[pk(MEOWTH)],
         descarte=[GRASS, GRASS, GRASS, APPLIN, DIPPLIN],
         energia_jugada=True)
@@ -349,7 +349,7 @@ def test_seleccion_solo_la_planta_que_hace_falta_cobra_la_banda_alta():
     menu (the surplus Grass falls to `LANA_SEL_PLANTA_SOBRANTE`, below
     the Applin that starts the Hydrapple line)."""
     obs, elegidas = _seleccion_lana(
-        activo=pk(TAPU, energias=[G] * 2, fisicas=1),
+        active=pk(TAPU, energias=[G] * 2, fisicas=1),
         banca=[pk(MEGANIUM, energias=[G] * 4, fisicas=2), pk(MEOWTH)],
         descarte=[GRASS, GRASS, GRASS, GRASS, APPLIN, CHIKORITA])
     assert elegidas[:2] == [GRASS, APPLIN], elegidas

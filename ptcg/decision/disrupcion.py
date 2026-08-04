@@ -17,7 +17,7 @@ from ptcg.motor.contexto import DecisionContext
 from ptcg.motor.reglas import _Adjustment, _FixedRule, _resolve_with_trace
 
 
-def _sello_merece_jugarse(op_hand_count, my_hand_len) -> bool:
+def _stamp_worth_playing(op_hand_count, my_hand_len) -> bool:
     """Card rule for Unfair Stamp (user, August 2026): the Stamp is only played
     if it DISRUPTS the opponent (opposing hand >= `STAMP_MIN_OP_HAND`, because
     it leaves them at 2) or if the REFILL is cheap (we sacrifice <=
@@ -50,7 +50,7 @@ def _stamp_pendiente(c) -> bool:
     Stamp becomes available again in the same turn."""
     return (c.ko_last_turn
             and c.hand_counts.get(Unfair_Stamp, 0) >= 1
-            and _sello_merece_jugarse(c.op_hand_count, c.my_hand_len))
+            and _stamp_worth_playing(c.op_hand_count, c.my_hand_len))
 
 
 def _us_pokemon_jugable(c):
@@ -111,7 +111,7 @@ def _us_bonus_matchup(c):
     return 0
 
 
-def _xr_antes_del_sello(c):
+def _xr_before_the_stamp(c):
     """Is Xerosic's Machinations played BEFORE Unfair Stamp?
 
     Both fit in the SAME turn -- the Stamp is an ITEM (ACE SPEC) and Xerosic a
@@ -142,14 +142,14 @@ def _xr_antes_del_sello(c):
             and c.op_hand_count >= XEROSIC_STAMP_ORDEN_MIN_OP_HAND)
 
 
-_REGLAS_STAMP_PLAY = [
+_RULES_STAMP_PLAY = [
     # CARD RULE (user, August 2026): without disruption (opposing hand <= 2) or a
     # cheap refill (we sacrifice > 4 cards) the Stamp is NOT played. It is not an
     # ordering veto: no other card of the turn revokes it, it only changes if the
     # board changes (e.g. our own hand drops by playing items). See
     # `_sello_merece_jugarse`.
     _FixedRule("sin_disrupcion_ni_refresco",
-               lambda c: not _sello_merece_jugarse(c.op_hand_count,
+               lambda c: not _stamp_worth_playing(c.op_hand_count,
                                                    c.my_hand_len),
                lambda c: SCORE_VETO),
     # ORDERING veto, not a value one (user, jul 2026): with a giant opposing hand,
@@ -159,7 +159,7 @@ _REGLAS_STAMP_PLAY = [
     # `alakazam_cede_a_gusteo_ganador`, where a Boss's decides the turn -- the
     # Stamp yields to nobody and is played normally. See `_xr_antes_del_sello`.
     _FixedRule("cede_el_orden_a_xerosic",
-               lambda c: (_xr_antes_del_sello(c)
+               lambda c: (_xr_before_the_stamp(c)
                           and _score_xerosic_play(c)
                           > XEROSIC_SCORE_LAST_RESORT),
                lambda c: SCORE_VETO),
@@ -214,7 +214,7 @@ _AJUSTES_STAMP_PLAY = [
 def _score_unfair_stamp_play(ctx: DecisionContext) -> int:
     """Scores playing Unfair Stamp (hand refill). Body migrated to the RULES
     ENGINE (phase 4): rules and comments in _REGLAS_STAMP_PLAY."""
-    return _resolve_with_trace("stamp->play", _REGLAS_STAMP_PLAY,
+    return _resolve_with_trace("stamp->play", _RULES_STAMP_PLAY,
                                _AJUSTES_STAMP_PLAY, ctx, default=7500)
 
 
@@ -250,7 +250,7 @@ def _xr_gate_alakazam(c):
                  or (_xr_copia_respaldo(c) and c.op_hand_count >= 4)))
 
 
-_REGLAS_XEROSIC_PLAY = [
+_RULES_XEROSIC_PLAY = [
     _FixedRule("supporter_ya_jugado",
                lambda c: c.state.supporterPlayed,
                lambda c: SCORE_VETO),
@@ -267,7 +267,7 @@ _REGLAS_XEROSIC_PLAY = [
     # the other side of the change is `cede_el_orden_a_xerosic` in the Stamp.
     _FixedRule("cede_a_unfair_stamp",
                lambda c: (_stamp_pendiente(c)
-                          and not _xr_antes_del_sello(c)),
+                          and not _xr_before_the_stamp(c)),
                lambda c: SCORE_VETO),
     # Boss's Orders only takes priority when it WINS the game (user,
     # registro_006 step 85): there Xerosic yields and the Boss's (WIN_NOW 20000)
@@ -338,23 +338,23 @@ def _score_xerosic_play(ctx: DecisionContext) -> int:
     down to 3 cards. It is in the deck because of the Alakazam matchup (Powerful
     Hand does 20 per card in their hand). Body migrated to the RULES ENGINE
     (phase 4)."""
-    return _resolve_with_trace("xerosic->play", _REGLAS_XEROSIC_PLAY, [],
+    return _resolve_with_trace("xerosic->play", _RULES_XEROSIC_PLAY, [],
                                ctx, default=XEROSIC_SCORE_LAST_RESORT)
 
 __all__ = [
-    '_xr_antes_del_sello',
+    '_xr_before_the_stamp',
     '_xr_letal_proyectado',
     '_xr_copia_respaldo',
     '_xr_gate_alakazam',
     '_score_xerosic_play',
-    '_REGLAS_XEROSIC_PLAY',
-    '_sello_merece_jugarse',
+    '_RULES_XEROSIC_PLAY',
+    '_stamp_worth_playing',
     '_stamp_pendiente',
     '_us_pokemon_jugable',
     '_us_evo_jugable',
     '_us_item_jugable',
     '_us_bonus_matchup',
     '_score_unfair_stamp_play',
-    '_REGLAS_STAMP_PLAY',
+    '_RULES_STAMP_PLAY',
     '_AJUSTES_STAMP_PLAY',
 ]
