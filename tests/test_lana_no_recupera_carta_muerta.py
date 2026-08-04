@@ -69,6 +69,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import main as m
+from parcheo import instalar
 from cg.api import OptionType
 
 _FIXTURE = (ROOT / "tests" / "fixtures"
@@ -164,11 +165,11 @@ def _valor_lana(obs):
         capturado.setdefault("v", ctx.supp_values.get(m.Lanas_Aid))
         return orig(ctx, score)
 
-    m._score_lanas_aid_play = espia
+    _rest_score_lanas_aid_play = instalar("_score_lanas_aid_play", espia)
     try:
         m.agent(obs)
     finally:
-        m._score_lanas_aid_play = orig
+        _rest_score_lanas_aid_play()
     assert "v" in capturado, "el scorer de Lana's Aid no llego a evaluarse"
     return capturado["v"]
 
@@ -290,11 +291,11 @@ def _valor_dawn(obs):
         capturado.setdefault("v", ctx.supp_values.get(m.Dawn))
         return orig(ctx)
 
-    m._score_dawn_play = espia
+    _rest_score_dawn_play = instalar("_score_dawn_play", espia)
     try:
         m.agent(obs)
     finally:
-        m._score_dawn_play = orig
+        _rest_score_dawn_play()
     assert "v" in capturado, "el scorer de Dawn no llego a evaluarse"
     return capturado["v"]
 

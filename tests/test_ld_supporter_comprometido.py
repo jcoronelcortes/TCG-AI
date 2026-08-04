@@ -59,6 +59,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import main as m
+from parcheo import instalar
 from state_builder import C, G, Escenario, pk
 
 MEOWTH = m.Meowth_ex
@@ -185,12 +186,11 @@ def test_paso22_el_compromiso_es_lo_unico_que_decide():
         visto["ctx"] = ctx
         return orig(ctx)
 
-    m._score_dawn_play = espia
+    _rest_score_dawn_play = instalar("_score_dawn_play", espia)
     try:
         _reproducir(obs_list)
     finally:
-        m._score_dawn_play = orig
-
+        _rest_score_dawn_play()
     ctx = visto["ctx"]
     assert m._score_lillie_determination_play(ctx) == m.SCORE_VETO
     assert orig(ctx) > 0
@@ -292,12 +292,11 @@ def test_el_piso_esta_por_encima_de_la_banda_normal_de_supporters():
         visto["ctx"] = ctx
         return orig(ctx)
 
-    m._score_xerosic_play = espia
+    _rest_score_xerosic_play = instalar("_score_xerosic_play", espia)
     try:
         m.agent(obs)
     finally:
-        m._score_xerosic_play = orig
-
+        _rest_score_xerosic_play()
     ctx = visto["ctx"]
     for sid in m._SUPP_PLAY_IDS:
         assert m._supp_play_score(ctx, sid) < m.SCORE_LD_SUPP_COMPROMETIDO

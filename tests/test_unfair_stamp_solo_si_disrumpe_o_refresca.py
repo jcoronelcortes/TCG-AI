@@ -54,6 +54,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import main as m
+from parcheo import instalar
 
 _FIXTURE = (ROOT / "tests" / "fixtures"
             / "marnie_step99_sello_solo_si_disrumpe_o_refresca.json")
@@ -122,12 +123,12 @@ def _decision(mano_extra=0, op_hand=None):
         visto["stamp"] = r
         return r
 
-    m._score_unfair_stamp_play = espia
+    _rest_score_unfair_stamp_play = instalar("_score_unfair_stamp_play", espia)
     try:
         m.agent(previa)                     # trae la ventana del KO rival
         eleccion = m.agent(dec)
     finally:
-        m._score_unfair_stamp_play = original
+        _rest_score_unfair_stamp_play()
     return eleccion, visto.get("stamp")
 
 

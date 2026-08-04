@@ -5,6 +5,7 @@ Extraido VERBATIM de main.py por utils/extraer_definiciones.py
 utils/pureza.py: nada de aqui toca el estado mutable ni las tablas de runtime.
 """
 
+from ptcg.motor.reglas import _ReglaFija
 from ptcg.estado.agente import ESTADO
 from ptcg.cartas.ids import Applin, Bayleef, Chikorita, Dipplin, Meganium
 from ptcg.cartas.ids import Applin, Bayleef, Chikorita, Dipplin, Hydrapple_ex, Meganium, SCORE_VETO, Tapu_Bulu
@@ -184,6 +185,90 @@ class _CtxPPFetch:
             has_evo = True
         self.has_evo = has_evo
 
+
+_REGLAS_PP_FETCH = [
+    # (1) Primer turno: bajar los basicos de ambas lineas antes que nada.
+    _ReglaFija("t1_applin",
+               lambda c: (c.first_turn and c.card_id == Applin
+                          and not c.have_applin),
+               lambda c: 2000),
+    _ReglaFija("t1_chikorita",
+               lambda c: (c.first_turn and c.card_id == Chikorita
+                          and not c.have_chik),
+               lambda c: 1900),
+    _ReglaFija("t1_otro",
+               lambda c: c.first_turn,
+               lambda c: 10),
+    # (2) Evolucion directa de un Pokemon del tablero actual.
+    _ReglaFija("evo_meganium",
+               lambda c: (c.has_evo and c.card_id == Meganium
+                          and not ESTADO.meganium_in_play
+                          and c.hand.get(Meganium, 0) == 0
+                          and c.campo.get(Bayleef, 0) >= 1),
+               lambda c: 1000),
+    _ReglaFija("evo_meganium_rush",
+               lambda c: (c.has_evo and c.card_id == Meganium
+                          and not ESTADO.meganium_in_play
+                          and c.hand.get(Meganium, 0) == 0
+                          and ESTADO.forest_in_play
+                          and c.campo.get(Chikorita, 0) >= 1
+                          and c.hand.get(Bayleef, 0) >= 1),
+               lambda c: 900),
+    _ReglaFija("evo_bayleef_rush",
+               lambda c: (c.has_evo and c.card_id == Bayleef
+                          and not ESTADO.meganium_in_play
+                          and c.hand.get(Bayleef, 0) == 0
+                          and c.campo.get(Chikorita, 0) >= 1
+                          and ESTADO.forest_in_play
+                          and c.hand.get(Meganium, 0) >= 1),
+               lambda c: 950),
+    _ReglaFija("evo_bayleef",
+               lambda c: (c.has_evo and c.card_id == Bayleef
+                          and not ESTADO.meganium_in_play
+                          and c.hand.get(Bayleef, 0) == 0
+                          and c.campo.get(Chikorita, 0) >= 1),
+               lambda c: 850),
+    _ReglaFija("evo_dipplin_rush",
+               lambda c: (c.has_evo and c.card_id == Dipplin
+                          and c.hand.get(Dipplin, 0) == 0
+                          and c.campo.get(Applin, 0) >= 1
+                          and ESTADO.forest_in_play
+                          and c.hand.get(Hydrapple_ex, 0) >= 1),
+               lambda c: 920),
+    _ReglaFija("evo_dipplin",
+               lambda c: (c.has_evo and c.card_id == Dipplin
+                          and c.hand.get(Dipplin, 0) == 0
+                          and c.campo.get(Applin, 0) >= 1),
+               lambda c: 800),
+    _ReglaFija("evo_otro",
+               lambda c: c.has_evo,
+               lambda c: 10),
+    # (3) Fallback: completar lineas desde la mano.
+    _ReglaFija("fb_bayleef",
+               lambda c: (c.card_id == Bayleef and not ESTADO.meganium_in_play
+                          and c.have_chik and not c.have_bay),
+               lambda c: 850),
+    _ReglaFija("fb_dipplin",
+               lambda c: (c.card_id == Dipplin and c.have_applin
+                          and not c.have_dipplin),
+               lambda c: 800),
+    _ReglaFija("fb_meganium",
+               lambda c: (c.card_id == Meganium and not ESTADO.meganium_in_play
+                          and c.hand.get(Meganium, 0) == 0 and c.have_bay),
+               lambda c: 700),
+    _ReglaFija("fb_chikorita",
+               lambda c: (c.card_id == Chikorita and not ESTADO.meganium_in_play
+                          and c.campo.get(Chikorita, 0)
+                          + c.campo.get(Bayleef, 0)
+                          + c.campo.get(Meganium, 0) < 1
+                          and c.hand.get(Chikorita, 0) < 1
+                          and c.bench_count < 5),
+               lambda c: 800),
+    _ReglaFija("fb_applin",
+               lambda c: c.card_id == Applin and c.bench_count < 5,
+               lambda c: 650),
+]
+
 __all__ = [
     '_pp_buscables',
     '_pp_es_t1',
@@ -196,4 +281,5 @@ __all__ = [
     '_AJUSTES_PP_PLAY',
     '_PP_NON_RULEBOX_IDS',
     '_CtxPPFetch',
+    '_REGLAS_PP_FETCH',
 ]

@@ -61,6 +61,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import main as m
+from parcheo import instalar
 
 MEOWTH = m.Meowth_ex
 CHIKORITA = m.Chikorita
@@ -191,12 +192,11 @@ def test_la_ultra_ball_inutil_queda_por_debajo_del_piso_de_veto():
         visto.setdefault(ctx.state.turnActionCount, []).append(r)
         return r
 
-    m._score_ultra_ball_play = espia
+    _rest_score_ultra_ball_play = instalar("_score_ultra_ball_play", espia)
     try:
         _reproducir(_observaciones())
     finally:
-        m._score_ultra_ball_play = orig
-
+        _rest_score_ultra_ball_play()
     assert visto[16], visto
     for tac in (16, 19):
         for score in visto[tac]:

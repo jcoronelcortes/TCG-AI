@@ -5,6 +5,7 @@ Extraido VERBATIM de main.py por utils/extraer_definiciones.py
 utils/pureza.py: nada de aqui toca el estado mutable ni las tablas de runtime.
 """
 
+from ptcg.cartas.ids import Dwebble_Fighting, Dwebble_Grass, EX_PREEVO_IDS, GUST_TRAMPA_IDS, SCORE_FORBID, THREAT_PREEVO_IDS
 from ptcg.calculo.rival import _alakazam_relevo_de_atacante, _op_activo_inofensivo, _op_cuerpo_inofensivo
 from ptcg.calculo.energia import _can_attack_eff, _grass_attach_unit, _retreat_grass_units
 from ptcg.calculo.dano import _attacker_base_damage, _bench_attacker_best_damage, _bench_attacker_can_ko, _our_effective_damage
@@ -662,6 +663,88 @@ def _ctx_gust_objetivo(card, o, my_state, op_state, state, hand_counts,
         muro_bloquea_activo=muro_bloquea_activo,
         cuerpo_inofensivo=_op_cuerpo_inofensivo(card))
 
+
+_AJUSTES_GUST_OFENSIVO = [
+    _Ajuste("objetivo_del_plan",
+            lambda c, s: c.plan_target_match,
+            lambda c, s: s + 100),
+    # GUSTEO GANADOR (user, registro_011 vs Mega Heracross ex, GANADA subopt.):
+    # si al noquear ESTE objetivo cobramos los premios que faltan para GANAR
+    # (`wins_now`: prizes >= my_prize), es la maxima prioridad ABSOLUTA sobre
+    # cualquier otro objetivo. Cuando hay varios objetivos que ganan, el
+    # tier_ko de abajo (prize-aware) desempata hacia el de mas premios. Cubre el
+    # caso en que el remate estaba disponible pero el juego gusteaba un ex de
+    # menos premios. Deck-agnostico.
+    _Ajuste("gust_gana_partida",
+            lambda c, s: c.wins_now,
+            lambda c, s: s + 100000),
+    _Ajuste("tier_ko",
+            lambda c, s: c.can_ko,
+            lambda c, s: s + c.tier_ko * 3000),
+    # PRIORIDAD (user, log 86504664 paso 94, PERDIDA vs Archaludon): al
+    # poder NOQUEAR, una pre-evo ENERGIZADA de una linea ex (Duraludon ->
+    # Archaludon ex) borra un futuro atacante ex de 2 premios. Tier
+    # efectivo 6.5 (19500): sobre cualquier no-ex, bajo un ex real.
+    _Ajuste("preevo_ex_prioritaria",
+            lambda c, s: (c.can_ko and c.energia >= 1 and not c.is_exmega
+                          and c.card_id in EX_PREEVO_IDS),
+            lambda c, s: s + max(0, 19500 - c.tier_ko * 3000)),
+    # Sin KO posible: gustear como estorbo (mayor coste de retirada NETO)
+    # con el desempate anti pre-evo de amenaza.
+    _Ajuste("traba_sin_ko",
+            lambda c, s: not c.can_ko and c.stall_diff >= 1,
+            lambda c, s: s + c.stall_diff * 100
+            - (50 if (c.card_id in THREAT_PREEVO_IDS
+                      or c.card_id in EX_PREEVO_IDS) else 0)),
+    # Copia ENERGIZADA del activo rival sin energia: re-gustearla cobra la
+    # inversion del rival.
+    _Ajuste("regust_energizado",
+            lambda c, s: c.regust_energized,
+            lambda c, s: s + 200),
+    _Ajuste("linea_rival",
+            lambda c, s: True,
+            lambda c, s: s + _gust_linea_rival(c)),
+    # SIN KO manda QUIEN SUBE AL ACTIVO, no cual es la pieza mas gorda de su
+    # banca. Las dos bandas de `_gust_linea_rival` puntuan al reves:
+    # `_gust_linea_evolutiva` da 800 a la EVOLUCION FINAL (Dragapult ex,
+    # Typhlosion, Alakazam) -- por encima de los 700 de la Fase 1 clavada, que
+    # su propio docstring llama "mejor objetivo de disrupcion" -- y
+    # `_gust_tiers_genericos` da 250 a un ex ENERGIZADO, el techo de su banda
+    # sin KO. Sin KO eso es ponerle delante, y ademas gratis (Boss's le paga la
+    # retirada), justo el cuerpo con el que queria atacar.
+    #
+    # Ademas contradecia al detector que JUSTIFICA la jugada: el gusteo
+    # DEFENSIVO (`_bo_defensive_gust`) vale 940 porque EXISTE en su banca un
+    # cuerpo que no puede rematarnos... y luego el selector subia otro.
+    #
+    # +1500 supera toda la banda sin KO (100-1200) y no toca los tiers de KO
+    # (>= 3000), que van gateados por `can_ko`. `GUST_TRAMPA_IDS` excluye los
+    # muros y el locker: sus ataques cuestan 3, asi que pelados pasarian por
+    # inofensivos y son justo los cuerpos que NO queremos delante.
+    _Ajuste("sin_ko_prefiere_cuerpo_muerto",
+            lambda c, s: (not c.can_ko and c.cuerpo_inofensivo
+                          and c.card_id not in GUST_TRAMPA_IDS),
+            lambda c, s: s + 1500),
+    # vs Crustle, el Dwebble NUNCA se gustea (forraje del muro)... SALVO que el
+    # activo rival sea un MURO que anula a nuestro atacante y ese Dwebble sea un
+    # KO real (user, episodio 88620891 paso 78, PERDIDA): Hydrapple ex activo
+    # contra un Crustle inmune a los ex, con dos Dwebble noqueables en la banca.
+    # El veto original (log 86339758) evita gastar Boss's persiguiendo forraje
+    # cuando hay algo mejor que hacer; aqui NO hay nada mejor -- atacar de frente
+    # hace 0 y el turno se cierra sin premios. Con el muro delante, el Dwebble
+    # noqueable es el UNICO premio del turno y ademas niega un Crustle futuro.
+    _Ajuste("forbid_dwebble_vs_crustle",
+            lambda c, s: (ESTADO.op_is_crustle_deck
+                          and c.card_id in (Dwebble_Grass, Dwebble_Fighting)
+                          and not (c.muro_bloquea_activo and c.can_ko)),
+            lambda c, s: SCORE_FORBID),
+    # Retirada GRATIS sin KO: el rival lo devuelve al banco sin coste;
+    # solo es gusteable cuando es un KO real.
+    _Ajuste("forbid_retirada_gratis_sin_ko",
+            lambda c, s: c.rc0 <= 0 and not c.can_ko,
+            lambda c, s: SCORE_FORBID),
+]
+
 __all__ = [
     '_boss_val_de',
     '_boss_empty_gust',
@@ -682,4 +765,5 @@ __all__ = [
     '_CtxGustObjetivo',
     '_ctx_gust_objetivo',
     '_grass_unlocks_active_retreat',
+    '_AJUSTES_GUST_OFENSIVO',
 ]

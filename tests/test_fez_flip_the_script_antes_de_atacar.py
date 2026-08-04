@@ -56,6 +56,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import main as m
+from parcheo import instalar
 from state_builder import C, G, Escenario, pk
 
 OGERPON = m.Teal_Mask_Ogerpon_ex    # 96: activo del paso 78
@@ -182,12 +183,11 @@ def test_paso78_la_ventana_exacta_del_bloqueo_circular():
         visto["ctx"] = ctx
         return orig(ctx)
 
-    m._score_boss_orders_play = espia
+    _rest_score_boss_orders_play = instalar("_score_boss_orders_play", espia)
     try:
         m.agent(obs)
     finally:
-        m._score_boss_orders_play = orig
-
+        _rest_score_boss_orders_play()
     ctx = visto["ctx"]
     assert ctx.has_ready_bench_attacker is False
     assert ctx.boss_ko_threat_preevo is True

@@ -58,6 +58,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import main as m
+from parcheo import instalar
 from state_builder import Escenario, pk, G
 
 FEZ = m.Fezandipiti_ex
@@ -242,9 +243,9 @@ def _score_del_sello(obs):
         visto.setdefault("s", r)
         return r
 
-    m._score_unfair_stamp_play = espia
+    _rest_score_unfair_stamp_play = instalar("_score_unfair_stamp_play", espia)
     try:
         m.agent(obs)
     finally:
-        m._score_unfair_stamp_play = orig
+        _rest_score_unfair_stamp_play()
     return visto.get("s")

@@ -61,6 +61,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import main as m
+from parcheo import instalar
 
 _FIXTURE = (ROOT / "tests" / "fixtures"
             / "alakazam_step90_no_meowth_boss_con_unfair_stamp.json")
@@ -117,22 +118,24 @@ def _obs(op_hand=None, supporter_played=None, sin_xerosic=False):
 def _scores(obs):
     """Devuelve {'stamp': score, 'xerosic': score} de la decisión real."""
     visto = {}
-    originales = {}
+    # Los espias se instalan en TODOS los modulos que ligan el nombre: quien
+    # llama a los scorers vive ahora en ptcg/turno/puntuacion.py, no en `main`.
+    restauradores = []
     for clave, nombre in (("stamp", "_score_unfair_stamp_play"),
                           ("xerosic", "_score_xerosic_play")):
-        originales[nombre] = getattr(m, nombre)
+        orig = getattr(m, nombre)
 
-        def espia(ctx, _orig=originales[nombre], _clave=clave):
+        def espia(ctx, _orig=orig, _clave=clave):
             r = _orig(ctx)
             visto[_clave] = r
             return r
 
-        setattr(m, nombre, espia)
+        restauradores.append(instalar(nombre, espia))
     try:
         m.agent(obs)
     finally:
-        for nombre, orig in originales.items():
-            setattr(m, nombre, orig)
+        for restaurar in restauradores:
+            restaurar()
     return visto
 
 
@@ -209,11 +212,11 @@ def test_si_xerosic_no_va_a_jugarse_el_sello_no_cede():
             visto["stamp"] = r
             return r
 
-        m._score_unfair_stamp_play = espia
+        _rest_score_unfair_stamp_play = instalar("_score_unfair_stamp_play", espia)
         try:
             m.agent(obs)
         finally:
-            m._score_unfair_stamp_play = orig_stamp
+            _rest_score_unfair_stamp_play()
     finally:
         disrupcion._score_xerosic_play = orig
     assert visto["stamp"] > 0, visto

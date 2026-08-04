@@ -64,6 +64,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import main as m
+from parcheo import instalar
 from golden_corpus import reset_agente
 
 _REGISTRO = ROOT / "registros" / "registro_010_pasos_103_hasta_116.json"
@@ -210,8 +211,7 @@ def test_guarda1_el_veto_por_coste_ajeno_no_rompe_el_bloqueo():
     try:
         eleccion = m.agent(obs)
     finally:
-        m._score_ultra_ball_play = _ub
-
+        _rest_score_ultra_ball_play = instalar("_score_ultra_ball_play", _ub)
     # La Ultra Ball está vetada, pero NO por la Lillie's.
     reales = [v for v in vistos if v[0] <= 0]
     assert reales, "el escenario exige una Ultra Ball vetada"
