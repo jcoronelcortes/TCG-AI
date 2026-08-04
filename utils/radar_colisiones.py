@@ -121,7 +121,7 @@ class _P:
         self.tools = [_C(c) for c in (d.get("tools") or [])]
 
 
-def _amenaza_real(m, relevo, muro, yo, umbral=0.25):
+def _amenaza_real(m, relevo, muro, yo, threshold=0.25):
     """Does the relief really threaten the wall, or does it only chip it?
 
     A pivot costs the turn and the retreat energy: it only pays off if the
@@ -147,7 +147,7 @@ def _amenaza_real(m, relevo, muro, yo, umbral=0.25):
         dmg = m._our_effective_damage(a, o, base, meg, False)
     except Exception:
         return True          # when in doubt, do not filter: better a false positive
-    return dmg >= umbral * max(1, muro.get("hp") or 1)
+    return dmg >= threshold * max(1, muro.get("hp") or 1)
 
 
 def _pega_al_muro(m, pk, ex_imm, ab_imm):

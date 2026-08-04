@@ -66,7 +66,7 @@ def _ns_has_ogerpon_teal(w):
     return False
 
 
-def _ns_crustle_basicos_permitidos(w):
+def _ns_crustle_allowed_basics(w):
     if w.op_is_cornerstone_deck and not w.op_is_crustle_deck:
         return (Tapu_Bulu, Pinsir)
     return (Tapu_Bulu, Pinsir, Applin, Chikorita)
@@ -785,7 +785,7 @@ __all__ = [
     '_CtxNSPlay',
     '_ns_useful_energy_without_grass',
     '_ns_has_ogerpon_teal',
-    '_ns_crustle_basicos_permitidos',
+    '_ns_crustle_allowed_basics',
     '_ns_crustle_evos_permitidas',
     '_CtxNS',
     '_v_ns_grass_none_in_hand',

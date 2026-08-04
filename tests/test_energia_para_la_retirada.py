@@ -190,10 +190,10 @@ def _umbral_viejo(cid, e):
 
 
 def _umbral_nuevo(cid, e):
-    umbral = m._ns_umbral_energia_util(cid)
-    if umbral is None:
+    threshold = m._ns_useful_energy_threshold(cid)
+    if threshold is None:
         return False
-    return (e * m._grass_mult()) < umbral and e < umbral
+    return (e * m._grass_mult()) < threshold and e < threshold
 
 
 @pytest.mark.parametrize("card_id", sorted(m._DECK_POKEMON_IDS))
@@ -211,7 +211,7 @@ def test_cuerpos_del_mazo_excluidos_siguen_excluidos():
     data must not resurrect them."""
     for cid in (m.Meowth_ex, m.Fezandipiti_ex):
         assert m._min_attack_cost(cid) is not None   # they do have an attack...
-        assert m._ns_umbral_energia_util(cid) is None    # ...but they do not count
+        assert m._ns_useful_energy_threshold(cid) is None    # ...but they do not count
 
 
 def test_cuerpo_fuera_del_mazo_usa_el_dato_de_carta():
@@ -219,14 +219,14 @@ def test_cuerpo_fuera_del_mazo_usa_el_dato_de_carta():
     returning False blindly and reasons with the real cost of its attack."""
     crustle = 345
     assert crustle not in m._DECK_POKEMON_IDS
-    assert m._ns_umbral_energia_util(crustle) == m._min_attack_cost(crustle)
-    assert m._ns_umbral_energia_util(crustle) > 0
+    assert m._ns_useful_energy_threshold(crustle) == m._min_attack_cost(crustle)
+    assert m._ns_useful_energy_threshold(crustle) > 0
 
 
 def test_coste_de_ataque_min_desconocido_es_none():
     """With no card data no threshold is invented."""
     assert m._min_attack_cost(-12345) is None
-    assert m._ns_umbral_energia_util(-12345) is None
+    assert m._ns_useful_energy_threshold(-12345) is None
 
 
 def test_tras_retirar_se_promueve_al_rematador():

@@ -7638,8 +7638,8 @@ def test_supp_play_score_ordena_por_la_escala_que_decide():
     assert val_xerosic > val_lillie, (
         f"Xerosic ({val_xerosic}) debe ganar a la Lillie's buscada "
         f"({val_lillie}) en la escala de JUGADA")
-    mejor_id, mejor_val = m._mejor_supporter_de_mano(ctx_post, mano_post)
-    assert mejor_id == m.Xerosic_Machinations and mejor_val == val_xerosic
+    best_id, best_val = m._best_supporter_in_hand(ctx_post, mano_post)
+    assert best_id == m.Xerosic_Machinations and best_val == val_xerosic
 
 
 def test_supp_play_score_deja_pasar_el_fetch_que_gana_la_partida():
@@ -7655,10 +7655,10 @@ def test_supp_play_score_deja_pasar_el_fetch_que_gana_la_partida():
     ctx_post = m._dc_replace(ctx, hand_counts=mano_post,
                              win_via_boss_gust=True)
     val_boss = m._supp_play_score(ctx_post, m.Boss_Orders)
-    mejor_id, mejor_val = m._mejor_supporter_de_mano(ctx_post, mano_post)
-    assert mejor_id == m.Boss_Orders, (
+    best_id, best_val = m._best_supporter_in_hand(ctx_post, mano_post)
+    assert best_id == m.Boss_Orders, (
         f"el gusteo GANADOR ({val_boss}) debe llevarse el turno; "
-        f"gano {mejor_id} con {mejor_val}")
+        f"gano {best_id} con {best_val}")
 
 
 # ============================================================================

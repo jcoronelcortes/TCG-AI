@@ -91,7 +91,7 @@ class BotRival:
     def __init__(self):
         self._ataques = {a.attackId: a for a in all_attack()}
         self._dano = {a.attackId: a.damage for a in all_attack()}
-        self._cartas = {c.cardId: c for c in all_card_data()}
+        self._cards = {c.cardId: c for c in all_card_data()}
         self._turno = None
         self._habilidades_usadas = set()
         self._activaciones = 0
@@ -133,7 +133,7 @@ class BotRival:
         return pk if isinstance(pk, dict) else None
 
     def _prizes(self, pk):
-        data = self._cartas.get((pk or {}).get("id"))
+        data = self._cards.get((pk or {}).get("id"))
         if data is None:
             return 1
         return 3 if data.megaEx else 2 if data.ex else 1
@@ -150,8 +150,8 @@ class BotRival:
         base = self._dano.get(attack_id) or 0
         if base <= 0 or not atacante or not defensor:
             return base
-        atk = self._cartas.get(atacante.get("id"))
-        dfd = self._cartas.get(defensor.get("id"))
+        atk = self._cards.get(atacante.get("id"))
+        dfd = self._cards.get(defensor.get("id"))
         if atk is None or dfd is None:
             return base
         if dfd.weakness is not None and dfd.weakness == atk.energyType:
@@ -161,7 +161,7 @@ class BotRival:
     def _mejor_dano_de(self, atacante, defensor):
         """The best effective damage `atacante` can do to `defensor` with
         any of its attacks (without checking whether it can pay the cost)."""
-        data = self._cartas.get((atacante or {}).get("id"))
+        data = self._cards.get((atacante or {}).get("id"))
         if data is None:
             return 0
         return max((self._dano_efectivo(atacante, defensor, aid)
@@ -169,7 +169,7 @@ class BotRival:
 
     def _habilidad_pide_energia(self, card_id):
         """The card's ability is CONDITIONED on carrying energy."""
-        data = self._cartas.get(card_id)
+        data = self._cards.get(card_id)
         for skill in getattr(data, "skills", None) or ():
             if "Energy attached" in (getattr(skill, "text", "") or ""):
                 return True
@@ -268,7 +268,7 @@ class BotRival:
         """The HIGHEST stage evolution first and, on a tie, the ACTIVE's."""
         def clave(i):
             o = opciones[i]
-            data = self._cartas.get(self._id_en_mano(obs, o))
+            data = self._cards.get(self._id_en_mano(obs, o))
             etapa = 2 if getattr(data, "stage2", False) else \
                 1 if getattr(data, "stage1", False) else 0
             al_activo = o.get("inPlayArea") == int(AreaType.ACTIVE)

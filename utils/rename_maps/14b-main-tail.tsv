@@ -1,0 +1,8 @@
+# Phase 9, tail -- what the sweep of main.py found after the main batch.
+_gt_basicos_deseados	_gt_wanted_basics
+_gt_ranking_basicos	_gt_basics_ranking
+_gt_veta_etapa_ex	_gt_vetoes_ex_stage
+veta_etapa_ex	vetoes_ex_stage
+_ns_crustle_basicos_permitidos	_ns_crustle_allowed_basics
+_pesca_remate	_finisher_fishing_plan
+umbral	threshold

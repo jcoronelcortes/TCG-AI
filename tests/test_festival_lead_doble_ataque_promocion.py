@@ -244,7 +244,7 @@ def test_apagar_festival_lead_va_antes_que_la_cadena_evolutiva():
     """The priority of playing the Forest: the chain is cashed in next turn,
     the double attack kills us on this one. Below the Meowth engine, which on top of that
     is irreversible."""
-    nombres = [r.name for r in m._REGLAS_FOREST_PLAY]
+    nombres = [r.name for r in m._RULES_FOREST_PLAY]
     assert nombres.index("reactivar_motor_meowth_vs_watchtower") \
         < nombres.index("apagar_festival_lead") \
         < nombres.index("habilita_cadena_evolutiva") \

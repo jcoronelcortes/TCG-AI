@@ -40,8 +40,8 @@ def puntuar(tc, o, score):
     _gt_planes = tc._gt_planes
     _gt_quiere_basico = tc._gt_quiere_basico
     _gt_root_in_play = tc._gt_root_in_play
-    _gt_ranking_basicos = tc._gt_ranking_basicos
-    _gt_veta_etapa_ex = tc._gt_veta_etapa_ex
+    _gt_basics_ranking = tc._gt_basics_ranking
+    _gt_vetoes_ex_stage = tc._gt_vetoes_ex_stage
     _gust_2prize_via_boss = tc._gust_2prize_via_boss
     _lucario_other_sac_available = tc._lucario_other_sac_available
     _lucario_riolu_gust = tc._lucario_riolu_gust
@@ -1557,7 +1557,7 @@ def puntuar(tc, o, score):
                     score = SCORE_VETO
                 elif _gt_planes(my_state, AGENT_STATE.ACTIVE_CARDS_IN_DECK,
                                 field_counts, _our_first_turn,
-                                veta_etapa_ex=_gt_veta_etapa_ex):
+                                vetoes_ex_stage=_gt_vetoes_ex_stage):
                     # There is a chain that pays off IN THIS VERY TURN: the
                     # stadium pays for itself. Above the Forest (which
                     # is worth at most 29000) because it produces a new body.
@@ -1580,7 +1580,7 @@ def puntuar(tc, o, score):
             # bodies without stepping on the existing engines -- and only
             # when there is not already a root in play.
             elif (_gt_quiere_basico and score > 0
-                    and card.id in _gt_ranking_basicos
+                    and card.id in _gt_basics_ranking
                     and data is not None
                     and data.cardType == CardType.POKEMON):
                 score += GT_PLAY_BASICO_BONUS

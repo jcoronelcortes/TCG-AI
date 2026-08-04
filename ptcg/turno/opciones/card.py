@@ -53,7 +53,7 @@ def puntuar(tc, o, score):
     _gt_plan = tc._gt_plan
     _gt_turn_plans = tc._gt_turn_plans
     _gt_quiere_basico = tc._gt_quiere_basico
-    _gt_ranking_basicos = tc._gt_ranking_basicos
+    _gt_basics_ranking = tc._gt_basics_ranking
     _gt_score_seleccion = tc._gt_score_seleccion
     _gust_2prize_via_boss = tc._gust_2prize_via_boss
     _has_bench_attacker = tc._has_bench_attacker
@@ -1840,10 +1840,10 @@ def puntuar(tc, o, score):
                 # vetoed option -- the matchup whitelists and the cost
                 # vetoes still rule.
                 if (_gt_quiere_basico and score > SCORE_VETO
-                        and card.id in _gt_ranking_basicos):
+                        and card.id in _gt_basics_ranking):
                     score += GT_FETCH_BONUS
-                    if card.id == max(_gt_ranking_basicos,
-                                      key=_gt_ranking_basicos.get):
+                    if card.id == max(_gt_basics_ranking,
+                                      key=_gt_basics_ranking.get):
                         # The root that leads to the best body, ahead of
                         # the others (same criterion as `_gt_planes`).
                         score += 100

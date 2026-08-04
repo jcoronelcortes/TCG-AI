@@ -76,9 +76,9 @@ def reset_main_state():
 
 def test_cadenas_derivadas_del_mazo():
     """The chains are read from `evolvesFrom`, not from a hand-written list."""
-    assert (APPLIN, DIPPLIN, HYDRAPPLE) in m._CADENAS_MAZO
-    assert (CHIKORITA, BAYLEEF, MEGANIUM) in m._CADENAS_MAZO
-    assert m._GT_BASICOS_CON_CADENA == frozenset({APPLIN, CHIKORITA})
+    assert (APPLIN, DIPPLIN, HYDRAPPLE) in m._DECK_CHAINS
+    assert (CHIKORITA, BAYLEEF, MEGANIUM) in m._DECK_CHAINS
+    assert m._GT_BASICS_WITH_CHAIN == frozenset({APPLIN, CHIKORITA})
 
 
 def test_valor_cuerpo_prefiere_hydrapple_sobre_meganium():
@@ -113,7 +113,7 @@ def _planes(active, banca, mano=(), mazo=None, veta_ex=False,
         if p is not None:
             field[p["id"]] = field.get(p["id"], 0) + 1
     return m._gt_planes(my_state, m.ACTIVE_CARDS_IN_DECK, field,
-                        primer_turno, veta_etapa_ex=veta_ex)
+                        primer_turno, vetoes_ex_stage=veta_ex)
 
 
 def test_con_meganium_en_juego_se_completa_hydrapple():
@@ -201,7 +201,7 @@ def test_prefiere_banca_con_el_activo_condenado():
     my_state = to_observation_class(obs).current.players[0]
     field = {APPLIN: 2}
     planes = m._gt_planes(my_state, m.ACTIVE_CARDS_IN_DECK, field, False,
-                          activo_condenado=True)
+                          doomed_active=True)
     assert planes
     assert planes[0].area == m.AreaType.BENCH
 
@@ -397,6 +397,6 @@ def test_con_raiz_en_juego_no_se_fuerza_la_busqueda():
            .resto_al_descarte())
     obs = esc.construir()
     m.agent(obs)  # it must not blow up; the choice is decided by the previous rules
-    ranking = m._gt_basicos_deseados(m.ACTIVE_CARDS_IN_DECK,
+    ranking = m._gt_wanted_basics(m.ACTIVE_CARDS_IN_DECK,
                                      {OGERPON: 1, APPLIN: 1})
     assert APPLIN in ranking and CHIKORITA in ranking

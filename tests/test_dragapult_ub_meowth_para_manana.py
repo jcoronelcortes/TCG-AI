@@ -275,13 +275,13 @@ def test_sin_atacante_para_manana_no_cuenta_al_chikorita_ni_a_los_basicos():
     # The Chikorita attacks, but it is not a MAIN_ATTACKER; the Fezandipiti ex is at 3
     # energies and only ONE is attached per turn. A Tapu Bulu in hand (4
     # energies) is not "starting to attack tomorrow" either.
-    assert m._sin_atacante_para_manana(tablero, {m.Tapu_Bulu: 1}, {}) is True
+    assert m._no_attacker_for_tomorrow(tablero, {m.Tapu_Bulu: 1}, {}) is True
 
     # With the Fezandipiti at 2, tomorrow's attachment puts it in attack range.
     cargado = NS(active=[_pk(CHIKORITA, 1)], bench=[_pk(FEZ, 2)])
-    assert m._sin_atacante_para_manana(cargado, {}, {}) is False
+    assert m._no_attacker_for_tomorrow(cargado, {}, {}) is False
 
     # An evolution from hand on top of its pre-evo on the table also counts: it inherits
     # the body's energy and attacks.
-    assert m._sin_atacante_para_manana(
+    assert m._no_attacker_for_tomorrow(
         tablero, {MEGANIUM: 1}, {BAYLEEF: 1}) is False

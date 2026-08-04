@@ -1,0 +1,77 @@
+# Phase 9 -- main.py: the entry point Kaggle loads with exec(). Applied
+# repo-wide, because the tests reach into almost all of it.
+#
+# The gate that matters here is the submission smoke test, which loads main.py
+# the way the container does; it runs inside pytest.
+
+# --- the rule tables ---------------------------------------------------------
+_REGLAS_BOSS_PLAY	_RULES_BOSS_PLAY
+_REGLAS_FOREST_PLAY	_RULES_FOREST_PLAY
+_REGLAS_LILLIE_PLAY	_RULES_LILLIE_PLAY
+_REGLAS_BCS_APPLIN	_RULES_BCS_APPLIN
+_REGLAS_BCS_BAYLEEF	_RULES_BCS_BAYLEEF
+_REGLAS_BCS_CHIKORITA	_RULES_BCS_CHIKORITA
+_REGLAS_BCS_DIPPLIN	_RULES_BCS_DIPPLIN
+_REGLAS_BCS_FEZ	_RULES_BCS_FEZ
+_REGLAS_BCS_GRASS	_RULES_BCS_GRASS
+_REGLAS_BCS_HYDRAPPLE	_RULES_BCS_HYDRAPPLE
+_REGLAS_BCS_MEGANIUM	_RULES_BCS_MEGANIUM
+_REGLAS_BCS_MEOWTH	_RULES_BCS_MEOWTH
+_REGLAS_BCS_OGERPON	_RULES_BCS_OGERPON
+_REGLAS_BCS_PINSIR	_RULES_BCS_PINSIR
+_REGLAS_BCS_TAPU	_RULES_BCS_TAPU
+_REGLAS_DAWN_APPLIN	_RULES_DAWN_APPLIN
+_REGLAS_DAWN_BAYLEEF	_RULES_DAWN_BAYLEEF
+_REGLAS_DAWN_CHIKORITA	_RULES_DAWN_CHIKORITA
+_REGLAS_DAWN_DIPPLIN	_RULES_DAWN_DIPPLIN
+_REGLAS_DAWN_FEZ	_RULES_DAWN_FEZ
+_REGLAS_DAWN_FOREST	_RULES_DAWN_FOREST
+_REGLAS_DAWN_GRASS	_RULES_DAWN_GRASS
+_REGLAS_DAWN_HYDRAPPLE	_RULES_DAWN_HYDRAPPLE
+_REGLAS_DAWN_MEGANIUM	_RULES_DAWN_MEGANIUM
+_REGLAS_DAWN_MEOWTH	_RULES_DAWN_MEOWTH
+_REGLAS_DAWN_OGERPON	_RULES_DAWN_OGERPON
+_REGLAS_DAWN_TAPU	_RULES_DAWN_TAPU
+
+# --- tables and thresholds ---------------------------------------------------
+_CADENAS_MAZO	_DECK_CHAINS
+_EVO_POR_NOMBRE	_EVO_BY_NAME
+_GT_BASICOS_CON_CADENA	_GT_BASICS_WITH_CHAIN
+_NS_UMBRAL_POR_ATAQUE	_NS_THRESHOLD_BY_ATTACK
+_NS_UMBRAL_POR_RETIRADA	_NS_THRESHOLD_BY_RETREAT
+
+# --- the Night Stretcher energy threshold ------------------------------------
+_ns_umbral_energia_util	_ns_useful_energy_threshold
+_ns_activo_no_llega_al_coste	_ns_active_below_its_cost
+_ns_banca_llena_guardar	_ns_full_bench_keep
+_ns_e_activo_necesita	_ns_e_active_needs
+_ns_e_activo_por_debajo_del_coste	_ns_e_active_below_cost
+
+# --- helpers -----------------------------------------------------------------
+_mejor_supporter_de_mano	_best_supporter_in_hand
+_sin_atacante_para_manana	_no_attacker_for_tomorrow
+_dbl_hay_superviviente	_dbl_has_survivor
+_gt_estadio_disponible	_gt_stadium_available
+_hay_munkidori_seco	_has_dry_munkidori
+_idx_sello	_stamp_idx
+_lillie_condenado_sin_relevo	_lillie_doomed_without_relief
+_meowth_supp_turno_id	_meowth_supp_turn_id
+_meowth_supp_turno_val	_meowth_supp_turn_val
+_otro_supporter_en_mano	_other_supporter_in_hand
+_ph_dmg_rival	_ph_dmg_opponent
+_pivote_banca_sin_ganancia	_bench_pivot_no_gain
+_pivote_banca_suicida	_bench_pivot_suicidal
+_por_contador	_per_counter
+_ps_matchup_de_muro	_ps_wall_matchup
+_sg_ruta	_sg_route
+_ssw_gana_premios	_ssw_wins_prizes
+_tapu_en_juego_total	_tapu_in_play_total
+_cav_rutas	_dig_routes
+_cartas	_cards
+_cuerpo	_body
+_peor	_worst
+activo_condenado	doomed_active
+algo_que_evolucionar	something_to_evolve
+energia_util	useful_energy
+mejor_id	best_id
+mejor_val	best_val

@@ -88,9 +88,9 @@ class PuntuacionCtx:
     _gt_prompt_si_no: Any = None
     _gt_quiere_basico: Any = None
     _gt_root_in_play: Any = None
-    _gt_ranking_basicos: Any = None
+    _gt_basics_ranking: Any = None
     _gt_score_seleccion: Any = None
-    _gt_veta_etapa_ex: Any = None
+    _gt_vetoes_ex_stage: Any = None
     _gust_2prize_via_boss: Any = None
     _has_bench_attacker: Any = None
     _hydra_pivot_active: Any = None
