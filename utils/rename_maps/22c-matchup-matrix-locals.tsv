@@ -1,0 +1,4 @@
+# `con` / `sin` in utils/matchup_matrix.py: the two arms of the control-card
+# split (`--control-carta`), decks with and without the card.
+con	with_card
+sin	without_card

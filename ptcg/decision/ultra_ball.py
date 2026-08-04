@@ -1316,9 +1316,9 @@ def _ctx_ub_fetch_hydrapple(my_state, state, hand_counts, field_counts,
         e_ahora = len(active.energies)
         can_attach = (not state.energyAttached
                           and hand_counts.get(Basic_Grass_Energy, 0) >= 1)
-        e_despues = e_ahora + _grass_attach_unit()
+        e_after = e_ahora + _grass_attach_unit()
         req = AGENT_STATE.ATTACK_ENERGY_REQ.get(Hydrapple_ex, 2)
-        if e_ahora >= req or (can_attach and e_despues >= req):
+        if e_ahora >= req or (can_attach and e_after >= req):
             evo_atk = True
     return _CtxUBHydrapple(
         hand=hand_counts, campo=field_counts, evolvable=ub_evolvable,

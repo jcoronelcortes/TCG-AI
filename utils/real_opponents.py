@@ -83,21 +83,21 @@ def slug(text):
     return t or "sin_arquetipo"
 
 
-def load_corpus(origen):
+def load_corpus(source_path):
     """Reads the downloaded decks and groups them by IDENTICAL list.
 
     It returns the list of groups sorted from the largest to the smallest meta weight.
     """
-    indice = {}
-    index_path = origen / "indice.csv"
+    index = {}
+    index_path = source_path / "indice.csv"
     if index_path.is_file():
         with index_path.open(encoding="utf-8-sig", newline="") as fh:
             for row in csv.DictReader(fh):
-                indice[row.get("archivo", "")] = row.get("arquetipo", "")
+                index[row.get("archivo", "")] = row.get("arquetipo", "")
 
     groups = {}
     total = 0
-    for path in sorted(origen.glob("mazo_*.csv")):
+    for path in sorted(source_path.glob("mazo_*.csv")):
         deck = [int(x) for x in path.read_text(encoding="utf-8").split() if x.strip()]
         if len(deck) != 60:
             print(f"  aviso: {path.name} tiene {len(deck)} cartas, se omite")
@@ -108,7 +108,7 @@ def load_corpus(origen):
             key, {"mazo": sorted(deck), "copias": 0, "arquetipos": Counter()}
         )
         group["copias"] += 1
-        group["arquetipos"][indice.get(path.name, "")] += 1
+        group["arquetipos"][index.get(path.name, "")] += 1
 
     output = []
     for group in groups.values():
@@ -124,11 +124,11 @@ def load_corpus(origen):
     output.sort(key=lambda g: (-g["peso_meta"], g["arquetipo"], g["mazo"]))
 
     # A name per archetype, numbered by descending weight within the archetype.
-    por_arquetipo = Counter()
+    by_archetype = Counter()
     for group in output:
         base = slug(group["arquetipo"])
-        por_arquetipo[base] += 1
-        group["nombre"] = f"{base}_{por_arquetipo[base]}"
+        by_archetype[base] += 1
+        group["nombre"] = f"{base}_{by_archetype[base]}"
     return output, total
 
 
@@ -172,9 +172,9 @@ def write_out(groups, output):
 
     filas = []
     for group in groups:
-        destino = output if group["admitido"] else rechazados
-        destino.mkdir(parents=True, exist_ok=True)
-        (destino / f"{group['nombre']}.csv").write_text(
+        target_path = output if group["admitido"] else rechazados
+        target_path.mkdir(parents=True, exist_ok=True)
+        (target_path / f"{group['nombre']}.csv").write_text(
             "\n".join(str(cid) for cid in group["mazo"]) + "\n", encoding="utf-8"
         )
         filas.append(
@@ -215,13 +215,13 @@ def main(argv):
                     help="cribar solo las N listas de mayor peso (el resto se omite)")
     args = ap.parse_args(argv)
 
-    origen = Path(args.origen)
-    if not origen.is_dir():
-        print(f"ERROR: no existe {origen}", file=sys.stderr)
+    source_path = Path(args.source_path)
+    if not source_path.is_dir():
+        print(f"ERROR: no existe {source_path}", file=sys.stderr)
         return 1
 
     print("== 1/3 Deduplicando el corpus ==")
-    groups, total = load_corpus(origen)
+    groups, total = load_corpus(source_path)
     if not groups:
         print("ERROR: no se encontro ningun mazo", file=sys.stderr)
         return 1

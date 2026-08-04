@@ -42,7 +42,7 @@ _TESTS = _ROOT / "tests"
 if str(_TESTS) not in sys.path:
     sys.path.insert(0, str(_TESTS))
 
-from golden_corpus import reset_agente  # a mirror of the tests' reset
+from golden_corpus import reset_agent  # a mirror of the tests' reset
 
 MAX_STEPS = 3000
 
@@ -106,7 +106,7 @@ def read_deck(path=None):
 def _reset_si_aplica(mod):
     # The opposing bot has no tracking; only the main.py instances do.
     if hasattr(mod, "_init_cards_tracking"):
-        reset_agente(mod)
+        reset_agent(mod)
 
 
 def _prizes_left(obs):
@@ -141,7 +141,7 @@ def _prizes_taken(pico, final):
     return [max(0, pico[i] - final[i]) for i in (0, 1)]
 
 
-def play_game(agente_p0, agente_p1, deck0=None, deck1=None,
+def play_game(agent_p0, agent_p1, deck0=None, deck1=None,
                   max_steps=MAX_STEPS):
     """Plays a complete game. Returns a dict with the outcome.
 
@@ -161,8 +161,8 @@ def play_game(agente_p0, agente_p1, deck0=None, deck1=None,
     deck = read_deck()
     deck0 = deck0 or deck
     deck1 = deck1 or deck
-    _reset_si_aplica(agente_p0)
-    _reset_si_aplica(agente_p1)
+    _reset_si_aplica(agent_p0)
+    _reset_si_aplica(agent_p1)
 
     obs, sd = game.battle_start(list(deck0), list(deck1))
     if obs is None:
@@ -182,7 +182,7 @@ def play_game(agente_p0, agente_p1, deck0=None, deck1=None,
         return actual
 
     _watch_prizes()
-    agentes = {0: agente_p0, 1: agente_p1}
+    agentes = {0: agent_p0, 1: agent_p1}
     steps = 0
     first_player = -1
     try:

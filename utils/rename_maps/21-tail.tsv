@@ -1,0 +1,77 @@
+# Phase 13, tail -- everything a full sweep of the repo still finds in Spanish,
+# once the files themselves had moved. Mostly names the per-area maps missed
+# because they were spelled with a word those maps did not carry.
+#
+# NOT here, on purpose: `MODULO_ESTADO` and `control_carta` / `partidas` /
+# `sin_criba` / `sin_extra` (argparse dests, tied to Spanish flags), and the
+# rule labels.
+#
+# `del_paquete` carries `str`: it is a key of a dict built and read inside
+# utils/extract_definitions.py, so the key moves with the code. `opciones_no_end`
+# carries `code`: it is a field of the autopsy JSON, which is output data.
+_BCS_ANTES_MEOWTH	_BCS_BEFORE_MEOWTH
+_BCS_ANTES_OGERPON	_BCS_BEFORE_OGERPON
+_ESTADO_CAMPOS	_STATE_FIELDS
+_alk_t14_hasta	_alk_t14_up_to
+_bcs_entrada	_bcs_entry
+_bloque_con_comentarios	_block_with_comments
+_constantes_del_paquete	_package_constants
+_dawn_entrada	_dawn_entry
+_estadio_jugado	_stadium_played
+_fetch_ub_motor_meowth_vs	_fetch_ub_meowth_engine_vs
+_filtro_sin_pycache	_filter_without_pycache
+_ga_desde	_ga_from
+_lucario_t4_hasta	_lucario_t4_up_to
+_menu_inmune_activo	_menu_immune_active
+_ns_entrada	_ns_entry
+_obs_tras_retirar	_obs_after_retreating
+_op_mano	_op_hand
+_op_mazo	_op_deck
+_op_premios	_op_prizes
+_ps_conserva_salida	_ps_keeps_its_way_out
+_replay_hasta	_replay_up_to
+_tablero	_board
+_tipos_del_menu	_menu_types
+agente_dir	agent_dir
+agente_p0	agent_p0
+agente_p1	agent_p1
+anterior	previous
+campos	fields
+con_avisos	with_warnings
+d_hoy	d_today
+del_paquete	of_the_package	str
+desde	since
+despues	after
+e_despues	e_after
+eff_despues	eff_after
+estado_http	http_status
+estado_sig	next_state
+esteril	sterile
+hasta	up_to
+hoy	today
+opciones_no_end	options_without_end	code
+por_arquetipo	by_archetype
+por_asiento	by_seat
+por_tipo	by_type
+puntaje_por_posicion	score_by_position
+reset_agente	reset_agent
+sin_peso	without_weight
+sin_submission	without_submission
+una_vez	once
+test_abomasnow_descuadre_cadena_completa	test_abomasnow_prize_mismatch_full_chain
+test_area_to_estado_maps_all_supported_areas	test_area_to_zone_maps_all_supported_areas
+test_cornerstone_td_tope_2_fisicas_redirige_a_tapu	test_cornerstone_td_cap_of_2_physical_redirects_to_tapu
+test_el_dawn_protegido_tampoco_es_forraje	test_a_protected_dawn_is_not_fodder_either
+test_forraje_real_no_cuenta_el_unfair_stamp	test_real_fodder_does_not_count_the_unfair_stamp
+test_hop_teal_dance_respeta_el_tope	test_hop_teal_dance_respects_the_cap
+test_la_copia_sobrante_de_lillie_si_es_forraje	test_the_surplus_lillie_copy_is_fodder
+test_la_lillie_protegida_no_es_forraje	test_the_protected_lillie_is_not_fodder
+test_la_pesca_exitosa_se_convierte_en_ataque	test_successful_fishing_turns_into_an_attack
+test_marnie_step20_usa_teal_dance_en_vez_de_cargar_chikorita	test_marnie_step20_uses_teal_dance_instead_of_charging_the_chikorita
+test_partida_completa_espejo	test_a_full_mirror_game
+test_paso78_usa_flip_the_script_en_vez_de_atacar	test_step78_uses_flip_the_script_instead_of_attacking
+test_protegiendo_la_propia_lillie_el_dawn_sigue_siendo_forraje	test_protecting_the_lillie_itself_the_dawn_is_still_fodder
+test_r2_permite_estado_en_calculo	test_r2_allows_state_in_calc
+test_raging_bolt_descuadre_cadena_completa	test_raging_bolt_prize_mismatch_full_chain
+test_regla_lenta_acotada_al_matchup_cubchoo	test_the_slow_body_rule_is_bounded_to_the_cubchoo_matchup
+test_si_el_casi_atacante_quedaria_clavado_el_motor_de_robo_no_basta	test_if_the_near_attacker_would_be_nailed_down_the_draw_engine_is_not_enough

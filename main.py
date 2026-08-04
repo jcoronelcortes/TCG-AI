@@ -72,17 +72,17 @@ from ptcg.turn.energy_ctx import CtxEnergyScoreBase  # noqa: F401
 # tests/test_submission.py exercises (loading with the real loader, not with
 # `import`).
 # =============================================================================
-_ESTADO_CAMPOS = frozenset(vars(AgentState()))
+_STATE_FIELDS = frozenset(vars(AgentState()))
 _mod = sys.modules.get(globals().get('__name__') or '')
 if _mod is not None:
     class _MainConEstado(type(_mod)):
         def __getattr__(self, name):
-            if name in _ESTADO_CAMPOS:
+            if name in _STATE_FIELDS:
                 return getattr(AGENT_STATE, name)
             raise AttributeError(name)
 
         def __setattr__(self, name, value):
-            if name in _ESTADO_CAMPOS:
+            if name in _STATE_FIELDS:
                 setattr(AGENT_STATE, name, value)
             else:
                 super().__setattr__(name, value)
@@ -4270,12 +4270,12 @@ def agent(obs_dict: dict) -> list[int]:
     # TURN_START/TURN_END count. With this counter `_grass_ability_slots` knows whether
     # any charging ability (Teal Dance / Ripening Charge) is still alive
     # when the turn's MANUAL attachment has already been spent.
-    _ga_desde = 0
+    _ga_from = 0
     for _ga_i, _ga_log in enumerate(obs.logs):
         if getattr(_ga_log, 'type', None) in (LogType.TURN_START,
                                               LogType.TURN_END):
-            _ga_desde = _ga_i + 1
-    for _ga_log in obs.logs[_ga_desde:]:
+            _ga_from = _ga_i + 1
+    for _ga_log in obs.logs[_ga_from:]:
         if (getattr(_ga_log, 'type', None) == LogType.ATTACH
                 and getattr(_ga_log, 'playerIndex', None) == my_index
                 and getattr(_ga_log, 'cardId', None) == Basic_Grass_Energy):
@@ -9496,7 +9496,7 @@ def agent(obs_dict: dict) -> list[int]:
                  or (hand_counts.get(Fezandipiti_ex, 0) >= 1
                      and _prom_bench_after < 5)))
 
-        def _ps_conserva_salida(_pk):
+        def _ps_keeps_its_way_out(_pk):
             """The candidate can PAY ITS RETREAT with the energy it already carries.
 
             It is the half that makes route (d) safe (user, registro_008 step
@@ -9522,7 +9522,7 @@ def agent(obs_dict: dict) -> list[int]:
                 # Grass does not appear, it retreats and the wall comes up the
                 # following turn. With any of the SEARCH routes (a/b/c) the
                 # energy is practically assured and it is not needed.
-                if not _ps_can_find_energy and not _ps_conserva_salida(_psb):
+                if not _ps_can_find_energy and not _ps_keeps_its_way_out(_psb):
                     continue
                 _ps_cur = len(_psb.energies)
                 _ps_deficit = _ps_req - _ps_cur

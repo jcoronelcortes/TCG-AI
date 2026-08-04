@@ -26,7 +26,7 @@ def instancias():
     return a, b
 
 
-def test_partida_completa_espejo(instancias):
+def test_a_full_mirror_game(instancias):
     a, b = instancias
     r = sp.play_game(a, b)
     assert r["ganador"] in (0, 1), f"partida sin ganador: {r}"

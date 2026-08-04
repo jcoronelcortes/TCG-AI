@@ -1,0 +1,27 @@
+# Phase 13, tail 2 -- the words no earlier map carried, found by widening the
+# sweep once everything else was done. Mostly the AST-walking tools, which
+# talk about `nodo`, `arbol` and `fallos` on every other line.
+#
+# Left out: `pesos`, `espejo`, `censo`, `intervalo`, `progreso`, `volcar`,
+# `verificar`, `listar`, `titulo`, `candidato`, `hallazgo(s)` -- every one of
+# them is an argparse dest tied to a Spanish flag, or reads one.
+#
+# `PAQUETE` carries `str`: the architecture test patches it BY NAME.
+# `modulo` carries `code`: the literal is a LABEL the submission test passes
+# to its subprocess to say which load mode it wants, not a name.
+nodo	node
+arbol	tree
+fallos	failures
+paquete	package
+PAQUETE	PACKAGE	str
+SUBPAQUETES_PUROS	PURE_SUBPACKAGES
+MODULO_ESTADO	STATE_MODULE
+modulo	module_name	code
+destino	target_path
+origen	source_path
+elegido	chosen
+elegidos	chosen_ones
+orden	order
+indice	index
+indices	indices
+directorio	directory

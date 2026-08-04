@@ -46,7 +46,7 @@ MUTADORES = {"append", "extend", "update", "add", "pop", "clear", "insert",
              "remove", "discard", "setdefault", "sort"}
 
 
-def mutated_names(arbol):
+def mutated_names(tree):
     """Names mutated at some point of the module: they are state, not constants.
 
     CAREFUL: this does NOT overlap with the `global` statements. Reassigning a scalar
@@ -62,7 +62,7 @@ def mutated_names(arbol):
     # would enter the list and would wrongly block definitions that merely
     # share a name with them.
     de_modulo = set()
-    for n in arbol.body:
+    for n in tree.body:
         if isinstance(n, ast.Assign):
             for t in n.targets:
                 if isinstance(t, ast.Name):
@@ -73,7 +73,7 @@ def mutated_names(arbol):
             de_modulo.add(n.name)
 
     mutados = set()
-    for n in ast.walk(arbol):
+    for n in ast.walk(tree):
         if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute):
             if n.func.attr in MUTADORES and isinstance(n.func.value, ast.Name):
                 mutados.add(n.func.value.id)
@@ -85,8 +85,8 @@ def mutated_names(arbol):
     return mutados & de_modulo
 
 
-def _args_de(nodo):
-    a = nodo.args
+def _args_de(node):
+    a = node.args
     names = {x.arg for x in a.args + a.kwonlyargs + a.posonlyargs}
     if a.vararg:
         names.add(a.vararg.arg)
@@ -95,7 +95,7 @@ def _args_de(nodo):
     return names
 
 
-def free_names(nodo):
+def free_names(node):
     """Names the definition uses and does not define itself.
 
     It collects the arguments of ALL the nested functions/lambdas, not only those
@@ -103,7 +103,7 @@ def free_names(nodo):
     free name and blocks the whole class (it really happened).
     """
     locales, usados = set(), set()
-    for n in ast.walk(nodo):
+    for n in ast.walk(node):
         if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
             locales |= _args_de(n)
         if isinstance(n, ast.Name):
@@ -111,7 +111,7 @@ def free_names(nodo):
                 locales.add(n.id)
             else:
                 usados.add(n.id)
-        elif isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and n is not nodo:
+        elif isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and n is not node:
             locales.add(n.name)
         elif isinstance(n, (ast.Import, ast.ImportFrom)):
             for a in n.names:
@@ -121,53 +121,53 @@ def free_names(nodo):
     return usados - locales
 
 
-def _constantes_del_paquete():
+def _package_constants():
     """The `__all__` of the modules already extracted to the package."""
     names = set()
-    paquete = PROJECT_ROOT / "ptcg"
-    if not paquete.is_dir():
+    package = PROJECT_ROOT / "ptcg"
+    if not package.is_dir():
         return names
     if str(PROJECT_ROOT) not in sys.path:
         sys.path.insert(0, str(PROJECT_ROOT))
-    for path in paquete.rglob("*.py"):
+    for path in package.rglob("*.py"):
         try:
-            arbol = ast.parse(path.read_text(encoding="utf-8"))
+            tree = ast.parse(path.read_text(encoding="utf-8"))
         except SyntaxError:
             continue
-        for nodo in arbol.body:
-            if (isinstance(nodo, ast.Assign) and len(nodo.targets) == 1
-                    and isinstance(nodo.targets[0], ast.Name)
-                    and nodo.targets[0].id == "__all__"):
+        for node in tree.body:
+            if (isinstance(node, ast.Assign) and len(node.targets) == 1
+                    and isinstance(node.targets[0], ast.Name)
+                    and node.targets[0].id == "__all__"):
                 try:
-                    names.update(ast.literal_eval(nodo.value))
+                    names.update(ast.literal_eval(node.value))
                 except ValueError:
                     pass
-            elif isinstance(nodo, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-                names.add(nodo.name)
+            elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                names.add(node.name)
     return names
 
 
 def _mapa_paquete():
     """exported name -> the package module that defines it (`ptcg.cartas.ids`...)."""
     mapa = {}
-    paquete = PROJECT_ROOT / "ptcg"
-    if not paquete.is_dir():
+    package = PROJECT_ROOT / "ptcg"
+    if not package.is_dir():
         return mapa
-    for path in sorted(paquete.rglob("*.py")):
+    for path in sorted(package.rglob("*.py")):
         if path.name == "__init__.py":
             continue
         dotted = path.relative_to(PROJECT_ROOT).with_suffix("")
         dotted = ".".join(dotted.parts)
         try:
-            arbol = ast.parse(path.read_text(encoding="utf-8"))
+            tree = ast.parse(path.read_text(encoding="utf-8"))
         except SyntaxError:
             continue
-        for nodo in arbol.body:
-            if (isinstance(nodo, ast.Assign) and len(nodo.targets) == 1
-                    and isinstance(nodo.targets[0], ast.Name)
-                    and nodo.targets[0].id == "__all__"):
+        for node in tree.body:
+            if (isinstance(node, ast.Assign) and len(node.targets) == 1
+                    and isinstance(node.targets[0], ast.Name)
+                    and node.targets[0].id == "__all__"):
                 try:
-                    for n in ast.literal_eval(nodo.value):
+                    for n in ast.literal_eval(node.value):
                         mapa.setdefault(n, dotted)
                 except ValueError:
                     pass
@@ -177,10 +177,10 @@ def _mapa_paquete():
 def analizar(main_py=None):
     main_py = Path(main_py or PROJECT_ROOT / "main.py")
     src = main_py.read_text(encoding="utf-8")
-    arbol = ast.parse(src)
+    tree = ast.parse(src)
 
     importados = set()
-    for n in arbol.body:
+    for n in tree.body:
         if isinstance(n, ast.Import):
             importados.update((a.asname or a.name.split(".")[0]) for a in n.names)
         elif isinstance(n, ast.ImportFrom):
@@ -188,18 +188,18 @@ def analizar(main_py=None):
                 if a.name != "*":
                     importados.add(a.asname or a.name)
 
-    del_paquete = _constantes_del_paquete()
+    of_the_package = _package_constants()
 
     mutables = set()
-    for n in ast.walk(arbol):
+    for n in ast.walk(tree):
         if isinstance(n, ast.Global):
             mutables.update(n.names)
     # Mutable state that is NOT declared `global`: module-level dicts/lists
     # that somebody rewrites (see `nombres_mutados`).
-    mutables |= mutated_names(arbol)
+    mutables |= mutated_names(tree)
 
     definiciones, asignaciones = {}, {}
-    for n in arbol.body:
+    for n in tree.body:
         if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
             definiciones[n.name] = n
         elif (isinstance(n, ast.Assign) and len(n.targets) == 1
@@ -215,7 +215,7 @@ def analizar(main_py=None):
         cambio = False
         for name in sorted(movibles):
             for free in libres[name]:
-                if (free in BUILTINS or free in importados or free in del_paquete
+                if (free in BUILTINS or free in importados or free in of_the_package
                         or free in movibles or free == name or free in const_main):
                     continue
                 if free in mutables:
@@ -234,7 +234,7 @@ def analizar(main_py=None):
     return {
         "movibles": movibles, "razon": razon, "libres": libres,
         "definiciones": definiciones, "asignaciones": asignaciones,
-        "importados": importados, "del_paquete": del_paquete,
+        "importados": importados, "of_the_package": of_the_package,
         "const_main": const_main, "mutables": mutables,
     }
 

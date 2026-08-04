@@ -56,10 +56,10 @@ omitiria si no).
 '''
 
 
-def mutated_names(arbol):
+def mutated_names(tree):
     """Names that are mutated at some point of the module: they are not constants."""
     mutados = set()
-    for n in ast.walk(arbol):
+    for n in ast.walk(tree):
         if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute):
             if n.func.attr in MUTADORES and isinstance(n.func.value, ast.Name):
                 mutados.add(n.func.value.id)
@@ -73,8 +73,8 @@ def mutated_names(arbol):
     return mutados
 
 
-def _es_puro(nodo, puros):
-    for n in ast.walk(nodo):
+def _es_puro(node, puros):
+    for n in ast.walk(node):
         if isinstance(n, ast.Name):
             if n.id not in puros and n.id not in SEGUROS:
                 return False
@@ -87,33 +87,33 @@ def _es_puro(nodo, puros):
     return True
 
 
-def planificar(main_py, desde, hasta):
+def planificar(main_py, since, up_to):
     """Returns (ranges, names): which lines would move and which bindings they contain."""
     src = main_py.read_text(encoding="utf-8")
     lines = src.splitlines(keepends=True)
-    arbol = ast.parse(src)
-    mutados = mutated_names(arbol)
+    tree = ast.parse(src)
+    mutados = mutated_names(tree)
 
     # What has ALREADY been extracted to the package counts as available: after the first wave,
     # `EVO_LINES = (Chikorita, Bayleef, ...)` references IDs that are no longer in
     # main.py, and without this it would look impure and would never be moved.
     import sys as _sys
     _sys.path.insert(0, str(PROJECT_ROOT / "utils"))
-    from purity import _constantes_del_paquete
-    puros = {n: True for n in _constantes_del_paquete()}
+    from purity import _package_constants
+    puros = {n: True for n in _package_constants()}
     bloqueadas, movibles = set(), {}
-    for nodo in arbol.body:
-        a, b = nodo.lineno, nodo.end_lineno
+    for node in tree.body:
+        a, b = node.lineno, node.end_lineno
         ok = False
-        if (isinstance(nodo, ast.Assign) and len(nodo.targets) == 1
-                and isinstance(nodo.targets[0], ast.Name)):
-            name = nodo.targets[0].id
-            if _es_puro(nodo.value, puros) and name not in mutados:
+        if (isinstance(node, ast.Assign) and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Name)):
+            name = node.targets[0].id
+            if _es_puro(node.value, puros) and name not in mutados:
                 puros[name] = True
                 ok = True
-                if desde <= a <= hasta:
+                if since <= a <= up_to:
                     movibles[a] = (b, name)
-        if not ok or not (desde <= a <= hasta):
+        if not ok or not (since <= a <= up_to):
             bloqueadas.update(range(a, b + 1))
 
     es_movible = [False] * (len(lines) + 2)
@@ -125,16 +125,16 @@ def planificar(main_py, desde, hasta):
         t = lines[ln - 1].strip()
         return t == "" or t.startswith("#")
 
-    rangos, ln = [], desde
-    while ln <= hasta:
+    rangos, ln = [], since
+    while ln <= up_to:
         if not es_movible[ln]:
             ln += 1
             continue
         ini = ln
-        while ini - 1 >= desde and suelta(ini - 1) and (ini - 1) not in bloqueadas:
+        while ini - 1 >= since and suelta(ini - 1) and (ini - 1) not in bloqueadas:
             ini -= 1
         fin = ln
-        while fin + 1 <= hasta and (es_movible[fin + 1]
+        while fin + 1 <= up_to and (es_movible[fin + 1]
                                     or (suelta(fin + 1) and (fin + 1) not in bloqueadas)):
             fin += 1
         while fin > ini and suelta(fin):      # the trailing comments belong to the
@@ -178,7 +178,7 @@ def main():
     args = ap.parse_args()
 
     main_py = PROJECT_ROOT / args.main
-    lines, rangos, names, necesarios = planificar(main_py, args.desde, args.hasta)
+    lines, rangos, names, necesarios = planificar(main_py, args.since, args.up_to)
 
     total = sum(b - a + 1 for a, b in rangos)
     print(f"rangos: {len(rangos)}   lineas: {total}   bindings: {len(names)}")
@@ -189,11 +189,11 @@ def main():
         print("\n(dry run; usa --aplicar para escribir)")
         return 0
 
-    destino = PROJECT_ROOT / args.destino
-    destino.parent.mkdir(parents=True, exist_ok=True)
-    for paquete in (destino.parent, destino.parent.parent):
-        ini = paquete / "__init__.py"
-        if paquete != PROJECT_ROOT and not ini.exists():
+    target_path = PROJECT_ROOT / args.target_path
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    for package in (target_path.parent, target_path.parent.parent):
+        ini = package / "__init__.py"
+        if package != PROJECT_ROOT and not ini.exists():
             ini.write_text('"""Paquete del agente. Ver docs/project-history.md."""\n')
 
     body = ["".join(lines[a - 1:b]) for a, b in rangos]
@@ -203,14 +203,14 @@ def main():
     if imports:
         imports += "\n\n"
     all_list = "__all__ = [\n" + "".join(f"    {n!r},\n" for n in names) + "]\n"
-    destino.write_text(HEADER.format(titulo=args.titulo) + imports
+    target_path.write_text(HEADER.format(titulo=args.titulo) + imports
                        + "\n".join(body) + "\n\n" + all_list)
 
     borrar = set()
     for a, b in rangos:
         borrar.update(range(a, b + 1))
-    modulo = args.destino.replace("/", ".").removesuffix(".py")
-    marca = f"from {modulo} import *  # noqa: F401,F403\n"
+    module_name = args.target_path.replace("/", ".").removesuffix(".py")
+    marca = f"from {module_name} import *  # noqa: F401,F403\n"
     output, puesto = [], False
     for i, line in enumerate(lines, start=1):
         if i in borrar:
@@ -221,7 +221,7 @@ def main():
         output.append(line)
     main_py.write_text("".join(output))
 
-    print(f"\nescrito {destino}")
+    print(f"\nescrito {target_path}")
     print(f"{args.main}: {len(lines)} -> {len(output)} lineas")
     print("OJO: el import se inserta donde estaba el primer rango; muevelo al "
           "bloque de cabecera (en Kaggle el dir del agente solo esta en sys.path "

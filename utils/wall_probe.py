@@ -77,7 +77,7 @@ def _califica(m, obs, asiento):
     return False
 
 
-def play(m, opponent_deck, partidas, volcar, destino):
+def play(m, opponent_deck, partidas, volcar, target_path):
     from cg import game
 
     summary = Counter()
@@ -131,9 +131,9 @@ def play(m, opponent_deck, partidas, volcar, destino):
             game.battle_finish()
 
     if secos:
-        destino.mkdir(parents=True, exist_ok=True)
+        target_path.mkdir(parents=True, exist_ok=True)
         for n, o in enumerate(secos, start=1):
-            (destino / f"seco_{n:03d}.json").write_text(
+            (target_path / f"seco_{n:03d}.json").write_text(
                 json.dumps({"observation": o}, ensure_ascii=False), encoding="utf-8")
     return summary, len(secos)
 
@@ -152,7 +152,7 @@ def main(argv):
     import main as m
     opponent_deck = sp.read_deck(args.opponent)
     summary, n_secos = play(m, opponent_deck, args.partidas, args.volcar,
-                             Path(args.destino))
+                             Path(args.target_path))
 
     total = sum(summary.values())
     print(f"rival={Path(args.opponent).stem}  partidas={args.partidas}")
@@ -164,7 +164,7 @@ def main(argv):
         v = summary.get(k, 0)
         print(f"  {k:<7} {v:4d}  ({100 * v / total:5.1f}%)")
     if n_secos:
-        print(f"\nvolcados {n_secos} turnos secos en {args.destino}")
+        print(f"\nvolcados {n_secos} turnos secos en {args.target_path}")
     return 0
 
 

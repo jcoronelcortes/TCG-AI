@@ -256,9 +256,9 @@ def _energy_goes_to(obs, choice):
     if opt.get("type") != 8:
         return None
     me = obs["current"]["players"][obs["current"]["yourIndex"]]
-    destino = (me["active"][0] if opt.get("inPlayArea") == 4
+    target_path = (me["active"][0] if opt.get("inPlayArea") == 4
                else me["bench"][opt["inPlayIndex"]])
-    return destino["id"]
+    return target_path["id"]
 
 
 def test_cornerstone_the_energy_goes_to_tapu_bulu():
@@ -309,9 +309,9 @@ def _chosen_play(obs, choice):
     if opt.get("type") != int(m.OptionType.ATTACH):
         return ("OTRA", opt.get("type"))
     me = obs["current"]["players"][obs["current"]["yourIndex"]]
-    destino = (me["active"][0] if opt.get("inPlayArea") == int(m.AreaType.ACTIVE)
+    target_path = (me["active"][0] if opt.get("inPlayArea") == int(m.AreaType.ACTIVE)
                else me["bench"][opt["inPlayIndex"]])
-    return ("ATTACH", destino["id"])
+    return ("ATTACH", target_path["id"])
 
 
 def _esc_hop(active, bench, op_energies=(), menu="attach"):
@@ -330,8 +330,8 @@ def test_hop_cap_of_3_energies_on_the_bench_ogerpon():
     # body (before, the cap was 4 and the Ogerpon was overcharged).
     obs = _esc_hop(pk(m.Dipplin, pre_evo=[m.Applin], energies=[G], fisicas=1),
                    [pk(m.Teal_Mask_Ogerpon_ex, energies=[G, G, G], fisicas=3)])
-    tipo, destino = _chosen_play(obs, m.agent(obs))
-    assert (tipo, destino) != ("ATTACH", m.Teal_Mask_Ogerpon_ex), (
+    tipo, target_path = _chosen_play(obs, m.agent(obs))
+    assert (tipo, target_path) != ("ATTACH", m.Teal_Mask_Ogerpon_ex), (
         "vs Hop's un Ogerpon de banca con 3 energias fisicas esta en su tope: "
         "no se le adjunta una 4a")
 
@@ -360,13 +360,13 @@ def test_hop_the_fourth_energy_is_vetoed_if_the_ogerpon_already_knocks_out():
     obs = _esc_hop(pk(m.Teal_Mask_Ogerpon_ex, energies=[G, G, G], fisicas=3),
                    [pk(m.Tapu_Bulu, energies=[G, G, G], fisicas=3)],
                    op_energies=[G, G])
-    tipo, destino = _chosen_play(obs, m.agent(obs))
-    assert (tipo, destino) != ("ATTACH", m.Teal_Mask_Ogerpon_ex), (
+    tipo, target_path = _chosen_play(obs, m.agent(obs))
+    assert (tipo, target_path) != ("ATTACH", m.Teal_Mask_Ogerpon_ex), (
         "si el Ogerpon activo ya noquea, la energia extra no habilita nada: "
         "el tope de Hop's la reserva para otro cuerpo")
 
 
-def test_hop_teal_dance_respeta_el_tope():
+def test_hop_teal_dance_respects_the_cap():
     # Teal Dance also attaches: with 3 physical on the bench Ogerpon it is
     # vetoed (before it was used and left it at 4).
     obs = _esc_hop(pk(m.Dipplin, pre_evo=[m.Applin], energies=[G], fisicas=1),
@@ -398,8 +398,8 @@ def test_hop_cap_of_2_energies_with_meganium():
            .op_zonas(hand=4, deck=40, prizes=4)
            .menu_attach_energy()
            .build())
-    tipo, destino = _chosen_play(obs, m.agent(obs))
-    assert (tipo, destino) != ("ATTACH", m.Teal_Mask_Ogerpon_ex), (
+    tipo, target_path = _chosen_play(obs, m.agent(obs))
+    assert (tipo, target_path) != ("ATTACH", m.Teal_Mask_Ogerpon_ex), (
         "con Meganium en juego 2 Plantas fisicas ya son 4 efectivas: el "
         "Ogerpon de banca esta en su tope")
 
@@ -657,10 +657,10 @@ def _pivot_walk(obs, max_steps=10):
             regen = False
         elif t == 3 and obs["select"]["context"] == int(m.SelectContext.SWITCH):
             k = o["index"]
-            nuevo, anterior = yo["bench"][k], yo["active"][0]
+            nuevo, previous = yo["bench"][k], yo["active"][0]
             yo["active"] = [nuevo]
             yo["bench"] = ([bp for i, bp in enumerate(yo["bench"]) if i != k]
-                           + [anterior])
+                           + [previous])
             steps.append(f"PROMUEVE {m.card_table[nuevo['id']].name}")
         elif t == 7:                                  # PLAY Night Stretcher
             card = yo["hand"][o["index"]]
@@ -932,7 +932,7 @@ def _raging_caminar(obs, max_steps=10):
     return steps, obs["current"]["players"][0]["active"][0]
 
 
-def test_raging_bolt_descuadre_cadena_completa():
+def test_raging_bolt_prize_mismatch_full_chain():
     steps, final_active = _raging_caminar(_raging_obs())
     assert "BAJA Tapu Bulu" in steps and "RETREAT" in steps, steps
     assert "PROMUEVE Tapu Bulu" in steps, steps
@@ -994,7 +994,7 @@ def _abomasnow_obs(first_player=1, turn=2, tapu_on_bench=False):
             .build())
 
 
-def test_abomasnow_descuadre_cadena_completa():
+def test_abomasnow_prize_mismatch_full_chain():
     # Going SECOND (our first turn is turn 2), the rule applies:
     # play Tapu Bulu, retreat the Ogerpon ex and put it in front.
     steps, final_active = _raging_caminar(_abomasnow_obs())
@@ -1036,7 +1036,7 @@ def test_abomasnow_going_first_but_on_a_later_turn_it_does_sacrifice():
 MEGA_LUCARIO = 678
 
 
-def _menu_inmune_activo(op_active_id, op_bench_id):
+def _menu_immune_active(op_active_id, op_bench_id):
     esc = (Escenario(turn=8, step=100, tac=0,
                      partidario_jugado=False, stadium_played=True,
                      own_prizes=4)
@@ -1061,7 +1061,7 @@ def _menu_inmune_activo(op_active_id, op_bench_id):
 
 
 def test_an_immune_active_plays_meowth_to_gust_the_bench():
-    obs = _menu_inmune_activo(CORNERSTONE, MEGA_LUCARIO)
+    obs = _menu_immune_active(CORNERSTONE, MEGA_LUCARIO)
     m._init_cards_tracking()
     m.plan = m.AttackPlan()
     dec = m.agent(obs)
@@ -1077,7 +1077,7 @@ def test_an_attackable_active_does_not_detour_to_meowth():
     # the Cornerstone ability), `_meowth_immune_boss_engine` does NOT apply -- the
     # Hydrapple ex DOES hit it (330), so the agent ATTACKS instead of detouring
     # into playing Meowth ex through the immunity engine's route.
-    obs = _menu_inmune_activo(MEGA_LUCARIO, CORNERSTONE)
+    obs = _menu_immune_active(MEGA_LUCARIO, CORNERSTONE)
     m._init_cards_tracking()
     m.plan = m.AttackPlan()
     dec = m.agent(obs)
@@ -1095,7 +1095,7 @@ def test_an_attackable_active_does_not_detour_to_meowth():
 # treatment as Team Rocket's Watchtower (`meowth_ability_lock`).
 # ---------------------------------------------------------------------
 
-def _fetch_ub_motor_meowth_vs(op_id):
+def _fetch_ub_meowth_engine_vs(op_id):
     """A UB with an empty hand and the refresh engine available in the deck."""
     obs = (Escenario(turn=6, step=1, tac=1)
            .my_active(pk(m.Teal_Mask_Ogerpon_ex, energies=[G], fisicas=1))
@@ -1114,7 +1114,7 @@ def _fetch_ub_motor_meowth_vs(op_id):
 
 
 def test_an_active_iron_thorns_vetoes_the_meowth_fetch():
-    elegida = _fetch_ub_motor_meowth_vs(m.Iron_Thorns_ex)
+    elegida = _fetch_ub_meowth_engine_vs(m.Iron_Thorns_ex)
     assert elegida != m.Meowth_ex, (
         "con Iron Thorns ex de activo rival (Initialization anula Last-Ditch "
         "Catch), Ultra Ball no debe buscar Meowth ex para el motor de "
@@ -1124,7 +1124,7 @@ def test_an_active_iron_thorns_vetoes_the_meowth_fetch():
 def test_without_iron_thorns_the_meowth_engine_stays_alive():
     # Boundary: with a neutral rival active (Snorunt) the same scenario DOES
     # search for Meowth ex (the Last-Ditch -> Lillie's refresh engine).
-    elegida = _fetch_ub_motor_meowth_vs(103)  # Snorunt
+    elegida = _fetch_ub_meowth_engine_vs(103)  # Snorunt
     assert elegida == m.Meowth_ex, (
         f"sin lock de habilidades el fetch del motor no debe cambiar; obtuvo "
         f"{m.card_table[elegida].name}")
@@ -1220,15 +1220,15 @@ def _esc_corner_td(ogerpon_fisicas):
             .build())
 
 
-def test_cornerstone_td_tope_2_fisicas_redirige_a_tapu():
+def test_cornerstone_td_cap_of_2_physical_redirects_to_tapu():
     # A bench Ogerpon ALREADY with 2 physical: Teal Dance vetoed; the Grass from
     # hand goes to Tapu Bulu (the cornerstone->Tapu +22000 energy_score rule
     # finally gets the energy).
     obs = _esc_corner_td(ogerpon_fisicas=2)
-    tipo, destino = _chosen_play(obs, m.agent(obs))
-    assert (tipo, destino) == ("ATTACH", m.Tapu_Bulu), (
+    tipo, target_path = _chosen_play(obs, m.agent(obs))
+    assert (tipo, target_path) == ("ATTACH", m.Tapu_Bulu), (
         f"vs Cornerstone un Ogerpon con 2 fisicas esta en su tope: la energia "
-        f"va a Tapu Bulu; obtuvo {(tipo, destino)}")
+        f"va a Tapu Bulu; obtuvo {(tipo, target_path)}")
 
 
 def test_cornerstone_td_with_one_physical_is_still_allowed():
@@ -1237,10 +1237,10 @@ def test_cornerstone_td_with_one_physical_is_still_allowed():
     # but the cap does not kill it): we check that the veto does not fire by looking
     # at the fact that the choice is NOT END and that if a charge wins, it is legitimate.
     obs = _esc_corner_td(ogerpon_fisicas=1)
-    tipo, destino = _chosen_play(obs, m.agent(obs))
+    tipo, target_path = _chosen_play(obs, m.agent(obs))
     assert tipo in ("ABILITY", "ATTACH"), (
         f"con 1 fisica el turno sigue produciendo (TD o adjunte); "
-        f"obtuvo {(tipo, destino)}")
+        f"obtuvo {(tipo, target_path)}")
 
 
 def test_generic_td_two_physical_without_a_wall_is_not_capped():

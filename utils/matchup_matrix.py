@@ -83,7 +83,7 @@ def is_deck(path):
     return all(x.lstrip("-").isdigit() for x in lines)
 
 
-def load_weights(directorio):
+def load_weights(directory):
     """Meta weight per deck, from the pesos.csv of utils/real_opponents.py.
 
     Without this the matrix treats every opponent equally, which is what
@@ -92,7 +92,7 @@ def load_weights(directorio):
     """
     import csv
 
-    path = Path(directorio) / "pesos.csv"
+    path = Path(directory) / "pesos.csv"
     if not path.is_file():
         return {}
     pesos = {}
@@ -128,7 +128,7 @@ def informe_control(filas, base_by_deck, paths, card_id):
     in that range is not signal.
     """
     by_name = {r.stem: r for r in paths}
-    con, sin = [], []
+    with_card, without_card = [], []
     for f in filas:
         if f["mazo"] not in base_by_deck:
             continue
@@ -138,16 +138,16 @@ def informe_control(filas, base_by_deck, paths, card_id):
         if f["dif_premios"] is not None and bp is not None:
             dprem = f["dif_premios"] - bp
         path = by_name.get(f["mazo"])
-        destino = con if (path is not None and _carries_card(path, card_id)) else sin
-        destino.append((f["mazo"], delta, dprem))
+        target_path = with_card if (path is not None and _carries_card(path, card_id)) else without_card
+        target_path.append((f["mazo"], delta, dprem))
 
-    if not con or not sin:
+    if not with_card or not without_card:
         print(f"\n(control: no se puede separar por la carta {card_id}; "
-              f"afectados={len(con)}, control={len(sin)})")
+              f"afectados={len(with_card)}, control={len(without_card)})")
         return
 
     print(f"\n=== GRUPO DE CONTROL (carta {card_id}) ===")
-    for etiqueta, group in (("AFECTADOS", con), ("CONTROL  ", sin)):
+    for etiqueta, group in (("AFECTADOS", with_card), ("CONTROL  ", without_card)):
         ds = [d for _, d, _ in group]
         ps = [p for _, _, p in group if p is not None]
         positivos = sum(1 for d in ds if d > 0)
@@ -252,7 +252,7 @@ def main(argv):
         base_by_deck = {f["mazo"]: f for f in
                          medir(base, args.partidas, paths)}
 
-    sin_peso = [f["mazo"] for f in filas if f["mazo"] not in pesos] if pesos else []
+    without_weight = [f["mazo"] for f in filas if f["mazo"] not in pesos] if pesos else []
 
     print("\n=== MATRIZ DE MATCHUPS (peor -> mejor) ===")
     width = max(len(f["mazo"]) for f in filas)
@@ -311,10 +311,10 @@ def main(argv):
                 print(f"    {f['mazo']:<28} {100 * cost:5.2f} pts  "
                       f"(meta {100 * pesos.get(f['mazo'], 0.0):.0f}%, "
                       f"ganamos {100 * f['wr']:.1f}%)")
-        if sin_peso:
-            print(f"  aviso: {len(sin_peso)} mazo(s) sin peso, excluidos del "
-                  f"ponderado: {', '.join(sorted(sin_peso)[:5])}"
-                  + (" ..." if len(sin_peso) > 5 else ""))
+        if without_weight:
+            print(f"  aviso: {len(without_weight)} mazo(s) sin peso, excluidos del "
+                  f"ponderado: {', '.join(sorted(without_weight)[:5])}"
+                  + (" ..." if len(without_weight) > 5 else ""))
         # The weighted prize differential: the metric with resolution. The
         # winrate against the bot is saturated (>93%) and cannot arbitrate a
         # change; the prizes do grade it.

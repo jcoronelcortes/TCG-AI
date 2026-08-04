@@ -140,10 +140,10 @@ def test_main_is_not_a_module_for_the_container(tmp_path):
 # ===========================================================================
 def test_the_submission_includes_the_packages_main_imports(tmp_path):
     """Every local package imported by main.py appears in the tar."""
-    destino = tmp_path / "submission.tar.gz"
-    incluidos = ep.build(destino=destino)
+    target_path = tmp_path / "submission.tar.gz"
+    incluidos = ep.build(target_path=target_path)
 
-    with tarfile.open(destino) as tar:
+    with tarfile.open(target_path) as tar:
         raices = {Path(mi.name).parts[0] for mi in tar.getmembers()}
 
     assert "main.py" in raices and "deck.csv" in raices
@@ -156,9 +156,9 @@ def test_the_submission_includes_the_packages_main_imports(tmp_path):
 
 
 def test_la_submission_no_lleva_pycache(tmp_path):
-    destino = tmp_path / "submission.tar.gz"
-    ep.build(destino=destino)
-    with tarfile.open(destino) as tar:
+    target_path = tmp_path / "submission.tar.gz"
+    ep.build(target_path=target_path)
+    with tarfile.open(target_path) as tar:
         names = [mi.name for mi in tar.getmembers()]
     assert not [n for n in names if "__pycache__" in n or n.endswith((".pyc", ".pyo"))]
 
@@ -173,13 +173,13 @@ def test_the_packaged_submission_decides_like_the_tree(tmp_path):
     It is the test that catches I1a (one of our packages not importable at
     decision time): it blows up here with a ModuleNotFoundError and nowhere else.
     """
-    destino = tmp_path / "submission.tar.gz"
-    ep.build(destino=destino)
+    target_path = tmp_path / "submission.tar.gz"
+    ep.build(target_path=target_path)
 
-    agente_dir = tmp_path / "kaggle_simulations" / "agent"
-    agente_dir.mkdir(parents=True)
-    with tarfile.open(destino) as tar:
-        tar.extractall(agente_dir, filter="data")
+    agent_dir = tmp_path / "kaggle_simulations" / "agent"
+    agent_dir.mkdir(parents=True)
+    with tarfile.open(target_path) as tar:
+        tar.extractall(agent_dir, filter="data")
 
     # Reference: the tree's main.py.
     ref = _load_in_subprocess(ROOT / "main.py", ROOT, ROOT, tmp_path, "ref")
@@ -188,7 +188,7 @@ def test_the_packaged_submission_decides_like_the_tree(tmp_path):
     # Candidate: the submission's; the DECISION is taken with the CWD outside the
     # agent's directory, because the container does not chdir.
     cand = _load_in_subprocess(
-        agente_dir / "main.py", agente_dir, tmp_path, tmp_path, "cand"
+        agent_dir / "main.py", agent_dir, tmp_path, tmp_path, "cand"
     )
     assert "error" not in cand, cand["error"]
 
@@ -229,12 +229,12 @@ def test_main_reexports_what_the_suite_consumes():
 def test_agent_is_the_last_thing_in_the_module():
     """I1b, also checked STATICALLY.
 
-    `tests/test_arquitectura.py` already watches it with the linter and the smoke test above
+    `tests/test_architecture.py` already watches it with the linter and the smoke test above
     checks it by really loading; this pins it over the tree as well, which is
     where the error is seen as it is written.
     """
     import ast
-    arbol = ast.parse((ROOT / "main.py").read_text(encoding="utf-8"))
-    assert isinstance(arbol.body[-1], ast.FunctionDef)
-    assert arbol.body[-1].name == "agent", (
-        f"lo ultimo de main.py es {getattr(arbol.body[-1], 'name', '?')}, no `agent`")
+    tree = ast.parse((ROOT / "main.py").read_text(encoding="utf-8"))
+    assert isinstance(tree.body[-1], ast.FunctionDef)
+    assert tree.body[-1].name == "agent", (
+        f"lo ultimo de main.py es {getattr(tree.body[-1], 'name', '?')}, no `agent`")

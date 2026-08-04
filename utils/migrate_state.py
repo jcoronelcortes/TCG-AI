@@ -41,15 +41,15 @@ OBJETO = "AGENT_STATE"
 class _Ambito(ast.NodeVisitor):
     """Collects the Name nodes that DO refer to the given globals."""
 
-    def __init__(self, campos):
-        self.campos = campos
+    def __init__(self, fields):
+        self.fields = fields
         self.hits = []          # (lineno, col_offset, name)
         self.globales_decl = []  # (lineno, col_offset, end_col, names)
 
     # --- module level --------------------------------------------------------
-    def visit_Module(self, nodo):
-        for hijo in nodo.body:
-            self._visitar(hijo, locales=set(), globales=set(self.campos))
+    def visit_Module(self, node):
+        for hijo in node.body:
+            self._visitar(hijo, locales=set(), globales=set(self.fields))
 
     def _locales_de(self, fn):
         """Local names of `fn`: arguments and assignments not declared global."""
@@ -77,38 +77,38 @@ class _Ambito(ast.NodeVisitor):
                 locales.add(n.name)
         return locales, decl_global
 
-    def _visitar(self, nodo, locales, globales):
-        if isinstance(nodo, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
-            loc, decl = self._locales_de(nodo)
+    def _visitar(self, node, locales, globales):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+            loc, decl = self._locales_de(node)
             # visible as global: what is declared `global` + what is not local
-            g = (globales - loc) | (decl & self.campos)
-            for n in ast.iter_child_nodes(nodo):
+            g = (globales - loc) | (decl & self.fields)
+            for n in ast.iter_child_nodes(node):
                 self._visitar(n, loc, g)
             return
-        if isinstance(nodo, ast.ClassDef):
-            for n in ast.iter_child_nodes(nodo):
+        if isinstance(node, ast.ClassDef):
+            for n in ast.iter_child_nodes(node):
                 self._visitar(n, locales, globales)
             return
-        if isinstance(nodo, ast.Global):
-            if set(nodo.names) & self.campos:
-                self.globales_decl.append(nodo)
+        if isinstance(node, ast.Global):
+            if set(node.names) & self.fields:
+                self.globales_decl.append(node)
             return
-        if isinstance(nodo, ast.Attribute):
+        if isinstance(node, ast.Attribute):
             # `ESTADO.plan` already migrated: do not touch the `plan` again
-            if isinstance(nodo.value, ast.Name) and nodo.value.id == OBJETO:
+            if isinstance(node.value, ast.Name) and node.value.id == OBJETO:
                 return
-        if isinstance(nodo, ast.Name) and nodo.id in self.campos and nodo.id in globales:
-            self.hits.append((nodo.lineno, nodo.col_offset, nodo.id))
-        for n in ast.iter_child_nodes(nodo):
+        if isinstance(node, ast.Name) and node.id in self.fields and node.id in globales:
+            self.hits.append((node.lineno, node.col_offset, node.id))
+        for n in ast.iter_child_nodes(node):
             self._visitar(n, locales, globales)
 
 
-def migrate(text, campos):
+def migrate(text, fields):
     """Returns (new_text, n_rewrites, n_globals_removed)."""
-    campos = set(campos)
-    arbol = ast.parse(text)
-    v = _Ambito(campos)
-    v.visit(arbol)
+    fields = set(fields)
+    tree = ast.parse(text)
+    v = _Ambito(fields)
+    v.visit(tree)
 
     lines = text.splitlines(keepends=True)
 
@@ -128,9 +128,9 @@ def migrate(text, campos):
 
     # 2) remove (or prune) the `global` statements
     quitados = 0
-    for nodo in sorted(v.globales_decl, key=lambda n: -n.lineno):
-        restantes = [n for n in nodo.names if n not in campos]
-        ln = nodo.lineno - 1
+    for node in sorted(v.globales_decl, key=lambda n: -n.lineno):
+        restantes = [n for n in node.names if n not in fields]
+        ln = node.lineno - 1
         sangria = lines[ln][:len(lines[ln]) - len(lines[ln].lstrip())]
         if restantes:
             lines[ln] = f"{sangria}global {', '.join(restantes)}\n"
@@ -154,9 +154,9 @@ def main():
 
     if args.listar:
         a = analizar(main_py)
-        arbol = ast.parse(text)
+        tree = ast.parse(text)
         cuenta = {}
-        for n in ast.walk(arbol):
+        for n in ast.walk(tree):
             if isinstance(n, ast.Name) and n.id in a["mutables"]:
                 cuenta[n.id] = cuenta.get(n.id, 0) + 1
         print(f"{len(a['mutables'])} piezas de estado de modulo:")
@@ -164,13 +164,13 @@ def main():
             print(f"  {v:4d}  {k}")
         return 0
 
-    campos = [c.strip() for c in (args.campos or "").split(",") if c.strip()]
-    if not campos:
+    fields = [c.strip() for c in (args.fields or "").split(",") if c.strip()]
+    if not fields:
         print("nada que migrar (usa --campos)")
         return 1
 
-    nuevo, n, g = migrate(text, campos)
-    print(f"campos      : {len(campos)}")
+    nuevo, n, g = migrate(text, fields)
+    print(f"campos      : {len(fields)}")
     print(f"reescrituras: {n}")
     print(f"`global` podados/eliminados: {g}")
     if not args.apply:

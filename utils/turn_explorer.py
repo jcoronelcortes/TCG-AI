@@ -354,10 +354,10 @@ def acciones_legales(obs):
                 boss = _remove_from_hand(y2, m.Boss_Orders)
                 y2["discard"] = list(y2["discard"]) + [boss]
                 target = p2["bench"][_k]
-                anterior = p2["active"][0]
+                previous = p2["active"][0]
                 p2["active"] = [target]
                 p2["bench"] = [b for i, b in enumerate(p2["bench"])
-                               if i != _k] + [anterior]
+                               if i != _k] + [previous]
                 o2["current"]["supporterPlayed"] = True
                 return o2
             acciones.append(
@@ -431,24 +431,24 @@ def explore(obs, max_nodos=MAX_NODOS, respetar_menu=False):
                 if best[0] is None or p > best[0]:
                     best[0], best[1] = p, line + [etiqueta]
                 continue
-            sig = estado_sig = None
+            sig = next_state = None
             nuevo = apply(state)
             # After the first transition the state is SIMULATED: the recorded
             # menu no longer describes it and legality goes back to the model.
             nuevo["_simulado"] = True
-            estado_sig = _firma(nuevo)
-            if estado_sig in vistos:
+            next_state = _firma(nuevo)
+            if next_state in vistos:
                 continue
-            vistos.add(estado_sig)
+            vistos.add(next_state)
             dfs(nuevo, line + [etiqueta])
 
     dfs(inicial, [])
     return best[0], best[1], nodos[0]
 
 
-def comparar_hallazgo(path, indice=0, max_nodos=MAX_NODOS):
+def comparar_hallazgo(path, index=0, max_nodos=MAX_NODOS):
     data = json.loads(Path(path).read_text())
-    h = data["hallazgos"][indice]
+    h = data["hallazgos"][index]
     obs = h["observation"]
     # A real autopsy finding: the simulator's menu rules at the root node.
     puntaje, line, nodos = explore(obs, max_nodos, respetar_menu=True)
@@ -464,7 +464,7 @@ def demo_combo_myriad():
     """The explorer must rediscover the combo of registro_012 step 227."""
     from state_builder import Escenario, pk, G
     import golden_corpus as gc
-    gc.reset_agente(m)
+    gc.reset_agent(m)
     obs = (Escenario(turn=12, step=227, tac=1, own_prizes=2)
            .my_active(pk(m.Teal_Mask_Ogerpon_ex, energies=[G] * 4, fisicas=4))
            .my_bench(pk(m.Applin))
@@ -498,7 +498,7 @@ def main(argv):
     if args.demo:
         return demo_combo_myriad()
     if args.hallazgo:
-        comparar_hallazgo(args.hallazgo, args.indice)
+        comparar_hallazgo(args.hallazgo, args.index)
         return 0
     if args.autopsy:
         paths = sorted(Path(args.autopsy).glob("*.json"))[:args.max]

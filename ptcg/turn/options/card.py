@@ -1143,9 +1143,9 @@ def puntuar(tc, o, score):
                         meowth_ability_lock, _best_supp_in_hand_val,
                         _best_supp_in_deck_val,
                         dragapult_no_tapu=_dragapult_no_tapu)
-                    _bcs_entrada = _TABLA_BCS_FETCH.get(card.id)
-                    if _bcs_entrada is not None:
-                        _bcs_et, _bcs_rules, _bcs_defecto = _bcs_entrada
+                    _bcs_entry = _TABLA_BCS_FETCH.get(card.id)
+                    if _bcs_entry is not None:
+                        _bcs_et, _bcs_rules, _bcs_defecto = _bcs_entry
                         score = _resolve_with_trace(
                             _bcs_et, _bcs_rules, [], _bcs_ctx,
                             default=_bcs_defecto)
@@ -1211,9 +1211,9 @@ def puntuar(tc, o, score):
                         Dipplin: ("ns->dipplin", _RULES_NS_DIPPLIN, 30),
                         Bayleef: ("ns->bayleef", _RULES_NS_BAYLEEF, 30),
                     }
-                    _ns_entrada = _ns_tablas.get(card.id)
-                    if _ns_entrada is not None:
-                        _ns_et, _ns_rules, _ns_defecto = _ns_entrada
+                    _ns_entry = _ns_tablas.get(card.id)
+                    if _ns_entry is not None:
+                        _ns_et, _ns_rules, _ns_defecto = _ns_entry
                         score = _resolve_with_trace(
                             _ns_et, _ns_rules, [], _ns_ctx,
                             default=_ns_defecto)
@@ -1682,9 +1682,9 @@ def puntuar(tc, o, score):
                         meowth_ability_lock, _best_supp_in_hand_val,
                         _best_supp_in_deck_val,
                         dragapult_no_tapu=_dragapult_no_tapu)
-                    _dawn_entrada = _TABLA_DAWN_FETCH.get(card.id)
-                    if _dawn_entrada is not None:
-                        _dawn_et, _dawn_rules, _dawn_defecto = _dawn_entrada
+                    _dawn_entry = _TABLA_DAWN_FETCH.get(card.id)
+                    if _dawn_entry is not None:
+                        _dawn_et, _dawn_rules, _dawn_defecto = _dawn_entry
                         score = _resolve_with_trace(
                             _dawn_et, _dawn_rules, [], _dawn_ctx,
                             default=_dawn_defecto)

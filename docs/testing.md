@@ -42,7 +42,7 @@ Use one when the situation is hypothetical or you need many variations.
 
 ## 4. Invariants — properties that must always hold
 
-`tests/test_invariantes.py` uses property-based testing: hundreds of valid
+`tests/test_invariants.py` uses property-based testing: hundreds of valid
 generated boards, checked against properties that must hold on **all** of them:
 
 - the agent never raises and never returns an invalid choice on a legal board —
@@ -99,7 +99,7 @@ breaking the real submission:
 
 ## 7. Architecture rules
 
-`tests/test_arquitectura.py` runs the four lint rules from
+`tests/test_architecture.py` runs the four lint rules from
 `utils/lint_architecture.py` with the suite. Like the submission test, they
 cover failures that never show up as a red test: importing a mutable by name
 (the importer freezes a stale copy and the agent reads dead state forever),

@@ -36,14 +36,14 @@ def _raices_importadas(py_path):
     main.py's exec finishes), so a package imported only there
     would be broken anyway.
     """
-    arbol = ast.parse(py_path.read_text(encoding="utf-8"), filename=str(py_path))
+    tree = ast.parse(py_path.read_text(encoding="utf-8"), filename=str(py_path))
     raices = []
-    for nodo in arbol.body:  # module level only, not ast.walk
-        if isinstance(nodo, ast.Import):
-            raices += [a.name.split(".")[0] for a in nodo.names]
-        elif isinstance(nodo, ast.ImportFrom):
-            if nodo.level == 0 and nodo.module:
-                raices.append(nodo.module.split(".")[0])
+    for node in tree.body:  # module level only, not ast.walk
+        if isinstance(node, ast.Import):
+            raices += [a.name.split(".")[0] for a in node.names]
+        elif isinstance(node, ast.ImportFrom):
+            if node.level == 0 and node.module:
+                raices.append(node.module.split(".")[0])
     return raices
 
 
@@ -67,7 +67,7 @@ def paquetes_locales_de(py_path, raiz=PROJECT_ROOT):
     return [encontrados[k] for k in sorted(encontrados)]
 
 
-def _filtro_sin_pycache(tarinfo):
+def _filter_without_pycache(tarinfo):
     """Excludes __pycache__ and compiled files from the package."""
     name = Path(tarinfo.name)
     if "__pycache__" in name.parts or name.suffix in (".pyc", ".pyo"):
@@ -75,7 +75,7 @@ def _filtro_sin_pycache(tarinfo):
     return tarinfo
 
 
-def build(destino=OUTPUT, main_py=MAIN_PY, deck_csv=DECK_CSV):
+def build(target_path=OUTPUT, main_py=MAIN_PY, deck_csv=DECK_CSV):
     """Writes the tar.gz to `destino` and returns the list of included paths."""
     for path in (main_py, deck_csv):
         if not path.exists():
@@ -87,11 +87,11 @@ def build(destino=OUTPUT, main_py=MAIN_PY, deck_csv=DECK_CSV):
             f"{main_py} no importa ningun paquete local; se esperaba al menos cg/"
         )
 
-    with tarfile.open(destino, "w:gz") as tar:
+    with tarfile.open(target_path, "w:gz") as tar:
         tar.add(main_py, arcname="main.py")
         tar.add(deck_csv, arcname="deck.csv")
         for path in paquetes:
-            tar.add(path, arcname=path.name, filter=_filtro_sin_pycache)
+            tar.add(path, arcname=path.name, filter=_filter_without_pycache)
 
     return [main_py, deck_csv] + paquetes
 

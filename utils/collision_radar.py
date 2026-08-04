@@ -47,7 +47,7 @@ def _act(jugador):
     return a[0] if a and a[0] else None
 
 
-def _tipos_del_menu(obs):
+def _menu_types(obs):
     return {o.get("type") for o in obs["select"]["option"]}
 
 
@@ -82,7 +82,7 @@ def _s_pivot_to_wall(m, menus):
             and m._can_attack_eff(b["id"], len(b["energies"]))
             and _real_threat(m, b, oact, yo)
             for b in (yo.get("bench") or []))
-        if relief and int(OptionType.RETREAT) in _tipos_del_menu(d["obs"]):
+        if relief and int(OptionType.RETREAT) in _menu_types(d["obs"]):
             aplica = True
             break
     if not aplica:
@@ -203,7 +203,7 @@ def _s_energy_unattached(m, menus):
 def _s_turn_not_sterile(m, menus):
     """The menu offered plays that are NOT END. Resolved = we make one of them."""
     hubo_opcion = any(t not in (int(OptionType.END),) for d in menus
-                      for t in _tipos_del_menu(d["obs"]))
+                      for t in _menu_types(d["obs"]))
     if not hubo_opcion:
         return False, False
     hizo = any(d["obs"]["select"]["option"][d["eleccion"][0]].get("type")
@@ -226,7 +226,7 @@ def _s_remata_si_puede(m, menus):
         a, o = _act(yo), _act(op)
         if a is None or o is None:
             continue
-        if int(OptionType.ATTACK) not in _tipos_del_menu(d["obs"]):
+        if int(OptionType.ATTACK) not in _menu_types(d["obs"]):
             continue
         if not m._can_attack_eff(a["id"], len(a["energies"])):
             continue
@@ -374,8 +374,8 @@ def main(argv):
                  if c[n][0] >= 10}
         if len(tasas) < 3:
             continue
-        orden = sorted(tasas.values())
-        mediana = orden[len(orden) // 2]
+        order = sorted(tasas.values())
+        mediana = order[len(order) // 2]
         for mz, t in sorted(tasas.items(), key=lambda x: x[1]):
             if t < mediana - 0.25:
                 hubo = True

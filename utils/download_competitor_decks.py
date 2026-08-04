@@ -128,8 +128,8 @@ def clasificar_arquetipo(
         return "Desconocido"
     ex = [(n, nom) for nom, n in conteo.items() if card_key(nom).endswith(" ex")]
     candidatos = ex or [(n, nom) for nom, n in conteo.items()]
-    _, elegido = sorted(candidatos, key=lambda t: (-t[0], t[1]))[0]
-    return f"Otro / {elegido}"
+    _, chosen = sorted(candidatos, key=lambda t: (-t[0], t[1]))[0]
+    return f"Otro / {chosen}"
 
 
 # ---------------------------------------------------------------------------
@@ -239,7 +239,7 @@ PACER = Marcapasos(INTERVALO_PETICION_S, TAM_LOTE, ENFRIAMIENTO_LOTE_S)
 ERRORES: Counter[str] = Counter()
 
 
-def estado_http(exc: Exception) -> int | None:
+def http_status(exc: Exception) -> int | None:
     resp = getattr(exc, "response", None)
     crudo = getattr(resp, "status_code", None)
     if crudo is None:
@@ -279,7 +279,7 @@ def llamar(etiqueta: str, func: Callable, *args, **kwargs):
             return func(*args, **kwargs)
         except Exception as exc:  # noqa: BLE001 - the SDK raises heterogeneous types
             last = exc
-            state = estado_http(exc)
+            state = http_status(exc)
             ERRORES[f"http_{state}" if state is not None else type(exc).__name__] += 1
             # A 429 is skipped immediately: insisting only makes the limit worse.
             if state == 429:
@@ -293,7 +293,7 @@ def llamar(etiqueta: str, func: Callable, *args, **kwargs):
             )
             print(f"  [reintento] {etiqueta}: {state or type(exc).__name__}; espero {espera:.1f}s")
             time.sleep(espera)
-    raise FalloDePeticion(etiqueta, estado_http(last) if last else None, intentos) from last
+    raise FalloDePeticion(etiqueta, http_status(last) if last else None, intentos) from last
 
 
 # ---------------------------------------------------------------------------
@@ -426,12 +426,12 @@ def elegir_submission(api, team_id: int, puntaje_lb: float) -> dict[str, Any] | 
     if not candidatas:
         return None
 
-    def orden(row: dict[str, Any]):
+    def order(row: dict[str, Any]):
         p = row["puntaje"]
         distancia = abs(p - puntaje_lb) if not math.isnan(p) else math.inf
         return (distancia, -p if not math.isnan(p) else math.inf, -row["submission_id"])
 
-    return min(candidatas, key=orden)
+    return min(candidatas, key=order)
 
 
 # ---------------------------------------------------------------------------
@@ -461,14 +461,14 @@ def download_replay(api, episode_id: int, dir_cache: Path) -> dict[str, Any]:
     """Downloads (or reuses) an episode's replay JSON."""
     from kaggle.api.kaggle_api_extended import ApiGetEpisodeReplayRequest
 
-    destino = dir_cache / f"episode-{episode_id}-replay.json"
-    if destino.exists() and destino.stat().st_size > 1000:
+    target_path = dir_cache / f"episode-{episode_id}-replay.json"
+    if target_path.exists() and target_path.stat().st_size > 1000:
         try:
-            return json.loads(destino.read_text(encoding="utf-8"))
+            return json.loads(target_path.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError):
-            destino.unlink(missing_ok=True)
+            target_path.unlink(missing_ok=True)
 
-    def una_vez() -> bytes:
+    def once() -> bytes:
         peticion = ApiGetEpisodeReplayRequest()
         peticion.episode_id = int(episode_id)
         with api.build_kaggle_client() as cliente:
@@ -476,8 +476,8 @@ def download_replay(api, episode_id: int, dir_cache: Path) -> dict[str, Any]:
             respuesta.raise_for_status()
             return respuesta.content
 
-    contenido = llamar("replay del episodio", una_vez)
-    destino.write_bytes(contenido)
+    contenido = llamar("replay del episodio", once)
+    target_path.write_bytes(contenido)
     return json.loads(contenido)
 
 
@@ -529,17 +529,17 @@ class Recolector:
         if not decks:
             return
         agentes = first(episodio, "agents", default=[]) or []
-        por_asiento: dict[int, dict[str, Any]] = {}
-        for orden, agent_state in enumerate(agentes):
+        by_seat: dict[int, dict[str, Any]] = {}
+        for order, agent_state in enumerate(agentes):
             row = como_dict(agent_state)
-            idx = first(row, "index", default=orden)
+            idx = first(row, "index", default=order)
             try:
-                por_asiento[int(idx)] = row
+                by_seat[int(idx)] = row
             except (TypeError, ValueError):
-                por_asiento[orden] = row
+                by_seat[order] = row
 
         for asiento, deck in decks.items():
-            agent_state = por_asiento.get(asiento, {})
+            agent_state = by_seat.get(asiento, {})
             sid = first(agent_state, "submissionId", "submission_id")
             if sid is None:
                 continue
@@ -638,13 +638,13 @@ def regenerar_indice(
     filas: list[dict[str, Any]] = []
     for path in sorted(out_dir.glob("mazo_*.csv")):
         deck = [int(x) for x in path.read_text(encoding="utf-8").split() if x.strip()]
-        anterior = previo.get(path.name, {})
+        previous = previo.get(path.name, {})
         filas.append(
             index_row(
                 path.name,
                 deck,
-                anterior.get("posicion_leaderboard", ""),
-                anterior.get("puntaje", ""),
+                previous.get("posicion_leaderboard", ""),
+                previous.get("puntaje", ""),
                 names,
                 ace_spec,
                 pokemon,
@@ -669,10 +669,10 @@ def write_decks(
     for viejo in out_dir.glob("mazo_*.csv"):
         viejo.unlink()
 
-    puntaje_por_posicion = {f["posicion"]: f["puntaje"] for f in filas_lb}
+    score_by_position = {f["posicion"]: f["puntaje"] for f in filas_lb}
     recuperados = sorted(recolector.decks.values(), key=lambda d: d["posicion"])
 
-    indice: list[dict[str, Any]] = []
+    index: list[dict[str, Any]] = []
     for numero, datum in enumerate(recuperados, start=1):
         deck = datum["mazo"]
         name = f"mazo_{numero:03d}.csv"
@@ -680,19 +680,19 @@ def write_decks(
         (out_dir / name).write_text(
             "\n".join(str(cid) for cid in deck) + "\n", encoding="utf-8"
         )
-        indice.append(
+        index.append(
             index_row(
                 name,
                 deck,
                 datum["posicion"],
-                puntaje_por_posicion.get(datum["posicion"], ""),
+                score_by_position.get(datum["posicion"], ""),
                 names,
                 ace_spec,
                 pokemon,
             )
         )
 
-    write_index(out_dir, indice)
+    write_index(out_dir, index)
 
     n_extra = 0
     if recolector.extra:
@@ -777,7 +777,7 @@ def main(argv: list[str] | None = None) -> int:
 
     print(f"\n== 2/3 Submission activa por equipo ==")
     objetivos: dict[int, int] = {}   # submission_id -> position
-    sin_submission = 0
+    without_submission = 0
     for row in filas_lb:
         team_id = row["team_id"]
         key = f"{team_id}:{row['puntaje']:.4f}"
@@ -787,17 +787,17 @@ def main(argv: list[str] | None = None) -> int:
                 elegida = elegir_submission(api, team_id, row["puntaje"])
             except FalloDePeticion as exc:
                 print(f"  pos {row['posicion']:>3}: sin submission ({exc})")
-                sin_submission += 1
+                without_submission += 1
                 continue
             submissions_cache[key] = elegida or {}
             save_cache(cache_path, {"submissions": submissions_cache, "mazos": decks_cache, "extra": extra_cache})
         if not elegida or elegida.get("submission_id") is None:
-            sin_submission += 1
+            without_submission += 1
             continue
         sid = int(elegida["submission_id"])
         row["submission_id"] = sid
         objetivos.setdefault(sid, row["posicion"])
-    print(f"Submissions localizadas: {len(objetivos)} | sin submission publica: {sin_submission}")
+    print(f"Submissions localizadas: {len(objetivos)} | sin submission publica: {without_submission}")
 
     recolector = Recolector(objetivos, recoger_extra=not args.sin_extra)
     # Resumption: it recovers what was already downloaded in previous runs.
@@ -814,7 +814,7 @@ def main(argv: list[str] | None = None) -> int:
 
     print(f"\n== 3/3 Game History -> replay -> 60 cartas ==")
     pendientes = [f for f in filas_lb if f.get("submission_id")]
-    fallos: Counter[str] = Counter()
+    failures: Counter[str] = Counter()
 
     for n, row in enumerate(pendientes, start=1):
         sid = int(row["submission_id"])
@@ -826,11 +826,11 @@ def main(argv: list[str] | None = None) -> int:
             episodios = listar_episodios(api, sid)
         except FalloDePeticion as exc:
             print(f"  pos {posicion:>3}: sin historial ({exc})")
-            fallos["episodios"] += 1
+            failures["episodios"] += 1
             continue
         if not episodios:
             print(f"  pos {posicion:>3}: sin episodios publicos completados")
-            fallos["sin_episodios"] += 1
+            failures["sin_episodios"] += 1
             continue
 
         for episodio in episodios[: args.max_episodios]:
@@ -838,13 +838,13 @@ def main(argv: list[str] | None = None) -> int:
             try:
                 replay = download_replay(api, eid, dir_cache)
             except FalloDePeticion as exc:
-                fallos["replay"] += 1
+                failures["replay"] += 1
                 if exc.state == 429:
                     print(f"  pos {posicion:>3}: HTTP 429, se salta")
                     break
                 continue
             except (json.JSONDecodeError, OSError):
-                fallos["replay_ilegible"] += 1
+                failures["replay_ilegible"] += 1
                 continue
             recolector.registrar(episodio, replay)
             recolector.episodios_usados.add(eid)
@@ -857,7 +857,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  pos {posicion:>3}: mazo recuperado  ({len(recolector.decks)} en total, {n}/{len(pendientes)})")
         else:
             print(f"  pos {posicion:>3}: NO recuperado")
-            fallos["sin_mazo"] += 1
+            failures["sin_mazo"] += 1
 
         # Persist after each competitor: an interruption does not lose work.
         decks_cache = {str(s): d["mazo"] for s, d in recolector.decks.items()}
@@ -870,14 +870,14 @@ def main(argv: list[str] | None = None) -> int:
         for sobrante in dir_cache.glob("*.json"):
             sobrante.unlink(missing_ok=True)
 
-    con_avisos = sum(1 for d in recolector.decks.values() if validate_deck(d["mazo"], ace_spec))
+    with_warnings = sum(1 for d in recolector.decks.values() if validate_deck(d["mazo"], ace_spec))
     print(f"Mazos del top-{args.top}: {n_principal}/{len(filas_lb)}  ->  {out_dir}/mazo_XXX.csv")
     if n_extra:
         print(f"Mazos rivales extra (gratis, fuera del top): {n_extra}  ->  {out_dir}/adicionales/")
     print(f"Replays descargados: {len(recolector.episodios_usados)} | peticiones a la API: {PACER.peticiones}")
-    print(f"Mazos con avisos de construccion: {con_avisos}")
-    if fallos:
-        print("Fallos:", dict(fallos))
+    print(f"Mazos con avisos de construccion: {with_warnings}")
+    if failures:
+        print("Fallos:", dict(failures))
     if ERRORES:
         print("Errores de API:", dict(ERRORES))
     return 0

@@ -369,16 +369,16 @@ def test_without_grand_tree_the_fetch_bonus_does_not_exist():
         elegida = obs["select"]["option"][choice[0]]
         return obs["select"]["deck"][elegida["index"]]["id"]
 
-    con = _fetch(GRAND_TREE)
+    with_gt = _fetch(GRAND_TREE)
     m._init_cards_tracking()
     m._cards_first_scan_done = False
     m._field_at_turn_start = {}
-    sin = _fetch(None)
+    without_gt = _fetch(None)
     # With the stadium the new rule rules; without it, the search goes back to what
     # the pre-existing rules decided (here, the refresh engine: Meowth ex
     # is not in the declared deck, so the usual Stage 2 wins).
-    assert con == APPLIN
-    assert sin != APPLIN
+    assert with_gt == APPLIN
+    assert without_gt != APPLIN
 
 
 def test_with_the_root_in_play_the_search_is_not_forced():

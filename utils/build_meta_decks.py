@@ -218,12 +218,12 @@ def as_list(deck):
     return items
 
 
-def write_out(destino):
-    destino.mkdir(parents=True, exist_ok=True)
+def write_out(target_path):
+    target_path.mkdir(parents=True, exist_ok=True)
     paths = []
     for name, deck in DECKS.items():
         validar(name, deck)
-        path = destino / f"{name}.csv"
+        path = target_path / f"{name}.csv"
         path.write_text("\n".join(str(c) for c in as_list(deck)) + "\n")
         paths.append(path)
         summary = ", ".join(
@@ -262,6 +262,6 @@ if __name__ == "__main__":
     ap.add_argument("--destino", default=str(_ROOT / "deck" / "rivales"))
     ap.add_argument("--verificar", action="store_true")
     args = ap.parse_args()
-    paths = write_out(Path(args.destino))
+    paths = write_out(Path(args.target_path))
     if args.verificar:
         verificar(paths)

@@ -80,7 +80,7 @@ board is real, a synthetic scenario if it is not. See [Testing](testing.md).
   replaced whenever new games are analysed, which is why the golden corpus
   stores hashes and can regenerate itself.
 - **Patching for tests:** several names are bound in more than one module, so
-  patching one module does not reach the others. `tests/parcheo.py` sets a name
+  patching one module does not reach the others. `tests/patching.py` sets a name
   everywhere it is bound, which keeps tests working even when code moves
   between modules.
 

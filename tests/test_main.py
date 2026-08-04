@@ -10,7 +10,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import main as m
-from parcheo import patch_name, instalar
+from patching import patch_name, instalar
 from cg.api import AreaType, EnergyType, LogType, OptionType, SelectContext
 
 
@@ -232,7 +232,7 @@ def test_first_turn_scan_moves_cards_to_expected_states():
     assert m._cards_first_scan_done is True
 
 
-def test_area_to_estado_maps_all_supported_areas():
+def test_area_to_zone_maps_all_supported_areas():
     assert m._area_to_zone(AreaType.DECK) == m.ZONE_DECK
     assert m._area_to_zone(AreaType.HAND) == m.ZONE_HAND
     assert m._area_to_zone(AreaType.ACTIVE) == m.ZONE_BENCH
@@ -4979,7 +4979,7 @@ def _marnie_s20_replay(observation_key=None):
     return m.agent(obs), obs, data
 
 
-def test_marnie_step20_usa_teal_dance_en_vez_de_cargar_chikorita():
+def test_marnie_step20_uses_teal_dance_instead_of_charging_the_chikorita():
     result, obs, _ = _marnie_s20_replay()
     opt = obs["select"]["option"][result[0]]
     assert opt.get("type") == int(OptionType.ABILITY), (
@@ -4993,9 +4993,9 @@ def test_marnie_step20_does_not_charge_energy_to_the_chikorita():
     if opt.get("type") != int(OptionType.ATTACH):
         return  # it does not attach: the rule was respected
     me = obs["current"]["players"][obs["current"]["yourIndex"]]
-    destino = (me["active"][0] if opt.get("inPlayArea") == 4
+    target_path = (me["active"][0] if opt.get("inPlayArea") == 4
                else me["bench"][opt["inPlayIndex"]])
-    assert destino["id"] != m.Chikorita, (
+    assert target_path["id"] != m.Chikorita, (
         f"nunca gastar la unica Planta en un Chikorita de banca (con 1 energia "
         f"no es atacante) habiendo Teal Dance; obtuvo {result} -> {opt}")
 
@@ -5283,13 +5283,13 @@ def test_dragapult_p29_promotes_tapu_bulu():
     }
     result = m.agent(obs)
     bench = _mi_lado(obs)["bench"]
-    elegido = bench[obs["select"]["option"][result[0]]["index"]]["id"]
-    assert elegido == m.Tapu_Bulu, (
+    chosen = bench[obs["select"]["option"][result[0]]["index"]]["id"]
+    assert chosen == m.Tapu_Bulu, (
         f"al promover tras retirar el Chikorita se sube Tapu Bulu (140 PV), "
-        f"no el Applin de 40; obtuvo {m.card_table[elegido].name}")
+        f"no el Applin de 40; obtuvo {m.card_table[chosen].name}")
 
 
-def _obs_tras_retirar():
+def _obs_after_retreating():
     """A synthetic state: we have already retreated, Tapu Bulu active and Chikorita on the bench."""
     obs = _dragapult_p29_obs()
     yo = obs["current"]["yourIndex"]
@@ -5315,7 +5315,7 @@ def _obs_tras_retirar():
 
 
 def test_dragapult_p29_evolves_the_chikorita_on_the_bench():
-    obs, _ = _obs_tras_retirar()
+    obs, _ = _obs_after_retreating()
     result = m.agent(obs)
     opt = obs["select"]["option"][result[0]]
     assert opt.get("type") == int(OptionType.EVOLVE), (
@@ -5325,7 +5325,7 @@ def test_dragapult_p29_evolves_the_chikorita_on_the_bench():
 def test_dragapult_p29_completes_meganium_with_forest():
     # Forest of Vitality allows evolving the just-played Bayleef: the chain
     # Chikorita -> Bayleef -> Meganium is completed in the same turn.
-    obs, yo = _obs_tras_retirar()
+    obs, yo = _obs_after_retreating()
     me = _mi_lado(obs)
     bayleef = copy.deepcopy(me["bench"][0])
     bayleef["id"] = m.Bayleef
@@ -5438,11 +5438,11 @@ def test_p61_promotes_tapu_bulu_not_applin():
     }
     result = m.agent(obs)
     bench = _mi_lado(obs)["bench"]
-    elegido = bench[obs["select"]["option"][result[0]]["index"]]["id"]
-    assert elegido == m.Tapu_Bulu, (
+    chosen = bench[obs["select"]["option"][result[0]]["index"]]["id"]
+    assert chosen == m.Tapu_Bulu, (
         f"con Lillie's en mano y sin atacante listo se sube el basico de 1 "
         f"premio mas resistente (Tapu Bulu 140), no el Applin de 40; obtuvo "
-        f"{m.card_table[elegido].name}")
+        f"{m.card_table[chosen].name}")
 
 
 def test_p61_after_evolving_on_the_bench_lillie_is_played():
@@ -7827,7 +7827,7 @@ def test_cubchoo_does_evolve_hydrapple_with_energy():
         f"jugada (opts {evo}); obtuvo {result}")
 
 
-def test_regla_lenta_acotada_al_matchup_cubchoo():
+def test_the_slow_body_rule_is_bounded_to_the_cubchoo_matchup():
     # Boundary: the same board against a generic rival does NOT switch the rule on --
     # there it recharges and retreats normally and the wall makes up for it.
     obs = _load_fixture_obs("generico_si_evoluciona_hydrapple_sin_energia.json")
@@ -8983,10 +8983,10 @@ def test_alakazam_step16_the_meowth_engine_and_the_ability_do_not_contradict():
 # (`_TIER_DEVELOP_TRAS_BCS`), not by promoting the BCS: EVOLUTIONS keep their
 # tier and still precede the BCS (pinned by the two Hydrapple ex tests of
 # `test_cubchoo_*_evoluciona_hydrapple_*`).
-_BCS_ANTES_MEOWTH = (
+_BCS_BEFORE_MEOWTH = (
     ROOT / "tests" / "fixtures"
     / "archaludon_step6_bcs_antes_de_bajar_meowth.json")
-_BCS_ANTES_OGERPON = (
+_BCS_BEFORE_OGERPON = (
     ROOT / "tests" / "fixtures"
     / "archaludon_step36_bcs_antes_de_bajar_ogerpon.json")
 
@@ -9009,7 +9009,7 @@ def _bcs_and_pokemon_in_menu(obs):
 
 
 def test_archaludon_step6_plays_the_bcs_before_playing_the_meowth():
-    with open(_BCS_ANTES_MEOWTH, encoding="utf-8") as f:
+    with open(_BCS_BEFORE_MEOWTH, encoding="utf-8") as f:
         obs = json.load(f)["observation"]
     _reset_state_record_008()
     bcs, pokes = _bcs_and_pokemon_in_menu(obs)
@@ -9021,7 +9021,7 @@ def test_archaludon_step6_plays_the_bcs_before_playing_the_meowth():
 
 
 def test_archaludon_step36_plays_the_bcs_before_playing_the_ogerpon():
-    with open(_BCS_ANTES_OGERPON, encoding="utf-8") as f:
+    with open(_BCS_BEFORE_OGERPON, encoding="utf-8") as f:
         obs = json.load(f)["observation"]
     _reset_state_record_008()
     bcs, pokes = _bcs_and_pokemon_in_menu(obs)
@@ -9058,7 +9058,7 @@ _LUCARIO_T4_SEQ = (
     ROOT / "tests" / "fixtures" / "lucario_t4_lillie_sobre_ub_y_boss.json")
 
 
-def _lucario_t4_hasta(step):
+def _lucario_t4_up_to(step):
     """Replays the sequence of turn 4 up to `paso` and returns (obs, result)."""
     with open(_LUCARIO_T4_SEQ, encoding="utf-8") as f:
         seq = json.load(f)["sequence"]
@@ -9072,7 +9072,7 @@ def _lucario_t4_hasta(step):
 
 
 def test_lucario_step54_plays_lillie_not_the_ultra_ball():
-    obs, result = _lucario_t4_hasta(54)
+    obs, result = _lucario_t4_up_to(54)
 
     play_map = _resolve_play_options(obs)
     assert m.Lillie_Determination in play_map.values()
@@ -9089,7 +9089,7 @@ def test_lucario_step54_plays_lillie_not_the_ultra_ball():
 
 
 def test_lucario_step57_plays_lillie_not_boss_orders():
-    obs, result = _lucario_t4_hasta(57)
+    obs, result = _lucario_t4_up_to(57)
 
     play_map = _resolve_play_options(obs)
     assert m.Lillie_Determination in play_map.values()
@@ -9131,7 +9131,7 @@ _ALK_T14_SEQ = (
     ROOT / "tests" / "fixtures" / "alakazam_t14_ruta_de_ataque_por_retirada.json")
 
 
-def _alk_t14_hasta(step):
+def _alk_t14_up_to(step):
     """Replays the sequence of turn 14 up to `paso`; returns (obs, result)."""
     with open(_ALK_T14_SEQ, encoding="utf-8") as f:
         seq = json.load(f)["sequence"]
@@ -9163,7 +9163,7 @@ def _alk_t14_indices(obs):
 
 
 def test_alakazam_step136_charges_the_active_to_enable_the_retreat():
-    obs, result = _alk_t14_hasta(136)
+    obs, result = _alk_t14_up_to(136)
 
     to_active, al_meganium, _ = _alk_t14_indices(obs)
     assert to_active and al_meganium, "la fixture debe ofrecer ambos destinos"
@@ -9177,7 +9177,7 @@ def test_alakazam_step136_charges_the_active_to_enable_the_retreat():
 
 
 def test_alakazam_step137_uses_ripening_charge_instead_of_burning_the_grass():
-    obs, result = _alk_t14_hasta(137)
+    obs, result = _alk_t14_up_to(137)
 
     _, _, ripening = _alk_t14_indices(obs)
     play_map = _resolve_play_options(obs)
@@ -9193,7 +9193,7 @@ def test_alakazam_step137_uses_ripening_charge_instead_of_burning_the_grass():
 
 
 def test_alakazam_step141_the_night_stretcher_recovers_the_grass_from_the_discard():
-    obs, result = _alk_t14_hasta(141)
+    obs, result = _alk_t14_up_to(141)
 
     play_map = _resolve_play_options(obs)
     assert m.Night_Stretcher in play_map.values()

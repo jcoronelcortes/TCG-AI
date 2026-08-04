@@ -217,32 +217,32 @@ class BotRival:
     # -- main menu ----------------------------------------------------------
 
     def _menu_principal(self, obs, options):
-        por_tipo = {}
+        by_type = {}
         for i, o in enumerate(options):
-            por_tipo.setdefault(o.get("type"), []).append(i)
+            by_type.setdefault(o.get("type"), []).append(i)
 
-        adjuntes = por_tipo.get(int(OptionType.ATTACH))
+        adjuntes = by_type.get(int(OptionType.ATTACH))
         if adjuntes:
             return [self._best_attachment(obs, options, adjuntes)]
 
-        evoluciones = por_tipo.get(int(OptionType.EVOLVE))
+        evoluciones = by_type.get(int(OptionType.EVOLVE))
         if evoluciones:
             return [self._best_evolution(obs, options, evoluciones)]
 
-        plays = por_tipo.get(int(OptionType.PLAY))
+        plays = by_type.get(int(OptionType.PLAY))
         if plays:
             return [plays[0]]
 
-        ability = self._pick_ability(por_tipo.get(int(OptionType.ABILITY)),
+        ability = self._pick_ability(by_type.get(int(OptionType.ABILITY)),
                                            options)
         if ability is not None:
             return [ability]
 
-        ataques = por_tipo.get(int(OptionType.ATTACK))
+        ataques = by_type.get(int(OptionType.ATTACK))
 
         # With no attack available, RETREATING is the only thing that changes anything: a
         # body that does not hit, nailed in the active spot, loses the game on its own.
-        retiradas = por_tipo.get(int(OptionType.RETREAT))
+        retiradas = by_type.get(int(OptionType.RETREAT))
         if not ataques and retiradas:
             return [retiradas[0]]
 
@@ -259,7 +259,7 @@ class BotRival:
                 my_active, their_active, options[i].get("attackId")))
             return [best]
 
-        fin = por_tipo.get(int(OptionType.END))
+        fin = by_type.get(int(OptionType.END))
         if fin:
             return [fin[0]]
         return [0]
@@ -304,13 +304,13 @@ class BotRival:
 
         if active and len(active.get("energies") or []) >= 1:
             for i in adjuntes:
-                destino = self._pokemon_de(
+                target_path = self._pokemon_de(
                     obs,
                     {"area": options[i].get("inPlayArea"),
                      "index": options[i].get("inPlayIndex"),
                      "playerIndex": yo})
-                if (destino and not (destino.get("energies") or [])
-                        and self._ability_needs_energy(destino.get("id"))):
+                if (target_path and not (target_path.get("energies") or [])
+                        and self._ability_needs_energy(target_path.get("id"))):
                     return i
 
         return to_active[0] if to_active else adjuntes[0]
@@ -340,10 +340,10 @@ class BotRival:
     def _origen_de_contadores(self, obs, options, sel):
         """Where they are taken from: the body of ITS OWN carrying the most damage."""
         k = max(1, sel.get("minCount") or 1)
-        orden = sorted(
+        order = sorted(
             range(len(options)),
             key=lambda i: -self._damage_taken(self._pokemon_de(obs, options[i])))
-        return sorted(orden[:min(k, len(options))])
+        return sorted(order[:min(k, len(options))])
 
     def _destino_de_contadores(self, obs, options, sel):
         """Where they are placed: the OPPOSING body that dies with these counters (the
@@ -368,8 +368,8 @@ class BotRival:
             return (2, 0, -hp)
 
         k = max(1, sel.get("minCount") or 1)
-        orden = sorted(candidatos, key=key)
-        return sorted(orden[:min(k, len(candidatos))])
+        order = sorted(candidatos, key=key)
+        return sorted(order[:min(k, len(candidatos))])
 
     # -- who goes to the active spot ----------------------------------------
 
@@ -403,8 +403,8 @@ class BotRival:
                 muere = self._best_damage_of(my_active, pk) >= hp
                 return (0 if muere else 1, -self._prizes(pk), hp)
 
-            orden = sorted(rivales, key=gust_key)
-            return sorted(orden[:min(k, len(rivales))])
+            order = sorted(rivales, key=gust_key)
+            return sorted(order[:min(k, len(rivales))])
 
         def own_key(i):
             pk = self._pokemon_de(obs, options[i], own_index=yo)
@@ -412,8 +412,8 @@ class BotRival:
                 return (0, 0)
             return (-len(pk.get("energies") or []), -(pk.get("hp") or 0))
 
-        orden = sorted(range(len(options)), key=own_key)
-        return sorted(orden[:min(k, len(options))])
+        order = sorted(range(len(options)), key=own_key)
+        return sorted(order[:min(k, len(options))])
 
     # -- yes / no -----------------------------------------------------------
 

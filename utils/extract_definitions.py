@@ -53,30 +53,30 @@ utils/purity.py: nada de aqui toca el estado mutable ni las tablas de runtime.
 '''
 
 
-def _origen_de_imports(arbol):
+def _origen_de_imports(tree):
     """imported name -> the import statement that brings it."""
-    origen = {}
-    for n in arbol.body:
+    source_path = {}
+    for n in tree.body:
         if isinstance(n, ast.Import):
             for a in n.names:
-                origen[a.asname or a.name.split(".")[0]] = (
+                source_path[a.asname or a.name.split(".")[0]] = (
                     f"import {a.name}" + (f" as {a.asname}" if a.asname else ""))
         elif isinstance(n, ast.ImportFrom) and n.module:
             for a in n.names:
                 if a.name == "*":
                     continue
-                origen[a.asname or a.name] = ("from", n.module, a.name, a.asname)
-    return origen
+                source_path[a.asname or a.name] = ("from", n.module, a.name, a.asname)
+    return source_path
 
 
-def _bloque_con_comentarios(lines, nodo):
+def _block_with_comments(lines, node):
     """The (start, end) range of the definition, dragging its header comment along.
 
     The comment right above a function documents it: if it stays
     in main.py, the function reaches the new module without its why.
     """
-    ini = nodo.lineno
-    for d in getattr(nodo, "decorator_list", []):
+    ini = node.lineno
+    for d in getattr(node, "decorator_list", []):
         ini = min(ini, d.lineno)
     while ini - 1 >= 1:
         t = lines[ini - 2].strip()
@@ -84,15 +84,15 @@ def _bloque_con_comentarios(lines, nodo):
             ini -= 1
         else:
             break
-    return ini, nodo.end_lineno
+    return ini, node.end_lineno
 
 
 def planificar(lote, main_py):
     a = analizar(main_py)
     src = Path(main_py).read_text(encoding="utf-8")
     lines = src.splitlines(keepends=True)
-    arbol = ast.parse(src)
-    origen = _origen_de_imports(arbol)
+    tree = ast.parse(src)
+    source_path = _origen_de_imports(tree)
     mapa = _mapa_paquete()
 
     donde = {}
@@ -105,9 +105,9 @@ def planificar(lote, main_py):
     # module of their card, and without them the scorer cannot move.
     nodos = dict(a["definiciones"])
     libres = dict(a["libres"])
-    for n, nodo in a["asignaciones"].items():
-        nodos.setdefault(n, nodo)
-        libres.setdefault(n, free_names(nodo))
+    for n, node in a["asignaciones"].items():
+        nodos.setdefault(n, node)
+        libres.setdefault(n, free_names(node))
 
     problemas = []
     for n in donde:
@@ -121,7 +121,7 @@ def planificar(lote, main_py):
     plan = {}
     for mod, spec in lote.items():
         names = spec["nombres"]
-        imports_stdlib, imports_from, del_paquete, cruzados = set(), {}, {}, {}
+        imports_stdlib, imports_from, of_the_package, cruzados = set(), {}, {}, {}
         for n in names:
             if n not in libres:
                 continue
@@ -132,7 +132,7 @@ def planificar(lote, main_py):
                     cruzados.setdefault(donde[free], set()).add(free)
                 elif free in donde:
                     continue
-                elif free in a["del_paquete"]:
+                elif free in a["of_the_package"]:
                     # from WHICH package module it comes: `card_table` is in
                     # ptcg.cartas.tablas, not in ptcg.cartas.ids.
                     origen_mod = mapa.get(free)
@@ -145,9 +145,9 @@ def planificar(lote, main_py):
                         problemas.append(f"{mod}: `{free}` esta en el paquete pero "
                                          "no se sabe en que modulo")
                     else:
-                        del_paquete.setdefault(origen_mod, set()).add(free)
-                elif free in origen:
-                    o = origen[free]
+                        of_the_package.setdefault(origen_mod, set()).add(free)
+                elif free in source_path:
+                    o = source_path[free]
                     if isinstance(o, str):
                         imports_stdlib.add(o)
                     else:
@@ -161,13 +161,13 @@ def planificar(lote, main_py):
 
         rangos = []
         for n in names:
-            rangos.append((_bloque_con_comentarios(lines, nodos[n]), n))
+            rangos.append((_block_with_comments(lines, nodos[n]), n))
         rangos.sort()
         plan[mod] = {
             "titulo": spec.get("titulo", "Extraido de main.py."),
             "nombres": names, "rangos": rangos,
             "imports_stdlib": sorted(imports_stdlib),
-            "imports_from": imports_from, "del_paquete": del_paquete,
+            "imports_from": imports_from, "of_the_package": of_the_package,
             "cruzados": cruzados,
         }
     return plan, problemas, lines
@@ -177,11 +177,11 @@ def _imports_header(info, mod_actual):
     partes = []
     for imp in info["imports_stdlib"]:
         partes.append(imp)
-    for modulo, names in sorted(info["imports_from"].items()):
+    for module_name, names in sorted(info["imports_from"].items()):
         ns = ", ".join(sorted(n if not alias else f"{n} as {alias}" for n, alias in names))
-        partes.append(f"from {modulo} import {ns}")
-    for modulo, names in sorted(info["del_paquete"].items()):
-        partes.append(f"from {modulo} import " + ", ".join(sorted(names)))
+        partes.append(f"from {module_name} import {ns}")
+    for module_name, names in sorted(info["of_the_package"].items()):
+        partes.append(f"from {module_name} import " + ", ".join(sorted(names)))
     for otro, names in sorted(info["cruzados"].items()):
         dotted = otro.replace("/", ".").removesuffix(".py")
         partes.append(f"from {dotted} import " + ", ".join(sorted(names)))
@@ -203,7 +203,7 @@ def main():
         n_lines = sum(b - a + 1 for (a, b), _ in info["rangos"])
         total += n_lines
         print(f"{mod}: {len(info['nombres'])} definiciones, {n_lines} lineas")
-        print(f"    paquete  : {sum(len(v) for v in info['del_paquete'].values())} nombres")
+        print(f"    paquete  : {sum(len(v) for v in info['of_the_package'].values())} nombres")
         if info["cruzados"]:
             print(f"    cruzados : { {k: sorted(v) for k, v in info['cruzados'].items()} }")
     print(f"\nTOTAL: {total} lineas")
@@ -220,9 +220,9 @@ def main():
 
     borrar, marcas = set(), []
     for mod, info in plan.items():
-        destino = PROJECT_ROOT / mod
-        destino.parent.mkdir(parents=True, exist_ok=True)
-        p = destino.parent
+        target_path = PROJECT_ROOT / mod
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        p = target_path.parent
         while p != PROJECT_ROOT:
             ini = p / "__init__.py"
             if not ini.exists():
@@ -235,12 +235,12 @@ def main():
             borrar.update(range(a, b + 1))
 
         nuevos = "\n\n\n".join(body)
-        if destino.exists():
+        if target_path.exists():
             # MERGE with what is already there: a module is filled over several batches
             # (e.g. dano.py first receives what does not depend on card_table and
             # then the rest). Its header is kept and the import lines it is missing
             # are added.
-            previo = destino.read_text()
+            previo = target_path.read_text()
             cabeza, _, cola = previo.rpartition("\n\n__all__ = [")
             viejos = [ln.strip().strip("',") for ln in cola.splitlines()
                       if ln.strip().startswith(("'", '"'))]
@@ -256,12 +256,12 @@ def main():
                      + _imports_header(info, mod) + nuevos)
 
         text += "\n\n__all__ = [\n" + "".join(f"    {n!r},\n" for n in all_names) + "]\n"
-        destino.write_text(text)
+        target_path.write_text(text)
         dotted = mod.replace("/", ".").removesuffix(".py")
         marca = f"from {dotted} import *  # noqa: F401,F403\n"
         if marca not in marcas:
             marcas.append(marca)
-        print(f"{'fusionado' if destino.exists() else 'escrito'} {mod}"
+        print(f"{'fusionado' if target_path.exists() else 'escrito'} {mod}"
               f" (+{len(info['nombres'])} definiciones)")
 
     main_py = Path(args.main)

@@ -51,7 +51,7 @@ def _main_mod():
     return m
 
 
-def reset_agente(m):
+def reset_agent(m):
     """A mirror of the autouse fixture `reset_main_state` of tests/test_main.py.
 
     The state that persists between turns lives in `ESTADO` since wave 3, and its
@@ -186,7 +186,7 @@ def replay_record(m, path):
     with open(path, encoding="utf-8") as f:
         data = json.load(f)
     yo = our_index(data)
-    reset_agente(m)
+    reset_agent(m)
     decisiones = []
     for step in data.get("steps", []):
         for item in step:
@@ -251,19 +251,19 @@ def comparar(dorado, actual):
     faltantes = sorted(set(dorado) - set(actual))
     nuevos = sorted(set(actual) - set(dorado))
     for name in sorted(set(dorado) & set(actual)):
-        oro, hoy = dorado[name], actual[name]
-        if oro["md5"] != hoy["md5"]:
+        oro, today = dorado[name], actual[name]
+        if oro["md5"] != today["md5"]:
             cambiados.append(name)
             continue
-        for d_oro, d_hoy in zip(oro["decisiones"], hoy["decisiones"]):
-            if d_oro["eleccion"] != d_hoy["eleccion"]:
+        for d_oro, d_today in zip(oro["decisiones"], today["decisiones"]):
+            if d_oro["eleccion"] != d_today["eleccion"]:
                 _id = (f"paso {d_oro['paso']}" if d_oro.get("paso") is not None
                        else f"turno {d_oro.get('turno')} accion {d_oro.get('accion')}")
                 flips.append({
                     "archivo": name,
                     "paso": _id,
                     "dorado": f"{d_oro['eleccion']} {d_oro['detalle']}",
-                    "actual": f"{d_hoy['eleccion']} {d_hoy['detalle']}",
+                    "actual": f"{d_today['eleccion']} {d_today['detalle']}",
                 })
     return cambiados, faltantes, nuevos, flips
 

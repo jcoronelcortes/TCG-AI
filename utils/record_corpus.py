@@ -93,7 +93,7 @@ def main():
     # A different opponent per game, spread along the list so as not to
     # pick twelve variants of the same archetype.
     step = max(1, len(rivales) // args.partidas)
-    elegidos = [rivales[(args.semilla + i * step) % len(rivales)]
+    chosen_ones = [rivales[(args.semilla + i * step) % len(rivales)]
                 for i in range(args.partidas)]
 
     agent_state = sp.load_agent(_ROOT / args.main, "corpus_agente")
@@ -106,7 +106,7 @@ def main():
         viejo.unlink()
 
     total_steps = 0
-    for i, opponent in enumerate(elegidos):
+    for i, opponent in enumerate(chosen_ones):
         # Alternating seats: our decisions are not the same going
         # first as going second, and the corpus must cover both.
         asiento = i % 2
@@ -118,7 +118,7 @@ def main():
         total_steps += len(steps)
         print(f"  {name}  {len(steps):4d} pasos  resultado={result}")
 
-    print(f"\n{len(elegidos)} registros, {total_steps} pasos en {RECORDS}")
+    print(f"\n{len(chosen_ones)} registros, {total_steps} pasos en {RECORDS}")
     print("Ahora: python tests/golden_corpus.py --actualizar")
     return 0
 

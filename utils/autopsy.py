@@ -373,21 +373,21 @@ def detectar(m, decisiones):
         t = int(opcion.get("type", -1))
         yo, _ = _mi_lado(last["obs"])
         hand = len(yo.get("hand") or [])
-        esteril = False
+        sterile = False
         if t == int(OptionType.END) and hand >= MIN_HAND_STERILE:
-            esteril = True
+            sterile = True
         elif t == int(OptionType.ATTACK) and hand >= MIN_HAND_STERILE:
             atk = m.attack_table.get(opcion.get("attackId"))
             damage, _opa = _lethal_damage_to_active(m, last["obs"])
             if atk is not None and (atk.damage or 0) == 0 and damage == 0:
-                esteril = True
-        if esteril:
+                sterile = True
+        if sterile:
             # v2: the useful observation is that of the FIRST MAIN select of the turn
             # (the complete menu -- reproducible with main.agent() and sweepable with
             # the explorer); the final END sometimes only offered END. The
             # close is kept in paso_cierre/eleccion_cierre.
             first = mains[0]
-            opciones_no_end = sum(
+            options_without_end = sum(
                 1 for o in first["obs"]["select"]["option"]
                 if int(o.get("type", -1)) != int(OptionType.END))
             hallazgos.append({
@@ -401,7 +401,7 @@ def detectar(m, decisiones):
                 "observation": first["obs"],
                 "paso_cierre": last["paso"],
                 "eleccion_cierre": last["eleccion"],
-                "opciones_primer_main": opciones_no_end,
+                "opciones_primer_main": options_without_end,
                 # v2.1: the COMPLETE turn step by step (every MAIN select
                 # with its observation and choice). Multi-step failures (the
                 # plan of the first MAIN dies mid-turn: e.g. a positive Boss's
@@ -476,10 +476,10 @@ def census_summary(censo, etiqueta):
               f"max {max(rachas) if rachas else 0})")
 
 
-def autopsy(opponent_csv, partidas, espejo=False, destino=None, censar=False):
+def autopsy(opponent_csv, partidas, espejo=False, target_path=None, censar=False):
     import main as m
-    destino = destino or (_ROOT / "registros" / "autopsia")
-    destino.mkdir(parents=True, exist_ok=True)
+    target_path = target_path or (_ROOT / "registros" / "autopsia")
+    target_path.mkdir(parents=True, exist_ok=True)
 
     agent_state = sp.load_agent(_ROOT / "main.py", "agente_autopsia")
     own_deck = sp.read_deck()
@@ -529,7 +529,7 @@ def autopsy(opponent_csv, partidas, espejo=False, destino=None, censar=False):
     for h in total_findings:
         per_game.setdefault(h["partida"], []).append(h)
     for num, hs in per_game.items():
-        path = destino / f"{etiqueta}_p{num:03d}.json"
+        path = target_path / f"{etiqueta}_p{num:03d}.json"
         path.write_text(json.dumps(
             {"rival": etiqueta, "partida": num,
              "modo_derrota": mode_per_game.get(num, "desconocido"),
@@ -546,7 +546,7 @@ def autopsy(opponent_csv, partidas, espejo=False, destino=None, censar=False):
     if not total_findings:
         print("  sin hallazgos en las derrotas")
     if censar:
-        (destino / f"{etiqueta}_censo.json").write_text(json.dumps(
+        (target_path / f"{etiqueta}_censo.json").write_text(json.dumps(
             {"rival": etiqueta, "partidas": partidas, "turnos": censo},
             ensure_ascii=False))
         census_summary(censo, etiqueta)

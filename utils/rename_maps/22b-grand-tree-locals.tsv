@@ -1,0 +1,4 @@
+# `con` / `sin` in tests/test_grand_tree.py: the fetch with and without the
+# Grand Tree stadium on the table.
+con	with_gt
+sin	without_gt

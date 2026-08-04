@@ -230,13 +230,13 @@ def _ns_e_syrup_letal(w):
     if len(act.energies) * _grass_mult() < 2:
         return False
     ahora = calc_syrup_storm_damage(w.my_state, w.meganium_in_play)
-    despues = ahora + 30 * _grass_attach_unit()
+    after = ahora + 30 * _grass_attach_unit()
     eff_ahora = _our_effective_damage(
         act, opp, ahora, w.meganium_in_play, w.neutralization_zone_active)
-    eff_despues = _our_effective_damage(
-        act, opp, despues, w.meganium_in_play, w.neutralization_zone_active)
+    eff_after = _our_effective_damage(
+        act, opp, after, w.meganium_in_play, w.neutralization_zone_active)
     hp = opp.hp or 0
-    return eff_ahora < hp <= eff_despues and eff_despues > 0
+    return eff_ahora < hp <= eff_after and eff_after > 0
 
 
 def _ns_e_finisher_with_active(w):

@@ -110,7 +110,7 @@ class Escenario:
         self._first_player = first_player
         self._energy_played = energy_played
         self._partidario_jugado = partidario_jugado
-        self._estadio_jugado = stadium_played
+        self._stadium_played = stadium_played
         self._retirado = retirado
         self._n_prizes = (_DEFAULT_PRIZES if own_prizes is None
                            else own_prizes)
@@ -130,9 +130,9 @@ class Escenario:
         self._op_active_spec = None
         self._op_bench = []
         self._op_discard = []
-        self._op_mano = 0
-        self._op_mazo = 30
-        self._op_premios = 6
+        self._op_hand = 0
+        self._op_deck = 30
+        self._op_prizes = 6
 
         self._select = None
 
@@ -257,9 +257,9 @@ class Escenario:
         return self
 
     def op_zonas(self, hand=0, deck=30, prizes=6):
-        self._op_mano = hand
-        self._op_mazo = deck
-        self._op_premios = prizes
+        self._op_hand = hand
+        self._op_deck = deck
+        self._op_prizes = prizes
         return self
 
     # ------------------------------------------------------------------
@@ -753,10 +753,10 @@ class Escenario:
             "active": [self._op_active_spec],
             "bench": self._op_bench,
             "benchMax": 5,
-            "deckCount": self._op_mazo,
+            "deckCount": self._op_deck,
             "discard": self._op_discard,
-            "prize": [None] * self._op_premios,
-            "handCount": self._op_mano,
+            "prize": [None] * self._op_prizes,
+            "handCount": self._op_hand,
             "hand": None,
             "poisoned": False, "burned": False, "asleep": False,
             "paralyzed": False, "confused": False,
@@ -767,7 +767,7 @@ class Escenario:
             "yourIndex": 0,
             "firstPlayer": self._first_player,
             "supporterPlayed": self._partidario_jugado,
-            "stadiumPlayed": self._estadio_jugado,
+            "stadiumPlayed": self._stadium_played,
             "energyAttached": self._energy_played,
             "retreated": self._retirado,
             "result": -1,
