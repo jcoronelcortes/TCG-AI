@@ -10,7 +10,7 @@ It takes no parameters: it automatically picks the only JSON in the ``log/`` fol
 (there must be one and only one JSON file) and splits it COMPLETELY, from the first to the
 last turn, generating one ``registro_xxx_pasos_aaa_hasta_bbb.json`` per turn
 (``xxx`` = the turn, ``aaa``/``bbb`` = the first/last step of the turn). The records
-are written into ``registros/``, a folder that is CLEARED of old records before
+are written into ``records/``, a folder that is CLEARED of old records before
 the new ones are generated.
 """
 
@@ -21,7 +21,7 @@ from typing import Any
 # The project root (the parent folder of utils/) and the default working folders.
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LOG_DIR = os.path.join(ROOT_DIR, "log")
-RECORDS_DIR = os.path.join(ROOT_DIR, "registros")
+RECORDS_DIR = os.path.join(ROOT_DIR, "records")
 
 
 def find_single_log(log_dir: str) -> str:
@@ -153,7 +153,7 @@ def write_turn(data: dict[str, Any], turn: int, out_dir: str) -> str:
 def main() -> None:
     """Splits the complete log, from the first to the last turn, with no parameters.
 
-    It automatically takes the only JSON in ``log/``, clears ``registros/`` of
+    It automatically takes the only JSON in ``log/``, clears ``records/`` of
     old records and generates one ``registro_xxx_pasos_aaa_hasta_bbb.json`` per
     turn.
     """

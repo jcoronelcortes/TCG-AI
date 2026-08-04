@@ -3,7 +3,7 @@
 By default it measures against `deck/real_opponents/` -- the REAL leaderboard
 lists (utils/real_opponents.py), with their meta weight.
 
-The synthetic ones in `deck/rivales/` are still there but they are NO LONGER the default, and
+The synthetic ones in `deck/opponents/` are still there but they are NO LONGER the default, and
 it is worth knowing why: measured against the top-300, **8 of its 17 decks are
 archetypes that do not exist in the meta** (Comfey, Iron Thorns, Jellicent, Raging
 Bolt, Cornerstone/Cubchoo, Hop's, Fire Gouging, Comfey/Yveltal). Since the matrix
@@ -213,8 +213,8 @@ def main(argv):
                     help="ref de git: imprime el delta por matchup")
     ap.add_argument("--solo", default=None,
                     help="lista de mazos separada por comas (default: todos)")
-    ap.add_argument("--rivales", default=str(_ROOT / "deck" / "rivales_reales"),
-                    help="carpeta de mazos rivales (default: deck/rivales_reales, "
+    ap.add_argument("--rivales", default=str(_ROOT / "deck" / "real_opponents"),
+                    help="carpeta de mazos rivales (default: deck/real_opponents, "
                          "las listas REALES del leaderboard con sus pesos)")
     ap.add_argument("--pesos", action="store_true",
                     help="pondera por frecuencia real en el meta (necesita el "

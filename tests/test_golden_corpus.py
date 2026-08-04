@@ -1,7 +1,7 @@
 """Golden corpus test: no historical decision changes unintentionally.
 
 It replays ALL the local records through `main.agent()` and compares
-against the snapshot `registros/decisiones_dorado.json`.
+against the snapshot `records/golden_decisions.json`.
 
 Policy:
   - No records (a fresh clone) -> skip.

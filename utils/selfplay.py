@@ -16,7 +16,7 @@ Usage:
     python utils/selfplay.py --partidas 200 --base HEAD~1
         # candidate (the working tree's main.py) vs baseline (a git ref)
     python utils/selfplay.py --partidas 200 --base HEAD --candidato otra.py
-    python utils/selfplay.py --partidas 200 --rival deck/rivales/crustle.csv
+    python utils/selfplay.py --partidas 200 --rival deck/opponents/crustle.csv
         # candidate vs the generic BOT piloting an opposing deck (a matchup)
     python utils/selfplay.py --partidas 200 --rival ... --base HEAD~1
         # matchup DIFFERENTIAL: candidate-vs-bot and base-vs-bot; the delta

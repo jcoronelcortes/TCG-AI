@@ -25,7 +25,7 @@ are the memory of the project — the reason a fixed mistake does not come back.
 
 `tests/fixtures/` holds observations captured from real games, saved as
 self-contained JSON. They pin decisions against positions that actually
-happened, without depending on the throwaway game records in `registros/`.
+happened, without depending on the throwaway game records in `records/`.
 
 Use one when the situation is real and you can capture it.
 

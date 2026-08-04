@@ -1,6 +1,6 @@
 """Unfair Stamp: it is only played if it DISRUPTS or if the REFRESH comes cheap.
 
-Scenario (`registros/registro_006_pasos_085_hasta_108.json`, episode 89215128,
+Scenario (`records/registro_006_pasos_085_hasta_108.json`, episode 89215128,
 step 99, turn 6 vs Marnie's Grimmsnarl, WON):
 
     US                                        RIVAL

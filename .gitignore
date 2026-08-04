@@ -3,13 +3,13 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# --- Entornos virtuales ---
+# --- Virtual environments ---
 .venv/
 venv/
 env/
 ENV/
 
-# --- Testing / cobertura ---
+# --- Testing / coverage ---
 .pytest_cache/
 .coverage
 .coverage.*
@@ -18,58 +18,58 @@ coverage.xml
 .mypy_cache/
 .ruff_cache/
 
-# --- Datos de partidas y salida generada (se ignora el CONTENIDO) ---
-# log/: logs de partida (dato local). registros/: salida de split_turns.py.
-# Se conservan las carpetas via .gitkeep; se ignora todo lo demas dentro.
+# --- Game data and generated output (the CONTENT is ignored) ---
+# log/: game logs (local data). records/: the output of split_turns.py.
+# The folders are kept via .gitkeep; everything else inside is ignored.
 /log/*
 !/log/.gitkeep
-/registros/*
-!/registros/.gitkeep
+/records/*
+!/records/.gitkeep
 
-# --- Archivos del sistema operativo ---
+# --- Operating system files ---
 .DS_Store
 .DS_Store?
 ._*
 Thumbs.db
 desktop.ini
 
-# --- Editores / IDE ---
+# --- Editors / IDE ---
 .idea/
 .vscode/
 *.swp
 *.swo
 *~
 
-# --- Temporales ---
+# --- Temporary files ---
 *.log
 *.tmp
 
-# --- Empaquetado / build de Python ---
+# --- Python packaging / build ---
 build/
 dist/
 *.egg-info/
 .eggs/
 *.egg
 
-# --- Paquete de submission (salida de utils/empaquetar_proyecto.py) ---
+# --- The submission package (output of utils/package_project.py) ---
 /submission.tar.gz
 
-# --- Hypothesis (base de ejemplos local) ---
+# --- Hypothesis (local example database) ---
 .hypothesis/
 
 # --- Jupyter ---
 .ipynb_checkpoints/
-# Notebooks de analisis de meta (pesados, no se versionan)
+# Meta analysis notebooks (heavy, not versioned)
 /notebook/
 
-# --- Backups locales ---
+# --- Local backups ---
 *.bak
-# Copias-ablacion de main.py para experimentos A/B locales (pesadas)
+# Ablation copies of main.py for local A/B experiments (heavy)
 /_v_*.py
-# Instantaneas de main.py previas a un cambio grande (main_pre_lana.py, ~1.2 MB)
+# Snapshots of main.py taken before a big change (main_pre_lana.py, ~1.2 MB)
 /main_pre_*.py
 
-# --- Entorno / secretos ---
+# --- Environment / secrets ---
 .env
 .env.*
 *.local
@@ -81,18 +81,18 @@ dist/
 .Trashes
 .fseventsd
 
-# --- NO ignorar (nota para mantenimiento) ---
-# Las librerias nativas del simulador (cg/*.dll, cg/*.so, cg/*.dylib) y los
-# datos de referencia (deck.csv, dataset/EN_Card_Data.csv, tests/fixtures/*.json)
-# SI se versionan: son necesarios para ejecutar el agente y las pruebas.
-# No agregar patrones *.so/*.dll/*.dylib/*.csv que los excluirian.
+# --- NOT ignored (a maintenance note) ---
+# The simulator's native libraries (cg/*.dll, cg/*.so, cg/*.dylib) and the
+# reference data (deck.csv, dataset/EN_Card_Data.csv, tests/fixtures/*.json)
+# ARE versioned: they are needed to run the agent and the tests.
+# Do not add *.so/*.dll/*.dylib/*.csv patterns that would exclude them.
 kaggle_token.txt
 .kaggle/
 dataset/Card_ID List_EN.pdf
 
-# --- Descarga de mazos de competidores ---
-# Los CSV de decks_competidores/ SI se versionan (son el corpus para el
-# simulador). Lo que se ignora es el andamiaje de la descarga: el cache de
-# reanudacion y los replays crudos (~4 MB cada uno).
-decks_competidores/.mazos_cache.json
-decks_competidores/.cache_replays/
+# --- Competitor deck download ---
+# The CSVs under competitor_decks/ ARE versioned (they are the corpus for the
+# simulator). What is ignored is the download scaffolding: the resume cache
+# and the raw replays (~4 MB each).
+competitor_decks/.decks_cache.json
+competitor_decks/.cache_replays/

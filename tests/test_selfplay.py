@@ -49,7 +49,7 @@ def test_a_game_against_the_generic_bot(instancias):
     # The generic bot pilots the harvested opposing deck: the game finishes and
     # NOBODY loses by forfeit (every choice of the bot is legal).
     a, _ = instancias
-    path = ROOT / "deck" / "rivales" / "crustle_kangaskhan.csv"
+    path = ROOT / "deck" / "opponents" / "crustle_kangaskhan.csv"
     if not path.exists():
         pytest.skip("mazo rival no cosechado (utils/harvest_opponent_deck.py)")
     from utils.opponent_bot import BotRival

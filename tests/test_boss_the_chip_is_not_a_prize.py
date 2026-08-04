@@ -1,6 +1,6 @@
 """Boss's Orders: "attacking the active is enough" does not hold if the chip takes nothing.
 
-Scenario (`registros/registro_020_pasos_121_hasta_122.json`, step 122, turn 20,
+Scenario (`records/registro_020_pasos_121_hasta_122.json`, step 122, turn 20,
 LOST vs Crustle -- episode 88915875):
 
     US (5 prizes)                               RIVAL (2 prizes)

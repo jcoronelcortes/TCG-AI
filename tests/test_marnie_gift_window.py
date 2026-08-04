@@ -1,6 +1,6 @@
 """The GIFT WINDOW: Froslass's drip and Munkidori's movable damage.
 
-Scenario (`registros/marnie/partida_2`, step 121, turn 10, LOST):
+Scenario (`records/marnie/partida_2`, step 121, turn 10, LOST):
 
     US (4 prizes)                           OPPONENT (5 prizes)
     active  Hydrapple ex   70/330, S2       active  Grimmsnarl ex 300/320, S2
@@ -199,7 +199,7 @@ def test_the_grass_goes_to_the_ogerpon_ex_not_the_meganium():
 def test_movable_damage_is_elastic_it_does_not_doom_half_the_board():
     """The GUARANTEED window and the COMPLETE one are not the same thing.
 
-    (`registros/marnie/partida_1`, step 167, turn 14.) With 1 Froslass and 1
+    (`records/marnie/partida_1`, step 167, turn 14.) With 1 Froslass and 1
     Munkidori: chip 20, movable 30.
 
         Meganium    30/160 bench, guaranteed 50, complete 80 -> +30 = 60 > 50
@@ -265,13 +265,13 @@ def test_with_no_froslass_or_munkidori_the_window_does_not_change():
 # --------------------------------------------------------------------------
 # The window is measured by CARD, not by archetype
 # --------------------------------------------------------------------------
-# Measured over the real top-100 of the leaderboard (decks_competidores/, Aug 2026):
+# Measured over the real top-100 of the leaderboard (competitor_decks/, Aug 2026):
 # Munkidori is NOT exclusive to Marnie. It appears in 55 of the 100 decks, and of
 # those, 6 are not Marnie: the FIVE Dragapult decks of the top-100 run it (5 of
 # 5) plus one Crustle. Froslass IS exclusive to the archetype (49 of 49).
 #
 # The plan's "Containment" note (docs/plan-matchup-marnie-froslass-munkidori)
-# said that only the two Marnie decks of deck/rivales/ carried these pieces,
+# said that only the two Marnie decks of deck/opponents/ carried these pieces,
 # so no other matchup measurement could move. Against the real meta
 # that no longer holds: touching the window also moves the Dragapult matchup.
 #

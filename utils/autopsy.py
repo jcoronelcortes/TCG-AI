@@ -28,14 +28,14 @@ v2 (step 5 of the jul 2026 plan):
     deck-out losses from the prize ones without checking deckCount by hand.
 
 Each finding is written as JSON with the complete OBSERVATION of the step (the
-format of the tests/ fixtures) into registros/autopsia/ (git-ignored, transient
+format of the tests/ fixtures) into records/autopsia/ (git-ignored, transient
 local data): ready to reproduce with main.agent(), turn into a
 fixture or sweep with the StateBuilder.
 
 Usage:
-    python utils/autopsy.py --rival deck/rivales/cornerstone_cubchoo.csv --partidas 100
+    python utils/autopsy.py --rival deck/opponents/cornerstone_cubchoo.csv --partidas 100
     python utils/autopsy.py --espejo --partidas 100
-    python utils/autopsy.py --todos --partidas 60   # every deck in deck/rivales/
+    python utils/autopsy.py --todos --partidas 60   # every deck in deck/opponents/
     python utils/autopsy.py --rival ... --partidas 400 --censo   # + a contrast
 
 v3 (Aug 2026): `--censo`. The detectors only look at LOSSES and only emit on
@@ -478,7 +478,7 @@ def census_summary(censo, etiqueta):
 
 def autopsy(opponent_csv, partidas, espejo=False, target_path=None, censar=False):
     import main as m
-    target_path = target_path or (_ROOT / "registros" / "autopsia")
+    target_path = target_path or (_ROOT / "records" / "autopsy")
     target_path.mkdir(parents=True, exist_ok=True)
 
     agent_state = sp.load_agent(_ROOT / "main.py", "agente_autopsia")
@@ -558,7 +558,7 @@ def main(argv):
     ap.add_argument("--rival", default=None, help="csv del mazo rival")
     ap.add_argument("--espejo", action="store_true")
     ap.add_argument("--todos", action="store_true",
-                    help="autopsia contra todos los mazos de deck/rivales/")
+                    help="autopsia contra todos los mazos de deck/opponents/")
     ap.add_argument("--partidas", type=int, default=100)
     ap.add_argument("--censo", action="store_true",
                     help="censo de turnos de TODAS las partidas (ganadas "
@@ -566,7 +566,7 @@ def main(argv):
     args = ap.parse_args(argv)
 
     if args.todos:
-        for path in sorted((_ROOT / "deck" / "rivales").glob("*.csv")):
+        for path in sorted((_ROOT / "deck" / "opponents").glob("*.csv")):
             autopsy(path, args.partidas, censar=args.censo)
         return 0
     if args.espejo:

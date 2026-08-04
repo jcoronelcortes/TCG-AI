@@ -1,6 +1,6 @@
 """vs Dragapult: the Ultra Ball is spent TODAY because TOMORROW there will be no Items.
 
-Scenario (`registros/registro_002_pasos_012_hasta_017.json`, step 17, turn 2
+Scenario (`records/registro_002_pasos_012_hasta_017.json`, step 17, turn 2
 going second, LOST vs Dragapult -- episode 89079426):
 
     US (6 prizes)                              OPPONENT (6 prizes)

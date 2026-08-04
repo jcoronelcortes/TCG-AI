@@ -1,6 +1,6 @@
 """Lillie's <-> Ultra Ball: two vetoes that yield to each other and kill the turn.
 
-Scenario (`registros/registro_010_pasos_103_hasta_116.json`, step 116, turn 10,
+Scenario (`records/registro_010_pasos_103_hasta_116.json`, step 116, turn 10,
 LOST vs Dragapult -- episode 89079426):
 
     US                                         RIVAL
@@ -67,7 +67,7 @@ import main as m
 from patching import instalar
 from golden_corpus import reset_agent
 
-_RECORD = ROOT / "registros" / "registro_010_pasos_103_hasta_116.json"
+_RECORD = ROOT / "records" / "registro_010_pasos_103_hasta_116.json"
 
 LILLIE = m.Lillie_Determination
 ULTRA_BALL = m.Ultra_Ball
@@ -77,7 +77,7 @@ BOSS = m.Boss_Orders
 
 pytestmark = pytest.mark.skipif(
     not _RECORD.exists(),
-    reason="registro local rotado (registros/ es transitorio)")
+    reason="registro local rotado (records/ es transitorio)")
 
 
 def _frames():

@@ -5,9 +5,9 @@ It covers the only thing that went dormant when the local records rotated: the c
 menus and therefore does not fit in a single-observation fixture.
 
 The original test (`test_fez_chain_ultra_ball_flip_the_script.py`) reproduced that
-sequence from `registros/registro_006_pasos_086_hasta_104.json`. The records
+sequence from `records/registro_006_pasos_086_hasta_104.json`. The records
 are transient local data —`utils/split_turns.py` rewrites them with every
-new game— and episode 88710543 is no longer in `registros/` or in
+new game— and episode 88710543 is no longer in `records/` or in
 `log/`, so that test ended up in `skipif`. Here the sequence is FABRICATED, which
 also makes it immune to the next rotation.
 

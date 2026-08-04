@@ -1,6 +1,6 @@
 """The HIGHEST step of an opposing line, if it is on the BENCH, gets GUSTED.
 
-Scenario (user, `registros/registro_008_pasos_133_hasta_141.json` step 136,
+Scenario (user, `records/registro_008_pasos_133_hasta_141.json` step 136,
 episode 89224411, turn 8, vs Marnie's Grimmsnarl ex, **LOST**):
 
     US (seat 1, 4 prizes)                  OPPONENT (2 prizes)
@@ -305,7 +305,7 @@ def test_the_helper_is_a_superset_of_the_curated_list():
 
 
 def test_the_helper_covers_lines_the_curated_list_lacked():
-    """Frillish -> Jellicent ex is in `deck/rivales/jellicent_lock.csv` and was NOT
+    """Frillish -> Jellicent ex is in `deck/opponents/jellicent_lock.csv` and was NOT
     in `EX_PREEVO_IDS`: the curated list only grew after a loss."""
     FRILLISH = 597
     assert m.card_table[FRILLISH].name == "Frillish"

@@ -1,6 +1,6 @@
 """Boss's Orders: do not give away the active spot when the gust achieves nothing.
 
-Scenario (`registros/registro_002_pasos_015_hasta_022.json`, step 20, turn 2,
+Scenario (`records/registro_002_pasos_015_hasta_022.json`, step 20, turn 2,
 LOST vs Alakazam -- episode 88906640):
 
     US (6 prizes)                            RIVAL (6 prizes)

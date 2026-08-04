@@ -47,7 +47,7 @@ Differential gate n=1000: **cornerstone_cubchoo +5.4 points** (77.6% vs 72.2%,
 ≈2.8σ). Triple validation: mirror 51.7% [48.6-54.8] (no general regression),
 crustle_kangaskhan −1.1, iron_thorns +1.5, comfey −1.8 (all noise). It cannot
 leak into other matchups: `cornerstone_cubchoo` is the ONLY deck in
-`deck/rivales/` with Cubchoo, so the `op_is_cubchoo_deck` gate does not fire in
+`deck/opponents/` with Cubchoo, so the `op_is_cubchoo_deck` gate does not fire in
 any other.
 """
 

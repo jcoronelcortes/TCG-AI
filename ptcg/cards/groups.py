@@ -81,7 +81,7 @@ GT_PENALTY_DOOMED_ACTIVE = 1500
 #
 # It hits us squarely: Teal Mask Ogerpon ex is our ONLY Tera and we run 4. With
 # the mine on the field its attack goes from 3 to 4 energies. Measured over the
-# real meta (decks_competidores/, top-300): 80% of the Alakazam lists run it at
+# real meta (competitor_decks/, top-300): 80% of the Alakazam lists run it at
 # 2 copies, and Alakazam is 19.7% of the meta.
 #
 # Verified against the engine (30 games): with the mine on the field and 3

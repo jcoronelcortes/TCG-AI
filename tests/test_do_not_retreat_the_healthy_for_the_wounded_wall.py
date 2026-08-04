@@ -1,6 +1,6 @@
 """A WOUNDED wall is not a wall: what is measured is CURRENT life, not printed HP.
 
-Scenario (`registros/registro_014_pasos_160_hasta_173.json`, step 166, turn 14,
+Scenario (`records/registro_014_pasos_160_hasta_173.json`, step 166, turn 14,
 WON vs Alakazam -- episode 88911400):
 
     US (3 prizes)                           RIVAL (2 prizes)

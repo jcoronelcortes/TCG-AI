@@ -6,7 +6,7 @@ with the StateBuilder because the local records barely reached the target
 prompt (context 3); this one anchors the **real step** in which the submitted
 agent failed, so the rule cannot go back without a test firing.
 
-Scenario (`registros/registro_006_pasos_063_hasta_066.json`, step 65, turn 6,
+Scenario (`records/registro_006_pasos_063_hasta_066.json`, step 65, turn 6,
 LOST vs Dragapult -- episode 89079426):
 
     US (6 prizes)                           OPPONENT (6 prizes)

@@ -203,8 +203,8 @@ def write_out(groups, output):
 def main(argv):
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--origen", default=str(_ROOT / "decks_competidores"))
-    ap.add_argument("--salida", default=str(_ROOT / "deck" / "rivales_reales"))
+    ap.add_argument("--origen", default=str(_ROOT / "competitor_decks"))
+    ap.add_argument("--salida", default=str(_ROOT / "deck" / "real_opponents"))
     ap.add_argument("--partidas", type=int, default=40,
                     help="partidas de criba por lista unica (default 40)")
     ap.add_argument("--referencia", default=str(_ROOT / "deck.csv"),

@@ -1,6 +1,6 @@
 """Promotion after a KO: the one that CAN damage the rival active, even if it charges tomorrow.
 
-Scenario (`registros/registro_013_pasos_069_hasta_071.json`, step 71, turn 13,
+Scenario (`records/registro_013_pasos_069_hasta_071.json`, step 71, turn 13,
 LOST vs Crustle -- episode 88915875). Superb Scissors knocks out our
 Dipplin and we have to promote:
 

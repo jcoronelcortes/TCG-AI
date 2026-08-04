@@ -341,7 +341,7 @@ def main(argv):
     args = ap.parse_args(argv)
 
     agent_state = sp.load_agent(_ROOT / args.candidato, "agente_radar")
-    decks = sorted((_ROOT / "deck" / "rivales").glob("*.csv"))
+    decks = sorted((_ROOT / "deck" / "opponents").glob("*.csv"))
     if args.solo:
         querer = {s.strip() for s in args.solo.split(",")}
         decks = [p for p in decks if p.stem in querer]

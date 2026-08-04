@@ -8625,7 +8625,7 @@ def agent(obs_dict: dict) -> list[int]:
     # losing 30 HP FOR FREE: the energy ends up on the same field, so
     # Syrup Storm (which scales with the TOTAL Grass) does exactly the same damage.
     #
-    # The threshold is NOT the snipe (user, registros/marnie games 1-3, LOST):
+    # The threshold is NOT the snipe (user, records/marnie games 1-3, LOST):
     # with `_rh_thr = _op_bench_snipe_dmg = 30` no body above 30 HP
     # ever entered the detector, and we used the healing ONCE in three games
     # while taking 410/620/60 damage from counters. The correct threshold
@@ -9478,7 +9478,7 @@ def agent(obs_dict: dict) -> list[int]:
         # 2-prize body -- is paid for anyway. The outer guard of
         # `_promote_setup_ko_attacker` only looks at the opposing ACTIVE; this one also looks
         # at the BENCH, which is where the wall waits its turn. A self-play gate
-        # vs deck/rivales/crustle_kangaskhan.csv, 18000 games per
+        # vs deck/opponents/crustle_kangaskhan.csv, 18000 games per
         # branch: 70.2% with the route open against 70.9% without it (-0.68, z
         # -1.4, and the sign repeated in 5 of 6 paired arms). It is not
         # significant, but the route fires in 5.8% of those games and does not

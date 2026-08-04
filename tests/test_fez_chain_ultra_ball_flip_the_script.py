@@ -89,7 +89,7 @@ _FIX = ROOT / "tests" / "fixtures"
 _FIX_STEP91 = _FIX / "fez_ub_baja_el_cuerpo_antes_del_stamp_step91.json"
 _FIX_STEP95 = _FIX / "fez_flip_the_script_antes_de_cargar_energia_step95.json"
 _FIX_STEP102 = _FIX / "fez_remate_ganador_sobre_flip_the_script_step102.json"
-_RECORD = ROOT / "registros" / "registro_006_pasos_086_hasta_104.json"
+_RECORD = ROOT / "records" / "registro_006_pasos_086_hasta_104.json"
 
 
 @pytest.fixture(autouse=True)

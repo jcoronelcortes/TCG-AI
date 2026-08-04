@@ -1,6 +1,6 @@
 """Rebuilds a 60-card opposing deck from the local records.
 
-It scans the opponent's VISIBLE zones in registros/*.json (field, discard,
+It scans the opponent's VISIBLE zones in records/*.json (field, discard,
 stadium; the copies are counted by serial, which is unique per card of the
 game) and AMPLIFIES the partial list up to 60 cards by rule:
 
@@ -15,7 +15,7 @@ REFERENCE DECK for the --rival mode of utils/selfplay.py (the differential
 winrate of two versions of main.py against the same fixed opponent).
 
 Usage:
-    python utils/harvest_opponent_deck.py --salida deck/rivales/crustle.csv
+    python utils/harvest_opponent_deck.py --salida deck/opponents/crustle.csv
 """
 
 import argparse
@@ -115,7 +115,7 @@ def main(argv):
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--salida", required=True,
                     help="csv destino (un card id por linea, 60 lineas)")
-    ap.add_argument("--registros", default="registros",
+    ap.add_argument("--registros", default="records",
                     help="carpeta con registro_*.json")
     args = ap.parse_args(argv)
 

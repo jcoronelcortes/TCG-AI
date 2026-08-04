@@ -1,6 +1,6 @@
 """SHADOW harness: it verifies that a refactor of main.py does NOT change decisions.
 
-A complement to the golden corpus for when `registros/` is empty (the
+A complement to the golden corpus for when `records/` is empty (the
 records are transient local data): instead of recorded replays, it generates
 the observations by PLAYING self-play games.
 
@@ -75,7 +75,7 @@ def main(pre_path, post_path, n_espejo=40, n_opponent=40):
     print(f"espejo: {n_espejo} partidas, {total_steps} decisiones")
 
     # vs the opposing bot (the Crustle/Kangaskhan matchup): our seat only.
-    opponent_path = ROOT / "deck" / "rivales" / "crustle_kangaskhan.csv"
+    opponent_path = ROOT / "deck" / "opponents" / "crustle_kangaskhan.csv"
     if n_opponent and opponent_path.exists():
         from opponent_bot import BotRival
         opponent_bot = BotRival()

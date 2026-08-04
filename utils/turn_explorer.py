@@ -25,8 +25,8 @@ against any line that develops.
 
 Usage:
     python utils/turn_explorer.py --demo                # the Myriad combo
-    python utils/turn_explorer.py --hallazgo registros/autopsia/X.json
-    python utils/turn_explorer.py --autopsia registros/autopsia/ --max 20
+    python utils/turn_explorer.py --hallazgo records/autopsia/X.json
+    python utils/turn_explorer.py --autopsia records/autopsia/ --max 20
 """
 
 import argparse

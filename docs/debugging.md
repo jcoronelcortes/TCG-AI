@@ -18,7 +18,7 @@ seat, and carries a decision request. Feed it to the agent.
 > decision you reproduce will not be the one that happened.
 
 **Per turn.** `python utils/split_turns.py` splits the single log in `log/` into
-one record per turn under `registros/` — much easier to navigate than one
+one record per turn under `records/` — much easier to navigate than one
 enormous file.
 
 **Synthetically.** If the position is hypothetical, build it with the scenario
@@ -76,7 +76,7 @@ board is real, a synthetic scenario if it is not. See [Testing](testing.md).
 - **Many scoring rules cite the game ID that motivated them** in their comments.
   When you touch a branch, searching for that ID tells you what the rule was
   protecting — and whether your change re-opens it.
-- **`registros/` and `log/` are throwaway data** (git-ignored). They get
+- **`records/` and `log/` are throwaway data** (git-ignored). They get
   replaced whenever new games are analysed, which is why the golden corpus
   stores hashes and can regenerate itself.
 - **Patching for tests:** several names are bound in more than one module, so

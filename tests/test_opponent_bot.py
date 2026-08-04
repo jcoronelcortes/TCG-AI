@@ -3,7 +3,7 @@
 Until 2026-08-02 the bot's docstring said *"Never RETREAT or ABILITY"*.
 A non-obvious consequence: **the harness was BLIND to the decks whose engine IS an
 ability**. Against Marnie's Grimmsnarl ex it never activated Munkidori's
-*Adrena-Brain* — the ability that in `registros/marnie` took 5 of the 7 prizes the
+*Adrena-Brain* — the ability that in `records/marnie` took 5 of the 7 prizes the
 opponent won WITHOUT ATTACKING — so any rule of ours against that engine
 measured NEUTRAL by construction.
 

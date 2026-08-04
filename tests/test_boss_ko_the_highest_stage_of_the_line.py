@@ -1,6 +1,6 @@
 """Within an evolution line you knock out the HIGHEST STAGE you can.
 
-Scenario (user, `registros/registro_008_pasos_088_hasta_097.json` step 93,
+Scenario (user, `records/registro_008_pasos_088_hasta_097.json` step 93,
 episode 89013104, turn 8, vs Cynthia's Garchomp ex, WON with a mistake):
 
     US (seat 1, 3 prizes)                    RIVAL (6 prizes)

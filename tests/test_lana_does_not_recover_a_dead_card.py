@@ -5,7 +5,7 @@ Grimmsnarl ex --- game **WON** 1-5 on prizes; the leak did not cost the
 match, but it is a leak all the same and self-play charges for it: +2.2 pp in the matchup.
 Careful when citing `registro_NNN`: they are transient local data and the name gets
 recycled; the stable anchor is the `EpisodeId`. When this test was written the
-step lived in `registros/registro_010_pasos_139_hasta_144.json`):
+step lived in `records/registro_010_pasos_139_hasta_144.json`):
 
     US (2 prizes)                            OPPONENT (5 prizes)
     active  Hydrapple ex 240/330  6e         active  Marnie's Grimmsnarl 100/100

@@ -440,7 +440,7 @@ OP_BENCH_SNIPE_DAMAGE = {
 }
 OP_BENCH_SNIPE_DEFAULT = 30
 
-# --- THE GIFT WINDOW (user, registros/marnie games 1-3, LOST) ----------------
+# --- THE GIFT WINDOW (user, records/marnie games 1-3, LOST) ----------------
 # The three losses were by ONE prize and the opponent took 7 out of 18 prizes
 # WITHOUT ATTACKING. The snipe of OP_BENCH_SNIPE_DAMAGE (30) is only a third of
 # the threat: the two sources that kill bodies without spending an attack were

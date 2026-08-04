@@ -1,6 +1,6 @@
 """The one that SURVIVES goes in front: do not retreat a healthy ex for another ex at 50 HP.
 
-Scenario (`registros/registro_012_pasos_163_hasta_180.json`, step 174, turn 12,
+Scenario (`records/registro_012_pasos_163_hasta_180.json`, step 174, turn 12,
 LOST vs Alakazam -- episode 88906640):
 
     US (2 prizes)                            RIVAL (2 prizes)

@@ -13,7 +13,7 @@ REFERENCE OPPONENTS for measuring matchups (utils/selfplay.py --rival) and for
 the matchup matrix (utils/matchup_matrix.py).
 
 Usage:
-    python utils/build_meta_decks.py            # writes deck/rivales/*.csv
+    python utils/build_meta_decks.py            # writes deck/opponents/*.csv
     python utils/build_meta_decks.py --verificar  # plus battle_start + 4 steps
 """
 
@@ -259,7 +259,7 @@ def verificar(paths):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--destino", default=str(_ROOT / "deck" / "rivales"))
+    ap.add_argument("--destino", default=str(_ROOT / "deck" / "opponents"))
     ap.add_argument("--verificar", action="store_true")
     args = ap.parse_args()
     paths = write_out(Path(args.target_path))

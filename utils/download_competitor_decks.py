@@ -16,7 +16,7 @@ Each replay carries TWO decks (both seats). That is why:
     for free and are just as useful for the simulator.
 
 Output: one CSV per deck with 60 lines (one Card ID per line, no header), which
-is exactly the format `deck.csv` and `deck/rivales/*.csv` already consume.
+is exactly the format `deck.csv` and `deck/opponents/*.csv` already consume.
 
 Typical usage:
 
@@ -457,11 +457,11 @@ def listar_episodios(api, submission_id: int) -> list[dict[str, Any]]:
     return sorted(output, key=lambda f: int(f["id"]), reverse=True)
 
 
-def download_replay(api, episode_id: int, dir_cache: Path) -> dict[str, Any]:
+def download_replay(api, episode_id: int, cache_dir: Path) -> dict[str, Any]:
     """Downloads (or reuses) an episode's replay JSON."""
     from kaggle.api.kaggle_api_extended import ApiGetEpisodeReplayRequest
 
-    target_path = dir_cache / f"episode-{episode_id}-replay.json"
+    target_path = cache_dir / f"episode-{episode_id}-replay.json"
     if target_path.exists() and target_path.stat().st_size > 1000:
         try:
             return json.loads(target_path.read_text(encoding="utf-8"))
@@ -716,7 +716,7 @@ def write_decks(
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--top", type=int, default=100, help="posiciones del leaderboard a analizar (por defecto 100)")
-    parser.add_argument("--salida", default=str(RAIZ / "decks_competidores"), help="carpeta de salida")
+    parser.add_argument("--salida", default=str(RAIZ / "competitor_decks"), help="carpeta de salida")
     parser.add_argument("--max-episodios", type=int, default=3, help="replays a probar por competidor antes de rendirse")
     parser.add_argument("--intervalo", type=float, default=INTERVALO_PETICION_S, help="segundos entre peticiones a la API")
     parser.add_argument("--sin-extra", action="store_true", help="no guardar los mazos rivales fuera del top-N")
@@ -756,9 +756,9 @@ def main(argv: list[str] | None = None) -> int:
 
     out_dir = Path(args.output)
     out_dir.mkdir(parents=True, exist_ok=True)
-    dir_cache = out_dir / ".cache_replays"
-    dir_cache.mkdir(parents=True, exist_ok=True)
-    cache_path = out_dir / ".mazos_cache.json"
+    cache_dir = out_dir / ".cache_replays"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    cache_path = out_dir / ".decks_cache.json"
 
     names, ace_spec, pokemon = load_cards()
     print(f"Cartas conocidas: {len(names)} | ACE SPEC: {len(ace_spec)} | Pokemon: {len(pokemon)}")
@@ -836,7 +836,7 @@ def main(argv: list[str] | None = None) -> int:
         for episodio in episodios[: args.max_episodios]:
             eid = int(episodio["id"])
             try:
-                replay = download_replay(api, eid, dir_cache)
+                replay = download_replay(api, eid, cache_dir)
             except FalloDePeticion as exc:
                 failures["replay"] += 1
                 if exc.state == 429:
@@ -849,7 +849,7 @@ def main(argv: list[str] | None = None) -> int:
             recolector.registrar(episodio, replay)
             recolector.episodios_usados.add(eid)
             if not args.conservar_replays:
-                (dir_cache / f"episode-{eid}-replay.json").unlink(missing_ok=True)
+                (cache_dir / f"episode-{eid}-replay.json").unlink(missing_ok=True)
             if recolector.completo(sid):
                 break
 
@@ -867,7 +867,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"\n== Escritura ==")
     n_principal, n_extra = write_decks(recolector, filas_lb, out_dir, names, ace_spec, pokemon)
     if not args.conservar_replays:
-        for sobrante in dir_cache.glob("*.json"):
+        for sobrante in cache_dir.glob("*.json"):
             sobrante.unlink(missing_ok=True)
 
     with_warnings = sum(1 for d in recolector.decks.values() if validate_deck(d["mazo"], ace_spec))

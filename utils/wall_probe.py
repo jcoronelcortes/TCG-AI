@@ -15,7 +15,7 @@ end up pivoting: a first attempt counted 85 of 113 as "something else" and that 
 an artefact, not a finding.
 
 The turns that end DRY are dumped (the complete observation of the first MAIN,
-in the format of the tests/ fixtures) into registros/wall_probe/ so the
+in the format of the tests/ fixtures) into records/wall_probe/ so the
 decision can be reproduced with main.agent() and one can read what scored above the relief.
 
 Usage:
@@ -141,12 +141,12 @@ def play(m, opponent_deck, partidas, volcar, target_path):
 def main(argv):
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--rival", default=str(_ROOT / "deck" / "rivales_reales"
+    ap.add_argument("--rival", default=str(_ROOT / "deck" / "real_opponents"
                                            / "crustle_wall_2.csv"))
     ap.add_argument("--partidas", type=int, default=60)
     ap.add_argument("--volcar", type=int, default=12,
                     help="cuantos turnos SECOS volcar a disco (0 = ninguno)")
-    ap.add_argument("--destino", default=str(_ROOT / "registros" / "sonda_muro"))
+    ap.add_argument("--destino", default=str(_ROOT / "records" / "wall_probe"))
     args = ap.parse_args(argv)
 
     import main as m

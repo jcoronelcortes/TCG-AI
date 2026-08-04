@@ -1,6 +1,6 @@
 """Promotion after a KO: the HAND engine counts as an energy route.
 
-Scenario (`registros/registro_007_pasos_101_hasta_127.json`, step 126, turn 7,
+Scenario (`records/registro_007_pasos_101_hasta_127.json`, step 126, turn 7,
 LOST vs Marnie's Grimmsnarl ex):
 
     US (3 prizes)                            RIVAL (5 prizes)

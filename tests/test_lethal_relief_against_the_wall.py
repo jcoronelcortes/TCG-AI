@@ -1,6 +1,6 @@
 """An ex-immune wall: if the active does NOT finish it and the bench relief DOES, we retreat.
 
-Scenario (`registros/registro_018_pasos_112_hasta_113.json`, step 113, turn 18,
+Scenario (`records/registro_018_pasos_112_hasta_113.json`, step 113, turn 18,
 LOST vs Crustle -- episode 88915875):
 
     US (5 prizes)                               RIVAL (2 prizes)

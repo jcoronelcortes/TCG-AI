@@ -34,7 +34,7 @@ installed.
 | `ptcg/` | The agent's package: card data, calculators, state, per-card decisions, turn phases. |
 | `cg/` | The competition simulator, vendored (includes the native engine). |
 | `deck.csv` | Our 60-card deck. |
-| `deck/`, `decks_competidores/`, `dataset/` | Opponent lists, leaderboard decks and card reference data. |
+| `deck/`, `competitor_decks/`, `dataset/` | Opponent lists, leaderboard decks and card reference data. |
 | `tests/` | The safety nets: behaviour tests, real fixtures, invariants, golden corpus. |
 | `utils/` | Command-line tools: play, measure, autopsy, package. |
 | `docs/` | The documentation. |

@@ -364,7 +364,7 @@ def evaluate_supporters(tc):
                     _bo_best_bench_prize = _bo_bp_prize
 
         # --- The FIRE-EXTINGUISHING gust requires a KO THIS TURN --------
-        # (user, registros/marnie game 1, turns 4 and 6, LOST.) The Froslass
+        # (user, records/marnie game 1, turns 4 and 6, LOST.) The Froslass
         # (850) and Munkidori (750) branches paid for the mere fact that the
         # piece was on their bench, without checking whether we could kill it.
         # With an active Tapu Bulu at 0-1 energies we gusted the Froslass

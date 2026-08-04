@@ -15,10 +15,10 @@ Spanish (so is the code); the descriptions here are what matters.
 | `deck.csv` | Our 60-card deck: one card ID per line. |
 | `deck/` | Deck-adjacent assets: opponent deck lists and the deck-image renderer. |
 | `dataset/` | Official card reference data for the challenge. |
-| `decks_competidores/` | Real 60-card lists downloaded from the leaderboard, with an index by archetype and score. |
+| `competitor_decks/` | Real 60-card lists downloaded from the leaderboard, with an index by archetype and score. |
 | `tests/` | The safety nets. See [Testing](testing.md). |
 | `utils/` | Command-line tools: play games, measure matchups, autopsy losses, package the submission. See [Tools](tools.md). |
-| `registros/`, `log/` | Local, throwaway game data (git-ignored). Recorded games and per-turn records used to reproduce decisions. |
+| `records/`, `log/` | Local, throwaway game data (git-ignored). Recorded games and per-turn records used to reproduce decisions. |
 | `notebook/` | Meta-analysis notebooks (not versioned). |
 
 ## Inside `ptcg/`

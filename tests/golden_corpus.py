@@ -6,9 +6,9 @@ of the current records: every change in main.py produces an explicit diff
 of which historical decisions it flips, and any unexpected flip goes to
 review BEFORE the merge (the "it came back" class of regression).
 
-The records (`registros/*.json`, the output of utils/split_turns.py) are LOCAL
+The records (`records/*.json`, the output of utils/split_turns.py) are LOCAL
 and transient data (git-ignored): they are replaced when new games are
-analysed. That is why the snapshot (`registros/decisiones_dorado.json`)
+analysed. That is why the snapshot (`records/golden_decisions.json`)
 lives alongside them (inheriting the ignore) and keeps an md5 hash per record, to
 tell two failures with different messages apart:
 
@@ -35,8 +35,8 @@ _ROOT = Path(__file__).resolve().parents[1]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-RECORDS_PATH = _ROOT / "registros"
-SNAPSHOT_PATH = RECORDS_PATH / "decisiones_dorado.json"
+RECORDS_PATH = _ROOT / "records"
+SNAPSHOT_PATH = RECORDS_PATH / "golden_decisions.json"
 
 # Readable OptionType values (cg/api.py).
 _TIPOS = {0: "NUM", 1: "SI", 2: "NO", 3: "CARTA", 4: "TOOL", 5: "ECARD",

@@ -1,6 +1,6 @@
 """Promotion after a KO: do not bring up a NAILED-DOWN wall when the mobile near-attacker is there.
 
-Scenario (`registros/registro_008_pasos_110_hasta_122.json`, step 122, turn 8,
+Scenario (`records/registro_008_pasos_110_hasta_122.json`, step 122, turn 8,
 LOST vs Dragapult -- episode 88912610). The Dragapult ex has just knocked out
 our Hydrapple ex with Phantom Dive and we have to promote:
 

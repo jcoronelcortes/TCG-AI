@@ -33,7 +33,7 @@ Policy:
   - Any other select: the first `minCount` options (or the first one
     if the minimum is 0): an always legal choice.
 
-MEASUREMENT NOTE (user, registros/marnie): until 2026-08-02 the bot did NOT use
+MEASUREMENT NOTE (user, records/marnie): until 2026-08-02 the bot did NOT use
 abilities ("simplicity and zero risk of loops"). That made the harness
 BLIND to decks whose engine IS an ability: against Marnie's Grimmsnarl ex the
 bot never activated Munkidori's Adrena-Brain, which in the real games

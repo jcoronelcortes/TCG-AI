@@ -42,7 +42,7 @@ python utils/matchup_matrix.py --partidas 200 --base <git-ref>   # per-matchup d
 By default it measures against the real leaderboard lists in
 `deck/real_opponents/`. `--pesos` weights each list by how often it actually
 appears, which turns the average into an expected ladder winrate. The synthetic
-decks in `deck/rivales/` are still there but are no longer the default: many of
+decks in `deck/opponents/` are still there but are no longer the default: many of
 them are archetypes that do not exist in the current meta, and measuring against
 them spent half the budget on imaginary opponents. They remain useful for
 exercising **mechanics** the real meta does not offer (item lock, mill).
@@ -109,7 +109,7 @@ turns are dumped as replayable observations.
 | Tool | Purpose |
 | --- | --- |
 | `log_replay.py` | Replays a recorded game through the agent and compares its choices with what was actually played. `--verbose`, `--interactive`, `--max-items N` |
-| `split_turns.py` | Splits a game log into one record per turn, into `registros/`. Takes no arguments. |
+| `split_turns.py` | Splits a game log into one record per turn, into `records/`. Takes no arguments. |
 | `record_corpus.py` | Records fresh games against the real leaderboard decks, in the same format, so the golden corpus can be regenerated without depending on downloaded replays. |
 
 See [Debugging a decision](debugging.md) for how these fit together.

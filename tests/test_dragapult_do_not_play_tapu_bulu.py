@@ -1,6 +1,6 @@
 """vs Dragapult: Tapu Bulu is NOT put down with the board already developed.
 
-Scenario (`registros/registro_003_pasos_018_hasta_056.json`, step 43, turn 3,
+Scenario (`records/registro_003_pasos_018_hasta_056.json`, step 43, turn 3,
 LOST vs Dragapult -- episode 88912610):
 
     US                                         RIVAL (Dragapult)
@@ -72,7 +72,7 @@ import main as m
 
 _FIXTURE = (ROOT / "tests" / "fixtures"
             / "dragapult_no_bajar_tapu_bulu_step43.json")
-_RECORD = (ROOT / "registros"
+_RECORD = (ROOT / "records"
              / "registro_003_pasos_018_hasta_056.json")
 
 TAPU = m.Tapu_Bulu
@@ -184,7 +184,7 @@ def _replay_up_to(final_step):
 
 @pytest.mark.skipif(
     not _RECORD.exists(),
-    reason="registro local rotado (registros/ es transitorio)")
+    reason="registro local rotado (records/ es transitorio)")
 def test_the_faithful_replay_neither_searches_nor_plays_it():
     dec = _replay_up_to(43)
 

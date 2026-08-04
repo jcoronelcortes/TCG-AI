@@ -3,7 +3,7 @@
 WHY IT EXISTS
   The corpus replays recorded games and compares OUR decisions against a
   snapshot: any change to main.py that flips a historical decision fails
-  with the exact diff. But its source data (`registros/registro_*.json`) are
+  with the exact diff. But its source data (`records/registro_*.json`) are
   replays of Kaggle episodes -- git-ignored and transient -- so as
   soon as they are cleaned up the corpus goes BLIND and its test comes out as a `skip`. It was
   like that throughout the whole wave refactor.
@@ -44,7 +44,7 @@ for _p in (_ROOT, _ROOT / "utils", _ROOT / "tests"):
 
 import selfplay as sp  # noqa: E402
 
-RECORDS = _ROOT / "registros"
+RECORDS = _ROOT / "records"
 MAX_STEPS = 3000
 
 
@@ -80,7 +80,7 @@ def main():
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--partidas", type=int, default=12)
-    ap.add_argument("--rivales", default=str(_ROOT / "deck" / "rivales_reales"))
+    ap.add_argument("--rivales", default=str(_ROOT / "deck" / "real_opponents"))
     ap.add_argument("--semilla", type=int, default=0,
                     help="desde que rival empezar a repartir (rota la seleccion)")
     ap.add_argument("--main", default="main.py")

@@ -130,7 +130,7 @@ def _play(obs, choice):
 def _board_with_wounded_meganium(with_drip=True):
     """A benched Meganium at 30/160 (inside the window if there is drip) next to an
     INTACT benched Ogerpon ex. It reproduces the real flip of step 172 of
-    `registros/marnie/partida_1`, where the Grass went to the dying Meganium.
+    `records/marnie/partida_1`, where the Grass went to the dying Meganium.
 
     `with_drip=False` is the CONTROL group: the same board with an opponent without
     Froslass or Munkidori, where the window is 0 and the rule does not exist.

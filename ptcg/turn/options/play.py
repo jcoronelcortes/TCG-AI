@@ -1523,7 +1523,7 @@ def puntuar(tc, o, score):
                 # DISCARD scorer, which protects exactly this card with
                 # `_forest_counters_op_stadium` -- we were keeping in
                 # hand a card that was then illegal to play.
-                # Self-play gate vs deck/rivales/comfey_yveltal_nz.csv
+                # Self-play gate vs deck/opponents/comfey_yveltal_nz.csv
                 # (the deck from THIS game, harvested with
                 # utils/harvest_opponent_deck.py; no opponent in the repo
                 # ran the Zone and that is why the gate did not cover the case):

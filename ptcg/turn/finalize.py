@@ -747,7 +747,7 @@ def finalizar(tc):
     # Ball is on its item allowlist. The reason the old comment cited ("burning
     # 2 cards of the deck feeds the mill") was also inaccurate: the Ultra Ball's
     # cost comes from the HAND; only the fetched card comes from the deck.
-    # Self-play gate vs deck/rivales/comfey.csv, 6000 games per branch:
+    # Self-play gate vs deck/opponents/comfey.csv, 6000 games per branch:
     # 91.7% with the change vs 91.2% without it (+0.5 points, INSIDE THE NOISE:
     # the change stands on the reasoning, the gate only rules out that it hurts).
     #
