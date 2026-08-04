@@ -164,7 +164,7 @@ def planificar(lote, main_py):
             rangos.append((_block_with_comments(lines, nodos[n]), n))
         rangos.sort()
         plan[mod] = {
-            "titulo": spec.get("titulo", "Extraido de main.py."),
+            "title": spec.get("title", "Extraido de main.py."),
             "nombres": names, "rangos": rangos,
             "imports_stdlib": sorted(imports_stdlib),
             "imports_from": imports_from, "of_the_package": of_the_package,
@@ -192,7 +192,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("lote", help="fichero .py con el dict MODULOS")
     ap.add_argument("--main", default=str(PROJECT_ROOT / "main.py"))
-    ap.add_argument("--aplicar", action="store_true")
+    ap.add_argument("--apply", action="store_true")
     args = ap.parse_args()
 
     lote = runpy.run_path(args.lote)["MODULOS"]
@@ -252,7 +252,7 @@ def main():
             text = cabeza.rstrip("\n") + "\n\n\n" + nuevos
         else:
             all_names = info["nombres"]
-            text = (HEADER.format(titulo=info["titulo"])
+            text = (HEADER.format(title=info["title"])
                      + _imports_header(info, mod) + nuevos)
 
         text += "\n\n__all__ = [\n" + "".join(f"    {n!r},\n" for n in all_names) + "]\n"

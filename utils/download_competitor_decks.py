@@ -216,8 +216,8 @@ class FalloDePeticion(RuntimeError):
 class Marcapasos:
     """Spaces out ALL the requests and cools down after each batch."""
 
-    def __init__(self, intervalo: float, tam_lote: int, enfriamiento: float):
-        self.intervalo = float(intervalo)
+    def __init__(self, interval: float, tam_lote: int, enfriamiento: float):
+        self.interval = float(interval)
         self.tam_lote = int(tam_lote)
         self.enfriamiento = float(enfriamiento)
         self.last_start = 0.0
@@ -228,7 +228,7 @@ class Marcapasos:
             print(f"  [pausa] lote de {self.tam_lote} peticiones: {self.enfriamiento:.0f}s")
             time.sleep(self.enfriamiento)
             self.last_start = time.monotonic()
-        resto = self.intervalo - (time.monotonic() - self.last_start)
+        resto = self.interval - (time.monotonic() - self.last_start)
         if resto > 0:
             time.sleep(resto)
         self.last_start = time.monotonic()
@@ -716,23 +716,23 @@ def write_decks(
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--top", type=int, default=100, help="posiciones del leaderboard a analizar (por defecto 100)")
-    parser.add_argument("--salida", default=str(RAIZ / "competitor_decks"), help="carpeta de salida")
-    parser.add_argument("--max-episodios", type=int, default=3, help="replays a probar por competidor antes de rendirse")
-    parser.add_argument("--intervalo", type=float, default=INTERVALO_PETICION_S, help="segundos entre peticiones a la API")
-    parser.add_argument("--sin-extra", action="store_true", help="no guardar los mazos rivales fuera del top-N")
+    parser.add_argument("--output", default=str(RAIZ / "competitor_decks"), help="carpeta de salida")
+    parser.add_argument("--max-episodes", type=int, default=3, help="replays a probar por competidor antes de rendirse")
+    parser.add_argument("--interval", type=float, default=INTERVALO_PETICION_S, help="segundos entre peticiones a la API")
+    parser.add_argument("--no-extra", action="store_true", help="no guardar los mazos rivales fuera del top-N")
     parser.add_argument(
-        "--solo-indice",
+        "--index-only",
         action="store_true",
         help="rehace indice.csv desde los mazos ya guardados, sin llamar a la API "
         "(evita que un leaderboard cambiado renumere los mazos existentes)",
     )
-    parser.add_argument("--conservar-replays", action="store_true", help="no borrar los replays descargados (~4 MB cada uno)")
+    parser.add_argument("--keep-replays", action="store_true", help="no borrar los replays descargados (~4 MB cada uno)")
     args = parser.parse_args(argv)
 
-    PACER.intervalo = float(args.intervalo)
+    PACER.interval = float(args.interval)
 
     # This mode needs no credentials or SDK: it only reads what is already on disk.
-    if args.solo_indice:
+    if args.index_only:
         names, ace_spec, pokemon = load_cards()
         out_dir = Path(args.output)
         if not out_dir.is_dir():
@@ -799,7 +799,7 @@ def main(argv: list[str] | None = None) -> int:
         objetivos.setdefault(sid, row["posicion"])
     print(f"Submissions localizadas: {len(objetivos)} | sin submission publica: {without_submission}")
 
-    recolector = Recolector(objetivos, recoger_extra=not args.sin_extra)
+    recolector = Recolector(objetivos, recoger_extra=not args.no_extra)
     # Resumption: it recovers what was already downloaded in previous runs.
     for sid_txt, deck in decks_cache.items():
         sid = int(sid_txt)
@@ -833,7 +833,7 @@ def main(argv: list[str] | None = None) -> int:
             failures["sin_episodios"] += 1
             continue
 
-        for episodio in episodios[: args.max_episodios]:
+        for episodio in episodios[: args.max_episodes]:
             eid = int(episodio["id"])
             try:
                 replay = download_replay(api, eid, cache_dir)
@@ -848,7 +848,7 @@ def main(argv: list[str] | None = None) -> int:
                 continue
             recolector.registrar(episodio, replay)
             recolector.episodios_usados.add(eid)
-            if not args.conservar_replays:
+            if not args.keep_replays:
                 (cache_dir / f"episode-{eid}-replay.json").unlink(missing_ok=True)
             if recolector.completo(sid):
                 break
@@ -866,7 +866,7 @@ def main(argv: list[str] | None = None) -> int:
 
     print(f"\n== Escritura ==")
     n_principal, n_extra = write_decks(recolector, filas_lb, out_dir, names, ace_spec, pokemon)
-    if not args.conservar_replays:
+    if not args.keep_replays:
         for sobrante in cache_dir.glob("*.json"):
             sobrante.unlink(missing_ok=True)
 

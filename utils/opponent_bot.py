@@ -352,16 +352,16 @@ class BotRival:
         yo = cur.get("yourIndex", 0)
         damage = DAMAGE_PER_COUNTER * max(1, self._contadores)
 
-        rivales = [i for i in range(len(options))
+        opponents = [i for i in range(len(options))
                    if options[i].get("playerIndex") not in (None, yo)]
-        candidatos = rivales or list(range(len(options)))
+        candidatos = opponents or list(range(len(options)))
 
         def key(i):
             pk = self._pokemon_de(obs, options[i], own_index=yo)
             if not pk:
                 return (2, 0, 0)
             hp = pk.get("hp") or 0
-            if i in rivales:
+            if i in opponents:
                 # First the ones that DIE, and among them the ones worth more prizes.
                 return (0 if hp <= damage else 1, -self._prizes(pk), hp)
             # If only its own bodies are left, the one that hurts least: the healthiest.
@@ -388,9 +388,9 @@ class BotRival:
         jugadores = cur.get("players") or []
         k = max(1, sel.get("minCount") or 1)
 
-        rivales = [i for i in range(len(options))
+        opponents = [i for i in range(len(options))
                    if options[i].get("playerIndex") not in (None, yo)]
-        if rivales:
+        if opponents:
             my_active = None
             if yo < len(jugadores):
                 my_active = ((jugadores[yo] or {}).get("active") or [None])[0]
@@ -403,8 +403,8 @@ class BotRival:
                 muere = self._best_damage_of(my_active, pk) >= hp
                 return (0 if muere else 1, -self._prizes(pk), hp)
 
-            order = sorted(rivales, key=gust_key)
-            return sorted(order[:min(k, len(rivales))])
+            order = sorted(opponents, key=gust_key)
+            return sorted(order[:min(k, len(opponents))])
 
         def own_key(i):
             pk = self._pokemon_de(obs, options[i], own_index=yo)

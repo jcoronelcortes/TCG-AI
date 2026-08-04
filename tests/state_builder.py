@@ -453,7 +453,7 @@ class Escenario:
         }
         return self
 
-    def fetch_discard(self, efecto_id, cuantas=1, solo=None):
+    def fetch_discard(self, efecto_id, cuantas=1, only=None):
         """A TO_HAND select of a RECOVERY card (Night Stretcher, Lana's
         Aid...) over our own already declared discard. It consumes a copy of
         `efecto_id` from the pool (the card 'in effect').
@@ -471,7 +471,7 @@ class Escenario:
                      "area": int(AreaType.DISCARD), "index": i,
                      "playerIndex": 0}
                     for i, card in enumerate(self._my_discard)
-                    if solo is None or card["id"] in solo]
+                    if only is None or card["id"] in only]
         if not options:
             raise EstadoInconsistente(
                 "fetch_descarte(solo=...) no deja ninguna opcion en el descarte")

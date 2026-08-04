@@ -414,7 +414,7 @@ def detectar(m, decisiones):
     return hallazgos
 
 
-def census_summary(censo, etiqueta):
+def census_summary(census, etiqueta):
     """LOSS vs WIN contrast over the turn census.
 
     Each trait is printed as its per-turn frequency in each group and the
@@ -422,8 +422,8 @@ def census_summary(censo, etiqueta):
     in 40% of the turns of the losses and in 39% of those of the wins
     explains nothing, however striking it looks when reading a single game.
     """
-    perd = [f for f in censo if f["resultado"] != "gana"]
-    gana = [f for f in censo if f["resultado"] == "gana"]
+    perd = [f for f in census if f["resultado"] != "gana"]
+    gana = [f for f in census if f["resultado"] == "gana"]
     if not perd or not gana:
         print("  censo: hace falta al menos una victoria y una derrota")
         return
@@ -476,16 +476,16 @@ def census_summary(censo, etiqueta):
               f"max {max(rachas) if rachas else 0})")
 
 
-def autopsy(opponent_csv, partidas, espejo=False, target_path=None, censar=False):
+def autopsy(opponent_csv, games, mirror=False, target_path=None, censar=False):
     import main as m
     target_path = target_path or (_ROOT / "records" / "autopsy")
     target_path.mkdir(parents=True, exist_ok=True)
 
     agent_state = sp.load_agent(_ROOT / "main.py", "agente_autopsia")
     own_deck = sp.read_deck()
-    if espejo:
+    if mirror:
         opponent = sp.load_agent(_ROOT / "main.py", "rival_autopsia")
-        opponent_deck, etiqueta = own_deck, "espejo"
+        opponent_deck, etiqueta = own_deck, "mirror"
     else:
         from opponent_bot import BotRival
         opponent = BotRival()
@@ -496,8 +496,8 @@ def autopsy(opponent_csv, partidas, espejo=False, target_path=None, censar=False
     modos = Counter()
     total_findings = []
     mode_per_game = {}
-    censo = []
-    for i in range(partidas):
+    census = []
+    for i in range(games):
         result, decisiones, obs_final = play_recording(
             agent_state, opponent, own_deck, opponent_deck, asiento=i % 2)
         marcador[result] += 1
@@ -508,7 +508,7 @@ def autopsy(opponent_csv, partidas, espejo=False, target_path=None, censar=False
             for row in turn_census(m, decisiones):
                 row["partida"] = i
                 row["resultado"] = result
-                censo.append(row)
+                census.append(row)
         # v2: the games that hit the LIMIT are autopsied too (vs stall they are
         # the interesting failure mode), as well as losses and forfeits.
         if result not in ("pierde", "forfeit", "limite"):
@@ -547,35 +547,35 @@ def autopsy(opponent_csv, partidas, espejo=False, target_path=None, censar=False
         print("  sin hallazgos en las derrotas")
     if censar:
         (target_path / f"{etiqueta}_censo.json").write_text(json.dumps(
-            {"rival": etiqueta, "partidas": partidas, "turnos": censo},
+            {"rival": etiqueta, "games": games, "turnos": census},
             ensure_ascii=False))
-        census_summary(censo, etiqueta)
+        census_summary(census, etiqueta)
     return total_findings
 
 
 def main(argv):
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--rival", default=None, help="csv del mazo rival")
-    ap.add_argument("--espejo", action="store_true")
-    ap.add_argument("--todos", action="store_true",
+    ap.add_argument("--opponent", default=None, help="csv del mazo rival")
+    ap.add_argument("--mirror", action="store_true")
+    ap.add_argument("--all", dest="all_decks", action="store_true",
                     help="autopsia contra todos los mazos de deck/opponents/")
-    ap.add_argument("--partidas", type=int, default=100)
-    ap.add_argument("--censo", action="store_true",
+    ap.add_argument("--games", type=int, default=100)
+    ap.add_argument("--census", action="store_true",
                     help="censo de turnos de TODAS las partidas (ganadas "
                          "incluidas) y contraste derrota-vs-victoria")
     args = ap.parse_args(argv)
 
-    if args.todos:
+    if args.all_decks:
         for path in sorted((_ROOT / "deck" / "opponents").glob("*.csv")):
-            autopsy(path, args.partidas, censar=args.censo)
+            autopsy(path, args.games, censar=args.census)
         return 0
-    if args.espejo:
-        autopsy(None, args.partidas, espejo=True, censar=args.censo)
+    if args.mirror:
+        autopsy(None, args.games, mirror=True, censar=args.census)
         return 0
     if not args.opponent:
         print("indica --rival, --espejo o --todos")
         return 1
-    autopsy(args.opponent, args.partidas, censar=args.censo)
+    autopsy(args.opponent, args.games, censar=args.census)
     return 0
 
 

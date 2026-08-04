@@ -1,0 +1,6 @@
+# Phase 14, tail -- three attributes the flag rename left in Spanish. The new
+# CLI guard is what found them: the parser now sets `only` / `opponents` /
+# `records` and the code was still reading `solo` / `rivales` / `registros`.
+solo	only
+rivales	opponents
+registros	records

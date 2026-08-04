@@ -95,17 +95,17 @@ def load_weights(directory):
     path = Path(directory) / "pesos.csv"
     if not path.is_file():
         return {}
-    pesos = {}
+    weights = {}
     with path.open(encoding="utf-8-sig", newline="") as fh:
         for row in csv.DictReader(fh):
             name = str(row.get("archivo", ""))
             if name.endswith(".csv"):
                 name = name[:-4]
             try:
-                pesos[name] = float(row.get("peso_meta") or 0.0)
+                weights[name] = float(row.get("peso_meta") or 0.0)
             except ValueError:
                 continue
-    return pesos
+    return weights
 
 
 def _carries_card(path, card_id):
@@ -161,29 +161,29 @@ def informe_control(filas, base_by_deck, paths, card_id):
           "el control corre codigo identico en los dos brazos.")
 
 
-def winrate_ponderado(filas, pesos):
+def winrate_ponderado(filas, weights):
     """(expected ladder winrate, measured meta coverage).
 
     The winrate is normalised over what was ACTUALLY measured, and the coverage is
     returned separately: a number over 60% of the meta is not comparable with one
     over 100%, and hiding that would be the very error this metric exists to correct.
     """
-    cobertura = sum(pesos.get(f["mazo"], 0.0) for f in filas)
+    cobertura = sum(weights.get(f["mazo"], 0.0) for f in filas)
     if cobertura <= 0:
         return None, 0.0
-    total = sum(pesos.get(f["mazo"], 0.0) * f["wr"] for f in filas)
+    total = sum(weights.get(f["mazo"], 0.0) * f["wr"] for f in filas)
     return total / cobertura, cobertura
 
 
-def medir(agent_state, partidas, paths):
+def medir(agent_state, games, paths):
     bot = BotRival()
     filas = []
     for path in paths:
         opponent_deck = sp.read_deck(path)
-        stats = sp.torneo(agent_state, bot, partidas, deck_base=opponent_deck)
-        dec = stats["candidato"] + stats["base"]
-        wr = stats["candidato"] / dec if dec else 0.0
-        lo, hi = sp.wilson_95(stats["candidato"], dec)
+        stats = sp.torneo(agent_state, bot, games, deck_base=opponent_deck)
+        dec = stats["candidate"] + stats["base"]
+        wr = stats["candidate"] / dec if dec else 0.0
+        lo, hi = sp.wilson_95(stats["candidate"], dec)
         pc, pb, prize_diff = sp.prizes_per_game(stats)
         filas.append({
             "mazo": path.stem, "wr": wr, "lo": lo, "hi": hi,
@@ -201,33 +201,33 @@ def medir(agent_state, partidas, paths):
 
 def main(argv):
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--control-carta", type=int, default=None, metavar="ID",
+    ap.add_argument("--control-card", type=int, default=None, metavar="ID",
                     help="id de carta que define el grupo AFECTADO: separa los "
                          "mazos que la llevan de los que no y compara los dos "
                          "deltas. Sin esto, un delta no se distingue del ruido")
-    ap.add_argument("--partidas", type=int, default=400,
+    ap.add_argument("--games", type=int, default=400,
                     help="partidas por matchup (default 400). Medido: a 200 el "
                          "ruido por matchup llega a +-6.5 puntos")
-    ap.add_argument("--candidato", default="main.py")
+    ap.add_argument("--candidate", default="main.py")
     ap.add_argument("--base", default=None,
                     help="ref de git: imprime el delta por matchup")
-    ap.add_argument("--solo", default=None,
+    ap.add_argument("--only", default=None,
                     help="lista de mazos separada por comas (default: todos)")
-    ap.add_argument("--rivales", default=str(_ROOT / "deck" / "real_opponents"),
+    ap.add_argument("--opponents", default=str(_ROOT / "deck" / "real_opponents"),
                     help="carpeta de mazos rivales (default: deck/real_opponents, "
                          "las listas REALES del leaderboard con sus pesos)")
-    ap.add_argument("--pesos", action="store_true",
+    ap.add_argument("--weights", action="store_true",
                     help="pondera por frecuencia real en el meta (necesita el "
                          "pesos.csv de utils/real_opponents.py)")
     args = ap.parse_args(argv)
 
-    todos = sorted(Path(args.rivales).glob("*.csv"))
-    paths = [r for r in todos if is_deck(r)]
-    omitidos = [r.name for r in todos if r not in paths]
+    all_decks = sorted(Path(args.opponents).glob("*.csv"))
+    paths = [r for r in all_decks if is_deck(r)]
+    omitidos = [r.name for r in all_decks if r not in paths]
     if omitidos:
         print(f"(no son mazos, se omiten: {', '.join(omitidos)})")
-    if args.solo:
-        quiere = {s.strip() for s in args.solo.split(",")}
+    if args.only:
+        quiere = {s.strip() for s in args.only.split(",")}
         paths = [r for r in paths if r.stem in quiere]
     if not paths:
         print("sin mazos rivales que medir")
@@ -235,24 +235,24 @@ def main(argv):
 
     # The weights are loaded BEFORE playing: if they are missing, the error must come out now and
     # not after an hour of games.
-    pesos = load_weights(args.rivales) if args.pesos else {}
-    if args.pesos and not pesos:
-        print(f"ERROR: no hay pesos.csv en {args.rivales}. "
+    weights = load_weights(args.opponents) if args.weights else {}
+    if args.weights and not weights:
+        print(f"ERROR: no hay pesos.csv en {args.opponents}. "
               f"Generalo con: python utils/real_opponents.py", file=sys.stderr)
         return 1
 
-    agent_state = sp.load_agent(_ROOT / args.candidato, "agente_matriz")
-    print(f"candidato={args.candidato}, {args.partidas} partidas por matchup")
-    filas = medir(agent_state, args.partidas, paths)
+    agent_state = sp.load_agent(_ROOT / args.candidate, "agente_matriz")
+    print(f"candidato={args.candidate}, {args.games} partidas por matchup")
+    filas = medir(agent_state, args.games, paths)
 
     base_by_deck = {}
     if args.base:
         base = sp.load_agent_from_git(args.base, "agente_matriz_base")
         print(f"\nbaseline={args.base}")
         base_by_deck = {f["mazo"]: f for f in
-                         medir(base, args.partidas, paths)}
+                         medir(base, args.games, paths)}
 
-    without_weight = [f["mazo"] for f in filas if f["mazo"] not in pesos] if pesos else []
+    without_weight = [f["mazo"] for f in filas if f["mazo"] not in weights] if weights else []
 
     print("\n=== MATRIZ DE MATCHUPS (peor -> mejor) ===")
     width = max(len(f["mazo"]) for f in filas)
@@ -260,8 +260,8 @@ def main(argv):
         line = (f"{f['mazo']:<{width}}  {100 * f['wr']:5.1f}%  "
                  f"[{100 * f['lo']:.1f}-{100 * f['hi']:.1f}]"
                  f"  n={f['decididas']}")
-        if pesos:
-            line += f"  meta={100 * pesos.get(f['mazo'], 0.0):4.1f}%"
+        if weights:
+            line += f"  meta={100 * weights.get(f['mazo'], 0.0):4.1f}%"
         if f["forfeits"]:
             line += f"  FORFEITS={f['forfeits']}"
         if f["dif_premios"] is not None:
@@ -269,10 +269,10 @@ def main(argv):
         if f["mazo"] in base_by_deck:
             delta = f["wr"] - base_by_deck[f["mazo"]]["wr"]
             line += f"  delta={100 * delta:+.1f}"
-            if pesos:
+            if weights:
                 # What that delta moves the ladder winrate by: a +10 against an
                 # archetype that is 1% is worth ten times less than a +1 against the one that is 41%.
-                line += f" (pond {100 * delta * pesos.get(f['mazo'], 0.0):+.2f})"
+                line += f" (pond {100 * delta * weights.get(f['mazo'], 0.0):+.2f})"
             base_prem = base_by_deck[f["mazo"]].get("dif_premios")
             if f["dif_premios"] is not None and base_prem is not None:
                 line += f"  dprem={f['dif_premios'] - base_prem:+.2f}"
@@ -280,14 +280,14 @@ def main(argv):
     worst = min(filas, key=lambda x: x["wr"])
     print(f"\nMatchup mas debil: {worst['mazo']} ({100 * worst['wr']:.1f}%)")
 
-    if args.control_carta is not None and base_by_deck:
-        informe_control(filas, base_by_deck, paths, args.control_carta)
-    elif args.control_carta is not None:
+    if args.control_card is not None and base_by_deck:
+        informe_control(filas, base_by_deck, paths, args.control_card)
+    elif args.control_card is not None:
         print("\n(--control-carta necesita --base: sin baseline no hay deltas "
               "que separar)")
 
-    if pesos:
-        wr_pond, cobertura = winrate_ponderado(filas, pesos)
+    if weights:
+        wr_pond, cobertura = winrate_ponderado(filas, weights)
         media = sum(f["wr"] for f in filas) / len(filas)
         print("\n=== WINRATE ESPERADO EN LADDER (ponderado por meta) ===")
         if wr_pond is None:
@@ -302,14 +302,14 @@ def main(argv):
         # This orders by ladder points lost, which is where it is worth
         # investing the effort.
         sangria = [t for t in sorted(
-            ((pesos.get(f["mazo"], 0.0) * (1 - f["wr"]), f) for f in filas),
+            ((weights.get(f["mazo"], 0.0) * (1 - f["wr"]), f) for f in filas),
             key=lambda t: -t[0],
         )[:3] if t[0] > 0]
         if sangria:
             print("\n  Donde se pierden mas puntos de ladder:")
             for cost, f in sangria:
                 print(f"    {f['mazo']:<28} {100 * cost:5.2f} pts  "
-                      f"(meta {100 * pesos.get(f['mazo'], 0.0):.0f}%, "
+                      f"(meta {100 * weights.get(f['mazo'], 0.0):.0f}%, "
                       f"ganamos {100 * f['wr']:.1f}%)")
         if without_weight:
             print(f"  aviso: {len(without_weight)} mazo(s) sin peso, excluidos del "
@@ -320,9 +320,9 @@ def main(argv):
         # change; the prizes do grade it.
         prem = [f for f in filas if f["dif_premios"] is not None]
         if prem:
-            cob_p = sum(pesos.get(f["mazo"], 0.0) for f in prem)
+            cob_p = sum(weights.get(f["mazo"], 0.0) for f in prem)
             if cob_p > 0:
-                dif_pond = sum(pesos.get(f["mazo"], 0.0) * f["dif_premios"]
+                dif_pond = sum(weights.get(f["mazo"], 0.0) * f["dif_premios"]
                                for f in prem) / cob_p
                 print(f"\n  DIFERENCIAL DE PREMIOS ponderado: {dif_pond:+.3f} "
                       f"por partida")
@@ -332,7 +332,7 @@ def main(argv):
         if base_by_deck:
             filas_base = [base_by_deck[f["mazo"]] for f in filas
                           if f["mazo"] in base_by_deck]
-            wr_base, _ = winrate_ponderado(filas_base, pesos)
+            wr_base, _ = winrate_ponderado(filas_base, weights)
             if wr_base is not None:
                 print(f"\n  baseline  : {100 * wr_base:5.1f}%   "
                       f"DELTA PONDERADO = {100 * (wr_pond - wr_base):+.2f} puntos")
@@ -340,9 +340,9 @@ def main(argv):
                       "si el cambio gana partidas en ladder)")
             base_prem = [b for b in filas_base if b.get("dif_premios") is not None]
             if prem and base_prem:
-                cob_b = sum(pesos.get(b["mazo"], 0.0) for b in base_prem)
+                cob_b = sum(weights.get(b["mazo"], 0.0) for b in base_prem)
                 if cob_b > 0 and cob_p > 0:
-                    dif_b = sum(pesos.get(b["mazo"], 0.0) * b["dif_premios"]
+                    dif_b = sum(weights.get(b["mazo"], 0.0) * b["dif_premios"]
                                 for b in base_prem) / cob_b
                     print(f"  premios baseline: {dif_b:+.3f}   "
                           f"DELTA DE PREMIOS = {dif_pond - dif_b:+.3f} por partida")

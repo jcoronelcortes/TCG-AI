@@ -234,7 +234,7 @@ def write_out(target_path):
     return paths
 
 
-def verificar(paths):
+def verify(paths):
     """battle_start accepts each deck and the bot plays 4 steps without blowing up."""
     sys.path.insert(0, str(_ROOT / "utils"))
     from cg import game
@@ -259,9 +259,9 @@ def verificar(paths):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--destino", default=str(_ROOT / "deck" / "opponents"))
-    ap.add_argument("--verificar", action="store_true")
+    ap.add_argument("--target", dest="target_path", default=str(_ROOT / "deck" / "opponents"))
+    ap.add_argument("--verify", action="store_true")
     args = ap.parse_args()
     paths = write_out(Path(args.target_path))
-    if args.verificar:
-        verificar(paths)
+    if args.verify:
+        verify(paths)

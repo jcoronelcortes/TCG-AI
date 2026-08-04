@@ -1,0 +1,38 @@
+# Phase 14 -- the argparse dests. argparse derives `args.partidas` from the
+# flag `--partidas`, so renaming the flag without the attribute is a silent
+# AttributeError at run time. The flags moved by hand (they are strings); this
+# moves the attributes that read them.
+#
+# `rival`, `censo`, `partidas`, `detalle` and friends are also data keys or
+# words used elsewhere -- `report` lists every literal and each one was checked.
+partidas	games	str
+espejo	mirror	str
+todos	all_decks
+censo	census
+verificar	verify
+candidato	candidate	str
+max_episodios	max_episodes
+intervalo	interval
+sin_extra	no_extra
+solo_indice	index_only
+conservar_replays	keep_replays
+titulo	title	str
+control_carta	control_card
+pesos	weights
+listar	list_only
+referencia	reference
+sin_criba	no_filter
+semilla	seed
+hallazgo	finding
+volcar	dump
+actualizar	update
+progreso	progress
+# `candidato` / `espejo` / `partidas` are keys of the self-play and matchup
+# RESULT dicts, which a person reads; they carry `str` so the key moves with
+# the attribute. `titulo` is a key of the batch config the extraction tools
+# read -- those configs are one-off and are rewritten with the tool.
+#
+# `aplicar` and `autopsia` are NOT here: a previous phase had already renamed
+# `args.aplicar` -> `args.apply` and `args.autopsia` -> `args.autopsy` while the
+# flags stayed Spanish, so those three scripts were broken. Renaming the flags
+# is what fixes them.

@@ -315,7 +315,7 @@ def _seleccion_lana(active, bench, discard, hand=(), energy_played=False):
            .op_active(pk(CRUSTLE))
            .op_bench(pk(DWEBBLE))
            .op_zonas(hand=5, deck=30, prizes=6)
-           .fetch_discard(LANA, cuantas=3, solo=(GRASS, APPLIN, DIPPLIN,
+           .fetch_discard(LANA, cuantas=3, only=(GRASS, APPLIN, DIPPLIN,
                                                   CHIKORITA))
            .build())
     return obs, _chosen_cards(obs, m.agent(obs))

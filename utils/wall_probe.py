@@ -77,12 +77,12 @@ def _califica(m, obs, asiento):
     return False
 
 
-def play(m, opponent_deck, partidas, volcar, target_path):
+def play(m, opponent_deck, games, dump, target_path):
     from cg import game
 
     summary = Counter()
     secos = []
-    for i in range(partidas):
+    for i in range(games):
         asiento = i % 2
         d0 = sp.read_deck() if asiento == 0 else opponent_deck
         d1 = opponent_deck if asiento == 0 else sp.read_deck()
@@ -102,7 +102,7 @@ def play(m, opponent_deck, partidas, volcar, target_path):
                         # It closes the previous turn before opening the new one.
                         if state is not None:
                             summary[state["desenlace"]] += 1
-                            if state["desenlace"] == "seco" and len(secos) < volcar:
+                            if state["desenlace"] == "seco" and len(secos) < dump:
                                 secos.append(state["obs"])
                         current_turn = turn
                         state = ({"desenlace": "seco", "obs": obs}
@@ -125,7 +125,7 @@ def play(m, opponent_deck, partidas, volcar, target_path):
                 steps += 1
             if state is not None:
                 summary[state["desenlace"]] += 1
-                if state["desenlace"] == "seco" and len(secos) < volcar:
+                if state["desenlace"] == "seco" and len(secos) < dump:
                     secos.append(state["obs"])
         finally:
             game.battle_finish()
@@ -141,21 +141,21 @@ def play(m, opponent_deck, partidas, volcar, target_path):
 def main(argv):
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--rival", default=str(_ROOT / "deck" / "real_opponents"
+    ap.add_argument("--opponent", default=str(_ROOT / "deck" / "real_opponents"
                                            / "crustle_wall_2.csv"))
-    ap.add_argument("--partidas", type=int, default=60)
-    ap.add_argument("--volcar", type=int, default=12,
+    ap.add_argument("--games", type=int, default=60)
+    ap.add_argument("--dump", type=int, default=12,
                     help="cuantos turnos SECOS volcar a disco (0 = ninguno)")
-    ap.add_argument("--destino", default=str(_ROOT / "records" / "wall_probe"))
+    ap.add_argument("--target", dest="target_path", default=str(_ROOT / "records" / "wall_probe"))
     args = ap.parse_args(argv)
 
     import main as m
     opponent_deck = sp.read_deck(args.opponent)
-    summary, n_secos = play(m, opponent_deck, args.partidas, args.volcar,
+    summary, n_secos = play(m, opponent_deck, args.games, args.dump,
                              Path(args.target_path))
 
     total = sum(summary.values())
-    print(f"rival={Path(args.opponent).stem}  partidas={args.partidas}")
+    print(f"rival={Path(args.opponent).stem}  partidas={args.games}")
     print(f"turnos que EMPIEZAN atascados tras el muro con respuesta lista: {total}")
     if not total:
         print("  (ninguno: el estado no se dio, no hay nada que concluir)")

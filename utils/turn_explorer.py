@@ -487,9 +487,9 @@ def demo_combo_myriad():
 def main(argv):
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--demo", action="store_true")
-    ap.add_argument("--hallazgo", default=None)
-    ap.add_argument("--indice", type=int, default=0)
-    ap.add_argument("--autopsia", default=None,
+    ap.add_argument("--finding", default=None)
+    ap.add_argument("--index", type=int, default=0)
+    ap.add_argument("--autopsy", default=None,
                     help="directorio de hallazgos de utils/autopsy.py")
     ap.add_argument("--max", type=int, default=10,
                     help="con --autopsia: numero maximo de hallazgos")
@@ -497,8 +497,8 @@ def main(argv):
 
     if args.demo:
         return demo_combo_myriad()
-    if args.hallazgo:
-        comparar_hallazgo(args.hallazgo, args.index)
+    if args.finding:
+        comparar_hallazgo(args.finding, args.index)
         return 0
     if args.autopsy:
         paths = sorted(Path(args.autopsy).glob("*.json"))[:args.max]

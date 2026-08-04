@@ -278,7 +278,7 @@ def formatear_flips(flips):
 
 
 def main(argv):
-    actualizar = "--actualizar" in argv
+    update = "--update" in argv
     actual = build_corpus()
     dorado = load_snapshot()
 
@@ -307,7 +307,7 @@ def main(argv):
         print("Corpus dorado: sin cambios.")
         return 0
 
-    if actualizar:
+    if update:
         save_snapshot(actual)
         print(f"\nSnapshot actualizado: {SNAPSHOT_PATH}")
         return 0

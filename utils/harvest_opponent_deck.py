@@ -113,15 +113,15 @@ def amplificar(conteo_visto, tabla):
 
 def main(argv):
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--salida", required=True,
+    ap.add_argument("--output", required=True,
                     help="csv destino (un card id por linea, 60 lineas)")
-    ap.add_argument("--registros", default="records",
+    ap.add_argument("--records", default="records",
                     help="carpeta con registro_*.json")
     args = ap.parse_args(argv)
 
-    paths = sorted((_ROOT / args.registros).glob("registro_*.json"))
+    paths = sorted((_ROOT / args.records).glob("registro_*.json"))
     if not paths:
-        raise SystemExit(f"no hay registros en {args.registros}/")
+        raise SystemExit(f"no hay registros en {args.records}/")
     serials = harvest_series(paths)
     conteo = defaultdict(int)
     for cid in serials.values():

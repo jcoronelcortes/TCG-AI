@@ -309,10 +309,10 @@ SITUACIONES = (
 )
 
 
-def radar(agent_state, opponent_deck, partidas):
+def radar(agent_state, opponent_deck, games):
     from opponent_bot import BotRival
     cnt = collections.defaultdict(lambda: [0, 0])   # name -> [applies, resolved]
-    for i in range(partidas):
+    for i in range(games):
         _res, dec, _fin = au.play_recording(
             agent_state, BotRival(), agent_state.my_deck, opponent_deck, i % 2)
         turns = collections.defaultdict(list)
@@ -334,27 +334,27 @@ def radar(agent_state, opponent_deck, partidas):
 
 def main(argv):
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--partidas", type=int, default=100)
-    ap.add_argument("--candidato", default="main.py")
-    ap.add_argument("--solo", default=None,
+    ap.add_argument("--games", type=int, default=100)
+    ap.add_argument("--candidate", default="main.py")
+    ap.add_argument("--only", default=None,
                     help="lista de mazos separada por comas")
     args = ap.parse_args(argv)
 
-    agent_state = sp.load_agent(_ROOT / args.candidato, "agente_radar")
+    agent_state = sp.load_agent(_ROOT / args.candidate, "agente_radar")
     decks = sorted((_ROOT / "deck" / "opponents").glob("*.csv"))
-    if args.solo:
-        querer = {s.strip() for s in args.solo.split(",")}
+    if args.only:
+        querer = {s.strip() for s in args.only.split(",")}
         decks = [p for p in decks if p.stem in querer]
 
     filas = {}
     for path in decks:
         deck = sp.read_deck(path)
-        filas[path.stem] = radar(agent_state, deck, args.partidas)
+        filas[path.stem] = radar(agent_state, deck, args.games)
         print(f"  {path.stem}: hecho", flush=True)
 
     names = [n for n, _ in SITUACIONES]
     width = max(len(k) for k in filas) if filas else 10
-    print(f"\n=== RADAR DE COLISIONES (n={args.partidas}/mazo) ===")
+    print(f"\n=== RADAR DE COLISIONES (n={args.games}/mazo) ===")
     print("tasa de RESOLUCION por situacion; (n) = veces que la situacion aplica")
     print(f"{'mazo':<{width}} " + "  ".join(f"{n:>18}" for n in names))
     for deck_name, cnt in sorted(filas.items()):

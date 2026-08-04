@@ -226,7 +226,7 @@ def wilson_95(victorias, n):
     return (max(0.0, centro - delta), min(1.0, centro + delta))
 
 
-def torneo(candidato, base, partidas, progreso=None,
+def torneo(candidate, base, games, progress=None,
            deck_candidato=None, deck_base=None):
     """Pits the candidate against the base alternating seats. Returns stats.
 
@@ -234,7 +234,7 @@ def torneo(candidato, base, partidas, progreso=None,
     Each deck travels with its agent when the seat changes.
     """
     stats = {
-        "partidas": partidas, "candidato": 0, "base": 0, "limites": 0,
+        "games": games, "candidate": 0, "base": 0, "limites": 0,
         "errores_candidato": 0, "errores_base": 0,
         "cand_j0": [0, 0], "cand_j1": [0, 0],  # [wins, played]
         "cand_primero": [0, 0], "cand_segundo": [0, 0],
@@ -244,12 +244,12 @@ def torneo(candidato, base, partidas, progreso=None,
         # candidate alternates seats on every game.
         "premios_candidato": 0, "premios_base": 0, "partidas_con_premios": 0,
     }
-    for i in range(partidas):
+    for i in range(games):
         asiento_cand = i % 2
         if asiento_cand == 0:
-            p0, p1, d0, d1 = candidato, base, deck_candidato, deck_base
+            p0, p1, d0, d1 = candidate, base, deck_candidato, deck_base
         else:
-            p0, p1, d0, d1 = base, candidato, deck_base, deck_candidato
+            p0, p1, d0, d1 = base, candidate, deck_base, deck_candidato
         r = play_game(p0, p1, deck0=d0, deck1=d1)
         stats["pasos_totales"] += r["pasos"]
         prizes = r.get("premios_tomados") or [None, None]
@@ -267,7 +267,7 @@ def torneo(candidato, base, partidas, progreso=None,
             stats["limites"] += 1
         else:
             gano_cand = (r["ganador"] == asiento_cand)
-            stats["candidato" if gano_cand else "base"] += 1
+            stats["candidate" if gano_cand else "base"] += 1
             seat = stats["cand_j0"] if asiento_cand == 0 else stats["cand_j1"]
             seat[1] += 1
             seat[0] += int(gano_cand)
@@ -277,9 +277,9 @@ def torneo(candidato, base, partidas, progreso=None,
             elif r["primer_jugador"] == 1 - asiento_cand:
                 stats["cand_segundo"][1] += 1
                 stats["cand_segundo"][0] += int(gano_cand)
-        if progreso and (i + 1) % progreso == 0:
-            print(f"  ... {i + 1}/{partidas} "
-                  f"({stats['candidato']}-{stats['base']})", flush=True)
+        if progress and (i + 1) % progress == 0:
+            print(f"  ... {i + 1}/{games} "
+                  f"({stats['candidate']}-{stats['base']})", flush=True)
     return stats
 
 
@@ -298,14 +298,14 @@ def prizes_per_game(stats):
 
 
 def informe(stats, etiqueta_cand, etiqueta_base):
-    dec = stats["candidato"] + stats["base"]
-    lo, hi = wilson_95(stats["candidato"], dec) if dec else (0, 1)
+    dec = stats["candidate"] + stats["base"]
+    lo, hi = wilson_95(stats["candidate"], dec) if dec else (0, 1)
     lines = [
         f"Self-play: candidato={etiqueta_cand}  vs  base={etiqueta_base}",
-        f"Partidas: {stats['partidas']}  (decididas {dec}, "
+        f"Partidas: {stats['games']}  (decididas {dec}, "
         f"limite {stats['limites']})",
-        f"Marcador: candidato {stats['candidato']} - {stats['base']} base",
-        f"Winrate candidato: {_pct(stats['candidato'], dec)} "
+        f"Marcador: candidato {stats['candidate']} - {stats['base']} base",
+        f"Winrate candidato: {_pct(stats['candidate'], dec)} "
         f"[IC95 {100 * lo:.1f}%-{100 * hi:.1f}%]",
         f"  como J0: {_pct(*stats['cand_j0'])} "
         f"({stats['cand_j0'][0]}/{stats['cand_j0'][1]})   "
@@ -332,42 +332,42 @@ def informe(stats, etiqueta_cand, etiqueta_base):
 
 def main(argv):
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--partidas", type=int, default=100)
+    ap.add_argument("--games", type=int, default=100)
     ap.add_argument("--base", default=None,
                     help="ref de git para el baseline (p.ej. HEAD~1); "
                          "sin --base: espejo main.py vs main.py")
-    ap.add_argument("--candidato", default="main.py",
+    ap.add_argument("--candidate", default="main.py",
                     help="ruta del agente candidato (default: main.py)")
-    ap.add_argument("--progreso", type=int, default=20,
+    ap.add_argument("--progress", type=int, default=20,
                     help="imprime marcador cada N partidas (0 = nunca)")
-    ap.add_argument("--rival", default=None,
+    ap.add_argument("--opponent", default=None,
                     help="csv de mazo rival: el oponente pasa a ser el BOT "
                          "generico pilotando ese mazo (modo matchup)")
     args = ap.parse_args(argv)
 
-    cand_path = _ROOT / args.candidato
-    candidato = load_agent(cand_path, "agente_candidato")
+    cand_path = _ROOT / args.candidate
+    candidate = load_agent(cand_path, "agente_candidato")
 
     if args.opponent:
         from opponent_bot import BotRival
         opponent_deck = read_deck(_ROOT / args.opponent)
         bot = BotRival()
-        stats = torneo(candidato, bot, args.partidas,
-                       progreso=args.progreso or None,
+        stats = torneo(candidate, bot, args.games,
+                       progress=args.progress or None,
                        deck_base=opponent_deck)
-        print(informe(stats, args.candidato, f"bot+{args.opponent}"))
+        print(informe(stats, args.candidate, f"bot+{args.opponent}"))
         if args.base:
             base = load_agent_from_git(args.base, "agente_base")
-            stats_base = torneo(base, bot, args.partidas,
-                                progreso=args.progreso or None,
+            stats_base = torneo(base, bot, args.games,
+                                progress=args.progress or None,
                                 deck_base=opponent_deck)
             print()
             print(informe(stats_base, f"{args.base} (git)",
                           f"bot+{args.opponent}"))
-            dec_c = stats["candidato"] + stats["base"]
-            dec_b = stats_base["candidato"] + stats_base["base"]
-            wr_c = stats["candidato"] / dec_c if dec_c else 0
-            wr_b = stats_base["candidato"] / dec_b if dec_b else 0
+            dec_c = stats["candidate"] + stats["base"]
+            dec_b = stats_base["candidate"] + stats_base["base"]
+            wr_c = stats["candidate"] / dec_c if dec_c else 0
+            wr_b = stats_base["candidate"] / dec_b if dec_b else 0
             print(f"\nDELTA de matchup (candidato - {args.base}): "
                   f"{100 * (wr_c - wr_b):+.1f} puntos "
                   f"({100 * wr_c:.1f}% vs {100 * wr_b:.1f}%)")
@@ -378,11 +378,11 @@ def main(argv):
         etiqueta_base = f"{args.base} (git)"
     else:
         base = load_agent(cand_path, "agente_base_espejo")
-        etiqueta_base = f"{args.candidato} (espejo)"
+        etiqueta_base = f"{args.candidate} (espejo)"
 
-    stats = torneo(candidato, base, args.partidas,
-                   progreso=args.progreso or None)
-    print(informe(stats, args.candidato, etiqueta_base))
+    stats = torneo(candidate, base, args.games,
+                   progress=args.progress or None)
+    print(informe(stats, args.candidate, etiqueta_base))
     return 0
 
 

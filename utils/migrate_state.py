@@ -143,16 +143,16 @@ def migrate(text, fields):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--campos", help="lista separada por comas")
-    ap.add_argument("--listar", action="store_true")
+    ap.add_argument("--fields", help="lista separada por comas")
+    ap.add_argument("--list", dest="list_only", action="store_true")
     ap.add_argument("--main", default=str(PROJECT_ROOT / "main.py"))
-    ap.add_argument("--aplicar", action="store_true")
+    ap.add_argument("--apply", action="store_true")
     args = ap.parse_args()
 
     main_py = Path(args.main)
     text = main_py.read_text(encoding="utf-8")
 
-    if args.listar:
+    if args.list_only:
         a = analizar(main_py)
         tree = ast.parse(text)
         cuenta = {}

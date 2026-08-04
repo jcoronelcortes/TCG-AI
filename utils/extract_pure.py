@@ -169,12 +169,12 @@ def planificar(main_py, since, up_to):
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--desde", type=int, required=True)
-    ap.add_argument("--hasta", type=int, required=True)
-    ap.add_argument("--destino", required=True, help="ruta relativa, p.ej. ptcg/cartas/ids.py")
-    ap.add_argument("--titulo", default="Constantes extraidas de main.py.")
+    ap.add_argument("--from-line", dest="since", type=int, required=True)
+    ap.add_argument("--to-line", dest="up_to", type=int, required=True)
+    ap.add_argument("--target", dest="target_path", required=True, help="ruta relativa, p.ej. ptcg/cartas/ids.py")
+    ap.add_argument("--title", default="Constantes extraidas de main.py.")
     ap.add_argument("--main", default="main.py")
-    ap.add_argument("--aplicar", action="store_true")
+    ap.add_argument("--apply", action="store_true")
     args = ap.parse_args()
 
     main_py = PROJECT_ROOT / args.main
@@ -203,7 +203,7 @@ def main():
     if imports:
         imports += "\n\n"
     all_list = "__all__ = [\n" + "".join(f"    {n!r},\n" for n in names) + "]\n"
-    target_path.write_text(HEADER.format(titulo=args.titulo) + imports
+    target_path.write_text(HEADER.format(title=args.title) + imports
                        + "\n".join(body) + "\n\n" + all_list)
 
     borrar = set()

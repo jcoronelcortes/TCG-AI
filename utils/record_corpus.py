@@ -79,22 +79,22 @@ def _record_game(agent_state, bot, deck_nuestro, opponent_deck, nuestro_asiento)
 def main():
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--partidas", type=int, default=12)
-    ap.add_argument("--rivales", default=str(_ROOT / "deck" / "real_opponents"))
-    ap.add_argument("--semilla", type=int, default=0,
+    ap.add_argument("--games", type=int, default=12)
+    ap.add_argument("--opponents", default=str(_ROOT / "deck" / "real_opponents"))
+    ap.add_argument("--seed", type=int, default=0,
                     help="desde que rival empezar a repartir (rota la seleccion)")
     ap.add_argument("--main", default="main.py")
     args = ap.parse_args()
 
-    rivales = sorted(Path(args.rivales).glob("*.csv"))
-    if not rivales:
-        raise SystemExit(f"no hay mazos rivales en {args.rivales}")
+    opponents = sorted(Path(args.opponents).glob("*.csv"))
+    if not opponents:
+        raise SystemExit(f"no hay mazos rivales en {args.opponents}")
 
     # A different opponent per game, spread along the list so as not to
     # pick twelve variants of the same archetype.
-    step = max(1, len(rivales) // args.partidas)
-    chosen_ones = [rivales[(args.semilla + i * step) % len(rivales)]
-                for i in range(args.partidas)]
+    step = max(1, len(opponents) // args.games)
+    chosen_ones = [opponents[(args.seed + i * step) % len(opponents)]
+                for i in range(args.games)]
 
     agent_state = sp.load_agent(_ROOT / args.main, "corpus_agente")
     from opponent_bot import BotRival

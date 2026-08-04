@@ -132,7 +132,7 @@ def load_corpus(source_path):
     return output, total
 
 
-def cribar(group, partidas, deck_referencia):
+def cribar(group, games, deck_referencia):
     """Can the generic bot pilot this list? Bot(real) vs Bot(our deck)."""
     import selfplay as sp
     from opponent_bot import BotRival
@@ -140,13 +140,13 @@ def cribar(group, partidas, deck_referencia):
     # Separate instances: the bot carries per-turn state and sharing it between
     # the two seats would mix up both sides' ability counters.
     stats = sp.torneo(
-        BotRival(), BotRival(), partidas,
+        BotRival(), BotRival(), games,
         deck_candidato=list(group["mazo"]), deck_base=list(deck_referencia),
     )
-    decididas = stats["candidato"] + stats["base"]
-    wr = stats["candidato"] / decididas if decididas else 0.0
-    forfeits = stats["errores_candidato"] / partidas if partidas else 0.0
-    limites = stats["limites"] / partidas if partidas else 0.0
+    decididas = stats["candidate"] + stats["base"]
+    wr = stats["candidate"] / decididas if decididas else 0.0
+    forfeits = stats["errores_candidato"] / games if games else 0.0
+    limites = stats["limites"] / games if games else 0.0
 
     motivos = []
     if forfeits > MAX_FORFEITS:
@@ -203,13 +203,13 @@ def write_out(groups, output):
 def main(argv):
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--origen", default=str(_ROOT / "competitor_decks"))
-    ap.add_argument("--salida", default=str(_ROOT / "deck" / "real_opponents"))
-    ap.add_argument("--partidas", type=int, default=40,
+    ap.add_argument("--source", dest="source_path", default=str(_ROOT / "competitor_decks"))
+    ap.add_argument("--output", default=str(_ROOT / "deck" / "real_opponents"))
+    ap.add_argument("--games", type=int, default=40,
                     help="partidas de criba por lista unica (default 40)")
-    ap.add_argument("--referencia", default=str(_ROOT / "deck.csv"),
+    ap.add_argument("--reference", default=str(_ROOT / "deck.csv"),
                     help="mazo contra el que se criba (default: el nuestro)")
-    ap.add_argument("--sin-criba", action="store_true",
+    ap.add_argument("--no-filter", action="store_true",
                     help="solo deduplicar, sin medir pilotabilidad")
     ap.add_argument("--top", type=int, default=None,
                     help="cribar solo las N listas de mayor peso (el resto se omite)")
@@ -231,16 +231,16 @@ def main(argv):
         groups = groups[: args.top]
         print(f"Limitado a las {len(groups)} de mayor peso ({100 * cubierto:.0f}% del meta)")
 
-    if args.sin_criba:
+    if args.no_filter:
         for group in groups:
             group.update(admitido=True, wr_criba=None, forfeits=None,
                          limites=None, motivo="sin cribar")
     else:
-        print(f"\n== 2/3 Criba de pilotabilidad ({args.partidas} partidas por lista) ==")
+        print(f"\n== 2/3 Criba de pilotabilidad ({args.games} partidas por lista) ==")
         import selfplay as sp
-        deck_ref = sp.read_deck(args.referencia)
+        deck_ref = sp.read_deck(args.reference)
         for n, group in enumerate(groups, start=1):
-            result = cribar(group, args.partidas, deck_ref)
+            result = cribar(group, args.games, deck_ref)
             group.update(result)
             marca = "ok " if group["admitido"] else "NO "
             print(f"  {marca}{group['nombre']:<28} peso {100 * group['peso_meta']:4.0f}%  "

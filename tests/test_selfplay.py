@@ -38,7 +38,7 @@ def test_a_full_mirror_game(instancias):
 def test_torneo_minimo_alterna_asientos(instancias):
     a, b = instancias
     stats = sp.torneo(a, b, 2)
-    assert stats["candidato"] + stats["base"] + stats["limites"] == 2
+    assert stats["candidate"] + stats["base"] + stats["limites"] == 2
     # one game with the candidate in each seat
     assert stats["cand_j0"][1] + stats["limites"] >= 1 or stats["cand_j0"][1] == 1
     assert stats["cand_j0"][1] + stats["cand_j1"][1] + stats["limites"] == 2

@@ -241,7 +241,7 @@ def analizar(main_py=None):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--detalle", action="store_true")
+    ap.add_argument("--detail", action="store_true")
     ap.add_argument("--main", default=None)
     args = ap.parse_args()
 
