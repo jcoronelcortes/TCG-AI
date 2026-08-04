@@ -124,7 +124,7 @@ def _played_card(o, accion):
 # 1. The scenario: without it, the test measures nothing
 # ---------------------------------------------------------------------------
 
-def test_el_chip_al_activo_no_cobra_y_la_banca_tiene_dos_premios():
+def test_the_chip_takes_nothing_and_the_bench_holds_two_prizes():
     o = _obs()
     mio = o["current"]["players"][0]
     riv = o["current"]["players"][1]
@@ -156,7 +156,7 @@ def test_el_chip_al_activo_no_cobra_y_la_banca_tiene_dos_premios():
 # 2. The decision
 # ---------------------------------------------------------------------------
 
-def test_juega_bosss_orders_en_vez_de_pegar_por_140():
+def test_plays_bosss_orders_instead_of_hitting_for_140():
     o = _obs()
     accion = _decidir(o)
     assert _played_card(o, accion) == BOSS, (
@@ -164,7 +164,7 @@ def test_juega_bosss_orders_en_vez_de_pegar_por_140():
         "chip que no cobra nada es regalar la partida")
 
 
-def test_gustea_al_mega_kangaskhan_de_tres_premios():
+def test_gusts_the_three_prize_mega_kangaskhan():
     """The target: the 3-prize body the relief finishes off, not the 1-prize one."""
     o = _obs()
     _decidir(o)
@@ -184,7 +184,7 @@ def test_gustea_al_mega_kangaskhan_de_tres_premios():
     assert riv["bench"][_opcion(o, accion)["index"]]["id"] == KANGASKHAN
 
 
-def test_tras_el_gusteo_retira_y_promueve_al_rematador():
+def test_after_the_gust_it_retreats_and_promotes_the_finisher():
     """The other half of the line: with the Kangaskhan gusted at 160, the KO comes from Tapu
     Bulu (220) after retreating -- Meganium (140) does not get there."""
     o = _obs()
@@ -225,7 +225,7 @@ def test_tras_el_gusteo_retira_y_promueve_al_rematador():
 # 3. The limits of the rule
 # ---------------------------------------------------------------------------
 
-def test_sin_premio_en_la_banca_rival_el_bosss_se_guarda():
+def test_with_no_prize_on_the_opponent_bench_the_bosss_is_kept():
     """Control: with the rival bench HEALTHY there is no prize to take by gusting, so
     the rule 'attacking the active is enough' rules again and the Boss's is
     kept."""
@@ -237,7 +237,7 @@ def test_sin_premio_en_la_banca_rival_el_bosss_se_guarda():
     assert _played_card(o, accion) != BOSS
 
 
-def test_si_el_ataque_al_activo_cobra_el_mismo_premio_no_se_gasta_el_bosss():
+def test_if_attacking_the_active_takes_the_same_prize_the_bosss_is_kept():
     """Control: with the wall active at 140 HP, Solar Beam already knocks it out and takes the
     same prize as the best bench target reachable by the active; the
     gust adds nothing and the Supporter is kept."""

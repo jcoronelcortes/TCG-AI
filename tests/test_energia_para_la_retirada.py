@@ -101,7 +101,7 @@ def _elegida(obs, choice, hand):
 # Step 1: play the card that brings the energy
 # ---------------------------------------------------------------------------
 
-def test_night_stretcher_se_juega_para_pagar_la_retirada():
+def test_night_stretcher_is_played_to_pay_the_retreat():
     """The record's case: with no Grass in hand and the finisher on the table, the
     Night Stretcher is played instead of ending the turn."""
     hand = [NIGHT_STRETCHER, ULTRA_BALL]
@@ -109,7 +109,7 @@ def test_night_stretcher_se_juega_para_pagar_la_retirada():
     assert _elegida(obs, m.agent(obs), hand) == ("PLAY", NIGHT_STRETCHER)
 
 
-def test_deck_agnostico_el_rematador_no_necesita_habilidad_de_carga():
+def test_deck_agnostic_the_finisher_needs_no_charging_ability():
     """With a bench Teal Mask Ogerpon ex the play already came out right by
     chance (the `energia_activo_sin_teal` scenario). The rule must hold
     equally with any finisher -- here, both."""
@@ -123,7 +123,7 @@ def test_deck_agnostico_el_rematador_no_necesita_habilidad_de_carga():
         assert _elegida(obs, m.agent(obs), hand) == ("PLAY", NIGHT_STRETCHER)
 
 
-def test_sin_energia_en_el_descarte_no_se_gasta_la_night_stretcher():
+def test_with_no_energy_in_the_discard_the_night_stretcher_is_kept():
     """Boundary: if no Grass is left in the discard, the chain does not exist
     and the Night Stretcher must not be played through this rule."""
     hand = [NIGHT_STRETCHER, ULTRA_BALL]
@@ -131,7 +131,7 @@ def test_sin_energia_en_el_descarte_no_se_gasta_la_night_stretcher():
     assert _elegida(obs, m.agent(obs), hand) != ("PLAY", NIGHT_STRETCHER)
 
 
-def test_con_planta_ya_en_mano_la_cadena_no_necesita_la_night_stretcher():
+def test_with_grass_already_in_hand_the_chain_needs_no_night_stretcher():
     """Boundary: with the Grass already in hand the first link is superfluous; what rules is the
     attachment to the ACTIVE (`_attach_enable_retreat_ko`, 41000)."""
     hand = [NIGHT_STRETCHER, GRASS]
@@ -144,7 +144,7 @@ def test_con_planta_ya_en_mano_la_cadena_no_necesita_la_night_stretcher():
 # Steps 2-5: the complete chain
 # ---------------------------------------------------------------------------
 
-def test_la_night_stretcher_recupera_la_energia_y_no_un_pokemon():
+def test_the_night_stretcher_recovers_the_energy_not_a_pokemon():
     obs = (_escenario([ULTRA_BALL], discard=(GRASS, GRASS, ULTRA_BALL))
            .fetch_discard(NIGHT_STRETCHER).build())
     choice = m.agent(obs)
@@ -152,14 +152,14 @@ def test_la_night_stretcher_recupera_la_energia_y_no_un_pokemon():
     assert obs["current"]["players"][0]["discard"][idx]["id"] == GRASS
 
 
-def test_la_planta_recuperada_va_al_activo_no_a_la_banca():
+def test_the_recovered_grass_goes_to_the_active_not_the_bench():
     hand = [GRASS, ULTRA_BALL]
     obs = _escenario(hand).menu_hand(with_attachment=True).build()
     tipo, destino = _elegida(obs, m.agent(obs), hand)
     assert tipo == "ATTACH" and destino == int(m.AreaType.ACTIVE)
 
 
-def test_con_la_energia_puesta_se_retira():
+def test_with_the_energy_attached_it_retreats():
     hand = [ULTRA_BALL]
     obs = (_escenario(hand, active_energy=1, energy_played=True)
            .menu_hand(with_retreat=True).build())
@@ -197,7 +197,7 @@ def _umbral_nuevo(cid, e):
 
 
 @pytest.mark.parametrize("card_id", sorted(m._DECK_POKEMON_IDS))
-def test_umbral_equivale_al_original_para_todo_el_mazo(card_id):
+def test_the_threshold_matches_the_original_for_the_whole_deck(card_id):
     """The refactor to tables + fallback does NOT change a single decision of the current
     deck: it is compared against the oracle for 0..10 energies."""
     for e in range(11):
@@ -205,7 +205,7 @@ def test_umbral_equivale_al_original_para_todo_el_mazo(card_id):
             f"flip en {card_id} con {e} energias")
 
 
-def test_cuerpos_del_mazo_excluidos_siguen_excluidos():
+def test_excluded_deck_bodies_stay_excluded():
     """Meowth ex and Fezandipiti ex DO have an attack, but the curated configuration
     leaves them out on purpose (utility bodies). The fallback by card
     data must not resurrect them."""
@@ -214,7 +214,7 @@ def test_cuerpos_del_mazo_excluidos_siguen_excluidos():
         assert m._ns_useful_energy_threshold(cid) is None    # ...but they do not count
 
 
-def test_cuerpo_fuera_del_mazo_usa_el_dato_de_carta():
+def test_a_body_outside_the_deck_uses_the_card_data():
     """The deck-agnostic branch: a body the configuration does not know stops
     returning False blindly and reasons with the real cost of its attack."""
     crustle = 345
@@ -223,13 +223,13 @@ def test_cuerpo_fuera_del_mazo_usa_el_dato_de_carta():
     assert m._ns_useful_energy_threshold(crustle) > 0
 
 
-def test_coste_de_ataque_min_desconocido_es_none():
+def test_an_unknown_min_attack_cost_is_none():
     """With no card data no threshold is invented."""
     assert m._min_attack_cost(-12345) is None
     assert m._ns_useful_energy_threshold(-12345) is None
 
 
-def test_tras_retirar_se_promueve_al_rematador():
+def test_after_retreating_the_finisher_is_promoted():
     obs = (_escenario([ULTRA_BALL], active_energy=1, energy_played=True,
                       retirado=True)
            .promote_from_bench().build())

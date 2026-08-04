@@ -96,7 +96,7 @@ def _op(active, bench):
 # 1. The body predicate: by COST, never by printed damage
 # ---------------------------------------------------------------------------
 
-def test_el_dano_impreso_miente_y_por_eso_se_mide_el_coste():
+def test_printed_damage_lies_which_is_why_cost_is_measured():
     """Three REAL attacks are listed with damage 0 in `attack_table`. If the predicate
     looked at the damage, all three bodies would pass for harmless."""
     for cid in (m.Alakazam_ex, m.Fezandipiti_ex, m.Gardevoir_ex):
@@ -110,7 +110,7 @@ def test_el_dano_impreso_miente_y_por_eso_se_mide_el_coste():
     assert not m._op_body_is_harmless(_pkm(m.Fezandipiti_ex, 2))
 
 
-def test_cuerpo_inofensivo_es_conservador_con_lo_que_no_sabe():
+def test_harmless_body_is_conservative_about_what_it_does_not_know():
     assert not m._op_body_is_harmless(None)
     assert not m._op_body_is_harmless(_pkm(-12345, 0))     # an unknown card
     # Budew attacks for cost 0: it is never harmless.
@@ -125,7 +125,7 @@ def test_cuerpo_inofensivo_es_conservador_con_lo_que_no_sabe():
 # 2. The generic relief
 # ---------------------------------------------------------------------------
 
-def test_relevo_exige_atacante_delante_y_cuerpo_muerto_detras():
+def test_relief_needs_an_attacker_in_front_and_a_dead_body_behind():
     # Their Dragapult ex attacks (Jet Headbutt costs 1) and the bench Dusclops cannot
     # pay for its cost-2 attack: swapping one for the other costs them the turn.
     assert m._gust_relieves_the_attacker(
@@ -136,7 +136,7 @@ def test_relevo_exige_atacante_delante_y_cuerpo_muerto_detras():
         _op(_pkm(m.Fezandipiti_ex, 0), [_pkm(DUSCLOPS)]))
 
 
-def test_una_preevo_de_amenaza_no_es_relevo():
+def test_a_threat_preevo_is_not_relief():
     """The Drakloak cannot attack today, but it evolves IN THE ACTIVE SPOT into another
     Dragapult ex and attacks with it: it is the same mistake as Abra -> Kadabra."""
     assert DRAKLOAK in m.EX_PREEVO_IDS
@@ -147,7 +147,7 @@ def test_una_preevo_de_amenaza_no_es_relevo():
         _op(_pkm(DRAGAPULT, 1), [_pkm(DRAKLOAK), _pkm(DUSCLOPS)]))
 
 
-def test_dunsparce_nunca_es_relevo():
+def test_dunsparce_is_never_relief():
     assert not m._gust_relieves_the_attacker(
         _op(_pkm(DRAGAPULT, 1), [_pkm(DUNSPARCE)]))
 
@@ -172,7 +172,7 @@ def _tablero(extra_bench=()):
             .build())
 
 
-def test_el_tablero_sintetico_no_tiene_ni_ko_ni_ataque():
+def test_the_synthetic_board_has_neither_ko_nor_attack():
     obs = _tablero()
     yo = obs["current"]["yourIndex"]
     mio = obs["current"]["players"][yo]
@@ -188,14 +188,14 @@ def test_el_tablero_sintetico_no_tiene_ni_ko_ni_ataque():
     assert [o["type"] for o in obs["select"]["option"]] == [7, 14]
 
 
-def test_no_se_cambia_su_dragapult_por_el_drakloak_que_lo_reemplaza():
+def test_their_dragapult_is_not_swapped_for_the_drakloak_that_replaces_it():
     obs = _tablero()
     assert m.agent(copy.deepcopy(obs)) == [1], (
         "sin KO, subir el Drakloak solo adelanta su siguiente Dragapult ex: "
         "el Boss's se guarda")
 
 
-def test_con_un_cuerpo_muerto_detras_el_relevo_si_se_juega():
+def test_with_a_dead_body_behind_the_relief_is_played():
     obs = _tablero(extra_bench=(pk(DUSCLOPS, hp=90, max_hp=90),))
     assert m.agent(copy.deepcopy(obs)) == [0], (
         "el Dusclops pelado no puede pagar su ataque de coste 2: subirlo manda "

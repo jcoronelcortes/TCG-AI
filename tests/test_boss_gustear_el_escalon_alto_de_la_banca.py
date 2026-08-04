@@ -177,7 +177,7 @@ def _menu_of_gust(obs):
 # 1. The scenario: without it, the test measures nothing
 # ---------------------------------------------------------------------------
 
-def test_el_fixture_es_el_paso_136_con_la_fase_1_en_la_banca():
+def test_the_fixture_is_step_136_with_the_stage_1_on_the_bench():
     o = _obs()
     yo = o["current"]["yourIndex"]
     mio = o["current"]["players"][yo]
@@ -206,7 +206,7 @@ def test_el_fixture_es_el_paso_136_con_la_fase_1_en_la_banca():
     assert m.prize_count_op(_pkm(GRIMMSNARL)) == 2
 
 
-def test_el_hydrapple_noquea_a_los_dos_cuerpos():
+def test_the_hydrapple_knocks_out_both_bodies():
     """The rule only makes sense if both KOs are REAL: if the Morgrem did not
     die, gusting it would be giving the opponent a free retreat."""
     o = _obs()
@@ -223,7 +223,7 @@ def test_el_hydrapple_noquea_a_los_dos_cuerpos():
 # 2. The decision and the target
 # ---------------------------------------------------------------------------
 
-def test_se_juega_el_boss_no_el_dawn():
+def test_the_boss_is_played_not_the_dawn():
     o = _obs()
     assert m.agent(o) == [_idx(o, type=7, index=_hand_idx(o, BOSS))], (
         "con la Fase 1 de la linea en la BANCA y noqueable, se juega Boss's: "
@@ -231,7 +231,7 @@ def test_se_juega_el_boss_no_el_dawn():
         "escalon mas arriba y retrasa dos turnos a Marnie's Grimmsnarl ex")
 
 
-def test_el_objetivo_del_gusteo_es_el_morgrem():
+def test_the_gust_target_is_the_morgrem():
     o = _menu_of_gust(_obs())
     riv = o["current"]["players"][1 - o["current"]["yourIndex"]]
     elegido = m.agent(o)
@@ -240,7 +240,7 @@ def test_el_objetivo_del_gusteo_es_el_morgrem():
         "Munkidori de soporte")
 
 
-def test_con_la_fase_1_ya_de_activo_no_se_gasta_el_boss():
+def test_with_the_stage_1_already_active_the_boss_is_kept():
     """Control (the stage veto, on the same board): if the high step is ALREADY
     the active, attacking it is free and the Boss's is kept."""
     o = _obs()
@@ -257,7 +257,7 @@ def test_con_la_fase_1_ya_de_activo_no_se_gasta_el_boss():
         "arriba y no gasta el Boss's ni el Supporter del turno")
 
 
-def test_la_regla_no_es_de_la_linea_marnie(monkeypatch):
+def test_the_rule_is_not_about_the_marnie_line(monkeypatch):
     """Deck-agnostic: the same board with the Dreepy -> Drakloak ->
     Dragapult ex line resolves the same way, without touching any per-deck list."""
     o = _obs()
@@ -276,7 +276,7 @@ def test_la_regla_no_es_de_la_linea_marnie(monkeypatch):
 # 3. `_linea_culmina_en_ex`, in isolation (deck-agnostic)
 # ---------------------------------------------------------------------------
 
-def test_la_linea_ex_se_deriva_del_dato_de_carta():
+def test_the_ex_line_is_derived_from_the_card_data():
     # Lines that DO end in a 2-prize attacker: cutting them is worth the Boss's.
     for cid in (IMPIDIMP, MORGREM, m.Cynthias_Gible, m.Cynthias_Gabite,
                 m.Dreepy, m.Drakloak, m.Ralts, m.Kirlia, m.Duraludon,
@@ -284,7 +284,7 @@ def test_la_linea_ex_se_deriva_del_dato_de_carta():
         assert m._line_ends_in_ex(cid), cid
 
 
-def test_la_linea_alakazam_queda_fuera():
+def test_the_alakazam_line_stays_out():
     """Abra -> Kadabra -> Alakazam ends in a 1-prize body: gusting its
     pre-evolution yields the same as attacking from the front. That is
     [[boss-no-gustear-preevo-linea-no-ex]], and here it comes for free from the card data."""
@@ -294,7 +294,7 @@ def test_la_linea_alakazam_queda_fuera():
     assert not m._line_ends_in_ex(m.Hops_Phantump)
 
 
-def test_el_helper_es_SUPERCONJUNTO_de_la_lista_curada():
+def test_the_helper_is_a_superset_of_the_curated_list():
     """`_preevo_de_linea_ex` replaces `EX_PREEVO_IDS` in the standalone block
     `_deny_evo_via_boss` (a Boss's searched from the DECK with Meowth ex ->
     Last-Ditch). The replacement is only valid if it does NOT lose any line
@@ -304,7 +304,7 @@ def test_el_helper_es_SUPERCONJUNTO_de_la_lista_curada():
     assert perdidas == [], [m.card_table[c].name for c in perdidas]
 
 
-def test_el_helper_cubre_lineas_que_la_lista_curada_no_tenia():
+def test_the_helper_covers_lines_the_curated_list_lacked():
     """Frillish -> Jellicent ex is in `deck/rivales/jellicent_lock.csv` and was NOT
     in `EX_PREEVO_IDS`: the curated list only grew after a loss."""
     FRILLISH = 597
@@ -313,7 +313,7 @@ def test_el_helper_cubre_lineas_que_la_lista_curada_no_tenia():
     assert m._preevo_of_ex_line(FRILLISH)
 
 
-def test_dunsparce_no_motiva_un_gusteo_que_tiene_prohibido():
+def test_dunsparce_does_not_motivate_a_gust_it_forbids():
     """Dunsparce -> Dudunsparce ex culminates in an ex, but the selection handler
     ALWAYS vetoes Dunsparce as a target. A reason that points at a forbidden
     target spends (or searches for) the Boss's only to bring something else up: it is the
@@ -323,7 +323,7 @@ def test_dunsparce_no_motiva_un_gusteo_que_tiene_prohibido():
         assert not m._preevo_of_ex_line(cid), "...pero no debe motivar el gusteo"
 
 
-def test_la_cima_de_una_linea_no_culmina_en_nada():
+def test_the_top_of_a_line_ends_in_nothing():
     # A Stage 2 (or a Basic with no evolution) has nothing above it any more.
     assert not m._line_ends_in_ex(GRIMMSNARL)
     assert not m._line_ends_in_ex(HYDRAPPLE)

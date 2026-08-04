@@ -106,7 +106,7 @@ def _played_card(obs, choice):
     return obs["current"]["players"][0]["hand"][opt["index"]]["id"]
 
 
-def test_vs_crustle_segundos_baja_el_estadio_antes_de_la_lillie():
+def test_vs_crustle_going_second_the_stadium_goes_before_the_lillie():
     obs = _escenario()
     choice = m.agent(obs)
     assert _played_card(obs, choice) == m.Forest_of_Vitality, (
@@ -116,7 +116,7 @@ def test_vs_crustle_segundos_baja_el_estadio_antes_de_la_lillie():
         "reemplaza, que es lo unico que justifica el veto general")
 
 
-def test_control_otro_matchup_conserva_el_veto_del_primer_turno():
+def test_control_another_matchup_keeps_the_first_turn_veto():
     # The same board against a deck that CAN replace the stadium: the
     # exception belongs to the matchup, it is not a general relaxation of the veto.
     obs = _escenario(op_basico=DREEPY)
@@ -126,7 +126,7 @@ def test_control_otro_matchup_conserva_el_veto_del_primer_turno():
         "turno")
 
 
-def test_control_sylveon_no_hereda_la_excepcion():
+def test_control_sylveon_does_not_inherit_the_exception():
     # `op_is_crustle_deck` ALSO switches on with Eevee/Sylveon: they share the
     # immunity to ex, which is what that flag means. But the exception is not
     # born of the immunity but of the fact that the Crustle deck plays no stadium, so
@@ -140,7 +140,7 @@ def test_control_sylveon_no_hereda_la_excepcion():
         "de muro inmune a ex no dice nada sobre si el rival juega estadio")
 
 
-def test_control_sin_lillie_en_mano_conserva_el_veto():
+def test_control_with_no_lillie_in_hand_the_veto_holds():
     # With no Lillie's there is no shuffle to fear: the stadium is in no danger in
     # hand and there is no reason to play it early.
     obs = _escenario(with_lillie=False)
@@ -150,7 +150,7 @@ def test_control_sin_lillie_en_mano_conserva_el_veto():
         "Lillie's: sin Lillie's en mano el veto del primer turno sigue")
 
 
-def test_control_supporter_ya_jugado_no_resucita_el_estadio():
+def test_control_a_played_supporter_does_not_revive_the_stadium():
     # With the turn's Supporter spent, the Lillie's in hand is no longer going to be
     # played: the stadium is in no danger and the exception does not apply.
     obs = _escenario(partidario_jugado=True)
@@ -160,7 +160,7 @@ def test_control_supporter_ya_jugado_no_resucita_el_estadio():
         "vuelve a esperar")
 
 
-def test_control_saliendo_primeros_conserva_el_veto():
+def test_control_going_first_the_veto_holds():
     # The user's rule bounds the exception to going SECOND. Going first
     # (turn 1) the rival has not played yet and the general veto holds.
     obs = _escenario(first_player=0)

@@ -169,7 +169,7 @@ def _idx_of(obs, card_id):
 # 1. The scenario
 # ---------------------------------------------------------------------------
 
-def test_el_fixture_es_banca_vacia_con_activo_vivo_y_relevo_en_mano():
+def test_the_fixture_is_an_empty_bench_a_live_active_and_relief_in_hand():
     o = _obs()
     yo = o["current"]["yourIndex"]
     mio = o["current"]["players"][yo]
@@ -188,14 +188,14 @@ def test_el_fixture_es_banca_vacia_con_activo_vivo_y_relevo_en_mano():
 # 2. The decision
 # ---------------------------------------------------------------------------
 
-def test_con_la_banca_vacia_se_baja_un_relevo():
+def test_with_an_empty_bench_a_relief_body_is_played():
     obs = _obs()
     accion, cid = _play(obs, m.agent(obs))
     assert accion == "PLAY", (accion, cid)
     assert cid in BASICOS, m.card_table[cid].name
 
 
-def test_el_relevo_ya_no_esta_vetado():
+def test_the_relief_body_is_no_longer_vetoed():
     """The failure was a VETO (−1), not a defeat on points."""
     obs = _obs()
     sc = _scores(obs)
@@ -207,7 +207,7 @@ def test_el_relevo_ya_no_esta_vetado():
 # 3. What is NOT broken: the anti-Comfey plan still stands
 # ---------------------------------------------------------------------------
 
-def test_con_un_cuerpo_en_banca_vuelve_el_veto_del_plan():
+def test_with_a_body_on_the_bench_the_plan_veto_returns():
     """The exemption is about SURVIVAL: as soon as there is a relief body, the plan rules
     again and no bodies outside the list are played."""
     obs = _obs(with_bench=True)
@@ -216,7 +216,7 @@ def test_con_un_cuerpo_en_banca_vuelve_el_veto_del_plan():
     assert sc[_idx_of(obs, CHIKORITA)] <= 0, sc
 
 
-def test_la_exencion_es_solo_para_basicos():
+def test_the_exemption_is_only_for_basics():
     """A Stage 1 is not benched, so the urgency does not reach it."""
     obs = _obs(basicos_a_fase1=True)
     sc = _scores(obs)

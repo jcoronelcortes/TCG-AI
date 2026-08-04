@@ -108,7 +108,7 @@ def _op(active, bench):
 # 1. The scenario: without it, the test measures nothing
 # ---------------------------------------------------------------------------
 
-def test_el_fixture_es_el_turno_2_sin_atacante():
+def test_the_fixture_is_turn_2_with_no_attacker():
     o = _obs()
     yo = o["current"]["yourIndex"]
     mio = o["current"]["players"][yo]
@@ -136,7 +136,7 @@ def test_el_fixture_es_el_turno_2_sin_atacante():
     assert o["select"]["option"][0] == {"index": 1, "type": 7}
 
 
-def test_no_se_juega_el_boss_que_regala_el_abra():
+def test_the_boss_that_gives_away_the_abra_is_not_played():
     o = _obs()
     fin = next(i for i, opt in enumerate(o["select"]["option"])
                if opt.get("type") == 14)
@@ -149,7 +149,7 @@ def test_no_se_juega_el_boss_que_regala_el_abra():
 # 2. The two predicates, in isolation
 # ---------------------------------------------------------------------------
 
-def test_activo_inofensivo_mide_el_coste_del_ataque():
+def test_harmless_active_measures_the_attack_cost():
     # Fezandipiti ex: Cruel Arrow costs 3. Bare it does not get there even with an attachment;
     # with 2 on it, it does -> it stops being harmless.
     assert m._op_active_is_harmless(_op(_pk(FEZ, 0), []))
@@ -161,7 +161,7 @@ def test_activo_inofensivo_mide_el_coste_del_ataque():
     assert not m._op_active_is_harmless(_op(None, []))
 
 
-def test_relevo_solo_cambia_un_atacante_por_un_no_atacante():
+def test_relief_only_swaps_an_attacker_for_a_non_attacker():
     # The good case: their CHARGED Alakazam goes down to the bench and a bare Abra comes up.
     assert m._alakazam_attacker_relief(_op(_pk(ALAKAZAM, 1), [_pk(ABRA)]))
     assert m._alakazam_attacker_relief(_op(_pk(KADABRA, 1), [_pk(FEZ)]))
@@ -186,7 +186,7 @@ def _boss_ctx(**over):
     return _make_boss_ctx(**over)
 
 
-def test_veto_alakazam_y_veto_generico_sobre_la_regla_de_reserva():
+def test_alakazam_veto_and_generic_veto_over_the_reserve_rule():
     regalo = _boss_ctx(op_is_alakazam_deck=True,
                        op_state=_op(_pk(FEZ, 0), [_pk(ABRA)] * 4))
     assert m._score_boss_orders_play(regalo) == m.SCORE_VETO
@@ -197,18 +197,18 @@ def test_veto_alakazam_y_veto_generico_sobre_la_regla_de_reserva():
     assert m._score_boss_orders_play(generico) == m.SCORE_VETO
 
 
-def test_el_relevo_del_atacante_no_esta_vetado():
+def test_relieving_the_attacker_is_not_vetoed():
     ctx = _boss_ctx(op_is_alakazam_deck=True,
                     op_state=_op(_pk(ALAKAZAM, 1), [_pk(ABRA)]))
     assert m._score_boss_orders_play(ctx) > 0
 
 
-def test_un_activo_que_si_ataca_no_dispara_el_veto_generico():
+def test_an_active_that_does_attack_does_not_fire_the_generic_veto():
     ctx = _boss_ctx(op_state=_op(_pk(FEZ, 3), [_pk(m.Dreepy)]))
     assert m._score_boss_orders_play(ctx) > 0
 
 
-def test_los_motivos_con_premio_mandan_sobre_ambos_vetos():
+def test_reasons_with_a_prize_rule_over_both_vetoes():
     """No veto can cover up a finisher or a line cut WITH a KO."""
     board = dict(op_is_alakazam_deck=True,
                    op_state=_op(_pk(FEZ, 0), [_pk(ABRA)] * 4))
@@ -225,7 +225,7 @@ def test_los_motivos_con_premio_mandan_sobre_ambos_vetos():
         _boss_ctx(boss_defensive_gust=True, **board)) > 0
 
 
-def test_una_preevo_de_amenaza_de_activo_no_dispara_el_veto_generico():
+def test_an_active_threat_preevo_does_not_fire_the_generic_veto():
     """A Riolu does not attack today, but it evolves into Mega Lucario ex and attacks with the
     NEW body: its current attack cost says nothing."""
     ctx = _boss_ctx(op_state=_op(_pk(m.Riolu, 0), [_pk(m.Mega_Lucario_ex)]))
@@ -255,14 +255,14 @@ def _estorbo(ctx):
     return score
 
 
-def test_sin_ko_no_se_sube_kadabra_ni_alakazam():
+def test_with_no_ko_neither_kadabra_nor_alakazam_comes_up():
     assert _estorbo(_gust_ctx(KADABRA)) == m.SCORE_FORBID
     assert _estorbo(_gust_ctx(ALAKAZAM)) == m.SCORE_FORBID
     # The bare Abra is still a valid relief (the user's rule).
     assert _estorbo(_gust_ctx(ABRA)) > 0
 
 
-def test_con_ko_se_levanta_la_prohibicion():
+def test_with_a_ko_the_ban_is_lifted():
     """Gusting to KNOCK THEM OUT if it cuts the line: there all three are valid
     targets and the historical order (Kadabra >= Abra >= Alakazam) is kept."""
     kad = _estorbo(_gust_ctx(KADABRA, can_ko=True))

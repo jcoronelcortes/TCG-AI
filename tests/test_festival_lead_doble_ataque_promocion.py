@@ -124,7 +124,7 @@ def _elegido(obs, choice):
 # 1. The scenario: without it, the test measures nothing
 # ---------------------------------------------------------------------------
 
-def test_el_fixture_es_la_promocion_bajo_festival_grounds():
+def test_the_fixture_is_the_promotion_under_festival_grounds():
     o = _obs()
     yo = o["current"]["yourIndex"]
     mio = o["current"]["players"][yo]
@@ -152,7 +152,7 @@ def test_el_fixture_es_la_promocion_bajo_festival_grounds():
     assert len(rival["bench"]) == 5                # Do the Wave = 20 x 5 = 100
 
 
-def test_do_the_wave_tiene_dano_impreso_cero():
+def test_do_the_wave_has_zero_printed_damage():
     """The root cause: without modelling it, the projection was 0 against everyone."""
     assert (m.attack_table[m.DO_THE_WAVE_ATTACK_ID].damage or 0) == 0
     assert m.card_table[DIPPLIN].attacks == [m.DO_THE_WAVE_ATTACK_ID]
@@ -198,7 +198,7 @@ def test_brave_bangle_no_suma_si_el_portador_tiene_rule_box():
 # 3. The decision
 # ---------------------------------------------------------------------------
 
-def test_promueve_el_tapu_que_aguanta_y_no_el_dipplin_condenado():
+def test_it_promotes_the_tapu_that_survives_not_the_doomed_dipplin():
     obs = _obs()
     elegido = _elegido(obs, m.agent(obs))
     assert elegido["id"] == TAPU, (
@@ -208,7 +208,7 @@ def test_promueve_el_tapu_que_aguanta_y_no_el_dipplin_condenado():
     assert elegido["hp"] > 100                     # it survives the second blow
 
 
-def test_el_tapu_promovido_remata_al_turno_siguiente():
+def test_the_promoted_tapu_finishes_next_turn():
     """It is not just the tankiest: with one attachment it reaches Wood Hammer."""
     obs = _obs()
     yo = obs["current"]["yourIndex"]
@@ -225,7 +225,7 @@ def test_el_tapu_promovido_remata_al_turno_siguiente():
 # 4. The counter-stadium: Forest of Vitality switches Festival Lead off at the root
 # ---------------------------------------------------------------------------
 
-def test_festival_grounds_hace_urgente_el_contra_estadio():
+def test_festival_grounds_makes_the_counter_stadium_urgent():
     """`_contra_estadio_urgente` governs BOTH faces: not letting the Forest go in
     a forced discard and not vetoing its play."""
     # A hostile stadium and no Forest of ours on the table -> urgent.
@@ -240,7 +240,7 @@ def test_festival_grounds_hace_urgente_el_contra_estadio():
     assert m._counter_stadium_urgent(False, True, False, False) is True
 
 
-def test_apagar_festival_lead_va_antes_que_la_cadena_evolutiva():
+def test_switching_off_festival_lead_comes_before_the_evolution_chain():
     """The priority of playing the Forest: the chain is cashed in next turn,
     the double attack kills us on this one. Below the Meowth engine, which on top of that
     is irreversible."""
@@ -251,7 +251,7 @@ def test_apagar_festival_lead_va_antes_que_la_cadena_evolutiva():
         < names.index("reemplazar_estadio_rival")
 
 
-def test_el_flag_hostil_exige_la_linea_rival():
+def test_the_hostile_flag_needs_the_opponent_line():
     """The fixture has an opposing Dipplin in the active spot -> hostile. With no
     Applin/Dipplin of theirs in sight, the stadium stops counting as hostile."""
     o = _obs()
@@ -279,7 +279,7 @@ def test_el_flag_hostil_exige_la_linea_rival():
     assert m._op_active_attack_damage_to(op_act2, tapu) < 100
 
 
-def test_sin_festival_grounds_no_se_apaga_la_premisa():
+def test_without_festival_grounds_the_premise_stands():
     """Control: the veto is about the STADIUM, not the matchup.
 
     Without Festival Grounds there is no second attack, the promotion resolves at the

@@ -30,20 +30,20 @@ def _obs_final(op_prize_restantes, my_active, my_bench, mi_deck):
     return {"current": {"players": [yo, op], "yourIndex": 0, "result": 1}}
 
 
-def test_derrota_por_premios():
+def test_loss_on_prizes():
     obs = _obs_final(op_prize_restantes=0,
                      my_active={"id": 920}, my_bench=[{"id": 92}], mi_deck=20)
     assert clasificar_derrota(obs, asiento=0, result="pierde") == "premios"
 
 
-def test_derrota_por_bench_out():
+def test_loss_by_bench_out():
     # The opponent still had prizes pending: the cause is running out of Pokemon.
     obs = _obs_final(op_prize_restantes=3,
                      my_active=None, my_bench=[None, None], mi_deck=20)
     assert clasificar_derrota(obs, asiento=0, result="pierde") == "bench_out"
 
 
-def test_derrota_por_deckout():
+def test_loss_by_deckout():
     obs = _obs_final(op_prize_restantes=3,
                      my_active={"id": 920}, my_bench=[], mi_deck=0)
     assert clasificar_derrota(obs, asiento=0, result="pierde") == "deckout"
@@ -57,7 +57,7 @@ def test_bench_out_gana_a_deckout():
     assert clasificar_derrota(obs, asiento=0, result="pierde") == "bench_out"
 
 
-def test_premios_domina_a_deckout():
+def test_prizes_dominates_deckout():
     # The opponent completed their prizes in a game that also left us at 0
     # deck: the loss is on prizes (the deck-out never got to happen).
     obs = _obs_final(op_prize_restantes=0,
@@ -65,12 +65,12 @@ def test_premios_domina_a_deckout():
     assert clasificar_derrota(obs, asiento=0, result="pierde") == "premios"
 
 
-def test_limite_se_clasifica_directo():
+def test_the_boundary_is_classified_outright():
     obs = _obs_final(op_prize_restantes=2,
                      my_active={"id": 920}, my_bench=[], mi_deck=10)
     assert clasificar_derrota(obs, asiento=0, result="limite") == "limite"
 
 
-def test_observacion_rota_no_lanza():
+def test_a_broken_observation_does_not_raise():
     assert clasificar_derrota({}, asiento=0, result="pierde") == "desconocido"
     assert clasificar_derrota(None, asiento=0, result="pierde") == "desconocido"

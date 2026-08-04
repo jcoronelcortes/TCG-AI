@@ -126,7 +126,7 @@ def _play(obs, choice):
 # 1. The real step of the record
 # ---------------------------------------------------------------------------
 
-def test_paso17_juega_la_ultra_ball_en_vez_de_atacar_con_el_chikorita():
+def test_step17_plays_the_ultra_ball_instead_of_attacking_with_the_chikorita():
     with open(_FIXTURE, encoding="utf-8") as f:
         obs = json.load(f)["observation"]
     assert _play(obs, m.agent(obs)) == ("PLAY", ULTRA_BALL), (
@@ -210,7 +210,7 @@ def _menu_tomorrow():
     return obs
 
 
-def test_menuA_la_ultra_ball_gana_al_ataque_del_chikorita():
+def test_menu_a_the_ultra_ball_beats_the_chikorita_attack():
     obs = _menu_main()
     assert _play(obs, m.agent(obs)) == ("PLAY", ULTRA_BALL)
 
@@ -223,7 +223,7 @@ def test_menuB_el_fetch_de_la_busqueda_pagada_trae_el_meowth_ex():
         "desviaba a otra carta")
 
 
-def test_menuC_manana_el_meowth_ex_se_baja_bajo_el_bloqueo_de_objetos():
+def test_menu_c_tomorrow_the_meowth_ex_is_played_under_the_item_lock():
     obs = _menu_tomorrow()
     assert _play(obs, m.agent(obs)) == ("PLAY", MEOWTH), (
         "bajo el Itchy Pollen los Pokémon y las habilidades SIGUEN jugándose: "
@@ -234,21 +234,21 @@ def test_menuC_manana_el_meowth_ex_se_baja_bajo_el_bloqueo_de_objetos():
 # 3. Controls: the rule does not fire without its three premises
 # ---------------------------------------------------------------------------
 
-def test_control_sin_amenaza_de_bloqueo_la_ultra_ball_se_guarda():
+def test_control_with_no_lock_threat_the_ultra_ball_is_kept():
     obs = _menu_main(op_generico=True)
     assert _play(obs, m.agent(obs)) != ("PLAY", ULTRA_BALL), (
         "sin Budew ni línea Dreepy enfrente la Ultra Ball NO caduca: sigue "
         "valiendo la regla general de no cavar lo que no se juega hoy")
 
 
-def test_control_con_atacante_a_una_energia_la_ultra_ball_se_guarda():
+def test_control_with_an_attacker_one_energy_away_the_ultra_ball_is_kept():
     # Fezandipiti ex at 2 energies: next turn's attachment puts it in
     # attack range (Cruel Arrow, 3) -> `_sin_atacante_para_manana` is False.
     obs = _menu_main(fez_energies=2)
     assert _play(obs, m.agent(obs)) != ("PLAY", ULTRA_BALL)
 
 
-def test_control_con_lillie_en_mano_no_hay_nada_que_cavar():
+def test_control_with_a_lillie_in_hand_there_is_nothing_to_dig():
     obs = _menu_main(hand=(GRASS, GRASS, BOSS, LILLIE, ULTRA_BALL, FOREST),
                      partidario_jugado=False)
     assert _play(obs, m.agent(obs)) != ("PLAY", ULTRA_BALL), (
@@ -260,14 +260,14 @@ def test_control_con_lillie_en_mano_no_hay_nada_que_cavar():
 # 4. The new predicates, separately
 # ---------------------------------------------------------------------------
 
-def test_bloqueo_de_items_inminente_cubre_budew_y_la_linea_dragapult():
+def test_imminent_item_lock_covers_budew_and_the_dragapult_line():
     assert m._bloqueo_de_items_inminente(True, False, False) is True   # Budew
     assert m._bloqueo_de_items_inminente(False, True, False) is True   # Dragapult ex
     assert m._bloqueo_de_items_inminente(False, False, True) is True   # Dreepy
     assert m._bloqueo_de_items_inminente(False, False, False) is False
 
 
-def test_sin_atacante_para_manana_no_cuenta_al_chikorita_ni_a_los_basicos():
+def test_no_attacker_for_tomorrow_counts_neither_chikorita_nor_the_basics():
     from types import SimpleNamespace as NS
     _pk = lambda cid, e=0: NS(id=cid, energies=[G] * e)
     board = NS(active=[_pk(CHIKORITA, 1)], bench=[_pk(FEZ, 0)])

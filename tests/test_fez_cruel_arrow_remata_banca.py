@@ -148,7 +148,7 @@ def _menu_step54():
     return obs
 
 
-def test_paso54_ataca_con_cruel_arrow_en_vez_de_retirarse():
+def test_step54_attacks_with_cruel_arrow_instead_of_retreating():
     obs = _menu_step54()
     # The menu must offer both plays for the test to discriminate.
     plays = [_play(obs, [i]) for i in range(len(obs["select"]["option"]))]
@@ -158,7 +158,7 @@ def test_paso54_ataca_con_cruel_arrow_en_vez_de_retirarse():
     assert _play(obs, m.agent(obs)) == ("ATTACK", CRUEL_ARROW)
 
 
-def test_paso54_el_remate_del_ogerpon_era_imposible():
+def test_step54_the_ogerpon_finisher_was_impossible():
     """The retreat won the menu through a KO that did NOT exist: there was a Grass in
     hand, but no route to put it on the field."""
     obs = _menu_step54()
@@ -173,7 +173,7 @@ def test_paso54_el_remate_del_ogerpon_era_imposible():
     assert any(c.id == m.Basic_Grass_Energy for c in yo.hand)
 
 
-def test_paso54_cruel_arrow_no_llega_al_activo_pero_si_a_la_banca():
+def test_step54_cruel_arrow_cannot_reach_the_active_but_can_reach_the_bench():
     """The state that made the mistake inevitable: measured against the opposing ACTIVE the
     turn is sterile, measured against the WHOLE opposing field there is a prize."""
     obs = _menu_step54()
@@ -197,7 +197,7 @@ def test_paso54_cruel_arrow_no_llega_al_activo_pero_si_a_la_banca():
 # The DAMAGE menu: where the arrow points
 # ---------------------------------------------------------------------------
 
-def test_cruel_arrow_apunta_al_kadabra_no_al_activo():
+def test_cruel_arrow_aims_at_the_kadabra_not_the_active():
     obs = _obs(_FIX_DMG)
     elegido = _pk_elegido(obs, m.agent(obs))
     assert (elegido["id"], elegido["hp"]) == (KADABRA, 80)
@@ -223,7 +223,7 @@ def test_cruel_arrow_prefiere_el_kadabra_sobre_abra_y_dunsparce():
 # The snipe evaluator, in isolation
 # ---------------------------------------------------------------------------
 
-def test_snipe_sin_energia_no_propone_nada():
+def test_a_snipe_with_no_energy_proposes_nothing():
     obs = _obs(_FIX_DMG)
     st = m.to_observation_class(obs).current
     active = st.players[1].active[0]
@@ -232,7 +232,7 @@ def test_snipe_sin_energia_no_propone_nada():
                                 False, False) == (None, 0, False)
 
 
-def test_snipe_solo_para_atacantes_que_eligen_objetivo():
+def test_the_snipe_is_only_for_attackers_that_choose_a_target():
     """An Ogerpon ex does not snipe: its Myriad Leaf Shower only hits the active."""
     obs = _obs(_FIX_DMG)
     st = m.to_observation_class(obs).current
@@ -261,12 +261,12 @@ def test_snipe_respeta_la_inmunidad_a_ex():
 # The single-call fixture (the same verdict without a replay)
 # ---------------------------------------------------------------------------
 
-def test_fixture_paso54_ataca():
+def test_fixture_step54_attacks():
     obs = _obs(_FIX_MAIN)
     assert _play(obs, m.agent(obs)) == ("ATTACK", CRUEL_ARROW)
 
 
-def test_fixture_paso54_no_se_retira_aunque_el_ogerpon_pareciera_letal():
+def test_fixture_step54_does_not_retreat_even_if_the_ogerpon_looked_lethal():
     """Even if the Grass route were open, the Ogerpon pivot canNOT
     override the snipe: Alakazam is NON-ex, that is, the SAME prize as the
     Kadabra, and attacking pays no retreat cost and exposes no other body."""
@@ -275,7 +275,7 @@ def test_fixture_paso54_no_se_retira_aunque_el_ogerpon_pareciera_letal():
     assert _play(obs, m.agent(obs)) == ("ATTACK", CRUEL_ARROW)
 
 
-def test_el_snipe_cede_ante_un_ko_de_mas_premios_sin_cerrar_el_turno():
+def test_the_snipe_yields_to_a_ko_worth_more_prizes_without_closing_the_turn():
     """The snipe rules over the filler plays, not over a bigger KO.
 
     With a 2-prize ex in front (Archaludon ex, 300 HP: Cruel Arrow does not reach it)

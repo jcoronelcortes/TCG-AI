@@ -122,7 +122,7 @@ def _idx(obs, **campos):
 # 1. The scenario: without it, the test measures nothing
 # ---------------------------------------------------------------------------
 
-def test_el_fixture_es_el_paso_93_con_la_fase_1_delante():
+def test_the_fixture_is_step_93_with_the_stage_1_in_front():
     o = _obs()
     yo = o["current"]["yourIndex"]
     mio = o["current"]["players"][yo]
@@ -148,7 +148,7 @@ def test_el_fixture_es_el_paso_93_con_la_fase_1_delante():
     assert m.prize_count_op(_pkm(GARCHOMP)) == 2
 
 
-def test_el_hydrapple_noquea_a_los_dos_cuerpos():
+def test_the_hydrapple_knocks_out_both_bodies():
     """The veto only makes sense if the KO on the active is REAL: if the Gabite did
     not die, gusting the Gible would still be the only route to a prize."""
     o = _obs()
@@ -160,14 +160,14 @@ def test_el_hydrapple_noquea_a_los_dos_cuerpos():
 # 2. The decision
 # ---------------------------------------------------------------------------
 
-def test_no_se_gustea_el_gible_teniendo_el_gabite_de_activo():
+def test_the_gible_is_not_gusted_with_the_gabite_active():
     o = _obs()
     assert m.agent(o) == [_idx(o, type=13)], (
         "con la Fase 1 de la linea ya de activo y noqueable, se ATACA: mismo "
         "premio, corta la linea mas arriba y no gasta el Boss's ni el Supporter")
 
 
-def test_control_con_el_basico_delante_el_boss_si_se_juega():
+def test_control_with_the_basic_in_front_the_boss_is_played():
     """Control (the Marnie case, inverted on the same board): if the one in the
     active spot is the bare BASIC and the charged STAGE 1 is on the bench,
     gusting DOES go up a step -- and the Boss's is played again."""
@@ -189,7 +189,7 @@ def test_control_con_el_basico_delante_el_boss_si_se_juega():
 # 3. The stage/line predicates, in isolation (deck-agnostic)
 # ---------------------------------------------------------------------------
 
-def test_la_etapa_sale_del_dato_de_carta():
+def test_the_stage_comes_from_the_card_data():
     assert m._evolution_stage(GIBLE) == 0
     assert m._evolution_stage(GABITE) == 1
     assert m._evolution_stage(GARCHOMP) == 2
@@ -202,7 +202,7 @@ def test_la_etapa_sale_del_dato_de_carta():
     assert m._evolution_stage(-12345) is None
 
 
-def test_la_linea_se_reconstruye_subiendo_por_evolves_from():
+def test_the_line_is_rebuilt_walking_up_evolves_from():
     assert m._same_evolution_line(GIBLE, GARCHOMP)
     assert m._same_evolution_line(GARCHOMP, GABITE)
     assert m._same_evolution_line(GIBLE, GIBLE)
@@ -212,7 +212,7 @@ def test_la_linea_se_reconstruye_subiendo_por_evolves_from():
     assert not m._same_evolution_line(GABITE, m.Dipplin)
 
 
-def test_supera_en_evolucion_exige_misma_linea_y_etapa_mayor():
+def test_more_evolved_needs_the_same_line_and_a_higher_stage():
     assert m._is_more_evolved_than(_pkm(GABITE), _pkm(GIBLE))
     assert m._is_more_evolved_than(_pkm(GARCHOMP), _pkm(GIBLE))
     assert m._is_more_evolved_than(_pkm(MORGREM), _pkm(IMPIDIMP))

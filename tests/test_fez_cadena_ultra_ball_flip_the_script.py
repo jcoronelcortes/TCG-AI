@@ -164,7 +164,7 @@ def _menus_of_the_record():
 # 1. Step 91: the body that paid for the Ultra Ball goes down BEFORE the Unfair Stamp
 # ---------------------------------------------------------------------------
 
-def test_paso91_baja_el_fezandipiti_antes_del_unfair_stamp():
+def test_step91_plays_the_fezandipiti_before_the_unfair_stamp():
     obs = _obs(_FIX_STEP91)
     plays = _plays(obs)
     # The real menu offered both plays in competition.
@@ -198,7 +198,7 @@ def test_paso91_el_bloqueo_circular_existe_de_verdad():
             "tests/test_fez_pending_sintetico.py, que fabrica la secuencia con "
             "el StateBuilder (y por tanto es inmune a la rotacion). Este test "
             "se conserva por si el episodio vuelve a estar en disco."))
-def test_turno_completo_la_ultra_ball_deja_el_fezandipiti_pendiente():
+def test_full_turn_the_ultra_ball_leaves_the_fezandipiti_pending():
     """End to end over the record: the Ultra Ball chooses Fezandipiti ex, that
     sets `_ub_fez_pending`, and the next menu PLAYS it (before, the
     Stamp was played and the body went back into the deck)."""
@@ -220,7 +220,7 @@ def test_turno_completo_la_ultra_ball_deja_el_fezandipiti_pendiente():
 # 2. Steps 95-102: the ability is cashed in before spending the turn's energy
 # ---------------------------------------------------------------------------
 
-def test_paso95_flip_the_script_antes_de_teal_dance_y_ripening():
+def test_step95_flip_the_script_before_teal_dance_and_ripening():
     obs = _obs(_FIX_STEP95)
     plays = _plays(obs)
     assert ("ABILITY", FEZ) in plays, plays
@@ -230,7 +230,7 @@ def test_paso95_flip_the_script_antes_de_teal_dance_y_ripening():
     assert _play(obs, m.agent(obs)) == ("ABILITY", FEZ)
 
 
-def test_paso95_la_banda_esta_por_encima_de_las_cargas_no_letales():
+def test_step95_the_band_sits_above_the_non_lethal_charges():
     """The draw goes first by SCORE and by TIER: if it stayed in tier 0
     any promoted Teal Dance / Ripening would override it by ORDER."""
     assert m.FEZ_DRAW_ABILITY_SCORE > m.RIPEN_HEAL_ABILITY_SCORE
@@ -238,7 +238,7 @@ def test_paso95_la_banda_esta_por_encima_de_las_cargas_no_letales():
     assert m.FEZ_DRAW_ABILITY_SCORE < 41000      # the LETHAL bands untouched
 
 
-def test_paso102_el_remate_ganador_sigue_por_encima_del_robo():
+def test_step102_the_winning_finisher_still_beats_the_draw():
     """The ONLY exception: with the game won this turn (3 prizes and the
     Syrup Storm knocks out the Mega Lucario ex) attacking comes first -- drawing 3
     changes nothing."""
@@ -272,7 +272,7 @@ def _escenario_lucario(hand, with_attack=True):
     return obs
 
 
-def test_sintetico_req_h_ya_no_veta_el_fezandipiti_con_la_habilidad_viva():
+def test_synthetic_req_h_no_longer_vetoes_the_fezandipiti_with_a_live_ability():
     """With a Boss's in hand (Req H active) and a Riolu on the opposing bench, playing the
     Fezandipiti ex is NO longer vetoed: it does not consume the Supporter, so the Boss's is
     played afterwards anyway."""
@@ -323,7 +323,7 @@ def test_sintetico_ub_fez_pending_completa_la_busqueda_pagada():
     assert _play(obs, m.agent(obs)) == ("PLAY", FEZ)
 
 
-def test_sintetico_pending_no_rompe_los_limites_fisicos():
+def test_synthetic_pending_does_not_break_the_physical_limits():
     """The override does not fill an already complete bench (a PHYSICAL limit)."""
     esc = (Escenario(turn=6, step=91, tac=6)
            .my_active(pk(HYDRA, energies=[G, G], pre_evo=[APPLIN, DIPPLIN]))

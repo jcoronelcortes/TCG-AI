@@ -114,7 +114,7 @@ def _play(obs, choice, hand):
 # The record's failure: play Boss's and gust the Dwebble
 # ---------------------------------------------------------------------------
 
-def test_con_el_muro_delante_se_juega_boss_orders():
+def test_with_the_wall_in_front_boss_orders_is_played():
     """The exact case of step 78: Boss's was VETOED (value 0) and Xerosic
     won. With the active cancelled by the wall, the gust is the only prize."""
     hand = [BOSS, XEROSIC, ULTRA_BALL]
@@ -122,7 +122,7 @@ def test_con_el_muro_delante_se_juega_boss_orders():
     assert _play(obs, m.agent(obs), hand) == ("PLAY", BOSS)
 
 
-def test_el_objetivo_del_gusteo_es_el_dwebble_y_no_el_segundo_muro():
+def test_the_gust_target_is_the_dwebble_not_the_second_wall():
     """The other half of the chain: without this we would play Boss's and then the
     selector would veto the Dwebble (the failure that motivated log 86339758).
 
@@ -136,7 +136,7 @@ def test_el_objetivo_del_gusteo_es_el_dwebble_y_no_el_segundo_muro():
     assert obs["current"]["players"][1]["bench"][idx]["id"] == DWEBBLE
 
 
-def test_el_dwebble_gusteado_muere_al_syrup_storm():
+def test_the_gusted_dwebble_dies_to_syrup_storm():
     """The gust is only worth it if the KO is real: 30 + 30x12 = 390 on 70 HP."""
     obs = _escenario().menu_gust().build()
     st = m.to_observation_class(obs).current
@@ -152,7 +152,7 @@ def test_el_dwebble_gusteado_muere_al_syrup_storm():
 # Boundaries: the exemption does NOT disarm the original veto of log 86339758
 # ---------------------------------------------------------------------------
 
-def test_sin_muro_el_dwebble_sigue_vetado_como_objetivo():
+def test_without_the_wall_the_dwebble_is_still_a_vetoed_target():
     """Boundary: if the rival active does NOT cancel us (here a Mega Kangaskhan ex we
     DO hit), the Dwebble goes back to being fodder and is not gusted."""
     obs = (_escenario(op_active=pk(KANGASKHAN, hp=300),
@@ -162,7 +162,7 @@ def test_sin_muro_el_dwebble_sigue_vetado_como_objetivo():
     assert obs["current"]["players"][1]["bench"][idx]["id"] != DWEBBLE
 
 
-def test_con_muro_pero_sin_KO_el_dwebble_sigue_vetado():
+def test_with_the_wall_but_no_ko_the_dwebble_is_still_vetoed():
     """Boundary: the exemption requires a REAL KO. With our own active lacking enough
     energy to attack, the Dwebble is not a prize and the veto holds."""
     obs = (Escenario(turn=8, step=78, energy_played=True)

@@ -118,7 +118,7 @@ def _pk(card_id, energies):
 # 1. The real step
 # ---------------------------------------------------------------------------
 
-def test_paso65_sube_un_drakloak_pelado_no_el_dragapult_ex():
+def test_step65_brings_up_a_bare_drakloak_not_the_dragapult_ex():
     obs = _obs()
     assert _target(obs, m.agent(obs)) == (DRAKLOAK, 0), (
         "sin KO se sube el cuerpo que NO puede pagar su ataque: el Drakloak "
@@ -126,7 +126,7 @@ def test_paso65_sube_un_drakloak_pelado_no_el_dragapult_ex():
         "ataca con 1 y el Boss's le habría pagado la subida gratis")
 
 
-def test_paso65_el_escenario_es_el_que_discrimina():
+def test_step65_the_scenario_is_what_discriminates():
     """Without these three conditions the step would prove nothing."""
     obs = _obs()
     bench = obs["current"]["players"][1]["bench"]
@@ -147,7 +147,7 @@ def test_paso65_el_escenario_es_el_que_discrimina():
 # 2. The criterion, in isolation: energies + attack cost
 # ---------------------------------------------------------------------------
 
-def test_cuerpo_inofensivo_mide_el_coste_del_ataque_no_la_etapa():
+def test_harmless_body_measures_the_attack_cost_not_the_stage():
     # Dragapult ex: a cost-1 attack -> bare it ALREADY attacks next turn.
     assert m._op_body_is_harmless(_pk(DRAGAPULT, 0)) is False
     # Drakloak: a cost-2 attack -> bare it does NOT attack even with the turn's attachment.
@@ -162,7 +162,7 @@ def test_cuerpo_inofensivo_mide_el_coste_del_ataque_no_la_etapa():
     assert m._op_body_is_harmless(_pk(MUNKIDORI, 0)) is True
 
 
-def test_budew_nunca_es_cuerpo_muerto_su_ataque_cuesta_cero():
+def test_budew_is_never_a_dead_body_its_attack_costs_zero():
     """Itchy Pollen costs 0: bare and all, it attacks. It is also the one already vetoed
     by `retirada_gratis` in nuisance mode (a retreat cost of 0)."""
     assert m._op_body_is_harmless(_pk(m.Budew, 0)) is False
@@ -176,7 +176,7 @@ def test_budew_nunca_es_cuerpo_muerto_su_ataque_cuesta_cero():
 # on which the graduated tie-break inside the band was tested (and discarded as inert)
 # -- see the "MEASURED AND REVERTED" note next to `_v_gust_traba_neta`.
 
-def test_deficit_de_ataque_es_el_umbral_graduado_de_cuerpo_inofensivo():
+def test_attack_deficit_is_the_graduated_axis_behind_harmless_body():
     assert m._op_attack_deficit(_pk(DRAGAPULT, 0)) == 1     # it attacks with 1
     assert m._op_attack_deficit(_pk(DRAKLOAK, 0)) == 2      # dead by exactly one
     assert m._op_attack_deficit(_pk(DRAKLOAK, 1)) == 1
@@ -190,14 +190,14 @@ def test_deficit_de_ataque_es_el_umbral_graduado_de_cuerpo_inofensivo():
                     is (m._op_attack_deficit(pk) >= 2))
 
 
-def test_deficit_desconocido_no_inventa_nada():
+def test_an_unknown_deficit_invents_nothing():
     """With no readable attacks, neither "dead" nor "stuck" is concluded."""
     assert m._op_attack_deficit(None) is None
     assert m._op_attack_deficit(_pk(m.Basic_Grass_Energy, 0)) is None
     assert m._op_body_is_harmless(_pk(m.Basic_Grass_Energy, 0)) is False
 
 
-def test_los_muros_pasan_por_muertos_y_por_eso_existe_gust_trampa_ids():
+def test_walls_pass_for_dead_which_is_why_gust_trap_ids_exists():
     """Crustle, Sylveon, Cornerstone and Iron Thorns ex have cost-3 attacks:
     bare they give a deficit of 3 and the criterion would call them "dead". They are exactly the
     bodies we do NOT want in front, which is why `GUST_TRAMPA_IDS` excludes them from
@@ -208,7 +208,7 @@ def test_los_muros_pasan_por_muertos_y_por_eso_existe_gust_trampa_ids():
         assert m._op_body_is_harmless(pk) is True
 
 
-def test_el_paso_65_lo_decide_el_umbral_no_un_desempate_graduado():
+def test_step_65_is_decided_by_the_threshold_not_a_graduated_tiebreak():
     """In this step ALL the dead bodies have a deficit of 2 (the minimum), so
     the correction leans on the threshold alone. That is what made inert the
     graduated tie-break that was tested and reverted."""

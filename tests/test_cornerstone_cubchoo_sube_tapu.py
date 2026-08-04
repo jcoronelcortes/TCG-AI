@@ -139,7 +139,7 @@ def _scores(obs):
 # 1. The scenario: without it, the test measures nothing
 # ---------------------------------------------------------------------------
 
-def test_el_fixture_es_el_escenario_del_muro():
+def test_the_fixture_is_the_wall_scenario():
     o = _obs()
     yo = o["current"]["yourIndex"]
     mio = o["current"]["players"][yo]
@@ -164,12 +164,12 @@ def test_el_fixture_es_el_escenario_del_muro():
 # 2. The decision
 # ---------------------------------------------------------------------------
 
-def test_retira_para_subir_a_tapu_en_vez_de_atacar_por_cero():
+def test_it_retreats_to_bring_up_tapu_instead_of_attacking_for_zero():
     obs = _obs()
     assert _tipo(obs, m.agent(obs)) == int(m.OptionType.RETREAT)
 
 
-def test_el_veto_anti_cubchoo_ya_no_mata_la_retirada():
+def test_the_anti_cubchoo_veto_no_longer_kills_the_retreat():
     """The failure was a VETO (score −1), not a defeat on points."""
     obs = _obs()
     scores = _scores(obs)
@@ -206,7 +206,7 @@ def _flags_de_agent(obs, names):
     return capt
 
 
-def test_el_matchup_cubchoo_esta_activo_de_verdad():
+def test_the_cubchoo_matchup_really_is_switched_on():
     """If `op_is_cubchoo_deck` were False the veto would not exist and the tests
     above would pass without testing the exemption. The Cubchoo is detected by the
     rival DISCARD, which is where it is in this fixture."""
@@ -224,7 +224,7 @@ def test_el_matchup_cubchoo_esta_activo_de_verdad():
 # 3. What is NOT broken: the exemption requires a REAL attacker against the wall
 # ---------------------------------------------------------------------------
 
-def test_sin_tapu_cargado_el_veto_anti_cubchoo_sigue_en_pie():
+def test_without_a_charged_tapu_the_anti_cubchoo_veto_stands():
     """With the Tapu below its attack cost there is no pivot to the wall to
     justify, so the anti-Cubchoo behaviour returns: keep the energy."""
     obs = _obs(energia_tapu=1)

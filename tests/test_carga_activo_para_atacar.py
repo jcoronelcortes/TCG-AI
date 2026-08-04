@@ -97,7 +97,7 @@ def _attach_options(obs):
     return destinos
 
 
-def test_step67_carga_el_activo_y_no_el_hydrapple_de_banca():
+def test_step67_charges_the_active_not_the_bench_hydrapple():
     """The real record: the Grass goes to the ACTIVE Hydrapple ex (Syrup Storm = KO)."""
     obs = _obs_step67()
     cur = obs["current"]
@@ -121,7 +121,7 @@ def test_step67_carga_el_activo_y_no_el_hydrapple_de_banca():
         f"la energia debia ir al ACTIVO, fue a {destinos[choice[0]]}")
 
 
-def test_step67_ripening_charge_apunta_al_activo():
+def test_step67_ripening_charge_aims_at_the_active():
     """With the manual attachment already spent, Ripening Charge completes the cost."""
     obs = _obs_step67()
     cur = obs["current"]
@@ -149,7 +149,7 @@ def test_step67_ripening_charge_apunta_al_activo():
         f"esperaba activar Ripening Charge (opt 0/1), obtuvo {choice}")
 
 
-def test_step67_con_el_activo_cargado_ataca():
+def test_step67_with_the_active_charged_it_attacks():
     """Closing the chain: with the 2 Grass on it, Syrup Storm fires."""
     obs = _obs_step67()
     cur = obs["current"]
@@ -171,7 +171,7 @@ def test_step67_con_el_activo_cargado_ataca():
 
 # --- A deck-agnostic generalisation (synthetic scenarios) ------------------
 
-def test_activo_ogerpon_carga_a_si_mismo_para_rematar():
+def test_an_active_ogerpon_charges_itself_to_finish():
     """An ACTIVE Ogerpon ex at 2 energies: the 3rd (Myriad) finishes -> it goes to the ACTIVE.
 
     On the bench there is a Hydrapple ex at 0 energies, the "development" target that
@@ -195,7 +195,7 @@ def test_activo_ogerpon_carga_a_si_mismo_para_rematar():
         f"{destinos[choice[0]]}")
 
 
-def test_activo_sin_remate_pero_turno_esteril_tambien_carga_al_activo():
+def test_no_finisher_but_a_sterile_turn_also_charges_the_active():
     """With no KO available, charging the active is the only way to attack today."""
     obs = (Escenario(turn=8, step=90, tac=2)
            .my_active(pk(HYDRAPPLE, energies=[G], pre_evo=[APPLIN, DIPPLIN]))
@@ -215,7 +215,7 @@ def test_activo_sin_remate_pero_turno_esteril_tambien_carga_al_activo():
         f"{destinos[choice[0]]}")
 
 
-def test_activo_que_ya_ataca_no_acapara_la_energia():
+def test_an_active_that_already_attacks_does_not_hog_the_energy():
     """A negative control: if the active ALREADY reaches its cost, the rule does not fire.
 
     The active Hydrapple ex with 2 energies already attacks; the Grass must follow the

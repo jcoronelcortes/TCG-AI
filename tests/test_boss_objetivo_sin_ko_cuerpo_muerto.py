@@ -122,7 +122,7 @@ def _estorbo(ctx):
 # 1. The old band preferred the fattest piece: the test's control
 # ---------------------------------------------------------------------------
 
-def test_la_banda_sin_ko_premiaba_a_la_evolucion_final():
+def test_the_no_ko_band_used_to_reward_the_final_evolution():
     """`_gust_linea_evolutiva` still gives 800 to the final one and 700 to the stuck
     Stage 1: the contribution has NOT been touched, it has been overlaid."""
     final = m._gust_evolution_line(_ctx(DRAGAPULT, energy=1),
@@ -135,7 +135,7 @@ def test_la_banda_sin_ko_premiaba_a_la_evolucion_final():
 # 2. OFFENSIVE mode
 # ---------------------------------------------------------------------------
 
-def test_sin_ko_el_cuerpo_muerto_gana_a_la_evolucion_final():
+def test_with_no_ko_the_dead_body_beats_the_final_evolution():
     # Their 2nd Dragapult ex with 1 energy ALREADY attacks (Jet Headbutt costs 1).
     attacker = _ctx(DRAGAPULT, energy=1, op_dragapult_line=True)
     # The bare Dusclops cannot pay for its cost-2 attack.
@@ -144,7 +144,7 @@ def test_sin_ko_el_cuerpo_muerto_gana_a_la_evolucion_final():
     assert _ofensivo(dead) > _ofensivo(attacker)
 
 
-def test_con_ko_mandan_los_tiers_y_el_cuerpo_muerto_no_los_pisa():
+def test_with_a_ko_the_tiers_rule_and_the_dead_body_does_not_override():
     """The bonus is gated by `not can_ko`: knocking out a 2-prize ex still
     beats bringing up a dead body."""
     ko_ex = _ctx(DRAGAPULT, energy=1, can_ko=True, op_dragapult_line=True)
@@ -152,7 +152,7 @@ def test_con_ko_mandan_los_tiers_y_el_cuerpo_muerto_no_los_pisa():
     assert _ofensivo(ko_ex) > _ofensivo(dead)
 
 
-def test_los_muros_y_el_locker_no_cobran_el_bono():
+def test_the_walls_and_the_locker_do_not_get_the_bonus():
     """Cost 3 => bare they pass for harmless, but bringing them up is the trap:
     they cancel our attackers or switch off our abilities from the active spot."""
     for trampa in sorted(m.GUST_TRAP_IDS):
@@ -167,7 +167,7 @@ def test_los_muros_y_el_locker_no_cobran_el_bono():
 # 3. NUISANCE mode
 # ---------------------------------------------------------------------------
 
-def test_estorbo_desempata_hacia_el_que_no_puede_atacar():
+def test_nuisance_breaks_the_tie_towards_the_one_that_cannot_attack():
     """`traba_neta` only looks at who cannot pay their RETREAT. With the same
     stuckness (both retreat 2, no energy), it decides who cannot pay for their
     ATTACK: the Gardevoir ex attacks for 1, the Dusclops needs 2."""
@@ -178,7 +178,7 @@ def test_estorbo_desempata_hacia_el_que_no_puede_atacar():
     assert _estorbo(dead) > _estorbo(ataca)
 
 
-def test_estorbo_no_rescata_un_objetivo_prohibido():
+def test_nuisance_does_not_rescue_a_forbidden_target():
     """The `s > 0` guard: a Budew (free retreat) is still FORBIDDEN even if the
     bonus existed."""
     assert _estorbo(_ctx(m.Budew)) == m.SCORE_FORBID
@@ -208,7 +208,7 @@ def _tablero(active_energies):
             .build())
 
 
-def test_el_tablero_sintetico_no_tiene_ningun_ko():
+def test_the_synthetic_board_has_no_ko_at_all():
     obs = _tablero(2)
     assert m.ATTACK_ENERGY_REQ[BAYLEEF] == 2      # with 2 energies it DOES attack
     # 60 damage knocks out neither the Dragapult ex (320) nor the Dusclops (90).
@@ -218,7 +218,7 @@ def test_el_tablero_sintetico_no_tiene_ningun_ko():
     assert [o["index"] for o in obs["select"]["option"]] == [0, 1]
 
 
-def test_se_sube_el_dusclops_y_no_el_segundo_dragapult():
+def test_the_dusclops_comes_up_not_the_second_dragapult():
     assert m.agent(copy.deepcopy(_tablero(2))) == [1], (
         "con nuestro activo atacando pero sin KO, subir su 2o Dragapult ex le "
         "pone delante el cuerpo con el que ataca; el Dusclops pelado no puede")

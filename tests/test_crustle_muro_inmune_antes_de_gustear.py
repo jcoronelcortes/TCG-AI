@@ -123,7 +123,7 @@ def _play(obs, choice):
 # The real step 47
 # ---------------------------------------------------------------------------
 
-def test_paso47_ataca_al_crustle_en_vez_de_gustear():
+def test_step47_attacks_the_crustle_instead_of_gusting():
     obs = _obs_fixture()
     # The fixture must offer BOTH plays for the test to discriminate.
     plays = [_play(obs, [i]) for i in range(len(obs["select"]["option"]))]
@@ -133,7 +133,7 @@ def test_paso47_ataca_al_crustle_en_vez_de_gustear():
     assert _play(obs, m.agent(obs)) == ("ATTACK", 1326)
 
 
-def test_paso47_el_muro_es_noqueable_y_la_bandera_lo_ve():
+def test_step47_the_wall_is_knockable_and_the_flag_sees_it():
     """The core of the rule: Wood Hammer (220) kills the 170 HP Crustle."""
     obs = _obs_fixture()
     st = m.to_observation_class(obs).current
@@ -170,7 +170,7 @@ def _escenario(op_active=None, my_active=None, own_prizes=None,
             .build())
 
 
-def test_con_el_muro_noqueable_no_se_juega_boss():
+def test_with_a_knockable_wall_the_boss_is_not_played():
     """The record's case synthetically: 2 prizes on the rival bench do NOT
     justify leaving alive the wall that cancels our whole deck."""
     obs = _escenario()
@@ -178,14 +178,14 @@ def test_con_el_muro_noqueable_no_se_juega_boss():
     assert accion == "ATTACK", _play(obs, m.agent(obs))
 
 
-def test_frontera_activo_ex_el_gusteo_sigue_vivo():
+def test_boundary_an_ex_active_keeps_the_gust_alive():
     """With an Ogerpon ex active the wall is UNTOUCHABLE (0 damage): there is no
     window to protect and Boss's is the play again."""
     obs = _escenario(my_active=pk(OGERPON, energies=[G] * 6, fisicas=3))
     assert _play(obs, m.agent(obs)) == ("PLAY", BOSS)
 
 
-def test_frontera_sturdy_sin_KO_el_gusteo_sigue_vivo():
+def test_boundary_sturdy_with_no_ko_keeps_the_gust_alive():
     """Crustle 533 at FULL life survives on 10 HP (*Sturdy*): Wood Hammer does not
     knock it out, so there is no wall to finish and the 2-prize gust rules.
     That is why the flag is measured with `_our_effective_damage`."""
@@ -193,7 +193,7 @@ def test_frontera_sturdy_sin_KO_el_gusteo_sigue_vivo():
     assert _play(obs, m.agent(obs)) == ("PLAY", BOSS)
 
 
-def test_frontera_gusteo_ganador_manda_sobre_el_muro():
+def test_boundary_a_winning_gust_rules_over_the_wall():
     """At 2 prizes, gusting the bench ex WINS the game on the spot: the
     finisher (`win_via_boss_gust`) still comes above the wall."""
     obs = _escenario(own_prizes=2)
@@ -204,7 +204,7 @@ def test_frontera_gusteo_ganador_manda_sobre_el_muro():
 # The pure scorer
 # ---------------------------------------------------------------------------
 
-def test_scorer_veta_boss_con_muro_noqueable():
+def test_the_scorer_vetoes_boss_with_a_knockable_wall():
     from test_main import _make_boss_ctx  # a shared helper of the scorer
 
     veto = m._score_boss_orders_play(

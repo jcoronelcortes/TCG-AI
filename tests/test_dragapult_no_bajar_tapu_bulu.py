@@ -126,7 +126,7 @@ def _idx_tapu_bulu(obs):
 # 1. The scenario: without it, the test measures nothing
 # ---------------------------------------------------------------------------
 
-def test_el_fixture_es_la_banca_llena_vs_dragapult():
+def test_the_fixture_is_a_full_bench_vs_dragapult():
     o = _obs()
     yo = o["current"]["yourIndex"]
     mio = o["current"]["players"][yo]
@@ -153,7 +153,7 @@ def test_el_fixture_es_la_banca_llena_vs_dragapult():
     assert fx["accion_registrada"] == [2]
 
 
-def test_no_se_baja_tapu_bulu():
+def test_tapu_bulu_is_not_played():
     o = _obs()
     m.meganium_in_play = True
     assert m.agent(o) != [_idx_tapu_bulu(o)], (
@@ -185,7 +185,7 @@ def _replay_hasta(final_step):
 @pytest.mark.skipif(
     not _RECORD.exists(),
     reason="registro local rotado (registros/ es transitorio)")
-def test_replay_fiel_ni_lo_busca_ni_lo_baja():
+def test_the_faithful_replay_neither_searches_nor_plays_it():
     dec = _replay_hasta(43)
 
     # Step 42: the Bug Catching Set looks at 7 cards and picks 2. Tapu Bulu is
@@ -207,7 +207,7 @@ def test_replay_fiel_ni_lo_busca_ni_lo_baja():
 # 3. The limits of the rule
 # ---------------------------------------------------------------------------
 
-def test_con_dos_cuerpos_en_juego_si_se_baja():
+def test_with_two_bodies_in_play_it_is_played():
     """<=2 Pokémon in play: survival rules, not the damage spread."""
     o = _obs()
     mio = o["current"]["players"][o["current"]["yourIndex"]]
@@ -235,7 +235,7 @@ def _no_items_in_hand(obs):
         + [{"type": int(m.OptionType.RETREAT)}, {"type": int(m.OptionType.END)}])
 
 
-def test_el_veto_cede_ante_un_muro_inmune():
+def test_the_veto_yields_to_an_immune_wall():
     """A matchup collision: with a Cornerstone on the table Tapu is THE
     attacker again (our ex with an ability do 0), and the veto is lifted."""
     o = _obs()
@@ -248,7 +248,7 @@ def test_el_veto_cede_ante_un_muro_inmune():
     assert m.agent(o) == [_idx_tapu_bulu(o)]
 
 
-def test_con_el_muro_fuera_el_veto_vuelve():
+def test_with_the_wall_gone_the_veto_returns():
     """Control for the previous test: the same board WITHOUT the wall -> still vetoed."""
     o = _obs()
     _no_items_in_hand(o)

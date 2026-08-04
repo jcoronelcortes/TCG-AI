@@ -164,7 +164,7 @@ def test_paso78_el_bloqueo_circular_existe_de_verdad():
     assert _play(obs, choice)[0] != "PLAY"
 
 
-def test_paso78_la_ventana_exacta_del_bloqueo_circular():
+def test_step78_the_exact_window_of_the_circular_block():
     """Pins the ctx window in which the two rules yield the turn to each other, so
     that a future change in `cede_a_boss_ejecutable` / `_boss_cede_dig` does not
     move it unnoticed: no bench attacker ready, a gustable pre-evo THREAT
@@ -199,7 +199,7 @@ def test_paso78_la_ventana_exacta_del_bloqueo_circular():
     assert m._score_boss_orders_play(ctx) == m.BOSS_SCORE_EMPTY_GUST
 
 
-def test_paso78_la_habilidad_se_usa_antes_de_cualquier_cierre_de_turno():
+def test_step78_the_ability_is_used_before_any_turn_close():
     """The menu trimmed to ability + attack + pass: the turn is never closed
     with Flip the Script available."""
     obs = _obs_fixture()
@@ -252,7 +252,7 @@ def _with_previous_ko(obs):
     return obs
 
 
-def test_sintetico_sin_bloqueador_usa_la_habilidad():
+def test_synthetic_with_no_blocker_it_uses_the_ability():
     """Case (a) in its simplest form: with no Lillie's or Stamp in hand the
     ability is cashed in before attacking."""
     obs = _with_previous_ko(_escenario([BOSS]))
@@ -260,7 +260,7 @@ def test_sintetico_sin_bloqueador_usa_la_habilidad():
     assert _play(obs, m.agent(obs)) == ("ABILITY", FEZ)
 
 
-def test_sintetico_unfair_stamp_jugable_manda_primero():
+def test_synthetic_a_playable_unfair_stamp_goes_first():
     """The requested order is NOT broken: with a playable Unfair Stamp and another live play
     (Boss's) the Stamp goes first and the ability waits for the next menu -- if
     not, the Stamp would shuffle the 3 drawn cards back."""
@@ -271,7 +271,7 @@ def test_sintetico_unfair_stamp_jugable_manda_primero():
     assert _play(obs, m.agent(obs)) == ("PLAY", STAMP)
 
 
-def test_sintetico_lillie_jugable_manda_primero():
+def test_synthetic_a_playable_lillie_goes_first():
     """The same order with the other blocker: Lillie's Determination before the
     ability when Lillie's IS playable."""
     obs = _with_previous_ko(_escenario([LILLIE]))
@@ -280,7 +280,7 @@ def test_sintetico_lillie_jugable_manda_primero():
     assert _play(obs, m.agent(obs)) == ("PLAY", LILLIE)
 
 
-def test_sintetico_deck_out_sigue_vetando_la_habilidad():
+def test_synthetic_deck_out_still_vetoes_the_ability():
     """The deck-out brake is a VALUE veto, not an ORDER one: the revocation does not
     lift it even with a hand free of blockers."""
     esc = (Escenario(turn=6, step=78, tac=7)

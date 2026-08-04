@@ -76,7 +76,7 @@ def bot():
 
 # --- 1. it activates abilities, with an anti-loop guard --------------------
 
-def test_activa_la_habilidad_en_el_menu(bot):
+def test_it_uses_the_ability_in_the_menu(bot):
     o = obs(sel(SelectContext.MAIN,
                 [{"type": int(OptionType.ABILITY),
                   "area": int(AreaType.BENCH), "index": 0},
@@ -86,7 +86,7 @@ def test_activa_la_habilidad_en_el_menu(bot):
     assert bot.agent(o) == [0], "el bot vuelve a ignorar las habilidades"
 
 
-def test_no_repite_la_misma_habilidad_en_el_turno(bot):
+def test_it_does_not_repeat_the_same_ability_in_a_turn(bot):
     def menu():
         return obs(sel(SelectContext.MAIN,
                        [{"type": int(OptionType.ABILITY),
@@ -98,7 +98,7 @@ def test_no_repite_la_misma_habilidad_en_el_turno(bot):
     assert bot.agent(menu()) == [1], "segunda activación: bucle infinito"
 
 
-def test_el_turno_nuevo_rehabilita_la_habilidad(bot):
+def test_a_new_turn_frees_the_ability_again(bot):
     def menu(turn):
         o = obs(sel(SelectContext.MAIN,
                     [{"type": int(OptionType.ABILITY),
@@ -115,7 +115,7 @@ def test_el_turno_nuevo_rehabilita_la_habilidad(bot):
 
 # --- 2 and 3. Adrena-Brain: the maximum amount and a destination that KILLS -
 
-def test_mueve_el_maximo_de_contadores(bot):
+def test_it_moves_the_maximum_number_of_counters(bot):
     o = obs(sel(SelectContext.REMOVE_DAMAGE_COUNTER_COUNT,
                 [{"type": 0, "number": 1}, {"type": 0, "number": 2},
                  {"type": 0, "number": 3}]),
@@ -136,7 +136,7 @@ def _fijar_tres_contadores(bot):
     assert bot._contadores == 3
 
 
-def test_los_contadores_van_al_cuerpo_que_matan(bot):
+def test_the_counters_go_to_the_body_they_kill(bot):
     """An Ogerpon ex at 80 does not die to 30; the Meganium at 20 does."""
     _fijar_tres_contadores(bot)
     o = obs(sel(SelectContext.DAMAGE_COUNTER,
@@ -149,7 +149,7 @@ def test_los_contadores_van_al_cuerpo_que_matan(bot):
     assert bot.agent(o) == [1]
 
 
-def test_a_igualdad_de_KO_manda_el_de_mas_premios(bot):
+def test_on_equal_kos_the_one_worth_more_prizes_wins(bot):
     """Both die to 30: the ex (2 prizes) wins over the Meganium (1)."""
     _fijar_tres_contadores(bot)
     o = obs(sel(SelectContext.DAMAGE_COUNTER,
@@ -162,7 +162,7 @@ def test_a_igualdad_de_KO_manda_el_de_mas_premios(bot):
     assert bot.agent(o) == [0], "el ex de 2 premios va primero"
 
 
-def test_los_contadores_salen_del_cuerpo_mas_danado(bot):
+def test_the_counters_come_off_the_most_damaged_body(bot):
     o = obs(sel(SelectContext.REMOVE_DAMAGE_COUNTER,
                 [{"type": 3, "area": int(AreaType.BENCH), "index": 0,
                   "playerIndex": 1},
@@ -176,7 +176,7 @@ def test_los_contadores_salen_del_cuerpo_mas_danado(bot):
 
 # --- 4. the energy that switches the engine on, and the retreat -----------
 
-def test_carga_el_cuerpo_cuya_habilidad_exige_energia(bot):
+def test_it_charges_the_body_whose_ability_needs_energy(bot):
     """With the active already charged, the Darkness goes to the dry Munkidori."""
     o = obs(sel(SelectContext.MAIN,
                 [{"type": int(OptionType.ATTACH), "area": int(AreaType.HAND),
@@ -190,7 +190,7 @@ def test_carga_el_cuerpo_cuya_habilidad_exige_energia(bot):
     assert bot.agent(o) == [1], "sin esta energía Adrena-Brain no existe"
 
 
-def test_con_el_activo_seco_la_energia_va_al_activo(bot):
+def test_with_a_dry_active_the_energy_goes_to_the_active(bot):
     o = obs(sel(SelectContext.MAIN,
                 [{"type": int(OptionType.ATTACH), "area": int(AreaType.HAND),
                   "index": 0, "inPlayArea": int(AreaType.ACTIVE),
@@ -203,7 +203,7 @@ def test_con_el_activo_seco_la_energia_va_al_activo(bot):
     assert bot.agent(o) == [0]
 
 
-def test_se_retira_si_el_activo_no_puede_atacar(bot):
+def test_it_retreats_if_the_active_cannot_attack(bot):
     o = obs(sel(SelectContext.MAIN,
                 [{"type": int(OptionType.RETREAT)},
                  {"type": int(OptionType.END)}]),
@@ -213,7 +213,7 @@ def test_se_retira_si_el_activo_no_puede_atacar(bot):
         "el cuerpo gusteado se queda clavado delante y el gusteo gana solo")
 
 
-def test_con_ataque_disponible_no_se_retira(bot):
+def test_with_an_attack_available_it_does_not_retreat(bot):
     o = obs(sel(SelectContext.MAIN,
                 [{"type": int(OptionType.RETREAT)},
                  {"type": int(OptionType.ATTACK), "attackId": 937},
@@ -223,7 +223,7 @@ def test_con_ataque_disponible_no_se_retira(bot):
     assert bot.agent(o) == [1]
 
 
-def test_promueve_al_cuerpo_con_mas_energia(bot):
+def test_it_promotes_the_body_with_the_most_energy(bot):
     o = obs(sel(SelectContext.TO_ACTIVE,
                 [{"type": 3, "area": int(AreaType.BENCH), "index": 0,
                   "playerIndex": 1},
@@ -234,7 +234,7 @@ def test_promueve_al_cuerpo_con_mas_energia(bot):
     assert bot.agent(o) == [1]
 
 
-def test_gustea_al_cuerpo_que_puede_noquear(bot):
+def test_it_gusts_the_body_it_can_knock_out(bot):
     """A SWITCH over the OPPOSING bench: Shadow Bullet (180) kills the Meganium (160)
     but not the Hydrapple ex (330), which is also worth 2 prizes: the KO rules."""
     o = obs(sel(SelectContext.SWITCH,
