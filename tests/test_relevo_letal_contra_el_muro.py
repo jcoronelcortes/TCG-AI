@@ -113,7 +113,7 @@ _ATTACK = 13
 # 1. The scenario: without it, the test measures nothing
 # ---------------------------------------------------------------------------
 
-def test_el_muro_aguanta_al_activo_y_cae_ante_el_relevo():
+def test_the_wall_survives_the_active_and_falls_to_the_relief():
     o = _obs()
     mio = o["current"]["players"][0]
     riv = o["current"]["players"][1]
@@ -141,7 +141,7 @@ def test_el_muro_aguanta_al_activo_y_cae_ante_el_relevo():
 # 2. The decision
 # ---------------------------------------------------------------------------
 
-def test_retira_en_vez_de_atacar_por_140():
+def test_it_retreats_instead_of_attacking_for_140():
     o = _obs()
     accion = _decidir(o)
     assert _tipo_elegido(o, accion) == _RETREAT, (
@@ -149,7 +149,7 @@ def test_retira_en_vez_de_atacar_por_140():
         "de Tapu Bulu en la banca")
 
 
-def test_tras_retirar_promueve_a_tapu_bulu():
+def test_after_retreating_it_promotes_tapu_bulu():
     """The other half of the line: when picking the relief, the one that finishes comes up."""
     o = _obs()
     _decidir(o)
@@ -174,7 +174,7 @@ def test_tras_retirar_promueve_a_tapu_bulu():
 # 3. The limits of the rule
 # ---------------------------------------------------------------------------
 
-def test_sin_relevo_que_remate_vuelve_el_veto_y_ataca():
+def test_with_no_relief_that_finishes_the_veto_returns_and_it_attacks():
     """Control: with no energy on Tapu Bulu nobody finishes the wall; then the original
     veto rules -- retreating would only promote an ex that does 0 to it -- and Meganium
     must attack even if it does not knock out."""
@@ -186,7 +186,7 @@ def test_sin_relevo_que_remate_vuelve_el_veto_y_ataca():
     assert _tipo_elegido(o, accion) == _ATTACK
 
 
-def test_si_el_activo_YA_remata_no_se_retira():
+def test_if_the_active_already_finishes_it_does_not_retreat():
     """Control: with the wall at 140 HP, Solar Beam knocks it out and the active attacks --
     retreating would pay energy to take the same prize."""
     o = _obs()

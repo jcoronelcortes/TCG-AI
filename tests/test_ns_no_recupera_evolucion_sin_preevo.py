@@ -136,7 +136,7 @@ def _card_from_discard(obs, choice):
 # 1. The unit: the evolvable snapshot
 # ---------------------------------------------------------------------------
 
-def test_la_preevo_consumida_por_una_evolucion_deja_de_ser_evolucionable():
+def test_a_preevo_consumed_by_an_evolution_stops_being_evolvable():
     """The Applin from the start of the turn is already a Dipplin: there is nothing left to go on top of."""
     inicio = {APPLIN: 1, CHIKORITA: 1}
     ahora = {DIPPLIN: 1, CHIKORITA: 1}  # the Applin evolved this turn
@@ -145,14 +145,14 @@ def test_la_preevo_consumida_por_una_evolucion_deja_de_ser_evolucionable():
     assert evolvable.get(CHIKORITA, 0) == 1
 
 
-def test_la_preevo_bajada_este_turno_sigue_sin_ser_evolucionable():
+def test_a_preevo_played_this_turn_is_still_not_evolvable():
     """The other direction of the filter (the one that already worked) is not broken."""
     evolvable = m._evolvable_counts({APPLIN: 1, CHIKORITA: 1},
                                     {CHIKORITA: 1}, False)
     assert evolvable.get(APPLIN, 0) == 0
 
 
-def test_sin_foto_de_inicio_manda_la_actual():
+def test_with_no_start_snapshot_the_current_one_rules():
     """Semantics preserved: an empty snapshot = no data, the current field is used.
 
     That is how the original idiom behaved (`{}` is falsy) and the first menu of
@@ -161,13 +161,13 @@ def test_sin_foto_de_inicio_manda_la_actual():
     assert evolvable.get(APPLIN, 0) == 1
 
 
-def test_con_forest_manda_la_foto_actual():
+def test_with_forest_the_current_snapshot_rules():
     """Forest of Vitality lifts the restriction: what is there NOW counts."""
     evolvable = m._evolvable_counts({APPLIN: 2}, {APPLIN: 1}, True)
     assert evolvable.get(APPLIN, 0) == 2
 
 
-def test_varias_copias_solo_pierde_la_que_evoluciono():
+def test_with_several_copies_only_the_one_that_evolved_is_lost():
     """With two Applin at the start and one evolved, ONE evolvable is left."""
     evolvable = m._evolvable_counts({APPLIN: 1, DIPPLIN: 1}, {APPLIN: 2}, False)
     assert evolvable.get(APPLIN, 0) == 1
@@ -177,7 +177,7 @@ def test_varias_copias_solo_pierde_la_que_evoluciono():
 # 2. The real turn
 # ---------------------------------------------------------------------------
 
-def test_paso84_no_se_juega_la_night_stretcher_por_una_preevo_fantasma():
+def test_step84_no_night_stretcher_for_a_phantom_preevo():
     obs = _by_step(_observaciones())
     m.agent(obs[76])                       # it sets the start-of-turn snapshot (with the Applin)
     choice = m.agent(obs[84])            # the main menu after evolving
@@ -187,7 +187,7 @@ def test_paso84_no_se_juega_la_night_stretcher_por_una_preevo_fantasma():
     assert play == UNFAIR_STAMP
 
 
-def test_paso84_el_unfair_stamp_se_juega_con_la_mano_entera():
+def test_step84_the_unfair_stamp_is_played_with_the_whole_hand():
     """The NS no longer slips in AHEAD of the Stamp, which remakes 4 cards and not 3."""
     obs = _by_step(_observaciones())
     m.agent(obs[76])
@@ -197,7 +197,7 @@ def test_paso84_el_unfair_stamp_se_juega_con_la_mano_entera():
     assert _card_from_hand(obs[84], choice) == UNFAIR_STAMP
 
 
-def test_paso85_si_se_llega_al_menu_se_recupera_la_planta_no_el_dipplin():
+def test_step85_if_the_menu_is_reached_it_recovers_the_grass_not_the_dipplin():
     """A second line of defence: the FETCH does not pick the dead evolution either."""
     obs = _by_step(_observaciones())
     m.agent(obs[76])
@@ -208,7 +208,7 @@ def test_paso85_si_se_llega_al_menu_se_recupera_la_planta_no_el_dipplin():
     assert recuperada == GRASS
 
 
-def test_paso84_el_veto_no_depende_del_descarte_sino_del_campo():
+def test_step84_the_veto_depends_on_the_field_not_the_discard():
     """The Applin in the DISCARD rehabilitates nothing: it is not in play."""
     obs = _by_step(_observaciones())
     yo = obs[85]["current"]["yourIndex"]

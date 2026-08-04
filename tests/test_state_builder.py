@@ -118,7 +118,7 @@ def _chosen_card(obs, choice):
 # Validation of the builder against the real decision (step 69)
 # ---------------------------------------------------------------------
 
-def test_replica_sintetica_paso69_coincide_con_decision_real():
+def test_the_synthetic_replica_of_step69_matches_the_real_decision():
     obs = _escenario_paso69()
     choice = m.agent(obs)
     assert _chosen_card(obs, choice) == m.Hydrapple_ex, (
@@ -160,14 +160,14 @@ def test_frontera_ub_evo_doomed(op_active, dipplin_energy, espera_hydrapple):
 # The builder's accounting rejects impossible states
 # ---------------------------------------------------------------------
 
-def test_builder_rechaza_mas_copias_que_el_mazo():
+def test_the_builder_rejects_more_copies_than_the_deck_has():
     esc = Escenario().my_active(pk(m.Dipplin, pre_evo=[m.Applin]))
     with pytest.raises(EstadoInconsistente):
         # deck.csv has 2 Hydrapple ex: the 3rd copy must fail.
         esc.deck(m.Hydrapple_ex, m.Hydrapple_ex, m.Hydrapple_ex)
 
 
-def test_builder_rechaza_sobrante_distinto_de_premios():
+def test_the_builder_rejects_a_leftover_that_is_not_the_prizes():
     esc = (Escenario()
            .my_active(pk(m.Dipplin, pre_evo=[m.Applin]))
            .op_active(pk(KANGASKHAN, hp=160, max_hp=400))
@@ -213,7 +213,7 @@ def _fetch_ub_vs(op_id):
     return sel["deck"][sel["option"][choice[0]]["index"]]["id"]
 
 
-def test_cornerstone_prioriza_linea_meganium():
+def test_cornerstone_prioritises_the_meganium_line():
     elegida = _fetch_ub_vs(CORNERSTONE)
     assert elegida in (m.Meganium, m.Bayleef), (
         f"vs Cornerstone, Wild Growth deja a Tapu Bulu atacando con 2 Plantas "
@@ -221,7 +221,7 @@ def test_cornerstone_prioriza_linea_meganium():
         f"prioritaria; obtuvo {m.card_table[elegida].name}")
 
 
-def test_sin_cornerstone_la_busqueda_no_cambia():
+def test_without_cornerstone_the_search_does_not_change():
     # Boundary: without Cornerstone the matchup priority does not apply and the fetch
     # keeps its normal behaviour (Bayleef, an immediate evolution).
     elegida = _fetch_ub_vs(CUBCHOO)
@@ -261,7 +261,7 @@ def _energy_goes_to(obs, choice):
     return destino["id"]
 
 
-def test_cornerstone_energia_va_a_tapu_bulu():
+def test_cornerstone_the_energy_goes_to_tapu_bulu():
     # With Tapu Bulu ALREADY on the bench, the energy must charge it (the only attacker
     # that damages Cornerstone), not the Ogerpon ex with its ability cancelled.
     obs = (Escenario(turn=6, step=1, tac=1)
@@ -277,7 +277,7 @@ def test_cornerstone_energia_va_a_tapu_bulu():
         "habilidad y su dano queda anulado")
 
 
-def test_cornerstone_sin_el_la_energia_no_cambia():
+def test_cornerstone_without_it_the_energy_does_not_change():
     # Boundary: without Cornerstone the energy distribution keeps its criterion.
     obs = (Escenario(turn=6, step=1, tac=1)
            .my_active(pk(m.Teal_Mask_Ogerpon_ex, energies=[G], fisicas=1))
@@ -325,7 +325,7 @@ def _esc_hop(active, bench, op_energies=(), menu="attach"):
     return esc.build()
 
 
-def test_hop_tope_3_energias_ogerpon_banca():
+def test_hop_cap_of_3_energies_on_the_bench_ogerpon():
     # 3 physical on the BENCH Ogerpon = the cap reached: the energy goes to another
     # body (before, the cap was 4 and the Ogerpon was overcharged).
     obs = _esc_hop(pk(m.Dipplin, pre_evo=[m.Applin], energies=[G], fisicas=1),
@@ -336,7 +336,7 @@ def test_hop_tope_3_energias_ogerpon_banca():
         "no se le adjunta una 4a")
 
 
-def test_hop_dos_energias_ogerpon_banca_sigue_permitido():
+def test_hop_two_energies_on_the_bench_ogerpon_is_still_allowed():
     # Boundary: with 2 physical the cap does not apply and the charge is still valid.
     obs = _esc_hop(pk(m.Dipplin, pre_evo=[m.Applin], energies=[G], fisicas=1),
                    [pk(m.Teal_Mask_Ogerpon_ex, energies=[G, G], fisicas=2)])
@@ -344,7 +344,7 @@ def test_hop_dos_energias_ogerpon_banca_sigue_permitido():
         "con 2 energias fisicas el Ogerpon aun no llega al tope de Hop's")
 
 
-def test_hop_cuarta_energia_solo_si_habilita_el_ko():
+def test_hop_a_fourth_energy_only_if_it_enables_the_ko():
     # EXCEPTION: an ACTIVE Ogerpon with 3 physical; Myriad does 30+30*(3+0)=120 and does not
     # knock out the 140 Trevenant, but with the 4th it reaches 150 => it is allowed.
     obs = _esc_hop(pk(m.Teal_Mask_Ogerpon_ex, energies=[G, G, G], fisicas=3),
@@ -354,7 +354,7 @@ def test_hop_cuarta_energia_solo_si_habilita_el_ko():
         "rival desde el Ogerpon activo")
 
 
-def test_hop_cuarta_energia_vetada_si_el_ogerpon_ya_noquea():
+def test_hop_the_fourth_energy_is_vetoed_if_the_ogerpon_already_knocks_out():
     # Without the exception: the active Ogerpon ALREADY knocks out (30+30*(3+2 rival
     # energies) = 180 >= 140), so the 4th energy is surplus and goes to another attacker.
     obs = _esc_hop(pk(m.Teal_Mask_Ogerpon_ex, energies=[G, G, G], fisicas=3),
@@ -387,7 +387,7 @@ def test_hop_teal_dance_permitida_si_habilita_el_ko():
         "(adjunta la Planta y ademas roba)")
 
 
-def test_hop_tope_2_energias_con_meganium():
+def test_hop_cap_of_2_energies_with_meganium():
     # With Meganium in play (Wild Growth doubles) the cap drops to 2 physical.
     obs = (Escenario(turn=8, step=1, tac=1)
            .my_active(pk(m.Meganium, pre_evo=[m.Chikorita, m.Bayleef]))
@@ -404,7 +404,7 @@ def test_hop_tope_2_energias_con_meganium():
         "Ogerpon de banca esta en su tope")
 
 
-def test_tope_base_por_matchup():
+def test_the_base_cap_depends_on_the_matchup():
     # A matchup boundary: the cap of 3 physical belongs ONLY to Hop's; vs Alakazam
     # (the other matchup with a cap) the base is still 4 without Meganium.
     assert m._ogerpon_base_phys_cap(False, True) == 3
@@ -483,14 +483,14 @@ def _tipo_elegido(obs, choice):
     return int(obs["select"]["option"][choice[0]]["type"])
 
 
-def test_combo_myriad_usa_teal_dance_para_el_remate():
+def test_myriad_combo_uses_teal_dance_for_the_finisher():
     obs = _menu_combo(_esc_combo_myriad())
     assert _tipo_elegido(obs, m.agent(obs)) == int(m.OptionType.ABILITY), (
         "con un remate ganador via Boss's, la energia del turno va al Ogerpon "
         "ACTIVO por Teal Dance (adjunta y roba), no a un cuerpo de banca")
 
 
-def test_combo_myriad_teal_dance_con_el_adjunte_ya_gastado():
+def test_myriad_combo_teal_dance_with_the_attachment_already_spent():
     # The ability is INDEPENDENT of the manual attachment: even if the turn's energy
     # has already been played, Teal Dance still adds the 5th energy and the
     # finisher must be detected all the same (before, `_mbw_dmg_to` only modelled the +1 of the
@@ -501,7 +501,7 @@ def test_combo_myriad_teal_dance_con_el_adjunte_ya_gastado():
         "habilita el remate ganador")
 
 
-def test_combo_myriad_juega_boss_tras_teal_dance():
+def test_myriad_combo_plays_boss_after_teal_dance():
     # The second step of the chain: the Ogerpon already at 5 energies, with no Grass in hand.
     obs = _menu_combo(_esc_combo_myriad(energies=5, grass_cards=0),
                       with_ability=False, with_attach=False)
@@ -510,7 +510,7 @@ def test_combo_myriad_juega_boss_tras_teal_dance():
         "objetivo de 2 premios, no atacar al activo rival")
 
 
-def test_combo_myriad_gustea_el_bellibolt():
+def test_myriad_combo_gusts_the_bellibolt():
     # The third step: choosing the gust's target.
     obs = _esc_combo_myriad(energies=5, grass_cards=0)
     yo = obs["current"]["yourIndex"]
@@ -528,7 +528,7 @@ def test_combo_myriad_gustea_el_bellibolt():
         f"obtuvo {m.card_table[target].name}")
 
 
-def test_combo_myriad_sin_remate_no_gasta_la_planta():
+def test_myriad_combo_with_no_finisher_it_keeps_the_grass():
     # Boundary: with no prize target on the rival bench (only a Kilowattrel
     # worth 1 prize that we already knock out), the no-overcharging veto returns: the
     # energy does NOT go to the active Ogerpon via Teal Dance.
@@ -730,14 +730,14 @@ def _pivot_asserts_ko(steps, obs):
     assert dmg >= opa["hp"], (dmg, opa["hp"])
 
 
-def test_pivote_ogerpon_retreat_ko_planta_en_mano():
+def test_ogerpon_retreat_ko_pivot_with_grass_in_hand():
     steps, obs = _pivot_walk(_pivot_obs("A"))
     assert steps == ["TEAL DANCE", "RETREAT",
                      "PROMUEVE Teal Mask Ogerpon ex", "ATTACK"], steps
     _pivot_asserts_ko(steps, obs)
 
 
-def test_pivote_ogerpon_retreat_ko_planta_via_night_stretcher():
+def test_ogerpon_retreat_ko_pivot_with_grass_via_night_stretcher():
     steps, obs = _pivot_walk(_pivot_obs("B"))
     assert steps == ["PLAY NS", "RECUPERA Basic {G} Energy", "TEAL DANCE",
                      "RETREAT", "PROMUEVE Teal Mask Ogerpon ex",
@@ -745,7 +745,7 @@ def test_pivote_ogerpon_retreat_ko_planta_via_night_stretcher():
     _pivot_asserts_ko(steps, obs)
 
 
-def test_pivote_ogerpon_sin_planta_no_malgasta_el_retiro():
+def test_ogerpon_pivot_with_no_grass_does_not_waste_the_retreat():
     steps, _ = _pivot_walk(_pivot_obs("C"))
     assert steps == ["END"], (
         f"sin Planta alcanzable el pivote no dispara: retirar solo pagaria "
@@ -789,7 +789,7 @@ def _menu_with_tapu(op_active, op_bench=(), op_discard=()):
     return obs
 
 
-def test_cornerstone_noex_en_banca_permite_tapu():
+def test_cornerstone_a_non_ex_on_the_bench_allows_tapu():
     # The non-ex 386 does not make anything immune (it has no ability) but it gives the archetype away: the
     # anti-Cubchoo whitelist must be extended with Tapu Bulu.
     obs = _menu_with_tapu(CUBCHOO, op_bench=(CORNERSTONE_NOEX,))
@@ -799,7 +799,7 @@ def test_cornerstone_noex_en_banca_permite_tapu():
         "condition del matchup) debe poder bajarse")
 
 
-def test_cornerstone_en_descarte_permite_tapu():
+def test_cornerstone_in_the_discard_allows_tapu():
     # Seeing it in the DISCARD also identifies the deck (a PLAN flag; the
     # positional op_has_ability_immune_active is still tied to the board).
     obs = _menu_with_tapu(CUBCHOO, op_discard=(CORNERSTONE_NOEX,))
@@ -941,7 +941,7 @@ def test_raging_bolt_descuadre_cadena_completa():
         f"un cuerpo de 1 premio delante; termino {final_active['id']}: {steps}")
 
 
-def test_raging_bolt_con_1premio_en_banca_no_baja_otro_y_retira():
+def test_raging_bolt_with_a_1prize_on_the_bench_it_plays_no_other_and_retreats():
     # With the Tapu ALREADY on the bench there is no need to play another body: the chain goes
     # straight to retreating and promoting it.
     steps, final_active = _raging_caminar(_raging_obs(tapu_on_bench=True))
@@ -950,7 +950,7 @@ def test_raging_bolt_con_1premio_en_banca_no_baja_otro_y_retira():
     assert final_active["id"] == m.Tapu_Bulu, steps
 
 
-def test_raging_bolt_con_ko_disponible_no_sacrifica():
+def test_raging_bolt_with_a_ko_available_it_does_not_sacrifice():
     # Boundary: the charged active Ogerpon KNOCKS OUT the damaged Bolt (Myriad
     # 30+30*4=150 >= 120): we attack, we do not give away the mismatch's tempo.
     steps, final_active = _raging_caminar(
@@ -1005,7 +1005,7 @@ def test_abomasnow_descuadre_cadena_completa():
         f"un cuerpo de 1 premio delante; termino {final_active['id']}: {steps}")
 
 
-def test_abomasnow_primer_turno_primeros_no_sacrifica():
+def test_abomasnow_first_turn_going_first_it_does_not_sacrifice():
     # EXCEPTION (user): on OUR first turn going FIRST the rule does NOT
     # apply -- the rival cannot knock us out on their next turn yet, early
     # development is not sacrificed. The ex is not retreated.
@@ -1017,7 +1017,7 @@ def test_abomasnow_primer_turno_primeros_no_sacrifica():
         f"termino {final_active['id']}: {steps}")
 
 
-def test_abomasnow_primeros_pero_turno_posterior_si_sacrifica():
+def test_abomasnow_going_first_but_on_a_later_turn_it_does_sacrifice():
     # The exception's boundary: the exception belongs ONLY to turn 1. Going
     # first but on a later turn (turn 3) the rule applies again.
     steps, final_active = _raging_caminar(
@@ -1060,7 +1060,7 @@ def _menu_inmune_activo(op_active_id, op_bench_id):
     return esc.build()
 
 
-def test_activo_inmune_juega_meowth_para_gustear_banca():
+def test_an_immune_active_plays_meowth_to_gust_the_bench():
     obs = _menu_inmune_activo(CORNERSTONE, MEGA_LUCARIO)
     m._init_cards_tracking()
     m.plan = m.AttackPlan()
@@ -1072,7 +1072,7 @@ def test_activo_inmune_juega_meowth_para_gustear_banca():
         f"0; eligio tipo {tipo}")
 
 
-def test_activo_atacable_no_desvia_a_meowth():
+def test_an_attackable_active_does_not_detour_to_meowth():
     # Boundary: if the rival active is NOT immune (an active Mega Lucario ex, without
     # the Cornerstone ability), `_meowth_immune_boss_engine` does NOT apply -- the
     # Hydrapple ex DOES hit it (330), so the agent ATTACKS instead of detouring
@@ -1113,7 +1113,7 @@ def _fetch_ub_motor_meowth_vs(op_id):
     return sel["deck"][sel["option"][choice[0]]["index"]]["id"]
 
 
-def test_iron_thorns_activo_veta_fetch_de_meowth():
+def test_an_active_iron_thorns_vetoes_the_meowth_fetch():
     elegida = _fetch_ub_motor_meowth_vs(m.Iron_Thorns_ex)
     assert elegida != m.Meowth_ex, (
         "con Iron Thorns ex de activo rival (Initialization anula Last-Ditch "
@@ -1121,7 +1121,7 @@ def test_iron_thorns_activo_veta_fetch_de_meowth():
         f"Supporter; obtuvo {m.card_table[elegida].name}")
 
 
-def test_sin_iron_thorns_el_motor_meowth_sigue_vivo():
+def test_without_iron_thorns_the_meowth_engine_stays_alive():
     # Boundary: with a neutral rival active (Snorunt) the same scenario DOES
     # search for Meowth ex (the Last-Ditch -> Lillie's refresh engine).
     elegida = _fetch_ub_motor_meowth_vs(103)  # Snorunt
@@ -1162,7 +1162,7 @@ def _menu_main(obs, options):
     return obs
 
 
-def test_ub_t1_segundos_sin_lillie_busca_el_motor_meowth():
+def test_ub_t1_going_second_with_no_lillie_it_searches_the_meowth_engine():
     # With neither Lillie's NOR Meowth in hand, with both in the DECK: the first-turn
     # UB going second IS played (the Last-Ditch -> Lillie's engine).
     obs = _menu_main(
@@ -1186,7 +1186,7 @@ def test_ub_t1_segundos_fetch_elige_meowth():
         f"Lillie's); obtuvo {m.card_table[elegida].name}")
 
 
-def test_ub_t1_segundos_con_lillie_en_mano_se_veta():
+def test_ub_t1_going_second_with_a_lillie_in_hand_it_is_vetoed():
     # Control: with the Lillie's ALREADY in hand the engine is not needed and the first-turn
     # UB is vetoed again (the Lillie's is played).
     obs = _menu_main(
@@ -1231,7 +1231,7 @@ def test_cornerstone_td_tope_2_fisicas_redirige_a_tapu():
         f"va a Tapu Bulu; obtuvo {(tipo, destino)}")
 
 
-def test_cornerstone_td_una_fisica_sigue_permitida():
+def test_cornerstone_td_with_one_physical_is_still_allowed():
     # The cap's boundary: with 1 physical the Ogerpon does not reach the cap yet. The
     # Teal Dance is not VETOED (it may lose against other charges on score,
     # but the cap does not kill it): we check that the veto does not fire by looking
@@ -1243,7 +1243,7 @@ def test_cornerstone_td_una_fisica_sigue_permitida():
         f"obtuvo {(tipo, destino)}")
 
 
-def test_generico_td_dos_fisicas_sin_muro_no_capa():
+def test_generic_td_two_physical_without_a_wall_is_not_capped():
     # The inverse control: with no Cornerstone/Crustle/wall in front (a neutral rival,
     # Kilowattrel 271) the cap does not apply and the Teal Dance of the Ogerpon with 2
     # physical is still alive.

@@ -98,7 +98,7 @@ def _opcion(obs, choice):
 # Phase A: perception
 # --------------------------------------------------------------------------
 
-def test_percepcion_mide_el_goteo_y_el_dano_movible():
+def test_perception_measures_the_drip_and_the_movable_damage():
     """Two Froslass = 40 per round; two Adrena-Brain activations = 60."""
     _correr_fixture()
     assert m._op_chip_per_round == 40, "10 x 2 Froslass x 2 chequeos"
@@ -106,7 +106,7 @@ def test_percepcion_mide_el_goteo_y_el_dano_movible():
     assert m._op_movable_dmg == 60, "30 x 2 activaciones de Adrena-Brain"
 
 
-def test_la_ventana_del_ogerpon_de_banca_lo_alcanza():
+def test_the_window_reaches_the_bench_ogerpon():
     """80 HP inside a window of 100; with +30 it leaves (110 > 100)."""
     _correr_fixture()
 
@@ -122,7 +122,7 @@ def test_la_ventana_del_ogerpon_de_banca_lo_alcanza():
     assert min(p.maxHp, p.hp + m.RIPENING_HEAL) > ventana   # with +30 it leaves
 
 
-def test_el_tera_en_banca_no_para_los_contadores():
+def test_tera_on_the_bench_does_not_stop_the_counters():
     """The Tera cuts the snipe (attack damage), never the drip or the movable damage."""
     _correr_fixture()
 
@@ -137,7 +137,7 @@ def test_el_tera_en_banca_no_para_los_contadores():
     assert m._ventana_de_regalo(meg, False, 30) == 30 + 40 + 60
 
 
-def test_sin_habilidad_no_se_paga_el_peaje_de_froslass():
+def test_with_no_ability_the_froslass_toll_is_not_paid():
     """Tapu Bulu, Chikorita, Bayleef and Applin are not in OUR_ABILITY_IDS."""
     _correr_fixture()
 
@@ -162,7 +162,7 @@ def test_usa_ripening_charge_en_vez_de_teal_dance():
         "Teal Dance sobre el Ogerpon de banca condenado en vez de Ripening Charge")
 
 
-def test_la_planta_va_al_ogerpon_ex_no_al_meganium():
+def test_the_grass_goes_to_the_ogerpon_ex_not_the_meganium():
     """Tie-break by PRIZES: the 2 of the Ogerpon ex before the 1 of the Meganium.
 
     The board of game 2 with the bench trimmed to the two candidates. Both
@@ -196,7 +196,7 @@ def test_la_planta_va_al_ogerpon_ex_no_al_meganium():
         "la Planta debe curar al Ogerpon ex (2 premios) dentro de la ventana")
 
 
-def test_el_dano_movible_es_elastico_no_condena_a_media_mesa():
+def test_movable_damage_is_elastic_it_does_not_doom_half_the_board():
     """The GUARANTEED window and the COMPLETE one are not the same thing.
 
     (`registros/marnie/partida_1`, step 167, turn 14.) With 1 Froslass and 1
@@ -236,7 +236,7 @@ def test_el_dano_movible_es_elastico_no_condena_a_media_mesa():
 # Non-regression: without Froslass or Munkidori the window is the usual hit
 # --------------------------------------------------------------------------
 
-def test_sin_froslass_ni_munkidori_la_ventana_no_cambia():
+def test_with_no_froslass_or_munkidori_the_window_does_not_change():
     """Against a deck without those pieces, chip and movable damage are 0."""
     obs = (Escenario(turn=8, step=60, tac=3)
            .my_active(pk(HYDRAPPLE, hp=300, energies=[G, G],
@@ -310,7 +310,7 @@ def test_munkidori_enciende_la_ventana_tambien_fuera_de_marnie():
         "mide por la CARTA en mesa, no por el arquetipo rival")
 
 
-def test_la_ventana_crece_con_munkidori_sin_marnie_en_mesa():
+def test_the_window_grows_with_munkidori_and_no_marnie_on_the_table():
     """The movable damage enters the window even if the opponent is not Marnie."""
     obs = (Escenario(turn=8, step=60, tac=3)
            .my_active(pk(HYDRAPPLE, hp=300, energies=[G, G],
@@ -337,7 +337,7 @@ def test_la_ventana_crece_con_munkidori_sin_marnie_en_mesa():
         "haya ni un Pokemon de Marnie")
 
 
-def test_sin_froslass_el_munkidori_sin_municion_no_amenaza():
+def test_without_froslass_a_munkidori_with_no_ammunition_is_no_threat():
     """Control for the previous one: the same board, but with the opponent INTACT.
 
     Adrena-Brain only moves existing counters. With no Froslass to

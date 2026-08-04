@@ -122,7 +122,7 @@ def _elegido(obs, choice):
 # 1. The scenario: without it, the test measures nothing
 # ---------------------------------------------------------------------------
 
-def test_el_fixture_es_la_promocion_tras_el_ko():
+def test_the_fixture_is_the_promotion_after_the_ko():
     o = _obs()
     yo = o["current"]["yourIndex"]
     mio = o["current"]["players"][yo]
@@ -167,7 +167,7 @@ def test_el_ogerpon_completado_remata_al_grimmsnarl():
 # 2. The decision
 # ---------------------------------------------------------------------------
 
-def test_promueve_el_ogerpon_casi_listo_y_no_el_tapu_clavado():
+def test_it_promotes_the_nearly_ready_ogerpon_not_the_nailed_down_tapu():
     obs = _obs()
     elegido = _elegido(obs, m.agent(obs))
     assert elegido["id"] == OGERPON
@@ -178,11 +178,11 @@ def test_promueve_el_ogerpon_casi_listo_y_no_el_tapu_clavado():
 # 3. The limits: with no energy engine, the cheap wall is still right
 # ---------------------------------------------------------------------------
 
-def test_sin_meowth_no_hay_via_de_energia_y_vuelve_el_muro_de_1_premio():
+def test_with_no_meowth_there_is_no_energy_route_and_the_1_prize_wall_returns():
     obs = _obs(sin_meowth=True)
     assert _elegido(obs, m.agent(obs))["id"] == TAPU
 
 
-def test_sin_supporter_util_que_buscar_el_meowth_no_es_motor():
+def test_with_no_useful_supporter_to_fetch_the_meowth_is_not_an_engine():
     obs = _obs(sin_supporter_alcanzable=True)
     assert _elegido(obs, m.agent(obs))["id"] == TAPU

@@ -148,7 +148,7 @@ def _ctx(op_hand, hand, stamp=1, ko=True):
 # 1. The record: a hand of 5 (4 are sacrificed) -> the Stamp IS PLAYED
 # ---------------------------------------------------------------------------
 
-def test_el_menu_ofrecia_el_sello_y_el_rival_tenia_una_carta():
+def test_the_menu_offered_the_stamp_and_the_opponent_had_one_card():
     _, dec = _load()
     yo = dec["current"]["yourIndex"]
     hand = [c["id"] for c in dec["current"]["players"][yo]["hand"]]
@@ -157,7 +157,7 @@ def test_el_menu_ofrecia_el_sello_y_el_rival_tenia_una_carta():
     assert dec["select"]["option"][0]["type"] == int(m.OptionType.PLAY)
 
 
-def test_refresco_barato_el_sello_se_juega_como_en_el_registro():
+def test_a_cheap_refresh_the_stamp_is_played_as_in_the_record():
     choice, score = _decision()
     assert score > 0, score
     assert _plays_the_stamp(choice), (
@@ -169,7 +169,7 @@ def test_refresco_barato_el_sello_se_juega_como_en_el_registro():
 # 2. The new behaviour: with no disruption and a big hand, the Stamp WAITS
 # ---------------------------------------------------------------------------
 
-def test_sin_disrupcion_y_con_mano_grande_el_sello_se_veta():
+def test_with_no_disruption_and_a_big_hand_the_stamp_is_vetoed():
     choice, score = _decision(extra_hand=1)      # 5 would be sacrificed
     assert score <= 0, score
     assert not _plays_the_stamp(choice), (
@@ -177,7 +177,7 @@ def test_sin_disrupcion_y_con_mano_grande_el_sello_se_veta():
         f"propias por 5 nuevas quema recursos ya jugables; jugo {choice}")
 
 
-def test_con_la_mano_rival_larga_el_sello_vuelve_aunque_sacrifiquemos_mucho():
+def test_with_a_long_opponent_hand_the_stamp_returns_even_if_we_sacrifice_a_lot():
     """Clause (1) is independent: if it DISRUPTS, our own hand does not matter."""
     choice, score = _decision(extra_hand=4, op_hand=m.STAMP_MIN_OP_HAND)
     assert score > 0, score
@@ -188,20 +188,20 @@ def test_con_la_mano_rival_larga_el_sello_vuelve_aunque_sacrifiquemos_mucho():
 # 3. The two exact edges
 # ---------------------------------------------------------------------------
 
-def test_borde_de_la_mano_propia():
+def test_the_edge_of_our_own_hand():
     """Sacrificing 4 passes; sacrificing 5 no longer does (hand = sacrifice + the Stamp)."""
     assert m._stamp_worth_playing(1, m.STAMP_MAX_HAND_SACRIFICADA + 1)
     assert not m._stamp_worth_playing(1, m.STAMP_MAX_HAND_SACRIFICADA + 2)
 
 
-def test_borde_de_la_mano_rival():
+def test_the_edge_of_the_opponent_hand():
     """The Stamp leaves the rival at 2: with 2 it takes nothing, with 3 it takes 1."""
     big_hand = m.STAMP_MAX_HAND_SACRIFICADA + 5
     assert not m._stamp_worth_playing(m.STAMP_MIN_OP_HAND - 1, big_hand)
     assert m._stamp_worth_playing(m.STAMP_MIN_OP_HAND, big_hand)
 
 
-def test_sin_datos_no_inventa_jugadas():
+def test_with_no_data_it_invents_no_plays():
     """The rule only SUBTRACTS: without `op_hand_count` at hand it behaves as before."""
     assert m._stamp_worth_playing(None, 99)
     assert m._stamp_worth_playing(99, None)
@@ -237,7 +237,7 @@ def test_el_veto_no_lo_resucita_ningun_bonus_de_matchup(matchup):
 # 5. A vetoed Stamp does NOT paralyse the turn
 # ---------------------------------------------------------------------------
 
-def test_el_sello_vetado_deja_de_bloquear_los_supporters():
+def test_a_vetoed_stamp_stops_blocking_the_supporters():
     """`_stamp_pendiente` is the single source of the order vetoes (Boss's,
     Lillie's, Lana's, Dawn, Xerosic, the Meowth chain and Flip the Script)."""
     espera = _ctx(op_hand=1, hand=m.STAMP_MAX_HAND_SACRIFICADA + 2)
@@ -247,6 +247,6 @@ def test_el_sello_vetado_deja_de_bloquear_los_supporters():
     assert m._stamp_pendiente(juega)
 
 
-def test_sin_ko_el_sello_nunca_esta_pendiente():
+def test_with_no_ko_the_stamp_is_never_pending():
     assert not m._stamp_pendiente(_ctx(op_hand=8, hand=3, ko=False))
     assert not m._stamp_pendiente(_ctx(op_hand=8, hand=3, stamp=0))

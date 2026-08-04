@@ -92,15 +92,15 @@ def reset_main_state():
 # 1. The missing datum: the self-damage comes out of the attack's TEXT
 # ---------------------------------------------------------------------------
 
-def test_wood_hammer_se_hace_30_a_si_mismo():
+def test_wood_hammer_does_30_to_itself():
     assert m._attack_self_damage(WOOD_HAMMER) == 30
 
 
-def test_myriad_leaf_shower_no_tiene_auto_dano():
+def test_myriad_leaf_shower_has_no_self_damage():
     assert m._attack_self_damage(MYRIAD_LEAF_SHOWER) == 0
 
 
-def test_el_auto_dano_opcional_no_se_asume():
+def test_optional_self_damage_is_not_assumed():
     """"You may do 30 more damage. If you do, this Pokemon also does 30 damage
     to itself" (Superpower 144): the decision is OURS, so the certain damage
     is 0. Same with the form without -s ("...also DO 60 damage to itself", 1171)."""
@@ -108,31 +108,31 @@ def test_el_auto_dano_opcional_no_se_asume():
     assert m._attack_self_damage(1171) == 0
 
 
-def test_el_auto_dano_por_moneda_solo_cuenta_en_el_peor_caso():
+def test_coin_flip_self_damage_only_counts_in_the_worst_case():
     """Reckless Abandon (662): "Flip 2 coins. If both of them are tails, this
     Pokemon also does 90 damage to itself"."""
     assert m._attack_self_damage(662) == 0
     assert m._attack_self_damage(662, incierto=True) == 90
 
 
-def test_el_auto_dano_por_contadores_usa_el_dano_recibido():
+def test_counter_based_self_damage_uses_the_damage_taken():
     """Vanguard Punch (51): 10 for EACH damage counter on the attacker."""
     herido = _pkmn(51, hp=80, max_hp=130)
     assert m._attack_self_damage(51, herido) == 50   # 5 counters
 
 
-def test_una_moneda_posterior_no_convierte_el_auto_dano_en_azar():
+def test_a_later_coin_flip_does_not_make_the_self_damage_random():
     """Thump-Thump Boom (364): "This Pokemon does 100 damage to itself. Flip a
     coin..." -- the coin belongs to ANOTHER sentence and does not touch the self-damage."""
     assert m._attack_self_damage(364) == 100
 
 
-def test_tapu_bulu_a_20_pv_se_noquea_con_su_propio_ataque():
+def test_a_tapu_bulu_at_20_hp_knocks_itself_out_with_its_own_attack():
     assert m._self_ko_by_own_attack(_pkmn(TAPU, hp=20, energies=6))
     assert not m._self_ko_by_own_attack(_pkmn(TAPU, hp=140, energies=6))
 
 
-def test_sin_energia_para_pagar_el_ataque_no_hay_auto_dano():
+def test_with_no_energy_to_pay_the_attack_there_is_no_self_damage():
     """The self-damage only counts if the attack can be USED: Wood Hammer costs
     4 units, and with 2 energies there is no attack (nor suicide) to fear."""
     tapu = _pkmn(TAPU, hp=20, energies=2)
@@ -166,14 +166,14 @@ def _tipo_elegido(obs, choice):
     return obs["select"]["option"][choice[0]]["type"]
 
 
-def test_con_un_premio_por_lado_se_retira_en_vez_de_rematar_suicida():
+def test_with_one_prize_each_it_retreats_instead_of_finishing_suicidally():
     """THE FAILURE IN THE RECORD. Before: ATTACK (Wood Hammer) -> a 0-0 draw.
     Now: RETREAT, to promote the Ogerpon ex and win cleanly."""
     obs = _step_184().menu_hand(with_retreat=True, with_attack=True).build()
     assert _tipo_elegido(obs, m.agent(obs)) == int(m.OptionType.RETREAT)
 
 
-def test_el_remate_suicida_queda_vetado_mientras_exista_el_relevo():
+def test_the_suicidal_finisher_stays_vetoed_while_the_relief_exists():
     obs = _step_184().menu_hand(with_retreat=True, with_attack=True).build()
     scores = _scores(obs)
     i_atk = _index(obs, m.OptionType.ATTACK)
@@ -182,7 +182,7 @@ def test_el_remate_suicida_queda_vetado_mientras_exista_el_relevo():
     assert scores[i_ret] > 0
 
 
-def test_sin_relevo_en_banca_el_empate_es_el_mejor_resultado_y_no_se_veta():
+def test_with_no_relief_on_the_bench_the_draw_is_the_best_outcome_and_is_not_vetoed():
     """With nobody on the bench to finish, the draw is the best available: the
     attack is NOT vetoed (passing also ends in a draw, but gives away the turn).
     The veto is measured rather than the choice because, with energy in hand, attaching it
@@ -198,7 +198,7 @@ def test_sin_relevo_en_banca_el_empate_es_el_mejor_resultado_y_no_se_veta():
     assert _scores(obs)[_index(obs, m.OptionType.ATTACK)] > 0
 
 
-def test_con_el_rival_lejos_del_final_el_remate_suicida_sigue_ganando():
+def test_with_the_opponent_far_from_the_end_the_suicidal_finisher_still_wins():
     """The brake looks at the RIVAL'S prizes, not at self-damage in the abstract: with 3
     rival prizes our corpse (1 prize) does not close out their count, so
     Wood Hammer is still the top-priority winning finisher."""
@@ -207,7 +207,7 @@ def test_con_el_rival_lejos_del_final_el_remate_suicida_sigue_ganando():
     assert _tipo_elegido(obs, m.agent(obs)) == int(m.OptionType.ATTACK)
 
 
-def test_tapu_bulu_sano_no_se_suicida_y_remata_de_frente():
+def test_a_healthy_tapu_bulu_does_not_kill_itself_and_finishes_head_on():
     """The same board with Tapu Bulu at 140/140: the 30 self-damage does not kill it,
     so there is no draw to avoid and ATTACKING is the first thing again."""
     obs = _step_184(tapu_hp=140).menu_hand(
@@ -215,7 +215,7 @@ def test_tapu_bulu_sano_no_se_suicida_y_remata_de_frente():
     assert _tipo_elegido(obs, m.agent(obs)) == int(m.OptionType.ATTACK)
 
 
-def test_el_remate_suicida_que_PIERDE_se_veta_aunque_no_haya_relevo():
+def test_a_suicidal_finisher_that_loses_is_vetoed_even_with_no_relief():
     """A worse case than the draw: our attack does NOT knock out (a 380 HP Duraludon
     survives the 220), so the self-damage only HANDS the rival their last
     prize. There, attacking is losing: it is vetoed with no need for a relief body."""
@@ -235,7 +235,7 @@ def test_el_remate_suicida_que_PIERDE_se_veta_aunque_no_haya_relevo():
 # 3. When retreating, the FINISHER comes up (not the tankiest body)
 # ---------------------------------------------------------------------------
 
-def test_la_promocion_tras_retirar_sube_al_que_gana_la_partida():
+def test_the_promotion_after_retreating_brings_up_the_one_that_wins():
     """The other half of the chain: without this we retreated well and then brought up the
     290 HP Hydrapple ex (no energy, it does not finish) instead of the charged
     Ogerpon ex, and the turn closed without taking the prize."""
@@ -246,7 +246,7 @@ def test_la_promocion_tras_retirar_sube_al_que_gana_la_partida():
     assert bench[idx]["id"] == OGERPON
 
 
-def test_la_promocion_forzada_tras_un_KO_no_cambia_de_criterio():
+def test_the_forced_promotion_after_a_ko_keeps_its_criterion():
     """The "bring up the finisher" bonus belongs only to the VOLUNTARY retreat
     (the SWITCH context, always on our turn and before attacking). The forced
     promotion after a KO (TO_ACTIVE) may fall on the rival's turn, where nobody

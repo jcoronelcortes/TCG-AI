@@ -154,7 +154,7 @@ def _board_with_wounded_meganium(with_drip=True):
             .build())
 
 
-def test_la_planta_no_va_al_cuerpo_condenado():
+def test_the_grass_does_not_go_to_the_doomed_body():
     obs = _board_with_wounded_meganium(with_drip=True)
     destino = _energy_destination(obs, m.agent(obs))
     assert destino == OGERPON, (
@@ -164,7 +164,7 @@ def test_la_planta_no_va_al_cuerpo_condenado():
         f"(fue a {m.card_table[destino].name if destino else destino})")
 
 
-def test_sin_froslass_ni_munkidori_el_reparto_no_cambia():
+def test_with_no_froslass_or_munkidori_the_split_does_not_change():
     # CONTROL: the same board with no drip. The window is 0, no body
     # enters it and the rule cannot fire -- the destination is decided by the
     # usual criterion (the wounded Meganium, which is the one that asks for the most energy).
@@ -176,7 +176,7 @@ def test_sin_froslass_ni_munkidori_el_reparto_no_cambia():
         f"{m.card_table[destino].name if destino else destino}")
 
 
-def test_el_activo_que_ataca_hoy_no_cuenta_como_condenado():
+def test_an_active_that_attacks_today_does_not_count_as_doomed():
     # The ACTIVE that is inside the window but ATTACKS this turn with that same Grass is
     # not doomed: the energy is cashed in before the opponent plays. An active Ogerpon
     # at 60 HP with 2 energies -> the 3rd pays for its Myriad Leaf Shower.
@@ -225,7 +225,7 @@ def _board_to_play_fez(with_froslass=True, opponent_prizes=6):
             .build())
 
 
-def test_fezandipiti_no_se_banca_con_froslass_en_mesa():
+def test_fezandipiti_is_not_benched_with_froslass_on_the_table():
     obs = _board_to_play_fez(with_froslass=True)
     play = _play(obs, m.agent(obs))
     assert play != ("PLAY", FEZ), (
@@ -234,7 +234,7 @@ def test_fezandipiti_no_se_banca_con_froslass_en_mesa():
         f"rematarlo en la banca. No debe bajarse por desarrollo; jugó {play}")
 
 
-def test_sin_froslass_fezandipiti_si_se_baja():
+def test_without_froslass_fezandipiti_is_played():
     # CONTROL: the SAME board without Froslass. Here the Fezandipiti ex development
     # branch is still alive (15000) and the body is put down -- which proves that
     # the veto of the previous test comes from phase E1 and not from another condition of
@@ -271,7 +271,7 @@ def _board_to_play_applin(with_munkidori=True, with_chain=False):
     return esc.menu_hand(with_attachment=True).build()
 
 
-def test_no_se_baja_un_applin_pelado_dentro_de_la_ventana():
+def test_a_bare_applin_is_not_played_inside_the_window():
     obs = _board_to_play_applin(with_munkidori=True)
     play = _play(obs, m.agent(obs))
     assert play != ("PLAY", APPLIN), (
@@ -280,7 +280,7 @@ def test_no_se_baja_un_applin_pelado_dentro_de_la_ventana():
         f"evoluciona este turno. Es un premio regalado; jugó {play}")
 
 
-def test_sin_munkidori_el_snipe_pelado_no_alcanza():
+def test_without_munkidori_the_bare_snipe_does_not_reach():
     # CONTROL: Froslass only. The Applin has no ability, so it does not pay the
     # drip, and the bare snipe (30) does not reach its 40 HP: the rule does not
     # switch on and development goes on as usual.
@@ -290,7 +290,7 @@ def test_sin_munkidori_el_snipe_pelado_no_alcanza():
         "siempre")
 
 
-def test_con_la_cadena_lista_el_applin_si_baja():
+def test_with_the_chain_ready_the_applin_is_played():
     # EXCEPTION: with Forest in play and a Dipplin in hand, the Applin evolves the
     # same turn -- the evolution raises the maximum HP without erasing counters, so
     # it leaves the window. That is exactly what the plan asks for: KEEP the piece
@@ -301,7 +301,7 @@ def test_con_la_cadena_lista_el_applin_si_baja():
         "queda expuesto")
 
 
-def test_con_flip_the_script_viva_si_se_baja():
+def test_with_flip_the_script_alive_it_is_played():
     # EXCEPTION: if we were knocked out last turn, Flip the Script IS CASHED IN
     # this turn (it draws 3) and the toll stops mattering -- the same criterion
     # Lucario/Crustle/Cornerstone/Sylveon already used. The KO is declared through the

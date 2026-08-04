@@ -116,7 +116,7 @@ def _opt_de(obs, pred):
 # 1. The scenario: without it, the test measures nothing
 # ---------------------------------------------------------------------------
 
-def test_el_fixture_es_la_promocion_forzada_tras_el_ko():
+def test_the_fixture_is_the_forced_promotion_after_the_ko():
     o = _obs()
     yo = o["current"]["yourIndex"]
     mio = o["current"]["players"][yo]
@@ -154,7 +154,7 @@ def test_el_fixture_es_la_promocion_forzada_tras_el_ko():
     assert json.load(open(_FIXTURE, encoding="utf-8"))["accion_registrada"] == [4]
 
 
-def test_watchtower_mata_el_motor_meowth_pero_no_el_de_fezandipiti():
+def test_watchtower_kills_the_meowth_engine_but_not_the_fezandipiti_one():
     """Why the old routes failed and the new one does not: Watchtower only cancels
     the abilities of {C} Pokémon (Meowth ex), not those of Fezandipiti ex."""
     o = _obs()
@@ -166,7 +166,7 @@ def test_watchtower_mata_el_motor_meowth_pero_no_el_de_fezandipiti():
 # 2. The decision
 # ---------------------------------------------------------------------------
 
-def test_promueve_el_ogerpon_cargado_y_no_el_tapu_clavado():
+def test_it_promotes_the_charged_ogerpon_not_the_nailed_down_tapu():
     o = _obs()
     tapu_opt = _opt_de(o, lambda b: b["id"] == TAPU)
     assert m.agent(_obs()) != [tapu_opt], (
@@ -174,7 +174,7 @@ def test_promueve_el_ogerpon_cargado_y_no_el_tapu_clavado():
         "regala el turno entero")
 
 
-def test_promueve_el_ogerpon_con_MAS_vida():
+def test_it_promotes_the_ogerpon_with_more_life():
     """Among the three Ogerpon ex at the same distance from the finisher, it brings up the
     200 HP one, not the 100: the life tie-break already lives in `_ps_key`."""
     o = _obs()
@@ -188,7 +188,7 @@ def test_promueve_el_ogerpon_con_MAS_vida():
 # 3. The limits of the rule
 # ---------------------------------------------------------------------------
 
-def test_sin_fezandipiti_no_hay_motor_y_vuelve_el_muro():
+def test_with_no_fezandipiti_there_is_no_engine_and_the_wall_returns():
     """Control: with the Fezandipiti ex removed from hand there is no route left to
     get the Grass, and the promotion goes back to the cheap-wall logic."""
     o = _obs()
@@ -199,7 +199,7 @@ def test_sin_fezandipiti_no_hay_motor_y_vuelve_el_muro():
     assert m.agent(o) == [_opt_de(o, lambda b: b["id"] == TAPU)]
 
 
-def test_sin_planta_alcanzable_no_hay_motor():
+def test_with_no_reachable_grass_there_is_no_engine():
     """Control: with ALL the Grass already visible (a hand empty of them +
     the discard) there is none hidden left to draw, and the engine does not fire."""
     o = _obs()
@@ -225,7 +225,7 @@ def test_si_el_casi_atacante_quedaria_clavado_el_motor_de_robo_no_basta(monkeypa
     assert m.agent(o) == [_opt_de(o, lambda b: b["id"] == TAPU)]
 
 
-def test_con_supporter_de_busqueda_no_se_exige_movilidad(monkeypatch):
+def test_with_a_search_supporter_mobility_is_not_required(monkeypatch):
     """The counterpart: with a Lillie's in hand (a SEARCH route, not a blind
     draw) the energy is practically assured, so mobility stops
     being a condition and the Ogerpon ex comes up even if its retreat is unpayable."""

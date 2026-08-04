@@ -105,7 +105,7 @@ def _opcion(obs, tipo):
 # 1. The scenario: without it, the test measures nothing
 # ---------------------------------------------------------------------------
 
-def test_el_fixture_es_el_muro_herido_a_90_pv():
+def test_the_fixture_is_the_wounded_wall_at_90_hp():
     o = _obs()
     yo = o["current"]["yourIndex"]
     mio = o["current"]["players"][yo]
@@ -139,7 +139,7 @@ def test_el_fixture_es_el_muro_herido_a_90_pv():
 # 2. The decision
 # ---------------------------------------------------------------------------
 
-def test_no_se_retira_el_ogerpon_intacto():
+def test_the_intact_ogerpon_does_not_retreat():
     o = _obs()
     retreat = _opcion(o, int(m.OptionType.RETREAT))
     assert m.agent(o) != [retreat], (
@@ -148,7 +148,7 @@ def test_no_se_retira_el_ogerpon_intacto():
         "deja delante el cuerpo que muere")
 
 
-def test_se_ataca_con_el_ogerpon_activo():
+def test_it_attacks_with_the_active_ogerpon():
     o = _obs()
     attack = _opcion(o, int(m.OptionType.ATTACK))
     assert m.agent(o) == [attack]
@@ -162,7 +162,7 @@ def test_se_ataca_con_el_ogerpon_activo():
 # 3. The discriminator: CURRENT life, not printed HP
 # ---------------------------------------------------------------------------
 
-def test_con_el_hydrapple_SANO_el_pivote_sigue_vivo():
+def test_with_a_healthy_hydrapple_the_pivot_stays_alive():
     """The real wall (330 > 210) still relieves the fragile ex."""
     o = _obs()
     yo = o["current"]["yourIndex"]
@@ -176,7 +176,7 @@ def test_con_el_hydrapple_SANO_el_pivote_sigue_vivo():
         "deja delante al cuerpo que aguanta mas")
 
 
-def test_empatados_en_vida_no_se_paga_la_retirada():
+def test_tied_on_life_the_retreat_is_not_paid_for():
     """STRICT improvement: at equal life, the swap only costs an energy."""
     o = _obs()
     yo = o["current"]["yourIndex"]

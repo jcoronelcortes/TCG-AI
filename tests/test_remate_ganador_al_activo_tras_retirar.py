@@ -123,7 +123,7 @@ def _idx_play_boss(obs):
 # The board: that the mate really existed, measured with the engine's evaluators
 # ---------------------------------------------------------------------------
 
-def test_el_mate_existia_ogerpon_de_banca_noquea_al_grimmsnarl():
+def test_the_mate_existed_the_bench_ogerpon_knocks_out_the_grimmsnarl():
     obs = m.to_observation_class(_fixture()["observation"])
     st = obs.current
     yo, rival = st.players[1], st.players[0]
@@ -163,7 +163,7 @@ def test_el_mate_existia_ogerpon_de_banca_noquea_al_grimmsnarl():
 # The decision: RETREAT, not Boss's Orders
 # ---------------------------------------------------------------------------
 
-def test_retira_en_vez_de_gustear():
+def test_it_retreats_instead_of_gusting():
     fx = _fixture()
     previa, decision = fx["observacion_previa"], fx["observation"]
 
@@ -180,7 +180,7 @@ def test_retira_en_vez_de_gustear():
     assert choice != [i_boss], "el Boss's tira el turno ganador"
 
 
-def test_la_linea_completa_cierra_la_partida():
+def test_the_full_line_closes_the_game():
     """After retreating: promote the charged Ogerpon and attack the Grimmsnarl."""
     fx = _fixture()
 
@@ -201,7 +201,7 @@ def test_la_linea_completa_cierra_la_partida():
 # The BOUNDARY: the rule only rules when the KO WINS the game
 # ---------------------------------------------------------------------------
 
-def test_la_regla_no_depende_del_atacante_concreto():
+def test_the_rule_does_not_depend_on_the_particular_attacker():
     """The same board with a charged Tapu Bulu (non-ex, another attack) instead of the
     Ogerpon: Wood Hammer 220 x2 for the weakness = 440 >= 310. It is still mate,
     so the retreat still rules. The flag leans on
@@ -221,7 +221,7 @@ def test_la_regla_no_depende_del_atacante_concreto():
     assert choice == [_idx_of_type(decision, m.OptionType.RETREAT)], choice
 
 
-def test_sin_rematador_en_banca_no_dispara():
+def test_with_no_finisher_on_the_bench_it_does_not_fire():
     """BOUNDARY: if no bench body knocks out the rival active, retreating closes
     nothing and the Boss's is the play again."""
     fx = _fixture()
@@ -240,7 +240,7 @@ def test_sin_rematador_en_banca_no_dispara():
     assert choice != [_idx_of_type(decision, m.OptionType.RETREAT)], choice
 
 
-def test_sin_match_point_el_gusteo_sigue_vivo():
+def test_without_match_point_the_gust_stays_alive():
     """With THREE prizes left, the KO on the active (2 prizes) no longer closes
     the game: the veto does not fire and Boss's Orders is playable again."""
     fx = _fixture()

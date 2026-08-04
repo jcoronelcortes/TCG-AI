@@ -75,7 +75,7 @@ def _fixture_obs(name):
 # The log's failure: the first turn's fetch
 # ---------------------------------------------------------------------------
 
-def test_last_ditch_del_primer_turno_trae_lillie_no_xerosic():
+def test_the_first_turn_last_ditch_brings_lillie_not_xerosic():
     """Step 16 of log 88461779, reproduced as it stands."""
     obs = _fixture_obs("alakazam_t1_last_ditch_busca_lillie_step16.json")
     sel = obs["select"]
@@ -90,7 +90,7 @@ def test_last_ditch_del_primer_turno_trae_lillie_no_xerosic():
         f"trajo {m.card_table[traido].name}({traido})")
 
 
-def test_prediccion_del_fetch_en_primer_turno_apunta_a_lillie():
+def test_the_first_turn_fetch_prediction_points_at_lillie():
     """The helper that decides BEFORE spending the Meowth sees the same as the prompt
     (menu <-> prompt coherence): with a live Lillie's in the deck, the predicted
     target of the first turn is Lillie's even if the matchup is Alakazam with a
@@ -105,7 +105,7 @@ def test_prediccion_del_fetch_en_primer_turno_apunta_a_lillie():
     assert target == m.Lillie_Determination
 
 
-def test_fuera_del_primer_turno_el_fetch_conserva_la_rama_xerosic():
+def test_outside_the_first_turn_the_fetch_keeps_the_xerosic_branch():
     """The rule belongs ONLY to the first turn: in later turns the
     anti-Alakazam engine (capping Powerful Hand) still rules."""
     deck = {m.Xerosic_Machinations: {m.ZONE_DECK: 2},
@@ -117,7 +117,7 @@ def test_fuera_del_primer_turno_el_fetch_conserva_la_rama_xerosic():
     assert target == m.Xerosic_Machinations
 
 
-def test_sin_lillie_en_el_mazo_el_primer_turno_no_degrada_al_resto():
+def test_with_no_lillie_in_the_deck_the_first_turn_does_not_degrade_the_rest():
     """Deck-agnostic: if the deck has no reachable Lillie's, the
     rule caps nobody and the normal ladder decides."""
     deck = {m.Xerosic_Machinations: {m.ZONE_DECK: 2}}
@@ -148,20 +148,20 @@ def _ub_meowth_value(ctx):
     return value
 
 
-def test_ub_no_cava_meowth_en_primer_turno_con_lillie_en_mano():
+def test_the_ub_does_not_dig_meowth_on_the_first_turn_with_a_lillie_in_hand():
     m.we_go_first = True
     m._ub_engine_pivot_turn = True   # not even the pivot engine lifts the rule
     ctx = _ctx_ub_meowth({m.Lillie_Determination: 1, m.Ultra_Ball: 1})
     assert _ub_meowth_value(ctx) <= 10
 
 
-def test_ub_no_cava_meowth_en_primer_turno_sin_lillie_en_el_mazo():
+def test_the_ub_does_not_dig_meowth_on_the_first_turn_with_no_lillie_in_the_deck():
     m.we_go_first = True
     ctx = _ctx_ub_meowth({m.Ultra_Ball: 1}, lillie_in_deck=0)
     assert _ub_meowth_value(ctx) <= 10
 
 
-def test_ub_si_cava_meowth_en_primer_turno_sin_lillie_en_mano():
+def test_the_ub_does_dig_meowth_on_the_first_turn_with_no_lillie_in_hand():
     """The log's legitimate case: with no Lillie's in hand and copies in the deck,
     the Ultra Ball -> Meowth ex -> Lillie's chain IS set up."""
     m.we_go_first = True
@@ -195,9 +195,9 @@ class _CtxXerosic:
 
 
 @pytest.mark.parametrize("turn, primeros", [(1, True), (2, False)])
-def test_motor_xerosic_no_arranca_en_nuestro_primer_turno(turn, primeros):
+def test_the_xerosic_engine_does_not_start_on_our_first_turn(turn, primeros):
     assert not m._alakazam_dig_xerosic_engine(_CtxXerosic(turn, primeros))
 
 
-def test_motor_xerosic_sigue_activo_en_turnos_posteriores():
+def test_the_xerosic_engine_stays_active_on_later_turns():
     assert m._alakazam_dig_xerosic_engine(_CtxXerosic(4, True))

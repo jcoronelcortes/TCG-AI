@@ -143,20 +143,20 @@ def _scores(obs):
 # 1. The real case: a rival hand of 18
 # ---------------------------------------------------------------------------
 
-def test_con_mano_rival_gigante_el_sello_cede_el_orden_a_xerosic():
+def test_with_a_giant_opponent_hand_the_stamp_yields_the_order_to_xerosic():
     s = _scores(_obs())
     assert s["xerosic"] > 0, s
     assert s["stamp"] <= 0, s
     assert s["xerosic"] > s["stamp"], s
 
 
-def test_el_veto_del_sello_no_lo_resucitan_los_ajustes():
+def test_the_adjustments_do_not_revive_the_stamp_veto():
     """`bonus_matchup` (+400 vs Alakazam) pulled the veto (−1) up to +399."""
     s = _scores(_obs())
     assert s["stamp"] <= 0, s
 
 
-def test_tras_jugar_xerosic_el_sello_se_juega_el_mismo_turno():
+def test_after_playing_xerosic_the_stamp_is_played_the_same_turn():
     """The veto is one of ORDER and auto-revokes: with the Supporter slot already
     spent, the Stamp recovers its normal score."""
     s = _scores(_obs(supporter_played=True))
@@ -184,12 +184,12 @@ def test_bajo_el_umbral_vuelve_la_conducta_antigua():
 # 3. Controls: the veto is about the ORDER, not about the Stamp
 # ---------------------------------------------------------------------------
 
-def test_sin_xerosic_en_mano_el_sello_se_juega_normal():
+def test_with_no_xerosic_in_hand_the_stamp_is_played_normally():
     s = _scores(_obs(without_xerosic=True))
     assert s["stamp"] > 0, s
 
 
-def test_si_xerosic_no_va_a_jugarse_el_sello_no_cede():
+def test_if_xerosic_is_not_going_to_be_played_the_stamp_does_not_yield():
     """Guard of `cede_el_orden_a_xerosic`: if some other rail knocks Xerosic down to
     `XEROSIC_SCORE_LAST_RESORT` (e.g. `alakazam_cede_a_gusteo_ganador`, where
     the turn is decided by a Boss's), the Stamp does not yield the way to anyone."""
@@ -222,7 +222,7 @@ def test_si_xerosic_no_va_a_jugarse_el_sello_no_cede():
     assert visto["stamp"] > 0, visto
 
 
-def test_el_fixture_tiene_de_verdad_las_dos_cartas_y_la_mano_gigante():
+def test_the_fixture_really_has_both_cards_and_the_giant_hand():
     """Without a Stamp + Xerosic in hand and a big rival hand the test measures nothing."""
     o = _obs()
     yo = o["current"]["yourIndex"]

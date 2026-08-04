@@ -114,14 +114,14 @@ def _destino(obs, choice):
 # The record's failure: the target of the charging ABILITY (ATTACH_FROM)
 # ---------------------------------------------------------------------------
 
-def test_la_habilidad_de_carga_pone_la_planta_en_el_activo_atrapado():
+def test_the_charging_ability_puts_the_grass_on_the_trapped_active():
     """The exact case of step 101: the Ripening Charge Grass goes to the ACTIVE
     to pay its retreat, not to a benched body."""
     obs = _escenario().ability_charge_target(bench_idx=1).build()
     assert _destino(obs, m.agent(obs)) == int(m.AreaType.ACTIVE)
 
 
-def test_el_foco_de_ogerpon_no_roba_la_planta_de_la_retirada():
+def test_the_ogerpon_focus_does_not_steal_the_retreat_grass():
     """A direct regression: with a SECOND half-charged Ogerpon, the lethal
     charging focus (41700) took the Grass and left both finishers
     trapped behind the active. While the retreat is not paid for, charging
@@ -133,7 +133,7 @@ def test_el_foco_de_ogerpon_no_roba_la_planta_de_la_retirada():
     assert _destino(obs, m.agent(obs)) == int(m.AreaType.ACTIVE)
 
 
-def test_deck_agnostico_cualquier_rematador_de_banca_sirve():
+def test_deck_agnostic_any_bench_finisher_will_do():
     """The line does not depend on Ogerpon or on its ability: with an already charged
     Tapu Bulu (220 >= 140) the Grass must still go to the ACTIVE."""
     bench = [pk(TAPU, energies=[G] * 4), pk(HYDRAPPLE), pk(MEOWTH)]
@@ -145,7 +145,7 @@ def test_deck_agnostico_cualquier_rematador_de_banca_sirve():
 # The same line through the MANUAL attachment
 # ---------------------------------------------------------------------------
 
-def test_el_adjunte_manual_tambien_va_al_activo_atrapado():
+def test_the_manual_attachment_also_goes_to_the_trapped_active():
     obs = (_escenario(energy_played=False)
            .menu_hand(with_attachment=True).build())
     choice = m.agent(obs)
@@ -185,7 +185,7 @@ def _escenario_meganium(active=None, hand=(GRASS, ULTRA_BALL)):
             .op_zonas(hand=8, deck=20, prizes=5))
 
 
-def test_con_meganium_en_juego_la_planta_sigue_yendo_al_activo_atrapado():
+def test_with_meganium_in_play_the_grass_still_goes_to_the_trapped_active():
     """Regression of episode 88603018 step 106: with Wild Growth active and the
     bench full of charged Ogerpon, the only Grass must pay the retreat of the
     Fezandipiti ex -- not fatten the Meganium."""
@@ -195,12 +195,12 @@ def test_con_meganium_en_juego_la_planta_sigue_yendo_al_activo_atrapado():
     assert o["inPlayArea"] == int(m.AreaType.ACTIVE)
 
 
-def test_con_meganium_el_detector_ve_la_linea_letal():
+def test_with_meganium_the_detector_sees_the_lethal_line():
     obs = _escenario_meganium().menu_hand(with_attachment=True).build()
     assert _detector(obs) == (True, False)
 
 
-def test_con_meganium_el_activo_que_ya_se_retira_no_dispara_la_linea():
+def test_with_meganium_an_active_that_can_already_retreat_does_not_fire_the_line():
     """A detector boundary: with one physical Grass on it, the Fezandipiti ex already
     pays its cost-1 retreat and there is nothing to unlock.
 
@@ -212,7 +212,7 @@ def test_con_meganium_el_activo_que_ya_se_retira_no_dispara_la_linea():
     assert _detector(obs) == (False, False)
 
 
-def test_con_meganium_sin_nada_que_desbloquear_la_planta_vuelve_a_la_banca():
+def test_with_meganium_and_nothing_to_unlock_the_grass_goes_back_to_the_bench():
     """A DESTINATION boundary: the active does not win for being the active. With the
     Fezandipiti ex already able to retreat AND to attack, the Grass unlocks
     nothing and goes back to the normal bench distribution."""
@@ -227,14 +227,14 @@ def test_con_meganium_sin_nada_que_desbloquear_la_planta_vuelve_a_la_banca():
 # Closing the chain: with the energy placed, it retreats and promotes
 # ---------------------------------------------------------------------------
 
-def test_con_la_planta_puesta_el_activo_se_retira():
+def test_with_the_grass_attached_the_active_retreats():
     obs = (_escenario(active=pk(APPLIN, energies=[G]), hand=(ULTRA_BALL,))
            .menu_hand(with_retreat=True).build())
     o = obs["select"]["option"][m.agent(obs)[0]]
     assert o["type"] == int(m.OptionType.RETREAT)
 
 
-def test_al_promover_sube_el_rematador():
+def test_when_promoting_the_finisher_comes_up():
     obs = (_escenario(active=pk(APPLIN, energies=[G]), hand=(ULTRA_BALL,))
            .promote_from_bench().build())
     idx = obs["select"]["option"][m.agent(obs)[0]]["index"]
@@ -258,12 +258,12 @@ def _detector(obs):
         mio, rival, False, total_grass, len(mio.bench), False, False)
 
 
-def test_detector_ve_la_linea_letal():
+def test_the_detector_sees_the_lethal_line():
     obs = _escenario().ability_charge_target(bench_idx=1).build()
     assert _detector(obs) == (True, False)
 
 
-def test_si_el_activo_remata_con_esa_planta_no_se_retira():
+def test_if_the_active_finishes_with_that_grass_it_does_not_retreat():
     """Boundary: attacking with the active comes first. With an active Dipplin whose
     attack (20 x bench) knocks the opponent out, the retreat line does NOT switch on."""
     obs = (_escenario(active=pk(DIPPLIN), op_hp=60)
@@ -271,7 +271,7 @@ def test_si_el_activo_remata_con_esa_planta_no_se_retira():
     assert _detector(obs) == (False, False)
 
 
-def test_sin_rematador_de_banca_no_hay_linea():
+def test_with_no_bench_finisher_there_is_no_line():
     """Boundary: if there is nobody ready on the bench, the Grass has no reason to
     go to the active (there is nothing to promote)."""
     bench = [pk(OGERPON), pk(HYDRAPPLE), pk(MEOWTH)]
@@ -279,7 +279,7 @@ def test_sin_rematador_de_banca_no_hay_linea():
     assert _detector(obs) == (False, False)
 
 
-def test_si_el_activo_ya_paga_su_retirada_no_hay_nada_que_desbloquear():
+def test_if_the_active_can_already_pay_its_retreat_there_is_nothing_to_unlock():
     obs = (_escenario(active=pk(APPLIN, energies=[G]))
            .ability_charge_target(bench_idx=1).build())
     assert _detector(obs) == (False, False)
@@ -314,7 +314,7 @@ def _escenario_88631738(active=None, hand=(GRASS, GRASS, ULTRA_BALL),
             .op_zonas(hand=2, deck=39, prizes=4))
 
 
-def test_88631738_la_habilidad_carga_al_activo_con_el_adjunte_ya_gastado():
+def test_88631738_the_ability_charges_the_active_with_the_attachment_spent():
     """The record's failure: with `energyAttached` set, the only live route is
     Ripening Charge -- and its Grass has to go to the ACTIVE to pay the
     retreat, not to a benched Ogerpon."""
@@ -322,7 +322,7 @@ def test_88631738_la_habilidad_carga_al_activo_con_el_adjunte_ya_gastado():
     assert _destino(obs, m.agent(obs)) == int(m.AreaType.ACTIVE)
 
 
-def test_88631738_con_la_planta_puesta_el_activo_se_retira():
+def test_88631738_with_the_grass_attached_the_active_retreats():
     obs = (_escenario_88631738(active=pk(MEOWTH, hp=50, energies=[G, G],
                                          fisicas=1),
                                hand=(ULTRA_BALL,))
@@ -331,7 +331,7 @@ def test_88631738_con_la_planta_puesta_el_activo_se_retira():
     assert o["type"] == int(m.OptionType.RETREAT)
 
 
-def test_88631738_al_promover_sube_el_hydrapple_que_remata():
+def test_88631738_when_promoting_the_hydrapple_that_finishes_comes_up():
     obs = (_escenario_88631738(active=pk(MEOWTH, hp=50, energies=[G, G],
                                          fisicas=1),
                                hand=(ULTRA_BALL,))
@@ -379,19 +379,19 @@ def _scenario_cost_3(active_e=1, hand=(GRASS, GRASS, ULTRA_BALL),
             .op_zonas(hand=6, deck=20, prizes=3))
 
 
-def test_con_presupuesto_de_una_planta_no_hay_linea():
+def test_with_a_budget_of_one_grass_there_is_no_line():
     """A preserved boundary: if only ONE Grass fits, two symbols of retreat
     are still unreachable."""
     obs = _scenario_cost_3().menu_hand(with_attachment=True).build()
     assert _detector_presupuesto(obs, 1) == (False, False)
 
 
-def test_con_presupuesto_de_dos_plantas_el_detector_ve_la_linea():
+def test_with_a_budget_of_two_grass_the_detector_sees_the_line():
     obs = _scenario_cost_3().menu_hand(with_attachment=True).build()
     assert _detector_presupuesto(obs, 2) == (True, False)
 
 
-def test_el_adjunte_manual_abre_la_retirada_de_dos_simbolos():
+def test_the_manual_attachment_opens_a_two_symbol_retreat():
     """The complete chain, step 1: with the manual attachment free and a benched
     Hydrapple ex (Ripening Charge) the 3-symbol retreat is payable, so the
     first Grass goes to the ACTIVE -- not to fatten the bench."""
@@ -401,7 +401,7 @@ def test_el_adjunte_manual_abre_la_retirada_de_dos_simbolos():
     assert o["inPlayArea"] == int(m.AreaType.ACTIVE)
 
 
-def test_la_habilidad_remata_la_segunda_planta_en_el_activo():
+def test_the_ability_completes_the_second_grass_on_the_active():
     """Step 2: with the attachment already spent and the active one Grass from the cost,
     Ripening Charge points at the ACTIVE again."""
     obs = (_scenario_cost_3(active_e=2, hand=(GRASS, ULTRA_BALL),
@@ -410,7 +410,7 @@ def test_la_habilidad_remata_la_segunda_planta_en_el_activo():
     assert _destino(obs, m.agent(obs)) == int(m.AreaType.ACTIVE)
 
 
-def test_sin_plantas_suficientes_en_la_mano_no_se_abre_la_linea():
+def test_without_enough_grass_in_hand_the_line_does_not_open():
     """The budget is bounded by the HAND: with a single Grass a retreat of two
     cannot be paid for, and the energy is not wasted on the trapped active."""
     obs = (_scenario_cost_3(hand=(GRASS, ULTRA_BALL))
@@ -423,7 +423,7 @@ def test_sin_plantas_suficientes_en_la_mano_no_se_abre_la_linea():
 WATCHTOWER = m.Team_Rockets_Watchtower   # it switches our charging abilities off
 
 
-def test_con_las_habilidades_apagadas_el_presupuesto_vuelve_a_una_planta():
+def test_with_the_abilities_off_the_budget_drops_back_to_one_grass():
     """A budget boundary: with Team Rocket's Watchtower on the field, Ripening
     Charge is switched off, so the second route does NOT exist and the first Grass must
     not be left stranded on an active that will still be unable to retreat."""

@@ -107,7 +107,7 @@ def _load_in_subprocess(main_py, load_cwd, cwd_decision, tmp_path, etiqueta):
 # ===========================================================================
 # I1b -- the entry point
 # ===========================================================================
-def test_el_cargador_de_kaggle_se_queda_con_agent(tmp_path):
+def test_the_kaggle_loader_keeps_agent(tmp_path):
     """The LAST callable of main.py has to be `agent`.
 
     If this fails, something binds a new callable after `def agent` (a
@@ -123,7 +123,7 @@ def test_el_cargador_de_kaggle_se_queda_con_agent(tmp_path):
     )
 
 
-def test_main_no_es_un_modulo_para_el_contenedor(tmp_path):
+def test_main_is_not_a_module_for_the_container(tmp_path):
     """I1c: after the exec, `main` is NOT in sys.modules.
 
     It freezes the reason why no submodule of one of our packages can
@@ -138,7 +138,7 @@ def test_main_no_es_un_modulo_para_el_contenedor(tmp_path):
 # ===========================================================================
 # packaging -- what main.py imports has to travel
 # ===========================================================================
-def test_la_submission_incluye_los_paquetes_que_main_importa(tmp_path):
+def test_the_submission_includes_the_packages_main_imports(tmp_path):
     """Every local package imported by main.py appears in the tar."""
     destino = tmp_path / "submission.tar.gz"
     incluidos = ep.build(destino=destino)
@@ -166,7 +166,7 @@ def test_la_submission_no_lleva_pycache(tmp_path):
 # ===========================================================================
 # I1a / I1c -- end-to-end: package, unpack and DECIDE
 # ===========================================================================
-def test_la_submission_empaquetada_decide_igual_que_el_arbol(tmp_path):
+def test_the_packaged_submission_decides_like_the_tree(tmp_path):
     """It packages, unpacks into a clean dir, loads with the real loader and
     compares the decision with that of the working tree's main.py.
 
@@ -202,7 +202,7 @@ def test_la_submission_empaquetada_decide_igual_que_el_arbol(tmp_path):
 # ===========================================================================
 # I3 -- the facade: what the suite consumes from `main` still exists
 # ===========================================================================
-def test_main_reexporta_lo_que_la_suite_consume():
+def test_main_reexports_what_the_suite_consumes():
     """Every `m.<something>` the tests use has to keep resolving.
 
     The refactor moved ~15,000 lines to `ptcg/`, and `main.py` re-exports them. This
@@ -226,7 +226,7 @@ def test_main_reexporta_lo_que_la_suite_consume():
     assert not faltan, f"main.py dejo de reexportar: {faltan}"
 
 
-def test_agent_es_lo_ultimo_del_modulo():
+def test_agent_is_the_last_thing_in_the_module():
     """I1b, also checked STATICALLY.
 
     `tests/test_arquitectura.py` already watches it with the linter and the smoke test above

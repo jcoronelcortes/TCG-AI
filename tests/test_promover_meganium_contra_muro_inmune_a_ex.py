@@ -117,7 +117,7 @@ def _promovido(obs, accion):
 # 1. The scenario: without it, the test measures nothing
 # ---------------------------------------------------------------------------
 
-def test_el_fixture_es_la_promocion_forzada_con_el_crustle_a_rematar():
+def test_the_fixture_is_the_forced_promotion_with_the_crustle_one_blow_away():
     o = _obs()
     yo = o["current"]["yourIndex"]
     mio = o["current"]["players"][yo]
@@ -144,7 +144,7 @@ def test_el_fixture_es_la_promocion_forzada_con_el_crustle_a_rematar():
     assert any(b["id"] == FEZ for b in mio["bench"])
 
 
-def test_la_habilidad_del_crustle_anula_el_dano_de_nuestros_ex():
+def test_the_crustle_ability_cancels_the_damage_of_our_ex():
     """Why bringing up an ex gives away the turn: Mysterious Rock Inn."""
     o = _obs()
     m.agent(_obs())  # it leaves the global state in sync with the board
@@ -156,7 +156,7 @@ def test_la_habilidad_del_crustle_anula_el_dano_de_nuestros_ex():
 # 2. The decision
 # ---------------------------------------------------------------------------
 
-def test_promueve_meganium_y_no_el_ex_mudo():
+def test_it_promotes_meganium_not_the_mute_ex():
     o = _obs()
     accion = m.agent(_obs())
     pk = _promovido(o, accion)
@@ -165,7 +165,7 @@ def test_promueve_meganium_y_no_el_ex_mudo():
         "SI puede rematar el proximo turno, no un ex que hace 0")
 
 
-def test_no_sube_ni_ogerpon_ni_fezandipiti_ni_chikorita():
+def test_it_brings_up_neither_ogerpon_nor_fezandipiti_nor_chikorita():
     o = _obs()
     accion = m.agent(_obs())
     assert accion != [_opt_de(o, lambda b: b["id"] == OGERPON)]
@@ -178,7 +178,7 @@ def test_no_sube_ni_ogerpon_ni_fezandipiti_ni_chikorita():
 # 3. The limits of the rule
 # ---------------------------------------------------------------------------
 
-def test_sin_la_planta_en_mano_meganium_no_llega_y_no_se_fuerza():
+def test_with_no_grass_in_hand_meganium_does_not_get_there_and_is_not_forced():
     """Control: with the Grass removed from hand, Meganium stays at 2/4 -- it does not
     attack even tomorrow --, so the Meganium line's veto rules again and
     the promotion does not pick it."""
@@ -191,7 +191,7 @@ def test_sin_la_planta_en_mano_meganium_no_llega_y_no_se_fuerza():
     assert _promovido(o, accion)["id"] != MEGANIUM
 
 
-def test_sin_el_muro_inmune_delante_la_promocion_no_cambia_de_criterio():
+def test_without_the_immune_wall_in_front_the_promotion_keeps_its_criterion():
     """Control: with the Mega Kangaskhan ex active (it does not make our ex immune)
     the non-ex attacker bonus does not even apply; the promotion goes back to the
     general logic and is not dragged along by this fix."""

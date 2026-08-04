@@ -104,21 +104,21 @@ def _elige(obs):
     return obs["select"]["option"][m.agent(obs)[0]]["type"]
 
 
-def test_el_ex_a_30_pv_no_se_esconde_del_shadow_bullet():
+def test_the_ex_at_30_hp_cannot_hide_from_shadow_bullet():
     """With the sniper IN FRONT, retreating gives away the third prize: we hold."""
     obs = _turn_close(opponent_active="grimmsnarl", hp_ogerpon=30)
     assert m.OP_BENCH_SNIPE_DAMAGE[GRIMMSNARL] >= 30, "el snipe alcanza los 30 PV"
     assert _elige(obs) == int(m.OptionType.END)
 
 
-def test_con_vida_por_encima_del_snipe_el_repliegue_sigue_vivo():
+def test_with_life_above_the_snipe_the_retreat_stays_alive():
     """Control: the SAME board with the ex at 60 HP -- the 30 snipe no longer
     kills it on the bench -- retreats again and sacrifices the 1-prize body."""
     obs = _turn_close(opponent_active="grimmsnarl", hp_ogerpon=60)
     assert _elige(obs) == int(m.OptionType.RETREAT)
 
 
-def test_con_un_atacante_sin_snipe_delante_se_repliega():
+def test_with_a_non_sniping_attacker_in_front_it_retreats():
     """Control: Morgrem (60 damage, no snipe) also dooms the 30 HP ex,
     but does not reach the bench -> hiding it DOES deny the prize."""
     obs = _turn_close(opponent_active="morgrem", hp_ogerpon=30)

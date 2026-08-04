@@ -45,7 +45,7 @@ def test_torneo_minimo_alterna_asientos(instancias):
     assert stats["errores_candidato"] == 0 and stats["errores_base"] == 0
 
 
-def test_partida_vs_bot_rival(instancias):
+def test_a_game_against_the_generic_bot(instancias):
     # The generic bot pilots the harvested opposing deck: the game finishes and
     # NOBODY loses by forfeit (every choice of the bot is legal).
     a, _ = instancias
@@ -75,7 +75,7 @@ def test_wilson_95():
 # cannot arbitrate a change. The prizes do grade it: a 4-6 loss and a 0-6 one
 # are the same line on the scoreboard and a very different thing.
 
-def test_la_partida_reporta_premios_tomados(instancias):
+def test_the_game_reports_the_prizes_taken(instancias):
     a, b = instancias
     r = sp.play_game(a, b)
     p = r["premios_tomados"]
@@ -103,7 +103,7 @@ def test_el_pico_no_se_toma_de_battle_start(instancias):
     assert sp._prizes_taken([6, 6], [6, 6]) == [0, 0]
 
 
-def test_el_torneo_agrega_premios_por_agente(instancias):
+def test_the_tournament_aggregates_prizes_per_agent(instancias):
     a, b = instancias
     stats = sp.torneo(a, b, 2)
     assert stats["partidas_con_premios"] == 2

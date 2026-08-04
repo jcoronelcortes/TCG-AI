@@ -121,7 +121,7 @@ def test_paso67_la_night_stretcher_recupera_el_meowth_no_el_meganium():
     assert _card_from_discard(obs_list[-1], choice) == MEOWTH
 
 
-def test_el_menu_ofrecia_de_verdad_las_dos_cartas():
+def test_the_menu_really_offered_both_cards():
     """Without Meowth ex AND Meganium in the discard the test discriminates nothing."""
     obs = _observaciones()[-1]
     yo = obs["current"]["yourIndex"]
@@ -133,7 +133,7 @@ def test_el_menu_ofrecia_de_verdad_las_dos_cartas():
     assert MEGANIUM in ofrecidas, ofrecidas
 
 
-def test_el_paso66_si_juega_la_night_stretcher():
+def test_step66_does_play_the_night_stretcher():
     """The chain starts by playing the card: if step 66 ended the turn,
     step 67 would never exist."""
     obs = _observaciones()[0]
@@ -147,7 +147,7 @@ def test_el_paso66_si_juega_la_night_stretcher():
 # 2. The dead-turn detector, in isolation
 # ---------------------------------------------------------------------------
 
-def test_el_turno_esta_muerto_en_ataque():
+def test_the_turn_is_dead_in_attack_terms():
     """Ogerpon ex asks for 3 effective energy and has 0; Teal Dance only puts 1.
     Dipplin (1) and Bayleef (2) are at 0 and the active does not pay its retreat."""
     obs_list = _observaciones()
@@ -162,7 +162,7 @@ def test_el_turno_esta_muerto_en_ataque():
     assert m._no_attack_today(my_state, obs.current, field) is True
 
 
-def test_una_energia_en_el_bayleef_resucita_el_turno():
+def test_one_energy_on_the_bayleef_revives_the_turn():
     """The detector is not "there is no attacker": it is "nobody gets there TODAY". With the
     Bayleef at 1 effective energy, ONE more Grass puts it at 2 = its cost, so
     the turn is NO longer dead (even if it still cannot be brought up)."""
@@ -189,7 +189,7 @@ def test_una_energia_en_el_bayleef_resucita_el_turno():
 # 3. What is NOT broken
 # ---------------------------------------------------------------------------
 
-def test_con_lillie_ya_en_la_mano_el_motor_no_dispara():
+def test_with_a_lillie_already_in_hand_the_engine_does_not_fire():
     """Meowth ex is worth the Supporter it searches for. If the Supporter is ALREADY in
     hand there is nothing to search for and the recovery goes back to development."""
     obs_list = _observaciones()
@@ -202,7 +202,7 @@ def test_con_lillie_ya_en_la_mano_el_motor_no_dispara():
     assert _card_from_discard(fetch, m.agent(fetch)) == MEGANIUM
 
 
-def test_con_el_supporter_del_turno_ya_jugado_el_motor_no_dispara():
+def test_with_the_turn_supporter_already_played_the_engine_does_not_fire():
     """With no Supporter slot, the Last-Ditch brings an unplayable card: the
     engine produces nothing and development recovers the priority."""
     obs_list = _observaciones()
@@ -212,7 +212,7 @@ def test_con_el_supporter_del_turno_ya_jugado_el_motor_no_dispara():
     assert _card_from_discard(fetch, m.agent(fetch)) == MEGANIUM
 
 
-def test_con_la_banca_llena_el_motor_no_dispara():
+def test_with_a_full_bench_the_engine_does_not_fire():
     """The recovered Meowth ex has to be PLAYABLE this turn."""
     obs_list = _observaciones()
     m.agent(obs_list[0])

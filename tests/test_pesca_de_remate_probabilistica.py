@@ -135,7 +135,7 @@ def _spy_on_fishing(monkeypatch):
 # The board: that the finisher really existed, measured with the engine
 # ---------------------------------------------------------------------------
 
-def test_el_remate_existia_myriad_con_tres_energias_noquea_al_grimmsnarl():
+def test_the_finisher_existed_myriad_with_three_energies_knocks_out_the_grimmsnarl():
     obs = m.to_observation_class(_fixture())
     st = obs.current
     yo, rival = st.players[0], st.players[1]
@@ -159,7 +159,7 @@ def test_el_remate_existia_myriad_con_tres_energias_noquea_al_grimmsnarl():
     assert damage == 360 >= (opa.hp or 0), "debilidad Planta: 180 x 2"
 
 
-def test_el_gusteo_degrada_el_objetivo_del_remate():
+def test_the_gust_downgrades_the_finisher_target():
     """Myriad scales with the energy of BOTH actives: bringing up the bare Snorunt
     swaps a hit of 360 for one of 120."""
     obs = m.to_observation_class(_fixture())
@@ -179,7 +179,7 @@ def test_el_gusteo_degrada_el_objetivo_del_remate():
 # The hypergeometric
 # ---------------------------------------------------------------------------
 
-def test_prob_al_menos_reproduce_el_63_por_ciento_del_registro():
+def test_prob_at_least_reproduces_the_63_percent_of_the_record():
     # The record's reality: 10 live Grass in the 42-card deck (38 + the 4 that
     # Lillie's shuffles back), drawing 8.
     assert m._prob_al_menos(10, 42, 8, 2) == pytest.approx(0.6257, abs=1e-4)
@@ -190,7 +190,7 @@ def test_prob_al_menos_reproduce_el_63_por_ciento_del_registro():
     assert m._prob_al_menos(11, 48, 8, 2) == pytest.approx(0.5976, abs=1e-4)
 
 
-def test_prob_al_menos_fronteras():
+def test_prob_at_least_boundaries():
     assert m._prob_al_menos(0, 40, 8, 1) == 0.0        # no outs
     assert m._prob_al_menos(10, 40, 8, 0) == 1.0       # nothing is needed
     assert m._prob_al_menos(1, 40, 8, 2) == 0.0        # fewer copies than k
@@ -198,7 +198,7 @@ def test_prob_al_menos_fronteras():
     assert m._prob_al_menos(40, 40, 8, 8) == 1.0       # the whole deck is outs
 
 
-def test_el_robo_de_lillie_es_ocho_solo_con_los_seis_premios():
+def test_the_lillie_draw_is_eight_only_with_all_six_prizes():
     assert m._lillie_draw_count(6) == 8
     assert m._lillie_draw_count(5) == 6
     assert m._lillie_draw_count(1) == 6
@@ -208,7 +208,7 @@ def test_el_robo_de_lillie_es_ocho_solo_con_los_seis_premios():
 # The real decision of step 49
 # ---------------------------------------------------------------------------
 
-def test_paso49_pesca_dos_cartas_por_dos_premios(monkeypatch):
+def test_step49_fishes_two_cards_for_two_prizes(monkeypatch):
     capturado = _spy_on_fishing(monkeypatch)
     m.agent(_fixture())
     plan = capturado["plan"]
@@ -225,7 +225,7 @@ def test_paso49_pesca_dos_cartas_por_dos_premios(monkeypatch):
     assert plan.prob == pytest.approx(0.5976, abs=1e-4)
 
 
-def test_paso49_juega_lillie_para_pescar_no_boss():
+def test_step49_plays_lillie_to_fish_not_boss():
     obs = _fixture()
     choice = m.agent(obs)
     assert choice == [_idx_play_of(obs, LILLIE)], (
@@ -233,7 +233,7 @@ def test_paso49_juega_lillie_para_pescar_no_boss():
         "distancia, el hueco de Supporter es de Lillie's")
 
 
-def test_paso49_contrafactual_sin_pesca_vuelve_a_gustear(monkeypatch):
+def test_step49_counterfactual_with_no_fishing_it_gusts_again(monkeypatch):
     """Control: if the fishing is not measured (an unreachable threshold), the
     Boss's of the record reappears. It is the change the rule introduces, not another."""
     patch_name(monkeypatch, "FISHING_PROB_MIN", 1.1)
@@ -298,14 +298,14 @@ def _escenario_paso49(grass_in_deck=10, grass_in_hand=0, with_attachment=False):
     return obs
 
 
-def test_sintetico_reproduce_la_decision_real(monkeypatch):
+def test_synthetic_reproduces_the_real_decision(monkeypatch):
     capturado = _spy_on_fishing(monkeypatch)
     obs = _escenario_paso49()
     assert m.agent(obs) == [_idx_play_of(obs, LILLIE)]
     assert capturado["plan"].prizes == 2
 
 
-def test_con_el_mazo_seco_de_plantas_la_pesca_no_pisa_los_vetos(monkeypatch):
+def test_with_the_deck_dry_of_grass_the_fishing_does_not_override_the_vetoes(monkeypatch):
     """Boundary: with a single live Grass the draw canNOT bring the two that
     are missing (prob 0) and the refill loses its privilege."""
     capturado = _spy_on_fishing(monkeypatch)
@@ -359,7 +359,7 @@ def test_la_pesca_exitosa_se_convierte_en_ataque():
             == int(m.OptionType.ATTACK))
 
 
-def test_con_la_energia_ya_en_mano_no_se_baraja_la_mano(monkeypatch):
+def test_with_the_energy_already_in_hand_the_hand_is_not_shuffled(monkeypatch):
     """A critical control: if the HAND already brings the 2 missing Grass, playing
     Lillie's would return them to the deck. There is NO fishing there: it charges."""
     capturado = _spy_on_fishing(monkeypatch)

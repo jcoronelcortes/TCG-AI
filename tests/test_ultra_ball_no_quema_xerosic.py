@@ -84,7 +84,7 @@ def _id_de_opcion(obs, idx):
 # The log's failure, reproduced as it stands
 # ---------------------------------------------------------------------------
 
-def test_paso_56_juega_xerosic_y_no_la_ultra_ball():
+def test_step_56_plays_xerosic_not_the_ultra_ball():
     obs = _fixture_obs()
     hand = [c["id"] for c in obs["current"]["players"][0]["hand"]]
     assert sorted(hand) == sorted([m.Dawn, m.Xerosic_Machinations, m.Ultra_Ball])
@@ -138,7 +138,7 @@ class _Ctx:
             "active": [self._Poke(m.Alakazam_ex, 140)]})()
 
 
-def test_veto_con_la_mano_del_log():
+def test_the_veto_with_the_hand_from_the_log():
     """{Dawn, Xerosic, Ultra Ball}: there is NO fodder (0 < 2).
 
     The Dawn does not count either: with the turn's Supporter free and a single refresh
@@ -154,7 +154,7 @@ def test_veto_con_la_mano_del_log():
     assert m._ub_cost_destroys_better_card(ctx)
 
 
-def test_no_veta_si_hay_forraje_de_sobra():
+def test_no_veto_when_there_is_fodder_to_spare():
     """With 2 filler energies the Ultra Ball is paid for without touching the Xerosic:
     an Item and a Supporter coexist in the same turn."""
     ctx = _Ctx({m.Xerosic_Machinations: 1, m.Ultra_Ball: 1,
@@ -163,13 +163,13 @@ def test_no_veta_si_hay_forraje_de_sobra():
     assert not m._ub_cancel_xerosic(ctx)
 
 
-def test_no_veta_si_el_supporter_del_turno_ya_se_jugo():
+def test_no_veto_once_the_turn_supporter_has_been_played():
     ctx = _Ctx({m.Dawn: 1, m.Xerosic_Machinations: 1, m.Ultra_Ball: 1},
                supporter_played=True)
     assert not m._ub_cancel_xerosic(ctx)
 
 
-def test_no_veta_si_la_mano_rival_ya_esta_capada():
+def test_no_veto_if_the_opponent_hand_is_already_capped():
     """With the rival at 3 cards Xerosic takes nothing away: there is nothing to protect
     (the same gate as the Supporter's scorer)."""
     ctx = _Ctx({m.Dawn: 1, m.Xerosic_Machinations: 1, m.Ultra_Ball: 1},
@@ -177,7 +177,7 @@ def test_no_veta_si_la_mano_rival_ya_esta_capada():
     assert not m._ub_cancel_xerosic(ctx)
 
 
-def test_no_veta_fuera_del_matchup_alakazam():
+def test_no_veto_outside_the_alakazam_matchup():
     """With no Alakazam across the table and a normal rival hand (< 7) the Xerosic does not
     score above the last resort: the Ultra Ball rules."""
     ctx = _Ctx({m.Dawn: 1, m.Xerosic_Machinations: 1, m.Ultra_Ball: 1},
@@ -185,7 +185,7 @@ def test_no_veta_fuera_del_matchup_alakazam():
     assert not m._ub_cancel_xerosic(ctx)
 
 
-def test_sin_xerosic_en_mano_no_hay_veto():
+def test_with_no_xerosic_in_hand_there_is_no_veto():
     ctx = _Ctx({m.Dawn: 1, m.Lillie_Determination: 1, m.Ultra_Ball: 1})
     assert not m._ub_cancel_xerosic(ctx)
 
@@ -194,7 +194,7 @@ def test_sin_xerosic_en_mano_no_hay_veto():
 # Extracting `_ub_forraje_real` does not change the Lillie's veto
 # ---------------------------------------------------------------------------
 
-def test_forraje_real_respeta_las_piezas_de_evolucion():
+def test_real_fodder_respects_the_evolution_pieces():
     """A Meganium with its Bayleef in play is NOT fodder: the DISCARD scorer
     keeps it and lets the Supporter go in its place."""
     ctx = _Ctx({m.Meganium: 1, m.Basic_Grass_Energy: 1,

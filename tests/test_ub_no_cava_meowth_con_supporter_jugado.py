@@ -144,19 +144,19 @@ def _reproducir(obs_list):
 # 1. The real turn: it attacks instead of chaining two Ultra Balls
 # ---------------------------------------------------------------------------
 
-def test_paso98_ataca_en_vez_de_cavar_un_meowth_que_no_se_puede_jugar():
+def test_step98_attacks_instead_of_digging_a_meowth_it_cannot_play():
     hecho = _reproducir(_observaciones())
     assert hecho[16] == ("ATTACK", SYRUP_STORM), hecho[16]
 
 
-def test_paso101_la_segunda_ultra_ball_tampoco_se_juega():
+def test_step101_the_second_ultra_ball_is_not_played_either():
     """The real log repeats the mistake: with the 1st Ultra Ball already spent the menu
     offers Ultra Ball / Meowth ex / attack again, and it dug once more."""
     hecho = _reproducir(_observaciones())
     assert hecho[19] == ("ATTACK", SYRUP_STORM), hecho[19]
 
 
-def test_el_menu_ofrecia_de_verdad_las_dos_jugadas():
+def test_the_menu_really_offered_both_plays():
     """Without the Ultra Ball AND the attack in the menu the test discriminates nothing."""
     for tac in (16, 19):
         plays = _plays(_by_action(_observaciones())[tac])
@@ -168,7 +168,7 @@ def test_el_menu_ofrecia_de_verdad_las_dos_jugadas():
 # 2. The three links, one by one
 # ---------------------------------------------------------------------------
 
-def test_el_fetch_no_elige_meowth_con_el_supporter_del_turno_jugado():
+def test_the_fetch_does_not_pick_meowth_with_the_turn_supporter_played():
     """If an Ultra Ball were played even so, the fetch does NOT bring a Meowth ex: its
     Last-Ditch cannot produce a playable Supporter this turn."""
     obs_list = _observaciones()
@@ -181,7 +181,7 @@ def test_el_fetch_no_elige_meowth_con_el_supporter_del_turno_jugado():
     assert hecho[21] == ("CARTA", CHIKORITA), hecho[21]
 
 
-def test_la_ultra_ball_inutil_queda_por_debajo_del_piso_de_veto():
+def test_the_useless_ultra_ball_falls_below_the_veto_floor():
     """SCORE_CANCEL, not SCORE_VETO: if it tied with the attack (-1) the
     menu index tie-break would play the Ultra Ball again."""
     visto = {}
@@ -204,7 +204,7 @@ def test_la_ultra_ball_inutil_queda_por_debajo_del_piso_de_veto():
             assert score < m.SCORE_VETO, (tac, score)
 
 
-def test_la_red_anti_turno_esteril_no_dispara_con_un_ataque_real():
+def test_the_anti_sterile_turn_net_does_not_fire_with_a_real_attack():
     """The link that resurrected the vetoed Ultra Ball at 200: a turn that ends
     with a 210 Syrup Storm is not a dead turn."""
     obs16 = _by_action(_observaciones())[16]
@@ -219,7 +219,7 @@ def test_la_red_anti_turno_esteril_no_dispara_con_un_ataque_real():
 #    the fetch's target
 # ---------------------------------------------------------------------------
 
-def test_con_el_supporter_libre_el_fetch_sigue_eligiendo_meowth():
+def test_with_the_supporter_free_the_fetch_still_picks_meowth():
     """The new rule is a CONDITIONAL veto, not a prohibition: the same
     search menu with `supporterPlayed` False brings Meowth ex back
     (the UB -> Meowth -> Last-Ditch -> Lillie's engine)."""

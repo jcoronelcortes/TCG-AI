@@ -129,14 +129,14 @@ def _elegido(obs):
 # Item 4 - MATCH POINT
 # ---------------------------------------------------------------------------
 
-def test_el_veto_de_match_point_esta_por_debajo_de_los_demas_vetos():
+def test_the_match_point_veto_sits_below_the_other_vetoes():
     """If it tied with SCORE_NEVER, the tie-break would be left to the option order
     right between the body that survives and the one that makes us lose."""
     assert m.PROMO_MATCH_POINT_VETO < m.SCORE_NEVER
     assert m.PROMO_MATCH_POINT_VETO < -m.PROMO_KO_BONUS
 
 
-def test_prefiere_el_motor_vetado_antes_que_regalar_el_ultimo_premio():
+def test_it_prefers_the_vetoed_engine_over_giving_away_the_last_prize():
     """The real case without the Tapu Bulu: the only survivor is the Meganium,
     which carries its own veto for being the Wild Growth multiplier."""
     o = _base()
@@ -152,7 +152,7 @@ def test_prefiere_el_motor_vetado_antes_que_regalar_el_ultimo_premio():
     assert _elegido(o)["id"] == MEGANIUM
 
 
-def test_sin_match_point_el_condenado_sigue_siendo_una_opcion():
+def test_without_match_point_the_doomed_body_is_still_an_option():
     """Boundary: with the rival at 3 prizes, a KO does not close the game and the
     penalty rules again (which is graduable), not the veto."""
     o = _base()
@@ -165,7 +165,7 @@ def test_sin_match_point_el_condenado_sigue_siendo_una_opcion():
     assert _elegido(o)["id"] == DIPPLIN
 
 
-def test_si_no_aguanta_nadie_no_se_veta_la_banca_entera():
+def test_if_nobody_survives_the_whole_bench_is_not_vetoed():
     """Boundary: with no survivors the game is lost anyway and the prize rule
     rules; vetoing everyone would leave the choice to chance."""
     o = _base(bench=[_pk(DIPPLIN, 80, 2, 901), _pk(CHIKORITA, 70, 0, 902)],
@@ -201,7 +201,7 @@ def test_match_point_es_deck_agnostico():
 # Item 5 - the tie-break among survivors
 # ---------------------------------------------------------------------------
 
-def test_entre_supervivientes_manda_estar_cerca_de_atacar_y_ceder_menos():
+def test_among_survivors_being_close_to_attacking_and_giving_less_away_rules():
     """A 140 HP Tapu Bulu TWO attachments away from Wood Hammer (1 prize) comes up
     ahead of a 210 HP Ogerpon ex THREE away from Myriad (2 prizes), even with
     70 HP less: life is the criterion of LAST resort."""
@@ -221,13 +221,13 @@ def test_entre_supervivientes_manda_estar_cerca_de_atacar_y_ceder_menos():
     assert m.prize_count(bench[1]) < m.prize_count(bench[0])
 
 
-def test_el_desempate_no_puede_comprar_una_regla_decisiva():
+def test_the_tiebreak_cannot_outbid_a_decisive_rule():
     """Bounded to 0..450: below the +4000 of the best attacker, of the named
     branches (8000-9500) and of the +20000 of the one that knocks out."""
     assert 450 < 4000 < m.PROMO_KO_BONUS
 
 
-def test_el_desempate_no_cambia_la_decision_del_registro():
+def test_the_tiebreak_does_not_change_the_recorded_decision():
     """A non-regression control: step 117 still brings up the Tapu Bulu."""
     o = _base()
     assert _elegido(o)["id"] == TAPU

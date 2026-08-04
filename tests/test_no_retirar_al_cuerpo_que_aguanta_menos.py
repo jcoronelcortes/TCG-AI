@@ -97,7 +97,7 @@ def _opcion(obs, tipo):
 # 1. The scenario: without it, the test measures nothing
 # ---------------------------------------------------------------------------
 
-def test_el_fixture_es_el_cambio_por_el_cuerpo_de_50pv():
+def test_the_fixture_is_the_swap_for_the_50hp_body():
     o = _obs()
     yo = o["current"]["yourIndex"]
     mio = o["current"]["players"][yo]
@@ -126,7 +126,7 @@ def test_el_fixture_es_el_cambio_por_el_cuerpo_de_50pv():
     assert (m.attack_table[m.card_table[KADABRA].attacks[0]].damage or 0) == 30
 
 
-def test_no_se_retira_el_ogerpon_sano():
+def test_the_healthy_ogerpon_does_not_retreat():
     o = _obs()
     retreat = _opcion(o, int(m.OptionType.RETREAT))
     assert m.agent(o) != [retreat], (
@@ -138,7 +138,7 @@ def test_no_se_retira_el_ogerpon_sano():
 # 2. The margin: what decides, measured on the real board
 # ---------------------------------------------------------------------------
 
-def test_el_activo_aguanta_nueve_veces_mas_que_el_candidato():
+def test_the_active_survives_nine_times_more_than_the_candidate():
     o = _obs()
     cur = m.to_observation_class(o).current
     yo = o["current"]["yourIndex"]

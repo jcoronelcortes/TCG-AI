@@ -99,7 +99,7 @@ def _id_de_opcion(obs, idx):
 # The log's failure, reproduced as it stands
 # ---------------------------------------------------------------------------
 
-def test_paso_50_juega_el_xerosic_y_no_la_segunda_ultra_ball():
+def test_step_50_plays_the_xerosic_not_the_second_ultra_ball():
     obs = _fixture_obs()
     cur = obs["current"]
     yo = cur["players"][cur["yourIndex"]]
@@ -159,7 +159,7 @@ def test_el_dawn_protegido_tampoco_es_forraje():
     assert m._ub_real_fodder(ctx, m.Xerosic_Machinations) == 1
 
 
-def test_con_el_supporter_del_turno_ya_jugado_si_es_forraje():
+def test_with_the_turn_supporter_already_played_it_is_fodder():
     """Once the Supporter is played, the Lillie's loses its refresh protection and
     goes back to being discardable: the veto must not freeze forever."""
     ctx = _Ctx({m.Boss_Orders: 1, m.Lillie_Determination: 1,
