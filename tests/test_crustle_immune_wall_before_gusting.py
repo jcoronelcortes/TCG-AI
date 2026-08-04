@@ -205,7 +205,7 @@ def test_boundary_a_winning_gust_rules_over_the_wall():
 # ---------------------------------------------------------------------------
 
 def test_the_scorer_vetoes_boss_with_a_knockable_wall():
-    from test_main import _make_boss_ctx  # a shared helper of the scorer
+    from main_support import _make_boss_ctx  # a shared helper of the scorer
 
     veto = m._score_boss_orders_play(
         _make_boss_ctx(op_is_crustle_deck=True, op_has_ex_immune_active=True,

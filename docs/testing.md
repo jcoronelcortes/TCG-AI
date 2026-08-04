@@ -115,3 +115,17 @@ test goes red, then remove it.
 ---
 
 Next: [Debugging a decision](debugging.md) · [Improving the agent](improving-the-agent.md)
+
+## The main.py regression log
+
+`main.py`'s own regressions used to live in one 9 500-line file. They are now
+`tests/test_main_units.py` (unit tests of the helpers: damage, tracking, the
+belief, the pure scorers) and `tests/test_main_regressions_1..8.py`, with
+`tests/main_support.py` holding what more than one slice needs.
+
+The split is **chronological, not thematic**, and that is on purpose: the file
+grew by appending a test each time a game was lost, so neighbouring tests come
+from the same session and often explain each other. Grouping them by matchup
+would have meant reordering them, and the order is itself information. To find
+the test for a rule, grep the rule's label or the card's name -- the names say
+what they claim.

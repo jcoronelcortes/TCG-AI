@@ -182,7 +182,7 @@ def test_relief_only_swaps_an_attacker_for_a_non_attacker():
 # ---------------------------------------------------------------------------
 
 def _boss_ctx(**over):
-    from test_main import _make_boss_ctx
+    from main_support import _make_boss_ctx
     return _make_boss_ctx(**over)
 
 
