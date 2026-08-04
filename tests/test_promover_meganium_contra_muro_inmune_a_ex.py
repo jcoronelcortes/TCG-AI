@@ -104,9 +104,9 @@ def _banca(obs):
 
 
 def _opt_de(obs, pred):
-    banca = _banca(obs)
+    bench = _banca(obs)
     return next(i for i, o in enumerate(obs["select"]["option"])
-                if pred(banca[o["index"]]))
+                if pred(bench[o["index"]]))
 
 
 def _promovido(obs, accion):

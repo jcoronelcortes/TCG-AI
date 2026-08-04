@@ -86,8 +86,8 @@ def _id_de_opcion(obs, idx):
 
 def test_paso_56_juega_xerosic_y_no_la_ultra_ball():
     obs = _fixture_obs()
-    mano = [c["id"] for c in obs["current"]["players"][0]["hand"]]
-    assert sorted(mano) == sorted([m.Dawn, m.Xerosic_Machinations, m.Ultra_Ball])
+    hand = [c["id"] for c in obs["current"]["players"][0]["hand"]]
+    assert sorted(hand) == sorted([m.Dawn, m.Xerosic_Machinations, m.Ultra_Ball])
     assert obs["current"]["supporterPlayed"] is False
     assert obs["current"]["players"][1]["handCount"] == 11
 
@@ -115,7 +115,7 @@ class _Ctx:
             self.energies = []
 
     def __init__(self, hand, op_hand=11, supporter_played=False,
-                 alakazam=True, campo=None, mazo=None):
+                 alakazam=True, campo=None, deck=None):
         self.hand_counts = dict(hand)
         self.field_counts = dict(campo or {})
         self.bench_count = 3
@@ -129,7 +129,7 @@ class _Ctx:
         self.has_hydrapple = False
         self.forest_in_play = False
         self.meganium_in_play = False
-        self.cards_in_deck = dict(mazo or {})
+        self.cards_in_deck = dict(deck or {})
         self.win_via_boss_gust = False
         self.active_cant_attack = False
         self.supporter_boost = 0

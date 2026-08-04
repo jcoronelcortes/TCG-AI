@@ -28,14 +28,14 @@ if str(_ROOT) not in sys.path:
 
 from cg.api import CardType, all_card_data
 
-_CARTAS = {c.cardId: c for c in all_card_data()}
-_ENERGIAS_BASICAS = set(range(1, 9))  # Basic {G/R/W/L/P/F/D/M} Energy
+_CARDS = {c.cardId: c for c in all_card_data()}
+_BASIC_ENERGIES = set(range(1, 9))  # Basic {G/R/W/L/P/F/D/M} Energy
 
 # --------------------------------------------------------------------------
 # Lists per archetype: {card_id: copies}. The comment = the card's name.
 # --------------------------------------------------------------------------
 
-MAZOS = {
+DECKS = {
     # Dragapult ex (a dragon: Phantom Dive pays {R}{P}). A 4-4-3 line + Budew
     # (which jams items) and Latias ex (Skyliner). Crispin searches for 2 basic energies
     # of DIFFERENT types: key in a two-colour deck.
@@ -195,14 +195,14 @@ MAZOS = {
 }
 
 
-def validar(name, mazo):
-    total = sum(mazo.values())
+def validar(name, deck):
+    total = sum(deck.values())
     assert total == 60, f"{name}: {total} cartas (deben ser 60)"
     tiene_basico = False
-    for cid, n in mazo.items():
-        card = _CARTAS.get(cid)
+    for cid, n in deck.items():
+        card = _CARDS.get(cid)
         assert card is not None, f"{name}: id {cid} no existe en el pool"
-        if cid not in _ENERGIAS_BASICAS:
+        if cid not in _BASIC_ENERGIES:
             assert n <= 4, f"{name}: {n}x {card.name} (max 4)"
         if getattr(card, "aceSpec", False):
             assert n == 1, f"{name}: ACE SPEC {card.name} debe ser x1"
@@ -211,30 +211,30 @@ def validar(name, mazo):
     assert tiene_basico, f"{name}: sin Pokemon Basico"
 
 
-def como_lista(mazo):
-    lista = []
-    for cid, n in mazo.items():
-        lista += [cid] * n
-    return lista
+def as_list(deck):
+    items = []
+    for cid, n in deck.items():
+        items += [cid] * n
+    return items
 
 
-def escribir(destino):
+def write_out(destino):
     destino.mkdir(parents=True, exist_ok=True)
-    rutas = []
-    for name, mazo in MAZOS.items():
-        validar(name, mazo)
-        ruta = destino / f"{name}.csv"
-        ruta.write_text("\n".join(str(c) for c in como_lista(mazo)) + "\n")
-        rutas.append(ruta)
-        resumen = ", ".join(
-            f"{n}x{_CARTAS[cid].name}" for cid, n in
-            Counter({c: v for c, v in mazo.items()
-                     if _CARTAS[c].cardType == CardType.POKEMON}).most_common())
-        print(f"{ruta.name}: 60 cartas | {resumen}")
-    return rutas
+    paths = []
+    for name, deck in DECKS.items():
+        validar(name, deck)
+        path = destino / f"{name}.csv"
+        path.write_text("\n".join(str(c) for c in as_list(deck)) + "\n")
+        paths.append(path)
+        summary = ", ".join(
+            f"{n}x{_CARDS[cid].name}" for cid, n in
+            Counter({c: v for c, v in deck.items()
+                     if _CARDS[c].cardType == CardType.POKEMON}).most_common())
+        print(f"{path.name}: 60 cartas | {summary}")
+    return paths
 
 
-def verificar(rutas):
+def verificar(paths):
     """battle_start accepts each deck and the bot plays 4 steps without blowing up."""
     sys.path.insert(0, str(_ROOT / "utils"))
     from cg import game
@@ -242,19 +242,19 @@ def verificar(rutas):
     deck_nuestro = [int(x) for x in
                     (_ROOT / "deck.csv").read_text().split("\n")[:60]]
     bot = BotRival()
-    for ruta in rutas:
-        deck_rival = [int(x) for x in ruta.read_text().split()]
-        obs, sd = game.battle_start(list(deck_rival), list(deck_nuestro))
+    for path in paths:
+        opponent_deck = [int(x) for x in path.read_text().split()]
+        obs, sd = game.battle_start(list(opponent_deck), list(deck_nuestro))
         assert obs is not None, (
-            f"{ruta.name}: battle_start lo rechazo "
+            f"{path.name}: battle_start lo rechazo "
             f"(errorPlayer={sd.errorPlayer}, errorType={sd.errorType})")
         for _ in range(4):
             if obs["current"]["result"] != -1:
                 break
             yi = obs["current"]["yourIndex"]
-            eleccion = (bot.agent(obs) if yi == 0 else [0])
-            obs = game.battle_select(eleccion)
-        print(f"{ruta.name}: battle_start OK")
+            choice = (bot.agent(obs) if yi == 0 else [0])
+            obs = game.battle_select(choice)
+        print(f"{path.name}: battle_start OK")
 
 
 if __name__ == "__main__":
@@ -262,6 +262,6 @@ if __name__ == "__main__":
     ap.add_argument("--destino", default=str(_ROOT / "deck" / "rivales"))
     ap.add_argument("--verificar", action="store_true")
     args = ap.parse_args()
-    rutas = escribir(Path(args.destino))
+    paths = write_out(Path(args.destino))
     if args.verificar:
-        verificar(rutas)
+        verificar(paths)

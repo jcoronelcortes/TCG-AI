@@ -134,9 +134,9 @@ def test_el_chip_al_activo_no_cobra_y_la_banca_tiene_dos_premios():
 
     # The rival active survives the Solar Beam... by 10 HP: exactly the gap where
     # the rule "attacking is enough" (remainder <= 100) switched on.
-    muro = riv["active"][0]
-    assert muro["id"] == CRUSTLE and muro["hp"] == 150
-    assert 0 < muro["hp"] - 140 <= 100
+    wall = riv["active"][0]
+    assert wall["id"] == CRUSTLE and wall["hp"] == 150
+    assert 0 < wall["hp"] - 140 <= 100
 
     # Two prizes on a plate on the rival bench.
     kang = next(b for b in riv["bench"] if b["id"] == KANGASKHAN)

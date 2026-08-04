@@ -44,25 +44,25 @@ for _p in (_ROOT, _ROOT / "utils", _ROOT / "tests"):
 
 import selfplay as sp  # noqa: E402
 
-REGISTROS = _ROOT / "registros"
-MAX_PASOS = 3000
+RECORDS = _ROOT / "registros"
+MAX_STEPS = 3000
 
 
-def _grabar_partida(agente, bot, deck_nuestro, deck_rival, nuestro_asiento):
+def _record_game(agente, bot, deck_nuestro, opponent_deck, nuestro_asiento):
     """Plays a game and returns its `steps` in replay format."""
     from cg import game
 
     sp._reset_si_aplica(agente)
     sp._reset_si_aplica(bot)
-    d0, d1 = ((deck_nuestro, deck_rival) if nuestro_asiento == 0
-              else (deck_rival, deck_nuestro))
+    d0, d1 = ((deck_nuestro, opponent_deck) if nuestro_asiento == 0
+              else (opponent_deck, deck_nuestro))
     obs, sd = game.battle_start(list(d0), list(d1))
     if obs is None:
         raise RuntimeError(f"battle_start fallo: errorType={sd.errorType}")
 
     agentes = {nuestro_asiento: agente, 1 - nuestro_asiento: bot}
-    steps, pasos = [], 0
-    while obs["current"]["result"] == -1 and pasos < MAX_PASOS:
+    steps, n_steps = [], 0
+    while obs["current"]["result"] == -1 and n_steps < MAX_STEPS:
         yi = obs["current"]["yourIndex"]
         # It is ALWAYS recorded, including the bot's turns: the corpus filters by
         # seat when replaying, and saving the whole stream makes it possible to reconstruct
@@ -72,7 +72,7 @@ def _grabar_partida(agente, bot, deck_nuestro, deck_rival, nuestro_asiento):
             obs = game.battle_select(agentes[yi].agent(obs))
         except Exception as e:
             return steps, f"error_p{yi}: {type(e).__name__}: {e}"
-        pasos += 1
+        n_steps += 1
     return steps, obs["current"]["result"]
 
 
@@ -92,33 +92,33 @@ def main():
 
     # A different opponent per game, spread along the list so as not to
     # pick twelve variants of the same archetype.
-    paso = max(1, len(rivales) // args.partidas)
-    elegidos = [rivales[(args.semilla + i * paso) % len(rivales)]
+    step = max(1, len(rivales) // args.partidas)
+    elegidos = [rivales[(args.semilla + i * step) % len(rivales)]
                 for i in range(args.partidas)]
 
-    agente = sp.cargar_agente(_ROOT / args.main, "corpus_agente")
+    agente = sp.load_agent(_ROOT / args.main, "corpus_agente")
     from bot_rival import BotRival
     bot = BotRival()
-    deck_nuestro = sp.leer_deck()
+    deck_nuestro = sp.read_deck()
 
-    REGISTROS.mkdir(exist_ok=True)
-    for viejo in REGISTROS.glob("registro_*.json"):
+    RECORDS.mkdir(exist_ok=True)
+    for viejo in RECORDS.glob("registro_*.json"):
         viejo.unlink()
 
-    total_pasos = 0
+    total_steps = 0
     for i, rival in enumerate(elegidos):
         # Alternating seats: our decisions are not the same going
         # first as going second, and the corpus must cover both.
         asiento = i % 2
-        steps, resultado = _grabar_partida(
-            agente, bot, deck_nuestro, sp.leer_deck(rival), asiento)
+        steps, result = _record_game(
+            agente, bot, deck_nuestro, sp.read_deck(rival), asiento)
         name = f"registro_{i:03d}_{rival.stem}_asiento{asiento}.json"
-        (REGISTROS / name).write_text(
+        (RECORDS / name).write_text(
             json.dumps({"steps": steps}, ensure_ascii=False), encoding="utf-8")
-        total_pasos += len(steps)
-        print(f"  {name}  {len(steps):4d} pasos  resultado={resultado}")
+        total_steps += len(steps)
+        print(f"  {name}  {len(steps):4d} pasos  resultado={result}")
 
-    print(f"\n{len(elegidos)} registros, {total_pasos} pasos en {REGISTROS}")
+    print(f"\n{len(elegidos)} registros, {total_steps} pasos en {RECORDS}")
     print("Ahora: python tests/golden_corpus.py --actualizar")
     return 0
 

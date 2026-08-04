@@ -91,19 +91,19 @@ def test_valor_cuerpo_prefiere_hydrapple_sobre_meganium():
 # Choosing the target: the user's priority rule
 # ---------------------------------------------------------------------------
 
-def _planes(active, banca, mano=(), mazo=None, veta_ex=False,
+def _planes(active, bench, hand=(), deck=None, veta_ex=False,
             primer_turno=False):
     """Runs `_gt_planes` on a minimal synthetic board."""
-    esc = (Escenario(turn=8, paso=40)
-           .mi_activo(active)
-           .mi_banca(*banca)
-           .mi_mano(*mano)
+    esc = (Escenario(turn=8, step=40)
+           .my_active(active)
+           .my_bench(*bench)
+           .my_hand(*hand)
            .estadio(GRAND_TREE, del_rival=True)
-           .op_activo(pk(KANGASKHAN, hp=400))
-           .op_zonas(mano=5, mazo=30, prizes=4))
-    if mazo is not None:
-        esc = esc.mazo(*mazo).resto_al_descarte()
-    obs = esc.menu_grand_tree().construir()
+           .op_active(pk(KANGASKHAN, hp=400))
+           .op_zonas(hand=5, deck=30, prizes=4))
+    if deck is not None:
+        esc = esc.deck(*deck).resto_al_descarte()
+    obs = esc.menu_grand_tree().build()
     m.agent(obs)  # syncs the module's card tracking
     estado = obs["current"]["players"][0]
     from cg.api import to_observation_class
@@ -121,7 +121,7 @@ def test_con_meganium_en_juego_se_completa_hydrapple():
     Hydrapple ex's (diversify)."""
     planes = _planes(
         active=pk(OGERPON, energias=[G, G, G]),
-        banca=[pk(MEGANIUM, pre_evo=[CHIKORITA, BAYLEEF]),
+        bench=[pk(MEGANIUM, pre_evo=[CHIKORITA, BAYLEEF]),
                pk(APPLIN), pk(CHIKORITA)])
     assert planes
     assert planes[0].basic_id == APPLIN
@@ -132,7 +132,7 @@ def test_con_hydrapple_en_juego_se_completa_meganium():
     """The mirror rule: having Hydrapple ex, Meganium gets built."""
     planes = _planes(
         active=pk(OGERPON, energias=[G, G, G]),
-        banca=[pk(HYDRAPPLE, pre_evo=[APPLIN, DIPPLIN]),
+        bench=[pk(HYDRAPPLE, pre_evo=[APPLIN, DIPPLIN]),
                pk(APPLIN), pk(CHIKORITA)])
     assert planes
     assert planes[0].basic_id == CHIKORITA
@@ -144,7 +144,7 @@ def test_con_ambos_en_juego_se_hace_un_segundo_hydrapple():
     that matters is Hydrapple ex's (the strongest body)."""
     planes = _planes(
         active=pk(OGERPON, energias=[G, G, G]),
-        banca=[pk(HYDRAPPLE, pre_evo=[APPLIN, DIPPLIN]),
+        bench=[pk(HYDRAPPLE, pre_evo=[APPLIN, DIPPLIN]),
                pk(MEGANIUM, pre_evo=[CHIKORITA, BAYLEEF]),
                pk(APPLIN), pk(CHIKORITA)])
     assert planes
@@ -158,7 +158,7 @@ def test_matchup_anti_ex_prefiere_la_linea_no_ex():
     the wall is worse than not doing it."""
     planes = _planes(
         active=pk(OGERPON, energias=[G, G, G]),
-        banca=[pk(APPLIN), pk(CHIKORITA)],
+        bench=[pk(APPLIN), pk(CHIKORITA)],
         veta_ex=True)
     assert planes
     assert planes[0].basic_id == CHIKORITA
@@ -172,7 +172,7 @@ def test_basico_que_salio_este_turno_no_es_objetivo():
     """The card forbids evolving a Basic put into play this turn."""
     planes = _planes(
         active=pk(OGERPON, energias=[G, G, G]),
-        banca=[pk(APPLIN, aparecio=True), pk(CHIKORITA)])
+        bench=[pk(APPLIN, aparecio=True), pk(CHIKORITA)])
     assert all(p.basic_id != APPLIN for p in planes)
     assert any(p.basic_id == CHIKORITA for p in planes)
 
@@ -181,7 +181,7 @@ def test_primer_turno_sin_planes():
     """The card forbids evolving Basics on our first turn."""
     planes = _planes(
         active=pk(OGERPON, energias=[G]),
-        banca=[pk(APPLIN), pk(CHIKORITA)],
+        bench=[pk(APPLIN), pk(CHIKORITA)],
         primer_turno=True)
     assert planes == []
 
@@ -189,13 +189,13 @@ def test_primer_turno_sin_planes():
 def test_prefiere_banca_con_el_activo_condenado():
     """With the active about to die, turning it into a body worth MORE prizes
     yields the turn to a bench Basic."""
-    esc = (Escenario(turn=8, paso=40)
-           .mi_activo(pk(APPLIN, hp=10))
-           .mi_banca(pk(APPLIN))
+    esc = (Escenario(turn=8, step=40)
+           .my_active(pk(APPLIN, hp=10))
+           .my_bench(pk(APPLIN))
            .estadio(GRAND_TREE, del_rival=True)
-           .op_activo(pk(KANGASKHAN, hp=400))
-           .op_zonas(mano=5, mazo=30, prizes=4))
-    obs = esc.menu_grand_tree().construir()
+           .op_active(pk(KANGASKHAN, hp=400))
+           .op_zonas(hand=5, deck=30, prizes=4))
+    obs = esc.menu_grand_tree().build()
     m.agent(obs)
     from cg.api import to_observation_class
     my_state = to_observation_class(obs).current.players[0]
@@ -210,61 +210,61 @@ def test_prefiere_banca_con_el_activo_condenado():
 # The ability is USED (main menu)
 # ---------------------------------------------------------------------------
 
-def _obs_menu(mano=(), banca=None, con_forest=False, mazo=None, turn=8):
-    banca = banca if banca is not None else [pk(APPLIN), pk(CHIKORITA)]
-    esc = (Escenario(turn=turn, paso=40)
-           .mi_activo(pk(OGERPON, energias=[G, G, G]))
-           .mi_banca(*banca)
-           .mi_mano(*mano)
+def _obs_menu(hand=(), bench=None, con_forest=False, deck=None, turn=8):
+    bench = bench if bench is not None else [pk(APPLIN), pk(CHIKORITA)]
+    esc = (Escenario(turn=turn, step=40)
+           .my_active(pk(OGERPON, energias=[G, G, G]))
+           .my_bench(*bench)
+           .my_hand(*hand)
            .estadio(GRAND_TREE, del_rival=True)
-           .op_activo(pk(KANGASKHAN, hp=400))
-           .op_zonas(mano=5, mazo=30, prizes=4))
-    if mazo is not None:
-        esc = esc.mazo(*mazo).resto_al_descarte()
-    return esc.menu_grand_tree(con_forest=con_forest).construir()
+           .op_active(pk(KANGASKHAN, hp=400))
+           .op_zonas(hand=5, deck=30, prizes=4))
+    if deck is not None:
+        esc = esc.deck(*deck).resto_al_descarte()
+    return esc.menu_grand_tree(con_forest=con_forest).build()
 
 
 def test_se_usa_la_habilidad_del_estadio_rival():
     """The stadium is shared: with the rival's Grand Tree on the table, the best
     play of the turn is its ability (a free chain)."""
     obs = _obs_menu()
-    eleccion = m.agent(obs)
-    assert obs["select"]["option"][eleccion[0]]["type"] == int(m.OptionType.ABILITY)
+    choice = m.agent(obs)
+    assert obs["select"]["option"][choice[0]]["type"] == int(m.OptionType.ABILITY)
 
 
 def test_la_habilidad_precede_al_reemplazo_por_forest():
     """The user's rule: with Forest of Vitality in hand, FIRST the Grand Tree
     ability and THEN the stadium replacement."""
-    obs = _obs_menu(mano=[FOREST_OF_VITALITY], con_forest=True)
-    eleccion = m.agent(obs)
-    elegida = obs["select"]["option"][eleccion[0]]
+    obs = _obs_menu(hand=[FOREST_OF_VITALITY], con_forest=True)
+    choice = m.agent(obs)
+    elegida = obs["select"]["option"][choice[0]]
     assert elegida["type"] == int(m.OptionType.ABILITY)
 
 
 def test_sin_plan_ejecutable_el_forest_se_juega():
     """With no evolvable Basic (both came out this turn) the ability holds
     nothing back: the Forest replaces the rival stadium as usual."""
-    obs = _obs_menu(mano=[FOREST_OF_VITALITY], con_forest=True,
-                    banca=[pk(APPLIN, aparecio=True),
+    obs = _obs_menu(hand=[FOREST_OF_VITALITY], con_forest=True,
+                    bench=[pk(APPLIN, aparecio=True),
                            pk(CHIKORITA, aparecio=True)])
-    eleccion = m.agent(obs)
-    elegida = obs["select"]["option"][eleccion[0]]
+    choice = m.agent(obs)
+    elegida = obs["select"]["option"][choice[0]]
     assert elegida["type"] == int(m.OptionType.PLAY)
 
 
 def test_la_habilidad_precede_a_evolucionar_desde_la_mano():
     """Grand Tree does not spend a card from hand: it is cashed in before the manual
     evolution, which is still available afterwards."""
-    esc = (Escenario(turn=8, paso=40)
-           .mi_activo(pk(OGERPON, energias=[G, G, G]))
-           .mi_banca(pk(APPLIN), pk(CHIKORITA))
-           .mi_mano(BAYLEEF)
+    esc = (Escenario(turn=8, step=40)
+           .my_active(pk(OGERPON, energias=[G, G, G]))
+           .my_bench(pk(APPLIN), pk(CHIKORITA))
+           .my_hand(BAYLEEF)
            .estadio(GRAND_TREE, del_rival=True)
-           .op_activo(pk(KANGASKHAN, hp=400))
-           .op_zonas(mano=5, mazo=30, prizes=4))
-    obs = esc.menu_grand_tree(con_evolucion_mano=True).construir()
-    eleccion = m.agent(obs)
-    assert obs["select"]["option"][eleccion[0]]["type"] == int(m.OptionType.ABILITY)
+           .op_active(pk(KANGASKHAN, hp=400))
+           .op_zonas(hand=5, deck=30, prizes=4))
+    obs = esc.menu_grand_tree(con_evolucion_mano=True).build()
+    choice = m.agent(obs)
+    assert obs["select"]["option"][choice[0]]["type"] == int(m.OptionType.ABILITY)
 
 
 # ---------------------------------------------------------------------------
@@ -274,35 +274,35 @@ def test_la_habilidad_precede_a_evolucionar_desde_la_mano():
 def test_seleccion_del_pokemon_a_evolucionar_sigue_al_plan():
     """With Meganium in play, the sub-selection picks the Applin (Hydrapple ex's
     chain), not the Chikorita."""
-    esc = (Escenario(turn=8, paso=41)
-           .mi_activo(pk(OGERPON, energias=[G, G, G]))
-           .mi_banca(pk(MEGANIUM, pre_evo=[CHIKORITA, BAYLEEF]),
+    esc = (Escenario(turn=8, step=41)
+           .my_active(pk(OGERPON, energias=[G, G, G]))
+           .my_bench(pk(MEGANIUM, pre_evo=[CHIKORITA, BAYLEEF]),
                      pk(APPLIN), pk(CHIKORITA))
            .estadio(GRAND_TREE, del_rival=True)
-           .op_activo(pk(KANGASKHAN, hp=400))
-           .op_zonas(mano=5, mazo=30, prizes=4))
-    obs = esc.seleccion_grand_tree_en_juego().construir()
-    eleccion = m.agent(obs)
-    elegida = obs["select"]["option"][eleccion[0]]
-    banca = obs["current"]["players"][0]["bench"]
+           .op_active(pk(KANGASKHAN, hp=400))
+           .op_zonas(hand=5, deck=30, prizes=4))
+    obs = esc.seleccion_grand_tree_en_juego().build()
+    choice = m.agent(obs)
+    elegida = obs["select"]["option"][choice[0]]
+    bench = obs["current"]["players"][0]["bench"]
     assert elegida["area"] == int(m.AreaType.BENCH)
-    assert banca[elegida["index"]]["id"] == APPLIN
+    assert bench[elegida["index"]]["id"] == APPLIN
 
 
 def test_seleccion_de_carta_del_mazo_sigue_al_plan():
     """Offered Dipplin and Bayleef, it brings the link of the plan (Dipplin)."""
-    esc = (Escenario(turn=8, paso=41)
-           .mi_activo(pk(OGERPON, energias=[G, G, G]))
-           .mi_banca(pk(MEGANIUM, pre_evo=[CHIKORITA, BAYLEEF]),
+    esc = (Escenario(turn=8, step=41)
+           .my_active(pk(OGERPON, energias=[G, G, G]))
+           .my_bench(pk(MEGANIUM, pre_evo=[CHIKORITA, BAYLEEF]),
                      pk(APPLIN), pk(CHIKORITA))
            .estadio(GRAND_TREE, del_rival=True)
-           .op_activo(pk(KANGASKHAN, hp=400))
-           .op_zonas(mano=5, mazo=30, prizes=4)
-           .mazo(DIPPLIN, BAYLEEF, HYDRAPPLE, GRASS)
+           .op_active(pk(KANGASKHAN, hp=400))
+           .op_zonas(hand=5, deck=30, prizes=4)
+           .deck(DIPPLIN, BAYLEEF, HYDRAPPLE, GRASS)
            .resto_al_descarte())
-    obs = esc.seleccion_grand_tree_mazo(DIPPLIN, BAYLEEF).construir()
-    eleccion = m.agent(obs)
-    elegida = obs["select"]["option"][eleccion[0]]
+    obs = esc.seleccion_grand_tree_mazo(DIPPLIN, BAYLEEF).build()
+    choice = m.agent(obs)
+    elegida = obs["select"]["option"][choice[0]]
     assert obs["select"]["deck"][elegida["index"]]["id"] == DIPPLIN
 
 
@@ -310,17 +310,17 @@ def test_paso_2_trae_la_etapa_2_aunque_el_plan_ya_no_apunte_al_basico():
     """With step 1 resolved, the Basic is already a Stage 1 and `_gt_plan` stops
     pointing at it; the deck-agnostic criterion (an evolution whose pre-evolution is in
     play) still brings the Hydrapple ex."""
-    esc = (Escenario(turn=8, paso=42)
-           .mi_activo(pk(OGERPON, energias=[G, G, G]))
-           .mi_banca(pk(DIPPLIN, pre_evo=[APPLIN]))
+    esc = (Escenario(turn=8, step=42)
+           .my_active(pk(OGERPON, energias=[G, G, G]))
+           .my_bench(pk(DIPPLIN, pre_evo=[APPLIN]))
            .estadio(GRAND_TREE, del_rival=True)
-           .op_activo(pk(KANGASKHAN, hp=400))
-           .op_zonas(mano=5, mazo=30, prizes=4)
-           .mazo(HYDRAPPLE, GRASS)
+           .op_active(pk(KANGASKHAN, hp=400))
+           .op_zonas(hand=5, deck=30, prizes=4)
+           .deck(HYDRAPPLE, GRASS)
            .resto_al_descarte())
-    obs = esc.seleccion_grand_tree_mazo(HYDRAPPLE).construir()
-    eleccion = m.agent(obs)
-    elegida = obs["select"]["option"][eleccion[0]]
+    obs = esc.seleccion_grand_tree_mazo(HYDRAPPLE).build()
+    choice = m.agent(obs)
+    elegida = obs["select"]["option"][choice[0]]
     assert obs["select"]["deck"][elegida["index"]]["id"] == HYDRAPPLE
 
 
@@ -331,20 +331,20 @@ def test_paso_2_trae_la_etapa_2_aunque_el_plan_ya_no_apunte_al_basico():
 def test_ultra_ball_busca_el_basico_raiz_si_no_hay_ninguno():
     """The user's rule: with no root Basic in play, the turn's search brings the
     one that opens the Grand Tree chain."""
-    esc = (Escenario(turn=8, paso=30)
-           .mi_activo(pk(OGERPON, energias=[G, G, G]))
-           .mi_banca(pk(TAPU, energias=[G, G]))
-           .mi_mano(GRASS, GRASS)
+    esc = (Escenario(turn=8, step=30)
+           .my_active(pk(OGERPON, energias=[G, G, G]))
+           .my_bench(pk(TAPU, energias=[G, G]))
+           .my_hand(GRASS, GRASS)
            .estadio(GRAND_TREE, del_rival=True)
-           .op_activo(pk(KANGASKHAN, hp=400))
-           .op_zonas(mano=5, mazo=30, prizes=4)
-           .mazo(APPLIN, DIPPLIN, HYDRAPPLE, CHIKORITA, BAYLEEF, MEGANIUM,
+           .op_active(pk(KANGASKHAN, hp=400))
+           .op_zonas(hand=5, deck=30, prizes=4)
+           .deck(APPLIN, DIPPLIN, HYDRAPPLE, CHIKORITA, BAYLEEF, MEGANIUM,
                  GRASS, GRASS)
            .fetch_ultra_ball()
            .resto_al_descarte())
-    obs = esc.construir()
-    eleccion = m.agent(obs)
-    elegida = obs["select"]["option"][eleccion[0]]
+    obs = esc.build()
+    choice = m.agent(obs)
+    elegida = obs["select"]["option"][choice[0]]
     assert obs["select"]["deck"][elegida["index"]]["id"] == APPLIN
 
 
@@ -352,21 +352,21 @@ def test_sin_grand_tree_el_bono_de_fetch_no_existe():
     """The whole engine is INERT without the stadium on the table: the same board without
     Grand Tree does not force the search for the root Basic."""
     def _fetch(estadio):
-        esc = (Escenario(turn=8, paso=30)
-               .mi_activo(pk(OGERPON, energias=[G, G, G]))
-               .mi_banca(pk(TAPU, energias=[G, G]))
-               .mi_mano(GRASS, GRASS)
-               .op_activo(pk(KANGASKHAN, hp=400))
-               .op_zonas(mano=5, mazo=30, prizes=4))
+        esc = (Escenario(turn=8, step=30)
+               .my_active(pk(OGERPON, energias=[G, G, G]))
+               .my_bench(pk(TAPU, energias=[G, G]))
+               .my_hand(GRASS, GRASS)
+               .op_active(pk(KANGASKHAN, hp=400))
+               .op_zonas(hand=5, deck=30, prizes=4))
         if estadio is not None:
             esc = esc.estadio(estadio, del_rival=True)
-        obs = (esc.mazo(APPLIN, DIPPLIN, HYDRAPPLE, CHIKORITA, BAYLEEF,
+        obs = (esc.deck(APPLIN, DIPPLIN, HYDRAPPLE, CHIKORITA, BAYLEEF,
                         MEGANIUM, GRASS, GRASS)
                .fetch_ultra_ball()
                .resto_al_descarte()
-               .construir())
-        eleccion = m.agent(obs)
-        elegida = obs["select"]["option"][eleccion[0]]
+               .build())
+        choice = m.agent(obs)
+        elegida = obs["select"]["option"][choice[0]]
         return obs["select"]["deck"][elegida["index"]]["id"]
 
     con = _fetch(GRAND_TREE)
@@ -384,18 +384,18 @@ def test_sin_grand_tree_el_bono_de_fetch_no_existe():
 def test_con_raiz_en_juego_no_se_fuerza_la_busqueda():
     """With an Applin already on the bench the root exists: the bonus does not apply and
     the rest of the deck's priorities rule."""
-    esc = (Escenario(turn=8, paso=30)
-           .mi_activo(pk(OGERPON, energias=[G, G, G]))
-           .mi_banca(pk(APPLIN, aparecio=True))
-           .mi_mano(GRASS, GRASS)
+    esc = (Escenario(turn=8, step=30)
+           .my_active(pk(OGERPON, energias=[G, G, G]))
+           .my_bench(pk(APPLIN, aparecio=True))
+           .my_hand(GRASS, GRASS)
            .estadio(GRAND_TREE, del_rival=True)
-           .op_activo(pk(KANGASKHAN, hp=400))
-           .op_zonas(mano=5, mazo=30, prizes=4)
-           .mazo(APPLIN, DIPPLIN, HYDRAPPLE, CHIKORITA, BAYLEEF, MEGANIUM,
+           .op_active(pk(KANGASKHAN, hp=400))
+           .op_zonas(hand=5, deck=30, prizes=4)
+           .deck(APPLIN, DIPPLIN, HYDRAPPLE, CHIKORITA, BAYLEEF, MEGANIUM,
                  GRASS, GRASS)
            .fetch_ultra_ball()
            .resto_al_descarte())
-    obs = esc.construir()
+    obs = esc.build()
     m.agent(obs)  # it must not blow up; the choice is decided by the previous rules
     ranking = m._gt_wanted_basics(m.ACTIVE_CARDS_IN_DECK,
                                      {OGERPON: 1, APPLIN: 1})

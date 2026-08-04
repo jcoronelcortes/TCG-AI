@@ -246,8 +246,8 @@ def _pokemon_injugable(card_id, field_counts, bench_count, bench_max):
     eligible as a LAST resort, because recoveries have `minCount >= 1` and
     sometimes the whole discard is dead cards.
     """
-    datos = card_table.get(card_id)
-    if datos is None or datos.cardType != CardType.POKEMON:
+    data = card_table.get(card_id)
+    if data is None or data.cardType != CardType.POKEMON:
         return False
     if bench_count < bench_max:
         return False
@@ -492,8 +492,8 @@ def _pokemon_injugable(card_id, field_counts, bench_count, bench_max):
     eligible as a LAST resort, because recoveries have `minCount >= 1` and
     sometimes the whole discard is dead cards.
     """
-    datos = card_table.get(card_id)
-    if datos is None or datos.cardType != CardType.POKEMON:
+    data = card_table.get(card_id)
+    if data is None or data.cardType != CardType.POKEMON:
         return False
     if bench_count < bench_max:
         return False

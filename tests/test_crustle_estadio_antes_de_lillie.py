@@ -83,24 +83,24 @@ def _escenario(op_basico=DWEBBLE, con_lillie=True, partidario_jugado=False,
                primer_jugador=1):
     """Our FIRST turn going second (turn 2) with the stadium and the
     Lillie's in hand. `primer_jugador=1` = the rival went first."""
-    mano = [m.Forest_of_Vitality, m.Basic_Grass_Energy, m.Ultra_Ball]
+    hand = [m.Forest_of_Vitality, m.Basic_Grass_Energy, m.Ultra_Ball]
     if con_lillie:
-        mano.append(m.Lillie_Determination)
-    esc = (Escenario(turn=2, paso=7, tac=0,
+        hand.append(m.Lillie_Determination)
+    esc = (Escenario(turn=2, step=7, tac=0,
                      primer_jugador=primer_jugador,
                      partidario_jugado=partidario_jugado)
-           .mi_activo(pk(m.Tapu_Bulu))
-           .mi_banca(pk(m.Applin))
-           .mi_mano(*mano)
-           .op_activo(pk(op_basico, hp=70, max_hp=70))
-           .op_zonas(mano=5, mazo=50, prizes=6)
+           .my_active(pk(m.Tapu_Bulu))
+           .my_bench(pk(m.Applin))
+           .my_hand(*hand)
+           .op_active(pk(op_basico, hp=70, max_hp=70))
+           .op_zonas(hand=5, deck=50, prizes=6)
            .menu_mano(con_adjunte=True))
-    return esc.construir()
+    return esc.build()
 
 
-def _carta_jugada(obs, eleccion):
-    assert eleccion, f"el agente termino el turno: {eleccion}"
-    opt = obs["select"]["option"][eleccion[0]]
+def _carta_jugada(obs, choice):
+    assert choice, f"el agente termino el turno: {choice}"
+    opt = obs["select"]["option"][choice[0]]
     if opt["type"] != int(m.OptionType.PLAY):
         return None
     return obs["current"]["players"][0]["hand"][opt["index"]]["id"]
@@ -108,8 +108,8 @@ def _carta_jugada(obs, eleccion):
 
 def test_vs_crustle_segundos_baja_el_estadio_antes_de_la_lillie():
     obs = _escenario()
-    eleccion = m.agent(obs)
-    assert _carta_jugada(obs, eleccion) == m.Forest_of_Vitality, (
+    choice = m.agent(obs)
+    assert _carta_jugada(obs, choice) == m.Forest_of_Vitality, (
         "vs Crustle, saliendo segundos y con estadio + Lillie's en la mano, "
         "el Forest se baja PRIMERO: la Lillie's baraja la mano entera y el "
         "estadio conservado se perderia en el mazo. El mazo Crustle no lo "
@@ -120,8 +120,8 @@ def test_control_otro_matchup_conserva_el_veto_del_primer_turno():
     # The same board against a deck that CAN replace the stadium: the
     # exception belongs to the matchup, it is not a general relaxation of the veto.
     obs = _escenario(op_basico=DREEPY)
-    eleccion = m.agent(obs)
-    assert _carta_jugada(obs, eleccion) != m.Forest_of_Vitality, (
+    choice = m.agent(obs)
+    assert _carta_jugada(obs, choice) != m.Forest_of_Vitality, (
         "fuera del matchup Crustle el estadio sigue vetado en nuestro primer "
         "turno")
 
@@ -132,10 +132,10 @@ def test_control_sylveon_no_hereda_la_excepcion():
     # born of the immunity but of the fact that the Crustle deck plays no stadium, so
     # the gate looks at the LINE on the board and Sylveon does not inherit it.
     obs = _escenario(op_basico=EEVEE)
-    eleccion = m.agent(obs)
+    choice = m.agent(obs)
     assert m.op_is_crustle_deck, (
         "premisa del control: Eevee enciende `op_is_crustle_deck`")
-    assert _carta_jugada(obs, eleccion) != m.Forest_of_Vitality, (
+    assert _carta_jugada(obs, choice) != m.Forest_of_Vitality, (
         "vs Sylveon el estadio sigue vetado en nuestro primer turno: el flag "
         "de muro inmune a ex no dice nada sobre si el rival juega estadio")
 
@@ -144,8 +144,8 @@ def test_control_sin_lillie_en_mano_conserva_el_veto():
     # With no Lillie's there is no shuffle to fear: the stadium is in no danger in
     # hand and there is no reason to play it early.
     obs = _escenario(con_lillie=False)
-    eleccion = m.agent(obs)
-    assert _carta_jugada(obs, eleccion) != m.Forest_of_Vitality, (
+    choice = m.agent(obs)
+    assert _carta_jugada(obs, choice) != m.Forest_of_Vitality, (
         "la excepcion solo existe para salvar el estadio del barajeo de "
         "Lillie's: sin Lillie's en mano el veto del primer turno sigue")
 
@@ -154,8 +154,8 @@ def test_control_supporter_ya_jugado_no_resucita_el_estadio():
     # With the turn's Supporter spent, the Lillie's in hand is no longer going to be
     # played: the stadium is in no danger and the exception does not apply.
     obs = _escenario(partidario_jugado=True)
-    eleccion = m.agent(obs)
-    assert _carta_jugada(obs, eleccion) != m.Forest_of_Vitality, (
+    choice = m.agent(obs)
+    assert _carta_jugada(obs, choice) != m.Forest_of_Vitality, (
         "con el Supporter ya jugado no hay barajeo pendiente: el estadio "
         "vuelve a esperar")
 
@@ -165,6 +165,6 @@ def test_control_saliendo_primeros_conserva_el_veto():
     # (turn 1) the rival has not played yet and the general veto holds.
     obs = _escenario(primer_jugador=0)
     obs["current"]["turn"] = 1
-    eleccion = m.agent(obs)
-    assert _carta_jugada(obs, eleccion) != m.Forest_of_Vitality, (
+    choice = m.agent(obs)
+    assert _carta_jugada(obs, choice) != m.Forest_of_Vitality, (
         "saliendo primeros el estadio sigue vetado en el turno 1")

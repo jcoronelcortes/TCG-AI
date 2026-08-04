@@ -107,9 +107,9 @@ def _banca(obs):
 
 
 def _opt_de(obs, pred):
-    banca = _banca(obs)
+    bench = _banca(obs)
     return next(i for i, o in enumerate(obs["select"]["option"])
-                if pred(banca[o["index"]]))
+                if pred(bench[o["index"]]))
 
 
 # ---------------------------------------------------------------------------
@@ -179,8 +179,8 @@ def test_promueve_el_ogerpon_con_MAS_vida():
     200 HP one, not the 100: the life tie-break already lives in `_ps_key`."""
     o = _obs()
     elegido = m.agent(_obs())[0]
-    banca = _banca(o)
-    pk = banca[o["select"]["option"][elegido]["index"]]
+    bench = _banca(o)
+    pk = bench[o["select"]["option"][elegido]["index"]]
     assert pk["id"] == OGERPON and pk["hp"] == 200
 
 

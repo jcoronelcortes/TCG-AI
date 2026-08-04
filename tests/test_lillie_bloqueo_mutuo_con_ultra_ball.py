@@ -92,16 +92,16 @@ def _frames():
 def _replay(anular_marca_ld):
     """Replays the whole turn and returns (obs, choice) of the last menu."""
     reset_agente(m)
-    ultimo = None
+    last = None
     for obs in _frames():
         if anular_marca_ld:
             m._ld_supp_comprometido = 0
-        ultimo = (obs, m.agent(obs))
-    return ultimo
+        last = (obs, m.agent(obs))
+    return last
 
 
-def _carta_jugada(obs, eleccion):
-    o = obs["select"]["option"][eleccion[0]]
+def _carta_jugada(obs, choice):
+    o = obs["select"]["option"][choice[0]]
     if o.get("type") != int(m.OptionType.PLAY):
         return None
     yo = obs["current"]["yourIndex"]
@@ -115,15 +115,15 @@ def _carta_jugada(obs, eleccion):
 def test_el_paso_116_tiene_las_dos_mitades_del_bloqueo():
     obs = _frames()[-1]
     yo = obs["current"]["players"][0]
-    mano = [c["id"] for c in yo["hand"]]
+    hand = [c["id"] for c in yo["hand"]]
     campo = [p["id"] for p in yo["active"] + [b for b in yo["bench"] if b]]
 
     # the line gap that switches on `ultra_ball_completa_linea`...
-    assert ULTRA_BALL in mano and HYDRAPPLE in mano
+    assert ULTRA_BALL in hand and HYDRAPPLE in hand
     assert APPLIN in campo and m.Dipplin not in campo
     # ...and the Lillie's as the ONLY Supporter in hand.
-    assert mano.count(LILLIE) == 1
-    assert not any(s in mano for s in m._SUPP_PLAY_IDS if s != LILLIE)
+    assert hand.count(LILLIE) == 1
+    assert not any(s in hand for s in m._SUPP_PLAY_IDS if s != LILLIE)
     assert obs["current"]["supporterPlayed"] is False
     # The Applin appeared this turn: that is why the Ultra Ball builds nothing today.
     assert next(b for b in yo["bench"] if b["id"] == APPLIN)["appearThisTurn"]
@@ -134,16 +134,16 @@ def test_el_paso_116_tiene_las_dos_mitades_del_bloqueo():
 # ---------------------------------------------------------------------------
 
 def test_paso116_juega_lillie_aunque_no_venga_de_un_last_ditch():
-    obs, eleccion = _replay(anular_marca_ld=True)
-    assert _carta_jugada(obs, eleccion) == LILLIE, (
+    obs, choice = _replay(anular_marca_ld=True)
+    assert _carta_jugada(obs, choice) == LILLIE, (
         "con la Lillie's como único Supporter y la Ultra Ball vetada por esa "
         "misma Lillie's, ceder el paso tira el hueco de Supporter del turno")
 
 
 def test_paso116_tambien_la_juega_por_la_via_del_last_ditch():
     """The `_ld_supp_comprometido` net still stands: the two routes agree."""
-    obs, eleccion = _replay(anular_marca_ld=False)
-    assert _carta_jugada(obs, eleccion) == LILLIE
+    obs, choice = _replay(anular_marca_ld=False)
+    assert _carta_jugada(obs, choice) == LILLIE
 
 
 # ---------------------------------------------------------------------------
@@ -209,7 +209,7 @@ def test_guarda1_el_veto_por_coste_ajeno_no_rompe_el_bloqueo():
         vistos.append((_ub(c), m._ub_cancel_lillie(c), m._ub_cancel_meowth(c)))
         or vistos[-1][0])
     try:
-        eleccion = m.agent(obs)
+        choice = m.agent(obs)
     finally:
         _rest_score_ultra_ball_play = instalar("_score_ultra_ball_play", _ub)
     # The Ultra Ball is vetoed, but NOT because of the Lillie's.
@@ -218,4 +218,4 @@ def test_guarda1_el_veto_por_coste_ajeno_no_rompe_el_bloqueo():
     assert all(not cancel_lillie for _, cancel_lillie, _ in reales)
     assert any(cancel_meowth for _, _, cancel_meowth in reales)
     # ...so the Lillie's is STILL vetoed and the line is kept.
-    assert _carta_jugada(obs, eleccion) != LILLIE
+    assert _carta_jugada(obs, choice) != LILLIE

@@ -67,7 +67,7 @@ import selfplay as sp
 from bot_rival import BotRival
 
 
-def es_mazo(ruta):
+def is_deck(path):
     """Is the CSV a list of 60 ids and not something else?
 
     The opponents directory also contains `pesos.csv`, and it could contain
@@ -75,15 +75,15 @@ def es_mazo(ruta):
     deck and blows up AFTER having played all the good matchups.
     """
     try:
-        lineas = [x for x in ruta.read_text(encoding="utf-8-sig").split() if x.strip()]
+        lines = [x for x in path.read_text(encoding="utf-8-sig").split() if x.strip()]
     except (OSError, UnicodeDecodeError):
         return False
-    if len(lineas) != 60:
+    if len(lines) != 60:
         return False
-    return all(x.lstrip("-").isdigit() for x in lineas)
+    return all(x.lstrip("-").isdigit() for x in lines)
 
 
-def cargar_pesos(directorio):
+def load_weights(directorio):
     """Meta weight per deck, from the pesos.csv of utils/rivales_reales.py.
 
     Without this the matrix treats every opponent equally, which is what
@@ -92,30 +92,30 @@ def cargar_pesos(directorio):
     """
     import csv
 
-    ruta = Path(directorio) / "pesos.csv"
-    if not ruta.is_file():
+    path = Path(directorio) / "pesos.csv"
+    if not path.is_file():
         return {}
     pesos = {}
-    with ruta.open(encoding="utf-8-sig", newline="") as fh:
-        for fila in csv.DictReader(fh):
-            name = str(fila.get("archivo", ""))
+    with path.open(encoding="utf-8-sig", newline="") as fh:
+        for row in csv.DictReader(fh):
+            name = str(row.get("archivo", ""))
             if name.endswith(".csv"):
                 name = name[:-4]
             try:
-                pesos[name] = float(fila.get("peso_meta") or 0.0)
+                pesos[name] = float(row.get("peso_meta") or 0.0)
             except ValueError:
                 continue
     return pesos
 
 
-def _lleva_carta(ruta, card_id):
+def _carries_card(path, card_id):
     try:
-        return card_id in [int(x) for x in ruta.read_text().split() if x.strip()]
+        return card_id in [int(x) for x in path.read_text().split() if x.strip()]
     except (OSError, ValueError):
         return False
 
 
-def informe_control(filas, base_por_mazo, rutas, card_id):
+def informe_control(filas, base_by_deck, paths, card_id):
     """Separates the AFFECTED decks (those with the card) from the CONTROL and compares their deltas.
 
     It is the only cheap way to know whether a delta is signal: the decks that do NOT
@@ -127,18 +127,18 @@ def informe_control(filas, base_por_mazo, rutas, card_id):
     to move from -6.5 to +7.5 points. Any delta of the affected decks that fits
     in that range is not signal.
     """
-    by_name = {r.stem: r for r in rutas}
+    by_name = {r.stem: r for r in paths}
     con, sin = [], []
     for f in filas:
-        if f["mazo"] not in base_por_mazo:
+        if f["mazo"] not in base_by_deck:
             continue
-        delta = f["wr"] - base_por_mazo[f["mazo"]]["wr"]
+        delta = f["wr"] - base_by_deck[f["mazo"]]["wr"]
         dprem = None
-        bp = base_por_mazo[f["mazo"]].get("dif_premios")
+        bp = base_by_deck[f["mazo"]].get("dif_premios")
         if f["dif_premios"] is not None and bp is not None:
             dprem = f["dif_premios"] - bp
-        ruta = by_name.get(f["mazo"])
-        destino = con if (ruta is not None and _lleva_carta(ruta, card_id)) else sin
+        path = by_name.get(f["mazo"])
+        destino = con if (path is not None and _carries_card(path, card_id)) else sin
         destino.append((f["mazo"], delta, dprem))
 
     if not con or not sin:
@@ -147,9 +147,9 @@ def informe_control(filas, base_por_mazo, rutas, card_id):
         return
 
     print(f"\n=== GRUPO DE CONTROL (carta {card_id}) ===")
-    for etiqueta, grupo in (("AFECTADOS", con), ("CONTROL  ", sin)):
-        ds = [d for _, d, _ in grupo]
-        ps = [p for _, _, p in grupo if p is not None]
+    for etiqueta, group in (("AFECTADOS", con), ("CONTROL  ", sin)):
+        ds = [d for _, d, _ in group]
+        ps = [p for _, _, p in group if p is not None]
         positivos = sum(1 for d in ds if d > 0)
         line = (f"  {etiqueta} n={len(ds):>2}  delta wr {100 * sum(ds) / len(ds):+6.2f}"
                  f"  rango {100 * min(ds):+.1f} a {100 * max(ds):+.1f}"
@@ -175,25 +175,25 @@ def winrate_ponderado(filas, pesos):
     return total / cobertura, cobertura
 
 
-def medir(agente, partidas, rutas):
+def medir(agente, partidas, paths):
     bot = BotRival()
     filas = []
-    for ruta in rutas:
-        deck_rival = sp.leer_deck(ruta)
-        stats = sp.torneo(agente, bot, partidas, deck_base=deck_rival)
+    for path in paths:
+        opponent_deck = sp.read_deck(path)
+        stats = sp.torneo(agente, bot, partidas, deck_base=opponent_deck)
         dec = stats["candidato"] + stats["base"]
         wr = stats["candidato"] / dec if dec else 0.0
         lo, hi = sp.wilson_95(stats["candidato"], dec)
-        pc, pb, dif_premios = sp.premios_por_partida(stats)
+        pc, pb, prize_diff = sp.prizes_per_game(stats)
         filas.append({
-            "mazo": ruta.stem, "wr": wr, "lo": lo, "hi": hi,
+            "mazo": path.stem, "wr": wr, "lo": lo, "hi": hi,
             "decididas": dec, "limites": stats["limites"],
             "forfeits": stats["errores_candidato"],
             "forfeits_bot": stats["errores_base"],
-            "premios": pc, "premios_bot": pb, "dif_premios": dif_premios,
+            "premios": pc, "premios_bot": pb, "dif_premios": prize_diff,
         })
-        extra = "" if dif_premios is None else f" premios {dif_premios:+.2f}"
-        print(f"  {ruta.stem}: {100 * wr:.1f}% "
+        extra = "" if prize_diff is None else f" premios {prize_diff:+.2f}"
+        print(f"  {path.stem}: {100 * wr:.1f}% "
               f"[{100 * lo:.1f}-{100 * hi:.1f}]{extra} "
               f"(forfeits nuestros {stats['errores_candidato']})", flush=True)
     return filas
@@ -222,42 +222,42 @@ def main(argv):
     args = ap.parse_args(argv)
 
     todos = sorted(Path(args.rivales).glob("*.csv"))
-    rutas = [r for r in todos if es_mazo(r)]
-    omitidos = [r.name for r in todos if r not in rutas]
+    paths = [r for r in todos if is_deck(r)]
+    omitidos = [r.name for r in todos if r not in paths]
     if omitidos:
         print(f"(no son mazos, se omiten: {', '.join(omitidos)})")
     if args.solo:
         quiere = {s.strip() for s in args.solo.split(",")}
-        rutas = [r for r in rutas if r.stem in quiere]
-    if not rutas:
+        paths = [r for r in paths if r.stem in quiere]
+    if not paths:
         print("sin mazos rivales que medir")
         return 1
 
     # The weights are loaded BEFORE playing: if they are missing, the error must come out now and
     # not after an hour of games.
-    pesos = cargar_pesos(args.rivales) if args.pesos else {}
+    pesos = load_weights(args.rivales) if args.pesos else {}
     if args.pesos and not pesos:
         print(f"ERROR: no hay pesos.csv en {args.rivales}. "
               f"Generalo con: python utils/rivales_reales.py", file=sys.stderr)
         return 1
 
-    agente = sp.cargar_agente(_ROOT / args.candidato, "agente_matriz")
+    agente = sp.load_agent(_ROOT / args.candidato, "agente_matriz")
     print(f"candidato={args.candidato}, {args.partidas} partidas por matchup")
-    filas = medir(agente, args.partidas, rutas)
+    filas = medir(agente, args.partidas, paths)
 
-    base_por_mazo = {}
+    base_by_deck = {}
     if args.base:
-        base = sp.cargar_agente_de_git(args.base, "agente_matriz_base")
+        base = sp.load_agent_from_git(args.base, "agente_matriz_base")
         print(f"\nbaseline={args.base}")
-        base_por_mazo = {f["mazo"]: f for f in
-                         medir(base, args.partidas, rutas)}
+        base_by_deck = {f["mazo"]: f for f in
+                         medir(base, args.partidas, paths)}
 
     sin_peso = [f["mazo"] for f in filas if f["mazo"] not in pesos] if pesos else []
 
     print("\n=== MATRIZ DE MATCHUPS (peor -> mejor) ===")
-    ancho = max(len(f["mazo"]) for f in filas)
+    width = max(len(f["mazo"]) for f in filas)
     for f in sorted(filas, key=lambda x: x["wr"]):
-        line = (f"{f['mazo']:<{ancho}}  {100 * f['wr']:5.1f}%  "
+        line = (f"{f['mazo']:<{width}}  {100 * f['wr']:5.1f}%  "
                  f"[{100 * f['lo']:.1f}-{100 * f['hi']:.1f}]"
                  f"  n={f['decididas']}")
         if pesos:
@@ -266,22 +266,22 @@ def main(argv):
             line += f"  FORFEITS={f['forfeits']}"
         if f["dif_premios"] is not None:
             line += f"  prem={f['dif_premios']:+.2f}"
-        if f["mazo"] in base_por_mazo:
-            delta = f["wr"] - base_por_mazo[f["mazo"]]["wr"]
+        if f["mazo"] in base_by_deck:
+            delta = f["wr"] - base_by_deck[f["mazo"]]["wr"]
             line += f"  delta={100 * delta:+.1f}"
             if pesos:
                 # What that delta moves the ladder winrate by: a +10 against an
                 # archetype that is 1% is worth ten times less than a +1 against the one that is 41%.
                 line += f" (pond {100 * delta * pesos.get(f['mazo'], 0.0):+.2f})"
-            base_prem = base_por_mazo[f["mazo"]].get("dif_premios")
+            base_prem = base_by_deck[f["mazo"]].get("dif_premios")
             if f["dif_premios"] is not None and base_prem is not None:
                 line += f"  dprem={f['dif_premios'] - base_prem:+.2f}"
         print(line)
-    peor = min(filas, key=lambda x: x["wr"])
-    print(f"\nMatchup mas debil: {peor['mazo']} ({100 * peor['wr']:.1f}%)")
+    worst = min(filas, key=lambda x: x["wr"])
+    print(f"\nMatchup mas debil: {worst['mazo']} ({100 * worst['wr']:.1f}%)")
 
-    if args.control_carta is not None and base_por_mazo:
-        informe_control(filas, base_por_mazo, rutas, args.control_carta)
+    if args.control_carta is not None and base_by_deck:
+        informe_control(filas, base_by_deck, paths, args.control_carta)
     elif args.control_carta is not None:
         print("\n(--control-carta necesita --base: sin baseline no hay deltas "
               "que separar)")
@@ -329,9 +329,9 @@ def main(argv):
                 print("  (premios que cobramos menos los que cobra el rival; "
                       "tiene resolucion donde el winrate ya no)")
 
-        if base_por_mazo:
-            filas_base = [base_por_mazo[f["mazo"]] for f in filas
-                          if f["mazo"] in base_por_mazo]
+        if base_by_deck:
+            filas_base = [base_by_deck[f["mazo"]] for f in filas
+                          if f["mazo"] in base_by_deck]
             wr_base, _ = winrate_ponderado(filas_base, pesos)
             if wr_base is not None:
                 print(f"\n  baseline  : {100 * wr_base:5.1f}%   "

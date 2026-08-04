@@ -81,18 +81,18 @@ from cg.api import (AreaType, OptionType, SelectContext, all_attack,
 
 # Hard cap of ability activations per turn. There is no card that
 # needs that many: it is the anti-loop belt, not a game rule.
-MAX_HABILIDADES_POR_TURNO = 8
+MAX_ABILITIES_PER_TURN = 8
 # Damage per damage counter.
-DANO_POR_CONTADOR = 10
+DAMAGE_PER_COUNTER = 10
 
 
 class BotRival:
 
     def __init__(self):
         self._ataques = {a.attackId: a for a in all_attack()}
-        self._dano = {a.attackId: a.damage for a in all_attack()}
+        self._damage = {a.attackId: a.damage for a in all_attack()}
         self._cards = {c.cardId: c for c in all_card_data()}
-        self._turno = None
+        self._turn = None
         self._habilidades_usadas = set()
         self._activaciones = 0
         # Counters the current effect is going to move/place (it is set in the
@@ -101,19 +101,19 @@ class BotRival:
 
     # -- utilities ----------------------------------------------------------
 
-    def _reset_turno(self, turn):
-        self._turno = turn
+    def _reset_turn(self, turn):
+        self._turn = turn
         self._habilidades_usadas = set()
         self._activaciones = 0
         self._contadores = 1
 
-    def _pokemon_de(self, obs, opcion, indice_propio=None):
+    def _pokemon_de(self, obs, opcion, own_index=None):
         """The Pokemon `opcion` points at, or None if the option does not point at one."""
         cur = obs.get("current") or {}
         jugadores = cur.get("players") or []
         pi = opcion.get("playerIndex")
         if pi is None:
-            pi = indice_propio
+            pi = own_index
         if pi is None or pi >= len(jugadores):
             return None
         jugador = jugadores[pi] or {}
@@ -138,19 +138,19 @@ class BotRival:
             return 1
         return 3 if data.megaEx else 2 if data.ex else 1
 
-    def _dano_encajado(self, pk):
+    def _damage_taken(self, pk):
         if not pk:
             return -1
         return max(0, (pk.get("maxHp") or 0) - (pk.get("hp") or 0))
 
-    def _dano_efectivo(self, atacante, defensor, attack_id):
+    def _effective_damage(self, attacker, defensor, attack_id):
         """The attack's printed damage, x2 if the defender is weak to the
         attacker's type. Deliberately approximate: the attacks that scale (Syrup Storm,
         Myriad Leaf Shower) declare their base, not their real damage."""
-        base = self._dano.get(attack_id) or 0
-        if base <= 0 or not atacante or not defensor:
+        base = self._damage.get(attack_id) or 0
+        if base <= 0 or not attacker or not defensor:
             return base
-        atk = self._cards.get(atacante.get("id"))
+        atk = self._cards.get(attacker.get("id"))
         dfd = self._cards.get(defensor.get("id"))
         if atk is None or dfd is None:
             return base
@@ -158,16 +158,16 @@ class BotRival:
             return base * 2
         return base
 
-    def _mejor_dano_de(self, atacante, defensor):
+    def _best_damage_of(self, attacker, defensor):
         """The best effective damage `atacante` can do to `defensor` with
         any of its attacks (without checking whether it can pay the cost)."""
-        data = self._cards.get((atacante or {}).get("id"))
+        data = self._cards.get((attacker or {}).get("id"))
         if data is None:
             return 0
-        return max((self._dano_efectivo(atacante, defensor, aid)
+        return max((self._effective_damage(attacker, defensor, aid)
                     for aid in (data.attacks or ())), default=0)
 
-    def _habilidad_pide_energia(self, card_id):
+    def _ability_needs_energy(self, card_id):
         """The card's ability is CONDITIONED on carrying energy."""
         data = self._cards.get(card_id)
         for skill in getattr(data, "skills", None) or ():
@@ -183,8 +183,8 @@ class BotRival:
         if not opciones:
             return []
         cur = obs.get("current") or {}
-        if cur.get("turn") != self._turno:
-            self._reset_turno(cur.get("turn"))
+        if cur.get("turn") != self._turn:
+            self._reset_turn(cur.get("turn"))
         contexto = sel.get("context")
 
         if contexto == int(SelectContext.MAIN):
@@ -203,7 +203,7 @@ class BotRival:
 
         if contexto in (int(SelectContext.SWITCH),
                         int(SelectContext.TO_ACTIVE)):
-            return self._elegir_activo(obs, opciones, sel)
+            return self._pick_active(obs, opciones, sel)
 
         tipos = {o.get("type") for o in opciones}
         if int(OptionType.YES) in tipos or int(OptionType.NO) in tipos:
@@ -223,20 +223,20 @@ class BotRival:
 
         adjuntes = por_tipo.get(int(OptionType.ATTACH))
         if adjuntes:
-            return [self._mejor_adjunte(obs, opciones, adjuntes)]
+            return [self._best_attachment(obs, opciones, adjuntes)]
 
         evoluciones = por_tipo.get(int(OptionType.EVOLVE))
         if evoluciones:
-            return [self._mejor_evolucion(obs, opciones, evoluciones)]
+            return [self._best_evolution(obs, opciones, evoluciones)]
 
-        jugadas = por_tipo.get(int(OptionType.PLAY))
-        if jugadas:
-            return [jugadas[0]]
+        plays = por_tipo.get(int(OptionType.PLAY))
+        if plays:
+            return [plays[0]]
 
-        habilidad = self._elegir_habilidad(por_tipo.get(int(OptionType.ABILITY)),
+        ability = self._pick_ability(por_tipo.get(int(OptionType.ABILITY)),
                                            opciones)
-        if habilidad is not None:
-            return [habilidad]
+        if ability is not None:
+            return [ability]
 
         ataques = por_tipo.get(int(OptionType.ATTACK))
 
@@ -250,13 +250,13 @@ class BotRival:
             cur = obs.get("current") or {}
             yo = cur.get("yourIndex", 0)
             jugadores = cur.get("players") or []
-            mi_activo = None
-            su_activo = None
+            my_active = None
+            their_active = None
             if len(jugadores) > max(yo, 1 - yo):
-                mi_activo = ((jugadores[yo] or {}).get("active") or [None])[0]
-                su_activo = ((jugadores[1 - yo] or {}).get("active") or [None])[0]
-            best = max(ataques, key=lambda i: self._dano_efectivo(
-                mi_activo, su_activo, opciones[i].get("attackId")))
+                my_active = ((jugadores[yo] or {}).get("active") or [None])[0]
+                their_active = ((jugadores[1 - yo] or {}).get("active") or [None])[0]
+            best = max(ataques, key=lambda i: self._effective_damage(
+                my_active, their_active, opciones[i].get("attackId")))
             return [best]
 
         fin = por_tipo.get(int(OptionType.END))
@@ -264,33 +264,33 @@ class BotRival:
             return [fin[0]]
         return [0]
 
-    def _mejor_evolucion(self, obs, opciones, indices):
+    def _best_evolution(self, obs, opciones, indices):
         """The HIGHEST stage evolution first and, on a tie, the ACTIVE's."""
-        def clave(i):
+        def key(i):
             o = opciones[i]
-            data = self._cards.get(self._id_en_mano(obs, o))
+            data = self._cards.get(self._id_in_hand(obs, o))
             etapa = 2 if getattr(data, "stage2", False) else \
                 1 if getattr(data, "stage1", False) else 0
-            al_activo = o.get("inPlayArea") == int(AreaType.ACTIVE)
-            return (-etapa, 0 if al_activo else 1, i)
-        return min(indices, key=clave)
+            to_active = o.get("inPlayArea") == int(AreaType.ACTIVE)
+            return (-etapa, 0 if to_active else 1, i)
+        return min(indices, key=key)
 
-    def _id_en_mano(self, obs, opcion):
+    def _id_in_hand(self, obs, opcion):
         cur = obs.get("current") or {}
         yo = cur.get("yourIndex", 0)
         jugadores = cur.get("players") or []
         if yo >= len(jugadores):
             return None
-        mano = (jugadores[yo] or {}).get("hand") or []
+        hand = (jugadores[yo] or {}).get("hand") or []
         idx = opcion.get("index")
         if opcion.get("area") != int(AreaType.HAND) or idx is None:
             return None
         try:
-            return (mano[idx] or {}).get("id")
+            return (hand[idx] or {}).get("id")
         except (IndexError, TypeError):
             return None
 
-    def _mejor_adjunte(self, obs, opciones, adjuntes):
+    def _best_attachment(self, obs, opciones, adjuntes):
         """To the ACTIVE, unless it already has energy and there is a body with an ability
         conditioned on energy still dry: that engine goes first."""
         cur = obs.get("current") or {}
@@ -299,7 +299,7 @@ class BotRival:
         active = None
         if yo < len(jugadores):
             active = ((jugadores[yo] or {}).get("active") or [None])[0]
-        al_activo = [i for i in adjuntes
+        to_active = [i for i in adjuntes
                      if opciones[i].get("inPlayArea") == int(AreaType.ACTIVE)]
 
         if active and len(active.get("energies") or []) >= 1:
@@ -310,20 +310,20 @@ class BotRival:
                      "index": opciones[i].get("inPlayIndex"),
                      "playerIndex": yo})
                 if (destino and not (destino.get("energies") or [])
-                        and self._habilidad_pide_energia(destino.get("id"))):
+                        and self._ability_needs_energy(destino.get("id"))):
                     return i
 
-        return al_activo[0] if al_activo else adjuntes[0]
+        return to_active[0] if to_active else adjuntes[0]
 
-    def _elegir_habilidad(self, indices, opciones):
+    def _pick_ability(self, indices, opciones):
         """One activation per Pokemon and per turn, with a hard per-turn cap."""
-        if not indices or self._activaciones >= MAX_HABILIDADES_POR_TURNO:
+        if not indices or self._activaciones >= MAX_ABILITIES_PER_TURN:
             return None
         for i in indices:
-            clave = (opciones[i].get("area"), opciones[i].get("index"))
-            if clave in self._habilidades_usadas:
+            key = (opciones[i].get("area"), opciones[i].get("index"))
+            if key in self._habilidades_usadas:
                 continue
-            self._habilidades_usadas.add(clave)
+            self._habilidades_usadas.add(key)
             self._activaciones += 1
             return i
         return None
@@ -342,7 +342,7 @@ class BotRival:
         k = max(1, sel.get("minCount") or 1)
         orden = sorted(
             range(len(opciones)),
-            key=lambda i: -self._dano_encajado(self._pokemon_de(obs, opciones[i])))
+            key=lambda i: -self._damage_taken(self._pokemon_de(obs, opciones[i])))
         return sorted(orden[:min(k, len(opciones))])
 
     def _destino_de_contadores(self, obs, opciones, sel):
@@ -350,14 +350,14 @@ class BotRival:
         more prizes, the better) and, if none dies, the one with the least HP."""
         cur = obs.get("current") or {}
         yo = cur.get("yourIndex", 0)
-        damage = DANO_POR_CONTADOR * max(1, self._contadores)
+        damage = DAMAGE_PER_COUNTER * max(1, self._contadores)
 
         rivales = [i for i in range(len(opciones))
                    if opciones[i].get("playerIndex") not in (None, yo)]
         candidatos = rivales or list(range(len(opciones)))
 
-        def clave(i):
-            pk = self._pokemon_de(obs, opciones[i], indice_propio=yo)
+        def key(i):
+            pk = self._pokemon_de(obs, opciones[i], own_index=yo)
             if not pk:
                 return (2, 0, 0)
             hp = pk.get("hp") or 0
@@ -368,12 +368,12 @@ class BotRival:
             return (2, 0, -hp)
 
         k = max(1, sel.get("minCount") or 1)
-        orden = sorted(candidatos, key=clave)
+        orden = sorted(candidatos, key=key)
         return sorted(orden[:min(k, len(candidatos))])
 
     # -- who goes to the active spot ----------------------------------------
 
-    def _elegir_activo(self, obs, opciones, sel):
+    def _pick_active(self, obs, opciones, sel):
         """Two cases with the same context:
 
         * options over OUR bench -- a promotion after a KO or the destination of a
@@ -391,28 +391,28 @@ class BotRival:
         rivales = [i for i in range(len(opciones))
                    if opciones[i].get("playerIndex") not in (None, yo)]
         if rivales:
-            mi_activo = None
+            my_active = None
             if yo < len(jugadores):
-                mi_activo = ((jugadores[yo] or {}).get("active") or [None])[0]
+                my_active = ((jugadores[yo] or {}).get("active") or [None])[0]
 
-            def clave_gusteo(i):
+            def gust_key(i):
                 pk = self._pokemon_de(obs, opciones[i])
                 if not pk:
                     return (2, 0, 0)
                 hp = pk.get("hp") or 0
-                muere = self._mejor_dano_de(mi_activo, pk) >= hp
+                muere = self._best_damage_of(my_active, pk) >= hp
                 return (0 if muere else 1, -self._prizes(pk), hp)
 
-            orden = sorted(rivales, key=clave_gusteo)
+            orden = sorted(rivales, key=gust_key)
             return sorted(orden[:min(k, len(rivales))])
 
-        def clave_propia(i):
-            pk = self._pokemon_de(obs, opciones[i], indice_propio=yo)
+        def own_key(i):
+            pk = self._pokemon_de(obs, opciones[i], own_index=yo)
             if not pk:
                 return (0, 0)
             return (-len(pk.get("energies") or []), -(pk.get("hp") or 0))
 
-        orden = sorted(range(len(opciones)), key=clave_propia)
+        orden = sorted(range(len(opciones)), key=own_key)
         return sorted(orden[:min(k, len(opciones))])
 
     # -- yes / no -----------------------------------------------------------

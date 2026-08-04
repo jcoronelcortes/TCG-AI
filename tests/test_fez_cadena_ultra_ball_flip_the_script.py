@@ -124,9 +124,9 @@ def _obs(fixture):
         return json.load(f)["observation"]
 
 
-def _jugada(obs, eleccion):
+def _jugada(obs, choice):
     """('PLAY'|'ABILITY', card_id) / ('ATTACK', attackId) / ('END', None)."""
-    o = obs["select"]["option"][eleccion[0]]
+    o = obs["select"]["option"][choice[0]]
     tipo = o["type"]
     yo = obs["current"]["yourIndex"]
     jugador = obs["current"]["players"][yo]
@@ -155,7 +155,7 @@ def _menus_del_registro():
     """The menus of OUR seat (yourIndex 1) from the record, in order."""
     with open(_REGISTRO, encoding="utf-8") as f:
         data = json.load(f)
-    return [e["observation"] for paso in data["steps"] for e in paso
+    return [e["observation"] for step in data["steps"] for e in step
             if e["status"] in ("ACTIVE", "DONE")
             and e["observation"]["current"]["yourIndex"] == 1]
 
@@ -166,10 +166,10 @@ def _menus_del_registro():
 
 def test_paso91_baja_el_fezandipiti_antes_del_unfair_stamp():
     obs = _obs(_FIX_STEP91)
-    jugadas = _jugadas(obs)
+    plays = _jugadas(obs)
     # The real menu offered both plays in competition.
-    assert ("PLAY", FEZ) in jugadas, jugadas
-    assert ("PLAY", STAMP) in jugadas, jugadas
+    assert ("PLAY", FEZ) in plays, plays
+    assert ("PLAY", STAMP) in plays, plays
     assert _jugada(obs, m.agent(obs)) == ("PLAY", FEZ)
 
 
@@ -179,10 +179,10 @@ def test_paso91_el_bloqueo_circular_existe_de_verdad():
     obs = _obs(_FIX_STEP91)
     st = m.to_observation_class(obs).current
     yo = st.players[st.yourIndex]
-    mano = [c.id for c in yo.hand]
-    assert mano.count(STAMP) == 1
-    assert mano.count(BOSS) == 1
-    assert mano.count(FEZ) == 1
+    hand = [c.id for c in yo.hand]
+    assert hand.count(STAMP) == 1
+    assert hand.count(BOSS) == 1
+    assert hand.count(FEZ) == 1
     assert not st.supporterPlayed
     assert len(yo.bench) == 4                      # there is room for the Fez
     assert any(bp.id == RIOLU for bp in st.players[1 - st.yourIndex].bench)
@@ -222,11 +222,11 @@ def test_turno_completo_la_ultra_ball_deja_el_fezandipiti_pendiente():
 
 def test_paso95_flip_the_script_antes_de_teal_dance_y_ripening():
     obs = _obs(_FIX_STEP95)
-    jugadas = _jugadas(obs)
-    assert ("ABILITY", FEZ) in jugadas, jugadas
-    assert ("ABILITY", OGERPON) in jugadas, jugadas     # Teal Dance
-    assert ("ABILITY", HYDRA) in jugadas, jugadas       # Ripening Charge
-    assert ("ATTACH", GRASS) in jugadas, jugadas
+    plays = _jugadas(obs)
+    assert ("ABILITY", FEZ) in plays, plays
+    assert ("ABILITY", OGERPON) in plays, plays     # Teal Dance
+    assert ("ABILITY", HYDRA) in plays, plays       # Ripening Charge
+    assert ("ATTACH", GRASS) in plays, plays
     assert _jugada(obs, m.agent(obs)) == ("ABILITY", FEZ)
 
 
@@ -243,8 +243,8 @@ def test_paso102_el_remate_ganador_sigue_por_encima_del_robo():
     Syrup Storm knocks out the Mega Lucario ex) attacking comes first -- drawing 3
     changes nothing."""
     obs = _obs(_FIX_STEP102)
-    jugadas = _jugadas(obs)
-    assert ("ABILITY", FEZ) in jugadas, jugadas
+    plays = _jugadas(obs)
+    assert ("ABILITY", FEZ) in plays, plays
     assert _jugada(obs, m.agent(obs)) == ("ATTACK", 195)
 
 
@@ -252,19 +252,19 @@ def test_paso102_el_remate_ganador_sigue_por_encima_del_robo():
 # 3. A synthetic generalisation
 # ---------------------------------------------------------------------------
 
-def _escenario_lucario(mano, con_ataque=True):
+def _escenario_lucario(hand, con_ataque=True):
     """The board of step 91 rebuilt with the StateBuilder, with a parametric hand."""
-    esc = (Escenario(turn=6, paso=91, tac=6)
-           .mi_activo(pk(HYDRA, energias=[G, G], pre_evo=[APPLIN, DIPPLIN]))
-           .mi_banca(MEOWTH, pk(MEGANIUM, pre_evo=[CHIKORITA, BAYLEEF]),
+    esc = (Escenario(turn=6, step=91, tac=6)
+           .my_active(pk(HYDRA, energias=[G, G], pre_evo=[APPLIN, DIPPLIN]))
+           .my_bench(MEOWTH, pk(MEGANIUM, pre_evo=[CHIKORITA, BAYLEEF]),
                      pk(OGERPON, energias=[G]), OGERPON)
-           .mi_mano(*mano)
-           .op_activo(pk(MEGA_LUCARIO, hp=340, max_hp=340, energias=[C, C],
+           .my_hand(*hand)
+           .op_active(pk(MEGA_LUCARIO, hp=340, max_hp=340, energias=[C, C],
                          pre_evo=[RIOLU]))
-           .op_banca(RIOLU, RIOLU)
-           .op_zonas(mano=6, mazo=23, prizes=4)
+           .op_bench(RIOLU, RIOLU)
+           .op_zonas(hand=6, deck=23, prizes=4)
            .menu_mano(con_ataque=con_ataque))
-    obs = esc.construir()
+    obs = esc.build()
     # Step 91 arrives after we were knocked out: it replicates the tracking.
     m.ko_last_turn = True
     m._ko_detected_this_turn = True
@@ -285,26 +285,26 @@ def test_sintetico_req_h_sigue_vetando_el_desarrollo_normal():
     """The Req H veto has not been disabled: a development body (Chikorita)
     still yields the play to the Boss's."""
     obs = _escenario_lucario([CHIKORITA, BOSS])
-    jugadas = _jugadas(obs)
-    assert ("PLAY", CHIKORITA) in jugadas, jugadas
+    plays = _jugadas(obs)
+    assert ("PLAY", CHIKORITA) in plays, plays
     assert _jugada(obs, m.agent(obs)) != ("PLAY", CHIKORITA)
 
 
-def _escenario_teal_lillie(mano):
+def _escenario_teal_lillie(hand):
     """A board with ONE single Ogerpon ex in play: with Lillie's + Ogerpon ex +
     Grass in hand, `_fez_prefer_teal_lillie` switches on, which vetoes playing the
     Fezandipiti in order to prefer Teal + Teal Dance + Lillie's."""
-    esc = (Escenario(turn=6, paso=91, tac=6)
-           .mi_activo(pk(HYDRA, energias=[G, G], pre_evo=[APPLIN, DIPPLIN]))
-           .mi_banca(MEOWTH, pk(MEGANIUM, pre_evo=[CHIKORITA, BAYLEEF]),
+    esc = (Escenario(turn=6, step=91, tac=6)
+           .my_active(pk(HYDRA, energias=[G, G], pre_evo=[APPLIN, DIPPLIN]))
+           .my_bench(MEOWTH, pk(MEGANIUM, pre_evo=[CHIKORITA, BAYLEEF]),
                      pk(OGERPON, energias=[G]))
-           .mi_mano(*mano)
-           .op_activo(pk(MEGA_LUCARIO, hp=340, max_hp=340, energias=[C, C],
+           .my_hand(*hand)
+           .op_active(pk(MEGA_LUCARIO, hp=340, max_hp=340, energias=[C, C],
                          pre_evo=[RIOLU]))
-           .op_banca(RIOLU, RIOLU)
-           .op_zonas(mano=6, mazo=23, prizes=4)
+           .op_bench(RIOLU, RIOLU)
+           .op_zonas(hand=6, deck=23, prizes=4)
            .menu_mano(con_ataque=True))
-    obs = esc.construir()
+    obs = esc.build()
     m.ko_last_turn = True
     m._ko_detected_this_turn = True
     m._prev_op_prize = 6
@@ -325,17 +325,17 @@ def test_sintetico_ub_fez_pending_completa_la_busqueda_pagada():
 
 def test_sintetico_pending_no_rompe_los_limites_fisicos():
     """The override does not fill an already complete bench (a PHYSICAL limit)."""
-    esc = (Escenario(turn=6, paso=91, tac=6)
-           .mi_activo(pk(HYDRA, energias=[G, G], pre_evo=[APPLIN, DIPPLIN]))
-           .mi_banca(MEOWTH, pk(MEGANIUM, pre_evo=[CHIKORITA, BAYLEEF]),
+    esc = (Escenario(turn=6, step=91, tac=6)
+           .my_active(pk(HYDRA, energias=[G, G], pre_evo=[APPLIN, DIPPLIN]))
+           .my_bench(MEOWTH, pk(MEGANIUM, pre_evo=[CHIKORITA, BAYLEEF]),
                      pk(OGERPON, energias=[G]), OGERPON, APPLIN)
-           .mi_mano(FEZ, DAWN)
-           .op_activo(pk(MEGA_LUCARIO, hp=340, max_hp=340, energias=[C, C],
+           .my_hand(FEZ, DAWN)
+           .op_active(pk(MEGA_LUCARIO, hp=340, max_hp=340, energias=[C, C],
                          pre_evo=[RIOLU]))
-           .op_banca(RIOLU)
-           .op_zonas(mano=6, mazo=23, prizes=4)
+           .op_bench(RIOLU)
+           .op_zonas(hand=6, deck=23, prizes=4)
            .menu_mano(con_ataque=True))
-    obs = esc.construir()
+    obs = esc.build()
     m.ko_last_turn = True
     m._ko_detected_this_turn = True
     m._prev_op_prize = 6

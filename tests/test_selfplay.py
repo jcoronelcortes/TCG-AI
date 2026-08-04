@@ -21,17 +21,17 @@ from utils import selfplay as sp
 
 @pytest.fixture(scope="module")
 def instancias():
-    a = sp.cargar_agente(ROOT / "main.py", "smoke_agente_a")
-    b = sp.cargar_agente(ROOT / "main.py", "smoke_agente_b")
+    a = sp.load_agent(ROOT / "main.py", "smoke_agente_a")
+    b = sp.load_agent(ROOT / "main.py", "smoke_agente_b")
     return a, b
 
 
 def test_partida_completa_espejo(instancias):
     a, b = instancias
-    r = sp.jugar_partida(a, b)
+    r = sp.play_game(a, b)
     assert r["ganador"] in (0, 1), f"partida sin ganador: {r}"
     assert r["result"] == r["ganador"], "sin forfeits en el espejo"
-    assert 0 < r["pasos"] < sp.MAX_PASOS
+    assert 0 < r["pasos"] < sp.MAX_STEPS
     assert r["primer_jugador"] in (0, 1)
 
 
@@ -49,11 +49,11 @@ def test_partida_vs_bot_rival(instancias):
     # The generic bot pilots the harvested opposing deck: the game finishes and
     # NOBODY loses by forfeit (every choice of the bot is legal).
     a, _ = instancias
-    ruta = ROOT / "deck" / "rivales" / "crustle_kangaskhan.csv"
-    if not ruta.exists():
+    path = ROOT / "deck" / "rivales" / "crustle_kangaskhan.csv"
+    if not path.exists():
         pytest.skip("mazo rival no cosechado (utils/cosechar_deck_rival.py)")
     from utils.bot_rival import BotRival
-    r = sp.jugar_partida(a, BotRival(), deck1=sp.leer_deck(ruta))
+    r = sp.play_game(a, BotRival(), deck1=sp.read_deck(path))
     assert r["ganador"] in (0, 1), f"partida sin ganador: {r}"
     assert not str(r["result"]).startswith("error"), (
         f"forfeit inesperado: {r}")
@@ -77,7 +77,7 @@ def test_wilson_95():
 
 def test_la_partida_reporta_premios_tomados(instancias):
     a, b = instancias
-    r = sp.jugar_partida(a, b)
+    r = sp.play_game(a, b)
     p = r["premios_tomados"]
     assert p[0] is not None and p[1] is not None, (
         "los premios deben poder leerse del tablero final")
@@ -96,18 +96,18 @@ def test_el_pico_no_se_toma_de_battle_start(instancias):
     game and every matchup marked +0.00. The peak is discovered
     during the game.
     """
-    assert sp._premios_tomados([0, 0], [4, 5]) == [None, None], (
+    assert sp._prizes_taken([0, 0], [4, 5]) == [None, None], (
         "sin pico valido no se debe inventar un 0: es 'no medido'")
-    assert sp._premios_tomados([6, 6], [4, 5]) == [2, 1]
+    assert sp._prizes_taken([6, 6], [4, 5]) == [2, 1]
     # The pile only goes down; an ending above the peak cannot give a negative.
-    assert sp._premios_tomados([6, 6], [6, 6]) == [0, 0]
+    assert sp._prizes_taken([6, 6], [6, 6]) == [0, 0]
 
 
 def test_el_torneo_agrega_premios_por_agente(instancias):
     a, b = instancias
     stats = sp.torneo(a, b, 2)
     assert stats["partidas_con_premios"] == 2
-    pc, pb, dif = sp.premios_por_partida(stats)
+    pc, pb, dif = sp.prizes_per_game(stats)
     assert pc is not None and pb is not None
     assert abs(dif - (pc - pb)) < 1e-9
     # In the mirror both sides are the same agent: the differential cannot

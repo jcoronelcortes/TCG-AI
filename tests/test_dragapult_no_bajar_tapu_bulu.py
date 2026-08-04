@@ -115,9 +115,9 @@ def _obs():
 
 def _idx_tapu(obs):
     """Index of the 'PLAY Tapu Bulu' option in the main menu."""
-    mano = obs["current"]["players"][obs["current"]["yourIndex"]]["hand"]
+    hand = obs["current"]["players"][obs["current"]["yourIndex"]]["hand"]
     for i, o in enumerate(obs["select"]["option"]):
-        if o.get("type") == int(m.OptionType.PLAY) and mano[o["index"]]["id"] == TAPU:
+        if o.get("type") == int(m.OptionType.PLAY) and hand[o["index"]]["id"] == TAPU:
             return i
     raise AssertionError("el fixture no ofrece bajar Tapu Bulu")
 
@@ -133,11 +133,11 @@ def test_el_fixture_es_la_banca_llena_vs_dragapult():
     riv = o["current"]["players"][1 - yo]
 
     # Five Pokémon in play: the active Meganium + four on the bench.
-    banca = [b for b in mio["bench"] if b]
+    bench = [b for b in mio["bench"] if b]
     assert mio["active"][0]["id"] == MEGANIUM
-    assert len(banca) == 4
-    assert sum(1 for b in banca if b["id"] == OGERPON) == 3
-    assert 1 + len(banca) > 2, "con <=2 cuerpos la regla NO aplica"
+    assert len(bench) == 4
+    assert sum(1 for b in bench if b["id"] == OGERPON) == 3
+    assert 1 + len(bench) > 2, "con <=2 cuerpos la regla NO aplica"
 
     # Tapu Bulu is in hand and the menu offers to play it.
     assert any(c["id"] == TAPU for c in mio["hand"])
@@ -167,18 +167,18 @@ def test_no_se_baja_tapu_bulu():
 
 def _replay_hasta(paso_final):
     """Replays the record from its first step and returns the decisions."""
-    datos = json.load(open(_REGISTRO, encoding="utf-8"))
-    pasos = datos["source_step_numbers"]
+    data = json.load(open(_REGISTRO, encoding="utf-8"))
+    steps = data["source_step_numbers"]
     decisiones = {}
-    for i, par in enumerate(datos["steps"]):
-        if pasos[i] > paso_final:
+    for i, par in enumerate(data["steps"]):
+        if steps[i] > paso_final:
             break
         for item in par:
             obs = item.get("observation") or {}
             if (item.get("status") != "ACTIVE" or not obs.get("select")
                     or obs["current"].get("yourIndex") != 1):
                 continue
-            decisiones[pasos[i]] = (copy.deepcopy(obs), m.agent(copy.deepcopy(obs)))
+            decisiones[steps[i]] = (copy.deepcopy(obs), m.agent(copy.deepcopy(obs)))
     return decisiones
 
 

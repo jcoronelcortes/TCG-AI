@@ -112,9 +112,9 @@ def _idx_de_tipo(obs, tipo):
 
 def _idx_play_boss(obs):
     yo = obs["current"]["yourIndex"]
-    mano = obs["current"]["players"][yo]["hand"]
+    hand = obs["current"]["players"][yo]["hand"]
     for i, o in enumerate(obs["select"]["option"]):
-        if o["type"] == int(m.OptionType.PLAY) and mano[o["index"]]["id"] == BOSS:
+        if o["type"] == int(m.OptionType.PLAY) and hand[o["index"]]["id"] == BOSS:
             return i
     return -1
 
@@ -173,11 +173,11 @@ def test_retira_en_vez_de_gustear():
     assert i_boss >= 0 and i_retreat >= 0, _tipos(decision)
 
     m.agent(previa)
-    eleccion = m.agent(decision)
+    choice = m.agent(decision)
 
-    assert eleccion == [i_retreat], (
-        f"esperaba RETIRAR (idx {i_retreat}), eligio {eleccion}")
-    assert eleccion != [i_boss], "el Boss's tira el turno ganador"
+    assert choice == [i_retreat], (
+        f"esperaba RETIRAR (idx {i_retreat}), eligio {choice}")
+    assert choice != [i_boss], "el Boss's tira el turno ganador"
 
 
 def test_la_linea_completa_cierra_la_partida():
@@ -185,15 +185,15 @@ def test_la_linea_completa_cierra_la_partida():
     fx = _fixture()
 
     promo = fx["contrafactual_promocion"]
-    eleccion = m.agent(promo)
-    banca = promo["current"]["players"][1]["bench"]
-    subido = banca[promo["select"]["option"][eleccion[0]]["index"]]
+    choice = m.agent(promo)
+    bench = promo["current"]["players"][1]["bench"]
+    subido = bench[promo["select"]["option"][choice[0]]["index"]]
     assert subido["id"] == OGERPON and len(subido["energies"]) == 4, subido
 
     ataque = fx["contrafactual_ataque"]
     assert ataque["current"]["players"][0]["active"][0]["id"] == GRIMMSNARL
-    eleccion = m.agent(ataque)
-    opcion = ataque["select"]["option"][eleccion[0]]
+    choice = m.agent(ataque)
+    opcion = ataque["select"]["option"][choice[0]]
     assert opcion["type"] == int(m.OptionType.ATTACK), opcion
 
 
@@ -217,8 +217,8 @@ def test_la_regla_no_depende_del_atacante_concreto():
         pytest.fail("no se encontro el Ogerpon cargado en la banca")
 
     m.agent(fx["observacion_previa"])
-    eleccion = m.agent(decision)
-    assert eleccion == [_idx_de_tipo(decision, m.OptionType.RETREAT)], eleccion
+    choice = m.agent(decision)
+    assert choice == [_idx_de_tipo(decision, m.OptionType.RETREAT)], choice
 
 
 def test_sin_rematador_en_banca_no_dispara():
@@ -233,11 +233,11 @@ def test_sin_rematador_en_banca_no_dispara():
             break
 
     m.agent(fx["observacion_previa"])
-    eleccion = m.agent(decision)
+    choice = m.agent(decision)
     # The rule's contract is "close out the game by retreating". With no finisher it closes
     # nothing, so it must not hijack the turn; which of the NON-vetoed
     # Supporters wins afterwards is decided by other scorers.
-    assert eleccion != [_idx_de_tipo(decision, m.OptionType.RETREAT)], eleccion
+    assert choice != [_idx_de_tipo(decision, m.OptionType.RETREAT)], choice
 
 
 def test_sin_match_point_el_gusteo_sigue_vivo():
@@ -248,9 +248,9 @@ def test_sin_match_point_el_gusteo_sigue_vivo():
     decision["current"]["players"][1]["prize"] = [None, None, None]
 
     m.agent(fx["observacion_previa"])
-    eleccion = m.agent(decision)
+    choice = m.agent(decision)
 
-    assert eleccion != [_idx_de_tipo(decision, m.OptionType.RETREAT)], (
-        f"sin match point la retirada no debe mandar, eligio {eleccion}")
-    assert eleccion == [_idx_play_boss(decision)], (
-        f"sin match point el gusteo debe seguir disponible, eligio {eleccion}")
+    assert choice != [_idx_de_tipo(decision, m.OptionType.RETREAT)], (
+        f"sin match point la retirada no debe mandar, eligio {choice}")
+    assert choice == [_idx_play_boss(decision)], (
+        f"sin match point el gusteo debe seguir disponible, eligio {choice}")

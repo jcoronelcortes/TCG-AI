@@ -99,9 +99,9 @@ def _obs(con_banca=False, basicos_a_fase1=False):
     mio = o["current"]["players"][yo]
     if con_banca:
         # Any body on the bench: there is NO relief urgency any more.
-        cuerpo = copy.deepcopy(mio["active"][0])
-        cuerpo["serial"] = 59
-        mio["bench"] = [cuerpo]
+        body = copy.deepcopy(mio["active"][0])
+        body["serial"] = 59
+        mio["bench"] = [body]
     if basicos_a_fase1:
         # The two Basics in hand become Stage 1: they are not benched, so
         # the exemption must not reach them.
@@ -111,8 +111,8 @@ def _obs(con_banca=False, basicos_a_fase1=False):
     return o
 
 
-def _jugada(obs, eleccion):
-    o = obs["select"]["option"][eleccion[0]]
+def _jugada(obs, choice):
+    o = obs["select"]["option"][choice[0]]
     if o["type"] == int(m.OptionType.PLAY):
         yo = obs["current"]["yourIndex"]
         return ("PLAY", obs["current"]["players"][yo]["hand"][o["index"]]["id"])
@@ -159,10 +159,10 @@ def _flag_de_agent(obs, name):
 
 def _idx_de(obs, card_id):
     yo = obs["current"]["yourIndex"]
-    mano = obs["current"]["players"][yo]["hand"]
+    hand = obs["current"]["players"][yo]["hand"]
     return next(i for i, o in enumerate(obs["select"]["option"])
                 if o["type"] == int(m.OptionType.PLAY)
-                and mano[o["index"]]["id"] == card_id)
+                and hand[o["index"]]["id"] == card_id)
 
 
 # ---------------------------------------------------------------------------
@@ -176,9 +176,9 @@ def test_el_fixture_es_banca_vacia_con_activo_vivo_y_relevo_en_mano():
 
     assert not [b for b in mio["bench"] if b]            # EMPTY bench
     assert mio["active"] and mio["active"][0]            # ...but the active is ALIVE
-    mano = [h["id"] for h in mio["hand"]]
-    assert FEZ in mano and CHIKORITA in mano             # there is a basic relief
-    assert OGERPON not in mano                           # and it is NOT Ogerpon ex
+    hand = [h["id"] for h in mio["hand"]]
+    assert FEZ in hand and CHIKORITA in hand             # there is a basic relief
+    assert OGERPON not in hand                           # and it is NOT Ogerpon ex
     # `op_is_comfey_deck` is LOCAL to `agent()`, not global: reading it with
     # `m.<flag>` would give what the test's reset left, not the decision.
     assert _flag_de_agent(o, "op_is_comfey_deck") is True

@@ -98,9 +98,9 @@ def reset_main_state():
     m._init_cards_tracking()
 
 
-def _destino_de_la_energia(obs, eleccion):
+def _destino_de_la_energia(obs, choice):
     """The id of the Pokemon that receives the Grass, or None if no ATTACH was chosen."""
-    opt = obs["select"]["option"][eleccion[0]]
+    opt = obs["select"]["option"][choice[0]]
     if opt.get("type") != int(m.OptionType.ATTACH):
         return None
     yo = obs["current"]["players"][obs["current"]["yourIndex"]]
@@ -109,15 +109,15 @@ def _destino_de_la_energia(obs, eleccion):
     return destino["id"]
 
 
-def _jugada(obs, eleccion):
+def _jugada(obs, choice):
     """('PLAY', id) / ('ATTACH', id) / ('END',) ... of the chosen option."""
-    opt = obs["select"]["option"][eleccion[0]]
+    opt = obs["select"]["option"][choice[0]]
     tipo = opt.get("type")
     yo = obs["current"]["players"][obs["current"]["yourIndex"]]
     if tipo == int(m.OptionType.PLAY):
         return ("PLAY", yo["hand"][opt["index"]]["id"])
     if tipo == int(m.OptionType.ATTACH):
-        return ("ATTACH", _destino_de_la_energia(obs, eleccion))
+        return ("ATTACH", _destino_de_la_energia(obs, choice))
     if tipo == int(m.OptionType.END):
         return ("END",)
     return (tipo,)
@@ -138,20 +138,20 @@ def _mesa_con_meganium_herido(con_goteo=True):
     banca_rival = ([pk(FROSLASS, hp=90, max_hp=90),
                     pk(MUNKIDORI, hp=110, max_hp=110, energias=[G], fisicas=1)]
                    if con_goteo else [pk(MORGREM, hp=100, max_hp=100)])
-    return (Escenario(turn=12, paso=172, tac=1)
-            .mi_activo(pk(HYDRAPPLE, hp=110, max_hp=330, energias=[G, G],
+    return (Escenario(turn=12, step=172, tac=1)
+            .my_active(pk(HYDRAPPLE, hp=110, max_hp=330, energias=[G, G],
                           fisicas=2, pre_evo=[APPLIN, DIPPLIN]))
-            .mi_banca(pk(MEGANIUM, hp=30, max_hp=160,
+            .my_bench(pk(MEGANIUM, hp=30, max_hp=160,
                          pre_evo=[CHIKORITA, BAYLEEF]),
                       pk(OGERPON, hp=210, max_hp=210, energias=[G, G],
                          fisicas=2))
-            .mi_mano(GRASS)
-            .op_activo(pk(GRIMMSNARL, hp=310, max_hp=320,
+            .my_hand(GRASS)
+            .op_active(pk(GRIMMSNARL, hp=310, max_hp=320,
                           energias=[G, G], fisicas=2))
-            .op_banca(*banca_rival)
-            .op_zonas(mano=5, mazo=35, prizes=3)
+            .op_bench(*banca_rival)
+            .op_zonas(hand=5, deck=35, prizes=3)
             .menu_attach_energia()
-            .construir())
+            .build())
 
 
 def test_la_planta_no_va_al_cuerpo_condenado():
@@ -180,17 +180,17 @@ def test_el_activo_que_ataca_hoy_no_cuenta_como_condenado():
     # The ACTIVE that is inside the window but ATTACKS this turn with that same Grass is
     # not doomed: the energy is cashed in before the opponent plays. An active Ogerpon
     # at 60 HP with 2 energies -> the 3rd pays for its Myriad Leaf Shower.
-    obs = (Escenario(turn=12, paso=1, tac=1)
-           .mi_activo(pk(OGERPON, hp=60, max_hp=210, energias=[G, G], fisicas=2))
-           .mi_banca(pk(BAYLEEF, hp=100, max_hp=100, pre_evo=[CHIKORITA]))
-           .mi_mano(GRASS)
-           .op_activo(pk(GRIMMSNARL, hp=310, max_hp=320, energias=[G, G],
+    obs = (Escenario(turn=12, step=1, tac=1)
+           .my_active(pk(OGERPON, hp=60, max_hp=210, energias=[G, G], fisicas=2))
+           .my_bench(pk(BAYLEEF, hp=100, max_hp=100, pre_evo=[CHIKORITA]))
+           .my_hand(GRASS)
+           .op_active(pk(GRIMMSNARL, hp=310, max_hp=320, energias=[G, G],
                          fisicas=2))
-           .op_banca(pk(FROSLASS, hp=90, max_hp=90),
+           .op_bench(pk(FROSLASS, hp=90, max_hp=90),
                      pk(MUNKIDORI, hp=110, max_hp=110, energias=[G], fisicas=1))
-           .op_zonas(mano=5, mazo=35, prizes=3)
+           .op_zonas(hand=5, deck=35, prizes=3)
            .menu_attach_energia()
-           .construir())
+           .build())
     assert _destino_de_la_energia(obs, m.agent(obs)) == OGERPON, (
         "el activo que ataca HOY con esa Planta cobra antes de morir: la Fase C "
         "no debe desviarla al Bayleef de banca")
@@ -212,17 +212,17 @@ def _mesa_para_bajar_fez(con_froslass=True, premios_rival=6):
     """
     banca_rival = ([pk(FROSLASS, hp=90, max_hp=90)] if con_froslass
                    else [pk(MORGREM, hp=100, max_hp=100)])
-    return (Escenario(turn=6, paso=1, tac=1)
-            .mi_activo(pk(OGERPON, hp=210, max_hp=210, energias=[G, G, G],
+    return (Escenario(turn=6, step=1, tac=1)
+            .my_active(pk(OGERPON, hp=210, max_hp=210, energias=[G, G, G],
                           fisicas=3))
-            .mi_banca(pk(TAPU, hp=140, max_hp=140))
-            .mi_mano(FEZ, GRASS)
-            .op_activo(pk(GRIMMSNARL, hp=320, max_hp=320, energias=[G],
+            .my_bench(pk(TAPU, hp=140, max_hp=140))
+            .my_hand(FEZ, GRASS)
+            .op_active(pk(GRIMMSNARL, hp=320, max_hp=320, energias=[G],
                           fisicas=1))
-            .op_banca(*banca_rival)
-            .op_zonas(mano=5, mazo=40, prizes=premios_rival)
+            .op_bench(*banca_rival)
+            .op_zonas(hand=5, deck=40, prizes=premios_rival)
             .menu_mano(con_adjunte=True)
-            .construir())
+            .build())
 
 
 def test_fezandipiti_no_se_banca_con_froslass_en_mesa():
@@ -256,19 +256,19 @@ def _mesa_para_bajar_applin(con_munkidori=True, con_cadena=False):
     if con_munkidori:
         banca_rival.append(pk(MUNKIDORI, hp=110, max_hp=110,
                               energias=[G], fisicas=1))
-    mano = [APPLIN, GRASS] + ([DIPPLIN] if con_cadena else [])
-    esc = (Escenario(turn=6, paso=1, tac=1)
-           .mi_activo(pk(OGERPON, hp=210, max_hp=210, energias=[G, G, G],
+    hand = [APPLIN, GRASS] + ([DIPPLIN] if con_cadena else [])
+    esc = (Escenario(turn=6, step=1, tac=1)
+           .my_active(pk(OGERPON, hp=210, max_hp=210, energias=[G, G, G],
                          fisicas=3))
-           .mi_banca(pk(TAPU, hp=140, max_hp=140))
-           .mi_mano(*mano)
-           .op_activo(pk(GRIMMSNARL, hp=320, max_hp=320, energias=[G],
+           .my_bench(pk(TAPU, hp=140, max_hp=140))
+           .my_hand(*hand)
+           .op_active(pk(GRIMMSNARL, hp=320, max_hp=320, energias=[G],
                          fisicas=1))
-           .op_banca(*banca_rival)
-           .op_zonas(mano=5, mazo=40, prizes=6))
+           .op_bench(*banca_rival)
+           .op_zonas(hand=5, deck=40, prizes=6))
     if con_cadena:
         esc = esc.estadio(m.Forest_of_Vitality)
-    return esc.menu_mano(con_adjunte=True).construir()
+    return esc.menu_mano(con_adjunte=True).build()
 
 
 def test_no_se_baja_un_applin_pelado_dentro_de_la_ventana():

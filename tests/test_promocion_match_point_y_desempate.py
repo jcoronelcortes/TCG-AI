@@ -98,7 +98,7 @@ def _pk(cid, hp, energias=0, serial=900):
             "preEvolution": [], "serial": serial, "tools": []}
 
 
-def _base(banca=None, sin_estadio=False, op_activo=None, op_premios=None):
+def _base(bench=None, sin_estadio=False, op_active=None, op_premios=None):
     """The real fixture of step 117 with the bench / rival active replaced."""
     o = copy.deepcopy(json.load(open(_FIXTURE, encoding="utf-8"))["observation"])
     yo = o["current"]["yourIndex"]
@@ -106,13 +106,13 @@ def _base(banca=None, sin_estadio=False, op_activo=None, op_premios=None):
     riv = o["current"]["players"][1 - yo]
     if sin_estadio:
         o["current"]["stadium"] = []
-    if op_activo is not None:
-        op_activo = dict(op_activo, playerIndex=1 - yo)
-        riv["active"] = [op_activo]
+    if op_active is not None:
+        op_active = dict(op_active, playerIndex=1 - yo)
+        riv["active"] = [op_active]
     if op_premios is not None:
         riv["prize"] = [None] * op_premios
-    if banca is not None:
-        mio["bench"] = [dict(b, playerIndex=yo) for b in banca]
+    if bench is not None:
+        mio["bench"] = [dict(b, playerIndex=yo) for b in bench]
     o["select"]["option"] = [
         {"area": 5, "index": k, "playerIndex": yo, "type": 3}
         for k in range(len(mio["bench"]))]
@@ -141,8 +141,8 @@ def test_prefiere_el_motor_vetado_antes_que_regalar_el_ultimo_premio():
     which carries its own veto for being the Wild Growth multiplier."""
     o = _base()
     yo = o["current"]["yourIndex"]
-    banca = [b for b in o["current"]["players"][yo]["bench"] if b["id"] != TAPU]
-    o = _base(banca=banca)
+    bench = [b for b in o["current"]["players"][yo]["bench"] if b["id"] != TAPU]
+    o = _base(bench=bench)
 
     riv = o["current"]["players"][1 - yo]
     assert len(riv["prize"]) == 1                      # match point
@@ -157,8 +157,8 @@ def test_sin_match_point_el_condenado_sigue_siendo_una_opcion():
     penalty rules again (which is graduable), not the veto."""
     o = _base()
     yo = o["current"]["yourIndex"]
-    banca = [b for b in o["current"]["players"][yo]["bench"] if b["id"] != TAPU]
-    o = _base(banca=banca, op_premios=3)
+    bench = [b for b in o["current"]["players"][yo]["bench"] if b["id"] != TAPU]
+    o = _base(bench=bench, op_premios=3)
     # With 3 prizes the rival does not win by knocking out a 1-prize body: the Dipplin stops
     # being vetoed and its score competes with the Meganium's again.
     assert len(o["current"]["players"][1 - yo]["prize"]) == 3
@@ -168,7 +168,7 @@ def test_sin_match_point_el_condenado_sigue_siendo_una_opcion():
 def test_si_no_aguanta_nadie_no_se_veta_la_banca_entera():
     """Boundary: with no survivors the game is lost anyway and the prize rule
     rules; vetoing everyone would leave the choice to chance."""
-    o = _base(banca=[_pk(DIPPLIN, 80, 2, 901), _pk(CHIKORITA, 70, 0, 902)],
+    o = _base(bench=[_pk(DIPPLIN, 80, 2, 901), _pk(CHIKORITA, 70, 0, 902)],
               op_premios=1)
     yo = o["current"]["yourIndex"]
     # Both die to Do the Wave's 100.
@@ -182,12 +182,12 @@ def test_match_point_es_deck_agnostico():
     """It does not depend on Festival Lead: the same veto against Marnie's Grimmsnarl ex
     (Shadow Bullet 180) and with no stadium on the table."""
     o = _base(sin_estadio=True,
-              op_activo={"appearThisTurn": False, "energies": [2, 2],
+              op_active={"appearThisTurn": False, "energies": [2, 2],
                          "energyCards": [], "hp": 320, "id": GRIMMSNARL,
                          "maxHp": 320, "preEvolution": [], "serial": 800,
                          "tools": []},
               op_premios=1,
-              banca=[_pk(HYDRAPPLE, 330, 0, 901), _pk(TAPU, 140, 2, 902)])
+              bench=[_pk(HYDRAPPLE, 330, 0, 901), _pk(TAPU, 140, 2, 902)])
     yo = o["current"]["yourIndex"]
     op_act = m.to_observation_class(o).current.players[1 - yo].active[0]
     tapu = m.to_observation_class(o).current.players[yo].bench[1]
@@ -205,20 +205,20 @@ def test_entre_supervivientes_manda_estar_cerca_de_atacar_y_ceder_menos():
     """A 140 HP Tapu Bulu TWO attachments away from Wood Hammer (1 prize) comes up
     ahead of a 210 HP Ogerpon ex THREE away from Myriad (2 prizes), even with
     70 HP less: life is the criterion of LAST resort."""
-    o = _base(banca=[_pk(OGERPON, 210, 0, 901), _pk(TAPU, 140, 2, 902)])
+    o = _base(bench=[_pk(OGERPON, 210, 0, 901), _pk(TAPU, 140, 2, 902)])
     yo = o["current"]["yourIndex"]
-    banca = m.to_observation_class(o).current.players[yo].bench
+    bench = m.to_observation_class(o).current.players[yo].bench
     op_act = m.to_observation_class(o).current.players[1 - yo].active[0]
 
     # Both SURVIVE the blow: the tie-break is not decided by survival.
-    for pk_ in banca:
+    for pk_ in bench:
         assert m._op_active_attack_damage_to(op_act, pk_) < (pk_.hp or 0)
     # And neither finishes off: it is not decided by the KO either.
     assert 210 > 0 and m.ATTACK_ENERGY_REQ[OGERPON] > 0
 
     elegido = _elegido(o)
     assert elegido["id"] == TAPU
-    assert m.prize_count(banca[1]) < m.prize_count(banca[0])
+    assert m.prize_count(bench[1]) < m.prize_count(bench[0])
 
 
 def test_el_desempate_no_puede_comprar_una_regla_decisiva():

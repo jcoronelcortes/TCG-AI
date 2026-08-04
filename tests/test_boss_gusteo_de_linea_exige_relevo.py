@@ -88,8 +88,8 @@ def _pkm(card_id, energias=0):
     return SimpleNamespace(id=card_id, energies=[1] * energias)
 
 
-def _op(active, banca):
-    return SimpleNamespace(active=[active] if active else [], bench=list(banca))
+def _op(active, bench):
+    return SimpleNamespace(active=[active] if active else [], bench=list(bench))
 
 
 # ---------------------------------------------------------------------------
@@ -100,8 +100,8 @@ def test_el_dano_impreso_miente_y_por_eso_se_mide_el_coste():
     """Three REAL attacks are listed with damage 0 in `attack_table`. If the predicate
     looked at the damage, all three bodies would pass for harmless."""
     for cid in (m.Alakazam_ex, m.Fezandipiti_ex, m.Gardevoir_ex):
-        datos = m.card_table[cid]
-        assert all((m.attack_table[a].damage or 0) == 0 for a in datos.attacks)
+        data = m.card_table[cid]
+        assert all((m.attack_table[a].damage or 0) == 0 for a in data.attacks)
 
     # Powerful Hand costs 1: a bare Alakazam attacks on its next turn.
     assert not m._op_body_is_harmless(_pkm(m.Alakazam_ex, 0))
@@ -159,17 +159,17 @@ def test_dunsparce_nunca_es_relevo():
 def _tablero(banca_extra=()):
     """Our turn with no attacker (Ogerpon ex at 1/3) and with Boss's Orders as the
     only card in hand: the menu is PLAY Boss's | END."""
-    return (Escenario(turn=6, paso=70, tac=2, premios_propios=5)
-            .mi_activo(pk(OGERPON, energias=[G], fisicas=1))
-            .mi_banca(pk(OGERPON))
-            .op_activo(pk(DRAGAPULT, hp=320, max_hp=320, energias=[G]))
-            .op_banca(*([pk(DRAKLOAK, hp=90, max_hp=90)] + list(banca_extra)))
-            .op_zonas(mano=5, mazo=30, prizes=5)
-            .mi_mano(BOSS)
-            .mazo()
+    return (Escenario(turn=6, step=70, tac=2, premios_propios=5)
+            .my_active(pk(OGERPON, energias=[G], fisicas=1))
+            .my_bench(pk(OGERPON))
+            .op_active(pk(DRAGAPULT, hp=320, max_hp=320, energias=[G]))
+            .op_bench(*([pk(DRAKLOAK, hp=90, max_hp=90)] + list(banca_extra)))
+            .op_zonas(hand=5, deck=30, prizes=5)
+            .my_hand(BOSS)
+            .deck()
             .resto_al_descarte()
             .menu_mano()
-            .construir())
+            .build())
 
 
 def test_el_tablero_sintetico_no_tiene_ni_ko_ni_ataque():

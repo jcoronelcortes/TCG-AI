@@ -21,7 +21,7 @@ from typing import Any
 # The project root (the parent folder of utils/) and the default working folders.
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LOG_DIR = os.path.join(ROOT_DIR, "log")
-REGISTROS_DIR = os.path.join(ROOT_DIR, "registros")
+RECORDS_DIR = os.path.join(ROOT_DIR, "registros")
 
 
 def find_single_log(log_dir: str) -> str:
@@ -47,7 +47,7 @@ def find_single_log(log_dir: str) -> str:
     return os.path.join(log_dir, jsons[0])
 
 
-def clean_registros(out_dir: str) -> int:
+def clean_records(out_dir: str) -> int:
     """Deletes the old records (``registro_*.json``) from ``out_dir``.
 
     It returns how many files were removed. It does not touch other files.
@@ -158,23 +158,23 @@ def main() -> None:
     turn.
     """
     logfile = find_single_log(LOG_DIR)
-    out_dir = REGISTROS_DIR
+    out_dir = RECORDS_DIR
 
     data = load_log(logfile)
     steps = data["steps"]
 
     # Clear the old records before generating the new ones.
-    removed = clean_registros(out_dir)
+    removed = clean_records(out_dir)
     if removed:
         print(f"Limpieza: {removed} registro(s) antiguo(s) eliminado(s) de {out_dir}.")
 
     print(f"Log: {logfile}")
-    turnos = sorted({t for t in (step_turn(s) for s in steps) if t is not None})
-    for turn in turnos:
+    turns = sorted({t for t in (step_turn(s) for s in steps) if t is not None})
+    for turn in turns:
         path = write_turn(data, turn, out_dir)
         count = len(steps_of_turn(steps, turn))
         print(f"Turno {turn}: {count} pasos -> {path}")
-    print(f"Total: {len(turnos)} turnos extraidos.")
+    print(f"Total: {len(turns)} turnos extraidos.")
 
 
 if __name__ == "__main__":

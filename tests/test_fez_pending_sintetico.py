@@ -116,46 +116,46 @@ def _campo(esc, banca_llena=False):
     """The board common to both menus."""
     extra = (m.Tapu_Bulu,) if banca_llena else ()
     return (esc
-            .mi_activo(pk(HYDRA, energias=[G, G], fisicas=2,
+            .my_active(pk(HYDRA, energias=[G, G], fisicas=2,
                           pre_evo=[APPLIN, DIPPLIN]))
-            .mi_banca(MEOWTH,
+            .my_bench(MEOWTH,
                       pk(MEGANIUM, pre_evo=[CHIKORITA, BAYLEEF]),
                       pk(OGERPON, energias=[G, G, G, G], fisicas=4),
                       OGERPON, *extra)
-            .op_activo(pk(MEGA_LUCARIO, hp=340, max_hp=340))
-            .op_banca(RIOLU)
-            .op_zonas(mano=5, mazo=30, prizes=4))
+            .op_active(pk(MEGA_LUCARIO, hp=340, max_hp=340))
+            .op_bench(RIOLU)
+            .op_zonas(hand=5, deck=30, prizes=4))
 
 
 def _menu_fetch():
     """Menu A: the Ultra Ball fetch, with a Fezandipiti ex in the deck."""
-    esc = Escenario(turn=TURNO, paso=90, tac=5, premios_propios=3)
+    esc = Escenario(turn=TURNO, step=90, tac=5, premios_propios=3)
     return (_campo(esc)
-            .mi_mano(STAMP)
-            .mazo(FEZ, CHIKORITA, APPLIN)
+            .my_hand(STAMP)
+            .deck(FEZ, CHIKORITA, APPLIN)
             # `fetch_ultra_ball()` consumes an Ultra Ball from the pool (the card "in
             # effect"), so it goes BEFORE `resto_al_descarte()`, which takes
             # everything left over. The other way round, the builder's strict
             # accounting runs out of copies and aborts.
             .fetch_ultra_ball()
             .resto_al_descarte()
-            .construir())
+            .build())
 
 
 def _menu_bajar(banca_llena=False):
     """Menu B: the next MAIN. A THIN hand (Stamp + Fez) so the Stamp
     scores in its high band and the test really discriminates."""
-    esc = Escenario(turn=TURNO, paso=91, tac=6, premios_propios=3)
+    esc = Escenario(turn=TURNO, step=91, tac=6, premios_propios=3)
     return (_campo(esc, banca_llena=banca_llena)
-            .mi_mano(STAMP, FEZ)
-            .mazo(CHIKORITA, APPLIN)      # `resto_al_descarte()` requires it
+            .my_hand(STAMP, FEZ)
+            .deck(CHIKORITA, APPLIN)      # `resto_al_descarte()` requires it
             .resto_al_descarte()
             .menu_mano()
-            .construir())
+            .build())
 
 
-def _jugada(obs, eleccion):
-    o = obs["select"]["option"][eleccion[0]]
+def _jugada(obs, choice):
+    o = obs["select"]["option"][choice[0]]
     if o["type"] == int(m.OptionType.PLAY):
         yo = obs["current"]["yourIndex"]
         return ("PLAY", obs["current"]["players"][yo]["hand"][o["index"]]["id"])

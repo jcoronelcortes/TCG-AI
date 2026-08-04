@@ -90,8 +90,8 @@ def _correr_fixture():
     return obs, m.agent(obs)
 
 
-def _opcion(obs, eleccion):
-    return obs["select"]["option"][eleccion[0]]
+def _opcion(obs, choice):
+    return obs["select"]["option"][choice[0]]
 
 
 # --------------------------------------------------------------------------
@@ -155,8 +155,8 @@ def test_sin_habilidad_no_se_paga_el_peaje_de_froslass():
 
 def test_usa_ripening_charge_en_vez_de_teal_dance():
     """The chosen ability is that of the active Hydrapple, not the Teal Dance."""
-    obs, eleccion = _correr_fixture()
-    o = _opcion(obs, eleccion)
+    obs, choice = _correr_fixture()
+    o = _opcion(obs, choice)
     assert o["type"] == int(m.OptionType.ABILITY), o
     assert o["area"] == int(m.AreaType.ACTIVE), (
         "Teal Dance sobre el Ogerpon de banca condenado en vez de Ripening Charge")
@@ -173,25 +173,25 @@ def test_la_planta_va_al_ogerpon_ex_no_al_meganium():
 
     The third Ogerpon (130 HP) is OUTSIDE its window of 100 and does not compete.
     """
-    obs = (Escenario(turn=10, paso=121, tac=6)
-           .mi_activo(pk(HYDRAPPLE, hp=70, energias=[G, G],
+    obs = (Escenario(turn=10, step=121, tac=6)
+           .my_active(pk(HYDRAPPLE, hp=70, energias=[G, G],
                          fisicas=1, pre_evo=[APPLIN, DIPPLIN]))
-           .mi_banca(pk(MEGANIUM, hp=110, pre_evo=[CHIKORITA, BAYLEEF]),
+           .my_bench(pk(MEGANIUM, hp=110, pre_evo=[CHIKORITA, BAYLEEF]),
                      pk(OGERPON, hp=80, energias=[G] * 4, fisicas=2),
                      pk(OGERPON, hp=130, energias=[G, G], fisicas=1))
-           .mi_mano(m.Basic_Grass_Energy)
-           .op_activo(pk(GRIMMSNARL, hp=300, max_hp=320, energias=[D, D]))
-           .op_banca(pk(FROSLASS, hp=90, max_hp=90),
+           .my_hand(m.Basic_Grass_Energy)
+           .op_active(pk(GRIMMSNARL, hp=300, max_hp=320, energias=[D, D]))
+           .op_bench(pk(FROSLASS, hp=90, max_hp=90),
                      pk(FROSLASS, hp=90, max_hp=90),
                      pk(MUNKIDORI, hp=80, max_hp=110, energias=[D]),
                      pk(MUNKIDORI, hp=90, max_hp=110))
-           .op_zonas(mano=5, mazo=17, prizes=5)
-           .mazo()
+           .op_zonas(hand=5, deck=17, prizes=5)
+           .deck()
            .resto_al_descarte()
            .objetivo_carga_habilidad()
-           .construir())
-    eleccion = m.agent(obs)
-    o = _opcion(obs, eleccion)
+           .build())
+    choice = m.agent(obs)
+    o = _opcion(obs, choice)
     assert o["area"] == int(m.AreaType.BENCH) and o["index"] == 1, (
         "la Planta debe curar al Ogerpon ex (2 premios) dentro de la ventana")
 
@@ -211,22 +211,22 @@ def test_el_dano_movible_es_elastico_no_condena_a_media_mesa():
     body per turn, so healing is still worth it: it forces the opponent to spend it.
     Between the two, the one worth MORE PRIZES wins, the Ogerpon ex.
     """
-    obs = (Escenario(turn=14, paso=167, tac=5, premios_propios=3)
-           .mi_activo(pk(HYDRAPPLE, hp=110, energias=[G, G],
+    obs = (Escenario(turn=14, step=167, tac=5, premios_propios=3)
+           .my_active(pk(HYDRAPPLE, hp=110, energias=[G, G],
                          fisicas=1, pre_evo=[APPLIN, DIPPLIN]))
-           .mi_banca(pk(MEGANIUM, hp=30, pre_evo=[CHIKORITA, BAYLEEF]),
+           .my_bench(pk(MEGANIUM, hp=30, pre_evo=[CHIKORITA, BAYLEEF]),
                      pk(OGERPON, hp=20, energias=[G] * 6, fisicas=3))
-           .mi_mano(m.Basic_Grass_Energy)
-           .op_activo(pk(GRIMMSNARL, hp=310, max_hp=320, energias=[D, D]))
-           .op_banca(pk(FROSLASS, hp=90, max_hp=90),
+           .my_hand(m.Basic_Grass_Energy)
+           .op_active(pk(GRIMMSNARL, hp=310, max_hp=320, energias=[D, D]))
+           .op_bench(pk(FROSLASS, hp=90, max_hp=90),
                      pk(MUNKIDORI, hp=60, max_hp=110, energias=[D]))
-           .op_zonas(mano=4, mazo=18, prizes=3)
-           .mazo()
+           .op_zonas(hand=4, deck=18, prizes=3)
+           .deck()
            .resto_al_descarte()
            .objetivo_carga_habilidad()
-           .construir())
-    eleccion = m.agent(obs)
-    o = _opcion(obs, eleccion)
+           .build())
+    choice = m.agent(obs)
+    o = _opcion(obs, choice)
     assert m._op_chip_per_round == 20 and m._op_movable_dmg == 30
     assert o["area"] == int(m.AreaType.BENCH) and o["index"] == 1, (
         "cura el Meganium de 1 premio en vez del Ogerpon ex de 2")
@@ -238,19 +238,19 @@ def test_el_dano_movible_es_elastico_no_condena_a_media_mesa():
 
 def test_sin_froslass_ni_munkidori_la_ventana_no_cambia():
     """Against a deck without those pieces, chip and movable damage are 0."""
-    obs = (Escenario(turn=8, paso=60, tac=3)
-           .mi_activo(pk(HYDRAPPLE, hp=300, energias=[G, G],
+    obs = (Escenario(turn=8, step=60, tac=3)
+           .my_active(pk(HYDRAPPLE, hp=300, energias=[G, G],
                          fisicas=1, pre_evo=[APPLIN, DIPPLIN]))
-           .mi_banca(pk(MEGANIUM, hp=90, pre_evo=[CHIKORITA, BAYLEEF]),
+           .my_bench(pk(MEGANIUM, hp=90, pre_evo=[CHIKORITA, BAYLEEF]),
                      pk(OGERPON, hp=80, energias=[G, G, G], fisicas=3))
-           .mi_mano(m.Basic_Grass_Energy)
-           .op_activo(pk(GRIMMSNARL, hp=320, max_hp=320, energias=[D, D]))
-           .op_banca(pk(IMPIDIMP, hp=70, max_hp=70))
-           .op_zonas(mano=5, mazo=20, prizes=5)
-           .mazo()
+           .my_hand(m.Basic_Grass_Energy)
+           .op_active(pk(GRIMMSNARL, hp=320, max_hp=320, energias=[D, D]))
+           .op_bench(pk(IMPIDIMP, hp=70, max_hp=70))
+           .op_zonas(hand=5, deck=20, prizes=5)
+           .deck()
            .resto_al_descarte()
            .objetivo_carga_habilidad()
-           .construir())
+           .build())
     m.agent(obs)
     assert m._op_chip_per_round == 0
     assert m._op_movable_dmg == 0
@@ -288,19 +288,19 @@ def test_sin_froslass_ni_munkidori_la_ventana_no_cambia():
 
 def test_munkidori_enciende_la_ventana_tambien_fuera_de_marnie():
     """A Dragapult opponent with Munkidori: without a single Marnie Pokemon on the field."""
-    obs = (Escenario(turn=8, paso=60, tac=3)
-           .mi_activo(pk(HYDRAPPLE, hp=300, energias=[G, G],
+    obs = (Escenario(turn=8, step=60, tac=3)
+           .my_active(pk(HYDRAPPLE, hp=300, energias=[G, G],
                          fisicas=1, pre_evo=[APPLIN, DIPPLIN]))
-           .mi_banca(pk(MEGANIUM, hp=90, pre_evo=[CHIKORITA, BAYLEEF]),
+           .my_bench(pk(MEGANIUM, hp=90, pre_evo=[CHIKORITA, BAYLEEF]),
                      pk(OGERPON, hp=80, energias=[G, G, G], fisicas=3))
-           .mi_mano(m.Basic_Grass_Energy)
-           .op_activo(pk(m.Dragapult_ex, hp=200, max_hp=320, energias=[D, D]))
-           .op_banca(pk(MUNKIDORI, hp=110, max_hp=110, energias=[D]))
-           .op_zonas(mano=5, mazo=20, prizes=5)
-           .mazo()
+           .my_hand(m.Basic_Grass_Energy)
+           .op_active(pk(m.Dragapult_ex, hp=200, max_hp=320, energias=[D, D]))
+           .op_bench(pk(MUNKIDORI, hp=110, max_hp=110, energias=[D]))
+           .op_zonas(hand=5, deck=20, prizes=5)
+           .deck()
            .resto_al_descarte()
            .objetivo_carga_habilidad()
-           .construir())
+           .build())
     m.agent(obs)
     assert m._op_chip_per_round == 0, (
         "sin Froslass no hay goteo: el chip es exclusivo de esa carta")
@@ -312,19 +312,19 @@ def test_munkidori_enciende_la_ventana_tambien_fuera_de_marnie():
 
 def test_la_ventana_crece_con_munkidori_sin_marnie_en_mesa():
     """The movable damage enters the window even if the opponent is not Marnie."""
-    obs = (Escenario(turn=8, paso=60, tac=3)
-           .mi_activo(pk(HYDRAPPLE, hp=300, energias=[G, G],
+    obs = (Escenario(turn=8, step=60, tac=3)
+           .my_active(pk(HYDRAPPLE, hp=300, energias=[G, G],
                          fisicas=1, pre_evo=[APPLIN, DIPPLIN]))
-           .mi_banca(pk(MEGANIUM, hp=90, pre_evo=[CHIKORITA, BAYLEEF]),
+           .my_bench(pk(MEGANIUM, hp=90, pre_evo=[CHIKORITA, BAYLEEF]),
                      pk(OGERPON, hp=80, energias=[G, G, G], fisicas=3))
-           .mi_mano(m.Basic_Grass_Energy)
-           .op_activo(pk(m.Dragapult_ex, hp=200, max_hp=320, energias=[D, D]))
-           .op_banca(pk(MUNKIDORI, hp=110, max_hp=110, energias=[D]))
-           .op_zonas(mano=5, mazo=20, prizes=5)
-           .mazo()
+           .my_hand(m.Basic_Grass_Energy)
+           .op_active(pk(m.Dragapult_ex, hp=200, max_hp=320, energias=[D, D]))
+           .op_bench(pk(MUNKIDORI, hp=110, max_hp=110, energias=[D]))
+           .op_zonas(hand=5, deck=20, prizes=5)
+           .deck()
            .resto_al_descarte()
            .objetivo_carga_habilidad()
-           .construir())
+           .build())
     m.agent(obs)
 
     class _P:
@@ -346,19 +346,19 @@ def test_sin_froslass_el_munkidori_sin_municion_no_amenaza():
     difference between the Marnie matchup (renewable ammunition) and a Dragapult that
     simply runs Munkidori.
     """
-    obs = (Escenario(turn=8, paso=60, tac=3)
-           .mi_activo(pk(HYDRAPPLE, hp=300, energias=[G, G],
+    obs = (Escenario(turn=8, step=60, tac=3)
+           .my_active(pk(HYDRAPPLE, hp=300, energias=[G, G],
                          fisicas=1, pre_evo=[APPLIN, DIPPLIN]))
-           .mi_banca(pk(MEGANIUM, hp=90, pre_evo=[CHIKORITA, BAYLEEF]),
+           .my_bench(pk(MEGANIUM, hp=90, pre_evo=[CHIKORITA, BAYLEEF]),
                      pk(OGERPON, hp=80, energias=[G, G, G], fisicas=3))
-           .mi_mano(m.Basic_Grass_Energy)
-           .op_activo(pk(m.Dragapult_ex, hp=320, max_hp=320, energias=[D, D]))
-           .op_banca(pk(MUNKIDORI, hp=110, max_hp=110, energias=[D]))
-           .op_zonas(mano=5, mazo=20, prizes=5)
-           .mazo()
+           .my_hand(m.Basic_Grass_Energy)
+           .op_active(pk(m.Dragapult_ex, hp=320, max_hp=320, energias=[D, D]))
+           .op_bench(pk(MUNKIDORI, hp=110, max_hp=110, energias=[D]))
+           .op_zonas(hand=5, deck=20, prizes=5)
+           .deck()
            .resto_al_descarte()
            .objetivo_carga_habilidad()
-           .construir())
+           .build())
     m.agent(obs)
     assert m._op_movable_dmg == 0, (
         "con el tablero rival intacto no hay contadores que mover")

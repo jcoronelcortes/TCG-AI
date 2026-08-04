@@ -160,7 +160,7 @@ def nuestro_indice(data):
     fed the agent with the OPPONENT's observations (their `yourIndex`)
     and also skipped all our decisions.
     """
-    mazo = _ids_de_nuestro_mazo()
+    deck = _ids_de_nuestro_mazo()
     votos = [0, 0]
     for step in data.get("steps", []):
         for item in step:
@@ -177,13 +177,13 @@ def nuestro_indice(data):
                     vistas.append(card.get("id"))
                 for card in (jugador.get("hand") or []):
                     vistas.append(card.get("id"))
-                votos[idx] += sum(1 for cid in vistas if cid in mazo)
+                votos[idx] += sum(1 for cid in vistas if cid in deck)
     return 0 if votos[0] >= votos[1] else 1
 
 
-def reproducir_registro(m, ruta):
+def reproducir_registro(m, path):
     """Replays a record from cold and returns OUR decisions."""
-    with open(ruta, encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         data = json.load(f)
     yo = nuestro_indice(data)
     reset_agente(m)
@@ -195,7 +195,7 @@ def reproducir_registro(m, ruta):
             if (item.get("status") != "ACTIVE" or not obs.get("select")
                     or cur.get("yourIndex") != yo):
                 continue
-            eleccion = m.agent(obs)
+            choice = m.agent(obs)
             decisiones.append({
                 # Our ACTIVE observations do not carry a "step" (only the
                 # INACTIVE ones of the other seat do): the decision is identified
@@ -204,14 +204,14 @@ def reproducir_registro(m, ruta):
                 "turno": (obs.get("current") or {}).get("turn"),
                 "accion": (obs.get("current") or {}).get("turnActionCount"),
                 "contexto": obs["select"].get("context"),
-                "eleccion": list(eleccion),
-                "detalle": [describir_opcion(m, obs, i) for i in eleccion],
+                "eleccion": list(choice),
+                "detalle": [describir_opcion(m, obs, i) for i in choice],
             })
     return decisiones
 
 
-def _md5(ruta):
-    return hashlib.md5(Path(ruta).read_bytes()).hexdigest()
+def _md5(path):
+    return hashlib.md5(Path(path).read_bytes()).hexdigest()
 
 
 def archivos_registro():
@@ -221,10 +221,10 @@ def archivos_registro():
 def generar_corpus():
     m = _main_mod()
     corpus = {}
-    for ruta in archivos_registro():
-        corpus[ruta.name] = {
-            "md5": _md5(ruta),
-            "decisiones": reproducir_registro(m, ruta),
+    for path in archivos_registro():
+        corpus[path.name] = {
+            "md5": _md5(path),
+            "decisiones": reproducir_registro(m, path),
         }
     return corpus
 
@@ -269,12 +269,12 @@ def comparar(dorado, actual):
 
 
 def formatear_flips(flips):
-    lineas = []
+    lines = []
     for f in flips:
-        lineas.append(f"  {f['archivo']} {f['paso']}:")
-        lineas.append(f"    dorado: {f['dorado']}")
-        lineas.append(f"    actual: {f['actual']}")
-    return "\n".join(lineas)
+        lines.append(f"  {f['archivo']} {f['paso']}:")
+        lines.append(f"    dorado: {f['dorado']}")
+        lines.append(f"    actual: {f['actual']}")
+    return "\n".join(lines)
 
 
 def main(argv):

@@ -137,11 +137,11 @@ def test_la_banda_sin_ko_premiaba_a_la_evolucion_final():
 
 def test_sin_ko_el_cuerpo_muerto_gana_a_la_evolucion_final():
     # Their 2nd Dragapult ex with 1 energy ALREADY attacks (Jet Headbutt costs 1).
-    atacante = _ctx(DRAGAPULT, energy=1, op_dragapult_line=True)
+    attacker = _ctx(DRAGAPULT, energy=1, op_dragapult_line=True)
     # The bare Dusclops cannot pay for its cost-2 attack.
     muerto = _ctx(DUSCLOPS, op_dragapult_line=True)
-    assert not atacante.body_is_harmless and muerto.body_is_harmless
-    assert _ofensivo(muerto) > _ofensivo(atacante)
+    assert not attacker.body_is_harmless and muerto.body_is_harmless
+    assert _ofensivo(muerto) > _ofensivo(attacker)
 
 
 def test_con_ko_mandan_los_tiers_y_el_cuerpo_muerto_no_los_pisa():
@@ -192,20 +192,20 @@ def _tablero(energias_activo):
     """An active Bayleef (60 damage: it knocks out nothing on the board) against a
     Dragapult ex. On their bench, another Dragapult ex with 1 energy -- ready to
     attack -- and a bare Dusclops."""
-    return (Escenario(turn=8, paso=80, tac=4, premios_propios=4)
-            .mi_activo(pk(BAYLEEF, energias=[G] * energias_activo,
+    return (Escenario(turn=8, step=80, tac=4, premios_propios=4)
+            .my_active(pk(BAYLEEF, energias=[G] * energias_activo,
                           fisicas=energias_activo, pre_evo=[CHIKORITA]))
-            .mi_banca(pk(CHIKORITA))
-            .op_activo(pk(DRAGAPULT, hp=320, max_hp=320, energias=[G, G]))
-            .op_banca(pk(DRAGAPULT, hp=320, max_hp=320, energias=[G]),
+            .my_bench(pk(CHIKORITA))
+            .op_active(pk(DRAGAPULT, hp=320, max_hp=320, energias=[G, G]))
+            .op_bench(pk(DRAGAPULT, hp=320, max_hp=320, energias=[G]),
                       pk(DUSCLOPS, hp=90, max_hp=90))
-            .op_zonas(mano=5, mazo=25, prizes=4)
-            .mazo()
+            .op_zonas(hand=5, deck=25, prizes=4)
+            .deck()
             # `menu_gusteo()` consumes a Boss's Orders from the pool (the card "in
             # effect"), so it goes BEFORE `resto_al_descarte()`.
             .menu_gusteo()
             .resto_al_descarte()
-            .construir())
+            .build())
 
 
 def test_el_tablero_sintetico_no_tiene_ningun_ko():

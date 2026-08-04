@@ -148,10 +148,10 @@ def _obs(**mut):
 def _opcion_de_mano(obs, card_id):
     """The index of the option that plays `card_id` from hand."""
     yo = obs["current"]["yourIndex"]
-    mano = obs["current"]["players"][yo]["hand"]
+    hand = obs["current"]["players"][yo]["hand"]
     for i, o in enumerate(obs["select"]["option"]):
         if (o.get("type") == int(OptionType.PLAY)
-                and mano[o["index"]]["id"] == card_id):
+                and hand[o["index"]]["id"] == card_id):
             return i
     return None
 

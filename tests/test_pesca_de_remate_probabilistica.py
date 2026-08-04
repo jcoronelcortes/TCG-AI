@@ -110,9 +110,9 @@ def _fixture():
 def _idx_play_de(obs, card_id):
     """The index of the PLAY option that plays `card_id` from hand."""
     yo = obs["current"]["yourIndex"]
-    mano = obs["current"]["players"][yo]["hand"]
+    hand = obs["current"]["players"][yo]["hand"]
     for i, o in enumerate(obs["select"]["option"]):
-        if o["type"] == int(m.OptionType.PLAY) and mano[o["index"]]["id"] == card_id:
+        if o["type"] == int(m.OptionType.PLAY) and hand[o["index"]]["id"] == card_id:
             return i
     return -1
 
@@ -227,8 +227,8 @@ def test_paso49_pesca_dos_cartas_por_dos_premios(monkeypatch):
 
 def test_paso49_juega_lillie_para_pescar_no_boss():
     obs = _fixture()
-    eleccion = m.agent(obs)
-    assert eleccion == [_idx_play_de(obs, LILLIE)], (
+    choice = m.agent(obs)
+    assert choice == [_idx_play_de(obs, LILLIE)], (
         "con el turno sin ataque posible y un KO de 2 premios a 2 cartas de "
         "distancia, el hueco de Supporter es de Lillie's")
 
@@ -245,30 +245,30 @@ def test_paso49_contrafactual_sin_pesca_vuelve_a_gustear(monkeypatch):
 # Synthetic boundaries (StateBuilder): probability, energy in hand
 # ---------------------------------------------------------------------------
 
-def _escenario_paso49(grass_in_deck=10, grass_en_mano=0, con_adjunte=False):
+def _escenario_paso49(grass_in_deck=10, grass_in_hand=0, con_adjunte=False):
     """A synthetic replica of step 49 with the deck parameterised.
 
     grass_en_mazo: LIVE Grass in the deck (the rest goes to the discard).
     grass_en_mano: Grass already in hand (0 = like the real one).
     """
-    mano = [LILLIE, BOSS, LILLIE, m.Hydrapple_ex, m.Ultra_Ball]
-    mano += [GRASS] * grass_en_mano
+    hand = [LILLIE, BOSS, LILLIE, m.Hydrapple_ex, m.Ultra_Ball]
+    hand += [GRASS] * grass_in_hand
 
-    esc = (Escenario(turn=4, paso=49, tac=1, primer_jugador=1)
-           .mi_activo(pk(OGERPON, hp=30, energias=[G], fisicas=1))
-           .mi_banca(pk(m.Meowth_ex),
+    esc = (Escenario(turn=4, step=49, tac=1, primer_jugador=1)
+           .my_active(pk(OGERPON, hp=30, energias=[G], fisicas=1))
+           .my_bench(pk(m.Meowth_ex),
                      pk(m.Fezandipiti_ex, hp=180, energias=[G], fisicas=1),
                      pk(m.Applin),
                      pk(OGERPON),
                      pk(m.Bayleef, pre_evo=[m.Chikorita]))
-           .mi_mano(*mano)
-           .op_activo(pk(GRIMMSNARL, hp=320, max_hp=320,
+           .my_hand(*hand)
+           .op_active(pk(GRIMMSNARL, hp=320, max_hp=320,
                          energias=[DARK, DARK], pre_evo=[IMPIDIMP]))
-           .op_banca(pk(MORGREM, hp=100, max_hp=100, energias=[DARK, DARK],
+           .op_bench(pk(MORGREM, hp=100, max_hp=100, energias=[DARK, DARK],
                         pre_evo=[IMPIDIMP]),
                      pk(SNORUNT, hp=70, max_hp=70),
                      pk(IMPIDIMP, hp=70, max_hp=70, energias=[DARK, DARK]))
-           .op_zonas(mano=5, mazo=32, prizes=6))
+           .op_zonas(hand=5, deck=32, prizes=6))
 
     # Deck: the requested live Grass + filler from the pool (including the Dipplin
     # that makes the Ultra Ball "complete a line", as in the record).
@@ -283,8 +283,8 @@ def _escenario_paso49(grass_in_deck=10, grass_en_mano=0, con_adjunte=False):
     # cards for the prizes).
     ids_mazo = ([GRASS] * n_grass
                 + relleno[:max(0, min(38 - n_grass, len(relleno) - 6))])
-    esc.mazo(*ids_mazo).resto_al_descarte()
-    obs = esc.menu_mano(con_adjunte=con_adjunte).construir()
+    esc.deck(*ids_mazo).resto_al_descarte()
+    obs = esc.menu_mano(con_adjunte=con_adjunte).build()
     # `menu_mano` emits one PLAY per EACH card in hand; the simulator does not. The
     # two that were not in the menu on the real step are removed: the Hydrapple ex
     # (an evolution without its Dipplin in play -- exactly what makes the Ultra Ball
@@ -311,9 +311,9 @@ def test_con_el_mazo_seco_de_plantas_la_pesca_no_pisa_los_vetos(monkeypatch):
     capturado = _espiar_pesca(monkeypatch)
     obs = _escenario_paso49(grass_in_deck=1)
     assert capturado is not None
-    eleccion = m.agent(obs)
+    choice = m.agent(obs)
     assert capturado["plan"] is None, "sin outs suficientes no hay pesca"
-    assert eleccion != [_idx_play_de(obs, LILLIE)]
+    assert choice != [_idx_play_de(obs, LILLIE)]
 
 
 def test_frontera_de_probabilidad(monkeypatch):
@@ -338,24 +338,24 @@ def test_frontera_de_probabilidad(monkeypatch):
 def test_la_pesca_exitosa_se_convierte_en_ataque():
     """Closing the loop: with the 3 energies already placed (the fishing came off) and the
     hand empty, the 30 HP Ogerpon ex ATTACKS -- it neither retreats nor closes the turn."""
-    esc = (Escenario(turn=4, paso=49, tac=6, primer_jugador=1,
+    esc = (Escenario(turn=4, step=49, tac=6, primer_jugador=1,
                      energia_jugada=True, partidario_jugado=True)
-           .mi_activo(pk(OGERPON, hp=30, energias=[G, G, G], fisicas=3))
-           .mi_banca(pk(m.Meowth_ex),
+           .my_active(pk(OGERPON, hp=30, energias=[G, G, G], fisicas=3))
+           .my_bench(pk(m.Meowth_ex),
                      pk(m.Fezandipiti_ex, hp=180, energias=[G], fisicas=1),
                      pk(m.Applin),
                      pk(OGERPON),
                      pk(m.Bayleef, pre_evo=[m.Chikorita]))
-           .op_activo(pk(GRIMMSNARL, hp=320, max_hp=320,
+           .op_active(pk(GRIMMSNARL, hp=320, max_hp=320,
                          energias=[DARK, DARK], pre_evo=[IMPIDIMP]))
-           .op_banca(pk(MORGREM, hp=100, max_hp=100, energias=[DARK, DARK],
+           .op_bench(pk(MORGREM, hp=100, max_hp=100, energias=[DARK, DARK],
                         pre_evo=[IMPIDIMP]),
                      pk(SNORUNT, hp=70, max_hp=70))
-           .op_zonas(mano=5, mazo=32, prizes=6))
-    esc.mazo(*sorted(esc._pool.elements())[:34]).resto_al_descarte()
-    obs = esc.menu_mano(con_retirada=True, con_ataque=True).construir()
-    eleccion = m.agent(obs)
-    assert (obs["select"]["option"][eleccion[0]]["type"]
+           .op_zonas(hand=5, deck=32, prizes=6))
+    esc.deck(*sorted(esc._pool.elements())[:34]).resto_al_descarte()
+    obs = esc.menu_mano(con_retirada=True, con_ataque=True).build()
+    choice = m.agent(obs)
+    assert (obs["select"]["option"][choice[0]]["type"]
             == int(m.OptionType.ATTACK))
 
 
@@ -363,11 +363,11 @@ def test_con_la_energia_ya_en_mano_no_se_baraja_la_mano(monkeypatch):
     """A critical control: if the HAND already brings the 2 missing Grass, playing
     Lillie's would return them to the deck. There is NO fishing there: it charges."""
     capturado = _espiar_pesca(monkeypatch)
-    obs = _escenario_paso49(grass_en_mano=2, con_adjunte=True)
-    eleccion = m.agent(obs)
+    obs = _escenario_paso49(grass_in_hand=2, con_adjunte=True)
+    choice = m.agent(obs)
 
     assert capturado["plan"] is None, (
         "con la energia en la mano no se pesca: se adjunta")
-    tipo = obs["select"]["option"][eleccion[0]]["type"]
+    tipo = obs["select"]["option"][choice[0]]["type"]
     assert tipo == int(m.OptionType.ATTACH), (
         "la jugada es cargar al Ogerpon, no barajar la mano")

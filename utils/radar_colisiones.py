@@ -57,7 +57,7 @@ def _tipos_del_menu(obs):
 # so the radar does not inherit the same biases it is auditing.
 # --------------------------------------------------------------------------
 
-def _s_pivote_al_muro(m, menus):
+def _s_pivot_to_wall(m, menus):
     """The active canNOT damage the opposing active (immunity) and on the bench there is a
     body that CAN and is charged. Resolved = the turn ends with a body
     that does damage in the active spot."""
@@ -77,12 +77,12 @@ def _s_pivote_al_muro(m, menus):
                      or (ab_imm and act["id"] in m.OUR_ABILITY_IDS))
         if not bloqueado:
             continue
-        relevo = any(
-            b and _pega_al_muro(m, b, ex_imm, ab_imm)
+        relief = any(
+            b and _hits_the_wall(m, b, ex_imm, ab_imm)
             and m._can_attack_eff(b["id"], len(b["energies"]))
-            and _amenaza_real(m, b, oact, yo)
+            and _real_threat(m, b, oact, yo)
             for b in (yo.get("bench") or []))
-        if relevo and int(OptionType.RETREAT) in _tipos_del_menu(d["obs"]):
+        if relief and int(OptionType.RETREAT) in _tipos_del_menu(d["obs"]):
             aplica = True
             break
     if not aplica:
@@ -99,7 +99,7 @@ def _s_pivote_al_muro(m, menus):
             continue
         ex_imm = oact["id"] in m.EX_IMMUNE_IDS
         ab_imm = oact["id"] in m.ABILITY_IMMUNE_IDS
-        if _pega_al_muro(m, act, ex_imm, ab_imm):
+        if _hits_the_wall(m, act, ex_imm, ab_imm):
             return True, True
     return True, False
 
@@ -121,7 +121,7 @@ class _P:
         self.tools = [_C(c) for c in (d.get("tools") or [])]
 
 
-def _amenaza_real(m, relevo, muro, yo, threshold=0.25):
+def _real_threat(m, relief, wall, yo, threshold=0.25):
     """Does the relief really threaten the wall, or does it only chip it?
 
     A pivot costs the turn and the retreat energy: it only pays off if the
@@ -135,22 +135,22 @@ def _amenaza_real(m, relevo, muro, yo, threshold=0.25):
     Threshold: take away >= 25% of the wall's CURRENT HP (a 4-turn clock or
     better).
     """
-    cuerpos = [p for p in (yo.get("active") or []) + (yo.get("bench") or []) if p]
-    total_grass = sum(len(p.get("energies") or []) for p in cuerpos)
-    banca = sum(1 for b in (yo.get("bench") or []) if b)
-    e = len(relevo.get("energies") or [])
-    a, o = _P(relevo), _P(muro)
+    bodies = [p for p in (yo.get("active") or []) + (yo.get("bench") or []) if p]
+    total_grass = sum(len(p.get("energies") or []) for p in bodies)
+    bench = sum(1 for b in (yo.get("bench") or []) if b)
+    e = len(relief.get("energies") or [])
+    a, o = _P(relief), _P(wall)
     try:
         base = m._attacker_base_damage(a.id, o, e, grass_scale=total_grass,
-                                       teal_self_energy=e, bench_count=banca)
-        meg = any(p["id"] == m.Meganium for p in cuerpos)
+                                       teal_self_energy=e, bench_count=bench)
+        meg = any(p["id"] == m.Meganium for p in bodies)
         dmg = m._our_effective_damage(a, o, base, meg, False)
     except Exception:
         return True          # when in doubt, do not filter: better a false positive
-    return dmg >= threshold * max(1, muro.get("hp") or 1)
+    return dmg >= threshold * max(1, wall.get("hp") or 1)
 
 
-def _pega_al_muro(m, pk, ex_imm, ab_imm):
+def _hits_the_wall(m, pk, ex_imm, ab_imm):
     """Is this body a REAL relief against the wall?
 
     `MAIN_ATTACKERS` is required -- the CURATED list of bodies we really
@@ -170,7 +170,7 @@ def _pega_al_muro(m, pk, ex_imm, ab_imm):
     return True
 
 
-def _s_supporter_sin_jugar(m, menus):
+def _s_supporter_unplayed(m, menus):
     """A free Supporter slot and at least one in hand. Resolved = it is played."""
     cur0 = menus[0]["obs"]["current"]
     yo0 = cur0["players"][cur0["yourIndex"]]
@@ -182,7 +182,7 @@ def _s_supporter_sin_jugar(m, menus):
     return True, bool(ult["supporterPlayed"])
 
 
-def _s_energia_sin_adjuntar(m, menus):
+def _s_energy_unattached(m, menus):
     """The turn's attachment is free and there is Grass in hand. Resolved = it ends up on the field
     (through the manual attachment or a charging ability)."""
     cur0 = menus[0]["obs"]["current"]
@@ -200,7 +200,7 @@ def _s_energia_sin_adjuntar(m, menus):
     return True, (ult["energyAttached"] or total_f > total0)
 
 
-def _s_turno_no_esteril(m, menus):
+def _s_turn_not_sterile(m, menus):
     """The menu offered plays that are NOT END. Resolved = we make one of them."""
     hubo_opcion = any(t not in (int(OptionType.END),) for d in menus
                       for t in _tipos_del_menu(d["obs"]))
@@ -230,7 +230,7 @@ def _s_remata_si_puede(m, menus):
             continue
         if not m._can_attack_eff(a["id"], len(a["energies"])):
             continue
-        if _dano(m, a, o, yo) >= (o.get("hp") or 10 ** 6):
+        if _damage(m, a, o, yo) >= (o.get("hp") or 10 ** 6):
             aplica = True
             break
     if not aplica:
@@ -254,35 +254,35 @@ def _s_evoluciona_si_puede(m, menus):
     yo0 = cur0["players"][cur0["yourIndex"]]
     forest = any(s.get("id") == m.Forest_of_Vitality
                  for s in (cur0.get("stadium") or []))
-    en_juego = {p["id"] for p in
+    in_play = {p["id"] for p in
                 (yo0.get("active") or []) + (yo0.get("bench") or [])
                 if p and (forest or not p.get("appearThisTurn"))}
-    mano = {h["id"] for h in (yo0.get("hand") or [])}
-    objetivo = set()
+    hand = {h["id"] for h in (yo0.get("hand") or [])}
+    target = set()
     for line in m.EVO_LINES:
         for pre, evo in zip(line, line[1:]):
-            if evo in mano and pre in en_juego and evo not in en_juego:
-                objetivo.add(evo)
-    if not objetivo:
+            if evo in hand and pre in in_play and evo not in in_play:
+                target.add(evo)
+    if not target:
         return False, False
     ult = menus[-1]["obs"]["current"]
     yo_f = ult["players"][ult["yourIndex"]]
     final = {p["id"] for p in
              (yo_f.get("active") or []) + (yo_f.get("bench") or []) if p}
-    return True, bool(objetivo & final)
+    return True, bool(target & final)
 
 
-def _dano(m, atacante, objetivo, yo):
-    cuerpos = [p for p in (yo.get("active") or []) + (yo.get("bench") or []) if p]
-    e = len(atacante.get("energies") or [])
-    a, o = _P(atacante), _P(objetivo)
+def _damage(m, attacker, target, yo):
+    bodies = [p for p in (yo.get("active") or []) + (yo.get("bench") or []) if p]
+    e = len(attacker.get("energies") or [])
+    a, o = _P(attacker), _P(target)
     try:
         base = m._attacker_base_damage(
             a.id, o, e, grass_scale=sum(len(p.get("energies") or [])
-                                        for p in cuerpos),
+                                        for p in bodies),
             teal_self_energy=e,
             bench_count=sum(1 for b in (yo.get("bench") or []) if b))
-        meg = any(p["id"] == m.Meganium for p in cuerpos)
+        meg = any(p["id"] == m.Meganium for p in bodies)
         return m._our_effective_damage(a, o, base, meg, False)
     except Exception:
         return 0
@@ -297,28 +297,28 @@ def _dano(m, atacante, objetivo, yo):
 # adds noise and false positives. The function is kept in case somebody
 # refines it, but out of the table.
 SITUACIONES = (
-    ("pivote_al_muro", _s_pivote_al_muro),
+    ("pivote_al_muro", _s_pivot_to_wall),
     # A SANITY CHECK, not a detector: it comes out at 100% in every deck measured
     # (when the active knocks out, we always attack). Its value is being the canary
     # of the radar's own damage arithmetic -- if one day it drops below 100%,
     # either the agent broke or `_dano` broke.
     ("remata_si_puede", _s_remata_si_puede),
-    ("juega_supporter", _s_supporter_sin_jugar),
-    ("pone_energia", _s_energia_sin_adjuntar),
-    ("turno_productivo", _s_turno_no_esteril),
+    ("juega_supporter", _s_supporter_unplayed),
+    ("pone_energia", _s_energy_unattached),
+    ("turno_productivo", _s_turn_not_sterile),
 )
 
 
-def radar(agente, deck_rival, partidas):
+def radar(agente, opponent_deck, partidas):
     from bot_rival import BotRival
     cnt = collections.defaultdict(lambda: [0, 0])   # name -> [applies, resolved]
     for i in range(partidas):
-        _res, dec, _fin = au.jugar_grabando(
-            agente, BotRival(), agente.my_deck, deck_rival, i % 2)
-        turnos = collections.defaultdict(list)
+        _res, dec, _fin = au.play_recording(
+            agente, BotRival(), agente.my_deck, opponent_deck, i % 2)
+        turns = collections.defaultdict(list)
         for d in dec:
-            turnos[d["obs"]["current"]["turn"]].append(d)
-        for _t, menus in turnos.items():
+            turns[d["obs"]["current"]["turn"]].append(d)
+        for _t, menus in turns.items():
             if not menus:
                 continue
             for name, fn in SITUACIONES:
@@ -340,36 +340,36 @@ def main(argv):
                     help="lista de mazos separada por comas")
     args = ap.parse_args(argv)
 
-    agente = sp.cargar_agente(_ROOT / args.candidato, "agente_radar")
-    mazos = sorted((_ROOT / "deck" / "rivales").glob("*.csv"))
+    agente = sp.load_agent(_ROOT / args.candidato, "agente_radar")
+    decks = sorted((_ROOT / "deck" / "rivales").glob("*.csv"))
     if args.solo:
         querer = {s.strip() for s in args.solo.split(",")}
-        mazos = [p for p in mazos if p.stem in querer]
+        decks = [p for p in decks if p.stem in querer]
 
     filas = {}
-    for ruta in mazos:
-        deck = sp.leer_deck(ruta)
-        filas[ruta.stem] = radar(agente, deck, args.partidas)
-        print(f"  {ruta.stem}: hecho", flush=True)
+    for path in decks:
+        deck = sp.read_deck(path)
+        filas[path.stem] = radar(agente, deck, args.partidas)
+        print(f"  {path.stem}: hecho", flush=True)
 
-    nombres = [n for n, _ in SITUACIONES]
-    ancho = max(len(k) for k in filas) if filas else 10
+    names = [n for n, _ in SITUACIONES]
+    width = max(len(k) for k in filas) if filas else 10
     print(f"\n=== RADAR DE COLISIONES (n={args.partidas}/mazo) ===")
     print("tasa de RESOLUCION por situacion; (n) = veces que la situacion aplica")
-    print(f"{'mazo':<{ancho}} " + "  ".join(f"{n:>18}" for n in nombres))
-    for mazo, cnt in sorted(filas.items()):
+    print(f"{'mazo':<{width}} " + "  ".join(f"{n:>18}" for n in names))
+    for deck_name, cnt in sorted(filas.items()):
         celdas = []
-        for n in nombres:
+        for n in names:
             ap_, ok = cnt[n]
             celdas.append(f"{100*ok/ap_:5.1f}% (n={ap_:4d})" if ap_ else
                           f"{'-':>18}")
-        print(f"{mazo:<{ancho}} " + "  ".join(f"{c:>18}" for c in celdas))
+        print(f"{deck_name:<{width}} " + "  ".join(f"{c:>18}" for c in celdas))
 
     # It flags outliers: a situation that in one deck is resolved much worse than
     # the MEDIAN of the rest is a collision candidate.
     print("\n--- candidatos (resolucion muy por debajo de la mediana) ---")
     hubo = False
-    for n in nombres:
+    for n in names:
         tasas = {mz: (c[n][1] / c[n][0]) for mz, c in filas.items()
                  if c[n][0] >= 10}
         if len(tasas) < 3:

@@ -1,0 +1,211 @@
+# Phase 10 -- utils/: the tools that measure the agent. Applied repo-wide.
+#
+# NOT in this map, on purpose:
+#   * the argparse dests (`partidas`, `rival`, `pesos`, `control_carta`, ...).
+#     argparse derives `args.partidas` from the flag `--partidas`, and the flags
+#     stay in Spanish, so those attributes cannot move.
+#   * `total_seconds`, which is a stdlib method, not our name.
+#   * module names (`bot_rival`, `log_replay`, ...), which wave with the file
+#     renames in the last phase.
+
+# --- paths and files ---------------------------------------------------------
+ruta	path
+rutas	paths
+ruta_py	py_path
+ruta_cache	cache_path
+ruta_previa	previous_path
+ruta_indice	index_path
+ruta_cand	cand_path
+ruta_pre	pre_path
+ruta_post	post_path
+ruta_rival	opponent_path
+archivo	file_path	code
+dir_salida	out_dir
+_archivos_del_paquete	_package_files
+CABECERA	HEADER
+_cabecera_imports	_imports_header
+
+# --- decks and cards ---------------------------------------------------------
+mazos	decks	code
+MAZOS	DECKS
+mazos_cache	decks_cache
+es_mazo	is_deck
+en_mazo	in_deck
+base_por_mazo	base_by_deck
+deck_rival	opponent_deck
+deck_propio	own_deck
+rival_csv	opponent_csv
+leer_deck	read_deck
+validar_mazo	validate_deck
+extraer_mazos	extract_decks
+escribir_mazos	write_decks
+cargar_cartas	load_cards
+_CARTAS	_CARDS
+CARTA_CAMBIO	SWITCH_CARD
+clave_carta	card_key
+_lleva_carta	_carries_card
+ENERGIAS_BASICAS	BASIC_ENERGIES
+_ENERGIAS_BASICAS	_BASIC_ENERGIES
+
+# --- the board ---------------------------------------------------------------
+mano	hand	code
+mi_mano	my_hand
+mano_ids	hand_ids
+banca	bench	code
+mi_banca	my_bench
+op_banca	op_bench
+op_activo	op_active
+mi_activo	my_active
+su_activo	their_active
+al_activo	to_active
+en_juego	in_play
+_meganium_en_juego	_meganium_in_play
+_forest_en_juego	_forest_in_play
+cuerpo	body
+cuerpos	bodies
+atacante	attacker
+muro	wall
+relevo	relief
+habilidad	ability
+jugadas	plays
+grass_en_mano	grass_in_hand
+listos_banca	ready_on_bench	code
+puede_atacar	can_attack	code
+puede_retirar	can_retreat	code
+retirada_pagable_hoy	retreat_payable_today	code
+retirada_en_menu	retreat_in_menu	code
+cambio_en_mano	switch_in_hand	code
+_pega_al_muro	_hits_the_wall
+_amenaza_real	_real_threat
+
+# --- damage, prizes, turns ---------------------------------------------------
+_dano	_damage
+_dano_activo	_active_damage
+_dano_efectivo	_effective_damage
+_dano_encajado	_damage_taken
+_dano_letal_activo	_lethal_damage_to_active
+dano_actual	current_damage
+DANO_POR_CONTADOR	DAMAGE_PER_COUNTER
+mis_premios	my_prizes	code
+premios_pico	peak_prizes
+premios_por_partida	prizes_per_game
+dif_premios	prize_diff	code
+_premios_restantes	_prizes_left
+_premios_tomados	_prizes_taken
+_mirar_premios	_watch_prizes
+_turno	_turn
+turnos	turns	code
+turno_actual	current_turn
+por_turno	per_turn
+_reset_turno	_reset_turn
+censo_de_turnos	turn_census
+MAX_HABILIDADES_POR_TURNO	MAX_ABILITIES_PER_TURN
+
+# --- games, steps, records ---------------------------------------------------
+por_partida	per_game
+modo_por_partida	mode_per_game
+jugar_partida	play_game
+jugar_grabando	play_recording
+jugar_con_sombra	play_with_shadow
+jugar	play
+_grabar_partida	_record_game
+paso	step	code
+pasos_r	steps_r
+MAX_PASOS	MAX_STEPS
+max_pasos	max_steps
+total_pasos	total_steps
+REGISTROS	RECORDS
+REGISTROS_DIR	RECORDS_DIR
+clean_registros	clean_records
+cargar_corpus	load_corpus
+cargar_agente	load_agent
+cargar_agente_de_git	load_agent_from_git
+cargar_pesos	load_weights
+cargar_credenciales	load_credentials
+cargar_cache	load_cache
+guardar_cache	save_cache
+descargar_replay	download_replay
+cosechar_series	harvest_series
+construir	build
+explorar	explore
+migrar	migrate
+escribir	write_out
+escribir_indice	write_index
+fila_de_indice	index_row
+
+# --- the architecture lint ---------------------------------------------------
+REGLAS	RULES
+regla	rule
+nombres_mutables	mutable_names	str
+nombres_mutados	mutated_names
+nombres_libres	free_names
+nombres_all	all_names
+all_lista	all_list
+regla_1_mutables_importados	rule_1_imported_mutables
+regla_2_pureza	rule_2_purity
+regla_3_agent_es_lo_ultimo	rule_3_agent_is_last
+regla_4_imports_perezosos	rule_4_lazy_imports
+
+# --- generic ------------------------------------------------------------------
+nombres	names	code
+fila	row
+grupo	group
+grupos	groups
+lineas	lines
+n_lineas	n_lines
+por_linea	per_line
+libre	free
+texto	text
+datos	data
+dato	datum
+lista	items
+como_lista	as_list
+claves	keys
+clave	key
+clave_propia	own_key
+clave_gusteo	gust_key
+indice_propio	own_index
+columna_tipo	type_column
+entrada	entry	code
+eleccion	choice	code
+eleccion_cierre	closing_choice	code
+objetivo	target
+resultado	result	code
+resumen	summary
+resumen_censo	census_summary
+primero	first
+ultimo	last
+ultimo_inicio	last_start
+siguiente	next_item
+peor	worst
+falta	missing
+ancho	width
+total_hallazgos	total_findings
+mejor_por_equipo	best_by_team
+n_rival	n_opponent
+_coste	_cost
+_id_en_mano	_id_in_hand
+_mejor_dano_de	_best_damage_of
+_mejor_evolucion	_best_evolution
+_mejor_adjunte	_best_attachment
+_elegir_habilidad	_pick_ability
+_elegir_activo	_pick_active
+_habilidad_pide_energia	_ability_needs_energy
+_quitar_de_mano	_remove_from_hand
+_s_pivote_al_muro	_s_pivot_to_wall
+_s_supporter_sin_jugar	_s_supporter_unplayed
+_s_energia_sin_adjuntar	_s_energy_unattached
+_s_turno_no_esteril	_s_turn_not_sterile
+MANO_MINIMA_ESTERIL	MIN_HAND_STERILE
+# Most of the literals above are DATA: keys of the autopsy JSON, of the corpus
+# snapshot and of the fixtures, so they carry `code` -- the identifier moves,
+# the key does not. The exception is `nombres_mutables`, which the architecture
+# test patches BY NAME, so it carries `str` and its literal moves too.
+# `mazo` and `pasos` are NOT here: each collides with an English name that
+# already lives in the same scope, so they get a per-file target in map 15b
+# and travel globally in 15c.
+#
+# `util -> useful` was tried and REVERTED: it also renamed `importlib.util`,
+# a stdlib attribute. The renamer moves any attribute spelled like a mapped
+# name, and it cannot tell whose object it belongs to -- so short words that
+# exist in the standard library stay out of the map.

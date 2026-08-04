@@ -79,12 +79,12 @@ def test_last_ditch_del_primer_turno_trae_lillie_no_xerosic():
     """Step 16 of log 88461779, reproduced as it stands."""
     obs = _fixture_obs("alakazam_t1_last_ditch_busca_lillie_step16.json")
     sel = obs["select"]
-    mazo = sel["deck"]
-    ofrecidas = [mazo[o["index"]]["id"] for o in sel["option"]]
+    deck = sel["deck"]
+    ofrecidas = [deck[o["index"]]["id"] for o in sel["option"]]
     assert m.Lillie_Determination in ofrecidas and m.Xerosic_Machinations in ofrecidas
 
     result = m.agent(obs)
-    traido = mazo[sel["option"][result[0]]["index"]]["id"]
+    traido = deck[sel["option"][result[0]]["index"]]["id"]
     assert traido == m.Lillie_Determination, (
         f"en NUESTRO primer turno el Last-Ditch trae Lillie's Determination; "
         f"trajo {m.card_table[traido].name}({traido})")
@@ -96,36 +96,36 @@ def test_prediccion_del_fetch_en_primer_turno_apunta_a_lillie():
     target of the first turn is Lillie's even if the matchup is Alakazam with a
     fat rival hand and a strong attacker in play (the branch that took the
     Xerosic in the log)."""
-    mazo = {m.Xerosic_Machinations: {m.ZONE_DECK: 2},
+    deck = {m.Xerosic_Machinations: {m.ZONE_DECK: 2},
             m.Lillie_Determination: {m.ZONE_DECK: 4}}
     supp = {m.Xerosic_Machinations: 600, m.Lillie_Determination: 500}
-    objetivo, _ = m._meowth_fetch_prediccion(
+    target, _ = m._meowth_fetch_prediccion(
         {}, supp, 5, True, 8, False, False, False, False, False, True,
-        mazo, first_turn=True)
-    assert objetivo == m.Lillie_Determination
+        deck, first_turn=True)
+    assert target == m.Lillie_Determination
 
 
 def test_fuera_del_primer_turno_el_fetch_conserva_la_rama_xerosic():
     """The rule belongs ONLY to the first turn: in later turns the
     anti-Alakazam engine (capping Powerful Hand) still rules."""
-    mazo = {m.Xerosic_Machinations: {m.ZONE_DECK: 2},
+    deck = {m.Xerosic_Machinations: {m.ZONE_DECK: 2},
             m.Lillie_Determination: {m.ZONE_DECK: 4}}
     supp = {m.Xerosic_Machinations: 600, m.Lillie_Determination: 500}
-    objetivo, _ = m._meowth_fetch_prediccion(
+    target, _ = m._meowth_fetch_prediccion(
         {}, supp, 5, True, 8, False, False, False, False, False, True,
-        mazo, first_turn=False)
-    assert objetivo == m.Xerosic_Machinations
+        deck, first_turn=False)
+    assert target == m.Xerosic_Machinations
 
 
 def test_sin_lillie_en_el_mazo_el_primer_turno_no_degrada_al_resto():
     """Deck-agnostic: if the deck has no reachable Lillie's, the
     rule caps nobody and the normal ladder decides."""
-    mazo = {m.Xerosic_Machinations: {m.ZONE_DECK: 2}}
+    deck = {m.Xerosic_Machinations: {m.ZONE_DECK: 2}}
     supp = {m.Xerosic_Machinations: 600}
-    objetivo, value = m._meowth_fetch_prediccion(
+    target, value = m._meowth_fetch_prediccion(
         {}, supp, 5, True, 8, False, False, False, False, False, True,
-        mazo, first_turn=True)
-    assert objetivo == m.Xerosic_Machinations and value > 40
+        deck, first_turn=True)
+    assert target == m.Xerosic_Machinations and value > 40
 
 
 # ---------------------------------------------------------------------------

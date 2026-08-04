@@ -44,10 +44,10 @@ if str(_TESTS) not in sys.path:
 
 from golden_corpus import reset_agente  # a mirror of the tests' reset
 
-MAX_PASOS = 3000
+MAX_STEPS = 3000
 
 
-def cargar_agente(ruta, name):
+def load_agent(path, name):
     """Loads an independent instance of an agent module.
 
     INDEPENDENT INCLUDES ITS OWN `ptcg/` TREE. Since wave 3 of the refactor the
@@ -69,7 +69,7 @@ def cargar_agente(ruta, name):
     for k in previos:
         del sys.modules[k]
     try:
-        spec = importlib.util.spec_from_file_location(name, str(ruta))
+        spec = importlib.util.spec_from_file_location(name, str(path))
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
     finally:
@@ -85,7 +85,7 @@ def cargar_agente(ruta, name):
     return mod
 
 
-def cargar_agente_de_git(ref, name):
+def load_agent_from_git(ref, name):
     """Loads the main.py version of a git ref (the baseline)."""
     fuente = subprocess.run(
         ["git", "show", f"{ref}:main.py"], cwd=_ROOT, capture_output=True,
@@ -94,12 +94,12 @@ def cargar_agente_de_git(ref, name):
             "w", suffix=".py", prefix=f"main_{name}_",
             delete=False) as f:
         f.write(fuente)
-        ruta = f.name
-    return cargar_agente(ruta, name)
+        path = f.name
+    return load_agent(path, name)
 
 
-def leer_deck(ruta=None):
-    csv = Path(ruta or _ROOT / "deck.csv").read_text().split("\n")
+def read_deck(path=None):
+    csv = Path(path or _ROOT / "deck.csv").read_text().split("\n")
     return [int(csv[i]) for i in range(60)]
 
 
@@ -109,7 +109,7 @@ def _reset_si_aplica(mod):
         reset_agente(mod)
 
 
-def _premios_restantes(obs):
+def _prizes_left(obs):
     """Prizes each seat has LEFT, or None if they cannot be read."""
     try:
         jugadores = obs["current"]["players"]
@@ -118,7 +118,7 @@ def _premios_restantes(obs):
         return None
 
 
-def _premios_tomados(pico, final):
+def _prizes_taken(pico, final):
     """Prizes TAKEN by each seat = how far its OWN pile has gone down.
 
     Each player draws from THEIR pile when knocking out, so a seat's prize
@@ -141,8 +141,8 @@ def _premios_tomados(pico, final):
     return [max(0, pico[i] - final[i]) for i in (0, 1)]
 
 
-def jugar_partida(agente_p0, agente_p1, deck0=None, deck1=None,
-                  max_pasos=MAX_PASOS):
+def play_game(agente_p0, agente_p1, deck0=None, deck1=None,
+                  max_steps=MAX_STEPS):
     """Plays a complete game. Returns a dict with the outcome.
 
     result: 0/1 (the winner), "limite" (the step cap) or "error_pX" (the agent
@@ -158,7 +158,7 @@ def jugar_partida(agente_p0, agente_p1, deck0=None, deck1=None,
     """
     from cg import game
 
-    deck = leer_deck()
+    deck = read_deck()
     deck0 = deck0 or deck
     deck1 = deck1 or deck
     _reset_si_aplica(agente_p0)
@@ -171,42 +171,42 @@ def jugar_partida(agente_p0, agente_p1, deck0=None, deck1=None,
             f"errorType={sd.errorType}")
     # The prize peak per seat. In `battle_start` the piles are still 0
     # (they have not been dealt), so the initial value is discovered as we go.
-    premios_pico = [0, 0]
+    peak_prizes = [0, 0]
 
-    def _mirar_premios():
-        actual = _premios_restantes(obs)
+    def _watch_prizes():
+        actual = _prizes_left(obs)
         if actual:
             for i in (0, 1):
-                if actual[i] > premios_pico[i]:
-                    premios_pico[i] = actual[i]
+                if actual[i] > peak_prizes[i]:
+                    peak_prizes[i] = actual[i]
         return actual
 
-    _mirar_premios()
+    _watch_prizes()
     agentes = {0: agente_p0, 1: agente_p1}
-    pasos = 0
+    steps = 0
     primer_jugador = -1
     try:
-        while obs["current"]["result"] == -1 and pasos < max_pasos:
+        while obs["current"]["result"] == -1 and steps < max_steps:
             yi = obs["current"]["yourIndex"]
             if primer_jugador == -1:
                 primer_jugador = obs["current"]["firstPlayer"]
             try:
-                eleccion = agentes[yi].agent(obs)
-                obs = game.battle_select(eleccion)
+                choice = agentes[yi].agent(obs)
+                obs = game.battle_select(choice)
             except Exception:
                 return {"result": f"error_p{yi}", "ganador": 1 - yi,
-                        "pasos": pasos, "primer_jugador": primer_jugador,
-                        "premios_tomados": _premios_tomados(
-                            premios_pico, _premios_restantes(obs))}
-            _mirar_premios()
-            pasos += 1
-        prizes = _premios_tomados(premios_pico, _premios_restantes(obs))
+                        "pasos": steps, "primer_jugador": primer_jugador,
+                        "premios_tomados": _prizes_taken(
+                            peak_prizes, _prizes_left(obs))}
+            _watch_prizes()
+            steps += 1
+        prizes = _prizes_taken(peak_prizes, _prizes_left(obs))
         if obs["current"]["result"] == -1:
-            return {"result": "limite", "ganador": None, "pasos": pasos,
+            return {"result": "limite", "ganador": None, "pasos": steps,
                     "primer_jugador": primer_jugador,
                     "premios_tomados": prizes}
         winner = obs["current"]["result"]
-        return {"result": winner, "ganador": winner, "pasos": pasos,
+        return {"result": winner, "ganador": winner, "pasos": steps,
                 "primer_jugador": obs["current"]["firstPlayer"]
                 if primer_jugador == -1 else primer_jugador,
                 "premios_tomados": prizes}
@@ -250,7 +250,7 @@ def torneo(candidato, base, partidas, progreso=None,
             p0, p1, d0, d1 = candidato, base, deck_candidato, deck_base
         else:
             p0, p1, d0, d1 = base, candidato, deck_base, deck_candidato
-        r = jugar_partida(p0, p1, deck0=d0, deck1=d1)
+        r = play_game(p0, p1, deck0=d0, deck1=d1)
         stats["pasos_totales"] += r["pasos"]
         prizes = r.get("premios_tomados") or [None, None]
         if prizes[0] is not None and prizes[1] is not None:
@@ -287,7 +287,7 @@ def _pct(v, n):
     return f"{100 * v / n:.1f}%" if n else "n/a"
 
 
-def premios_por_partida(stats):
+def prizes_per_game(stats):
     """(prizes/game of the candidate, of the base, the differential). None if there are none."""
     n = stats.get("partidas_con_premios") or 0
     if not n:
@@ -300,7 +300,7 @@ def premios_por_partida(stats):
 def informe(stats, etiqueta_cand, etiqueta_base):
     dec = stats["candidato"] + stats["base"]
     lo, hi = wilson_95(stats["candidato"], dec) if dec else (0, 1)
-    lineas = [
+    lines = [
         f"Self-play: candidato={etiqueta_cand}  vs  base={etiqueta_base}",
         f"Partidas: {stats['partidas']}  (decididas {dec}, "
         f"limite {stats['limites']})",
@@ -319,15 +319,15 @@ def informe(stats, etiqueta_cand, etiqueta_base):
         f"base {stats['errores_base']}",
         f"Pasos totales: {stats['pasos_totales']}",
     ]
-    pc, pb, dif = premios_por_partida(stats)
+    pc, pb, dif = prizes_per_game(stats)
     if pc is not None:
-        lineas.append(
+        lines.append(
             f"Premios/partida: candidato {pc:.2f} - {pb:.2f} base  "
             f"(diferencial {dif:+.2f})")
-        lineas.append(
+        lines.append(
             "  el winrate se satura contra el bot; el diferencial de premios "
             "gradua y detecta cambios que el marcador no ve")
-    return "\n".join(lineas)
+    return "\n".join(lines)
 
 
 def main(argv):
@@ -345,22 +345,22 @@ def main(argv):
                          "generico pilotando ese mazo (modo matchup)")
     args = ap.parse_args(argv)
 
-    ruta_cand = _ROOT / args.candidato
-    candidato = cargar_agente(ruta_cand, "agente_candidato")
+    cand_path = _ROOT / args.candidato
+    candidato = load_agent(cand_path, "agente_candidato")
 
     if args.rival:
         from bot_rival import BotRival
-        deck_rival = leer_deck(_ROOT / args.rival)
+        opponent_deck = read_deck(_ROOT / args.rival)
         bot = BotRival()
         stats = torneo(candidato, bot, args.partidas,
                        progreso=args.progreso or None,
-                       deck_base=deck_rival)
+                       deck_base=opponent_deck)
         print(informe(stats, args.candidato, f"bot+{args.rival}"))
         if args.base:
-            base = cargar_agente_de_git(args.base, "agente_base")
+            base = load_agent_from_git(args.base, "agente_base")
             stats_base = torneo(base, bot, args.partidas,
                                 progreso=args.progreso or None,
-                                deck_base=deck_rival)
+                                deck_base=opponent_deck)
             print()
             print(informe(stats_base, f"{args.base} (git)",
                           f"bot+{args.rival}"))
@@ -374,10 +374,10 @@ def main(argv):
         return 0
 
     if args.base:
-        base = cargar_agente_de_git(args.base, "agente_base")
+        base = load_agent_from_git(args.base, "agente_base")
         etiqueta_base = f"{args.base} (git)"
     else:
-        base = cargar_agente(ruta_cand, "agente_base_espejo")
+        base = load_agent(cand_path, "agente_base_espejo")
         etiqueta_base = f"{args.candidato} (espejo)"
 
     stats = torneo(candidato, base, args.partidas,

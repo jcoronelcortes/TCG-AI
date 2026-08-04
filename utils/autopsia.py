@@ -61,14 +61,14 @@ for _p in (_ROOT, _ROOT / "utils"):
 import selfplay as sp
 from cg.api import OptionType, SelectContext
 
-MAX_PASOS = 3000
-MANO_MINIMA_ESTERIL = 4
+MAX_STEPS = 3000
+MIN_HAND_STERILE = 4
 # The switching card of our own list: the same id that in main.py switches
 # `has_switch_card` on (a free retreat without paying energy).
-CARTA_CAMBIO = 1123
+SWITCH_CARD = 1123
 
 
-def jugar_grabando(agente, rival, deck_propio, deck_rival, asiento):
+def play_recording(agente, rival, own_deck, opponent_deck, asiento):
     """Plays a game recording OUR decisions.
 
     It returns (result, decisions, final_obs) with the result in {"gana",
@@ -80,26 +80,26 @@ def jugar_grabando(agente, rival, deck_propio, deck_rival, asiento):
 
     sp._reset_si_aplica(agente)
     sp._reset_si_aplica(rival)
-    decks = ((deck_propio, deck_rival) if asiento == 0
-             else (deck_rival, deck_propio))
+    decks = ((own_deck, opponent_deck) if asiento == 0
+             else (opponent_deck, own_deck))
     obs, sd = game.battle_start(list(decks[0]), list(decks[1]))
     if obs is None:
         raise RuntimeError(f"battle_start fallo: {sd.errorType}")
     agentes = {asiento: agente, 1 - asiento: rival}
-    decisiones, pasos = [], 0
+    decisiones, steps = [], 0
     try:
-        while obs["current"]["result"] == -1 and pasos < MAX_PASOS:
+        while obs["current"]["result"] == -1 and steps < MAX_STEPS:
             yi = obs["current"]["yourIndex"]
             try:
-                eleccion = agentes[yi].agent(obs)
+                choice = agentes[yi].agent(obs)
             except Exception:
                 return (("forfeit" if yi == asiento else "gana"),
                         decisiones, obs)
             if yi == asiento:
-                decisiones.append({"obs": obs, "eleccion": list(eleccion),
-                                   "paso": pasos})
-            obs = game.battle_select(eleccion)
-            pasos += 1
+                decisiones.append({"obs": obs, "eleccion": list(choice),
+                                   "paso": steps})
+            obs = game.battle_select(choice)
+            steps += 1
         if obs["current"]["result"] == -1:
             return "limite", decisiones, obs
         return (("gana" if obs["current"]["result"] == asiento
@@ -108,7 +108,7 @@ def jugar_grabando(agente, rival, deck_propio, deck_rival, asiento):
         game.battle_finish()
 
 
-def clasificar_derrota(obs_final, asiento, resultado):
+def clasificar_derrota(obs_final, asiento, result):
     """Classifies HOW the game was lost by looking at the final observation.
 
     Modes: "premios" (the opponent completed their prizes), "bench_out" (we
@@ -118,7 +118,7 @@ def clasificar_derrota(obs_final, asiento, resultado):
     of the checks matters: bench_out and deckout are only declared if the
     opponent was STILL missing prizes (otherwise the dominant cause is "premios").
     """
-    if resultado == "limite":
+    if result == "limite":
         return "limite"
     try:
         cur = obs_final["current"]
@@ -130,8 +130,8 @@ def clasificar_derrota(obs_final, asiento, resultado):
     # prize that player has STILL to take.
     op_restantes = sum(1 for p in (op.get("prize") or []) if p is None)
     activos = [p for p in (yo.get("active") or []) if p]
-    banca = [p for p in (yo.get("bench") or []) if p]
-    if op_restantes > 0 and not activos and not banca:
+    bench = [p for p in (yo.get("bench") or []) if p]
+    if op_restantes > 0 and not activos and not bench:
         return "bench_out"
     if op_restantes > 0 and (yo.get("deckCount") or 0) <= 0:
         return "deckout"
@@ -150,7 +150,7 @@ def _mi_lado(obs):
     return cur["players"][cur["yourIndex"]], cur["players"][1 - cur["yourIndex"]]
 
 
-def _dano_letal_activo(m, obs):
+def _lethal_damage_to_active(m, obs):
     """The best damage from OUR active to the opposing active this step (or 0)."""
     yo, op = _mi_lado(obs)
     if not (yo.get("active") and yo["active"][0] and
@@ -186,7 +186,7 @@ def _dano_letal_activo(m, obs):
     return m._our_effective_damage(a, o, base, meganium, False), o
 
 
-def censo_de_turnos(m, decisiones):
+def turn_census(m, decisiones):
     """A COMPACT row per turn of ours, for ALL games -- wins
     included.
 
@@ -207,39 +207,39 @@ def censo_de_turnos(m, decisiones):
     there is a READY attacker waiting on the bench, the energy ammunition and how it closed.
     """
     filas = []
-    por_turno = {}
+    per_turn = {}
     for d in decisiones:
-        por_turno.setdefault(d["obs"]["current"]["turn"], []).append(d)
+        per_turn.setdefault(d["obs"]["current"]["turn"], []).append(d)
 
-    for turn, ds in sorted(por_turno.items()):
+    for turn, ds in sorted(per_turn.items()):
         mains = [d for d in ds
                  if (d["obs"].get("select") or {}).get("context")
                  == int(SelectContext.MAIN)]
         if not mains:
             continue
-        primero, ultimo = mains[0], mains[-1]
-        yo, _ = _mi_lado(primero["obs"])
+        first, last = mains[0], mains[-1]
+        yo, _ = _mi_lado(first["obs"])
         # The ONCE-PER-TURN resources are read from the LAST select, not from the
         # first: in the first one nothing has been played yet and they always come out
         # unspent in both groups (an empty trait). Here they measure what
         # really matters, what the turn left unused.
-        cur = ultimo["obs"]["current"]
+        cur = last["obs"]["current"]
         act = (yo.get("active") or [None])[0]
-        mano = yo.get("hand") or []
+        hand = yo.get("hand") or []
 
         # Is the ACTIVE stuck? It neither reaches its attack cost nor can it pay
         # its retreat with the energy it already carries.
-        atascado = puede_atacar = puede_retirar = None
+        atascado = can_attack = can_retreat = None
         if act is not None:
             req = m.ATTACK_ENERGY_REQ.get(act["id"])
             e = len(act["energies"])
-            puede_atacar = None if req is None else (e * m._grass_mult() >= req)
-            puede_retirar = e >= m.RETREAT_COST.get(act["id"], 1)
-            atascado = (puede_atacar is False) and not puede_retirar
+            can_attack = None if req is None else (e * m._grass_mult() >= req)
+            can_retreat = e >= m.RETREAT_COST.get(act["id"], 1)
+            atascado = (can_attack is False) and not can_retreat
 
         # A REAL benched attacker that already reaches its cost: what the jam
         # leaves locked in behind it.
-        listos_banca = sum(
+        ready_on_bench = sum(
             1 for b in (yo.get("bench") or [])
             if b["id"] in m.MAIN_ATTACKERS
             and len(b["energies"]) * m._grass_mult()
@@ -258,12 +258,12 @@ def censo_de_turnos(m, decisiones):
         # in EFFECTIVE symbols and each new physical Grass provides `unidad`
         # (2 with Meganium in play through Wild Growth), so the deficit is measured
         # in CARDS.
-        retirada_en_menu = any(
+        retreat_in_menu = any(
             int(o.get("type", -1)) == int(OptionType.RETREAT)
             for d in mains for o in d["obs"]["select"]["option"])
-        cambio_en_mano = any(c["id"] == CARTA_CAMBIO for c in mano)
-        retirada_pagable_hoy = False
-        if act is not None and not puede_retirar:
+        switch_in_hand = any(c["id"] == SWITCH_CARD for c in hand)
+        retreat_payable_today = False
+        if act is not None and not can_retreat:
             campo = [act] + [b for b in (yo.get("bench") or []) if b]
             unit = 2 if any(b["id"] == m.Meganium for b in campo) else 1
             # Attachment routes that can leave a Grass ON THE ACTIVE today:
@@ -273,17 +273,17 @@ def censo_de_turnos(m, decisiones):
             vias += sum(1 for b in campo if b["id"] == m.Hydrapple_ex)
             if act["id"] == m.Teal_Mask_Ogerpon_ex:
                 vias += 1
-            plantas = sum(1 for c in mano if c["id"] == m.Basic_Grass_Energy)
-            falta = m.RETREAT_COST.get(act["id"], 1) - len(act["energies"])
-            necesarias = -(-falta // unit)
-            retirada_pagable_hoy = 1 <= necesarias <= min(vias, plantas)
-        escapatoria = bool(retirada_en_menu or cambio_en_mano
-                           or retirada_pagable_hoy)
+            plantas = sum(1 for c in hand if c["id"] == m.Basic_Grass_Energy)
+            missing = m.RETREAT_COST.get(act["id"], 1) - len(act["energies"])
+            necesarias = -(-missing // unit)
+            retreat_payable_today = 1 <= necesarias <= min(vias, plantas)
+        escapatoria = bool(retreat_in_menu or switch_in_hand
+                           or retreat_payable_today)
 
-        eleccion_cierre = None
-        if ultimo["eleccion"]:
-            eleccion_cierre = int(ultimo["obs"]["select"]["option"][
-                ultimo["eleccion"][0]].get("type", -1))
+        closing_choice = None
+        if last["eleccion"]:
+            closing_choice = int(last["obs"]["select"]["option"][
+                last["eleccion"][0]].get("type", -1))
         ataco = any(
             int(d["obs"]["select"]["option"][d["eleccion"][0]].get("type", -1))
             == int(OptionType.ATTACK)
@@ -293,23 +293,23 @@ def censo_de_turnos(m, decisiones):
             "turno": turn,
             "selects": len(mains),
             "ataco": ataco,
-            "cierre": eleccion_cierre,
-            "mano": len(mano),
+            "cierre": closing_choice,
+            "mano": len(hand),
             "opciones_no_end": sum(
-                1 for o in primero["obs"]["select"]["option"]
+                1 for o in first["obs"]["select"]["option"]
                 if int(o.get("type", -1)) != int(OptionType.END)),
             "activo": None if act is None else act["id"],
             "activo_hp": None if act is None else act["hp"],
             "activo_energias": None if act is None else len(act["energies"]),
-            "puede_atacar": puede_atacar,
-            "puede_retirar": puede_retirar,
+            "puede_atacar": can_attack,
+            "puede_retirar": can_retreat,
             "atascado": atascado,
             "escapatoria": escapatoria,
-            "retirada_en_menu": retirada_en_menu,
-            "cambio_en_mano": cambio_en_mano,
-            "retirada_pagable_hoy": retirada_pagable_hoy,
-            "listos_banca": listos_banca,
-            "plantas_mano": sum(1 for c in mano
+            "retirada_en_menu": retreat_in_menu,
+            "cambio_en_mano": switch_in_hand,
+            "retirada_pagable_hoy": retreat_payable_today,
+            "listos_banca": ready_on_bench,
+            "plantas_mano": sum(1 for c in hand
                                 if c["id"] == m.Basic_Grass_Energy),
             "adjunte_gastado": bool(cur.get("energyAttached")),
             "supporter_gastado": bool(cur.get("supporterPlayed")),
@@ -322,11 +322,11 @@ def detectar(m, decisiones):
     hallazgos = []
 
     # group decisions by our own turn
-    por_turno = {}
+    per_turn = {}
     for d in decisiones:
-        por_turno.setdefault(d["obs"]["current"]["turn"], []).append(d)
+        per_turn.setdefault(d["obs"]["current"]["turn"], []).append(d)
 
-    for turn, ds in sorted(por_turno.items()):
+    for turn, ds in sorted(per_turn.items()):
         mains = [d for d in ds
                  if (d["obs"].get("select") or {}).get("context")
                  == int(SelectContext.MAIN)]
@@ -345,14 +345,14 @@ def detectar(m, decisiones):
                 if not any(int(o.get("type", -1)) == int(OptionType.ATTACK)
                            for o in opciones):
                     continue
-                damage, opa = _dano_letal_activo(m, d["obs"])
+                damage, opa = _lethal_damage_to_active(m, d["obs"])
                 if opa is None or damage <= 0:
                     continue
                 if damage >= (opa.hp or 0) > 0:
                     yo, _ = _mi_lado(d["obs"])
-                    mis_premios = sum(1 for p in yo.get("prize") or []
+                    my_prizes = sum(1 for p in yo.get("prize") or []
                                       if p is None)
-                    gana = m.prize_count(opa) >= mis_premios
+                    gana = m.prize_count(opa) >= my_prizes
                     hallazgos.append({
                         "detector": "letal_perdido",
                         "critico": bool(gana),
@@ -366,19 +366,19 @@ def detectar(m, decisiones):
                     break
 
         # --- turno_esteril: a close with END or a 0-damage attack with a fat hand.
-        ultimo = mains[-1]
-        if not ultimo["eleccion"]:
+        last = mains[-1]
+        if not last["eleccion"]:
             continue
-        opcion = ultimo["obs"]["select"]["option"][ultimo["eleccion"][0]]
+        opcion = last["obs"]["select"]["option"][last["eleccion"][0]]
         t = int(opcion.get("type", -1))
-        yo, _ = _mi_lado(ultimo["obs"])
-        mano = len(yo.get("hand") or [])
+        yo, _ = _mi_lado(last["obs"])
+        hand = len(yo.get("hand") or [])
         esteril = False
-        if t == int(OptionType.END) and mano >= MANO_MINIMA_ESTERIL:
+        if t == int(OptionType.END) and hand >= MIN_HAND_STERILE:
             esteril = True
-        elif t == int(OptionType.ATTACK) and mano >= MANO_MINIMA_ESTERIL:
+        elif t == int(OptionType.ATTACK) and hand >= MIN_HAND_STERILE:
             atk = m.attack_table.get(opcion.get("attackId"))
-            damage, _opa = _dano_letal_activo(m, ultimo["obs"])
+            damage, _opa = _lethal_damage_to_active(m, last["obs"])
             if atk is not None and (atk.damage or 0) == 0 and damage == 0:
                 esteril = True
         if esteril:
@@ -386,21 +386,21 @@ def detectar(m, decisiones):
             # (the complete menu -- reproducible with main.agent() and sweepable with
             # the explorer); the final END sometimes only offered END. The
             # close is kept in paso_cierre/eleccion_cierre.
-            primero = mains[0]
+            first = mains[0]
             opciones_no_end = sum(
-                1 for o in primero["obs"]["select"]["option"]
+                1 for o in first["obs"]["select"]["option"]
                 if int(o.get("type", -1)) != int(OptionType.END))
             hallazgos.append({
                 "detector": "turno_esteril",
                 "critico": False,
-                "turno": turn, "paso": primero["paso"],
+                "turno": turn, "paso": first["paso"],
                 "detalle": (f"turno cerrado con "
                             f"{'END' if t == int(OptionType.END) else 'ataque de 0'}"
-                            f" y {mano} cartas en mano"),
-                "eleccion": primero["eleccion"],
-                "observation": primero["obs"],
-                "paso_cierre": ultimo["paso"],
-                "eleccion_cierre": ultimo["eleccion"],
+                            f" y {hand} cartas en mano"),
+                "eleccion": first["eleccion"],
+                "observation": first["obs"],
+                "paso_cierre": last["paso"],
+                "eleccion_cierre": last["eleccion"],
                 "opciones_primer_main": opciones_no_end,
                 # v2.1: the COMPLETE turn step by step (every MAIN select
                 # with its observation and choice). Multi-step failures (the
@@ -414,7 +414,7 @@ def detectar(m, decisiones):
     return hallazgos
 
 
-def resumen_censo(censo, etiqueta):
+def census_summary(censo, etiqueta):
     """LOSS vs WIN contrast over the turn census.
 
     Each trait is printed as its per-turn frequency in each group and the
@@ -455,13 +455,13 @@ def resumen_censo(censo, etiqueta):
         print(f"    {name:40}{pp:8.1f}%{pg:9.1f}%{dif:+8.1f}")
     # Jam streaks: a single stuck turn is noise; a long streak is
     # a whole game played from behind a wall of our own making.
-    for grupo, name in ((perd, "derrotas"), (gana, "victorias")):
-        rachas, actual, por_partida = [], 0, None
-        for f in grupo:
-            if f["partida"] != por_partida:
+    for group, name in ((perd, "derrotas"), (gana, "victorias")):
+        rachas, actual, per_game = [], 0, None
+        for f in group:
+            if f["partida"] != per_game:
                 if actual:
                     rachas.append(actual)
-                actual, por_partida = 0, f["partida"]
+                actual, per_game = 0, f["partida"]
             if f["atascado"] is True:
                 actual += 1
             else:
@@ -476,81 +476,81 @@ def resumen_censo(censo, etiqueta):
               f"max {max(rachas) if rachas else 0})")
 
 
-def autopsia(rival_csv, partidas, espejo=False, destino=None, censar=False):
+def autopsia(opponent_csv, partidas, espejo=False, destino=None, censar=False):
     import main as m
     destino = destino or (_ROOT / "registros" / "autopsia")
     destino.mkdir(parents=True, exist_ok=True)
 
-    agente = sp.cargar_agente(_ROOT / "main.py", "agente_autopsia")
-    deck_propio = sp.leer_deck()
+    agente = sp.load_agent(_ROOT / "main.py", "agente_autopsia")
+    own_deck = sp.read_deck()
     if espejo:
-        rival = sp.cargar_agente(_ROOT / "main.py", "rival_autopsia")
-        deck_rival, etiqueta = deck_propio, "espejo"
+        rival = sp.load_agent(_ROOT / "main.py", "rival_autopsia")
+        opponent_deck, etiqueta = own_deck, "espejo"
     else:
         from bot_rival import BotRival
         rival = BotRival()
-        deck_rival = sp.leer_deck(rival_csv)
-        etiqueta = Path(rival_csv).stem
+        opponent_deck = sp.read_deck(opponent_csv)
+        etiqueta = Path(opponent_csv).stem
 
     marcador = Counter()
     modos = Counter()
-    total_hallazgos = []
-    modo_por_partida = {}
+    total_findings = []
+    mode_per_game = {}
     censo = []
     for i in range(partidas):
-        resultado, decisiones, obs_final = jugar_grabando(
-            agente, rival, deck_propio, deck_rival, asiento=i % 2)
-        marcador[resultado] += 1
+        result, decisiones, obs_final = play_recording(
+            agente, rival, own_deck, opponent_deck, asiento=i % 2)
+        marcador[result] += 1
         # THE CENSUS: it is built from ALL the games, wins included. It is the
         # CONTROL group -- without it, a pattern that is frequent in the losses cannot be
         # told apart from a pattern that is simply frequent.
         if censar:
-            for fila in censo_de_turnos(m, decisiones):
-                fila["partida"] = i
-                fila["resultado"] = resultado
-                censo.append(fila)
+            for row in turn_census(m, decisiones):
+                row["partida"] = i
+                row["resultado"] = result
+                censo.append(row)
         # v2: the games that hit the LIMIT are autopsied too (vs stall they are
         # the interesting failure mode), as well as losses and forfeits.
-        if resultado not in ("pierde", "forfeit", "limite"):
+        if result not in ("pierde", "forfeit", "limite"):
             continue
         modo = clasificar_derrota(obs_final, asiento=i % 2,
-                                  resultado=resultado)
+                                  result=result)
         modos[modo] += 1
-        modo_por_partida[i] = modo
+        mode_per_game[i] = modo
         for h in detectar(m, decisiones):
             h["partida"] = i
             h["rival"] = etiqueta
-            h["resultado"] = resultado
+            h["resultado"] = result
             h["modo_derrota"] = modo
-            total_hallazgos.append(h)
+            total_findings.append(h)
 
     # persist: one file per game with its findings
-    por_partida = {}
-    for h in total_hallazgos:
-        por_partida.setdefault(h["partida"], []).append(h)
-    for num, hs in por_partida.items():
-        ruta = destino / f"{etiqueta}_p{num:03d}.json"
-        ruta.write_text(json.dumps(
+    per_game = {}
+    for h in total_findings:
+        per_game.setdefault(h["partida"], []).append(h)
+    for num, hs in per_game.items():
+        path = destino / f"{etiqueta}_p{num:03d}.json"
+        path.write_text(json.dumps(
             {"rival": etiqueta, "partida": num,
-             "modo_derrota": modo_por_partida.get(num, "desconocido"),
+             "modo_derrota": mode_per_game.get(num, "desconocido"),
              "hallazgos": hs},
             ensure_ascii=False, indent=1))
 
     print(f"[{etiqueta}] {dict(marcador)}")
     if modos:
         print(f"  modo de derrota: {dict(modos.most_common())}")
-    resumen = Counter((h["detector"], h["critico"]) for h in total_hallazgos)
-    for (det, critico), n in resumen.most_common():
+    summary = Counter((h["detector"], h["critico"]) for h in total_findings)
+    for (det, critico), n in summary.most_common():
         print(f"  {det}{' CRITICO' if critico else ''}: {n} "
-              f"(en {len(por_partida)} partidas perdidas)")
-    if not total_hallazgos:
+              f"(en {len(per_game)} partidas perdidas)")
+    if not total_findings:
         print("  sin hallazgos en las derrotas")
     if censar:
         (destino / f"{etiqueta}_censo.json").write_text(json.dumps(
             {"rival": etiqueta, "partidas": partidas, "turnos": censo},
             ensure_ascii=False))
-        resumen_censo(censo, etiqueta)
-    return total_hallazgos
+        census_summary(censo, etiqueta)
+    return total_findings
 
 
 def main(argv):
@@ -566,8 +566,8 @@ def main(argv):
     args = ap.parse_args(argv)
 
     if args.todos:
-        for ruta in sorted((_ROOT / "deck" / "rivales").glob("*.csv")):
-            autopsia(ruta, args.partidas, censar=args.censo)
+        for path in sorted((_ROOT / "deck" / "rivales").glob("*.csv")):
+            autopsia(path, args.partidas, censar=args.censo)
         return 0
     if args.espejo:
         autopsia(None, args.partidas, espejo=True, censar=args.censo)

@@ -578,13 +578,13 @@ def _autodano_spec(attack_id):
         return _AUTODANO_CACHE[attack_id]
     spec = None
     _atk = attack_table.get(attack_id)
-    texto = (getattr(_atk, 'text', None) or '') if _atk is not None else ''
-    _m = _RE_AUTODANO.search(texto)
+    text = (getattr(_atk, 'text', None) or '') if _atk is not None else ''
+    _m = _RE_AUTODANO.search(text)
     if _m is not None:
-        _ini = texto.rfind('.', 0, _m.start()) + 1
-        _fin = texto.find('.', _m.end())
-        _frase = texto[_ini:_fin if _fin != -1 else len(texto)]
-        _prev = texto[texto.rfind('.', 0, max(0, _ini - 1)) + 1:_ini]
+        _ini = text.rfind('.', 0, _m.start()) + 1
+        _fin = text.find('.', _m.end())
+        _frase = text[_ini:_fin if _fin != -1 else len(text)]
+        _prev = text[text.rfind('.', 0, max(0, _ini - 1)) + 1:_ini]
         _ctx = (_prev + ' ' + _frase).lower()
         spec = (int(_m.group(1)),
                 'you may' in _ctx,

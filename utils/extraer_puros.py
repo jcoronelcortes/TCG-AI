@@ -41,7 +41,7 @@ SEGUROS = {"frozenset", "set", "dict", "tuple", "list", "range", "len",
 MUTADORES = {"append", "extend", "update", "add", "pop", "clear", "insert",
              "remove", "discard", "setdefault", "sort"}
 
-CABECERA = '''"""{titulo}
+HEADER = '''"""{titulo}
 
 Extraido VERBATIM de main.py por utils/extraer_puros.py
 (docs/project-history.md). Aqui NO hay logica: solo constantes que
@@ -56,7 +56,7 @@ omitiria si no).
 '''
 
 
-def nombres_mutados(arbol):
+def mutated_names(arbol):
     """Names that are mutated at some point of the module: they are not constants."""
     mutados = set()
     for n in ast.walk(arbol):
@@ -90,9 +90,9 @@ def _es_puro(nodo, puros):
 def planificar(main_py, desde, hasta):
     """Returns (ranges, names): which lines would move and which bindings they contain."""
     src = main_py.read_text(encoding="utf-8")
-    lineas = src.splitlines(keepends=True)
+    lines = src.splitlines(keepends=True)
     arbol = ast.parse(src)
-    mutados = nombres_mutados(arbol)
+    mutados = mutated_names(arbol)
 
     # What has ALREADY been extracted to the package counts as available: after the first wave,
     # `EVO_LINES = (Chikorita, Bayleef, ...)` references IDs that are no longer in
@@ -116,13 +116,13 @@ def planificar(main_py, desde, hasta):
         if not ok or not (desde <= a <= hasta):
             bloqueadas.update(range(a, b + 1))
 
-    es_movible = [False] * (len(lineas) + 2)
+    es_movible = [False] * (len(lines) + 2)
     for a, (b, _) in movibles.items():
         for ln in range(a, b + 1):
             es_movible[ln] = True
 
     def suelta(ln):
-        t = lineas[ln - 1].strip()
+        t = lines[ln - 1].strip()
         return t == "" or t.startswith("#")
 
     rangos, ln = [], desde
@@ -145,16 +145,16 @@ def planificar(main_py, desde, hasta):
             rangos[-1][1] = max(rangos[-1][1], fin)
         ln = fin + 1
 
-    nombres = [n for a, (b, n) in sorted(movibles.items())]
+    names = [n for a, (b, n) in sorted(movibles.items())]
 
     # Names the moved code takes from modules that have ALREADY been extracted: they have to
     # be imported in the target or the new module blows up when loaded.
     from pureza import _mapa_paquete
     mapa = _mapa_paquete()
-    propios = set(nombres)
+    propios = set(names)
     necesarios = {}
     for a, b in rangos:
-        fragmento = "".join(lineas[a - 1:b])
+        fragmento = "".join(lines[a - 1:b])
         try:
             sub = ast.parse(fragmento)
         except SyntaxError:
@@ -163,7 +163,7 @@ def planificar(main_py, desde, hasta):
             if isinstance(n, ast.Name) and isinstance(n.ctx, ast.Load):
                 if n.id in mapa and n.id not in propios:
                     necesarios.setdefault(mapa[n.id], set()).add(n.id)
-    return lineas, rangos, nombres, necesarios
+    return lines, rangos, names, necesarios
 
 
 def main():
@@ -178,12 +178,12 @@ def main():
     args = ap.parse_args()
 
     main_py = PROJECT_ROOT / args.main
-    lineas, rangos, nombres, necesarios = planificar(main_py, args.desde, args.hasta)
+    lines, rangos, names, necesarios = planificar(main_py, args.desde, args.hasta)
 
     total = sum(b - a + 1 for a, b in rangos)
-    print(f"rangos: {len(rangos)}   lineas: {total}   bindings: {len(nombres)}")
+    print(f"rangos: {len(rangos)}   lineas: {total}   bindings: {len(names)}")
     for a, b in rangos:
-        print(f"  {a:6d}-{b:<6d} ({b - a + 1:4d} l)  {lineas[a - 1].strip()[:56]}")
+        print(f"  {a:6d}-{b:<6d} ({b - a + 1:4d} l)  {lines[a - 1].strip()[:56]}")
 
     if not args.apply:
         print("\n(dry run; usa --aplicar para escribir)")
@@ -196,15 +196,15 @@ def main():
         if paquete != PROJECT_ROOT and not ini.exists():
             ini.write_text('"""Paquete del agente. Ver docs/project-history.md."""\n')
 
-    cuerpo = ["".join(lineas[a - 1:b]) for a, b in rangos]
+    body = ["".join(lines[a - 1:b]) for a, b in rangos]
     imports = "".join(
         f"from {mod} import {', '.join(sorted(ns))}\n"
         for mod, ns in sorted(necesarios.items()))
     if imports:
         imports += "\n\n"
-    all_lista = "__all__ = [\n" + "".join(f"    {n!r},\n" for n in nombres) + "]\n"
-    destino.write_text(CABECERA.format(titulo=args.titulo) + imports
-                       + "\n".join(cuerpo) + "\n\n" + all_lista)
+    all_list = "__all__ = [\n" + "".join(f"    {n!r},\n" for n in names) + "]\n"
+    destino.write_text(HEADER.format(titulo=args.titulo) + imports
+                       + "\n".join(body) + "\n\n" + all_list)
 
     borrar = set()
     for a, b in rangos:
@@ -212,7 +212,7 @@ def main():
     modulo = args.destino.replace("/", ".").removesuffix(".py")
     marca = f"from {modulo} import *  # noqa: F401,F403\n"
     salida, puesto = [], False
-    for i, line in enumerate(lineas, start=1):
+    for i, line in enumerate(lines, start=1):
         if i in borrar:
             if not puesto:
                 salida.append(marca)
@@ -222,7 +222,7 @@ def main():
     main_py.write_text("".join(salida))
 
     print(f"\nescrito {destino}")
-    print(f"{args.main}: {len(lineas)} -> {len(salida)} lineas")
+    print(f"{args.main}: {len(lines)} -> {len(salida)} lineas")
     print("OJO: el import se inserta donde estaba el primer rango; muevelo al "
           "bloque de cabecera (en Kaggle el dir del agente solo esta en sys.path "
           "mientras se ejecuta main.py).")

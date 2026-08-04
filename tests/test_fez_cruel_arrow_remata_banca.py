@@ -94,13 +94,13 @@ def reset_main_state():
     m._init_cards_tracking()
 
 
-def _obs(ruta):
-    with open(ruta, encoding="utf-8") as f:
+def _obs(path):
+    with open(path, encoding="utf-8") as f:
         return json.load(f)["observation"]
 
 
-def _jugada(obs, eleccion):
-    o = obs["select"]["option"][eleccion[0]]
+def _jugada(obs, choice):
+    o = obs["select"]["option"][choice[0]]
     tipo = o["type"]
     if tipo == int(m.OptionType.ATTACK):
         return ("ATTACK", o.get("attackId"))
@@ -114,9 +114,9 @@ def _jugada(obs, eleccion):
     return (tipo, None)
 
 
-def _pk_elegido(obs, eleccion):
+def _pk_elegido(obs, choice):
     """The opposing Pokemon pointed at by option `eleccion` of the DAMAGE menu."""
-    o = obs["select"]["option"][eleccion[0]]
+    o = obs["select"]["option"][choice[0]]
     rival = obs["current"]["players"][o["playerIndex"]]
     zona = rival["active"] if o["area"] == int(m.AreaType.ACTIVE) else rival["bench"]
     return zona[o["index"]]
@@ -151,9 +151,9 @@ def _menu_paso54():
 def test_paso54_ataca_con_cruel_arrow_en_vez_de_retirarse():
     obs = _menu_paso54()
     # The menu must offer both plays for the test to discriminate.
-    jugadas = [_jugada(obs, [i]) for i in range(len(obs["select"]["option"]))]
-    assert ("ATTACK", CRUEL_ARROW) in jugadas, jugadas
-    assert ("RETREAT", None) in jugadas, jugadas
+    plays = [_jugada(obs, [i]) for i in range(len(obs["select"]["option"]))]
+    assert ("ATTACK", CRUEL_ARROW) in plays, plays
+    assert ("RETREAT", None) in plays, plays
 
     assert _jugada(obs, m.agent(obs)) == ("ATTACK", CRUEL_ARROW)
 
@@ -188,9 +188,9 @@ def test_paso54_cruel_arrow_no_llega_al_activo_pero_si_a_la_banca():
     assert any(p is not None and p.id == KADABRA and p.hp == 80
                for p in rival.bench)                  # 100 DOES knock it out
 
-    objetivo, damage, es_ko = m._snipe_best_target(active, rival, len(active.energies),
+    target, damage, es_ko = m._snipe_best_target(active, rival, len(active.energies),
                                                  m.meganium_in_play, False)
-    assert (objetivo.id, damage, es_ko) == (KADABRA, 100, True)
+    assert (target.id, damage, es_ko) == (KADABRA, 100, True)
 
 
 # ---------------------------------------------------------------------------
@@ -251,7 +251,7 @@ def test_snipe_respeta_la_inmunidad_a_ex():
     inmune = next(iter(m.EX_IMMUNE_IDS))
     for p in [rival.active[0]] + [b for b in rival.bench if b is not None]:
         p.id = inmune
-    objetivo, damage, es_ko = m._snipe_best_target(active, rival,
+    target, damage, es_ko = m._snipe_best_target(active, rival,
                                                  len(active.energies),
                                                  m.meganium_in_play, False)
     assert damage == 0 and es_ko is False

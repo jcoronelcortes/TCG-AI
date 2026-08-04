@@ -114,9 +114,9 @@ def _banca(obs):
     return obs["current"]["players"][yo]["bench"]
 
 
-def _elegido(obs, eleccion):
+def _elegido(obs, choice):
     """The bench card matching the chosen option."""
-    opt = obs["select"]["option"][eleccion[0]]
+    opt = obs["select"]["option"][choice[0]]
     return _banca(obs)[opt["index"]]
 
 
@@ -244,11 +244,11 @@ def test_apagar_festival_lead_va_antes_que_la_cadena_evolutiva():
     """The priority of playing the Forest: the chain is cashed in next turn,
     the double attack kills us on this one. Below the Meowth engine, which on top of that
     is irreversible."""
-    nombres = [r.name for r in m._RULES_FOREST_PLAY]
-    assert nombres.index("reactivar_motor_meowth_vs_watchtower") \
-        < nombres.index("apagar_festival_lead") \
-        < nombres.index("habilita_cadena_evolutiva") \
-        < nombres.index("reemplazar_estadio_rival")
+    names = [r.name for r in m._RULES_FOREST_PLAY]
+    assert names.index("reactivar_motor_meowth_vs_watchtower") \
+        < names.index("apagar_festival_lead") \
+        < names.index("habilita_cadena_evolutiva") \
+        < names.index("reemplazar_estadio_rival")
 
 
 def test_el_flag_hostil_exige_la_linea_rival():

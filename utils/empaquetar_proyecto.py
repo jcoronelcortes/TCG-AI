@@ -27,7 +27,7 @@ DECK_CSV = PROJECT_ROOT / "deck.csv"
 OUTPUT = PROJECT_ROOT / "submission.tar.gz"
 
 
-def _raices_importadas(ruta_py):
+def _raices_importadas(py_path):
     """Top-level names imported by `ruta_py` (module imports only).
 
     `from cg.api import X` -> "cg";  `import os` -> "os".
@@ -36,7 +36,7 @@ def _raices_importadas(ruta_py):
     main.py's exec finishes), so a package imported only there
     would be broken anyway.
     """
-    arbol = ast.parse(ruta_py.read_text(encoding="utf-8"), filename=str(ruta_py))
+    arbol = ast.parse(py_path.read_text(encoding="utf-8"), filename=str(py_path))
     raices = []
     for nodo in arbol.body:  # module level only, not ast.walk
         if isinstance(nodo, ast.Import):
@@ -47,7 +47,7 @@ def _raices_importadas(ruta_py):
     return raices
 
 
-def paquetes_locales_de(ruta_py, raiz=PROJECT_ROOT):
+def paquetes_locales_de(py_path, raiz=PROJECT_ROOT):
     """PROJECT packages/modules that `ruta_py` imports, in a stable order.
 
     It returns paths to package directories (`cg/`, `ptcg/`) and to loose
@@ -55,7 +55,7 @@ def paquetes_locales_de(ruta_py, raiz=PROJECT_ROOT):
     assumed to be the standard library and is not packaged.
     """
     encontrados = {}
-    for name in _raices_importadas(ruta_py):
+    for name in _raices_importadas(py_path):
         if name in encontrados:
             continue
         pkg = raiz / name
@@ -75,11 +75,11 @@ def _filtro_sin_pycache(tarinfo):
     return tarinfo
 
 
-def construir(destino=OUTPUT, main_py=MAIN_PY, deck_csv=DECK_CSV):
+def build(destino=OUTPUT, main_py=MAIN_PY, deck_csv=DECK_CSV):
     """Writes the tar.gz to `destino` and returns the list of included paths."""
-    for ruta in (main_py, deck_csv):
-        if not ruta.exists():
-            raise FileNotFoundError(f"Archivo requerido no encontrado: {ruta}")
+    for path in (main_py, deck_csv):
+        if not path.exists():
+            raise FileNotFoundError(f"Archivo requerido no encontrado: {path}")
 
     paquetes = paquetes_locales_de(main_py)
     if not paquetes:
@@ -90,16 +90,16 @@ def construir(destino=OUTPUT, main_py=MAIN_PY, deck_csv=DECK_CSV):
     with tarfile.open(destino, "w:gz") as tar:
         tar.add(main_py, arcname="main.py")
         tar.add(deck_csv, arcname="deck.csv")
-        for ruta in paquetes:
-            tar.add(ruta, arcname=ruta.name, filter=_filtro_sin_pycache)
+        for path in paquetes:
+            tar.add(path, arcname=path.name, filter=_filtro_sin_pycache)
 
     return [main_py, deck_csv] + paquetes
 
 
 def main():
-    incluidos = construir()
-    for ruta in incluidos:
-        print(f"{ruta.name:9s}:", ruta)
+    incluidos = build()
+    for path in incluidos:
+        print(f"{path.name:9s}:", path)
 
     tam = OUTPUT.stat().st_size
     print("Creado  :", OUTPUT, f"({tam:,} bytes)")

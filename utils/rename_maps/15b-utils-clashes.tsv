@@ -1,0 +1,6 @@
+# Phase 10, the two clashes `report` refused.
+#
+# utils/radar_colisiones.py, in main(): `deck = read_deck(path)` is a card list
+# and `for mazo, cnt in ...` is a deck NAME. Renaming `mazo -> deck` would
+# merge two different variables, so here it becomes `deck_name`.
+mazo	deck_name

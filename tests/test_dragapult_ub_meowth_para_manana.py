@@ -112,8 +112,8 @@ def reset_main_state():
     m._init_cards_tracking()
 
 
-def _jugada(obs, eleccion):
-    o = obs["select"]["option"][eleccion[0]]
+def _jugada(obs, choice):
+    o = obs["select"]["option"][choice[0]]
     if o["type"] == int(m.OptionType.PLAY):
         yo = obs["current"]["yourIndex"]
         return ("PLAY", obs["current"]["players"][yo]["hand"][o["index"]]["id"])
@@ -142,12 +142,12 @@ def test_paso17_juega_la_ultra_ball_en_vez_de_atacar_con_el_chikorita():
 
 def _campo(esc, fez_energias=0, mano_extra=()):
     return (esc
-            .mi_activo(pk(CHIKORITA, energias=[G], fisicas=1))
-            .mi_banca(pk(FEZ, energias=[G] * fez_energias,
+            .my_active(pk(CHIKORITA, energias=[G], fisicas=1))
+            .my_bench(pk(FEZ, energias=[G] * fez_energias,
                          fisicas=fez_energias))
-            .op_activo(pk(BUDEW))
-            .op_banca(DREEPY, DREEPY, pk(MUNKIDORI, energias=[G], fisicas=0))
-            .op_zonas(mano=5, mazo=43, prizes=6))
+            .op_active(pk(BUDEW))
+            .op_bench(DREEPY, DREEPY, pk(MUNKIDORI, energias=[G], fisicas=0))
+            .op_zonas(hand=5, deck=43, prizes=6))
 
 
 # NOTE: `menu_mano()` emits a PLAY option for EACH card in hand, without the
@@ -155,54 +155,54 @@ def _campo(esc, fez_energias=0, mano_extra=()):
 # with no Bayleef underneath: the real game NEVER offers it) is left out of the hands
 # of the synthetic MAIN menus -- otherwise the agent "plays" it and the scenario
 # measures something else. In the fetch menu it can be there: the hand is not offered there.
-def _menu_main(fez_energias=0, mano=(GRASS, GRASS, GRASS, BOSS, BOSS,
+def _menu_main(fez_energias=0, hand=(GRASS, GRASS, GRASS, BOSS, BOSS,
                                      ULTRA_BALL, FOREST),
                op_generico=False, partidario_jugado=True):
     """Menu A: the MAIN of step 17 (the turn's energy already attached)."""
-    esc = Escenario(turn=TURNO, paso=17, tac=6, primer_jugador=1,
+    esc = Escenario(turn=TURNO, step=17, tac=6, primer_jugador=1,
                     energia_jugada=True,
                     partidario_jugado=partidario_jugado)
     esc = _campo(esc, fez_energias=fez_energias)
     if op_generico:
         # CONTROL: the same board with no piece threatening to block
         # Items (neither Budew nor a Dreepy line) -> the Ultra Ball is kept.
-        esc.op_activo(pk(MUNKIDORI))
-        esc.op_banca(pk(MUNKIDORI), pk(MUNKIDORI))
+        esc.op_active(pk(MUNKIDORI))
+        esc.op_bench(pk(MUNKIDORI), pk(MUNKIDORI))
     return (esc
-            .mi_mano(*mano)
-            .mazo(MEOWTH, LILLIE, BAYLEEF, OGERPON, APPLIN)
+            .my_hand(*hand)
+            .deck(MEOWTH, LILLIE, BAYLEEF, OGERPON, APPLIN)
             .resto_al_descarte()
             .menu_mano(con_ataque=True)
-            .construir())
+            .build())
 
 
 def _menu_fetch():
     """Menu B: the fetch of the Ultra Ball just played."""
-    esc = Escenario(turn=TURNO, paso=18, tac=7, primer_jugador=1,
+    esc = Escenario(turn=TURNO, step=18, tac=7, primer_jugador=1,
                     energia_jugada=True, partidario_jugado=True)
     return (_campo(esc)
-            .mi_mano(GRASS, BOSS, BOSS, MEGANIUM, FOREST)
-            .mazo(MEOWTH, LILLIE, BAYLEEF, OGERPON, APPLIN)
+            .my_hand(GRASS, BOSS, BOSS, MEGANIUM, FOREST)
+            .deck(MEOWTH, LILLIE, BAYLEEF, OGERPON, APPLIN)
             .fetch_ultra_ball()
             .resto_al_descarte()
-            .construir())
+            .build())
 
 
 def _menu_manana():
     """Menu C: OUR next turn, already under the Itchy Pollen. Items
     cannot be played (that is why there is none in hand) but the
     Meowth ex can: its Last-Ditch Catch brings the Lillie's."""
-    obs = (Escenario(turn=TURNO + 2, paso=30, tac=1, primer_jugador=1)
-           .mi_activo(pk(CHIKORITA, energias=[G], fisicas=1))
-           .mi_banca(pk(FEZ))
-           .op_activo(pk(BUDEW))
-           .op_banca(DREEPY, DREEPY, pk(MUNKIDORI, energias=[G], fisicas=0))
-           .op_zonas(mano=5, mazo=40, prizes=6)
-           .mi_mano(MEOWTH, GRASS, GRASS)
-           .mazo(LILLIE, BAYLEEF, OGERPON, APPLIN)
+    obs = (Escenario(turn=TURNO + 2, step=30, tac=1, primer_jugador=1)
+           .my_active(pk(CHIKORITA, energias=[G], fisicas=1))
+           .my_bench(pk(FEZ))
+           .op_active(pk(BUDEW))
+           .op_bench(DREEPY, DREEPY, pk(MUNKIDORI, energias=[G], fisicas=0))
+           .op_zonas(hand=5, deck=40, prizes=6)
+           .my_hand(MEOWTH, GRASS, GRASS)
+           .deck(LILLIE, BAYLEEF, OGERPON, APPLIN)
            .resto_al_descarte()
            .menu_mano(con_ataque=True)
-           .construir())
+           .build())
     # The Itchy Pollen of the opponent's turn: `itchy_pollen_active` is derived from the
     # ATTACK logs (see the "Opposing ITEM block" section of `agent()`).
     obs["logs"] = [{"type": int(m.LogType.ATTACK), "cardId": BUDEW,
@@ -249,7 +249,7 @@ def test_control_con_atacante_a_una_energia_la_ultra_ball_se_guarda():
 
 
 def test_control_con_lillie_en_mano_no_hay_nada_que_cavar():
-    obs = _menu_main(mano=(GRASS, GRASS, BOSS, LILLIE, ULTRA_BALL, FOREST),
+    obs = _menu_main(hand=(GRASS, GRASS, BOSS, LILLIE, ULTRA_BALL, FOREST),
                      partidario_jugado=False)
     assert _jugada(obs, m.agent(obs)) != ("PLAY", ULTRA_BALL), (
         "el Meowth ex vale por la Lillie's que busca; con la Lillie's ya en "

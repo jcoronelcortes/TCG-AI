@@ -123,13 +123,13 @@ def test_el_muro_aguanta_al_activo_y_cae_ante_el_relevo():
     assert m.ATTACK_ENERGY_REQ[MEGANIUM] == 4
 
     # The wall: 150 printed + 20 from the Grass Energy it carries.
-    muro = riv["active"][0]
-    assert muro["id"] == CRUSTLE
-    assert m.card_table[CRUSTLE].hp == 150 and muro["hp"] == 170
-    assert len(muro["energyCards"]) == 1
+    wall = riv["active"][0]
+    assert wall["id"] == CRUSTLE
+    assert m.card_table[CRUSTLE].hp == 150 and wall["hp"] == 170
+    assert len(wall["energyCards"]) == 1
 
     # Solar Beam (140) does NOT get there; Wood Hammer (220) does.
-    assert 140 < muro["hp"] <= 220
+    assert 140 < wall["hp"] <= 220
 
     # The relief is ready: 4 effective and the active's retreat is payable.
     tapu = next(b for b in mio["bench"] if b["id"] == TAPU)
@@ -190,7 +190,7 @@ def test_si_el_activo_YA_remata_no_se_retira():
     """Control: with the wall at 140 HP, Solar Beam knocks it out and the active attacks --
     retreating would pay energy to take the same prize."""
     o = _obs()
-    muro = o["current"]["players"][1]["active"][0]
-    muro["hp"] = 140
+    wall = o["current"]["players"][1]["active"][0]
+    wall["hp"] = 140
     accion = _decidir(o)
     assert _tipo_elegido(o, accion) == _ATACAR

@@ -102,9 +102,9 @@ def _obs():
         return json.load(f)["observation"]
 
 
-def _objetivo(obs, eleccion):
+def _objetivo(obs, choice):
     """(id, energies) of the opposing benched Pokémon the gust chooses."""
-    o = obs["select"]["option"][eleccion[0]]
+    o = obs["select"]["option"][choice[0]]
     assert o["type"] == int(m.OptionType.CARD) and o["area"] == 5
     pk = obs["current"]["players"][o["playerIndex"]]["bench"][o["index"]]
     return pk["id"], len(pk["energies"])
@@ -129,13 +129,13 @@ def test_paso65_sube_un_drakloak_pelado_no_el_dragapult_ex():
 def test_paso65_el_escenario_es_el_que_discrimina():
     """Without these three conditions the step would prove nothing."""
     obs = _obs()
-    banca = obs["current"]["players"][1]["bench"]
+    bench = obs["current"]["players"][1]["bench"]
     # (a) the Dragapult ex is on the bench and is eligible;
-    assert any(p["id"] == DRAGAPULT for p in banca)
+    assert any(p["id"] == DRAGAPULT for p in bench)
     # (b) by energies + retreat cost, the Dragapult ex and the bare Drakloak
     #     TIE: the only thing that separates them is the attack cost;
-    drag = next(p for p in banca if p["id"] == DRAGAPULT)
-    drak = next(p for p in banca if p["id"] == DRAKLOAK and not p["energies"])
+    drag = next(p for p in bench if p["id"] == DRAGAPULT)
+    drak = next(p for p in bench if p["id"] == DRAKLOAK and not p["energies"])
     assert len(drag["energies"]) == len(drak["energies"]) == 0
     assert m.RETREAT_COST[DRAGAPULT] == m.RETREAT_COST[DRAKLOAK]
     # (c) and there is no KO available (if there were, the KO tiers would rule,

@@ -46,7 +46,7 @@ MUTADORES = {"append", "extend", "update", "add", "pop", "clear", "insert",
              "remove", "discard", "setdefault", "sort"}
 
 
-def nombres_mutados(arbol):
+def mutated_names(arbol):
     """Names mutated at some point of the module: they are state, not constants.
 
     CAREFUL: this does NOT overlap with the `global` statements. Reassigning a scalar
@@ -87,15 +87,15 @@ def nombres_mutados(arbol):
 
 def _args_de(nodo):
     a = nodo.args
-    nombres = {x.arg for x in a.args + a.kwonlyargs + a.posonlyargs}
+    names = {x.arg for x in a.args + a.kwonlyargs + a.posonlyargs}
     if a.vararg:
-        nombres.add(a.vararg.arg)
+        names.add(a.vararg.arg)
     if a.kwarg:
-        nombres.add(a.kwarg.arg)
-    return nombres
+        names.add(a.kwarg.arg)
+    return names
 
 
-def nombres_libres(nodo):
+def free_names(nodo):
     """Names the definition uses and does not define itself.
 
     It collects the arguments of ALL the nested functions/lambdas, not only those
@@ -123,15 +123,15 @@ def nombres_libres(nodo):
 
 def _constantes_del_paquete():
     """The `__all__` of the modules already extracted to the package."""
-    nombres = set()
+    names = set()
     paquete = PROJECT_ROOT / "ptcg"
     if not paquete.is_dir():
-        return nombres
+        return names
     if str(PROJECT_ROOT) not in sys.path:
         sys.path.insert(0, str(PROJECT_ROOT))
-    for ruta in paquete.rglob("*.py"):
+    for path in paquete.rglob("*.py"):
         try:
-            arbol = ast.parse(ruta.read_text(encoding="utf-8"))
+            arbol = ast.parse(path.read_text(encoding="utf-8"))
         except SyntaxError:
             continue
         for nodo in arbol.body:
@@ -139,12 +139,12 @@ def _constantes_del_paquete():
                     and isinstance(nodo.targets[0], ast.Name)
                     and nodo.targets[0].id == "__all__"):
                 try:
-                    nombres.update(ast.literal_eval(nodo.value))
+                    names.update(ast.literal_eval(nodo.value))
                 except ValueError:
                     pass
             elif isinstance(nodo, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-                nombres.add(nodo.name)
-    return nombres
+                names.add(nodo.name)
+    return names
 
 
 def _mapa_paquete():
@@ -153,13 +153,13 @@ def _mapa_paquete():
     paquete = PROJECT_ROOT / "ptcg"
     if not paquete.is_dir():
         return mapa
-    for ruta in sorted(paquete.rglob("*.py")):
-        if ruta.name == "__init__.py":
+    for path in sorted(paquete.rglob("*.py")):
+        if path.name == "__init__.py":
             continue
-        dotted = ruta.relative_to(PROJECT_ROOT).with_suffix("")
+        dotted = path.relative_to(PROJECT_ROOT).with_suffix("")
         dotted = ".".join(dotted.parts)
         try:
-            arbol = ast.parse(ruta.read_text(encoding="utf-8"))
+            arbol = ast.parse(path.read_text(encoding="utf-8"))
         except SyntaxError:
             continue
         for nodo in arbol.body:
@@ -196,7 +196,7 @@ def analizar(main_py=None):
             mutables.update(n.names)
     # Mutable state that is NOT declared `global`: module-level dicts/lists
     # that somebody rewrites (see `nombres_mutados`).
-    mutables |= nombres_mutados(arbol)
+    mutables |= mutated_names(arbol)
 
     definiciones, asignaciones = {}, {}
     for n in arbol.body:
@@ -207,25 +207,25 @@ def analizar(main_py=None):
             asignaciones[n.targets[0].id] = n
 
     const_main = set(asignaciones) - RUNTIME - mutables
-    libres = {k: nombres_libres(v) for k, v in definiciones.items()}
+    libres = {k: free_names(v) for k, v in definiciones.items()}
 
     movibles, razon = set(definiciones), {}
     cambio = True
     while cambio:
         cambio = False
         for name in sorted(movibles):
-            for libre in libres[name]:
-                if (libre in BUILTINS or libre in importados or libre in del_paquete
-                        or libre in movibles or libre == name or libre in const_main):
+            for free in libres[name]:
+                if (free in BUILTINS or free in importados or free in del_paquete
+                        or free in movibles or free == name or free in const_main):
                     continue
-                if libre in mutables:
-                    motivo = f"estado mutable `{libre}`"
-                elif libre in RUNTIME:
-                    motivo = f"runtime `{libre}`"
-                elif libre in definiciones:
-                    motivo = f"definicion bloqueada `{libre}`"
+                if free in mutables:
+                    motivo = f"estado mutable `{free}`"
+                elif free in RUNTIME:
+                    motivo = f"runtime `{free}`"
+                elif free in definiciones:
+                    motivo = f"definicion bloqueada `{free}`"
                 else:
-                    motivo = f"desconocido `{libre}`"
+                    motivo = f"desconocido `{free}`"
                 movibles.discard(name)
                 razon[name] = motivo
                 cambio = True
@@ -247,10 +247,10 @@ def main():
 
     a = analizar(args.main)
     defs, mov = a["definiciones"], a["movibles"]
-    lineas = sum(defs[n].end_lineno - defs[n].lineno + 1 for n in mov)
+    lines = sum(defs[n].end_lineno - defs[n].lineno + 1 for n in mov)
 
     print(f"definiciones de nivel de modulo : {len(defs)}")
-    print(f"MOVIBLES (puras)                : {len(mov)}  ({lineas} lineas)")
+    print(f"MOVIBLES (puras)                : {len(mov)}  ({lines} lineas)")
     print(f"bloqueadas                      : {len(defs) - len(mov)}")
     print()
     print("bloqueadas, por causa raiz:")

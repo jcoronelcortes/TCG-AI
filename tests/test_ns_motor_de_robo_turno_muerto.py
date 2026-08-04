@@ -95,9 +95,9 @@ def _observaciones():
         return copy.deepcopy(json.load(f)["observaciones"])
 
 
-def _carta_del_descarte(obs, eleccion):
+def _carta_del_descarte(obs, choice):
     """Returns the id of the DISCARD card the agent picks."""
-    o = obs["select"]["option"][eleccion[0]]
+    o = obs["select"]["option"][choice[0]]
     assert o["type"] == int(m.OptionType.CARD), o
     yo = obs["current"]["yourIndex"]
     return obs["current"]["players"][yo]["discard"][o["index"]]["id"]
@@ -105,10 +105,10 @@ def _carta_del_descarte(obs, eleccion):
 
 def _reproducir(obs_list):
     """Replays the turn IN ORDER; returns the choice of the last menu."""
-    eleccion = None
+    choice = None
     for o in obs_list:
-        eleccion = m.agent(o)
-    return eleccion
+        choice = m.agent(o)
+    return choice
 
 
 # ---------------------------------------------------------------------------
@@ -117,8 +117,8 @@ def _reproducir(obs_list):
 
 def test_paso67_la_night_stretcher_recupera_el_meowth_no_el_meganium():
     obs_list = _observaciones()
-    eleccion = _reproducir(obs_list)
-    assert _carta_del_descarte(obs_list[-1], eleccion) == MEOWTH
+    choice = _reproducir(obs_list)
+    assert _carta_del_descarte(obs_list[-1], choice) == MEOWTH
 
 
 def test_el_menu_ofrecia_de_verdad_las_dos_cartas():
@@ -218,8 +218,8 @@ def test_con_la_banca_llena_el_motor_no_dispara():
     m.agent(obs_list[0])
     fetch = obs_list[-1]
     yo = fetch["current"]["yourIndex"]
-    banca = fetch["current"]["players"][yo]["bench"]
-    relleno = copy.deepcopy(banca[0])
-    while len(banca) < 5:
-        banca.append(copy.deepcopy(relleno))
+    bench = fetch["current"]["players"][yo]["bench"]
+    relleno = copy.deepcopy(bench[0])
+    while len(bench) < 5:
+        bench.append(copy.deepcopy(relleno))
     assert _carta_del_descarte(fetch, m.agent(fetch)) == MEGANIUM

@@ -49,7 +49,7 @@ SUBPAQUETES_PUROS = ("cartas", "motor")
 MODULO_ESTADO = "estado"
 
 
-def nombres_mutables():
+def mutable_names():
     """The mutable globals between turns, DERIVED from the code (not by hand).
 
     Before wave 3 they live in main.py and are detected by their
@@ -57,12 +57,12 @@ def nombres_mutables():
     source is that module: the names are no longer loose globals, so R1
     stops having anything to watch in main.py and moves on to watching the package.
     """
-    nombres = set()
+    names = set()
     if MAIN_PY.is_file():
         arbol = ast.parse(MAIN_PY.read_text(encoding="utf-8"))
         for nodo in ast.walk(arbol):
             if isinstance(nodo, ast.Global):
-                nombres.update(nodo.names)
+                names.update(nodo.names)
     agente = PAQUETE / MODULO_ESTADO / "agente.py"
     if agente.is_file():
         arbol = ast.parse(agente.read_text(encoding="utf-8"))
@@ -70,51 +70,51 @@ def nombres_mutables():
             # annotated fields (`x: int`) and, above all, those of `reset()`
             # (`self.x = ...`), which is how they are declared in EstadoAgente.
             if isinstance(nodo, ast.AnnAssign) and isinstance(nodo.target, ast.Name):
-                nombres.add(nodo.target.id)
+                names.add(nodo.target.id)
             elif isinstance(nodo, ast.Assign):
                 for t in nodo.targets:
                     if (isinstance(t, ast.Attribute) and isinstance(t.value, ast.Name)
                             and t.value.id == "self"):
-                        nombres.add(t.attr)
-    return nombres
+                        names.add(t.attr)
+    return names
 
 
-def _archivos_del_paquete():
+def _package_files():
     return sorted(PAQUETE.rglob("*.py")) if PAQUETE.is_dir() else []
 
 
 def _raiz_paquetes_locales():
     """Names of our own packages that canNOT be imported late."""
-    nombres = {PAQUETE.name}
+    names = {PAQUETE.name}
     for hijo in PROJECT_ROOT.iterdir():
         if (hijo / "__init__.py").is_file():
-            nombres.add(hijo.name)
-    return nombres
+            names.add(hijo.name)
+    return names
 
 
-def _rel(ruta):
+def _rel(path):
     try:
-        return str(Path(ruta).relative_to(PROJECT_ROOT))
+        return str(Path(path).relative_to(PROJECT_ROOT))
     except ValueError:
-        return str(ruta)
+        return str(path)
 
 
 # ---------------------------------------------------------------------------
 # R1 -- never `from ... import <mutable>`
 # ---------------------------------------------------------------------------
-def regla_1_mutables_importados():
+def rule_1_imported_mutables():
     fallos = []
-    mutables = nombres_mutables()
+    mutables = mutable_names()
     if not mutables:
         return fallos
-    for ruta in _archivos_del_paquete():
-        arbol = ast.parse(ruta.read_text(encoding="utf-8"), filename=str(ruta))
+    for path in _package_files():
+        arbol = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         for nodo in ast.walk(arbol):
             if isinstance(nodo, ast.ImportFrom):
                 for alias in nodo.names:
                     if alias.name in mutables:
                         fallos.append((
-                            "R1", _rel(ruta), nodo.lineno,
+                            "R1", _rel(path), nodo.lineno,
                             f"`from {nodo.module or '.'} import {alias.name}` copia el "
                             f"valor; usa el objeto ({MODULO_ESTADO}.{alias.name})",
                         ))
@@ -124,23 +124,23 @@ def regla_1_mutables_importados():
 # ---------------------------------------------------------------------------
 # R2 -- cartas/, motor/ and calculo/ are pure
 # ---------------------------------------------------------------------------
-def regla_2_pureza():
+def rule_2_purity():
     fallos = []
-    for ruta in _archivos_del_paquete():
-        partes = ruta.relative_to(PAQUETE).parts
+    for path in _package_files():
+        partes = path.relative_to(PAQUETE).parts
         if not partes or partes[0] not in SUBPAQUETES_PUROS:
             continue
-        arbol = ast.parse(ruta.read_text(encoding="utf-8"), filename=str(ruta))
+        arbol = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         for nodo in ast.walk(arbol):
-            objetivo = None
+            target = None
             if isinstance(nodo, ast.ImportFrom) and nodo.module:
-                objetivo = nodo.module
+                target = nodo.module
             elif isinstance(nodo, ast.Import):
-                objetivo = ",".join(a.name for a in nodo.names)
-            if objetivo and MODULO_ESTADO in objetivo.split("."):
+                target = ",".join(a.name for a in nodo.names)
+            if target and MODULO_ESTADO in target.split("."):
                 fallos.append((
-                    "R2", _rel(ruta), nodo.lineno,
-                    f"{partes[0]}/ tiene que ser puro: no puede importar {objetivo}",
+                    "R2", _rel(path), nodo.lineno,
+                    f"{partes[0]}/ tiene que ser puro: no puede importar {target}",
                 ))
     return fallos
 
@@ -148,7 +148,7 @@ def regla_2_pureza():
 # ---------------------------------------------------------------------------
 # R3 -- `def agent` is the last thing in main.py
 # ---------------------------------------------------------------------------
-def regla_3_agent_es_lo_ultimo():
+def rule_3_agent_is_last():
     if not MAIN_PY.is_file():
         return []
     arbol = ast.parse(MAIN_PY.read_text(encoding="utf-8"), filename=str(MAIN_PY))
@@ -185,21 +185,21 @@ def _raices_de(nodo):
     return []
 
 
-def regla_4_imports_perezosos():
+def rule_4_lazy_imports():
     fallos = []
     locales = _raiz_paquetes_locales()
 
-    for ruta in [MAIN_PY, *_archivos_del_paquete()]:
-        if not ruta.is_file():
+    for path in [MAIN_PY, *_package_files()]:
+        if not path.is_file():
             continue
-        arbol = ast.parse(ruta.read_text(encoding="utf-8"), filename=str(ruta))
+        arbol = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
 
         # `import main` anywhere in the package (I1c)
-        if ruta != MAIN_PY:
+        if path != MAIN_PY:
             for nodo in ast.walk(arbol):
                 if "main" in _raices_de(nodo):
                     fallos.append((
-                        "R4", _rel(ruta), nodo.lineno,
+                        "R4", _rel(path), nodo.lineno,
                         "`import main` es imposible en el contenedor: main.py se "
                         "ejecuta con exec y nunca entra en sys.modules",
                     ))
@@ -212,7 +212,7 @@ def regla_4_imports_perezosos():
                 for raiz in _raices_de(nodo):
                     if raiz in locales:
                         fallos.append((
-                            "R4", _rel(ruta), nodo.lineno,
+                            "R4", _rel(path), nodo.lineno,
                             f"import de `{raiz}` dentro de `{fn.name}()`: el dir del "
                             "agente sale de sys.path al terminar el exec de main.py. "
                             "Importalo a NIVEL DE MODULO.",
@@ -220,19 +220,19 @@ def regla_4_imports_perezosos():
     return fallos
 
 
-REGLAS = (
-    regla_1_mutables_importados,
-    regla_2_pureza,
-    regla_3_agent_es_lo_ultimo,
-    regla_4_imports_perezosos,
+RULES = (
+    rule_1_imported_mutables,
+    rule_2_purity,
+    rule_3_agent_is_last,
+    rule_4_lazy_imports,
 )
 
 
 def revisar():
     """Returns the list of violations: (rule, file, line, message)."""
     fallos = []
-    for regla in REGLAS:
-        fallos += regla()
+    for rule in RULES:
+        fallos += rule()
     return fallos
 
 
@@ -241,8 +241,8 @@ def main():
     if not fallos:
         print("lint_arquitectura: sin infracciones")
         return 0
-    for regla, archivo, line, mensaje in fallos:
-        print(f"{archivo}:{line}: [{regla}] {mensaje}")
+    for rule, file_path, line, mensaje in fallos:
+        print(f"{file_path}:{line}: [{rule}] {mensaje}")
     print(f"\n{len(fallos)} infraccion(es)")
     return 1
 

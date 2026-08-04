@@ -141,15 +141,15 @@ def test_main_no_es_un_modulo_para_el_contenedor(tmp_path):
 def test_la_submission_incluye_los_paquetes_que_main_importa(tmp_path):
     """Every local package imported by main.py appears in the tar."""
     destino = tmp_path / "submission.tar.gz"
-    incluidos = ep.construir(destino=destino)
+    incluidos = ep.build(destino=destino)
 
     with tarfile.open(destino) as tar:
         raices = {Path(mi.name).parts[0] for mi in tar.getmembers()}
 
     assert "main.py" in raices and "deck.csv" in raices
-    for ruta in incluidos:
-        assert ruta.name in raices, (
-            f"{ruta.name} lo importa main.py pero no viaja en la submission"
+    for path in incluidos:
+        assert path.name in raices, (
+            f"{path.name} lo importa main.py pero no viaja en la submission"
         )
     # cg/ is the historical minimum; if it disappears, the detection broke
     assert "cg" in raices
@@ -157,10 +157,10 @@ def test_la_submission_incluye_los_paquetes_que_main_importa(tmp_path):
 
 def test_la_submission_no_lleva_pycache(tmp_path):
     destino = tmp_path / "submission.tar.gz"
-    ep.construir(destino=destino)
+    ep.build(destino=destino)
     with tarfile.open(destino) as tar:
-        nombres = [mi.name for mi in tar.getmembers()]
-    assert not [n for n in nombres if "__pycache__" in n or n.endswith((".pyc", ".pyo"))]
+        names = [mi.name for mi in tar.getmembers()]
+    assert not [n for n in names if "__pycache__" in n or n.endswith((".pyc", ".pyo"))]
 
 
 # ===========================================================================
@@ -174,7 +174,7 @@ def test_la_submission_empaquetada_decide_igual_que_el_arbol(tmp_path):
     decision time): it blows up here with a ModuleNotFoundError and nowhere else.
     """
     destino = tmp_path / "submission.tar.gz"
-    ep.construir(destino=destino)
+    ep.build(destino=destino)
 
     agente_dir = tmp_path / "kaggle_simulations" / "agent"
     agente_dir.mkdir(parents=True)
@@ -214,13 +214,13 @@ def test_main_reexporta_lo_que_la_suite_consume():
 
     usados = set()
     patron = re.compile(r"\bm\.([A-Za-z_]\w*)")
-    for ruta in (ROOT / "tests").glob("test_*.py"):
-        texto = ruta.read_text(encoding="utf-8")
+    for path in (ROOT / "tests").glob("test_*.py"):
+        text = path.read_text(encoding="utf-8")
         # Only the files where `m` IS the module: in others `m` can be
         # anything (in this very file, a member of the tar).
-        if "import main as m" not in texto:
+        if "import main as m" not in text:
             continue
-        usados.update(patron.findall(texto))
+        usados.update(patron.findall(text))
 
     faltan = sorted(n for n in usados if not hasattr(m, n))
     assert not faltan, f"main.py dejo de reexportar: {faltan}"

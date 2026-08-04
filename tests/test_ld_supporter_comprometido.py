@@ -118,9 +118,9 @@ def _por_accion(obs_list):
     return {o["current"]["turnActionCount"]: o for o in obs_list}
 
 
-def _jugada(obs, eleccion):
+def _jugada(obs, choice):
     """('PLAY'|'CARTA', card_id) / ('ATTACH'|'RETREAT'|'END', None)."""
-    o = obs["select"]["option"][eleccion[0]]
+    o = obs["select"]["option"][choice[0]]
     tipo = o["type"]
     yo = obs["current"]["yourIndex"]
     jugador = obs["current"]["players"][yo]
@@ -168,10 +168,10 @@ def test_paso22_juega_la_lillie_que_trajo_el_last_ditch():
 def test_paso22_el_menu_ofrecia_de_verdad_las_dos_jugadas():
     """Without both in the menu the test would discriminate nothing."""
     obs13 = _por_accion(_observaciones())[13]
-    jugadas = _jugadas(obs13)
-    assert ("PLAY", LILLIE) in jugadas, jugadas
-    assert ("PLAY", DAWN) in jugadas, jugadas
-    assert ("PLAY", XEROSIC) in jugadas, jugadas
+    plays = _jugadas(obs13)
+    assert ("PLAY", LILLIE) in plays, plays
+    assert ("PLAY", DAWN) in plays, plays
+    assert ("PLAY", XEROSIC) in plays, plays
 
 
 def test_paso22_el_compromiso_es_lo_unico_que_decide():
@@ -224,10 +224,10 @@ def test_el_compromiso_se_resetea_por_turno():
     obs_list = _observaciones()
     _reproducir(obs_list)
     assert m._ld_supp_comprometido == LILLIE
-    siguiente = json.loads(json.dumps(_por_accion(obs_list)[13]))
-    siguiente["current"]["turn"] += 2
-    siguiente["current"]["turnActionCount"] = 1
-    m.agent(siguiente)
+    next_item = json.loads(json.dumps(_por_accion(obs_list)[13]))
+    next_item["current"]["turn"] += 2
+    next_item["current"]["turnActionCount"] = 1
+    m.agent(next_item)
     assert m._ld_supp_comprometido == 0
 
 
@@ -235,18 +235,18 @@ def test_el_compromiso_se_resetea_por_turno():
 # 3. A synthetic generalisation: the rule names no cards
 # ---------------------------------------------------------------------------
 
-def _menu_sintetico(mano):
+def _menu_sintetico(hand):
     """A neutral board (a mid game turn, with no special matchup) with `mano` in hand
     and a menu of one PLAY per card."""
-    return (Escenario(turn=8, paso=60, tac=4)
-            .mi_activo(pk(OGERPON, energias=[G, G]))
-            .mi_banca(pk(MEOWTH, aparecio=True), APPLIN)
-            .mi_mano(*mano)
-            .op_activo(pk(CHIKORITA_RIVAL, energias=[C]))
-            .op_banca(pk(ABRA, hp=70, max_hp=70))
-            .op_zonas(mano=5, mazo=30, prizes=5)
+    return (Escenario(turn=8, step=60, tac=4)
+            .my_active(pk(OGERPON, energias=[G, G]))
+            .my_bench(pk(MEOWTH, aparecio=True), APPLIN)
+            .my_hand(*hand)
+            .op_active(pk(CHIKORITA_RIVAL, energias=[C]))
+            .op_bench(pk(ABRA, hp=70, max_hp=70))
+            .op_zonas(hand=5, deck=30, prizes=5)
             .menu_mano()
-            .construir())
+            .build())
 
 
 def _armar(obs, sid):
@@ -263,9 +263,9 @@ def test_el_compromiso_gana_el_hueco_a_cualquier_otro_supporter():
     """With the commitment armed, any OTHER Supporter in hand yields the
     slot -- it is tested with a pair of cards different from the record's."""
     obs = _menu_sintetico([BOSS, XEROSIC])
-    jugadas = _jugadas(obs)
-    assert ("PLAY", BOSS) in jugadas, jugadas
-    assert ("PLAY", XEROSIC) in jugadas, jugadas
+    plays = _jugadas(obs)
+    assert ("PLAY", BOSS) in plays, plays
+    assert ("PLAY", XEROSIC) in plays, plays
 
     _armar(obs, BOSS)
     assert _jugada(obs, m.agent(obs)) == ("PLAY", BOSS)

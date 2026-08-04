@@ -106,6 +106,7 @@ def rewrite(src, renames, in_strings, in_modules=frozenset()):
     state = None           # None | "path" (dotted module path) | "names"
     in_all = 0             # bracket depth inside an `__all__ = [...]`
     param = 0              # 1 after `parametrize`, 2 after its `(`
+    line_start = True      # only a statement-initial `from` is an import
     for tok in tokenize.generate_tokens(io.StringIO(src).readline):
         text = tok.string
         # `@pytest.mark.parametrize("turno,primeros", ...)` names the test's
@@ -134,7 +135,11 @@ def rewrite(src, renames, in_strings, in_modules=frozenset()):
         elif in_all == -1 and tok.type in (tokenize.NEWLINE, tokenize.NL):
             in_all = 0
 
-        if tok.type == tokenize.NAME and text == "from" and state is None:
+        # `from` only opens an import path at the START of a statement:
+        # `raise ValueError(...) from last` is not an import, and treating it
+        # as one leaves the name after it untouched.
+        if tok.type == tokenize.NAME and text == "from" and state is None \
+                and line_start:
             state = "path"
         elif tok.type == tokenize.NAME and text == "import":
             state = "names" if state == "path" else "path"
@@ -142,6 +147,11 @@ def rewrite(src, renames, in_strings, in_modules=frozenset()):
             state = "names"
         elif tok.type in (tokenize.NEWLINE, tokenize.NL):
             state = None
+        if tok.type in (tokenize.NEWLINE, tokenize.NL, tokenize.INDENT,
+                        tokenize.DEDENT, tokenize.COMMENT):
+            line_start = True
+        elif tok.type != tokenize.ENCODING:
+            line_start = False
 
         if tok.type == tokenize.NAME and text in renames \
                 and (state != "path" or text in in_modules):

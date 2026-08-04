@@ -1,0 +1,5 @@
+# Phase 10 -- `mazo` and `pasos` everywhere they do NOT clash (that is,
+# everywhere except the two files of map 15b). Both keep their literals:
+# "mazo" and "paso"/"pasos" are keys of the autopsy and corpus JSON.
+mazo	deck	code
+pasos	steps	code

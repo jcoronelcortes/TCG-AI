@@ -107,9 +107,9 @@ def _obs_fixture():
         return json.load(f)["observation"]
 
 
-def _jugada(obs, eleccion):
+def _jugada(obs, choice):
     """('PLAY'|'ABILITY', card_id) / ('ATTACK', attackId) / ('END', None)."""
-    o = obs["select"]["option"][eleccion[0]]
+    o = obs["select"]["option"][choice[0]]
     tipo = o["type"]
     yo = obs["current"]["yourIndex"]
     jugador = obs["current"]["players"][yo]
@@ -140,10 +140,10 @@ def _jugadas(obs):
 def test_paso78_usa_flip_the_script_en_vez_de_atacar():
     obs = _obs_fixture()
     # The fixture must offer the THREE plays for the test to discriminate.
-    jugadas = _jugadas(obs)
-    assert ("ABILITY", FEZ) in jugadas, jugadas
-    assert ("ATTACK", 120) in jugadas, jugadas
-    assert ("PLAY", LILLIE) in jugadas, jugadas
+    plays = _jugadas(obs)
+    assert ("ABILITY", FEZ) in plays, plays
+    assert ("ATTACK", 120) in plays, plays
+    assert ("PLAY", LILLIE) in plays, plays
 
     assert _jugada(obs, m.agent(obs)) == ("ABILITY", FEZ)
 
@@ -153,15 +153,15 @@ def test_paso78_el_bloqueo_circular_existe_de_verdad():
     blocker (Lillie's) is in hand and offered, but is NOT playable."""
     obs = _obs_fixture()
     st = m.to_observation_class(obs).current
-    mano = [c.id for c in st.players[0].hand]
-    assert mano.count(LILLIE) == 1
-    assert mano.count(BOSS) == 1
+    hand = [c.id for c in st.players[0].hand]
+    assert hand.count(LILLIE) == 1
+    assert hand.count(BOSS) == 1
     assert not st.supporterPlayed          # => _lillie_blocks_fez_ability active
     assert st.players[0].deckCount > 4     # => the deck-out brake does NOT apply
 
     # Lillie's yields to Boss's and Boss's yields to Lillie's: neither is played.
-    eleccion = m.agent(obs)
-    assert _jugada(obs, eleccion)[0] != "PLAY"
+    choice = m.agent(obs)
+    assert _jugada(obs, choice)[0] != "PLAY"
 
 
 def test_paso78_la_ventana_exacta_del_bloqueo_circular():
@@ -216,26 +216,26 @@ def test_paso78_la_habilidad_se_usa_antes_de_cualquier_cierre_de_turno():
 # A synthetic generalisation: the requested ORDER is still alive
 # ---------------------------------------------------------------------------
 
-def _escenario(mano, con_ataque=True):
+def _escenario(hand, con_ataque=True):
     """The board of step 78 rebuilt with the StateBuilder, with a parametric hand.
 
     The ABILITY option of the benched Fezandipiti ex (slot 4) is added by hand, which
     `menu_mano` does not emit, right before the turn-closing options.
     """
-    esc = (Escenario(turn=6, paso=78, tac=7)
-           .mi_activo(pk(OGERPON, energias=[G, G, G]))
-           .mi_banca(pk(BAYLEEF, pre_evo=[m.Chikorita]), MEOWTH, APPLIN,
+    esc = (Escenario(turn=6, step=78, tac=7)
+           .my_active(pk(OGERPON, energias=[G, G, G]))
+           .my_bench(pk(BAYLEEF, pre_evo=[m.Chikorita]), MEOWTH, APPLIN,
                      APPLIN, pk(FEZ, aparecio=True))
-           .mi_mano(*mano)
+           .my_hand(*hand)
            .mi_descarte(m.Ultra_Ball, m.Ultra_Ball, m.Lanas_Aid,
                         m.Basic_Grass_Energy, m.Basic_Grass_Energy,
                         m.Basic_Grass_Energy, OGERPON)
-           .op_activo(pk(ARCHALUDON, hp=400, max_hp=400, energias=[C, C, C],
+           .op_active(pk(ARCHALUDON, hp=400, max_hp=400, energias=[C, C, C],
                          pre_evo=[DURALUDON]))
-           .op_banca(pk(DURALUDON, hp=130, max_hp=130, energias=[C, C, C]))
-           .op_zonas(mano=9, mazo=23, prizes=4)
+           .op_bench(pk(DURALUDON, hp=130, max_hp=130, energias=[C, C, C]))
+           .op_zonas(hand=9, deck=23, prizes=4)
            .menu_mano(con_ataque=con_ataque))
-    obs = esc.construir()
+    obs = esc.build()
     opciones = obs["select"]["option"]
     n_play = sum(1 for o in opciones if o["type"] == int(m.OptionType.PLAY))
     opciones.insert(n_play, {"type": int(m.OptionType.ABILITY),
@@ -265,9 +265,9 @@ def test_sintetico_unfair_stamp_jugable_manda_primero():
     (Boss's) the Stamp goes first and the ability waits for the next menu -- if
     not, the Stamp would shuffle the 3 drawn cards back."""
     obs = _con_ko_previo(_escenario([STAMP, BOSS]))
-    jugadas = _jugadas(obs)
-    assert ("PLAY", STAMP) in jugadas, jugadas
-    assert ("ABILITY", FEZ) in jugadas, jugadas
+    plays = _jugadas(obs)
+    assert ("PLAY", STAMP) in plays, plays
+    assert ("ABILITY", FEZ) in plays, plays
     assert _jugada(obs, m.agent(obs)) == ("PLAY", STAMP)
 
 
@@ -275,25 +275,25 @@ def test_sintetico_lillie_jugable_manda_primero():
     """The same order with the other blocker: Lillie's Determination before the
     ability when Lillie's IS playable."""
     obs = _con_ko_previo(_escenario([LILLIE]))
-    jugadas = _jugadas(obs)
-    assert ("PLAY", LILLIE) in jugadas, jugadas
+    plays = _jugadas(obs)
+    assert ("PLAY", LILLIE) in plays, plays
     assert _jugada(obs, m.agent(obs)) == ("PLAY", LILLIE)
 
 
 def test_sintetico_deck_out_sigue_vetando_la_habilidad():
     """The deck-out brake is a VALUE veto, not an ORDER one: the revocation does not
     lift it even with a hand free of blockers."""
-    esc = (Escenario(turn=6, paso=78, tac=7)
-           .mi_activo(pk(OGERPON, energias=[G, G, G]))
-           .mi_banca(pk(FEZ, aparecio=True))
-           .mi_mano(BOSS)
-           .mazo(TAPU, MEOWTH, APPLIN)          # deckCount = 3 (<= 4)
+    esc = (Escenario(turn=6, step=78, tac=7)
+           .my_active(pk(OGERPON, energias=[G, G, G]))
+           .my_bench(pk(FEZ, aparecio=True))
+           .my_hand(BOSS)
+           .deck(TAPU, MEOWTH, APPLIN)          # deckCount = 3 (<= 4)
            .resto_al_descarte()
-           .op_activo(pk(ARCHALUDON, hp=400, max_hp=400, energias=[C, C, C],
+           .op_active(pk(ARCHALUDON, hp=400, max_hp=400, energias=[C, C, C],
                          pre_evo=[DURALUDON]))
-           .op_zonas(mano=5, mazo=20, prizes=4)
+           .op_zonas(hand=5, deck=20, prizes=4)
            .menu_mano(con_ataque=True))
-    obs = esc.construir()
+    obs = esc.build()
     opciones = obs["select"]["option"]
     n_play = sum(1 for o in opciones if o["type"] == int(m.OptionType.PLAY))
     opciones.insert(n_play, {"type": int(m.OptionType.ABILITY),

@@ -111,10 +111,10 @@ def _obs(**mut):
     return o
 
 
-def _elegido(obs, eleccion):
+def _elegido(obs, choice):
     """The bench card matching the chosen option."""
     yo = obs["current"]["yourIndex"]
-    opt = obs["select"]["option"][eleccion[0]]
+    opt = obs["select"]["option"][choice[0]]
     return obs["current"]["players"][yo]["bench"][opt["index"]]
 
 

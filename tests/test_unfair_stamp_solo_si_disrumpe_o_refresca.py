@@ -93,9 +93,9 @@ def reset_main_state():
 
 def _cargar():
     with open(_FIXTURE, encoding="utf-8") as f:
-        datos = json.load(f)
-    return (copy.deepcopy(datos["observacion_previa"]),
-            copy.deepcopy(datos["observation"]))
+        data = json.load(f)
+    return (copy.deepcopy(data["observacion_previa"]),
+            copy.deepcopy(data["observation"]))
 
 
 def _decision(mano_extra=0, op_hand=None):
@@ -126,10 +126,10 @@ def _decision(mano_extra=0, op_hand=None):
     _rest_score_unfair_stamp_play = instalar("_score_unfair_stamp_play", espia)
     try:
         m.agent(previa)                     # it brings the rival KO window
-        eleccion = m.agent(dec)
+        choice = m.agent(dec)
     finally:
         _rest_score_unfair_stamp_play()
-    return eleccion, visto.get("stamp")
+    return choice, visto.get("stamp")
 
 
 def _juega_el_sello(obs_eleccion):
@@ -137,11 +137,11 @@ def _juega_el_sello(obs_eleccion):
     return obs_eleccion == [0]
 
 
-def _ctx(op_hand, mano, stamp=1, ko=True):
+def _ctx(op_hand, hand, stamp=1, ko=True):
     return SimpleNamespace(ko_last_turn=ko,
                            hand_counts={STAMP: stamp},
                            op_hand_count=op_hand,
-                           my_hand_len=mano)
+                           my_hand_len=hand)
 
 
 # ---------------------------------------------------------------------------
@@ -151,18 +151,18 @@ def _ctx(op_hand, mano, stamp=1, ko=True):
 def test_el_menu_ofrecia_el_sello_y_el_rival_tenia_una_carta():
     _, dec = _cargar()
     yo = dec["current"]["yourIndex"]
-    mano = [c["id"] for c in dec["current"]["players"][yo]["hand"]]
-    assert mano[0] == STAMP and len(mano) == 5, mano
+    hand = [c["id"] for c in dec["current"]["players"][yo]["hand"]]
+    assert hand[0] == STAMP and len(hand) == 5, hand
     assert dec["current"]["players"][1 - yo]["handCount"] == 1
     assert dec["select"]["option"][0]["type"] == int(m.OptionType.PLAY)
 
 
 def test_refresco_barato_el_sello_se_juega_como_en_el_registro():
-    eleccion, score = _decision()
+    choice, score = _decision()
     assert score > 0, score
-    assert _juega_el_sello(eleccion), (
+    assert _juega_el_sello(choice), (
         "sacrificando solo 4 cartas el refresco (robar 5) paga por si solo, "
-        f"aunque el rival no pierda nada; jugo {eleccion}")
+        f"aunque el rival no pierda nada; jugo {choice}")
 
 
 # ---------------------------------------------------------------------------
@@ -170,18 +170,18 @@ def test_refresco_barato_el_sello_se_juega_como_en_el_registro():
 # ---------------------------------------------------------------------------
 
 def test_sin_disrupcion_y_con_mano_grande_el_sello_se_veta():
-    eleccion, score = _decision(mano_extra=1)      # 5 would be sacrificed
+    choice, score = _decision(mano_extra=1)      # 5 would be sacrificed
     assert score <= 0, score
-    assert not _juega_el_sello(eleccion), (
+    assert not _juega_el_sello(choice), (
         "con el rival a 1 carta el Sello no disrumpe, y barajar 5 cartas "
-        f"propias por 5 nuevas quema recursos ya jugables; jugo {eleccion}")
+        f"propias por 5 nuevas quema recursos ya jugables; jugo {choice}")
 
 
 def test_con_la_mano_rival_larga_el_sello_vuelve_aunque_sacrifiquemos_mucho():
     """Clause (1) is independent: if it DISRUPTS, our own hand does not matter."""
-    eleccion, score = _decision(mano_extra=4, op_hand=m.STAMP_MIN_OP_HAND)
+    choice, score = _decision(mano_extra=4, op_hand=m.STAMP_MIN_OP_HAND)
     assert score > 0, score
-    assert _juega_el_sello(eleccion), eleccion
+    assert _juega_el_sello(choice), choice
 
 
 # ---------------------------------------------------------------------------
@@ -219,7 +219,7 @@ def test_sin_datos_no_inventa_jugadas():
 def test_el_veto_no_lo_resucita_ningun_bonus_de_matchup(matchup):
     """`_AJUSTES_STAMP_PLAY` bonuses plays that are going to be made (+250..+400 by
     matchup); none of them must pull the veto (-1) up to positive numbers."""
-    ctx = _ctx(op_hand=1, mano=m.STAMP_MAX_HAND_SACRIFICADA + 2)
+    ctx = _ctx(op_hand=1, hand=m.STAMP_MAX_HAND_SACRIFICADA + 2)
     for campo in ("op_is_alakazam_deck", "op_is_control_deck",
                   "op_is_slowking_deck", "op_is_gardevoir_deck",
                   "op_is_zoroark_deck", "op_is_aggro_deck",
@@ -240,13 +240,13 @@ def test_el_veto_no_lo_resucita_ningun_bonus_de_matchup(matchup):
 def test_el_sello_vetado_deja_de_bloquear_los_supporters():
     """`_stamp_pendiente` is the single source of the order vetoes (Boss's,
     Lillie's, Lana's, Dawn, Xerosic, the Meowth chain and Flip the Script)."""
-    espera = _ctx(op_hand=1, mano=m.STAMP_MAX_HAND_SACRIFICADA + 2)
+    espera = _ctx(op_hand=1, hand=m.STAMP_MAX_HAND_SACRIFICADA + 2)
     assert not m._stamp_pendiente(espera)
 
-    juega = _ctx(op_hand=1, mano=m.STAMP_MAX_HAND_SACRIFICADA + 1)
+    juega = _ctx(op_hand=1, hand=m.STAMP_MAX_HAND_SACRIFICADA + 1)
     assert m._stamp_pendiente(juega)
 
 
 def test_sin_ko_el_sello_nunca_esta_pendiente():
-    assert not m._stamp_pendiente(_ctx(op_hand=8, mano=3, ko=False))
-    assert not m._stamp_pendiente(_ctx(op_hand=8, mano=3, stamp=0))
+    assert not m._stamp_pendiente(_ctx(op_hand=8, hand=3, ko=False))
+    assert not m._stamp_pendiente(_ctx(op_hand=8, hand=3, stamp=0))

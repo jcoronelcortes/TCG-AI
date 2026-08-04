@@ -102,11 +102,11 @@ class _P:
         self.tools = [_C(c) for c in (d.get("tools") or [])]
 
 
-def _meganium_en_juego(obs):
+def _meganium_in_play(obs):
     return any(p["id"] == m.Meganium for p in _pokes(_yo(obs)))
 
 
-def _forest_en_juego(obs):
+def _forest_in_play(obs):
     return any(s["id"] == m.Forest_of_Vitality
                for s in (obs["current"].get("stadium") or []))
 
@@ -125,7 +125,7 @@ def _lock_habilidades_ex(obs):
                for s in (obs["current"].get("stadium") or []))
 
 
-def _dano_activo(obs):
+def _active_damage(obs):
     """(effective_damage, target_dict) of our active's attack."""
     yo, op = _yo(obs), _op(obs)
     if not (yo.get("active") and yo["active"][0]
@@ -140,7 +140,7 @@ def _dano_activo(obs):
                                    teal_self_energy=e, bench_count=bench_n)
     if base <= 0:
         return 0, opa
-    return m._our_effective_damage(a, o, base, _meganium_en_juego(obs),
+    return m._our_effective_damage(a, o, base, _meganium_in_play(obs),
                                    False), opa
 
 
@@ -149,7 +149,7 @@ def _dano_activo(obs):
 # where apply(obs) -> a new obs (deepcopy) or None if it is terminal.
 # --------------------------------------------------------------------------
 
-def _quitar_de_mano(yo, card_id):
+def _remove_from_hand(yo, card_id):
     i = next(i for i, c in enumerate(yo["hand"]) if c["id"] == card_id)
     card = yo["hand"][i]
     yo["hand"] = [c for j, c in enumerate(yo["hand"]) if j != i]
@@ -200,9 +200,9 @@ def acciones_legales(obs):
     yo, op = _yo(obs), _op(obs)
     cur = obs["current"]
     acciones = []
-    mano_ids = [c["id"] for c in (yo.get("hand") or [])]
-    grass_en_mano = m.Basic_Grass_Energy in mano_ids
-    forest = _forest_en_juego(obs)
+    hand_ids = [c["id"] for c in (yo.get("hand") or [])]
+    grass_in_hand = m.Basic_Grass_Energy in hand_ids
+    forest = _forest_in_play(obs)
 
     # Legality filter through the real menu (the root node of findings only).
     _tipos_menu, _play_ids_menu = _menu_real(obs)
@@ -214,13 +214,13 @@ def acciones_legales(obs):
         return _play_ids_menu is None or cid in _play_ids_menu
 
     # manual attachment
-    if (grass_en_mano and not cur.get("energyAttached")
+    if (grass_in_hand and not cur.get("energyAttached")
             and _permitido(OptionType.ATTACH)):
         for name, p in _slots(yo):
             def ap(obs, _n=name):
                 o2 = copy.deepcopy(obs)
                 y2 = _yo(o2)
-                card = _quitar_de_mano(y2, m.Basic_Grass_Energy)
+                card = _remove_from_hand(y2, m.Basic_Grass_Energy)
                 tgt = dict(_slots(y2))[_n]
                 _adjunta(tgt, card)
                 o2["current"]["energyAttached"] = True
@@ -229,7 +229,7 @@ def acciones_legales(obs):
 
     # Teal Dance (one per Ogerpon per turn; the draw is not modelled).
     # An EX ability: cancelled under _lock_habilidades_ex.
-    if (grass_en_mano and not _lock_habilidades_ex(obs)
+    if (grass_in_hand and not _lock_habilidades_ex(obs)
             and _permitido(OptionType.ABILITY)):
         for name, p in _slots(yo):
             if (p["id"] == m.Teal_Mask_Ogerpon_ex
@@ -237,7 +237,7 @@ def acciones_legales(obs):
                 def ap(obs, _n=name, _s=p["serial"]):
                     o2 = copy.deepcopy(obs)
                     y2 = _yo(o2)
-                    card = _quitar_de_mano(y2, m.Basic_Grass_Energy)
+                    card = _remove_from_hand(y2, m.Basic_Grass_Energy)
                     _adjunta(dict(_slots(y2))[_n], card)
                     o2["_td_usadas"] = tuple(obs.get("_td_usadas", ())) + (_s,)
                     return o2
@@ -245,7 +245,7 @@ def acciones_legales(obs):
 
     # Ripening Charge (Hydrapple ex: it attaches 1 Grass from hand to anyone).
     # An EX ability: cancelled under _lock_habilidades_ex.
-    if (grass_en_mano and not _lock_habilidades_ex(obs)
+    if (grass_in_hand and not _lock_habilidades_ex(obs)
             and _permitido(OptionType.ABILITY)):
         for _, hyd in _slots(yo):
             if (hyd["id"] == m.Hydrapple_ex
@@ -254,7 +254,7 @@ def acciones_legales(obs):
                     def ap(obs, _n=name, _s=hyd["serial"]):
                         o2 = copy.deepcopy(obs)
                         y2 = _yo(o2)
-                        card = _quitar_de_mano(y2, m.Basic_Grass_Energy)
+                        card = _remove_from_hand(y2, m.Basic_Grass_Energy)
                         _adjunta(dict(_slots(y2))[_n], card)
                         o2["_rc_usadas"] = tuple(
                             obs.get("_rc_usadas", ())) + (_s,)
@@ -264,7 +264,7 @@ def acciones_legales(obs):
                 break
 
     # evolution (hand -> a pre-evolution in play; Forest allows it the same turn)
-    for cid in set(mano_ids) if _permitido(OptionType.EVOLVE) else ():
+    for cid in set(hand_ids) if _permitido(OptionType.EVOLVE) else ():
         data = m.card_table.get(cid)
         if not data or not (data.stage1 or data.stage2):
             continue
@@ -277,19 +277,19 @@ def acciones_legales(obs):
             def ap(obs, _cid=cid, _n=name):
                 o2 = copy.deepcopy(obs)
                 y2 = _yo(o2)
-                card = _quitar_de_mano(y2, _cid)
+                card = _remove_from_hand(y2, _cid)
                 tgt = dict(_slots(y2))[_n]
                 previo = {k: tgt[k] for k in tgt}
                 tgt["preEvolution"] = (list(tgt.get("preEvolution") or [])
                                        + [{"id": previo["id"],
                                            "playerIndex": card["playerIndex"],
                                            "serial": previo["serial"]}])
-                dano_actual = (previo.get("maxHp") or 0) - (previo.get("hp") or 0)
+                current_damage = (previo.get("maxHp") or 0) - (previo.get("hp") or 0)
                 nueva = m.card_table[_cid]
                 tgt["id"] = _cid
                 tgt["serial"] = card["serial"]
                 tgt["maxHp"] = nueva.hp
-                tgt["hp"] = max(1, nueva.hp - dano_actual)
+                tgt["hp"] = max(1, nueva.hp - current_damage)
                 tgt["appearThisTurn"] = True
                 o2["_evoluciones"] = obs.get("_evoluciones", 0) + 1
                 return o2
@@ -305,11 +305,11 @@ def acciones_legales(obs):
             for k, bp in enumerate(yo.get("bench") or []):
                 if not bp:
                     continue
-                def ap(obs, _k=k, _coste=cost):
+                def ap(obs, _k=k, _cost=cost):
                     o2 = copy.deepcopy(obs)
                     y2 = _yo(o2)
                     a2 = y2["active"][0]
-                    for _ in range(_coste):
+                    for _ in range(_cost):
                         if a2["energyCards"]:
                             y2["discard"] = (list(y2["discard"])
                                              + [a2["energyCards"].pop()])
@@ -324,13 +324,13 @@ def acciones_legales(obs):
                     (f"RETREAT->{m.card_table[bp['id']].name}", ap))
 
     # Night Stretcher: recovering a Grass from the discard (v1: energy only)
-    if (m.Night_Stretcher in mano_ids and _play_ok(m.Night_Stretcher)
+    if (m.Night_Stretcher in hand_ids and _play_ok(m.Night_Stretcher)
             and any(c["id"] == m.Basic_Grass_Energy
                     for c in (yo.get("discard") or []))):
         def ap(obs):
             o2 = copy.deepcopy(obs)
             y2 = _yo(o2)
-            ns = _quitar_de_mano(y2, m.Night_Stretcher)
+            ns = _remove_from_hand(y2, m.Night_Stretcher)
             y2["discard"] = list(y2["discard"]) + [ns]
             i = next(i for i, c in enumerate(y2["discard"])
                      if c["id"] == m.Basic_Grass_Energy)
@@ -342,7 +342,7 @@ def acciones_legales(obs):
         acciones.append(("NS->PLANTA", ap))
 
     # Boss's Orders: bringing up a target from the opposing bench
-    if (m.Boss_Orders in mano_ids and not cur.get("supporterPlayed")
+    if (m.Boss_Orders in hand_ids and not cur.get("supporterPlayed")
             and _play_ok(m.Boss_Orders)
             and any(b for b in (op.get("bench") or []))):
         for k, bp in enumerate(op.get("bench") or []):
@@ -351,11 +351,11 @@ def acciones_legales(obs):
             def ap(obs, _k=k):
                 o2 = copy.deepcopy(obs)
                 y2, p2 = _yo(o2), _op(o2)
-                boss = _quitar_de_mano(y2, m.Boss_Orders)
+                boss = _remove_from_hand(y2, m.Boss_Orders)
                 y2["discard"] = list(y2["discard"]) + [boss]
-                objetivo = p2["bench"][_k]
+                target = p2["bench"][_k]
                 anterior = p2["active"][0]
-                p2["active"] = [objetivo]
+                p2["active"] = [target]
                 p2["bench"] = [b for i, b in enumerate(p2["bench"])
                                if i != _k] + [anterior]
                 o2["current"]["supporterPlayed"] = True
@@ -364,13 +364,13 @@ def acciones_legales(obs):
                 (f"BOSS->{m.card_table[bp['id']].name}", ap))
 
     # Forest of Vitality
-    if (m.Forest_of_Vitality in mano_ids and not forest
+    if (m.Forest_of_Vitality in hand_ids and not forest
             and _play_ok(m.Forest_of_Vitality)
             and not cur.get("stadiumPlayed")):
         def ap(obs):
             o2 = copy.deepcopy(obs)
             y2 = _yo(o2)
-            card = _quitar_de_mano(y2, m.Forest_of_Vitality)
+            card = _remove_from_hand(y2, m.Forest_of_Vitality)
             o2["current"]["stadium"] = [card]
             o2["current"]["stadiumPlayed"] = True
             return o2
@@ -380,7 +380,7 @@ def acciones_legales(obs):
     # simulator did not offer ATTACK (not enough energy, a condition), the
     # model does not invent it; after any transition the model decides
     # again (a simulated attachment can enable the attack).
-    damage, opa = _dano_activo(obs)
+    damage, opa = _active_damage(obs)
     if damage > 0 and _permitido(OptionType.ATTACK):
         acciones.append(("ATTACK", None))
     acciones.append(("END", None))
@@ -393,7 +393,7 @@ def evaluar_terminal(obs, ataca):
     prizes, damage = 0, 0
     gana = False
     if ataca:
-        damage, opa = _dano_activo(obs)
+        damage, opa = _active_damage(obs)
         if opa is not None and damage >= (opa.get("hp") or 0) > 0:
             prizes = m.prize_count(_P(opa))
             faltan = sum(1 for p in (yo.get("prize") or []) if p is None)
@@ -405,7 +405,7 @@ def evaluar_terminal(obs, ataca):
     return (int(gana), prizes, damage, desarrollo)
 
 
-def explorar(obs, max_nodos=MAX_NODOS, respetar_menu=False):
+def explore(obs, max_nodos=MAX_NODOS, respetar_menu=False):
     """Returns (best_score, best_line) by exploring the complete turn.
 
     With `respetar_menu` (step 6b), the ROOT node only generates actions whose
@@ -446,13 +446,13 @@ def explorar(obs, max_nodos=MAX_NODOS, respetar_menu=False):
     return best[0], best[1], nodos[0]
 
 
-def comparar_hallazgo(ruta, indice=0, max_nodos=MAX_NODOS):
-    data = json.loads(Path(ruta).read_text())
+def comparar_hallazgo(path, indice=0, max_nodos=MAX_NODOS):
+    data = json.loads(Path(path).read_text())
     h = data["hallazgos"][indice]
     obs = h["observation"]
     # A real autopsy finding: the simulator's menu rules at the root node.
-    puntaje, line, nodos = explorar(obs, max_nodos, respetar_menu=True)
-    print(f"{Path(ruta).name} [{h['detector']} turno {h['turno']}]")
+    puntaje, line, nodos = explore(obs, max_nodos, respetar_menu=True)
+    print(f"{Path(path).name} [{h['detector']} turno {h['turno']}]")
     print(f"  agente en la partida: {h['detalle']}")
     print(f"  mejor linea del explorador ({nodos} nodos): "
           f"{' -> '.join(line)}")
@@ -465,17 +465,17 @@ def demo_combo_myriad():
     from state_builder import Escenario, pk, G
     import golden_corpus as gc
     gc.reset_agente(m)
-    obs = (Escenario(turn=12, paso=227, tac=1, premios_propios=2)
-           .mi_activo(pk(m.Teal_Mask_Ogerpon_ex, energias=[G] * 4, fisicas=4))
-           .mi_banca(pk(m.Applin))
-           .mi_mano(m.Basic_Grass_Energy, m.Boss_Orders)
-           .op_activo(pk(271, hp=120, max_hp=120))          # Kilowattrel
-           .op_banca(pk(269, hp=280, max_hp=280,
+    obs = (Escenario(turn=12, step=227, tac=1, premios_propios=2)
+           .my_active(pk(m.Teal_Mask_Ogerpon_ex, energias=[G] * 4, fisicas=4))
+           .my_bench(pk(m.Applin))
+           .my_hand(m.Basic_Grass_Energy, m.Boss_Orders)
+           .op_active(pk(271, hp=120, max_hp=120))          # Kilowattrel
+           .op_bench(pk(269, hp=280, max_hp=280,
                         energias=[G, G, G, G]))             # Bellibolt ex
-           .op_zonas(mano=5, mazo=30, prizes=3)
+           .op_zonas(hand=5, deck=30, prizes=3)
            .menu_teal_dance()
-           .construir())
-    puntaje, line, nodos = explorar(obs)
+           .build())
+    puntaje, line, nodos = explore(obs)
     print("demo combo Myriad (registro_012 paso 227):")
     print(f"  mejor linea ({nodos} nodos): {' -> '.join(line)}")
     print(f"  evaluacion: {puntaje}")
@@ -501,9 +501,9 @@ def main(argv):
         comparar_hallazgo(args.hallazgo, args.indice)
         return 0
     if args.autopsia:
-        rutas = sorted(Path(args.autopsia).glob("*.json"))[:args.max]
-        for ruta in rutas:
-            comparar_hallazgo(ruta)
+        paths = sorted(Path(args.autopsia).glob("*.json"))[:args.max]
+        for path in paths:
+            comparar_hallazgo(path)
             print()
         return 0
     print("indica --demo, --hallazgo o --autopsia")

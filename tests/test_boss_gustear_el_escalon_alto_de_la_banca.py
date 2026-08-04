@@ -197,8 +197,8 @@ def test_el_fixture_es_el_paso_136_con_la_fase_1_en_la_banca():
     # on the bench. Both bodies are worth 1 prize.
     assert riv["active"][0]["id"] == IMPIDIMP
     assert len(riv["active"][0]["energies"]) == 1
-    banca = [b["id"] for b in riv["bench"]]
-    assert banca == [FROSLASS, FROSLASS, MUNKIDORI, MORGREM, MUNKIDORI]
+    bench = [b["id"] for b in riv["bench"]]
+    assert bench == [FROSLASS, FROSLASS, MUNKIDORI, MORGREM, MUNKIDORI]
     assert len(riv["bench"][3]["energies"]) == 2
     assert m.prize_count_op(_pkm(IMPIDIMP)) == m.prize_count_op(_pkm(MORGREM)) == 1
 
@@ -245,12 +245,12 @@ def test_con_la_fase_1_ya_de_activo_no_se_gasta_el_boss():
     the active, attacking it is free and the Boss's is kept."""
     o = _obs()
     riv = o["current"]["players"][1 - o["current"]["yourIndex"]]
-    active, banca = riv["active"][0], riv["bench"][3]
-    active["id"], banca["id"] = MORGREM, IMPIDIMP
+    active, bench = riv["active"][0], riv["bench"][3]
+    active["id"], bench["id"] = MORGREM, IMPIDIMP
     active["hp"] = active["maxHp"] = 100
-    banca["hp"] = banca["maxHp"] = 70
+    bench["hp"] = bench["maxHp"] = 70
     active["preEvolution"] = [{"id": IMPIDIMP, "playerIndex": 0, "serial": 900}]
-    banca["preEvolution"] = []
+    bench["preEvolution"] = []
 
     assert m.agent(o) == [_idx(o, type=13)], (
         "con la Fase 1 delante se ATACA: mismo premio, corta la linea igual de "
@@ -262,12 +262,12 @@ def test_la_regla_no_es_de_la_linea_marnie(monkeypatch):
     Dragapult ex line resolves the same way, without touching any per-deck list."""
     o = _obs()
     riv = o["current"]["players"][1 - o["current"]["yourIndex"]]
-    active, banca = riv["active"][0], riv["bench"][3]
-    active["id"], banca["id"] = m.Dreepy, m.Drakloak
+    active, bench = riv["active"][0], riv["bench"][3]
+    active["id"], bench["id"] = m.Dreepy, m.Drakloak
     active["hp"] = active["maxHp"] = 60
-    banca["hp"] = banca["maxHp"] = 90
+    bench["hp"] = bench["maxHp"] = 90
     active["preEvolution"] = []
-    banca["preEvolution"] = [{"id": m.Dreepy, "playerIndex": 0, "serial": 900}]
+    bench["preEvolution"] = [{"id": m.Dreepy, "playerIndex": 0, "serial": 900}]
 
     assert m.agent(o) == [_idx(o, type=7, index=_mano_idx(o, BOSS))]
 

@@ -103,42 +103,42 @@ class _Ambito(ast.NodeVisitor):
             self._visitar(n, locales, globales)
 
 
-def migrar(texto, campos):
+def migrate(text, campos):
     """Returns (new_text, n_rewrites, n_globals_removed)."""
     campos = set(campos)
-    arbol = ast.parse(texto)
+    arbol = ast.parse(text)
     v = _Ambito(campos)
     v.visit(arbol)
 
-    lineas = texto.splitlines(keepends=True)
+    lines = text.splitlines(keepends=True)
 
     # 1) rewrite the Name nodes, per line and from right to left
-    por_linea = {}
+    per_line = {}
     for ln, col, name in v.hits:
-        por_linea.setdefault(ln, []).append((col, name))
-    for ln, sitios in por_linea.items():
-        line = lineas[ln - 1]
+        per_line.setdefault(ln, []).append((col, name))
+    for ln, sitios in per_line.items():
+        line = lines[ln - 1]
         for col, name in sorted(sitios, reverse=True):
             if line[col:col + len(name)] != name:
                 raise AssertionError(
                     f"linea {ln} col {col}: se esperaba {name!r} y hay "
                     f"{line[col:col + len(name)]!r}")
             line = line[:col] + f"{OBJETO}.{name}" + line[col + len(name):]
-        lineas[ln - 1] = line
+        lines[ln - 1] = line
 
     # 2) remove (or prune) the `global` statements
     quitados = 0
     for nodo in sorted(v.globales_decl, key=lambda n: -n.lineno):
         restantes = [n for n in nodo.names if n not in campos]
         ln = nodo.lineno - 1
-        sangria = lineas[ln][:len(lineas[ln]) - len(lineas[ln].lstrip())]
+        sangria = lines[ln][:len(lines[ln]) - len(lines[ln].lstrip())]
         if restantes:
-            lineas[ln] = f"{sangria}global {', '.join(restantes)}\n"
+            lines[ln] = f"{sangria}global {', '.join(restantes)}\n"
         else:
-            lineas[ln] = ""
+            lines[ln] = ""
         quitados += 1
 
-    return "".join(lineas), len(v.hits), quitados
+    return "".join(lines), len(v.hits), quitados
 
 
 def main():
@@ -150,11 +150,11 @@ def main():
     args = ap.parse_args()
 
     main_py = Path(args.main)
-    texto = main_py.read_text(encoding="utf-8")
+    text = main_py.read_text(encoding="utf-8")
 
     if args.listar:
         a = analizar(main_py)
-        arbol = ast.parse(texto)
+        arbol = ast.parse(text)
         cuenta = {}
         for n in ast.walk(arbol):
             if isinstance(n, ast.Name) and n.id in a["mutables"]:
@@ -169,7 +169,7 @@ def main():
         print("nada que migrar (usa --campos)")
         return 1
 
-    nuevo, n, g = migrar(texto, campos)
+    nuevo, n, g = migrate(text, campos)
     print(f"campos      : {len(campos)}")
     print(f"reescrituras: {n}")
     print(f"`global` podados/eliminados: {g}")

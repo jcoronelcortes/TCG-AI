@@ -75,49 +75,49 @@ MAX_LIMITES = 0.15       # games that do not finish within the step cap
 MIN_WINRATE = 0.15       # below this, the deck does not get going (see the calibration above)
 
 
-def slug(texto):
+def slug(text):
     """A stable file name derived from the archetype."""
-    t = unicodedata.normalize("NFKD", str(texto or ""))
+    t = unicodedata.normalize("NFKD", str(text or ""))
     t = t.encode("ascii", "ignore").decode("ascii").lower()
     t = re.sub(r"[^a-z0-9]+", "_", t).strip("_")
     return t or "sin_arquetipo"
 
 
-def cargar_corpus(origen):
+def load_corpus(origen):
     """Reads the downloaded decks and groups them by IDENTICAL list.
 
     It returns the list of groups sorted from the largest to the smallest meta weight.
     """
     indice = {}
-    ruta_indice = origen / "indice.csv"
-    if ruta_indice.is_file():
-        with ruta_indice.open(encoding="utf-8-sig", newline="") as fh:
-            for fila in csv.DictReader(fh):
-                indice[fila.get("archivo", "")] = fila.get("arquetipo", "")
+    index_path = origen / "indice.csv"
+    if index_path.is_file():
+        with index_path.open(encoding="utf-8-sig", newline="") as fh:
+            for row in csv.DictReader(fh):
+                indice[row.get("archivo", "")] = row.get("arquetipo", "")
 
-    grupos = {}
+    groups = {}
     total = 0
-    for ruta in sorted(origen.glob("mazo_*.csv")):
-        mazo = [int(x) for x in ruta.read_text(encoding="utf-8").split() if x.strip()]
-        if len(mazo) != 60:
-            print(f"  aviso: {ruta.name} tiene {len(mazo)} cartas, se omite")
+    for path in sorted(origen.glob("mazo_*.csv")):
+        deck = [int(x) for x in path.read_text(encoding="utf-8").split() if x.strip()]
+        if len(deck) != 60:
+            print(f"  aviso: {path.name} tiene {len(deck)} cartas, se omite")
             continue
         total += 1
-        clave = tuple(sorted(Counter(mazo).items()))
-        grupo = grupos.setdefault(
-            clave, {"mazo": sorted(mazo), "copias": 0, "arquetipos": Counter()}
+        key = tuple(sorted(Counter(deck).items()))
+        group = groups.setdefault(
+            key, {"mazo": sorted(deck), "copias": 0, "arquetipos": Counter()}
         )
-        grupo["copias"] += 1
-        grupo["arquetipos"][indice.get(ruta.name, "")] += 1
+        group["copias"] += 1
+        group["arquetipos"][indice.get(path.name, "")] += 1
 
     salida = []
-    for grupo in grupos.values():
-        arq = grupo["arquetipos"].most_common(1)[0][0] if grupo["arquetipos"] else ""
+    for group in groups.values():
+        arq = group["arquetipos"].most_common(1)[0][0] if group["arquetipos"] else ""
         salida.append(
             {
-                "mazo": grupo["mazo"],
-                "copias": grupo["copias"],
-                "peso_meta": grupo["copias"] / total if total else 0.0,
+                "mazo": group["mazo"],
+                "copias": group["copias"],
+                "peso_meta": group["copias"] / total if total else 0.0,
                 "arquetipo": arq,
             }
         )
@@ -125,14 +125,14 @@ def cargar_corpus(origen):
 
     # A name per archetype, numbered by descending weight within the archetype.
     por_arquetipo = Counter()
-    for grupo in salida:
-        base = slug(grupo["arquetipo"])
+    for group in salida:
+        base = slug(group["arquetipo"])
         por_arquetipo[base] += 1
-        grupo["nombre"] = f"{base}_{por_arquetipo[base]}"
+        group["nombre"] = f"{base}_{por_arquetipo[base]}"
     return salida, total
 
 
-def cribar(grupo, partidas, deck_referencia):
+def cribar(group, partidas, deck_referencia):
     """Can the generic bot pilot this list? Bot(real) vs Bot(our deck)."""
     import selfplay as sp
     from bot_rival import BotRival
@@ -141,7 +141,7 @@ def cribar(grupo, partidas, deck_referencia):
     # the two seats would mix up both sides' ability counters.
     stats = sp.torneo(
         BotRival(), BotRival(), partidas,
-        deck_candidato=list(grupo["mazo"]), deck_base=list(deck_referencia),
+        deck_candidato=list(group["mazo"]), deck_base=list(deck_referencia),
     )
     decididas = stats["candidato"] + stats["base"]
     wr = stats["candidato"] / decididas if decididas else 0.0
@@ -161,7 +161,7 @@ def cribar(grupo, partidas, deck_referencia):
     }
 
 
-def escribir(grupos, salida):
+def write_out(groups, salida):
     salida.mkdir(parents=True, exist_ok=True)
     rechazados = salida / "no_pilotables"
     for viejo in salida.glob("*.csv"):
@@ -171,26 +171,26 @@ def escribir(grupos, salida):
             viejo.unlink()
 
     filas = []
-    for grupo in grupos:
-        destino = salida if grupo["admitido"] else rechazados
+    for group in groups:
+        destino = salida if group["admitido"] else rechazados
         destino.mkdir(parents=True, exist_ok=True)
-        (destino / f"{grupo['nombre']}.csv").write_text(
-            "\n".join(str(cid) for cid in grupo["mazo"]) + "\n", encoding="utf-8"
+        (destino / f"{group['nombre']}.csv").write_text(
+            "\n".join(str(cid) for cid in group["mazo"]) + "\n", encoding="utf-8"
         )
         filas.append(
             {
-                "archivo": f"{grupo['nombre']}.csv",
-                "arquetipo": grupo["arquetipo"],
-                "peso_meta": round(grupo["peso_meta"], 4),
-                "mazos_origen": grupo["copias"],
-                "estado": "admitido" if grupo["admitido"] else "no_pilotable",
-                "wr_criba": ("" if grupo.get("wr_criba") is None
-                             else round(grupo["wr_criba"], 3)),
-                "forfeits": ("" if grupo.get("forfeits") is None
-                             else round(grupo["forfeits"], 3)),
-                "limites": ("" if grupo.get("limites") is None
-                            else round(grupo["limites"], 3)),
-                "motivo": grupo.get("motivo", ""),
+                "archivo": f"{group['nombre']}.csv",
+                "arquetipo": group["arquetipo"],
+                "peso_meta": round(group["peso_meta"], 4),
+                "mazos_origen": group["copias"],
+                "estado": "admitido" if group["admitido"] else "no_pilotable",
+                "wr_criba": ("" if group.get("wr_criba") is None
+                             else round(group["wr_criba"], 3)),
+                "forfeits": ("" if group.get("forfeits") is None
+                             else round(group["forfeits"], 3)),
+                "limites": ("" if group.get("limites") is None
+                            else round(group["limites"], 3)),
+                "motivo": group.get("motivo", ""),
             }
         )
     with (salida / "pesos.csv").open("w", encoding="utf-8-sig", newline="") as fh:
@@ -221,41 +221,41 @@ def main(argv):
         return 1
 
     print("== 1/3 Deduplicando el corpus ==")
-    grupos, total = cargar_corpus(origen)
-    if not grupos:
+    groups, total = load_corpus(origen)
+    if not groups:
         print("ERROR: no se encontro ningun mazo", file=sys.stderr)
         return 1
-    print(f"{total} mazos  ->  {len(grupos)} listas unicas")
-    cubierto = sum(g["peso_meta"] for g in grupos[: args.top]) if args.top else 1.0
+    print(f"{total} mazos  ->  {len(groups)} listas unicas")
+    cubierto = sum(g["peso_meta"] for g in groups[: args.top]) if args.top else 1.0
     if args.top:
-        grupos = grupos[: args.top]
-        print(f"Limitado a las {len(grupos)} de mayor peso ({100 * cubierto:.0f}% del meta)")
+        groups = groups[: args.top]
+        print(f"Limitado a las {len(groups)} de mayor peso ({100 * cubierto:.0f}% del meta)")
 
     if args.sin_criba:
-        for grupo in grupos:
-            grupo.update(admitido=True, wr_criba=None, forfeits=None,
+        for group in groups:
+            group.update(admitido=True, wr_criba=None, forfeits=None,
                          limites=None, motivo="sin cribar")
     else:
         print(f"\n== 2/3 Criba de pilotabilidad ({args.partidas} partidas por lista) ==")
         import selfplay as sp
-        deck_ref = sp.leer_deck(args.referencia)
-        for n, grupo in enumerate(grupos, start=1):
-            resultado = cribar(grupo, args.partidas, deck_ref)
-            grupo.update(resultado)
-            marca = "ok " if grupo["admitido"] else "NO "
-            print(f"  {marca}{grupo['nombre']:<28} peso {100 * grupo['peso_meta']:4.0f}%  "
-                  f"gana {100 * grupo['wr_criba']:5.1f}%  "
-                  f"({n}/{len(grupos)}) {grupo['motivo']}", flush=True)
+        deck_ref = sp.read_deck(args.referencia)
+        for n, group in enumerate(groups, start=1):
+            result = cribar(group, args.partidas, deck_ref)
+            group.update(result)
+            marca = "ok " if group["admitido"] else "NO "
+            print(f"  {marca}{group['nombre']:<28} peso {100 * group['peso_meta']:4.0f}%  "
+                  f"gana {100 * group['wr_criba']:5.1f}%  "
+                  f"({n}/{len(groups)}) {group['motivo']}", flush=True)
 
     print("\n== 3/3 Escritura ==")
-    filas = escribir(grupos, Path(args.salida))
-    admitidos = [g for g in grupos if g["admitido"]]
+    filas = write_out(groups, Path(args.salida))
+    admitidos = [g for g in groups if g["admitido"]]
     peso_ok = sum(g["peso_meta"] for g in admitidos)
-    print(f"Listas admitidas: {len(admitidos)}/{len(grupos)}  ->  {args.salida}")
+    print(f"Listas admitidas: {len(admitidos)}/{len(groups)}  ->  {args.salida}")
     print(f"COBERTURA DE META MEDIBLE: {100 * peso_ok:.1f}%")
-    if len(admitidos) < len(grupos):
+    if len(admitidos) < len(groups):
         print("\nNo pilotables (el harness no puede medir esta parte del meta):")
-        for g in grupos:
+        for g in groups:
             if not g["admitido"]:
                 print(f"  {g['nombre']:<28} peso {100 * g['peso_meta']:4.0f}%  {g['motivo']}")
     print(f"\nPesos en {Path(args.salida) / 'pesos.csv'} ({len(filas)} filas)")

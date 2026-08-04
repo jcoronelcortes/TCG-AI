@@ -111,8 +111,8 @@ def _obs(**mut):
     return o
 
 
-def _tipo(obs, eleccion):
-    return obs["select"]["option"][eleccion[0]]["type"]
+def _tipo(obs, choice):
+    return obs["select"]["option"][choice[0]]["type"]
 
 
 def _scores(obs):
@@ -181,7 +181,7 @@ def test_el_veto_anti_cubchoo_ya_no_mata_la_retirada():
     assert scores[idx_ret] > scores[idx_atk], scores
 
 
-def _flags_de_agent(obs, nombres):
+def _flags_de_agent(obs, names):
     """Reads LOCAL variables of `agent()` on return.
 
     `op_is_cubchoo_deck` (like `op_kang_ko_target`) is local, not global: reading it
@@ -193,7 +193,7 @@ def _flags_de_agent(obs, nombres):
         if frame.f_code.co_name != "agent":
             return None
         if ev == "return":
-            for k in nombres:
+            for k in names:
                 if k in frame.f_locals:
                     capt[k] = frame.f_locals[k]
         return tr

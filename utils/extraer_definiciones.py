@@ -41,9 +41,9 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT / "utils"))
 
-from pureza import analizar, BUILTINS, _mapa_paquete, nombres_libres  # noqa: E402
+from pureza import analizar, BUILTINS, _mapa_paquete, free_names  # noqa: E402
 
-CABECERA = '''"""{titulo}
+HEADER = '''"""{titulo}
 
 Extraido VERBATIM de main.py por utils/extraer_definiciones.py
 (docs/project-history.md). Su pureza esta comprobada por
@@ -69,7 +69,7 @@ def _origen_de_imports(arbol):
     return origen
 
 
-def _bloque_con_comentarios(lineas, nodo):
+def _bloque_con_comentarios(lines, nodo):
     """The (start, end) range of the definition, dragging its header comment along.
 
     The comment right above a function documents it: if it stays
@@ -79,7 +79,7 @@ def _bloque_con_comentarios(lineas, nodo):
     for d in getattr(nodo, "decorator_list", []):
         ini = min(ini, d.lineno)
     while ini - 1 >= 1:
-        t = lineas[ini - 2].strip()
+        t = lines[ini - 2].strip()
         if t.startswith("#"):
             ini -= 1
         else:
@@ -90,7 +90,7 @@ def _bloque_con_comentarios(lineas, nodo):
 def planificar(lote, main_py):
     a = analizar(main_py)
     src = Path(main_py).read_text(encoding="utf-8")
-    lineas = src.splitlines(keepends=True)
+    lines = src.splitlines(keepends=True)
     arbol = ast.parse(src)
     origen = _origen_de_imports(arbol)
     mapa = _mapa_paquete()
@@ -107,7 +107,7 @@ def planificar(lote, main_py):
     libres = dict(a["libres"])
     for n, nodo in a["asignaciones"].items():
         nodos.setdefault(n, nodo)
-        libres.setdefault(n, nombres_libres(nodo))
+        libres.setdefault(n, free_names(nodo))
 
     problemas = []
     for n in donde:
@@ -120,71 +120,71 @@ def planificar(lote, main_py):
 
     plan = {}
     for mod, spec in lote.items():
-        nombres = spec["nombres"]
+        names = spec["nombres"]
         imports_stdlib, imports_from, del_paquete, cruzados = set(), {}, {}, {}
-        for n in nombres:
+        for n in names:
             if n not in libres:
                 continue
-            for libre in libres[n]:
-                if libre in BUILTINS or libre in nombres:
+            for free in libres[n]:
+                if free in BUILTINS or free in names:
                     continue
-                if libre in donde and donde[libre] != mod:
-                    cruzados.setdefault(donde[libre], set()).add(libre)
-                elif libre in donde:
+                if free in donde and donde[free] != mod:
+                    cruzados.setdefault(donde[free], set()).add(free)
+                elif free in donde:
                     continue
-                elif libre in a["del_paquete"]:
+                elif free in a["del_paquete"]:
                     # from WHICH package module it comes: `card_table` is in
                     # ptcg.cartas.tablas, not in ptcg.cartas.ids.
-                    origen_mod = mapa.get(libre)
+                    origen_mod = mapa.get(free)
                     # When MERGING, the name may already live in the target module
                     # itself (an earlier batch put it there): importing it would be a
                     # self-import and blows up with "partially initialized module".
                     if origen_mod == mod.replace("/", ".").removesuffix(".py"):
                         continue
                     if origen_mod is None:
-                        problemas.append(f"{mod}: `{libre}` esta en el paquete pero "
+                        problemas.append(f"{mod}: `{free}` esta en el paquete pero "
                                          "no se sabe en que modulo")
                     else:
-                        del_paquete.setdefault(origen_mod, set()).add(libre)
-                elif libre in origen:
-                    o = origen[libre]
+                        del_paquete.setdefault(origen_mod, set()).add(free)
+                elif free in origen:
+                    o = origen[free]
                     if isinstance(o, str):
                         imports_stdlib.add(o)
                     else:
                         imports_from.setdefault(o[1], set()).add((o[2], o[3]))
-                elif libre in a["const_main"]:
+                elif free in a["const_main"]:
                     problemas.append(
-                        f"{mod}: `{n}` usa la constante `{libre}`, que sigue en main.py "
+                        f"{mod}: `{n}` usa la constante `{free}`, que sigue en main.py "
                         f"(muevela antes con extraer_puros.py)")
                 else:
-                    problemas.append(f"{mod}: `{n}` usa `{libre}`, sin resolver")
+                    problemas.append(f"{mod}: `{n}` usa `{free}`, sin resolver")
 
         rangos = []
-        for n in nombres:
-            rangos.append((_bloque_con_comentarios(lineas, nodos[n]), n))
+        for n in names:
+            rangos.append((_bloque_con_comentarios(lines, nodos[n]), n))
         rangos.sort()
         plan[mod] = {
             "titulo": spec.get("titulo", "Extraido de main.py."),
-            "nombres": nombres, "rangos": rangos,
+            "nombres": names, "rangos": rangos,
             "imports_stdlib": sorted(imports_stdlib),
             "imports_from": imports_from, "del_paquete": del_paquete,
             "cruzados": cruzados,
         }
-    return plan, problemas, lineas
+    return plan, problemas, lines
 
 
-def _cabecera_imports(info, mod_actual):
+def _imports_header(info, mod_actual):
     partes = []
     for imp in info["imports_stdlib"]:
         partes.append(imp)
-    for modulo, nombres in sorted(info["imports_from"].items()):
-        ns = ", ".join(sorted(n if not alias else f"{n} as {alias}" for n, alias in nombres))
+    for modulo, names in sorted(info["imports_from"].items()):
+        ns = ", ".join(sorted(n if not alias else f"{n} as {alias}" for n, alias in names))
         partes.append(f"from {modulo} import {ns}")
-    for modulo, nombres in sorted(info["del_paquete"].items()):
-        partes.append(f"from {modulo} import " + ", ".join(sorted(nombres)))
-    for otro, nombres in sorted(info["cruzados"].items()):
+    for modulo, names in sorted(info["del_paquete"].items()):
+        partes.append(f"from {modulo} import " + ", ".join(sorted(names)))
+    for otro, names in sorted(info["cruzados"].items()):
         dotted = otro.replace("/", ".").removesuffix(".py")
-        partes.append(f"from {dotted} import " + ", ".join(sorted(nombres)))
+        partes.append(f"from {dotted} import " + ", ".join(sorted(names)))
     return ("\n".join(partes) + "\n\n\n") if partes else ""
 
 
@@ -196,13 +196,13 @@ def main():
     args = ap.parse_args()
 
     lote = runpy.run_path(args.lote)["MODULOS"]
-    plan, problemas, lineas = planificar(lote, args.main)
+    plan, problemas, lines = planificar(lote, args.main)
 
     total = 0
     for mod, info in plan.items():
-        n_lineas = sum(b - a + 1 for (a, b), _ in info["rangos"])
-        total += n_lineas
-        print(f"{mod}: {len(info['nombres'])} definiciones, {n_lineas} lineas")
+        n_lines = sum(b - a + 1 for (a, b), _ in info["rangos"])
+        total += n_lines
+        print(f"{mod}: {len(info['nombres'])} definiciones, {n_lines} lineas")
         print(f"    paquete  : {sum(len(v) for v in info['del_paquete'].values())} nombres")
         if info["cruzados"]:
             print(f"    cruzados : { {k: sorted(v) for k, v in info['cruzados'].items()} }")
@@ -229,12 +229,12 @@ def main():
                 ini.write_text('"""Paquete del agente. Ver docs/project-history.md."""\n')
             p = p.parent
 
-        cuerpo = []
+        body = []
         for (a, b), _ in info["rangos"]:
-            cuerpo.append("".join(lineas[a - 1:b]).rstrip("\n"))
+            body.append("".join(lines[a - 1:b]).rstrip("\n"))
             borrar.update(range(a, b + 1))
 
-        nuevos = "\n\n\n".join(cuerpo)
+        nuevos = "\n\n\n".join(body)
         if destino.exists():
             # MERGE with what is already there: a module is filled over several batches
             # (e.g. dano.py first receives what does not depend on card_table and
@@ -244,19 +244,19 @@ def main():
             cabeza, _, cola = previo.rpartition("\n\n__all__ = [")
             viejos = [ln.strip().strip("',") for ln in cola.splitlines()
                       if ln.strip().startswith(("'", '"'))]
-            for line in _cabecera_imports(info, mod).rstrip("\n").splitlines():
+            for line in _imports_header(info, mod).rstrip("\n").splitlines():
                 if line and line not in cabeza:
                     marca_doc = cabeza.index('"""', cabeza.index('"""') + 3) + 4
                     cabeza = cabeza[:marca_doc] + "\n" + line + cabeza[marca_doc:]
-            nombres_all = viejos + info["nombres"]
-            texto = cabeza.rstrip("\n") + "\n\n\n" + nuevos
+            all_names = viejos + info["nombres"]
+            text = cabeza.rstrip("\n") + "\n\n\n" + nuevos
         else:
-            nombres_all = info["nombres"]
-            texto = (CABECERA.format(titulo=info["titulo"])
-                     + _cabecera_imports(info, mod) + nuevos)
+            all_names = info["nombres"]
+            text = (HEADER.format(titulo=info["titulo"])
+                     + _imports_header(info, mod) + nuevos)
 
-        texto += "\n\n__all__ = [\n" + "".join(f"    {n!r},\n" for n in nombres_all) + "]\n"
-        destino.write_text(texto)
+        text += "\n\n__all__ = [\n" + "".join(f"    {n!r},\n" for n in all_names) + "]\n"
+        destino.write_text(text)
         dotted = mod.replace("/", ".").removesuffix(".py")
         marca = f"from {dotted} import *  # noqa: F401,F403\n"
         if marca not in marcas:
@@ -266,7 +266,7 @@ def main():
 
     main_py = Path(args.main)
     salida, puesto = [], False
-    for i, line in enumerate(lineas, start=1):
+    for i, line in enumerate(lines, start=1):
         if i in borrar:
             if not puesto:
                 salida.extend(marcas)
@@ -274,7 +274,7 @@ def main():
             continue
         salida.append(line)
     main_py.write_text("".join(salida))
-    print(f"\nmain.py: {len(lineas)} -> {len(salida)} lineas")
+    print(f"\nmain.py: {len(lines)} -> {len(salida)} lineas")
     print("OJO: mueve los imports al bloque de cabecera (I1a).")
     return 0
 

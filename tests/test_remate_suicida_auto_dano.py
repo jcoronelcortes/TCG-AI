@@ -144,37 +144,37 @@ def test_sin_energia_para_pagar_el_ataque_no_hay_auto_dano():
 # 2. Step 184: retreat instead of signing off on the draw
 # ---------------------------------------------------------------------------
 
-def _paso_184(op_premios=1, mis_premios=1, tapu_hp=20, ogerpon_energias=6):
+def _paso_184(op_premios=1, my_prizes=1, tapu_hp=20, ogerpon_energias=6):
     """The exact board of step 184. Meganium on the bench => each physical Grass
     counts DOUBLE, so 3 energy cards give 6 effective units."""
-    return (Escenario(turn=16, paso=184, tac=1,
-                      premios_propios=mis_premios)
-            .mi_activo(pk(TAPU, hp=tapu_hp, energias=[G] * 6, fisicas=3))
-            .mi_banca(pk(MEGANIUM, hp=80, pre_evo=[m.Chikorita, BAYLEEF]),
+    return (Escenario(turn=16, step=184, tac=1,
+                      premios_propios=my_prizes)
+            .my_active(pk(TAPU, hp=tapu_hp, energias=[G] * 6, fisicas=3))
+            .my_bench(pk(MEGANIUM, hp=80, pre_evo=[m.Chikorita, BAYLEEF]),
                       pk(OGERPON, hp=100, energias=[G] * ogerpon_energias,
                          fisicas=ogerpon_energias // 2),
                       pk(HYDRAPPLE, hp=290, pre_evo=[m.Applin, m.Dipplin]))
-            .mi_mano(BAYLEEF, GRASS, LANAS)
+            .my_hand(BAYLEEF, GRASS, LANAS)
             .estadio(SPIKEMUTH_GYM, del_rival=True)
-            .op_activo(pk(IMPIDIMP))
-            .op_banca(pk(IMPIDIMP), pk(IMPIDIMP), pk(IMPIDIMP),
+            .op_active(pk(IMPIDIMP))
+            .op_bench(pk(IMPIDIMP), pk(IMPIDIMP), pk(IMPIDIMP),
                       pk(IMPIDIMP), pk(IMPIDIMP))
-            .op_zonas(mano=4, mazo=25, prizes=op_premios))
+            .op_zonas(hand=4, deck=25, prizes=op_premios))
 
 
-def _tipo_elegido(obs, eleccion):
-    return obs["select"]["option"][eleccion[0]]["type"]
+def _tipo_elegido(obs, choice):
+    return obs["select"]["option"][choice[0]]["type"]
 
 
 def test_con_un_premio_por_lado_se_retira_en_vez_de_rematar_suicida():
     """THE FAILURE IN THE RECORD. Before: ATTACK (Wood Hammer) -> a 0-0 draw.
     Now: RETREAT, to promote the Ogerpon ex and win cleanly."""
-    obs = _paso_184().menu_mano(con_retirada=True, con_ataque=True).construir()
+    obs = _paso_184().menu_mano(con_retirada=True, con_ataque=True).build()
     assert _tipo_elegido(obs, m.agent(obs)) == int(m.OptionType.RETREAT)
 
 
 def test_el_remate_suicida_queda_vetado_mientras_exista_el_relevo():
-    obs = _paso_184().menu_mano(con_retirada=True, con_ataque=True).construir()
+    obs = _paso_184().menu_mano(con_retirada=True, con_ataque=True).build()
     scores = _scores(obs)
     i_atk = _indice(obs, m.OptionType.ATTACK)
     i_ret = _indice(obs, m.OptionType.RETREAT)
@@ -187,14 +187,14 @@ def test_sin_relevo_en_banca_el_empate_es_el_mejor_resultado_y_no_se_veta():
     attack is NOT vetoed (passing also ends in a draw, but gives away the turn).
     The veto is measured rather than the choice because, with energy in hand, attaching it
     scores higher than attacking through rules PRIOR to this change."""
-    obs = (Escenario(turn=16, paso=184, tac=1, premios_propios=1)
-           .mi_activo(pk(TAPU, hp=20, energias=[G] * 6, fisicas=3))
-           .mi_banca(pk(MEGANIUM, hp=80, pre_evo=[m.Chikorita, BAYLEEF]))
-           .mi_mano(GRASS)
-           .op_activo(pk(IMPIDIMP))
-           .op_banca(pk(IMPIDIMP))
-           .op_zonas(mano=4, mazo=25, prizes=1)
-           .menu_mano(con_retirada=True, con_ataque=True).construir())
+    obs = (Escenario(turn=16, step=184, tac=1, premios_propios=1)
+           .my_active(pk(TAPU, hp=20, energias=[G] * 6, fisicas=3))
+           .my_bench(pk(MEGANIUM, hp=80, pre_evo=[m.Chikorita, BAYLEEF]))
+           .my_hand(GRASS)
+           .op_active(pk(IMPIDIMP))
+           .op_bench(pk(IMPIDIMP))
+           .op_zonas(hand=4, deck=25, prizes=1)
+           .menu_mano(con_retirada=True, con_ataque=True).build())
     assert _scores(obs)[_indice(obs, m.OptionType.ATTACK)] > 0
 
 
@@ -203,7 +203,7 @@ def test_con_el_rival_lejos_del_final_el_remate_suicida_sigue_ganando():
     rival prizes our corpse (1 prize) does not close out their count, so
     Wood Hammer is still the top-priority winning finisher."""
     obs = _paso_184(op_premios=3).menu_mano(
-        con_retirada=True, con_ataque=True).construir()
+        con_retirada=True, con_ataque=True).build()
     assert _tipo_elegido(obs, m.agent(obs)) == int(m.OptionType.ATTACK)
 
 
@@ -211,7 +211,7 @@ def test_tapu_bulu_sano_no_se_suicida_y_remata_de_frente():
     """The same board with Tapu Bulu at 140/140: the 30 self-damage does not kill it,
     so there is no draw to avoid and ATTACKING is the first thing again."""
     obs = _paso_184(tapu_hp=140).menu_mano(
-        con_retirada=True, con_ataque=True).construir()
+        con_retirada=True, con_ataque=True).build()
     assert _tipo_elegido(obs, m.agent(obs)) == int(m.OptionType.ATTACK)
 
 
@@ -219,14 +219,14 @@ def test_el_remate_suicida_que_PIERDE_se_veta_aunque_no_haya_relevo():
     """A worse case than the draw: our attack does NOT knock out (a 380 HP Duraludon
     survives the 220), so the self-damage only HANDS the rival their last
     prize. There, attacking is losing: it is vetoed with no need for a relief body."""
-    obs = (Escenario(turn=16, paso=184, tac=1, premios_propios=3)
-           .mi_activo(pk(TAPU, hp=20, energias=[G] * 6, fisicas=3))
-           .mi_banca(pk(MEGANIUM, hp=80, pre_evo=[m.Chikorita, BAYLEEF]))
-           .mi_mano(GRASS)
-           .op_activo(pk(ARCHALUDON_EX, hp=300, max_hp=300))
-           .op_banca(pk(IMPIDIMP))
-           .op_zonas(mano=4, mazo=25, prizes=1)
-           .menu_mano(con_retirada=True, con_ataque=True).construir())
+    obs = (Escenario(turn=16, step=184, tac=1, premios_propios=3)
+           .my_active(pk(TAPU, hp=20, energias=[G] * 6, fisicas=3))
+           .my_bench(pk(MEGANIUM, hp=80, pre_evo=[m.Chikorita, BAYLEEF]))
+           .my_hand(GRASS)
+           .op_active(pk(ARCHALUDON_EX, hp=300, max_hp=300))
+           .op_bench(pk(IMPIDIMP))
+           .op_zonas(hand=4, deck=25, prizes=1)
+           .menu_mano(con_retirada=True, con_ataque=True).build())
     scores = _scores(obs)
     assert scores[_indice(obs, m.OptionType.ATTACK)] <= 0
 
@@ -239,11 +239,11 @@ def test_la_promocion_tras_retirar_sube_al_que_gana_la_partida():
     """The other half of the chain: without this we retreated well and then brought up the
     290 HP Hydrapple ex (no energy, it does not finish) instead of the charged
     Ogerpon ex, and the turn closed without taking the prize."""
-    obs = _paso_184().promocion_tras_retirada().construir()
-    eleccion = m.agent(obs)
-    idx = obs["select"]["option"][eleccion[0]]["index"]
-    banca = obs["current"]["players"][0]["bench"]
-    assert banca[idx]["id"] == OGERPON
+    obs = _paso_184().promocion_tras_retirada().build()
+    choice = m.agent(obs)
+    idx = obs["select"]["option"][choice[0]]["index"]
+    bench = obs["current"]["players"][0]["bench"]
+    assert bench[idx]["id"] == OGERPON
 
 
 def test_la_promocion_forzada_tras_un_KO_no_cambia_de_criterio():
@@ -251,11 +251,11 @@ def test_la_promocion_forzada_tras_un_KO_no_cambia_de_criterio():
     (the SWITCH context, always on our turn and before attacking). The forced
     promotion after a KO (TO_ACTIVE) may fall on the rival's turn, where nobody
     attacks and the usual criterion is still the right one."""
-    obs = _paso_184().promocion_desde_banca().construir()
-    eleccion = m.agent(obs)
-    idx = obs["select"]["option"][eleccion[0]]["index"]
-    banca = obs["current"]["players"][0]["bench"]
-    assert banca[idx]["id"] == HYDRAPPLE
+    obs = _paso_184().promocion_desde_banca().build()
+    choice = m.agent(obs)
+    idx = obs["select"]["option"][choice[0]]["index"]
+    bench = obs["current"]["players"][0]["bench"]
+    assert bench[idx]["id"] == HYDRAPPLE
 
 
 # ---------------------------------------------------------------------------

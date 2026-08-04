@@ -78,22 +78,22 @@ def _cierre_de_turno(activo_rival="grimmsnarl", hp_ogerpon=30):
     else:
         act_rival, banca_rival = morgrem, grimm
 
-    esc = (Escenario(turn=4, paso=55, tac=8, primer_jugador=1,
+    esc = (Escenario(turn=4, step=55, tac=8, primer_jugador=1,
                      partidario_jugado=True)
-           .mi_activo(pk(m.Teal_Mask_Ogerpon_ex, hp=hp_ogerpon,
+           .my_active(pk(m.Teal_Mask_Ogerpon_ex, hp=hp_ogerpon,
                          energias=[G], fisicas=1))
-           .mi_banca(pk(m.Meowth_ex),
+           .my_bench(pk(m.Meowth_ex),
                      pk(m.Fezandipiti_ex, hp=180, energias=[G], fisicas=1),
                      pk(m.Applin),
                      pk(m.Teal_Mask_Ogerpon_ex),
                      pk(m.Bayleef, pre_evo=[m.Chikorita]))
-           .mi_mano(m.Ultra_Ball, m.Bug_Catching_Set, m.Night_Stretcher)
-           .op_activo(act_rival)
-           .op_banca(banca_rival, pk(SNORUNT, hp=70, max_hp=70),
+           .my_hand(m.Ultra_Ball, m.Bug_Catching_Set, m.Night_Stretcher)
+           .op_active(act_rival)
+           .op_bench(banca_rival, pk(SNORUNT, hp=70, max_hp=70),
                      pk(IMPIDIMP, hp=70, max_hp=70, energias=[DARK, DARK]))
-           .op_zonas(mano=5, mazo=32, prizes=6))
-    esc.mazo(*sorted(esc._pool.elements())[:34]).resto_al_descarte()
-    obs = esc.menu_mano(con_retirada=True).construir()
+           .op_zonas(hand=5, deck=32, prizes=6))
+    esc.deck(*sorted(esc._pool.elements())[:34]).resto_al_descarte()
+    obs = esc.menu_mano(con_retirada=True).build()
     obs["select"]["option"] = [
         o for o in obs["select"]["option"]
         if o["type"] in (int(m.OptionType.RETREAT), int(m.OptionType.END))]

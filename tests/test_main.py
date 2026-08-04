@@ -5042,8 +5042,8 @@ def _carta_jugada(obs, result):
     opt = obs["select"]["option"][result[0]]
     if opt.get("type") != int(OptionType.PLAY):
         return None
-    mano = obs["current"]["players"][obs["current"]["yourIndex"]]["hand"]
-    return mano[opt["index"]]["id"]
+    hand = obs["current"]["players"][obs["current"]["yourIndex"]]["hand"]
+    return hand[opt["index"]]["id"]
 
 
 def test_alakazam_step85_juega_xerosic_y_no_boss():
@@ -5282,8 +5282,8 @@ def test_dragapult_p29_promueve_tapu_bulu():
                    {"area": 5, "index": 1, "playerIndex": yo, "type": 3}],
     }
     result = m.agent(obs)
-    banca = _mi_lado(obs)["bench"]
-    elegido = banca[obs["select"]["option"][result[0]]["index"]]["id"]
+    bench = _mi_lado(obs)["bench"]
+    elegido = bench[obs["select"]["option"][result[0]]["index"]]["id"]
     assert elegido == m.Tapu_Bulu, (
         f"al promover tras retirar el Chikorita se sube Tapu Bulu (140 PV), "
         f"no el Applin de 40; obtuvo {m.card_table[elegido].name}")
@@ -5437,8 +5437,8 @@ def test_p61_promueve_tapu_bulu_no_applin():
                    {"area": 5, "index": 1, "playerIndex": yo, "type": 3}],
     }
     result = m.agent(obs)
-    banca = _mi_lado(obs)["bench"]
-    elegido = banca[obs["select"]["option"][result[0]]["index"]]["id"]
+    bench = _mi_lado(obs)["bench"]
+    elegido = bench[obs["select"]["option"][result[0]]["index"]]["id"]
     assert elegido == m.Tapu_Bulu, (
         f"con Lillie's en mano y sin atacante listo se sube el basico de 1 "
         f"premio mas resistente (Tapu Bulu 140), no el Applin de 40; obtuvo "
@@ -7467,12 +7467,12 @@ def test_op_bench_snipe_damage_table_covers_grimmsnarl():
 
 def test_marnie_ub_fetch_takes_the_missing_link_not_the_orphan_stage2():
     obs = _load_fixture_obs("marnie_ub_fetch_missing_link_dipplin.json")
-    mazo = obs["select"]["deck"]
+    deck = obs["select"]["deck"]
     opts = obs["select"]["option"]
     dipplin = [i for i, o in enumerate(opts)
-               if mazo[o["index"]]["id"] == m.Dipplin]
+               if deck[o["index"]]["id"] == m.Dipplin]
     hydra = next(i for i, o in enumerate(opts)
-                 if mazo[o["index"]]["id"] == m.Hydrapple_ex)
+                 if deck[o["index"]]["id"] == m.Hydrapple_ex)
     m._init_cards_tracking()
     m.plan = m.AttackPlan()
     m.pre_turn = 0
@@ -7532,17 +7532,17 @@ def test_evo_link_state_classifies_missing_link_and_orphan():
 def test_alakazam_last_ditch_no_trae_copia_ya_en_mano():
     obs = _load_fixture_obs("alakazam_ld_fetch_no_duplica_supporter.json")
     me = obs["current"]["players"][obs["current"]["yourIndex"]]
-    mazo = obs["select"]["deck"]
+    deck = obs["select"]["deck"]
     opts = obs["select"]["option"]
     en_mano = {c["id"] for c in me["hand"]}
     xerosic = next(i for i, o in enumerate(opts)
-                   if mazo[o["index"]]["id"] == m.Xerosic_Machinations)
+                   if deck[o["index"]]["id"] == m.Xerosic_Machinations)
     assert m.Xerosic_Machinations in en_mano, "el escenario exige Xerosic en mano"
     m._init_cards_tracking()
     m.plan = m.AttackPlan()
     m.pre_turn = 0
     result = m.agent(obs)
-    traido = mazo[opts[result[0]]["index"]]["id"]
+    traido = deck[opts[result[0]]["index"]]["id"]
     assert traido not in en_mano, (
         f"el Last-Ditch no debe traer una 2a copia de un Supporter que ya esta "
         f"en la mano (Xerosic, opt {xerosic}); trajo {traido}")
@@ -7570,15 +7570,15 @@ def test_meowth_fetch_prediccion_detecta_el_duplicado():
     # The helper that decides BEFORE playing the Meowth: with Xerosic as the only
     # Supporter in the deck and a copy in hand, the predicted target is that
     # duplicate (the signal that cancels the play).
-    mazo = {m.Xerosic_Machinations: {m.ZONE_DECK: 1}}
-    objetivo, _ = m._meowth_fetch_prediccion(
+    deck = {m.Xerosic_Machinations: {m.ZONE_DECK: 1}}
+    target, _ = m._meowth_fetch_prediccion(
         {m.Xerosic_Machinations: 1}, {}, 4, True, 12, False,
-        False, False, False, False, True, mazo)
-    assert objetivo == m.Xerosic_Machinations
+        False, False, False, False, True, deck)
+    assert target == m.Xerosic_Machinations
     # Our first turn keeps the anti-donk exception (it is not capped).
     objetivo_t1, valor_t1 = m._meowth_fetch_prediccion(
         {m.Xerosic_Machinations: 1}, {}, 4, True, 12, False,
-        False, False, False, False, True, mazo, first_turn=True)
+        False, False, False, False, True, deck, first_turn=True)
     assert objetivo_t1 == m.Xerosic_Machinations and valor_t1 > 40
 
 
@@ -7703,9 +7703,9 @@ def test_alakazam_el_fetch_sigue_el_plan_del_menu_boss_orders():
     # the SAME turn, the prompt must bring what the menu had in mind (the
     # Boss's), not revalue it with the Teal Dance already spent.
     # The same turn, a chained prompt: the fetch must bring what motivated the play.
-    mazo = fetch["select"]["deck"]
+    deck = fetch["select"]["deck"]
     result = m.agent(fetch)
-    traido = mazo[fetch["select"]["option"][result[0]]["index"]]["id"]
+    traido = deck[fetch["select"]["option"][result[0]]["index"]]["id"]
     assert traido == m.Boss_Orders, (
         f"el Last-Ditch debe traer el Boss's Orders que motivo bajar el Meowth "
         f"(gusteo de 2 premios al Fezandipiti ex); trajo {traido}")
@@ -9058,13 +9058,13 @@ _LUCARIO_T4_SEQ = (
     ROOT / "tests" / "fixtures" / "lucario_t4_lillie_sobre_ub_y_boss.json")
 
 
-def _lucario_t4_hasta(paso):
+def _lucario_t4_hasta(step):
     """Replays the sequence of turn 4 up to `paso` and returns (obs, result)."""
     with open(_LUCARIO_T4_SEQ, encoding="utf-8") as f:
         seq = json.load(f)["sequence"]
     obs = result = None
     for item in seq:
-        if item["step"] > paso:
+        if item["step"] > step:
             break
         obs = item["observation"]
         result = m.agent(obs)
@@ -9131,13 +9131,13 @@ _ALK_T14_SEQ = (
     ROOT / "tests" / "fixtures" / "alakazam_t14_ruta_de_ataque_por_retirada.json")
 
 
-def _alk_t14_hasta(paso):
+def _alk_t14_hasta(step):
     """Replays the sequence of turn 14 up to `paso`; returns (obs, result)."""
     with open(_ALK_T14_SEQ, encoding="utf-8") as f:
         seq = json.load(f)["sequence"]
     obs = result = None
     for item in seq:
-        if item["step"] > paso:
+        if item["step"] > step:
             break
         obs = item["observation"]
         result = m.agent(obs)
@@ -9146,11 +9146,11 @@ def _alk_t14_hasta(paso):
 
 def _alk_t14_indices(obs):
     """(attachments to the active, attachments to the bench Meganium, Ripening's index)."""
-    al_activo, al_meganium, ripening = [], [], None
+    to_active, al_meganium, ripening = [], [], None
     for i, o in enumerate(obs["select"]["option"]):
         if o.get("type") == int(OptionType.ATTACH):
             if o.get("inPlayArea") == int(AreaType.ACTIVE):
-                al_activo.append(i)
+                to_active.append(i)
             else:
                 bench = obs["current"]["players"][0]["bench"]
                 if bench[o["inPlayIndex"]]["id"] == m.Meganium:
@@ -9159,17 +9159,17 @@ def _alk_t14_indices(obs):
             card = m.get_card(m.to_observation_class(obs), o["area"], o["index"], 0)
             if card is not None and card.id == m.Hydrapple_ex:
                 ripening = i
-    return al_activo, al_meganium, ripening
+    return to_active, al_meganium, ripening
 
 
 def test_alakazam_step136_carga_el_activo_para_habilitar_la_retirada():
     obs, result = _alk_t14_hasta(136)
 
-    al_activo, al_meganium, _ = _alk_t14_indices(obs)
-    assert al_activo and al_meganium, "la fixture debe ofrecer ambos destinos"
+    to_active, al_meganium, _ = _alk_t14_indices(obs)
+    assert to_active and al_meganium, "la fixture debe ofrecer ambos destinos"
 
-    assert result[0] in al_activo, (
-        f"la Planta va al ACTIVO (opts {al_activo}) para pagar su retirada y subir "
+    assert result[0] in to_active, (
+        f"la Planta va al ACTIVO (opts {to_active}) para pagar su retirada y subir "
         f"al Hydrapple ex listo; cargar el Meganium de banca (opts {al_meganium}) "
         f"no le da un ataque este turno porque el activo no puede retirarse; "
         f"obtuvo {result}")
@@ -9351,7 +9351,7 @@ def _ub_turno_muerto_obs(op_active_id, ogerpon_en_juego):
     cur["supporterPlayed"] = True; cur["stadiumPlayed"] = True
     cur["energyAttached"] = True; cur["turn"] = 7; cur["yourIndex"] = 1
 
-    def cuerpo(cid, hp, serial, energias=0):
+    def body(cid, hp, serial, energias=0):
         return {"appearThisTurn": False, "energies": [1] * energias,
                 "energyCards": [], "hp": hp, "id": cid, "maxHp": hp,
                 "playerIndex": 1, "preEvolution": [], "serial": serial,
@@ -9361,9 +9361,9 @@ def _ub_turno_muerto_obs(op_active_id, ogerpon_en_juego):
                      "hp": 70, "id": op_active_id, "maxHp": 70, "playerIndex": 0,
                      "preEvolution": [], "serial": 900, "tools": []}]
     op["bench"] = []
-    me["active"] = [cuerpo(m.Teal_Mask_Ogerpon_ex, 210, 800, 3)]
-    me["bench"] = [cuerpo(m.Teal_Mask_Ogerpon_ex, 210, 801, 1)
-                   if ogerpon_en_juego >= 2 else cuerpo(m.Chikorita, 70, 802)]
+    me["active"] = [body(m.Teal_Mask_Ogerpon_ex, 210, 800, 3)]
+    me["bench"] = [body(m.Teal_Mask_Ogerpon_ex, 210, 801, 1)
+                   if ogerpon_en_juego >= 2 else body(m.Chikorita, 70, 802)]
     # A minimal hand with real fodder (2 Grass) so that the UB does not die on cost.
     me["hand"] = [{"id": m.Ultra_Ball, "playerIndex": 1, "serial": 810},
                   {"id": m.Basic_Grass_Energy, "playerIndex": 1, "serial": 811},
@@ -9421,7 +9421,7 @@ def _estadio_hostil_obs(op_active_id, estadio_rival, forest_propio=False):
                        else estadio_rival, "playerIndex": 1 if forest_propio else 0,
                        "serial": 950}]
 
-    def cuerpo(cid, hp, serial, energias=0):
+    def body(cid, hp, serial, energias=0):
         return {"appearThisTurn": False, "energies": [1] * energias,
                 "energyCards": [], "hp": hp, "id": cid, "maxHp": hp,
                 "playerIndex": 1, "preEvolution": [], "serial": serial,
@@ -9431,8 +9431,8 @@ def _estadio_hostil_obs(op_active_id, estadio_rival, forest_propio=False):
                      "hp": 70, "id": op_active_id, "maxHp": 70, "playerIndex": 0,
                      "preEvolution": [], "serial": 900, "tools": []}]
     op["bench"] = []
-    me["active"] = [cuerpo(m.Teal_Mask_Ogerpon_ex, 210, 800, 3)]
-    me["bench"] = [cuerpo(m.Teal_Mask_Ogerpon_ex, 210, 801, 1)]
+    me["active"] = [body(m.Teal_Mask_Ogerpon_ex, 210, 800, 3)]
+    me["bench"] = [body(m.Teal_Mask_Ogerpon_ex, 210, 801, 1)]
     me["hand"] = [{"id": m.Forest_of_Vitality, "playerIndex": 1, "serial": 810},
                   {"id": m.Basic_Grass_Energy, "playerIndex": 1, "serial": 811}]
     o["select"] = {"context": 0, "contextCard": None, "deck": None, "effect": None,

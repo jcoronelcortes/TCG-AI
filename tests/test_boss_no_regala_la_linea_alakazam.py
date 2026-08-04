@@ -100,8 +100,8 @@ def _pk(card_id, energias=0):
     return SimpleNamespace(id=card_id, energies=[1] * energias)
 
 
-def _op(active, banca):
-    return SimpleNamespace(active=[active] if active else [], bench=list(banca))
+def _op(active, bench):
+    return SimpleNamespace(active=[active] if active else [], bench=list(bench))
 
 
 # ---------------------------------------------------------------------------

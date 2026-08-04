@@ -83,18 +83,18 @@ def reset_main_state():
 def _cargar(fixture):
     """(previous observation, decision observation) from the record."""
     with open(fixture, encoding="utf-8") as f:
-        datos = json.load(f)
-    return datos["observacion_previa"], datos["observation"]
+        data = json.load(f)
+    return data["observacion_previa"], data["observation"]
 
 
 def _jugadas(obs):
     """(type, card_id) of each menu option."""
     yo = obs["current"]["yourIndex"]
-    mano = obs["current"]["players"][yo]["hand"]
+    hand = obs["current"]["players"][yo]["hand"]
     salida = []
     for o in obs["select"]["option"]:
         if o["type"] == int(m.OptionType.PLAY):
-            salida.append(("PLAY", mano[o["index"]]["id"]))
+            salida.append(("PLAY", hand[o["index"]]["id"]))
         elif o["type"] == int(m.OptionType.END):
             salida.append(("END", None))
         else:
@@ -114,25 +114,25 @@ def test_ko_entre_turnos_no_baja_fezandipiti():
     previa, decision = _cargar(_FIX_ENTRE_TURNOS)
 
     # The real menu offered playing the Fezandipiti ex.
-    jugadas = _jugadas(decision)
-    assert ("PLAY", FEZ) in jugadas, jugadas
+    plays = _jugadas(decision)
+    assert ("PLAY", FEZ) in plays, plays
 
     # ... and the engine itself said the clause was NOT satisfied: we had the
     # Unfair Stamp in hand and it does not appear as playable.
     yo = decision["current"]["yourIndex"]
-    mano = [c["id"] for c in decision["current"]["players"][yo]["hand"]]
-    assert STAMP in mano, mano
-    assert ("PLAY", STAMP) not in jugadas, jugadas
+    hand = [c["id"] for c in decision["current"]["players"][yo]["hand"]]
+    assert STAMP in hand, hand
+    assert ("PLAY", STAMP) not in plays, plays
 
     m.agent(previa)          # it brings the rival's TURN_END
-    eleccion = m.agent(decision)
+    choice = m.agent(decision)
 
     assert not m.ko_last_turn, (
         "el KO llego ENTRE TURNOS (Freezing Shroud): Flip the Script no se "
         "puede usar y `ko_last_turn` debe quedar en False")
-    assert jugadas[eleccion[0]] != ("PLAY", FEZ), (
+    assert plays[choice[0]] != ("PLAY", FEZ), (
         f"con la habilidad muerta, bajar Fezandipiti ex regala 2 premios y el "
-        f"ultimo hueco de banca a cambio de nada; jugo {jugadas[eleccion[0]]}")
+        f"ultimo hueco de banca a cambio de nada; jugo {plays[choice[0]]}")
 
 
 def test_el_menu_del_motor_manda_sobre_la_inferencia_de_logs():
@@ -157,8 +157,8 @@ def test_ko_por_habilidad_dentro_del_turno_rival_si_habilita():
 
     # Adrena-Brain (Munkidori) moved 3 counters and killed our Ogerpon ex
     # INSIDE the rival's turn: the engine offers the Stamp the next turn.
-    jugadas = _jugadas(decision)
-    assert ("PLAY", STAMP) in jugadas, jugadas
+    plays = _jugadas(decision)
+    assert ("PLAY", STAMP) in plays, plays
 
     m.agent(previa)
     m.agent(decision)

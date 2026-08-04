@@ -103,13 +103,13 @@ def _obs_fixture():
         return json.load(f)["observation"]
 
 
-def _jugada(obs, eleccion):
+def _jugada(obs, choice):
     """('PLAY', card_id) / ('ATTACK', attackId) / ('RETREAT'|'END', None)."""
-    o = obs["select"]["option"][eleccion[0]]
+    o = obs["select"]["option"][choice[0]]
     tipo = o["type"]
-    mano = obs["current"]["players"][obs["current"]["yourIndex"]]["hand"]
+    hand = obs["current"]["players"][obs["current"]["yourIndex"]]["hand"]
     if tipo == int(m.OptionType.PLAY):
-        return ("PLAY", mano[o["index"]]["id"])
+        return ("PLAY", hand[o["index"]]["id"])
     if tipo == int(m.OptionType.ATTACK):
         return ("ATTACK", o.get("attackId"))
     if tipo == int(m.OptionType.RETREAT):
@@ -126,9 +126,9 @@ def _jugada(obs, eleccion):
 def test_paso47_ataca_al_crustle_en_vez_de_gustear():
     obs = _obs_fixture()
     # The fixture must offer BOTH plays for the test to discriminate.
-    jugadas = [_jugada(obs, [i]) for i in range(len(obs["select"]["option"]))]
-    assert ("PLAY", BOSS) in jugadas, jugadas
-    assert ("ATTACK", 1326) in jugadas, jugadas
+    plays = [_jugada(obs, [i]) for i in range(len(obs["select"]["option"]))]
+    assert ("PLAY", BOSS) in plays, plays
+    assert ("ATTACK", 1326) in plays, plays
 
     assert _jugada(obs, m.agent(obs)) == ("ATTACK", 1326)
 
@@ -151,23 +151,23 @@ def test_paso47_el_muro_es_noqueable_y_la_bandera_lo_ve():
 # Synthetic scenarios: the rule and its boundaries
 # ---------------------------------------------------------------------------
 
-def _escenario(op_activo=None, mi_activo=None, premios_propios=None,
-               mano=(BOSS, ULTRA_BALL)):
+def _escenario(op_active=None, my_active=None, premios_propios=None,
+               hand=(BOSS, ULTRA_BALL)):
     """A charged Tapu Bulu in front of the wall, with a 2-prize rival ex on their
     bench (the gust the agent preferred)."""
-    op_activo = op_activo if op_activo is not None else pk(CRUSTLE)
-    mi_activo = (mi_activo if mi_activo is not None
+    op_active = op_active if op_active is not None else pk(CRUSTLE)
+    my_active = (my_active if my_active is not None
                  else pk(TAPU, energias=[G] * 4, fisicas=4))
-    return (Escenario(turn=8, paso=47, energia_jugada=True,
+    return (Escenario(turn=8, step=47, energia_jugada=True,
                       premios_propios=premios_propios)
-            .mi_activo(mi_activo)
-            .mi_banca(pk(MEGANIUM), pk(MEOWTH))
-            .mi_mano(*mano)
-            .op_activo(op_activo)
-            .op_banca(pk(OGERPON, energias=[G]), pk(DWEBBLE))
-            .op_zonas(mano=6, mazo=30, prizes=6)
+            .my_active(my_active)
+            .my_bench(pk(MEGANIUM), pk(MEOWTH))
+            .my_hand(*hand)
+            .op_active(op_active)
+            .op_bench(pk(OGERPON, energias=[G]), pk(DWEBBLE))
+            .op_zonas(hand=6, deck=30, prizes=6)
             .menu_mano(con_ataque=True)
-            .construir())
+            .build())
 
 
 def test_con_el_muro_noqueable_no_se_juega_boss():
@@ -181,7 +181,7 @@ def test_con_el_muro_noqueable_no_se_juega_boss():
 def test_frontera_activo_ex_el_gusteo_sigue_vivo():
     """With an Ogerpon ex active the wall is UNTOUCHABLE (0 damage): there is no
     window to protect and Boss's is the play again."""
-    obs = _escenario(mi_activo=pk(OGERPON, energias=[G] * 6, fisicas=3))
+    obs = _escenario(my_active=pk(OGERPON, energias=[G] * 6, fisicas=3))
     assert _jugada(obs, m.agent(obs)) == ("PLAY", BOSS)
 
 
@@ -189,7 +189,7 @@ def test_frontera_sturdy_sin_KO_el_gusteo_sigue_vivo():
     """Crustle 533 at FULL life survives on 10 HP (*Sturdy*): Wood Hammer does not
     knock it out, so there is no wall to finish and the 2-prize gust rules.
     That is why the flag is measured with `_our_effective_damage`."""
-    obs = _escenario(op_activo=pk(CRUSTLE_STURDY))
+    obs = _escenario(op_active=pk(CRUSTLE_STURDY))
     assert _jugada(obs, m.agent(obs)) == ("PLAY", BOSS)
 
 

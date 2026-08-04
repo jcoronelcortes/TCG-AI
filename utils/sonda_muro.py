@@ -47,9 +47,9 @@ def _es_main(obs):
     return (obs.get("select") or {}).get("context") == int(SelectContext.MAIN)
 
 
-def _tipo_elegido(obs, eleccion):
+def _tipo_elegido(obs, choice):
     try:
-        return ((obs.get("select") or {}).get("option") or [])[eleccion[0]].get("type")
+        return ((obs.get("select") or {}).get("option") or [])[choice[0]].get("type")
     except (IndexError, TypeError, KeyError):
         return None
 
@@ -77,54 +77,54 @@ def _califica(m, obs, asiento):
     return False
 
 
-def jugar(m, deck_rival, partidas, volcar, destino):
+def play(m, opponent_deck, partidas, volcar, destino):
     from cg import game
 
-    resumen = Counter()
+    summary = Counter()
     secos = []
     for i in range(partidas):
         asiento = i % 2
-        d0 = sp.leer_deck() if asiento == 0 else deck_rival
-        d1 = deck_rival if asiento == 0 else sp.leer_deck()
+        d0 = sp.read_deck() if asiento == 0 else opponent_deck
+        d1 = opponent_deck if asiento == 0 else sp.read_deck()
         obs, sd = game.battle_start(list(d0), list(d1))
         if obs is None:
             continue
         agentes = {asiento: m, 1 - asiento: BotRival()}
-        pasos = 0
-        turno_actual = None
+        steps = 0
+        current_turn = None
         estado = None  # the current turn's dict, if it qualifies
         try:
-            while obs["current"]["result"] == -1 and pasos < 3000:
+            while obs["current"]["result"] == -1 and steps < 3000:
                 yi = obs["current"]["yourIndex"]
                 turn = obs["current"]["turn"]
                 if yi == asiento and _es_main(obs):
-                    if turn != turno_actual:
+                    if turn != current_turn:
                         # It closes the previous turn before opening the new one.
                         if estado is not None:
-                            resumen[estado["desenlace"]] += 1
+                            summary[estado["desenlace"]] += 1
                             if estado["desenlace"] == "seco" and len(secos) < volcar:
                                 secos.append(estado["obs"])
-                        turno_actual = turn
+                        current_turn = turn
                         estado = ({"desenlace": "seco", "obs": obs}
                                   if _califica(m, obs, asiento) else None)
                 try:
-                    eleccion = agentes[yi].agent(obs)
+                    choice = agentes[yi].agent(obs)
                 except Exception:
                     break
                 if estado is not None and yi == asiento and _es_main(obs):
-                    t = _tipo_elegido(obs, eleccion)
+                    t = _tipo_elegido(obs, choice)
                     if t == int(OptionType.ATTACK):
                         estado["desenlace"] = "ataca"
                     elif t == int(OptionType.RETREAT) and estado["desenlace"] == "seco":
                         # Retreating is the pivot; if it then attacks, "attacks" rules.
                         estado["desenlace"] = "retira"
                 try:
-                    obs = game.battle_select(eleccion)
+                    obs = game.battle_select(choice)
                 except Exception:
                     break
-                pasos += 1
+                steps += 1
             if estado is not None:
-                resumen[estado["desenlace"]] += 1
+                summary[estado["desenlace"]] += 1
                 if estado["desenlace"] == "seco" and len(secos) < volcar:
                     secos.append(estado["obs"])
         finally:
@@ -135,7 +135,7 @@ def jugar(m, deck_rival, partidas, volcar, destino):
         for n, o in enumerate(secos, start=1):
             (destino / f"seco_{n:03d}.json").write_text(
                 json.dumps({"observation": o}, ensure_ascii=False), encoding="utf-8")
-    return resumen, len(secos)
+    return summary, len(secos)
 
 
 def main(argv):
@@ -150,18 +150,18 @@ def main(argv):
     args = ap.parse_args(argv)
 
     import main as m
-    deck_rival = sp.leer_deck(args.rival)
-    resumen, n_secos = jugar(m, deck_rival, args.partidas, args.volcar,
+    opponent_deck = sp.read_deck(args.rival)
+    summary, n_secos = play(m, opponent_deck, args.partidas, args.volcar,
                              Path(args.destino))
 
-    total = sum(resumen.values())
+    total = sum(summary.values())
     print(f"rival={Path(args.rival).stem}  partidas={args.partidas}")
     print(f"turnos que EMPIEZAN atascados tras el muro con respuesta lista: {total}")
     if not total:
         print("  (ninguno: el estado no se dio, no hay nada que concluir)")
         return 0
     for k in ("ataca", "retira", "seco"):
-        v = resumen.get(k, 0)
+        v = summary.get(k, 0)
         print(f"  {k:<7} {v:4d}  ({100 * v / total:5.1f}%)")
     if n_secos:
         print(f"\nvolcados {n_secos} turnos secos en {args.destino}")

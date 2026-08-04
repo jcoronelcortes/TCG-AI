@@ -101,11 +101,11 @@ def _como_spec(x):
 
 class Escenario:
 
-    def __init__(self, turn=2, paso=1, tac=0, primer_jugador=0,
+    def __init__(self, turn=2, step=1, tac=0, primer_jugador=0,
                  energia_jugada=False, partidario_jugado=False,
                  estadio_jugado=False, retirado=False, premios_propios=None):
-        self._turno = turn
-        self._paso = paso
+        self._turn = turn
+        self._paso = step
         self._tac = tac
         self._primer_jugador = primer_jugador
         self._energia_jugada = energia_jugada
@@ -183,15 +183,15 @@ class Escenario:
     # ------------------------------------------------------------------
     # Our own zones
     # ------------------------------------------------------------------
-    def mi_activo(self, spec):
+    def my_active(self, spec):
         self._mi_activo = self._pokemon_mio(spec)
         return self
 
-    def mi_banca(self, *specs):
+    def my_bench(self, *specs):
         self._mi_banca = [self._pokemon_mio(s) for s in specs]
         return self
 
-    def mi_mano(self, *ids):
+    def my_hand(self, *ids):
         self._mi_mano = [self._tomar(cid, "mano") for cid in ids]
         return self
 
@@ -213,7 +213,7 @@ class Escenario:
             self._estadio = self._tomar(card_id, "estadio")
         return self
 
-    def mazo(self, *ids):
+    def deck(self, *ids):
         """The VISIBLE contents of our own deck (order = the array's order)."""
         self._mazo_visible = [self._tomar(cid, "mazo") for cid in ids]
         return self
@@ -243,11 +243,11 @@ class Escenario:
     # ------------------------------------------------------------------
     # The opponent's zones (with no accounting: their deck is unknown)
     # ------------------------------------------------------------------
-    def op_activo(self, spec):
+    def op_active(self, spec):
         self._op_activo_spec = self._pokemon_op(spec)
         return self
 
-    def op_banca(self, *specs):
+    def op_bench(self, *specs):
         self._op_banca = [self._pokemon_op(s) for s in specs]
         return self
 
@@ -256,9 +256,9 @@ class Escenario:
                               "serial": next(self._serial_op)} for cid in ids]
         return self
 
-    def op_zonas(self, mano=0, mazo=30, prizes=6):
-        self._op_mano = mano
-        self._op_mazo = mazo
+    def op_zonas(self, hand=0, deck=30, prizes=6):
+        self._op_mano = hand
+        self._op_mazo = deck
         self._op_premios = prizes
         return self
 
@@ -614,13 +614,13 @@ class Escenario:
                     "Vitality en mi_mano()")
             opciones.append({"type": int(OptionType.PLAY), "index": idx})
         if con_evolucion_mano:
-            en_juego = ([self._mi_activo] if self._mi_activo else []) + self._mi_banca
+            in_play = ([self._mi_activo] if self._mi_activo else []) + self._mi_banca
             for i, c in enumerate(self._mi_mano):
                 data = _CARD_TABLE.get(c["id"])
                 pre = getattr(data, "evolvesFrom", None) if data else None
                 if not pre:
                     continue
-                for j, p in enumerate(en_juego):
+                for j, p in enumerate(in_play):
                     p_data = _CARD_TABLE.get(p["id"])
                     if p_data is None or p_data.name != pre:
                         continue
@@ -710,7 +710,7 @@ class Escenario:
     # ------------------------------------------------------------------
     # Final construction
     # ------------------------------------------------------------------
-    def construir(self):
+    def build(self):
         if self._mi_activo is None:
             raise EstadoInconsistente("falta mi_activo(...)")
         if self._op_activo_spec is None:
@@ -762,7 +762,7 @@ class Escenario:
             "paralyzed": False, "confused": False,
         }
         current = {
-            "turn": self._turno,
+            "turn": self._turn,
             "turnActionCount": self._tac,
             "yourIndex": 0,
             "firstPlayer": self._primer_jugador,

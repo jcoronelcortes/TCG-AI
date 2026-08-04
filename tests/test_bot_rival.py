@@ -48,14 +48,14 @@ def pk(cid, hp, max_hp, energias=0):
             "preEvolution": [], "serial": cid * 10 + hp}
 
 
-def obs(select, yo_activo, yo_banca, op_activo, op_banca, yidx=1, turn=6):
+def obs(select, yo_activo, yo_banca, op_active, op_bench, yidx=1, turn=6):
     jugadores = [None, None]
     jugadores[yidx] = {"active": [yo_activo] if yo_activo else [],
                        "bench": list(yo_banca), "prize": [None] * 4,
                        "hand": [], "handCount": 0, "deckCount": 30,
                        "discard": []}
-    jugadores[1 - yidx] = {"active": [op_activo] if op_activo else [],
-                           "bench": list(op_banca), "prize": [None] * 4,
+    jugadores[1 - yidx] = {"active": [op_active] if op_active else [],
+                           "bench": list(op_bench), "prize": [None] * 4,
                            "hand": [], "handCount": 0, "deckCount": 30,
                            "discard": []}
     return {"current": {"players": jugadores, "yourIndex": yidx, "turn": turn,

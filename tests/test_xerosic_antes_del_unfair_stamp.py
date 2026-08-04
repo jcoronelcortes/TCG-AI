@@ -121,11 +121,11 @@ def _scores(obs):
     # The spies are installed in ALL the modules that bind the name: the one that
     # calls the scorers now lives in ptcg/turno/puntuacion.py, not in `main`.
     restauradores = []
-    for clave, name in (("stamp", "_score_unfair_stamp_play"),
+    for key, name in (("stamp", "_score_unfair_stamp_play"),
                           ("xerosic", "_score_xerosic_play")):
         orig = getattr(m, name)
 
-        def espia(ctx, _orig=orig, _clave=clave):
+        def espia(ctx, _orig=orig, _clave=key):
             r = _orig(ctx)
             visto[_clave] = r
             return r
@@ -226,8 +226,8 @@ def test_el_fixture_tiene_de_verdad_las_dos_cartas_y_la_mano_gigante():
     """Without a Stamp + Xerosic in hand and a big rival hand the test measures nothing."""
     o = _obs()
     yo = o["current"]["yourIndex"]
-    mano = [c["id"] for c in o["current"]["players"][yo]["hand"]]
-    assert UNFAIR_STAMP in mano, mano
-    assert XEROSIC in mano, mano
+    hand = [c["id"] for c in o["current"]["players"][yo]["hand"]]
+    assert UNFAIR_STAMP in hand, hand
+    assert XEROSIC in hand, hand
     assert o["current"]["players"][1 - yo]["handCount"] >= 18
     assert o["current"]["supporterPlayed"] is False

@@ -104,8 +104,8 @@ def test_el_fixture_es_el_cambio_por_el_cuerpo_de_50pv():
     riv = o["current"]["players"][1 - yo]
 
     active = mio["active"][0]
-    banca = [b for b in mio["bench"] if b]
-    gemelo = next(b for b in banca if b["id"] == OGERPON)
+    bench = [b for b in mio["bench"] if b]
+    gemelo = next(b for b in bench if b["id"] == OGERPON)
 
     # The one in front is HEALTHY; the bench one is at 50 of 210.
     assert active["id"] == OGERPON and active["hp"] == 210

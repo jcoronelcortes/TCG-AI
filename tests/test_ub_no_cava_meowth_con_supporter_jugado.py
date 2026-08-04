@@ -111,9 +111,9 @@ def _por_accion(obs_list):
     return {o["current"]["turnActionCount"]: o for o in obs_list}
 
 
-def _jugada(obs, eleccion):
+def _jugada(obs, choice):
     """('PLAY'|'CARTA', card_id) / ('ATTACK', attackId) / ('END', None)."""
-    o = obs["select"]["option"][eleccion[0]]
+    o = obs["select"]["option"][choice[0]]
     tipo = o["type"]
     yo = obs["current"]["yourIndex"]
     jugador = obs["current"]["players"][yo]
@@ -159,9 +159,9 @@ def test_paso101_la_segunda_ultra_ball_tampoco_se_juega():
 def test_el_menu_ofrecia_de_verdad_las_dos_jugadas():
     """Without the Ultra Ball AND the attack in the menu the test discriminates nothing."""
     for tac in (16, 19):
-        jugadas = _jugadas(_por_accion(_observaciones())[tac])
-        assert ("PLAY", ULTRA_BALL) in jugadas, (tac, jugadas)
-        assert ("ATTACK", SYRUP_STORM) in jugadas, (tac, jugadas)
+        plays = _jugadas(_por_accion(_observaciones())[tac])
+        assert ("PLAY", ULTRA_BALL) in plays, (tac, plays)
+        assert ("ATTACK", SYRUP_STORM) in plays, (tac, plays)
 
 
 # ---------------------------------------------------------------------------

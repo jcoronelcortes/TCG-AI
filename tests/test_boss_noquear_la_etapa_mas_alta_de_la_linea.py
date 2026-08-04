@@ -139,8 +139,8 @@ def test_el_fixture_es_el_paso_93_con_la_fase_1_delante():
     # The rival: a BARE Gabite (Stage 1) active and the Gible (a Basic) on the bench
     # WITH energy -- both bodies of the same line, both worth 1 prize.
     assert riv["active"][0]["id"] == GABITE and riv["active"][0]["energies"] == []
-    banca = [b["id"] for b in riv["bench"] if b]
-    assert banca == [ROSELIA, GIBLE, ROSELIA, ROSELIA]
+    bench = [b["id"] for b in riv["bench"] if b]
+    assert bench == [ROSELIA, GIBLE, ROSELIA, ROSELIA]
     assert len(riv["bench"][1]["energies"]) == 1
     assert (m.prize_count_op(_pkm(GABITE)) == m.prize_count_op(_pkm(GIBLE)) == 1)
 
@@ -173,12 +173,12 @@ def test_control_con_el_basico_delante_el_boss_si_se_juega():
     gusting DOES go up a step -- and the Boss's is played again."""
     o = _obs()
     riv = o["current"]["players"][1 - o["current"]["yourIndex"]]
-    active, banca = riv["active"][0], riv["bench"][1]
-    active["id"], banca["id"] = GIBLE, GABITE
+    active, bench = riv["active"][0], riv["bench"][1]
+    active["id"], bench["id"] = GIBLE, GABITE
     active["hp"] = active["maxHp"] = 70
-    banca["hp"] = banca["maxHp"] = 100
+    bench["hp"] = bench["maxHp"] = 100
     active["preEvolution"] = []
-    banca["preEvolution"] = [{"id": GIBLE, "playerIndex": 0, "serial": 4}]
+    bench["preEvolution"] = [{"id": GIBLE, "playerIndex": 0, "serial": 4}]
 
     assert m.agent(o) == [_idx(o, type=7, index=8)], (
         "activo Basico desnudo + Fase 1 energizada en banca: el gusteo corta la "

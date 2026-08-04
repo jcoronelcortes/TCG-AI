@@ -113,12 +113,12 @@ def test_step67_carga_el_activo_y_no_el_hydrapple_de_banca():
     assert "activo" in destinos.values()
     assert any(d.startswith("banca") for d in destinos.values())
 
-    eleccion = m.agent(obs)
+    choice = m.agent(obs)
 
-    assert len(eleccion) == 1 and eleccion[0] in destinos, (
-        f"esperaba un ATTACH, obtuvo {eleccion} (destinos={destinos})")
-    assert destinos[eleccion[0]] == "activo", (
-        f"la energia debia ir al ACTIVO, fue a {destinos[eleccion[0]]}")
+    assert len(choice) == 1 and choice[0] in destinos, (
+        f"esperaba un ATTACH, obtuvo {choice} (destinos={destinos})")
+    assert destinos[choice[0]] == "activo", (
+        f"la energia debia ir al ACTIVO, fue a {destinos[choice[0]]}")
 
 
 def test_step67_ripening_charge_apunta_al_activo():
@@ -143,10 +143,10 @@ def test_step67_ripening_charge_apunta_al_activo():
         {"type": int(OptionType.END)},
     ]
 
-    eleccion = m.agent(obs)
+    choice = m.agent(obs)
 
-    assert eleccion and eleccion[0] in (0, 1), (
-        f"esperaba activar Ripening Charge (opt 0/1), obtuvo {eleccion}")
+    assert choice and choice[0] in (0, 1), (
+        f"esperaba activar Ripening Charge (opt 0/1), obtuvo {choice}")
 
 
 def test_step67_con_el_activo_cargado_ataca():
@@ -177,42 +177,42 @@ def test_activo_ogerpon_carga_a_si_mismo_para_rematar():
     On the bench there is a Hydrapple ex at 0 energies, the "development" target that
     used to take the Grass.
     """
-    obs = (Escenario(turn=8, paso=90, tac=2)
-           .mi_activo(pk(OGERPON, energias=[G, G]))
-           .mi_banca(pk(HYDRAPPLE, pre_evo=[APPLIN, DIPPLIN]), MEOWTH)
-           .mi_mano(ENERGIA, ENERGIA)
-           .op_activo(pk(m.Munkidori, hp=40))
-           .op_banca(pk(m.Froslass, pre_evo=[m.Snorunt]))
-           .op_zonas(mano=4, mazo=30, prizes=4)
+    obs = (Escenario(turn=8, step=90, tac=2)
+           .my_active(pk(OGERPON, energias=[G, G]))
+           .my_bench(pk(HYDRAPPLE, pre_evo=[APPLIN, DIPPLIN]), MEOWTH)
+           .my_hand(ENERGIA, ENERGIA)
+           .op_active(pk(m.Munkidori, hp=40))
+           .op_bench(pk(m.Froslass, pre_evo=[m.Snorunt]))
+           .op_zonas(hand=4, deck=30, prizes=4)
            .menu_attach_energia()
-           .construir())
+           .build())
 
     destinos = _opciones_attach(obs)
-    eleccion = m.agent(obs)
+    choice = m.agent(obs)
 
-    assert destinos[eleccion[0]] == "activo", (
+    assert destinos[choice[0]] == "activo", (
         f"la Planta debia ir al Ogerpon ACTIVO (remata), fue a "
-        f"{destinos[eleccion[0]]}")
+        f"{destinos[choice[0]]}")
 
 
 def test_activo_sin_remate_pero_turno_esteril_tambien_carga_al_activo():
     """With no KO available, charging the active is the only way to attack today."""
-    obs = (Escenario(turn=8, paso=90, tac=2)
-           .mi_activo(pk(HYDRAPPLE, energias=[G], pre_evo=[APPLIN, DIPPLIN]))
-           .mi_banca(pk(APPLIN), MEOWTH)
-           .mi_mano(ENERGIA)
-           .op_activo(pk(m.Grimmsnarl_ex, hp=320,
+    obs = (Escenario(turn=8, step=90, tac=2)
+           .my_active(pk(HYDRAPPLE, energias=[G], pre_evo=[APPLIN, DIPPLIN]))
+           .my_bench(pk(APPLIN), MEOWTH)
+           .my_hand(ENERGIA)
+           .op_active(pk(m.Grimmsnarl_ex, hp=320,
                          energias=[G, G, G]))
-           .op_zonas(mano=4, mazo=30, prizes=5)
+           .op_zonas(hand=4, deck=30, prizes=5)
            .menu_attach_energia()
-           .construir())
+           .build())
 
     destinos = _opciones_attach(obs)
-    eleccion = m.agent(obs)
+    choice = m.agent(obs)
 
-    assert destinos[eleccion[0]] == "activo", (
+    assert destinos[choice[0]] == "activo", (
         f"sin la carga al activo el turno seria esteril; fue a "
-        f"{destinos[eleccion[0]]}")
+        f"{destinos[choice[0]]}")
 
 
 def test_activo_que_ya_ataca_no_acapara_la_energia():
@@ -221,18 +221,18 @@ def test_activo_que_ya_ataca_no_acapara_la_energia():
     The active Hydrapple ex with 2 energies already attacks; the Grass must follow the
     normal distribution (bench development), not stay on the active.
     """
-    obs = (Escenario(turn=8, paso=90, tac=2)
-           .mi_activo(pk(HYDRAPPLE, energias=[G, G], pre_evo=[APPLIN, DIPPLIN]))
-           .mi_banca(pk(OGERPON), MEOWTH)
-           .mi_mano(ENERGIA)
-           .op_activo(pk(m.Grimmsnarl_ex, hp=320,
+    obs = (Escenario(turn=8, step=90, tac=2)
+           .my_active(pk(HYDRAPPLE, energias=[G, G], pre_evo=[APPLIN, DIPPLIN]))
+           .my_bench(pk(OGERPON), MEOWTH)
+           .my_hand(ENERGIA)
+           .op_active(pk(m.Grimmsnarl_ex, hp=320,
                          energias=[G, G, G]))
-           .op_zonas(mano=4, mazo=30, prizes=5)
+           .op_zonas(hand=4, deck=30, prizes=5)
            .menu_attach_energia()
-           .construir())
+           .build())
 
     destinos = _opciones_attach(obs)
-    eleccion = m.agent(obs)
+    choice = m.agent(obs)
 
-    assert destinos[eleccion[0]] != "activo", (
+    assert destinos[choice[0]] != "activo", (
         "el activo ya podia atacar: la energia debia ir a la banca")

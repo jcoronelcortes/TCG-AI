@@ -70,24 +70,24 @@ def reset_main_state():
     m._init_cards_tracking()
 
 
-def _escenario(mano, banca=None, energia_activo=0, descarte=(GRASS, GRASS),
+def _escenario(hand, bench=None, energia_activo=0, descarte=(GRASS, GRASS),
                energia_jugada=False, retirado=False, op_hp=70):
-    banca = banca if banca is not None else [pk(TAPU, energias=[G, G, G, G]),
+    bench = bench if bench is not None else [pk(TAPU, energias=[G, G, G, G]),
                                              pk(MEOWTH)]
-    return (Escenario(turn=12, paso=40, energia_jugada=energia_jugada,
+    return (Escenario(turn=12, step=40, energia_jugada=energia_jugada,
                       retirado=retirado)
-            .mi_activo(pk(FEZANDIPITI, energias=[G] * energia_activo))
-            .mi_banca(*banca)
-            .mi_mano(*mano)
+            .my_active(pk(FEZANDIPITI, energias=[G] * energia_activo))
+            .my_bench(*bench)
+            .my_hand(*hand)
             .mi_descarte(*descarte)
-            .op_activo(pk(COMFEY, hp=op_hp))
-            .op_zonas(mano=5, mazo=20, prizes=3))
+            .op_active(pk(COMFEY, hp=op_hp))
+            .op_zonas(hand=5, deck=20, prizes=3))
 
 
-def _elegida(obs, eleccion, mano):
-    o = obs["select"]["option"][eleccion[0]]
+def _elegida(obs, choice, hand):
+    o = obs["select"]["option"][choice[0]]
     if o["type"] == int(m.OptionType.PLAY):
-        return ("PLAY", mano[o["index"]])
+        return ("PLAY", hand[o["index"]])
     if o["type"] == int(m.OptionType.END):
         return ("END", None)
     if o["type"] == int(m.OptionType.RETREAT):
@@ -104,39 +104,39 @@ def _elegida(obs, eleccion, mano):
 def test_night_stretcher_se_juega_para_pagar_la_retirada():
     """The record's case: with no Grass in hand and the finisher on the table, the
     Night Stretcher is played instead of ending the turn."""
-    mano = [NIGHT_STRETCHER, ULTRA_BALL]
-    obs = _escenario(mano).menu_mano().construir()
-    assert _elegida(obs, m.agent(obs), mano) == ("PLAY", NIGHT_STRETCHER)
+    hand = [NIGHT_STRETCHER, ULTRA_BALL]
+    obs = _escenario(hand).menu_mano().build()
+    assert _elegida(obs, m.agent(obs), hand) == ("PLAY", NIGHT_STRETCHER)
 
 
 def test_deck_agnostico_el_rematador_no_necesita_habilidad_de_carga():
     """With a bench Teal Mask Ogerpon ex the play already came out right by
     chance (the `energia_activo_sin_teal` scenario). The rule must hold
     equally with any finisher -- here, both."""
-    for banca in ([pk(TAPU, energias=[G, G, G, G]), pk(MEOWTH)],
+    for bench in ([pk(TAPU, energias=[G, G, G, G]), pk(MEOWTH)],
                   [pk(OGERPON, energias=[G, G, G]), pk(MEOWTH)]):
         m._init_cards_tracking()
         m._cards_first_scan_done = False
         m._field_at_turn_start = {}
-        mano = [NIGHT_STRETCHER, ULTRA_BALL]
-        obs = _escenario(mano, banca=banca).menu_mano().construir()
-        assert _elegida(obs, m.agent(obs), mano) == ("PLAY", NIGHT_STRETCHER)
+        hand = [NIGHT_STRETCHER, ULTRA_BALL]
+        obs = _escenario(hand, bench=bench).menu_mano().build()
+        assert _elegida(obs, m.agent(obs), hand) == ("PLAY", NIGHT_STRETCHER)
 
 
 def test_sin_energia_en_el_descarte_no_se_gasta_la_night_stretcher():
     """Boundary: if no Grass is left in the discard, the chain does not exist
     and the Night Stretcher must not be played through this rule."""
-    mano = [NIGHT_STRETCHER, ULTRA_BALL]
-    obs = _escenario(mano, descarte=(ULTRA_BALL, ULTRA_BALL)).menu_mano().construir()
-    assert _elegida(obs, m.agent(obs), mano) != ("PLAY", NIGHT_STRETCHER)
+    hand = [NIGHT_STRETCHER, ULTRA_BALL]
+    obs = _escenario(hand, descarte=(ULTRA_BALL, ULTRA_BALL)).menu_mano().build()
+    assert _elegida(obs, m.agent(obs), hand) != ("PLAY", NIGHT_STRETCHER)
 
 
 def test_con_planta_ya_en_mano_la_cadena_no_necesita_la_night_stretcher():
     """Boundary: with the Grass already in hand the first link is superfluous; what rules is the
     attachment to the ACTIVE (`_attach_enable_retreat_ko`, 41000)."""
-    mano = [NIGHT_STRETCHER, GRASS]
-    obs = _escenario(mano).menu_mano(con_adjunte=True).construir()
-    tipo, destino = _elegida(obs, m.agent(obs), mano)
+    hand = [NIGHT_STRETCHER, GRASS]
+    obs = _escenario(hand).menu_mano(con_adjunte=True).build()
+    tipo, destino = _elegida(obs, m.agent(obs), hand)
     assert tipo == "ATTACH" and destino == int(m.AreaType.ACTIVE)
 
 
@@ -146,24 +146,24 @@ def test_con_planta_ya_en_mano_la_cadena_no_necesita_la_night_stretcher():
 
 def test_la_night_stretcher_recupera_la_energia_y_no_un_pokemon():
     obs = (_escenario([ULTRA_BALL], descarte=(GRASS, GRASS, ULTRA_BALL))
-           .fetch_descarte(NIGHT_STRETCHER).construir())
-    eleccion = m.agent(obs)
-    idx = obs["select"]["option"][eleccion[0]]["index"]
+           .fetch_descarte(NIGHT_STRETCHER).build())
+    choice = m.agent(obs)
+    idx = obs["select"]["option"][choice[0]]["index"]
     assert obs["current"]["players"][0]["discard"][idx]["id"] == GRASS
 
 
 def test_la_planta_recuperada_va_al_activo_no_a_la_banca():
-    mano = [GRASS, ULTRA_BALL]
-    obs = _escenario(mano).menu_mano(con_adjunte=True).construir()
-    tipo, destino = _elegida(obs, m.agent(obs), mano)
+    hand = [GRASS, ULTRA_BALL]
+    obs = _escenario(hand).menu_mano(con_adjunte=True).build()
+    tipo, destino = _elegida(obs, m.agent(obs), hand)
     assert tipo == "ATTACH" and destino == int(m.AreaType.ACTIVE)
 
 
 def test_con_la_energia_puesta_se_retira():
-    mano = [ULTRA_BALL]
-    obs = (_escenario(mano, energia_activo=1, energia_jugada=True)
-           .menu_mano(con_retirada=True).construir())
-    assert _elegida(obs, m.agent(obs), mano) == ("RETREAT", None)
+    hand = [ULTRA_BALL]
+    obs = (_escenario(hand, energia_activo=1, energia_jugada=True)
+           .menu_mano(con_retirada=True).build())
+    assert _elegida(obs, m.agent(obs), hand) == ("RETREAT", None)
 
 
 # ---------------------------------------------------------------------------
@@ -232,7 +232,7 @@ def test_coste_de_ataque_min_desconocido_es_none():
 def test_tras_retirar_se_promueve_al_rematador():
     obs = (_escenario([ULTRA_BALL], energia_activo=1, energia_jugada=True,
                       retirado=True)
-           .promocion_desde_banca().construir())
-    eleccion = m.agent(obs)
-    idx = obs["select"]["option"][eleccion[0]]["index"]
+           .promocion_desde_banca().build())
+    choice = m.agent(obs)
+    idx = obs["select"]["option"][choice[0]]["index"]
     assert obs["current"]["players"][0]["bench"][idx]["id"] == TAPU

@@ -35,7 +35,7 @@ from cg.api import CardType, all_card_data
 from golden_corpus import nuestro_indice
 
 
-def cosechar_series(rutas):
+def harvest_series(paths):
     """{serial: card_id} of every OPPOSING card seen.
 
     Our own seat is decided by a vote against deck.csv (`nuestro_indice`,
@@ -53,8 +53,8 @@ def cosechar_series(rutas):
                 and c.get("playerIndex") == rival):
             serials[(rival, c["serial"])] = c["id"]
 
-    for ruta in rutas:
-        with open(ruta, encoding="utf-8") as f:
+    for path in paths:
+        with open(path, encoding="utf-8") as f:
             data = json.load(f)
         yo = nuestro_indice(data)
         rival = 1 - yo
@@ -87,7 +87,7 @@ def cosechar_series(rutas):
 
 def amplificar(conteo_visto, tabla):
     """Amplifies the observed count up to 60 cards according to the documented rule."""
-    mazo = []
+    deck = []
     basicas = {}
     for cid, visto in sorted(conteo_visto.items()):
         data = tabla.get(cid)
@@ -98,17 +98,17 @@ def amplificar(conteo_visto, tabla):
             basicas[cid] = visto
         else:
             copias = 1 if getattr(data, "aceSpec", False) else 4
-            mazo.extend([cid] * copias)
-    if len(mazo) > 60:
+            deck.extend([cid] * copias)
+    if len(deck) > 60:
         raise SystemExit(
-            f"la amplificacion x4 produce {len(mazo)} cartas (>60): recorta "
+            f"la amplificacion x4 produce {len(deck)} cartas (>60): recorta "
             f"a mano la lista de vistos o ajusta la regla")
-    relleno = 60 - len(mazo)
+    relleno = 60 - len(deck)
     if not basicas:
         raise SystemExit("no se vio ninguna energia basica para el relleno")
     basica = max(basicas, key=basicas.get)
-    mazo.extend([basica] * relleno)
-    return mazo, basica, relleno
+    deck.extend([basica] * relleno)
+    return deck, basica, relleno
 
 
 def main(argv):
@@ -119,30 +119,30 @@ def main(argv):
                     help="carpeta con registro_*.json")
     args = ap.parse_args(argv)
 
-    rutas = sorted((_ROOT / args.registros).glob("registro_*.json"))
-    if not rutas:
+    paths = sorted((_ROOT / args.registros).glob("registro_*.json"))
+    if not paths:
         raise SystemExit(f"no hay registros en {args.registros}/")
-    serials = cosechar_series(rutas)
+    serials = harvest_series(paths)
     conteo = defaultdict(int)
     for cid in serials.values():
         conteo[cid] += 1
 
     tabla = {c.cardId: c for c in all_card_data()}
-    mazo, basica, relleno = amplificar(conteo, tabla)
+    deck, basica, relleno = amplificar(conteo, tabla)
 
     print(f"Cartas rivales vistas ({sum(conteo.values())} en "
-          f"{len(rutas)} registros):")
+          f"{len(paths)} registros):")
     for cid, visto in sorted(conteo.items()):
         d = tabla.get(cid)
-        en_mazo = mazo.count(cid)
-        print(f"  {cid:>5} visto x{visto} -> en mazo x{en_mazo}  "
+        in_deck = deck.count(cid)
+        print(f"  {cid:>5} visto x{visto} -> en mazo x{in_deck}  "
               f"{d.name if d else '?'}")
     print(f"Relleno: {relleno} x {tabla[basica].name}({basica})")
 
     salida = _ROOT / args.salida
     salida.parent.mkdir(parents=True, exist_ok=True)
-    salida.write_text("\n".join(str(c) for c in mazo) + "\n")
-    print(f"Escrito {salida} ({len(mazo)} cartas)")
+    salida.write_text("\n".join(str(c) for c in deck) + "\n")
+    print(f"Escrito {salida} ({len(deck)} cartas)")
     return 0
 
 
