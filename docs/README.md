@@ -1,10 +1,12 @@
 # TCG-AI Documentation
 
 TCG-AI is a **heuristic agent that plays Pokémon Trading Card Game** inside the
-simulator of the *PTCG AI Battle Challenge*. It receives the game state, scores
-every legal option, and plays the best one. There is no machine learning: every
-decision comes from rules that a human wrote, measured, and kept only if they
-won more games.
+simulator of the Kaggle competition [The Pokémon Company — PTCG AI Battle
+Challenge Simulation](https://www.kaggle.com/competitions/pokemon-tcg-ai-battle).
+
+It receives the game state, scores every legal option, and plays the best one.
+There is no machine learning: every decision comes from rules that a human
+wrote, measured, and kept only if they won more games.
 
 This documentation explains **what each part of the project is for**, not how it
 is written line by line. It is meant to stay readable as the code changes.
