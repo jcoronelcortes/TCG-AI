@@ -19,8 +19,8 @@ in the format of the tests/ fixtures) into records/wall_probe/ so the
 decision can be reproduced with main.agent() and one can read what scored above the relief.
 
 Usage:
-    python utils/wall_probe.py --rival deck/real_opponents/crustle_wall_2.csv
-    python utils/wall_probe.py --rival ... --partidas 80 --volcar 15
+    python utils/wall_probe.py --opponent deck/real_opponents/crustle_wall_2.csv
+    python utils/wall_probe.py --opponent ... --games 80 --dump 15
 """
 
 import argparse
@@ -145,7 +145,7 @@ def main(argv):
                                            / "crustle_wall_2.csv"))
     ap.add_argument("--games", type=int, default=60)
     ap.add_argument("--dump", type=int, default=12,
-                    help="cuantos turnos SECOS volcar a disco (0 = ninguno)")
+                    help="how many DRY turns to dump to disk (0 = none)")
     ap.add_argument("--target", dest="target_path", default=str(_ROOT / "records" / "wall_probe"))
     args = ap.parse_args(argv)
 
@@ -155,16 +155,16 @@ def main(argv):
                              Path(args.target_path))
 
     total = sum(summary.values())
-    print(f"rival={Path(args.opponent).stem}  partidas={args.games}")
-    print(f"turnos que EMPIEZAN atascados tras el muro con respuesta lista: {total}")
+    print(f"opponent={Path(args.opponent).stem}  games={args.games}")
+    print(f"turns that START stuck behind the wall with an answer ready: {total}")
     if not total:
-        print("  (ninguno: el estado no se dio, no hay nada que concluir)")
+        print("  (none: the state never happened, there is nothing to conclude)")
         return 0
     for k in ("ataca", "retira", "seco"):
         v = summary.get(k, 0)
         print(f"  {k:<7} {v:4d}  ({100 * v / total:5.1f}%)")
     if n_secos:
-        print(f"\nvolcados {n_secos} turnos secos en {args.target_path}")
+        print(f"\nvolcados {n_secos} dry turns in {args.target_path}")
     return 0
 
 

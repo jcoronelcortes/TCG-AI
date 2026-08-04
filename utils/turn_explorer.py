@@ -25,8 +25,8 @@ against any line that develops.
 
 Usage:
     python utils/turn_explorer.py --demo                # the Myriad combo
-    python utils/turn_explorer.py --hallazgo records/autopsia/X.json
-    python utils/turn_explorer.py --autopsia records/autopsia/ --max 20
+    python utils/turn_explorer.py --finding records/autopsia/X.json
+    python utils/turn_explorer.py --autopsy records/autopsia/ --max 20
 """
 
 import argparse
@@ -452,11 +452,11 @@ def comparar_hallazgo(path, index=0, max_nodos=MAX_NODOS):
     obs = h["observation"]
     # A real autopsy finding: the simulator's menu rules at the root node.
     puntaje, line, nodos = explore(obs, max_nodos, respetar_menu=True)
-    print(f"{Path(path).name} [{h['detector']} turno {h['turno']}]")
-    print(f"  agente en la partida: {h['detalle']}")
-    print(f"  mejor linea del explorador ({nodos} nodos): "
+    print(f"{Path(path).name} [{h['detector']} turn {h['turn']}]")
+    print(f"  agent in the game: {h['detalle']}")
+    print(f"  best line found by the explorer ({nodos} nodos): "
           f"{' -> '.join(line)}")
-    print(f"  evaluacion (gana, premios, dano, desarrollo): {puntaje}")
+    print(f"  evaluation (wins, prizes, damage, development): {puntaje}")
     return puntaje, line
 
 
@@ -480,7 +480,7 @@ def demo_combo_myriad():
     print(f"  mejor linea ({nodos} nodos): {' -> '.join(line)}")
     print(f"  evaluacion: {puntaje}")
     esperado = puntaje[0] == 1 and puntaje[1] == 2
-    print(f"  {'OK: encuentra la linea GANADORA de 2 premios' if esperado else 'FALLO'}")
+    print(f"  {'OK: it finds the WINNING 2-prize line' if esperado else 'FALLO'}")
     return 0 if esperado else 1
 
 
@@ -490,9 +490,9 @@ def main(argv):
     ap.add_argument("--finding", default=None)
     ap.add_argument("--index", type=int, default=0)
     ap.add_argument("--autopsy", default=None,
-                    help="directorio de hallazgos de utils/autopsy.py")
+                    help="directory of findings from utils/autopsy.py")
     ap.add_argument("--max", type=int, default=10,
-                    help="con --autopsia: numero maximo de hallazgos")
+                    help="with --autopsy: maximum number of findings")
     args = ap.parse_args(argv)
 
     if args.demo:
@@ -506,7 +506,7 @@ def main(argv):
             comparar_hallazgo(path)
             print()
         return 0
-    print("indica --demo, --hallazgo o --autopsia")
+    print("pass --demo, --finding or --autopsy")
     return 1
 
 

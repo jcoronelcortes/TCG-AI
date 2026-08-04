@@ -60,16 +60,16 @@ The repository ships the simulator, so you can play full games without Kaggle:
 
 ```bash
 # agent vs agent (sanity check: winrate should sit near 50%)
-python utils/selfplay.py --partidas 100
+python utils/selfplay.py --games 100
 
 # agent vs a real leaderboard deck piloted by the generic bot
-python utils/selfplay.py --partidas 200 --rival deck/real_opponents/crustle_wall_2.csv
+python utils/selfplay.py --games 200 --opponent deck/real_opponents/crustle_wall_2.csv
 ```
 
 To see how the agent performs against the whole known meta:
 
 ```bash
-python utils/matchup_matrix.py --partidas 400 --pesos
+python utils/matchup_matrix.py --games 400 --weights
 ```
 
 Both are described in [Tools](tools.md) and [Improving the agent](improving-the-agent.md).

@@ -18,10 +18,10 @@ Plays full games with the local simulator. This is the gate that answers the one
 question no unit test can: **does this change win more games?**
 
 ```bash
-python utils/selfplay.py --partidas 100                      # mirror: sanity check, expect ~50%
-python utils/selfplay.py --partidas 200 --base HEAD~1        # candidate vs. a previous version
-python utils/selfplay.py --partidas 200 --rival deck/real_opponents/crustle_wall_2.csv
-python utils/selfplay.py --partidas 200 --rival ... --base HEAD~1   # matchup delta
+python utils/selfplay.py --games 100                      # mirror: sanity check, expect ~50%
+python utils/selfplay.py --games 200 --base HEAD~1        # candidate vs. a previous version
+python utils/selfplay.py --games 200 --opponent deck/real_opponents/crustle_wall_2.csv
+python utils/selfplay.py --games 200 --opponent ... --base HEAD~1   # matchup delta
 ```
 
 It loads two independent copies of the agent so their internal tracking never
@@ -35,12 +35,12 @@ Plays N games against **every** opponent deck in a folder and prints the table
 from weakest matchup to strongest, with confidence intervals and forfeits.
 
 ```bash
-python utils/matchup_matrix.py --partidas 400 --pesos
-python utils/matchup_matrix.py --partidas 200 --base <git-ref>   # per-matchup delta
+python utils/matchup_matrix.py --games 400 --weights
+python utils/matchup_matrix.py --games 200 --base <git-ref>   # per-matchup delta
 ```
 
 By default it measures against the real leaderboard lists in
-`deck/real_opponents/`. `--pesos` weights each list by how often it actually
+`deck/real_opponents/`. `--weights` weights each list by how often it actually
 appears, which turns the average into an expected ladder winrate. The synthetic
 decks in `deck/opponents/` are still there but are no longer the default: many of
 them are archetypes that do not exist in the current meta, and measuring against
@@ -66,8 +66,8 @@ sterile turns (ended with a full hand and no damage). Each loss is classified by
 how we lost — prizes, bench-out, deck-out.
 
 ```bash
-python utils/autopsy.py --rival deck/real_opponents/<deck>.csv --partidas 40
-python utils/autopsy.py --censo ...        # census with a control group
+python utils/autopsy.py --opponent deck/real_opponents/<deck>.csv --games 40
+python utils/autopsy.py --census ...        # census with a control group
 ```
 
 ### `collision_radar.py` — collisions between matchup rules
@@ -152,3 +152,33 @@ These exist because of the large refactor described in
 ---
 
 Next: [Testing](testing.md) · [Debugging a decision](debugging.md)
+
+## Flag names: what changed
+
+The command line used to be in Spanish. It is not any more, and there are no
+aliases: an old invocation fails with argparse's own error. The mapping, for
+commands you may have written down:
+
+| Old | New |
+|---|---|
+| `--partidas` | `--games` |
+| `--rival` | `--opponent` |
+| `--rivales` | `--opponents` |
+| `--pesos` | `--weights` |
+| `--espejo` | `--mirror` |
+| `--censo` | `--census` |
+| `--todos` | `--all` |
+| `--candidato` | `--candidate` |
+| `--control-carta` | `--control-card` |
+| `--sin-criba` | `--no-filter` |
+| `--salida` | `--output` |
+| `--destino` | `--target` |
+| `--origen` | `--source` |
+| `--actualizar` | `--update` |
+| `--aplicar` | `--apply` |
+| `--volcar` | `--dump` |
+| `--desde` / `--hasta` | `--from-line` / `--to-line` |
+
+`tests/test_cli.py` keeps it that way: it fails if a script offers a Spanish
+flag again, and if any `args.X` a script reads is not a `dest` its parser
+declares.

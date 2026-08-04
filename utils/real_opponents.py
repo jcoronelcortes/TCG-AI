@@ -41,11 +41,11 @@ Output in deck/real_opponents/:
 
 Usage:
     python utils/real_opponents.py                     # dedupe + screening
-    python utils/real_opponents.py --partidas 60       # a finer screening
-    python utils/real_opponents.py --sin-criba         # dedupe only (fast)
+    python utils/real_opponents.py --games 60       # a finer screening
+    python utils/real_opponents.py --no-filter         # dedupe only (fast)
 
 Afterwards, the matrix consumes the corpus and its weights:
-    python utils/matchup_matrix.py --rivales deck/real_opponents --pesos
+    python utils/matchup_matrix.py --opponents deck/real_opponents --weights
 """
 
 import argparse
@@ -100,7 +100,7 @@ def load_corpus(source_path):
     for path in sorted(source_path.glob("mazo_*.csv")):
         deck = [int(x) for x in path.read_text(encoding="utf-8").split() if x.strip()]
         if len(deck) != 60:
-            print(f"  aviso: {path.name} tiene {len(deck)} cartas, se omite")
+            print(f"  warning: {path.name} tiene {len(deck)} cards, skipped")
             continue
         total += 1
         key = tuple(sorted(Counter(deck).items()))
@@ -206,37 +206,37 @@ def main(argv):
     ap.add_argument("--source", dest="source_path", default=str(_ROOT / "competitor_decks"))
     ap.add_argument("--output", default=str(_ROOT / "deck" / "real_opponents"))
     ap.add_argument("--games", type=int, default=40,
-                    help="partidas de criba por lista unica (default 40)")
+                    help="screening games per unique list (default 40)")
     ap.add_argument("--reference", default=str(_ROOT / "deck.csv"),
-                    help="mazo contra el que se criba (default: el nuestro)")
+                    help="deck to screen against (default: ours)")
     ap.add_argument("--no-filter", action="store_true",
-                    help="solo deduplicar, sin medir pilotabilidad")
+                    help="deduplicate only, without measuring pilotability")
     ap.add_argument("--top", type=int, default=None,
-                    help="cribar solo las N listas de mayor peso (el resto se omite)")
+                    help="screen only the N heaviest lists (the rest are skipped)")
     args = ap.parse_args(argv)
 
     source_path = Path(args.source_path)
     if not source_path.is_dir():
-        print(f"ERROR: no existe {source_path}", file=sys.stderr)
+        print(f"ERROR: there is no {source_path}", file=sys.stderr)
         return 1
 
-    print("== 1/3 Deduplicando el corpus ==")
+    print("== 1/3 Deduplicating the corpus ==")
     groups, total = load_corpus(source_path)
     if not groups:
-        print("ERROR: no se encontro ningun mazo", file=sys.stderr)
+        print("ERROR: no deck was found", file=sys.stderr)
         return 1
-    print(f"{total} mazos  ->  {len(groups)} listas unicas")
+    print(f"{total} decks  ->  {len(groups)} listas unique")
     cubierto = sum(g["peso_meta"] for g in groups[: args.top]) if args.top else 1.0
     if args.top:
         groups = groups[: args.top]
-        print(f"Limitado a las {len(groups)} de mayor peso ({100 * cubierto:.0f}% del meta)")
+        print(f"Limited to the {len(groups)} heaviest ({100 * cubierto:.0f}% of the meta)")
 
     if args.no_filter:
         for group in groups:
             group.update(admitido=True, wr_criba=None, forfeits=None,
                          limites=None, motivo="sin cribar")
     else:
-        print(f"\n== 2/3 Criba de pilotabilidad ({args.games} partidas por lista) ==")
+        print(f"\n== 2/3 Pilotability screening ({args.games} games per list) ==")
         import selfplay as sp
         deck_ref = sp.read_deck(args.reference)
         for n, group in enumerate(groups, start=1):
@@ -252,9 +252,9 @@ def main(argv):
     admitidos = [g for g in groups if g["admitido"]]
     peso_ok = sum(g["peso_meta"] for g in admitidos)
     print(f"Listas admitidas: {len(admitidos)}/{len(groups)}  ->  {args.output}")
-    print(f"COBERTURA DE META MEDIBLE: {100 * peso_ok:.1f}%")
+    print(f"MEASURABLE META COVERAGE: {100 * peso_ok:.1f}%")
     if len(admitidos) < len(groups):
-        print("\nNo pilotables (el harness no puede medir esta parte del meta):")
+        print("\nNot pilotable (the harness cannot measure this part of the meta):")
         for g in groups:
             if not g["admitido"]:
                 print(f"  {g['nombre']:<28} peso {100 * g['peso_meta']:4.0f}%  {g['motivo']}")

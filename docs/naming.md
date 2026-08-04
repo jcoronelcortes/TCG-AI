@@ -129,7 +129,7 @@ label that shows up in `PTCG_DEBUG` traces and is quoted in docs and in the
 decision notes. Those strings stay in Spanish on purpose: renaming them would
 break the trail back to the write-up that justifies each rule.
 
-**The CLI of `utils/` stays in Spanish.** Flags (`--partidas`, `--rival`,
-`--pesos`, `--control-carta`) and printed output are the interface of tools that
+**The CLI of `utils/` stays in Spanish.** Flags (`--games`, `--opponent`,
+`--weights`, `--control-card`) and printed output are the interface of tools that
 are run by hand every day; renaming them breaks muscle memory and local scripts
 for no gain.

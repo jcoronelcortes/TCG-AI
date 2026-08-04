@@ -151,11 +151,11 @@ def load_credentials() -> None:
                 token = path.read_text(encoding="utf-8").strip()
                 if token:
                     os.environ["KAGGLE_API_TOKEN"] = token
-                    print(f"Token de Kaggle leido de {path}")
+                    print(f"Kaggle token read from {path}")
                     return
         except OSError:
             continue
-    print("Aviso: no se encontro token local; se usaran credenciales de plataforma.")
+    print("Warning: no local token found; platform credentials will be used.")
 
 
 # ---------------------------------------------------------------------------
@@ -225,7 +225,7 @@ class Marcapasos:
 
     def esperar(self) -> None:
         if self.peticiones and self.peticiones % self.tam_lote == 0:
-            print(f"  [pausa] lote de {self.tam_lote} peticiones: {self.enfriamiento:.0f}s")
+            print(f"  [pause] batch of {self.tam_lote} requests: {self.enfriamiento:.0f}s")
             time.sleep(self.enfriamiento)
             self.last_start = time.monotonic()
         resto = self.interval - (time.monotonic() - self.last_start)
@@ -309,7 +309,7 @@ def load_cards() -> tuple[dict[int, str], set[int], set[int]]:
             path = cand
             break
     if path is None:
-        print("Aviso: EN_Card_Data.csv no encontrado; se omite la validacion por nombre.")
+        print("Warning: EN_Card_Data.csv not found; name validation is skipped.")
         return {}, set(), set()
 
     names: dict[int, str] = {}
@@ -715,18 +715,18 @@ def write_decks(
 # ---------------------------------------------------------------------------
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--top", type=int, default=100, help="posiciones del leaderboard a analizar (por defecto 100)")
-    parser.add_argument("--output", default=str(RAIZ / "competitor_decks"), help="carpeta de salida")
-    parser.add_argument("--max-episodes", type=int, default=3, help="replays a probar por competidor antes de rendirse")
-    parser.add_argument("--interval", type=float, default=INTERVALO_PETICION_S, help="segundos entre peticiones a la API")
-    parser.add_argument("--no-extra", action="store_true", help="no guardar los mazos rivales fuera del top-N")
+    parser.add_argument("--top", type=int, default=100, help="leaderboard positions to analyse (default 100)")
+    parser.add_argument("--output", default=str(RAIZ / "competitor_decks"), help="output folder")
+    parser.add_argument("--max-episodes", type=int, default=3, help="replays to try per competitor before giving up")
+    parser.add_argument("--interval", type=float, default=INTERVALO_PETICION_S, help="seconds between API requests")
+    parser.add_argument("--no-extra", action="store_true", help="do not save opponent decks outside the top N")
     parser.add_argument(
         "--index-only",
         action="store_true",
-        help="rehace indice.csv desde los mazos ya guardados, sin llamar a la API "
-        "(evita que un leaderboard cambiado renumere los mazos existentes)",
+        help="rebuild indice.csv from the decks already saved, without calling the API "
+        "(so a reshuffled leaderboard does not renumber the saved decks)",
     )
-    parser.add_argument("--keep-replays", action="store_true", help="no borrar los replays descargados (~4 MB cada uno)")
+    parser.add_argument("--keep-replays", action="store_true", help="keep the downloaded replays (~4 MB each)")
     args = parser.parse_args(argv)
 
     PACER.interval = float(args.interval)
@@ -736,22 +736,22 @@ def main(argv: list[str] | None = None) -> int:
         names, ace_spec, pokemon = load_cards()
         out_dir = Path(args.output)
         if not out_dir.is_dir():
-            print(f"ERROR: no existe la carpeta {out_dir}", file=sys.stderr)
+            print(f"ERROR: there is no folder {out_dir}", file=sys.stderr)
             return 1
         n = regenerar_indice(out_dir, names, ace_spec, pokemon)
-        print(f"indice.csv regenerado con {n} mazos (sin llamadas a la API)")
+        print(f"indice.csv rebuilt with {n} decks (no API calls)")
         return 0
 
     load_credentials()
     try:
         import kaggle
     except ImportError:
-        print("ERROR: falta el SDK de Kaggle. Instala con: pip install 'kaggle==2.2.3'", file=sys.stderr)
+        print("ERROR: the Kaggle SDK is missing. Install it with: pip install 'kaggle==2.2.3'", file=sys.stderr)
         return 1
 
     api = kaggle.api
     if not hasattr(api, "competition_team_submissions"):
-        print("ERROR: el SDK instalado no expone las submissions de simulacion; usa kaggle>=2.2.3", file=sys.stderr)
+        print("ERROR: the installed SDK does not expose simulation submissions; use kaggle>=2.2.3", file=sys.stderr)
         return 1
 
     out_dir = Path(args.output)
@@ -761,12 +761,12 @@ def main(argv: list[str] | None = None) -> int:
     cache_path = out_dir / ".decks_cache.json"
 
     names, ace_spec, pokemon = load_cards()
-    print(f"Cartas conocidas: {len(names)} | ACE SPEC: {len(ace_spec)} | Pokemon: {len(pokemon)}")
+    print(f"Known cards: {len(names)} | ACE SPEC: {len(ace_spec)} | Pokemon: {len(pokemon)}")
 
     print(f"\n== 1/3 Leaderboard: primeras {args.top} posiciones ==")
     filas_lb = obtener_leaderboard(api, kaggle, args.top)
     if not filas_lb:
-        print("ERROR: el leaderboard no devolvio filas.", file=sys.stderr)
+        print("ERROR: the leaderboard returned no rows.", file=sys.stderr)
         return 1
     print(f"Equipos: {len(filas_lb)} | puntaje {filas_lb[0]['puntaje']:.1f} .. {filas_lb[-1]['puntaje']:.1f}")
 
@@ -775,7 +775,7 @@ def main(argv: list[str] | None = None) -> int:
     decks_cache: dict[str, Any] = cache.get("mazos", {})
     extra_cache: dict[str, Any] = cache.get("extra", {})
 
-    print(f"\n== 2/3 Submission activa por equipo ==")
+    print(f"\n== 2/3 Active submission per team ==")
     objetivos: dict[int, int] = {}   # submission_id -> position
     without_submission = 0
     for row in filas_lb:
@@ -786,7 +786,7 @@ def main(argv: list[str] | None = None) -> int:
             try:
                 elegida = elegir_submission(api, team_id, row["puntaje"])
             except FalloDePeticion as exc:
-                print(f"  pos {row['posicion']:>3}: sin submission ({exc})")
+                print(f"  pos {row['posicion']:>3}: no submission ({exc})")
                 without_submission += 1
                 continue
             submissions_cache[key] = elegida or {}
@@ -797,7 +797,7 @@ def main(argv: list[str] | None = None) -> int:
         sid = int(elegida["submission_id"])
         row["submission_id"] = sid
         objetivos.setdefault(sid, row["posicion"])
-    print(f"Submissions localizadas: {len(objetivos)} | sin submission publica: {without_submission}")
+    print(f"Submissions localizadas: {len(objetivos)} | with no public submission: {without_submission}")
 
     recolector = Recolector(objetivos, recoger_extra=not args.no_extra)
     # Resumption: it recovers what was already downloaded in previous runs.
@@ -810,9 +810,9 @@ def main(argv: list[str] | None = None) -> int:
             if isinstance(deck, list) and len(deck) == 60 and int(sid_txt) not in objetivos:
                 recolector.extra[int(sid_txt)] = [int(c) for c in deck]
     if recolector.decks:
-        print(f"Reanudado desde cache: {len(recolector.decks)} mazos ya recuperados")
+        print(f"Reanudado desde cache: {len(recolector.decks)} decks already recovered")
 
-    print(f"\n== 3/3 Game History -> replay -> 60 cartas ==")
+    print(f"\n== 3/3 Game History -> replay -> 60 cards ==")
     pendientes = [f for f in filas_lb if f.get("submission_id")]
     failures: Counter[str] = Counter()
 
@@ -825,11 +825,11 @@ def main(argv: list[str] | None = None) -> int:
         try:
             episodios = listar_episodios(api, sid)
         except FalloDePeticion as exc:
-            print(f"  pos {posicion:>3}: sin historial ({exc})")
+            print(f"  pos {posicion:>3}: no history ({exc})")
             failures["episodios"] += 1
             continue
         if not episodios:
-            print(f"  pos {posicion:>3}: sin episodios publicos completados")
+            print(f"  pos {posicion:>3}: no completed public episodes")
             failures["sin_episodios"] += 1
             continue
 
@@ -840,7 +840,7 @@ def main(argv: list[str] | None = None) -> int:
             except FalloDePeticion as exc:
                 failures["replay"] += 1
                 if exc.state == 429:
-                    print(f"  pos {posicion:>3}: HTTP 429, se salta")
+                    print(f"  pos {posicion:>3}: HTTP 429, skipped")
                     break
                 continue
             except (json.JSONDecodeError, OSError):
@@ -854,9 +854,9 @@ def main(argv: list[str] | None = None) -> int:
                 break
 
         if recolector.completo(sid):
-            print(f"  pos {posicion:>3}: mazo recuperado  ({len(recolector.decks)} en total, {n}/{len(pendientes)})")
+            print(f"  pos {posicion:>3}: deck recovered  ({len(recolector.decks)} en total, {n}/{len(pendientes)})")
         else:
-            print(f"  pos {posicion:>3}: NO recuperado")
+            print(f"  pos {posicion:>3}: NOT recovered")
             failures["sin_mazo"] += 1
 
         # Persist after each competitor: an interruption does not lose work.
@@ -871,15 +871,15 @@ def main(argv: list[str] | None = None) -> int:
             sobrante.unlink(missing_ok=True)
 
     with_warnings = sum(1 for d in recolector.decks.values() if validate_deck(d["mazo"], ace_spec))
-    print(f"Mazos del top-{args.top}: {n_principal}/{len(filas_lb)}  ->  {out_dir}/mazo_XXX.csv")
+    print(f"Decks in the top {args.top}: {n_principal}/{len(filas_lb)}  ->  {out_dir}/mazo_XXX.csv")
     if n_extra:
-        print(f"Mazos rivales extra (gratis, fuera del top): {n_extra}  ->  {out_dir}/adicionales/")
-    print(f"Replays descargados: {len(recolector.episodios_usados)} | peticiones a la API: {PACER.peticiones}")
-    print(f"Mazos con avisos de construccion: {with_warnings}")
+        print(f"Extra opponent decks (free, outside the top): {n_extra}  ->  {out_dir}/adicionales/")
+    print(f"Replays descargados: {len(recolector.episodios_usados)} | API requests: {PACER.peticiones}")
+    print(f"Decks with build warnings: {with_warnings}")
     if failures:
         print("Fallos:", dict(failures))
     if ERRORES:
-        print("Errores de API:", dict(ERRORES))
+        print("API errors:", dict(ERRORES))
     return 0
 
 

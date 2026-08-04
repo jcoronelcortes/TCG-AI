@@ -28,7 +28,7 @@ The batch is described in a Python file with a `MODULOS` dict:
 
 Usage:
     python utils/extract_definitions.py lote.py            # a dry run
-    python utils/extract_definitions.py lote.py --aplicar
+    python utils/extract_definitions.py lote.py --apply
 """
 
 import argparse
@@ -190,7 +190,7 @@ def _imports_header(info, mod_actual):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("lote", help="fichero .py con el dict MODULOS")
+    ap.add_argument("lote", help="a .py file holding the MODULOS dict")
     ap.add_argument("--main", default=str(PROJECT_ROOT / "main.py"))
     ap.add_argument("--apply", action="store_true")
     args = ap.parse_args()
@@ -202,20 +202,20 @@ def main():
     for mod, info in plan.items():
         n_lines = sum(b - a + 1 for (a, b), _ in info["rangos"])
         total += n_lines
-        print(f"{mod}: {len(info['nombres'])} definiciones, {n_lines} lineas")
+        print(f"{mod}: {len(info['nombres'])} definiciones, {n_lines} lines")
         print(f"    paquete  : {sum(len(v) for v in info['of_the_package'].values())} nombres")
         if info["cruzados"]:
             print(f"    cruzados : { {k: sorted(v) for k, v in info['cruzados'].items()} }")
-    print(f"\nTOTAL: {total} lineas")
+    print(f"\nTOTAL: {total} lines")
 
     if problemas:
-        print("\n⚠ PROBLEMAS (no se aplica nada):")
+        print("\n⚠ PROBLEMS (nothing is applied):")
         for p in problemas:
             print("  -", p)
         return 1
 
     if not args.apply:
-        print("\n(dry run; usa --aplicar para escribir)")
+        print("\n(dry run; use --apply to write)")
         return 0
 
     borrar, marcas = set(), []
@@ -261,7 +261,7 @@ def main():
         marca = f"from {dotted} import *  # noqa: F401,F403\n"
         if marca not in marcas:
             marcas.append(marca)
-        print(f"{'fusionado' if target_path.exists() else 'escrito'} {mod}"
+        print(f"{'fusionado' if target_path.exists() else 'written'} {mod}"
               f" (+{len(info['nombres'])} definiciones)")
 
     main_py = Path(args.main)
@@ -274,8 +274,8 @@ def main():
             continue
         output.append(line)
     main_py.write_text("".join(output))
-    print(f"\nmain.py: {len(lines)} -> {len(output)} lineas")
-    print("OJO: mueve los imports al bloque de cabecera (I1a).")
+    print(f"\nmain.py: {len(lines)} -> {len(output)} lines")
+    print("NOTE: move the imports into the header block (I1a).")
     return 0
 
 

@@ -4,7 +4,7 @@ Deliberately fast (2 games, ~0.1s): it validates that the driver plays COMPLETE
 games with two independent instances of main.py and that the basic
 statistics are coherent. The real evaluations are run by hand:
 
-    python utils/selfplay.py --partidas 200 --base HEAD~1
+    python utils/selfplay.py --games 200 --base HEAD~1
 """
 
 import sys

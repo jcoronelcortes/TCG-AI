@@ -18,7 +18,7 @@ selection = agent(observation)   # -> the indexes of the options to play
 ```bash
 python -m pip install -r requirements-dev.txt   # test runner only; the agent needs nothing
 python -m pytest -q                             # run the test suite
-python utils/selfplay.py --partidas 100         # play 100 games locally
+python utils/selfplay.py --games 100         # play 100 games locally
 python utils/package_project.py             # build submission.tar.gz
 ```
 

@@ -23,8 +23,8 @@ is still capturing the menu and tracing the score (`sys.settrace` over `agent`,
 filtering changes of `frame.f_locals['score']`).
 
 Usage:
-    python utils/collision_radar.py --partidas 100
-    python utils/collision_radar.py --partidas 200 --solo cornerstone_cubchoo,crustle_kangaskhan
+    python utils/collision_radar.py --games 100
+    python utils/collision_radar.py --games 200 --only cornerstone_cubchoo,crustle_kangaskhan
 """
 
 import argparse
@@ -337,7 +337,7 @@ def main(argv):
     ap.add_argument("--games", type=int, default=100)
     ap.add_argument("--candidate", default="main.py")
     ap.add_argument("--only", default=None,
-                    help="lista de mazos separada por comas")
+                    help="comma-separated list of decks")
     args = ap.parse_args(argv)
 
     agent_state = sp.load_agent(_ROOT / args.candidate, "agente_radar")
@@ -354,9 +354,9 @@ def main(argv):
 
     names = [n for n, _ in SITUACIONES]
     width = max(len(k) for k in filas) if filas else 10
-    print(f"\n=== RADAR DE COLISIONES (n={args.games}/mazo) ===")
-    print("tasa de RESOLUCION por situacion; (n) = veces que la situacion aplica")
-    print(f"{'mazo':<{width}} " + "  ".join(f"{n:>18}" for n in names))
+    print(f"\n=== COLLISION RADAR (n={args.games}/deck) ===")
+    print("RESOLUTION rate per situation; (n) = how often the situation applies")
+    print(f"{'deck':<{width}} " + "  ".join(f"{n:>18}" for n in names))
     for deck_name, cnt in sorted(filas.items()):
         celdas = []
         for n in names:
@@ -367,7 +367,7 @@ def main(argv):
 
     # It flags outliers: a situation that in one deck is resolved much worse than
     # the MEDIAN of the rest is a collision candidate.
-    print("\n--- candidatos (resolucion muy por debajo de la mediana) ---")
+    print("\n--- candidates (resolution well below the median) ---")
     hubo = False
     for n in names:
         tasas = {mz: (c[n][1] / c[n][0]) for mz, c in filas.items()
@@ -382,8 +382,8 @@ def main(argv):
                 print(f"  {n:<18} {mz:<22} {100*t:5.1f}%  "
                       f"(mediana {100*mediana:5.1f}%)")
     if not hubo:
-        print("  ninguno: todas las situaciones se resuelven de forma "
-              "homogenea entre mazos")
+        print("  none: every situation resolves "
+              "evenly across decks")
     return 0
 
 

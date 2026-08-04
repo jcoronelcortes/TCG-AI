@@ -11,14 +11,14 @@ SEAT ALTERNATION (the candidate plays half of them as player 0 and
 half as player 1).
 
 Usage:
-    python utils/selfplay.py --partidas 100
+    python utils/selfplay.py --games 100
         # mirror: main.py vs main.py (a sanity check: winrate ~50%)
-    python utils/selfplay.py --partidas 200 --base HEAD~1
+    python utils/selfplay.py --games 200 --base HEAD~1
         # candidate (the working tree's main.py) vs baseline (a git ref)
-    python utils/selfplay.py --partidas 200 --base HEAD --candidato otra.py
-    python utils/selfplay.py --partidas 200 --rival deck/opponents/crustle.csv
+    python utils/selfplay.py --games 200 --base HEAD --candidate otra.py
+    python utils/selfplay.py --games 200 --opponent deck/opponents/crustle.csv
         # candidate vs the generic BOT piloting an opposing deck (a matchup)
-    python utils/selfplay.py --partidas 200 --rival ... --base HEAD~1
+    python utils/selfplay.py --games 200 --opponent ... --base HEAD~1
         # matchup DIFFERENTIAL: candidate-vs-bot and base-vs-bot; the delta
         # between the two winrates is the signal (the bot's absolute level is not)
 
@@ -334,15 +334,17 @@ def main(argv):
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--games", type=int, default=100)
     ap.add_argument("--base", default=None,
-                    help="ref de git para el baseline (p.ej. HEAD~1); "
-                         "sin --base: espejo main.py vs main.py")
+                    help="git ref for the baseline (e.g. HEAD~1); without"
+                         "                         --base: mirror, main.py"
+                         "                         vs main.py")
     ap.add_argument("--candidate", default="main.py",
-                    help="ruta del agente candidato (default: main.py)")
+                    help="path to the candidate agent (default: main.py)")
     ap.add_argument("--progress", type=int, default=20,
-                    help="imprime marcador cada N partidas (0 = nunca)")
+                    help="print the score every N games (0 = never)")
     ap.add_argument("--opponent", default=None,
-                    help="csv de mazo rival: el oponente pasa a ser el BOT "
-                         "generico pilotando ese mazo (modo matchup)")
+                    help="csv of an opponent deck: the opponent becomes the"
+                         "                         GENERIC bot piloting it"
+                         "                         (matchup mode)")
     args = ap.parse_args(argv)
 
     cand_path = _ROOT / args.candidate
@@ -368,8 +370,8 @@ def main(argv):
             dec_b = stats_base["candidate"] + stats_base["base"]
             wr_c = stats["candidate"] / dec_c if dec_c else 0
             wr_b = stats_base["candidate"] / dec_b if dec_b else 0
-            print(f"\nDELTA de matchup (candidato - {args.base}): "
-                  f"{100 * (wr_c - wr_b):+.1f} puntos "
+            print(f"\nMatchup DELTA (candidate - {args.base}): "
+                  f"{100 * (wr_c - wr_b):+.1f} points "
                   f"({100 * wr_c:.1f}% vs {100 * wr_b:.1f}%)")
         return 0
 

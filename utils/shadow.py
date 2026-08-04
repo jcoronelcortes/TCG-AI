@@ -72,7 +72,7 @@ def main(pre_path, post_path, n_espejo=40, n_opponent=40):
         total_steps += steps
         if flips:
             print(f"  espejo #{i}: {len(flips)} flips")
-    print(f"espejo: {n_espejo} partidas, {total_steps} decisiones")
+    print(f"espejo: {n_espejo} games, {total_steps} decisiones")
 
     # vs the opposing bot (the Crustle/Kangaskhan matchup): our seat only.
     opponent_path = ROOT / "deck" / "opponents" / "crustle_kangaskhan.csv"
@@ -90,8 +90,8 @@ def main(pre_path, post_path, n_espejo=40, n_opponent=40):
             total_flips += flips
             steps_r += steps
             if flips:
-                print(f"  rival #{i}: {len(flips)} flips")
-        print(f"rival: {n_opponent} partidas, {steps_r} decisiones")
+                print(f"  opponent #{i}: {len(flips)} flips")
+        print(f"opponent: {n_opponent} games, {steps_r} decisiones")
 
     print(f"\nTOTAL FLIPS: {len(total_flips)}")
     for f in total_flips[:10]:

@@ -1,4 +1,4 @@
-"""Library of synthetic META decks for the --rival mode of self-play.
+"""Library of synthetic META decks for the --opponent mode of self-play.
 
 Phase 8 of the strategy improvement architecture. `utils/harvest_opponent_deck.py`
 rebuilds decks from local records, but the records are transient:
@@ -9,12 +9,12 @@ generic bot (utils/opponent_bot.py) can pilot: complete evolution lines, energy
 of the type their attacks pay and trainers with a simple select.
 
 They do not claim to be the exact lists of the meta: they are deterministic and legal
-REFERENCE OPPONENTS for measuring matchups (utils/selfplay.py --rival) and for
+REFERENCE OPPONENTS for measuring matchups (utils/selfplay.py --opponent) and for
 the matchup matrix (utils/matchup_matrix.py).
 
 Usage:
     python utils/build_meta_decks.py            # writes deck/opponents/*.csv
-    python utils/build_meta_decks.py --verificar  # plus battle_start + 4 steps
+    python utils/build_meta_decks.py --verify  # plus battle_start + 4 steps
 """
 
 import argparse
@@ -230,7 +230,7 @@ def write_out(target_path):
             f"{n}x{_CARDS[cid].name}" for cid, n in
             Counter({c: v for c, v in deck.items()
                      if _CARDS[c].cardType == CardType.POKEMON}).most_common())
-        print(f"{path.name}: 60 cartas | {summary}")
+        print(f"{path.name}: 60 cards | {summary}")
     return paths
 
 

@@ -239,7 +239,7 @@ def revisar():
 def main():
     failures = revisar()
     if not failures:
-        print("lint_architecture: sin infracciones")
+        print("lint_architecture: no violations")
         return 0
     for rule, file_path, line, mensaje in failures:
         print(f"{file_path}:{line}: [{rule}] {mensaje}")

@@ -20,9 +20,9 @@ SCOPE ANALYSIS
   in any helper would end up writing to the shared state.
 
 Usage:
-    python utils/migrate_state.py --campos plan,pre_turn          # a dry run
-    python utils/migrate_state.py --campos plan,pre_turn --aplicar
-    python utils/migrate_state.py --listar                        # what is left
+    python utils/migrate_state.py --fields plan,pre_turn          # a dry run
+    python utils/migrate_state.py --fields plan,pre_turn --apply
+    python utils/migrate_state.py --list                        # what is left
 """
 
 import argparse
@@ -143,7 +143,7 @@ def migrate(text, fields):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--fields", help="lista separada por comas")
+    ap.add_argument("--fields", help="comma-separated list")
     ap.add_argument("--list", dest="list_only", action="store_true")
     ap.add_argument("--main", default=str(PROJECT_ROOT / "main.py"))
     ap.add_argument("--apply", action="store_true")
@@ -159,14 +159,14 @@ def main():
         for n in ast.walk(tree):
             if isinstance(n, ast.Name) and n.id in a["mutables"]:
                 cuenta[n.id] = cuenta.get(n.id, 0) + 1
-        print(f"{len(a['mutables'])} piezas de estado de modulo:")
+        print(f"{len(a['mutables'])} module-level state pieces:")
         for k, v in sorted(cuenta.items(), key=lambda x: -x[1]):
             print(f"  {v:4d}  {k}")
         return 0
 
     fields = [c.strip() for c in (args.fields or "").split(",") if c.strip()]
     if not fields:
-        print("nada que migrar (usa --campos)")
+        print("nothing to migrate (use --fields)")
         return 1
 
     nuevo, n, g = migrate(text, fields)
@@ -174,11 +174,11 @@ def main():
     print(f"reescrituras: {n}")
     print(f"`global` podados/eliminados: {g}")
     if not args.apply:
-        print("\n(dry run; usa --aplicar para escribir)")
+        print("\n(dry run; use --apply to write)")
         return 0
     ast.parse(nuevo)          # do not write something that does not parse
     main_py.write_text(nuevo)
-    print(f"\nescrito {main_py}")
+    print(f"\nwritten {main_py}")
     return 0
 
 

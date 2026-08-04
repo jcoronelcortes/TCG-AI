@@ -65,8 +65,8 @@ Run the gates in this order — cheapest first.
 | --- | --- | --- |
 | Unit suite | `python -m pytest -q` | Broken behaviour that someone already pinned. |
 | Golden corpus | `python tests/golden_corpus.py` | **Which historical decisions your change flipped**, with an explicit diff. |
-| Self-play | `python utils/selfplay.py --partidas 200 --base HEAD~1` | Does it win more games than the previous version. |
-| Matchup matrix | `python utils/matchup_matrix.py --partidas 400 --pesos --base <ref>` | Whether a gain in one matchup is paid for by a loss in another. |
+| Self-play | `python utils/selfplay.py --games 200 --base HEAD~1` | Does it win more games than the previous version. |
+| Matchup matrix | `python utils/matchup_matrix.py --games 400 --weights --base <ref>` | Whether a gain in one matchup is paid for by a loss in another. |
 | Equivalence (refactors only) | `python utils/shadow.py <before.py> <after.py>` | A refactor that was supposed to change nothing but did. |
 
 ### The measurement rules that were learned the hard way

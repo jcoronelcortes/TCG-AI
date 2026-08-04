@@ -11,11 +11,11 @@ game) and AMPLIFIES the partial list up to 60 cards by rule:
   - filler up to 60          -> the most frequently seen BASIC energy
 
 It does not claim to be the opponent's exact deck: it is a deterministic and legal
-REFERENCE DECK for the --rival mode of utils/selfplay.py (the differential
+REFERENCE DECK for the --opponent mode of utils/selfplay.py (the differential
 winrate of two versions of main.py against the same fixed opponent).
 
 Usage:
-    python utils/harvest_opponent_deck.py --salida deck/opponents/crustle.csv
+    python utils/harvest_opponent_deck.py --output deck/opponents/crustle.csv
 """
 
 import argparse
@@ -114,9 +114,9 @@ def amplificar(conteo_visto, tabla):
 def main(argv):
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--output", required=True,
-                    help="csv destino (un card id por linea, 60 lineas)")
+                    help="target csv (one card id per line, 60 lines)")
     ap.add_argument("--records", default="records",
-                    help="carpeta con registro_*.json")
+                    help="folder holding the registro_*.json records")
     args = ap.parse_args(argv)
 
     paths = sorted((_ROOT / args.records).glob("registro_*.json"))
@@ -130,19 +130,19 @@ def main(argv):
     tabla = {c.cardId: c for c in all_card_data()}
     deck, basica, relleno = amplificar(conteo, tabla)
 
-    print(f"Cartas rivales vistas ({sum(conteo.values())} en "
+    print(f"Opponent cards seen ({sum(conteo.values())} en "
           f"{len(paths)} registros):")
     for cid, visto in sorted(conteo.items()):
         d = tabla.get(cid)
         in_deck = deck.count(cid)
-        print(f"  {cid:>5} visto x{visto} -> en mazo x{in_deck}  "
+        print(f"  {cid:>5} visto x{visto} -> in deck x{in_deck}  "
               f"{d.name if d else '?'}")
     print(f"Relleno: {relleno} x {tabla[basica].name}({basica})")
 
     output = _ROOT / args.output
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text("\n".join(str(c) for c in deck) + "\n")
-    print(f"Escrito {output} ({len(deck)} cartas)")
+    print(f"Written {output} ({len(deck)} cards)")
     return 0
 
 

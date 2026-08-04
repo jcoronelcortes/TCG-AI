@@ -28,8 +28,8 @@ FORMAT
 
 Usage:
     python utils/record_corpus.py                    # 12 games, 12 opponents
-    python utils/record_corpus.py --partidas 20
-    python utils/record_corpus.py --rivales deck/real_opponents --semilla 3
+    python utils/record_corpus.py --games 20
+    python utils/record_corpus.py --opponents deck/real_opponents --seed 3
 """
 
 import argparse
@@ -82,7 +82,7 @@ def main():
     ap.add_argument("--games", type=int, default=12)
     ap.add_argument("--opponents", default=str(_ROOT / "deck" / "real_opponents"))
     ap.add_argument("--seed", type=int, default=0,
-                    help="desde que rival empezar a repartir (rota la seleccion)")
+                    help="which opponent to start dealing from (rotates the selection)")
     ap.add_argument("--main", default="main.py")
     args = ap.parse_args()
 
@@ -119,7 +119,7 @@ def main():
         print(f"  {name}  {len(steps):4d} pasos  resultado={result}")
 
     print(f"\n{len(chosen_ones)} registros, {total_steps} pasos en {RECORDS}")
-    print("Ahora: python tests/golden_corpus.py --actualizar")
+    print("Ahora: python tests/golden_corpus.py --update")
     return 0
 
 

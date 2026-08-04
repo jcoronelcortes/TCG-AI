@@ -13,7 +13,7 @@ Policy:
   - FLIPS (the same record, a different decision) -> FAILURE with the exact diff:
     a change to main.py flipped historical decisions. If the change is
     intended, accept it consciously with:
-        python tests/golden_corpus.py --actualizar
+        python tests/golden_corpus.py --update
 """
 
 import sys
@@ -46,7 +46,7 @@ def test_golden_corpus_has_no_flips():
         "DECISIONES HISTORICAS VOLTEADAS con los mismos registros (un cambio "
         "de codigo altero decisiones que antes eran otras). Revisa cada flip; "
         "si es buscado, acepta con `python tests/golden_corpus.py "
-        "--actualizar`:\n" + gc.formatear_flips(flips))
+        "--update`:\n" + gc.formatear_flips(flips))
 
     if cambiados or faltantes or nuevos:
         # Local data replaced: with no comparison possible, re-snapshot.

@@ -1,7 +1,7 @@
 """Generic opposing bot: it pilots ANY deck legally and consistently.
 
 It is not a good player and does not try to be: it is the REFERENCE OPPONENT of the
---rival mode of utils/selfplay.py. Being fixed and deterministic in its rules
+--opponent mode of utils/selfplay.py. Being fixed and deterministic in its rules
 (a simple greedy), it makes it possible to compare two versions of main.py by their winrate
 against the SAME opponent piloting the SAME deck: the delta between versions
 is the signal, not the bot's absolute level.

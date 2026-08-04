@@ -22,7 +22,7 @@ three things, and knowing which one says which wave they belong to:
 
 Usage:
     python utils/purity.py                 # a summary
-    python utils/purity.py --detalle       # plus why each one is blocked
+    python utils/purity.py --detail       # plus why each one is blocked
 """
 
 import argparse
@@ -249,11 +249,11 @@ def main():
     defs, mov = a["definiciones"], a["movibles"]
     lines = sum(defs[n].end_lineno - defs[n].lineno + 1 for n in mov)
 
-    print(f"definiciones de nivel de modulo : {len(defs)}")
-    print(f"MOVIBLES (puras)                : {len(mov)}  ({lines} lineas)")
+    print(f"module-level definitions : {len(defs)}")
+    print(f"MOVIBLES (puras)                : {len(mov)}  ({lines} lines)")
     print(f"bloqueadas                      : {len(defs) - len(mov)}")
     print()
-    print("bloqueadas, por causa raiz:")
+    print("blocked, by root cause:")
     for causa, n in Counter(r.split("`")[1] for r in a["razon"].values()).most_common(12):
         print(f"  {n:4d}  {causa}")
 

@@ -166,15 +166,15 @@ def main() -> None:
     # Clear the old records before generating the new ones.
     removed = clean_records(out_dir)
     if removed:
-        print(f"Limpieza: {removed} registro(s) antiguo(s) eliminado(s) de {out_dir}.")
+        print(f"Limpieza: {removed} old record(s) removed from {out_dir}.")
 
     print(f"Log: {logfile}")
     turns = sorted({t for t in (step_turn(s) for s in steps) if t is not None})
     for turn in turns:
         path = write_turn(data, turn, out_dir)
         count = len(steps_of_turn(steps, turn))
-        print(f"Turno {turn}: {count} pasos -> {path}")
-    print(f"Total: {len(turns)} turnos extraidos.")
+        print(f"Turn {turn}: {count} pasos -> {path}")
+    print(f"Total: {len(turns)} turns extracted.")
 
 
 if __name__ == "__main__":

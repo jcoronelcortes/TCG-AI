@@ -18,7 +18,7 @@ tell two failures with different messages apart:
 
 Usage:
     python tests/golden_corpus.py               # compare (exit 1 if it differs)
-    python tests/golden_corpus.py --actualizar  # review the diff and rewrite
+    python tests/golden_corpus.py --update  # review the diff and rewrite
 
 The replay resets the agent's global state BEFORE EACH FILE (the same
 semantics as the tests with fixtures: each record is a segment replayed
@@ -292,26 +292,26 @@ def main(argv):
     cambiados, faltantes, nuevos, flips = comparar(dorado, actual)
 
     if cambiados or faltantes or nuevos:
-        print("Registros cambiados en disco (datos nuevos, no es un flip):")
+        print("Records changed on disk (new data, not a flip):")
         for n in cambiados:
             print(f"  ~ {n}")
         for n in faltantes:
-            print(f"  - {n} (ya no existe)")
+            print(f"  - {n} (no longer there)")
         for n in nuevos:
             print(f"  + {n} (nuevo)")
     if flips:
-        print("DECISIONES VOLTEADAS con los mismos registros "
-              "(cambio de codigo):")
+        print("DECISIONS FLIPPED with the same records "
+              "(a code change):")
         print(formatear_flips(flips))
     if not (cambiados or faltantes or nuevos or flips):
-        print("Corpus dorado: sin cambios.")
+        print("Golden corpus: no changes.")
         return 0
 
     if update:
         save_snapshot(actual)
         print(f"\nSnapshot actualizado: {SNAPSHOT_PATH}")
         return 0
-    print("\n(usa --actualizar para aceptar estos cambios)")
+    print("\n(use --update to accept these changes)")
     return 1
 
 

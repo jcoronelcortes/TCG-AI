@@ -23,8 +23,8 @@ THE TRAP OF THE MUTATED NAMES
   `augassign` is detected, and left where it is.
 
 Usage:
-    python utils/extract_pure.py --desde 40 --hasta 1008 --destino ptcg/cartas/ids.py
-    python utils/extract_pure.py ... --aplicar     # without this, it only reports
+    python utils/extract_pure.py --from-line 40 --to-line 1008 --target ptcg/cartas/ids.py
+    python utils/extract_pure.py ... --apply     # without this, it only reports
 """
 
 import argparse
@@ -181,12 +181,12 @@ def main():
     lines, rangos, names, necesarios = planificar(main_py, args.since, args.up_to)
 
     total = sum(b - a + 1 for a, b in rangos)
-    print(f"rangos: {len(rangos)}   lineas: {total}   bindings: {len(names)}")
+    print(f"rangos: {len(rangos)}   lines: {total}   bindings: {len(names)}")
     for a, b in rangos:
         print(f"  {a:6d}-{b:<6d} ({b - a + 1:4d} l)  {lines[a - 1].strip()[:56]}")
 
     if not args.apply:
-        print("\n(dry run; usa --aplicar para escribir)")
+        print("\n(dry run; use --apply to write)")
         return 0
 
     target_path = PROJECT_ROOT / args.target_path
@@ -221,11 +221,11 @@ def main():
         output.append(line)
     main_py.write_text("".join(output))
 
-    print(f"\nescrito {target_path}")
-    print(f"{args.main}: {len(lines)} -> {len(output)} lineas")
-    print("OJO: el import se inserta donde estaba el primer rango; muevelo al "
-          "bloque de cabecera (en Kaggle el dir del agente solo esta en sys.path "
-          "mientras se ejecuta main.py).")
+    print(f"\nwritten {target_path}")
+    print(f"{args.main}: {len(lines)} -> {len(output)} lines")
+    print("NOTE: the import lands where the first range was; move it to the "
+          "header block (on Kaggle the agent directory is only on sys.path "
+          "while main.py runs).")
     return 0
 
 

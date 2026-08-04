@@ -33,12 +33,12 @@ local data): ready to reproduce with main.agent(), turn into a
 fixture or sweep with the StateBuilder.
 
 Usage:
-    python utils/autopsy.py --rival deck/opponents/cornerstone_cubchoo.csv --partidas 100
-    python utils/autopsy.py --espejo --partidas 100
-    python utils/autopsy.py --todos --partidas 60   # every deck in deck/opponents/
-    python utils/autopsy.py --rival ... --partidas 400 --censo   # + a contrast
+    python utils/autopsy.py --opponent deck/opponents/cornerstone_cubchoo.csv --games 100
+    python utils/autopsy.py --mirror --games 100
+    python utils/autopsy.py --all --games 60   # every deck in deck/opponents/
+    python utils/autopsy.py --opponent ... --games 400 --census   # + a contrast
 
-v3 (Aug 2026): `--censo`. The detectors only look at LOSSES and only emit on
+v3 (Aug 2026): `--census`. The detectors only look at LOSSES and only emit on
 the turns that already failed; that reproduces a failure, but it does not say what CAUSES it.
 Without a control group, a trait that is frequent in the losses cannot be told apart from a
 trait that is simply frequent -- two hypotheses fell exactly that way. `turn_census`
@@ -425,7 +425,7 @@ def census_summary(census, etiqueta):
     perd = [f for f in census if f["resultado"] != "gana"]
     gana = [f for f in census if f["resultado"] == "gana"]
     if not perd or not gana:
-        print("  censo: hace falta al menos una victoria y una derrota")
+        print("  census: at least one win and one loss are needed")
         return
     rasgos = {
         "turno sin atacar": lambda f: not f["ataco"],
@@ -443,9 +443,9 @@ def census_summary(census, etiqueta):
         "supporter del turno sin gastar": lambda f: not f["supporter_gastado"],
         "cierre con END": lambda f: f["cierre"] == int(OptionType.END),
     }
-    print(f"  censo [{etiqueta}]: {len(perd)} turnos en derrotas vs "
-          f"{len(gana)} en victorias")
-    print(f"    {'rasgo':40}{'derrota':>9}{'victoria':>10}{'dif':>8}")
+    print(f"  census [{etiqueta}]: {len(perd)} turns in losses vs "
+          f"{len(gana)} in wins")
+    print(f"    {'trait':40}{'loss':>9}{'win':>10}{'diff':>8}")
     filas = []
     for name, f in rasgos.items():
         pp = 100 * sum(1 for x in perd if f(x)) / len(perd)
@@ -471,8 +471,8 @@ def census_summary(census, etiqueta):
         if actual:
             rachas.append(actual)
         largas = [r for r in rachas if r >= 3]
-        print(f"    rachas de atasco en {name}: {len(rachas)} "
-              f"(>=3 turnos seguidos: {len(largas)}, "
+        print(f"    stuck streaks in {name}: {len(rachas)} "
+              f"(>=3 turns in a row: {len(largas)}, "
               f"max {max(rachas) if rachas else 0})")
 
 
@@ -538,13 +538,13 @@ def autopsy(opponent_csv, games, mirror=False, target_path=None, censar=False):
 
     print(f"[{etiqueta}] {dict(marcador)}")
     if modos:
-        print(f"  modo de derrota: {dict(modos.most_common())}")
+        print(f"  loss mode: {dict(modos.most_common())}")
     summary = Counter((h["detector"], h["critico"]) for h in total_findings)
     for (det, critico), n in summary.most_common():
         print(f"  {det}{' CRITICO' if critico else ''}: {n} "
-              f"(en {len(per_game)} partidas perdidas)")
+              f"(en {len(per_game)} games lost)")
     if not total_findings:
-        print("  sin hallazgos en las derrotas")
+        print("  no findings in the losses")
     if censar:
         (target_path / f"{etiqueta}_censo.json").write_text(json.dumps(
             {"rival": etiqueta, "games": games, "turnos": census},
@@ -555,14 +555,15 @@ def autopsy(opponent_csv, games, mirror=False, target_path=None, censar=False):
 
 def main(argv):
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--opponent", default=None, help="csv del mazo rival")
+    ap.add_argument("--opponent", default=None, help="csv of the opponent deck")
     ap.add_argument("--mirror", action="store_true")
     ap.add_argument("--all", dest="all_decks", action="store_true",
-                    help="autopsia contra todos los mazos de deck/opponents/")
+                    help="autopsy against every deck in deck/opponents/")
     ap.add_argument("--games", type=int, default=100)
     ap.add_argument("--census", action="store_true",
-                    help="censo de turnos de TODAS las partidas (ganadas "
-                         "incluidas) y contraste derrota-vs-victoria")
+                    help="turn census over ALL games (wins included),"
+                         "                         contrasting losses"
+                         "                         against wins")
     args = ap.parse_args(argv)
 
     if args.all_decks:
@@ -573,7 +574,7 @@ def main(argv):
         autopsy(None, args.games, mirror=True, censar=args.census)
         return 0
     if not args.opponent:
-        print("indica --rival, --espejo o --todos")
+        print("pass --opponent, --mirror or --all")
         return 1
     autopsy(args.opponent, args.games, censar=args.census)
     return 0
