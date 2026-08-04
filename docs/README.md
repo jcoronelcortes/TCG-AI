@@ -43,6 +43,7 @@ is written line by line. It is meant to stay readable as the code changes.
 | [Tools](tools.md) | Catalogue of the scripts in `utils/`: what each one is for and how to run it. |
 | [Testing](testing.md) | The safety nets: unit tests, real fixtures, golden corpus, invariants, architecture lint. |
 | [Debugging a decision](debugging.md) | How to reproduce one concrete decision and find out why the agent chose it. |
+| [Rename maps](history/rename-maps/README.md) | What became what when the project was translated to English. |
 | [Project history](project-history.md) | Why the code is shaped the way it is, and the mistakes that shaped it. |
 
 ---

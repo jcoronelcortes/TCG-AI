@@ -130,7 +130,7 @@ should read: `winning_gust`, `no_bench_attacker_yields_to_lillie`,
 `finish_the_immune_wall_before_gusting`. They were the last thing left in
 Spanish, and they moved once the project became something English speakers
 read. Notes written before that rename quote the old spellings; the map in
-`utils/rename_maps/25-rule-labels.tsv` is the bridge.
+`docs/history/rename-maps/25-rule-labels.tsv` is the bridge.
 
 **The CLI of `utils/` is English.** Flags, `--help` text and printed reports
 all are: a tool whose interface is in another language is a wall at the first
