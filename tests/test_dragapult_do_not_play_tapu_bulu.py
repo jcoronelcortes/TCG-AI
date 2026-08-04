@@ -184,7 +184,7 @@ def _replay_up_to(final_step):
 
 @pytest.mark.skipif(
     not _RECORD.exists(),
-    reason="registro local rotado (records/ es transitorio)")
+    reason="the local record rotated (records/ is transient data)")
 def test_the_faithful_replay_neither_searches_nor_plays_it():
     dec = _replay_up_to(43)
 

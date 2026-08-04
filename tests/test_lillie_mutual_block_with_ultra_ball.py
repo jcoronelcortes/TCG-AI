@@ -77,7 +77,7 @@ BOSS = m.Boss_Orders
 
 pytestmark = pytest.mark.skipif(
     not _RECORD.exists(),
-    reason="registro local rotado (records/ es transitorio)")
+    reason="the local record rotated (records/ is transient data)")
 
 
 def _frames():

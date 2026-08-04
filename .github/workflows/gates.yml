@@ -1,0 +1,83 @@
+# The gates that can run on a clean checkout.
+#
+# Two of the project's four gates are reproducible from the repository alone
+# and run here on every push and pull request. The other two are not, and
+# saying so is more useful than pretending:
+#
+#   * the GOLDEN CORPUS replays `records/`, which is game data produced locally
+#     by `utils/split_turns.py` and deliberately git-ignored. The suite's own
+#     `test_golden_corpus.py` skips when the records are absent, so the corpus
+#     is exercised here only as far as a clean checkout allows -- the real
+#     comparison happens on the machine that has the games;
+#   * SELF-PLAY and the matchup matrix play hundreds of complete games. They
+#     take minutes and answer a different question ("does this win more?"),
+#     which belongs to the person proposing a strategy change, not to a push.
+#
+# See CONTRIBUTING.md for what to run locally before proposing one.
+
+name: gates
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  suite:
+    name: tests on ${{ matrix.python }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # The floor the docs promise, and the newest we run on. The vendored
+        # simulator ships an x86-64 ELF (`cg/libcg.so`), which is what this
+        # runner is.
+        python: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install the test dependencies
+        # The AGENT needs none of these: it runs in a container where nothing
+        # gets installed. These are the runner, coverage and hypothesis.
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Test suite
+        # Includes the Kaggle submission smoke test, which packages the tree
+        # and loads it the way the competition container does.
+        run: python -m pytest -q -rs
+
+      - name: Architecture lint
+        # R1-R4: the rules that keep the agent loadable on Kaggle. Each one
+        # exists because it broke a submission once.
+        run: python utils/lint_architecture.py
+
+  cli:
+    name: the tools still launch
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Every argparse script answers --help
+        # `tests/test_cli.py` checks the wiring statically; this checks that the
+        # parsers actually build. A script whose flags and attributes drifted
+        # apart passed both for eight commits before the static check existed.
+        run: |
+          set -e
+          for f in utils/*.py; do
+            if grep -q "add_argument" "$f"; then
+              python "$f" --help > /dev/null || { echo "FAILED: $f --help"; exit 1; }
+            fi
+          done
+          echo "all argparse scripts answered --help"

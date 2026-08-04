@@ -30,7 +30,7 @@ import golden_corpus as gc
 
 def test_golden_corpus_has_no_flips():
     if not gc.record_files():
-        pytest.skip("no hay registros locales que reproducir")
+        pytest.skip("no local records to replay")
 
     actual = gc.build_corpus()
     dorado = gc.load_snapshot()

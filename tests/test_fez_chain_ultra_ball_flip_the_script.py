@@ -192,12 +192,12 @@ def test_step91_the_circular_block_really_exists():
 
 @pytest.mark.skipif(
     not _RECORD.exists(),
-    reason=("necesita la SECUENCIA de menus del registro (episodio 88710543), "
-            "que es dato local transitorio: `utils/split_turns.py` lo "
-            "reescribe con cada partida nueva. COBERTURA YA RESTITUIDA en "
-            "tests/test_fez_pending_synthetic.py, que fabrica la secuencia con "
-            "el StateBuilder (y por tanto es inmune a la rotacion). Este test "
-            "se conserva por si el episodio vuelve a estar en disco."))
+    reason=("needs the menu SEQUENCE of the record (episode 88710543), which "
+            "is transient local data: `utils/split_turns.py` rewrites it with "
+            "every new game. THE COVERAGE IS ALREADY RESTORED in "
+            "tests/test_fez_pending_synthetic.py, which fabricates the sequence "
+            "with the StateBuilder and is therefore immune to the rotation. "
+            "This test is kept in case the episode is back on disk."))
 def test_full_turn_the_ultra_ball_leaves_the_fezandipiti_pending():
     """End to end over the record: the Ultra Ball chooses Fezandipiti ex, that
     sets `_ub_fez_pending`, and the next menu PLAYS it (before, the

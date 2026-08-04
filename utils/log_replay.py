@@ -1,8 +1,16 @@
 import argparse
 import json
+import sys
+from pathlib import Path
 from typing import Any
 
-from main import agent
+# Run from anywhere: `python utils/log_replay.py <log>` has to find `main` the
+# same way every other tool here does.
+_ROOT = Path(__file__).resolve().parents[1]
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+
+from main import agent  # noqa: E402  (after the sys.path line, on purpose)
 
 
 def load_log(path: str) -> list[Any]:

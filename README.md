@@ -60,6 +60,7 @@ method in [Matchups](docs/matchups.md).
 ## Contributing and licence
 
 [CONTRIBUTING.md](CONTRIBUTING.md) explains the four gates a change has to pass
+-- two of them run in CI on every push
 and what to look at when reviewing one. The code is MIT licensed
 ([LICENSE](LICENSE)); the vendored simulator under `cg/` belongs to the
 competition and keeps its own terms.

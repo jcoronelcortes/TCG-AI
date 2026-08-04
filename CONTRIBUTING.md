@@ -7,8 +7,12 @@ but the agent worse is not an improvement here.
 
 ## The gates
 
-Four checks. They are cheap, they run locally, and a change is not ready until
-all four are green.
+Four checks. Two of them run in CI on every push and pull request
+([.github/workflows/gates.yml](.github/workflows/gates.yml)): the suite and the
+architecture lint. The other two cannot -- the golden corpus replays game data
+that is deliberately not in the repository, and self-play takes minutes -- so
+they stay yours to run before you propose a change. All four are cheap, and a
+change is not ready until all four are green.
 
 ```bash
 python -m pytest -q                      # 986 tests, ~7 s
