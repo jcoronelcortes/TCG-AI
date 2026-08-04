@@ -149,7 +149,7 @@ def _mesa_con_meganium_herido(con_goteo=True):
             .op_activo(pk(GRIMMSNARL, hp=310, max_hp=320,
                           energias=[G, G], fisicas=2))
             .op_banca(*banca_rival)
-            .op_zonas(mano=5, mazo=35, premios=3)
+            .op_zonas(mano=5, mazo=35, prizes=3)
             .menu_attach_energia()
             .construir())
 
@@ -188,7 +188,7 @@ def test_el_activo_que_ataca_hoy_no_cuenta_como_condenado():
                          fisicas=2))
            .op_banca(pk(FROSLASS, hp=90, max_hp=90),
                      pk(MUNKIDORI, hp=110, max_hp=110, energias=[G], fisicas=1))
-           .op_zonas(mano=5, mazo=35, premios=3)
+           .op_zonas(mano=5, mazo=35, prizes=3)
            .menu_attach_energia()
            .construir())
     assert _destino_de_la_energia(obs, m.agent(obs)) == OGERPON, (
@@ -220,7 +220,7 @@ def _mesa_para_bajar_fez(con_froslass=True, premios_rival=6):
             .op_activo(pk(GRIMMSNARL, hp=320, max_hp=320, energias=[G],
                           fisicas=1))
             .op_banca(*banca_rival)
-            .op_zonas(mano=5, mazo=40, premios=premios_rival)
+            .op_zonas(mano=5, mazo=40, prizes=premios_rival)
             .menu_mano(con_adjunte=True)
             .construir())
 
@@ -265,7 +265,7 @@ def _mesa_para_bajar_applin(con_munkidori=True, con_cadena=False):
            .op_activo(pk(GRIMMSNARL, hp=320, max_hp=320, energias=[G],
                          fisicas=1))
            .op_banca(*banca_rival)
-           .op_zonas(mano=5, mazo=40, premios=6))
+           .op_zonas(mano=5, mazo=40, prizes=6))
     if con_cadena:
         esc = esc.estadio(m.Forest_of_Vitality)
     return esc.menu_mano(con_adjunte=True).construir()

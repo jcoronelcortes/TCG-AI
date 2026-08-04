@@ -147,7 +147,7 @@ def _campo(esc, fez_energias=0, mano_extra=()):
                          fisicas=fez_energias))
             .op_activo(pk(BUDEW))
             .op_banca(DREEPY, DREEPY, pk(MUNKIDORI, energias=[G], fisicas=0))
-            .op_zonas(mano=5, mazo=43, premios=6))
+            .op_zonas(mano=5, mazo=43, prizes=6))
 
 
 # NOTE: `menu_mano()` emits a PLAY option for EACH card in hand, without the
@@ -197,7 +197,7 @@ def _menu_manana():
            .mi_banca(pk(FEZ))
            .op_activo(pk(BUDEW))
            .op_banca(DREEPY, DREEPY, pk(MUNKIDORI, energias=[G], fisicas=0))
-           .op_zonas(mano=5, mazo=40, premios=6)
+           .op_zonas(mano=5, mazo=40, prizes=6)
            .mi_mano(MEOWTH, GRASS, GRASS)
            .mazo(LILLIE, BAYLEEF, OGERPON, APPLIN)
            .resto_al_descarte()

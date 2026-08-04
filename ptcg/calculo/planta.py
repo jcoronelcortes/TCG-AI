@@ -40,7 +40,7 @@ class _PlanPlanta:
 
 
 def _plan_de_planta(my_state, state, field_counts, hand_counts, tope=3,
-                    puede_cambiar=False, habilidades_apagadas=False):
+                    can_switch=False, abilities_off=False):
     """How many NEW Grass energies the board can use, and whether any of them
     UNLOCKS an attack TODAY.
 
@@ -83,11 +83,11 @@ def _plan_de_planta(my_state, state, field_counts, hand_counts, tope=3,
     unidad = _grass_attach_unit()
     en_mano = hand_counts.get(Basic_Grass_Energy, 0)
     slots_manual = 0 if state.energyAttached else 1
-    slots_hab = (0 if habilidades_apagadas
+    slots_hab = (0 if abilities_off
                  else _grass_ability_slots(state, field_counts))
     slots_hoy = slots_manual + slots_hab
     nuevas_utiles_hoy = max(0, slots_hoy - en_mano)
-    n_hydrapple = 0 if habilidades_apagadas else field_counts.get(Hydrapple_ex, 0)
+    n_hydrapple = 0 if abilities_off else field_counts.get(Hydrapple_ex, 0)
 
     desbloquea_hoy = False
     cartas_para_atacar = 0
@@ -106,12 +106,12 @@ def _plan_de_planta(my_state, state, field_counts, hand_counts, tope=3,
             continue                     # already attacks: asks for no energy
         cartas = -(-falta // unidad)     # ceiling of the division
         pendiente += cartas
-        if not es_activo and not puede_cambiar:
+        if not es_activo and not can_switch:
             continue                     # charged or not, it does not attack today
         # Routes that can point at THIS body today. Teal Dance only charges its own
         # bearer; the manual attachment and Ripening Charge, anyone.
         dirigibles = slots_manual + n_hydrapple
-        if cuerpo.id == Teal_Mask_Ogerpon_ex and not habilidades_apagadas:
+        if cuerpo.id == Teal_Mask_Ogerpon_ex and not abilities_off:
             dirigibles += 1
         dirigibles = min(dirigibles, slots_hoy)
         if cartas > dirigibles:

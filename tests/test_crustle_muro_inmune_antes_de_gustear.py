@@ -165,7 +165,7 @@ def _escenario(op_activo=None, mi_activo=None, premios_propios=None,
             .mi_mano(*mano)
             .op_activo(op_activo)
             .op_banca(pk(OGERPON, energias=[G]), pk(DWEBBLE))
-            .op_zonas(mano=6, mazo=30, premios=6)
+            .op_zonas(mano=6, mazo=30, prizes=6)
             .menu_mano(con_ataque=True)
             .construir())
 

@@ -1,0 +1,37 @@
+# Pilot A -- file-local names of ptcg/calculo/probabilidad.py.
+# Nothing here crosses a module boundary: every name is a parameter or a local.
+# Deliberately left out: `cartas` (also the package name, waves with phase 7)
+# and the `_PescaRemate` fields `letal` / `premios` / `prob`, which are read
+# from other modules and belong to the attribute phase. The parameters that
+# callers pass BY KEYWORD moved to map 02: they are API, not locals.
+#
+# `activo -> active` is reported as a collision because `active` already
+# exists in the file. It is a false positive, checked by hand: `active` only
+# ever appears as an ATTRIBUTE (`.active`, 3 times) and never as a name, so
+# the two never share a scope.
+exitos	successes
+poblacion	population
+fallos	failures
+menos_de_k	fewer_than_k
+activo	active
+clave	key
+coste_ret	retreat_cost
+cuerpo	body
+cuerpos	bodies
+del_robo	from_draw
+dirigibles	targetable
+en_mano_util	useful_in_hand
+energia_tras	energy_after
+es_activo	is_active
+escala_grass	grass_scales
+falta	missing
+grass_mano	grass_in_hand
+grass_tras_retirar	grass_after_retreat
+mejor	best
+mejor_clave	best_key
+objetivo	target
+retirada_pagable	retreat_payable
+slots_hab	ability_slots
+slots_hoy	slots_today
+slots_manual	manual_slots
+unidad	unit

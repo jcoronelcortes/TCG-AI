@@ -100,7 +100,7 @@ def _planes(activo, banca, mano=(), mazo=None, veta_ex=False,
            .mi_mano(*mano)
            .estadio(GRAND_TREE, del_rival=True)
            .op_activo(pk(KANGASKHAN, hp=400))
-           .op_zonas(mano=5, mazo=30, premios=4))
+           .op_zonas(mano=5, mazo=30, prizes=4))
     if mazo is not None:
         esc = esc.mazo(*mazo).resto_al_descarte()
     obs = esc.menu_grand_tree().construir()
@@ -194,7 +194,7 @@ def test_prefiere_banca_con_el_activo_condenado():
            .mi_banca(pk(APPLIN))
            .estadio(GRAND_TREE, del_rival=True)
            .op_activo(pk(KANGASKHAN, hp=400))
-           .op_zonas(mano=5, mazo=30, premios=4))
+           .op_zonas(mano=5, mazo=30, prizes=4))
     obs = esc.menu_grand_tree().construir()
     m.agent(obs)
     from cg.api import to_observation_class
@@ -218,7 +218,7 @@ def _obs_menu(mano=(), banca=None, con_forest=False, mazo=None, turno=8):
            .mi_mano(*mano)
            .estadio(GRAND_TREE, del_rival=True)
            .op_activo(pk(KANGASKHAN, hp=400))
-           .op_zonas(mano=5, mazo=30, premios=4))
+           .op_zonas(mano=5, mazo=30, prizes=4))
     if mazo is not None:
         esc = esc.mazo(*mazo).resto_al_descarte()
     return esc.menu_grand_tree(con_forest=con_forest).construir()
@@ -261,7 +261,7 @@ def test_la_habilidad_precede_a_evolucionar_desde_la_mano():
            .mi_mano(BAYLEEF)
            .estadio(GRAND_TREE, del_rival=True)
            .op_activo(pk(KANGASKHAN, hp=400))
-           .op_zonas(mano=5, mazo=30, premios=4))
+           .op_zonas(mano=5, mazo=30, prizes=4))
     obs = esc.menu_grand_tree(con_evolucion_mano=True).construir()
     eleccion = m.agent(obs)
     assert obs["select"]["option"][eleccion[0]]["type"] == int(m.OptionType.ABILITY)
@@ -280,7 +280,7 @@ def test_seleccion_del_pokemon_a_evolucionar_sigue_al_plan():
                      pk(APPLIN), pk(CHIKORITA))
            .estadio(GRAND_TREE, del_rival=True)
            .op_activo(pk(KANGASKHAN, hp=400))
-           .op_zonas(mano=5, mazo=30, premios=4))
+           .op_zonas(mano=5, mazo=30, prizes=4))
     obs = esc.seleccion_grand_tree_en_juego().construir()
     eleccion = m.agent(obs)
     elegida = obs["select"]["option"][eleccion[0]]
@@ -297,7 +297,7 @@ def test_seleccion_de_carta_del_mazo_sigue_al_plan():
                      pk(APPLIN), pk(CHIKORITA))
            .estadio(GRAND_TREE, del_rival=True)
            .op_activo(pk(KANGASKHAN, hp=400))
-           .op_zonas(mano=5, mazo=30, premios=4)
+           .op_zonas(mano=5, mazo=30, prizes=4)
            .mazo(DIPPLIN, BAYLEEF, HYDRAPPLE, GRASS)
            .resto_al_descarte())
     obs = esc.seleccion_grand_tree_mazo(DIPPLIN, BAYLEEF).construir()
@@ -315,7 +315,7 @@ def test_paso_2_trae_la_etapa_2_aunque_el_plan_ya_no_apunte_al_basico():
            .mi_banca(pk(DIPPLIN, pre_evo=[APPLIN]))
            .estadio(GRAND_TREE, del_rival=True)
            .op_activo(pk(KANGASKHAN, hp=400))
-           .op_zonas(mano=5, mazo=30, premios=4)
+           .op_zonas(mano=5, mazo=30, prizes=4)
            .mazo(HYDRAPPLE, GRASS)
            .resto_al_descarte())
     obs = esc.seleccion_grand_tree_mazo(HYDRAPPLE).construir()
@@ -337,7 +337,7 @@ def test_ultra_ball_busca_el_basico_raiz_si_no_hay_ninguno():
            .mi_mano(GRASS, GRASS)
            .estadio(GRAND_TREE, del_rival=True)
            .op_activo(pk(KANGASKHAN, hp=400))
-           .op_zonas(mano=5, mazo=30, premios=4)
+           .op_zonas(mano=5, mazo=30, prizes=4)
            .mazo(APPLIN, DIPPLIN, HYDRAPPLE, CHIKORITA, BAYLEEF, MEGANIUM,
                  GRASS, GRASS)
            .fetch_ultra_ball()
@@ -357,7 +357,7 @@ def test_sin_grand_tree_el_bono_de_fetch_no_existe():
                .mi_banca(pk(TAPU, energias=[G, G]))
                .mi_mano(GRASS, GRASS)
                .op_activo(pk(KANGASKHAN, hp=400))
-               .op_zonas(mano=5, mazo=30, premios=4))
+               .op_zonas(mano=5, mazo=30, prizes=4))
         if estadio is not None:
             esc = esc.estadio(estadio, del_rival=True)
         obs = (esc.mazo(APPLIN, DIPPLIN, HYDRAPPLE, CHIKORITA, BAYLEEF,
@@ -390,7 +390,7 @@ def test_con_raiz_en_juego_no_se_fuerza_la_busqueda():
            .mi_mano(GRASS, GRASS)
            .estadio(GRAND_TREE, del_rival=True)
            .op_activo(pk(KANGASKHAN, hp=400))
-           .op_zonas(mano=5, mazo=30, premios=4)
+           .op_zonas(mano=5, mazo=30, prizes=4)
            .mazo(APPLIN, DIPPLIN, HYDRAPPLE, CHIKORITA, BAYLEEF, MEGANIUM,
                  GRASS, GRASS)
            .fetch_ultra_ball()

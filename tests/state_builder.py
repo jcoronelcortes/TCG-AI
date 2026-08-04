@@ -256,10 +256,10 @@ class Escenario:
                               "serial": next(self._serial_op)} for cid in ids]
         return self
 
-    def op_zonas(self, mano=0, mazo=30, premios=6):
+    def op_zonas(self, mano=0, mazo=30, prizes=6):
         self._op_mano = mano
         self._op_mazo = mazo
-        self._op_premios = premios
+        self._op_premios = prizes
         return self
 
     # ------------------------------------------------------------------

@@ -244,7 +244,7 @@ def _menu_sintetico(mano):
             .mi_mano(*mano)
             .op_activo(pk(CHIKORITA_RIVAL, energias=[C]))
             .op_banca(pk(ABRA, hp=70, max_hp=70))
-            .op_zonas(mano=5, mazo=30, premios=5)
+            .op_zonas(mano=5, mazo=30, prizes=5)
             .menu_mano()
             .construir())
 

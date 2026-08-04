@@ -93,7 +93,7 @@ def _escenario(op_basico=DWEBBLE, con_lillie=True, partidario_jugado=False,
            .mi_banca(pk(m.Applin))
            .mi_mano(*mano)
            .op_activo(pk(op_basico, hp=70, max_hp=70))
-           .op_zonas(mano=5, mazo=50, premios=6)
+           .op_zonas(mano=5, mazo=50, prizes=6)
            .menu_mano(con_adjunte=True))
     return esc.construir()
 

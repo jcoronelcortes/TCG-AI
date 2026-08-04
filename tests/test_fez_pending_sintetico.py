@@ -124,7 +124,7 @@ def _campo(esc, banca_llena=False):
                       OGERPON, *extra)
             .op_activo(pk(MEGA_LUCARIO, hp=340, max_hp=340))
             .op_banca(RIOLU)
-            .op_zonas(mano=5, mazo=30, premios=4))
+            .op_zonas(mano=5, mazo=30, prizes=4))
 
 
 def _menu_fetch():

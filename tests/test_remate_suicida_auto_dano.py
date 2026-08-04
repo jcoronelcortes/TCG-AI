@@ -159,7 +159,7 @@ def _paso_184(op_premios=1, mis_premios=1, tapu_hp=20, ogerpon_energias=6):
             .op_activo(pk(IMPIDIMP))
             .op_banca(pk(IMPIDIMP), pk(IMPIDIMP), pk(IMPIDIMP),
                       pk(IMPIDIMP), pk(IMPIDIMP))
-            .op_zonas(mano=4, mazo=25, premios=op_premios))
+            .op_zonas(mano=4, mazo=25, prizes=op_premios))
 
 
 def _tipo_elegido(obs, eleccion):
@@ -193,7 +193,7 @@ def test_sin_relevo_en_banca_el_empate_es_el_mejor_resultado_y_no_se_veta():
            .mi_mano(GRASS)
            .op_activo(pk(IMPIDIMP))
            .op_banca(pk(IMPIDIMP))
-           .op_zonas(mano=4, mazo=25, premios=1)
+           .op_zonas(mano=4, mazo=25, prizes=1)
            .menu_mano(con_retirada=True, con_ataque=True).construir())
     assert _scores(obs)[_indice(obs, m.OptionType.ATTACK)] > 0
 
@@ -225,7 +225,7 @@ def test_el_remate_suicida_que_PIERDE_se_veta_aunque_no_haya_relevo():
            .mi_mano(GRASS)
            .op_activo(pk(ARCHALUDON_EX, hp=300, max_hp=300))
            .op_banca(pk(IMPIDIMP))
-           .op_zonas(mano=4, mazo=25, premios=1)
+           .op_zonas(mano=4, mazo=25, prizes=1)
            .menu_mano(con_retirada=True, con_ataque=True).construir())
     scores = _scores(obs)
     assert scores[_indice(obs, m.OptionType.ATTACK)] <= 0

@@ -164,7 +164,7 @@ def _tablero(banca_extra=()):
             .mi_banca(pk(OGERPON))
             .op_activo(pk(DRAGAPULT, hp=320, max_hp=320, energias=[G]))
             .op_banca(*([pk(DRAKLOAK, hp=90, max_hp=90)] + list(banca_extra)))
-            .op_zonas(mano=5, mazo=30, premios=5)
+            .op_zonas(mano=5, mazo=30, prizes=5)
             .mi_mano(BOSS)
             .mazo()
             .resto_al_descarte()

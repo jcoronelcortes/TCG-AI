@@ -1,0 +1,21 @@
+# Pilot B -- the parameters of `_pesca_de_remate` and `_prob_al_menos`.
+# These are API: main.py and the tests pass them BY KEYWORD, so the
+# definition and every call site have to move in the same batch. Applied
+# repo-wide, not to one file.
+robo	draws
+grass_en_mazo	grass_in_deck
+baraja_la_mano	shuffles_hand
+puede_cambiar	can_switch
+habilidades_apagadas	abilities_off
+# The `_PescaRemate` fields: the tests build the dataclass by keyword and
+# read `plan.<field>`, so the class and its readers move together.
+atacante_id	attacker_id
+dano	damage
+desde_banca	from_bench
+universo	universe
+letal	lethal
+premios	prizes
+# `cartas` (the field holding how many Grass the draw must bring) is left
+# out on purpose: it is also the name of the `ptcg/cartas` package and of
+# unrelated locals elsewhere, so it needs a per-file rename, not a global
+# one. It goes with the attribute phase.

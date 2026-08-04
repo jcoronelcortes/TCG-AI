@@ -350,7 +350,7 @@ class BotRival:
         more prizes, the better) and, if none dies, the one with the least HP."""
         cur = obs.get("current") or {}
         yo = cur.get("yourIndex", 0)
-        dano = DANO_POR_CONTADOR * max(1, self._contadores)
+        damage = DANO_POR_CONTADOR * max(1, self._contadores)
 
         rivales = [i for i in range(len(opciones))
                    if opciones[i].get("playerIndex") not in (None, yo)]
@@ -363,7 +363,7 @@ class BotRival:
             hp = pk.get("hp") or 0
             if i in rivales:
                 # First the ones that DIE, and among them the ones worth more prizes.
-                return (0 if hp <= dano else 1, -self._premios(pk), hp)
+                return (0 if hp <= damage else 1, -self._premios(pk), hp)
             # If only its own bodies are left, the one that hurts least: the healthiest.
             return (2, 0, -hp)
 

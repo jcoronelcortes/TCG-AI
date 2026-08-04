@@ -155,8 +155,8 @@ def test_el_remate_existia_myriad_con_tres_energias_noquea_al_grimmsnarl():
     base = m._attacker_base_damage(OGERPON, opa, 3, grass_scale=3,
                                    teal_self_energy=3, bench_count=5)
     assert base == 180
-    dano = m._our_effective_damage(activo, opa, base, False, False)
-    assert dano == 360 >= (opa.hp or 0), "debilidad Planta: 180 x 2"
+    damage = m._our_effective_damage(activo, opa, base, False, False)
+    assert damage == 360 >= (opa.hp or 0), "debilidad Planta: 180 x 2"
 
 
 def test_el_gusteo_degrada_el_objetivo_del_remate():
@@ -214,14 +214,14 @@ def test_paso49_pesca_dos_cartas_por_dos_premios(monkeypatch):
     plan = capturado["plan"]
 
     assert plan is not None
-    assert plan.atacante_id == OGERPON and not plan.desde_banca
+    assert plan.attacker_id == OGERPON and not plan.from_bench
     assert plan.cartas == 2, "faltan DOS Plantas (adjunte manual + Teal Dance)"
-    assert plan.letal and plan.premios == 2
-    assert plan.dano == 360
+    assert plan.lethal and plan.prizes == 2
+    assert plan.damage == 360
     # The belief counts what is UNSEEN (deck 38 + 6 prizes): 11 Grass in 48
     # cards after shuffling the 4 from hand. A conservative estimate of the real
     # 0.63 (10 live Grass in the 42-card deck).
-    assert plan.robo == 8 and plan.outs == 11 and plan.universo == 48
+    assert plan.draws == 8 and plan.outs == 11 and plan.universe == 48
     assert plan.prob == pytest.approx(0.5976, abs=1e-4)
 
 
@@ -245,7 +245,7 @@ def test_paso49_contrafactual_sin_pesca_vuelve_a_gustear(monkeypatch):
 # Synthetic boundaries (StateBuilder): probability, energy in hand
 # ---------------------------------------------------------------------------
 
-def _escenario_paso49(grass_en_mazo=10, grass_en_mano=0, con_adjunte=False):
+def _escenario_paso49(grass_in_deck=10, grass_en_mano=0, con_adjunte=False):
     """A synthetic replica of step 49 with the deck parameterised.
 
     grass_en_mazo: LIVE Grass in the deck (the rest goes to the discard).
@@ -268,14 +268,14 @@ def _escenario_paso49(grass_en_mazo=10, grass_en_mano=0, con_adjunte=False):
                         pre_evo=[IMPIDIMP]),
                      pk(SNORUNT, hp=70, max_hp=70),
                      pk(IMPIDIMP, hp=70, max_hp=70, energias=[DARK, DARK]))
-           .op_zonas(mano=5, mazo=32, premios=6))
+           .op_zonas(mano=5, mazo=32, prizes=6))
 
     # Deck: the requested live Grass + filler from the pool (including the Dipplin
     # that makes the Ultra Ball "complete a line", as in the record).
     # `_pool` (private) = what is left of deck.csv after placing the field and the hand.
     # The Grass that does not go to the deck is declared in the DISCARD (visible), so
     # that the deck belief sees exactly `grass_en_mazo` outs.
-    n_grass = min(grass_en_mazo, esc._pool[GRASS])
+    n_grass = min(grass_in_deck, esc._pool[GRASS])
     esc.mi_descarte(*([GRASS] * (esc._pool[GRASS] - n_grass)))
     relleno = [cid for cid in sorted(esc._pool.elements()) if cid != GRASS]
     # The deck reaches 38 cards (like the real one) as long as there is filler to spare;
@@ -302,14 +302,14 @@ def test_sintetico_reproduce_la_decision_real(monkeypatch):
     capturado = _espiar_pesca(monkeypatch)
     obs = _escenario_paso49()
     assert m.agent(obs) == [_idx_play_de(obs, LILLIE)]
-    assert capturado["plan"].premios == 2
+    assert capturado["plan"].prizes == 2
 
 
 def test_con_el_mazo_seco_de_plantas_la_pesca_no_pisa_los_vetos(monkeypatch):
     """Boundary: with a single live Grass the draw canNOT bring the two that
     are missing (prob 0) and the refill loses its privilege."""
     capturado = _espiar_pesca(monkeypatch)
-    obs = _escenario_paso49(grass_en_mazo=1)
+    obs = _escenario_paso49(grass_in_deck=1)
     assert capturado is not None
     eleccion = m.agent(obs)
     assert capturado["plan"] is None, "sin outs suficientes no hay pesca"
@@ -326,7 +326,7 @@ def test_frontera_de_probabilidad(monkeypatch):
         m._cartas_prizes_identified = False
         m._cartas_last_turn = -1
         capturado = _espiar_pesca(monkeypatch)
-        obs = _escenario_paso49(grass_en_mazo=grass)
+        obs = _escenario_paso49(grass_in_deck=grass)
         juega_lillie = (m.agent(obs) == [_idx_play_de(obs, LILLIE)])
         vistos[grass] = (capturado["plan"].prob, juega_lillie)
 
@@ -351,7 +351,7 @@ def test_la_pesca_exitosa_se_convierte_en_ataque():
            .op_banca(pk(MORGREM, hp=100, max_hp=100, energias=[DARK, DARK],
                         pre_evo=[IMPIDIMP]),
                      pk(SNORUNT, hp=70, max_hp=70))
-           .op_zonas(mano=5, mazo=32, premios=6))
+           .op_zonas(mano=5, mazo=32, prizes=6))
     esc.mazo(*sorted(esc._pool.elements())[:34]).resto_al_descarte()
     obs = esc.menu_mano(con_retirada=True, con_ataque=True).construir()
     eleccion = m.agent(obs)

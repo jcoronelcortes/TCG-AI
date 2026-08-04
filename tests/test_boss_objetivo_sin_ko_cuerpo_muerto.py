@@ -199,7 +199,7 @@ def _tablero(energias_activo):
             .op_activo(pk(DRAGAPULT, hp=320, max_hp=320, energias=[G, G]))
             .op_banca(pk(DRAGAPULT, hp=320, max_hp=320, energias=[G]),
                       pk(DUSCLOPS, hp=90, max_hp=90))
-            .op_zonas(mano=5, mazo=25, premios=4)
+            .op_zonas(mano=5, mazo=25, prizes=4)
             .mazo()
             # `menu_gusteo()` consumes a Boss's Orders from the pool (the card "in
             # effect"), so it goes BEFORE `resto_al_descarte()`.

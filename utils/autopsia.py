@@ -345,10 +345,10 @@ def detectar(m, decisiones):
                 if not any(int(o.get("type", -1)) == int(OptionType.ATTACK)
                            for o in opciones):
                     continue
-                dano, opa = _dano_letal_activo(m, d["obs"])
-                if opa is None or dano <= 0:
+                damage, opa = _dano_letal_activo(m, d["obs"])
+                if opa is None or damage <= 0:
                     continue
-                if dano >= (opa.hp or 0) > 0:
+                if damage >= (opa.hp or 0) > 0:
                     yo, _ = _mi_lado(d["obs"])
                     mis_premios = sum(1 for p in yo.get("prize") or []
                                       if p is None)
@@ -357,7 +357,7 @@ def detectar(m, decisiones):
                         "detector": "letal_perdido",
                         "critico": bool(gana),
                         "turno": turno, "paso": d["paso"],
-                        "detalle": (f"KO disponible ({dano} >= "
+                        "detalle": (f"KO disponible ({damage} >= "
                                     f"{opa.hp}) y el turno cerro "
                                     f"sin atacar"),
                         "eleccion": d["eleccion"],
@@ -378,8 +378,8 @@ def detectar(m, decisiones):
             esteril = True
         elif t == int(OptionType.ATTACK) and mano >= MANO_MINIMA_ESTERIL:
             atk = m.attack_table.get(opcion.get("attackId"))
-            dano, _opa = _dano_letal_activo(m, ultimo["obs"])
-            if atk is not None and (atk.damage or 0) == 0 and dano == 0:
+            damage, _opa = _dano_letal_activo(m, ultimo["obs"])
+            if atk is not None and (atk.damage or 0) == 0 and damage == 0:
                 esteril = True
         if esteril:
             # v2: the useful observation is that of the FIRST MAIN select of the turn

@@ -380,8 +380,8 @@ def acciones_legales(obs):
     # simulator did not offer ATTACK (not enough energy, a condition), the
     # model does not invent it; after any transition the model decides
     # again (a simulated attachment can enable the attack).
-    dano, opa = _dano_activo(obs)
-    if dano > 0 and _permitido(OptionType.ATTACK):
+    damage, opa = _dano_activo(obs)
+    if damage > 0 and _permitido(OptionType.ATTACK):
         acciones.append(("ATTACK", None))
     acciones.append(("END", None))
     return acciones
@@ -390,19 +390,19 @@ def acciones_legales(obs):
 def evaluar_terminal(obs, ataca):
     """A lexicographic tuple: (wins, prizes, damage, development)."""
     yo = _yo(obs)
-    premios, dano = 0, 0
+    prizes, damage = 0, 0
     gana = False
     if ataca:
-        dano, opa = _dano_activo(obs)
-        if opa is not None and dano >= (opa.get("hp") or 0) > 0:
-            premios = m.prize_count(_P(opa))
+        damage, opa = _dano_activo(obs)
+        if opa is not None and damage >= (opa.get("hp") or 0) > 0:
+            prizes = m.prize_count(_P(opa))
             faltan = sum(1 for p in (yo.get("prize") or []) if p is None)
-            gana = premios >= faltan
-            dano = opa["hp"]
+            gana = prizes >= faltan
+            damage = opa["hp"]
     energia = sum(len(p.get("energies") or []) for p in _pokes(yo))
     desarrollo = (len(_pokes(yo)) * 10 + energia
                   + obs.get("_evoluciones", 0) * 5)
-    return (int(gana), premios, dano, desarrollo)
+    return (int(gana), prizes, damage, desarrollo)
 
 
 def explorar(obs, max_nodos=MAX_NODOS, respetar_menu=False):
@@ -472,7 +472,7 @@ def demo_combo_myriad():
            .op_activo(pk(271, hp=120, max_hp=120))          # Kilowattrel
            .op_banca(pk(269, hp=280, max_hp=280,
                         energias=[G, G, G, G]))             # Bellibolt ex
-           .op_zonas(mano=5, mazo=30, premios=3)
+           .op_zonas(mano=5, mazo=30, prizes=3)
            .menu_teal_dance()
            .construir())
     puntaje, linea, nodos = explorar(obs)

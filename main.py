@@ -9764,15 +9764,15 @@ def agent(obs_dict: dict) -> list[int]:
             and hand_counts.get(Lillie_Determination, 0) >= 1):
         _pesca_remate = _pesca_de_remate(
             my_state, op_state, state, hand_counts, field_counts,
-            grass_en_mazo=ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(
+            grass_in_deck=ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(
                 Basic_Grass_Energy, {}).get(ESTADO_MAZO, 0),
-            robo=_robo_de_lillie(my_prize),
-            baraja_la_mano=True,
+            draws=_robo_de_lillie(my_prize),
+            shuffles_hand=True,
             meganium_in_play=ESTADO.meganium_in_play,
             neutralization_zone_active=neutralization_zone_active,
             total_grass=total_grass, bench_count=bench_count,
-            puede_cambiar=can_switch, has_switch_card=has_switch_card,
-            habilidades_apagadas=meowth_ability_lock)
+            can_switch=can_switch, has_switch_card=has_switch_card,
+            abilities_off=meowth_ability_lock)
 
     # The decision context (Priority 1 refactor): invariant inputs that
     # the extracted `_score_*` scorers consume. It is built a single time.
@@ -10011,8 +10011,8 @@ def agent(obs_dict: dict) -> list[int]:
             and context == SelectContext.TO_HAND):
         _lana_plan = _plan_de_planta(my_state, state, field_counts, hand_counts,
                                      tope=select.maxCount or 1,
-                                     puede_cambiar=can_switch,
-                                     habilidades_apagadas=meowth_ability_lock)
+                                     can_switch=can_switch,
+                                     abilities_off=meowth_ability_lock)
         _lana_n = 0
         for _lana_i, _lana_o in enumerate(select.option):
             if _lana_o.type != OptionType.CARD:

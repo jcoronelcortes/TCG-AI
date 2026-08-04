@@ -91,7 +91,7 @@ def _cierre_de_turno(activo_rival="grimmsnarl", hp_ogerpon=30):
            .op_activo(act_rival)
            .op_banca(banca_rival, pk(SNORUNT, hp=70, max_hp=70),
                      pk(IMPIDIMP, hp=70, max_hp=70, energias=[DARK, DARK]))
-           .op_zonas(mano=5, mazo=32, premios=6))
+           .op_zonas(mano=5, mazo=32, prizes=6))
     esc.mazo(*sorted(esc._pool.elements())[:34]).resto_al_descarte()
     obs = esc.menu_mano(con_retirada=True).construir()
     obs["select"]["option"] = [

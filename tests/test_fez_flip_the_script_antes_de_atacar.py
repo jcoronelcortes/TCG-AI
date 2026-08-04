@@ -233,7 +233,7 @@ def _escenario(mano, con_ataque=True):
            .op_activo(pk(ARCHALUDON, hp=400, max_hp=400, energias=[C, C, C],
                          pre_evo=[DURALUDON]))
            .op_banca(pk(DURALUDON, hp=130, max_hp=130, energias=[C, C, C]))
-           .op_zonas(mano=9, mazo=23, premios=4)
+           .op_zonas(mano=9, mazo=23, prizes=4)
            .menu_mano(con_ataque=con_ataque))
     obs = esc.construir()
     opciones = obs["select"]["option"]
@@ -291,7 +291,7 @@ def test_sintetico_deck_out_sigue_vetando_la_habilidad():
            .resto_al_descarte()
            .op_activo(pk(ARCHALUDON, hp=400, max_hp=400, energias=[C, C, C],
                          pre_evo=[DURALUDON]))
-           .op_zonas(mano=5, mazo=20, premios=4)
+           .op_zonas(mano=5, mazo=20, prizes=4)
            .menu_mano(con_ataque=True))
     obs = esc.construir()
     opciones = obs["select"]["option"]

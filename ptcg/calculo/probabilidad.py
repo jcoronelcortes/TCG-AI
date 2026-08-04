@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from math import comb as _comb
 
 
-def _prob_al_menos(exitos, poblacion, robo, k):
+def _prob_al_menos(successes, population, draws, k):
     """Hypergeometric: P(drawing AT LEAST `k` copies) when drawing `robo`
     cards from a deck of `poblacion` with `exitos` live copies.
 
@@ -32,35 +32,35 @@ def _prob_al_menos(exitos, poblacion, robo, k):
     deck). Conservative is what a gate wants."""
     if k <= 0:
         return 1.0
-    if exitos <= 0 or robo <= 0 or poblacion <= 0 or k > exitos:
+    if successes <= 0 or draws <= 0 or population <= 0 or k > successes:
         return 0.0
-    robo = min(robo, poblacion)
-    if k > robo:
+    draws = min(draws, population)
+    if k > draws:
         return 0.0
-    fallos = poblacion - exitos
-    total = _comb(poblacion, robo)
+    failures = population - successes
+    total = _comb(population, draws)
     if total <= 0:
         return 0.0
-    menos_de_k = 0
+    fewer_than_k = 0
     for i in range(0, k):
-        if i > exitos or (robo - i) > fallos or (robo - i) < 0:
+        if i > successes or (draws - i) > failures or (draws - i) < 0:
             continue
-        menos_de_k += _comb(exitos, i) * _comb(fallos, robo - i)
-    return max(0.0, min(1.0, 1.0 - menos_de_k / total))
+        fewer_than_k += _comb(successes, i) * _comb(failures, draws - i)
+    return max(0.0, min(1.0, 1.0 - fewer_than_k / total))
 
 
 @dataclass
 class _PescaRemate:
     """An attack that this turn depends ONLY on the draw bringing energy."""
-    atacante_id: int
-    desde_banca: bool     # requires retreating the active to promote it
+    attacker_id: int
+    from_bench: bool     # requires retreating the active to promote it
     cartas: int           # Grass the DRAW has to bring
-    dano: int             # projected EFFECTIVE damage on the opposing active
-    letal: bool
-    premios: int          # prizes the KO takes (0 if not lethal)
-    robo: int             # cards the refill draws
+    damage: int             # projected EFFECTIVE damage on the opposing active
+    lethal: bool
+    prizes: int          # prizes the KO takes (0 if not lethal)
+    draws: int             # cards the refill draws
     outs: int             # live Grass in the deck after shuffling
-    universo: int         # cards in the deck after shuffling the hand back
+    universe: int         # cards in the deck after shuffling the hand back
     prob: float
 
 
@@ -144,8 +144,8 @@ def _pesca_remate_valida(c):
                 and not c.can_attack
                 and not c.has_ready_bench_attacker
                 and not getattr(c, 'pending_evo', False)
-                and p.letal
-                and p.premios >= PESCA_PREMIOS_MIN
+                and p.lethal
+                and p.prizes >= PESCA_PREMIOS_MIN
                 and p.prob >= PESCA_PROB_MIN
                 and not c.boss_win_via_bench
                 and not c.win_via_boss_gust
@@ -154,10 +154,10 @@ def _pesca_remate_valida(c):
 
 
 def _pesca_de_remate(my_state, op_state, state, hand_counts, field_counts,
-                     grass_en_mazo, robo, baraja_la_mano=True,
+                     grass_in_deck, draws, shuffles_hand=True,
                      meganium_in_play=False, neutralization_zone_active=False,
-                     total_grass=0, bench_count=0, puede_cambiar=False,
-                     has_switch_card=False, habilidades_apagadas=False):
+                     total_grass=0, bench_count=0, can_switch=False,
+                     has_switch_card=False, abilities_off=False):
     """The BEST attack this turn's draw can unlock, with its probability.
     `None` if there is none.
 
@@ -191,71 +191,71 @@ def _pesca_de_remate(my_state, op_state, state, hand_counts, field_counts,
     """
     if op_state is None or not op_state.active or op_state.active[0] is None:
         return None
-    objetivo = op_state.active[0]
-    if (objetivo.hp or 0) <= 0:
+    target = op_state.active[0]
+    if (target.hp or 0) <= 0:
         return None
-    if robo <= 0:
+    if draws <= 0:
         return None
 
-    unidad = _grass_attach_unit()
-    slots_manual = 0 if state.energyAttached else 1
-    n_hydrapple = 0 if habilidades_apagadas else field_counts.get(Hydrapple_ex, 0)
-    slots_hab = (0 if habilidades_apagadas
+    unit = _grass_attach_unit()
+    manual_slots = 0 if state.energyAttached else 1
+    n_hydrapple = 0 if abilities_off else field_counts.get(Hydrapple_ex, 0)
+    ability_slots = (0 if abilities_off
                  else _grass_ability_slots(state, field_counts))
-    slots_hoy = slots_manual + slots_hab
-    if slots_hoy <= 0:
+    slots_today = manual_slots + ability_slots
+    if slots_today <= 0:
         return None                       # no route left to put energy in today
 
-    grass_mano = hand_counts.get(Basic_Grass_Energy, 0)
+    grass_in_hand = hand_counts.get(Basic_Grass_Energy, 0)
     # With a refill that SHUFFLES the hand, the Grass in hand is lost as an
     # immediate resource and reappears as outs in the deck.
-    en_mano_util = 0 if baraja_la_mano else grass_mano
-    outs = grass_en_mazo + (grass_mano if baraja_la_mano else 0)
+    useful_in_hand = 0 if shuffles_hand else grass_in_hand
+    outs = grass_in_deck + (grass_in_hand if shuffles_hand else 0)
     # `grass_en_mazo` comes from the belief, which counts EVERYTHING unseen: deck +
     # prizes. The population has to count them the same way so the probability is
     # not inflated (see `_prob_al_menos`). The Supporter being played does not go
     # back to the deck: it is discarded, hence the -1.
-    universo = max(1, (getattr(my_state, 'deckCount', 0) or 0)
+    universe = max(1, (getattr(my_state, 'deckCount', 0) or 0)
                    + len(getattr(my_state, 'prize', None) or [])
-                   + (max(0, len(my_state.hand or []) - 1) if baraja_la_mano else 0))
+                   + (max(0, len(my_state.hand or []) - 1) if shuffles_hand else 0))
 
-    activo = _active_of(my_state)
+    active = _active_of(my_state)
     # Cost of the retreat if the finisher is on the BENCH: it is paid with the
     # ACTIVE's energies (whole cards), and that lowers the Grass on the field that
     # Syrup Storm scales with.
-    coste_ret = 0 if has_switch_card else (
-        RETREAT_COST.get(activo.id, 1) if activo is not None else 99)
-    retirada_pagable = (puede_cambiar
-                        and activo is not None
+    retreat_cost = 0 if has_switch_card else (
+        RETREAT_COST.get(active.id, 1) if active is not None else 99)
+    retreat_payable = (can_switch
+                        and active is not None
                         and (has_switch_card
-                             or len(activo.energies) >= coste_ret))
-    grass_tras_retirar = max(0, total_grass - (0 if has_switch_card
-                                               else _retreat_grass_units(coste_ret)))
+                             or len(active.energies) >= retreat_cost))
+    grass_after_retreat = max(0, total_grass - (0 if has_switch_card
+                                               else _retreat_grass_units(retreat_cost)))
 
-    cuerpos = ([(activo, True)] if activo is not None else [])
-    cuerpos += [(bp, False) for bp in (my_state.bench or [])]
-    mejor, mejor_clave = None, None
-    for cuerpo, es_activo in cuerpos:
-        if cuerpo is None or cuerpo.id not in MAIN_ATTACKERS:
+    bodies = ([(active, True)] if active is not None else [])
+    bodies += [(bp, False) for bp in (my_state.bench or [])]
+    best, best_key = None, None
+    for body, is_active in bodies:
+        if body is None or body.id not in MAIN_ATTACKERS:
             continue
-        if not es_activo and not retirada_pagable:
+        if not is_active and not retreat_payable:
             continue                      # charged or not, it does not reach the front today
-        req = ESTADO.ATTACK_ENERGY_REQ.get(cuerpo.id)
+        req = ESTADO.ATTACK_ENERGY_REQ.get(body.id)
         if req is None:
             continue
-        falta = req - len(cuerpo.energies)
-        if falta <= 0:
+        missing = req - len(body.energies)
+        if missing <= 0:
             continue                      # already attacks: this is not fishing
-        cartas = -(-falta // unidad)
+        cartas = -(-missing // unit)
         # Routes that can point at THIS body today (same criterion as
         # `_plan_de_planta`): Teal Dance only charges its bearer.
-        dirigibles = slots_manual + n_hydrapple
-        if cuerpo.id == Teal_Mask_Ogerpon_ex and not habilidades_apagadas:
-            dirigibles += 1
-        dirigibles = min(dirigibles, slots_hoy)
-        if cartas > dirigibles:
+        targetable = manual_slots + n_hydrapple
+        if body.id == Teal_Mask_Ogerpon_ex and not abilities_off:
+            targetable += 1
+        targetable = min(targetable, slots_today)
+        if cartas > targetable:
             continue                      # not even with every route does it attack today
-        if cartas <= min(grass_mano, dirigibles):
+        if cartas <= min(grass_in_hand, targetable):
             # The HAND already unlocks it: this is not fishing, it is a charge --
             # and with `baraja_la_mano` it would also be the worst possible
             # mistake (shuffling away exactly the energy that wins the turn).
@@ -263,43 +263,43 @@ def _pesca_de_remate(my_state, op_state, state, hand_counts, field_counts,
             # only covers part of the deficit, the later re-evaluation comes back
             # here with the attachment already spent and fewer cards to fish for.
             continue
-        del_robo = cartas - min(en_mano_util, dirigibles)
-        if del_robo <= 0:
+        from_draw = cartas - min(useful_in_hand, targetable)
+        if from_draw <= 0:
             continue                      # the hand alone unlocks it: not fishing
-        if del_robo > robo:
+        if from_draw > draws:
             continue                      # it does not fit even drawing everything
 
-        escala_grass = ((total_grass if es_activo else grass_tras_retirar)
-                        + cartas * unidad)
-        energia_tras = len(cuerpo.energies) + cartas * unidad
+        grass_scales = ((total_grass if is_active else grass_after_retreat)
+                        + cartas * unit)
+        energy_after = len(body.energies) + cartas * unit
         base = _attacker_base_damage(
-            cuerpo.id, objetivo, energia_tras,
-            grass_scale=escala_grass,
-            teal_self_energy=len(cuerpo.energies) + cartas,
+            body.id, target, energy_after,
+            grass_scale=grass_scales,
+            teal_self_energy=len(body.energies) + cartas,
             bench_count=bench_count)
         if base <= 0:
             continue
-        dano = _our_effective_damage(cuerpo, objetivo, base, meganium_in_play,
+        damage = _our_effective_damage(body, target, base, meganium_in_play,
                                      neutralization_zone_active)
-        if dano <= 0:
+        if damage <= 0:
             continue
-        letal = dano >= (objetivo.hp or 0) and not _ko_no_garantizado(objetivo)
-        premios = prize_count_op(objetivo) if letal else 0
-        prob = _prob_al_menos(outs, universo, robo, del_robo)
+        lethal = damage >= (target.hp or 0) and not _ko_no_garantizado(target)
+        prizes = prize_count_op(target) if lethal else 0
+        prob = _prob_al_menos(outs, universe, draws, from_draw)
         if prob <= 0.0:
             continue
         # Best plan = the one that takes the most prizes; on a tie, the most PROBABLE
         # (fewer cards to fish for), and then the one that deals the most damage. The
         # ACTIVE is preferred over the benched relief: it does not pay a retreat.
-        clave = (1 if letal else 0, premios, round(prob, 6), dano,
-                 0 if es_activo else -1)
-        if mejor_clave is None or clave > mejor_clave:
-            mejor_clave = clave
-            mejor = _PescaRemate(
-                atacante_id=cuerpo.id, desde_banca=not es_activo,
-                cartas=del_robo, dano=dano, letal=letal, premios=premios,
-                robo=robo, outs=outs, universo=universo, prob=prob)
-    return mejor
+        key = (1 if lethal else 0, prizes, round(prob, 6), damage,
+                 0 if is_active else -1)
+        if best_key is None or key > best_key:
+            best_key = key
+            best = _PescaRemate(
+                attacker_id=body.id, from_bench=not is_active,
+                cartas=from_draw, damage=damage, lethal=lethal, prizes=prizes,
+                draws=draws, outs=outs, universe=universe, prob=prob)
+    return best
 
 __all__ = [
     '_prob_al_menos',

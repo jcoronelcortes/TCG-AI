@@ -200,16 +200,16 @@ def jugar_partida(agente_p0, agente_p1, deck0=None, deck1=None,
                             premios_pico, _premios_restantes(obs))}
             _mirar_premios()
             pasos += 1
-        premios = _premios_tomados(premios_pico, _premios_restantes(obs))
+        prizes = _premios_tomados(premios_pico, _premios_restantes(obs))
         if obs["current"]["result"] == -1:
             return {"result": "limite", "ganador": None, "pasos": pasos,
                     "primer_jugador": primer_jugador,
-                    "premios_tomados": premios}
+                    "premios_tomados": prizes}
         ganador = obs["current"]["result"]
         return {"result": ganador, "ganador": ganador, "pasos": pasos,
                 "primer_jugador": obs["current"]["firstPlayer"]
                 if primer_jugador == -1 else primer_jugador,
-                "premios_tomados": premios}
+                "premios_tomados": prizes}
     finally:
         game.battle_finish()
 
@@ -252,10 +252,10 @@ def torneo(candidato, base, partidas, progreso=None,
             p0, p1, d0, d1 = base, candidato, deck_base, deck_candidato
         r = jugar_partida(p0, p1, deck0=d0, deck1=d1)
         stats["pasos_totales"] += r["pasos"]
-        premios = r.get("premios_tomados") or [None, None]
-        if premios[0] is not None and premios[1] is not None:
-            stats["premios_candidato"] += premios[asiento_cand]
-            stats["premios_base"] += premios[1 - asiento_cand]
+        prizes = r.get("premios_tomados") or [None, None]
+        if prizes[0] is not None and prizes[1] is not None:
+            stats["premios_candidato"] += prizes[asiento_cand]
+            stats["premios_base"] += prizes[1 - asiento_cand]
             stats["partidas_con_premios"] += 1
         if isinstance(r["result"], str) and r["result"].startswith("error"):
             asiento_err = int(r["result"][-1])

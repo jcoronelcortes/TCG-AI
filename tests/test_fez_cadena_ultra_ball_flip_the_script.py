@@ -262,7 +262,7 @@ def _escenario_lucario(mano, con_ataque=True):
            .op_activo(pk(MEGA_LUCARIO, hp=340, max_hp=340, energias=[C, C],
                          pre_evo=[RIOLU]))
            .op_banca(RIOLU, RIOLU)
-           .op_zonas(mano=6, mazo=23, premios=4)
+           .op_zonas(mano=6, mazo=23, prizes=4)
            .menu_mano(con_ataque=con_ataque))
     obs = esc.construir()
     # Step 91 arrives after we were knocked out: it replicates the tracking.
@@ -302,7 +302,7 @@ def _escenario_teal_lillie(mano):
            .op_activo(pk(MEGA_LUCARIO, hp=340, max_hp=340, energias=[C, C],
                          pre_evo=[RIOLU]))
            .op_banca(RIOLU, RIOLU)
-           .op_zonas(mano=6, mazo=23, premios=4)
+           .op_zonas(mano=6, mazo=23, prizes=4)
            .menu_mano(con_ataque=True))
     obs = esc.construir()
     m.ko_last_turn = True
@@ -333,7 +333,7 @@ def test_sintetico_pending_no_rompe_los_limites_fisicos():
            .op_activo(pk(MEGA_LUCARIO, hp=340, max_hp=340, energias=[C, C],
                          pre_evo=[RIOLU]))
            .op_banca(RIOLU)
-           .op_zonas(mano=6, mazo=23, premios=4)
+           .op_zonas(mano=6, mazo=23, prizes=4)
            .menu_mano(con_ataque=True))
     obs = esc.construir()
     m.ko_last_turn = True

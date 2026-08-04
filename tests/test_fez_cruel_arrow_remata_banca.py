@@ -188,9 +188,9 @@ def test_paso54_cruel_arrow_no_llega_al_activo_pero_si_a_la_banca():
     assert any(p is not None and p.id == KADABRA and p.hp == 80
                for p in rival.bench)                  # 100 DOES knock it out
 
-    objetivo, dano, es_ko = m._snipe_best_target(activo, rival, len(activo.energies),
+    objetivo, damage, es_ko = m._snipe_best_target(activo, rival, len(activo.energies),
                                                  m.meganium_in_play, False)
-    assert (objetivo.id, dano, es_ko) == (KADABRA, 100, True)
+    assert (objetivo.id, damage, es_ko) == (KADABRA, 100, True)
 
 
 # ---------------------------------------------------------------------------
@@ -251,10 +251,10 @@ def test_snipe_respeta_la_inmunidad_a_ex():
     inmune = next(iter(m.EX_IMMUNE_IDS))
     for p in [rival.active[0]] + [b for b in rival.bench if b is not None]:
         p.id = inmune
-    objetivo, dano, es_ko = m._snipe_best_target(activo, rival,
+    objetivo, damage, es_ko = m._snipe_best_target(activo, rival,
                                                  len(activo.energies),
                                                  m.meganium_in_play, False)
-    assert dano == 0 and es_ko is False
+    assert damage == 0 and es_ko is False
 
 
 # ---------------------------------------------------------------------------

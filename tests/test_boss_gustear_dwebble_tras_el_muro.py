@@ -96,7 +96,7 @@ def _escenario(op_activo=None, op_banca=None, mano=(BOSS, XEROSIC, ULTRA_BALL)):
             .mi_mano(*mano)
             .op_activo(op_activo)
             .op_banca(*op_banca)
-            .op_zonas(mano=8, mazo=30, premios=6))
+            .op_zonas(mano=8, mazo=30, prizes=6))
 
 
 def _jugada(obs, eleccion, mano):
@@ -171,7 +171,7 @@ def test_con_muro_pero_sin_KO_el_dwebble_sigue_vetado():
            .mi_mano(BOSS, ULTRA_BALL)
            .op_activo(pk(CRUSTLE))
            .op_banca(pk(DWEBBLE), pk(CRUSTLE))
-           .op_zonas(mano=8, mazo=30, premios=6)
+           .op_zonas(mano=8, mazo=30, prizes=6)
            .menu_gusteo().construir())
     idx = obs["select"]["option"][m.agent(obs)[0]]["index"]
     assert obs["current"]["players"][1]["bench"][idx]["id"] != DWEBBLE

@@ -81,7 +81,7 @@ def _escenario(mano, banca=None, energia_activo=0, descarte=(GRASS, GRASS),
             .mi_mano(*mano)
             .mi_descarte(*descarte)
             .op_activo(pk(COMFEY, hp=op_hp))
-            .op_zonas(mano=5, mazo=20, premios=3))
+            .op_zonas(mano=5, mazo=20, prizes=3))
 
 
 def _elegida(obs, eleccion, mano):

@@ -101,7 +101,7 @@ def _escenario(activo=None, banca=None, mano=(GRASS, ULTRA_BALL),
             .mi_banca(*banca)
             .mi_mano(*mano)
             .op_activo(pk(ALAKAZAM, hp=op_hp, energias=[G] * op_energias))
-            .op_zonas(mano=6, mazo=20, premios=3))
+            .op_zonas(mano=6, mazo=20, prizes=3))
 
 
 def _destino(obs, eleccion):
@@ -182,7 +182,7 @@ def _escenario_meganium(activo=None, mano=(GRASS, ULTRA_BALL)):
             .op_activo(pk(SHAYMIN))
             .op_banca(pk(KADABRA, pre_evo=[ABRA]), pk(DUNSPARCE), pk(ABRA),
                       pk(DUNSPARCE))
-            .op_zonas(mano=8, mazo=20, premios=5))
+            .op_zonas(mano=8, mazo=20, prizes=5))
 
 
 def test_con_meganium_en_juego_la_planta_sigue_yendo_al_activo_atrapado():
@@ -311,7 +311,7 @@ def _escenario_88631738(activo=None, mano=(GRASS, GRASS, ULTRA_BALL),
             .mi_mano(*mano)
             .op_activo(pk(MEGA_STARMIE, hp=240))
             .op_banca(pk(1030))
-            .op_zonas(mano=2, mazo=39, premios=4))
+            .op_zonas(mano=2, mazo=39, prizes=4))
 
 
 def test_88631738_la_habilidad_carga_al_activo_con_el_adjunte_ya_gastado():
@@ -376,7 +376,7 @@ def _escenario_coste_3(activo_e=1, mano=(GRASS, GRASS, ULTRA_BALL),
                       pk(MEOWTH))
             .mi_mano(*mano)
             .op_activo(pk(ALAKAZAM, hp=140, energias=[G]))
-            .op_zonas(mano=6, mazo=20, premios=3))
+            .op_zonas(mano=6, mazo=20, prizes=3))
 
 
 def test_con_presupuesto_de_una_planta_no_hay_linea():

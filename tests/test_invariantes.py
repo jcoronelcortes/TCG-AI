@@ -98,7 +98,7 @@ def test_invariante_fetch_ub_robusto(activo_id, energias_activo, banca,
                .mi_banca(*banca)
                .mi_mano(*mano)
                .op_activo(rival)
-               .op_zonas(mano=5, mazo=30, premios=6)
+               .op_zonas(mano=5, mazo=30, prizes=6)
                # the deck always carries a searchable Pokemon + random extras
                .mazo(m.Teal_Mask_Ogerpon_ex, *mazo_extra)
                .fetch_ultra_ball()
@@ -142,7 +142,7 @@ def test_invariante_applin_max_una_energia(applin_en_activo, companiero,
                .mi_mano(m.Basic_Grass_Energy)  # without Dipplin+Hydrapple: no
                # the complete-evolution-this-turn exception applies
                .op_activo(rival)
-               .op_zonas(mano=5, mazo=30, premios=6)
+               .op_zonas(mano=5, mazo=30, prizes=6)
                .menu_attach_energia()
                .construir())
     except EstadoInconsistente:

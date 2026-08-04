@@ -193,7 +193,7 @@ def _plan(activo, banca=(), mano=(), energia_jugada=False, cambio=False):
            .mi_banca(*banca)
            .mi_mano(*mano)
            .op_activo(pk(CRUSTLE))
-           .op_zonas(mano=5, mazo=30, premios=6)
+           .op_zonas(mano=5, mazo=30, prizes=6)
            .menu_mano()
            .construir())
     o = m.to_observation_class(obs)
@@ -208,7 +208,7 @@ def _plan(activo, banca=(), mano=(), energia_jugada=False, cambio=False):
     for c in (mi.hand or []):
         cuentas[c.id] = cuentas.get(c.id, 0) + 1
     return m._plan_de_planta(mi, o.current, campo, cuentas,
-                             puede_cambiar=cambio)
+                             can_switch=cambio)
 
 
 def test_plan_todos_cargados_no_hay_demanda():
@@ -251,7 +251,7 @@ def test_plan_con_las_habilidades_apagadas_solo_queda_el_adjunte_manual():
 
     obs = (Escenario(turno=10)
            .mi_activo(activo).mi_banca(*banca)
-           .op_activo(pk(CRUSTLE)).op_zonas(mano=5, mazo=30, premios=6)
+           .op_activo(pk(CRUSTLE)).op_zonas(mano=5, mazo=30, prizes=6)
            .menu_mano().construir())
     o = m.to_observation_class(obs)
     mi = o.current.players[o.current.yourIndex]
@@ -266,7 +266,7 @@ def test_plan_con_las_habilidades_apagadas_solo_queda_el_adjunte_manual():
 
     # With the lock on, only the manual attachment is left: 1 Grass is not enough.
     apagadas = m._plan_de_planta(mi, o.current, campo, {},
-                                 habilidades_apagadas=True)
+                                 abilities_off=True)
     assert apagadas.slots_hoy == 1 and not apagadas.desbloquea_hoy
 
 
@@ -314,7 +314,7 @@ def _seleccion_lana(activo, banca, descarte, mano=(), energia_jugada=False):
            .mi_descarte(*descarte)
            .op_activo(pk(CRUSTLE))
            .op_banca(pk(DWEBBLE))
-           .op_zonas(mano=5, mazo=30, premios=6)
+           .op_zonas(mano=5, mazo=30, prizes=6)
            .fetch_descarte(LANA, cuantas=3, solo=(GRASS, APPLIN, DIPPLIN,
                                                   CHIKORITA))
            .construir())

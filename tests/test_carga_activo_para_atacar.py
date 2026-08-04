@@ -183,7 +183,7 @@ def test_activo_ogerpon_carga_a_si_mismo_para_rematar():
            .mi_mano(ENERGIA, ENERGIA)
            .op_activo(pk(m.Munkidori, hp=40))
            .op_banca(pk(m.Froslass, pre_evo=[m.Snorunt]))
-           .op_zonas(mano=4, mazo=30, premios=4)
+           .op_zonas(mano=4, mazo=30, prizes=4)
            .menu_attach_energia()
            .construir())
 
@@ -203,7 +203,7 @@ def test_activo_sin_remate_pero_turno_esteril_tambien_carga_al_activo():
            .mi_mano(ENERGIA)
            .op_activo(pk(m.Grimmsnarl_ex, hp=320,
                          energias=[G, G, G]))
-           .op_zonas(mano=4, mazo=30, premios=5)
+           .op_zonas(mano=4, mazo=30, prizes=5)
            .menu_attach_energia()
            .construir())
 
@@ -227,7 +227,7 @@ def test_activo_que_ya_ataca_no_acapara_la_energia():
            .mi_mano(ENERGIA)
            .op_activo(pk(m.Grimmsnarl_ex, hp=320,
                          energias=[G, G, G]))
-           .op_zonas(mano=4, mazo=30, premios=5)
+           .op_zonas(mano=4, mazo=30, prizes=5)
            .menu_attach_energia()
            .construir())
 

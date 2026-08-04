@@ -1161,8 +1161,8 @@ def evaluate_supporters(tc):
     # it cannot disagree.
     _lana_plan_play = _plan_de_planta(
         my_state, state, field_counts, hand_counts,
-        puede_cambiar=(can_switch or has_switch_card),
-        habilidades_apagadas=meowth_ability_lock)
+        can_switch=(can_switch or has_switch_card),
+        abilities_off=meowth_ability_lock)
     _lana_energy_enables_attack = (
         discard_basic_energy >= 1
         and _lana_plan_play.desbloquea_hoy
