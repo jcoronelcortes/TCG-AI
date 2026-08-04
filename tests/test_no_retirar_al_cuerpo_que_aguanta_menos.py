@@ -1,38 +1,38 @@
-"""El que AGUANTA va delante: no retirar un ex sano por otro ex a 50 PV.
+"""The one that SURVIVES goes in front: do not retreat a healthy ex for another ex at 50 HP.
 
-Escenario (`registros/registro_012_pasos_163_hasta_180.json`, paso 174, turno 12,
-PERDIDA vs Alakazam -- episodio 88906640):
+Scenario (`registros/registro_012_pasos_163_hasta_180.json`, step 174, turn 12,
+LOST vs Alakazam -- episode 88906640):
 
-    NOSOTROS (2 premios)                     RIVAL (2 premios)
-    activo  Teal Mask Ogerpon ex             activo  Alakazam 140/140, 1 energía
-            **210/210**, 4 energías                  (Powerful Hand: 20 × mano)
-    banca   Teal Mask Ogerpon ex **50/210**, 4 en.   banca  Fezandipiti ex (0 en.),
+    US (2 prizes)                            RIVAL (2 prizes)
+    active  Teal Mask Ogerpon ex             active  Alakazam 140/140, 1 energy
+            **210/210**, 4 energies                  (Powerful Hand: 20 × hand)
+    bench   Teal Mask Ogerpon ex **50/210**, 4 en.   bench  Fezandipiti ex (0 en.),
             Meganium 160, Fezandipiti ex,                   Kadabra, Dunsparce ×2
             Meowth ex, Hydrapple ex 330
 
-El agente **retiraba el Ogerpon de 210** (pagando una energía) para promover el de
-**50 PV**, y atacaba con ése. El KO era idéntico -- *Myriad Leaf Shower* cuenta la
-energía de AMBOS activos: 30 + 30·(4+1) = 180 ≥ 140 -- así que el cambio no ganaba
-nada y dejaba delante un cuerpo que muere a cualquier cosa, con los mismos 2
-premios en juego.
+The agent **retreated the 210 Ogerpon** (paying an energy) to promote the
+**50 HP** one, and attacked with that one. The KO was identical -- *Myriad Leaf Shower* counts the
+energy of BOTH actives: 30 + 30·(4+1) = 180 ≥ 140 -- so the swap gained
+nothing and left in front a body that dies to anything, with the same 2
+prizes at stake.
 
-Causa: el **FALLBACK EX** de `_prize_denial_pivot`. Ese fallback busca un ex de
-banca que (a) NOQUEE al activo rival y (b) SOBREVIVA al mejor golpe proyectado de
-la banca rival, y elige por MARGEN de vida. Cumplía las dos: 180 ≥ 140, y 50 PV >
-30 (Kadabra) → margen 20. Pero **comparaba candidatos entre sí y nunca contra el
-ACTIVO**, que hacía el mismo KO con margen 210 − 30 = **180**.
+Cause: the **EX FALLBACK** of `_prize_denial_pivot`. That fallback looks for a bench
+ex that (a) KNOCKS OUT the rival active and (b) SURVIVES the best projected blow from
+the rival bench, and picks by life MARGIN. It met both: 180 ≥ 140, and 50 HP >
+30 (Kadabra) → a margin of 20. But it **compared candidates against each other and never against the
+ACTIVE**, which made the same KO with a margin of 210 − 30 = **180**.
 
-Arreglo: `_pdx_act_margin`. Se calcula el KO y el margen del propio activo (para
-eso se saca el daño del activo fuera del gate de "ganar ya") y se exige que el
-candidato lo mejore **estrictamente** -- el cambio cuesta además la energía de la
-retirada. Ambos lados son ex por construcción (el bucle solo mira `OUR_EX_IDS`),
-así que los premios empatan y lo único que decide es cuánto aguanta.
+Fix: `_pdx_act_margin`. The active's own KO and margin are computed (which is why
+the active's damage is taken outside the "win now" gate) and the candidate is required to
+improve on it **strictly** -- the swap also costs the retreat's energy. Both sides
+are ex by construction (the loop only looks at `OUR_EX_IDS`),
+so the prizes tie and the only thing that decides is how much each survives.
 
-Lo que NO cambia: el pivote de negación de premios sigue vivo cuando de verdad
-niega algo. El caso que lo creó (`registro_013` paso 139: Hydrapple ex a 10 PV
-activo, Ogerpon ex sano en banca) mejora el margen del activo y sigue disparando.
+What does NOT change: the prize-denial pivot is still alive when it really
+denies something. The case that created it (`registro_013` step 139: a Hydrapple ex at 10 HP
+active, a healthy Ogerpon ex on the bench) improves on the active's margin and still fires.
 
-Corpus dorado: un único flip, el de este paso (RETREAT → jugar Xerosic).
+Golden corpus: a single flip, this step's (RETREAT → play Xerosic).
 """
 
 import copy
@@ -94,7 +94,7 @@ def _opcion(obs, tipo):
 
 
 # ---------------------------------------------------------------------------
-# 1. El escenario: sin él, el test no mide nada
+# 1. The scenario: without it, the test measures nothing
 # ---------------------------------------------------------------------------
 
 def test_el_fixture_es_el_cambio_por_el_cuerpo_de_50pv():
@@ -107,21 +107,21 @@ def test_el_fixture_es_el_cambio_por_el_cuerpo_de_50pv():
     banca = [b for b in mio["bench"] if b]
     gemelo = next(b for b in banca if b["id"] == OGERPON)
 
-    # El de delante está SANO; el de banca, a 50 de 210.
+    # The one in front is HEALTHY; the bench one is at 50 of 210.
     assert activo["id"] == OGERPON and activo["hp"] == 210
     assert gemelo["id"] == OGERPON and gemelo["hp"] == 50
-    # Los dos tienen las mismas 4 energías efectivas: mismo ataque.
+    # Both have the same 4 effective energies: the same attack.
     assert len(activo["energies"]) == len(gemelo["energies"]) == 4
 
-    # Los dos son ex: el cambio NO niega ningún premio (2 en ambos casos).
+    # Both are ex: the swap DENIES no prize (2 in both cases).
     assert m.prize_count_op(
         m.to_observation_class(o).current.players[yo].active[0]) == 2
 
-    # Su Alakazam muere a Myriad: 30 + 30*(4 propias + 1 suya) = 180 >= 140.
+    # Their Alakazam dies to Myriad: 30 + 30*(4 ours + 1 theirs) = 180 >= 140.
     assert riv["active"][0]["id"] == ALAKAZAM and riv["active"][0]["hp"] == 140
     assert 30 + 30 * (4 + len(riv["active"][0]["energies"])) >= 140
 
-    # La única amenaza que queda tras el KO es su banca: Kadabra pega 30.
+    # The only threat left after the KO is their bench: Kadabra hits for 30.
     assert any(b and b["id"] == KADABRA for b in riv["bench"])
     assert (m.attack_table[m.card_table[KADABRA].attacks[0]].damage or 0) == 30
 
@@ -135,7 +135,7 @@ def test_no_se_retira_el_ogerpon_sano():
 
 
 # ---------------------------------------------------------------------------
-# 2. El margen: lo que decide, medido sobre el tablero real
+# 2. The margin: what decides, measured on the real board
 # ---------------------------------------------------------------------------
 
 def test_el_activo_aguanta_nueve_veces_mas_que_el_candidato():

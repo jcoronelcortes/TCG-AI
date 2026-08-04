@@ -1,1 +1,1 @@
-"""Una rama del menu por modulo: la puntuacion de cada `OptionType`."""
+"""One menu branch per module: the scoring of each `OptionType`."""

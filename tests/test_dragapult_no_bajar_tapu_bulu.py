@@ -1,60 +1,60 @@
-"""vs Dragapult: Tapu Bulu NO se baja con el tablero ya desarrollado.
+"""vs Dragapult: Tapu Bulu is NOT put down with the board already developed.
 
-Escenario (`registros/registro_003_pasos_018_hasta_056.json`, paso 43, turno 3,
-PERDIDA vs Dragapult -- episodio 88912610):
+Scenario (`registros/registro_003_pasos_018_hasta_056.json`, step 43, turn 3,
+LOST vs Dragapult -- episode 88912610):
 
-    NOSOTROS                                   RIVAL (Dragapult)
-    activo  Meganium 160, 2 energías           activo  Dreepy 70 (+ herramienta)
-    banca   Dipplin 80                         banca   Dreepy, Dreepy
-            Teal Mask Ogerpon ex x3 (2 en. c/u)
-    mano    Ultra Ball, Chikorita, Dawn,
-            Planta x3, **Tapu Bulu**
+    US                                         RIVAL (Dragapult)
+    active  Meganium 160, 2 energies           active  Dreepy 70 (+ a tool)
+    bench   Dipplin 80                         bench   Dreepy, Dreepy
+            Teal Mask Ogerpon ex x3 (2 en. each)
+    hand    Ultra Ball, Chikorita, Dawn,
+            Grass x3, **Tapu Bulu**
 
-Con **cinco Pokémon ya en juego** el agente bajaba Tapu Bulu y dejaba la banca
-LLENA. Dos pasos antes el Bug Catching Set ya lo había elegido a él (sobre
-Bayleef) para traerlo a la mano, así que el error venía en pareja: buscar la
-carta y jugarla.
+With **five Pokémon already in play** the agent put Tapu Bulu down and left the bench
+FULL. Two steps earlier the Bug Catching Set had already chosen it (over
+Bayleef) to bring it to hand, so the mistake came in a pair: searching for the
+card and playing it.
 
-Por qué está mal en ESTE matchup. Tapu Bulu es el atacante **manual** del mazo:
-su papel es pegar cuando el rival apaga nuestras habilidades (Iron Thorns,
-Cornerstone) o inmuniza a nuestros ex (Crustle, Sylveon). Dragapult no hace ni
-lo uno ni lo otro -- Teal Mask Ogerpon ex e Hydrapple ex atacan con normalidad
---, así que ahí es un cuerpo de relleno sin energía. Y cada cuerpo extra le PAGA
-al rival:
+Why it is wrong in THIS matchup. Tapu Bulu is the deck's **manual** attacker:
+its job is to hit when the rival switches off our abilities (Iron Thorns,
+Cornerstone) or makes our ex immune (Crustle, Sylveon). Dragapult does neither
+the one nor the other -- Teal Mask Ogerpon ex and Hydrapple ex attack normally
+--, so there it is a filler body with no energy. And every extra body PAYS
+the rival:
 
-  * *Phantom Dive* reparte 6 contadores por la banca (`op_bench_snipe_threat` ya
-    se enciende en este matchup); con la banca llena el reparto siempre
-    encuentra dónde doler;
-  * es un premio más que regalar, y ocupa el hueco que necesitan las líneas que
-    sí atacan (Applin/Dipplin/Hydrapple ex y Chikorita/Bayleef/Meganium).
+  * *Phantom Dive* spreads 6 counters around the bench (`op_bench_snipe_threat` already
+    switches on in this matchup); with the bench full the spread always
+    finds somewhere to hurt;
+  * it is one more prize to give away, and it takes the slot the lines that
+    do attack need (Applin/Dipplin/Hydrapple ex and Chikorita/Bayleef/Meganium).
 
-Regla (user): **vs Dragapult, Tapu Bulu solo se baja con <=2 Pokémon en juego**
--- ahí manda la supervivencia, porque un KO nos dejaría sin banca
+Rule (user): **vs Dragapult, Tapu Bulu only goes down with <=2 Pokémon in play**
+-- there survival rules, because a KO would leave us with no bench
 ([[nunca-terminar-turno-banca-vacia]]).
 
-Causa: la rama PLAY de Tapu Bulu decidía por tablero, no por matchup. La
-condición que disparó aquí (`_tapu_in_play_count >= 4 and meganium_in_play and
-not _op_is_crustle_like`) puntúa 16000 precisamente cuando hay MUCHOS cuerpos en
-juego -- justo lo contrario de lo que pide este matchup. Y estaba ANTES en la
-cadena que el veto genérico por aglomeración (`_tapu_in_play_count > 2`).
+Cause: Tapu Bulu's PLAY branch decided by board, not by matchup. The
+condition that fired here (`_tapu_in_play_count >= 4 and meganium_in_play and
+not _op_is_crustle_like`) scores 16000 precisely when there are MANY bodies in
+play -- exactly the opposite of what this matchup asks for. And it came EARLIER in
+the chain than the generic crowding veto (`_tapu_in_play_count > 2`).
 
-Arreglo: `_dragapult_no_tapu`, calculado una sola vez y aplicado en los cuatro
-sitios que deciden lo mismo, para que buscar y bajar no puedan contradecirse
-([[state-builder-escenarios-sinteticos]] documenta el mismo patrón en
+Fix: `_dragapult_no_tapu`, computed just once and applied in the four
+places that decide the same thing, so that searching and playing cannot contradict
+each other ([[state-builder-escenarios-sinteticos]] documents the same pattern in
 `_matchup_permite_bajar`):
 
-  * la rama PLAY (primera de la cadena),
-  * los fetch de Bug Catching Set / Night Stretcher / Dawn,
-  * `_matchup_permite_bajar`, que usa la red de rescate del turno estéril.
+  * the PLAY branch (first of the chain),
+  * the Bug Catching Set / Night Stretcher / Dawn fetches,
+  * `_matchup_permite_bajar`, used by the sterile-turn rescue net.
 
-El veto **cede ante el muro** (`_op_is_crustle_like`): si además hay en mesa algo
-que anula habilidades o inmuniza a nuestros ex, Tapu Bulu vuelve a ser el único
-atacante y manda la colisión de matchups
+The veto **yields to the wall** (`_op_is_crustle_like`): if on top of that there is something
+on the table that cancels abilities or makes our ex immune, Tapu Bulu is again the only
+attacker and the matchup collision rules
 ([[colision-cubchoo-muro-inmune-pivote]]).
 
-Corpus dorado: exactamente dos flips, los dos de este turno -- el fetch del Bug
-Catching Set (Tapu Bulu -> Bayleef) y este paso (bajar Tapu Bulu -> Ultra Ball,
-que es la que trajo el Hydrapple ex).
+Golden corpus: exactly two flips, both from this turn -- the Bug
+Catching Set fetch (Tapu Bulu -> Bayleef) and this step (playing Tapu Bulu -> Ultra Ball,
+which is what brought the Hydrapple ex).
 """
 
 import copy
@@ -114,7 +114,7 @@ def _obs():
 
 
 def _idx_tapu(obs):
-    """Índice de la opción 'PLAY Tapu Bulu' del menú principal."""
+    """Index of the 'PLAY Tapu Bulu' option in the main menu."""
     mano = obs["current"]["players"][obs["current"]["yourIndex"]]["hand"]
     for i, o in enumerate(obs["select"]["option"]):
         if o.get("type") == int(m.OptionType.PLAY) and mano[o["index"]]["id"] == TAPU:
@@ -123,7 +123,7 @@ def _idx_tapu(obs):
 
 
 # ---------------------------------------------------------------------------
-# 1. El escenario: sin él, el test no mide nada
+# 1. The scenario: without it, the test measures nothing
 # ---------------------------------------------------------------------------
 
 def test_el_fixture_es_la_banca_llena_vs_dragapult():
@@ -132,23 +132,23 @@ def test_el_fixture_es_la_banca_llena_vs_dragapult():
     mio = o["current"]["players"][yo]
     riv = o["current"]["players"][1 - yo]
 
-    # Cinco Pokémon en juego: activo Meganium + cuatro en banca.
+    # Five Pokémon in play: the active Meganium + four on the bench.
     banca = [b for b in mio["bench"] if b]
     assert mio["active"][0]["id"] == MEGANIUM
     assert len(banca) == 4
     assert sum(1 for b in banca if b["id"] == OGERPON) == 3
     assert 1 + len(banca) > 2, "con <=2 cuerpos la regla NO aplica"
 
-    # Tapu Bulu está en la mano y el menú ofrece bajarlo.
+    # Tapu Bulu is in hand and the menu offers to play it.
     assert any(c["id"] == TAPU for c in mio["hand"])
     assert _idx_tapu(o) == 2
 
-    # El rival es Dragapult (línea Dreepy) y NO es un mazo de muro: no anula
-    # habilidades ni inmuniza a nuestros ex, así que Tapu Bulu no hace falta.
+    # The rival is Dragapult (a Dreepy line) and is NOT a wall deck: it neither cancels
+    # abilities nor makes our ex immune, so Tapu Bulu is not needed.
     assert riv["active"][0]["id"] == DREEPY
     assert any(b and b["id"] == DREEPY for b in riv["bench"])
 
-    # Y el registro confirma que ahí se bajó (la jugada que este test veta).
+    # And the record confirms it was played there (the play this test vetoes).
     fx = json.load(open(_FIXTURE, encoding="utf-8"))
     assert fx["accion_registrada"] == [2]
 
@@ -162,11 +162,11 @@ def test_no_se_baja_tapu_bulu():
 
 
 # ---------------------------------------------------------------------------
-# 2. El replay fiel: el mismo turno reproducido desde frío
+# 2. The faithful replay: the same turn reproduced from cold
 # ---------------------------------------------------------------------------
 
 def _replay_hasta(paso_final):
-    """Reproduce el registro desde su primer paso y devuelve las decisiones."""
+    """Replays the record from its first step and returns the decisions."""
     datos = json.load(open(_REGISTRO, encoding="utf-8"))
     pasos = datos["source_step_numbers"]
     decisiones = {}
@@ -188,8 +188,8 @@ def _replay_hasta(paso_final):
 def test_replay_fiel_ni_lo_busca_ni_lo_baja():
     dec = _replay_hasta(43)
 
-    # Paso 42: el Bug Catching Set mira 7 cartas y elige 2. Tapu Bulu ya no
-    # es una de ellas (antes salía Planta + Tapu Bulu).
+    # Step 42: the Bug Catching Set looks at 7 cards and picks 2. Tapu Bulu is
+    # no longer one of them (before it came out Grass + Tapu Bulu).
     obs42, eleccion42 = dec[42]
     vistas = obs42["select"]["deck"] or obs42["current"]["looking"]
     elegidas = [vistas[obs42["select"]["option"][i]["index"]]["id"]
@@ -198,31 +198,31 @@ def test_replay_fiel_ni_lo_busca_ni_lo_baja():
     assert TAPU not in elegidas, (
         "no se busca lo que después no se va a poder bajar")
 
-    # Paso 43: y el turno sigue por la Ultra Ball (la que trajo Hydrapple ex).
+    # Step 43: and the turn goes on through the Ultra Ball (the one that brought Hydrapple ex).
     obs43, eleccion43 = dec[43]
     assert eleccion43 != [_idx_tapu(obs43)]
 
 
 # ---------------------------------------------------------------------------
-# 3. Los límites de la regla
+# 3. The limits of the rule
 # ---------------------------------------------------------------------------
 
 def test_con_dos_cuerpos_en_juego_si_se_baja():
-    """<=2 Pokémon en juego: manda la supervivencia, no el reparto de daño."""
+    """<=2 Pokémon in play: survival rules, not the damage spread."""
     o = _obs()
     mio = o["current"]["players"][o["current"]["yourIndex"]]
-    mio["bench"] = mio["bench"][:1]          # activo + 1 = 2 en juego
+    mio["bench"] = mio["bench"][:1]          # active + 1 = 2 in play
     m.meganium_in_play = True
     assert m.agent(o) == [_idx_tapu(o)]
 
 
 def _sin_items_en_mano(obs):
-    """Quita la Ultra Ball y rehace el menú.
+    """Removes the Ultra Ball and rebuilds the menu.
 
-    Tapu Bulu tiene un tope propio y anterior a todo esto
-    (`TAPU_WAIT_FOR_ITEMS_SCORE`: no se baja mientras queden items por jugar,
-    [[bug-catching-set-antes-de-bajar-pokemon]]). Para medir el veto de
-    matchup hay que sacar ese tope de en medio.
+    Tapu Bulu has a ceiling of its own that comes before all this
+    (`TAPU_WAIT_FOR_ITEMS_SCORE`: it is not played while there are items left to play,
+    [[bug-catching-set-antes-de-bajar-pokemon]]). To measure the matchup
+    veto that ceiling has to be taken out of the way.
     """
     yo = obs["current"]["yourIndex"]
     mio = obs["current"]["players"][yo]
@@ -236,8 +236,8 @@ def _sin_items_en_mano(obs):
 
 
 def test_el_veto_cede_ante_un_muro_inmune():
-    """Colisión de matchups: con un Cornerstone en mesa Tapu vuelve a ser EL
-    atacante (nuestros ex con habilidad hacen 0), y el veto se levanta."""
+    """A matchup collision: with a Cornerstone on the table Tapu is THE
+    attacker again (our ex with an ability do 0), and the veto is lifted."""
     o = _obs()
     yo = o["current"]["yourIndex"]
     riv = o["current"]["players"][1 - yo]
@@ -249,7 +249,7 @@ def test_el_veto_cede_ante_un_muro_inmune():
 
 
 def test_con_el_muro_fuera_el_veto_vuelve():
-    """Control del test anterior: mismo tablero SIN el muro -> sigue vetado."""
+    """Control for the previous test: the same board WITHOUT the wall -> still vetoed."""
     o = _obs()
     _sin_items_en_mano(o)
     m.meganium_in_play = True
@@ -257,27 +257,27 @@ def test_con_el_muro_fuera_el_veto_vuelve():
 
 
 def test_el_veto_no_toca_otros_matchups():
-    """Sin Dragapult enfrente, el mismo tablero sigue bajando a Tapu Bulu."""
+    """With no Dragapult across the table, the same board still plays Tapu Bulu."""
     o = _obs()
     yo = o["current"]["yourIndex"]
     riv = o["current"]["players"][1 - yo]
     for pk in riv["active"] + [b for b in riv["bench"] if b]:
-        pk["id"] = m.Chikorita                 # un básico cualquiera, no-Dragapult
+        pk["id"] = m.Chikorita                 # any basic, non-Dragapult
         pk["hp"] = pk["maxHp"] = 70
     m.meganium_in_play = True
     assert m.agent(o) == [_idx_tapu(o)]
 
 
 # ---------------------------------------------------------------------------
-# 4. El predicado compartido: buscar y bajar no pueden contradecirse
+# 4. The shared predicate: searching and playing cannot contradict each other
 # ---------------------------------------------------------------------------
 
 def test_matchup_permite_bajar_veta_tapu_vs_dragapult():
     campo = {}
     assert m._matchup_permite_bajar(TAPU, campo, False, False,
                                     dragapult_no_tapu=True) is False
-    # Sin el veto (<=2 cuerpos, u otro rival) sigue permitido...
+    # Without the veto (<=2 bodies, or another rival) it is still allowed...
     assert m._matchup_permite_bajar(TAPU, campo, False, False) is True
-    # ...y sólo afecta a Tapu Bulu.
+    # ...and it only affects Tapu Bulu.
     assert m._matchup_permite_bajar(OGERPON, campo, False, False,
                                     dragapult_no_tapu=True) is True

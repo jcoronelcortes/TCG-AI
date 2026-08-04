@@ -1,34 +1,34 @@
-"""Utilitario para dividir un log de partida en turnos de juego.
+"""Utility to split a game log into game turns.
 
-Un log es un JSON con la clave ``steps``: una lista de pasos que ejecuta la
-logica del juego. Cada paso es a su vez una lista de items (una perspectiva por
-jugador). El turno al que pertenece un paso se obtiene del mayor valor de
-``observation.current.turn`` entre sus items, es decir, el turno del jugador que
-esta actuando en ese momento.
+A log is a JSON with the key ``steps``: a list of steps the game
+logic executes. Each step is itself a list of items (one perspective per
+player). The turn a step belongs to is obtained from the highest value of
+``observation.current.turn`` among its items, that is, the turn of the player who
+is acting at that moment.
 
-No recibe parametros: toma automaticamente el unico JSON de la carpeta ``log/``
-(debe haber uno y solo un archivo JSON) y lo divide COMPLETO, del primer al
-ultimo turno, generando un ``registro_xxx_pasos_aaa_hasta_bbb.json`` por turno
-(``xxx`` = turno, ``aaa``/``bbb`` = primer/ultimo paso del turno). Los registros
-se escriben en ``registros/``, carpeta que se LIMPIA de registros antiguos antes
-de generar los nuevos.
+It takes no parameters: it automatically picks the only JSON in the ``log/`` folder
+(there must be one and only one JSON file) and splits it COMPLETELY, from the first to the
+last turn, generating one ``registro_xxx_pasos_aaa_hasta_bbb.json`` per turn
+(``xxx`` = the turn, ``aaa``/``bbb`` = the first/last step of the turn). The records
+are written into ``registros/``, a folder that is CLEARED of old records before
+the new ones are generated.
 """
 
 import json
 import os
 from typing import Any
 
-# Raiz del proyecto (carpeta padre de utils/) y carpetas de trabajo por defecto.
+# The project root (the parent folder of utils/) and the default working folders.
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LOG_DIR = os.path.join(ROOT_DIR, "log")
 REGISTROS_DIR = os.path.join(ROOT_DIR, "registros")
 
 
 def find_single_log(log_dir: str) -> str:
-    """Devuelve el unico archivo JSON de ``log_dir``.
+    """Returns the only JSON file in ``log_dir``.
 
-    Falla (SystemExit) si la carpeta no existe, si no hay ningun JSON o si hay
-    mas de uno (en ese caso informa cuantos y cuales).
+    It fails (SystemExit) if the folder does not exist, if there is no JSON or if there is
+    more than one (in that case it reports how many and which).
     """
     if not os.path.isdir(log_dir):
         raise SystemExit(f"No existe la carpeta de logs: {log_dir}")
@@ -48,9 +48,9 @@ def find_single_log(log_dir: str) -> str:
 
 
 def clean_registros(out_dir: str) -> int:
-    """Borra los registros antiguos (``registro_*.json``) de ``out_dir``.
+    """Deletes the old records (``registro_*.json``) from ``out_dir``.
 
-    Devuelve cuantos archivos se eliminaron. No toca otros archivos.
+    It returns how many files were removed. It does not touch other files.
     """
     if not os.path.isdir(out_dir):
         return 0
@@ -63,7 +63,7 @@ def clean_registros(out_dir: str) -> int:
 
 
 def load_log(path: str) -> dict[str, Any]:
-    """Carga el log completo y valida que contenga la lista de pasos."""
+    """Loads the complete log and validates that it contains the list of steps."""
     with open(path, "r", encoding="utf-8") as f:
         data = json.load(f)
     if not isinstance(data, dict) or "steps" not in data:
@@ -72,10 +72,10 @@ def load_log(path: str) -> dict[str, Any]:
 
 
 def step_turn(step: Any) -> int | None:
-    """Devuelve el turno de juego de un paso (el turno del jugador activo).
+    """Returns the game turn of a step (the active player's turn).
 
-    Se toma el mayor ``current.turn`` entre los items del paso. Devuelve ``None``
-    cuando el paso no tiene informacion de turno (p.ej. el paso inicial 0).
+    The highest ``current.turn`` among the step's items is taken. It returns ``None``
+    when the step has no turn information (e.g. the initial step 0).
     """
     turns = []
     if isinstance(step, list):
@@ -92,9 +92,9 @@ def step_turn(step: Any) -> int | None:
 
 
 def step_number(step: Any, fallback: int) -> int:
-    """Devuelve el numero de paso global (``observation.step``).
+    """Returns the global step number (``observation.step``).
 
-    Si ningun item lo expone, se usa ``fallback`` (normalmente el indice).
+    If no item exposes it, ``fallback`` is used (normally the index).
     """
     if isinstance(step, list):
         items = step
@@ -110,7 +110,7 @@ def step_number(step: Any, fallback: int) -> int:
 
 
 def steps_of_turn(steps: list[Any], turn: int) -> list[tuple[int, Any]]:
-    """Devuelve los pares ``(indice, paso)`` que pertenecen a ``turn``."""
+    """Returns the ``(index, step)`` pairs that belong to ``turn``."""
     result = []
     for index, step in enumerate(steps):
         if step_turn(step) == turn:
@@ -119,11 +119,11 @@ def steps_of_turn(steps: list[Any], turn: int) -> list[tuple[int, Any]]:
 
 
 def build_turn_record(data: dict[str, Any], turn: int, selected: list[tuple[int, Any]]) -> dict[str, Any]:
-    """Construye el JSON de salida para un turno.
+    """Builds the output JSON for a turn.
 
-    Conserva todas las claves de nivel superior del log original (salvo
-    ``steps``, que se reemplaza por los pasos del turno) para que el registro
-    siga siendo compatible con el resto de herramientas.
+    It keeps every top-level key of the original log (except
+    ``steps``, which is replaced by the turn's steps) so the record
+    stays compatible with the rest of the tools.
     """
     record = {key: value for key, value in data.items() if key != "steps"}
     record["turn"] = turn
@@ -133,7 +133,7 @@ def build_turn_record(data: dict[str, Any], turn: int, selected: list[tuple[int,
 
 
 def write_turn(data: dict[str, Any], turn: int, out_dir: str) -> str:
-    """Escribe ``registro_xxx.json`` con todos los pasos del turno indicado."""
+    """Writes ``registro_xxx.json`` with every step of the given turn."""
     selected = steps_of_turn(data["steps"], turn)
     if not selected:
         raise ValueError(f"El turno {turn} no tiene pasos en el log")
@@ -151,11 +151,11 @@ def write_turn(data: dict[str, Any], turn: int, out_dir: str) -> str:
 
 
 def main() -> None:
-    """Divide el log completo, del primer al ultimo turno, sin parametros.
+    """Splits the complete log, from the first to the last turn, with no parameters.
 
-    Toma automaticamente el unico JSON de ``log/``, limpia ``registros/`` de
-    registros antiguos y genera un ``registro_xxx_pasos_aaa_hasta_bbb.json`` por
-    cada turno.
+    It automatically takes the only JSON in ``log/``, clears ``registros/`` of
+    old records and generates one ``registro_xxx_pasos_aaa_hasta_bbb.json`` per
+    turn.
     """
     logfile = find_single_log(LOG_DIR)
     out_dir = REGISTROS_DIR
@@ -163,7 +163,7 @@ def main() -> None:
     data = load_log(logfile)
     steps = data["steps"]
 
-    # Limpiar registros antiguos antes de generar los nuevos.
+    # Clear the old records before generating the new ones.
     removed = clean_registros(out_dir)
     if removed:
         print(f"Limpieza: {removed} registro(s) antiguo(s) eliminado(s) de {out_dir}.")

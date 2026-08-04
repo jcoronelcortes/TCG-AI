@@ -1,17 +1,17 @@
-"""Genera submission.tar.gz en la raiz del proyecto para el PTCG AI Battle.
+"""Generates submission.tar.gz at the project root for the PTCG AI Battle.
 
-Adaptado del notebook `notebook/empaquetar.ipynb`: empaqueta el main.py, el
-deck.csv y los PAQUETES LOCALES QUE main.py IMPORTA (hoy `cg/`; tras el refactor
-tambien `ptcg/`). Se excluyen los __pycache__ para no ensuciar el paquete.
+Adapted from the notebook `notebook/empaquetar.ipynb`: it packages main.py, the
+deck.csv and the LOCAL PACKAGES THAT main.py IMPORTS (today `cg/`; after the refactor
+also `ptcg/`). The __pycache__ directories are excluded so as not to dirty the package.
 
-La lista de paquetes NO esta escrita a mano: se deriva leyendo los imports de
-nivel de modulo de main.py (ver `paquetes_locales_de`). Asi, cuando el refactor
-por olas saque codigo a un paquete nuevo, el empaquetado lo incluye solo con que
-main.py lo importe -- sin que nadie tenga que acordarse de tocar este archivo.
-Olvidarse era el fallo mas caro posible: la submission arranca rota en Kaggle
-con los 930 tests en verde (ver docs/main-refactor-arquitectura.md, I1).
+The package list is NOT hand-written: it is derived by reading the module-level
+imports of main.py (see `paquetes_locales_de`). That way, when the wave
+refactor moves code into a new package, the packaging includes it as soon as
+main.py imports it -- without anyone having to remember to touch this file.
+Forgetting was the most expensive possible failure: the submission starts broken on Kaggle
+with the 930 tests green (see docs/project-history.md, I1).
 
-Uso:
+Usage:
     python utils/empaquetar_proyecto.py
 """
 
@@ -28,17 +28,17 @@ OUTPUT = PROJECT_ROOT / "submission.tar.gz"
 
 
 def _raices_importadas(ruta_py):
-    """Nombres de nivel superior importados por `ruta_py` (solo imports de modulo).
+    """Top-level names imported by `ruta_py` (module imports only).
 
     `from cg.api import X` -> "cg";  `import os` -> "os".
-    Se ignoran los imports dentro de funciones: en el contenedor de Kaggle no
-    sirven para paquetes propios (el dir del agente sale de sys.path en cuanto
-    termina el exec de main.py), asi que un paquete que solo se importase ahi
-    estaria roto de todas formas.
+    Imports inside functions are ignored: in the Kaggle container they are
+    no use for our own packages (the agent's directory leaves sys.path as soon as
+    main.py's exec finishes), so a package imported only there
+    would be broken anyway.
     """
     arbol = ast.parse(ruta_py.read_text(encoding="utf-8"), filename=str(ruta_py))
     raices = []
-    for nodo in arbol.body:  # solo nivel de modulo, no ast.walk
+    for nodo in arbol.body:  # module level only, not ast.walk
         if isinstance(nodo, ast.Import):
             raices += [a.name.split(".")[0] for a in nodo.names]
         elif isinstance(nodo, ast.ImportFrom):
@@ -48,11 +48,11 @@ def _raices_importadas(ruta_py):
 
 
 def paquetes_locales_de(ruta_py, raiz=PROJECT_ROOT):
-    """Paquetes/modulos del PROYECTO que importa `ruta_py`, en orden estable.
+    """PROJECT packages/modules that `ruta_py` imports, in a stable order.
 
-    Devuelve rutas a directorios-paquete (`cg/`, `ptcg/`) y a modulos sueltos
-    (`algo.py`) que vivan en la raiz. Lo que no exista en el proyecto se asume
-    biblioteca estandar y no se empaqueta.
+    It returns paths to package directories (`cg/`, `ptcg/`) and to loose
+    modules (`something.py`) that live at the root. Anything that does not exist in the project is
+    assumed to be the standard library and is not packaged.
     """
     encontrados = {}
     for nombre in _raices_importadas(ruta_py):
@@ -68,7 +68,7 @@ def paquetes_locales_de(ruta_py, raiz=PROJECT_ROOT):
 
 
 def _filtro_sin_pycache(tarinfo):
-    """Excluye __pycache__ y compilados del paquete."""
+    """Excludes __pycache__ and compiled files from the package."""
     nombre = Path(tarinfo.name)
     if "__pycache__" in nombre.parts or nombre.suffix in (".pyc", ".pyo"):
         return None
@@ -76,7 +76,7 @@ def _filtro_sin_pycache(tarinfo):
 
 
 def construir(destino=OUTPUT, main_py=MAIN_PY, deck_csv=DECK_CSV):
-    """Escribe el tar.gz en `destino` y devuelve la lista de rutas incluidas."""
+    """Writes the tar.gz to `destino` and returns the list of included paths."""
     for ruta in (main_py, deck_csv):
         if not ruta.exists():
             raise FileNotFoundError(f"Archivo requerido no encontrado: {ruta}")

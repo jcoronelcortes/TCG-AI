@@ -1,30 +1,30 @@
-"""Harness de self-play: partidas completas agente-vs-agente con el simulador.
+"""Self-play harness: complete agent-vs-agent games with the simulator.
 
-Fase 3 de la arquitectura de mejora de estrategia: el gate que mide lo que
-ningun test unitario puede medir — si un cambio de regla GANA MAS PARTIDAS.
+Phase 3 of the strategy improvement architecture: the gate that measures what
+no unit test can measure — whether a rule change WINS MORE GAMES.
 
-Carga DOS instancias independientes de main.py (via importlib, cada una con
-sus propios globals de tracking) y las enfrenta con cg.game
-(battle_start/battle_select). El azar interno del simulador (barajas, monedas)
-no es sembrable via API, asi que la varianza se maneja con N partidas y
-ALTERNANCIA DE ASIENTOS (el candidato juega la mitad como jugador 0 y la
-mitad como jugador 1).
+It loads TWO independent instances of main.py (via importlib, each with
+its own tracking globals) and pits them against each other with cg.game
+(battle_start/battle_select). The simulator's internal randomness (shuffles, coin
+flips) cannot be seeded through the API, so the variance is handled with N games and
+SEAT ALTERNATION (the candidate plays half of them as player 0 and
+half as player 1).
 
-Uso:
+Usage:
     python utils/selfplay.py --partidas 100
-        # espejo: main.py vs main.py (sanidad: winrate ~50%)
+        # mirror: main.py vs main.py (a sanity check: winrate ~50%)
     python utils/selfplay.py --partidas 200 --base HEAD~1
-        # candidato (main.py del arbol de trabajo) vs baseline (git ref)
+        # candidate (the working tree's main.py) vs baseline (a git ref)
     python utils/selfplay.py --partidas 200 --base HEAD --candidato otra.py
     python utils/selfplay.py --partidas 200 --rival deck/rivales/crustle.csv
-        # candidato vs BOT generico pilotando un mazo rival (matchup)
+        # candidate vs the generic BOT piloting an opposing deck (a matchup)
     python utils/selfplay.py --partidas 200 --rival ... --base HEAD~1
-        # DIFERENCIAL de matchup: candidato-vs-bot y base-vs-bot; el delta
-        # entre ambos winrates es la senal (el nivel absoluto del bot no)
+        # matchup DIFFERENTIAL: candidate-vs-bot and base-vs-bot; the delta
+        # between the two winrates is the signal (the bot's absolute level is not)
 
-Salida: marcador, winrate del candidato con intervalo de Wilson 95%, split
-por asiento y errores/limites. Una partida donde un agente lanza excepcion o
-devuelve una eleccion invalida cuenta como DERROTA de ese agente (forfeit).
+Output: the score, the candidate's winrate with a 95% Wilson interval, the split
+by seat and errors/limits. A game where an agent raises an exception or
+returns an invalid choice counts as a LOSS for that agent (a forfeit).
 """
 
 import argparse
@@ -42,25 +42,25 @@ _TESTS = _ROOT / "tests"
 if str(_TESTS) not in sys.path:
     sys.path.insert(0, str(_TESTS))
 
-from golden_corpus import reset_agente  # espejo del reset de los tests
+from golden_corpus import reset_agente  # a mirror of the tests' reset
 
 MAX_PASOS = 3000
 
 
 def cargar_agente(ruta, nombre):
-    """Carga una instancia independiente de un modulo de agente.
+    """Loads an independent instance of an agent module.
 
-    INDEPENDIENTE INCLUYE SU PROPIO ARBOL `ptcg/`. Desde la Ola 3 del refactor el
-    estado que persiste entre turnos vive en `ptcg.estado.agente.ESTADO`, no en
-    los globals de main.py. Si se deja `ptcg` en sys.modules, las dos instancias
-    importan el MISMO singleton y se pisan el estado: el enfrentamiento deja de
-    medir nada y sombra.py reporta flips fantasma (58 en 20 partidas la primera
-    vez que paso). Vaciando `ptcg*` antes de cada carga, cada main.py construye
-    su propio arbol; los modulos ya cargados conservan sus referencias directas,
-    asi que la instancia anterior sigue funcionando con el suyo.
+    INDEPENDENT INCLUDES ITS OWN `ptcg/` TREE. Since wave 3 of the refactor the
+    state that persists between turns lives in `ptcg.estado.agente.ESTADO`, not in
+    main.py's globals. If `ptcg` is left in sys.modules, the two instances
+    import the SAME singleton and overwrite each other's state: the matchup stops
+    measuring anything and sombra.py reports phantom flips (58 in 20 games the first
+    time it happened). By clearing `ptcg*` before each load, each main.py builds
+    its own tree; the modules already loaded keep their direct references,
+    so the previous instance goes on working with its own.
 
-    `cg` NO se toca: `cg/sim.py` llama a `GameInitialize()` al importarse y
-    hacerlo dos veces ABORTA el interprete.
+    `cg` is NOT touched: `cg/sim.py` calls `GameInitialize()` when imported and
+    doing that twice ABORTS the interpreter.
     """
     def _ramas_ptcg():
         return [k for k in sys.modules if k == "ptcg" or k.startswith("ptcg.")]
@@ -73,12 +73,12 @@ def cargar_agente(ruta, nombre):
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
     finally:
-        # Y se DEVUELVE el arbol ambiental a sys.modules. La instancia recien
-        # creada ya guarda referencias directas al suyo, asi que conserva su
-        # propio ESTADO; pero si se dejara el proceso sin el arbol original,
-        # cualquier `from ptcg... import` posterior crearia una SEGUNDA copia
-        # del paquete -- y quien parchease ahi no afectaria al agente que ya
-        # estaba cargado (paso: contaminaba tests/test_xerosic_*).
+        # And the ambient tree is RETURNED to sys.modules. The instance just
+        # created already keeps direct references to its own, so it keeps its
+        # own ESTADO; but if the process were left without the original tree,
+        # any later `from ptcg... import` would create a SECOND copy
+        # of the package -- and whoever patched there would not affect the agent that was
+        # already loaded (it happened: it contaminated tests/test_xerosic_*).
         for k in _ramas_ptcg():
             del sys.modules[k]
         sys.modules.update(previos)
@@ -86,7 +86,7 @@ def cargar_agente(ruta, nombre):
 
 
 def cargar_agente_de_git(ref, nombre):
-    """Carga la version de main.py de un ref de git (baseline)."""
+    """Loads the main.py version of a git ref (the baseline)."""
     fuente = subprocess.run(
         ["git", "show", f"{ref}:main.py"], cwd=_ROOT, capture_output=True,
         text=True, check=True).stdout
@@ -104,13 +104,13 @@ def leer_deck(ruta=None):
 
 
 def _reset_si_aplica(mod):
-    # El bot rival no tiene tracking; solo las instancias de main.py.
+    # The opposing bot has no tracking; only the main.py instances do.
     if hasattr(mod, "_init_cartas_tracking"):
         reset_agente(mod)
 
 
 def _premios_restantes(obs):
-    """Premios que le QUEDAN a cada asiento, o None si no se pueden leer."""
+    """Prizes each seat has LEFT, or None if they cannot be read."""
     try:
         jugadores = obs["current"]["players"]
         return [len(jugadores[i].get("prize") or []) for i in (0, 1)]
@@ -119,22 +119,22 @@ def _premios_restantes(obs):
 
 
 def _premios_tomados(pico, final):
-    """Premios TOMADOS por cada asiento = lo que ha bajado su PROPIO monton.
+    """Prizes TAKEN by each seat = how far its OWN pile has gone down.
 
-    Cada jugador roba de SU monton al noquear, asi que el contador de premios
-    de un asiento mide lo que ha cobrado EL, no lo que le han cobrado.
-    Verificado sobre el simulador: en 20 de 25 partidas el ganador termina con
-    su propio monton a 0 y en ninguna con el del rival a 0 (las otras 5 se
-    ganaron por bench-out o deckout, sin agotar premios).
+    Each player draws from THEIR pile when knocking out, so a seat's prize
+    counter measures what THEY have taken, not what has been taken from them.
+    Verified against the simulator: in 20 of 25 games the winner ends with
+    their own pile at 0 and in none with the opponent's at 0 (the other 5 were
+    won by bench-out or deckout, without exhausting the prizes).
 
-    `pico` es el MAXIMO de premios visto durante la partida, no la lectura de
-    `battle_start`: ahi el reparto aun no ha ocurrido y los dos montones valen
-    0, con lo que el diferencial salia identicamente 0 en TODOS los matchups.
-    Como el monton solo puede bajar, su pico ES el reparto inicial, y de paso
-    no hay que fijar el 6 a fuego.
+    `pico` is the MAXIMUM number of prizes seen during the game, not the reading of
+    `battle_start`: there the deal has not happened yet and both piles are
+    0, which made the differential come out identically 0 in ALL matchups.
+    Since the pile can only go down, its peak IS the initial deal, and it also
+    saves hard-coding the 6.
 
-    Devuelve [None, None] si no se pudo leer, para que el agregado sepa
-    distinguir "0 premios" de "no medido".
+    It returns [None, None] if it could not be read, so the aggregate can
+    tell "0 prizes" apart from "not measured".
     """
     if not pico or not final or max(pico) <= 0:
         return [None, None]
@@ -143,18 +143,18 @@ def _premios_tomados(pico, final):
 
 def jugar_partida(agente_p0, agente_p1, deck0=None, deck1=None,
                   max_pasos=MAX_PASOS):
-    """Juega una partida completa. Devuelve un dict con el desenlace.
+    """Plays a complete game. Returns a dict with the outcome.
 
-    result: 0/1 (ganador), "limite" (tope de pasos) o "error_pX" (el agente
-    del asiento X lanzo excepcion o eligio una opcion invalida -> pierde).
+    result: 0/1 (the winner), "limite" (the step cap) or "error_pX" (the agent
+    in seat X raised an exception or chose an invalid option -> it loses).
 
-    `premios_tomados`: [p0, p1], los premios que cobro cada asiento. Es la
-    metrica de RESOLUCION del harness: el winrate contra el bot generico esta
-    saturado (>93% ponderado) y no puede arbitrar un cambio, pero los premios
-    si graduan -- contra Marnie las tres partidas de referencia se perdieron
-    POR UN PREMIO, y esa magnitud desaparece al colapsarla en gano/perdio.
-    Ojo: una partida se puede ganar sin cobrar los 6 (bench-out, deckout), asi
-    que el diferencial de premios NO es un winrate disfrazado: mide otra cosa.
+    `premios_tomados`: [p0, p1], the prizes each seat took. It is the
+    harness's RESOLUTION metric: the winrate against the generic bot is
+    saturated (>93% weighted) and cannot arbitrate a change, but the prizes
+    do grade it -- against Marnie the three reference games were lost
+    BY ONE PRIZE, and that magnitude disappears when collapsed into won/lost.
+    Careful: a game can be won without taking all 6 (bench-out, deckout), so
+    the prize differential is NOT a disguised winrate: it measures something else.
     """
     from cg import game
 
@@ -169,8 +169,8 @@ def jugar_partida(agente_p0, agente_p1, deck0=None, deck1=None,
         raise RuntimeError(
             f"battle_start fallo: errorPlayer={sd.errorPlayer} "
             f"errorType={sd.errorType}")
-    # Pico de premios por asiento. En `battle_start` los montones aun valen 0
-    # (no se han repartido), asi que el inicial se descubre sobre la marcha.
+    # The prize peak per seat. In `battle_start` the piles are still 0
+    # (they have not been dealt), so the initial value is discovered as we go.
     premios_pico = [0, 0]
 
     def _mirar_premios():
@@ -215,7 +215,7 @@ def jugar_partida(agente_p0, agente_p1, deck0=None, deck1=None,
 
 
 def wilson_95(victorias, n):
-    """Intervalo de Wilson al 95% para una proporcion."""
+    """95% Wilson interval for a proportion."""
     if n == 0:
         return (0.0, 1.0)
     z = 1.959963984540054
@@ -228,20 +228,20 @@ def wilson_95(victorias, n):
 
 def torneo(candidato, base, partidas, progreso=None,
            deck_candidato=None, deck_base=None):
-    """Enfrenta candidato vs base alternando asientos. Devuelve stats.
+    """Pits the candidate against the base alternating seats. Returns stats.
 
-    deck_candidato/deck_base: listas de 60 ids; por defecto, deck.csv.
-    Cada mazo viaja con su agente al cambiar de asiento.
+    deck_candidato/deck_base: lists of 60 ids; by default, deck.csv.
+    Each deck travels with its agent when the seat changes.
     """
     stats = {
         "partidas": partidas, "candidato": 0, "base": 0, "limites": 0,
         "errores_candidato": 0, "errores_base": 0,
-        "cand_j0": [0, 0], "cand_j1": [0, 0],  # [victorias, jugadas]
+        "cand_j0": [0, 0], "cand_j1": [0, 0],  # [wins, played]
         "cand_primero": [0, 0], "cand_segundo": [0, 0],
         "pasos_totales": 0,
-        # Metrica de RESOLUCION: el winrate esta saturado contra el bot, los
-        # premios no. Se acumulan por AGENTE (no por asiento), porque el
-        # candidato alterna de asiento en cada partida.
+        # The RESOLUTION metric: the winrate is saturated against the bot, the
+        # prizes are not. They are accumulated per AGENT (not per seat), because the
+        # candidate alternates seats on every game.
         "premios_candidato": 0, "premios_base": 0, "partidas_con_premios": 0,
     }
     for i in range(partidas):
@@ -288,7 +288,7 @@ def _pct(v, n):
 
 
 def premios_por_partida(stats):
-    """(premios/partida del candidato, de la base, diferencial). None si no hay."""
+    """(prizes/game of the candidate, of the base, the differential). None if there are none."""
     n = stats.get("partidas_con_premios") or 0
     if not n:
         return (None, None, None)

@@ -1,40 +1,40 @@
-"""El forraje real NO cuenta el Supporter de REFRESCO protegido.
+"""The real fodder does NOT count the protected REFRESH Supporter.
 
-Origen (user, registro_004 pasos 43-64 vs Alakazam, PERDIDA -- log 88910273).
-Turno 4, mano {Boss's x2, Ultra Ball x2, Tapu Bulu, Lillie's Determination},
-Supporter sin jugar, rival con 8 cartas (Powerful Hand proyectado 20 x 10 =
-200). `_alakazam_dig_xerosic_engine` armo la cadena de disrupcion -- Ultra Ball
-(5950) -> Meowth ex -> Last-Ditch Catch -> Xerosic -- POR ENCIMA de la Lillie's
-(5000), que es exactamente lo que ese motor existe para no jugar. La cadena
-funciono: el Xerosic acabo en la mano.
+Origin (user, registro_004 steps 43-64 vs Alakazam, LOST -- log 88910273).
+Turn 4, hand {Boss's x2, Ultra Ball x2, Tapu Bulu, Lillie's Determination},
+the Supporter unplayed, the rival with 8 cards (Powerful Hand projected at 20 x 10 =
+200). `_alakazam_dig_xerosic_engine` set up the disruption chain -- Ultra Ball
+(5950) -> Meowth ex -> Last-Ditch Catch -> Xerosic -- ABOVE the Lillie's
+(5000), which is exactly what that engine exists to avoid playing. The chain
+worked: the Xerosic ended up in hand.
 
-Y entonces el agente lo tiro a la basura. Con la mano en {Boss's, Lillie's,
+And then the agent threw it in the bin. With the hand at {Boss's, Lillie's,
 Ultra Ball, Xerosic}:
 
-  * `_ub_forraje_real(prot=Xerosic)` contaba **2** -- el Boss's y la Lillie's --
-    asi que `_ub_cancel_xerosic` NO saltaba;
-  * la SEGUNDA Ultra Ball puntuo 11400 (objetivo de valor 800, banda de item) y
-    gano al Xerosic (7200);
-  * su coste de 2 descartes se pago con el Boss's y con EL PROPIO XEROSIC,
-    porque el bloque SelectContext.DISCARD puntua la Lillie's a 2 y el Xerosic
-    a 5: la Lillie's NUNCA cae primero;
-  * la Ultra Ball cavo un SEGUNDO Meowth ex, inservible -- su Last-Ditch ya
-    estaba gastada por el primero;
-  * y el turno cerro jugando la Lillie's, que barajo ese Meowth de vuelta al
-    mazo.
+  * `_ub_forraje_real(prot=Xerosic)` counted **2** -- the Boss's and the Lillie's --
+    so `_ub_cancel_xerosic` did NOT fire;
+  * the SECOND Ultra Ball scored 11400 (a target worth 800, the item band) and
+    beat the Xerosic (7200);
+  * its cost of 2 discards was paid with the Boss's and with THE XEROSIC ITSELF,
+    because the SelectContext.DISCARD block scores the Lillie's at 2 and the Xerosic
+    at 5: the Lillie's NEVER falls first;
+  * the Ultra Ball dug up a SECOND Meowth ex, useless -- its Last-Ditch was
+    already spent by the first one;
+  * and the turn closed by playing the Lillie's, which shuffled that Meowth back into the
+    deck.
 
-Saldo: Tapu Bulu, dos Boss's Orders, el Xerosic y las dos Ultra Ball perdidos
-para acabar jugando EXACTAMENTE el Supporter que toda la cadena existia para no
-jugar, con la mano rival intacta.
+Balance: Tapu Bulu, two Boss's Orders, the Xerosic and both Ultra Balls lost
+to end up playing EXACTLY the Supporter the whole chain existed to avoid
+playing, with the rival hand intact.
 
-La causa es una sola: `_ub_forraje_real` sobrecontaba. Ya excluia del forraje lo
-que el scorer de DISCARD protege MAS que la carta protegida (piezas de
-evolucion, Fezandipiti ex tras un KO, Meowth ex todavia jugable -- ver el ajuste
-del log 86401283), pero no los **Supporter de refresco**: con el Supporter del
-turno libre y una sola copia en mano, `_protect_refresh_supporter` puntua la
-Lillie's a 2 y el Dawn a 3, por debajo de cualquier carta que estos vetos
-protegen. Contarlos como forraje era prometer un pago que el scorer de descarte
-no iba a hacer.
+The cause is a single one: `_ub_forraje_real` overcounted. It already excluded from the fodder
+what the DISCARD scorer protects MORE than the protected card (evolution
+pieces, Fezandipiti ex after a KO, a Meowth ex still playable -- see the adjustment
+of log 86401283), but not the **refresh Supporters**: with the turn's Supporter
+free and a single copy in hand, `_protect_refresh_supporter` scores the
+Lillie's at 2 and the Dawn at 3, below any card these vetoes
+protect. Counting them as fodder was promising a payment the discard scorer
+was not going to make.
 """
 
 import json
@@ -86,7 +86,7 @@ def _fixture_obs():
 
 
 def _id_de_opcion(obs, idx):
-    """Id de la carta de mano detras de la opcion `idx` (somos yourIndex 1)."""
+    """The id of the hand card behind option `idx` (we are yourIndex 1)."""
     cur = obs["current"]
     opt = cur and obs["select"]["option"][idx]
     if opt.get("type") != 7 or "index" not in opt:
@@ -96,7 +96,7 @@ def _id_de_opcion(obs, idx):
 
 
 # ---------------------------------------------------------------------------
-# El fallo del log, reproducido tal cual
+# The log's failure, reproduced as it stands
 # ---------------------------------------------------------------------------
 
 def test_paso_50_juega_el_xerosic_y_no_la_segunda_ultra_ball():
@@ -104,7 +104,7 @@ def test_paso_50_juega_el_xerosic_y_no_la_segunda_ultra_ball():
     cur = obs["current"]
     yo = cur["players"][cur["yourIndex"]]
 
-    # La cadena ya se completo: Meowth ex en banca y Xerosic en la mano.
+    # The chain is already complete: Meowth ex on the bench and Xerosic in hand.
     assert sorted(c["id"] for c in yo["hand"]) == sorted(
         [m.Boss_Orders, m.Lillie_Determination, m.Ultra_Ball,
          m.Xerosic_Machinations])
@@ -120,11 +120,11 @@ def test_paso_50_juega_el_xerosic_y_no_la_segunda_ultra_ball():
 
 
 # ---------------------------------------------------------------------------
-# El predicado, aislado
+# The predicate, in isolation
 # ---------------------------------------------------------------------------
 
 class _Ctx:
-    """Minimo que consulta `_ub_forraje_real`."""
+    """The minimum `_ub_forraje_real` consults."""
 
     class _State:
         def __init__(self, supporter_played):
@@ -146,22 +146,22 @@ class _Ctx:
 
 
 def test_la_lillie_protegida_no_es_forraje():
-    """La mano exacta del paso 50: el unico forraje real es el Boss's."""
+    """The exact hand of step 50: the only real fodder is the Boss's."""
     ctx = _Ctx({m.Boss_Orders: 1, m.Lillie_Determination: 1,
                 m.Ultra_Ball: 1, m.Xerosic_Machinations: 1})
     assert m._ub_forraje_real(ctx, m.Xerosic_Machinations) == 1
 
 
 def test_el_dawn_protegido_tampoco_es_forraje():
-    """Dawn puntua 3 con `_protect_refresh_supporter`: tampoco cae antes."""
+    """Dawn scores 3 with `_protect_refresh_supporter`: it does not fall first either."""
     ctx = _Ctx({m.Boss_Orders: 1, m.Dawn: 1,
                 m.Ultra_Ball: 1, m.Xerosic_Machinations: 1})
     assert m._ub_forraje_real(ctx, m.Xerosic_Machinations) == 1
 
 
 def test_con_el_supporter_del_turno_ya_jugado_si_es_forraje():
-    """Jugado el Supporter, la Lillie's pierde su proteccion de refresco y
-    vuelve a ser descartable: el veto no debe congelarse para siempre."""
+    """Once the Supporter is played, the Lillie's loses its refresh protection and
+    goes back to being discardable: the veto must not freeze forever."""
     ctx = _Ctx({m.Boss_Orders: 1, m.Lillie_Determination: 1,
                 m.Ultra_Ball: 1, m.Xerosic_Machinations: 1},
                supporter_played=True)
@@ -169,16 +169,16 @@ def test_con_el_supporter_del_turno_ya_jugado_si_es_forraje():
 
 
 def test_la_copia_sobrante_de_lillie_si_es_forraje():
-    """`_protect_refresh_supporter` solo cubre UNA copia (las demas puntuan 72
-    en el bloque de descarte): con dos Lillie's el forraje vuelve a contarlas."""
+    """`_protect_refresh_supporter` only covers ONE copy (the rest score 72
+    in the discard block): with two Lillie's the fodder counts them again."""
     ctx = _Ctx({m.Lillie_Determination: 2, m.Ultra_Ball: 1,
                 m.Xerosic_Machinations: 1})
     assert m._ub_forraje_real(ctx, m.Xerosic_Machinations) == 2
 
 
 def test_protegiendo_la_propia_lillie_el_dawn_sigue_siendo_forraje():
-    """Con Lillie's + Dawn en mano ya no hay una sola copia de refresco: el
-    scorer suelta el Dawn (55) antes que la Lillie's, asi que cuenta."""
+    """With Lillie's + Dawn in hand there is no longer a single refresh copy: the
+    scorer lets the Dawn go (55) before the Lillie's, so it counts."""
     ctx = _Ctx({m.Lillie_Determination: 1, m.Dawn: 1,
                 m.Boss_Orders: 1, m.Ultra_Ball: 1})
     assert m._ub_forraje_real(ctx, m.Lillie_Determination) == 2

@@ -1,54 +1,54 @@
-"""Colisión Cubchoo ↔ muro inmune: el veto anti-Cubchoo mataba el pivote al muro.
+"""Cubchoo ↔ immune wall collision: the anti-Cubchoo veto killed the pivot to the wall.
 
-Escenario (autopsia `cornerstone_cubchoo`, jul 2026; fixture capturado del
-self-play, turno 22):
+Scenario (autopsy `cornerstone_cubchoo`, Jul 2026; a fixture captured from
+self-play, turn 22):
 
-    NOSOTROS                                  RIVAL
-    activo  Teal Mask Ogerpon ex, 6 energias  activo  Cornerstone Mask Ogerpon ex
-            (coste de retirada 1)                     210/210
-    banca   Hydrapple ex 4e, Ogerpon ex 4e,
+    US                                        RIVAL
+    active  Teal Mask Ogerpon ex, 6 energies  active  Cornerstone Mask Ogerpon ex
+            (retreat cost 1)                          210/210
+    bench   Hydrapple ex 4e, Ogerpon ex 4e,
             Meowth ex, Meganium, **Tapu Bulu 4e**
 
-*Cornerstone Stance* anula el daño de los ataques de Pokémon **con Habilidad**:
-Teal Mask Ogerpon ex (Teal Dance) le hace **0**. El único cuerpo de la banca que
-lo toca es **Tapu Bulu** — sin Habilidad, sin recuadro ex — y está **cargado a 4**,
-justo su coste de *Wood Hammer* (220, noquea al muro de 210). El activo se retira
-por **1**. La jugada es evidente: retirar y subir a Tapu.
+*Cornerstone Stance* cancels the damage of attacks from Pokémon **with an Ability**:
+Teal Mask Ogerpon ex (Teal Dance) does **0** to it. The only body on the bench that
+touches it is **Tapu Bulu** — no Ability, no ex rule box — and it is **charged to 4**,
+exactly its *Wood Hammer* cost (220, which knocks out the 210 wall). The active retreats
+for **1**. The play is obvious: retreat and bring up Tapu.
 
-El agente **atacaba por 0** y cerraba el turno.
+The agent **attacked for 0** and closed the turn.
 
-Causa — una **colisión entre dos reglas de matchup**, la clase que la matriz de
-matchups se construyó para detectar. El mazo es mixto (Cornerstone + Cubchoo), así
-que `op_is_cubchoo_deck` es True y disparaba el veto anti-Cubchoo de la rama
-RETREAT (memoria "Anti-Cubchoo: no retirada-pivote, conservar energía"): contra un
-mazo que descarta energía, retirar un activo con energía encima destruye recurso
-invertido, así que se PASA. Ese veto ya tenía cuatro excepciones
+Cause — a **collision between two matchup rules**, the class of bug the matchup
+matrix was built to detect. The deck is mixed (Cornerstone + Cubchoo), so
+`op_is_cubchoo_deck` is True and it fired the anti-Cubchoo veto of the
+RETREAT branch (the memory "Anti-Cubchoo: no retreat-pivot, keep the energy"): against a
+deck that discards energy, retreating an active with energy on it destroys invested
+resource, so we PASS. That veto already had four exceptions
 (`_cubchoo_lock_stuck`, `_cc_cashes_dead_body`, `_suicide_swap_win_promote`,
-`active_ko_likely`) pero **no** la del muro.
+`active_ko_likely`) but **not** the wall's.
 
-Y el argumento del veto no aplica aquí: la energía de un cuerpo que hace **cero**
-al activo rival no es recurso invertido, es recurso **muerto** — y la retirada es
-la única vía para convertirlo en daño.
+And the veto's argument does not apply here: the energy of a body that does **zero**
+to the rival active is not invested resource, it is **dead** resource — and retreating is
+the only route to turn it into damage.
 
-Arreglo: `_ex_stuck_promo_ready` exime el veto. Ese flag ya distingue las dos
-inmunidades (`op_has_ex_immune_active` + nuestros ex, u `op_has_ability_immune_active`
-+ nuestros cuerpos con Habilidad) y además exige que en la banca haya un atacante
-que SÍ le pegue al muro (`_dmg_vs_wall > 0`), así que no abre la puerta a pivotes
-pelados.
+Fix: `_ex_stuck_promo_ready` exempts it from the veto. That flag already distinguishes the two
+immunities (`op_has_ex_immune_active` + our ex, or `op_has_ability_immune_active`
++ our bodies with an Ability) and on top of that requires an attacker on the bench
+that DOES hit the wall (`_dmg_vs_wall > 0`), so it does not open the door to bare
+pivots.
 
-Medición (250 partidas instrumentadas): con el muro delante, Tapu ≥4 en banca y
-la retirada LEGAL, subíamos a Tapu solo el **13.7%** de las veces en las derrotas
-por premios (36% en las ganadas). El mismo escenario contra Crustle — muro
-equivalente **sin** Cubchoo en el mazo — daba **82.6-100%**, que es lo que puso el
-foco en la colisión. En 167 de 169 de esos menús el activo era Teal Mask Ogerpon
-ex y el turno se cerraba atacando por 0 (67 veces).
+Measurement (250 instrumented games): with the wall in front, a Tapu ≥4 on the bench and
+the retreat LEGAL, we brought up Tapu only **13.7%** of the time in prize
+losses (36% in the wins). The same scenario against Crustle — an equivalent wall
+**without** Cubchoo in the deck — gave **82.6-100%**, which is what put the
+focus on the collision. In 167 of 169 of those menus the active was Teal Mask Ogerpon
+ex and the turn closed by attacking for 0 (67 times).
 
-Gate diferencial n=1000: **cornerstone_cubchoo +5.4 puntos** (77.6% vs 72.2%,
-≈2.8σ). Validación triple: espejo 51.7% [48.6-54.8] (sin regresión general),
-crustle_kangaskhan −1.1, iron_thorns +1.5, comfey −1.8 (todos ruido). No puede
-filtrar a otros matchups: `cornerstone_cubchoo` es el ÚNICO mazo de
-`deck/rivales/` con Cubchoo, así que el gate `op_is_cubchoo_deck` no dispara en
-ningún otro.
+Differential gate n=1000: **cornerstone_cubchoo +5.4 points** (77.6% vs 72.2%,
+≈2.8σ). Triple validation: mirror 51.7% [48.6-54.8] (no general regression),
+crustle_kangaskhan −1.1, iron_thorns +1.5, comfey −1.8 (all noise). It cannot
+leak into other matchups: `cornerstone_cubchoo` is the ONLY deck in
+`deck/rivales/` with Cubchoo, so the `op_is_cubchoo_deck` gate does not fire in
+any other.
 """
 
 import copy
@@ -116,7 +116,7 @@ def _tipo(obs, eleccion):
 
 
 def _scores(obs):
-    """Score de cada opcion del menu, espiando `_debug_log_decision`."""
+    """The score of each menu option, spying on `_debug_log_decision`."""
     visto = {}
     orig = m._debug_log_decision
 
@@ -136,7 +136,7 @@ def _scores(obs):
 
 
 # ---------------------------------------------------------------------------
-# 1. El escenario: sin él, el test no mide nada
+# 1. The scenario: without it, the test measures nothing
 # ---------------------------------------------------------------------------
 
 def test_el_fixture_es_el_escenario_del_muro():
@@ -146,14 +146,14 @@ def test_el_fixture_es_el_escenario_del_muro():
     rival = o["current"]["players"][1 - yo]
 
     assert rival["active"][0]["id"] == CORNERSTONE
-    assert mio["active"][0]["id"] == OGERPON              # tiene Habilidad -> hace 0
+    assert mio["active"][0]["id"] == OGERPON              # it has an Ability -> it does 0
     assert OGERPON in m.OUR_ABILITY_IDS
     assert CORNERSTONE in m.ABILITY_IMMUNE_IDS
-    # Tapu Bulu: sin Habilidad y sin recuadro ex -> SI le pega, y esta LISTO.
+    # Tapu Bulu: no Ability and no ex rule box -> it DOES hit, and it is READY.
     tapu = next(b for b in mio["bench"] if b and b["id"] == TAPU)
     assert len(tapu["energies"]) >= m.ATTACK_ENERGY_REQ[TAPU]
     assert TAPU not in m.OUR_ABILITY_IDS and TAPU not in m.OUR_EX_IDS
-    # ...y la retirada del activo es legal y barata.
+    # ...and the active's retreat is legal and cheap.
     assert m.RETREAT_COST[OGERPON] == 1
     tipos = {opt["type"] for opt in o["select"]["option"]}
     assert int(m.OptionType.RETREAT) in tipos
@@ -161,7 +161,7 @@ def test_el_fixture_es_el_escenario_del_muro():
 
 
 # ---------------------------------------------------------------------------
-# 2. La decisión
+# 2. The decision
 # ---------------------------------------------------------------------------
 
 def test_retira_para_subir_a_tapu_en_vez_de_atacar_por_cero():
@@ -170,7 +170,7 @@ def test_retira_para_subir_a_tapu_en_vez_de_atacar_por_cero():
 
 
 def test_el_veto_anti_cubchoo_ya_no_mata_la_retirada():
-    """El fallo era un VETO (score −1), no una derrota por puntos."""
+    """The failure was a VETO (score −1), not a defeat on points."""
     obs = _obs()
     scores = _scores(obs)
     idx_ret = next(i for i, opt in enumerate(obs["select"]["option"])
@@ -182,10 +182,10 @@ def test_el_veto_anti_cubchoo_ya_no_mata_la_retirada():
 
 
 def _flags_de_agent(obs, nombres):
-    """Lee variables LOCALES de `agent()` al retornar.
+    """Reads LOCAL variables of `agent()` on return.
 
-    `op_is_cubchoo_deck` (como `op_kang_ko_target`) es local, no global: leerlo
-    con `m.<flag>` da el valor que dejó el reset del test, no el de la decisión.
+    `op_is_cubchoo_deck` (like `op_kang_ko_target`) is local, not global: reading it
+    with `m.<flag>` gives the value left by the test's reset, not the decision's.
     """
     capt = {}
 
@@ -207,9 +207,9 @@ def _flags_de_agent(obs, nombres):
 
 
 def test_el_matchup_cubchoo_esta_activo_de_verdad():
-    """Si `op_is_cubchoo_deck` fuera False el veto no existiría y los tests de
-    arriba pasarían sin probar la exención. El Cubchoo se detecta por el
-    DESCARTE rival, que es donde está en este fixture."""
+    """If `op_is_cubchoo_deck` were False the veto would not exist and the tests
+    above would pass without testing the exemption. The Cubchoo is detected by the
+    rival DISCARD, which is where it is in this fixture."""
     obs = _obs()
     yo = obs["current"]["yourIndex"]
     descarte = obs["current"]["players"][1 - yo]["discard"]
@@ -221,12 +221,12 @@ def test_el_matchup_cubchoo_esta_activo_de_verdad():
 
 
 # ---------------------------------------------------------------------------
-# 3. Lo que NO se rompe: la exención exige un atacante REAL contra el muro
+# 3. What is NOT broken: the exemption requires a REAL attacker against the wall
 # ---------------------------------------------------------------------------
 
 def test_sin_tapu_cargado_el_veto_anti_cubchoo_sigue_en_pie():
-    """Con el Tapu por debajo de su coste de ataque no hay pivote al muro que
-    justificar, así que vuelve la conducta anti-Cubchoo: conservar la energía."""
+    """With the Tapu below its attack cost there is no pivot to the wall to
+    justify, so the anti-Cubchoo behaviour returns: keep the energy."""
     obs = _obs(energia_tapu=1)
     scores = _scores(obs)
     idx_ret = next(i for i, opt in enumerate(obs["select"]["option"])

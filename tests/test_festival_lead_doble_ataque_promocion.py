@@ -1,47 +1,47 @@
-"""Festival Grounds + Dipplin: el rival ATACA DOS VECES, así que el promovido
-tiene que llegar vivo a nuestro turno.
+"""Festival Grounds + Dipplin: the opponent ATTACKS TWICE, so the promoted body
+has to reach our turn alive.
 
-Escenario (log 88971843, paso 117, turno 9, PERDIDA vs *Festival Lead*):
+Scenario (log 88971843, step 117, turn 9, LOST vs *Festival Lead*):
 
-    NOSOTROS (3 premios)                 RIVAL (**1 premio**)
-    activo  -- (nos acaban de noquear    activo  Dipplin 80 PV, 1 Planta,
-            el Teal Mask Ogerpon ex)             **Brave Bangle**
-    banca   Meganium  160 PV, 0 en       banca   5 Pokémon
-            Dipplin    80 PV, 2 en       estadio **Festival Grounds** (suyo)
-            Chikorita  70 PV, 0 en
-            Tapu Bulu 140 PV, 2 en
+    US (3 prizes)                        OPPONENT (**1 prize**)
+    active  -- (they have just knocked   active  Dipplin 80 HP, 1 Grass,
+            out our Teal Mask Ogerpon ex)        **Brave Bangle**
+    bench   Meganium  160 HP, 0 en       bench   5 Pokémon
+            Dipplin    80 HP, 2 en       stadium **Festival Grounds** (theirs)
+            Chikorita  70 HP, 0 en
+            Tapu Bulu 140 HP, 2 en
 
-*Do the Wave* = 20 × SU banca = **20·5 = 100**; +30 de *Brave Bangle* contra
-nuestros ex = 130, que fue lo que remató al Ogerpon ex a 70 PV (log: `-130`).
-Y *Festival Lead* — "si el primer ataque noquea, ataca **otra vez** tras elegir
-el nuevo Activo" — le da un segundo *Do the Wave* de 100 **antes de que
-juguemos**. Con el rival a 1 premio, cualquier cuerpo que muera ahí pierde la
-partida.
+*Do the Wave* = 20 x THEIR bench = **20x5 = 100**; +30 from *Brave Bangle* against
+our ex = 130, which is what finished off the Ogerpon ex at 70 HP (log: `-130`).
+And *Festival Lead* -- "if the first attack knocks out, attack **again** after choosing
+the new Active" -- gives them a second *Do the Wave* of 100 **before we
+play**. With the opponent at 1 prize, any body that dies there loses
+the game.
 
-El agente subía el **Dipplin de 80 PV** (muere a los 100) teniendo detrás un
-**Tapu Bulu de 140** que aguanta y que, con un solo adjunte (×2 por *Wild
-Growth*), llega a 4 energías y remata con *Wood Hammer* 220.
+The agent brought up the **80 HP Dipplin** (it dies to the 100) with a
+**140 HP Tapu Bulu** behind it that survives and that, with a single attachment (x2 from *Wild
+Growth*), reaches 4 energies and finishes with *Wood Hammer* 220.
 
-Tres ceguera encadenadas, las tres corregidas aquí:
+Three chained blind spots, all three corrected here:
 
-1. *Do the Wave* tiene **daño impreso 0** en `attack_table` (es "20×"), así que
-   `_op_active_attack_damage_to` proyectaba **0** contra los cuatro candidatos y
-   toda la maquinaria de supervivencia (`_promo_survives`, la prudencia de
-   `_pb_key`, `_ev_survivor_asis`, `_ko_prefer_basic_general`) se apagaba en
-   silencio. Es el mismo agujero que ya se tapó para *Powerful Hand*; ahora la
-   escala viaja en el flag por turno `_op_bench_count`.
-2. **Brave Bangle** (+30 al ex activo, portador sin Rule Box) era invisible:
-   solo se modelaba Maximum Belt.
-3. La rama de promoción está escrita sobre la premisa *"la promoción ocurre en
-   el turno RIVAL, donde nadie ataca ya"*. Bajo Festival Lead es **falsa**:
-   `op_double_attack_pending` la apaga — el condenado deja de ser candidato a
-   "mejor atacante" y pierde las dos exenciones (`PROMO_KO_BONUS` y el remate
-   garantizado de `_promote_setup_ko_attacker`).
+1. *Do the Wave* has **printed damage 0** in `attack_table` (it is "20x"), so
+   `_op_active_attack_damage_to` projected **0** against the four candidates and
+   the whole survival machinery (`_promo_survives`, the caution in
+   `_pb_key`, `_ev_survivor_asis`, `_ko_prefer_basic_general`) switched off in
+   silence. It is the same hole that was already plugged for *Powerful Hand*; now the
+   scale travels in the per-turn flag `_op_bench_count`.
+2. **Brave Bangle** (+30 to the active ex, a bearer without a Rule Box) was invisible:
+   only Maximum Belt was modelled.
+3. The promotion branch is written on the premise *"promotion happens on the
+   OPPONENT'S turn, where nobody attacks any more"*. Under Festival Lead that is **false**:
+   `op_double_attack_pending` switches it off -- the doomed body stops being a candidate for
+   "best attacker" and loses the two exemptions (`PROMO_KO_BONUS` and the guaranteed
+   finisher of `_promote_setup_ko_attacker`).
 
-Además, `_promo_kos_op` proyectaba *Do the Wave* del PROMOVIDO con la banca sin
-descontar el propio cuerpo (20·4 = 80 en vez de 20·3 = 60): creía que el Dipplin
-noqueaba al Dipplin rival de 80 PV y le regalaba `PROMO_KO_BONUS`. Los otros dos
-sitios que proyectan a un promovido ya restaban 1.
+On top of that, `_promo_kos_op` projected the PROMOTED body's *Do the Wave* with the bench
+not discounting its own body (20x4 = 80 instead of 20x3 = 60): it believed the Dipplin
+knocked out the opposing 80 HP Dipplin and handed it `PROMO_KO_BONUS`. The other two
+places that project a promoted body already subtracted 1.
 """
 
 import copy
@@ -101,8 +101,8 @@ def _obs(**mut):
     o = copy.deepcopy(json.load(open(_FIXTURE, encoding="utf-8"))["observation"])
     yo = o["current"]["yourIndex"]
     if mut.get("sin_estadio"):
-        # Mismo tablero SIN Festival Grounds: sin el estadio no hay Festival
-        # Lead y el segundo ataque no existe.
+        # The same board WITHOUT Festival Grounds: with no stadium there is no Festival
+        # Lead and the second attack does not exist.
         o["current"]["stadium"] = []
     if mut.get("rival_sin_bangle"):
         o["current"]["players"][1 - yo]["active"][0]["tools"] = []
@@ -115,13 +115,13 @@ def _banca(obs):
 
 
 def _elegido(obs, eleccion):
-    """Carta de banca que corresponde a la opción elegida."""
+    """The bench card matching the chosen option."""
     opt = obs["select"]["option"][eleccion[0]]
     return _banca(obs)[opt["index"]]
 
 
 # ---------------------------------------------------------------------------
-# 1. El escenario: sin él, el test no mide nada
+# 1. The scenario: without it, the test measures nothing
 # ---------------------------------------------------------------------------
 
 def test_el_fixture_es_la_promocion_bajo_festival_grounds():
@@ -130,57 +130,57 @@ def test_el_fixture_es_la_promocion_bajo_festival_grounds():
     mio = o["current"]["players"][yo]
     rival = o["current"]["players"][1 - yo]
 
-    assert not mio["active"]                       # nos noquearon el activo
-    assert o["select"]["context"] == 4             # menu de promocion
+    assert not mio["active"]                       # they knocked out our active
+    assert o["select"]["context"] == 4             # promotion menu
 
-    # Festival Grounds en mesa -- y es del RIVAL: el estadio es COMPARTIDO.
+    # Festival Grounds on the table -- and it is the OPPONENT'S: the stadium is SHARED.
     assert [c["id"] for c in o["current"]["stadium"]] == [m.Festival_Grounds]
     assert o["current"]["stadium"][0]["playerIndex"] == 1 - yo
 
-    # Su activo es el Dipplin con Festival Lead y Brave Bangle.
+    # Their active is the Dipplin with Festival Lead and Brave Bangle.
     assert rival["active"][0]["id"] == DIPPLIN
     assert DIPPLIN in m.FESTIVAL_LEAD_IDS
     assert [t["id"] for t in rival["active"][0]["tools"]] == [m.Brave_Bangle]
-    assert not m._tiene_rule_box(DIPPLIN)          # el Bangle SI le aplica
+    assert not m._tiene_rule_box(DIPPLIN)          # the Bangle DOES apply to it
 
-    # Rival a MATCH POINT: un KO mas y perdemos.
+    # Opponent at MATCH POINT: one more KO and we lose.
     assert len(rival["prize"]) == 1
 
-    # La banca: dos que aguantan 100 (Meganium, Tapu) y dos que no.
+    # The bench: two that survive 100 (Meganium, Tapu) and two that do not.
     assert [(b["id"], b["hp"]) for b in mio["bench"]] == [
         (MEGANIUM, 160), (DIPPLIN, 80), (CHIKORITA, 70), (TAPU, 140)]
     assert len(rival["bench"]) == 5                # Do the Wave = 20 x 5 = 100
 
 
 def test_do_the_wave_tiene_dano_impreso_cero():
-    """La causa raíz: sin modelarlo, la proyección era 0 contra todos."""
+    """The root cause: without modelling it, the projection was 0 against everyone."""
     assert (m.attack_table[m.DO_THE_WAVE_ATTACK_ID].damage or 0) == 0
     assert m.card_table[DIPPLIN].attacks == [m.DO_THE_WAVE_ATTACK_ID]
 
 
 # ---------------------------------------------------------------------------
-# 2. La proyección de daño
+# 2. The damage projection
 # ---------------------------------------------------------------------------
 
 def test_proyecta_do_the_wave_y_el_brave_bangle():
     obs = _obs()
-    m.agent(obs)                                   # refresca los flags por turno
+    m.agent(obs)                                   # it refreshes the per-turn flags
     assert m._op_bench_count == 5
     assert m._festival_grounds_in_play is True
 
     yo = obs["current"]["yourIndex"]
     op_act = m.to_observation_class(obs).current.players[1 - yo].active[0]
 
-    # 20 x 5 = 100 contra cualquier cuerpo NO-ex...
+    # 20 x 5 = 100 against any NON-ex body...
     for pk in m.to_observation_class(obs).current.players[yo].bench:
         if pk.id not in m.OUR_EX_IDS:
             assert m._op_active_attack_damage_to(op_act, pk) == 100
 
-    # ...y 130 contra un ex nuestro (Brave Bangle +30), que es el golpe REAL
-    # que remató al Teal Mask Ogerpon ex (log: value -130).
+    # ...and 130 against an ex of ours (Brave Bangle +30), which is the REAL blow
+    # that finished off the Teal Mask Ogerpon ex (log: value -130).
     assert m._op_active_attack_damage_to(op_act, m._ProjTarget(OGERPON)) == 130
 
-    # Sin el Bangle vuelve a ser 100 tambien contra el ex.
+    # Without the Bangle it is 100 again, also against the ex.
     obs2 = _obs(rival_sin_bangle=True)
     m.agent(obs2)
     op_act2 = m.to_observation_class(obs2).current.players[1 - yo].active[0]
@@ -188,14 +188,14 @@ def test_proyecta_do_the_wave_y_el_brave_bangle():
 
 
 def test_brave_bangle_no_suma_si_el_portador_tiene_rule_box():
-    """La tool solo cuenta si el portador NO tiene Rule Box."""
+    """The tool only counts if the bearer has NO Rule Box."""
     assert m._tiene_rule_box(OGERPON) is True      # Pokemon ex
     assert m._tiene_rule_box(TAPU) is False
     assert m._tiene_rule_box(MEGANIUM) is False
 
 
 # ---------------------------------------------------------------------------
-# 3. La decisión
+# 3. The decision
 # ---------------------------------------------------------------------------
 
 def test_promueve_el_tapu_que_aguanta_y_no_el_dipplin_condenado():
@@ -205,45 +205,45 @@ def test_promueve_el_tapu_que_aguanta_y_no_el_dipplin_condenado():
         "bajo Festival Lead el promovido come un Do the Wave ANTES de que "
         "juguemos: el Dipplin de 80 PV muere y con el rival a 1 premio eso es "
         "la partida")
-    assert elegido["hp"] > 100                     # sobrevive al segundo golpe
+    assert elegido["hp"] > 100                     # it survives the second blow
 
 
 def test_el_tapu_promovido_remata_al_turno_siguiente():
-    """No es solo el más tanque: con un adjunte llega a Wood Hammer."""
+    """It is not just the tankiest: with one attachment it reaches Wood Hammer."""
     obs = _obs()
     yo = obs["current"]["yourIndex"]
     tapu = next(b for b in _banca(obs) if b["id"] == TAPU)
     rival_act = obs["current"]["players"][1 - yo]["active"][0]
 
-    # Meganium en juego -> Wild Growth: una Planta fisica vale 2 efectivas.
+    # Meganium in play -> Wild Growth: one physical Grass is worth 2 effective.
     assert any(b["id"] == MEGANIUM for b in _banca(obs))
     assert len(tapu["energies"]) + 2 >= m.ATTACK_ENERGY_REQ[TAPU]
-    assert 220 >= rival_act["hp"]                  # Wood Hammer lo remata
+    assert 220 >= rival_act["hp"]                  # Wood Hammer finishes it
 
 
 # ---------------------------------------------------------------------------
-# 4. El contra-estadio: Forest of Vitality apaga Festival Lead de raíz
+# 4. The counter-stadium: Forest of Vitality switches Festival Lead off at the root
 # ---------------------------------------------------------------------------
 
 def test_festival_grounds_hace_urgente_el_contra_estadio():
-    """`_contra_estadio_urgente` gobierna las DOS caras: no soltar el Forest en
-    un descarte forzado y no vetar su jugada."""
-    # Estadio hostil y sin Forest nuestro en mesa -> urgente.
+    """`_contra_estadio_urgente` governs BOTH faces: not letting the Forest go in
+    a forced discard and not vetoing its play."""
+    # A hostile stadium and no Forest of ours on the table -> urgent.
     assert m._contra_estadio_urgente(False, False, False, True) is True
-    # Con nuestro Forest ya en mesa no hay nada que levantar.
+    # With our Forest already on the table there is nothing to put up.
     assert m._contra_estadio_urgente(False, False, True, True) is False
-    # Sin la línea Applin/Dipplin rival el flag llega apagado: el estadio es de
-    # DOBLE FILO y quitarlo apagaría también nuestro Dipplin.
+    # Without the opposing Applin/Dipplin line the flag arrives switched off: the stadium is
+    # DOUBLE-EDGED and removing it would also switch off our Dipplin.
     assert m._contra_estadio_urgente(False, False, False, False) is False
-    # No rompe a los dos hermanos que ya estaban.
+    # It does not break the two siblings that were already there.
     assert m._contra_estadio_urgente(True, False, False, False) is True
     assert m._contra_estadio_urgente(False, True, False, False) is True
 
 
 def test_apagar_festival_lead_va_antes_que_la_cadena_evolutiva():
-    """Prioridad de la jugada del Forest: la cadena se cobra el próximo turno,
-    el doble ataque nos mata en este. Por debajo del motor Meowth, que además
-    es irreversible."""
+    """The priority of playing the Forest: the chain is cashed in next turn,
+    the double attack kills us on this one. Below the Meowth engine, which on top of that
+    is irreversible."""
     nombres = [r.nombre for r in m._REGLAS_FOREST_PLAY]
     assert nombres.index("reactivar_motor_meowth_vs_watchtower") \
         < nombres.index("apagar_festival_lead") \
@@ -252,15 +252,15 @@ def test_apagar_festival_lead_va_antes_que_la_cadena_evolutiva():
 
 
 def test_el_flag_hostil_exige_la_linea_rival():
-    """El fixture tiene Dipplin rival en el activo -> hostil. Sin ningún
-    Applin/Dipplin suyo a la vista, el estadio deja de contar como hostil."""
+    """The fixture has an opposing Dipplin in the active spot -> hostile. With no
+    Applin/Dipplin of theirs in sight, the stadium stops counting as hostile."""
     o = _obs()
     yo = o["current"]["yourIndex"]
     riv = o["current"]["players"][1 - yo]
     assert riv["active"][0]["id"] == DIPPLIN
 
-    # Sin línea rival visible: activo neutro, banca sin Applin/Dipplin y
-    # descarte limpio de la línea.
+    # With no opposing line in sight: a neutral active, a bench with no Applin/Dipplin and
+    # a discard clean of the line.
     o2 = _obs()
     riv2 = o2["current"]["players"][1 - yo]
     riv2["active"][0]["id"] = CHIKORITA
@@ -269,10 +269,10 @@ def test_el_flag_hostil_exige_la_linea_rival():
     riv2["discard"] = [c for c in riv2["discard"]
                        if c["id"] not in (DIPPLIN, m.Applin)]
     m.agent(o2)
-    # El estadio sigue en mesa (el flag de proyección no cambia)...
+    # The stadium is still on the table (the projection flag does not change)...
     assert m._festival_grounds_in_play is True
-    # ...pero ya no hay nadie que aproveche Festival Lead: sin Dipplin rival la
-    # proyección de Do the Wave no aplica a su activo.
+    # ...but there is nobody left to exploit Festival Lead: with no opposing Dipplin the
+    # Do the Wave projection does not apply to their active.
     op_act2 = m.to_observation_class(o2).current.players[1 - yo].active[0]
     tapu = next(b for b in m.to_observation_class(o2).current.players[yo].bench
                 if b.id == TAPU)
@@ -280,11 +280,11 @@ def test_el_flag_hostil_exige_la_linea_rival():
 
 
 def test_sin_festival_grounds_no_se_apaga_la_premisa():
-    """Control: el veto es del ESTADIO, no del matchup.
+    """Control: the veto is about the STADIUM, not the matchup.
 
-    Sin Festival Grounds no hay segundo ataque, la promoción se resuelve al
-    final del turno rival y volvemos a la conducta de siempre -- el candidato
-    condenado deja de estar vetado como "mejor atacante".
+    Without Festival Grounds there is no second attack, the promotion resolves at the
+    end of the opponent's turn and we go back to the usual behaviour -- the doomed
+    candidate stops being vetoed as "best attacker".
     """
     obs = _obs(sin_estadio=True)
     m.agent(obs)

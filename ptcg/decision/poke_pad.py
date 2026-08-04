@@ -1,8 +1,8 @@
-"""Poke Pad: que Pokemon merece buscarse.
+"""Poke Pad: which Pokemon is worth searching for.
 
-Extraido VERBATIM de main.py por utils/extraer_definiciones.py
-(docs/main-refactor-arquitectura.md). Su pureza esta comprobada por
-utils/pureza.py: nada de aqui toca el estado mutable ni las tablas de runtime.
+Extracted VERBATIM from main.py by utils/extraer_definiciones.py
+(docs/project-history.md). Its purity is verified by
+utils/pureza.py: nothing here touches mutable state or the runtime tables.
 """
 
 from ptcg.motor.reglas import _ReglaFija
@@ -19,8 +19,9 @@ _PP_NON_RULEBOX_IDS = (Chikorita, Bayleef, Meganium, Applin, Dipplin,
 
 
 def _pp_buscables(c):
-    """Pokemon SIN Rule Box con copias en el mazo (lo unico que Poke Pad
-    puede buscar: excluye la linea Hydrapple ex y los demas ex)."""
+    """Pokemon WITHOUT a Rule Box that still have copies in the deck (the only
+    thing Poke Pad can search for: it excludes the Hydrapple ex line and the
+    other ex)."""
     cartas = c.cartas_en_mazo
     return {cid: cartas[cid][ESTADO_MAZO] for cid in _PP_NON_RULEBOX_IDS
             if cid in cartas and cartas[cid][ESTADO_MAZO] > 0}
@@ -32,9 +33,9 @@ def _pp_es_t1(c):
 
 
 def _pp_budew_dump(c):
-    """Rival abre con Budew ACTIVO y vamos segundos: su Itchy Pollen bloquea
-    objetos nuestro proximo turno; este primer turno es el UNICO para usar
-    objetos -> jugar TODAS las Poke Pad ahora."""
+    """The opponent opens with Budew ACTIVE and we go second: its Itchy Pollen
+    blocks items on our next turn; this first turn is the ONLY one for using
+    items -> play ALL the Poke Pads now."""
     return (c.budew_op_index == 0
             and c.state.turn == 2 and not c.we_go_first)
 
@@ -55,11 +56,11 @@ def _v_pp_t1(c):
 
 
 def _pp_evo_valor(c):
-    """Mejor evolucion habilitada ESTE turno por una busqueda de Poke Pad
-    (0 = ninguna). La foto evolvable es la de inicio de turno sin Forest."""
+    """Best evolution enabled THIS turn by a Poke Pad search (0 = none). The
+    evolvable snapshot is the start-of-turn one when there is no Forest."""
     s = _pp_buscables(c)
     h, f = c.hand_counts, c.field_counts
-    # NO usa `_evolvable_counts`: MEDIDO Y REVERTIDO (ver su nota de alcance).
+    # It does NOT use `_evolvable_counts`: MEASURED AND REVERTED (see its scope note).
     evolvable = (c.field_at_turn_start
                  if (not c.forest_in_play and c.field_at_turn_start) else f)
     v = 0
@@ -85,8 +86,8 @@ def _pp_evo_valor(c):
 
 
 def _pp_evolucion_pendiente_de_busqueda(c):
-    """Alguna pre-evo en juego cuya evolucion NO esta en mano pero SI en el
-    mazo: una busqueda la habilita (no cortar por banca llena)."""
+    """Some pre-evolution in play whose evolution is NOT in hand but IS in the
+    deck: a search enables it (do not cut off because the bench is full)."""
     h, f, cartas = c.hand_counts, c.field_counts, c.cartas_en_mazo
     return ((f.get(Chikorita, 0) >= 1 and h.get(Bayleef, 0) == 0
              and cartas.get(Bayleef, {}).get(ESTADO_MAZO, 0) > 0)
@@ -124,7 +125,7 @@ _REGLAS_PP_PLAY = [
 
 
 _AJUSTES_PP_PLAY = [
-    # Buscar Tapu Bulu como sacrificio de 1 premio (pivote vs Lucario).
+    # Search for Tapu Bulu as a 1-prize sacrifice (pivot vs Lucario).
     _Ajuste("sacrificio_lucario_tapu",
             lambda c, s: (c.lucario_sac_pivot
                           and Tapu_Bulu in _pp_buscables(c)
@@ -132,8 +133,8 @@ _AJUSTES_PP_PLAY = [
                           and c.hand_counts.get(Tapu_Bulu, 0) == 0
                           and c.bench_count < 5),
             lambda c, s: 13000),
-    # Banca llena y sin pre-evo que evolucionar CON UNA BUSQUEDA: guardar
-    # el recurso (Poke Pad excluye la linea Dipplin->Hydrapple ex).
+    # Bench full and no pre-evolution to evolve WITH A SEARCH: keep the
+    # resource (Poke Pad excludes the Dipplin->Hydrapple ex line).
     _Ajuste("banca_llena_guardar",
             lambda c, s: (c.bench_count >= 5
                           and not _pp_evolucion_pendiente_de_busqueda(c)
@@ -143,16 +144,16 @@ _AJUSTES_PP_PLAY = [
 
 
 def _score_poke_pad_play(ctx: DecisionContext) -> int:
-    """Puntua la jugada de Poke Pad (busca un Pokemon SIN Rule Box). Prioriza
-    habilitar una evolucion ESTE turno; si no, asegurar basicos; con banca
-    llena y sin nada que evolucionar, guarda el recurso. Cuerpo migrado al
-    MOTOR DE REGLAS (fase 4)."""
+    """Scores playing Poke Pad (searches for a Pokemon WITHOUT a Rule Box). It
+    prioritises enabling an evolution THIS turn; failing that, securing basics;
+    with a full bench and nothing to evolve, it keeps the resource. Body
+    migrated to the RULES ENGINE (phase 4)."""
     return _resolver_con_traza("pokepad->play", _REGLAS_PP_PLAY,
                                _AJUSTES_PP_PLAY, ctx, defecto=SCORE_VETO)
 
 
 class _CtxPPFetch:
-    """Ctx del fetch de Poke Pad: carta candidata + derivados del modo."""
+    """Ctx of the Poke Pad fetch: candidate card + values derived from the mode."""
 
     def __init__(self, card_id, hand_counts, field_counts, bench_count,
                  state):
@@ -187,7 +188,7 @@ class _CtxPPFetch:
 
 
 _REGLAS_PP_FETCH = [
-    # (1) Primer turno: bajar los basicos de ambas lineas antes que nada.
+    # (1) First turn: put down the basics of both lines before anything else.
     _ReglaFija("t1_applin",
                lambda c: (c.first_turn and c.card_id == Applin
                           and not c.have_applin),
@@ -199,7 +200,7 @@ _REGLAS_PP_FETCH = [
     _ReglaFija("t1_otro",
                lambda c: c.first_turn,
                lambda c: 10),
-    # (2) Evolucion directa de un Pokemon del tablero actual.
+    # (2) Direct evolution of a Pokemon on the current board.
     _ReglaFija("evo_meganium",
                lambda c: (c.has_evo and c.card_id == Meganium
                           and not ESTADO.meganium_in_play
@@ -243,7 +244,7 @@ _REGLAS_PP_FETCH = [
     _ReglaFija("evo_otro",
                lambda c: c.has_evo,
                lambda c: 10),
-    # (3) Fallback: completar lineas desde la mano.
+    # (3) Fallback: complete lines from hand.
     _ReglaFija("fb_bayleef",
                lambda c: (c.card_id == Bayleef and not ESTADO.meganium_in_play
                           and c.have_chik and not c.have_bay),

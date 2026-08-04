@@ -1,28 +1,28 @@
-"""Migra estado de modulo de main.py a `ESTADO.<campo>` (Ola 3 del refactor).
+"""Migrates module state from main.py to `ESTADO.<field>` (wave 3 of the refactor).
 
-POR QUE ES DISTINTO DE LAS OLAS ANTERIORES
-  Las olas 1, 2 y 4 MUEVEN lineas sin tocarlas. Esta las REESCRIBE: `ko_last_turn`
-  pasa a `ESTADO.ko_last_turn` en cada sitio. Por eso el gate de equivalencia
-  (utils/sombra.py) deja de ser una red y pasa a ser el instrumento principal.
+WHY IT IS DIFFERENT FROM THE PREVIOUS WAVES
+  Waves 1, 2 and 4 MOVE lines without touching them. This one REWRITES them: `ko_last_turn`
+  becomes `ESTADO.ko_last_turn` in every place. That is why the equivalence gate
+  (utils/sombra.py) stops being a safety net and becomes the main instrument.
 
-POR QUE NO `ast.unparse`
-  Reescribir el arbol y volver a imprimirlo destruiria TODOS los comentarios, que
-  en main.py son documentacion de verdad (el porque de cada regla, con
-  referencias a partidas concretas). Aqui el AST solo se usa para LOCALIZAR
-  (lineno, col_offset) y el texto se edita en sitio, de derecha a izquierda para
-  que los desplazamientos no se invaliden. Todo lo demas queda byte a byte igual.
+WHY NOT `ast.unparse`
+  Rewriting the tree and printing it again would destroy ALL the comments, which
+  in main.py are real documentation (the why of every rule, with
+  references to concrete games). Here the AST is only used to LOCATE
+  (lineno, col_offset) and the text is edited in place, from right to left so
+  that the offsets are not invalidated. Everything else stays byte for byte the same.
 
-ANALISIS DE AMBITO
-  Un `Name` solo se reescribe si de verdad se refiere al global. Dentro de una
-  funcion que declara `global X` -> si. Dentro de una que asigna `X` sin
-  declararlo global, `X` es LOCAL y no se toca. Los argumentos y las
-  comprensiones tambien cuentan como locales. Sin esto, un `plan = ...` local
-  en cualquier helper acabaria escribiendo en el estado compartido.
+SCOPE ANALYSIS
+  A `Name` is only rewritten if it really refers to the global. Inside a
+  function that declares `global X` -> yes. Inside one that assigns `X` without
+  declaring it global, `X` is LOCAL and is not touched. Arguments and
+  comprehensions also count as locals. Without this, a local `plan = ...`
+  in any helper would end up writing to the shared state.
 
-Uso:
-    python utils/migrar_estado.py --campos plan,pre_turn          # dry run
+Usage:
+    python utils/migrar_estado.py --campos plan,pre_turn          # a dry run
     python utils/migrar_estado.py --campos plan,pre_turn --aplicar
-    python utils/migrar_estado.py --listar                        # que queda
+    python utils/migrar_estado.py --listar                        # what is left
 """
 
 import argparse
@@ -39,20 +39,20 @@ OBJETO = "ESTADO"
 
 
 class _Ambito(ast.NodeVisitor):
-    """Recolecta los Name que SI se refieren a los globales indicados."""
+    """Collects the Name nodes that DO refer to the given globals."""
 
     def __init__(self, campos):
         self.campos = campos
-        self.hits = []          # (lineno, col_offset, nombre)
-        self.globales_decl = []  # (lineno, col_offset, end_col, nombres)
+        self.hits = []          # (lineno, col_offset, name)
+        self.globales_decl = []  # (lineno, col_offset, end_col, names)
 
-    # --- nivel de modulo -----------------------------------------------------
+    # --- module level --------------------------------------------------------
     def visit_Module(self, nodo):
         for hijo in nodo.body:
             self._visitar(hijo, locales=set(), globales=set(self.campos))
 
     def _locales_de(self, fn):
-        """Nombres locales de `fn`: argumentos y asignaciones no declaradas global."""
+        """Local names of `fn`: arguments and assignments not declared global."""
         decl_global = set()
         for n in ast.walk(fn):
             if isinstance(n, ast.Global):
@@ -66,7 +66,7 @@ class _Ambito(ast.NodeVisitor):
             if a.kwarg:
                 locales.add(a.kwarg.arg)
         for n in ast.walk(fn):
-            # no mirar dentro de funciones anidadas: tienen su propio ambito
+            # do not look inside nested functions: they have their own scope
             if isinstance(n, ast.Name) and isinstance(n.ctx, (ast.Store, ast.Del)):
                 if n.id not in decl_global:
                     locales.add(n.id)
@@ -80,7 +80,7 @@ class _Ambito(ast.NodeVisitor):
     def _visitar(self, nodo, locales, globales):
         if isinstance(nodo, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
             loc, decl = self._locales_de(nodo)
-            # visibles como global: lo declarado `global` + lo que no es local
+            # visible as global: what is declared `global` + what is not local
             g = (globales - loc) | (decl & self.campos)
             for n in ast.iter_child_nodes(nodo):
                 self._visitar(n, loc, g)
@@ -94,7 +94,7 @@ class _Ambito(ast.NodeVisitor):
                 self.globales_decl.append(nodo)
             return
         if isinstance(nodo, ast.Attribute):
-            # `ESTADO.plan` ya migrado: no volver a tocar el `plan`
+            # `ESTADO.plan` already migrated: do not touch the `plan` again
             if isinstance(nodo.value, ast.Name) and nodo.value.id == OBJETO:
                 return
         if isinstance(nodo, ast.Name) and nodo.id in self.campos and nodo.id in globales:
@@ -104,7 +104,7 @@ class _Ambito(ast.NodeVisitor):
 
 
 def migrar(texto, campos):
-    """Devuelve (texto_nuevo, n_reescrituras, n_globals_eliminados)."""
+    """Returns (new_text, n_rewrites, n_globals_removed)."""
     campos = set(campos)
     arbol = ast.parse(texto)
     v = _Ambito(campos)
@@ -112,7 +112,7 @@ def migrar(texto, campos):
 
     lineas = texto.splitlines(keepends=True)
 
-    # 1) reescribir los Name, por linea y de derecha a izquierda
+    # 1) rewrite the Name nodes, per line and from right to left
     por_linea = {}
     for ln, col, nombre in v.hits:
         por_linea.setdefault(ln, []).append((col, nombre))
@@ -126,7 +126,7 @@ def migrar(texto, campos):
             linea = linea[:col] + f"{OBJETO}.{nombre}" + linea[col + len(nombre):]
         lineas[ln - 1] = linea
 
-    # 2) quitar (o podar) las sentencias `global`
+    # 2) remove (or prune) the `global` statements
     quitados = 0
     for nodo in sorted(v.globales_decl, key=lambda n: -n.lineno):
         restantes = [n for n in nodo.names if n not in campos]
@@ -176,7 +176,7 @@ def main():
     if not args.aplicar:
         print("\n(dry run; usa --aplicar para escribir)")
         return 0
-    ast.parse(nuevo)          # no escribir algo que no parsea
+    ast.parse(nuevo)          # do not write something that does not parse
     main_py.write_text(nuevo)
     print(f"\nescrito {main_py}")
     return 0

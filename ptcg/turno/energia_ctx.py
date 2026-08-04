@@ -1,7 +1,8 @@
-"""Contexto de `_energy_score_base`: lo que capturaba del turno.
+"""Context of `_energy_score_base`: what it used to capture from the turn.
 
-Generado al sacar la closure de `agent()` (Ola 5). Son 61 campos: los que
-la funcion leia del ambito de `agent` sin recibirlos por parametro.
+Generated when the closure was lifted out of `agent()` (wave 5). There are 61
+fields: the ones the function read from `agent`'s scope without receiving them
+as parameters.
 """
 
 from dataclasses import dataclass
@@ -10,7 +11,7 @@ from typing import Any
 
 @dataclass
 class CtxEnergyScoreBase:
-    """Capturas de `_energy_score_base`."""
+    """Captures of `_energy_score_base`."""
 
     _ability_unlock_retreat_attack: Any = None
     _ability_unlock_retreat_ko: Any = None

@@ -1,39 +1,39 @@
-"""vs Crustle: el ESTADIO se baja ANTES de la Lillie's en nuestro primer turno.
+"""vs Crustle: the STADIUM is played BEFORE the Lillie's on our first turn.
 
-Regla (user): saliendo SEGUNDOS contra el mazo de Crustle, con un estadio
-(Forest of Vitality) y una Lillie's Determination en la misma mano, se juega
-PRIMERO el estadio y DESPUES la Lillie's.
+Rule (user): going SECOND against the Crustle deck, with a stadium
+(Forest of Vitality) and a Lillie's Determination in the same hand, the
+stadium is played FIRST and the Lillie's AFTERWARDS.
 
-Por que el veto general no vale aqui. El agente veta cualquier estadio en
-NUESTRO primer turno (`_our_first_turn_guard` en `agent()` + las reglas
-`t1_saliendo_primeros` / `t1_segundos_sin_estadio_rival` de
-`_REGLAS_FOREST_PLAY`): bajarlo tan pronto es regalarselo a un rival que lo
-reemplace en su turno siguiente. Contra Crustle esa premisa no se cumple -- el
-mazo no juega estadio, o lleva una o dos copias sueltas --, asi que el Forest se
-queda en mesa.
+Why the general veto does not hold here. The agent vetoes any stadium on
+OUR first turn (`_our_first_turn_guard` in `agent()` + the rules
+`t1_saliendo_primeros` / `t1_segundos_sin_estadio_rival` of
+`_REGLAS_FOREST_PLAY`): playing it that early is giving it to a rival who
+replaces it on their next turn. Against Crustle that premise does not hold -- the
+deck does not play a stadium, or carries one or two loose copies --, so the Forest
+stays on the table.
 
-Y el coste de conservarlo NO es cero: Lillie's Determination BARAJA LA MANO
-ENTERA en el mazo. Guardar el estadio "para el proximo turno" teniendo la
-Lillie's en la misma mano es PERDERLO. Las dos jugadas no compiten: caben en el
-mismo turno si el estadio va primero, y el tier de orden `_TIER_STADIUM` (50) ya
-lo antepone al Supporter (tier 0).
+And the cost of keeping it is NOT zero: Lillie's Determination SHUFFLES THE WHOLE
+HAND into the deck. Keeping the stadium "for next turn" while holding the
+Lillie's in the same hand is LOSING it. The two plays do not compete: they fit in the
+same turn if the stadium goes first, and the order tier `_TIER_STADIUM` (50) already
+puts it ahead of the Supporter (tier 0).
 
-Alcance: SOLO vs Crustle y SOLO saliendo segundos (turno 2). Contra el resto de
-matchups -- que si pueden reemplazar el estadio -- sigue mandando el veto.
+Scope: ONLY vs Crustle and ONLY going second (turn 2). Against the other
+matchups -- which can replace the stadium -- the veto still rules.
 
-El gate mira la LINEA Crustle en el tablero (`_op_juega_crustle`), no el flag
-`op_is_crustle_deck`: ese flag significa "muro inmune a ex" y tambien se
-enciende con Sylveon/Eevee, que comparten la inmunidad pero no la ausencia de
-estadio -- que es lo unico que justifica adelantar el nuestro.
+The gate looks at the Crustle LINE on the board (`_op_juega_crustle`), not at the flag
+`op_is_crustle_deck`: that flag means "a wall immune to ex" and also
+switches on with Sylveon/Eevee, which share the immunity but not the absence of a
+stadium -- which is the only thing that justifies playing ours early.
 
-Cobertura:
-  * caso positivo: vs Crustle, segundos, estadio + Lillie's -> se juega el Forest;
-  * control de matchup: mismo tablero vs Dragapult -> el Forest sigue vetado;
-  * control del flag: vs Eevee/Sylveon (`op_is_crustle_deck` tambien encendido)
-    -> el Forest sigue vetado;
-  * control de la mano: vs Crustle SIN Lillie's -> nada que proteger, sigue vetado;
-  * control de orden: el Supporter ya jugado no resucita el estadio;
-  * control de asiento: saliendo primeros el veto se mantiene.
+Coverage:
+  * the positive case: vs Crustle, going second, a stadium + Lillie's -> the Forest is played;
+  * a matchup control: the same board vs Dragapult -> the Forest is still vetoed;
+  * a flag control: vs Eevee/Sylveon (`op_is_crustle_deck` also switched on)
+    -> the Forest is still vetoed;
+  * a hand control: vs Crustle WITHOUT Lillie's -> nothing to protect, still vetoed;
+  * an order control: an already-played Supporter does not resurrect the stadium;
+  * a seat control: going first the veto holds.
 """
 
 import sys
@@ -48,9 +48,9 @@ if str(ROOT) not in sys.path:
 import main as m
 from state_builder import Escenario, pk
 
-DWEBBLE = 344          # linea Crustle (enciende `op_is_crustle_deck`)
-EEVEE = m.Eevee_TWM    # linea Sylveon: TAMBIEN enciende `op_is_crustle_deck`
-DREEPY = m.Dreepy      # control: matchup que NO es Crustle
+DWEBBLE = 344          # the Crustle line (switches on `op_is_crustle_deck`)
+EEVEE = m.Eevee_TWM    # the Sylveon line: it ALSO switches on `op_is_crustle_deck`
+DREEPY = m.Dreepy      # control: a matchup that is NOT Crustle
 
 
 @pytest.fixture(autouse=True)
@@ -81,8 +81,8 @@ def reset_main_state():
 
 def _escenario(op_basico=DWEBBLE, con_lillie=True, partidario_jugado=False,
                primer_jugador=1):
-    """Nuestro PRIMER turno saliendo segundos (turno 2) con el estadio y la
-    Lillie's en la mano. `primer_jugador=1` = el rival salio primero."""
+    """Our FIRST turn going second (turn 2) with the stadium and the
+    Lillie's in hand. `primer_jugador=1` = the rival went first."""
     mano = [m.Forest_of_Vitality, m.Basic_Grass_Energy, m.Ultra_Ball]
     if con_lillie:
         mano.append(m.Lillie_Determination)
@@ -117,8 +117,8 @@ def test_vs_crustle_segundos_baja_el_estadio_antes_de_la_lillie():
 
 
 def test_control_otro_matchup_conserva_el_veto_del_primer_turno():
-    # Mismo tablero contra un mazo que SI puede reemplazar el estadio: la
-    # excepcion es de matchup, no una relajacion general del veto.
+    # The same board against a deck that CAN replace the stadium: the
+    # exception belongs to the matchup, it is not a general relaxation of the veto.
     obs = _escenario(op_basico=DREEPY)
     eleccion = m.agent(obs)
     assert _carta_jugada(obs, eleccion) != m.Forest_of_Vitality, (
@@ -127,10 +127,10 @@ def test_control_otro_matchup_conserva_el_veto_del_primer_turno():
 
 
 def test_control_sylveon_no_hereda_la_excepcion():
-    # `op_is_crustle_deck` se enciende TAMBIEN con Eevee/Sylveon: comparten la
-    # inmunidad a ex, que es lo que ese flag significa. Pero la excepcion no
-    # nace de la inmunidad sino de que el mazo Crustle no juega estadio, asi
-    # que el gate mira la LINEA en el tablero y Sylveon no la hereda.
+    # `op_is_crustle_deck` ALSO switches on with Eevee/Sylveon: they share the
+    # immunity to ex, which is what that flag means. But the exception is not
+    # born of the immunity but of the fact that the Crustle deck plays no stadium, so
+    # the gate looks at the LINE on the board and Sylveon does not inherit it.
     obs = _escenario(op_basico=EEVEE)
     eleccion = m.agent(obs)
     assert m.op_is_crustle_deck, (
@@ -141,8 +141,8 @@ def test_control_sylveon_no_hereda_la_excepcion():
 
 
 def test_control_sin_lillie_en_mano_conserva_el_veto():
-    # Sin Lillie's no hay barajeo que temer: el estadio no corre peligro en la
-    # mano y no hay razon para adelantarlo.
+    # With no Lillie's there is no shuffle to fear: the stadium is in no danger in
+    # hand and there is no reason to play it early.
     obs = _escenario(con_lillie=False)
     eleccion = m.agent(obs)
     assert _carta_jugada(obs, eleccion) != m.Forest_of_Vitality, (
@@ -151,8 +151,8 @@ def test_control_sin_lillie_en_mano_conserva_el_veto():
 
 
 def test_control_supporter_ya_jugado_no_resucita_el_estadio():
-    # Con el Supporter del turno gastado, la Lillie's de la mano ya no se va a
-    # jugar: el estadio no corre peligro y la excepcion no aplica.
+    # With the turn's Supporter spent, the Lillie's in hand is no longer going to be
+    # played: the stadium is in no danger and the exception does not apply.
     obs = _escenario(partidario_jugado=True)
     eleccion = m.agent(obs)
     assert _carta_jugada(obs, eleccion) != m.Forest_of_Vitality, (
@@ -161,8 +161,8 @@ def test_control_supporter_ya_jugado_no_resucita_el_estadio():
 
 
 def test_control_saliendo_primeros_conserva_el_veto():
-    # La regla del user acota la excepcion a salir SEGUNDOS. Saliendo primeros
-    # (turno 1) el rival aun no ha jugado y el veto general se mantiene.
+    # The user's rule bounds the exception to going SECOND. Going first
+    # (turn 1) the rival has not played yet and the general veto holds.
     obs = _escenario(primer_jugador=0)
     obs["current"]["turn"] = 1
     eleccion = m.agent(obs)

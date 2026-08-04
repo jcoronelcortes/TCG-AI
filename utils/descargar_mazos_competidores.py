@@ -1,29 +1,29 @@
-"""Descarga los mazos de 60 cartas de los mejores competidores del leaderboard.
+"""Downloads the 60-card decks of the best competitors on the leaderboard.
 
-Estrategia (heredada del notebook `notebook/ptcg-ai-battle-leaderboard-deck-meta-by-score-band.ipynb`):
+Strategy (inherited from the notebook `notebook/ptcg-ai-battle-leaderboard-deck-meta-by-score-band.ipynb`):
 
-    leaderboard -> submission por equipo -> episodios publicos ("Game History")
-    -> replay JSON -> steps[1][asiento]["action"] == las 60 cartas exactas
+    leaderboard -> submission per team -> public episodes ("Game History")
+    -> replay JSON -> steps[1][seat]["action"] == the exact 60 cards
 
-El replay NO hay que "adivinarlo": el paso 1 de cada partida contiene el mazo
-literal de cada asiento, de modo que la lista de 60 IDs se recupera exacta y no
-por inferencia estadistica sobre las cartas vistas en el log.
+The replay does NOT have to be "guessed": step 1 of every game contains the literal
+deck of each seat, so the list of 60 IDs is recovered exactly and not
+by statistical inference over the cards seen in the log.
 
-Cada replay trae DOS mazos (los dos asientos). Por eso:
-  * si el rival de una partida tambien esta en el top-N, su mazo se registra sin
-    gastar una sola llamada extra a la API;
-  * los rivales fuera del top-N se guardan aparte en `adicionales/` porque salen
-    gratis y sirven igual para el simulador.
+Each replay carries TWO decks (both seats). That is why:
+  * if the opponent of a game is also in the top-N, their deck is recorded without
+    spending a single extra API call;
+  * the opponents outside the top-N are kept separately in `adicionales/` because they come
+    for free and are just as useful for the simulator.
 
-Salida: un CSV por mazo con 60 lineas (un Card ID por linea, sin cabecera), que
-es exactamente el formato que ya consumen `deck.csv` y `deck/rivales/*.csv`.
+Output: one CSV per deck with 60 lines (one Card ID per line, no header), which
+is exactly the format `deck.csv` and `deck/rivales/*.csv` already consume.
 
-Uso tipico:
+Typical usage:
 
     python utils/descargar_mazos_competidores.py --top 100
 
-El proceso es reanudable: los mazos ya recuperados se guardan en un cache JSON,
-de modo que volver a lanzarlo solo pide a la API lo que falta.
+The process is resumable: the decks already recovered are kept in a JSON cache,
+so relaunching it only asks the API for what is missing.
 """
 
 from __future__ import annotations
@@ -44,7 +44,7 @@ from typing import Any, Callable
 
 RAIZ = Path(__file__).resolve().parent.parent
 
-# --- Politica de peticiones (misma que el notebook publicado) ---------------
+# --- Request policy (the same as the published notebook) -------------------
 INTERVALO_PETICION_S = 2.0
 TAM_LOTE = 100
 ENFRIAMIENTO_LOTE_S = 60.0
@@ -55,14 +55,14 @@ ESTADOS_REINTENTABLES = {408, 425, 500, 502, 503, 504}
 COMPETICION = "pokemon-tcg-ai-battle"
 TAM_PAGINA_LEADERBOARD = 200
 
-# Energias basicas: unicas cartas sin tope de copias.
+# Basic energies: the only cards with no copy limit.
 ENERGIAS_BASICAS = set(range(1, 9))
 MAX_COPIAS = 4
 
-# Reglas de arquetipo, copiadas del notebook publicado. Se evaluan de arriba
-# abajo: los hibridos especificos van ANTES que las reglas de una sola carta.
-#   "all" -> deben estar todas las cartas marcadoras
-#   "any" -> basta con una
+# Archetype rules, copied from the published notebook. They are evaluated from top
+# to bottom: the specific hybrids go BEFORE the single-card rules.
+#   "all" -> every marker card must be present
+#   "any" -> one is enough
 ARQUETIPOS: list[dict[str, Any]] = [
     {"nombre": "Great Tusk / Crustle", "all": ["Great Tusk", "Crustle"]},
     {"nombre": "Marnie Grimmsnarl", "any": ["Marnie's Grimmsnarl ex"]},
@@ -84,12 +84,12 @@ ARQUETIPOS: list[dict[str, Any]] = [
     {"nombre": "Mega Greninja", "any": ["Mega Greninja ex"]},
     {"nombre": "Mega Clefable", "any": ["Mega Clefable ex"]},
     {"nombre": "Team Rocket Mewtwo", "any": ["Team Rocket's Mewtwo ex"]},
-    # Anadidas tras medir el top-100 de ago 2026: eran los unicos mazos que
-    # caian al fallback "Otro /". Van AL FINAL a proposito, para que no puedan
-    # robarle un mazo a ninguna regla anterior ya validada.
-    # El hibrido va antes que sus dos piezas sueltas: hay listas que juegan
-    # 2 Buneary + 2 Mega Lopunny ex Y 2 Snorunt + 2 Mega Froslass ex a partes
-    # iguales, y llamarlas por una sola mitad seria arbitrario.
+    # Added after measuring the top-100 of Aug 2026: they were the only decks that
+    # fell to the "Otro /" fallback. They go AT THE END on purpose, so they cannot
+    # steal a deck from any earlier, already validated rule.
+    # The hybrid goes before its two separate pieces: there are lists that play
+    # 2 Buneary + 2 Mega Lopunny ex AND 2 Snorunt + 2 Mega Froslass ex in equal
+    # parts, and naming them after a single half would be arbitrary.
     {"nombre": "Mega Lopunny / Mega Froslass", "all": ["Mega Lopunny ex", "Mega Froslass ex"]},
     {"nombre": "Ogerpon Verde", "any": ["Teal Mask Ogerpon ex"]},
     {"nombre": "Mega Lopunny", "any": ["Mega Lopunny ex"]},
@@ -98,7 +98,7 @@ ARQUETIPOS: list[dict[str, Any]] = [
 
 
 def clave_carta(nombre: Any) -> str:
-    """Normaliza un nombre de carta para comparar (apostrofes tipograficos, etc.)."""
+    """Normalises a card name for comparison (typographic apostrophes, etc.)."""
     import unicodedata
 
     texto = unicodedata.normalize("NFKC", str(nombre or ""))
@@ -109,7 +109,7 @@ def clave_carta(nombre: Any) -> str:
 def clasificar_arquetipo(
     mazo: list[int], nombres: dict[int, str], pokemon: set[int]
 ) -> str:
-    """Etiqueta el mazo por cartas marcadoras; si no hay regla, cae al Pokemon ex."""
+    """Labels the deck by marker cards; if there is no rule, it falls back to the ex Pokemon."""
     if not nombres:
         return ""
     presentes = {clave_carta(nombres.get(cid, "")) for cid in mazo}
@@ -119,7 +119,7 @@ def clasificar_arquetipo(
         if (not exigidas or exigidas.issubset(presentes)) and (not alguna or alguna & presentes):
             return regla["nombre"]
 
-    # Sin regla: el Pokemon ex mas repetido es la etiqueta mas honesta.
+    # With no rule: the most repeated ex Pokemon is the most honest label.
     conteo: Counter[str] = Counter()
     for cid, n in Counter(mazo).items():
         if cid in pokemon:
@@ -133,10 +133,10 @@ def clasificar_arquetipo(
 
 
 # ---------------------------------------------------------------------------
-# Credenciales
+# Credentials
 # ---------------------------------------------------------------------------
 def cargar_credenciales() -> None:
-    """Expone el token de Kaggle en el entorno ANTES de importar el SDK."""
+    """Exposes the Kaggle token in the environment BEFORE importing the SDK."""
     if os.environ.get("KAGGLE_API_TOKEN") or os.environ.get("KAGGLE_KEY"):
         return
     candidatos = [
@@ -159,7 +159,7 @@ def cargar_credenciales() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Normalizacion de objetos del SDK
+# Normalising the SDK's objects
 # ---------------------------------------------------------------------------
 def normalizar(valor: Any) -> Any:
     if valor is None or isinstance(valor, (str, int, float, bool)):
@@ -203,7 +203,7 @@ def a_float(valor: Any) -> float:
 
 
 # ---------------------------------------------------------------------------
-# Pacer + reintentos
+# Pacer + retries
 # ---------------------------------------------------------------------------
 class FalloDePeticion(RuntimeError):
     def __init__(self, etiqueta: str, estado: int | None, intentos: int):
@@ -214,7 +214,7 @@ class FalloDePeticion(RuntimeError):
 
 
 class Marcapasos:
-    """Espacia TODAS las peticiones y enfria tras cada lote."""
+    """Spaces out ALL the requests and cools down after each batch."""
 
     def __init__(self, intervalo: float, tam_lote: int, enfriamiento: float):
         self.intervalo = float(intervalo)
@@ -269,7 +269,7 @@ def reintentar_tras(exc: Exception) -> float | None:
 
 
 def llamar(etiqueta: str, func: Callable, *args, **kwargs):
-    """Llamada a la API con marcapasos, reintentos y politica 429 = no insistir."""
+    """An API call with pacing, retries and a 429 = do-not-insist policy."""
     ultimo: Exception | None = None
     intentos = 0
     for intento in range(MAX_REINTENTOS):
@@ -277,11 +277,11 @@ def llamar(etiqueta: str, func: Callable, *args, **kwargs):
         PACER.esperar()
         try:
             return func(*args, **kwargs)
-        except Exception as exc:  # noqa: BLE001 - el SDK lanza tipos heterogeneos
+        except Exception as exc:  # noqa: BLE001 - the SDK raises heterogeneous types
             ultimo = exc
             estado = estado_http(exc)
             ERRORES[f"http_{estado}" if estado is not None else type(exc).__name__] += 1
-            # Un 429 se salta de inmediato: insistir solo empeora el limite.
+            # A 429 is skipped immediately: insisting only makes the limit worse.
             if estado == 429:
                 break
             recuperable = estado is None or estado in ESTADOS_REINTENTABLES
@@ -297,10 +297,10 @@ def llamar(etiqueta: str, func: Callable, *args, **kwargs):
 
 
 # ---------------------------------------------------------------------------
-# Datos de cartas (para validar y resumir)
+# Card data (to validate and summarise)
 # ---------------------------------------------------------------------------
 def cargar_cartas() -> tuple[dict[int, str], set[int], set[int]]:
-    """Devuelve (nombre por Card ID, Card IDs ACE SPEC, Card IDs de Pokemon)."""
+    """Returns (name by Card ID, ACE SPEC Card IDs, Pokemon Card IDs)."""
     import csv
 
     ruta = None
@@ -331,14 +331,14 @@ def cargar_cartas() -> tuple[dict[int, str], set[int], set[int]]:
 
 
 def validar_mazo(mazo: list[int], ace_spec: set[int]) -> list[str]:
-    """Comprueba las reglas de construccion. Devuelve la lista de avisos."""
+    """Checks the construction rules. Returns the list of warnings."""
     avisos: list[str] = []
     if len(mazo) != 60:
         avisos.append(f"tiene {len(mazo)} cartas y no 60")
     conteo = Counter(mazo)
     for cid, n in sorted(conteo.items()):
         if cid in ENERGIAS_BASICAS:
-            continue  # energia basica: sin tope
+            continue  # a basic energy: no cap
         if n > MAX_COPIAS:
             avisos.append(f"{n} copias del ID {cid} (max {MAX_COPIAS})")
     n_ace = sum(n for cid, n in conteo.items() if cid in ace_spec)
@@ -351,7 +351,7 @@ def validar_mazo(mazo: list[int], ace_spec: set[int]) -> list[str]:
 # Leaderboard
 # ---------------------------------------------------------------------------
 def obtener_leaderboard(api, kaggle_mod, top_n: int) -> list[dict[str, Any]]:
-    """Devuelve las `top_n` primeras posiciones (equipo unico, mayor puntaje)."""
+    """Returns the first `top_n` positions (one team each, the highest score)."""
     from kaggle.api.kaggle_api_extended import ApiGetLeaderboardRequest
 
     filas: list[dict[str, Any]] = []
@@ -372,8 +372,8 @@ def obtener_leaderboard(api, kaggle_mod, top_n: int) -> list[dict[str, Any]]:
             )
             filas.extend(como_dict(item) for item in (respuesta.submissions or []))
             siguiente = str(respuesta.next_page_token or "")
-            # Con paginas de 200 basta la primera para un top-100, pero se sigue
-            # paginando por si el endpoint devuelve paginas mas cortas.
+            # With pages of 200 the first one is enough for a top-100, but paging
+            # continues in case the endpoint returns shorter pages.
             if len(filas) >= top_n * 2 or not siguiente or siguiente in vistos:
                 break
             vistos.add(siguiente)
@@ -393,7 +393,7 @@ def obtener_leaderboard(api, kaggle_mod, top_n: int) -> list[dict[str, Any]]:
             }
         )
 
-    # Un equipo solo puede ocupar una posicion: nos quedamos con su mejor puntaje.
+    # A team can only occupy one position: we keep their best score.
     mejor_por_equipo: dict[int, dict[str, Any]] = {}
     for fila in normalizadas:
         actual = mejor_por_equipo.get(fila["team_id"])
@@ -409,7 +409,7 @@ def obtener_leaderboard(api, kaggle_mod, top_n: int) -> list[dict[str, Any]]:
 
 
 def elegir_submission(api, team_id: int, puntaje_lb: float) -> dict[str, Any] | None:
-    """La submission publica cuyo puntaje mas se acerca al del leaderboard."""
+    """The public submission whose score is closest to the leaderboard's."""
     submissions = llamar("submissions del equipo", api.competition_team_submissions, int(team_id)) or []
     candidatas: list[dict[str, Any]] = []
     for item in submissions:
@@ -435,10 +435,10 @@ def elegir_submission(api, team_id: int, puntaje_lb: float) -> dict[str, Any] | 
 
 
 # ---------------------------------------------------------------------------
-# Episodios ("Game History") y replays
+# Episodes ("Game History") and replays
 # ---------------------------------------------------------------------------
 def listar_episodios(api, submission_id: int) -> list[dict[str, Any]]:
-    """Episodios publicos completados de una submission, del mas reciente atras."""
+    """Completed public episodes of a submission, from the most recent backwards."""
     episodios = llamar("episodios de la submission", api.competition_list_episodes, int(submission_id)) or []
     salida: list[dict[str, Any]] = []
     for item in episodios:
@@ -458,7 +458,7 @@ def listar_episodios(api, submission_id: int) -> list[dict[str, Any]]:
 
 
 def descargar_replay(api, episode_id: int, dir_cache: Path) -> dict[str, Any]:
-    """Descarga (o reutiliza) el replay JSON de un episodio."""
+    """Downloads (or reuses) an episode's replay JSON."""
     from kaggle.api.kaggle_api_extended import ApiGetEpisodeReplayRequest
 
     destino = dir_cache / f"episode-{episode_id}-replay.json"
@@ -482,7 +482,7 @@ def descargar_replay(api, episode_id: int, dir_cache: Path) -> dict[str, Any]:
 
 
 def extraer_mazos(replay: dict[str, Any]) -> dict[int, list[int]]:
-    """Mazos de 60 cartas por asiento. `steps[1][asiento]["action"]` es el mazo."""
+    """60-card decks per seat. `steps[1][seat]["action"]` is the deck."""
     pasos = replay.get("steps") or []
     mazos: dict[int, list[int]] = {}
 
@@ -497,7 +497,7 @@ def extraer_mazos(replay: dict[str, Any]) -> dict[int, list[int]]:
     if mazos:
         return mazos
 
-    # Compatibilidad con replays antiguos que exponen los mazos en `visualize`.
+    # Compatibility with old replays that expose the decks in `visualize`.
     try:
         visualize = pasos[0][0].get("visualize", [])
         crudos = visualize[0].get("action", []) if visualize else []
@@ -511,17 +511,17 @@ def extraer_mazos(replay: dict[str, Any]) -> dict[int, list[int]]:
 
 
 # ---------------------------------------------------------------------------
-# Recoleccion
+# Collection
 # ---------------------------------------------------------------------------
 class Recolector:
-    """Acumula mazos por submission, incluidos los rivales que salen gratis."""
+    """Accumulates decks per submission, including the opponents that come for free."""
 
     def __init__(self, objetivos: dict[int, int], recoger_extra: bool):
-        # objetivos: submission_id -> posicion en el leaderboard
+        # targets: submission_id -> position on the leaderboard
         self.objetivos = objetivos
         self.recoger_extra = recoger_extra
-        self.mazos: dict[int, dict[str, Any]] = {}   # submission_id -> {mazo, posicion}
-        self.extra: dict[int, list[int]] = {}        # submission_id -> mazo (fuera del top)
+        self.mazos: dict[int, dict[str, Any]] = {}   # submission_id -> {deck, position}
+        self.extra: dict[int, list[int]] = {}        # submission_id -> deck (outside the top)
         self.episodios_usados: set[int] = set()
 
     def registrar(self, episodio: dict[str, Any], replay: dict[str, Any]) -> None:
@@ -570,7 +570,7 @@ def guardar_cache(ruta: Path, datos: dict[str, Any]) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Escritura de resultados
+# Writing the results
 # ---------------------------------------------------------------------------
 def fila_de_indice(
     archivo: str,
@@ -581,12 +581,12 @@ def fila_de_indice(
     ace_spec: set[int],
     pokemon: set[int],
 ) -> dict[str, Any]:
-    """Construye la fila de indice de un mazo (una sola definicion de columnas)."""
+    """Builds a deck's index row (a single definition of the columns)."""
     conteo = Counter(mazo)
     principal = ""
     if nombres:
-        # Pokemon mas repetido. OJO: no es el arquetipo -- suele ser una pieza
-        # de apoyo a 4 copias. La columna `arquetipo` es la que clasifica.
+        # The most repeated Pokemon. CAREFUL: it is not the archetype -- it is usually a
+        # support piece at 4 copies. The `arquetipo` column is the one that classifies.
         candidatas = [(n, cid) for cid, n in conteo.items() if cid in pokemon]
         if not candidatas:
             candidatas = [(n, cid) for cid, n in conteo.items() if cid not in ENERGIAS_BASICAS]
@@ -620,11 +620,11 @@ def escribir_indice(dir_salida: Path, filas: list[dict[str, Any]]) -> None:
 def regenerar_indice(
     dir_salida: Path, nombres: dict[int, str], ace_spec: set[int], pokemon: set[int]
 ) -> int:
-    """Rehace indice.csv leyendo los mazos ya guardados, SIN tocar la API.
+    """Rebuilds indice.csv by reading the decks already saved, WITHOUT touching the API.
 
-    El leaderboard se mueve con las horas, asi que volver a descargar cambiaria
-    el top-N y renumeraria mazos ya publicados. Este modo solo recalcula las
-    columnas derivadas del mazo y conserva posicion/puntaje del indice previo.
+    The leaderboard moves by the hour, so downloading again would change
+    the top-N and renumber decks that have already been published. This mode only recomputes the
+    columns derived from the deck and keeps the position/score of the previous index.
     """
     import csv
 
@@ -662,7 +662,7 @@ def escribir_mazos(
     ace_spec: set[int],
     pokemon: set[int],
 ) -> tuple[int, int]:
-    """Escribe mazo_XXX.csv en orden de posicion y devuelve (principales, extra)."""
+    """Writes mazo_XXX.csv in position order and returns (main, extra)."""
     import csv
 
     dir_salida.mkdir(parents=True, exist_ok=True)
@@ -676,7 +676,7 @@ def escribir_mazos(
     for numero, dato in enumerate(recuperados, start=1):
         mazo = dato["mazo"]
         nombre = f"mazo_{numero:03d}.csv"
-        # Formato del proyecto: un Card ID por linea, sin cabecera.
+        # The project's format: one Card ID per line, no header.
         (dir_salida / nombre).write_text(
             "\n".join(str(cid) for cid in mazo) + "\n", encoding="utf-8"
         )
@@ -711,7 +711,7 @@ def escribir_mazos(
 
 
 # ---------------------------------------------------------------------------
-# Principal
+# Main
 # ---------------------------------------------------------------------------
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -731,7 +731,7 @@ def main(argv: list[str] | None = None) -> int:
 
     PACER.intervalo = float(args.intervalo)
 
-    # Este modo no necesita credenciales ni el SDK: solo lee lo que ya hay en disco.
+    # This mode needs no credentials or SDK: it only reads what is already on disk.
     if args.solo_indice:
         nombres, ace_spec, pokemon = cargar_cartas()
         dir_salida = Path(args.salida)
@@ -776,7 +776,7 @@ def main(argv: list[str] | None = None) -> int:
     extra_cache: dict[str, Any] = cache.get("extra", {})
 
     print(f"\n== 2/3 Submission activa por equipo ==")
-    objetivos: dict[int, int] = {}   # submission_id -> posicion
+    objetivos: dict[int, int] = {}   # submission_id -> position
     sin_submission = 0
     for fila in filas_lb:
         team_id = fila["team_id"]
@@ -800,7 +800,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Submissions localizadas: {len(objetivos)} | sin submission publica: {sin_submission}")
 
     recolector = Recolector(objetivos, recoger_extra=not args.sin_extra)
-    # Reanudacion: recupera lo ya descargado en ejecuciones previas.
+    # Resumption: it recovers what was already downloaded in previous runs.
     for sid_txt, mazo in mazos_cache.items():
         sid = int(sid_txt)
         if sid in objetivos and isinstance(mazo, list) and len(mazo) == 60:
@@ -820,7 +820,7 @@ def main(argv: list[str] | None = None) -> int:
         sid = int(fila["submission_id"])
         posicion = fila["posicion"]
         if recolector.completo(sid):
-            continue  # ya lo dio el replay de otro competidor: cero llamadas
+            continue  # another competitor's replay already gave it: zero calls
 
         try:
             episodios = listar_episodios(api, sid)
@@ -859,7 +859,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  pos {posicion:>3}: NO recuperado")
             fallos["sin_mazo"] += 1
 
-        # Persistir tras cada competidor: una interrupcion no pierde trabajo.
+        # Persist after each competitor: an interruption does not lose work.
         mazos_cache = {str(s): d["mazo"] for s, d in recolector.mazos.items()}
         extra_cache = {str(s): m for s, m in recolector.extra.items()}
         guardar_cache(ruta_cache, {"submissions": submissions_cache, "mazos": mazos_cache, "extra": extra_cache})

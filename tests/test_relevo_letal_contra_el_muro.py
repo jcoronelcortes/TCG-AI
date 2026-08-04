@@ -1,41 +1,41 @@
-"""Muro inmune a ex: si el activo NO remata y el relevo de banca SÍ, se retira.
+"""An ex-immune wall: if the active does NOT finish it and the bench relief DOES, we retreat.
 
-Escenario (`registros/registro_018_pasos_112_hasta_113.json`, paso 113, turno 18,
-PERDIDA vs Crustle -- episodio 88915875):
+Scenario (`registros/registro_018_pasos_112_hasta_113.json`, step 113, turn 18,
+LOST vs Crustle -- episode 88915875):
 
-    NOSOTROS (5 premios)                        RIVAL (2 premios)
-    activo **Meganium 160, 4 efectivas**        activo  **Crustle 170**/170, 1 en.
-    banca  Teal Mask Ogerpon ex 90/210, 2 ef.   banca   Mega Kangaskhan ex 160/300
+    US (5 prizes)                               RIVAL (2 prizes)
+    active **Meganium 160, 4 effective**        active  **Crustle 170**/170, 1 en.
+    bench  Teal Mask Ogerpon ex 90/210, 2 eff.  bench   Mega Kangaskhan ex 160/300
            Chikorita 70                                 Crustle 150
-           Teal Mask Ogerpon ex 210, 2 ef.
+           Teal Mask Ogerpon ex 210, 2 eff.
            Fezandipiti ex 210
-           **Tapu Bulu 140, 4 efectivas**
-    mano   Xerosic's ×2, Ultra Ball, Forest, Dipplin
+           **Tapu Bulu 140, 4 effective**
+    hand   Xerosic's ×2, Ultra Ball, Forest, Dipplin
 
-El agente **atacaba con Meganium**: *Solar Beam* hace 140 y el Crustle tiene
-**170 PV** -- 150 impresos **+20 de la Grass Energy** que lleva encima, que da
-+20 PV a los Pokémon Planta --, así que el muro sobrevive a 30 y el turno se
-regala. En banca esperaba **Tapu Bulu ya a 4 efectivas**: *Wood Hammer* **220**
-lo noquea. La retirada de Meganium cuesta 2 = **una** carta de Planta (Wild
-Growth la cuenta doble), y Wild Growth sigue activo desde la banca, así que Tapu
-Bulu conserva sus 4 efectivas.
+The agent **attacked with Meganium**: *Solar Beam* does 140 and the Crustle has
+**170 HP** -- 150 printed **+20 from the Grass Energy** it carries, which gives
++20 HP to Grass Pokémon --, so the wall survives on 30 and the turn is
+given away. On the bench **Tapu Bulu was waiting already at 4 effective**: *Wood Hammer* **220**
+knocks it out. Meganium's retreat costs 2 = **one** Grass card (Wild
+Growth counts it double), and Wild Growth is still active from the bench, so Tapu
+Bulu keeps its 4 effective.
 
-Causa: `_nonex_active_hits_wall` **vetaba la retirada sin excepción** (log
-86406907 paso 87). Su premisa -- "retirar al no-ex que golpea al muro solo
-promovería un ex que le hace 0" -- es falsa cuando en la banca hay **otro cuerpo
-no bloqueado que además remata**.
+Cause: `_nonex_active_hits_wall` **vetoed the retreat without exception** (log
+86406907 step 87). Its premise -- "retreating the non-ex that hits the wall would only
+promote an ex that does 0 to it" -- is false when on the bench there is **another
+unblocked body that also finishes it off**.
 
-Arreglo: `_wall_ko_promote` -- con un muro (inmune a ex o a habilidad) de activo
-rival, si nuestro activo NO lo remata y un cuerpo de banca no bloqueado SÍ,
-retirar y rematar (score 6700, por encima del veto, que además se apaga). El daño
-del relevo se mide con el Grass que quedará **después** de pagar la retirada
-(misma corrección que `_hlp_grass_after`).
+Fix: `_wall_ko_promote` -- with a wall (immune to ex or to abilities) as the rival
+active, if our active does NOT finish it and an unblocked bench body DOES,
+retreat and finish (score 6700, above the veto, which also switches off). The
+relief's damage is measured with the Grass that will be left **after** paying the retreat
+(the same correction as `_hlp_grass_after`).
 
-Corpus dorado: dos flips, ambos el mismo patrón contra el mismo muro (paso 113 y
-`registro_020` paso 122, con el Crustle a 150 y Tapu Bulu a 4 efectivas).
+Golden corpus: two flips, both the same pattern against the same wall (step 113 and
+`registro_020` step 122, with the Crustle at 150 and Tapu Bulu at 4 effective).
 
-Self-play (n=4000/rama): cornerstone_cubchoo **77.6% vs 76.0%**;
-crustle_kangaskhan 70.4% vs 70.8% (ruido).
+Self-play (n=4000/branch): cornerstone_cubchoo **77.6% vs 76.0%**;
+crustle_kangaskhan 70.4% vs 70.8% (noise).
 """
 
 import copy
@@ -96,7 +96,7 @@ def _obs():
 
 
 def _decidir(o):
-    """Reproduce el paso previo (adjunte a Tapu Bulu) y luego decide en el 113."""
+    """Replays the previous step (an attachment to Tapu Bulu) and then decides on 113."""
     m.agent(copy.deepcopy(_datos()["observation_previa_paso112"]))
     return m.agent(o)
 
@@ -110,7 +110,7 @@ _ATACAR = 13
 
 
 # ---------------------------------------------------------------------------
-# 1. El escenario: sin él, el test no mide nada
+# 1. The scenario: without it, the test measures nothing
 # ---------------------------------------------------------------------------
 
 def test_el_muro_aguanta_al_activo_y_cae_ante_el_relevo():
@@ -122,23 +122,23 @@ def test_el_muro_aguanta_al_activo_y_cae_ante_el_relevo():
     assert act["id"] == MEGANIUM and len(act["energies"]) == 4
     assert m.ATTACK_ENERGY_REQ[MEGANIUM] == 4
 
-    # El muro: 150 impresos + 20 de la Grass Energy que lleva encima.
+    # The wall: 150 printed + 20 from the Grass Energy it carries.
     muro = riv["active"][0]
     assert muro["id"] == CRUSTLE
     assert m.card_table[CRUSTLE].hp == 150 and muro["hp"] == 170
     assert len(muro["energyCards"]) == 1
 
-    # Solar Beam (140) NO llega; Wood Hammer (220) sí.
+    # Solar Beam (140) does NOT get there; Wood Hammer (220) does.
     assert 140 < muro["hp"] <= 220
 
-    # El relevo está listo: 4 efectivas y la retirada del activo es pagable.
+    # The relief is ready: 4 effective and the active's retreat is payable.
     tapu = next(b for b in mio["bench"] if b["id"] == TAPU)
     assert len(tapu["energies"]) == 4 and m.ATTACK_ENERGY_REQ[TAPU] == 4
     assert len(act["energies"]) >= m.RETREAT_COST[MEGANIUM]
 
 
 # ---------------------------------------------------------------------------
-# 2. La decisión
+# 2. The decision
 # ---------------------------------------------------------------------------
 
 def test_retira_en_vez_de_atacar_por_140():
@@ -150,12 +150,12 @@ def test_retira_en_vez_de_atacar_por_140():
 
 
 def test_tras_retirar_promueve_a_tapu_bulu():
-    """La otra mitad de la línea: al elegir el relevo sube el que remata."""
+    """The other half of the line: when picking the relief, the one that finishes comes up."""
     o = _obs()
     _decidir(o)
     mio = o["current"]["players"][0]
     act = mio["active"][0]
-    # Paga la retirada: coste 2 = UNA carta de Planta (Wild Growth la dobla).
+    # It pays the retreat: cost 2 = ONE Grass card (Wild Growth doubles it).
     act["energyCards"] = act["energyCards"][:1]
     act["energies"] = [1, 1]
     o["current"]["retreated"] = True
@@ -171,13 +171,13 @@ def test_tras_retirar_promueve_a_tapu_bulu():
 
 
 # ---------------------------------------------------------------------------
-# 3. Los límites de la regla
+# 3. The limits of the rule
 # ---------------------------------------------------------------------------
 
 def test_sin_relevo_que_remate_vuelve_el_veto_y_ataca():
-    """Control: sin energía en Tapu Bulu nadie remata al muro; entonces el veto
-    original manda -- retirar solo promovería un ex que le hace 0 -- y Meganium
-    debe atacar aunque no noquee."""
+    """Control: with no energy on Tapu Bulu nobody finishes the wall; then the original
+    veto rules -- retreating would only promote an ex that does 0 to it -- and Meganium
+    must attack even if it does not knock out."""
     o = _obs()
     tapu = next(b for b in o["current"]["players"][0]["bench"] if b["id"] == TAPU)
     tapu["energies"] = []
@@ -187,8 +187,8 @@ def test_sin_relevo_que_remate_vuelve_el_veto_y_ataca():
 
 
 def test_si_el_activo_YA_remata_no_se_retira():
-    """Control: con el muro a 140 PV, Solar Beam lo noquea y el activo ataca --
-    retirar pagaría energía para cobrar el mismo premio."""
+    """Control: with the wall at 140 HP, Solar Beam knocks it out and the active attacks --
+    retreating would pay energy to take the same prize."""
     o = _obs()
     muro = o["current"]["players"][1]["active"][0]
     muro["hp"] = 140

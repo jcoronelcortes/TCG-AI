@@ -1,16 +1,16 @@
-"""Lectura de tablero: activo, evolucionables y opciones de mano.
+"""Reading the board: active, evolvable bodies and hand options.
 
-Extraido VERBATIM de main.py por utils/extraer_definiciones.py
-(docs/main-refactor-arquitectura.md). Su pureza esta comprobada por
-utils/pureza.py: nada de aqui toca el estado mutable ni las tablas de runtime.
+Extracted VERBATIM from main.py by utils/extraer_definiciones.py
+(docs/project-history.md). Its purity is verified by
+utils/pureza.py: nothing here touches mutable state or the runtime tables.
 """
 
 from ptcg.cartas.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Chikorita, Dawn, Dipplin, Hydrapple_ex, Lanas_Aid, Lillie_Determination, Meganium, Teal_Mask_Ogerpon_ex, Xerosic_Machinations
 
 
 def _active_of(state):
-    # Pokemon activo de `state`, o None si no hay activo. Centraliza el patron
-    # repetido `state.active[0] if state.active and state.active[0] is not None
+    # Active Pokemon of `state`, or None if there is none. Centralises the repeated
+    # pattern `state.active[0] if state.active and state.active[0] is not None
     # else None`.
     if state is None:
         return None
@@ -19,39 +19,41 @@ def _active_of(state):
 
 
 def _evolvable_counts(field_counts, at_turn_start, forest_in_play_flag):
-    """Pre-evoluciones que de verdad se pueden EVOLUCIONAR este turno.
+    """Pre-evolutions that can really be EVOLVED this turn.
 
-    Con Forest of Vitality en mesa la restriccion de "no salio este turno"
-    desaparece: manda la foto ACTUAL del campo. Sin Forest hace falta que el
-    cuerpo estuviera en juego al EMPEZAR el turno... y que SIGA AHI.
+    With Forest of Vitality on the field the "did not come down this turn"
+    restriction disappears: the CURRENT snapshot of the field rules. Without
+    Forest the body has to have been in play when the turn STARTED... and to
+    STILL BE THERE.
 
-    Ese segundo requisito faltaba (user, registro_006 paso 84 vs Marnie): la
-    foto de inicio de turno NO se decrementa cuando esa misma pre-evo se
-    consume evolucionando durante el turno. El turno arranco con un Applin en
-    banca, se evoluciono a Dipplin en el paso 79 y a partir de ahi la foto
-    seguia diciendo "hay un Applin evolucionable". Con eso la Night Stretcher
-    se jugo para recuperar un Dipplin que ya no tenia sobre que subir: carta
-    muerta en la mano, que el Unfair Stamp del mismo turno barajo al mazo.
+    That second requirement was missing (user, registro_006 step 84 vs Marnie):
+    the start-of-turn snapshot is NOT decremented when that same pre-evolution
+    is consumed by evolving during the turn. The turn started with an Applin on
+    the bench, it evolved into Dipplin on step 79, and from then on the snapshot
+    kept saying "there is an evolvable Applin". With that, Night Stretcher was
+    played to recover a Dipplin that no longer had anything to go on top of: a
+    dead card in hand, which the Unfair Stamp of that same turn shuffled back
+    into the deck.
 
-    Se toma el MINIMO por especie: presente AHORA y presente al principio. Es
-    el mismo criterio que ya escribian A MANO `_ub_evolve_now_search` y
-    `_lillie_evolve_now` (`field_counts >= 1 and (forest or inicio >= 1)`):
-    esos dos nunca tuvieron el bug, la foto congelada si.
+    The MINIMUM per species is taken: present NOW and present at the start. It
+    is the same criterion that `_ub_evolve_now_search` and `_lillie_evolve_now`
+    already spelled out BY HAND (`field_counts >= 1 and (forest or start >= 1)`):
+    those two never had the bug, the frozen snapshot did.
 
-    ALCANCE (MEDIDO): solo las DOS caras de la Night Stretcher -- `_CtxNSPlay`
-    (jugarla) y `evolvable_ns` (que recuperar). El mismo idiom vive en otros
-    cuatro sitios (Ultra Ball x2, Poke Pad, Lillie's) y depurarlos TAMBIEN
-    costo **-4.7 puntos vs Crustle/Kangaskhan** (68.6% vs 73.3%, n=1000);
-    acotado a la Night Stretcher el mismo matchup da **+2.4** (72.5% vs 70.1%,
-    n=1000). En esos cuatro la foto "sucia" esta haciendo de proxy de algo que
-    si vale -- probablemente "esta linea sigue viva aunque ya haya evolucionado
-    hoy", que es lo que sostiene el desarrollo en un matchup largo. Se
-    revirtieron a proposito: no unificarlos sin volver a medir ese matchup.
-    (Los deltas son SIEMPRE los de la misma corrida: el nivel absoluto del bot
-    se mueve ~3 puntos entre corridas, el delta pareado no.)
+    SCOPE (MEASURED): only the TWO faces of Night Stretcher -- `_CtxNSPlay`
+    (playing it) and `evolvable_ns` (what to recover). The same idiom lives in
+    four other places (Ultra Ball x2, Poke Pad, Lillie's) and cleaning those up
+    TOO cost **-4.7 points vs Crustle/Kangaskhan** (68.6% vs 73.3%, n=1000);
+    limited to Night Stretcher the same matchup gives **+2.4** (72.5% vs 70.1%,
+    n=1000). In those four the "dirty" snapshot is acting as a proxy for
+    something that does matter -- probably "this line is still alive even if it
+    already evolved today", which is what sustains development in a long
+    matchup. They were reverted on purpose: do not unify them without measuring
+    that matchup again. (The deltas are ALWAYS from the same run: the bot's
+    absolute level moves ~3 points between runs, the paired delta does not.)
 
-    Foto vacia = sin dato (primer menu del turno, antes de rellenarla): manda
-    la actual, igual que el idiom original (`{}` es falsy).
+    Empty snapshot = no data (first menu of the turn, before it is filled): the
+    current one rules, just like the original idiom (`{}` is falsy).
     """
     if forest_in_play_flag or not at_turn_start:
         return field_counts

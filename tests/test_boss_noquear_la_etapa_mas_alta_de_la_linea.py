@@ -1,51 +1,51 @@
-"""Dentro de una linea evolutiva se noquea la ETAPA MAS ALTA que se pueda.
+"""Within an evolution line you knock out the HIGHEST STAGE you can.
 
-Escenario (user, `registros/registro_008_pasos_088_hasta_097.json` paso 93,
-episodio 89013104, turno 8, vs Cynthia's Garchomp ex, GANADA con error):
+Scenario (user, `registros/registro_008_pasos_088_hasta_097.json` step 93,
+episode 89013104, turn 8, vs Cynthia's Garchomp ex, WON with a mistake):
 
-    NOSOTROS (asiento 1, 3 premios)          RIVAL (6 premios)
-    activo  Hydrapple ex 230/330, 2e         activo  Cynthia's Gabite 100 PV,
-    banca   Ogerpon ex 4e, Meganium,                 **0 energias** (Fase 1)
-            Meowth ex, Ogerpon ex 2e,        banca   Cynthia's Roselia,
+    US (seat 1, 3 prizes)                    RIVAL (6 prizes)
+    active  Hydrapple ex 230/330, 2e         active  Cynthia's Gabite 100 HP,
+    bench   Ogerpon ex 4e, Meganium,                 **0 energies** (Stage 1)
+            Meowth ex, Ogerpon ex 2e,        bench   Cynthia's Roselia,
             Tapu Bulu                                **Cynthia's Gible 1e**,
-    mano    2x Ultra Ball, Bayleef, Applin,           Roselia, Roselia
+    hand    2x Ultra Ball, Bayleef, Applin,           Roselia, Roselia
             Dipplin, Hydrapple ex, Ogerpon ex,
             Fezandipiti ex, **Boss's Orders**
 
-El Hydrapple ex noquea a cualquiera de los dos cuerpos. El agente jugaba
-**Boss's Orders** para subir el **Gible** (Basico) y noquearlo. Es un error
-triple:
+The Hydrapple ex knocks out either of the two bodies. The agent played
+**Boss's Orders** to bring up the **Gible** (a Basic) and knock it out. It is a
+triple mistake:
 
-  * ambos KOs cobran **el mismo premio** (los dos son cuerpos de 1 premio);
-  * el **Gabite ya esta de activo**: noquearlo es GRATIS -- no cuesta el Boss's
-    ni el Supporter del turno, que quedan para el turno siguiente;
-  * y sobre todo, el Gabite esta **un escalon mas arriba**. La linea es
-    Gible -> Gabite -> **Cynthia's Garchomp ex** (Fase 2, 330 PV, 2 premios):
-    el mazo rival depende de esa Fase 2 para atacar. Matando el Gabite el rival
-    tiene que rehacer **dos** escalones; matando el Gible, el Gabite evoluciona
-    igual el turno siguiente.
+  * both KOs take **the same prize** (both are 1-prize bodies);
+  * the **Gabite is already active**: knocking it out is FREE -- it costs neither the Boss's
+    nor the turn's Supporter, which are left for the next turn;
+  * and above all, the Gabite is **one step higher**. The line is
+    Gible -> Gabite -> **Cynthia's Garchomp ex** (Stage 2, 330 HP, 2 prizes):
+    the rival deck depends on that Stage 2 to attack. By killing the Gabite the rival
+    has to rebuild **two** steps; by killing the Gible, the Gabite evolves
+    the next turn all the same.
 
-REGLA: cuando la linea rival es Basico -> Fase 1 -> Fase 2, se noquea SIEMPRE
-la etapa mas alta alcanzable. Nunca se gasta Boss's Orders en bajar a la etapa
-INFERIOR de una linea cuya etapa superior ya esta delante y muere igual.
+RULE: when the rival line is Basic -> Stage 1 -> Stage 2, you ALWAYS knock out
+the highest reachable stage. You never spend Boss's Orders bringing down the
+LOWER stage of a line whose upper stage is already in front and dies anyway.
 
-Por que disparaba
------------------
-En el bucle deny-evo de la valoracion del Boss's, el Gible cumplia
-`_bo_pe_is_ex_preevo_energized` (pre-evo de linea ex, con energia, premios
-iguales) y con el activo DESNUDO se activaba la excepcion
-`_bo_pe_is_energized_preevo_vs_bare_wall`, que saltaba el guard de "el activo
-domina". Esa excepcion se escribio para el caso **INVERSO** de la linea Marnie
-(activo **Impidimp** BASICO desnudo, banca **Morgrem** FASE 1 energizada): alli
-gustear SI sube de escalon. Solo miraba la ENERGIA del activo, nunca su ETAPA.
+Why it fired
+------------
+In the deny-evo loop of the Boss's evaluation, the Gible satisfied
+`_bo_pe_is_ex_preevo_energized` (a pre-evo of an ex line, with energy, equal
+prizes) and with the active BARE the exception
+`_bo_pe_is_energized_preevo_vs_bare_wall` switched on, which skipped the guard of "the active
+dominates". That exception was written for the **INVERSE** case of the Marnie
+line (an active **Impidimp**, a bare BASIC, with a charged **Morgrem** STAGE 1 on the bench): there
+gusting DOES go up a step. It only looked at the active's ENERGY, never at its STAGE.
 
-El fix es un veto de etapa (`_supera_en_evolucion`, deck-agnostico: sale de
-`basic`/`stage1`/`stage2` y de la cadena `evolvesFrom` del dato de carta) que
-pisa a las tres excepciones cuando el activo es un eslabon mas evolucionado de
-la MISMA linea y no rinde menos premios.
+The fix is a stage veto (`_supera_en_evolucion`, deck-agnostic: it comes from
+`basic`/`stage1`/`stage2` and from the `evolvesFrom` chain of the card data) that
+overrides the three exceptions when the active is a more evolved link of the
+SAME line and does not yield fewer prizes.
 
-Censo de flips sobre las 117 decisiones del episodio 89013104: **1 flip**, el
-de este paso. Corpus dorado sin cambios.
+A census of flips over the 117 decisions of episode 89013104: **1 flip**, this
+step's. The golden corpus unchanged.
 """
 
 import copy
@@ -113,13 +113,13 @@ def _pkm(card_id, energias=0):
 
 
 def _idx(obs, **campos):
-    """Indice de la opcion del menu que cumple todos los campos dados."""
+    """Index of the menu option that satisfies all the given fields."""
     return next(i for i, o in enumerate(obs["select"]["option"])
                 if all(o.get(k) == v for k, v in campos.items()))
 
 
 # ---------------------------------------------------------------------------
-# 1. El escenario: sin el, el test no mide nada
+# 1. The scenario: without it, the test measures nothing
 # ---------------------------------------------------------------------------
 
 def test_el_fixture_es_el_paso_93_con_la_fase_1_delante():
@@ -130,34 +130,34 @@ def test_el_fixture_es_el_paso_93_con_la_fase_1_delante():
 
     assert o["current"]["turn"] == 8 and not o["current"]["supporterPlayed"]
 
-    # Nosotros: Hydrapple ex de activo, con el Boss's en la mano y el menu
-    # ofreciendo AMBAS cosas (jugarlo o atacar).
+    # Us: a Hydrapple ex in the active spot, with the Boss's in hand and the menu
+    # offering BOTH things (playing it or attacking).
     assert mio["active"][0]["id"] == HYDRAPPLE
     assert any(c["id"] == BOSS for c in mio["hand"])
     assert _idx(o, type=13) >= 0 and _idx(o, type=7, index=8) >= 0
 
-    # El rival: Gabite (Fase 1) de activo DESNUDO y el Gible (Basico) en banca
-    # CON energia -- los dos cuerpos de la misma linea, los dos de 1 premio.
+    # The rival: a BARE Gabite (Stage 1) active and the Gible (a Basic) on the bench
+    # WITH energy -- both bodies of the same line, both worth 1 prize.
     assert riv["active"][0]["id"] == GABITE and riv["active"][0]["energies"] == []
     banca = [b["id"] for b in riv["bench"] if b]
     assert banca == [ROSELIA, GIBLE, ROSELIA, ROSELIA]
     assert len(riv["bench"][1]["energies"]) == 1
     assert (m.prize_count_op(_pkm(GABITE)) == m.prize_count_op(_pkm(GIBLE)) == 1)
 
-    # ...y la linea acaba en un ex de 2 premios: por eso cortarla vale.
+    # ...and the line ends in a 2-prize ex: that is why cutting it is worth it.
     assert m.prize_count_op(_pkm(GARCHOMP)) == 2
 
 
 def test_el_hydrapple_noquea_a_los_dos_cuerpos():
-    """El veto solo tiene sentido si el KO del activo es REAL: si el Gabite no
-    muriera, gustear el Gible seguiria siendo la unica via a un premio."""
+    """The veto only makes sense if the KO on the active is REAL: if the Gabite did
+    not die, gusting the Gible would still be the only route to a prize."""
     o = _obs()
     riv = o["current"]["players"][1 - o["current"]["yourIndex"]]
     assert riv["active"][0]["hp"] == 100 and riv["bench"][1]["hp"] == 70
 
 
 # ---------------------------------------------------------------------------
-# 2. La decision
+# 2. The decision
 # ---------------------------------------------------------------------------
 
 def test_no_se_gustea_el_gible_teniendo_el_gabite_de_activo():
@@ -168,9 +168,9 @@ def test_no_se_gustea_el_gible_teniendo_el_gabite_de_activo():
 
 
 def test_control_con_el_basico_delante_el_boss_si_se_juega():
-    """Control (el caso Marnie, invertido sobre el mismo tablero): si el que
-    esta de activo es el BASICO desnudo y la FASE 1 energizada esta en la banca,
-    gustear SI sube de escalon -- y el Boss's vuelve a jugarse."""
+    """Control (the Marnie case, inverted on the same board): if the one in the
+    active spot is the bare BASIC and the charged STAGE 1 is on the bench,
+    gusting DOES go up a step -- and the Boss's is played again."""
     o = _obs()
     riv = o["current"]["players"][1 - o["current"]["yourIndex"]]
     activo, banca = riv["active"][0], riv["bench"][1]
@@ -186,18 +186,18 @@ def test_control_con_el_basico_delante_el_boss_si_se_juega():
 
 
 # ---------------------------------------------------------------------------
-# 3. Los predicados de etapa/linea, en aislamiento (deck-agnosticos)
+# 3. The stage/line predicates, in isolation (deck-agnostic)
 # ---------------------------------------------------------------------------
 
 def test_la_etapa_sale_del_dato_de_carta():
     assert m._etapa_evolutiva(GIBLE) == 0
     assert m._etapa_evolutiva(GABITE) == 1
     assert m._etapa_evolutiva(GARCHOMP) == 2
-    # Nuestra propia linea y la de Marnie, sin tocar EVO_LINES.
+    # Our own line and Marnie's, without touching EVO_LINES.
     assert [m._etapa_evolutiva(c) for c in (m.Applin, m.Dipplin, HYDRAPPLE)] == [0, 1, 2]
     assert [m._etapa_evolutiva(c) for c in (IMPIDIMP, MORGREM,
                                             m.Grimmsnarl_ex)] == [0, 1, 2]
-    # Lo que no es un Pokemon (o no existe) no tiene etapa.
+    # What is not a Pokemon (or does not exist) has no stage.
     assert m._etapa_evolutiva(BOSS) is None
     assert m._etapa_evolutiva(-12345) is None
 
@@ -206,9 +206,9 @@ def test_la_linea_se_reconstruye_subiendo_por_evolves_from():
     assert m._misma_linea_evolutiva(GIBLE, GARCHOMP)
     assert m._misma_linea_evolutiva(GARCHOMP, GABITE)
     assert m._misma_linea_evolutiva(GIBLE, GIBLE)
-    # Cynthia's Roselia -> Roserade es OTRA linea del MISMO mazo.
+    # Cynthia's Roselia -> Roserade is ANOTHER line of the SAME deck.
     assert not m._misma_linea_evolutiva(GIBLE, ROSELIA)
-    # Y las lineas homonimas de otro entrenador no se mezclan con la nuestra.
+    # And the homonymous lines of another trainer do not mix with ours.
     assert not m._misma_linea_evolutiva(GABITE, m.Dipplin)
 
 
@@ -216,9 +216,9 @@ def test_supera_en_evolucion_exige_misma_linea_y_etapa_mayor():
     assert m._supera_en_evolucion(_pkm(GABITE), _pkm(GIBLE))
     assert m._supera_en_evolucion(_pkm(GARCHOMP), _pkm(GIBLE))
     assert m._supera_en_evolucion(_pkm(MORGREM), _pkm(IMPIDIMP))
-    # Al reves NO: es justo el caso que motiva el deny-evo.
+    # The other way round NO: it is precisely the case the deny-evo exists for.
     assert not m._supera_en_evolucion(_pkm(GIBLE), _pkm(GABITE))
-    # Misma etapa, o etapas de LINEAS distintas: no hay escalon que comparar.
+    # The same stage, or stages of DIFFERENT lines: there is no step to compare.
     assert not m._supera_en_evolucion(_pkm(GABITE), _pkm(GABITE))
     assert not m._supera_en_evolucion(_pkm(GABITE), _pkm(ROSELIA))
     assert not m._supera_en_evolucion(_pkm(m.Dipplin), _pkm(GIBLE))

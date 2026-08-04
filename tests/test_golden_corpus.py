@@ -1,18 +1,18 @@
-"""Test del corpus dorado: ninguna decision historica cambia sin quererlo.
+"""Golden corpus test: no historical decision changes unintentionally.
 
-Reproduce TODOS los registros locales a traves de `main.agent()` y compara
-contra el snapshot `registros/decisiones_dorado.json`.
+It replays ALL the local records through `main.agent()` and compares
+against the snapshot `registros/decisiones_dorado.json`.
 
-Politica:
-  - Sin registros (clon fresco) -> skip.
-  - Sin snapshot -> se crea (bootstrap) y skip; la proxima corrida compara.
-  - Registros REEMPLAZADOS/nuevos/borrados (md5 distinto): no hay nada valido
-    que comparar en esos archivos -> el snapshot se auto-cura silenciosamente
-    (son datos locales transitorios de split_turns.py), siempre que no haya
-    flips en los registros intactos.
-  - FLIPS (mismo registro, decision distinta) -> FALLO con el diff exacto:
-    un cambio de main.py volteo decisiones historicas. Si el cambio es
-    buscado, aceptalo conscientemente con:
+Policy:
+  - No records (a fresh clone) -> skip.
+  - No snapshot -> it is created (bootstrap) and skipped; the next run compares.
+  - REPLACED/new/deleted records (a different md5): there is nothing valid
+    to compare in those files -> the snapshot self-heals silently
+    (they are transient local data from split_turns.py), as long as there are no
+    flips in the untouched records.
+  - FLIPS (the same record, a different decision) -> FAILURE with the exact diff:
+    a change to main.py flipped historical decisions. If the change is
+    intended, accept it consciously with:
         python tests/golden_corpus.py --actualizar
 """
 
@@ -49,5 +49,5 @@ def test_corpus_dorado_sin_flips():
         "--actualizar`:\n" + gc.formatear_flips(flips))
 
     if cambiados or faltantes or nuevos:
-        # Datos locales reemplazados: sin comparacion posible, re-snapshot.
+        # Local data replaced: with no comparison possible, re-snapshot.
         gc.guardar_snapshot(actual)

@@ -1,60 +1,60 @@
-"""La foto de "evolucionable" no se decrementaba al EVOLUCIONAR en el turno.
+"""The "evolvable" snapshot was not decremented when EVOLVING during the turn.
 
-Escenario (user, episodio 88909907, registro_006 pasos 76-87, turno 6 vs
-Marnie's Grimmsnarl ex, GANADA):
+Scenario (user, episode 88909907, registro_006 steps 76-87, turn 6 vs
+Marnie's Grimmsnarl ex, WON):
 
-    NOSOTROS (inicio del turno 6)                RIVAL
-    activo  Teal Mask Ogerpon ex 180/210 3 {G}   activo  Grimmsnarl ex 310/320
-    banca   Meowth ex, Dipplin(709), Applin 40,          banca  Morgrem, 2x Impidimp,
+    US (start of turn 6)                         RIVAL
+    active  Teal Mask Ogerpon ex 180/210 3 {G}   active  Grimmsnarl ex 310/320
+    bench   Meowth ex, Dipplin(709), Applin 40,          bench  Morgrem, 2x Impidimp,
             Teal Mask Ogerpon ex 190/210                        Impidimp
-    mano    Unfair Stamp, Night Stretcher, ...
-    descarte  Dipplin(93 s16), Applin(92 s13), 2 Plantas basicas
+    hand    Unfair Stamp, Night Stretcher, ...
+    discard  Dipplin(93 s16), Applin(92 s13), 2 basic Grass
 
-Dentro de ESE MISMO turno el agente evoluciono su Applin de banca a Dipplin
-(paso 79). En el paso 84 ya no quedaba ningun Applin en juego... y aun asi
-jugo la **Night Stretcher para recuperar un Dipplin**: una Fase 1 sin nada
-sobre lo que subir y que no se puede bajar a banca. Carta muerta en la mano.
-Peor todavia, en el paso 86 jugo el **Unfair Stamp**, que barajo ese Dipplin
-de vuelta al mazo: dos cartas gastadas para no cambiar nada del tablero.
+Within THAT SAME turn the agent evolved its bench Applin into Dipplin
+(step 79). By step 84 there was no Applin left in play... and even so it
+played the **Night Stretcher to recover a Dipplin**: a Stage 1 with nothing
+to go on top of and that cannot be put on the bench. A dead card in hand.
+Worse still, in step 86 it played the **Unfair Stamp**, which shuffled that Dipplin
+back into the deck: two cards spent to change nothing on the board.
 
-Causa raiz -- una sola, compartida por seis decisiones distintas. La foto
-`evolvable` se calculaba asi en cinco sitios de main.py:
+Root cause -- a single one, shared by six different decisions. The
+`evolvable` snapshot was computed like this in five places in main.py:
 
     evolvable = field_at_turn_start if (not forest and field_at_turn_start)
                 else field_counts
 
-La intencion es correcta: sin Forest of Vitality una pre-evolucion solo puede
-evolucionar si YA estaba en juego al empezar el turno (no salio este turno).
-Pero la foto de inicio es un contador congelado que **nunca se decrementa**
-cuando esa misma pre-evo se consume evolucionando. Tras el paso 79 decia
-"Applin: 1" con cero Applin sobre la mesa, y con eso dispararon las dos ramas
-que produjeron la jugada:
+The intention is right: without Forest of Vitality a pre-evolution can only
+evolve if it was ALREADY in play at the start of the turn (it did not come out this turn).
+But the start-of-turn snapshot is a frozen counter that **is never decremented**
+when that same pre-evo is consumed by evolving. After step 79 it said
+"Applin: 1" with zero Applin on the table, and with that the two branches
+that produced the play fired:
 
-  * `ns->play  dipplin_applin_evolucionable` = 750 -> base 10400 (jugar la NS);
-  * `ns->dipplin applin_evolucionable`       = 850 (recuperar el Dipplin),
-    por encima de `ns->grass sin_planta_en_mano` = 750 (la Planta, util).
+  * `ns->play  dipplin_applin_evolucionable` = 750 -> base 10400 (playing the NS);
+  * `ns->dipplin applin_evolucionable`       = 850 (recovering the Dipplin),
+    above `ns->grass sin_planta_en_mano` = 750 (the Grass, useful).
 
-Arreglo (`_evolvable_counts`): la foto pasa a ser la INTERSECCION por especie
--- presente AHORA (`field_counts`) **y** presente al inicio del turno --, que
-es exactamente el criterio que ya usaban a mano `_ub_evolve_now_search` y
-`_lillie_evolve_now`. Con Forest en mesa sigue mandando la foto actual.
+Fix (`_evolvable_counts`): the snapshot becomes the INTERSECTION by species
+-- present NOW (`field_counts`) **and** present at the start of the turn --, which
+is exactly the criterion `_ub_evolve_now_search` and `_lillie_evolve_now`
+already used by hand. With a Forest on the table the current snapshot still rules.
 
-Con el arreglo la NS queda vetada (SCORE_VETO) y el turno juega el Unfair
-Stamp con UNA CARTA MAS en la mano; si algo fuerza igualmente el menu de
-recuperacion, se trae la Planta basica en vez de la evolucion muerta.
+With the fix the NS is vetoed (SCORE_VETO) and the turn plays the Unfair
+Stamp with ONE CARD MORE in hand; if something forces the recovery menu
+anyway, it brings the basic Grass instead of the dead evolution.
 
-ALCANCE (medido, no estetico): la foto depurada se aplica SOLO a las dos caras
-de la Night Stretcher. Aplicarla tambien a los otros cuatro sitios del mismo
-idiom (Ultra Ball x2, Poke Pad, Lillie's) costo **-4.7 puntos vs
-Crustle/Kangaskhan** (68.6% vs 73.3%, n=1000, fuera del IC95), asi que esos se
-quedan con el idiom original. Ver la nota en `_evolvable_counts`.
+SCOPE (measured, not aesthetic): the cleaned-up snapshot is applied ONLY to the two faces
+of the Night Stretcher. Applying it also to the other four places with the same
+idiom (Ultra Ball x2, Poke Pad, Lillie's) cost **-4.7 points vs
+Crustle/Kangaskhan** (68.6% vs 73.3%, n=1000, outside the 95% CI), so those
+keep the original idiom. See the note in `_evolvable_counts`.
 
-Medicion del cambio que SI entra (delta dentro de la MISMA corrida, que es lo
-unico pareado: el nivel absoluto del bot se mueve ~3 puntos entre corridas):
+Measurement of the change that DOES go in (a delta within the SAME run, which is the
+only paired one: the bot's absolute level moves ~3 points between runs):
 vs Crustle/Kangaskhan **+2.4** (72.5% vs 70.1%), vs Marnie +0.9 (94.7% vs
-93.8%), vs Alakazam -0.4 (99.3% vs 99.7%, saturado al 99%). n=1000 cada uno.
-Corpus dorado: 0 flips (el snapshot ya tenia la jugada correcta; este bug la
-volteaba).
+93.8%), vs Alakazam -0.4 (99.3% vs 99.7%, saturated at 99%). n=1000 each.
+Golden corpus: 0 flips (the snapshot already had the right play; this bug
+flipped it).
 """
 
 import copy
@@ -133,54 +133,54 @@ def _carta_del_descarte(obs, eleccion):
 
 
 # ---------------------------------------------------------------------------
-# 1. La unidad: la foto evolvable
+# 1. The unit: the evolvable snapshot
 # ---------------------------------------------------------------------------
 
 def test_la_preevo_consumida_por_una_evolucion_deja_de_ser_evolucionable():
-    """El Applin del inicio del turno ya es Dipplin: no queda nada que subir."""
+    """The Applin from the start of the turn is already a Dipplin: there is nothing left to go on top of."""
     inicio = {APPLIN: 1, CHIKORITA: 1}
-    ahora = {DIPPLIN: 1, CHIKORITA: 1}  # el Applin evoluciono este turno
+    ahora = {DIPPLIN: 1, CHIKORITA: 1}  # the Applin evolved this turn
     evolvable = m._evolvable_counts(ahora, inicio, False)
     assert evolvable.get(APPLIN, 0) == 0
     assert evolvable.get(CHIKORITA, 0) == 1
 
 
 def test_la_preevo_bajada_este_turno_sigue_sin_ser_evolucionable():
-    """El otro sentido del filtro (el que ya funcionaba) no se rompe."""
+    """The other direction of the filter (the one that already worked) is not broken."""
     evolvable = m._evolvable_counts({APPLIN: 1, CHIKORITA: 1},
                                     {CHIKORITA: 1}, False)
     assert evolvable.get(APPLIN, 0) == 0
 
 
 def test_sin_foto_de_inicio_manda_la_actual():
-    """Semantica preservada: foto vacia = sin dato, se usa el campo actual.
+    """Semantics preserved: an empty snapshot = no data, the current field is used.
 
-    Es como se comportaba el idiom original (`{}` es falsy) y de ahi depende
-    el primer menu de cada turno, antes de que la foto se rellene."""
+    That is how the original idiom behaved (`{}` is falsy) and the first menu of
+    each turn depends on it, before the snapshot is filled in."""
     evolvable = m._evolvable_counts({APPLIN: 1}, {}, False)
     assert evolvable.get(APPLIN, 0) == 1
 
 
 def test_con_forest_manda_la_foto_actual():
-    """Forest of Vitality levanta la restriccion: vale lo que hay AHORA."""
+    """Forest of Vitality lifts the restriction: what is there NOW counts."""
     evolvable = m._evolvable_counts({APPLIN: 2}, {APPLIN: 1}, True)
     assert evolvable.get(APPLIN, 0) == 2
 
 
 def test_varias_copias_solo_pierde_la_que_evoluciono():
-    """Con dos Applin al inicio y uno evolucionado, queda UNO evolucionable."""
+    """With two Applin at the start and one evolved, ONE evolvable is left."""
     evolvable = m._evolvable_counts({APPLIN: 1, DIPPLIN: 1}, {APPLIN: 2}, False)
     assert evolvable.get(APPLIN, 0) == 1
 
 
 # ---------------------------------------------------------------------------
-# 2. El turno real
+# 2. The real turn
 # ---------------------------------------------------------------------------
 
 def test_paso84_no_se_juega_la_night_stretcher_por_una_preevo_fantasma():
     obs = _por_paso(_observaciones())
-    m.agent(obs[76])                       # fija la foto de inicio (con Applin)
-    eleccion = m.agent(obs[84])            # menu principal tras evolucionar
+    m.agent(obs[76])                       # it sets the start-of-turn snapshot (with the Applin)
+    eleccion = m.agent(obs[84])            # the main menu after evolving
     jugada = _carta_de_la_mano(obs[84], eleccion)
     assert jugada != NIGHT_STRETCHER, (
         "la Night Stretcher recupera un Dipplin sin Applin sobre el que subir")
@@ -188,7 +188,7 @@ def test_paso84_no_se_juega_la_night_stretcher_por_una_preevo_fantasma():
 
 
 def test_paso84_el_unfair_stamp_se_juega_con_la_mano_entera():
-    """La NS ya no se cuela DELANTE del Stamp, que rehace 4 cartas y no 3."""
+    """The NS no longer slips in AHEAD of the Stamp, which remakes 4 cards and not 3."""
     obs = _por_paso(_observaciones())
     m.agent(obs[76])
     yo = obs[84]["current"]["yourIndex"]
@@ -198,7 +198,7 @@ def test_paso84_el_unfair_stamp_se_juega_con_la_mano_entera():
 
 
 def test_paso85_si_se_llega_al_menu_se_recupera_la_planta_no_el_dipplin():
-    """Segunda linea de defensa: el FETCH tampoco elige la evolucion muerta."""
+    """A second line of defence: the FETCH does not pick the dead evolution either."""
     obs = _por_paso(_observaciones())
     m.agent(obs[76])
     m.agent(obs[84])
@@ -209,7 +209,7 @@ def test_paso85_si_se_llega_al_menu_se_recupera_la_planta_no_el_dipplin():
 
 
 def test_paso84_el_veto_no_depende_del_descarte_sino_del_campo():
-    """El Applin del DESCARTE no rehabilita nada: no esta en juego."""
+    """The Applin in the DISCARD rehabilitates nothing: it is not in play."""
     obs = _por_paso(_observaciones())
     yo = obs[85]["current"]["yourIndex"]
     descarte = [c["id"] for c in obs[85]["current"]["players"][yo]["discard"]]

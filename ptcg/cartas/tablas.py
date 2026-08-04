@@ -1,42 +1,44 @@
-"""Tablas de carta derivadas del simulador: `card_table` y `attack_table`.
+"""Card tables derived from the simulator: `card_table` and `attack_table`.
 
-Extraido VERBATIM de main.py en la Ola 2 del refactor
-(docs/main-refactor-arquitectura.md).
+Extracted VERBATIM from main.py in wave 2 of the refactor
+(docs/project-history.md).
 
-No son constantes literales (salen de `cg.api`), pero SI son deterministas y de
-solo lectura: se construyen una vez al importar y nadie las muta -- comprobado
-con `utils/pureza.py`. Esa es justo la diferencia con `ATTACK_ENERGY_REQ`, que
-parece una tabla fija y en realidad es estado de TURNO (el impuesto de Nighttime
-Mine la reescribe en cada `agent()`), y por eso aquella se queda en main.py
-hasta la Ola 3.
+They are not literal constants (they come from `cg.api`), but they ARE
+deterministic and read-only: they are built once at import time and nobody
+mutates them -- verified with `utils/pureza.py`. That is exactly the difference
+with `ATTACK_ENERGY_REQ`, which looks like a fixed table and is really TURN
+state (the Nighttime Mine tax rewrites it on every `agent()` call), which is why
+that one stayed in main.py until wave 3.
 
-OJO al moverlas de sitio: los modulos que hacen `from ptcg.cartas.tablas import
-card_table` CONGELAN el binding al importar. En produccion da igual (nadie las
-reasigna), pero un test que parchee `main.card_table` ya no les llega. Por eso
-sus CONSUMIDORES siguen en main.py hasta la Ola 3, donde se decide quien posee
-el estado de modulo.
+CAREFUL when moving them: modules that do `from ptcg.cartas.tablas import
+card_table` FREEZE the binding at import time. In production it makes no
+difference (nobody reassigns them), but a test that patches `main.card_table`
+no longer reaches them. That is why their CONSUMERS stayed in main.py until
+wave 3, where it was decided who owns the module-level state.
 """
 
 from cg.api import all_card_data, all_attack
 
 all_card = all_card_data()
 card_table = {c.cardId: c for c in all_card}
-# Tabla ataque-id -> objeto Attack (name/damage/energies). Los `card.attacks`
-# son IDs (ints), no objetos, por lo que _op_best_damage_vs (que hace
-# getattr(id, 'damage')) siempre da 0. Esta tabla permite RESOLVER el dano real
-# del ataque del activo rival cuando se necesita (ver _op_active_attack_damage_to).
+# Table attack-id -> Attack object (name/damage/energies). The `card.attacks`
+# entries are IDs (ints), not objects, so _op_best_damage_vs (which does
+# getattr(id, 'damage')) always returns 0. This table is what makes it possible
+# to RESOLVE the real damage of the opposing active's attack when it is needed
+# (see _op_active_attack_damage_to).
 attack_table = {a.attackId: a for a in all_attack()}
 
 
-# Indice NOMBRE -> dato de carta: `evolvesFrom` guarda el NOMBRE de la
-# pre-evolucion, asi que subir una cadena exige resolver nombres. Cubre TODAS
-# las cartas del entorno (no solo las de nuestro mazo): las lineas que hay que
-# leer aqui son las RIVALES.
+# Index NAME -> card data: `evolvesFrom` stores the NAME of the pre-evolution,
+# so walking a chain upwards means resolving names. It covers ALL the cards in
+# the environment (not just the ones in our deck): the lines that have to be
+# read here are the OPPONENT's.
 _CARD_BY_NAME = {}
 
-# Indice inverso NOMBRE -> cartas que evolucionan DE ese nombre. Complementa a
-# `_CARD_BY_NAME` (que sube por la cadena) para poder BAJAR por ella y saber en
-# que termina una linea rival. Cubre TODAS las cartas del entorno.
+# Reverse index NAME -> cards that evolve FROM that name. It complements
+# `_CARD_BY_NAME` (which walks up the chain) so the chain can also be walked
+# DOWN, to know what an opposing line ends in. It covers ALL the cards in the
+# environment.
 _EVOLUCIONES_POR_NOMBRE = {}
 
 

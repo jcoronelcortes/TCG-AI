@@ -1,50 +1,50 @@
-"""Autopsia automatica de DERROTAS del self-play.
+"""Automatic autopsy of self-play LOSSES.
 
-Fase 6 de la arquitectura de mejora de estrategia. El self-play (fase 3) solo
-devuelve un winrate; las partidas perdidas se tiraban -- y son exactamente el
-material del que salen las reglas nuevas. Esta pieza juega N partidas contra
-un mazo rival (bot generico) o en espejo, GRABA el flujo de decisiones de las
-derrotas y les pasa DETECTORES post-hoc que reutilizan las calculadoras del
-propio agente (main._attacker_base_damage / main._our_effective_damage):
+Phase 6 of the strategy improvement architecture. Self-play (phase 3) only
+returns a winrate; the lost games were thrown away -- and they are exactly the
+material new rules come from. This piece plays N games against
+an opposing deck (the generic bot) or in a mirror, RECORDS the decision stream of the
+losses and runs post-hoc DETECTORS over them that reuse the agent's own
+calculators (main._attacker_base_damage / main._our_effective_damage):
 
-  - letal_perdido: en un select MAIN habia un ataque del ACTIVO que noqueaba
-    al activo rival, y el turno se cerro sin atacar (END/RETREAT). Se marca
-    CRITICO si ademas ese KO cobraba los premios que nos faltaban (perdimos
-    una partida GANADA).
-  - turno_esteril: un turno completo cerrado con END o con un ataque de 0 de
-    dano teniendo >= 4 cartas en la mano (la clase del paso 61 vs Dragapult).
+  - letal_perdido: in a MAIN select there was an attack from the ACTIVE that knocked out
+    the opposing active, and the turn closed without attacking (END/RETREAT). It is marked
+    CRITICAL if that KO also took the prizes we were missing (we lost
+    a game we had WON).
+  - turno_esteril: a whole turn closed with END or with a 0-damage
+    attack while holding >= 4 cards in hand (the class of step 61 vs Dragapult).
 
-v2 (paso 5 plan jul 2026):
-  - La observacion grabada del turno_esteril es la del PRIMER select MAIN del
-    turno (menu completo: ahi esta la decision que perdio el valor), no la
-    del END final -- que a veces solo ofrecia END y era irreproducible
-    (hallazgos p029/p043 vs iron_thorns). El cierre queda en paso_cierre/
-    eleccion_cierre; opciones_primer_main cuenta las jugadas no-END legales
-    que el menu ofrecia (valor dejado en mesa).
-  - Cada derrota se clasifica por MODO (clasificar_derrota): premios /
-    bench_out / deckout / desconocido; las partidas al LIMITE de pasos
-    tambien se autopsian (modo "limite"). El modo viaja en cada hallazgo y
-    el resumen imprime la distribucion: contra stall (crustle) separa las
-    derrotas por deck-out de las de premios sin mirar deckCount a mano.
+v2 (step 5 of the jul 2026 plan):
+  - The recorded observation of a turno_esteril is that of the FIRST MAIN select of the
+    turn (the complete menu: that is where the decision that lost the value is), not the
+    one of the final END -- which sometimes only offered END and was irreproducible
+    (findings p029/p043 vs iron_thorns). The close is kept in paso_cierre/
+    eleccion_cierre; opciones_primer_main counts the legal non-END plays
+    the menu offered (value left on the table).
+  - Each loss is classified by MODE (clasificar_derrota): prizes /
+    bench_out / deckout / unknown; the games that hit the step LIMIT
+    are also autopsied (mode "limite"). The mode travels in every finding and
+    the summary prints the distribution: against stall (crustle) it separates the
+    deck-out losses from the prize ones without checking deckCount by hand.
 
-Cada hallazgo se escribe como JSON con la OBSERVACION completa del paso (el
-formato de los fixtures de tests/) en registros/autopsia/ (git-ignored, datos
-locales transitorios): listo para reproducir con main.agent(), convertir en
-fixture o barrer con el StateBuilder.
+Each finding is written as JSON with the complete OBSERVATION of the step (the
+format of the tests/ fixtures) into registros/autopsia/ (git-ignored, transient
+local data): ready to reproduce with main.agent(), turn into a
+fixture or sweep with the StateBuilder.
 
-Uso:
+Usage:
     python utils/autopsia.py --rival deck/rivales/cornerstone_cubchoo.csv --partidas 100
     python utils/autopsia.py --espejo --partidas 100
-    python utils/autopsia.py --todos --partidas 60   # todos los mazos de deck/rivales/
-    python utils/autopsia.py --rival ... --partidas 400 --censo   # + contraste
+    python utils/autopsia.py --todos --partidas 60   # every deck in deck/rivales/
+    python utils/autopsia.py --rival ... --partidas 400 --censo   # + a contrast
 
-v3 (ago 2026): `--censo`. Los detectores solo miran DERROTAS y solo emiten en
-los turnos que ya fallaron; eso reproduce un fallo, pero no dice que lo CAUSA.
-Sin grupo de control, un rasgo frecuente en las derrotas no se distingue de un
-rasgo frecuente y punto -- dos hipotesis se cayeron justo asi. `censo_de_turnos`
-levanta una fila compacta (sin observaciones) por turno de TODAS las partidas,
-ganadas incluidas, y `resumen_censo` imprime cada rasgo como
-derrota% vs victoria% y su DIFERENCIA, que es lo unico que explica algo.
+v3 (Aug 2026): `--censo`. The detectors only look at LOSSES and only emit on
+the turns that already failed; that reproduces a failure, but it does not say what CAUSES it.
+Without a control group, a trait that is frequent in the losses cannot be told apart from a
+trait that is simply frequent -- two hypotheses fell exactly that way. `censo_de_turnos`
+builds a compact row (with no observations) per turn of ALL the games,
+wins included, and `resumen_censo` prints each trait as
+loss% vs win% and their DIFFERENCE, which is the only thing that explains anything.
 """
 
 import argparse
@@ -63,18 +63,18 @@ from cg.api import OptionType, SelectContext
 
 MAX_PASOS = 3000
 MANO_MINIMA_ESTERIL = 4
-# Carta de cambio de la lista propia: la misma id que en main.py activa
-# `has_switch_card` (retirada gratis sin pagar energia).
+# The switching card of our own list: the same id that in main.py switches
+# `has_switch_card` on (a free retreat without paying energy).
 CARTA_CAMBIO = 1123
 
 
 def jugar_grabando(agente, rival, deck_propio, deck_rival, asiento):
-    """Juega una partida grabando NUESTRAS decisiones.
+    """Plays a game recording OUR decisions.
 
-    Devuelve (resultado, decisiones, obs_final) con resultado en {"gana",
-    "pierde", "limite", "forfeit"}, decisiones = [{obs, eleccion, paso}] y
-    obs_final = la ultima observacion vista (terminal salvo forfeit/limite),
-    para clasificar el MODO de la derrota.
+    It returns (result, decisions, final_obs) with the result in {"gana",
+    "pierde", "limite", "forfeit"}, decisions = [{obs, eleccion, paso}] and
+    final_obs = the last observation seen (terminal except on a forfeit/limit),
+    so the MODE of the loss can be classified.
     """
     from cg import game
 
@@ -109,14 +109,14 @@ def jugar_grabando(agente, rival, deck_propio, deck_rival, asiento):
 
 
 def clasificar_derrota(obs_final, asiento, resultado):
-    """Clasifica COMO se perdio la partida mirando la observacion final.
+    """Classifies HOW the game was lost by looking at the final observation.
 
-    Modos: "premios" (el rival completo sus premios), "bench_out" (nos
-    quedamos sin Pokemon en juego con premios rivales pendientes), "deckout"
-    (mazo a 0 con premios rivales pendientes), "limite" (la partida llego a
-    MAX_PASOS sin resultado) y "desconocido" (ninguna senal clara). El orden
-    de las comprobaciones importa: bench_out y deckout solo se declaran si al
-    rival AUN le faltaban premios (si no, la causa dominante es "premios").
+    Modes: "premios" (the opponent completed their prizes), "bench_out" (we
+    were left with no Pokemon in play while the opponent still had prizes pending), "deckout"
+    (the deck at 0 with the opponent's prizes pending), "limite" (the game reached
+    MAX_PASOS with no result) and "desconocido" (no clear signal). The order
+    of the checks matters: bench_out and deckout are only declared if the
+    opponent was STILL missing prizes (otherwise the dominant cause is "premios").
     """
     if resultado == "limite":
         return "limite"
@@ -126,8 +126,8 @@ def clasificar_derrota(obs_final, asiento, resultado):
         op = cur["players"][1 - asiento]
     except (KeyError, IndexError, TypeError):
         return "desconocido"
-    # Convencion del resto del archivo: una entrada None en prize es un
-    # premio que a ese jugador AUN LE FALTA cobrar.
+    # The convention of the rest of the file: a None entry in prize is a
+    # prize that player has STILL to take.
     op_restantes = sum(1 for p in (op.get("prize") or []) if p is None)
     activos = [p for p in (yo.get("active") or []) if p]
     banca = [p for p in (yo.get("bench") or []) if p]
@@ -141,8 +141,8 @@ def clasificar_derrota(obs_final, asiento, resultado):
 
 
 # --------------------------------------------------------------------------
-# Detectores. Reciben las decisiones de UNA partida perdida y devuelven
-# hallazgos: {detector, paso, turno, detalle, obs, eleccion}.
+# Detectors. They receive the decisions of ONE lost game and return
+# findings: {detector, paso, turno, detalle, obs, eleccion}.
 # --------------------------------------------------------------------------
 
 def _mi_lado(obs):
@@ -151,7 +151,7 @@ def _mi_lado(obs):
 
 
 def _dano_letal_activo(m, obs):
-    """Mejor dano de NUESTRO activo al activo rival este paso (o 0)."""
+    """The best damage from OUR active to the opposing active this step (or 0)."""
     yo, op = _mi_lado(obs)
     if not (yo.get("active") and yo["active"][0] and
             op.get("active") and op["active"][0]):
@@ -164,7 +164,7 @@ def _dano_letal_activo(m, obs):
             total_grass += len(p.get("energies") or [])
     bench_n = sum(1 for b in (yo.get("bench") or []) if b)
 
-    class _P:  # adaptador minimo para las calculadoras de main
+    class _P:  # a minimal adapter for main's calculators
         def __init__(self, d):
             self.id = d["id"]
             self.hp = d.get("hp")
@@ -187,24 +187,24 @@ def _dano_letal_activo(m, obs):
 
 
 def censo_de_turnos(m, decisiones):
-    """Una fila COMPACTA por turno propio, para TODAS las partidas -- ganadas
-    incluidas.
+    """A COMPACT row per turn of ours, for ALL games -- wins
+    included.
 
-    Los detectores de abajo solo miran derrotas y solo emiten en los turnos que
-    ya fallaron. Eso basta para reproducir un fallo concreto, pero no para
-    decidir QUE lo causa: sin grupo de control, cualquier patron frecuente en
-    las derrotas parece la causa aunque sea igual de frecuente en las victorias.
-    Dos hipotesis se cayeron justo asi (ago 2026): "la Planta se va a la banca
-    con el activo atascado" resulto ser el 15% de los casos, y el enrutado por
-    Ripening Charge midio negativo.
+    The detectors below only look at losses and only emit on the turns that
+    already failed. That is enough to reproduce a specific failure, but not to
+    decide WHAT causes it: without a control group, any pattern that is frequent in
+    the losses looks like the cause even if it is just as frequent in the wins.
+    Two hypotheses fell exactly that way (Aug 2026): "the Grass goes to the bench
+    with the active stuck" turned out to be 15% of the cases, and the routing
+    through Ripening Charge measured negative.
 
-    El censo no guarda observaciones -- solo los rasgos que se pueden contar --,
-    asi que cabe para miles de partidas y permite contrastar
-    `derrota vs victoria` en la misma tanda. Para reproducir un turno concreto
-    siguen estando los `pasos_turno` de los detectores.
+    The census does not keep observations -- only the traits that can be counted --
+    so it fits for thousands of games and makes it possible to contrast
+    `loss vs win` in the same batch. To reproduce a specific turn the
+    detectors' `pasos_turno` are still there.
 
-    Rasgos por turno: si atacamos, estado del ACTIVO (atacar / retirarse), si
-    hay atacante LISTO esperando en banca, municion de energia y como cerro.
+    Traits per turn: whether we attacked, the state of the ACTIVE (attack / retreat), whether
+    there is a READY attacker waiting on the bench, the energy ammunition and how it closed.
     """
     filas = []
     por_turno = {}
@@ -219,16 +219,16 @@ def censo_de_turnos(m, decisiones):
             continue
         primero, ultimo = mains[0], mains[-1]
         yo, _ = _mi_lado(primero["obs"])
-        # Los recursos de UNA VEZ POR TURNO se leen del ULTIMO select, no del
-        # primero: en el primero no se ha jugado nada todavia y salen siempre
-        # sin gastar en los dos grupos (rasgo vacio). Aqui miden lo que de
-        # verdad interesa, lo que el turno se dejo sin usar.
+        # The ONCE-PER-TURN resources are read from the LAST select, not from the
+        # first: in the first one nothing has been played yet and they always come out
+        # unspent in both groups (an empty trait). Here they measure what
+        # really matters, what the turn left unused.
         cur = ultimo["obs"]["current"]
         act = (yo.get("active") or [None])[0]
         mano = yo.get("hand") or []
 
-        # ¿El ACTIVO esta atascado? Ni llega a su coste de ataque ni puede pagar
-        # su retirada con la energia que ya lleva encima.
+        # Is the ACTIVE stuck? It neither reaches its attack cost nor can it pay
+        # its retreat with the energy it already carries.
         atascado = puede_atacar = puede_retirar = None
         if act is not None:
             req = m.ATTACK_ENERGY_REQ.get(act["id"])
@@ -237,27 +237,27 @@ def censo_de_turnos(m, decisiones):
             puede_retirar = e >= m.RETREAT_COST.get(act["id"], 1)
             atascado = (puede_atacar is False) and not puede_retirar
 
-        # Atacante REAL de banca que ya llega a su coste: lo que el atasco
-        # deja encerrado detras.
+        # A REAL benched attacker that already reaches its cost: what the jam
+        # leaves locked in behind it.
         listos_banca = sum(
             1 for b in (yo.get("bench") or [])
             if b["id"] in m.MAIN_ATTACKERS
             and len(b["energies"]) * m._grass_mult()
             >= (m.ATTACK_ENERGY_REQ.get(b["id"]) or 99))
 
-        # ¿Habia ESCAPATORIA del atasco? Es la pregunta que decide la FORMA del
-        # arreglo: si la habia y no se tomo, es un problema de PUNTUACION; si no
-        # la habia, ninguna regla de scoring lo toca y hay que subir aguas
-        # arriba (que cuerpo se promueve y con que coste de retirada).
-        # Tres vias, las mismas que reconoce el agente:
-        #   * el menu OFRECE retirada (`can_switch`) en algun select del turno;
-        #   * carta de cambio en la mano (id 1123, la que activa `has_switch_
-        #     card`);
-        #   * la retirada se vuelve pagable con la carga que AUN cabe hoy.
-        # La ultima espeja `_grass_unlocks_active_retreat`: `energies` ya viene
-        # en simbolos EFECTIVOS y cada Planta fisica nueva aporta `unidad`
-        # (2 con Meganium en juego por Wild Growth), asi que el deficit se mide
-        # en CARTAS.
+        # Was there a WAY OUT of the jam? It is the question that decides the SHAPE of the
+        # fix: if there was one and it was not taken, it is a SCORING problem; if there
+        # was none, no scoring rule touches it and we have to go upstream
+        # (which body gets promoted and with what retreat cost).
+        # Three routes, the same ones the agent recognises:
+        #   * the menu OFFERS a retreat (`can_switch`) in some select of the turn;
+        #   * a switching card in hand (id 1123, the one that switches `has_switch_
+        #     card` on);
+        #   * the retreat becomes payable with the charge that STILL fits today.
+        # The last one mirrors `_grass_unlocks_active_retreat`: `energies` already comes
+        # in EFFECTIVE symbols and each new physical Grass provides `unidad`
+        # (2 with Meganium in play through Wild Growth), so the deficit is measured
+        # in CARDS.
         retirada_en_menu = any(
             int(o.get("type", -1)) == int(OptionType.RETREAT)
             for d in mains for o in d["obs"]["select"]["option"])
@@ -266,9 +266,9 @@ def censo_de_turnos(m, decisiones):
         if act is not None and not puede_retirar:
             campo = [act] + [b for b in (yo.get("bench") or []) if b]
             unidad = 2 if any(b["id"] == m.Meganium for b in campo) else 1
-            # Vias de adjunte que pueden dejar una Planta EN EL ACTIVO hoy:
-            # el manual si sigue libre, Ripening Charge de cada Hydrapple ex
-            # (carga a cualquiera) y Teal Dance solo si el ACTIVO es el Ogerpon.
+            # Attachment routes that can leave a Grass ON THE ACTIVE today:
+            # the manual one if it is still free, the Ripening Charge of each Hydrapple ex
+            # (which charges anyone) and Teal Dance only if the ACTIVE is the Ogerpon.
             vias = (0 if cur.get("energyAttached") else 1)
             vias += sum(1 for b in campo if b["id"] == m.Hydrapple_ex)
             if act["id"] == m.Teal_Mask_Ogerpon_ex:
@@ -321,7 +321,7 @@ def censo_de_turnos(m, decisiones):
 def detectar(m, decisiones):
     hallazgos = []
 
-    # agrupar decisiones por turno propio
+    # group decisions by our own turn
     por_turno = {}
     for d in decisiones:
         por_turno.setdefault(d["obs"]["current"]["turn"], []).append(d)
@@ -333,8 +333,8 @@ def detectar(m, decisiones):
         if not mains:
             continue
 
-        # --- letal_perdido: hubo un paso con KO disponible del activo y el
-        # turno se cerro sin ATACAR.
+        # --- letal_perdido: there was a step with a KO available from the active and the
+        # turn closed without ATTACKING.
         ataco = any(
             int(d["obs"]["select"]["option"][d["eleccion"][0]].get("type", -1))
             == int(OptionType.ATTACK)
@@ -365,7 +365,7 @@ def detectar(m, decisiones):
                     })
                     break
 
-        # --- turno_esteril: cierre con END o ataque de dano 0 con mano gorda.
+        # --- turno_esteril: a close with END or a 0-damage attack with a fat hand.
         ultimo = mains[-1]
         if not ultimo["eleccion"]:
             continue
@@ -382,10 +382,10 @@ def detectar(m, decisiones):
             if atk is not None and (atk.damage or 0) == 0 and dano == 0:
                 esteril = True
         if esteril:
-            # v2: la observacion util es la del PRIMER select MAIN del turno
-            # (menu completo -- reproducible con main.agent() y barrible con
-            # el explorador); el END final a veces solo ofrecia END. El
-            # cierre queda en paso_cierre/eleccion_cierre.
+            # v2: the useful observation is that of the FIRST MAIN select of the turn
+            # (the complete menu -- reproducible with main.agent() and sweepable with
+            # the explorer); the final END sometimes only offered END. The
+            # close is kept in paso_cierre/eleccion_cierre.
             primero = mains[0]
             opciones_no_end = sum(
                 1 for o in primero["obs"]["select"]["option"]
@@ -402,11 +402,11 @@ def detectar(m, decisiones):
                 "paso_cierre": ultimo["paso"],
                 "eleccion_cierre": ultimo["eleccion"],
                 "opciones_primer_main": opciones_no_end,
-                # v2.1: el turno COMPLETO paso a paso (todos los selects MAIN
-                # con su observacion y eleccion). Los fallos multi-paso (el
-                # plan del primer MAIN muere a mitad de turno: p.ej. Boss's
-                # positivo al abrir y el cierre llega sin gusteo) solo se
-                # diagnostican reproduciendo la secuencia entera.
+                # v2.1: the COMPLETE turn step by step (every MAIN select
+                # with its observation and choice). Multi-step failures (the
+                # plan of the first MAIN dies mid-turn: e.g. a positive Boss's
+                # at the start and the close arrives with no gust) are only
+                # diagnosed by reproducing the whole sequence.
                 "pasos_turno": [
                     {"paso": d["paso"], "eleccion": d["eleccion"],
                      "observation": d["obs"]} for d in mains],
@@ -415,12 +415,12 @@ def detectar(m, decisiones):
 
 
 def resumen_censo(censo, etiqueta):
-    """Contraste DERROTA vs VICTORIA sobre el censo de turnos.
+    """LOSS vs WIN contrast over the turn census.
 
-    Cada rasgo se imprime como su frecuencia por turno en cada grupo y la
-    DIFERENCIA. Lo que importa es la diferencia, no el nivel: un rasgo que sale
-    en el 40% de los turnos de las derrotas y en el 39% de los de las victorias
-    no explica nada, por llamativo que parezca leyendo una partida suelta.
+    Each trait is printed as its per-turn frequency in each group and the
+    DIFFERENCE. What matters is the difference, not the level: a trait that appears
+    in 40% of the turns of the losses and in 39% of those of the wins
+    explains nothing, however striking it looks when reading a single game.
     """
     perd = [f for f in censo if f["resultado"] != "gana"]
     gana = [f for f in censo if f["resultado"] == "gana"]
@@ -453,8 +453,8 @@ def resumen_censo(censo, etiqueta):
         filas.append((pp - pg, nombre, pp, pg))
     for dif, nombre, pp, pg in sorted(filas, reverse=True):
         print(f"    {nombre:40}{pp:8.1f}%{pg:9.1f}%{dif:+8.1f}")
-    # Rachas de atasco: un turno atascado suelto es ruido; una racha larga es
-    # una partida jugada entera desde detras de un muro propio.
+    # Jam streaks: a single stuck turn is noise; a long streak is
+    # a whole game played from behind a wall of our own making.
     for grupo, nombre in ((perd, "derrotas"), (gana, "victorias")):
         rachas, actual, por_partida = [], 0, None
         for f in grupo:
@@ -501,16 +501,16 @@ def autopsia(rival_csv, partidas, espejo=False, destino=None, censar=False):
         resultado, decisiones, obs_final = jugar_grabando(
             agente, rival, deck_propio, deck_rival, asiento=i % 2)
         marcador[resultado] += 1
-        # CENSO: se levanta de TODAS las partidas, ganadas incluidas. Es el
-        # grupo de CONTROL -- sin el, un patron frecuente en las derrotas no se
-        # distingue de un patron frecuente y punto.
+        # THE CENSUS: it is built from ALL the games, wins included. It is the
+        # CONTROL group -- without it, a pattern that is frequent in the losses cannot be
+        # told apart from a pattern that is simply frequent.
         if censar:
             for fila in censo_de_turnos(m, decisiones):
                 fila["partida"] = i
                 fila["resultado"] = resultado
                 censo.append(fila)
-        # v2: las partidas al LIMITE tambien se autopsian (vs stall son
-        # el modo de fallo interesante), ademas de derrotas y forfeits.
+        # v2: the games that hit the LIMIT are autopsied too (vs stall they are
+        # the interesting failure mode), as well as losses and forfeits.
         if resultado not in ("pierde", "forfeit", "limite"):
             continue
         modo = clasificar_derrota(obs_final, asiento=i % 2,
@@ -524,7 +524,7 @@ def autopsia(rival_csv, partidas, espejo=False, destino=None, censar=False):
             h["modo_derrota"] = modo
             total_hallazgos.append(h)
 
-    # persistir: un archivo por partida con hallazgos
+    # persist: one file per game with its findings
     por_partida = {}
     for h in total_hallazgos:
         por_partida.setdefault(h["partida"], []).append(h)

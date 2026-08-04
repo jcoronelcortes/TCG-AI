@@ -1,48 +1,48 @@
-"""Flip the Script no se pierde al cerrar el turno atacando.
+"""Flip the Script is not lost by closing the turn with an attack.
 
-Escenario (user, episodio 88710037 registro_006 paso 78 vs Archaludon ex,
-PERDIDA):
+Scenario (user, episode 88710037 registro_006 step 78 vs Archaludon ex,
+LOST):
 
-    NOSOTROS                                RIVAL
-    activo  Teal Mask Ogerpon ex 210 3e     activo  Archaludon ex 400 3e
-    banca   Bayleef, Meowth ex, 2x Applin,  banca   Duraludon 10, Duraludon 130,
-            Fezandipiti ex (bajado en el           Fezandipiti ex
-            paso 77 con la Ultra Ball)
-    mano    Lillie's Determination, Boss's Orders, Bayleef
-    premios restantes: 6 - 4     (nos noquearon el Ogerpon ex el turno anterior)
+    US                                      RIVAL
+    active  Teal Mask Ogerpon ex 210 3e     active  Archaludon ex 400 3e
+    bench   Bayleef, Meowth ex, 2x Applin,  bench   Duraludon 10, Duraludon 130,
+            Fezandipiti ex (played on              Fezandipiti ex
+            step 77 with the Ultra Ball)
+    hand    Lillie's Determination, Boss's Orders, Bayleef
+    prizes left: 6 - 4     (they knocked out our Ogerpon ex the previous turn)
 
-El menu del paso 78 ofrecia CUATRO jugadas: jugar Lillie's, jugar Boss's, la
-habilidad **Flip the Script** del Fezandipiti ex recien bajado (robar 3) y
-atacar. El agente ATACO, cerrando el turno y tirando el robo. La perdida es
-seca e irrecuperable: la habilidad es UNA VEZ POR TURNO y su condicion de
-activacion -- que nos noquearan un Pokemon en el turno anterior -- se va con el
-turno. Bajar el Fezandipiti ex con una Ultra Ball (dos cartas de coste) para no
-cobrar su habilidad deja el turno en numeros rojos.
+The menu of step 78 offered FOUR plays: play Lillie's, play Boss's, the
+**Flip the Script** ability of the just-played Fezandipiti ex (draw 3) and
+attacking. The agent ATTACKED, closing the turn and throwing the draw away. The loss
+is flat and unrecoverable: the ability is ONCE PER TURN and its activation
+condition -- having a Pokemon knocked out on the previous turn -- goes away with the
+turn. Playing the Fezandipiti ex with an Ultra Ball (a two-card cost) and not
+cashing in its ability leaves the turn in the red.
 
-Causa: un BLOQUEO CIRCULAR entre tres reglas correctas por separado.
+Cause: a CIRCULAR BLOCK between three rules that are correct on their own.
 
-  * la habilidad se veta por ORDEN, "primero Lillie's Determination y DESPUES la
-    habilidad" (`_lillie_blocks_fez_ability`), para que Lillie's no baraje de
-    vuelta las 3 cartas robadas;
-  * Lillie's se veta a si misma por ceder a un Boss's ejecutable
+  * the ability is vetoed by ORDER, "Lillie's Determination first and THEN the
+    ability" (`_lillie_blocks_fez_ability`), so that Lillie's does not shuffle
+    the 3 drawn cards back;
+  * Lillie's vetoes itself by yielding to an executable Boss's
     (`cede_a_boss_ejecutable`, -1);
-  * y Boss's se degrada a 20 por ceder a Lillie's sin atacante de banca
+  * and Boss's is downgraded to 20 by yielding to Lillie's with no bench attacker
     (`sin_atacante_banca_cede_a_lillie`).
 
-Ninguna de las tres se juega, el ataque (1100) gana el menu y la habilidad muere.
+None of the three is played, the attack (1100) wins the menu and the ability dies.
 
-Arreglo (agnostico del mazo rival: solo mira nuestra mano y el menu). Los vetos
-de ORDEN sobre habilidades se registran como DIFERIBLES en
-`_ability_order_veto` y el bloque "REVOCAR VETOS DE ORDEN" los levanta cuando el
-"primero X" no va a ocurrir:
+Fix (agnostic to the rival deck: it only looks at our hand and the menu). The ORDER
+vetoes on abilities are registered as DEFERRABLE in
+`_ability_order_veto` and the "REVOKE ORDER VETOES" block lifts them when the
+"X first" is not going to happen:
 
-  (a) ningun bloqueador esta ofrecido y jugable (score > 0) en este menu -- sin X
-      jugable no hay "despues de X". Es el caso del paso 78;
-  (b) el bloqueador vive pero PIERDE contra atacar/pasar y no queda ninguna otra
-      jugada viva -- el turno se cierra en esta misma accion.
+  (a) no blocker is offered and playable (score > 0) in this menu -- with no playable
+      X there is no "after X". That is the case of step 78;
+  (b) the blocker is alive but LOSES against attacking/passing and no other
+      play is left alive -- the turn closes in this very action.
 
-Con el bloqueador jugable y mas jugadas vivas el veto se mantiene: se juega
-primero el bloqueador y, al salir de la mano, el veto se apaga solo.
+With the blocker playable and more plays alive the veto is kept: the blocker is
+played first and, on leaving the hand, the veto switches itself off.
 """
 
 import json
@@ -59,17 +59,17 @@ import main as m
 from parcheo import instalar
 from state_builder import C, G, Escenario, pk
 
-OGERPON = m.Teal_Mask_Ogerpon_ex    # 96: activo del paso 78
-FEZ = m.Fezandipiti_ex              # 140: Flip the Script (robar 3)
+OGERPON = m.Teal_Mask_Ogerpon_ex    # 96: the active of step 78
+FEZ = m.Fezandipiti_ex              # 140: Flip the Script (draw 3)
 MEOWTH = m.Meowth_ex
 BAYLEEF = m.Bayleef
 APPLIN = m.Applin
-LILLIE = m.Lillie_Determination     # bloqueador (Supporter)
-STAMP = m.Unfair_Stamp              # bloqueador (Item)
+LILLIE = m.Lillie_Determination     # blocker (Supporter)
+STAMP = m.Unfair_Stamp              # blocker (Item)
 BOSS = m.Boss_Orders
 TAPU = m.Tapu_Bulu
 
-ARCHALUDON = 190                    # activo rival del registro (400 PV)
+ARCHALUDON = 190                    # the rival active of the record (400 HP)
 DURALUDON = 169
 
 _FIXTURE = (ROOT / "tests" / "fixtures"
@@ -134,12 +134,12 @@ def _jugadas(obs):
 
 
 # ---------------------------------------------------------------------------
-# El paso 78 real
+# The real step 78
 # ---------------------------------------------------------------------------
 
 def test_paso78_usa_flip_the_script_en_vez_de_atacar():
     obs = _obs_fixture()
-    # El fixture debe ofrecer las TRES jugadas para que el test discrimine.
+    # The fixture must offer the THREE plays for the test to discriminate.
     jugadas = _jugadas(obs)
     assert ("ABILITY", FEZ) in jugadas, jugadas
     assert ("ATTACK", 120) in jugadas, jugadas
@@ -149,32 +149,32 @@ def test_paso78_usa_flip_the_script_en_vez_de_atacar():
 
 
 def test_paso78_el_bloqueo_circular_existe_de_verdad():
-    """Documenta el estado que hacia inevitable el error: el bloqueador de la
-    habilidad (Lillie's) esta en la mano y ofrecido, pero NO es jugable."""
+    """Documents the state that made the mistake inevitable: the ability's
+    blocker (Lillie's) is in hand and offered, but is NOT playable."""
     obs = _obs_fixture()
     st = m.to_observation_class(obs).current
     mano = [c.id for c in st.players[0].hand]
     assert mano.count(LILLIE) == 1
     assert mano.count(BOSS) == 1
-    assert not st.supporterPlayed          # => _lillie_blocks_fez_ability activo
-    assert st.players[0].deckCount > 4     # => el freno de deck-out NO aplica
+    assert not st.supporterPlayed          # => _lillie_blocks_fez_ability active
+    assert st.players[0].deckCount > 4     # => the deck-out brake does NOT apply
 
-    # Lillie's cede a Boss's y Boss's cede a Lillie's: ninguno se juega.
+    # Lillie's yields to Boss's and Boss's yields to Lillie's: neither is played.
     eleccion = m.agent(obs)
     assert _jugada(obs, eleccion)[0] != "PLAY"
 
 
 def test_paso78_la_ventana_exacta_del_bloqueo_circular():
-    """Fija la ventana del ctx en la que las dos reglas se ceden el turno, para
-    que un cambio futuro en `cede_a_boss_ejecutable` / `_boss_cede_dig` no la
-    mueva sin darse cuenta: sin atacante de banca listo, pre-evo AMENAZA
-    gusteable y activo condenado SOLO segun `attack_table`.
+    """Pins the ctx window in which the two rules yield the turn to each other, so
+    that a future change in `cede_a_boss_ejecutable` / `_boss_cede_dig` does not
+    move it unnoticed: no bench attacker ready, a gustable pre-evo THREAT
+    and an active doomed ONLY according to `attack_table`.
 
-    Cerrar la asimetria (que `cede_a_boss_ejecutable` mire tambien
-    `active_doomed_real`, como hace `_boss_cede_dig`) se MIDIO y salio a -0.39
-    puntos con n=7000 por rama en 4 matchups; ver el comentario de la regla en
-    main.py. Aqui el turno lo rescata el veto de ORDEN diferible: sin bloqueador
-    jugable, Flip the Script cobra el robo de 3."""
+    Closing the asymmetry (making `cede_a_boss_ejecutable` also look at
+    `active_doomed_real`, as `_boss_cede_dig` does) was MEASURED and came out at -0.39
+    points with n=7000 per branch across 4 matchups; see the rule's comment in
+    main.py. Here the turn is rescued by the deferrable ORDER veto: with no playable
+    blocker, Flip the Script cashes in the draw of 3."""
     obs = _obs_fixture()
     visto = {}
     orig = m._score_boss_orders_play
@@ -191,17 +191,17 @@ def test_paso78_la_ventana_exacta_del_bloqueo_circular():
     ctx = visto["ctx"]
     assert ctx.has_ready_bench_attacker is False
     assert ctx.boss_ko_threat_preevo is True
-    assert ctx.active_ko_likely is False     # el heuristico CIEGO
-    assert ctx.active_doomed_real is True    # el remate REAL de attack_table
-    # La asimetria en vivo: Lillie's se veta, Boss's se degrada a la banda de
-    # cesion. Ninguna de las dos se juega.
+    assert ctx.active_ko_likely is False     # the BLIND heuristic
+    assert ctx.active_doomed_real is True    # the REAL finisher from attack_table
+    # The asymmetry live: Lillie's vetoes itself, Boss's is downgraded to the
+    # yielding band. Neither of the two is played.
     assert m._score_lillie_determination_play(ctx) == m.SCORE_VETO
     assert m._score_boss_orders_play(ctx) == m.BOSS_SCORE_EMPTY_GUST
 
 
 def test_paso78_la_habilidad_se_usa_antes_de_cualquier_cierre_de_turno():
-    """Recorte del menu a habilidad + ataque + pasar: nunca se cierra el turno
-    con Flip the Script disponible."""
+    """The menu trimmed to ability + attack + pass: the turn is never closed
+    with Flip the Script available."""
     obs = _obs_fixture()
     opciones = obs["select"]["option"]
     idx = [i for i, o in enumerate(opciones)
@@ -213,14 +213,14 @@ def test_paso78_la_habilidad_se_usa_antes_de_cualquier_cierre_de_turno():
 
 
 # ---------------------------------------------------------------------------
-# Generalizacion sintetica: el ORDEN pedido sigue vivo
+# A synthetic generalisation: the requested ORDER is still alive
 # ---------------------------------------------------------------------------
 
 def _escenario(mano, con_ataque=True):
-    """Tablero del paso 78 reconstruido con el StateBuilder, mano parametrica.
+    """The board of step 78 rebuilt with the StateBuilder, with a parametric hand.
 
-    Se anade a mano la opcion ABILITY del Fezandipiti ex de banca (slot 4), que
-    `menu_mano` no emite, justo antes de los cierres de turno.
+    The ABILITY option of the benched Fezandipiti ex (slot 4) is added by hand, which
+    `menu_mano` does not emit, right before the turn-closing options.
     """
     esc = (Escenario(turno=6, paso=78, tac=7)
            .mi_activo(pk(OGERPON, energias=[G, G, G]))
@@ -244,8 +244,8 @@ def _escenario(mano, con_ataque=True):
 
 
 def _con_ko_previo(obs):
-    """El paso 78 llega despues de que nos noquearan: replica el estado de
-    seguimiento que deja `ko_last_turn` encendido."""
+    """Step 78 comes after we were knocked out: it replicates the tracking
+    state that leaves `ko_last_turn` switched on."""
     m.ko_last_turn = True
     m._ko_detected_this_turn = True
     m._prev_op_prize = 6
@@ -253,17 +253,17 @@ def _con_ko_previo(obs):
 
 
 def test_sintetico_sin_bloqueador_usa_la_habilidad():
-    """Caso (a) en su forma mas simple: sin Lillie's ni Stamp en la mano la
-    habilidad se cobra antes de atacar."""
+    """Case (a) in its simplest form: with no Lillie's or Stamp in hand the
+    ability is cashed in before attacking."""
     obs = _con_ko_previo(_escenario([BOSS]))
     assert ("ABILITY", FEZ) in _jugadas(obs)
     assert _jugada(obs, m.agent(obs)) == ("ABILITY", FEZ)
 
 
 def test_sintetico_unfair_stamp_jugable_manda_primero():
-    """El orden pedido NO se rompe: con Unfair Stamp jugable y otra jugada viva
-    (Boss's) el Stamp va primero y la habilidad espera al menu siguiente -- si
-    no, el Stamp barajaria de vuelta las 3 cartas robadas."""
+    """The requested order is NOT broken: with a playable Unfair Stamp and another live play
+    (Boss's) the Stamp goes first and the ability waits for the next menu -- if
+    not, the Stamp would shuffle the 3 drawn cards back."""
     obs = _con_ko_previo(_escenario([STAMP, BOSS]))
     jugadas = _jugadas(obs)
     assert ("PLAY", STAMP) in jugadas, jugadas
@@ -272,8 +272,8 @@ def test_sintetico_unfair_stamp_jugable_manda_primero():
 
 
 def test_sintetico_lillie_jugable_manda_primero():
-    """Mismo orden con el otro bloqueador: Lillie's Determination antes que la
-    habilidad cuando Lillie's SI es jugable."""
+    """The same order with the other blocker: Lillie's Determination before the
+    ability when Lillie's IS playable."""
     obs = _con_ko_previo(_escenario([LILLIE]))
     jugadas = _jugadas(obs)
     assert ("PLAY", LILLIE) in jugadas, jugadas
@@ -281,8 +281,8 @@ def test_sintetico_lillie_jugable_manda_primero():
 
 
 def test_sintetico_deck_out_sigue_vetando_la_habilidad():
-    """El freno de deck-out es un veto de VALOR, no de ORDEN: la revocacion no
-    lo levanta ni con la mano sin bloqueadores."""
+    """The deck-out brake is a VALUE veto, not an ORDER one: the revocation does not
+    lift it even with a hand free of blockers."""
     esc = (Escenario(turno=6, paso=78, tac=7)
            .mi_activo(pk(OGERPON, energias=[G, G, G]))
            .mi_banca(pk(FEZ, aparecio=True))

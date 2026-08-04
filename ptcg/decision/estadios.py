@@ -1,8 +1,8 @@
-"""Estadios: Forest of Vitality y Grand Tree.
+"""Stadiums: Forest of Vitality and Grand Tree.
 
-Extraido VERBATIM de main.py por utils/extraer_definiciones.py
-(docs/main-refactor-arquitectura.md). Su pureza esta comprobada por
-utils/pureza.py: nada de aqui toca el estado mutable ni las tablas de runtime.
+Extracted VERBATIM from main.py by utils/extraer_definiciones.py
+(docs/project-history.md). Its purity is verified by
+utils/pureza.py: nothing here touches mutable state or the runtime tables.
 """
 
 from ptcg.estado.agente import ESTADO
@@ -15,18 +15,18 @@ from ptcg.estado.claves import ESTADO_MAZO
 
 
 class _GrandTreePlan(NamedTuple):
-    """Una ejecucion concreta de la habilidad de Grand Tree."""
-    area: int          # AreaType del Basico a evolucionar (ACTIVE / BENCH)
-    index: int         # indice dentro de esa area
-    serial: int        # serial del Basico (identidad estable entre llamadas)
+    """One concrete execution of the Grand Tree ability."""
+    area: int          # AreaType of the Basic to evolve (ACTIVE / BENCH)
+    index: int         # index inside that area
+    serial: int        # serial of the Basic (stable identity between calls)
     basic_id: int
     stage1_id: int
-    stage2_id: int     # 0 = la cadena se detiene EXPRESAMENTE en Fase 1
+    stage2_id: int     # 0 = the chain stops EXPRESSLY at Stage 1
     valor: int
 
 
 def _gt_slots_propios(my_state):
-    """`(area, index, pokemon)` de todos nuestros Pokemon en juego."""
+    """`(area, index, pokemon)` of every Pokemon of ours in play."""
     salida = []
     activo = (my_state.active[0]
               if getattr(my_state, 'active', None) else None)
@@ -39,9 +39,9 @@ def _gt_slots_propios(my_state):
 
 
 def _gt_valor_cuerpo(card_id):
-    """Valor deck-agnostico del cuerpo que deja una evolucion: PV (termino
-    dominante) + bono por tener Habilidad. No se usa el dano impreso porque los
-    ataques que escalan (Syrup Storm, Do the Wave) lo declaran como 0."""
+    """Deck-agnostic value of the body an evolution leaves behind: HP (dominant
+    term) + a bonus for having an Ability. Printed damage is not used because
+    the attacks that scale (Syrup Storm, Do the Wave) declare it as 0."""
     data = card_table.get(card_id)
     if data is None:
         return 0
@@ -52,8 +52,8 @@ def _gt_valor_cuerpo(card_id):
 
 
 def _gt_premios_de(card_id):
-    """Premios que entrega esa carta al ser noqueada (sin tools ni denegacion:
-    aqui solo se usa para comparar Basico vs evolucion)."""
+    """Prizes that card hands over when knocked out (without tools or denial:
+    here it is only used to compare Basic vs evolution)."""
     data = card_table.get(card_id)
     if data is None:
         return 1
@@ -61,8 +61,8 @@ def _gt_premios_de(card_id):
 
 
 def _fv_cadena_evolutiva(c):
-    """Jugar Forest habilita evolucionar ESTE turno alguna linea presente
-    (o bajable desde la mano encadenando basico+evolucion)."""
+    """Playing Forest enables evolving some line present THIS turn (or one that
+    can be put down from hand by chaining basic+evolution)."""
     h, f = c.hand_counts, c.field_counts
     meg_fetchable = (
         c.cartas_en_mazo.get(Meganium, {}).get(ESTADO_MAZO, 0) > 0 and

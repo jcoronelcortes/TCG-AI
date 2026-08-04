@@ -1,8 +1,8 @@
-"""Creencia sobre el mazo: escaneo inicial, movimiento de zona y premios.
+"""Belief about the deck: initial scan, zone movement and prizes.
 
-Extraido VERBATIM de main.py por utils/extraer_definiciones.py
-(docs/main-refactor-arquitectura.md). Su pureza esta comprobada por
-utils/pureza.py: nada de aqui toca el estado mutable ni las tablas de runtime.
+Extracted VERBATIM from main.py by utils/extraer_definiciones.py
+(docs/project-history.md). Its purity is verified by
+utils/pureza.py: nothing here touches mutable state or the runtime tables.
 """
 
 from collections import defaultdict
@@ -45,22 +45,22 @@ def _first_turn_scan(my_state):
 
 
 def _identify_prizes(obs, my_state=None):
-    # Se recalcula en CADA revelacion COMPLETA del mazo. La vista del mazo
-    # durante una busqueda (Ultra Ball, Poke Pad, etc.) muestra en select.deck
-    # TODAS las cartas del mazo, por lo que es la verdad de referencia de lo que
-    # hay en MAZO ahora mismo. Cualquier copia propia que no este en el mazo (ni
-    # en mano/juego/descarte) esta en los premios. Al no usar un cerrojo de una
-    # sola vez, el conocimiento de premios se corrige solo y se mantiene al dia.
+    # Recomputed on EVERY COMPLETE reveal of the deck. The deck view during a
+    # search (Ultra Ball, Poke Pad, etc.) shows ALL the cards of the deck in
+    # select.deck, so it is the reference truth of what is in the DECK right now.
+    # Any of our copies that is not in the deck (nor in hand/play/discard) is in
+    # the prizes. Since there is no one-shot lock, prize knowledge corrects itself
+    # and stays up to date.
     if obs.select is None or obs.select.deck is None:
         return
     if obs.select.effect is None:
         return
-    # Ultra Ball SIEMPRE revela el mazo entero -> reconciliar directo.
-    # Para otros efectos (Poke Pad, etc.) solo reconciliar si es una revelacion
-    # del mazo COMPLETO: hay efectos que muestran solo una parte ("mira las 7 de
-    # arriba", p.ej. Bug Catching Set) y en esos casos len(select.deck) < deckCount;
-    # reconciliar con una vista parcial marcaria como PREMIADAS cartas que si estan
-    # en el mazo. Por eso exigimos len(select.deck) == deckCount.
+    # Ultra Ball ALWAYS reveals the whole deck -> reconcile directly.
+    # For other effects (Poke Pad, etc.) only reconcile if it is a reveal of the
+    # COMPLETE deck: some effects show only a part ("look at the top 7", e.g. Bug
+    # Catching Set) and in those cases len(select.deck) < deckCount; reconciling
+    # with a partial view would mark as PRIZED cards that really are in the deck.
+    # That is why we require len(select.deck) == deckCount.
     if obs.select.effect.id != Ultra_Ball:
         deck_count = getattr(my_state, 'deckCount', None) if my_state is not None else None
         if deck_count is None or len(obs.select.deck) != deck_count:
@@ -155,22 +155,22 @@ def _first_turn_scan(my_state):
 
 
 def _identify_prizes(obs, my_state=None):
-    # Se recalcula en CADA revelacion COMPLETA del mazo. La vista del mazo
-    # durante una busqueda (Ultra Ball, Poke Pad, etc.) muestra en select.deck
-    # TODAS las cartas del mazo, por lo que es la verdad de referencia de lo que
-    # hay en MAZO ahora mismo. Cualquier copia propia que no este en el mazo (ni
-    # en mano/juego/descarte) esta en los premios. Al no usar un cerrojo de una
-    # sola vez, el conocimiento de premios se corrige solo y se mantiene al dia.
+    # Recomputed on EVERY COMPLETE reveal of the deck. The deck view during a
+    # search (Ultra Ball, Poke Pad, etc.) shows ALL the cards of the deck in
+    # select.deck, so it is the reference truth of what is in the DECK right now.
+    # Any of our copies that is not in the deck (nor in hand/play/discard) is in
+    # the prizes. Since there is no one-shot lock, prize knowledge corrects itself
+    # and stays up to date.
     if obs.select is None or obs.select.deck is None:
         return
     if obs.select.effect is None:
         return
-    # Ultra Ball SIEMPRE revela el mazo entero -> reconciliar directo.
-    # Para otros efectos (Poke Pad, etc.) solo reconciliar si es una revelacion
-    # del mazo COMPLETO: hay efectos que muestran solo una parte ("mira las 7 de
-    # arriba", p.ej. Bug Catching Set) y en esos casos len(select.deck) < deckCount;
-    # reconciliar con una vista parcial marcaria como PREMIADAS cartas que si estan
-    # en el mazo. Por eso exigimos len(select.deck) == deckCount.
+    # Ultra Ball ALWAYS reveals the whole deck -> reconcile directly.
+    # For other effects (Poke Pad, etc.) only reconcile if it is a reveal of the
+    # COMPLETE deck: some effects show only a part ("look at the top 7", e.g. Bug
+    # Catching Set) and in those cases len(select.deck) < deckCount; reconciling
+    # with a partial view would mark as PRIZED cards that really are in the deck.
+    # That is why we require len(select.deck) == deckCount.
     if obs.select.effect.id != Ultra_Ball:
         deck_count = getattr(my_state, 'deckCount', None) if my_state is not None else None
         if deck_count is None or len(obs.select.deck) != deck_count:

@@ -1,43 +1,43 @@
-"""En un turno MUERTO, la recuperacion trae el motor de ROBO, no desarrollo.
+"""On a DEAD turn, the recovery brings the DRAW engine, not development.
 
-Escenario (user, episodio 88704504, registro_008 pasos 66-67, turno 8 vs
-Alakazam, PERDIDA):
+Scenario (user, episode 88704504, registro_008 steps 66-67, turn 8 vs
+Alakazam, LOST):
 
-    NOSOTROS                                    RIVAL
-    activo  Teal Mask Ogerpon ex 210/210 0 {G}  activo  Alakazam 140/140 1 {G}
-    banca   Dipplin 80  0 {G}                   banca   Fezandipiti ex 210,
+    US                                          RIVAL
+    active  Teal Mask Ogerpon ex 210/210 0 {G}  active  Alakazam 140/140 1 {G}
+    bench   Dipplin 80  0 {G}                   bench   Fezandipiti ex 210,
             Bayleef 110 0 {G}                           Alakazam 140, Kadabra 80
-    mano    Night Stretcher            <- UNA carta
-    descarte  Meowth ex (recien noqueado), Meganium, 3 Plantas basicas...
+    hand    Night Stretcher            <- ONE card
+    discard  Meowth ex (just knocked out), Meganium, 3 basic Grass...
 
-Se jugo la Night Stretcher y se recupero el **Meganium**. Nada de eso se podia
-jugar: el Bayleef estaba a 0 energias, asi que el Meganium no atacaba ni ese
-turno ni el siguiente, y el turno acabo con **0 cartas en mano** y sin ningun
-cuerpo capaz de atacar. El rival noqueaba al activo en su turno.
+The Night Stretcher was played and the **Meganium** was recovered. None of that could be
+played: the Bayleef was at 0 energies, so the Meganium attacked neither that
+turn nor the next, and the turn ended with **0 cards in hand** and without any
+body able to attack. The rival knocked out the active on their turn.
 
-La carta que habia que recuperar era el **Meowth ex** que acababan de
-noquearnos: bajarlo dispara Last-Ditch Catch -> busca un Supporter del mazo
-(Lillie's Determination) -> se juega -> la mano entera se rehace. Un turno
-muerto en ataque no se arregla con desarrollo; se arregla con cartas.
+The card to recover was the **Meowth ex** they had just knocked out:
+playing it fires Last-Ditch Catch -> it searches the deck for a Supporter
+(Lillie's Determination) -> it is played -> the whole hand is remade. A dead turn
+in attack terms is not fixed with development; it is fixed with cards.
 
-Por que fallaba: la tabla `ns->meganium` daba 990 (`bayleef_evolucionable`, que
-solo mira que haya un Bayleef en juego sin evolucionar) y la de `ns->meowth`
-como mucho 800 (`fetch_supporter_del_mazo`, acotada a `min(700, valor del mejor
-Supporter del mazo)`). El desarrollo ganaba SIEMPRE.
+Why it failed: the `ns->meganium` table gave 990 (`bayleef_evolucionable`, which
+only looks at whether there is an unevolved Bayleef in play) and `ns->meowth`'s
+gave 800 at most (`fetch_supporter_del_mazo`, capped at `min(700, the value of the best
+Supporter in the deck)`). Development ALWAYS won.
 
-Arreglo (deck-agnostico): `_sin_ataque_hoy` mide con `ATTACK_ENERGY_REQ` si
-algun cuerpo llega a atacar hoy -- el activo tal cual, un atacante de banca al
-que el activo pueda subir pagando su retirada, o cualquiera de los dos con UNA
-energia mas si queda ruta de carga abierta. Si nadie llega y la mano queda seca
-(<= 2 cartas), la regla `motor_de_robo_turno_muerto` pone al Meowth ex en 1250
-y al Fezandipiti ex en 1200, por encima de todo el desarrollo (990 + 200 del
-bonus por ultima copia = 1190) y por debajo de la energia que produce un ataque
-HOY (1300/1400), que nunca coexiste con un turno muerto.
+Fix (deck-agnostic): `_sin_ataque_hoy` measures with `ATTACK_ENERGY_REQ` whether
+some body gets to attack today -- the active as it stands, a bench attacker
+the active can bring up by paying its retreat, or either of the two with ONE
+energy more if a charging route is still open. If nobody gets there and the hand runs dry
+(<= 2 cards), the rule `motor_de_robo_turno_muerto` puts Meowth ex at 1250
+and Fezandipiti ex at 1200, above all the development (990 + 200 from the
+last-copy bonus = 1190) and below the energy that produces an attack
+TODAY (1300/1400), which never coexists with a dead turn.
 
-Orden entre los dos motores: primero Meowth ex (rehace la mano ENTERA via
-Lillie's), despues Fezandipiti ex, y este ultimo SOLO si nos noquearon un
-Pokemon en el turno anterior -- sin KO no hay Flip the Script y el cuerpo de 2
-premios es un regalo.
+The order between the two engines: first Meowth ex (it remakes the WHOLE hand via
+Lillie's), then Fezandipiti ex, and the latter ONLY if one of our Pokemon was knocked out
+on the previous turn -- with no KO there is no Flip the Script and a 2-prize
+body is a gift.
 """
 
 import copy
@@ -96,7 +96,7 @@ def _observaciones():
 
 
 def _carta_del_descarte(obs, eleccion):
-    """Devuelve el id de la carta del DESCARTE que elige el agente."""
+    """Returns the id of the DISCARD card the agent picks."""
     o = obs["select"]["option"][eleccion[0]]
     assert o["type"] == int(m.OptionType.CARD), o
     yo = obs["current"]["yourIndex"]
@@ -104,7 +104,7 @@ def _carta_del_descarte(obs, eleccion):
 
 
 def _reproducir(obs_list):
-    """Reproduce el turno EN ORDEN; devuelve la eleccion del ultimo menu."""
+    """Replays the turn IN ORDER; returns the choice of the last menu."""
     eleccion = None
     for o in obs_list:
         eleccion = m.agent(o)
@@ -112,7 +112,7 @@ def _reproducir(obs_list):
 
 
 # ---------------------------------------------------------------------------
-# 1. El turno real
+# 1. The real turn
 # ---------------------------------------------------------------------------
 
 def test_paso67_la_night_stretcher_recupera_el_meowth_no_el_meganium():
@@ -122,7 +122,7 @@ def test_paso67_la_night_stretcher_recupera_el_meowth_no_el_meganium():
 
 
 def test_el_menu_ofrecia_de_verdad_las_dos_cartas():
-    """Sin Meowth ex Y Meganium en el descarte el test no discrimina nada."""
+    """Without Meowth ex AND Meganium in the discard the test discriminates nothing."""
     obs = _observaciones()[-1]
     yo = obs["current"]["yourIndex"]
     descarte = obs["current"]["players"][yo]["discard"]
@@ -134,8 +134,8 @@ def test_el_menu_ofrecia_de_verdad_las_dos_cartas():
 
 
 def test_el_paso66_si_juega_la_night_stretcher():
-    """La cadena empieza jugando la carta: si el paso 66 terminara el turno,
-    el paso 67 nunca existiria."""
+    """The chain starts by playing the card: if step 66 ended the turn,
+    step 67 would never exist."""
     obs = _observaciones()[0]
     o = obs["select"]["option"][m.agent(obs)[0]]
     assert o["type"] == int(m.OptionType.PLAY), o
@@ -144,14 +144,14 @@ def test_el_paso66_si_juega_la_night_stretcher():
 
 
 # ---------------------------------------------------------------------------
-# 2. El detector de turno muerto, aislado
+# 2. The dead-turn detector, in isolation
 # ---------------------------------------------------------------------------
 
 def test_el_turno_esta_muerto_en_ataque():
-    """Ogerpon ex pide 3 de energia efectiva y tiene 0; Teal Dance solo pone 1.
-    Dipplin (1) y Bayleef (2) estan a 0 y el activo no paga su retirada."""
+    """Ogerpon ex asks for 3 effective energy and has 0; Teal Dance only puts 1.
+    Dipplin (1) and Bayleef (2) are at 0 and the active does not pay its retreat."""
     obs_list = _observaciones()
-    m.agent(obs_list[0])                      # calienta el estado del turno
+    m.agent(obs_list[0])                      # it warms up the turn state
     obs = m.to_observation_class(obs_list[-1])
     yo = obs.current.yourIndex
     my_state = obs.current.players[yo]
@@ -163,9 +163,9 @@ def test_el_turno_esta_muerto_en_ataque():
 
 
 def test_una_energia_en_el_bayleef_resucita_el_turno():
-    """El detector no es "no hay atacante": es "nadie llega HOY". Con el
-    Bayleef a 1 energia efectiva, UNA Planta mas lo pone a 2 = su coste, asi
-    que el turno ya NO esta muerto (aunque siga sin poder subirlo)."""
+    """The detector is not "there is no attacker": it is "nobody gets there TODAY". With the
+    Bayleef at 1 effective energy, ONE more Grass puts it at 2 = its cost, so
+    the turn is NO longer dead (even if it still cannot be brought up)."""
     obs_list = _observaciones()
     m.agent(obs_list[0])
     obs = m.to_observation_class(obs_list[-1])
@@ -175,8 +175,8 @@ def test_una_energia_en_el_bayleef_resucita_el_turno():
     for p in list(my_state.active or []) + list(my_state.bench or []):
         if p is not None:
             field[p.id] = field.get(p.id, 0) + 1
-    # El activo paga su retirada (para poder SUBIR al de banca) y el Bayleef
-    # queda a una energia de atacar.
+    # The active pays its retreat (so it can BRING UP the bench one) and the Bayleef
+    # is left one energy away from attacking.
     activo = my_state.active[0]
     activo.energies = [5] * m.RETREAT_COST.get(activo.id, 1)
     for b in my_state.bench:
@@ -186,12 +186,12 @@ def test_una_energia_en_el_bayleef_resucita_el_turno():
 
 
 # ---------------------------------------------------------------------------
-# 3. Lo que NO se rompe
+# 3. What is NOT broken
 # ---------------------------------------------------------------------------
 
 def test_con_lillie_ya_en_la_mano_el_motor_no_dispara():
-    """Meowth ex vale por el Supporter que busca. Si el Supporter YA esta en la
-    mano no hay nada que buscar y la recuperacion vuelve al desarrollo."""
+    """Meowth ex is worth the Supporter it searches for. If the Supporter is ALREADY in
+    hand there is nothing to search for and the recovery goes back to development."""
     obs_list = _observaciones()
     m.agent(obs_list[0])
     fetch = obs_list[-1]
@@ -203,8 +203,8 @@ def test_con_lillie_ya_en_la_mano_el_motor_no_dispara():
 
 
 def test_con_el_supporter_del_turno_ya_jugado_el_motor_no_dispara():
-    """Sin hueco de Supporter, la Last-Ditch trae una carta injugable: el
-    motor no produce nada y el desarrollo recupera la prioridad."""
+    """With no Supporter slot, the Last-Ditch brings an unplayable card: the
+    engine produces nothing and development recovers the priority."""
     obs_list = _observaciones()
     m.agent(obs_list[0])
     fetch = obs_list[-1]
@@ -213,7 +213,7 @@ def test_con_el_supporter_del_turno_ya_jugado_el_motor_no_dispara():
 
 
 def test_con_la_banca_llena_el_motor_no_dispara():
-    """El Meowth ex recuperado hay que poder BAJARLO este turno."""
+    """The recovered Meowth ex has to be PLAYABLE this turn."""
     obs_list = _observaciones()
     m.agent(obs_list[0])
     fetch = obs_list[-1]

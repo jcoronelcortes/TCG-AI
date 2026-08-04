@@ -1,55 +1,55 @@
-"""MATCH POINT contra el ACTIVO rival: el rematador esta en la BANCA.
+"""MATCH POINT against the rival ACTIVE: the finisher is on the BENCH.
 
-Escenario (user, episodio 89104831, registro_010 paso 144 vs Marnie's
-Grimmsnarl ex, PERDIDA):
+Scenario (user, episode 89104831, registro_010 step 144 vs Marnie's
+Grimmsnarl ex, LOST):
 
-    NOSOTROS (asiento 1)                    RIVAL (Marnie's Grimmsnarl)
-    activo  Fezandipiti ex 20/210 (2 ef.)   activo  Marnie's Grimmsnarl ex
-    banca   Meowth ex 130, Meowth ex 160,           310/320, 3 energias {D}
-            Teal Mask Ogerpon ex 200 (4e),  banca   2x Munkidori 100,
+    US (seat 1)                             RIVAL (Marnie's Grimmsnarl)
+    active  Fezandipiti ex 20/210 (2 eff.)  active  Marnie's Grimmsnarl ex
+    bench   Meowth ex 130, Meowth ex 160,           310/320, 3 {D} energies
+            Teal Mask Ogerpon ex 200 (4e),  bench   2x Munkidori 100,
             Meganium 150, Ogerpon ex 200            Froslass 90, Impidimp 70
-    mano    Xerosic, Chikorita, Dipplin,
+    hand    Xerosic, Chikorita, Dipplin,
             Hydrapple ex, Meganium, Boss's
-    premios 2 - 1   (a nosotros nos faltan DOS)
+    prizes  2 - 1   (we are TWO short)
 
-El menu ofrecia exactamente cuatro cosas: Xerosic, Boss's Orders, RETIRAR y
-END. Habia mate en el tablero:
+The menu offered exactly four things: Xerosic, Boss's Orders, RETREAT and
+END. There was mate on the board:
 
-    RETIRAR Fezandipiti (coste 1, y lleva energia) -> promover el Teal Mask
-    Ogerpon ex de 4 energias -> Myriad Leaf Shower.
+    RETREAT Fezandipiti (cost 1, and it carries energy) -> promote the Teal Mask
+    Ogerpon ex with 4 energies -> Myriad Leaf Shower.
 
-Myriad Leaf Shower hace 30 + 30 por cada Energia unida a AMBOS activos
-(ver [[ogerpon-myriad-cuenta-ambos-activos]]): 30 + 30 x (4 nuestras + 3 del
-Grimmsnarl) = 240, y el Grimmsnarl ex tiene DEBILIDAD Planta -> 240 x 2 =
-**480 >= 310**. Es un Pokemon ex: **2 premios**, justo los 2 que faltaban.
-Partida ganada en el sitio.
+Myriad Leaf Shower does 30 + 30 for each Energy attached to BOTH actives
+(see [[ogerpon-myriad-cuenta-ambos-activos]]): 30 + 30 x (4 ours + 3 of the
+Grimmsnarl) = 240, and the Grimmsnarl ex has a Grass WEAKNESS -> 240 x 2 =
+**480 >= 310**. It is a Pokemon ex: **2 prizes**, exactly the 2 that were missing.
+The game won on the spot.
 
-El agente jugo Boss's Orders, gusteo una Froslass (1 premio), la noqueo y
-cerro el turno a 1 premio. El rival remato en el suyo.
+The agent played Boss's Orders, gusted a Froslass (1 prize), knocked it out and
+closed the turn at 1 prize. The rival finished us off on theirs.
 
-EL BUG: EL ACTIVO RIVAL ERA INVISIBLE
+THE BUG: THE RIVAL ACTIVE WAS INVISIBLE
+---------------------------------------
+Every reading of "can I knock out the rival ACTIVE?" was done with the
+Pokemon that is in the active spot TODAY -- `_boss_dmg_to` -> `_bo_can_ko_active`,
+and `_bpr_active_can_ko` inside `_boss_prize_rank`. With the Fezandipiti
+stuck (2 effective, its attack asks for 3) that gives 0 damage, hence
+`_bo_active_prize = 0`: the 2-prize Grimmsnarl ex counted as ZERO
+prizes and any 1-prize bench body beat it. Boss's scored
+5200 (`gusteo_por_prize_rank`) against the retreat's 3500.
+
+The asymmetry is the failure, not the number: for BENCH targets that same
+block DOES look through the retreat (`_bench_attacker_can_ko`, both in
+`_boss_prize_rank` and in `_bo_win_via_bench`); for the ACTIVE, never.
+
+THE FIX: `_win_ko_active_via_promote`
 -------------------------------------
-Todas las lecturas de "¿puedo noquear al ACTIVO rival?" se hacian con el
-Pokemon que esta HOY en el activo -- `_boss_dmg_to` -> `_bo_can_ko_active`,
-y `_bpr_active_can_ko` dentro de `_boss_prize_rank`. Con el Fezandipiti
-atascado (2 efectivas, su ataque pide 3) eso da 0 dano, luego
-`_bo_active_prize = 0`: el Grimmsnarl ex de 2 premios contaba como CERO
-premios y cualquier cuerpo de banca de 1 premio le ganaba. Boss's puntuaba
-5200 (`gusteo_por_prize_rank`) contra los 3500 de la retirada.
-
-La asimetria es el fallo, no el numero: para los objetivos de BANCA ese mismo
-bloque SI mira a traves de la retirada (`_bench_attacker_can_ko`, tanto en
-`_boss_prize_rank` como en `_bo_win_via_bench`); para el ACTIVO, nunca.
-
-EL ARREGLO: `_win_ko_active_via_promote`
-----------------------------------------
-Cierra la simetria en el unico caso que no admite discusion -- cuando ese KO
-GANA la partida (`prize_count_op(activo rival) >= my_prize`), la retirada es
-pagable y el rematador esta en la BANCA (si el activo ACTUAL ya noquea, la
-via es atacar, no retirar). Ganar es VETO, mismo criterio que
-PROMO_MATCH_POINT_VETO: el Boss's se veta, `_boss_prize_rank` se anula y la
-retirada sube a 9600 con `_TIER_WIN_ATTACK` para que ninguna carga de energia
-la adelante por ORDEN.
+It closes the symmetry in the one case that admits no argument -- when that KO
+WINS the game (`prize_count_op(rival active) >= my_prize`), the retreat is
+payable and the finisher is on the BENCH (if the CURRENT active already knocks out,
+the route is to attack, not to retreat). Winning is a VETO, the same criterion as
+PROMO_MATCH_POINT_VETO: the Boss's is vetoed, `_boss_prize_rank` is cancelled and the
+retreat rises to 9600 with `_TIER_WIN_ATTACK` so that no energy charge
+overtakes it by ORDER.
 """
 
 import copy
@@ -85,8 +85,8 @@ def reset_main_state():
     m.ko_last_turn = False
     m._ko_detected_this_turn = False
     m._prev_op_prize = 6
-    # Globals de matchup/mesa: sin resetearlos, el orden de la suite decide que
-    # Supporter gana entre los NO vetados y la frontera se vuelve fragil.
+    # Matchup/table globals: without resetting them, the suite's order decides which
+    # Supporter wins among the NON-vetoed ones and the boundary becomes fragile.
     m.meganium_in_play = False
     m.forest_in_play = False
     m.we_go_first = False
@@ -120,7 +120,7 @@ def _idx_play_boss(obs):
 
 
 # ---------------------------------------------------------------------------
-# El tablero: que el mate existia de verdad, medido con los evaluadores del motor
+# The board: that the mate really existed, measured with the engine's evaluators
 # ---------------------------------------------------------------------------
 
 def test_el_mate_existia_ogerpon_de_banca_noquea_al_grimmsnarl():
@@ -133,7 +133,7 @@ def test_el_mate_existia_ogerpon_de_banca_noquea_al_grimmsnarl():
     assert opa.id == GRIMMSNARL and opa.hp == 310
     assert m.prize_count_op(opa) == 2, "el Grimmsnarl ex vale 2 premios"
 
-    # La retirada era pagable: coste 1 y el Fezandipiti llevaba energia.
+    # The retreat was payable: cost 1 and the Fezandipiti carried energy.
     act = yo.active[0]
     assert len(act.energies) >= m.RETREAT_COST.get(act.id, 1)
 
@@ -148,26 +148,26 @@ def test_el_mate_existia_ogerpon_de_banca_noquea_al_grimmsnarl():
                                    grass_scale=total_grass,
                                    teal_self_energy=len(ogerpon.energies),
                                    bench_count=len(yo.bench))
-    # 30 + 30 x (4 nuestras + 3 suyas) = 240 ... y x2 por debilidad Planta.
+    # 30 + 30 x (4 ours + 3 theirs) = 240 ... and x2 for the Grass weakness.
     assert base == 240, base
     efectivo = m._our_effective_damage(ogerpon, opa, base, m.meganium_in_play)
     assert efectivo == 480, efectivo
     assert efectivo >= opa.hp, "el KO al activo rival GANA la partida"
 
-    # Ninguna gustada de la banca rival cobra los 2 premios que faltan.
+    # No gust from the rival bench takes the 2 prizes that are missing.
     assert all(m.prize_count_op(b) == 1
                for b in rival.bench if b is not None)
 
 
 # ---------------------------------------------------------------------------
-# La decision: RETIRAR, no Boss's Orders
+# The decision: RETREAT, not Boss's Orders
 # ---------------------------------------------------------------------------
 
 def test_retira_en_vez_de_gustear():
     fx = _fixture()
     previa, decision = fx["observacion_previa"], fx["observation"]
 
-    # El menu real ofrecia las dos: jugar el Boss's y RETIRAR.
+    # The real menu offered both: playing the Boss's and RETREATING.
     i_boss = _idx_play_boss(decision)
     i_retreat = _idx_de_tipo(decision, m.OptionType.RETREAT)
     assert i_boss >= 0 and i_retreat >= 0, _tipos(decision)
@@ -181,7 +181,7 @@ def test_retira_en_vez_de_gustear():
 
 
 def test_la_linea_completa_cierra_la_partida():
-    """Tras retirar: promover el Ogerpon cargado y atacar al Grimmsnarl."""
+    """After retreating: promote the charged Ogerpon and attack the Grimmsnarl."""
     fx = _fixture()
 
     promo = fx["contrafactual_promocion"]
@@ -198,14 +198,14 @@ def test_la_linea_completa_cierra_la_partida():
 
 
 # ---------------------------------------------------------------------------
-# La FRONTERA: la regla solo manda cuando el KO GANA la partida
+# The BOUNDARY: the rule only rules when the KO WINS the game
 # ---------------------------------------------------------------------------
 
 def test_la_regla_no_depende_del_atacante_concreto():
-    """El mismo tablero con un Tapu Bulu cargado (no-ex, otro ataque) en vez del
-    Ogerpon: Wood Hammer 220 x2 por debilidad = 440 >= 310. Sigue siendo mate,
-    asi que sigue mandando la retirada. La bandera se apoya en
-    `_bench_attacker_can_ko`, que es generica."""
+    """The same board with a charged Tapu Bulu (non-ex, another attack) instead of the
+    Ogerpon: Wood Hammer 220 x2 for the weakness = 440 >= 310. It is still mate,
+    so the retreat still rules. The flag leans on
+    `_bench_attacker_can_ko`, which is generic."""
     fx = _fixture()
     decision = copy.deepcopy(fx["observation"])
     for p in decision["current"]["players"][1]["bench"]:
@@ -222,8 +222,8 @@ def test_la_regla_no_depende_del_atacante_concreto():
 
 
 def test_sin_rematador_en_banca_no_dispara():
-    """FRONTERA: si ningun cuerpo de banca noquea al activo rival, retirar no
-    cierra nada y el Boss's vuelve a ser la jugada."""
+    """BOUNDARY: if no bench body knocks out the rival active, retreating closes
+    nothing and the Boss's is the play again."""
     fx = _fixture()
     decision = copy.deepcopy(fx["observation"])
     for p in decision["current"]["players"][1]["bench"]:
@@ -234,15 +234,15 @@ def test_sin_rematador_en_banca_no_dispara():
 
     m.agent(fx["observacion_previa"])
     eleccion = m.agent(decision)
-    # El contrato de la regla es "cerrar la partida retirando". Sin rematador no
-    # cierra nada, asi que no debe secuestrar el turno; cual de los Supporters
-    # NO vetados gana despues lo deciden otros scorers.
+    # The rule's contract is "close out the game by retreating". With no finisher it closes
+    # nothing, so it must not hijack the turn; which of the NON-vetoed
+    # Supporters wins afterwards is decided by other scorers.
     assert eleccion != [_idx_de_tipo(decision, m.OptionType.RETREAT)], eleccion
 
 
 def test_sin_match_point_el_gusteo_sigue_vivo():
-    """Con TRES premios pendientes, el KO al activo (2 premios) ya no cierra la
-    partida: el veto no dispara y Boss's Orders vuelve a ser jugable."""
+    """With THREE prizes left, the KO on the active (2 prizes) no longer closes
+    the game: the veto does not fire and Boss's Orders is playable again."""
     fx = _fixture()
     decision = copy.deepcopy(fx["observation"])
     decision["current"]["players"][1]["prize"] = [None, None, None]

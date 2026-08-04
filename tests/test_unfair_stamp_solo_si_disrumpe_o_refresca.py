@@ -1,44 +1,44 @@
-"""Unfair Stamp: solo se juega si DISRUMPE o si el REFRESCO sale barato.
+"""Unfair Stamp: it is only played if it DISRUPTS or if the REFRESH comes cheap.
 
-Escenario (`registros/registro_006_pasos_085_hasta_108.json`, episodio 89215128,
-paso 99, turno 6 vs Marnie's Grimmsnarl, GANADA):
+Scenario (`registros/registro_006_pasos_085_hasta_108.json`, episode 89215128,
+step 99, turn 6 vs Marnie's Grimmsnarl, WON):
 
-    NOSOTROS                                  RIVAL
-    activo  Hydrapple ex 260/330              activo  Marnie's Morgrem
-    banca   Ogerpon ex, Meowth ex,            mano    **1 carta**
+    US                                        RIVAL
+    active  Hydrapple ex 260/330              active  Marnie's Morgrem
+    bench   Ogerpon ex, Meowth ex,            hand    **1 card**
             Dipplin, Fezandipiti ex,
             Ogerpon ex
-    mano    **Unfair Stamp**, Meganium,
-            Bayleef, Ultra Ball, Planta       (5 cartas contando el Sello)
+    hand    **Unfair Stamp**, Meganium,
+            Bayleef, Ultra Ball, Grass        (5 cards counting the Stamp)
 
-El Sello es un ACE SPEC (Item) con un texto simetrico y caro:
+The Stamp is an ACE SPEC (Item) with a symmetric and expensive text:
 
     "Each player shuffles their hand into their deck. Then, you draw 5 cards
      and your opponent draws 2 cards."
 
-De ahi que solo tenga DOS formas de pagar, y la regla (user, agosto 2026) exige
-que se cumpla al menos una:
+Hence it has only TWO ways of paying off, and the rule (user, August 2026) requires
+at least one of them to hold:
 
-  (1) **DISRUPCION** -- existe unicamente si al rival le QUITA cartas. Como lo
-      deja exactamente en 2, con la mano rival <= 2 no le quita nada; en este
-      paso el rival tenia **1** carta y el Sello le REGALO una.
-  (2) **REFRESCO** -- robamos 5, pero antes barajamos TODA nuestra mano. Sale a
-      cuenta mientras lo que se sacrifica (la mano SIN el propio Sello) sea
-      <= 4 cartas. En el paso 99 se sacrificaban 4 -> el Sello **si** se juega,
-      y de hecho el registro lo juega ahi (y gana la partida).
+  (1) **DISRUPTION** -- it exists only if it TAKES cards away from the rival. Since it
+      leaves them at exactly 2, with a rival hand <= 2 it takes nothing away; in this
+      step the rival had **1** card and the Stamp GAVE them one.
+  (2) **REFRESH** -- we draw 5, but first we shuffle our WHOLE hand. It is
+      worth it as long as what is sacrificed (the hand WITHOUT the Stamp itself) is
+      <= 4 cards. In step 99 four were sacrificed -> the Stamp **is** played,
+      and in fact the record plays it there (and wins the game).
 
-La regla es de CARTA, no de matchup: el Sello se comporta igual contra
-cualquier mazo, asi que no lleva ninguna whitelist. En el propio registro se ve
-el patron que ahora queda escrito: con la mano a 10, 9, 8, 7 y 6 cartas el Sello
-NO debia jugarse (rival con 1 carta y demasiada mano propia que quemar); en
-cuanto la mano baja a 5 jugando items, la clausula (2) se cumple y se juega.
+The rule belongs to the CARD, not to the matchup: the Stamp behaves the same against
+any deck, so it carries no whitelist. In the record itself you can see
+the pattern that is now written down: with the hand at 10, 9, 8, 7 and 6 cards the Stamp
+should NOT be played (a rival with 1 card and too much of our own hand to burn); as
+soon as the hand drops to 5 by playing items, clause (2) holds and it is played.
 
-Efecto colateral que habia que cerrar: media docena de vetos de ORDEN le ceden
-el turno al Sello (Boss's, Lillie's, Lana's, Dawn, Xerosic, la cadena
-Meowth ex -> Last-Ditch Catch y la habilidad de Fezandipiti). Si el Sello se
-veta y esos vetos siguen mirando solo "nos noquearon + sigue en mano", el turno
-se PARALIZA: se cede el paso a una carta que ya no se va a jugar. Por eso todos
-comparten ahora el mismo predicado, `_stamp_pendiente`.
+A side effect that had to be closed: half a dozen ORDER vetoes yield
+the turn to the Stamp (Boss's, Lillie's, Lana's, Dawn, Xerosic, the
+Meowth ex -> Last-Ditch Catch chain and Fezandipiti's ability). If the Stamp is
+vetoed and those vetoes go on looking only at "we were knocked out + it is still in hand", the turn
+is PARALYSED: the way is yielded to a card that is no longer going to be played. That is why they all
+now share the same predicate, `_stamp_pendiente`.
 """
 
 import copy
@@ -99,12 +99,12 @@ def _cargar():
 
 
 def _decision(mano_extra=0, op_hand=None):
-    """Corre la decision real del paso 99 y devuelve (eleccion, score del Sello).
+    """Runs the real decision of step 99 and returns (choice, the Stamp's score).
 
-    `mano_extra` engorda NUESTRA mano con Energias Planta muertas (la energia
-    del turno ya esta adjuntada): son exactamente las cartas que el Sello
-    barajaria al mazo. Se anaden al FINAL para no descolocar los `index` de las
-    opciones PLAY del menu.
+    `mano_extra` fattens OUR hand with dead Grass Energies (the turn's energy
+    is already attached): they are exactly the cards the Stamp would shuffle
+    into the deck. They are added at the END so as not to shift the `index` of the
+    menu's PLAY options.
     """
     previa, dec = _cargar()
     yo = dec["current"]["yourIndex"]
@@ -125,7 +125,7 @@ def _decision(mano_extra=0, op_hand=None):
 
     _rest_score_unfair_stamp_play = instalar("_score_unfair_stamp_play", espia)
     try:
-        m.agent(previa)                     # trae la ventana del KO rival
+        m.agent(previa)                     # it brings the rival KO window
         eleccion = m.agent(dec)
     finally:
         _rest_score_unfair_stamp_play()
@@ -133,7 +133,7 @@ def _decision(mano_extra=0, op_hand=None):
 
 
 def _juega_el_sello(obs_eleccion):
-    """La opcion 0 del menu del paso 99 es PLAY del Unfair Stamp."""
+    """Option 0 of the step 99 menu is PLAY of the Unfair Stamp."""
     return obs_eleccion == [0]
 
 
@@ -145,7 +145,7 @@ def _ctx(op_hand, mano, stamp=1, ko=True):
 
 
 # ---------------------------------------------------------------------------
-# 1. El registro: mano de 5 (se sacrifican 4) -> el Sello SE JUEGA
+# 1. The record: a hand of 5 (4 are sacrificed) -> the Stamp IS PLAYED
 # ---------------------------------------------------------------------------
 
 def test_el_menu_ofrecia_el_sello_y_el_rival_tenia_una_carta():
@@ -166,11 +166,11 @@ def test_refresco_barato_el_sello_se_juega_como_en_el_registro():
 
 
 # ---------------------------------------------------------------------------
-# 2. La conducta nueva: sin disrupcion y con la mano grande, el Sello ESPERA
+# 2. The new behaviour: with no disruption and a big hand, the Stamp WAITS
 # ---------------------------------------------------------------------------
 
 def test_sin_disrupcion_y_con_mano_grande_el_sello_se_veta():
-    eleccion, score = _decision(mano_extra=1)      # se sacrificarian 5
+    eleccion, score = _decision(mano_extra=1)      # 5 would be sacrificed
     assert score <= 0, score
     assert not _juega_el_sello(eleccion), (
         "con el rival a 1 carta el Sello no disrumpe, y barajar 5 cartas "
@@ -178,37 +178,37 @@ def test_sin_disrupcion_y_con_mano_grande_el_sello_se_veta():
 
 
 def test_con_la_mano_rival_larga_el_sello_vuelve_aunque_sacrifiquemos_mucho():
-    """La clausula (1) es independiente: si DISRUMPE, da igual la mano propia."""
+    """Clause (1) is independent: if it DISRUPTS, our own hand does not matter."""
     eleccion, score = _decision(mano_extra=4, op_hand=m.STAMP_MIN_OP_HAND)
     assert score > 0, score
     assert _juega_el_sello(eleccion), eleccion
 
 
 # ---------------------------------------------------------------------------
-# 3. Los dos bordes exactos
+# 3. The two exact edges
 # ---------------------------------------------------------------------------
 
 def test_borde_de_la_mano_propia():
-    """Sacrificar 4 pasa; sacrificar 5 ya no (mano = sacrificio + el Sello)."""
+    """Sacrificing 4 passes; sacrificing 5 no longer does (hand = sacrifice + the Stamp)."""
     assert m._sello_merece_jugarse(1, m.STAMP_MAX_HAND_SACRIFICADA + 1)
     assert not m._sello_merece_jugarse(1, m.STAMP_MAX_HAND_SACRIFICADA + 2)
 
 
 def test_borde_de_la_mano_rival():
-    """El Sello deja al rival en 2: con 2 no le quita nada, con 3 le quita 1."""
+    """The Stamp leaves the rival at 2: with 2 it takes nothing, with 3 it takes 1."""
     mano_grande = m.STAMP_MAX_HAND_SACRIFICADA + 5
     assert not m._sello_merece_jugarse(m.STAMP_MIN_OP_HAND - 1, mano_grande)
     assert m._sello_merece_jugarse(m.STAMP_MIN_OP_HAND, mano_grande)
 
 
 def test_sin_datos_no_inventa_jugadas():
-    """La regla solo RESTA: sin `op_hand_count` a mano se comporta como antes."""
+    """The rule only SUBTRACTS: without `op_hand_count` at hand it behaves as before."""
     assert m._sello_merece_jugarse(None, 99)
     assert m._sello_merece_jugarse(99, None)
 
 
 # ---------------------------------------------------------------------------
-# 4. Es regla de CARTA: mismo veto contra cualquier mazo
+# 4. It is a CARD rule: the same veto against any deck
 # ---------------------------------------------------------------------------
 
 @pytest.mark.parametrize("matchup", ["op_is_alakazam_deck",
@@ -217,8 +217,8 @@ def test_sin_datos_no_inventa_jugadas():
                                      "op_is_zoroark_deck",
                                      "op_is_aggro_deck"])
 def test_el_veto_no_lo_resucita_ningun_bonus_de_matchup(matchup):
-    """`_AJUSTES_STAMP_PLAY` bonifica jugadas que se van a hacer (+250..+400 por
-    matchup); ninguna debe sacar el veto (-1) a numeros positivos."""
+    """`_AJUSTES_STAMP_PLAY` bonuses plays that are going to be made (+250..+400 by
+    matchup); none of them must pull the veto (-1) up to positive numbers."""
     ctx = _ctx(op_hand=1, mano=m.STAMP_MAX_HAND_SACRIFICADA + 2)
     for campo in ("op_is_alakazam_deck", "op_is_control_deck",
                   "op_is_slowking_deck", "op_is_gardevoir_deck",
@@ -234,12 +234,12 @@ def test_el_veto_no_lo_resucita_ningun_bonus_de_matchup(matchup):
 
 
 # ---------------------------------------------------------------------------
-# 5. Un Sello vetado NO paraliza el turno
+# 5. A vetoed Stamp does NOT paralyse the turn
 # ---------------------------------------------------------------------------
 
 def test_el_sello_vetado_deja_de_bloquear_los_supporters():
-    """`_stamp_pendiente` es la fuente unica de los vetos de orden (Boss's,
-    Lillie's, Lana's, Dawn, Xerosic, cadena Meowth y Flip the Script)."""
+    """`_stamp_pendiente` is the single source of the order vetoes (Boss's,
+    Lillie's, Lana's, Dawn, Xerosic, the Meowth chain and Flip the Script)."""
     espera = _ctx(op_hand=1, mano=m.STAMP_MAX_HAND_SACRIFICADA + 2)
     assert not m._stamp_pendiente(espera)
 

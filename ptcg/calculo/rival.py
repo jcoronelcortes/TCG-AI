@@ -1,8 +1,8 @@
-"""Lectura del rival: deficit de ataque, cuerpos inofensivos y mano.
+"""Reading the opponent: attack deficit, harmless bodies and hand.
 
-Extraido VERBATIM de main.py por utils/extraer_definiciones.py
-(docs/main-refactor-arquitectura.md). Su pureza esta comprobada por
-utils/pureza.py: nada de aqui toca el estado mutable ni las tablas de runtime.
+Extracted VERBATIM from main.py by utils/extraer_definiciones.py
+(docs/project-history.md). Its purity is verified by
+utils/pureza.py: nothing here touches mutable state or the runtime tables.
 """
 
 from ptcg.cartas.ids import ALAKAZAM_ATTACKER_IDS, CRUSTLE_LINE_IDS, DUNSPARCE_IDS
@@ -10,23 +10,23 @@ from ptcg.cartas.tablas import attack_table, card_table
 
 
 def _alakazam_relevo_de_atacante(op_state):
-    """vs Alakazam: ¿el gusteo RELEVA a su atacante en vez de regalarselo?
+    """vs Alakazam: does the gust RELIEVE their attacker instead of handing it over?
 
-    Abra -> Kadabra -> Alakazam es la UNICA linea atacante del mazo, asi que
-    subir con Boss's Orders cualquiera de esos cuerpos ADELANTA su plan: el
-    rival evoluciona y ataca con el cuerpo que le pusimos delante (user,
-    registro_002 paso 20 vs Alakazam, PERDIDA -- se le subio un Abra teniendo
-    ellos el Kadabra en la mano). Ademas Boss's es una RETIRADA GRATIS que les
-    regalamos: su activo se va a la banca sin pagar coste.
+    Abra -> Kadabra -> Alakazam is the deck's ONLY attacking line, so bringing
+    up any of those bodies with Boss's Orders ADVANCES their plan: the opponent
+    evolves and attacks with the body we put in front of us (user, registro_002
+    step 20 vs Alakazam, LOST -- an Abra was brought up while they held the
+    Kadabra in hand). On top of that, Boss's is a FREE RETREAT we give them:
+    their active goes to the bench without paying a cost.
 
-    El unico gusteo SIN KO que rinde en este matchup es el inverso: su atacante
-    (Kadabra/Alakazam) ya esta de ACTIVO y CON energia, y lo mandamos a la banca
-    cambiandolo por un cuerpo que no ataca -- un Abra pelado o cualquier cuerpo
-    fuera de la linea (p.ej. su Fezandipiti ex). La energia invertida se queda
-    parada en la banca y para volver tienen que pagar la retirada.
+    The only gust WITHOUT a KO that pays off in this matchup is the reverse:
+    their attacker (Kadabra/Alakazam) is already ACTIVE and CHARGED, and we send
+    it to the bench swapping it for a body that does not attack -- a bare Abra or
+    any body outside the line (e.g. their Fezandipiti ex). The invested energy
+    is left stranded on the bench and to come back they have to pay the retreat.
 
-    Dunsparce nunca cuenta como relevo: es objetivo PROHIBIDO de gusteo
-    (`DUNSPARCE_IDS`, regla del user).
+    Dunsparce never counts as relief: it is a FORBIDDEN gust target
+    (`DUNSPARCE_IDS`, user's rule).
     """
     act = op_state.active[0] if op_state.active else None
     if act is None or act.id not in ALAKAZAM_ATTACKER_IDS:
@@ -37,34 +37,35 @@ def _alakazam_relevo_de_atacante(op_state):
         if _b is None or _b.id in DUNSPARCE_IDS:
             continue
         if _b.id in ALAKAZAM_ATTACKER_IDS:
-            continue        # cambiar un atacante por otro no releva nada
+            continue        # swapping one attacker for another relieves nothing
         return True
     return False
 
 
 def _op_deficit_de_ataque(pkmn):
-    """Energias que le FALTAN a `pkmn` (rival) para poder ATACAR: el coste de
-    su ataque mas barato menos las energias que ya tiene (0 si ya puede).
+    """Energies `pkmn` (opponent) is MISSING in order to ATTACK: the cost of
+    its cheapest attack minus the energies it already has (0 if it already can).
 
-    Es el TERCER numero que decide un gusteo sin KO, junto a las energias
-    adjuntas y al coste de retirada (regla del user, registro_006 paso 65 vs
-    Dragapult). Los otros dos no bastan: el Dragapult ex y el Drakloak pelados
-    EMPATAN en ambos (0 energias, retirada 1) y son objetivos opuestos --
-    Dragapult ex ataca con 1 energia, Drakloak necesita 2.
+    This is the THIRD number that decides a gust without a KO, alongside the
+    attached energies and the retreat cost (user's rule, registro_006 step 65 vs
+    Dragapult). The other two are not enough: a bare Dragapult ex and a bare
+    Drakloak TIE on both (0 energies, retreat 1) and are opposite targets --
+    Dragapult ex attacks with 1 energy, Drakloak needs 2.
 
-    Se mide por COSTE y nunca por dano: el dano IMPRESO miente en este entorno
-    -- Powerful Hand (Alakazam), Cruel Arrow (Fezandipiti ex) y los dos ataques
-    de Gardevoir ex figuran con 0 en `attack_table` y todos hacen dano real.
+    It is measured by COST and never by damage: PRINTED damage lies in this
+    environment -- Powerful Hand (Alakazam), Cruel Arrow (Fezandipiti ex) and
+    both attacks of Gardevoir ex are listed as 0 in `attack_table` and all of
+    them deal real damage.
 
-    Deck-agnostico: lee los costes del dato de carta (`card_table` -> ids de
-    ataque -> `attack_table`), no de la tabla curada de NUESTRO mazo. Devuelve
-    None cuando no se puede saber (carta sin ataques legibles): no se concluye
-    nada por sospecha.
+    Deck-agnostic: it reads the costs from the card data (`card_table` -> attack
+    ids -> `attack_table`), not from OUR deck's curated table. It returns None
+    when it cannot be known (a card with no readable attacks): nothing is
+    concluded on suspicion.
 
-    `energies` con getattr: el objetivo del gusteo llega de `get_card()` y el
-    resto del constructor del contexto ya lo trata como opcional
-    (`len(card.energies) if hasattr(card, 'energies') else 0`). Una excepcion
-    aqui seria un forfeit de la partida entera.
+    `energies` via getattr: the gust target arrives from `get_card()` and the
+    rest of the context constructor already treats it as optional
+    (`len(card.energies) if hasattr(card, 'energies') else 0`). An exception
+    here would be a forfeit of the whole game.
     """
     if pkmn is None:
         return None
@@ -83,25 +84,26 @@ def _op_deficit_de_ataque(pkmn):
 
 
 def _op_cuerpo_inofensivo(pkmn):
-    """`pkmn` (rival) NO puede atacar en su proximo turno NI adjuntandole una
-    energia: TODOS sus ataques cuestan mas de `energias + 1`.
+    """`pkmn` (opponent) CANNOT attack on its next turn EVEN by attaching one
+    energy: ALL of its attacks cost more than `energies + 1`.
 
-    Es el UMBRAL de `_op_deficit_de_ataque` (deficit >= 2): con deficit 1 el
-    adjunte del turno rival ya le paga el ataque. Devuelve False cuando el
-    deficit no se puede saber -- no se concluye "inofensivo" por sospecha -- y
-    tambien con un ataque de coste 0, que puede usar hoy mismo.
+    This is the THRESHOLD of `_op_deficit_de_ataque` (deficit >= 2): with a
+    deficit of 1 the opponent's attachment for the turn already pays for the
+    attack. It returns False when the deficit cannot be known -- "harmless" is
+    never concluded on suspicion -- and also with a zero-cost attack, which they
+    can use this very turn.
     """
     _deficit = _op_deficit_de_ataque(pkmn)
     return _deficit is not None and _deficit >= 2
 
 
 def _op_activo_inofensivo(op_state):
-    """`_op_cuerpo_inofensivo` aplicado al ACTIVO rival."""
+    """`_op_cuerpo_inofensivo` applied to the opposing ACTIVE."""
     return _op_cuerpo_inofensivo(op_state.active[0] if op_state.active else None)
 
 
 def _op_juega_crustle(op_state):
-    """¿Hay linea Crustle EN EL TABLERO rival (activo o banca)?"""
+    """Is there a Crustle line ON the opposing BOARD (active or bench)?"""
     if op_state is None:
         return False
     for _cr_pk in list(op_state.active or []) + list(op_state.bench or []):
@@ -129,23 +131,23 @@ def _op_disruption_belief(op_state, op_supporter_played):
 
 
 def _alakazam_relevo_de_atacante(op_state):
-    """vs Alakazam: ¿el gusteo RELEVA a su atacante en vez de regalarselo?
+    """vs Alakazam: does the gust RELIEVE their attacker instead of handing it over?
 
-    Abra -> Kadabra -> Alakazam es la UNICA linea atacante del mazo, asi que
-    subir con Boss's Orders cualquiera de esos cuerpos ADELANTA su plan: el
-    rival evoluciona y ataca con el cuerpo que le pusimos delante (user,
-    registro_002 paso 20 vs Alakazam, PERDIDA -- se le subio un Abra teniendo
-    ellos el Kadabra en la mano). Ademas Boss's es una RETIRADA GRATIS que les
-    regalamos: su activo se va a la banca sin pagar coste.
+    Abra -> Kadabra -> Alakazam is the deck's ONLY attacking line, so bringing
+    up any of those bodies with Boss's Orders ADVANCES their plan: the opponent
+    evolves and attacks with the body we put in front of us (user, registro_002
+    step 20 vs Alakazam, LOST -- an Abra was brought up while they held the
+    Kadabra in hand). On top of that, Boss's is a FREE RETREAT we give them:
+    their active goes to the bench without paying a cost.
 
-    El unico gusteo SIN KO que rinde en este matchup es el inverso: su atacante
-    (Kadabra/Alakazam) ya esta de ACTIVO y CON energia, y lo mandamos a la banca
-    cambiandolo por un cuerpo que no ataca -- un Abra pelado o cualquier cuerpo
-    fuera de la linea (p.ej. su Fezandipiti ex). La energia invertida se queda
-    parada en la banca y para volver tienen que pagar la retirada.
+    The only gust WITHOUT a KO that pays off in this matchup is the reverse:
+    their attacker (Kadabra/Alakazam) is already ACTIVE and CHARGED, and we send
+    it to the bench swapping it for a body that does not attack -- a bare Abra or
+    any body outside the line (e.g. their Fezandipiti ex). The invested energy
+    is left stranded on the bench and to come back they have to pay the retreat.
 
-    Dunsparce nunca cuenta como relevo: es objetivo PROHIBIDO de gusteo
-    (`DUNSPARCE_IDS`, regla del user).
+    Dunsparce never counts as relief: it is a FORBIDDEN gust target
+    (`DUNSPARCE_IDS`, user's rule).
     """
     act = op_state.active[0] if op_state.active else None
     if act is None or act.id not in ALAKAZAM_ATTACKER_IDS:
@@ -156,34 +158,35 @@ def _alakazam_relevo_de_atacante(op_state):
         if _b is None or _b.id in DUNSPARCE_IDS:
             continue
         if _b.id in ALAKAZAM_ATTACKER_IDS:
-            continue        # cambiar un atacante por otro no releva nada
+            continue        # swapping one attacker for another relieves nothing
         return True
     return False
 
 
 def _op_deficit_de_ataque(pkmn):
-    """Energias que le FALTAN a `pkmn` (rival) para poder ATACAR: el coste de
-    su ataque mas barato menos las energias que ya tiene (0 si ya puede).
+    """Energies `pkmn` (opponent) is MISSING in order to ATTACK: the cost of
+    its cheapest attack minus the energies it already has (0 if it already can).
 
-    Es el TERCER numero que decide un gusteo sin KO, junto a las energias
-    adjuntas y al coste de retirada (regla del user, registro_006 paso 65 vs
-    Dragapult). Los otros dos no bastan: el Dragapult ex y el Drakloak pelados
-    EMPATAN en ambos (0 energias, retirada 1) y son objetivos opuestos --
-    Dragapult ex ataca con 1 energia, Drakloak necesita 2.
+    This is the THIRD number that decides a gust without a KO, alongside the
+    attached energies and the retreat cost (user's rule, registro_006 step 65 vs
+    Dragapult). The other two are not enough: a bare Dragapult ex and a bare
+    Drakloak TIE on both (0 energies, retreat 1) and are opposite targets --
+    Dragapult ex attacks with 1 energy, Drakloak needs 2.
 
-    Se mide por COSTE y nunca por dano: el dano IMPRESO miente en este entorno
-    -- Powerful Hand (Alakazam), Cruel Arrow (Fezandipiti ex) y los dos ataques
-    de Gardevoir ex figuran con 0 en `attack_table` y todos hacen dano real.
+    It is measured by COST and never by damage: PRINTED damage lies in this
+    environment -- Powerful Hand (Alakazam), Cruel Arrow (Fezandipiti ex) and
+    both attacks of Gardevoir ex are listed as 0 in `attack_table` and all of
+    them deal real damage.
 
-    Deck-agnostico: lee los costes del dato de carta (`card_table` -> ids de
-    ataque -> `attack_table`), no de la tabla curada de NUESTRO mazo. Devuelve
-    None cuando no se puede saber (carta sin ataques legibles): no se concluye
-    nada por sospecha.
+    Deck-agnostic: it reads the costs from the card data (`card_table` -> attack
+    ids -> `attack_table`), not from OUR deck's curated table. It returns None
+    when it cannot be known (a card with no readable attacks): nothing is
+    concluded on suspicion.
 
-    `energies` con getattr: el objetivo del gusteo llega de `get_card()` y el
-    resto del constructor del contexto ya lo trata como opcional
-    (`len(card.energies) if hasattr(card, 'energies') else 0`). Una excepcion
-    aqui seria un forfeit de la partida entera.
+    `energies` via getattr: the gust target arrives from `get_card()` and the
+    rest of the context constructor already treats it as optional
+    (`len(card.energies) if hasattr(card, 'energies') else 0`). An exception
+    here would be a forfeit of the whole game.
     """
     if pkmn is None:
         return None
@@ -202,25 +205,26 @@ def _op_deficit_de_ataque(pkmn):
 
 
 def _op_cuerpo_inofensivo(pkmn):
-    """`pkmn` (rival) NO puede atacar en su proximo turno NI adjuntandole una
-    energia: TODOS sus ataques cuestan mas de `energias + 1`.
+    """`pkmn` (opponent) CANNOT attack on its next turn EVEN by attaching one
+    energy: ALL of its attacks cost more than `energies + 1`.
 
-    Es el UMBRAL de `_op_deficit_de_ataque` (deficit >= 2): con deficit 1 el
-    adjunte del turno rival ya le paga el ataque. Devuelve False cuando el
-    deficit no se puede saber -- no se concluye "inofensivo" por sospecha -- y
-    tambien con un ataque de coste 0, que puede usar hoy mismo.
+    This is the THRESHOLD of `_op_deficit_de_ataque` (deficit >= 2): with a
+    deficit of 1 the opponent's attachment for the turn already pays for the
+    attack. It returns False when the deficit cannot be known -- "harmless" is
+    never concluded on suspicion -- and also with a zero-cost attack, which they
+    can use this very turn.
     """
     _deficit = _op_deficit_de_ataque(pkmn)
     return _deficit is not None and _deficit >= 2
 
 
 def _op_activo_inofensivo(op_state):
-    """`_op_cuerpo_inofensivo` aplicado al ACTIVO rival."""
+    """`_op_cuerpo_inofensivo` applied to the opposing ACTIVE."""
     return _op_cuerpo_inofensivo(op_state.active[0] if op_state.active else None)
 
 
 def _op_juega_crustle(op_state):
-    """¿Hay linea Crustle EN EL TABLERO rival (activo o banca)?"""
+    """Is there a Crustle line ON the opposing BOARD (active or bench)?"""
     if op_state is None:
         return False
     for _cr_pk in list(op_state.active or []) + list(op_state.bench or []):

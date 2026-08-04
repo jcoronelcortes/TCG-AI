@@ -1,32 +1,32 @@
-"""Humo de la submission: que el paquete FUNCIONE en el contenedor de Kaggle.
+"""Submission smoke test: that the package WORKS in the Kaggle container.
 
-Este archivo cubre el unico hueco que el resto de la suite NO puede ver. Bajo
-pytest, `main` es un modulo importado normalmente y la raiz del proyecto esta en
-`sys.path` de forma permanente; en el contenedor no pasa ninguna de las dos
-cosas. `kaggle_environments.agent.get_last_callable` COMPILA main.py y lo
-ejecuta con `exec` en un dict vacio, con el directorio del agente en `sys.path`
-SOLO durante ese exec, y se queda con el ULTIMO callable del namespace.
+This file covers the only gap the rest of the suite canNOT see. Under
+pytest, `main` is a normally imported module and the project root is in
+`sys.path` permanently; in the container neither of those two things
+happens. `kaggle_environments.agent.get_last_callable` COMPILES main.py and
+executes it with `exec` in an empty dict, with the agent's directory in `sys.path`
+ONLY during that exec, and keeps the LAST callable of the namespace.
 
-De ahi los tres modos de fallo que se verifican aqui (docs/main-refactor-arquitectura.md, I1):
+Hence the three failure modes verified here (docs/project-history.md, I1):
 
-  I1a  un paquete propio importado por primera vez en tiempo de DECISION
-       -> ModuleNotFoundError en mitad de la partida.
-  I1b  cualquier cosa que ligue un callable nuevo DESPUES de `def agent`
-       (incluido un re-export de compatibilidad, y ojo: una clase tambien es
-       callable) -> el contenedor toma ESA como agente. Silencioso y letal.
-  I1c  `main.py` nunca entra en sys.modules -> ningun submodulo puede hacer
+  I1a  one of our own packages imported for the first time at DECISION time
+       -> ModuleNotFoundError in the middle of the game.
+  I1b  anything that binds a new callable AFTER `def agent`
+       (including a compatibility re-export, and note: a class is
+       callable too) -> the container takes THAT as the agent. Silent and lethal.
+  I1c  `main.py` never enters sys.modules -> no submodule can do
        `import main`.
 
-`kaggle_environments` NO se anade a requirements-dev.txt: el agente no depende de
-nada externo y esa restriccion del proyecto se mantiene. El cargador se copia
-VERBATIM en `tests/kaggle_loader.py`; si Kaggle lo cambiara, ese es el unico
-sitio que hay que actualizar.
+`kaggle_environments` is NOT added to requirements-dev.txt: the agent depends on
+nothing external and that project constraint is kept. The loader is copied
+VERBATIM into `tests/kaggle_loader.py`; if Kaggle changed it, that is the only
+place that has to be updated.
 
-POR QUE SUBPROCESOS: `cg/sim.py` llama a `lib.GameInitialize()` al importarse, y
-hacerlo dos veces en el mismo proceso ABORTA el interprete -- asi que no se puede
-descargar `cg` de sys.modules para recargarlo desde la copia empaquetada. Ademas,
-si `ptcg` ya estuviese importado por otro test, el fallo I1a no se reproduciria.
-Un interprete limpio por caso resuelve las dos cosas.
+WHY SUBPROCESSES: `cg/sim.py` calls `lib.GameInitialize()` when imported, and
+doing that twice in the same process ABORTS the interpreter -- so `cg` cannot be
+unloaded from sys.modules to reload it from the packaged copy. Besides,
+if `ptcg` were already imported by another test, failure I1a would not reproduce.
+A clean interpreter per case solves both things.
 """
 
 import json
@@ -47,13 +47,13 @@ import empaquetar_proyecto as ep  # noqa: E402
 FIXTURE = TESTS_DIR / "fixtures" / "alakazam_boss_before_ub_step64.json"
 
 
-# Runner que se ejecuta en un interprete LIMPIO: carga el agente como lo hace el
-# contenedor y escribe el resultado en JSON.
+# A runner that executes in a CLEAN interpreter: it loads the agent the way the
+# container does and writes the result as JSON.
 #
-# Importa `kaggle_loader` y NO este modulo: test_submission.py mete la raiz del
-# proyecto en sys.path para alcanzar utils/, y eso haria que un paquete propio
-# importado tarde SI se resolviese en el subproceso -- enmascarando justo el
-# fallo I1a que este archivo existe para detectar.
+# It imports `kaggle_loader` and NOT this module: test_submission.py puts the project
+# root into sys.path to reach utils/, and that would make one of our own packages
+# imported late DO resolve in the subprocess -- masking exactly the
+# I1a failure this file exists to detect.
 _RUNNER = """
 import json, os, sys
 sys.path.insert(0, {tests_dir!r})
@@ -87,7 +87,7 @@ with open(salida, "w") as f:
 
 
 def _cargar_en_subproceso(main_py, cwd_carga, cwd_decision, tmp_path, etiqueta):
-    """Carga `main_py` con el cargador de Kaggle en un interprete limpio."""
+    """Loads `main_py` with Kaggle's loader in a clean interpreter."""
     script = tmp_path / f"runner_{etiqueta}.py"
     script.write_text(_RUNNER.format(tests_dir=str(TESTS_DIR)))
     salida = tmp_path / f"salida_{etiqueta}.json"
@@ -105,15 +105,15 @@ def _cargar_en_subproceso(main_py, cwd_carga, cwd_decision, tmp_path, etiqueta):
 
 
 # ===========================================================================
-# I1b -- el punto de entrada
+# I1b -- the entry point
 # ===========================================================================
 def test_el_cargador_de_kaggle_se_queda_con_agent(tmp_path):
-    """El ULTIMO callable de main.py tiene que ser `agent`.
+    """The LAST callable of main.py has to be `agent`.
 
-    Si esto falla, algo liga un callable nuevo despues de `def agent` (un
-    re-export de compatibilidad al final del archivo es la causa tipica). El
-    contenedor tomaria ESA funcion como agente y la partida moriria con un
-    TypeError, sin que ningun otro test se entere.
+    If this fails, something binds a new callable after `def agent` (a
+    compatibility re-export at the end of the file is the typical cause). The
+    container would take THAT function as the agent and the game would die with a
+    TypeError, without any other test noticing.
     """
     r = _cargar_en_subproceso(ROOT / "main.py", ROOT, ROOT, tmp_path, "entrada")
     assert "error" not in r, r["error"]
@@ -124,11 +124,11 @@ def test_el_cargador_de_kaggle_se_queda_con_agent(tmp_path):
 
 
 def test_main_no_es_un_modulo_para_el_contenedor(tmp_path):
-    """I1c: tras el exec, `main` NO esta en sys.modules.
+    """I1c: after the exec, `main` is NOT in sys.modules.
 
-    Congela la razon por la que ningun submodulo de un paquete propio puede
-    hacer `import main` -- y por la que el estado global no puede quedarse en
-    main.py cuando se modularice (Ola 3).
+    It freezes the reason why no submodule of one of our packages can
+    do `import main` -- and why the global state cannot stay in
+    main.py once it is modularised (wave 3).
     """
     r = _cargar_en_subproceso(ROOT / "main.py", ROOT, ROOT, tmp_path, "modulo")
     assert "error" not in r, r["error"]
@@ -136,10 +136,10 @@ def test_main_no_es_un_modulo_para_el_contenedor(tmp_path):
 
 
 # ===========================================================================
-# empaquetado -- lo que main.py importa tiene que viajar
+# packaging -- what main.py imports has to travel
 # ===========================================================================
 def test_la_submission_incluye_los_paquetes_que_main_importa(tmp_path):
-    """Todo paquete local importado por main.py aparece en el tar."""
+    """Every local package imported by main.py appears in the tar."""
     destino = tmp_path / "submission.tar.gz"
     incluidos = ep.construir(destino=destino)
 
@@ -151,7 +151,7 @@ def test_la_submission_incluye_los_paquetes_que_main_importa(tmp_path):
         assert ruta.name in raices, (
             f"{ruta.name} lo importa main.py pero no viaja en la submission"
         )
-    # cg/ es el minimo historico; si desaparece, la deteccion se rompio
+    # cg/ is the historical minimum; if it disappears, the detection broke
     assert "cg" in raices
 
 
@@ -164,14 +164,14 @@ def test_la_submission_no_lleva_pycache(tmp_path):
 
 
 # ===========================================================================
-# I1a / I1c -- end-to-end: empaquetar, descomprimir y DECIDIR
+# I1a / I1c -- end-to-end: package, unpack and DECIDE
 # ===========================================================================
 def test_la_submission_empaquetada_decide_igual_que_el_arbol(tmp_path):
-    """Empaqueta, descomprime en un dir limpio, carga con el cargador real y
-    compara la decision con la del main.py del arbol de trabajo.
+    """It packages, unpacks into a clean dir, loads with the real loader and
+    compares the decision with that of the working tree's main.py.
 
-    Es la prueba que atrapa I1a (paquete propio no importable en tiempo de
-    decision): revienta aqui con ModuleNotFoundError y en ningun otro sitio.
+    It is the test that catches I1a (one of our packages not importable at
+    decision time): it blows up here with a ModuleNotFoundError and nowhere else.
     """
     destino = tmp_path / "submission.tar.gz"
     ep.construir(destino=destino)
@@ -181,12 +181,12 @@ def test_la_submission_empaquetada_decide_igual_que_el_arbol(tmp_path):
     with tarfile.open(destino) as tar:
         tar.extractall(agente_dir, filter="data")
 
-    # Referencia: el main.py del arbol.
+    # Reference: the tree's main.py.
     ref = _cargar_en_subproceso(ROOT / "main.py", ROOT, ROOT, tmp_path, "ref")
     assert "error" not in ref, ref["error"]
 
-    # Candidato: el de la submission; la DECISION se toma con el CWD fuera del
-    # directorio del agente, porque el contenedor no hace chdir.
+    # Candidate: the submission's; the DECISION is taken with the CWD outside the
+    # agent's directory, because the container does not chdir.
     cand = _cargar_en_subproceso(
         agente_dir / "main.py", agente_dir, tmp_path, tmp_path, "cand"
     )
@@ -200,14 +200,14 @@ def test_la_submission_empaquetada_decide_igual_que_el_arbol(tmp_path):
 
 
 # ===========================================================================
-# I3 -- la fachada: lo que la suite consume de `main` sigue existiendo
+# I3 -- the facade: what the suite consumes from `main` still exists
 # ===========================================================================
 def test_main_reexporta_lo_que_la_suite_consume():
-    """Todo `m.<algo>` que usan los tests tiene que seguir resolviendo.
+    """Every `m.<something>` the tests use has to keep resolving.
 
-    El refactor movio ~15.000 lineas a `ptcg/`, y `main.py` las reexporta. Este
-    test convierte una rotura de fachada en un fallo legible y localizado, en vez
-    de decenas de AttributeError repartidos por la suite.
+    The refactor moved ~15,000 lines to `ptcg/`, and `main.py` re-exports them. This
+    test turns a facade breakage into a readable, localised failure, instead
+    of dozens of AttributeErrors scattered across the suite.
     """
     import re
     import main as m
@@ -216,8 +216,8 @@ def test_main_reexporta_lo_que_la_suite_consume():
     patron = re.compile(r"\bm\.([A-Za-z_]\w*)")
     for ruta in (ROOT / "tests").glob("test_*.py"):
         texto = ruta.read_text(encoding="utf-8")
-        # Solo los archivos donde `m` ES el modulo: en otros `m` puede ser
-        # cualquier cosa (en este mismo archivo, un miembro del tar).
+        # Only the files where `m` IS the module: in others `m` can be
+        # anything (in this very file, a member of the tar).
         if "import main as m" not in texto:
             continue
         usados.update(patron.findall(texto))
@@ -227,11 +227,11 @@ def test_main_reexporta_lo_que_la_suite_consume():
 
 
 def test_agent_es_lo_ultimo_del_modulo():
-    """I1b, comprobado ademas de forma ESTATICA.
+    """I1b, also checked STATICALLY.
 
-    `tests/test_arquitectura.py` ya lo vigila con el linter y el humo de arriba
-    lo comprueba cargando de verdad; esto lo fija tambien sobre el arbol, que es
-    donde se ve el error al escribirlo.
+    `tests/test_arquitectura.py` already watches it with the linter and the smoke test above
+    checks it by really loading; this pins it over the tree as well, which is
+    where the error is seen as it is written.
     """
     import ast
     arbol = ast.parse((ROOT / "main.py").read_text(encoding="utf-8"))

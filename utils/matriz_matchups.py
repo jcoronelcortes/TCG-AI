@@ -1,51 +1,51 @@
-"""Matriz de matchups: winrate del agente contra CADA mazo rival.
+"""Matchup matrix: the agent's winrate against EACH opposing deck.
 
-Por defecto mide contra `deck/rivales_reales/` -- las listas REALES del
-leaderboard (utils/rivales_reales.py), con su peso de meta.
+By default it measures against `deck/rivales_reales/` -- the REAL leaderboard
+lists (utils/rivales_reales.py), with their meta weight.
 
-Los sinteticos de `deck/rivales/` siguen ahi pero YA NO son el default, y
-conviene saber por que: medido contra el top-300, **8 de sus 17 mazos son
-arquetipos que no existen en el meta** (Comfey, Iron Thorns, Jellicent, Raging
-Bolt, Cornerstone/Cubchoo, Hop's, Fuego Gouging, Comfey/Yveltal). Como la matriz
-pondera todos los mazos por igual salvo que se pase --pesos, ejecutarla contra
-esa carpeta gastaba casi la mitad del presupuesto de partidas en rivales
-imaginarios -- y un cambio que ganase ahi y perdiese contra Marnie parecia
-bueno. Se conservan porque siguen sirviendo para probar MECANICAS concretas
-(el lock de Iron Thorns, el mill de Comfey) que el meta actual no ofrece.
+The synthetic ones in `deck/rivales/` are still there but they are NO LONGER the default, and
+it is worth knowing why: measured against the top-300, **8 of its 17 decks are
+archetypes that do not exist in the meta** (Comfey, Iron Thorns, Jellicent, Raging
+Bolt, Cornerstone/Cubchoo, Hop's, Fire Gouging, Comfey/Yveltal). Since the matrix
+weights every deck equally unless --pesos is passed, running it against
+that folder spent almost half the game budget on imaginary
+opponents -- and a change that won there and lost against Marnie looked
+good. They are kept because they are still useful for testing specific MECHANICS
+(the Iron Thorns lock, the Comfey mill) that the current meta does not offer.
 
 
-Fase 8 de la arquitectura de mejora de estrategia. Recorre todos los CSV de la
-carpeta de rivales y juega N partidas contra el bot generico con cada uno,
-alternando asientos. Imprime la tabla ordenada del matchup mas debil al mas
-fuerte, con el intervalo de Wilson 95% y los forfeits.
+Phase 8 of the strategy improvement architecture. It walks every CSV in the
+opponents folder and plays N games against the generic bot with each of them,
+alternating seats. It prints the table sorted from the weakest matchup to the
+strongest, with the 95% Wilson interval and the forfeits.
 
-Con --base <ref-git> imprime ademas el DELTA por matchup contra esa version:
-detecta cuando una regla nueva mejora un matchup degradando otro (la clase de
-colision Cubchoo/Cornerstone). OJO con el ruido: con 200 partidas el delta
-oscila +-7 puntos; solo los deltas grandes y consistentes son senal.
+With --base <git-ref> it also prints the per-matchup DELTA against that version:
+it detects when a new rule improves one matchup while degrading another (the
+Cubchoo/Cornerstone collision class). CAREFUL with the noise: with 200 games the delta
+swings +-7 points; only large, consistent deltas are signal.
 
-Ese +-7 esta CONFIRMADO por medicion directa (ago 2026): en una corrida a 200
-partidas con --base, los 83 mazos que no podian verse afectados por el cambio
--- codigo behavioralmente identico en los dos brazos -- se movieron entre -6.5
-y +7.5 puntos. De ahi que el default de --partidas suba a 400 y que exista
---control-carta: el aviso estaba escrito desde el principio y aun asi es facil
-leer como senal un delta que cabe entero dentro del ruido.
+That +-7 is CONFIRMED by direct measurement (Aug 2026): in a run at 200
+games with --base, the 83 decks that could not be affected by the change
+-- behaviourally identical code in both arms -- moved between -6.5
+and +7.5 points. Hence the --partidas default rising to 400 and the existence of
+--control-carta: the warning was written from the start and even so it is easy
+to read as signal a delta that fits entirely inside the noise.
 
-Con --pesos (y el corpus de utils/rivales_reales.py) el resumen deja de ser una
-media simple: cada matchup pesa lo que ese arquetipo pesa en el meta real. Es la
-diferencia entre "gano a 8 de 17 mazos" y "gano el X% de las partidas que voy a
-jugar en ladder" -- con la media simple, un +10 contra un arquetipo que juega el
-1% del campo tapa un -1 contra el que juega el 41%.
+With --pesos (and the corpus of utils/rivales_reales.py) the summary stops being a
+simple average: each matchup weighs what that archetype weighs in the real meta. It is the
+difference between "I beat 8 of 17 decks" and "I win X% of the games I am going
+to play on ladder" -- with a simple average, a +10 against an archetype that is
+1% of the field hides a -1 against the one that is 41%.
 
-`--control-carta <id>` separa los mazos que llevan esa carta (los que el cambio
-PUEDE afectar) de los que no, y compara los deltas de ambos grupos. El grupo de
-control ejecuta codigo behavioralmente identico en los dos brazos, asi que su
-dispersion ES el ruido de esa misma corrida. Es la unica forma barata de saber
-si un delta es senal: medido aqui, a 200 partidas por matchup el control llega a
-moverse de -6.5 a +7.5 puntos, asi que un delta pequeno sin este desglose no
-significa nada.
+`--control-carta <id>` separates the decks that run that card (the ones the change
+CAN affect) from the ones that do not, and compares the deltas of both groups. The control
+group runs behaviourally identical code in both arms, so its
+dispersion IS the noise of that same run. It is the only cheap way to know
+whether a delta is signal: measured here, at 200 games per matchup the control gets
+to move from -6.5 to +7.5 points, so a small delta without this breakdown
+means nothing.
 
-Uso:
+Usage:
     python utils/matriz_matchups.py --partidas 400
     python utils/matriz_matchups.py --partidas 400 --base HEAD~1
     python utils/matriz_matchups.py --base HEAD~1 --control-carta 1266
@@ -68,11 +68,11 @@ from bot_rival import BotRival
 
 
 def es_mazo(ruta):
-    """¿El CSV es una lista de 60 ids y no otra cosa?
+    """Is the CSV a list of 60 ids and not something else?
 
-    El directorio de rivales contiene tambien `pesos.csv`, y podria contener
-    cualquier otro CSV auxiliar. Sin este filtro la matriz intenta leerlo como
-    mazo y revienta DESPUES de haber jugado todos los matchups buenos.
+    The opponents directory also contains `pesos.csv`, and it could contain
+    any other auxiliary CSV. Without this filter the matrix tries to read it as a
+    deck and blows up AFTER having played all the good matchups.
     """
     try:
         lineas = [x for x in ruta.read_text(encoding="utf-8-sig").split() if x.strip()]
@@ -84,11 +84,11 @@ def es_mazo(ruta):
 
 
 def cargar_pesos(directorio):
-    """Peso de meta por mazo, desde el pesos.csv de utils/rivales_reales.py.
+    """Meta weight per deck, from the pesos.csv of utils/rivales_reales.py.
 
-    Sin esto la matriz trata a todos los rivales por igual, que es lo que
-    hace que un cambio se apruebe por ganar contra arquetipos que casi nadie
-    juega. Devuelve {} si no hay pesos.csv.
+    Without this the matrix treats every opponent equally, which is what
+    makes a change get approved for winning against archetypes almost nobody
+    plays. It returns {} if there is no pesos.csv.
     """
     import csv
 
@@ -116,16 +116,16 @@ def _lleva_carta(ruta, card_id):
 
 
 def informe_control(filas, base_por_mazo, rutas, card_id):
-    """Separa AFECTADOS (mazos con la carta) de CONTROL y compara sus deltas.
+    """Separates the AFFECTED decks (those with the card) from the CONTROL and compares their deltas.
 
-    Es la unica forma barata de saber si un delta es senal: los mazos que NO
-    llevan la carta ejecutan codigo behavioralmente identico en los dos brazos,
-    asi que su dispersion ES el ruido de esa misma corrida -- sin necesidad de
-    correr una calibracion aparte.
+    It is the only cheap way to know whether a delta is signal: the decks that do NOT
+    run the card execute behaviourally identical code in both arms,
+    so their dispersion IS the noise of that same run -- with no need to
+    run a separate calibration.
 
-    Medido en esta sesion: a 200 partidas por matchup el grupo de control llega
-    a moverse de -6.5 a +7.5 puntos. Cualquier delta de los afectados que quepa
-    en ese rango no es senal.
+    Measured in this session: at 200 games per matchup the control group gets
+    to move from -6.5 to +7.5 points. Any delta of the affected decks that fits
+    in that range is not signal.
     """
     por_nombre = {r.stem: r for r in rutas}
     con, sin = [], []
@@ -162,11 +162,11 @@ def informe_control(filas, base_por_mazo, rutas, card_id):
 
 
 def winrate_ponderado(filas, pesos):
-    """(winrate esperado en ladder, cobertura de meta medida).
+    """(expected ladder winrate, measured meta coverage).
 
-    El winrate se normaliza sobre lo REALMENTE medido, y la cobertura se
-    devuelve aparte: un numero sobre el 60% del meta no es comparable con uno
-    sobre el 100%, y ocultarlo seria el error que esta metrica viene a corregir.
+    The winrate is normalised over what was ACTUALLY measured, and the coverage is
+    returned separately: a number over 60% of the meta is not comparable with one
+    over 100%, and hiding that would be the very error this metric exists to correct.
     """
     cobertura = sum(pesos.get(f["mazo"], 0.0) for f in filas)
     if cobertura <= 0:
@@ -233,8 +233,8 @@ def main(argv):
         print("sin mazos rivales que medir")
         return 1
 
-    # Los pesos se cargan ANTES de jugar: si faltan, el error debe salir ya y
-    # no despues de una hora de partidas.
+    # The weights are loaded BEFORE playing: if they are missing, the error must come out now and
+    # not after an hour of games.
     pesos = cargar_pesos(args.rivales) if args.pesos else {}
     if args.pesos and not pesos:
         print(f"ERROR: no hay pesos.csv en {args.rivales}. "
@@ -270,8 +270,8 @@ def main(argv):
             delta = f["wr"] - base_por_mazo[f["mazo"]]["wr"]
             linea += f"  delta={100 * delta:+.1f}"
             if pesos:
-                # Lo que ese delta mueve el winrate de ladder: un +10 contra un
-                # arquetipo del 1% vale 10 veces menos que un +1 contra el 41%.
+                # What that delta moves the ladder winrate by: a +10 against an
+                # archetype that is 1% is worth ten times less than a +1 against the one that is 41%.
                 linea += f" (pond {100 * delta * pesos.get(f['mazo'], 0.0):+.2f})"
             base_prem = base_por_mazo[f["mazo"]].get("dif_premios")
             if f["dif_premios"] is not None and base_prem is not None:
@@ -297,10 +297,10 @@ def main(argv):
               f"{100 * cobertura:.1f}% del meta cubierto")
         print(f"  sin pesar : {100 * media:5.1f}%   (media simple, para comparar)")
 
-        # El matchup mas debil NO es donde mas se pierde: un 40% contra un
-        # arquetipo del 1% cuesta menos que un 80% contra el que juega el 41%.
-        # Esto ordena por puntos de ladder perdidos, que es donde conviene
-        # invertir el esfuerzo.
+        # The weakest matchup is NOT where the most is lost: a 40% against an
+        # archetype that is 1% costs less than an 80% against the one that is 41% of the field.
+        # This orders by ladder points lost, which is where it is worth
+        # investing the effort.
         sangria = [t for t in sorted(
             ((pesos.get(f["mazo"], 0.0) * (1 - f["wr"]), f) for f in filas),
             key=lambda t: -t[0],
@@ -315,9 +315,9 @@ def main(argv):
             print(f"  aviso: {len(sin_peso)} mazo(s) sin peso, excluidos del "
                   f"ponderado: {', '.join(sorted(sin_peso)[:5])}"
                   + (" ..." if len(sin_peso) > 5 else ""))
-        # Diferencial de premios ponderado: la metrica con resolucion. El
-        # winrate contra el bot esta saturado (>93%) y no puede arbitrar un
-        # cambio; los premios si graduan.
+        # The weighted prize differential: the metric with resolution. The
+        # winrate against the bot is saturated (>93%) and cannot arbitrate a
+        # change; the prizes do grade it.
         prem = [f for f in filas if f["dif_premios"] is not None]
         if prem:
             cob_p = sum(pesos.get(f["mazo"], 0.0) for f in prem)

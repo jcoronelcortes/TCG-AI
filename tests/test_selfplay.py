@@ -1,8 +1,8 @@
-"""Smoke test del harness de self-play (utils/selfplay.py).
+"""Smoke test of the self-play harness (utils/selfplay.py).
 
-Rapido a proposito (2 partidas, ~0.1s): valida que el driver juega partidas
-COMPLETAS con dos instancias independientes de main.py y que la estadistica
-basica es coherente. Las evaluaciones reales se corren a mano:
+Deliberately fast (2 games, ~0.1s): it validates that the driver plays COMPLETE
+games with two independent instances of main.py and that the basic
+statistics are coherent. The real evaluations are run by hand:
 
     python utils/selfplay.py --partidas 200 --base HEAD~1
 """
@@ -39,15 +39,15 @@ def test_torneo_minimo_alterna_asientos(instancias):
     a, b = instancias
     stats = sp.torneo(a, b, 2)
     assert stats["candidato"] + stats["base"] + stats["limites"] == 2
-    # una partida con el candidato en cada asiento
+    # one game with the candidate in each seat
     assert stats["cand_j0"][1] + stats["limites"] >= 1 or stats["cand_j0"][1] == 1
     assert stats["cand_j0"][1] + stats["cand_j1"][1] + stats["limites"] == 2
     assert stats["errores_candidato"] == 0 and stats["errores_base"] == 0
 
 
 def test_partida_vs_bot_rival(instancias):
-    # El bot generico pilota el mazo rival cosechado: la partida termina y
-    # NADIE pierde por forfeit (todas las elecciones del bot son legales).
+    # The generic bot pilots the harvested opposing deck: the game finishes and
+    # NOBODY loses by forfeit (every choice of the bot is legal).
     a, _ = instancias
     ruta = ROOT / "deck" / "rivales" / "crustle_kangaskhan.csv"
     if not ruta.exists():
@@ -69,11 +69,11 @@ def test_wilson_95():
 
 
 # --------------------------------------------------------------------------
-# Diferencial de premios: la metrica de RESOLUCION
+# The prize differential: the RESOLUTION metric
 # --------------------------------------------------------------------------
-# El winrate contra el bot generico esta saturado (>93% ponderado), asi que no
-# puede arbitrar un cambio. Los premios si graduan: una derrota 4-6 y una 0-6
-# son la misma linea en el marcador y muy distinta cosa.
+# The winrate against the generic bot is saturated (>93% weighted), so it
+# cannot arbitrate a change. The prizes do grade it: a 4-6 loss and a 0-6 one
+# are the same line on the scoreboard and a very different thing.
 
 def test_la_partida_reporta_premios_tomados(instancias):
     a, b = instancias
@@ -82,24 +82,24 @@ def test_la_partida_reporta_premios_tomados(instancias):
     assert p[0] is not None and p[1] is not None, (
         "los premios deben poder leerse del tablero final")
     assert 0 <= p[0] <= 6 and 0 <= p[1] <= 6
-    # Se ganan 6 premios como maximo, y el ganador no puede haber cobrado
-    # menos que el perdedor.
+    # At most 6 prizes are won, and the winner cannot have taken
+    # fewer than the loser.
     if r["ganador"] is not None:
         assert p[r["ganador"]] >= p[1 - r["ganador"]]
 
 
 def test_el_pico_no_se_toma_de_battle_start(instancias):
-    """Regresion del bug que hacia el diferencial identicamente 0.
+    """Regression of the bug that made the differential identically 0.
 
-    `battle_start` devuelve el tablero ANTES de repartir premios: los dos
-    montones valen 0 ahi. Tomandolo como inicial, `tomados` salia 0 en todas
-    las partidas y todos los matchups marcaban +0.00. El pico se descubre
-    durante la partida.
+    `battle_start` returns the board BEFORE the prizes are dealt: both
+    piles are 0 there. Taking that as the initial value, `tomados` came out 0 in every
+    game and every matchup marked +0.00. The peak is discovered
+    during the game.
     """
     assert sp._premios_tomados([0, 0], [4, 5]) == [None, None], (
         "sin pico valido no se debe inventar un 0: es 'no medido'")
     assert sp._premios_tomados([6, 6], [4, 5]) == [2, 1]
-    # El monton solo baja; un final por encima del pico no puede dar negativo.
+    # The pile only goes down; an ending above the peak cannot give a negative.
     assert sp._premios_tomados([6, 6], [6, 6]) == [0, 0]
 
 
@@ -110,6 +110,6 @@ def test_el_torneo_agrega_premios_por_agente(instancias):
     pc, pb, dif = sp.premios_por_partida(stats)
     assert pc is not None and pb is not None
     assert abs(dif - (pc - pb)) < 1e-9
-    # En el espejo ambos lados son el mismo agente: el diferencial no puede
-    # ser sistematico, solo ruido de dos partidas.
+    # In the mirror both sides are the same agent: the differential cannot
+    # be systematic, only the noise of two games.
     assert 0 <= pc <= 6 and 0 <= pb <= 6

@@ -1,7 +1,7 @@
-"""Ramas cortas del menu: NUMBER, YES, NO, END y SPECIAL_CONDITION.
+"""Short menu branches: NUMBER, YES, NO, END and SPECIAL_CONDITION.
 
-Van juntas a proposito: entre las cinco no llegan a 70 lineas y un modulo
-de ocho no ayuda a nadie a entender nada.
+They live together on purpose: between the five of them they do not reach 70
+lines, and a module of eight would help nobody understand anything.
 """
 
 from cg.api import OptionType, SelectContext, SpecialConditionType
@@ -10,7 +10,7 @@ from ptcg.estado.agente import ESTADO
 
 
 def puntuar(tc, o, score):
-    """Devuelve el puntaje de `o` para los tipos sin modulo propio."""
+    """Returns the score of `o` for the types without a module of their own."""
     _conf_should_attack = tc._conf_should_attack
     _gt_prompt_si_no = tc._gt_prompt_si_no
     _meowth_skip_fetch = tc._meowth_skip_fetch
@@ -24,15 +24,15 @@ def puntuar(tc, o, score):
         elif o.type == OptionType.YES:
             score = 1
             if _gt_prompt_si_no:
-                # Los dos pasos de Grand Tree son opcionales ("puede buscar"),
-                # asi que el simulador puede pedir confirmacion. Se acepta
-                # SIEMPRE: no hay forma fiable de saber si el prompt es el paso
-                # 1 (buscar la Fase 1) o el paso 2 (la Fase 2), y decir "no" al
-                # paso 1 tira la cadena entera. La preferencia por NO construir
-                # una Etapa 2 ex contra un rival que las inmuniza se aplica
-                # donde si es seguro: en la ELECCION del objetivo
-                # (`_gt_planes(..., veta_etapa_ex=True)` deja esa cadena en
-                # Fase 1 y hace ganar a la linea no-ex).
+                # Both steps of Grand Tree are optional ("may search"), so the
+                # simulator may ask for confirmation. It is ALWAYS accepted:
+                # there is no reliable way to tell whether the prompt is step 1
+                # (search the Stage 1) or step 2 (the Stage 2), and saying "no"
+                # to step 1 throws the whole chain away. The preference for NOT
+                # building an ex Stage 2 against an opponent that makes them
+                # useless is applied where it is safe: in the CHOICE of the
+                # target (`_gt_planes(..., veta_etapa_ex=True)` leaves that chain
+                # at Stage 1 and makes the non-ex line win).
                 score = 10000
             elif context == SelectContext.ACTIVATE:
     

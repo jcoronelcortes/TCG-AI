@@ -1,8 +1,8 @@
-"""Motor de reglas: reglas fijas, ajustes y resolucion por escenarios.
+"""Rules engine: fixed rules, adjustments and scenario resolution.
 
-Extraido VERBATIM de main.py por utils/extraer_definiciones.py
-(docs/main-refactor-arquitectura.md). Su pureza esta comprobada por
-utils/pureza.py: nada de aqui toca el estado mutable ni las tablas de runtime.
+Extracted VERBATIM from main.py by utils/extraer_definiciones.py
+(docs/project-history.md). Its purity is verified by
+utils/pureza.py: nothing here touches mutable state or the runtime tables.
 """
 
 import os
@@ -27,7 +27,7 @@ class _Ajuste:
 
 
 def _resolver_reglas(reglas, ajustes, ctx, defecto):
-    """Devuelve (score, traza). Primera regla que aplica + ajustes en orden."""
+    """Returns (score, trace). First rule that applies + adjustments, in order."""
     traza = []
     score = defecto
     for r in reglas:
@@ -54,11 +54,11 @@ def _resolver_con_traza(etiqueta, reglas, ajustes, ctx, defecto):
 
 
 def _resolver_max(escenarios, ctx):
-    """Modo ARGMAX del motor: evalua TODOS los escenarios (misma forma que
-    _ReglaFija) y devuelve (mejor_valor, traza). A diferencia de la cadena
-    primera-que-aplica, aqui compiten todos los que disparan y gana el de
-    mayor valor (0 si ninguno dispara). Para acumuladores tipo
-    `best = max(best, ...)` sobre escenarios independientes."""
+    """ARGMAX mode of the engine: evaluates ALL scenarios (same shape as
+    _ReglaFija) and returns (best_value, trace). Unlike the
+    first-one-that-applies chain, here every scenario that fires competes and
+    the highest value wins (0 if none fires). For accumulators of the form
+    `best = max(best, ...)` over independent scenarios."""
     mejor, ganador, disparados = 0, None, 0
     for e in escenarios:
         if e.cuando(ctx):

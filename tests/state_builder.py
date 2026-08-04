@@ -1,16 +1,16 @@
-"""Constructor de observaciones sinteticas (`Escenario`) para tests de estrategia.
+"""Builder of synthetic observations (`Escenario`) for strategy tests.
 
-Permite fabricar estados de juego QUE NUNCA OCURRIERON en partidas reales
-(condiciones de borde, barridos parametricos) sin depender de registros ni de
-mutar JSON a mano. El builder hace CONTABILIDAD ESTRICTA de las 60 cartas del
-mazo propio (deck.csv): cada carta colocada en una zona (campo, mano, descarte,
-mazo visible, estadio, efecto) se descuenta de un pool; al construir, el
-sobrante debe ser exactamente el numero de premios boca abajo (6 por defecto).
-Un estado imposible (mas copias que las del mazo, sobrante distinto de los
-premios) lanza `EstadoInconsistente` con un mensaje claro, en vez de producir
-una observacion que confundiria el tracking de `main.CARTAS_ACTIVAS_EN_MAZO`.
+It makes it possible to fabricate game states THAT NEVER HAPPENED in real games
+(edge conditions, parametric sweeps) without depending on records or
+editing JSON by hand. The builder does STRICT ACCOUNTING of the 60 cards of our own
+deck (deck.csv): every card placed in a zone (field, hand, discard,
+visible deck, stadium, effect) is deducted from a pool; when building, the
+remainder must be exactly the number of face-down prizes (6 by default).
+An impossible state (more copies than the deck has, a remainder different from the
+prizes) raises `EstadoInconsistente` with a clear message, instead of producing
+an observation that would confuse the tracking of `main.CARTAS_ACTIVAS_EN_MAZO`.
 
-Uso tipico (ver tests/test_state_builder.py):
+Typical usage (see tests/test_state_builder.py):
 
     obs = (Escenario(turno=8, paso=69, tac=3)
            .mi_activo(pk(DIPPLIN, energias=[G, G], fisicas=1, pre_evo=[APPLIN]))
@@ -20,14 +20,14 @@ Uso tipico (ver tests/test_state_builder.py):
                          energias=[C, G, C, C], tools=[HEROS_CAPE]))
            .op_banca(pk(CRUSTLE, pre_evo=[DWEBBLE]))
            .op_zonas(mano=9, mazo=37, premios=2)
-           .mazo(HYDRAPPLE, TAPU, LILLIE, ...)   # contenido visible del mazo
-           .mi_descarte(...)                      # resto identificado
-           .fetch_ultra_ball()                    # select TO_HAND via Ultra Ball
+           .mazo(HYDRAPPLE, TAPU, LILLIE, ...)   # the deck's visible contents
+           .mi_descarte(...)                      # the rest, identified
+           .fetch_ultra_ball()                    # a TO_HAND select via Ultra Ball
            .construir())
     eleccion = m.agent(obs)
 
-El rival NO tiene contabilidad (su mazo es desconocido): sus zonas ocultas se
-declaran como conteos (`op_zonas`).
+The opponent has NO accounting (their deck is unknown): their hidden zones are
+declared as counts (`op_zonas`).
 """
 
 from collections import Counter
@@ -38,27 +38,27 @@ from cg.api import (AreaType, CardType, EnergyType, OptionType, SelectContext,
 
 _ROOT = Path(__file__).resolve().parents[1]
 
-# Datos de carta para defaults (HP maximo, deteccion de Pokemon).
+# Card data for the defaults (maximum HP, Pokemon detection).
 _CARD_TABLE = {c.cardId: c for c in all_card_data()}
-# Ataques por id: `menu_mano(con_ataque=True)` necesita el coste para emitir
-# solo los ataques que el activo puede pagar (como hace el simulador).
+# Attacks by id: `menu_mano(con_ataque=True)` needs the cost to emit
+# only the attacks the active can pay for (as the simulator does).
 _ATTACK_TABLE = {a.attackId: a for a in all_attack()}
 
-# Energias abreviadas para specs legibles.
+# Abbreviated energies for readable specs.
 C = int(EnergyType.COLORLESS)
 G = int(EnergyType.GRASS)
 
-BASIC_GRASS = 1        # id de la Basic Grass Energy (deck.csv)
-BOSS_ORDERS = 1182     # id de Boss's Orders (deck.csv)
-ULTRA_BALL = 1121      # id de la Ultra Ball (deck.csv)
-TEAL_MASK_OGERPON_EX = 96    # id del Teal Mask Ogerpon ex (habilidad Teal Dance)
-FOREST_OF_VITALITY = 1261    # id del estadio propio (deck.csv)
-GRAND_TREE = 1249      # id del estadio ACE SPEC de evolucion instantanea
+BASIC_GRASS = 1        # id of the Basic Grass Energy (deck.csv)
+BOSS_ORDERS = 1182     # id of Boss's Orders (deck.csv)
+ULTRA_BALL = 1121      # id of the Ultra Ball (deck.csv)
+TEAL_MASK_OGERPON_EX = 96    # id of Teal Mask Ogerpon ex (the Teal Dance ability)
+FOREST_OF_VITALITY = 1261    # id of our own stadium (deck.csv)
+GRAND_TREE = 1249      # id of the instant-evolution ACE SPEC stadium
 _PREMIOS_DEFECTO = 6
 
 
 class EstadoInconsistente(AssertionError):
-    """El escenario declarado no cuadra con las 60 cartas de deck.csv."""
+    """The declared scenario does not add up to the 60 cards of deck.csv."""
 
 
 def _leer_deck_csv():
@@ -68,14 +68,14 @@ def _leer_deck_csv():
 
 def pk(card_id, hp=None, max_hp=None, energias=(), fisicas=None,
        pre_evo=(), tools=(), aparecio=False):
-    """Spec de un Pokemon en juego.
+    """Spec of a Pokemon in play.
 
-    energias: lista de EnergyType EFECTIVAS (con Meganium, 1 Grass fisica
-        cuenta [G, G]). Un int N equivale a [G]*N.
-    fisicas: numero de CARTAS de energia adjuntas (default: len(energias)).
-        Para el lado propio consumen Basic Grass del pool.
-    pre_evo: ids de las cartas pre-evolucion apiladas debajo.
-    tools: ids de las herramientas adjuntas.
+    energias: a list of EFFECTIVE EnergyType (with Meganium, 1 physical Grass
+        counts as [G, G]). An int N is equivalent to [G]*N.
+    fisicas: the number of energy CARDS attached (default: len(energias)).
+        On our own side they consume Basic Grass from the pool.
+    pre_evo: ids of the pre-evolution cards stacked underneath.
+    tools: ids of the attached tools.
     """
     if isinstance(energias, int):
         energias = [G] * energias
@@ -137,7 +137,7 @@ class Escenario:
         self._select = None
 
     # ------------------------------------------------------------------
-    # Contabilidad del pool propio
+    # Accounting of our own pool
     # ------------------------------------------------------------------
     def _tomar(self, card_id, zona):
         if self._pool[card_id] <= 0:
@@ -181,7 +181,7 @@ class Escenario:
         }
 
     # ------------------------------------------------------------------
-    # Zonas propias
+    # Our own zones
     # ------------------------------------------------------------------
     def mi_activo(self, spec):
         self._mi_activo = self._pokemon_mio(spec)
@@ -200,11 +200,11 @@ class Escenario:
         return self
 
     def estadio(self, card_id, del_rival=False):
-        """Estadio en mesa.
+        """The stadium on the field.
 
-        `del_rival=True` para estadios que NO estan en deck.csv (los baja el
-        rival): no consumen pool propio. Es el caso de Grand Tree, cuya
-        habilidad es de uso compartido -- la usan los DOS jugadores.
+        `del_rival=True` for stadiums that are NOT in deck.csv (the opponent plays
+        them): they do not consume our own pool. That is the case of Grand Tree, whose
+        ability is of shared use -- BOTH players use it.
         """
         if del_rival:
             self._estadio = {"id": card_id, "playerIndex": 1,
@@ -214,16 +214,16 @@ class Escenario:
         return self
 
     def mazo(self, *ids):
-        """Contenido VISIBLE del mazo propio (orden = orden del array)."""
+        """The VISIBLE contents of our own deck (order = the array's order)."""
         self._mazo_visible = [self._tomar(cid, "mazo") for cid in ids]
         return self
 
     def resto_al_descarte(self):
-        """Manda al descarte todo el pool restante menos los premios.
+        """Sends to the discard all the remaining pool except the prizes.
 
-        Requiere `mazo(...)` declarado antes (si no, no se sabria que parte
-        del resto es mazo y que parte descarte). Comodo para barridos donde
-        el contenido exacto del descarte no importa.
+        It requires `mazo(...)` to have been declared first (otherwise there would be no way
+        to know which part of the rest is deck and which part discard). Convenient for sweeps where
+        the exact contents of the discard do not matter.
         """
         if self._mazo_visible is None:
             raise EstadoInconsistente(
@@ -241,7 +241,7 @@ class Escenario:
         return self
 
     # ------------------------------------------------------------------
-    # Zonas del rival (sin contabilidad: su mazo es desconocido)
+    # The opponent's zones (with no accounting: their deck is unknown)
     # ------------------------------------------------------------------
     def op_activo(self, spec):
         self._op_activo_spec = self._pokemon_op(spec)
@@ -266,11 +266,11 @@ class Escenario:
     # Selects
     # ------------------------------------------------------------------
     def fetch_ultra_ball(self, candidatos=None):
-        """Select TO_HAND de la Ultra Ball sobre el mazo visible.
+        """The Ultra Ball's TO_HAND select over the visible deck.
 
-        candidatos: ids elegibles; por defecto, TODOS los Pokemon del mazo
-        (comportamiento real de la Ultra Ball). Cada copia es una opcion.
-        Consume una Ultra Ball del pool (la carta 'en efecto').
+        candidatos: eligible ids; by default, ALL the Pokemon in the deck
+        (the Ultra Ball's real behaviour). Each copy is an option.
+        It consumes an Ultra Ball from the pool (the card 'in effect').
         """
         if self._mazo_visible is None:
             raise EstadoInconsistente(
@@ -304,12 +304,12 @@ class Escenario:
         return self
 
     def menu_attach_energia(self):
-        """Select MAIN minimo: adjuntar la 1a Basic Grass de la mano.
+        """A minimal MAIN select: attach the 1st Basic Grass from hand.
 
-        Genera una opcion ATTACH por CADA Pokemon propio en juego (activo
-        inPlayArea=4; banca inPlayArea=5/inPlayIndex=k) mas END, con el
-        mismo esquema que el simulador real. Requiere una Basic Grass en
-        mi_mano() y energia_jugada=False.
+        It generates one ATTACH option per EACH of our Pokemon in play (the active
+        inPlayArea=4; the bench inPlayArea=5/inPlayIndex=k) plus END, with the
+        same shape as the real simulator. It requires a Basic Grass in
+        mi_mano() and energia_jugada=False.
         """
         if self._energia_jugada:
             raise EstadoInconsistente(
@@ -345,12 +345,12 @@ class Escenario:
         return self
 
     def menu_teal_dance(self):
-        """Select MAIN con la HABILIDAD Teal Dance ademas del adjunte manual.
+        """A MAIN select with the Teal Dance ABILITY besides the manual attachment.
 
-        Emite una opcion ABILITY (area ACTIVE/BENCH, index del slot) por cada
-        Teal Mask Ogerpon ex propio en juego, las opciones ATTACH de la 1a
-        Basic Grass de la mano y END, como el menu real de un turno en el que
-        aun no se ha adjuntado energia.
+        It emits one ABILITY option (area ACTIVE/BENCH, the slot's index) per each
+        Teal Mask Ogerpon ex of ours in play, the ATTACH options of the 1st
+        Basic Grass in hand and END, like the real menu of a turn in which
+        energy has not been attached yet.
         """
         idx_e = next((i for i, c in enumerate(self._mi_mano)
                       if c["id"] == BASIC_GRASS), None)
@@ -396,14 +396,14 @@ class Escenario:
 
     def menu_mano(self, con_retirada=False, con_adjunte=False,
                   con_ataque=False):
-        """Select MAIN generico: una opcion PLAY por cada carta de la mano, mas
-        (opcionalmente) las ATTACH de la 1a Basic Grass, RETREAT y/o los ATTACK
-        del activo, mas END.
+        """A generic MAIN select: one PLAY option per card in hand, plus
+        (optionally) the ATTACH of the 1st Basic Grass, RETREAT and/or the ATTACK
+        options of the active, plus END.
 
-        Pensado para escenarios donde lo que se mide es QUE carta se juega, sin
-        el ruido de un menu completo del simulador. `con_ataque` emite un ATTACK
-        por cada ataque del activo cuyo coste de energia puede pagar YA (mismo
-        criterio que el simulador), para poder medir ataque-vs-retirada.
+        Designed for scenarios where what is measured is WHICH card is played, without
+        the noise of a complete simulator menu. `con_ataque` emits one ATTACK
+        per attack of the active whose energy cost it can ALREADY pay (the same
+        criterion as the simulator), so attack-vs-retreat can be measured.
         """
         opciones = [{"type": int(OptionType.PLAY), "index": i}
                     for i in range(len(self._mi_mano))]
@@ -454,14 +454,14 @@ class Escenario:
         return self
 
     def fetch_descarte(self, efecto_id, cuantas=1, solo=None):
-        """Select TO_HAND de una carta de RECUPERACION (Night Stretcher, Lana's
-        Aid...) sobre el descarte propio ya declarado. Consume una copia de
-        `efecto_id` del pool (la carta 'en efecto').
+        """A TO_HAND select of a RECOVERY card (Night Stretcher, Lana's
+        Aid...) over our own already declared discard. It consumes a copy of
+        `efecto_id` from the pool (the card 'in effect').
 
-        `cuantas` es el `maxCount` del menu: 1 para Night Stretcher, 3 para
-        Lana's Aid. `solo` restringe las opciones a esos ids del descarte, como
-        hace el simulador con los filtros de la carta (Lana's Aid solo ofrece
-        Pokemon SIN Regla y Energias Basicas: nada de ex).
+        `cuantas` is the menu's `maxCount`: 1 for Night Stretcher, 3 for
+        Lana's Aid. `solo` restricts the options to those ids from the discard, as
+        the simulator does with the card's filters (Lana's Aid only offers
+        Pokemon WITHOUT a Rule Box and Basic Energies: no ex).
         """
         if not self._mi_descarte:
             raise EstadoInconsistente(
@@ -488,13 +488,13 @@ class Escenario:
         return self
 
     def objetivo_carga_habilidad(self, banca_idx=None):
-        """Select ATTACH_FROM: a QUE Pokemon propio adjunta la Planta una
-        habilidad de carga ya activada (Ripening Charge de Hydrapple ex...).
+        """An ATTACH_FROM select: to WHICH of our Pokemon an already activated charging
+        ability attaches the Grass (Hydrapple ex's Ripening Charge...).
 
-        Emite una opcion CARD por el activo (area ACTIVE) y una por cada slot de
-        banca (area BENCH), igual que el simulador real. El portador de la
-        habilidad es el activo o, si se indica `banca_idx`, ese slot de banca:
-        ya esta en juego, asi que NO consume otra copia del pool.
+        It emits one CARD option for the active (area ACTIVE) and one per bench
+        slot (area BENCH), just like the real simulator. The bearer of the
+        ability is the active or, if `banca_idx` is given, that bench slot:
+        it is already in play, so it does NOT consume another copy from the pool.
         """
         if self._mi_activo is None:
             raise EstadoInconsistente(
@@ -523,13 +523,13 @@ class Escenario:
         return self
 
     def promocion_tras_retirada(self):
-        """Select SWITCH: elegir quien SUBE de la banca al retirar el activo.
+        """A SWITCH select: choosing who COMES UP from the bench when the active retreats.
 
-        Es el prompt que el simulador emite justo despues de pagar el coste de
-        retirada (verificado con `cg.api.search_begin/search_step`: contexto
-        SWITCH, opciones CARD sobre la BANCA propia). Se distingue de
-        `promocion_desde_banca` (TO_ACTIVE), que es la promocion FORZADA tras un
-        KO y puede caer en el turno rival.
+        It is the prompt the simulator emits right after paying the retreat
+        cost (verified with `cg.api.search_begin/search_step`: a SWITCH
+        context, CARD options over our own BENCH). It is distinct from
+        `promocion_desde_banca` (TO_ACTIVE), which is the FORCED promotion after a
+        KO and can fall on the opponent's turn.
         """
         if not self._mi_banca:
             raise EstadoInconsistente(
@@ -551,7 +551,7 @@ class Escenario:
         return self
 
     def promocion_desde_banca(self):
-        """Select TO_ACTIVE: promover un Pokemon de la banca tras retirar/KO."""
+        """A TO_ACTIVE select: promoting a Pokemon from the bench after a retreat/KO."""
         if not self._mi_banca:
             raise EstadoInconsistente(
                 "promocion_desde_banca() requiere mi_banca(...)")
@@ -571,9 +571,9 @@ class Escenario:
         return self
 
     def menu_gusteo(self):
-        """Select de OBJETIVO de Boss's Orders: una opcion por cada Pokemon de
-        la BANCA RIVAL. Consume una copia de Boss's Orders del pool (la carta
-        'en efecto', ya jugada) y marca el Supporter como gastado."""
+        """The Boss's Orders TARGET select: one option per each Pokemon of
+        the OPPOSING BENCH. It consumes a copy of Boss's Orders from the pool (the card
+        'in effect', already played) and marks the Supporter as spent."""
         if not self._op_banca:
             raise EstadoInconsistente("menu_gusteo() requiere op_banca(...)")
         self._tomar(BOSS_ORDERS, "efecto")
@@ -594,11 +594,11 @@ class Escenario:
         return self
 
     def menu_grand_tree(self, con_forest=False, con_evolucion_mano=False):
-        """Select MAIN con la HABILIDAD del estadio Grand Tree.
+        """A MAIN select with the ABILITY of the Grand Tree stadium.
 
-        Emite la opcion ABILITY sobre el area STADIUM (como hace el simulador
-        con las habilidades de estadio), opcionalmente el PLAY de una Forest of
-        Vitality de la mano y/o las EVOLVE disponibles desde la mano, y END.
+        It emits the ABILITY option over the STADIUM area (as the simulator does
+        with stadium abilities), optionally the PLAY of a Forest of
+        Vitality from hand and/or the available EVOLVE options from hand, and END.
         """
         if self._estadio is None or self._estadio["id"] != GRAND_TREE:
             raise EstadoInconsistente(
@@ -644,10 +644,10 @@ class Escenario:
         return self
 
     def seleccion_grand_tree_en_juego(self):
-        """Sub-seleccion "que Pokemon MIO evoluciona" servida por Grand Tree.
+        """The "which Pokemon OF MINE evolves" sub-selection served by Grand Tree.
 
-        Una opcion CARD por cada Pokemon propio en juego, con `select.effect`
-        apuntando al estadio.
+        One CARD option per each of our Pokemon in play, with `select.effect`
+        pointing at the stadium.
         """
         if self._estadio is None or self._estadio["id"] != GRAND_TREE:
             raise EstadoInconsistente(
@@ -674,10 +674,10 @@ class Escenario:
         return self
 
     def seleccion_grand_tree_mazo(self, *ids):
-        """Sub-seleccion "que carta traigo del mazo" servida por Grand Tree.
+        """The "which card do I bring from the deck" sub-selection served by Grand Tree.
 
-        `ids` son las cartas OFRECIDAS (ya declaradas en `mazo(...)`); se
-        emiten como opciones CARD sobre el area DECK.
+        `ids` are the OFFERED cards (already declared in `mazo(...)`); they are
+        emitted as CARD options over the DECK area.
         """
         if self._estadio is None or self._estadio["id"] != GRAND_TREE:
             raise EstadoInconsistente(
@@ -708,7 +708,7 @@ class Escenario:
         return self
 
     # ------------------------------------------------------------------
-    # Construccion final
+    # Final construction
     # ------------------------------------------------------------------
     def construir(self):
         if self._mi_activo is None:
@@ -721,7 +721,7 @@ class Escenario:
 
         restante = sum(self._pool.values())
         if self._mazo_visible is not None:
-            # Con mazo declarado, el sobrante son exactamente los premios.
+            # With the deck declared, the remainder is exactly the prizes.
             if restante != self._n_premios:
                 sobra = {k: v for k, v in self._pool.items() if v > 0}
                 raise EstadoInconsistente(

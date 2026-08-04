@@ -1,8 +1,8 @@
-"""Lineas evolutivas: etapa, raiz, cadenas del mazo y eslabones que faltan.
+"""Evolution lines: stage, root, deck chains and missing links.
 
-Extraido VERBATIM de main.py por utils/extraer_definiciones.py
-(docs/main-refactor-arquitectura.md). Su pureza esta comprobada por
-utils/pureza.py: nada de aqui toca el estado mutable ni las tablas de runtime.
+Extracted VERBATIM from main.py by utils/extraer_definiciones.py
+(docs/project-history.md). Its purity is verified by
+utils/pureza.py: nothing here touches mutable state or the runtime tables.
 """
 
 from cg.api import CardType
@@ -30,10 +30,10 @@ def _validate_id_constants():
 
 
 def _etapa_evolutiva(card_id):
-    """Etapa de `card_id`: 0 Basico, 1 Fase 1, 2 Fase 2. None si no es Pokemon.
+    """Stage of `card_id`: 0 Basic, 1 Stage 1, 2 Stage 2. None if not a Pokemon.
 
-    Sale del dato de carta (`basic`/`stage1`/`stage2`), no de `EVO_LINES`, que
-    describe unicamente NUESTRO mazo.
+    It comes from the card data (`basic`/`stage1`/`stage2`), not from
+    `EVO_LINES`, which describes OUR deck only.
     """
     data = card_table.get(card_id)
     if data is None or data.cardType != CardType.POKEMON:
@@ -46,11 +46,11 @@ def _etapa_evolutiva(card_id):
 
 
 def _raiz_de_linea(card_id):
-    """Nombre del BASICO de la cadena evolutiva de `card_id` (None si se ignora).
+    """Name of the BASIC of `card_id`'s evolution chain (None if unknown).
 
-    Sube por `evolvesFrom` hasta que no haya pre-evolucion. Si un eslabon
-    intermedio no esta en `card_table` se devuelve el ultimo nombre conocido:
-    basta para comparar dos cartas de la MISMA cadena.
+    It walks up `evolvesFrom` until there is no pre-evolution. If an
+    intermediate link is not in `card_table`, the last known name is returned:
+    enough to compare two cards of the SAME chain.
     """
     data = card_table.get(card_id)
     if data is None or data.cardType != CardType.POKEMON:
@@ -59,7 +59,7 @@ def _raiz_de_linea(card_id):
     vistos = set()
     while data is not None and getattr(data, 'evolvesFrom', None):
         pre = data.evolvesFrom
-        if pre in vistos:                # cadena corrupta: corta el bucle
+        if pre in vistos:                # corrupt chain: break the loop
             break
         vistos.add(pre)
         nombre = pre
@@ -68,7 +68,7 @@ def _raiz_de_linea(card_id):
 
 
 def _misma_linea_evolutiva(a_id, b_id):
-    """True si los dos ids son eslabones de la MISMA cadena Basico->F1->F2."""
+    """True if the two ids are links of the SAME Basic->S1->S2 chain."""
     if a_id == b_id:
         return True
     raiz = _raiz_de_linea(a_id)
@@ -76,13 +76,13 @@ def _misma_linea_evolutiva(a_id, b_id):
 
 
 def _supera_en_evolucion(pkmn, otro):
-    """True si `pkmn` es un eslabon MAS EVOLUCIONADO de la MISMA linea que `otro`.
+    """True if `pkmn` is a MORE EVOLVED link of the SAME line as `otro`.
 
-    Regla del user (registro_008 paso 93 vs Cynthia's Garchomp ex, GANADA con
-    error): dentro de una linea Basico -> Fase 1 -> Fase 2, noquear SIEMPRE la
-    etapa MAS ALTA que se pueda. Cobra el mismo premio pero destruye mas
-    desarrollo: el rival necesita rehacer los dos escalones antes de volver a
-    tener su Fase 2 atacante. Ver [[boss-gust-mayor-evolucion-fase2]].
+    User's rule (registro_008 step 93 vs Cynthia's Garchomp ex, WON with a
+    mistake): inside a Basic -> Stage 1 -> Stage 2 line, ALWAYS knock out the
+    HIGHEST stage available. It takes the same prizes but destroys more
+    development: the opponent has to rebuild both steps before having their
+    Stage 2 attacker again. See [[boss-gust-mayor-evolucion-fase2]].
     """
     if pkmn is None or otro is None:
         return False
@@ -94,17 +94,17 @@ def _supera_en_evolucion(pkmn, otro):
 
 
 def _linea_culmina_en_ex(card_id):
-    """True si por ENCIMA de `card_id` su cadena llega a un Pokemon ex/megaEx.
+    """True if ABOVE `card_id` its chain reaches an ex/megaEx Pokemon.
 
-    Deck-agnostico: baja por `evolvesFrom` (nombres, no ids) desde la carta, asi
-    que vale para CUALQUIER linea Basico -> Fase 1 -> Fase 2 del entorno sin
-    inscribirla a mano en `EX_PREEVO_IDS`. Es el criterio que justifica gastar
-    un Boss's en cortar la linea: la etapa final rinde 2+ premios y es el
-    atacante real del mazo rival.
+    Deck-agnostic: it walks down `evolvesFrom` (names, not ids) from the card,
+    so it works for ANY Basic -> Stage 1 -> Stage 2 line in the environment
+    without hand-listing it in `EX_PREEVO_IDS`. It is the criterion that
+    justifies spending a Boss's to cut the line: the final stage is worth 2+
+    prizes and is the opposing deck's real attacker.
 
-    Deja fuera sola la linea Abra -> Kadabra -> Alakazam (su forma final vale 1
-    premio en este entorno), que es justo lo que pide
-    [[boss-no-gustear-preevo-linea-no-ex]].
+    It leaves out only the Abra -> Kadabra -> Alakazam line (its final form is
+    worth 1 prize in this environment), which is exactly what
+    [[boss-no-gustear-preevo-linea-no-ex]] asks for.
     """
     data = card_table.get(card_id)
     if data is None or data.cardType != CardType.POKEMON:
@@ -124,18 +124,18 @@ def _linea_culmina_en_ex(card_id):
 
 
 def _preevo_de_linea_ex(card_id):
-    """¿`card_id` es un eslabon que vale GUSTEAR para cortar una linea ex?
+    """Is `card_id` a link worth GUSTING in order to cut an ex line?
 
-    Sustituye a la lista curada `EX_PREEVO_IDS` (menos `NONEX_FINAL_PREEVO_IDS`)
-    alli donde el criterio es "la linea acaba en un atacante de 2 premios": lo
-    deriva del dato de carta, asi que cubre lineas que nadie inscribio a mano
-    (p.ej. Frillish -> Jellicent ex).
+    It replaces the curated list `EX_PREEVO_IDS` (minus
+    `NONEX_FINAL_PREEVO_IDS`) wherever the criterion is "the line ends in a
+    2-prize attacker": it derives it from the card data, so it covers lines
+    nobody listed by hand (e.g. Frillish -> Jellicent ex).
 
-    Guarda `DUNSPARCE_IDS`: su linea culmina en Dudunsparce ex, pero el
-    manejador de seleccion los veta SIEMPRE como objetivo de gusteo. Un motivo
-    que apunta a un objetivo prohibido hace jugar (o buscar) el Boss's para
-    acabar subiendo otra cosa -- es el mismo fallo que el Dwebble del log
-    86339758.
+    Guard `DUNSPARCE_IDS`: their line culminates in Dudunsparce ex, but the
+    selection handler ALWAYS vetoes them as a gust target. A reason that points
+    at a forbidden target makes the agent play (or search for) the Boss's only
+    to end up bringing something else up -- the same failure as the Dwebble of
+    log 86339758.
     """
     if card_id in DUNSPARCE_IDS:
         return False
@@ -143,18 +143,18 @@ def _preevo_de_linea_ex(card_id):
 
 
 def _construir_cadenas_de_mazo(deck_ids):
-    """Deriva del mazo las cadenas evolutivas completas.
+    """Derives the complete evolution chains from the deck.
 
-    Devuelve `(evo_por_nombre, cadenas)`:
-      evo_por_nombre: nombre de la pre-evolucion -> tupla de ids DEL MAZO que
-                      evolucionan de ella.
-      cadenas:        tupla de `(basico_id, fase1_id, fase2_id_o_0)`. Una misma
-                      pre-evolucion puede tener varias evoluciones (copias de
-                      distinta expansion), asi que se emite una cadena por
-                      combinacion; el consumidor elige.
+    Returns `(evo_por_nombre, cadenas)`:
+      evo_por_nombre: name of the pre-evolution -> tuple of DECK ids that evolve
+                      from it.
+      cadenas:        tuple of `(basic_id, stage1_id, stage2_id_or_0)`. The same
+                      pre-evolution can have several evolutions (copies from
+                      different sets), so one chain is emitted per combination;
+                      the consumer chooses.
 
-    Grand Tree busca en NUESTRA baraja, de ahi que solo se consideren ids
-    presentes en `deck_ids`.
+    Grand Tree searches OUR deck, hence only ids present in `deck_ids` are
+    considered.
     """
     ids = set(deck_ids)
     por_nombre = defaultdict(set)
@@ -186,26 +186,27 @@ def _construir_cadenas_de_mazo(deck_ids):
 
 
 def _evo_link_state(hand_counts, field_counts):
-    """Clasifica cada EVOLUCION de nuestras lineas para el fetch de la Ultra
-    Ball. Devuelve `(necesarios, huerfanos)`:
+    """Classifies each EVOLUTION of our lines for the Ultra Ball fetch.
+    Returns `(necesarios, huerfanos)`:
 
-      huerfano  = su PRE-EVOLUCION no esta ni en juego ni en la mano: traerla es
-                  una carta MUERTA, no se puede jugar (user, registro_006 paso
-                  79 vs Marnie, PERDIDA: con un Applin en banca y NINGUN Dipplin
-                  en juego ni en mano, la Ultra Ball buscaba Hydrapple ex -- que
-                  no puede evolucionar nada -- en vez del Dipplin que faltaba).
-      necesario = eslabon INTERMEDIO que falta (su pre-evolucion esta en juego,
-                  no lo tenemos en mano ni en juego) Y que ademas DESBLOQUEA la
-                  etapa 2, que ahora mismo es huerfana. Es "la siguiente
-                  evolucion que se necesita en la banca".
+      orphan   = its PRE-EVOLUTION is neither in play nor in hand: bringing it
+                 is a DEAD card, it cannot be played (user, registro_006 step
+                 79 vs Marnie, LOST: with an Applin on the bench and NO Dipplin
+                 in play or in hand, the Ultra Ball searched for Hydrapple ex --
+                 which cannot evolve anything -- instead of the missing Dipplin).
+      needed   = a missing INTERMEDIATE link (its pre-evolution is in play, and
+                 we have it neither in hand nor in play) that ALSO UNLOCKS the
+                 stage 2, which right now is orphaned. It is "the next evolution
+                 needed on the bench".
 
-    La etapa 2 nunca entra en `necesarios`: cuando ES el eslabon que falta ya la
-    puntuan sus propias ramas (Hydrapple ex 980 / Meganium 1000), que ademas
-    aplican los clamps de matchup (ex muerto vs Crustle, cesion al motor de
-    refresco de Meowth ex). Subirla aqui pisaria esos clamps.
+    The stage 2 never enters `necesarios`: when it IS the missing link its own
+    branches already score it (Hydrapple ex 980 / Meganium 1000), and those also
+    apply the matchup clamps (a dead ex vs Crustle, yielding to the Meowth ex
+    refill engine). Raising it here would step on those clamps.
 
-    Se mira el campo ACTUAL (no la foto de inicio de turno): tener el eslabon en
-    la mano ya es progreso aunque la evolucion no pueda completarse este turno.
+    The CURRENT field is what is looked at (not the start-of-turn snapshot):
+    having the link in hand is already progress even if the evolution cannot be
+    completed this turn.
     """
     necesarios, huerfanos = set(), set()
     for linea in EVO_LINES:
@@ -220,7 +221,7 @@ def _evo_link_state(hand_counts, field_counts):
                     and field_counts.get(evo, 0) == 0
                     and hand_counts.get(evo, 0) == 0):
                 faltan.append(evo)
-        # Solo el eslabon intermedio cuya etapa 2 quedo huerfana.
+        # Only the intermediate link whose stage 2 was left orphaned.
         for evo in faltan:
             if evo != linea[-1] and linea[-1] in huerfanos:
                 necesarios.add(evo)
@@ -228,22 +229,22 @@ def _evo_link_state(hand_counts, field_counts):
 
 
 def _pokemon_injugable(card_id, field_counts, bench_count, bench_max):
-    """True si traer `card_id` a la mano trae una carta MUERTA: un Pokemon que
-    no se puede poner en juego ni hoy ni el turno siguiente.
+    """True if bringing `card_id` to hand brings a DEAD card: a Pokemon that
+    cannot be put into play today or on the next turn.
 
-    Todo se reduce al hueco de BANCA. Con `bench_count < bench_max` nada esta
-    muerto: cabe cualquier Basico, y una evolucion huerfana puede completarse
-    banqueando su pre-evolucion (la propia recuperacion trae hasta 3 cartas).
-    Con la banca LLENA:
-      * un BASICO no entra de ninguna forma -> muerto;
-      * una EVOLUCION solo vive si su pre-evolucion esta EN JUEGO (evoluciona
-        sobre ella sin ocupar banca). Tenerla en la MANO no basta: bajarla
-        exigiria el hueco que no hay.
+    It all comes down to the BENCH slot. With `bench_count < bench_max` nothing
+    is dead: any Basic fits, and an orphaned evolution can be completed by
+    benching its pre-evolution (the recovery itself brings up to 3 cards). With
+    a FULL bench:
+      * a BASIC does not fit in any way -> dead;
+      * an EVOLUTION only lives if its pre-evolution is IN PLAY (it evolves on
+        top of it without taking a bench slot). Having it in HAND is not enough:
+        putting it down would need the slot that is not there.
 
-    Deck-agnostico: las etapas salen de `EVO_LINES` y el tipo, de `card_table`.
-    No es un veto -- quien lo use debe dejar la opcion elegible como ULTIMO
-    recurso, porque las recuperaciones tienen `minCount >= 1` y a veces todo el
-    descarte es carta muerta.
+    Deck-agnostic: the stages come from `EVO_LINES` and the type from
+    `card_table`. It is not a veto -- whoever uses it must leave the option
+    eligible as a LAST resort, because recoveries have `minCount >= 1` and
+    sometimes the whole discard is dead cards.
     """
     datos = card_table.get(card_id)
     if datos is None or datos.cardType != CardType.POKEMON:
@@ -254,7 +255,7 @@ def _pokemon_injugable(card_id, field_counts, bench_count, bench_max):
         for pre, evo in zip(linea, linea[1:]):
             if evo == card_id:
                 return field_counts.get(pre, 0) == 0
-    return True                          # Basico con la banca llena
+    return True                          # a Basic with the bench full
 
 
 def _validate_id_constants():
@@ -275,10 +276,10 @@ def _validate_id_constants():
 
 
 def _etapa_evolutiva(card_id):
-    """Etapa de `card_id`: 0 Basico, 1 Fase 1, 2 Fase 2. None si no es Pokemon.
+    """Stage of `card_id`: 0 Basic, 1 Stage 1, 2 Stage 2. None if not a Pokemon.
 
-    Sale del dato de carta (`basic`/`stage1`/`stage2`), no de `EVO_LINES`, que
-    describe unicamente NUESTRO mazo.
+    It comes from the card data (`basic`/`stage1`/`stage2`), not from
+    `EVO_LINES`, which describes OUR deck only.
     """
     data = card_table.get(card_id)
     if data is None or data.cardType != CardType.POKEMON:
@@ -291,11 +292,11 @@ def _etapa_evolutiva(card_id):
 
 
 def _raiz_de_linea(card_id):
-    """Nombre del BASICO de la cadena evolutiva de `card_id` (None si se ignora).
+    """Name of the BASIC of `card_id`'s evolution chain (None if unknown).
 
-    Sube por `evolvesFrom` hasta que no haya pre-evolucion. Si un eslabon
-    intermedio no esta en `card_table` se devuelve el ultimo nombre conocido:
-    basta para comparar dos cartas de la MISMA cadena.
+    It walks up `evolvesFrom` until there is no pre-evolution. If an
+    intermediate link is not in `card_table`, the last known name is returned:
+    enough to compare two cards of the SAME chain.
     """
     data = card_table.get(card_id)
     if data is None or data.cardType != CardType.POKEMON:
@@ -304,7 +305,7 @@ def _raiz_de_linea(card_id):
     vistos = set()
     while data is not None and getattr(data, 'evolvesFrom', None):
         pre = data.evolvesFrom
-        if pre in vistos:                # cadena corrupta: corta el bucle
+        if pre in vistos:                # corrupt chain: break the loop
             break
         vistos.add(pre)
         nombre = pre
@@ -313,7 +314,7 @@ def _raiz_de_linea(card_id):
 
 
 def _misma_linea_evolutiva(a_id, b_id):
-    """True si los dos ids son eslabones de la MISMA cadena Basico->F1->F2."""
+    """True if the two ids are links of the SAME Basic->S1->S2 chain."""
     if a_id == b_id:
         return True
     raiz = _raiz_de_linea(a_id)
@@ -321,13 +322,13 @@ def _misma_linea_evolutiva(a_id, b_id):
 
 
 def _supera_en_evolucion(pkmn, otro):
-    """True si `pkmn` es un eslabon MAS EVOLUCIONADO de la MISMA linea que `otro`.
+    """True if `pkmn` is a MORE EVOLVED link of the SAME line as `otro`.
 
-    Regla del user (registro_008 paso 93 vs Cynthia's Garchomp ex, GANADA con
-    error): dentro de una linea Basico -> Fase 1 -> Fase 2, noquear SIEMPRE la
-    etapa MAS ALTA que se pueda. Cobra el mismo premio pero destruye mas
-    desarrollo: el rival necesita rehacer los dos escalones antes de volver a
-    tener su Fase 2 atacante. Ver [[boss-gust-mayor-evolucion-fase2]].
+    User's rule (registro_008 step 93 vs Cynthia's Garchomp ex, WON with a
+    mistake): inside a Basic -> Stage 1 -> Stage 2 line, ALWAYS knock out the
+    HIGHEST stage available. It takes the same prizes but destroys more
+    development: the opponent has to rebuild both steps before having their
+    Stage 2 attacker again. See [[boss-gust-mayor-evolucion-fase2]].
     """
     if pkmn is None or otro is None:
         return False
@@ -339,17 +340,17 @@ def _supera_en_evolucion(pkmn, otro):
 
 
 def _linea_culmina_en_ex(card_id):
-    """True si por ENCIMA de `card_id` su cadena llega a un Pokemon ex/megaEx.
+    """True if ABOVE `card_id` its chain reaches an ex/megaEx Pokemon.
 
-    Deck-agnostico: baja por `evolvesFrom` (nombres, no ids) desde la carta, asi
-    que vale para CUALQUIER linea Basico -> Fase 1 -> Fase 2 del entorno sin
-    inscribirla a mano en `EX_PREEVO_IDS`. Es el criterio que justifica gastar
-    un Boss's en cortar la linea: la etapa final rinde 2+ premios y es el
-    atacante real del mazo rival.
+    Deck-agnostic: it walks down `evolvesFrom` (names, not ids) from the card,
+    so it works for ANY Basic -> Stage 1 -> Stage 2 line in the environment
+    without hand-listing it in `EX_PREEVO_IDS`. It is the criterion that
+    justifies spending a Boss's to cut the line: the final stage is worth 2+
+    prizes and is the opposing deck's real attacker.
 
-    Deja fuera sola la linea Abra -> Kadabra -> Alakazam (su forma final vale 1
-    premio en este entorno), que es justo lo que pide
-    [[boss-no-gustear-preevo-linea-no-ex]].
+    It leaves out only the Abra -> Kadabra -> Alakazam line (its final form is
+    worth 1 prize in this environment), which is exactly what
+    [[boss-no-gustear-preevo-linea-no-ex]] asks for.
     """
     data = card_table.get(card_id)
     if data is None or data.cardType != CardType.POKEMON:
@@ -369,18 +370,18 @@ def _linea_culmina_en_ex(card_id):
 
 
 def _preevo_de_linea_ex(card_id):
-    """¿`card_id` es un eslabon que vale GUSTEAR para cortar una linea ex?
+    """Is `card_id` a link worth GUSTING in order to cut an ex line?
 
-    Sustituye a la lista curada `EX_PREEVO_IDS` (menos `NONEX_FINAL_PREEVO_IDS`)
-    alli donde el criterio es "la linea acaba en un atacante de 2 premios": lo
-    deriva del dato de carta, asi que cubre lineas que nadie inscribio a mano
-    (p.ej. Frillish -> Jellicent ex).
+    It replaces the curated list `EX_PREEVO_IDS` (minus
+    `NONEX_FINAL_PREEVO_IDS`) wherever the criterion is "the line ends in a
+    2-prize attacker": it derives it from the card data, so it covers lines
+    nobody listed by hand (e.g. Frillish -> Jellicent ex).
 
-    Guarda `DUNSPARCE_IDS`: su linea culmina en Dudunsparce ex, pero el
-    manejador de seleccion los veta SIEMPRE como objetivo de gusteo. Un motivo
-    que apunta a un objetivo prohibido hace jugar (o buscar) el Boss's para
-    acabar subiendo otra cosa -- es el mismo fallo que el Dwebble del log
-    86339758.
+    Guard `DUNSPARCE_IDS`: their line culminates in Dudunsparce ex, but the
+    selection handler ALWAYS vetoes them as a gust target. A reason that points
+    at a forbidden target makes the agent play (or search for) the Boss's only
+    to end up bringing something else up -- the same failure as the Dwebble of
+    log 86339758.
     """
     if card_id in DUNSPARCE_IDS:
         return False
@@ -388,18 +389,18 @@ def _preevo_de_linea_ex(card_id):
 
 
 def _construir_cadenas_de_mazo(deck_ids):
-    """Deriva del mazo las cadenas evolutivas completas.
+    """Derives the complete evolution chains from the deck.
 
-    Devuelve `(evo_por_nombre, cadenas)`:
-      evo_por_nombre: nombre de la pre-evolucion -> tupla de ids DEL MAZO que
-                      evolucionan de ella.
-      cadenas:        tupla de `(basico_id, fase1_id, fase2_id_o_0)`. Una misma
-                      pre-evolucion puede tener varias evoluciones (copias de
-                      distinta expansion), asi que se emite una cadena por
-                      combinacion; el consumidor elige.
+    Returns `(evo_por_nombre, cadenas)`:
+      evo_por_nombre: name of the pre-evolution -> tuple of DECK ids that evolve
+                      from it.
+      cadenas:        tuple of `(basic_id, stage1_id, stage2_id_or_0)`. The same
+                      pre-evolution can have several evolutions (copies from
+                      different sets), so one chain is emitted per combination;
+                      the consumer chooses.
 
-    Grand Tree busca en NUESTRA baraja, de ahi que solo se consideren ids
-    presentes en `deck_ids`.
+    Grand Tree searches OUR deck, hence only ids present in `deck_ids` are
+    considered.
     """
     ids = set(deck_ids)
     por_nombre = defaultdict(set)
@@ -431,26 +432,27 @@ def _construir_cadenas_de_mazo(deck_ids):
 
 
 def _evo_link_state(hand_counts, field_counts):
-    """Clasifica cada EVOLUCION de nuestras lineas para el fetch de la Ultra
-    Ball. Devuelve `(necesarios, huerfanos)`:
+    """Classifies each EVOLUTION of our lines for the Ultra Ball fetch.
+    Returns `(necesarios, huerfanos)`:
 
-      huerfano  = su PRE-EVOLUCION no esta ni en juego ni en la mano: traerla es
-                  una carta MUERTA, no se puede jugar (user, registro_006 paso
-                  79 vs Marnie, PERDIDA: con un Applin en banca y NINGUN Dipplin
-                  en juego ni en mano, la Ultra Ball buscaba Hydrapple ex -- que
-                  no puede evolucionar nada -- en vez del Dipplin que faltaba).
-      necesario = eslabon INTERMEDIO que falta (su pre-evolucion esta en juego,
-                  no lo tenemos en mano ni en juego) Y que ademas DESBLOQUEA la
-                  etapa 2, que ahora mismo es huerfana. Es "la siguiente
-                  evolucion que se necesita en la banca".
+      orphan   = its PRE-EVOLUTION is neither in play nor in hand: bringing it
+                 is a DEAD card, it cannot be played (user, registro_006 step
+                 79 vs Marnie, LOST: with an Applin on the bench and NO Dipplin
+                 in play or in hand, the Ultra Ball searched for Hydrapple ex --
+                 which cannot evolve anything -- instead of the missing Dipplin).
+      needed   = a missing INTERMEDIATE link (its pre-evolution is in play, and
+                 we have it neither in hand nor in play) that ALSO UNLOCKS the
+                 stage 2, which right now is orphaned. It is "the next evolution
+                 needed on the bench".
 
-    La etapa 2 nunca entra en `necesarios`: cuando ES el eslabon que falta ya la
-    puntuan sus propias ramas (Hydrapple ex 980 / Meganium 1000), que ademas
-    aplican los clamps de matchup (ex muerto vs Crustle, cesion al motor de
-    refresco de Meowth ex). Subirla aqui pisaria esos clamps.
+    The stage 2 never enters `necesarios`: when it IS the missing link its own
+    branches already score it (Hydrapple ex 980 / Meganium 1000), and those also
+    apply the matchup clamps (a dead ex vs Crustle, yielding to the Meowth ex
+    refill engine). Raising it here would step on those clamps.
 
-    Se mira el campo ACTUAL (no la foto de inicio de turno): tener el eslabon en
-    la mano ya es progreso aunque la evolucion no pueda completarse este turno.
+    The CURRENT field is what is looked at (not the start-of-turn snapshot):
+    having the link in hand is already progress even if the evolution cannot be
+    completed this turn.
     """
     necesarios, huerfanos = set(), set()
     for linea in EVO_LINES:
@@ -465,7 +467,7 @@ def _evo_link_state(hand_counts, field_counts):
                     and field_counts.get(evo, 0) == 0
                     and hand_counts.get(evo, 0) == 0):
                 faltan.append(evo)
-        # Solo el eslabon intermedio cuya etapa 2 quedo huerfana.
+        # Only the intermediate link whose stage 2 was left orphaned.
         for evo in faltan:
             if evo != linea[-1] and linea[-1] in huerfanos:
                 necesarios.add(evo)
@@ -473,22 +475,22 @@ def _evo_link_state(hand_counts, field_counts):
 
 
 def _pokemon_injugable(card_id, field_counts, bench_count, bench_max):
-    """True si traer `card_id` a la mano trae una carta MUERTA: un Pokemon que
-    no se puede poner en juego ni hoy ni el turno siguiente.
+    """True if bringing `card_id` to hand brings a DEAD card: a Pokemon that
+    cannot be put into play today or on the next turn.
 
-    Todo se reduce al hueco de BANCA. Con `bench_count < bench_max` nada esta
-    muerto: cabe cualquier Basico, y una evolucion huerfana puede completarse
-    banqueando su pre-evolucion (la propia recuperacion trae hasta 3 cartas).
-    Con la banca LLENA:
-      * un BASICO no entra de ninguna forma -> muerto;
-      * una EVOLUCION solo vive si su pre-evolucion esta EN JUEGO (evoluciona
-        sobre ella sin ocupar banca). Tenerla en la MANO no basta: bajarla
-        exigiria el hueco que no hay.
+    It all comes down to the BENCH slot. With `bench_count < bench_max` nothing
+    is dead: any Basic fits, and an orphaned evolution can be completed by
+    benching its pre-evolution (the recovery itself brings up to 3 cards). With
+    a FULL bench:
+      * a BASIC does not fit in any way -> dead;
+      * an EVOLUTION only lives if its pre-evolution is IN PLAY (it evolves on
+        top of it without taking a bench slot). Having it in HAND is not enough:
+        putting it down would need the slot that is not there.
 
-    Deck-agnostico: las etapas salen de `EVO_LINES` y el tipo, de `card_table`.
-    No es un veto -- quien lo use debe dejar la opcion elegible como ULTIMO
-    recurso, porque las recuperaciones tienen `minCount >= 1` y a veces todo el
-    descarte es carta muerta.
+    Deck-agnostic: the stages come from `EVO_LINES` and the type from
+    `card_table`. It is not a veto -- whoever uses it must leave the option
+    eligible as a LAST resort, because recoveries have `minCount >= 1` and
+    sometimes the whole discard is dead cards.
     """
     datos = card_table.get(card_id)
     if datos is None or datos.cardType != CardType.POKEMON:
@@ -499,7 +501,7 @@ def _pokemon_injugable(card_id, field_counts, bench_count, bench_max):
         for pre, evo in zip(linea, linea[1:]):
             if evo == card_id:
                 return field_counts.get(pre, 0) == 0
-    return True                          # Basico con la banca llena
+    return True                          # a Basic with the bench full
 
 __all__ = [
     '_etapa_evolutiva',

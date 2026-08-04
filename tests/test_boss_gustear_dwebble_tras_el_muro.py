@@ -1,34 +1,34 @@
-"""Con el muro de Crustle delante, el Dwebble de banca SI se gustea.
+"""With the Crustle wall in front, the bench Dwebble IS gusted.
 
-Escenario (user, episodio 88620891 paso 78 vs Crustle, PERDIDA): Hydrapple ex
-ACTIVO con 12 unidades de Planta en el campo -- Syrup Storm pega 390 -- pero el
-activo rival es un Crustle, cuya habilidad *Mysterious Rock Inn* anula TODO el
-dano de nuestros Pokemon ex. Atacar de frente hace 0. En la banca rival esperan
-DOS Dwebble no-ex (70 y 90 PV), y en la mano tenemos Boss's Orders. La jugada
-correcta es de tres pasos:
+Scenario (user, episode 88620891 step 78 vs Crustle, LOST): Hydrapple ex
+ACTIVE with 12 units of Grass on the field -- Syrup Storm hits for 390 -- but the
+rival active is a Crustle, whose *Mysterious Rock Inn* ability cancels ALL the
+damage from our Pokemon ex. Attacking head-on does 0. On the rival bench wait
+TWO non-ex Dwebble (70 and 90 HP), and in hand we have Boss's Orders. The right
+play is a three-step one:
 
-    Boss's Orders -> gustear un Dwebble -> Syrup Storm -> KO (1 premio)
+    Boss's Orders -> gust a Dwebble -> Syrup Storm -> KO (1 prize)
 
-El agente jugaba Xerosic's Machinations y cerraba el turno sin premios, con
-Boss's atrapado en la mano (solo cabe un Supporter por turno).
+The agent played Xerosic's Machinations and closed the turn with no prizes, with
+Boss's trapped in hand (only one Supporter fits per turn).
 
-Causa: DOS reglas acopladas del log 86339758, que asumen que vs Crustle un
-Dwebble nunca merece el gusteo (es forraje del muro: evoluciona a Crustle):
+Cause: TWO coupled rules from log 86339758, which assume that vs Crustle a
+Dwebble never deserves the gust (it is wall fodder: it evolves into Crustle):
 
-1. `_AJUSTES_GUST_ESTORBO / forbid_dwebble_vs_crustle` -> SCORE_FORBID sobre el
-   Dwebble como OBJETIVO del gusteo.
-2. En `evaluate_supporters`, el corte `_cru_has_nondwebble_bench` ponia
-   `values[Boss_Orders] = 0` si en la banca rival solo habia Dwebble -- para no
-   jugar la carta persiguiendo un KO que (1) despues vetaba.
+1. `_AJUSTES_GUST_ESTORBO / forbid_dwebble_vs_crustle` -> SCORE_FORBID on the
+   Dwebble as the gust TARGET.
+2. In `evaluate_supporters`, the cut-off `_cru_has_nondwebble_bench` set
+   `values[Boss_Orders] = 0` if the rival bench held only Dwebble -- so as not to
+   play the card chasing a KO that (1) then vetoed.
 
-El corte (2) pisaba silenciosamente a `crustle_gust_worth_it`, la rama que YA
-detectaba justo este caso y subia Boss's a `BOSS_PRIORITY_CRUSTLE_GUST` (990).
+Cut-off (2) silently overrode `crustle_gust_worth_it`, the branch that ALREADY
+detected exactly this case and raised Boss's to `BOSS_PRIORITY_CRUSTLE_GUST` (990).
 
-La exencion es deck-agnostica en su nucleo: `muro_bloquea_activo` mide que
-nuestro ACTIVO hace 0 dano efectivo al activo rival via `_our_effective_damage`
-(vale para Mysterious Rock Inn, Cornerstone Stance, Sylveon...), no una lista de
-ids. Solo la exencion del veto sigue acotada a `op_is_crustle_deck`, que es
-donde vive el veto.
+The exemption is deck-agnostic at its core: `muro_bloquea_activo` measures that
+our ACTIVE does 0 effective damage to the rival active via `_our_effective_damage`
+(it holds for Mysterious Rock Inn, Cornerstone Stance, Sylveon...), not a list of
+ids. Only the veto's exemption is still bounded to `op_is_crustle_deck`, which is
+where the veto lives.
 """
 
 import sys
@@ -51,8 +51,8 @@ BOSS = m.Boss_Orders
 XEROSIC = m.Xerosic_Machinations
 ULTRA_BALL = m.Ultra_Ball
 
-CRUSTLE = m.Crustle_Grass      # 345: Mysterious Rock Inn (anula el dano de ex)
-DWEBBLE = m.Dwebble_Grass      # 344: 70 PV, no-ex -> 1 premio
+CRUSTLE = m.Crustle_Grass      # 345: Mysterious Rock Inn (cancels ex damage)
+DWEBBLE = m.Dwebble_Grass      # 344: 70 HP, non-ex -> 1 prize
 KANGASKHAN = m.Mega_Kangaskhan_ex
 
 
@@ -83,8 +83,8 @@ def reset_main_state():
 
 
 def _escenario(op_activo=None, op_banca=None, mano=(BOSS, XEROSIC, ULTRA_BALL)):
-    """El tablero del paso 78: Hydrapple ex activo con Planta de sobra
-    (Syrup Storm 390) y la banca rival solo con Dwebble."""
+    """The board of step 78: an active Hydrapple ex with Grass to spare
+    (Syrup Storm 390) and a rival bench with only Dwebble."""
     op_activo = op_activo if op_activo is not None else pk(CRUSTLE)
     op_banca = op_banca if op_banca is not None else [pk(DWEBBLE), pk(DWEBBLE)]
     return (Escenario(turno=8, paso=78, energia_jugada=True)
@@ -111,25 +111,25 @@ def _jugada(obs, eleccion, mano):
 
 
 # ---------------------------------------------------------------------------
-# El fallo del registro: jugar Boss's y gustear al Dwebble
+# The record's failure: play Boss's and gust the Dwebble
 # ---------------------------------------------------------------------------
 
 def test_con_el_muro_delante_se_juega_boss_orders():
-    """El caso exacto del paso 78: Boss's estaba VETADO (valor 0) y ganaba
-    Xerosic. Con el activo anulado por el muro, el gusteo es el unico premio."""
+    """The exact case of step 78: Boss's was VETOED (value 0) and Xerosic
+    won. With the active cancelled by the wall, the gust is the only prize."""
     mano = [BOSS, XEROSIC, ULTRA_BALL]
     obs = _escenario(mano=mano).menu_mano().construir()
     assert _jugada(obs, m.agent(obs), mano) == ("PLAY", BOSS)
 
 
 def test_el_objetivo_del_gusteo_es_el_dwebble_y_no_el_segundo_muro():
-    """La otra mitad de la cadena: sin esto jugariamos Boss's y luego el
-    selector vetaria al Dwebble (el fallo que motivo el log 86339758).
+    """The other half of the chain: without this we would play Boss's and then the
+    selector would veto the Dwebble (the failure that motivated log 86339758).
 
-    La banca lleva un Dwebble noqueable Y un segundo Crustle, al que tampoco
-    danamos: es el par que DISCRIMINA. Con los dos Dwebble del registro ambos
-    caian en SCORE_FORBID y el argmax elegia el indice 0 de todas formas, asi
-    que la asercion pasaba tambien sin la correccion."""
+    The bench carries a knockout-able Dwebble AND a second Crustle, which we also do
+    not damage: it is the pair that DISCRIMINATES. With the record's two Dwebble both
+    fell into SCORE_FORBID and the argmax picked index 0 anyway, so
+    the assertion passed even without the correction."""
     obs = (_escenario(op_banca=[pk(DWEBBLE), pk(CRUSTLE)])
            .menu_gusteo().construir())
     idx = obs["select"]["option"][m.agent(obs)[0]]["index"]
@@ -137,7 +137,7 @@ def test_el_objetivo_del_gusteo_es_el_dwebble_y_no_el_segundo_muro():
 
 
 def test_el_dwebble_gusteado_muere_al_syrup_storm():
-    """El gusteo solo vale si el KO es real: 30 + 30x12 = 390 sobre 70 PV."""
+    """The gust is only worth it if the KO is real: 30 + 30x12 = 390 on 70 HP."""
     obs = _escenario().menu_gusteo().construir()
     st = m.to_observation_class(obs).current
     mio, riv = st.players[0], st.players[1]
@@ -149,12 +149,12 @@ def test_el_dwebble_gusteado_muere_al_syrup_storm():
 
 
 # ---------------------------------------------------------------------------
-# Fronteras: la exencion NO desarma el veto original del log 86339758
+# Boundaries: the exemption does NOT disarm the original veto of log 86339758
 # ---------------------------------------------------------------------------
 
 def test_sin_muro_el_dwebble_sigue_vetado_como_objetivo():
-    """Frontera: si el activo rival NO nos anula (aqui un Mega Kangaskhan ex al
-    que SI pegamos), el Dwebble vuelve a ser forraje y no se gustea."""
+    """Boundary: if the rival active does NOT cancel us (here a Mega Kangaskhan ex we
+    DO hit), the Dwebble goes back to being fodder and is not gusted."""
     obs = (_escenario(op_activo=pk(KANGASKHAN, hp=300),
                       op_banca=[pk(DWEBBLE), pk(CRUSTLE)])
            .menu_gusteo().construir())
@@ -163,10 +163,10 @@ def test_sin_muro_el_dwebble_sigue_vetado_como_objetivo():
 
 
 def test_con_muro_pero_sin_KO_el_dwebble_sigue_vetado():
-    """Frontera: la exencion exige un KO REAL. Con el activo propio sin energia
-    suficiente para atacar, el Dwebble no es un premio y el veto se mantiene."""
+    """Boundary: the exemption requires a REAL KO. With our own active lacking enough
+    energy to attack, the Dwebble is not a prize and the veto holds."""
     obs = (Escenario(turno=8, paso=78, energia_jugada=True)
-           .mi_activo(pk(HYDRAPPLE, hp=210))          # 0 energias: no ataca
+           .mi_activo(pk(HYDRAPPLE, hp=210))          # 0 energies: it does not attack
            .mi_banca(pk(MEOWTH))
            .mi_mano(BOSS, ULTRA_BALL)
            .op_activo(pk(CRUSTLE))

@@ -1,8 +1,8 @@
-"""Puntuacion de las opciones `ABILITY`.
+"""Scoring of the `ABILITY` options.
 
-Rama `o.type == OptionType.ABILITY` de la cadena de `agent()`, extraida VERBATIM.
-Desempaqueta del contexto los 53 campos que lee y devuelve los
-2 que reasigna; los demas quedan como estaban, igual que antes.
+The `o.type == OptionType.ABILITY` branch of the `agent()` chain, extracted
+VERBATIM. It unpacks from the context the 53 fields it reads and returns the
+2 it reassigns; the rest stay as they were, just like before.
 """
 
 from cg.api import AreaType, Pokemon
@@ -15,7 +15,7 @@ from ptcg.estado.agente import ESTADO
 
 
 def puntuar(tc, o, score):
-    """Devuelve el puntaje de `o`. Puede devolver `_SALTAR`."""
+    """Returns the score of `o`. It may return `_SALTAR`."""
     _ability_order_veto = tc._ability_order_veto
     _ability_unlock_retreat_attack = tc._ability_unlock_retreat_attack
     _ability_unlock_retreat_ko = tc._ability_unlock_retreat_ko
@@ -72,22 +72,22 @@ def puntuar(tc, o, score):
         card = get_card(obs, o.area, o.index, my_index)
         if card is not None:
             if card.id == Grand_Tree:
-                # HABILIDAD DE GRAND TREE (estadio compartido, id 1249):
-                # cadena Basico -> Fase 1 -> Fase 2 sacada del mazo, gratis
-                # y una vez por turno. `_gt_plan` ya trae el mejor objetivo
-                # (ver el bloque `_gt_*`); aqui solo se decide CUANTO vale
-                # la jugada. Si no hay plan ejecutable -- primer turno,
-                # ningun Basico elegible, cadena agotada en el mazo -- se
-                # veta: activarla sin objetivo solo baraja el mazo.
+                # GRAND TREE ABILITY (shared stadium, id 1249):
+                # a Basic -> Stage 1 -> Stage 2 chain pulled out of the deck,
+                # free and once per turn. `_gt_plan` already brings the best
+                # target (see the `_gt_*` block); here only HOW MUCH the play
+                # is worth is decided. If there is no executable plan -- first
+                # turn, no eligible Basic, chain exhausted in the deck -- it is
+                # vetoed: activating it without a target only shuffles the deck.
                 if _gt_plan is None:
                     score = SCORE_VETO
                 elif _gt_plan.stage2_id:
                     score = GT_SCORE_CADENA_COMPLETA
                 else:
-                    # Cadena que se detiene en Fase 1 (Fase 2 agotada o
-                    # desaconsejada por el matchup anti-ex). Sigue siendo
-                    # desarrollo gratis, pero por debajo de la cadena
-                    # completa y de la evolucion a Meganium desde la mano.
+                    # A chain that stops at Stage 1 (Stage 2 exhausted or advised
+                    # against by the anti-ex matchup). It is still free
+                    # development, but below the complete chain and below evolving
+                    # into Meganium from hand.
                     score = GT_SCORE_SOLO_FASE1
             elif card.id == Teal_Mask_Ogerpon_ex:
         
@@ -114,16 +114,15 @@ def puntuar(tc, o, score):
                     _td_op_hp = _td_op_act.hp or 0
                     _td_eff_now = _ogerpon_energy
                     _td_eff_after = _ogerpon_energy + _grass_attach_unit()
-                    # Myriad Leaf Shower = 30 + 30 por CADA energia unida a
-                    # AMBOS activos (la propia MAS la del activo rival); de ahi
-                    # el `_td_eff_now + _td_opp_e` de abajo. (El comentario
-                    # anterior decia "solo energia propia": era un error ya
-                    # corregido en `_attacker_base_damage`, el codigo siempre
-                    # sumo las dos.) Se pasa por _our_effective_damage para
-                    # aplicar debilidad Y RESISTENCIA (user, registro_012 paso
-                    # 93: Duraludon resiste -30 a Planta, asi que Teal Dance
-                    # habilita el KO al pasar de 4 a >=5 energias efectivas).
-                    # `card` es el propio Teal Mask Ogerpon ex.
+                    # Myriad Leaf Shower = 30 + 30 for EACH energy attached to
+                    # BOTH actives (ours PLUS the opposing active's); hence the
+                    # `_td_eff_now + _td_opp_e` below. (The previous comment said
+                    # "own energy only": that was an error already corrected in
+                    # `_attacker_base_damage`, the code always added both.) It goes
+                    # through _our_effective_damage to apply weakness AND RESISTANCE
+                    # (user, registro_012 step 93: Duraludon resists -30 against
+                    # Grass, so Teal Dance enables the KO by going from 4 to >=5
+                    # effective energies). `card` is the Teal Mask Ogerpon ex itself.
                     _td_opp_e = len(getattr(_td_op_act, 'energies', []) or [])
                     _td_base_now = (30 + 30 * (_td_eff_now + _td_opp_e)
                                     if _td_eff_now >= 3 else 0)
@@ -138,11 +137,12 @@ def puntuar(tc, o, score):
                     _td_ko_now = (_td_dmg_now > 0 and _td_dmg_now >= _td_op_hp)
                     _td_ko_after = (_td_dmg_after > 0 and _td_dmg_after >= _td_op_hp)
                     _td_ko_on_active = (_td_ko_after and not _td_ko_now)
-                # Teal Dance del Ogerpon FOCO de carga letal (bench o activo):
-                # se usa para acercarlo a las 3 energias del KO por debilidad
-                # (user, registro_006 paso 62). A diferencia de `_td_ko_on_active`
-                # (solo el ACTIVO), esto cubre un Ogerpon de BANCA que luego se
-                # promueve. Exige que aun no llegue a 3 (no sobrecargar).
+                # Teal Dance on the Ogerpon that is the FOCUS of a lethal charge
+                # (bench or active): it is used to bring it closer to the 3
+                # energies of the weakness KO (user, registro_006 step 62). Unlike
+                # `_td_ko_on_active` (the ACTIVE only), this covers a BENCHED
+                # Ogerpon that is promoted afterwards. It requires that it does
+                # not reach 3 yet (do not overcharge).
                 _td_is_lethal_focus = (
                     _ogerpon_lethal_focus_serial is not None
                     and isinstance(card, Pokemon)
@@ -151,158 +151,154 @@ def puntuar(tc, o, score):
                 if hand_counts[Basic_Grass_Energy] < 1:
                     score = SCORE_VETO
                 elif _carga_activo_remata and o.area == AreaType.ACTIVE:
-                    # El ACTIVO que llega a su ataque LETAL con esta carga es
-                    # este mismo Ogerpon: su Teal Dance adjunta la Planta Y
-                    # ROBA, asi que hereda la banda del remate.
+                    # The ACTIVE that reaches its LETHAL attack with this charge is
+                    # this very Ogerpon: its Teal Dance attaches the Grass AND
+                    # DRAWS, so it inherits the finisher band.
                     score = SCORE_CARGA_ACTIVO_REMATE
                 elif _carga_activo_habilita_ataque and o.area == AreaType.ACTIVE:
-                    # Espejo sin KO: la Planta deja atacar al Ogerpon activo
-                    # (y roba) en un turno que si no seria esteril.
+                    # Mirror without a KO: the Grass lets the active Ogerpon attack
+                    # (and draws) on a turn that would otherwise be sterile.
                     score = SCORE_CARGA_ACTIVO_ATAQUE
                 elif ((_carga_activo_remata or _carga_activo_habilita_ataque)
                         and o.area != AreaType.ACTIVE
                         and hand_counts[Basic_Grass_Energy]
                             <= _carga_activo_falta):
-                    # Teal Dance solo se adjunta a SI MISMA: en un Ogerpon de
-                    # BANCA se comeria la Planta que el ACTIVO necesita para
-                    # rematar hoy. Se veta mientras la mano no de para ambos
-                    # (user, registro_006 paso 67 vs Marnie's Grimmsnarl).
+                    # Teal Dance only attaches to ITSELF: on a BENCHED Ogerpon it
+                    # would eat the Grass the ACTIVE needs to finish today. It is
+                    # vetoed while the hand cannot pay for both (user, registro_006
+                    # step 67 vs Marnie's Grimmsnarl).
                     score = SCORE_VETO
                 elif ((_attach_enable_retreat_ko
                        or _ability_unlock_retreat_ko)
                         and o.area == AreaType.ACTIVE):
-                    # TEAL DANCE que habilita la retirada hacia un atacante de
-                    # banca LETAL (user, registro_036 paso 146 vs Cubchoo).
-                    # `_attach_enable_retreat_ko` ya detecta la linea completa
-                    # -- activo sin energia para retirarse + atacante de banca
-                    # que NOQUEA -- y le da 41000 al adjunte MANUAL sobre el
-                    # activo. Pero si ese activo es un Teal Mask Ogerpon ex con
-                    # Teal Dance viva, el adjunte manual se veta por la
-                    # precedencia "Teal Dance antes que el adjunte" y la linea
-                    # se perdia entera: el agente acababa cargando un cuerpo de
-                    # banca cualquiera (alli, un Tapu Bulu a 10 PV) y el KO no
-                    # ocurria.
+                    # TEAL DANCE that enables the retreat towards a LETHAL benched
+                    # attacker (user, registro_036 step 146 vs Cubchoo).
+                    # `_attach_enable_retreat_ko` already detects the whole line
+                    # -- an active with no energy to retreat + a benched attacker
+                    # that KNOCKS OUT -- and gives 41000 to the MANUAL attachment on
+                    # the active. But if that active is a Teal Mask Ogerpon ex with
+                    # Teal Dance still alive, the manual attachment is vetoed by the
+                    # "Teal Dance before the attachment" precedence and the whole
+                    # line was lost: the agent ended up charging some benched body
+                    # (there, a Tapu Bulu at 10 HP) and the KO never happened.
                     #
-                    # La precedencia es correcta -- Teal Dance adjunta la misma
-                    # Planta Y ADEMAS ROBA --, lo que faltaba era que la propia
-                    # Teal Dance heredase la prioridad de esa linea letal. Va
-                    # ANTES de los topes de energia por matchup (Cubchoo,
-                    # Alakazam/Hop's, Crustle): esto no es sobrecargar, es la
-                    # unica forma de pagar el coste de retirada.
+                    # The precedence is correct -- Teal Dance attaches the same
+                    # Grass AND ALSO DRAWS -- what was missing was for Teal Dance
+                    # itself to inherit the priority of that lethal line. It goes
+                    # BEFORE the per-matchup energy caps (Cubchoo, Alakazam/Hop's,
+                    # Crustle): this is not overcharging, it is the only way to pay
+                    # the retreat cost.
                     #
-                    # `_teal_dance_ko_pivot`/`_teal_wall_pivot` (31600) cubren
-                    # solo el caso del MURO inmune con un atacante NO-ex; aqui
-                    # el activo rival es atacable y el letal de banca es otro
-                    # ex, asi que ninguno de los dos disparaba.
+                    # `_teal_dance_ko_pivot`/`_teal_wall_pivot` (31600) only cover
+                    # the case of the immune WALL with a NON-ex attacker; here the
+                    # opposing active is attackable and the lethal benched body is
+                    # another ex, so neither of them fired.
                     score = 41000
                 elif ((_attach_enable_retreat_attack
                        or _ability_unlock_retreat_attack)
                         and o.area == AreaType.ACTIVE):
-                    # Espejo no-letal del caso anterior (log 88162794 turnos
-                    # 11/13): si el activo que necesita la energia para
-                    # retirarse es este Ogerpon, su propia Teal Dance paga el
-                    # coste Y ROBA, asi que hereda la prioridad del pivote --
-                    # justo por encima del adjunte manual (31200) para no
-                    # perder el robo, y por debajo de las lineas de KO (31500).
+                    # Non-lethal mirror of the previous case (log 88162794 turns
+                    # 11/13): if the active that needs the energy to retreat is
+                    # this Ogerpon, its own Teal Dance pays the cost AND DRAWS, so
+                    # it inherits the pivot's priority -- just above the manual
+                    # attachment (31200) so the draw is not lost, and below the KO
+                    # lines (31500).
                     score = 31250
                 elif _td_ko_on_active or _td_is_lethal_focus:
         
                     score = 31500
                 elif _grass_anywhere_enables_syrup_ko:
-                    # Teal Dance como ACELERADOR del Syrup Storm del
-                    # Hydrapple ex ACTIVO (user, registro_006 paso 68 vs Mega
-                    # Abomasnow ex, PERDIDA): la Planta suma al recuento de
-                    # TODOS nuestros Pokemon, asi que este Ogerpon no
-                    # necesita ganar nada con ella -- de hecho aqui los dos
-                    # Ogerpon de banca ya estaban a 4 energias y la rama
-                    # `_ogerpon_energy >= 3` los VETABA por "sobrecarga",
-                    # dejando muerta en la mano la Planta que subia el
-                    # ataque de 330 a 390 sobre 350 PV. Va ANTES de los
-                    # topes por matchup (Cubchoo / Alakazam / Hop's /
-                    # Crustle) por la misma razon que `_td_ko_on_active`:
-                    # esto no es sobrecargar, es rematar.
+                    # Teal Dance as an ACCELERATOR of the ACTIVE Hydrapple ex's
+                    # Syrup Storm (user, registro_006 step 68 vs Mega Abomasnow
+                    # ex, LOST): the Grass adds to the count of ALL our Pokemon,
+                    # so this Ogerpon does not need to gain anything from it -- in
+                    # fact here both benched Ogerpon were already at 4 energies
+                    # and the `_ogerpon_energy >= 3` branch VETOED them for
+                    # "overcharging", leaving dead in hand the Grass that raised
+                    # the attack from 330 to 390 against 350 HP. It goes BEFORE
+                    # the per-matchup caps (Cubchoo / Alakazam / Hop's /
+                    # Crustle) for the same reason as `_td_ko_on_active`: this is
+                    # not overcharging, it is finishing.
                     #
-                    # Desempate entre varios Ogerpon: la Planta habilita el
-                    # mismo KO caiga donde caiga, asi que se prefiere el que
-                    # AUN NO llega a su propio ataque (< 3 efectivas) -- de
-                    # paso queda listo como segundo atacante -- sobre el que
-                    # ya estaba cargado (registro_008 paso 94).
+                    # Tie-break between several Ogerpon: the Grass enables the
+                    # same KO wherever it lands, so the one that does NOT reach
+                    # its own attack yet (< 3 effective) is preferred -- it also
+                    # ends up ready as a second attacker -- over the one that was
+                    # already charged (registro_008 step 94).
                     score = 31500 if _ogerpon_energy < 3 else 31490
                 elif (op_is_cubchoo_deck and
                         _physical_energy(_ogerpon_energy)
                         >= (2 if ESTADO.meganium_in_play else 4)):
-                    # Matchup Cubchoo (user): no sobrecargar al Ogerpon con
-                    # Teal Dance mas alla del tope FISICO (2 con Meganium / 4
-                    # sin). len(energies) viene DUPLICADO por Wild Growth con
-                    # Meganium, por eso convertimos a cartas fisicas antes de
-                    # comparar. No se necesita mas energia para atacar.
-                    # Excepcion: si habilita un KO (arriba, _td_ko_on_active).
+                    # Cubchoo matchup (user): do not overcharge the Ogerpon with
+                    # Teal Dance beyond the PHYSICAL cap (2 with Meganium / 4
+                    # without). len(energies) comes DOUBLED by Wild Growth with
+                    # Meganium, which is why we convert to physical cards before
+                    # comparing. No more energy is needed to attack.
+                    # Exception: if it enables a KO (above, _td_ko_on_active).
                     score = SCORE_VETO
                 elif ((op_is_alakazam_deck or op_is_hop_deck)
                         and _physical_energy(_ogerpon_energy)
                         >= _ogerpon_base_phys_cap(ESTADO.meganium_in_play,
                                                   op_is_hop_deck)):
-                    # Regla (user, vs Alakazam y vs Hop's): tope de energia
-                    # para Teal Mask Ogerpon ex via Teal Dance. Base FISICA =
-                    # 2 con Meganium (Wild Growth duplica cada Planta), 3 sin
-                    # Meganium vs Hop's y 4 sin Meganium vs Alakazam. En
-                    # BANCA es DURO; en el ACTIVO la energia extra solo se
-                    # permite si HABILITA el KO al activo rival, caso ya
-                    # resuelto arriba por _td_ko_on_active (31500) -- la
-                    # UNICA razon para pasar del tope con Teal Dance. Fuera
-                    # de esa excepcion no sobrecargamos: reservamos energia.
-                    # len(energies) es EFECTIVA => se pasa a cartas fisicas.
+                    # Rule (user, vs Alakazam and vs Hop's): energy cap for Teal
+                    # Mask Ogerpon ex via Teal Dance. PHYSICAL base = 2 with
+                    # Meganium (Wild Growth doubles every Grass), 3 without
+                    # Meganium vs Hop's and 4 without Meganium vs Alakazam. On the
+                    # BENCH it is HARD; on the ACTIVE the extra energy is only
+                    # allowed if it ENABLES the KO on the opposing active, a case
+                    # already resolved above by _td_ko_on_active (31500) -- the
+                    # ONLY reason to go past the cap with Teal Dance. Outside that
+                    # exception we do not overcharge: we save the energy.
+                    # len(energies) is EFFECTIVE => it is converted to physical cards.
                     score = SCORE_VETO
                 elif _teal_wall_pivot and o.area == AreaType.ACTIVE:
-                    # Activo condenado (Teal Mask Ogerpon ex) que no puede
-                    # atacar + Hydrapple ex (muro) en banca: usar Teal Dance
-                    # en el ACTIVO (adjunta Grass + ROBA 1) para habilitar su
-                    # retirada (coste 1) y luego subir al cuerpo mas fuerte.
-                    # Debe GANAR al adjunte manual (~31200) para aprovechar el
-                    # robo y no malgastar la energia del turno.
+                    # A doomed active (Teal Mask Ogerpon ex) that cannot attack +
+                    # Hydrapple ex (the wall) on the bench: use Teal Dance on the
+                    # ACTIVE (it attaches Grass + DRAWS 1) to enable its retreat
+                    # (cost 1) and then bring up the stronger body. It must BEAT
+                    # the manual attachment (~31200) so the draw is used and the
+                    # turn's energy is not wasted.
                     score = 31600
                 elif _teal_dance_ko_pivot and o.area == AreaType.ACTIVE:
-                    # Pivote Teal Dance -> retirar -> promover atacante letal
-                    # (user, log 85802744 turno 16): activo Teal Mask Ogerpon
-                    # ex bloqueado por el muro Crustle que aun no puede
-                    # retirarse, con un atacante no-ex LISTO en banca (Tapu
-                    # Bulu, 220 de dano) que noquea al muro. Teal Dance en el
-                    # activo adjunta la Planta (+ROBA) y habilita la retirada
-                    # de coste 1 para subir a Tapu y noquear el proximo paso.
-                    # Debe GANAR al adjunte manual a Dipplin (~31000).
+                    # Teal Dance -> retreat -> promote a lethal attacker pivot
+                    # (user, log 85802744 turn 16): active Teal Mask Ogerpon ex
+                    # blocked by the Crustle wall and unable to retreat yet, with
+                    # a non-ex attacker READY on the bench (Tapu Bulu, 220 damage)
+                    # that knocks the wall out. Teal Dance on the active attaches
+                    # the Grass (+DRAWS) and enables the cost-1 retreat to bring
+                    # up Tapu and knock out on the next step. It must BEAT the
+                    # manual attachment to Dipplin (~31000).
                     score = 31600
                 elif (((ESTADO.op_is_crustle_deck and not op_kang_ko_target)
                         or ESTADO.op_is_cornerstone_deck
                         or op_has_ability_immune_active)
                         and _physical_energy(_ogerpon_energy) >= 2):
-                    # Regla (user, vs Crustle, log 86583376 paso 84): un Teal
-                    # Mask Ogerpon ex no puede tener mas de DOS energias
-                    # FISICAS cargadas via Teal Dance. Contra el muro Crustle
-                    # (que inmuniza a nuestros ex) Ogerpon no ataca al muro,
-                    # asi que reservamos energia y no lo sobrecargamos. La
-                    # UNICA excepcion (Ogerpon ACTIVO cuya 3a energia habilita
-                    # el KO del activo rival) ya se resolvio arriba con
-                    # _td_ko_on_active (31500). Se conserva ademas el bypass
-                    # op_kang_ko_target (KO de Mega Kangaskhan ex con Hydrapple
-                    # ex, donde la energia extra sube el dano de Syrup Storm).
-                    # len(energies) es EFECTIVA (Wild Growth duplica) => se
-                    # pasa a cartas fisicas con _physical_energy.
+                    # Rule (user, vs Crustle, log 86583376 step 84): a Teal Mask
+                    # Ogerpon ex may not hold more than TWO PHYSICAL energies
+                    # charged via Teal Dance. Against the Crustle wall (which makes
+                    # our ex useless) Ogerpon does not attack the wall, so we save
+                    # energy and do not overcharge it. The ONLY exception (an
+                    # ACTIVE Ogerpon whose 3rd energy enables the KO on the opposing
+                    # active) was already resolved above with _td_ko_on_active
+                    # (31500). The op_kang_ko_target bypass is also kept (a KO on
+                    # Mega Kangaskhan ex with Hydrapple ex, where the extra energy
+                    # raises Syrup Storm's damage). len(energies) is EFFECTIVE (Wild
+                    # Growth doubles) => it is converted to physical cards with
+                    # _physical_energy.
                     #
-                    # EXTENSION a Cornerstone (autopsia v2.1 p025 t20, ciclo
-                    # jul 2026; mismo patron que d801d57 amplio la whitelist
-                    # anti-Cubchoo): Cornerstone Stance anula el dano de
-                    # nuestros Pokemon CON habilidad, asi que este Ogerpon
-                    # tampoco ataca alli -- y el agente le acumulo 3 fisicas
-                    # via Teal Dance (un cuerpo muerto de 6 efectivas)
-                    # mientras Tapu Bulu, EL atacante del matchup, moria de
-                    # hambre a 1 fisica con la mano sin energia. El tope de
-                    # 2 redirige el excedente: la regla de energy_score
-                    # "cornerstone -> Tapu +22000" ya existia y ahora la
-                    # energia le llega. `op_has_ability_immune_active` cubre
-                    # ademas cualquier muro anti-habilidad posicional
-                    # (Sylveon...). La excepcion _td_ko_on_active (arriba)
-                    # sigue cubriendo el activo rival atacable del mazo
-                    # mixto (Cubchoo/Beartic delante).
+                    # EXTENSION to Cornerstone (autopsy v2.1 p025 t20, jul 2026
+                    # cycle; same pattern by which d801d57 widened the anti-Cubchoo
+                    # whitelist): Cornerstone Stance cancels the damage of our
+                    # Pokemon WITH an ability, so this Ogerpon does not attack there
+                    # either -- and the agent piled 3 physical energies on it via
+                    # Teal Dance (a dead body with 6 effective) while Tapu Bulu, THE
+                    # attacker of the matchup, starved at 1 physical with no energy
+                    # in hand. The cap of 2 redirects the surplus: the energy_score
+                    # rule "cornerstone -> Tapu +22000" already existed and now the
+                    # energy reaches it. `op_has_ability_immune_active` also covers
+                    # any positional anti-ability wall (Sylveon...). The
+                    # _td_ko_on_active exception (above) still covers the attackable
+                    # opposing active of the mixed deck (Cubchoo/Beartic in front).
                     score = SCORE_VETO
                 elif _crustle_atk_needs_grass:
         
@@ -314,22 +310,22 @@ def puntuar(tc, o, score):
         
                     if (o.area == AreaType.ACTIVE
                             and (_win_via_boss_gust or _gust_2prize_via_boss)):
-                        # Combo Myriad ganador (user, registro_012 paso 227
-                        # vs Iono, PERDIDA): este turno hay un remate via
-                        # Boss's Orders (gustear de la banca rival un
-                        # objetivo que NOQUEAMOS para cobrar los premios que
-                        # faltan) y el atacante es este Ogerpon activo. Sin
-                        # esta rama, el veto de abajo ("ya tiene >=3 energias
-                        # y ya noquea al activo rival, no gastes mas Plantas")
-                        # mataba la habilidad, y como el adjunte manual al
-                        # activo esta vetado a su vez por la PRECEDENCIA de
-                        # Teal Dance, la energia acababa en un cuerpo de
-                        # banca y la linea ganadora se perdia. El objetivo
-                        # del gusteo no es el activo rival: la energia extra
-                        # es justo la que sube Myriad hasta su vida. Score
-                        # sobre las demas ramas de Teal Dance (31600) y
-                        # >= 29000, para conservar el tier ENERGY y jugarse
-                        # ANTES del PLAY de Boss's (tier 0).
+                        # Winning Myriad combo (user, registro_012 step 227
+                        # vs Iono, LOST): this turn there is a finisher via
+                        # Boss's Orders (gusting from the opposing bench a
+                        # target we KNOCK OUT to take the prizes we are
+                        # missing) and the attacker is this active Ogerpon.
+                        # Without this branch, the veto below ("it already has
+                        # >=3 energies and already knocks out the opposing
+                        # active, do not spend more Grass") killed the ability,
+                        # and since the manual attachment to the active is in
+                        # turn vetoed by Teal Dance's PRECEDENCE, the energy
+                        # ended up on a benched body and the winning line was
+                        # lost. The gust target is not the opposing active: the
+                        # extra energy is precisely what raises Myriad up to
+                        # its HP. Scored above the other Teal Dance branches
+                        # (31600) and >= 29000, to keep the ENERGY tier and be
+                        # played BEFORE the Boss's PLAY (tier 0).
                         score = 31700
                     elif _extra_energy_enables_ko(Teal_Mask_Ogerpon_ex, _ogerpon_energy):
                         score = 29000
@@ -369,19 +365,19 @@ def puntuar(tc, o, score):
             elif card.id == Hydrapple_ex:
         
                 _hydra_energy = len(card.energies) if isinstance(card, Pokemon) else 0
-                # Guard (user, log 85848966 paso 76, GANADO vs Crustle): NO
-                # activar Ripening Charge si la Grass extra no tiene destino
-                # util. Ripening Charge (una vez activada) OBLIGA a adjuntar
-                # a algun Pokemon; si el activo es un Tapu Bulu YA cargado
-                # (>=4 efectivas) y en banca no hay ningun atacante que
-                # necesite energia (Tapu<4ef, Dipplin sin energia o
-                # Meganium<4ef), energy_score (ATTACH_FROM) devuelve -1 para
-                # TODAS las opciones -> el desempate elige la 1a (el ACTIVO)
-                # y se sobrecarga al Tapu ya listo, malgastando una carta de
-                # Grass de la mano (que con Meganium sirve para retiradas /
-                # el proximo turno). Espeja el override de energy_score
-                # (~L4326). Como Hydrapple ex es ex y NO daña a Crustle, no
-                # se pierde ningun Syrup Storm letal al no activarla.
+                # Guard (user, log 85848966 step 76, WON vs Crustle): do NOT
+                # activate Ripening Charge if the extra Grass has no useful
+                # destination. Ripening Charge (once activated) FORCES an
+                # attachment to some Pokemon; if the active is a Tapu Bulu that
+                # is ALREADY charged (>=4 effective) and there is no benched
+                # attacker that needs energy (Tapu<4eff, Dipplin with no energy
+                # or Meganium<4eff), energy_score (ATTACH_FROM) returns -1 for
+                # ALL options -> the tie-break picks the 1st (the ACTIVE) and
+                # overcharges the already-ready Tapu, wasting a Grass card from
+                # hand (which with Meganium is useful for retreats / next turn).
+                # It mirrors the energy_score override (~L4326). Since Hydrapple
+                # ex is an ex and does NOT damage Crustle, no lethal Syrup Storm
+                # is lost by not activating it.
                 _ripen_wasted_vs_crustle = False
                 if ESTADO.op_is_crustle_deck:
                     _rip_act = my_state.active[0] if my_state.active else None
@@ -399,58 +395,58 @@ def puntuar(tc, o, score):
                 if hand_counts[Basic_Grass_Energy] < 1:
                     score = SCORE_VETO
                 elif _carga_activo_remata:
-                    # Ripening Charge adjunta a CUALQUIERA de nuestros
-                    # Pokemon: es la via de carga que completa el coste de
-                    # ataque del ACTIVO cuando el adjunte manual no basta (o
-                    # ya se gasto). El objetivo -- el ACTIVO -- lo fija
-                    # energy_score / ATTACH_FROM con la misma banda.
+                    # Ripening Charge attaches to ANY of our Pokemon: it is the
+                    # charging route that completes the ACTIVE's attack cost when
+                    # the manual attachment is not enough (or is already spent).
+                    # The target -- the ACTIVE -- is fixed by energy_score /
+                    # ATTACH_FROM with the same band.
                     score = SCORE_CARGA_ACTIVO_REMATE
                 elif _carga_activo_habilita_ataque:
-                    # Espejo sin KO: sin esta carga el activo no ataca y el
-                    # turno se cierra en blanco.
+                    # Mirror without a KO: without this charge the active does not
+                    # attack and the turn closes blank.
                     score = SCORE_CARGA_ACTIVO_ATAQUE
                 elif _ripen_retreat_ko_pivot and o.area == AreaType.ACTIVE:
-                    # Pivote Ripening -> retirar -> promover Tapu letal vs
-                    # Crustle (user, log 86028607 turno 22): activo Hydrapple
-                    # ex bloqueado por el muro con un Tapu de banca YA LISTO
-                    # (220 de dano) que noquea a Crustle. Activar Ripening
-                    # Charge para adjuntar una Planta al PROPIO Hydrapple y
-                    # alcanzar su coste de retirada (efectivo), habilitando
-                    # retirarlo y subir a Tapu para rematar. Debe GANAR a
-                    # Teal Dance / adjuntes normales; el objetivo (activo
-                    # Hydrapple) se fija en energy_score (ATTACH_FROM).
+                    # Ripening -> retreat -> promote a lethal Tapu pivot vs
+                    # Crustle (user, log 86028607 turn 22): active Hydrapple
+                    # ex blocked by the wall with a Tapu on the bench ALREADY
+                    # READY (220 damage) that knocks Crustle out. Activate
+                    # Ripening Charge to attach a Grass to the Hydrapple ITSELF
+                    # and reach its (effective) retreat cost, enabling it to
+                    # retreat and bring up Tapu to finish. It must BEAT Teal
+                    # Dance / normal attachments; the target (the active
+                    # Hydrapple) is fixed in energy_score (ATTACH_FROM).
                     score = 31600
                 elif _ripen_bench_tapu_ko_pivot and o.area == AreaType.ACTIVE:
-                    # Pivote Ripening -> cargar Tapu de banca a letal ->
-                    # retirar Hydrapple -> promover Tapu -> noquear al muro
-                    # (user, log 86182112 paso 82): activo Hydrapple ex
-                    # bloqueado por el muro Crustle y YA retirable, con un
-                    # Tapu de banca en 2 efectivas que con 1 Planta mas llega
-                    # a 4 (Wood Hammer 220, letal). Activar Ripening Charge
-                    # para adjuntar la 2a Planta a Tapu (objetivo fijado en
-                    # energy_score / ATTACH_FROM, +20000) en vez de malgastar
-                    # el adjunte en Teal Dance sobre Ogerpon. Ver
+                    # Ripening -> charge the benched Tapu to lethal ->
+                    # retreat Hydrapple -> promote Tapu -> knock out the wall
+                    # (user, log 86182112 step 82): active Hydrapple ex
+                    # blocked by the Crustle wall and ALREADY able to retreat,
+                    # with a benched Tapu at 2 effective that with 1 more
+                    # Grass reaches 4 (Wood Hammer 220, lethal). Activate
+                    # Ripening Charge to attach the 2nd Grass to Tapu (target
+                    # fixed in energy_score / ATTACH_FROM, +20000) instead of
+                    # wasting the attachment on Teal Dance over Ogerpon. See
                     # _ripen_bench_tapu_ko_pivot (~L4395).
                     score = 31600
                 elif _ripen_wasted_vs_crustle:
                     score = SCORE_VETO
                 elif _ability_unlock_retreat_ko:
-                    # Ripening Charge que DESBLOQUEA LA RETIRADA hacia un
-                    # atacante de banca LETAL (user, registro_014 paso 137 vs
-                    # Alakazam). Espejo exacto de la rama homonima de Teal
-                    # Dance: `_ability_unlock_retreat_ko` detecta la linea
-                    # completa (activo sin energia para retirarse + cuerpo de
-                    # banca que NOQUEA) y, a diferencia del adjunte manual,
-                    # sigue viva con `energyAttached` ya gastado porque la
-                    # habilidad adjunta aparte. Misma banda letal (41000): por
-                    # encima de cualquier carga de desarrollo. El objetivo
-                    # (el ACTIVO) se fija en energy_score / ATTACH_FROM.
+                    # Ripening Charge that UNLOCKS THE RETREAT towards a
+                    # LETHAL benched attacker (user, registro_014 step 137 vs
+                    # Alakazam). Exact mirror of the Teal Dance branch of the
+                    # same name: `_ability_unlock_retreat_ko` detects the whole
+                    # line (an active with no energy to retreat + a benched
+                    # body that KNOCKS OUT) and, unlike the manual attachment,
+                    # is still alive with `energyAttached` already spent
+                    # because the ability attaches separately. Same lethal band
+                    # (41000): above any development charge. The target (the
+                    # ACTIVE) is fixed in energy_score / ATTACH_FROM.
                     score = 41000
                 elif _ability_unlock_retreat_attack:
-                    # Espejo no-letal: el atacante de banca solo hace CHIP,
-                    # pero el activo no ataca ni se retira, asi que el turno
-                    # entero depende de esta Planta. Banda 31250, la misma que
-                    # usa Teal Dance para este caso.
+                    # Non-lethal mirror: the benched attacker only does CHIP
+                    # damage, but the active neither attacks nor retreats, so
+                    # the whole turn depends on this Grass. Band 31250, the
+                    # same one Teal Dance uses for this case.
                     score = 31250
                 elif _hydra_energy >= 2:
                     if _extra_energy_enables_ko(Hydrapple_ex, _hydra_energy):
@@ -460,45 +456,46 @@ def puntuar(tc, o, score):
         
                         score = 30000
                     elif _tapu_future_charge:
-                        # El activo ya asegura el KO: usamos Ripening Charge
-                        # (adjunta a cualquier Pokemon) para poner una 2a
-                        # energia en Tapu Bulu de banca y dejarlo listo
-                        # (2 fisicas = 4 efectivas con Meganium). El objetivo
-                        # Tapu Bulu se elige en energy_score (ATTACH_FROM).
+                        # The active already secures the KO: we use Ripening
+                        # Charge (which attaches to any Pokemon) to put a 2nd
+                        # energy on the benched Tapu Bulu and make it ready
+                        # (2 physical = 4 effective with Meganium). The target
+                        # Tapu Bulu is chosen in energy_score (ATTACH_FROM).
                         score = 30000
                     elif _ripen_heal_serial is not None:
-                        # Ripening Charge por su CURACION (user, registro_008
-                        # paso 122 vs Marnie's Grimmsnarl ex, PERDIDA): el
-                        # Hydrapple ya llega a su ataque, asi que la rama de
-                        # abajo VETABA la habilidad y la ultima Planta de la
-                        # mano se iba por el adjunte MANUAL (14000) -- misma
-                        # energia en el campo pero SIN los 30 de curacion.
-                        # Con el Dipplin de banca a 20/80 y Shadow Bullet
-                        # metiendo 30 automaticos cada turno, esos 30 son la
-                        # diferencia entre conservar el cuerpo y regalar un
-                        # premio. El objetivo se fija en ATTACH_FROM.
+                        # Ripening Charge for its HEALING (user, registro_008
+                        # step 122 vs Marnie's Grimmsnarl ex, LOST): the
+                        # Hydrapple already reaches its attack, so the branch
+                        # below VETOED the ability and the last Grass in hand
+                        # went through the MANUAL attachment (14000) -- the same
+                        # energy on the field but WITHOUT the 30 points of
+                        # healing. With the benched Dipplin at 20/80 and Shadow
+                        # Bullet putting 30 automatic damage in every turn,
+                        # those 30 are the difference between keeping the body
+                        # and giving away a prize. The target is fixed in
+                        # ATTACH_FROM.
                         #
-                        # Si el cuerpo que sale de la ventana es un ex son
-                        # DOS premios y la curacion gana tambien a Teal Dance
-                        # (31500): un robo de una carta no vale dos premios
-                        # (user, partida 2 turno 10 -- el agente eligio Teal
-                        # Dance sobre el Ogerpon ex de banca a 80 PV, que
-                        # murio ese mismo turno con 5 Plantas encima).
+                        # If the body that leaves the window is an ex, that is
+                        # TWO prizes and the healing also beats Teal Dance
+                        # (31500): drawing one card is not worth two prizes
+                        # (user, game 2 turn 10 -- the agent chose Teal Dance
+                        # on the benched Ogerpon ex at 80 HP, which died that
+                        # same turn with 5 Grass on it).
                         score = (RIPEN_HEAL_EX_ABILITY_SCORE if _ripen_heal_ex
                                  else RIPEN_HEAL_ABILITY_SCORE)
                     elif _ripen_bench_ready_pivot:
-                        # SEGUNDO ATACANTE con la habilidad (user,
-                        # registro_014 paso 137 vs Alakazam): el Hydrapple ya
-                        # llega a su ataque, asi que todas las ramas de arriba
-                        # miran solo si la Planta le sirve A EL y la habilidad
-                        # se VETABA -- las Plantas acababan de forraje en el
-                        # coste de una Ultra Ball. Pero Ripening Charge adjunta
-                        # a CUALQUIERA de nuestros Pokemon: si con ella un
-                        # atacante REAL de banca pasa de "no llega" a LISTO,
-                        # es un cuerpo mas que ataca el proximo turno (o este
-                        # mismo, si se retira el activo) por una carta que no
-                        # tenia otro destino. Banda 30000, la de las demas
-                        # cargas de banca por habilidad (`_tapu_future_charge`).
+                        # SECOND ATTACKER with the ability (user,
+                        # registro_014 step 137 vs Alakazam): the Hydrapple
+                        # already reaches its attack, so every branch above only
+                        # looks at whether the Grass is useful TO IT and the
+                        # ability was VETOED -- the Grass ended up as fodder for
+                        # the cost of an Ultra Ball. But Ripening Charge attaches
+                        # to ANY of our Pokemon: if with it a REAL benched
+                        # attacker goes from "not enough" to READY, that is one
+                        # more body attacking next turn (or this very turn, if
+                        # the active retreats) for a card that had no other
+                        # destination. Band 30000, that of the other bench
+                        # charges by ability (`_tapu_future_charge`).
                         score = 30000
                     else:
                         score = SCORE_VETO
@@ -518,51 +515,52 @@ def puntuar(tc, o, score):
         
                         score = 30500
             elif card.id == Fezandipiti_ex:
-                # Orden correcto Unfair Stamp -> Flip the Script: mientras
-                # tengamos Unfair Stamp jugable este turno (nos noquearon el
-                # turno anterior y sigue en la mano) primero se juega Unfair
-                # Stamp y DESPUES la habilidad de Fezandipiti. Asi el Stamp
-                # no baraja de vuelta las 3 cartas que roba la habilidad;
-                # quedan 5 (Stamp) + 3 (habilidad) = 8 cartas. Unfair Stamp
-                # es Item: al jugarse sale de la mano y _stamp_blocks_supp_chain
-                # pasa a False, re-habilitando la habilidad (30000).
-                # Ademas, si tenemos Lillie's Determination en la mano (y aun
-                # no jugamos Supporter), la jugamos ANTES que la habilidad.
+                # Correct order Unfair Stamp -> Flip the Script: while we
+                # have Unfair Stamp playable this turn (we were knocked out
+                # last turn and it is still in hand), Unfair Stamp is played
+                # first and the Fezandipiti ability AFTERWARDS. That way the
+                # Stamp does not shuffle back the 3 cards the ability draws;
+                # we end with 5 (Stamp) + 3 (ability) = 8 cards. Unfair Stamp
+                # is an Item: once played it leaves the hand and
+                # _stamp_blocks_supp_chain becomes False, re-enabling the
+                # ability (30000). Also, if we have Lillie's Determination in
+                # hand (and have not played a Supporter yet), we play it
+                # BEFORE the ability.
                 #
-                # ATENCION (user, registro_006 paso 78 vs Archaludon ex,
-                # PERDIDA): los dos son vetos de ORDEN, no de VALOR -- dicen
-                # "primero X, DESPUES la habilidad". Si X no se va a jugar en
-                # este menu no hay "despues" y el veto se convierte en una
-                # perdida seca: Flip the Script es UNA VEZ POR TURNO y su
-                # condicion (nos noquearon el turno anterior) no vuelve. Por
-                # eso se registran como veto DIFERIBLE en
-                # `_ability_order_veto` y se revocan mas abajo (ver el bloque
-                # "REVOCAR VETOS DE ORDEN"), en vez de matar la habilidad
-                # aqui de forma incondicional. El freno de deck-out, que si
-                # es un veto de VALOR, se evalua ANTES y no se revoca nunca.
+                # CAREFUL (user, registro_006 step 78 vs Archaludon ex,
+                # LOST): both are ORDERING vetoes, not VALUE ones -- they say
+                # "first X, THEN the ability". If X is not going to be played
+                # in this menu there is no "then" and the veto becomes a dead
+                # loss: Flip the Script is ONCE PER TURN and its condition (we
+                # were knocked out last turn) does not come back. That is why
+                # they are registered as DEFERRABLE vetoes in
+                # `_ability_order_veto` and revoked further down (see the
+                # "REVOKE ORDERING VETOES" block), instead of killing the
+                # ability unconditionally here. The deck-out brake, which IS a
+                # VALUE veto, is evaluated BEFORE and is never revoked.
                 if getattr(my_state, 'deckCount', 60) <= 4:
-                    # FRENO DE DECK-OUT (autopsia crustle jul 2026): con
-                    # el mazo en <=4, robar 3 con Flip the Script deja el
-                    # mazo a <=1 y el robo obligatorio del proximo turno
-                    # nos pone al borde de perder por deck-out. El draw
-                    # opcional no vale la partida.
+                    # DECK-OUT BRAKE (crustle autopsy jul 2026): with
+                    # the deck at <=4, drawing 3 with Flip the Script leaves
+                    # the deck at <=1 and next turn's mandatory draw puts us
+                    # on the edge of losing by deck-out. The optional draw is
+                    # not worth the game.
                     score = SCORE_VETO
                 else:
-                    # BANDA (user, registro_006 pasos 95-102, episodio
-                    # 88710543 vs Mega Lucario): el robo de 3 va ANTES de
-                    # gastar la energia del turno. Con 30000 la habilidad
-                    # perdia contra Teal Dance (31300) y Ripening Charge
-                    # (31100) menu tras menu y el turno se cerraba con la
-                    # habilidad SIN USAR -- gratis, UNA VEZ POR TURNO y con
-                    # su condicion (que nos noquearan) muerta al acabar el
-                    # turno. Ademas el orden correcto es este por
-                    # informacion: las 3 cartas nuevas pueden traer Plantas,
-                    # asi que decidir los adjuntes DESPUES del robo es
-                    # estrictamente mejor que al contrario. Se queda por
-                    # DEBAJO de las bandas letales de esas mismas habilidades
-                    # (41000/41900: la habilidad que HABILITA el KO de hoy
-                    # sigue primero) y del remate ganador (_TIER_WIN_ATTACK):
-                    # si la partida se cierra este turno, robar no aporta.
+                    # BAND (user, registro_006 steps 95-102, episode
+                    # 88710543 vs Mega Lucario): the 3-card draw goes BEFORE
+                    # spending the turn's energy. At 30000 the ability lost
+                    # against Teal Dance (31300) and Ripening Charge (31100)
+                    # menu after menu and the turn closed with the ability
+                    # UNUSED -- free, ONCE PER TURN and with its condition
+                    # (being knocked out) dead by the end of the turn.
+                    # Besides, this is the correct order by information: the
+                    # 3 new cards may bring Grass, so deciding the
+                    # attachments AFTER the draw is strictly better than the
+                    # other way around. It stays BELOW the lethal bands of
+                    # those same abilities (41000/41900: the ability that
+                    # ENABLES today's KO still comes first) and below the
+                    # winning finisher (_TIER_WIN_ATTACK): if the game closes
+                    # this turn, drawing adds nothing.
                     score = FEZ_DRAW_ABILITY_SCORE
                     _ab_order_blockers = tuple(
                         _blk_id for _blk_id, _blk_on in (

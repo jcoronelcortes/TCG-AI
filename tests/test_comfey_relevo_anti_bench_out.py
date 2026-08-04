@@ -1,43 +1,43 @@
-"""vs Comfey: con la BANCA VACÍA se baja un relevo, aunque el plan lo restrinja.
+"""vs Comfey: with an EMPTY BENCH a relief body is played, even if the plan restricts it.
 
-Escenario (autopsia `comfey`, jul 2026; fixture capturado del self-play, turno 20):
+Scenario (autopsy `comfey`, Jul 2026; a fixture captured from self-play, turn 20):
 
-    NOSOTROS                                  RIVAL (mill)
-    activo  Teal Mask Ogerpon ex              activo  Brambleghast
-    banca   **VACÍA**                         banca   Brambleghast, Comfey x2,
-    mano    Fezandipiti ex, Chikorita,                Bramblin
+    US                                        RIVAL (mill)
+    active  Teal Mask Ogerpon ex              active  Brambleghast
+    bench   **EMPTY**                         bench   Brambleghast, Comfey x2,
+    hand    Fezandipiti ex, Chikorita,                Bramblin
             Ultra Ball x2, Forest x2,
-            Boss's Orders, Planta
+            Boss's Orders, Grass
 
-El plan anti-Comfey es deliberado y está medido: contra un mazo que nos muele el
-mazo, **solo se baja Teal Mask Ogerpon ex** (máx 2) — es el atacante del matchup
-y todo lo demás adelgaza recursos sin avanzar el plan. Ese plan tenía una única
-excepción de ARRANQUE: si no hay Ogerpon en juego ni en mano **y no hay ningún
-cuerpo en juego**, se baja un starter para poder empezar.
+The anti-Comfey plan is deliberate and measured: against a deck that mills our
+deck, **only Teal Mask Ogerpon ex is played** (max 2) — it is the matchup's attacker
+and everything else thins out resources without advancing the plan. That plan had a single
+STARTUP exception: if there is no Ogerpon in play or in hand **and there is no
+body in play**, a starter is played so we can get going.
 
-El agujero está en ese "ningún cuerpo": `_cf_has_body` cuenta banca **o** activo.
-Con la banca vacía y el activo todavía vivo la excepción NO disparaba, así que
-el Fezandipiti ex (que puntuaba 22000) y el Chikorita caían a −1 y el turno se
-cerraba con **cero Pokémon en banca**. Si el rival noquea al activo, es
-bench-out y se acabó la partida.
+The hole is in that "no body": `_cf_has_body` counts the bench **or** the active.
+With an empty bench and the active still alive the exception did NOT fire, so
+the Fezandipiti ex (which scored 22000) and the Chikorita fell to −1 and the turn
+closed with **zero Pokémon on the bench**. If the rival knocks out the active, it is
+a bench-out and the game is over.
 
-Medido antes del arreglo (n=250 por mazo): el **bench-out es el 82% de nuestras
-derrotas** vs comfey (14 de 17) y el 50% vs comfey_yveltal_nz (7 de 14) — 5.6% y
-2.8% de todas las partidas, frente al 0.4-2% del resto de matchups —, con la
-mediana en el **turno 5**.
+Measured before the fix (n=250 per deck): the **bench-out is 82% of our
+losses** vs comfey (14 of 17) and 50% vs comfey_yveltal_nz (7 of 14) — 5.6% and
+2.8% of all games, against the 0.4-2% of the other matchups —, with the
+median at **turn 5**.
 
-Arreglo: `_cf_relevo_urgente` (banca vacía + carta BÁSICA) entra en la excepción
-junto a `_cf_need_starter`. Es la misma forma que la excepción del contra-estadio
-que ya vive en la whitelist anti-Comfey de la rama de Entrenadores: *una
-whitelist de matchup describe qué cartas hacen avanzar el plan, y no puede vetar
-la carta que impide perder la partida en el acto*. Y aquí ni siquiera hay coste
-anti-mill que defender: bajar un cuerpo de la MANO no adelgaza el mazo ni una
-carta.
+Fix: `_cf_relevo_urgente` (an empty bench + a BASIC card) joins the exception
+alongside `_cf_need_starter`. It is the same shape as the counter-stadium exception
+that already lives in the anti-Comfey whitelist of the Trainers branch: *a
+matchup whitelist describes which cards advance the plan, and it cannot veto
+the card that stops us losing the game on the spot*. And here there is not even an
+anti-mill cost to defend: playing a body from HAND does not thin the deck by a single
+card.
 
-Gate diferencial n=1500 por rama: **comfey 90.8% → 95.9% (+5.1)** y
-**comfey_yveltal_nz 93.6% → 98.2% (+4.6)**, ambos ≈5σ. Espejo 47.3%
-[44.2-50.4] y controles (crustle +3.5, hops −1.3) dentro del ruido: la regla
-está tras `op_is_comfey_deck`, así que no puede dispararse en otros matchups.
+Differential gate n=1500 per branch: **comfey 90.8% → 95.9% (+5.1)** and
+**comfey_yveltal_nz 93.6% → 98.2% (+4.6)**, both ≈5σ. Mirror 47.3%
+[44.2-50.4] and the controls (crustle +3.5, hops −1.3) within the noise: the rule
+is behind `op_is_comfey_deck`, so it cannot fire in other matchups.
 """
 
 import copy
@@ -60,8 +60,8 @@ _FIXTURE = (ROOT / "tests" / "fixtures"
 FEZ = m.Fezandipiti_ex
 CHIKORITA = m.Chikorita
 OGERPON = m.Teal_Mask_Ogerpon_ex
-BAYLEEF = m.Bayleef            # Fase 1: NO se banquea
-DIPPLIN = m.Dipplin            # Fase 1: NO se banquea
+BAYLEEF = m.Bayleef            # Stage 1: it is NOT benched
+DIPPLIN = m.Dipplin            # Stage 1: it is NOT benched
 BASICOS = (FEZ, CHIKORITA)
 
 
@@ -98,13 +98,13 @@ def _obs(con_banca=False, basicos_a_fase1=False):
     yo = o["current"]["yourIndex"]
     mio = o["current"]["players"][yo]
     if con_banca:
-        # Un cuerpo cualquiera en la banca: ya NO hay urgencia de relevo.
+        # Any body on the bench: there is NO relief urgency any more.
         cuerpo = copy.deepcopy(mio["active"][0])
         cuerpo["serial"] = 59
         mio["bench"] = [cuerpo]
     if basicos_a_fase1:
-        # Los dos Basicos de la mano pasan a ser Fase 1: no se banquean, asi
-        # que la exencion no debe alcanzarles.
+        # The two Basics in hand become Stage 1: they are not benched, so
+        # the exemption must not reach them.
         for c, nuevo in zip([h for h in mio["hand"] if h["id"] in BASICOS],
                             (BAYLEEF, DIPPLIN)):
             c["id"] = nuevo
@@ -125,9 +125,9 @@ def _scores(obs):
     def espia(ctx, sel, sc, ob, mi, top_n=3):
         visto.setdefault("s", list(sc))
 
-    # `_debug_log_decision` y `DEBUG_DECISIONS` viven en ptcg/motor/depuracion.py,
-    # y quien los consulta esta en ptcg/turno/finalize.py: hay que fijarlos en
-    # todos los modulos que los ligan, no solo en `main`.
+    # `_debug_log_decision` and `DEBUG_DECISIONS` live in ptcg/motor/depuracion.py,
+    # and the one that consults them is in ptcg/turno/finalize.py: they have to be set in
+    # all the modules that bind them, not just in `main`.
     _restaurar_espia = instalar("_debug_log_decision", espia)
     _restaurar_flag = instalar("DEBUG_DECISIONS", True)
     try:
@@ -139,7 +139,7 @@ def _scores(obs):
 
 
 def _flag_de_agent(obs, nombre):
-    """Lee una variable LOCAL de `agent()` al retornar."""
+    """Reads a LOCAL variable of `agent()` on return."""
     capt = {}
 
     def tr(frame, ev, arg):
@@ -166,7 +166,7 @@ def _idx_de(obs, card_id):
 
 
 # ---------------------------------------------------------------------------
-# 1. El escenario
+# 1. The scenario
 # ---------------------------------------------------------------------------
 
 def test_el_fixture_es_banca_vacia_con_activo_vivo_y_relevo_en_mano():
@@ -174,18 +174,18 @@ def test_el_fixture_es_banca_vacia_con_activo_vivo_y_relevo_en_mano():
     yo = o["current"]["yourIndex"]
     mio = o["current"]["players"][yo]
 
-    assert not [b for b in mio["bench"] if b]            # banca VACIA
-    assert mio["active"] and mio["active"][0]            # ...pero activo VIVO
+    assert not [b for b in mio["bench"] if b]            # EMPTY bench
+    assert mio["active"] and mio["active"][0]            # ...but the active is ALIVE
     mano = [h["id"] for h in mio["hand"]]
-    assert FEZ in mano and CHIKORITA in mano             # hay relevo basico
-    assert OGERPON not in mano                           # y NO es Ogerpon ex
-    # `op_is_comfey_deck` es LOCAL de `agent()`, no global: leerlo con
-    # `m.<flag>` daria lo que dejo el reset del test, no la decision.
+    assert FEZ in mano and CHIKORITA in mano             # there is a basic relief
+    assert OGERPON not in mano                           # and it is NOT Ogerpon ex
+    # `op_is_comfey_deck` is LOCAL to `agent()`, not global: reading it with
+    # `m.<flag>` would give what the test's reset left, not the decision.
     assert _flag_de_agent(o, "op_is_comfey_deck") is True
 
 
 # ---------------------------------------------------------------------------
-# 2. La decisión
+# 2. The decision
 # ---------------------------------------------------------------------------
 
 def test_con_la_banca_vacia_se_baja_un_relevo():
@@ -196,7 +196,7 @@ def test_con_la_banca_vacia_se_baja_un_relevo():
 
 
 def test_el_relevo_ya_no_esta_vetado():
-    """El fallo era un VETO (−1), no una derrota por puntos."""
+    """The failure was a VETO (−1), not a defeat on points."""
     obs = _obs()
     sc = _scores(obs)
     assert sc[_idx_de(obs, FEZ)] > 0, sc
@@ -204,12 +204,12 @@ def test_el_relevo_ya_no_esta_vetado():
 
 
 # ---------------------------------------------------------------------------
-# 3. Lo que NO se rompe: el plan anti-Comfey sigue en pie
+# 3. What is NOT broken: the anti-Comfey plan still stands
 # ---------------------------------------------------------------------------
 
 def test_con_un_cuerpo_en_banca_vuelve_el_veto_del_plan():
-    """La exención es de SUPERVIVENCIA: en cuanto hay relevo, el plan manda
-    otra vez y no se bajan cuerpos fuera de la lista."""
+    """The exemption is about SURVIVAL: as soon as there is a relief body, the plan rules
+    again and no bodies outside the list are played."""
     obs = _obs(con_banca=True)
     sc = _scores(obs)
     assert sc[_idx_de(obs, FEZ)] <= 0, sc
@@ -217,7 +217,7 @@ def test_con_un_cuerpo_en_banca_vuelve_el_veto_del_plan():
 
 
 def test_la_exencion_es_solo_para_basicos():
-    """Una Fase 1 no se banquea, así que la urgencia no la alcanza."""
+    """A Stage 1 is not benched, so the urgency does not reach it."""
     obs = _obs(basicos_a_fase1=True)
     sc = _scores(obs)
     assert sc[_idx_de(obs, BAYLEEF)] <= 0, sc

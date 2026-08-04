@@ -1,24 +1,24 @@
-"""La energia del DESCARTE que paga la retirada del activo y libera el remate.
+"""The energy from the DISCARD that pays the active's retreat and frees the finisher.
 
-Escenario (user, registro_021 turno 21, log 88359220): el ACTIVO no puede
-atacar y ni siquiera puede RETIRARSE (0 energias, coste 1), pero en la banca
-espera un atacante YA LISTO que noquea al activo rival. La unica Planta esta en
-el DESCARTE y tenemos una Night Stretcher en la mano. La jugada correcta es la
-cadena de cinco pasos:
+Scenario (user, registro_021 turn 21, log 88359220): the ACTIVE cannot
+attack and cannot even RETREAT (0 energies, cost 1), but on the bench
+an attacker is waiting ALREADY READY that knocks out the rival active. The only Grass is in
+the DISCARD and we have a Night Stretcher in hand. The right play is the
+five-step chain:
 
-    Night Stretcher -> Planta a la mano -> adjuntar al ACTIVO -> RETIRAR ->
-    promover al rematador -> KO
+    Night Stretcher -> Grass to hand -> attach to the ACTIVE -> RETREAT ->
+    promote the finisher -> KO
 
-El agente cerraba el turno (END). Causa: `_ns_e_activo_paga_retirada` -- el
-detector deck-agnostico de esa linea -- solo estaba cableado al corte de BANCA
-LLENA (`_ns_banca_llena_guardar`), nunca a `_ESC_NS_RECUPERACION`, que es la
-lista que produce el SCORE. Con la banca no llena el ARGMAX daba 0 y el scorer
-de la Night Stretcher devolvia SCORE_VETO.
+The agent ended the turn (END). Cause: `_ns_e_activo_paga_retirada` -- the
+deck-agnostic detector of that line -- was only wired to the FULL BENCH
+cut-off (`_ns_banca_llena_guardar`), never to `_ESC_NS_RECUPERACION`, which is the
+list that produces the SCORE. With the bench not full the ARGMAX gave 0 and the
+Night Stretcher's scorer returned SCORE_VETO.
 
-Los tests son deck-agnosticos a proposito: el caso que fallaba usa un rematador
-de banca SIN habilidad de carga (Tapu Bulu), porque con un Teal Mask Ogerpon ex
-en juego la Night Stretcher se jugaba igual por CASUALIDAD, via el escenario
-`energia_activo_sin_teal` -- que no tiene nada que ver con la retirada.
+The tests are deck-agnostic on purpose: the case that failed uses a bench
+finisher WITHOUT a charging ability (Tapu Bulu), because with a Teal Mask Ogerpon ex
+in play the Night Stretcher was played anyway by CHANCE, via the scenario
+`energia_activo_sin_teal` -- which has nothing to do with the retreat.
 """
 
 import sys
@@ -33,15 +33,15 @@ if str(ROOT) not in sys.path:
 import main as m
 from state_builder import G, Escenario, pk
 
-FEZANDIPITI = m.Fezandipiti_ex     # activo bloqueado: 0 energias, coste 1
-TAPU = m.Tapu_Bulu                 # rematador de banca SIN habilidad de carga
+FEZANDIPITI = m.Fezandipiti_ex     # a blocked active: 0 energies, cost 1
+TAPU = m.Tapu_Bulu                 # a bench finisher WITHOUT a charging ability
 OGERPON = m.Teal_Mask_Ogerpon_ex
 MEOWTH = m.Meowth_ex
 NIGHT_STRETCHER = m.Night_Stretcher
 ULTRA_BALL = m.Ultra_Ball
 GRASS = m.Basic_Grass_Energy
 
-COMFEY = 164                       # 70 PV: Wood Hammer (220) lo noquea
+COMFEY = 164                       # 70 HP: Wood Hammer (220) knocks it out
 
 
 @pytest.fixture(autouse=True)
@@ -98,21 +98,21 @@ def _elegida(obs, eleccion, mano):
 
 
 # ---------------------------------------------------------------------------
-# Paso 1: jugar la carta que trae la energia
+# Step 1: play the card that brings the energy
 # ---------------------------------------------------------------------------
 
 def test_night_stretcher_se_juega_para_pagar_la_retirada():
-    """El caso del registro: sin Planta en mano y con el remate en la mesa, la
-    Night Stretcher se juega en vez de terminar el turno."""
+    """The record's case: with no Grass in hand and the finisher on the table, the
+    Night Stretcher is played instead of ending the turn."""
     mano = [NIGHT_STRETCHER, ULTRA_BALL]
     obs = _escenario(mano).menu_mano().construir()
     assert _elegida(obs, m.agent(obs), mano) == ("PLAY", NIGHT_STRETCHER)
 
 
 def test_deck_agnostico_el_rematador_no_necesita_habilidad_de_carga():
-    """Con un Teal Mask Ogerpon ex de banca la jugada ya salia bien por
-    casualidad (escenario `energia_activo_sin_teal`). La regla debe valer
-    igual con un rematador cualquiera -- aqui, ambos."""
+    """With a bench Teal Mask Ogerpon ex the play already came out right by
+    chance (the `energia_activo_sin_teal` scenario). The rule must hold
+    equally with any finisher -- here, both."""
     for banca in ([pk(TAPU, energias=[G, G, G, G]), pk(MEOWTH)],
                   [pk(OGERPON, energias=[G, G, G]), pk(MEOWTH)]):
         m._init_cartas_tracking()
@@ -124,16 +124,16 @@ def test_deck_agnostico_el_rematador_no_necesita_habilidad_de_carga():
 
 
 def test_sin_energia_en_el_descarte_no_se_gasta_la_night_stretcher():
-    """Frontera: si en el descarte no queda ninguna Planta, la cadena no existe
-    y la Night Stretcher no debe jugarse por esta regla."""
+    """Boundary: if no Grass is left in the discard, the chain does not exist
+    and the Night Stretcher must not be played through this rule."""
     mano = [NIGHT_STRETCHER, ULTRA_BALL]
     obs = _escenario(mano, descarte=(ULTRA_BALL, ULTRA_BALL)).menu_mano().construir()
     assert _elegida(obs, m.agent(obs), mano) != ("PLAY", NIGHT_STRETCHER)
 
 
 def test_con_planta_ya_en_mano_la_cadena_no_necesita_la_night_stretcher():
-    """Frontera: con la Planta ya en la mano el eslabon inicial sobra; manda el
-    adjunte al ACTIVO (`_attach_enable_retreat_ko`, 41000)."""
+    """Boundary: with the Grass already in hand the first link is superfluous; what rules is the
+    attachment to the ACTIVE (`_attach_enable_retreat_ko`, 41000)."""
     mano = [NIGHT_STRETCHER, GRASS]
     obs = _escenario(mano).menu_mano(con_adjunte=True).construir()
     tipo, destino = _elegida(obs, m.agent(obs), mano)
@@ -141,7 +141,7 @@ def test_con_planta_ya_en_mano_la_cadena_no_necesita_la_night_stretcher():
 
 
 # ---------------------------------------------------------------------------
-# Pasos 2-5: la cadena completa
+# Steps 2-5: the complete chain
 # ---------------------------------------------------------------------------
 
 def test_la_night_stretcher_recupera_la_energia_y_no_un_pokemon():
@@ -167,12 +167,12 @@ def test_con_la_energia_puesta_se_retira():
 
 
 # ---------------------------------------------------------------------------
-# Umbral de energia util sobre el ACTIVO (`_ns_umbral_energia_util`)
+# The useful-energy threshold on the ACTIVE (`_ns_umbral_energia_util`)
 # ---------------------------------------------------------------------------
 
 def _umbral_viejo(cid, e):
-    """Copia LITERAL de la cadena de `if act.id == ...` que habia antes de
-    extraer el umbral a tablas. Es el oraculo de la equivalencia."""
+    """A LITERAL copy of the `if act.id == ...` chain that existed before
+    extracting the threshold into tables. It is the equivalence oracle."""
     eff = e * m._grass_mult()
     if cid == m.Hydrapple_ex:
         return eff < 2 and e < 2
@@ -198,25 +198,25 @@ def _umbral_nuevo(cid, e):
 
 @pytest.mark.parametrize("card_id", sorted(m._DECK_POKEMON_IDS))
 def test_umbral_equivale_al_original_para_todo_el_mazo(card_id):
-    """El refactor a tablas + fallback NO cambia ni una decision del mazo
-    actual: se compara contra el oraculo para 0..10 energias."""
+    """The refactor to tables + fallback does NOT change a single decision of the current
+    deck: it is compared against the oracle for 0..10 energies."""
     for e in range(11):
         assert _umbral_nuevo(card_id, e) == _umbral_viejo(card_id, e), (
             f"flip en {card_id} con {e} energias")
 
 
 def test_cuerpos_del_mazo_excluidos_siguen_excluidos():
-    """Meowth ex y Fezandipiti ex TIENEN ataque, pero la configuracion curada
-    los deja fuera a proposito (cuerpos de utilidad). El fallback por dato de
-    carta no debe resucitarlos."""
+    """Meowth ex and Fezandipiti ex DO have an attack, but the curated configuration
+    leaves them out on purpose (utility bodies). The fallback by card
+    data must not resurrect them."""
     for cid in (m.Meowth_ex, m.Fezandipiti_ex):
-        assert m._coste_de_ataque_min(cid) is not None   # si tienen ataque...
-        assert m._ns_umbral_energia_util(cid) is None    # ...pero no cuentan
+        assert m._coste_de_ataque_min(cid) is not None   # they do have an attack...
+        assert m._ns_umbral_energia_util(cid) is None    # ...but they do not count
 
 
 def test_cuerpo_fuera_del_mazo_usa_el_dato_de_carta():
-    """La rama deck-agnostica: un cuerpo que la configuracion no conoce deja de
-    devolver False a ciegas y razona con el coste real de su ataque."""
+    """The deck-agnostic branch: a body the configuration does not know stops
+    returning False blindly and reasons with the real cost of its attack."""
     crustle = 345
     assert crustle not in m._DECK_POKEMON_IDS
     assert m._ns_umbral_energia_util(crustle) == m._coste_de_ataque_min(crustle)
@@ -224,7 +224,7 @@ def test_cuerpo_fuera_del_mazo_usa_el_dato_de_carta():
 
 
 def test_coste_de_ataque_min_desconocido_es_none():
-    """Sin dato de carta no se inventa un umbral."""
+    """With no card data no threshold is invented."""
     assert m._coste_de_ataque_min(-12345) is None
     assert m._ns_umbral_energia_util(-12345) is None
 

@@ -1,8 +1,8 @@
-"""Puntuacion de las opciones `ATTACK`.
+"""Scoring of the `ATTACK` options.
 
-Rama `o.type == OptionType.ATTACK` de la cadena de `agent()`, extraida VERBATIM.
-Desempaqueta del contexto los 25 campos que lee y devuelve los
-2 que reasigna; los demas quedan como estaban, igual que antes.
+The `o.type == OptionType.ATTACK` branch of the `agent()` chain, extracted
+VERBATIM. It unpacks from the context the 25 fields it reads and returns the
+2 it reassigns; the rest stay as they were, just like before.
 """
 
 from cg.api import AreaType, OptionType
@@ -13,7 +13,7 @@ from ptcg.estado.claves import ESTADO_MAZO
 
 
 def puntuar(tc, o, score):
-    """Devuelve el puntaje de `o`. Puede devolver `_SALTAR`."""
+    """Returns the score of `o`. It may return `_SALTAR`."""
     _active_attack_wins_now = tc._active_attack_wins_now
     _active_snipe_ko_now = tc._active_snipe_ko_now
     _active_snipe_ko_prizes = tc._active_snipe_ko_prizes
@@ -45,38 +45,38 @@ def puntuar(tc, o, score):
         
             score += 100
         
-        # Remate GANADOR con el ACTIVO (user, registro_009 paso 125 vs
-        # Archaludon ex): si el ataque del activo NOQUEA y GANA la partida,
-        # es la jugada de maxima prioridad -- por encima de cualquier carga /
-        # desarrollo / Teal Dance. El tier de orden de jugada (abajo) tambien
-        # la sube al maximo para que se ejecute YA y cierre la partida.
+        # WINNING finisher with the ACTIVE (user, registro_009 step 125 vs
+        # Archaludon ex): if the active's attack KNOCKS OUT and WINS the game,
+        # it is the highest priority play -- above any charge / development /
+        # Teal Dance. The play-order tier (below) also raises it to the maximum
+        # so it is executed NOW and closes the game.
         if _active_attack_wins_now and ESTADO.plan.attacker == 0:
             score = 99000
         
-        # SNIPE QUE COBRA PREMIO (user, registro_004 paso 54 vs Alakazam):
-        # el Cruel Arrow del Fezandipiti ex activo no llega al muro de
-        # delante pero NOQUEA en la banca. Ese ataque es un premio gratis --
-        # no cuesta energia ni expone otro cuerpo -- y debe superar a las
-        # jugadas "de relleno" que antes le ganaban el menu (pivotes de
-        # retirada, cargas, desarrollo). Se queda por debajo de los remates
-        # ganadores (99000) y de los pivotes de KO mayor (8900-9600), que
-        # tienen sus propias guardas de premios.
+        # SNIPE THAT TAKES A PRIZE (user, registro_004 step 54 vs Alakazam):
+        # the Cruel Arrow of the active Fezandipiti ex does not reach the wall
+        # in front but it KNOCKS OUT on the bench. That attack is a free prize
+        # -- it costs no energy and exposes no other body -- and has to beat the
+        # "filler" plays that used to win the menu over it (retreat pivots,
+        # charges, development). It stays below the winning finishers (99000)
+        # and the bigger-KO pivots (8900-9600), which have their own prize
+        # guards.
         elif _active_snipe_ko_now and ESTADO.plan.attacker == 0:
             score = 8500 + 100 * _active_snipe_ko_prizes
         
-        # REMATE SUICIDA (user, registro_016 paso 184 vs Marnie's Grimmsnarl,
-        # EMPATE): el AUTO-DANO del ataque noquea a nuestro propio activo y,
-        # con ese cadaver, el rival cobra el ultimo premio que le falta. Dos
-        # frenos, con motivos distintos:
-        #   * `_suicide_loses`: nuestro KO NO cierra nuestra cuenta, asi que
-        #     atacar REGALA la partida. Se veta siempre -- pasar es
-        #     estrictamente mejor que perder.
-        #   * `_suicide_only_draws`: los dos KOs cierran las dos cuentas ->
-        #     EMPATE. Solo se veta si existe el relevo de banca que gana
-        #     LIMPIO (`_suicide_swap_win_promote`); sin relevo, el empate es
-        #     el mejor resultado disponible y se ataca igual.
-        # `plan.attacker == 0` acota los frenos al ataque DEL ACTIVO, que es
-        # el unico cuerpo cuyo auto-dano midieron los flags.
+        # SUICIDAL FINISHER (user, registro_016 step 184 vs Marnie's Grimmsnarl,
+        # DRAW): the attack's SELF-DAMAGE knocks out our own active and, with
+        # that corpse, the opponent takes the last prize they were missing. Two
+        # brakes, with different reasons:
+        #   * `_suicide_loses`: our KO does NOT close our own count, so
+        #     attacking GIVES AWAY the game. Always vetoed -- passing is
+        #     strictly better than losing.
+        #   * `_suicide_only_draws`: both KOs close both counts -> a DRAW. It is
+        #     only vetoed if there is a benched relief that wins CLEANLY
+        #     (`_suicide_swap_win_promote`); without relief, the draw is the
+        #     best result available and we attack anyway.
+        # `plan.attacker == 0` limits the brakes to the attack OF THE ACTIVE,
+        # which is the only body whose self-damage the flags measured.
         if (ESTADO.plan.attacker == 0
                 and (_suicide_loses
                      or (_suicide_only_draws and _suicide_swap_win_promote))):
@@ -180,11 +180,11 @@ def puntuar(tc, o, score):
         _atk_active = my_state.active[0] if my_state.active else None
         if (_atk_active is not None and _atk_active.id == Meowth_ex
                 and bench_count == 0):
-            # El ataque de Meowth ex (Tuck Tail) devuelve a Meowth ex y todas
-            # sus cartas a la mano. Si Meowth ex es el UNICO Pokemon en juego
-            # (banca vacia), atacar nos dejaria sin Pokemon en juego =>
-            # perdemos la partida. Solo puede atacar si hay al menos un
-            # Pokemon en banca al que retroceder.
+            # Meowth ex's attack (Tuck Tail) returns Meowth ex and all of its
+            # cards to the hand. If Meowth ex is the ONLY Pokemon in play (empty
+            # bench), attacking would leave us with no Pokemon in play => we lose
+            # the game. It can only attack if there is at least one Pokemon on the
+            # bench to fall back to.
             score = SCORE_VETO
         
         if op_active_dodge_immune:

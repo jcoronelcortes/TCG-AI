@@ -1,43 +1,43 @@
-"""Boss's Orders: no regalar el activo cuando el gusteo no consigue nada.
+"""Boss's Orders: do not give away the active spot when the gust achieves nothing.
 
-Escenario (`registros/registro_002_pasos_015_hasta_022.json`, paso 20, turno 2,
-PERDIDA vs Alakazam -- episodio 88906640):
+Scenario (`registros/registro_002_pasos_015_hasta_022.json`, step 20, turn 2,
+LOST vs Alakazam -- episode 88906640):
 
-    NOSOTROS (6 premios)                     RIVAL (6 premios)
-    activo  Teal Mask Ogerpon ex 1/3         activo  Fezandipiti ex 210 PV,
-    banca   Teal Mask Ogerpon ex 2/3                 **0 energias**
-    mano    Lana's Aid, Boss's Orders,       banca   Abra x4, Dunsparce
-            Hydrapple ex, Unfair Stamp,      mano    ...con el Kadabra dentro
+    US (6 prizes)                            RIVAL (6 prizes)
+    active  Teal Mask Ogerpon ex 1/3         active  Fezandipiti ex 210 HP,
+    bench   Teal Mask Ogerpon ex 2/3                 **0 energies**
+    hand    Lana's Aid, Boss's Orders,       bench   Abra x4, Dunsparce
+            Hydrapple ex, Unfair Stamp,      hand    ...with the Kadabra in it
             Tapu Bulu
 
-Ningun cuerpo nuestro puede atacar (Myriad Leaf Shower cuesta 3). El menu solo
-ofrecia cuatro cosas: Boss's Orders, bajar Tapu Bulu (vetado: sin Meganium en
-juego), retirar y terminar el turno. El agente jugo **Boss's Orders** y subio un
-**Abra**. El rival evoluciono ese mismo Abra a Kadabra y empezo a atacar con el
-cuerpo que le habiamos puesto delante.
+No body of ours can attack (Myriad Leaf Shower costs 3). The menu only
+offered four things: Boss's Orders, playing Tapu Bulu (vetoed: no Meganium in
+play), retreating and ending the turn. The agent played **Boss's Orders** and brought up an
+**Abra**. The rival evolved that very Abra into Kadabra and started attacking with the
+body we had put in front of them.
 
-Dos errores independientes en la misma jugada:
+Two independent mistakes in the same play:
 
-1. **El gusteo no conseguia nada.** Boss's Orders es, para el rival, una
-   RETIRADA GRATIS. Solo compensa regalarsela por cobrar un premio que de frente
-   no cobramos, o por quitar de enmedio al cuerpo que nos va a golpear. Aqui no
-   habia KO posible y su activo no podia atacar en su turno: *Cruel Arrow* cuesta
-   3 energias y el Fezandipiti ex estaba pelado (con un adjunte llega a 1).
-   -> `gusteo_sin_proposito`, deck-agnostico.
+1. **The gust achieved nothing.** Boss's Orders is, for the rival, a
+   FREE RETREAT. Giving it to them only pays off to take a prize we would not take
+   head-on, or to get out of the way the body that is going to hit us. Here there
+   was no KO available and their active could not attack on their turn: *Cruel Arrow* costs
+   3 energies and the Fezandipiti ex was bare (with one attachment it reaches 1).
+   -> `gusteo_sin_proposito`, deck-agnostic.
 
-2. **En ESTE matchup subir la linea es hacerles el trabajo.** Abra -> Kadabra ->
-   Alakazam es la unica linea atacante del mazo. El unico gusteo sin KO que
-   rinde es el inverso -- su Kadabra/Alakazam ya esta de activo CON energia y lo
-   mandamos a la banca a cambio de un cuerpo que no ataca (`relevo`).
+2. **In THIS matchup bringing up the line is doing their work for them.** Abra -> Kadabra ->
+   Alakazam is the deck's only attacking line. The only gust without a KO that
+   pays off is the reverse one -- their Kadabra/Alakazam is already active WITH energy and we
+   send it to the bench in exchange for a body that does not attack (`relevo`).
    -> `no_regalar_linea_alakazam`.
 
-La valoracion de la que salia el gusteo era la rama `elif op_is_alakazam_deck`
-de `evaluate_supporters`: puntuaba 700 "subir la mayor evolucion de la linea que
-haya en banca" sin exigir KO (Abra de banca > Fezandipiti de activo, que no esta
-en la linea). Los 700 pasaban por el tope de turno 2 (200) y llegaban a la regla
-de reserva `valor_del_supporter`: 2400 + 200*1.4 = 2680, por encima del END.
+The evaluation the gust came out of was the `elif op_is_alakazam_deck` branch
+of `evaluate_supporters`: it scored 700 for "bring up the highest evolution of the line
+on the bench" without requiring a KO (a bench Abra > the active Fezandipiti, which is not
+in the line). The 700 got past the turn-2 ceiling (200) and reached the reserve
+rule `valor_del_supporter`: 2400 + 200*1.4 = 2680, above the END.
 
-Corpus dorado: un unico flip, el de este paso (1/93 decisiones).
+Golden corpus: a single flip, this step's (1/93 decisions).
 """
 
 import copy
@@ -105,7 +105,7 @@ def _op(activo, banca):
 
 
 # ---------------------------------------------------------------------------
-# 1. El escenario: sin el, el test no mide nada
+# 1. The scenario: without it, the test measures nothing
 # ---------------------------------------------------------------------------
 
 def test_el_fixture_es_el_turno_2_sin_atacante():
@@ -116,22 +116,22 @@ def test_el_fixture_es_el_turno_2_sin_atacante():
 
     assert o["current"]["turn"] == 2 and not o["current"]["supporterPlayed"]
 
-    # Nosotros: dos Ogerpon ex, ninguno a las 3 energias de Myriad Leaf Shower.
+    # Us: two Ogerpon ex, neither at the 3 energies of Myriad Leaf Shower.
     assert mio["active"][0]["id"] == OGERPON
     assert len(mio["active"][0]["energies"]) < m.ATTACK_ENERGY_REQ[OGERPON]
     assert [b["id"] for b in mio["bench"] if b] == [OGERPON]
     assert len(mio["bench"][0]["energies"]) < m.ATTACK_ENERGY_REQ[OGERPON]
 
-    # El rival: Fezandipiti ex PELADO de activo -- Cruel Arrow cuesta 3, asi que
-    # ni adjuntando una energia puede atacar en su turno.
+    # The rival: a BARE Fezandipiti ex in the active spot -- Cruel Arrow costs 3, so
+    # not even by attaching one energy can it attack on their turn.
     assert riv["active"][0]["id"] == FEZ
     assert riv["active"][0]["energies"] == []
     assert m._coste_de_ataque_min(FEZ) == 3
 
-    # ...y su banca es solo la linea Alakazam (+ un Dunsparce, objetivo PROHIBIDO).
+    # ...and their bench is only the Alakazam line (+ a Dunsparce, a FORBIDDEN target).
     assert sorted(b["id"] for b in riv["bench"] if b) == [DUNSPARCE] + [ABRA] * 4
 
-    # El Boss's estaba en la mano y el menu lo ofrecia (opcion 0).
+    # The Boss's was in hand and the menu offered it (option 0).
     assert any(c["id"] == m.Boss_Orders for c in mio["hand"])
     assert o["select"]["option"][0] == {"index": 1, "type": 7}
 
@@ -146,39 +146,39 @@ def test_no_se_juega_el_boss_que_regala_el_abra():
 
 
 # ---------------------------------------------------------------------------
-# 2. Los dos predicados, en aislamiento
+# 2. The two predicates, in isolation
 # ---------------------------------------------------------------------------
 
 def test_activo_inofensivo_mide_el_coste_del_ataque():
-    # Fezandipiti ex: Cruel Arrow cuesta 3. Pelado no llega ni con un adjunte;
-    # con 2 encima si -> deja de ser inofensivo.
+    # Fezandipiti ex: Cruel Arrow costs 3. Bare it does not get there even with an attachment;
+    # with 2 on it, it does -> it stops being harmless.
     assert m._op_activo_inofensivo(_op(_pk(FEZ, 0), []))
     assert not m._op_activo_inofensivo(_op(_pk(FEZ, 2), []))
-    # Powerful Hand cuesta UNA energia: el Alakazam nunca es inofensivo.
+    # Powerful Hand costs ONE energy: the Alakazam is never harmless.
     assert not m._op_activo_inofensivo(_op(_pk(ALAKAZAM, 0), []))
-    # Carta desconocida: no se veta por sospecha.
+    # An unknown card: it is not vetoed on suspicion.
     assert not m._op_activo_inofensivo(_op(_pk(-12345, 0), []))
     assert not m._op_activo_inofensivo(_op(None, []))
 
 
 def test_relevo_solo_cambia_un_atacante_por_un_no_atacante():
-    # Caso bueno: su Alakazam ENERGIZADO baja a la banca y sube un Abra pelado.
+    # The good case: their CHARGED Alakazam goes down to the bench and a bare Abra comes up.
     assert m._alakazam_relevo_de_atacante(_op(_pk(ALAKAZAM, 1), [_pk(ABRA)]))
     assert m._alakazam_relevo_de_atacante(_op(_pk(KADABRA, 1), [_pk(FEZ)]))
-    # Sin energia encima no hay nada que dejar parado en la banca.
+    # With no energy on it there is nothing to leave stranded on the bench.
     assert not m._alakazam_relevo_de_atacante(_op(_pk(ALAKAZAM, 0), [_pk(ABRA)]))
-    # Cambiar un atacante por otro no releva nada.
+    # Swapping one attacker for another relieves nothing.
     assert not m._alakazam_relevo_de_atacante(
         _op(_pk(ALAKAZAM, 1), [_pk(KADABRA), _pk(ALAKAZAM)]))
-    # Dunsparce nunca cuenta: es objetivo PROHIBIDO de gusteo.
+    # Dunsparce never counts: it is a FORBIDDEN gust target.
     assert not m._alakazam_relevo_de_atacante(_op(_pk(ALAKAZAM, 1), [_pk(DUNSPARCE)]))
-    # El caso del registro: su activo esta FUERA de la linea -> no hay relevo,
-    # solo el regalo.
+    # The record's case: their active is OUTSIDE the line -> there is no relief,
+    # only the gift.
     assert not m._alakazam_relevo_de_atacante(_op(_pk(FEZ, 0), [_pk(ABRA)] * 4))
 
 
 # ---------------------------------------------------------------------------
-# 3. Las reglas de `_REGLAS_BOSS_PLAY`
+# 3. The rules of `_REGLAS_BOSS_PLAY`
 # ---------------------------------------------------------------------------
 
 def _boss_ctx(**over):
@@ -191,8 +191,8 @@ def test_veto_alakazam_y_veto_generico_sobre_la_regla_de_reserva():
                        op_state=_op(_pk(FEZ, 0), [_pk(ABRA)] * 4))
     assert m._score_boss_orders_play(regalo) == m.SCORE_VETO
 
-    # Sin el matchup Alakazam el veto que queda es el deck-agnostico: el mismo
-    # activo pelado que no puede atacar.
+    # Without the Alakazam matchup the veto that remains is the deck-agnostic one: the same
+    # bare active that cannot attack.
     generico = _boss_ctx(op_state=_op(_pk(FEZ, 0), [_pk(m.Dreepy)]))
     assert m._score_boss_orders_play(generico) == m.SCORE_VETO
 
@@ -209,7 +209,7 @@ def test_un_activo_que_si_ataca_no_dispara_el_veto_generico():
 
 
 def test_los_motivos_con_premio_mandan_sobre_ambos_vetos():
-    """Ningun veto puede tapar un remate ni un corte de linea CON KO."""
+    """No veto can cover up a finisher or a line cut WITH a KO."""
     tablero = dict(op_is_alakazam_deck=True,
                    op_state=_op(_pk(FEZ, 0), [_pk(ABRA)] * 4))
     assert (m._score_boss_orders_play(_boss_ctx(win_via_boss_gust=True, **tablero))
@@ -220,20 +220,20 @@ def test_los_motivos_con_premio_mandan_sobre_ambos_vetos():
             == m.BOSS_SCORE_PRIZE_RANK_BASE)
     assert m._score_boss_orders_play(
         _boss_ctx(boss_prize_rank=3, **tablero)) >= m.BOSS_SCORE_PRIZE_RANK_BASE
-    # El gusteo DEFENSIVO (nos rematan el proximo turno) tambien sobrevive.
+    # The DEFENSIVE gust (they finish us off next turn) also survives.
     assert m._score_boss_orders_play(
         _boss_ctx(boss_defensive_gust=True, **tablero)) > 0
 
 
 def test_una_preevo_de_amenaza_de_activo_no_dispara_el_veto_generico():
-    """Un Riolu no ataca hoy, pero evoluciona a Mega Lucario ex y ataca con el
-    cuerpo NUEVO: su coste de ataque actual no dice nada."""
+    """A Riolu does not attack today, but it evolves into Mega Lucario ex and attacks with the
+    NEW body: its current attack cost says nothing."""
     ctx = _boss_ctx(op_state=_op(_pk(m.Riolu, 0), [_pk(m.Mega_Lucario_ex)]))
     assert m._score_boss_orders_play(ctx) > 0
 
 
 # ---------------------------------------------------------------------------
-# 4. El OBJETIVO del gusteo: sin KO no se promueve otro atacante de la linea
+# 4. The gust TARGET: with no KO no other attacker of the line is promoted
 # ---------------------------------------------------------------------------
 
 def _gust_ctx(card_id, can_ko=False, energia=0):
@@ -258,13 +258,13 @@ def _estorbo(ctx):
 def test_sin_ko_no_se_sube_kadabra_ni_alakazam():
     assert _estorbo(_gust_ctx(KADABRA)) == m.SCORE_FORBID
     assert _estorbo(_gust_ctx(ALAKAZAM)) == m.SCORE_FORBID
-    # El Abra pelado sigue siendo un relevo valido (regla del user).
+    # The bare Abra is still a valid relief (the user's rule).
     assert _estorbo(_gust_ctx(ABRA)) > 0
 
 
 def test_con_ko_se_levanta_la_prohibicion():
-    """Gustear para NOQUEARLOS si corta la linea: ahi los tres son objetivos
-    validos y el orden historico (Kadabra >= Abra >= Alakazam) se conserva."""
+    """Gusting to KNOCK THEM OUT if it cuts the line: there all three are valid
+    targets and the historical order (Kadabra >= Abra >= Alakazam) is kept."""
     kad = _estorbo(_gust_ctx(KADABRA, can_ko=True))
     abra = _estorbo(_gust_ctx(ABRA, can_ko=True))
     alk = _estorbo(_gust_ctx(ALAKAZAM, can_ko=True))

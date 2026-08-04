@@ -1,33 +1,33 @@
-"""Genera los registros que alimentan el corpus dorado (tests/golden_corpus.py).
+"""Generates the records that feed the golden corpus (tests/golden_corpus.py).
 
-POR QUE EXISTE
-  El corpus reproduce partidas grabadas y compara NUESTRAS decisiones contra un
-  snapshot: cualquier cambio de main.py que voltee una decision historica falla
-  con el diff exacto. Pero sus datos fuente (`registros/registro_*.json`) son
-  replays de episodios de Kaggle -- git-ignored y transitorios --, asi que en
-  cuanto se limpian el corpus queda CIEGO y su test sale como `skip`. Estuvo asi
-  durante todo el refactor por olas.
+WHY IT EXISTS
+  The corpus replays recorded games and compares OUR decisions against a
+  snapshot: any change to main.py that flips a historical decision fails
+  with the exact diff. But its source data (`registros/registro_*.json`) are
+  replays of Kaggle episodes -- git-ignored and transient -- so as
+  soon as they are cleaned up the corpus goes BLIND and its test comes out as a `skip`. It was
+  like that throughout the whole wave refactor.
 
-  Este script quita esa dependencia: juega partidas con el simulador local y las
-  graba en el mismo formato, de modo que el corpus se puede regenerar cuando
-  haga falta sin esperar a bajar replays.
+  This script removes that dependency: it plays games with the local simulator and
+  records them in the same format, so the corpus can be regenerated whenever
+  it is needed without waiting to download replays.
 
-CONTRA QUE SE JUEGA
-  Contra los mazos REALES del leaderboard (`deck/rivales_reales/`), pilotados por
-  el bot generico -- no contra nosotros mismos. Un corpus de espejo mediria una
-  distribucion de tableros mucho mas estrecha, y ademas seria redundante con
-  `utils/sombra.py`, que ya juega self-play. Lo que aporta el corpus es un
-  conjunto FIJO de situaciones concretas, con su snapshot, que sobrevive sin
-  necesidad de conservar una copia de la version anterior.
+WHAT IT PLAYS AGAINST
+  Against the REAL leaderboard decks (`deck/rivales_reales/`), piloted by
+  the generic bot -- not against ourselves. A mirror corpus would measure a
+  much narrower distribution of boards, and it would also be redundant with
+  `utils/sombra.py`, which already plays self-play. What the corpus contributes is a
+  FIXED set of concrete situations, with its snapshot, that survives without
+  needing to keep a copy of the previous version.
 
-FORMATO
-  El mismo de los replays: `{"steps": [[{"status", "observation"}], ...]}`. El
-  motor local da una observacion por paso (la del jugador que actua), asi que
-  cada step lleva un solo item; `reproducir_registro` filtra por status ACTIVE,
-  presencia de `select` y `yourIndex`, y eso encaja igual.
+FORMAT
+  The same as the replays: `{"steps": [[{"status", "observation"}], ...]}`. The
+  local engine gives one observation per step (that of the player who acts), so
+  each step carries a single item; `reproducir_registro` filters by ACTIVE status,
+  the presence of `select` and `yourIndex`, and that fits just the same.
 
-Uso:
-    python utils/grabar_corpus.py                    # 12 partidas, 12 rivales
+Usage:
+    python utils/grabar_corpus.py                    # 12 games, 12 opponents
     python utils/grabar_corpus.py --partidas 20
     python utils/grabar_corpus.py --rivales deck/rivales_reales --semilla 3
 """
@@ -49,7 +49,7 @@ MAX_PASOS = 3000
 
 
 def _grabar_partida(agente, bot, deck_nuestro, deck_rival, nuestro_asiento):
-    """Juega una partida y devuelve sus `steps` en formato de replay."""
+    """Plays a game and returns its `steps` in replay format."""
     from cg import game
 
     sp._reset_si_aplica(agente)
@@ -64,9 +64,9 @@ def _grabar_partida(agente, bot, deck_nuestro, deck_rival, nuestro_asiento):
     steps, pasos = [], 0
     while obs["current"]["result"] == -1 and pasos < MAX_PASOS:
         yi = obs["current"]["yourIndex"]
-        # Se graba SIEMPRE, tambien los turnos del bot: el corpus filtra por
-        # asiento al reproducir, y guardar el flujo entero permite reconstruir
-        # el contexto de una decision al revisar un flip.
+        # It is ALWAYS recorded, including the bot's turns: the corpus filters by
+        # seat when replaying, and saving the whole stream makes it possible to reconstruct
+        # the context of a decision when reviewing a flip.
         steps.append([{"status": "ACTIVE", "observation": json.loads(json.dumps(obs))}])
         try:
             obs = game.battle_select(agentes[yi].agent(obs))
@@ -90,8 +90,8 @@ def main():
     if not rivales:
         raise SystemExit(f"no hay mazos rivales en {args.rivales}")
 
-    # Un rival distinto por partida, repartidos a lo largo de la lista para no
-    # coger doce variantes del mismo arquetipo.
+    # A different opponent per game, spread along the list so as not to
+    # pick twelve variants of the same archetype.
     paso = max(1, len(rivales) // args.partidas)
     elegidos = [rivales[(args.semilla + i * paso) % len(rivales)]
                 for i in range(args.partidas)]
@@ -107,8 +107,8 @@ def main():
 
     total_pasos = 0
     for i, rival in enumerate(elegidos):
-        # Alternando asiento: nuestras decisiones no son las mismas yendo
-        # primero que segundo, y el corpus debe cubrir las dos.
+        # Alternating seats: our decisions are not the same going
+        # first as going second, and the corpus must cover both.
         asiento = i % 2
         steps, resultado = _grabar_partida(
             agente, bot, deck_nuestro, sp.leer_deck(rival), asiento)

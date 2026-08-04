@@ -1,56 +1,56 @@
-"""Lillie's <-> Ultra Ball: dos vetos que se ceden el paso y matan el turno.
+"""Lillie's <-> Ultra Ball: two vetoes that yield to each other and kill the turn.
 
-Escenario (`registros/registro_010_pasos_103_hasta_116.json`, paso 116, turno 10,
-PERDIDA vs Dragapult -- episodio 89079426):
+Scenario (`registros/registro_010_pasos_103_hasta_116.json`, step 116, turn 10,
+LOST vs Dragapult -- episode 89079426):
 
-    NOSOTROS                                   RIVAL
-    activo Teal Mask Ogerpon ex 120/210, 4 ef. activo Dragapult ex 320, 2 en.
-    banca  Fezandipiti ex, Meowth ex,          banca  Budew, Dragapult ex,
+    US                                         RIVAL
+    active Teal Mask Ogerpon ex 120/210, 4 eff. active Dragapult ex 320, 2 en.
+    bench  Fezandipiti ex, Meowth ex,          bench  Budew, Dragapult ex,
            Meganium, Meowth ex,                       Munkidori, Drakloak x2
-           **Applin recién bajado**
-    mano   **Ultra Ball x3**, Hydrapple ex,
+           **Applin just played**
+    hand   **Ultra Ball x3**, Hydrapple ex,
            **Lillie's Determination**
 
-La Lillie's venía del *Last-Ditch Catch* de un Meowth ex bajado ese mismo turno
-(paso 107) y el turno se cerró **atacando**, con el Supporter muerto en la mano.
+The Lillie's came from the *Last-Ditch Catch* of a Meowth ex played that same turn
+(step 107) and the turn closed with an **attack**, with the Supporter dead in hand.
 
-Causa: un **bloqueo mutuo** entre dos vetos que, cada uno por su lado, son
-correctos:
+Cause: a **mutual block** between two vetoes that, each on its own, are
+correct:
 
-  * `ultra_ball_completa_linea` (regla de Lillie's) -- "no juegues Lillie's:
-    barajaría la Ultra Ball con la que voy a montar Applin → Dipplin →
-    Hydrapple ex". Se enciende porque el hueco existe **sobre el papel**: Applin
-    en juego, Hydrapple ex en mano, Dipplin en el mazo.
-  * `_ub_cancel_lillie` (veto de la Ultra Ball) -- "no juegues la Ultra Ball: su
-    coste de descartar 2 se llevaría la Lillie's".
+  * `ultra_ball_completa_linea` (a Lillie's rule) -- "do not play Lillie's:
+    it would shuffle away the Ultra Ball I am going to build Applin → Dipplin →
+    Hydrapple ex with". It switches on because the gap exists **on paper**: Applin
+    in play, Hydrapple ex in hand, Dipplin in the deck.
+  * `_ub_cancel_lillie` (an Ultra Ball veto) -- "do not play the Ultra Ball: its
+    cost of discarding 2 would take the Lillie's".
 
-Las dos disparan a la vez, ninguna carta se juega y el hueco de Supporter del
-turno se tira a la basura. Es el mismo fallo que ya se corrigió en el par
-Sello ↔ Supporter (`_sello_merece_jugarse`: «se cedía el paso a una carta que ya
-no se iba a jugar»).
+Both fire at once, no card is played and the turn's Supporter slot is
+thrown away. It is the same failure already corrected in the
+Stamp ↔ Supporter pair (`_sello_merece_jugarse`: «it yielded the way to a card that was
+no longer going to be played»).
 
-Lo tapaba de casualidad `_ld_supp_comprometido` -- el piso de score que obliga a
-jugar el Supporter que trajo un *Last-Ditch* de ESTE turno --, así que el bloqueo
-seguía vivo para cualquier Lillie's que no viniera de un Meowth ex. Por eso el
-test principal comprueba la jugada **con la marca anulada**: mide la regla, no la
-red que la tapaba.
+It was covered up by chance by `_ld_supp_comprometido` -- the score floor that forces
+playing the Supporter brought by a *Last-Ditch* of THIS turn --, so the block
+was still alive for any Lillie's that did not come from a Meowth ex. That is why the
+main test checks the play **with the mark cancelled**: it measures the rule, not the
+net that was covering it.
 
-Arreglo: la deferencia solo tiene sentido si la Ultra Ball puede jugarse por algo
-que NO sea esta misma Lillie's. Con **dos guardas** que son justo lo que separa
-este paso de los escenarios en que el veto sí debe aguantar:
+Fix: the deference only makes sense if the Ultra Ball can be played for something
+that is NOT this very Lillie's. With **two guards** that are exactly what separates
+this step from the scenarios where the veto does have to hold:
 
-  1. **Solo el veto circular.** No se consulta el score completo de la Ultra
-     Ball: los demás vetos por COSTE son de este instante y se levantan solos
-     dentro del turno. En el registro_004 paso 47 -- el caso que creó la regla --
-     la Ultra Ball también está en −1, pero por `_ub_cancel_meowth`: el agente
-     baja el Meowth ex primero y entonces la Ultra Ball ya es jugable. Un gate
-     por score habría tirado esa línea (lo cubre
+  1. **Only the circular veto.** The Ultra Ball's full score is not
+     consulted: the other COST vetoes belong to this instant and lift by themselves
+     within the turn. In registro_004 step 47 -- the case that created the rule --
+     the Ultra Ball is also at −1, but through `_ub_cancel_meowth`: the agent
+     plays the Meowth ex first and then the Ultra Ball is playable. A gate
+     by score would have thrown that line away (covered by
      `test_step47_does_not_shuffle_meganium_line_with_lillie`).
-  2. **Solo si la Lillie's es el ÚNICO Supporter de la mano.** Con otro
-     Supporter al lado el hueco del turno se usa igual, así que vetar la
-     Lillie's no desperdicia nada y además conserva la línea (lo cubren los
-     controles de `test_pesca_de_remate_probabilistica`, donde hay un Boss's
-     Orders en la mano).
+  2. **Only if the Lillie's is the ONLY Supporter in hand.** With another
+     Supporter alongside, the turn's slot gets used anyway, so vetoing the
+     Lillie's wastes nothing and on top of that keeps the line (covered by the
+     controls of `test_pesca_de_remate_probabilistica`, where there is a Boss's
+     Orders in hand).
 """
 
 import json
@@ -90,7 +90,7 @@ def _frames():
 
 
 def _replay(anular_marca_ld):
-    """Reproduce el turno entero y devuelve (obs, elección) del último menú."""
+    """Replays the whole turn and returns (obs, choice) of the last menu."""
     reset_agente(m)
     ultimo = None
     for obs in _frames():
@@ -109,7 +109,7 @@ def _carta_jugada(obs, eleccion):
 
 
 # ---------------------------------------------------------------------------
-# 1. El escenario: sin estas piezas no hay bloqueo que romper
+# 1. The scenario: without these pieces there is no block to break
 # ---------------------------------------------------------------------------
 
 def test_el_paso_116_tiene_las_dos_mitades_del_bloqueo():
@@ -118,19 +118,19 @@ def test_el_paso_116_tiene_las_dos_mitades_del_bloqueo():
     mano = [c["id"] for c in yo["hand"]]
     campo = [p["id"] for p in yo["active"] + [b for b in yo["bench"] if b]]
 
-    # el hueco de línea que enciende `ultra_ball_completa_linea`...
+    # the line gap that switches on `ultra_ball_completa_linea`...
     assert ULTRA_BALL in mano and HYDRAPPLE in mano
     assert APPLIN in campo and m.Dipplin not in campo
-    # ...y la Lillie's como ÚNICO Supporter de la mano.
+    # ...and the Lillie's as the ONLY Supporter in hand.
     assert mano.count(LILLIE) == 1
     assert not any(s in mano for s in m._SUPP_PLAY_IDS if s != LILLIE)
     assert obs["current"]["supporterPlayed"] is False
-    # El Applin apareció este turno: por eso la Ultra Ball no monta nada hoy.
+    # The Applin appeared this turn: that is why the Ultra Ball builds nothing today.
     assert next(b for b in yo["bench"] if b["id"] == APPLIN)["appearThisTurn"]
 
 
 # ---------------------------------------------------------------------------
-# 2. La corrección, medida SIN la red que la tapaba
+# 2. The correction, measured WITHOUT the net that was covering it
 # ---------------------------------------------------------------------------
 
 def test_paso116_juega_lillie_aunque_no_venga_de_un_last_ditch():
@@ -141,17 +141,17 @@ def test_paso116_juega_lillie_aunque_no_venga_de_un_last_ditch():
 
 
 def test_paso116_tambien_la_juega_por_la_via_del_last_ditch():
-    """La red `_ld_supp_comprometido` sigue en pie: las dos rutas coinciden."""
+    """The `_ld_supp_comprometido` net still stands: the two routes agree."""
     obs, eleccion = _replay(anular_marca_ld=False)
     assert _carta_jugada(obs, eleccion) == LILLIE
 
 
 # ---------------------------------------------------------------------------
-# 3. Las dos guardas, cada una con su contraste
+# 3. The two guards, each with its contrast
 # ---------------------------------------------------------------------------
 
 def _ctx_lillie_del_paso116(mutar=None):
-    """Construye el `_CtxLillie` real del paso 116 y devuelve su flag."""
+    """Builds the real `_CtxLillie` of step 116 and returns its flag."""
     reset_agente(m)
     frames = _frames()
     capturado = {}
@@ -178,9 +178,9 @@ def _ctx_lillie_del_paso116(mutar=None):
 
 
 def test_guarda2_con_otro_supporter_en_mano_el_veto_aguanta():
-    """Contraste de la segunda guarda: basta añadir un Boss's Orders a la mano
-    para que el hueco del turno deje de desperdiciarse -- y entonces conservar
-    la línea vuelve a ser lo correcto."""
+    """Contrast for the second guard: it is enough to add a Boss's Orders to the hand
+    for the turn's slot to stop being wasted -- and then keeping
+    the line is the right thing again."""
     def con_boss(obs):
         yo = obs["current"]["players"][0]
         yo["hand"].append({"id": BOSS, "playerIndex": 0, "serial": 31})
@@ -194,10 +194,10 @@ def test_guarda2_con_otro_supporter_en_mano_el_veto_aguanta():
 
 
 def test_guarda1_el_veto_por_coste_ajeno_no_rompe_el_bloqueo():
-    """Contraste de la primera guarda, sobre el paso que creó la regla: allí la
-    Ultra Ball también está vetada, pero por `_ub_cancel_meowth` (su coste se
-    llevaría el Meowth ex), no por la Lillie's. Ese veto se levanta solo dentro
-    del turno -- se baja el Meowth primero -- así que la línea se conserva."""
+    """Contrast for the first guard, on the step that created the rule: there the
+    Ultra Ball is also vetoed, but through `_ub_cancel_meowth` (its cost would
+    take the Meowth ex), not through the Lillie's. That veto lifts by itself within
+    the turn -- the Meowth is played first -- so the line is kept."""
     fx = (ROOT / "tests" / "fixtures"
           / "alakazam_step47_ultraball_completes_line_before_lillie.json")
     obs = json.load(open(fx, encoding="utf-8"))["observation"]
@@ -212,10 +212,10 @@ def test_guarda1_el_veto_por_coste_ajeno_no_rompe_el_bloqueo():
         eleccion = m.agent(obs)
     finally:
         _rest_score_ultra_ball_play = instalar("_score_ultra_ball_play", _ub)
-    # La Ultra Ball está vetada, pero NO por la Lillie's.
+    # The Ultra Ball is vetoed, but NOT because of the Lillie's.
     reales = [v for v in vistos if v[0] <= 0]
     assert reales, "el escenario exige una Ultra Ball vetada"
     assert all(not cancel_lillie for _, cancel_lillie, _ in reales)
     assert any(cancel_meowth for _, _, cancel_meowth in reales)
-    # ...así que la Lillie's SIGUE vetada y la línea se conserva.
+    # ...so the Lillie's is STILL vetoed and the line is kept.
     assert _carta_jugada(obs, eleccion) != LILLIE

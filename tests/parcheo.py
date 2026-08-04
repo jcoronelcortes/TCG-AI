@@ -1,24 +1,24 @@
-"""Parcheo de nombres del agente que viven repartidos entre `main` y `ptcg/`.
+"""Patching agent names that live spread between `main` and `ptcg/`.
 
-EL PROBLEMA
-  `from ptcg.cartas.tablas import card_table` LIGA EL NOMBRE EN EL MODULO QUE
-  IMPORTA. No es una vista de la variable original: es otra referencia. Cuando
-  main.py hace `import *`, se lleva su propia copia; y trece modulos de `ptcg/`
-  tienen la suya. Por eso `monkeypatch.setattr(m, "card_table", ...)` deja de
-  llegar a `_our_effective_damage` en cuanto esa funcion se muda a
-  `ptcg/calculo/dano.py`: la funcion lee el binding de SU modulo.
+THE PROBLEM
+  `from ptcg.cartas.tablas import card_table` BINDS THE NAME IN THE MODULE THAT
+  IMPORTS IT. It is not a view of the original variable: it is another reference. When
+  main.py does `import *`, it takes its own copy; and thirteen modules of `ptcg/`
+  have theirs. That is why `monkeypatch.setattr(m, "card_table", ...)` stops
+  reaching `_our_effective_damage` as soon as that function moves to
+  `ptcg/calculo/dano.py`: the function reads the binding of ITS module.
 
-  No es un problema de produccion -- ahi nadie reasigna estos nombres -- sino de
-  los tests, que inyectan dobles para aislar un caso.
+  It is not a production problem -- there nobody reassigns these names -- but a problem
+  for the tests, which inject doubles to isolate a case.
 
-LA SOLUCION
-  `parchear()` fija el nombre en TODOS los modulos cargados que lo tengan, asi
-  que el test no necesita saber donde vive la funcion que lo consume. Eso lo
-  hace inmune a las olas del refactor que aun quedan: mover una funcion de
-  modulo ya no rompe el test que la aislaba.
+THE SOLUTION
+  `parchear()` sets the name in ALL the loaded modules that have it, so
+  the test does not need to know where the function that consumes it lives. That makes
+  it immune to the refactor waves still to come: moving a function from one
+  module no longer breaks the test that isolated it.
 
-  Para el estado mutable NO hace falta: vive en `ESTADO`, que es un objeto y no
-  se reasigna nunca (ver ptcg/estado/agente.py).
+  For mutable state it is NOT needed: it lives in `ESTADO`, which is an object and is
+  never reassigned (see ptcg/estado/agente.py).
 """
 
 import sys
@@ -35,10 +35,10 @@ def _modulos_del_agente():
 
 
 def parchear(monkeypatch, nombre, valor):
-    """Fija `nombre = valor` en todos los modulos del agente que lo tengan.
+    """Sets `nombre = valor` in every agent module that has it.
 
-    Devuelve cuantos modulos se tocaron; 0 significa que el nombre no existe en
-    ninguno, casi siempre una errata en el test.
+    It returns how many modules were touched; 0 means the name does not exist in
+    any of them, almost always a typo in the test.
     """
     tocados = 0
     for mod in _modulos_del_agente():
@@ -50,9 +50,9 @@ def parchear(monkeypatch, nombre, valor):
 
 @contextmanager
 def parcheado(nombre, valor):
-    """Igual que `parchear`, pero sin `monkeypatch` y como gestor de contexto.
+    """Like `parchear`, but without `monkeypatch` and as a context manager.
 
-    Para los tests que instalan un espia a mano con try/finally:
+    For the tests that install a spy by hand with try/finally:
 
         with parcheado("_debug_log_decision", espia):
             m.agent(obs)
@@ -69,10 +69,10 @@ def parcheado(nombre, valor):
 
 
 def instalar(nombre, valor):
-    """Fija `nombre = valor` en todos los modulos y devuelve el restaurador.
+    """Sets `nombre = valor` in every module and returns the restorer.
 
-    Variante para los tests que ya tienen su try/finally montado: sustituye la
-    asignacion y la restauracion linea por linea, sin reestructurar el test.
+    A variant for the tests that already have their try/finally set up: it replaces the
+    assignment and the restoration line by line, without restructuring the test.
 
         _restaurar = instalar("_debug_log_decision", espia)
         try:

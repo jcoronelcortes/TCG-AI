@@ -1,46 +1,46 @@
-"""Promoción tras KO: el motor de la MANO cuenta como vía de energía.
+"""Promotion after a KO: the HAND engine counts as an energy route.
 
-Escenario (`registros/registro_007_pasos_101_hasta_127.json`, paso 126, turno 7,
-PERDIDA vs Marnie's Grimmsnarl ex):
+Scenario (`registros/registro_007_pasos_101_hasta_127.json`, step 126, turn 7,
+LOST vs Marnie's Grimmsnarl ex):
 
-    NOSOTROS (3 premios)                     RIVAL (5 premios)
-    activo  -- (nos acaban de noquear        activo  Marnie's Grimmsnarl ex
-            el Hydrapple ex)                         310/320, 3 energías,
-    banca   Ogerpon ex 2/3 energías                  **debilidad {G}**
-            Ogerpon ex 2/3 energías
+    US (3 prizes)                            RIVAL (5 prizes)
+    active  -- (they have just knocked out   active  Marnie's Grimmsnarl ex
+            our Hydrapple ex)                        310/320, 3 energies,
+    bench   Ogerpon ex 2/3 energies                  **{G} weakness**
+            Ogerpon ex 2/3 energies
             Ogerpon ex 0/3
-            Tapu Bulu 1/4, 80 PV
-    mano    Meowth ex + Meganium
-    descarte  1 Energía Planta
+            Tapu Bulu 1/4, 80 HP
+    hand    Meowth ex + Meganium
+    discard  1 Grass Energy
 
-La promoción se resuelve al FINAL del turno rival: el siguiente turno es NUESTRO
-y el cuerpo que subamos ataca PRIMERO. Un Ogerpon ex a 2/3 está a **una sola**
-energía de *Myriad Leaf Shower* — 30+30·(3 propias + 3 del rival) = 210, ×2 por
-debilidad a Planta = **420 ≥ 310**: remata al Grimmsnarl ex y cobra 2 premios
-(3 → 1). Y esa energía es alcanzable: bajar **Meowth ex** dispara *Last-Ditch
-Catch*, que trae del mazo **Lana's Aid** (levanta la Planta del descarte) o
-Lillie's/Dawn.
+The promotion resolves at the END of the rival's turn: the next turn is OURS
+and the body we bring up attacks FIRST. An Ogerpon ex at 2/3 is **one single**
+energy away from *Myriad Leaf Shower* — 30+30·(3 ours + 3 of the rival) = 210, ×2 for
+the Grass weakness = **420 ≥ 310**: it finishes off the Grimmsnarl ex and takes 2 prizes
+(3 → 1). And that energy is reachable: playing **Meowth ex** fires *Last-Ditch
+Catch*, which brings from the deck **Lana's Aid** (which picks up the Grass from the discard)
+or Lillie's/Dawn.
 
-El agente subía el **Tapu Bulu** a 1/4: no puede atacar (*Wood Hammer* cuesta 4),
-no puede retirarse (coste 3 sin energía para pagarlo) y regala el turno.
+The agent brought up the **Tapu Bulu** at 1/4: it cannot attack (*Wood Hammer* costs 4),
+it cannot retreat (cost 3 with no energy to pay it) and it gives away the turn.
 
-Dos causas encadenadas:
+Two chained causes:
 
-1. `_promote_setup_ko_attacker` (promover al atacante casi listo) exigía un
-   Supporter de robo **ya en la mano** (`Lillie's`/`Dawn`). Una mano que solo
-   tiene el MOTOR que consigue ese Supporter — Meowth ex — quedaba fuera. Se
-   enumeran ahora todas las vías reales: Supporter de robo en mano, Lana's Aid
-   en mano con Planta en el descarte, y el motor Meowth ex (hueco en banca +
-   habilidad viva + Supporter útil aún oculto en mazo/premios).
+1. `_promote_setup_ko_attacker` (promote the near-ready attacker) required a
+   draw Supporter **already in hand** (`Lillie's`/`Dawn`). A hand that only
+   has the ENGINE that gets that Supporter — Meowth ex — was left out. All
+   the real routes are now enumerated: a draw Supporter in hand, Lana's Aid
+   in hand with a Grass in the discard, and the Meowth ex engine (a bench slot +
+   a live ability + a useful Supporter still hidden in the deck/prizes).
 
-2. Aun disparando, el ajuste TERMINAL de promoción le restaba
-   `PROMO_PRIZE_PENALTY` por ser un ex de 2 premios (9500 → 8000) y lo dejaba
-   por debajo del muro básico de `_ko_prefer_basic_general` (8500 + vida/10 =
-   8508). La premisa de esa penalización — "no sobrevive nadie, cede los menos
-   premios" — **no aplica** a un cuerpo que remata primero: el rival no llega a
-   golpearlo. Se exime, igual que ya se exime al que noquea en el acto.
+2. Even when it fired, the TERMINAL promotion adjustment subtracted
+   `PROMO_PRIZE_PENALTY` for being a 2-prize ex (9500 → 8000) and left it
+   below the basic wall of `_ko_prefer_basic_general` (8500 + life/10 =
+   8508). The premise of that penalty — "nobody survives, give away the fewest
+   prizes" — does **not** apply to a body that finishes first: the rival does not get
+   to hit it. It is exempted, just as the one that knocks out on the spot already is.
 
-Corpus dorado: un único flip, el de este paso.
+Golden corpus: a single flip, this step's.
 """
 
 import copy
@@ -62,7 +62,7 @@ _FIXTURE = (ROOT / "tests" / "fixtures"
 OGERPON = m.Teal_Mask_Ogerpon_ex
 TAPU = m.Tapu_Bulu
 MEOWTH = m.Meowth_ex
-GRIMMSNARL = 648                # Marnie's Grimmsnarl ex, 320 PV, debilidad {G}
+GRIMMSNARL = 648                # Marnie's Grimmsnarl ex, 320 HP, {G} weakness
 
 
 @pytest.fixture(autouse=True)
@@ -101,8 +101,8 @@ def _obs(**mut):
         mio["hand"] = [c for c in mio["hand"] if c["id"] != MEOWTH]
         mio["handCount"] = len(mio["hand"])
     if mut.get("sin_supporter_alcanzable"):
-        # El fetch del Meowth ex no puede traer nada util: la ultima Lillie's y
-        # la Dawn ya estan en el descarte y no queda Planta que levantar con
+        # The Meowth ex fetch cannot bring anything useful: the last Lillie's and
+        # the Dawn are already in the discard and there is no Grass left to pick up with
         # Lana's Aid.
         mio["discard"] = [c for c in mio["discard"]
                           if c["id"] != m.Basic_Grass_Energy]
@@ -112,14 +112,14 @@ def _obs(**mut):
 
 
 def _elegido(obs, eleccion):
-    """Carta de banca que corresponde a la opción elegida."""
+    """The bench card matching the chosen option."""
     yo = obs["current"]["yourIndex"]
     opt = obs["select"]["option"][eleccion[0]]
     return obs["current"]["players"][yo]["bench"][opt["index"]]
 
 
 # ---------------------------------------------------------------------------
-# 1. El escenario: sin él, el test no mide nada
+# 1. The scenario: without it, the test measures nothing
 # ---------------------------------------------------------------------------
 
 def test_el_fixture_es_la_promocion_tras_el_ko():
@@ -128,34 +128,34 @@ def test_el_fixture_es_la_promocion_tras_el_ko():
     mio = o["current"]["players"][yo]
     rival = o["current"]["players"][1 - yo]
 
-    assert not mio["active"]                       # nos noquearon el activo
-    assert o["select"]["context"] == 4             # menu de promocion
+    assert not mio["active"]                       # they knocked out our active
+    assert o["select"]["context"] == 4             # promotion menu
     assert rival["active"][0]["id"] == GRIMMSNARL
     assert rival["active"][0]["hp"] == 310
 
-    # Debilidad a Planta: el Ogerpon ex pega doble.
+    # A Grass weakness: the Ogerpon ex hits double.
     assert m.card_table[GRIMMSNARL].weakness == m.card_table[OGERPON].energyType
 
-    # Ogerpon ex a UNA energia de Myriad; Tapu Bulu a tres de Wood Hammer.
+    # The Ogerpon ex is ONE energy from Myriad; Tapu Bulu is three from Wood Hammer.
     oger = [b for b in mio["bench"] if b["id"] == OGERPON and len(b["energies"]) == 2]
     tapu = next(b for b in mio["bench"] if b["id"] == TAPU)
     assert oger, "el fixture debe tener un Ogerpon ex a 2/3"
     assert m.ATTACK_ENERGY_REQ[OGERPON] - 2 == 1
     assert m.ATTACK_ENERGY_REQ[TAPU] - len(tapu["energies"]) == 3
-    # ...y ademas el Tapu quedaria clavado: retirada 3 sin energia para pagarla.
+    # ...and on top of that the Tapu would be nailed down: retreat 3 with no energy to pay it.
     assert m.RETREAT_COST[TAPU] > len(tapu["energies"])
 
-    # El motor de la mano: Meowth ex + Planta en el descarte.
+    # The hand engine: Meowth ex + a Grass in the discard.
     assert any(c["id"] == MEOWTH for c in mio["hand"])
     assert sum(1 for c in mio["discard"]
                if c["id"] == m.Basic_Grass_Energy) >= 1
-    # Ningun Supporter de robo en mano: la regla vieja no disparaba.
+    # No draw Supporter in hand: the old rule did not fire.
     assert not any(c["id"] in (m.Lillie_Determination, m.Dawn)
                    for c in mio["hand"])
 
 
 def test_el_ogerpon_completado_remata_al_grimmsnarl():
-    """El premio de la jugada: 30+30*(3+3) = 210, x2 debilidad = 420 >= 310."""
+    """The prize of the play: 30+30*(3+3) = 210, x2 for weakness = 420 >= 310."""
     o = _obs()
     yo = o["current"]["yourIndex"]
     rival_act = o["current"]["players"][1 - yo]["active"][0]
@@ -164,18 +164,18 @@ def test_el_ogerpon_completado_remata_al_grimmsnarl():
 
 
 # ---------------------------------------------------------------------------
-# 2. La decision
+# 2. The decision
 # ---------------------------------------------------------------------------
 
 def test_promueve_el_ogerpon_casi_listo_y_no_el_tapu_clavado():
     obs = _obs()
     elegido = _elegido(obs, m.agent(obs))
     assert elegido["id"] == OGERPON
-    assert len(elegido["energies"]) == 2       # el que esta a UNA energia
+    assert len(elegido["energies"]) == 2       # the one that is ONE energy away
 
 
 # ---------------------------------------------------------------------------
-# 3. Los limites: sin motor de energia, el muro barato sigue siendo correcto
+# 3. The limits: with no energy engine, the cheap wall is still right
 # ---------------------------------------------------------------------------
 
 def test_sin_meowth_no_hay_via_de_energia_y_vuelve_el_muro_de_1_premio():

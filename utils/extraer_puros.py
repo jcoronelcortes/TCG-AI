@@ -1,30 +1,30 @@
-"""Extrae de main.py los bindings PUROS de un rango de lineas a un modulo del paquete.
+"""Extracts the PURE bindings of a line range from main.py into a package module.
 
-Es el mecanismo de las olas 1-2 del refactor (docs/main-refactor-arquitectura.md).
-Mueve RANGOS DE LINEAS contiguos, no sentencias sueltas, para que los comentarios
-viajen con lo que documentan: en main.py los comentarios son documentacion de
-verdad (el porque de cada constante, con referencias a partidas concretas), y
-perderlos seria el peor resultado posible de un refactor que existe para hacer el
-codigo mas legible.
+It is the mechanism of waves 1-2 of the refactor (docs/project-history.md).
+It moves contiguous LINE RANGES, not individual statements, so the comments
+travel with what they document: in main.py the comments are real
+documentation (the why of every constant, with references to concrete games), and
+losing them would be the worst possible outcome of a refactor that exists to make the
+code more readable.
 
-QUE CUENTA COMO PURO
-  Un binding `NOMBRE = <expr>` cuya expresion solo usa literales y otros nombres
-  ya clasificados como puros. Se excluyen:
-    * lo que depende de runtime (`card_table`, `all_card_data()`, deck.csv...);
-    * cualquier acceso a atributo o llamada que no sea a un builtin seguro;
-    * y -- la trampa que de verdad importa -- los nombres MUTADOS en algun sitio.
+WHAT COUNTS AS PURE
+  A binding `NAME = <expr>` whose expression only uses literals and other names
+  already classified as pure. Excluded are:
+    * anything that depends on runtime (`card_table`, `all_card_data()`, deck.csv...);
+    * any attribute access or call that is not to a safe builtin;
+    * and -- the trap that really matters -- the names MUTATED somewhere.
 
-LA TRAMPA DE LOS MUTADOS
-  `my_deck = []` parece una constante perfecta: el valor es un literal. Pero tres
-  lineas mas abajo se llena leyendo deck.csv, y `agent()` lo devuelve entero en el
-  mulligan. Moverlo habria dejado el mazo del agente en otro modulo con
-  main.py mutando el mismo objeto por accidente. Por eso se detecta todo nombre
-  que reciba `.append/.update/.add/...`, un subscript-store, un `global` o un
-  `augassign`, y se deja donde esta.
+THE TRAP OF THE MUTATED NAMES
+  `my_deck = []` looks like a perfect constant: the value is a literal. But three
+  lines below it is filled by reading deck.csv, and `agent()` returns it whole on the
+  mulligan. Moving it would have left the agent's deck in another module with
+  main.py mutating the same object by accident. That is why every name that
+  receives `.append/.update/.add/...`, a subscript store, a `global` or an
+  `augassign` is detected, and left where it is.
 
-Uso:
+Usage:
     python utils/extraer_puros.py --desde 40 --hasta 1008 --destino ptcg/cartas/ids.py
-    python utils/extraer_puros.py ... --aplicar     # sin esto, solo informa
+    python utils/extraer_puros.py ... --aplicar     # without this, it only reports
 """
 
 import argparse
@@ -33,18 +33,18 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
-# Builtins cuya llamada no introduce dependencias de runtime.
+# Builtins whose call introduces no runtime dependencies.
 SEGUROS = {"frozenset", "set", "dict", "tuple", "list", "range", "len",
            "sorted", "int", "str"}
 
-# Metodos que revelan que un nombre NO es constante.
+# Methods that reveal a name is NOT a constant.
 MUTADORES = {"append", "extend", "update", "add", "pop", "clear", "insert",
              "remove", "discard", "setdefault", "sort"}
 
 CABECERA = '''"""{titulo}
 
 Extraido VERBATIM de main.py por utils/extraer_puros.py
-(docs/main-refactor-arquitectura.md). Aqui NO hay logica: solo constantes que
+(docs/project-history.md). Aqui NO hay logica: solo constantes que
 dependen unicamente de literales. Este modulo no puede importar estado ni tocar
 el simulador -- lo vigila utils/lint_arquitectura.py (R2).
 
@@ -57,7 +57,7 @@ omitiria si no).
 
 
 def nombres_mutados(arbol):
-    """Nombres que en algun punto del modulo se mutan: no son constantes."""
+    """Names that are mutated at some point of the module: they are not constants."""
     mutados = set()
     for n in ast.walk(arbol):
         if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute):
@@ -88,15 +88,15 @@ def _es_puro(nodo, puros):
 
 
 def planificar(main_py, desde, hasta):
-    """Devuelve (rangos, nombres): que lineas moverian y que bindings contienen."""
+    """Returns (ranges, names): which lines would move and which bindings they contain."""
     src = main_py.read_text(encoding="utf-8")
     lineas = src.splitlines(keepends=True)
     arbol = ast.parse(src)
     mutados = nombres_mutados(arbol)
 
-    # Lo YA extraido al paquete cuenta como disponible: tras la primera ola,
-    # `EVO_LINES = (Chikorita, Bayleef, ...)` referencia IDs que ya no estan en
-    # main.py, y sin esto pareceria impura y no se moveria nunca.
+    # What has ALREADY been extracted to the package counts as available: after the first wave,
+    # `EVO_LINES = (Chikorita, Bayleef, ...)` references IDs that are no longer in
+    # main.py, and without this it would look impure and would never be moved.
     import sys as _sys
     _sys.path.insert(0, str(PROJECT_ROOT / "utils"))
     from pureza import _constantes_del_paquete
@@ -137,8 +137,8 @@ def planificar(main_py, desde, hasta):
         while fin + 1 <= hasta and (es_movible[fin + 1]
                                     or (suelta(fin + 1) and (fin + 1) not in bloqueadas)):
             fin += 1
-        while fin > ini and suelta(fin):      # los comentarios finales son del
-            fin -= 1                          # nodo que viene DESPUES
+        while fin > ini and suelta(fin):      # the trailing comments belong to the
+            fin -= 1                          # node that comes AFTERWARDS
         if not rangos or ini > rangos[-1][1]:
             rangos.append([ini, fin])
         else:
@@ -147,8 +147,8 @@ def planificar(main_py, desde, hasta):
 
     nombres = [n for a, (b, n) in sorted(movibles.items())]
 
-    # Nombres que el codigo movido toma de modulos YA extraidos: hay que
-    # importarlos en el destino o el modulo nuevo revienta al cargarse.
+    # Names the moved code takes from modules that have ALREADY been extracted: they have to
+    # be imported in the target or the new module blows up when loaded.
     from pureza import _mapa_paquete
     mapa = _mapa_paquete()
     propios = set(nombres)
@@ -194,7 +194,7 @@ def main():
     for paquete in (destino.parent, destino.parent.parent):
         ini = paquete / "__init__.py"
         if paquete != PROJECT_ROOT and not ini.exists():
-            ini.write_text('"""Paquete del agente. Ver docs/main-refactor-arquitectura.md."""\n')
+            ini.write_text('"""Paquete del agente. Ver docs/project-history.md."""\n')
 
     cuerpo = ["".join(lineas[a - 1:b]) for a, b in rangos]
     imports = "".join(

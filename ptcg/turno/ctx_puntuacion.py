@@ -1,12 +1,12 @@
-"""`PuntuacionCtx`: lo que la cadena de puntuacion necesita del turno.
+"""`PuntuacionCtx`: what the scoring chain needs from the turn.
 
-Ola 6 del refactor. Se construye UNA VEZ antes del bucle sobre `select.option`,
-no una por opcion: son 225 campos, y el bucle puede recorrer decenas de
-opciones.
+Wave 6 of the refactor. It is built ONCE before the loop over `select.option`,
+not once per option: there are 225 fields, and the loop can walk dozens of
+options.
 
-Los 23 campos que la cadena REASIGNA se devuelven aqui al terminar cada
-opcion (`escribir_de_vuelta`), porque iteraciones posteriores los leen. Los que
-se mutan in-place no necesitan nada: son el mismo objeto.
+The 23 fields that the chain REASSIGNS are handed back here when each option
+finishes (`escribir_de_vuelta`), because later iterations read them. The ones
+mutated in place need nothing: they are the same object.
 """
 
 from dataclasses import dataclass
@@ -15,7 +15,7 @@ from typing import Any
 
 @dataclass
 class PuntuacionCtx:
-    """Instantanea del turno para puntuar una opcion."""
+    """Snapshot of the turn used to score one option."""
 
     _SALTAR: Any = None
     _TABLA_BCS_FETCH: Any = None

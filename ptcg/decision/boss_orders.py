@@ -1,8 +1,8 @@
-"""Boss's Orders: cuanto vale jugarla y a quien gustear.
+"""Boss's Orders: how much playing it is worth and who to gust.
 
-Extraido VERBATIM de main.py por utils/extraer_definiciones.py
-(docs/main-refactor-arquitectura.md). Su pureza esta comprobada por
-utils/pureza.py: nada de aqui toca el estado mutable ni las tablas de runtime.
+Extracted VERBATIM from main.py by utils/extraer_definiciones.py
+(docs/project-history.md). Its purity is verified by
+utils/pureza.py: nothing here touches mutable state or the runtime tables.
 """
 
 from ptcg.cartas.ids import Dwebble_Fighting, Dwebble_Grass, EX_PREEVO_IDS, GUST_TRAMPA_IDS, SCORE_FORBID, THREAT_PREEVO_IDS
@@ -26,9 +26,9 @@ def _boss_val_de(ctx):
 
 
 def _boss_empty_gust(ctx):
-    """Activo que NO puede atacar este turno (log 85799299 paso 50): el gusteo
-    no es ejecutable como remate; con Lillie's en mano refrescar rinde mas.
-    Se exceptuan los casos valiosos."""
+    """An active that CANNOT attack this turn (log 85799299 step 50): the gust
+    is not executable as a finisher; with Lillie's in hand, refilling pays more.
+    The valuable cases are exempted."""
     return (ctx.active_cant_attack
             and not ctx.boss_win_via_bench
             and not ctx.boss_dodge_redirect
@@ -39,9 +39,9 @@ def _boss_empty_gust(ctx):
 
 
 def _boss_first_turn_cede(ctx):
-    """En NUESTRO primer turno (log 86025936 paso 11) con Lillie's en mano
-    SIEMPRE se juega Lillie's; Boss's cede (un gusteo no cobra premio el
-    primer turno)."""
+    """On OUR first turn (log 86025936 step 11) with Lillie's in hand,
+    Lillie's is ALWAYS played; Boss's yields (a gust takes no prize on the
+    first turn)."""
     return (ctx.our_first_turn
             and ctx.hand_counts.get(Lillie_Determination, 0) >= 1
             and not ctx.state.supporterPlayed
@@ -49,27 +49,27 @@ def _boss_first_turn_cede(ctx):
 
 
 def _boss_cede_dig(ctx):
-    """Cede a Lillie's cuando NO tenemos un atacante REAL de banca (user,
-    registro_005 vs Dragapult): un gusteo de DESARROLLO (cortar la linea
-    rival noqueando un basico/pre-evo de 1 premio) no tiene prioridad si
-    ademas del activo solo tenemos BASICOS y ningun atacante de banca
-    listo: sin segundo atacante el gusteo no encadena y conviene CAVAR.
-    `has_ready_bench_attacker` solo cuenta atacantes reales listos, nunca
-    un Applin. Se exceptuan TODOS los gusteos valiosos."""
-    # ACTIVO CONDENADO SIN RELEVO (user, registro_004 t4 vs Team Rocket,
-    # PERDIDA; deck-agnostico): con el activo a punto de morir
-    # (active_ko_likely) y NINGUN atacante de banca listo, un gusteo de
-    # premios que NO gana la partida (boss_ko_threat_preevo: +1 premio del
-    # Spidops debil) deja el tablero sin plan -- el rival noquea, promovemos
-    # un cuerpo sin energia y la mano muerta no rehace nada. Ahi el KO cede
-    # a Lillie's (cavar atacantes futuros); el gusteo GANADOR
-    # (boss_win_via_bench / win_via_boss_gust) sigue dominando.
-    # `active_doomed_real` (user, registro_004 t4 vs Mega Lucario, PERDIDA):
-    # el heuristico `active_ko_likely` daba False con nuestro Ogerpon ex a
-    # 210/210 PV porque `_op_best_damage_vs` no resuelve el dano del ataque
-    # rival (siempre 0); el Mega Lucario ex de enfrente ya tenia las 2
-    # energias de Mega Brave (270) y lo noqueaba seguro. Se consulta tambien
-    # el remate REAL leido de attack_table para que la cesion dispare.
+    """It yields to Lillie's when we have no REAL benched attacker (user,
+    registro_005 vs Dragapult): a DEVELOPMENT gust (cutting the opposing line
+    by knocking out a 1-prize basic/pre-evolution) has no priority if, besides
+    the active, we only have BASICS and no ready benched attacker: without a
+    second attacker the gust does not chain and it is better to DIG.
+    `has_ready_bench_attacker` only counts real ready attackers, never an
+    Applin. ALL the valuable gusts are exempted."""
+    # DOOMED ACTIVE WITH NO RELIEF (user, registro_004 t4 vs Team Rocket, LOST;
+    # deck-agnostic): with the active about to die (active_ko_likely) and NO
+    # ready benched attacker, a prize gust that does NOT win the game
+    # (boss_ko_threat_preevo: +1 prize from the weak Spidops) leaves the board
+    # with no plan -- the opponent knocks out, we promote a body with no energy
+    # and the dead hand rebuilds nothing. There the KO yields to Lillie's
+    # (digging for future attackers); the WINNING gust (boss_win_via_bench /
+    # win_via_boss_gust) still dominates.
+    # `active_doomed_real` (user, registro_004 t4 vs Mega Lucario, LOST):
+    # the `active_ko_likely` heuristic returned False with our Ogerpon ex at
+    # 210/210 HP because `_op_best_damage_vs` does not resolve the damage of the
+    # opposing attack (always 0); the Mega Lucario ex in front already had the 2
+    # energies of Mega Brave (270) and knocked it out for sure. The REAL finisher
+    # read from attack_table is also consulted so the yield fires.
     _condenado_sin_relevo = ((ctx.active_ko_likely or ctx.active_doomed_real)
                              and not ctx.has_ready_bench_attacker)
     return (ctx.hand_counts.get(Lillie_Determination, 0) >= 1
@@ -85,18 +85,18 @@ def _boss_cede_dig(ctx):
 
 
 def _boss_unlock_gust(ctx):
-    """Gustear para DES-LOCKEAR habilidades (autopsia iron_thorns p018 t10,
-    paso 3 plan jul 2026): con Iron Thorns ex de ACTIVO rival, Initialization
-    anula Teal Dance / Ripening / Last-Ditch / Flip the Script -- todo nuestro
-    motor. El lock es POSICIONAL: subir con Boss's cualquier cuerpo NO-locker
-    de su banca lo apaga en el acto (a diferencia de Watchtower, que es
-    estadio y el gusteo no lo toca). En 6 turnos muertos de la autopsia el
-    agente tenia Boss's en mano, banca rival con no-lockers... y END
-    (`sin_valor`). Encadena ademas con Meowth ex EN MANO: Boss's primero
-    (des-lockea), Meowth despues -> Last-Ditch ya funciona.
-    Guards: Iron Thorns ex en el ACTIVO rival, un no-locker en su banca que
-    subir, y que el des-lockeo nos sirva HOY (Ogerpon ex / Hydrapple ex en
-    juego, o Meowth ex en mano)."""
+    """Gusting to UN-LOCK abilities (iron_thorns autopsy p018 t10, step 3 of the
+    jul 2026 plan): with Iron Thorns ex as the opposing ACTIVE, Initialization
+    cancels Teal Dance / Ripening / Last-Ditch / Flip the Script -- our whole
+    engine. The lock is POSITIONAL: bringing up any NON-locker body from their
+    bench with Boss's switches it off instantly (unlike Watchtower, which is a
+    stadium and the gust does not touch it). In 6 dead turns of the autopsy the
+    agent had Boss's in hand, an opposing bench with non-lockers... and END
+    (`sin_valor`). It also chains with Meowth ex IN HAND: Boss's first (it
+    un-locks), Meowth afterwards -> Last-Ditch works again.
+    Guards: Iron Thorns ex in the opposing ACTIVE, a non-locker on their bench
+    to bring up, and the un-locking being useful to us TODAY (Ogerpon ex /
+    Hydrapple ex in play, or Meowth ex in hand)."""
     act = ctx.op_state.active[0] if ctx.op_state.active else None
     if act is None or act.id != Iron_Thorns_ex:
         return False
@@ -109,13 +109,13 @@ def _boss_unlock_gust(ctx):
 
 
 def _boss_motivo_con_premio(ctx):
-    """¿El gusteo tiene un motivo REAL por delante? Denominador comun de los
-    dos vetos de abajo: si algo de esto esta vivo, el Boss's se juega y ellos
-    deciden el objetivo. Cubre los remates (ganar la partida, 2 premios, KO por
-    `boss_prize_rank`), los cortes de linea con KO (`deny_evo`,
-    `deny_alakazam_line`, `gust_key_bench`, `ko_threat_preevo`), la esquiva
-    (`dodge_redirect`), el gusteo DEFENSIVO (evitar el remate rival) y los
-    muros que anulan a nuestro atacante de frente."""
+    """Does the gust have a REAL reason behind it? The common denominator of the
+    two vetoes below: if any of this is alive, the Boss's is played and they
+    decide the target. It covers the finishers (winning the game, 2 prizes, a KO
+    through `boss_prize_rank`), the line cuts with a KO (`deny_evo`,
+    `deny_alakazam_line`, `gust_key_bench`, `ko_threat_preevo`), the dodge
+    (`dodge_redirect`), the DEFENSIVE gust (avoiding the opponent's finisher)
+    and the walls that cancel our attacker from the front."""
     v = ctx.supp_values
     return (ctx.win_via_boss_gust or ctx.gust_2prize_via_boss
             or ctx.boss_win_via_bench or ctx.boss_deny_alakazam_line
@@ -135,82 +135,82 @@ def _gust_es_basico(card_id):
 
 def _v_gust_traba_neta(c):
     v = 500 + c.stall_diff * 100
-    # Desempate (usuario): entre objetivos que traban IGUAL, evitar subir la
-    # PRE-EVOLUCION del atacante principal rival (podria evolucionar y atacar
-    # desde el activo). Penalizacion pequena que solo rompe empates.
+    # Tie-break (user): between targets that jam things up EQUALLY, avoid bringing
+    # up the PRE-EVOLUTION of the opponent's main attacker (it could evolve and
+    # attack from the active spot). A small penalty that only breaks ties.
     if c.card_id in THREAT_PREEVO_IDS or c.card_id in EX_PREEVO_IDS:
         v -= 50
     return v
 
 
 _REGLAS_GUST_ESTORBO = [
-    # Coste de retirada GRATIS: el rival lo devuelve al banco sin pagar
-    # nada; no estorba en absoluto (p.ej. Budew). Descartado.
+    # FREE retreat cost: the opponent sends it back to the bench without paying
+    # anything; it does not get in the way at all (e.g. Budew). Discarded.
     _ReglaFija("retirada_gratis",
                lambda c: c.rc0 <= 0,
                lambda c: SCORE_FORBID),
-    # Latias ex (Skyliner) deja retirar GRATIS a cualquier Basico: gustear
-    # un Basico no lo traba, y gustear a la propia Latias es inutil (user,
-    # registro 010 paso 76 vs Dragapult). El objetivo correcto es un
-    # NO-basico (p.ej. Drakloak).
+    # Latias ex (Skyliner) lets any Basic retreat for FREE: gusting a Basic does
+    # not jam anything, and gusting the Latias itself is useless (user,
+    # registro 010 step 76 vs Dragapult). The right target is a NON-basic (e.g.
+    # Drakloak).
     _ReglaFija("latias_libera_basicos",
                lambda c: (c.op_latias
                           and (c.card_id == Latias_ex
                                or _gust_es_basico(c.card_id))),
                lambda c: SCORE_FORBID),
-    # Subir un Iron Thorns ex como ESTORBO es un tiro en el pie: su
-    # Initialization en el activo LOCKEA nuestras habilidades (Teal Dance /
-    # Ripening / Last-Ditch) -- si ya habia uno delante, el gusteo que debia
-    # des-lockear (gusteo_deslockea_habilidades) lo mantiene; si no lo
-    # habia, lo crea. En modo OFENSIVO no aplica: gustearlo para NOQUEARLO
-    # cobra 2 premios y se lo lleva del tablero.
+    # Bringing up an Iron Thorns ex as a NUISANCE is shooting ourselves in the
+    # foot: its Initialization in the active spot LOCKS our abilities (Teal Dance /
+    # Ripening / Last-Ditch) -- if one was already in front, the gust that was
+    # supposed to un-lock (gusteo_deslockea_habilidades) keeps it there; if there
+    # was none, it creates one. In OFFENSIVE mode it does not apply: gusting it to
+    # KNOCK IT OUT takes 2 prizes and removes it from the board.
     _ReglaFija("estorbo_crea_lock_iron_thorns",
                lambda c: c.card_id == Iron_Thorns_ex,
                lambda c: SCORE_FORBID),
-    # Estorbo proporcional al coste de retirada NETO (el que el rival no
-    # puede pagar con su energia): a mayor coste sin energia, mas se traba.
+    # The nuisance is proportional to the NET retreat cost (the part the opponent
+    # cannot pay with their energy): the higher the unpaid cost, the more it jams.
     _ReglaFija("traba_neta",
                lambda c: c.stall_diff >= 1,
                _v_gust_traba_neta),
-    # Ya puede pagar su propia retirada: mal objetivo (defecto -200).
+    # It can already pay its own retreat: a bad target (default -200).
 ]
 
 
 _AJUSTES_GUST_ESTORBO = [
-    # Generalizacion Alakazam (user, registro_004 paso 51 vs Garchomp,
-    # PERDIDA): privilegiar SIEMPRE la MAYOR evolucion de la linea rival
-    # que un atacante de banca pueda NOQUEAR tras retirar. Sin esto, el
-    # modo estorbo prefiere el basico y deja crecer la linea rival.
+    # Alakazam generalisation (user, registro_004 step 51 vs Garchomp, LOST):
+    # ALWAYS favour the HIGHEST evolution of the opposing line that a benched
+    # attacker can KNOCK OUT after retreating. Without this, nuisance mode
+    # prefers the basic and lets the opposing line grow.
     _Ajuste("linea_rival_mayor_evolucion",
-            # c.rc0 > 0: en el original este override vive DENTRO del else
-            # de retirada-gratis; no debe rescatar un FORBID por rc0<=0.
+            # c.rc0 > 0: in the original this override lives INSIDE the else of the
+            # free-retreat case; it must not rescue a FORBID caused by rc0<=0.
             lambda c, s: (c.rc0 > 0 and not c.op_alakazam
                           and c.linea_rank >= 1 and c.linea_can_ko),
             lambda c, s: max(s, 6000 + c.linea_rank * 3000
                              + c.energia * 50
                              + (300 if c.tiene_tool else 0))),
-    # Regla (user, registro 014 paso 146 vs Alakazam): en modo estorbo,
-    # PRIORIZAR la linea Alakazam sobre otros basicos de soporte; atrapar
-    # su pre-evo corta el desarrollo. Kadabra > Abra > Alakazam.
+    # Rule (user, registro 014 step 146 vs Alakazam): in nuisance mode,
+    # PRIORITISE the Alakazam line over other support basics; trapping their
+    # pre-evolution cuts the development. Kadabra > Abra > Alakazam.
     _Ajuste("linea_alakazam_estorbo",
             lambda c, s: (c.op_alakazam
                           and c.card_id in ALAKAZAM_LINE_IDS),
             lambda c, s: s + {Kadabra: 350, Abra: 300,
                               Alakazam_ex: 250}[c.card_id]),
-    # ...pero SIN KO ese orden esta invertido: subir un Kadabra/Alakazam es
-    # cambiarle un atacante por otro (Powerful Hand cuesta 1 energia y el
-    # Kadabra evoluciona el mismo turno). El relevo solo funciona con un Abra
-    # pelado o con un cuerpo fuera de la linea (user, registro_002 paso 20).
-    # Va DESPUES del ajuste de arriba para pisar su bonificacion.
+    # ...but WITHOUT a KO that order is inverted: bringing up a Kadabra/Alakazam
+    # swaps one attacker for another (Powerful Hand costs 1 energy and the Kadabra
+    # evolves the same turn). The relief only works with a bare Abra or with a body
+    # outside the line (user, registro_002 step 20). It goes AFTER the adjustment
+    # above so it overrides its bonus.
     _Ajuste("linea_alakazam_no_promover_atacante",
             lambda c, s: (c.op_alakazam and not c.can_ko
                           and c.card_id in ALAKAZAM_ATTACKER_IDS),
             lambda c, s: SCORE_FORBID),
-    # Mismo criterio que en modo OFENSIVO (ver alli), y aqui pesa mas: en modo
-    # estorbo nuestro activo NO puede atacar, asi que el cuerpo que subamos nos
-    # golpea sin respuesta. `traba_neta` solo mira quien no puede pagar su
-    # RETIRADA; esto mira quien no puede pagar su ATAQUE. `s > 0` para no
-    # rescatar un SCORE_FORBID de las reglas de arriba.
+    # Same criterion as in OFFENSIVE mode (see there), and here it weighs more: in
+    # nuisance mode our active CANNOT attack, so the body we bring up hits us with
+    # no answer. `traba_neta` only looks at who cannot pay their RETREAT; this looks
+    # at who cannot pay their ATTACK. `s > 0` so it does not rescue a SCORE_FORBID
+    # from the rules above.
     _Ajuste("sin_ko_prefiere_cuerpo_muerto",
             lambda c, s: (s > 0 and not c.can_ko and c.cuerpo_inofensivo
                           and c.card_id not in GUST_TRAMPA_IDS),
@@ -219,11 +219,11 @@ _AJUSTES_GUST_ESTORBO = [
 
 
 def _gust_linea_evolutiva(c, id_final, id_medio, id_basico):
-    """Contribucion para mazos de linea evolutiva conocida (Dragapult,
-    Ethan's Typhlosion, Alakazam): clavar/derribar la pieza mas avanzada.
-    La fase 1 SIN energia queda CLAVADA (no paga retirada ni ataca) y
-    RETRASA la evolucion: mejor objetivo de disrupcion; el basico sin
-    energia tambien queda clavado (estorbo fuerte)."""
+    """Contribution for decks with a known evolution line (Dragapult,
+    Ethan's Typhlosion, Alakazam): pin down / take out the most advanced piece.
+    A Stage 1 WITHOUT energy is left PINNED (it pays no retreat and does not
+    attack) and DELAYS the evolution: the best disruption target; a basic with
+    no energy is also pinned (a strong nuisance)."""
     if c.card_id == id_final:
         return 1200 if c.can_ko else 800
     if c.card_id == id_medio:
@@ -244,7 +244,7 @@ def _gust_linea_evolutiva(c, id_final, id_medio, id_basico):
 
 
 def _gust_tiers_genericos(c):
-    """Mazo sin linea conocida: tiers por etapa/energia (KO / no-KO)."""
+    """A deck with no known line: tiers by stage/energy (KO / no-KO)."""
     if c.can_ko:
         if c.is_ex and c.energia >= 1:
             return 1100
@@ -311,26 +311,27 @@ def _gust_linea_rival(c):
 
 
 def _gust_releva_al_atacante(op_state):
-    """Deck-agnostico: ¿el gusteo cambia un ATACANTE por un cuerpo muerto?
+    """Deck-agnostic: does the gust swap an ATTACKER for a dead body?
 
-    Es la generalizacion de `_alakazam_relevo_de_atacante` al resto de mazos de
-    linea evolutiva. Un gusteo SIN KO solo le cuesta un turno al rival cuando su
-    ACTIVO puede atacar (o podra con un adjunte) y el cuerpo que sube NO: ahi la
-    energia invertida se queda parada en la banca y para volver hay que pagar
-    retirada. Si su activo ya no ataca, no hay nada que relevar -- y ademas
-    Boss's le regala la retirada gratis (`_boss_gusteo_sin_proposito`).
+    It is the generalisation of `_alakazam_relevo_de_atacante` to the other
+    evolution-line decks. A gust WITHOUT a KO only costs the opponent a turn
+    when their ACTIVE can attack (or will be able to with one attachment) and
+    the body that comes up canNOT: there the invested energy is left stranded on
+    the bench and coming back means paying a retreat. If their active does not
+    attack any more, there is nothing to relieve -- and Boss's also gives them
+    the retreat for free (`_boss_gusteo_sin_proposito`).
 
-    Se descartan como relevo:
-      * Dunsparce: objetivo PROHIBIDO de gusteo (regla del user);
-      * las PRE-EVOLUCIONES de amenaza conocidas (THREAT_PREEVO_IDS /
-        EX_PREEVO_IDS): evolucionan EN EL ACTIVO y atacan con el cuerpo NUEVO,
-        asi que su coste de ataque de hoy no dice nada. Es justo lo que paso en
-        registro_002 paso 20 con el Abra -> Kadabra.
+    Discarded as relief:
+      * Dunsparce: a FORBIDDEN gust target (user's rule);
+      * the known threat PRE-EVOLUTIONS (THREAT_PREEVO_IDS / EX_PREEVO_IDS):
+        they evolve IN THE ACTIVE SPOT and attack with the NEW body, so their
+        attack cost today says nothing. That is exactly what happened in
+        registro_002 step 20 with the Abra -> Kadabra.
 
-    NOTA: vs Alakazam sigue mandando `_alakazam_relevo_de_atacante`, que SI
-    admite un Abra pelado como relevo (regla explicita del user). Aqui el Abra
-    quedaria descartado por ser pre-evo de amenaza -- y ademas su ataque cuesta
-    1, asi que tampoco es "inofensivo" por coste.
+    NOTE: vs Alakazam `_alakazam_relevo_de_atacante` still rules, and it DOES
+    accept a bare Abra as relief (an explicit rule from the user). Here the Abra
+    would be discarded for being a threat pre-evolution -- and its attack costs
+    1 anyway, so it is not "harmless" by cost either.
     """
     if _op_activo_inofensivo(op_state):
         return False
@@ -347,45 +348,48 @@ def _gust_releva_al_atacante(op_state):
 def _grass_unlocks_active_retreat(my_state, op_state, meganium_active,
                                   total_grass, bench_count, neutral_zone,
                                   active_can_attack, budget=1):
-    """(ko, chip): ¿las Plantas que AUN pueden aterrizar sobre el ACTIVO pagan su
-    coste de retirada y habilitan atacar con un atacante de banca?
+    """(ko, chip): do the Grass energies that can STILL land on the ACTIVE pay its
+    retreat cost and enable attacking with a benched attacker?
 
-    Nucleo comun de la linea "Planta al activo -> RETIRAR -> atacar con el de
-    banca". Lo consumen dos rutas distintas:
-      * el adjunte MANUAL (`_attach_enable_retreat_ko` /
-        `_attach_enable_retreat_attack`, que ademas exigen que el adjunte del
-        turno siga libre), y
-      * las HABILIDADES de carga (Ripening Charge adjunta a CUALQUIERA de
-        nuestros Pokemon, Teal Dance al suyo): esas NO gastan el adjunte manual,
-        asi que la linea sigue viva con `state.energyAttached` ya puesto
-        (user, registro_014 pasos 137/141 vs Alakazam).
+    Common core of the line "Grass to the active -> RETREAT -> attack with the
+    benched one". Two different routes consume it:
+      * the MANUAL attachment (`_attach_enable_retreat_ko` /
+        `_attach_enable_retreat_attack`, which also require the turn's
+        attachment to still be free), and
+      * the charging ABILITIES (Ripening Charge attaches to ANY of our Pokemon,
+        Teal Dance to its own): those do NOT spend the manual attachment, so the
+        line is still alive with `state.energyAttached` already set
+        (user, registro_014 steps 137/141 vs Alakazam).
 
-    Devuelve (False, False) si no hay nada que desbloquear: el activo ya paga su
-    retirada, una Planta no le alcanza, o con esa Planta el PROPIO activo ataca
-    igual o mejor que el cuerpo de banca (entonces no se retira). `chip` solo se
-    evalua si el activo NO puede atacar este turno.
+    It returns (False, False) if there is nothing to unlock: the active already
+    pays its retreat, one Grass is not enough for it, or with that Grass the
+    ACTIVE ITSELF attacks as well as or better than the benched body (then it
+    does not retreat). `chip` is only evaluated if the active canNOT attack this
+    turn.
 
-    La comparacion con el ataque del activo es por DANO, no por "puede atacar"
-    (user, registro_006 paso 101 vs Alakazam, PERDIDA): el activo era un Applin
-    (coste de ataque 1, coste de retirada 1) con un Teal Mask Ogerpon ex de banca
-    a 6 energias efectivas que NOQUEABA al Alakazam. Como una Planta dejaba al
-    Applin "en su coste de ataque", el guardia antiguo apagaba la linea entera --
-    y eso que `_attacker_base_damage` no le da NI UN PUNTO de dano al Applin. La
-    Planta se fue a un Ogerpon de banca y el turno acabo sin atacar. Un cuerpo de
-    relleno que llega a su coste de ataque no puede vetar el KO servido de un
-    atacante real; el empate si se resuelve a favor del activo (atacar con el
-    activo es lo primero, y ademas no gasta la retirada).
+    The comparison with the active's attack is by DAMAGE, not by "can attack"
+    (user, registro_006 step 101 vs Alakazam, LOST): the active was an Applin
+    (attack cost 1, retreat cost 1) with a benched Teal Mask Ogerpon ex at 6
+    effective energies that KNOCKED OUT the Alakazam. Because one Grass left the
+    Applin "at its attack cost", the old guard switched off the entire line --
+    even though `_attacker_base_damage` does not give the Applin A SINGLE point
+    of damage. The Grass went to a benched Ogerpon and the turn ended without
+    attacking. A filler body that reaches its attack cost cannot veto the KO
+    served up by a real attacker; a tie is resolved in favour of the active
+    (attacking with the active comes first, and it also does not spend the
+    retreat).
 
-    `budget` es el PRESUPUESTO de carga: cuantas Plantas pueden todavia aterrizar
-    sobre el ACTIVO en este turno (adjunte manual sin gastar + habilidades de
-    carga que le apunten, acotado por las Plantas disponibles). Espeja el
-    presupuesto de `_carga_activo_remata`, que ya calculaba asi el coste de
-    ATAQUE del activo -- aqui faltaba y la linea se limitaba a UNA Planta (user,
-    episodio 88631738 paso 77): con un coste de retirada de 2 o 3 simbolos y dos
-    vias de carga vivas, la retirada era pagable y el detector no la veia, asi
-    que el turno se cerraba sin atacar. `budget=1` (defecto) reproduce el
-    comportamiento anterior, que es lo correcto para los consumidores con una
-    sola Planta a mano (p. ej. la que recupera una Night Stretcher del descarte).
+    `budget` is the charging BUDGET: how many Grass energies can still land on
+    the ACTIVE this turn (an unspent manual attachment + charging abilities that
+    can point at it, bounded by the available Grass). It mirrors the budget of
+    `_carga_activo_remata`, which already computed the active's ATTACK cost that
+    way -- here it was missing and the line was limited to ONE Grass (user,
+    episode 88631738 step 77): with a retreat cost of 2 or 3 symbols and two
+    live charging routes, the retreat was payable and the detector did not see
+    it, so the turn closed without attacking. `budget=1` (the default)
+    reproduces the previous behaviour, which is the right one for consumers with
+    a single Grass at hand (e.g. the one a Night Stretcher recovers from the
+    discard).
     """
     act = _active_of(my_state)
     opa = _active_of(op_state)
@@ -396,15 +400,15 @@ def _grass_unlocks_active_retreat(my_state, op_state, meganium_active,
     unit = _grass_attach_unit()
     if e >= rc:
         return False, False
-    # Plantas necesarias para llegar al coste (redondeo hacia arriba), y las que
-    # el presupuesto permite. La cadena se ejecuta paso a paso: el desempate
-    # greedy vuelve a evaluar tras cada carga, con `need` ya decrementado.
+    # Grass needed to reach the cost (rounded up), and what the budget allows. The
+    # chain is executed step by step: the greedy tie-break re-evaluates after each
+    # charge, with `need` already decremented.
     need = -(-(rc - e) // unit) if unit > 0 else 0
     if not 1 <= need <= max(1, int(budget or 1)):
         return False, False
     gained = need * unit
-    # Dano EFECTIVO que haria el propio activo con esas mismas Plantas (0 si no
-    # llega a su coste de ataque o si su ataque no puntua en el modelo).
+    # EFFECTIVE damage the active itself would do with those same Grass (0 if it
+    # does not reach its attack cost or its attack does not score in the model).
     act_dmg = 0
     if _can_attack_eff(act.id, e + gained):
         _act_base = _attacker_base_damage(
@@ -413,18 +417,18 @@ def _grass_unlocks_active_retreat(my_state, op_state, meganium_active,
         act_dmg = _our_effective_damage(act, opa, _act_base, meganium_active,
                                         neutral_zone)
         if act_dmg > 0 and act_dmg >= (opa.hp or 0):
-            # El activo REMATA con esa Planta: atacar con el es lo primero.
+            # The active FINISHES with that Grass: attacking with it comes first.
             return False, False
-    # La energia adjuntada se descarta al pagar la retirada: el Grass del campo
-    # tras retirar se aproxima con el actual (neto ~0).
+    # The attached energy is discarded when paying the retreat: the Grass on the
+    # field after retreating is approximated with the current one (net ~0).
     grass_after = max(0, total_grass - _retreat_grass_units(rc))
     if _bench_attacker_can_ko(my_state, opa, meganium_active, total_grass,
                               bench_count, grass_after, neutral_zone):
         return True, False
     if active_can_attack:
         return False, False
-    # Guarda "no cambiar un ex por un cuerpo peor" (espejo del scorer de
-    # retirada): el cuerpo que sube debe aguantar al menos lo que le queda al ex.
+    # The "do not swap an ex for a worse body" guard (mirror of the retreat
+    # scorer): the body coming up must endure at least what the ex has left.
     min_hp = (act.hp or 0) if act.id in OUR_EX_IDS else 0
     chip = _bench_attacker_best_damage(
         my_state, opa, meganium_active, bench_count, grass_after,
@@ -433,49 +437,51 @@ def _grass_unlocks_active_retreat(my_state, op_state, meganium_active,
 
 
 def _boss_regala_linea_alakazam(ctx):
-    """VETO vs Alakazam (user, registro_002 paso 20, PERDIDA -- ep. 88906640).
+    """VETO vs Alakazam (user, registro_002 step 20, LOST -- ep. 88906640).
 
-    Turno 2: nuestro Ogerpon ex a 1/3 energias (sin ataque), su activo un
-    Fezandipiti ex a 0 energias (Cruel Arrow cuesta 3: NO puede atacar en su
-    turno) y su banca con cuatro Abra + un Dunsparce. El agente jugo Boss's
-    Orders y subio un Abra; el rival tenia el Kadabra EN LA MANO, evoluciono y
-    empezo a atacar con el cuerpo que le habiamos puesto delante.
+    Turn 2: our Ogerpon ex at 1/3 energies (no attack), their active a
+    Fezandipiti ex at 0 energies (Cruel Arrow costs 3: it CANNOT attack on their
+    turn) and their bench with four Abra + a Dunsparce. The agent played Boss's
+    Orders and brought up an Abra; the opponent had the Kadabra IN HAND, evolved
+    and started attacking with the body we had put in front of us.
 
-    Dos errores en la misma jugada: (1) el gusteo no cobraba nada -- el activo
-    rival no era una amenaza que hubiera que quitar de enmedio; (2) en ESTE
-    matchup Abra/Kadabra/Alakazam son la unica linea atacante, asi que subir
-    uno es hacerles el trabajo. La valoracion venia de la rama
-    `elif op_is_alakazam_deck` de `evaluate_supporters`, que puntuaba 700 el
-    gusteo de "la mayor evolucion de la linea que haya en banca" sin exigir KO.
+    Two mistakes in the same play: (1) the gust took nothing -- the opposing
+    active was not a threat that had to be moved out of the way; (2) in THIS
+    matchup Abra/Kadabra/Alakazam are the only attacking line, so bringing one
+    up is doing their work for them. The valuation came from the
+    `elif op_is_alakazam_deck` branch of `evaluate_supporters`, which scored 700
+    for gusting "the highest evolution of the line on their bench" without
+    requiring a KO.
 
-    El unico gusteo sin KO que se permite es el RELEVO de su atacante
-    (`_alakazam_relevo_de_atacante`). Todo motivo con premio por delante
-    (`_boss_motivo_con_premio`) manda sobre este veto."""
+    The only gust without a KO that is allowed is the RELIEF of their attacker
+    (`_alakazam_relevo_de_atacante`). Any reason with a prize behind it
+    (`_boss_motivo_con_premio`) rules over this veto."""
     if not ctx.op_is_alakazam_deck or _boss_motivo_con_premio(ctx):
         return False
     return not _alakazam_relevo_de_atacante(ctx.op_state)
 
 
 def _boss_gusteo_sin_proposito(ctx):
-    """VETO deck-agnostico: gusteo sin KO contra un activo rival INOFENSIVO.
+    """Deck-agnostic VETO: a gust without a KO against a HARMLESS opposing active.
 
-    Boss's Orders es, para el rival, una RETIRADA GRATIS. Solo compensa
-    regalarsela por una de dos razones: cobrar un premio que de frente no
-    cobramos, o quitar de enmedio al cuerpo que nos va a golpear. Si su ACTIVO
-    no puede atacar ni en su proximo turno (`_op_activo_inofensivo`: todos sus
-    ataques cuestan mas de energias+1) la segunda razon no existe, y
-    `_boss_motivo_con_premio` ya descarta la primera: el gusteo solo mueve
-    cuerpos, gasta el Supporter del turno y deja al rival mejor colocado.
+    Boss's Orders is, for the opponent, a FREE RETREAT. Giving it away only pays
+    off for one of two reasons: taking a prize we cannot take from the front, or
+    moving out of the way the body that is going to hit us. If their ACTIVE
+    cannot attack even on their next turn (`_op_activo_inofensivo`: all its
+    attacks cost more than energies+1) the second reason does not exist, and
+    `_boss_motivo_con_premio` already ruled out the first: the gust only moves
+    bodies around, spends the turn's Supporter and leaves the opponent better
+    placed.
 
-    Generaliza el fallo de `registro_002 paso 20` a cualquier mazo: las ramas
-    de `evaluate_supporters` que puntuan "subir la mayor evolucion de su linea"
-    (Dragapult, Ethan's Typhlosion, Gardevoir, Zoroark, Slowking, Alakazam) y
-    la rama de TRABA (`stall_val`) no exigen KO, y todas desembocan en la regla
-    de reserva `valor_del_supporter`.
+    It generalises the failure of `registro_002 step 20` to any deck: the
+    branches of `evaluate_supporters` that score "bring up the highest evolution
+    of their line" (Dragapult, Ethan's Typhlosion, Gardevoir, Zoroark, Slowking,
+    Alakazam) and the JAM branch (`stall_val`) do not require a KO, and all of
+    them end up in the reserve rule `valor_del_supporter`.
 
-    EXCEPCION: si su activo es una pre-evolucion de amenaza conocida
-    (THREAT_PREEVO_IDS / EX_PREEVO_IDS) no se lee su ataque actual -- evoluciona
-    y ataca con el cuerpo nuevo -- asi que no se veta."""
+    EXCEPTION: if their active is a known threat pre-evolution
+    (THREAT_PREEVO_IDS / EX_PREEVO_IDS) its current attack is not read -- it
+    evolves and attacks with the new body -- so it is not vetoed."""
     if _boss_motivo_con_premio(ctx):
         return False
     act = ctx.op_state.active[0] if ctx.op_state.active else None
@@ -489,33 +495,34 @@ def _boss_gusteo_sin_proposito(ctx):
 class _CtxGustObjetivo:
     card_id: int
     energia: int
-    rc0: int                 # RETREAT_COST.get(id, 0) (trabas)
-    rc1: int                 # RETREAT_COST.get(id, 1) (lineas evolutivas)
-    stall_diff: int          # rc0 - energia
-    is_ex: bool              # flag ex (sin mega)
-    is_exmega: bool          # ex o megaEx (tiers de KO)
-    is_megaex: bool          # megaEx (3 premios): tier propio por encima de ex
-    prizes: int              # prize_count(objetivo): premios que cobramos al noquearlo
-    wins_now: bool           # el KO de este objetivo GANA la partida (prizes >= my_prize)
+    rc0: int                 # RETREAT_COST.get(id, 0) (jams)
+    rc1: int                 # RETREAT_COST.get(id, 1) (evolution lines)
+    stall_diff: int          # rc0 - energy
+    is_ex: bool              # ex flag (without mega)
+    is_exmega: bool          # ex or megaEx (KO tiers)
+    is_megaex: bool          # megaEx (3 prizes): its own tier above ex
+    prizes: int              # prize_count(target): prizes we take by knocking it out
+    wins_now: bool           # knocking this target out WINS the game (prizes >= my_prize)
     is_stage1: bool
     is_stage2: bool
     tiene_tool: bool
-    can_ko: bool             # el activo (o banca tras retirar) lo noquea
-    tier_ko: int             # 1..8 si can_ko, 0 si no
+    can_ko: bool             # the active (or the bench after retreating) knocks it out
+    tier_ko: int             # 1..8 if can_ko, 0 otherwise
     plan_target_match: bool  # o.index == plan.target - 1
-    regust_energized: bool   # copia energizada del activo rival sin energia
-    linea_rank: int          # 0 basico / 1 stage1 / 2 stage2
-    linea_can_ko: bool       # estorbo: atacante de banca la noquea tras retirar
+    regust_energized: bool   # charged copy of an opposing active with no energy
+    linea_rank: int          # 0 basic / 1 stage1 / 2 stage2
+    linea_can_ko: bool       # nuisance: a benched attacker knocks it out after retreating
     op_alakazam: bool
     op_latias: bool
     op_linea_dragapult: bool
     op_linea_typhlosion: bool
-    # El ACTIVO rival anula nuestro dano (muro): atacar de frente da 0 premios.
+    # The opposing ACTIVE cancels our damage (a wall): attacking from the front
+    # gives 0 prizes.
     muro_bloquea_activo: bool = False
-    # El objetivo NO podria atacar desde el activo en el proximo turno rival ni
-    # adjuntandole una energia (`_op_cuerpo_inofensivo`, medido por COSTE). Es
-    # el dato que decide el objetivo cuando NO hay KO: subir un cuerpo muerto
-    # les cuesta el turno; subir uno que ataca les hace el trabajo.
+    # The target could NOT attack from the active spot on the opponent's next turn
+    # even with one energy attached (`_op_cuerpo_inofensivo`, measured by COST). It
+    # is the datum that decides the target when there is NO KO: bringing up a dead
+    # body costs them the turn; bringing up one that attacks does their work.
     cuerpo_inofensivo: bool = False
 
 
@@ -535,8 +542,8 @@ def _ctx_gust_objetivo(card, o, my_state, op_state, state, hand_counts,
     is_stage1 = bool(tgt_data and getattr(tgt_data, 'stage1', False))
     is_stage2 = bool(tgt_data and getattr(tgt_data, 'stage2', False))
 
-    # KO por el ACTIVO: tabla de dano por atacante + debilidad/resistencia
-    # (salvo Fezandipiti, dano fijo) + inmunidades ex/habilidad.
+    # KO by the ACTIVE: damage table per attacker + weakness/resistance
+    # (except Fezandipiti, fixed damage) + ex/ability immunities.
     can_ko = False
     atk = my_state.active[0] if my_state.active else None
     if atk is not None:
@@ -562,16 +569,16 @@ def _ctx_gust_objetivo(card, o, my_state, op_state, state, hand_counts,
         elif atk.id == Bayleef and eff_after >= 2:
             dmg = 60
 
-        # Evaluador CENTRAL de dano (P0.1): la copia inline aplicaba debilidad
-        # e inmunidades ex/habilidad pero ignoraba Drednaw (anula >=200),
-        # Sturdy/Resolute Heart (cap a hp-10), Armor Tail de Farigiraf y la
-        # Neutralization Zone -> `can_ko`/`wins_now` podian declarar KOs falsos.
+        # CENTRAL damage evaluator (P0.1): the inline copy applied weakness and
+        # ex/ability immunities but ignored Drednaw (cancels >=200),
+        # Sturdy/Resolute Heart (cap at hp-10), Farigiraf's Armor Tail and the
+        # Neutralization Zone -> `can_ko`/`wins_now` could declare false KOs.
         eff_dmg = _our_effective_damage(atk, card, dmg, ESTADO.meganium_in_play,
                                         neutralization_zone_active)
         if eff_dmg >= hp:
             can_ko = True
 
-    # KO alternativo: retirar el activo y noquear con un atacante de banca.
+    # Alternative KO: retreat the active and knock out with a benched attacker.
     if not can_ko and atk is not None:
         switch_hand = hand_counts.get(1123, 0) >= 1
         ret_cost = RETREAT_COST.get(atk.id, 1)
@@ -583,14 +590,13 @@ def _ctx_gust_objetivo(card, o, my_state, op_state, state, hand_counts,
                     bench_count, grass_after, neutralization_zone_active):
                 can_ko = True
 
-    # Tiers de KO PRIZE-AWARE (user, registro_011 vs Mega Heracross ex): un
-    # megaEx rinde 3 PREMIOS, un ex 2. Antes ambos caian en `is_exmega` (tier
-    # 8/7) y el +1 por "energizado" (con_e) hacia que un ex de 2 premios
-    # ENERGIZADO (tier 8) le ganara a un megaEx de 3 premios SIN energia (tier
-    # 7): el juego gusteaba el Ogerpon ex (2) en vez del Mega (3) que ganaba la
-    # partida. Ahora el megaEx tiene su propio tier POR ENCIMA del ex (10/9 vs
-    # 8/7), de modo que un Mega sin energia (9 -> 27000) supera a un ex
-    # energizado (8 -> 24000). Deck-agnostico.
+    # PRIZE-AWARE KO tiers (user, registro_011 vs Mega Heracross ex): a megaEx
+    # yields 3 PRIZES, an ex 2. Before, both fell into `is_exmega` (tier 8/7) and
+    # the +1 for "charged" (con_e) made a CHARGED 2-prize ex (tier 8) beat a
+    # 3-prize megaEx WITHOUT energy (tier 7): the game gusted the Ogerpon ex (2)
+    # instead of the Mega (3) that won the game. Now the megaEx has its own tier
+    # ABOVE the ex (10/9 vs 8/7), so that a Mega with no energy (9 -> 27000) beats
+    # a charged ex (8 -> 24000). Deck-agnostic.
     tier = 0
     if can_ko:
         con_e = energia >= 1
@@ -605,8 +611,8 @@ def _ctx_gust_objetivo(card, o, my_state, op_state, state, hand_counts,
         else:
             tier = 2 if con_e else 1
 
-    # Estorbo: la MAYOR evolucion de la linea rival que un atacante de banca
-    # pueda noquear tras retirar el activo (registro_004 paso 51 vs Garchomp).
+    # Nuisance: the HIGHEST evolution of the opposing line that a benched attacker
+    # can knock out after retreating the active (registro_004 step 51 vs Garchomp).
     linea_rank = 2 if is_stage2 else (1 if is_stage1 else 0)
     linea_can_ko = False
     if linea_rank >= 1 and atk is not None:
@@ -624,12 +630,12 @@ def _ctx_gust_objetivo(card, o, my_state, op_state, state, hand_counts,
     regust = (can_ko and op_act is not None and op_act.id == card.id
               and len(op_act.energies) == 0 and energia >= 1)
 
-    # MURO EN EL PUESTO ACTIVO (deck-agnostico): si nuestro ACTIVO no le hace NI
-    # UN punto de dano al activo rival, atacar de frente no cobra premios y el
-    # unico premio del turno esta en la BANCA rival. Cubre cualquier anulacion
-    # que ya modele `_our_effective_damage` (Mysterious Rock Inn de Crustle,
-    # Cornerstone Stance, Sylveon...), no una lista de ids. Lo consume la
-    # exencion del veto anti-Dwebble en `_AJUSTES_GUST_ESTORBO`.
+    # WALL IN THE ACTIVE SPOT (deck-agnostic): if our ACTIVE does not do a SINGLE
+    # point of damage to the opposing active, attacking from the front takes no
+    # prizes and the turn's only prize is on the opposing BENCH. It covers any
+    # cancellation that `_our_effective_damage` already models (Crustle's Mysterious
+    # Rock Inn, Cornerstone Stance, Sylveon...), not a list of ids. The exemption of
+    # the anti-Dwebble veto in `_AJUSTES_GUST_ESTORBO` consumes it.
     muro_bloquea_activo = False
     if atk is not None and op_act is not None:
         _mb_raw = len(atk.energies) + (
@@ -647,8 +653,8 @@ def _ctx_gust_objetivo(card, o, my_state, op_state, state, hand_counts,
         rc0=RETREAT_COST.get(card.id, 0), rc1=RETREAT_COST.get(card.id, 1),
         stall_diff=RETREAT_COST.get(card.id, 0) - energia,
         is_ex=is_ex, is_exmega=is_exmega, is_megaex=is_megaex,
-        # `wins_now` exige ademas KO GARANTIZADO (P0.1): contra Tenacious Body
-        # (moneda) o Survival Brace el remate puede fallar y regalar el turno.
+        # `wins_now` also requires a GUARANTEED KO (P0.1): against Tenacious Body
+        # (a coin flip) or Survival Brace the finisher can fail and hand the turn back.
         prizes=prizes, wins_now=(can_ko and prizes >= my_prize
                                  and not _ko_no_garantizado(card)),
         is_stage1=is_stage1, is_stage2=is_stage2,
@@ -668,78 +674,78 @@ _AJUSTES_GUST_OFENSIVO = [
     _Ajuste("objetivo_del_plan",
             lambda c, s: c.plan_target_match,
             lambda c, s: s + 100),
-    # GUSTEO GANADOR (user, registro_011 vs Mega Heracross ex, GANADA subopt.):
-    # si al noquear ESTE objetivo cobramos los premios que faltan para GANAR
-    # (`wins_now`: prizes >= my_prize), es la maxima prioridad ABSOLUTA sobre
-    # cualquier otro objetivo. Cuando hay varios objetivos que ganan, el
-    # tier_ko de abajo (prize-aware) desempata hacia el de mas premios. Cubre el
-    # caso en que el remate estaba disponible pero el juego gusteaba un ex de
-    # menos premios. Deck-agnostico.
+    # WINNING GUST (user, registro_011 vs Mega Heracross ex, WON suboptimally):
+    # if knocking THIS target out takes the prizes we need to WIN
+    # (`wins_now`: prizes >= my_prize), it is the ABSOLUTE top priority over any
+    # other target. When several targets win, the prize-aware tier_ko below breaks
+    # the tie towards the one worth more prizes. It covers the case where the
+    # finisher was available but the game gusted an ex worth fewer prizes.
+    # Deck-agnostic.
     _Ajuste("gust_gana_partida",
             lambda c, s: c.wins_now,
             lambda c, s: s + 100000),
     _Ajuste("tier_ko",
             lambda c, s: c.can_ko,
             lambda c, s: s + c.tier_ko * 3000),
-    # PRIORIDAD (user, log 86504664 paso 94, PERDIDA vs Archaludon): al
-    # poder NOQUEAR, una pre-evo ENERGIZADA de una linea ex (Duraludon ->
-    # Archaludon ex) borra un futuro atacante ex de 2 premios. Tier
-    # efectivo 6.5 (19500): sobre cualquier no-ex, bajo un ex real.
+    # PRIORITY (user, log 86504664 step 94, LOST vs Archaludon): when it can be
+    # KNOCKED OUT, a CHARGED pre-evolution of an ex line (Duraludon ->
+    # Archaludon ex) erases a future 2-prize ex attacker. Effective tier
+    # 6.5 (19500): above any non-ex, below a real ex.
     _Ajuste("preevo_ex_prioritaria",
             lambda c, s: (c.can_ko and c.energia >= 1 and not c.is_exmega
                           and c.card_id in EX_PREEVO_IDS),
             lambda c, s: s + max(0, 19500 - c.tier_ko * 3000)),
-    # Sin KO posible: gustear como estorbo (mayor coste de retirada NETO)
-    # con el desempate anti pre-evo de amenaza.
+    # No KO possible: gust as a nuisance (the highest NET retreat cost) with the
+    # anti threat pre-evolution tie-break.
     _Ajuste("traba_sin_ko",
             lambda c, s: not c.can_ko and c.stall_diff >= 1,
             lambda c, s: s + c.stall_diff * 100
             - (50 if (c.card_id in THREAT_PREEVO_IDS
                       or c.card_id in EX_PREEVO_IDS) else 0)),
-    # Copia ENERGIZADA del activo rival sin energia: re-gustearla cobra la
-    # inversion del rival.
+    # A CHARGED copy of an opposing active with no energy: re-gusting it collects
+    # on the opponent's investment.
     _Ajuste("regust_energizado",
             lambda c, s: c.regust_energized,
             lambda c, s: s + 200),
     _Ajuste("linea_rival",
             lambda c, s: True,
             lambda c, s: s + _gust_linea_rival(c)),
-    # SIN KO manda QUIEN SUBE AL ACTIVO, no cual es la pieza mas gorda de su
-    # banca. Las dos bandas de `_gust_linea_rival` puntuan al reves:
-    # `_gust_linea_evolutiva` da 800 a la EVOLUCION FINAL (Dragapult ex,
-    # Typhlosion, Alakazam) -- por encima de los 700 de la Fase 1 clavada, que
-    # su propio docstring llama "mejor objetivo de disrupcion" -- y
-    # `_gust_tiers_genericos` da 250 a un ex ENERGIZADO, el techo de su banda
-    # sin KO. Sin KO eso es ponerle delante, y ademas gratis (Boss's le paga la
-    # retirada), justo el cuerpo con el que queria atacar.
+    # WITHOUT a KO what rules is WHO COMES UP to the active spot, not which is the
+    # biggest piece on their bench. The two bands of `_gust_linea_rival` score it
+    # backwards: `_gust_linea_evolutiva` gives 800 to the FINAL EVOLUTION (Dragapult
+    # ex, Typhlosion, Alakazam) -- above the 700 of the pinned Stage 1, which its own
+    # docstring calls "the best disruption target" -- and `_gust_tiers_genericos`
+    # gives 250 to a CHARGED ex, the ceiling of its no-KO band. Without a KO that
+    # means putting in front of us, and for free (Boss's pays their retreat),
+    # precisely the body they wanted to attack with.
     #
-    # Ademas contradecia al detector que JUSTIFICA la jugada: el gusteo
-    # DEFENSIVO (`_bo_defensive_gust`) vale 940 porque EXISTE en su banca un
-    # cuerpo que no puede rematarnos... y luego el selector subia otro.
+    # It also contradicted the detector that JUSTIFIES the play: the DEFENSIVE gust
+    # (`_bo_defensive_gust`) is worth 940 because there EXISTS on their bench a body
+    # that cannot finish us off... and then the selector brought up another one.
     #
-    # +1500 supera toda la banda sin KO (100-1200) y no toca los tiers de KO
-    # (>= 3000), que van gateados por `can_ko`. `GUST_TRAMPA_IDS` excluye los
-    # muros y el locker: sus ataques cuestan 3, asi que pelados pasarian por
-    # inofensivos y son justo los cuerpos que NO queremos delante.
+    # +1500 beats the whole no-KO band (100-1200) and does not touch the KO tiers
+    # (>= 3000), which are gated by `can_ko`. `GUST_TRAMPA_IDS` excludes the walls
+    # and the locker: their attacks cost 3, so bare they would pass as harmless and
+    # they are exactly the bodies we do NOT want in front.
     _Ajuste("sin_ko_prefiere_cuerpo_muerto",
             lambda c, s: (not c.can_ko and c.cuerpo_inofensivo
                           and c.card_id not in GUST_TRAMPA_IDS),
             lambda c, s: s + 1500),
-    # vs Crustle, el Dwebble NUNCA se gustea (forraje del muro)... SALVO que el
-    # activo rival sea un MURO que anula a nuestro atacante y ese Dwebble sea un
-    # KO real (user, episodio 88620891 paso 78, PERDIDA): Hydrapple ex activo
-    # contra un Crustle inmune a los ex, con dos Dwebble noqueables en la banca.
-    # El veto original (log 86339758) evita gastar Boss's persiguiendo forraje
-    # cuando hay algo mejor que hacer; aqui NO hay nada mejor -- atacar de frente
-    # hace 0 y el turno se cierra sin premios. Con el muro delante, el Dwebble
-    # noqueable es el UNICO premio del turno y ademas niega un Crustle futuro.
+    # vs Crustle, the Dwebble is NEVER gusted (wall fodder)... UNLESS the opposing
+    # active is a WALL that cancels our attacker and that Dwebble is a real KO
+    # (user, episode 88620891 step 78, LOST): active Hydrapple ex against a Crustle
+    # immune to ex, with two knockable Dwebble on the bench. The original veto (log
+    # 86339758) avoids spending Boss's chasing fodder when there is something better
+    # to do; here there is NOTHING better -- attacking from the front does 0 and the
+    # turn closes with no prizes. With the wall in front, the knockable Dwebble is
+    # the ONLY prize of the turn and it also denies a future Crustle.
     _Ajuste("forbid_dwebble_vs_crustle",
             lambda c, s: (ESTADO.op_is_crustle_deck
                           and c.card_id in (Dwebble_Grass, Dwebble_Fighting)
                           and not (c.muro_bloquea_activo and c.can_ko)),
             lambda c, s: SCORE_FORBID),
-    # Retirada GRATIS sin KO: el rival lo devuelve al banco sin coste;
-    # solo es gusteable cuando es un KO real.
+    # FREE retreat without a KO: the opponent sends it back to the bench at no
+    # cost; it is only worth gusting when it is a real KO.
     _Ajuste("forbid_retirada_gratis_sin_ko",
             lambda c, s: c.rc0 <= 0 and not c.can_ko,
             lambda c, s: SCORE_FORBID),

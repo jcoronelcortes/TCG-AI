@@ -1,8 +1,8 @@
-"""Meowth ex: Last-Ditch Catch y la prediccion de valor.
+"""Meowth ex: Last-Ditch Catch and the value prediction.
 
-Extraido VERBATIM de main.py por utils/extraer_definiciones.py
-(docs/main-refactor-arquitectura.md). Su pureza esta comprobada por
-utils/pureza.py: nada de aqui toca el estado mutable ni las tablas de runtime.
+Extracted VERBATIM from main.py by utils/extraer_definiciones.py
+(docs/project-history.md). Its purity is verified by
+utils/pureza.py: nothing here touches mutable state or the runtime tables.
 """
 
 from ptcg.motor.reglas import _ReglaFija
@@ -17,7 +17,7 @@ _MEOWTH_FETCH_SUPPS = (Boss_Orders, Dawn, Lillie_Determination,
 
 
 class _CtxMeowthFetch:
-    """Ctx del fetch de Last-Ditch: carta candidata + flags del turno."""
+    """Ctx of the Last-Ditch fetch: candidate card + flags of the turn."""
 
     def __init__(self, card_id, sv, hand_counts, supp_values, hand_size,
                  strong_attacker, op_hand_count, active_cant_attack,
@@ -25,13 +25,13 @@ class _CtxMeowthFetch:
                  devel_lillie, alakazam, first_turn=False,
                  lillie_alcanzable=False):
         self.card_id = card_id
-        # Nuestro PRIMER turno: la linea anti-donk baja Meowth ex aunque el
-        # Supporter ya este en mano, y su fetch conserva la excepcion.
+        # OUR FIRST turn: the anti-donk line benches Meowth ex even if the
+        # Supporter is already in hand, and its fetch keeps the exception.
         self.first_turn = first_turn
-        # ¿Hay una Lillie's Determination REALMENTE alcanzable por este fetch?
-        # (ofrecida entre las opciones del prompt, o viva en el mazo cuando se
-        # PREDICE el fetch antes de bajar el Meowth). Sin ella, la regla de
-        # primer turno no puede degradar al resto de candidatos.
+        # Is there a Lillie's Determination REALLY reachable by this fetch?
+        # (offered among the options of the prompt, or alive in the deck when the
+        # fetch is PREDICTED before benching the Meowth). Without it, the
+        # first-turn rule cannot degrade the other candidates.
         self.lillie_alcanzable = lillie_alcanzable
         self.alakazam = alakazam
         self.sv = sv
@@ -52,15 +52,15 @@ def _v_meowth_fetch_valor(c):
     score = c.sv
     if c.card_id == Boss_Orders and ESTADO.op_is_crustle_deck:
         score += 100
-    # Dawn (busca Basico+Fase1+Fase2 para armar la linea evolutiva) SOLO
-    # conviene buscarlo con Meowth ex si tenemos Forest of Vitality (1261) EN
-    # JUEGO, que deja evolucionar el mismo turno (rush). SIN Forest en juego
-    # no podemos acelerar la evolucion: refrescar la mano con Lillie's
-    # Determination da mas opciones de juego/ataque inmediatas. Por eso
-    # bajamos el Dawn por debajo del valor de Lillie's para que Meowth ex
-    # busque Lillie's, no Dawn. CON Forest en juego Dawn conserva su valor
-    # (consistente con el desempate Dawn/Lillie's de ~L6137). (user,
-    # registro_004 paso 53 vs Marnie's Grimmsnarl ex, PERDIDA.)
+    # Dawn (searches Basic+Stage1+Stage2 to assemble the evolution line) is
+    # ONLY worth fetching with Meowth ex if we have Forest of Vitality (1261)
+    # IN PLAY, which allows evolving the same turn (rush). WITHOUT Forest in
+    # play we cannot accelerate the evolution: refilling the hand with
+    # Lillie's Determination gives more immediate play/attack options. That is
+    # why Dawn is pushed below the value of Lillie's, so Meowth ex fetches
+    # Lillie's and not Dawn. WITH Forest in play Dawn keeps its value
+    # (consistent with the Dawn/Lillie's tie-break around ~L6137). (user,
+    # registro_004 step 53 vs Marnie's Grimmsnarl ex, LOST.)
     if (c.card_id == Dawn and not ESTADO.forest_in_play
             and c.supp_values.get(Lillie_Determination, 0) > 0):
         score = min(score,
@@ -69,21 +69,21 @@ def _v_meowth_fetch_valor(c):
 
 
 _REGLAS_MEOWTH_FETCH = [
-    # PRIMER TURNO = SOLO LILLIE'S (user, log 88461779 paso 16 vs Alakazam,
-    # PERDIDA). En NUESTRO primer turno el unico motivo por el que se baja un
-    # Meowth ex es traer Lillie's Determination: el turno 1 no ataca, no
-    # evoluciona y (yendo primeros) ni siquiera ofrece jugar Supporters, asi
-    # que lo unico que decide la partida es cuanta MANO tendremos el turno 2.
-    # Cualquier otro Supporter que traiga el Last-Ditch se queda muerto en la
-    # mano -- y si el turno 2 jugamos la propia Lillie's, ademas se BARAJA.
-    # En aquella partida el fetch trajo un Xerosic's Machinations (rama
-    # `xerosic_alakazam`: mano rival >= 6 + atacante fuerte) teniendo cuatro
-    # Lillie's en el mazo: se gasto la Ultra Ball, el Meowth ex (cuerpo de 2
-    # premios en banca) y el turno entero para NO desarrollar nada.
-    # Va PRIMERO en la cadena: ninguna rama de matchup (Xerosic, Boss's,
-    # Dawn...) puede secuestrar el fetch del primer turno. Deck-agnostico: si
-    # el mazo no tiene Lillie's alcanzable (`lillie_alcanzable`), la regla no
-    # degrada a nadie y decide la escalera normal.
+    # FIRST TURN = ONLY LILLIE'S (user, log 88461779 step 16 vs Alakazam,
+    # LOST). On OUR first turn the only reason to bench a Meowth ex is to
+    # bring Lillie's Determination: turn 1 does not attack, does not evolve
+    # and (going first) does not even offer playing Supporters, so the only
+    # thing that decides the game is how much HAND we will have on turn 2.
+    # Any other Supporter the Last-Ditch brings stays dead in hand -- and if on
+    # turn 2 we play Lillie's itself, it also gets SHUFFLED away.
+    # In that game the fetch brought a Xerosic's Machinations (branch
+    # `xerosic_alakazam`: opposing hand >= 6 + strong attacker) while four
+    # Lillie's sat in the deck: the Ultra Ball, the Meowth ex (a 2-prize body
+    # on the bench) and the whole turn were spent to develop NOTHING.
+    # It goes FIRST in the chain: no matchup branch (Xerosic, Boss's,
+    # Dawn...) may hijack the first-turn fetch. Deck-agnostic: if the deck has
+    # no reachable Lillie's (`lillie_alcanzable`), the rule degrades nobody and
+    # the normal ladder decides.
     _ReglaFija("primer_turno_solo_lillie",
                lambda c: (c.first_turn
                           and c.card_id == Lillie_Determination),
@@ -91,30 +91,31 @@ _REGLAS_MEOWTH_FETCH = [
     _ReglaFija("primer_turno_resto_cede_a_lillie",
                lambda c: c.first_turn and c.lillie_alcanzable,
                lambda c: min(c.sv, 40)),
-    # COPIA REDUNDANTE (user, registro_010 paso 118 vs Alakazam, GANADA con
-    # error): solo se juega UN Supporter por turno, asi que traer una 2a copia
-    # de uno que YA esta en la mano no aporta absolutamente nada -- se gasto el
-    # Meowth ex (un cuerpo de 2 premios en banca) para duplicar una carta. En
-    # aquel turno el fetch trajo un segundo Xerosic's Machinations teniendo uno
-    # en mano, en vez del Boss's Orders que era justo lo que el motor que bajo
-    # el Meowth queria. Va PRIMERO en la cadena: ninguna otra rama debe poder
-    # rescatar un duplicado. 40 (no veto) porque el prompt exige elegir una
-    # carta: si TODOS los candidatos fueran duplicados hay que quedarse con
-    # alguno. Deck-agnostico.
+    # REDUNDANT COPY (user, registro_010 step 118 vs Alakazam, WON with a
+    # mistake): only ONE Supporter is played per turn, so bringing a 2nd copy
+    # of one that is ALREADY in hand adds absolutely nothing -- the Meowth ex (a
+    # 2-prize body on the bench) was spent to duplicate a card. On that turn
+    # the fetch brought a second Xerosic's Machinations while holding one in
+    # hand, instead of the Boss's Orders that was exactly what the engine that
+    # benched the Meowth wanted. It goes FIRST in the chain: no other branch
+    # may rescue a duplicate. 40 (not a veto) because the prompt requires
+    # choosing a card: if ALL the candidates were duplicates we still have to
+    # keep one. Deck-agnostic.
     _ReglaFija("copia_ya_en_mano",
                lambda c: (c.hand.get(c.card_id, 0) >= 1
                           and not c.first_turn),
                lambda c: 40),
-    # Remate ganador / 2 premios via Boss's Orders del MAZO.
+    # Winning finisher / 2 prizes via a Boss's Orders from the DECK.
     _ReglaFija("boss_ganador",
                lambda c: ((c.win_via_boss or c.gust2_via_boss)
                           and c.card_id == Boss_Orders),
                lambda c: 1300),
-    # Gusteo de VALOR (deny-evo) via motor Meowth (plan motor Meowth, mejora
-    # A): el Boss's del MAZO corta la pre-evo ENERGIZADA del atacante ex
-    # rival. 1280: bajo el remate ganador (1300), sobre Lillie's de
-    # refresco/desarrollo (1200-1250) -- con la amenaza en banca, cortar la
-    # linea prima sobre refrescar (user, registro_006 paso 82 vs Garchomp).
+    # VALUE gust (deny-evo) via the Meowth engine (Meowth engine plan,
+    # improvement A): the Boss's from the DECK cuts off the CHARGED
+    # pre-evolution of the opposing ex attacker. 1280: below the winning
+    # finisher (1300), above the refill/development Lillie's (1200-1250) --
+    # with the threat on the bench, cutting the line beats refilling (user,
+    # registro_006 step 82 vs Garchomp).
     _ReglaFija("boss_deny_evo",
                lambda c: (c.deny_evo_via_boss
                           and c.card_id == Boss_Orders),
@@ -123,32 +124,33 @@ _REGLAS_MEOWTH_FETCH = [
                lambda c: (c.devel_lillie
                           and c.card_id == Lillie_Determination),
                lambda c: 1250),
-    # Xerosic vs Alakazam (user): con la mano rival gorda (Powerful Hand =
-    # 20 x carta), Meowth ex busca Xerosic para capar el dano. Refinado
-    # (user, registro_004 paso 53 vs Alakazam, PERDIDA): si YA tenemos un
-    # atacante fuerte en juego (Hydrapple/Ogerpon), Xerosic manda AUNQUE
-    # nuestra mano quede vacia tras bajar el Meowth (la mano rival de 13
-    # cartas = Powerful Hand 260 que noquea todo lo nuestro; capar eso vale
-    # mas que refrescar con Lillie's cuando el ataque ya esta resuelto) ->
-    # 1260, sobre el Lillie's de desarrollo (1250) y el refresco por mano
-    # corta (1200), bajo el Boss's ganador (1300). Sin atacante fuerte se
-    # mantiene la regla previa (solo con mano >= 3, a 1200).
+    # Xerosic vs Alakazam (user): with a fat opposing hand (Powerful Hand =
+    # 20 x card), Meowth ex fetches Xerosic to cap the damage. Refined
+    # (user, registro_004 step 53 vs Alakazam, LOST): if we ALREADY have a
+    # strong attacker in play (Hydrapple/Ogerpon), Xerosic rules EVEN IF our
+    # hand ends up empty after benching the Meowth (an opposing hand of 13
+    # cards = Powerful Hand 260, which knocks out everything of ours; capping
+    # that is worth more than refilling with Lillie's when the attack is
+    # already settled) -> 1260, above the development Lillie's (1250) and the
+    # short-hand refill (1200), below the winning Boss's (1300). Without a
+    # strong attacker the previous rule stands (only with hand >= 3, at 1200).
     _ReglaFija("xerosic_alakazam",
                lambda c: (c.card_id == Xerosic_Machinations
                           and c.alakazam
                           and c.op_hand_count >= 6
                           and (c.hand_size >= 3 or c.strong_attacker)),
                lambda c: 1260 if c.strong_attacker else 1200),
-    # Xerosic GENERICO en el fetch de Last-Ditch (plan motor Meowth, mejora
-    # B): contra CUALQUIER mazo con mano rival >= 7, quitarle 4+ cartas es
-    # valor real (el scorer generico de Xerosic ya lo juega a 3380 si esta
-    # en mano; antes ni era candidato del fetch fuera de Alakazam). 1100:
-    # bajo Lillie's de refresco/desarrollo (1200-1250) y los Boss's
-    # (1280/1300) -- solo si no hay mejor opcion. Guards:
-    # `strong_attacker` (con el ataque ya resuelto la disrupcion vale; SIN
-    # atacante fuerte, cavar con Lillie's -escaleras 1000-1200- va primero)
-    # y activo-que-no-ataca (que Xerosic no secuestre el fetch del TURNO
-    # MUERTO, cuyo sentido es traer Lana's/Lillie's para salir del atasco).
+    # GENERIC Xerosic in the Last-Ditch fetch (Meowth engine plan, improvement
+    # B): against ANY deck with an opposing hand >= 7, taking 4+ cards away is
+    # real value (the generic Xerosic scorer already plays it at 3380 if it is
+    # in hand; before this it was not even a fetch candidate outside Alakazam).
+    # 1100: below the refill/development Lillie's (1200-1250) and the Boss's
+    # (1280/1300) -- only if there is no better option. Guards:
+    # `strong_attacker` (with the attack already settled the disruption is
+    # worth it; WITHOUT a strong attacker, digging with Lillie's -- ladders
+    # 1000-1200 -- comes first) and an active-that-cannot-attack (so Xerosic
+    # does not hijack the DEAD TURN fetch, whose whole point is to bring
+    # Lana's/Lillie's to get out of the jam).
     _ReglaFija("xerosic_generico",
                lambda c: (c.card_id == Xerosic_Machinations
                           and c.op_hand_count >= 7

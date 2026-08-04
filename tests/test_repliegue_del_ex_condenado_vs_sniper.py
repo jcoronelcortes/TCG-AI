@@ -1,27 +1,27 @@
-"""El repliegue del ex condenado solo niega premios si el ex SOBREVIVE abajo.
+"""The doomed ex's retreat only denies prizes if the ex SURVIVES down there.
 
-Es la otra mitad de la estrategia del registro_004 t4 vs Marnie's Grimmsnarl
-(ver `test_pesca_de_remate_probabilistica.py`): si la pesca falla y el turno se
-cierra sin ataque, el plan del user es RETIRAR el ex condenado para poner
-delante un cuerpo de 1 premio. Eso ya lo hace `_doomed_ex_sac_pivot` (score
-6530)... pero su aritmetica daba por hecho que en la banca el ex esta a salvo.
+It is the other half of the strategy of registro_004 t4 vs Marnie's Grimmsnarl
+(see `test_pesca_de_remate_probabilistica.py`): if the fishing fails and the turn
+closes without an attack, the user's plan is to RETREAT the doomed ex to put
+in front a 1-prize body. `_doomed_ex_sac_pivot` already does that (score
+6530)... but its arithmetic took for granted that the ex is safe on the bench.
 
-Contra un atacante que ADEMAS pega a la banca no lo esta. Shadow Bullet del
-Marnie's Grimmsnarl ex hace 180 al activo Y 30 a un banquillo, y nuestro Teal
-Mask Ogerpon ex venia a 30 PV:
+Against an attacker that ALSO hits the bench it is not. Shadow Bullet of
+Marnie's Grimmsnarl ex does 180 to the active AND 30 to a benched one, and our Teal
+Mask Ogerpon ex was at 30 HP:
 
-    quedarse   -> le noquean el ex activo                        = 2 premios
-    retirarse  -> le noquean el cuerpo promovido (1 premio) Y el
-                  snipe remata al ex escondido (2 premios)       = 3 premios
+    staying    -> they knock out the active ex                   = 2 prizes
+    retreating -> they knock out the promoted body (1 prize) AND
+                  the snipe finishes off the hidden ex (2 prizes) = 3 prizes
 
-Retirarse nunca gana en ese caso: como mucho empata (cuando el snipe iba a
-matar igual otro cuerpo de banca del mismo precio). La guarda apaga el pivote.
+Retreating never wins in that case: at best it ties (when the snipe was going to
+kill another bench body of the same price anyway). The guard switches the pivot off.
 
-Se mide con el ATACANTE que tenemos delante (`OP_BENCH_SNIPE_DAMAGE` del activo
-rival), no con el flag de mesa `_op_bench_snipe_dmg`: ese cae a un 30 por
-defecto en cuanto hay cualquier amenaza de goteo en juego, y apagar el pivote
-por un sniper que esta en la BANCA rival costo -3.1 puntos vs crustle/Kangaskhan
-en self-play (n=1500). Con la version estrecha los deltas vuelven al ruido.
+It is measured with the ATTACKER in front of us (`OP_BENCH_SNIPE_DAMAGE` of the rival
+active), not with the table flag `_op_bench_snipe_dmg`: that one falls to a default
+30 as soon as there is any drip threat in play, and switching the pivot off
+because of a sniper sitting on the rival BENCH cost -3.1 points vs crustle/Kangaskhan
+in self-play (n=1500). With the narrow version the deltas go back to noise.
 """
 
 import sys
@@ -36,8 +36,8 @@ if str(ROOT) not in sys.path:
 import main as m
 from state_builder import Escenario, G, pk
 
-GRIMMSNARL = 648      # Shadow Bullet: 180 al activo + 30 a un banquillo
-MORGREM = 647         # Corkscrew Punch: 60, sin snipe
+GRIMMSNARL = 648      # Shadow Bullet: 180 to the active + 30 to a benched one
+MORGREM = 647         # Corkscrew Punch: 60, no snipe
 IMPIDIMP = 646
 SNORUNT = 860
 DARK = 7
@@ -66,9 +66,9 @@ def reset_main_state():
 
 
 def _cierre_de_turno(activo_rival="grimmsnarl", hp_ogerpon=30):
-    """Fin de turno tras una pesca fallida: Supporter gastado, sin energia y
-    con el Ogerpon ex condenado delante. El menu solo ofrece RETIRAR y END,
-    como el paso 55 real."""
+    """The end of a turn after a failed fishing attempt: the Supporter spent, no energy and
+    the doomed Ogerpon ex in front. The menu only offers RETREAT and END,
+    like the real step 55."""
     grimm = pk(GRIMMSNARL, hp=320, max_hp=320, energias=[DARK, DARK],
                pre_evo=[IMPIDIMP])
     morgrem = pk(MORGREM, hp=100, max_hp=100, energias=[DARK, DARK],
@@ -105,22 +105,22 @@ def _elige(obs):
 
 
 def test_el_ex_a_30_pv_no_se_esconde_del_shadow_bullet():
-    """Con el sniper DELANTE, retirarse regala el tercer premio: se aguanta."""
+    """With the sniper IN FRONT, retreating gives away the third prize: we hold."""
     obs = _cierre_de_turno(activo_rival="grimmsnarl", hp_ogerpon=30)
     assert m.OP_BENCH_SNIPE_DAMAGE[GRIMMSNARL] >= 30, "el snipe alcanza los 30 PV"
     assert _elige(obs) == int(m.OptionType.END)
 
 
 def test_con_vida_por_encima_del_snipe_el_repliegue_sigue_vivo():
-    """Control: el MISMO tablero con el ex a 60 PV -- el snipe de 30 ya no lo
-    mata en la banca-- vuelve a retirar y sacrificar el cuerpo de 1 premio."""
+    """Control: the SAME board with the ex at 60 HP -- the 30 snipe no longer
+    kills it on the bench -- retreats again and sacrifices the 1-prize body."""
     obs = _cierre_de_turno(activo_rival="grimmsnarl", hp_ogerpon=60)
     assert _elige(obs) == int(m.OptionType.RETREAT)
 
 
 def test_con_un_atacante_sin_snipe_delante_se_repliega():
-    """Control: Morgrem (60 de dano, sin snipe) tambien condena al ex de 30 PV,
-    pero no llega a la banca -> esconderlo SI niega el premio."""
+    """Control: Morgrem (60 damage, no snipe) also dooms the 30 HP ex,
+    but does not reach the bench -> hiding it DOES deny the prize."""
     obs = _cierre_de_turno(activo_rival="morgrem", hp_ogerpon=30)
     assert MORGREM not in m.OP_BENCH_SNIPE_DAMAGE
     assert _elige(obs) == int(m.OptionType.RETREAT)

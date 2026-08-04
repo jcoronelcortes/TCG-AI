@@ -1,32 +1,32 @@
-"""La Planta paga la RETIRADA del activo para que ataque el rematador de banca.
+"""The Grass pays the ACTIVE's RETREAT so the benched finisher can attack.
 
-Escenario (user, registro_006 paso 101, episodio 88492701 vs Alakazam, PERDIDA):
-turno 6 con un **Applin ACTIVO a 0 energias** (coste de retirada 1) y un **Teal
-Mask Ogerpon ex de banca a 6 energias efectivas** que NOQUEA al Alakazam activo
-(Myriad Leaf Shower 240 sobre 140 PV). El adjunte manual ya estaba gastado, pero
-quedaba viva la habilidad de carga del Hydrapple ex de banca y una Planta en la
-mano. La linea correcta era de tres pasos:
+Scenario (user, registro_006 step 101, episode 88492701 vs Alakazam, LOST):
+turn 6 with an **ACTIVE Applin at 0 energies** (retreat cost 1) and a **Teal
+Mask Ogerpon ex on the bench at 6 effective energies** that KNOCKS OUT the active
+Alakazam (Myriad Leaf Shower 240 against 140 HP). The manual attachment was already spent, but
+the charging ability of the benched Hydrapple ex was still alive and there was a Grass in
+hand. The correct line was three steps long:
 
-    Ripening Charge -> Planta al ACTIVO -> RETIRAR -> promover al Ogerpon -> KO
+    Ripening Charge -> Grass to the ACTIVE -> RETREAT -> promote the Ogerpon -> KO
 
-El agente activo la habilidad, mando la Planta a un Ogerpon de BANCA y cerro el
-turno sin atacar, con el rematador atrapado detras del Applin.
+The agent activated the ability, sent the Grass to a BENCHED Ogerpon and closed the
+turn without attacking, with the finisher trapped behind the Applin.
 
-Dos fallos encadenados, ambos deck-agnosticos:
+Two chained failures, both deck-agnostic:
 
-1. `_grass_unlocks_active_retreat` abortaba la linea entera con
-   `_can_attack_eff(activo, e + 1)`: como el Applin "llega a su coste de ataque"
-   con una Planta, el detector daba (False, False) -- y eso que el modelo de dano
-   no le concede NI UN PUNTO al Applin. Ahora se comparan DANOS.
-2. `energy_score` -- que decide a QUE Pokemon va la energia, tanto en el adjunte
-   manual como en el objetivo de las habilidades (SelectContext.ATTACH_FROM) --
-   no tenia ninguna rama para esta linea: el ACTIVO caia en la banda generica de
-   desarrollo (~8000) y cualquier cuerpo de banca le ganaba. De propina, el foco
-   de carga de Ogerpon (41700) apuntaba a un SEGUNDO rematador igual de atrapado.
+1. `_grass_unlocks_active_retreat` aborted the whole line with
+   `_can_attack_eff(active, e + 1)`: since the Applin "reaches its attack cost"
+   with one Grass, the detector returned (False, False) -- even though the damage
+   model does not grant the Applin A SINGLE point. Now DAMAGE is compared.
+2. `energy_score` -- which decides WHICH Pokemon the energy goes to, both in the manual
+   attachment and in the target of the abilities (SelectContext.ATTACH_FROM) --
+   had no branch for this line: the ACTIVE fell into the generic development
+   band (~8000) and any benched body beat it. As a bonus, the Ogerpon charging
+   focus (41700) pointed at a SECOND finisher just as trapped.
 
-Los tests son deck-agnosticos a proposito: el activo atrapado y el rematador de
-banca se parametrizan, y el caso central usa un activo (Applin) cuyo "ataque" es
-justo lo que enganaba al detector.
+The tests are deck-agnostic on purpose: the trapped active and the benched
+finisher are parameterised, and the central case uses an active (Applin) whose "attack" is
+exactly what fooled the detector.
 """
 
 import sys
@@ -41,23 +41,23 @@ if str(ROOT) not in sys.path:
 import main as m
 from state_builder import G, Escenario, pk
 
-APPLIN = m.Applin                   # activo atrapado: 0 energias, coste 1
+APPLIN = m.Applin                   # the trapped active: 0 energies, cost 1
 DIPPLIN = m.Dipplin
-OGERPON = m.Teal_Mask_Ogerpon_ex    # rematador de banca (Myriad Leaf Shower)
-TAPU = m.Tapu_Bulu                  # rematador SIN habilidad de carga
-HYDRAPPLE = m.Hydrapple_ex          # portador de Ripening Charge
+OGERPON = m.Teal_Mask_Ogerpon_ex    # the benched finisher (Myriad Leaf Shower)
+TAPU = m.Tapu_Bulu                  # a finisher WITHOUT a charging ability
+HYDRAPPLE = m.Hydrapple_ex          # the bearer of Ripening Charge
 MEOWTH = m.Meowth_ex
 ULTRA_BALL = m.Ultra_Ball
 GRASS = m.Basic_Grass_Energy
 
-FEZANDIPITI = m.Fezandipiti_ex      # activo atrapado del episodio 88603018
+FEZANDIPITI = m.Fezandipiti_ex      # the trapped active of episode 88603018
 MEGANIUM = m.Meganium
 
-ALAKAZAM = 743                      # 140 PV: el activo rival del registro
+ALAKAZAM = 743                      # 140 HP: the opposing active of the record
 KADABRA = 742
 ABRA = 741
 DUNSPARCE = 305
-SHAYMIN = 343                       # 80 PV: el activo rival del 88603018
+SHAYMIN = 343                       # 80 HP: the opposing active of 88603018
 
 
 @pytest.fixture(autouse=True)
@@ -89,11 +89,11 @@ def reset_main_state():
 
 def _escenario(activo=None, banca=None, mano=(GRASS, ULTRA_BALL),
                energia_jugada=True, op_hp=140, op_energias=1):
-    """El tablero del registro: activo atrapado + rematador de banca listo."""
+    """The record's board: a trapped active + a ready benched finisher."""
     activo = activo if activo is not None else pk(APPLIN)
     banca = banca if banca is not None else [
-        pk(OGERPON, energias=[G] * 6, fisicas=3),   # YA letal: 30+30*(6+1)=240
-        pk(HYDRAPPLE),                              # portador de Ripening Charge
+        pk(OGERPON, energias=[G] * 6, fisicas=3),   # ALREADY lethal: 30+30*(6+1)=240
+        pk(HYDRAPPLE),                              # the bearer of Ripening Charge
         pk(MEOWTH),
     ]
     return (Escenario(turno=6, paso=101, energia_jugada=energia_jugada)
@@ -105,44 +105,44 @@ def _escenario(activo=None, banca=None, mano=(GRASS, ULTRA_BALL),
 
 
 def _destino(obs, eleccion):
-    """Area del Pokemon elegido como destino de la carga."""
+    """The area of the Pokemon chosen as the charge's destination."""
     o = obs["select"]["option"][eleccion[0]]
     return o.get("area", o.get("inPlayArea"))
 
 
 # ---------------------------------------------------------------------------
-# El fallo del registro: objetivo de la HABILIDAD de carga (ATTACH_FROM)
+# The record's failure: the target of the charging ABILITY (ATTACH_FROM)
 # ---------------------------------------------------------------------------
 
 def test_la_habilidad_de_carga_pone_la_planta_en_el_activo_atrapado():
-    """El caso exacto del paso 101: la Planta de Ripening Charge va al ACTIVO
-    para pagar su retirada, no a un cuerpo de banca."""
+    """The exact case of step 101: the Ripening Charge Grass goes to the ACTIVE
+    to pay its retreat, not to a benched body."""
     obs = _escenario().objetivo_carga_habilidad(banca_idx=1).construir()
     assert _destino(obs, m.agent(obs)) == int(m.AreaType.ACTIVE)
 
 
 def test_el_foco_de_ogerpon_no_roba_la_planta_de_la_retirada():
-    """Regresion directa: con un SEGUNDO Ogerpon a medio cargar, el foco de
-    carga letal (41700) se llevaba la Planta y dejaba a los dos rematadores
-    atrapados detras del activo. Mientras la retirada no este pagada, cargar
-    banca no promueve a nadie."""
+    """A direct regression: with a SECOND half-charged Ogerpon, the lethal
+    charging focus (41700) took the Grass and left both finishers
+    trapped behind the active. While the retreat is not paid for, charging
+    the bench promotes nobody."""
     banca = [pk(OGERPON, energias=[G] * 6, fisicas=3),
              pk(HYDRAPPLE),
-             pk(OGERPON, energias=[G, G], fisicas=1)]   # el cebo del foco
+             pk(OGERPON, energias=[G, G], fisicas=1)]   # the focus's bait
     obs = _escenario(banca=banca).objetivo_carga_habilidad(banca_idx=1).construir()
     assert _destino(obs, m.agent(obs)) == int(m.AreaType.ACTIVE)
 
 
 def test_deck_agnostico_cualquier_rematador_de_banca_sirve():
-    """La linea no depende de Ogerpon ni de su habilidad: con un Tapu Bulu ya
-    cargado (220 >= 140) la Planta debe ir igualmente al ACTIVO."""
+    """The line does not depend on Ogerpon or on its ability: with an already charged
+    Tapu Bulu (220 >= 140) the Grass must still go to the ACTIVE."""
     banca = [pk(TAPU, energias=[G] * 4), pk(HYDRAPPLE), pk(MEOWTH)]
     obs = _escenario(banca=banca).objetivo_carga_habilidad(banca_idx=1).construir()
     assert _destino(obs, m.agent(obs)) == int(m.AreaType.ACTIVE)
 
 
 # ---------------------------------------------------------------------------
-# Misma linea por el adjunte MANUAL
+# The same line through the MANUAL attachment
 # ---------------------------------------------------------------------------
 
 def test_el_adjunte_manual_tambien_va_al_activo_atrapado():
@@ -155,18 +155,18 @@ def test_el_adjunte_manual_tambien_va_al_activo_atrapado():
 
 
 # ---------------------------------------------------------------------------
-# Misma linea con MEGANIUM en juego (episodio 88603018 paso 106, vs Alakazam)
+# The same line with MEGANIUM in play (episode 88603018 step 106, vs Alakazam)
 # ---------------------------------------------------------------------------
 #
-# El tablero de produccion que hacia falta pinar: Fezandipiti ex ACTIVO a 0
-# energias (coste 1), Meganium de banca doblando cada Planta con Wild Growth,
-# TRES Ogerpon ex ya cargados detras y una sola Planta en la mano. La build
-# subida mando la energia al MEGANIUM y cerro el turno sin atacar.
+# The production board that had to be pinned: an ACTIVE Fezandipiti ex at 0
+# energies (cost 1), a benched Meganium doubling every Grass with Wild Growth,
+# THREE already charged Ogerpon ex behind it and a single Grass in hand. The
+# uploaded build sent the energy to the MEGANIUM and closed the turn without attacking.
 #
-# Meganium en juego importa porque abre una rama entera de `energy_score`
-# (el reparto de Planta por la banca, con Meganium en su tabla de prioridad)
-# que compite con el destino ACTIVO de esta linea. Ninguno de los tests de
-# arriba lo tenia en la mesa.
+# Meganium in play matters because it opens a whole branch of `energy_score`
+# (the Grass distribution across the bench, with Meganium in its priority table)
+# that competes with this line's ACTIVE destination. None of the tests
+# above had it on the field.
 
 
 def _escenario_meganium(activo=None, mano=(GRASS, ULTRA_BALL)):
@@ -186,9 +186,9 @@ def _escenario_meganium(activo=None, mano=(GRASS, ULTRA_BALL)):
 
 
 def test_con_meganium_en_juego_la_planta_sigue_yendo_al_activo_atrapado():
-    """Regresion del episodio 88603018 paso 106: con Wild Growth activo y la
-    banca llena de Ogerpon cargados, la unica Planta debe pagar la retirada del
-    Fezandipiti ex -- no engordar al Meganium."""
+    """Regression of episode 88603018 step 106: with Wild Growth active and the
+    bench full of charged Ogerpon, the only Grass must pay the retreat of the
+    Fezandipiti ex -- not fatten the Meganium."""
     obs = _escenario_meganium().menu_mano(con_adjunte=True).construir()
     o = obs["select"]["option"][m.agent(obs)[0]]
     assert o["type"] == int(m.OptionType.ATTACH)
@@ -201,21 +201,21 @@ def test_con_meganium_el_detector_ve_la_linea_letal():
 
 
 def test_con_meganium_el_activo_que_ya_se_retira_no_dispara_la_linea():
-    """Frontera del detector: con una Planta fisica encima, el Fezandipiti ex ya
-    paga su retirada de coste 1 y no hay nada que desbloquear.
+    """A detector boundary: with one physical Grass on it, the Fezandipiti ex already
+    pays its cost-1 retreat and there is nothing to unlock.
 
-    Ojo al leerlo: el adjunte SIGUE yendo al activo en ese tablero, pero por otra
-    regla (`_carga_activo_remata`) -- con 4 unidades efectivas Cruel Arrow pasa a
-    ser jugable y noquea al Shaymin de 80 PV. Atacar gana a pivotar."""
+    Careful when reading it: the attachment STILL goes to the active on that board, but through
+    another rule (`_carga_activo_remata`) -- with 4 effective units Cruel Arrow becomes
+    playable and knocks out the 80 HP Shaymin. Attacking beats pivoting."""
     obs = (_escenario_meganium(activo=pk(FEZANDIPITI, energias=[G, G], fisicas=1))
            .menu_mano(con_adjunte=True).construir())
     assert _detector(obs) == (False, False)
 
 
 def test_con_meganium_sin_nada_que_desbloquear_la_planta_vuelve_a_la_banca():
-    """Frontera del DESTINO: el activo no gana por ser el activo. Con el
-    Fezandipiti ex ya capaz de retirarse Y de atacar, la Planta no desbloquea
-    nada y vuelve al reparto normal de banca."""
+    """A DESTINATION boundary: the active does not win for being the active. With the
+    Fezandipiti ex already able to retreat AND to attack, the Grass unlocks
+    nothing and goes back to the normal bench distribution."""
     obs = (_escenario_meganium(activo=pk(FEZANDIPITI, energias=[G] * 4, fisicas=2))
            .menu_mano(con_adjunte=True).construir())
     o = obs["select"]["option"][m.agent(obs)[0]]
@@ -224,7 +224,7 @@ def test_con_meganium_sin_nada_que_desbloquear_la_planta_vuelve_a_la_banca():
 
 
 # ---------------------------------------------------------------------------
-# Cierre de la cadena: con la energia puesta, se retira y se promueve
+# Closing the chain: with the energy placed, it retreats and promotes
 # ---------------------------------------------------------------------------
 
 def test_con_la_planta_puesta_el_activo_se_retira():
@@ -242,11 +242,11 @@ def test_al_promover_sube_el_rematador():
 
 
 # ---------------------------------------------------------------------------
-# Fronteras del detector (`_grass_unlocks_active_retreat`)
+# Detector boundaries (`_grass_unlocks_active_retreat`)
 # ---------------------------------------------------------------------------
 
 def _detector(obs):
-    """(ko, chip) del nucleo compartido sobre el estado construido."""
+    """(ko, chip) of the shared core over the built state."""
     o = m.to_observation_class(obs)
     st = o.current
     mio, rival = st.players[0], st.players[1]
@@ -264,16 +264,16 @@ def test_detector_ve_la_linea_letal():
 
 
 def test_si_el_activo_remata_con_esa_planta_no_se_retira():
-    """Frontera: atacar con el activo es lo primero. Con un Dipplin activo cuyo
-    ataque (20 x banca) noquea al rival, la linea de retirada NO se activa."""
+    """Boundary: attacking with the active comes first. With an active Dipplin whose
+    attack (20 x bench) knocks the opponent out, the retreat line does NOT switch on."""
     obs = (_escenario(activo=pk(DIPPLIN), op_hp=60)
            .objetivo_carga_habilidad(banca_idx=1).construir())
     assert _detector(obs) == (False, False)
 
 
 def test_sin_rematador_de_banca_no_hay_linea():
-    """Frontera: si en la banca no hay nadie listo, la Planta no tiene por que
-    ir al activo (no hay nada que promover)."""
+    """Boundary: if there is nobody ready on the bench, the Grass has no reason to
+    go to the active (there is nothing to promote)."""
     banca = [pk(OGERPON), pk(HYDRAPPLE), pk(MEOWTH)]
     obs = _escenario(banca=banca).objetivo_carga_habilidad(banca_idx=1).construir()
     assert _detector(obs) == (False, False)
@@ -286,15 +286,15 @@ def test_si_el_activo_ya_paga_su_retirada_no_hay_nada_que_desbloquear():
 
 
 # ---------------------------------------------------------------------------
-# El tablero de produccion del episodio 88631738 paso 77 (GANADA, con el turno
-# 8 regalado): Meowth ex ACTIVO a 0 energias (coste de retirada 1) que no puede
-# atacar, Hydrapple ex de banca a 4 efectivas que NOQUEA al Mega Starmie ex, el
-# adjunte manual YA gastado y dos Plantas en la mano. La build subida cerro el
-# turno (END) con el remate de 3 premios en la mesa: la unica via viva era la
-# HABILIDAD (Ripening Charge no consume el adjunte del turno).
+# The production board of episode 88631738 step 77 (WON, with turn
+# 8 given away): an ACTIVE Meowth ex at 0 energies (retreat cost 1) that cannot
+# attack, a benched Hydrapple ex at 4 effective that KNOCKS OUT the Mega Starmie ex, the
+# manual attachment ALREADY spent and two Grass in hand. The uploaded build closed
+# the turn (END) with a 3-prize finisher on the table: the only live route was the
+# ABILITY (Ripening Charge does not consume the turn's attachment).
 # ---------------------------------------------------------------------------
 
-MEGA_STARMIE = 1031                 # 330 PV, a 240 en el registro
+MEGA_STARMIE = 1031                 # 330 HP, at 240 in the record
 
 
 def _escenario_88631738(activo=None, mano=(GRASS, GRASS, ULTRA_BALL),
@@ -315,9 +315,9 @@ def _escenario_88631738(activo=None, mano=(GRASS, GRASS, ULTRA_BALL),
 
 
 def test_88631738_la_habilidad_carga_al_activo_con_el_adjunte_ya_gastado():
-    """El fallo del registro: con `energyAttached` puesto, la unica ruta viva es
-    Ripening Charge -- y su Planta tiene que ir al ACTIVO para pagar la
-    retirada, no a un Ogerpon de banca."""
+    """The record's failure: with `energyAttached` set, the only live route is
+    Ripening Charge -- and its Grass has to go to the ACTIVE to pay the
+    retreat, not to a benched Ogerpon."""
     obs = _escenario_88631738().objetivo_carga_habilidad(banca_idx=1).construir()
     assert _destino(obs, m.agent(obs)) == int(m.AreaType.ACTIVE)
 
@@ -341,15 +341,15 @@ def test_88631738_al_promover_sube_el_hydrapple_que_remata():
 
 
 # ---------------------------------------------------------------------------
-# PRESUPUESTO de carga: la retirada de 2 o 3 simbolos tambien se paga
+# The charging BUDGET: a retreat of 2 or 3 symbols is paid for too
 # ---------------------------------------------------------------------------
 #
-# El detector media exactamente UNA Planta (`e + unit < rc` -> sin linea), asi
-# que un activo atrapado con coste de retirada >1 era invisible aunque las vias
-# vivas del turno lo cubriesen de sobra. Ahora se mide el PRESUPUESTO real de
-# carga hacia el ACTIVO (adjunte manual libre + `_grass_ability_slots_activo`,
-# acotado por las Plantas de la mano), igual que `_carga_activo_remata` para el
-# coste de ATAQUE.
+# The detector measured exactly ONE Grass (`e + unit < rc` -> no line), so
+# a trapped active with a retreat cost >1 was invisible even when the turn's live
+# routes covered it easily. Now the real charging BUDGET towards the ACTIVE is
+# measured (a free manual attachment + `_grass_ability_slots_activo`,
+# bounded by the Grass in hand), just like `_carga_activo_remata` does for the
+# ATTACK cost.
 
 
 def _detector_presupuesto(obs, budget):
@@ -367,8 +367,8 @@ def _detector_presupuesto(obs, budget):
 
 def _escenario_coste_3(activo_e=1, mano=(GRASS, GRASS, ULTRA_BALL),
                        energia_jugada=False):
-    """Activo con coste de retirada 3 (Tapu Bulu) a `activo_e` energias: le
-    faltan DOS Plantas, y hay dos vias vivas (adjunte manual + Ripening)."""
+    """An active with a retreat cost of 3 (Tapu Bulu) at `activo_e` energies: it is
+    TWO Grass short, and there are two live routes (the manual attachment + Ripening)."""
     return (Escenario(turno=8, paso=40, energia_jugada=energia_jugada)
             .mi_activo(pk(TAPU, energias=[G] * activo_e))
             .mi_banca(pk(OGERPON, energias=[G] * 6, fisicas=3),
@@ -380,8 +380,8 @@ def _escenario_coste_3(activo_e=1, mano=(GRASS, GRASS, ULTRA_BALL),
 
 
 def test_con_presupuesto_de_una_planta_no_hay_linea():
-    """Frontera preservada: si solo cabe UNA Planta, dos simbolos de retirada
-    siguen siendo inalcanzables."""
+    """A preserved boundary: if only ONE Grass fits, two symbols of retreat
+    are still unreachable."""
     obs = _escenario_coste_3().menu_mano(con_adjunte=True).construir()
     assert _detector_presupuesto(obs, 1) == (False, False)
 
@@ -392,9 +392,9 @@ def test_con_presupuesto_de_dos_plantas_el_detector_ve_la_linea():
 
 
 def test_el_adjunte_manual_abre_la_retirada_de_dos_simbolos():
-    """La cadena completa, paso 1: con el adjunte manual libre y un Hydrapple ex
-    de banca (Ripening Charge) la retirada de 3 simbolos es pagable, asi que la
-    primera Planta va al ACTIVO -- no a engordar la banca."""
+    """The complete chain, step 1: with the manual attachment free and a benched
+    Hydrapple ex (Ripening Charge) the 3-symbol retreat is payable, so the
+    first Grass goes to the ACTIVE -- not to fatten the bench."""
     obs = _escenario_coste_3().menu_mano(con_adjunte=True).construir()
     o = obs["select"]["option"][m.agent(obs)[0]]
     assert o["type"] == int(m.OptionType.ATTACH)
@@ -402,8 +402,8 @@ def test_el_adjunte_manual_abre_la_retirada_de_dos_simbolos():
 
 
 def test_la_habilidad_remata_la_segunda_planta_en_el_activo():
-    """Paso 2: con el adjunte ya gastado y el activo a una Planta del coste,
-    Ripening Charge apunta otra vez al ACTIVO."""
+    """Step 2: with the attachment already spent and the active one Grass from the cost,
+    Ripening Charge points at the ACTIVE again."""
     obs = (_escenario_coste_3(activo_e=2, mano=(GRASS, ULTRA_BALL),
                               energia_jugada=True)
            .objetivo_carga_habilidad(banca_idx=1).construir())
@@ -411,8 +411,8 @@ def test_la_habilidad_remata_la_segunda_planta_en_el_activo():
 
 
 def test_sin_plantas_suficientes_en_la_mano_no_se_abre_la_linea():
-    """El presupuesto lo acota la MANO: con una sola Planta no se puede pagar
-    una retirada de dos, y la energia no se malgasta en el activo atrapado."""
+    """The budget is bounded by the HAND: with a single Grass a retreat of two
+    cannot be paid for, and the energy is not wasted on the trapped active."""
     obs = (_escenario_coste_3(mano=(GRASS, ULTRA_BALL))
            .menu_mano(con_adjunte=True).construir())
     o = obs["select"]["option"][m.agent(obs)[0]]
@@ -420,13 +420,13 @@ def test_sin_plantas_suficientes_en_la_mano_no_se_abre_la_linea():
                 and o["inPlayArea"] == int(m.AreaType.ACTIVE))
 
 
-WATCHTOWER = m.Team_Rockets_Watchtower   # apaga nuestras habilidades de carga
+WATCHTOWER = m.Team_Rockets_Watchtower   # it switches our charging abilities off
 
 
 def test_con_las_habilidades_apagadas_el_presupuesto_vuelve_a_una_planta():
-    """Frontera del presupuesto: con Team Rocket's Watchtower en mesa, Ripening
-    Charge esta apagada, asi que la segunda via NO existe y la primera Planta no
-    debe quedarse tirada en un activo que seguira sin poder retirarse."""
+    """A budget boundary: with Team Rocket's Watchtower on the field, Ripening
+    Charge is switched off, so the second route does NOT exist and the first Grass must
+    not be left stranded on an active that will still be unable to retreat."""
     obs = (_escenario_coste_3()
            .estadio(WATCHTOWER, del_rival=True)
            .menu_mano(con_adjunte=True).construir())

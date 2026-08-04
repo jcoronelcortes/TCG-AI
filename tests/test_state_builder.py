@@ -1,14 +1,14 @@
-"""Tests del StateBuilder (`Escenario`) y primer barrido parametrico de frontera.
+"""Tests of the StateBuilder (`Escenario`) and the first parametric boundary sweep.
 
-Fase 1 de la arquitectura de mejora de estrategia: validar que el builder
-produce observaciones que `main.agent()` procesa igual que las reales.
+Phase 1 of the strategy-improvement architecture: validating that the builder
+produces observations that `main.agent()` processes just like the real ones.
 
-Validacion "contra la realidad": la replica sintetica del paso 69 de
-registro_008 (vs Crustle/Kangaskhan) debe producir la MISMA decision que la
-observacion real (Ultra Ball busca Hydrapple ex para evolucionar al Dipplin
-activo condenado). A partir de ahi, el barrido parametrico fabrica variantes
-que NUNCA ocurrieron en partidas (activo rival inmune, Dipplin sin energia)
-y verifica las fronteras de la regla `_ub_evo_doomed_hittable`.
+Validation "against reality": the synthetic replica of step 69 of
+registro_008 (vs Crustle/Kangaskhan) must produce the SAME decision as the
+real observation (the Ultra Ball searches for Hydrapple ex to evolve the doomed
+active Dipplin). From there, the parametric sweep fabricates variants
+that NEVER occurred in games (an immune rival active, a Dipplin with no energy)
+and verifies the boundaries of the `_ub_evo_doomed_hittable` rule.
 """
 
 import sys
@@ -23,7 +23,7 @@ if str(ROOT) not in sys.path:
 import main as m
 from state_builder import C, G, Escenario, EstadoInconsistente, pk
 
-# IDs que no estan en nuestro deck.csv (cartas del rival).
+# IDs that are not in our deck.csv (rival cards).
 KANGASKHAN = 756
 CRUSTLE = 345
 DWEBBLE = 344
@@ -57,12 +57,12 @@ def reset_main_state():
 
 
 def _escenario_paso69(op_activo="kangaskhan", energia_dipplin=2):
-    """Replica sintetica del paso 69 de registro_008 con variantes.
+    """A synthetic replica of step 69 of registro_008 with variants.
 
-    op_activo: "kangaskhan" (golpeable por ex) o "crustle" (inmune a ex,
-        con el Kangaskhan relegado a la banca).
-    energia_dipplin: 2 = como el real (1 fisica x Meganium = [G, G], ataca
-        tras evolucionar); 0 = sin energia (no ataca tras evolucionar).
+    op_activo: "kangaskhan" (hittable by ex) or "crustle" (immune to ex,
+        with the Kangaskhan relegated to the bench).
+    energia_dipplin: 2 = as in the real one (1 physical x Meganium = [G, G], it attacks
+        after evolving); 0 = no energy (it does not attack after evolving).
     """
     kang = pk(KANGASKHAN, hp=160, max_hp=400, energias=[C, G, C, C],
               fisicas=4, tools=[HEROS_CAPE])
@@ -90,7 +90,7 @@ def _escenario_paso69(op_activo="kangaskhan", energia_dipplin=2):
            .op_zonas(mano=9, mazo=37, premios=2)
            .op_descarte(m.Xerosic_Machinations, m.Lillie_Determination,
                         m.Lillie_Determination, 1264)
-           # Mazo visible: composicion real del select.deck del paso 69.
+           # The visible deck: the real composition of the select.deck of step 69.
            .mazo(m.Hydrapple_ex, m.Tapu_Bulu, m.Lillie_Determination,
                  m.Basic_Grass_Energy, m.Basic_Grass_Energy,
                  m.Basic_Grass_Energy, m.Basic_Grass_Energy,
@@ -100,9 +100,9 @@ def _escenario_paso69(op_activo="kangaskhan", energia_dipplin=2):
                  m.Ultra_Ball, m.Boss_Orders, m.Xerosic_Machinations,
                  m.Lillie_Determination, m.Lillie_Determination,
                  m.Forest_of_Vitality, m.Forest_of_Vitality)
-           # OJO: fetch_ultra_ball() ANTES de resto_al_descarte(), para que
-           # la Ultra Ball "en efecto" se reserve del pool y no acabe en el
-           # descarte (la contabilidad estricta lo detecta si se invierte).
+           # NOTE: fetch_ultra_ball() BEFORE resto_al_descarte(), so that
+           # the Ultra Ball "in effect" is reserved from the pool and does not end up in the
+           # discard (the strict accounting detects it if they are swapped).
            .fetch_ultra_ball()
            .resto_al_descarte())
     return esc.construir()
@@ -115,7 +115,7 @@ def _carta_elegida(obs, eleccion):
 
 
 # ---------------------------------------------------------------------
-# Validacion del builder contra la decision real (paso 69)
+# Validation of the builder against the real decision (step 69)
 # ---------------------------------------------------------------------
 
 def test_replica_sintetica_paso69_coincide_con_decision_real():
@@ -128,16 +128,16 @@ def test_replica_sintetica_paso69_coincide_con_decision_real():
 
 
 # ---------------------------------------------------------------------
-# Barrido de frontera de `_ub_evo_doomed_hittable` (estados que NUNCA
-# ocurrieron en partidas reales)
+# Boundary sweep of `_ub_evo_doomed_hittable` (states that NEVER
+# occurred in real games)
 # ---------------------------------------------------------------------
 
 @pytest.mark.parametrize("op_activo,energia_dipplin,espera_hydrapple", [
-    # activo rival golpeable + Dipplin ataca tras evolucionar -> excepcion
+    # a hittable rival active + a Dipplin that attacks after evolving -> the exception
     ("kangaskhan", 2, True),
-    # activo rival INMUNE a ex -> la excepcion no aplica, vuelve el clamp
+    # a rival active IMMUNE to ex -> the exception does not apply, the clamp returns
     ("crustle", 2, False),
-    # Dipplin sin energia: evoluciona pero NO ataca -> sin excepcion
+    # a Dipplin with no energy: it evolves but does NOT attack -> no exception
     ("kangaskhan", 0, False),
 ])
 def test_frontera_ub_evo_doomed(op_activo, energia_dipplin, espera_hydrapple):
@@ -157,13 +157,13 @@ def test_frontera_ub_evo_doomed(op_activo, energia_dipplin, espera_hydrapple):
 
 
 # ---------------------------------------------------------------------
-# La contabilidad del builder rechaza estados imposibles
+# The builder's accounting rejects impossible states
 # ---------------------------------------------------------------------
 
 def test_builder_rechaza_mas_copias_que_el_mazo():
     esc = Escenario().mi_activo(pk(m.Dipplin, pre_evo=[m.Applin]))
     with pytest.raises(EstadoInconsistente):
-        # deck.csv tiene 2 Hydrapple ex: la 3a copia debe fallar.
+        # deck.csv has 2 Hydrapple ex: the 3rd copy must fail.
         esc.mazo(m.Hydrapple_ex, m.Hydrapple_ex, m.Hydrapple_ex)
 
 
@@ -171,8 +171,8 @@ def test_builder_rechaza_sobrante_distinto_de_premios():
     esc = (Escenario()
            .mi_activo(pk(m.Dipplin, pre_evo=[m.Applin]))
            .op_activo(pk(KANGASKHAN, hp=160, max_hp=400))
-           # mazo declarado de 2 cartas: sobran ~50 sin colocar (mucho mas
-           # que los 6 premios) -> la construccion debe fallar.
+           # a declared deck of 2 cards: ~50 are left unplaced (far more
+           # than the 6 prizes) -> the construction must fail.
            .mazo(m.Hydrapple_ex, m.Tapu_Bulu)
            .fetch_ultra_ball())
     with pytest.raises(EstadoInconsistente):
@@ -180,23 +180,23 @@ def test_builder_rechaza_sobrante_distinto_de_premios():
 
 
 # ---------------------------------------------------------------------
-# Linea Meganium prioritaria vs Cornerstone Mask Ogerpon ex (user,
-# registro_004 turno 4): su Cornerstone Stance anula el dano de TODOS
-# nuestros Pokemon CON habilidad (Teal Mask Ogerpon ex, Hydrapple ex,
-# Dipplin...), asi que el unico atacante real es Tapu Bulu. Meganium tampoco
-# le hace dano -- tambien tiene habilidad -- pero su Wild Growth DUPLICA cada
-# Planta, de modo que con el en juego Tapu ataca con 2 Plantas FISICAS en vez
-# de 4. Montar la linea es por tanto prioritario en este matchup.
+# The Meganium line takes priority vs Cornerstone Mask Ogerpon ex (user,
+# registro_004 turn 4): its Cornerstone Stance cancels the damage of ALL
+# our Pokemon WITH an ability (Teal Mask Ogerpon ex, Hydrapple ex,
+# Dipplin...), so the only real attacker is Tapu Bulu. Meganium does not
+# damage it either -- it also has an ability -- but its Wild Growth DOUBLES each
+# Grass, so that with it in play Tapu attacks with 2 PHYSICAL Grass instead
+# of 4. Building the line is therefore a priority in this matchup.
 #
-# Escenario SINTETICO (no existe en los registros vigentes: ninguno llega a
-# jugar Ultra Ball frente a Cornerstone), justo el caso para el StateBuilder.
+# A SYNTHETIC scenario (it does not exist in the current records: none gets to
+# play an Ultra Ball against Cornerstone), exactly the case for the StateBuilder.
 # ---------------------------------------------------------------------
 CORNERSTONE = 117
 CUBCHOO = 506
 
 
 def _fetch_ub_vs(op_id):
-    """Fetch de Ultra Ball con Chikorita en banca y la linea en el mazo."""
+    """An Ultra Ball fetch with a Chikorita on the bench and the line in the deck."""
     obs = (Escenario(turno=6, paso=1, tac=1)
            .mi_activo(pk(m.Teal_Mask_Ogerpon_ex, energias=[G], fisicas=1))
            .mi_banca(pk(m.Chikorita))
@@ -222,8 +222,8 @@ def test_cornerstone_prioriza_linea_meganium():
 
 
 def test_sin_cornerstone_la_busqueda_no_cambia():
-    # Frontera: sin Cornerstone la prioridad de matchup no aplica y el fetch
-    # conserva su comportamiento normal (Bayleef, evolucion inmediata).
+    # Boundary: without Cornerstone the matchup priority does not apply and the fetch
+    # keeps its normal behaviour (Bayleef, an immediate evolution).
     elegida = _fetch_ub_vs(CUBCHOO)
     assert elegida == m.Bayleef, (
         f"sin Cornerstone el fetch no debe cambiar; obtuvo "
@@ -231,15 +231,15 @@ def test_sin_cornerstone_la_busqueda_no_cambia():
 
 
 # ---------------------------------------------------------------------
-# Tapu Bulu es el UNICO atacante real vs Cornerstone (user, registro_004
-# turno 4): la whitelist anti-Cubchoo (`_CUB_ALLOWED_PLAY`) permitia Teal Mask
-# Ogerpon ex e Hydrapple ex -- que por su habilidad hacen dano CERO a
-# Cornerstone -- pero excluia a Tapu Bulu, el unico que si le pega. El agente
-# bajaba un 2o Ogerpon ex y dejaba a Tapu muerto en la mano.
+# Tapu Bulu is the ONLY real attacker vs Cornerstone (user, registro_004
+# turn 4): the anti-Cubchoo whitelist (`_CUB_ALLOWED_PLAY`) allowed Teal Mask
+# Ogerpon ex and Hydrapple ex -- which because of their ability do ZERO damage to
+# Cornerstone -- but excluded Tapu Bulu, the only one that does hit it. The agent
+# played a 2nd Ogerpon ex and left Tapu dead in hand.
 # ---------------------------------------------------------------------
 
 def _menu_con_tapu_en_mano(op_id):
-    """Menu principal vs un rival Cubchoo con Cornerstone (o no) de activo."""
+    """The main menu vs a Cubchoo rival with Cornerstone (or not) as the active."""
     return (Escenario(turno=6, paso=1, tac=1)
             .mi_activo(pk(m.Teal_Mask_Ogerpon_ex, energias=[G], fisicas=1))
             .mi_banca(pk(m.Bayleef, pre_evo=[m.Chikorita]))
@@ -262,8 +262,8 @@ def _energia_va_a(obs, eleccion):
 
 
 def test_cornerstone_energia_va_a_tapu_bulu():
-    # Con Tapu Bulu YA en banca, la energia debe cargarlo a el (unico atacante
-    # que dana a Cornerstone), no al Ogerpon ex de habilidad anulada.
+    # With Tapu Bulu ALREADY on the bench, the energy must charge it (the only attacker
+    # that damages Cornerstone), not the Ogerpon ex with its ability cancelled.
     obs = (Escenario(turno=6, paso=1, tac=1)
            .mi_activo(pk(m.Teal_Mask_Ogerpon_ex, energias=[G], fisicas=1))
            .mi_banca(pk(m.Tapu_Bulu), pk(m.Bayleef, pre_evo=[m.Chikorita]))
@@ -278,7 +278,7 @@ def test_cornerstone_energia_va_a_tapu_bulu():
 
 
 def test_cornerstone_sin_el_la_energia_no_cambia():
-    # Frontera: sin Cornerstone el reparto de energia conserva su criterio.
+    # Boundary: without Cornerstone the energy distribution keeps its criterion.
     obs = (Escenario(turno=6, paso=1, tac=1)
            .mi_activo(pk(m.Teal_Mask_Ogerpon_ex, energias=[G], fisicas=1))
            .mi_banca(pk(m.Tapu_Bulu), pk(m.Bayleef, pre_evo=[m.Chikorita]))
@@ -292,17 +292,17 @@ def test_cornerstone_sin_el_la_energia_no_cambia():
 
 
 # ---------------------------------------------------------------------
-# Tope de energia del Teal Mask Ogerpon ex vs el mazo de Hop's (user):
-# maximo 3 energias FISICAS sin Meganium en juego / 2 con Meganium. La UNICA
-# razon para pasarse (adjunte manual, Ripening Charge o Teal Dance) es que el
-# Ogerpon este en el ACTIVO y le falte esa energia para NOQUEAR al activo
-# rival. Escenarios SINTETICOS (los registros vs Hop's no llegan a 3 cargas).
+# The energy cap of Teal Mask Ogerpon ex vs the Hop's deck (user):
+# a maximum of 3 PHYSICAL energies without Meganium in play / 2 with Meganium. The ONLY
+# reason to go over it (a manual attachment, Ripening Charge or Teal Dance) is that the
+# Ogerpon is ACTIVE and is missing that energy to KNOCK OUT the rival
+# active. SYNTHETIC scenarios (the records vs Hop's do not reach 3 charges).
 # ---------------------------------------------------------------------
-TREVENANT = 879     # Hop's Trevenant (140 PV): activa op_is_hop_deck
+TREVENANT = 879     # Hop's Trevenant (140 HP): it switches on op_is_hop_deck
 
 
 def _jugada_elegida(obs, eleccion):
-    """('ABILITY', None) para Teal Dance; ('ATTACH', id destino) para adjunte."""
+    """('ABILITY', None) for Teal Dance; ('ATTACH', destination id) for an attachment."""
     opt = obs["select"]["option"][eleccion[0]]
     if opt.get("type") == int(m.OptionType.ABILITY):
         return ("ABILITY", None)
@@ -326,8 +326,8 @@ def _esc_hop(activo, banca, op_energias=(), menu="attach"):
 
 
 def test_hop_tope_3_energias_ogerpon_banca():
-    # 3 fisicas en el Ogerpon de BANCA = tope alcanzado: la energia va a otro
-    # cuerpo (antes el tope era 4 y se sobrecargaba al Ogerpon).
+    # 3 physical on the BENCH Ogerpon = the cap reached: the energy goes to another
+    # body (before, the cap was 4 and the Ogerpon was overcharged).
     obs = _esc_hop(pk(m.Dipplin, pre_evo=[m.Applin], energias=[G], fisicas=1),
                    [pk(m.Teal_Mask_Ogerpon_ex, energias=[G, G, G], fisicas=3)])
     tipo, destino = _jugada_elegida(obs, m.agent(obs))
@@ -337,7 +337,7 @@ def test_hop_tope_3_energias_ogerpon_banca():
 
 
 def test_hop_dos_energias_ogerpon_banca_sigue_permitido():
-    # Frontera: con 2 fisicas el tope no aplica y la carga sigue siendo valida.
+    # Boundary: with 2 physical the cap does not apply and the charge is still valid.
     obs = _esc_hop(pk(m.Dipplin, pre_evo=[m.Applin], energias=[G], fisicas=1),
                    [pk(m.Teal_Mask_Ogerpon_ex, energias=[G, G], fisicas=2)])
     assert _jugada_elegida(obs, m.agent(obs)) == ("ATTACH", m.Teal_Mask_Ogerpon_ex), (
@@ -345,8 +345,8 @@ def test_hop_dos_energias_ogerpon_banca_sigue_permitido():
 
 
 def test_hop_cuarta_energia_solo_si_habilita_el_ko():
-    # EXCEPCION: Ogerpon ACTIVO con 3 fisicas; Myriad hace 30+30*(3+0)=120 y no
-    # noquea al Trevenant de 140, pero con la 4a llega a 150 => se permite.
+    # EXCEPTION: an ACTIVE Ogerpon with 3 physical; Myriad does 30+30*(3+0)=120 and does not
+    # knock out the 140 Trevenant, but with the 4th it reaches 150 => it is allowed.
     obs = _esc_hop(pk(m.Teal_Mask_Ogerpon_ex, energias=[G, G, G], fisicas=3),
                    [pk(m.Tapu_Bulu, energias=[G, G, G], fisicas=3)])
     assert _jugada_elegida(obs, m.agent(obs)) == ("ATTACH", m.Teal_Mask_Ogerpon_ex), (
@@ -355,8 +355,8 @@ def test_hop_cuarta_energia_solo_si_habilita_el_ko():
 
 
 def test_hop_cuarta_energia_vetada_si_el_ogerpon_ya_noquea():
-    # Sin la excepcion: el Ogerpon activo YA noquea (30+30*(3+2 energias del
-    # rival) = 180 >= 140), asi que la 4a energia sobra y va a otro atacante.
+    # Without the exception: the active Ogerpon ALREADY knocks out (30+30*(3+2 rival
+    # energies) = 180 >= 140), so the 4th energy is surplus and goes to another attacker.
     obs = _esc_hop(pk(m.Teal_Mask_Ogerpon_ex, energias=[G, G, G], fisicas=3),
                    [pk(m.Tapu_Bulu, energias=[G, G, G], fisicas=3)],
                    op_energias=[G, G])
@@ -367,8 +367,8 @@ def test_hop_cuarta_energia_vetada_si_el_ogerpon_ya_noquea():
 
 
 def test_hop_teal_dance_respeta_el_tope():
-    # Teal Dance tambien adjunta: con 3 fisicas en el Ogerpon de banca queda
-    # vetada (antes se usaba y lo dejaba en 4).
+    # Teal Dance also attaches: with 3 physical on the bench Ogerpon it is
+    # vetoed (before it was used and left it at 4).
     obs = _esc_hop(pk(m.Dipplin, pre_evo=[m.Applin], energias=[G], fisicas=1),
                    [pk(m.Teal_Mask_Ogerpon_ex, energias=[G, G, G], fisicas=3)],
                    menu="teal")
@@ -378,7 +378,7 @@ def test_hop_teal_dance_respeta_el_tope():
 
 
 def test_hop_teal_dance_permitida_si_habilita_el_ko():
-    # La excepcion del ACTIVO tambien vale para Teal Dance (adjunta + ROBA).
+    # The ACTIVE's exception also holds for Teal Dance (it attaches + DRAWS).
     obs = _esc_hop(pk(m.Teal_Mask_Ogerpon_ex, energias=[G, G, G], fisicas=3),
                    [pk(m.Tapu_Bulu, energias=[G, G, G], fisicas=3)],
                    menu="teal")
@@ -388,7 +388,7 @@ def test_hop_teal_dance_permitida_si_habilita_el_ko():
 
 
 def test_hop_tope_2_energias_con_meganium():
-    # Con Meganium en juego (Wild Growth duplica) el tope baja a 2 fisicas.
+    # With Meganium in play (Wild Growth doubles) the cap drops to 2 physical.
     obs = (Escenario(turno=8, paso=1, tac=1)
            .mi_activo(pk(m.Meganium, pre_evo=[m.Chikorita, m.Bayleef]))
            .mi_banca(pk(m.Teal_Mask_Ogerpon_ex, energias=[G, G, G, G], fisicas=2),
@@ -405,8 +405,8 @@ def test_hop_tope_2_energias_con_meganium():
 
 
 def test_tope_base_por_matchup():
-    # Frontera de matchup: el tope de 3 fisicas es SOLO de Hop's; vs Alakazam
-    # (el otro matchup con tope) la base sigue siendo 4 sin Meganium.
+    # A matchup boundary: the cap of 3 physical belongs ONLY to Hop's; vs Alakazam
+    # (the other matchup with a cap) the base is still 4 without Meganium.
     assert m._ogerpon_base_phys_cap(False, True) == 3
     assert m._ogerpon_base_phys_cap(True, True) == 2
     assert m._ogerpon_base_phys_cap(False, False) == 4
@@ -414,28 +414,28 @@ def test_tope_base_por_matchup():
 
 
 # ---------------------------------------------------------------------
-# Combo Myriad ganador: Teal Dance -> Boss's Orders -> gusteo -> ataque
-# (user, registro_012 paso 227 vs Iono, PERDIDA; escenario SINTETICO porque
-# los registros son datos locales transitorios). A 2 premios, con Teal Mask
-# Ogerpon ex activo (4 energias), 1 Planta + Boss's en mano y un Iono's
-# Bellibolt ex (280 PV, 4 energias) en la banca rival, la linea GANA:
-# Teal Dance deja al Ogerpon en 5 -> Boss's sube al Bellibolt ->
-# Myriad = 30 + 30*(5+4) = 300 >= 280 -> KO de 2 premios.
-# El bloqueo era doble: Teal Dance vetada ("ya tiene >=3 energias y ya noquea
-# al activo rival") y el adjunte manual al activo vetado por la PRECEDENCIA de
-# Teal Dance, asi que la energia acababa en un cuerpo de banca.
+# The winning Myriad combo: Teal Dance -> Boss's Orders -> gust -> attack
+# (user, registro_012 step 227 vs Iono, LOST; a SYNTHETIC scenario because
+# the records are transient local data). At 2 prizes, with a Teal Mask
+# Ogerpon ex active (4 energies), 1 Grass + Boss's in hand and an Iono's
+# Bellibolt ex (280 HP, 4 energies) on the rival bench, the line WINS:
+# Teal Dance leaves the Ogerpon at 5 -> Boss's brings up the Bellibolt ->
+# Myriad = 30 + 30*(5+4) = 300 >= 280 -> a 2-prize KO.
+# The block was twofold: Teal Dance vetoed ("it already has >=3 energies and already knocks out
+# the rival active") and the manual attachment to the active vetoed by the PRECEDENCE of
+# Teal Dance, so the energy ended up on a bench body.
 # ---------------------------------------------------------------------
-BELLIBOLT_EX = 269      # Iono's Bellibolt ex, 280 PV, 2 premios
-KILOWATTREL = 271       # Iono's Kilowattrel, 120 PV
+BELLIBOLT_EX = 269      # Iono's Bellibolt ex, 280 HP, 2 prizes
+KILOWATTREL = 271       # Iono's Kilowattrel, 120 HP
 MYRIAD_ATK = 120
 
 
 def _esc_combo_myriad(energias=4, plantas=1, energia_jugada=False,
                       premios_propios=2):
-    # `menu_teal_dance()` exige una Planta en la mano (la habilidad la adjunta
-    # DE la mano); para los pasos posteriores de la cadena (`plantas=0`) se
-    # construye con ella y luego se mueve al descarte, que es justo donde acaba
-    # tras usarse.
+    # `menu_teal_dance()` requires a Grass in hand (the ability attaches it
+    # FROM the hand); for the later steps of the chain (`plantas=0`) it is
+    # built with it and then moved to the discard, which is exactly where it ends up
+    # after being used.
     obs = (Escenario(turno=12, paso=227, tac=1,
                      premios_propios=premios_propios,
                      energia_jugada=energia_jugada)
@@ -459,7 +459,7 @@ def _esc_combo_myriad(energias=4, plantas=1, energia_jugada=False,
 
 
 def _menu_combo(obs, con_ability=True, con_attach=True):
-    """Menu MAIN realista: Teal Dance + PLAY Boss's + adjuntes + ataque."""
+    """A realistic MAIN menu: Teal Dance + PLAY Boss's + attachments + attack."""
     me = obs["current"]["players"][obs["current"]["yourIndex"]]
     i_boss = next(i for i, c in enumerate(me["hand"]) if c["id"] == m.Boss_Orders)
     i_e = next((i for i, c in enumerate(me["hand"])
@@ -491,10 +491,10 @@ def test_combo_myriad_usa_teal_dance_para_el_remate():
 
 
 def test_combo_myriad_teal_dance_con_el_adjunte_ya_gastado():
-    # La habilidad es INDEPENDIENTE del adjunte manual: aunque la energia del
-    # turno ya se haya jugado, Teal Dance sigue sumando la 5a energia y el
-    # remate debe detectarse igual (antes `_mbw_dmg_to` solo modelaba el +1 del
-    # adjunte y el remate se perdia).
+    # The ability is INDEPENDENT of the manual attachment: even if the turn's energy
+    # has already been played, Teal Dance still adds the 5th energy and the
+    # finisher must be detected all the same (before, `_mbw_dmg_to` only modelled the +1 of the
+    # attachment and the finisher was lost).
     obs = _menu_combo(_esc_combo_myriad(energia_jugada=True), con_attach=False)
     assert _tipo_elegido(obs, m.agent(obs)) == int(m.OptionType.ABILITY), (
         "con el adjunte manual gastado, Teal Dance sigue siendo la carga que "
@@ -502,7 +502,7 @@ def test_combo_myriad_teal_dance_con_el_adjunte_ya_gastado():
 
 
 def test_combo_myriad_juega_boss_tras_teal_dance():
-    # Segundo paso de la cadena: Ogerpon ya en 5 energias, sin Planta en mano.
+    # The second step of the chain: the Ogerpon already at 5 energies, with no Grass in hand.
     obs = _menu_combo(_esc_combo_myriad(energias=5, plantas=0),
                       con_ability=False, con_attach=False)
     assert _tipo_elegido(obs, m.agent(obs)) == int(m.OptionType.PLAY), (
@@ -511,7 +511,7 @@ def test_combo_myriad_juega_boss_tras_teal_dance():
 
 
 def test_combo_myriad_gustea_el_bellibolt():
-    # Tercer paso: eleccion del objetivo del gusteo.
+    # The third step: choosing the gust's target.
     obs = _esc_combo_myriad(energias=5, plantas=0)
     yo = obs["current"]["yourIndex"]
     obs["select"] = {
@@ -529,9 +529,9 @@ def test_combo_myriad_gustea_el_bellibolt():
 
 
 def test_combo_myriad_sin_remate_no_gasta_la_planta():
-    # Frontera: sin objetivo de premios en la banca rival (solo un Kilowattrel
-    # de 1 premio que ya noqueamos), vuelve el veto de no sobrecargar: la
-    # energia NO va al Ogerpon activo via Teal Dance.
+    # Boundary: with no prize target on the rival bench (only a Kilowattrel
+    # worth 1 prize that we already knock out), the no-overcharging veto returns: the
+    # energy does NOT go to the active Ogerpon via Teal Dance.
     obs = (Escenario(turno=12, paso=227, tac=1, premios_propios=2)
            .mi_activo(pk(m.Teal_Mask_Ogerpon_ex, energias=[G] * 4, fisicas=4))
            .mi_banca(pk(m.Applin))
@@ -548,21 +548,21 @@ def test_combo_myriad_sin_remate_no_gasta_la_planta():
 
 
 # ---------------------------------------------------------------------
-# Pivote Ogerpon retirar->KO, validacion END-TO-END (user, log 86583929
-# turno 4 vs Alakazam; memoria ogerpon-retreat-ko-pivot). La regla abarca
-# VARIAS decisiones encadenadas y solo se habia verificado el RETIRO aislado.
-# Aqui se camina la cadena completa con transiciones simuladas: activo
-# Fezandipiti ex estancado (1 energia, su ataque pide 3) + Ogerpon ex de
-# banca a 2 energias que con la Planta de Teal Dance llega a 3 y NOQUEA al
-# Abra activo rival (Myriad 30+30*3=120 >= 50).
-#   Caso A (Planta en MANO):    TD banca -> RETREAT -> promueve Ogerpon -> ATTACK
-#   Caso B (Planta en DESCARTE): NS -> recupera -> TD banca -> RETREAT ->
-#                                promueve Ogerpon -> ATTACK
-#   Caso C (sin Planta alcanzable): no malgasta el retiro (END).
+# The Ogerpon retreat->KO pivot, an END-TO-END validation (user, log 86583929
+# turn 4 vs Alakazam; the memory ogerpon-retreat-ko-pivot). The rule spans
+# SEVERAL chained decisions and only the RETREAT had been verified in isolation.
+# Here the whole chain is walked with simulated transitions: a stalled active
+# Fezandipiti ex (1 energy, its attack asks for 3) + a bench Ogerpon ex
+# at 2 energies which with Teal Dance's Grass reaches 3 and KNOCKS OUT the
+# rival active Abra (Myriad 30+30*3=120 >= 50).
+#   Case A (Grass in HAND):     TD bench -> RETREAT -> promote Ogerpon -> ATTACK
+#   Case B (Grass in DISCARD):  NS -> recover -> TD bench -> RETREAT ->
+#                               promote Ogerpon -> ATTACK
+#   Case C (no reachable Grass): it does not waste the retreat (END).
 # ---------------------------------------------------------------------
 import copy
 
-ABRA_ALAKAZAM = 741     # Abra de la linea Alakazam (50 PV)
+ABRA_ALAKAZAM = 741     # an Abra of the Alakazam line (50 HP)
 KADABRA_ALK = 742
 
 
@@ -579,12 +579,12 @@ def _pivote_obs(caso):
            .op_activo(pk(ABRA_ALAKAZAM, hp=50, max_hp=50))
            .op_banca(pk(KADABRA_ALK, hp=80, max_hp=80))
            .op_zonas(mano=5, mazo=34, premios=6)
-           .menu_teal_dance()  # el walker regenera el menu en cada paso
+           .menu_teal_dance()  # the walker regenerates the menu at each step
            .construir())
     yo = obs["current"]["players"][0]
     if caso in ("B", "C"):
-        # la Planta se construyo en mano (exigencia del builder); en el
-        # escenario real esta en el DESCARTE (caso B) o no existe (caso C)
+        # the Grass was built in hand (a builder requirement); in the
+        # real scenario it is in the DISCARD (case B) or does not exist (case C)
         planta = next(c for c in yo["hand"] if c["id"] == m.Basic_Grass_Energy)
         yo["hand"] = [c for c in yo["hand"] if c is not planta]
         yo["discard"] = list(yo["discard"]) + [planta]
@@ -597,7 +597,7 @@ def _pivote_obs(caso):
 
 
 def _pivote_menu_main(obs):
-    """Menu MAIN realista para el estado actual (regenerado en cada paso)."""
+    """A realistic MAIN menu for the current state (regenerated at each step)."""
     yo = obs["current"]["players"][0]
     ops = []
     if any(c["id"] == m.Basic_Grass_Energy for c in yo["hand"]):
@@ -631,7 +631,7 @@ def _pivote_menu_main(obs):
 
 
 def _pivote_caminar(obs, max_pasos=10):
-    """Ejecuta la cadena; devuelve la lista de etiquetas de las decisiones."""
+    """Runs the chain; returns the list of labels of the decisions."""
     obs = _pivote_menu_main(copy.deepcopy(obs))
     pasos = []
     for _ in range(max_pasos):
@@ -641,7 +641,7 @@ def _pivote_caminar(obs, max_pasos=10):
         cur = obs["current"]
         yo = cur["players"][0]
         regen = True
-        if t == 12:                                   # RETREAT + promocion
+        if t == 12:                                   # RETREAT + promotion
             act = yo["active"][0]
             yo["discard"] = list(yo["discard"]) + [act["energyCards"].pop()]
             act["energies"] = act["energies"][:-1]
@@ -699,7 +699,7 @@ def _pivote_caminar(obs, max_pasos=10):
             tgt["energies"] = list(tgt["energies"]) + [int(G)]
             tgt["energyCards"] = list(tgt["energyCards"]) + [e_card]
             pasos.append("TEAL DANCE")
-        elif t == 8:                                  # adjunte manual
+        elif t == 8:                                  # a manual attachment
             e_card = yo["hand"][o["index"]]
             yo["hand"] = [c for i, c in enumerate(yo["hand"])
                           if i != o["index"]]
@@ -753,11 +753,11 @@ def test_pivote_ogerpon_sin_planta_no_malgasta_el_retiro():
 
 
 # ---------------------------------------------------------------------
-# Deteccion del arquetipo Cornerstone por el NO-ex (386) y por el DESCARTE
-# (fase 8: la autopsia vs el mazo sintetico cornerstone_cubchoo mostro 112
-# turnos esteriles en 35 derrotas; con solo Cubchoo/Beartic a la vista el
-# flag `op_is_cornerstone_deck` no disparaba y la whitelist anti-Cubchoo
-# vetaba PLAY Tapu Bulu -- la win condition del matchup -- 38 veces).
+# Detecting the Cornerstone archetype by the NON-ex (386) and by the DISCARD
+# (phase 8: the autopsy vs the synthetic cornerstone_cubchoo deck showed 112
+# sterile turns across 35 losses; with only Cubchoo/Beartic in sight the
+# `op_is_cornerstone_deck` flag did not fire and the anti-Cubchoo whitelist
+# vetoed PLAY Tapu Bulu -- the matchup's win condition -- 38 times).
 # ---------------------------------------------------------------------
 CORNERSTONE_NOEX = 386
 
@@ -772,8 +772,8 @@ def _menu_con_tapu(op_activo, op_banca=(), op_descarte=()):
         esc = esc.op_banca(*[pk(b) for b in op_banca])
     if op_descarte:
         esc = esc.op_descarte(*op_descarte)
-    # menu_attach_energia() da el select minimo del builder; se reemplaza
-    # abajo por el menu PLAY que ejercita la whitelist.
+    # menu_attach_energia() gives the builder's minimal select; it is replaced
+    # below by the PLAY menu that exercises the whitelist.
     obs = (esc.op_zonas(mano=4, mazo=38, premios=6)
            .menu_attach_energia().construir())
     yo = obs["current"]["players"][0]
@@ -790,8 +790,8 @@ def _menu_con_tapu(op_activo, op_banca=(), op_descarte=()):
 
 
 def test_cornerstone_noex_en_banca_permite_tapu():
-    # El no-ex 386 no inmuniza (sin habilidad) pero delata el arquetipo: la
-    # whitelist anti-Cubchoo debe ampliarse con Tapu Bulu.
+    # The non-ex 386 does not make anything immune (it has no ability) but it gives the archetype away: the
+    # anti-Cubchoo whitelist must be extended with Tapu Bulu.
     obs = _menu_con_tapu(CUBCHOO, op_banca=(CORNERSTONE_NOEX,))
     r = m.agent(obs)
     assert obs["select"]["option"][r[0]]["type"] == int(m.OptionType.PLAY), (
@@ -800,8 +800,8 @@ def test_cornerstone_noex_en_banca_permite_tapu():
 
 
 def test_cornerstone_en_descarte_permite_tapu():
-    # Verlo en el DESCARTE tambien identifica el mazo (flag de PLAN; el
-    # posicional op_has_ability_immune_active sigue atado al tablero).
+    # Seeing it in the DISCARD also identifies the deck (a PLAN flag; the
+    # positional op_has_ability_immune_active is still tied to the board).
     obs = _menu_con_tapu(CUBCHOO, op_descarte=(CORNERSTONE_NOEX,))
     r = m.agent(obs)
     assert obs["select"]["option"][r[0]]["type"] == int(m.OptionType.PLAY), (
@@ -810,8 +810,8 @@ def test_cornerstone_en_descarte_permite_tapu():
 
 
 def test_cubchoo_puro_sigue_vetando_tapu():
-    # Frontera: sin rastro de Cornerstone, el plan anti-Cubchoo del usuario
-    # queda INTACTO (Tapu Bulu no se juega vs el mazo Cubchoo puro).
+    # Boundary: with no trace of Cornerstone, the user's anti-Cubchoo plan
+    # is left INTACT (Tapu Bulu is not played vs the pure Cubchoo deck).
     obs = _menu_con_tapu(CUBCHOO, op_banca=(CUBCHOO,))
     r = m.agent(obs)
     assert obs["select"]["option"][r[0]]["type"] == int(m.OptionType.END), (
@@ -819,12 +819,12 @@ def test_cubchoo_puro_sigue_vetando_tapu():
 
 
 # ---------------------------------------------------------------------
-# Estrategia vs Raging Bolt ex: DESCUADRE DE PREMIOS (user, registro_002
-# paso 27 vs Raging Bolt/Ogerpon, PERDIDA). Todo su mazo son ex de 2 premios
-# y Bellowing Thunder noquea de un golpe a cualquiera de nuestros ex: si
-# nuestro activo ex NO puede noquear, se baja un cuerpo de 1 premio (Tapu
-# Bulu), se retira el ex y se pone el 1-premio delante — el KO rival paga 1
-# premio y no 2. Cadena real del paso 27, caminada con transiciones.
+# Strategy vs Raging Bolt ex: PRIZE MISMATCH (user, registro_002
+# step 27 vs Raging Bolt/Ogerpon, LOST). Their whole deck is 2-prize ex and
+# Bellowing Thunder knocks out any of our ex in one blow: if
+# our active ex canNOT knock out, a 1-prize body is played (Tapu
+# Bulu), the ex is retreated and the 1-prize one is put in front — the rival KO pays 1
+# prize and not 2. The real chain of step 27, walked with transitions.
 # ---------------------------------------------------------------------
 
 def _raging_obs(tapu_en_banca=False, ogerpon_cargado=False, bolt_hp=240):
@@ -851,7 +851,7 @@ def _raging_obs(tapu_en_banca=False, ogerpon_cargado=False, bolt_hp=240):
                       pk(m.Teal_Mask_Ogerpon_ex, energias=[G], fisicas=1),
                       pk(m.Teal_Mask_Ogerpon_ex))
             .op_zonas(mano=2, mazo=44, premios=6)
-            .menu_teal_dance()   # el walker regenera el menu en cada paso
+            .menu_teal_dance()   # the walker regenerates the menu at each step
             .construir())
 
 
@@ -942,8 +942,8 @@ def test_raging_bolt_descuadre_cadena_completa():
 
 
 def test_raging_bolt_con_1premio_en_banca_no_baja_otro_y_retira():
-    # Con el Tapu YA en banca no hace falta bajar otro cuerpo: la cadena va
-    # directa a retirar y promoverlo.
+    # With the Tapu ALREADY on the bench there is no need to play another body: the chain goes
+    # straight to retreating and promoting it.
     pasos, activo_final = _raging_caminar(_raging_obs(tapu_en_banca=True))
     assert "RETREAT" in pasos and "PROMUEVE Tapu Bulu" in pasos, pasos
     assert not any(p.startswith("BAJA") for p in pasos), pasos
@@ -951,8 +951,8 @@ def test_raging_bolt_con_1premio_en_banca_no_baja_otro_y_retira():
 
 
 def test_raging_bolt_con_ko_disponible_no_sacrifica():
-    # Frontera: el Ogerpon activo cargado NOQUEA al Bolt danado (Myriad
-    # 30+30*4=150 >= 120): se ataca, no se regala el tempo del descuadre.
+    # Boundary: the charged active Ogerpon KNOCKS OUT the damaged Bolt (Myriad
+    # 30+30*4=150 >= 120): we attack, we do not give away the mismatch's tempo.
     pasos, activo_final = _raging_caminar(
         _raging_obs(ogerpon_cargado=True, bolt_hp=120))
     assert "RETREAT" not in pasos, pasos
@@ -961,18 +961,18 @@ def test_raging_bolt_con_ko_disponible_no_sacrifica():
 
 
 # ---------------------------------------------------------------------
-# Estrategia vs Mega Abomasnow ex: DESCUADRE DE PREMIOS (user, registro_002
-# paso 14 y registro_004 paso 17, vs Snover -> Mega Abomasnow ex). Su linea
-# one-shotea a cualquiera de nuestros ex; con dos Ogerpon ex en juego y sin
-# poder noquear al activo (Ogerpon con 1 energia, Myriad cuesta 3), la linea
-# correcta es bajar un cuerpo de 1 premio (Tapu Bulu) y ponerlo delante.
-# EXCEPCION (user): la regla NO aplica en nuestro primer turno partiendo
-# PRIMEROS -- el rival aun no puede noquearnos su siguiente turno.
+# Strategy vs Mega Abomasnow ex: PRIZE MISMATCH (user, registro_002
+# step 14 and registro_004 step 17, vs Snover -> Mega Abomasnow ex). Their line
+# one-shots any of our ex; with two Ogerpon ex in play and unable
+# to knock out the active (an Ogerpon with 1 energy, Myriad costs 3), the correct
+# line is to play a 1-prize body (Tapu Bulu) and put it in front.
+# EXCEPTION (user): the rule does NOT apply on our first turn going
+# FIRST -- the rival cannot knock us out on their next turn yet.
 # ---------------------------------------------------------------------
 
 def _abomasnow_obs(primer_jugador=1, turno=2, tapu_en_banca=False):
-    # Ogerpon ex activo con 1 sola energia: NO puede usar Myriad Leaf Shower
-    # (cuesta 3) => no noquea al Snover => se dispara el descuadre.
+    # An active Ogerpon ex with a single energy: it canNOT use Myriad Leaf Shower
+    # (it costs 3) => it does not knock out the Snover => the mismatch fires.
     act = pk(m.Teal_Mask_Ogerpon_ex, energias=[G], fisicas=1)
     banca = [pk(m.Teal_Mask_Ogerpon_ex, energias=[G, G], fisicas=2),
              pk(m.Meowth_ex)]
@@ -990,13 +990,13 @@ def _abomasnow_obs(primer_jugador=1, turno=2, tapu_en_banca=False):
             .op_activo(pk(m.Snover))
             .op_banca(pk(m.Snover))
             .op_zonas(mano=5, mazo=41, premios=6)
-            .menu_teal_dance()   # el walker regenera el menu en cada paso
+            .menu_teal_dance()   # the walker regenerates the menu at each step
             .construir())
 
 
 def test_abomasnow_descuadre_cadena_completa():
-    # Yendo SEGUNDOS (nuestro primer turno es el turno 2), la regla aplica:
-    # bajar Tapu Bulu, retirar el Ogerpon ex y ponerlo delante.
+    # Going SECOND (our first turn is turn 2), the rule applies:
+    # play Tapu Bulu, retreat the Ogerpon ex and put it in front.
     pasos, activo_final = _raging_caminar(_abomasnow_obs())
     assert "BAJA Tapu Bulu" in pasos and "RETREAT" in pasos, pasos
     assert "PROMUEVE Tapu Bulu" in pasos, pasos
@@ -1006,9 +1006,9 @@ def test_abomasnow_descuadre_cadena_completa():
 
 
 def test_abomasnow_primer_turno_primeros_no_sacrifica():
-    # EXCEPCION (user): en NUESTRO primer turno partiendo PRIMEROS la regla NO
-    # aplica -- el rival aun no puede noquearnos su siguiente turno, no se
-    # sacrifica el desarrollo temprano. No se retira el ex.
+    # EXCEPTION (user): on OUR first turn going FIRST the rule does NOT
+    # apply -- the rival cannot knock us out on their next turn yet, early
+    # development is not sacrificed. The ex is not retreated.
     pasos, activo_final = _raging_caminar(
         _abomasnow_obs(primer_jugador=0, turno=1))
     assert "RETREAT" not in pasos, pasos
@@ -1018,20 +1018,20 @@ def test_abomasnow_primer_turno_primeros_no_sacrifica():
 
 
 def test_abomasnow_primeros_pero_turno_posterior_si_sacrifica():
-    # Frontera de la excepcion: la excepcion es SOLO el turno 1. Partiendo
-    # primeros pero en un turno posterior (turno 3) la regla vuelve a aplicar.
+    # The exception's boundary: the exception belongs ONLY to turn 1. Going
+    # first but on a later turn (turn 3) the rule applies again.
     pasos, activo_final = _raging_caminar(
         _abomasnow_obs(primer_jugador=0, turno=3))
     assert "RETREAT" in pasos and activo_final["id"] == m.Tapu_Bulu, pasos
 
 
 # ---------------------------------------------------------------------
-# Activo rival INMUNE -> motor Boss's para gustear la banca (user).
-# Escenario: Hydrapple ex activo (puede 330) vs Cornerstone Mask Ogerpon ex
-# activo (anula a nuestros Pokemon CON habilidad -> atacarlo = 0 dano) con un
-# Mega Lucario ex en la banca rival, y Meowth ex en la mano. La jugada correcta
-# NO es atacar al Cornerstone (0), sino bajar Meowth ex para que Last-Ditch
-# Catch busque un Boss's Orders (en el mazo), gustear el Mega Lucario y atacarlo.
+# An IMMUNE rival active -> the Boss's engine to gust the bench (user).
+# Scenario: an active Hydrapple ex (it can do 330) vs an active Cornerstone Mask Ogerpon ex
+# (it cancels our Pokemon WITH an ability -> attacking it = 0 damage) with a
+# Mega Lucario ex on the rival bench, and a Meowth ex in hand. The correct play
+# is NOT to attack the Cornerstone (0), but to play Meowth ex so that Last-Ditch
+# Catch searches for a Boss's Orders (in the deck), gust the Mega Lucario and attack it.
 # ---------------------------------------------------------------------
 MEGA_LUCARIO = 678
 
@@ -1073,10 +1073,10 @@ def test_activo_inmune_juega_meowth_para_gustear_banca():
 
 
 def test_activo_atacable_no_desvia_a_meowth():
-    # Frontera: si el activo rival NO es inmune (Mega Lucario ex de activo, sin
-    # la habilidad Cornerstone), `_meowth_immune_boss_engine` NO aplica -- el
-    # Hydrapple ex SI le pega (330), asi que el agente ATACA en vez de desviarse
-    # a jugar Meowth ex por la via del motor de inmunidad.
+    # Boundary: if the rival active is NOT immune (an active Mega Lucario ex, without
+    # the Cornerstone ability), `_meowth_immune_boss_engine` does NOT apply -- the
+    # Hydrapple ex DOES hit it (330), so the agent ATTACKS instead of detouring
+    # into playing Meowth ex through the immunity engine's route.
     obs = _menu_inmune_activo(MEGA_LUCARIO, CORNERSTONE)
     m._init_cartas_tracking()
     m.plan = m.AttackPlan()
@@ -1088,15 +1088,15 @@ def test_activo_atacable_no_desvia_a_meowth():
 
 
 # ---------------------------------------------------------------------
-# Iron Thorns ex ("Initialization") en el ACTIVO rival apaga las habilidades
-# de los Pokemon con Rule Box de AMBOS lados (plan jul 2026, P1.4). El agente
-# no debe planear alrededor de Last-Ditch Catch: con Iron Thorns delante,
-# buscar Meowth ex "para el fetch de Supporter" es una carta muerta -- mismo
-# tratamiento que Team Rocket's Watchtower (`meowth_ability_lock`).
+# Iron Thorns ex ("Initialization") in the rival ACTIVE spot switches off the abilities
+# of the Pokemon with a Rule Box on BOTH sides (plan Jul 2026, P1.4). The agent
+# must not plan around Last-Ditch Catch: with Iron Thorns in front,
+# searching for Meowth ex "for the Supporter fetch" is a dead card -- the same
+# treatment as Team Rocket's Watchtower (`meowth_ability_lock`).
 # ---------------------------------------------------------------------
 
 def _fetch_ub_motor_meowth_vs(op_id):
-    """UB con mano vacia y motor de refresco disponible en el mazo."""
+    """A UB with an empty hand and the refresh engine available in the deck."""
     obs = (Escenario(turno=6, paso=1, tac=1)
            .mi_activo(pk(m.Teal_Mask_Ogerpon_ex, energias=[G], fisicas=1))
            .mi_banca(pk(m.Chikorita))
@@ -1122,8 +1122,8 @@ def test_iron_thorns_activo_veta_fetch_de_meowth():
 
 
 def test_sin_iron_thorns_el_motor_meowth_sigue_vivo():
-    # Frontera: con un activo rival neutro (Snorunt) el mismo escenario SI
-    # busca Meowth ex (motor de refresco Last-Ditch -> Lillie's).
+    # Boundary: with a neutral rival active (Snorunt) the same scenario DOES
+    # search for Meowth ex (the Last-Ditch -> Lillie's refresh engine).
     elegida = _fetch_ub_motor_meowth_vs(103)  # Snorunt
     assert elegida == m.Meowth_ex, (
         f"sin lock de habilidades el fetch del motor no debe cambiar; obtuvo "
@@ -1131,13 +1131,13 @@ def test_sin_iron_thorns_el_motor_meowth_sigue_vivo():
 
 
 # =====================================================================
-# Motor UB de PRIMER turno saliendo SEGUNDOS (user, jul 2026): la UNICA
-# razon de jugar Ultra Ball en nuestro primer turno de accion saliendo
-# segundos (fuera de banca vacia / Budew activo rival) es BUSCAR MEOWTH EX
-# cuando NO tenemos Lillie's Determination y necesitamos jugar una
-# (Last-Ditch Catch la trae del mazo). Gate `_ub_ft_case2`. Estos tests
-# pinnan el contrato completo tras los gates de la red anti-turno-esteril
-# (a7df1ce / 57db985), que usan otra via (score 200) y no deben afectarlo.
+# The FIRST-turn UB engine going SECOND (user, Jul 2026): the ONLY
+# reason to play an Ultra Ball on our first action turn going
+# second (outside an empty bench / a Budew rival active) is to SEARCH FOR MEOWTH EX
+# when we do NOT have a Lillie's Determination and need to play one
+# (Last-Ditch Catch brings it from the deck). Gate `_ub_ft_case2`. These tests
+# pin the full contract after the gates of the anti-sterile-turn net
+# (a7df1ce / 57db985), which use another route (score 200) and must not affect it.
 # =====================================================================
 
 def _escenario_t2_saliendo_segundo(mano):
@@ -1163,8 +1163,8 @@ def _menu_main(obs, opciones):
 
 
 def test_ub_t1_segundos_sin_lillie_busca_el_motor_meowth():
-    # Sin Lillie's NI Meowth en mano, con ambos en el MAZO: la UB de primer
-    # turno saliendo segundos SI se juega (motor Last-Ditch -> Lillie's).
+    # With neither Lillie's NOR Meowth in hand, with both in the DECK: the first-turn
+    # UB going second IS played (the Last-Ditch -> Lillie's engine).
     obs = _menu_main(
         _escenario_t2_saliendo_segundo([m.Ultra_Ball, m.Basic_Grass_Energy,
                                         m.Chikorita]),
@@ -1187,8 +1187,8 @@ def test_ub_t1_segundos_fetch_elige_meowth():
 
 
 def test_ub_t1_segundos_con_lillie_en_mano_se_veta():
-    # Control: con la Lillie's YA en mano el motor no hace falta y la UB de
-    # primer turno vuelve a estar vetada (se juega la Lillie's).
+    # Control: with the Lillie's ALREADY in hand the engine is not needed and the first-turn
+    # UB is vetoed again (the Lillie's is played).
     obs = _menu_main(
         _escenario_t2_saliendo_segundo([m.Ultra_Ball, m.Lillie_Determination,
                                         m.Basic_Grass_Energy]),
@@ -1201,11 +1201,11 @@ def test_ub_t1_segundos_con_lillie_en_mano_se_veta():
 
 
 # ---------------------------------------------------------------------------
-# Tope de Teal Dance en Ogerpon EXTENDIDO a Cornerstone (autopsia v2.1 p025
-# t20, ciclo jul 2026). Cornerstone Stance anula el dano de nuestros Pokemon
-# CON habilidad: el Ogerpon no ataca en ese matchup y sobrecargarlo via Teal
-# Dance mata de hambre a Tapu Bulu (EL atacante). Mismo patron de extension
-# que d801d57 (whitelist anti-Cubchoo ampliada con el muro inmune en juego).
+# The Teal Dance cap on Ogerpon EXTENDED to Cornerstone (autopsy v2.1 p025
+# t20, Jul 2026 cycle). Cornerstone Stance cancels the damage of our Pokemon
+# WITH an ability: the Ogerpon does not attack in that matchup and overcharging it via Teal
+# Dance starves Tapu Bulu (THE attacker). The same extension pattern
+# as d801d57 (the anti-Cubchoo whitelist extended with the immune wall in play).
 
 def _esc_corner_td(ogerpon_fisicas):
     return (Escenario(turno=8, paso=1, tac=1)
@@ -1221,9 +1221,9 @@ def _esc_corner_td(ogerpon_fisicas):
 
 
 def test_cornerstone_td_tope_2_fisicas_redirige_a_tapu():
-    # Ogerpon de banca YA con 2 fisicas: Teal Dance vetada; la Planta de la
-    # mano va al Tapu Bulu (la regla cornerstone->Tapu +22000 de energy_score
-    # por fin recibe la energia).
+    # A bench Ogerpon ALREADY with 2 physical: Teal Dance vetoed; the Grass from
+    # hand goes to Tapu Bulu (the cornerstone->Tapu +22000 energy_score rule
+    # finally gets the energy).
     obs = _esc_corner_td(ogerpon_fisicas=2)
     tipo, destino = _jugada_elegida(obs, m.agent(obs))
     assert (tipo, destino) == ("ATTACH", m.Tapu_Bulu), (
@@ -1232,10 +1232,10 @@ def test_cornerstone_td_tope_2_fisicas_redirige_a_tapu():
 
 
 def test_cornerstone_td_una_fisica_sigue_permitida():
-    # Frontera del tope: con 1 fisica el Ogerpon aun no llega al tope. La
-    # Teal Dance no esta VETADA (puede perder contra otras cargas por score,
-    # pero el tope no la mata): comprobamos que el veto no dispara mirando
-    # que la eleccion NO es END y que si gana una carga, es legitima.
+    # The cap's boundary: with 1 physical the Ogerpon does not reach the cap yet. The
+    # Teal Dance is not VETOED (it may lose against other charges on score,
+    # but the cap does not kill it): we check that the veto does not fire by looking
+    # at the fact that the choice is NOT END and that if a charge wins, it is legitimate.
     obs = _esc_corner_td(ogerpon_fisicas=1)
     tipo, destino = _jugada_elegida(obs, m.agent(obs))
     assert tipo in ("ABILITY", "ATTACH"), (
@@ -1244,9 +1244,9 @@ def test_cornerstone_td_una_fisica_sigue_permitida():
 
 
 def test_generico_td_dos_fisicas_sin_muro_no_capa():
-    # Control inverso: sin Cornerstone/Crustle/muro delante (rival neutro,
-    # Kilowattrel 271) el tope no aplica y la Teal Dance del Ogerpon con 2
-    # fisicas sigue viva.
+    # The inverse control: with no Cornerstone/Crustle/wall in front (a neutral rival,
+    # Kilowattrel 271) the cap does not apply and the Teal Dance of the Ogerpon with 2
+    # physical is still alive.
     obs = (Escenario(turno=8, paso=1, tac=1)
            .mi_activo(pk(m.Tapu_Bulu, energias=[G], fisicas=1))
            .mi_banca(pk(m.Teal_Mask_Ogerpon_ex, energias=[G, G], fisicas=2))

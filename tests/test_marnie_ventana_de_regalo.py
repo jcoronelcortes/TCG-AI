@@ -1,39 +1,39 @@
-"""La VENTANA DE REGALO: el goteo de Froslass y el daño movible de Munkidori.
+"""The GIFT WINDOW: Froslass's drip and Munkidori's movable damage.
 
-Escenario (`registros/marnie/partida_2`, paso 121, turno 10, PERDIDA):
+Scenario (`registros/marnie/partida_2`, step 121, turn 10, LOST):
 
-    NOSOTROS (4 premios)                    RIVAL (5 premios)
-    activo  Hydrapple ex   70/330, E2       activo  Grimmsnarl ex 300/320, E2
-    banca   Meganium        90/160          banca   Froslass  90/90
+    US (4 prizes)                           OPPONENT (5 prizes)
+    active  Hydrapple ex   70/330, S2       active  Grimmsnarl ex 300/320, S2
+    bench   Meganium        90/160          bench   Froslass  90/90
             Ogerpon ex      80/210, E10             Morgrem  100/100, E2
             Ogerpon ex     130/210, E6              Froslass  90/90
             Meowth ex       70/170                  Munkidori 80/110, E1
-            Fezandipiti ex 170/210                  Munkidori 90/110, sin energía
+            Fezandipiti ex 170/210                  Munkidori 90/110, no energy
 
-El agente eligió **Teal Dance sobre el Ogerpon ex de banca a 80 PV**. Ese cuerpo
-murió ese mismo turno —20 de Freezing Shroud + 60 movidos por dos Munkidori—
-llevándose **2 premios y 5 Energías Planta** al descarte. La Ripening Charge del
-Hydrapple activo estaba disponible y sin usar: +30 lo dejaba en 110, fuera de la
-ventana de 100.
+The agent chose **Teal Dance on the benched Ogerpon ex at 80 HP**. That body
+died that same turn —20 from Freezing Shroud + 60 moved by two Munkidori—
+taking **2 prizes and 5 Grass Energies** to the discard. The active Hydrapple's
+Ripening Charge was available and unused: +30 would have left it at 110, outside the
+window of 100.
 
-Causa: `_ripen_heal_serial` medía la amenaza a la banca con
-`_op_bench_snipe_dmg` = **30** (solo el snipe de Shadow Bullet). Ningún cuerpo
-por encima de 30 PV entraba jamás al detector, así que en tres partidas usamos
-la curación **una** vez mientras encajábamos 410/620/60 de daño de contadores.
+Cause: `_ripen_heal_serial` measured the threat to the bench with
+`_op_bench_snipe_dmg` = **30** (Shadow Bullet's snipe only). No body
+above 30 HP ever entered the detector, so across three games we used
+the healing **once** while taking 410/620/60 damage from counters.
 
-Las tres piezas que faltaban, ahora en `_ventana_de_regalo`:
+The three missing pieces, now in `_ventana_de_regalo`:
 
-1. **Freezing Shroud dispara en CADA Chequeo Pokémon y hay DOS por ronda** (fin
-   de nuestro turno y fin del suyo): `10 × n_froslass × 2`. Solo lo pagan los
-   cuerpos de `OUR_ABILITY_IDS`.
-2. **Adrena-Brain mueve hasta 30 a CUALQUIER cuerpo nuestro**, una vez por
-   Munkidori energizado — y un Munkidori seco en mesa vale una activación más,
-   porque al rival le queda su adjunte del turno (es exactamente lo que pasó).
-3. El **Tera** del Ogerpon en banca previene daño *de ataques*: corta el snipe
-   de 30, nunca los contadores puestos ni los movidos.
+1. **Freezing Shroud fires on EVERY Pokémon Checkup and there are TWO per round** (the end
+   of our turn and the end of theirs): `10 × n_froslass × 2`. Only the
+   bodies in `OUR_ABILITY_IDS` pay it.
+2. **Adrena-Brain moves up to 30 to ANY body of ours**, once per
+   charged Munkidori — and a dry Munkidori on the field is worth one more activation,
+   because the opponent still has their attachment for the turn (which is exactly what happened).
+3. The **Tera** of a benched Ogerpon prevents damage *from attacks*: it cuts the 30
+   snipe, never the counters placed or the ones moved.
 
-Y el desempate entre candidatos pasa a ser **premios primero**: negar los 2 del
-Ogerpon ex vale más que negar el 1 del Meganium.
+And the tie-break between candidates becomes **prizes first**: denying the 2 of the
+Ogerpon ex is worth more than denying the 1 of the Meganium.
 """
 
 import copy
@@ -95,19 +95,19 @@ def _opcion(obs, eleccion):
 
 
 # --------------------------------------------------------------------------
-# Fase A: percepción
+# Phase A: perception
 # --------------------------------------------------------------------------
 
 def test_percepcion_mide_el_goteo_y_el_dano_movible():
-    """Dos Froslass = 40 por ronda; dos activaciones de Adrena-Brain = 60."""
+    """Two Froslass = 40 per round; two Adrena-Brain activations = 60."""
     _correr_fixture()
     assert m._op_chip_per_round == 40, "10 x 2 Froslass x 2 chequeos"
-    # Un Munkidori con energía + uno seco (al rival le queda su adjunte).
+    # One Munkidori with energy + one dry (the opponent still has their attachment).
     assert m._op_movable_dmg == 60, "30 x 2 activaciones de Adrena-Brain"
 
 
 def test_la_ventana_del_ogerpon_de_banca_lo_alcanza():
-    """80 PV dentro de una ventana de 100; con +30 sale (110 > 100)."""
+    """80 HP inside a window of 100; with +30 it leaves (110 > 100)."""
     _correr_fixture()
 
     class _P:
@@ -115,15 +115,15 @@ def test_la_ventana_del_ogerpon_de_banca_lo_alcanza():
     p = _P()
     p.id = OGERPON
     p.hp, p.maxHp = 80, 210
-    # El Tera anula el snipe en banca: la ventana es chip + movible.
+    # The Tera cancels the snipe on the bench: the window is chip + movable.
     ventana = m._ventana_de_regalo(p, False, m._op_bench_snipe_dmg)
     assert ventana == 100
-    assert p.hp <= ventana                       # dentro de la ventana
-    assert min(p.maxHp, p.hp + m.RIPENING_HEAL) > ventana   # con +30 sale
+    assert p.hp <= ventana                       # inside the window
+    assert min(p.maxHp, p.hp + m.RIPENING_HEAL) > ventana   # with +30 it leaves
 
 
 def test_el_tera_en_banca_no_para_los_contadores():
-    """El Tera corta el snipe (daño de ataque), nunca el goteo ni lo movible."""
+    """The Tera cuts the snipe (attack damage), never the drip or the movable damage."""
     _correr_fixture()
 
     class _P:
@@ -131,14 +131,14 @@ def test_el_tera_en_banca_no_para_los_contadores():
     og, meg = _P(), _P()
     og.id, og.hp, og.maxHp = OGERPON, 80, 210
     meg.id, meg.hp, meg.maxHp = MEGANIUM, 90, 160
-    # Mismo puesto (banca) y mismo snipe proyectado: el Ogerpon se ahorra los
-    # 30 del snipe, pero paga el mismo goteo y el mismo daño movible.
+    # The same position (bench) and the same projected snipe: the Ogerpon saves the
+    # 30 of the snipe, but pays the same drip and the same movable damage.
     assert m._ventana_de_regalo(og, False, 30) == 40 + 60
     assert m._ventana_de_regalo(meg, False, 30) == 30 + 40 + 60
 
 
 def test_sin_habilidad_no_se_paga_el_peaje_de_froslass():
-    """Tapu Bulu, Chikorita, Bayleef y Applin no están en OUR_ABILITY_IDS."""
+    """Tapu Bulu, Chikorita, Bayleef and Applin are not in OUR_ABILITY_IDS."""
     _correr_fixture()
 
     class _P:
@@ -150,11 +150,11 @@ def test_sin_habilidad_no_se_paga_el_peaje_de_froslass():
 
 
 # --------------------------------------------------------------------------
-# Fase B: la curación niega el premio
+# Phase B: the healing denies the prize
 # --------------------------------------------------------------------------
 
 def test_usa_ripening_charge_en_vez_de_teal_dance():
-    """La habilidad elegida es la del Hydrapple activo, no la Teal Dance."""
+    """The chosen ability is that of the active Hydrapple, not the Teal Dance."""
     obs, eleccion = _correr_fixture()
     o = _opcion(obs, eleccion)
     assert o["type"] == int(m.OptionType.ABILITY), o
@@ -163,15 +163,15 @@ def test_usa_ripening_charge_en_vez_de_teal_dance():
 
 
 def test_la_planta_va_al_ogerpon_ex_no_al_meganium():
-    """Desempate por PREMIOS: 2 del Ogerpon ex antes que 1 del Meganium.
+    """Tie-break by PRIZES: the 2 of the Ogerpon ex before the 1 of the Meganium.
 
-    Tablero de la partida 2 con la banca recortada a los dos candidatos. Ambos
-    están dentro de su ventana y ambos SALEN con +30:
+    The board of game 2 with the bench trimmed to the two candidates. Both
+    are inside their window and both LEAVE it with +30:
 
-        Ogerpon ex  80/210, ventana 100 (Tera: sin snipe) -> 110 > 100, 2 premios
-        Meganium   110/160, ventana 130 (30 + 40 + 60)    -> 140 > 130, 1 premio
+        Ogerpon ex  80/210, window 100 (Tera: no snipe) -> 110 > 100, 2 prizes
+        Meganium   110/160, window 130 (30 + 40 + 60)   -> 140 > 130, 1 prize
 
-    El tercer Ogerpon (130 PV) queda FUERA de su ventana de 100 y no compite.
+    The third Ogerpon (130 HP) is OUTSIDE its window of 100 and does not compete.
     """
     obs = (Escenario(turno=10, paso=121, tac=6)
            .mi_activo(pk(HYDRAPPLE, hp=70, energias=[G, G],
@@ -197,19 +197,19 @@ def test_la_planta_va_al_ogerpon_ex_no_al_meganium():
 
 
 def test_el_dano_movible_es_elastico_no_condena_a_media_mesa():
-    """La ventana GARANTIZADA y la COMPLETA no son lo mismo.
+    """The GUARANTEED window and the COMPLETE one are not the same thing.
 
-    (`registros/marnie/partida_1`, paso 167, turno 14.) Con 1 Froslass y 1
-    Munkidori: chip 20, movible 30.
+    (`registros/marnie/partida_1`, step 167, turn 14.) With 1 Froslass and 1
+    Munkidori: chip 20, movable 30.
 
-        Meganium    30/160 banca, garantizada 50, completa 80 -> +30 = 60 > 50
-        Ogerpon ex  20/210 banca, garantizada 20, completa 50 -> +30 = 50 > 20
+        Meganium    30/160 bench, guaranteed 50, complete 80 -> +30 = 60 > 50
+        Ogerpon ex  20/210 bench, guaranteed 20, complete 50 -> +30 = 50 > 20
 
-    Ninguno sale de la ventana COMPLETA: medido solo con el techo, los dos
-    quedarían "condenados" y la curación se apagaría — el mismo fallo que tenía
-    medirla solo con el snipe, en espejo. Pero Adrena-Brain solo mata a UN
-    cuerpo por turno, así que curar sigue valiendo: obliga al rival a gastarlo.
-    Entre los dos gana el de MÁS PREMIOS, el Ogerpon ex.
+    Neither leaves the COMPLETE window: measured only with the ceiling, both
+    would be "doomed" and the healing would switch off — the same failure as
+    measuring it only with the snipe, mirrored. But Adrena-Brain only kills ONE
+    body per turn, so healing is still worth it: it forces the opponent to spend it.
+    Between the two, the one worth MORE PRIZES wins, the Ogerpon ex.
     """
     obs = (Escenario(turno=14, paso=167, tac=5, premios_propios=3)
            .mi_activo(pk(HYDRAPPLE, hp=110, energias=[G, G],
@@ -233,11 +233,11 @@ def test_el_dano_movible_es_elastico_no_condena_a_media_mesa():
 
 
 # --------------------------------------------------------------------------
-# No-regresión: sin Froslass ni Munkidori la ventana es el golpe de siempre
+# Non-regression: without Froslass or Munkidori the window is the usual hit
 # --------------------------------------------------------------------------
 
 def test_sin_froslass_ni_munkidori_la_ventana_no_cambia():
-    """Contra un mazo sin esas piezas, chip y movible valen 0."""
+    """Against a deck without those pieces, chip and movable damage are 0."""
     obs = (Escenario(turno=8, paso=60, tac=3)
            .mi_activo(pk(HYDRAPPLE, hp=300, energias=[G, G],
                          fisicas=1, pre_evo=[APPLIN, DIPPLIN]))
@@ -263,31 +263,31 @@ def test_sin_froslass_ni_munkidori_la_ventana_no_cambia():
 
 
 # --------------------------------------------------------------------------
-# La ventana se mide por CARTA, no por arquetipo
+# The window is measured by CARD, not by archetype
 # --------------------------------------------------------------------------
-# Medido sobre el top-100 real del leaderboard (decks_competidores/, ago 2026):
-# Munkidori NO es exclusivo de Marnie. Aparece en 55 de los 100 mazos, y de
-# esos, 6 no son Marnie: los CINCO mazos Dragapult del top-100 lo llevan (5 de
-# 5) mas un Crustle. Froslass si es exclusivo del arquetipo (49 de 49).
+# Measured over the real top-100 of the leaderboard (decks_competidores/, Aug 2026):
+# Munkidori is NOT exclusive to Marnie. It appears in 55 of the 100 decks, and of
+# those, 6 are not Marnie: the FIVE Dragapult decks of the top-100 run it (5 of
+# 5) plus one Crustle. Froslass IS exclusive to the archetype (49 of 49).
 #
-# La nota de "Contencion" del plan (docs/plan-matchup-marnie-froslass-munkidori)
-# decia que solo los dos mazos de Marnie de deck/rivales/ llevaban estas piezas,
-# asi que ninguna otra medicion de matchup podia moverse. Contra el meta real
-# eso ya no se sostiene: tocar la ventana mueve tambien el matchup Dragapult.
+# The plan's "Containment" note (docs/plan-matchup-marnie-froslass-munkidori)
+# said that only the two Marnie decks of deck/rivales/ carried these pieces,
+# so no other matchup measurement could move. Against the real meta
+# that no longer holds: touching the window also moves the Dragapult matchup.
 #
-# El codigo YA hace lo correcto (la ventana se calcula desde las CARTAS en mesa,
-# no desde el arquetipo). Esto lo FIJA: si alguien "optimiza" gateando la
-# ventana por mazo de Marnie, estos tests lo cazan.
+# The code ALREADY does the right thing (the window is computed from the CARDS on the
+# field, not from the archetype). This PINS it: if somebody "optimises" it by gating the
+# window on the Marnie deck, these tests catch it.
 #
-# OJO con la municion, que es lo que hace distinto este matchup: Adrena-Brain
-# solo mueve contadores que YA existen en el tablero rival. En Marnie la
-# municion es renovable (su propio Froslass carga 10 por chequeo sobre cada
-# cuerpo con habilidad, incluidos sus Munkidori). En un mazo Dragapult SIN
-# Froslass la unica municion son los contadores que NOSOTROS le hemos puesto:
-# con su tablero intacto el movible es 0 -- y eso es correcto, no un fallo.
+# CAREFUL with the ammunition, which is what makes this matchup different: Adrena-Brain
+# only moves counters that ALREADY exist on the opposing board. In Marnie the
+# ammunition is renewable (their own Froslass loads 10 per checkup onto each
+# body with an ability, their Munkidori included). In a Dragapult deck WITHOUT
+# Froslass the only ammunition is the counters WE have put there:
+# with their board intact the movable damage is 0 -- and that is correct, not a bug.
 
 def test_munkidori_enciende_la_ventana_tambien_fuera_de_marnie():
-    """Rival Dragapult con Munkidori: sin un solo Pokemon de Marnie en mesa."""
+    """A Dragapult opponent with Munkidori: without a single Marnie Pokemon on the field."""
     obs = (Escenario(turno=8, paso=60, tac=3)
            .mi_activo(pk(HYDRAPPLE, hp=300, energias=[G, G],
                          fisicas=1, pre_evo=[APPLIN, DIPPLIN]))
@@ -311,7 +311,7 @@ def test_munkidori_enciende_la_ventana_tambien_fuera_de_marnie():
 
 
 def test_la_ventana_crece_con_munkidori_sin_marnie_en_mesa():
-    """El daño movible entra en la ventana aunque el rival no sea Marnie."""
+    """The movable damage enters the window even if the opponent is not Marnie."""
     obs = (Escenario(turno=8, paso=60, tac=3)
            .mi_activo(pk(HYDRAPPLE, hp=300, energias=[G, G],
                          fisicas=1, pre_evo=[APPLIN, DIPPLIN]))
@@ -338,13 +338,13 @@ def test_la_ventana_crece_con_munkidori_sin_marnie_en_mesa():
 
 
 def test_sin_froslass_el_munkidori_sin_municion_no_amenaza():
-    """Control del anterior: mismo tablero, pero el rival INTACTO.
+    """Control for the previous one: the same board, but with the opponent INTACT.
 
-    Adrena-Brain solo mueve contadores existentes. Sin Froslass que los
-    fabrique y sin dano nuestro sobre su mesa, no hay nada que mover: el
-    movible es 0 y la ventana vuelve a ser el snipe pelado. Es la diferencia
-    real entre el matchup Marnie (municion renovable) y un Dragapult que
-    simplemente lleva Munkidori.
+    Adrena-Brain only moves existing counters. With no Froslass to
+    manufacture them and no damage of ours on their board, there is nothing to move: the
+    movable damage is 0 and the window goes back to the bare snipe. It is the real
+    difference between the Marnie matchup (renewable ammunition) and a Dragapult that
+    simply runs Munkidori.
     """
     obs = (Escenario(turno=8, paso=60, tac=3)
            .mi_activo(pk(HYDRAPPLE, hp=300, energias=[G, G],

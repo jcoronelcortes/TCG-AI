@@ -1,8 +1,8 @@
-"""Puntuacion de las opciones `RETREAT`.
+"""Scoring of the `RETREAT` options.
 
-Rama `o.type == OptionType.RETREAT` de la cadena de `agent()`, extraida VERBATIM.
-Desempaqueta del contexto los 60 campos que lee y devuelve los
-11 que reasigna; los demas quedan como estaban, igual que antes.
+The `o.type == OptionType.RETREAT` branch of the `agent()` chain, extracted
+VERBATIM. It unpacks from the context the 60 fields it reads and returns the
+11 it reassigns; the rest stay as they were, just like before.
 """
 
 from cg.api import AreaType, CardType, OptionType, Pokemon
@@ -17,7 +17,7 @@ from ptcg.estado.agente import ESTADO
 
 
 def puntuar(tc, o, score):
-    """Devuelve el puntaje de `o`. Puede devolver `_SALTAR`."""
+    """Returns the score of `o`. It may return `_SALTAR`."""
     _active_snipe_ko_now = tc._active_snipe_ko_now
     _active_snipe_ko_prizes = tc._active_snipe_ko_prizes
     _alakazam_pivot_1prize = tc._alakazam_pivot_1prize
@@ -81,30 +81,30 @@ def puntuar(tc, o, score):
     try:
         _active_reloc = my_state.active[0] if my_state.active else None
         
-        # Regla (user, log 86510119 paso 26, vs Dragapult, PERDIDA): si al
-        # retirar el activo la promocion volveria a subir un Pokemon de la
-        # MISMA especie que el que estamos retirando, la retirada no cambia
-        # nada y solo malgasta la energia del coste de retirada. Se cancela
-        # (score = SCORE_VETO) para dejar al Pokemon en el activo. Dos casos:
-        #   (a) todos los candidatos de banca son la misma especie que el
-        #       activo (el unico candidato es el mismo Pokemon), o
-        #   (b) la promocion prefiere subir un BASICO de 1 premio (tenemos
-        #       Lillie's Determination y NINGUN atacante de banca listo para
-        #       atacar este turno, rival no inmune a ex/habilidad) y ese
-        #       basico volveria a ser la especie del activo (p.ej. Applin
-        #       activo con otro Applin en banca): subir Applin por Applin no
-        #       aporta nada.
+        # Rule (user, log 86510119 step 26, vs Dragapult, LOST): if retreating
+        # the active would make the promotion bring up a Pokemon of the SAME
+        # species as the one we are retreating, the retreat changes nothing and
+        # only wastes the energy of the retreat cost. It is cancelled
+        # (score = SCORE_VETO) to leave the Pokemon in the active spot. Two cases:
+        #   (a) every bench candidate is the same species as the active (the only
+        #       candidate is the same Pokemon), or
+        #   (b) the promotion prefers bringing up a 1-prize BASIC (we have
+        #       Lillie's Determination and NO benched attacker ready to attack
+        #       this turn, opponent not immune to ex/abilities) and that basic
+        #       would again be the active's species (e.g. an active Applin with
+        #       another Applin on the bench): swapping Applin for Applin adds
+        #       nothing.
         _same_species_retreat = False
         if _active_reloc is not None:
             _ss_bench = [bp for bp in (my_state.bench or [])
                          if bp is not None and isinstance(bp, Pokemon)]
             if _ss_bench:
-                # (a) Caso literal: no hay ningun candidato de otra especie.
+                # (a) Literal case: there is no candidate of another species.
                 _ss_only_same = all(bp.id == _active_reloc.id
                                     for bp in _ss_bench)
         
-                # (b) Caso "preferir basico": reproducimos la condicion de la
-                # promocion (`_refresh_promote_prefer_basic`).
+                # (b) "Prefer a basic" case: we reproduce the condition of the
+                # promotion (`_refresh_promote_prefer_basic`).
                 _ss_grass_attach = (
                     hand_counts.get(Basic_Grass_Energy, 0) >= 1
                     and not state.energyAttached)
@@ -129,8 +129,8 @@ def puntuar(tc, o, score):
                     _ss_act_data is not None
                     and not getattr(_ss_act_data, 'stage1', False)
                     and not getattr(_ss_act_data, 'stage2', False))
-                # Basicos no-ex candidatos de banca (los que la promocion
-                # preferiria como muro de 1 premio).
+                # Non-ex basics that are bench candidates (the ones the promotion
+                # would prefer as a 1-prize wall).
                 _ss_bench_basics = []
                 for bp in _ss_bench:
                     _bp_d = card_table.get(bp.id)
@@ -139,10 +139,10 @@ def puntuar(tc, o, score):
                             and not getattr(_bp_d, 'stage2', False)
                             and bp.id not in OUR_EX_IDS):
                         _ss_bench_basics.append(bp.id)
-                # El basico promovido es de la especie del activo si: el
-                # activo es Applin (basico de maxima prioridad) y hay otro
-                # Applin en banca, o todos los basicos candidatos son de la
-                # especie del activo (suba el que suba, misma especie).
+                # The promoted basic is of the active's species if: the active is
+                # an Applin (the top-priority basic) and there is another Applin
+                # on the bench, or every candidate basic is of the active's
+                # species (whichever comes up, same species).
                 _ss_same_basic = False
                 if _ss_bench_basics:
                     if _active_reloc.id == Applin:
@@ -159,11 +159,11 @@ def puntuar(tc, o, score):
         
                 _same_species_retreat = _ss_only_same or _ss_prefer_same
         
-        # Regla: Meganium activo + Hydrapple ex en banca + rival SIN
-        # proteccion-ex (no Crustle/Sylveon/inmunes a ex) => retirar Meganium
-        # para promover a Hydrapple ex (atacante/motor clave). Meganium sigue
-        # en banca, asi que Wild Growth se mantiene. NO aplica vs muros
-        # inmunes a ex, donde Hydrapple ex (ex) no podria golpear.
+        # Rule: Meganium active + Hydrapple ex on the bench + opponent WITHOUT
+        # ex protection (no Crustle/Sylveon/ex-immune bodies) => retreat Meganium
+        # to promote Hydrapple ex (the key attacker/engine). Meganium stays on the
+        # bench, so Wild Growth is kept. It does NOT apply against ex-immune walls,
+        # where Hydrapple ex (an ex) could not hit.
         _meg_retreat_for_hydra = False
         if (_active_reloc is not None and _active_reloc.id == Meganium
                 and can_switch
@@ -226,7 +226,7 @@ def puntuar(tc, o, score):
             elif _active_reloc.id == Hydrapple_ex and _acn_eff >= 2:
                 _acn_base = 30 + 30 * total_grass
             elif _active_reloc.id == Teal_Mask_Ogerpon_ex and _acn_eff >= 3:
-                # Myriad cuenta la energia de AMBOS activos.
+                # Myriad counts the energy of BOTH actives.
                 _acn_base = 30 + 30 * (
                     _acn_e + len(getattr(_acn_op, 'energies', []) or []))
             elif _active_reloc.id == Tapu_Bulu and _acn_eff >= 4:
@@ -244,24 +244,24 @@ def puntuar(tc, o, score):
                 if _acn_dmg > 0 and _acn_dmg >= (_acn_op.hp or 0):
                     _active_can_ko_now = True
         
-        # El activo TAMBIEN "puede noquear ahora" cuando su ataque elige
-        # objetivo y el KO esta en la BANCA rival (Cruel Arrow de Fezandipiti
-        # ex; user, registro_004 paso 54 vs Alakazam). Sin esto el bloque de
-        # arriba solo miraba al activo rival, `_active_can_ko_now` salia
-        # False y la retirada -- que ademas DESCARTA la energia del snipe --
-        # ganaba el menu tirando un premio gratis.
-        # `_active_kos_op_active` conserva el sentido ESTRICTO (el KO cae
-        # sobre el activo rival) para los pivotes que comparan premios.
+        # The active ALSO "can knock out now" when its attack chooses a target
+        # and the KO is on the opposing BENCH (Fezandipiti ex's Cruel Arrow;
+        # user, registro_004 step 54 vs Alakazam). Without this the block above
+        # only looked at the opposing active, `_active_can_ko_now` came out
+        # False and the retreat -- which also DISCARDS the snipe's energy --
+        # won the menu, throwing away a free prize.
+        # `_active_kos_op_active` keeps the STRICT sense (the KO lands on the
+        # opposing active) for the pivots that compare prizes.
         _active_kos_op_active = _active_can_ko_now
         if _active_snipe_ko_now:
             _active_can_ko_now = True
         
-        # Proteger a Hydrapple ex: si nuestro Hydrapple ex activo va a ser
-        # noqueado el proximo turno y no puede tomar un KO este turno, es
-        # mejor retirarlo y promover un atacante de banca no-ex (p.ej.
-        # Dipplin) que si pueda atacar. Hydrapple ex es clave para acelerar
-        # energia y cargar a Tapu Bulu en un solo turno, asi que evitamos
-        # entregarlo (2 premios) por nada.
+        # Protecting Hydrapple ex: if our active Hydrapple ex is going to be
+        # knocked out next turn and cannot take a KO this turn, it is better to
+        # retreat it and promote a non-ex benched attacker (e.g. Dipplin) that
+        # can attack. Hydrapple ex is key for accelerating energy and charging
+        # Tapu Bulu in a single turn, so we avoid handing it over (2 prizes) for
+        # nothing.
         _hydra_ex_protect_retreat = False
         if (_active_reloc is not None and _active_reloc.id == Hydrapple_ex
                 and can_switch and active_ko_likely
@@ -284,30 +284,31 @@ def puntuar(tc, o, score):
                     _hydra_ex_protect_retreat = True
                     break
         
-        # Regla (user): si un Hydrapple ex de BANCA (ya con >=2 efectivas)
-        # puede subir al activo y rematar con un Syrup Storm LETAL sobre el
-        # activo rival, retirar el activo actual para promoverlo y ganar la
-        # partida. Solo cuando se puede cambiar (can_switch). La promocion
-        # posterior elige a ese Hydrapple ex via `_best_promote_card`.
-        # IMPORTANTE (user, log 86338560 paso 114, GANADA vs Mega Lucario):
-        # NO retirar el activo si el PROPIO activo YA puede rematar este turno
-        # (`_active_can_ko_now`). En ese caso subir a otro Hydrapple ex de
-        # banca (mismo tipo, con MENOS energia) solo pagaria el coste de
-        # retirada y reduciria el ataque sin ganar nada: el activo debe atacar.
-        # EXCEPCION (user, log 86412738 paso 145 vs Hops; GENERALIZADA en log
-        # 86505760 paso 55, GANADA vs Alakazam): aunque el activo YA pueda
-        # noquear, si es un ex FRAGIL (2 premios, distinto de Hydrapple y con
-        # menos HP que el muro 330) y un Hydrapple ex de BANCA TAMBIEN puede
-        # rematar (Syrup Storm letal), SIEMPRE se prefiere retirar y atacar con
-        # el Hydrapple ex: mismo KO pero deja el muro de 330 HP como activo en
-        # vez de exponer el ex fragil (Hydrapple aguanta ataques mayores que
-        # Ogerpon en turnos futuros). Regla del user: siempre que un Hydrapple
-        # ex de banca pueda derrotar al rival, es nuestro atacante prioritario.
-        # UNICA excepcion: no pivotar si atacar con el activo YA gana la partida
-        # este turno (my_prize <= premios del activo rival): ahi no hay turno
-        # futuro que proteger, se ataca directo. El pivote NO aplica cuando el
-        # activo es NO-ex (retirarlo para exponer un ex de 2 premios seria peor)
-        # ni cuando el activo ya es el propio Hydrapple ex.
+        # Rule (user): if a BENCHED Hydrapple ex (already at >=2 effective) can
+        # come up to the active spot and finish with a LETHAL Syrup Storm on the
+        # opposing active, retreat the current active to promote it and win the
+        # game. Only when switching is possible (can_switch). The later promotion
+        # chooses that Hydrapple ex via `_best_promote_card`.
+        # IMPORTANT (user, log 86338560 step 114, WON vs Mega Lucario):
+        # do NOT retreat the active if the ACTIVE ITSELF can ALREADY finish this
+        # turn (`_active_can_ko_now`). In that case bringing up another benched
+        # Hydrapple ex (same type, with LESS energy) would only pay the retreat
+        # cost and reduce the attack for nothing: the active must attack.
+        # EXCEPTION (user, log 86412738 step 145 vs Hops; GENERALISED in log
+        # 86505760 step 55, WON vs Alakazam): even if the active can ALREADY
+        # knock out, if it is a FRAGILE ex (2 prizes, other than Hydrapple and
+        # with less HP than the 330 wall) and a BENCHED Hydrapple ex can ALSO
+        # finish (lethal Syrup Storm), retreating and attacking with the
+        # Hydrapple ex is ALWAYS preferred: the same KO but it leaves the 330 HP
+        # wall as the active instead of exposing the fragile ex (Hydrapple takes
+        # bigger attacks than Ogerpon in future turns). User's rule: whenever a
+        # benched Hydrapple ex can defeat the opponent, it is our priority
+        # attacker. The ONLY exception: do not pivot if attacking with the active
+        # ALREADY wins the game this turn (my_prize <= the opposing active's
+        # prizes): there is no future turn to protect there, we attack directly.
+        # The pivot does NOT apply when the active is NON-ex (retreating it to
+        # expose a 2-prize ex would be worse) nor when the active is already the
+        # Hydrapple ex itself.
         _active_ex_fragile_pivot = (
             _active_reloc is not None
             and _active_can_ko_now
@@ -322,15 +323,14 @@ def puntuar(tc, o, score):
                 and op_state.active and op_state.active[0] is not None):
             _hlp_opa = op_state.active[0]
             _hlp_opa_hp = _hlp_opa.hp or 0
-            # Syrup Storm escala con el Grass DEL CAMPO, y la retirada
-            # DESCARTA la energia del activo para pagar su coste: hay que
-            # medir el dano con el Grass que quedara DESPUES del retiro
-            # (user, registro_011 paso 138 vs Dragapult, PERDIDA). Alli el
-            # activo era un Tapu Bulu con 3 Plantas (6 efectivas): con el
-            # Grass previo (10) Syrup Storm daba 330 y "noqueaba" al
-            # Dragapult ex de 320, pero al retirar se descartaban esas 3
-            # Plantas y el ataque real quedaba en 150. Mismo patron que
-            # `_bo_grass_after` en la seleccion del gusteo.
+            # Syrup Storm scales with the Grass ON THE FIELD, and the retreat
+            # DISCARDS the active's energy to pay its cost: the damage has to be
+            # measured with the Grass that will remain AFTER the retreat (user,
+            # registro_011 step 138 vs Dragapult, LOST). There the active was a
+            # Tapu Bulu with 3 Grass (6 effective): with the previous Grass (10)
+            # Syrup Storm gave 330 and "knocked out" the 320 HP Dragapult ex, but
+            # retreating discarded those 3 Grass and the real attack came out at
+            # 150. Same pattern as `_bo_grass_after` in the gust selection.
             _hlp_ret_cost = RETREAT_COST.get(_active_reloc.id, 1)
             _hlp_grass_after = max(
                 0, total_grass - (0 if has_switch_card
@@ -339,33 +339,34 @@ def puntuar(tc, o, score):
                 if _hlp_bp is None or _hlp_bp.id != Hydrapple_ex:
                     continue
                 if len(_hlp_bp.energies) * _grass_mult() < 2:
-                    continue  # no puede pagar Syrup Storm
-                # El pivote de "ex fragil" (`_active_ex_fragile_pivot`) es
-                # el UNICO que retira un activo que YA noquea: no gana ni un
-                # premio (los dos cuerpos son ex de 2) y encima paga la
-                # energia del coste de retirada. Lo unico que lo justifica es
-                # dejar delante al cuerpo que AGUANTA MAS -- y eso se mide
-                # con la vida ACTUAL, no con el HP IMPRESO (user,
-                # registro_014 paso 166 vs Alakazam). Alli el "muro de 330"
-                # era un Hydrapple ex a 90/330 y el activo un Teal Mask
-                # Ogerpon ex a 210/210: los dos noqueaban al Alakazam, asi
-                # que retirar solo servia para poner delante al cuerpo que
-                # muere. `_active_ex_fragile_pivot` mide la fragilidad con
-                # `maxHp < 330`, que es una constante de la carta y no
-                # sabe nada del dano ya recibido; esta comparacion es la que
-                # mira el tablero. Mejora ESTRICTA: empatados, el cambio
-                # sigue costando la energia de la retirada. Mismo criterio
-                # que `_pdx_act_margin` en `_prize_denial_pivot` ("el que
-                # AGUANTA va delante"). No toca la rama de activo
-                # ESTANCADO (`not _active_can_ko_now`), donde el pivote si
-                # compra el KO que no teniamos.
+                    continue  # it cannot pay for Syrup Storm
+                # The "fragile ex" pivot (`_active_ex_fragile_pivot`) is the
+                # ONLY one that retreats an active that ALREADY knocks out: it
+                # gains not a single prize (both bodies are 2-prize ex) and on
+                # top of that pays the energy of the retreat cost. The only
+                # thing that justifies it is leaving in front the body that
+                # ENDURES MORE -- and that is measured with CURRENT HP, not with
+                # PRINTED HP (user, registro_014 step 166 vs Alakazam). There
+                # the "330 wall" was a Hydrapple ex at 90/330 and the active a
+                # Teal Mask Ogerpon ex at 210/210: both knocked out the
+                # Alakazam, so retreating only served to put in front the body
+                # that dies. `_active_ex_fragile_pivot` measures fragility with
+                # `maxHp < 330`, which is a card constant and knows nothing
+                # about damage already taken; this comparison is the one that
+                # looks at the board. STRICT improvement: on a tie, the swap
+                # still costs the retreat energy. Same criterion as
+                # `_pdx_act_margin` in `_prize_denial_pivot` ("the one that
+                # ENDURES goes in front"). It does not touch the STUCK active
+                # branch (`not _active_can_ko_now`), where the pivot does buy
+                # the KO we did not have.
                 if (_active_ex_fragile_pivot
                         and (_hlp_bp.hp or 0) <= (_active_reloc.hp or 0)):
                     continue
-                # No promover un Hydrapple ex al que el activo rival NOQUEA
-                # (user): regalaria 2 premios. En el registro el Hydrapple
-                # estaba a 70/330 y el rival a 2 premios, asi que promoverlo
-                # entregaba la partida. Lo correcto era atacar con el activo.
+                # Do not promote a Hydrapple ex that the opposing active KNOCKS
+                # OUT (user): it would give away 2 prizes. In the record the
+                # Hydrapple was at 70/330 and the opponent at 2 prizes, so
+                # promoting it handed over the game. The right play was to
+                # attack with the active.
                 _hlp_dmg_rival = _op_active_attack_damage_to(
                     _hlp_opa, _hlp_bp,
                     getattr(op_state, 'handCount', None))
@@ -378,28 +379,29 @@ def puntuar(tc, o, score):
                     _hydra_lethal_promote = True
                     break
         
-        # Regla (user, log 86583929 turno 4, vs Alakazam, PERDIDA): pivote de
-        # KO con Teal Mask Ogerpon ex. Si el activo esta ESTANCADO (no puede
-        # noquear este turno, p.ej. un Fezandipiti ex sin las 3 energias de su
-        # ataque) y en la banca hay un Teal Mask Ogerpon ex que, al PROMOVERLO
-        # y usar Teal Dance, alcanza >=3 energias EFECTIVAS y su Myriad Leaf
-        # Shower NOQUEA al activo rival, retirar el activo para subir al Ogerpon
-        # y rematar. La Planta que necesita Teal Dance se obtiene de la mano o,
-        # con Night Stretcher, recuperando una Planta del descarte -- incluida
-        # la que el propio coste de retirada acaba de descartar del activo. El
-        # scorer greedy evaluaba a los Ogerpon de banca a su energia ACTUAL
-        # (via _grd_damage/_bench_attacker_can_ko, que exigen >=3 efectivas) y
-        # nunca modelaba la rampa de Teal Dance tras promover, por eso no "veia"
-        # esta linea. Solo si el rival NO inmuniza a nuestros ex (Ogerpon no
-        # daña a Crustle/Sylveon). len(energies) es EFECTIVA (Wild Growth de
-        # Meganium duplica cada Planta): sin Meganium un Ogerpon a 1 Planta
-        # llega a 2 tras Teal Dance (<3) y el detector no dispara.
-        # El "activo estancado" que exige este pivote ya no es simplemente
-        # `not _active_can_ko_now`: un Fezandipiti ex activo con Cruel Arrow
-        # letal sobre la BANCA rival SI tiene premio hoy (user, registro_004
-        # paso 54). Retirarlo cuesta su energia y expone otro cuerpo, asi que
-        # el pivote solo se le impone cuando el KO del Ogerpon vale MAS
-        # premios que el del snipe; empatado o por debajo, se ataca.
+        # Rule (user, log 86583929 turn 4, vs Alakazam, LOST): KO pivot with
+        # Teal Mask Ogerpon ex. If the active is STUCK (it cannot knock out this
+        # turn, e.g. a Fezandipiti ex without the 3 energies of its attack) and
+        # on the bench there is a Teal Mask Ogerpon ex that, once PROMOTED and
+        # using Teal Dance, reaches >=3 EFFECTIVE energies and whose Myriad Leaf
+        # Shower KNOCKS OUT the opposing active, retreat the active to bring up
+        # the Ogerpon and finish. The Grass that Teal Dance needs comes from hand
+        # or, with Night Stretcher, by recovering a Grass from the discard --
+        # including the one the retreat cost has just discarded from the active.
+        # The greedy scorer evaluated the benched Ogerpon at their CURRENT energy
+        # (via _grd_damage/_bench_attacker_can_ko, which require >=3 effective)
+        # and never modelled the Teal Dance ramp after promoting, which is why it
+        # did not "see" this line. Only if the opponent does NOT make our ex
+        # useless (Ogerpon does not damage Crustle/Sylveon). len(energies) is
+        # EFFECTIVE (Meganium's Wild Growth doubles every Grass): without
+        # Meganium an Ogerpon at 1 Grass reaches 2 after Teal Dance (<3) and the
+        # detector does not fire.
+        # The "stuck active" this pivot requires is no longer simply
+        # `not _active_can_ko_now`: an active Fezandipiti ex with a lethal Cruel
+        # Arrow on the opposing BENCH DOES have a prize today (user, registro_004
+        # step 54). Retreating it costs its energy and exposes another body, so
+        # the pivot is only imposed on it when the Ogerpon's KO is worth MORE
+        # prizes than the snipe's; on a tie or below, we attack.
         _olp_active_stuck = not _active_can_ko_now
         if (not _olp_active_stuck and _active_snipe_ko_now
                 and not _active_kos_op_active
@@ -416,17 +418,17 @@ def puntuar(tc, o, score):
             _olp_opa = op_state.active[0]
             _olp_opa_hp = _olp_opa.hp or 0
             _olp_op_e = len(_olp_opa.energies)
-            # Planta disponible para Teal Dance: en mano, o recuperable con
-            # Night Stretcher desde el descarte (o desde la energia que la
-            # retirada acaba de descartar del activo, que en nuestro mazo es
-            # Planta).
-            # Y ademas tiene que QUEDAR una via para ponerla en el campo
-            # (user, registro_004 paso 54): alli habia una Planta en mano,
-            # pero el adjunte manual ya estaba gastado y los tres Ogerpon
-            # habian usado su Teal Dance, asi que el "remate" era imposible y
-            # la retirada (8900) aplastaba al ataque real del Fezandipiti.
-            # `_grass_attach_route_open` mira justo eso: adjunte manual libre
-            # o alguna habilidad de carga aun sin usar.
+            # Grass available for Teal Dance: in hand, or recoverable with
+            # Night Stretcher from the discard (or from the energy the
+            # retreat has just discarded from the active, which in our deck is
+            # Grass).
+            # And there also has to be a route LEFT to put it on the field
+            # (user, registro_004 step 54): there was a Grass in hand there,
+            # but the manual attachment was already spent and all three Ogerpon
+            # had used their Teal Dance, so the "finisher" was impossible and
+            # the retreat (8900) crushed the Fezandipiti's real attack.
+            # `_grass_attach_route_open` looks at exactly that: a free manual
+            # attachment or some charging ability still unused.
             _olp_ruta_ok = _grass_attach_route_open(
                 state, field_counts, abilities_off=meowth_ability_lock)
             _olp_grass_ok = _olp_ruta_ok and (
@@ -449,18 +451,19 @@ def puntuar(tc, o, score):
                         _ogerpon_lethal_promote = True
                         break
         
-        # Regla (user): un Tapu Bulu CARGADO en el activo que puede noquear
-        # al Pokemon activo rival NO debe retirarse; debe atacar. Al no ser
-        # ex, si lo noquean solo entrega 1 premio, asi que conviene rematar
-        # con el en lugar de gastar el pivote a Hydrapple ex (que si es
-        # noqueado entrega 2 premios). Por eso vetamos el retiro/promocion.
-        # EXCEPCION: en matchups ex-inmunes (Crustle / Cornerstone /
-        # Sylveon), si el activo rival NO pertenece a la linea ex-inmune
-        # (no requiere a Tapu para ser danado) y hay un Pokemon de banca que
-        # lo puede rematar, SI retiramos a Tapu Bulu para reservarlo como
-        # atacante clave contra los muros con proteccion ex. Si el activo
-        # rival ES de la linea ex-inmune, Tapu Bulu ataca (es quien puede
-        # con esos muros).
+        # Rule (user): a CHARGED Tapu Bulu in the active spot that can knock out
+        # the opposing active Pokemon must NOT retreat; it must attack. Since it
+        # is not an ex, if it is knocked out it only hands over 1 prize, so it is
+        # better to finish with it than to spend the pivot to Hydrapple ex (which
+        # if knocked out hands over 2 prizes). That is why we veto the
+        # retreat/promotion.
+        # EXCEPTION: in ex-immune matchups (Crustle / Cornerstone /
+        # Sylveon), if the opposing active does NOT belong to the ex-immune line
+        # (it does not need Tapu to be damaged) and there is a benched Pokemon
+        # that can finish it, we DO retreat Tapu Bulu to keep it as the key
+        # attacker against the walls with ex protection. If the opposing active
+        # IS of the ex-immune line, Tapu Bulu attacks (it is the one that can
+        # handle those walls).
         if (_active_reloc is not None and _active_reloc.id == Tapu_Bulu
                 and _active_can_ko_now):
             _tapu_ex_immune_match = (ESTADO.op_is_crustle_deck
@@ -479,7 +482,7 @@ def puntuar(tc, o, score):
                              and not _tapu_opa_is_immune_line
                              and not op_has_ex_immune_active)
             if not _tapu_reserve:
-                # Tapu Bulu debe atacar: no lo retiramos para promover.
+                # Tapu Bulu must attack: we do not retreat it to promote.
                 _hydra_lethal_promote = False
         
         _op_active_is_cubchoo = bool(
@@ -489,14 +492,13 @@ def puntuar(tc, o, score):
             _bp_cub is not None and _conf_can_attack_pkmn(_bp_cub)
             for _bp_cub in (my_state.bench or []))
         
-        # DESCUADRE DE PREMIOS (user, registro_002 paso 27 vs Raging Bolt; y
-        # vs Mega Abomasnow ex). Nuestro activo es un ex de 2 premios que NO
-        # puede noquear al activo rival este turno y hay un cuerpo de UN
-        # premio en la banca (bajado por la regla del PLAY o previo):
-        # RETIRAR el ex y promover el 1-premio. Su atacante one-shotea a
-        # cualquiera de los nuestros, asi que quien este delante va a caer:
-        # que el KO rival pague 1 premio y no 2 (su mazo, todo ex de 2-3
-        # premios, necesita KOs grandes para ganar a tiempo).
+        # PRIZE MISMATCH (user, registro_002 step 27 vs Raging Bolt; and
+        # vs Mega Abomasnow ex). Our active is a 2-prize ex that canNOT knock
+        # out the opposing active this turn and there is a ONE-prize body on the
+        # bench (put down by the PLAY rule or already there): RETREAT the ex and
+        # promote the 1-prize body. Their attacker one-shots any of ours, so
+        # whoever is in front is going to fall: let the opponent's KO pay 1 prize
+        # and not 2 (their deck, all 2-3 prize ex, needs big KOs to win in time).
         _raging_sac_pivot = (
             _descuadre_matchup
             and _active_reloc is not None
@@ -506,35 +508,37 @@ def puntuar(tc, o, score):
             and any(bp is not None and prize_count(bp) == 1
                     for bp in (my_state.bench or [])))
         
-        # DESCUADRE GENERALIZADO (user, registro_004 paso 37 vs Mega Lucario
-        # ex): mismo patron que `_raging_sac_pivot` pero para CUALQUIER mazo,
-        # detectado con el remate rival REAL en vez de una lista fija de
-        # matchups. Nuestro activo es un ex (2 premios) que SI puede atacar
-        # pero cuyo ataque NO noquea al activo rival (`not _active_can_ko_now`)
-        # y el ataque del activo rival NOQUEA a nuestro ex el proximo turno
-        # (`_op_active_attack_damage_to` >= HP). Si ademas NO hay ningun
-        # atacante LISTO en la banca (no tenemos jugada mejor que preservar el
-        # ex) y hay un cuerpo de 1 premio para poner delante, RETIRAR el ex y
-        # sacrificar el 1-premio: si atacaramos no noqueariamos y el ex moriria
-        # el proximo turno regalando 2 premios; retirandolo cedemos solo 1
-        # premio y conservamos el ex -con su energia- en la banca para
-        # re-promoverlo tras el KO. La promocion elige el basico mas barato
-        # (`_lucario_ko_prefer_basic` / `_ko_prefer_basic_general`). Excluye
-        # los muros inmunes a ex en el activo rival (ahi el ex no ataca y ya
-        # hay logica dedicada: `_ex_stuck_promo_ready` / `_nonex_active_hits_wall`).
-        # No sacrificar-retirar cuando estamos EN RANGO DE REMATE (my_prize<=2):
-        # ahi hay que RACEAR/rematar, no ceder tempo (user, test Dragapult win
-        # engine, my_prize=1 -> atacar). El descuadre defensivo solo aplica
-        # cuando aun faltan >=3 KOs para ganar, donde frenar el 2x1 importa.
-        # El retiro-sacrificio se POSPONE mientras queden jugadas de desarrollo
-        # de este turno (user, registro_004 paso 36): un Supporter aun sin
-        # jugar (p.ej. Xerosic, que descarta mano rival) o un ATACANTE basico
-        # en mano que podemos poner en banca (montar el proximo atacante) valen
-        # mas que retirar YA -- retirar y desarrollar no son excluyentes en el
-        # mismo turno, asi que primero se desarrolla y el retiro sale al final
-        # (paso 37, con la mano ya vaciada de esas jugadas). No se pospone por
-        # items sueltos de bajo valor (p.ej. Unfair Stamp), que no aportan mas
-        # que el retiro con el activo condenado al frente.
+        # GENERALISED MISMATCH (user, registro_004 step 37 vs Mega Lucario
+        # ex): same pattern as `_raging_sac_pivot` but for ANY deck, detected
+        # with the REAL opposing finisher instead of a fixed list of matchups.
+        # Our active is an ex (2 prizes) that CAN attack but whose attack does
+        # NOT knock out the opposing active (`not _active_can_ko_now`) and the
+        # opposing active's attack KNOCKS OUT our ex next turn
+        # (`_op_active_attack_damage_to` >= HP). If there is also NO READY
+        # attacker on the bench (we have no better play than preserving the ex)
+        # and there is a 1-prize body to put in front, RETREAT the ex and
+        # sacrifice the 1-prize body: if we attacked we would not knock out and
+        # the ex would die next turn giving away 2 prizes; retreating it we
+        # concede only 1 prize and keep the ex -- with its energy -- on the bench
+        # to re-promote it after the KO. The promotion chooses the cheapest basic
+        # (`_lucario_ko_prefer_basic` / `_ko_prefer_basic_general`). It excludes
+        # ex-immune walls in the opposing active spot (there the ex does not
+        # attack and there is already dedicated logic: `_ex_stuck_promo_ready` /
+        # `_nonex_active_hits_wall`).
+        # Do not sacrifice-retreat when we are IN FINISHING RANGE (my_prize<=2):
+        # there we have to RACE/finish, not concede tempo (user, Dragapult win
+        # engine test, my_prize=1 -> attack). The defensive mismatch only applies
+        # when >=3 KOs are still needed to win, where stopping the 2-for-1 matters.
+        # The retreat-sacrifice is POSTPONED while there are development plays
+        # left this turn (user, registro_004 step 36): a Supporter still unplayed
+        # (e.g. Xerosic, which discards the opposing hand) or a basic ATTACKER in
+        # hand we can put on the bench (assembling the next attacker) are worth
+        # more than retreating NOW -- retreating and developing are not mutually
+        # exclusive in the same turn, so we develop first and the retreat comes
+        # out at the end (step 37, with the hand already emptied of those plays).
+        # It is not postponed for loose low-value items (e.g. Unfair Stamp),
+        # which contribute no more than the retreat with the doomed active in
+        # front.
         _doomed_pending_play = False
         for _dpo in select.option:
             if _dpo.type != OptionType.PLAY:
@@ -571,83 +575,83 @@ def puntuar(tc, o, score):
             _des_opa = op_state.active[0]
             _des_op_dmg = _op_active_attack_damage_to(
                 _des_opa, _active_reloc, getattr(op_state, 'handCount', None))
-            # GUARDA DEL SNIPE (user, registro_004 t4 vs Marnie's
-            # Grimmsnarl, PERDIDA): esconder el ex en la banca solo niega
-            # premios si ALLI SOBREVIVE. Contra un atacante que ademas pega
-            # a la banca (Shadow Bullet: 180 al activo + 30 a un banquillo;
-            # Phantom Dive, Jetting Blow...) un ex ya herido por debajo de
-            # ese chip muere igual, y entonces la retirada CONCEDE MAS:
-            #   quedarse  -> 2 premios (el ex activo noqueado)
-            #   retirarse -> 1 (el cuerpo promovido) + 2 (el ex sniped) = 3
-            # La aritmetica nunca favorece retirarse en ese caso: como
-            # mucho empata (si el snipe iba a matar otro cuerpo de banca
-            # igual de caro), asi que el pivote se apaga.
+            # SNIPE GUARD (user, registro_004 t4 vs Marnie's
+            # Grimmsnarl, LOST): hiding the ex on the bench only denies
+            # prizes if it SURVIVES THERE. Against an attacker that also hits
+            # the bench (Shadow Bullet: 180 to the active + 30 to a benched
+            # body; Phantom Dive, Jetting Blow...) an ex already wounded below
+            # that chip dies anyway, and then the retreat CONCEDES MORE:
+            #   staying   -> 2 prizes (the knocked-out active ex)
+            #   retreating -> 1 (the promoted body) + 2 (the sniped ex) = 3
+            # The arithmetic never favours retreating in that case: at best it
+            # ties (if the snipe was going to kill another equally expensive
+            # benched body), so the pivot switches off.
             #
-            # Se mide con el ATACANTE concreto (`OP_BENCH_SNIPE_DAMAGE` del
-            # ACTIVO rival), no con el flag de mesa `_op_bench_snipe_dmg`:
-            # ese cae a `OP_BENCH_SNIPE_DEFAULT` en cuanto hay CUALQUIER
-            # amenaza de goteo en juego, y apagar el pivote por un sniper
-            # que no esta al frente cuesta partidas (medido vs
-            # crustle/Kangaskhan: -3.1 puntos con la version amplia).
+            # It is measured with the specific ATTACKER (`OP_BENCH_SNIPE_DAMAGE`
+            # of the opposing ACTIVE), not with the board flag
+            # `_op_bench_snipe_dmg`: that one falls back to
+            # `OP_BENCH_SNIPE_DEFAULT` as soon as there is ANY drip threat in
+            # play, and switching the pivot off because of a sniper that is not
+            # in front costs games (measured vs crustle/Kangaskhan: -3.1 points
+            # with the broad version).
             _des_snipe = OP_BENCH_SNIPE_DAMAGE.get(_des_opa.id, 0)
             if (_des_op_dmg >= (_active_reloc.hp or 0)
                     and _des_snipe < (_active_reloc.hp or 0)):
                 _doomed_ex_sac_pivot = True
         
         if _suicide_swap_win_promote:
-            # RELEVO DEL REMATE SUICIDA (user, registro_016 paso 184 vs
-            # Marnie's Grimmsnarl, EMPATE): el ataque del activo noquea pero
-            # su AUTO-DANO lo mata, y con ese cadaver el rival cobra su
-            # ultimo premio -> empate (o derrota). En la banca hay un
-            # rematador que gana LIMPIO: retirar para promoverlo es la unica
-            # jugada que convierte el 0-0 en victoria, asi que va por encima
-            # de cualquier otro motivo de retiro (incluidos los pivotes
-            # letales de Hydrapple/Ogerpon, que persiguen el MISMO premio con
-            # menos urgencia). El tier de orden de jugada (`_TIER_WIN_ATTACK`)
-            # la sube ademas por encima de cargas y desarrollo, que si no
-            # dominarian por TIER pese a su menor score.
+            # RELIEF OF THE SUICIDAL FINISHER (user, registro_016 step 184 vs
+            # Marnie's Grimmsnarl, DRAW): the active's attack knocks out but
+            # its SELF-DAMAGE kills it, and with that corpse the opponent takes
+            # their last prize -> a draw (or a loss). On the bench there is a
+            # finisher that wins CLEANLY: retreating to promote it is the only
+            # play that turns the 0-0 into a win, so it goes above any other
+            # reason to retreat (including the lethal Hydrapple/Ogerpon pivots,
+            # which chase the SAME prize with less urgency). The play-order tier
+            # (`_TIER_WIN_ATTACK`) also raises it above charges and development,
+            # which would otherwise dominate by TIER despite their lower score.
             score = 9600
         elif _win_ko_active_via_promote:
-            # MATCH POINT AL ACTIVO (user, registro_010 paso 144 vs Marnie's
-            # Grimmsnarl ex, PERDIDA): noquear al ACTIVO rival cobra los
-            # premios que faltan y el rematador esta en la BANCA. Es la
-            # MISMA jugada que el relevo del remate suicida -- cerrar la
-            # partida este turno --, asi que comparte score y `_TIER_WIN_ATTACK`:
-            # sin el tier, cualquier carga de energia (tier ENERGY) la
-            # aplastaria por ORDEN pese a valer menos. Excluyente con
-            # `_suicide_swap_win_promote`: la bandera exige que el activo
-            # ACTUAL no remate.
+            # MATCH POINT ON THE ACTIVE (user, registro_010 step 144 vs Marnie's
+            # Grimmsnarl ex, LOST): knocking out the opposing ACTIVE takes the
+            # prizes we are missing and the finisher is on the BENCH. It is the
+            # SAME play as the relief of the suicidal finisher -- closing the
+            # game this turn -- so it shares its score and `_TIER_WIN_ATTACK`:
+            # without the tier, any energy charge (tier ENERGY) would crush it
+            # by ORDER despite being worth less. Mutually exclusive with
+            # `_suicide_swap_win_promote`: that flag requires the CURRENT active
+            # not to finish.
             score = 9600
         elif _hydra_lethal_promote:
-            # Retirar el activo para promover al Hydrapple ex de banca cuyo
-            # Syrup Storm es LETAL y rematar. Maxima prioridad de retiro.
+            # Retreat the active to promote the benched Hydrapple ex whose
+            # Syrup Storm is LETHAL and finish. Top retreat priority.
             score = 9000
         elif _ogerpon_lethal_promote:
-            # Retirar el activo estancado para promover un Teal Mask Ogerpon
-            # ex de banca y rematar con Myriad Leaf Shower tras Teal Dance
-            # (user, log 86583929 turno 4 vs Alakazam). Prioridad de retiro
-            # equiparada a la del pivote de Hydrapple: cobrar el premio AHORA.
-            # Las acciones posteriores (Night Stretcher para recuperar la
-            # Planta, Teal Dance sobre el nuevo activo y el ataque) ya las
-            # habilitan sus scorers (_td_ko_on_active da 31500 al Teal Dance
-            # que habilita el KO, y el scorer de ATTACK remata si es letal).
+            # Retreat the stuck active to promote a benched Teal Mask Ogerpon
+            # ex and finish with Myriad Leaf Shower after Teal Dance
+            # (user, log 86583929 turn 4 vs Alakazam). Retreat priority equal
+            # to that of the Hydrapple pivot: take the prize NOW.
+            # The later actions (Night Stretcher to recover the Grass, Teal
+            # Dance on the new active and the attack) are already enabled by
+            # their own scorers (_td_ko_on_active gives 31500 to the Teal Dance
+            # that enables the KO, and the ATTACK scorer finishes if it is lethal).
             score = 8900
         elif (_op_active_is_cubchoo and can_switch
                 and not _cub_bench_attacker_ready):
-            # Matchup vs Cubchoo: su ataque deja a nuestro activo sin poder
-            # atacar el proximo turno. Retirar ahora para subir a un Pokemon
-            # de banca que TAMPOCO puede atacar (sin energia suficiente) solo
-            # lo expone al mismo ataque y desperdicia el pivote. Mientras no
-            # haya un atacante LISTO en banca, NO se retira: se mantiene el
-            # activo (Cubchoo pega poco) y se aprovecha el turno para cargar
-            # energia hasta dejar listo a un atacante de banca. Cuando ese
-            # atacante este cargado, _cub_bench_attacker_ready sera True y se
-            # permitira el retiro para subirlo y atacar en nuestro turno.
+            # Cubchoo matchup: their attack leaves our active unable to attack
+            # next turn. Retreating now to bring up a benched Pokemon that ALSO
+            # cannot attack (not enough energy) only exposes it to the same
+            # attack and wastes the pivot. While there is no READY attacker on
+            # the bench, we do NOT retreat: we keep the active (Cubchoo hits for
+            # little) and use the turn to charge energy until a benched attacker
+            # is ready. When that attacker is charged, _cub_bench_attacker_ready
+            # will be True and the retreat will be allowed to bring it up and
+            # attack on our turn.
             score = SCORE_VETO
         elif (_lucario_sac_pivot and _lucario_sac_available
                 and bench_count >= 1 and can_switch):
-            # Retirar el Ogerpon ex para no entregar 2 premios al Mega Lucario;
-            # despues promoveremos un sacrificio de 1 premio.
+            # Retreat the Ogerpon ex so as not to hand 2 prizes to the Mega Lucario;
+            # afterwards we will promote a 1-prize sacrifice.
             score = 8000
         elif _conf_should_retreat:
             score = 4000 + condition_urgency
@@ -655,88 +659,90 @@ def puntuar(tc, o, score):
         
             score = 6000
         elif (_ex_stuck_promo_ready or _cubchoo_lock_stuck) and can_switch:
-            # Nuestro activo es un ex bloqueado por un muro inmune (Crustle /
-            # Sylveon) y hay un atacante no-ex LISTO en banca: retirar para
-            # promover al que SI golpea al muro (el mas fuerte se elige en
-            # `_best_promote_card`). Evita malgastar el turno atacando por 0.
-            # `_cubchoo_lock_stuck`: mismo patron con el activo Hydrapple ex
-            # BLOQUEADO por Snotted Up y un atacante de banca listo (paso 82).
+            # Our active is an ex blocked by an immune wall (Crustle /
+            # Sylveon) and there is a READY non-ex attacker on the bench: retreat to
+            # promote the one that DOES hit the wall (the strongest is chosen in
+            # `_best_promote_card`). It avoids wasting the turn attacking for 0.
+            # `_cubchoo_lock_stuck`: the same pattern with the active Hydrapple ex
+            # BLOCKED by Snotted Up and a ready benched attacker (step 82).
             score = 6000
         elif _hydra_pivot_active:
-            # Pivote defensivo: retirar al activo fragil y subir a Hydrapple
-            # ex (vida completa) que tambien noquea. Prioridad alta para que
-            # gane sobre atacar con el activo fragil (que moriria el proximo
-            # turno). El plan ya apunta a Hydrapple, por lo que la opcion de
-            # ATACAR con el activo queda suprimida (plan.attacker >= 1).
+            # Defensive pivot: retreat the fragile active and bring up Hydrapple
+            # ex (at full HP) which also knocks out. High priority so it beats
+            # attacking with the fragile active (which would die next turn). The
+            # plan already points at Hydrapple, so the option of ATTACKING with
+            # the active is suppressed (plan.attacker >= 1).
             score = 6500
         elif _teal_wall_pivot and can_switch:
-            # Activo Teal Mask Ogerpon ex condenado que NO puede atacar: ya
-            # se uso Teal Dance (adjunto 1 Grass -> paga la retirada de 1).
-            # Retirar y subir al cuerpo mas fuerte de banca (Hydrapple ex,
-            # 330 HP) aunque aun no pueda atacar: no regalar el activo por
-            # nada y poner un muro. La promocion elige el de mas vida.
+            # A doomed active Teal Mask Ogerpon ex that CANNOT attack: Teal
+            # Dance has already been used (1 Grass attached -> it pays the
+            # retreat cost of 1). Retreat and bring up the strongest body on
+            # the bench (Hydrapple ex, 330 HP) even if it cannot attack yet: do
+            # not give the active away for nothing and put up a wall. The
+            # promotion chooses the one with the most HP.
             score = 6450
         elif _hydra_wall_pivot:
-            # Activo Teal Mask Ogerpon ex condenado que SI puede atacar pero
-            # NO noquea (muro Hydrapple ex sano en banca). Retirar y subir al
-            # muro (330 HP) que sobrevive al remate rival y sigue atacando
-            # (Syrup Storm 330), en vez de atacar con el Ogerpon fragil que
-            # moriria regalando 2 premios. El plan apunta a Hydrapple, asi que
-            # ATACAR con el activo queda suprimido (plan.attacker >= 1).
+            # A doomed active Teal Mask Ogerpon ex that CAN attack but does
+            # NOT knock out (a healthy Hydrapple ex wall on the bench). Retreat
+            # and bring up the wall (330 HP) which survives the opposing
+            # finisher and keeps attacking (Syrup Storm 330), instead of
+            # attacking with the fragile Ogerpon which would die giving away 2
+            # prizes. The plan points at Hydrapple, so ATTACKING with the active
+            # is suppressed (plan.attacker >= 1).
             score = 6450
         elif _tapu_sac_pivot:
-            # Sacrificio de premios (user): nuestro activo es un ex de 2
-            # premios en riesgo y un Tapu Bulu de banca (1 premio) listo puede
-            # noquear al activo rival. Retirar el ex y subir a Tapu Bulu para
-            # atacar: mismo KO, pero si nos noquean entregamos 1 premio en vez
-            # de 2. Prioridad alta: gana incluso cuando el activo tambien puede
-            # noquear ahora (_active_can_ko_now). El plan apunta a Tapu, asi que
-            # la opcion de ATACAR con el activo queda suprimida (plan.attacker>=1).
+            # Prize sacrifice (user): our active is a 2-prize ex at risk and a
+            # ready benched Tapu Bulu (1 prize) can knock out the opposing
+            # active. Retreat the ex and bring up Tapu Bulu to attack: the same
+            # KO, but if we are knocked out we hand over 1 prize instead of 2.
+            # High priority: it wins even when the active can also knock out now
+            # (_active_can_ko_now). The plan points at Tapu, so the option of
+            # ATTACKING with the active is suppressed (plan.attacker>=1).
             score = 6600
         elif _raging_sac_pivot:
-            # Descuadre vs Raging Bolt (ver el flag arriba). 6540: junto a
-            # los demas sacrificios de premios (6450-6600), sobre el veto
-            # generico "el activo puede atacar" (_grd_prefer_attack) que
-            # aqui seria un error: atacar sin noquear regala 2 premios.
+            # Mismatch vs Raging Bolt (see the flag above). 6540: alongside
+            # the other prize sacrifices (6450-6600), above the generic veto
+            # "the active can attack" (_grd_prefer_attack), which here would
+            # be a mistake: attacking without knocking out gives away 2 prizes.
             score = 6540
         elif _prize_denial_pivot:
-            # Negacion de premios (user): retirar el ex activo CONDENADO (2
-            # premios) que si atacamos igual moriria el proximo turno dando al
-            # rival los premios para GANAR, y subir un cuerpo de 1 premio que
-            # ataca. Asi el KO rival del proximo turno NO cierra la partida. El
-            # plan apunta a ese cuerpo (plan.attacker>=1), por lo que ATACAR con
-            # el activo condenado queda suprimido.
+            # Prize denial (user): retreat the DOOMED active ex (2
+            # prizes) which, if we attacked, would die next turn anyway giving
+            # the opponent the prizes to WIN, and bring up a 1-prize body that
+            # attacks. That way the opponent's KO next turn does NOT close the
+            # game. The plan points at that body (plan.attacker>=1), so ATTACKING
+            # with the doomed active is suppressed.
             score = 6550
         elif _doomed_ex_sac_pivot:
-            # Descuadre generalizado (user, registro_004 paso 37 vs Mega
-            # Lucario ex): el ex activo puede atacar pero NO noquea y el rival
-            # lo remata el proximo turno, sin atacante de banca listo. Retirar
-            # el ex y sacrificar un cuerpo de 1 premio (cede 1 en vez de 2 y
-            # preserva el ex). Mismo tier que los demas sacrificios de premios,
-            # por debajo del veto "el activo puede atacar" que aqui seria un
-            # error (atacar sin noquear regala 2 premios).
+            # Generalised mismatch (user, registro_004 step 37 vs Mega
+            # Lucario ex): the active ex can attack but does NOT knock out and the
+            # opponent finishes it next turn, with no ready benched attacker.
+            # Retreat the ex and sacrifice a 1-prize body (concede 1 instead of 2
+            # and preserve the ex). Same tier as the other prize sacrifices,
+            # below the "the active can attack" veto which here would be a
+            # mistake (attacking without knocking out gives away 2 prizes).
             score = 6530
         elif _meg_retreat_for_hydra and not _active_can_ko_now:
-            # Meganium activo: subir a Hydrapple ex de banca (rival sin
-            # proteccion-ex). Prioridad alta para que gane sobre atacar con
-            # Meganium o mantenerlo. Excepcion: si Meganium noquea AHORA
-            # (_active_can_ko_now) se queda para tomar el premio.
+            # Active Meganium: bring up the benched Hydrapple ex (opponent with
+            # no ex protection). High priority so it beats attacking with
+            # Meganium or keeping it. Exception: if Meganium knocks out NOW
+            # (_active_can_ko_now) it stays to take the prize.
             score = 6400
         elif _wall_ko_promote is not None and can_switch:
-            # RELEVO LETAL CONTRA EL MURO (user, registro_018 paso 113 vs
-            # Crustle, PERDIDA): el activo golpea al muro pero NO lo remata y
-            # en banca hay un cuerpo no bloqueado que SI (Meganium 140 vs
-            # Crustle de 170 <- Tapu Bulu 220). Retirar y rematar. Va por
-            # ENCIMA del veto `_nonex_active_hits_wall` -- que ya se apaga en
-            # este caso -- y de los pivotes de sacrificio: cobrar el premio
-            # ahora manda. El plan apunta al relevo, asi que ATACAR con el
-            # activo queda suprimido.
+            # LETHAL RELIEF AGAINST THE WALL (user, registro_018 step 113 vs
+            # Crustle, LOST): the active hits the wall but does NOT finish it and
+            # on the bench there is an unblocked body that DOES (Meganium 140 vs
+            # a 170 Crustle <- Tapu Bulu 220). Retreat and finish. It goes ABOVE
+            # the `_nonex_active_hits_wall` veto -- which is already switched off
+            # in this case -- and above the sacrifice pivots: taking the prize
+            # now rules. The plan points at the relief, so ATTACKING with the
+            # active is suppressed.
             score = 6700
         elif _nonex_active_hits_wall:
-            # user, log 86406907 paso 87, GANADA vs Crustle: nuestro activo
-            # es un atacante NO-ex (p.ej. Meganium) que SI golpea al muro
-            # inmune-a-ex (Crustle activo). NUNCA se retira: retirarlo solo
-            # promoveria un ex de banca que hace 0 al muro. Debe ATACAR.
+            # user, log 86406907 step 87, WON vs Crustle: our active is a
+            # NON-ex attacker (e.g. Meganium) that DOES hit the ex-immune wall
+            # (active Crustle). It NEVER retreats: retreating would only
+            # promote a benched ex that does 0 to the wall. It must ATTACK.
             score = SCORE_VETO
         elif _grd_prefer_attack:
         
@@ -780,8 +786,8 @@ def puntuar(tc, o, score):
         
             NON_ATTACKERS = (Meganium, Meowth_ex, Chikorita, Bayleef, Applin)
         
-            # Meganium incluido: puede atacar (req 4 efectivo) y debe contar
-            # como atacante disponible en banca. Fuente unica: MAIN_ATTACKERS.
+            # Meganium included: it can attack (req 4 effective) and must count
+            # as an available benched attacker. Single source: MAIN_ATTACKERS.
             STRATEGIC_ATTACKERS = MAIN_ATTACKERS
         
             _bench_ready_for_retreat = False
@@ -825,9 +831,9 @@ def puntuar(tc, o, score):
                 _opa_km_hp = (_opa_km.hp or 0) if _opa_km is not None else 0
         
                 def _meg_blk_ko(_p):
-                    # ¿este atacante no-ex noquea al activo rival (Crustle) este turno?
-                    # len(energies) YA es la energia EFECTIVA (Wild Growth ya
-                    # aplicado en la observacion) -> Solar Beam (140) con 4.
+                    # does this non-ex attacker knock out the opposing active (Crustle) this
+                    # turn? len(energies) is ALREADY the EFFECTIVE energy (Wild Growth
+                    # already applied in the observation) -> Solar Beam (140) with 4.
                     if _p is None or _opa_km is None or _opa_km_hp <= 0:
                         return False
                     _e = len(_p.energies)
@@ -936,24 +942,25 @@ def puntuar(tc, o, score):
                             score = SCORE_VETO
             elif (not can_attack) and can_switch and _bench_ready_for_retreat:
         
-                # GUARDA "no cambiar un ex por un cuerpo peor" (user,
-                # registro_009 vs Archaludon ex): retirar un ex del ACTIVO
-                # solo compensa si el cuerpo que sube (a) NOQUEA al activo
-                # rival -- cobra premio YA, sea de 1 o de 2 -- o (b) aguanta
-                # AL MENOS lo mismo que el que baja (pivote a un muro igual
-                # o mayor). Cambiar un Hydrapple ex de 330 PV por un Teal
-                # Mask Ogerpon ex de 210 "porque el segundo puede atacar"
-                # tira el muro y pone delante un cuerpo de 2 premios mas
-                # facil de derrotar: el rival cobra lo mismo con menos
-                # esfuerzo. Y si el que sube ni remata ni aguanta, el chip
-                # no paga el cambio. Deck-agnostica: mira vida, KO efectivo
-                # y coste de retirada, no cartas concretas.
+                # GUARD "do not swap an ex for a worse body" (user,
+                # registro_009 vs Archaludon ex): retreating an ex from the
+                # ACTIVE spot only pays off if the body coming up (a) KNOCKS
+                # OUT the opposing active -- taking a prize NOW, whether 1 or
+                # 2 -- or (b) endures AT LEAST as much as the one going down
+                # (a pivot to an equal or bigger wall). Swapping a 330 HP
+                # Hydrapple ex for a 210 HP Teal Mask Ogerpon ex "because the
+                # second one can attack" throws the wall away and puts in
+                # front a 2-prize body that is easier to defeat: the opponent
+                # takes the same prizes with less effort. And if the one
+                # coming up neither finishes nor endures, the chip damage does
+                # not pay for the swap. Deck-agnostic: it looks at HP,
+                # effective KO and retreat cost, not at specific cards.
                 _xx_act = active
                 _xx_op = _active_of(op_state)
                 _xx_act_hp = (_xx_act.hp or 0) if _xx_act is not None else 0
                 _xx_vale = False
                 if _xx_act is None or _xx_act.id not in OUR_EX_IDS:
-                    _xx_vale = True   # el activo no es un ex: regla no aplica
+                    _xx_vale = True   # the active is not an ex: the rule does not apply
                 else:
                     for _xx_bp in (my_state.bench or []):
                         if _xx_bp is None:
@@ -963,9 +970,9 @@ def puntuar(tc, o, score):
                             continue
                         _xx_e = len(_xx_bp.energies)
                         if _xx_e * _grass_mult() < _xx_req:
-                            continue  # no es un atacante listo
+                            continue  # it is not a ready attacker
                         if (_xx_bp.hp or 0) >= _xx_act_hp:
-                            _xx_vale = True   # pivote a un muro igual o mayor
+                            _xx_vale = True   # a pivot to an equal or bigger wall
                             break
                         if _xx_op is not None:
                             _xx_base = _attacker_base_damage(
@@ -1074,14 +1081,14 @@ def puntuar(tc, o, score):
                             state.turn > 1):
                         _has_attacker_in_hand = True
         
-                # ¿Hay en la banca un atacante REALMENTE listo para atacar
-                # este turno? No basta con que exista un atacante por
-                # identidad (p.ej. un Teal ex): debe tener la energia
-                # efectiva suficiente (Wild Growth incluido), o poder
-                # completarla adjuntando UNA energia de Planta este turno.
-                # Sin esta comprobacion se retiraba el activo para subir a
-                # un atacante SIN cargar, que tampoco podia atacar,
-                # desperdiciando el turno y el coste de retirada.
+                # Is there a benched attacker REALLY ready to attack this
+                # turn? It is not enough for an attacker to exist by
+                # identity (e.g. a Teal ex): it has to have enough
+                # effective energy (Wild Growth included), or be able to
+                # complete it by attaching ONE Grass energy this turn.
+                # Without this check the active was retreated to bring up
+                # an UNCHARGED attacker, which could not attack either,
+                # wasting the turn and the retreat cost.
                 _grass_attach_this_turn = (
                     hand_counts.get(Basic_Grass_Energy, 0) >= 1
                     and not state.energyAttached)
@@ -1101,14 +1108,14 @@ def puntuar(tc, o, score):
                         _bench_attacker_ready = True
                         break
         
-                # Pivote de rescate: si el activo es una pre-evolucion FRAGIL
-                # (Chikorita/Bayleef) CONDENADA este turno (probable KO) y en la
-                # banca hay un cuerpo que SOBREVIVE al mejor golpe rival, conviene
-                # RETIRAR aunque el atacante de banca no pueda atacar todavia:
-                # resguardamos la pre-evolucion (se evoluciona luego en banca),
-                # subimos un muro que aguanta y refrescamos la mano (Lillie's se
-                # habilita tras evolucionar). Mantener el cuerpo de poca vida al
-                # frente solo lo entrega gratis y frena la linea de evolucion.
+                # Rescue pivot: if the active is a FRAGILE pre-evolution
+                # (Chikorita/Bayleef) DOOMED this turn (a likely KO) and on the
+                # bench there is a body that SURVIVES the opponent's best hit, it is
+                # worth RETREATING even if the benched attacker cannot attack yet:
+                # we shelter the pre-evolution (it evolves later on the bench), we
+                # bring up a wall that endures and we refill the hand (Lillie's
+                # becomes available after evolving). Keeping the low-HP body in
+                # front only gives it away for free and stalls the evolution line.
                 _fragile_doomed_pivot = False
                 if (can_switch and active.id in (Chikorita, Bayleef)
                         and (active_ko_likely
@@ -1120,25 +1127,25 @@ def puntuar(tc, o, score):
                             _fragile_doomed_pivot = True
                             break
         
-                # Pivote de LINEA EVOLUTIVA (user, registro_003 paso 29 vs
-                # Dragapult, PERDIDA): el activo es un Chikorita con Bayleef
-                # en la mano. El scorer de EVOLVE ya VETA evolucionar en el
-                # ACTIVO cuando la pre-evolucion puede pagar su retirada
-                # ("conviene RETIRARLO primero y evolucionarlo ya en la
-                # banca", ver la rama Bayleef/_is_active), pero aqui el
-                # retiro quedaba vetado porque el atacante de banca (Tapu
-                # Bulu) aun no tenia energia, asi que el agente se quedaba
-                # con el Chikorita arriba y gastaba el turno en Growl (0 de
-                # dano) con la linea de Meganium muerta en la mano. Retirar
-                # es la jugada: sube un cuerpo con mas vida y el Chikorita
-                # evoluciona en la BANCA -- con Forest of Vitality en juego,
-                # incluso la cadena Chikorita->Bayleef->Meganium entera este
-                # mismo turno. Ademas Wild Growth de Meganium DUPLICA cada
-                # Planta: baja de 4 a 2 las Plantas FISICAS que Tapu Bulu
-                # necesita para Wood Hammer. Solo si la pre-evolucion puede
-                # evolucionar de verdad este turno (lleva en juego desde el
-                # inicio del turno, o Forest lo permite aunque acabe de
-                # jugarse) y hay un cuerpo en banca al que promover.
+                # EVOLUTION LINE pivot (user, registro_003 step 29 vs
+                # Dragapult, LOST): the active is a Chikorita with a Bayleef
+                # in hand. The EVOLVE scorer already VETOES evolving in the
+                # ACTIVE spot when the pre-evolution can pay its retreat
+                # ("it is better to RETREAT it first and evolve it on the
+                # bench", see the Bayleef/_is_active branch), but here the
+                # retreat was vetoed because the benched attacker (Tapu
+                # Bulu) had no energy yet, so the agent kept the Chikorita
+                # up front and spent the turn on Growl (0 damage) with the
+                # Meganium line dead in hand. Retreating is the play: it
+                # brings up a body with more HP and the Chikorita evolves on
+                # the BENCH -- with Forest of Vitality in play, even the
+                # whole Chikorita->Bayleef->Meganium chain that same turn.
+                # Besides, Meganium's Wild Growth DOUBLES every Grass: it
+                # lowers from 4 to 2 the PHYSICAL Grass Tapu Bulu needs for
+                # Wood Hammer. Only if the pre-evolution can really evolve
+                # this turn (it has been in play since the start of the
+                # turn, or Forest allows it even if it was just played) and
+                # there is a body on the bench to promote.
                 _evo_line_bench_pivot = (
                     can_switch
                     and active.id == Chikorita
@@ -1150,17 +1157,18 @@ def puntuar(tc, o, score):
         
                 if active.id in (Chikorita, Bayleef, Meganium):
         
-                    # Regla (user, log 86607718 turno 2, vs Crustle, PERDIMOS):
-                    # vs Crustle, si el ACTIVO es un Chikorita y NO hay ningun
-                    # Chikorita en la banca, la prioridad es RETIRARLO (para
-                    # evolucionarlo a Meganium en banca y subir un cuerpo util),
-                    # AUNQUE en la banca no haya todavia un atacante LISTO (el
-                    # veto de "atacante de banca sin energia" de abajo lo
-                    # bloqueaba). Chikorita activo es un lastre que no daña al
-                    # muro. Requiere poder retirar (can_switch: ya cargamos 1
-                    # Planta al Chikorita, ver energy_score) y tener un cuerpo en
-                    # banca al que promover. La promocion prefiere un atacante y,
-                    # si no hay, un ex (Ogerpon ex primero, ver _best_promote).
+                    # Rule (user, log 86607718 turn 2, vs Crustle, WE LOST):
+                    # vs Crustle, if the ACTIVE is a Chikorita and there is NO
+                    # Chikorita on the bench, the priority is to RETREAT it (to
+                    # evolve it into Meganium on the bench and bring up a useful
+                    # body), EVEN IF there is not yet a READY attacker on the
+                    # bench (the "benched attacker with no energy" veto below
+                    # blocked it). An active Chikorita is a burden that does not
+                    # damage the wall. It requires being able to retreat
+                    # (can_switch: we already charged 1 Grass onto the Chikorita,
+                    # see energy_score) and having a body on the bench to promote.
+                    # The promotion prefers an attacker and, failing that, an ex
+                    # (Ogerpon ex first, see _best_promote).
                     if (ESTADO.op_is_crustle_deck and active.id == Chikorita
                             and field_counts.get(Chikorita, 0) <= 1
                             and bench_count >= 1):
@@ -1168,24 +1176,24 @@ def puntuar(tc, o, score):
                     elif _has_bench_attacker and _bench_attacker_ready:
                         score = 6000
                     elif _fragile_doomed_pivot:
-                        # Activo fragil condenado: retirar para subir un cuerpo
-                        # que sobrevive y resguardar la pre-evolucion, aunque el
-                        # atacante de banca no pueda atacar aun. Gana sobre atacar
-                        # con un cuerpo que morira el proximo turno.
+                        # A doomed fragile active: retreat to bring up a body
+                        # that survives and shelter the pre-evolution, even if the
+                        # benched attacker cannot attack yet. It beats attacking
+                        # with a body that will die next turn.
                         score = 5800
                     elif _evo_line_bench_pivot:
-                        # Chikorita activo con Bayleef en mano: retirar para
-                        # montar la linea de Meganium en la BANCA (ver el
-                        # comentario del flag). Va por debajo de los pivotes
-                        # de rescate pero POR ENCIMA de los dos vetos de
-                        # "atacante de banca sin cargar", que son los que
-                        # dejaban al Chikorita atacando por chip.
+                        # Active Chikorita with a Bayleef in hand: retreat to
+                        # assemble the Meganium line on the BENCH (see the
+                        # flag's comment). It goes below the rescue pivots but
+                        # ABOVE the two "benched attacker with no charge"
+                        # vetoes, which were the ones leaving the Chikorita
+                        # attacking for chip damage.
                         score = 5700
                     elif _has_bench_attacker and not _bench_attacker_ready:
-                        # Hay un atacante en banca pero SIN energia para
-                        # atacar este turno: retirar ahora solo subiria un
-                        # cuerpo que tampoco ataca. Mejor mantener el activo
-                        # y seguir cargando al atacante de la banca.
+                        # There is a benched attacker but WITHOUT energy to
+                        # attack this turn: retreating now would only bring up
+                        # a body that does not attack either. Better to keep
+                        # the active and go on charging the benched attacker.
                         score = SCORE_VETO
                     elif _bench_has_only_non_attackers and _has_attacker_in_hand:
         
@@ -1261,8 +1269,8 @@ def puntuar(tc, o, score):
         
             elif active.id in STRATEGIC_ATTACKERS:
         
-                # Listo-para-atacar via energia efectiva (fuente unica:
-                # ATTACK_ENERGY_REQ). El branch ya garantiza pertenencia a
+                # Ready-to-attack via effective energy (single source:
+                # ATTACK_ENERGY_REQ). The branch already guarantees membership of
                 # STRATEGIC_ATTACKERS (= MAIN_ATTACKERS).
                 _active_can_attack = _can_attack_eff(active.id, active_energy)
         
@@ -1272,8 +1280,8 @@ def puntuar(tc, o, score):
                     for bp in my_state.bench:
                         if bp is None:
                             continue
-                        # Cuenta cualquier atacante principal listo en banca
-                        # (incluye Meganium, antes omitido).
+                        # It counts any ready main attacker on the bench
+                        # (Meganium included, previously omitted).
                         if (bp.id in MAIN_ATTACKERS
                                 and _can_attack_eff(bp.id, len(bp.energies))):
                             _has_ready_bench = True
@@ -1289,20 +1297,21 @@ def puntuar(tc, o, score):
                       and estimated_op_damage >= (active.hp or 0)
                       and not (ESTADO.plan.remain_hp is not None
                                and ESTADO.plan.remain_hp <= 0)):
-                    # RETIRO DEFENSIVO: nuestro atacante activo PUEDE atacar
-                    # pero sera noqueado el proximo turno (dano estimado del
-                    # rival >= sus HP) y atacar con el no noquea al activo
-                    # rival. Si en la banca hay un atacante MAS resistente
-                    # que sobrevive al ataque rival y puede atacar tras subir,
-                    # retirarse a el evita la derrota (muro que ademas
-                    # presiona). Sin esto el codigo asume "si puedo atacar,
-                    # ataco" y deja morir al activo condenado.
+                    # DEFENSIVE RETREAT: our active attacker CAN attack
+                    # but will be knocked out next turn (the opponent's
+                    # estimated damage >= its HP) and attacking with it does
+                    # not knock out the opposing active. If on the bench
+                    # there is a MORE resilient attacker that survives the
+                    # opposing attack and can attack once promoted,
+                    # retreating to it avoids the loss (a wall that also
+                    # applies pressure). Without this the code assumes "if I
+                    # can attack, I attack" and lets the doomed active die.
                     _def_retreat_target = False
                     for bp in my_state.bench:
                         if bp is None or bp.id not in MAIN_ATTACKERS:
                             continue
                         if (bp.hp or 0) <= _op_best_damage_vs(bp):
-                            continue  # tambien seria noqueado el proximo turno
+                            continue  # it would also be knocked out next turn
                         if _can_attack_eff(bp.id, len(bp.energies)):
                             _def_retreat_target = True
                             break
@@ -1390,41 +1399,42 @@ def puntuar(tc, o, score):
         else:
             score = SCORE_VETO
         
-        # Cancelar la retirada si solo reubicaria al mismo Pokemon (misma
-        # especie) al activo: es inutil y malgasta la energia del coste de
-        # retirada (user, log 86510119 paso 26). Ver `_same_species_retreat`.
-        # EXCEPCION (user, registro_005 vs Comfey): si el activo esta CONFUNDIDO
-        # (Brambleghast), retirarlo para promover un cuerpo de la MISMA especie
-        # SI aporta: el nuevo activo NO esta confundido y puede atacar sin la
-        # moneda. Con dos Teal Mask Ogerpon ex (el plan del matchup) este es el
-        # caso normal, asi que no se veta la retirada de escape de confusion.
+        # Cancel the retreat if it would only relocate the same Pokemon (same
+        # species) to the active spot: it is useless and wastes the energy of
+        # the retreat cost (user, log 86510119 step 26). See `_same_species_retreat`.
+        # EXCEPTION (user, registro_005 vs Comfey): if the active is CONFUSED
+        # (Brambleghast), retreating it to promote a body of the SAME species
+        # DOES contribute: the new active is NOT confused and can attack without
+        # the coin flip. With two Teal Mask Ogerpon ex (the matchup's plan) this
+        # is the normal case, so the confusion-escape retreat is not vetoed.
         if (_same_species_retreat and score > 0 and not _conf_should_retreat
                 and not _suicide_swap_win_promote):
             score = SCORE_VETO
         
-        # Pivote vs Alakazam (user, registro_010 paso 127): retirar el ex
-        # activo para promover un cuerpo de 1 premio (Meganium/Tapu Bulu) que
-        # NOQUEA al activo rival (ver `_alakazam_pivot_1prize`). Debe SUPERAR
-        # al ataque del ex de 2 premios (score ~1100) para que el motor retire
-        # en vez de atacar con el ex; sigue por debajo del umbral de
-        # "Supporter antes de retirar" (2000) para respetar ese orden.
+        # Pivot vs Alakazam (user, registro_010 step 127): retreat the active
+        # ex to promote a 1-prize body (Meganium/Tapu Bulu) that KNOCKS OUT
+        # the opposing active (see `_alakazam_pivot_1prize`). It must BEAT
+        # the attack of the 2-prize ex (score ~1100) so the engine retreats
+        # instead of attacking with the ex; it is still below the
+        # "Supporter before retreating" threshold (2000) to respect that order.
         if _alakazam_pivot_1prize:
             score = max(score, 6000)
         
-        # Regla (user, registro 004 paso 53 vs Archaludon ex, GANADA):
-        # SIEMPRE jugar el Supporter (Dawn / Lillie's / Lana's Aid) ANTES de
-        # retirar. Retirar primero desaprovecha lo que el Supporter aporta al
-        # resto del turno (p.ej. Dawn busca la linea Applin -> Dipplin ->
-        # Hydrapple ex que se evoluciona con Forest ESTE mismo turno, y solo
-        # despues conviene retirar el Fezandipiti ex y promover al Hydrapple
-        # ex). El retiro NO lo bloquea jugar el Supporter (sigue disponible
-        # despues), asi que se POSPONE: se rebaja su score por debajo de la
-        # jugada del Supporter (>=2400) para que el motor elija primero el
-        # Supporter y re-evalue el retiro en la siguiente decision.
-        # EXCEPCION: el relevo del remate suicida CIERRA la partida este turno
-        # (user, registro_016 paso 184). No hay "resto del turno" al que el
-        # Supporter pueda aportar nada, y posponer el retiro es justo lo que
-        # deja al agente atacando con el suicida y firmando el empate.
+        # Rule (user, registro 004 step 53 vs Archaludon ex, WON):
+        # ALWAYS play the Supporter (Dawn / Lillie's / Lana's Aid) BEFORE
+        # retreating. Retreating first wastes what the Supporter contributes to
+        # the rest of the turn (e.g. Dawn searches the Applin -> Dipplin ->
+        # Hydrapple ex line, which evolves with Forest THIS same turn, and only
+        # afterwards is it worth retreating the Fezandipiti ex and promoting the
+        # Hydrapple ex). Playing the Supporter does NOT block the retreat (it is
+        # still available afterwards), so it is POSTPONED: its score is lowered
+        # below the Supporter's play (>=2400) so the engine chooses the Supporter
+        # first and re-evaluates the retreat on the next decision.
+        # EXCEPTION: the relief of the suicidal finisher CLOSES the game this
+        # turn (user, registro_016 step 184). There is no "rest of the turn" for
+        # the Supporter to contribute to, and postponing the retreat is exactly
+        # what leaves the agent attacking with the suicidal body and signing the
+        # draw.
         if (score > 2000 and not state.supporterPlayed
                 and not _suicide_swap_win_promote):
             _rt_supp_first = any(
@@ -1433,39 +1443,40 @@ def puntuar(tc, o, score):
             if _rt_supp_first:
                 score = 2000
         
-        # Regla anti-Cubchoo (user, registro_004 paso 47/49 vs
-        # cornerstone_cubchoo, PERDIDA): el mazo de Cubchoo/Beartic bloquea
-        # nuestro activo cada turno -- Snotted Up (506) y Sheer Cold (507)
-        # dejan al Defensor "sin poder usar ataques" el turno siguiente --,
-        # forzandonos a RETIRAR para atacar con otro cuerpo. Su atacante es
-        # debilisimo (no nos noquea), pero como nos obliga a retirarnos una y
-        # otra vez, CADA retirada que DESCARTA energia (coste pagado con la
-        # energia del activo, sin carta de cambio gratis) sangra el recurso
-        # que mas escasea contra este control. Contra ESTE mazo eliminamos la
-        # retirada-pivote voluntaria: si retirar solo cambiaria de atacante y
-        # gastaria energia, es preferible PASAR y conservarla. El activo NO
-        # esta en peligro de KO (Cubchoo pega 10), asi que quedarse no cuesta
-        # nada. Salvaguarda `not active_ko_likely`: si el activo SI va a morir
-        # (p.ej. Beartic Sheer Cold sobre un cuerpo fragil), se permite la
-        # retirada de rescate. La regla se limita a este matchup: contra
-        # cualquier otro mazo la retirada-pivote sigue siendo correcta.
-        # EXCEPCION: retirada que NOQUEA y no destruye inversion (user,
-        # registro_036 paso 146). Las dos reglas del usuario conviven asi:
+        # Anti-Cubchoo rule (user, registro_004 step 47/49 vs
+        # cornerstone_cubchoo, LOST): the Cubchoo/Beartic deck blocks our
+        # active every turn -- Snotted Up (506) and Sheer Cold (507) leave the
+        # Defending Pokemon "unable to use attacks" the following turn --
+        # forcing us to RETREAT in order to attack with another body. Their
+        # attacker is extremely weak (it does not knock us out), but since it
+        # forces us to retreat again and again, EVERY retreat that DISCARDS
+        # energy (a cost paid with the active's energy, with no free switching
+        # card) bleeds the resource that is scarcest against this control.
+        # Against THIS deck we remove the voluntary retreat-pivot: if retreating
+        # would only change attacker and spend energy, it is better to PASS and
+        # keep it. The active is NOT in danger of a KO (Cubchoo hits for 10), so
+        # staying costs nothing. Safeguard `not active_ko_likely`: if the active
+        # IS going to die (e.g. Beartic's Sheer Cold on a fragile body), the
+        # rescue retreat is allowed. The rule is limited to this matchup: against
+        # any other deck the retreat-pivot is still correct.
+        # EXCEPTION: a retreat that KNOCKS OUT and does not destroy investment
+        # (user, registro_036 step 146). The user's two rules coexist like this:
         #
-        #  - registro_004 p47 (PASAR): el activo es un Ogerpon ex con TRES
-        #    Plantas fisicas encima. Retirar tira una de esas tres: destruye
-        #    energia ya invertida en el tablero, que es justo el recurso que
-        #    el control de Cubchoo nos niega. Aunque haya KO detras, se pasa.
-        #  - registro_036 p146 (RETIRAR): el activo tiene CERO energia -- no
-        #    ataca ni se retira, es peso muerto. La Planta la ponemos nosotros
-        #    ESE turno (Teal Dance, que ademas roba) con el unico proposito de
-        #    pagar la retirada. No se destruye nada acumulado: se convierte
-        #    una carta de la mano en un premio.
+        #  - registro_004 p47 (PASS): the active is an Ogerpon ex with THREE
+        #    physical Grass on it. Retreating throws one of those three away: it
+        #    destroys energy already invested on the board, which is exactly the
+        #    resource the Cubchoo control denies us. Even with a KO behind it, we
+        #    pass.
+        #  - registro_036 p146 (RETREAT): the active has ZERO energy -- it
+        #    neither attacks nor retreats, it is dead weight. The Grass is put
+        #    there by us THAT turn (Teal Dance, which also draws) with the sole
+        #    purpose of paying the retreat. Nothing accumulated is destroyed: a
+        #    card from hand is converted into a prize.
         #
-        # Discriminante: energia FISICA del activo <= coste de retirada, es
-        # decir que no queda excedente que perder. Mas `_bdg_retreat_ko` (el
-        # mismo detector de `_attach_enable_retreat_ko`) para exigir que haya
-        # KO de verdad y no un pivote pelado.
+        # Discriminant: the active's PHYSICAL energy <= the retreat cost, that
+        # is, no surplus left to lose. Plus `_bdg_retreat_ko` (the same detector
+        # as `_attach_enable_retreat_ko`) to require a real KO and not a bare
+        # pivot.
         _cc_ret_cost_pre = (RETREAT_COST.get(_active_reloc.id, 1)
                             if _active_reloc is not None else 1)
         _cc_cashes_dead_body = (
@@ -1473,23 +1484,23 @@ def puntuar(tc, o, score):
             and _active_reloc is not None
             and _physical_energy(
                 len(_active_reloc.energies)) <= _cc_ret_cost_pre)
-        # El relevo del remate suicida gana la partida AHORA: conservar
-        # energia para turnos futuros no significa nada si no hay futuro.
+        # The relief of the suicidal finisher wins the game NOW: saving
+        # energy for future turns means nothing if there is no future.
         #
-        # COLISION Cubchoo <-> muro inmune (autopsia cornerstone_cubchoo,
-        # jul 2026): `_ex_stuck_promo_ready` -- nuestro activo esta
-        # BLOQUEADO por el muro (Cornerstone anula a los cuerpos con
-        # Habilidad; Crustle/Sylveon a los ex) y en la banca hay un atacante
-        # que SI le pega -- tambien exime. El veto existe para no destruir
-        # energia invertida en el tablero, pero la energia de un cuerpo que
-        # hace CERO al activo rival no esta invertida: esta muerta, y la
-        # retirada es la unica via para convertirla en dano. Medido en 250
-        # partidas vs cornerstone_cubchoo: con el muro delante, Tapu Bulu
-        # cargado a >=4 en banca y la retirada LEGAL, subiamos a Tapu solo
-        # el 13.7% de las veces en las derrotas por premios (36% en las
-        # ganadas; vs Crustle -- mismo escenario SIN Cubchoo en el mazo --
-        # es el 82.6-100%). El activo era Teal Mask Ogerpon ex en 167 de 169
-        # de esos menus y el turno se cerraba ATACANDO por 0 (67 veces).
+        # Cubchoo <-> immune-wall COLLISION (cornerstone_cubchoo autopsy,
+        # jul 2026): `_ex_stuck_promo_ready` -- our active is BLOCKED by the
+        # wall (Cornerstone cancels bodies with an Ability; Crustle/Sylveon
+        # cancel the ex) and on the bench there is an attacker that DOES hit
+        # it -- also exempts. The veto exists so as not to destroy energy
+        # invested on the board, but the energy of a body that does ZERO to
+        # the opposing active is not invested: it is dead, and retreating is
+        # the only way to turn it into damage. Measured over 250 games vs
+        # cornerstone_cubchoo: with the wall in front, a Tapu Bulu charged to
+        # >=4 on the bench and the retreat LEGAL, we brought Tapu up only
+        # 13.7% of the time in the losses on prizes (36% in the wins; vs
+        # Crustle -- the same scenario WITHOUT Cubchoo in the deck -- it is
+        # 82.6-100%). The active was a Teal Mask Ogerpon ex in 167 of 169 of
+        # those menus and the turn closed by ATTACKING for 0 (67 times).
         if (op_is_cubchoo_deck and score > 0 and not active_ko_likely
                 and not _cubchoo_lock_stuck
                 and not _cc_cashes_dead_body

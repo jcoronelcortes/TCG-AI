@@ -1,21 +1,21 @@
-"""El rival de referencia (`utils/bot_rival.py`) juega el motor de habilidades.
+"""The reference opponent (`utils/bot_rival.py`) plays the ability engine.
 
-Hasta 2026-08-02 el bot decía en su docstring *"Nunca RETREAT ni ABILITY"*.
-Consecuencia no obvia: **el harness era CIEGO a los mazos cuyo motor ES una
-habilidad**. Contra Marnie's Grimmsnarl ex nunca activaba *Adrena-Brain* de
-Munkidori — la habilidad que en `registros/marnie` cobró 5 de los 7 premios que
-el rival ganó SIN ATACAR — así que cualquier regla nuestra contra ese motor
-medía NEUTRO por construcción.
+Until 2026-08-02 the bot's docstring said *"Never RETREAT or ABILITY"*.
+A non-obvious consequence: **the harness was BLIND to the decks whose engine IS an
+ability**. Against Marnie's Grimmsnarl ex it never activated Munkidori's
+*Adrena-Brain* — the ability that in `registros/marnie` took 5 of the 7 prizes the
+opponent won WITHOUT ATTACKING — so any rule of ours against that engine
+measured NEUTRAL by construction.
 
-Estos tests fijan las cuatro piezas sin las cuales el motor no llega a existir:
+These tests pin the four pieces without which the engine does not come to exist:
 
-1. activa habilidades (con guardas anti-bucle: una por Pokémon y turno);
-2. al mover contadores coge la cantidad **MÁXIMA** (el fallback genérico cogía
-   `minCount`: 1 contador = 10 de daño, la habilidad casi no hacía nada);
-3. los pone donde **matan**, y a igualdad donde más premios dan;
-4. carga la energía en el cuerpo cuya habilidad la EXIGE (sin eso Munkidori
-   nunca se enciende), y se **retira** cuando el activo no puede atacar (sin
-   eso un cuerpo gusteado se queda clavado delante para siempre).
+1. it activates abilities (with anti-loop guards: one per Pokémon per turn);
+2. when moving counters it takes the **MAXIMUM** amount (the generic fallback took
+   `minCount`: 1 counter = 10 damage, the ability did almost nothing);
+3. it places them where they **kill**, and on a tie where they give the most prizes;
+4. it charges the energy onto the body whose ability REQUIRES it (without that Munkidori
+   never switches on), and it **retreats** when the active cannot attack (without
+   that a gusted body stays nailed in front forever).
 """
 
 import sys
@@ -36,10 +36,10 @@ MUNKIDORI = 112
 FROSLASS = 104
 GRIMMSNARL = 648
 MORGREM = 647
-OGERPON = 96          # ex, 2 premios
-MEGANIUM = 710        # no-ex, 1 premio
+OGERPON = 96          # ex, 2 prizes
+MEGANIUM = 710        # non-ex, 1 prize
 TAPU = 920
-HYDRAPPLE = 150       # ex, 2 premios, 330 PV
+HYDRAPPLE = 150       # ex, 2 prizes, 330 HP
 
 
 def pk(cid, hp, max_hp, energias=0):
@@ -74,7 +74,7 @@ def bot():
     return BotRival()
 
 
-# --- 1. activa habilidades, con guarda anti-bucle -------------------------
+# --- 1. it activates abilities, with an anti-loop guard --------------------
 
 def test_activa_la_habilidad_en_el_menu(bot):
     o = obs(sel(SelectContext.MAIN,
@@ -113,7 +113,7 @@ def test_el_turno_nuevo_rehabilita_la_habilidad(bot):
     assert bot.agent(menu(8)) == [0]
 
 
-# --- 2 y 3. Adrena-Brain: cantidad máxima y destino que MATA ---------------
+# --- 2 and 3. Adrena-Brain: the maximum amount and a destination that KILLS -
 
 def test_mueve_el_maximo_de_contadores(bot):
     o = obs(sel(SelectContext.REMOVE_DAMAGE_COUNTER_COUNT,
@@ -126,8 +126,8 @@ def test_mueve_el_maximo_de_contadores(bot):
 
 
 def _fijar_tres_contadores(bot):
-    """Encadena el select de CANTIDAD, como en una partida real: es el que deja
-    `_contadores` listo para el select de DESTINO del mismo turno."""
+    """It chains the AMOUNT select, as in a real game: that is the one that leaves
+    `_contadores` ready for the DESTINATION select of the same turn."""
     bot.agent(obs(sel(SelectContext.REMOVE_DAMAGE_COUNTER_COUNT,
                       [{"type": 0, "number": 1}, {"type": 0, "number": 2},
                        {"type": 0, "number": 3}]),
@@ -137,7 +137,7 @@ def _fijar_tres_contadores(bot):
 
 
 def test_los_contadores_van_al_cuerpo_que_matan(bot):
-    """Ogerpon ex a 80 no muere con 30; el Meganium a 20 sí."""
+    """An Ogerpon ex at 80 does not die to 30; the Meganium at 20 does."""
     _fijar_tres_contadores(bot)
     o = obs(sel(SelectContext.DAMAGE_COUNTER,
                 [{"type": 3, "area": int(AreaType.ACTIVE), "index": 0,
@@ -150,7 +150,7 @@ def test_los_contadores_van_al_cuerpo_que_matan(bot):
 
 
 def test_a_igualdad_de_KO_manda_el_de_mas_premios(bot):
-    """Los dos mueren con 30: gana el ex (2 premios) sobre el Meganium (1)."""
+    """Both die to 30: the ex (2 prizes) wins over the Meganium (1)."""
     _fijar_tres_contadores(bot)
     o = obs(sel(SelectContext.DAMAGE_COUNTER,
                 [{"type": 3, "area": int(AreaType.ACTIVE), "index": 0,
@@ -174,10 +174,10 @@ def test_los_contadores_salen_del_cuerpo_mas_danado(bot):
     assert bot.agent(o) == [1], "el de 50 de daño da más munición que el de 10"
 
 
-# --- 4. la energía que enciende el motor, y la retirada -------------------
+# --- 4. the energy that switches the engine on, and the retreat -----------
 
 def test_carga_el_cuerpo_cuya_habilidad_exige_energia(bot):
-    """Con el activo ya energizado, la Oscura va al Munkidori seco."""
+    """With the active already charged, the Darkness goes to the dry Munkidori."""
     o = obs(sel(SelectContext.MAIN,
                 [{"type": int(OptionType.ATTACH), "area": int(AreaType.HAND),
                   "index": 0, "inPlayArea": int(AreaType.ACTIVE),
@@ -235,8 +235,8 @@ def test_promueve_al_cuerpo_con_mas_energia(bot):
 
 
 def test_gustea_al_cuerpo_que_puede_noquear(bot):
-    """SWITCH sobre la banca RIVAL: Shadow Bullet (180) mata al Meganium (160)
-    pero no al Hydrapple ex (330), que además vale 2 premios: manda el KO."""
+    """A SWITCH over the OPPOSING bench: Shadow Bullet (180) kills the Meganium (160)
+    but not the Hydrapple ex (330), which is also worth 2 prizes: the KO rules."""
     o = obs(sel(SelectContext.SWITCH,
                 [{"type": 3, "area": int(AreaType.BENCH), "index": 0,
                   "playerIndex": 0},

@@ -1,50 +1,50 @@
-"""Convierte los mazos del leaderboard en rivales MEDIBLES para el self-play.
+"""Turns the leaderboard decks into MEASURABLE opponents for self-play.
 
-Fase 9 de la arquitectura de mejora de estrategia. `utils/construir_mazos_meta.py`
-define a mano rivales sinteticos que "no pretenden ser las listas exactas del
-meta"; aqui partimos de las listas EXACTAS que descargo
-`utils/descargar_mazos_competidores.py` desde el leaderboard.
+Phase 9 of the strategy improvement architecture. `utils/construir_mazos_meta.py`
+hand-defines synthetic opponents that "do not claim to be the exact lists of the
+meta"; here we start from the EXACT lists that
+`utils/descargar_mazos_competidores.py` downloaded from the leaderboard.
 
-Hace dos cosas, y la segunda es la importante:
+It does two things, and the second is the important one:
 
-1. DEDUPLICA. Los 100 mazos del top-100 son ~39 listas unicas: los 49 mazos
-   del arquetipo dominante son 6 listas con similitud 0.99. Medir contra los
-   100 gasta el presupuesto de partidas en repetir el mismo matchup en vez de
-   en reducir el ruido. Cada lista unica se queda con el PESO DE META que le
-   corresponde (cuantos de los 100 mazos eran esa lista).
+1. IT DEDUPLICATES. The 100 decks of the top-100 are ~39 unique lists: the 49 decks
+   of the dominant archetype are 6 lists with a similarity of 0.99. Measuring against the
+   100 spends the game budget on repeating the same matchup instead of
+   on reducing the noise. Each unique list keeps the META WEIGHT it
+   deserves (how many of the 100 decks were that list).
 
-2. CRIBA POR PILOTABILIDAD. Estas son listas reales, con trainers que el bot
-   generico (utils/bot_rival.py) puede no saber usar: su politica para un
-   select desconocido es "las primeras minCount opciones". Un mazo que el bot
-   no sabe pilotar no mide el matchup, mide que el bot se atasca -- y devuelve
-   un winrate nuestro altisimo y FALSO.
+2. IT SCREENS BY PILOTABILITY. These are real lists, with trainers the generic
+   bot (utils/bot_rival.py) may not know how to use: its policy for an
+   unknown select is "the first minCount options". A deck the bot
+   cannot pilot does not measure the matchup, it measures the bot getting stuck -- and it returns
+   a very high and FALSE winrate for us.
 
-   Es la misma leccion que el bot sin habilidades (memoria del proyecto: el
-   harness era CIEGO a los mazos cuyo motor es una habilidad, y toda regla
-   contra ese motor salia NEUTRA por construccion). Antes de creerse un
-   numero de matchup hay que comprobar que el rival puede EJECUTAR su mazo.
+   It is the same lesson as the bot without abilities (project memory: the
+   harness was BLIND to the decks whose engine is an ability, and every rule
+   against that engine came out NEUTRAL by construction). Before believing a
+   matchup number one has to check that the opponent can EXECUTE its deck.
 
-   La criba enfrenta al bot pilotando la lista real contra el bot pilotando
-   nuestro deck.csv, y exige tres cosas:
-     * que no haga jugadas ilegales (forfeits ~ 0),
-     * que las partidas TERMINEN (pocas por limite de pasos),
-     * que gane algo (un mazo que el bot no arranca pierde casi siempre).
+   The screening pits the bot piloting the real list against the bot piloting
+   our deck.csv, and requires three things:
+     * that it makes no illegal plays (forfeits ~ 0),
+     * that the games FINISH (few of them hitting the step cap),
+     * that it wins something (a deck the bot cannot get going loses almost always).
 
-   Lo que no pasa la criba NO se tira: se guarda en no_pilotables/ y se
-   reporta, porque saber que parte del meta no sabemos medir es informacion,
-   no un fallo.
+   What does not pass the screening is NOT thrown away: it is kept in no_pilotables/ and
+   reported, because knowing which part of the meta we cannot measure is information,
+   not a failure.
 
-Salida en deck/rivales_reales/:
-    <arquetipo>_<n>.csv   una lista real por archivo (60 ids, formato del proyecto)
-    pesos.csv             peso de meta y resultado de la criba de cada lista
-    no_pilotables/        las listas rechazadas, para inspeccion
+Output in deck/rivales_reales/:
+    <archetype>_<n>.csv   one real list per file (60 ids, the project's format)
+    pesos.csv             the meta weight and screening result of each list
+    no_pilotables/        the rejected lists, for inspection
 
-Uso:
-    python utils/rivales_reales.py                     # dedupe + criba
-    python utils/rivales_reales.py --partidas 60       # criba mas fina
-    python utils/rivales_reales.py --sin-criba         # solo dedupe (rapido)
+Usage:
+    python utils/rivales_reales.py                     # dedupe + screening
+    python utils/rivales_reales.py --partidas 60       # a finer screening
+    python utils/rivales_reales.py --sin-criba         # dedupe only (fast)
 
-Despues, la matriz consume el corpus y sus pesos:
+Afterwards, the matrix consumes the corpus and its weights:
     python utils/matriz_matchups.py --rivales deck/rivales_reales --pesos
 """
 
@@ -61,22 +61,22 @@ for _p in (_ROOT, _ROOT / "utils"):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
-# Umbrales de la criba. Laxos a proposito: el objetivo es descartar el mazo
-# que el bot NO puede jugar, no exigir que lo juegue bien.
+# Screening thresholds. Deliberately lax: the goal is to discard the deck
+# the bot canNOT play, not to demand that it plays it well.
 #
-# MIN_WINRATE esta CALIBRADO contra un mazo trampa (los 17 Pokemon de una lista
-# real + 43 energias de un tipo que ninguno de sus ataques paga): legal, pero
-# sin motor. Ese mazo gana 10%, mientras que las 39 listas reales van de 26.7%
-# a 88.3%. El 15% cae en el hueco entre ambos. Con el 5% inicial el mazo trampa
-# pasaba la criba, que es justo el falso negativo que esta criba existe para
-# evitar -- si se cambia este umbral, hay que rehacer esa comprobacion.
-MAX_FORFEITS = 0.02      # jugadas ilegales del lado rival
-MAX_LIMITES = 0.15       # partidas que no terminan dentro del tope de pasos
-MIN_WINRATE = 0.15       # por debajo, el mazo no arranca (ver calibracion arriba)
+# MIN_WINRATE is CALIBRATED against a trap deck (the 17 Pokemon of a real
+# list + 43 energies of a type none of their attacks pay): legal, but
+# with no engine. That deck wins 10%, while the 39 real lists run from 26.7%
+# to 88.3%. The 15% falls in the gap between the two. With the initial 5% the trap deck
+# passed the screening, which is exactly the false negative this screening exists to
+# avoid -- if this threshold is changed, that check has to be redone.
+MAX_FORFEITS = 0.02      # illegal plays on the opponent's side
+MAX_LIMITES = 0.15       # games that do not finish within the step cap
+MIN_WINRATE = 0.15       # below this, the deck does not get going (see the calibration above)
 
 
 def slug(texto):
-    """Nombre de archivo estable a partir del arquetipo."""
+    """A stable file name derived from the archetype."""
     t = unicodedata.normalize("NFKD", str(texto or ""))
     t = t.encode("ascii", "ignore").decode("ascii").lower()
     t = re.sub(r"[^a-z0-9]+", "_", t).strip("_")
@@ -84,9 +84,9 @@ def slug(texto):
 
 
 def cargar_corpus(origen):
-    """Lee los mazos descargados y los agrupa por lista IDENTICA.
+    """Reads the downloaded decks and groups them by IDENTICAL list.
 
-    Devuelve la lista de grupos ordenada de mayor a menor peso de meta.
+    It returns the list of groups sorted from the largest to the smallest meta weight.
     """
     indice = {}
     ruta_indice = origen / "indice.csv"
@@ -123,7 +123,7 @@ def cargar_corpus(origen):
         )
     salida.sort(key=lambda g: (-g["peso_meta"], g["arquetipo"], g["mazo"]))
 
-    # Nombre por arquetipo, numerado por peso descendente dentro del arquetipo.
+    # A name per archetype, numbered by descending weight within the archetype.
     por_arquetipo = Counter()
     for grupo in salida:
         base = slug(grupo["arquetipo"])
@@ -133,12 +133,12 @@ def cargar_corpus(origen):
 
 
 def cribar(grupo, partidas, deck_referencia):
-    """¿Puede el bot generico pilotar esta lista? Bot(real) vs Bot(nuestro mazo)."""
+    """Can the generic bot pilot this list? Bot(real) vs Bot(our deck)."""
     import selfplay as sp
     from bot_rival import BotRival
 
-    # Instancias separadas: el bot lleva estado por turno y compartirlo entre
-    # los dos asientos mezclaria los contadores de habilidades de ambos.
+    # Separate instances: the bot carries per-turn state and sharing it between
+    # the two seats would mix up both sides' ability counters.
     stats = sp.torneo(
         BotRival(), BotRival(), partidas,
         deck_candidato=list(grupo["mazo"]), deck_base=list(deck_referencia),

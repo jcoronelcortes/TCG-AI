@@ -1,9 +1,9 @@
-"""Corre las reglas de arquitectura del refactor con la suite.
+"""Runs the refactor's architecture rules with the suite.
 
-Ver utils/lint_arquitectura.py y docs/main-refactor-arquitectura.md. Las cuatro
-reglas cubren fallos que no se manifiestan como un test rojo: rompen la
-submission en Kaggle, o hacen que el agente lea estado congelado y decida mal en
-partida sin lanzar ninguna excepcion.
+See utils/lint_arquitectura.py and docs/project-history.md. The four
+rules cover failures that do not show up as a red test: they break the
+submission on Kaggle, or they make the agent read frozen state and decide badly in a
+game without raising any exception.
 """
 
 import ast
@@ -28,12 +28,12 @@ def test_sin_infracciones_de_arquitectura():
 
 
 def test_los_mutables_se_derivan_del_codigo():
-    """La lista de globals no esta escrita a mano.
+    """The list of globals is not hand-written.
 
-    Sale de las sentencias `global` de main.py MAS los campos de `EstadoAgente`.
-    A medida que la Ola 3 avanza, el estado se mueve de lo primero a lo segundo,
-    asi que lo que se comprueba es que el linter lo sigue ALLA DONDE VIVA -- no
-    cuantos quedan en main.py, que legitimamente baja en cada paso.
+    It comes from main.py's `global` statements PLUS the fields of `EstadoAgente`.
+    As wave 3 advances, the state moves from the former to the latter,
+    so what is checked is that the linter follows it WHEREVER IT LIVES -- not
+    how many are left in main.py, which legitimately goes down at every step.
     """
     mutables = la.nombres_mutables()
     assert len(mutables) >= 30, f"solo {len(mutables)} mutables detectados"
@@ -42,7 +42,7 @@ def test_los_mutables_se_derivan_del_codigo():
 
 
 def test_el_estado_ya_migrado_sigue_vigilado():
-    """Los campos que ya viven en EstadoAgente no pueden salirse de R1."""
+    """The fields that already live in EstadoAgente cannot escape R1."""
     mutables = la.nombres_mutables()
     migrados = [n for n in ("_ub_meowth_pending", "_poke_pad_target_id",
                             "_ld_supp_comprometido") if n in mutables]
@@ -50,7 +50,7 @@ def test_el_estado_ya_migrado_sigue_vigilado():
 
 
 # ---------------------------------------------------------------------------
-# Las reglas tienen que MORDER: un linter que no puede fallar no vale nada.
+# The rules have to BITE: a linter that cannot fail is worth nothing.
 # ---------------------------------------------------------------------------
 def _fallos_de_r3(fuente, tmp_path, monkeypatch):
     archivo = tmp_path / "main.py"
@@ -65,21 +65,21 @@ def test_r3_acepta_agent_al_final(tmp_path, monkeypatch):
 
 
 def test_r3_detecta_un_reexport_despues_de_agent(tmp_path, monkeypatch):
-    """El modo de fallo I1b: el contenedor se quedaria con el re-export."""
+    """Failure mode I1b: the container would keep the re-export."""
     fuente = "def agent(obs):\n    return [0]\n\nfrom cg.api import Card\n"
     fallos = _fallos_de_r3(fuente, tmp_path, monkeypatch)
     assert len(fallos) == 1 and fallos[0][0] == "R3"
 
 
 def test_r3_detecta_una_clase_despues_de_agent(tmp_path, monkeypatch):
-    """Una clase tambien es callable, asi que tambien secuestra el entry point."""
+    """A class is callable too, so it also hijacks the entry point."""
     fuente = "def agent(obs):\n    return [0]\n\nclass Ayuda:\n    pass\n"
     fallos = _fallos_de_r3(fuente, tmp_path, monkeypatch)
     assert len(fallos) == 1 and fallos[0][0] == "R3"
 
 
 def test_r4_detecta_import_perezoso_de_paquete_propio(tmp_path, monkeypatch):
-    """El modo de fallo I1a."""
+    """Failure mode I1a."""
     archivo = tmp_path / "main.py"
     archivo.write_text("def agent(obs):\n    from ptcg.calculo import x\n    return [0]\n")
     monkeypatch.setattr(la, "MAIN_PY", archivo)
@@ -89,7 +89,7 @@ def test_r4_detecta_import_perezoso_de_paquete_propio(tmp_path, monkeypatch):
 
 
 def test_r1_detecta_un_mutable_importado_por_nombre(tmp_path, monkeypatch):
-    """El modo de fallo I5: `from x import ko_last_turn` congela el valor."""
+    """Failure mode I5: `from x import ko_last_turn` freezes the value."""
     paquete = tmp_path / "ptcg"
     (paquete / "decision").mkdir(parents=True)
     (paquete / "__init__.py").write_text("")
@@ -113,12 +113,12 @@ def test_r2_detecta_estado_en_un_modulo_puro(tmp_path, monkeypatch):
 
 
 def test_r2_permite_estado_en_calculo(tmp_path, monkeypatch):
-    """`calculo/` NO es puro y no debe fingirlo.
+    """`calculo/` is NOT pure and must not pretend to be.
 
-    La energia efectiva depende de si Meganium esta en juego y el coste de
-    ataque del impuesto de Nighttime Mine: `_can_attack_eff` y `_physical_energy`
-    leen ESTADO por naturaleza. Se intento la frontera en `calculo/` y el codigo
-    la rechazo; la frontera util es datos (`cartas/`) + reglas (`motor/`).
+    The effective energy depends on whether Meganium is in play and the attack
+    cost on the Nighttime Mine tax: `_can_attack_eff` and `_physical_energy`
+    read ESTADO by nature. The boundary at `calculo/` was attempted and the code
+    rejected it; the useful boundary is data (`cartas/`) + rules (`motor/`).
     """
     paquete = tmp_path / "ptcg"
     (paquete / "calculo").mkdir(parents=True)

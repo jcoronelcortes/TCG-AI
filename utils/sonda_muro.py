@@ -1,24 +1,24 @@
-"""Sonda POR TURNO del atasco detras del muro inmune-a-ex (Crustle/Sylveon).
+"""PER-TURN probe of the jam behind the ex-immune wall (Crustle/Sylveon).
 
-El censo de `utils/autopsia.py` dejo el matchup Crustle localizado pero no
-resuelto: en las derrotas el 64.3% de los turnos se cierran SIN ATACAR (41.7%
-en las victorias). Esta sonda responde la pregunta siguiente, que es la que
-decide la FORMA del arreglo:
+The census of `utils/autopsia.py` left the Crustle matchup located but not
+solved: in the losses 64.3% of the turns close WITHOUT ATTACKING (41.7%
+in the wins). This probe answers the next question, which is the one that
+decides the SHAPE of the fix:
 
-    en los turnos que EMPIEZAN con nuestro ex bloqueado por el muro y con una
-    respuesta no-ex ya cargada en la banca, ¿como acaba el turno?
+    on the turns that BEGIN with our ex blocked by the wall and with a
+    non-ex answer already charged on the bench, how does the turn end?
 
-Se mide POR TURNO y no por select a proposito. Un turno normal encadena varios
-selects (adjuntar, jugar un supporter y LUEGO retirar), asi que contar selects
-mete en el saco de "no hizo nada" a las jugadas intermedias de un turno que si
-acabo pivotando: un primer intento conto 85 de 113 "otra cosa" y ese numero era
-un artefacto, no un hallazgo.
+It is measured PER TURN and not per select on purpose. A normal turn chains several
+selects (attach, play a supporter and THEN retreat), so counting selects
+throws into the "did nothing" bag the intermediate plays of a turn that did
+end up pivoting: a first attempt counted 85 of 113 as "something else" and that number was
+an artefact, not a finding.
 
-Los turnos que acaban EN SECO se vuelcan (observacion completa del primer MAIN,
-formato de los fixtures de tests/) en registros/sonda_muro/ para poder
-reproducir la decision con main.agent() y leer que puntuo por encima del relevo.
+The turns that end DRY are dumped (the complete observation of the first MAIN,
+in the format of the tests/ fixtures) into registros/sonda_muro/ so the
+decision can be reproduced with main.agent() and one can read what scored above the relief.
 
-Uso:
+Usage:
     python utils/sonda_muro.py --rival deck/rivales_reales/crustle_wall_2.csv
     python utils/sonda_muro.py --rival ... --partidas 80 --volcar 15
 """
@@ -38,7 +38,7 @@ import selfplay as sp
 from bot_rival import BotRival
 from cg.api import OptionType, SelectContext
 
-# Atacantes no-ex que SI danan al muro (nuestros ex le hacen 0).
+# Non-ex attackers that DO damage the wall (our ex do 0 to it).
 def _respuesta_ids(m):
     return {m.Tapu_Bulu, m.Meganium, m.Dipplin}
 
@@ -55,7 +55,7 @@ def _tipo_elegido(obs, eleccion):
 
 
 def _califica(m, obs, asiento):
-    """¿Este turno empieza con el ex bloqueado y la respuesta lista en banca?"""
+    """Does this turn begin with the ex blocked and the answer ready on the bench?"""
     cur = obs["current"]
     yo = cur["players"][asiento]
     op = cur["players"][1 - asiento]
@@ -92,14 +92,14 @@ def jugar(m, deck_rival, partidas, volcar, destino):
         agentes = {asiento: m, 1 - asiento: BotRival()}
         pasos = 0
         turno_actual = None
-        estado = None  # dict del turno en curso, si califica
+        estado = None  # the current turn's dict, if it qualifies
         try:
             while obs["current"]["result"] == -1 and pasos < 3000:
                 yi = obs["current"]["yourIndex"]
                 turno = obs["current"]["turn"]
                 if yi == asiento and _es_main(obs):
                     if turno != turno_actual:
-                        # Cierra el turno anterior antes de abrir el nuevo.
+                        # It closes the previous turn before opening the new one.
                         if estado is not None:
                             resumen[estado["desenlace"]] += 1
                             if estado["desenlace"] == "seco" and len(secos) < volcar:
@@ -116,7 +116,7 @@ def jugar(m, deck_rival, partidas, volcar, destino):
                     if t == int(OptionType.ATTACK):
                         estado["desenlace"] = "ataca"
                     elif t == int(OptionType.RETREAT) and estado["desenlace"] == "seco":
-                        # Retirar es el pivote; si luego ataca, "ataca" manda.
+                        # Retreating is the pivot; if it then attacks, "attacks" rules.
                         estado["desenlace"] = "retira"
                 try:
                     obs = game.battle_select(eleccion)

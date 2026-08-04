@@ -1,18 +1,18 @@
-"""Harness SOMBRA: verifica que un refactor de main.py NO cambia decisiones.
+"""SHADOW harness: it verifies that a refactor of main.py does NOT change decisions.
 
-Complemento del corpus dorado para cuando `registros/` esta vacio (los
-registros son datos locales transitorios): en vez de replays grabados, genera
-las observaciones JUGANDO partidas de self-play.
+A complement to the golden corpus for when `registros/` is empty (the
+records are transient local data): instead of recorded replays, it generates
+the observations by PLAYING self-play games.
 
-Juega partidas de self-play conducidas por la version PRE-refactor y, en cada
-decision, consulta tambien a la version POST-refactor con la MISMA observacion
-(deepcopy). Cualquier discrepancia de eleccion es un flip del refactor.
+It plays self-play games driven by the PRE-refactor version and, on each
+decision, also asks the POST-refactor version with the SAME observation
+(a deepcopy). Any difference in the choice is a flip of the refactor.
 
-Ambas instancias por asiento reciben el mismo flujo de observaciones, asi que
-su tracking global evoluciona igual (misma semantica que el corpus dorado).
+Both instances per seat receive the same stream of observations, so
+their global tracking evolves the same way (the same semantics as the golden corpus).
 
-Uso: python utils/sombra.py <pre.py> <post.py> [espejo N] [rival N]
-     (pre.py = copia congelada ANTES del refactor; exit 1 si hay flips)
+Usage: python utils/sombra.py <pre.py> <post.py> [mirror N] [rival N]
+     (pre.py = a copy frozen BEFORE the refactor; exit 1 if there are flips)
 """
 import copy
 import sys
@@ -27,7 +27,7 @@ import selfplay as sp  # noqa: E402
 
 
 def jugar_con_sombra(drv, shd, deck0, deck1, max_pasos=3000):
-    """drv/shd: dicts {asiento: modulo o None}. Devuelve (flips, pasos)."""
+    """drv/shd: dicts {seat: module or None}. Returns (flips, steps)."""
     from cg import game
 
     for m_ in list(drv.values()) + list(shd.values()):
@@ -59,7 +59,7 @@ def main(ruta_pre, ruta_post, n_espejo=40, n_rival=40):
     deck = sp.leer_deck()
     total_flips, total_dec, total_pasos = [], 0, 0
 
-    # Espejo: pre conduce ambos asientos; sombra post en ambos.
+    # Mirror: pre drives both seats; the post shadow on both.
     pre0 = sp.cargar_agente(ruta_pre, "pre0")
     pre1 = sp.cargar_agente(ruta_pre, "pre1")
     post0 = sp.cargar_agente(ruta_post, "post0")
@@ -74,7 +74,7 @@ def main(ruta_pre, ruta_post, n_espejo=40, n_rival=40):
             print(f"  espejo #{i}: {len(flips)} flips")
     print(f"espejo: {n_espejo} partidas, {total_pasos} decisiones")
 
-    # vs bot rival (matchup Crustle/Kangaskhan): solo nuestro asiento.
+    # vs the opposing bot (the Crustle/Kangaskhan matchup): our seat only.
     ruta_rival = ROOT / "deck" / "rivales" / "crustle_kangaskhan.csv"
     if n_rival and ruta_rival.exists():
         from bot_rival import BotRival

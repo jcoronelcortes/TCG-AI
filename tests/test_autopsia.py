@@ -1,6 +1,6 @@
-"""Tests de la autopsia v2 (paso 5 plan jul 2026): clasificador del MODO de
-derrota. La convencion de premios es la del resto de utils/autopsia.py: una
-entrada None en prize es un premio que a ese jugador AUN LE FALTA cobrar."""
+"""Tests of autopsy v2 (step 5 of the jul 2026 plan): the loss MODE
+classifier. The prize convention is the one used in the rest of utils/autopsia.py: a
+None entry in prize is a prize that player has STILL to take."""
 
 import sys
 from pathlib import Path
@@ -14,7 +14,7 @@ from autopsia import clasificar_derrota
 
 
 def _obs_final(op_prize_restantes, mi_activo, mi_banca, mi_deck):
-    """Observacion terminal minima para el clasificador (asiento 0)."""
+    """A minimal terminal observation for the classifier (seat 0)."""
     yo = {
         "active": [mi_activo] if mi_activo else [None],
         "bench": mi_banca,
@@ -37,7 +37,7 @@ def test_derrota_por_premios():
 
 
 def test_derrota_por_bench_out():
-    # El rival aun tenia premios pendientes: la causa es quedarse sin Pokemon.
+    # The opponent still had prizes pending: the cause is running out of Pokemon.
     obs = _obs_final(op_prize_restantes=3,
                      mi_activo=None, mi_banca=[None, None], mi_deck=20)
     assert clasificar_derrota(obs, asiento=0, resultado="pierde") == "bench_out"
@@ -50,16 +50,16 @@ def test_derrota_por_deckout():
 
 
 def test_bench_out_gana_a_deckout():
-    # Tablero vacio Y mazo a 0 con premios pendientes: el KO que barrio el
-    # tablero es la causa proxima.
+    # An empty board AND the deck at 0 with prizes pending: the KO that swept the
+    # board is the proximate cause.
     obs = _obs_final(op_prize_restantes=1,
                      mi_activo=None, mi_banca=[], mi_deck=0)
     assert clasificar_derrota(obs, asiento=0, resultado="pierde") == "bench_out"
 
 
 def test_premios_domina_a_deckout():
-    # Rival completo sus premios en una partida que ademas nos dejo a 0 de
-    # mazo: la derrota es por premios (el deck-out nunca llego a ejecutarse).
+    # The opponent completed their prizes in a game that also left us at 0
+    # deck: the loss is on prizes (the deck-out never got to happen).
     obs = _obs_final(op_prize_restantes=0,
                      mi_activo={"id": 920}, mi_banca=[], mi_deck=0)
     assert clasificar_derrota(obs, asiento=0, resultado="pierde") == "premios"

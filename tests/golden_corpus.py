@@ -1,28 +1,28 @@
-"""Corpus dorado: replay de TODOS los registros con snapshot de decisiones.
+"""Golden corpus: a replay of ALL the records with a snapshot of decisions.
 
-Fase 2 de la arquitectura de mejora de estrategia. Los tests con fixtures
-cubren los pasos que ya dolieron; el corpus dorado cubre TODAS las decisiones
-de los registros actuales: cada cambio en main.py produce un diff explicito
-de que decisiones historicas voltea, y cualquier flip inesperado salta a
-revision ANTES del merge (la clase de regresion "reaparecio").
+Phase 2 of the strategy improvement architecture. The tests with fixtures
+cover the steps that already hurt; the golden corpus covers ALL the decisions
+of the current records: every change in main.py produces an explicit diff
+of which historical decisions it flips, and any unexpected flip goes to
+review BEFORE the merge (the "it came back" class of regression).
 
-Los registros (`registros/*.json`, salida de utils/split_turns.py) son datos
-LOCALES y transitorios (git-ignored): se reemplazan cuando se analizan
-partidas nuevas. Por eso el snapshot (`registros/decisiones_dorado.json`)
-vive junto a ellos (hereda el ignore) y guarda un hash md5 por registro, para
-distinguir dos fallos con mensajes distintos:
+The records (`registros/*.json`, the output of utils/split_turns.py) are LOCAL
+and transient data (git-ignored): they are replaced when new games are
+analysed. That is why the snapshot (`registros/decisiones_dorado.json`)
+lives alongside them (inheriting the ignore) and keeps an md5 hash per record, to
+tell two failures with different messages apart:
 
-  1. "el registro cambio en disco" -> regenerar el snapshot (dato nuevo);
-  2. "las decisiones cambiaron con los mismos registros" -> TU cambio de
-     main.py volteo decisiones historicas: revisar cada flip (¿buscado?).
+  1. "the record changed on disk" -> regenerate the snapshot (new data);
+  2. "the decisions changed with the same records" -> YOUR change to
+     main.py flipped historical decisions: review each flip (was it intended?).
 
-Uso:
-    python tests/golden_corpus.py               # comparar (exit 1 si difiere)
-    python tests/golden_corpus.py --actualizar  # revisar diff y reescribir
+Usage:
+    python tests/golden_corpus.py               # compare (exit 1 if it differs)
+    python tests/golden_corpus.py --actualizar  # review the diff and rewrite
 
-El replay resetea el estado global del agente ANTES DE CADA ARCHIVO (misma
-semantica que los tests con fixtures: cada registro es un segmento que se
-reproduce desde frio). Solo se reproducen los items ACTIVE con select.
+The replay resets the agent's global state BEFORE EACH FILE (the same
+semantics as the tests with fixtures: each record is a segment replayed
+from cold). Only the ACTIVE items with a select are replayed.
 """
 
 import hashlib
@@ -38,7 +38,7 @@ if str(_ROOT) not in sys.path:
 RUTA_REGISTROS = _ROOT / "registros"
 RUTA_SNAPSHOT = RUTA_REGISTROS / "decisiones_dorado.json"
 
-# OptionType legibles (cg/api.py).
+# Readable OptionType values (cg/api.py).
 _TIPOS = {0: "NUM", 1: "SI", 2: "NO", 3: "CARTA", 4: "TOOL", 5: "ECARD",
           6: "ENERGIA", 7: "PLAY", 8: "ATTACH", 9: "EVOLVE", 10: "ABILITY",
           11: "DISCARD", 12: "RETREAT", 13: "ATTACK", 14: "END", 15: "SKILL",
@@ -46,28 +46,28 @@ _TIPOS = {0: "NUM", 1: "SI", 2: "NO", 3: "CARTA", 4: "TOOL", 5: "ECARD",
 
 
 def _main_mod():
-    os.chdir(_ROOT)  # main.py abre deck.csv con ruta relativa
+    os.chdir(_ROOT)  # main.py opens deck.csv with a relative path
     import main as m
     return m
 
 
 def reset_agente(m):
-    """Espejo del fixture autouse `reset_main_state` de tests/test_main.py.
+    """A mirror of the autouse fixture `reset_main_state` of tests/test_main.py.
 
-    El estado que persiste entre turnos vive en `ESTADO` desde la Ola 3, y su
-    `reset()` es la UNICA fuente de los valores iniciales. Antes se fijaba campo
-    a campo con `m.<campo> = ...`, lo que dependia del puente de compatibilidad
-    de main.py -- y ese puente solo se instala cuando main.py se importa como
-    modulo, no cuando selfplay lo carga con `module_from_spec` sin registrarlo en
-    sys.modules. Ahi las asignaciones iban a un atributo muerto, el reinicio no
-    ocurria y el estado se filtraba de una partida a la siguiente.
+    The state that persists between turns lives in `ESTADO` since wave 3, and its
+    `reset()` is the ONLY source of the initial values. It used to be set field
+    by field with `m.<field> = ...`, which depended on main.py's compatibility
+    bridge -- and that bridge is only installed when main.py is imported as a
+    module, not when selfplay loads it with `module_from_spec` without registering it in
+    sys.modules. There the assignments went to a dead attribute, the reset did
+    not happen and the state leaked from one game to the next.
     """
     estado = getattr(m, "ESTADO", None)
     if estado is not None:
-        # ORDEN: primero `reset()` -- que deja CARTAS_ACTIVAS_EN_MAZO vacio -- y
-        # DESPUES el escaneo que lo llena desde deck.csv. Al reves, el reset
-        # borraba el tracking recien construido y el agente empezaba cada
-        # partida creyendo que su mazo esta vacio.
+        # ORDER: first `reset()` -- which leaves CARTAS_ACTIVAS_EN_MAZO empty -- and
+        # THEN the scan that fills it from deck.csv. The other way round, the reset
+        # erased the tracking that had just been built and the agent started each
+        # game believing its deck is empty.
         estado.reset()
         m._init_cartas_tracking()
         return
@@ -77,9 +77,9 @@ def reset_agente(m):
     m._cartas_prizes_identified = False
     m._cartas_last_turn = -1
 
-    # Rama de COMPATIBILIDAD: main.py anterior a la Ola 3, donde el estado son
-    # globals del modulo. utils/sombra.py compara la version actual contra un
-    # baseline congelado, asi que este reinicio tiene que servir a las dos.
+    # COMPATIBILITY branch: a main.py older than wave 3, where the state consists of
+    # module globals. utils/sombra.py compares the current version against a
+    # frozen baseline, so this reset has to serve both.
     m.plan = m.AttackPlan()
     m.pre_turn = 0
     m.meganium_in_play = False
@@ -108,7 +108,7 @@ def _nombre(m, cid):
 
 
 def describir_opcion(m, obs, idx):
-    """Etiqueta legible de la opcion `idx` del select de `obs`."""
+    """A readable label for option `idx` of the select of `obs`."""
     sel = obs["select"]
     if idx >= len(sel["option"]):
         return f"?idx{idx}"
@@ -117,9 +117,9 @@ def describir_opcion(m, obs, idx):
     etiqueta = _TIPOS.get(t, f"t{t}")
     me = obs["current"]["players"][obs["current"]["yourIndex"]]
     try:
-        if t == 7:  # PLAY: index sobre la mano
+        if t == 7:  # PLAY: an index over the hand
             return f"PLAY {_nombre(m, me['hand'][o['index']]['id'])}"
-        if t == 3:  # CARTA: index sobre area (mazo visible, mano, campo...)
+        if t == 3:  # CARD: an index over the area (visible deck, hand, field...)
             area = o.get("area")
             if area == 1 and sel.get("deck"):
                 return f"CARTA {_nombre(m, sel['deck'][o['index']]['id'])}"
@@ -131,7 +131,7 @@ def describir_opcion(m, obs, idx):
             if area == 5:
                 return f"CARTA {_nombre(m, jugador['bench'][o['index']]['id'])}"
             return f"CARTA a{area} i{o.get('index')}"
-        if t == 8:  # ATTACH: objetivo en juego
+        if t == 8:  # ATTACH: a target in play
             if o.get("inPlayArea") == 4:
                 return f"ATTACH->{_nombre(m, me['active'][0]['id'])}"
             return f"ATTACH->{_nombre(m, me['bench'][o['inPlayIndex']]['id'])}"
@@ -152,13 +152,13 @@ def _ids_de_nuestro_mazo():
 
 
 def nuestro_indice(data):
-    """Asiento (0 o 1) en el que jugamos NOSOTROS en este episodio.
+    """The seat (0 or 1) in which WE play in this episode.
 
-    No es siempre el 0: segun el emparejamiento podemos ser el jugador 1
-    (p.ej. episodio 87709673). Se decide por votacion: el asiento cuyas
-    cartas VISIBLES coinciden mas con deck.csv. Sin esto, el replay
-    alimentaba al agente con las observaciones del RIVAL (su `yourIndex`)
-    y ademas se saltaba todas nuestras decisiones.
+    It is not always 0: depending on the pairing we can be player 1
+    (e.g. episode 87709673). It is decided by a vote: the seat whose
+    VISIBLE cards match deck.csv the most. Without this, the replay
+    fed the agent with the OPPONENT's observations (their `yourIndex`)
+    and also skipped all our decisions.
     """
     mazo = _ids_de_nuestro_mazo()
     votos = [0, 0]
@@ -182,7 +182,7 @@ def nuestro_indice(data):
 
 
 def reproducir_registro(m, ruta):
-    """Reproduce un registro desde frio y devuelve NUESTRAS decisiones."""
+    """Replays a record from cold and returns OUR decisions."""
     with open(ruta, encoding="utf-8") as f:
         data = json.load(f)
     yo = nuestro_indice(data)
@@ -197,9 +197,9 @@ def reproducir_registro(m, ruta):
                 continue
             eleccion = m.agent(obs)
             decisiones.append({
-                # Nuestras observaciones ACTIVE no traen "step" (solo lo
-                # llevan las INACTIVE del otro asiento): se identifica la
-                # decision por turno/accion, que si es estable.
+                # Our ACTIVE observations do not carry a "step" (only the
+                # INACTIVE ones of the other seat do): the decision is identified
+                # by turn/action, which is stable.
                 "paso": obs.get("step"),
                 "turno": (obs.get("current") or {}).get("turn"),
                 "accion": (obs.get("current") or {}).get("turnActionCount"),
@@ -242,10 +242,10 @@ def guardar_snapshot(corpus):
 
 
 def comparar(dorado, actual):
-    """Devuelve (registros_cambiados, faltantes, nuevos, flips).
+    """Returns (changed_records, missing, new, flips).
 
-    flips: lista de dicts con archivo/paso/dorado/actual, SOLO de archivos
-    cuyo md5 coincide (mismos datos, decisiones distintas => cambio de codigo).
+    flips: a list of dicts with file/step/golden/current, ONLY from files
+    whose md5 matches (the same data, different decisions => a code change).
     """
     cambiados, flips = [], []
     faltantes = sorted(set(dorado) - set(actual))

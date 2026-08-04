@@ -1,54 +1,54 @@
-"""PESCA DE REMATE: el ataque que hoy solo depende del ROBO.
+"""FINISHER FISHING: the attack that today depends only on the DRAW.
 
-Escenario (user, episodio 89328622, registro_004 paso 49 vs Marnie's
-Grimmsnarl, PERDIDA):
+Scenario (user, episode 89328622, registro_004 step 49 vs Marnie's
+Grimmsnarl, LOST):
 
-    NOSOTROS (asiento 0)                     RIVAL (Marnie's Grimmsnarl)
-    activo  Teal Mask Ogerpon ex 30/210      activo  Marnie's Grimmsnarl ex
-            con 1 energia (Myriad pide 3)            320/320, 2 energias {D}
-    banca   Meowth ex 170, Fezandipiti ex    banca   Morgrem 100 (2e),
+    US (seat 0)                              OPPONENT (Marnie's Grimmsnarl)
+    active  Teal Mask Ogerpon ex 30/210      active  Marnie's Grimmsnarl ex
+            with 1 energy (Myriad asks 3)            320/320, 2 {D} energies
+    bench   Meowth ex 170, Fezandipiti ex    bench   Morgrem 100 (2e),
             180 (1e), Applin 40, Ogerpon             Snorunt 70, Impidimp 70 (2e)
             ex 210 (0e), Bayleef 110 (0e)
-    mano    Lillie's x2, Boss's, Hydrapple
-            ex, Ultra Ball  (CERO energia)
-    premios 6 - 6      mazo propio 38 cartas, 10 Plantas vivas
+    hand    Lillie's x2, Boss's, Hydrapple
+            ex, Ultra Ball  (ZERO energy)
+    prizes  6 - 6      our deck 38 cards, 10 live Grass
 
-Ningun cuerpo podia atacar y no habia una sola Planta en la mano: el turno,
-tal y como estaba, no hacia dano. Pero el remate SI existia, a dos cartas de
-distancia:
+No body could attack and there was not a single Grass in hand: the turn,
+as it stood, did no damage. But the finisher DID exist, two cards
+away:
 
-    Lillie's Determination roba OCHO (6 premios intactos) -> 2 Plantas ->
-    adjunte manual + Teal Dance -> Myriad Leaf Shower con 3 energias propias
-    y 2 del rival = 30 + 30 x 5 = 180, x2 por DEBILIDAD Planta del Marnie's
-    Grimmsnarl ex = 360 >= 320 PV. DOS premios.
+    Lillie's Determination draws EIGHT (6 prizes untouched) -> 2 Grass ->
+    the manual attachment + Teal Dance -> Myriad Leaf Shower with 3 energies of ours
+    and 2 of the opponent's = 30 + 30 x 5 = 180, x2 for the Grass WEAKNESS of Marnie's
+    Grimmsnarl ex = 360 >= 320 HP. TWO prizes.
 
-Con 10 Plantas vivas en 42 cartas (38 de mazo + las 4 que Lillie's baraja),
-robar 8 saca las 2 que faltan el **63%** de las veces.
+With 10 live Grass in 42 cards (38 of deck + the 4 Lillie's shuffles back),
+drawing 8 pulls the 2 that are missing **63%** of the time.
 
-El agente jugo Boss's Orders para arrastrar un Snorunt de 70 PV. El gusteo,
-ademas de gastar el hueco de Supporter, DEGRADA el remate: Myriad Leaf Shower
-escala con la energia de AMBOS activos, asi que cambiar un Grimmsnarl ex con
-2 energias y debilidad Planta por un Snorunt pelado convierte un golpe de 360
-en uno de 120. Y con el Supporter ya gastado las dos Lillie's se volvieron
-carta muerta: la Ultra Ball las descarto para pagar su coste.
+The agent played Boss's Orders to drag out a 70 HP Snorunt. The gust,
+besides spending the Supporter slot, DEGRADES the finisher: Myriad Leaf Shower
+scales with the energy on BOTH actives, so swapping a Grimmsnarl ex with
+2 energies and a Grass weakness for a bare Snorunt turns a hit of 360
+into one of 120. And with the Supporter already spent both Lillie's became
+dead cards: the Ultra Ball discarded them to pay its cost.
 
-EL BUG: "cavar" no se medía, se asumía
---------------------------------------
-Los vetos de orden de Lillie's (`ultra_ball_completa_linea`,
-`cede_a_boss_ejecutable`) tratan el refresco como un desarrollo generico que
-siempre puede esperar. Cuando el robo es la UNICA linea que ataca este turno,
-eso es falso -- y cuanto vale depende de un numero que el agente nunca
-calculaba: la probabilidad de que el robo traiga la energia.
+THE BUG: "digging" was not measured, it was assumed
+---------------------------------------------------
+Lillie's ordering vetoes (`ultra_ball_completa_linea`,
+`cede_a_boss_ejecutable`) treat the refill as a generic development play that
+can always wait. When the draw is the ONLY line that attacks this turn,
+that is false -- and how much it is worth depends on a number the agent never
+computed: the probability that the draw brings the energy.
 
-EL ARREGLO: `_pesca_de_remate` + `_prob_al_menos`
--------------------------------------------------
-`_pesca_de_remate` es el hermano CONSCIENTE DEL DANO de `_plan_de_planta`:
-comparte su aritmetica de adjuntes (cuantas Plantas faltan, que vias pueden
-apuntar a ese cuerpo hoy) y le anade a quien se ataca, cuanto dano sale y
-cuantos premios cobra. `_prob_al_menos` (hipergeometrica sobre la creencia de
-mazo) mide si el robo las trae. Con un KO de premios a >= `PESCA_PROB_MIN`,
-Lillie's sube a `LILLIE_SCORE_PESCA_REMATE` (5900, por encima de todo el
-ladder de Boss's que no gana la partida) y Boss's cede el turno.
+THE FIX: `_pesca_de_remate` + `_prob_al_menos`
+----------------------------------------------
+`_pesca_de_remate` is the DAMAGE-AWARE sibling of `_plan_de_planta`:
+it shares its attachment arithmetic (how many Grass are missing, which routes can
+point at that body today) and adds who is attacked, how much damage comes out and
+how many prizes it takes. `_prob_al_menos` (hypergeometric over the deck
+belief) measures whether the draw brings them. With a prize KO at >= `PESCA_PROB_MIN`,
+Lillie's rises to `LILLIE_SCORE_PESCA_REMATE` (5900, above the whole
+Boss's ladder that does not win the game) and Boss's yields the turn.
 """
 
 import json
@@ -70,7 +70,7 @@ LILLIE = m.Lillie_Determination
 BOSS = m.Boss_Orders
 GRASS = m.Basic_Grass_Energy
 
-# Cartas del rival (no estan en nuestro deck.csv).
+# The opponent's cards (they are not in our deck.csv).
 GRIMMSNARL = 648
 MORGREM = 647
 IMPIDIMP = 646
@@ -108,7 +108,7 @@ def _fixture():
 
 
 def _idx_play_de(obs, card_id):
-    """Indice de la opcion PLAY que juega `card_id` de la mano."""
+    """The index of the PLAY option that plays `card_id` from hand."""
     yo = obs["current"]["yourIndex"]
     mano = obs["current"]["players"][yo]["hand"]
     for i, o in enumerate(obs["select"]["option"]):
@@ -118,7 +118,7 @@ def _idx_play_de(obs, card_id):
 
 
 def _espiar_pesca(monkeypatch):
-    """Captura el `_PescaRemate` que calcula el agente en la decision."""
+    """Captures the `_PescaRemate` the agent computes in the decision."""
     capturado = {}
     original = m._pesca_de_remate
 
@@ -132,7 +132,7 @@ def _espiar_pesca(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# El tablero: que el remate existia de verdad, medido con el motor
+# The board: that the finisher really existed, measured with the engine
 # ---------------------------------------------------------------------------
 
 def test_el_remate_existia_myriad_con_tres_energias_noquea_al_grimmsnarl():
@@ -151,7 +151,7 @@ def test_el_remate_existia_myriad_con_tres_energias_noquea_al_grimmsnarl():
     assert opa.id == GRIMMSNARL and opa.hp == 320
     assert m.prize_count_op(opa) == 2, "el Grimmsnarl ex vale DOS premios"
 
-    # Myriad Leaf Shower con las 3 propias + las 2 del rival, y debilidad Planta.
+    # Myriad Leaf Shower with the 3 of ours + the 2 of the opponent's, and the Grass weakness.
     base = m._attacker_base_damage(OGERPON, opa, 3, grass_scale=3,
                                    teal_self_energy=3, bench_count=5)
     assert base == 180
@@ -160,8 +160,8 @@ def test_el_remate_existia_myriad_con_tres_energias_noquea_al_grimmsnarl():
 
 
 def test_el_gusteo_degrada_el_objetivo_del_remate():
-    """Myriad escala con la energia de AMBOS activos: subir el Snorunt pelado
-    cambia un golpe de 360 por uno de 120."""
+    """Myriad scales with the energy of BOTH actives: bringing up the bare Snorunt
+    swaps a hit of 360 for one of 120."""
     obs = m.to_observation_class(_fixture())
     rival = obs.current.players[1]
     activo = obs.current.players[0].active[0]
@@ -176,26 +176,26 @@ def test_el_gusteo_degrada_el_objetivo_del_remate():
 
 
 # ---------------------------------------------------------------------------
-# La hipergeometrica
+# The hypergeometric
 # ---------------------------------------------------------------------------
 
 def test_prob_al_menos_reproduce_el_63_por_ciento_del_registro():
-    # Realidad del registro: 10 Plantas vivas en el mazo de 42 (38 + las 4 que
-    # Lillie's baraja), robo 8.
+    # The record's reality: 10 live Grass in the 42-card deck (38 + the 4 that
+    # Lillie's shuffles back), drawing 8.
     assert m._prob_al_menos(10, 42, 8, 2) == pytest.approx(0.6257, abs=1e-4)
     assert m._prob_al_menos(10, 42, 8, 1) == pytest.approx(0.9109, abs=1e-4)
     assert m._prob_al_menos(10, 42, 8, 3) == pytest.approx(0.2802, abs=1e-4)
-    # Lo que el agente puede SABER (creencia: mazo + premios boca abajo son
-    # cartas no vistas): 11 en 48. Conservador, nunca optimista.
+    # What the agent can KNOW (the belief: the deck + the face-down prizes are
+    # unseen cards): 11 in 48. Conservative, never optimistic.
     assert m._prob_al_menos(11, 48, 8, 2) == pytest.approx(0.5976, abs=1e-4)
 
 
 def test_prob_al_menos_fronteras():
-    assert m._prob_al_menos(0, 40, 8, 1) == 0.0        # sin outs
-    assert m._prob_al_menos(10, 40, 8, 0) == 1.0       # no hace falta nada
-    assert m._prob_al_menos(1, 40, 8, 2) == 0.0        # menos copias que k
-    assert m._prob_al_menos(10, 40, 1, 2) == 0.0       # menos robo que k
-    assert m._prob_al_menos(40, 40, 8, 8) == 1.0       # mazo entero de outs
+    assert m._prob_al_menos(0, 40, 8, 1) == 0.0        # no outs
+    assert m._prob_al_menos(10, 40, 8, 0) == 1.0       # nothing is needed
+    assert m._prob_al_menos(1, 40, 8, 2) == 0.0        # fewer copies than k
+    assert m._prob_al_menos(10, 40, 1, 2) == 0.0       # a smaller draw than k
+    assert m._prob_al_menos(40, 40, 8, 8) == 1.0       # the whole deck is outs
 
 
 def test_el_robo_de_lillie_es_ocho_solo_con_los_seis_premios():
@@ -205,7 +205,7 @@ def test_el_robo_de_lillie_es_ocho_solo_con_los_seis_premios():
 
 
 # ---------------------------------------------------------------------------
-# La decision real del paso 49
+# The real decision of step 49
 # ---------------------------------------------------------------------------
 
 def test_paso49_pesca_dos_cartas_por_dos_premios(monkeypatch):
@@ -218,9 +218,9 @@ def test_paso49_pesca_dos_cartas_por_dos_premios(monkeypatch):
     assert plan.cartas == 2, "faltan DOS Plantas (adjunte manual + Teal Dance)"
     assert plan.letal and plan.premios == 2
     assert plan.dano == 360
-    # La creencia cuenta lo NO VISTO (mazo 38 + 6 premios): 11 Plantas en 48
-    # cartas tras barajar las 4 de la mano. Estimacion conservadora del 0.63
-    # real (10 Plantas vivas en el mazo de 42).
+    # The belief counts what is UNSEEN (deck 38 + 6 prizes): 11 Grass in 48
+    # cards after shuffling the 4 from hand. A conservative estimate of the real
+    # 0.63 (10 live Grass in the 42-card deck).
     assert plan.robo == 8 and plan.outs == 11 and plan.universo == 48
     assert plan.prob == pytest.approx(0.5976, abs=1e-4)
 
@@ -234,22 +234,22 @@ def test_paso49_juega_lillie_para_pescar_no_boss():
 
 
 def test_paso49_contrafactual_sin_pesca_vuelve_a_gustear(monkeypatch):
-    """Control: si la pesca no se mide (umbral inalcanzable), reaparece el
-    Boss's del registro. Es el cambio que la regla introduce, no otro."""
+    """Control: if the fishing is not measured (an unreachable threshold), the
+    Boss's of the record reappears. It is the change the rule introduces, not another."""
     parchear(monkeypatch, "PESCA_PROB_MIN", 1.1)
     obs = _fixture()
     assert m.agent(obs) == [_idx_play_de(obs, BOSS)]
 
 
 # ---------------------------------------------------------------------------
-# Fronteras sinteticas (StateBuilder): probabilidad, energia en mano
+# Synthetic boundaries (StateBuilder): probability, energy in hand
 # ---------------------------------------------------------------------------
 
 def _escenario_paso49(grass_en_mazo=10, grass_en_mano=0, con_adjunte=False):
-    """Replica sintetica del paso 49 con el mazo parametrizado.
+    """A synthetic replica of step 49 with the deck parameterised.
 
-    grass_en_mazo: Plantas VIVAS en el mazo (el resto va al descarte).
-    grass_en_mano: Plantas ya en la mano (0 = como el real).
+    grass_en_mazo: LIVE Grass in the deck (the rest goes to the discard).
+    grass_en_mano: Grass already in hand (0 = like the real one).
     """
     mano = [LILLIE, BOSS, LILLIE, m.Hydrapple_ex, m.Ultra_Ball]
     mano += [GRASS] * grass_en_mano
@@ -270,26 +270,26 @@ def _escenario_paso49(grass_en_mazo=10, grass_en_mano=0, con_adjunte=False):
                      pk(IMPIDIMP, hp=70, max_hp=70, energias=[DARK, DARK]))
            .op_zonas(mano=5, mazo=32, premios=6))
 
-    # Mazo: las Plantas vivas pedidas + relleno del pool (incluye el Dipplin
-    # que hace que la Ultra Ball "complete linea", como en el registro).
-    # `_pool` (privado) = lo que queda de deck.csv tras colocar campo y mano.
-    # Las Plantas que no van al mazo se declaran en el DESCARTE (visible), para
-    # que la creencia de mazo vea exactamente `grass_en_mazo` outs.
+    # Deck: the requested live Grass + filler from the pool (including the Dipplin
+    # that makes the Ultra Ball "complete a line", as in the record).
+    # `_pool` (private) = what is left of deck.csv after placing the field and the hand.
+    # The Grass that does not go to the deck is declared in the DISCARD (visible), so
+    # that the deck belief sees exactly `grass_en_mazo` outs.
     n_grass = min(grass_en_mazo, esc._pool[GRASS])
     esc.mi_descarte(*([GRASS] * (esc._pool[GRASS] - n_grass)))
     relleno = [cid for cid in sorted(esc._pool.elements()) if cid != GRASS]
-    # El mazo llega a 38 cartas (como el real) mientras haya relleno de sobra;
-    # con muchas Plantas en el descarte se queda mas corto (siempre dejando 6
-    # cartas para los premios).
+    # The deck reaches 38 cards (like the real one) as long as there is filler to spare;
+    # with a lot of Grass in the discard it comes out shorter (always leaving 6
+    # cards for the prizes).
     ids_mazo = ([GRASS] * n_grass
                 + relleno[:max(0, min(38 - n_grass, len(relleno) - 6))])
     esc.mazo(*ids_mazo).resto_al_descarte()
     obs = esc.menu_mano(con_adjunte=con_adjunte).construir()
-    # `menu_mano` emite un PLAY por CADA carta de la mano; el simulador no. Se
-    # quitan las dos que en el paso real no estaban en el menu: el Hydrapple ex
-    # (evolucion sin su Dipplin en juego -- justo lo que hace que la Ultra Ball
-    # "complete linea" y vete a Lillie's) y las Plantas, que se juegan por
-    # ATTACH, no por PLAY.
+    # `menu_mano` emits one PLAY per EACH card in hand; the simulator does not. The
+    # two that were not in the menu on the real step are removed: the Hydrapple ex
+    # (an evolution without its Dipplin in play -- exactly what makes the Ultra Ball
+    # "complete a line" and veto Lillie's) and the Grass, which are played through
+    # ATTACH, not through PLAY.
     mano_obs = obs["current"]["players"][obs["current"]["yourIndex"]]["hand"]
     obs["select"]["option"] = [
         o for o in obs["select"]["option"]
@@ -306,8 +306,8 @@ def test_sintetico_reproduce_la_decision_real(monkeypatch):
 
 
 def test_con_el_mazo_seco_de_plantas_la_pesca_no_pisa_los_vetos(monkeypatch):
-    """Frontera: con una sola Planta viva el robo NO puede traer las dos que
-    faltan (prob 0) y el refresco pierde el privilegio."""
+    """Boundary: with a single live Grass the draw canNOT bring the two that
+    are missing (prob 0) and the refill loses its privilege."""
     capturado = _espiar_pesca(monkeypatch)
     obs = _escenario_paso49(grass_en_mazo=1)
     assert capturado is not None
@@ -317,8 +317,8 @@ def test_con_el_mazo_seco_de_plantas_la_pesca_no_pisa_los_vetos(monkeypatch):
 
 
 def test_frontera_de_probabilidad(monkeypatch):
-    """La pesca dispara arriba del umbral y calla debajo, con el MISMO tablero:
-    lo unico que cambia es cuantas Plantas quedan vivas."""
+    """The fishing fires above the threshold and stays quiet below it, with the SAME board:
+    the only thing that changes is how many Grass are left alive."""
     vistos = {}
     for grass in (3, 10):
         m._init_cartas_tracking()
@@ -336,8 +336,8 @@ def test_frontera_de_probabilidad(monkeypatch):
 
 
 def test_la_pesca_exitosa_se_convierte_en_ataque():
-    """Cierre del bucle: con las 3 energias ya puestas (la pesca salio) y la
-    mano vacia, el Ogerpon ex de 30 PV ATACA -- no retira ni cierra el turno."""
+    """Closing the loop: with the 3 energies already placed (the fishing came off) and the
+    hand empty, the 30 HP Ogerpon ex ATTACKS -- it neither retreats nor closes the turn."""
     esc = (Escenario(turno=4, paso=49, tac=6, primer_jugador=1,
                      energia_jugada=True, partidario_jugado=True)
            .mi_activo(pk(OGERPON, hp=30, energias=[G, G, G], fisicas=3))
@@ -360,8 +360,8 @@ def test_la_pesca_exitosa_se_convierte_en_ataque():
 
 
 def test_con_la_energia_ya_en_mano_no_se_baraja_la_mano(monkeypatch):
-    """Control critico: si la MANO ya trae las 2 Plantas que faltan, jugar
-    Lillie's las devolveria al mazo. Ahi NO hay pesca: se carga."""
+    """A critical control: if the HAND already brings the 2 missing Grass, playing
+    Lillie's would return them to the deck. There is NO fishing there: it charges."""
     capturado = _espiar_pesca(monkeypatch)
     obs = _escenario_paso49(grass_en_mano=2, con_adjunte=True)
     eleccion = m.agent(obs)

@@ -1,28 +1,28 @@
-"""Analisis de pureza a nivel de DEFINICION: que se puede sacar de main.py.
+"""Purity analysis at DEFINITION level: what can be taken out of main.py.
 
-Es la precondicion de las olas 2 y 4 del refactor
-(docs/main-refactor-arquitectura.md): antes de mover una funcion hay que
-DEMOSTRAR que no toca el estado mutable ni las tablas de runtime, no suponerlo.
+It is the precondition of waves 2 and 4 of the refactor
+(docs/project-history.md): before moving a function one has to
+PROVE that it does not touch mutable state or the runtime tables, not assume it.
 
-Una definicion de nivel de modulo es MOVIBLE si todo lo que referencia y no
-define ella misma es:
-  * un builtin, o un nombre importado (stdlib / cg.api),
-  * una constante ya extraida al paquete (`ptcg.cartas.ids`),
-  * una constante pura que sigue en main.py (no bloquea: se puede mover despues),
-  * u otra definicion movible.
+A module-level definition is MOVABLE if everything it references and does not
+define itself is:
+  * a builtin, or an imported name (stdlib / cg.api),
+  * a constant already extracted to the package (`ptcg.cartas.ids`),
+  * a pure constant that is still in main.py (it does not block: it can be moved later),
+  * or another movable definition.
 
-Es un punto fijo: se parte de "todas son movibles" y van cayendo las que tocan
-algo impuro, hasta que no cae ninguna mas. Lo que las bloquea es siempre una de
-tres cosas, y saber cual dice a que ola pertenecen:
+It is a fixed point: it starts from "all of them are movable" and the ones that touch
+something impure fall out, until none falls any more. What blocks them is always one of
+three things, and knowing which one says which wave they belong to:
 
-  * un global mutable (`ko_last_turn`, `plan`, ...)  -> espera a la Ola 3;
-  * una tabla de runtime (`card_table`, `attack_table`) -> necesita que esas
-    tablas se muevan antes;
-  * otra definicion bloqueada -> se arrastra con ella.
+  * a mutable global (`ko_last_turn`, `plan`, ...)  -> it waits for wave 3;
+  * a runtime table (`card_table`, `attack_table`) -> those tables have to
+    be moved first;
+  * another blocked definition -> it is dragged along with it.
 
-Uso:
-    python utils/pureza.py                 # resumen
-    python utils/pureza.py --detalle       # ademas, por que esta bloqueada cada una
+Usage:
+    python utils/pureza.py                 # a summary
+    python utils/pureza.py --detalle       # plus why each one is blocked
 """
 
 import argparse
@@ -36,31 +36,31 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 BUILTINS = set(dir(builtins))
 
-# Nombres de nivel de modulo que dependen de la carga (deck.csv, cg.api) y por
-# tanto no son constantes puras.
+# Module-level names that depend on loading (deck.csv, cg.api) and are
+# therefore not pure constants.
 RUNTIME = {"all_card", "card_table", "attack_table", "my_deck",
            "file_path", "csv", "file"}
 
-# Metodos que delatan que un nombre se MUTA (y por tanto no es constante).
+# Methods that give away that a name is MUTATED (and therefore is not a constant).
 MUTADORES = {"append", "extend", "update", "add", "pop", "clear", "insert",
              "remove", "discard", "setdefault", "sort"}
 
 
 def nombres_mutados(arbol):
-    """Nombres mutados en algun punto del modulo: son estado, no constantes.
+    """Names mutated at some point of the module: they are state, not constants.
 
-    OJO: esto NO se solapa con las sentencias `global`. Reasignar un escalar
-    exige `global`; mutar un dict o una lista NO. `ATTACK_ENERGY_REQ` es el caso
-    real: `_aplicar_impuesto_tera` le reescribe entradas en CADA llamada a
-    agent() (el impuesto de Nighttime Mine) y 56 sitios lo leen, pero no aparece
-    en ninguna sentencia `global`. Sin esta comprobacion pasaria por constante
-    pura y se movria a un modulo de datos, escondiendo estado de turno dentro de
-    lo que parece una tabla fija.
+    CAREFUL: this does NOT overlap with the `global` statements. Reassigning a scalar
+    requires `global`; mutating a dict or a list does NOT. `ATTACK_ENERGY_REQ` is the real
+    case: `_aplicar_impuesto_tera` rewrites entries in it on EVERY call to
+    agent() (the Nighttime Mine tax) and 56 places read it, but it does not appear
+    in any `global` statement. Without this check it would pass as a pure
+    constant and be moved to a data module, hiding turn state inside
+    what looks like a fixed table.
     """
-    # Solo cuentan los nombres LIGADOS A NIVEL DE MODULO. Sin este filtro, las
-    # locales de `agent()` que se mutan (`score.append(...)`, `hand_counts[x]=y`)
-    # entrarian en la lista y bloquearian por error definiciones que solo
-    # comparten nombre con ellas.
+    # Only the names BOUND AT MODULE LEVEL count. Without this filter, the
+    # locals of `agent()` that get mutated (`score.append(...)`, `hand_counts[x]=y`)
+    # would enter the list and would wrongly block definitions that merely
+    # share a name with them.
     de_modulo = set()
     for n in arbol.body:
         if isinstance(n, ast.Assign):
@@ -96,11 +96,11 @@ def _args_de(nodo):
 
 
 def nombres_libres(nodo):
-    """Nombres que la definicion usa y no define ella misma.
+    """Names the definition uses and does not define itself.
 
-    Recoge los argumentos de TODAS las funciones/lambdas anidadas, no solo los
-    del nodo raiz: si no, el `self` de los metodos de una dataclass aparece como
-    nombre libre y bloquea la clase entera (paso de verdad).
+    It collects the arguments of ALL the nested functions/lambdas, not only those
+    of the root node: otherwise, the `self` of the methods of a dataclass appears as a
+    free name and blocks the whole class (it really happened).
     """
     locales, usados = set(), set()
     for n in ast.walk(nodo):
@@ -122,7 +122,7 @@ def nombres_libres(nodo):
 
 
 def _constantes_del_paquete():
-    """`__all__` de los modulos ya extraidos al paquete."""
+    """The `__all__` of the modules already extracted to the package."""
     nombres = set()
     paquete = PROJECT_ROOT / "ptcg"
     if not paquete.is_dir():
@@ -148,7 +148,7 @@ def _constantes_del_paquete():
 
 
 def _mapa_paquete():
-    """nombre exportado -> modulo del paquete que lo define (`ptcg.cartas.ids`...)."""
+    """exported name -> the package module that defines it (`ptcg.cartas.ids`...)."""
     mapa = {}
     paquete = PROJECT_ROOT / "ptcg"
     if not paquete.is_dir():
@@ -194,8 +194,8 @@ def analizar(main_py=None):
     for n in ast.walk(arbol):
         if isinstance(n, ast.Global):
             mutables.update(n.names)
-    # Estado mutable que NO se declara `global`: dicts/listas de nivel de modulo
-    # que alguien reescribe (ver `nombres_mutados`).
+    # Mutable state that is NOT declared `global`: module-level dicts/lists
+    # that somebody rewrites (see `nombres_mutados`).
     mutables |= nombres_mutados(arbol)
 
     definiciones, asignaciones = {}, {}

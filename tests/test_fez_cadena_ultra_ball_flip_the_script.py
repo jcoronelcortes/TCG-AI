@@ -1,57 +1,57 @@
-"""La cadena Ultra Ball -> Fezandipiti ex -> Flip the Script se COMPLETA.
+"""The chain Ultra Ball -> Fezandipiti ex -> Flip the Script gets COMPLETED.
 
-Escenario (user, episodio 88710543 registro_006 turno 6 vs Mega Lucario,
-GANADA -- pero por suerte):
+Scenario (user, episode 88710543 registro_006 turn 6 vs Mega Lucario,
+WON -- but by luck):
 
-    NOSOTROS                                 RIVAL
-    activo  Hydrapple ex 330 2e              activo  Mega Lucario ex 340 2e
-    banca   Meowth ex, Meganium, 2x          banca   2x Riolu, Lucario, Riolu
+    US                                       OPPONENT
+    active  Hydrapple ex 330 2e              active  Mega Lucario ex 340 2e
+    bench   Meowth ex, Meganium, 2x          bench   2x Riolu, Lucario, Riolu
             Ogerpon ex
-    premios restantes: 3 - 4    (nos noquearon el turno anterior: Flip the
-                                 Script esta VIVA)
+    prizes left: 3 - 4          (we were knocked out last turn: Flip the
+                                 Script is ALIVE)
 
-Secuencia registrada (pasos 86-104):
+Recorded sequence (steps 86-104):
 
-    Poke Pad -> Applin | Ultra Ball (descarta Meganium + Applin) -> **busca
-    Fezandipiti ex** | **Unfair Stamp** (baraja la mano al mazo: el Fezandipiti
-    recien cavado se va con ella) | Bug Catching Set | baja el Fezandipiti (que
-    volvio por SUERTE entre las 5 cartas del Sello) | Teal Dance | Ripening
-    Charge | Teal Dance | atacar.
+    Poke Pad -> Applin | Ultra Ball (discarding Meganium + Applin) -> **searches for
+    Fezandipiti ex** | **Unfair Stamp** (shuffles the hand into the deck: the freshly
+    dug Fezandipiti goes with it) | Bug Catching Set | play the Fezandipiti (which
+    came back by LUCK among the Stamp's 5 cards) | Teal Dance | Ripening
+    Charge | Teal Dance | attack.
 
-Dos errores, los dos con la misma raiz "una jugada gratis que muere con el
-turno":
+Two mistakes, both with the same root: "a free play that dies with the
+turn":
 
-1. PASO 91 -- el Unfair Stamp BARAJO al mazo el Fezandipiti ex que la Ultra
-   Ball acababa de pagar con dos cartas (Meganium + Applin al descarte). Causa:
-   un BLOQUEO CIRCULAR de tres reglas correctas por separado:
-     * bajar el Fezandipiti se vetaba por el veto de ORDEN de Req H
-       (`_lucario_riolu_gust`: "vs Mega Lucario con un Riolu gusteable, cede la
-       jugada al Boss's"),
-     * el Boss's se vetaba por `cede_a_unfair_stamp` ("primero el Sello, que
-       baraja la mano"),
-     * y el Sello se quedaba en 2000 por `mano_con_pokemon_o_evo` ("primero baja
-       el Pokemon de la mano").
-   Ganaba el Sello por descarte y se llevaba al mazo el Fezandipiti Y el propio
-   Boss's al que Req H le cedia el turno.
-   Arreglo: (a) el veto de Req H EXIME a Fezandipiti ex con la habilidad viva --
-   es un Pokemon, no consume el Supporter del turno, asi que no compite con el
-   Boss's; y (b) `_ub_fez_pending`, hermano de `_ub_meowth_pending`: si la Ultra
-   Ball ELIGIO buscar Fezandipiti ex, el cuerpo BAJA aunque otro veto lo mate.
+1. STEP 91 -- the Unfair Stamp SHUFFLED into the deck the Fezandipiti ex the Ultra
+   Ball had just paid for with two cards (Meganium + Applin to the discard). Cause:
+   a CIRCULAR BLOCK of three rules that are each correct on their own:
+     * playing the Fezandipiti was vetoed by the Req H ORDERING veto
+       (`_lucario_riolu_gust`: "vs Mega Lucario with a gustable Riolu, yield the
+       play to the Boss's"),
+     * the Boss's was vetoed by `cede_a_unfair_stamp` ("the Stamp first, since it
+       shuffles the hand"),
+     * and the Stamp stayed at 2000 through `mano_con_pokemon_o_evo` ("put the
+       Pokemon in hand down first").
+   The Stamp won by elimination and took into the deck the Fezandipiti AND the very
+   Boss's that Req H was yielding the turn to.
+   Fix: (a) the Req H veto EXEMPTS a Fezandipiti ex with its ability alive --
+   it is a Pokemon, it does not consume the turn's Supporter, so it does not compete with the
+   Boss's; and (b) `_ub_fez_pending`, sibling of `_ub_meowth_pending`: if the Ultra
+   Ball CHOSE to search for Fezandipiti ex, the body GOES DOWN even if another veto kills it.
 
-2. PASOS 95-102 -- Flip the Script se ofrecio en CUATRO menus y no se uso nunca:
-   con 30000 perdia contra Teal Dance (31300) y Ripening Charge (31100) menu
-   tras menu, y el turno se cerro atacando. El robo de 3 es GRATIS, es UNA VEZ
-   POR TURNO y su condicion (que nos noquearan) muere con el turno, mientras que
-   un adjunte que no remata se puede hacer despues sin perder nada. Ademas robar
-   PRIMERO decide mejor los adjuntes (las 3 cartas pueden ser Plantas).
-   Arreglo: `FEZ_DRAW_ABILITY_SCORE` = 31700 (sobre toda la familia de cargas no
-   letales) + promocion al tier ENERGY para que ninguna carga la pise por ORDEN.
+2. STEPS 95-102 -- Flip the Script was offered in FOUR menus and was never used:
+   at 30000 it lost against Teal Dance (31300) and Ripening Charge (31100) menu
+   after menu, and the turn closed by attacking. The 3-card draw is FREE, it is ONCE
+   PER TURN and its condition (being knocked out) dies with the turn, whereas
+   an attachment that does not finish can be made afterwards without losing anything. Besides, drawing
+   FIRST decides the attachments better (the 3 cards may be Grass).
+   Fix: `FEZ_DRAW_ABILITY_SCORE` = 31700 (above the whole family of non-lethal
+   charges) + promotion to the ENERGY tier so that no charge overrides it by ORDER.
 
-Lo que NO cambia: el orden Unfair Stamp / Lillie's -> habilidad (el Sello
-barajaria las 3 cartas robadas), el freno de deck-out, las bandas LETALES de
-Teal Dance / Ripening (41000+: la habilidad que habilita el KO de HOY sigue
-primero) y el remate GANADOR (paso 102: si la partida se cierra este turno,
-robar 3 no aporta nada).
+What does NOT change: the order Unfair Stamp / Lillie's -> the ability (the Stamp
+would shuffle the 3 drawn cards away), the deck-out brake, the LETHAL bands of
+Teal Dance / Ripening (41000+: the ability that enables TODAY's KO still comes
+first) and the WINNING finisher (step 102: if the game closes this turn,
+drawing 3 adds nothing).
 """
 
 import json
@@ -67,7 +67,7 @@ if str(ROOT) not in sys.path:
 import main as m
 from state_builder import C, G, Escenario, pk
 
-FEZ = m.Fezandipiti_ex          # 140: Flip the Script (robar 3)
+FEZ = m.Fezandipiti_ex          # 140: Flip the Script (draw 3)
 HYDRA = m.Hydrapple_ex          # 150: Ripening Charge
 OGERPON = m.Teal_Mask_Ogerpon_ex  # 96: Teal Dance
 MEOWTH = m.Meowth_ex
@@ -82,7 +82,7 @@ BOSS = m.Boss_Orders
 DAWN = m.Dawn
 GRASS = m.Basic_Grass_Energy
 
-MEGA_LUCARIO = 678              # activo rival del registro (340 PV)
+MEGA_LUCARIO = 678              # the opposing active of the record (340 HP)
 RIOLU = m.Riolu
 
 _FIX = ROOT / "tests" / "fixtures"
@@ -152,7 +152,7 @@ def _jugadas(obs):
 
 
 def _menus_del_registro():
-    """Los menus de NUESTRO asiento (yourIndex 1) del registro, en orden."""
+    """The menus of OUR seat (yourIndex 1) from the record, in order."""
     with open(_REGISTRO, encoding="utf-8") as f:
         data = json.load(f)
     return [e["observation"] for paso in data["steps"] for e in paso
@@ -161,21 +161,21 @@ def _menus_del_registro():
 
 
 # ---------------------------------------------------------------------------
-# 1. Paso 91: el cuerpo que pago la Ultra Ball baja ANTES del Unfair Stamp
+# 1. Step 91: the body that paid for the Ultra Ball goes down BEFORE the Unfair Stamp
 # ---------------------------------------------------------------------------
 
 def test_paso91_baja_el_fezandipiti_antes_del_unfair_stamp():
     obs = _obs(_FIX_STEP91)
     jugadas = _jugadas(obs)
-    # El menu real ofrecia las dos jugadas en competencia.
+    # The real menu offered both plays in competition.
     assert ("PLAY", FEZ) in jugadas, jugadas
     assert ("PLAY", STAMP) in jugadas, jugadas
     assert _jugada(obs, m.agent(obs)) == ("PLAY", FEZ)
 
 
 def test_paso91_el_bloqueo_circular_existe_de_verdad():
-    """Documenta el estado que lo hacia inevitable: Boss's en mano sin jugar
-    (Req H activo), Unfair Stamp jugable (nos noquearon) y banca con hueco."""
+    """It documents the state that made it inevitable: a Boss's in hand unplayed
+    (Req H active), a playable Unfair Stamp (we were knocked out) and room on the bench."""
     obs = _obs(_FIX_STEP91)
     st = m.to_observation_class(obs).current
     yo = st.players[st.yourIndex]
@@ -184,10 +184,10 @@ def test_paso91_el_bloqueo_circular_existe_de_verdad():
     assert mano.count(BOSS) == 1
     assert mano.count(FEZ) == 1
     assert not st.supporterPlayed
-    assert len(yo.bench) == 4                      # queda hueco para el Fez
+    assert len(yo.bench) == 4                      # there is room for the Fez
     assert any(bp.id == RIOLU for bp in st.players[1 - st.yourIndex].bench)
     m.agent(obs)
-    assert m.ko_last_turn is True                  # Flip the Script VIVA
+    assert m.ko_last_turn is True                  # Flip the Script ALIVE
 
 
 @pytest.mark.skipif(
@@ -199,25 +199,25 @@ def test_paso91_el_bloqueo_circular_existe_de_verdad():
             "el StateBuilder (y por tanto es inmune a la rotacion). Este test "
             "se conserva por si el episodio vuelve a estar en disco."))
 def test_turno_completo_la_ultra_ball_deja_el_fezandipiti_pendiente():
-    """Punta a punta sobre el registro: la Ultra Ball elige Fezandipiti ex, eso
-    fija `_ub_fez_pending`, y el menu siguiente lo BAJA (antes se jugaba el
-    Sello y el cuerpo volvia al mazo)."""
+    """End to end over the record: the Ultra Ball chooses Fezandipiti ex, that
+    sets `_ub_fez_pending`, and the next menu PLAYS it (before, the
+    Stamp was played and the body went back into the deck)."""
     menus = _menus_del_registro()
     elecciones = []
     for obs in menus[:6]:
         elecciones.append((obs["select"]["context"], m.agent(obs)))
-    # menu 4 = seleccion de la Ultra Ball (context TO_HAND): busca Fezandipiti.
+    # menu 4 = the Ultra Ball's selection (TO_HAND context): it searches for Fezandipiti.
     ub = menus[4]
     idx = elecciones[4][1][0]
     assert ub["select"]["effect"]["id"] == m.Ultra_Ball
     assert ub["select"]["deck"][ub["select"]["option"][idx]["index"]]["id"] == FEZ
     assert m._ub_fez_pending is True
-    # menu 5 = menu principal siguiente: el cuerpo baja.
+    # menu 5 = the next main menu: the body goes down.
     assert _jugada(menus[5], elecciones[5][1]) == ("PLAY", FEZ)
 
 
 # ---------------------------------------------------------------------------
-# 2. Pasos 95-102: la habilidad se cobra antes de gastar la energia del turno
+# 2. Steps 95-102: the ability is cashed in before spending the turn's energy
 # ---------------------------------------------------------------------------
 
 def test_paso95_flip_the_script_antes_de_teal_dance_y_ripening():
@@ -231,17 +231,17 @@ def test_paso95_flip_the_script_antes_de_teal_dance_y_ripening():
 
 
 def test_paso95_la_banda_esta_por_encima_de_las_cargas_no_letales():
-    """El robo va primero por SCORE y por TIER: si se quedara en tier 0
-    cualquier Teal Dance / Ripening promovida lo pisaria por ORDEN."""
+    """The draw goes first by SCORE and by TIER: if it stayed in tier 0
+    any promoted Teal Dance / Ripening would override it by ORDER."""
     assert m.FEZ_DRAW_ABILITY_SCORE > m.RIPEN_HEAL_ABILITY_SCORE
-    assert m.FEZ_DRAW_ABILITY_SCORE > 31600      # tope de las cargas de banca
-    assert m.FEZ_DRAW_ABILITY_SCORE < 41000      # bandas LETALES intactas
+    assert m.FEZ_DRAW_ABILITY_SCORE > 31600      # the ceiling of the bench charges
+    assert m.FEZ_DRAW_ABILITY_SCORE < 41000      # the LETHAL bands untouched
 
 
 def test_paso102_el_remate_ganador_sigue_por_encima_del_robo():
-    """La UNICA excepcion: con la partida ganada este turno (3 premios y el
-    Syrup Storm noquea al Mega Lucario ex) atacar va primero -- robar 3 no
-    cambia nada."""
+    """The ONLY exception: with the game won this turn (3 prizes and the
+    Syrup Storm knocks out the Mega Lucario ex) attacking comes first -- drawing 3
+    changes nothing."""
     obs = _obs(_FIX_STEP102)
     jugadas = _jugadas(obs)
     assert ("ABILITY", FEZ) in jugadas, jugadas
@@ -249,11 +249,11 @@ def test_paso102_el_remate_ganador_sigue_por_encima_del_robo():
 
 
 # ---------------------------------------------------------------------------
-# 3. Generalizacion sintetica
+# 3. A synthetic generalisation
 # ---------------------------------------------------------------------------
 
 def _escenario_lucario(mano, con_ataque=True):
-    """Tablero del paso 91 reconstruido con el StateBuilder, mano parametrica."""
+    """The board of step 91 rebuilt with the StateBuilder, with a parametric hand."""
     esc = (Escenario(turno=6, paso=91, tac=6)
            .mi_activo(pk(HYDRA, energias=[G, G], pre_evo=[APPLIN, DIPPLIN]))
            .mi_banca(MEOWTH, pk(MEGANIUM, pre_evo=[CHIKORITA, BAYLEEF]),
@@ -265,7 +265,7 @@ def _escenario_lucario(mano, con_ataque=True):
            .op_zonas(mano=6, mazo=23, premios=4)
            .menu_mano(con_ataque=con_ataque))
     obs = esc.construir()
-    # El paso 91 llega despues de que nos noquearan: replica el seguimiento.
+    # Step 91 arrives after we were knocked out: it replicates the tracking.
     m.ko_last_turn = True
     m._ko_detected_this_turn = True
     m._prev_op_prize = 6
@@ -273,17 +273,17 @@ def _escenario_lucario(mano, con_ataque=True):
 
 
 def test_sintetico_req_h_ya_no_veta_el_fezandipiti_con_la_habilidad_viva():
-    """Con Boss's en mano (Req H activo) y un Riolu en la banca rival, bajar el
-    Fezandipiti ex ya NO se veta: no consume el Supporter, asi que el Boss's se
-    juega igual despues."""
+    """With a Boss's in hand (Req H active) and a Riolu on the opposing bench, playing the
+    Fezandipiti ex is NO longer vetoed: it does not consume the Supporter, so the Boss's is
+    played afterwards anyway."""
     obs = _escenario_lucario([FEZ, BOSS])
     assert ("PLAY", FEZ) in _jugadas(obs)
     assert _jugada(obs, m.agent(obs)) == ("PLAY", FEZ)
 
 
 def test_sintetico_req_h_sigue_vetando_el_desarrollo_normal():
-    """El veto de Req H no se ha desactivado: un cuerpo de desarrollo (Chikorita)
-    sigue cediendo la jugada al Boss's."""
+    """The Req H veto has not been disabled: a development body (Chikorita)
+    still yields the play to the Boss's."""
     obs = _escenario_lucario([CHIKORITA, BOSS])
     jugadas = _jugadas(obs)
     assert ("PLAY", CHIKORITA) in jugadas, jugadas
@@ -291,9 +291,9 @@ def test_sintetico_req_h_sigue_vetando_el_desarrollo_normal():
 
 
 def _escenario_teal_lillie(mano):
-    """Tablero con UN solo Ogerpon ex en juego: con Lillie's + Ogerpon ex +
-    Planta en la mano se enciende `_fez_prefer_teal_lillie`, que veta bajar el
-    Fezandipiti para preferir Teal + Teal Dance + Lillie's."""
+    """A board with ONE single Ogerpon ex in play: with Lillie's + Ogerpon ex +
+    Grass in hand, `_fez_prefer_teal_lillie` switches on, which vetoes playing the
+    Fezandipiti in order to prefer Teal + Teal Dance + Lillie's."""
     esc = (Escenario(turno=6, paso=91, tac=6)
            .mi_activo(pk(HYDRA, energias=[G, G], pre_evo=[APPLIN, DIPPLIN]))
            .mi_banca(MEOWTH, pk(MEGANIUM, pre_evo=[CHIKORITA, BAYLEEF]),
@@ -312,8 +312,8 @@ def _escenario_teal_lillie(mano):
 
 
 def test_sintetico_ub_fez_pending_completa_la_busqueda_pagada():
-    """`_fez_prefer_teal_lillie` (Lillie's + Ogerpon ex + Planta en mano) veta
-    bajar el Fezandipiti... salvo que la Ultra Ball lo acabe de pagar."""
+    """`_fez_prefer_teal_lillie` (Lillie's + Ogerpon ex + Grass in hand) vetoes
+    playing the Fezandipiti... unless the Ultra Ball has just paid for it."""
     obs = _escenario_teal_lillie([FEZ, LILLIE, OGERPON, GRASS])
     assert ("PLAY", FEZ) in _jugadas(obs)
     assert _jugada(obs, m.agent(obs)) != ("PLAY", FEZ)
@@ -324,7 +324,7 @@ def test_sintetico_ub_fez_pending_completa_la_busqueda_pagada():
 
 
 def test_sintetico_pending_no_rompe_los_limites_fisicos():
-    """El override no llena una banca ya completa (limite FISICO)."""
+    """The override does not fill an already complete bench (a PHYSICAL limit)."""
     esc = (Escenario(turno=6, paso=91, tac=6)
            .mi_activo(pk(HYDRA, energias=[G, G], pre_evo=[APPLIN, DIPPLIN]))
            .mi_banca(MEOWTH, pk(MEGANIUM, pre_evo=[CHIKORITA, BAYLEEF]),

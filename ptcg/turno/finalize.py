@@ -1,10 +1,10 @@
-"""Cierre del turno: orden de jugada por tiers, rescates y eleccion final.
+"""Closing the turn: play order by tiers, rescues and the final choice.
 
-Extraido VERBATIM de la cola de `agent()` (Ola 5). Recibe un `TurnoCtx` y
-desempaqueta sus campos a locales con los MISMOS nombres, de modo que el
-cuerpo de abajo es exactamente el que estaba en main.py -- sin reescribir una
-sola linea de logica. Funciona porque es la COLA de la funcion: nada
-posterior lee lo que muta, asi que no hace falta escritura de vuelta.
+Extracted VERBATIM from the tail of `agent()` (wave 5). It receives a
+`TurnoCtx` and unpacks its fields into locals with the SAME names, so the body
+below is exactly the one that was in main.py -- without rewriting a single line
+of logic. It works because it is the TAIL of the function: nothing afterwards
+reads what it mutates, so no write-back is needed.
 """
 
 from cg.api import AreaType, CardType, OptionType, SelectContext
@@ -24,8 +24,8 @@ from ptcg.turno.ctx import TurnoCtx  # noqa: F401
 
 
 def finalizar(tc):
-    """Devuelve los indices de opcion que juega el agente este turno."""
-    # Desempaquetado del contexto: mismos nombres que en agent().
+    """Returns the option indexes the agent plays this turn."""
+    # Unpacking of the context: same names as in agent().
     _ability_order_veto = tc._ability_order_veto
     _active_attack_wins_now = tc._active_attack_wins_now
     _attach_cede_a_teal_dance = tc._attach_cede_a_teal_dance
@@ -87,18 +87,18 @@ def finalizar(tc):
 
     if (_lucario_sac_pivot and select.effect is not None
             and select.effect.id == Poke_Pad and context == SelectContext.TO_HAND):
-        # Tapu Bulu SOLO se fuerza como objetivo de Poke Pad cuando de verdad
-        # aporta:
-        #   * el rival juega un mazo con proteccion a ex (Crustle / Cornerstone
-        #     Ogerpon / Sylveon), donde nuestros ex hacen 0 dano, o
-        #   * ya tenemos Hydrapple ex cargado + Meganium en juego, que permite
-        #     bajar Tapu Bulu y cargarlo al instante (con Meganium 2 energias
-        #     cuentan como 4, asi que puede atacar de inmediato).
-        # En cualquier otro caso (p.ej. este mismo escenario anti-Lucario) la
-        # prioridad la decide el scoring normal: Applin > Chikorita >
-        # evoluciones de Pokemon en juego que no tengamos en mano, y Tapu Bulu
-        # queda como ultima opcion. Ademas no se trae un Tapu Bulu redundante
-        # si ya tenemos uno en mano o en juego.
+        # Tapu Bulu is ONLY forced as a Poke Pad target when it really
+        # contributes:
+        #   * the opponent plays a deck with ex protection (Crustle / Cornerstone
+        #     Ogerpon / Sylveon), where our ex do 0 damage, or
+        #   * we already have a charged Hydrapple ex + Meganium in play, which
+        #     allows putting Tapu Bulu down and charging it instantly (with
+        #     Meganium 2 energies count as 4, so it can attack immediately).
+        # In any other case (e.g. this very anti-Lucario scenario) the priority is
+        # decided by the normal scoring: Applin > Chikorita > evolutions of Pokemon
+        # in play that we do not have in hand, and Tapu Bulu is the last option.
+        # Besides, a redundant Tapu Bulu is not fetched if we already have one in
+        # hand or in play.
         _tapu_already = (hand_counts.get(Tapu_Bulu, 0) >= 1 or
                          field_counts.get(Tapu_Bulu, 0) >= 1)
         if (not _tapu_already) and _tapu_sac_priority:
@@ -122,18 +122,18 @@ def finalizar(tc):
         if _best_ub_id == Meowth_ex and _best_ub_score > 10:
             ESTADO._ub_meowth_pending = True
         if _best_ub_id == Fezandipiti_ex and _best_ub_score > 10:
-            # Cadena UB -> Fezandipiti ex -> Flip the Script: la busqueda ya
-            # esta pagada, el cuerpo BAJA (ver `_ub_fez_pending`).
+            # Chain UB -> Fezandipiti ex -> Flip the Script: the search is already
+            # paid for, the body GOES DOWN (see `_ub_fez_pending`).
             ESTADO._ub_fez_pending = True
 
-    # Cadena Meowth ex -> Last-Ditch Catch -> Supporter: se anota el Supporter
-    # elegido para que el resto del turno lo JUEGUE (ver
-    # `_ld_supp_comprometido`). Mismo patron que los dos bloques de arriba: el
-    # id se saca del argmax de `scores` sobre las opciones del prompt.
+    # Chain Meowth ex -> Last-Ditch Catch -> Supporter: the chosen Supporter is
+    # noted so the rest of the turn PLAYS it (see `_ld_supp_comprometido`). Same
+    # pattern as the two blocks above: the id comes from the argmax of `scores`
+    # over the prompt's options.
     if (select.effect is not None and select.effect.id == Meowth_ex
             and context == SelectContext.TO_HAND and not state.supporterPlayed):
-        # Solo con el cuerpo PAGADO este turno: el Last-Ditch de un Meowth ex
-        # que ya estaba en juego es gratis y no compromete el turno.
+        # Only with the body PAID FOR this turn: the Last-Ditch of a Meowth ex that
+        # was already in play is free and does not commit the turn.
         _ld_serial = getattr(select.effect, 'serial', None)
         _ld_cuerpo_pagado = False
         for _ld_pk in (my_state.bench or []) + (my_state.active or []):
@@ -162,13 +162,13 @@ def finalizar(tc):
     _replace_opp_stadium_ok = (
         (not ESTADO.we_go_first) and state.turn == 2 and
         stadium_id != 0 and stadium_id != Forest_of_Vitality)
-    # vs CRUSTLE, SALIENDO SEGUNDOS: el estadio se baja ANTES de la Lillie's
-    # (regla del user). Espejo por ORDEN de la regla
-    # `t1_segundos_crustle_estadio_antes_de_lillie` de `_REGLAS_FOREST_PLAY`:
-    # sin esta excepcion el veto duro de aqui (-99999) aplastaba el score que
-    # aquella regla concede y el estadio se iba al mazo con el barajeo de
-    # Lillie's. El mazo Crustle no juega estadio (o lleva una o dos copias),
-    # asi que el nuestro no corre el riesgo que motiva el veto general.
+    # vs CRUSTLE, GOING SECOND: the stadium goes down BEFORE the Lillie's
+    # (user's rule). Ordering mirror of the rule
+    # `t1_segundos_crustle_estadio_antes_de_lillie` of `_REGLAS_FOREST_PLAY`:
+    # without this exception the hard veto here (-99999) crushed the score that
+    # rule grants and the stadium went back into the deck with Lillie's shuffle.
+    # The Crustle deck does not play a stadium (or runs one or two copies), so
+    # ours does not run the risk that motivates the general veto.
     _crustle_stadium_before_lillie = (
         (not ESTADO.we_go_first) and state.turn == 2
         and _op_juega_crustle(op_state)
@@ -188,103 +188,103 @@ def finalizar(tc):
                         _vetoed_stadium_idxs.add(_gi)
 
     # =================================================================
-    # ORDEN DE JUGADA (contexto MAIN): imponer la secuencia solicitada
-    #   1) estadio  2) Bug Catching Set  3) basicos + evoluciones
-    #   4) Poke Pad  5) cargar energia
-    # El estadio solo aparece jugable a partir del turno 3 (en el turno 1/2
-    # queda vetado mas arriba), asi que su tier solo actua "despues del
-    # segundo turno". La energia que habilita un KO/ataque letal ESTE turno
-    # conserva prioridad maxima (excepcion). Solo se reordenan estas 5
-    # categorias entre si mediante una clave (tier, score): los tiers altos
-    # se juegan primero y, dentro del mismo tier, decide el score original.
-    # El resto de opciones (Ultra Ball, supporters, ataque, etc.) mantiene su
-    # tier 0 y su puntaje. Solo se promueve una opcion jugable (score > 0),
-    # de modo que los vetos (-1) se siguen respetando.
+    # PLAY ORDER (MAIN context): enforcing the requested sequence
+    #   1) stadium  2) Bug Catching Set  3) basics + evolutions
+    #   4) Poke Pad  5) charge energy
+    # The stadium only becomes playable from turn 3 onwards (on turns 1/2 it is
+    # vetoed further up), so its tier only acts "after the second turn". Energy
+    # that enables a KO/lethal attack THIS turn keeps top priority (an
+    # exception). Only these 5 categories are reordered among themselves through
+    # a (tier, score) key: the high tiers are played first and, within the same
+    # tier, the original score decides. The other options (Ultra Ball,
+    # supporters, attack, etc.) keep their tier 0 and their score. Only a
+    # playable option (score > 0) is promoted, so the vetoes (-1) are still
+    # respected.
     #
-    # BUG CATCHING SET ANTES DE BAJAR UN POKEMON (user, log 88166559 paso 6 vs
-    # Archaludon, GANADA con error): mirar los 7 de arriba y coger hasta 2
-    # Pokemon {G} / Energia Planta cambia QUE cuerpo bajamos y con QUE lo
-    # cargamos, asi que decidir el cuerpo ANTES de esa informacion es decidir a
-    # ciegas. Alli el agente bajo el Meowth ex (motor Lillie's, 21800) teniendo
-    # el BCS (12200) en la mano, y el BCS acabo trayendo un Chikorita -- un
-    # cuerpo de UN premio, mejor candidato de banca que un ex de dos -- con el
-    # slot ya gastado. Ademas el motor Meowth->Lillie's BARAJA la mano entera:
-    # un BCS que siga en mano al jugar Lillie's se pierde en el mazo, asi que el
-    # orden no es cosmetico. Reordenar no cuesta nada porque jugar el BCS no
-    # consume la bajada de Pokemon (ni el adjunte, ni el ataque): el cuerpo baja
-    # despues, en el mismo turno, ya con las 2 cartas nuevas en la mano. Cubre
-    # igual el caso "bajo un Ogerpon, hago Teal Dance y sale un BCS": el BCS
-    # recien robado se juega ANTES del siguiente cuerpo.
+    # BUG CATCHING SET BEFORE PUTTING A POKEMON DOWN (user, log 88166559 step 6 vs
+    # Archaludon, WON with a mistake): looking at the top 7 and taking up to 2 {G}
+    # Pokemon / Grass Energy changes WHICH body we put down and WHAT we charge it
+    # with, so deciding the body BEFORE that information is deciding blind. There
+    # the agent put down the Meowth ex (Lillie's engine, 21800) while holding the
+    # BCS (12200) in hand, and the BCS ended up bringing a Chikorita -- a ONE-prize
+    # body, a better bench candidate than a two-prize ex -- with the slot already
+    # spent. Besides, the Meowth->Lillie's engine SHUFFLES the whole hand: a BCS
+    # still in hand when Lillie's is played is lost in the deck, so the order is
+    # not cosmetic. Reordering costs nothing because playing the BCS does not
+    # consume the Pokemon drop (nor the attachment, nor the attack): the body goes
+    # down afterwards, in the same turn, already with the 2 new cards in hand. It
+    # equally covers the case "I put down an Ogerpon, use Teal Dance and a BCS comes
+    # out": the freshly drawn BCS is played BEFORE the next body.
     #
-    # Se implementa DEMOTANDO la bajada de Pokemon (tier `_TIER_DEVELOP_TRAS_BCS`)
-    # en vez de promoviendo el BCS: asi la regla toca SOLO lo que pidio el user
-    # -- las EVOLUCIONES conservan `_TIER_DEVELOP` y siguen precediendo al BCS
-    # (promoverlo adelantaba tambien la evolucion a Hydrapple ex y rompia sus
-    # dos tests). Consecuencia transitiva aceptada: con BCS y Poke Pad a la vez
-    # en la mano, la bajada tambien cede al Poke Pad -- coherente, los dos son
-    # cartas de "cavar 7 antes de comprometerse".
+    # It is implemented by DEMOTING the Pokemon drop (tier `_TIER_DEVELOP_TRAS_BCS`)
+    # instead of promoting the BCS: that way the rule touches ONLY what the user
+    # asked for -- EVOLUTIONS keep `_TIER_DEVELOP` and still precede the BCS
+    # (promoting it also advanced the evolution into Hydrapple ex and broke its two
+    # tests). Accepted transitive consequence: with a BCS and a Poke Pad in hand at
+    # the same time, the drop also yields to the Poke Pad -- coherent, both are
+    # "dig 7 before committing" cards.
     #
-    # La demotion solo se aplica si el BCS esta OFRECIDO en este mismo menu y con
-    # score REAL (>0): si no fuera jugable, posponer el cuerpo lo dejaria sin
-    # bajar. Los tiers se renumeran con huecos (x10) para poder insertar el nuevo
-    # nivel conservando TODOS los demas ordenes relativos.
+    # The demotion is only applied if the BCS is OFFERED in this very menu and with
+    # a REAL score (>0): if it were not playable, postponing the body would leave it
+    # undropped. The tiers are renumbered with gaps (x10) so the new level can be
+    # inserted while keeping ALL the other relative orders.
     # =================================================================
 
     # =================================================================
-    # REVOCAR VETOS DE ORDEN SOBRE HABILIDADES (user, registro_006 paso 78 vs
-    # Archaludon ex, PERDIDA).
+    # REVOKING ORDERING VETOES ON ABILITIES (user, registro_006 step 78 vs
+    # Archaludon ex, LOST).
     #
-    # Estado del paso 78 (turno 6, nos noquearon el Ogerpon ex el turno anterior):
+    # State at step 78 (turn 6, they knocked out our Ogerpon ex last turn):
     #
-    #     NOSOTROS                                RIVAL
-    #     activo  Teal Mask Ogerpon ex 210 3e     activo  Archaludon ex 400 3e
-    #     banca   Bayleef, Meowth ex, 2x Applin,  banca   Duraludon 10, Duraludon 130,
-    #             Fezandipiti ex (recien bajado)          Fezandipiti ex
-    #     mano    Lillie's Determination, Boss's Orders, Bayleef
+    #     US                                      OPPONENT
+    #     active  Teal Mask Ogerpon ex 210 3e     active  Archaludon ex 400 3e
+    #     bench   Bayleef, Meowth ex, 2x Applin,  bench   Duraludon 10, Duraludon 130,
+    #             Fezandipiti ex (just played)            Fezandipiti ex
+    #     hand    Lillie's Determination, Boss's Orders, Bayleef
     #
-    # El menu ofrecia CUATRO jugadas: Lillie's (score -1), Boss's (20), la
-    # habilidad Flip the Script del Fezandipiti ex recien bajado (VETADA) y
-    # atacar (1100). El agente ATACO y cerro el turno, tirando el robo de 3
-    # cartas. Es una perdida seca y no recuperable: Flip the Script es UNA VEZ
-    # POR TURNO y su condicion de activacion (que nos noquearan un Pokemon en el
-    # turno anterior) desaparece con el turno.
+    # The menu offered FOUR plays: Lillie's (score -1), Boss's (20), the Flip the
+    # Script ability of the freshly benched Fezandipiti ex (VETOED) and attacking
+    # (1100). The agent ATTACKED and closed the turn, throwing away the 3-card
+    # draw. It is a dead, unrecoverable loss: Flip the Script is ONCE PER TURN and
+    # its activation condition (that one of our Pokemon was knocked out on the
+    # previous turn) disappears with the turn.
     #
-    # La causa es un BLOQUEO CIRCULAR entre tres reglas correctas por separado:
-    #   * la habilidad se veta porque "primero Lillie's Determination, DESPUES
-    #     la habilidad" (`_lillie_blocks_fez_ability`),
-    #   * Lillie's se veta porque cede a un Boss's ejecutable
+    # The cause is a CIRCULAR BLOCK between three rules that are each correct on
+    # their own:
+    #   * the ability is vetoed because "first Lillie's Determination, THEN the
+    #     ability" (`_lillie_blocks_fez_ability`),
+    #   * Lillie's is vetoed because it yields to an executable Boss's
     #     (`cede_a_boss_ejecutable`),
-    #   * y Boss's se degrada a 20 porque cede a Lillie's sin atacante de banca
-    #     (`sin_atacante_banca_cede_a_lillie`).
-    # Ninguna de las tres se juega y la habilidad muere con el turno.
+    #   * and Boss's is degraded to 20 because it yields to Lillie's with no
+    #     benched attacker (`sin_atacante_banca_cede_a_lillie`).
+    # None of the three is played and the ability dies with the turn.
     #
-    # El arreglo ataca la clase entera del error, no este trio: un veto de ORDEN
-    # ("primero X") solo es valido mientras X sea REALMENTE jugable en este menu.
-    # Se revoca en dos casos, y es agnostico del mazo rival (solo mira nuestra
-    # mano y el menu):
+    # The fix attacks the whole class of error, not this trio: an ORDERING veto
+    # ("first X") is only valid while X is REALLY playable in this menu. It is
+    # revoked in two cases, and it is agnostic of the opposing deck (it only looks
+    # at our hand and the menu):
     #
-    #   (a) NINGUN bloqueador esta ofrecido y jugable (score > 0) en este mismo
-    #       menu -- si no se puede jugar X, no hay "despues de X". Cubre el paso
-    #       78 (Lillie's vetada) y cualquier bloqueador que quede en la mano por
-    #       falta de objetivo legal.
-    #   (b) el bloqueador esta ofrecido y jugable, pero PIERDE contra atacar /
-    #       pasar y no queda ninguna otra jugada viva: el turno se cierra en esta
-    #       misma accion, asi que "despues de X" tampoco va a llegar. Se exige
-    #       que el bloqueador puntue POR DEBAJO de la mejor jugada que cierra el
-    #       turno, y que las unicas opciones vivas sean bloqueadores o cierres de
-    #       turno -- con ese recorte todas viven en el tier 0, no hay tier que
-    #       pueda reordenarlas y la comparacion de scores es exacta.
+    #   (a) NO blocker is offered and playable (score > 0) in this very menu -- if
+    #       X cannot be played, there is no "after X". It covers step 78 (Lillie's
+    #       vetoed) and any blocker left in hand for lack of a legal target.
+    #   (b) the blocker is offered and playable, but LOSES against attacking /
+    #       passing and there is no other live play left: the turn closes with this
+    #       very action, so "after X" is not going to arrive either. The blocker is
+    #       required to score BELOW the best play that closes the turn, and the only
+    #       live options must be blockers or turn-closers -- with that trimming they
+    #       all live in tier 0, no tier can reorder them and the score comparison is
+    #       exact.
     #
-    # Fuera de esos dos casos el veto se mantiene y el orden pedido (Unfair Stamp
-    # / Lillie's Determination antes de la habilidad) se respeta tal cual: si el
-    # bloqueador gana el menu se juega el primero y, al salir de la mano, el veto
-    # se apaga solo en el menu siguiente.
+    # Outside those two cases the veto stands and the requested order (Unfair Stamp
+    # / Lillie's Determination before the ability) is respected as is: if the
+    # blocker wins the menu it is played first and, on leaving the hand, the veto
+    # switches itself off in the next menu.
     # =================================================================
     if _ability_order_veto and context == SelectContext.MAIN:
-        # Bloqueadores REALMENTE jugables ahora: {id de carta: score}.
+        # Blockers REALLY playable now: {card id: score}.
         _aov_playable = {}
-        # Mejor score entre las jugadas que CIERRAN el turno, y si hay alguna
-        # jugada viva que no sea un cierre de turno ni un PLAY de la mano.
+        # Best score among the plays that CLOSE the turn, and whether there is any
+        # live play that is neither a turn-closer nor a PLAY from hand.
         _aov_best_close = SCORE_VETO
         _aov_otras_vivas = False
         for _aov_i, _aov_o in enumerate(select.option):
@@ -305,9 +305,9 @@ def finalizar(tc):
                 continue
             _aov_vivos = [_b for _b in _aov_blockers if _b in _aov_playable]
             if _aov_vivos:
-                # (b): el bloqueador vive, asi que solo se revoca si el turno se
-                # cierra YA -- ninguna otra jugada viva y el bloqueador por
-                # debajo del ataque/pasar.
+                # (b): the blocker is alive, so it is only revoked if the turn closes
+                # RIGHT NOW -- no other live play and the blocker below
+                # attacking/passing.
                 if _aov_otras_vivas:
                     continue
                 if set(_aov_playable) - set(_aov_blockers):
@@ -319,42 +319,41 @@ def finalizar(tc):
             scores[_aov_idx] = _aov_score
 
     # =================================================================
-    # EL SUPPORTER QUE TRAJO EL LAST-DITCH SE JUEGA (user, registro_002 paso 22
-    # vs Alakazam, GANADA con error). Ese turno el agente encadeno bien --
+    # THE SUPPORTER THE LAST-DITCH BROUGHT GETS PLAYED (user, registro_002 step 22
+    # vs Alakazam, WON with a mistake). That turn the agent chained correctly --
     # Ultra Ball -> Meowth ex -> Last-Ditch Catch -> Lillie's Determination --
-    # y acto seguido jugo el DAWN que ya tenia en la mano: la Lillie's recien
-    # buscada se quedo muerta y el cuerpo de 2 premios en la banca, gratis.
+    # and then immediately played the DAWN it already had in hand: the freshly
+    # fetched Lillie's stayed dead and the 2-prize body on the bench was free.
     #
-    # Por que no bastaban los vetos previos: `_meowth_fetch_pierde_el_turno`
-    # PREDICE, antes de bajar el Meowth, que el fetch se lleva el hueco de
-    # Supporter -- pero no se evalua en NUESTRO PRIMER TURNO (la linea anti-donk
-    # baja el Meowth igual) y, sobre todo, no obliga a nada DESPUES del fetch. El
-    # scorer de jugada volvia a decidir desde cero con la mano nueva y ahi
-    # gobernaba un veto de tablero (`no_barajar_ultimo_xerosic`, -1) que ignora
-    # que la Lillie's ya esta PAGADA con un cuerpo de 2 premios.
+    # Why the previous vetoes were not enough: `_meowth_fetch_pierde_el_turno`
+    # PREDICTS, before benching the Meowth, that the fetch takes the Supporter
+    # slot -- but it is not evaluated on OUR FIRST TURN (the anti-donk line
+    # benches the Meowth anyway) and, above all, it forces nothing AFTER the fetch.
+    # The play scorer decided again from scratch with the new hand and there a
+    # board veto governed (`no_barajar_ultimo_xerosic`, -1) which ignores that the
+    # Lillie's is already PAID FOR with a 2-prize body.
     #
-    # La regla es de COMPROMISO, no de valor: una vez gastado el recurso, el
-    # Supporter que trajo se queda con el unico hueco del turno. Se implementa
-    # con UN SOLO gesto -- un PISO de score aplicado con `max()` -- y NO con un
-    # veto a los demas Supporters de la mano. Las dos mitades se midieron por
-    # separado (self-play vs 4 mazos rivales, 1500 partidas por celda, 6000 por
-    # variante):
+    # The rule is about COMMITMENT, not value: once the resource is spent, the
+    # Supporter it brought keeps the turn's only slot. It is implemented with A
+    # SINGLE gesture -- a score FLOOR applied with `max()` -- and NOT with a veto
+    # on the other Supporters in hand. The two halves were measured separately
+    # (self-play vs 4 opposing decks, 1500 games per cell, 6000 per variant):
     #
-    #     sin la regla          83.45%
-    #     piso + veto al resto  82.78%   (-0.67)
-    #     SOLO PISO             83.85%   (+0.40)   <- esta
-    #     solo veto             83.45%   ( 0.00)
+    #     without the rule       83.45%
+    #     floor + veto the rest  82.78%   (-0.67)
+    #     FLOOR ONLY             83.85%   (+0.40)   <- this one
+    #     veto only              83.45%   ( 0.00)
     #
-    # El piso (8000) ya esta por encima de la banda normal de CUALQUIER otro
-    # Supporter (el mas alto es Xerosic, ~7300), asi que el compromiso gana el
-    # hueco sin necesidad de vetar a nadie. Lo unico que anadia el veto era
-    # ganarle tambien a un Supporter DECISIVO (score > 8000: un Boss's que gana
-    # la partida, un remate) -- justo el caso en el que el compromiso DEBE
-    # ceder. Por eso quitarlo no solo no rompe la regla: la mejora.
+    # The floor (8000) is already above the normal band of ANY other Supporter (the
+    # highest is Xerosic, ~7300), so the commitment wins the slot without needing to
+    # veto anyone. The only thing the veto added was beating a DECISIVE Supporter
+    # too (score > 8000: a Boss's that wins the game, a finisher) -- exactly the
+    # case where the commitment MUST yield. That is why removing it does not break
+    # the rule: it improves it.
     #
-    # Deck-agnostica: no nombra cartas. Se desarma sola cuando el Supporter ya
-    # no esta ofrecido (descartado como coste, barajado...) o cuando el hueco ya
-    # se gasto (`supporterPlayed`).
+    # Deck-agnostic: it names no cards. It disarms itself when the Supporter is no
+    # longer offered (discarded as a cost, shuffled away...) or when the slot has
+    # already been spent (`supporterPlayed`).
     # =================================================================
     if (ESTADO._ld_supp_comprometido and context == SelectContext.MAIN
             and not state.supporterPlayed):
@@ -370,12 +369,12 @@ def finalizar(tc):
     if context == SelectContext.MAIN:
         _TIER_WIN_ATTACK = 70
         _TIER_KO_ENERGY = 60
-        # La habilidad de Grand Tree va POR ENCIMA de cualquier jugada de
-        # estadio: si primero bajaramos el nuestro (Forest, tier STADIUM), el
-        # Grand Tree se iria al descarte con la cadena gratis sin cobrar. El
-        # veto `esperar_habilidad_grand_tree` de `_REGLAS_FOREST_PLAY` cubre el
-        # mismo caso por score; este tier lo cubre por ORDEN, que es lo que de
-        # verdad manda cuando dos jugadas viven en tiers distintos.
+        # The Grand Tree ability goes ABOVE any stadium play: if we put ours down
+        # first (Forest, tier STADIUM), the Grand Tree would go to the discard
+        # with the free chain uncashed. The `esperar_habilidad_grand_tree` veto of
+        # `_REGLAS_FOREST_PLAY` covers the same case by score; this tier covers it
+        # by ORDER, which is what really rules when two plays live in different
+        # tiers.
         _TIER_STADIUM_ABILITY = 55
         _TIER_STADIUM = 50
         _TIER_DEVELOP = 40
@@ -384,8 +383,8 @@ def finalizar(tc):
         _TIER_DEVELOP_TRAS_BCS = 15
         _TIER_ENERGY = 10
 
-        # Jugada de Bug Catching Set realmente disponible AHORA (ofrecida en el
-        # menu y con score > 0): mientras exista, bajar un Pokemon cede.
+        # A Bug Catching Set play really available NOW (offered in the menu and
+        # with score > 0): while it exists, putting a Pokemon down yields.
         _bcs_play_idx = -1
         for _bcs_i, _bcs_o in enumerate(select.option):
             if (_bcs_o.type != OptionType.PLAY or _bcs_i >= len(scores)
@@ -400,18 +399,18 @@ def finalizar(tc):
                 continue
             if (_po_o.type == OptionType.ATTACK
                     and _active_attack_wins_now and ESTADO.plan.attacker == 0):
-                # Remate ganador con el activo: tier MAXIMO para ejecutarlo antes
-                # que cualquier carga/desarrollo y cerrar la partida (paso 125).
+                # Winning finisher with the active: MAXIMUM tier so it is executed
+                # before any charge/development and closes the game (step 125).
                 _play_order_tier[_po_i] = _TIER_WIN_ATTACK
             elif (_po_o.type == OptionType.RETREAT
                     and (_suicide_swap_win_promote
                          or _win_ko_active_via_promote)):
-                # Relevo del remate suicida (user, registro_016 paso 184): mismo
-                # tier que el remate ganador, porque es la MISMA jugada -- cerrar
-                # la partida este turno, solo que el rematador esta en la banca.
-                # Sin este tier, la retirada (score 9600, tier 0) la aplastaba por
-                # ORDEN cualquier carga de energia (tier ENERGY) pese a valer
-                # menos: el turno se gastaba en adjuntar y el remate no llegaba.
+                # Relief of the suicidal finisher (user, registro_016 step 184): the
+                # same tier as the winning finisher, because it is the SAME play --
+                # closing the game this turn, only with the finisher on the bench.
+                # Without this tier, the retreat (score 9600, tier 0) was crushed by
+                # ORDER by any energy charge (tier ENERGY) despite being worth less:
+                # the turn was spent attaching and the finisher never arrived.
                 _play_order_tier[_po_i] = _TIER_WIN_ATTACK
             elif _po_o.type == OptionType.EVOLVE:
                 _play_order_tier[_po_i] = _TIER_DEVELOP
@@ -425,24 +424,24 @@ def finalizar(tc):
                           and ESTADO.plan.attacker == 0)
                          or (_po_o.inPlayArea != AreaType.ACTIVE
                              and ESTADO.plan.attacker == 1 + _po_o.inPlayIndex)))
-                # Fix (user, log 86506312 paso 97, vs Alakazam): NO tratar la
-                # carga al ACTIVO como "energia de KO" (tier 6) cuando
-                # `_tapu_future_charge` esta activo. Ese flag ya garantiza que el
-                # activo (Hydrapple ex) NOQUEA con su energia ACTUAL y que hay
-                # Meganium en juego (cada Planta cuenta doble), asi que la energia
-                # extra en el activo es INNECESARIA. Sin esta exclusion, el tier
-                # KO_ENERGY del activo aplastaba (6 > 1) la carga de Tapu Bulu de
-                # banca (`_tapu_future_charge`, score 40000, tier ENERGY),
-                # desperdiciando la energia en un atacante ya listo en vez de
-                # preparar al atacante FUTURO. Al bajar el activo a tier ENERGY,
-                # la carga de Tapu (40000) gana el desempate dentro del mismo tier.
+                # Fix (user, log 86506312 step 97, vs Alakazam): do NOT treat the
+                # charge to the ACTIVE as "KO energy" (tier 6) when
+                # `_tapu_future_charge` is on. That flag already guarantees that the
+                # active (Hydrapple ex) KNOCKS OUT with its CURRENT energy and that
+                # Meganium is in play (each Grass counts double), so the extra energy
+                # on the active is UNNECESSARY. Without this exclusion, the active's
+                # KO_ENERGY tier crushed (6 > 1) the charge of the benched Tapu Bulu
+                # (`_tapu_future_charge`, score 40000, tier ENERGY), wasting the energy
+                # on an already-ready attacker instead of preparing the FUTURE attacker.
+                # By lowering the active to tier ENERGY, the Tapu charge (40000) wins
+                # the tie-break inside the same tier.
                 if (_tapu_future_charge
                         and _po_o.inPlayArea == AreaType.ACTIVE):
                     _po_is_ko_energy = False
                 if _po_i in _attach_cede_a_teal_dance:
-                    # Adjunte de mero desarrollo con una Teal Dance pendiente:
-                    # se queda en tier 0 junto a la habilidad para que decida
-                    # el score (Teal Dance 7500 > adjunte capado 7000).
+                    # A pure development attachment with a Teal Dance pending: it
+                    # stays in tier 0 next to the ability so the score decides
+                    # (Teal Dance 7500 > capped attachment 7000).
                     continue
                 _play_order_tier[_po_i] = (
                     _TIER_KO_ENERGY if _po_is_ko_energy else _TIER_ENERGY)
@@ -455,45 +454,45 @@ def finalizar(tc):
                     elif _po_card.id == Bug_Catching_Set:
                         _play_order_tier[_po_i] = _TIER_BUG_SET
                     elif _po_card.id == Ultra_Ball and scores[_po_i] > 31000:
-                        # Motor UB->Meowth->Lillie's ANTES del adjunte (user,
-                        # registro_008 paso 58 vs Archaludon ex, PERDIDA): el
-                        # pivote `_ub_engine_refresh_pivot` puntua la UB a 31450,
-                        # pero los items van en tier 0 y el adjunte manual (tier
-                        # ENERGY=1, ~31410) la aplastaba por tier pese al score.
-                        # Mismo patron que Teal Dance (abajo): subirla al tier
-                        # ENERGY para que DENTRO del tier decida el score
-                        # (31450 > 31410). Solo aplica con el score del pivote
-                        # (>31000); la UB normal (<=12500) conserva su tier 0.
+                        # UB->Meowth->Lillie's engine BEFORE the attachment (user,
+                        # registro_008 step 58 vs Archaludon ex, LOST): the
+                        # `_ub_engine_refresh_pivot` pivot scores the UB at 31450,
+                        # but items live in tier 0 and the manual attachment (tier
+                        # ENERGY=1, ~31410) crushed it by tier despite the score.
+                        # Same pattern as Teal Dance (below): raise it to the ENERGY
+                        # tier so that WITHIN the tier the score decides
+                        # (31450 > 31410). It only applies with the pivot's score
+                        # (>31000); a normal UB (<=12500) keeps its tier 0.
                         _play_order_tier[_po_i] = _TIER_ENERGY
                     elif _po_data is not None and _po_data.cardType == CardType.STADIUM:
                         _play_order_tier[_po_i] = _TIER_STADIUM
                     elif _po_data is not None and _po_data.cardType == CardType.POKEMON:
-                        # Bajar un Pokemon cede al Bug Catching Set pendiente
-                        # (ver la cabecera del bloque): con las 2 cartas nuevas
-                        # en la mano se decide MEJOR que cuerpo baja.
+                        # Putting a Pokemon down yields to a pending Bug Catching
+                        # Set (see the block header): with the 2 new cards in hand
+                        # it is decided BETTER which body goes down.
                         _play_order_tier[_po_i] = (
                             _TIER_DEVELOP if _bcs_play_idx < 0
                             else _TIER_DEVELOP_TRAS_BCS)
             elif _po_o.type == OptionType.ABILITY:
-                # Teal Dance PRECEDE al adjunte manual (user, registro_004 paso
-                # 28, vs Mega Starmie): la habilidad Teal Dance de Teal Mask
-                # Ogerpon ex adjunta 1 Planta Y ROBA una carta, asi que debe
-                # jugarse ANTES que cualquier adjunte manual de energia. Sin
-                # esto, la habilidad quedaba en tier 0 (por debajo del tier
-                # ENERGY=1 de los adjuntes) y el orden de jugada anteponia una
-                # carga manual pese a que Teal Dance puntua mucho mas alto,
-                # desperdiciando el robo. Al ponerla en tier ENERGY, dentro del
-                # mismo tier decide el score (Teal Dance ~31500 gana). Las
-                # cargas de KO letal de ESTE turno siguen en tier KO_ENERGY=6.
-                # GUARD (user, registro_009 paso 113 vs Mega Lucario, PERDIDA):
-                # la promocion solo aplica cuando Teal Dance puntua como jugada
-                # REAL (>= 29000: sus ramas van de 29000 a 31600). Sin el
-                # guard, una Teal Dance DEGRADADA (7500: reservas de energia,
-                # anti-sobrecarga...) dominaba por TIER a todo el tier 0 --
-                # incluida Ripening Charge a 31100, que cargaba el Hydrapple ex
-                # ACTIVO (1 energia) para el KO de 3 premios al Mega Lucario ex
-                # (Syrup Storm 210 >= 160). El agente regaba la energia
-                # recuperada en un Ogerpon de banca y perdia el remate.
+                # Teal Dance PRECEDES the manual attachment (user, registro_004 step
+                # 28, vs Mega Starmie): the Teal Dance ability of Teal Mask
+                # Ogerpon ex attaches 1 Grass AND DRAWS a card, so it has to be
+                # played BEFORE any manual energy attachment. Without this, the
+                # ability stayed in tier 0 (below the ENERGY=1 tier of the
+                # attachments) and the play order put a manual charge first even
+                # though Teal Dance scores much higher, wasting the draw. By
+                # putting it in the ENERGY tier, within the same tier the score
+                # decides (Teal Dance ~31500 wins). The lethal KO charges of THIS
+                # turn stay in tier KO_ENERGY=6.
+                # GUARD (user, registro_009 step 113 vs Mega Lucario, LOST):
+                # the promotion only applies when Teal Dance scores as a REAL
+                # play (>= 29000: its branches run from 29000 to 31600). Without
+                # the guard, a DEGRADED Teal Dance (7500: energy reserves,
+                # anti-overcharge...) dominated the whole of tier 0 by TIER --
+                # including Ripening Charge at 31100, which charged the ACTIVE
+                # Hydrapple ex (1 energy) for the 3-prize KO on the Mega Lucario ex
+                # (Syrup Storm 210 >= 160). The agent poured the recovered energy
+                # onto a benched Ogerpon and lost the finisher.
                 _po_ab_card = get_card(obs, _po_o.area, _po_o.index, my_index)
                 if (_po_ab_card is not None
                         and _po_ab_card.id == Grand_Tree):
@@ -505,75 +504,75 @@ def finalizar(tc):
                 elif (_po_ab_card is not None
                         and _po_ab_card.id == Fezandipiti_ex
                         and scores[_po_i] >= 29000):
-                    # Flip the Script en el MISMO tier que las habilidades de
-                    # carga (user, registro_006 pasos 95-102 vs Mega Lucario): en
-                    # tier 0 la aplastaba por ORDEN cualquier Teal Dance /
-                    # Ripening Charge promovida, y el turno se cerraba con el robo
-                    # de 3 sin cobrar. Dentro del tier decide el score, que ya
-                    # codifica la prioridad correcta: habilidad que HABILITA el KO
-                    # de hoy (41000+) > Flip the Script (31700) > cargas de
-                    # desarrollo (<= 31600). La habilidad VETADA (deck-out o veto
-                    # de ORDEN sin revocar) se queda en tier 0, como las demas.
+                    # Flip the Script in the SAME tier as the charging abilities
+                    # (user, registro_006 steps 95-102 vs Mega Lucario): in tier 0
+                    # it was crushed by ORDER by any promoted Teal Dance /
+                    # Ripening Charge, and the turn closed with the 3-card draw
+                    # uncashed. Within the tier the score decides, and it already
+                    # encodes the correct priority: an ability that ENABLES today's
+                    # KO (41000+) > Flip the Script (31700) > development charges
+                    # (<= 31600). A VETOED ability (deck-out or an unrevoked
+                    # ORDERING veto) stays in tier 0, like the others.
                     _play_order_tier[_po_i] = _TIER_ENERGY
                 elif (_po_ab_card is not None
                         and _po_ab_card.id == Hydrapple_ex
                         and scores[_po_i] >= 29000):
-                    # Ripening Charge debe competir en el TIER de ENERGIA con Teal
-                    # Dance (arriba), igual que ella, cuando puntua como jugada
-                    # REAL (>= 29000). Cubre DOS casos:
-                    #   * el Hydrapple ex ACTIVO bloqueado del pivote retirar->
-                    #     promover (registro_008 paso 82 vs Cubchoo), y
-                    #   * cargar el Hydrapple ex de BANCA VACIO como ATACANTE
-                    #     FUTURO (user, registro_006 paso 80 vs Mega Lucario): sin
-                    #     esto la Ripening (31150) quedaba en tier 0 y la Teal Dance
-                    #     de un Ogerpon YA cargado (tier ENERGY, 31050) la dominaba
-                    #     por TIER pese a su MENOR score -> se regaba la energia en
-                    #     el Ogerpon sobrecargado y el Hydrapple ex se quedaba sin
-                    #     energia para un ataque futuro.
-                    # Dentro del tier decide el score, que ya codifica la prioridad
-                    # correcta: Teal Dance que HABILITA un KO (31500) > cargar el
-                    # Hydrapple de banca (31150) > Teal Dance de Ogerpon cargado
-                    # (31050). Las Ripening DEGRADADAS (7500: reservas) quedan en
-                    # tier 0 (mismo guard que Teal Dance).
+                    # Ripening Charge has to compete in the ENERGY tier with Teal
+                    # Dance (above), just like it, when it scores as a REAL play
+                    # (>= 29000). It covers TWO cases:
+                    #   * the blocked ACTIVE Hydrapple ex of the retreat->promote
+                    #     pivot (registro_008 step 82 vs Cubchoo), and
+                    #   * charging the EMPTY BENCHED Hydrapple ex as a FUTURE
+                    #     ATTACKER (user, registro_006 step 80 vs Mega Lucario):
+                    #     without this the Ripening (31150) stayed in tier 0 and the
+                    #     Teal Dance of an ALREADY charged Ogerpon (tier ENERGY,
+                    #     31050) dominated it by TIER despite its LOWER score -> the
+                    #     energy was poured onto the overcharged Ogerpon and the
+                    #     Hydrapple ex was left with no energy for a future attack.
+                    # Within the tier the score decides, and it already encodes the
+                    # correct priority: a Teal Dance that ENABLES a KO (31500) >
+                    # charging the benched Hydrapple (31150) > Teal Dance on a
+                    # charged Ogerpon (31050). DEGRADED Ripening charges (7500:
+                    # reserves) stay in tier 0 (same guard as Teal Dance).
                     _play_order_tier[_po_i] = _TIER_ENERGY
 
     # =================================================================
-    # RESCATE ANTI-TURNO ESTERIL (user, registro_009 paso 61 vs Dragapult,
-    # PERDIDA). Estado: Chikorita activo (50/70), Tapu Bulu y Applin en banca
-    # sin cargar, y en la mano Unfair Stamp + Bayleef + Meganium + Meowth ex +
-    # Xerosic + LILLIE'S DETERMINATION, con 6 premios (Lillie's roba OCHO). El
-    # agente cerro el turno con Growl (ataque de 0 de dano) y dejo TODA la mano
-    # muerta: el scorer de Lillie's la vetaba por `_lillie_evolve_now` (habia
-    # una linea evolutiva "evolucionable este turno") mientras la evolucion
-    # real estaba bloqueada por el veto de evolucionar en el activo, asi que
-    # ninguna de las dos jugadas ocurria.
+    # ANTI-STERILE-TURN RESCUE (user, registro_009 step 61 vs Dragapult,
+    # LOST). State: active Chikorita (50/70), Tapu Bulu and Applin on the bench
+    # uncharged, and in hand Unfair Stamp + Bayleef + Meganium + Meowth ex +
+    # Xerosic + LILLIE'S DETERMINATION, with 6 prizes (Lillie's draws EIGHT). The
+    # agent closed the turn with Growl (a 0-damage attack) and left the WHOLE hand
+    # dead: the Lillie's scorer vetoed it through `_lillie_evolve_now` (there was
+    # an evolution line "evolvable this turn") while the real evolution was blocked
+    # by the veto on evolving in the active spot, so neither of the two plays
+    # happened.
     #
-    # Red de seguridad independiente de que veto falle: si la MEJOR jugada del
-    # turno es terminar, o atacar con un ataque que NO hace dano alguno
-    # (Growl), el turno no produce NADA -- y refrescar la mano (robar 6/8)
-    # siempre es mejor que eso. Se levanta el veto de Lillie's y se pone por
-    # encima de esa jugada esteril. El ataque de 0 de dano se detecta con el
-    # dano IMPRESO del ataque ofrecido y con `_attacker_base_damage` (que cubre
-    # los ataques que escalan, p.ej. Do the Wave de Dipplin), asi que un ataque
-    # de chip real (que si quita vida) NO cuenta como turno esteril.
-    # Excepcion conservada: vs Alakazam con Xerosic en mano no se baraja el cap
-    # de Powerful Hand (razon CONCRETA: se perderia el acceso a esa carta).
+    # A safety net independent of which veto fails: if the BEST play of the turn is
+    # to end, or to attack with an attack that does NO damage at all (Growl), the
+    # turn produces NOTHING -- and refilling the hand (drawing 6/8) is always
+    # better than that. Lillie's veto is lifted and it is placed above that sterile
+    # play. A 0-damage attack is detected with the PRINTED damage of the offered
+    # attack and with `_attacker_base_damage` (which covers the attacks that scale,
+    # e.g. Dipplin's Do the Wave), so a real chip attack (one that does take HP
+    # away) does NOT count as a sterile turn.
+    # Exception kept: vs Alakazam with Xerosic in hand the Powerful Hand cap is not
+    # shuffled away (a CONCRETE reason: access to that card would be lost).
     #
-    # RESERVA ANTI-DECK-OUT, antes "vs Comfey NUNCA" (user, log 88359220 paso 33
-    # vs Comfey/Yveltal, PERDIDA -- registro_003). El turno ya estaba cerrado
-    # (evolucion + Bug Catching Set + 2 Ogerpon + adjunte hechos) y el agente
-    # termino con Lillie's en la mano y el Supporter del turno SIN JUGAR: el
-    # Supporter NO se acumula, un turno sin jugarlo lo tira a la basura.
-    # La exencion vieja era una prohibicion por MATCHUP; su motivo real es
-    # aritmetico -- Lillie's baraja la mano al mazo y roba 6 (8 con los 6
-    # premios intactos), asi que su delta de mazo es (mano - 1) - robo y vs un
-    # mazo de mill eso puede acercarnos al deck-out. Se sustituye por esa
-    # aritmetica, que es DECK-AGNOSTICA (protege igual contra cualquier mill) y
-    # no bloquea el rescate cuando el mazo lo aguanta de sobra: alli el mazo
-    # tenia 38 cartas y el refresco lo dejaba en 33, ni de lejos deck-out.
-    # Umbral <= 10 = "mazo critico", el mismo de `freno_deckout_mazo_critico`.
-    # El rescate solo pisa el "no hacer nada", asi que en los turnos vs Comfey
-    # que SI producen algo (el plan solo-Ogerpon) la reserva sigue intacta.
+    # ANTI-DECK-OUT RESERVE, formerly "vs Comfey NEVER" (user, log 88359220 step 33
+    # vs Comfey/Yveltal, LOST -- registro_003). The turn was already closed
+    # (evolution + Bug Catching Set + 2 Ogerpon + attachment done) and the agent
+    # ended with Lillie's in hand and the turn's Supporter UNPLAYED: the Supporter
+    # does NOT accumulate, a turn without playing it throws it away.
+    # The old exemption was a MATCHUP prohibition; its real reason is arithmetic --
+    # Lillie's shuffles the hand into the deck and draws 6 (8 with all 6 prizes
+    # untouched), so its deck delta is (hand - 1) - draw and against a mill deck
+    # that can bring us closer to deck-out. It is replaced by that arithmetic,
+    # which is DECK-AGNOSTIC (it protects equally against any mill) and does not
+    # block the rescue when the deck can easily take it: there the deck had 38
+    # cards and the refill left it at 33, nowhere near deck-out.
+    # Threshold <= 10 = "critical deck", the same one as `freno_deckout_mazo_critico`.
+    # The rescue only overrides "doing nothing", so on the turns vs Comfey that DO
+    # produce something (the Ogerpon-only plan) the reserve stays intact.
     _lil_robo = 8 if my_prize >= 6 else 6
     _lil_mazo_tras_refresco = (getattr(my_state, 'deckCount', 60)
                                + max(0, sum(hand_counts.values()) - 1)
@@ -616,22 +615,21 @@ def finalizar(tc):
                 scores[_rescate_lil] = max(1500, scores[_mejor_i] + 100)
 
     # =================================================================
-    # RESCATE DE TURNO MUERTO CON MEOWTH EX (user, registro_002 paso 18 vs
-    # Cubchoo, PERDIDA). Hermano del rescate de Lillie's de arriba, para cuando
-    # la Lillie's NO esta en la mano sino en el MAZO: si la MEJOR jugada del
-    # turno es TERMINAR y tenemos un Meowth ex en la mano cuyo Last-Ditch Catch
-    # puede traer un Supporter JUGABLE este turno, bajarlo es estrictamente
-    # mejor que no hacer nada -- refresca la mano y abre opciones. En aquel
-    # turno 2 el activo era un Meowth ex que no ataca, la banca era Tapu Bulu
-    # (0 energias, necesita 4) y un Applin, la mano no tenia ninguna jugada, y
-    # el agente cerro el turno con un Meowth ex en la mano que ademas ACABABA DE
-    # BUSCAR con una Ultra Ball (dos descartes gastados en una carta que luego
-    # se nego a jugar).
+    # DEAD-TURN RESCUE WITH MEOWTH EX (user, registro_002 step 18 vs
+    # Cubchoo, LOST). Sibling of the Lillie's rescue above, for when the Lillie's
+    # is NOT in hand but in the DECK: if the BEST play of the turn is to END and we
+    # have a Meowth ex in hand whose Last-Ditch Catch can bring a Supporter that is
+    # PLAYABLE this turn, putting it down is strictly better than doing nothing --
+    # it refills the hand and opens options. On that turn 2 the active was a Meowth
+    # ex that does not attack, the bench was Tapu Bulu (0 energies, it needs 4) and
+    # an Applin, the hand had no play at all, and the agent closed the turn with a
+    # Meowth ex in hand that had also JUST BEEN FETCHED with an Ultra Ball (two
+    # discards spent on a card it then refused to play).
     #
-    # Va DESPUES de todos los vetos y solo pisa el "no hacer nada", asi que
-    # ninguna regla de matchup se debilita mientras quede cualquier jugada real:
-    # el veto anti-Cubchoo de un 2o Meowth ex (`field_counts[Meowth_ex] == 0`)
-    # sigue vigente en todo turno que produzca algo. Deck-agnostico.
+    # It goes AFTER all the vetoes and only overrides "doing nothing", so no
+    # matchup rule is weakened while any real play remains: the anti-Cubchoo veto
+    # on a 2nd Meowth ex (`field_counts[Meowth_ex] == 0`) is still in force on
+    # every turn that produces something. Deck-agnostic.
     if (context == SelectContext.MAIN and scores
             and not state.supporterPlayed
             and not meowth_ability_lock
@@ -639,18 +637,18 @@ def finalizar(tc):
             and _meowth_ld_free
             and field_counts.get(Meowth_ex, 0) < 2
             and hand_counts.get(Meowth_ex, 0) >= 1
-            # SIN NINGUN ATACANTE LISTO: el turno esta muerto por falta de
-            # DESARROLLO, que es justo lo que arregla refrescar la mano. Con
-            # atacantes listos un turno muerto significa otra cosa (el activo
-            # rival es un muro inmune, estamos bloqueados...) y ahi anadir un
-            # cuerpo de 2 premios no destraba nada: el plan es Boss's/pivote.
-            # Sin este gate el rescate disparaba en turnos 12-16 con 2-4
-            # atacantes listos contra el muro de Cornerstone.
+            # WITH NO READY ATTACKER AT ALL: the turn is dead for lack of
+            # DEVELOPMENT, which is exactly what refilling the hand fixes. With
+            # ready attackers a dead turn means something else (the opposing
+            # active is an immune wall, we are locked...) and there adding a
+            # 2-prize body unblocks nothing: the plan is Boss's/a pivot.
+            # Without this gate the rescue fired on turns 12-16 with 2-4 ready
+            # attackers against the Cornerstone wall.
             and _ready_attacker_count == 0
-            # El fetch tiene que aportar algo: Supporter en el MAZO que no
-            # tengamos ya en la mano (ver `_meowth_fetch_prediccion`) y que no
-            # pierda el UNICO hueco de Supporter del turno contra uno que ya
-            # tenemos (`_meowth_fetch_pierde_el_turno`).
+            # The fetch has to contribute something: a Supporter in the DECK that
+            # we do not already have in hand (see `_meowth_fetch_prediccion`) and
+            # that does not lose the turn's ONLY Supporter slot against one we
+            # already have (`_meowth_fetch_pierde_el_turno`).
             and _meowth_fetch_id is not None
             and not _meowth_fetch_redundante
             and not _meowth_fetch_pierde_el_turno):
@@ -671,19 +669,19 @@ def finalizar(tc):
                 scores[_mw_rescate] = max(1500, scores[_mw_mejor_i] + 100)
 
     # =================================================================
-    # RED DE SEGURIDAD ANTI-BANCA-VACIA (user, registro_002 paso 15 vs Mega
-    # Starmie ex, PERDIDA): NUNCA terminar el turno con la banca VACIA si podemos
-    # desarrollarla. Con un solo basico en el activo y sin banca, si el rival
-    # noquea ese activo PERDEMOS la partida (no hay a quien promover). Si la mejor
-    # jugada seria TERMINAR (o cualquier jugada esteril de score <= 0) y existe una
-    # opcion que pone un Pokemon en banca --una Ultra Ball que busca un basico, o
-    # bajar un basico de la mano-- se prioriza esa jugada por encima del fin de
-    # turno. Preferencia: el BUSCADOR (trae un atacante util, p.ej. Ogerpon ex, que
-    # ademas acelera con Teal Dance) sobre bajar un basico cualquiera. NO aplica si
-    # atacar ya GANA la partida (no hay turno futuro que proteger). Es una RED
-    # FINAL: se ejecuta AUNQUE los vetos individuales de cada jugada (Meowth ex con
-    # Supporter ya jugado, hold de Lillie's, etc.) la hayan tumbado a <= 0. Deck-
-    # agnostico.
+    # ANTI-EMPTY-BENCH SAFETY NET (user, registro_002 step 15 vs Mega
+    # Starmie ex, LOST): NEVER end the turn with an EMPTY bench if we can develop
+    # it. With a single basic in the active spot and no bench, if the opponent
+    # knocks that active out WE LOSE the game (there is nobody to promote). If the
+    # best play would be to END (or any sterile play with score <= 0) and there is
+    # an option that puts a Pokemon on the bench -- an Ultra Ball that searches for
+    # a basic, or putting a basic down from hand -- that play is prioritised above
+    # ending the turn. Preference: the SEARCH (it brings a useful attacker, e.g.
+    # Ogerpon ex, which also accelerates with Teal Dance) over putting down any old
+    # basic. It does NOT apply if attacking already WINS the game (there is no
+    # future turn to protect). It is a FINAL net: it runs EVEN IF the individual
+    # vetoes of each play (Meowth ex with the Supporter already played, holding
+    # Lillie's, etc.) knocked it down to <= 0. Deck-agnostic.
     if (context == SelectContext.MAIN and bench_count == 0 and scores):
         _sb_basics_deck = (Chikorita, Applin, Teal_Mask_Ogerpon_ex, Tapu_Bulu,
                            Meowth_ex, Fezandipiti_ex, Pinsir)
@@ -727,46 +725,46 @@ def finalizar(tc):
                     _play_order_tier[_sb_pick], _play_order_tier[_sb_best_i])
 
     # =================================================================
-    # RED ANTI-TURNO-ESTERIL con Ultra Ball (autopsias jul 2026: el cluster de
-    # turnos 2 esteriles con UB vetada aparecio en CUATRO matchups distintos --
-    # iron_thorns, cornerstone, comfey y crustle_kangaskhan, 13/31 hallazgos t2
-    # en este ultimo). La red anterior solo cubre banca VACIA; esta cubre el
-    # resto: si la mejor jugada del turno es TERMINAR (o cualquier cosa de
-    # score <= 0) y una Ultra Ball vetada tiene un objetivo UTIL en el mazo,
-    # cavar con la UB siempre produce mas que END. "Util" = un basico
-    # desplegable (banca con hueco) o una EVOLUCION enlazada a un cuerpo ya en
-    # juego (jugable el proximo turno). Guarda: no si atacar ya gana.
+    # ANTI-STERILE-TURN NET with Ultra Ball (jul 2026 autopsies: the cluster of
+    # sterile turn-2s with a vetoed UB appeared in FOUR different matchups --
+    # iron_thorns, cornerstone, comfey and crustle_kangaskhan, 13/31 t2 findings
+    # in the last one). The previous net only covers an EMPTY bench; this one
+    # covers the rest: if the best play of the turn is to END (or anything with
+    # score <= 0) and a vetoed Ultra Ball has a USEFUL target in the deck,
+    # digging with the UB always produces more than END. "Useful" = a deployable
+    # basic (a bench with room) or an EVOLUTION linked to a body already in play
+    # (playable next turn). Guard: not if attacking already wins.
     #
-    # "UTIL" LO DECIDE EL PLAN DEL MATCHUP, NO UNA PROHIBICION POR MAZO
-    # (barrido jul 2026, a raiz de los dos fallos del log 88359220). La guarda
-    # `not op_is_comfey_deck` era un proxy tosco de una pregunta concreta: vs
-    # Comfey el plan solo deja bajar Teal Mask Ogerpon ex (max 2), asi que
-    # cavar cualquier OTRO cuerpo trae una carta que el propio plan vetara al
-    # bajarla -- dos cartas de mano por nada. Preguntado via
-    # `_matchup_permite_bajar`, la red deja de disparar en esos casos igual que
-    # antes, pero SI dispara cuando el objetivo entra en el plan: un Ogerpon ex
-    # con <2 en juego es justo lo que el matchup quiere buscar, y la Ultra Ball
-    # esta en su allowlist de items. El motivo que citaba el comentario viejo
-    # ("quemar 2 cartas del mazo alimenta el mill") ademas no era exacto: el
-    # coste de la Ultra Ball sale de la MANO; del mazo solo sale la buscada.
-    # Gate de self-play vs deck/rivales/comfey.csv, 6000 partidas por rama:
-    # 91.7% con el cambio vs 91.2% sin el (+0.5 puntos, DENTRO DEL RUIDO: el
-    # cambio se sostiene por el razonamiento, el gate solo descarta que reste).
+    # "USEFUL" IS DECIDED BY THE MATCHUP PLAN, NOT BY A PER-DECK PROHIBITION
+    # (jul 2026 sweep, prompted by the two failures of log 88359220). The guard
+    # `not op_is_comfey_deck` was a crude proxy for a concrete question: vs
+    # Comfey the plan only allows putting Teal Mask Ogerpon ex down (max 2), so
+    # digging any OTHER body brings a card the plan itself will veto when
+    # putting it down -- two cards of hand for nothing. Asked via
+    # `_matchup_permite_bajar`, the net stops firing in those cases just as
+    # before, but it DOES fire when the target fits the plan: an Ogerpon ex with
+    # <2 in play is exactly what the matchup wants to search for, and the Ultra
+    # Ball is on its item allowlist. The reason the old comment cited ("burning
+    # 2 cards of the deck feeds the mill") was also inaccurate: the Ultra Ball's
+    # cost comes from the HAND; only the fetched card comes from the deck.
+    # Self-play gate vs deck/rivales/comfey.csv, 6000 games per branch:
+    # 91.7% with the change vs 91.2% without it (+0.5 points, INSIDE THE NOISE:
+    # the change stands on the reasoning, the gate only rules out that it hurts).
     #
-    # vs CUBCHOO la guarda SE MANTIENE. Alli el END conservador es politica
-    # deliberada del matchup ([[anti-cubchoo-no-retirada-pivote]]) y no un
-    # proxy de nada: filtrar por `CUBCHOO_ALLOWED_PLAY_IDS` en vez de apagar la
-    # red MIDIO PEOR en el mismo gate -- 68.7% vs 70.0% en 6000 partidas por
-    # rama (-1.3 puntos, z~-1.7). Se revirtio esa mitad del barrido.
-    # GUARDA DE PRIMER TURNO (user, registro_002 pasos 24/27 vs Ceruledge,
-    # PERDIDA): en nuestro primer turno de accion (turn <= 2) la red solo
-    # aplica con banca <= 2 (desarrollo REAL pendiente, como el caso crustle
-    # t2 con banca 1 que la motivo). Con la banca ya poblada (4/5) y la mano
-    # llena de valor futuro (Xerosic/Stamp/Lana's/evoluciones), la UB quema 2
-    # cartas utiles para traer un basico redundante: el agente encadeno DOS
-    # UB descartando Xerosic+Meganium+Lana's+Dipplin por 2 Meowth ex muertos.
-    # La unica UB legitima de primer turno con tablero hecho es la del caso
-    # Budew/Dragapult, que vive en `_ub_first_turn_allowed`, no aqui.
+    # vs CUBCHOO the guard IS KEPT. There the conservative END is deliberate
+    # matchup policy ([[anti-cubchoo-no-retirada-pivote]]) and not a proxy for
+    # anything: filtering by `CUBCHOO_ALLOWED_PLAY_IDS` instead of switching the
+    # net off MEASURED WORSE in the same gate -- 68.7% vs 70.0% over 6000 games
+    # per branch (-1.3 points, z~-1.7). That half of the sweep was reverted.
+    # FIRST-TURN GUARD (user, registro_002 steps 24/27 vs Ceruledge,
+    # LOST): on our first turn of action (turn <= 2) the net only applies with a
+    # bench <= 2 (REAL development pending, like the crustle t2 case with a bench
+    # of 1 that motivated it). With the bench already populated (4/5) and the hand
+    # full of future value (Xerosic/Stamp/Lana's/evolutions), the UB burns 2
+    # useful cards to bring a redundant basic: the agent chained TWO UBs
+    # discarding Xerosic+Meganium+Lana's+Dipplin for 2 dead Meowth ex.
+    # The only legitimate first-turn UB with the board already built is the
+    # Budew/Dragapult case, which lives in `_ub_first_turn_allowed`, not here.
     if (context == SelectContext.MAIN and scores and bench_count > 0
             and not op_is_cubchoo_deck
             and (state.turn > 2 or bench_count <= 2)
@@ -776,17 +774,18 @@ def finalizar(tc):
         _st_best_o = select.option[_st_best_i]
         _st_sterile = (_st_best_o.type == OptionType.END
                        or scores[_st_best_i] <= 0)
-        # UN TURNO QUE ACABA ATACANDO DE VERDAD NO ES UN TURNO MUERTO (user,
-        # registro_006 paso 98 vs Mega Lucario ex, PERDIDA). La premisa de esta
-        # red es "la alternativa a cavar es TERMINAR sin hacer nada", y por eso
-        # cavar siempre produce mas. Pero `scores[best] <= 0` no significa END:
-        # un ATAQUE normal puntua -1 por defecto (es el fallback del argmax), y
-        # los Items no consumen el ataque -- asi que en aquel turno la Ultra
-        # Ball no salvaba nada, solo pagaba 2 cartas de mano ANTES de un Syrup
-        # Storm de 210 que se iba a lanzar igual (y se lanzo, paso 104).
-        # Se mide el ataque igual que el rescate de Lillie's de mas arriba
-        # (dano impreso o base > 0) y se descartan los ataques ya marcados como
-        # inutiles por inmunidad (SCORE_USELESS_ATTACK).
+        # A TURN THAT ENDS BY REALLY ATTACKING IS NOT A DEAD TURN (user,
+        # registro_006 step 98 vs Mega Lucario ex, LOST). The premise of this
+        # net is "the alternative to digging is to END without doing anything",
+        # and that is why digging always produces more. But `scores[best] <= 0`
+        # does not mean END: a normal ATTACK scores -1 by default (it is the
+        # argmax fallback), and Items do not consume the attack -- so on that
+        # turn the Ultra Ball saved nothing, it only paid 2 cards of hand BEFORE
+        # a 210 Syrup Storm that was going to be fired anyway (and was fired, at
+        # step 104).
+        # The attack is measured just like in the Lillie's rescue above (printed
+        # or base damage > 0) and attacks already marked as useless by immunity
+        # (SCORE_USELESS_ATTACK) are discarded.
         if _st_sterile:
             _st_act = _active_of(my_state)
             _st_opa_dmg = _active_of(op_state)
@@ -816,29 +815,30 @@ def finalizar(tc):
         if _st_sterile and not _st_wins:
             _st_en_mazo = lambda cid: (
                 ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(cid, {}).get(ESTADO_MAZO, 0) > 0)
-            # EXCEPCION de bloqueo de items (user): con Budew en el campo rival
-            # -- o contra Dragapult, que lo lleva y puede bajarlo -- la Ultra
-            # Ball es "usala o pierdela": el proximo turno no se podran jugar
-            # items. Solo en ese caso se permite cavar algo que sirva para el
-            # turno SIGUIENTE en vez de para este. Mismo predicado que usa la
-            # cadena UB->Meowth->Lillie's (`_bloqueo_de_items_inminente`).
+            # ITEM LOCK EXCEPTION (user): with Budew on the opposing field
+            # -- or against Dragapult, which runs it and can put it down -- the
+            # Ultra Ball is "use it or lose it": next turn items cannot be
+            # played. Only in that case is it allowed to dig for something that
+            # serves the NEXT turn instead of this one. Same predicate the
+            # UB->Meowth->Lillie's chain uses (`_bloqueo_de_items_inminente`).
             _st_item_lock = _item_lock_incoming
-            # El plan del matchup filtra los objetivos: un cuerpo que la rama
-            # PLAY vetara al bajarlo no salva ningun turno (ver
-            # `_matchup_permite_bajar`). Sin plan restrictivo no filtra nada.
+            # The matchup plan filters the targets: a body the PLAY branch
+            # will veto when putting it down saves no turn (see
+            # `_matchup_permite_bajar`). With no restrictive plan it filters
+            # nothing.
             _st_plan_ok = lambda cid: _matchup_permite_bajar(
                 cid, field_counts, op_is_comfey_deck, op_is_cubchoo_deck,
                 cubchoo_allow_tapu=(op_has_ability_immune_active
                                     or ESTADO.op_is_cornerstone_deck),
                 dragapult_no_tapu=_dragapult_no_tapu)
-            # Meowth ex solo cuenta como objetivo UTIL si su Last-Ditch Catch
-            # puede producir algo este turno (user, registro_006 pasos 98-104):
-            # es un cuerpo de 2 premios cuyo unico valor es buscar un Supporter,
-            # asi que con el Supporter del turno ya jugado, con la habilidad
-            # bloqueada (Watchtower) o con la Last-Ditch ya gastada
-            # (`_meowth_ld_free`), la rama PLAY lo vetara al bajarlo y la Ultra
-            # Ball habra quemado 2 cartas por una carta muerta. Mismo criterio
-            # que el fetch (`last_ditch_no_produce`) y que
+            # Meowth ex only counts as a USEFUL target if its Last-Ditch Catch
+            # can produce something this turn (user, registro_006 steps 98-104):
+            # it is a 2-prize body whose only value is fetching a Supporter, so
+            # with the turn's Supporter already played, with the ability blocked
+            # (Watchtower) or with the Last-Ditch already spent
+            # (`_meowth_ld_free`), the PLAY branch will veto it when putting it
+            # down and the Ultra Ball will have burned 2 cards for a dead card.
+            # Same criterion as the fetch (`last_ditch_no_produce`) and as
             # `_ub_cavar_meowth_se_juega`.
             _st_meowth_util = (not state.supporterPlayed
                                and not meowth_ability_lock
@@ -851,16 +851,16 @@ def finalizar(tc):
                 _st_en_mazo(_b) and _st_cuerpo_ok(_b) for _b in (
                     Chikorita, Applin, Teal_Mask_Ogerpon_ex, Tapu_Bulu,
                     Meowth_ex, Fezandipiti_ex)))
-            # La pre-evolucion tiene que poder EVOLUCIONAR ESTE TURNO (user,
-            # registro_003 vs Mega Abomasnow ex): con el Applin recien bajado
-            # (`appearThisTurn`, sin Forest of Vitality) no hay forma de
-            # evolucionar, asi que buscar su evolucion no produce nada este
-            # turno -- y la Ultra Ball cuesta DOS cartas de la mano. Se mira
-            # cuerpo a cuerpo (`appearThisTurn`), no por especie: con dos
-            # Applin, uno recien bajado y otro asentado, la linea SI sale.
-            # Con la amenaza de bloqueo de items se conserva el criterio
-            # anterior (basta con que la pre-evo este en juego: sirve para el
-            # turno siguiente, que es justo lo que se esta comprando).
+            # The pre-evolution has to be able to EVOLVE THIS TURN (user,
+            # registro_003 vs Mega Abomasnow ex): with the Applin just put down
+            # (`appearThisTurn`, without Forest of Vitality) there is no way to
+            # evolve, so searching for its evolution produces nothing this
+            # turn -- and the Ultra Ball costs TWO cards from hand. It is
+            # checked body by body (`appearThisTurn`), not by species: with two
+            # Applin, one just played and another settled, the line DOES come
+            # out. With the item lock threat the previous criterion is kept (it
+            # is enough for the pre-evolution to be in play: it serves the next
+            # turn, which is exactly what is being bought).
             def _st_evolucionable(pre_id):
                 for _stp in ((my_state.active or []) + (my_state.bench or [])):
                     if _stp is None or _stp.id != pre_id:
@@ -874,14 +874,14 @@ def finalizar(tc):
                 and _st_plan_ok(_evo)
                 for _pre, _evo in ((Applin, Dipplin), (Chikorita, Bayleef),
                                    (Bayleef, Meganium), (Dipplin, Hydrapple_ex)))
-            # No se cava lo que YA se podria jugar (user, registro_003 paso 25
-            # vs Mega Abomasnow ex, PERDIDA): si el menu ya ofrece bajar un
-            # Pokemon de la mano (o evolucionar) y el scorer lo ha VETADO, el
-            # turno no esta muerto por falta de cuerpos -- esta muerto porque
-            # bajar otro cuerpo no aporta. Cavar con la Ultra Ball trae mas de
-            # lo mismo y ademas quema DOS cartas: alli descartaba Meganium (la
-            # Fase 2 de la linea) + Dawn para traer un SEGUNDO Meowth ex que
-            # luego no jugaba. Terminar el turno es estrictamente mejor.
+            # What could ALREADY be played is not dug for (user, registro_003 step 25
+            # vs Mega Abomasnow ex, LOST): if the menu already offers putting a
+            # Pokemon down from hand (or evolving) and the scorer has VETOED it, the
+            # turn is not dead for lack of bodies -- it is dead because putting
+            # another body down adds nothing. Digging with the Ultra Ball brings more
+            # of the same and also burns TWO cards: there it discarded Meganium (the
+            # Stage 2 of the line) + Dawn to bring a SECOND Meowth ex it then did not
+            # play. Ending the turn is strictly better.
             _st_pokemon_en_menu = False
             for _stc_o in select.option:
                 if _stc_o.type == OptionType.EVOLVE:
@@ -900,30 +900,30 @@ def finalizar(tc):
             if _st_pokemon_en_menu and not _st_item_lock:
                 _st_basico_util = False
                 _st_evo_util = False
-            # EL VETO POR COSTE NO SE REVOCA POR TURNO ESTERIL (user, log
-            # 88359220 pasos 8-14 vs Comfey/Yveltal, PERDIDA -- registro_001).
-            # Escenario: NUESTRO primer turno saliendo PRIMEROS (no hay ataque
-            # ni Supporter en el menu: el turno es esteril POR REGLA, no por
-            # mala construccion), activo Chikorita + Fezandipiti ex en banca,
-            # mano {Ultra Ball, Lillie's Determination, Bayleef, Grass, Unfair
-            # Stamp}. `_score_ultra_ball_play` la VETO correctamente por coste
-            # (`_ub_cancel_lillie`: el unico forraje real es la Grass -- el
-            # Bayleef enlaza con el Chikorita del activo y el Unfair Stamp
-            # nunca se descarta -- asi que pagar los 2 descartes se lleva por
-            # delante el Lillie's), pero esta red lo resucitaba a 200 y el
-            # agente descartaba Grass + Lillie's para cavar un Meowth ex...
-            # cuya Last-Ditch Catch volvia a buscar OTRO Lillie's. Balance:
-            # -3 cartas de mano y un cuerpo de 2 premios regalado, para acabar
-            # con la MISMA carta que ya teniamos.
-            # La distincion es general y vale para cualquier mazo: los vetos
-            # que esta red puede revocar son los de CONSERVADURISMO ("no hay
-            # objetivo util", "es pronto"), porque ante un turno muerto cavar
-            # siempre produce mas que END. El veto por COSTE es aritmetica de
-            # cartas -- la Ultra Ball vale MENOS que lo que hay que descartar
-            # para jugarla -- y esa desigualdad no cambia porque el turno este
-            # muerto: END conserva el Supporter / la pieza de evolucion para
-            # el turno siguiente, que es estrictamente mas que cambiarlos por
-            # un basico redundante. Ver `_ub_coste_destruye_carta_mejor`.
+            # THE COST VETO IS NOT REVOKED BY A STERILE TURN (user, log
+            # 88359220 steps 8-14 vs Comfey/Yveltal, LOST -- registro_001).
+            # Scenario: OUR first turn going FIRST (there is no attack or
+            # Supporter in the menu: the turn is sterile BY RULE, not by bad
+            # construction), active Chikorita + Fezandipiti ex on the bench,
+            # hand {Ultra Ball, Lillie's Determination, Bayleef, Grass, Unfair
+            # Stamp}. `_score_ultra_ball_play` VETOED it correctly by cost
+            # (`_ub_cancel_lillie`: the only real fodder is the Grass -- the
+            # Bayleef links with the Chikorita in the active spot and the Unfair
+            # Stamp is never discarded -- so paying the 2 discards takes the
+            # Lillie's down with it), but this net resurrected it at 200 and the
+            # agent discarded Grass + Lillie's to dig out a Meowth ex... whose
+            # Last-Ditch Catch went and fetched ANOTHER Lillie's. Balance:
+            # -3 cards of hand and a 2-prize body given away, to end up with the
+            # SAME card we already had.
+            # The distinction is general and holds for any deck: the vetoes this
+            # net can revoke are the CONSERVATISM ones ("there is no useful
+            # target", "it is early"), because facing a dead turn digging always
+            # produces more than END. The COST veto is card arithmetic -- the
+            # Ultra Ball is worth LESS than what has to be discarded to play it --
+            # and that inequality does not change because the turn is dead: END
+            # keeps the Supporter / the evolution piece for the next turn, which
+            # is strictly more than trading them for a redundant basic. See
+            # `_ub_coste_destruye_carta_mejor`.
             if _ub_coste_destruye_carta_mejor(ctx):
                 _st_basico_util = False
                 _st_evo_util = False

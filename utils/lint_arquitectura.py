@@ -1,37 +1,37 @@
-"""Reglas de arquitectura del refactor por olas (docs/main-refactor-arquitectura.md).
+"""Architecture rules of the wave refactor (docs/project-history.md).
 
-Cuatro reglas AST sobre `main.py` y el paquete del agente. Todas cubren fallos
-que NO se manifiestan como un test rojo: o rompen la submission en Kaggle con la
-suite en verde, o hacen que el agente lea estado congelado y decida mal en
-partida sin lanzar ninguna excepcion.
+Four AST rules over `main.py` and the agent package. They all cover failures
+that do NOT show up as a red test: either they break the submission on Kaggle with the
+suite green, or they make the agent read frozen state and decide badly in a
+game without raising any exception.
 
-  R1  (I5)  Nunca `from <modulo> import <mutable>`.
-            `from x import ko_last_turn` COPIA el valor en el momento del
-            import; cuando main.py lo reasigna, el modulo sigue viendo el valor
-            viejo. Silencioso. Se accede siempre por objeto: `estado.ko_last_turn`.
+  R1  (I5)  Never `from <module> import <mutable>`.
+            `from x import ko_last_turn` COPIES the value at the moment of the
+            import; when main.py reassigns it, the module goes on seeing the old
+            value. Silently. It is always accessed through the object: `estado.ko_last_turn`.
 
-  R2  (pureza)  Nada bajo cartas/ ni motor/ puede tocar el estado.
-            `cartas/` son datos y `motor/` es el resolvedor de reglas generico:
-            ambos se leen y se prueban sin montar una partida.
+  R2  (purity)  Nothing under cartas/ or motor/ may touch the state.
+            `cartas/` is data and `motor/` is the generic rules resolver:
+            both are read and tested without setting up a game.
 
-            `calculo/` SI puede: se intento dejarlo puro y el codigo demostro que
-            no lo es. La energia efectiva depende de si Meganium esta en juego, y
-            el coste de ataque del impuesto de Nighttime Mine; pasar eso por
-            parametros a `_can_attack_eff`, `_physical_energy` y compania seria
-            REESCRIBIR la logica, no moverla -- justo lo que este refactor no
-            hace. La frontera util quedo en datos/reglas, no en calculo.
+            `calculo/` MAY: leaving it pure was attempted and the code proved
+            it is not. The effective energy depends on whether Meganium is in play, and
+            the attack cost on the Nighttime Mine tax; passing that through
+            parameters to `_can_attack_eff`, `_physical_energy` and company would be
+            REWRITING the logic, not moving it -- exactly what this refactor does
+            not do. The useful boundary ended up at data/rules, not at calculation.
 
-  R3  (I1b) En main.py, nada liga un nombre nuevo DESPUES de `def agent`.
-            El contenedor se queda con el ULTIMO callable del namespace: un
-            re-export puesto debajo secuestra el punto de entrada.
+  R3  (I1b) In main.py, nothing binds a new name AFTER `def agent`.
+            The container keeps the LAST callable of the namespace: a
+            re-export placed below hijacks the entry point.
 
-  R4  (I1a/I1c) Ni `import <paquete propio>` dentro de una funcion, ni
-            `import main` en ningun sitio del paquete. El dir del agente sale de
-            sys.path en cuanto termina el exec de main.py, y main.py nunca llega
-            a estar en sys.modules.
+  R4  (I1a/I1c) Neither `import <our own package>` inside a function, nor
+            `import main` anywhere in the package. The agent's directory leaves
+            sys.path as soon as main.py's exec finishes, and main.py never gets
+            to be in sys.modules.
 
-Uso:
-    python utils/lint_arquitectura.py          # exit 1 si hay infracciones
+Usage:
+    python utils/lint_arquitectura.py          # exit 1 if there are violations
 """
 
 import ast
@@ -42,20 +42,20 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent
 
 MAIN_PY = PROJECT_ROOT / "main.py"
-PAQUETE = PROJECT_ROOT / "ptcg"          # aun no existe antes de la Ola 1
+PAQUETE = PROJECT_ROOT / "ptcg"          # it does not exist yet before wave 1
 SUBPAQUETES_PUROS = ("cartas", "motor")
 
-# Nombre del modulo dueño del estado mutable (Ola 3).
+# The name of the module that owns the mutable state (wave 3).
 MODULO_ESTADO = "estado"
 
 
 def nombres_mutables():
-    """Los globals mutables entre turnos, DERIVADOS del codigo (no a mano).
+    """The mutable globals between turns, DERIVED from the code (not by hand).
 
-    Antes de la Ola 3 viven en main.py y se detectan por sus sentencias
-    `global`. Despues pasan a ser atributos de `EstadoAgente`, y entonces la
-    fuente es ese modulo: los nombres ya no son globals sueltos, asi que R1
-    deja de tener nada que vigilar en main.py y pasa a vigilar el paquete.
+    Before wave 3 they live in main.py and are detected by their
+    `global` statements. Afterwards they become attributes of `EstadoAgente`, and then the
+    source is that module: the names are no longer loose globals, so R1
+    stops having anything to watch in main.py and moves on to watching the package.
     """
     nombres = set()
     if MAIN_PY.is_file():
@@ -67,8 +67,8 @@ def nombres_mutables():
     if agente.is_file():
         arbol = ast.parse(agente.read_text(encoding="utf-8"))
         for nodo in ast.walk(arbol):
-            # campos anotados (`x: int`) y, sobre todo, los de `reset()`
-            # (`self.x = ...`), que es como se declaran en EstadoAgente.
+            # annotated fields (`x: int`) and, above all, those of `reset()`
+            # (`self.x = ...`), which is how they are declared in EstadoAgente.
             if isinstance(nodo, ast.AnnAssign) and isinstance(nodo.target, ast.Name):
                 nombres.add(nodo.target.id)
             elif isinstance(nodo, ast.Assign):
@@ -84,7 +84,7 @@ def _archivos_del_paquete():
 
 
 def _raiz_paquetes_locales():
-    """Nombres de paquete propios que NO pueden importarse tarde."""
+    """Names of our own packages that canNOT be imported late."""
     nombres = {PAQUETE.name}
     for hijo in PROJECT_ROOT.iterdir():
         if (hijo / "__init__.py").is_file():
@@ -100,7 +100,7 @@ def _rel(ruta):
 
 
 # ---------------------------------------------------------------------------
-# R1 -- nunca `from ... import <mutable>`
+# R1 -- never `from ... import <mutable>`
 # ---------------------------------------------------------------------------
 def regla_1_mutables_importados():
     fallos = []
@@ -122,7 +122,7 @@ def regla_1_mutables_importados():
 
 
 # ---------------------------------------------------------------------------
-# R2 -- cartas/, motor/ y calculo/ son puros
+# R2 -- cartas/, motor/ and calculo/ are pure
 # ---------------------------------------------------------------------------
 def regla_2_pureza():
     fallos = []
@@ -146,7 +146,7 @@ def regla_2_pureza():
 
 
 # ---------------------------------------------------------------------------
-# R3 -- `def agent` es lo ultimo de main.py
+# R3 -- `def agent` is the last thing in main.py
 # ---------------------------------------------------------------------------
 def regla_3_agent_es_lo_ultimo():
     if not MAIN_PY.is_file():
@@ -175,7 +175,7 @@ def regla_3_agent_es_lo_ultimo():
 
 
 # ---------------------------------------------------------------------------
-# R4 -- imports perezosos de paquetes propios / `import main`
+# R4 -- lazy imports of our own packages / `import main`
 # ---------------------------------------------------------------------------
 def _raices_de(nodo):
     if isinstance(nodo, ast.Import):
@@ -194,7 +194,7 @@ def regla_4_imports_perezosos():
             continue
         arbol = ast.parse(ruta.read_text(encoding="utf-8"), filename=str(ruta))
 
-        # `import main` en cualquier parte del paquete (I1c)
+        # `import main` anywhere in the package (I1c)
         if ruta != MAIN_PY:
             for nodo in ast.walk(arbol):
                 if "main" in _raices_de(nodo):
@@ -204,7 +204,7 @@ def regla_4_imports_perezosos():
                         "ejecuta con exec y nunca entra en sys.modules",
                     ))
 
-        # import de paquete propio DENTRO de una funcion (I1a)
+        # an import of our own package INSIDE a function (I1a)
         for fn in ast.walk(arbol):
             if not isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 continue
@@ -229,7 +229,7 @@ REGLAS = (
 
 
 def revisar():
-    """Devuelve la lista de infracciones: (regla, archivo, linea, mensaje)."""
+    """Returns the list of violations: (rule, file, line, message)."""
     fallos = []
     for regla in REGLAS:
         fallos += regla()

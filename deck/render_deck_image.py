@@ -1,16 +1,16 @@
-"""Genera la imagen del mazo (ingles) a partir del deck.csv del proyecto.
+"""Generates the deck image (in English) from the project's deck.csv.
 
-Adaptado del notebook `notebook/deck-image-renderer-visualize-your-ptcg-deck.ipynb`:
-lee el deck.csv de la raiz del proyecto (60 Card IDs, uno por linea), mapea cada
-ID a su pagina en el PDF oficial (la pagina 40 del PDF corresponde a la primera
-carta unica del CSV de cartas), recorta la carta de cada pagina, compone una
-cuadricula con etiqueta "xN  ID:###" por carta y guarda un JPG comprimido
-(<1MB) en esta carpeta.
+Adapted from the notebook `notebook/deck-image-renderer-visualize-your-ptcg-deck.ipynb`:
+it reads the deck.csv at the project root (60 Card IDs, one per line), maps each
+ID to its page in the official PDF (page 40 of the PDF corresponds to the first
+unique card of the card CSV), crops the card from each page, composes a
+grid with an "xN  ID:###" label per card and saves a compressed JPG
+(<1MB) in this folder.
 
-Uso:
+Usage:
     python deck/render_deck_image.py
 
-Requiere: pymupdf, pandas, numpy, Pillow.
+Requires: pymupdf, pandas, numpy, Pillow.
 """
 
 import math
@@ -36,8 +36,8 @@ def _first_existing(candidates, label):
         f"{label} no encontrado. Buscado en: " + ", ".join(str(c) for c in candidates))
 
 
-# Datos oficiales del challenge: se buscan en deck/, dataset/ y la carpeta
-# original de la competencia, en ese orden.
+# The challenge's official data: it is looked for in deck/, dataset/ and the
+# competition's original folder, in that order.
 _DATA_DIRS = [
     SCRIPT_DIR,
     PROJECT_ROOT / "dataset",
@@ -48,7 +48,7 @@ CARD_CSV_EN = _first_existing(
 CARD_PDF_EN = _first_existing(
     [d / "Card_ID List_EN.pdf" for d in _DATA_DIRS], "Card_ID List_EN.pdf")
 
-# La pagina 40 (1-indexada) del PDF es la primera carta unica del CSV.
+# Page 40 (1-indexed) of the PDF is the first unique card of the CSV.
 PDF_CARD_START_PAGE = 40
 
 GRID_COLUMNS = 8
@@ -77,7 +77,7 @@ def read_deck_ids(deck_csv_path):
 
 
 def ordered_deck_counts(deck_ids):
-    """Cuenta los IDs preservando el orden de primera aparicion."""
+    """Counts the IDs preserving the order of first appearance."""
     counts = Counter(deck_ids)
     ordered_ids = []
     seen = set()
@@ -89,8 +89,8 @@ def ordered_deck_counts(deck_ids):
 
 
 def read_card_data_csv(csv_path):
-    """Lee el CSV oficial de cartas (tiene campos multilinea entre comillas:
-    usar pandas, nunca splitlines)."""
+    """Reads the official card CSV (it has multi-line fields between quotes:
+    use pandas, never splitlines)."""
     csv_path = Path(csv_path)
     if not csv_path.exists():
         raise FileNotFoundError(f"CSV de cartas no encontrado: {csv_path}")
@@ -107,8 +107,8 @@ def read_card_data_csv(csv_path):
 
 
 def load_unique_card_order(csv_path):
-    """IDs unicos en orden de primera aparicion (el CSV repite filas por
-    ataque/efecto; el orden del PDF sigue a los IDs unicos)."""
+    """Unique IDs in order of first appearance (the CSV repeats rows per
+    attack/effect; the PDF's order follows the unique IDs)."""
     df = read_card_data_csv(csv_path)
     unique_df = df.drop_duplicates(subset=["Card ID"], keep="first").reset_index(drop=True)
     card_id_to_order = {cid: i for i, cid in enumerate(unique_df["Card ID"].tolist())}
@@ -136,8 +136,8 @@ def render_pdf_page_to_image(doc, page_index, zoom=PAGE_RENDER_ZOOM):
 
 
 def crop_card_from_page_image(page_img, expected_card_aspect=0.714):
-    """Recorta la carta de la pagina (fondo blanco, carta arriba-centro) y
-    ajusta el recorte a la proporcion de una carta Pokemon."""
+    """Crops the card from the page (a white background, the card at the top centre) and
+    adjusts the crop to the proportions of a Pokemon card."""
     img = page_img.convert("RGB")
     arr = np.asarray(img)
     h, w = arr.shape[:2]
@@ -240,7 +240,7 @@ def resize_keep_aspect(img, target_width):
 
 def make_labeled_card_tile(card_img, card_id, count,
                            card_width=CARD_DISPLAY_WIDTH, label_alpha=LABEL_ALPHA):
-    """Una carta con etiqueta translucida centrada abajo: 'xN  ID:###'."""
+    """A card with a translucent label centred at the bottom: 'xN  ID:###'."""
     card = resize_keep_aspect(card_img, card_width).convert("RGBA")
     label_h = max(48, int(card.height * 0.155))
 
@@ -309,7 +309,7 @@ def save_jpeg_under_size(image, output_path, max_bytes=MAX_OUTPUT_BYTES,
                          min_quality=JPEG_MIN_QUALITY,
                          downscale_step=JPEG_DOWNSCALE_STEP,
                          min_width=JPEG_MIN_WIDTH):
-    """Baja calidad y, si no basta, reduce tamano hasta quedar bajo max_bytes."""
+    """It lowers the quality and, if that is not enough, reduces the size until it is under max_bytes."""
     output_path = Path(output_path)
     resampling = getattr(Image, "Resampling", Image).LANCZOS
     working = image.convert("RGB")

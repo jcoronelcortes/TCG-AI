@@ -1,35 +1,35 @@
-"""Objetivo del gusteo SIN KO: sube el cuerpo que NO puede atacar.
+"""The gust target WITH NO KO: bring up the body that CANNOT attack.
 
-Tercera pieza de la familia de [[boss-no-regalar-la-linea-alakazam]]. Las dos
-anteriores arreglaron CUANDO se juega Boss's Orders; esta arregla A QUIEN sube
-cuando ya se juega y no hay KO.
+The third piece of the [[boss-no-regalar-la-linea-alakazam]] family. The two
+previous ones fixed WHEN Boss's Orders is played; this one fixes WHO it brings up
+once it is played and there is no KO.
 
-Las dos bandas de `_gust_linea_rival` puntuaban al reves:
+The two bands of `_gust_linea_rival` scored it backwards:
 
-  * `_gust_linea_evolutiva` da **800 a la EVOLUCION FINAL** (Dragapult ex,
-    Typhlosion, Alakazam) sin KO -- por encima de los 700 de la Fase 1 clavada,
-    que su PROPIO docstring llama "mejor objetivo de disrupcion";
-  * `_gust_tiers_genericos` da **250 a un ex ENERGIZADO**, el techo de su banda
-    sin KO, por encima de cualquier cuerpo trabado.
+  * `_gust_linea_evolutiva` gives **800 to the FINAL EVOLUTION** (Dragapult ex,
+    Typhlosion, Alakazam) with no KO -- above the 700 of the stuck Stage 1,
+    which its OWN docstring calls "the best disruption target";
+  * `_gust_tiers_genericos` gives **250 to a CHARGED ex**, the ceiling of its band
+    with no KO, above any stuck body.
 
-Sin KO eso es ponerle delante -- y gratis, porque Boss's le paga la retirada --
-justo el cuerpo con el que queria atacar. Y contradecia al detector que
-JUSTIFICA la jugada: el gusteo DEFENSIVO (`_bo_defensive_gust`, 940) vale porque
-EXISTE en su banca un cuerpo que no puede rematarnos... y despues el selector
-subia otro.
+With no KO that is putting in front of us -- and for free, because Boss's pays their retreat --
+exactly the body they wanted to attack with. And it contradicted the detector that
+JUSTIFIES the play: the DEFENSIVE gust (`_bo_defensive_gust`, 940) is worth it because
+there EXISTS on their bench a body that cannot finish us off... and then the selector
+brought up another one.
 
-`sin_ko_prefiere_cuerpo_muerto` (+1500, en los DOS modos) pone por delante al
-cuerpo que no puede pagar su ataque ni adjuntandole una energia. +1500 supera
-toda la banda sin KO (100-1200) y no toca los tiers de KO (>= 3000), que van
-gateados por `can_ko`.
+`sin_ko_prefiere_cuerpo_muerto` (+1500, in BOTH modes) puts ahead the
+body that cannot pay for its attack even by attaching one energy. +1500 beats
+the whole no-KO band (100-1200) and does not touch the KO tiers (>= 3000), which are
+gated by `can_ko`.
 
-`GUST_TRAMPA_IDS` es la excepcion obligatoria: Crustle, Sylveon, Cornerstone e
-Iron Thorns ex tienen ataques de **coste 3**, asi que pelados pasan por
-"inofensivos" -- y son justo los cuerpos que NO queremos delante (anulan a
-nuestros atacantes o apagan nuestras habilidades desde el activo).
+`GUST_TRAMPA_IDS` is the mandatory exception: Crustle, Sylveon, Cornerstone and
+Iron Thorns ex have **cost-3** attacks, so bare they pass for
+"harmless" -- and they are exactly the bodies we do NOT want in front (they cancel
+our attackers or switch off our abilities from the active spot).
 
-Corpus dorado: 0 flips (los registros locales apenas llegan al prompt de
-objetivo), por eso el escenario se FABRICA con StateBuilder.
+Golden corpus: 0 flips (the local records barely reach the target prompt),
+which is why the scenario is FABRICATED with StateBuilder.
 """
 
 import copy
@@ -80,14 +80,14 @@ def reset_main_state():
 
 
 def _stub(card_id, energia=0):
-    """Pokemon minimo que entienden `prize_count_op` y `_op_cuerpo_inofensivo`."""
+    """A minimal Pokemon that `prize_count_op` and `_op_cuerpo_inofensivo` understand."""
     return SimpleNamespace(id=card_id, energies=[1] * energia,
                            energyCards=[], tools=[])
 
 
 def _ctx(card_id, energia=0, can_ko=False, op_linea_dragapult=False):
-    """`_CtxGustObjetivo` con los datos DERIVADOS de la carta real, para que el
-    test no se quede pegado a numeros inventados."""
+    """A `_CtxGustObjetivo` with the data DERIVED from the real card, so that the
+    test does not stay glued to made-up numbers."""
     d = m.card_table.get(card_id)
     return m._CtxGustObjetivo(
         card_id=card_id, energia=energia,
@@ -119,12 +119,12 @@ def _estorbo(ctx):
 
 
 # ---------------------------------------------------------------------------
-# 1. La banda vieja prefería la pieza más gorda: el control del test
+# 1. The old band preferred the fattest piece: the test's control
 # ---------------------------------------------------------------------------
 
 def test_la_banda_sin_ko_premiaba_a_la_evolucion_final():
-    """`_gust_linea_evolutiva` sigue dando 800 al final y 700 a la Fase 1
-    clavada: la contribucion NO se ha tocado, se ha superpuesto."""
+    """`_gust_linea_evolutiva` still gives 800 to the final one and 700 to the stuck
+    Stage 1: the contribution has NOT been touched, it has been overlaid."""
     final = m._gust_linea_evolutiva(_ctx(DRAGAPULT, energia=1),
                                     DRAGAPULT, DRAKLOAK, DREEPY)
     medio = m._gust_linea_evolutiva(_ctx(DRAKLOAK), DRAGAPULT, DRAKLOAK, DREEPY)
@@ -132,29 +132,29 @@ def test_la_banda_sin_ko_premiaba_a_la_evolucion_final():
 
 
 # ---------------------------------------------------------------------------
-# 2. Modo OFENSIVO
+# 2. OFFENSIVE mode
 # ---------------------------------------------------------------------------
 
 def test_sin_ko_el_cuerpo_muerto_gana_a_la_evolucion_final():
-    # Su 2o Dragapult ex con 1 energia YA ataca (Jet Headbutt cuesta 1).
+    # Their 2nd Dragapult ex with 1 energy ALREADY attacks (Jet Headbutt costs 1).
     atacante = _ctx(DRAGAPULT, energia=1, op_linea_dragapult=True)
-    # El Dusclops pelado no puede pagar su ataque de coste 2.
+    # The bare Dusclops cannot pay for its cost-2 attack.
     muerto = _ctx(DUSCLOPS, op_linea_dragapult=True)
     assert not atacante.cuerpo_inofensivo and muerto.cuerpo_inofensivo
     assert _ofensivo(muerto) > _ofensivo(atacante)
 
 
 def test_con_ko_mandan_los_tiers_y_el_cuerpo_muerto_no_los_pisa():
-    """El bono va gateado por `not can_ko`: noquear un ex de 2 premios sigue
-    ganando a subir un cuerpo muerto."""
+    """The bonus is gated by `not can_ko`: knocking out a 2-prize ex still
+    beats bringing up a dead body."""
     ko_ex = _ctx(DRAGAPULT, energia=1, can_ko=True, op_linea_dragapult=True)
     muerto = _ctx(DUSCLOPS, op_linea_dragapult=True)
     assert _ofensivo(ko_ex) > _ofensivo(muerto)
 
 
 def test_los_muros_y_el_locker_no_cobran_el_bono():
-    """Coste 3 => pelados pasan por inofensivos, pero subirlos es la trampa:
-    anulan a nuestros atacantes o apagan nuestras habilidades desde el activo."""
+    """Cost 3 => bare they pass for harmless, but bringing them up is the trap:
+    they cancel our attackers or switch off our abilities from the active spot."""
     for trampa in sorted(m.GUST_TRAMPA_IDS):
         c = _ctx(trampa)
         assert c.cuerpo_inofensivo, f"{trampa} deberia ser 'inofensivo' por coste"
@@ -164,13 +164,13 @@ def test_los_muros_y_el_locker_no_cobran_el_bono():
 
 
 # ---------------------------------------------------------------------------
-# 3. Modo ESTORBO
+# 3. NUISANCE mode
 # ---------------------------------------------------------------------------
 
 def test_estorbo_desempata_hacia_el_que_no_puede_atacar():
-    """`traba_neta` solo mira quien no puede pagar su RETIRADA. Con la misma
-    traba (ambos retirada 2, sin energia), decide quien no puede pagar su
-    ATAQUE: el Gardevoir ex ataca por 1, el Dusclops necesita 2."""
+    """`traba_neta` only looks at who cannot pay their RETREAT. With the same
+    stuckness (both retreat 2, no energy), it decides who cannot pay for their
+    ATTACK: the Gardevoir ex attacks for 1, the Dusclops needs 2."""
     assert m.RETREAT_COST[m.Gardevoir_ex] == m.RETREAT_COST[DUSCLOPS] == 2
     ataca = _ctx(m.Gardevoir_ex)
     muerto = _ctx(DUSCLOPS)
@@ -179,19 +179,19 @@ def test_estorbo_desempata_hacia_el_que_no_puede_atacar():
 
 
 def test_estorbo_no_rescata_un_objetivo_prohibido():
-    """El guard `s > 0`: un Budew (retirada gratis) sigue PROHIBIDO aunque el
-    bono existiera."""
+    """The `s > 0` guard: a Budew (free retreat) is still FORBIDDEN even if the
+    bonus existed."""
     assert _estorbo(_ctx(m.Budew)) == m.SCORE_FORBID
 
 
 # ---------------------------------------------------------------------------
-# 4. El tablero completo
+# 4. The full board
 # ---------------------------------------------------------------------------
 
 def _tablero(energias_activo):
-    """Bayleef activo (60 de dano: no noquea nada del tablero) contra un
-    Dragapult ex. En su banca, otro Dragapult ex con 1 energia -- listo para
-    atacar -- y un Dusclops pelado."""
+    """An active Bayleef (60 damage: it knocks out nothing on the board) against a
+    Dragapult ex. On their bench, another Dragapult ex with 1 energy -- ready to
+    attack -- and a bare Dusclops."""
     return (Escenario(turno=8, paso=80, tac=4, premios_propios=4)
             .mi_activo(pk(BAYLEEF, energias=[G] * energias_activo,
                           fisicas=energias_activo, pre_evo=[CHIKORITA]))
@@ -201,8 +201,8 @@ def _tablero(energias_activo):
                       pk(DUSCLOPS, hp=90, max_hp=90))
             .op_zonas(mano=5, mazo=25, premios=4)
             .mazo()
-            # `menu_gusteo()` consume una Boss's Orders del pool (la carta "en
-            # efecto"), asi que va ANTES de `resto_al_descarte()`.
+            # `menu_gusteo()` consumes a Boss's Orders from the pool (the card "in
+            # effect"), so it goes BEFORE `resto_al_descarte()`.
             .menu_gusteo()
             .resto_al_descarte()
             .construir())
@@ -210,11 +210,11 @@ def _tablero(energias_activo):
 
 def test_el_tablero_sintetico_no_tiene_ningun_ko():
     obs = _tablero(2)
-    assert m.ATTACK_ENERGY_REQ[BAYLEEF] == 2      # con 2 energias SI ataca
-    # 60 de dano no noquea ni al Dragapult ex (320) ni al Dusclops (90).
+    assert m.ATTACK_ENERGY_REQ[BAYLEEF] == 2      # with 2 energies it DOES attack
+    # 60 damage knocks out neither the Dragapult ex (320) nor the Dusclops (90).
     riv = obs["current"]["players"][1]
     assert [p["hp"] for p in riv["bench"]] == [320, 90]
-    # El menu ofrece los dos cuerpos de su banca.
+    # The menu offers both bodies from their bench.
     assert [o["index"] for o in obs["select"]["option"]] == [0, 1]
 
 

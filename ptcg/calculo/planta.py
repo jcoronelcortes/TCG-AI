@@ -1,8 +1,8 @@
-"""Plan de planta: cuantas Plantas sabe usar el campo y si desbloquean hoy.
+"""Grass plan: how many Grass energies the field can use and whether they unlock today.
 
-Extraido VERBATIM de main.py por utils/extraer_definiciones.py
-(docs/main-refactor-arquitectura.md). Su pureza esta comprobada por
-utils/pureza.py: nada de aqui toca el estado mutable ni las tablas de runtime.
+Extracted VERBATIM from main.py by utils/extraer_definiciones.py
+(docs/project-history.md). Its purity is verified by
+utils/pureza.py: nothing here touches mutable state or the runtime tables.
 """
 
 from ptcg.estado.agente import ESTADO
@@ -15,68 +15,70 @@ from dataclasses import dataclass
 
 @dataclass
 class _PlanPlanta:
-    """Lectura de la MESA en clave de ENERGIA (ver `_plan_de_planta`)."""
-    unidad: int              # energia EFECTIVA que aporta UNA Planta fisica
-    en_mano: int             # Plantas ya disponibles en la mano
-    slots_hoy: int           # adjuntes de Planta que aun caben ESTE turno
-    nuevas_utiles_hoy: int   # Plantas NUEVAS que llegarian al campo HOY
-    desbloquea_hoy: bool     # una Planta NUEVA pone a atacar a un cuerpo HOY
-    cartas_para_atacar: int  # Plantas NUEVAS que exige ese desbloqueo
-    pendiente: int           # Plantas que piden todos los atacantes en juego
-    demanda: int             # Plantas NUEVAS que la mesa sabe usar (<= `tope`)
+    """Reading of the BOARD in ENERGY terms (see `_plan_de_planta`)."""
+    unidad: int              # EFFECTIVE energy provided by ONE physical Grass
+    en_mano: int             # Grass already available in hand
+    slots_hoy: int           # Grass attachments that still fit THIS turn
+    nuevas_utiles_hoy: int   # NEW Grass that would reach the field TODAY
+    desbloquea_hoy: bool     # a NEW Grass puts a body in attack range TODAY
+    cartas_para_atacar: int  # NEW Grass that this unlock requires
+    pendiente: int           # Grass demanded by every attacker in play
+    demanda: int             # NEW Grass the board can use (<= `tope`)
 
 
 @dataclass
 class _PlanPlanta:
-    """Lectura de la MESA en clave de ENERGIA (ver `_plan_de_planta`)."""
-    unidad: int              # energia EFECTIVA que aporta UNA Planta fisica
-    en_mano: int             # Plantas ya disponibles en la mano
-    slots_hoy: int           # adjuntes de Planta que aun caben ESTE turno
-    nuevas_utiles_hoy: int   # Plantas NUEVAS que llegarian al campo HOY
-    desbloquea_hoy: bool     # una Planta NUEVA pone a atacar a un cuerpo HOY
-    cartas_para_atacar: int  # Plantas NUEVAS que exige ese desbloqueo
-    pendiente: int           # Plantas que piden todos los atacantes en juego
-    demanda: int             # Plantas NUEVAS que la mesa sabe usar (<= `tope`)
+    """Reading of the BOARD in ENERGY terms (see `_plan_de_planta`)."""
+    unidad: int              # EFFECTIVE energy provided by ONE physical Grass
+    en_mano: int             # Grass already available in hand
+    slots_hoy: int           # Grass attachments that still fit THIS turn
+    nuevas_utiles_hoy: int   # NEW Grass that would reach the field TODAY
+    desbloquea_hoy: bool     # a NEW Grass puts a body in attack range TODAY
+    cartas_para_atacar: int  # NEW Grass that this unlock requires
+    pendiente: int           # Grass demanded by every attacker in play
+    demanda: int             # NEW Grass the board can use (<= `tope`)
 
 
 def _plan_de_planta(my_state, state, field_counts, hand_counts, tope=3,
                     puede_cambiar=False, habilidades_apagadas=False):
-    """Cuantas Plantas NUEVAS sabe usar la mesa, y si alguna DESBLOQUEA un
-    ataque HOY.
+    """How many NEW Grass energies the board can use, and whether any of them
+    UNLOCKS an attack TODAY.
 
-    Es la lectura de mesa que comparten la decision de JUGAR una carta de
-    recuperacion (`_score_lanas_aid_play`) y la de QUE recuperar con ella (rama
-    `Lanas_Aid` del contexto TO_HAND). Nacio del registro_018 paso 118 vs
-    Crustle (PERDIDA): con Lana's Aid ya jugada, el agente levanto del descarte
-    2 Applin + 1 Dipplin -- con la banca LLENA, cartas que no se pueden poner en
-    juego -- teniendo delante un Tapu Bulu activo a UNA Planta de disparar Wood
-    Hammer y tres Plantas disponibles en el descarte. La rama de seleccion no
-    miraba la energia en absoluto (caia al scorer generico, que puntua "formas
-    de linea evolutiva"), y la de jugada solo sabia leer a Hydrapple ex.
+    This is the board reading shared by the decision to PLAY a recovery card
+    (`_score_lanas_aid_play`) and the decision of WHAT to recover with it (the
+    `Lanas_Aid` branch of the TO_HAND context). It was born from registro_018
+    step 118 vs Crustle (LOST): with Lana's Aid already played, the agent picked
+    2 Applin + 1 Dipplin out of the discard -- with a FULL bench, cards that
+    cannot be put into play -- while a Tapu Bulu was active ONE Grass away from
+    firing Wood Hammer and three Grass energies sat in the discard. The
+    selection branch did not look at energy at all (it fell through to the
+    generic scorer, which scores "shapes of an evolution line"), and the play
+    branch only knew how to read Hydrapple ex.
 
-    Vias por las que una Planta de la MANO llega al campo en un turno:
-      * el adjunte MANUAL, si aun no se ha gastado (`state.energyAttached`);
-      * una habilidad de carga viva (`_grass_ability_slots`): *Teal Dance* de
-        cada Teal Mask Ogerpon ex (solo se carga A SI MISMA) y *Ripening
-        Charge* de cada Hydrapple ex (carga a CUALQUIERA de los nuestros).
+    Ways a Grass energy in HAND can reach the field in one turn:
+      * the MANUAL attachment, if it has not been spent yet
+        (`state.energyAttached`);
+      * a live charging ability (`_grass_ability_slots`): *Teal Dance* on each
+        Teal Mask Ogerpon ex (which only charges ITSELF) and *Ripening Charge*
+        on each Hydrapple ex (which charges ANY of ours).
 
-    `len(energies)` YA es energia efectiva y `_grass_attach_unit()` es lo que
-    suma UNA Planta FISICA (2 con Meganium en juego), asi que el deficit de un
-    cuerpo se mide en CARTAS: `ceil((req - efectiva) / unidad)`.
+    `len(energies)` is ALREADY effective energy and `_grass_attach_unit()` is
+    what ONE PHYSICAL Grass adds (2 with Meganium in play), so a body's deficit
+    is measured in CARDS: `ceil((req - effective) / unit)`.
 
-    Solo cuentan los cuerpos de `MAIN_ATTACKERS`: es la lista curada de "con
-    quien atacamos de verdad", asi que un Chikorita o un Applin de banca nunca
-    inventan demanda de energia (`ATTACK_ENERGY_REQ` si les asigna coste).
+    Only `MAIN_ATTACKERS` bodies count: that is the curated list of "who we
+    really attack with", so a benched Chikorita or Applin never invents energy
+    demand (`ATTACK_ENERGY_REQ` does assign them a cost).
 
-    `desbloquea_hoy` solo mira al ACTIVO, salvo que `puede_cambiar` diga que hay
-    una retirada/cambio disponible: un atacante de banca cargado no ataca hoy si
-    no puede subir. Los cuerpos de banca si suman siempre a `pendiente`, que es
-    demanda a dos turnos.
+    `desbloquea_hoy` only looks at the ACTIVE, unless `puede_cambiar` says a
+    retreat/switch is available: a charged benched attacker does not attack
+    today if it cannot come up. Benched bodies do always add to `pendiente`,
+    which is two-turn demand.
 
-    `habilidades_apagadas` (Team Rocket's Watchtower / Iron Thorns activo, la
-    bandera `meowth_ability_lock`) borra las dos vias de HABILIDAD: con el lock
-    puesto solo queda el adjunte manual, y dar por vivas Teal Dance/Ripening
-    inventa desbloqueos que no existen.
+    `habilidades_apagadas` (Team Rocket's Watchtower / Iron Thorns active, the
+    `meowth_ability_lock` flag) erases both ABILITY routes: with the lock on,
+    only the manual attachment is left, and treating Teal Dance/Ripening as
+    alive invents unlocks that do not exist.
     """
     unidad = _grass_attach_unit()
     en_mano = hand_counts.get(Basic_Grass_Energy, 0)
@@ -101,30 +103,30 @@ def _plan_de_planta(my_state, state, field_counts, hand_counts, tope=3,
             continue
         falta = req - len(cuerpo.energies)
         if falta <= 0:
-            continue                     # ya ataca: no pide energia
-        cartas = -(-falta // unidad)     # techo de la division
+            continue                     # already attacks: asks for no energy
+        cartas = -(-falta // unidad)     # ceiling of the division
         pendiente += cartas
         if not es_activo and not puede_cambiar:
-            continue                     # cargado o no, hoy no ataca
-        # Vias que pueden apuntar a ESTE cuerpo hoy. Teal Dance solo carga a su
-        # propio portador; el adjunte manual y Ripening Charge, a cualquiera.
+            continue                     # charged or not, it does not attack today
+        # Routes that can point at THIS body today. Teal Dance only charges its own
+        # bearer; the manual attachment and Ripening Charge, anyone.
         dirigibles = slots_manual + n_hydrapple
         if cuerpo.id == Teal_Mask_Ogerpon_ex and not habilidades_apagadas:
             dirigibles += 1
         dirigibles = min(dirigibles, slots_hoy)
         if cartas > dirigibles:
-            continue                     # ni con todas las vias ataca hoy
+            continue                     # not even with every route does it attack today
         nuevas = cartas - min(en_mano, dirigibles)
         if nuevas <= 0 or nuevas > nuevas_utiles_hoy:
-            continue                     # la mano sola ya lo desbloquea / no cabe
+            continue                     # the hand alone already unlocks it / does not fit
         if not desbloquea_hoy or nuevas < cartas_para_atacar:
             desbloquea_hoy = True
             cartas_para_atacar = nuevas
 
-    # La DEMANDA es lo que piden los cuerpos, no la capacidad de adjunte de este
-    # turno: la recuperacion va a la MANO, y una Planta guardada sigue sirviendo
-    # el turno siguiente. Con todos los atacantes cargados la demanda es 0 y la
-    # energia deja de valer.
+    # DEMAND is what the bodies ask for, not this turn's attachment capacity: the
+    # recovery goes to the HAND, and a Grass energy kept there still works next
+    # turn. With every attacker charged the demand is 0 and energy stops being
+    # worth anything.
     return _PlanPlanta(
         unidad=unidad, en_mano=en_mano, slots_hoy=slots_hoy,
         nuevas_utiles_hoy=nuevas_utiles_hoy,

@@ -1,53 +1,53 @@
-"""La Ultra Ball solo se juega si hay algo que cavar Y ese algo se puede jugar.
+"""The Ultra Ball is only played if there is something to dig for AND that something can be played.
 
-Escenario (user, episodio 88693856, registro_006 pasos 98-104, turno 6 vs Mega
-Lucario ex, PERDIDA):
+Scenario (user, episode 88693856, registro_006 steps 98-104, turn 6 vs Mega
+Lucario ex, LOST):
 
-    NOSOTROS                                    RIVAL
-    activo  Hydrapple ex 330  2 {G}             activo  Mega Lucario ex 440/440
-    banca   Teal Mask Ogerpon ex 2 {G}                  (con Hero's Cape)
-            Fezandipiti ex 0 {G}                banca   Applin, Fezandipiti ex,
+    US                                          OPPONENT
+    active  Hydrapple ex 330  2 {G}             active  Mega Lucario ex 440/440
+    bench   Teal Mask Ogerpon ex 2 {G}                  (with a Hero's Cape)
+            Fezandipiti ex 0 {G}                bench   Applin, Fezandipiti ex,
             Meganium 2 {G}                              Meowth ex, Meganium
-    mano    Ultra Ball x2, Hydrapple ex, Lana's Aid, Dipplin, Boss's Orders,
+    hand    Ultra Ball x2, Hydrapple ex, Lana's Aid, Dipplin, Boss's Orders,
             Forest of Vitality, Xerosic's Machinations, Basic {G} x2
-    Supporter del turno: YA JUGADO (Lillie's Determination, accion 10)
+    The turn's Supporter: ALREADY PLAYED (Lillie's Determination, action 10)
 
-El menu de la accion 16 solo ofrecia TRES cosas: las dos Ultra Ball, Syrup
-Storm (30 + 30 por cada {G} del campo = 30 + 6x30 = **210 de dano**) y terminar.
-El agente jugo las DOS Ultra Ball -descartando Forest of Vitality, Xerosic's
-Machinations, Dipplin y Lana's Aid- para cavar los DOS Meowth ex del mazo... y
-en la accion 22 lanzo el mismo Syrup Storm de 210 que podia haber lanzado en la
-accion 16. Balance del turno: -4 cartas de mano y dos cuerpos de 2 PREMIOS
-muertos en la mano, por exactamente cero.
+The menu of action 16 offered only THREE things: the two Ultra Balls, Syrup
+Storm (30 + 30 for each {G} on the field = 30 + 6x30 = **210 damage**) and ending.
+The agent played BOTH Ultra Balls -- discarding Forest of Vitality, Xerosic's
+Machinations, Dipplin and Lana's Aid -- to dig out the TWO Meowth ex from the deck... and
+in action 22 it fired the same 210 Syrup Storm it could have fired in
+action 16. Balance of the turn: -4 cards of hand and two 2-PRIZE bodies
+dead in hand, for exactly nothing.
 
-Meowth ex vale EXCLUSIVAMENTE por su Last-Ditch Catch (buscar un Supporter).
-Con el Supporter del turno ya jugado, el Supporter que traiga el fetch no se
-puede jugar: la carta cavada nace muerta -- y la propia rama PLAY lo sabe
-([[no-meowth-si-supporter-ya-jugado]]), tanto que vetaba bajar el Meowth (-1e5)
-justo despues de haberlo cavado.
+Meowth ex is worth EXCLUSIVELY its Last-Ditch Catch (searching for a Supporter).
+With the turn's Supporter already played, the Supporter the fetch brings cannot
+be played: the dug card is born dead -- and the PLAY branch itself knows it
+([[no-meowth-si-supporter-ya-jugado]]), so much so that it vetoed playing the Meowth (-1e5)
+right after having dug it out.
 
-Fallaban TRES eslabones a la vez, y por eso ninguno de los vetos existentes
-paraba la jugada:
+THREE links failed at once, which is why none of the existing vetoes
+stopped the play:
 
-  1. EL FETCH no comprobaba que la habilidad pudiera producir algo: la regla
-     `lillie_en_mazo_refresco` daba 1000 a Meowth ex (ganando a Chikorita 30 /
-     Meganium 25 / Bayleef 20) mirando solo si quedaba Lillie's en el mazo.
-     Arreglo: `last_ditch_no_produce` (con el Supporter jugado o la Last-Ditch
-     ya gastada, Meowth cae a 10, como con Watchtower).
-  2. LA RED ANTI-TURNO-ESTERIL resucitaba la Ultra Ball vetada a 200 porque
-     leia `scores[mejor] <= 0` como "el turno acaba en END". No es lo mismo: un
-     ATAQUE normal puntua -1 por defecto, y los Items no consumen el ataque.
-     Arreglo: un turno con un ataque que hace dano de verdad NO es esteril; y
-     Meowth ex ya no cuenta como "basico util" si su Last-Ditch no produce.
-  3. EL PISO DEL VETO era SCORE_VETO (-1), el mismo que el ataque, asi que en
-     la accion 19 -con la red ya desactivada- la Ultra Ball ganaba el desempate
-     por INDICE del menu. Arreglo: SCORE_CANCEL (-100) en los vetos de "esta
-     Ultra Ball no aporta nada", que es justo para lo que existe esa constante.
+  1. THE FETCH did not check that the ability could produce anything: the rule
+     `lillie_en_mazo_refresco` gave 1000 to Meowth ex (beating Chikorita 30 /
+     Meganium 25 / Bayleef 20) by looking only at whether a Lillie's was left in the deck.
+     Fix: `last_ditch_no_produce` (with the Supporter played or the Last-Ditch
+     already spent, Meowth falls to 10, as with Watchtower).
+  2. THE ANTI-STERILE-TURN NET resurrected the vetoed Ultra Ball at 200 because it
+     read `scores[best] <= 0` as "the turn ends in END". That is not the same: a
+     normal ATTACK scores -1 by default, and Items do not consume the attack.
+     Fix: a turn with an attack that does real damage is NOT sterile; and
+     Meowth ex no longer counts as a "useful basic" if its Last-Ditch produces nothing.
+  3. THE VETO FLOOR was SCORE_VETO (-1), the same as the attack, so in
+     action 19 -- with the net already switched off -- the Ultra Ball won the tie-break
+     by menu INDEX. Fix: SCORE_CANCEL (-100) in the "this Ultra Ball contributes
+     nothing" vetoes, which is exactly what that constant exists for.
 
-Lo que NO cambia: la Ultra Ball sigue cavando Meowth ex cuando el hueco de
-Supporter esta libre y la Last-Ditch disponible (motores UB->Meowth->Lillie's y
-UB->Meowth->Xerosic, que ya exigian `not supporterPlayed`), y la red
-anti-turno-esteril sigue rescatando los turnos que de verdad acaban en END.
+What does NOT change: the Ultra Ball still digs for Meowth ex when the Supporter
+slot is free and the Last-Ditch available (the UB->Meowth->Lillie's and
+UB->Meowth->Xerosic engines, which already required `not supporterPlayed`), and the
+anti-sterile-turn net still rescues the turns that really end in END.
 """
 
 import json
@@ -102,7 +102,7 @@ def reset_main_state():
 
 
 def _observaciones():
-    """Las 7 observaciones de NUESTRO turno 6 (turnActionCount 16..22)."""
+    """The 7 observations of OUR turn 6 (turnActionCount 16..22)."""
     with open(_FIXTURE, encoding="utf-8") as f:
         return json.load(f)["observaciones"]
 
@@ -135,13 +135,13 @@ def _jugadas(obs):
 
 
 def _reproducir(obs_list):
-    """Reproduce el turno EN ORDEN y devuelve {turnActionCount: jugada}."""
+    """Replays the turn IN ORDER and returns {turnActionCount: play}."""
     return {o["current"]["turnActionCount"]: _jugada(o, m.agent(o))
             for o in obs_list}
 
 
 # ---------------------------------------------------------------------------
-# 1. El turno real: se ataca en vez de encadenar dos Ultra Ball
+# 1. The real turn: it attacks instead of chaining two Ultra Balls
 # ---------------------------------------------------------------------------
 
 def test_paso98_ataca_en_vez_de_cavar_un_meowth_que_no_se_puede_jugar():
@@ -150,14 +150,14 @@ def test_paso98_ataca_en_vez_de_cavar_un_meowth_que_no_se_puede_jugar():
 
 
 def test_paso101_la_segunda_ultra_ball_tampoco_se_juega():
-    """El log real repite el error: con la 1a Ultra Ball ya gastada el menu
-    vuelve a ofrecer Ultra Ball / Meowth ex / atacar, y se volvia a cavar."""
+    """The real log repeats the mistake: with the 1st Ultra Ball already spent the menu
+    offers Ultra Ball / Meowth ex / attack again, and it dug once more."""
     hecho = _reproducir(_observaciones())
     assert hecho[19] == ("ATTACK", SYRUP_STORM), hecho[19]
 
 
 def test_el_menu_ofrecia_de_verdad_las_dos_jugadas():
-    """Sin la Ultra Ball Y el ataque en el menu el test no discrimina nada."""
+    """Without the Ultra Ball AND the attack in the menu the test discriminates nothing."""
     for tac in (16, 19):
         jugadas = _jugadas(_por_accion(_observaciones())[tac])
         assert ("PLAY", ULTRA_BALL) in jugadas, (tac, jugadas)
@@ -165,25 +165,25 @@ def test_el_menu_ofrecia_de_verdad_las_dos_jugadas():
 
 
 # ---------------------------------------------------------------------------
-# 2. Los tres eslabones, uno a uno
+# 2. The three links, one by one
 # ---------------------------------------------------------------------------
 
 def test_el_fetch_no_elige_meowth_con_el_supporter_del_turno_jugado():
-    """Si aun asi se jugara una Ultra Ball, el fetch NO trae Meowth ex: su
-    Last-Ditch no puede producir un Supporter jugable este turno."""
+    """If an Ultra Ball were played even so, the fetch does NOT bring a Meowth ex: its
+    Last-Ditch cannot produce a playable Supporter this turn."""
     obs_list = _observaciones()
     hecho = {}
     for o in obs_list:
-        # Se responde a TODOS los menus del registro (incluidos los de la Ultra
-        # Ball que ya no jugariamos) para llegar al fetch con el estado tibio.
+        # Every menu of the record is answered (including those of the Ultra
+        # Ball we would no longer play) so the fetch is reached with the state warmed up.
         hecho[o["current"]["turnActionCount"]] = _jugada(o, m.agent(o))
     assert hecho[18] == ("CARTA", CHIKORITA), hecho[18]
     assert hecho[21] == ("CARTA", CHIKORITA), hecho[21]
 
 
 def test_la_ultra_ball_inutil_queda_por_debajo_del_piso_de_veto():
-    """SCORE_CANCEL, no SCORE_VETO: si empatara con el ataque (-1) el
-    desempate por indice del menu volveria a jugar la Ultra Ball."""
+    """SCORE_CANCEL, not SCORE_VETO: if it tied with the attack (-1) the
+    menu index tie-break would play the Ultra Ball again."""
     visto = {}
     orig = m._score_ultra_ball_play
 
@@ -205,26 +205,26 @@ def test_la_ultra_ball_inutil_queda_por_debajo_del_piso_de_veto():
 
 
 def test_la_red_anti_turno_esteril_no_dispara_con_un_ataque_real():
-    """El eslabon que resucitaba la Ultra Ball vetada a 200: un turno que acaba
-    con Syrup Storm de 210 no es un turno muerto."""
+    """The link that resurrected the vetoed Ultra Ball at 200: a turn that ends
+    with a 210 Syrup Storm is not a dead turn."""
     obs16 = _por_accion(_observaciones())[16]
     m.agent(obs16)
-    # Si la red hubiera disparado, la Ultra Ball habria salido con 200 y el
-    # agente la habria elegido; el ataque real es la prueba de que no lo hizo.
+    # If the net had fired, the Ultra Ball would have come out at 200 and the
+    # agent would have chosen it; the real attack is the proof that it did not.
     assert _jugada(obs16, m.agent(obs16)) == ("ATTACK", SYRUP_STORM)
 
 
 # ---------------------------------------------------------------------------
-# 3. Lo que NO se rompe: con el hueco de Supporter libre, Meowth sigue siendo
-#    el objetivo del fetch
+# 3. What does NOT break: with the Supporter slot free, Meowth is still
+#    the fetch's target
 # ---------------------------------------------------------------------------
 
 def test_con_el_supporter_libre_el_fetch_sigue_eligiendo_meowth():
-    """La regla nueva es un veto CONDICIONADO, no una prohibicion: el mismo
-    menu de busqueda con `supporterPlayed` en False vuelve a traer Meowth ex
-    (motor UB -> Meowth -> Last-Ditch -> Lillie's)."""
+    """The new rule is a CONDITIONAL veto, not a prohibition: the same
+    search menu with `supporterPlayed` False brings Meowth ex back
+    (the UB -> Meowth -> Last-Ditch -> Lillie's engine)."""
     obs_list = _observaciones()
-    for o in obs_list[:2]:          # calienta el estado hasta el fetch
+    for o in obs_list[:2]:          # it warms the state up to the fetch
         m.agent(o)
     fetch = _por_accion(obs_list)[18]
     fetch = json.loads(json.dumps(fetch))

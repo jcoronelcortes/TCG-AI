@@ -1,16 +1,16 @@
-"""COPIA VERBATIM del cargador de agentes de Kaggle. SIN EFECTOS SECUNDARIOS.
+"""A VERBATIM COPY of Kaggle's agent loader. NO SIDE EFFECTS.
 
 https://github.com/Kaggle/kaggle-environments/blob/master/kaggle_environments/agent.py
 
-Vive en su propio archivo, y no en tests/test_submission.py, POR UNA RAZON:
-el runner que ejecuta el agente en un interprete limpio importa este modulo, y
-si al importarlo se anadiese la raiz del proyecto a `sys.path` (como hace
-test_submission.py para alcanzar `utils/`), el subproceso dejaria de parecerse
-al contenedor -- un paquete propio importado tarde SI se resolveria y el fallo
-I1a nunca se reproduciria. Este archivo no toca sys.path ni importa nada del
-proyecto: solo la biblioteca estandar.
+It lives in its own file, and not in tests/test_submission.py, FOR A REASON:
+the runner that executes the agent in a clean interpreter imports this module, and
+if importing it added the project root to `sys.path` (as
+test_submission.py does to reach `utils/`), the subprocess would stop resembling
+the container -- one of our own packages imported late WOULD resolve and the I1a
+failure would never reproduce. This file touches neither sys.path nor imports anything from the
+project: only the standard library.
 
-Si Kaggle cambia su cargador, este es el unico sitio que hay que actualizar.
+If Kaggle changes its loader, this is the only place that has to be updated.
 """
 
 import os

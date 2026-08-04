@@ -1,1 +1,1 @@
-"""Paquete del agente. Ver docs/main-refactor-arquitectura.md."""
+"""Agent package. See docs/project-history.md."""

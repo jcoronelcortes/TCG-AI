@@ -1,23 +1,23 @@
-"""Invariantes del agente con property-based testing (hypothesis).
+"""Agent invariants with property-based testing (hypothesis).
 
-Fase 5 de la arquitectura de mejora de estrategia: en vez de un fixture por
-bug, hypothesis genera CIENTOS de estados validos (via el StateBuilder, que
-garantiza consistencia con deck.csv) y verifica propiedades que deben
-cumplirse en TODOS:
+Phase 5 of the strategy improvement architecture: instead of one fixture per
+bug, hypothesis generates HUNDREDS of valid states (via the StateBuilder, which
+guarantees consistency with deck.csv) and checks properties that must
+hold in ALL of them:
 
-  1. ROBUSTEZ: main.agent() nunca lanza excepcion ni devuelve una eleccion
-     invalida ante estados legales arbitrarios (una excepcion en produccion
-     es un forfeit: partida perdida en el acto).
-  2. VETO APPLIN: nunca se adjunta una 2a energia a un Applin que ya tiene
-     una (memoria applin-max-una-energia), salvo sus excepciones
-     documentadas (evolucion completa en mano / Hydrapple ex en juego),
-     que los generadores excluyen a proposito.
+  1. ROBUSTNESS: main.agent() never raises an exception or returns an invalid
+     choice on arbitrary legal states (an exception in production
+     is a forfeit: the game lost on the spot).
+  2. APPLIN VETO: a 2nd energy is never attached to an Applin that already has
+     one (the applin-max-una-energia memory), except for its documented
+     exceptions (a complete evolution in hand / a Hydrapple ex in play),
+     which the generators exclude on purpose.
 
-`derandomize=True`: los ejemplos son deterministas por version del codigo
-(la suite nunca "flakea"); si un invariante cae, hypothesis reduce el
-contraejemplo al estado minimo que lo viola.
+`derandomize=True`: the examples are deterministic per code version
+(the suite never "flakes"); if an invariant falls, hypothesis shrinks the
+counterexample to the minimal state that violates it.
 
-Requiere `hypothesis` (pip install hypothesis).
+Requires `hypothesis` (pip install hypothesis).
 """
 
 import sys
@@ -41,9 +41,9 @@ KANGASKHAN = 756
 CRUSTLE = 345
 DWEBBLE = 344
 
-# Roster propio SIN Meganium (su Wild Growth duplica la energia efectiva y
-# los specs sinteticos con arrays explicitos se volverian ambiguos) y SIN
-# Hydrapple ex (excepcion documentada del veto Applin).
+# Our own roster WITHOUT Meganium (its Wild Growth doubles the effective energy and
+# the synthetic specs with explicit arrays would become ambiguous) and WITHOUT
+# Hydrapple ex (a documented exception to the Applin veto).
 ROSTER_PROPIO = [m.Dipplin, m.Chikorita, m.Bayleef, m.Teal_Mask_Ogerpon_ex,
                  m.Tapu_Bulu, m.Meowth_ex]
 ROSTER_RIVAL = [
@@ -70,7 +70,7 @@ def _eleccion_valida(obs, eleccion):
 
 
 # ---------------------------------------------------------------------
-# Invariante 1: robustez del fetch de la Ultra Ball ante estados arbitrarios
+# Invariant 1: robustness of the Ultra Ball fetch against arbitrary states
 # ---------------------------------------------------------------------
 
 @settings(**AJUSTES)
@@ -99,20 +99,20 @@ def test_invariante_fetch_ub_robusto(activo_id, energias_activo, banca,
                .mi_mano(*mano)
                .op_activo(rival)
                .op_zonas(mano=5, mazo=30, premios=6)
-               # el mazo siempre lleva un Pokemon buscable + extras al azar
+               # the deck always carries a searchable Pokemon + random extras
                .mazo(m.Teal_Mask_Ogerpon_ex, *mazo_extra)
                .fetch_ultra_ball()
                .resto_al_descarte())
         obs = esc.construir()
     except EstadoInconsistente:
-        assume(False)  # composicion imposible: descartar el ejemplo
+        assume(False)  # an impossible composition: discard the example
         return
     eleccion = m.agent(obs)
     _eleccion_valida(obs, eleccion)
 
 
 # ---------------------------------------------------------------------
-# Invariante 2: veto a la 2a energia del Applin (y robustez del menu MAIN)
+# Invariant 2: the veto on the Applin's 2nd energy (and MAIN menu robustness)
 # ---------------------------------------------------------------------
 
 @settings(**AJUSTES)
@@ -139,8 +139,8 @@ def test_invariante_applin_max_una_energia(applin_en_activo, companiero,
             esc.mi_activo(comp).mi_banca(applin, *banca_extra)
             pos_applin = ("banca", 0)
         obs = (esc
-               .mi_mano(m.Basic_Grass_Energy)  # sin Dipplin+Hydrapple: no
-               # aplica la excepcion de evolucion completa este turno
+               .mi_mano(m.Basic_Grass_Energy)  # without Dipplin+Hydrapple: no
+               # the complete-evolution-this-turn exception applies
                .op_activo(rival)
                .op_zonas(mano=5, mazo=30, premios=6)
                .menu_attach_energia()
@@ -152,7 +152,7 @@ def test_invariante_applin_max_una_energia(applin_en_activo, companiero,
     _eleccion_valida(obs, eleccion)
 
     opt = obs["select"]["option"][eleccion[0]]
-    if opt.get("type") != 8:  # no adjunto (END): el veto se respeto
+    if opt.get("type") != 8:  # nothing attached (END): the veto was respected
         return
     if pos_applin[0] == "activo":
         es_applin = (opt.get("inPlayArea") == 4)

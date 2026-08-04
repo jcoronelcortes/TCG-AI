@@ -1,8 +1,8 @@
-"""Probabilidad hipergeometrica del robo.
+"""Hypergeometric probability of the draw.
 
-Extraido VERBATIM de main.py por utils/extraer_definiciones.py
-(docs/main-refactor-arquitectura.md). Su pureza esta comprobada por
-utils/pureza.py: nada de aqui toca el estado mutable ni las tablas de runtime.
+Extracted VERBATIM from main.py by utils/extraer_definiciones.py
+(docs/project-history.md). Its purity is verified by
+utils/pureza.py: nothing here touches mutable state or the runtime tables.
 """
 
 from ptcg.cartas.puntuacion import MAIN_ATTACKERS
@@ -19,17 +19,17 @@ from math import comb as _comb
 
 
 def _prob_al_menos(exitos, poblacion, robo, k):
-    """Hipergeometrica: P(robar AL MENOS `k` copias) sacando `robo` cartas de
-    un mazo de `poblacion` con `exitos` copias vivas.
+    """Hypergeometric: P(drawing AT LEAST `k` copies) when drawing `robo`
+    cards from a deck of `poblacion` with `exitos` live copies.
 
-    Es el UNICO sitio del fichero donde el agente razona con azar; el resto
-    decide con el tablero visible. `exitos` sale de la creencia de mazo
-    (`CARTAS_ACTIVAS_EN_MAZO`), que cuenta lo que NO se ha visto: mazo + premios
-    boca abajo. Por eso el llamador mete tambien los premios en `poblacion` --
-    son cartas indistinguibles del mazo desde nuestro lado--, lo que deja la
-    estimacion LIGERAMENTE conservadora (en el registro_004: 11 Plantas no
-    vistas en 48 -> 0.60, frente al 0.63 real de las 10 que quedaban en el mazo
-    de 42). Conservador es lo que se quiere en un gate."""
+    This is the ONLY place in the file where the agent reasons about chance;
+    everything else decides from the visible board. `exitos` comes from the deck
+    belief (`CARTAS_ACTIVAS_EN_MAZO`), which counts what has NOT been seen: deck
+    + face-down prizes. That is why the caller also puts the prizes into
+    `poblacion` -- from our side they are indistinguishable from deck cards --
+    which leaves the estimate SLIGHTLY conservative (in registro_004: 11 unseen
+    Grass out of 48 -> 0.60, against the real 0.63 of the 10 left in a 42-card
+    deck). Conservative is what a gate wants."""
     if k <= 0:
         return 1.0
     if exitos <= 0 or robo <= 0 or poblacion <= 0 or k > exitos:
@@ -51,16 +51,16 @@ def _prob_al_menos(exitos, poblacion, robo, k):
 
 @dataclass
 class _PescaRemate:
-    """Ataque que este turno SOLO depende de que el robo traiga energia."""
+    """An attack that this turn depends ONLY on the draw bringing energy."""
     atacante_id: int
-    desde_banca: bool     # exige retirar el activo para promoverlo
-    cartas: int           # Plantas que tiene que traer el ROBO
-    dano: int             # dano EFECTIVO proyectado sobre el activo rival
+    desde_banca: bool     # requires retreating the active to promote it
+    cartas: int           # Grass the DRAW has to bring
+    dano: int             # projected EFFECTIVE damage on the opposing active
     letal: bool
-    premios: int          # premios que cobra el KO (0 si no es letal)
-    robo: int             # cartas que roba el refresco
-    outs: int             # Plantas vivas en el mazo tras barajar
-    universo: int         # cartas del mazo tras barajar la mano
+    premios: int          # prizes the KO takes (0 if not lethal)
+    robo: int             # cards the refill draws
+    outs: int             # live Grass in the deck after shuffling
+    universo: int         # cards in the deck after shuffling the hand back
     prob: float
 
 
@@ -125,18 +125,19 @@ def _prob_card_accessible(card_id):
 
 
 def _pesca_remate_valida(c):
-    """La pesca es lo bastante buena para PISAR los vetos de orden de Lillie's.
+    """The fishing is good enough to OVERRIDE Lillie's ordering vetoes.
 
-    Gates (todos necesarios): hueco de Supporter libre; NINGUN ataque posible
-    este turno (ni con el activo ni promoviendo un cuerpo de banca ya cargado --
-    si se puede atacar, manda el ladder normal); el plan COBRA premio con
-    probabilidad >= `PESCA_PROB_MIN`; y ningun remate SEGURO en juego (gusteo
-    ganador o esquiva), que siempre gana a un KO probable.
+    Gates (all required): a free Supporter slot; NO attack possible this turn
+    (neither with the active nor by promoting an already charged benched body --
+    if we can attack, the normal ladder rules); the plan TAKES a prize with
+    probability >= `PESCA_PROB_MIN`; and no GUARANTEED finisher on the board
+    (winning gust or dodge), which always beats a probable KO.
 
-    `pending_evo` (evolucion directa en mano con su pre-evo en juego) tambien
-    bloquea: esa evolucion se juega ANTES por tier y el flag se apaga solo en la
-    reevaluacion siguiente, asi que ceder aqui no cuesta el remate -- y si la
-    evolucion NO es jugable hoy, barajar sus piezas si costaria la linea."""
+    `pending_evo` (a direct evolution in hand with its pre-evolution in play)
+    also blocks: that evolution is played EARLIER by tier and the flag only
+    clears on the next re-evaluation, so yielding here does not cost the
+    finisher -- and if the evolution is NOT playable today, shuffling its pieces
+    away would cost the line."""
     p = getattr(c, 'pesca_remate', None)
     return bool(p is not None
                 and not c.state.supporterPlayed
@@ -157,33 +158,36 @@ def _pesca_de_remate(my_state, op_state, state, hand_counts, field_counts,
                      meganium_in_play=False, neutralization_zone_active=False,
                      total_grass=0, bench_count=0, puede_cambiar=False,
                      has_switch_card=False, habilidades_apagadas=False):
-    """El MEJOR ataque que el robo de este turno puede desbloquear, con su
-    probabilidad. `None` si no hay ninguno.
+    """The BEST attack this turn's draw can unlock, with its probability.
+    `None` if there is none.
 
-    Hermano CONSCIENTE DEL DANO de `_plan_de_planta`: comparte su aritmetica de
-    adjuntes (cartas = techo(deficit / `_grass_attach_unit()`), vias dirigibles
-    al cuerpo concreto -- manual + Ripening Charge de cada Hydrapple ex + Teal
-    Dance solo sobre el propio Ogerpon) y le anade lo que aquella no mira: a
-    QUIEN se ataca, cuanto DANO sale y cuantos PREMIOS cobra.
+    DAMAGE-AWARE sibling of `_plan_de_planta`: it shares its attachment
+    arithmetic (cards = ceil(deficit / `_grass_attach_unit()`), routes that can
+    be aimed at a specific body -- manual + Ripening Charge on each Hydrapple ex
+    + Teal Dance only on the Ogerpon itself) and adds what that one does not
+    look at: WHO is attacked, how much DAMAGE comes out and how many PRIZES it
+    takes.
 
-    Nace del registro_004 paso 49 vs Marnie (PERDIDA): Teal Mask Ogerpon ex
-    ACTIVO con 1 energia (Myriad pide 3), NADA cargado en banca, CERO energia
-    en mano y 6 premios intactos -- Lillie's roba OCHO con 10 Plantas vivas en
-    42 cartas: 63% de sacar las 2 que faltan. Con ellas Myriad Leaf Shower pega
-    30 + 30 x (3 propias + 2 del rival) = 180, x2 por DEBILIDAD Planta del
-    Marnie's Grimmsnarl ex = 360 >= 320 PV: DOS premios. El agente jugo Boss's
-    Orders para arrastrar un Snorunt de 70 PV -- un gusteo que ademas DEGRADA
-    el objetivo (Myriad escala con la energia del activo rival, y el Snorunt
-    venia sin energia) -- y despues pago la Ultra Ball descartando las DOS
-    Lillie's, que ya eran carta muerta con el Supporter gastado.
+    It was born from registro_004 step 49 vs Marnie (LOST): Teal Mask Ogerpon ex
+    ACTIVE with 1 energy (Myriad asks for 3), NOTHING charged on the bench, ZERO
+    energy in hand and 6 prizes untouched -- Lillie's draws EIGHT with 10 live
+    Grass in 42 cards: 63% of pulling the 2 that are missing. With them Myriad
+    Leaf Shower hits 30 + 30 x (3 of ours + 2 of the opponent's) = 180, x2 for
+    the Grass WEAKNESS of Marnie's Grimmsnarl ex = 360 >= 320 HP: TWO prizes.
+    The agent played Boss's Orders to drag out a 70 HP Snorunt -- a gust that
+    also DEGRADES the target (Myriad scales with the energy on the opposing
+    active, and the Snorunt came with none) -- and then paid the Ultra Ball by
+    discarding BOTH Lillie's, which were already dead cards with the Supporter
+    spent.
 
-    `baraja_la_mano=True` (Lillie's, Unfair Stamp) modela el coste real del
-    refresco: las Plantas que hubiera en la mano VUELVEN al mazo, asi que no
-    descuentan del deficit y se suman a los `outs`.
+    `baraja_la_mano=True` (Lillie's, Unfair Stamp) models the real cost of the
+    refill: any Grass in hand goes BACK to the deck, so it does not count
+    against the deficit and is added to the `outs`.
 
-    El objetivo es SIEMPRE el activo rival ACTUAL: el hueco de Supporter se lo
-    lleva el refresco, asi que no hay Boss's que cambiarlo -- y ese es
-    justamente el punto del registro (gustear cambia el objetivo por uno peor).
+    The target is ALWAYS the CURRENT opposing active: the refill takes the
+    Supporter slot, so there is no Boss's left to change it -- and that is
+    exactly the point of the record (gusting changes the target for a worse
+    one).
     """
     if op_state is None or not op_state.active or op_state.active[0] is None:
         return None
@@ -200,25 +204,25 @@ def _pesca_de_remate(my_state, op_state, state, hand_counts, field_counts,
                  else _grass_ability_slots(state, field_counts))
     slots_hoy = slots_manual + slots_hab
     if slots_hoy <= 0:
-        return None                       # no queda por donde meter energia hoy
+        return None                       # no route left to put energy in today
 
     grass_mano = hand_counts.get(Basic_Grass_Energy, 0)
-    # Con un refresco que BARAJA la mano, las Plantas de la mano se pierden como
-    # recurso inmediato y reaparecen como outs del mazo.
+    # With a refill that SHUFFLES the hand, the Grass in hand is lost as an
+    # immediate resource and reappears as outs in the deck.
     en_mano_util = 0 if baraja_la_mano else grass_mano
     outs = grass_en_mazo + (grass_mano if baraja_la_mano else 0)
-    # `grass_en_mazo` viene de la creencia, que cuenta TODO lo no visto: mazo +
-    # premios. La poblacion tiene que contarlos igual para no inflar la
-    # probabilidad (ver `_prob_al_menos`). El Supporter que se juega no vuelve
-    # al mazo: se descarta, de ahi el -1.
+    # `grass_en_mazo` comes from the belief, which counts EVERYTHING unseen: deck +
+    # prizes. The population has to count them the same way so the probability is
+    # not inflated (see `_prob_al_menos`). The Supporter being played does not go
+    # back to the deck: it is discarded, hence the -1.
     universo = max(1, (getattr(my_state, 'deckCount', 0) or 0)
                    + len(getattr(my_state, 'prize', None) or [])
                    + (max(0, len(my_state.hand or []) - 1) if baraja_la_mano else 0))
 
     activo = _active_of(my_state)
-    # Coste de la retirada si el rematador esta en la BANCA: se paga con las
-    # energias del ACTIVO (cartas enteras), y eso baja el Grass del campo con el
-    # que escala Syrup Storm.
+    # Cost of the retreat if the finisher is on the BENCH: it is paid with the
+    # ACTIVE's energies (whole cards), and that lowers the Grass on the field that
+    # Syrup Storm scales with.
     coste_ret = 0 if has_switch_card else (
         RETREAT_COST.get(activo.id, 1) if activo is not None else 99)
     retirada_pagable = (puede_cambiar
@@ -235,35 +239,35 @@ def _pesca_de_remate(my_state, op_state, state, hand_counts, field_counts,
         if cuerpo is None or cuerpo.id not in MAIN_ATTACKERS:
             continue
         if not es_activo and not retirada_pagable:
-            continue                      # cargado o no, hoy no llega al frente
+            continue                      # charged or not, it does not reach the front today
         req = ESTADO.ATTACK_ENERGY_REQ.get(cuerpo.id)
         if req is None:
             continue
         falta = req - len(cuerpo.energies)
         if falta <= 0:
-            continue                      # ya ataca: no es una pesca
+            continue                      # already attacks: this is not fishing
         cartas = -(-falta // unidad)
-        # Vias que pueden apuntar a ESTE cuerpo hoy (mismo criterio que
-        # `_plan_de_planta`): Teal Dance solo carga a su portador.
+        # Routes that can point at THIS body today (same criterion as
+        # `_plan_de_planta`): Teal Dance only charges its bearer.
         dirigibles = slots_manual + n_hydrapple
         if cuerpo.id == Teal_Mask_Ogerpon_ex and not habilidades_apagadas:
             dirigibles += 1
         dirigibles = min(dirigibles, slots_hoy)
         if cartas > dirigibles:
-            continue                      # ni con todas las vias ataca hoy
+            continue                      # not even with every route does it attack today
         if cartas <= min(grass_mano, dirigibles):
-            # La MANO ya lo desbloquea: esto no es una pesca, es una carga --
-            # y con `baraja_la_mano` seria ademas el peor error posible
-            # (barajar al mazo justo la energia que gana el turno). El adjunte
-            # puntua en su propio tier y se juega ANTES; si solo cubre parte
-            # del deficit, la reevaluacion posterior vuelve aqui con el
-            # adjunte ya gastado y menos cartas que pescar.
+            # The HAND already unlocks it: this is not fishing, it is a charge --
+            # and with `baraja_la_mano` it would also be the worst possible
+            # mistake (shuffling away exactly the energy that wins the turn).
+            # The attachment scores in its own tier and is played EARLIER; if it
+            # only covers part of the deficit, the later re-evaluation comes back
+            # here with the attachment already spent and fewer cards to fish for.
             continue
         del_robo = cartas - min(en_mano_util, dirigibles)
         if del_robo <= 0:
-            continue                      # la mano sola lo desbloquea: no es pesca
+            continue                      # the hand alone unlocks it: not fishing
         if del_robo > robo:
-            continue                      # ni robandolo todo entra
+            continue                      # it does not fit even drawing everything
 
         escala_grass = ((total_grass if es_activo else grass_tras_retirar)
                         + cartas * unidad)
@@ -284,9 +288,9 @@ def _pesca_de_remate(my_state, op_state, state, hand_counts, field_counts,
         prob = _prob_al_menos(outs, universo, robo, del_robo)
         if prob <= 0.0:
             continue
-        # Mejor plan = el que mas premios cobra; a igualdad, el mas PROBABLE
-        # (menos cartas que pescar), y luego el que mas dano hace. Se prefiere
-        # el ACTIVO al relevo de banca: no paga retirada.
+        # Best plan = the one that takes the most prizes; on a tie, the most PROBABLE
+        # (fewer cards to fish for), and then the one that deals the most damage. The
+        # ACTIVE is preferred over the benched relief: it does not pay a retreat.
         clave = (1 if letal else 0, premios, round(prob, 6), dano,
                  0 if es_activo else -1)
         if mejor_clave is None or clave > mejor_clave:

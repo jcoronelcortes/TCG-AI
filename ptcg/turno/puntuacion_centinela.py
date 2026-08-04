@@ -1,12 +1,12 @@
-"""El centinela `_SALTAR` de la puntuacion, en su propio modulo.
+"""The `_SALTAR` sentinel of the scoring chain, in its own module.
 
-Vive aparte del despachador y de las ramas POR UNA RAZON: lo devuelven las ramas
-(`ptcg/turno/opciones/*.py`) y lo comprueba quien llama al despachador. Si viviera
-en `puntuacion.py`, el despachador importaria las ramas y las ramas al
-despachador -- import circular.
+It lives apart from the dispatcher and the branches FOR A REASON: the branches
+(`ptcg/turno/opciones/*.py`) return it and whoever calls the dispatcher checks
+it. If it lived in `puntuacion.py`, the dispatcher would import the branches and
+the branches would import the dispatcher -- a circular import.
 
-Significa "esta rama ya hizo `scores.append` por su cuenta"; es lo que en el
-bucle original de `agent()` era un `continue`.
+It means "this branch already did its own `scores.append`"; it is what used to
+be a `continue` in the original loop of `agent()`.
 """
 
 _SALTAR = object()

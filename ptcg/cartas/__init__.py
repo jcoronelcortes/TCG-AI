@@ -1,1 +1,1 @@
-"""Datos de carta: IDs, grupos y tablas."""
+"""Card data: IDs, groups and tables."""

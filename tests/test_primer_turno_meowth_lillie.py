@@ -1,27 +1,27 @@
-"""Regla del PRIMER TURNO: Meowth ex existe SOLO para traer Lillie's.
+"""The FIRST TURN rule: Meowth ex exists ONLY to bring a Lillie's.
 
-Origen (user, log 88461779 pasos 6-22 vs Alakazam, PERDIDA): en NUESTRO primer
-turno el agente jugo Ultra Ball -> Meowth ex (correcto: no habia Lillie's
-Determination en la mano) pero el Last-Ditch Catch se llevo un Xerosic's
-Machinations en vez de la Lillie's -- con cuatro copias vivas en el mazo. El
-turno 1 no ataca, no evoluciona y (saliendo primeros) ni siquiera ofrece jugar
-Supporters: lo unico que decide es cuanta MANO tendremos el turno 2. Xerosic se
-quedo muerto en la mano, y ademas habriamos tenido que barajarlo con la propia
-Lillie's del turno siguiente. Se pago Ultra Ball + un cuerpo de 2 premios en
-banca + el turno entero por nada.
+Origin (user, log 88461779 steps 6-22 vs Alakazam, LOST): on OUR first
+turn the agent played Ultra Ball -> Meowth ex (correct: there was no Lillie's
+Determination in hand) but the Last-Ditch Catch took a Xerosic's
+Machinations instead of the Lillie's -- with four live copies in the deck. Turn
+1 does not attack, does not evolve and (going first) does not even offer to play
+Supporters: the only thing it decides is how much HAND we will have on turn 2. Xerosic
+stayed dead in hand, and on top of that we would have had to shuffle it away with the
+next turn's Lillie's itself. Ultra Ball + a 2-prize body on the
+bench + the whole turn were paid for nothing.
 
-Regla completa (deck-agnostica), tal y como la enuncio el user:
+The complete rule (deck-agnostic), as the user stated it:
 
-  * primer turno CON Lillie's en la mano  -> no se hace NADA por bajar ni por
-    buscar un Meowth ex (ni desde la mano ni con Ultra Ball);
-  * primer turno SIN Lillie's en la mano  -> si se puede bajar Meowth ex de la
-    mano o cavarlo con Ultra Ball...
-  * ...pero el fetch de Last-Ditch trae SIEMPRE Lillie's Determination.
+  * a first turn WITH a Lillie's in hand -> NOTHING is done to play or to
+    search for a Meowth ex (neither from hand nor with an Ultra Ball);
+  * a first turn WITHOUT a Lillie's in hand -> a Meowth ex may be played from
+    hand or dug with an Ultra Ball...
+  * ...but the Last-Ditch fetch ALWAYS brings Lillie's Determination.
 
-Unica excepcion conservada: el guard anti-DONK (banca vacia + KO rival
-proyectado sobre nuestro activo solitario), donde Meowth ex no se baja por su
-busqueda sino como cuerpo que evita perder la partida en el acto
-(`_meowth_antidonk_now`, ver tests del fixture Cinderace en test_main.py).
+The only exception kept: the anti-DONK guard (an empty bench + a projected rival
+KO on our lone active), where Meowth ex is played not for its
+search but as a body that avoids losing the game on the spot
+(`_meowth_antidonk_now`, see the tests of the Cinderace fixture in test_main.py).
 """
 
 import json
@@ -72,11 +72,11 @@ def _fixture_obs(nombre):
 
 
 # ---------------------------------------------------------------------------
-# El fallo del log: el fetch del primer turno
+# The log's failure: the first turn's fetch
 # ---------------------------------------------------------------------------
 
 def test_last_ditch_del_primer_turno_trae_lillie_no_xerosic():
-    """Paso 16 del log 88461779, reproducido tal cual."""
+    """Step 16 of log 88461779, reproduced as it stands."""
     obs = _fixture_obs("alakazam_t1_last_ditch_busca_lillie_step16.json")
     sel = obs["select"]
     mazo = sel["deck"]
@@ -91,11 +91,11 @@ def test_last_ditch_del_primer_turno_trae_lillie_no_xerosic():
 
 
 def test_prediccion_del_fetch_en_primer_turno_apunta_a_lillie():
-    """El helper que decide ANTES de gastar el Meowth ve lo mismo que el prompt
-    (coherencia menu <-> prompt): con Lillie's viva en el mazo, el objetivo
-    predicho del primer turno es Lillie's aunque el matchup sea Alakazam con la
-    mano rival gorda y un atacante fuerte en juego (la rama que se llevo el
-    Xerosic en el log)."""
+    """The helper that decides BEFORE spending the Meowth sees the same as the prompt
+    (menu <-> prompt coherence): with a live Lillie's in the deck, the predicted
+    target of the first turn is Lillie's even if the matchup is Alakazam with a
+    fat rival hand and a strong attacker in play (the branch that took the
+    Xerosic in the log)."""
     mazo = {m.Xerosic_Machinations: {m.ESTADO_MAZO: 2},
             m.Lillie_Determination: {m.ESTADO_MAZO: 4}}
     supp = {m.Xerosic_Machinations: 600, m.Lillie_Determination: 500}
@@ -106,8 +106,8 @@ def test_prediccion_del_fetch_en_primer_turno_apunta_a_lillie():
 
 
 def test_fuera_del_primer_turno_el_fetch_conserva_la_rama_xerosic():
-    """La regla es SOLO del primer turno: en turnos posteriores el motor
-    anti-Alakazam (capar Powerful Hand) sigue mandando."""
+    """The rule belongs ONLY to the first turn: in later turns the
+    anti-Alakazam engine (capping Powerful Hand) still rules."""
     mazo = {m.Xerosic_Machinations: {m.ESTADO_MAZO: 2},
             m.Lillie_Determination: {m.ESTADO_MAZO: 4}}
     supp = {m.Xerosic_Machinations: 600, m.Lillie_Determination: 500}
@@ -118,8 +118,8 @@ def test_fuera_del_primer_turno_el_fetch_conserva_la_rama_xerosic():
 
 
 def test_sin_lillie_en_el_mazo_el_primer_turno_no_degrada_al_resto():
-    """Deck-agnostico: si el mazo no tiene ninguna Lillie's alcanzable, la
-    regla no capa a nadie y decide la escalera normal."""
+    """Deck-agnostic: if the deck has no reachable Lillie's, the
+    rule caps nobody and the normal ladder decides."""
     mazo = {m.Xerosic_Machinations: {m.ESTADO_MAZO: 2}}
     supp = {m.Xerosic_Machinations: 600}
     objetivo, valor = m._meowth_fetch_prediccion(
@@ -129,7 +129,7 @@ def test_sin_lillie_en_el_mazo_el_primer_turno_no_degrada_al_resto():
 
 
 # ---------------------------------------------------------------------------
-# No cavar Meowth ex con Ultra Ball si la Lillie's ya esta en la mano
+# Not digging Meowth ex with an Ultra Ball if the Lillie's is already in hand
 # ---------------------------------------------------------------------------
 
 def _ctx_ub_meowth(hand, turno=1, lillie_in_mazo=4):
@@ -150,7 +150,7 @@ def _valor_ub_meowth(ctx):
 
 def test_ub_no_cava_meowth_en_primer_turno_con_lillie_en_mano():
     m.we_go_first = True
-    m._ub_engine_pivot_turn = True   # ni el motor de pivote levanta la regla
+    m._ub_engine_pivot_turn = True   # not even the pivot engine lifts the rule
     ctx = _ctx_ub_meowth({m.Lillie_Determination: 1, m.Ultra_Ball: 1})
     assert _valor_ub_meowth(ctx) <= 10
 
@@ -162,8 +162,8 @@ def test_ub_no_cava_meowth_en_primer_turno_sin_lillie_en_el_mazo():
 
 
 def test_ub_si_cava_meowth_en_primer_turno_sin_lillie_en_mano():
-    """El caso legitimo del log: sin Lillie's en mano y con copias en el mazo,
-    la cadena Ultra Ball -> Meowth ex -> Lillie's SI se monta."""
+    """The log's legitimate case: with no Lillie's in hand and copies in the deck,
+    the Ultra Ball -> Meowth ex -> Lillie's chain IS set up."""
     m.we_go_first = True
     m._ub_engine_pivot_turn = True
     ctx = _ctx_ub_meowth({m.Ultra_Ball: 1})
@@ -171,11 +171,11 @@ def test_ub_si_cava_meowth_en_primer_turno_sin_lillie_en_mano():
 
 
 # ---------------------------------------------------------------------------
-# El motor de disrupcion no secuestra el primer turno
+# The disruption engine does not hijack the first turn
 # ---------------------------------------------------------------------------
 
 class _CtxXerosic:
-    """Minimo que consulta `_alakazam_dig_xerosic_engine`."""
+    """The minimum `_alakazam_dig_xerosic_engine` consults."""
 
     class _State:
         def __init__(self, turn):

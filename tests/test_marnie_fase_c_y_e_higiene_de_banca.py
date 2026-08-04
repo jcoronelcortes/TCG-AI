@@ -1,43 +1,43 @@
-"""vs Marnie (Froslass + Munkidori): no alimentar cuerpos condenados (Fase C) ni
-llenar la banca de cuerpos que pagan peaje (Fase E).
+"""vs Marnie (Froslass + Munkidori): do not feed doomed bodies (phase C) or
+fill the bench with bodies that pay a toll (phase E).
 
-Fases C y E del `docs/plan-matchup-marnie-froslass-munkidori.md`, que quedaron
-sin escribir cuando se midieron A, B y D.
+Phases C and E of `docs/matchups.md`, which were left
+unwritten when A, B and D were measured.
 
-**Fase C — no alimentar a un cuerpo CONDENADO** (defecto D3 del plan). Partida 2
-turno 10: *Teal Dance sobre el Ogerpon de banca a 80/210 con 8 energías*, que
-murió ese mismo turno con 5 Plantas encima. De las 13 Plantas del mazo, 8 se
-fueron al descarte dentro de cuerpos noqueados.
+**Phase C — do not feed a DOOMED body** (defect D3 of the plan). Game 2
+turn 10: *Teal Dance on the benched Ogerpon at 80/210 with 8 energies*, which
+died that same turn with 5 Grass on it. Of the 13 Grass in the deck, 8 went
+to the discard inside knocked-out bodies.
 
-El plan pedía un tope de "coste de ataque + 1" mientras hubiera Munkidori en
-mesa. **Ese tope no se implementa, y a propósito**: `_attacker_base_damage`
-verifica -- contra el daño REAL de seis registros -- que *Myriad Leaf Shower*
-escala con la energía del propio Ogerpon (30 + 30 × (propia + la del activo
-rival)) y *Syrup Storm* con la Planta de TODA nuestra mesa. Un Ogerpon con 8
-energías no está sobrecargado: pega 270+. La premisa "el excedente sobre 3 fue
-puro regalo" es falsa; lo que convierte la energía en regalo no es el exceso
-sino el **KO**, exactamente como dice el propio diagnóstico del plan ("mientras
-el cuerpo VIVE la energía no se desperdicia; el desperdicio ocurre en el KO").
+The plan asked for a cap of "attack cost + 1" while there was a Munkidori on
+the field. **That cap is not implemented, and on purpose**: `_attacker_base_damage`
+verifies -- against the REAL damage of six records -- that *Myriad Leaf Shower*
+scales with the Ogerpon's own energy (30 + 30 × (its own + that of the opposing
+active)) and *Syrup Storm* with the Grass on our WHOLE board. An Ogerpon with 8
+energies is not overcharged: it hits for 270+. The premise "the surplus above 3 was
+a pure gift" is false; what turns the energy into a gift is not the excess
+but the **KO**, exactly as the plan's own diagnosis says ("while
+the body LIVES the energy is not wasted; the waste happens at the KO").
 
-Así que la regla es la otra mitad: `_cuerpo_condenado` + techo
-`SCORE_CARGA_CONDENADA`. Dos decisiones de diseño:
+So the rule is the other half: `_cuerpo_condenado` + the ceiling
+`SCORE_CARGA_CONDENADA`. Two design decisions:
 
-  * la ventana se mide **COMPLETA** (con el daño dirigible de Adrena-Brain), al
-    revés que la curación de Ripening Charge, que usa la GARANTIZADA. Allí un
-    falso positivo gasta la habilidad entera; aquí sólo desvía la Planta a otro
-    cuerpo nuestro -- y para Syrup Storm da igual dónde caiga.
-  * el techo va en un ENVOLTORIO de `energy_score`, no al final de su cuerpo:
-    `_energy_score_base` tiene ~60 `return` repartidos (topes por matchup,
-    bandas de banca a 0, pivotes de retirada) y un techo al final sólo alcanzaba
-    a la cola genérica -- medido, disparaba 0 veces.
+  * the window is measured **COMPLETE** (with Adrena-Brain's aimable damage), the
+    opposite of Ripening Charge's healing, which uses the GUARANTEED one. There a
+    false positive spends the whole ability; here it only diverts the Grass to another
+    body of ours -- and for Syrup Storm it makes no difference where it lands.
+  * the ceiling goes in a WRAPPER of `energy_score`, not at the end of its body:
+    `_energy_score_base` has ~60 `return` statements scattered around (per-matchup caps,
+    bench-at-0 bands, retreat pivots) and a ceiling at the end only reached
+    the generic tail -- measured, it fired 0 times.
 
-**Fase E — higiene de banca** (defecto D5). Con Froslass en mesa, cada cuerpo
-nuestro CON HABILIDAD paga 20 por ronda y por Froslass sin que el rival gaste
-nada. Meowth ex ya estaba protegido; **Fezandipiti ex no**: se unía a la lista
-de matchups donde sólo se baja con *Flip the Script* viva o con la banca vacía
-(E1). Y entre dos jugadas de DESARROLLO se prefiere el cuerpo que no paga peaje
--- pero E2 se midió INERTE (0 decisiones cambiadas) y no se implementa: ver el
-comentario homónimo en `main.py`.
+**Phase E — bench hygiene** (defect D5). With Froslass on the field, each body
+of ours WITH AN ABILITY pays 20 per round per Froslass without the opponent spending
+anything. Meowth ex was already protected; **Fezandipiti ex was not**: it joins the list
+of matchups where it is only put down with *Flip the Script* alive or with the bench empty
+(E1). And between two DEVELOPMENT plays the body that does not pay the toll is preferred
+-- but E2 measured INERT (0 decisions changed) and is not implemented: see the
+comment of the same name in `main.py`.
 """
 
 import sys
@@ -99,7 +99,7 @@ def reset_main_state():
 
 
 def _destino_de_la_energia(obs, eleccion):
-    """Id del Pokemon que recibe la Planta, o None si no se eligio un ATTACH."""
+    """The id of the Pokemon that receives the Grass, or None if no ATTACH was chosen."""
     opt = obs["select"]["option"][eleccion[0]]
     if opt.get("type") != int(m.OptionType.ATTACH):
         return None
@@ -110,7 +110,7 @@ def _destino_de_la_energia(obs, eleccion):
 
 
 def _jugada(obs, eleccion):
-    """('PLAY', id) / ('ATTACH', id) / ('END',) ... de la opcion elegida."""
+    """('PLAY', id) / ('ATTACH', id) / ('END',) ... of the chosen option."""
     opt = obs["select"]["option"][eleccion[0]]
     tipo = opt.get("type")
     yo = obs["current"]["players"][obs["current"]["yourIndex"]]
@@ -124,16 +124,16 @@ def _jugada(obs, eleccion):
 
 
 # ---------------------------------------------------------------------------
-# FASE C — la Planta no va al cuerpo que el rival puede cobrar esta noche
+# PHASE C — the Grass does not go to the body the opponent can cash in tonight
 # ---------------------------------------------------------------------------
 
 def _mesa_con_meganium_herido(con_goteo=True):
-    """Meganium de banca a 30/160 (dentro de la ventana si hay goteo) junto a un
-    Ogerpon ex de banca INTACTO. Reproduce el flip real del paso 172 de
-    `registros/marnie/partida_1`, donde la Planta iba al Meganium moribundo.
+    """A benched Meganium at 30/160 (inside the window if there is drip) next to an
+    INTACT benched Ogerpon ex. It reproduces the real flip of step 172 of
+    `registros/marnie/partida_1`, where the Grass went to the dying Meganium.
 
-    `con_goteo=False` es el grupo de CONTROL: el mismo tablero con un rival sin
-    Froslass ni Munkidori, donde la ventana vale 0 y la regla no existe.
+    `con_goteo=False` is the CONTROL group: the same board with an opponent without
+    Froslass or Munkidori, where the window is 0 and the rule does not exist.
     """
     banca_rival = ([pk(FROSLASS, hp=90, max_hp=90),
                     pk(MUNKIDORI, hp=110, max_hp=110, energias=[G], fisicas=1)]
@@ -165,9 +165,9 @@ def test_la_planta_no_va_al_cuerpo_condenado():
 
 
 def test_sin_froslass_ni_munkidori_el_reparto_no_cambia():
-    # CONTROL: el mismo tablero sin goteo. La ventana vale 0, ningun cuerpo
-    # entra en ella y la regla no puede dispararse -- el destino lo decide el
-    # criterio de siempre (el Meganium herido, que es quien mas pide energia).
+    # CONTROL: the same board with no drip. The window is 0, no body
+    # enters it and the rule cannot fire -- the destination is decided by the
+    # usual criterion (the wounded Meganium, which is the one that asks for the most energy).
     obs = _mesa_con_meganium_herido(con_goteo=False)
     destino = _destino_de_la_energia(obs, m.agent(obs))
     assert destino == MEGANIUM, (
@@ -177,9 +177,9 @@ def test_sin_froslass_ni_munkidori_el_reparto_no_cambia():
 
 
 def test_el_activo_que_ataca_hoy_no_cuenta_como_condenado():
-    # El ACTIVO en ventana pero que ATACA este turno con esa misma Planta no
-    # esta condenado: la energia se cobra antes de que el rival juegue. Ogerpon
-    # activo a 60 PV con 2 energias -> la 3a le paga Myriad Leaf Shower.
+    # The ACTIVE that is inside the window but ATTACKS this turn with that same Grass is
+    # not doomed: the energy is cashed in before the opponent plays. An active Ogerpon
+    # at 60 HP with 2 energies -> the 3rd pays for its Myriad Leaf Shower.
     obs = (Escenario(turno=12, paso=1, tac=1)
            .mi_activo(pk(OGERPON, hp=60, max_hp=210, energias=[G, G], fisicas=2))
            .mi_banca(pk(BAYLEEF, hp=100, max_hp=100, pre_evo=[CHIKORITA]))
@@ -197,18 +197,18 @@ def test_el_activo_que_ataca_hoy_no_cuenta_como_condenado():
 
 
 # ---------------------------------------------------------------------------
-# FASE E — la banca cobra peaje con Froslass en mesa
+# PHASE E — the bench pays a toll with Froslass on the field
 # ---------------------------------------------------------------------------
 
 def _mesa_para_bajar_fez(con_froslass=True, premios_rival=6):
-    """Turno de DESARROLLO con Fezandipiti ex en la mano y la banca en basicos.
+    """A DEVELOPMENT turn with a Fezandipiti ex in hand and the bench in basics.
 
-    La rama de desarrollo de Fezandipiti ex exige `bench_count <= 2` y que la
-    banca sean todo Basicos, asi que la banca es un Tapu Bulu (con un Bayleef
-    la rama no se alcanza y el control no distinguiria nada).
+    The Fezandipiti ex development branch requires `bench_count <= 2` and that the
+    bench be all Basics, so the bench is a Tapu Bulu (with a Bayleef the branch is
+    not reached and the control would not distinguish anything).
 
-    `premios_rival=5` significa que el rival cobro un premio: el tracking deduce
-    que nos noquearon y `ko_last_turn` enciende Flip the Script.
+    `premios_rival=5` means the opponent took a prize: the tracking deduces
+    that we were knocked out and `ko_last_turn` switches Flip the Script on.
     """
     banca_rival = ([pk(FROSLASS, hp=90, max_hp=90)] if con_froslass
                    else [pk(MORGREM, hp=100, max_hp=100)])
@@ -235,22 +235,22 @@ def test_fezandipiti_no_se_banca_con_froslass_en_mesa():
 
 
 def test_sin_froslass_fezandipiti_si_se_baja():
-    # CONTROL: el MISMO tablero sin Froslass. Aqui la rama de desarrollo de
-    # Fezandipiti ex sigue viva (15000) y el cuerpo se baja -- lo que prueba que
-    # el veto del test anterior lo pone la Fase E1 y no otra condicion del
-    # tablero.
+    # CONTROL: the SAME board without Froslass. Here the Fezandipiti ex development
+    # branch is still alive (15000) and the body is put down -- which proves that
+    # the veto of the previous test comes from phase E1 and not from another condition of
+    # the board.
     obs = _mesa_para_bajar_fez(con_froslass=False)
     assert _jugada(obs, m.agent(obs)) == ("PLAY", FEZ), (
         "sin Froslass la ruta de desarrollo de Fezandipiti ex no cambia")
 
 
 def _mesa_para_bajar_applin(con_munkidori=True, con_cadena=False):
-    """Turno de desarrollo con un Applin en la mano.
+    """A development turn with an Applin in hand.
 
-    `con_munkidori=True` pone el snipe (30) + un Adrena-Brain (30) sobre la mesa:
-    los 40 PV del Applin recién bajado caen dentro de la ventana. `con_cadena`
-    añade el Dipplin en la mano y el Forest en juego, con lo que el Applin
-    evoluciona el mismo turno y sale de la ventana.
+    `con_munkidori=True` puts the snipe (30) + one Adrena-Brain (30) on the board:
+    the 40 HP of the freshly played Applin fall inside the window. `con_cadena`
+    adds the Dipplin in hand and the Forest in play, so the Applin
+    evolves the same turn and leaves the window.
     """
     banca_rival = [pk(FROSLASS, hp=90, max_hp=90)]
     if con_munkidori:
@@ -281,9 +281,9 @@ def test_no_se_baja_un_applin_pelado_dentro_de_la_ventana():
 
 
 def test_sin_munkidori_el_snipe_pelado_no_alcanza():
-    # CONTROL: solo Froslass. El Applin no tiene habilidad, así que no paga el
-    # goteo, y el snipe pelado (30) no llega a sus 40 PV: la regla no se
-    # enciende y el desarrollo sigue como siempre.
+    # CONTROL: Froslass only. The Applin has no ability, so it does not pay the
+    # drip, and the bare snipe (30) does not reach its 40 HP: the rule does not
+    # switch on and development goes on as usual.
     obs = _mesa_para_bajar_applin(con_munkidori=False)
     assert _jugada(obs, m.agent(obs)) == ("PLAY", APPLIN), (
         "sin daño dirigible el Applin sobrevive al snipe y se baja igual que "
@@ -291,10 +291,10 @@ def test_sin_munkidori_el_snipe_pelado_no_alcanza():
 
 
 def test_con_la_cadena_lista_el_applin_si_baja():
-    # EXCEPCIÓN: con Forest en juego y Dipplin en mano, el Applin evoluciona el
-    # mismo turno -- la evolución sube los PV máximos sin borrar contadores, así
-    # que sale de la ventana. Es justo lo que pide el plan: RESERVAR la pieza
-    # hasta poder encadenarla, no renunciar a la línea.
+    # EXCEPTION: with Forest in play and a Dipplin in hand, the Applin evolves the
+    # same turn -- the evolution raises the maximum HP without erasing counters, so
+    # it leaves the window. That is exactly what the plan asks for: KEEP the piece
+    # until it can be chained, not give up the line.
     obs = _mesa_para_bajar_applin(con_munkidori=True, con_cadena=True)
     assert _jugada(obs, m.agent(obs)) == ("PLAY", APPLIN), (
         "con Forest + Dipplin la cadena se monta en un turno y el Applin no "
@@ -302,10 +302,10 @@ def test_con_la_cadena_lista_el_applin_si_baja():
 
 
 def test_con_flip_the_script_viva_si_se_baja():
-    # EXCEPCION: si nos noquearon el turno anterior, Flip the Script SE COBRA
-    # este turno (roba 3) y el peaje deja de importar -- el mismo criterio que
-    # ya usaban Lucario/Crustle/Cornerstone/Sylveon. El KO se declara por el
-    # TABLERO (el rival bajo a 5 premios), no tocando el flag a mano.
+    # EXCEPTION: if we were knocked out last turn, Flip the Script IS CASHED IN
+    # this turn (it draws 3) and the toll stops mattering -- the same criterion
+    # Lucario/Crustle/Cornerstone/Sylveon already used. The KO is declared through the
+    # BOARD (the opponent went down to 5 prizes), not by touching the flag by hand.
     obs = _mesa_para_bajar_fez(con_froslass=True, premios_rival=5)
     assert _jugada(obs, m.agent(obs)) == ("PLAY", FEZ), (
         "con Flip the Script viva el Fezandipiti ex se cobra ESTE turno: la "

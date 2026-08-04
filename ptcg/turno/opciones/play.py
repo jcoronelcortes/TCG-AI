@@ -1,8 +1,8 @@
-"""Puntuacion de las opciones `PLAY`.
+"""Scoring of the `PLAY` options.
 
-Rama `o.type == OptionType.PLAY` de la cadena de `agent()`, extraida VERBATIM.
-Desempaqueta del contexto los 87 campos que lee y devuelve los
-5 que reasigna; los demas quedan como estaban, igual que antes.
+The `o.type == OptionType.PLAY` branch of the `agent()` chain, extracted
+VERBATIM. It unpacks from the context the 87 fields it reads and returns the
+5 it reassigns; the rest stay as they were, just like before.
 """
 
 from cg.api import AreaType, CardType, EnergyType
@@ -22,7 +22,7 @@ from ptcg.estado.claves import ESTADO_MAZO
 
 
 def puntuar(tc, o, score):
-    """Devuelve el puntaje de `o`. Puede devolver `_SALTAR`."""
+    """Returns the score of `o`. It may return `_SALTAR`."""
     _active_already_kos = tc._active_already_kos
     _active_cant_attack_this_turn = tc._active_cant_attack_this_turn
     _active_doomed_real = tc._active_doomed_real
@@ -121,17 +121,17 @@ def puntuar(tc, o, score):
                 _block_4th_ex = False
                 if ((ESTADO.op_is_crustle_deck or ESTADO.op_is_cornerstone_deck)
                         and card.id in OUR_EX_IDS
-                        # Meowth ex es UTILIDAD (Last-Ditch busca Boss's para
-                        # gustear la banca cuando el activo es inmune): no
-                        # cuenta como un 4o atacante ex y no se bloquea.
+                        # Meowth ex is UTILITY (Last-Ditch searches for a Boss's to
+                        # gust the bench when the active is immune): it does
+                        # not count as a 4th ex attacker and is not blocked.
                         and not (card.id == Meowth_ex
                                  and _meowth_immune_boss_engine)
-                        # Fezandipiti ex con Flip the Script VIVA
-                        # (ko_last_turn) tampoco es un "4o atacante": bajarlo
-                        # roba 3 cartas ESTE turno (registro_008 paso 74 vs
-                        # Mega Starmie con Cornerstone de tech: el bloqueo
-                        # del 4o ex aplastaba el 22000 del refill y el draw
-                        # se perdia). Sin la habilidad viva, el veto sigue.
+                        # A Fezandipiti ex with Flip the Script ALIVE
+                        # (ko_last_turn) is not a "4th attacker" either: putting it down
+                        # draws 3 cards THIS turn (registro_008 step 74 vs
+                        # Mega Starmie with a tech Cornerstone: the 4th-ex block
+                        # crushed the 22000 of the refill and the draw
+                        # was lost). Without the ability alive, the veto stands.
                         and not (card.id == Fezandipiti_ex
                                  and ESTADO.ko_last_turn)):
                     _ex_in_play = sum(field_counts.get(_ex_id, 0)
@@ -139,36 +139,33 @@ def puntuar(tc, o, score):
                     if _ex_in_play >= 3:
                         _block_4th_ex = True
         
-                # CUERPO ex REDUNDANTE CON POWERFUL HAND LETAL (user,
-                # registro_010 paso 150 vs Alakazam, PERDIDA -- log
-                # 88903365). Vs Alakazam el remate del rival no es su activo:
-                # es Boss's Orders (3 copias en su mazo) + Powerful Hand
-                # (20 x su mano, y su mano CRECE). Cuando ese dano proyectado
-                # ya MATA de un golpe al cuerpo que ibamos a bajar y al rival
-                # le bastan 2 premios para cerrar, un ex DUPLICADO en la banca
-                # no es desarrollo: es un remate servido. En el registro
-                # bajamos un TERCER Teal Mask Ogerpon ex (210 PV) con la mano
-                # rival en 12 (Powerful Hand proyectado 280); al turno
-                # siguiente gustearon un Ogerpon ex de banca y lo noquearon con
-                # 220 para sus 2 ultimos premios.
+                # A REDUNDANT ex BODY WITH A LETHAL POWERFUL HAND (user,
+                # registro_010 step 150 vs Alakazam, LOST -- log
+                # 88903365). vs Alakazam the opponent's finisher is not their active:
+                # it is Boss's Orders (3 copies in their deck) + Powerful Hand
+                # (20 x their hand, and their hand GROWS). When that projected damage
+                # already KILLS in one hit the body we were about to put down and the
+                # opponent only needs 2 prizes to close, a DUPLICATE ex on the bench
+                # is not development: it is a finisher served up. In the record
+                # we put down a THIRD Teal Mask Ogerpon ex (210 HP) with the opposing
+                # hand at 12 (projected Powerful Hand 280); on the following
+                # turn they gusted a benched Ogerpon ex and knocked it out with
+                # 220 for their last 2 prizes.
                 #
-                # Alcance DELIBERADAMENTE estrecho, para no tocar el desarrollo
-                # normal del matchup:
-                #   * solo COPIAS REDUNDANTES (`field_counts[card.id] >= 1`):
-                #     la PRIMERA copia de cualquier ex sigue bajando -- puede
-                #     ser el unico atacante o el motor del turno;
-                #   * solo con `op_prize <= 2`: si al rival le faltan 3+
-                #     premios, un objetivo mas no cierra la partida;
-                #   * solo si Powerful Hand REMATA ese cuerpo (>= PV impresos);
-                #   * exento Meowth ex con motor vivo (`_alk_ld_engine_vivo` /
-                #     `_meowth_immune_boss_engine`): es UTILIDAD -- su
-                #     Last-Ditch busca justo el Xerosic que capa Powerful
-                #     Hand -- y exento Fezandipiti ex con Flip the Script viva
-                #     (roba 3 ESTE turno), igual que en el bloque de arriba.
-                # Los overrides de "busqueda ya pagada" (`_ub_meowth_pending`
-                # / `_ub_fez_pending`) van DESPUES en la rama, asi que un
-                # cuerpo ya cavado con Ultra Ball nunca se queda muerto en la
-                # mano por este veto.
+                # DELIBERATELY narrow scope, so as not to touch normal
+                # development in the matchup:
+                #   * only REDUNDANT COPIES (`field_counts[card.id] >= 1`):
+                #     the FIRST copy of any ex is still put down -- it may
+                #     be the only attacker or the engine of the turn;
+                #   * only with `op_prize <= 2`: if the opponent is 3+
+                #     prizes away, one more target does not close the game;
+                #   * only if Powerful Hand FINISHES that body (>= printed HP);
+                #     and Fezandipiti ex with Flip the Script alive is exempt
+                #     (it draws 3 THIS turn), as in the block above.
+                # The "search already paid for" overrides (`_ub_meowth_pending`
+                # / `_ub_fez_pending`) come LATER in the branch, so a
+                # body already dug out with Ultra Ball is never left dead in
+                # hand by this veto.
                 _alk_ex_redundante_letal = False
                 if (op_is_alakazam_deck and card.id in OUR_EX_IDS
                         and op_prize <= 2
@@ -229,21 +226,21 @@ def puntuar(tc, o, score):
                     _applin_evolvable_now = (
                         ESTADO.forest_in_play and hand_counts.get(Dipplin, 0) >= 1)
         
-                    # FASE E3 (plan Marnie, seccion 4): un Applin RECIEN
-                    # bajado tiene 40 PV y no tiene habilidad, asi que no
-                    # paga el goteo de Froslass -- pero el snipe automatico
-                    # (30) mas UN contador movido por Adrena-Brain ya lo
-                    # matan. Dejarlo un turno suelto en la banca es un premio
-                    # REGALADO (partida 3). Forest of Vitality deja evolucionar
-                    # Pokemon Planta el turno en que se juegan, asi que la
-                    # linea entera cabe en un turno: la regla es RESERVAR las
-                    # piezas hasta poder encadenarlas, no bajar el basico
-                    # "para ir montando". Misma forma que el veto de Mega
-                    # Starmie de mas abajo y que el de Dragapult de aqui al
-                    # lado; lo que cambia es que el umbral sale de la VENTANA
-                    # DE REGALO y no de una lista de mazos. Sin Munkidori en
-                    # mesa `_op_movable_dmg` es 0, el snipe pelado (30) no
-                    # llega a los 40 PV y la regla no se enciende.
+                    # PHASE E3 (Marnie plan, section 4): an Applin JUST
+                    # put down has 40 HP and no ability, so it does not
+                    # pay the Froslass drip -- but the automatic snipe
+                    # (30) plus ONE counter moved by Adrena-Brain already
+                    # kill it. Leaving it loose on the bench for a turn is a prize
+                    # GIVEN AWAY (game 3). Forest of Vitality allows evolving
+                    # Grass Pokemon on the turn they are played, so the
+                    # whole line fits in one turn: the rule is to KEEP the
+                    # pieces until they can be chained, not to put the basic down
+                    # "to start building". Same shape as the Mega
+                    # Starmie veto further down and as the Dragapult one right
+                    # next to it; what changes is that the threshold comes from the GIFT
+                    # WINDOW and not from a list of decks. Without Munkidori on
+                    # the field `_op_movable_dmg` is 0, the bare snipe (30) does not
+                    # reach the 40 HP and the rule does not switch on.
                     _applin_hp_impreso = getattr(
                         card_table.get(Applin), 'hp', 0) or 0
                     _applin_regalado = (
@@ -261,9 +258,9 @@ def puntuar(tc, o, score):
                     elif (op_is_cubchoo_deck and
                             field_counts.get(Applin, 0) + field_counts.get(Dipplin, 0)
                             + field_counts.get(Hydrapple_ex, 0) >= 1):
-                        # Matchup Cubchoo (user): solo UNA linea
-                        # Applin->Dipplin->Hydrapple ex en juego a la vez. Si ya
-                        # hay un miembro de la linea en mesa, no bajar otro Applin.
+                        # Cubchoo matchup (user): only ONE
+                        # Applin->Dipplin->Hydrapple ex line in play at a time. If there is
+                        # already a member of the line on the board, do not put another Applin down.
                         score = SCORE_VETO
                     else:
                         _forest_avail = ESTADO.forest_in_play or hand_counts.get(Forest_of_Vitality, 0) >= 1
@@ -315,46 +312,46 @@ def puntuar(tc, o, score):
                 elif card.id == Meowth_ex:
         
                     if meowth_ability_lock:
-                        # Team Rocket's Watchtower anula la habilidad de
-                        # Meowth ex (Pokemon incoloro): no bajarlo a la banca.
+                        # Team Rocket's Watchtower cancels the ability of
+                        # Meowth ex (a Colorless Pokemon): do not bench it.
                         score = SCORE_VETO
                     elif _stamp_blocks_supp_chain:
-                        # ERROR DE SECUENCIA (user, registro_004 p34 vs Mega
-                        # Starmie ex; registro_008 paso 90 vs Alakazam): con
-                        # Unfair Stamp (Item ACE SPEC) JUGABLE este turno
-                        # (`_stamp_blocks_supp_chain` = nos noquearon el turno
-                        # pasado + el Sello sigue en mano), NO bajar Meowth ex
-                        # para buscar NINGUN Supporter: el Sello BARAJA TODA la
-                        # mano al mazo, asi que el Supporter que trae el
-                        # Last-Ditch Catch se pierde de inmediato y ademas
-                        # expusimos un cuerpo de 2 premios en la banca. El
-                        # propio Sello ya refresca (robamos 5) y disrumpe (el
-                        # rival solo roba 2), asi que el fetch es redundante.
-                        # Orden correcto: items -> Unfair Stamp -> y solo
-                        # DESPUES, si hace falta, bajar Meowth ex (el Sello es
-                        # Item: al jugarse sale de la mano, el flag pasa a
-                        # False y la cadena Meowth se re-habilita).
+                        # SEQUENCING ERROR (user, registro_004 p34 vs Mega
+                        # Starmie ex; registro_008 step 90 vs Alakazam): with an
+                        # Unfair Stamp (an ACE SPEC Item) PLAYABLE this turn
+                        # (`_stamp_blocks_supp_chain` = we were knocked out last
+                        # turn + the Stamp is still in hand), do NOT put Meowth ex down
+                        # to search for ANY Supporter: the Stamp SHUFFLES THE WHOLE
+                        # hand into the deck, so the Supporter the
+                        # Last-Ditch Catch brings is lost immediately and we have also
+                        # exposed a 2-prize body on the bench. The
+                        # Stamp itself already refills (we draw 5) and disrupts (the
+                        # opponent only draws 2), so the fetch is redundant.
+                        # Correct order: items -> Unfair Stamp -> and only
+                        # AFTERWARDS, if needed, put Meowth ex down (the Stamp is an
+                        # Item: once played it leaves the hand, the flag becomes
+                        # False and the Meowth chain is re-enabled).
                         #
-                        # POSICION (paso 90, GANADA suboptima): este veto
-                        # estaba DEBAJO de los motores Boss's via Meowth
+                        # POSITION (step 90, WON suboptimally): this veto
+                        # used to sit BELOW the Boss's-via-Meowth engines
                         # (_win_via_boss_gust/_gust_2prize_via_boss 22500,
                         # _deny_evo_via_boss 22000, _meowth_immune_boss_engine
-                        # 22000), exentos con el argumento de que "buscan un
-                        # Boss's que se JUEGA este turno, no se baraja". Ese
-                        # argumento es FALSO: `_REGLAS_BOSS_PLAY` veta el Boss's
-                        # con `cede_a_unfair_stamp` (y lo mismo hacen los
-                        # scorers de Xerosic/Lillie's/Dawn/Lana's: TODOS los
-                        # `_SUPP_PLAY_IDS` ceden al Sello), asi que el Boss's
-                        # buscado NO se puede jugar este turno y encima se
-                        # baraja al mazo. Con `_gust_2prize_via_boss` activo
-                        # (Fezandipiti ex de 210 PV en banca rival, rematable
-                        # por Wood Hammer) el agente bajaba Meowth ex, cavaba
-                        # el Boss's, jugaba el Sello -- que devolvia el Boss's
-                        # al mazo -- y solo lo recupero por SUERTE entre las 5
-                        # cartas robadas. Por eso el veto va ARRIBA de todo:
-                        # mientras el Sello siga jugable ningun fetch de
-                        # Supporter puede pagar. Deck-agnostico: no nombra
-                        # cartas del rival ni arquetipos.
+                        # 22000), exempt on the argument that they "search for
+                        # a Boss's that IS PLAYED this turn, it is not shuffled". That
+                        # argument is FALSE: `_REGLAS_BOSS_PLAY` vetoes the Boss's
+                        # with `cede_a_unfair_stamp` (and the same is done by the
+                        # Xerosic/Lillie's/Dawn/Lana's scorers: ALL the
+                        # `_SUPP_PLAY_IDS` yield to the Stamp), so the fetched Boss's
+                        # canNOT be played this turn and on top of that gets
+                        # shuffled into the deck. With `_gust_2prize_via_boss` active
+                        # (a 210 HP Fezandipiti ex on the opposing bench, finishable
+                        # by Wood Hammer) the agent put Meowth ex down, dug out
+                        # the Boss's, played the Stamp -- which returned the Boss's
+                        # to the deck -- and only recovered it by LUCK among the 5
+                        # cards drawn. That is why the veto goes ABOVE everything:
+                        # while the Stamp is still playable no Supporter
+                        # fetch can pay off. Deck-agnostic: it names no
+                        # opposing cards or archetypes.
                         score = SCORE_VETO
                     elif ((_win_via_boss_gust or _gust_2prize_via_boss)
                             and hand_counts.get(Boss_Orders, 0) == 0
@@ -362,21 +359,21 @@ def puntuar(tc, o, score):
                             and field_counts[card.id] < 2
                             and _meowth_ld_free
                             and bench_count < 5):
-                        # Motor Boss's ganador via Meowth ex (user, registro_011
-                        # paso 148 vs Dragapult ex, GANADA): jugar Meowth ex
-                        # para que Last-Ditch Catch busque Boss's Orders (que
-                        # esta en el MAZO, no en la mano) y rematar gusteando+
-                        # noqueando (win_via_boss_gust: p.ej. a 1 premio de
-                        # ganar, gustear un basico fragil de banca -Dreepy 70-
-                        # que el activo NOQUEA, en vez de atacar al activo rival
-                        # que NO muere). Se permite incluso con UN Meowth ex ya
-                        # en juego (field < 2) SIEMPRE que su Last-Ditch siga
-                        # disponible este turno (`_meowth_ld_free`): el Meowth de
-                        # banca de turnos anteriores ya gasto su habilidad, pero
-                        # uno NUEVO desde la mano vuelve a buscar. Antes exigia
-                        # `field_counts == 0`, por lo que con un Meowth ya en
-                        # banca esta linea ganadora no se veia y el agente
-                        # atacaba sin noquear.
+                        # Winning Boss's engine via Meowth ex (user, registro_011
+                        # step 148 vs Dragapult ex, WON): play Meowth ex
+                        # so that Last-Ditch Catch searches for Boss's Orders (which
+                        # is in the DECK, not in hand) and finish by gusting+
+                        # knocking out (win_via_boss_gust: e.g. 1 prize away from
+                        # winning, gust a fragile basic from the bench -- a 70 HP Dreepy --
+                        # that the active KNOCKS OUT, instead of attacking the opposing active
+                        # which does NOT die). It is allowed even with ONE Meowth ex already
+                        # in play (field < 2) AS LONG AS its Last-Ditch is still
+                        # available this turn (`_meowth_ld_free`): the benched Meowth
+                        # from previous turns has already spent its ability, but
+                        # a NEW one from hand searches again. It used to require
+                        # `field_counts == 0`, so with a Meowth already on the
+                        # bench this winning line was invisible and the agent
+                        # attacked without knocking out.
                         score = 22500
                     elif (_deny_evo_via_boss
                             and hand_counts.get(Boss_Orders, 0) == 0
@@ -386,35 +383,34 @@ def puntuar(tc, o, score):
                             and _meowth_ld_free
                             and bench_count < 5
                             and not state.supporterPlayed):
-                        # Motor Boss's de VALOR via Meowth ex (plan motor
-                        # Meowth, mejora A): el rival tiene una pre-evo de
-                        # linea ex ENERGIZADA en banca (Gabite/Duraludon/
-                        # Morgrem...) que NOQUEAMOS tras gustearla, y el
-                        # Boss's esta en el MAZO. La maquinaria in-hand
-                        # (`_boss_deny_evo`) exige Boss's en mano y el veto
-                        # de abajo (`_active_ready_attacker`) mataba el
-                        # fallback generico: no habia NINGUN camino y el
-                        # agente atacaba al muro dejando evolucionar la
-                        # amenaza. Bajar Meowth -> Last-Ditch busca Boss's
-                        # (1280) -> gustear+noquear la pre-evo. 22000: bajo
-                        # el remate ganador (22500), sobre devel-lillie y
-                        # turno muerto (21800). Con Boss's YA en mano no
-                        # dispara (el motor in-hand lo juega directo sin
-                        # gastar el cuerpo Meowth).
+                        # VALUE Boss's engine via Meowth ex (Meowth engine
+                        # plan, improvement A): the opponent has a charged
+                        # pre-evolution of an ex line on the bench (Gabite/Duraludon/
+                        # Morgrem...) that we KNOCK OUT after gusting it, and the
+                        # Boss's is in the DECK. The in-hand machinery
+                        # (`_boss_deny_evo`) requires a Boss's in hand and the veto
+                        # below (`_active_ready_attacker`) killed the
+                        # generic fallback: there was NO path at all and the
+                        # agent attacked the wall letting the threat
+                        # evolve. Put Meowth down -> Last-Ditch searches for Boss's
+                        # (1280) -> gust+knock out the pre-evolution. 22000: below
+                        # the winning finisher (22500), above devel-lillie and
+                        # the dead turn (21800). With a Boss's ALREADY in hand it does not
+                        # fire (the in-hand engine plays it directly without spending the Meowth body).
                         score = 22000
                     elif _meowth_immune_boss_engine:
-                        # Motor Boss's vs ACTIVO INMUNE (user: Hydrapple ex vs
-                        # Cornerstone Mask Ogerpon ex activo + Mega Lucario ex
-                        # en banca): el activo rival ANULA a nuestro atacante
-                        # (Cornerstone anula habilidad; Crustle/Sylveon anulan
-                        # ex; Neutralization Zone anula ex vs 1-premio) -> el
-                        # ataque hace 0. Con Boss's en el MAZO (no en mano),
-                        # bajar Meowth ex para que Last-Ditch Catch lo busque,
-                        # gustear un objetivo ATACABLE de la banca y rematarlo,
-                        # en vez de atacar al muro inmune por 0. 22000: nivel de
-                        # los otros motores Boss's, sobre refresco/turno muerto.
-                        # Con Boss's YA en mano no dispara (se juega directo).
-                        # Deck-agnostico.
+                        # Boss's engine vs an IMMUNE ACTIVE (user: Hydrapple ex vs
+                        # an active Cornerstone Mask Ogerpon ex + Mega Lucario ex
+                        # on the bench): the opposing active CANCELS our attacker
+                        # (Cornerstone cancels abilities; Crustle/Sylveon cancel
+                        # ex; the Neutralization Zone cancels ex vs 1-prize) -> the
+                        # attack does 0. With a Boss's in the DECK (not in hand),
+                        # put Meowth ex down so Last-Ditch Catch searches for it,
+                        # gust an ATTACKABLE target from the bench and finish it,
+                        # instead of attacking the immune wall for 0. 22000: the level of
+                        # the other Boss's engines, above refill/dead turn.
+                        # With a Boss's ALREADY in hand it does not fire (it is played directly).
+                        # Deck-agnostic.
                         score = 22000
                     elif (field_counts[card.id] < 2
                             and _meowth_ld_free
@@ -429,24 +425,24 @@ def puntuar(tc, o, score):
                             and _ara_act.id not in OUR_EX_IDS
                             and prize_count(_ara_act) == 1
                             and (not op_has_froslass)):
-                        # Motor de refresco Meowth -> Lillie's en TABLERO POBRE
-                        # (user, registro_006 paso 57 vs Alakazam, GANADA): el
-                        # activo es un atacante CHIP de 1 premio (Dipplin) que
-                        # PUEDE noquear al activo rival pero es fragil, NO hay
-                        # ningun atacante LISTO en banca (_ready_attacker_count
-                        # <= 1, solo el propio activo) y la mano es minima
-                        # (<= 2 cartas). Aunque el activo pueda atacar/noquear,
-                        # bajar Meowth ex NO consume el ataque: se banca el
-                        # Basico, Last-Ditch Catch trae Lillie's, se refresca la
-                        # mano (roba 6) para armar un SEGUNDO atacante y DESPUES
-                        # se ataca en el mismo turno (no perdemos el KO). A
-                        # diferencia del refresco generico de abajo (exige
-                        # field==0 y que el activo NO noquee), aqui se permite
-                        # con UN Meowth ya en banca (field<2, con su Last-Ditch
-                        # aun libre) y AUNQUE el activo noquee. Gates estrictos
-                        # (mano<=2, unico atacante = el chip activo de 1 premio,
-                        # sin Froslass) para no exponer un 2o Meowth (2 premios)
-                        # salvo en tablero realmente pobre. Deck-agnostico.
+                        # Meowth -> Lillie's refill engine on a POOR BOARD
+                        # (user, registro_006 step 57 vs Alakazam, WON): the
+                        # active is a 1-prize CHIP attacker (Dipplin) that
+                        # CAN knock out the opposing active but is fragile, there is NO
+                        # READY attacker on the bench (_ready_attacker_count
+                        # <= 1, only the active itself) and the hand is minimal
+                        # (<= 2 cards). Even though the active can attack/knock out,
+                        # putting Meowth ex down does NOT consume the attack: the Basic is
+                        # benched, Last-Ditch Catch brings Lillie's, the hand is
+                        # refilled (draw 6) to assemble a SECOND attacker and AFTERWARDS
+                        # we attack in the same turn (we do not lose the KO). Unlike
+                        # the generic refill below (which requires field==0 and the active
+                        # NOT to knock out), here it is allowed with ONE Meowth already on the
+                        # bench (field<2, with its Last-Ditch still free) and EVEN IF
+                        # the active knocks out. Strict gates (hand<=2, the only attacker
+                        # being the active 1-prize chip body, no Froslass) so as not
+                        # to expose a 2nd Meowth (2 prizes) except on a really poor
+                        # board. Deck-agnostic.
                         score = 21600
                     elif (field_counts[card.id] < 2
                             and _meowth_ld_free
@@ -462,30 +458,30 @@ def puntuar(tc, o, score):
                             and my_prize >= 3
                             and _no_second_attacker_path
                             and _active_doomed_real):
-                        # Motor de refresco Meowth -> Lillie's SIN atacante de
-                        # repuesto (user, registro_006 paso 78 vs Mega Lucario
-                        # ex): el activo (Ogerpon ex) PUEDE atacar pero NO noquea
-                        # y el rival lo remata el proximo turno (remate REAL, no
-                        # el heuristico active_ko_likely que subestima a Mega
-                        # Lucario); la banca NO tiene ningun ATACANTE (solo un
-                        # basico de utilidad) y desde la mano NO hay forma de
-                        # montar un 2o atacante este turno (ni basico atacante
-                        # jugable ni evolucion legal: la linea Hydrapple/Dipplin
-                        # esta atascada sin Applin/Dipplin en juego). Bajar
-                        # Meowth ex NO consume el ataque: Last-Ditch Catch trae
-                        # Lillie's, se refresca la mano (roba 6) para encontrar
-                        # piezas de atacante y DESPUES se ataca/retira en el mismo
-                        # turno. Se permite con UN Meowth ya en banca (field<2,
-                        # con su Last-Ditch libre) y AUNQUE el activo sea un ex.
-                        # Gates estrictos (unico atacante = el activo condenado,
-                        # sin camino a 2o atacante, no en rango de remate propio,
-                        # sin Froslass) para no exponer un cuerpo de 2 premios
-                        # salvo en tablero realmente pobre. `bench_count <= 1`:
-                        # solo en tablero MUY fino (<=1 cuerpo en banca) donde hay
-                        # que cavar; con 2+ cuerpos preferimos el retiro-sacrificio
-                        # limpio del descuadre ([[descuadre-generalizado-ex-...]])
-                        # sin comprometer Lillie's ni exponer un 2o Meowth.
-                        # Deck-agnostico.
+                        # Meowth -> Lillie's refill engine WITH NO spare
+                        # attacker (user, registro_006 step 78 vs Mega Lucario
+                        # ex): the active (Ogerpon ex) CAN attack but does NOT knock out
+                        # and the opponent finishes it next turn (the REAL finisher, not
+                        # the active_ko_likely heuristic that underestimates Mega
+                        # Lucario); the bench has NO ATTACKER (only a
+                        # utility basic) and from hand there is NO way to
+                        # assemble a 2nd attacker this turn (neither a playable basic
+                        # attacker nor a legal evolution: the Hydrapple/Dipplin line
+                        # is stuck without an Applin/Dipplin in play). Putting
+                        # Meowth ex down does NOT consume the attack: Last-Ditch Catch brings
+                        # Lillie's, the hand is refilled (draw 6) to find
+                        # attacker pieces and AFTERWARDS we attack/retreat in the same
+                        # turn. It is allowed with ONE Meowth already on the bench (field<2,
+                        # with its Last-Ditch free) and EVEN IF the active is an ex.
+                        # Strict gates (the only attacker being the doomed active,
+                        # no path to a 2nd attacker, not in our own finishing range,
+                        # no Froslass) so as not to expose a 2-prize body
+                        # except on a really poor board. `bench_count <= 1`:
+                        # only on a VERY thin board (<=1 body on the bench) where
+                        # digging is necessary; with 2+ bodies we prefer the clean
+                        # retreat-sacrifice of the mismatch ([[descuadre-generalizado-ex-...]])
+                        # without committing Lillie's or exposing a 2nd Meowth.
+                        # Deck-agnostic.
                         score = 21550
                     elif (_active_ready_attacker
                             and field_counts[card.id] == 0
@@ -502,29 +498,29 @@ def puntuar(tc, o, score):
                             and not meowth_ability_lock
                             and (not op_has_froslass
                                  or _ready_attacker_count <= 1)):
-                        # Regla (user, logs 86592502 turno 9 vs Archaludon ex,
-                        # 86593647 turno 4 vs Mega Starmie ex y 86699707 paso 51
-                        # vs Marnie's Grimmsnarl ex, todas PERDIDAS):
-                        # EXCEPCION al veto de abajo. Aunque el activo YA pueda
-                        # atacar, si la MANO es DEBIL (<=4 cartas) y aun queda una
-                        # Lillie's Determination en el MAZO, bajar Meowth ex para
-                        # que su habilidad Last-Ditch Catch traiga Lillie's y
-                        # jugarla (baraja la mano y roba 6) da MUCHAS mas opciones
-                        # de juego y ataque que jugar un cuerpo REDUNDANTE (2o
-                        # Teal Mask Ogerpon ex, 21000) o lanzar un ataque DEBIL no
-                        # letal (Dipplin ~1100) vs un muro de 330 HP. Se exige que
-                        # haya un atacante listo pero POCOS (<=2: si ya hay muchos
-                        # listos no hace falta refrescar), que el ataque del activo
-                        # NO sea letal (si noquea, se ataca y se cobra el premio),
-                        # que no se haya jugado Supporter y que no este anulada su
-                        # habilidad (Watchtower siempre veta). Froslass tambien
-                        # veta EXCEPTO cuando nuestro UNICO atacante listo es el
-                        # propio activo (_ready_attacker_count <= 1) y su ataque
-                        # NO es letal: ahi no hay presion real (un chip vs el muro)
-                        # y cavar por Lillie's vale mas que el riesgo de banquear
-                        # Meowth ex ante Froslass (caso 86699707: activo Dipplin
-                        # chip vs Grimmsnarl ex 320 HP). Supera al cuerpo
-                        # redundante (21500 > 21000) para que Meowth ex gane.
+                        # Rule (user, logs 86592502 turn 9 vs Archaludon ex,
+                        # 86593647 turn 4 vs Mega Starmie ex and 86699707 step 51
+                        # vs Marnie's Grimmsnarl ex, all LOST):
+                        # an EXCEPTION to the veto below. Even if the active can ALREADY
+                        # attack, if the HAND is WEAK (<=4 cards) and there is still a
+                        # Lillie's Determination left in the DECK, putting Meowth ex down so
+                        # that its Last-Ditch Catch ability brings Lillie's and
+                        # playing it (shuffle the hand and draw 6) gives MANY more play
+                        # and attack options than playing a REDUNDANT body (a 2nd
+                        # Teal Mask Ogerpon ex, 21000) or throwing a WEAK non-lethal
+                        # attack (Dipplin ~1100) at a 330 HP wall. It requires that
+                        # there be a ready attacker but FEW (<=2: if there are already many
+                        # ready there is no need to refill), that the active's attack
+                        # NOT be lethal (if it knocks out, we attack and take the prize),
+                        # that no Supporter has been played and that its ability is not
+                        # cancelled (Watchtower always vetoes). Froslass also
+                        # vetoes EXCEPT when our ONLY ready attacker is the
+                        # active itself (_ready_attacker_count <= 1) and its attack
+                        # is NOT lethal: there is no real pressure there (a chip vs the wall)
+                        # and digging for Lillie's is worth more than the risk of benching
+                        # Meowth ex against Froslass (case 86699707: an active Dipplin
+                        # chipping vs a 320 HP Grimmsnarl ex). It beats the
+                        # redundant body (21500 > 21000) so Meowth ex wins.
                         score = 21500
                     elif (_active_ready_attacker
                             and field_counts[card.id] == 0
@@ -536,46 +532,46 @@ def puntuar(tc, o, score):
                             and hand_counts.get(Lillie_Determination, 0) == 0
                             and ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(
                                 Lillie_Determination, {}).get(ESTADO_MAZO, 0) > 0):
-                        # EXCEPCION al veto de abajo (user, registro_014 paso
-                        # 107, vs Marnie): el activo era un Teal Mask Ogerpon
-                        # ex a 10/210 PV -- se cae al primer golpe -- y la
-                        # banca tenia UN solo Pokemon. Aunque el activo sea un
-                        # atacante LISTO, bajar Meowth ex aqui es gratis: no
-                        # consume el ataque (se baja el Basico y se ataca
-                        # despues en el mismo turno) y encadena Last-Ditch
-                        # Catch -> Lillie's -> rehacer la mano, dando cuerpo
-                        # de repuesto para cuando caiga el activo y muchas mas
-                        # opciones de juego. El veto de abajo (log 86511741 vs
-                        # Mega Abomasnow) esta pensado para un activo SANO con
-                        # banca desarrollada, donde el cuerpo de 2 premios no
-                        # compensa; con el activo condenado y la banca vacia
-                        # la situacion se invierte. Se puntua por debajo del
-                        # refresco pleno (21500) y por encima del ataque.
+                        # An EXCEPTION to the veto below (user, registro_014 step
+                        # 107, vs Marnie): the active was a Teal Mask Ogerpon
+                        # ex at 10/210 HP -- it falls to the first hit -- and the
+                        # bench had ONE single Pokemon. Even though the active is a
+                        # READY attacker, putting Meowth ex down here is free: it does not
+                        # consume the attack (the Basic is benched and we attack
+                        # afterwards in the same turn) and it chains Last-Ditch
+                        # Catch -> Lillie's -> rebuild the hand, giving a spare body
+                        # for when the active falls and many more
+                        # play options. The veto below (log 86511741 vs
+                        # Mega Abomasnow) is meant for a HEALTHY active with a
+                        # developed bench, where the 2-prize body does not pay off;
+                        # with the active doomed and the bench empty
+                        # the situation is reversed. It is scored below the
+                        # full refill (21500) and above the attack.
                         score = 21400
                     elif (_active_ready_attacker
                             and field_counts[card.id] == 0):
-                        # Regla (user, log 86511741 paso 57, vs Mega Abomasnow
-                        # ex, PERDIDA): si nuestro ACTIVO ya es un atacante
-                        # LISTO para atacar este turno, NO bajamos Meowth ex
-                        # solo para buscar un Supporter. Es un cuerpo de 2
-                        # premios y no necesitamos partidario: preferimos
-                        # desarrollar con Ultra Ball/Dawn (p.ej. buscar Teal
-                        # Mask Ogerpon ex y acelerar energia con Teal Dance) o
-                        # atacar directamente. La gustada LETAL con Boss's ya se
-                        # resolvio en la rama anterior (_win_via_boss_gust).
+                        # Rule (user, log 86511741 step 57, vs Mega Abomasnow
+                        # ex, LOST): if our ACTIVE is already an attacker
+                        # READY to attack this turn, we do NOT put Meowth ex down
+                        # just to search for a Supporter. It is a 2-prize
+                        # body and we do not need a supporter: we prefer
+                        # developing with Ultra Ball/Dawn (e.g. searching for a Teal
+                        # Mask Ogerpon ex and accelerating energy with Teal Dance) or
+                        # attacking directly. The LETHAL gust with Boss's was already
+                        # resolved in the previous branch (_win_via_boss_gust).
                         score = SCORE_VETO
                     elif (hand_counts.get(Lillie_Determination, 0) >= 1
                             and field_counts[card.id] == 0):
-                        # Regla (user): si YA tenemos Lillie's Determination EN
-                        # LA MANO, NO se juega Meowth ex en NINGUN turno; se
-                        # despliega el resto y se juega Lillie's. Bajar Meowth ex
-                        # solo malgastaria un cuerpo de 2 premios y su busqueda
-                        # de Supporter, porque Lillie's baraja TODA la mano en el
-                        # mazo -> la carta buscada se perderia. La gustada LETAL
-                        # con Boss's se maneja antes (rama _win_via_boss_gust).
-                        # Si Lillie's NO esta en la mano pero SI en el mazo, este
-                        # veto NO aplica: se deja pasar a `_meowth_devel_lillie`
-                        # para bajar Meowth ex, BUSCAR Lillie's y jugarla.
+                        # Rule (user): if we ALREADY have a Lillie's Determination IN
+                        # HAND, Meowth ex is NOT played on ANY turn; we
+                        # deploy the rest and play Lillie's. Putting Meowth ex down
+                        # would only waste a 2-prize body and its Supporter
+                        # search, because Lillie's shuffles the WHOLE hand into the
+                        # deck -> the fetched card would be lost. The LETHAL gust
+                        # with Boss's is handled earlier (the _win_via_boss_gust branch).
+                        # If Lillie's is NOT in hand but IS in the deck, this
+                        # veto does NOT apply: it falls through to `_meowth_devel_lillie`
+                        # to put Meowth ex down, SEARCH for Lillie's and play it.
                         score = SCORE_VETO
                     elif (_bcs_playable_in_hand
                             and hand_counts.get(Lillie_Determination, 0) >= 1
@@ -631,19 +627,19 @@ def puntuar(tc, o, score):
                     elif state.supporterPlayed:
                         score = SCORE_VETO
                     elif op_has_froslass:
-                        # Normalmente NO se banca Meowth ex (2 premios) contra
-                        # Froslass (pinga la banca). EXCEPCION (user, registro_008
-                        # paso 84, vs Marnie/Froslass, PERDIDA): en un TURNO
-                        # MUERTO -- el activo no puede ATACAR ni RETIRARSE (0
-                        # energia < coste de retirada), no hay atacante de banca
-                        # que subir y no hay cartas en mano para habilitar un
-                        # ataque -- con hueco en banca y el motor de refresco en
-                        # el MAZO (Meowth ex -> Last-Ditch Catch busca Lana's Aid
-                        # o Lillie's Determination), bajar Meowth ex es la UNICA
-                        # jugada util: recuperar 3 energias del descarte (Lana's
-                        # Aid) o refrescar la mano (Lillie's) abre opciones de
-                        # ataque los proximos turnos. La eleccion Lana's/Lillie's
-                        # la resuelve la busqueda del Supporter.
+                        # Normally Meowth ex (2 prizes) is not benched against
+                        # Froslass (which pings the bench). EXCEPTION (user, registro_008
+                        # step 84, vs Marnie/Froslass, LOST): on a DEAD
+                        # TURN -- the active can neither ATTACK nor RETREAT (0
+                        # energy < the retreat cost), there is no benched attacker
+                        # to bring up and there are no cards in hand to enable an
+                        # attack -- with room on the bench and the refill engine in
+                        # the DECK (Meowth ex -> Last-Ditch Catch searches for Lana's Aid
+                        # or Lillie's Determination), putting Meowth ex down is the ONLY
+                        # useful play: recovering 3 energies from the discard (Lana's
+                        # Aid) or refilling the hand (Lillie's) opens up attack
+                        # options in the coming turns. The Lana's/Lillie's choice
+                        # is resolved by the Supporter search.
                         _mw_act_reloc = my_state.active[0] if my_state.active else None
                         _mw_can_retreat = (
                             _mw_act_reloc is not None
@@ -738,37 +734,37 @@ def puntuar(tc, o, score):
         
                         score = _meowth_score
         
-                    # VALIDACION FINAL: el Supporter que el Last-Ditch Catch
-                    # traeria YA esta en la mano -> la busqueda es redundante
-                    # y bajar Meowth ex solo regala un cuerpo de 2 premios.
-                    # Se cancela la jugada (el turno sigue y el Supporter se
-                    # juega por su propia escalera). Va al FINAL de la cadena
-                    # para tener la ultima palabra tambien sobre los motores
-                    # de arriba (Boss's ganador 22500, deny-evo 22000...):
-                    # esos miran solo si el BOSS'S esta en mano, no cual
-                    # seria el fetch real -- en el registro_010 el motor
-                    # apuntaba a Boss's pero el fetch acabo trayendo el
-                    # Xerosic que ya teniamos. Ver `_meowth_fetch_prediccion`.
+                    # FINAL VALIDATION: the Supporter the Last-Ditch Catch
+                    # would bring is ALREADY in hand -> the search is redundant
+                    # and putting Meowth ex down only gives away a 2-prize body.
+                    # The play is cancelled (the turn goes on and the Supporter is
+                    # played through its own ladder). It goes at the END of the chain
+                    # so it also has the last word over the engines
+                    # above (winning Boss's 22500, deny-evo 22000...):
+                    # those only look at whether the BOSS'S is in hand, not at what
+                    # the real fetch would be -- in registro_010 the engine
+                    # pointed at Boss's but the fetch ended up bringing the
+                    # Xerosic we already had. See `_meowth_fetch_prediccion`.
                     #
-                    # `_meowth_fetch_pierde_el_turno` es la otra mitad del
-                    # mismo chequeo: el fetch traeria algo que NO tenemos,
-                    # pero un Supporter de la mano se lleva el UNICO hueco
-                    # del turno, asi que la carta buscada tampoco se juega
-                    # hoy (registro_004 paso 36: Lillie's buscada vs Xerosic
-                    # en mano). Mismo sitio y mismo efecto: cancelar la
-                    # jugada y seguir el turno con el Supporter de la mano.
+                    # `_meowth_fetch_pierde_el_turno` is the other half of the
+                    # same check: the fetch would bring something we do NOT have,
+                    # but a Supporter from hand takes the turn's ONLY
+                    # slot, so the fetched card is not played
+                    # today either (registro_004 step 36: a fetched Lillie's vs a Xerosic
+                    # in hand). Same place and same effect: cancel the
+                    # play and carry on the turn with the Supporter from hand.
                     if ((_meowth_fetch_redundante
                          or _meowth_fetch_pierde_el_turno) and score > 0):
                         score = SCORE_VETO
                 elif card.id == Fezandipiti_ex:
         
-                    # Con Lillie's Determination + Teal Mask Ogerpon ex +
-                    # energia de Planta en la mano, la jugada correcta es bajar
-                    # Teal (futuro atacante), usar Teal Dance y despues jugar
-                    # Lillie's Determination para refrescar la mano. La habilidad
-                    # de Fezandipiti (Flip the Script) solo roba hasta 3 cartas,
-                    # asi que con la mano cargada no aporta y gastaria el turno /
-                    # la banca en un no-atacante. Dejamos que Teal (21000) gane.
+                    # With Lillie's Determination + Teal Mask Ogerpon ex +
+                    # Grass energy in hand, the correct play is to put
+                    # Teal down (a future attacker), use Teal Dance and then play
+                    # Lillie's Determination to refill the hand. Fezandipiti's
+                    # ability (Flip the Script) only draws up to 3 cards,
+                    # so with a full hand it adds nothing and would spend the turn /
+                    # the bench on a non-attacker. We let Teal (21000) win.
                     _fez_prefer_teal_lillie = (
                         hand_counts.get(Lillie_Determination, 0) >= 1
                         and not state.supporterPlayed
@@ -786,31 +782,31 @@ def puntuar(tc, o, score):
                         score = SCORE_VETO
                     elif (op_is_lucario_deck or ESTADO.op_is_crustle_deck
                           or ESTADO.op_is_cornerstone_deck or op_is_sylveon_deck
-                          # FASE E1 (plan Marnie, D5): con FROSLASS en mesa
-                          # la banca no es un sitio seguro. Fezandipiti ex
-                          # tiene HABILIDAD, asi que paga el peaje de
-                          # Freezing Shroud (20 por ronda por Froslass) sin
-                          # que el rival gaste nada, y son DOS premios que
-                          # Munkidori puede rematar donde estan. Partida 2:
-                          # Meowth ex y Fezandipiti ex ocuparon banca los 13
-                          # turnos absorbiendo 40/ronda cada uno. Mismo
-                          # criterio que ya aplicaba a Meowth ex (ver el
-                          # `elif op_has_froslass` de su rama): solo se baja
-                          # si se COBRA hoy -- Flip the Script viva
-                          # (ko_last_turn) -- o si la banca esta VACIA, donde
-                          # un KO al activo seria la derrota.
+                          # PHASE E1 (Marnie plan, D5): with FROSLASS on the field
+                          # the bench is not a safe place. Fezandipiti ex
+                          # has an ABILITY, so it pays the toll of
+                          # Freezing Shroud (20 per round per Froslass) without
+                          # the opponent spending anything, and it is TWO prizes that
+                          # Munkidori can finish off where they stand. Game 2:
+                          # Meowth ex and Fezandipiti ex occupied the bench for 13
+                          # turns absorbing 40/round each. The same
+                          # criterion already applied to Meowth ex (see the
+                          # `elif op_has_froslass` of its branch): it is only put down
+                          # if it PAYS OFF today -- Flip the Script alive
+                          # (ko_last_turn) -- or if the bench is EMPTY, where
+                          # a KO on the active would be the loss.
                           or op_has_froslass):
-                        # Contra Mega Lucario (Lucha), Crustle, Cornerstone
-                        # Ogerpon y Sylveon: Fezandipiti ex vale 2 premios y su
-                        # habilidad Flip the Script solo sirve tras ser noqueado.
-                        # NO lo bajamos por desarrollo al comienzo de la partida.
-                        # Si la habilidad esta viva (ko_last_turn) se conserva la
-                        # ruta normal. Si no, esperamos al final del turno y solo
-                        # lo bajamos como ULTIMO recurso cuando la banca esta
-                        # VACIA: sin banca, un KO a nuestro activo el proximo
-                        # turno = derrota. Con score bajo (500) cualquier
-                        # desarrollo real (basico ~20000) se juega antes; Fez solo
-                        # cae si no queda otra forma de tener un cuerpo en juego.
+                        # Against Mega Lucario (Fighting), Crustle, Cornerstone
+                        # Ogerpon and Sylveon: Fezandipiti ex is worth 2 prizes and its
+                        # Flip the Script ability only works after being knocked out.
+                        # We do NOT put it down for development at the start of the game.
+                        # If the ability is alive (ko_last_turn) the normal route is
+                        # kept. If not, we wait until the end of the turn and only
+                        # put it down as a LAST resort when the bench is
+                        # EMPTY: with no bench, a KO on our active next
+                        # turn = a loss. With a low score (500) any
+                        # real development (a basic ~20000) is played first; Fez only
+                        # comes down if there is no other way to have a body in play.
                         if ESTADO.ko_last_turn:
                             score = 22000
                             if len(my_state.hand) <= 3:
@@ -843,13 +839,13 @@ def puntuar(tc, o, score):
                                                          getattr(_bp_fez_data, 'stage2', False)):
                                         _all_bench_basics = False
                                         break
-                            # Contra Mega Lucario (tipo Lucha) NO bajamos
-                            # Fezandipiti ex solo por "desarrollo": es debil a
-                            # Lucha ({F}) y vale 2 premios, y su habilidad Flip
-                            # the Script esta muerta si no nos noquearon el
-                            # turno anterior. Bajarlo asi solo regala un KO de
-                            # 2 premios facil. Con la habilidad viva
-                            # (ko_last_turn) se conserva la ruta de 22000.
+                            # Against Mega Lucario (a Fighting type) we do NOT put
+                            # Fezandipiti ex down just for "development": it is weak to
+                            # Fighting ({F}) and worth 2 prizes, and its Flip
+                            # the Script ability is dead if we were not knocked out the
+                            # previous turn. Putting it down like that only gives away a KO of
+                            # 2 easy prizes. With the ability alive
+                            # (ko_last_turn) the 22000 route is kept.
                             if _all_bench_basics and not op_is_lucario_deck:
                                 fez_score = max(fez_score, 15000)
         
@@ -867,32 +863,32 @@ def puntuar(tc, o, score):
                         op_has_ex_immune_active or op_has_ex_immune_bench or
                         op_is_iron_thorns_deck)
         
-                    # Respaldo del UNICO atacante del matchup (autopsia
-                    # iron_thorns p030 t2, paso 1 plan jul 2026): contra un
-                    # rival que anula nuestro motor de habilidades o hace 0
-                    # nuestro dano ex (_op_is_crustle_like), Tapu Bulu es EL
-                    # atacante -- y si el unico que tenemos en juego es el
-                    # ACTIVO, cuando caiga no hay relevo. El veto de copia
-                    # redundante (abajo) se evaluaba ANTES de las ramas de
-                    # matchup y el 2o Tapu moria en mano (END con 7 cartas).
-                    # Guards: exactamente 1 en juego, ese 1 es el activo, y
-                    # el matchup es de muro/lock. 21800: bajo la prioridad
-                    # de la 1a copia (22000+), sobre el desarrollo generico.
+                    # Backup of the matchup's ONLY attacker (iron_thorns
+                    # autopsy p030 t2, step 1 of the jul 2026 plan): against an
+                    # opponent that cancels our ability engine or makes our ex
+                    # damage 0 (_op_is_crustle_like), Tapu Bulu is THE
+                    # attacker -- and if the only one we have in play is the
+                    # ACTIVE, when it falls there is no relief. The redundant-copy
+                    # veto (below) used to be evaluated BEFORE the matchup branches
+                    # and the 2nd Tapu died in hand (END with 7 cards).
+                    # Guards: exactly 1 in play, that 1 is the active, and
+                    # the matchup is a wall/lock one. 21800: below the priority
+                    # of the 1st copy (22000+), above generic development.
                     _tapu_backup_vs_lock = (
                         field_counts[card.id] == 1 and
                         _op_is_crustle_like and
                         my_state.active and my_state.active[0] is not None
                         and my_state.active[0].id == Tapu_Bulu)
         
-                    # vs DRAGAPULT no se baja con el tablero desarrollado
-                    # (>2 Pokemon en juego). Ver `_dragapult_no_tapu`: aqui
-                    # es donde se aplica, y va PRIMERO en la cadena porque
-                    # las ramas de abajo (en particular la de
-                    # `_tapu_in_play_count >= 4 and meganium_in_play`, que
-                    # es la que lo bajo en el registro_003 paso 43) no
-                    # miran el matchup. El veto cede ante el muro
-                    # (`_op_is_crustle_like`): ahi Tapu es el unico
-                    # atacante y manda la colision de matchups.
+                    # vs DRAGAPULT it is not put down with the board developed
+                    # (>2 Pokemon in play). See `_dragapult_no_tapu`: this is
+                    # where it is applied, and it goes FIRST in the chain because
+                    # the branches below (in particular the
+                    # `_tapu_in_play_count >= 4 and meganium_in_play` one, which
+                    # is the one that put it down in registro_003 step 43) do not
+                    # look at the matchup. The veto yields to the wall
+                    # (`_op_is_crustle_like`): there Tapu is the only
+                    # attacker and the matchup collision rules.
                     if _dragapult_no_tapu and not _op_is_crustle_like:
                         score = SCORE_VETO
                     elif field_counts[card.id] >= 1:
@@ -906,10 +902,10 @@ def puntuar(tc, o, score):
                         score = 16000
                     elif (_tapu_in_play_count > 2 and not ESTADO.op_is_crustle_deck
                             and not op_is_iron_thorns_deck
-                            # Cornerstone (autopsia p004 t2): Tapu Bulu es
-                            # EL atacante del matchup (los Ogerpon/Hydrapple
-                            # con habilidad hacen 0); la aglomeracion no
-                            # justifica dejarlo muerto en mano.
+                            # Cornerstone (autopsy p004 t2): Tapu Bulu is
+                            # THE attacker of the matchup (the Ogerpon/Hydrapple
+                            # with abilities do 0); crowding does not
+                            # justify leaving it dead in hand.
                             and not ESTADO.op_is_cornerstone_deck
                             and not op_has_ability_immune_active):
         
@@ -923,12 +919,12 @@ def puntuar(tc, o, score):
         
                         score = 22500
                     elif op_is_iron_thorns_deck:
-                        # Iron Thorns ex (P1.4 plan B, autopsia iron_thorns
-                        # p007 t16): con Initialization delante, Teal Dance /
-                        # Ripening / Last-Ditch estan muertas y el agente
-                        # cerraba el turno con Tapu Bulu EN MANO (66 turnos
-                        # esteriles en 15 derrotas). Tapu es el atacante
-                        # manual sin habilidad: bajarlo es el plan A, como
+                        # Iron Thorns ex (P1.4 plan B, iron_thorns autopsy
+                        # p007 t16): with Initialization in front, Teal Dance /
+                        # Ripening / Last-Ditch are dead and the agent
+                        # closed the turn with Tapu Bulu IN HAND (66 sterile
+                        # turns across 15 losses). Tapu is the manual
+                        # attacker with no ability: putting it down is plan A, as
                         # vs Cornerstone.
                         score = 22000
                     elif op_is_sylveon_deck:
@@ -943,11 +939,11 @@ def puntuar(tc, o, score):
                             and (_tapu_sac_priority
                                  or not _lucario_other_sac_available)):
         
-                        # Bajar Tapu Bulu vs Mega Lucario solo cuando es el
-                        # sacrificio prioritario (rival con proteccion a ex o
-                        # motor Hydrapple ex + Meganium) o cuando no hay otro
-                        # basico de 1 premio (Applin / Chikorita) disponible.
-                        # Si hay alternativa desechable, conservamos Tapu Bulu.
+                        # Put Tapu Bulu down vs Mega Lucario only when it is the
+                        # priority sacrifice (an opponent with ex protection or the
+                        # Hydrapple ex + Meganium engine) or when there is no other
+                        # 1-prize basic (Applin / Chikorita) available.
+                        # If there is a disposable alternative, we keep Tapu Bulu.
                         score = 21500
                     elif _tapu_first_turn:
         
@@ -959,13 +955,13 @@ def puntuar(tc, o, score):
         
                         score = 16000
         
-                    # Tapu Bulu solo se baja despues de jugar todos los items
-                    # ("artefactos") que el juego considere jugar. Si aun queda
-                    # algun item en la mano, rebajamos la prioridad de Tapu Bulu
-                    # por debajo de la banda de items utiles: los items que valen
-                    # la pena (puntaje mas alto) se juegan primero y, cuando solo
-                    # queden items sin valor (puntaje bajo), Tapu Bulu vuelve a
-                    # ganar y se baja. Aplica SOLO a Tapu Bulu.
+                    # Tapu Bulu is only put down after playing every item
+                    # ("artefact") the game considers worth playing. If there is still
+                    # an item in hand, we lower Tapu Bulu's priority
+                    # below the band of useful items: the items that are
+                    # worth it (a higher score) are played first and, when only
+                    # worthless items are left (a low score), Tapu Bulu wins again
+                    # and comes down. It applies ONLY to Tapu Bulu.
                     _tapu_items_pending = any(
                         hand_counts.get(_it_id, 0) >= 1 for _it_id in DECK_ITEM_IDS)
                     if _tapu_items_pending and score > TAPU_WAIT_FOR_ITEMS_SCORE:
@@ -984,32 +980,32 @@ def puntuar(tc, o, score):
                         and bench_count < 5
                         and not state.supporterPlayed
                         and not _stamp_blocks_supp_chain):
-                    # `_ub_meowth_pending` (una Ultra Ball previa trajo Meowth ex)
-                    # fuerza bajarlo para encadenar Last-Ditch Catch -> buscar el
-                    # Supporter (Lillie's) y REFRESCAR la mano. Regla del user
-                    # (registro_008 paso 71 vs Hop's, GANADA): si la Ultra Ball
-                    # ELIGIO buscar Meowth ex, hay que COMPLETAR la jugada y
-                    # bajarlo SIEMPRE -- aunque el activo ya sea un atacante
-                    # listo: bajar Meowth a la banca NO impide atacar despues, y
-                    # dejarlo muerto en mano desperdicia la Ultra Ball entera
-                    # (aqui la mano quedaba VACIA tras atacar; Meowth -> Lillie's
-                    # la refresca). Antes exigia `not _active_ready_attacker` y
-                    # con el Hydrapple listo se atacaba sin bajarlo. La guarda
-                    # correcta es `not state.supporterPlayed`: si el Supporter YA
-                    # se jugo este turno (registro 006 paso 57 vs Alakazam), la
-                    # Lillie's buscada ni se podria jugar y bajar un cuerpo de 2
-                    # premios es redundante -> ahi se mantiene atacar.
-                    # GUARD Unfair Stamp (user, registro_008 paso 115, episodio
-                    # 87676139 vs Mega Lucario, PERDIDA): con un Unfair Stamp
-                    # JUGABLE en mano (`_stamp_blocks_supp_chain`: nos noquearon
-                    # el turno pasado y el Sello sigue en mano), este override
-                    # NO aplica: bajar Meowth ANTES del Stamp desperdicia el
-                    # Last-Ditch (el Supporter buscado -Lillie's- se BARAJA al
-                    # mazo con el Sello sin poder jugarse) y expone un cuerpo
-                    # de 2 premios. Orden correcto: items -> Unfair Stamp ->
-                    # y solo DESPUES bajar Meowth ex si vuelve a estar
-                    # disponible. Sin el guard, este override (21000) pisaba el
-                    # veto Stamp+ko_last_turn de la cadena principal.
+                    # `_ub_meowth_pending` (an earlier Ultra Ball brought Meowth ex)
+                    # forces putting it down to chain Last-Ditch Catch -> search for the
+                    # Supporter (Lillie's) and REFILL the hand. User's rule
+                    # (registro_008 step 71 vs Hop's, WON): if the Ultra Ball
+                    # CHOSE to search for Meowth ex, the play has to be COMPLETED and it
+                    # has to be put down ALWAYS -- even if the active is already a ready
+                    # attacker: benching the Meowth does NOT prevent attacking afterwards, and
+                    # leaving it dead in hand wastes the whole Ultra Ball
+                    # (here the hand was left EMPTY after attacking; Meowth -> Lillie's
+                    # refills it). It used to require `not _active_ready_attacker` and
+                    # with the Hydrapple ready it attacked without putting it down. The correct
+                    # guard is `not state.supporterPlayed`: if the Supporter has ALREADY
+                    # been played this turn (registro 006 step 57 vs Alakazam), the
+                    # fetched Lillie's could not even be played and putting a 2-prize
+                    # body down is redundant -> there attacking is kept.
+                    # Unfair Stamp GUARD (user, registro_008 step 115, episode
+                    # 87676139 vs Mega Lucario, LOST): with a PLAYABLE Unfair Stamp
+                    # in hand (`_stamp_blocks_supp_chain`: we were knocked out
+                    # last turn and the Stamp is still in hand), this override
+                    # does NOT apply: putting the Meowth down BEFORE the Stamp wastes the
+                    # Last-Ditch (the fetched Supporter -- Lillie's -- is SHUFFLED into the
+                    # deck with the Stamp without being playable) and exposes a 2-prize
+                    # body. Correct order: items -> Unfair Stamp ->
+                    # and only AFTERWARDS put Meowth ex down if it becomes
+                    # available again. Without the guard, this override (21000) overrode the
+                    # Stamp+ko_last_turn veto of the main chain.
                     if score <= 0:
                         score = 21000
         
@@ -1023,59 +1019,59 @@ def puntuar(tc, o, score):
                     and field_counts[Meowth_ex] < 2 and _meowth_ld_free
                     and bench_count < 5
                     and not _stamp_blocks_supp_chain
-                    # ...y solo si la HABILIDAD va a usarse de verdad (user,
-                    # log 88162677 paso 16 vs Alakazam, PERDIDA): con dos
-                    # Lillie's en la mano en NUESTRO PRIMER TURNO, este motor
-                    # bajaba el Meowth ex (21500, y ademas eximia al veto
-                    # generico "no bajar Meowth si ya hay Lillie's en mano")
-                    # y en el paso siguiente el prompt de Last-Ditch Catch
-                    # RECHAZABA el fetch por `_meowth_skip_fetch` -- el mismo
-                    # tablero, dos respuestas opuestas. Resultado: un cuerpo
-                    # de 2 premios regalado en la banca, la Lillie's jugada
-                    # igual y cero valor. Atando el motor al MISMO predicado
-                    # que la habilidad las dos decisiones no pueden volver a
-                    # contradecirse. Los casos que justificaron el motor
+                    # ...and only if the ABILITY is really going to be used (user,
+                    # log 88162677 step 16 vs Alakazam, LOST): with two
+                    # Lillie's in hand on OUR FIRST TURN, this engine
+                    # put the Meowth ex down (21500, and it also exempted
+                    # the generic veto "do not put Meowth down if there is already a Lillie's in hand")
+                    # and on the next step the Last-Ditch Catch prompt
+                    # REJECTED the fetch through `_meowth_skip_fetch` -- the same
+                    # board, two opposite answers. Result: a 2-prize
+                    # body given away on the bench, the Lillie's played
+                    # anyway and zero value. Tying the engine to the SAME predicate
+                    # as the ability means the two decisions can never
+                    # contradict each other again. The cases that justified the engine
                     # (registro_006 p76, registro_008 p85, registro_010 p147)
-                    # tienen `_meowth_devel_lillie` False -- tablero ya
-                    # desarrollado o sin Lillie's en mano --, asi que
-                    # `_meowth_fetch_ya_en_mano` es False y siguen bajando el
-                    # Meowth para cavar el Xerosic.
+                    # have `_meowth_devel_lillie` False -- a board that is already
+                    # developed or with no Lillie's in hand -- so
+                    # `_meowth_fetch_ya_en_mano` is False and they still put the
+                    # Meowth down to dig out the Xerosic.
                     and not _meowth_fetch_ya_en_mano)
                 if _alk_meowth_hand_engine:
-                    # Motor Xerosic vs Alakazam con Meowth ex YA en mano
-                    # (user, registro_006 paso 76 vs Alakazam, GANADA): con
-                    # el Supporter libre, la mano rival gorda (>=6 -> Powerful
-                    # Hand nos noquea el proximo turno) y el Xerosic aun en
-                    # el MAZO, bajar el Meowth ex SIEMPRE -- aunque el activo
-                    # sea un atacante listo (bajarlo no impide atacar): Last-
-                    # Ditch Catch busca el Xerosic, se juega (rival a 3
-                    # cartas) y DESPUES se ataca. Es la version "en mano" de
-                    # la cadena Ultra Ball -> Meowth -> Xerosic (rama
-                    # `_ub_meowth_pending` de arriba); la reserva del ultimo
-                    # slot de banca vs Alakazam existe justo para esto.
-                    # 21500: SOBRE el rush de desarrollo (Applin con Forest
-                    # = 21200) -- con UN solo slot de banca, bajar el Applin
-                    # bloquea el motor Xerosic para siempre y Powerful Hand
-                    # (20 x 11 = 220) nos noquea (user, registro_010
-                    # paso 147 vs Alakazam, PERDIDA: el agente bajo el
-                    # Applin y los DOS Meowth ex murieron en mano).
+                    # Xerosic engine vs Alakazam with a Meowth ex ALREADY in hand
+                    # (user, registro_006 step 76 vs Alakazam, WON): with
+                    # the Supporter free, the opposing hand fat (>=6 -> Powerful
+                    # Hand knocks us out next turn) and the Xerosic still in
+                    # the DECK, put the Meowth ex down ALWAYS -- even if the active
+                    # is a ready attacker (putting it down does not prevent attacking): Last-
+                    # Ditch Catch searches for the Xerosic, it is played (opponent down to 3
+                    # cards) and AFTERWARDS we attack. It is the "in hand" version of
+                    # the chain Ultra Ball -> Meowth -> Xerosic (the
+                    # `_ub_meowth_pending` branch above); the reservation of the last
+                    # bench slot vs Alakazam exists precisely for this.
+                    # 21500: ABOVE the development rush (an Applin with Forest
+                    # = 21200) -- with ONE single bench slot, putting the Applin down
+                    # blocks the Xerosic engine forever and Powerful Hand
+                    # (20 x 11 = 220) knocks us out (user, registro_010
+                    # step 147 vs Alakazam, LOST: the agent put the
+                    # Applin down and BOTH Meowth ex died in hand).
                     if score < 21500:
                         score = 21500
         
-                # DESCUADRE DE PREMIOS (user, registro_002 paso 27 vs Raging
-                # Bolt/Ogerpon PERDIDA; y registro_002 vs Mega Abomasnow ex):
-                # estos mazos ONE-SHOTEAN a cualquiera de nuestros ex (Raging
-                # Bolt con Bellowing Thunder; Mega Abomasnow ex con su ataque).
-                # Siempre que nuestro activo sea un ex que NO puede noquear al
-                # activo rival este turno, bajar un cuerpo de UN premio (Tapu
-                # Bulu el preferido: es ademas el atacante no-ex) para luego
-                # retirar el ex y ponerlo delante -- si nos noquean, ceden 1
-                # premio y no 2, y el rival necesita KOs de 2-3 para ganar.
-                # Solo si aun no hay un cuerpo de 1 premio en la banca (con uno
-                # basta para el pivote). `_descuadre_matchup` ya excluye nuestro
-                # primer turno partiendo primeros. (sin guard de score: el boost
-                # debe anteponerse a los vetos genericos de desarrollo, que no
-                # conocen este plan)
+                # PRIZE MISMATCH (user, registro_002 step 27 vs Raging
+                # Bolt/Ogerpon LOST; and registro_002 vs Mega Abomasnow ex):
+                # these decks ONE-SHOT any of our ex (Raging
+                # Bolt with Bellowing Thunder; Mega Abomasnow ex with its attack).
+                # Whenever our active is an ex that canNOT knock out the
+                # opposing active this turn, put a ONE-prize body down (Tapu
+                # Bulu preferred: it is also the non-ex attacker) so we can then
+                # retreat the ex and put it in front -- if we are knocked out, we
+                # concede 1 prize and not 2, and the opponent needs KOs of 2-3 to win.
+                # Only if there is not already a 1-prize body on the bench (one
+                # is enough for the pivot). `_descuadre_matchup` already excludes our
+                # first turn when going first. (no score guard: the boost
+                # has to come before the generic development vetoes, which do not
+                # know about this plan)
                 if _descuadre_matchup:
                     _rb_act = my_state.active[0] if my_state.active else None
                     _rb_data = card_table.get(card.id)
@@ -1093,39 +1089,39 @@ def puntuar(tc, o, score):
                             and not _rb_banca_con_1premio):
                         score = 21850 if card.id == Tapu_Bulu else 21700
         
-                # Matchup Cubchoo (user, cambio 5): la banca SOLO puede tener,
-                # vs este mazo, la linea de Hydrapple ex (Applin/Dipplin/
-                # Hydrapple ex, una), la linea de Meganium (Chikorita/Bayleef/
-                # Meganium, una), hasta DOS Teal Mask Ogerpon ex y UN Meowth ex
-                # (solo cuando haga falta para BUSCAR una Lillie's Determination
-                # del mazo). El resto de Pokemon (Tapu Bulu, Fezandipiti ex,
-                # Pinsir...) NO se juega. Se aplica tras las excepciones de
-                # poke_pad/ub_meowth y ANTES del fallback de banca vacia (mas
-                # abajo), que sigue garantizando que nunca nos quedemos sin
-                # Pokemon en juego (jugada legal forzada).
+                # Cubchoo matchup (user, change 5): against this deck the bench
+                # may ONLY hold the Hydrapple ex line (Applin/Dipplin/
+                # Hydrapple ex, one), the Meganium line (Chikorita/Bayleef/
+                # Meganium, one), up to TWO Teal Mask Ogerpon ex and ONE Meowth ex
+                # (only when it is needed to SEARCH for a Lillie's Determination
+                # from the deck). The other Pokemon (Tapu Bulu, Fezandipiti ex,
+                # Pinsir...) are NOT played. It is applied after the
+                # poke_pad/ub_meowth exceptions and BEFORE the empty-bench fallback
+                # (further down), which still guarantees that we never run out of
+                # Pokemon in play (a forced legal play).
                 if op_is_cubchoo_deck:
                     _CUB_ALLOWED_PLAY = CUBCHOO_ALLOWED_PLAY_IDS
-                    # COLISION DE MATCHUPS (user, registro_004 turno 4): con
-                    # un Cornerstone Mask Ogerpon ex rival en juego, su
-                    # Cornerstone Stance anula el dano de TODOS nuestros
-                    # Pokemon CON habilidad -- incluidos Teal Mask Ogerpon ex
-                    # e Hydrapple ex, que esta lista SI permite. El unico
-                    # atacante real pasa a ser Tapu Bulu, que la lista
-                    # excluia: el agente bajaba un 2o Ogerpon ex (dano 0) y
-                    # dejaba a Tapu muerto en la mano. Se amplia la whitelist
-                    # con Tapu Bulu SOLO en ese caso; sin Cornerstone el plan
-                    # anti-Cubchoo queda intacto.
+                    # MATCHUP COLLISION (user, registro_004 turn 4): with
+                    # an opposing Cornerstone Mask Ogerpon ex in play, its
+                    # Cornerstone Stance cancels the damage of ALL our
+                    # Pokemon WITH an ability -- including Teal Mask Ogerpon ex
+                    # and Hydrapple ex, which this list DOES allow. The only
+                    # real attacker becomes Tapu Bulu, which the list
+                    # excluded: the agent put down a 2nd Ogerpon ex (0 damage) and
+                    # left Tapu dead in hand. The whitelist is widened
+                    # with Tapu Bulu ONLY in that case; without Cornerstone the
+                    # anti-Cubchoo plan is untouched.
                     if op_has_ability_immune_active or ESTADO.op_is_cornerstone_deck:
                         _CUB_ALLOWED_PLAY = _CUB_ALLOWED_PLAY + (Tapu_Bulu,)
                     if card.id not in _CUB_ALLOWED_PLAY:
                         score = SCORE_VETO
                     elif (card.id == Teal_Mask_Ogerpon_ex
                             and field_counts[card.id] >= 2):
-                        # No mas de dos Teal Mask Ogerpon ex en juego.
+                        # No more than two Teal Mask Ogerpon ex in play.
                         score = SCORE_VETO
                     elif card.id == Meowth_ex:
-                        # Un solo Meowth ex y solo si hay una Lillie's
-                        # Determination que buscar en el mazo (no ya en mano).
+                        # A single Meowth ex and only if there is a Lillie's
+                        # Determination to search for in the deck (not already in hand).
                         _cub_meowth_ok = (
                             field_counts[Meowth_ex] == 0
                             and hand_counts.get(Lillie_Determination, 0) == 0
@@ -1134,39 +1130,39 @@ def puntuar(tc, o, score):
                         if not _cub_meowth_ok:
                             score = SCORE_VETO
         
-                # Reserva de banca vs Alakazam (user): con UN solo slot libre
-                # (bench_count == 4) y un Xerosic's Machinations aun en el
-                # MAZO, no llenar el ultimo slot con un cuerpo que no avanza
-                # el plan: se reserva para Meowth ex, que busca el Xerosic
-                # (capar Powerful Hand = 20 x carta en la mano rival). Se
-                # vetan los cuerpos REDUNDANTES (duplicado de algo ya en
-                # juego, o Fezandipiti ex: un 2-premios sin rol vs Alakazam);
-                # se permiten Meowth ex y las primeras copias de las lineas de
-                # ataque (Chikorita/Applin/Tapu...). El rescate anti-softlock de
-                # banca vacia (mas abajo) exige bench_count == 0, asi que nunca
-                # entra en conflicto con esta regla (bench_count == 4).
+                # Bench reservation vs Alakazam (user): with ONE single free slot
+                # (bench_count == 4) and a Xerosic's Machinations still in the
+                # DECK, do not fill the last slot with a body that does not advance
+                # the plan: it is reserved for Meowth ex, which searches for the Xerosic
+                # (capping Powerful Hand = 20 x card in the opponent's hand). The
+                # REDUNDANT bodies are vetoed (a duplicate of something already in
+                # play, or Fezandipiti ex: a 2-prize body with no role vs Alakazam);
+                # Meowth ex and the first copies of the attacking lines
+                # (Chikorita/Applin/Tapu...) are allowed. The anti-softlock empty-bench
+                # rescue (further down) requires bench_count == 0, so it never
+                # conflicts with this rule (bench_count == 4).
                 #
-                # CONDICION DEL MOTOR (user, registro_010 paso 150 vs
-                # Alakazam, PERDIDA -- log 88903365): antes se exigia
-                # `field_counts[Meowth_ex] == 0`, es decir "ningun Meowth ex
-                # en juego". Eso contradice al propio motor que la reserva
-                # protege: `_alakazam_dig_xerosic_engine` y la rama PLAY de
-                # Meowth ex admiten una SEGUNDA copia mientras queden < 2 en
-                # campo y la Last-Ditch del turno siga libre (`_meowth_ld_free`
-                # -- el Meowth de banca de turnos anteriores ya gasto la suya,
-                # pero uno NUEVO desde la mano vuelve a buscar). Con un Meowth
-                # ex ya banqueado la reserva se apagaba y el agente metia en el
-                # ultimo hueco un TERCER Teal Mask Ogerpon ex (score 20500,
-                # tier DEVELOP, que ademas manda por ORDEN sobre todo lo demas).
-                # Acto seguido la Ultra Ball SI cavo el 2o Meowth ex... que se
-                # quedo MUERTO en la mano con la banca llena: sin Last-Ditch no
-                # hubo Xerosic, el rival ataco con 11 cartas en mano (Powerful
-                # Hand = 220) y remato con Boss's Orders sobre un Teal Mask
-                # Ogerpon ex de banca (210 PV) para sus 2 ultimos premios.
-                # Se exige ademas que quede un Meowth ex ALCANZABLE (mano o
-                # mazo): sin cuerpo que ocupe el hueco no hay nada que
-                # reservar. Las tres condiciones viven juntas en
-                # `_alk_ld_engine_vivo` (calculado junto a `_meowth_ld_free`).
+                # ENGINE CONDITION (user, registro_010 step 150 vs
+                # Alakazam, LOST -- log 88903365): it used to require
+                # `field_counts[Meowth_ex] == 0`, that is "no Meowth ex
+                # in play". That contradicts the very engine the reservation
+                # protects: `_alakazam_dig_xerosic_engine` and the Meowth ex PLAY
+                # branch accept a SECOND copy while there are < 2 in
+                # play and the turn's Last-Ditch is still free (`_meowth_ld_free`
+                # -- the benched Meowth from previous turns has already spent its own,
+                # but a NEW one from hand searches again). With a Meowth
+                # ex already benched the reservation switched off and the agent put into the
+                # last slot a THIRD Teal Mask Ogerpon ex (score 20500,
+                # tier DEVELOP, which also rules by ORDER over everything else).
+                # Immediately afterwards the Ultra Ball DID dig out the 2nd Meowth ex... which
+                # stayed DEAD in hand with the bench full: with no Last-Ditch there
+                # was no Xerosic, the opponent attacked with 11 cards in hand (Powerful
+                # Hand = 220) and finished with Boss's Orders on a benched Teal Mask
+                # Ogerpon ex (210 HP) for their last 2 prizes.
+                # It is also required that a Meowth ex remain REACHABLE (hand or
+                # deck): with no body to fill the slot there is nothing to
+                # reserve. The three conditions live together in
+                # `_alk_ld_engine_vivo` (computed alongside `_meowth_ld_free`).
                 if (op_is_alakazam_deck and bench_count == 4
                         and _alk_ld_engine_vivo
                         and ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(
@@ -1177,54 +1173,54 @@ def puntuar(tc, o, score):
                             or card.id == Fezandipiti_ex):
                         score = SCORE_VETO
         
-                # Req H: vs Mega Lucario con un Riolu gusteable+noqueable en
-                # la banca rival y banca propia establecida, NO desarrollar
-                # ni refrescar la mano: cedemos la jugada a Boss's Orders
-                # (gustear + noquear al Riolu para cortar su linea). Vetamos
-                # el desarrollo de CUALQUIER Pokemon (tier DEVELOP) para que
-                # Boss's (supporter, tier 0) sea la jugada elegida. El flag
-                # exige bench_count>=2, asi que el rescate anti-softlock de
-                # mas abajo (banca vacia) nunca entra en conflicto.
+                # Req H: vs Mega Lucario with a gustable+knockable Riolu on
+                # the opposing bench and our own bench established, do NOT develop
+                # or refill the hand: we yield the play to Boss's Orders
+                # (gust + knock out the Riolu to cut their line). We veto
+                # the development of ANY Pokemon (tier DEVELOP) so that
+                # Boss's (a supporter, tier 0) is the chosen play. The flag
+                # requires bench_count>=2, so the anti-softlock rescue
+                # further down (empty bench) never conflicts.
                 #
-                # EXENCION: Fezandipiti ex con Flip the Script VIVA (user,
-                # registro_006 paso 91, episodio 88710543 vs Mega Lucario,
-                # GANADA por suerte). Bajarlo NO es "desarrollar ni refrescar
-                # la mano": es un Pokemon, no consume el Supporter del turno,
-                # asi que el Boss's al que este veto cede el turno se sigue
-                # jugando despues. Vetarlo era, encima, un BLOQUEO CIRCULAR de
-                # tres piezas (misma clase que el paso 78): el Fezandipiti
-                # recien cavado con la Ultra Ball no bajaba (este veto), el
-                # Boss's no se jugaba (`cede_a_unfair_stamp`) y el Unfair Stamp
-                # se quedaba en 2000 (`mano_con_pokemon_o_evo`: "primero baja
-                # el Pokemon"). Ganaba el Sello por descarte y BARAJABA al mazo
-                # el Fezandipiti que acababa de costar dos cartas -- y con el,
-                # el propio Boss's al que este veto le cedia el turno. La rama
-                # de Fezandipiti ya decide sola el caso vs Lucha: con la
-                # habilidad muerta NO se baja (2 premios regalados), con la
-                # habilidad viva vale 22000. Este veto la pisaba en silencio.
+                # EXEMPTION: Fezandipiti ex with Flip the Script ALIVE (user,
+                # registro_006 step 91, episode 88710543 vs Mega Lucario,
+                # WON by luck). Putting it down is NOT "developing or refilling
+                # the hand": it is a Pokemon, it does not consume the turn's Supporter,
+                # so the Boss's this veto yields the turn to is still
+                # played afterwards. Vetoing it was, on top of that, a CIRCULAR BLOCK of
+                # three pieces (the same class as step 78): the Fezandipiti
+                # just dug out with the Ultra Ball was not put down (this veto), the
+                # Boss's was not played (`cede_a_unfair_stamp`) and the Unfair Stamp
+                # stayed at 2000 (`mano_con_pokemon_o_evo`: "put the Pokemon down first").
+                # The Stamp won by elimination and SHUFFLED into the deck
+                # the Fezandipiti that had just cost two cards -- and with it,
+                # the very Boss's this veto was yielding the turn to. The Fezandipiti
+                # branch already decides the vs-Fighting case on its own: with the
+                # ability dead it is NOT put down (2 prizes given away), with the
+                # ability alive it is worth 22000. This veto overrode it silently.
                 if _lucario_riolu_gust and not (
                         card.id == Fezandipiti_ex and ESTADO.ko_last_turn
                         and field_counts.get(Fezandipiti_ex, 0) == 0
                         and bench_count < 5):
                     score = SCORE_VETO
         
-                # COMPLETAR LA CADENA UB -> FEZANDIPITI EX (user,
-                # registro_006 pasos 90-91, episodio 88710543 vs Mega
-                # Lucario). Si la Ultra Ball de ESTE turno eligio buscar
-                # Fezandipiti ex (`_ub_fez_pending`; el objetivo
-                # `fez_tras_ko` solo se elige con la habilidad VIVA), el
-                # cuerpo BAJA: la busqueda ya se pago con dos descartes y el
-                # unico motivo de cavarlo es cobrar Flip the Script este
-                # turno. En el registro, el veto de ORDEN de Req H
-                # (`_lucario_riolu_gust`) dejaba el Fezandipiti en la mano y
-                # el Unfair Stamp lo BARAJABA de vuelta al mazo: Ultra Ball,
-                # dos cartas y el robo de 3, todo a la basura (solo se
-                # recupero por SUERTE entre las 5 cartas del Sello).
-                # Va DESPUES de todos los vetos de la rama, igual que el
-                # override hermano de Meowth ex, porque son justo esos vetos
-                # los que contradicen una busqueda ya pagada. Los limites
-                # FISICOS siguen mandando (banca llena / copia ya en juego) y
-                # la habilidad tiene que estar viva.
+                # COMPLETING THE UB -> FEZANDIPITI EX CHAIN (user,
+                # registro_006 steps 90-91, episode 88710543 vs Mega
+                # Lucario). If THIS turn's Ultra Ball chose to search for
+                # Fezandipiti ex (`_ub_fez_pending`; the `fez_tras_ko`
+                # target is only chosen with the ability ALIVE), the
+                # body GOES DOWN: the search has already been paid for with two discards and the
+                # only reason to dig it out is to cash in Flip the Script this
+                # turn. In the record, the Req H ORDERING veto
+                # (`_lucario_riolu_gust`) left the Fezandipiti in hand and
+                # the Unfair Stamp SHUFFLED it back into the deck: the Ultra Ball,
+                # two cards and the 3-card draw, all in the bin (it was only
+                # recovered by LUCK among the Stamp's 5 cards).
+                # It goes AFTER all the branch's vetoes, just like the
+                # twin Meowth ex override, because it is precisely those vetoes
+                # that contradict an already paid-for search. The PHYSICAL
+                # limits still rule (full bench / copy already in play) and
+                # the ability has to be alive.
                 if (ESTADO._ub_fez_pending and card.id == Fezandipiti_ex
                         and score <= 0
                         and ESTADO.ko_last_turn
@@ -1232,17 +1228,17 @@ def puntuar(tc, o, score):
                         and bench_count < 5):
                     score = 22000
         
-                # Rescate anti-softlock: con la banca vacia, subir un basico
-                # que quedo en <=0 para poder desplegarlo (jugada legal).
-                # EXCEPCION: en nuestro primer turno, con una Lillie's
-                # Determination jugable en mano, NO forzamos a Meowth ex a la
-                # banca (respetamos el veto: se despliega el resto y se juega
-                # Lillie's; si tras jugar Lillie's sigue sin haber banca,
-                # supporterPlayed pasa a True y este rescate se rehabilita para
-                # bajar Meowth ex como ultimo recurso). Esto aplica AUNQUE ya
-                # tengamos un Meowth ex en juego (p.ej. como activo): bajar un
-                # SEGUNDO Meowth ex es aun mas inutil (su busqueda de Supporter
-                # se baraja con Lillie's y expone otro cuerpo de 2 premios).
+                # Anti-softlock rescue: with an empty bench, raise a basic
+                # that was left at <=0 so it can be deployed (a legal play).
+                # EXCEPTION: on our first turn, with a playable Lillie's
+                # Determination in hand, we do NOT force Meowth ex onto the
+                # bench (we respect the veto: the rest is deployed and
+                # Lillie's is played; if after playing Lillie's there is still no bench,
+                # supporterPlayed becomes True and this rescue is re-enabled to
+                # put Meowth ex down as a last resort). This applies EVEN IF we already
+                # have a Meowth ex in play (e.g. as the active): putting a
+                # SECOND Meowth ex down is even more useless (its Supporter search
+                # is shuffled away with Lillie's and it exposes another 2-prize body).
                 _meowth_first_turn_hold = (
                     card.id == Meowth_ex
                     and _our_first_turn
@@ -1257,22 +1253,22 @@ def puntuar(tc, o, score):
                     else:
                         score = 150
         
-                # Guard anti-DONK del primer turno partiendo PRIMEROS
-                # (user, registro_001 pasos 6-7 vs Cinderace/Archaludon,
-                # PERDIDA): banca VACIA, solo el basico activo, y el ACTIVO
-                # rival tiene un ataque de UNA energia cuyo dano proyectado
-                # (debilidad incluida, via _op_active_attack_damage_to que
-                # asume el adjunte rival: 0e+1) NOQUEA a nuestro activo
-                # (Turbo Flare 50 x2 Fuego->Planta = 100 >= Chikorita 70).
-                # Sin banca, ese KO en su primer turno es DERROTA
-                # instantanea. Bajar Meowth ex SI aunque haya Lillie's en
-                # mano: yendo primeros el Supporter NI SIQUIERA es jugable
-                # este turno (el motor no lo ofrece), asi que el motivo del
-                # hold ("jugar Lillie's y no barajar el fetch") no aplica.
-                # Meowth es el cuerpo que evita la derrota y su Last-Ditch
-                # trae una Lillie's para el proximo turno. Si el rival NO
-                # proyecta el donk, se mantiene la conducta previa (no
-                # bajarlo: regla no-meowth-para-lillie).
+                # Anti-DONK guard for the first turn going FIRST
+                # (user, registro_001 steps 6-7 vs Cinderace/Archaludon,
+                # LOST): an EMPTY bench, only the active basic, and the opposing
+                # ACTIVE has a ONE-energy attack whose projected damage
+                # (weakness included, via _op_active_attack_damage_to which
+                # assumes the opponent's attachment: 0e+1) KNOCKS OUT our active
+                # (Turbo Flare 50 x2 Fire->Grass = 100 >= Chikorita 70).
+                # With no bench, that KO on their first turn is an instant
+                # LOSS. Put Meowth ex down YES even if there is a Lillie's in
+                # hand: going first the Supporter is NOT EVEN playable
+                # this turn (the engine does not offer it), so the reason for the
+                # hold ("play Lillie's and do not shuffle the fetch away") does not apply.
+                # Meowth is the body that avoids the loss and its Last-Ditch
+                # brings a Lillie's for the next turn. If the opponent does NOT
+                # project the donk, the previous behaviour is kept (do not
+                # put it down: the no-meowth-para-lillie rule).
                 if card.id == Meowth_ex and _meowth_antidonk_now:
                     score = 21900
         
@@ -1312,10 +1308,10 @@ def puntuar(tc, o, score):
                         ESTADO._field_at_turn_start.get(Meowth_ex, 0)
                         if ESTADO._field_at_turn_start is not None else False)
                     if meowth_ability_lock:
-                        # Team Rocket's Watchtower anula la habilidad de los
-                        # Pokemon {C}: bajar Meowth ex ahora NO activaria
-                        # Last-Ditch Catch (no busca Supporter). No lo jugamos
-                        # hasta reemplazar el estadio (p.ej. con Forest).
+                        # Team Rocket's Watchtower cancels the ability of
+                        # {C} Pokemon: putting Meowth ex down now would NOT activate
+                        # Last-Ditch Catch (it does not search for a Supporter). We do not play it
+                        # until the stadium is replaced (e.g. with Forest).
                         score = SCORE_VETO
                     elif _meowth_played_this_turn:
                         score = SCORE_VETO
@@ -1324,29 +1320,29 @@ def puntuar(tc, o, score):
                     elif field_counts[Meowth_ex] >= 1 and score <= 0:
                         score = SCORE_VETO
                     elif (hand_counts.get(Lillie_Determination, 0) >= 1
-                          # EXCEPCION motor Xerosic vs Alakazam (user,
-                          # registro_008 paso 85, episodio 88119461,
-                          # PERDIDA): con la mano rival GORDA (15 cartas ->
-                          # Powerful Hand 20x17=340 nos one-shotea) el fetch
-                          # de Last-Ditch NO apunta a Lillie's sino al
-                          # XEROSIC del mazo (capar la mano rival a 3). Que
-                          # haya una Lillie's en mano no lo hace redundante:
-                          # la escalera del fetch vs Alakazam con mano rival
-                          # >=6 ya elige Xerosic. Sin esta excepcion el veto
-                          # pisaba el 21500 del motor y el agente gusteaba
-                          # con Boss's dejando Powerful Hand cargado.
+                          # Xerosic engine EXCEPTION vs Alakazam (user,
+                          # registro_008 step 85, episode 88119461,
+                          # LOST): with the opposing hand FAT (15 cards ->
+                          # Powerful Hand 20x17=340 one-shots us) the Last-Ditch
+                          # fetch does NOT point at Lillie's but at the
+                          # XEROSIC in the deck (capping the opposing hand to 3). Having
+                          # a Lillie's in hand does not make it redundant:
+                          # the fetch ladder vs Alakazam with an opposing hand
+                          # >=6 already chooses Xerosic. Without this exception the veto
+                          # overrode the engine's 21500 and the agent gusted
+                          # with Boss's leaving Powerful Hand loaded.
                           and not _alk_meowth_hand_engine):
-                        # Regla (user, registro_003 p17 vs Archaludon): NUNCA
-                        # bajar Meowth ex para buscar (Last-Ditch Catch) una
-                        # Lillie's Determination si YA tenemos una en la mano:
-                        # el fetch es redundante y expone un cuerpo de 2 premios.
-                        # Primero se juega la Lillie's que tenemos. UNICA
-                        # EXCEPCION: nuestro PRIMER turno partiendo PRIMERO, con
-                        # la banca VACIA y un solo BASICO en el activo distinto
-                        # de Tapu Bulu (hace falta desarrollar banca). Si tras
-                        # jugar Lillie's seguimos sin banca, el rescate anti-
-                        # softlock (supporterPlayed=True, sin Lillie's en mano)
-                        # rehabilita bajar Meowth como ultimo recurso.
+                        # Rule (user, registro_003 p17 vs Archaludon): NEVER
+                        # put Meowth ex down to search (Last-Ditch Catch) for a
+                        # Lillie's Determination if we ALREADY have one in hand:
+                        # the fetch is redundant and it exposes a 2-prize body.
+                        # The Lillie's we have is played first. The ONLY
+                        # EXCEPTION: our FIRST turn going FIRST, with
+                        # an EMPTY bench and a single BASIC in the active spot other
+                        # than Tapu Bulu (the bench needs developing). If after
+                        # playing Lillie's we still have no bench, the anti-
+                        # softlock rescue (supporterPlayed=True, no Lillie's in hand)
+                        # re-enables putting Meowth down as a last resort.
                         _mw_act = my_state.active[0] if my_state.active else None
                         _mw_act_data = (card_table.get(_mw_act.id)
                                         if _mw_act is not None else None)
@@ -1355,20 +1351,20 @@ def puntuar(tc, o, score):
                             and _mw_act_data is not None
                             and not getattr(_mw_act_data, 'stage1', False)
                             and not getattr(_mw_act_data, 'stage2', False))
-                        # Regla del PRIMER TURNO (user, log 88461779 vs
-                        # Alakazam): con Lillie's Determination ya en la
-                        # mano NO se hace NADA por bajar o buscar un Meowth
-                        # ex -- ni desde la mano ni con Ultra Ball. Meowth
-                        # ex en el primer turno existe SOLO para traer la
-                        # Lillie's que no tenemos. La excepcion de
-                        # DESARROLLO (banca vacia + basico solitario) ya no
-                        # basta por si sola: se exige ademas el DONK
-                        # PROYECTADO (`_meowth_antidonk_now`), donde el
-                        # Meowth no se baja por su busqueda sino como cuerpo
-                        # que evita perder la partida en el acto (user,
-                        # registro_001 pasos 6-7 vs Cinderace). Sin donk,
-                        # se despliega el resto de la mano y la Lillie's se
-                        # juega en cuanto sea legal.
+                        # FIRST TURN rule (user, log 88461779 vs
+                        # Alakazam): with a Lillie's Determination already in
+                        # hand NOTHING is done to put down or search for a Meowth
+                        # ex -- neither from hand nor with Ultra Ball. Meowth
+                        # ex on the first turn exists ONLY to bring the
+                        # Lillie's we do not have. The DEVELOPMENT
+                        # exception (empty bench + a lone basic) is no longer
+                        # enough on its own: the PROJECTED DONK
+                        # (`_meowth_antidonk_now`) is also required, where
+                        # the Meowth is not put down for its search but as a body
+                        # that prevents losing the game on the spot (user,
+                        # registro_001 steps 6-7 vs Cinderace). Without a donk,
+                        # the rest of the hand is deployed and the Lillie's is
+                        # played as soon as it is legal.
                         _mw_dev_exc = (
                             _our_first_turn and ESTADO.we_go_first
                             and bench_count == 0 and _mw_lone_basic
@@ -1376,34 +1372,34 @@ def puntuar(tc, o, score):
                         if not _mw_dev_exc:
                             score = SCORE_VETO
         
-                    # Regla (user, registro_004 paso 60 vs Abomasnow, PERDIDA):
-                    # Meowth ex solo sirve para Last-Ditch Catch -> BUSCAR un
-                    # Supporter del mazo. Si YA jugamos un Supporter este turno
-                    # (`supporterPlayed`), ese fetch es INUTIL (no se puede jugar
-                    # un segundo Supporter este turno), asi que bajar un cuerpo de
-                    # 2 premios es puro desperdicio. El veto normal (-1) NO basta:
-                    # empata por puntaje con un ataque no-KO vetado (tambien -1) y
-                    # ganaba el desempate por indice (Meowth aparece antes que el
-                    # ataque). Con SCORE_FORBID cae por debajo del ataque (-1) y
-                    # del fin de turno (SCORE_NEVER=-10000), asi que NUNCA se elige
-                    # sobre atacar o terminar. UNICA excepcion preservada: el
-                    # rescate anti-softlock con banca VACIA (bench_count==0 y
-                    # score>0, unico caso legitimo de bajar Meowth con Supporter
-                    # ya jugado, para no quedarnos sin Pokemon en juego). El resto
-                    # -mano debil, segundo Meowth, cualquier fetch redundante- se
-                    # prohibe. La condicion no depende del veto previo, asi que es
-                    # robusta aun en replay de una sola observacion.
+                    # Rule (user, registro_004 step 60 vs Abomasnow, LOST):
+                    # Meowth ex is only good for Last-Ditch Catch -> SEARCHING for a
+                    # Supporter from the deck. If we have ALREADY played a Supporter this turn
+                    # (`supporterPlayed`), that fetch is USELESS (a second Supporter
+                    # cannot be played this turn), so putting a 2-prize body
+                    # down is pure waste. The normal veto (-1) is NOT enough:
+                    # it ties on score with a vetoed non-KO attack (also -1) and
+                    # won the tie-break by index (Meowth appears before the
+                    # attack). With SCORE_FORBID it falls below the attack (-1) and
+                    # below ending the turn (SCORE_NEVER=-10000), so it is NEVER chosen
+                    # over attacking or ending. The ONLY preserved exception: the
+                    # anti-softlock rescue with an EMPTY bench (bench_count==0 and
+                    # score>0, the only legitimate case of putting Meowth down with the Supporter
+                    # already played, so we do not end up with no Pokemon in play). Everything else
+                    # -- a weak hand, a second Meowth, any redundant fetch -- is
+                    # forbidden. The condition does not depend on the previous veto, so it is
+                    # robust even when replaying a single observation.
                     if (state.supporterPlayed
                             and not (bench_count == 0 and score > 0)):
                         score = SCORE_FORBID
         
-                # Estrategia vs Comfey (user, registro_005): SOLO bajar Teal
-                # Mask Ogerpon ex, MAXIMO 2 en juego, y nada mas. Es el mejor
-                # atacante del matchup (facil de cargar y de retirar cuando lo
-                # confunde Brambleghast). EXCEPCION de ARRANQUE: si no tenemos
-                # ningun Ogerpon ex en juego NI en la mano y aun no hay ningun
-                # cuerpo en juego (banca+activo vacios), bajamos un starter con
-                # prioridad Applin > Chikorita > cualquiera para poder partir.
+                # Strategy vs Comfey (user, registro_005): ONLY put Teal
+                # Mask Ogerpon ex down, a MAXIMUM of 2 in play, and nothing else. It is the best
+                # attacker of the matchup (easy to charge and to retreat when
+                # Brambleghast confuses it). OPENING EXCEPTION: if we have
+                # no Ogerpon ex in play NOR in hand and there is still no
+                # body in play (bench+active empty), we put down a starter with
+                # priority Applin > Chikorita > anything, so we can get going.
                 if op_is_comfey_deck:
                     _cf_og_field = field_counts.get(Teal_Mask_Ogerpon_ex, 0)
                     _cf_og_hand = hand_counts.get(Teal_Mask_Ogerpon_ex, 0)
@@ -1416,24 +1412,24 @@ def puntuar(tc, o, score):
                         _cf_need_starter = (
                             _cf_og_field == 0 and _cf_og_hand == 0
                             and not _cf_has_body)
-                        # RELEVO ANTI-BENCH-OUT (autopsia comfey jul 2026):
-                        # con la BANCA VACIA -- aunque el activo siga vivo,
-                        # que es justo lo que `_cf_has_body` no distinguia --
-                        # bajar un Basico no es "avanzar el plan", es no
-                        # perder la partida en el acto: si noquean al activo
-                        # y no hay relevo, es bench-out y se acabo. Y a
-                        # diferencia de todo lo demas que este plan restringe,
-                        # bajar un cuerpo de la MANO no adelgaza el mazo ni
-                        # una carta, que es lo unico que la defensa anti-mill
-                        # tiene que proteger; "vs Comfey solo se baja Teal
-                        # Mask Ogerpon ex" dice con QUE atacamos, no obliga a
-                        # quedarse sin cuerpos. Medido (n=250): el bench-out
-                        # es el 82% de nuestras derrotas vs comfey (14 de 17;
-                        # 5.6% de las partidas frente al 0.4-2% del resto de
-                        # matchups), con mediana en el turno 5. En el menu
-                        # capturado, con CERO Pokemon en banca, el PLAY del
-                        # Fezandipiti ex valia 22000 y esta rama lo aplastaba
-                        # a -1. Solo BASICOS: una Fase 1/2 no se banquea.
+                        # ANTI-BENCH-OUT RELIEF (comfey autopsy jul 2026):
+                        # with an EMPTY BENCH -- even if the active is still alive,
+                        # which is exactly what `_cf_has_body` did not distinguish --
+                        # putting a Basic down is not "advancing the plan", it is not
+                        # losing the game on the spot: if they knock the active out
+                        # and there is no relief, it is a bench-out and it is over. And
+                        # unlike everything else this plan restricts,
+                        # putting a body down from HAND does not thin the deck by
+                        # a single card, which is the only thing the anti-mill defence
+                        # has to protect; "vs Comfey only Teal
+                        # Mask Ogerpon ex is put down" says WHAT we attack with, it does not force us
+                        # to run out of bodies. Measured (n=250): the bench-out
+                        # is 82% of our losses vs comfey (14 of 17;
+                        # 5.6% of the games against 0.4-2% in the other
+                        # matchups), with a median at turn 5. In the captured
+                        # menu, with ZERO Pokemon on the bench, the PLAY of
+                        # the Fezandipiti ex was worth 22000 and this branch crushed it
+                        # to -1. BASICS only: a Stage 1/2 is not benched.
                         _cf_data = card_table.get(card.id)
                         _cf_es_basico = (
                             _cf_data is not None
@@ -1456,83 +1452,83 @@ def puntuar(tc, o, score):
         
                 supporter_boost = 500 if itchy_pollen_active else 0
                 if card.id == Forest_of_Vitality:
-                    # Refactor Prioridad 1: rama extraida a `_score_forest_of_vitality_play`.
+                    # Priority 1 refactor: branch extracted to `_score_forest_of_vitality_play`.
                     score = _score_forest_of_vitality_play(ctx)
                 elif card.id == Bug_Catching_Set:
-                    # Refactor Prioridad 1: rama extraida a `_score_bug_catching_set_play`.
+                    # Priority 1 refactor: branch extracted to `_score_bug_catching_set_play`.
                     score = _score_bug_catching_set_play(ctx)
                 elif card.id == Ultra_Ball:
-                    # Refactor Prioridad 1 (Paso 1): rama extraida a `_score_ultra_ball_play`.
+                    # Priority 1 refactor (step 1): branch extracted to `_score_ultra_ball_play`.
                     score = _score_ultra_ball_play(ctx)
                 elif card.id == Night_Stretcher:
-                    # Refactor Prioridad 1: rama extraida a `_score_night_stretcher_play`.
+                    # Priority 1 refactor: branch extracted to `_score_night_stretcher_play`.
                     score = _score_night_stretcher_play(ctx)
                 elif card.id == Poke_Pad:
-                    # Refactor Prioridad 1: rama extraida a `_score_poke_pad_play`.
+                    # Priority 1 refactor: branch extracted to `_score_poke_pad_play`.
                     score = _score_poke_pad_play(ctx)
                 elif card.id == Unfair_Stamp:
-                    # Refactor Prioridad 1: rama extraida a `_score_unfair_stamp_play`.
+                    # Priority 1 refactor: branch extracted to `_score_unfair_stamp_play`.
                     score = _score_unfair_stamp_play(ctx)
                 elif card.id == Boss_Orders:
-                    # Refactor Prioridad 1: rama extraida a `_score_boss_orders_play`.
+                    # Priority 1 refactor: branch extracted to `_score_boss_orders_play`.
                     score = _score_boss_orders_play(ctx)
                 elif card.id == Xerosic_Machinations:
-                    # Xerosic's Machinations (user): disrupcion de mano rival,
-                    # clave vs Alakazam (Powerful Hand = 20 x carta en su mano).
+                    # Xerosic's Machinations (user): disruption of the opponent's hand,
+                    # key vs Alakazam (Powerful Hand = 20 x card in their hand).
                     score = _score_xerosic_play(ctx)
                 elif card.id == Lillie_Determination:
-                    # Refactor Prioridad 1: rama extraida a `_score_lillie_determination_play`.
+                    # Priority 1 refactor: branch extracted to `_score_lillie_determination_play`.
                     score = _score_lillie_determination_play(ctx)
                 elif card.id == Dawn:
-                    # Rama extraida a `_score_dawn_play` (la comparte el
-                    # predictor `_supp_play_score`).
+                    # Branch extracted to `_score_dawn_play` (shared with the
+                    # `_supp_play_score` predictor).
                     score = _score_dawn_play(ctx)
                 elif card.id == Lanas_Aid:
-                    # Refactor Prioridad 1: rama extraida a `_score_lanas_aid_play`.
+                    # Priority 1 refactor: branch extracted to `_score_lanas_aid_play`.
                     score = _score_lanas_aid_play(ctx, score)
         
-                # Estrategia vs Comfey (user, registro_005): las UNICAS cartas de
-                # ENTRENADOR que se juegan son Lillie's Determination, Lana's Aid
-                # y Boss's Orders (supporters), mas Ultra Ball y Night Stretcher
-                # (items del plan, Regla 5). El resto -Dawn, Unfair Stamp, otros
-                # items y estadios- NO se juegan: se descartan/ignoran (-1). Las
-                # reglas propias de Lillie's (mano>=10) y Lana's (>=2 energias) ya
-                # se aplicaron arriba; aqui solo se veta lo que NO esta en la lista.
-                # Bug Catching Set ENTRA en la lista (autopsia comfey jul
-                # 2026): en 178/186 turnos esteriles tardios teniamos 0
-                # Plantas en MANO (Hammer/Fan nos secan y el veto de BCS
-                # cortaba el surtidor) -> sin Planta no hay adjunte NI Teal
-                # Dance y Myriad nunca llega a 3 energias: perdiamos por
-                # premios SIN COBRAR NI UNO en partidas de 40+ turnos. BCS
-                # trae hasta 2 Plantas/Pokemon {G} del top-7; el coste de
-                # adelgazar el mazo 2 cartas es menor que no atacar nunca.
+                # Strategy vs Comfey (user, registro_005): the ONLY TRAINER
+                # cards that are played are Lillie's Determination, Lana's Aid
+                # and Boss's Orders (supporters), plus Ultra Ball and Night Stretcher
+                # (the plan's items, Rule 5). The rest -- Dawn, Unfair Stamp, other
+                # items and stadiums -- are NOT played: they are discarded/ignored (-1). The
+                # rules specific to Lillie's (hand>=10) and Lana's (>=2 energies) were
+                # already applied above; here only what is NOT on the list is vetoed.
+                # Bug Catching Set IS ON the list (comfey autopsy jul
+                # 2026): in 178/186 late sterile turns we had 0
+                # Grass in HAND (Hammer/Fan dry us out and the BCS veto
+                # cut off the supply) -> with no Grass there is no attachment NOR Teal
+                # Dance and Myriad never reaches 3 energies: we lost on
+                # prizes WITHOUT TAKING A SINGLE ONE in games of 40+ turns. BCS
+                # brings up to 2 Grass/{G} Pokemon from the top 7; the cost of
+                # thinning the deck by 2 cards is smaller than never attacking.
                 #
-                # EXCEPCION: EL CONTRA-ESTADIO NO SE VETA NUNCA (user, log
-                # 88359220 pasos 60-76, PERDIDA -- registro_008). El rival
-                # bajo NEUTRALIZATION ZONE, que impide a nuestros Pokemon ex
-                # atacar a Pokemon que NO son ex -- y su tablero entero son
-                # no-ex (Comfey/Yveltal/Shaymin). Con eso, TODOS nuestros
-                # atacantes ex quedan apagados... incluido el Teal Mask
-                # Ogerpon ex que ES el plan del matchup. Teniamos DOS Forest
-                # of Vitality en la mano y el scorer les daba 28000 (la
-                # urgencia estaba bien detectada), pero esta allowlist las
-                # bajaba a -1 por no estar en la lista: el turno entero se
-                # jugo bajo el candado y el estadio rival siguio en mesa.
-                # La regla general -- deck-agnostica -- es que una whitelist
-                # de matchup describe QUE cartas hacen avanzar el plan, y no
-                # puede vetar la carta que LEVANTA UN CANDADO RIVAL que
-                # desactiva ese mismo plan: sin quitar el estadio no hay
-                # plan que ejecutar. Mismo criterio que ya usaba el veto de
-                # estadio de primer turno (`_replace_opp_stadium_ok`) y que
-                # el scorer de DESCARTE, que protege justo esta carta con
-                # `_forest_counters_op_stadium` -- se estaba conservando en
-                # la mano una carta que luego era ilegal jugar.
-                # Gate de self-play vs deck/rivales/comfey_yveltal_nz.csv
-                # (el mazo de ESTA partida, cosechado con
-                # utils/cosechar_deck_rival.py; ningun rival del repo
-                # llevaba la Zone y por eso el gate no cubria el caso):
-                # 94.2% con el arreglo vs 74.2% sin el, 8000 partidas por
-                # rama. +20 puntos.
+                # EXCEPTION: THE COUNTER-STADIUM IS NEVER VETOED (user, log
+                # 88359220 steps 60-76, LOST -- registro_008). The opponent
+                # played the NEUTRALIZATION ZONE, which stops our ex Pokemon
+                # attacking Pokemon that are NOT ex -- and their whole board is
+                # non-ex (Comfey/Yveltal/Shaymin). With that, ALL our
+                # ex attackers are switched off... including the Teal Mask
+                # Ogerpon ex that IS the matchup's plan. We had TWO Forest
+                # of Vitality in hand and the scorer gave them 28000 (the
+                # urgency was correctly detected), but this allowlist
+                # lowered them to -1 for not being on the list: the whole turn
+                # was played under the lock and the opposing stadium stayed on the field.
+                # The general -- deck-agnostic -- rule is that a matchup
+                # whitelist describes WHICH cards advance the plan, and it
+                # cannot veto the card that LIFTS AN OPPOSING LOCK that
+                # disables that very plan: without removing the stadium there is no
+                # plan to execute. The same criterion the first-turn stadium veto
+                # already used (`_replace_opp_stadium_ok`) and the
+                # DISCARD scorer, which protects exactly this card with
+                # `_forest_counters_op_stadium` -- we were keeping in
+                # hand a card that was then illegal to play.
+                # Self-play gate vs deck/rivales/comfey_yveltal_nz.csv
+                # (the deck from THIS game, harvested with
+                # utils/cosechar_deck_rival.py; no opponent in the repo
+                # ran the Zone and that is why the gate did not cover the case):
+                # 94.2% with the fix vs 74.2% without it, 8000 games per
+                # branch. +20 points.
                 _quita_candado_rival = (
                     data.cardType == CardType.STADIUM
                     and _contra_estadio_urgente(
@@ -1546,43 +1542,43 @@ def puntuar(tc, o, score):
                     score = SCORE_VETO
         
             # =========================================================
-            # GRAND TREE (id 1249) en la MANO -- solo se activa si el mazo
-            # cargado lo lleva; con deck.csv actual es codigo inerte, pero
-            # la peticion es que la logica sirva "para cualquier tipo de
-            # mazo".
+            # GRAND TREE (id 1249) in HAND -- it is only activated if the loaded
+            # deck runs it; with the current deck.csv it is inert code, but
+            # the request is that the logic should work "for any kind of
+            # deck".
             # =========================================================
             if card.id == Grand_Tree:
                 if state.stadiumPlayed or stadium_id == Grand_Tree:
                     score = SCORE_VETO
                 elif _our_first_turn:
-                    # No podemos evolucionar Basicos en nuestro primer
-                    # turno: bajarlo ahora solo se lo REGALA al rival, que
-                    # si podra usarlo en el suyo.
+                    # We cannot evolve Basics on our first
+                    # turn: putting it down now only GIVES it to the opponent, who
+                    # will be able to use it on theirs.
                     score = SCORE_VETO
                 elif _gt_planes(my_state, ESTADO.CARTAS_ACTIVAS_EN_MAZO,
                                 field_counts, _our_first_turn,
                                 veta_etapa_ex=_gt_veta_etapa_ex):
-                    # Hay una cadena que se cobra EN ESTE MISMO TURNO: el
-                    # estadio se paga solo. Por encima del Forest (que
-                    # como maximo vale 29000) porque produce cuerpo nuevo.
+                    # There is a chain that pays off IN THIS VERY TURN: the
+                    # stadium pays for itself. Above the Forest (which
+                    # is worth at most 29000) because it produces a new body.
                     score = 30000
                 elif _gt_raiz_en_juego:
-                    # La raiz esta en juego pero salio hoy: la cadena se
-                    # cobra el turno que viene. Sigue mereciendo la pena
-                    # bajarlo ya (y de paso quita el estadio rival).
+                    # The root is in play but came down today: the chain pays
+                    # off next turn. It is still worth
+                    # putting down now (and it removes the opposing stadium along the way).
                     score = 20000 if stadium_id != 0 else 12000
                 else:
-                    # Sin raiz no hay nada que evolucionar: se conserva.
-                    # Solo se juega para BORRAR un estadio rival molesto.
+                    # With no root there is nothing to evolve: it is kept.
+                    # It is only played to REMOVE an annoying opposing stadium.
                     score = (14000 if _contra_estadio_urgente(
                         neutralization_zone_active, watchtower_in_play,
                         ESTADO.forest_in_play, _festival_lead_hostil) else SCORE_VETO)
         
-            # Bajar el BASICO que sirve de raiz a Grand Tree (regla del
-            # user: conseguirlo "para asi luego jugar el estadio"). Bono
-            # aditivo y pequeno -- desempata contra otros cuerpos de
-            # desarrollo sin pisar los motores ya existentes -- y solo
-            # cuando no hay ya una raiz en juego.
+            # Putting down the BASIC that serves as the root for Grand Tree (user's
+            # rule: get it "so we can play the stadium afterwards"). An additive
+            # and small bonus -- it breaks ties against other development
+            # bodies without stepping on the existing engines -- and only
+            # when there is not already a root in play.
             elif (_gt_quiere_basico and score > 0
                     and card.id in _gt_ranking_basicos
                     and data is not None

@@ -1,8 +1,8 @@
-"""Lectura de cartas: acceso a la observacion, premios y valor de cuerpo.
+"""Reading cards: access to the observation, prizes and body value.
 
-Extraido VERBATIM de main.py por utils/extraer_definiciones.py
-(docs/main-refactor-arquitectura.md). Su pureza esta comprobada por
-utils/pureza.py: nada de aqui toca el estado mutable ni las tablas de runtime.
+Extracted VERBATIM from main.py by utils/extraer_definiciones.py
+(docs/project-history.md). Its purity is verified by
+utils/pureza.py: nothing here touches mutable state or the runtime tables.
 """
 
 from cg.api import AreaType, Card, EnergyType, Observation, Pokemon
@@ -50,13 +50,13 @@ def prize_count(pokemon: Pokemon) -> int:
 
 
 def prize_count_op(pokemon: Pokemon) -> int:
-    """prize_count para Pokemon DEL RIVAL: aplica la denegacion de premios de
-    su lado (P0.2). Munkidori ex con Pecharunt ex en juego rinde 1 menos; con
-    Mega Gengar ex en juego, el KO de un {D} rival por un ex nuestro rinde 1
-    menos (conservador: casi todos nuestros atacantes son ex, asi que se asume
-    la reduccion siempre). Usar SOLO sobre Pokemon del rival: los premios que
-    entregan NUESTROS cuerpos (p.ej. nuestro Fezandipiti ex, tambien {D}) se
-    siguen midiendo con prize_count."""
+    """prize_count for OPPONENT Pokemon: applies the prize denial on their
+    side (P0.2). Munkidori ex with Pecharunt ex in play yields 1 less; with
+    Mega Gengar ex in play, one of our ex knocking out an opposing {D} yields
+    1 less (conservative: almost all of our attackers are ex, so the reduction
+    is always assumed). Use ONLY on opposing Pokemon: the prizes OUR bodies
+    hand over (e.g. our Fezandipiti ex, also {D}) are still measured with
+    prize_count."""
     count = prize_count(pokemon)
     if count <= 0:
         return 0
@@ -70,14 +70,14 @@ def prize_count_op(pokemon: Pokemon) -> int:
     return max(0, count)
 
 
-# NOTA (paso 4b plan jul 2026, MEDIDO Y REVERTIDO): se intento un freno de
-# deck-out para Teal Dance (mazo <=5 -> vetar las bandas degradadas <=7500,
-# espejo de los frenos de Lillie's y BCS; la habilidad ADEMAS roba 1 del
-# mazo). Midio NEGATIVO consistente vs Comfey (-1.8 en 1000 y -1.1 en 2000
-# partidas por rama; agregado ~-1.3) con beneficio en crustle dentro del
-# ruido (+1.6): contra MILL el reloj del mazo lo quema el RIVAL -- ahorrar
-# robos propios no compra turnos y el tempo de energia hacia Myriad lo es
-# todo. Mismo criterio que el barrido de a8c8163 (exencion Cubchoo).
+# NOTE (step 4b of the jul 2026 plan, MEASURED AND REVERTED): a deck-out brake
+# for Teal Dance was tried (deck <=5 -> veto the degraded bands <=7500, mirroring
+# the brakes of Lillie's and BCS; the ability ALSO draws 1 from the deck). It
+# measured consistently NEGATIVE vs Comfey (-1.8 over 1000 and -1.1 over 2000
+# games per branch; aggregate ~-1.3) with a benefit vs crustle inside the noise
+# (+1.6): against MILL it is the OPPONENT who burns the deck clock -- saving our
+# own draws does not buy turns, and the energy tempo towards Myriad is
+# everything. Same criterion as the a8c8163 sweep (Cubchoo exemption).
 def pokemon_score(pokemon: Pokemon) -> int:
     data = card_table[pokemon.id]
     score = prize_count(pokemon) * 1000
@@ -150,13 +150,13 @@ def prize_count(pokemon: Pokemon) -> int:
 
 
 def prize_count_op(pokemon: Pokemon) -> int:
-    """prize_count para Pokemon DEL RIVAL: aplica la denegacion de premios de
-    su lado (P0.2). Munkidori ex con Pecharunt ex en juego rinde 1 menos; con
-    Mega Gengar ex en juego, el KO de un {D} rival por un ex nuestro rinde 1
-    menos (conservador: casi todos nuestros atacantes son ex, asi que se asume
-    la reduccion siempre). Usar SOLO sobre Pokemon del rival: los premios que
-    entregan NUESTROS cuerpos (p.ej. nuestro Fezandipiti ex, tambien {D}) se
-    siguen midiendo con prize_count."""
+    """prize_count for OPPONENT Pokemon: applies the prize denial on their
+    side (P0.2). Munkidori ex with Pecharunt ex in play yields 1 less; with
+    Mega Gengar ex in play, one of our ex knocking out an opposing {D} yields
+    1 less (conservative: almost all of our attackers are ex, so the reduction
+    is always assumed). Use ONLY on opposing Pokemon: the prizes OUR bodies
+    hand over (e.g. our Fezandipiti ex, also {D}) are still measured with
+    prize_count."""
     count = prize_count(pokemon)
     if count <= 0:
         return 0
@@ -170,14 +170,14 @@ def prize_count_op(pokemon: Pokemon) -> int:
     return max(0, count)
 
 
-# NOTA (paso 4b plan jul 2026, MEDIDO Y REVERTIDO): se intento un freno de
-# deck-out para Teal Dance (mazo <=5 -> vetar las bandas degradadas <=7500,
-# espejo de los frenos de Lillie's y BCS; la habilidad ADEMAS roba 1 del
-# mazo). Midio NEGATIVO consistente vs Comfey (-1.8 en 1000 y -1.1 en 2000
-# partidas por rama; agregado ~-1.3) con beneficio en crustle dentro del
-# ruido (+1.6): contra MILL el reloj del mazo lo quema el RIVAL -- ahorrar
-# robos propios no compra turnos y el tempo de energia hacia Myriad lo es
-# todo. Mismo criterio que el barrido de a8c8163 (exencion Cubchoo).
+# NOTE (step 4b of the jul 2026 plan, MEASURED AND REVERTED): a deck-out brake
+# for Teal Dance was tried (deck <=5 -> veto the degraded bands <=7500, mirroring
+# the brakes of Lillie's and BCS; the ability ALSO draws 1 from the deck). It
+# measured consistently NEGATIVE vs Comfey (-1.8 over 1000 and -1.1 over 2000
+# games per branch; aggregate ~-1.3) with a benefit vs crustle inside the noise
+# (+1.6): against MILL it is the OPPONENT who burns the deck clock -- saving our
+# own draws does not buy turns, and the energy tempo towards Myriad is
+# everything. Same criterion as the a8c8163 sweep (Cubchoo exemption).
 def pokemon_score(pokemon: Pokemon) -> int:
     data = card_table[pokemon.id]
     score = prize_count(pokemon) * 1000

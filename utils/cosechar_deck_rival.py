@@ -1,20 +1,20 @@
-"""Reconstruye un mazo rival de 60 cartas a partir de los registros locales.
+"""Rebuilds a 60-card opposing deck from the local records.
 
-Escanea las zonas VISIBLES del rival en registros/*.json (campo, descarte,
-estadio; las copias se cuentan por serial, que es unico por carta de la
-partida) y AMPLIFICA por regla la lista parcial hasta 60 cartas:
+It scans the opponent's VISIBLE zones in registros/*.json (field, discard,
+stadium; the copies are counted by serial, which is unique per card of the
+game) and AMPLIFIES the partial list up to 60 cards by rule:
 
-  - cada Pokemon visto        -> 4 copias
-  - cada Trainer visto        -> 4 copias (Item/Tool/Supporter/Stadium)
-  - cada energia ESPECIAL     -> 4 copias
-  - cartas ACE SPEC           -> 1 copia (regla del juego, aceSpec en CardData)
-  - relleno hasta 60          -> la energia BASICA mas vista
+  - each Pokemon seen        -> 4 copies
+  - each Trainer seen        -> 4 copies (Item/Tool/Supporter/Stadium)
+  - each SPECIAL energy      -> 4 copies
+  - ACE SPEC cards           -> 1 copy (a game rule, aceSpec in CardData)
+  - filler up to 60          -> the most frequently seen BASIC energy
 
-No pretende ser el mazo exacto del rival: es un MAZO DE REFERENCIA
-determinista y legal para el modo --rival de utils/selfplay.py (winrate
-diferencial de dos versiones de main.py contra el mismo rival fijo).
+It does not claim to be the opponent's exact deck: it is a deterministic and legal
+REFERENCE DECK for the --rival mode of utils/selfplay.py (the differential
+winrate of two versions of main.py against the same fixed opponent).
 
-Uso:
+Usage:
     python utils/cosechar_deck_rival.py --salida deck/rivales/crustle.csv
 """
 
@@ -36,15 +36,15 @@ from golden_corpus import nuestro_indice
 
 
 def cosechar_series(rutas):
-    """{serial: card_id} de todas las cartas RIVALES vistas.
+    """{serial: card_id} of every OPPOSING card seen.
 
-    El asiento propio se decide por votacion contra deck.csv (`nuestro_indice`,
-    espejo del corpus dorado): no siempre somos el jugador 0. Antes se leia
-    `step[0]` (la perspectiva del asiento 0, que puede ser el RIVAL) y se
-    filtraba por `serial >= 60` (los seriales son por jugador, asi que eso
-    tambien asumia que los nuestros eran 0-59): en un episodio jugado desde el
-    asiento 1 el resultado era una copia de NUESTRO propio mazo. Cada carta
-    trae `playerIndex`, asi que la pertenencia se lee de ahi.
+    Our own seat is decided by a vote against deck.csv (`nuestro_indice`,
+    mirroring the golden corpus): we are not always player 0. It used to read
+    `step[0]` (the perspective of seat 0, which can be the OPPONENT) and
+    filtered by `serial >= 60` (the serials are per player, so that
+    also assumed ours were 0-59): in an episode played from
+    seat 1 the result was a copy of OUR OWN deck. Each card
+    carries a `playerIndex`, so ownership is read from there.
     """
     serials = {}
 
@@ -86,7 +86,7 @@ def cosechar_series(rutas):
 
 
 def amplificar(conteo_visto, tabla):
-    """Amplifica el conteo visto hasta 60 cartas segun la regla documentada."""
+    """Amplifies the observed count up to 60 cards according to the documented rule."""
     mazo = []
     basicas = {}
     for cid, visto in sorted(conteo_visto.items()):

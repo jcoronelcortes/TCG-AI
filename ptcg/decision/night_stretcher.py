@@ -1,8 +1,8 @@
-"""Night Stretcher: recuperar del descarte.
+"""Night Stretcher: recovering from the discard.
 
-Extraido VERBATIM de main.py por utils/extraer_definiciones.py
-(docs/main-refactor-arquitectura.md). Su pureza esta comprobada por
-utils/pureza.py: nada de aqui toca el estado mutable ni las tablas de runtime.
+Extracted VERBATIM from main.py by utils/extraer_definiciones.py
+(docs/project-history.md). Its purity is verified by
+utils/pureza.py: nothing here touches mutable state or the runtime tables.
 """
 
 from ptcg.motor.reglas import _ReglaFija
@@ -21,9 +21,9 @@ from ptcg.cartas.ids import Applin, Basic_Grass_Energy, Bayleef, Chikorita, Dipp
 
 
 class _CtxNSPlay:
-    """Wrapper del DecisionContext para los escenarios de Night Stretcher:
-    anade el inventario del descarte (basics/evos/energia) y la foto
-    evolvable; el resto de campos delega en el ctx via __getattr__."""
+    """DecisionContext wrapper for the Night Stretcher scenarios: it adds the
+    discard inventory (basics/evolutions/energy) and the evolvable snapshot;
+    every other field is delegated to the ctx via __getattr__."""
 
     _BASICOS = (Chikorita, Applin, Teal_Mask_Ogerpon_ex, Tapu_Bulu,
                 Meowth_ex, Fezandipiti_ex, Pinsir)
@@ -96,19 +96,19 @@ class _CtxNS:
     turno: int
     energy_attached: bool
     supporter_played: bool
-    act_hyd_ripen: bool          # Hydrapple ex activo cargable con Ripening
-    act_og_can_teal_attack: bool  # Ogerpon activo que Teal Dance habilita
-    ns_bench_charge: bool        # vs Crustle: energia para atacante de banca
-    ns_evo_saves_doomed: bool    # Hydrapple ex salva a un Dipplin condenado
-    grass_enables_syrup_ko: bool  # la Planta vuelve LETAL al Syrup Storm
-    # --- Turno muerto: el motor de ROBO manda (registro_008 paso 67) --------
-    turno_muerto: bool = False   # nadie ataca hoy ni con una energia mas
-    mano_agotada: bool = False   # <=2 cartas en mano tras pagar la busqueda
-    ld_free: bool = True         # _meowth_ld_free (Last-Ditch sin gastar)
-    ko_reciente: bool = False    # ko_last_turn (habilita Flip the Script)
-    # vs Dragapult con >2 Pokemon en juego, Tapu Bulu no se podra BAJAR (ver
-    # `_dragapult_no_tapu`): tampoco se busca -- traerlo a la mano solo la
-    # llena de una carta muerta.
+    act_hyd_ripen: bool          # active Hydrapple ex chargeable with Ripening
+    act_og_can_teal_attack: bool  # active Ogerpon that Teal Dance enables
+    ns_bench_charge: bool        # vs Crustle: energy for a benched attacker
+    ns_evo_saves_doomed: bool    # Hydrapple ex saves a doomed Dipplin
+    grass_enables_syrup_ko: bool  # the Grass makes Syrup Storm LETHAL again
+    # --- Dead turn: the DRAW engine rules (registro_008 step 67) ------------
+    turno_muerto: bool = False   # nobody attacks today, not even with one more energy
+    mano_agotada: bool = False   # <=2 cards in hand after paying for the search
+    ld_free: bool = True         # _meowth_ld_free (Last-Ditch unspent)
+    ko_reciente: bool = False    # ko_last_turn (enables Flip the Script)
+    # vs Dragapult with >2 Pokemon in play, Tapu Bulu cannot be PUT DOWN (see
+    # `_dragapult_no_tapu`): it is not searched for either -- bringing it to hand
+    # only fills the hand with a dead card.
     dragapult_no_tapu: bool = False
 
 
@@ -123,8 +123,8 @@ def _v_ns_grass_sin_planta(c):
 
 
 def _ns_motor_meowth_vivo(c):
-    """El Meowth ex recuperado se BAJA este turno y su Last-Ditch Catch trae un
-    Supporter del mazo mejor que cualquier cosa que quede en la mano."""
+    """The recovered Meowth ex is PUT DOWN this turn and its Last-Ditch Catch
+    brings a Supporter from the deck that is better than anything left in hand."""
     return (not c.watchtower and c.ld_free
             and c.campo.get(Meowth_ex, 0) < 2
             and c.bench_count < 5
@@ -134,25 +134,26 @@ def _ns_motor_meowth_vivo(c):
 
 
 def _ns_motor_fez_vivo(c):
-    """El Fezandipiti ex recuperado se BAJA este turno y Flip the Script roba 3
-    (exige KO propio en el turno anterior)."""
+    """The recovered Fezandipiti ex is PUT DOWN this turn and Flip the Script
+    draws 3 (it requires one of our own KOs on the previous turn)."""
     return (not c.watchtower and c.ko_reciente
             and c.campo.get(Fezandipiti_ex, 0) == 0
             and c.bench_count < 5)
 
 
 def _ns_ruta_de_carga_abierta(w):
-    """Queda alguna via para poner una Planta de la mano en el campo este
-    turno (adjunte manual o habilidad de carga viva)."""
+    """There is still some route to put a Grass from hand onto the field this
+    turn (manual attachment or a live charging ability)."""
     return _grass_attach_route_open(
         w.state, w.field_counts,
         abilities_off=bool(getattr(w, 'meowth_ability_lock', False)))
 
 
 def _ns_ruta_de_carga_hasta_el_activo(w):
-    """Igual que `_ns_ruta_de_carga_abierta` pero exigiendo que la Planta pueda
-    llegar al ACTIVO: el adjunte manual va a donde queramos, Ripening Charge
-    tambien (adjunta a 1 de tus Pokemon) y Teal Dance solo al propio Ogerpon."""
+    """Same as `_ns_ruta_de_carga_abierta` but requiring that the Grass can
+    reach the ACTIVE: the manual attachment goes wherever we want, Ripening
+    Charge too (it attaches to 1 of your Pokemon) and Teal Dance only to the
+    Ogerpon itself."""
     if not w.state.energyAttached:
         return True
     if not _ns_ruta_de_carga_abierta(w):
@@ -166,57 +167,57 @@ def _ns_ruta_de_carga_hasta_el_activo(w):
 
 
 def _ns_e_retirada_letal(w):
-    """La Planta del DESCARTE paga el COSTE DE RETIRADA del ACTIVO y libera a un
-    atacante de banca que NOQUEA este turno (user, registro_021 turno 21).
+    """The Grass in the DISCARD pays the ACTIVE's RETREAT COST and frees a
+    benched attacker that KNOCKS OUT this turn (user, registro_021 turn 21).
 
-    Cadena completa: Night Stretcher -> Planta a la mano -> adjuntar al ACTIVO
-    (que no puede atacar) -> RETIRAR -> promover al atacante listo -> KO. Sin
-    esta pieza inicial la cadena entera es inalcanzable: el resto de eslabones
-    (`_attach_enable_retreat_ko`, 41000) exigen una Planta EN LA MANO, y aqui
-    justamente no la hay -- esta en el descarte.
+    Full chain: Night Stretcher -> Grass to hand -> attach to the ACTIVE (which
+    cannot attack) -> RETREAT -> promote the ready attacker -> KO. Without this
+    first piece the whole chain is unreachable: the remaining links
+    (`_attach_enable_retreat_ko`, 41000) require a Grass IN HAND, and here there
+    is precisely none -- it is in the discard.
 
-    Deck-agnostica: todo el trabajo lo hace `_grass_unlocks_active_retreat` (via
-    `ability_unlock_retreat_ko` del ctx), que se apoya en `RETREAT_COST`,
-    `_can_attack_eff` y `_bench_attacker_can_ko` -- ningun id de carta. Cubre
-    cualquier activo bloqueado (Fezandipiti ex, Meowth ex, un cuerpo de otro
-    mazo) y cualquier rematador de banca."""
+    Deck-agnostic: all the work is done by `_grass_unlocks_active_retreat` (via
+    the ctx's `ability_unlock_retreat_ko`), which leans on `RETREAT_COST`,
+    `_can_attack_eff` and `_bench_attacker_can_ko` -- no card id at all. It
+    covers any blocked active (Fezandipiti ex, Meowth ex, a body from another
+    deck) and any benched finisher."""
     return (w.ability_unlock_retreat_ko
             and _ns_energia_util_sin_planta(w)
             and _ns_ruta_de_carga_hasta_el_activo(w))
 
 
 def _ns_e_retirada_chip(w):
-    """Version NO letal de `_ns_e_retirada_letal`: el atacante de banca solo
-    hace CHIP, pero el activo no puede atacar de ninguna forma este turno
-    (`ability_unlock_retreat_attack` ya lo exige), asi que el chip vale
-    infinitamente mas que cerrar el turno por 0. Mismo criterio que
-    `_attach_enable_retreat_attack` (log 88162794: cuatro turnos seguidos
-    regalados sin atacar)."""
+    """NON-lethal version of `_ns_e_retirada_letal`: the benched attacker only
+    does CHIP damage, but the active cannot attack in any way this turn
+    (`ability_unlock_retreat_attack` already requires it), so the chip damage is
+    worth infinitely more than closing the turn at 0. Same criterion as
+    `_attach_enable_retreat_attack` (log 88162794: four turns in a row given
+    away without attacking)."""
     return (w.ability_unlock_retreat_attack
             and _ns_energia_util_sin_planta(w)
             and _ns_ruta_de_carga_hasta_el_activo(w))
 
 
 def _ns_e_activo_paga_retirada(w):
-    """Energia del descarte para que el ACTIVO pague su COSTE DE RETIRADA y
-    suba a atacar un cuerpo de banca (user, registro_014 paso 141 vs Alakazam).
+    """Energy from the discard so the ACTIVE pays its RETREAT COST and a benched
+    body comes up to attack (user, registro_014 step 141 vs Alakazam).
 
-    `_ns_activo_no_llega_al_coste` solo contempla la retirada de la LINEA
-    MEGANIUM (Chikorita/Bayleef/Meganium); con un Fezandipiti ex activo a 0
-    energias y un Hydrapple ex de banca listo devolvia False, asi que la Night
-    Stretcher que recuperaba la Planta del descarte se vetaba por banca llena y
-    el turno moria sin atacar.
+    `_ns_activo_no_llega_al_coste` only contemplates the retreat of the MEGANIUM
+    LINE (Chikorita/Bayleef/Meganium); with an active Fezandipiti ex at 0
+    energies and a ready benched Hydrapple ex it returned False, so the Night
+    Stretcher that recovered the Grass from the discard was vetoed for a full
+    bench and the turn died without attacking.
 
-    Union de las dos variantes de arriba. La consume el corte de BANCA LLENA
-    (`_ns_banca_llena_guardar`); el SCORE de la jugada lo producen
-    `_ns_e_retirada_letal` / `_ns_e_retirada_chip` como escenarios de
+    Union of the two variants above. The FULL BENCH cut-off consumes it
+    (`_ns_banca_llena_guardar`); the play's SCORE is produced by
+    `_ns_e_retirada_letal` / `_ns_e_retirada_chip` as scenarios of
     `_ESC_NS_RECUPERACION`."""
     return _ns_e_retirada_letal(w) or _ns_e_retirada_chip(w)
 
 
 def _ns_e_syrup_letal(w):
-    """La energia recuperada convierte el Syrup Storm del Hydrapple ACTIVO
-    en LETAL sobre el activo rival (no lo era sin ella)."""
+    """The recovered energy turns the ACTIVE Hydrapple's Syrup Storm LETHAL on
+    the opposing active (it was not lethal without it)."""
     if not (_ns_energia_util_sin_planta(w)
             and not w.op_is_crustle_deck and not w.op_is_cornerstone_deck):
         return False
@@ -239,15 +240,15 @@ def _ns_e_syrup_letal(w):
 
 
 def _ns_e_remate_con_el_activo(w):
-    """La Planta recuperada, puesta en el PROPIO activo (adjunte manual,
-    Teal Dance o Ripening Charge), vuelve LETAL su ataque.
+    """The recovered Grass, placed on OUR OWN active (manual attachment, Teal
+    Dance or Ripening Charge), turns its attack LETHAL.
 
-    Generaliza `_ns_e_syrup_letal` a cualquier atacante activo (user,
-    registro_010 paso 123 vs Archaludon ex): Ogerpon ex activo con 6 unidades
-    contra un Archaludon ex 300/300 con 3 energias y SIN banca. Myriad hacia
-    30+30x(6+3) = 300 - 30 de resistencia = 270: se quedaba a 30. Con una
-    Planta del descarte via Teal Dance sube a 30+30x(8+3) = 360 - 30 = 330 >=
-    300 y, con la banca rival vacia, ese KO GANA la partida."""
+    It generalises `_ns_e_syrup_letal` to any active attacker (user,
+    registro_010 step 123 vs Archaludon ex): active Ogerpon ex with 6 units
+    against an Archaludon ex 300/300 with 3 energies and NO bench. Myriad did
+    30+30x(6+3) = 300 - 30 resistance = 270: it fell 30 short. With one Grass
+    from the discard via Teal Dance it goes up to 30+30x(8+3) = 360 - 30 = 330
+    >= 300 and, with the opposing bench empty, that KO WINS the game."""
     if not (_ns_energia_util_sin_planta(w)
             and not w.op_is_crustle_deck and not w.op_is_cornerstone_deck):
         return False
@@ -277,19 +278,19 @@ def _ns_e_remate_con_el_activo(w):
 
 
 def _ns_e_remate_via_promocion(w):
-    """La Planta recuperada convierte en LETAL el remate de este turno con un
-    atacante de BANCA que promovemos RETIRANDO el activo.
+    """The recovered Grass turns this turn's finisher LETHAL with a BENCHED
+    attacker that we promote by RETREATING the active.
 
-    Hermano de `_ns_e_syrup_letal` para el caso en que el rematador todavia no
-    esta en el puesto activo (user, registro_006 paso 78 vs Archaludon ex,
-    PERDIDA): Hydrapple ex en banca con 2 energias, 10 unidades de Planta en el
-    campo y el activo rival a 270 PV con resistencia a Planta. Retirar cuesta
-    una carta entera (2 unidades con Wild Growth), asi que el Syrup Storm real
-    era 30+30x8 = 270 - 30 = 240: NO noqueaba. Con UNA Planta del descarte
-    (Night Stretcher + Teal Dance, que sigue viva aunque el adjunte manual se
-    haya gastado) el recuento vuelve a 10 -> 330 - 30 = 300 >= 270 y el KO
-    entrega DOS premios. Sin modelarlo, la Night Stretcher nunca entraba en el
-    analisis del remate."""
+    Sibling of `_ns_e_syrup_letal` for the case where the finisher is not in the
+    active spot yet (user, registro_006 step 78 vs Archaludon ex, LOST):
+    Hydrapple ex on the bench with 2 energies, 10 Grass units on the field and
+    the opposing active at 270 HP with resistance to Grass. Retreating costs a
+    whole card (2 units with Wild Growth), so the real Syrup Storm was 30+30x8 =
+    270 - 30 = 240: it did NOT knock out. With ONE Grass from the discard (Night
+    Stretcher + Teal Dance, which is still alive even if the manual attachment
+    has been spent) the count goes back to 10 -> 330 - 30 = 300 >= 270 and the
+    KO hands over TWO prizes. Without modelling it, Night Stretcher never
+    entered the analysis of the finisher."""
     if not (_ns_energia_util_sin_planta(w)
             and not w.op_is_crustle_deck and not w.op_is_cornerstone_deck):
         return False
@@ -302,11 +303,11 @@ def _ns_e_remate_via_promocion(w):
     hp = opp.hp or 0
     coste = RETREAT_COST.get(act.id, 1)
     if len(act.energies) < coste:
-        return False  # no podemos pagar la retirada: no hay promocion
+        return False  # we cannot pay the retreat: there is no promotion
     total = count_total_grass_energy(w.my_state)
-    # Si el ACTIVO ya remata a ese mismo objetivo con lo que tiene, la Planta
-    # no desbloquea nada: atacar cobra los mismos premios sin gastar la Night
-    # Stretcher ni una energia del descarte.
+    # If the ACTIVE already finishes that same target with what it has, the Grass
+    # unlocks nothing: attacking takes the same prizes without spending the Night
+    # Stretcher or an energy from the discard.
     _act_eff = len(act.energies) * _grass_mult()
     _act_base = _attacker_base_damage(
         act.id, opp, _act_eff, grass_scale=total,
@@ -329,16 +330,16 @@ def _ns_e_remate_via_promocion(w):
             bp, opp, base, w.meganium_in_play,
             w.neutralization_zone_active) >= hp
 
-    # La linea vale la Night Stretcher solo si de verdad se puede EJECUTAR y
-    # PAGA (medido en premios). Sin estas dos guardas el escenario reservaba la
-    # carta para un pivote que el resto del agente luego rechazaba -- el
-    # diferencial de matchup lo pagaba (-3 puntos en self-play vs iron_thorns y
-    # crustle_kangaskhan; con ellas vuelve a positivo):
-    #   (a) el cuerpo promovido queda EXPUESTO al activo rival: si ese golpe lo
-    #       noquea, el pivote regala sus premios (misma guarda que
+    # The line is worth the Night Stretcher only if it can really be EXECUTED and
+    # it PAYS (measured in prizes). Without these two guards the scenario reserved
+    # the card for a pivot that the rest of the agent then rejected -- the matchup
+    # differential paid for it (-3 points in self-play vs iron_thorns and
+    # crustle_kangaskhan; with them it goes back to positive):
+    #   (a) the promoted body is EXPOSED to the opposing active: if that hit knocks
+    #       it out, the pivot gives away its prizes (same guard as
     #       `_pivote_banca_suicida`);
-    #   (b) el KO tiene que valer 2+ premios o GANAR la partida: quemar la
-    #       Night Stretcher y una energia por un premio suelto no compensa.
+    #   (b) the KO has to be worth 2+ prizes or WIN the game: burning the Night
+    #       Stretcher and an energy for a single prize does not pay off.
     _premios = prize_count_op(opp)
     _gana = (w.my_prize <= _premios
              or not any(b is not None for b in (w.op_state.bench or [])))
@@ -348,7 +349,7 @@ def _ns_e_remate_via_promocion(w):
         if bp is None:
             continue
         if _remata(bp, tras_retirar):
-            return False  # ya noquea sin la Planta: no hace falta la carta
+            return False  # it already knocks out without the Grass: the card is not needed
     for bp in (w.my_state.bench or []):
         if bp is None:
             continue
@@ -357,7 +358,7 @@ def _ns_e_remate_via_promocion(w):
         _golpe = _op_active_attack_damage_to(
             opp, bp, getattr(w.op_state, 'handCount', None))
         if not _gana and _golpe >= (bp.hp or 0):
-            continue  # promoverlo seria regalar sus premios
+            continue  # promoting it would be giving away its prizes
         return True
     return False
 
@@ -381,21 +382,23 @@ def _ns_e_cargar_banca_crustle(w):
 
 
 def _sin_ataque_hoy(my_state, state, field_counts, abilities_off=False):
-    """True si NINGUN cuerpo nuestro llega a atacar este turno, ni siquiera
-    poniendo UNA energia mas.
+    """True if NO body of ours can attack this turn, not even by putting ONE
+    more energy down.
 
-    Deck-agnostico: recorre el campo con `ATTACK_ENERGY_REQ` (la lista curada
-    de cuerpos con los que de verdad atacamos) en tres pasadas:
-      1) el ACTIVO ya paga su ataque con la energia que tiene;
-      2) hay un atacante LISTO en banca y el activo puede pagar su retirada
-         para subirlo (un atacante atascado en banca no es un atacante);
-      3) queda una ruta de carga abierta (adjunte manual libre o una habilidad
-         tipo Teal Dance / Ripening Charge viva) y UNA Planta mas convierte al
-         activo -- o al cuerpo de banca promovible -- en atacante.
-    Si ninguna se cumple el turno esta MUERTO en ataque: lo unico que produce
-    valor es rehacer la mano. NO usa `_active_ready_attacker` a proposito: ese
-    flag depende de `can_attack`, que solo se calcula en el menu MAIN y vale
-    False en los sub-menus de seleccion (TO_HAND), donde vive esta funcion.
+    Deck-agnostic: it walks the field with `ATTACK_ENERGY_REQ` (the curated list
+    of bodies we really attack with) in three passes:
+      1) the ACTIVE already pays for its attack with the energy it has;
+      2) there is a READY attacker on the bench and the active can pay its
+         retreat to bring it up (an attacker stuck on the bench is not an
+         attacker);
+      3) a charging route is still open (a free manual attachment or a live
+         ability such as Teal Dance / Ripening Charge) and ONE more Grass turns
+         the active -- or the promotable benched body -- into an attacker.
+    If none of them holds, the turn is DEAD for attacking: the only thing that
+    produces value is rebuilding the hand. It deliberately does NOT use
+    `_active_ready_attacker`: that flag depends on `can_attack`, which is only
+    computed in the MAIN menu and is False in the selection sub-menus (TO_HAND),
+    where this function lives.
     """
     act = _active_of(my_state)
     if act is not None and _can_attack_eff(act.id, len(act.energies)):
@@ -428,25 +431,25 @@ def _ctx_ns_fetch(my_state, state, hand_counts, field_counts, bench_count,
                   grass_enables_syrup_ko=False, ld_free=True,
                   dragapult_no_tapu=False):
     activo = my_state.active[0] if my_state.active else None
-    # Ogerpon ACTIVO que aun no ataca (<3 efectivas) pero que con UNA Planta
-    # via Teal Dance (HABILIDAD, independiente del adjunte manual) llega a
-    # >=3. Pivote retirar->promover Ogerpon->NS->Teal Dance->atacar (user,
-    # log 86583929 turno 4 vs Alakazam). len(energies) es EFECTIVA.
+    # An ACTIVE Ogerpon that does not attack yet (<3 effective) but that with ONE
+    # Grass via Teal Dance (an ABILITY, independent of the manual attachment)
+    # reaches >=3. Pivot retreat->promote Ogerpon->NS->Teal Dance->attack (user,
+    # log 86583929 turn 4 vs Alakazam). len(energies) is EFFECTIVE.
     act_og_can_teal_attack = (
         activo is not None and
         activo.id == Teal_Mask_Ogerpon_ex and
         len(activo.energies) < 3 and
         len(activo.energies) + _grass_attach_unit() >= 3 and
         hand_counts[Basic_Grass_Energy] == 0)
-    # Hydrapple ex activo que aun no ataca (efectiva < 2) y sin Planta en
-    # mano: recuperar ENERGIA para cargarlo con Ripening Charge (habilidad).
+    # An active Hydrapple ex that does not attack yet (effective < 2) and with no
+    # Grass in hand: recover ENERGY to charge it with Ripening Charge (ability).
     act_hyd_ripen = (
         activo is not None and
         activo.id == Hydrapple_ex and
         len(activo.energies) * _grass_mult() < 2 and
         hand_counts[Basic_Grass_Energy] == 0)
-    # Matchup Crustle/Cornerstone: recuperar la Planta para CARGAR un
-    # atacante de banca cuando aun podemos adjuntarla este turno.
+    # Crustle/Cornerstone matchup: recover the Grass to CHARGE a benched
+    # attacker while we can still attach it this turn.
     ns_bench_charge = False
     if ((ESTADO.op_is_crustle_deck or ESTADO.op_is_cornerstone_deck) and
             hand_counts[Basic_Grass_Energy] == 0 and
@@ -463,34 +466,34 @@ def _ctx_ns_fetch(my_state, state, hand_counts, field_counts, bench_count,
             if len(bp.energies) * _grass_mult() < req:
                 ns_bench_charge = True
                 break
-    # Recuperar Hydrapple ex para EVOLUCIONAR un Dipplin de banca CONDENADO por
-    # el snipe automatico del rival (user, registro_006/008 vs Marnie's
-    # Grimmsnarl ex, PERDIDA): con el Dipplin a <= 30 de vida, Shadow Bullet lo
-    # mata solo el proximo turno y regala un premio gratis. La evolucion resetea
-    # la vida (80 -> 330) y de paso convierte el cuerpo condenado en un muro, asi
-    # que salvarlo vale MAS que cualquier recuperacion de desarrollo o de energia
-    # (que solo suma dano cuando el KO ya esta asegurado). A diferencia de
-    # `dipplin_evolucionable`, esta regla NO exige que falte un Hydrapple ex en
-    # juego: aqui la evolucion no es desarrollo, es rescate.
+    # Recover Hydrapple ex to EVOLVE a benched Dipplin DOOMED by the opponent's
+    # automatic snipe (user, registro_006/008 vs Marnie's Grimmsnarl ex, LOST):
+    # with the Dipplin at <= 30 HP, Shadow Bullet kills it by itself next turn and
+    # hands over a free prize. The evolution resets the HP (80 -> 330) and along the
+    # way turns the doomed body into a wall, so saving it is worth MORE than any
+    # development or energy recovery (which only adds damage when the KO is already
+    # secured). Unlike `dipplin_evolucionable`, this rule does NOT require a
+    # Hydrapple ex to be missing from play: here the evolution is not development,
+    # it is a rescue.
     ns_evo_saves_doomed = False
     if ESTADO._op_bench_snipe_dmg > 0 and hand_counts.get(Hydrapple_ex, 0) == 0:
         for _nsd in (my_state.bench or []):
             if _nsd is None or _nsd.id != Dipplin:
                 continue
             if (_nsd.hp or 0) > ESTADO._op_bench_snipe_dmg:
-                continue  # sobrevive el goteo de este turno: no urge
+                continue  # it survives this turn's drip: not urgent
             if getattr(_nsd, 'appearThisTurn', False) and not ESTADO.forest_in_play:
-                continue  # evoluciono este turno: no se puede volver a evolucionar
+                continue  # it evolved this turn: it cannot evolve again
             ns_evo_saves_doomed = True
             break
     evolvable_ns = _evolvable_counts(field_counts, ESTADO._field_at_turn_start,
                                      ESTADO.forest_in_play)
-    # TURNO MUERTO (user, registro_008 paso 67 vs Alakazam, PERDIDA): sin
-    # ningun cuerpo capaz de atacar hoy y con la mano vacia, recuperar una
-    # EVOLUCION es preparacion que nunca llega a jugarse -- el rival noquea al
-    # activo y el proximo turno seguimos sin cartas. Lo unico que produce valor
-    # es el motor de ROBO. `mano_agotada` mide la mano YA sin la carta de
-    # busqueda (se pago al jugarla), asi que 0 = nos quedamos secos.
+    # DEAD TURN (user, registro_008 step 67 vs Alakazam, LOST): with no body able
+    # to attack today and an empty hand, recovering an EVOLUTION is preparation
+    # that never gets played -- the opponent knocks out the active and next turn we
+    # still have no cards. The only thing that produces value is the DRAW engine.
+    # `mano_agotada` measures the hand ALREADY without the search card (it was paid
+    # when playing it), so 0 = we are left dry.
     turno_muerto = _sin_ataque_hoy(my_state, state, field_counts,
                                    abilities_off=watchtower)
     mano_agotada = len(my_state.hand or []) <= 2
@@ -564,14 +567,14 @@ def _v_ns_meowth_fetch(c):
 
 
 _REGLAS_NS_GRASS = [
-    # La Planta que REMATA (Syrup Storm letal ESTE turno) gana a cualquier otra
-    # recuperacion, incluidas las evoluciones (registro_006 paso 68 vs Mega
-    # Abomasnow ex): un premio hoy vale mas que desarrollo para manana.
+    # The Grass that FINISHES (a lethal Syrup Storm THIS turn) beats any other
+    # recovery, evolutions included (registro_006 step 68 vs Mega Abomasnow ex): a
+    # prize today is worth more than development for tomorrow.
     _ReglaFija("planta_remata_syrup_storm",
                lambda c: c.grass_enables_syrup_ko,
                lambda c: 1400),
-    # Hydrapple ex ACTIVO sin ataque: cargarlo con Ripening Charge GANA
-    # sobre cualquier otro objetivo de recuperacion.
+    # An ACTIVE Hydrapple ex with no attack: charging it with Ripening Charge WINS
+    # over any other recovery target.
     _ReglaFija("hydrapple_activo_ripening",
                lambda c: c.act_hyd_ripen,
                lambda c: 1300),
@@ -599,9 +602,9 @@ _REGLAS_NS_GRASS = [
 
 
 _REGLAS_NS_FEZ = [
-    # Segunda opcion del motor: cede al Meowth ex (1250), que rehace la mano
-    # entera via Lillie's en vez de robar 3. Se respeta el veto vs Lucario
-    # (golpea banca: un ex de 2 premios ahi es un premio regalado).
+    # Second option of the engine: it yields to Meowth ex (1250), which rebuilds the
+    # whole hand via Lillie's instead of drawing 3. The veto vs Lucario is respected
+    # (it hits the bench: a 2-prize ex there is a prize given away).
     _ReglaFija("motor_de_robo_turno_muerto",
                lambda c: (c.turno_muerto and c.mano_agotada
                           and not c.op_is_lucario
@@ -611,8 +614,8 @@ _REGLAS_NS_FEZ = [
                lambda c: (c.campo.get(Fezandipiti_ex, 0) == 0
                           and ESTADO.ko_last_turn and c.bench_count < 5),
                lambda c: 850),
-    # vs Lucario (golpea banca): Fez solo como cuerpo de emergencia con
-    # banca vacia; si no, vetado.
+    # vs Lucario (which hits the bench): Fez only as an emergency body with an
+    # empty bench; otherwise vetoed.
     _ReglaFija("vs_lucario",
                lambda c: c.op_is_lucario,
                lambda c: (200 if (c.campo.get(Fezandipiti_ex, 0) == 0
@@ -652,7 +655,7 @@ _REGLAS_NS_OGERPON = [
     _ReglaFija("menos_de_dos_ogerpon",
                lambda c: c.campo.get(Teal_Mask_Ogerpon_ex, 0) < 2,
                _v_ns_ogerpon_pocos),
-    # 3er Ogerpon como acelerador de Syrup Storm (Teal Dance suma Grass).
+    # A 3rd Ogerpon as a Syrup Storm accelerator (Teal Dance adds Grass).
     _ReglaFija("tercer_ogerpon_para_syrup",
                lambda c: (c.bench_count < 5
                           and c.hand.get(Basic_Grass_Energy, 0) >= 1
@@ -662,7 +665,7 @@ _REGLAS_NS_OGERPON = [
 
 
 _REGLAS_NS_TAPU = [
-    # vs Dragapult con el tablero hecho no se puede BAJAR: no se recupera.
+    # vs Dragapult with the board already built it cannot be PUT DOWN: not recovered.
     _ReglaFija("dragapult_no_lo_baja",
                lambda c: c.dragapult_no_tapu,
                lambda c: SCORE_VETO),
@@ -693,14 +696,14 @@ _REGLAS_NS_MEOWTH = [
     _ReglaFija("t1_saliendo_primeros_no",
                lambda c: c.turno == 1 and ESTADO.we_go_first,
                lambda c: 10),
-    # Primera opcion del motor de robo en un turno muerto: gana a TODO el
-    # desarrollo (ver el bloque de comentarios sobre _ns_motor_meowth_vivo).
+    # First option of the draw engine on a dead turn: it beats ALL development
+    # (see the comment block about _ns_motor_meowth_vivo).
     _ReglaFija("motor_de_robo_turno_muerto",
                lambda c: (c.turno_muerto and c.mano_agotada
                           and _ns_motor_meowth_vivo(c)),
                lambda c: 1250),
-    # Recuperar Meowth ex para bajarlo y que Last-Ditch busque un Supporter
-    # del mazo que supere lo que hay en mano.
+    # Recover Meowth ex to put it down so Last-Ditch fetches a Supporter from the
+    # deck that beats what is in hand.
     _ReglaFija("fetch_supporter_del_mazo",
                lambda c: (not c.watchtower
                           and c.campo.get(Meowth_ex, 0) == 0
@@ -713,8 +716,8 @@ _REGLAS_NS_MEOWTH = [
 
 
 _REGLAS_NS_HYDRAPPLE = [
-    # Rescate del Dipplin condenado por el snipe: gana a la energia (<=950) y a
-    # todo el desarrollo. Ver `ns_evo_saves_doomed` en `_ctx_ns_fetch`.
+    # Rescue of the Dipplin doomed by the snipe: it beats energy (<=950) and all
+    # development. See `ns_evo_saves_doomed` in `_ctx_ns_fetch`.
     _ReglaFija("salvar_dipplin_condenado_snipe",
                lambda c: c.ns_evo_saves_doomed,
                lambda c: 1200),

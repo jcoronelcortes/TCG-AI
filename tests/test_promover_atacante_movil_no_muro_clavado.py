@@ -1,50 +1,50 @@
-"""Promoción tras KO: no subir un muro CLAVADO teniendo el casi-atacante móvil.
+"""Promotion after a KO: do not bring up a NAILED-DOWN wall when the mobile near-attacker is there.
 
-Escenario (`registros/registro_008_pasos_110_hasta_122.json`, paso 122, turno 8,
-PERDIDA vs Dragapult -- episodio 88912610). El Dragapult ex acaba de noquear a
-nuestro Hydrapple ex con Phantom Dive y hay que promover:
+Scenario (`registros/registro_008_pasos_110_hasta_122.json`, step 122, turn 8,
+LOST vs Dragapult -- episode 88912610). The Dragapult ex has just knocked out
+our Hydrapple ex with Phantom Dive and we have to promote:
 
-    NOSOTROS (4 premios)                       RIVAL (4 premios)
-    banca  Teal Mask Ogerpon ex 100/210, 2 en. activo  Dragapult ex **50**/320, 2 en.
-           Meganium 160, 0 en.                 banca   Fezandipiti ex 210,
+    US (4 prizes)                              OPPONENT (4 prizes)
+    bench  Teal Mask Ogerpon ex 100/210, 2 en. active  Dragapult ex **50**/320, 2 en.
+           Meganium 160, 0 en.                 bench   Fezandipiti ex 210,
            Teal Mask Ogerpon ex **200**/210, 2 en.     Dragapult ex 320, Drakloak 90
            Teal Mask Ogerpon ex 200/210, 2 en.
-           Tapu Bulu 140, **0 energías**       estadio Team Rocket's Watchtower
-    mano   Ogerpon ex, Ultra Ball, **Fezandipiti ex**, Dipplin, Meganium,
-           Hydrapple ex, Tapu Bulu   (ni una Planta)
+           Tapu Bulu 140, **0 energies**       stadium Team Rocket's Watchtower
+    hand   Ogerpon ex, Ultra Ball, **Fezandipiti ex**, Dipplin, Meganium,
+           Hydrapple ex, Tapu Bulu   (not a single Grass)
 
-El agente subía **Tapu Bulu**: 0 de 4 energías —no ataca— y **retirada 3** que no
-puede pagar —no se puede cambiar—. Es un cuerpo CLAVADO: regala el turno entero y
-encima cede un premio. Enfrente, el Dragapult ex está a **50 PV**: un Ogerpon ex
-con una energía más hace *Myriad Leaf Shower* 30 + 30·(4+2) = **210** y cobra 2
-premios.
+The agent brought up **Tapu Bulu**: 0 of 4 energies -- it does not attack -- and **retreat 3**
+which it cannot pay -- it cannot be swapped out. It is a NAILED-DOWN body: it gives away the whole
+turn and on top of that concedes a prize. Across the table, the Dragapult ex is at **50 HP**: an
+Ogerpon ex with one more energy does *Myriad Leaf Shower* 30 + 30x(4+2) = **210** and takes 2
+prizes.
 
-Causa: `_promote_setup_ko_attacker` (subir al atacante que está a UNA adjunción de
-rematar) exige poder conseguir esa energía, y su lista de vías —Lillie's/Dawn en
-mano, Lana's Aid, motor Meowth ex— **no incluía Flip the Script**. Aquí las tres
-fallaban (mano sin Supporters; el motor Meowth además está muerto: Team Rocket's
-Watchtower anula las habilidades de los Pokémon {C}). Sin vía, el override no
-disparaba y mandaba `_ko_prefer_basic_general`, que elige el muro de 1 premio por
-VIDA (8500 + 140/10) sin mirar si ese muro puede hacer algo.
+Cause: `_promote_setup_ko_attacker` (bring up the attacker that is ONE attachment away from
+finishing) requires being able to get that energy, and its list of routes -- Lillie's/Dawn in
+hand, Lana's Aid, the Meowth ex engine -- **did not include Flip the Script**. Here all three
+failed (a hand with no Supporters; and the Meowth engine is dead on top of that: Team Rocket's
+Watchtower cancels the abilities of {C} Pokémon). With no route the override did not
+fire and it handed over to `_ko_prefer_basic_general`, which picks the 1-prize wall by
+LIFE (8500 + 140/10) without looking at whether that wall can do anything.
 
-Arreglo, en dos mitades que se sostienen la una a la otra:
+Fix, in two halves that hold each other up:
 
-1. **Ruta (d): Fezandipiti ex → Flip the Script (roba 3).** Es la vía que
-   faltaba, y la única cuyo disparador está *garantizado* en esta rama: estamos
-   promoviendo porque nos acaban de noquear, que es exactamente lo que enciende
-   Flip the Script. Watchtower no la apaga (solo mata habilidades {C}; Fezandipiti
-   ex es {D}); quien sí la mata es Iron Thorns, que anula toda habilidad con Rule
-   Box. Vale con el Fezandipiti ya en juego o en la mano con hueco de banca.
+1. **Route (d): Fezandipiti ex → Flip the Script (draw 3).** It is the route that was
+   missing, and the only one whose trigger is *guaranteed* in this branch: we are
+   promoting because we have just been knocked out, which is exactly what lights up
+   Flip the Script. Watchtower does not switch it off (it only kills {C} abilities; Fezandipiti
+   ex is {D}); what does kill it is Iron Thorns, which cancels every ability with a Rule
+   Box. It counts with the Fezandipiti already in play or in hand with a bench slot free.
 
-2. **`_ps_conserva_salida`: la ruta (d) exige que el promovido pueda RETIRARSE**
-   con la energía que ya lleva. Robar 3 no *busca* la Planta, así que el plan
-   puede fallar — y por eso solo se acepta cuando sigue siendo reversible: si la
-   Planta no aparece, el turno siguiente se retira el Ogerpon (coste 1, lleva 2)
-   y **entonces** sube el muro. *El sacrificio es una decisión diferible;
-   quedarse clavado no.* Con las vías de BÚSQUEDA (a/b/c) la energía está
-   prácticamente asegurada y no se pide movilidad.
+2. **`_ps_conserva_salida`: route (d) requires the promoted body to be able to RETREAT**
+   with the energy it already carries. Drawing 3 does not *search out* the Grass, so the
+   plan may fail -- and that is why it is only accepted while it stays reversible: if
+   the Grass does not show up, next turn the Ogerpon retreats (cost 1, it carries 2)
+   and **then** the wall comes up. *The sacrifice is a deferrable decision;
+   getting nailed down is not.* With the SEARCH routes (a/b/c) the energy is
+   practically assured and no mobility is required.
 
-Corpus dorado: un único flip, el de este paso.
+Golden corpus: a single flip, this step's.
 """
 
 import copy
@@ -113,7 +113,7 @@ def _opt_de(obs, pred):
 
 
 # ---------------------------------------------------------------------------
-# 1. El escenario: sin él, el test no mide nada
+# 1. The scenario: without it, the test measures nothing
 # ---------------------------------------------------------------------------
 
 def test_el_fixture_es_la_promocion_forzada_tras_el_ko():
@@ -122,48 +122,48 @@ def test_el_fixture_es_la_promocion_forzada_tras_el_ko():
     mio = o["current"]["players"][yo]
     riv = o["current"]["players"][1 - yo]
 
-    # Promoción forzada: no tenemos activo.
+    # Forced promotion: we have no active.
     assert not mio["active"]
     assert o["select"]["context"] == 4
 
-    # El muro que se subía está CLAVADO: 0 energías y retirada 3.
+    # The wall that was being brought up is NAILED DOWN: 0 energies and retreat 3.
     tapu = next(b for b in mio["bench"] if b["id"] == TAPU)
     assert len(tapu["energies"]) == 0
     assert m.RETREAT_COST[TAPU] == 3
     assert m.ATTACK_ENERGY_REQ[TAPU] == 4
 
-    # El casi-atacante SÍ conserva la salida: retirada 1 y lleva 2 energías.
+    # The near-attacker DOES keep its way out: retreat 1 and it carries 2 energies.
     oger = [b for b in mio["bench"] if b["id"] == OGERPON]
     assert len(oger) == 3 and all(len(b["energies"]) == 2 for b in oger)
     assert m.RETREAT_COST[OGERPON] == 1
     assert max(b["hp"] for b in oger) == 200
 
-    # A UNA adjunción de rematar: Myriad = 30 + 30·(4 + 2) = 210 >= 50.
+    # ONE attachment away from finishing: Myriad = 30 + 30x(4 + 2) = 210 >= 50.
     act = riv["active"][0]
     assert act["id"] == DRAGAPULT and act["hp"] == 50
     assert 30 + 30 * (4 + len(act["energies"])) >= act["hp"]
 
-    # El motor que lo hace posible está en la MANO, y ningún Supporter lo está.
+    # The engine that makes it possible is in HAND, and no Supporter is.
     assert any(c["id"] == FEZ for c in mio["hand"])
     for _supp in (m.Lillie_Determination, m.Dawn, m.Lanas_Aid, m.Meowth_ex):
         assert not any(c["id"] == _supp for c in mio["hand"])
-    # Y no hay ni una Planta en mano: la energía hay que robarla.
+    # And there is not a single Grass in hand: the energy has to be drawn.
     assert not any(c["id"] == m.Basic_Grass_Energy for c in mio["hand"])
 
-    # El registro confirma que ahí se subió el Tapu Bulu.
+    # The record confirms that the Tapu Bulu was brought up there.
     assert json.load(open(_FIXTURE, encoding="utf-8"))["accion_registrada"] == [4]
 
 
 def test_watchtower_mata_el_motor_meowth_pero_no_el_de_fezandipiti():
-    """Por qué las vías viejas fallaban y la nueva no: Watchtower solo anula
-    las habilidades de los Pokémon {C} (Meowth ex), no las de Fezandipiti ex."""
+    """Why the old routes failed and the new one does not: Watchtower only cancels
+    the abilities of {C} Pokémon (Meowth ex), not those of Fezandipiti ex."""
     o = _obs()
     assert o["current"]["stadium"][0]["id"] == m.Team_Rockets_Watchtower
     assert m.card_table[m.Meowth_ex].energyType != m.card_table[FEZ].energyType
 
 
 # ---------------------------------------------------------------------------
-# 2. La decisión
+# 2. The decision
 # ---------------------------------------------------------------------------
 
 def test_promueve_el_ogerpon_cargado_y_no_el_tapu_clavado():
@@ -175,8 +175,8 @@ def test_promueve_el_ogerpon_cargado_y_no_el_tapu_clavado():
 
 
 def test_promueve_el_ogerpon_con_MAS_vida():
-    """Entre los tres Ogerpon ex a la misma distancia del remate, sube el de
-    200 PV, no el de 100: el desempate por vida ya vive en `_ps_key`."""
+    """Among the three Ogerpon ex at the same distance from the finisher, it brings up the
+    200 HP one, not the 100: the life tie-break already lives in `_ps_key`."""
     o = _obs()
     elegido = m.agent(_obs())[0]
     banca = _banca(o)
@@ -185,12 +185,12 @@ def test_promueve_el_ogerpon_con_MAS_vida():
 
 
 # ---------------------------------------------------------------------------
-# 3. Los límites de la regla
+# 3. The limits of the rule
 # ---------------------------------------------------------------------------
 
 def test_sin_fezandipiti_no_hay_motor_y_vuelve_el_muro():
-    """Control: quitado el Fezandipiti ex de la mano no queda ninguna vía para
-    conseguir la Planta, y la promoción vuelve a la lógica de muro barato."""
+    """Control: with the Fezandipiti ex removed from hand there is no route left to
+    get the Grass, and the promotion goes back to the cheap-wall logic."""
     o = _obs()
     yo = o["current"]["yourIndex"]
     mio = o["current"]["players"][yo]
@@ -200,8 +200,8 @@ def test_sin_fezandipiti_no_hay_motor_y_vuelve_el_muro():
 
 
 def test_sin_planta_alcanzable_no_hay_motor():
-    """Control: con TODAS las Plantas ya visibles (mano vacía de ellas +
-    descarte) no queda ninguna oculta que robar, y el motor no dispara."""
+    """Control: with ALL the Grass already visible (a hand empty of them +
+    the discard) there is none hidden left to draw, and the engine does not fire."""
     o = _obs()
     yo = o["current"]["yourIndex"]
     mio = o["current"]["players"][yo]
@@ -216,19 +216,19 @@ def test_sin_planta_alcanzable_no_hay_motor():
 
 
 def test_si_el_casi_atacante_quedaria_clavado_el_motor_de_robo_no_basta(monkeypatch):
-    """`_ps_conserva_salida` aislado: mismo tablero, misma distancia al remate,
-    pero con la retirada del Ogerpon ex encarecida a 3 (no la puede pagar con
-    sus 2 energías). El plan deja de ser reversible -si el robo falla nos
-    quedamos clavados igual- y el robo a ciegas ya no basta: vuelve el muro."""
+    """`_ps_conserva_salida` in isolation: the same board, the same distance to the finisher,
+    but with the Ogerpon ex's retreat raised to 3 (it cannot pay it with
+    its 2 energies). The plan stops being reversible -if the draw fails we
+    get nailed down all the same- and the blind draw is no longer enough: the wall returns."""
     o = _obs()
     monkeypatch.setitem(m.RETREAT_COST, OGERPON, 3)
     assert m.agent(o) == [_opt_de(o, lambda b: b["id"] == TAPU)]
 
 
 def test_con_supporter_de_busqueda_no_se_exige_movilidad(monkeypatch):
-    """Contraparte: con una Lillie's en mano (vía de BÚSQUEDA, no de robo a
-    ciegas) la energía está prácticamente asegurada, así que la movilidad deja
-    de ser condición y el Ogerpon ex sube aunque su retirada sea impagable."""
+    """The counterpart: with a Lillie's in hand (a SEARCH route, not a blind
+    draw) the energy is practically assured, so mobility stops
+    being a condition and the Ogerpon ex comes up even if its retreat is unpayable."""
     o = _obs()
     yo = o["current"]["yourIndex"]
     mio = o["current"]["players"][yo]

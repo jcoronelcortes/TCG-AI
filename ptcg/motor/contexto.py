@@ -1,31 +1,32 @@
-"""DecisionContext: la instantanea del turno que reciben los scorers.
+"""DecisionContext: the snapshot of the turn the scorers receive.
 
-Extraido VERBATIM de main.py por utils/extraer_definiciones.py
-(docs/main-refactor-arquitectura.md). Su pureza esta comprobada por
-utils/pureza.py: nada de aqui toca el estado mutable ni las tablas de runtime.
+Extracted VERBATIM from main.py by utils/extraer_definiciones.py
+(docs/project-history.md). Its purity is verified by
+utils/pureza.py: nothing here touches mutable state or the runtime tables.
 """
 
 from dataclasses import dataclass
 
 
 # =============================================================================
-# DecisionContext + scorers extraidos (refactor Prioridad 1)
+# DecisionContext + extracted scorers (Priority 1 refactor)
 # -----------------------------------------------------------------------------
-# `agent()` es una unica funcion de ~11.800 lineas cuyo bucle de scoring mezcla
-# decenas de reglas en un if/elif gigante. Para reducir ese monolito se estan
-# extrayendo las ramas de puntuacion a funciones PURAS `_score_*(ctx)` que leen
-# un `DecisionContext` construido una sola vez por decision. Cada extraccion es
-# un refactor de comportamiento IDENTICO, verificado por la suite de tests.
+# `agent()` is a single ~11,800-line function whose scoring loop mixes dozens of
+# rules into one giant if/elif. To shrink that monolith, the scoring branches are
+# being extracted into PURE `_score_*(ctx)` functions that read a
+# `DecisionContext` built once per decision. Each extraction is an IDENTICAL
+# behaviour refactor, verified by the test suite.
 #
-# Estado del refactor: PoC con la rama de Boss's Orders (`_score_boss_orders_play`).
-# Al extraer mas ramas se agregan aqui los campos que necesiten; el objetivo es
-# que `agent()` acabe orquestando (construye ctx -> mapea opcion a su scorer ->
-# argmax) en vez de contener toda la logica inline.
+# State of the refactor: PoC with the Boss's Orders branch
+# (`_score_boss_orders_play`). As more branches are extracted, the fields they
+# need are added here; the goal is for `agent()` to end up orchestrating (build
+# ctx -> map option to its scorer -> argmax) instead of containing all the logic
+# inline.
 @dataclass
 class DecisionContext:
-    """Entradas invariantes de una decision (se construye antes del bucle de
-    scoring). Los scorers `_score_*` la tratan como SOLO LECTURA."""
-    # Objetos de estado compartidos
+    """Invariant inputs of a decision (built before the scoring loop). The
+    `_score_*` scorers treat it as READ ONLY."""
+    # Shared state objects
     state: object
     my_state: object
     op_state: object
@@ -34,7 +35,7 @@ class DecisionContext:
     supp_values: dict
     cartas_en_mazo: dict
     field_at_turn_start: dict
-    # Recuento de tablero / premios
+    # Board / prize counts
     bench_count: int
     my_hand_len: int
     my_prize: int
@@ -45,7 +46,7 @@ class DecisionContext:
     itchy_pollen_active: bool
     has_hydrapple: bool
     watchtower_in_play: bool
-    meowth_ability_lock: bool   # watchtower O Iron Thorns activo (P1.4)
+    meowth_ability_lock: bool   # watchtower OR Iron Thorns active (P1.4)
     neutralization_zone_active: bool
     mega_line_active: bool
     active_needs_energy: bool
@@ -55,7 +56,7 @@ class DecisionContext:
     can_attack: bool
     best_supp_in_hand_val: int
     best_supp_in_mazo_val: int
-    # Flags de matchup / muros del rival
+    # Matchup / opposing wall flags
     op_is_alakazam_deck: bool
     op_is_hop_deck: bool
     op_is_comfey_deck: bool
@@ -75,7 +76,7 @@ class DecisionContext:
     op_is_mirror: bool
     op_kang_ko_target: bool
     stadium_id: int
-    # Flags de turno
+    # Turn flags
     ko_last_turn: bool
     our_first_turn: bool
     active_cant_attack: bool
@@ -87,7 +88,7 @@ class DecisionContext:
     lucario_sac_pivot: bool
     win_via_boss_gust: bool
     gust_2prize_via_boss: bool
-    # Flags de Boss's Orders (calculados en evaluate_supporters / mas arriba)
+    # Boss's Orders flags (computed in evaluate_supporters / further up)
     boss_win_via_bench: bool
     boss_dodge_redirect: bool
     boss_defensive_gust: bool
@@ -96,79 +97,79 @@ class DecisionContext:
     boss_prize_rank: int
     boss_ko_threat_preevo: bool
     has_ready_bench_attacker: bool
-    # El ACTIVO propio esta CONDENADO (active_ko_likely): las reglas de
-    # Boss's/Lillie's lo consultan para no gastar el Supporter en un gusteo
-    # de premios cuando no hay relevo en banca (registro_004 vs Team Rocket).
+    # Our ACTIVE is DOOMED (active_ko_likely): the Boss's/Lillie's rules consult it
+    # so the Supporter is not spent on a prize gust when there is no relief on the
+    # bench (registro_004 vs Team Rocket).
     active_ko_likely: bool
-    # El ACTIVO rival es una pre-evo AMENAZA (THREAT_PREEVO_IDS) que DOMINA a
-    # todas sus copias de banca (herramienta de vida como Hero's Cape, o >=
-    # energias) y nuestro activo puede atacarlo: NO gastar Boss's en gustear la
-    # copia debil (registro_007 paso 80 vs Archaludon: aun sin KO por la Cape).
-    # Default False: los tests unitarios construyen el ctx directamente.
+    # The opposing ACTIVE is a THREAT pre-evolution (THREAT_PREEVO_IDS) that
+    # DOMINATES all of its benched copies (a life tool such as Hero's Cape, or >=
+    # energies) and our active can attack it: do NOT spend Boss's gusting the weak
+    # copy (registro_007 step 80 vs Archaludon: still no KO because of the Cape).
+    # Default False: unit tests build the ctx directly.
     boss_active_threat_dominates: bool = False
-    # Remate rival REAL sobre nuestro activo, resuelto via attack_table
-    # (`_op_active_attack_damage_to` >= HP del activo). El heuristico
-    # `active_ko_likely` se apoya en `_op_best_damage_vs`, que lee el dano de
-    # un ID de ataque (int) y SIEMPRE da 0: contra un Mega Lucario ex con 2
-    # energias (Mega Brave 270) creia que nuestro Ogerpon ex de 210 PV no
-    # corria peligro. Las reglas de "activo condenado sin relevo" de
-    # Boss's/Lillie's usan AMBOS flags (registro_004 t4 vs Mega Lucario).
-    # Default False: los tests unitarios construyen el ctx directamente.
+    # A REAL opposing finisher on our active, resolved via attack_table
+    # (`_op_active_attack_damage_to` >= the active's HP). The `active_ko_likely`
+    # heuristic leans on `_op_best_damage_vs`, which reads the damage of an attack
+    # ID (an int) and ALWAYS gives 0: against a Mega Lucario ex with 2 energies
+    # (Mega Brave 270) it believed our 210 HP Ogerpon ex was not in danger. The
+    # "doomed active with no relief" rules of Boss's/Lillie's use BOTH flags
+    # (registro_004 t4 vs Mega Lucario).
+    # Default False: unit tests build the ctx directly.
     active_doomed_real: bool = False
-    # UNA Planta sobre el ACTIVO paga su coste de retirada y habilita atacar con
-    # un cuerpo de banca (`_grass_unlocks_active_retreat`), por la ruta de las
-    # HABILIDADES de carga: NO exigen que el adjunte manual del turno siga libre.
-    # Las consume la Night Stretcher para saber que la energia del descarte
-    # tiene destino (registro_014 paso 141 vs Alakazam).
-    # Default False: los tests unitarios construyen el ctx directamente.
+    # ONE Grass on the ACTIVE pays its retreat cost and enables attacking with a
+    # benched body (`_grass_unlocks_active_retreat`), through the CHARGING
+    # ABILITIES route: they do NOT require the turn's manual attachment to still be
+    # free. Night Stretcher consumes them to know that the energy in the discard has
+    # a destination (registro_014 step 141 vs Alakazam).
+    # Default False: unit tests build the ctx directly.
     ability_unlock_retreat_ko: bool = False
     ability_unlock_retreat_attack: bool = False
-    # GRAND TREE (id 1249). `grand_tree_ability_pending` = el estadio esta en
-    # mesa, ofrece su habilidad en ESTE menu y hay un plan de evolucion
-    # ejecutable. Lo consulta la regla de Forest of Vitality para NO reemplazar
-    # el estadio antes de haber cobrado la cadena gratis (peticion del user).
-    # Default False: los tests unitarios construyen el ctx directamente.
+    # GRAND TREE (id 1249). `grand_tree_ability_pending` = the stadium is on the
+    # field, it offers its ability in THIS menu and there is an executable evolution
+    # plan. The Forest of Vitality rule consults it so as NOT to replace the stadium
+    # before the free chain has been cashed in (user's request).
+    # Default False: unit tests build the ctx directly.
     grand_tree_in_play: bool = False
     grand_tree_ability_pending: bool = False
-    # El MURO INMUNE A EX (Crustle / Sylveon) esta de ACTIVO rival y nuestro
-    # activo lo NOQUEA este turno (dano via `_our_effective_damage`, con el tope
-    # de Sturdy aplicado). Lo consulta la regla
-    # `rematar_muro_inmune_antes_de_gustear`: gustear moveria al muro a la banca
-    # y desperdiciaria la unica ventana en la que un cuerpo NO-ex propio puede
-    # matarlo (registro_006 paso 47).
-    # Default False: los tests unitarios construyen el ctx directamente.
+    # The EX-IMMUNE WALL (Crustle / Sylveon) is the opposing ACTIVE and our active
+    # KNOCKS IT OUT this turn (damage via `_our_effective_damage`, with the Sturdy
+    # cap applied). The `rematar_muro_inmune_antes_de_gustear` rule consults it:
+    # gusting would move the wall to the bench and waste the only window in which
+    # one of our NON-ex bodies can kill it (registro_006 step 47).
+    # Default False: unit tests build the ctx directly.
     ex_immune_wall_ko_ready: bool = False
-    # ¿Queda Last-Ditch Catch este turno? False si algun Meowth ex EN JUEGO
-    # aparecio este turno (su habilidad ya se gasto y solo se permite una por
-    # turno) -> bajar o CAVAR otro Meowth ex no buscaria Supporter.
+    # Is there a Last-Ditch Catch left this turn? False if any Meowth ex IN PLAY
+    # appeared this turn (its ability is already spent and only one is allowed per
+    # turn) -> benching or DIGGING for another Meowth ex would not fetch a Supporter.
     meowth_ld_free: bool = True
-    # Festival Grounds en mesa Y con la linea Applin/Dipplin rival a la vista:
-    # enciende su Festival Lead (doble ataque tras noquearnos el activo). El
-    # estadio es de DOBLE FILO -- nuestro Dipplin tambien lo gana--, por eso el
-    # flag llega ya filtrado por la linea rival. Ver `_festival_lead_hostil`.
-    # Default False: los tests unitarios construyen el ctx directamente.
+    # Festival Grounds on the field AND the opposing Applin/Dipplin line in sight:
+    # that switches on their Festival Lead (a double attack after knocking out our
+    # active). The stadium is DOUBLE-EDGED -- our Dipplin gains it too -- which is
+    # why the flag arrives already filtered by the opposing line. See
+    # `_festival_lead_hostil`.
+    # Default False: unit tests build the ctx directly.
     festival_lead_hostil: bool = False
-    # MATCH POINT contra el ACTIVO rival: noquearlo GANA la partida (vale al
-    # menos los premios que nos faltan) y el rematador esta en la BANCA --
-    # retirar -> promover -> atacar, con la retirada pagable. Lo consulta la
-    # regla `remate_ganador_al_activo_tras_retirar`: gustear cambiaria el activo
-    # rival justo por un cuerpo de MENOS premios y tiraria el turno ganador
-    # (registro_010 paso 144). Ver el bloque `_win_ko_active_via_promote`.
-    # Default False: los tests unitarios construyen el ctx directamente.
+    # MATCH POINT against the opposing ACTIVE: knocking it out WINS the game (it is
+    # worth at least the prizes we are missing) and the finisher is on the BENCH --
+    # retreat -> promote -> attack, with the retreat payable. The
+    # `remate_ganador_al_activo_tras_retirar` rule consults it: gusting would swap
+    # the opposing active for a body worth FEWER prizes and throw away the winning
+    # turn (registro_010 step 144). See the `_win_ko_active_via_promote` block.
+    # Default False: unit tests build the ctx directly.
     win_ko_active_via_promote: bool = False
-    # PESCA DE REMATE (`_PescaRemate` o None): el turno no tiene ningun ataque
-    # posible, pero el ROBO del refresco puede traer la energia que desbloquea
-    # uno -- con su probabilidad hipergeometrica ya calculada sobre la creencia
-    # de mazo. Lo consultan la regla `pescar_energia_para_remate` de Lillie's y
-    # la cesion `cede_a_pesca_de_remate` de Boss's (registro_004 paso 49 vs
-    # Marnie). Default None: los tests unitarios construyen el ctx directamente.
+    # FINISHER FISHING (`_PescaRemate` or None): the turn has no attack available,
+    # but the refill DRAW may bring the energy that unlocks one -- with its
+    # hypergeometric probability already computed over the deck belief. It is
+    # consulted by Lillie's `pescar_energia_para_remate` rule and by Boss's
+    # `cede_a_pesca_de_remate` yield (registro_004 step 49 vs Marnie).
+    # Default None: unit tests build the ctx directly.
     pesca_remate: object = None
-    # AMENAZA DE BLOQUEO DE ITEMS: el rival puede dejarnos sin Objetos en
-    # NUESTRO proximo turno (Budew en su campo, o mazo Dragapult, que lo lleva).
-    # Ver `_bloqueo_de_items_inminente`: con esto encima un Item no es un
-    # recurso que se guarda, es un recurso que CADUCA -- lo consulta
+    # ITEM LOCK THREAT: the opponent can leave us without Items on OUR next turn
+    # (Budew on their field, or a Dragapult deck, which runs it). See
+    # `_bloqueo_de_items_inminente`: with that hanging over us an Item is not a
+    # resource to keep, it is a resource that EXPIRES -- consulted by
     # `_ub_meowth_para_manana`.
-    # Default False: los tests unitarios construyen el ctx directamente.
+    # Default False: unit tests build the ctx directly.
     item_lock_incoming: bool = False
 
 __all__ = [

@@ -1,51 +1,51 @@
-"""El traspaso de `_ub_fez_pending` ENTRE menús, reconstruido con StateBuilder.
+"""The handover of `_ub_fez_pending` BETWEEN menus, rebuilt with the StateBuilder.
 
-Cubre lo único que quedó dormido al rotar los registros locales: la cadena
-**Ultra Ball → Fezandipiti ex → bajarlo**, que por definición necesita DOS menús
-consecutivos y por eso no cabe en un fixture de una sola observación.
+It covers the only thing that went dormant when the local records rotated: the chain
+**Ultra Ball → Fezandipiti ex → playing it**, which by definition needs TWO consecutive
+menus and therefore does not fit in a single-observation fixture.
 
-El test original (`test_fez_cadena_ultra_ball_flip_the_script.py`) reproducía esa
-secuencia desde `registros/registro_006_pasos_086_hasta_104.json`. Los registros
-son datos locales transitorios —`utils/split_turns.py` los reescribe con cada
-partida nueva— y el episodio 88710543 ya no está ni en `registros/` ni en
-`log/`, así que aquel test quedó en `skipif`. Aquí la secuencia se FABRICA, que
-además la hace inmune a la próxima rotación.
+The original test (`test_fez_cadena_ultra_ball_flip_the_script.py`) reproduced that
+sequence from `registros/registro_006_pasos_086_hasta_104.json`. The records
+are transient local data —`utils/split_turns.py` rewrites them with every
+new game— and episode 88710543 is no longer in `registros/` or in
+`log/`, so that test ended up in `skipif`. Here the sequence is FABRICATED, which
+also makes it immune to the next rotation.
 
-Escenario (misma forma que el registro_006 pasos 90-91 vs Mega Lucario):
+Scenario (the same shape as registro_006 steps 90-91 vs Mega Lucario):
 
-    NOSOTROS                                  RIVAL
-    activo  Hydrapple ex, 2 {G}               activo  Mega Lucario ex 340/340
-    banca   Meowth ex, Meganium,              banca   Riolu
+    US                                        OPPONENT
+    active  Hydrapple ex, 2 {G}               active  Mega Lucario ex 340/340
+    bench   Meowth ex, Meganium,              bench   Riolu
             Teal Mask Ogerpon ex x2
-    Nos noquearon el turno anterior -> Flip the Script VIVA.
+    We were knocked out last turn -> Flip the Script ALIVE.
 
-**Menú A** — se juega la Ultra Ball y el fetch elige **Fezandipiti ex**: eso
-arma `_ub_fez_pending`, la marca de "esta búsqueda YA está pagada".
+**Menu A** — the Ultra Ball is played and the fetch chooses **Fezandipiti ex**: that
+arms `_ub_fez_pending`, the mark of "this search is ALREADY paid for".
 
-**Menú B** — el MAIN siguiente, con la mano reducida a **Unfair Stamp +
-Fezandipiti ex**: el bug original era que el Sello se jugaba primero y barajaba
-de vuelta al mazo el Fezandipiti recién cavado, con la Ultra Ball ya pagada.
+**Menu B** — the next MAIN, with the hand reduced to **Unfair Stamp +
+Fezandipiti ex**: the original bug was that the Stamp was played first and shuffled
+the freshly dug Fezandipiti back into the deck, with the Ultra Ball already paid for.
 
-**Hallazgo al reconstruirlo:** apagando `_ub_fez_pending` a mano, el Fezandipiti
-se baja IGUAL. La cadena tiene DOS defensas independientes y la primera basta en
-todos los estados que se pueden construir:
+**A finding while rebuilding it:** with `_ub_fez_pending` switched off by hand, the Fezandipiti
+is played ANYWAY. The chain has TWO independent defences and the first one is enough in
+every state that can be built:
 
-  1. `_us_pokemon_jugable`, dentro del scorer del propio Sello: con un Pokémon
-     JUGABLE en la mano (aquí el Fez), el Sello cae a su banda baja (**2000**)
-     en vez de la alta (**7500** = "la mano no tiene nada mejor que hacer"), y
-     ya solo por eso pierde contra bajar el cuerpo.
-  2. `_ub_fez_pending` (22000, aplicado DESPUÉS de todos los vetos de la rama —
-     que son justo los que contradicen una búsqueda ya pagada): la red para
-     cuando algún veto de ORDEN tumbe el PLAY.
+  1. `_us_pokemon_jugable`, inside the Stamp's own scorer: with a PLAYABLE Pokémon
+     in hand (here the Fez), the Stamp falls to its low band (**2000**)
+     instead of the high one (**7500** = "the hand has nothing better to do"), and
+     for that reason alone it loses against playing the body.
+  2. `_ub_fez_pending` (22000, applied AFTER all the branch's vetoes —
+     which are precisely the ones that contradict an already paid-for search):
+     the net for when some ORDERING veto knocks the PLAY down.
 
-Por eso el control NO es "sin el flag gana el Sello" (sería falso): se fija la
-BANDA del Sello, que es observable y sí discrimina — 2000 con el Fez jugable,
-7500 con la banca llena, donde el Fez ya no se puede bajar.
+That is why the control is NOT "without the flag the Stamp wins" (that would be false):
+what is pinned is the Stamp's BAND, which is observable and does discriminate —
+2000 with the Fez playable, 7500 with the bench full, where the Fez can no longer be played.
 
-Nota de estado: `ko_last_turn` no se puede inyectar directamente (`agent()` lo
-recalcula de `_ko_detected_this_turn` y de los logs), y se reinicia al detectar
-cambio de turno. Se fija `pre_turn` al turno en curso para que ese reinicio no
-dispare, igual que con `_grass_attaches_this_turn` en el test de Cruel Arrow.
+A note on state: `ko_last_turn` cannot be injected directly (`agent()` recomputes it
+from `_ko_detected_this_turn` and the logs), and it is reset when a turn change is detected.
+`pre_turn` is set to the current turn so that reset does not
+fire, just as with `_grass_attaches_this_turn` in the Cruel Arrow test.
 """
 
 import sys
@@ -106,14 +106,14 @@ def reset_main_state():
 
 
 def _armar_turno():
-    """Deja el estado de turno como si el rival nos hubiera noqueado: Flip the
-    Script viva y sin que `agent()` reinicie el turno al primer menu."""
+    """Leaves the turn state as if the opponent had knocked us out: Flip the
+    Script alive and without `agent()` resetting the turn at the first menu."""
     m.pre_turn = TURNO
     m._ko_detected_this_turn = True
 
 
 def _campo(esc, banca_llena=False):
-    """El tablero comun a los dos menus."""
+    """The board common to both menus."""
     extra = (m.Tapu_Bulu,) if banca_llena else ()
     return (esc
             .mi_activo(pk(HYDRA, energias=[G, G], fisicas=2,
@@ -128,27 +128,27 @@ def _campo(esc, banca_llena=False):
 
 
 def _menu_fetch():
-    """Menu A: el fetch de la Ultra Ball, con Fezandipiti ex en el mazo."""
+    """Menu A: the Ultra Ball fetch, with a Fezandipiti ex in the deck."""
     esc = Escenario(turno=TURNO, paso=90, tac=5, premios_propios=3)
     return (_campo(esc)
             .mi_mano(STAMP)
             .mazo(FEZ, CHIKORITA, APPLIN)
-            # `fetch_ultra_ball()` consume una Ultra Ball del pool (la carta "en
-            # efecto"), asi que va ANTES de `resto_al_descarte()`, que se lleva
-            # todo lo que sobra. Al reves, la contabilidad estricta del builder
-            # se queda sin copias y aborta.
+            # `fetch_ultra_ball()` consumes an Ultra Ball from the pool (the card "in
+            # effect"), so it goes BEFORE `resto_al_descarte()`, which takes
+            # everything left over. The other way round, the builder's strict
+            # accounting runs out of copies and aborts.
             .fetch_ultra_ball()
             .resto_al_descarte()
             .construir())
 
 
 def _menu_bajar(banca_llena=False):
-    """Menu B: el MAIN siguiente. Mano FINA (Sello + Fez) para que el Sello
-    puntue en su banda alta y el test discrimine de verdad."""
+    """Menu B: the next MAIN. A THIN hand (Stamp + Fez) so the Stamp
+    scores in its high band and the test really discriminates."""
     esc = Escenario(turno=TURNO, paso=91, tac=6, premios_propios=3)
     return (_campo(esc, banca_llena=banca_llena)
             .mi_mano(STAMP, FEZ)
-            .mazo(CHIKORITA, APPLIN)      # `resto_al_descarte()` lo exige
+            .mazo(CHIKORITA, APPLIN)      # `resto_al_descarte()` requires it
             .resto_al_descarte()
             .menu_mano()
             .construir())
@@ -165,24 +165,24 @@ def _jugada(obs, eleccion):
 
 
 # ---------------------------------------------------------------------------
-# 1. El escenario: sin estas condiciones la cadena no existe
+# 1. The scenario: without these conditions the chain does not exist
 # ---------------------------------------------------------------------------
 
 def test_el_escenario_tiene_flip_the_script_viva_y_hueco_en_banca():
     _armar_turno()
     obs = _menu_fetch()
     m.agent(obs)
-    assert m.ko_last_turn is True                 # condicion de Flip the Script
+    assert m.ko_last_turn is True                 # Flip the Script's condition
     yo = obs["current"]["yourIndex"]
     mio = obs["current"]["players"][yo]
-    assert len([b for b in mio["bench"] if b]) < 5          # cabe el Fez
+    assert len([b for b in mio["bench"] if b]) < 5          # the Fez fits
     assert not any(b and b["id"] == FEZ for b in mio["bench"])
     assert any(o["type"] == int(m.OptionType.CARD)
                for o in obs["select"]["option"])
 
 
 # ---------------------------------------------------------------------------
-# 2. La cadena, menu a menu
+# 2. The chain, menu by menu
 # ---------------------------------------------------------------------------
 
 def test_menuA_la_ultra_ball_busca_el_fezandipiti_y_arma_el_pendiente():
@@ -194,41 +194,41 @@ def test_menuA_la_ultra_ball_busca_el_fezandipiti_y_arma_el_pendiente():
 
 def test_menuB_el_cuerpo_pagado_baja_antes_que_el_sello():
     _armar_turno()
-    m.agent(_menu_fetch())                # arma `_ub_fez_pending`
+    m.agent(_menu_fetch())                # it arms `_ub_fez_pending`
     obs = _menu_bajar()
     assert _jugada(obs, m.agent(obs)) == ("PLAY", FEZ)
 
 
 # ---------------------------------------------------------------------------
-# 3. Las DOS defensas de la cadena
+# 3. The chain's TWO defences
 # ---------------------------------------------------------------------------
-# Al reconstruir el escenario se comprobó algo que el test del registro no
-# distinguía: apagando `_ub_fez_pending` a mano, el Fezandipiti se baja IGUAL.
-# La cadena está protegida por dos mecanismos independientes y el primero basta
-# en los estados alcanzables:
+# While rebuilding the scenario something the record's test could not distinguish
+# was verified: with `_ub_fez_pending` switched off by hand, the Fezandipiti is played
+# ANYWAY. The chain is protected by two independent mechanisms and the first one is
+# enough in the reachable states:
 #
-#   1) `_us_pokemon_jugable` dentro del scorer del Sello: con un Pokémon
-#      JUGABLE en la mano (aquí el propio Fez), el Sello cae a su banda baja
-#      (2000) en vez de la alta (7500 = "la mano no tiene nada mejor que
-#      hacer"). Solo por eso ya pierde contra bajar el cuerpo.
-#   2) `_ub_fez_pending` (22000, después de todos los vetos de la rama): la
-#      red de seguridad para cuando algún veto de ORDEN tumbe el PLAY.
+#   1) `_us_pokemon_jugable` inside the Stamp's scorer: with a PLAYABLE
+#      Pokémon in hand (here the Fez itself), the Stamp falls to its low band
+#      (2000) instead of the high one (7500 = "the hand has nothing better to
+#      do"). For that reason alone it already loses against playing the body.
+#   2) `_ub_fez_pending` (22000, after all the branch's vetoes): the
+#      safety net for when some ORDERING veto knocks the PLAY down.
 #
-# Por eso el control NO puede ser "sin el flag gana el Sello": sería falso. Lo
-# que sí se puede fijar —y es lo que de verdad protege la cadena— es la banda
-# del Sello, que es observable y discrimina.
+# That is why the control canNOT be "without the flag the Stamp wins": it would be false. What
+# can be pinned —and what really protects the chain— is the Stamp's
+# band, which is observable and does discriminate.
 
 def test_el_sello_cede_al_cuerpo_jugable_y_esa_es_la_primera_defensa():
-    """Primera línea: con el Fez JUGABLE el Sello puntúa en banda baja."""
+    """The first line: with the Fez PLAYABLE the Stamp scores in the low band."""
     _armar_turno()
     m._ub_fez_pending = False
     assert _score_del_sello(_menu_bajar()) == 2000
 
 
 def test_con_la_banca_llena_el_sello_recupera_su_banda_alta():
-    """Contrafactual que prueba que el 2000 lo causa el cuerpo jugable y no
-    otra cosa: con la banca a 5 el Fez ya no se puede bajar, la mano se queda
-    sin nada que hacer y el Sello sube a su defecto (7500)."""
+    """A counterfactual proving the 2000 is caused by the playable body and not
+    by something else: with the bench at 5 the Fez can no longer be played, the hand is left
+    with nothing to do and the Stamp rises to its default (7500)."""
     _armar_turno()
     m._ub_fez_pending = False
     assert _score_del_sello(_menu_bajar(banca_llena=True)) == 7500

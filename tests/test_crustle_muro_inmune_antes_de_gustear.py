@@ -1,47 +1,47 @@
-"""Vs Crustle/Sylveon: si HOY noqueamos el muro inmune, NO se juega Boss's.
+"""Vs Crustle/Sylveon: if TODAY we knock out the immune wall, Boss's is NOT played.
 
-Escenario (user, episodio 88706549 registro_006 paso 47 vs Crustle, PERDIDA):
+Scenario (user, episode 88706549 registro_006 step 47 vs Crustle, LOST):
 
-    NOSOTROS                              RIVAL
-    activo  Tapu Bulu    20/140  4e       activo  Crustle    170/170  2e
-    banca   Meganium    160/160  0e       banca   Dwebble  x3
+    US                                    RIVAL
+    active  Tapu Bulu    20/140  4e       active  Crustle    170/170  2e
+    bench   Meganium    160/160  0e       bench   Dwebble  x3
             Ogerpon ex  210/210  1e               Teal Mask Ogerpon ex 210 1e
             Dipplin      80/80   0e
             Ogerpon ex  210/210  0e
             Meowth ex   170/170  0e
-    mano    Boss's Orders, Meowth ex, Ogerpon ex, Applin, Dipplin, 2x Ultra
+    hand    Boss's Orders, Meowth ex, Ogerpon ex, Applin, Dipplin, 2x Ultra
             Ball, Unfair Stamp
-    premios restantes: 6 - 6
+    prizes left: 6 - 6
 
-El agente jugo **Boss's Orders** para subir el Teal Mask Ogerpon ex de su banca
-y noquearlo con Wood Hammer: 2 premios (`gusteo_2_premios`, 6800) contra el 1
-premio del Crustle. Aritmeticamente gana un premio; estrategicamente pierde la
-partida, porque el Crustle se queda en mesa **sano**:
+The agent played **Boss's Orders** to bring up the Teal Mask Ogerpon ex from their bench
+and knock it out with Wood Hammer: 2 prizes (`gusteo_2_premios`, 6800) against the 1
+prize of the Crustle. Arithmetically it gains a prize; strategically it loses the
+game, because the Crustle stays on the table **unharmed**:
 
-- *Mysterious Rock Inn* anula TODO el dano de nuestros Pokemon ex, y nuestro
-  mazo es ex (Ogerpon ex, Hydrapple ex, Meowth ex, Fezandipiti ex). Contra el
-  muro solo pegan los cuerpos NO-ex: Tapu Bulu y la linea Meganium.
-- La ventana para matarlo es exactamente el turno en el que uno de esos cuerpos
-  esta CARGADO y de ACTIVO, y se cierra sola: aqui Wood Hammer "also does 30
-  damage to itself" y el Tapu Bulu de 20 PV moria en el mismo golpe, gustearas
-  o no. Cambiar de objetivo no salvo al Tapu: solo salvo al Crustle.
+- *Mysterious Rock Inn* cancels ALL the damage from our Pokemon ex, and our
+  deck is an ex deck (Ogerpon ex, Hydrapple ex, Meowth ex, Fezandipiti ex). Against the
+  wall only the NON-ex bodies hit: Tapu Bulu and the Meganium line.
+- The window to kill it is exactly the turn in which one of those bodies
+  is CHARGED and ACTIVE, and it closes by itself: here Wood Hammer "also does 30
+  damage to itself" and the 20 HP Tapu Bulu died in the same blow, whether we gusted
+  or not. Changing target did not save the Tapu: it only saved the Crustle.
 
-Regla del user: **vs Crustle o Sylveon, si podemos derrotar al muro, se derrota
-primero; los otros Pokemon (y sus premios) van despues.** Se implementa en dos
-piezas:
+The user's rule: **vs Crustle or Sylveon, if we can defeat the wall, it is defeated
+first; the other Pokemon (and their prizes) come afterwards.** It is implemented in two
+pieces:
 
- 1. `_ex_immune_wall_ko_ready` (calculado junto a `win_via_boss_gust` /
-    `gust_2prize_via_boss`): el activo rival esta en `EX_IMMUNE_IDS` y nuestro
-    activo lo NOQUEA este turno. El dano se mide con el evaluador central
-    `_our_effective_damage`, que aplica el tope de *Sturdy* del Crustle 533
-    (a vida completa sobrevive a 10 PV): ahi NO hay KO y la regla calla.
- 2. La regla `rematar_muro_inmune_antes_de_gustear` de `_REGLAS_BOSS_PLAY`,
-    justo debajo del gusteo GANADOR: veta jugar Boss's. La bandera apaga
-    ademas `gust_2prize_via_boss`/`_deny_evo_via_boss`, que alimentan el motor
-    Meowth ex -> Last-Ditch -> Boss's (no vale la pena cavar la carta tampoco).
+ 1. `_ex_immune_wall_ko_ready` (computed alongside `win_via_boss_gust` /
+    `gust_2prize_via_boss`): the rival active is in `EX_IMMUNE_IDS` and our
+    active KNOCKS IT OUT this turn. The damage is measured with the central evaluator
+    `_our_effective_damage`, which applies the *Sturdy* cap of Crustle 533
+    (at full life it survives on 10 HP): there there is NO KO and the rule stays quiet.
+ 2. The rule `rematar_muro_inmune_antes_de_gustear` of `_REGLAS_BOSS_PLAY`,
+    right below the WINNING gust: it vetoes playing Boss's. The flag also switches off
+    `gust_2prize_via_boss`/`_deny_evo_via_boss`, which feed the
+    Meowth ex -> Last-Ditch -> Boss's engine (digging the card is not worth it either).
 
-Excepciones que siguen mandando: `win_via_boss_gust` y `boss_win_via_bench`
-(gustear GANA la partida ya mismo).
+Exceptions that still rule: `win_via_boss_gust` and `boss_win_via_bench`
+(gusting WINS the game right now).
 """
 
 import json
@@ -57,15 +57,15 @@ if str(ROOT) not in sys.path:
 import main as m
 from state_builder import G, Escenario, pk
 
-TAPU = m.Tapu_Bulu                 # 920: Wood Hammer 220 (-30 a si mismo)
-OGERPON = m.Teal_Mask_Ogerpon_ex   # 96: ex de 2 premios, 210 PV
+TAPU = m.Tapu_Bulu                 # 920: Wood Hammer 220 (-30 to itself)
+OGERPON = m.Teal_Mask_Ogerpon_ex   # 96: a 2-prize ex, 210 HP
 MEGANIUM = m.Meganium
 MEOWTH = m.Meowth_ex
 BOSS = m.Boss_Orders
 ULTRA_BALL = m.Ultra_Ball
 
-CRUSTLE = m.Crustle_Grass          # 345: Mysterious Rock Inn (anula ex)
-CRUSTLE_STURDY = m.Crustle_Fighting  # 533: ademas sobrevive a vida completa
+CRUSTLE = m.Crustle_Grass          # 345: Mysterious Rock Inn (cancels ex)
+CRUSTLE_STURDY = m.Crustle_Fighting  # 533: on top of that it survives at full life
 DWEBBLE = m.Dwebble_Grass
 
 _FIXTURE = (ROOT / "tests" / "fixtures"
@@ -120,12 +120,12 @@ def _jugada(obs, eleccion):
 
 
 # ---------------------------------------------------------------------------
-# El paso 47 real
+# The real step 47
 # ---------------------------------------------------------------------------
 
 def test_paso47_ataca_al_crustle_en_vez_de_gustear():
     obs = _obs_fixture()
-    # El fixture debe ofrecer AMBAS jugadas para que el test discrimine.
+    # The fixture must offer BOTH plays for the test to discriminate.
     jugadas = [_jugada(obs, [i]) for i in range(len(obs["select"]["option"]))]
     assert ("PLAY", BOSS) in jugadas, jugadas
     assert ("ATTACK", 1326) in jugadas, jugadas
@@ -134,7 +134,7 @@ def test_paso47_ataca_al_crustle_en_vez_de_gustear():
 
 
 def test_paso47_el_muro_es_noqueable_y_la_bandera_lo_ve():
-    """El nucleo de la regla: Wood Hammer (220) mata al Crustle de 170 PV."""
+    """The core of the rule: Wood Hammer (220) kills the 170 HP Crustle."""
     obs = _obs_fixture()
     st = m.to_observation_class(obs).current
     tapu, crustle = st.players[0].active[0], st.players[1].active[0]
@@ -148,13 +148,13 @@ def test_paso47_el_muro_es_noqueable_y_la_bandera_lo_ve():
 
 
 # ---------------------------------------------------------------------------
-# Escenarios sinteticos: la regla y sus fronteras
+# Synthetic scenarios: the rule and its boundaries
 # ---------------------------------------------------------------------------
 
 def _escenario(op_activo=None, mi_activo=None, premios_propios=None,
                mano=(BOSS, ULTRA_BALL)):
-    """Tapu Bulu cargado delante del muro, con un ex rival de 2 premios en su
-    banca (el gusteo que el agente prefería)."""
+    """A charged Tapu Bulu in front of the wall, with a 2-prize rival ex on their
+    bench (the gust the agent preferred)."""
     op_activo = op_activo if op_activo is not None else pk(CRUSTLE)
     mi_activo = (mi_activo if mi_activo is not None
                  else pk(TAPU, energias=[G] * 4, fisicas=4))
@@ -171,41 +171,41 @@ def _escenario(op_activo=None, mi_activo=None, premios_propios=None,
 
 
 def test_con_el_muro_noqueable_no_se_juega_boss():
-    """El caso del registro en sintetico: 2 premios en la banca rival NO
-    justifican dejar vivo al muro que anula todo nuestro mazo."""
+    """The record's case synthetically: 2 prizes on the rival bench do NOT
+    justify leaving alive the wall that cancels our whole deck."""
     obs = _escenario()
     accion, _ = _jugada(obs, m.agent(obs))
     assert accion == "ATTACK", _jugada(obs, m.agent(obs))
 
 
 def test_frontera_activo_ex_el_gusteo_sigue_vivo():
-    """Con un Ogerpon ex de activo el muro es INTOCABLE (dano 0): no hay
-    ventana que proteger y Boss's vuelve a ser la jugada."""
+    """With an Ogerpon ex active the wall is UNTOUCHABLE (0 damage): there is no
+    window to protect and Boss's is the play again."""
     obs = _escenario(mi_activo=pk(OGERPON, energias=[G] * 6, fisicas=3))
     assert _jugada(obs, m.agent(obs)) == ("PLAY", BOSS)
 
 
 def test_frontera_sturdy_sin_KO_el_gusteo_sigue_vivo():
-    """Crustle 533 a vida COMPLETA sobrevive a 10 PV (*Sturdy*): Wood Hammer no
-    lo noquea, asi que no hay muro que rematar y el gusteo de 2 premios manda.
-    Es la razon por la que la bandera se mide con `_our_effective_damage`."""
+    """Crustle 533 at FULL life survives on 10 HP (*Sturdy*): Wood Hammer does not
+    knock it out, so there is no wall to finish and the 2-prize gust rules.
+    That is why the flag is measured with `_our_effective_damage`."""
     obs = _escenario(op_activo=pk(CRUSTLE_STURDY))
     assert _jugada(obs, m.agent(obs)) == ("PLAY", BOSS)
 
 
 def test_frontera_gusteo_ganador_manda_sobre_el_muro():
-    """A 2 premios, gustear el ex de banca GANA la partida en el acto: el
-    remate (`win_via_boss_gust`) sigue por encima del muro."""
+    """At 2 prizes, gusting the bench ex WINS the game on the spot: the
+    finisher (`win_via_boss_gust`) still comes above the wall."""
     obs = _escenario(premios_propios=2)
     assert _jugada(obs, m.agent(obs)) == ("PLAY", BOSS)
 
 
 # ---------------------------------------------------------------------------
-# El scorer puro
+# The pure scorer
 # ---------------------------------------------------------------------------
 
 def test_scorer_veta_boss_con_muro_noqueable():
-    from test_main import _make_boss_ctx  # helper compartido del scorer
+    from test_main import _make_boss_ctx  # a shared helper of the scorer
 
     veto = m._score_boss_orders_play(
         _make_boss_ctx(op_is_crustle_deck=True, op_has_ex_immune_active=True,
@@ -213,13 +213,13 @@ def test_scorer_veta_boss_con_muro_noqueable():
                        ex_immune_wall_ko_ready=True))
     assert veto == m.SCORE_VETO
 
-    # Sin la bandera, el mismo contexto juega el gusteo de 2 premios.
+    # Without the flag, the same context plays the 2-prize gust.
     sin_muro = m._score_boss_orders_play(
         _make_boss_ctx(op_is_crustle_deck=True, op_has_ex_immune_active=True,
                        gust_2prize_via_boss=True))
     assert sin_muro == m.BOSS_SCORE_GUST_2PRIZE
 
-    # Y el remate ganador no cede al muro.
+    # And the winning finisher does not yield to the wall.
     gana = m._score_boss_orders_play(
         _make_boss_ctx(op_is_crustle_deck=True, op_has_ex_immune_active=True,
                        win_via_boss_gust=True, ex_immune_wall_ko_ready=True))

@@ -1,8 +1,8 @@
-"""`_energy_score_base`, extraida VERBATIM de `agent()` (Ola 5).
+"""`_energy_score_base`, extracted VERBATIM from `agent()` (wave 5).
 
-Capturaba 61 variables del turno; ahora llegan en un contexto que se
-desempaqueta al entrar, con los MISMOS nombres, de modo que el cuerpo es
-exactamente el que estaba en main.py.
+It used to capture 61 variables of the turn; they now arrive in a context that
+is unpacked on entry, with the SAME names, so the body is exactly the one that
+was in main.py.
 """
 
 from cg.api import Pokemon
@@ -15,7 +15,7 @@ from ptcg.turno.energia_ctx import CtxEnergyScoreBase  # noqa: F401
 
 
 def _energy_score_base(tc, pokemon, active):
-    # Desempaquetado de las capturas.
+    # Unpacking of the captures.
     _ability_unlock_retreat_attack = tc._ability_unlock_retreat_attack
     _ability_unlock_retreat_ko = tc._ability_unlock_retreat_ko
     _active_already_kos = tc._active_already_kos
@@ -80,85 +80,86 @@ def _energy_score_base(tc, pokemon, active):
 
     energy_count = len(pokemon.energies)
 
-    # ATACAR CON EL ACTIVO ES LO PRIMERO (ver `_carga_activo_remata`): si la
-    # energia que aun puede moverse este turno deja al ACTIVO en su coste de
-    # ataque y ese ataque NOQUEA, la carga va al ACTIVO y punto. Va la
-    # PRIMERA de toda la funcion, por delante del foco de carga de Ogerpon y
-    # de los topes de energia por matchup: esos topes existen para no
-    # DESPERDICIAR energia (reservarla para retiradas, no sobrecargar un
-    # cuerpo que ya llega), y una energia que cobra un premio HOY no se
-    # desperdicia. Solo cede ante el remate GANADOR via Boss's (42000).
-    # Cubre el adjunte MANUAL (OptionType.ATTACH) y el objetivo de Ripening
-    # Charge (SelectContext.ATTACH_FROM), que puntuan ambos por aqui.
+    # ATTACKING WITH THE ACTIVE COMES FIRST (see `_carga_activo_remata`): if the
+    # energy that can still move this turn leaves the ACTIVE at its attack cost
+    # and that attack KNOCKS OUT, the charge goes to the ACTIVE, full stop. It
+    # goes FIRST in the whole function, ahead of the Ogerpon charging focus and
+    # the per-matchup energy caps: those caps exist so energy is not WASTED
+    # (saving it for retreats, not overcharging a body that already reaches its
+    # cost), and energy that takes a prize TODAY is not wasted. It only yields to
+    # the WINNING finisher via Boss's (42000). It covers the MANUAL attachment
+    # (OptionType.ATTACH) and the target of Ripening Charge
+    # (SelectContext.ATTACH_FROM), both of which score through here.
     if active and _carga_activo_remata:
         return SCORE_CARGA_ACTIVO_REMATE
 
-    # OBJETIVO de la linea "Planta al ACTIVO -> RETIRAR -> atacar con el de
-    # banca" (user, registro_006 paso 101 vs Alakazam, PERDIDA). Las cuatro
-    # banderas ya detectan la linea completa y puntuan el ACTO de cargar (el
-    # adjunte manual en su rama de OptionType.ATTACH, las habilidades en las
-    # suyas), pero el DESTINO de la energia se decide aqui -- y aqui no habia
-    # nada: el ACTIVO caia en la banda generica de desarrollo (~8000) y
-    # cualquier cuerpo de banca le ganaba. Resultado: Ripening Charge se
-    # activaba "por la linea correcta" y la Planta acababa en un Ogerpon de
-    # banca, con el rematador real atrapado detras de un Applin que no podia
-    # retirarse. Mismas bandas que usan los consumidores: 41000 (letal) y
-    # 31250 (chip). Cubre el adjunte MANUAL (OptionType.ATTACH) y el objetivo
-    # de las habilidades de carga (SelectContext.ATTACH_FROM).
+    # TARGET of the line "Grass to the ACTIVE -> RETREAT -> attack with the
+    # benched one" (user, registro_006 step 101 vs Alakazam, LOST). The four
+    # flags already detect the whole line and score the ACT of charging (the
+    # manual attachment in its OptionType.ATTACH branch, the abilities in theirs),
+    # but the DESTINATION of the energy is decided here -- and here there was
+    # nothing: the ACTIVE fell into the generic development band (~8000) and any
+    # benched body beat it. Result: Ripening Charge was activated "for the right
+    # line" and the Grass ended up on a benched Ogerpon, with the real finisher
+    # trapped behind an Applin that could not retreat. Same bands the consumers
+    # use: 41000 (lethal) and 31250 (chip). It covers the MANUAL attachment
+    # (OptionType.ATTACH) and the target of the charging abilities
+    # (SelectContext.ATTACH_FROM).
     if active and (_attach_enable_retreat_ko or _ability_unlock_retreat_ko):
         return 41000
     if active and (_attach_enable_retreat_attack
                    or _ability_unlock_retreat_attack):
         return 31250
 
-    # Foco de carga letal en UN Ogerpon (ver `_ogerpon_lethal_focus_serial`):
-    # concentrar el adjunte manual en ESE cuerpo y NO repartir a otro Ogerpon.
+    # Lethal charging focus on ONE Ogerpon (see `_ogerpon_lethal_focus_serial`):
+    # concentrate the manual attachment on THAT body and do NOT split it to
+    # another Ogerpon.
     if (_ogerpon_lethal_focus_serial is not None
             and pokemon.id == Teal_Mask_Ogerpon_ex):
         if getattr(pokemon, 'serial', None) == _ogerpon_lethal_focus_serial:
             return 41700
         return SCORE_VETO
-    # Desempate por VIDA (user, log 86212499 paso 151, vs Alakazam, GANADA):
-    # cuando hay dos o mas Pokemon IGUALES como objetivo de carga de energia
-    # (p.ej. dos Hydrapple ex en banca, uno a 70 hp y otro a 330 hp), SIEMPRE
-    # cargar al de MAS vida. Antes ambos caian en la misma rama y obtenian el
-    # mismo puntaje entero, asi que el empate lo rompia el orden de opcion
-    # (indice de banca menor -> el de 70 hp). Se suma una fraccion DIMINUTA de
-    # la vida (< 1 punto: hp/100000, maximo 0.0033) que SOLO altera empates
-    # exactos y nunca cruza los umbrales enteros de las demas ramas, de modo
-    # que a igualdad de puntaje gana el de mas vida. Cubre el adjunte MANUAL
-    # (OptionType.ATTACH) y el objetivo de Ripening Charge
-    # (SelectContext.ATTACH_FROM), ya que ambos puntuan via energy_score.
+    # Tie-break by HP (user, log 86212499 step 151, vs Alakazam, WON): when there
+    # are two or more IDENTICAL Pokemon as energy charging targets (e.g. two
+    # Hydrapple ex on the bench, one at 70 hp and another at 330 hp), ALWAYS
+    # charge the one with MORE HP. Before, both fell into the same branch and got
+    # the same integer score, so the tie was broken by the option order (lower
+    # bench index -> the 70 hp one). A TINY fraction of the HP is added (< 1
+    # point: hp/100000, maximum 0.0033) which ONLY alters exact ties and never
+    # crosses the integer thresholds of the other branches, so that on an equal
+    # score the one with more HP wins. It covers the MANUAL attachment
+    # (OptionType.ATTACH) and the target of Ripening Charge
+    # (SelectContext.ATTACH_FROM), since both score via energy_score.
     score = 8000 + (getattr(pokemon, 'hp', 0) or 0) / 100000.0
 
-    # Regla (user, log 86028607 paso 21, vs Crustle, GANAMOS): un Chikorita
-    # puede tener como MAXIMO 1 energia. NUNCA adjuntar una 2a energia a un
-    # Chikorita (su unico ataque usa 1 energia; el excedente se desperdicia
-    # y conviene reservar la energia para atacantes reales o retiradas).
-    # Aplica al activo y a la banca, y a cualquier via de adjunte (manual o
-    # Ripening Charge). len(energies) es EFECTIVA (Wild Growth de Meganium
-    # DUPLICA cada Planta), asi que se convierte a cartas FISICAS.
+    # Rule (user, log 86028607 step 21, vs Crustle, WE WON): a Chikorita may have
+    # at MOST 1 energy. NEVER attach a 2nd energy to a Chikorita (its only attack
+    # uses 1 energy; the surplus is wasted and the energy is better saved for real
+    # attackers or retreats). It applies to the active and the bench, and to any
+    # attachment route (manual or Ripening Charge). len(energies) is EFFECTIVE
+    # (Meganium's Wild Growth DOUBLES every Grass), so it is converted to PHYSICAL
+    # cards.
     if pokemon.id == Chikorita and _physical_energy(energy_count) >= 1:
         return SCORE_VETO
 
-    # Regla (user, registro_004 paso 36, episodio 87675043 vs Mega Lucario,
-    # PERDIDA): un Applin puede tener como MAXIMO 1 energia FISICA. Su unico
-    # ataque cuesta 1 y evoluciona pronto (Do the Wave de Dipplin tambien
-    # cuesta 1), asi que la 2a energia se DESPERDICIA: debe ir a un Ogerpon
-    # (Teal Dance / adjunte) o a un atacante futuro. Antes la 2a energia solo
-    # recibia una penalizacion blanda (-300 -> 7700) que aun le ganaba a Teal
-    # Dance (7500) y el agente sobrecargaba al Applin. Excepciones:
-    #   (a) evolucion COMPLETA este turno (Dipplin Y Hydrapple ex en mano,
-    #       sin Meganium): la energia extra queda en el futuro Hydrapple ex
-    #       (2 efectivas = Syrup Storm listo) -> se deja pasar al ranking
-    #       normal (rama _applin_full_evolve_now);
-    #   (b) Hydrapple ex NUESTRO ya en juego: la energia en el campo si
-    #       potencia Syrup Storm (escala con el Grass TOTAL), pero SOLO como
-    #       ULTIMO recurso (score minimo 10) cuando no queda ningun otro
-    #       Pokemon que cargar (todo lo demas vetado).
-    # Aplica al activo y a la banca, y a cualquier via de adjunte (manual o
-    # Ripening Charge). len(energies) es EFECTIVA (Wild Growth de Meganium
-    # DUPLICA cada Planta), asi que se convierte a cartas FISICAS.
+    # Rule (user, registro_004 step 36, episode 87675043 vs Mega Lucario, LOST):
+    # an Applin may have at MOST 1 PHYSICAL energy. Its only attack costs 1 and it
+    # evolves soon (Dipplin's Do the Wave also costs 1), so the 2nd energy is
+    # WASTED: it should go to an Ogerpon (Teal Dance / attachment) or to a future
+    # attacker. Before, the 2nd energy only got a soft penalty (-300 -> 7700) that
+    # still beat Teal Dance (7500) and the agent overcharged the Applin.
+    # Exceptions:
+    #   (a) a COMPLETE evolution this turn (Dipplin AND Hydrapple ex in hand,
+    #       without Meganium): the extra energy ends up on the future Hydrapple ex
+    #       (2 effective = Syrup Storm ready) -> it is let through to the normal
+    #       ranking (branch _applin_full_evolve_now);
+    #   (b) OUR Hydrapple ex already in play: energy on the field does boost
+    #       Syrup Storm (it scales with the TOTAL Grass), but ONLY as a LAST
+    #       resort (minimum score 10) when there is no other Pokemon left to
+    #       charge (everything else vetoed).
+    # It applies to the active and the bench, and to any attachment route (manual
+    # or Ripening Charge). len(energies) is EFFECTIVE (Meganium's Wild Growth
+    # DOUBLES every Grass), so it is converted to PHYSICAL cards.
     if pokemon.id == Applin and _physical_energy(energy_count) >= 1:
         _apl_full_evolve_now = (hand_counts.get(Dipplin, 0) >= 1
                                 and hand_counts.get(Hydrapple_ex, 0) >= 1
@@ -168,21 +169,21 @@ def _energy_score_base(tc, pokemon, active):
                 return 10
             return SCORE_VETO
 
-    # Regla (user, registro_004 paso 43, episodio 88120517 vs Marnie's
-    # Grimmsnarl, GANADA con error): un Dipplin puede tener como MAXIMO 1
-    # energia FISICA -- Do the Wave cuesta 1 y su dano NO escala con
-    # energia, asi que la 2a se desperdicia y le gana el sitio a Teal
-    # Dance / a cargar un Ogerpon hacia Myriad. Excepciones (espejo de la
-    # regla de Applin):
-    #   (a) evolucion a Hydrapple ESTE turno (Hydrapple ex en mano y el
-    #       Dipplin NO aparecio/evoluciono este turno): la 2a energia cae
-    #       de inmediato en el Hydrapple (2 efectivas = Syrup Storm
-    #       listo). Un Dipplin evolucionado ESTE turno no puede volver a
-    #       evolucionar, asi que ahi NO hay excepcion (el caso del
-    #       registro: 2a energia a un Dipplin recien evolucionado).
-    #   (b) Hydrapple ex NUESTRO ya en juego: ultimo recurso (10), la
-    #       energia en campo potencia Syrup Storm pero solo si no queda
-    #       nada mejor que cargar.
+    # Rule (user, registro_004 step 43, episode 88120517 vs Marnie's
+    # Grimmsnarl, WON with a mistake): a Dipplin may have at MOST 1 PHYSICAL
+    # energy -- Do the Wave costs 1 and its damage does NOT scale with
+    # energy, so the 2nd is wasted and takes the place of Teal Dance / of
+    # charging an Ogerpon towards Myriad. Exceptions (mirror of the Applin
+    # rule):
+    #   (a) an evolution into Hydrapple THIS turn (Hydrapple ex in hand and
+    #       the Dipplin did NOT appear/evolve this turn): the 2nd energy
+    #       lands immediately on the Hydrapple (2 effective = Syrup Storm
+    #       ready). A Dipplin that evolved THIS turn cannot evolve again,
+    #       so there is NO exception there (the case in the record: a 2nd
+    #       energy on a freshly evolved Dipplin).
+    #   (b) OUR Hydrapple ex already in play: last resort (10), energy on
+    #       the field boosts Syrup Storm but only if there is nothing
+    #       better to charge.
     if pokemon.id == Dipplin and _physical_energy(energy_count) >= 1:
         _dip_evolve_now = (hand_counts.get(Hydrapple_ex, 0) >= 1
                            and not getattr(pokemon, 'appearThisTurn', False))
@@ -191,16 +192,16 @@ def _energy_score_base(tc, pokemon, active):
                 return 10
             return SCORE_VETO
 
-    # Regla (user, log 86607718 turno 2, vs Crustle, PERDIMOS): si empezamos
-    # el turno con un Chikorita en el ACTIVO y NINGUN Chikorita en la banca,
-    # la prioridad vs Crustle es RETIRARLO (para evolucionarlo a Meganium en
-    # la banca y subir un cuerpo util; Chikorita activo es un lastre de 1
-    # premio que no ataca al muro). Para poder retirar (coste 1) hace falta
-    # cargarle 1 Planta, asi que el adjunte de energia va al Chikorita ACTIVO
-    # (0 fisicas) POR ENCIMA de cargar atacantes de banca (p.ej. Tapu Bulu),
-    # siempre que exista un cuerpo en banca al que promover tras el retiro.
-    # Solo la 1a energia: la regla de "Chikorita max 1" de arriba sigue
-    # vigente. Va DESPUES del remate ganador (42000) para no bloquear un KO.
+    # Rule (user, log 86607718 turn 2, vs Crustle, WE LOST): if we start the turn
+    # with a Chikorita in the ACTIVE spot and NO Chikorita on the bench, the
+    # priority vs Crustle is to RETREAT it (to evolve it into Meganium on the
+    # bench and bring up a useful body; an active Chikorita is a 1-prize burden
+    # that does not attack the wall). To be able to retreat (cost 1) it needs 1
+    # Grass attached, so the energy attachment goes to the ACTIVE Chikorita
+    # (0 physical) ABOVE charging benched attackers (e.g. Tapu Bulu), as long as
+    # there is a body on the bench to promote after the retreat. Only the 1st
+    # energy: the "Chikorita max 1" rule above still stands. It goes AFTER the
+    # winning finisher (42000) so a KO is not blocked.
     if (ESTADO.op_is_crustle_deck and active and pokemon.id == Chikorita
             and _physical_energy(energy_count) == 0
             and field_counts.get(Chikorita, 0) <= 1
@@ -208,28 +209,29 @@ def _energy_score_base(tc, pokemon, active):
             and not state.energyAttached):
         return 41500
 
-    # Regla (user, log 85855786 paso 141, vs Alakazam, GANAMOS): si este
-    # turno existe una jugada GANADORA / de 2 premios via Boss's Orders
-    # (gustear al banco rival un objetivo que noqueamos para cobrar los
-    # premios que faltan) y ese KO letal se apoya en tener la energia en el
-    # ACTIVO (que es el atacante), la carga DEBE ir al ACTIVO. Ganar la
-    # partida AHORA es la maxima prioridad y prevalece sobre cargar a Tapu
-    # Bulu como atacante FUTURO (`_tapu_future_charge`, 40000), que solo
-    # sirve el proximo turno y es irrelevante si ya cerramos la partida.
-    # EXCEPCION (user, registro_006 p79 y registro_008 p109-113 vs Alakazam):
-    # NO forzar la carga al activo cuando la energia EXTRA no aporta a SU
-    # ataque y este YA llega a su requisito; asi no se desperdicia en un activo
-    # cargado y fluye a un atacante FUTURO de banca (p.ej. un Hydrapple ex de
-    # banca a 0 energias, que ademas de desarrollarse suma al dano de Syrup
-    # Storm). Cubre:
-    #   - Tapu Bulu / Meganium: dano FIJO con tope duro (Wood Hammer coste 4);
-    #     la energia extra no aumenta el dano.
-    #   - Hydrapple ex: Syrup Storm escala con el Grass del CAMPO (todos
-    #     nuestros Pokemon), NO con la energia PROPIA del atacante; ponerla en
-    #     un Hydrapple de banca da EXACTAMENTE el mismo dano este turno y ademas
-    #     deja listo un 2o atacante.
-    # Ogerpon ex (Myriad) NO entra: su dano escala con su PROPIA energia, asi
-    # que ahi el 42000 al activo SIGUE (mas energia agranda/habilita el remate).
+    # Rule (user, log 85855786 step 141, vs Alakazam, WE WON): if this turn there
+    # is a WINNING / 2-prize play via Boss's Orders (gusting from the opposing
+    # bench a target we knock out to take the prizes we are missing) and that
+    # lethal KO relies on having the energy on the ACTIVE (which is the attacker),
+    # the charge MUST go to the ACTIVE. Winning the game NOW is the top priority
+    # and prevails over charging Tapu Bulu as a FUTURE attacker
+    # (`_tapu_future_charge`, 40000), which only serves next turn and is
+    # irrelevant if we already close the game.
+    # EXCEPTION (user, registro_006 p79 and registro_008 p109-113 vs Alakazam):
+    # do NOT force the charge onto the active when the EXTRA energy adds nothing
+    # to ITS attack and it ALREADY meets its requirement; that way it is not
+    # wasted on a charged active and flows to a FUTURE benched attacker (e.g. a
+    # benched Hydrapple ex at 0 energies, which besides developing adds to Syrup
+    # Storm's damage). It covers:
+    #   - Tapu Bulu / Meganium: FIXED damage with a hard cap (Wood Hammer cost 4);
+    #     the extra energy does not increase the damage.
+    #   - Hydrapple ex: Syrup Storm scales with the Grass on the FIELD (all our
+    #     Pokemon), NOT with the attacker's OWN energy; putting it on a benched
+    #     Hydrapple gives EXACTLY the same damage this turn and also leaves a 2nd
+    #     attacker ready.
+    # Ogerpon ex (Myriad) is NOT included: its damage scales with its OWN energy,
+    # so there the 42000 to the active STILL applies (more energy grows/enables
+    # the finisher).
     if active and (_win_via_boss_gust or _gust_2prize_via_boss):
         _active_extra_charge_wasted = (
             pokemon.id in (Tapu_Bulu, Meganium, Hydrapple_ex)
@@ -237,16 +239,17 @@ def _energy_score_base(tc, pokemon, active):
         if not _active_extra_charge_wasted:
             return 42000
 
-    # Regla (user, log 86342087 paso 130, vs Mega Lucario, PERDIMOS): si el
-    # activo es un Fezandipiti ex DEBIL a Lucha que sera NOQUEADO por Mega
-    # Lucario ex el proximo turno (Mega Brave 270 x2 = 540, 2 premios) y en
-    # la banca hay un Hydrapple ex sano (muro 330 que SOBREVIVE el golpe
-    # rival), la energia de este turno NO debe ir al Feza condenado (que solo
-    # atacaria una vez antes de morir regalando 2 premios) sino al Hydrapple:
-    # asi lo dejamos listo (>=2 efectivas) para, tras RETIRAR al Feza (coste
-    # 1) y promoverlo, atacar con Syrup Storm. Se veta el adjunte al activo
-    # y se prioriza cargar el Hydrapple de banca hasta habilitar su ataque.
-    # Va DESPUES del remate ganador (42000) para no bloquear un KO letal.
+    # Rule (user, log 86342087 step 130, vs Mega Lucario, WE LOST): if the active
+    # is a Fezandipiti ex WEAK to Fighting that will be KNOCKED OUT by Mega
+    # Lucario ex next turn (Mega Brave 270 x2 = 540, 2 prizes) and there is a
+    # healthy Hydrapple ex on the bench (a 330 wall that SURVIVES the opposing
+    # hit), this turn's energy must NOT go to the doomed Feza (which would only
+    # attack once before dying and giving away 2 prizes) but to the Hydrapple: that
+    # way we leave it ready (>=2 effective) so that, after RETREATING the Feza
+    # (cost 1) and promoting it, we attack with Syrup Storm. The attachment to the
+    # active is vetoed and charging the benched Hydrapple until its attack is
+    # enabled is prioritised. It goes AFTER the winning finisher (42000) so a
+    # lethal KO is not blocked.
     if _feza_lucario_wall:
         if active:
             return SCORE_VETO
@@ -254,34 +257,32 @@ def _energy_score_base(tc, pokemon, active):
                 and len(pokemon.energies) * _grass_mult() < 2):
             return 41000
 
-    # Regla (user): un Tapu Bulu en juego puede tener como MAXIMO 4 energias
-    # FISICAS si NO hay Meganium en juego, o 2 si SI hay Meganium. Con
-    # Meganium (Wild Growth) cada Planta fisica cuenta DOBLE, asi que 2
-    # fisicas = 4 efectivas = suficiente para Wood Hammer (coste 4); sin
-    # Meganium hacen falta 4 fisicas. No adjuntar mas: el excedente se
-    # desperdicia y conviene reservar la energia. len(energies) es EFECTIVA
-    # => se convierte a cartas FISICAS con _physical_energy. Aplica al
-    # adjunte manual (OptionType.ATTACH) y al objetivo de Ripening Charge
-    # (SelectContext.ATTACH_FROM), activo o banca. Va DESPUES del return de
-    # la jugada ganadora (42000) para no bloquear un remate letal.
+    # Rule (user): a Tapu Bulu in play may have at MOST 4 PHYSICAL energies if
+    # there is NO Meganium in play, or 2 if there IS. With Meganium (Wild Growth)
+    # each physical Grass counts DOUBLE, so 2 physical = 4 effective = enough for
+    # Wood Hammer (cost 4); without Meganium 4 physical are needed. Do not attach
+    # more: the surplus is wasted and the energy is better saved. len(energies) is
+    # EFFECTIVE => it is converted to PHYSICAL cards with _physical_energy. It
+    # applies to the manual attachment (OptionType.ATTACH) and to the target of
+    # Ripening Charge (SelectContext.ATTACH_FROM), active or bench. It goes AFTER
+    # the return of the winning play (42000) so a lethal finisher is not blocked.
     if pokemon.id == Tapu_Bulu:
         _tapu_max_phys = 2 if ESTADO.meganium_in_play else 4
         if _physical_energy(energy_count) >= _tapu_max_phys:
             return SCORE_VETO
 
-    # Regla (user, vs Crustle, log 86583376 paso 84): un Teal Mask Ogerpon
-    # ex no puede tener mas de DOS energias FISICAS cargadas (por adjunte
-    # manual o Ripening Charge). Contra el muro Crustle (que inmuniza a
-    # nuestros ex) Ogerpon no puede atacar al muro, asi que RESERVAMOS
-    # energia y no lo sobrecargamos. En BANCA el tope es DURO (max 2
-    # fisicas). UNICA excepcion para una 3a energia: cuando Ogerpon esta en
-    # el ACTIVO y esa energia HABILITA el KO del activo rival
-    # (_extra_energy_enables_ko) -- el activo rival no siempre es el muro
-    # inmune; puede ser un no-ex al que Ogerpon SI daña. Se conserva ademas
-    # el bypass op_kang_ko_target (KO de Mega Kangaskhan ex con Hydrapple
-    # ex, donde la energia extra en el tablero sube el dano de Syrup Storm).
-    # len(energies) es EFECTIVA (Wild Growth de Meganium duplica cada
-    # Planta) => se convierte a cartas FISICAS con _physical_energy.
+    # Rule (user, vs Crustle, log 86583376 step 84): a Teal Mask Ogerpon ex may
+    # not hold more than TWO PHYSICAL energies charged (by manual attachment or
+    # Ripening Charge). Against the Crustle wall (which makes our ex useless)
+    # Ogerpon cannot attack the wall, so we SAVE energy and do not overcharge it.
+    # On the BENCH the cap is HARD (max 2 physical). The ONLY exception for a 3rd
+    # energy: when the Ogerpon is the ACTIVE and that energy ENABLES the KO on the
+    # opposing active (_extra_energy_enables_ko) -- the opposing active is not
+    # always the immune wall; it can be a non-ex that Ogerpon DOES damage. The
+    # op_kang_ko_target bypass is also kept (a KO on Mega Kangaskhan ex with
+    # Hydrapple ex, where the extra energy on the board raises Syrup Storm's
+    # damage). len(energies) is EFFECTIVE (Meganium's Wild Growth doubles every
+    # Grass) => it is converted to PHYSICAL cards with _physical_energy.
     if (ESTADO.op_is_crustle_deck and pokemon.id == Teal_Mask_Ogerpon_ex
             and not op_kang_ko_target):
         _crus_phys = _physical_energy(energy_count)
@@ -296,19 +297,19 @@ def _energy_score_base(tc, pokemon, active):
                         Teal_Mask_Ogerpon_ex, energy_count)):
                 return SCORE_VETO
 
-    # Regla (user, vs Alakazam y vs Hop's): topes de energia para Teal Mask
-    # Ogerpon ex (adjunte MANUAL o Ripening Charge). Base FISICA con Meganium
-    # en juego = 2 (Wild Growth duplica cada Planta, asi que 2 fisicas = 4
-    # efectivas = listo para Myriad Leaf Shower coste 3). Sin Meganium: 4 vs
-    # Alakazam y 3 vs Hop's (user: "un Ogerpon no puede tener mas de tres
-    # energias cargadas si no tenemos Meganium en juego, o dos si esta
-    # Meganium"). En BANCA el tope es DURO: no sobrecargamos, reservamos
-    # energia. En el ACTIVO se permite UNA energia FISICA extra SOLO si esa
-    # energia es la que HABILITA el KO al activo rival
-    # (_extra_energy_enables_ko: el dano actual no noquea pero con +1 si).
-    # Una linea GANADORA via Boss's ya devolvio 42000 arriba, asi que este
-    # tope no bloquea remates letales. len(energies) es EFECTIVA => se
-    # convierte a cartas FISICAS con _physical_energy.
+    # Rule (user, vs Alakazam and vs Hop's): energy caps for Teal Mask Ogerpon ex
+    # (MANUAL attachment or Ripening Charge). PHYSICAL base with Meganium in play
+    # = 2 (Wild Growth doubles every Grass, so 2 physical = 4 effective = ready
+    # for Myriad Leaf Shower, cost 3). Without Meganium: 4 vs Alakazam and 3 vs
+    # Hop's (user: "an Ogerpon cannot have more than three energies attached if we
+    # do not have Meganium in play, or two if Meganium is out"). On the BENCH the
+    # cap is HARD: we do not overcharge, we save energy. On the ACTIVE ONE extra
+    # PHYSICAL energy is allowed ONLY if that energy is the one that ENABLES the
+    # KO on the opposing active (_extra_energy_enables_ko: the current damage does
+    # not knock out but with +1 it does). A WINNING line via Boss's already
+    # returned 42000 above, so this cap does not block lethal finishers.
+    # len(energies) is EFFECTIVE => it is converted to PHYSICAL cards with
+    # _physical_energy.
     if (op_is_alakazam_deck or op_is_hop_deck) and pokemon.id == Teal_Mask_Ogerpon_ex:
         _alk_base_phys = _ogerpon_base_phys_cap(ESTADO.meganium_in_play, op_is_hop_deck)
         _alk_phys = _physical_energy(energy_count)
@@ -323,21 +324,20 @@ def _energy_score_base(tc, pokemon, active):
                         Teal_Mask_Ogerpon_ex, energy_count)):
                 return SCORE_VETO
 
-    # Matchup Cubchoo (user): topes de energia FISICA por Pokemon. Cubchoo
-    # bloquea nuestro ataque el proximo turno, asi que no sobrecargamos y
-    # RESERVAMOS energias en la MANO para pagar retiradas. DECISION DEL
-    # USUARIO (jul 2026, tras la autopsia del mazo mixto Cornerstone/
-    # Cubchoo): estos topes NO se relajan aunque el matchup sea el mixto.
-    # La razon de la reserva es que estos mazos juegan Boss's Orders y
-    # otros partidarios que CAMBIAN nuestro activo: sin energia en mano no
-    # se paga la retirada del cuerpo equivocado que nos subieron, y no se
-    # vuelve al atacante correcto. La energia "muerta en mano" que ve la
-    # autopsia (ATTACH vetado) es el precio deliberado de ese seguro. IMPORTANTE: la
-    # observacion DUPLICA cada Planta fisica cuando Meganium esta en juego
-    # (Wild Growth), asi que len(energies) es EFECTIVA; la convertimos a
-    # cartas FISICAS (_cub_phys) para aplicar los topes que el usuario
-    # definio en cartas. Aplica al adjunte manual (OptionType.ATTACH) y al
-    # objetivo de Ripening Charge (SelectContext.ATTACH_FROM).
+    # Cubchoo matchup (user): PHYSICAL energy caps per Pokemon. Cubchoo blocks our
+    # attack next turn, so we do not overcharge and we SAVE energies in HAND to pay
+    # retreats. USER'S DECISION (jul 2026, after the autopsy of the mixed
+    # Cornerstone/Cubchoo deck): these caps are NOT relaxed even when the matchup
+    # is the mixed one. The reason for the reserve is that these decks play Boss's
+    # Orders and other supporters that SWAP our active: without energy in hand you
+    # cannot pay the retreat of the wrong body they brought up, and you never get
+    # back to the right attacker. The "dead energy in hand" the autopsy sees
+    # (ATTACH vetoed) is the deliberate price of that insurance. IMPORTANT: the
+    # observation DUPLICATES every physical Grass when Meganium is in play (Wild
+    # Growth), so len(energies) is EFFECTIVE; we convert it to PHYSICAL cards
+    # (_cub_phys) to apply the caps the user defined in cards. It applies to the
+    # manual attachment (OptionType.ATTACH) and to the target of Ripening Charge
+    # (SelectContext.ATTACH_FROM).
     if op_is_cubchoo_deck:
         _cub_phys = _physical_energy(energy_count)
         if pokemon.id == Teal_Mask_Ogerpon_ex and _cub_phys >= (2 if ESTADO.meganium_in_play else 4):
@@ -348,19 +348,18 @@ def _energy_score_base(tc, pokemon, active):
             return SCORE_VETO
         if pokemon.id == Hydrapple_ex and _cub_phys >= (2 if ESTADO.meganium_in_play else 3):
             return SCORE_VETO
-        # Linea de Meganium (Chikorita/Bayleef/Meganium): tope de 3 energias
-        # FISICAS en toda la linea (regla del usuario, cambio 4).
+        # Meganium line (Chikorita/Bayleef/Meganium): a cap of 3 PHYSICAL energies
+        # across the whole line (user's rule, change 4).
         if pokemon.id in (Chikorita, Bayleef, Meganium) and _cub_phys >= 3:
             return SCORE_VETO
 
-    # Estado de retirada del ACTIVO propio: para promover un Hydrapple ex
-    # LETAL de BANCA hay que RETIRAR el activo, lo que exige energia FISICA
-    # en el activo >= su coste de retirada. len(energies) es EFECTIVA (Wild
-    # Growth de Meganium DUPLICA cada Planta), pero la retirada se paga con
-    # cartas FISICAS, asi que fisica = efectiva // 2 cuando Meganium esta en
-    # juego. Si el activo AUN NO puede retirarse, la carga debe ir al ACTIVO
-    # para empezar a pagar la retirada, no al Hydrapple de banca (que no
-    # ataca desde el banco).
+    # Retreat status of our own ACTIVE: to promote a LETHAL Hydrapple ex from the
+    # BENCH the active has to RETREAT, which requires PHYSICAL energy on the
+    # active >= its retreat cost. len(energies) is EFFECTIVE (Meganium's Wild
+    # Growth DOUBLES every Grass), but the retreat is paid with PHYSICAL cards, so
+    # physical = effective // 2 when Meganium is in play. If the active CANNOT
+    # retreat yet, the charge must go to the ACTIVE to start paying the retreat,
+    # not to the benched Hydrapple (which does not attack from the bench).
     _hls_my_act = (my_state.active[0]
                    if (my_state.active and my_state.active[0] is not None)
                    else None)
@@ -370,16 +369,16 @@ def _energy_score_base(tc, pokemon, active):
         _hls_act_eff = len(_hls_my_act.energies)
         _hls_act_phys = _physical_energy(_hls_act_eff)
         _hls_act_rc = RETREAT_COST.get(_hls_my_act.id, 1)
-    # El atajo "si el activo es un Hydrapple ex, damos la promocion por
-    # buena" solo vale cuando ese Hydrapple YA PUEDE ATACAR: ahi la Planta
-    # es fungible (Syrup Storm escala con el Grass de TODO el campo, asi que
-    # da igual en que cuerpo caiga) y no hace falta retirar a nadie. Con el
-    # Hydrapple activo AUN SIN su coste de ataque la promocion exige
-    # retirarlo de verdad (coste 3) y el atajo se convertia en una premisa
-    # FALSA: user, registro_006 paso 67 (episodio 88433181, GANADA con
-    # error) -- Hydrapple activo a 0 energias, imposible de retirar, y la
-    # regla mandaba la Planta al Hydrapple de BANCA "para promoverlo",
-    # dejando el turno esteril con el activo rival a 10 PV.
+    # The shortcut "if the active is a Hydrapple ex, treat the promotion as good"
+    # only holds when that Hydrapple CAN ALREADY ATTACK: there the Grass is
+    # fungible (Syrup Storm scales with the Grass on the WHOLE field, so it does
+    # not matter which body it lands on) and nobody has to retreat. With the
+    # active Hydrapple STILL SHORT of its attack cost, the promotion really
+    # requires retreating it (cost 3) and the shortcut became a FALSE premise:
+    # user, registro_006 step 67 (episode 88433181, WON with a mistake) --
+    # active Hydrapple at 0 energies, impossible to retreat, and the rule sent the
+    # Grass to the BENCHED Hydrapple "to promote it", leaving the turn sterile
+    # with the opposing active at 10 HP.
     _hls_act_retreatable = (_hls_my_act is None
                             or (_hls_my_act.id == Hydrapple_ex
                                 and not _hydra_fragile_pivot
@@ -388,15 +387,15 @@ def _energy_score_base(tc, pokemon, active):
                                     len(_hls_my_act.energies)))
                             or _hls_act_phys >= _hls_act_rc)
 
-    # Regla (user): si cargar a un Hydrapple ex de BANCA lo deja listo
-    # (>=2 efectivas) para un Syrup Storm LETAL sobre el activo rival,
-    # priorizar esa carga (Ripening Charge o adjunte manual) por encima de
-    # cualquier otra, para poder promoverlo (retirando el activo) y rematar.
-    # Va DESPUES del tope Cubchoo (que reserva energia) y ANTES de la carga
-    # de Tapu Bulu, porque ganar la partida es la maxima prioridad. SOLO si
-    # el activo YA puede retirarse este turno (si no, la carga letal debe ir
-    # al ACTIVO, ver bloque siguiente): cargar un Hydrapple de banca que no
-    # se puede promover no sirve (no ataca desde el banco).
+    # Rule (user): if charging a BENCHED Hydrapple ex leaves it ready (>=2
+    # effective) for a LETHAL Syrup Storm on the opposing active, prioritise that
+    # charge (Ripening Charge or manual attachment) above any other, so it can be
+    # promoted (retreating the active) and finish. It goes AFTER the Cubchoo cap
+    # (which saves energy) and BEFORE the Tapu Bulu charge, because winning the
+    # game is the top priority. ONLY if the active CAN already retreat this turn
+    # (if not, the lethal charge must go to the ACTIVE, see the next block):
+    # charging a benched Hydrapple that cannot be promoted is useless (it does not
+    # attack from the bench).
     if (not active and pokemon.id == Hydrapple_ex
             and _hls_act_retreatable
             and op_state.active and op_state.active[0] is not None):
@@ -404,7 +403,7 @@ def _energy_score_base(tc, pokemon, active):
         if _hls_eff_after >= 2:
             _hls_opa = op_state.active[0]
             _hls_opa_hp = _hls_opa.hp or 0
-            # total_grass es EFECTIVO; adjuntar 1 Grass suma _grass_attach_unit().
+            # total_grass is EFFECTIVE; attaching 1 Grass adds _grass_attach_unit().
             _hls_dmg = _our_effective_damage(
                 pokemon, _hls_opa,
                 30 + 30 * (total_grass + _grass_attach_unit()),
@@ -412,13 +411,13 @@ def _energy_score_base(tc, pokemon, active):
             if _hls_dmg > 0 and _hls_opa_hp > 0 and _hls_dmg >= _hls_opa_hp:
                 return 41000
 
-    # Regla (user): si el Hydrapple ex LETAL esta en BANCA pero el activo
-    # propio AUN NO puede retirarse (energia fisica < coste de retirada), la
-    # carga debe ir al ACTIVO para empezar a pagar la retirada y asi habilitar
-    # el retiro -> promocion del Hydrapple -> Syrup Storm letal. Solo si la
-    # retirada es COMPLETABLE este turno: hacen falta (coste - fisica actual)
-    # Plantas y disponemos de al menos esa cantidad en mano y de suficientes
-    # adjuntes (1 manual + una Ripening Charge por cada Hydrapple de banca).
+    # Rule (user): if the LETHAL Hydrapple ex is on the BENCH but our own active
+    # CANNOT retreat yet (physical energy < retreat cost), the charge must go to
+    # the ACTIVE to start paying the retreat and so enable the retreat ->
+    # promotion of the Hydrapple -> lethal Syrup Storm. Only if the retreat is
+    # COMPLETABLE this turn: (cost - current physical) Grass are needed and we have
+    # at least that many in hand and enough attachments (1 manual + one Ripening
+    # Charge per benched Hydrapple).
     if (active and _hls_my_act is not None
             and not _hls_act_retreatable
             and _hls_my_act.id != Hydrapple_ex
@@ -448,15 +447,15 @@ def _energy_score_base(tc, pokemon, active):
                     and _hls_max_attach >= _hls_need):
                 return 41000
 
-    # Regla (user, log 86027506 paso 81, vs Abomasnow, GANADA): si el ACTIVO
-    # es un Hydrapple ex FRAGIL y en la banca hay un Hydrapple ex sano y letal
-    # (`_hydra_fragile_pivot`), la energia de este turno debe ir al ACTIVO
-    # fragil para alcanzar su coste de retirada (3 fisicas) y poder RETIRARLO
-    # (protegerlo) -> promover al sano -> Syrup Storm letal. Cubre el adjunte
-    # MANUAL (OptionType.ATTACH) y el objetivo de Ripening Charge
-    # (SelectContext.ATTACH_FROM). Solo si la retirada es COMPLETABLE este
-    # turno: bastan las Plantas de la mano y los adjuntes disponibles (1
-    # manual + una Ripening Charge por cada Hydrapple de banca).
+    # Rule (user, log 86027506 step 81, vs Abomasnow, WON): if the ACTIVE is a
+    # FRAGILE Hydrapple ex and there is a healthy, lethal Hydrapple ex on the bench
+    # (`_hydra_fragile_pivot`), this turn's energy must go to the fragile ACTIVE to
+    # reach its retreat cost (3 physical) and be able to RETREAT it (protecting it)
+    # -> promote the healthy one -> lethal Syrup Storm. It covers the MANUAL
+    # attachment (OptionType.ATTACH) and the target of Ripening Charge
+    # (SelectContext.ATTACH_FROM). Only if the retreat is COMPLETABLE this turn:
+    # the Grass in hand and the available attachments are enough (1 manual + one
+    # Ripening Charge per benched Hydrapple).
     if (active and _hydra_fragile_pivot
             and _hls_my_act is not None
             and _hls_my_act.id == Hydrapple_ex
@@ -473,40 +472,39 @@ def _energy_score_base(tc, pokemon, active):
                 and _hfp_max_attach >= _hfp_need):
             return 41000
 
-    # Pivote Ripening -> retirar -> promover Tapu letal vs muro inmune (user,
-    # log 86028607 turno 22): si _ripen_retreat_ko_pivot esta activo (activo
-    # = Hydrapple ex bloqueado por Crustle con un Tapu de banca YA LISTO que
-    # noquea al muro), la Planta de Ripening Charge debe ir al PROPIO
-    # Hydrapple ACTIVO para alcanzar su coste de retirada (efectivo) y poder
-    # retirarlo -> subir a Tapu -> Wood Hammer letal. Cubre el objetivo de
-    # Ripening Charge (SelectContext.ATTACH_FROM); el adjunte manual ya se
-    # gasto en cargar a Tapu (por eso el pivote solo existe tras esa carga).
+    # Ripening -> retreat -> promote a lethal Tapu pivot vs the immune wall (user,
+    # log 86028607 turn 22): if _ripen_retreat_ko_pivot is active (active =
+    # Hydrapple ex blocked by Crustle with a benched Tapu ALREADY READY that knocks
+    # the wall out), the Ripening Charge Grass must go to the ACTIVE Hydrapple
+    # ITSELF to reach its (effective) retreat cost and be able to retreat it ->
+    # bring up Tapu -> lethal Wood Hammer. It covers the target of Ripening Charge
+    # (SelectContext.ATTACH_FROM); the manual attachment was already spent charging
+    # Tapu (which is why the pivot only exists after that charge).
     if _ripen_retreat_ko_pivot and active and pokemon.id == Hydrapple_ex:
         return 41000
 
-    # Espejo NO letal de `_carga_activo_remata` (ver el flag): la carga deja
-    # al ACTIVO en su coste de ataque pero el ataque no remata. Aun asi es la
-    # unica forma de atacar hoy (no hay atacante de banca listo y promovible),
-    # y hacer chip vale infinitamente mas que cerrar el turno sin atacar --
-    # el mismo razonamiento que `_attach_enable_retreat_attack` (31200), pero
-    # sin pagar retirada. Va DESPUES de todas las lineas letales (41000+),
-    # que siguen mandando, y ANTES de las cargas de atacantes FUTUROS.
+    # NON-lethal mirror of `_carga_activo_remata` (see the flag): the charge leaves
+    # the ACTIVE at its attack cost but the attack does not finish. It is still the
+    # only way to attack today (there is no ready, promotable benched attacker), and
+    # chip damage is worth infinitely more than closing the turn without attacking
+    # -- the same reasoning as `_attach_enable_retreat_attack` (31200), but without
+    # paying a retreat. It goes AFTER all the lethal lines (41000+), which still
+    # rule, and BEFORE the charges of FUTURE attackers.
     if active and _carga_activo_habilita_ataque:
         return SCORE_CARGA_ACTIVO_ATAQUE
 
-    # Regla (user, log 85857426 paso 37, vs Mega Lucario, PERDIMOS): NO
-    # malgastar el adjunte manual en un Tapu Bulu ACTIVO condenado. Si el
-    # activo es un Tapu Bulu que, tras adjuntar 1 Planta, SIGUE sin poder
-    # atacar (Wood Hammer necesita 4 efectivas) y SIGUE sin poder retirarse
-    # (energia FISICA < coste de retirada 3) — la energia no le sirve este
-    # turno y sera noqueado el proximo — y ademas en la banca hay un Teal
-    # Mask Ogerpon ex sin cargar (energia < 3) al que Teal Dance puede
-    # adjuntar Grass + ROBAR, vetar el adjunte manual (-1). Asi el orden de
-    # jugada (ATTACH es tier ENERGY=1, Teal Dance ABILITY es tier 0) ya no
-    # antepone la carga desperdiciada y se usa Teal Dance: no se pierde la
-    # energia y se roba una carta. Acotado a Mega Lucario (remate rival
-    # fijo y alto). Cubre el adjunte MANUAL (OptionType.ATTACH) y el objetivo
-    # de Ripening Charge (SelectContext.ATTACH_FROM).
+    # Rule (user, log 85857426 step 37, vs Mega Lucario, WE LOST): do NOT waste the
+    # manual attachment on a doomed ACTIVE Tapu Bulu. If the active is a Tapu Bulu
+    # that, after attaching 1 Grass, STILL cannot attack (Wood Hammer needs 4
+    # effective) and STILL cannot retreat (PHYSICAL energy < retreat cost 3) — the
+    # energy is useless to it this turn and it will be knocked out next turn — and
+    # there is also an uncharged Teal Mask Ogerpon ex on the bench (energy < 3) to
+    # which Teal Dance can attach Grass + DRAW, veto the manual attachment (-1).
+    # That way the play order (ATTACH is tier ENERGY=1, Teal Dance ABILITY is tier
+    # 0) no longer puts the wasted charge first and Teal Dance is used: the energy
+    # is not lost and a card is drawn. Limited to Mega Lucario (a fixed, high
+    # opposing finisher). It covers the MANUAL attachment (OptionType.ATTACH) and
+    # the target of Ripening Charge (SelectContext.ATTACH_FROM).
     if (active and pokemon.id == Tapu_Bulu and op_is_lucario_deck
             and hand_counts.get(Basic_Grass_Energy, 0) >= 1):
         _twt_eff_after = energy_count + _grass_attach_unit()
@@ -519,22 +517,22 @@ def _energy_score_base(tc, pokemon, active):
                         and len(_twt_bp.energies) < 3):
                     return SCORE_VETO
 
-    # Prioridad maxima: cargar Tapu Bulu de banca como atacante futuro
-    # cuando el activo ya asegura el KO y Meganium esta en juego. Reusada
-    # tanto por la adjuncion manual (OptionType.ATTACH) como por el objetivo
-    # de Ripening Charge (SelectContext.ATTACH_FROM).
+    # Top priority: charge a benched Tapu Bulu as a future attacker when the active
+    # already secures the KO and Meganium is in play. Reused both by the manual
+    # attachment (OptionType.ATTACH) and by the target of Ripening Charge
+    # (SelectContext.ATTACH_FROM).
     if (_tapu_future_charge and not active and pokemon.id == Tapu_Bulu
             and len(pokemon.energies) * _grass_mult() < 4):
         return 40000
 
-    # Cargar Meganium de banca como atacante FUTURO de 1 premio vs Alakazam
-    # (140 derrota a la linea Alakazam). Menor prioridad que Tapu Bulu y que
-    # las cargas de banca a 0 (26000-30000): 25000 solo gana cuando los
-    # atacantes principales ya no necesitan la energia. Cubre adjunte manual
-    # y objetivo de Ripening Charge. Ver `_meganium_alk_future_charge`.
-    # Meganium ATACANTE de 1 premio ESTE turno vs Alakazam: domina la carga
-    # del ex activo (41000) para que el adjunte manual complete su coste y se
-    # ataque con el 1-premio (retirar el ex, promover Meganium). Ver flag.
+    # Charge a benched Meganium as a FUTURE 1-prize attacker vs Alakazam (140
+    # beats the Alakazam line). Lower priority than Tapu Bulu and than the bench
+    # charges at 0 (26000-30000): 25000 only wins when the main attackers no longer
+    # need the energy. It covers the manual attachment and the Ripening Charge
+    # target. See `_meganium_alk_future_charge`.
+    # Meganium as a 1-prize ATTACKER THIS turn vs Alakazam: it dominates charging
+    # the active ex (41000) so the manual attachment completes its cost and we
+    # attack with the 1-prize body (retreat the ex, promote Meganium). See the flag.
     if (_meganium_alk_1prize_attacker and not active and pokemon.id == Meganium
             and len(pokemon.energies) * _grass_mult() < 4):
         return 43000
@@ -608,13 +606,13 @@ def _energy_score_base(tc, pokemon, active):
 
     if ESTADO.op_is_crustle_deck:
 
-        # Energia EXCEDENTE: si el Tapu Bulu ACTIVO ya esta cargado (>=4
-        # efectivas) puede atacar sin mas, asi que la adjuncion manual de
-        # este turno no debe desperdiciarse sobrecargandolo. Se redirige por
-        # orden de prioridad: (1) otro Tapu Bulu de banca que aun no llega a
-        # 4 efectivas, (2) Dipplin sin energia, (3) Meganium sin sus 4
-        # efectivas. Si ninguno la necesita, se GUARDA la energia (score
-        # negativo -> el agente no la juega).
+        # SURPLUS energy: if the ACTIVE Tapu Bulu is already charged (>=4
+        # effective) it can attack as it is, so this turn's manual attachment
+        # must not be wasted overcharging it. It is redirected in priority
+        # order: (1) another benched Tapu Bulu that does not reach 4 effective
+        # yet, (2) a Dipplin with no energy, (3) a Meganium short of its 4
+        # effective. If none of them needs it, the energy is KEPT (a negative
+        # score -> the agent does not play it).
         _ctm_act_te = my_state.active[0] if my_state.active else None
         _ctm_active_tapu_full = (
             _ctm_act_te is not None
@@ -632,16 +630,16 @@ def _energy_score_base(tc, pokemon, active):
 
         if pokemon.id == Tapu_Bulu:
 
-            # Regla (user, log 85802744 paso 55): si Meganium AUN no esta en
-            # juego pero se puede evolucionar ESTE turno (Bayleef en juego +
-            # Meganium en mano), Wild Growth doblara las energias fisicas
-            # ACTUALES de Tapu Bulu. Si con ese doblado Tapu ya alcanza sus 4
-            # efectivas (>= 2 energias fisicas ahora), NO malgastar el adjunte
-            # manual sobrecargandolo: se reserva la energia y se evoluciona
-            # Meganium, que deja a Tapu listo para atacar sin gastarla. El
-            # scorer es codicioso (no simula "evolucionar primero"), por eso
-            # aqui, con Meganium fuera de juego, veia a Tapu con solo sus
-            # fisicas (< 4) y le daba prioridad de carga.
+            # Rule (user, log 85802744 step 55): if Meganium is NOT in play yet
+            # but can be evolved THIS turn (Bayleef in play + Meganium in hand),
+            # Wild Growth will double Tapu Bulu's CURRENT physical energies. If
+            # with that doubling Tapu already reaches its 4 effective (>= 2
+            # physical energies now), do NOT waste the manual attachment
+            # overcharging it: the energy is saved and Meganium is evolved, which
+            # leaves Tapu ready to attack without spending it. The scorer is
+            # greedy (it does not simulate "evolve first"), which is why here,
+            # with Meganium out of play, it saw Tapu with only its physical
+            # energies (< 4) and gave it charging priority.
             _meg_evolvable_now_tapu = (
                 not active
                 and not ESTADO.meganium_in_play
@@ -650,9 +648,9 @@ def _energy_score_base(tc, pokemon, active):
             if _meg_evolvable_now_tapu and energy_count * 2 >= 4:
                 return SCORE_VETO
 
-            # len(energies) YA es la energia EFECTIVA (la observacion duplica
-            # la Planta por Wild Growth): Wood Hammer necesita 4 efectivas.
-            # No sobrecargar mas alla de eso.
+            # len(energies) is ALREADY the EFFECTIVE energy (the observation
+            # doubles Grass through Wild Growth): Wood Hammer needs 4 effective.
+            # Do not overcharge beyond that.
             _tapu_eff_ct = energy_count * _grass_mult()
             if _tapu_eff_ct < 4:
                 score += 20000
@@ -716,12 +714,12 @@ def _energy_score_base(tc, pokemon, active):
                 score -= 50
         elif pokemon.id == Meganium:
 
-            # Meganium es el duplicador clave contra Crustle; no debe quedarse
-            # de muro en el activo. Si esta activo y aun no puede retirarse
-            # (0 energias) y hay un atacante no-ex de banca ya cargado para
-            # promover, priorizamos cargarle 1 energia: con Wild Growth
-            # 1 energia basica = {G}{G}, suficiente para pagar su retirada de 2
-            # y sacarlo a la banca el proximo turno.
+            # Meganium is the key doubler against Crustle; it must not be left as
+            # a wall in the active spot. If it is active and cannot retreat yet
+            # (0 energies) and there is an already charged non-ex benched attacker
+            # to promote, we prioritise charging it 1 energy: with Wild Growth
+            # 1 basic energy = {G}{G}, enough to pay its retreat cost of 2 and get
+            # it to the bench next turn.
             _meg_promo_ready = any(
                 bp is not None and (
                     (bp.id == Tapu_Bulu and
@@ -736,8 +734,8 @@ def _energy_score_base(tc, pokemon, active):
                 bp is not None and bp.id == Dipplin
                 for bp in (list(my_state.active or []) + list(my_state.bench)))
 
-            # len(energies) YA es la energia EFECTIVA (Wild Growth ya aplicado
-            # en la observacion): Solar Beam necesita 4.
+            # len(energies) is ALREADY the EFFECTIVE energy (Wild Growth already
+            # applied in the observation): Solar Beam needs 4.
             _meg_eff = energy_count * _grass_mult()
             if active and energy_count == 0 and _meg_promo_ready:
                 score += 24000
@@ -756,13 +754,13 @@ def _energy_score_base(tc, pokemon, active):
                     and (_ex_stuck_promo_ready or _cubchoo_lock_stuck)
                     and energy_count * _grass_mult()
                         < RETREAT_COST.get(pokemon.id, 1)):
-                # Nuestro ex activo no puede danar al Crustle (inmune) y hay
-                # un atacante no-ex LISTO en banca: cargamos el ex hasta su
-                # coste de retirada para poder retirarlo el proximo paso y
-                # promover al atacante que SI golpea al Crustle.
-                # `_cubchoo_lock_stuck`: activo Hydrapple ex bloqueado por
-                # Snotted Up -- enrutar la energia al ACTIVO para habilitar la
-                # retirada hacia el atacante de banca (paso 82).
+                # Our active ex cannot damage the Crustle (immune) and there is a
+                # non-ex attacker READY on the bench: we charge the ex up to its
+                # retreat cost so it can retreat on the next step and promote the
+                # attacker that DOES hit the Crustle.
+                # `_cubchoo_lock_stuck`: active Hydrapple ex blocked by Snotted Up --
+                # route the energy to the ACTIVE to enable the retreat towards the
+                # benched attacker (step 82).
                 score += 24000
                 score += 100
             elif active:
@@ -959,8 +957,8 @@ def _energy_score_base(tc, pokemon, active):
                 _can_attack_after = (_after_energy >= 3)
 
             _retreat_cost_pkmn = RETREAT_COST.get(pokemon.id, 1)
-            # Energia efectiva tras adjuntar (Wild Growth duplica Planta):
-            # 1 energia en Meganium ya paga su retirada de 2.
+            # Effective energy after attaching (Wild Growth doubles Grass):
+            # 1 energy on Meganium already pays its retreat cost of 2.
             _can_retreat_after = (_after_energy >= _retreat_cost_pkmn)
 
             _has_bench_atk_retreat = False
@@ -1045,7 +1043,7 @@ def _energy_score_base(tc, pokemon, active):
         elif pokemon.id in (Chikorita, Bayleef):
 
             _retreat_cost = RETREAT_COST.get(pokemon.id, 1)
-            # Wild Growth duplica la energia basica de Planta para la retirada.
+            # Wild Growth doubles the basic Grass energy for the retreat.
             _cb_ret_eff = energy_count * _grass_mult()
             if _cb_ret_eff < _retreat_cost:
                 score += 23200
@@ -1053,9 +1051,9 @@ def _energy_score_base(tc, pokemon, active):
                 score -= 500
         elif pokemon.id == Meowth_ex:
 
-            # Meowth ex ACTIVO: solo lo cargamos cuando la retirada es NECESARIA,
-            # es decir cuando hay un atacante real en banca al que promover. Si
-            # no hay a quien pasar, cargarlo no aporta y se demota.
+            # ACTIVE Meowth ex: we only charge it when the retreat is NECESSARY, that is,
+            # when there is a real attacker on the bench to promote. If there is nobody to
+            # hand over to, charging it adds nothing and it is demoted.
             if energy_count == 0:
                 _has_bench_attacker = False
                 for _bp in my_state.bench:

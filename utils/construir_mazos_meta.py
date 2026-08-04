@@ -1,20 +1,20 @@
-"""Biblioteca de mazos META sinteticos para el modo --rival del self-play.
+"""Library of synthetic META decks for the --rival mode of self-play.
 
-Fase 8 de la arquitectura de mejora de estrategia. `utils/cosechar_deck_rival.py`
-reconstruye mazos desde registros locales, pero los registros son transitorios:
-esta pieza NO depende de logs. Cada arquetipo del meta que enfrentamos (memoria
-del proyecto: Dragapult, Hop's, Alakazam, Mega Lucario, Comfey, Cornerstone/
-Cubchoo) se define AQUI a mano, con ids del pool y una composicion pilotable
-por el bot generico (utils/bot_rival.py): lineas evolutivas completas, energia
-del tipo que pagan sus ataques y trainers de select simple.
+Phase 8 of the strategy improvement architecture. `utils/cosechar_deck_rival.py`
+rebuilds decks from local records, but the records are transient:
+this piece does NOT depend on logs. Each meta archetype we face (project
+memory: Dragapult, Hop's, Alakazam, Mega Lucario, Comfey, Cornerstone/
+Cubchoo) is defined HERE by hand, with ids from the pool and a composition the
+generic bot (utils/bot_rival.py) can pilot: complete evolution lines, energy
+of the type their attacks pay and trainers with a simple select.
 
-No pretenden ser las listas exactas del meta: son RIVALES DE REFERENCIA
-deterministas y legales para medir matchups (utils/selfplay.py --rival) y para
-la matriz de matchups (utils/matriz_matchups.py).
+They do not claim to be the exact lists of the meta: they are deterministic and legal
+REFERENCE OPPONENTS for measuring matchups (utils/selfplay.py --rival) and for
+the matchup matrix (utils/matriz_matchups.py).
 
-Uso:
-    python utils/construir_mazos_meta.py            # escribe deck/rivales/*.csv
-    python utils/construir_mazos_meta.py --verificar  # ademas battle_start + 4 pasos
+Usage:
+    python utils/construir_mazos_meta.py            # writes deck/rivales/*.csv
+    python utils/construir_mazos_meta.py --verificar  # plus battle_start + 4 steps
 """
 
 import argparse
@@ -32,13 +32,13 @@ _CARTAS = {c.cardId: c for c in all_card_data()}
 _ENERGIAS_BASICAS = set(range(1, 9))  # Basic {G/R/W/L/P/F/D/M} Energy
 
 # --------------------------------------------------------------------------
-# Listas por arquetipo: {card_id: copias}. Comentario = nombre de la carta.
+# Lists per archetype: {card_id: copies}. The comment = the card's name.
 # --------------------------------------------------------------------------
 
 MAZOS = {
-    # Dragapult ex (dragon: Phantom Dive paga {R}{P}). Linea 4-4-3 + Budew
-    # (traba items) y Latias ex (Skyliner). Crispin busca 2 energias basicas
-    # de tipos DISTINTOS: clave en un mazo bicolor.
+    # Dragapult ex (a dragon: Phantom Dive pays {R}{P}). A 4-4-3 line + Budew
+    # (which jams items) and Latias ex (Skyliner). Crispin searches for 2 basic energies
+    # of DIFFERENT types: key in a two-colour deck.
     "dragapult": {
         119: 4,   # Dreepy
         120: 4,   # Drakloak
@@ -55,8 +55,8 @@ MAZOS = {
         2: 10,    # Basic {R} Energy
         5: 10,    # Basic {P} Energy
     },
-    # Hop's (Trevenant pega con {P}{C}{C}; Zacian ex {M}{M}{M}{C}; Snorlax
-    # {C}{C}{C}). Hop's Bag busca Pokemon "Hop's"; Choice Band sube el dano.
+    # Hop's (Trevenant hits with {P}{C}{C}; Zacian ex {M}{M}{M}{C}; Snorlax
+    # {C}{C}{C}). Hop's Bag searches for "Hop's" Pokemon; Choice Band raises the damage.
     "hops": {
         878: 4,   # Hop's Phantump
         879: 4,   # Hop's Trevenant
@@ -71,8 +71,8 @@ MAZOS = {
         5: 14,    # Basic {P} Energy
         8: 14,    # Basic {M} Energy
     },
-    # Alakazam (Powerful Hand = 20 x carta en mano, paga {P}). Dunsparce de
-    # muro. Brock's Scouting/Lillie's engordan la mano (su win condition).
+    # Alakazam (Powerful Hand = 20 x card in hand, pays {P}). A Dunsparce as a
+    # wall. Brock's Scouting/Lillie's fatten the hand (their win condition).
     "alakazam": {
         741: 4,   # Abra
         742: 4,   # Kadabra
@@ -85,11 +85,11 @@ MAZOS = {
         1120: 3,  # Crushing Hammer
         5: 28,    # Basic {P} Energy
     },
-    # Mega Lucario ex (Aura Jab {F}, Mega Brave {F}{F}): agresivo y barato de
-    # cargar. Maximum Belt (ACE SPEC, x1) espejo del matchup real.
+    # Mega Lucario ex (Aura Jab {F}, Mega Brave {F}{F}): aggressive and cheap to
+    # charge. A Maximum Belt (ACE SPEC, x1) mirroring the real matchup.
     "mega_lucario": {
-        677: 4,   # Riolu (80 PV; el limite de 4 copias es por NOMBRE:
-                  #        no mezclar con el Riolu 333)
+        677: 4,   # Riolu (80 HP; the limit of 4 copies is by NAME:
+                  #        do not mix with the Riolu 333)
         678: 3,   # Mega Lucario ex
         305: 4,   # Dunsparce
         1121: 4,  # Ultra Ball
@@ -99,8 +99,8 @@ MAZOS = {
         1158: 1,  # Maximum Belt (ACE SPEC)
         6: 33,    # Basic {F} Energy
     },
-    # Comfey mill (Flower Shower nos hace robar 3 -> deckeo) + Brambleghast
-    # (confusion). Disrupcion: Hammer, Xerosic, Handheld Fan.
+    # Comfey mill (Flower Shower makes us draw 3 -> decking out) + Brambleghast
+    # (confusion). Disruption: Hammer, Xerosic, Handheld Fan.
     "comfey": {
         164: 4,   # Comfey
         817: 4,   # Bramblin
@@ -112,12 +112,12 @@ MAZOS = {
         1121: 3,  # Ultra Ball
         5: 30,    # Basic {P} Energy
     },
-    # Raging Bolt ex (registro_002, jul 2026): TODO ex de 2 premios. Su
-    # Bellowing Thunder descarta energias basicas y pega 70 por cada una:
-    # one-shot a cualquiera de nuestros ex. Los Teal Mask Ogerpon ex rivales
-    # aceleran la energia. OJO: el bot generico solo descarta 1 energia en el
-    # select del ataque (~70 de dano), asi que el NIVEL absoluto del matchup
-    # no es senal; sirve para ejercitar la deteccion y el descuadre.
+    # Raging Bolt ex (registro_002, jul 2026): EVERYTHING is a 2-prize ex. Its
+    # Bellowing Thunder discards basic energies and hits for 70 per one:
+    # a one-shot on any of our ex. The opposing Teal Mask Ogerpon ex
+    # accelerate the energy. CAREFUL: the generic bot only discards 1 energy in the
+    # attack's select (~70 damage), so the absolute LEVEL of the matchup
+    # is not signal; it serves to exercise the detection and the mismatch.
     "raging_bolt": {
         63: 3,    # Raging Bolt ex
         96: 4,    # Teal Mask Ogerpon ex
@@ -126,16 +126,16 @@ MAZOS = {
         1122: 2,  # Pokegear 3.0
         1127: 2,  # Tera Orb
         1094: 2,  # Bug Catching Set
-        1: 16,    # Basic {G} Energy (para los Ogerpon / forraje del Bolt)
+        1: 16,    # Basic {G} Energy (for the Ogerpon / fodder for the Bolt)
         4: 12,    # Basic {L} Energy
         6: 12,    # Basic {F} Energy
     },
-    # Cornerstone Mask Ogerpon ex (anula el dano de Pokemon CON habilidad;
-    # Demolish {F}{C}{C}) + linea Cubchoo/Beartic (Sheer Cold {W}{W}{W}{C}).
-    # El matchup de la colision de whitelists (memoria del proyecto).
+    # Cornerstone Mask Ogerpon ex (it cancels the damage of Pokemon WITH an ability;
+    # Demolish {F}{C}{C}) + the Cubchoo/Beartic line (Sheer Cold {W}{W}{W}{C}).
+    # The matchup of the whitelist collision (project memory).
     "cornerstone_cubchoo": {
         117: 3,   # Cornerstone Mask Ogerpon ex
-        386: 2,   # Cornerstone Mask Ogerpon (no-ex)
+        386: 2,   # Cornerstone Mask Ogerpon (non-ex)
         506: 4,   # Cubchoo
         507: 3,   # Beartic
         1121: 4,  # Ultra Ball
@@ -145,11 +145,11 @@ MAZOS = {
         6: 17,    # Basic {F} Energy
         3: 17,    # Basic {W} Energy
     },
-    # Iron Thorns ex (plan jul 2026, P1.4): "Initialization" en el activo anula
-    # las habilidades con Rule Box de AMBOS lados -> apaga Teal Dance, Ripening
-    # Charge, Last-Ditch Catch y Flip the Script a la vez. Ejercita el
-    # `meowth_ability_lock` y el plan B por la linea sin Rule Box (Meganium /
-    # Tapu Bulu). Zapdos como segundo atacante {L} simple para el bot.
+    # Iron Thorns ex (jul 2026 plan, P1.4): "Initialization" in the active spot cancels
+    # the Rule Box abilities of BOTH sides -> it switches off Teal Dance, Ripening
+    # Charge, Last-Ditch Catch and Flip the Script at once. It exercises the
+    # `meowth_ability_lock` and plan B through the line with no Rule Box (Meganium /
+    # Tapu Bulu). Zapdos as a simple second {L} attacker for the bot.
     "iron_thorns": {
         37: 4,    # Iron Thorns ex (Volt Cyclone {L}{C}{C} 140)
         953: 3,   # Zapdos TWM (Thunderbolt {L}{L}{C} 190)
@@ -161,14 +161,14 @@ MAZOS = {
         1122: 2,  # Pokegear 3.0
         4: 33,    # Basic {L} Energy
     },
-    # Aggro Fuego (plan jul 2026, P1.7): TODO nuestro mazo salvo Meowth y
-    # Fezandipiti es debil a {R} (x2). Gouging Fire ex (basico ex): Heat Blast
-    # {R}{C} 60 -> 120 con debilidad ya noquea Ogerpon/Applin; Blaze Blitz
-    # {R}{R}{C} 260 one-shotea todo. Hearthflame Ogerpon no-ex acompana
-    # (Searing Flame {R}{R}{C} 80 -> 160) para el descuadre de premios.
+    # Fire aggro (jul 2026 plan, P1.7): our WHOLE deck except Meowth and
+    # Fezandipiti is weak to {R} (x2). Gouging Fire ex (a basic ex): Heat Blast
+    # {R}{C} 60 -> 120 with weakness already knocks out Ogerpon/Applin; Blaze Blitz
+    # {R}{R}{C} 260 one-shots everything. A non-ex Hearthflame Ogerpon comes along
+    # (Searing Flame {R}{R}{C} 80 -> 160) for the prize mismatch.
     "fuego_gouging": {
         46: 4,    # Gouging Fire ex
-        358: 3,   # Hearthflame Mask Ogerpon (no-ex)
+        358: 3,   # Hearthflame Mask Ogerpon (non-ex)
         1121: 4,  # Ultra Ball
         1227: 4,  # Lillie's Determination
         1182: 3,  # Boss's Orders
@@ -177,13 +177,13 @@ MAZOS = {
         1122: 2,  # Pokegear 3.0
         2: 34,    # Basic {R} Energy
     },
-    # Item-lock (plan jul 2026, P1.5): Jellicent ex "Oceanic Curse" bloquea
-    # nuestros Items MIENTRAS este en el activo; Budew (Itchy Pollen) cubre los
-    # turnos en que Jellicent no esta delante. Con 10+ items en nuestro mazo
-    # (UBx4/BCSx4/NSx2/Stamp/PokePad) ejercita la re-priorizacion de
-    # Supporters/habilidades del flag `itchy_pollen_active` generalizado.
+    # Item-lock (jul 2026 plan, P1.5): Jellicent ex's "Oceanic Curse" blocks
+    # our Items WHILE it is in the active spot; Budew (Itchy Pollen) covers the
+    # turns when the Jellicent is not in front. With 10+ items in our deck
+    # (UBx4/BCSx4/NSx2/Stamp/PokePad) it exercises the re-prioritisation of
+    # Supporters/abilities of the generalised `itchy_pollen_active` flag.
     "jellicent_lock": {
-        597: 4,   # Frillish (Oceanic Gloom: tambien traba items)
+        597: 4,   # Frillish (Oceanic Gloom: it also jams items)
         598: 3,   # Jellicent ex (Power Press {P}{C} 80)
         235: 3,   # Budew
         1121: 4,  # Ultra Ball
@@ -235,7 +235,7 @@ def escribir(destino):
 
 
 def verificar(rutas):
-    """battle_start acepta cada mazo y el bot juega 4 pasos sin reventar."""
+    """battle_start accepts each deck and the bot plays 4 steps without blowing up."""
     sys.path.insert(0, str(_ROOT / "utils"))
     from cg import game
     from bot_rival import BotRival

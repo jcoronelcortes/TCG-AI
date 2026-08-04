@@ -1,8 +1,8 @@
-"""Puntuacion de las opciones `EVOLVE`.
+"""Scoring of the `EVOLVE` options.
 
-Rama `o.type == OptionType.EVOLVE` de la cadena de `agent()`, extraida VERBATIM.
-Desempaqueta del contexto los 41 campos que lee y devuelve los
-6 que reasigna; los demas quedan como estaban, igual que antes.
+The `o.type == OptionType.EVOLVE` branch of the `agent()` chain, extracted
+VERBATIM. It unpacks from the context the 41 fields it reads and returns the
+6 it reassigns; the rest stay as they were, just like before.
 """
 
 from cg.api import AreaType
@@ -16,7 +16,7 @@ from ptcg.estado.agente import ESTADO
 
 
 def puntuar(tc, o, score):
-    """Devuelve el puntaje de `o`. Puede devolver `_SALTAR`."""
+    """Returns the score of `o`. It may return `_SALTAR`."""
     _SALTAR = tc._SALTAR
     _atk = tc._atk
     _bp = tc._bp
@@ -59,28 +59,26 @@ def puntuar(tc, o, score):
 
     try:
         pokemon = get_card(obs, o.inPlayArea, o.inPlayIndex, my_index)
-        # La carta de evolucion normalmente viene de la MANO, pero la
-        # habilidad de Grand Tree la saca del MAZO. Se respeta `o.area`
-        # cuando el simulador la informa (para el juego normal vale HAND,
-        # asi que el comportamiento no cambia) en vez de asumir la mano.
+        # The evolution card normally comes from the HAND, but the Grand
+        # Tree ability pulls it out of the DECK. `o.area` is respected
+        # when the simulator reports it (for normal play it is HAND, so
+        # the behaviour does not change) instead of assuming the hand.
         _evo_area = o.area if o.area is not None else AreaType.HAND
         card = get_card(obs, _evo_area, o.index, my_index)
         if (card is not None and select.effect is not None
                 and select.effect.id == Grand_Tree):
-            # Evolucion servida por Grand Tree: la decide el plan del
-            # estadio, no las bandas de la evolucion desde la mano (que
-            # asumen que se gasta una carta de la mano y que el cuerpo ya
-            # estaba elegido).
+            # Evolution served by Grand Tree: it is decided by the stadium's
+            # plan, not by the bands of evolving from hand (which assume a
+            # card in hand is spent and that the body was already chosen).
             _gt_evo_score = _gt_score_seleccion(
                 o, card, _gt_plan, _gt_planes_turno, my_state, field_counts)
             if pokemon is not None and _gt_plan is not None:
-                # Desempate por el Basico elegido: la opcion apunta a la
-                # vez a la carta y al cuerpo, asi que el objetivo del plan
-                # tiene que ganar.
+                # Tie-break by the chosen Basic: the option points at both the
+                # card and the body, so the plan's target has to win.
                 if getattr(pokemon, 'serial', None) == _gt_plan.serial:
                     _gt_evo_score += 5000
             scores.append(_gt_evo_score)
-            return _SALTAR   # ya hizo scores.append por su cuenta
+            return _SALTAR   # it already did its own scores.append
         if card is not None and pokemon is not None:
             _is_active = (o.inPlayArea == AreaType.ACTIVE)
             _pkmn_energy = len(pokemon.energies)
@@ -90,14 +88,14 @@ def puntuar(tc, o, score):
         
             if card.id == Meganium:
                 score = 35000
-                # vs Cornerstone Mask Ogerpon ex (user, registro_004 turno 4):
-                # su Cornerstone Stance anula el dano de TODOS nuestros Pokemon
-                # CON habilidad (Teal Mask Ogerpon ex, Hydrapple ex, Dipplin...),
-                # asi que el unico atacante real es Tapu Bulu (Bayleef solo hace
-                # chip). Meganium no dana a Cornerstone -- tambien tiene
-                # habilidad -- pero su Wild Growth DUPLICA cada Planta, y con el
-                # en juego Tapu Bulu ataca con 2 Plantas FISICAS en vez de 4.
-                # Montar la linea es por tanto prioritario en este matchup.
+                # vs Cornerstone Mask Ogerpon ex (user, registro_004 turn 4):
+                # its Cornerstone Stance cancels the damage of ALL our Pokemon
+                # WITH an ability (Teal Mask Ogerpon ex, Hydrapple ex, Dipplin...),
+                # so the only real attacker is Tapu Bulu (Bayleef only chips).
+                # Meganium does not damage Cornerstone -- it has an ability too --
+                # but its Wild Growth DOUBLES every Grass, and with it in play
+                # Tapu Bulu attacks with 2 PHYSICAL Grass instead of 4.
+                # Assembling the line is therefore a priority in this matchup.
                 if (op_is_fire_deck or op_is_mirror or ESTADO.op_is_crustle_deck
                         or op_has_ability_immune_active
                         or ESTADO.op_is_cornerstone_deck):
@@ -158,16 +156,16 @@ def puntuar(tc, o, score):
                 if pokemon.id == Applin and not ESTADO.op_is_crustle_deck:
                     score += 500
         
-                # ── Regla: no malgastar un KO letal de Dipplin ──────────
-                # Si el activo es un Dipplin al que, cargandole 1 energia
-                # Grass este turno, "Do the Wave" (20 x banca) noquearia al
-                # Pokemon activo rival, PERO al evolucionar a Hydrapple ex NO
-                # podriamos noquear este turno (Syrup Storm exige 2 energias),
-                # NO evolucionamos: conservamos el Dipplin para atacar y
-                # llevarnos el KO. Reglas del usuario:
-                #   (1) Dipplin noquea y Hydrapple no -> NO evolucionar.
-                #   (2) Dipplin no noquea -> evolucionar con normalidad.
-                #   (3) sin energia disponible -> evolucionar (protege Dipplin).
+                # ── Rule: do not waste a lethal Dipplin KO ──────────────
+                # If the active is a Dipplin for which, by charging 1 Grass
+                # energy this turn, "Do the Wave" (20 x bench) would knock out
+                # the opposing active Pokemon, BUT evolving into Hydrapple ex
+                # would NOT let us knock out this turn (Syrup Storm demands 2
+                # energies), we do NOT evolve: we keep the Dipplin to attack
+                # and take the KO. User's rules:
+                #   (1) Dipplin knocks out and Hydrapple does not -> do NOT evolve.
+                #   (2) Dipplin does not knock out -> evolve as usual.
+                #   (3) no energy available -> evolve (protects Dipplin).
                 if _is_active and pokemon.id == Dipplin:
                     _dip_can_attack_now = (_pkmn_energy >= 1 or _has_energy_in_hand)
                     if _dip_can_attack_now:
@@ -179,8 +177,8 @@ def puntuar(tc, o, score):
                                 pokemon, _op_act_evo, 20 * bench_count,
                                 ESTADO.meganium_in_play, neutralization_zone_active)
                             _dip_kos = (_dip_dmg > 0 and _dip_dmg >= (_op_act_evo.hp or 0))
-                            # Energia efectiva de Hydrapple ex tras evolucionar
-                            # (hereda la energia del Dipplin + posible adjunto).
+                            # Effective energy of Hydrapple ex after evolving
+                            # (it inherits Dipplin's energy + a possible attachment).
                             _hydra_eff = _pkmn_energy * _grass_mult()
                             if _has_energy_in_hand:
                                 _hydra_eff += _grass_attach_unit()
@@ -204,10 +202,10 @@ def puntuar(tc, o, score):
         
                         score = 31300
                     else:
-                        # Activo evolucionable (p.ej. Chikorita) que SI puede
-                        # cambiar de activo. Por defecto NO se evoluciona en el
-                        # activo (dejaria un Bayleef fragil arriba). Dos
-                        # escenarios ajustan este veto:
+                        # An evolvable active (e.g. Chikorita) that CAN switch out.
+                        # By default we do NOT evolve in the active spot (it would
+                        # leave a fragile Bayleef up front). Two scenarios adjust
+                        # this veto:
                         _evo_active_rc = RETREAT_COST.get(pokemon.id, 1)
                         _evo_active_eff = _pkmn_energy * _grass_mult()
                         _evo_can_attach_now = (
@@ -216,23 +214,23 @@ def puntuar(tc, o, score):
                         _evo_eff_after_attach = _evo_active_eff + (
                             _grass_attach_unit() if _evo_can_attach_now else 0)
                         if _evo_active_eff >= _evo_active_rc:
-                            # Escenario 1: ya tiene energia cargada para pagar
-                            # la retirada -> conviene RETIRARLO primero y
-                            # evolucionarlo ya en la banca. Se mantiene el veto;
-                            # la logica de retiro sube un atacante de banca y el
-                            # Chikorita evoluciona despues desde la banca.
+                            # Scenario 1: it already has energy attached to pay the
+                            # retreat -> it is better to RETREAT it first and evolve
+                            # it once on the bench. The veto stands; the retreat
+                            # logic brings up a benched attacker and the Chikorita
+                            # evolves afterwards from the bench.
                             score = SCORE_VETO
                         elif (hand_counts.get(Lillie_Determination, 0) >= 1
                                 and not state.supporterPlayed):
-                            # Escenario 2: no puede pagar la retirada con su
-                            # energia actual, pero tenemos Lillie's Determination
-                            # en mano y podremos cargar energia despues de
-                            # jugarla -> evolucionamos el activo a Bayleef ahora.
+                            # Scenario 2: it cannot pay the retreat with its current
+                            # energy, but we have Lillie's Determination in hand and
+                            # will be able to attach energy after playing it -> we
+                            # evolve the active into Bayleef now.
                             score = 31300
                         elif _evo_eff_after_attach >= _evo_active_rc:
-                            # Escenario 1 (variante): se le puede cargar energia
-                            # este turno para pagar la retirada -> retirar primero
-                            # y evolucionar en banca. Se mantiene el veto.
+                            # Scenario 1 (variant): energy can be attached to it this
+                            # turn to pay the retreat -> retreat first and evolve on
+                            # the bench. The veto stands.
                             score = SCORE_VETO
                         else:
                             score = SCORE_VETO
@@ -241,10 +239,10 @@ def puntuar(tc, o, score):
                     if op_is_fire_deck or op_is_mirror or ESTADO.op_is_crustle_deck:
                         score = 32500
                     if op_is_cubchoo_deck:
-                        # Cambio 4 (user): la linea de Meganium es la PRIORIDAD
-                        # principal de evolucion vs Cubchoo, por delante de la
-                        # linea de Hydrapple ex (Dipplin->Hydrapple = 33000).
-                        # Meganium final ya vale 35000 (> este 34000).
+                        # Change 4 (user): the Meganium line is the main evolution
+                        # PRIORITY vs Cubchoo, ahead of the Hydrapple ex line
+                        # (Dipplin->Hydrapple = 33000). The final Meganium is already
+                        # worth 35000 (> this 34000).
                         score = 34000
         
             elif card.id == Dipplin:
@@ -331,30 +329,30 @@ def puntuar(tc, o, score):
         
                             score = 8000
         
-            # ANTI-CUBCHOO: NO evolucionar a un cuerpo LENTO que no llega a
-            # su ataque (user, registro_034 paso 131 vs Cubchoo, PERDIDA).
-            # Ese mazo bloquea y descarta energia, asi que un Pokemon con
-            # coste de retirada ALTO (Hydrapple ex: 3) que ademas NO alcanza
-            # su requisito de ataque queda CLAVADO: ni ataca ni se retira, y
-            # regala un cuerpo de 2 premios plantado en el activo. En aquel
-            # turno el Dipplin activo tenia 0 energias y aun asi se
-            # evoluciono a Hydrapple ex (33000), quedando inutil el resto de
-            # la partida.
+            # ANTI-CUBCHOO: do NOT evolve into a SLOW body that does not reach
+            # its attack (user, registro_034 step 131 vs Cubchoo, LOST).
+            # That deck locks and discards energy, so a Pokemon with a HIGH
+            # retreat cost (Hydrapple ex: 3) that ALSO fails to reach its
+            # attack requirement ends up NAILED down: it neither attacks nor
+            # retreats, and hands over a 2-prize body planted in the active
+            # spot. On that turn the active Dipplin had 0 energies and was
+            # still evolved into Hydrapple ex (33000), staying useless for the
+            # rest of the game.
             #
-            # El gate es el COSTE DE RETIRADA (>= 3), que es la razon real:
-            # en nuestro mazo solo lo cumple Hydrapple ex (Meganium/Bayleef/
-            # Dipplin cuestan 2), pero asi cubre cualquier evolucion futura
-            # igual de lenta. Va al FINAL de la rama para tener la ultima
-            # palabra sobre las subidas de score de arriba.
+            # The gate is the RETREAT COST (>= 3), which is the real reason:
+            # in our deck only Hydrapple ex meets it (Meganium/Bayleef/
+            # Dipplin cost 2), but this way it covers any future evolution
+            # that is just as slow. It goes at the END of the branch so it has
+            # the last word over the score increases above.
             #
-            # SOLO vs Cubchoo (`op_is_cubchoo_deck`): en el resto de
-            # matchups la evolucion es desarrollo normal -- se recarga y se
-            # retira sin problema, y el muro de 330 PV compensa.
+            # ONLY vs Cubchoo (`op_is_cubchoo_deck`): in the other matchups
+            # the evolution is normal development -- it recharges and retreats
+            # without trouble, and the 330 HP wall makes up for it.
             if (op_is_cubchoo_deck and score > 0
                     and RETREAT_COST.get(card.id, 1) >= 3):
-                # Energia con la que contaria el cuerpo YA evolucionado: la
-                # que hereda de la pre-evolucion mas el adjunte manual si
-                # sigue disponible este turno.
+                # Energy the ALREADY evolved body would count on: the one it
+                # inherits from the pre-evolution plus the manual attachment if
+                # it is still available this turn.
                 _cub_evo_eff = _pkmn_energy
                 if _has_energy_in_hand:
                     _cub_evo_eff += _grass_attach_unit()

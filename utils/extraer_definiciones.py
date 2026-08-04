@@ -1,33 +1,33 @@
-"""Saca definiciones PURAS de main.py a modulos del paquete (olas 2 y 4).
+"""Moves PURE definitions out of main.py into package modules (waves 2 and 4).
 
-Complementa a `utils/extraer_puros.py` (que mueve constantes): esto mueve
-funciones y clases, que traen dos problemas que las constantes no tienen.
+It complements `utils/extraer_puros.py` (which moves constants): this moves
+functions and classes, which bring two problems constants do not have.
 
-  1. CIERRE. Si una funcion movida llama a otra que se queda en main.py, revienta
-     en tiempo de decision. Antes de escribir nada se comprueba que TODO lo que
-     el conjunto elegido referencia se resuelve: builtins, imports, constantes ya
-     extraidas, otro modulo del mismo lote, o constantes que siguen en main.py
-     (esas se reimportan desde alli... no: se exige que sean del paquete, ver
+  1. CLOSURE. If a moved function calls another that stays in main.py, it blows up
+     at decision time. Before writing anything it is checked that EVERYTHING the
+     chosen set references resolves: builtins, imports, constants already
+     extracted, another module of the same batch, or constants that are still in main.py
+     (those get re-imported from there... no: they are required to be in the package, see
      `--permitir-const-main`).
 
-  2. IMPORTS. Cada modulo destino necesita exactamente los imports que usa. Se
-     derivan de los nombres libres del conjunto movido y se reparten segun de
-     donde venia cada nombre en main.py (stdlib, cg.api, ptcg.cartas.ids).
+  2. IMPORTS. Each target module needs exactly the imports it uses. They are
+     derived from the free names of the moved set and distributed according to where
+     each name came from in main.py (stdlib, cg.api, ptcg.cartas.ids).
 
-La pureza la decide `utils/pureza.py`; aqui solo se mueve lo que aquel ya
-declaro movible, y se aborta si algo del lote no lo es.
+Purity is decided by `utils/pureza.py`; here only what that one already
+declared movable is moved, and it aborts if something in the batch is not.
 
-El lote se describe en un fichero Python con un dict `MODULOS`:
+The batch is described in a Python file with a `MODULOS` dict:
 
     MODULOS = {
         "ptcg/motor/reglas.py": {
-            "titulo": "Motor de reglas: ...",
+            "titulo": "Rules engine: ...",
             "nombres": ["_ReglaFija", "_Ajuste", "_resolver_reglas"],
         },
     }
 
-Uso:
-    python utils/extraer_definiciones.py lote.py            # dry run
+Usage:
+    python utils/extraer_definiciones.py lote.py            # a dry run
     python utils/extraer_definiciones.py lote.py --aplicar
 """
 
@@ -46,7 +46,7 @@ from pureza import analizar, BUILTINS, _mapa_paquete, nombres_libres  # noqa: E4
 CABECERA = '''"""{titulo}
 
 Extraido VERBATIM de main.py por utils/extraer_definiciones.py
-(docs/main-refactor-arquitectura.md). Su pureza esta comprobada por
+(docs/project-history.md). Su pureza esta comprobada por
 utils/pureza.py: nada de aqui toca el estado mutable ni las tablas de runtime.
 """
 
@@ -54,7 +54,7 @@ utils/pureza.py: nada de aqui toca el estado mutable ni las tablas de runtime.
 
 
 def _origen_de_imports(arbol):
-    """nombre importado -> sentencia de import que lo trae."""
+    """imported name -> the import statement that brings it."""
     origen = {}
     for n in arbol.body:
         if isinstance(n, ast.Import):
@@ -70,10 +70,10 @@ def _origen_de_imports(arbol):
 
 
 def _bloque_con_comentarios(lineas, nodo):
-    """Rango (ini, fin) de la definicion, arrastrando su comentario de cabecera.
+    """The (start, end) range of the definition, dragging its header comment along.
 
-    El comentario que va justo encima de una funcion la documenta: si se queda
-    en main.py, la funcion llega al modulo nuevo sin su porque.
+    The comment right above a function documents it: if it stays
+    in main.py, the function reaches the new module without its why.
     """
     ini = nodo.lineno
     for d in getattr(nodo, "decorator_list", []):
@@ -100,9 +100,9 @@ def planificar(lote, main_py):
         for n in spec["nombres"]:
             donde[n] = mod
 
-    # Un lote puede listar `def`/`class` y tambien ASIGNACIONES: las tablas
-    # `_REGLAS_*`/`_AJUSTES_*` del motor de reglas son datos que pertenecen al
-    # modulo de su carta, y sin ellas el scorer no puede irse.
+    # A batch can list `def`/`class` and also ASSIGNMENTS: the
+    # `_REGLAS_*`/`_AJUSTES_*` tables of the rules engine are data belonging to the
+    # module of their card, and without them the scorer cannot move.
     nodos = dict(a["definiciones"])
     libres = dict(a["libres"])
     for n, nodo in a["asignaciones"].items():
@@ -133,12 +133,12 @@ def planificar(lote, main_py):
                 elif libre in donde:
                     continue
                 elif libre in a["del_paquete"]:
-                    # de QUE modulo del paquete viene: `card_table` esta en
-                    # ptcg.cartas.tablas, no en ptcg.cartas.ids.
+                    # from WHICH package module it comes: `card_table` is in
+                    # ptcg.cartas.tablas, not in ptcg.cartas.ids.
                     origen_mod = mapa.get(libre)
-                    # Al FUSIONAR, el nombre puede vivir ya en el propio modulo
-                    # destino (lo puso un lote anterior): importarlo seria un
-                    # auto-import y revienta con "partially initialized module".
+                    # When MERGING, the name may already live in the target module
+                    # itself (an earlier batch put it there): importing it would be a
+                    # self-import and blows up with "partially initialized module".
                     if origen_mod == mod.replace("/", ".").removesuffix(".py"):
                         continue
                     if origen_mod is None:
@@ -226,7 +226,7 @@ def main():
         while p != PROJECT_ROOT:
             ini = p / "__init__.py"
             if not ini.exists():
-                ini.write_text('"""Paquete del agente. Ver docs/main-refactor-arquitectura.md."""\n')
+                ini.write_text('"""Paquete del agente. Ver docs/project-history.md."""\n')
             p = p.parent
 
         cuerpo = []
@@ -236,10 +236,10 @@ def main():
 
         nuevos = "\n\n\n".join(cuerpo)
         if destino.exists():
-            # FUSIONAR con lo que ya hay: un modulo se llena en varios lotes
-            # (p.ej. dano.py recibe primero lo que no depende de card_table y
-            # despues el resto). Se conserva su cabecera y se le anaden las
-            # lineas de import que le falten.
+            # MERGE with what is already there: a module is filled over several batches
+            # (e.g. dano.py first receives what does not depend on card_table and
+            # then the rest). Its header is kept and the import lines it is missing
+            # are added.
             previo = destino.read_text()
             cabeza, _, cola = previo.rpartition("\n\n__all__ = [")
             viejos = [ln.strip().strip("',") for ln in cola.splitlines()

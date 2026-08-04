@@ -1,52 +1,52 @@
-"""Con la mano rival GIGANTE, Xerosic va ANTES del Unfair Stamp.
+"""With a GIANT rival hand, Xerosic goes BEFORE the Unfair Stamp.
 
-Escenario (user, episodio 88704504, registro_008 paso 90, turno 8 vs Alakazam):
+Scenario (user, episode 88704504, registro_008 step 90, turn 8 vs Alakazam):
 
-    NOSOTROS                                    RIVAL
-    activo  Tapu Bulu (cargado)                 activo  Alakazam
-    mano    Meganium, **Unfair Stamp**, Planta, banca   Fezandipiti ex 210, ...
-            Teal Mask Ogerpon ex,               mano    **18 cartas**
+    US                                          RIVAL
+    active  Tapu Bulu (charged)                 active  Alakazam
+    hand    Meganium, **Unfair Stamp**, Grass,  bench   Fezandipiti ex 210, ...
+            Teal Mask Ogerpon ex,               hand    **18 cards**
             **Xerosic's Machinations**, Meowth ex
-    Nos noquearon el turno anterior -> el Sello es jugable.
+    They knocked us out the previous turn -> the Stamp is playable.
 
-Las dos cartas caben en el MISMO turno: **Unfair Stamp es un Item** (ACE SPEC)
-y **Xerosic's Machinations un Supporter**. Aquí no se elige carta, se elige
-ORDEN — y hacen cosas distintas con esas 18 cartas:
+Both cards fit in the SAME turn: **Unfair Stamp is an Item** (ACE SPEC)
+and **Xerosic's Machinations a Supporter**. Here you do not choose a card, you choose
+ORDER — and they do different things with those 18 cards:
 
     Unfair Stamp   "Each player shuffles their hand into their deck. Then, you
                     draw 5 cards, and your opponent draws 2 cards."
     Xerosic        "Your opponent discards cards from their hand until they
                     have 3 cards in their hand."
 
-- **Sello -> Xerosic** (conducta vieja): las 18 vuelven a su mazo, roba 2, y
-  Xerosic ya no hace nada (le quedan 2 <= 3). Peor aún: el Sello baraja
-  **nuestra** mano, así que se lleva el propio Xerosic (en el registro se llevó
-  también el Boss's y solo se recuperó uno por suerte).
-- **Xerosic -> Sello** (correcto): descarta hasta dejarle 3 → **15 cartas al
-  descarte PARA SIEMPRE**; el Sello lo deja igualmente en 2. Mismo tablero al
-  cerrar el turno, con medio mazo rival muerto.
+- **Stamp -> Xerosic** (the old behaviour): the 18 go back to their deck, they draw 2, and
+  Xerosic no longer does anything (they are left with 2 <= 3). Worse still: the Stamp shuffles
+  **our** hand, so it takes the Xerosic itself with it (in the record it also took
+  the Boss's and only one was recovered, by luck).
+- **Xerosic -> Stamp** (correct): discard down to 3 → **15 cards to the
+  discard FOR GOOD**; the Stamp leaves them at 2 all the same. The same board at the
+  end of the turn, with half the rival deck dead.
 
-Por qué fallaba: `cede_a_unfair_stamp` en `_REGLAS_XEROSIC_PLAY` vetaba a
-Xerosic **siempre** que el Sello fuera jugable. Ese veto es correcto para
-Lillie's/Dawn/Lana's (el Sello barajaría lo que acaban de traer) pero no para
-Xerosic, cuyo efecto es inmediato e irreversible y el Sello no puede deshacer.
+Why it failed: `cede_a_unfair_stamp` in `_REGLAS_XEROSIC_PLAY` vetoed
+Xerosic **whenever** the Stamp was playable. That veto is right for
+Lillie's/Dawn/Lana's (the Stamp would shuffle away what they have just brought) but not for
+Xerosic, whose effect is immediate and irreversible and which the Stamp cannot undo.
 
-Arreglo (`_xr_antes_del_sello`, deck-agnóstico): con el Sello jugable, Xerosic
-en mano, el hueco de Supporter libre y la mano rival >=
-`XEROSIC_STAMP_ORDEN_MIN_OP_HAND` (10), se invierte el orden — Xerosic conserva
-su score y es el **Sello** el que cede (`cede_el_orden_a_xerosic`). Es un veto
-de ORDEN y se **auto-revoca**: en cuanto Xerosic se juega, `supporterPlayed`
-pasa a True, el predicado se apaga y el Sello se juega en el mismo turno.
+Fix (`_xr_antes_del_sello`, deck-agnostic): with the Stamp playable, Xerosic
+in hand, the Supporter slot free and the rival hand >=
+`XEROSIC_STAMP_ORDEN_MIN_OP_HAND` (10), the order is reversed — Xerosic keeps
+its score and it is the **Stamp** that yields (`cede_el_orden_a_xerosic`). It is an ORDER
+veto and it **auto-revokes**: as soon as Xerosic is played, `supporterPlayed`
+turns True, the predicate switches off and the Stamp is played in the same turn.
 
-El umbral 10 sale del coste real: el hueco de Supporter se gasta ANTES del
-refresco del Sello, así que las 5 cartas nuevas ya no pueden pagar otro
-Supporter. Lo que se gana son `op_hand - 3` cartas quemadas; solo compensa
-cuando eso supera una mano entera (>= 7 cartas → mano rival >= 10).
+The threshold of 10 comes from the real cost: the Supporter slot is spent BEFORE the
+Stamp's refresh, so the 5 new cards can no longer pay for another
+Supporter. What is gained is `op_hand - 3` burned cards; it only pays off
+when that beats a whole hand (>= 7 cards → a rival hand >= 10).
 
-Efecto lateral corregido: los `_AJUSTES_STAMP_PLAY` no comprobaban el score, así
-que `bonus_matchup` (+400 vs Alakazam) sacaba al Sello vetado del resolver en
-**+399** — justo en el matchup donde vive este veto. Ahora todos los ajustes
-exigen `s > 0`: bonifican jugadas que se van a hacer, no resucitan vetos.
+A side effect corrected: the `_AJUSTES_STAMP_PLAY` did not check the score, so
+`bonus_matchup` (+400 vs Alakazam) pulled the vetoed Stamp out of the resolver at
+**+399** — exactly in the matchup where this veto lives. Now every adjustment
+requires `s > 0`: they bonus plays that are going to happen, they do not resurrect vetoes.
 """
 
 import copy
@@ -107,8 +107,8 @@ def _obs(op_hand=None, supporter_played=None, sin_xerosic=False):
     if supporter_played is not None:
         o["current"]["supporterPlayed"] = supporter_played
     if sin_xerosic:
-        # Se SUSTITUYE (no se quita) para no descolocar los `index` de las
-        # opciones PLAY del menú, que apuntan a posiciones de la mano.
+        # It is REPLACED (not removed) so as not to shift the `index` of the menu's
+        # PLAY options, which point to hand positions.
         for c in o["current"]["players"][yo]["hand"]:
             if c["id"] == XEROSIC:
                 c["id"] = m.Meganium
@@ -116,10 +116,10 @@ def _obs(op_hand=None, supporter_played=None, sin_xerosic=False):
 
 
 def _scores(obs):
-    """Devuelve {'stamp': score, 'xerosic': score} de la decisión real."""
+    """Returns {'stamp': score, 'xerosic': score} of the real decision."""
     visto = {}
-    # Los espias se instalan en TODOS los modulos que ligan el nombre: quien
-    # llama a los scorers vive ahora en ptcg/turno/puntuacion.py, no en `main`.
+    # The spies are installed in ALL the modules that bind the name: the one that
+    # calls the scorers now lives in ptcg/turno/puntuacion.py, not in `main`.
     restauradores = []
     for clave, nombre in (("stamp", "_score_unfair_stamp_play"),
                           ("xerosic", "_score_xerosic_play")):
@@ -140,7 +140,7 @@ def _scores(obs):
 
 
 # ---------------------------------------------------------------------------
-# 1. El caso real: mano rival de 18
+# 1. The real case: a rival hand of 18
 # ---------------------------------------------------------------------------
 
 def test_con_mano_rival_gigante_el_sello_cede_el_orden_a_xerosic():
@@ -151,20 +151,20 @@ def test_con_mano_rival_gigante_el_sello_cede_el_orden_a_xerosic():
 
 
 def test_el_veto_del_sello_no_lo_resucitan_los_ajustes():
-    """`bonus_matchup` (+400 vs Alakazam) sacaba el veto (−1) a +399."""
+    """`bonus_matchup` (+400 vs Alakazam) pulled the veto (−1) up to +399."""
     s = _scores(_obs())
     assert s["stamp"] <= 0, s
 
 
 def test_tras_jugar_xerosic_el_sello_se_juega_el_mismo_turno():
-    """El veto es de ORDEN y se auto-revoca: con el hueco de Supporter ya
-    gastado, el Sello recupera su score normal."""
+    """The veto is one of ORDER and auto-revokes: with the Supporter slot already
+    spent, the Stamp recovers its normal score."""
     s = _scores(_obs(supporter_played=True))
     assert s["stamp"] > 0, s
 
 
 # ---------------------------------------------------------------------------
-# 2. Los bordes del umbral
+# 2. The edges of the threshold
 # ---------------------------------------------------------------------------
 
 def test_justo_en_el_umbral_el_orden_se_invierte():
@@ -173,15 +173,15 @@ def test_justo_en_el_umbral_el_orden_se_invierte():
 
 
 def test_bajo_el_umbral_vuelve_la_conducta_antigua():
-    """Con la mano rival pequeña el mill no paga el hueco de Supporter: manda
-    el Sello y Xerosic cede, como antes."""
+    """With a small rival hand the mill does not pay for the Supporter slot: the
+    Stamp rules and Xerosic yields, as before."""
     s = _scores(_obs(op_hand=m.XEROSIC_STAMP_ORDEN_MIN_OP_HAND - 1))
     assert s["stamp"] > 0, s
     assert s["xerosic"] <= 0, s
 
 
 # ---------------------------------------------------------------------------
-# 3. Controles: el veto es del ORDEN, no del Sello
+# 3. Controls: the veto is about the ORDER, not about the Stamp
 # ---------------------------------------------------------------------------
 
 def test_sin_xerosic_en_mano_el_sello_se_juega_normal():
@@ -190,14 +190,14 @@ def test_sin_xerosic_en_mano_el_sello_se_juega_normal():
 
 
 def test_si_xerosic_no_va_a_jugarse_el_sello_no_cede():
-    """Guard de `cede_el_orden_a_xerosic`: si algún otro rail tumba a Xerosic a
-    `XEROSIC_SCORE_LAST_RESORT` (p.ej. `alakazam_cede_a_gusteo_ganador`, donde
-    el turno lo decide un Boss's), el Sello no le cede el paso a nadie."""
-    # Xerosic hay que parchearlo en `ptcg.decision.disrupcion`, NO en `main`:
-    # quien lo consulta es `_score_unfair_stamp_play`, que vive en ese mismo
-    # modulo y resuelve el nombre en SU espacio. `main` solo tiene una copia del
-    # binding (llego por `import *`), asi que parchearla ahi no llega al scorer.
-    # El Sello si se parchea en `main`, porque quien lo llama es `agent()`.
+    """Guard of `cede_el_orden_a_xerosic`: if some other rail knocks Xerosic down to
+    `XEROSIC_SCORE_LAST_RESORT` (e.g. `alakazam_cede_a_gusteo_ganador`, where
+    the turn is decided by a Boss's), the Stamp does not yield the way to anyone."""
+    # Xerosic has to be patched in `ptcg.decision.disrupcion`, NOT in `main`:
+    # the one that consults it is `_score_unfair_stamp_play`, which lives in that same
+    # module and resolves the name in ITS namespace. `main` only has a copy of the
+    # binding (it arrived via `import *`), so patching it there does not reach the scorer.
+    # The Stamp IS patched in `main`, because the one that calls it is `agent()`.
     from ptcg.decision import disrupcion
 
     orig = disrupcion._score_xerosic_play
@@ -223,7 +223,7 @@ def test_si_xerosic_no_va_a_jugarse_el_sello_no_cede():
 
 
 def test_el_fixture_tiene_de_verdad_las_dos_cartas_y_la_mano_gigante():
-    """Sin Sello + Xerosic en mano y mano rival grande el test no mide nada."""
+    """Without a Stamp + Xerosic in hand and a big rival hand the test measures nothing."""
     o = _obs()
     yo = o["current"]["yourIndex"]
     mano = [c["id"] for c in o["current"]["players"][yo]["hand"]]

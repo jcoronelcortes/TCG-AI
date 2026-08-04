@@ -1,30 +1,30 @@
-"""Explorador exhaustivo de TURNO: encuentra la mejor linea de nuestras
-acciones y la compara con la que elige el agente.
+"""Exhaustive TURN explorer: it finds the best line of our
+actions and compares it with the one the agent chooses.
 
-Fase 7 de la arquitectura de mejora de estrategia. Generaliza los "walkers"
-de los tests (combo Myriad, pivote Ogerpon): dado un estado (observacion),
-enumera TODAS las secuencias legales de nuestras acciones en el turno con un
-modelo de transiciones propio, evalua el estado final de cada una y devuelve
-la linea dominante. Si la linea del agente queda dominada, ahi hay un
-escenario nuevo con la jugada correcta ya calculada.
+Phase 7 of the strategy improvement architecture. It generalises the "walkers"
+of the tests (the Myriad combo, the Ogerpon pivot): given a state (an observation),
+it enumerates ALL the legal sequences of our actions in the turn with a
+transition model of its own, evaluates the final state of each one and returns
+the dominant line. If the agent's line ends up dominated, there is a
+new scenario there with the correct play already computed.
 
-LIMITES del modelo (v1, documentados a proposito):
-  - Solo NUESTRO turno (la informacion oculta del rival impide bifurcar el
-    simulador real). Sin robos: el robo de Teal Dance / los refrescos de mano
-    (Lillie's) no se modelan porque su resultado es azar.
-  - Acciones modeladas: adjunte manual, Teal Dance, Ripening Charge, retirada
-    +promocion, evolucion, Night Stretcher (recuperar Planta), Boss's Orders
-    (gusteo), Forest of Vitality, ataque del ACTIVO (via las calculadoras del
-    propio main) y fin de turno.
-  - El dano usa main._attacker_base_damage/_our_effective_damage: exacto para
-    nuestros atacantes principales; los ataques de chip no modelados valen 0.
+LIMITS of the model (v1, documented on purpose):
+  - OUR turn only (the opponent's hidden information makes it impossible to branch the
+    real simulator). No draws: the Teal Dance draw / the hand refills
+    (Lillie's) are not modelled because their outcome is chance.
+  - Modelled actions: the manual attachment, Teal Dance, Ripening Charge, retreat
+    +promotion, evolution, Night Stretcher (recovering Grass), Boss's Orders
+    (a gust), Forest of Vitality, the ACTIVE's attack (via main's own
+    calculators) and ending the turn.
+  - The damage uses main._attacker_base_damage/_our_effective_damage: exact for
+    our main attackers; the chip attacks that are not modelled count as 0.
 
-Evaluacion (lexicografica): ganar > premios tomados > dano infligido >
-energia adjuntada + cuerpos bajados + evoluciones. Un turno esteril pierde
-contra cualquier linea que desarrolle.
+Evaluation (lexicographic): winning > prizes taken > damage dealt >
+energy attached + bodies played + evolutions. A sterile turn loses
+against any line that develops.
 
-Uso:
-    python utils/explorador_turno.py --demo                # combo Myriad
+Usage:
+    python utils/explorador_turno.py --demo                # the Myriad combo
     python utils/explorador_turno.py --hallazgo registros/autopsia/X.json
     python utils/explorador_turno.py --autopsia registros/autopsia/ --max 20
 """
@@ -47,7 +47,7 @@ MAX_NODOS = 30000
 
 
 # --------------------------------------------------------------------------
-# Utilidades de estado (sobre el dict de observacion, como los walkers)
+# State utilities (over the observation dict, like the walkers)
 # --------------------------------------------------------------------------
 
 def _yo(obs):
@@ -66,7 +66,7 @@ def _pokes(j):
 
 
 def _firma(obs):
-    """Firma del estado para deduplicar transposiciones."""
+    """State signature used to deduplicate transpositions."""
     def pk_sig(p):
         return (p["id"], len(p.get("energies") or []), p.get("hp"))
     yo, op = _yo(obs), _op(obs)
@@ -87,7 +87,7 @@ def _firma(obs):
 
 
 class _P:
-    """Adaptador dict->objeto para las calculadoras de main."""
+    """dict->object adapter for main's calculators."""
 
     def __init__(self, d):
         self.id = d["id"]
@@ -112,11 +112,11 @@ def _forest_en_juego(obs):
 
 
 def _lock_habilidades_ex(obs):
-    """Las habilidades de nuestros Pokemon EX estan anuladas (paso 6 plan jul
-    2026): Iron Thorns ex en el ACTIVO rival (Initialization) o Team Rocket's
-    Watchtower como estadio. Sin esto el explorador proponia lineas ilegales
-    (TEAL DANCE x3 contra Iron Thorns ex activo, hallazgo p029) y contaminaba
-    el juicio de las autopsias justo en el matchup mas debil."""
+    """The abilities of our EX Pokemon are cancelled (step 6 of the jul
+    2026 plan): an Iron Thorns ex as the opposing ACTIVE (Initialization) or Team Rocket's
+    Watchtower as the stadium. Without this the explorer proposed illegal lines
+    (TEAL DANCE x3 against an active Iron Thorns ex, finding p029) and contaminated
+    the judgement of the autopsies precisely in the weakest matchup."""
     op = _op(obs)
     act = (op.get("active") or [None])[0]
     if act and act.get("id") == m.Iron_Thorns_ex:
@@ -126,7 +126,7 @@ def _lock_habilidades_ex(obs):
 
 
 def _dano_activo(obs):
-    """(dano_efectivo, objetivo_dict) del ataque de nuestro activo."""
+    """(effective_damage, target_dict) of our active's attack."""
     yo, op = _yo(obs), _op(obs)
     if not (yo.get("active") and yo["active"][0]
             and op.get("active") and op["active"][0]):
@@ -145,8 +145,8 @@ def _dano_activo(obs):
 
 
 # --------------------------------------------------------------------------
-# Enumeracion y aplicacion de acciones. Una accion es (etiqueta, aplicar)
-# donde aplicar(obs) -> obs nuevo (deepcopy) o None si es terminal.
+# Enumerating and applying actions. An action is (label, apply)
+# where apply(obs) -> a new obs (deepcopy) or None if it is terminal.
 # --------------------------------------------------------------------------
 
 def _quitar_de_mano(yo, card_id):
@@ -173,14 +173,14 @@ def _slots(yo):
 
 
 def _menu_real(obs):
-    """(tipos, play_ids) del menu REAL del simulador en el nodo RAIZ, o
-    (None, None) si no aplica (paso 6b plan jul 2026). Solo se consulta con
-    `_respetar_menu` (hallazgos de autopsia: su primer select MAIN trae el
-    menu completo y ya refleja locks de habilidad, bloqueos de item -- Budew
-    --, retiradas imposibles, etc.); los escenarios SINTETICOS (--demo,
-    StateBuilder) construyen menus parciales a proposito y no se filtran.
-    Los nodos SIMULADOS (tras la primera transicion) tampoco: ahi el menu
-    grabado ya no describe el estado."""
+    """(types, play_ids) of the simulator's REAL menu at the ROOT node, or
+    (None, None) if it does not apply (step 6b of the jul 2026 plan). It is only consulted with
+    `_respetar_menu` (autopsy findings: their first MAIN select carries the
+    complete menu and already reflects ability locks, item blocks -- Budew
+    --, impossible retreats, etc.); the SYNTHETIC scenarios (--demo,
+    StateBuilder) build partial menus on purpose and are not filtered.
+    The SIMULATED nodes (after the first transition) are not either: there the
+    recorded menu no longer describes the state."""
     if not obs.get("_respetar_menu") or obs.get("_simulado"):
         return None, None
     opts = (obs.get("select") or {}).get("option") or []
@@ -204,7 +204,7 @@ def acciones_legales(obs):
     grass_en_mano = m.Basic_Grass_Energy in mano_ids
     forest = _forest_en_juego(obs)
 
-    # Filtro de legalidad por el menu real (solo nodo raiz de hallazgos).
+    # Legality filter through the real menu (the root node of findings only).
     _tipos_menu, _play_ids_menu = _menu_real(obs)
 
     def _permitido(tipo):
@@ -213,7 +213,7 @@ def acciones_legales(obs):
     def _play_ok(cid):
         return _play_ids_menu is None or cid in _play_ids_menu
 
-    # adjunte manual
+    # manual attachment
     if (grass_en_mano and not cur.get("energyAttached")
             and _permitido(OptionType.ATTACH)):
         for nombre, p in _slots(yo):
@@ -227,8 +227,8 @@ def acciones_legales(obs):
                 return o2
             acciones.append((f"ATTACH->{m.card_table[p['id']].name}", ap))
 
-    # Teal Dance (una por Ogerpon por turno; el robo no se modela).
-    # Habilidad de un EX: anulada bajo _lock_habilidades_ex.
+    # Teal Dance (one per Ogerpon per turn; the draw is not modelled).
+    # An EX ability: cancelled under _lock_habilidades_ex.
     if (grass_en_mano and not _lock_habilidades_ex(obs)
             and _permitido(OptionType.ABILITY)):
         for nombre, p in _slots(yo):
@@ -243,8 +243,8 @@ def acciones_legales(obs):
                     return o2
                 acciones.append(("TEAL DANCE", ap))
 
-    # Ripening Charge (Hydrapple ex: adjunta 1 Planta de la mano a cualquiera).
-    # Habilidad de un EX: anulada bajo _lock_habilidades_ex.
+    # Ripening Charge (Hydrapple ex: it attaches 1 Grass from hand to anyone).
+    # An EX ability: cancelled under _lock_habilidades_ex.
     if (grass_en_mano and not _lock_habilidades_ex(obs)
             and _permitido(OptionType.ABILITY)):
         for _, hyd in _slots(yo):
@@ -263,7 +263,7 @@ def acciones_legales(obs):
                         (f"RIPENING->{m.card_table[p['id']].name}", ap))
                 break
 
-    # evolucion (mano -> pre-evo en juego; Forest permite el mismo turno)
+    # evolution (hand -> a pre-evolution in play; Forest allows it the same turn)
     for cid in set(mano_ids) if _permitido(OptionType.EVOLVE) else ():
         data = m.card_table.get(cid)
         if not data or not (data.stage1 or data.stage2):
@@ -296,7 +296,7 @@ def acciones_legales(obs):
             acciones.append(
                 (f"EVOLVE {data.name}<-{pdata.name}", ap))
 
-    # retirada + promocion (coste en energias efectivas, v1)
+    # retreat + promotion (the cost in effective energies, v1)
     act = yo["active"][0] if yo.get("active") and yo["active"][0] else None
     if (act is not None and not cur.get("retreated")
             and _permitido(OptionType.RETREAT)):
@@ -323,7 +323,7 @@ def acciones_legales(obs):
                 acciones.append(
                     (f"RETREAT->{m.card_table[bp['id']].name}", ap))
 
-    # Night Stretcher: recuperar una Planta del descarte (v1: solo energia)
+    # Night Stretcher: recovering a Grass from the discard (v1: energy only)
     if (m.Night_Stretcher in mano_ids and _play_ok(m.Night_Stretcher)
             and any(c["id"] == m.Basic_Grass_Energy
                     for c in (yo.get("discard") or []))):
@@ -341,7 +341,7 @@ def acciones_legales(obs):
             return o2
         acciones.append(("NS->PLANTA", ap))
 
-    # Boss's Orders: subir un objetivo de la banca rival
+    # Boss's Orders: bringing up a target from the opposing bench
     if (m.Boss_Orders in mano_ids and not cur.get("supporterPlayed")
             and _play_ok(m.Boss_Orders)
             and any(b for b in (op.get("bench") or []))):
@@ -376,10 +376,10 @@ def acciones_legales(obs):
             return o2
         acciones.append(("FOREST", ap))
 
-    # ataque del activo (terminal). En el nodo raiz el menu real manda: si el
-    # simulador no ofrecio ATTACK (energia insuficiente, condicion), el
-    # modelo no lo inventa; tras cualquier transicion vuelve a decidir el
-    # modelo (un adjunte simulado puede habilitar el ataque).
+    # the active's attack (terminal). At the root node the real menu rules: if the
+    # simulator did not offer ATTACK (not enough energy, a condition), the
+    # model does not invent it; after any transition the model decides
+    # again (a simulated attachment can enable the attack).
     dano, opa = _dano_activo(obs)
     if dano > 0 and _permitido(OptionType.ATTACK):
         acciones.append(("ATTACK", None))
@@ -388,7 +388,7 @@ def acciones_legales(obs):
 
 
 def evaluar_terminal(obs, ataca):
-    """Tupla lexicografica: (gana, premios, dano, desarrollo)."""
+    """A lexicographic tuple: (wins, prizes, damage, development)."""
     yo = _yo(obs)
     premios, dano = 0, 0
     gana = False
@@ -406,13 +406,13 @@ def evaluar_terminal(obs, ataca):
 
 
 def explorar(obs, max_nodos=MAX_NODOS, respetar_menu=False):
-    """Devuelve (mejor_puntaje, mejor_linea) explorando el turno completo.
+    """Returns (best_score, best_line) by exploring the complete turn.
 
-    Con `respetar_menu` (paso 6b), el nodo RAIZ solo genera acciones cuyo
-    tipo aparece en el menu real de la observacion (ver _menu_real): para
-    hallazgos de autopsia, donde el menu del simulador ya refleja locks y
-    bloqueos que el modelo v1 no conoce. Los escenarios sinteticos (--demo)
-    no lo activan: sus menus son parciales a proposito."""
+    With `respetar_menu` (step 6b), the ROOT node only generates actions whose
+    type appears in the observation's real menu (see _menu_real): for
+    autopsy findings, where the simulator's menu already reflects locks and
+    blocks the v1 model does not know about. The synthetic scenarios (--demo)
+    do not switch it on: their menus are partial on purpose."""
     inicial = copy.deepcopy(obs)
     inicial.setdefault("_evoluciones", 0)
     if respetar_menu:
@@ -426,15 +426,15 @@ def explorar(obs, max_nodos=MAX_NODOS, respetar_menu=False):
             return
         nodos[0] += 1
         for etiqueta, aplicar in acciones_legales(estado):
-            if aplicar is None:  # terminal: ATTACK o END
+            if aplicar is None:  # terminal: ATTACK or END
                 p = evaluar_terminal(estado, etiqueta == "ATTACK")
                 if mejor[0] is None or p > mejor[0]:
                     mejor[0], mejor[1] = p, linea + [etiqueta]
                 continue
             sig = estado_sig = None
             nuevo = aplicar(estado)
-            # Tras la primera transicion el estado es SIMULADO: el menu
-            # grabado ya no lo describe y la legalidad vuelve al modelo.
+            # After the first transition the state is SIMULATED: the recorded
+            # menu no longer describes it and legality goes back to the model.
             nuevo["_simulado"] = True
             estado_sig = _firma(nuevo)
             if estado_sig in vistos:
@@ -450,7 +450,7 @@ def comparar_hallazgo(ruta, indice=0, max_nodos=MAX_NODOS):
     data = json.loads(Path(ruta).read_text())
     h = data["hallazgos"][indice]
     obs = h["observation"]
-    # Hallazgo real de autopsia: el menu del simulador manda en el nodo raiz.
+    # A real autopsy finding: the simulator's menu rules at the root node.
     puntaje, linea, nodos = explorar(obs, max_nodos, respetar_menu=True)
     print(f"{Path(ruta).name} [{h['detector']} turno {h['turno']}]")
     print(f"  agente en la partida: {h['detalle']}")
@@ -461,7 +461,7 @@ def comparar_hallazgo(ruta, indice=0, max_nodos=MAX_NODOS):
 
 
 def demo_combo_myriad():
-    """El explorador debe redescubrir el combo del registro_012 paso 227."""
+    """The explorer must rediscover the combo of registro_012 step 227."""
     from state_builder import Escenario, pk, G
     import golden_corpus as gc
     gc.reset_agente(m)

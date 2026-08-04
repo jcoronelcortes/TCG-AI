@@ -1,8 +1,8 @@
-"""Bug Catching Set: busqueda de Pokemon Insecto.
+"""Bug Catching Set: searching for Bug Pokemon.
 
-Extraido VERBATIM de main.py por utils/extraer_definiciones.py
-(docs/main-refactor-arquitectura.md). Su pureza esta comprobada por
-utils/pureza.py: nada de aqui toca el estado mutable ni las tablas de runtime.
+Extracted VERBATIM from main.py by utils/extraer_definiciones.py
+(docs/project-history.md). Its purity is verified by
+utils/pureza.py: nothing here touches mutable state or the runtime tables.
 """
 
 from ptcg.motor.reglas import _resolver_con_traza
@@ -27,14 +27,14 @@ _REGLAS_BCS_PLAY = [
     _ReglaFija("sin_elegibles_en_mazo",
                lambda w: w.elegibles == 0,
                lambda w: SCORE_VETO),
-    # Freno de deck-out (paso 4 plan jul 2026; autopsia v2 vs crustle: 4/19
-    # derrotas POR DECKOUT y cola de deckCount 0-5 en t20+, el pendiente de
-    # a7df1ce). Con el mazo critico -- mismo umbral familiar que el freno de
-    # Lillie's (<=10), aqui <=8 -- Bug Catching Set adelgaza 1-2 cartas del
-    # mazo: puro reloj perdido contra un rival stall. EXCEPCION energia seca
-    # (la que motivo el BCS del plan anti-mill vs Comfey, b393426): sin
-    # Planta en mano y con el adjunte del turno pendiente, cavar la energia
-    # habilita atacar HOY, y eso vale mas que el reloj.
+    # Deck-out brake (step 4 of the jul 2026 plan; autopsy v2 vs crustle: 4/19
+    # losses BY DECKOUT and a tail of deckCount 0-5 at t20+, the item pending
+    # from a7df1ce). With a critical deck -- same familiar threshold as the
+    # Lillie's brake (<=10), here <=8 -- Bug Catching Set thins the deck by 1-2
+    # cards: pure lost clock against a stall opponent. DRY ENERGY EXCEPTION
+    # (the one that motivated the BCS of the anti-mill plan vs Comfey, b393426):
+    # with no Grass in hand and the turn's attachment still pending, digging out
+    # the energy enables attacking TODAY, and that is worth more than the clock.
     _ReglaFija("freno_deckout_mazo_critico",
                lambda w: (getattr(w.my_state, 'deckCount', 60) <= 8
                           and not (w.hand_counts[Basic_Grass_Energy] == 0
@@ -72,7 +72,7 @@ _AJUSTES_BCS_PLAY = [
                           and w.energy_starved_low_draw
                           and w.energia_mazo > 0),
             lambda w, s: s + SCORE_BELIEF_DIG_ENERGY),
-    # Con Poke Pad jugable (y sin Itchy Pollen), BCS cede: tope 9000.
+    # With Poke Pad playable (and without Itchy Pollen), BCS yields: cap 9000.
     _Ajuste("tope_si_pokepad_jugable",
             lambda w, s: (w.pp_playable_in_hand
                           and not w.itchy_pollen_active and s > 9000),
@@ -81,9 +81,9 @@ _AJUSTES_BCS_PLAY = [
 
 
 class _CtxBCS:
-    """Wrapper del DecisionContext para Bug Catching Set: precomputa las
-    estadisticas del mazo (elegibles, piezas de alto valor, p_find de 7
-    miradas) una sola vez; el resto delega via __getattr__."""
+    """DecisionContext wrapper for Bug Catching Set: it precomputes the deck
+    statistics (eligible cards, high-value pieces, p_find over 7 looks) only
+    once; everything else is delegated via __getattr__."""
 
     def __init__(self, ctx):
         self.c = ctx
@@ -147,9 +147,9 @@ class _CtxBCS:
 
 
 def _score_bug_catching_set_play(ctx: DecisionContext) -> int:
-    """Puntua la jugada de Bug Catching Set (mira 7 y coge Planta/Energia).
-    Cuerpo migrado al MOTOR DE REGLAS (fase 4): estadisticas del mazo
-    precomputadas en _CtxBCS, contribuciones como ajustes con nombre."""
+    """Scores playing Bug Catching Set (look at 7 and take Grass/Energy).
+    Body migrated to the RULES ENGINE (phase 4): deck statistics precomputed in
+    _CtxBCS, contributions expressed as named adjustments."""
     return _resolver_con_traza("bcs->play", _REGLAS_BCS_PLAY,
                                _AJUSTES_BCS_PLAY, _CtxBCS(ctx), defecto=0)
 

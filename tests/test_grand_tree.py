@@ -1,20 +1,20 @@
-"""Tests del motor de Grand Tree (estadio ACE SPEC id 1249).
+"""Tests of the Grand Tree engine (ACE SPEC stadium id 1249).
 
-Grand Tree deja a CADA jugador, una vez por turno, buscar en su baraja una
-Fase 1 que evolucione de uno de sus Basicos y, si evoluciono asi, tambien la
-Fase 2 correspondiente. Es un estadio COMPARTIDO: si lo baja el rival, nosotros
-tambien lo usamos.
+Grand Tree lets EACH player, once per turn, search their deck for a
+Stage 1 that evolves from one of their Basics and, if it evolved that way, also the
+corresponding Stage 2. It is a SHARED stadium: if the rival plays it, we
+use it too.
 
-Cubre las reglas pedidas por el user:
-  * con el estadio en mesa se usa su habilidad (prioridad de desarrollo);
-  * con Meganium en juego se completa Hydrapple ex, con Hydrapple ex en juego
-    se completa Meganium, y con AMBOS en juego se hace un segundo Hydrapple ex;
-  * si falta el Basico raiz, se busca en el mazo / se recupera del descarte;
-  * con Forest of Vitality en la mano, PRIMERO la habilidad y DESPUES el
-    reemplazo del estadio.
+It covers the rules asked for by the user:
+  * with the stadium on the table its ability is used (development priority);
+  * with Meganium in play Hydrapple ex is completed, with Hydrapple ex in play
+    Meganium is completed, and with BOTH in play a second Hydrapple ex is made;
+  * if the root Basic is missing, it is searched for in the deck / recovered from the discard;
+  * with Forest of Vitality in hand, FIRST the ability and THEN the
+    stadium replacement.
 
-Y las restricciones de la propia carta: nada en nuestro primer turno, nada
-sobre un Basico puesto en juego este mismo turno.
+And the restrictions of the card itself: nothing on our first turn, nothing
+on a Basic put into play this same turn.
 """
 
 import sys
@@ -71,29 +71,29 @@ def reset_main_state():
 
 
 # ---------------------------------------------------------------------------
-# Tablas derivadas del mazo (deck-agnosticas)
+# Tables derived from the deck (deck-agnostic)
 # ---------------------------------------------------------------------------
 
 def test_cadenas_derivadas_del_mazo():
-    """Las cadenas se leen de `evolvesFrom`, no de una lista escrita a mano."""
+    """The chains are read from `evolvesFrom`, not from a hand-written list."""
     assert (APPLIN, DIPPLIN, HYDRAPPLE) in m._CADENAS_MAZO
     assert (CHIKORITA, BAYLEEF, MEGANIUM) in m._CADENAS_MAZO
     assert m._GT_BASICOS_CON_CADENA == frozenset({APPLIN, CHIKORITA})
 
 
 def test_valor_cuerpo_prefiere_hydrapple_sobre_meganium():
-    """Hydrapple ex (330 PV + habilidad) es el mejor cuerpo del mazo: es el que
-    manda cuando la diversificacion no aplica (ambas Etapas 2 ya en juego)."""
+    """Hydrapple ex (330 HP + an ability) is the best body in the deck: it is the one
+    that rules when diversification does not apply (both Stage 2s already in play)."""
     assert m._gt_valor_cuerpo(HYDRAPPLE) > m._gt_valor_cuerpo(MEGANIUM)
 
 
 # ---------------------------------------------------------------------------
-# Eleccion del objetivo: la regla de prioridad del user
+# Choosing the target: the user's priority rule
 # ---------------------------------------------------------------------------
 
 def _planes(activo, banca, mano=(), mazo=None, veta_ex=False,
             primer_turno=False):
-    """Ejecuta `_gt_planes` sobre un tablero sintetico minimo."""
+    """Runs `_gt_planes` on a minimal synthetic board."""
     esc = (Escenario(turno=8, paso=40)
            .mi_activo(activo)
            .mi_banca(*banca)
@@ -104,7 +104,7 @@ def _planes(activo, banca, mano=(), mazo=None, veta_ex=False,
     if mazo is not None:
         esc = esc.mazo(*mazo).resto_al_descarte()
     obs = esc.menu_grand_tree().construir()
-    m.agent(obs)  # sincroniza el tracking de cartas del modulo
+    m.agent(obs)  # syncs the module's card tracking
     estado = obs["current"]["players"][0]
     from cg.api import to_observation_class
     my_state = to_observation_class(obs).current.players[0]
@@ -117,8 +117,8 @@ def _planes(activo, banca, mano=(), mazo=None, veta_ex=False,
 
 
 def test_con_meganium_en_juego_se_completa_hydrapple():
-    """Regla del user: teniendo Meganium, la cadena que se construye es la de
-    Hydrapple ex (diversificar)."""
+    """The user's rule: having Meganium, the chain that gets built is
+    Hydrapple ex's (diversify)."""
     planes = _planes(
         activo=pk(OGERPON, energias=[G, G, G]),
         banca=[pk(MEGANIUM, pre_evo=[CHIKORITA, BAYLEEF]),
@@ -129,7 +129,7 @@ def test_con_meganium_en_juego_se_completa_hydrapple():
 
 
 def test_con_hydrapple_en_juego_se_completa_meganium():
-    """Regla espejo: teniendo Hydrapple ex, se construye Meganium."""
+    """The mirror rule: having Hydrapple ex, Meganium gets built."""
     planes = _planes(
         activo=pk(OGERPON, energias=[G, G, G]),
         banca=[pk(HYDRAPPLE, pre_evo=[APPLIN, DIPPLIN]),
@@ -140,8 +140,8 @@ def test_con_hydrapple_en_juego_se_completa_meganium():
 
 
 def test_con_ambos_en_juego_se_hace_un_segundo_hydrapple():
-    """Regla del user: con Meganium Y Hydrapple ex en mesa, la copia extra que
-    interesa es la de Hydrapple ex (el cuerpo mas fuerte)."""
+    """The user's rule: with Meganium AND Hydrapple ex on the table, the extra copy
+    that matters is Hydrapple ex's (the strongest body)."""
     planes = _planes(
         activo=pk(OGERPON, energias=[G, G, G]),
         banca=[pk(HYDRAPPLE, pre_evo=[APPLIN, DIPPLIN]),
@@ -153,9 +153,9 @@ def test_con_ambos_en_juego_se_hace_un_segundo_hydrapple():
 
 
 def test_matchup_anti_ex_prefiere_la_linea_no_ex():
-    """Contra un rival que inmuniza a los ex, la Etapa 2 ex se descarta y gana
-    la cadena no-ex (Meganium): construir un ex de 2 premios que no puede danar
-    al muro es peor que no hacerlo."""
+    """Against a rival that makes ex immune, the Stage 2 ex is discarded and the
+    non-ex chain (Meganium) wins: building a 2-prize ex that cannot damage
+    the wall is worse than not doing it."""
     planes = _planes(
         activo=pk(OGERPON, energias=[G, G, G]),
         banca=[pk(APPLIN), pk(CHIKORITA)],
@@ -163,13 +163,13 @@ def test_matchup_anti_ex_prefiere_la_linea_no_ex():
     assert planes
     assert planes[0].basic_id == CHIKORITA
     assert planes[0].stage2_id == MEGANIUM
-    # La cadena de Applin sigue existiendo pero se detiene en Fase 1.
+    # Applin's chain still exists but stops at Stage 1.
     applin = [p for p in planes if p.basic_id == APPLIN]
     assert applin and applin[0].stage2_id == 0
 
 
 def test_basico_que_salio_este_turno_no_es_objetivo():
-    """La carta prohibe evolucionar un Basico puesto en juego este turno."""
+    """The card forbids evolving a Basic put into play this turn."""
     planes = _planes(
         activo=pk(OGERPON, energias=[G, G, G]),
         banca=[pk(APPLIN, aparecio=True), pk(CHIKORITA)])
@@ -178,7 +178,7 @@ def test_basico_que_salio_este_turno_no_es_objetivo():
 
 
 def test_primer_turno_sin_planes():
-    """La carta prohibe evolucionar Basicos en nuestro primer turno."""
+    """The card forbids evolving Basics on our first turn."""
     planes = _planes(
         activo=pk(OGERPON, energias=[G]),
         banca=[pk(APPLIN), pk(CHIKORITA)],
@@ -187,8 +187,8 @@ def test_primer_turno_sin_planes():
 
 
 def test_prefiere_banca_con_el_activo_condenado():
-    """Con el activo a punto de morir, convertirlo en un cuerpo de MAS premios
-    cede el turno a un Basico de banca."""
+    """With the active about to die, turning it into a body worth MORE prizes
+    yields the turn to a bench Basic."""
     esc = (Escenario(turno=8, paso=40)
            .mi_activo(pk(APPLIN, hp=10))
            .mi_banca(pk(APPLIN))
@@ -207,7 +207,7 @@ def test_prefiere_banca_con_el_activo_condenado():
 
 
 # ---------------------------------------------------------------------------
-# La habilidad se USA (menu principal)
+# The ability is USED (main menu)
 # ---------------------------------------------------------------------------
 
 def _obs_menu(mano=(), banca=None, con_forest=False, mazo=None, turno=8):
@@ -225,16 +225,16 @@ def _obs_menu(mano=(), banca=None, con_forest=False, mazo=None, turno=8):
 
 
 def test_se_usa_la_habilidad_del_estadio_rival():
-    """El estadio es compartido: con Grand Tree del rival en mesa, la mejor
-    jugada del turno es su habilidad (cadena gratis)."""
+    """The stadium is shared: with the rival's Grand Tree on the table, the best
+    play of the turn is its ability (a free chain)."""
     obs = _obs_menu()
     eleccion = m.agent(obs)
     assert obs["select"]["option"][eleccion[0]]["type"] == int(m.OptionType.ABILITY)
 
 
 def test_la_habilidad_precede_al_reemplazo_por_forest():
-    """Regla del user: con Forest of Vitality en la mano, PRIMERO la habilidad
-    de Grand Tree y DESPUES el reemplazo del estadio."""
+    """The user's rule: with Forest of Vitality in hand, FIRST the Grand Tree
+    ability and THEN the stadium replacement."""
     obs = _obs_menu(mano=[FOREST_OF_VITALITY], con_forest=True)
     eleccion = m.agent(obs)
     elegida = obs["select"]["option"][eleccion[0]]
@@ -242,8 +242,8 @@ def test_la_habilidad_precede_al_reemplazo_por_forest():
 
 
 def test_sin_plan_ejecutable_el_forest_se_juega():
-    """Sin Basico evolucionable (los dos salieron este turno) la habilidad no
-    retiene nada: el Forest reemplaza el estadio rival con normalidad."""
+    """With no evolvable Basic (both came out this turn) the ability holds
+    nothing back: the Forest replaces the rival stadium as usual."""
     obs = _obs_menu(mano=[FOREST_OF_VITALITY], con_forest=True,
                     banca=[pk(APPLIN, aparecio=True),
                            pk(CHIKORITA, aparecio=True)])
@@ -253,8 +253,8 @@ def test_sin_plan_ejecutable_el_forest_se_juega():
 
 
 def test_la_habilidad_precede_a_evolucionar_desde_la_mano():
-    """Grand Tree no gasta carta de la mano: se cobra antes que la evolucion
-    manual, que sigue disponible despues."""
+    """Grand Tree does not spend a card from hand: it is cashed in before the manual
+    evolution, which is still available afterwards."""
     esc = (Escenario(turno=8, paso=40)
            .mi_activo(pk(OGERPON, energias=[G, G, G]))
            .mi_banca(pk(APPLIN), pk(CHIKORITA))
@@ -268,12 +268,12 @@ def test_la_habilidad_precede_a_evolucionar_desde_la_mano():
 
 
 # ---------------------------------------------------------------------------
-# Sub-selecciones de la habilidad
+# Sub-selections of the ability
 # ---------------------------------------------------------------------------
 
 def test_seleccion_del_pokemon_a_evolucionar_sigue_al_plan():
-    """Con Meganium en juego, la sub-seleccion elige el Applin (cadena de
-    Hydrapple ex), no el Chikorita."""
+    """With Meganium in play, the sub-selection picks the Applin (Hydrapple ex's
+    chain), not the Chikorita."""
     esc = (Escenario(turno=8, paso=41)
            .mi_activo(pk(OGERPON, energias=[G, G, G]))
            .mi_banca(pk(MEGANIUM, pre_evo=[CHIKORITA, BAYLEEF]),
@@ -290,7 +290,7 @@ def test_seleccion_del_pokemon_a_evolucionar_sigue_al_plan():
 
 
 def test_seleccion_de_carta_del_mazo_sigue_al_plan():
-    """Ofrecidas Dipplin y Bayleef, se trae el eslabon del plan (Dipplin)."""
+    """Offered Dipplin and Bayleef, it brings the link of the plan (Dipplin)."""
     esc = (Escenario(turno=8, paso=41)
            .mi_activo(pk(OGERPON, energias=[G, G, G]))
            .mi_banca(pk(MEGANIUM, pre_evo=[CHIKORITA, BAYLEEF]),
@@ -307,9 +307,9 @@ def test_seleccion_de_carta_del_mazo_sigue_al_plan():
 
 
 def test_paso_2_trae_la_etapa_2_aunque_el_plan_ya_no_apunte_al_basico():
-    """Resuelto el paso 1, el Basico ya es Fase 1 y `_gt_plan` deja de
-    apuntarlo; el criterio deck-agnostico (evolucion cuya pre-evolucion esta en
-    juego) sigue trayendo el Hydrapple ex."""
+    """With step 1 resolved, the Basic is already a Stage 1 and `_gt_plan` stops
+    pointing at it; the deck-agnostic criterion (an evolution whose pre-evolution is in
+    play) still brings the Hydrapple ex."""
     esc = (Escenario(turno=8, paso=42)
            .mi_activo(pk(OGERPON, energias=[G, G, G]))
            .mi_banca(pk(DIPPLIN, pre_evo=[APPLIN]))
@@ -325,12 +325,12 @@ def test_paso_2_trae_la_etapa_2_aunque_el_plan_ya_no_apunte_al_basico():
 
 
 # ---------------------------------------------------------------------------
-# Conseguir la raiz: fetch en mazo / descarte
+# Getting the root: a fetch in the deck / discard
 # ---------------------------------------------------------------------------
 
 def test_ultra_ball_busca_el_basico_raiz_si_no_hay_ninguno():
-    """Regla del user: sin Basico raiz en juego, la busqueda del turno trae el
-    que abre la cadena de Grand Tree."""
+    """The user's rule: with no root Basic in play, the turn's search brings the
+    one that opens the Grand Tree chain."""
     esc = (Escenario(turno=8, paso=30)
            .mi_activo(pk(OGERPON, energias=[G, G, G]))
            .mi_banca(pk(TAPU, energias=[G, G]))
@@ -349,8 +349,8 @@ def test_ultra_ball_busca_el_basico_raiz_si_no_hay_ninguno():
 
 
 def test_sin_grand_tree_el_bono_de_fetch_no_existe():
-    """El motor entero es INERTE sin el estadio en mesa: el mismo tablero sin
-    Grand Tree no fuerza la busqueda del Basico raiz."""
+    """The whole engine is INERT without the stadium on the table: the same board without
+    Grand Tree does not force the search for the root Basic."""
     def _fetch(estadio):
         esc = (Escenario(turno=8, paso=30)
                .mi_activo(pk(OGERPON, energias=[G, G, G]))
@@ -374,16 +374,16 @@ def test_sin_grand_tree_el_bono_de_fetch_no_existe():
     m._cartas_first_scan_done = False
     m._field_at_turn_start = {}
     sin = _fetch(None)
-    # Con el estadio manda la regla nueva; sin el, la busqueda vuelve a lo que
-    # decidian las reglas preexistentes (aqui, el motor de refresco: Meowth ex
-    # no esta en el mazo declarado, asi que gana la Etapa 2 de siempre).
+    # With the stadium the new rule rules; without it, the search goes back to what
+    # the pre-existing rules decided (here, the refresh engine: Meowth ex
+    # is not in the declared deck, so the usual Stage 2 wins).
     assert con == APPLIN
     assert sin != APPLIN
 
 
 def test_con_raiz_en_juego_no_se_fuerza_la_busqueda():
-    """Con un Applin ya en banca la raiz existe: el bono no se aplica y manda
-    el resto de prioridades del mazo."""
+    """With an Applin already on the bench the root exists: the bonus does not apply and
+    the rest of the deck's priorities rule."""
     esc = (Escenario(turno=8, paso=30)
            .mi_activo(pk(OGERPON, energias=[G, G, G]))
            .mi_banca(pk(APPLIN, aparecio=True))
@@ -396,7 +396,7 @@ def test_con_raiz_en_juego_no_se_fuerza_la_busqueda():
            .fetch_ultra_ball()
            .resto_al_descarte())
     obs = esc.construir()
-    m.agent(obs)  # no debe reventar; la eleccion la deciden las reglas previas
+    m.agent(obs)  # it must not blow up; the choice is decided by the previous rules
     ranking = m._gt_basicos_deseados(m.CARTAS_ACTIVAS_EN_MAZO,
                                      {OGERPON: 1, APPLIN: 1})
     assert APPLIN in ranking and CHIKORITA in ranking

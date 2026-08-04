@@ -1,7 +1,8 @@
-"""Contexto de `evaluate_supporters`: lo que capturaba del turno.
+"""Context of `evaluate_supporters`: what it used to capture from the turn.
 
-Generado al sacar la closure de `agent()` (Ola 5). Son 41 campos: los que
-la funcion leia del ambito de `agent` sin recibirlos por parametro.
+Generated when the closure was lifted out of `agent()` (wave 5). There are 41
+fields: the ones the function read from `agent`'s scope without receiving them
+as parameters.
 """
 
 from dataclasses import dataclass
@@ -10,7 +11,7 @@ from typing import Any
 
 @dataclass
 class CtxEvaluateSupporters:
-    """Capturas de `evaluate_supporters`."""
+    """Captures of `evaluate_supporters`."""
 
     _active_cant_attack_this_turn: Any = None
     _plan_de_planta: Any = None

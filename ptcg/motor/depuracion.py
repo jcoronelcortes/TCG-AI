@@ -1,8 +1,8 @@
-"""Volcado de decisiones para depurar (PTCG_DEBUG).
+"""Decision dump for debugging (PTCG_DEBUG).
 
-Extraido VERBATIM de main.py por utils/extraer_definiciones.py
-(docs/main-refactor-arquitectura.md). Su pureza esta comprobada por
-utils/pureza.py: nada de aqui toca el estado mutable ni las tablas de runtime.
+Extracted VERBATIM from main.py by utils/extraer_definiciones.py
+(docs/project-history.md). Its purity is verified by
+utils/pureza.py: nothing here touches mutable state or the runtime tables.
 """
 
 import os as _os_dbg

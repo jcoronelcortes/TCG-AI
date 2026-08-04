@@ -1,12 +1,13 @@
-"""`TurnoCtx`: el pizarron que cruza las fases de `agent()`.
+"""`TurnoCtx`: the scratchpad that crosses the phases of `agent()`.
 
-Ola 5 del refactor. `agent()` era una funcion de 15.471 lineas cuyas fases se
-comunicaban por variables locales; partirla exige darles un sitio explicito.
+Wave 5 of the refactor. `agent()` was a 15,471-line function whose phases talked
+to each other through local variables; splitting it means giving those variables
+an explicit home.
 
-No son 1.756 campos, que es lo que `agent()` llega a asignar: en cada corte solo
-sobreviven las que se leen despues. En el corte del `finalize` -- justo tras el
-bucle de puntuacion -- son 40. Elegir POR DONDE cortar segun ese numero
-(y no por el orden del archivo) es lo que hace la ola abordable.
+They are not 1,756 fields, which is how many `agent()` ends up assigning: at
+each cut point only the ones read afterwards survive. At the `finalize` cut --
+right after the scoring loop -- there are 40. Choosing WHERE to cut by that
+number (and not by the order of the file) is what makes the wave tractable.
 """
 
 from dataclasses import dataclass
@@ -15,7 +16,7 @@ from typing import Any
 
 @dataclass
 class TurnoCtx:
-    """Lo que la cola de `agent()` necesita del resto del turno."""
+    """What the tail of `agent()` needs from the rest of the turn."""
 
     _ability_order_veto: Any = None
     _active_attack_wins_now: Any = None

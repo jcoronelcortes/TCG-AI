@@ -1,50 +1,50 @@
-"""Objetivo del gusteo SIN KO: lo que decide es el COSTE DEL ATAQUE, no la etapa.
+"""The gust target WITHOUT a KO: what decides is the ATTACK COST, not the stage.
 
-Registro real del criterio que ya fabrica en sintético
-`test_boss_objetivo_sin_ko_cuerpo_muerto.py`. Aquel test construye el escenario
-con StateBuilder porque los registros locales apenas llegaban al prompt de
-objetivo (contexto 3); éste ancla el **paso real** en el que el agente enviado
-falló, para que la regla no pueda volver atrás sin que salte un test.
+The real record of the criterion that `test_boss_objetivo_sin_ko_cuerpo_muerto.py`
+already fabricates synthetically. That test builds the scenario
+with the StateBuilder because the local records barely reached the target
+prompt (context 3); this one anchors the **real step** in which the submitted
+agent failed, so the rule cannot go back without a test firing.
 
-Escenario (`registros/registro_006_pasos_063_hasta_066.json`, paso 65, turno 6,
-PERDIDA vs Dragapult -- episodio 89079426):
+Scenario (`registros/registro_006_pasos_063_hasta_066.json`, step 65, turn 6,
+LOST vs Dragapult -- episode 89079426):
 
-    NOSOTROS (6 premios)                    RIVAL (6 premios)
-    activo Chikorita 60/70, 1 {G}           activo  Budew 30
-    banca  Fezandipiti ex 210, 0 {G}        banca   Drakloak 90 **1 en.**
-    mano   Ultra Ball (bloqueada), Meganium,        **Dragapult ex 320, 0 en.**
-           Planta x2, Meowth ex                     Munkidori 110, 1 en.
+    US (6 prizes)                           OPPONENT (6 prizes)
+    active Chikorita 60/70, 1 {G}           active  Budew 30
+    bench  Fezandipiti ex 210, 0 {G}        bench   Drakloak 90 **1 en.**
+    hand   Ultra Ball (blocked), Meganium,          **Dragapult ex 320, 0 en.**
+           Grass x2, Meowth ex                      Munkidori 110, 1 en.
                                                     **Drakloak 90, 0 en.** x2
 
-Jugar el Boss's era correcto (nuestro activo no remata nada). El agente enviado
-**subió el Dragapult ex**: es la pieza más gorda de la banca, pero su ataque
-cuesta **1** energía, así que con el adjunte del turno siguiente ataca desde el
-activo -- y encima el Boss's le había pagado la subida gratis. Le pusimos
-delante, gratis, justo el cuerpo con el que quería atacar.
+Playing the Boss's was correct (our active finishes nothing). The submitted agent
+**brought up the Dragapult ex**: it is the biggest piece on the bench, but its attack
+costs **1** energy, so with next turn's attachment it attacks from the
+active spot -- and on top of that the Boss's had paid for the trip for free. We put
+in front of us, for free, exactly the body they wanted to attack with.
 
-El objetivo correcto es un **Drakloak pelado**: su ataque cuesta **2**, así que
-ni con el adjunte del turno puede pegar; su única salida es gastar la energía
-del turno en pagar la retirada. Es un turno rival entero comprado.
+The right target is a **bare Drakloak**: its attack costs **2**, so
+not even with the turn's attachment can it hit; its only way out is to spend the turn's
+energy paying the retreat. That is a whole opposing turn bought.
 
-Los tres números que deciden (regla del user) y que este paso separa:
+The three numbers that decide (the user's rule) and that this step separates:
 
-    candidato        energías   coste ataque   coste retirada   ¿muerto?
-    Drakloak            1            2              1              NO (2<=1+1)
-    Dragapult ex        0            1              1              NO (1<=0+1)
-    Munkidori           1            2              1              NO (2<=1+1)
-    Drakloak            0            2              1              **SÍ** (2>0+1)
+    candidate        energies   attack cost   retreat cost   dead?
+    Drakloak            1            2              1          NO (2<=1+1)
+    Dragapult ex        0            1              1          NO (1<=0+1)
+    Munkidori           1            2              1          NO (2<=1+1)
+    Drakloak            0            2              1          **YES** (2>0+1)
 
-No basta con mirar energías adjuntas y coste de retirada: por esos dos números
-el Dragapult ex y el Drakloak pelado **empatan** (ambos a 0 energías, ambos con
-retirada 1). Lo único que los separa es cuántas energías necesitan para
-**empezar a atacar**, que es lo que mide `_op_cuerpo_inofensivo` -- por COSTE
-leído del dato de carta, nunca por daño impreso (Powerful Hand, Cruel Arrow y
-los dos ataques de Gardevoir ex figuran con 0 y todos pegan de verdad).
+Looking at attached energies and retreat cost is not enough: by those two numbers
+the Dragapult ex and the bare Drakloak **tie** (both at 0 energies, both with
+retreat 1). The only thing that separates them is how many energies they need to
+**start attacking**, which is what `_op_cuerpo_inofensivo` measures -- by COST
+read from the card data, never by printed damage (Powerful Hand, Cruel Arrow and
+both attacks of Gardevoir ex are listed as 0 and all of them really hit).
 
-La regla que lo aplica es `sin_ko_prefiere_cuerpo_muerto` (+1500, en los dos
-modos del selector), documentada en `docs/main-08-agent-boss-orders.md`. Aquí se
-fijan además los DOS lados del contraste, que es lo que de verdad protege contra
-una regresión: el Drakloak pelado gana **y** el Dragapult ex queda por debajo.
+The rule that applies it is `sin_ko_prefiere_cuerpo_muerto` (+1500, in both
+modes of the selector), documented in `docs/strategy.md`. Here BOTH sides of the
+contrast are also pinned, which is what really protects against
+a regression: the bare Drakloak wins **and** the Dragapult ex stays below.
 """
 
 import json
@@ -103,7 +103,7 @@ def _obs():
 
 
 def _objetivo(obs, eleccion):
-    """(id, energías) del Pokémon de banca rival que elige el gusteo."""
+    """(id, energies) of the opposing benched Pokémon the gust chooses."""
     o = obs["select"]["option"][eleccion[0]]
     assert o["type"] == int(m.OptionType.CARD) and o["area"] == 5
     pk = obs["current"]["players"][o["playerIndex"]]["bench"][o["index"]]
@@ -115,7 +115,7 @@ def _pk(card_id, energias):
 
 
 # ---------------------------------------------------------------------------
-# 1. El paso real
+# 1. The real step
 # ---------------------------------------------------------------------------
 
 def test_paso65_sube_un_drakloak_pelado_no_el_dragapult_ex():
@@ -127,62 +127,62 @@ def test_paso65_sube_un_drakloak_pelado_no_el_dragapult_ex():
 
 
 def test_paso65_el_escenario_es_el_que_discrimina():
-    """Sin estas tres condiciones el paso no probaría nada."""
+    """Without these three conditions the step would prove nothing."""
     obs = _obs()
     banca = obs["current"]["players"][1]["bench"]
-    # (a) el Dragapult ex está en la banca y es elegible;
+    # (a) the Dragapult ex is on the bench and is eligible;
     assert any(p["id"] == DRAGAPULT for p in banca)
-    # (b) por energías + coste de retirada, Dragapult ex y Drakloak pelado
-    #     EMPATAN: lo único que los separa es el coste del ataque;
+    # (b) by energies + retreat cost, the Dragapult ex and the bare Drakloak
+    #     TIE: the only thing that separates them is the attack cost;
     drag = next(p for p in banca if p["id"] == DRAGAPULT)
     drak = next(p for p in banca if p["id"] == DRAKLOAK and not p["energies"])
     assert len(drag["energies"]) == len(drak["energies"]) == 0
     assert m.RETREAT_COST[DRAGAPULT] == m.RETREAT_COST[DRAKLOAK]
-    # (c) y no hay ningún KO disponible (si lo hubiera mandarían los tiers de
-    #     KO, >= 3000, y este criterio no llegaría a decidir).
+    # (c) and there is no KO available (if there were, the KO tiers would rule,
+    #     >= 3000, and this criterion would never get to decide).
     assert m.plan.remain_hp in (-1, None) or m.plan.remain_hp > 0
 
 
 # ---------------------------------------------------------------------------
-# 2. El criterio, aislado: energías + coste de ataque
+# 2. The criterion, in isolation: energies + attack cost
 # ---------------------------------------------------------------------------
 
 def test_cuerpo_inofensivo_mide_el_coste_del_ataque_no_la_etapa():
-    # Dragapult ex: ataque de 1 -> pelado YA ataca el turno que viene.
+    # Dragapult ex: a cost-1 attack -> bare it ALREADY attacks next turn.
     assert m._op_cuerpo_inofensivo(_pk(DRAGAPULT, 0)) is False
-    # Drakloak: ataque de 2 -> pelado NO ataca ni con el adjunte del turno.
+    # Drakloak: a cost-2 attack -> bare it does NOT attack even with the turn's attachment.
     assert m._op_cuerpo_inofensivo(_pk(DRAKLOAK, 0)) is True
-    # ...pero con una energía encima ya no está muerto.
+    # ...but with one energy on it, it is no longer dead.
     assert m._op_cuerpo_inofensivo(_pk(DRAKLOAK, 1)) is False
-    # Dreepy es Básico y "más pequeño" que el Drakloak, pero su ataque cuesta
-    # 1: la ETAPA no es el criterio.
+    # Dreepy is a Basic and "smaller" than the Drakloak, but its attack costs
+    # 1: the STAGE is not the criterion.
     assert m._op_cuerpo_inofensivo(_pk(DREEPY, 0)) is False
-    # Munkidori con su energía llega justo a los 2 que necesita.
+    # Munkidori with its energy reaches exactly the 2 it needs.
     assert m._op_cuerpo_inofensivo(_pk(MUNKIDORI, 1)) is False
     assert m._op_cuerpo_inofensivo(_pk(MUNKIDORI, 0)) is True
 
 
 def test_budew_nunca_es_cuerpo_muerto_su_ataque_cuesta_cero():
-    """Itchy Pollen cuesta 0: pelado y todo, ataca. Es además el que ya veta
-    `retirada_gratis` en modo estorbo (coste de retirada 0)."""
+    """Itchy Pollen costs 0: bare and all, it attacks. It is also the one already vetoed
+    by `retirada_gratis` in nuisance mode (a retreat cost of 0)."""
     assert m._op_cuerpo_inofensivo(_pk(m.Budew, 0)) is False
 
 
 # ---------------------------------------------------------------------------
-# 3. El eje graduado: `_op_cuerpo_inofensivo` es un UMBRAL de algo medible
+# 3. The graduated axis: `_op_cuerpo_inofensivo` is a THRESHOLD of something measurable
 # ---------------------------------------------------------------------------
-# El booleano no es un dato primitivo: es `_op_deficit_de_ataque >= 2`. Tenerlo
-# separado es lo que dejó ver que el horizonte es de UNA energía, y es el dato
-# sobre el que se probó (y se descartó por inerte) el desempate graduado dentro
-# de la banda -- ver la nota "MEDIDO Y REVERTIDO" junto a `_v_gust_traba_neta`.
+# The boolean is not a primitive datum: it is `_op_deficit_de_ataque >= 2`. Having it
+# separate is what made it visible that the horizon is ONE energy, and it is the datum
+# on which the graduated tie-break inside the band was tested (and discarded as inert)
+# -- see the "MEASURED AND REVERTED" note next to `_v_gust_traba_neta`.
 
 def test_deficit_de_ataque_es_el_umbral_graduado_de_cuerpo_inofensivo():
-    assert m._op_deficit_de_ataque(_pk(DRAGAPULT, 0)) == 1     # ataca con 1
-    assert m._op_deficit_de_ataque(_pk(DRAKLOAK, 0)) == 2      # muerto justo
+    assert m._op_deficit_de_ataque(_pk(DRAGAPULT, 0)) == 1     # it attacks with 1
+    assert m._op_deficit_de_ataque(_pk(DRAKLOAK, 0)) == 2      # dead by exactly one
     assert m._op_deficit_de_ataque(_pk(DRAKLOAK, 1)) == 1
-    assert m._op_deficit_de_ataque(_pk(DRAKLOAK, 5)) == 0      # nunca negativo
-    assert m._op_deficit_de_ataque(_pk(m.Dusknoir, 0)) == 3    # muerto de sobra
-    # El umbral y el eje graduado no pueden derivar: uno es función del otro.
+    assert m._op_deficit_de_ataque(_pk(DRAKLOAK, 5)) == 0      # never negative
+    assert m._op_deficit_de_ataque(_pk(m.Dusknoir, 0)) == 3    # dead by a wide margin
+    # The threshold and the graduated axis cannot drift apart: one is a function of the other.
     for cid in (DREEPY, DRAKLOAK, DRAGAPULT, MUNKIDORI, m.Dusknoir):
         for en in range(4):
             pk = _pk(cid, en)
@@ -191,17 +191,17 @@ def test_deficit_de_ataque_es_el_umbral_graduado_de_cuerpo_inofensivo():
 
 
 def test_deficit_desconocido_no_inventa_nada():
-    """Sin ataques legibles no se concluye ni muerto ni atascado."""
+    """With no readable attacks, neither "dead" nor "stuck" is concluded."""
     assert m._op_deficit_de_ataque(None) is None
     assert m._op_deficit_de_ataque(_pk(m.Basic_Grass_Energy, 0)) is None
     assert m._op_cuerpo_inofensivo(_pk(m.Basic_Grass_Energy, 0)) is False
 
 
 def test_los_muros_pasan_por_muertos_y_por_eso_existe_gust_trampa_ids():
-    """Crustle, Sylveon, Cornerstone e Iron Thorns ex tienen ataques de coste 3:
-    pelados dan déficit 3 y el criterio los llamaría "muertos". Son justo los
-    cuerpos que NO queremos delante, y por eso `GUST_TRAMPA_IDS` los excluye de
-    `sin_ko_prefiere_cuerpo_muerto`. Fija la premisa de esa lista."""
+    """Crustle, Sylveon, Cornerstone and Iron Thorns ex have cost-3 attacks:
+    bare they give a deficit of 3 and the criterion would call them "dead". They are exactly the
+    bodies we do NOT want in front, which is why `GUST_TRAMPA_IDS` excludes them from
+    `sin_ko_prefiere_cuerpo_muerto`. It pins the premise of that list."""
     for trampa in sorted(m.GUST_TRAMPA_IDS):
         pk = _pk(trampa, 0)
         assert m._op_deficit_de_ataque(pk) >= 2
@@ -209,9 +209,9 @@ def test_los_muros_pasan_por_muertos_y_por_eso_existe_gust_trampa_ids():
 
 
 def test_el_paso_65_lo_decide_el_umbral_no_un_desempate_graduado():
-    """En este paso TODOS los cuerpos muertos tienen déficit 2 (el mínimo), así
-    que la corrección se apoya solo en el umbral. Es lo que hizo inerte el
-    desempate graduado que se probó y se revirtió."""
+    """In this step ALL the dead bodies have a deficit of 2 (the minimum), so
+    the correction leans on the threshold alone. That is what made inert the
+    graduated tie-break that was tested and reverted."""
     obs = _obs()
     muertos = [_pk(p["id"], len(p["energies"]))
                for p in obs["current"]["players"][1]["bench"]]

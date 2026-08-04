@@ -1,46 +1,46 @@
-"""El muro HERIDO no es un muro: se mide la vida ACTUAL, no el HP impreso.
+"""A WOUNDED wall is not a wall: what is measured is CURRENT life, not printed HP.
 
-Escenario (`registros/registro_014_pasos_160_hasta_173.json`, paso 166, turno 14,
-GANADA vs Alakazam -- episodio 88911400):
+Scenario (`registros/registro_014_pasos_160_hasta_173.json`, step 166, turn 14,
+WON vs Alakazam -- episode 88911400):
 
-    NOSOTROS (3 premios)                    RIVAL (2 premios)
-    activo  Teal Mask Ogerpon ex            activo  Alakazam 140/140, 1 energia
-            **210/210**, 4 energias                 (Powerful Hand: 20 x mano)
-    banca   Hydrapple ex **90/330**, 2 en.  banca   Shaymin 80, Dunsparce 70,
+    US (3 prizes)                           RIVAL (2 prizes)
+    active  Teal Mask Ogerpon ex            active  Alakazam 140/140, 1 energy
+            **210/210**, 4 energies                 (Powerful Hand: 20 x hand)
+    bench   Hydrapple ex **90/330**, 2 en.  bench   Shaymin 80, Dunsparce 70,
             Meowth ex x2, Fezandipiti ex,           Abra 50, Abra 50
             Meganium
 
-El agente **retiraba el Ogerpon de 210/210** -- descartando una energia para pagar
-el coste -- y promovia el **Hydrapple ex a 90 PV** para atacar con el. Los dos
-noquean al Alakazam (Myriad Leaf Shower: 30 + 30*(4+1) = 180; Syrup Storm: 150),
-los dos son ex de 2 premios: el cambio no gana nada y deja delante el cuerpo que
-muere al turno siguiente. Lo correcto era **atacar con el Ogerpon**.
+The agent **retreated the 210/210 Ogerpon** -- discarding an energy to pay
+the cost -- and promoted the **Hydrapple ex at 90 HP** to attack with it. Both
+knock out the Alakazam (Myriad Leaf Shower: 30 + 30*(4+1) = 180; Syrup Storm: 150),
+both are 2-prize ex: the swap gains nothing and leaves in front the body that
+dies the next turn. The right thing was to **attack with the Ogerpon**.
 
-Causa: TRES sitios daban por hecho que "Hydrapple ex es el muro de 330 PV" usando
-el **HP IMPRESO**, que es una constante de la carta y no sabe nada del dano ya
-recibido:
+Cause: THREE places took for granted that "Hydrapple ex is the 330 HP wall" using
+the **PRINTED HP**, which is a constant of the card and knows nothing about the damage
+already taken:
 
-  1. `base_score` del bucle greedy de atacante: +200 a Hydrapple ex y -100 a Teal
-     Mask Ogerpon ex. Esos 300 puntos superaban al +220 de "soy el activo" y el
-     plan elegia el atacante de BANCA por 78 puntos (13342 vs 13264). Con
-     `plan.attacker >= 1` el ataque del activo queda VETADO.
-  2. `_promote_hydra = _hydra_can_ko or (not _act_can_ko)`: si el Hydrapple de
-     banca noquea, promueve -- aunque el activo tambien noquee.
-  3. `_active_ex_fragile_pivot` (score 9000 de la RETIRADA): mide la fragilidad
-     del activo con `maxHp < 330`, nunca con la vida del candidato.
+  1. The `base_score` of the attacker's greedy loop: +200 to Hydrapple ex and -100 to Teal
+     Mask Ogerpon ex. Those 300 points beat the +220 of "I am the active"
+     and the plan chose the BENCH attacker by 78 points (13342 vs 13264). With
+     `plan.attacker >= 1` the active's attack is VETOED.
+  2. `_promote_hydra = _hydra_can_ko or (not _act_can_ko)`: if the bench Hydrapple
+     knocks out, promote -- even if the active also knocks out.
+  3. `_active_ex_fragile_pivot` (score 9000 of the RETREAT): it measures the active's
+     fragility with `maxHp < 330`, never with the candidate's life.
 
-Arreglo: en los tres, la comparacion se hace con la vida ACTUAL y se exige mejora
-ESTRICTA -- el cambio cuesta ademas la energia de la retirada. Los dos primeros
-piden tambien que el relevo no NIEGUE premios (`prize_count`), para que un no-ex
-de banca pueda seguir relevando a un ex activo aunque aguante menos: ahi el cuerpo
-peor se paga con 1 premio en vez de 2 (`_alakazam_pivot_1prize`).
+Fix: in all three, the comparison is made with CURRENT life and STRICT improvement
+is required -- the swap also costs the retreat's energy. The first two also
+require that the relief does not DENY prizes (`prize_count`), so that a bench non-ex
+can go on relieving an active ex even if it survives less: there the worse
+body is paid for with 1 prize instead of 2 (`_alakazam_pivot_1prize`).
 
-Lo que NO cambia: con el Hydrapple SANO el pivote sigue vivo (330 > 210), que es
-el caso que lo creo (log 86412738 p145 vs Hops, log 86505760 p55 vs Alakazam). Y
-la rama de activo ESTANCADO (`not _act_can_ko`) no se toca: ahi el pivote compra
-el KO que no teniamos.
+What does NOT change: with a HEALTHY Hydrapple the pivot is still alive (330 > 210), which is
+the case that created it (log 86412738 p145 vs Hops, log 86505760 p55 vs Alakazam). And
+the STALLED-active branch (`not _act_can_ko`) is untouched: there the pivot buys
+the KO we did not have.
 
-Corpus dorado: un unico flip, el de este paso (RETREAT -> ATTACK id120).
+Golden corpus: a single flip, this step's (RETREAT -> ATTACK id120).
 """
 
 import copy
@@ -61,7 +61,7 @@ _FIXTURE = (ROOT / "tests" / "fixtures"
 
 OGERPON = m.Teal_Mask_Ogerpon_ex
 HYDRAPPLE = m.Hydrapple_ex
-ALAKAZAM = 743  # Alakazam Fase 2 (no-ex): 140 PV, Powerful Hand
+ALAKAZAM = 743  # Alakazam Stage 2 (non-ex): 140 HP, Powerful Hand
 
 
 @pytest.fixture(autouse=True)
@@ -102,7 +102,7 @@ def _opcion(obs, tipo):
 
 
 # ---------------------------------------------------------------------------
-# 1. El escenario: sin el, el test no mide nada
+# 1. The scenario: without it, the test measures nothing
 # ---------------------------------------------------------------------------
 
 def test_el_fixture_es_el_muro_herido_a_90_pv():
@@ -114,29 +114,29 @@ def test_el_fixture_es_el_muro_herido_a_90_pv():
     activo = mio["active"][0]
     hydra = next(b for b in mio["bench"] if b and b["id"] == HYDRAPPLE)
 
-    # El de delante esta INTACTO; el "muro" de banca, a 90 de 330.
+    # The one in front is INTACT; the bench "wall" is at 90 of 330.
     assert activo["id"] == OGERPON and activo["hp"] == activo["maxHp"] == 210
     assert hydra["maxHp"] == 330 and hydra["hp"] == 90
 
-    # Los dos pueden atacar YA: Ogerpon con 4 energias (req 3), Hydrapple con 2.
+    # Both can attack NOW: Ogerpon with 4 energies (req 3), Hydrapple with 2.
     assert len(activo["energies"]) == 4
     assert len(hydra["energies"]) == 2
 
-    # Los dos son ex: el cambio NO niega ningun premio (2 en ambos casos).
+    # Both are ex: the swap DENIES no prize (2 in both cases).
     clase = m.to_observation_class(o)
     assert m.prize_count(clase.current.players[yo].active[0]) == 2
     assert m.prize_count(
         next(b for b in clase.current.players[yo].bench
              if b is not None and b.id == HYDRAPPLE)) == 2
 
-    # Su Alakazam muere a Myriad Leaf Shower: 30 + 30*(4 propias + 1 suya) = 180.
+    # Their Alakazam dies to Myriad Leaf Shower: 30 + 30*(4 ours + 1 theirs) = 180.
     rival = riv["active"][0]
     assert rival["id"] == ALAKAZAM and rival["hp"] == 140
     assert 30 + 30 * (4 + len(rival["energies"])) >= rival["hp"]
 
 
 # ---------------------------------------------------------------------------
-# 2. La decision
+# 2. The decision
 # ---------------------------------------------------------------------------
 
 def test_no_se_retira_el_ogerpon_intacto():
@@ -152,23 +152,23 @@ def test_se_ataca_con_el_ogerpon_activo():
     o = _obs()
     atacar = _opcion(o, int(m.OptionType.ATTACK))
     assert m.agent(o) == [atacar]
-    # Y el plan apunta al ACTIVO (indice 0): con `plan.attacker >= 1` el
-    # scorer VETA el ataque del activo y el turno se va por la retirada.
+    # And the plan points at the ACTIVE (index 0): with `plan.attacker >= 1` the
+    # scorer VETOES the active's attack and the turn goes through the retreat.
     assert m.plan.attacker == 0
     assert m.plan.remain_hp is not None and m.plan.remain_hp <= 0
 
 
 # ---------------------------------------------------------------------------
-# 3. El discriminante: la vida ACTUAL, no el HP impreso
+# 3. The discriminator: CURRENT life, not printed HP
 # ---------------------------------------------------------------------------
 
 def test_con_el_hydrapple_SANO_el_pivote_sigue_vivo():
-    """El muro de verdad (330 > 210) sigue relevando al ex fragil."""
+    """The real wall (330 > 210) still relieves the fragile ex."""
     o = _obs()
     yo = o["current"]["yourIndex"]
     hydra = next(b for b in o["current"]["players"][yo]["bench"]
                  if b and b["id"] == HYDRAPPLE)
-    hydra["hp"] = 330  # curado: ahora SI aguanta mas que el Ogerpon de 210
+    hydra["hp"] = 330  # healed: now it DOES survive more than the 210 Ogerpon
 
     retirar = _opcion(o, int(m.OptionType.RETREAT))
     assert m.agent(o) == [retirar], (
@@ -177,7 +177,7 @@ def test_con_el_hydrapple_SANO_el_pivote_sigue_vivo():
 
 
 def test_empatados_en_vida_no_se_paga_la_retirada():
-    """Mejora ESTRICTA: a igual vida, el cambio solo cuesta una energia."""
+    """STRICT improvement: at equal life, the swap only costs an energy."""
     o = _obs()
     yo = o["current"]["yourIndex"]
     hydra = next(b for b in o["current"]["players"][yo]["bench"]

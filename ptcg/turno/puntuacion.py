@@ -1,13 +1,13 @@
-"""Puntuacion de una opcion del menu: tabla de despacho por `o.type`.
+"""Scoring one menu option: dispatch table by `o.type`.
 
-Cada rama grande vive en `ptcg/turno/opciones/<tipo>.py` y recibe el mismo
-contexto; las cortas van juntas en `menores.py`. Antes era una cadena
-if/elif de 6.628 lineas en un solo archivo: para tocar como se puntua una
-retirada habia que entrar ahi y localizar sus 1.425.
+Every large branch lives in `ptcg/turno/opciones/<type>.py` and receives the
+same context; the short ones live together in `menores.py`. This used to be an
+if/elif chain of 6,628 lines in a single file: to touch how a retreat is scored
+you had to go in there and locate its 1,425.
 
-Cada modulo desempaqueta del contexto SOLO los campos que lee y devuelve
-SOLO los que reasigna. Es equivalente al write-back unico de antes: una
-rama que no toca un campo lo deja como estaba.
+Each module unpacks from the context ONLY the fields it reads and returns ONLY
+the ones it reassigns. That is equivalent to the single write-back of before: a
+branch that does not touch a field leaves it as it was.
 """
 
 from cg.api import OptionType
@@ -35,9 +35,9 @@ _TABLA = {
 
 
 def puntuar_opcion(tc, o, score):
-    """Puntaje de la opcion `o`. Mayor = mejor; negativo = veto.
+    """Score of option `o`. Higher = better; negative = veto.
 
-    Puede devolver `_SALTAR`, y entonces el llamador NO debe apilar nada.
+    It may return `_SALTAR`, in which case the caller must NOT append anything.
     """
     fn = _TABLA.get(o.type)
     return fn(tc, o, score) if fn is not None else menores.puntuar(tc, o, score)

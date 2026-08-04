@@ -1,44 +1,44 @@
-"""Cruel Arrow: el mejor objetivo NO siempre es el activo rival.
+"""Cruel Arrow: the best target is NOT always the opposing active.
 
-Escenario (user, episodio 88714320 registro_004 paso 54 vs Alakazam, turno 4):
+Scenario (user, episode 88714320 registro_004 step 54 vs Alakazam, turn 4):
 
-    NOSOTROS                                  RIVAL
-    activo  Fezandipiti ex 210, 4 efectivas   activo  Alakazam 140/140
-    banca   Meowth ex, 3x Ogerpon ex (2e),    banca   Kadabra 80, Kadabra 80,
-            Meganium (recien evolucionado)            Abra 50, Dunsparce 70
-    mano    Dipplin, Night Stretcher, Grass, Unfair Stamp, Ultra Ball, Tapu Bulu
-    energyAttached: SI     Teal Dance de los TRES Ogerpon: YA usada
+    US                                        OPPONENT
+    active  Fezandipiti ex 210, 4 effective   active  Alakazam 140/140
+    bench   Meowth ex, 3x Ogerpon ex (2e),    bench   Kadabra 80, Kadabra 80,
+            Meganium (freshly evolved)                Abra 50, Dunsparce 70
+    hand    Dipplin, Night Stretcher, Grass, Unfair Stamp, Ultra Ball, Tapu Bulu
+    energyAttached: YES    Teal Dance of all THREE Ogerpon: ALREADY used
 
-El menu ofrecia PLAY / ATTACK(183 = Cruel Arrow) / RETREAT / END. El agente
-RETIRO al Fezandipiti ex -- descartando su energia -- para promover un Ogerpon
-que ni siquiera podia atacar, y cerro el turno sin hacer nada.
+The menu offered PLAY / ATTACK(183 = Cruel Arrow) / RETREAT / END. The agent
+RETREATED the Fezandipiti ex -- discarding its energy -- to promote an Ogerpon
+that could not even attack, and closed the turn without doing anything.
 
-Cruel Arrow hace 100 FIJOS a UNO CUALQUIERA de los Pokemon del rival, activo o
-banca ("no apliques Debilidad y Resistencia a los Pokemon en Banca"). No llegaba
-al Alakazam de 140 PV, pero NOQUEABA a un Kadabra de 80 en la banca: un premio
-gratis, sin coste de retirada y sin exponer otro cuerpo.
+Cruel Arrow does a FIXED 100 to ANY ONE of the opponent's Pokemon, active or
+bench ("don't apply Weakness and Resistance to Benched Pokemon"). It did not reach
+the 140 HP Alakazam, but it KNOCKED OUT an 80 HP Kadabra on the bench: a free
+prize, with no retreat cost and without exposing another body.
 
-Dos causas, las dos arregladas:
+Two causes, both fixed:
 
-  1. TODO el planificador media el ataque del ACTIVO contra el ACTIVO rival.
-     `_active_can_ko_now` (scorer de retirada) y `_active_already_kos` daban
-     False, el turno parecia esteril y los pivotes de retirada ganaban el menu.
-     Arreglo: `_snipe_best_target` evalua a TODOS los Pokemon rivales y sus tres
-     consumidores nuevos -- `_active_snipe_ko_now` (el activo SI puede noquear,
-     luego no se retira), `_snipe_attack_wins_now` (el snipe tambien cierra la
-     partida) y la banda 8500+ del ATTACK -- lo propagan. Es la MISMA funcion de
-     ranking (`_snipe_target_score`) que usa el menu de DAMAGE al elegir el
-     objetivo real, asi que las dos escalas no pueden divergir.
+  1. The WHOLE planner measured the ACTIVE's attack against the opposing ACTIVE.
+     `_active_can_ko_now` (the retreat scorer) and `_active_already_kos` returned
+     False, the turn looked sterile and the retreat pivots won the menu.
+     Fix: `_snipe_best_target` evaluates ALL the opposing Pokemon and its three
+     new consumers -- `_active_snipe_ko_now` (the active CAN knock out,
+     so it does not retreat), `_snipe_attack_wins_now` (the snipe also closes
+     the game) and the ATTACK's 8500+ band -- propagate it. It is the SAME
+     ranking function (`_snipe_target_score`) the DAMAGE menu uses when choosing the
+     real target, so the two scales cannot diverge.
 
-  2. Quien gano el menu fue `_ogerpon_lethal_promote` (8900): "retirar y subir
-     un Ogerpon que con Teal Dance llega a 3 energias y remata". Pero la Planta
-     era INALCANZABLE -- el adjunte manual ya estaba gastado y los tres Ogerpon
-     habian usado su Teal Dance ese turno --, asi que el remate no existia. El
-     detector ahora exige `_grass_attach_route_open`.
+  2. What won the menu was `_ogerpon_lethal_promote` (8900): "retreat and bring up
+     an Ogerpon that with Teal Dance reaches 3 energies and finishes". But the Grass
+     was UNREACHABLE -- the manual attachment was already spent and the three Ogerpon
+     had used their Teal Dance that turn --, so the finisher did not exist. The
+     detector now requires `_grass_attach_route_open`.
 
-Cuando el pivote de banca SI es real, la regla no lo pisa a ciegas: el snipe
-solo cede ante un KO de MAS premios (aqui Alakazam es no-ex, 1 premio = el
-Kadabra, asi que atacar gana).
+When the bench pivot IS real, the rule does not override it blindly: the snipe
+only yields to a KO worth MORE prizes (here Alakazam is non-ex, 1 prize = the
+Kadabra, so attacking wins).
 """
 
 import copy
@@ -54,12 +54,12 @@ if str(ROOT) not in sys.path:
 
 import main as m
 
-FEZ = m.Fezandipiti_ex          # 140: activo, Cruel Arrow (100 a cualquiera)
+FEZ = m.Fezandipiti_ex          # 140: active, Cruel Arrow (100 to anyone)
 OGERPON = m.Teal_Mask_Ogerpon_ex
-ALAKAZAM = 743                  # activo rival, 140 PV, NO-ex (1 premio)
-KADABRA = 742                   # banca rival, 80 PV  <- el objetivo correcto
-ABRA = 741                      # banca rival, 50 PV
-DUNSPARCE = 305                 # banca rival, 70 PV
+ALAKAZAM = 743                  # the opposing active, 140 HP, NON-ex (1 prize)
+KADABRA = 742                   # the opposing bench, 80 HP  <- the right target
+ABRA = 741                      # the opposing bench, 50 HP
+DUNSPARCE = 305                 # the opposing bench, 70 HP
 CRUEL_ARROW = 183
 
 _FIX_MAIN = ROOT / "tests" / "fixtures" / "fez_cruel_arrow_remata_banca_step54.json"
@@ -115,7 +115,7 @@ def _jugada(obs, eleccion):
 
 
 def _pk_elegido(obs, eleccion):
-    """Pokemon rival senalado por la opcion `eleccion` del menu de DAMAGE."""
+    """The opposing Pokemon pointed at by option `eleccion` of the DAMAGE menu."""
     o = obs["select"]["option"][eleccion[0]]
     rival = obs["current"]["players"][o["playerIndex"]]
     zona = rival["active"] if o["area"] == int(m.AreaType.ACTIVE) else rival["bench"]
@@ -123,24 +123,24 @@ def _pk_elegido(obs, eleccion):
 
 
 # ---------------------------------------------------------------------------
-# El paso 54 real
+# The real step 54
 # ---------------------------------------------------------------------------
 
 def _menu_paso54():
-    """La observacion del paso 54 (turno 4, accion 23) con el ESTADO DE TURNO
-    ya avanzado.
+    """The observation of step 54 (turn 4, action 23) with the TURN STATE
+    already advanced.
 
-    Antes esto se obtenia reproduciendo el turno entero desde el registro; los
-    registros son datos locales transitorios (salida de `utils/split_turns.py`)
-    y el test se rompia en cuanto el usuario cargaba una partida nueva. Lo unico
-    que aportaba el replay era el acumulador `_grass_attaches_this_turn`, que se
-    monta desde los logs ATTACH paso a paso y es lo que sabe si queda alguna via
-    de carga viva. Aqui se inyecta explicitamente -- y ademas queda a la vista
-    cual es el dato que hace el escenario: **4 Plantas ya puestas este turno**
-    (1 adjunte manual + las 3 Teal Dance de los tres Ogerpon), o sea ninguna
-    ruta abierta. `pre_turn` se fija al turno en curso para que `agent()` no
-    tome esta observacion por el inicio de un turno nuevo y reinicie el
-    contador.
+    This used to be obtained by replaying the whole turn from the record; the
+    records are transient local data (the output of `utils/split_turns.py`)
+    and the test broke as soon as the user loaded a new game. The only thing
+    the replay contributed was the `_grass_attaches_this_turn` accumulator, which is
+    built from the ATTACH logs step by step and is what knows whether any charging
+    route is still alive. Here it is injected explicitly -- and it also makes visible
+    which datum makes the scenario: **4 Grass already placed this turn**
+    (1 manual attachment + the 3 Teal Dance of the three Ogerpon), that is, no
+    open route. `pre_turn` is set to the current turn so `agent()` does not
+    take this observation for the start of a new turn and reset the
+    counter.
     """
     obs = _obs(_FIX_MAIN)
     m.pre_turn = obs["current"]["turn"]
@@ -150,7 +150,7 @@ def _menu_paso54():
 
 def test_paso54_ataca_con_cruel_arrow_en_vez_de_retirarse():
     obs = _menu_paso54()
-    # El menu debe ofrecer las dos jugadas para que el test discrimine.
+    # The menu must offer both plays for the test to discriminate.
     jugadas = [_jugada(obs, [i]) for i in range(len(obs["select"]["option"]))]
     assert ("ATTACK", CRUEL_ARROW) in jugadas, jugadas
     assert ("RETREAT", None) in jugadas, jugadas
@@ -159,34 +159,34 @@ def test_paso54_ataca_con_cruel_arrow_en_vez_de_retirarse():
 
 
 def test_paso54_el_remate_del_ogerpon_era_imposible():
-    """La retirada gano el menu por un KO que NO existia: quedaba una Planta en
-    la mano, pero ninguna via para ponerla en el campo."""
+    """The retreat won the menu through a KO that did NOT exist: there was a Grass in
+    hand, but no route to put it on the field."""
     obs = _menu_paso54()
     st = m.to_observation_class(obs).current
     yo = st.players[1]
 
-    assert st.energyAttached is True                  # adjunte manual gastado
+    assert st.energyAttached is True                  # manual attachment spent
     assert m._grass_attaches_this_turn == 4           # 1 manual + 3 Teal Dance
     assert sum(1 for p in yo.bench if p is not None
-               and p.id == OGERPON) == 3              # las 3 Teal Dance usadas
+               and p.id == OGERPON) == 3              # the 3 Teal Dance used
     assert m._grass_attach_route_open(st, {OGERPON: 3}) is False
     assert any(c.id == m.Basic_Grass_Energy for c in yo.hand)
 
 
 def test_paso54_cruel_arrow_no_llega_al_activo_pero_si_a_la_banca():
-    """El estado que hacia inevitable el error: medido contra el ACTIVO rival el
-    turno es esteril, medido contra TODO el campo rival hay un premio."""
+    """The state that made the mistake inevitable: measured against the opposing ACTIVE the
+    turn is sterile, measured against the WHOLE opposing field there is a prize."""
     obs = _menu_paso54()
     st = m.to_observation_class(obs).current
     activo = st.players[1].active[0]
     rival = st.players[0]
 
     assert activo.id == FEZ
-    assert len(activo.energies) >= 3                  # Cruel Arrow disponible
+    assert len(activo.energies) >= 3                  # Cruel Arrow available
     assert rival.active[0].id == ALAKAZAM
-    assert rival.active[0].hp == 140                  # 100 NO lo noquea
+    assert rival.active[0].hp == 140                  # 100 does NOT knock it out
     assert any(p is not None and p.id == KADABRA and p.hp == 80
-               for p in rival.bench)                  # 100 SI lo noquea
+               for p in rival.bench)                  # 100 DOES knock it out
 
     objetivo, dano, es_ko = m._snipe_best_target(activo, rival, len(activo.energies),
                                                  m.meganium_in_play, False)
@@ -194,7 +194,7 @@ def test_paso54_cruel_arrow_no_llega_al_activo_pero_si_a_la_banca():
 
 
 # ---------------------------------------------------------------------------
-# El menu de DAMAGE: a quien apunta la flecha
+# The DAMAGE menu: where the arrow points
 # ---------------------------------------------------------------------------
 
 def test_cruel_arrow_apunta_al_kadabra_no_al_activo():
@@ -204,7 +204,7 @@ def test_cruel_arrow_apunta_al_kadabra_no_al_activo():
 
 
 def test_cruel_arrow_prefiere_el_kadabra_sobre_abra_y_dunsparce():
-    """Entre los tres cuerpos que mueren, el mas desarrollado (Fase 1, 80 PV)."""
+    """Among the three bodies that die, the most developed one (Stage 1, 80 HP)."""
     obs = _obs(_FIX_DMG)
     rival = obs["current"]["players"][0]
     hp = {p["id"]: p["hp"] for p in rival["bench"]}
@@ -215,25 +215,25 @@ def test_cruel_arrow_prefiere_el_kadabra_sobre_abra_y_dunsparce():
     por_id = {p.id: p for p in st.bench if p is not None}
     assert sc(100, por_id[KADABRA]) > sc(100, por_id[DUNSPARCE])
     assert sc(100, por_id[DUNSPARCE]) > sc(100, por_id[ABRA])
-    # El activo, que sobrevive, queda por debajo de cualquier KO.
+    # The active, which survives, stays below any KO.
     assert sc(100, st.active[0]) < sc(100, por_id[ABRA])
 
 
 # ---------------------------------------------------------------------------
-# El evaluador del snipe, aislado
+# The snipe evaluator, in isolation
 # ---------------------------------------------------------------------------
 
 def test_snipe_sin_energia_no_propone_nada():
     obs = _obs(_FIX_DMG)
     st = m.to_observation_class(obs).current
     activo = st.players[1].active[0]
-    activo.energies = activo.energies[:2]             # Cruel Arrow cuesta 3
+    activo.energies = activo.energies[:2]             # Cruel Arrow costs 3
     assert m._snipe_best_target(activo, st.players[0], 2,
                                 False, False) == (None, 0, False)
 
 
 def test_snipe_solo_para_atacantes_que_eligen_objetivo():
-    """Un Ogerpon ex no snipea: su Myriad Leaf Shower golpea solo al activo."""
+    """An Ogerpon ex does not snipe: its Myriad Leaf Shower only hits the active."""
     obs = _obs(_FIX_DMG)
     st = m.to_observation_class(obs).current
     ogerpon = next(p for p in st.players[1].bench if p is not None and p.id == OGERPON)
@@ -242,8 +242,8 @@ def test_snipe_solo_para_atacantes_que_eligen_objetivo():
 
 
 def test_snipe_respeta_la_inmunidad_a_ex():
-    """Fezandipiti ex es ex: contra un muro que inmuniza a nuestros ex el snipe
-    hace 0 y no propone ningun KO (el chip sigue eligiendo el menos malo)."""
+    """Fezandipiti ex is an ex: against a wall that makes our ex useless the snipe
+    does 0 and proposes no KO (the chip still chooses the least bad one)."""
     obs = _obs(_FIX_DMG)
     st = m.to_observation_class(obs).current
     activo = st.players[1].active[0]
@@ -258,7 +258,7 @@ def test_snipe_respeta_la_inmunidad_a_ex():
 
 
 # ---------------------------------------------------------------------------
-# El fixture de una sola llamada (mismo veredicto sin replay)
+# The single-call fixture (the same verdict without a replay)
 # ---------------------------------------------------------------------------
 
 def test_fixture_paso54_ataca():
@@ -267,22 +267,22 @@ def test_fixture_paso54_ataca():
 
 
 def test_fixture_paso54_no_se_retira_aunque_el_ogerpon_pareciera_letal():
-    """Aunque la via de la Planta estuviera abierta, el pivote del Ogerpon no
-    puede pisar al snipe: Alakazam es NO-ex, o sea el MISMO premio que el
-    Kadabra, y atacar no paga coste de retirada ni expone otro cuerpo."""
+    """Even if the Grass route were open, the Ogerpon pivot canNOT
+    override the snipe: Alakazam is NON-ex, that is, the SAME prize as the
+    Kadabra, and attacking pays no retreat cost and exposes no other body."""
     obs = copy.deepcopy(_obs(_FIX_MAIN))
-    obs["current"]["energyAttached"] = False          # adjunte manual libre
+    obs["current"]["energyAttached"] = False          # the manual attachment is free
     assert _jugada(obs, m.agent(obs)) == ("ATTACK", CRUEL_ARROW)
 
 
 def test_el_snipe_cede_ante_un_ko_de_mas_premios_sin_cerrar_el_turno():
-    """El snipe manda sobre las jugadas de relleno, no sobre un KO mayor.
+    """The snipe rules over the filler plays, not over a bigger KO.
 
-    Con un ex de 2 premios delante (Archaludon ex, 300 PV: Cruel Arrow no llega)
-    y un Ogerpon de banca cuyo Myriad SI lo remata, retirar cobra el doble. Lo
-    que NO puede pasar nunca es que el veto del snipe sobre la retirada y el
-    veto del plan sobre el ataque se cancelen mutuamente y el turno se cierre en
-    blanco -- de ahi la guarda `plan.attacker <= 0` de `_active_snipe_ko_now`.
+    With a 2-prize ex in front (Archaludon ex, 300 HP: Cruel Arrow does not reach it)
+    and a benched Ogerpon whose Myriad DOES finish it, retreating takes twice as much. What
+    must NEVER happen is that the snipe's veto on the retreat and the plan's
+    veto on the attack cancel each other out and the turn closes
+    blank -- hence the `plan.attacker <= 0` guard of `_active_snipe_ko_now`.
     """
     obs = copy.deepcopy(_obs(_FIX_MAIN))
     rival = obs["current"]["players"][0]["active"][0]
@@ -290,7 +290,7 @@ def test_el_snipe_cede_ante_un_ko_de_mas_premios_sin_cerrar_el_turno():
     assert archaludon.ex and archaludon.hp == 300
     rival["id"] = 190
     rival["hp"] = rival["maxHp"] = archaludon.hp
-    # Un Ogerpon de banca con energia de sobra para rematar al muro.
+    # A benched Ogerpon with energy to spare to finish the wall.
     obs["current"]["players"][1]["bench"][1]["energies"] = [1] * 12
 
     jugada = _jugada(obs, m.agent(obs))

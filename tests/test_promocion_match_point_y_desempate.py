@@ -1,36 +1,36 @@
-"""Promoción tras KO: veto de MATCH POINT y desempate entre supervivientes.
+"""Promotion after a KO: the MATCH POINT veto and the tie-break among survivors.
 
-Cierra las prioridades que el user fijó para "a quién subir" cuando nos
-noquean el activo, en este orden:
+It closes off the priorities the user set for "who to bring up" when they
+knock out our active, in this order:
 
-    (1) que SOBREVIVA al golpe                -> `_promo_survives` + Festival Lead
-    (2) no exponer el multiplicador Wild Growth -> veto "la línea Meganium no
-        va al activo" (ya existía)
-    (3) el que esté MÁS CERCA de poder atacar
-    (4) a igualdad, el que ceda MENOS premios
+    (1) that it SURVIVES the blow             -> `_promo_survives` + Festival Lead
+    (2) not exposing the Wild Growth multiplier -> the veto "the Meganium line does
+        not go to the active spot" (already existed)
+    (3) the one CLOSEST to being able to attack
+    (4) all else equal, the one that gives away FEWER prizes
 
-**Item 4 — MATCH POINT.** Cuando al rival le basta con noquear ese cuerpo para
-llevarse el último premio, subir un condenado no es un mal intercambio: es
-perder la partida. La supervivencia deja de ser una *penalización*
-(`PROMO_DOOMED_PENALTY`, 6000) y pasa a ser un **veto**
-(`PROMO_MATCH_POINT_VETO`), por debajo de `SCORE_NEVER` para que no empate con
-los otros vetos de promoción.
+**Item 4 — MATCH POINT.** When it is enough for the rival to knock out that body to
+take the last prize, bringing up a doomed one is not a bad trade: it is
+losing the game. Survival stops being a *penalty*
+(`PROMO_DOOMED_PENALTY`, 6000) and becomes a **veto**
+(`PROMO_MATCH_POINT_VETO`), below `SCORE_NEVER` so that it does not tie with
+the other promotion vetoes.
 
-El caso que lo hace falta es el del log 88971843 sin el Tapu Bulu: el único
-cuerpo que aguanta es el **Meganium**, que lleva su propio veto a −10000 por ser
-el motor Wild Growth. Con solo la penalización, el Dipplin condenado (−2595) le
-ganaba y entregaba la partida. Dar el último premio es peor que exponer el
-multiplicador.
+The case that makes it necessary is that of log 88971843 without the Tapu Bulu: the only
+body that survives is the **Meganium**, which carries its own veto at −10000 for being
+the Wild Growth engine. With only the penalty, the doomed Dipplin (−2595)
+beat it and handed over the game. Giving away the last prize is worse than exposing
+the multiplier.
 
-**Item 5 — desempate.** Las prioridades (3) y (4) ya eran decisivas, y en ese
-mismo orden, dentro de `_promote_setup_ko_attacker` (`_ps_key`), pero esa regla
-exige que el ataque completado REMATE al activo rival. Este ajuste cubre el
-hueco que deja: los supervivientes cuyo ataque no remata. Está acotado a 0..450
-— manda sobre el score BASE de la promoción (150-250, que ordena por VIDA, el
-criterio que el user pone por debajo de estos dos) y queda muy por debajo de
-cualquier regla decisiva. Con los 60 puntos de la primera versión no llegaba:
-medido, un Ogerpon ex de 210 PV a TRES adjuntes de atacar seguía ganándole a un
-Tapu Bulu de 140 a DOS.
+**Item 5 — the tie-break.** Priorities (3) and (4) were already decisive, and in that
+same order, inside `_promote_setup_ko_attacker` (`_ps_key`), but that rule
+requires the completed attack to FINISH OFF the rival active. This adjustment covers
+the gap it leaves: the survivors whose attack does not finish. It is bounded to 0..450
+— it rules over the promotion's BASE score (150-250, which orders by LIFE, the
+criterion the user puts below these two) and stays well below
+any decisive rule. With the 60 points of the first version it was not enough:
+measured, a 210 HP Ogerpon ex THREE attachments away from attacking still beat a
+140 HP Tapu Bulu TWO away.
 """
 
 import copy
@@ -89,7 +89,7 @@ def reset_main_state():
 
 
 def _pk(cid, hp, energias=0, serial=900):
-    """Pokemon de banca sintetico (energias ya EFECTIVAS, como la observacion)."""
+    """A synthetic bench Pokemon (energies already EFFECTIVE, as in the observation)."""
     return {"appearThisTurn": False,
             "energies": [1] * energias,
             "energyCards": ([{"id": m.Basic_Grass_Energy, "playerIndex": 0,
@@ -99,7 +99,7 @@ def _pk(cid, hp, energias=0, serial=900):
 
 
 def _base(banca=None, sin_estadio=False, op_activo=None, op_premios=None):
-    """Fixture real del paso 117 con la banca / el activo rival sustituidos."""
+    """The real fixture of step 117 with the bench / rival active replaced."""
     o = copy.deepcopy(json.load(open(_FIXTURE, encoding="utf-8"))["observation"])
     yo = o["current"]["yourIndex"]
     mio = o["current"]["players"][yo]
@@ -130,15 +130,15 @@ def _elegido(obs):
 # ---------------------------------------------------------------------------
 
 def test_el_veto_de_match_point_esta_por_debajo_de_los_demas_vetos():
-    """Si empatara con SCORE_NEVER, el desempate quedaría al orden de opciones
-    justo entre el cuerpo que aguanta y el que nos hace perder."""
+    """If it tied with SCORE_NEVER, the tie-break would be left to the option order
+    right between the body that survives and the one that makes us lose."""
     assert m.PROMO_MATCH_POINT_VETO < m.SCORE_NEVER
     assert m.PROMO_MATCH_POINT_VETO < -m.PROMO_KO_BONUS
 
 
 def test_prefiere_el_motor_vetado_antes_que_regalar_el_ultimo_premio():
-    """El caso real sin el Tapu Bulu: el único superviviente es el Meganium,
-    que lleva su propio veto por ser el multiplicador Wild Growth."""
+    """The real case without the Tapu Bulu: the only survivor is the Meganium,
+    which carries its own veto for being the Wild Growth multiplier."""
     o = _base()
     yo = o["current"]["yourIndex"]
     banca = [b for b in o["current"]["players"][yo]["bench"] if b["id"] != TAPU]
@@ -148,39 +148,39 @@ def test_prefiere_el_motor_vetado_antes_que_regalar_el_ultimo_premio():
     assert len(riv["prize"]) == 1                      # match point
     assert [b["id"] for b in o["current"]["players"][yo]["bench"]] == [
         MEGANIUM, DIPPLIN, CHIKORITA]
-    # Meganium (160) aguanta los 100; Dipplin (80) y Chikorita (70) no.
+    # Meganium (160) survives the 100; Dipplin (80) and Chikorita (70) do not.
     assert _elegido(o)["id"] == MEGANIUM
 
 
 def test_sin_match_point_el_condenado_sigue_siendo_una_opcion():
-    """Frontera: con el rival a 3 premios, un KO no cierra la partida y vuelve
-    a mandar la penalización (que es graduable), no el veto."""
+    """Boundary: with the rival at 3 prizes, a KO does not close the game and the
+    penalty rules again (which is graduable), not the veto."""
     o = _base()
     yo = o["current"]["yourIndex"]
     banca = [b for b in o["current"]["players"][yo]["bench"] if b["id"] != TAPU]
     o = _base(banca=banca, op_premios=3)
-    # Con 3 premios el rival no gana noqueando un cuerpo de 1: el Dipplin deja
-    # de estar vetado y su score vuelve a competir con el del Meganium.
+    # With 3 prizes the rival does not win by knocking out a 1-prize body: the Dipplin stops
+    # being vetoed and its score competes with the Meganium's again.
     assert len(o["current"]["players"][1 - yo]["prize"]) == 3
     assert _elegido(o)["id"] == DIPPLIN
 
 
 def test_si_no_aguanta_nadie_no_se_veta_la_banca_entera():
-    """Frontera: sin supervivientes la partida está perdida igual y manda la
-    regla de premios; vetar a todos dejaría la elección al azar."""
+    """Boundary: with no survivors the game is lost anyway and the prize rule
+    rules; vetoing everyone would leave the choice to chance."""
     o = _base(banca=[_pk(DIPPLIN, 80, 2, 901), _pk(CHIKORITA, 70, 0, 902)],
               op_premios=1)
     yo = o["current"]["yourIndex"]
-    # Los dos mueren a los 100 de Do the Wave.
+    # Both die to Do the Wave's 100.
     for b in o["current"]["players"][yo]["bench"]:
         assert b["hp"] <= 100
     elegido = _elegido(o)
-    assert elegido["id"] in (DIPPLIN, CHIKORITA)       # se elige, no se bloquea
+    assert elegido["id"] in (DIPPLIN, CHIKORITA)       # it is chosen, not blocked
 
 
 def test_match_point_es_deck_agnostico():
-    """No depende de Festival Lead: mismo veto contra Marnie's Grimmsnarl ex
-    (Shadow Bullet 180) y sin estadio en mesa."""
+    """It does not depend on Festival Lead: the same veto against Marnie's Grimmsnarl ex
+    (Shadow Bullet 180) and with no stadium on the table."""
     o = _base(sin_estadio=True,
               op_activo={"appearThisTurn": False, "energies": [2, 2],
                          "energyCards": [], "hp": 320, "id": GRIMMSNARL,
@@ -192,28 +192,28 @@ def test_match_point_es_deck_agnostico():
     op_act = m.to_observation_class(o).current.players[1 - yo].active[0]
     tapu = m.to_observation_class(o).current.players[yo].bench[1]
     hydra = m.to_observation_class(o).current.players[yo].bench[0]
-    assert m._op_active_attack_damage_to(op_act, tapu) >= 140    # muere
-    assert m._op_active_attack_damage_to(op_act, hydra) < 330    # aguanta
+    assert m._op_active_attack_damage_to(op_act, tapu) >= 140    # it dies
+    assert m._op_active_attack_damage_to(op_act, hydra) < 330    # it survives
     assert _elegido(o)["id"] == HYDRAPPLE
 
 
 # ---------------------------------------------------------------------------
-# Item 5 - desempate entre supervivientes
+# Item 5 - the tie-break among survivors
 # ---------------------------------------------------------------------------
 
 def test_entre_supervivientes_manda_estar_cerca_de_atacar_y_ceder_menos():
-    """Un Tapu Bulu de 140 PV a DOS adjuntes de Wood Hammer (1 premio) sube
-    antes que un Ogerpon ex de 210 a TRES de Myriad (2 premios), aunque tenga
-    70 PV menos: la vida es el criterio de MÁS ABAJO."""
+    """A 140 HP Tapu Bulu TWO attachments away from Wood Hammer (1 prize) comes up
+    ahead of a 210 HP Ogerpon ex THREE away from Myriad (2 prizes), even with
+    70 HP less: life is the criterion of LAST resort."""
     o = _base(banca=[_pk(OGERPON, 210, 0, 901), _pk(TAPU, 140, 2, 902)])
     yo = o["current"]["yourIndex"]
     banca = m.to_observation_class(o).current.players[yo].bench
     op_act = m.to_observation_class(o).current.players[1 - yo].active[0]
 
-    # Los dos AGUANTAN el golpe: el desempate no lo decide la supervivencia.
+    # Both SURVIVE the blow: the tie-break is not decided by survival.
     for pk_ in banca:
         assert m._op_active_attack_damage_to(op_act, pk_) < (pk_.hp or 0)
-    # Y ninguno remata: tampoco lo decide el KO.
+    # And neither finishes off: it is not decided by the KO either.
     assert 210 > 0 and m.ATTACK_ENERGY_REQ[OGERPON] > 0
 
     elegido = _elegido(o)
@@ -222,12 +222,12 @@ def test_entre_supervivientes_manda_estar_cerca_de_atacar_y_ceder_menos():
 
 
 def test_el_desempate_no_puede_comprar_una_regla_decisiva():
-    """Acotado a 0..450: por debajo del +4000 del mejor atacante, de las ramas
-    con nombre (8000-9500) y del +20000 del que noquea."""
+    """Bounded to 0..450: below the +4000 of the best attacker, of the named
+    branches (8000-9500) and of the +20000 of the one that knocks out."""
     assert 450 < 4000 < m.PROMO_KO_BONUS
 
 
 def test_el_desempate_no_cambia_la_decision_del_registro():
-    """Control de no-regresión: el paso 117 sigue subiendo al Tapu Bulu."""
+    """A non-regression control: step 117 still brings up the Tapu Bulu."""
     o = _base()
     assert _elegido(o)["id"] == TAPU

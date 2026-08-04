@@ -1,72 +1,72 @@
-"""Bot rival generico: pilota CUALQUIER mazo de forma legal y consistente.
+"""Generic opposing bot: it pilots ANY deck legally and consistently.
 
-No es un buen jugador y no lo pretende: es el RIVAL DE REFERENCIA del modo
---rival de utils/selfplay.py. Al ser fijo y deterministico en sus reglas
-(greedy simple), permite comparar dos versiones de main.py por su winrate
-contra el MISMO oponente pilotando el MISMO mazo: el delta entre versiones
-es la senal, no el nivel absoluto del bot.
+It is not a good player and does not try to be: it is the REFERENCE OPPONENT of the
+--rival mode of utils/selfplay.py. Being fixed and deterministic in its rules
+(a simple greedy), it makes it possible to compare two versions of main.py by their winrate
+against the SAME opponent piloting the SAME deck: the delta between versions
+is the signal, not the bot's absolute level.
 
-Politica:
-  - Menu principal: ATTACH > EVOLVE > PLAY > ABILITY > RETREAT (solo si el
-    activo NO puede atacar) > ATTACK > END.
-  - ATTACH: al ACTIVO, salvo que el activo ya tenga energia y haya en juego un
-    Pokemon con una HABILIDAD CONDICIONADA A ENERGIA y ninguna adjunta -- ese
-    va primero, porque sin esa energia su habilidad no existe.
-  - EVOLVE: primero la evolucion de MAYOR etapa (Fase 2 antes que Fase 1) y,
-    a igualdad, la del ACTIVO. Es lo que saca el atacante grande a tiempo.
-  - ABILITY: como mucho UNA VEZ por Pokemon y por turno, con tope duro por
-    turno (anti-bucle: el motivo por el que el bot no las usaba).
-  - RETREAT: solo cuando el activo no tiene NINGUN ataque disponible y hay
-    banca. Sin esto un cuerpo gusteado se quedaba clavado delante para siempre
-    y cualquier gusteo rival, aunque no rematara, ganaba la partida sola.
-  - ATTACK: el de mayor dano EFECTIVO contra el defensor (debilidad x2), no el
-    de mayor dano impreso.
-  - Mover/poner contadores de dano (Adrena-Brain de Munkidori y familia):
-    origen = el cuerpo PROPIO mas danado, cantidad = la MAXIMA ofrecida,
-    destino = el cuerpo rival que MUERE con esos contadores (a mas premios,
-    mejor) y, si ninguno muere, el de MENOS vida.
-  - Elegir ACTIVO propio (promocion tras KO, destino de retirada): el que mas
-    energia lleva y, a igualdad, el de mas vida.
-  - Objetivo de GUSTEO (Boss's y familia: un SWITCH sobre la banca RIVAL): el
-    que puede NOQUEAR, a mas premios mejor; si ninguno, el de menos vida.
-  - Si/No: SI, salvo mulligan y "seguir devolucionando" (NO).
-  - Cualquier otro select: las primeras `minCount` opciones (o la primera
-    si el minimo es 0): eleccion siempre legal.
+Policy:
+  - Main menu: ATTACH > EVOLVE > PLAY > ABILITY > RETREAT (only if the
+    active canNOT attack) > ATTACK > END.
+  - ATTACH: to the ACTIVE, unless the active already has energy and there is in play a
+    Pokemon with an ABILITY CONDITIONED ON ENERGY and none attached -- that one
+    goes first, because without that energy its ability does not exist.
+  - EVOLVE: the HIGHEST stage evolution first (Stage 2 before Stage 1) and,
+    on a tie, the ACTIVE's. That is what gets the big attacker out in time.
+  - ABILITY: at most ONCE per Pokemon and per turn, with a hard per-turn
+    cap (anti-loop: the reason the bot did not use them).
+  - RETREAT: only when the active has NO attack available and there is a
+    bench. Without this a gusted body stayed nailed in front forever
+    and any opposing gust, even without finishing, won the game on its own.
+  - ATTACK: the one with the highest EFFECTIVE damage against the defender (weakness x2), not
+    the one with the highest printed damage.
+  - Moving/placing damage counters (Munkidori's Adrena-Brain and family):
+    source = the most damaged body of ITS OWN, amount = the MAXIMUM offered,
+    destination = the opposing body that DIES with those counters (the more prizes,
+    the better) and, if none dies, the one with the LEAST HP.
+  - Choosing its own ACTIVE (a promotion after a KO, the destination of a retreat): the one carrying the most
+    energy and, on a tie, the one with the most HP.
+  - GUST target (Boss's and family: a SWITCH over the OPPOSING bench): the
+    one it can KNOCK OUT, the more prizes the better; if none, the one with the least HP.
+  - Yes/No: YES, except on a mulligan and "keep devolving" (NO).
+  - Any other select: the first `minCount` options (or the first one
+    if the minimum is 0): an always legal choice.
 
-NOTA DE MEDICION (user, registros/marnie): hasta 2026-08-02 el bot NO usaba
-habilidades ("simplicidad y cero riesgo de bucles"). Eso hacia el harness
-CIEGO a mazos cuyo motor ES una habilidad: contra Marnie's Grimmsnarl ex el
-bot no activaba nunca Adrena-Brain de Munkidori, que en las partidas reales
-cobro 5 de los 7 premios que el rival gano SIN ATACAR. Cualquier regla nuestra
-contra ese motor medida con el bot viejo salia NEUTRA por construccion.
-El nivel absoluto del bot cambia con esto; los DELTAS entre versiones de
-main.py siguen siendo comparables (ambos lados juegan contra el mismo bot),
-pero los winrates absolutos historicos ya NO son comparables con los nuevos.
+MEASUREMENT NOTE (user, registros/marnie): until 2026-08-02 the bot did NOT use
+abilities ("simplicity and zero risk of loops"). That made the harness
+BLIND to decks whose engine IS an ability: against Marnie's Grimmsnarl ex the
+bot never activated Munkidori's Adrena-Brain, which in the real games
+took 5 of the 7 prizes the opponent won WITHOUT ATTACKING. Any rule of ours
+against that engine measured with the old bot came out NEUTRAL by construction.
+The bot's absolute level changes with this; the DELTAS between versions of
+main.py are still comparable (both sides play against the same bot),
+but the historical absolute winrates are NO longer comparable with the new ones.
 
-DEFECTO CONOCIDO Y MEDIDO (ago 2026), que se deja a proposito: pilotando la
-lista Marnie dominante del meta, la promocion por "el que mas energia lleva"
-sube a MUNKIDORI de activo el 51.5% de los pasos -- lleva la Oscura porque su
-Adrena-Brain la exige, pero esa es una habilidad de BANCA-- mientras
-Grimmsnarl ex, su unico atacante, solo esta delante el 13.8%. El bot cobra
-0.80 premios de media (0 premios en 30 de 40 partidas) pese a montar el
-tablero bien: saca Grimmsnarl ex a mesa el 83% de las partidas.
+A KNOWN AND MEASURED DEFECT (Aug 2026), left in on purpose: piloting the
+dominant Marnie list of the meta, the "the one carrying the most energy" promotion
+brings MUNKIDORI up as the active in 51.5% of the steps -- it carries the Darkness because its
+Adrena-Brain requires it, but that is a BENCH ability -- while
+Grimmsnarl ex, its only attacker, is only in front 13.8% of the time. The bot takes
+0.80 prizes on average (0 prizes in 30 of 40 games) despite building the
+board well: it gets Grimmsnarl ex onto the field in 83% of the games.
 
-Se PROBO ordenar la promocion por dano potencial y se REVIRTIO. El bot juega
-mejor su motor (Grimmsnarl activo 13.8% -> 23.5%, premios 0.80 -> 1.25), pero
-no compra lo que se buscaba: contra esa lista nuestro winrate solo baja de
-96.8% a 96.0% -- sigue igual de saturado-- y el ponderado del meta no se mueve
-(94.0% -> 93.9%). A cambio ablanda otros matchups: ogerpon_verde_1 cae de
-87.8% a 83.8%. Tambien se probo relevar hacia el mejor atacante de banca:
-peor todavia, porque retirar DESCARTA la energia y el bot se desangra
-(premios 1.20 -> 0.35).
+Ordering the promotion by potential damage WAS TRIED and REVERTED. The bot plays
+its engine better (Grimmsnarl active 13.8% -> 23.5%, prizes 0.80 -> 1.25), but
+it does not buy what was wanted: against that list our winrate only drops from
+96.8% to 96.0% -- it stays just as saturated -- and the meta-weighted number does not move
+(94.0% -> 93.9%). In exchange it softens other matchups: ogerpon_verde_1 falls from
+87.8% to 83.8%. Relieving towards the best benched attacker was also tried:
+worse still, because retreating DISCARDS the energy and the bot bleeds out
+(prizes 1.20 -> 0.35).
 
-Conclusion para quien lo retome: la saturacion contra Marnie no sale de la
-promocion, sino de que el bot no encadena Froslass + Adrena-Brain como un
-humano (en los registros reales ese mazo cobra 7 de 18 premios SIN atacar).
-Cerrar esa brecha pide un piloto especifico del arquetipo, no otra heuristica
-generica -- y eso rompe la propiedad que hace util a este bot: ser EL MISMO
-para todos los mazos. Mientras tanto, contra Marnie la metrica con resolucion
-es el DIFERENCIAL DE PREMIOS (+4.63 de 6 posibles), no el winrate.
+Conclusion for whoever picks this up: the saturation against Marnie does not come from the
+promotion, but from the bot not chaining Froslass + Adrena-Brain like a
+human (in the real records that deck takes 7 of 18 prizes WITHOUT attacking).
+Closing that gap asks for a piloting routine specific to the archetype, not another generic
+heuristic -- and that breaks the property that makes this bot useful: being THE SAME
+for every deck. In the meantime, against Marnie the metric with resolution
+is the PRIZE DIFFERENTIAL (+4.63 out of a possible 6), not the winrate.
 """
 
 import sys
@@ -79,10 +79,10 @@ if str(_ROOT) not in sys.path:
 from cg.api import (AreaType, OptionType, SelectContext, all_attack,
                     all_card_data)
 
-# Tope duro de activaciones de habilidad por turno. No hay ninguna carta que
-# necesite tantas: es el cinturon anti-bucle, no una regla de juego.
+# Hard cap of ability activations per turn. There is no card that
+# needs that many: it is the anti-loop belt, not a game rule.
 MAX_HABILIDADES_POR_TURNO = 8
-# Dano por contador de dano.
+# Damage per damage counter.
 DANO_POR_CONTADOR = 10
 
 
@@ -95,11 +95,11 @@ class BotRival:
         self._turno = None
         self._habilidades_usadas = set()
         self._activaciones = 0
-        # Contadores que el efecto en curso va a mover/poner (se fija en el
-        # select de CANTIDAD y lo consume el select de DESTINO).
+        # Counters the current effect is going to move/place (it is set in the
+        # AMOUNT select and consumed by the DESTINATION select).
         self._contadores = 1
 
-    # -- utilidades ---------------------------------------------------------
+    # -- utilities ----------------------------------------------------------
 
     def _reset_turno(self, turno):
         self._turno = turno
@@ -108,7 +108,7 @@ class BotRival:
         self._contadores = 1
 
     def _pokemon_de(self, obs, opcion, indice_propio=None):
-        """Pokemon al que apunta `opcion`, o None si la opcion no senala uno."""
+        """The Pokemon `opcion` points at, or None if the option does not point at one."""
         cur = obs.get("current") or {}
         jugadores = cur.get("players") or []
         pi = opcion.get("playerIndex")
@@ -144,9 +144,9 @@ class BotRival:
         return max(0, (pk.get("maxHp") or 0) - (pk.get("hp") or 0))
 
     def _dano_efectivo(self, atacante, defensor, attack_id):
-        """Dano impreso del ataque, x2 si el defensor es debil al tipo del
-        atacante. Aproximado a proposito: los ataques que escalan (Syrup Storm,
-        Myriad Leaf Shower) declaran su base, no su dano real."""
+        """The attack's printed damage, x2 if the defender is weak to the
+        attacker's type. Deliberately approximate: the attacks that scale (Syrup Storm,
+        Myriad Leaf Shower) declare their base, not their real damage."""
         base = self._dano.get(attack_id) or 0
         if base <= 0 or not atacante or not defensor:
             return base
@@ -159,8 +159,8 @@ class BotRival:
         return base
 
     def _mejor_dano_de(self, atacante, defensor):
-        """Mejor dano efectivo que `atacante` puede hacerle a `defensor` con
-        cualquiera de sus ataques (sin mirar si puede pagar el coste)."""
+        """The best effective damage `atacante` can do to `defensor` with
+        any of its attacks (without checking whether it can pay the cost)."""
         data = self._cartas.get((atacante or {}).get("id"))
         if data is None:
             return 0
@@ -168,14 +168,14 @@ class BotRival:
                     for aid in (data.attacks or ())), default=0)
 
     def _habilidad_pide_energia(self, card_id):
-        """La habilidad de la carta esta CONDICIONADA a llevar energia."""
+        """The card's ability is CONDITIONED on carrying energy."""
         data = self._cartas.get(card_id)
         for skill in getattr(data, "skills", None) or ():
             if "Energy attached" in (getattr(skill, "text", "") or ""):
                 return True
         return False
 
-    # -- despacho -----------------------------------------------------------
+    # -- dispatch -----------------------------------------------------------
 
     def agent(self, obs):
         sel = obs.get("select") or {}
@@ -214,7 +214,7 @@ class BotRival:
         k = min(k, len(opciones))
         return list(range(k))
 
-    # -- menu principal -----------------------------------------------------
+    # -- main menu ----------------------------------------------------------
 
     def _menu_principal(self, obs, opciones):
         por_tipo = {}
@@ -240,8 +240,8 @@ class BotRival:
 
         ataques = por_tipo.get(int(OptionType.ATTACK))
 
-        # Sin ataque disponible, RETIRARSE es lo unico que cambia algo: un
-        # cuerpo que no pega clavado en el activo pierde la partida solo.
+        # With no attack available, RETREATING is the only thing that changes anything: a
+        # body that does not hit, nailed in the active spot, loses the game on its own.
         retiradas = por_tipo.get(int(OptionType.RETREAT))
         if not ataques and retiradas:
             return [retiradas[0]]
@@ -265,7 +265,7 @@ class BotRival:
         return [0]
 
     def _mejor_evolucion(self, obs, opciones, indices):
-        """La evolucion de MAYOR etapa primero y, a igualdad, la del ACTIVO."""
+        """The HIGHEST stage evolution first and, on a tie, the ACTIVE's."""
         def clave(i):
             o = opciones[i]
             data = self._cartas.get(self._id_en_mano(obs, o))
@@ -291,8 +291,8 @@ class BotRival:
             return None
 
     def _mejor_adjunte(self, obs, opciones, adjuntes):
-        """Al ACTIVO, salvo que ya tenga energia y haya un cuerpo con habilidad
-        condicionada a energia todavia seco: ese motor va primero."""
+        """To the ACTIVE, unless it already has energy and there is a body with an ability
+        conditioned on energy still dry: that engine goes first."""
         cur = obs.get("current") or {}
         yo = cur.get("yourIndex", 0)
         jugadores = cur.get("players") or []
@@ -316,7 +316,7 @@ class BotRival:
         return al_activo[0] if al_activo else adjuntes[0]
 
     def _elegir_habilidad(self, indices, opciones):
-        """Una activacion por Pokemon y por turno, con tope duro por turno."""
+        """One activation per Pokemon and per turn, with a hard per-turn cap."""
         if not indices or self._activaciones >= MAX_HABILIDADES_POR_TURNO:
             return None
         for i in indices:
@@ -328,17 +328,17 @@ class BotRival:
             return i
         return None
 
-    # -- contadores de dano -------------------------------------------------
+    # -- damage counters ----------------------------------------------------
 
     def _cuantos_contadores(self, opciones):
-        """Siempre el MAXIMO: mover 1 de 3 desperdicia la habilidad."""
+        """Always the MAXIMUM: moving 1 out of 3 wastes the ability."""
         mejor = max(range(len(opciones)),
                     key=lambda i: opciones[i].get("number") or 0)
         self._contadores = opciones[mejor].get("number") or 1
         return [mejor]
 
     def _origen_de_contadores(self, obs, opciones, sel):
-        """De donde se quitan: el cuerpo PROPIO que mas dano lleva encima."""
+        """Where they are taken from: the body of ITS OWN carrying the most damage."""
         k = max(1, sel.get("minCount") or 1)
         orden = sorted(
             range(len(opciones)),
@@ -346,8 +346,8 @@ class BotRival:
         return sorted(orden[:min(k, len(opciones))])
 
     def _destino_de_contadores(self, obs, opciones, sel):
-        """Donde se ponen: el cuerpo RIVAL que muere con estos contadores (a
-        mas premios, mejor) y, si ninguno muere, el de menos vida."""
+        """Where they are placed: the OPPOSING body that dies with these counters (the
+        more prizes, the better) and, if none dies, the one with the least HP."""
         cur = obs.get("current") or {}
         yo = cur.get("yourIndex", 0)
         dano = DANO_POR_CONTADOR * max(1, self._contadores)
@@ -362,26 +362,26 @@ class BotRival:
                 return (2, 0, 0)
             hp = pk.get("hp") or 0
             if i in rivales:
-                # Primero los que MUEREN, y entre ellos los de mas premios.
+                # First the ones that DIE, and among them the ones worth more prizes.
                 return (0 if hp <= dano else 1, -self._premios(pk), hp)
-            # Si solo quedan cuerpos propios, el que menos duele: el mas sano.
+            # If only its own bodies are left, the one that hurts least: the healthiest.
             return (2, 0, -hp)
 
         k = max(1, sel.get("minCount") or 1)
         orden = sorted(candidatos, key=clave)
         return sorted(orden[:min(k, len(candidatos))])
 
-    # -- quien pasa al puesto activo ----------------------------------------
+    # -- who goes to the active spot ----------------------------------------
 
     def _elegir_activo(self, obs, opciones, sel):
-        """Dos casos con el mismo contexto:
+        """Two cases with the same context:
 
-        * opciones sobre NUESTRA banca -- promocion tras KO o destino de una
-          retirada: sube el que mas energia lleva (proxy de "puede atacar") y,
-          a igualdad, el de mas vida.
-        * opciones sobre la banca RIVAL -- somos nosotros gusteando (Boss's y
-          familia): sube el que podamos NOQUEAR, a mas premios mejor; si no
-          hay KO, el de menos vida.
+        * options over OUR bench -- a promotion after a KO or the destination of a
+          retreat: the one carrying the most energy comes up (a proxy for "it can attack") and,
+          on a tie, the one with the most HP.
+        * options over the OPPOSING bench -- it is us gusting (Boss's and
+          family): the one we can KNOCK OUT comes up, the more prizes the better; if there
+          is no KO, the one with the least HP.
         """
         cur = obs.get("current") or {}
         yo = cur.get("yourIndex", 0)
@@ -415,7 +415,7 @@ class BotRival:
         orden = sorted(range(len(opciones)), key=clave_propia)
         return sorted(orden[:min(k, len(opciones))])
 
-    # -- si / no ------------------------------------------------------------
+    # -- yes / no -----------------------------------------------------------
 
     def _si_no(self, contexto, opciones):
         prefiere_no = contexto in (int(SelectContext.MULLIGAN),

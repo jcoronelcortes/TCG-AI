@@ -1,13 +1,13 @@
-"""Datos de carta: IDs, grupos y tablas de referencia.
+"""Card data: IDs, groups and reference tables.
 
-Extraido VERBATIM de main.py en la Ola 1 del refactor
-(docs/main-refactor-arquitectura.md). Aqui NO hay logica: solo constantes que
-dependen unicamente de literales. Nada de este modulo puede importar estado ni
-tocar el simulador -- lo vigila utils/lint_arquitectura.py (R2).
+Extracted VERBATIM from main.py in wave 1 of the refactor
+(docs/project-history.md). There is NO logic here: only constants that
+depend solely on literals. Nothing in this module may import state or
+touch the simulator -- utils/lint_arquitectura.py (R2) watches it.
 
-main.py lo reexporta con `from ptcg.cartas.ids import *`, asi que el `__all__`
-de abajo tiene que listar TODOS los nombres (incluidos los que empiezan por `_`,
-que `import *` omitiria si no).
+main.py re-exports it with `from ptcg.cartas.ids import *`, so the `__all__`
+below has to list ALL the names (including the ones starting with `_`, which
+`import *` would otherwise skip).
 """
 
 
@@ -144,39 +144,41 @@ Poke_Pad = 1152
 Forest_of_Vitality = 1261
 Neutralization_Zone = 1247
 Team_Rockets_Watchtower = 1256
-# Festival Grounds (1245): estadio del rival "Festival Lead". Igual que Grand
-# Tree es COMPARTIDO -- lo que importa es que este EN MESA, no quien lo bajo--,
-# y enciende la habilidad Festival Lead de CUALQUIER Dipplin en juego (el suyo
-# y el nuestro). Ver `FESTIVAL_LEAD_IDS` y `_festival_grounds_in_play`.
+# Festival Grounds (1245): the opponent's "Festival Lead" stadium. Just like
+# Grand Tree it is SHARED -- what matters is that it is ON THE FIELD, not who
+# played it -- and it switches on the Festival Lead ability of ANY Dipplin in
+# play (theirs and ours). See `FESTIVAL_LEAD_IDS` and `_festival_grounds_in_play`.
 Festival_Grounds = 1245
-# Grand Tree (Stadium ACE SPEC): "Una vez durante el turno de CADA jugador, ese
-# jugador puede buscar en su baraja 1 Pokemon de Fase 1 que evolucione de uno de
-# sus Pokemon Basicos y ponerlo sobre el para evolucionarlo. Si evoluciono asi,
-# puede buscar ademas 1 Pokemon de Fase 2 que evolucione de ese Pokemon."
+# Grand Tree (Stadium ACE SPEC): "Once during EACH player's turn, that player
+# may search their deck for 1 Stage 1 Pokemon that evolves from one of their
+# Basic Pokemon and put it onto that Pokemon to evolve it. If they evolved a
+# Pokemon in this way, they may also search for 1 Stage 2 Pokemon that evolves
+# from that Pokemon."
 #
-# Es un estadio COMPARTIDO: si lo baja el RIVAL, nosotros tambien podemos usar
-# su habilidad en nuestro turno (y buscamos en NUESTRA baraja). Por eso la
-# logica de abajo no exige que la carta este en deck.csv: basta con que este en
-# juego (`stadium_id == Grand_Tree`).
+# It is a SHARED stadium: if the OPPONENT plays it, we can use its ability on
+# our turn too (and we search OUR deck). That is why the logic below does not
+# require the card to be in deck.csv: it is enough for it to be in play
+# (`stadium_id == Grand_Tree`).
 #
-# Restricciones que impone la propia carta (recordatorio de la regla general):
-#   * no se puede evolucionar un Basico en NUESTRO PRIMER TURNO, y
-#   * no se puede evolucionar un Basico PUESTO EN JUEGO ESTE TURNO
+# Restrictions imposed by the card itself (a reminder of the general rule):
+#   * a Basic cannot be evolved on OUR FIRST TURN, and
+#   * a Basic PUT INTO PLAY THIS TURN cannot be evolved
 #     (`Pokemon.appearThisTurn`).
-# Solo puede haber UN estadio en mesa, asi que Grand Tree y Forest of Vitality
-# nunca conviven: Forest NO levanta el veto de "salio este turno" aqui.
+# There can only be ONE stadium on the field, so Grand Tree and Forest of
+# Vitality never coexist: Forest does NOT lift the "came down this turn" veto
+# here.
 Grand_Tree = 1249
-# Maximum Belt (Ace Spec): la tool del rival que suma +50 de dano a nuestro
-# Pokemon ex activo (antes de debilidad). Modelada en _op_best_damage_vs y
+# Maximum Belt (Ace Spec): the opponent's tool that adds +50 damage against our
+# active ex Pokemon (before weakness). Modelled in _op_best_damage_vs and
 # _op_active_attack_damage_to.
 Maximum_Belt = 1158
-# Brave Bangle (1175): +30 de dano a nuestro Pokemon ex ACTIVO (antes de
-# debilidad) SOLO si el portador NO tiene Rule Box. El Dipplin del mazo Festival
-# Lead no lo tiene, asi que su Do the Wave llega con +30 a nuestros ex (log
-# 88971843 paso 116: 20x5 banca = 100, +30 Bangle = 130, que remato al Teal Mask
-# Ogerpon ex a 70 PV). Sin modelarla, los pivotes defensivos creian que el muro
-# ex aguantaba un golpe que en realidad llega potenciado -- mismo agujero que
-# tapo Maximum Belt en la auditoria de julio 2026.
+# Brave Bangle (1175): +30 damage against our ACTIVE ex Pokemon (before
+# weakness) ONLY if the holder does NOT have a Rule Box. The Dipplin of the
+# Festival Lead deck does not have one, so its Do the Wave reaches our ex with
+# +30 (log 88971843 step 116: 20x5 bench = 100, +30 Bangle = 130, which finished
+# off the Teal Mask Ogerpon ex at 70 HP). Without modelling it, the defensive
+# pivots believed the ex wall survived a hit that in reality arrives boosted --
+# the same hole Maximum Belt plugged in the July 2026 audit.
 Brave_Bangle = 1175
 Basic_Grass_Energy = 1
 
@@ -188,9 +190,10 @@ Crustle_Fighting = 533
 Dwebble_Fighting = 532
 Sylveon = 330
 
-# Mazo de mill/control Comfey (user): Comfey (unico atacante, "Flower Shower" nos
-# hace robar 3 -> nos deckea), Bramblin (no ataca) evoluciona a Brambleghast que
-# CONFUNDE nuestro activo con "Prison Panic". Detectado por cualquiera de los 3.
+# Comfey mill/control deck (user): Comfey (the only attacker, "Flower Shower"
+# makes us draw 3 -> it decks us out), Bramblin (does not attack) evolves into
+# Brambleghast, which CONFUSES our active with "Prison Panic". Detected by any
+# of the 3.
 Comfey = 164
 Bramblin = 817
 Brambleghast = 818
@@ -208,10 +211,10 @@ Marnies_Impidimp = 646
 Marnies_Morgrem = 647
 Latias_ex = 184
 Cornerstone_Mask_Ogerpon_ex = 117
-# Cornerstone Mask Ogerpon NO-ex (sin habilidad, atacable): no inmuniza,
-# pero DELATA el arquetipo Cornerstone (fase 8: autopsia vs el mazo
-# cornerstone_cubchoo — con solo el no-ex/Cubchoo a la vista el flag no
-# disparaba y la whitelist anti-Cubchoo vetaba a Tapu Bulu 38 veces).
+# NON-ex Cornerstone Mask Ogerpon (no ability, attackable): it does not grant
+# immunity, but it GIVES AWAY the Cornerstone archetype (phase 8: autopsy vs
+# the cornerstone_cubchoo deck — with only the non-ex/Cubchoo in sight the flag
+# did not fire and the anti-Cubchoo whitelist vetoed Tapu Bulu 38 times).
 Cornerstone_Mask_Ogerpon = 386
 Mega_Kangaskhan_ex = 756
 
@@ -233,51 +236,51 @@ Zorua_N = 292
 Alakazam_ex = 743
 Abra = 741
 Kadabra = 742
-# Powerful Hand (unico ataque de Alakazam 743): dano impreso 0 en attack_table
-# pero real = 20 x carta en la mano rival. Modelado en
-# _op_active_attack_damage_to cuando el llamador pasa op_hand_count.
+# Powerful Hand (Alakazam 743's only attack): printed damage 0 in attack_table
+# but real damage = 20 x card in the opponent's hand. Modelled in
+# _op_active_attack_damage_to when the caller passes op_hand_count.
 POWERFUL_HAND_ATTACK_ID = 1072
 
-# --- Dano VARIABLE del rival: la familia de ataques con dano impreso 0 --------
-# Do the Wave (115, unico ataque de Dipplin 93): dano impreso 0 en attack_table
-# ("20x") pero real = 20 x SU BANCA. Es la MISMA ceguera que Powerful Hand y
-# costo la partida del log 88971843 (paso 117): el agente proyectaba 0 contra
-# los cuatro candidatos de banca, con lo que TODA la maquinaria de supervivencia
-# (`_promo_survives`, la prudencia de `_pb_key`, `_ev_survivor_asis`,
-# `_ko_prefer_basic_general`) se apagaba en silencio y la promocion la decidia
-# lo unico que quedaba vivo -- "quien puede atacar este turno"--, subiendo un
-# Dipplin de 80 PV a comerse 100 con el rival a 1 premio.
+# --- VARIABLE opposing damage: the family of attacks with printed damage 0 ----
+# Do the Wave (115, Dipplin 93's only attack): printed damage 0 in attack_table
+# ("20x") but real damage = 20 x THEIR BENCH. It is the SAME blindness as
+# Powerful Hand and it cost the game of log 88971843 (step 117): the agent
+# projected 0 against the four bench candidates, so ALL the survival machinery
+# (`_promo_survives`, the prudence of `_pb_key`, `_ev_survivor_asis`,
+# `_ko_prefer_basic_general`) switched off silently and the promotion was
+# decided by the only thing still alive -- "who can attack this turn" -- putting
+# up an 80 HP Dipplin to eat 100 with the opponent at 1 prize.
 #
-# A diferencia de Powerful Hand, la escala NO viaja en la firma de
-# `_op_active_attack_damage_to` (necesita la banca rival, no la mano), asi que
-# se publica en el flag por turno `_op_bench_count`: si dependiera de que cada
-# llamador pase un parametro extra volveriamos al mismo 0 silencioso en la
-# mayoria de los sitios.
+# Unlike Powerful Hand, the scale does NOT travel in the signature of
+# `_op_active_attack_damage_to` (it needs the opposing bench, not the hand), so
+# it is published in the per-turn flag `_op_bench_count`: if it depended on
+# every caller passing an extra parameter we would be back to the same silent 0
+# in most places.
 DO_THE_WAVE_ATTACK_ID = 115
 
-# Festival Lead (habilidad de Dipplin 93): con Festival Grounds EN MESA, este
-# Pokemon puede usar un ataque suyo DOS veces; si el primero noquea a nuestro
-# activo, ataca OTRA VEZ en cuanto elegimos el reemplazo. Es decir: bajo ese
-# estadio, el cuerpo que promovemos tras un KO come un golpe entero ANTES de
-# que juguemos -- justo la premisa contraria a la que asume la rama de
-# promocion ("la promocion ocurre en el turno RIVAL, donde nadie ataca ya").
+# Festival Lead (Dipplin 93's ability): with Festival Grounds ON THE FIELD, this
+# Pokemon may use one of its attacks TWICE; if the first one knocks out our
+# active, it attacks AGAIN as soon as we choose the replacement. That is: under
+# that stadium, the body we promote after a KO eats a whole hit BEFORE we get to
+# play -- exactly the opposite of the premise the promotion branch assumes ("the
+# promotion happens on the OPPONENT's turn, where nobody attacks any more").
 FESTIVAL_LEAD_IDS = {Dipplin}
 
 
 
 ALAKAZAM_LINE_IDS = (Abra, Kadabra, Alakazam_ex)
-# Los cuerpos de la linea que de verdad ATACAN. Powerful Hand cuesta UNA sola
-# energia, asi que un Alakazam con energia encima (o el Kadabra que evoluciona a
-# el ese mismo turno) es una amenaza inmediata; un Abra pelado no lo es.
+# The bodies of the line that really ATTACK. Powerful Hand costs a SINGLE
+# energy, so an Alakazam with energy on it (or the Kadabra that evolves into it
+# that same turn) is an immediate threat; a bare Abra is not.
 ALAKAZAM_ATTACKER_IDS = (Kadabra, Alakazam_ex)
 
-# Linea Mega Lopunny ex: Buneary (basico, id 848) -> Mega Lopunny ex (Stage 1,
-# id 849, ex de 2 premios). El basico atacante de este mazo es Buneary.
+# Mega Lopunny ex line: Buneary (basic, id 848) -> Mega Lopunny ex (Stage 1,
+# id 849, a 2-prize ex). The attacking basic of this deck is Buneary.
 Buneary = 848
 Mega_Lopunny_ex = 849
-# Linea Cynthia's Garchomp ex: Gible (basico 379) -> Gabite (Stage 1, 380) ->
-# Cynthia's Garchomp ex (Stage 2, 381, ex de 2 premios). El mazo acompana con
-# muros de 1 premio (Cynthia's Spiritomb 387, Roselia 341).
+# Cynthia's Garchomp ex line: Gible (basic 379) -> Gabite (Stage 1, 380) ->
+# Cynthia's Garchomp ex (Stage 2, 381, a 2-prize ex). The deck comes with
+# 1-prize walls (Cynthia's Spiritomb 387, Roselia 341).
 Cynthias_Gible = 379
 Cynthias_Gabite = 380
 Cynthias_Garchomp_ex = 381
@@ -286,10 +289,10 @@ Ralts = 745
 Kirlia = 746
 Raging_Bolt_ex = 63
 Lugia_VSTAR = 337
-# Linea Mega Abomasnow ex: Snover (basico, id 722) -> Mega Abomasnow ex (Mega
-# ex de 3 premios, id 723). Su atacante one-shotea a cualquiera de nuestros ex,
-# igual que Raging Bolt/Bellowing Thunder: mismo plan de DESCUADRE DE PREMIOS
-# (poner un cuerpo de 1 premio delante cuando no podemos noquear al activo).
+# Mega Abomasnow ex line: Snover (basic, id 722) -> Mega Abomasnow ex (a
+# 3-prize Mega ex, id 723). Its attacker one-shots any of our ex, just like
+# Raging Bolt/Bellowing Thunder: same PRIZE MISMATCH plan (putting a 1-prize
+# body in front when we cannot knock out the active).
 Snover = 722
 Mega_Abomasnow_ex = 723
 Dusknoir = 133
@@ -310,22 +313,22 @@ EEVEE_IDS = {43, 145, 249, 317}
 
 OUR_EX_IDS = {Teal_Mask_Ogerpon_ex, Hydrapple_ex, Meowth_ex, Fezandipiti_ex}
 
-# Cartas de tipo Item ("artefactos") de nuestro mazo. Se usa para posponer la
-# bajada de Tapu Bulu hasta haber jugado los items que valga la pena.
+# Item cards ("artefacts") of our deck. Used to postpone putting Tapu Bulu down
+# until the items that are worth playing have been played.
 DECK_ITEM_IDS = frozenset({Bug_Catching_Set, Ultra_Ball, Night_Stretcher,
                            Poke_Pad, Unfair_Stamp})
 
-# Ambas variantes de Crustle comparten la habilidad anti-ex; la Fighting (533)
-# activaba `op_is_crustle_deck` pero faltaba aqui, asi que el calculo de dano
-# puntual creia que nuestros ex SI la danaban (auditoria julio 2026).
+# Both variants of Crustle share the anti-ex ability; the Fighting one (533)
+# switched on `op_is_crustle_deck` but was missing here, so the specific damage
+# computation believed our ex DID damage it (July 2026 audit).
 EX_IMMUNE_IDS = {Crustle_Grass, Crustle_Fighting, Sylveon}
 
-# La LINEA Crustle (pre-evo incluida). `op_is_crustle_deck` es el flag de
-# "muro inmune a ex" y tambien se enciende con Sylveon/Eevee, que comparten la
-# inmunidad pero NO el resto del mazo. Las reglas que dependen de como esta
-# CONSTRUIDO el mazo Crustle -- p.ej. que apenas juega estadio, ver
-# `t1_segundos_crustle_estadio_antes_de_lillie` -- tienen que mirar esta lista,
-# no el flag.
+# The Crustle LINE (pre-evolution included). `op_is_crustle_deck` is the
+# "ex-immune wall" flag and it also switches on with Sylveon/Eevee, which share
+# the immunity but NOT the rest of the deck. Rules that depend on how the
+# Crustle deck is BUILT -- e.g. that it barely plays a stadium, see
+# `t1_segundos_crustle_estadio_antes_de_lillie` -- have to look at this list,
+# not at the flag.
 CRUSTLE_LINE_IDS = {Crustle_Grass, Crustle_Fighting,
                     Dwebble_Grass, Dwebble_Fighting}
 
@@ -335,194 +338,199 @@ ABILITY_IMMUNE_IDS = {Cornerstone_Mask_Ogerpon_ex}
 
 OUR_ABILITY_IDS = {Teal_Mask_Ogerpon_ex, Hydrapple_ex, Meganium, Fezandipiti_ex, Meowth_ex, Dipplin}
 
-# Cuerpos que NUNCA compensa subir al activo con Boss's aunque no puedan atacar:
-# los MUROS que anulan a nuestros atacantes (Crustle/Sylveon vs ex, Cornerstone
-# vs habilidades) y el LOCKER Iron Thorns ex, cuya Initialization apaga Teal
-# Dance / Ripening / Last-Ditch / Flip the Script desde el puesto ACTIVO. Los
-# cinco tienen ataques de coste 3, asi que pelados pasan por "inofensivos"
-# (`_op_cuerpo_inofensivo`) y se llevarian la preferencia del gusteo sin KO.
+# Bodies that are NEVER worth bringing up with Boss's even if they cannot
+# attack: the WALLS that cancel our attackers (Crustle/Sylveon vs ex,
+# Cornerstone vs abilities) and the LOCKER Iron Thorns ex, whose Initialization
+# switches off Teal Dance / Ripening / Last-Ditch / Flip the Script from the
+# ACTIVE spot. All five have attacks costing 3, so bare they pass as "harmless"
+# (`_op_cuerpo_inofensivo`) and would take the preference of a gust without a KO.
 GUST_TRAMPA_IDS = EX_IMMUNE_IDS | ABILITY_IMMUNE_IDS | {Iron_Thorns_ex}
 
-# --- Supervivencia al KO y nuevas inmunidades (plan jul 2026, P0.1/P1.6) -----
-# Cuerpos que SOBREVIVEN un golpe letal estando a vida COMPLETA quedandose a
-# 10 PV: Crustle 533 ("Sturdy", ya modelado) y Pikachu ex 210 ("Resolute
-# Heart", faltaba). El dano efectivo se capa a hp-10 en _our_effective_damage,
-# asi que todo `can_ko` que pase por ahi hereda el cap automaticamente.
+# --- Surviving a KO and new immunities (jul 2026 plan, P0.1/P1.6) ------------
+# Bodies that SURVIVE a lethal hit at FULL HP by staying at 10 HP: Crustle 533
+# ("Sturdy", already modelled) and Pikachu ex 210 ("Resolute Heart", missing).
+# The effective damage is capped at hp-10 in _our_effective_damage, so every
+# `can_ko` that goes through there inherits the cap automatically.
 Pikachu_ex_Resolute = 210
 FULL_HP_SURVIVE_IDS = {Crustle_Fighting, Pikachu_ex_Resolute}
 
-# Mega Hawlucha ex ("Tenacious Body"): ante un golpe letal tira moneda y con
-# cara sobrevive a 10 PV -> el KO NUNCA esta garantizado. Survival Brace (tool
-# 1155): a vida completa sobrevive al KO a 10 PV. Los evaluadores de REMATE
-# (wins_now / SCORE_WIN_GAME / _active_attack_wins_now) consultan
-# _ko_no_garantizado para no declarar una victoria que depende de una moneda o
-# de una tool; el dano normal NO se altera (atacarlos sigue teniendo valor).
+# Mega Hawlucha ex ("Tenacious Body"): against a lethal hit it flips a coin and
+# on heads survives at 10 HP -> the KO is NEVER guaranteed. Survival Brace (tool
+# 1155): at full HP it survives the KO at 10 HP. The FINISHER evaluators
+# (wins_now / SCORE_WIN_GAME / _active_attack_wins_now) consult
+# _ko_no_garantizado so as not to declare a victory that depends on a coin flip
+# or a tool; normal damage is NOT altered (attacking them is still worth it).
 Mega_Hawlucha_ex = 886
 Survival_Brace = 1155
 
-# Farigiraf ex ("Armor Tail"): inmune al dano de ataques de BASICOS ex. De
-# nuestro mazo anula a Ogerpon ex / Meowth ex / Fezandipiti ex; Hydrapple ex es
-# Etapa 2 y SI lo dana, igual que los no-ex (Tapu Bulu, Meganium, Bayleef...).
+# Farigiraf ex ("Armor Tail"): immune to attack damage from BASIC ex. Of our
+# deck it cancels Ogerpon ex / Meowth ex / Fezandipiti ex; Hydrapple ex is a
+# Stage 2 and DOES damage it, as do the non-ex (Tapu Bulu, Meganium, Bayleef...).
 Farigiraf_ex = 83
 OUR_BASIC_EX_IDS = {Teal_Mask_Ogerpon_ex, Meowth_ex, Fezandipiti_ex}
 
-# --- Planes de matchup: QUE Pokemon permite bajar cada uno -------------------
-# Dos matchups restringen la banca a una lista cerrada (el resto de nuestros
-# Pokemon se veta en la rama PLAY): vs Cubchoo la lista de abajo, vs Comfey
-# SOLO Teal Mask Ogerpon ex (maximo 2). Viven como constante -- y no como una
-# tupla local de la rama PLAY -- porque las REDES DE RESCATE del bloque de
-# finalizacion tienen que consultar el mismo plan: cavar con Ultra Ball un
-# cuerpo que el propio plan vetara al bajarlo no salva un turno muerto, solo
-# quema dos cartas de la mano (ver `_matchup_permite_bajar`).
+# --- Matchup plans: WHICH Pokemon each one allows putting down ---------------
+# Two matchups restrict the bench to a closed list (the rest of our Pokemon are
+# vetoed in the PLAY branch): vs Cubchoo the list below, vs Comfey ONLY Teal
+# Mask Ogerpon ex (max 2). They live as a constant -- and not as a local tuple
+# of the PLAY branch -- because the RESCUE NETS of the finalisation block have
+# to consult the same plan: digging out with Ultra Ball a body that the plan
+# itself will veto when putting it down does not save a dead turn, it only burns
+# two cards from hand (see `_matchup_permite_bajar`).
 CUBCHOO_ALLOWED_PLAY_IDS = (Applin, Dipplin, Hydrapple_ex,
                             Chikorita, Bayleef, Meganium,
                             Teal_Mask_Ogerpon_ex, Meowth_ex)
 
-# --- Bloqueo de items del rival (plan jul 2026, P1.5) ------------------------
-# Ademas del Itchy Pollen de Budew (ya modelado por log de ataque), bloquean
-# nuestros items: Jellicent ex 598 ("Oceanic Curse") y Tyranitar 290 ("Daunting
-# Gaze") MIENTRAS esten en el activo rival, y Galvantula ex 161 con Fulgurite
-# (attackId 210) durante nuestro turno siguiente. Con 10+ items en el mazo
-# (UBx4/BCSx4/NSx2/Stamp/PokePad) el motor entero depende de detectarlos.
+# --- The opponent's item lock (jul 2026 plan, P1.5) --------------------------
+# Besides Budew's Itchy Pollen (already modelled from the attack log), these
+# block our items: Jellicent ex 598 ("Oceanic Curse") and Tyranitar 290
+# ("Daunting Gaze") WHILE they are the opposing active, and Galvantula ex 161
+# with Fulgurite (attackId 210) during our next turn. With 10+ items in the deck
+# (UBx4/BCSx4/NSx2/Stamp/PokePad) the whole engine depends on detecting them.
 Jellicent_ex = 598
 Tyranitar_Daunting = 290
 Galvantula_ex = 161
 FULGURITE_ATTACK_ID = 210
 OP_ITEM_LOCK_ACTIVE_IDS = {Jellicent_ex, Tyranitar_Daunting}
 
-# --- Bloqueo de habilidades por Iron Thorns ex (plan jul 2026, P1.4) ---------
-# Iron Thorns ex 37 ("Initialization") en el ACTIVO rival: los Pokemon con Rule
-# Box de AMBOS lados pierden sus habilidades -> se apagan Teal Dance, Ripening
-# Charge, Last-Ditch Catch y Flip the Script a la vez (nuestro motor entero).
-# NO afecta a los sin Rule Box (Meganium Wild Growth y Dipplin siguen vivos:
-# Dipplin no tiene Rule Box; Festival Lead requiere estadio que no jugamos).
+# --- Ability lock by Iron Thorns ex (jul 2026 plan, P1.4) --------------------
+# Iron Thorns ex 37 ("Initialization") as the opposing ACTIVE: the Pokemon with
+# a Rule Box on BOTH sides lose their abilities -> Teal Dance, Ripening Charge,
+# Last-Ditch Catch and Flip the Script switch off at once (our whole engine).
+# It does NOT affect the ones without a Rule Box (Meganium's Wild Growth and
+# Dipplin stay alive: Dipplin has no Rule Box; Festival Lead requires a stadium
+# we do not play).
 OUR_RULEBOX_ABILITY_IDS = {Teal_Mask_Ogerpon_ex, Hydrapple_ex, Fezandipiti_ex,
                            Meowth_ex}
 
-# --- Denegacion de premios del rival (plan jul 2026, P0.2) -------------------
-# Munkidori ex 139 ("Oh No You Don't"): si el rival tiene Pecharunt ex 141 en
-# juego, su KO rinde 1 premio MENOS. Mega Gengar ex 772 ("Shadowy
-# Concealment"): mientras este en juego, el KO de un Pokemon {D} rival por un
-# ex NUESTRO rinde 1 premio menos. Sin esto, `wins_now`/SCORE_WIN_GAME pueden
-# declarar una victoria a la que le falta 1 premio. Se consultan via
-# `prize_count_op` (solo para Pokemon DEL RIVAL: nuestro Fezandipiti ex
-# tambien es {D} y NO debe verse afectado).
+# --- The opponent's prize denial (jul 2026 plan, P0.2) -----------------------
+# Munkidori ex 139 ("Oh No You Don't"): if the opponent has Pecharunt ex 141 in
+# play, its KO yields 1 prize LESS. Mega Gengar ex 772 ("Shadowy Concealment"):
+# while it is in play, the KO of an opposing {D} Pokemon by an ex of OURS yields
+# 1 prize less. Without this, `wins_now`/SCORE_WIN_GAME can declare a victory
+# that is 1 prize short. They are consulted via `prize_count_op` (only for
+# OPPONENT Pokemon: our Fezandipiti ex is also {D} and must NOT be affected).
 Munkidori_ex = 139
 Pecharunt_ex = 141
 Mega_Gengar_ex = 772
 
-# --- Burst de banca rival (plan jul 2026, P0.3) ------------------------------
-# Dusknoir 133 ("Cursed Blast": 13 contadores = 130) y Dusclops 132 (5 = 50)
-# aportan dano EXTRA desde la banca ADEMAS del ataque del activo rival (la
-# habilidad se usa y LUEGO atacan). `active_ko_likely` debe sumarlo o los
-# pivotes defensivos creen que el muro sobrevive un golpe que en realidad
-# llega con +130.
+# --- Opposing bench burst (jul 2026 plan, P0.3) ------------------------------
+# Dusknoir 133 ("Cursed Blast": 13 counters = 130) and Dusclops 132 (5 = 50) add
+# EXTRA damage from the bench ON TOP OF the opposing active's attack (the
+# ability is used and THEN they attack). `active_ko_likely` has to add it or the
+# defensive pivots believe the wall survives a hit that in reality arrives with
+# +130.
 OP_BENCH_BURST = {Dusknoir: 130, Dusclops: 50}
 
-# Dano AUTOMATICO que el ataque del rival reparte a UN Pokemon de NUESTRA banca
-# (user, registro_006/008 vs Marnie's Grimmsnarl ex, PERDIDA). Shadow Bullet
-# hace 180 al activo Y 30 a un banquillo CADA turno, asi que nuestros cuerpos de
-# poca vida (Dipplin 80, Applin 40, Chikorita 70) mueren solos y regalan premios
-# sin que el rival gaste nada. El agente era ciego a ese goteo: `op_bench_snipe_
-# threat` era un booleano que solo se leia en el setup. Aqui se cuantifica para
-# poder proyectar QUE cuerpo muere el proximo turno y decidir si conviene curarlo
-# (Ripening Charge cura 30) o evolucionarlo (la evolucion resetea la vida).
-# Valores del texto de cada ataque; el default 30 es el caso conservador.
+# AUTOMATIC damage the opponent's attack spreads to ONE Pokemon on OUR bench
+# (user, registro_006/008 vs Marnie's Grimmsnarl ex, LOST). Shadow Bullet does
+# 180 to the active AND 30 to a benched body EVERY turn, so our low-HP bodies
+# (Dipplin 80, Applin 40, Chikorita 70) die by themselves and hand over prizes
+# without the opponent spending anything. The agent was blind to that drip:
+# `op_bench_snipe_threat` was a boolean only read in the setup. Here it is
+# quantified so we can project WHICH body dies next turn and decide whether to
+# heal it (Ripening Charge heals 30) or evolve it (evolving resets the HP).
+# The values come from each attack's text; the default of 30 is the
+# conservative case.
 OP_BENCH_SNIPE_DAMAGE = {
-    Grimmsnarl_ex: 30,       # Shadow Bullet: 180 + 30 a 1 banquillo
-    Dragapult_ex: 60,        # Phantom Dive: 6 contadores repartibles (60 a uno)
-    Mega_Starmie_ex: 50,     # Jetting Blow: 120 + 50 a 1 banquillo
-    Mega_Greninja_ex: 120,   # Mirage Barrage: 120 a 2 Pokemon
+    Grimmsnarl_ex: 30,       # Shadow Bullet: 180 + 30 to 1 benched
+    Dragapult_ex: 60,        # Phantom Dive: 6 spreadable counters (60 to one)
+    Mega_Starmie_ex: 50,     # Jetting Blow: 120 + 50 to 1 benched
+    Mega_Greninja_ex: 120,   # Mirage Barrage: 120 to 2 Pokemon
 }
 OP_BENCH_SNIPE_DEFAULT = 30
 
-# --- LA VENTANA DE REGALO (user, registros/marnie partidas 1-3, PERDIDAS) ----
-# Las tres derrotas fueron por UN premio y el rival cobro 7 de 18 premios SIN
-# ATACAR. El snipe de OP_BENCH_SNIPE_DAMAGE (30) es solo un tercio de la
-# amenaza: faltaban las dos fuentes que matan cuerpos sin gastar ataque.
+# --- THE GIFT WINDOW (user, registros/marnie games 1-3, LOST) ----------------
+# The three losses were by ONE prize and the opponent took 7 out of 18 prizes
+# WITHOUT ATTACKING. The snipe of OP_BENCH_SNIPE_DAMAGE (30) is only a third of
+# the threat: the two sources that kill bodies without spending an attack were
+# missing.
 #
-# 1) Freezing Shroud (Froslass): 1 contador a CADA Pokemon con habilidad de
-#    AMBOS lados en cada Chequeo Pokemon. Hay DOS chequeos por ronda (fin de
-#    nuestro turno y fin del suyo), asi que cada Froslass reparte 20 por ronda
-#    a cada uno de nuestros cuerpos de OUR_ABILITY_IDS. Con dos Froslass, 40.
-# 2) Adrena-Brain (Munkidori): mueve hasta 3 contadores desde UNO de SUS
-#    Pokemon a CUALQUIERA de los nuestros -- activo o banca, una vez por turno
-#    por Munkidori con energia Oscura. Es dano DIRIGIBLE: si curamos al cuerpo
-#    A el rival apunta al B.
+# 1) Freezing Shroud (Froslass): 1 counter on EVERY Pokemon with an ability on
+#    BOTH sides at each Pokemon Checkup. There are TWO checkups per round (the
+#    end of our turn and the end of theirs), so each Froslass spreads 20 per
+#    round to each of our OUR_ABILITY_IDS bodies. With two Froslass, 40.
+# 2) Adrena-Brain (Munkidori): it moves up to 3 counters from ONE of THEIR
+#    Pokemon to ANY of ours -- active or bench, once per turn per Munkidori with
+#    Darkness energy. It is AIMABLE damage: if we heal body A the opponent aims
+#    at B.
 #
-# Ojo con dos lecturas que rompen la intuicion:
-#   - El Tera de Teal Mask Ogerpon ex en banca previene dano DE ATAQUES: corta
-#     el snipe de 30 pero NO los contadores de Froslass ni los que mueve
-#     Munkidori (verificado: en la partida 2 el Ogerpon de banca murio con 60
-#     contadores movidos por dos Munkidori).
-#   - La municion de Munkidori se AUTO-RENUEVA: su propio Froslass carga 10 por
-#     chequeo sobre cada Munkidori y sobre el Grimmsnarl ex (todos tienen
-#     habilidad), asi que los contadores que hay hoy en su mesa no son el techo.
-FREEZING_SHROUD_COUNTER = 10   # dano por contador de Freezing Shroud
-CHECKUPS_PER_ROUND = 2         # chequeos Pokemon entre dos turnos nuestros
-ADRENA_BRAIN_MOVE = 30         # contadores que mueve UN Munkidori energizado
+# Careful with two readings that break the intuition:
+#   - The Tera of a benched Teal Mask Ogerpon ex prevents damage FROM ATTACKS:
+#     it cuts the 30 snipe but NOT Froslass's counters or the ones Munkidori
+#     moves (verified: in game 2 the benched Ogerpon died with 60 counters moved
+#     by two Munkidori).
+#   - Munkidori's ammunition SELF-RENEWS: their own Froslass loads 10 per
+#     checkup onto each Munkidori and onto the Grimmsnarl ex (they all have an
+#     ability), so the counters on their board today are not the ceiling.
+FREEZING_SHROUD_COUNTER = 10   # damage per Freezing Shroud counter
+CHECKUPS_PER_ROUND = 2         # Pokemon checkups between two of our turns
+ADRENA_BRAIN_MOVE = 30         # counters moved by ONE charged Munkidori
 
-# Curacion de Ripening Charge (Hydrapple ex) al Pokemon que recibe la Planta.
+# Ripening Charge (Hydrapple ex) healing on the Pokemon that receives the Grass.
 RIPENING_HEAL = 30
-# Score del OBJETIVO de Ripening Charge cuando la habilidad se usa para curar.
+# Score of the Ripening Charge TARGET when the ability is used to heal.
 RIPEN_HEAL_TARGET_SCORE = 39500
-# Score de la HABILIDAD Ripening Charge jugada por su curacion: sobre la Teal
-# Dance de desarrollo (31050) y bajo la que habilita un KO (31500) o los pivotes
-# de retirada (31600). >= 29000 para que suba al tier ENERGY y compita alli.
+# Score of the Ripening Charge ABILITY played for its healing: above the
+# development Teal Dance (31050) and below the one that enables a KO (31500) or
+# the retreat pivots (31600). >= 29000 so it rises to the ENERGY tier and
+# competes there.
 RIPEN_HEAL_ABILITY_SCORE = 31250
-# Misma habilidad cuando el cuerpo que sale de la ventana es un ex (DOS premios)
-# -- p.ej. el Teal Mask Ogerpon ex activo a 20 PV de la partida 3, que murio a
-# 30 contadores movidos. Ahi la curacion gana a Teal Dance (31500): un robo de
-# una carta no vale dos premios. Sigue por debajo de las bandas letales (41000+)
-# y de los pivotes de retirada (31600).
+# The same ability when the body leaving the window is an ex (TWO prizes)
+# -- e.g. the active Teal Mask Ogerpon ex at 20 HP of game 3, which died to 30
+# moved counters. There the healing beats Teal Dance (31500): drawing one card
+# is not worth two prizes. It stays below the lethal bands (41000+) and below
+# the retreat pivots (31600).
 RIPEN_HEAL_EX_ABILITY_SCORE = 31550
 
-# Techo de la carga sobre un cuerpo CONDENADO (Fase C del plan de Marnie): el
-# rival puede cobrarlo antes de nuestro proximo turno y no ataca hoy, asi que la
-# Planta se va al descarte con el. Es un TECHO, no un veto: queda por debajo de
-# toda la banda de desarrollo (~8000) y por encima del ultimo recurso de
-# Applin/Dipplin con Hydrapple en juego (10), que es energia que de verdad no
-# rinde nada. Si no queda nada mejor, la energia sigue cayendo aqui.
+# Ceiling of the charge on a DOOMED body (phase C of the Marnie plan): the
+# opponent can cash it in before our next turn and it does not attack today, so
+# the Grass goes to the discard with it. It is a CEILING, not a veto: it sits
+# below the whole development band (~8000) and above the last resort of
+# Applin/Dipplin with Hydrapple in play (10), which is energy that really yields
+# nothing. If there is nothing better left, the energy still lands here.
 SCORE_CARGA_CONDENADA = 20
-# Piso de la banda LETAL de `energy_score`: de 41000 para arriba la energia
-# cobra o niega un premio HOY (remates, pivotes de retirada, gusteo ganador) y
-# ninguna consideracion de desarrollo la toca. Documentado ya en los comentarios
-# de RIPEN_HEAL_* y de la familia `_carga_activo_*`; aqui se le pone nombre para
-# que el techo de la Fase C sepa donde parar.
+# Floor of `energy_score`'s LETHAL band: from 41000 upwards the energy takes or
+# denies a prize TODAY (finishers, retreat pivots, winning gust) and no
+# development consideration touches it. Already documented in the comments of
+# RIPEN_HEAL_* and of the `_carga_activo_*` family; here it gets a name so the
+# phase C ceiling knows where to stop.
 SCORE_CARGA_LETAL_FLOOR = 41000
 
-# Score de FLIP THE SCRIPT (Fezandipiti ex: robar 3 tras un KO nuestro). Va por
-# ENCIMA de toda la familia de habilidades de CARGA no letales -- Teal Dance
-# (29000-31500) y Ripening Charge (30500-31600) -- porque es GRATIS, es UNA VEZ
-# POR TURNO y su condicion muere con el turno, mientras que un adjunte que no
-# remata se puede hacer despues sin perder nada. Ademas robar PRIMERO decide
-# mejor los adjuntes: las 3 cartas nuevas pueden ser Plantas. Por debajo de las
-# bandas LETALES (41000+) y del remate ganador. >= 29000 para subir al tier
-# ENERGY (si se quedara en tier 0, cualquier carga lo pisaria por ORDEN).
+# Score of FLIP THE SCRIPT (Fezandipiti ex: drawing 3 after a KO of ours). It
+# goes ABOVE the whole family of non-lethal CHARGING abilities -- Teal Dance
+# (29000-31500) and Ripening Charge (30500-31600) -- because it is FREE, it is
+# ONCE PER TURN and its condition dies with the turn, whereas an attachment that
+# does not finish can be made afterwards without losing anything. Besides,
+# drawing FIRST decides the attachments better: the 3 new cards may be Grass. It
+# is below the LETHAL bands (41000+) and the winning finisher. >= 29000 so it
+# rises to the ENERGY tier (if it stayed at tier 0, any charge would step over
+# it by ORDER).
 FEZ_DRAW_ABILITY_SCORE = 31700
 
-# --- ATACAR CON EL ACTIVO ES LO PRIMERO -------------------------------------
-# Bandas de la familia `_carga_activo_*` (ver los flags homonimos en agent()):
-# cargar al ACTIVO hasta su COSTE DE ATAQUE usando TODAS las vias de carga que
-# quedan vivas este turno (adjunte manual + habilidades de carga).
+# --- ATTACKING WITH THE ACTIVE COMES FIRST ----------------------------------
+# Bands of the `_carga_activo_*` family (see the flags of the same name in
+# agent()): charging the ACTIVE up to its ATTACK COST using ALL the charging
+# routes still alive this turn (the manual attachment + the charging abilities).
 #
-# `_carga_activo_remata` (el ataque resultante NOQUEA al activo rival): 41900.
-# Por encima de TODAS las cargas letales "indirectas" -- promover un atacante
-# de banca (41000), el foco de carga de un Ogerpon (41700) -- porque atacar con
-# el ACTIVO no paga coste de retirada ni depende de que la retirada sea legal.
-# Por debajo del remate GANADOR via Boss's (42000) y del atacante de 1 premio
-# vs Alakazam (43000), que resuelven la partida / el intercambio de premios.
+# `_carga_activo_remata` (the resulting attack KNOCKS OUT the opposing active):
+# 41900. Above ALL the "indirect" lethal charges -- promoting a benched attacker
+# (41000), the charging focus of an Ogerpon (41700) -- because attacking with
+# the ACTIVE pays no retreat cost and does not depend on the retreat being
+# legal. Below the WINNING finisher via Boss's (42000) and the 1-prize attacker
+# vs Alakazam (43000), which settle the game / the prize trade.
 SCORE_CARGA_ACTIVO_REMATE = 41900
-# `_carga_activo_habilita_ataque` (el ataque no remata pero hace CHIP y sin esa
-# carga el turno seria ESTERIL): 31300. Su valor NO esta en ganar pulsos, sino
-# en SALTARSE las ramas de energy_score que degradaban la carga al activo (el
-# `score - 100` de `active_ko_likely`, el veto de `_active_hydra_capped`, los
-# topes por matchup, el downgrade a 7500...). Por eso se queda en una banda
-# deliberadamente MODESTA: sobre el adjunte de desarrollo al activo (~31210) y
-# sobre `_attach_enable_retreat_attack` (31200), pero BAJO el motor
-# UB->Meowth->Lillie's (31450) y Teal Dance (31500) -- con un turno sin remate
-# a la vista, refrescar la mano o robar sigue mandando sobre un chip. Sin KO no
-# hay prisa: el adjunte del turno sigue vivo despues de esas jugadas.
+# `_carga_activo_habilita_ataque` (the attack does not finish but does CHIP
+# damage and without that charge the turn would be STERILE): 31300. Its value is
+# NOT in winning duels, but in SKIPPING the energy_score branches that degraded
+# the charge to the active (the `score - 100` of `active_ko_likely`, the veto of
+# `_active_hydra_capped`, the per-matchup caps, the downgrade to 7500...). That
+# is why it stays in a deliberately MODEST band: above the development
+# attachment to the active (~31210) and above `_attach_enable_retreat_attack`
+# (31200), but BELOW the UB->Meowth->Lillie's engine (31450) and Teal Dance
+# (31500) -- with no finisher in sight for the turn, refilling the hand or
+# drawing still rules over chip damage. Without a KO there is no hurry: the
+# turn's attachment is still alive after those plays.
 SCORE_CARGA_ACTIVO_ATAQUE = 31300
 
 NON_ATTACKER_ENERGY_WASTE_IDS = {Meowth_ex, Fezandipiti_ex}
@@ -543,12 +551,12 @@ PSYCHIC_CONTROL_IDS = {Slowking, Alakazam_ex, Gardevoir_ex}
 Riolu = 677
 Mega_Lucario_ex = 678
 Duraludon = 169
-# Linea Rocket's Mewtwo (limitless /decks/337, analizado julio 2026): el motor
-# de dano barato del mazo es Team Rocket's Tarountula (400, 50 HP) -> Team
-# Rocket's Spidops (401, Stage 1, linea 4-4); Team Rocket's Mewtwo ex (431,
-# 280 HP, Erasure Ball 160) es el finisher de 2 premios (cubierto por el
-# gusteo generico de 2 premios). Cortar los Tarountula con Boss's frena su
-# tempo igual que Riolu/Duraludon.
+# Rocket's Mewtwo line (limitless /decks/337, analysed July 2026): the deck's
+# cheap damage engine is Team Rocket's Tarountula (400, 50 HP) -> Team Rocket's
+# Spidops (401, Stage 1, a 4-4 line); Team Rocket's Mewtwo ex (431, 280 HP,
+# Erasure Ball 160) is the 2-prize finisher (covered by the generic 2-prize
+# gust). Cutting the Tarountula with Boss's slows their tempo just like
+# Riolu/Duraludon.
 Rockets_Tarountula = 400
 Rockets_Spidops = 401
 Rockets_Mewtwo_ex = 431
@@ -556,19 +564,20 @@ Rockets_Mewtwo_ex = 431
 THREAT_PREEVO_IDS = {Riolu, Duraludon, Hops_Phantump, Dwebble_Grass, Dwebble_Fighting,
                      Buneary, Rockets_Tarountula}
 
-# Dunsparce (id 65 = TEF, id 305 = JTG): NUNCA gustear con Boss's Orders (user
-# req). Son muros que se retiran/reposicionan con facilidad; subirlos al activo
-# rival con Boss's Orders no aporta ventaja.
+# Dunsparce (id 65 = TEF, id 305 = JTG): NEVER gust with Boss's Orders (user
+# requirement). They are walls that retreat/reposition easily; bringing them up
+# as the opposing active with Boss's Orders gains nothing.
 DUNSPARCE_IDS = {65, 305}
 
-# Pokemon clave de cada mazo que conviene noquear con Boss's Orders desde la
-# banca AUNQUE nuestro activo pueda noquear al activo rival, cuando ese activo
-# rival NO es un Pokemon clave (p.ej. un muro sin energia). Ej.: en el mazo Hop
-# el atacante clave es Hop's Trevenant; su linea (Trevenant/Phantump) debe
-# cazarse en banca. La prioridad entre objetivos (con/sin energia, evolucion vs
-# pre-evo) la resuelve el ajuste tier_ko (_AJUSTES_GUST_OFENSIVO) al elegir objetivo:
-# Trevenant con energia > Trevenant sin energia > Phantump con energia >
-# Phantump sin energia.
+# Key Pokemon of each deck that are worth knocking out with Boss's Orders from
+# the bench EVEN IF our active can knock out the opposing active, when that
+# opposing active is NOT a key Pokemon (e.g. a wall with no energy). Example: in
+# the Hop deck the key attacker is Hop's Trevenant; its line
+# (Trevenant/Phantump) has to be hunted on the bench. The priority between
+# targets (with/without energy, evolution vs pre-evolution) is resolved by the
+# tier_ko adjustment (_AJUSTES_GUST_OFENSIVO) when choosing the target:
+# Trevenant with energy > Trevenant without energy > Phantump with energy >
+# Phantump without energy.
 KEY_BENCH_ATTACKER_IDS = {Hops_Trevenant, Hops_Phantump}
 
 EX_PREEVO_IDS = {
@@ -579,24 +588,25 @@ EX_PREEVO_IDS = {
     Abra, Kadabra,
     Ralts, Kirlia,
     Marnies_Impidimp, Marnies_Morgrem,
-    Buneary,  # -> Mega Lopunny ex (id 849, ex de 2 premios)
-    # Linea Cynthia's Garchomp ex (user, registro_006 paso 82 vs Garchomp,
-    # GANADA con error): la linea NO estaba en este set, asi que el deny-evo
-    # de Boss's (`_bo_pe_is_ex_preevo_energized` / `_bo_pe_is_ex_line_vs_wall`)
-    # jamas disparaba: con Tapu Bulu listo, Boss's en mano y un Gabite
-    # ENERGIZADO en la banca rival, el agente noqueaba al muro Spiritomb en
-    # vez de gustear+noquear el Gabite (pre-evo del atacante ex de 2 premios).
-    # Privilegiar SIEMPRE cortar la linea evolutiva de Cynthia's Garchomp ex.
+    Buneary,  # -> Mega Lopunny ex (id 849, a 2-prize ex)
+    # Cynthia's Garchomp ex line (user, registro_006 step 82 vs Garchomp,
+    # WON with a mistake): the line was NOT in this set, so the deny-evo of
+    # Boss's (`_bo_pe_is_ex_preevo_energized` / `_bo_pe_is_ex_line_vs_wall`)
+    # never fired: with Tapu Bulu ready, Boss's in hand and a CHARGED Gabite
+    # on the opposing bench, the agent knocked out the Spiritomb wall instead
+    # of gusting+knocking out the Gabite (pre-evolution of the 2-prize ex
+    # attacker). ALWAYS favour cutting the evolution line of Cynthia's
+    # Garchomp ex.
     Cynthias_Gible, Cynthias_Gabite,
 }
 
-# Pre-evoluciones de EX_PREEVO_IDS cuya forma FINAL es NON-ex (1 premio) en
-# este entorno, NO un ex de 2 premios. Abra -> Kadabra -> Alakazam (id 743) es
-# la unica: la constante `Alakazam_ex = 743` es un nombre enganoso; el dato de
-# la carta marca ex=False (1 premio). La logica de "negar una linea EX" (que
-# justifica gustear una pre-evo con Boss's para impedir un ATACANTE DE 2
-# PREMIOS) NO debe aplicar a esta linea: gustear+noquear la pre-evo rinde 1
-# premio, lo mismo que noquear al muro activo, asi que es un gusteo inutil.
+# Pre-evolutions in EX_PREEVO_IDS whose FINAL form is NON-ex (1 prize) in this
+# environment, NOT a 2-prize ex. Abra -> Kadabra -> Alakazam (id 743) is the
+# only one: the constant `Alakazam_ex = 743` is a misleading name; the card data
+# marks ex=False (1 prize). The "deny an EX line" logic (which justifies gusting
+# a pre-evolution with Boss's to prevent a 2-PRIZE ATTACKER) must NOT apply to
+# this line: gusting+knocking out the pre-evolution yields 1 prize, the same as
+# knocking out the active wall, so it is a useless gust.
 NONEX_FINAL_PREEVO_IDS = {Abra, Kadabra}
 
 _ID_NAME_EXPECTATIONS = {
@@ -622,25 +632,26 @@ _ID_NAME_EXPECTATIONS = {
 
 SCORE_WIN_GAME = 50000
 
-# Anclas BASE de la rama PLAY: puntaje de partida antes de ajustes por matchup /
-# situacion. El resto de scores de desarrollo se leen como "base +/- matiz".
-SCORE_DEVELOP_BASE = 20000   # base: bajar un Pokemon a la banca
-SCORE_ITEM_BASE = 10000      # base: jugar una carta que NO es Pokemon (item/supporter)
-# Base del valor generico de un Supporter (Boss's/Lana's/Dawn): score = BASE +
-# int(valor * 1.4) + supporter_boost. Usada por los 3 scorers de Supporter.
+# BASE anchors of the PLAY branch: the starting score before the
+# matchup/situation adjustments. The other development scores read as "base
+# +/- nuance".
+SCORE_DEVELOP_BASE = 20000   # base: putting a Pokemon on the bench
+SCORE_ITEM_BASE = 10000      # base: playing a card that is NOT a Pokemon (item/supporter)
+# Base of the generic value of a Supporter (Boss's/Lana's/Dawn): score = BASE +
+# int(value * 1.4) + supporter_boost. Used by the 3 Supporter scorers.
 SCORE_SUPPORTER_VALUE_BASE = 2400
 
-# --- Pisos de puntuacion (score floors) ---
-# Escala de valores negativos CON NOMBRE (robustez): dejan explicito el orden de
-# "no jugar" y evitan que una jugada real quede por debajo de un piso por error.
-# Migracion incremental de numeros magicos -> constantes; los valores son EXACTOS
-# a los que ya se usaban (renombrado puro, sin cambio de comportamiento).
-SCORE_VETO = -1          # jugada vetada / inutil (piso general, el mas comun)
-SCORE_CANCEL = -100      # cancelar por debajo del piso de veto (p.ej. Ultra Ball
-                         # inutil) para que el desempate por indice no la elija
-SCORE_USELESS_ATTACK = -5000  # atacar por 0 dano (rival inmune: ex/habilidad/muro)
-SCORE_NEVER = -10000     # nunca (p.ej. no descartar Unfair Stamp; END no letal)
-SCORE_FORBID = -100000   # prohibido absoluto (Dunsparce, retirada gratis)
+# --- Score floors ---
+# A NAMED scale of negative values (robustness): they make the ordering of "do
+# not play" explicit and stop a real play from ending up below a floor by
+# mistake. An incremental migration of magic numbers -> constants; the values
+# are EXACTLY the ones already in use (a pure rename, with no behaviour change).
+SCORE_VETO = -1          # vetoed / useless play (general floor, the most common)
+SCORE_CANCEL = -100      # cancel below the veto floor (e.g. a useless Ultra
+                         # Ball) so the index tie-break does not choose it
+SCORE_USELESS_ATTACK = -5000  # attacking for 0 damage (immune opponent: ex/ability/wall)
+SCORE_NEVER = -10000     # never (e.g. do not discard Unfair Stamp; a non-lethal END)
+SCORE_FORBID = -100000   # absolutely forbidden (Dunsparce, free retreat)
 
 SCORE_LOOKAHEAD_EX_TRADE = 250
 SCORE_LOOKAHEAD_KO_TRADE = 120
@@ -650,101 +661,105 @@ SCORE_LOOKAHEAD_PROMOTE_SAFE = 40
 
 SCORE_BELIEF_DIG_ENERGY = 250
 
-# --- Escala de la RECUPERACION de Lana's Aid (contexto TO_HAND) --------------
-# Lana's levanta hasta 3 cartas del descarte entre Pokemon SIN Regla y Energias
-# Basicas. La eleccion la manda la lectura de mesa de `_plan_de_planta`: primero
-# la Planta que pone a atacar HOY, luego las que un cuerpo en juego sigue
-# pidiendo, y solo despues el desarrollo (que puntua el scorer generico, en la
-# banda ~150-280). Ver `_pokemon_injugable` para el piso de carta muerta.
-LANA_SEL_PLANTA_DESBLOQUEA = 1400  # la Planta que habilita un ataque este turno
-LANA_SEL_PLANTA_DEMANDA = 900      # Planta que un atacante en juego aun pide
-LANA_SEL_PLANTA_SOBRANTE = 120     # mas Plantas de las que la mesa sabe usar
-LANA_SEL_INJUGABLE = 5             # no se puede poner en juego: ultimo recurso
+# --- Scale of Lana's Aid RECOVERY (TO_HAND context) -------------------------
+# Lana's picks up to 3 cards from the discard, among Pokemon WITHOUT a Rule Box
+# and Basic Energies. The choice is ruled by the board reading of
+# `_plan_de_planta`: first the Grass that enables an attack TODAY, then the ones
+# a body in play is still asking for, and only then development (which the
+# generic scorer scores, in the ~150-280 band). See `_pokemon_injugable` for the
+# dead-card floor.
+LANA_SEL_PLANTA_DESBLOQUEA = 1400  # the Grass that enables an attack this turn
+LANA_SEL_PLANTA_DEMANDA = 900      # Grass an attacker in play still asks for
+LANA_SEL_PLANTA_SOBRANTE = 120     # more Grass than the board can use
+LANA_SEL_INJUGABLE = 5             # it cannot be put into play: last resort
 
-# Valor BASE de la capa PLAY por tener algo recuperable en el descarte, antes de
-# los bonos de necesidad (banca corta, linea caida, Forest, >=3 recuperables,
-# matchup). Que `lana_val` se quede EXACTAMENTE en esta base significa "hay una
-# carta ahi abajo, pero la mesa no la pide".
+# BASE value of the PLAY layer for having something recoverable in the discard,
+# before the need bonuses (short bench, fallen line, Forest, >=3 recoverable,
+# matchup). `lana_val` staying EXACTLY at this base means "there is a card down
+# there, but the board is not asking for it".
 LANA_PLAY_BASE_RECUPERABLE = 300
 
-# Techo del VALOR de jugar Lana's Aid (capa PLAY) cuando lo que se puede poner
-# en juego hoy no hace falta: Energia que nadie pide (todos los atacantes en
-# juego llegan ya a `ATTACK_ENERGY_REQ`, o la mano tiene mas Plantas de las que
-# caben este turno) o un Pokemon que cabe en la banca pero que ningun bono
-# reclama. Con `SCORE_SUPPORTER_VALUE_BASE` = 2400 y el factor 1.4, deja la
-# jugada en ~2540: sigue siendo jugable, pero cede el Supporter del turno a
-# cualquier otro con valor real (Dawn generico ~2680, Lillie's 5000).
+# Ceiling of the VALUE of playing Lana's Aid (PLAY layer) when what can be put
+# into play today is not needed: Energy nobody asks for (every attacker in play
+# already reaches `ATTACK_ENERGY_REQ`, or the hand has more Grass than fits this
+# turn) or a Pokemon that fits on the bench but that no bonus is claiming. With
+# `SCORE_SUPPORTER_VALUE_BASE` = 2400 and the factor of 1.4, it leaves the play
+# at ~2540: still playable, but it yields the turn's Supporter to any other one
+# with real value (generic Dawn ~2680, Lillie's 5000).
 LANA_PLAY_SIN_DEMANDA = 100
 
-# Prioridad de Boss's Orders cuando, frente a Crustle, nuestro activo ex esta
-# bloqueado pero hay un objetivo en la banca rival al que si podemos pegar y que
-# podemos noquear o dejar sin poder retirarse. Debe superar a los cebos de robo
-# (Lillie's ~650) y al resto del ladder de Boss's.
+# Priority of Boss's Orders when, against Crustle, our active ex is blocked but
+# there is a target on the opposing bench we can hit and that we can knock out
+# or leave unable to retreat. It has to beat the draw baits (Lillie's ~650) and
+# the rest of the Boss's ladder.
 BOSS_PRIORITY_CRUSTLE_GUST = 990
 
-# Puntaje al que se rebaja Tapu Bulu cuando aun quedan items ("artefactos") en la
-# mano: queda por debajo de la banda de items utiles (~9800+, o 9000 cuando un
-# item se autolimita) y por encima de items que NO valen la pena (puntaje bajo).
-# Asi los items utiles se juegan primero y, cuando ya no quede ninguno util,
-# Tapu Bulu vuelve a ganar y se baja. Aplica SOLO a Tapu Bulu.
+# Score Tapu Bulu is lowered to while there are still items ("artefacts") in
+# hand: it sits below the band of useful items (~9800+, or 9000 when an item
+# limits itself) and above items that are NOT worth it (a low score). That way
+# the useful items are played first and, once none is left, Tapu Bulu wins again
+# and is put down. It applies ONLY to Tapu Bulu.
 TAPU_WAIT_FOR_ITEMS_SCORE = 8900
 
-# --- Ladder de puntuacion de Boss's Orders (rama PLAY, ~L9250) ---
-# Orden de prioridad de mayor a menor cuando decidimos jugar Boss's Orders. Los
-# nombres documentan que remate representa cada rama; a todos (salvo el gusteo
-# "vacio") se les suma `supporter_boost`. Lillie's base = 5000, asi que las
-# ramas >5000 ganan a refrescar con Lillie's y las <5000 le ceden la prioridad.
-BOSS_SCORE_WIN_NOW = 20000           # gusteo que GANA la partida con el activo: prioridad maxima
-BOSS_SCORE_GUST_2PRIZE = 6800        # gustear+noquear un ex de banca por 2 premios (mas que el KO del activo de 1); supera retiradas/pivotes (~6600)
-BOSS_SCORE_WIN_VIA_BENCH = 5600      # gustada letal a un objetivo de banca
-BOSS_SCORE_WALL_GUST = 5500          # rival con muro inmune (ex/habilidad) al activo
-BOSS_SCORE_DODGE_REDIRECT = 5500     # redireccion por esquiva (dodge)
-BOSS_SCORE_PRIZE_RANK_BASE = 5200    # gusteo que habilita KO (afinado por prize_rank)
-BOSS_SCORE_LOW_VALUE_GUST = 1500     # gusteo de bajo valor
-BOSS_SCORE_DEFENSIVE_GUST = 1500     # gusteo defensivo (vs Crustle)
-BOSS_SCORE_UNLOCK_GUST = 2600        # gustear para DES-LOCKEAR habilidades (Iron Thorns ex activo)
-BOSS_SCORE_EMPTY_GUST = 20           # gusteo NO ejecutable: ceder a Lillie's
-XEROSIC_SCORE_ALAKAZAM = 5900        # Xerosic vs Alakazam: capar Powerful Hand (20 x mano rival). Sobre Lillie's hydra-cargado (5800); bajo GUST_2PRIZE (6800) y pivotes defensivos (~6600). Cede a boss_win_via_bench via guard propio
-XEROSIC_SCORE_GENERIC = 3380         # Xerosic generico con mano rival muy grande (>=7): valor de disrupcion, bajo Lillie's tipico (~3450)
-XEROSIC_SCORE_LAST_RESORT = 20       # sin efecto util claro: solo si ningun otro supporter puntua
-XEROSIC_SCORE_SOBRE_BOSS = 7000      # vs Alakazam con Boss's en mano: capar la mano supera a CUALQUIER gusteo que no GANE la partida (sobre GUST_2PRIZE 6800); el gusteo ganador (WIN_NOW 20000) sigue por encima
-# --- PESCA DE REMATE (ver `_pesca_de_remate`) --------------------------------
-# Lillie's Determination cuando el turno NO tiene ataque posible y el robo puede
-# traer la energia que desbloquea un KO. Se coloca por encima de todo el ladder
-# de Boss's que no GANA la partida ni cobra 2 premios YA (GUST_2PRIZE 6800) y
-# por encima del Lillie's hydra-cargado (5800): un KO probable de 2 premios vale
-# mas que cualquier gusteo de desarrollo, y ademas gustear DEGRADA el objetivo
-# (Myriad Leaf Shower escala con la energia del activo rival).
+# --- Boss's Orders scoring ladder (PLAY branch, ~L9250) ---
+# Priority order from highest to lowest when deciding to play Boss's Orders. The
+# names document which finisher each branch represents; `supporter_boost` is
+# added to all of them (except the "empty" gust). Lillie's base = 5000, so the
+# branches >5000 beat refilling with Lillie's and the ones <5000 yield priority
+# to it.
+BOSS_SCORE_WIN_NOW = 20000           # a gust that WINS the game with the active: top priority
+BOSS_SCORE_GUST_2PRIZE = 6800        # gust+knock out a benched ex for 2 prizes (more than the active's 1-prize KO); it beats retreats/pivots (~6600)
+BOSS_SCORE_WIN_VIA_BENCH = 5600      # a lethal gust on a bench target
+BOSS_SCORE_WALL_GUST = 5500          # opponent with a wall immune (ex/ability) to the active
+BOSS_SCORE_DODGE_REDIRECT = 5500     # redirection by dodge
+BOSS_SCORE_PRIZE_RANK_BASE = 5200    # a gust that enables a KO (refined by prize_rank)
+BOSS_SCORE_LOW_VALUE_GUST = 1500     # a low-value gust
+BOSS_SCORE_DEFENSIVE_GUST = 1500     # a defensive gust (vs Crustle)
+BOSS_SCORE_UNLOCK_GUST = 2600        # gust to UN-LOCK abilities (Iron Thorns ex active)
+BOSS_SCORE_EMPTY_GUST = 20           # a NON-executable gust: yield to Lillie's
+XEROSIC_SCORE_ALAKAZAM = 5900        # Xerosic vs Alakazam: cap Powerful Hand (20 x opposing hand). Above a hydra-charged Lillie's (5800); below GUST_2PRIZE (6800) and the defensive pivots (~6600). It yields to boss_win_via_bench through its own guard
+XEROSIC_SCORE_GENERIC = 3380         # generic Xerosic with a very large opposing hand (>=7): disruption value, below a typical Lillie's (~3450)
+XEROSIC_SCORE_LAST_RESORT = 20       # no clear useful effect: only if no other supporter scores
+XEROSIC_SCORE_SOBRE_BOSS = 7000      # vs Alakazam with Boss's in hand: capping the hand beats ANY gust that does not WIN the game (above GUST_2PRIZE 6800); the winning gust (WIN_NOW 20000) is still higher
+# --- FINISHER FISHING (see `_pesca_de_remate`) ------------------------------
+# Lillie's Determination when the turn has no attack available and the draw may
+# bring the energy that unlocks a KO. It is placed above the whole Boss's ladder
+# that does not WIN the game or take 2 prizes RIGHT NOW (GUST_2PRIZE 6800) and
+# above the hydra-charged Lillie's (5800): a probable 2-prize KO is worth more
+# than any development gust, and gusting also DEGRADES the target (Myriad Leaf
+# Shower scales with the energy on the opposing active).
 LILLIE_SCORE_PESCA_REMATE = 5900
-# Probabilidad minima para que la pesca ANULE los vetos de orden de Lillie's
-# (Ultra Ball que completa linea, cesion a un gusteo ejecutable...). El caso que
-# la motiva sale a 0.63 (2 Plantas de 10 vivas robando 8 de 42). Por debajo de
-# este umbral el refresco sigue jugandose por su valor normal, sin privilegios.
+# Minimum probability for the fishing to OVERRIDE Lillie's ordering vetoes (an
+# Ultra Ball that completes a line, yielding to an executable gust...). The case
+# that motivates it comes out at 0.63 (2 Grass out of 10 live, drawing 8 from
+# 42). Below this threshold the refill is still played for its normal value,
+# with no privileges.
 PESCA_PROB_MIN = 0.35
-# Premios minimos del KO pescado: la pesca solo pisa los vetos si lo que
-# desbloquea COBRA premio (un chip probable no paga barajar la mano).
+# Minimum prizes of the fished KO: the fishing only overrides the vetoes if what
+# it unlocks TAKES a prize (a probable chip does not pay for shuffling the hand
+# away).
 PESCA_PREMIOS_MIN = 1
 
 
 
-XEROSIC_STAMP_ORDEN_MIN_OP_HAND = 10  # mano rival minima para que Xerosic se juegue ANTES del Unfair Stamp: el Sello los deja en 2 igual, asi que lo unico que gana el orden son las `op_hand - 3` cartas que Xerosic manda al descarte PARA SIEMPRE; solo vale el hueco de Supporter cuando eso supera una mano entera (>=7 cartas)
+XEROSIC_STAMP_ORDEN_MIN_OP_HAND = 10  # minimum opposing hand for Xerosic to be played BEFORE Unfair Stamp: the Stamp leaves them at 2 either way, so the only thing the order buys is the `op_hand - 3` cards Xerosic sends to the discard FOREVER; it is only worth the Supporter slot when that beats a whole hand (>=7 cards)
 
-# --- Unfair Stamp: cuando el Sello MERECE jugarse (user, agosto 2026) --------
-# El Sello es un ACE SPEC (Item) que baraja LAS DOS manos al mazo y reparte 5
-# cartas a nosotros y 2 al rival. Solo tiene dos formas de pagar, y la regla
-# exige que se cumpla AL MENOS UNA (es regla de CARTA, no de matchup: vale
-# contra cualquier mazo):
+# --- Unfair Stamp: when the Stamp DESERVES to be played (user, August 2026) --
+# The Stamp is an ACE SPEC (Item) that shuffles BOTH hands into the decks and
+# deals 5 cards to us and 2 to the opponent. It only has two ways of paying off,
+# and the rule requires AT LEAST ONE of them (it is a CARD rule, not a matchup
+# one: it holds against any deck):
 #
-#   (1) DISRUPCION -- solo existe si al rival le QUITA cartas. Como lo deja
-#       exactamente en 2, con la mano rival <= 2 no le quita nada; con 1 carta
-#       hasta le REGALA una (registro_006 paso 99 vs Marnie: rival con 1 carta,
-#       el Sello lo dejo en 2).
-#   (2) REFRESCO -- robamos 5, pero antes barajamos TODA nuestra mano al mazo.
-#       Sale a cuenta mientras lo que se sacrifica (la mano SIN el propio Sello)
-#       sea <= 4 cartas; por encima de eso el Sello quema mas recursos jugables
-#       de los que devuelve.
-STAMP_MIN_OP_HAND = 3          # mano rival minima para que el Sello DISRUMPA (lo deja en 2)
-STAMP_MAX_HAND_SACRIFICADA = 4  # cartas propias (mano sin el Sello) que se pueden barajar
+#   (1) DISRUPTION -- it only exists if it TAKES cards away from the opponent.
+#       Since it leaves them at exactly 2, with an opposing hand <= 2 it takes
+#       nothing away; with 1 card it even GIVES them one (registro_006 step 99
+#       vs Marnie: opponent with 1 card, the Stamp left them at 2).
+#   (2) REFILL -- we draw 5, but first we shuffle OUR WHOLE hand into the deck.
+#       It is worth it while what is sacrificed (the hand WITHOUT the Stamp
+#       itself) is <= 4 cards; above that the Stamp burns more playable
+#       resources than it returns.
+STAMP_MIN_OP_HAND = 3          # minimum opposing hand for the Stamp to DISRUPT (it leaves them at 2)
+STAMP_MAX_HAND_SACRIFICADA = 4  # our own cards (hand without the Stamp) that can be shuffled away
 
 
 __all__ = [

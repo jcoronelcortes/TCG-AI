@@ -1,28 +1,28 @@
-"""Radar de COLISIONES entre reglas de matchup.
+"""Radar of COLLISIONS between matchup rules.
 
-La matriz de matchups (fase 8) dice QUE matchup va peor; la autopsia (fase 6)
-dice que se perdio una partida. Ninguna de las dos encuentra la clase de fallo
-que dio el mayor salto medido del proyecto (+5.4 en cornerstone_cubchoo): un
-veto de UN matchup que mata la jugada que otro matchup EXIGE. Los mazos meta son
-mixtos (Cornerstone+Cubchoo, Crustle+Kangaskhan...), asi que dos banderas
-`op_is_*_deck` conviven y sus reglas se pisan.
+The matchup matrix (phase 8) says WHICH matchup goes worse; the autopsy (phase 6)
+says a game was lost. Neither of them finds the class of failure
+that gave the project's biggest measured jump (+5.4 in cornerstone_cubchoo): a
+veto from ONE matchup that kills the play another matchup REQUIRES. The meta decks are
+mixed (Cornerstone+Cubchoo, Crustle+Kangaskhan...), so two `op_is_*_deck`
+flags coexist and their rules step on each other.
 
-Como se encontro aquella: comparando el MISMO escenario en dos matchups
-hermanos. Contra Crustle, "muro delante + atacante listo en banca + retirada
-legal" se resolvia subiendo al atacante el 82-100% de las veces; contra
-Cornerstone+Cubchoo, el 13.7%. Esa asimetria ES el bug.
+How that one was found: comparing the SAME scenario in two sibling
+matchups. Against Crustle, "a wall in front + a ready attacker on the bench + a legal
+retreat" was resolved by bringing the attacker up 82-100% of the time; against
+Cornerstone+Cubchoo, 13.7%. That asymmetry IS the bug.
 
-Esta pieza generaliza ese metodo: define SITUACIONES canonicas y deck-agnosticas
-que se leen de la observacion (sin tocar main.py) y mide, por mazo rival, con
-que frecuencia las RESOLVEMOS. Una tasa de resolucion que se hunde en un mazo y
-no en los demas es un candidato a colision, y el mazo donde se hunde dice que
-bandera mirar.
+This piece generalises that method: it defines canonical, deck-agnostic SITUATIONS
+that are read from the observation (without touching main.py) and measures, per opposing deck, how
+often we RESOLVE them. A resolution rate that collapses in one deck and
+not in the others is a collision candidate, and the deck where it collapses says which
+flag to look at.
 
-Lo que NO hace: decidir si es un bug. Solo senala donde mirar; la confirmacion
-sigue siendo capturar el menu y trazar el score (`sys.settrace` sobre `agent`,
-filtrando cambios de `frame.f_locals['score']`).
+What it does NOT do: decide whether it is a bug. It only points at where to look; the confirmation
+is still capturing the menu and tracing the score (`sys.settrace` over `agent`,
+filtering changes of `frame.f_locals['score']`).
 
-Uso:
+Usage:
     python utils/radar_colisiones.py --partidas 100
     python utils/radar_colisiones.py --partidas 200 --solo cornerstone_cubchoo,crustle_kangaskhan
 """
@@ -52,15 +52,15 @@ def _tipos_del_menu(obs):
 
 
 # --------------------------------------------------------------------------
-# SITUACIONES. Cada una recibe los menus de UN turno nuestro y devuelve
-# (aplica, resuelta). Se leen de la observacion: nada de internals de main.py,
-# para que el radar no herede los mismos sesgos que esta auditando.
+# SITUATIONS. Each one receives the menus of ONE of our turns and returns
+# (applies, resolved). They are read from the observation: no main.py internals,
+# so the radar does not inherit the same biases it is auditing.
 # --------------------------------------------------------------------------
 
 def _s_pivote_al_muro(m, menus):
-    """El activo NO puede danar al activo rival (inmunidad) y en la banca hay un
-    cuerpo que SI puede y esta cargado. Resuelta = el turno acaba con un cuerpo
-    que si dana en el activo."""
+    """The active canNOT damage the opposing active (immunity) and on the bench there is a
+    body that CAN and is charged. Resolved = the turn ends with a body
+    that does damage in the active spot."""
     aplica = False
     for d in menus:
         cur = d["obs"]["current"]
@@ -87,9 +87,9 @@ def _s_pivote_al_muro(m, menus):
             break
     if not aplica:
         return False, False
-    # Resuelta = en ALGUN momento del turno el relevo llega al activo (o ataca
-    # desde el). Mirar solo el ultimo menu no basta: si el relevo noquea al muro,
-    # el rival promueve y el estado final ya no describe la jugada.
+    # Resolved = at SOME point of the turn the relief reaches the active spot (or attacks
+    # from it). Looking only at the last menu is not enough: if the relief knocks out the wall,
+    # the opponent promotes and the final state no longer describes the play.
     for d in menus:
         cur = d["obs"]["current"]
         yo = cur["players"][cur["yourIndex"]]
@@ -105,8 +105,8 @@ def _s_pivote_al_muro(m, menus):
 
 
 class _P:
-    """Adaptador minimo dict -> objeto para las calculadoras de main (mismo
-    patron que `autopsia._dano_letal_activo`)."""
+    """A minimal dict -> object adapter for main's calculators (the same
+    pattern as `autopsia._dano_letal_activo`)."""
 
     def __init__(self, d):
         self.id = d["id"]
@@ -122,18 +122,18 @@ class _P:
 
 
 def _amenaza_real(m, relevo, muro, yo, umbral=0.25):
-    """¿El relevo amenaza al muro de verdad, o solo lo gotea?
+    """Does the relief really threaten the wall, or does it only chip it?
 
-    Un pivote cuesta el turno y la energia de retirada: solo compensa si el
-    cuerpo que sube muerde. Sin este filtro el radar contaba como "deberiamos
-    pivotar" los turnos cuyo unico relevo era un Dipplin (20 x banca) frente a
-    un muro de 170-210 PV -- el agente hacia bien en declinar, y la tasa de
-    resolucion se hundia sin que hubiera fallo (crustle salia al 55% y el 96.8%
-    de los casos "no resueltos" tenian Dipplin como unico relevo). Es la misma
-    trampa que ya obligo a filtrar por `MAIN_ATTACKERS`, un nivel mas arriba.
+    A pivot costs the turn and the retreat energy: it only pays off if the
+    body that comes up bites. Without this filter the radar counted as "we should
+    pivot" the turns whose only relief was a Dipplin (20 x bench) against
+    a wall of 170-210 HP -- the agent was right to decline, and the resolution
+    rate collapsed without there being any failure (crustle came out at 55% and 96.8%
+    of the "unresolved" cases had a Dipplin as their only relief). It is the same
+    trap that already forced filtering by `MAIN_ATTACKERS`, one level up.
 
-    Umbral: quitar >= 25% de la vida ACTUAL del muro (reloj de 4 turnos o
-    mejor).
+    Threshold: take away >= 25% of the wall's CURRENT HP (a 4-turn clock or
+    better).
     """
     cuerpos = [p for p in (yo.get("active") or []) + (yo.get("bench") or []) if p]
     total_grass = sum(len(p.get("energies") or []) for p in cuerpos)
@@ -146,20 +146,20 @@ def _amenaza_real(m, relevo, muro, yo, umbral=0.25):
         meg = any(p["id"] == m.Meganium for p in cuerpos)
         dmg = m._our_effective_damage(a, o, base, meg, False)
     except Exception:
-        return True          # ante la duda, no filtrar: mejor falso positivo
+        return True          # when in doubt, do not filter: better a false positive
     return dmg >= umbral * max(1, muro.get("hp") or 1)
 
 
 def _pega_al_muro(m, pk, ex_imm, ab_imm):
-    """¿Este cuerpo es un relevo REAL contra el muro?
+    """Is this body a REAL relief against the wall?
 
-    Se exige `MAIN_ATTACKERS` -- la lista CURADA de cuerpos con los que de
-    verdad atacamos --, no cualquier carta con ataque. Sin ese filtro, un Applin
-    con 1 energia (20 de dano a un muro de 210) contaba como relevo valido: la
-    situacion disparaba constantemente, el agente hacia bien en ignorarla y la
-    tasa de resolucion se hundia sin que hubiera ningun fallo. Ese sesgo hacia
-    el radar INSENSIBLE al fix que se uso para validarlo (1.9% -> 1.1%, sin
-    moverse, cuando el fix vale +5.4 puntos medidos).
+    `MAIN_ATTACKERS` is required -- the CURATED list of bodies we really
+    attack with --, not any card with an attack. Without that filter, an Applin
+    with 1 energy (20 damage to a 210 HP wall) counted as a valid relief: the
+    situation fired constantly, the agent was right to ignore it and the
+    resolution rate collapsed without there being any failure at all. That bias made
+    the radar INSENSITIVE to the fix used to validate it (1.9% -> 1.1%, without
+    moving, when the fix is worth +5.4 measured points).
     """
     if pk["id"] not in m.MAIN_ATTACKERS:
         return False
@@ -171,7 +171,7 @@ def _pega_al_muro(m, pk, ex_imm, ab_imm):
 
 
 def _s_supporter_sin_jugar(m, menus):
-    """Hueco de Supporter libre y al menos uno en mano. Resuelta = se juega."""
+    """A free Supporter slot and at least one in hand. Resolved = it is played."""
     cur0 = menus[0]["obs"]["current"]
     yo0 = cur0["players"][cur0["yourIndex"]]
     if cur0["supporterPlayed"]:
@@ -183,8 +183,8 @@ def _s_supporter_sin_jugar(m, menus):
 
 
 def _s_energia_sin_adjuntar(m, menus):
-    """Adjunte del turno libre y Planta en mano. Resuelta = se pone en el campo
-    (por adjunte manual o por habilidad de carga)."""
+    """The turn's attachment is free and there is Grass in hand. Resolved = it ends up on the field
+    (through the manual attachment or a charging ability)."""
     cur0 = menus[0]["obs"]["current"]
     yo0 = cur0["players"][cur0["yourIndex"]]
     if cur0["energyAttached"]:
@@ -201,7 +201,7 @@ def _s_energia_sin_adjuntar(m, menus):
 
 
 def _s_turno_no_esteril(m, menus):
-    """El menu ofrecia jugadas que NO son END. Resuelta = hacemos alguna."""
+    """The menu offered plays that are NOT END. Resolved = we make one of them."""
     hubo_opcion = any(t not in (int(OptionType.END),) for d in menus
                       for t in _tipos_del_menu(d["obs"]))
     if not hubo_opcion:
@@ -213,11 +213,11 @@ def _s_turno_no_esteril(m, menus):
 
 
 def _s_remata_si_puede(m, menus):
-    """El ACTIVO noquea al activo rival ESTE turno. Resuelta = atacamos.
+    """The ACTIVE knocks out the opposing active THIS turn. Resolved = we attack.
 
-    Es la jugada mas basica que existe, asi que su tasa tiene que salir alta en
-    TODOS los mazos: si sale baja en todos, el detector esta mal (no el agente).
-    Sirve de control de cordura del propio radar."""
+    It is the most basic play there is, so its rate has to come out high in
+    ALL decks: if it comes out low in all of them, the detector is wrong (not the agent).
+    It serves as a sanity check on the radar itself."""
     aplica = False
     for d in menus:
         cur = d["obs"]["current"]
@@ -242,14 +242,14 @@ def _s_remata_si_puede(m, menus):
 
 
 def _s_evoluciona_si_puede(m, menus):
-    """Evolucion en mano con su pre-evo EN JUEGO y LEGALMENTE evolucionable.
-    Resuelta = la evolucion acaba en el campo.
+    """An evolution in hand with its pre-evolution IN PLAY and LEGALLY evolvable.
+    Resolved = the evolution ends up on the field.
 
-    El filtro `appearThisTurn` no es cosmetico: una pre-evo bajada este mismo
-    turno NO puede evolucionar (salvo con Forest of Vitality en juego, que lo
-    permite). Sin ese filtro la situacion disparaba constantemente sobre
-    jugadas ILEGALES y la tasa salia al 40-58% en TODOS los mazos -- el sintoma
-    de un detector roto, no de un agente que se despista."""
+    The `appearThisTurn` filter is not cosmetic: a pre-evolution played this very
+    turn canNOT evolve (except with a Forest of Vitality in play, which allows it).
+    Without that filter the situation fired constantly over
+    ILLEGAL plays and the rate came out at 40-58% in ALL decks -- the symptom
+    of a broken detector, not of an agent that gets distracted."""
     cur0 = menus[0]["obs"]["current"]
     yo0 = cur0["players"][cur0["yourIndex"]]
     forest = any(s.get("id") == m.Forest_of_Vitality
@@ -288,20 +288,20 @@ def _dano(m, atacante, objetivo, yo):
         return 0
 
 
-# `_s_evoluciona_si_puede` NO se envia: medida en 3 mazos da 33-61% -- baja en
-# TODOS --, incluso tras filtrar las pre-evos que aparecieron este turno (que no
-# pueden evolucionar sin Forest). Evolucionar es genuinamente DISCRECIONAL: el
-# agente declina con razon a menudo (conservar un Dipplin de 1 premio, no
-# construir una Etapa 2 ex contra un muro que la inmuniza...). Una situacion
-# cuya tasa es baja en todos los mazos no distingue politica de fallo: solo
-# aporta ruido y falsos positivos. Se conserva la funcion por si alguien la
-# afina, pero fuera de la tabla.
+# `_s_evoluciona_si_puede` is NOT included: measured in 3 decks it gives 33-61% -- low in
+# ALL of them --, even after filtering out the pre-evolutions that appeared this turn (which
+# cannot evolve without Forest). Evolving is genuinely DISCRETIONARY: the
+# agent rightly declines often (keeping a 1-prize Dipplin, not
+# building an ex Stage 2 against a wall that makes it useless...). A situation
+# whose rate is low in every deck does not tell policy from failure: it only
+# adds noise and false positives. The function is kept in case somebody
+# refines it, but out of the table.
 SITUACIONES = (
     ("pivote_al_muro", _s_pivote_al_muro),
-    # CONTROL DE CORDURA, no detector: sale 100% en todos los mazos medidos
-    # (cuando el activo noquea, atacamos siempre). Su valor es ser el canario
-    # de la aritmetica de dano del propio radar -- si algun dia baja del 100%,
-    # o se rompio el agente o se rompio `_dano`.
+    # A SANITY CHECK, not a detector: it comes out at 100% in every deck measured
+    # (when the active knocks out, we always attack). Its value is being the canary
+    # of the radar's own damage arithmetic -- if one day it drops below 100%,
+    # either the agent broke or `_dano` broke.
     ("remata_si_puede", _s_remata_si_puede),
     ("juega_supporter", _s_supporter_sin_jugar),
     ("pone_energia", _s_energia_sin_adjuntar),
@@ -311,7 +311,7 @@ SITUACIONES = (
 
 def radar(agente, deck_rival, partidas):
     from bot_rival import BotRival
-    cnt = collections.defaultdict(lambda: [0, 0])   # nombre -> [aplica, resuelta]
+    cnt = collections.defaultdict(lambda: [0, 0])   # name -> [applies, resolved]
     for i in range(partidas):
         _res, dec, _fin = au.jugar_grabando(
             agente, BotRival(), agente.my_deck, deck_rival, i % 2)
@@ -365,8 +365,8 @@ def main(argv):
                           f"{'-':>18}")
         print(f"{mazo:<{ancho}} " + "  ".join(f"{c:>18}" for c in celdas))
 
-    # Senala outliers: una situacion que en un mazo se resuelve mucho peor que
-    # la MEDIANA del resto es candidata a colision.
+    # It flags outliers: a situation that in one deck is resolved much worse than
+    # the MEDIAN of the rest is a collision candidate.
     print("\n--- candidatos (resolucion muy por debajo de la mediana) ---")
     hubo = False
     for n in nombres:

@@ -1,52 +1,51 @@
-"""vs Dragapult: la Ultra Ball se gasta HOY porque MAÑANA no habrá Objetos.
+"""vs Dragapult: the Ultra Ball is spent TODAY because TOMORROW there will be no Items.
 
-Escenario (`registros/registro_002_pasos_012_hasta_017.json`, paso 17, turno 2
-saliendo segundos, PERDIDA vs Dragapult -- episodio 89079426):
+Scenario (`registros/registro_002_pasos_012_hasta_017.json`, step 17, turn 2
+going second, LOST vs Dragapult -- episode 89079426):
 
-    NOSOTROS (6 premios)                       RIVAL (6 premios)
-    activo  Chikorita 70, 1 {G}                activo  **Budew 30**
-    banca   Fezandipiti ex 210, **0 {G}**      banca   Dreepy, Dreepy,
-    mano    Planta x3, Boss's x2,                      Munkidori 1 {G}
+    US (6 prizes)                              OPPONENT (6 prizes)
+    active  Chikorita 70, 1 {G}                active  **Budew 30**
+    bench   Fezandipiti ex 210, **0 {G}**      bench   Dreepy, Dreepy,
+    hand    Grass x3, Boss's x2,                       Munkidori 1 {G}
             **Ultra Ball**, Meganium, Forest
-    (Lillie's Determination YA jugada este turno)
+    (Lillie's Determination ALREADY played this turn)
 
-El agente **atacaba con el Chikorita** y cerraba el turno con la Ultra Ball en la
-mano. Ese fue el último turno en que se podía jugar: el *Itchy Pollen* del Budew
-—ataque de CERO energía— bloquea los Objetos durante nuestro turno siguiente, y
-contra Dragapult el Budew no se va del campo. La única carta capaz de rehacer la
-partida se quedó de adorno.
+The agent **attacked with the Chikorita** and closed the turn with the Ultra Ball in
+hand. That was the last turn it could be played: the Budew's *Itchy Pollen*
+-- a ZERO-energy attack -- blocks Items during our next turn, and
+against Dragapult the Budew does not leave the field. The only card capable of remaking
+the game stayed there as decoration.
 
-Y el tablero no daba para esperar: el Fezandipiti ex necesita 3 energías (una por
-turno) y el Meganium de la mano no tenía Bayleef debajo -> **mañana tampoco se
-ataca** (`_sin_atacante_para_manana`).
+And the board did not allow waiting: the Fezandipiti ex needs 3 energies (one per
+turn) and the Meganium in hand had no Bayleef underneath -> **tomorrow it does not attack
+either** (`_sin_atacante_para_manana`).
 
-Regla (user): contra Dragapult (o con cualquier Budew en el campo rival), sin
-mano que arranque el ataque, se juega la Ultra Ball para cavar **Meowth ex**. No
-se baja hoy —el hueco de Supporter ya está gastado, así que su *Last-Ditch Catch*
-no produciría nada y el cuerpo solo REGALARÍA dos premios en el turno rival—: se
-baja MAÑANA, cuando su habilidad trae una **Lillie's Determination**. Ni los
-Pokémon ni las habilidades ni los Supporters los bloquea el *Itchy Pollen*; los
-Objetos sí.
+Rule (user): against Dragapult (or with any Budew on the opposing field), with no
+hand that starts the attack, the Ultra Ball is played to dig out **Meowth ex**. It
+is not put down today -- the Supporter slot is already spent, so its *Last-Ditch Catch*
+would produce nothing and the body would only GIVE AWAY two prizes on the opponent's turn --:
+it goes down TOMORROW, when its ability brings a **Lillie's Determination**. Neither
+Pokémon nor abilities nor Supporters are blocked by *Itchy Pollen*; Items are.
 
-Causa: `_eval_ub_best_target` devolvía 0 y la Ultra Ball caía a `SCORE_CANCEL`
-(-100), por debajo del ataque del Chikorita (1000). Las dos ramas que podían
-cavar el Meowth ex exigen `not supporterPlayed` —"la Ultra Ball solo se juega por
-un Pokémon que vayamos a JUGAR este turno", `_ub_cavar_meowth_se_juega`—, y la
-red de rescate del turno estéril, que SÍ conoce el bloqueo de Objetos, no se
-enciende porque el turno no era estéril: había un ataque de verdad.
+Cause: `_eval_ub_best_target` returned 0 and the Ultra Ball fell to `SCORE_CANCEL`
+(-100), below the Chikorita's attack (1000). The two branches that could dig
+out the Meowth ex require `not supporterPlayed` -- "the Ultra Ball is only played for
+a Pokémon we are going to PLAY this turn", `_ub_cavar_meowth_se_juega` --, and
+the sterile-turn rescue net, which DOES know about the Item block, does not switch on
+because the turn was not sterile: there was a real attack.
 
-Arreglo: `_ub_meowth_para_manana`, la única rama que compra para el turno
-siguiente, porque es la única en la que guardar la Ultra Ball equivale a tirarla.
-Sus dos piezas nuevas se comparten con quien ya decidía lo mismo:
+Fix: `_ub_meowth_para_manana`, the only branch that buys for the next
+turn, because it is the only one in which keeping the Ultra Ball amounts to throwing it away.
+Its two new pieces are shared with whoever already decided the same thing:
 
-  * `_bloqueo_de_items_inminente` — Budew en el campo rival o mazo Dragapult; el
-    mismo predicado que usaba inline la red del turno estéril;
-  * `_sin_atacante_para_manana` — un turno más allá que `_sin_ataque_hoy`:
-    cuenta el adjunte del próximo turno y las evoluciones que la mano completa.
+  * `_bloqueo_de_items_inminente` -- a Budew on the opposing field or a Dragapult deck; the
+    same predicate the sterile-turn net used inline;
+  * `_sin_atacante_para_manana` -- one turn further than `_sin_ataque_hoy`:
+    it counts next turn's attachment and the evolutions the hand completes.
 
-El fetch tiene su propia mitad (`bloqueo_de_items_manana` en `_REGLAS_UB_MEOWTH`,
-por encima de `last_ditch_no_produce`): sin ella la búsqueda ya pagada habría
-traído cualquier otra cosa.
+The fetch has its own half (`bloqueo_de_items_manana` in `_REGLAS_UB_MEOWTH`,
+above `last_ditch_no_produce`): without it the already paid-for search would have
+brought back anything else.
 """
 
 import json
@@ -124,7 +123,7 @@ def _jugada(obs, eleccion):
 
 
 # ---------------------------------------------------------------------------
-# 1. El paso real del registro
+# 1. The real step of the record
 # ---------------------------------------------------------------------------
 
 def test_paso17_juega_la_ultra_ball_en_vez_de_atacar_con_el_chikorita():
@@ -136,10 +135,10 @@ def test_paso17_juega_la_ultra_ball_en_vez_de_atacar_con_el_chikorita():
 
 
 # ---------------------------------------------------------------------------
-# 2. El escenario sintético: los tres menús de la cadena
+# 2. The synthetic scenario: the three menus of the chain
 # ---------------------------------------------------------------------------
-# El registro se corta en el paso 17 (el agente atacó), así que el fetch y el
-# turno siguiente se FABRICAN con StateBuilder sobre el mismo tablero.
+# The record cuts off at step 17 (the agent attacked), so the fetch and the
+# next turn are FABRICATED with StateBuilder on the same board.
 
 def _campo(esc, fez_energias=0, mano_extra=()):
     return (esc
@@ -151,22 +150,22 @@ def _campo(esc, fez_energias=0, mano_extra=()):
             .op_zonas(mano=5, mazo=43, premios=6))
 
 
-# NOTA: `menu_mano()` emite una opcion PLAY por CADA carta de la mano, sin el
-# filtro de legalidad del simulador. Por eso el Meganium del registro (Fase 2
-# sin Bayleef debajo: el juego real NUNCA lo ofrece) se deja fuera de las manos
-# de los menus MAIN sinteticos -- si no, el agente lo "juega" y el escenario
-# mide otra cosa. En el menu de fetch sí puede estar: ahí la mano no se ofrece.
+# NOTE: `menu_mano()` emits a PLAY option for EACH card in hand, without the
+# simulator's legality filter. That is why the record's Meganium (Stage 2
+# with no Bayleef underneath: the real game NEVER offers it) is left out of the hands
+# of the synthetic MAIN menus -- otherwise the agent "plays" it and the scenario
+# measures something else. In the fetch menu it can be there: the hand is not offered there.
 def _menu_main(fez_energias=0, mano=(GRASS, GRASS, GRASS, BOSS, BOSS,
                                      ULTRA_BALL, FOREST),
                op_generico=False, partidario_jugado=True):
-    """Menú A: el MAIN del paso 17 (energía del turno ya adjuntada)."""
+    """Menu A: the MAIN of step 17 (the turn's energy already attached)."""
     esc = Escenario(turno=TURNO, paso=17, tac=6, primer_jugador=1,
                     energia_jugada=True,
                     partidario_jugado=partidario_jugado)
     esc = _campo(esc, fez_energias=fez_energias)
     if op_generico:
-        # CONTROL: el mismo tablero sin ninguna pieza que amenace con bloquear
-        # los Objetos (ni Budew ni línea Dreepy) -> la Ultra Ball se guarda.
+        # CONTROL: the same board with no piece threatening to block
+        # Items (neither Budew nor a Dreepy line) -> the Ultra Ball is kept.
         esc.op_activo(pk(MUNKIDORI))
         esc.op_banca(pk(MUNKIDORI), pk(MUNKIDORI))
     return (esc
@@ -178,7 +177,7 @@ def _menu_main(fez_energias=0, mano=(GRASS, GRASS, GRASS, BOSS, BOSS,
 
 
 def _menu_fetch():
-    """Menú B: el fetch de la Ultra Ball recién jugada."""
+    """Menu B: the fetch of the Ultra Ball just played."""
     esc = Escenario(turno=TURNO, paso=18, tac=7, primer_jugador=1,
                     energia_jugada=True, partidario_jugado=True)
     return (_campo(esc)
@@ -190,9 +189,9 @@ def _menu_fetch():
 
 
 def _menu_manana():
-    """Menú C: NUESTRO turno siguiente, ya con el Itchy Pollen encima. Los
-    Objetos no se pueden jugar (por eso no hay ninguno en la mano) pero el
-    Meowth ex sí: su Last-Ditch Catch trae la Lillie's."""
+    """Menu C: OUR next turn, already under the Itchy Pollen. Items
+    cannot be played (that is why there is none in hand) but the
+    Meowth ex can: its Last-Ditch Catch brings the Lillie's."""
     obs = (Escenario(turno=TURNO + 2, paso=30, tac=1, primer_jugador=1)
            .mi_activo(pk(CHIKORITA, energias=[G], fisicas=1))
            .mi_banca(pk(FEZ))
@@ -204,8 +203,8 @@ def _menu_manana():
            .resto_al_descarte()
            .menu_mano(con_ataque=True)
            .construir())
-    # El Itchy Pollen del turno rival: `itchy_pollen_active` se deriva de los
-    # logs de ATAQUE (ver el bloque "Bloqueo de ITEMS rival" de `agent()`).
+    # The Itchy Pollen of the opponent's turn: `itchy_pollen_active` is derived from the
+    # ATTACK logs (see the "Opposing ITEM block" section of `agent()`).
     obs["logs"] = [{"type": int(m.LogType.ATTACK), "cardId": BUDEW,
                     "playerIndex": 1, "serial": 88}]
     return obs
@@ -232,7 +231,7 @@ def test_menuC_manana_el_meowth_ex_se_baja_bajo_el_bloqueo_de_objetos():
 
 
 # ---------------------------------------------------------------------------
-# 3. Controles: la regla no se dispara sin sus tres premisas
+# 3. Controls: the rule does not fire without its three premises
 # ---------------------------------------------------------------------------
 
 def test_control_sin_amenaza_de_bloqueo_la_ultra_ball_se_guarda():
@@ -243,8 +242,8 @@ def test_control_sin_amenaza_de_bloqueo_la_ultra_ball_se_guarda():
 
 
 def test_control_con_atacante_a_una_energia_la_ultra_ball_se_guarda():
-    # Fezandipiti ex a 2 energías: el adjunte del próximo turno lo pone a
-    # atacar (Cruel Arrow, 3) -> `_sin_atacante_para_manana` es False.
+    # Fezandipiti ex at 2 energies: next turn's attachment puts it in
+    # attack range (Cruel Arrow, 3) -> `_sin_atacante_para_manana` is False.
     obs = _menu_main(fez_energias=2)
     assert _jugada(obs, m.agent(obs)) != ("PLAY", ULTRA_BALL)
 
@@ -258,7 +257,7 @@ def test_control_con_lillie_en_mano_no_hay_nada_que_cavar():
 
 
 # ---------------------------------------------------------------------------
-# 4. Los predicados nuevos, por separado
+# 4. The new predicates, separately
 # ---------------------------------------------------------------------------
 
 def test_bloqueo_de_items_inminente_cubre_budew_y_la_linea_dragapult():
@@ -273,16 +272,16 @@ def test_sin_atacante_para_manana_no_cuenta_al_chikorita_ni_a_los_basicos():
     _pk = lambda cid, e=0: NS(id=cid, energies=[G] * e)
     tablero = NS(active=[_pk(CHIKORITA, 1)], bench=[_pk(FEZ, 0)])
 
-    # Chikorita ataca, pero no es un MAIN_ATTACKER; el Fezandipiti ex está a 3
-    # energías y solo se adjunta UNA por turno. Un Tapu Bulu en la mano (4
-    # energías) tampoco es "empezar a atacar mañana".
+    # The Chikorita attacks, but it is not a MAIN_ATTACKER; the Fezandipiti ex is at 3
+    # energies and only ONE is attached per turn. A Tapu Bulu in hand (4
+    # energies) is not "starting to attack tomorrow" either.
     assert m._sin_atacante_para_manana(tablero, {m.Tapu_Bulu: 1}, {}) is True
 
-    # Con el Fezandipiti a 2, el adjunte de mañana lo pone a atacar.
+    # With the Fezandipiti at 2, tomorrow's attachment puts it in attack range.
     cargado = NS(active=[_pk(CHIKORITA, 1)], bench=[_pk(FEZ, 2)])
     assert m._sin_atacante_para_manana(cargado, {}, {}) is False
 
-    # Una evolución de la mano sobre su pre-evo en mesa también cuenta: hereda
-    # la energía del cuerpo y ataca.
+    # An evolution from hand on top of its pre-evo on the table also counts: it inherits
+    # the body's energy and attacks.
     assert m._sin_atacante_para_manana(
         tablero, {MEGANIUM: 1}, {BAYLEEF: 1}) is False

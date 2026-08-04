@@ -1,8 +1,8 @@
-"""Puntuacion de las opciones `ATTACH`.
+"""Scoring of the `ATTACH` options.
 
-Rama `o.type == OptionType.ATTACH` de la cadena de `agent()`, extraida VERBATIM.
-Desempaqueta del contexto los 26 campos que lee y devuelve los
-2 que reasigna; los demas quedan como estaban, igual que antes.
+The `o.type == OptionType.ATTACH` branch of the `agent()` chain, extracted
+VERBATIM. It unpacks from the context the 26 fields it reads and returns the
+2 it reassigns; the rest stay as they were, just like before.
 """
 
 from cg.api import AreaType
@@ -14,7 +14,7 @@ from ptcg.estado.agente import ESTADO
 
 
 def puntuar(tc, o, score):
-    """Devuelve el puntaje de `o`. Puede devolver `_SALTAR`."""
+    """Returns the score of `o`. It may return `_SALTAR`."""
     _attach_cede_a_teal_dance = tc._attach_cede_a_teal_dance
     _attach_enable_retreat_attack = tc._attach_enable_retreat_attack
     _attach_enable_retreat_ko = tc._attach_enable_retreat_ko
@@ -47,93 +47,93 @@ def puntuar(tc, o, score):
             score = energy_score(pokemon, o.inPlayArea == AreaType.ACTIVE)
             if o.inPlayArea == AreaType.ACTIVE:
         
-                # vs Crustle, Tapu Bulu ACTIVO es nuestro atacante PRINCIPAL
-                # (no-ex; el unico que daña al muro inmune a ex): tiene SIEMPRE
-                # la primera prioridad de carga, desde el primer turno. El veto
-                # generico de "no cargar el activo inicial" (Ogerpon/Tapu en
-                # nuestro primer turno, pensado para no desperdiciar energia
-                # sobrecargando el atacante de arranque) NO debe degradarlo:
-                # sin carga, Tapu nunca llega a sus 4 energias para Wood Hammer
-                # (user, registro_002 paso 17 vs Crustle, PERDIDA: el agente
-                # cargaba un Applin de banca en vez del Tapu Bulu activo). Solo
-                # se exime a Tapu Bulu; Ogerpon ex sigue vetado (no daña al muro).
+                # vs Crustle, an ACTIVE Tapu Bulu is our MAIN attacker
+                # (non-ex; the only one that damages the ex-immune wall): it
+                # ALWAYS has the first charging priority, from the first turn.
+                # The generic veto of "do not charge the starting active"
+                # (Ogerpon/Tapu on our first turn, meant to avoid wasting energy
+                # overcharging the opening attacker) must NOT degrade it:
+                # without a charge, Tapu never reaches its 4 energies for Wood
+                # Hammer (user, registro_002 step 17 vs Crustle, LOST: the agent
+                # charged a benched Applin instead of the active Tapu Bulu). Only
+                # Tapu Bulu is exempted; Ogerpon ex stays vetoed (it does not
+                # damage the wall).
                 _ft_veto_ids = ((Teal_Mask_Ogerpon_ex,) if ESTADO.op_is_crustle_deck
                                 else (Teal_Mask_Ogerpon_ex, Tapu_Bulu))
                 if (((state.turn == 1 and ESTADO.we_go_first) or
                         (state.turn == 2 and not ESTADO.we_go_first))
                         and my_state.active and my_state.active[0] is not None
                         and my_state.active[0].id in _ft_veto_ids
-                        # ...salvo que esa carga REMATE hoy (anti-DONK): el
-                        # veto de primer turno existe para no desperdiciar
-                        # energia, no para renunciar a un KO.
+                        # ...unless that charge FINISHES the game today (anti-DONK):
+                        # the first-turn veto exists to avoid wasting energy, not to
+                        # give up a KO.
                         and not _carga_activo_remata):
                     if _lucario_sac_pivot:
-                        # Cargar el Ogerpon ex activo: al retirarlo despues,
-                        # conservara energia en la banca (paga el coste de
-                        # retirada y deja un atacante cargado a salvo).
+                        # Charging the active Ogerpon ex: when it retreats later, it
+                        # keeps energy on the bench (it pays the retreat cost and
+                        # leaves a charged attacker out of harm's way).
                         score = 8500
                     else:
                         score = SCORE_VETO
                 elif _tapu_sac_enable_retreat:
-                    # Adjuntar energia al ex activo (2 premios) para alcanzar
-                    # su coste de retirada y poder pivotar a un Tapu Bulu ya
-                    # cargado que noquea al activo rival (user, log 86029588
-                    # turno 16 paso 148, vs Alakazam/Dunsparce). El coste de
-                    # retirada de Fezandipiti ex es 1, asi que UNA Planta ya
-                    # habilita la retirada este mismo turno -> subir a Tapu y
-                    # rematar. Antes se puntuaba 8000, pero un Dipplin de
-                    # BANCA a 0 energia puntua 8150 (8000+150) y GANABA el
-                    # desempate, desperdiciando la energia en un no-atacante y
-                    # rompiendo la linea de KO. Se sube por encima de cualquier
-                    # desarrollo de banca (Dipplin/Applin/Tapu no letales) para
-                    # que el adjunte al activo gane; sigue por debajo de una
-                    # carga LETAL de este turno (41000/42000).
+                    # Attaching energy to the active ex (2 prizes) to reach its
+                    # retreat cost and be able to pivot to an already charged Tapu
+                    # Bulu that knocks out the opposing active (user, log 86029588
+                    # turn 16 step 148, vs Alakazam/Dunsparce). Fezandipiti ex's
+                    # retreat cost is 1, so ONE Grass already enables the retreat
+                    # this very turn -> bring up Tapu and finish. It used to score
+                    # 8000, but a BENCHED Dipplin at 0 energy scores 8150 (8000+150)
+                    # and WON the tie-break, wasting the energy on a non-attacker
+                    # and breaking the KO line. It is raised above any bench
+                    # development (non-lethal Dipplin/Applin/Tapu) so the attachment
+                    # to the active wins; it is still below a LETHAL charge for this
+                    # turn (41000/42000).
                     score = 24000
                 elif _attach_enable_retreat_ko:
-                    # Adjunte que habilita retirada + KO de banca (user,
-                    # registro_034 paso 141 vs Terrakion): es una linea
-                    # LETAL de este turno, asi que puntua en la banda de
-                    # las cargas letales (41000): sobre Teal Dance
-                    # (31500-31600) y las cargas de banca (~30000), bajo
-                    # el remate directo del activo (42000). El resto de la
-                    # cadena (RETREAT via plan con can_switch, promocion,
-                    # ataque) ya la resuelve la maquinaria existente una
-                    # vez la retirada es legal.
+                    # An attachment that enables retreat + a bench KO (user,
+                    # registro_034 step 141 vs Terrakion): it is a LETHAL line
+                    # for this turn, so it scores in the band of the lethal
+                    # charges (41000): above Teal Dance (31500-31600) and the
+                    # bench charges (~30000), below the active's direct
+                    # finisher (42000). The rest of the chain (RETREAT via the
+                    # plan with can_switch, promotion, attack) is already
+                    # resolved by the existing machinery once the retreat is
+                    # legal.
                     score = 41000
                 elif _attach_enable_retreat_attack:
-                    # Misma linea sin KO (user, log 88162794 turnos 11/13 vs
-                    # Archaludon ex): el activo no puede atacar ni retirarse y
-                    # el atacante de banca solo hace CHIP. La Planta va al
-                    # ACTIVO para pagar la retirada: 80-140 de dano valen mas
-                    # que cerrar el turno sin atacar. Banda 31200 (la que citan
-                    # las ramas de Teal Dance como "el adjunte manual"): por
-                    # encima de cualquier carga de banca (<=31150, incluida la
-                    # de Ripening al mejor atacante) y por debajo de todo lo
-                    # que habilita un KO este turno (31300+, 31500, 41000).
+                    # The same line without a KO (user, log 88162794 turns 11/13 vs
+                    # Archaludon ex): the active can neither attack nor retreat and
+                    # the benched attacker only does CHIP damage. The Grass goes to
+                    # the ACTIVE to pay the retreat: 80-140 damage is worth more
+                    # than closing the turn without attacking. Band 31200 (the one
+                    # the Teal Dance branches cite as "the manual attachment"):
+                    # above any bench charge (<=31150, including Ripening's on the
+                    # best attacker) and below everything that enables a KO this
+                    # turn (31300+, 31500, 41000).
                     score = 31200
                 elif (ESTADO.plan.attacker == 0 and ESTADO.plan.energy
-                        # La banda de `_carga_activo_habilita_ataque` (31300)
-                        # esta calibrada contra el motor UB (31450) y Teal
-                        # Dance (31500): el bonus de desempate la cruzaria.
+                        # The band of `_carga_activo_habilita_ataque` (31300) is
+                        # calibrated against the UB engine (31450) and Teal Dance
+                        # (31500): the tie-break bonus would cross it.
                         and not _carga_activo_habilita_ataque):
                     score += 200
         
                 elif (ESTADO.plan.attacker >= 1 and has_ogerpon and score > 31000
                         and not ESTADO.op_is_crustle_deck and not ESTADO.op_is_cornerstone_deck
                         and not (_win_via_boss_gust or _gust_2prize_via_boss)
-                        # ...ni cuando esta carga es la que hace atacar al
-                        # activo HOY (remate o unico ataque del turno).
+                        # ...nor when this charge is the one that makes the active
+                        # attack TODAY (a finisher or the turn's only attack).
                         and not _carga_activo_remata
                         and not _carga_activo_habilita_ataque):
-                    # NO degradar el adjunte al activo si hay una jugada
-                    # GANADORA / de 2 premios via Boss's que se apoya en cargar
-                    # el activo (user, registro_012 paso 227 vs Iono): Myriad
-                    # Leaf Shower de Ogerpon cuenta la energia de AMBOS activos,
-                    # asi que cargar el activo + gustear un Bellibolt ex
-                    # energizado lo noquea (2 premios). El remate ganador
-                    # (energy_score=42000) debe prevalecer sobre este downgrade
-                    # (pensado para no sobrecargar el activo cuando ataca un
-                    # cuerpo de banca), que si no borraria la linea de KO.
+                    # Do NOT degrade the attachment to the active if there is a
+                    # WINNING / 2-prize play via Boss's that leans on charging the
+                    # active (user, registro_012 step 227 vs Iono): Ogerpon's Myriad
+                    # Leaf Shower counts the energy on BOTH actives, so charging the
+                    # active + gusting a charged Bellibolt ex knocks it out (2
+                    # prizes). The winning finisher (energy_score=42000) must
+                    # prevail over this downgrade (designed to avoid overcharging
+                    # the active when a benched body attacks), which would otherwise
+                    # erase the KO line.
         
                     _attach_active_pkmn = my_state.active[0] if my_state.active else None
                     _attach_needs_for_retreat = False
@@ -160,10 +160,10 @@ def puntuar(tc, o, score):
                         Teal_Mask_Ogerpon_ex: 800,
                         Tapu_Bulu: 750,
                         Pinsir: 650,
-                        # Priorizamos la linea de Hydrapple ex (Applin ->
-                        # Dipplin -> Hydrapple ex), que acelera energia y
-                        # carga a Tapu Bulu en un turno, por encima de la
-                        # linea de Meganium (Chikorita).
+                        # We prioritise the Hydrapple ex line (Applin ->
+                        # Dipplin -> Hydrapple ex), which accelerates energy and
+                        # charges Tapu Bulu in one turn, over the Meganium line
+                        # (Chikorita).
                         Applin: 500,
                         Chikorita: 400,
                         Fezandipiti_ex: 200,
@@ -172,12 +172,12 @@ def puntuar(tc, o, score):
                     if _bench_prio is not None:
                         score = max(score, 8000 + _bench_prio)
         
-                # Nunca cargar manualmente energia a un Meowth ex de BANCA: es un
-                # no-atacante y la energia se desperdicia. El unico uso valido de
-                # Meowth ex para el adjunte manual es en el ACTIVO, para pagar su
-                # retirada cuando haga falta (lo gestiona la rama AreaType.ACTIVE
-                # via energy_score). Se veta SIEMPRE, sin importar el turno ni si
-                # es el unico objetivo de banca disponible.
+                # Never manually attach energy to a BENCHED Meowth ex: it is a
+                # non-attacker and the energy is wasted. The only valid use of
+                # Meowth ex for the manual attachment is on the ACTIVE, to pay its
+                # retreat when needed (handled by the AreaType.ACTIVE branch via
+                # energy_score). It is ALWAYS vetoed, no matter the turn or whether
+                # it is the only bench target available.
                 if pokemon.id == Meowth_ex:
                     score = SCORE_VETO
         
@@ -188,74 +188,75 @@ def puntuar(tc, o, score):
                              and pokemon.id == Tapu_Bulu) \
                     and not (_carga_activo_remata
                              and o.inPlayArea == AreaType.ACTIVE):
-                # Bug Catching Set primero... salvo que la carga al ACTIVO
-                # remate este turno: el KO no espera a una busqueda.
+                # Bug Catching Set first... unless the charge to the ACTIVE
+                # finishes the game this turn: the KO does not wait for a search.
                 score = 9000
         
             if _teal_dance_ko_pivot and hand_counts.get(Basic_Grass_Energy, 0) <= 1:
-                # Pivote Teal Dance (log 85802744 turno 16): con una
-                # sola Energia Planta en mano, RESERVARLA para Teal Dance en
-                # el activo (adjunta + ROBA y habilita la retirada de coste 1
-                # para subir al atacante no-ex que noquea al muro Crustle). Se
-                # veta cualquier adjunte manual para que no robe la Planta ni
-                # supere a Teal Dance por el tier ENERGY del orden de jugada.
+                # Teal Dance pivot (log 85802744 turn 16): with a single Grass
+                # Energy in hand, RESERVE IT for Teal Dance on the active (it
+                # attaches + DRAWS and enables the cost-1 retreat to bring up the
+                # non-ex attacker that knocks out the Crustle wall). Any manual
+                # attachment is vetoed so it neither steals the Grass nor beats
+                # Teal Dance through the ENERGY tier of the play order.
                 score = SCORE_VETO
         
-            # Teal Dance PRECEDE al adjunte manual (user, registro_004 paso
-            # 28, vs Mega Starmie): si vamos a cargar energia MANUALMENTE a
-            # un Teal Mask Ogerpon ex que TODAVIA puede usar Teal Dance este
-            # turno (su opcion ABILITY sigue disponible en este mismo slot),
-            # se veta el adjunte manual. Teal Dance adjunta la Planta Y ROBA
-            # una carta, asi que se juega PRIMERO; tras usarla la habilidad
-            # desaparece y, si aun se quiere una 2a energia, el adjunte
-            # manual se puntua con normalidad en el paso siguiente. Esto
-            # corrige el orden impuesto por el tier ENERGY (que hacia ganar
-            # al adjunte manual pese a que Teal Dance puntua mas alto).
+            # Teal Dance PRECEDES the manual attachment (user, registro_004
+            # step 28, vs Mega Starmie): if we are about to charge energy
+            # MANUALLY onto a Teal Mask Ogerpon ex that can STILL use Teal
+            # Dance this turn (its ABILITY option is still available in this
+            # very slot), the manual attachment is vetoed. Teal Dance attaches
+            # the Grass AND DRAWS a card, so it is played FIRST; after using it
+            # the ability disappears and, if a 2nd energy is still wanted, the
+            # manual attachment scores normally on the next step. This corrects
+            # the order imposed by the ENERGY tier (which made the manual
+            # attachment win even though Teal Dance scores higher).
             if (score > 0
                     and pokemon is not None
                     and pokemon.id == Teal_Mask_Ogerpon_ex
                     and (o.inPlayArea, o.inPlayIndex) in _teal_dance_slots):
                 score = SCORE_VETO
         
-            # GENERALIZACION de la precedencia anterior (user, registro_002
-            # paso 20, vs Marnie): Teal Dance no solo precede al adjunte
-            # sobre el PROPIO Ogerpon. Mientras quede una Teal Dance por
-            # usar este turno, un adjunte manual que sea mero DESARROLLO
-            # (el objetivo NO queda listo para atacar con esa energia) cede
-            # ante ella. Teal Dance gasta la misma Planta de la mano, pero
-            # ademas ROBA una carta y NO consume el adjunte manual del
-            # turno: es estrictamente mejor que gastar el adjunte en un
-            # cuerpo que no va a atacar.
+            # GENERALISATION of the previous precedence (user, registro_002
+            # step 20, vs Marnie): Teal Dance does not only precede the
+            # attachment on the Ogerpon ITSELF. While a Teal Dance remains
+            # unused this turn, a manual attachment that is mere DEVELOPMENT
+            # (the target does NOT become ready to attack with that energy)
+            # yields to it. Teal Dance spends the same Grass from hand, but it
+            # also DRAWS a card and does NOT consume the turn's manual
+            # attachment: it is strictly better than spending the attachment
+            # on a body that is not going to attack.
             #
-            # En el registro, el Ogerpon ex ACTIVO ya habia usado su Teal
-            # Dance ese turno, asi que el adjunte al activo quedaba vetado
-            # por la regla de primer turno y la Teal Dance del Ogerpon ex de
-            # BANCA caia a la banda degradada (7500); el unico objetivo que
-            # quedaba, un Chikorita de banca, ganaba con 8400 (base 8000 de
-            # energy_score + boost de desarrollo) y desperdiciaba la unica
-            # Planta en un cuerpo que con 1 energia no es atacante.
+            # In that record, the ACTIVE Ogerpon ex had already used its Teal
+            # Dance that turn, so the attachment to the active was vetoed by
+            # the first-turn rule and the Teal Dance of the BENCHED Ogerpon ex
+            # fell into the degraded band (7500); the only target left, a
+            # benched Chikorita, won with 8400 (base 8000 from energy_score +
+            # development boost) and wasted the only Grass on a body that with
+            # 1 energy is not an attacker.
             #
-            # Se CAPA (no se veta) por debajo de la banda degradada de Teal
-            # Dance (7500) en vez de anular la jugada: si la habilidad
-            # estuviera vetada por otra via, el adjunte sigue siendo jugable
-            # y no se cuelga el turno. "Listo para atacar" exige ATACANTE
-            # REAL (MAIN_ATTACKERS): Chikorita/Applin/Bayleef figuran en
-            # ATTACK_ENERGY_REQ por su ataque de chip, pero no son atacantes.
+            # It is CAPPED (not vetoed) below Teal Dance's degraded band (7500)
+            # instead of cancelling the play: if the ability were vetoed by
+            # another route, the attachment is still playable and the turn does
+            # not hang. "Ready to attack" requires a REAL ATTACKER
+            # (MAIN_ATTACKERS): Chikorita/Applin/Bayleef appear in
+            # ATTACK_ENERGY_REQ because of their chip attack, but they are not
+            # attackers.
             #
-            # No basta con capar el score: el ORDEN DE JUGADA manda por
-            # tier y el adjunte manual vive en _TIER_ENERGY, mientras que
-            # una Teal Dance degradada (7500) se queda en tier 0 (su
-            # promocion exige >= 29000, guard que NO se toca: evita que una
-            # Teal Dance degradada aplaste por tier a Ripening Charge). Por
-            # eso el indice se marca aqui y mas abajo se deja el adjunte en
-            # tier 0, para que dentro del mismo tier decida el score
-            # (Teal Dance 7500 > adjunte capado 7000).
-            # Solo la BANDA DE DESARROLLO (< 9000: la base 8000 de
-            # energy_score y el boost de banca del primer turno, max 8900).
-            # Los adjuntes con override estrategico puntuan muy por encima
-            # (8500 sacrificio Lucario, 24000 pivote Tapu, 31000+ cargas,
-            # 41000 el que habilita retirada hacia un KO de banca) y NO son
-            # desarrollo: ceder ahi romperia lineas letales de este turno.
+            # Capping the score is not enough: the PLAY ORDER rules by tier and
+            # the manual attachment lives in _TIER_ENERGY, while a degraded
+            # Teal Dance (7500) stays in tier 0 (its promotion requires
+            # >= 29000, a guard that is NOT touched: it stops a degraded Teal
+            # Dance from crushing Ripening Charge by tier). That is why the
+            # index is marked here and further down the attachment is left in
+            # tier 0, so that within the same tier the score decides (Teal
+            # Dance 7500 > capped attachment 7000).
+            # Only the DEVELOPMENT BAND (< 9000: energy_score's base 8000 and
+            # the first-turn bench boost, max 8900). Attachments with a
+            # strategic override score far above (8500 Lucario sacrifice,
+            # 24000 Tapu pivot, 31000+ charges, 41000 the one that enables a
+            # retreat towards a bench KO) and are NOT development: yielding
+            # there would break lethal lines for this turn.
             if (pokemon is not None and _teal_dance_slots
                     and 0 < score < 9000
                     and not (pokemon.id in MAIN_ATTACKERS

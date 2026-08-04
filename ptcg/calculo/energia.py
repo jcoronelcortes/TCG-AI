@@ -1,8 +1,8 @@
-"""Energia efectiva: Wild Growth, topes de Ogerpon y coste de ataque.
+"""Effective energy: Wild Growth, Ogerpon caps and attack cost.
 
-Extraido VERBATIM de main.py por utils/extraer_definiciones.py
-(docs/main-refactor-arquitectura.md). Su pureza esta comprobada por
-utils/pureza.py: nada de aqui toca el estado mutable ni las tablas de runtime.
+Extracted VERBATIM from main.py by utils/extraer_definiciones.py
+(docs/project-history.md). Its purity is verified by
+utils/pureza.py: nothing here touches mutable state or the runtime tables.
 """
 
 from ptcg.estado.agente import ESTADO
@@ -15,21 +15,21 @@ from cg.api import EnergyType
 
 
 def _grass_mult():
-    # La observacion del juego YA aplica Wild Growth de Meganium: cada energia
-    # basica de Planta FISICA aparece DUPLICADA en la lista `energies`, por lo
-    # que len(energies) ES la energia EFECTIVA. Por eso este multiplicador es 1
-    # (se conserva como funcion para que los sitios `crudo * _grass_mult()`
-    # heredados sigan devolviendo la energia efectiva sin reescribirlos).
+    # The game observation ALREADY applies Meganium's Wild Growth: every PHYSICAL
+    # basic Grass energy appears DUPLICATED in the `energies` list, so
+    # len(energies) IS the EFFECTIVE energy. That is why this multiplier is 1
+    # (it is kept as a function so the inherited `raw * _grass_mult()` sites keep
+    # returning effective energy without being rewritten).
     return 1
 
 
 def _ogerpon_base_phys_cap(meganium, is_hop):
-    # Tope BASE de energias FISICAS de un Teal Mask Ogerpon ex (regla del user).
-    # Con Meganium en juego: 2 fisicas (Wild Growth las duplica => 4 efectivas,
-    # de sobra para Myriad Leaf Shower, coste 3). Sin Meganium: 3 vs el mazo de
-    # Hop's ("no puede tener mas de tres energias cargadas") y 4 en el resto de
-    # matchups con tope (Alakazam). Fuente unica de verdad para el adjunte
-    # manual, Ripening Charge y Teal Dance.
+    # BASE cap of PHYSICAL energies on a Teal Mask Ogerpon ex (user's rule).
+    # With Meganium in play: 2 physical (Wild Growth doubles them => 4 effective,
+    # more than enough for Myriad Leaf Shower, cost 3). Without Meganium: 3 vs the
+    # Hop's deck ("it cannot have more than three energies attached") and 4 in the
+    # other capped matchups (Alakazam). Single source of truth for the manual
+    # attachment, Ripening Charge and Teal Dance.
     if meganium:
         return 2
     return 3 if is_hop else 4
@@ -55,22 +55,22 @@ def calc_syrup_storm_damage(my_state, has_meganium: bool) -> int:
 
 
 def _grass_attach_unit():
-    # Energia EFECTIVA que aporta UNA energia basica de Planta recien adjuntada
-    # (desde la mano o recuperada). Con Wild Growth de Meganium en juego una
-    # Planta fisica provee {G}{G} = 2 efectivas; sin Meganium, 1.
+    # EFFECTIVE energy provided by ONE freshly attached basic Grass energy (from
+    # hand or recovered). With Meganium's Wild Growth in play one physical Grass
+    # provides {G}{G} = 2 effective; without Meganium, 1.
     return 2 if ESTADO.meganium_in_play else 1
 
 
 def _grass_ability_slots(state, field_counts):
-    """Habilidades de carga de Planta (Teal Dance de cada Teal Mask Ogerpon ex
-    + Ripening Charge de cada Hydrapple ex) que AUN pueden adjuntar este turno.
+    """Grass charging abilities (Teal Dance on each Teal Mask Ogerpon ex +
+    Ripening Charge on each Hydrapple ex) that can STILL attach this turn.
 
-    Cada una es "una vez durante tu turno" y por Pokemon, asi que la capacidad
-    es el numero de portadores en juego. Las ya usadas se estiman con los logs:
-    de todas las Plantas adjuntadas este turno, UNA es el adjunte manual si
-    `state.energyAttached` ya esta puesto; el resto solo pudo venir de una
-    habilidad. La estimacion es conservadora: si se pasa de largo, la jugada
-    simplemente no se propone (nunca inventa una carga imposible)."""
+    Each one is "once during your turn" and per Pokemon, so the capacity is the
+    number of bearers in play. The ones already used are estimated from the
+    logs: of all the Grass energies attached this turn, ONE is the manual
+    attachment if `state.energyAttached` is already set; the rest can only have
+    come from an ability. The estimate is conservative: if it overshoots, the
+    play is simply not proposed (it never invents an impossible charge)."""
     capacidad = (field_counts.get(Teal_Mask_Ogerpon_ex, 0)
                  + field_counts.get(Hydrapple_ex, 0))
     usadas = ESTADO._grass_attaches_this_turn - (1 if state.energyAttached else 0)
@@ -78,15 +78,15 @@ def _grass_ability_slots(state, field_counts):
 
 
 def _grass_ability_slots_activo(state, my_state, field_counts):
-    """Cargas por HABILIDAD que todavia pueden dejar una Planta EN EL ACTIVO.
+    """Ability charges that can still put a Grass energy ON THE ACTIVE.
 
-    Subconjunto de `_grass_ability_slots`: Ripening Charge (Hydrapple ex)
-    adjunta a CUALQUIERA de nuestros Pokemon, asi que cada portador en juego
-    sirve; Teal Dance (Teal Mask Ogerpon ex) adjunta SOLO a si mismo, asi que
-    unicamente cuenta cuando el Ogerpon ES el activo. Misma estimacion
-    conservadora de habilidades ya usadas que la funcion general (restar de
-    este subconjunto todas las cargas por habilidad del turno puede quedarse
-    corto, nunca largo: en el peor caso la jugada no se propone)."""
+    A subset of `_grass_ability_slots`: Ripening Charge (Hydrapple ex) attaches
+    to ANY of our Pokemon, so every bearer in play counts; Teal Dance (Teal Mask
+    Ogerpon ex) attaches ONLY to itself, so it only counts when the Ogerpon IS
+    the active. Same conservative estimate of already-used abilities as the
+    general function (subtracting every ability charge of the turn from this
+    subset can fall short, never long: in the worst case the play is not
+    proposed)."""
     capacidad = field_counts.get(Hydrapple_ex, 0)
     _act = _active_of(my_state)
     if _act is not None and _act.id == Teal_Mask_Ogerpon_ex:
@@ -96,8 +96,9 @@ def _grass_ability_slots_activo(state, my_state, field_counts):
 
 
 def _grass_attach_route_open(state, field_counts, abilities_off=False):
-    """Hay alguna via para poner en el campo UNA Planta de la mano este turno:
-    el adjunte manual si sigue disponible, o una habilidad de carga viva."""
+    """Whether there is any route to put ONE Grass energy from hand onto the
+    field this turn: the manual attachment if it is still available, or a live
+    charging ability."""
     if not state.energyAttached:
         return True
     if abilities_off:
@@ -106,20 +107,20 @@ def _grass_attach_route_open(state, field_counts, abilities_off=False):
 
 
 def _physical_energy(effective_len):
-    # Convierte energia EFECTIVA (len(energies), ya doblada por Wild Growth de
-    # NUESTRO Meganium) a cartas de energia FISICAS. Con Meganium cada Planta
-    # fisica cuenta como 2 efectivas, asi que fisica = efectiva // 2; sin
-    # Meganium, efectiva == fisica.
+    # Converts EFFECTIVE energy (len(energies), already doubled by OUR Meganium's
+    # Wild Growth) into PHYSICAL energy cards. With Meganium each physical Grass
+    # counts as 2 effective, so physical = effective // 2; without Meganium,
+    # effective == physical.
     return effective_len // 2 if ESTADO.meganium_in_play else effective_len
 
 
 def _ripen_energy_capped(pokemon, ogerpon_phys_cap=None):
-    """True si `pokemon` ya esta en su TOPE de energias fisicas, es decir si
-    `energy_score` vetaria dirigirle una Planta mas. Espeja los topes duros de
-    energy_score (Chikorita 1, Applin 1, Tapu Bulu 2/4, Ogerpon por matchup)
-    para que la curacion de Ripening Charge nunca apunte a un cuerpo vetado.
-    `ogerpon_phys_cap` es el tope FISICO de Teal Mask Ogerpon ex del matchup
-    (Cubchoo/Alakazam/Hop's); None = sin tope de matchup."""
+    """True if `pokemon` is already at its cap of physical energies, that is,
+    if `energy_score` would veto sending it one more Grass. It mirrors the hard
+    caps of energy_score (Chikorita 1, Applin 1, Tapu Bulu 2/4, Ogerpon by
+    matchup) so that Ripening Charge's healing never points at a vetoed body.
+    `ogerpon_phys_cap` is the matchup's PHYSICAL cap for Teal Mask Ogerpon ex
+    (Cubchoo/Alakazam/Hop's); None = no matchup cap."""
     phys = _physical_energy(len(getattr(pokemon, 'energies', []) or []))
     pid = getattr(pokemon, 'id', 0)
     if pid in (Chikorita, Applin):
@@ -135,37 +136,37 @@ def _ripen_energy_capped(pokemon, ogerpon_phys_cap=None):
 
 
 def _retreat_cards(retreat_cost):
-    # Numero de cartas de energia FISICAS necesarias para pagar `retreat_cost`
-    # (expresado en unidades EFECTIVAS). Con Meganium cada Planta paga por dos
-    # (division con techo). 0 si el coste es <= 0.
+    # Number of PHYSICAL energy cards needed to pay `retreat_cost` (expressed in
+    # EFFECTIVE units). With Meganium each Grass pays for two (ceiling division).
+    # 0 if the cost is <= 0.
     if retreat_cost <= 0:
         return 0
     return -(-retreat_cost // _grass_attach_unit())
 
 
 def _retreat_grass_units(retreat_cost):
-    """Unidades EFECTIVAS de Planta que DESAPARECEN del campo al pagar una
-    retirada de `retreat_cost` simbolos.
+    """EFFECTIVE Grass units that DISAPPEAR from the field when paying a
+    retreat of `retreat_cost` symbols.
 
-    El coste se paga con CARTAS enteras, y con Wild Growth de Meganium cada
-    Planta fisica vale DOS unidades: retirar por UN simbolo borra DOS unidades
-    del recuento con el que escala Syrup Storm. Restar el coste en simbolos (o
-    el numero de cartas) sobrestima el dano justo por ese factor -- user,
-    registro_006 paso 78 vs Archaludon ex (PERDIDA): el plan creia que el
-    Hydrapple ex de banca noqueaba (10-1 = 9 unidades -> 300 - 30 resistencia =
-    270 = vida exacta) cuando la realidad tras retirar eran 8 unidades -> 240,
-    y el log del ataque confirma los 240."""
+    The cost is paid with whole CARDS, and with Meganium's Wild Growth each
+    physical Grass is worth TWO units: retreating for ONE symbol erases TWO
+    units from the count that Syrup Storm scales with. Subtracting the cost in
+    symbols (or the number of cards) overestimates the damage by exactly that
+    factor -- user, registro_006 step 78 vs Archaludon ex (LOST): the plan
+    believed the benched Hydrapple ex knocked out (10-1 = 9 units -> 300 - 30
+    resistance = 270 = exact HP) when the reality after retreating was 8 units
+    -> 240, and the attack log confirms the 240."""
     return _retreat_cards(retreat_cost) * _grass_attach_unit()
 
 
 def _aplicar_impuesto_tera(stadium_cards) -> bool:
-    """Sube +1 el coste de nuestros Tera si Nighttime Mine esta en mesa.
+    """Raises the cost of our Tera by +1 if Nighttime Mine is on the field.
 
-    Devuelve si la mina esta activa. Debe llamarse al PRINCIPIO de agent(),
-    antes de cualquier puntuacion: si se hiciera mas abajo, los bloques que ya
-    hubieran leido el coste seguirian con el valor viejo -- el mismo fallo que
-    documenta el techo de `energy_score` (por eso va en el envoltorio y no al
-    final de la funcion).
+    Returns whether the mine is active. It must be called at the START of
+    agent(), before any scoring: if it were done further down, the blocks that
+    had already read the cost would keep the old value -- the same failure the
+    `energy_score` ceiling documents (which is why it lives in the wrapper and
+    not at the end of the function).
     """
     activa = any(getattr(c, 'id', 0) == Nighttime_Mine
                  for c in (stadium_cards or []))
@@ -177,29 +178,30 @@ def _aplicar_impuesto_tera(stadium_cards) -> bool:
 
 
 def _can_attack_eff(card_id, raw_energy):
-    # True si la carta puede atacar. raw_energy = len(energies) YA es la energia
-    # efectiva (la observacion aplica Wild Growth), asi que se compara directo.
+    # True if the card can attack. raw_energy = len(energies) is ALREADY the
+    # effective energy (the observation applies Wild Growth), so it is compared
+    # directly.
     #
-    # NO se generaliza a `_coste_de_ataque_min` a proposito: `ATTACK_ENERGY_REQ`
-    # no es solo un dato de carta, es la lista CURADA de "cuerpos con los que
-    # de verdad atacamos". Meowth ex (que tiene ataque) esta fuera justamente
-    # para que ninguna regla lo trate como atacante -- ver el veto duro de
-    # Meowth ex en banca. Derivar el coste del dato de carta aqui lo convertiria
-    # en atacante en ~20 puntos del fichero.
+    # It is deliberately NOT generalised to `_coste_de_ataque_min`:
+    # `ATTACK_ENERGY_REQ` is not just card data, it is the CURATED list of "bodies
+    # we really attack with". Meowth ex (which has an attack) is out precisely so
+    # that no rule treats it as an attacker -- see the hard veto of Meowth ex on
+    # the bench. Deriving the cost from card data here would turn it into an
+    # attacker in ~20 places in the file.
     _req = ESTADO.ATTACK_ENERGY_REQ.get(card_id)
     return _req is not None and raw_energy >= _req
 
 
 def _coste_de_ataque_min(card_id):
-    """Energia minima que necesita `card_id` para poder atacar, DERIVADA DEL
-    DATO DE CARTA (`card_table` -> ids de ataque -> `attack_table`).
+    """Minimum energy `card_id` needs in order to attack, DERIVED FROM THE
+    CARD DATA (`card_table` -> attack ids -> `attack_table`).
 
-    Complemento deck-agnostico de `ATTACK_ENERGY_REQ`, que solo cubre las
-    cartas del deck.csv actual. Se usa como ULTIMO recurso, para cuerpos que la
-    configuracion curada no conoce (otro mazo cargado en deck.csv).
+    Deck-agnostic complement to `ATTACK_ENERGY_REQ`, which only covers the cards
+    of the current deck.csv. It is used as a LAST resort, for bodies the curated
+    configuration does not know (another deck loaded into deck.csv).
 
-    Devuelve None si no se puede saber (carta desconocida, sin ataques, o solo
-    con ataques de coste 0 -- ahi la energia no desbloquea nada).
+    Returns None when it cannot be known (unknown card, no attacks, or only
+    zero-cost attacks -- there energy unlocks nothing).
     """
     data = card_table.get(card_id)
     if data is None:

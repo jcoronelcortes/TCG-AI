@@ -1,25 +1,25 @@
-"""Tests de la regla "ATACAR CON EL ACTIVO ES LO PRIMERO".
+"""Tests of the rule "ATTACKING WITH THE ACTIVE IS THE FIRST THING".
 
-Antes de repartir la energia del turno, el agente debe preguntarse si el ACTIVO
-puede llegar a su COSTE DE ATAQUE usando TODAS las vias de carga que le quedan
-vivas (adjunte manual + habilidades que puedan apuntarle: Ripening Charge desde
-cualquier Hydrapple ex, Teal Dance si el propio activo es el Ogerpon). Si llega
-y el ataque hace dano, la energia va al ACTIVO:
+Before handing out the turn's energy, the agent must ask itself whether the ACTIVE
+can reach its ATTACK COST using ALL the charging routes still
+alive for it (the manual attachment + abilities that can point at it: Ripening Charge from
+any Hydrapple ex, Teal Dance if the active itself is the Ogerpon). If it gets there
+and the attack does damage, the energy goes to the ACTIVE:
 
-  * `_carga_activo_remata` (el ataque NOQUEA)  -> SCORE_CARGA_ACTIVO_REMATE,
-    por delante de cargar un atacante de BANCA para promoverlo (41000) y del
-    foco de carga de Ogerpon (41700);
-  * `_carga_activo_habilita_ataque` (solo chip, pero sin esa carga el turno
-    seria ESTERIL) -> SCORE_CARGA_ACTIVO_ATAQUE, sobre Teal Dance (31500) y los
-    pivotes de retirada por habilidad (31600).
+  * `_carga_activo_remata` (the attack KNOCKS OUT)  -> SCORE_CARGA_ACTIVO_REMATE,
+    ahead of charging a BENCH attacker to promote it (41000) and of
+    Ogerpon's charging focus (41700);
+  * `_carga_activo_habilita_ataque` (only a chip, but without that charge the turn
+    would be STERILE) -> SCORE_CARGA_ACTIVO_ATAQUE, above Teal Dance (31500) and the
+    retreat pivots by ability (31600).
 
-Caso de origen (user, episodio 88433181, registro_006 paso 67 vs Marnie's
-Grimmsnarl, GANADA con error): Hydrapple ex ACTIVO recien evolucionado a 0
-energias, TRES Plantas en mano, adjunte manual sin gastar, dos Ripening Charge
-vivas y el activo rival (Munkidori) a 10 PV. El agente cargaba al Hydrapple de
-BANCA y mandaba las habilidades a un Ogerpon de banca: turno sin atacar con el
-KO servido. Ademas el plan de banca era IMPOSIBLE -- promoverlo exigia retirar
-al Hydrapple activo (coste 3) con 0 energias encima.
+The originating case (user, episode 88433181, registro_006 step 67 vs Marnie's
+Grimmsnarl, WON with a mistake): a Hydrapple ex ACTIVE just evolved at 0
+energies, THREE Grass in hand, the manual attachment unspent, two live Ripening Charge
+and the rival active (Munkidori) at 10 HP. The agent charged the BENCH
+Hydrapple and sent the abilities to a bench Ogerpon: a turn without attacking with the
+KO on a plate. On top of that the bench plan was IMPOSSIBLE -- promoting it required retreating
+the active Hydrapple (cost 3) with 0 energies on it.
 """
 
 import json
@@ -50,11 +50,11 @@ _FIXTURE = ROOT / "tests" / "fixtures" / "grimmsnarl_step67_carga_activo_para_sy
 
 @pytest.fixture(autouse=True)
 def reset_main_state():
-    """Este fichero no tenia reset y funcionaba solo porque ordenaba PRIMERO en
-    la suite, heredando los globales limpios del import. Cualquier fichero que
-    ordenase antes le dejaba `op_is_crustle_deck` / `meganium_in_play` / ...
-    encendidos de la partida anterior y lo tumbaba. Mismo reset que sus
-    hermanos: el orden de la suite deja de importar."""
+    """This file had no reset and worked only because it sorted FIRST in
+    the suite, inheriting the clean globals from the import. Any file that
+    sorted before it left `op_is_crustle_deck` / `meganium_in_play` / ...
+    switched on from the previous game and knocked it down. The same reset as its
+    siblings: the suite's order stops mattering."""
     m._init_cartas_tracking()
     m._cartas_first_scan_done = False
     m._cartas_prizes_identified = False
@@ -85,7 +85,7 @@ def _obs_step67():
 
 
 def _opciones_attach(obs):
-    """{posicion: 'activo'|'banca-k'} para las opciones ATTACH del menu."""
+    """{position: 'activo'|'banca-k'} for the menu's ATTACH options."""
     destinos = {}
     for i, opt in enumerate(obs["select"]["option"]):
         if opt.get("type") != OptionType.ATTACH:
@@ -98,12 +98,12 @@ def _opciones_attach(obs):
 
 
 def test_step67_carga_el_activo_y_no_el_hydrapple_de_banca():
-    """Registro real: la Planta va al Hydrapple ex ACTIVO (Syrup Storm = KO)."""
+    """The real record: the Grass goes to the ACTIVE Hydrapple ex (Syrup Storm = KO)."""
     obs = _obs_step67()
     cur = obs["current"]
     mio = cur["players"][cur["yourIndex"]]
 
-    # El escenario debe ser el del registro para que el test signifique algo.
+    # The scenario must be the record's for the test to mean anything.
     assert mio["active"][0]["id"] == HYDRAPPLE
     assert mio["active"][0]["energies"] == []
     assert cur["energyAttached"] is False
@@ -122,20 +122,20 @@ def test_step67_carga_el_activo_y_no_el_hydrapple_de_banca():
 
 
 def test_step67_ripening_charge_apunta_al_activo():
-    """Con el adjunte manual ya gastado, Ripening Charge completa el coste."""
+    """With the manual attachment already spent, Ripening Charge completes the cost."""
     obs = _obs_step67()
     cur = obs["current"]
     mio = cur["players"][cur["yourIndex"]]
 
-    # Simular el paso siguiente: el adjunte manual ya puso 1 Planta en el activo
-    # (queda 1 para el coste de Syrup Storm, que la habilidad debe aportar).
+    # Simulating the next step: the manual attachment already put 1 Grass on the active
+    # (1 is left for the cost of Syrup Storm, which the ability must supply).
     energia = next(c for c in mio["hand"] if c["id"] == ENERGIA)
     mio["hand"] = [c for c in mio["hand"] if c is not energia]
     mio["handCount"] = len(mio["hand"])
     mio["active"][0]["energies"] = [G]
     mio["active"][0]["energyCards"] = [energia]
     cur["energyAttached"] = True
-    # Menu con solo las habilidades vivas (Ripening de cada Hydrapple) y END.
+    # A menu with only the live abilities (each Hydrapple's Ripening) and END.
     obs["select"]["option"] = [
         {"type": int(OptionType.ABILITY), "area": int(AreaType.ACTIVE), "index": 0},
         {"type": int(OptionType.ABILITY), "area": int(AreaType.BENCH), "index": 0},
@@ -150,7 +150,7 @@ def test_step67_ripening_charge_apunta_al_activo():
 
 
 def test_step67_con_el_activo_cargado_ataca():
-    """Cierre de la cadena: con las 2 Plantas encima, Syrup Storm se dispara."""
+    """Closing the chain: with the 2 Grass on it, Syrup Storm fires."""
     obs = _obs_step67()
     cur = obs["current"]
     mio = cur["players"][cur["yourIndex"]]
@@ -169,13 +169,13 @@ def test_step67_con_el_activo_cargado_ataca():
     assert m.agent(obs) == [0], "con Syrup Storm listo y el rival a 10 PV, ATACA"
 
 
-# --- Generalizacion deck-agnostica (escenarios sinteticos) -----------------
+# --- A deck-agnostic generalisation (synthetic scenarios) ------------------
 
 def test_activo_ogerpon_carga_a_si_mismo_para_rematar():
-    """Ogerpon ex ACTIVO a 2 energias: la 3a (Myriad) remata -> va al ACTIVO.
+    """An ACTIVE Ogerpon ex at 2 energies: the 3rd (Myriad) finishes -> it goes to the ACTIVE.
 
-    En banca hay un Hydrapple ex a 0 energias, el objetivo "de desarrollo" que
-    antes se llevaba la Planta.
+    On the bench there is a Hydrapple ex at 0 energies, the "development" target that
+    used to take the Grass.
     """
     obs = (Escenario(turno=8, paso=90, tac=2)
            .mi_activo(pk(OGERPON, energias=[G, G]))
@@ -196,7 +196,7 @@ def test_activo_ogerpon_carga_a_si_mismo_para_rematar():
 
 
 def test_activo_sin_remate_pero_turno_esteril_tambien_carga_al_activo():
-    """Sin KO posible, cargar al activo es la unica forma de atacar hoy."""
+    """With no KO available, charging the active is the only way to attack today."""
     obs = (Escenario(turno=8, paso=90, tac=2)
            .mi_activo(pk(HYDRAPPLE, energias=[G], pre_evo=[APPLIN, DIPPLIN]))
            .mi_banca(pk(APPLIN), MEOWTH)
@@ -216,10 +216,10 @@ def test_activo_sin_remate_pero_turno_esteril_tambien_carga_al_activo():
 
 
 def test_activo_que_ya_ataca_no_acapara_la_energia():
-    """Control negativo: si el activo YA llega a su coste, la regla no dispara.
+    """A negative control: if the active ALREADY reaches its cost, the rule does not fire.
 
-    El Hydrapple ex activo con 2 energias ya ataca; la Planta debe seguir el
-    reparto normal (desarrollo de banca), no quedarse en el activo.
+    The active Hydrapple ex with 2 energies already attacks; the Grass must follow the
+    normal distribution (bench development), not stay on the active.
     """
     obs = (Escenario(turno=8, paso=90, tac=2)
            .mi_activo(pk(HYDRAPPLE, energias=[G, G], pre_evo=[APPLIN, DIPPLIN]))

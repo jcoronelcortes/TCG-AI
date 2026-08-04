@@ -1,57 +1,57 @@
-"""Lana's Aid: lo que se levanta del descarte lo decide LA MESA, no la forma
-de las lineas evolutivas.
+"""Lana's Aid: what is picked up from the discard is decided by THE BOARD, not by the
+shape of the evolution lines.
 
-Escenario (user, episodio 88776459 registro_018 paso 118 vs Crustle, PERDIDA):
+Scenario (user, episode 88776459 registro_018 step 118 vs Crustle, LOST):
 
-    NOSOTROS                                RIVAL
-    activo  Tapu Bulu   140/140  2e         activo  Crustle  270/290
-    banca   Meganium    160/160  2e         (banca llena de cuerpos cargados)
+    US                                      OPPONENT
+    active  Tapu Bulu   140/140  2e         active  Crustle  270/290
+    bench   Meganium    160/160  2e         (a bench full of charged bodies)
             Meowth ex    50/170  2e
             Meganium    160/160  0e
             Ogerpon ex   90/210  2e
-            Ogerpon ex  210/210  0e   <- banca LLENA (5/5)
-    mano    Hydrapple ex
-    descarte  4x Basic Grass, 2x Applin, 1x Dipplin (+ items)
-    energia del turno SIN jugar
+            Ogerpon ex  210/210  0e   <- bench FULL (5/5)
+    hand    Hydrapple ex
+    discard   4x Basic Grass, 2x Applin, 1x Dipplin (+ items)
+    the turn's energy UNPLAYED
 
-El agente jugo **Lana's Aid** -- la carta correcta, como confirma el user -- y
-levanto **2 Applin + 1 Dipplin**. Con la banca LLENA un Basico no entra de
-ninguna forma, y el Dipplin no tiene ningun Applin en juego sobre el que
-evolucionar: tres cartas MUERTAS. El turno murio sin atacar.
+The agent played **Lana's Aid** -- the right card, as the user confirms -- and
+picked up **2 Applin + 1 Dipplin**. With the bench FULL a Basic does not fit in
+any way, and the Dipplin has no Applin in play to
+evolve on top of: three DEAD cards. The turn died without attacking.
 
-Lo que la mesa pedia era **energia**:
+What the board was asking for was **energy**:
 
-- con dos Meganium en juego (*Wild Growth*) UNA Planta fisica vale {G}{G}, asi
-  que `_grass_attach_unit()` = 2;
-- el Tapu Bulu ACTIVO tiene 2 efectivas y Wood Hammer pide 4
-  (`ATTACK_ENERGY_REQ`): **una sola Planta lo pone a atacar ESTE turno**, y el
-  adjunte manual seguia sin gastarse;
-- las otras dos Plantas cargan a los Meganium para el turno siguiente (los dos
-  Ogerpon ex en juego dejan ademas dos *Teal Dance* vivas).
+- with two Meganium in play (*Wild Growth*) ONE physical Grass is worth {G}{G}, so
+  `_grass_attach_unit()` = 2;
+- the ACTIVE Tapu Bulu has 2 effective and Wood Hammer asks for 4
+  (`ATTACK_ENERGY_REQ`): **a single Grass puts it in attack range THIS turn**, and the
+  manual attachment was still unspent;
+- the other two Grass charge the Meganium for the next turn (the two
+  Ogerpon ex in play also leave two *Teal Dance* alive).
 
-Causa raiz: Lana's Aid no tenia rama propia en el contexto `TO_HAND` y caia al
-scorer generico de recuperacion, que solo sabe leer FORMAS de linea evolutiva
-("¿me falta este eslabon?") y no mira ni la energia ni el hueco de banca. Sus
-numeros -- Applin 260 > Dipplin 250 > Planta 240 -- decidian el menu.
+Root cause: Lana's Aid had no branch of its own in the `TO_HAND` context and fell to
+the generic recovery scorer, which only knows how to read evolution-line SHAPES
+("am I missing this link?") and looks at neither the energy nor the bench slot. Its
+numbers -- Applin 260 > Dipplin 250 > Grass 240 -- decided the menu.
 
-Arreglo, en dos piezas que comparten la MISMA lectura de mesa:
+The fix, in two pieces that share the SAME board reading:
 
- 1. `_plan_de_planta`: recorre los `MAIN_ATTACKERS` en juego, mide su deficit
-    en CARTAS de Planta (`ceil((req - efectiva) / unidad)`) y cuenta las vias de
-    adjunte reales del turno (manual + `_grass_ability_slots`: Teal Dance solo
-    carga a su portador, Ripening Charge a cualquiera). Devuelve `demanda` y
+ 1. `_plan_de_planta`: it walks the `MAIN_ATTACKERS` in play, measures their deficit
+    in Grass CARDS (`ceil((req - effective) / unit)`) and counts the turn's real
+    attachment routes (manual + `_grass_ability_slots`: Teal Dance only
+    charges its bearer, Ripening Charge anyone). It returns `demanda` and
     `desbloquea_hoy`/`cartas_para_atacar`.
- 2. La rama `Lanas_Aid` del contexto `TO_HAND`, en tres bandas
-    (`LANA_SEL_PLANTA_DESBLOQUEA` > `LANA_SEL_PLANTA_DEMANDA` > desarrollo >
-    `LANA_SEL_PLANTA_SOBRANTE`/`LANA_SEL_INJUGABLE`), con el ordinal
-    `_lana_orden_planta` para que solo las PRIMERAS `demanda` Plantas cobren la
-    banda alta -- si no, cuatro copias empatadas se llevarian las 3 elecciones
-    aunque la mesa solo supiera usar una.
+ 2. The `Lanas_Aid` branch of the `TO_HAND` context, in three bands
+    (`LANA_SEL_PLANTA_DESBLOQUEA` > `LANA_SEL_PLANTA_DEMANDA` > development >
+    `LANA_SEL_PLANTA_SOBRANTE`/`LANA_SEL_INJUGABLE`), with the ordinal
+    `_lana_orden_planta` so that only the FIRST `demanda` Grass get the
+    high band -- otherwise, four tied copies would take all 3 choices
+    even if the board could only use one.
 
-De paso, `_lana_energy_enables_attack` (capa de JUGADA, decide si Lana's Aid
-merece los 950 puntos frente a Lillie's) pasa a usar el mismo
-`_plan_de_planta`: antes solo sabia mirar a Hydrapple ex y por eso callaba con
-un Tapu Bulu a una Planta de disparar.
+Along the way, `_lana_energy_enables_attack` (the PLAY layer, which decides whether Lana's Aid
+deserves the 950 points against Lillie's) switches to the same
+`_plan_de_planta`: before it only knew how to look at Hydrapple ex and that is why it stayed silent with
+a Tapu Bulu one Grass away from firing.
 """
 
 import json
@@ -68,8 +68,8 @@ import main as m
 from state_builder import G, Escenario, pk
 
 GRASS = m.Basic_Grass_Energy
-TAPU = m.Tapu_Bulu                 # Wood Hammer: 4 energias efectivas
-MEGANIUM = m.Meganium              # Wild Growth: cada Planta fisica vale {G}{G}
+TAPU = m.Tapu_Bulu                 # Wood Hammer: 4 effective energies
+MEGANIUM = m.Meganium              # Wild Growth: each physical Grass is worth {G}{G}
 OGERPON = m.Teal_Mask_Ogerpon_ex
 MEOWTH = m.Meowth_ex
 HYDRAPPLE = m.Hydrapple_ex
@@ -110,13 +110,13 @@ def reset_main_state():
 
 
 def _cartas_elegidas(obs, eleccion):
-    """Ids de descarte que devuelve la seleccion, en orden de preferencia."""
+    """The discard ids the selection returns, in order of preference."""
     descarte = obs["current"]["players"][obs["current"]["yourIndex"]]["discard"]
     return [descarte[obs["select"]["option"][i]["index"]]["id"] for i in eleccion]
 
 
 # ---------------------------------------------------------------------------
-# El paso 118 real
+# The real step 118
 # ---------------------------------------------------------------------------
 
 def test_paso118_levanta_las_tres_energias():
@@ -124,12 +124,12 @@ def test_paso118_levanta_las_tres_energias():
         fixture = json.load(f)
     obs = fixture["observation"]
 
-    # El menu real ofrecia 4 Plantas, 2 Applin y 1 Dipplin.
+    # The real menu offered 4 Grass, 2 Applin and 1 Dipplin.
     ofrecidas = _cartas_elegidas(obs, range(len(obs["select"]["option"])))
     assert sorted(ofrecidas) == sorted([GRASS] * 4 + [APPLIN] * 2 + [DIPPLIN])
     assert obs["select"]["maxCount"] == 3
 
-    # Lo que se jugo en la partida (y perdio el turno).
+    # What was played in the game (and lost the turn).
     assert _cartas_elegidas(obs, fixture["recorded_action"]) == [APPLIN, APPLIN,
                                                                  DIPPLIN]
 
@@ -137,11 +137,11 @@ def test_paso118_levanta_las_tres_energias():
 
 
 def test_paso118_una_planta_pone_a_atacar_al_tapu_bulu():
-    """El nucleo de la lectura de mesa: con Meganium en juego el Tapu Bulu esta
-    a UNA carta de Planta de poder atacar, y el adjunte del turno sigue libre."""
+    """The core of the board reading: with Meganium in play the Tapu Bulu is
+    ONE Grass card away from being able to attack, and the turn's attachment is still free."""
     with open(_FIXTURE, encoding="utf-8") as f:
         obs = json.load(f)["observation"]
-    m.agent(obs)  # fija los globales del turno (meganium_in_play, ...)
+    m.agent(obs)  # it sets the turn's globals (meganium_in_play, ...)
 
     o = m.to_observation_class(obs)
     mi = o.current.players[o.current.yourIndex]
@@ -161,12 +161,12 @@ def test_paso118_una_planta_pone_a_atacar_al_tapu_bulu():
     plan = m._plan_de_planta(mi, o.current, campo, mano)
     assert plan.desbloquea_hoy
     assert plan.cartas_para_atacar == 1
-    assert plan.demanda == 3          # los Meganium/Ogerpon piden el resto
+    assert plan.demanda == 3          # the Meganium/Ogerpon ask for the rest
 
 
 def test_paso118_applin_y_dipplin_son_cartas_muertas():
-    """Banca 5/5 y ningun Applin en juego: ni el Basico entra ni la Fase 1
-    evoluciona nada."""
+    """Bench 5/5 and no Applin in play: neither does the Basic fit nor does the Stage 1
+    evolve anything."""
     with open(_FIXTURE, encoding="utf-8") as f:
         obs = json.load(f)["observation"]
     o = m.to_observation_class(obs)
@@ -184,7 +184,7 @@ def test_paso118_applin_y_dipplin_son_cartas_muertas():
 
 
 # ---------------------------------------------------------------------------
-# `_plan_de_planta`: la lectura de mesa, aislada
+# `_plan_de_planta`: the board reading, in isolation
 # ---------------------------------------------------------------------------
 
 def _plan(activo, banca=(), mano=(), energia_jugada=False, cambio=False):
@@ -212,8 +212,8 @@ def _plan(activo, banca=(), mano=(), energia_jugada=False, cambio=False):
 
 
 def test_plan_todos_cargados_no_hay_demanda():
-    """Sin deficit no hay demanda: la energia deja de valer aunque queden
-    adjuntes libres."""
+    """With no deficit there is no demand: energy stops being worth anything even if
+    there are attachments left free."""
     plan = _plan(pk(TAPU, energias=[G] * 4, fisicas=4),
                  banca=[pk(OGERPON, energias=[G] * 3, fisicas=3)])
     assert plan.demanda == 0
@@ -221,32 +221,32 @@ def test_plan_todos_cargados_no_hay_demanda():
 
 
 def test_plan_sin_adjunte_libre_no_desbloquea_pero_sigue_habiendo_demanda():
-    """Gastado el adjunte manual y sin habilidades de carga, la Planta no llega
-    al campo HOY -- pero va a la mano y el atacante la sigue pidiendo."""
+    """With the manual attachment spent and no charging abilities, the Grass does not reach
+    the field TODAY -- but it goes to hand and the attacker goes on asking for it."""
     plan = _plan(pk(TAPU, energias=[G] * 2, fisicas=2), energia_jugada=True)
     assert not plan.desbloquea_hoy
     assert plan.demanda >= 1
 
 
 def test_plan_la_planta_de_la_mano_ya_desbloquea():
-    """Con la Planta ya en la mano, recuperar otra no desbloquea nada: el
-    detector no puede cobrar dos veces por el mismo ataque."""
+    """With the Grass already in hand, recovering another unlocks nothing: the
+    detector cannot charge twice for the same attack."""
     plan = _plan(pk(TAPU, energias=[G] * 2, fisicas=2), mano=[GRASS])
     assert not plan.desbloquea_hoy
 
 
 def test_plan_atacante_de_banca_solo_desbloquea_si_podemos_cambiar():
     banca = [pk(MEGANIUM, energias=[G] * 2, fisicas=1)]
-    activo = pk(MEOWTH)               # Meowth ex no es un MAIN_ATTACKER
+    activo = pk(MEOWTH)               # Meowth ex is not a MAIN_ATTACKER
     assert not _plan(activo, banca=banca).desbloquea_hoy
     assert _plan(activo, banca=banca, cambio=True).desbloquea_hoy
 
 
 def test_plan_con_las_habilidades_apagadas_solo_queda_el_adjunte_manual():
-    """Bajo Watchtower / Iron Thorns (`meowth_ability_lock`) no hay Teal Dance
-    ni Ripening Charge: dar por vivas esas vias inventa desbloqueos que no
-    existen (medido: -3.9 puntos de winrate vs el mazo de Iron Thorns)."""
-    activo = pk(OGERPON, energias=[G], fisicas=1)      # 1 de 3 efectivas
+    """Under Watchtower / Iron Thorns (`meowth_ability_lock`) there is no Teal Dance
+    or Ripening Charge: treating those routes as alive invents unlocks that do not
+    exist (measured: -3.9 points of winrate vs the Iron Thorns deck)."""
+    activo = pk(OGERPON, energias=[G], fisicas=1)      # 1 of 3 effective
     banca = [pk(OGERPON, energias=[G] * 2, fisicas=2)]
 
     obs = (Escenario(turno=10)
@@ -259,27 +259,27 @@ def test_plan_con_las_habilidades_apagadas_solo_queda_el_adjunte_manual():
     m.meganium_in_play = False
     m._grass_attaches_this_turn = 0
 
-    # Con las habilidades vivas: adjunte manual + 2 Teal Dance -> 3 slots, y el
-    # activo (1 de 3) llega a 3 con 2 Plantas.
+    # With the abilities alive: the manual attachment + 2 Teal Dance -> 3 slots, and the
+    # active (1 of 3) reaches 3 with 2 Grass.
     vivas = m._plan_de_planta(mi, o.current, campo, {})
     assert vivas.slots_hoy == 3 and vivas.desbloquea_hoy
 
-    # Con el lock puesto solo queda el adjunte manual: 1 Planta no basta.
+    # With the lock on, only the manual attachment is left: 1 Grass is not enough.
     apagadas = m._plan_de_planta(mi, o.current, campo, {},
                                  habilidades_apagadas=True)
     assert apagadas.slots_hoy == 1 and not apagadas.desbloquea_hoy
 
 
 def test_plan_los_no_atacantes_no_inventan_demanda():
-    """Chikorita y Applin tienen coste en `ATTACK_ENERGY_REQ` pero no estan en
-    `MAIN_ATTACKERS`: con ellos de banca la mesa no pide energia."""
+    """Chikorita and Applin have a cost in `ATTACK_ENERGY_REQ` but are not in
+    `MAIN_ATTACKERS`: with them on the bench the board asks for no energy."""
     plan = _plan(pk(TAPU, energias=[G] * 4, fisicas=4),
                  banca=[pk(CHIKORITA), pk(APPLIN)])
     assert plan.demanda == 0
 
 
 # ---------------------------------------------------------------------------
-# `_pokemon_injugable`: el piso de carta muerta
+# `_pokemon_injugable`: the dead-card floor
 # ---------------------------------------------------------------------------
 
 def test_injugable_con_hueco_en_banca_nada_esta_muerto():
@@ -289,8 +289,8 @@ def test_injugable_con_hueco_en_banca_nada_esta_muerto():
 
 
 def test_injugable_banca_llena_la_evolucion_vive_si_su_preevo_esta_en_juego():
-    """El Dipplin sigue siendo jugable con la banca llena si hay un Applin en
-    juego: evoluciona sobre el, no ocupa hueco."""
+    """The Dipplin is still playable with a full bench if there is an Applin in
+    play: it evolves on top of it, it takes no slot."""
     campo = {APPLIN: 1, MEGANIUM: 4}
     assert not m._pokemon_injugable(DIPPLIN, campo, 5, 5)
     assert m._pokemon_injugable(APPLIN, campo, 5, 5)
@@ -302,7 +302,7 @@ def test_injugable_no_aplica_a_lo_que_no_es_pokemon():
 
 
 # ---------------------------------------------------------------------------
-# La seleccion, en sintetico
+# The selection, synthetically
 # ---------------------------------------------------------------------------
 
 def _seleccion_lana(activo, banca, descarte, mano=(), energia_jugada=False):
@@ -322,7 +322,7 @@ def _seleccion_lana(activo, banca, descarte, mano=(), energia_jugada=False):
 
 
 def test_seleccion_banca_llena_la_energia_gana_al_desarrollo():
-    """El registro_018 en sintetico."""
+    """registro_018, synthetically."""
     _, elegidas = _seleccion_lana(
         activo=pk(TAPU, energias=[G] * 2, fisicas=1),
         banca=[pk(MEGANIUM, energias=[G] * 2, fisicas=1), pk(MEOWTH),
@@ -333,8 +333,8 @@ def test_seleccion_banca_llena_la_energia_gana_al_desarrollo():
 
 
 def test_seleccion_sin_demanda_de_energia_vuelve_el_desarrollo():
-    """Frontera: con el activo YA cargado y hueco en banca, la energia sobra y
-    la recuperacion vuelve a ser de desarrollo (arrancar la linea Hydrapple)."""
+    """Boundary: with the active ALREADY charged and room on the bench, the energy is surplus and
+    the recovery goes back to being development (starting the Hydrapple line)."""
     _, elegidas = _seleccion_lana(
         activo=pk(TAPU, energias=[G] * 4, fisicas=4),
         banca=[pk(MEOWTH)],
@@ -344,10 +344,10 @@ def test_seleccion_sin_demanda_de_energia_vuelve_el_desarrollo():
 
 
 def test_seleccion_solo_la_planta_que_hace_falta_cobra_la_banda_alta():
-    """Con demanda de UNA Planta y hueco en banca, la SEGUNDA eleccion ya es
-    desarrollo: el ordinal impide que cuatro copias empatadas se lleven el menu
-    entero (las Plantas sobrantes caen a `LANA_SEL_PLANTA_SOBRANTE`, por debajo
-    del Applin que arranca la linea Hydrapple)."""
+    """With a demand of ONE Grass and room on the bench, the SECOND choice is already
+    development: the ordinal stops four tied copies taking the whole
+    menu (the surplus Grass falls to `LANA_SEL_PLANTA_SOBRANTE`, below
+    the Applin that starts the Hydrapple line)."""
     obs, elegidas = _seleccion_lana(
         activo=pk(TAPU, energias=[G] * 2, fisicas=1),
         banca=[pk(MEGANIUM, energias=[G] * 4, fisicas=2), pk(MEOWTH)],

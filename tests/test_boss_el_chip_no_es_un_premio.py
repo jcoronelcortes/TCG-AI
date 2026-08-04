@@ -1,43 +1,43 @@
-"""Boss's Orders: "atacar al activo es suficiente" no vale si el chip no cobra.
+"""Boss's Orders: "attacking the active is enough" does not hold if the chip takes nothing.
 
-Escenario (`registros/registro_020_pasos_121_hasta_122.json`, paso 122, turno 20,
-PERDIDA vs Crustle -- episodio 88915875):
+Scenario (`registros/registro_020_pasos_121_hasta_122.json`, step 122, turn 20,
+LOST vs Crustle -- episode 88915875):
 
-    NOSOTROS (5 premios)                        RIVAL (2 premios)
-    activo **Meganium 160, 4 efectivas**        activo  Crustle **150**/150, 0 en.
-    banca  Teal Mask Ogerpon ex 90/210, 2 ef.   banca   **Mega Kangaskhan ex 160**/300
+    US (5 prizes)                               RIVAL (2 prizes)
+    active **Meganium 160, 4 effective**        active  Crustle **150**/150, 0 en.
+    bench  Teal Mask Ogerpon ex 90/210, 2 eff.  bench   **Mega Kangaskhan ex 160**/300
            Chikorita 70                                 **Crustle 30**/170, 2 en.
-           Teal Mask Ogerpon ex 210, 2 ef.
+           Teal Mask Ogerpon ex 210, 2 eff.
            Fezandipiti ex 210
-           **Tapu Bulu 140, 4 efectivas**
-    mano   Xerosic's ×2, Ultra Ball, Dipplin, **Boss's Orders**
+           **Tapu Bulu 140, 4 effective**
+    hand   Xerosic's ×2, Ultra Ball, Dipplin, **Boss's Orders**
 
-El agente **atacaba con Meganium**: *Solar Beam* 140 sobre 150 PV deja al muro a
-10 y **no cobra nada** -- y el rival simplemente rota el cuerpo herido a la banca
-(es lo que hizo en la partida). Enfrente había dos premios servidos: el
-**Mega Kangaskhan ex a 160/300** (3 premios, que *Wood Hammer* 220 noquea tras
-retirar) y el **Crustle a 30 PV** (1 premio, que el propio *Solar Beam* noquea).
+The agent **attacked with Meganium**: *Solar Beam* 140 on 150 HP leaves the wall at
+10 and **takes nothing** -- and the rival simply rotates the wounded body to the bench
+(which is what they did in the game). Across the table there were two prizes on a plate: the
+**Mega Kangaskhan ex at 160/300** (3 prizes, which *Wood Hammer* 220 knocks out after
+retreating) and the **Crustle at 30 HP** (1 prize, which *Solar Beam* itself knocks out).
 
-Causa: `_bo_active_attack_sufficient`. La regla "si el ataque al activo lo deja
-por debajo de 100 PV, guarda el Boss's" ponía `values[Boss_Orders] = 0` **y**
-anulaba `_boss_prize_rank`, dejando el Supporter en `sin_valor` -> VETO. Ese
-borrado pisaba el **970** que el propio scoring ya le había dado por
-`_bo_best_bench_prize (1) > _bo_active_prize (0)`. La regla tenía exenciones para
-deny_evo / key_bench / defensivo / win_via_bench, pero no para la más básica:
-**el gusteo cobra un premio que el ataque al activo no cobra**. Un chip no es un
-premio.
+Cause: `_bo_active_attack_sufficient`. The rule "if the attack on the active leaves it
+below 100 HP, keep the Boss's" set `values[Boss_Orders] = 0` **and**
+cancelled `_boss_prize_rank`, leaving the Supporter at `sin_valor` -> VETO. That
+erasure overrode the **970** the scoring itself had already given it through
+`_bo_best_bench_prize (1) > _bo_active_prize (0)`. The rule had exceptions for
+deny_evo / key_bench / defensive / win_via_bench, but not for the most basic one:
+**the gust takes a prize that the attack on the active does not take**. A chip is not a
+prize.
 
-Arreglo: `_bo_bench_prize_beats_active` -- el mismo predicado que otorga el 960+
--- exime a la regla. Y `_wall_ko_promote` (el relevo letal contra el muro, ver
-`test_relevo_letal_contra_el_muro`) cede cuando el gusteo consigue el KO con el
-ACTIVO: el mismo premio sin pagar la retirada.
+Fix: `_bo_bench_prize_beats_active` -- the same predicate that grants the 960+
+-- exempts it from the rule. And `_wall_ko_promote` (the lethal relief against the wall, see
+`test_relevo_letal_contra_el_muro`) yields when the gust gets the KO with the
+ACTIVE: the same prize without paying the retreat.
 
-La línea completa que sale ahora: **Boss's -> gustear al Mega Kangaskhan ex ->
-retirar Meganium -> promover Tapu Bulu -> Wood Hammer 220 = KO de 3 premios**
-(5 -> 2), mejor todavía que el premio del Crustle herido.
+The full line that now comes out: **Boss's -> gust the Mega Kangaskhan ex ->
+retreat Meganium -> promote Tapu Bulu -> Wood Hammer 220 = a 3-prize KO**
+(5 -> 2), better still than the wounded Crustle's prize.
 
-Corpus dorado: un único flip, el de este paso. Self-play: neutro en 7 matchups
-(crustle 71.5% vs 71.9% con 4 corridas de n=4000 por rama; el resto a la par).
+Golden corpus: a single flip, this step's. Self-play: neutral across 7 matchups
+(crustle 71.5% vs 71.9% with 4 runs of n=4000 per branch; the rest level).
 """
 
 import copy
@@ -104,7 +104,7 @@ def _obs():
 
 
 def _decidir(o):
-    """Reproduce el paso previo del turno y decide en el 122."""
+    """Replays the turn's previous step and decides on 122."""
     m.agent(copy.deepcopy(_datos()["observation_previa_paso121"]))
     return m.agent(o)
 
@@ -121,7 +121,7 @@ def _carta_jugada(o, accion):
 
 
 # ---------------------------------------------------------------------------
-# 1. El escenario: sin él, el test no mide nada
+# 1. The scenario: without it, the test measures nothing
 # ---------------------------------------------------------------------------
 
 def test_el_chip_al_activo_no_cobra_y_la_banca_tiene_dos_premios():
@@ -132,28 +132,28 @@ def test_el_chip_al_activo_no_cobra_y_la_banca_tiene_dos_premios():
     act = mio["active"][0]
     assert act["id"] == MEGANIUM and len(act["energies"]) == 4
 
-    # El activo rival aguanta el Solar Beam... por 10 PV: justo el hueco donde
-    # la regla "atacar es suficiente" (remanente <= 100) se activaba.
+    # The rival active survives the Solar Beam... by 10 HP: exactly the gap where
+    # the rule "attacking is enough" (remainder <= 100) switched on.
     muro = riv["active"][0]
     assert muro["id"] == CRUSTLE and muro["hp"] == 150
     assert 0 < muro["hp"] - 140 <= 100
 
-    # Dos premios servidos en la banca rival.
+    # Two prizes on a plate on the rival bench.
     kang = next(b for b in riv["bench"] if b["id"] == KANGASKHAN)
     crus = next(b for b in riv["bench"] if b["id"] == CRUSTLE)
-    assert kang["hp"] == 160 and 220 >= kang["hp"]      # Wood Hammer lo noquea
-    assert crus["hp"] == 30 and 140 >= crus["hp"]       # Solar Beam lo noquea
+    assert kang["hp"] == 160 and 220 >= kang["hp"]      # Wood Hammer knocks it out
+    assert crus["hp"] == 30 and 140 >= crus["hp"]       # Solar Beam knocks it out
 
-    # ...y el Kangaskhan vale TRES premios.
+    # ...and the Kangaskhan is worth THREE prizes.
     assert m.card_table[KANGASKHAN].megaEx
 
-    # El Supporter está libre y el Boss's en la mano.
+    # The Supporter slot is free and the Boss's is in hand.
     assert not o["current"]["supporterPlayed"]
     assert any(c["id"] == BOSS for c in mio["hand"])
 
 
 # ---------------------------------------------------------------------------
-# 2. La decisión
+# 2. The decision
 # ---------------------------------------------------------------------------
 
 def test_juega_bosss_orders_en_vez_de_pegar_por_140():
@@ -165,7 +165,7 @@ def test_juega_bosss_orders_en_vez_de_pegar_por_140():
 
 
 def test_gustea_al_mega_kangaskhan_de_tres_premios():
-    """El objetivo: el cuerpo de 3 premios que el relevo remata, no el de 1."""
+    """The target: the 3-prize body the relief finishes off, not the 1-prize one."""
     o = _obs()
     _decidir(o)
     mio = o["current"]["players"][0]
@@ -185,8 +185,8 @@ def test_gustea_al_mega_kangaskhan_de_tres_premios():
 
 
 def test_tras_el_gusteo_retira_y_promueve_al_rematador():
-    """La otra mitad de la línea: gusteado el Kangaskhan a 160, el KO lo da Tapu
-    Bulu (220) tras retirar -- Meganium (140) no llega."""
+    """The other half of the line: with the Kangaskhan gusted at 160, the KO comes from Tapu
+    Bulu (220) after retreating -- Meganium (140) does not get there."""
     o = _obs()
     _decidir(o)
     mio = o["current"]["players"][0]
@@ -194,7 +194,7 @@ def test_tras_el_gusteo_retira_y_promueve_al_rematador():
     mio["hand"] = [c for c in mio["hand"] if c["id"] != BOSS]
     mio["handCount"] = len(mio["hand"])
     o["current"]["supporterPlayed"] = True
-    # el gusteo: el Kangaskhan pasa al activo y el muro a la banca
+    # the gust: the Kangaskhan goes to the active spot and the wall to the bench
     kang = riv["bench"].pop(next(i for i, b in enumerate(riv["bench"])
                                  if b["id"] == KANGASKHAN))
     riv["bench"].append(riv["active"][0])
@@ -205,7 +205,7 @@ def test_tras_el_gusteo_retira_y_promueve_al_rematador():
     accion = m.agent(o)
     assert _opcion(o, accion)["type"] == _RETIRAR
 
-    # ...y el relevo que sube es Tapu Bulu.
+    # ...and the relief that comes up is Tapu Bulu.
     act = mio["active"][0]
     act["energyCards"] = act["energyCards"][:1]
     act["energies"] = [1, 1]
@@ -222,13 +222,13 @@ def test_tras_el_gusteo_retira_y_promueve_al_rematador():
 
 
 # ---------------------------------------------------------------------------
-# 3. Los límites de la regla
+# 3. The limits of the rule
 # ---------------------------------------------------------------------------
 
 def test_sin_premio_en_la_banca_rival_el_bosss_se_guarda():
-    """Control: con la banca rival SANA no hay premio que cobrar gusteando, así
-    que la regla 'atacar al activo es suficiente' vuelve a mandar y el Boss's se
-    conserva."""
+    """Control: with the rival bench HEALTHY there is no prize to take by gusting, so
+    the rule 'attacking the active is enough' rules again and the Boss's is
+    kept."""
     o = _obs()
     riv = o["current"]["players"][1]
     for b in riv["bench"]:
@@ -238,9 +238,9 @@ def test_sin_premio_en_la_banca_rival_el_bosss_se_guarda():
 
 
 def test_si_el_ataque_al_activo_cobra_el_mismo_premio_no_se_gasta_el_bosss():
-    """Control: con el muro activo a 140 PV, Solar Beam ya lo noquea y cobra el
-    mismo premio que el mejor objetivo de banca alcanzable por el activo; el
-    gusteo no aporta nada y el Supporter se guarda."""
+    """Control: with the wall active at 140 HP, Solar Beam already knocks it out and takes the
+    same prize as the best bench target reachable by the active; the
+    gust adds nothing and the Supporter is kept."""
     o = _obs()
     riv = o["current"]["players"][1]
     riv["active"][0]["hp"] = 140
