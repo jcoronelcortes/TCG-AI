@@ -15,12 +15,12 @@ from ptcg.estado.agente import AGENT_STATE
 
 def puntuar(tc, o, score):
     """Returns the score of `o`. It may return `_SALTAR`."""
-    _attach_cede_a_teal_dance = tc._attach_cede_a_teal_dance
+    _attach_yields_to_teal_dance = tc._attach_yields_to_teal_dance
     _attach_enable_retreat_attack = tc._attach_enable_retreat_attack
     _attach_enable_retreat_ko = tc._attach_enable_retreat_ko
     _bcs_playable_in_hand = tc._bcs_playable_in_hand
-    _carga_activo_habilita_ataque = tc._carga_activo_habilita_ataque
-    _carga_activo_remata = tc._carga_activo_remata
+    _charge_active_enables_attack = tc._charge_active_enables_attack
+    _charge_active_finishes = tc._charge_active_finishes
     _gust_2prize_via_boss = tc._gust_2prize_via_boss
     _lucario_sac_pivot = tc._lucario_sac_pivot
     _tapu_future_charge = tc._tapu_future_charge
@@ -67,7 +67,7 @@ def puntuar(tc, o, score):
                         # ...unless that charge FINISHES the game today (anti-DONK):
                         # the first-turn veto exists to avoid wasting energy, not to
                         # give up a KO.
-                        and not _carga_activo_remata):
+                        and not _charge_active_finishes):
                     if _lucario_sac_pivot:
                         # Charging the active Ogerpon ex: when it retreats later, it
                         # keeps energy on the bench (it pays the retreat cost and
@@ -115,7 +115,7 @@ def puntuar(tc, o, score):
                         # The band of `_carga_activo_habilita_ataque` (31300) is
                         # calibrated against the UB engine (31450) and Teal Dance
                         # (31500): the tie-break bonus would cross it.
-                        and not _carga_activo_habilita_ataque):
+                        and not _charge_active_enables_attack):
                     score += 200
         
                 elif (AGENT_STATE.plan.attacker >= 1 and has_ogerpon and score > 31000
@@ -123,8 +123,8 @@ def puntuar(tc, o, score):
                         and not (_win_via_boss_gust or _gust_2prize_via_boss)
                         # ...nor when this charge is the one that makes the active
                         # attack TODAY (a finisher or the turn's only attack).
-                        and not _carga_activo_remata
-                        and not _carga_activo_habilita_ataque):
+                        and not _charge_active_finishes
+                        and not _charge_active_enables_attack):
                     # Do NOT degrade the attachment to the active if there is a
                     # WINNING / 2-prize play via Boss's that leans on charging the
                     # active (user, registro_012 step 227 vs Iono): Ogerpon's Myriad
@@ -186,7 +186,7 @@ def puntuar(tc, o, score):
                              and o.inPlayArea != AreaType.ACTIVE
                              and pokemon is not None
                              and pokemon.id == Tapu_Bulu) \
-                    and not (_carga_activo_remata
+                    and not (_charge_active_finishes
                              and o.inPlayArea == AreaType.ACTIVE):
                 # Bug Catching Set first... unless the charge to the ACTIVE
                 # finishes the game this turn: the KO does not wait for a search.
@@ -265,7 +265,7 @@ def puntuar(tc, o, score):
                                  len(pokemon.energies)
                                  + _grass_attach_unit()))):
                 score = min(score, 7000)
-                _attach_cede_a_teal_dance.add(len(scores))
+                _attach_yields_to_teal_dance.add(len(scores))
         return score
     finally:
         tc.card = card

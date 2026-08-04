@@ -212,13 +212,13 @@ def main():
     modulo = args.destino.replace("/", ".").removesuffix(".py")
     marca = f"from {modulo} import *  # noqa: F401,F403\n"
     salida, puesto = [], False
-    for i, linea in enumerate(lineas, start=1):
+    for i, line in enumerate(lineas, start=1):
         if i in borrar:
             if not puesto:
                 salida.append(marca)
                 puesto = True
             continue
-        salida.append(linea)
+        salida.append(line)
     main_py.write_text("".join(salida))
 
     print(f"\nescrito {destino}")

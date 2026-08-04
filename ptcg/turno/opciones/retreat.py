@@ -29,7 +29,7 @@ def puntuar(tc, o, score):
     _conf_can_attack_pkmn = tc._conf_can_attack_pkmn
     _conf_should_retreat = tc._conf_should_retreat
     _cubchoo_lock_stuck = tc._cubchoo_lock_stuck
-    _descuadre_matchup = tc._descuadre_matchup
+    _prize_mismatch_matchup = tc._prize_mismatch_matchup
     _e = tc._e
     _eff = tc._eff
     _ex_stuck_promo_ready = tc._ex_stuck_promo_ready
@@ -367,10 +367,10 @@ def puntuar(tc, o, score):
                 # Hydrapple was at 70/330 and the opponent at 2 prizes, so
                 # promoting it handed over the game. The right play was to
                 # attack with the active.
-                _hlp_dmg_rival = _op_active_attack_damage_to(
+                _hlp_dmg_opponent = _op_active_attack_damage_to(
                     _hlp_opa, _hlp_bp,
                     getattr(op_state, 'handCount', None))
-                if _hlp_dmg_rival >= (_hlp_bp.hp or 0):
+                if _hlp_dmg_opponent >= (_hlp_bp.hp or 0):
                     continue
                 _hlp_dmg = _our_effective_damage(
                     _hlp_bp, _hlp_opa, 30 + 30 * _hlp_grass_after,
@@ -429,9 +429,9 @@ def puntuar(tc, o, score):
             # the retreat (8900) crushed the Fezandipiti's real attack.
             # `_grass_attach_route_open` looks at exactly that: a free manual
             # attachment or some charging ability still unused.
-            _olp_ruta_ok = _grass_attach_route_open(
+            _olp_route_ok = _grass_attach_route_open(
                 state, field_counts, abilities_off=meowth_ability_lock)
-            _olp_grass_ok = _olp_ruta_ok and (
+            _olp_grass_ok = _olp_route_ok and (
                 hand_counts.get(Basic_Grass_Energy, 0) >= 1
                 or (hand_counts.get(Night_Stretcher, 0) >= 1
                     and (discard_counts.get(Basic_Grass_Energy, 0) >= 1
@@ -500,7 +500,7 @@ def puntuar(tc, o, score):
         # whoever is in front is going to fall: let the opponent's KO pay 1 prize
         # and not 2 (their deck, all 2-3 prize ex, needs big KOs to win in time).
         _raging_sac_pivot = (
-            _descuadre_matchup
+            _prize_mismatch_matchup
             and _active_reloc is not None
             and _active_reloc.id in OUR_EX_IDS
             and not _active_can_ko_now
@@ -862,7 +862,7 @@ def puntuar(tc, o, score):
                     bp is not None and bp.id == Meganium and _meg_blk_ko(bp)
                     for bp in my_state.bench)
         
-                _act_ko_rival_meg = False
+                _act_ko_opponent_meg = False
                 if (can_attack and op_state.active and
                         op_state.active[0] is not None):
                     _opa_meg = op_state.active[0]
@@ -877,9 +877,9 @@ def puntuar(tc, o, score):
                             active, _opa_meg, _act_base_meg,
                             AGENT_STATE.meganium_in_play, neutralization_zone_active)
                         if _act_dmg_meg >= (_opa_meg.hp or 0) and _act_dmg_meg > 0:
-                            _act_ko_rival_meg = True
+                            _act_ko_opponent_meg = True
                 if (not _other_atk_ready_meg and _meganium_bench_ready_meg and
-                        not _act_ko_rival_meg):
+                        not _act_ko_opponent_meg):
                     _meg_only_attacker_retreat = True
         
             if _meg_only_attacker_retreat:
@@ -892,7 +892,7 @@ def puntuar(tc, o, score):
                     score = SCORE_VETO
                 else:
         
-                    _tmo_ko_rival = False
+                    _tmo_ko_opponent = False
                     _opa_tmo = (op_state.active[0]
                                 if (op_state.active and op_state.active[0] is not None)
                                 else None)
@@ -903,8 +903,8 @@ def puntuar(tc, o, score):
                             active, _opa_tmo, _tmo_base,
                             AGENT_STATE.meganium_in_play, neutralization_zone_active)
                         if _tmo_dmg >= (_opa_tmo.hp or 0) and _tmo_dmg > 0:
-                            _tmo_ko_rival = True
-                    if _tmo_ko_rival:
+                            _tmo_ko_opponent = True
+                    if _tmo_ko_opponent:
                         score = SCORE_VETO
                     else:
         

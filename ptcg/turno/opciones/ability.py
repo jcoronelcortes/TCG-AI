@@ -9,7 +9,7 @@ from cg.api import AreaType, Pokemon
 from ptcg.calculo.carta import get_card
 from ptcg.calculo.dano import _our_effective_damage
 from ptcg.calculo.energia import _grass_attach_unit, _grass_mult, _ogerpon_base_phys_cap, _physical_energy
-from ptcg.cartas.grupos import GT_SCORE_CADENA_COMPLETA, GT_SCORE_SOLO_FASE1
+from ptcg.cartas.grupos import GT_SCORE_FULL_CHAIN, GT_SCORE_STAGE1_ONLY
 from ptcg.cartas.ids import Basic_Grass_Energy, Dipplin, FEZ_DRAW_ABILITY_SCORE, Fezandipiti_ex, Grand_Tree, Hydrapple_ex, Lillie_Determination, Meganium, Meowth_ex, Pinsir, RIPEN_HEAL_ABILITY_SCORE, RIPEN_HEAL_EX_ABILITY_SCORE, SCORE_CHARGE_ACTIVE_ATTACK, SCORE_CHARGE_ACTIVE_FINISHER, SCORE_VETO, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Unfair_Stamp
 from ptcg.estado.agente import AGENT_STATE
 
@@ -28,9 +28,9 @@ def puntuar(tc, o, score):
     _bench_attacker_ready = tc._bench_attacker_ready
     _bench_has_chargeable = tc._bench_has_chargeable
     _bp = tc._bp
-    _carga_activo_falta = tc._carga_activo_falta
-    _carga_activo_habilita_ataque = tc._carga_activo_habilita_ataque
-    _carga_activo_remata = tc._carga_activo_remata
+    _charge_active_missing = tc._charge_active_missing
+    _charge_active_enables_attack = tc._charge_active_enables_attack
+    _charge_active_finishes = tc._charge_active_finishes
     _enough_after_priorities = tc._enough_after_priorities
     _enough_for_both = tc._enough_for_both
     _extra_energy_enables_ko = tc._extra_energy_enables_ko
@@ -82,13 +82,13 @@ def puntuar(tc, o, score):
                 if _gt_plan is None:
                     score = SCORE_VETO
                 elif _gt_plan.stage2_id:
-                    score = GT_SCORE_CADENA_COMPLETA
+                    score = GT_SCORE_FULL_CHAIN
                 else:
                     # A chain that stops at Stage 1 (Stage 2 exhausted or advised
                     # against by the anti-ex matchup). It is still free
                     # development, but below the complete chain and below evolving
                     # into Meganium from hand.
-                    score = GT_SCORE_SOLO_FASE1
+                    score = GT_SCORE_STAGE1_ONLY
             elif card.id == Teal_Mask_Ogerpon_ex:
         
                 _ogerpon_energy = len(card.energies) if isinstance(card, Pokemon) else 0
@@ -150,19 +150,19 @@ def puntuar(tc, o, score):
                     and _ogerpon_energy < 3)
                 if hand_counts[Basic_Grass_Energy] < 1:
                     score = SCORE_VETO
-                elif _carga_activo_remata and o.area == AreaType.ACTIVE:
+                elif _charge_active_finishes and o.area == AreaType.ACTIVE:
                     # The ACTIVE that reaches its LETHAL attack with this charge is
                     # this very Ogerpon: its Teal Dance attaches the Grass AND
                     # DRAWS, so it inherits the finisher band.
                     score = SCORE_CHARGE_ACTIVE_FINISHER
-                elif _carga_activo_habilita_ataque and o.area == AreaType.ACTIVE:
+                elif _charge_active_enables_attack and o.area == AreaType.ACTIVE:
                     # Mirror without a KO: the Grass lets the active Ogerpon attack
                     # (and draws) on a turn that would otherwise be sterile.
                     score = SCORE_CHARGE_ACTIVE_ATTACK
-                elif ((_carga_activo_remata or _carga_activo_habilita_ataque)
+                elif ((_charge_active_finishes or _charge_active_enables_attack)
                         and o.area != AreaType.ACTIVE
                         and hand_counts[Basic_Grass_Energy]
-                            <= _carga_activo_falta):
+                            <= _charge_active_missing):
                     # Teal Dance only attaches to ITSELF: on a BENCHED Ogerpon it
                     # would eat the Grass the ACTIVE needs to finish today. It is
                     # vetoed while the hand cannot pay for both (user, registro_006
@@ -394,14 +394,14 @@ def puntuar(tc, o, score):
                         _ripen_wasted_vs_crustle = not _rip_bench_needs
                 if hand_counts[Basic_Grass_Energy] < 1:
                     score = SCORE_VETO
-                elif _carga_activo_remata:
+                elif _charge_active_finishes:
                     # Ripening Charge attaches to ANY of our Pokemon: it is the
                     # charging route that completes the ACTIVE's attack cost when
                     # the manual attachment is not enough (or is already spent).
                     # The target -- the ACTIVE -- is fixed by energy_score /
                     # ATTACH_FROM with the same band.
                     score = SCORE_CHARGE_ACTIVE_FINISHER
-                elif _carga_activo_habilita_ataque:
+                elif _charge_active_enables_attack:
                     # Mirror without a KO: without this charge the active does not
                     # attack and the turn closes blank.
                     score = SCORE_CHARGE_ACTIVE_ATTACK

@@ -265,7 +265,7 @@ def censo_de_turnos(m, decisiones):
         retirada_pagable_hoy = False
         if act is not None and not puede_retirar:
             campo = [act] + [b for b in (yo.get("bench") or []) if b]
-            unidad = 2 if any(b["id"] == m.Meganium for b in campo) else 1
+            unit = 2 if any(b["id"] == m.Meganium for b in campo) else 1
             # Attachment routes that can leave a Grass ON THE ACTIVE today:
             # the manual one if it is still free, the Ripening Charge of each Hydrapple ex
             # (which charges anyone) and Teal Dance only if the ACTIVE is the Ogerpon.
@@ -275,7 +275,7 @@ def censo_de_turnos(m, decisiones):
                 vias += 1
             plantas = sum(1 for c in mano if c["id"] == m.Basic_Grass_Energy)
             falta = m.RETREAT_COST.get(act["id"], 1) - len(act["energies"])
-            necesarias = -(-falta // unidad)
+            necesarias = -(-falta // unit)
             retirada_pagable_hoy = 1 <= necesarias <= min(vias, plantas)
         escapatoria = bool(retirada_en_menu or cambio_en_mano
                            or retirada_pagable_hoy)

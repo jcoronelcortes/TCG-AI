@@ -1314,11 +1314,11 @@ def _ctx_ub_fetch_hydrapple(my_state, state, hand_counts, field_counts,
             and active.id == Dipplin
             and ub_evolvable.get(Dipplin, 0) >= 1):
         e_ahora = len(active.energies)
-        puede_adjuntar = (not state.energyAttached
+        can_attach = (not state.energyAttached
                           and hand_counts.get(Basic_Grass_Energy, 0) >= 1)
         e_despues = e_ahora + _grass_attach_unit()
         req = AGENT_STATE.ATTACK_ENERGY_REQ.get(Hydrapple_ex, 2)
-        if e_ahora >= req or (puede_adjuntar and e_despues >= req):
+        if e_ahora >= req or (can_attach and e_despues >= req):
             evo_atk = True
     return _CtxUBHydrapple(
         hand=hand_counts, campo=field_counts, evolvable=ub_evolvable,
@@ -1340,7 +1340,7 @@ def _uh_prepare_hydra_next_turn(c):
     grass_in_play = sum(c.campo.get(pid, 0) for pid in grass_ids)
     dipplin_unico_grass = (grass_in_play == c.campo.get(Dipplin, 0))
 
-    puede_evo_meganium_ya = (
+    can_evo_meganium_now = (
         not AGENT_STATE.meganium_in_play and (
             c.evolvable.get(Bayleef, 0) >= 1
             or (c.evolvable.get(Chikorita, 0) >= 1
@@ -1361,7 +1361,7 @@ def _uh_prepare_hydra_next_turn(c):
 
     return (dipplin_unico_grass
             or (meganium_line_dev
-                and not puede_evo_meganium_ya
+                and not can_evo_meganium_now
                 and not search_bayleef_now))
 
 

@@ -255,9 +255,9 @@ class BotRival:
             if len(jugadores) > max(yo, 1 - yo):
                 mi_activo = ((jugadores[yo] or {}).get("active") or [None])[0]
                 su_activo = ((jugadores[1 - yo] or {}).get("active") or [None])[0]
-            mejor = max(ataques, key=lambda i: self._dano_efectivo(
+            best = max(ataques, key=lambda i: self._dano_efectivo(
                 mi_activo, su_activo, opciones[i].get("attackId")))
-            return [mejor]
+            return [best]
 
         fin = por_tipo.get(int(OptionType.END))
         if fin:
@@ -332,10 +332,10 @@ class BotRival:
 
     def _cuantos_contadores(self, opciones):
         """Always the MAXIMUM: moving 1 out of 3 wastes the ability."""
-        mejor = max(range(len(opciones)),
+        best = max(range(len(opciones)),
                     key=lambda i: opciones[i].get("number") or 0)
-        self._contadores = opciones[mejor].get("number") or 1
-        return [mejor]
+        self._contadores = opciones[best].get("number") or 1
+        return [best]
 
     def _origen_de_contadores(self, obs, opciones, sel):
         """Where they are taken from: the body of ITS OWN carrying the most damage."""

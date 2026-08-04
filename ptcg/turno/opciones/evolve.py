@@ -21,7 +21,7 @@ def puntuar(tc, o, score):
     _atk = tc._atk
     _bp = tc._bp
     _gt_plan = tc._gt_plan
-    _gt_planes_turno = tc._gt_planes_turno
+    _gt_turn_plans = tc._gt_turn_plans
     _gt_score_seleccion = tc._gt_score_seleccion
     _op_act = tc._op_act
     active_ko_likely = tc.active_ko_likely
@@ -71,7 +71,7 @@ def puntuar(tc, o, score):
             # plan, not by the bands of evolving from hand (which assume a
             # card in hand is spent and that the body was already chosen).
             _gt_evo_score = _gt_score_seleccion(
-                o, card, _gt_plan, _gt_planes_turno, my_state, field_counts)
+                o, card, _gt_plan, _gt_turn_plans, my_state, field_counts)
             if pokemon is not None and _gt_plan is not None:
                 # Tie-break by the chosen Basic: the option points at both the
                 # card and the body, so the plan's target has to win.

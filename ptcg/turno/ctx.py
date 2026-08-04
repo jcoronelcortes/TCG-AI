@@ -20,7 +20,7 @@ class TurnoCtx:
 
     _ability_order_veto: Any = None
     _active_attack_wins_now: Any = None
-    _attach_cede_a_teal_dance: Any = None
+    _attach_yields_to_teal_dance: Any = None
     _b: Any = None
     _dragapult_no_tapu: Any = None
     _item_lock_incoming: Any = None
@@ -28,7 +28,7 @@ class TurnoCtx:
     _ld_opt: Any = None
     _lucario_sac_pivot: Any = None
     _meowth_fetch_id: Any = None
-    _meowth_fetch_pierde_el_turno: Any = None
+    _meowth_fetch_loses_the_turn: Any = None
     _meowth_fetch_redundante: Any = None
     _meowth_ld_free: Any = None
     _ready_attacker_count: Any = None

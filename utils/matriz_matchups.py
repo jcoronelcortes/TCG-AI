@@ -151,12 +151,12 @@ def informe_control(filas, base_por_mazo, rutas, card_id):
         ds = [d for _, d, _ in grupo]
         ps = [p for _, _, p in grupo if p is not None]
         positivos = sum(1 for d in ds if d > 0)
-        linea = (f"  {etiqueta} n={len(ds):>2}  delta wr {100 * sum(ds) / len(ds):+6.2f}"
+        line = (f"  {etiqueta} n={len(ds):>2}  delta wr {100 * sum(ds) / len(ds):+6.2f}"
                  f"  rango {100 * min(ds):+.1f} a {100 * max(ds):+.1f}"
                  f"  positivos {positivos}/{len(ds)}")
         if ps:
-            linea += f"  delta premios {sum(ps) / len(ps):+.3f}"
-        print(linea)
+            line += f"  delta premios {sum(ps) / len(ps):+.3f}"
+        print(line)
     print("  Si el delta de AFECTADOS cabe en el rango de CONTROL, es ruido: "
           "el control corre codigo identico en los dos brazos.")
 
@@ -257,26 +257,26 @@ def main(argv):
     print("\n=== MATRIZ DE MATCHUPS (peor -> mejor) ===")
     ancho = max(len(f["mazo"]) for f in filas)
     for f in sorted(filas, key=lambda x: x["wr"]):
-        linea = (f"{f['mazo']:<{ancho}}  {100 * f['wr']:5.1f}%  "
+        line = (f"{f['mazo']:<{ancho}}  {100 * f['wr']:5.1f}%  "
                  f"[{100 * f['lo']:.1f}-{100 * f['hi']:.1f}]"
                  f"  n={f['decididas']}")
         if pesos:
-            linea += f"  meta={100 * pesos.get(f['mazo'], 0.0):4.1f}%"
+            line += f"  meta={100 * pesos.get(f['mazo'], 0.0):4.1f}%"
         if f["forfeits"]:
-            linea += f"  FORFEITS={f['forfeits']}"
+            line += f"  FORFEITS={f['forfeits']}"
         if f["dif_premios"] is not None:
-            linea += f"  prem={f['dif_premios']:+.2f}"
+            line += f"  prem={f['dif_premios']:+.2f}"
         if f["mazo"] in base_por_mazo:
             delta = f["wr"] - base_por_mazo[f["mazo"]]["wr"]
-            linea += f"  delta={100 * delta:+.1f}"
+            line += f"  delta={100 * delta:+.1f}"
             if pesos:
                 # What that delta moves the ladder winrate by: a +10 against an
                 # archetype that is 1% is worth ten times less than a +1 against the one that is 41%.
-                linea += f" (pond {100 * delta * pesos.get(f['mazo'], 0.0):+.2f})"
+                line += f" (pond {100 * delta * pesos.get(f['mazo'], 0.0):+.2f})"
             base_prem = base_por_mazo[f["mazo"]].get("dif_premios")
             if f["dif_premios"] is not None and base_prem is not None:
-                linea += f"  dprem={f['dif_premios'] - base_prem:+.2f}"
-        print(linea)
+                line += f"  dprem={f['dif_premios'] - base_prem:+.2f}"
+        print(line)
     peor = min(filas, key=lambda x: x["wr"])
     print(f"\nMatchup mas debil: {peor['mazo']} ({100 * peor['wr']:.1f}%)")
 

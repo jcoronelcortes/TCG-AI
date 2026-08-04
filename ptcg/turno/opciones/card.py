@@ -42,7 +42,7 @@ def puntuar(tc, o, score):
     _conf_is_matchup_attacker = tc._conf_is_matchup_attacker
     _dc = tc._dc
     _deny_evo_via_boss = tc._deny_evo_via_boss
-    _descuadre_matchup = tc._descuadre_matchup
+    _prize_mismatch_matchup = tc._prize_mismatch_matchup
     _dragapult_no_tapu = tc._dragapult_no_tapu
     _evo_huerfanos = tc._evo_huerfanos
     _evo_necesarios = tc._evo_necesarios
@@ -51,14 +51,14 @@ def puntuar(tc, o, score):
     _grass_anywhere_enables_syrup_ko = tc._grass_anywhere_enables_syrup_ko
     _grass_enables_promote_ko = tc._grass_enables_promote_ko
     _gt_plan = tc._gt_plan
-    _gt_planes_turno = tc._gt_planes_turno
+    _gt_turn_plans = tc._gt_turn_plans
     _gt_quiere_basico = tc._gt_quiere_basico
     _gt_ranking_basicos = tc._gt_ranking_basicos
     _gt_score_seleccion = tc._gt_score_seleccion
     _gust_2prize_via_boss = tc._gust_2prize_via_boss
     _has_bench_attacker = tc._has_bench_attacker
     _ko_prefer_basic_general = tc._ko_prefer_basic_general
-    _lana_orden_planta = tc._lana_orden_planta
+    _lana_grass_order = tc._lana_grass_order
     _lana_plan = tc._lana_plan
     _ld_lillie_ofrecida = tc._ld_lillie_ofrecida
     _lillie_protected_once = tc._lillie_protected_once
@@ -84,7 +84,7 @@ def puntuar(tc, o, score):
     _tapu_sac_priority = tc._tapu_sac_priority
     _tb_req = tc._tb_req
     _teal_wall_pivot = tc._teal_wall_pivot
-    _ub_meowth_para_manana = tc._ub_meowth_para_manana
+    _ub_meowth_for_tomorrow = tc._ub_meowth_for_tomorrow
     _win_via_boss_gust = tc._win_via_boss_gust
     b = tc.b
     bench_count = tc.bench_count
@@ -156,7 +156,7 @@ def puntuar(tc, o, score):
                 # selections of other cards and without this cut-off they
                 # would fall into the wrong scorer.
                 scores.append(_gt_score_seleccion(
-                    o, card, _gt_plan, _gt_planes_turno, my_state,
+                    o, card, _gt_plan, _gt_turn_plans, my_state,
                     field_counts))
                 return _SALTAR   # it already did its own scores.append
         
@@ -335,7 +335,7 @@ def puntuar(tc, o, score):
                     # their one-shot: bring up the 1-prize body (a cheap wall), never
                     # an ex worth 2. With an attacker able to knock out, the normal
                     # promotion (which already prefers it) still rules.
-                    if _descuadre_matchup and prize_count(card) <= 1:
+                    if _prize_mismatch_matchup and prize_count(card) <= 1:
                         _rb_opa = _active_of(op_state)
                         _rb_alguien_ko = (
                             _rb_opa is not None
@@ -764,7 +764,7 @@ def puntuar(tc, o, score):
                     # non-ex / non-ability body.
                     if (_best_promote_card is not None
                             and card is _best_promote_card
-                            and not (_descuadre_matchup
+                            and not (_prize_mismatch_matchup
                                      and _best_promote_key is not None
                                      and _best_promote_key[0] == 0)):
                         # vs Raging Bolt / Mega Abomasnow, a "best candidate"
@@ -876,13 +876,13 @@ def puntuar(tc, o, score):
                     # the attack as soon as we choose -- so a candidate that
                     # does NOT survive loses both and falls to the
                     # survival/prizes band. See `op_double_attack_pending`.
-                    _promo_llega_a_atacar = not (
+                    _promo_gets_to_attack = not (
                         op_double_attack_pending
                         and isinstance(card, Pokemon)
                         and not _promo_survives(card))
                     if (score > 0 and isinstance(card, Pokemon)
                             and _promo_op_act is not None
-                            and _promo_llega_a_atacar
+                            and _promo_gets_to_attack
                             and _promo_kos_op(card)):
                         # PRIORITY OF THE ONE THAT KNOCKS OUT (user): bring up the
                         # charged attacker instead of the tank ONLY when that
@@ -892,7 +892,7 @@ def puntuar(tc, o, score):
                         score += PROMO_KO_BONUS
                     elif (_promote_setup_ko_attacker is not None
                             and card is _promote_setup_ko_attacker
-                            and _promo_llega_a_atacar):
+                            and _promo_gets_to_attack):
                         # GUARANTEED FINISHER NEXT TURN (user,
                         # registro_007 step 126): the promotion after a KO is
                         # resolved at the END of the opponent's turn, so the
@@ -954,7 +954,7 @@ def puntuar(tc, o, score):
                             and _promo_survivors > 0
                             and op_prize <= prize_count(card)
                             and not _promo_survives(card)
-                            and not (_promo_llega_a_atacar
+                            and not (_promo_gets_to_attack
                                      and _promo_kos_op(card))):
                         score = PROMO_MATCH_POINT_VETO
         
@@ -997,9 +997,9 @@ def puntuar(tc, o, score):
                         if _tb_req is None:
                             _tb_pasos = 3      # it does not attack: the furthest away
                         else:
-                            _tb_falta = max(0, _tb_req - len(card.energies))
+                            _tb_missing = max(0, _tb_req - len(card.energies))
                             _tb_unit = max(1, _grass_attach_unit())
-                            _tb_pasos = min(3, -(-_tb_falta // _tb_unit))
+                            _tb_pasos = min(3, -(-_tb_missing // _tb_unit))
                         score += 300 - 100 * _tb_pasos
                         if prize_count(card) <= 1:
                             score += 150
@@ -1145,9 +1145,9 @@ def puntuar(tc, o, score):
                         dragapult_no_tapu=_dragapult_no_tapu)
                     _bcs_entrada = _TABLA_BCS_FETCH.get(card.id)
                     if _bcs_entrada is not None:
-                        _bcs_et, _bcs_reglas, _bcs_defecto = _bcs_entrada
+                        _bcs_et, _bcs_rules, _bcs_defecto = _bcs_entrada
                         score = _resolve_with_trace(
-                            _bcs_et, _bcs_reglas, [], _bcs_ctx,
+                            _bcs_et, _bcs_rules, [], _bcs_ctx,
                             default=_bcs_defecto)
         
                     if card.id in AGENT_STATE.ACTIVE_CARDS_IN_DECK:
@@ -1213,9 +1213,9 @@ def puntuar(tc, o, score):
                     }
                     _ns_entrada = _ns_tablas.get(card.id)
                     if _ns_entrada is not None:
-                        _ns_et, _ns_reglas, _ns_defecto = _ns_entrada
+                        _ns_et, _ns_rules, _ns_defecto = _ns_entrada
                         score = _resolve_with_trace(
-                            _ns_et, _ns_reglas, [], _ns_ctx,
+                            _ns_et, _ns_rules, [], _ns_ctx,
                             default=_ns_defecto)
         
                     if card.id in AGENT_STATE.ACTIVE_CARDS_IN_DECK and card.id != Basic_Grass_Energy:
@@ -1247,13 +1247,13 @@ def puntuar(tc, o, score):
                         # that is not played, and the next turn
                         # repeats with no cards. Same exception as the
                         # ENERGY above (see `_ns_motor_*_vivo`).
-                        _cc_motor = (
+                        _cc_engine = (
                             _ns_ctx.dead_turn and _ns_ctx.hand_exhausted
                             and ((card.id == Meowth_ex
                                   and _ns_meowth_engine_alive(_ns_ctx))
                                  or (card.id == Fezandipiti_ex
                                      and _ns_fez_engine_alive(_ns_ctx))))
-                        if card.id not in _cc_sel_valid and not _cc_motor:
+                        if card.id not in _cc_sel_valid and not _cc_engine:
                             score = SCORE_VETO
         
                 elif select.effect is not None and select.effect.id == Ultra_Ball:
@@ -1534,7 +1534,7 @@ def puntuar(tc, o, score):
                             _mega_line_active, op_is_dragapult_dusknoir,
                             supporter_played=state.supporterPlayed,
                             ld_free=_meowth_ld_free,
-                            meowth_tomorrow=_ub_meowth_para_manana(ctx))
+                            meowth_tomorrow=_ub_meowth_for_tomorrow(ctx))
                         score = _resolve_with_trace(
                             "ub->meowth", _RULES_UB_MEOWTH, [],
                             _ub_meo_ctx, default=10)
@@ -1684,9 +1684,9 @@ def puntuar(tc, o, score):
                         dragapult_no_tapu=_dragapult_no_tapu)
                     _dawn_entrada = _TABLA_DAWN_FETCH.get(card.id)
                     if _dawn_entrada is not None:
-                        _dawn_et, _dawn_reglas, _dawn_defecto = _dawn_entrada
+                        _dawn_et, _dawn_rules, _dawn_defecto = _dawn_entrada
                         score = _resolve_with_trace(
-                            _dawn_et, _dawn_reglas, [], _dawn_ctx,
+                            _dawn_et, _dawn_rules, [], _dawn_ctx,
                             default=_dawn_defecto)
                     else:
                         score = 50 - hand_counts.get(card.id, 0) * 30
@@ -1797,7 +1797,7 @@ def puntuar(tc, o, score):
                 # it all 4 would tie at the top and take all 3 choices.
                 if _lana_plan is not None:
                     if card.id == Basic_Grass_Energy:
-                        _lana_orden = _lana_orden_planta.get(len(scores), 0)
+                        _lana_orden = _lana_grass_order.get(len(scores), 0)
                         if (_lana_plan.unlocks_today
                                 and _lana_orden < _lana_plan.cards_to_attack):
                             score = LANA_SEL_GRASS_UNLOCKS
@@ -1917,8 +1917,8 @@ def puntuar(tc, o, score):
                     if _ns_in_hand:
                         score += 5
         
-                    energy_in_mazo = AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Basic_Grass_Energy, {}).get(ZONE_DECK, 0)
-                    if energy_in_mazo >= 5:
+                    energy_in_deck = AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Basic_Grass_Energy, {}).get(ZONE_DECK, 0)
+                    if energy_in_deck >= 5:
                         score += 5
         
                 elif card.id == Forest_of_Vitality:

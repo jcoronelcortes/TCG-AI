@@ -241,8 +241,8 @@ def main():
     if not fallos:
         print("lint_arquitectura: sin infracciones")
         return 0
-    for regla, archivo, linea, mensaje in fallos:
-        print(f"{archivo}:{linea}: [{regla}] {mensaje}")
+    for regla, archivo, line, mensaje in fallos:
+        print(f"{archivo}:{line}: [{regla}] {mensaje}")
     print(f"\n{len(fallos)} infraccion(es)")
     return 1
 

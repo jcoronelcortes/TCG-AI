@@ -1,0 +1,65 @@
+# Phase 8 -- ptcg/turno/: the decision loop, one module per OptionType, plus
+# the contexts, the energy split and the finalize chain. Applied repo-wide.
+#
+# Names that only LOOK Spanish are left alone: `_win_ko_active_via_promote`,
+# `_deny_evo_via_boss`, `_gust_2prize_via_boss`, `_bo_win_via_bench` and
+# `_debug_log_decision` are already English.
+
+# --- charging the active -----------------------------------------------------
+_carga_activo_falta	_charge_active_missing
+_carga_activo_habilita_ataque	_charge_active_enables_attack
+_carga_activo_remata	_charge_active_finishes
+_attach_cede_a_teal_dance	_attach_yields_to_teal_dance
+
+# --- the Meowth fetch --------------------------------------------------------
+_meowth_fetch_pierde_el_turno	_meowth_fetch_loses_the_turn
+_meowth_fetch_ya_en_mano	_meowth_fetch_already_in_hand
+_alk_ld_engine_vivo	_alk_ld_engine_alive
+_mw_engine_in_mazo	_mw_engine_in_deck
+
+# --- contexts and plans ------------------------------------------------------
+_best_supp_in_mazo_id	_best_supp_in_deck_id
+_cuerpo_condenado	_doomed_body
+_descuadre_matchup	_prize_mismatch_matchup
+_gt_planes_turno	_gt_turn_plans
+_gt_raiz_en_juego	_gt_root_in_play
+_lana_orden_planta	_lana_grass_order
+_ub_meowth_para_manana	_ub_meowth_for_tomorrow
+energy_in_mazo	energy_in_deck
+_atk_has_basic_mazo	_atk_has_basic_in_deck
+
+# --- finalize ----------------------------------------------------------------
+_ld_cuerpo_pagado	_ld_body_paid_for
+_lil_mazo_tras_refresco	_lil_deck_after_refresh
+_lil_robo	_lil_draw
+_mejor_i	_best_i
+_mejor_o	_best_o
+_mw_mejor_i	_mw_best_i
+_mw_mejor_o	_mw_best_o
+_st_basico_util	_st_basic_useful
+_st_cuerpo_ok	_st_body_ok
+_st_en_mazo	_st_in_deck
+_st_evo_util	_st_evo_useful
+_st_evolucionable	_st_evolvable
+_st_meowth_util	_st_meowth_useful
+_turno_esteril	_sterile_turn
+
+# --- the option scorers ------------------------------------------------------
+GT_SCORE_CADENA_COMPLETA	GT_SCORE_FULL_CHAIN
+_bcs_reglas	_bcs_rules
+_dawn_reglas	_dawn_rules
+_ns_reglas	_ns_rules
+_cc_motor	_cc_engine
+_promo_llega_a_atacar	_promo_gets_to_attack
+_tb_falta	_tb_missing
+_alk_hp_cuerpo	_alk_body_hp
+_cf_relevo_urgente	_cf_relief_urgent
+_quita_candado_rival	_removes_opponent_lock
+_rb_banca_con_1premio	_rb_bench_with_1prize
+_act_ko_rival_meg	_act_ko_opponent_meg
+_hlp_dmg_rival	_hlp_dmg_opponent
+_olp_ruta_ok	_olp_route_ok
+_tmo_ko_rival	_tmo_ko_opponent
+_dw_linea	_dw_line
+_lana_energia_jugable	_lana_energy_playable
+_lana_energia_util	_lana_energy_useful

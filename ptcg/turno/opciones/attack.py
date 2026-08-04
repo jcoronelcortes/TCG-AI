@@ -150,13 +150,13 @@ def puntuar(tc, o, score):
                                 Tapu_Bulu, Meowth_ex, Fezandipiti_ex, Pinsir))
                 if not _atk_has_basic_in_hand:
         
-                    _atk_has_basic_mazo = False
+                    _atk_has_basic_in_deck = False
                     for _atk_bid in (Chikorita, Applin, Teal_Mask_Ogerpon_ex,
                                      Tapu_Bulu, Meowth_ex, Fezandipiti_ex, Pinsir):
                         if AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(_atk_bid, {}).get(ZONE_DECK, 0) > 0:
-                            _atk_has_basic_mazo = True
+                            _atk_has_basic_in_deck = True
                             break
-                    if _atk_has_basic_mazo:
+                    if _atk_has_basic_in_deck:
         
                         _atk_is_winning = False
                         if AGENT_STATE.plan.remain_hp is not None and AGENT_STATE.plan.remain_hp <= 0:

@@ -1,0 +1,19 @@
+# Phase 8, tail -- the last Spanish identifiers anywhere in ptcg/, found by
+# sweeping the whole package once the five subpackages were done.
+#
+# `ganador` is flagged `code`: the local in the rules engine moves, but the
+# self-play harness returns a RESULT DICT whose "ganador" key its tests read.
+# That key is data belonging to utils/, and utils/ keeps its Spanish output.
+GT_SCORE_SOLO_FASE1	GT_SCORE_STAGE1_ONLY
+LANA_PLAY_SIN_DEMANDA	LANA_PLAY_NO_DEMAND
+SCORE_CARGA_CONDENADA	SCORE_CHARGE_DOOMED
+SCORE_CARGA_LETAL_FLOOR	SCORE_CHARGE_LETHAL_FLOOR
+_TIER_DEVELOP_TRAS_BCS	_TIER_DEVELOP_AFTER_BCS
+linea	line
+premio	prize
+ganador	winner	code
+mejor	best
+unidad	unit
+puede_promover	can_promote
+puede_adjuntar	can_attach
+puede_evo_meganium_ya	can_evo_meganium_now

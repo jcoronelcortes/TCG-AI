@@ -417,19 +417,19 @@ def explorar(obs, max_nodos=MAX_NODOS, respetar_menu=False):
     inicial.setdefault("_evoluciones", 0)
     if respetar_menu:
         inicial["_respetar_menu"] = True
-    mejor = [None, None]
+    best = [None, None]
     vistos = set()
     nodos = [0]
 
-    def dfs(estado, linea):
+    def dfs(estado, line):
         if nodos[0] >= max_nodos:
             return
         nodos[0] += 1
         for etiqueta, apply in acciones_legales(estado):
             if apply is None:  # terminal: ATTACK or END
                 p = evaluar_terminal(estado, etiqueta == "ATTACK")
-                if mejor[0] is None or p > mejor[0]:
-                    mejor[0], mejor[1] = p, linea + [etiqueta]
+                if best[0] is None or p > best[0]:
+                    best[0], best[1] = p, line + [etiqueta]
                 continue
             sig = estado_sig = None
             nuevo = apply(estado)
@@ -440,10 +440,10 @@ def explorar(obs, max_nodos=MAX_NODOS, respetar_menu=False):
             if estado_sig in vistos:
                 continue
             vistos.add(estado_sig)
-            dfs(nuevo, linea + [etiqueta])
+            dfs(nuevo, line + [etiqueta])
 
     dfs(inicial, [])
-    return mejor[0], mejor[1], nodos[0]
+    return best[0], best[1], nodos[0]
 
 
 def comparar_hallazgo(ruta, indice=0, max_nodos=MAX_NODOS):
@@ -451,13 +451,13 @@ def comparar_hallazgo(ruta, indice=0, max_nodos=MAX_NODOS):
     h = data["hallazgos"][indice]
     obs = h["observation"]
     # A real autopsy finding: the simulator's menu rules at the root node.
-    puntaje, linea, nodos = explorar(obs, max_nodos, respetar_menu=True)
+    puntaje, line, nodos = explorar(obs, max_nodos, respetar_menu=True)
     print(f"{Path(ruta).name} [{h['detector']} turno {h['turno']}]")
     print(f"  agente en la partida: {h['detalle']}")
     print(f"  mejor linea del explorador ({nodos} nodos): "
-          f"{' -> '.join(linea)}")
+          f"{' -> '.join(line)}")
     print(f"  evaluacion (gana, premios, dano, desarrollo): {puntaje}")
-    return puntaje, linea
+    return puntaje, line
 
 
 def demo_combo_myriad():
@@ -475,9 +475,9 @@ def demo_combo_myriad():
            .op_zonas(mano=5, mazo=30, prizes=3)
            .menu_teal_dance()
            .construir())
-    puntaje, linea, nodos = explorar(obs)
+    puntaje, line, nodos = explorar(obs)
     print("demo combo Myriad (registro_012 paso 227):")
-    print(f"  mejor linea ({nodos} nodos): {' -> '.join(linea)}")
+    print(f"  mejor linea ({nodos} nodos): {' -> '.join(line)}")
     print(f"  evaluacion: {puntaje}")
     esperado = puntaje[0] == 1 and puntaje[1] == 2
     print(f"  {'OK: encuentra la linea GANADORA de 2 premios' if esperado else 'FALLO'}")

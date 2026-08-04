@@ -24,8 +24,8 @@ class CtxEnergyScoreBase:
     _bench_attacker_needs_energy: Any = None
     _bench_attacker_ready: Any = None
     _bench_has_chargeable: Any = None
-    _carga_activo_habilita_ataque: Any = None
-    _carga_activo_remata: Any = None
+    _charge_active_enables_attack: Any = None
+    _charge_active_finishes: Any = None
     _conf_active: Any = None
     _conf_active_can_attack: Any = None
     _conf_active_can_retreat: Any = None

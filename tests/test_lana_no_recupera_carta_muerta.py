@@ -237,7 +237,7 @@ def test_con_hueco_en_banca_el_applin_es_jugable_pero_no_necesario():
     # The slot makes it playable, but the Applin->Hydrapple line is already in the
     # active spot and the bench is not short: no bonus claims it -> a ceiling.
     v = _valor_lana(_obs(hueco_en_banca=1))
-    assert 0 < v <= m.LANA_PLAY_SIN_DEMANDA, (
+    assert 0 < v <= m.LANA_PLAY_NO_DEMAND, (
         "un Basico que cabe pero que nadie pide no vale el Supporter del "
         f"turno; obtuvo {v}")
 
@@ -246,7 +246,7 @@ def test_con_la_banca_corta_el_cuerpo_del_descarte_si_hace_falta():
     # With the bench at 2 bodies, recovering a Basic IS a real need
     # (the short-bench bonus): Lana's recovers all its value.
     v = _valor_lana(_obs(hueco_en_banca=3))
-    assert v > m.LANA_PLAY_SIN_DEMANDA, (
+    assert v > m.LANA_PLAY_NO_DEMAND, (
         "con la banca corta el Applin del descarte es un cuerpo que hace "
         f"falta; obtuvo {v}")
 
@@ -255,7 +255,7 @@ def test_con_planta_en_el_descarte_y_demanda_real_lana_vale():
     # A Tapu Bulu at 0/4 on the bench + Grass in the discard + the attachment unspent:
     # there is energy that can be played TODAY and somebody asking for it.
     v = _valor_lana(_obs(planta_en_descarte=3, tapu_sin_energia=True))
-    assert v > m.LANA_PLAY_SIN_DEMANDA, (
+    assert v > m.LANA_PLAY_NO_DEMAND, (
         "con demanda real de energia Lana's no debe quedarse en el techo de "
         f"'nadie la pide'; obtuvo {v}")
 
@@ -265,7 +265,7 @@ def test_planta_jugable_pero_que_no_llega_al_campo_hoy_cede_el_turno():
     # this turn: what is recovered puts nothing on the field today. The card is still
     # playable (a ceiling, not a veto), it merely yields the turn's Supporter.
     v = _valor_lana(_obs(planta_en_descarte=3, planta_en_mano=6))
-    assert 0 < v <= m.LANA_PLAY_SIN_DEMANDA, (
+    assert 0 < v <= m.LANA_PLAY_NO_DEMAND, (
         "energia recuperable que no llega al campo hoy: jugable, pero por "
         f"debajo del resto de Supporters; obtuvo {v}")
 
@@ -308,8 +308,8 @@ def test_el_fixture_tiene_las_dos_lineas_ya_evolucionadas():
     assert m.Meganium in campo and m.Hydrapple_ex in campo
     # No body in play admits an evolution: there is nothing Dawn can bring
     # and put on top.
-    for linea in m.EVO_LINES:
-        for pre, evo in zip(linea, linea[1:]):
+    for line in m.EVO_LINES:
+        for pre, evo in zip(line, line[1:]):
             assert pre not in campo, (pre, evo)
     assert _opcion_de_mano(o, m.Dawn) is not None
 

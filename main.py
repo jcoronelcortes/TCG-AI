@@ -1378,16 +1378,16 @@ def _score_night_stretcher_play(ctx: DecisionContext) -> int:
     (the original replaces the accumulator)."""
     w = _CtxNSPlay(ctx)
     if ctx.op_is_crustle_deck or ctx.op_is_cornerstone_deck:
-        mejor, traza_max = _resolve_max(_ESC_NS_CRUSTLE, w)
+        best, traza_max = _resolve_max(_ESC_NS_CRUSTLE, w)
     else:
-        mejor, traza_max = _resolve_max(_ESC_NS_RECUPERACION, w)
-    if mejor >= 900:
+        best, traza_max = _resolve_max(_ESC_NS_RECUPERACION, w)
+    if best >= 900:
         base = 11800
-    elif mejor >= 800:
+    elif best >= 800:
         base = 11000
-    elif mejor >= 700:
+    elif best >= 700:
         base = 10400
-    elif mejor > 0:
+    elif best > 0:
         base = 9800
     else:
         base = SCORE_VETO
@@ -1552,7 +1552,7 @@ def _score_forest_of_vitality_play(ctx: DecisionContext) -> int:
 
 
 
-def _ub_meowth_para_manana(ctx) -> bool:
+def _ub_meowth_for_tomorrow(ctx) -> bool:
     """Digging TODAY for the Meowth ex that will be played TOMORROW, because
     tomorrow there are no Items.
 
@@ -1685,7 +1685,7 @@ def _ub_target_score(ctx, _ubf) -> int:
     # `_ub_meowth_para_manana`). It is the only branch that does not require the
     # target to be used this turn, because it is the only one where keeping the
     # Ultra Ball is the same as throwing it away.
-    if _ub_meowth_para_manana(ctx):
+    if _ub_meowth_for_tomorrow(ctx):
         ub_best_target = max(ub_best_target, 1100)
 
     if ub_best_target == 0:
@@ -2576,14 +2576,14 @@ def _mejor_supporter_de_mano(ctx: DecisionContext, hand_counts=None):
     resolving a search) without touching the turn's ctx. It returns (None, 0) if
     no Supporter in hand is playable."""
     _hc = ctx.hand_counts if hand_counts is None else hand_counts
-    mejor_id, mejor = None, 0
+    mejor_id, best = None, 0
     for _sid in _SUPP_PLAY_IDS:
         if _hc.get(_sid, 0) < 1:
             continue
         _val = _supp_play_score(ctx, _sid)
-        if _val > mejor:
-            mejor_id, mejor = _sid, _val
-    return mejor_id, mejor
+        if _val > best:
+            mejor_id, best = _sid, _val
+    return mejor_id, best
 
 
 # --- Rules of the Ultra Ball -> Hydrapple ex fetch --------------------------
@@ -2992,11 +2992,11 @@ def _sin_atacante_para_manana(my_state, hand_counts, field_counts) -> bool:
 
     CONSERVATIVE by design: when in doubt it returns False ("we do have an
     attacker"), because whoever consults it uses it to justify spending resources."""
-    unidad = _grass_attach_unit()
+    unit = _grass_attach_unit()
     for _cuerpo in ((my_state.active or []) + (my_state.bench or [])):
         if _cuerpo is None or _cuerpo.id not in MAIN_ATTACKERS:
             continue
-        if _can_attack_eff(_cuerpo.id, len(_cuerpo.energies) + unidad):
+        if _can_attack_eff(_cuerpo.id, len(_cuerpo.energies) + unit):
             return False
     for _pre, _evo in ((Applin, Dipplin), (Dipplin, Hydrapple_ex),
                        (Chikorita, Bayleef), (Bayleef, Meganium)):
@@ -4908,7 +4908,7 @@ def agent(obs_dict: dict) -> list[int]:
     # attack and the opponent cannot knock us out on their next turn yet, so
     # sacrificing early development only slows us down. If we go SECOND (our
     # first turn is turn 2) or on any later turn, it DOES apply.
-    _descuadre_matchup = (
+    _prize_mismatch_matchup = (
         (op_is_raging_bolt_deck or op_is_abomasnow_deck)
         and not (state.turn == 1 and AGENT_STATE.we_go_first))
 
@@ -6669,13 +6669,13 @@ def agent(obs_dict: dict) -> list[int]:
     _boss_deny_alakazam_line = bool(_supp_values.get('_boss_deny_alakazam_line'))
 
     _best_supp_in_deck_val = 0
-    _best_supp_in_mazo_id = None
+    _best_supp_in_deck_id = None
     for sid in (Boss_Orders, Dawn, Lillie_Determination, Lanas_Aid):
         if AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(sid, {}).get(ZONE_DECK, 0) > 0:
             val = _supp_values.get(sid, 0)
             if val > _best_supp_in_deck_val:
                 _best_supp_in_deck_val = val
-                _best_supp_in_mazo_id = sid
+                _best_supp_in_deck_id = sid
 
     # TEAL DANCE AVAILABILITY, STABLE THROUGHOUT THE TURN (user).
     # Abilities only appear as options in the MAIN MENU; in the
@@ -7082,7 +7082,7 @@ def agent(obs_dict: dict) -> list[int]:
     # criterion as `_alakazam_dig_xerosic_engine` and as the Meowth ex PLAY branch;
     # it lives up here because TWO places far apart from each other consult it: the
     # veto on the redundant ex body and the reservation of the last bench slot.
-    _alk_ld_engine_vivo = (
+    _alk_ld_engine_alive = (
         field_counts.get(Meowth_ex, 0) < 2
         and _meowth_ld_free
         and (hand_counts.get(Meowth_ex, 0) >= 1
@@ -7809,9 +7809,9 @@ def agent(obs_dict: dict) -> list[int]:
     # None of this depends on the opponent or on our own deck: the cost comes from
     # ATTACK_ENERGY_REQ (with `_coste_de_ataque_min` as a fallback derived from the
     # card data) and the damage from the central evaluators.
-    _carga_activo_falta = 0        # charging units still missing
-    _carga_activo_remata = False   # ...and the resulting attack KNOCKS OUT
-    _carga_activo_habilita_ataque = False  # ...it only chips, but today there is no other attack
+    _charge_active_missing = 0        # charging units still missing
+    _charge_active_finishes = False   # ...and the resulting attack KNOCKS OUT
+    _charge_active_enables_attack = False  # ...it only chips, but today there is no other attack
     _cav_op_act = _active_of(op_state)
     # CAREFUL: `can_attack` is NOT used as a guard -- that flag only says whether the game
     # ALREADY offers the ATTACK option, and by definition here the active does not yet
@@ -7846,7 +7846,7 @@ def agent(obs_dict: dict) -> list[int]:
                     _active_pokemon, _cav_op_act, _cav_base,
                     AGENT_STATE.meganium_in_play, neutralization_zone_active)
                 if _cav_dmg > 0:
-                    _carga_activo_falta = _cav_need
+                    _charge_active_missing = _cav_need
                     if (_cav_dmg >= _op_active_hp
                             and not _ko_not_guaranteed(_cav_op_act)
                             # ...unless a CHEAPER KO ALREADY exists: a
@@ -7862,7 +7862,7 @@ def agent(obs_dict: dict) -> list[int]:
                             # benched Hydrapple ex ALREADY ready).
                             and not _attach_enable_retreat_ko
                             and not _ability_unlock_retreat_ko):
-                        _carga_activo_remata = True
+                        _charge_active_finishes = True
                     elif (not (_bench_attacker_ready and can_switch)
                             and not op_is_cubchoo_deck):
                         # Without a KO the charge is only prioritised when there is NO other
@@ -7875,7 +7875,7 @@ def agent(obs_dict: dict) -> list[int]:
                         # the energy is kept in hand to pay retreats
                         # (the user's rule, [[anti-cubchoo-...]]). The finisher
                         # (above) IS allowed: a prize is worth the bet.
-                        _carga_activo_habilita_ataque = True
+                        _charge_active_enables_attack = True
 
     # A variant with the finisher still on the BENCH: retreating the active promotes it
     # and the retreat cost LOWERS the Grass count, so the extra Grass
@@ -8501,8 +8501,8 @@ def agent(obs_dict: dict) -> list[int]:
             _bench_attacker_needs_energy=_bench_attacker_needs_energy,
             _bench_attacker_ready=_bench_attacker_ready,
             _bench_has_chargeable=_bench_has_chargeable,
-            _carga_activo_habilita_ataque=_carga_activo_habilita_ataque,
-            _carga_activo_remata=_carga_activo_remata,
+            _charge_active_enables_attack=_charge_active_enables_attack,
+            _charge_active_finishes=_charge_active_finishes,
             _conf_active=_conf_active,
             _conf_active_can_attack=_conf_active_can_attack,
             _conf_active_can_retreat=_conf_active_can_retreat,
@@ -8555,7 +8555,7 @@ def agent(obs_dict: dict) -> list[int]:
             pokemon, active,
         )
 
-    def _cuerpo_condenado(pokemon, active) -> bool:
+    def _doomed_body(pokemon, active) -> bool:
         """PHASE C (Marnie plan, D3): can the opponent CASH IN this body before
         our next turn, without the body taking anything first?
 
@@ -8611,8 +8611,8 @@ def agent(obs_dict: dict) -> list[int]:
         (a tiny fraction) so that, if the WHOLE board is inside the window, the same
         body that used to win still wins."""
         score = _energy_score_base(pokemon, active)
-        if 0 < score < SCORE_CARGA_LETAL_FLOOR and _cuerpo_condenado(pokemon, active):
-            return SCORE_CARGA_CONDENADA + score / 1000000.0
+        if 0 < score < SCORE_CHARGE_LETHAL_FLOOR and _doomed_body(pokemon, active):
+            return SCORE_CHARGE_DOOMED + score / 1000000.0
         return score
 
     # --- Ripening Charge as HEALING: saving a body doomed by the snipe ---
@@ -8723,7 +8723,7 @@ def agent(obs_dict: dict) -> list[int]:
     # log 88162677 step 16 vs Alakazam (LOST): the engine put the Meowth ex down
     # and immediately afterwards the ability's prompt REJECTED the fetch, so
     # a 2-prize body was given away on the bench for nothing.
-    _meowth_fetch_ya_en_mano = (
+    _meowth_fetch_already_in_hand = (
         _meowth_devel_lillie
         and hand_counts.get(Lillie_Determination, 0) >= 1
         and not _win_via_boss_gust and not _gust_2prize_via_boss
@@ -8731,7 +8731,7 @@ def agent(obs_dict: dict) -> list[int]:
     _meowth_skip_fetch = (
         context == SelectContext.ACTIVATE
         and _sel_ctx_card is not None and _sel_ctx_card.id == Meowth_ex
-        and _meowth_fetch_ya_en_mano
+        and _meowth_fetch_already_in_hand
     )
 
     # OUR FIRST turn of play (the same criterion as the Ultra
@@ -9712,12 +9712,12 @@ def agent(obs_dict: dict) -> list[int]:
     # =================================================================
     _gt_veta_etapa_ex = (AGENT_STATE.op_is_crustle_deck or op_is_sylveon_deck
                          or op_has_ex_immune_active or op_has_ex_immune_bench)
-    _gt_planes_turno = (
+    _gt_turn_plans = (
         _gt_planes(my_state, AGENT_STATE.ACTIVE_CARDS_IN_DECK, field_counts,
                    _our_first_turn, veta_etapa_ex=_gt_veta_etapa_ex,
                    activo_condenado=(active_ko_likely or _active_doomed_real))
         if grand_tree_in_play else [])
-    _gt_plan = _gt_planes_turno[0] if _gt_planes_turno else None
+    _gt_plan = _gt_turn_plans[0] if _gt_turn_plans else None
 
     _gt_ability_slot = None
     if grand_tree_in_play and context == SelectContext.MAIN:
@@ -9748,9 +9748,9 @@ def agent(obs_dict: dict) -> list[int]:
     # A Basic is only SEARCHED for if there is not already one in play that can serve as the root
     # next turn (here `appearThisTurn` is NOT filtered on: the one that comes down today
     # will be evolvable tomorrow) and if there is room on the bench.
-    _gt_raiz_en_juego = any(field_counts.get(b, 0) >= 1
+    _gt_root_in_play = any(field_counts.get(b, 0) >= 1
                             for b in _gt_ranking_basicos)
-    _gt_quiere_basico = (bool(_gt_ranking_basicos) and not _gt_raiz_en_juego
+    _gt_quiere_basico = (bool(_gt_ranking_basicos) and not _gt_root_in_play
                          and bench_count < 5)
 
     # FINISHER FISHING (see `_pesca_de_remate`): with Lillie's Determination in
@@ -9895,7 +9895,7 @@ def agent(obs_dict: dict) -> list[int]:
     # `_meowth_skip_fetch`, which never contributes anything).
     _meowth_supp_turno_id, _meowth_supp_turno_val = None, 0
     _meowth_fetch_play_val = 0
-    _meowth_fetch_pierde_el_turno = False
+    _meowth_fetch_loses_the_turn = False
     if (context == SelectContext.MAIN
             and not state.supporterPlayed
             and not _our_first_action_turn
@@ -9915,7 +9915,7 @@ def agent(obs_dict: dict) -> list[int]:
             _ctx_post_fetch, _meowth_fetch_id)
         _meowth_supp_turno_id, _meowth_supp_turno_val = (
             _mejor_supporter_de_mano(_ctx_post_fetch, _mw_hand_post))
-        _meowth_fetch_pierde_el_turno = (
+        _meowth_fetch_loses_the_turn = (
             _meowth_supp_turno_id is not None
             and _meowth_supp_turno_id != _meowth_fetch_id
             and _meowth_supp_turno_val >= _meowth_fetch_play_val)
@@ -9988,7 +9988,7 @@ def agent(obs_dict: dict) -> list[int]:
     # Indexes of manual attachments that YIELD to a pending Teal Dance
     # (see the rule in the OptionType.ATTACH branch): besides the score cap,
     # they are left at tier 0 of the play order so the score decides.
-    _attach_cede_a_teal_dance = set()
+    _attach_yields_to_teal_dance = set()
 
     # DEFERRABLE ORDERING vetoes on abilities: {option index:
     # (real_score, (ids of the cards that must be played first, ...))}. They are filled by
@@ -10006,7 +10006,7 @@ def agent(obs_dict: dict) -> list[int]:
     # scores are computed per card, so without the ordinal the 4 copies of Grass
     # would tie and sweep the menu even if the board could only use one.
     _lana_plan = None
-    _lana_orden_planta = {}
+    _lana_grass_order = {}
     if (select.effect is not None and select.effect.id == Lanas_Aid
             and context == SelectContext.TO_HAND):
         _lana_plan = _grass_plan(my_state, state, field_counts, hand_counts,
@@ -10020,7 +10020,7 @@ def agent(obs_dict: dict) -> list[int]:
             _lana_c = get_card(obs, _lana_o.area, _lana_o.index,
                                getattr(_lana_o, 'playerIndex', my_index))
             if _lana_c is not None and _lana_c.id == Basic_Grass_Energy:
-                _lana_orden_planta[_lana_i] = _lana_n
+                _lana_grass_order[_lana_i] = _lana_n
                 _lana_n += 1
 
     scores = []

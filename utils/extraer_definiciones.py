@@ -244,10 +244,10 @@ def main():
             cabeza, _, cola = previo.rpartition("\n\n__all__ = [")
             viejos = [ln.strip().strip("',") for ln in cola.splitlines()
                       if ln.strip().startswith(("'", '"'))]
-            for linea in _cabecera_imports(info, mod).rstrip("\n").splitlines():
-                if linea and linea not in cabeza:
+            for line in _cabecera_imports(info, mod).rstrip("\n").splitlines():
+                if line and line not in cabeza:
                     marca_doc = cabeza.index('"""', cabeza.index('"""') + 3) + 4
-                    cabeza = cabeza[:marca_doc] + "\n" + linea + cabeza[marca_doc:]
+                    cabeza = cabeza[:marca_doc] + "\n" + line + cabeza[marca_doc:]
             nombres_all = viejos + info["nombres"]
             texto = cabeza.rstrip("\n") + "\n\n\n" + nuevos
         else:
@@ -266,13 +266,13 @@ def main():
 
     main_py = Path(args.main)
     salida, puesto = [], False
-    for i, linea in enumerate(lineas, start=1):
+    for i, line in enumerate(lineas, start=1):
         if i in borrar:
             if not puesto:
                 salida.extend(marcas)
                 puesto = True
             continue
-        salida.append(linea)
+        salida.append(line)
     main_py.write_text("".join(salida))
     print(f"\nmain.py: {len(lineas)} -> {len(salida)} lineas")
     print("OJO: mueve los imports al bloque de cabecera (I1a).")

@@ -59,16 +59,16 @@ def _resolve_max(escenarios, ctx):
     first-one-that-applies chain, here every scenario that fires competes and
     the highest value wins (0 if none fires). For accumulators of the form
     `best = max(best, ...)` over independent scenarios."""
-    mejor, ganador, disparados = 0, None, 0
+    best, winner, disparados = 0, None, 0
     for e in escenarios:
         if e.when(ctx):
             disparados += 1
             v = e.value(ctx)
-            if v > mejor:
-                mejor, ganador = v, e.name
-    traza = (f"max:{ganador}={mejor} ({disparados} candidatos)"
-             if ganador else "max:ninguno=0")
-    return mejor, traza
+            if v > best:
+                best, winner = v, e.name
+    traza = (f"max:{winner}={best} ({disparados} candidatos)"
+             if winner else "max:ninguno=0")
+    return best, traza
 
 
 def _E(name, when, value):

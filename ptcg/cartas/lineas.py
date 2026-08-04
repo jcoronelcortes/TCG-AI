@@ -209,10 +209,10 @@ def _evo_link_state(hand_counts, field_counts):
     completed this turn.
     """
     necesarios, huerfanos = set(), set()
-    for linea in EVO_LINES:
-        full_line = field_counts.get(linea[-1], 0) >= 1
+    for line in EVO_LINES:
+        full_line = field_counts.get(line[-1], 0) >= 1
         faltan = []
-        for pre, evo in zip(linea, linea[1:]):
+        for pre, evo in zip(line, line[1:]):
             if (field_counts.get(pre, 0) == 0
                     and hand_counts.get(pre, 0) == 0):
                 huerfanos.add(evo)
@@ -223,7 +223,7 @@ def _evo_link_state(hand_counts, field_counts):
                 faltan.append(evo)
         # Only the intermediate link whose stage 2 was left orphaned.
         for evo in faltan:
-            if evo != linea[-1] and linea[-1] in huerfanos:
+            if evo != line[-1] and line[-1] in huerfanos:
                 necesarios.add(evo)
     return necesarios, huerfanos
 
@@ -251,8 +251,8 @@ def _pokemon_injugable(card_id, field_counts, bench_count, bench_max):
         return False
     if bench_count < bench_max:
         return False
-    for linea in EVO_LINES:
-        for pre, evo in zip(linea, linea[1:]):
+    for line in EVO_LINES:
+        for pre, evo in zip(line, line[1:]):
             if evo == card_id:
                 return field_counts.get(pre, 0) == 0
     return True                          # a Basic with the bench full
@@ -455,10 +455,10 @@ def _evo_link_state(hand_counts, field_counts):
     completed this turn.
     """
     necesarios, huerfanos = set(), set()
-    for linea in EVO_LINES:
-        full_line = field_counts.get(linea[-1], 0) >= 1
+    for line in EVO_LINES:
+        full_line = field_counts.get(line[-1], 0) >= 1
         faltan = []
-        for pre, evo in zip(linea, linea[1:]):
+        for pre, evo in zip(line, line[1:]):
             if (field_counts.get(pre, 0) == 0
                     and hand_counts.get(pre, 0) == 0):
                 huerfanos.add(evo)
@@ -469,7 +469,7 @@ def _evo_link_state(hand_counts, field_counts):
                 faltan.append(evo)
         # Only the intermediate link whose stage 2 was left orphaned.
         for evo in faltan:
-            if evo != linea[-1] and linea[-1] in huerfanos:
+            if evo != line[-1] and line[-1] in huerfanos:
                 necesarios.add(evo)
     return necesarios, huerfanos
 
@@ -497,8 +497,8 @@ def _pokemon_injugable(card_id, field_counts, bench_count, bench_max):
         return False
     if bench_count < bench_max:
         return False
-    for linea in EVO_LINES:
-        for pre, evo in zip(linea, linea[1:]):
+    for line in EVO_LINES:
+        for pre, evo in zip(line, line[1:]):
             if evo == card_id:
                 return field_counts.get(pre, 0) == 0
     return True                          # a Basic with the bench full

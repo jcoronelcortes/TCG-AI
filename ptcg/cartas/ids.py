@@ -489,13 +489,13 @@ RIPEN_HEAL_EX_ABILITY_SCORE = 31550
 # below the whole development band (~8000) and above the last resort of
 # Applin/Dipplin with Hydrapple in play (10), which is energy that really yields
 # nothing. If there is nothing better left, the energy still lands here.
-SCORE_CARGA_CONDENADA = 20
+SCORE_CHARGE_DOOMED = 20
 # Floor of `energy_score`'s LETHAL band: from 41000 upwards the energy takes or
 # denies a prize TODAY (finishers, retreat pivots, winning gust) and no
 # development consideration touches it. Already documented in the comments of
 # RIPEN_HEAL_* and of the `_carga_activo_*` family; here it gets a name so the
 # phase C ceiling knows where to stop.
-SCORE_CARGA_LETAL_FLOOR = 41000
+SCORE_CHARGE_LETHAL_FLOOR = 41000
 
 # Score of FLIP THE SCRIPT (Fezandipiti ex: drawing 3 after a KO of ours). It
 # goes ABOVE the whole family of non-lethal CHARGING abilities -- Teal Dance
@@ -686,7 +686,7 @@ LANA_PLAY_BASE_RECUPERABLE = 300
 # `SCORE_SUPPORTER_VALUE_BASE` = 2400 and the factor of 1.4, it leaves the play
 # at ~2540: still playable, but it yields the turn's Supporter to any other one
 # with real value (generic Dawn ~2680, Lillie's 5000).
-LANA_PLAY_SIN_DEMANDA = 100
+LANA_PLAY_NO_DEMAND = 100
 
 # Priority of Boss's Orders when, against Crustle, our active ex is blocked but
 # there is a target on the opposing bench we can hit and that we can knock out
@@ -898,8 +898,8 @@ __all__ = [
     'RIPEN_HEAL_TARGET_SCORE',
     'RIPEN_HEAL_ABILITY_SCORE',
     'RIPEN_HEAL_EX_ABILITY_SCORE',
-    'SCORE_CARGA_CONDENADA',
-    'SCORE_CARGA_LETAL_FLOOR',
+    'SCORE_CHARGE_DOOMED',
+    'SCORE_CHARGE_LETHAL_FLOOR',
     'FEZ_DRAW_ABILITY_SCORE',
     'SCORE_CHARGE_ACTIVE_FINISHER',
     'SCORE_CHARGE_ACTIVE_ATTACK',
@@ -941,7 +941,7 @@ __all__ = [
     'LANA_SEL_GRASS_SURPLUS',
     'LANA_SEL_INJUGABLE',
     'LANA_PLAY_BASE_RECUPERABLE',
-    'LANA_PLAY_SIN_DEMANDA',
+    'LANA_PLAY_NO_DEMAND',
     'BOSS_PRIORITY_CRUSTLE_GUST',
     'TAPU_WAIT_FOR_ITEMS_SCORE',
     'BOSS_SCORE_WIN_NOW',

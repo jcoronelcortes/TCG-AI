@@ -27,19 +27,19 @@ def puntuar(tc, o, score):
     _active_cant_attack_this_turn = tc._active_cant_attack_this_turn
     _active_doomed_real = tc._active_doomed_real
     _active_ready_attacker = tc._active_ready_attacker
-    _alk_ld_engine_vivo = tc._alk_ld_engine_vivo
+    _alk_ld_engine_alive = tc._alk_ld_engine_alive
     _ara_act = tc._ara_act
     _bcs_playable_in_hand = tc._bcs_playable_in_hand
     _best_supp_in_hand_val = tc._best_supp_in_hand_val
-    _best_supp_in_mazo_id = tc._best_supp_in_mazo_id
+    _best_supp_in_deck_id = tc._best_supp_in_deck_id
     _best_supp_in_deck_val = tc._best_supp_in_deck_val
     _deny_evo_via_boss = tc._deny_evo_via_boss
-    _descuadre_matchup = tc._descuadre_matchup
+    _prize_mismatch_matchup = tc._prize_mismatch_matchup
     _dragapult_no_tapu = tc._dragapult_no_tapu
     _festival_lead_hostil = tc._festival_lead_hostil
     _gt_planes = tc._gt_planes
     _gt_quiere_basico = tc._gt_quiere_basico
-    _gt_raiz_en_juego = tc._gt_raiz_en_juego
+    _gt_root_in_play = tc._gt_root_in_play
     _gt_ranking_basicos = tc._gt_ranking_basicos
     _gt_veta_etapa_ex = tc._gt_veta_etapa_ex
     _gust_2prize_via_boss = tc._gust_2prize_via_boss
@@ -48,9 +48,9 @@ def puntuar(tc, o, score):
     _lucario_sac_pivot = tc._lucario_sac_pivot
     _meowth_antidonk_now = tc._meowth_antidonk_now
     _meowth_devel_lillie = tc._meowth_devel_lillie
-    _meowth_fetch_pierde_el_turno = tc._meowth_fetch_pierde_el_turno
+    _meowth_fetch_loses_the_turn = tc._meowth_fetch_loses_the_turn
     _meowth_fetch_redundante = tc._meowth_fetch_redundante
-    _meowth_fetch_ya_en_mano = tc._meowth_fetch_ya_en_mano
+    _meowth_fetch_already_in_hand = tc._meowth_fetch_already_in_hand
     _meowth_immune_boss_engine = tc._meowth_immune_boss_engine
     _meowth_ld_free = tc._meowth_ld_free
     _no_second_attacker_path = tc._no_second_attacker_path
@@ -171,14 +171,14 @@ def puntuar(tc, o, score):
                         and op_prize <= 2
                         and field_counts.get(card.id, 0) >= 1
                         and not (card.id == Meowth_ex
-                                 and (_alk_ld_engine_vivo
+                                 and (_alk_ld_engine_alive
                                       or _meowth_immune_boss_engine))
                         and not (card.id == Fezandipiti_ex
                                  and AGENT_STATE.ko_last_turn)):
-                    _alk_hp_cuerpo = getattr(data, 'hp', 0) or 0
-                    if (_alk_hp_cuerpo and _powerful_hand_proyectado(
+                    _alk_body_hp = getattr(data, 'hp', 0) or 0
+                    if (_alk_body_hp and _powerful_hand_proyectado(
                             getattr(op_state, 'handCount', 0))
-                            >= _alk_hp_cuerpo):
+                            >= _alk_body_hp):
                         _alk_ex_redundante_letal = True
         
                 if _block_4th_ex or _alk_ex_redundante_letal:
@@ -619,7 +619,7 @@ def puntuar(tc, o, score):
         
                         if (not state.supporterPlayed and
                                 _best_supp_in_hand_val < 500 and
-                                _best_supp_in_mazo_id == Lillie_Determination and
+                                _best_supp_in_deck_id == Lillie_Determination and
                                 _best_supp_in_deck_val >= 650):
                             score = 20500
                         else:
@@ -645,7 +645,7 @@ def puntuar(tc, o, score):
                             _mw_act_reloc is not None
                             and len(_mw_act_reloc.energies)
                             >= RETREAT_COST.get(_mw_act_reloc.id, 1))
-                        _mw_engine_in_mazo = (
+                        _mw_engine_in_deck = (
                             AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(
                                 Lillie_Determination, {}).get(ZONE_DECK, 0) > 0
                             or AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(
@@ -656,7 +656,7 @@ def puntuar(tc, o, score):
                                 and bench_count < 5
                                 and not state.supporterPlayed
                                 and hand_counts.get(Lillie_Determination, 0) == 0
-                                and _mw_engine_in_mazo):
+                                and _mw_engine_in_deck):
                             score = 21600
                         else:
                             score = SCORE_VETO
@@ -670,7 +670,7 @@ def puntuar(tc, o, score):
                           hand_counts.get(Lillie_Determination, 0) >= 1 and
                           hand_counts.get(Ultra_Ball, 0) >= 1 and
                           not (AGENT_STATE.op_is_crustle_deck or op_is_drednaw_deck or op_is_sylveon_deck) and
-                          not (_best_supp_in_mazo_id == Boss_Orders and _best_supp_in_deck_val >= 650)):
+                          not (_best_supp_in_deck_id == Boss_Orders and _best_supp_in_deck_val >= 650)):
         
                         score = SCORE_VETO
                     elif _best_supp_in_hand_val >= 500:
@@ -692,7 +692,7 @@ def puntuar(tc, o, score):
                     else:
         
                         _meowth_score = SCORE_VETO
-                        _target_id = _best_supp_in_mazo_id
+                        _target_id = _best_supp_in_deck_id
                         _target_val = _best_supp_in_deck_val
         
                         if _target_id == Boss_Orders and _target_val >= 650:
@@ -754,7 +754,7 @@ def puntuar(tc, o, score):
                     # in hand). Same place and same effect: cancel the
                     # play and carry on the turn with the Supporter from hand.
                     if ((_meowth_fetch_redundante
-                         or _meowth_fetch_pierde_el_turno) and score > 0):
+                         or _meowth_fetch_loses_the_turn) and score > 0):
                         score = SCORE_VETO
                 elif card.id == Fezandipiti_ex:
         
@@ -1036,7 +1036,7 @@ def puntuar(tc, o, score):
                     # developed or with no Lillie's in hand -- so
                     # `_meowth_fetch_ya_en_mano` is False and they still put the
                     # Meowth down to dig out the Xerosic.
-                    and not _meowth_fetch_ya_en_mano)
+                    and not _meowth_fetch_already_in_hand)
                 if _alk_meowth_hand_engine:
                     # Xerosic engine vs Alakazam with a Meowth ex ALREADY in hand
                     # (user, registro_006 step 76 vs Alakazam, WON): with
@@ -1072,21 +1072,21 @@ def puntuar(tc, o, score):
                 # first turn when going first. (no score guard: the boost
                 # has to come before the generic development vetoes, which do not
                 # know about this plan)
-                if _descuadre_matchup:
+                if _prize_mismatch_matchup:
                     _rb_act = my_state.active[0] if my_state.active else None
                     _rb_data = card_table.get(card.id)
                     _rb_es_1premio_basico = (
                         _rb_data is not None
                         and not _rb_data.ex and not _rb_data.megaEx
                         and not _rb_data.stage1 and not _rb_data.stage2)
-                    _rb_banca_con_1premio = any(
+                    _rb_bench_with_1prize = any(
                         bp is not None and prize_count(bp) == 1
                         for bp in (my_state.bench or []))
                     if (_rb_es_1premio_basico
                             and _rb_act is not None
                             and _rb_act.id in OUR_EX_IDS
                             and not _active_already_kos
-                            and not _rb_banca_con_1premio):
+                            and not _rb_bench_with_1prize):
                         score = 21850 if card.id == Tapu_Bulu else 21700
         
                 # Cubchoo matchup (user, change 5): against this deck the bench
@@ -1164,7 +1164,7 @@ def puntuar(tc, o, score):
                 # reserve. The three conditions live together in
                 # `_alk_ld_engine_vivo` (computed alongside `_meowth_ld_free`).
                 if (op_is_alakazam_deck and bench_count == 4
-                        and _alk_ld_engine_vivo
+                        and _alk_ld_engine_alive
                         and AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(
                             Xerosic_Machinations, {}).get(ZONE_DECK, 0) > 0
                         and score > 0
@@ -1435,9 +1435,9 @@ def puntuar(tc, o, score):
                             _cf_data is not None
                             and not getattr(_cf_data, 'stage1', False)
                             and not getattr(_cf_data, 'stage2', False))
-                        _cf_relevo_urgente = (bench_count == 0
+                        _cf_relief_urgent = (bench_count == 0
                                               and _cf_es_basico)
-                        if _cf_need_starter or _cf_relevo_urgente:
+                        if _cf_need_starter or _cf_relief_urgent:
                             if card.id == Applin:
                                 score = 21000
                             elif card.id == Chikorita:
@@ -1529,13 +1529,13 @@ def puntuar(tc, o, score):
                 # ran the Zone and that is why the gate did not cover the case):
                 # 94.2% with the fix vs 74.2% without it, 8000 games per
                 # branch. +20 points.
-                _quita_candado_rival = (
+                _removes_opponent_lock = (
                     data.cardType == CardType.STADIUM
                     and _counter_stadium_urgent(
                         neutralization_zone_active, watchtower_in_play,
                         AGENT_STATE.forest_in_play, _festival_lead_hostil))
                 if (op_is_comfey_deck and score > 0
-                        and not _quita_candado_rival
+                        and not _removes_opponent_lock
                         and card.id not in (
                             Lillie_Determination, Lanas_Aid, Boss_Orders,
                             Ultra_Ball, Night_Stretcher, Bug_Catching_Set)):
@@ -1562,7 +1562,7 @@ def puntuar(tc, o, score):
                     # stadium pays for itself. Above the Forest (which
                     # is worth at most 29000) because it produces a new body.
                     score = 30000
-                elif _gt_raiz_en_juego:
+                elif _gt_root_in_play:
                     # The root is in play but came down today: the chain pays
                     # off next turn. It is still worth
                     # putting down now (and it removes the opposing stadium along the way).

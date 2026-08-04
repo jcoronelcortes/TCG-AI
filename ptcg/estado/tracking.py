@@ -77,8 +77,8 @@ def _identify_prizes(obs, my_state=None):
         if hidden < 0:
             hidden = 0
         entry[ZONE_DECK] = in_deck
-        premio = hidden - in_deck
-        entry[ZONE_PRIZE] = premio if premio > 0 else 0
+        prize = hidden - in_deck
+        entry[ZONE_PRIZE] = prize if prize > 0 else 0
 
 
 def _sync_from_state(my_state):
@@ -187,8 +187,8 @@ def _identify_prizes(obs, my_state=None):
         if hidden < 0:
             hidden = 0
         entry[ZONE_DECK] = in_deck
-        premio = hidden - in_deck
-        entry[ZONE_PRIZE] = premio if premio > 0 else 0
+        prize = hidden - in_deck
+        entry[ZONE_PRIZE] = prize if prize > 0 else 0
 
 
 def _sync_from_state(my_state):

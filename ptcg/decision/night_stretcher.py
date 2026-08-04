@@ -262,7 +262,7 @@ def _ns_e_finisher_with_active(w):
     if hp <= 0:
         return False
     total = count_total_grass_energy(w.my_state)
-    unidad = _grass_attach_unit()
+    unit = _grass_attach_unit()
     e = len(act.energies)
 
     def _eff(_e, _grass):
@@ -274,7 +274,7 @@ def _ns_e_finisher_with_active(w):
         return _our_effective_damage(
             act, opp, base, w.meganium_in_play, w.neutralization_zone_active)
 
-    return _eff(e, total) < hp <= _eff(e + unidad, total + unidad)
+    return _eff(e, total) < hp <= _eff(e + unit, total + unit)
 
 
 def _ns_e_finisher_via_promotion(w):
@@ -317,7 +317,7 @@ def _ns_e_finisher_via_promotion(w):
             w.neutralization_zone_active) >= hp:
         return False
     after_retreat = max(0, total - _retreat_grass_units(cost))
-    unidad = _grass_attach_unit()
+    unit = _grass_attach_unit()
 
     def _remata(bp, grass):
         e = len(bp.energies)
@@ -353,7 +353,7 @@ def _ns_e_finisher_via_promotion(w):
     for bp in (w.my_state.bench or []):
         if bp is None:
             continue
-        if not _remata(bp, after_retreat + unidad):
+        if not _remata(bp, after_retreat + unit):
             continue
         _golpe = _op_active_attack_damage_to(
             opp, bp, getattr(w.op_state, 'handCount', None))
@@ -404,21 +404,21 @@ def _no_attack_today(my_state, state, field_counts, abilities_off=False):
     if act is not None and _can_attack_eff(act.id, len(act.energies)):
         return False
     bench = [b for b in (my_state.bench or []) if b is not None]
-    puede_promover = (
+    can_promote = (
         act is not None
         and not getattr(state, 'retreated', False)
         and len(act.energies) >= RETREAT_COST.get(act.id, 1))
-    if puede_promover and any(_can_attack_eff(b.id, len(b.energies))
+    if can_promote and any(_can_attack_eff(b.id, len(b.energies))
                               for b in bench):
         return False
     if _grass_attach_route_open(state, field_counts,
                                 abilities_off=abilities_off):
-        unidad = _grass_attach_unit()
+        unit = _grass_attach_unit()
         if act is not None and _can_attack_eff(act.id,
-                                               len(act.energies) + unidad):
+                                               len(act.energies) + unit):
             return False
-        if puede_promover and any(
-                _can_attack_eff(b.id, len(b.energies) + unidad)
+        if can_promote and any(
+                _can_attack_eff(b.id, len(b.energies) + unit)
                 for b in bench):
             return False
     return True

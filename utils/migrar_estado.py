@@ -117,14 +117,14 @@ def migrar(texto, campos):
     for ln, col, name in v.hits:
         por_linea.setdefault(ln, []).append((col, name))
     for ln, sitios in por_linea.items():
-        linea = lineas[ln - 1]
+        line = lineas[ln - 1]
         for col, name in sorted(sitios, reverse=True):
-            if linea[col:col + len(name)] != name:
+            if line[col:col + len(name)] != name:
                 raise AssertionError(
                     f"linea {ln} col {col}: se esperaba {name!r} y hay "
-                    f"{linea[col:col + len(name)]!r}")
-            linea = linea[:col] + f"{OBJETO}.{name}" + linea[col + len(name):]
-        lineas[ln - 1] = linea
+                    f"{line[col:col + len(name)]!r}")
+            line = line[:col] + f"{OBJETO}.{name}" + line[col + len(name):]
+        lineas[ln - 1] = line
 
     # 2) remove (or prune) the `global` statements
     quitados = 0

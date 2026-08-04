@@ -56,8 +56,8 @@ EVO_LINES = (
 # Score bands of the stadium's ABILITY (ABILITY branch). They sit above evolving
 # from hand (Meganium 35000 / Hydrapple ex 33000) because Grand Tree does NOT
 # consume the card in hand: if both plays are available, the free one first.
-GT_SCORE_CADENA_COMPLETA = 36000
-GT_SCORE_SOLO_FASE1 = 34000
+GT_SCORE_FULL_CHAIN = 36000
+GT_SCORE_STAGE1_ONLY = 34000
 # Bonus to the FETCH (Ultra Ball / Bug Catching Set / Poke Pad / Night Stretcher)
 # of the Basic the stadium enables, and to putting it down from hand afterwards.
 # Deliberately small: they are tie-breakers, they must not step on the existing
@@ -95,8 +95,8 @@ OUR_TERA_IDS = {Teal_Mask_Ogerpon_ex}
 
 __all__ = [
     'EVO_LINES',
-    'GT_SCORE_CADENA_COMPLETA',
-    'GT_SCORE_SOLO_FASE1',
+    'GT_SCORE_FULL_CHAIN',
+    'GT_SCORE_STAGE1_ONLY',
     'GT_FETCH_BONUS',
     'GT_PLAY_BASICO_BONUS',
     'GT_VALUE_STAGE2',

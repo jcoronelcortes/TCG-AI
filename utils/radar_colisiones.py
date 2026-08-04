@@ -259,8 +259,8 @@ def _s_evoluciona_si_puede(m, menus):
                 if p and (forest or not p.get("appearThisTurn"))}
     mano = {h["id"] for h in (yo0.get("hand") or [])}
     objetivo = set()
-    for linea in m.EVO_LINES:
-        for pre, evo in zip(linea, linea[1:]):
+    for line in m.EVO_LINES:
+        for pre, evo in zip(line, line[1:]):
             if evo in mano and pre in en_juego and evo not in en_juego:
                 objetivo.add(evo)
     if not objetivo:

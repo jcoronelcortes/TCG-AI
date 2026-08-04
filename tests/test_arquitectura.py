@@ -21,8 +21,8 @@ import lint_arquitectura as la  # noqa: E402
 def test_sin_infracciones_de_arquitectura():
     fallos = la.revisar()
     detalle = "\n".join(
-        f"  {archivo}:{linea}: [{regla}] {mensaje}"
-        for regla, archivo, linea, mensaje in fallos
+        f"  {archivo}:{line}: [{regla}] {mensaje}"
+        for regla, archivo, line, mensaje in fallos
     )
     assert not fallos, f"infracciones de arquitectura:\n{detalle}"
 

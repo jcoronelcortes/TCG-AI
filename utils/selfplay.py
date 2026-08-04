@@ -205,8 +205,8 @@ def jugar_partida(agente_p0, agente_p1, deck0=None, deck1=None,
             return {"result": "limite", "ganador": None, "pasos": pasos,
                     "primer_jugador": primer_jugador,
                     "premios_tomados": prizes}
-        ganador = obs["current"]["result"]
-        return {"result": ganador, "ganador": ganador, "pasos": pasos,
+        winner = obs["current"]["result"]
+        return {"result": winner, "ganador": winner, "pasos": pasos,
                 "primer_jugador": obs["current"]["firstPlayer"]
                 if primer_jugador == -1 else primer_jugador,
                 "premios_tomados": prizes}

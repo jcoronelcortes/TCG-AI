@@ -27,8 +27,8 @@ def _energy_score_base(tc, pokemon, active):
     _bench_attacker_needs_energy = tc._bench_attacker_needs_energy
     _bench_attacker_ready = tc._bench_attacker_ready
     _bench_has_chargeable = tc._bench_has_chargeable
-    _carga_activo_habilita_ataque = tc._carga_activo_habilita_ataque
-    _carga_activo_remata = tc._carga_activo_remata
+    _charge_active_enables_attack = tc._charge_active_enables_attack
+    _charge_active_finishes = tc._charge_active_finishes
     _conf_active = tc._conf_active
     _conf_active_can_attack = tc._conf_active_can_attack
     _conf_active_can_retreat = tc._conf_active_can_retreat
@@ -90,7 +90,7 @@ def _energy_score_base(tc, pokemon, active):
     # the WINNING finisher via Boss's (42000). It covers the MANUAL attachment
     # (OptionType.ATTACH) and the target of Ripening Charge
     # (SelectContext.ATTACH_FROM), both of which score through here.
-    if active and _carga_activo_remata:
+    if active and _charge_active_finishes:
         return SCORE_CHARGE_ACTIVE_FINISHER
 
     # TARGET of the line "Grass to the ACTIVE -> RETREAT -> attack with the
@@ -490,7 +490,7 @@ def _energy_score_base(tc, pokemon, active):
     # -- the same reasoning as `_attach_enable_retreat_attack` (31200), but without
     # paying a retreat. It goes AFTER all the lethal lines (41000+), which still
     # rule, and BEFORE the charges of FUTURE attackers.
-    if active and _carga_activo_habilita_ataque:
+    if active and _charge_active_enables_attack:
         return SCORE_CHARGE_ACTIVE_ATTACK
 
     # Rule (user, log 85857426 step 37, vs Mega Lucario, WE LOST): do NOT waste the

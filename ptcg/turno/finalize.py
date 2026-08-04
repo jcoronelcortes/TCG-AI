@@ -28,7 +28,7 @@ def finalizar(tc):
     # Unpacking of the context: same names as in agent().
     _ability_order_veto = tc._ability_order_veto
     _active_attack_wins_now = tc._active_attack_wins_now
-    _attach_cede_a_teal_dance = tc._attach_cede_a_teal_dance
+    _attach_yields_to_teal_dance = tc._attach_yields_to_teal_dance
     _b = tc._b
     _dragapult_no_tapu = tc._dragapult_no_tapu
     _item_lock_incoming = tc._item_lock_incoming
@@ -36,7 +36,7 @@ def finalizar(tc):
     _ld_opt = tc._ld_opt
     _lucario_sac_pivot = tc._lucario_sac_pivot
     _meowth_fetch_id = tc._meowth_fetch_id
-    _meowth_fetch_pierde_el_turno = tc._meowth_fetch_pierde_el_turno
+    _meowth_fetch_loses_the_turn = tc._meowth_fetch_loses_the_turn
     _meowth_fetch_redundante = tc._meowth_fetch_redundante
     _meowth_ld_free = tc._meowth_ld_free
     _ready_attacker_count = tc._ready_attacker_count
@@ -135,15 +135,15 @@ def finalizar(tc):
         # Only with the body PAID FOR this turn: the Last-Ditch of a Meowth ex that
         # was already in play is free and does not commit the turn.
         _ld_serial = getattr(select.effect, 'serial', None)
-        _ld_cuerpo_pagado = False
+        _ld_body_paid_for = False
         for _ld_pk in (my_state.bench or []) + (my_state.active or []):
             if (_ld_pk is not None and _ld_pk.id == Meowth_ex
                     and getattr(_ld_pk, 'appearThisTurn', False)
                     and (_ld_serial is None
                          or getattr(_ld_pk, 'serial', None) == _ld_serial)):
-                _ld_cuerpo_pagado = True
+                _ld_body_paid_for = True
                 break
-        if _ld_cuerpo_pagado:
+        if _ld_body_paid_for:
             _best_ld_score = SCORE_VETO
             _best_ld_id = 0
             for _ld_idx, _ld_opt in enumerate(select.option):
@@ -380,7 +380,7 @@ def finalizar(tc):
         _TIER_DEVELOP = 40
         _TIER_POKE_PAD = 30
         _TIER_BUG_SET = 20
-        _TIER_DEVELOP_TRAS_BCS = 15
+        _TIER_DEVELOP_AFTER_BCS = 15
         _TIER_ENERGY = 10
 
         # A Bug Catching Set play really available NOW (offered in the menu and
@@ -438,7 +438,7 @@ def finalizar(tc):
                 if (_tapu_future_charge
                         and _po_o.inPlayArea == AreaType.ACTIVE):
                     _po_is_ko_energy = False
-                if _po_i in _attach_cede_a_teal_dance:
+                if _po_i in _attach_yields_to_teal_dance:
                     # A pure development attachment with a Teal Dance pending: it
                     # stays in tier 0 next to the ability so the score decides
                     # (Teal Dance 7500 > capped attachment 7000).
@@ -472,7 +472,7 @@ def finalizar(tc):
                         # it is decided BETTER which body goes down.
                         _play_order_tier[_po_i] = (
                             _TIER_DEVELOP if _bcs_play_idx < 0
-                            else _TIER_DEVELOP_TRAS_BCS)
+                            else _TIER_DEVELOP_AFTER_BCS)
             elif _po_o.type == OptionType.ABILITY:
                 # Teal Dance PRECEDES the manual attachment (user, registro_004 step
                 # 28, vs Mega Starmie): the Teal Dance ability of Teal Mask
@@ -573,12 +573,12 @@ def finalizar(tc):
     # Threshold <= 10 = "critical deck", the same one as `freno_deckout_mazo_critico`.
     # The rescue only overrides "doing nothing", so on the turns vs Comfey that DO
     # produce something (the Ogerpon-only plan) the reserve stays intact.
-    _lil_robo = 8 if my_prize >= 6 else 6
-    _lil_mazo_tras_refresco = (getattr(my_state, 'deckCount', 60)
+    _lil_draw = 8 if my_prize >= 6 else 6
+    _lil_deck_after_refresh = (getattr(my_state, 'deckCount', 60)
                                + max(0, sum(hand_counts.values()) - 1)
-                               - _lil_robo)
+                               - _lil_draw)
     if (context == SelectContext.MAIN and not state.supporterPlayed
-            and _lil_mazo_tras_refresco > 10
+            and _lil_deck_after_refresh > 10
             and not (op_is_alakazam_deck
                      and hand_counts.get(Xerosic_Machinations, 0) >= 1)):
         _rescate_lil = -1
@@ -592,16 +592,16 @@ def finalizar(tc):
                 _rescate_lil = _wi
                 break
         if _rescate_lil >= 0 and scores:
-            _mejor_i = max(range(len(scores)),
+            _best_i = max(range(len(scores)),
                            key=lambda i: (_play_order_tier[i], scores[i]))
-            _mejor_o = select.option[_mejor_i]
-            _turno_esteril = False
-            if _mejor_o.type == OptionType.END or scores[_mejor_i] <= 0:
-                _turno_esteril = True
-            elif _mejor_o.type == OptionType.ATTACK:
+            _best_o = select.option[_best_i]
+            _sterile_turn = False
+            if _best_o.type == OptionType.END or scores[_best_i] <= 0:
+                _sterile_turn = True
+            elif _best_o.type == OptionType.ATTACK:
                 _est_act = _active_of(my_state)
                 _est_op = _active_of(op_state)
-                _est_atk = attack_table.get(getattr(_mejor_o, 'attackId', None))
+                _est_atk = attack_table.get(getattr(_best_o, 'attackId', None))
                 _est_impreso = getattr(_est_atk, 'damage', 0) or 0
                 _est_base = 0
                 if _est_act is not None:
@@ -610,9 +610,9 @@ def finalizar(tc):
                         _est_act.id, _est_op, _est_e * _grass_mult(),
                         grass_scale=total_grass, teal_self_energy=_est_e,
                         bench_count=bench_count)
-                _turno_esteril = (_est_impreso <= 0 and _est_base <= 0)
-            if _turno_esteril:
-                scores[_rescate_lil] = max(1500, scores[_mejor_i] + 100)
+                _sterile_turn = (_est_impreso <= 0 and _est_base <= 0)
+            if _sterile_turn:
+                scores[_rescate_lil] = max(1500, scores[_best_i] + 100)
 
     # =================================================================
     # DEAD-TURN RESCUE WITH MEOWTH EX (user, registro_002 step 18 vs
@@ -651,7 +651,7 @@ def finalizar(tc):
             # already have (`_meowth_fetch_pierde_el_turno`).
             and _meowth_fetch_id is not None
             and not _meowth_fetch_redundante
-            and not _meowth_fetch_pierde_el_turno):
+            and not _meowth_fetch_loses_the_turn):
         _mw_rescate = -1
         for _mwi, _mwo in enumerate(select.option):
             if _mwi >= len(scores) or _mwo.type != OptionType.PLAY:
@@ -661,12 +661,12 @@ def finalizar(tc):
                 _mw_rescate = _mwi
                 break
         if _mw_rescate >= 0:
-            _mw_mejor_i = max(range(len(scores)),
+            _mw_best_i = max(range(len(scores)),
                               key=lambda i: (_play_order_tier[i], scores[i]))
-            _mw_mejor_o = select.option[_mw_mejor_i]
-            if (_mw_mejor_o.type == OptionType.END
-                    or scores[_mw_mejor_i] <= 0):
-                scores[_mw_rescate] = max(1500, scores[_mw_mejor_i] + 100)
+            _mw_best_o = select.option[_mw_best_i]
+            if (_mw_best_o.type == OptionType.END
+                    or scores[_mw_best_i] <= 0):
+                scores[_mw_rescate] = max(1500, scores[_mw_best_i] + 100)
 
     # =================================================================
     # ANTI-EMPTY-BENCH SAFETY NET (user, registro_002 step 15 vs Mega
@@ -813,7 +813,7 @@ def finalizar(tc):
             if _st_opa is not None and op_prize <= prize_count_op(_st_opa):
                 _st_wins = True
         if _st_sterile and not _st_wins:
-            _st_en_mazo = lambda cid: (
+            _st_in_deck = lambda cid: (
                 AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(cid, {}).get(ZONE_DECK, 0) > 0)
             # ITEM LOCK EXCEPTION (user): with Budew on the opposing field
             # -- or against Dragapult, which runs it and can put it down -- the
@@ -840,15 +840,15 @@ def finalizar(tc):
             # down and the Ultra Ball will have burned 2 cards for a dead card.
             # Same criterion as the fetch (`last_ditch_no_produce`) and as
             # `_ub_cavar_meowth_se_juega`.
-            _st_meowth_util = (not state.supporterPlayed
+            _st_meowth_useful = (not state.supporterPlayed
                                and not meowth_ability_lock
                                and _meowth_ld_free
                                and field_counts.get(Meowth_ex, 0) < 2)
-            _st_cuerpo_ok = lambda cid: (
+            _st_body_ok = lambda cid: (
                 _st_plan_ok(cid)
-                and (cid != Meowth_ex or _st_meowth_util))
-            _st_basico_util = (bench_count < 5 and any(
-                _st_en_mazo(_b) and _st_cuerpo_ok(_b) for _b in (
+                and (cid != Meowth_ex or _st_meowth_useful))
+            _st_basic_useful = (bench_count < 5 and any(
+                _st_in_deck(_b) and _st_body_ok(_b) for _b in (
                     Chikorita, Applin, Teal_Mask_Ogerpon_ex, Tapu_Bulu,
                     Meowth_ex, Fezandipiti_ex)))
             # The pre-evolution has to be able to EVOLVE THIS TURN (user,
@@ -861,7 +861,7 @@ def finalizar(tc):
             # out. With the item lock threat the previous criterion is kept (it
             # is enough for the pre-evolution to be in play: it serves the next
             # turn, which is exactly what is being bought).
-            def _st_evolucionable(pre_id):
+            def _st_evolvable(pre_id):
                 for _stp in ((my_state.active or []) + (my_state.bench or [])):
                     if _stp is None or _stp.id != pre_id:
                         continue
@@ -869,8 +869,8 @@ def finalizar(tc):
                             or not getattr(_stp, 'appearThisTurn', False)):
                         return True
                 return False
-            _st_evo_util = any(
-                _st_evolucionable(_pre) and _st_en_mazo(_evo)
+            _st_evo_useful = any(
+                _st_evolvable(_pre) and _st_in_deck(_evo)
                 and _st_plan_ok(_evo)
                 for _pre, _evo in ((Applin, Dipplin), (Chikorita, Bayleef),
                                    (Bayleef, Meganium), (Dipplin, Hydrapple_ex)))
@@ -898,8 +898,8 @@ def finalizar(tc):
                     _st_pokemon_en_menu = True
                     break
             if _st_pokemon_en_menu and not _st_item_lock:
-                _st_basico_util = False
-                _st_evo_util = False
+                _st_basic_useful = False
+                _st_evo_useful = False
             # THE COST VETO IS NOT REVOKED BY A STERILE TURN (user, log
             # 88359220 steps 8-14 vs Comfey/Yveltal, LOST -- registro_001).
             # Scenario: OUR first turn going FIRST (there is no attack or
@@ -925,9 +925,9 @@ def finalizar(tc):
             # is strictly more than trading them for a redundant basic. See
             # `_ub_coste_destruye_carta_mejor`.
             if _ub_cost_destroys_better_card(ctx):
-                _st_basico_util = False
-                _st_evo_util = False
-            if _st_basico_util or _st_evo_util:
+                _st_basic_useful = False
+                _st_evo_useful = False
+            if _st_basic_useful or _st_evo_useful:
                 for _sti, _sto in enumerate(select.option):
                     if _sti >= len(scores) or _sto.type != OptionType.PLAY:
                         continue

@@ -10,7 +10,7 @@ from ptcg.calculo.carta import prize_count_op
 from ptcg.calculo.dano import _attacker_base_damage, _bench_attacker_can_ko, _our_effective_damage
 from ptcg.calculo.energia import _grass_attach_unit, _grass_mult, _retreat_grass_units
 from ptcg.cartas.grupos import EVO_LINES
-from ptcg.cartas.ids import ABILITY_IMMUNE_IDS, Abra, Alakazam_ex, Applin, BOSS_PRIORITY_CRUSTLE_GUST, Basic_Grass_Energy, Bayleef, Boss_Orders, Chikorita, Crustle_Fighting, Crustle_Grass, Dawn, Dipplin, Drednaw, Dusclops, Duskull, Dwebble_Fighting, Dwebble_Grass, EX_IMMUNE_IDS, EX_PREEVO_IDS, Fezandipiti_ex, Froslass, HIGH_PRIORITY_BENCH_TARGETS, Hydrapple_ex, KEY_BENCH_ATTACKER_IDS, Kadabra, Kirlia, LANA_PLAY_BASE_RECUPERABLE, LANA_PLAY_SIN_DEMANDA, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Munkidori, NONEX_FINAL_PREEVO_IDS, OUR_ABILITY_IDS, OUR_EX_IDS, Pinsir, RETREAT_COST, Ralts, Slowpoke, THREAT_PREEVO_IDS, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Zorua_N
+from ptcg.cartas.ids import ABILITY_IMMUNE_IDS, Abra, Alakazam_ex, Applin, BOSS_PRIORITY_CRUSTLE_GUST, Basic_Grass_Energy, Bayleef, Boss_Orders, Chikorita, Crustle_Fighting, Crustle_Grass, Dawn, Dipplin, Drednaw, Dusclops, Duskull, Dwebble_Fighting, Dwebble_Grass, EX_IMMUNE_IDS, EX_PREEVO_IDS, Fezandipiti_ex, Froslass, HIGH_PRIORITY_BENCH_TARGETS, Hydrapple_ex, KEY_BENCH_ATTACKER_IDS, Kadabra, Kirlia, LANA_PLAY_BASE_RECUPERABLE, LANA_PLAY_NO_DEMAND, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Munkidori, NONEX_FINAL_PREEVO_IDS, OUR_ABILITY_IDS, OUR_EX_IDS, Pinsir, RETREAT_COST, Ralts, Slowpoke, THREAT_PREEVO_IDS, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Zorua_N
 from ptcg.cartas.lineas import _pokemon_injugable, _preevo_of_ex_line, _is_more_evolved_than
 from ptcg.cartas.tablas import card_table
 from ptcg.decision.boss_orders import _gust_relieves_the_attacker
@@ -1204,16 +1204,16 @@ def evaluate_supporters(tc):
         for _pid in discard_basic_pokemon)
     _lana_pk_necesario = (_lana_pk_jugable
                           and _lana_val_bonos > LANA_PLAY_BASE_RECUPERABLE)
-    _lana_energia_jugable = (discard_basic_energy >= 1
+    _lana_energy_playable = (discard_basic_energy >= 1
                              and _lana_plan_play.slots_today >= 1)
-    _lana_energia_util = (_lana_energia_jugable
+    _lana_energy_useful = (_lana_energy_playable
                           and _lana_plan_play.new_useful_today >= 1
                           and _lana_plan_play.demanda >= 1)
-    if not (_lana_pk_jugable or _lana_energia_jugable):
+    if not (_lana_pk_jugable or _lana_energy_playable):
         lana_val = 0
-    elif not (_lana_pk_necesario or _lana_energia_util
+    elif not (_lana_pk_necesario or _lana_energy_useful
               or _lana_energy_enables_attack):
-        lana_val = min(lana_val, LANA_PLAY_SIN_DEMANDA)
+        lana_val = min(lana_val, LANA_PLAY_NO_DEMAND)
 
     values[Lanas_Aid] = lana_val
     # Exposed for the PLAY scoring layer: it distinguishes the case where
@@ -1297,8 +1297,8 @@ def evaluate_supporters(tc):
     # instead of a fixed table.
     if bench_count >= bench_max:
         _dawn_need_evo = False
-        for _dw_linea in EVO_LINES:
-            for _dw_pre, _dw_evo in zip(_dw_linea, _dw_linea[1:]):
+        for _dw_line in EVO_LINES:
+            for _dw_pre, _dw_evo in zip(_dw_line, _dw_line[1:]):
                 if (field_counts.get(_dw_pre, 0) >= 1
                         and hand_counts.get(_dw_evo, 0) < 1
                         and AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(
