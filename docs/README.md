@@ -8,6 +8,27 @@ Esta carpeta agrupa la documentación por módulo del agente para el *PTCG AI Ba
 
 - **[main.md](main.md)** — Visión general del mecanismo (scores + argmax por `(tier, score)`), glosario compartido (energía efectiva/*Wild Growth*, `OptionType`/`SelectContext`, creencia `CARTAS_ACTIVAS_EN_MAZO`, detección de matchup e inferencia por descarte, `AttackPlan`, pivotes defensivos, motor Meowth ex) y **mapa temático** de los documentos numerados. **Empieza por aquí.**
 
+## Dónde vive cada cosa (tras el refactor)
+
+`main.py` pasó de 25 333 a 10 042 líneas; el resto vive en el paquete `ptcg/`
+(45 módulos). Los documentos numerados de abajo siguen siendo válidos como
+explicación de la ESTRATEGIA, pero para localizar el código usa este mapa:
+
+| Paquete | Qué contiene | Documento |
+|---|---|---|
+| `ptcg/cartas/` | IDs, tablas, costes, grupos y líneas evolutivas | [main-01](main-01-constants-and-config.md) |
+| `ptcg/motor/` | motor de reglas, `AttackPlan`, `DecisionContext`, depuración | [main-02](main-02-core-calc-helpers.md) |
+| `ptcg/calculo/` | energía efectiva, daño, probabilidad, lectura de carta y de rival | [main-02](main-02-core-calc-helpers.md), [main-04](main-04-scoring-helpers.md) |
+| `ptcg/estado/` | `ESTADO` (estado entre turnos), creencia del mazo, logs | [main-03](main-03-state-tracking-and-belief.md) |
+| `ptcg/decision/` | un módulo por carta: Boss's, Ultra Ball, Lillie's, disrupción… | [main-08](main-08-agent-boss-orders.md), [main-12](main-12-agent-play-scoring.md) |
+| `ptcg/turno/` | fases de `agent()`: puntuación por `OptionType`, supporters, energía, cierre | [main-11](main-11-agent-card-search-scoring.md)…[main-15](main-15-agent-attack-end-finalize.md) |
+| `main.py` | setup, matchup, banderas, promoción tras KO y `agent()` | [main-05](main-05-agent-setup.md)…[main-10](main-10-agent-energy-and-switch.md) |
+
+El estado que persiste entre turnos ya **no** son globals: vive en
+`ptcg/estado/agente.py` como campos de `ESTADO`. Ver
+[la arquitectura del refactor](main-refactor-arquitectura.md) para el porqué de
+cada frontera y para las trampas que aparecieron por el camino.
+
 ## Documentación de bajo nivel de `main.py`
 
 Cada archivo cubre una región del código, identificada por sus funciones y banderas (no por líneas). Núcleo y ayudantes (antes de `agent()`):
@@ -37,7 +58,7 @@ Transversal:
 
 Documentos de refactor:
 
-- [Arquitectura objetivo y proceso por olas](main-refactor-arquitectura.md) — **plan vigente**: en qué paquete se parte `main.py` (25 333 líneas, de las que `agent()` son 15 500), en qué orden, y con qué puerta de verificación (`utils/sombra.py` + los 930 tests) se demuestra que cada paso no cambia ni una decisión.
+- [Arquitectura del refactor y proceso por olas](main-refactor-arquitectura.md) — **refactor TERMINADO y validado en competición**: `main.py` 25 333 → 10 042 líneas en 45 módulos, con 0 flips en 90 577 decisiones. Empieza por su §0: el resultado, lo que quedó sin extraer y las siete lecciones que costaron caro.
 - [Plan del refactor de Ultra Ball](main-refactor-ultra-ball-plan.md) — refactor ya ejecutado (`_score_ultra_ball_play` como orquestador); se conserva como referencia de método (extracción verbatim + verificación por hash).
 
 ## Integración con el simulador (`cg/`)
@@ -66,4 +87,4 @@ pytest -q --cov=. --cov-report=term-missing
 
 Para depurar decisiones concretas contra partidas reales, ver [Reproducción de logs](utils-log-replay.md).
 
-> Nota: la documentación numerada `main-01…15` es un mapa **temático**; si dentro de algún documento aparecen rangos de línea, corresponden a la versión del código en que se escribió — localiza el código por los nombres de funciones y banderas.
+> Nota: la documentación numerada `main-01…16` es un mapa **temático** y describe la ESTRATEGIA, que el refactor no cambió (0 flips en 90 577 decisiones). Para localizar el código, usa el mapa de paquetes de arriba; si dentro de algún documento aparecen rangos de línea, corresponden a la versión del código en que se escribió — localiza el código por los nombres de funciones y banderas.

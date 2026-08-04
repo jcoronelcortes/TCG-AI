@@ -12,6 +12,14 @@ def agent(obs_dict: dict) -> list[int]
 
 que recibe la observación cruda del juego y devuelve la **lista de índices de opción** que el motor debe ejecutar.
 
+> **Tras el refactor (ago 2026):** el agente ya no es un solo archivo. `main.py`
+> conserva `agent()` con las fases de setup, matchup, banderas y promoción; todo
+> lo demás vive en el paquete `ptcg/` (45 módulos). Este documento sigue siendo
+> el glosario y el mapa de la ESTRATEGIA, que no cambió: el refactor se verificó
+> con 0 flips en 90 577 decisiones. Para saber en qué archivo está cada cosa, ver
+> el mapa de paquetes en [README.md](README.md); para el porqué de cada frontera,
+> [main-refactor-arquitectura.md](main-refactor-arquitectura.md).
+
 ---
 
 ## 1. El contrato `agent(obs_dict)`
@@ -59,7 +67,7 @@ El mazo es de tipo **Planta/ex**. `Meganium` (Habilidad *Wild Growth*) hace que 
 `CARTAS_ACTIVAS_EN_MAZO[card_id][ESTADO]` mantiene, por carta, **cuántas copias** hay en cada zona; los estados son las claves `ESTADO_MAZO`, `ESTADO_MANO`, `ESTADO_BANCA` (en juego), `ESTADO_DESCARTE` y `ESTADO_PREMIO`. Se inicializa con `_init_cartas_tracking()`, se actualiza cada turno desde la observación visible y desde `obs.logs` (`_update_cartas_tracking`, `_move_card_state`), y cuando el simulador revela el mazo completo (p.ej. al jugar Ultra Ball) permite **fijar** qué copias están premiadas. Es lo que permite razonar sobre cartas ocultas (p.ej. "¿queda una `Lillie's Determination` en el mazo?" → `CARTAS_ACTIVAS_EN_MAZO[Lillie_Determination][ESTADO_MAZO] > 0`) y alimenta las heurísticas de probabilidad (`_prob_draw_any`, `_prob_card_accessible`, `_op_disruption_belief`).
 
 ### Estado global entre turnos
-Variables `global` que persisten entre llamadas: `plan` (`AttackPlan` del turno), `we_go_first`, `meganium_in_play`, `forest_in_play`, `ko_last_turn`, `op_is_crustle_deck`, `op_is_cornerstone_deck`, `op_has_mega_kangaskhan`, `_field_at_turn_start`, `_poke_pad_target_id`, `_ub_meowth_pending`, `_ub_fez_pending`, `_ub_engine_pivot_turn`, `_ld_supp_comprometido`, `_dodge_immune_*`. Se reinician al detectar cambio de turno (`pre_turn != state.turn`).
+**Ya no son variables `global`**: desde el refactor viven en `ESTADO` (`ptcg/estado/agente.py`) y se acceden como `ESTADO.<campo>`. Nunca se importan por nombre — `from X import ko_last_turn` ligaría una copia y el módulo se quedaría mirando un valor congelado. Los campos son: `plan` (`AttackPlan` del turno), `we_go_first`, `meganium_in_play`, `forest_in_play`, `ko_last_turn`, `op_is_crustle_deck`, `op_is_cornerstone_deck`, `op_has_mega_kangaskhan`, `_field_at_turn_start`, `_poke_pad_target_id`, `_ub_meowth_pending`, `_ub_fez_pending`, `_ub_engine_pivot_turn`, `_ld_supp_comprometido`, `_dodge_immune_*`. Se reinician al detectar cambio de turno (`pre_turn != state.turn`).
 
 ### Detección de matchup (`op_is_*_deck`)
 Al inicio de `agent()` se inspeccionan las cartas rivales visibles para clasificar el mazo enemigo (`op_is_crustle_deck`, `op_is_fire_deck`, `op_is_alakazam_deck`, `op_is_comfey_deck`, `op_is_lucario_deck`, `op_is_gardevoir_deck`, `op_is_control_deck`, `op_is_aggro_deck`, …). Muchas reglas de puntuación se activan **solo** contra ciertos arquetipos.

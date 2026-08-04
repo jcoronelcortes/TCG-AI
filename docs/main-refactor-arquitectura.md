@@ -7,6 +7,75 @@
 
 ---
 
+## 0. Resultado (refactor terminado y validado)
+
+> **Estado: cerrado.** Las siete olas están hechas y el paquete final **puntúa
+> correctamente en competición**. Este documento se conserva como registro del
+> método y, sobre todo, de lo que se aprendió por el camino.
+
+| | antes | después |
+|---|---:|---:|
+| `main.py` | 25 333 | **10 042** (−60 %) |
+| `agent()` | 15 500 | **5 996** |
+| módulos | 1 | **45** (`ptcg/`, 19 406 líneas) |
+| tests | 930 | **947** |
+
+```text
+ptcg/cartas     6 módulos   1 726 líneas   datos: IDs, tablas, líneas evolutivas
+ptcg/motor      4 módulos     322 líneas   motor de reglas, AttackPlan, contexto
+ptcg/calculo    7 módulos   1 614 líneas   energía, daño, probabilidad, rival
+ptcg/estado     4 módulos     510 líneas   ESTADO, creencia del mazo, logs
+ptcg/decision   9 módulos   4 653 líneas   un módulo por carta
+ptcg/turno      8 módulos  10 581 líneas   fases de agent(): puntuación, cierre…
+```
+
+**El gate nunca falló en producción.** Todas las olas cerraron con `sombra` en 0
+flips; la última pasada fueron **90 577 decisiones**. Y las cuatro submissions
+que se subieron (olas 1, 3, 5-1er-corte y final) puntuaron igual que el original.
+
+### Lo que queda dentro de `agent()`
+
+Setup, detección de matchup, banderas, promoción tras KO — y **un bloque de
+1 280 líneas** (`if context == SelectContext.MAIN`) que **resistió la
+extracción**. Al sacarlo, el gate detectó un cambio de comportamiento real (dos
+tests de retirada pasaban a atacar), no una costura de parcheo. Se descartaron,
+sin encontrar la causa:
+
+- `return`/`break` huérfanos → no hay;
+- sentencias `global` dentro del bloque → no hay;
+- funciones anidadas definidas dentro que sobrevivan al bloque → no hay;
+- colisiones de nombre con globals de `main` → ninguna de las 45;
+- live-out incompleto → los 11 coinciden con un cálculo independiente.
+
+Se revirtió en vez de forzarlo. **Quien lo retome: el camino no explorado es usar
+los flips de `sombra` (turno y paso concretos) para localizar la divergencia, en
+vez de partir de los tests que fallan.**
+
+### Las siete lecciones que costaron caro
+
+1. **El contenedor de Kaggle `exec`uta `main.py`, no lo importa** (§2). De ahí que
+   `def agent` deba ser lo último y que `import main` sea imposible.
+2. **`ATTACK_ENERGY_REQ` era estado disfrazado de tabla**: 56 lectores, reescrita
+   cada turno, invisible a las sentencias `global` porque mutar un dict no las
+   exige. Igual que `my_deck = []` en la Ola 1.
+3. **`from X import nombre` liga una COPIA.** Rompió tests tres veces
+   (`card_table`, `_score_xerosic_play`, `_debug_log_decision`). Lo resuelve
+   `tests/parcheo.py`, que fija el nombre allá donde esté ligado.
+4. **El propio gate se rompió al mover el estado a un paquete**: `selfplay`
+   cargaba dos agentes que compartían `ESTADO` vía `sys.modules`. 58 flips
+   fantasma. Y al aislarlo, hubo que *devolver* el árbol a `sys.modules` o se
+   creaba una segunda copia del paquete.
+5. **`locals()` dentro de una función anidada no ve el ámbito de fuera.** Python
+   solo crea celdas de closure para los nombres que la función referencia: al
+   extraer una closure hay que escribirlos uno a uno.
+6. **Las variables ligadas solo en algunas ramas** obligan a poblar contextos
+   desde `locals()` y a escribir de vuelta solo lo que quedó ligado. Pasarlas
+   como kwargs inventa un `NameError` en caminos que el original ni recorre.
+7. **Un test verde no prueba nada si no puede fallar.** Cada red nueva se validó
+   por mutación: inyectar el fallo y comprobar que se pone roja.
+
+---
+
 ## 1. Diagnóstico medido
 
 | Métrica | Valor |
