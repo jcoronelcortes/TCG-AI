@@ -65,35 +65,35 @@ def reset_main_state():
     m._init_cards_tracking()
 
 
-def _cierre_de_turno(activo_rival="grimmsnarl", hp_ogerpon=30):
+def _turn_close(opponent_active="grimmsnarl", hp_ogerpon=30):
     """The end of a turn after a failed fishing attempt: the Supporter spent, no energy and
     the doomed Ogerpon ex in front. The menu only offers RETREAT and END,
     like the real step 55."""
-    grimm = pk(GRIMMSNARL, hp=320, max_hp=320, energias=[DARK, DARK],
+    grimm = pk(GRIMMSNARL, hp=320, max_hp=320, energies=[DARK, DARK],
                pre_evo=[IMPIDIMP])
-    morgrem = pk(MORGREM, hp=100, max_hp=100, energias=[DARK, DARK],
+    morgrem = pk(MORGREM, hp=100, max_hp=100, energies=[DARK, DARK],
                  pre_evo=[IMPIDIMP])
-    if activo_rival == "grimmsnarl":
-        act_rival, banca_rival = grimm, morgrem
+    if opponent_active == "grimmsnarl":
+        opponent_act, opponent_bench = grimm, morgrem
     else:
-        act_rival, banca_rival = morgrem, grimm
+        opponent_act, opponent_bench = morgrem, grimm
 
-    esc = (Escenario(turn=4, step=55, tac=8, primer_jugador=1,
+    esc = (Escenario(turn=4, step=55, tac=8, first_player=1,
                      partidario_jugado=True)
            .my_active(pk(m.Teal_Mask_Ogerpon_ex, hp=hp_ogerpon,
-                         energias=[G], fisicas=1))
+                         energies=[G], fisicas=1))
            .my_bench(pk(m.Meowth_ex),
-                     pk(m.Fezandipiti_ex, hp=180, energias=[G], fisicas=1),
+                     pk(m.Fezandipiti_ex, hp=180, energies=[G], fisicas=1),
                      pk(m.Applin),
                      pk(m.Teal_Mask_Ogerpon_ex),
                      pk(m.Bayleef, pre_evo=[m.Chikorita]))
            .my_hand(m.Ultra_Ball, m.Bug_Catching_Set, m.Night_Stretcher)
-           .op_active(act_rival)
-           .op_bench(banca_rival, pk(SNORUNT, hp=70, max_hp=70),
-                     pk(IMPIDIMP, hp=70, max_hp=70, energias=[DARK, DARK]))
+           .op_active(opponent_act)
+           .op_bench(opponent_bench, pk(SNORUNT, hp=70, max_hp=70),
+                     pk(IMPIDIMP, hp=70, max_hp=70, energies=[DARK, DARK]))
            .op_zonas(hand=5, deck=32, prizes=6))
-    esc.deck(*sorted(esc._pool.elements())[:34]).resto_al_descarte()
-    obs = esc.menu_mano(con_retirada=True).build()
+    esc.deck(*sorted(esc._pool.elements())[:34]).rest_to_discard()
+    obs = esc.menu_hand(with_retreat=True).build()
     obs["select"]["option"] = [
         o for o in obs["select"]["option"]
         if o["type"] in (int(m.OptionType.RETREAT), int(m.OptionType.END))]
@@ -106,7 +106,7 @@ def _elige(obs):
 
 def test_el_ex_a_30_pv_no_se_esconde_del_shadow_bullet():
     """With the sniper IN FRONT, retreating gives away the third prize: we hold."""
-    obs = _cierre_de_turno(activo_rival="grimmsnarl", hp_ogerpon=30)
+    obs = _turn_close(opponent_active="grimmsnarl", hp_ogerpon=30)
     assert m.OP_BENCH_SNIPE_DAMAGE[GRIMMSNARL] >= 30, "el snipe alcanza los 30 PV"
     assert _elige(obs) == int(m.OptionType.END)
 
@@ -114,13 +114,13 @@ def test_el_ex_a_30_pv_no_se_esconde_del_shadow_bullet():
 def test_con_vida_por_encima_del_snipe_el_repliegue_sigue_vivo():
     """Control: the SAME board with the ex at 60 HP -- the 30 snipe no longer
     kills it on the bench -- retreats again and sacrifices the 1-prize body."""
-    obs = _cierre_de_turno(activo_rival="grimmsnarl", hp_ogerpon=60)
+    obs = _turn_close(opponent_active="grimmsnarl", hp_ogerpon=60)
     assert _elige(obs) == int(m.OptionType.RETREAT)
 
 
 def test_con_un_atacante_sin_snipe_delante_se_repliega():
     """Control: Morgrem (60 damage, no snipe) also dooms the 30 HP ex,
     but does not reach the bench -> hiding it DOES deny the prize."""
-    obs = _cierre_de_turno(activo_rival="morgrem", hp_ogerpon=30)
+    obs = _turn_close(opponent_active="morgrem", hp_ogerpon=30)
     assert MORGREM not in m.OP_BENCH_SNIPE_DAMAGE
     assert _elige(obs) == int(m.OptionType.RETREAT)

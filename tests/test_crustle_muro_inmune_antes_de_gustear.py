@@ -103,7 +103,7 @@ def _obs_fixture():
         return json.load(f)["observation"]
 
 
-def _jugada(obs, choice):
+def _play(obs, choice):
     """('PLAY', card_id) / ('ATTACK', attackId) / ('RETREAT'|'END', None)."""
     o = obs["select"]["option"][choice[0]]
     tipo = o["type"]
@@ -126,11 +126,11 @@ def _jugada(obs, choice):
 def test_paso47_ataca_al_crustle_en_vez_de_gustear():
     obs = _obs_fixture()
     # The fixture must offer BOTH plays for the test to discriminate.
-    plays = [_jugada(obs, [i]) for i in range(len(obs["select"]["option"]))]
+    plays = [_play(obs, [i]) for i in range(len(obs["select"]["option"]))]
     assert ("PLAY", BOSS) in plays, plays
     assert ("ATTACK", 1326) in plays, plays
 
-    assert _jugada(obs, m.agent(obs)) == ("ATTACK", 1326)
+    assert _play(obs, m.agent(obs)) == ("ATTACK", 1326)
 
 
 def test_paso47_el_muro_es_noqueable_y_la_bandera_lo_ve():
@@ -151,22 +151,22 @@ def test_paso47_el_muro_es_noqueable_y_la_bandera_lo_ve():
 # Synthetic scenarios: the rule and its boundaries
 # ---------------------------------------------------------------------------
 
-def _escenario(op_active=None, my_active=None, premios_propios=None,
+def _escenario(op_active=None, my_active=None, own_prizes=None,
                hand=(BOSS, ULTRA_BALL)):
     """A charged Tapu Bulu in front of the wall, with a 2-prize rival ex on their
     bench (the gust the agent preferred)."""
     op_active = op_active if op_active is not None else pk(CRUSTLE)
     my_active = (my_active if my_active is not None
-                 else pk(TAPU, energias=[G] * 4, fisicas=4))
-    return (Escenario(turn=8, step=47, energia_jugada=True,
-                      premios_propios=premios_propios)
+                 else pk(TAPU, energies=[G] * 4, fisicas=4))
+    return (Escenario(turn=8, step=47, energy_played=True,
+                      own_prizes=own_prizes)
             .my_active(my_active)
             .my_bench(pk(MEGANIUM), pk(MEOWTH))
             .my_hand(*hand)
             .op_active(op_active)
-            .op_bench(pk(OGERPON, energias=[G]), pk(DWEBBLE))
+            .op_bench(pk(OGERPON, energies=[G]), pk(DWEBBLE))
             .op_zonas(hand=6, deck=30, prizes=6)
-            .menu_mano(con_ataque=True)
+            .menu_hand(with_attack=True)
             .build())
 
 
@@ -174,15 +174,15 @@ def test_con_el_muro_noqueable_no_se_juega_boss():
     """The record's case synthetically: 2 prizes on the rival bench do NOT
     justify leaving alive the wall that cancels our whole deck."""
     obs = _escenario()
-    accion, _ = _jugada(obs, m.agent(obs))
-    assert accion == "ATTACK", _jugada(obs, m.agent(obs))
+    accion, _ = _play(obs, m.agent(obs))
+    assert accion == "ATTACK", _play(obs, m.agent(obs))
 
 
 def test_frontera_activo_ex_el_gusteo_sigue_vivo():
     """With an Ogerpon ex active the wall is UNTOUCHABLE (0 damage): there is no
     window to protect and Boss's is the play again."""
-    obs = _escenario(my_active=pk(OGERPON, energias=[G] * 6, fisicas=3))
-    assert _jugada(obs, m.agent(obs)) == ("PLAY", BOSS)
+    obs = _escenario(my_active=pk(OGERPON, energies=[G] * 6, fisicas=3))
+    assert _play(obs, m.agent(obs)) == ("PLAY", BOSS)
 
 
 def test_frontera_sturdy_sin_KO_el_gusteo_sigue_vivo():
@@ -190,14 +190,14 @@ def test_frontera_sturdy_sin_KO_el_gusteo_sigue_vivo():
     knock it out, so there is no wall to finish and the 2-prize gust rules.
     That is why the flag is measured with `_our_effective_damage`."""
     obs = _escenario(op_active=pk(CRUSTLE_STURDY))
-    assert _jugada(obs, m.agent(obs)) == ("PLAY", BOSS)
+    assert _play(obs, m.agent(obs)) == ("PLAY", BOSS)
 
 
 def test_frontera_gusteo_ganador_manda_sobre_el_muro():
     """At 2 prizes, gusting the bench ex WINS the game on the spot: the
     finisher (`win_via_boss_gust`) still comes above the wall."""
-    obs = _escenario(premios_propios=2)
-    assert _jugada(obs, m.agent(obs)) == ("PLAY", BOSS)
+    obs = _escenario(own_prizes=2)
+    assert _play(obs, m.agent(obs)) == ("PLAY", BOSS)
 
 
 # ---------------------------------------------------------------------------
@@ -214,10 +214,10 @@ def test_scorer_veta_boss_con_muro_noqueable():
     assert veto == m.SCORE_VETO
 
     # Without the flag, the same context plays the 2-prize gust.
-    sin_muro = m._score_boss_orders_play(
+    without_wall = m._score_boss_orders_play(
         _make_boss_ctx(op_is_crustle_deck=True, op_has_ex_immune_active=True,
                        gust_2prize_via_boss=True))
-    assert sin_muro == m.BOSS_SCORE_GUST_2PRIZE
+    assert without_wall == m.BOSS_SCORE_GUST_2PRIZE
 
     # And the winning finisher does not yield to the wall.
     gana = m._score_boss_orders_play(

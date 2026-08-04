@@ -465,15 +465,15 @@ def demo_combo_myriad():
     from state_builder import Escenario, pk, G
     import golden_corpus as gc
     gc.reset_agente(m)
-    obs = (Escenario(turn=12, step=227, tac=1, premios_propios=2)
-           .my_active(pk(m.Teal_Mask_Ogerpon_ex, energias=[G] * 4, fisicas=4))
+    obs = (Escenario(turn=12, step=227, tac=1, own_prizes=2)
+           .my_active(pk(m.Teal_Mask_Ogerpon_ex, energies=[G] * 4, fisicas=4))
            .my_bench(pk(m.Applin))
            .my_hand(m.Basic_Grass_Energy, m.Boss_Orders)
            .op_active(pk(271, hp=120, max_hp=120))          # Kilowattrel
            .op_bench(pk(269, hp=280, max_hp=280,
-                        energias=[G, G, G, G]))             # Bellibolt ex
+                        energies=[G, G, G, G]))             # Bellibolt ex
            .op_zonas(hand=5, deck=30, prizes=3)
-           .menu_teal_dance()
+           .menu_teal_dance_options()
            .build())
     puntaje, line, nodos = explore(obs)
     print("demo combo Myriad (registro_012 paso 227):")

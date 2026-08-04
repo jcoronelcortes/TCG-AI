@@ -95,7 +95,7 @@ def _observaciones():
         return copy.deepcopy(json.load(f)["observaciones"])
 
 
-def _carta_del_descarte(obs, choice):
+def _card_from_discard(obs, choice):
     """Returns the id of the DISCARD card the agent picks."""
     o = obs["select"]["option"][choice[0]]
     assert o["type"] == int(m.OptionType.CARD), o
@@ -118,15 +118,15 @@ def _reproducir(obs_list):
 def test_paso67_la_night_stretcher_recupera_el_meowth_no_el_meganium():
     obs_list = _observaciones()
     choice = _reproducir(obs_list)
-    assert _carta_del_descarte(obs_list[-1], choice) == MEOWTH
+    assert _card_from_discard(obs_list[-1], choice) == MEOWTH
 
 
 def test_el_menu_ofrecia_de_verdad_las_dos_cartas():
     """Without Meowth ex AND Meganium in the discard the test discriminates nothing."""
     obs = _observaciones()[-1]
     yo = obs["current"]["yourIndex"]
-    descarte = obs["current"]["players"][yo]["discard"]
-    ofrecidas = {descarte[o["index"]]["id"]
+    discard = obs["current"]["players"][yo]["discard"]
+    ofrecidas = {discard[o["index"]]["id"]
                  for o in obs["select"]["option"]
                  if o["type"] == int(m.OptionType.CARD)}
     assert MEOWTH in ofrecidas, ofrecidas
@@ -199,7 +199,7 @@ def test_con_lillie_ya_en_la_mano_el_motor_no_dispara():
     fetch["current"]["players"][yo]["hand"] = [
         {"id": m.Lillie_Determination, "playerIndex": yo, "serial": 25}]
     fetch["current"]["players"][yo]["handCount"] = 1
-    assert _carta_del_descarte(fetch, m.agent(fetch)) == MEGANIUM
+    assert _card_from_discard(fetch, m.agent(fetch)) == MEGANIUM
 
 
 def test_con_el_supporter_del_turno_ya_jugado_el_motor_no_dispara():
@@ -209,7 +209,7 @@ def test_con_el_supporter_del_turno_ya_jugado_el_motor_no_dispara():
     m.agent(obs_list[0])
     fetch = obs_list[-1]
     fetch["current"]["supporterPlayed"] = True
-    assert _carta_del_descarte(fetch, m.agent(fetch)) == MEGANIUM
+    assert _card_from_discard(fetch, m.agent(fetch)) == MEGANIUM
 
 
 def test_con_la_banca_llena_el_motor_no_dispara():
@@ -222,4 +222,4 @@ def test_con_la_banca_llena_el_motor_no_dispara():
     relleno = copy.deepcopy(bench[0])
     while len(bench) < 5:
         bench.append(copy.deepcopy(relleno))
-    assert _carta_del_descarte(fetch, m.agent(fetch)) == MEGANIUM
+    assert _card_from_discard(fetch, m.agent(fetch)) == MEGANIUM

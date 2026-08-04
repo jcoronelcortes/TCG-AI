@@ -74,7 +74,7 @@ BAYLEEF = m.Bayleef
 MEGA_LUCARIO = 678
 RIOLU = m.Riolu
 
-TURNO = 6
+TURN = 6
 
 
 @pytest.fixture(autouse=True)
@@ -105,22 +105,22 @@ def reset_main_state():
     m._init_cards_tracking()
 
 
-def _armar_turno():
+def _build_turn():
     """Leaves the turn state as if the opponent had knocked us out: Flip the
     Script alive and without `agent()` resetting the turn at the first menu."""
-    m.pre_turn = TURNO
+    m.pre_turn = TURN
     m._ko_detected_this_turn = True
 
 
-def _campo(esc, banca_llena=False):
+def _campo(esc, full_bench=False):
     """The board common to both menus."""
-    extra = (m.Tapu_Bulu,) if banca_llena else ()
+    extra = (m.Tapu_Bulu,) if full_bench else ()
     return (esc
-            .my_active(pk(HYDRA, energias=[G, G], fisicas=2,
+            .my_active(pk(HYDRA, energies=[G, G], fisicas=2,
                           pre_evo=[APPLIN, DIPPLIN]))
             .my_bench(MEOWTH,
                       pk(MEGANIUM, pre_evo=[CHIKORITA, BAYLEEF]),
-                      pk(OGERPON, energias=[G, G, G, G], fisicas=4),
+                      pk(OGERPON, energies=[G, G, G, G], fisicas=4),
                       OGERPON, *extra)
             .op_active(pk(MEGA_LUCARIO, hp=340, max_hp=340))
             .op_bench(RIOLU)
@@ -129,7 +129,7 @@ def _campo(esc, banca_llena=False):
 
 def _menu_fetch():
     """Menu A: the Ultra Ball fetch, with a Fezandipiti ex in the deck."""
-    esc = Escenario(turn=TURNO, step=90, tac=5, premios_propios=3)
+    esc = Escenario(turn=TURN, step=90, tac=5, own_prizes=3)
     return (_campo(esc)
             .my_hand(STAMP)
             .deck(FEZ, CHIKORITA, APPLIN)
@@ -138,23 +138,23 @@ def _menu_fetch():
             # everything left over. The other way round, the builder's strict
             # accounting runs out of copies and aborts.
             .fetch_ultra_ball()
-            .resto_al_descarte()
+            .rest_to_discard()
             .build())
 
 
-def _menu_bajar(banca_llena=False):
+def _menu_play_body(full_bench=False):
     """Menu B: the next MAIN. A THIN hand (Stamp + Fez) so the Stamp
     scores in its high band and the test really discriminates."""
-    esc = Escenario(turn=TURNO, step=91, tac=6, premios_propios=3)
-    return (_campo(esc, banca_llena=banca_llena)
+    esc = Escenario(turn=TURN, step=91, tac=6, own_prizes=3)
+    return (_campo(esc, full_bench=full_bench)
             .my_hand(STAMP, FEZ)
             .deck(CHIKORITA, APPLIN)      # `resto_al_descarte()` requires it
-            .resto_al_descarte()
-            .menu_mano()
+            .rest_to_discard()
+            .menu_hand()
             .build())
 
 
-def _jugada(obs, choice):
+def _play(obs, choice):
     o = obs["select"]["option"][choice[0]]
     if o["type"] == int(m.OptionType.PLAY):
         yo = obs["current"]["yourIndex"]
@@ -169,7 +169,7 @@ def _jugada(obs, choice):
 # ---------------------------------------------------------------------------
 
 def test_el_escenario_tiene_flip_the_script_viva_y_hueco_en_banca():
-    _armar_turno()
+    _build_turn()
     obs = _menu_fetch()
     m.agent(obs)
     assert m.ko_last_turn is True                 # Flip the Script's condition
@@ -186,17 +186,17 @@ def test_el_escenario_tiene_flip_the_script_viva_y_hueco_en_banca():
 # ---------------------------------------------------------------------------
 
 def test_menuA_la_ultra_ball_busca_el_fezandipiti_y_arma_el_pendiente():
-    _armar_turno()
+    _build_turn()
     obs = _menu_fetch()
-    assert _jugada(obs, m.agent(obs)) == ("CARTA", FEZ)
+    assert _play(obs, m.agent(obs)) == ("CARTA", FEZ)
     assert m._ub_fez_pending is True
 
 
 def test_menuB_el_cuerpo_pagado_baja_antes_que_el_sello():
-    _armar_turno()
+    _build_turn()
     m.agent(_menu_fetch())                # it arms `_ub_fez_pending`
-    obs = _menu_bajar()
-    assert _jugada(obs, m.agent(obs)) == ("PLAY", FEZ)
+    obs = _menu_play_body()
+    assert _play(obs, m.agent(obs)) == ("PLAY", FEZ)
 
 
 # ---------------------------------------------------------------------------
@@ -220,30 +220,30 @@ def test_menuB_el_cuerpo_pagado_baja_antes_que_el_sello():
 
 def test_el_sello_cede_al_cuerpo_jugable_y_esa_es_la_primera_defensa():
     """The first line: with the Fez PLAYABLE the Stamp scores in the low band."""
-    _armar_turno()
+    _build_turn()
     m._ub_fez_pending = False
-    assert _score_del_sello(_menu_bajar()) == 2000
+    assert _stamp_score(_menu_play_body()) == 2000
 
 
 def test_con_la_banca_llena_el_sello_recupera_su_banda_alta():
     """A counterfactual proving the 2000 is caused by the playable body and not
     by something else: with the bench at 5 the Fez can no longer be played, the hand is left
     with nothing to do and the Stamp rises to its default (7500)."""
-    _armar_turno()
+    _build_turn()
     m._ub_fez_pending = False
-    assert _score_del_sello(_menu_bajar(banca_llena=True)) == 7500
+    assert _stamp_score(_menu_play_body(full_bench=True)) == 7500
 
 
-def _score_del_sello(obs):
+def _stamp_score(obs):
     visto = {}
     orig = m._score_unfair_stamp_play
 
-    def espia(ctx):
+    def spy(ctx):
         r = orig(ctx)
         visto.setdefault("s", r)
         return r
 
-    _rest_score_unfair_stamp_play = instalar("_score_unfair_stamp_play", espia)
+    _rest_score_unfair_stamp_play = instalar("_score_unfair_stamp_play", spy)
     try:
         m.agent(obs)
     finally:

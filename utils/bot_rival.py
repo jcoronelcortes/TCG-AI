@@ -179,8 +179,8 @@ class BotRival:
 
     def agent(self, obs):
         sel = obs.get("select") or {}
-        opciones = sel.get("option") or []
-        if not opciones:
+        options = sel.get("option") or []
+        if not options:
             return []
         cur = obs.get("current") or {}
         if cur.get("turn") != self._turn:
@@ -188,53 +188,53 @@ class BotRival:
         contexto = sel.get("context")
 
         if contexto == int(SelectContext.MAIN):
-            return self._menu_principal(obs, opciones)
+            return self._menu_principal(obs, options)
 
         if contexto in (int(SelectContext.REMOVE_DAMAGE_COUNTER_COUNT),
                         int(SelectContext.DAMAGE_COUNTER_COUNT)):
-            return self._cuantos_contadores(opciones)
+            return self._cuantos_contadores(options)
 
         if contexto == int(SelectContext.REMOVE_DAMAGE_COUNTER):
-            return self._origen_de_contadores(obs, opciones, sel)
+            return self._origen_de_contadores(obs, options, sel)
 
         if contexto in (int(SelectContext.DAMAGE_COUNTER),
                         int(SelectContext.DAMAGE_COUNTER_ANY)):
-            return self._destino_de_contadores(obs, opciones, sel)
+            return self._destino_de_contadores(obs, options, sel)
 
         if contexto in (int(SelectContext.SWITCH),
                         int(SelectContext.TO_ACTIVE)):
-            return self._pick_active(obs, opciones, sel)
+            return self._pick_active(obs, options, sel)
 
-        tipos = {o.get("type") for o in opciones}
+        tipos = {o.get("type") for o in options}
         if int(OptionType.YES) in tipos or int(OptionType.NO) in tipos:
-            return self._si_no(contexto, opciones)
+            return self._si_no(contexto, options)
 
         minimo = sel.get("minCount") or 0
         k = minimo if minimo > 0 else min(1, sel.get("maxCount") or 1)
-        k = min(k, len(opciones))
+        k = min(k, len(options))
         return list(range(k))
 
     # -- main menu ----------------------------------------------------------
 
-    def _menu_principal(self, obs, opciones):
+    def _menu_principal(self, obs, options):
         por_tipo = {}
-        for i, o in enumerate(opciones):
+        for i, o in enumerate(options):
             por_tipo.setdefault(o.get("type"), []).append(i)
 
         adjuntes = por_tipo.get(int(OptionType.ATTACH))
         if adjuntes:
-            return [self._best_attachment(obs, opciones, adjuntes)]
+            return [self._best_attachment(obs, options, adjuntes)]
 
         evoluciones = por_tipo.get(int(OptionType.EVOLVE))
         if evoluciones:
-            return [self._best_evolution(obs, opciones, evoluciones)]
+            return [self._best_evolution(obs, options, evoluciones)]
 
         plays = por_tipo.get(int(OptionType.PLAY))
         if plays:
             return [plays[0]]
 
         ability = self._pick_ability(por_tipo.get(int(OptionType.ABILITY)),
-                                           opciones)
+                                           options)
         if ability is not None:
             return [ability]
 
@@ -256,7 +256,7 @@ class BotRival:
                 my_active = ((jugadores[yo] or {}).get("active") or [None])[0]
                 their_active = ((jugadores[1 - yo] or {}).get("active") or [None])[0]
             best = max(ataques, key=lambda i: self._effective_damage(
-                my_active, their_active, opciones[i].get("attackId")))
+                my_active, their_active, options[i].get("attackId")))
             return [best]
 
         fin = por_tipo.get(int(OptionType.END))
@@ -264,10 +264,10 @@ class BotRival:
             return [fin[0]]
         return [0]
 
-    def _best_evolution(self, obs, opciones, indices):
+    def _best_evolution(self, obs, options, indices):
         """The HIGHEST stage evolution first and, on a tie, the ACTIVE's."""
         def key(i):
-            o = opciones[i]
+            o = options[i]
             data = self._cards.get(self._id_in_hand(obs, o))
             etapa = 2 if getattr(data, "stage2", False) else \
                 1 if getattr(data, "stage1", False) else 0
@@ -290,7 +290,7 @@ class BotRival:
         except (IndexError, TypeError):
             return None
 
-    def _best_attachment(self, obs, opciones, adjuntes):
+    def _best_attachment(self, obs, options, adjuntes):
         """To the ACTIVE, unless it already has energy and there is a body with an ability
         conditioned on energy still dry: that engine goes first."""
         cur = obs.get("current") or {}
@@ -300,14 +300,14 @@ class BotRival:
         if yo < len(jugadores):
             active = ((jugadores[yo] or {}).get("active") or [None])[0]
         to_active = [i for i in adjuntes
-                     if opciones[i].get("inPlayArea") == int(AreaType.ACTIVE)]
+                     if options[i].get("inPlayArea") == int(AreaType.ACTIVE)]
 
         if active and len(active.get("energies") or []) >= 1:
             for i in adjuntes:
                 destino = self._pokemon_de(
                     obs,
-                    {"area": opciones[i].get("inPlayArea"),
-                     "index": opciones[i].get("inPlayIndex"),
+                    {"area": options[i].get("inPlayArea"),
+                     "index": options[i].get("inPlayIndex"),
                      "playerIndex": yo})
                 if (destino and not (destino.get("energies") or [])
                         and self._ability_needs_energy(destino.get("id"))):
@@ -315,12 +315,12 @@ class BotRival:
 
         return to_active[0] if to_active else adjuntes[0]
 
-    def _pick_ability(self, indices, opciones):
+    def _pick_ability(self, indices, options):
         """One activation per Pokemon and per turn, with a hard per-turn cap."""
         if not indices or self._activaciones >= MAX_ABILITIES_PER_TURN:
             return None
         for i in indices:
-            key = (opciones[i].get("area"), opciones[i].get("index"))
+            key = (options[i].get("area"), options[i].get("index"))
             if key in self._habilidades_usadas:
                 continue
             self._habilidades_usadas.add(key)
@@ -330,34 +330,34 @@ class BotRival:
 
     # -- damage counters ----------------------------------------------------
 
-    def _cuantos_contadores(self, opciones):
+    def _cuantos_contadores(self, options):
         """Always the MAXIMUM: moving 1 out of 3 wastes the ability."""
-        best = max(range(len(opciones)),
-                    key=lambda i: opciones[i].get("number") or 0)
-        self._contadores = opciones[best].get("number") or 1
+        best = max(range(len(options)),
+                    key=lambda i: options[i].get("number") or 0)
+        self._contadores = options[best].get("number") or 1
         return [best]
 
-    def _origen_de_contadores(self, obs, opciones, sel):
+    def _origen_de_contadores(self, obs, options, sel):
         """Where they are taken from: the body of ITS OWN carrying the most damage."""
         k = max(1, sel.get("minCount") or 1)
         orden = sorted(
-            range(len(opciones)),
-            key=lambda i: -self._damage_taken(self._pokemon_de(obs, opciones[i])))
-        return sorted(orden[:min(k, len(opciones))])
+            range(len(options)),
+            key=lambda i: -self._damage_taken(self._pokemon_de(obs, options[i])))
+        return sorted(orden[:min(k, len(options))])
 
-    def _destino_de_contadores(self, obs, opciones, sel):
+    def _destino_de_contadores(self, obs, options, sel):
         """Where they are placed: the OPPOSING body that dies with these counters (the
         more prizes, the better) and, if none dies, the one with the least HP."""
         cur = obs.get("current") or {}
         yo = cur.get("yourIndex", 0)
         damage = DAMAGE_PER_COUNTER * max(1, self._contadores)
 
-        rivales = [i for i in range(len(opciones))
-                   if opciones[i].get("playerIndex") not in (None, yo)]
-        candidatos = rivales or list(range(len(opciones)))
+        rivales = [i for i in range(len(options))
+                   if options[i].get("playerIndex") not in (None, yo)]
+        candidatos = rivales or list(range(len(options)))
 
         def key(i):
-            pk = self._pokemon_de(obs, opciones[i], own_index=yo)
+            pk = self._pokemon_de(obs, options[i], own_index=yo)
             if not pk:
                 return (2, 0, 0)
             hp = pk.get("hp") or 0
@@ -373,7 +373,7 @@ class BotRival:
 
     # -- who goes to the active spot ----------------------------------------
 
-    def _pick_active(self, obs, opciones, sel):
+    def _pick_active(self, obs, options, sel):
         """Two cases with the same context:
 
         * options over OUR bench -- a promotion after a KO or the destination of a
@@ -388,15 +388,15 @@ class BotRival:
         jugadores = cur.get("players") or []
         k = max(1, sel.get("minCount") or 1)
 
-        rivales = [i for i in range(len(opciones))
-                   if opciones[i].get("playerIndex") not in (None, yo)]
+        rivales = [i for i in range(len(options))
+                   if options[i].get("playerIndex") not in (None, yo)]
         if rivales:
             my_active = None
             if yo < len(jugadores):
                 my_active = ((jugadores[yo] or {}).get("active") or [None])[0]
 
             def gust_key(i):
-                pk = self._pokemon_de(obs, opciones[i])
+                pk = self._pokemon_de(obs, options[i])
                 if not pk:
                     return (2, 0, 0)
                 hp = pk.get("hp") or 0
@@ -407,21 +407,21 @@ class BotRival:
             return sorted(orden[:min(k, len(rivales))])
 
         def own_key(i):
-            pk = self._pokemon_de(obs, opciones[i], own_index=yo)
+            pk = self._pokemon_de(obs, options[i], own_index=yo)
             if not pk:
                 return (0, 0)
             return (-len(pk.get("energies") or []), -(pk.get("hp") or 0))
 
-        orden = sorted(range(len(opciones)), key=own_key)
-        return sorted(orden[:min(k, len(opciones))])
+        orden = sorted(range(len(options)), key=own_key)
+        return sorted(orden[:min(k, len(options))])
 
     # -- yes / no -----------------------------------------------------------
 
-    def _si_no(self, contexto, opciones):
+    def _si_no(self, contexto, options):
         prefiere_no = contexto in (int(SelectContext.MULLIGAN),
                                    int(SelectContext.MORE_DEVOLVE))
         buscado = int(OptionType.NO) if prefiere_no else int(OptionType.YES)
-        for i, o in enumerate(opciones):
+        for i, o in enumerate(options):
             if o.get("type") == buscado:
                 return [i]
         return [0]

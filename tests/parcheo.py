@@ -25,7 +25,7 @@ import sys
 from contextlib import contextmanager
 
 
-def _modulos_del_agente():
+def _agent_modules():
     for mod in list(sys.modules.values()):
         if mod is None:
             continue
@@ -34,14 +34,14 @@ def _modulos_del_agente():
             yield mod
 
 
-def parchear(monkeypatch, name, value):
+def patch_name(monkeypatch, name, value):
     """Sets `nombre = valor` in every agent module that has it.
 
     It returns how many modules were touched; 0 means the name does not exist in
     any of them, almost always a typo in the test.
     """
     tocados = 0
-    for mod in _modulos_del_agente():
+    for mod in _agent_modules():
         if hasattr(mod, name):
             monkeypatch.setattr(mod, name, value, raising=False)
             tocados += 1
@@ -58,7 +58,7 @@ def parcheado(name, value):
             m.agent(obs)
     """
     previos = [(mod, getattr(mod, name))
-               for mod in _modulos_del_agente() if hasattr(mod, name)]
+               for mod in _agent_modules() if hasattr(mod, name)]
     for mod, _ in previos:
         setattr(mod, name, value)
     try:
@@ -81,7 +81,7 @@ def instalar(name, value):
             _restaurar()
     """
     previos = [(mod, getattr(mod, name))
-               for mod in _modulos_del_agente() if hasattr(mod, name)]
+               for mod in _agent_modules() if hasattr(mod, name)]
     for mod, _ in previos:
         setattr(mod, name, value)
 

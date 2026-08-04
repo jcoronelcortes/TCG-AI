@@ -209,8 +209,8 @@ class FalloDePeticion(RuntimeError):
     def __init__(self, etiqueta: str, estado: int | None, intentos: int):
         self.estado = estado
         self.intentos = intentos
-        detalle = f"HTTP {estado}" if estado is not None else "error de red"
-        super().__init__(f"{etiqueta} fallo tras {intentos} intento(s) ({detalle}).")
+        detail = f"HTTP {estado}" if estado is not None else "error de red"
+        super().__init__(f"{etiqueta} fallo tras {intentos} intento(s) ({detail}).")
 
 
 class Marcapasos:
@@ -440,7 +440,7 @@ def elegir_submission(api, team_id: int, puntaje_lb: float) -> dict[str, Any] | 
 def listar_episodios(api, submission_id: int) -> list[dict[str, Any]]:
     """Completed public episodes of a submission, from the most recent backwards."""
     episodios = llamar("episodios de la submission", api.competition_list_episodes, int(submission_id)) or []
-    salida: list[dict[str, Any]] = []
+    output: list[dict[str, Any]] = []
     for item in episodios:
         row = como_dict(item)
         eid = first(row, "id", "episodeId", "episode_id")
@@ -453,8 +453,8 @@ def listar_episodios(api, submission_id: int) -> list[dict[str, Any]]:
         if not re.search(r"COMPLETE", estado, flags=re.IGNORECASE):
             continue
         row["id"] = int(eid)
-        salida.append(row)
-    return sorted(salida, key=lambda f: int(f["id"]), reverse=True)
+        output.append(row)
+    return sorted(output, key=lambda f: int(f["id"]), reverse=True)
 
 
 def download_replay(api, episode_id: int, dir_cache: Path) -> dict[str, Any]:
@@ -734,7 +734,7 @@ def main(argv: list[str] | None = None) -> int:
     # This mode needs no credentials or SDK: it only reads what is already on disk.
     if args.solo_indice:
         names, ace_spec, pokemon = load_cards()
-        out_dir = Path(args.salida)
+        out_dir = Path(args.output)
         if not out_dir.is_dir():
             print(f"ERROR: no existe la carpeta {out_dir}", file=sys.stderr)
             return 1
@@ -754,7 +754,7 @@ def main(argv: list[str] | None = None) -> int:
         print("ERROR: el SDK instalado no expone las submissions de simulacion; usa kaggle>=2.2.3", file=sys.stderr)
         return 1
 
-    out_dir = Path(args.salida)
+    out_dir = Path(args.output)
     out_dir.mkdir(parents=True, exist_ok=True)
     dir_cache = out_dir / ".cache_replays"
     dir_cache.mkdir(parents=True, exist_ok=True)

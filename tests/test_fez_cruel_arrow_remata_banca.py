@@ -99,7 +99,7 @@ def _obs(path):
         return json.load(f)["observation"]
 
 
-def _jugada(obs, choice):
+def _play(obs, choice):
     o = obs["select"]["option"][choice[0]]
     tipo = o["type"]
     if tipo == int(m.OptionType.ATTACK):
@@ -126,7 +126,7 @@ def _pk_elegido(obs, choice):
 # The real step 54
 # ---------------------------------------------------------------------------
 
-def _menu_paso54():
+def _menu_step54():
     """The observation of step 54 (turn 4, action 23) with the TURN STATE
     already advanced.
 
@@ -149,19 +149,19 @@ def _menu_paso54():
 
 
 def test_paso54_ataca_con_cruel_arrow_en_vez_de_retirarse():
-    obs = _menu_paso54()
+    obs = _menu_step54()
     # The menu must offer both plays for the test to discriminate.
-    plays = [_jugada(obs, [i]) for i in range(len(obs["select"]["option"]))]
+    plays = [_play(obs, [i]) for i in range(len(obs["select"]["option"]))]
     assert ("ATTACK", CRUEL_ARROW) in plays, plays
     assert ("RETREAT", None) in plays, plays
 
-    assert _jugada(obs, m.agent(obs)) == ("ATTACK", CRUEL_ARROW)
+    assert _play(obs, m.agent(obs)) == ("ATTACK", CRUEL_ARROW)
 
 
 def test_paso54_el_remate_del_ogerpon_era_imposible():
     """The retreat won the menu through a KO that did NOT exist: there was a Grass in
     hand, but no route to put it on the field."""
-    obs = _menu_paso54()
+    obs = _menu_step54()
     st = m.to_observation_class(obs).current
     yo = st.players[1]
 
@@ -176,7 +176,7 @@ def test_paso54_el_remate_del_ogerpon_era_imposible():
 def test_paso54_cruel_arrow_no_llega_al_activo_pero_si_a_la_banca():
     """The state that made the mistake inevitable: measured against the opposing ACTIVE the
     turn is sterile, measured against the WHOLE opposing field there is a prize."""
-    obs = _menu_paso54()
+    obs = _menu_step54()
     st = m.to_observation_class(obs).current
     active = st.players[1].active[0]
     rival = st.players[0]
@@ -212,11 +212,11 @@ def test_cruel_arrow_prefiere_el_kadabra_sobre_abra_y_dunsparce():
 
     from main import _snipe_target_score as sc
     st = m.to_observation_class(obs).current.players[0]
-    por_id = {p.id: p for p in st.bench if p is not None}
-    assert sc(100, por_id[KADABRA]) > sc(100, por_id[DUNSPARCE])
-    assert sc(100, por_id[DUNSPARCE]) > sc(100, por_id[ABRA])
+    by_id = {p.id: p for p in st.bench if p is not None}
+    assert sc(100, by_id[KADABRA]) > sc(100, by_id[DUNSPARCE])
+    assert sc(100, by_id[DUNSPARCE]) > sc(100, by_id[ABRA])
     # The active, which survives, stays below any KO.
-    assert sc(100, st.active[0]) < sc(100, por_id[ABRA])
+    assert sc(100, st.active[0]) < sc(100, by_id[ABRA])
 
 
 # ---------------------------------------------------------------------------
@@ -263,7 +263,7 @@ def test_snipe_respeta_la_inmunidad_a_ex():
 
 def test_fixture_paso54_ataca():
     obs = _obs(_FIX_MAIN)
-    assert _jugada(obs, m.agent(obs)) == ("ATTACK", CRUEL_ARROW)
+    assert _play(obs, m.agent(obs)) == ("ATTACK", CRUEL_ARROW)
 
 
 def test_fixture_paso54_no_se_retira_aunque_el_ogerpon_pareciera_letal():
@@ -272,7 +272,7 @@ def test_fixture_paso54_no_se_retira_aunque_el_ogerpon_pareciera_letal():
     Kadabra, and attacking pays no retreat cost and exposes no other body."""
     obs = copy.deepcopy(_obs(_FIX_MAIN))
     obs["current"]["energyAttached"] = False          # the manual attachment is free
-    assert _jugada(obs, m.agent(obs)) == ("ATTACK", CRUEL_ARROW)
+    assert _play(obs, m.agent(obs)) == ("ATTACK", CRUEL_ARROW)
 
 
 def test_el_snipe_cede_ante_un_ko_de_mas_premios_sin_cerrar_el_turno():
@@ -293,6 +293,6 @@ def test_el_snipe_cede_ante_un_ko_de_mas_premios_sin_cerrar_el_turno():
     # A benched Ogerpon with energy to spare to finish the wall.
     obs["current"]["players"][1]["bench"][1]["energies"] = [1] * 12
 
-    jugada = _jugada(obs, m.agent(obs))
-    assert jugada != ("END", None), jugada
-    assert jugada == ("RETREAT", None), jugada
+    play = _play(obs, m.agent(obs))
+    assert play != ("END", None), play
+    assert play == ("RETREAT", None), play

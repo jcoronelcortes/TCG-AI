@@ -101,13 +101,13 @@ def _obs():
     return copy.deepcopy(json.load(open(_FIXTURE, encoding="utf-8"))["observation"])
 
 
-def _banca(obs):
+def _bench(obs):
     yo = obs["current"]["yourIndex"]
     return obs["current"]["players"][yo]["bench"]
 
 
 def _opt_de(obs, pred):
-    bench = _banca(obs)
+    bench = _bench(obs)
     return next(i for i, o in enumerate(obs["select"]["option"])
                 if pred(bench[o["index"]]))
 
@@ -179,7 +179,7 @@ def test_promueve_el_ogerpon_con_MAS_vida():
     200 HP one, not the 100: the life tie-break already lives in `_ps_key`."""
     o = _obs()
     elegido = m.agent(_obs())[0]
-    bench = _banca(o)
+    bench = _bench(o)
     pk = bench[o["select"]["option"][elegido]["index"]]
     assert pk["id"] == OGERPON and pk["hp"] == 200
 

@@ -20,11 +20,11 @@ import lint_arquitectura as la  # noqa: E402
 
 def test_sin_infracciones_de_arquitectura():
     fallos = la.revisar()
-    detalle = "\n".join(
+    detail = "\n".join(
         f"  {file_path}:{line}: [{rule}] {mensaje}"
         for rule, file_path, line, mensaje in fallos
     )
-    assert not fallos, f"infracciones de arquitectura:\n{detalle}"
+    assert not fallos, f"infracciones de arquitectura:\n{detail}"
 
 
 def test_los_mutables_se_derivan_del_codigo():

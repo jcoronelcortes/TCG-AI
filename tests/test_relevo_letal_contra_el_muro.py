@@ -87,17 +87,17 @@ def reset_main_state():
     m._init_cards_tracking()
 
 
-def _datos():
+def _data():
     return json.load(open(_FIXTURE, encoding="utf-8"))
 
 
 def _obs():
-    return copy.deepcopy(_datos()["observation"])
+    return copy.deepcopy(_data()["observation"])
 
 
 def _decidir(o):
     """Replays the previous step (an attachment to Tapu Bulu) and then decides on 113."""
-    m.agent(copy.deepcopy(_datos()["observation_previa_paso112"]))
+    m.agent(copy.deepcopy(_data()["observation_previa_paso112"]))
     return m.agent(o)
 
 
@@ -105,8 +105,8 @@ def _tipo_elegido(o, accion):
     return o["select"]["option"][accion[0]]["type"]
 
 
-_RETIRAR = 12
-_ATACAR = 13
+_RETREAT = 12
+_ATTACK = 13
 
 
 # ---------------------------------------------------------------------------
@@ -144,7 +144,7 @@ def test_el_muro_aguanta_al_activo_y_cae_ante_el_relevo():
 def test_retira_en_vez_de_atacar_por_140():
     o = _obs()
     accion = _decidir(o)
-    assert _tipo_elegido(o, accion) == _RETIRAR, (
+    assert _tipo_elegido(o, accion) == _RETREAT, (
         "atacar por 140 a un muro de 170 regala el turno teniendo el remate "
         "de Tapu Bulu en la banca")
 
@@ -183,7 +183,7 @@ def test_sin_relevo_que_remate_vuelve_el_veto_y_ataca():
     tapu["energies"] = []
     tapu["energyCards"] = []
     accion = _decidir(o)
-    assert _tipo_elegido(o, accion) == _ATACAR
+    assert _tipo_elegido(o, accion) == _ATTACK
 
 
 def test_si_el_activo_YA_remata_no_se_retira():
@@ -193,4 +193,4 @@ def test_si_el_activo_YA_remata_no_se_retira():
     wall = o["current"]["players"][1]["active"][0]
     wall["hp"] = 140
     accion = _decidir(o)
-    assert _tipo_elegido(o, accion) == _ATACAR
+    assert _tipo_elegido(o, accion) == _ATTACK

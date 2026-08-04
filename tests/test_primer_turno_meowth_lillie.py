@@ -143,7 +143,7 @@ def _ctx_ub_meowth(hand, turn=1, lillie_in_deck=4):
         mega_line_active=False, dragapult=False)
 
 
-def _valor_ub_meowth(ctx):
+def _ub_meowth_value(ctx):
     value, _ = m._resolve_rules(m._RULES_UB_MEOWTH, [], ctx, 50)
     return value
 
@@ -152,13 +152,13 @@ def test_ub_no_cava_meowth_en_primer_turno_con_lillie_en_mano():
     m.we_go_first = True
     m._ub_engine_pivot_turn = True   # not even the pivot engine lifts the rule
     ctx = _ctx_ub_meowth({m.Lillie_Determination: 1, m.Ultra_Ball: 1})
-    assert _valor_ub_meowth(ctx) <= 10
+    assert _ub_meowth_value(ctx) <= 10
 
 
 def test_ub_no_cava_meowth_en_primer_turno_sin_lillie_en_el_mazo():
     m.we_go_first = True
     ctx = _ctx_ub_meowth({m.Ultra_Ball: 1}, lillie_in_deck=0)
-    assert _valor_ub_meowth(ctx) <= 10
+    assert _ub_meowth_value(ctx) <= 10
 
 
 def test_ub_si_cava_meowth_en_primer_turno_sin_lillie_en_mano():
@@ -167,7 +167,7 @@ def test_ub_si_cava_meowth_en_primer_turno_sin_lillie_en_mano():
     m.we_go_first = True
     m._ub_engine_pivot_turn = True
     ctx = _ctx_ub_meowth({m.Ultra_Ball: 1})
-    assert _valor_ub_meowth(ctx) >= 1000
+    assert _ub_meowth_value(ctx) >= 1000
 
 
 # ---------------------------------------------------------------------------

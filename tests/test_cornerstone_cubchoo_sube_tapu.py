@@ -120,11 +120,11 @@ def _scores(obs):
     visto = {}
     orig = m._debug_log_decision
 
-    def espia(context, select, scores, obs_, my_index, top_n=3):
+    def spy(context, select, scores, obs_, my_index, top_n=3):
         visto["scores"] = list(scores)
         return orig(context, select, scores, obs_, my_index, top_n)
 
-    _restaurar_espia = instalar("_debug_log_decision", espia)
+    _restore_spy = instalar("_debug_log_decision", spy)
     prev = m.DEBUG_DECISIONS
     m.DEBUG_DECISIONS = True
     try:
@@ -173,12 +173,12 @@ def test_el_veto_anti_cubchoo_ya_no_mata_la_retirada():
     """The failure was a VETO (score −1), not a defeat on points."""
     obs = _obs()
     scores = _scores(obs)
-    idx_ret = next(i for i, opt in enumerate(obs["select"]["option"])
+    idx_retreat = next(i for i, opt in enumerate(obs["select"]["option"])
                    if opt["type"] == int(m.OptionType.RETREAT))
-    idx_atk = next(i for i, opt in enumerate(obs["select"]["option"])
+    idx_attack = next(i for i, opt in enumerate(obs["select"]["option"])
                    if opt["type"] == int(m.OptionType.ATTACK))
-    assert scores[idx_ret] > 0, scores
-    assert scores[idx_ret] > scores[idx_atk], scores
+    assert scores[idx_retreat] > 0, scores
+    assert scores[idx_retreat] > scores[idx_attack], scores
 
 
 def _flags_de_agent(obs, names):
@@ -212,8 +212,8 @@ def test_el_matchup_cubchoo_esta_activo_de_verdad():
     rival DISCARD, which is where it is in this fixture."""
     obs = _obs()
     yo = obs["current"]["yourIndex"]
-    descarte = obs["current"]["players"][1 - yo]["discard"]
-    assert any(m.card_table[c["id"]].name.startswith("Cubchoo") for c in descarte)
+    discard = obs["current"]["players"][1 - yo]["discard"]
+    assert any(m.card_table[c["id"]].name.startswith("Cubchoo") for c in discard)
 
     flags = _flags_de_agent(obs, ("op_is_cubchoo_deck", "_ex_stuck_promo_ready"))
     assert flags.get("op_is_cubchoo_deck") is True, flags
@@ -229,7 +229,7 @@ def test_sin_tapu_cargado_el_veto_anti_cubchoo_sigue_en_pie():
     justify, so the anti-Cubchoo behaviour returns: keep the energy."""
     obs = _obs(energia_tapu=1)
     scores = _scores(obs)
-    idx_ret = next(i for i, opt in enumerate(obs["select"]["option"])
+    idx_retreat = next(i for i, opt in enumerate(obs["select"]["option"])
                    if opt["type"] == int(m.OptionType.RETREAT))
-    assert scores[idx_ret] <= 0, scores
+    assert scores[idx_retreat] <= 0, scores
     assert _tipo(obs, m.agent(obs)) != int(m.OptionType.RETREAT)

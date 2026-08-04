@@ -100,7 +100,7 @@ def reset_main_state():
 def _obs(**mut):
     o = copy.deepcopy(json.load(open(_FIXTURE, encoding="utf-8"))["observation"])
     yo = o["current"]["yourIndex"]
-    if mut.get("sin_estadio"):
+    if mut.get("without_stadium"):
         # The same board WITHOUT Festival Grounds: with no stadium there is no Festival
         # Lead and the second attack does not exist.
         o["current"]["stadium"] = []
@@ -109,7 +109,7 @@ def _obs(**mut):
     return o
 
 
-def _banca(obs):
+def _bench(obs):
     yo = obs["current"]["yourIndex"]
     return obs["current"]["players"][yo]["bench"]
 
@@ -117,7 +117,7 @@ def _banca(obs):
 def _elegido(obs, choice):
     """The bench card matching the chosen option."""
     opt = obs["select"]["option"][choice[0]]
-    return _banca(obs)[opt["index"]]
+    return _bench(obs)[opt["index"]]
 
 
 # ---------------------------------------------------------------------------
@@ -212,13 +212,13 @@ def test_el_tapu_promovido_remata_al_turno_siguiente():
     """It is not just the tankiest: with one attachment it reaches Wood Hammer."""
     obs = _obs()
     yo = obs["current"]["yourIndex"]
-    tapu = next(b for b in _banca(obs) if b["id"] == TAPU)
-    rival_act = obs["current"]["players"][1 - yo]["active"][0]
+    tapu = next(b for b in _bench(obs) if b["id"] == TAPU)
+    opponent_act_id = obs["current"]["players"][1 - yo]["active"][0]
 
     # Meganium in play -> Wild Growth: one physical Grass is worth 2 effective.
-    assert any(b["id"] == MEGANIUM for b in _banca(obs))
+    assert any(b["id"] == MEGANIUM for b in _bench(obs))
     assert len(tapu["energies"]) + 2 >= m.ATTACK_ENERGY_REQ[TAPU]
-    assert 220 >= rival_act["hp"]                  # Wood Hammer finishes it
+    assert 220 >= opponent_act_id["hp"]                  # Wood Hammer finishes it
 
 
 # ---------------------------------------------------------------------------
@@ -286,6 +286,6 @@ def test_sin_festival_grounds_no_se_apaga_la_premisa():
     end of the opponent's turn and we go back to the usual behaviour -- the doomed
     candidate stops being vetoed as "best attacker".
     """
-    obs = _obs(sin_estadio=True)
+    obs = _obs(without_stadium=True)
     m.agent(obs)
     assert m._festival_grounds_in_play is False

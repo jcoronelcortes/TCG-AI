@@ -145,7 +145,7 @@ def _obs(**mut):
     return o
 
 
-def _opcion_de_mano(obs, card_id):
+def _hand_option(obs, card_id):
     """The index of the option that plays `card_id` from hand."""
     yo = obs["current"]["yourIndex"]
     hand = obs["current"]["players"][yo]["hand"]
@@ -156,16 +156,16 @@ def _opcion_de_mano(obs, card_id):
     return None
 
 
-def _valor_lana(obs):
+def _lana_value(obs):
     """`values[Lanas_Aid]`: the board value that decides the PLAY layer."""
     capturado = {}
     orig = m._score_lanas_aid_play
 
-    def espia(ctx, score):
+    def spy(ctx, score):
         capturado.setdefault("v", ctx.supp_values.get(m.Lanas_Aid))
         return orig(ctx, score)
 
-    _rest_score_lanas_aid_play = instalar("_score_lanas_aid_play", espia)
+    _rest_score_lanas_aid_play = instalar("_score_lanas_aid_play", spy)
     try:
         m.agent(obs)
     finally:
@@ -199,7 +199,7 @@ def test_el_fixture_es_la_recuperacion_muerta():
     assert m._pokemon_injugable(APPLIN, campo, len(mio["bench"]),
                                 mio["benchMax"])
 
-    assert _opcion_de_mano(o, m.Lanas_Aid) is not None
+    assert _hand_option(o, m.Lanas_Aid) is not None
 
 
 # ---------------------------------------------------------------------------
@@ -208,14 +208,14 @@ def test_el_fixture_es_la_recuperacion_muerta():
 
 def test_no_juega_lana_para_recuperar_una_carta_muerta():
     obs = _obs()
-    lana = _opcion_de_mano(obs, m.Lanas_Aid)
+    lana = _hand_option(obs, m.Lanas_Aid)
     assert m.agent(obs) != [lana], (
         "con la banca llena y solo un Applin recuperable, Lana's Aid no mete "
         "nada en juego: gastar el Supporter del turno en ella es tirarlo")
 
 
 def test_el_valor_de_jugada_queda_vetado():
-    assert _valor_lana(_obs()) == 0
+    assert _lana_value(_obs()) == 0
 
 
 def test_el_turno_se_va_en_atacar_y_el_supporter_se_conserva():
@@ -224,9 +224,9 @@ def test_el_turno_se_va_en_atacar_y_el_supporter_se_conserva():
     on the KO --- which in the real game was also made, AFTER throwing away the
     Supporter."""
     obs = _obs()
-    ataque = next(i for i, o in enumerate(obs["select"]["option"])
+    attack_id = next(i for i, o in enumerate(obs["select"]["option"])
                   if o.get("type") == int(OptionType.ATTACK))
-    assert m.agent(obs) == [ataque]
+    assert m.agent(obs) == [attack_id]
 
 
 # ---------------------------------------------------------------------------
@@ -236,7 +236,7 @@ def test_el_turno_se_va_en_atacar_y_el_supporter_se_conserva():
 def test_con_hueco_en_banca_el_applin_es_jugable_pero_no_necesario():
     # The slot makes it playable, but the Applin->Hydrapple line is already in the
     # active spot and the bench is not short: no bonus claims it -> a ceiling.
-    v = _valor_lana(_obs(hueco_en_banca=1))
+    v = _lana_value(_obs(hueco_en_banca=1))
     assert 0 < v <= m.LANA_PLAY_NO_DEMAND, (
         "un Basico que cabe pero que nadie pide no vale el Supporter del "
         f"turno; obtuvo {v}")
@@ -245,7 +245,7 @@ def test_con_hueco_en_banca_el_applin_es_jugable_pero_no_necesario():
 def test_con_la_banca_corta_el_cuerpo_del_descarte_si_hace_falta():
     # With the bench at 2 bodies, recovering a Basic IS a real need
     # (the short-bench bonus): Lana's recovers all its value.
-    v = _valor_lana(_obs(hueco_en_banca=3))
+    v = _lana_value(_obs(hueco_en_banca=3))
     assert v > m.LANA_PLAY_NO_DEMAND, (
         "con la banca corta el Applin del descarte es un cuerpo que hace "
         f"falta; obtuvo {v}")
@@ -254,7 +254,7 @@ def test_con_la_banca_corta_el_cuerpo_del_descarte_si_hace_falta():
 def test_con_planta_en_el_descarte_y_demanda_real_lana_vale():
     # A Tapu Bulu at 0/4 on the bench + Grass in the discard + the attachment unspent:
     # there is energy that can be played TODAY and somebody asking for it.
-    v = _valor_lana(_obs(planta_en_descarte=3, tapu_sin_energia=True))
+    v = _lana_value(_obs(planta_en_descarte=3, tapu_sin_energia=True))
     assert v > m.LANA_PLAY_NO_DEMAND, (
         "con demanda real de energia Lana's no debe quedarse en el techo de "
         f"'nadie la pide'; obtuvo {v}")
@@ -264,7 +264,7 @@ def test_planta_jugable_pero_que_no_llega_al_campo_hoy_cede_el_turno():
     # The same Grass in the discard, but the HAND already has more than fits
     # this turn: what is recovered puts nothing on the field today. The card is still
     # playable (a ceiling, not a veto), it merely yields the turn's Supporter.
-    v = _valor_lana(_obs(planta_en_descarte=3, planta_en_mano=6))
+    v = _lana_value(_obs(planta_en_descarte=3, planta_en_mano=6))
     assert 0 < v <= m.LANA_PLAY_NO_DEMAND, (
         "energia recuperable que no llega al campo hoy: jugable, pero por "
         f"debajo del resto de Supporters; obtuvo {v}")
@@ -282,16 +282,16 @@ def test_planta_jugable_pero_que_no_llega_al_campo_hoy_cede_el_turno():
 # nothing specific to that matchup, so now it runs always and takes
 # the pre->evo pairs from `EVO_LINES`.
 
-def _valor_dawn(obs):
+def _dawn_value(obs):
     """`values[Dawn]`, captured in the Dawn scorer."""
     capturado = {}
     orig = m._score_dawn_play
 
-    def espia(ctx):
+    def spy(ctx):
         capturado.setdefault("v", ctx.supp_values.get(m.Dawn))
         return orig(ctx)
 
-    _rest_score_dawn_play = instalar("_score_dawn_play", espia)
+    _rest_score_dawn_play = instalar("_score_dawn_play", spy)
     try:
         m.agent(obs)
     finally:
@@ -311,20 +311,20 @@ def test_el_fixture_tiene_las_dos_lineas_ya_evolucionadas():
     for line in m.EVO_LINES:
         for pre, evo in zip(line, line[1:]):
             assert pre not in campo, (pre, evo)
-    assert _opcion_de_mano(o, m.Dawn) is not None
+    assert _hand_option(o, m.Dawn) is not None
 
 
 def test_no_juega_dawn_con_la_banca_llena_y_nada_que_evolucionar():
-    assert _valor_dawn(_obs()) == 0
+    assert _dawn_value(_obs()) == 0
 
 
 def test_con_una_evolucion_pendiente_dawn_vuelve_a_valer():
     # An Applin on the bench: Dawn can bring the Dipplin from the deck and evolve it
     # without taking a bench slot.
-    assert _valor_dawn(_obs(evo_pendiente=True)) > 0
+    assert _dawn_value(_obs(evo_pendiente=True)) > 0
 
 
 def test_con_hueco_en_banca_dawn_conserva_su_valor():
     # The gate only bites with the bench FULL: with a slot, any Basic
     # Dawn brings can be put down.
-    assert _valor_dawn(_obs(hueco_en_banca=1)) > 0
+    assert _dawn_value(_obs(hueco_en_banca=1)) > 0

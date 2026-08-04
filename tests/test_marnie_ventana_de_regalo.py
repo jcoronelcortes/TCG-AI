@@ -174,21 +174,21 @@ def test_la_planta_va_al_ogerpon_ex_no_al_meganium():
     The third Ogerpon (130 HP) is OUTSIDE its window of 100 and does not compete.
     """
     obs = (Escenario(turn=10, step=121, tac=6)
-           .my_active(pk(HYDRAPPLE, hp=70, energias=[G, G],
+           .my_active(pk(HYDRAPPLE, hp=70, energies=[G, G],
                          fisicas=1, pre_evo=[APPLIN, DIPPLIN]))
            .my_bench(pk(MEGANIUM, hp=110, pre_evo=[CHIKORITA, BAYLEEF]),
-                     pk(OGERPON, hp=80, energias=[G] * 4, fisicas=2),
-                     pk(OGERPON, hp=130, energias=[G, G], fisicas=1))
+                     pk(OGERPON, hp=80, energies=[G] * 4, fisicas=2),
+                     pk(OGERPON, hp=130, energies=[G, G], fisicas=1))
            .my_hand(m.Basic_Grass_Energy)
-           .op_active(pk(GRIMMSNARL, hp=300, max_hp=320, energias=[D, D]))
+           .op_active(pk(GRIMMSNARL, hp=300, max_hp=320, energies=[D, D]))
            .op_bench(pk(FROSLASS, hp=90, max_hp=90),
                      pk(FROSLASS, hp=90, max_hp=90),
-                     pk(MUNKIDORI, hp=80, max_hp=110, energias=[D]),
+                     pk(MUNKIDORI, hp=80, max_hp=110, energies=[D]),
                      pk(MUNKIDORI, hp=90, max_hp=110))
            .op_zonas(hand=5, deck=17, prizes=5)
            .deck()
-           .resto_al_descarte()
-           .objetivo_carga_habilidad()
+           .rest_to_discard()
+           .ability_charge_target()
            .build())
     choice = m.agent(obs)
     o = _opcion(obs, choice)
@@ -211,19 +211,19 @@ def test_el_dano_movible_es_elastico_no_condena_a_media_mesa():
     body per turn, so healing is still worth it: it forces the opponent to spend it.
     Between the two, the one worth MORE PRIZES wins, the Ogerpon ex.
     """
-    obs = (Escenario(turn=14, step=167, tac=5, premios_propios=3)
-           .my_active(pk(HYDRAPPLE, hp=110, energias=[G, G],
+    obs = (Escenario(turn=14, step=167, tac=5, own_prizes=3)
+           .my_active(pk(HYDRAPPLE, hp=110, energies=[G, G],
                          fisicas=1, pre_evo=[APPLIN, DIPPLIN]))
            .my_bench(pk(MEGANIUM, hp=30, pre_evo=[CHIKORITA, BAYLEEF]),
-                     pk(OGERPON, hp=20, energias=[G] * 6, fisicas=3))
+                     pk(OGERPON, hp=20, energies=[G] * 6, fisicas=3))
            .my_hand(m.Basic_Grass_Energy)
-           .op_active(pk(GRIMMSNARL, hp=310, max_hp=320, energias=[D, D]))
+           .op_active(pk(GRIMMSNARL, hp=310, max_hp=320, energies=[D, D]))
            .op_bench(pk(FROSLASS, hp=90, max_hp=90),
-                     pk(MUNKIDORI, hp=60, max_hp=110, energias=[D]))
+                     pk(MUNKIDORI, hp=60, max_hp=110, energies=[D]))
            .op_zonas(hand=4, deck=18, prizes=3)
            .deck()
-           .resto_al_descarte()
-           .objetivo_carga_habilidad()
+           .rest_to_discard()
+           .ability_charge_target()
            .build())
     choice = m.agent(obs)
     o = _opcion(obs, choice)
@@ -239,17 +239,17 @@ def test_el_dano_movible_es_elastico_no_condena_a_media_mesa():
 def test_sin_froslass_ni_munkidori_la_ventana_no_cambia():
     """Against a deck without those pieces, chip and movable damage are 0."""
     obs = (Escenario(turn=8, step=60, tac=3)
-           .my_active(pk(HYDRAPPLE, hp=300, energias=[G, G],
+           .my_active(pk(HYDRAPPLE, hp=300, energies=[G, G],
                          fisicas=1, pre_evo=[APPLIN, DIPPLIN]))
            .my_bench(pk(MEGANIUM, hp=90, pre_evo=[CHIKORITA, BAYLEEF]),
-                     pk(OGERPON, hp=80, energias=[G, G, G], fisicas=3))
+                     pk(OGERPON, hp=80, energies=[G, G, G], fisicas=3))
            .my_hand(m.Basic_Grass_Energy)
-           .op_active(pk(GRIMMSNARL, hp=320, max_hp=320, energias=[D, D]))
+           .op_active(pk(GRIMMSNARL, hp=320, max_hp=320, energies=[D, D]))
            .op_bench(pk(IMPIDIMP, hp=70, max_hp=70))
            .op_zonas(hand=5, deck=20, prizes=5)
            .deck()
-           .resto_al_descarte()
-           .objetivo_carga_habilidad()
+           .rest_to_discard()
+           .ability_charge_target()
            .build())
     m.agent(obs)
     assert m._op_chip_per_round == 0
@@ -289,17 +289,17 @@ def test_sin_froslass_ni_munkidori_la_ventana_no_cambia():
 def test_munkidori_enciende_la_ventana_tambien_fuera_de_marnie():
     """A Dragapult opponent with Munkidori: without a single Marnie Pokemon on the field."""
     obs = (Escenario(turn=8, step=60, tac=3)
-           .my_active(pk(HYDRAPPLE, hp=300, energias=[G, G],
+           .my_active(pk(HYDRAPPLE, hp=300, energies=[G, G],
                          fisicas=1, pre_evo=[APPLIN, DIPPLIN]))
            .my_bench(pk(MEGANIUM, hp=90, pre_evo=[CHIKORITA, BAYLEEF]),
-                     pk(OGERPON, hp=80, energias=[G, G, G], fisicas=3))
+                     pk(OGERPON, hp=80, energies=[G, G, G], fisicas=3))
            .my_hand(m.Basic_Grass_Energy)
-           .op_active(pk(m.Dragapult_ex, hp=200, max_hp=320, energias=[D, D]))
-           .op_bench(pk(MUNKIDORI, hp=110, max_hp=110, energias=[D]))
+           .op_active(pk(m.Dragapult_ex, hp=200, max_hp=320, energies=[D, D]))
+           .op_bench(pk(MUNKIDORI, hp=110, max_hp=110, energies=[D]))
            .op_zonas(hand=5, deck=20, prizes=5)
            .deck()
-           .resto_al_descarte()
-           .objetivo_carga_habilidad()
+           .rest_to_discard()
+           .ability_charge_target()
            .build())
     m.agent(obs)
     assert m._op_chip_per_round == 0, (
@@ -313,17 +313,17 @@ def test_munkidori_enciende_la_ventana_tambien_fuera_de_marnie():
 def test_la_ventana_crece_con_munkidori_sin_marnie_en_mesa():
     """The movable damage enters the window even if the opponent is not Marnie."""
     obs = (Escenario(turn=8, step=60, tac=3)
-           .my_active(pk(HYDRAPPLE, hp=300, energias=[G, G],
+           .my_active(pk(HYDRAPPLE, hp=300, energies=[G, G],
                          fisicas=1, pre_evo=[APPLIN, DIPPLIN]))
            .my_bench(pk(MEGANIUM, hp=90, pre_evo=[CHIKORITA, BAYLEEF]),
-                     pk(OGERPON, hp=80, energias=[G, G, G], fisicas=3))
+                     pk(OGERPON, hp=80, energies=[G, G, G], fisicas=3))
            .my_hand(m.Basic_Grass_Energy)
-           .op_active(pk(m.Dragapult_ex, hp=200, max_hp=320, energias=[D, D]))
-           .op_bench(pk(MUNKIDORI, hp=110, max_hp=110, energias=[D]))
+           .op_active(pk(m.Dragapult_ex, hp=200, max_hp=320, energies=[D, D]))
+           .op_bench(pk(MUNKIDORI, hp=110, max_hp=110, energies=[D]))
            .op_zonas(hand=5, deck=20, prizes=5)
            .deck()
-           .resto_al_descarte()
-           .objetivo_carga_habilidad()
+           .rest_to_discard()
+           .ability_charge_target()
            .build())
     m.agent(obs)
 
@@ -347,17 +347,17 @@ def test_sin_froslass_el_munkidori_sin_municion_no_amenaza():
     simply runs Munkidori.
     """
     obs = (Escenario(turn=8, step=60, tac=3)
-           .my_active(pk(HYDRAPPLE, hp=300, energias=[G, G],
+           .my_active(pk(HYDRAPPLE, hp=300, energies=[G, G],
                          fisicas=1, pre_evo=[APPLIN, DIPPLIN]))
            .my_bench(pk(MEGANIUM, hp=90, pre_evo=[CHIKORITA, BAYLEEF]),
-                     pk(OGERPON, hp=80, energias=[G, G, G], fisicas=3))
+                     pk(OGERPON, hp=80, energies=[G, G, G], fisicas=3))
            .my_hand(m.Basic_Grass_Energy)
-           .op_active(pk(m.Dragapult_ex, hp=320, max_hp=320, energias=[D, D]))
-           .op_bench(pk(MUNKIDORI, hp=110, max_hp=110, energias=[D]))
+           .op_active(pk(m.Dragapult_ex, hp=320, max_hp=320, energies=[D, D]))
+           .op_bench(pk(MUNKIDORI, hp=110, max_hp=110, energies=[D]))
            .op_zonas(hand=5, deck=20, prizes=5)
            .deck()
-           .resto_al_descarte()
-           .objetivo_carga_habilidad()
+           .rest_to_discard()
+           .ability_charge_target()
            .build())
     m.agent(obs)
     assert m._op_movable_dmg == 0, (

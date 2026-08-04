@@ -158,9 +158,9 @@ def test_el_ogerpon_completado_remata_al_grimmsnarl():
     """The prize of the play: 30+30*(3+3) = 210, x2 for weakness = 420 >= 310."""
     o = _obs()
     yo = o["current"]["yourIndex"]
-    rival_act = o["current"]["players"][1 - yo]["active"][0]
-    base = 30 + 30 * (m.ATTACK_ENERGY_REQ[OGERPON] + len(rival_act["energies"]))
-    assert base * 2 >= rival_act["hp"]
+    opponent_act_id = o["current"]["players"][1 - yo]["active"][0]
+    base = 30 + 30 * (m.ATTACK_ENERGY_REQ[OGERPON] + len(opponent_act_id["energies"]))
+    assert base * 2 >= opponent_act_id["hp"]
 
 
 # ---------------------------------------------------------------------------

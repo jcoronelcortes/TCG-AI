@@ -107,7 +107,7 @@ def _obs_fixture():
         return json.load(f)["observation"]
 
 
-def _jugada(obs, choice):
+def _play(obs, choice):
     """('PLAY'|'ABILITY', card_id) / ('ATTACK', attackId) / ('END', None)."""
     o = obs["select"]["option"][choice[0]]
     tipo = o["type"]
@@ -128,8 +128,8 @@ def _jugada(obs, choice):
     return (tipo, None)
 
 
-def _jugadas(obs):
-    return [_jugada(obs, [i])
+def _plays(obs):
+    return [_play(obs, [i])
             for i in range(len(obs["select"]["option"]))]
 
 
@@ -140,12 +140,12 @@ def _jugadas(obs):
 def test_paso78_usa_flip_the_script_en_vez_de_atacar():
     obs = _obs_fixture()
     # The fixture must offer the THREE plays for the test to discriminate.
-    plays = _jugadas(obs)
+    plays = _plays(obs)
     assert ("ABILITY", FEZ) in plays, plays
     assert ("ATTACK", 120) in plays, plays
     assert ("PLAY", LILLIE) in plays, plays
 
-    assert _jugada(obs, m.agent(obs)) == ("ABILITY", FEZ)
+    assert _play(obs, m.agent(obs)) == ("ABILITY", FEZ)
 
 
 def test_paso78_el_bloqueo_circular_existe_de_verdad():
@@ -161,7 +161,7 @@ def test_paso78_el_bloqueo_circular_existe_de_verdad():
 
     # Lillie's yields to Boss's and Boss's yields to Lillie's: neither is played.
     choice = m.agent(obs)
-    assert _jugada(obs, choice)[0] != "PLAY"
+    assert _play(obs, choice)[0] != "PLAY"
 
 
 def test_paso78_la_ventana_exacta_del_bloqueo_circular():
@@ -179,11 +179,11 @@ def test_paso78_la_ventana_exacta_del_bloqueo_circular():
     visto = {}
     orig = m._score_boss_orders_play
 
-    def espia(ctx):
+    def spy(ctx):
         visto["ctx"] = ctx
         return orig(ctx)
 
-    _rest_score_boss_orders_play = instalar("_score_boss_orders_play", espia)
+    _rest_score_boss_orders_play = instalar("_score_boss_orders_play", spy)
     try:
         m.agent(obs)
     finally:
@@ -203,47 +203,47 @@ def test_paso78_la_habilidad_se_usa_antes_de_cualquier_cierre_de_turno():
     """The menu trimmed to ability + attack + pass: the turn is never closed
     with Flip the Script available."""
     obs = _obs_fixture()
-    opciones = obs["select"]["option"]
-    idx = [i for i, o in enumerate(opciones)
+    options = obs["select"]["option"]
+    idx = [i for i, o in enumerate(options)
            if o["type"] in (int(m.OptionType.ABILITY),
                             int(m.OptionType.ATTACK),
                             int(m.OptionType.END))]
-    obs["select"]["option"] = [opciones[i] for i in idx]
-    assert _jugada(obs, m.agent(obs)) == ("ABILITY", FEZ)
+    obs["select"]["option"] = [options[i] for i in idx]
+    assert _play(obs, m.agent(obs)) == ("ABILITY", FEZ)
 
 
 # ---------------------------------------------------------------------------
 # A synthetic generalisation: the requested ORDER is still alive
 # ---------------------------------------------------------------------------
 
-def _escenario(hand, con_ataque=True):
+def _escenario(hand, with_attack=True):
     """The board of step 78 rebuilt with the StateBuilder, with a parametric hand.
 
     The ABILITY option of the benched Fezandipiti ex (slot 4) is added by hand, which
     `menu_mano` does not emit, right before the turn-closing options.
     """
     esc = (Escenario(turn=6, step=78, tac=7)
-           .my_active(pk(OGERPON, energias=[G, G, G]))
+           .my_active(pk(OGERPON, energies=[G, G, G]))
            .my_bench(pk(BAYLEEF, pre_evo=[m.Chikorita]), MEOWTH, APPLIN,
                      APPLIN, pk(FEZ, aparecio=True))
            .my_hand(*hand)
-           .mi_descarte(m.Ultra_Ball, m.Ultra_Ball, m.Lanas_Aid,
+           .my_discard(m.Ultra_Ball, m.Ultra_Ball, m.Lanas_Aid,
                         m.Basic_Grass_Energy, m.Basic_Grass_Energy,
                         m.Basic_Grass_Energy, OGERPON)
-           .op_active(pk(ARCHALUDON, hp=400, max_hp=400, energias=[C, C, C],
+           .op_active(pk(ARCHALUDON, hp=400, max_hp=400, energies=[C, C, C],
                          pre_evo=[DURALUDON]))
-           .op_bench(pk(DURALUDON, hp=130, max_hp=130, energias=[C, C, C]))
+           .op_bench(pk(DURALUDON, hp=130, max_hp=130, energies=[C, C, C]))
            .op_zonas(hand=9, deck=23, prizes=4)
-           .menu_mano(con_ataque=con_ataque))
+           .menu_hand(with_attack=with_attack))
     obs = esc.build()
-    opciones = obs["select"]["option"]
-    n_play = sum(1 for o in opciones if o["type"] == int(m.OptionType.PLAY))
-    opciones.insert(n_play, {"type": int(m.OptionType.ABILITY),
+    options = obs["select"]["option"]
+    n_play = sum(1 for o in options if o["type"] == int(m.OptionType.PLAY))
+    options.insert(n_play, {"type": int(m.OptionType.ABILITY),
                              "area": int(m.AreaType.BENCH), "index": 4})
     return obs
 
 
-def _con_ko_previo(obs):
+def _with_previous_ko(obs):
     """Step 78 comes after we were knocked out: it replicates the tracking
     state that leaves `ko_last_turn` switched on."""
     m.ko_last_turn = True
@@ -255,50 +255,50 @@ def _con_ko_previo(obs):
 def test_sintetico_sin_bloqueador_usa_la_habilidad():
     """Case (a) in its simplest form: with no Lillie's or Stamp in hand the
     ability is cashed in before attacking."""
-    obs = _con_ko_previo(_escenario([BOSS]))
-    assert ("ABILITY", FEZ) in _jugadas(obs)
-    assert _jugada(obs, m.agent(obs)) == ("ABILITY", FEZ)
+    obs = _with_previous_ko(_escenario([BOSS]))
+    assert ("ABILITY", FEZ) in _plays(obs)
+    assert _play(obs, m.agent(obs)) == ("ABILITY", FEZ)
 
 
 def test_sintetico_unfair_stamp_jugable_manda_primero():
     """The requested order is NOT broken: with a playable Unfair Stamp and another live play
     (Boss's) the Stamp goes first and the ability waits for the next menu -- if
     not, the Stamp would shuffle the 3 drawn cards back."""
-    obs = _con_ko_previo(_escenario([STAMP, BOSS]))
-    plays = _jugadas(obs)
+    obs = _with_previous_ko(_escenario([STAMP, BOSS]))
+    plays = _plays(obs)
     assert ("PLAY", STAMP) in plays, plays
     assert ("ABILITY", FEZ) in plays, plays
-    assert _jugada(obs, m.agent(obs)) == ("PLAY", STAMP)
+    assert _play(obs, m.agent(obs)) == ("PLAY", STAMP)
 
 
 def test_sintetico_lillie_jugable_manda_primero():
     """The same order with the other blocker: Lillie's Determination before the
     ability when Lillie's IS playable."""
-    obs = _con_ko_previo(_escenario([LILLIE]))
-    plays = _jugadas(obs)
+    obs = _with_previous_ko(_escenario([LILLIE]))
+    plays = _plays(obs)
     assert ("PLAY", LILLIE) in plays, plays
-    assert _jugada(obs, m.agent(obs)) == ("PLAY", LILLIE)
+    assert _play(obs, m.agent(obs)) == ("PLAY", LILLIE)
 
 
 def test_sintetico_deck_out_sigue_vetando_la_habilidad():
     """The deck-out brake is a VALUE veto, not an ORDER one: the revocation does not
     lift it even with a hand free of blockers."""
     esc = (Escenario(turn=6, step=78, tac=7)
-           .my_active(pk(OGERPON, energias=[G, G, G]))
+           .my_active(pk(OGERPON, energies=[G, G, G]))
            .my_bench(pk(FEZ, aparecio=True))
            .my_hand(BOSS)
            .deck(TAPU, MEOWTH, APPLIN)          # deckCount = 3 (<= 4)
-           .resto_al_descarte()
-           .op_active(pk(ARCHALUDON, hp=400, max_hp=400, energias=[C, C, C],
+           .rest_to_discard()
+           .op_active(pk(ARCHALUDON, hp=400, max_hp=400, energies=[C, C, C],
                          pre_evo=[DURALUDON]))
            .op_zonas(hand=5, deck=20, prizes=4)
-           .menu_mano(con_ataque=True))
+           .menu_hand(with_attack=True))
     obs = esc.build()
-    opciones = obs["select"]["option"]
-    n_play = sum(1 for o in opciones if o["type"] == int(m.OptionType.PLAY))
-    opciones.insert(n_play, {"type": int(m.OptionType.ABILITY),
+    options = obs["select"]["option"]
+    n_play = sum(1 for o in options if o["type"] == int(m.OptionType.PLAY))
+    options.insert(n_play, {"type": int(m.OptionType.ABILITY),
                              "area": int(m.AreaType.BENCH), "index": 0})
-    _con_ko_previo(obs)
+    _with_previous_ko(obs)
     assert obs["current"]["players"][0]["deckCount"] <= 4
-    assert ("ABILITY", FEZ) in _jugadas(obs)
-    assert _jugada(obs, m.agent(obs)) != ("ABILITY", FEZ)
+    assert ("ABILITY", FEZ) in _plays(obs)
+    assert _play(obs, m.agent(obs)) != ("ABILITY", FEZ)

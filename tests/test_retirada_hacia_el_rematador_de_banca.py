@@ -88,19 +88,19 @@ def reset_main_state():
 
 
 def _escenario(active=None, bench=None, hand=(GRASS, ULTRA_BALL),
-               energia_jugada=True, op_hp=140, op_energias=1):
+               energy_played=True, op_hp=140, op_energies=1):
     """The record's board: a trapped active + a ready benched finisher."""
     active = active if active is not None else pk(APPLIN)
     bench = bench if bench is not None else [
-        pk(OGERPON, energias=[G] * 6, fisicas=3),   # ALREADY lethal: 30+30*(6+1)=240
+        pk(OGERPON, energies=[G] * 6, fisicas=3),   # ALREADY lethal: 30+30*(6+1)=240
         pk(HYDRAPPLE),                              # the bearer of Ripening Charge
         pk(MEOWTH),
     ]
-    return (Escenario(turn=6, step=101, energia_jugada=energia_jugada)
+    return (Escenario(turn=6, step=101, energy_played=energy_played)
             .my_active(active)
             .my_bench(*bench)
             .my_hand(*hand)
-            .op_active(pk(ALAKAZAM, hp=op_hp, energias=[G] * op_energias))
+            .op_active(pk(ALAKAZAM, hp=op_hp, energies=[G] * op_energies))
             .op_zonas(hand=6, deck=20, prizes=3))
 
 
@@ -117,7 +117,7 @@ def _destino(obs, choice):
 def test_la_habilidad_de_carga_pone_la_planta_en_el_activo_atrapado():
     """The exact case of step 101: the Ripening Charge Grass goes to the ACTIVE
     to pay its retreat, not to a benched body."""
-    obs = _escenario().objetivo_carga_habilidad(banca_idx=1).build()
+    obs = _escenario().ability_charge_target(bench_idx=1).build()
     assert _destino(obs, m.agent(obs)) == int(m.AreaType.ACTIVE)
 
 
@@ -126,18 +126,18 @@ def test_el_foco_de_ogerpon_no_roba_la_planta_de_la_retirada():
     charging focus (41700) took the Grass and left both finishers
     trapped behind the active. While the retreat is not paid for, charging
     the bench promotes nobody."""
-    bench = [pk(OGERPON, energias=[G] * 6, fisicas=3),
+    bench = [pk(OGERPON, energies=[G] * 6, fisicas=3),
              pk(HYDRAPPLE),
-             pk(OGERPON, energias=[G, G], fisicas=1)]   # the focus's bait
-    obs = _escenario(bench=bench).objetivo_carga_habilidad(banca_idx=1).build()
+             pk(OGERPON, energies=[G, G], fisicas=1)]   # the focus's bait
+    obs = _escenario(bench=bench).ability_charge_target(bench_idx=1).build()
     assert _destino(obs, m.agent(obs)) == int(m.AreaType.ACTIVE)
 
 
 def test_deck_agnostico_cualquier_rematador_de_banca_sirve():
     """The line does not depend on Ogerpon or on its ability: with an already charged
     Tapu Bulu (220 >= 140) the Grass must still go to the ACTIVE."""
-    bench = [pk(TAPU, energias=[G] * 4), pk(HYDRAPPLE), pk(MEOWTH)]
-    obs = _escenario(bench=bench).objetivo_carga_habilidad(banca_idx=1).build()
+    bench = [pk(TAPU, energies=[G] * 4), pk(HYDRAPPLE), pk(MEOWTH)]
+    obs = _escenario(bench=bench).ability_charge_target(bench_idx=1).build()
     assert _destino(obs, m.agent(obs)) == int(m.AreaType.ACTIVE)
 
 
@@ -146,8 +146,8 @@ def test_deck_agnostico_cualquier_rematador_de_banca_sirve():
 # ---------------------------------------------------------------------------
 
 def test_el_adjunte_manual_tambien_va_al_activo_atrapado():
-    obs = (_escenario(energia_jugada=False)
-           .menu_mano(con_adjunte=True).build())
+    obs = (_escenario(energy_played=False)
+           .menu_hand(with_attachment=True).build())
     choice = m.agent(obs)
     o = obs["select"]["option"][choice[0]]
     assert o["type"] == int(m.OptionType.ATTACH)
@@ -171,13 +171,13 @@ def test_el_adjunte_manual_tambien_va_al_activo_atrapado():
 
 def _escenario_meganium(active=None, hand=(GRASS, ULTRA_BALL)):
     active = active if active is not None else pk(FEZANDIPITI)
-    return (Escenario(turn=10, step=106, energia_jugada=False)
+    return (Escenario(turn=10, step=106, energy_played=False)
             .my_active(active)
-            .my_bench(pk(MEGANIUM, energias=[G, G], fisicas=1),
-                      pk(OGERPON, energias=[G] * 6, fisicas=3),
-                      pk(OGERPON, energias=[G] * 4, fisicas=2),
+            .my_bench(pk(MEGANIUM, energies=[G, G], fisicas=1),
+                      pk(OGERPON, energies=[G] * 6, fisicas=3),
+                      pk(OGERPON, energies=[G] * 4, fisicas=2),
                       pk(MEOWTH),
-                      pk(OGERPON, hp=70, energias=[G] * 6, fisicas=3))
+                      pk(OGERPON, hp=70, energies=[G] * 6, fisicas=3))
             .my_hand(*hand)
             .op_active(pk(SHAYMIN))
             .op_bench(pk(KADABRA, pre_evo=[ABRA]), pk(DUNSPARCE), pk(ABRA),
@@ -189,14 +189,14 @@ def test_con_meganium_en_juego_la_planta_sigue_yendo_al_activo_atrapado():
     """Regression of episode 88603018 step 106: with Wild Growth active and the
     bench full of charged Ogerpon, the only Grass must pay the retreat of the
     Fezandipiti ex -- not fatten the Meganium."""
-    obs = _escenario_meganium().menu_mano(con_adjunte=True).build()
+    obs = _escenario_meganium().menu_hand(with_attachment=True).build()
     o = obs["select"]["option"][m.agent(obs)[0]]
     assert o["type"] == int(m.OptionType.ATTACH)
     assert o["inPlayArea"] == int(m.AreaType.ACTIVE)
 
 
 def test_con_meganium_el_detector_ve_la_linea_letal():
-    obs = _escenario_meganium().menu_mano(con_adjunte=True).build()
+    obs = _escenario_meganium().menu_hand(with_attachment=True).build()
     assert _detector(obs) == (True, False)
 
 
@@ -207,8 +207,8 @@ def test_con_meganium_el_activo_que_ya_se_retira_no_dispara_la_linea():
     Careful when reading it: the attachment STILL goes to the active on that board, but through
     another rule (`_carga_activo_remata`) -- with 4 effective units Cruel Arrow becomes
     playable and knocks out the 80 HP Shaymin. Attacking beats pivoting."""
-    obs = (_escenario_meganium(active=pk(FEZANDIPITI, energias=[G, G], fisicas=1))
-           .menu_mano(con_adjunte=True).build())
+    obs = (_escenario_meganium(active=pk(FEZANDIPITI, energies=[G, G], fisicas=1))
+           .menu_hand(with_attachment=True).build())
     assert _detector(obs) == (False, False)
 
 
@@ -216,8 +216,8 @@ def test_con_meganium_sin_nada_que_desbloquear_la_planta_vuelve_a_la_banca():
     """A DESTINATION boundary: the active does not win for being the active. With the
     Fezandipiti ex already able to retreat AND to attack, the Grass unlocks
     nothing and goes back to the normal bench distribution."""
-    obs = (_escenario_meganium(active=pk(FEZANDIPITI, energias=[G] * 4, fisicas=2))
-           .menu_mano(con_adjunte=True).build())
+    obs = (_escenario_meganium(active=pk(FEZANDIPITI, energies=[G] * 4, fisicas=2))
+           .menu_hand(with_attachment=True).build())
     o = obs["select"]["option"][m.agent(obs)[0]]
     assert o["type"] == int(m.OptionType.ATTACH)
     assert o["inPlayArea"] == int(m.AreaType.BENCH)
@@ -228,15 +228,15 @@ def test_con_meganium_sin_nada_que_desbloquear_la_planta_vuelve_a_la_banca():
 # ---------------------------------------------------------------------------
 
 def test_con_la_planta_puesta_el_activo_se_retira():
-    obs = (_escenario(active=pk(APPLIN, energias=[G]), hand=(ULTRA_BALL,))
-           .menu_mano(con_retirada=True).build())
+    obs = (_escenario(active=pk(APPLIN, energies=[G]), hand=(ULTRA_BALL,))
+           .menu_hand(with_retreat=True).build())
     o = obs["select"]["option"][m.agent(obs)[0]]
     assert o["type"] == int(m.OptionType.RETREAT)
 
 
 def test_al_promover_sube_el_rematador():
-    obs = (_escenario(active=pk(APPLIN, energias=[G]), hand=(ULTRA_BALL,))
-           .promocion_desde_banca().build())
+    obs = (_escenario(active=pk(APPLIN, energies=[G]), hand=(ULTRA_BALL,))
+           .promote_from_bench().build())
     idx = obs["select"]["option"][m.agent(obs)[0]]["index"]
     assert obs["current"]["players"][0]["bench"][idx]["id"] == OGERPON
 
@@ -259,7 +259,7 @@ def _detector(obs):
 
 
 def test_detector_ve_la_linea_letal():
-    obs = _escenario().objetivo_carga_habilidad(banca_idx=1).build()
+    obs = _escenario().ability_charge_target(bench_idx=1).build()
     assert _detector(obs) == (True, False)
 
 
@@ -267,7 +267,7 @@ def test_si_el_activo_remata_con_esa_planta_no_se_retira():
     """Boundary: attacking with the active comes first. With an active Dipplin whose
     attack (20 x bench) knocks the opponent out, the retreat line does NOT switch on."""
     obs = (_escenario(active=pk(DIPPLIN), op_hp=60)
-           .objetivo_carga_habilidad(banca_idx=1).build())
+           .ability_charge_target(bench_idx=1).build())
     assert _detector(obs) == (False, False)
 
 
@@ -275,13 +275,13 @@ def test_sin_rematador_de_banca_no_hay_linea():
     """Boundary: if there is nobody ready on the bench, the Grass has no reason to
     go to the active (there is nothing to promote)."""
     bench = [pk(OGERPON), pk(HYDRAPPLE), pk(MEOWTH)]
-    obs = _escenario(bench=bench).objetivo_carga_habilidad(banca_idx=1).build()
+    obs = _escenario(bench=bench).ability_charge_target(bench_idx=1).build()
     assert _detector(obs) == (False, False)
 
 
 def test_si_el_activo_ya_paga_su_retirada_no_hay_nada_que_desbloquear():
-    obs = (_escenario(active=pk(APPLIN, energias=[G]))
-           .objetivo_carga_habilidad(banca_idx=1).build())
+    obs = (_escenario(active=pk(APPLIN, energies=[G]))
+           .ability_charge_target(bench_idx=1).build())
     assert _detector(obs) == (False, False)
 
 
@@ -298,16 +298,16 @@ MEGA_STARMIE = 1031                 # 330 HP, at 240 in the record
 
 
 def _escenario_88631738(active=None, hand=(GRASS, GRASS, ULTRA_BALL),
-                        energia_jugada=True):
+                        energy_played=True):
     active = active if active is not None else pk(MEOWTH, hp=50)
-    return (Escenario(turn=8, step=77, energia_jugada=energia_jugada,
+    return (Escenario(turn=8, step=77, energy_played=energy_played,
                       partidario_jugado=True)
             .my_active(active)
-            .my_bench(pk(OGERPON, energias=[G] * 4, fisicas=2),
-                      pk(HYDRAPPLE, hp=280, energias=[G] * 4, fisicas=2),
+            .my_bench(pk(OGERPON, energies=[G] * 4, fisicas=2),
+                      pk(HYDRAPPLE, hp=280, energies=[G] * 4, fisicas=2),
                       pk(FEZANDIPITI),
                       pk(MEGANIUM),
-                      pk(OGERPON, energias=[G] * 2, fisicas=1))
+                      pk(OGERPON, energies=[G] * 2, fisicas=1))
             .my_hand(*hand)
             .op_active(pk(MEGA_STARMIE, hp=240))
             .op_bench(pk(1030))
@@ -318,24 +318,24 @@ def test_88631738_la_habilidad_carga_al_activo_con_el_adjunte_ya_gastado():
     """The record's failure: with `energyAttached` set, the only live route is
     Ripening Charge -- and its Grass has to go to the ACTIVE to pay the
     retreat, not to a benched Ogerpon."""
-    obs = _escenario_88631738().objetivo_carga_habilidad(banca_idx=1).build()
+    obs = _escenario_88631738().ability_charge_target(bench_idx=1).build()
     assert _destino(obs, m.agent(obs)) == int(m.AreaType.ACTIVE)
 
 
 def test_88631738_con_la_planta_puesta_el_activo_se_retira():
-    obs = (_escenario_88631738(active=pk(MEOWTH, hp=50, energias=[G, G],
+    obs = (_escenario_88631738(active=pk(MEOWTH, hp=50, energies=[G, G],
                                          fisicas=1),
                                hand=(ULTRA_BALL,))
-           .menu_mano(con_retirada=True).build())
+           .menu_hand(with_retreat=True).build())
     o = obs["select"]["option"][m.agent(obs)[0]]
     assert o["type"] == int(m.OptionType.RETREAT)
 
 
 def test_88631738_al_promover_sube_el_hydrapple_que_remata():
-    obs = (_escenario_88631738(active=pk(MEOWTH, hp=50, energias=[G, G],
+    obs = (_escenario_88631738(active=pk(MEOWTH, hp=50, energies=[G, G],
                                          fisicas=1),
                                hand=(ULTRA_BALL,))
-           .promocion_desde_banca().build())
+           .promote_from_bench().build())
     idx = obs["select"]["option"][m.agent(obs)[0]]["index"]
     assert obs["current"]["players"][0]["bench"][idx]["id"] == HYDRAPPLE
 
@@ -365,29 +365,29 @@ def _detector_presupuesto(obs, budget):
         budget=budget)
 
 
-def _escenario_coste_3(activo_e=1, hand=(GRASS, GRASS, ULTRA_BALL),
-                       energia_jugada=False):
+def _scenario_cost_3(active_e=1, hand=(GRASS, GRASS, ULTRA_BALL),
+                       energy_played=False):
     """An active with a retreat cost of 3 (Tapu Bulu) at `activo_e` energies: it is
     TWO Grass short, and there are two live routes (the manual attachment + Ripening)."""
-    return (Escenario(turn=8, step=40, energia_jugada=energia_jugada)
-            .my_active(pk(TAPU, energias=[G] * activo_e))
-            .my_bench(pk(OGERPON, energias=[G] * 6, fisicas=3),
+    return (Escenario(turn=8, step=40, energy_played=energy_played)
+            .my_active(pk(TAPU, energies=[G] * active_e))
+            .my_bench(pk(OGERPON, energies=[G] * 6, fisicas=3),
                       pk(HYDRAPPLE),
                       pk(MEOWTH))
             .my_hand(*hand)
-            .op_active(pk(ALAKAZAM, hp=140, energias=[G]))
+            .op_active(pk(ALAKAZAM, hp=140, energies=[G]))
             .op_zonas(hand=6, deck=20, prizes=3))
 
 
 def test_con_presupuesto_de_una_planta_no_hay_linea():
     """A preserved boundary: if only ONE Grass fits, two symbols of retreat
     are still unreachable."""
-    obs = _escenario_coste_3().menu_mano(con_adjunte=True).build()
+    obs = _scenario_cost_3().menu_hand(with_attachment=True).build()
     assert _detector_presupuesto(obs, 1) == (False, False)
 
 
 def test_con_presupuesto_de_dos_plantas_el_detector_ve_la_linea():
-    obs = _escenario_coste_3().menu_mano(con_adjunte=True).build()
+    obs = _scenario_cost_3().menu_hand(with_attachment=True).build()
     assert _detector_presupuesto(obs, 2) == (True, False)
 
 
@@ -395,7 +395,7 @@ def test_el_adjunte_manual_abre_la_retirada_de_dos_simbolos():
     """The complete chain, step 1: with the manual attachment free and a benched
     Hydrapple ex (Ripening Charge) the 3-symbol retreat is payable, so the
     first Grass goes to the ACTIVE -- not to fatten the bench."""
-    obs = _escenario_coste_3().menu_mano(con_adjunte=True).build()
+    obs = _scenario_cost_3().menu_hand(with_attachment=True).build()
     o = obs["select"]["option"][m.agent(obs)[0]]
     assert o["type"] == int(m.OptionType.ATTACH)
     assert o["inPlayArea"] == int(m.AreaType.ACTIVE)
@@ -404,17 +404,17 @@ def test_el_adjunte_manual_abre_la_retirada_de_dos_simbolos():
 def test_la_habilidad_remata_la_segunda_planta_en_el_activo():
     """Step 2: with the attachment already spent and the active one Grass from the cost,
     Ripening Charge points at the ACTIVE again."""
-    obs = (_escenario_coste_3(activo_e=2, hand=(GRASS, ULTRA_BALL),
-                              energia_jugada=True)
-           .objetivo_carga_habilidad(banca_idx=1).build())
+    obs = (_scenario_cost_3(active_e=2, hand=(GRASS, ULTRA_BALL),
+                              energy_played=True)
+           .ability_charge_target(bench_idx=1).build())
     assert _destino(obs, m.agent(obs)) == int(m.AreaType.ACTIVE)
 
 
 def test_sin_plantas_suficientes_en_la_mano_no_se_abre_la_linea():
     """The budget is bounded by the HAND: with a single Grass a retreat of two
     cannot be paid for, and the energy is not wasted on the trapped active."""
-    obs = (_escenario_coste_3(hand=(GRASS, ULTRA_BALL))
-           .menu_mano(con_adjunte=True).build())
+    obs = (_scenario_cost_3(hand=(GRASS, ULTRA_BALL))
+           .menu_hand(with_attachment=True).build())
     o = obs["select"]["option"][m.agent(obs)[0]]
     assert not (o["type"] == int(m.OptionType.ATTACH)
                 and o["inPlayArea"] == int(m.AreaType.ACTIVE))
@@ -427,9 +427,9 @@ def test_con_las_habilidades_apagadas_el_presupuesto_vuelve_a_una_planta():
     """A budget boundary: with Team Rocket's Watchtower on the field, Ripening
     Charge is switched off, so the second route does NOT exist and the first Grass must
     not be left stranded on an active that will still be unable to retreat."""
-    obs = (_escenario_coste_3()
-           .estadio(WATCHTOWER, del_rival=True)
-           .menu_mano(con_adjunte=True).build())
+    obs = (_scenario_cost_3()
+           .stadium(WATCHTOWER, of_the_opponent=True)
+           .menu_hand(with_attachment=True).build())
     o = obs["select"]["option"][m.agent(obs)[0]]
     assert not (o["type"] == int(m.OptionType.ATTACH)
                 and o["inPlayArea"] == int(m.AreaType.ACTIVE))

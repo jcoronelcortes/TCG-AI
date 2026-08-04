@@ -63,8 +63,8 @@ KANGASKHAN = m.Mega_Kangaskhan_ex
 BOSS = m.Boss_Orders
 
 _PLAY = 7
-_ATACAR = 13
-_RETIRAR = 12
+_ATTACK = 13
+_RETREAT = 12
 
 
 @pytest.fixture(autouse=True)
@@ -95,17 +95,17 @@ def reset_main_state():
     m._init_cards_tracking()
 
 
-def _datos():
+def _data():
     return json.load(open(_FIXTURE, encoding="utf-8"))
 
 
 def _obs():
-    return copy.deepcopy(_datos()["observation"])
+    return copy.deepcopy(_data()["observation"])
 
 
 def _decidir(o):
     """Replays the turn's previous step and decides on 122."""
-    m.agent(copy.deepcopy(_datos()["observation_previa_paso121"]))
+    m.agent(copy.deepcopy(_data()["observation_previa_paso121"]))
     return m.agent(o)
 
 
@@ -113,7 +113,7 @@ def _opcion(o, accion):
     return o["select"]["option"][accion[0]]
 
 
-def _carta_jugada(o, accion):
+def _played_card(o, accion):
     opt = _opcion(o, accion)
     if opt["type"] != _PLAY:
         return None
@@ -159,7 +159,7 @@ def test_el_chip_al_activo_no_cobra_y_la_banca_tiene_dos_premios():
 def test_juega_bosss_orders_en_vez_de_pegar_por_140():
     o = _obs()
     accion = _decidir(o)
-    assert _carta_jugada(o, accion) == BOSS, (
+    assert _played_card(o, accion) == BOSS, (
         "con dos premios noqueables en la banca rival, gastar el turno en un "
         "chip que no cobra nada es regalar la partida")
 
@@ -200,10 +200,10 @@ def test_tras_el_gusteo_retira_y_promueve_al_rematador():
     riv["bench"].append(riv["active"][0])
     riv["active"] = [kang]
     o["select"]["option"] = [{"index": 1, "type": _PLAY},
-                             {"attackId": 1028, "type": _ATACAR},
-                             {"type": _RETIRAR}, {"type": 14}]
+                             {"attackId": 1028, "type": _ATTACK},
+                             {"type": _RETREAT}, {"type": 14}]
     accion = m.agent(o)
-    assert _opcion(o, accion)["type"] == _RETIRAR
+    assert _opcion(o, accion)["type"] == _RETREAT
 
     # ...and the relief that comes up is Tapu Bulu.
     act = mio["active"][0]
@@ -234,7 +234,7 @@ def test_sin_premio_en_la_banca_rival_el_bosss_se_guarda():
     for b in riv["bench"]:
         b["hp"] = b["maxHp"]
     accion = _decidir(o)
-    assert _carta_jugada(o, accion) != BOSS
+    assert _played_card(o, accion) != BOSS
 
 
 def test_si_el_ataque_al_activo_cobra_el_mismo_premio_no_se_gasta_el_bosss():
@@ -245,4 +245,4 @@ def test_si_el_ataque_al_activo_cobra_el_mismo_premio_no_se_gasta_el_bosss():
     riv = o["current"]["players"][1]
     riv["active"][0]["hp"] = 140
     accion = _decidir(o)
-    assert _carta_jugada(o, accion) != BOSS
+    assert _played_card(o, accion) != BOSS

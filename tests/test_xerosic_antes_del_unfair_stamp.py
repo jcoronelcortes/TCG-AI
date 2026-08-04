@@ -99,14 +99,14 @@ def reset_main_state():
     m._init_cards_tracking()
 
 
-def _obs(op_hand=None, supporter_played=None, sin_xerosic=False):
+def _obs(op_hand=None, supporter_played=None, without_xerosic=False):
     o = copy.deepcopy(json.load(open(_FIXTURE, encoding="utf-8"))["observation"])
     yo = o["current"]["yourIndex"]
     if op_hand is not None:
         o["current"]["players"][1 - yo]["handCount"] = op_hand
     if supporter_played is not None:
         o["current"]["supporterPlayed"] = supporter_played
-    if sin_xerosic:
+    if without_xerosic:
         # It is REPLACED (not removed) so as not to shift the `index` of the menu's
         # PLAY options, which point to hand positions.
         for c in o["current"]["players"][yo]["hand"]:
@@ -125,12 +125,12 @@ def _scores(obs):
                           ("xerosic", "_score_xerosic_play")):
         orig = getattr(m, name)
 
-        def espia(ctx, _orig=orig, _clave=key):
+        def spy(ctx, _orig=orig, _key=key):
             r = _orig(ctx)
-            visto[_clave] = r
+            visto[_key] = r
             return r
 
-        restauradores.append(instalar(name, espia))
+        restauradores.append(instalar(name, spy))
     try:
         m.agent(obs)
     finally:
@@ -185,7 +185,7 @@ def test_bajo_el_umbral_vuelve_la_conducta_antigua():
 # ---------------------------------------------------------------------------
 
 def test_sin_xerosic_en_mano_el_sello_se_juega_normal():
-    s = _scores(_obs(sin_xerosic=True))
+    s = _scores(_obs(without_xerosic=True))
     assert s["stamp"] > 0, s
 
 
@@ -207,12 +207,12 @@ def test_si_xerosic_no_va_a_jugarse_el_sello_no_cede():
         visto = {}
         orig_stamp = m._score_unfair_stamp_play
 
-        def espia(ctx):
+        def spy(ctx):
             r = orig_stamp(ctx)
             visto["stamp"] = r
             return r
 
-        _rest_score_unfair_stamp_play = instalar("_score_unfair_stamp_play", espia)
+        _rest_score_unfair_stamp_play = instalar("_score_unfair_stamp_play", spy)
         try:
             m.agent(obs)
         finally:

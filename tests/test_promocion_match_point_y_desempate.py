@@ -88,29 +88,29 @@ def reset_main_state():
     m._init_cards_tracking()
 
 
-def _pk(cid, hp, energias=0, serial=900):
+def _pk(cid, hp, energies=0, serial=900):
     """A synthetic bench Pokemon (energies already EFFECTIVE, as in the observation)."""
     return {"appearThisTurn": False,
-            "energies": [1] * energias,
+            "energies": [1] * energies,
             "energyCards": ([{"id": m.Basic_Grass_Energy, "playerIndex": 0,
-                              "serial": serial}] if energias else []),
+                              "serial": serial}] if energies else []),
             "hp": hp, "id": cid, "maxHp": hp, "playerIndex": 0,
             "preEvolution": [], "serial": serial, "tools": []}
 
 
-def _base(bench=None, sin_estadio=False, op_active=None, op_premios=None):
+def _base(bench=None, without_stadium=False, op_active=None, op_prizes=None):
     """The real fixture of step 117 with the bench / rival active replaced."""
     o = copy.deepcopy(json.load(open(_FIXTURE, encoding="utf-8"))["observation"])
     yo = o["current"]["yourIndex"]
     mio = o["current"]["players"][yo]
     riv = o["current"]["players"][1 - yo]
-    if sin_estadio:
+    if without_stadium:
         o["current"]["stadium"] = []
     if op_active is not None:
         op_active = dict(op_active, playerIndex=1 - yo)
         riv["active"] = [op_active]
-    if op_premios is not None:
-        riv["prize"] = [None] * op_premios
+    if op_prizes is not None:
+        riv["prize"] = [None] * op_prizes
     if bench is not None:
         mio["bench"] = [dict(b, playerIndex=yo) for b in bench]
     o["select"]["option"] = [
@@ -158,7 +158,7 @@ def test_sin_match_point_el_condenado_sigue_siendo_una_opcion():
     o = _base()
     yo = o["current"]["yourIndex"]
     bench = [b for b in o["current"]["players"][yo]["bench"] if b["id"] != TAPU]
-    o = _base(bench=bench, op_premios=3)
+    o = _base(bench=bench, op_prizes=3)
     # With 3 prizes the rival does not win by knocking out a 1-prize body: the Dipplin stops
     # being vetoed and its score competes with the Meganium's again.
     assert len(o["current"]["players"][1 - yo]["prize"]) == 3
@@ -169,7 +169,7 @@ def test_si_no_aguanta_nadie_no_se_veta_la_banca_entera():
     """Boundary: with no survivors the game is lost anyway and the prize rule
     rules; vetoing everyone would leave the choice to chance."""
     o = _base(bench=[_pk(DIPPLIN, 80, 2, 901), _pk(CHIKORITA, 70, 0, 902)],
-              op_premios=1)
+              op_prizes=1)
     yo = o["current"]["yourIndex"]
     # Both die to Do the Wave's 100.
     for b in o["current"]["players"][yo]["bench"]:
@@ -181,12 +181,12 @@ def test_si_no_aguanta_nadie_no_se_veta_la_banca_entera():
 def test_match_point_es_deck_agnostico():
     """It does not depend on Festival Lead: the same veto against Marnie's Grimmsnarl ex
     (Shadow Bullet 180) and with no stadium on the table."""
-    o = _base(sin_estadio=True,
+    o = _base(without_stadium=True,
               op_active={"appearThisTurn": False, "energies": [2, 2],
                          "energyCards": [], "hp": 320, "id": GRIMMSNARL,
                          "maxHp": 320, "preEvolution": [], "serial": 800,
                          "tools": []},
-              op_premios=1,
+              op_prizes=1,
               bench=[_pk(HYDRAPPLE, 330, 0, 901), _pk(TAPU, 140, 2, 902)])
     yo = o["current"]["yourIndex"]
     op_act = m.to_observation_class(o).current.players[1 - yo].active[0]

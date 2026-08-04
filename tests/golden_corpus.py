@@ -35,8 +35,8 @@ _ROOT = Path(__file__).resolve().parents[1]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-RUTA_REGISTROS = _ROOT / "registros"
-RUTA_SNAPSHOT = RUTA_REGISTROS / "decisiones_dorado.json"
+RECORDS_PATH = _ROOT / "registros"
+SNAPSHOT_PATH = RECORDS_PATH / "decisiones_dorado.json"
 
 # Readable OptionType values (cg/api.py).
 _TIPOS = {0: "NUM", 1: "SI", 2: "NO", 3: "CARTA", 4: "TOOL", 5: "ECARD",
@@ -102,7 +102,7 @@ def reset_agente(m):
     m._op_prize_denial_gengar = False
 
 
-def _nombre(m, cid):
+def _name(m, cid):
     data = m.card_table.get(cid)
     return f"{data.name}({cid})" if data is not None else str(cid)
 
@@ -118,27 +118,27 @@ def describir_opcion(m, obs, idx):
     me = obs["current"]["players"][obs["current"]["yourIndex"]]
     try:
         if t == 7:  # PLAY: an index over the hand
-            return f"PLAY {_nombre(m, me['hand'][o['index']]['id'])}"
+            return f"PLAY {_name(m, me['hand'][o['index']]['id'])}"
         if t == 3:  # CARD: an index over the area (visible deck, hand, field...)
             area = o.get("area")
             if area == 1 and sel.get("deck"):
-                return f"CARTA {_nombre(m, sel['deck'][o['index']]['id'])}"
+                return f"CARTA {_name(m, sel['deck'][o['index']]['id'])}"
             if area == 2 and me.get("hand"):
-                return f"CARTA {_nombre(m, me['hand'][o['index']]['id'])}"
+                return f"CARTA {_name(m, me['hand'][o['index']]['id'])}"
             jugador = obs["current"]["players"][o.get("playerIndex", 0)]
             if area == 4 and jugador["active"]:
-                return f"CARTA {_nombre(m, jugador['active'][0]['id'])}"
+                return f"CARTA {_name(m, jugador['active'][0]['id'])}"
             if area == 5:
-                return f"CARTA {_nombre(m, jugador['bench'][o['index']]['id'])}"
+                return f"CARTA {_name(m, jugador['bench'][o['index']]['id'])}"
             return f"CARTA a{area} i{o.get('index')}"
         if t == 8:  # ATTACH: a target in play
             if o.get("inPlayArea") == 4:
-                return f"ATTACH->{_nombre(m, me['active'][0]['id'])}"
-            return f"ATTACH->{_nombre(m, me['bench'][o['inPlayIndex']]['id'])}"
+                return f"ATTACH->{_name(m, me['active'][0]['id'])}"
+            return f"ATTACH->{_name(m, me['bench'][o['inPlayIndex']]['id'])}"
         if t == 10:  # ABILITY
             if o.get("area") == 4:
-                return f"ABILITY {_nombre(m, me['active'][0]['id'])}"
-            return f"ABILITY {_nombre(m, me['bench'][o['index']]['id'])}"
+                return f"ABILITY {_name(m, me['active'][0]['id'])}"
+            return f"ABILITY {_name(m, me['bench'][o['index']]['id'])}"
         if t == 13:
             return f"ATTACK id{o.get('attackId')}"
     except (IndexError, KeyError, TypeError):
@@ -146,12 +146,12 @@ def describir_opcion(m, obs, idx):
     return etiqueta
 
 
-def _ids_de_nuestro_mazo():
+def _our_deck_ids():
     csv = (_ROOT / "deck.csv").read_text().split("\n")
     return {int(csv[i]) for i in range(60)}
 
 
-def nuestro_indice(data):
+def our_index(data):
     """The seat (0 or 1) in which WE play in this episode.
 
     It is not always 0: depending on the pairing we can be player 1
@@ -160,7 +160,7 @@ def nuestro_indice(data):
     fed the agent with the OPPONENT's observations (their `yourIndex`)
     and also skipped all our decisions.
     """
-    deck = _ids_de_nuestro_mazo()
+    deck = _our_deck_ids()
     votos = [0, 0]
     for step in data.get("steps", []):
         for item in step:
@@ -181,11 +181,11 @@ def nuestro_indice(data):
     return 0 if votos[0] >= votos[1] else 1
 
 
-def reproducir_registro(m, path):
+def replay_record(m, path):
     """Replays a record from cold and returns OUR decisions."""
     with open(path, encoding="utf-8") as f:
         data = json.load(f)
-    yo = nuestro_indice(data)
+    yo = our_index(data)
     reset_agente(m)
     decisiones = []
     for step in data.get("steps", []):
@@ -214,30 +214,30 @@ def _md5(path):
     return hashlib.md5(Path(path).read_bytes()).hexdigest()
 
 
-def archivos_registro():
-    return sorted(p for p in RUTA_REGISTROS.glob("registro_*.json"))
+def record_files():
+    return sorted(p for p in RECORDS_PATH.glob("registro_*.json"))
 
 
-def generar_corpus():
+def build_corpus():
     m = _main_mod()
     corpus = {}
-    for path in archivos_registro():
+    for path in record_files():
         corpus[path.name] = {
             "md5": _md5(path),
-            "decisiones": reproducir_registro(m, path),
+            "decisiones": replay_record(m, path),
         }
     return corpus
 
 
-def cargar_snapshot():
-    if not RUTA_SNAPSHOT.exists():
+def load_snapshot():
+    if not SNAPSHOT_PATH.exists():
         return None
-    with open(RUTA_SNAPSHOT, encoding="utf-8") as f:
+    with open(SNAPSHOT_PATH, encoding="utf-8") as f:
         return json.load(f)
 
 
-def guardar_snapshot(corpus):
-    with open(RUTA_SNAPSHOT, "w", encoding="utf-8") as f:
+def save_snapshot(corpus):
+    with open(SNAPSHOT_PATH, "w", encoding="utf-8") as f:
         json.dump(corpus, f, ensure_ascii=False, indent=1, sort_keys=True)
 
 
@@ -279,13 +279,13 @@ def formatear_flips(flips):
 
 def main(argv):
     actualizar = "--actualizar" in argv
-    actual = generar_corpus()
-    dorado = cargar_snapshot()
+    actual = build_corpus()
+    dorado = load_snapshot()
 
     if dorado is None:
-        guardar_snapshot(actual)
+        save_snapshot(actual)
         n = sum(len(v["decisiones"]) for v in actual.values())
-        print(f"Snapshot inicial creado: {RUTA_SNAPSHOT.name} "
+        print(f"Snapshot inicial creado: {SNAPSHOT_PATH.name} "
               f"({len(actual)} registros, {n} decisiones)")
         return 0
 
@@ -308,8 +308,8 @@ def main(argv):
         return 0
 
     if actualizar:
-        guardar_snapshot(actual)
-        print(f"\nSnapshot actualizado: {RUTA_SNAPSHOT}")
+        save_snapshot(actual)
+        print(f"\nSnapshot actualizado: {SNAPSHOT_PATH}")
         return 0
     print("\n(usa --actualizar para aceptar estos cambios)")
     return 1

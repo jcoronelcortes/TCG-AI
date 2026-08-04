@@ -60,7 +60,7 @@ _FIXTURE = (ROOT / "tests" / "fixtures"
             / "marnie_step99_sello_solo_si_disrumpe_o_refresca.json")
 
 STAMP = m.Unfair_Stamp
-PLANTA = m.Basic_Grass_Energy
+GRASS = m.Basic_Grass_Energy
 
 
 @pytest.fixture(autouse=True)
@@ -91,14 +91,14 @@ def reset_main_state():
     m._init_cards_tracking()
 
 
-def _cargar():
+def _load():
     with open(_FIXTURE, encoding="utf-8") as f:
         data = json.load(f)
     return (copy.deepcopy(data["observacion_previa"]),
             copy.deepcopy(data["observation"]))
 
 
-def _decision(mano_extra=0, op_hand=None):
+def _decision(extra_hand=0, op_hand=None):
     """Runs the real decision of step 99 and returns (choice, the Stamp's score).
 
     `mano_extra` fattens OUR hand with dead Grass Energies (the turn's energy
@@ -106,11 +106,11 @@ def _decision(mano_extra=0, op_hand=None):
     into the deck. They are added at the END so as not to shift the `index` of the
     menu's PLAY options.
     """
-    previa, dec = _cargar()
+    previa, dec = _load()
     yo = dec["current"]["yourIndex"]
     mio = dec["current"]["players"][yo]
-    for k in range(mano_extra):
-        mio["hand"].append({"id": PLANTA, "playerIndex": yo, "serial": 900 + k})
+    for k in range(extra_hand):
+        mio["hand"].append({"id": GRASS, "playerIndex": yo, "serial": 900 + k})
     mio["handCount"] = len(mio["hand"])
     if op_hand is not None:
         dec["current"]["players"][1 - yo]["handCount"] = op_hand
@@ -118,12 +118,12 @@ def _decision(mano_extra=0, op_hand=None):
     visto = {}
     original = m._score_unfair_stamp_play
 
-    def espia(ctx):
+    def spy(ctx):
         r = original(ctx)
         visto["stamp"] = r
         return r
 
-    _rest_score_unfair_stamp_play = instalar("_score_unfair_stamp_play", espia)
+    _rest_score_unfair_stamp_play = instalar("_score_unfair_stamp_play", spy)
     try:
         m.agent(previa)                     # it brings the rival KO window
         choice = m.agent(dec)
@@ -132,9 +132,9 @@ def _decision(mano_extra=0, op_hand=None):
     return choice, visto.get("stamp")
 
 
-def _juega_el_sello(obs_eleccion):
+def _plays_the_stamp(obs_choice):
     """Option 0 of the step 99 menu is PLAY of the Unfair Stamp."""
-    return obs_eleccion == [0]
+    return obs_choice == [0]
 
 
 def _ctx(op_hand, hand, stamp=1, ko=True):
@@ -149,7 +149,7 @@ def _ctx(op_hand, hand, stamp=1, ko=True):
 # ---------------------------------------------------------------------------
 
 def test_el_menu_ofrecia_el_sello_y_el_rival_tenia_una_carta():
-    _, dec = _cargar()
+    _, dec = _load()
     yo = dec["current"]["yourIndex"]
     hand = [c["id"] for c in dec["current"]["players"][yo]["hand"]]
     assert hand[0] == STAMP and len(hand) == 5, hand
@@ -160,7 +160,7 @@ def test_el_menu_ofrecia_el_sello_y_el_rival_tenia_una_carta():
 def test_refresco_barato_el_sello_se_juega_como_en_el_registro():
     choice, score = _decision()
     assert score > 0, score
-    assert _juega_el_sello(choice), (
+    assert _plays_the_stamp(choice), (
         "sacrificando solo 4 cartas el refresco (robar 5) paga por si solo, "
         f"aunque el rival no pierda nada; jugo {choice}")
 
@@ -170,18 +170,18 @@ def test_refresco_barato_el_sello_se_juega_como_en_el_registro():
 # ---------------------------------------------------------------------------
 
 def test_sin_disrupcion_y_con_mano_grande_el_sello_se_veta():
-    choice, score = _decision(mano_extra=1)      # 5 would be sacrificed
+    choice, score = _decision(extra_hand=1)      # 5 would be sacrificed
     assert score <= 0, score
-    assert not _juega_el_sello(choice), (
+    assert not _plays_the_stamp(choice), (
         "con el rival a 1 carta el Sello no disrumpe, y barajar 5 cartas "
         f"propias por 5 nuevas quema recursos ya jugables; jugo {choice}")
 
 
 def test_con_la_mano_rival_larga_el_sello_vuelve_aunque_sacrifiquemos_mucho():
     """Clause (1) is independent: if it DISRUPTS, our own hand does not matter."""
-    choice, score = _decision(mano_extra=4, op_hand=m.STAMP_MIN_OP_HAND)
+    choice, score = _decision(extra_hand=4, op_hand=m.STAMP_MIN_OP_HAND)
     assert score > 0, score
-    assert _juega_el_sello(choice), choice
+    assert _plays_the_stamp(choice), choice
 
 
 # ---------------------------------------------------------------------------
@@ -196,9 +196,9 @@ def test_borde_de_la_mano_propia():
 
 def test_borde_de_la_mano_rival():
     """The Stamp leaves the rival at 2: with 2 it takes nothing, with 3 it takes 1."""
-    mano_grande = m.STAMP_MAX_HAND_SACRIFICADA + 5
-    assert not m._stamp_worth_playing(m.STAMP_MIN_OP_HAND - 1, mano_grande)
-    assert m._stamp_worth_playing(m.STAMP_MIN_OP_HAND, mano_grande)
+    big_hand = m.STAMP_MAX_HAND_SACRIFICADA + 5
+    assert not m._stamp_worth_playing(m.STAMP_MIN_OP_HAND - 1, big_hand)
+    assert m._stamp_worth_playing(m.STAMP_MIN_OP_HAND, big_hand)
 
 
 def test_sin_datos_no_inventa_jugadas():
@@ -228,7 +228,7 @@ def test_el_veto_no_lo_resucita_ningun_bonus_de_matchup(matchup):
     ctx.state = SimpleNamespace(turn=3, supporterPlayed=False,
                                 energyAttached=False)
     ctx.my_prize, ctx.op_prize = 4, 2
-    ctx.hand_counts = {STAMP: 1, PLANTA: 0}
+    ctx.hand_counts = {STAMP: 1, GRASS: 0}
     ctx.forest_in_play = False
     assert m._score_unfair_stamp_play(ctx) <= 0
 

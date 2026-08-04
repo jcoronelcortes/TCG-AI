@@ -44,10 +44,10 @@ DWEBBLE = 344
 # Our own roster WITHOUT Meganium (its Wild Growth doubles the effective energy and
 # the synthetic specs with explicit arrays would become ambiguous) and WITHOUT
 # Hydrapple ex (a documented exception to the Applin veto).
-ROSTER_PROPIO = [m.Dipplin, m.Chikorita, m.Bayleef, m.Teal_Mask_Ogerpon_ex,
+OWN_ROSTER = [m.Dipplin, m.Chikorita, m.Bayleef, m.Teal_Mask_Ogerpon_ex,
                  m.Tapu_Bulu, m.Meowth_ex]
-ROSTER_RIVAL = [
-    pk(KANGASKHAN, hp=160, max_hp=400, energias=[C, G], fisicas=2),
+OPPONENT_ROSTER = [
+    pk(KANGASKHAN, hp=160, max_hp=400, energies=[C, G], fisicas=2),
     pk(CRUSTLE, pre_evo=[DWEBBLE]),
     pk(DWEBBLE),
 ]
@@ -58,7 +58,7 @@ AJUSTES = dict(
                            HealthCheck.too_slow])
 
 
-def _eleccion_valida(obs, choice):
+def _valid_choice(obs, choice):
     sel = obs["select"]
     assert isinstance(choice, list), f"no es lista: {choice!r}"
     assert all(isinstance(i, int) for i in choice), f"indices no int: {choice!r}"
@@ -75,40 +75,40 @@ def _eleccion_valida(obs, choice):
 
 @settings(**AJUSTES)
 @given(
-    activo_id=st.sampled_from([m.Dipplin, m.Applin, m.Chikorita,
+    active_id=st.sampled_from([m.Dipplin, m.Applin, m.Chikorita,
                                m.Teal_Mask_Ogerpon_ex, m.Tapu_Bulu]),
-    energias_activo=st.integers(min_value=0, max_value=2),
-    bench=st.lists(st.sampled_from(ROSTER_PROPIO), max_size=3),
+    active_energies=st.integers(min_value=0, max_value=2),
+    bench=st.lists(st.sampled_from(OWN_ROSTER), max_size=3),
     hand=st.lists(st.sampled_from(
         [m.Basic_Grass_Energy, m.Lillie_Determination, m.Boss_Orders,
          m.Night_Stretcher, m.Dipplin]), max_size=3),
-    mazo_extra=st.lists(st.sampled_from(
+    extra_deck=st.lists(st.sampled_from(
         [m.Hydrapple_ex, m.Tapu_Bulu, m.Meganium, m.Chikorita,
          m.Basic_Grass_Energy, m.Lillie_Determination, m.Ultra_Ball,
          m.Forest_of_Vitality]), max_size=6),
-    rival=st.sampled_from(ROSTER_RIVAL),
+    rival=st.sampled_from(OPPONENT_ROSTER),
     turn=st.integers(min_value=2, max_value=10),
 )
-def test_invariante_fetch_ub_robusto(activo_id, energias_activo, bench,
-                                     hand, mazo_extra, rival, turn):
+def test_invariante_fetch_ub_robusto(active_id, active_energies, bench,
+                                     hand, extra_deck, rival, turn):
     reset_agente(m)
     try:
         esc = (Escenario(turn=turn, step=1, tac=1)
-               .my_active(pk(activo_id, energias=energias_activo))
+               .my_active(pk(active_id, energies=active_energies))
                .my_bench(*bench)
                .my_hand(*hand)
                .op_active(rival)
                .op_zonas(hand=5, deck=30, prizes=6)
                # the deck always carries a searchable Pokemon + random extras
-               .deck(m.Teal_Mask_Ogerpon_ex, *mazo_extra)
+               .deck(m.Teal_Mask_Ogerpon_ex, *extra_deck)
                .fetch_ultra_ball()
-               .resto_al_descarte())
+               .rest_to_discard())
         obs = esc.build()
     except EstadoInconsistente:
         assume(False)  # an impossible composition: discard the example
         return
     choice = m.agent(obs)
-    _eleccion_valida(obs, choice)
+    _valid_choice(obs, choice)
 
 
 # ---------------------------------------------------------------------
@@ -117,39 +117,39 @@ def test_invariante_fetch_ub_robusto(activo_id, energias_activo, bench,
 
 @settings(**AJUSTES)
 @given(
-    applin_en_activo=st.booleans(),
-    companiero=st.sampled_from(ROSTER_PROPIO),
-    banca_extra=st.lists(st.sampled_from(ROSTER_PROPIO), max_size=2),
-    energias_comp=st.integers(min_value=0, max_value=2),
-    rival=st.sampled_from(ROSTER_RIVAL),
+    applin_active=st.booleans(),
+    companiero=st.sampled_from(OWN_ROSTER),
+    extra_bench=st.lists(st.sampled_from(OWN_ROSTER), max_size=2),
+    energies_comp=st.integers(min_value=0, max_value=2),
+    rival=st.sampled_from(OPPONENT_ROSTER),
     turn=st.integers(min_value=2, max_value=10),
 )
-def test_invariante_applin_max_una_energia(applin_en_activo, companiero,
-                                           banca_extra, energias_comp,
+def test_invariante_applin_max_una_energia(applin_active, companiero,
+                                           extra_bench, energies_comp,
                                            rival, turn):
     reset_agente(m)
-    applin = pk(m.Applin, energias=[G], fisicas=1)
-    comp = pk(companiero, energias=energias_comp)
+    applin = pk(m.Applin, energies=[G], fisicas=1)
+    comp = pk(companiero, energies=energies_comp)
     try:
         esc = Escenario(turn=turn, step=1, tac=0)
-        if applin_en_activo:
-            esc.my_active(applin).my_bench(comp, *banca_extra)
+        if applin_active:
+            esc.my_active(applin).my_bench(comp, *extra_bench)
             pos_applin = ("activo", None)
         else:
-            esc.my_active(comp).my_bench(applin, *banca_extra)
+            esc.my_active(comp).my_bench(applin, *extra_bench)
             pos_applin = ("banca", 0)
         obs = (esc
                .my_hand(m.Basic_Grass_Energy)  # without Dipplin+Hydrapple: no
                # the complete-evolution-this-turn exception applies
                .op_active(rival)
                .op_zonas(hand=5, deck=30, prizes=6)
-               .menu_attach_energia()
+               .menu_attach_energy()
                .build())
     except EstadoInconsistente:
         assume(False)
         return
     choice = m.agent(obs)
-    _eleccion_valida(obs, choice)
+    _valid_choice(obs, choice)
 
     opt = obs["select"]["option"][choice[0]]
     if opt.get("type") != 8:  # nothing attached (END): the veto was respected

@@ -29,14 +29,14 @@ import golden_corpus as gc
 
 
 def test_corpus_dorado_sin_flips():
-    if not gc.archivos_registro():
+    if not gc.record_files():
         pytest.skip("no hay registros locales que reproducir")
 
-    actual = gc.generar_corpus()
-    dorado = gc.cargar_snapshot()
+    actual = gc.build_corpus()
+    dorado = gc.load_snapshot()
 
     if dorado is None:
-        gc.guardar_snapshot(actual)
+        gc.save_snapshot(actual)
         pytest.skip(
             "snapshot dorado creado (bootstrap); la proxima corrida compara")
 
@@ -50,4 +50,4 @@ def test_corpus_dorado_sin_flips():
 
     if cambiados or faltantes or nuevos:
         # Local data replaced: with no comparison possible, re-snapshot.
-        gc.guardar_snapshot(actual)
+        gc.save_snapshot(actual)

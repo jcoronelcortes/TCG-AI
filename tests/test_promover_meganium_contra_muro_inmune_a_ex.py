@@ -98,19 +98,19 @@ def _obs():
     return copy.deepcopy(json.load(open(_FIXTURE, encoding="utf-8"))["observation"])
 
 
-def _banca(obs):
+def _bench(obs):
     yo = obs["current"]["yourIndex"]
     return obs["current"]["players"][yo]["bench"]
 
 
 def _opt_de(obs, pred):
-    bench = _banca(obs)
+    bench = _bench(obs)
     return next(i for i, o in enumerate(obs["select"]["option"])
                 if pred(bench[o["index"]]))
 
 
 def _promovido(obs, accion):
-    return _banca(obs)[obs["select"]["option"][accion[0]]["index"]]
+    return _bench(obs)[obs["select"]["option"][accion[0]]["index"]]
 
 
 # ---------------------------------------------------------------------------

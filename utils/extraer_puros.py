@@ -211,18 +211,18 @@ def main():
         borrar.update(range(a, b + 1))
     modulo = args.destino.replace("/", ".").removesuffix(".py")
     marca = f"from {modulo} import *  # noqa: F401,F403\n"
-    salida, puesto = [], False
+    output, puesto = [], False
     for i, line in enumerate(lines, start=1):
         if i in borrar:
             if not puesto:
-                salida.append(marca)
+                output.append(marca)
                 puesto = True
             continue
-        salida.append(line)
-    main_py.write_text("".join(salida))
+        output.append(line)
+    main_py.write_text("".join(output))
 
     print(f"\nescrito {destino}")
-    print(f"{args.main}: {len(lines)} -> {len(salida)} lineas")
+    print(f"{args.main}: {len(lines)} -> {len(output)} lineas")
     print("OJO: el import se inserta donde estaba el primer rango; muevelo al "
           "bloque de cabecera (en Kaggle el dir del agente solo esta en sys.path "
           "mientras se ejecuta main.py).")

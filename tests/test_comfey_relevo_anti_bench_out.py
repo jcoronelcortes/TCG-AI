@@ -93,11 +93,11 @@ def reset_main_state():
     m._init_cards_tracking()
 
 
-def _obs(con_banca=False, basicos_a_fase1=False):
+def _obs(with_bench=False, basicos_a_fase1=False):
     o = copy.deepcopy(json.load(open(_FIXTURE, encoding="utf-8"))["observation"])
     yo = o["current"]["yourIndex"]
     mio = o["current"]["players"][yo]
-    if con_banca:
+    if with_bench:
         # Any body on the bench: there is NO relief urgency any more.
         body = copy.deepcopy(mio["active"][0])
         body["serial"] = 59
@@ -111,7 +111,7 @@ def _obs(con_banca=False, basicos_a_fase1=False):
     return o
 
 
-def _jugada(obs, choice):
+def _play(obs, choice):
     o = obs["select"]["option"][choice[0]]
     if o["type"] == int(m.OptionType.PLAY):
         yo = obs["current"]["yourIndex"]
@@ -122,19 +122,19 @@ def _jugada(obs, choice):
 def _scores(obs):
     visto = {}
 
-    def espia(ctx, sel, sc, ob, mi, top_n=3):
+    def spy(ctx, sel, sc, ob, mi, top_n=3):
         visto.setdefault("s", list(sc))
 
     # `_debug_log_decision` and `DEBUG_DECISIONS` live in ptcg/motor/depuracion.py,
     # and the one that consults them is in ptcg/turno/finalize.py: they have to be set in
     # all the modules that bind them, not just in `main`.
-    _restaurar_espia = instalar("_debug_log_decision", espia)
+    _restore_spy = instalar("_debug_log_decision", spy)
     _restaurar_flag = instalar("DEBUG_DECISIONS", True)
     try:
         m.agent(obs)
     finally:
         _restaurar_flag()
-        _restaurar_espia()
+        _restore_spy()
     return visto["s"]
 
 
@@ -157,7 +157,7 @@ def _flag_de_agent(obs, name):
     return capt.get(name)
 
 
-def _idx_de(obs, card_id):
+def _idx_of(obs, card_id):
     yo = obs["current"]["yourIndex"]
     hand = obs["current"]["players"][yo]["hand"]
     return next(i for i, o in enumerate(obs["select"]["option"])
@@ -190,7 +190,7 @@ def test_el_fixture_es_banca_vacia_con_activo_vivo_y_relevo_en_mano():
 
 def test_con_la_banca_vacia_se_baja_un_relevo():
     obs = _obs()
-    accion, cid = _jugada(obs, m.agent(obs))
+    accion, cid = _play(obs, m.agent(obs))
     assert accion == "PLAY", (accion, cid)
     assert cid in BASICOS, m.card_table[cid].name
 
@@ -199,8 +199,8 @@ def test_el_relevo_ya_no_esta_vetado():
     """The failure was a VETO (−1), not a defeat on points."""
     obs = _obs()
     sc = _scores(obs)
-    assert sc[_idx_de(obs, FEZ)] > 0, sc
-    assert sc[_idx_de(obs, CHIKORITA)] > 0, sc
+    assert sc[_idx_of(obs, FEZ)] > 0, sc
+    assert sc[_idx_of(obs, CHIKORITA)] > 0, sc
 
 
 # ---------------------------------------------------------------------------
@@ -210,15 +210,15 @@ def test_el_relevo_ya_no_esta_vetado():
 def test_con_un_cuerpo_en_banca_vuelve_el_veto_del_plan():
     """The exemption is about SURVIVAL: as soon as there is a relief body, the plan rules
     again and no bodies outside the list are played."""
-    obs = _obs(con_banca=True)
+    obs = _obs(with_bench=True)
     sc = _scores(obs)
-    assert sc[_idx_de(obs, FEZ)] <= 0, sc
-    assert sc[_idx_de(obs, CHIKORITA)] <= 0, sc
+    assert sc[_idx_of(obs, FEZ)] <= 0, sc
+    assert sc[_idx_of(obs, CHIKORITA)] <= 0, sc
 
 
 def test_la_exencion_es_solo_para_basicos():
     """A Stage 1 is not benched, so the urgency does not reach it."""
     obs = _obs(basicos_a_fase1=True)
     sc = _scores(obs)
-    assert sc[_idx_de(obs, BAYLEEF)] <= 0, sc
-    assert sc[_idx_de(obs, DIPPLIN)] <= 0, sc
+    assert sc[_idx_of(obs, BAYLEEF)] <= 0, sc
+    assert sc[_idx_of(obs, DIPPLIN)] <= 0, sc

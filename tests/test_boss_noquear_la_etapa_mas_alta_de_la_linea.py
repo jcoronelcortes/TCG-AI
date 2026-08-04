@@ -107,8 +107,8 @@ def _obs():
     return copy.deepcopy(json.load(open(_FIXTURE, encoding="utf-8"))["observation"])
 
 
-def _pkm(card_id, energias=0):
-    return SimpleNamespace(id=card_id, energies=[1] * energias, energyCards=[],
+def _pkm(card_id, energies=0):
+    return SimpleNamespace(id=card_id, energies=[1] * energies, energyCards=[],
                            tools=[])
 
 

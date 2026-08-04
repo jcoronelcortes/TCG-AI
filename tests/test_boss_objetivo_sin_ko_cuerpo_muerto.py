@@ -139,17 +139,17 @@ def test_sin_ko_el_cuerpo_muerto_gana_a_la_evolucion_final():
     # Their 2nd Dragapult ex with 1 energy ALREADY attacks (Jet Headbutt costs 1).
     attacker = _ctx(DRAGAPULT, energy=1, op_dragapult_line=True)
     # The bare Dusclops cannot pay for its cost-2 attack.
-    muerto = _ctx(DUSCLOPS, op_dragapult_line=True)
-    assert not attacker.body_is_harmless and muerto.body_is_harmless
-    assert _ofensivo(muerto) > _ofensivo(attacker)
+    dead = _ctx(DUSCLOPS, op_dragapult_line=True)
+    assert not attacker.body_is_harmless and dead.body_is_harmless
+    assert _ofensivo(dead) > _ofensivo(attacker)
 
 
 def test_con_ko_mandan_los_tiers_y_el_cuerpo_muerto_no_los_pisa():
     """The bonus is gated by `not can_ko`: knocking out a 2-prize ex still
     beats bringing up a dead body."""
     ko_ex = _ctx(DRAGAPULT, energy=1, can_ko=True, op_dragapult_line=True)
-    muerto = _ctx(DUSCLOPS, op_dragapult_line=True)
-    assert _ofensivo(ko_ex) > _ofensivo(muerto)
+    dead = _ctx(DUSCLOPS, op_dragapult_line=True)
+    assert _ofensivo(ko_ex) > _ofensivo(dead)
 
 
 def test_los_muros_y_el_locker_no_cobran_el_bono():
@@ -158,8 +158,8 @@ def test_los_muros_y_el_locker_no_cobran_el_bono():
     for trampa in sorted(m.GUST_TRAP_IDS):
         c = _ctx(trampa)
         assert c.body_is_harmless, f"{trampa} deberia ser 'inofensivo' por coste"
-        sin_bono = _ofensivo(c)
-        assert sin_bono < _ofensivo(_ctx(DUSCLOPS)), (
+        without_bonus = _ofensivo(c)
+        assert without_bonus < _ofensivo(_ctx(DUSCLOPS)), (
             f"{trampa} esta en GUST_TRAMPA_IDS: no puede cobrar los +1500")
 
 
@@ -173,9 +173,9 @@ def test_estorbo_desempata_hacia_el_que_no_puede_atacar():
     ATTACK: the Gardevoir ex attacks for 1, the Dusclops needs 2."""
     assert m.RETREAT_COST[m.Gardevoir_ex] == m.RETREAT_COST[DUSCLOPS] == 2
     ataca = _ctx(m.Gardevoir_ex)
-    muerto = _ctx(DUSCLOPS)
-    assert not ataca.body_is_harmless and muerto.body_is_harmless
-    assert _estorbo(muerto) > _estorbo(ataca)
+    dead = _ctx(DUSCLOPS)
+    assert not ataca.body_is_harmless and dead.body_is_harmless
+    assert _estorbo(dead) > _estorbo(ataca)
 
 
 def test_estorbo_no_rescata_un_objetivo_prohibido():
@@ -188,23 +188,23 @@ def test_estorbo_no_rescata_un_objetivo_prohibido():
 # 4. The full board
 # ---------------------------------------------------------------------------
 
-def _tablero(energias_activo):
+def _tablero(active_energies):
     """An active Bayleef (60 damage: it knocks out nothing on the board) against a
     Dragapult ex. On their bench, another Dragapult ex with 1 energy -- ready to
     attack -- and a bare Dusclops."""
-    return (Escenario(turn=8, step=80, tac=4, premios_propios=4)
-            .my_active(pk(BAYLEEF, energias=[G] * energias_activo,
-                          fisicas=energias_activo, pre_evo=[CHIKORITA]))
+    return (Escenario(turn=8, step=80, tac=4, own_prizes=4)
+            .my_active(pk(BAYLEEF, energies=[G] * active_energies,
+                          fisicas=active_energies, pre_evo=[CHIKORITA]))
             .my_bench(pk(CHIKORITA))
-            .op_active(pk(DRAGAPULT, hp=320, max_hp=320, energias=[G, G]))
-            .op_bench(pk(DRAGAPULT, hp=320, max_hp=320, energias=[G]),
+            .op_active(pk(DRAGAPULT, hp=320, max_hp=320, energies=[G, G]))
+            .op_bench(pk(DRAGAPULT, hp=320, max_hp=320, energies=[G]),
                       pk(DUSCLOPS, hp=90, max_hp=90))
             .op_zonas(hand=5, deck=25, prizes=4)
             .deck()
             # `menu_gusteo()` consumes a Boss's Orders from the pool (the card "in
             # effect"), so it goes BEFORE `resto_al_descarte()`.
-            .menu_gusteo()
-            .resto_al_descarte()
+            .menu_gust()
+            .rest_to_discard()
             .build())
 
 

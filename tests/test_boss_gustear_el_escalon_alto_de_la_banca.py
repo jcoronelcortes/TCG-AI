@@ -134,8 +134,8 @@ def _obs():
     return copy.deepcopy(json.load(open(_FIXTURE, encoding="utf-8"))["observation"])
 
 
-def _pkm(card_id, energias=0):
-    return SimpleNamespace(id=card_id, energies=[1] * energias, energyCards=[],
+def _pkm(card_id, energies=0):
+    return SimpleNamespace(id=card_id, energies=[1] * energies, energyCards=[],
                            tools=[])
 
 
@@ -145,14 +145,14 @@ def _idx(obs, **campos):
                 if all(o.get(k) == v for k, v in campos.items()))
 
 
-def _mano_idx(obs, card_id):
+def _hand_idx(obs, card_id):
     """The position of `card_id` in OUR hand (the one the type=7 options use)."""
     yo = obs["current"]["yourIndex"]
     return next(i for i, c in enumerate(obs["current"]["players"][yo]["hand"])
                 if c["id"] == card_id)
 
 
-def _menu_de_gusteo(obs):
+def _menu_of_gust(obs):
     """Turns the MAIN menu into the TARGET select of the already played Boss's."""
     cur = obs["current"]
     yo = cur["yourIndex"]
@@ -188,8 +188,8 @@ def test_el_fixture_es_el_paso_136_con_la_fase_1_en_la_banca():
     # Us: a Hydrapple ex as the active and the menu offering Dawn, Boss's and attacking.
     assert mio["active"][0]["id"] == HYDRAPPLE
     assert {BOSS, DAWN} <= {c["id"] for c in mio["hand"]}
-    assert _idx(o, type=7, index=_mano_idx(o, BOSS)) >= 0
-    assert _idx(o, type=7, index=_mano_idx(o, DAWN)) >= 0
+    assert _idx(o, type=7, index=_hand_idx(o, BOSS)) >= 0
+    assert _idx(o, type=7, index=_hand_idx(o, DAWN)) >= 0
     assert _idx(o, type=13) >= 0
 
     # The opponent: an Impidimp (a Basic) as the active WITH energy -- which is why the
@@ -214,9 +214,9 @@ def test_el_hydrapple_noquea_a_los_dos_cuerpos():
     assert riv["active"][0]["hp"] == 70 and riv["bench"][3]["hp"] == 100
     # Syrup Storm: 30 + 30 for each Grass on ALL our Pokemon.
     mio = o["current"]["players"][o["current"]["yourIndex"]]
-    plantas = len(mio["active"][0]["energies"]) + sum(
+    grass_cards = len(mio["active"][0]["energies"]) + sum(
         len(b["energies"]) for b in mio["bench"])
-    assert 30 + 30 * plantas >= 100
+    assert 30 + 30 * grass_cards >= 100
 
 
 # ---------------------------------------------------------------------------
@@ -225,14 +225,14 @@ def test_el_hydrapple_noquea_a_los_dos_cuerpos():
 
 def test_se_juega_el_boss_no_el_dawn():
     o = _obs()
-    assert m.agent(o) == [_idx(o, type=7, index=_mano_idx(o, BOSS))], (
+    assert m.agent(o) == [_idx(o, type=7, index=_hand_idx(o, BOSS))], (
         "con la Fase 1 de la linea en la BANCA y noqueable, se juega Boss's: "
         "mismo premio que atacar al Basico de enfrente, pero corta la linea un "
         "escalon mas arriba y retrasa dos turnos a Marnie's Grimmsnarl ex")
 
 
 def test_el_objetivo_del_gusteo_es_el_morgrem():
-    o = _menu_de_gusteo(_obs())
+    o = _menu_of_gust(_obs())
     riv = o["current"]["players"][1 - o["current"]["yourIndex"]]
     elegido = m.agent(o)
     assert riv["bench"][elegido[0]]["id"] == MORGREM, (
@@ -269,7 +269,7 @@ def test_la_regla_no_es_de_la_linea_marnie(monkeypatch):
     active["preEvolution"] = []
     bench["preEvolution"] = [{"id": m.Dreepy, "playerIndex": 0, "serial": 900}]
 
-    assert m.agent(o) == [_idx(o, type=7, index=_mano_idx(o, BOSS))]
+    assert m.agent(o) == [_idx(o, type=7, index=_hand_idx(o, BOSS))]
 
 
 # ---------------------------------------------------------------------------

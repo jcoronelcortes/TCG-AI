@@ -102,7 +102,7 @@ def _obs():
         return json.load(f)["observation"]
 
 
-def _objetivo(obs, choice):
+def _target(obs, choice):
     """(id, energies) of the opposing benched Pokémon the gust chooses."""
     o = obs["select"]["option"][choice[0]]
     assert o["type"] == int(m.OptionType.CARD) and o["area"] == 5
@@ -110,8 +110,8 @@ def _objetivo(obs, choice):
     return pk["id"], len(pk["energies"])
 
 
-def _pk(card_id, energias):
-    return SimpleNamespace(id=card_id, energies=[m.EnergyType.GRASS] * energias)
+def _pk(card_id, energies):
+    return SimpleNamespace(id=card_id, energies=[m.EnergyType.GRASS] * energies)
 
 
 # ---------------------------------------------------------------------------
@@ -120,7 +120,7 @@ def _pk(card_id, energias):
 
 def test_paso65_sube_un_drakloak_pelado_no_el_dragapult_ex():
     obs = _obs()
-    assert _objetivo(obs, m.agent(obs)) == (DRAKLOAK, 0), (
+    assert _target(obs, m.agent(obs)) == (DRAKLOAK, 0), (
         "sin KO se sube el cuerpo que NO puede pagar su ataque: el Drakloak "
         "pelado necesita 2 energías y solo puede retirarse; el Dragapult ex "
         "ataca con 1 y el Boss's le habría pagado la subida gratis")

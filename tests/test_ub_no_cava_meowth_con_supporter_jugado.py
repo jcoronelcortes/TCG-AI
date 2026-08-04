@@ -107,11 +107,11 @@ def _observaciones():
         return json.load(f)["observaciones"]
 
 
-def _por_accion(obs_list):
+def _by_action(obs_list):
     return {o["current"]["turnActionCount"]: o for o in obs_list}
 
 
-def _jugada(obs, choice):
+def _play(obs, choice):
     """('PLAY'|'CARTA', card_id) / ('ATTACK', attackId) / ('END', None)."""
     o = obs["select"]["option"][choice[0]]
     tipo = o["type"]
@@ -130,13 +130,13 @@ def _jugada(obs, choice):
     return (tipo, None)
 
 
-def _jugadas(obs):
-    return [_jugada(obs, [i]) for i in range(len(obs["select"]["option"]))]
+def _plays(obs):
+    return [_play(obs, [i]) for i in range(len(obs["select"]["option"]))]
 
 
 def _reproducir(obs_list):
     """Replays the turn IN ORDER and returns {turnActionCount: play}."""
-    return {o["current"]["turnActionCount"]: _jugada(o, m.agent(o))
+    return {o["current"]["turnActionCount"]: _play(o, m.agent(o))
             for o in obs_list}
 
 
@@ -159,7 +159,7 @@ def test_paso101_la_segunda_ultra_ball_tampoco_se_juega():
 def test_el_menu_ofrecia_de_verdad_las_dos_jugadas():
     """Without the Ultra Ball AND the attack in the menu the test discriminates nothing."""
     for tac in (16, 19):
-        plays = _jugadas(_por_accion(_observaciones())[tac])
+        plays = _plays(_by_action(_observaciones())[tac])
         assert ("PLAY", ULTRA_BALL) in plays, (tac, plays)
         assert ("ATTACK", SYRUP_STORM) in plays, (tac, plays)
 
@@ -176,7 +176,7 @@ def test_el_fetch_no_elige_meowth_con_el_supporter_del_turno_jugado():
     for o in obs_list:
         # Every menu of the record is answered (including those of the Ultra
         # Ball we would no longer play) so the fetch is reached with the state warmed up.
-        hecho[o["current"]["turnActionCount"]] = _jugada(o, m.agent(o))
+        hecho[o["current"]["turnActionCount"]] = _play(o, m.agent(o))
     assert hecho[18] == ("CARTA", CHIKORITA), hecho[18]
     assert hecho[21] == ("CARTA", CHIKORITA), hecho[21]
 
@@ -187,12 +187,12 @@ def test_la_ultra_ball_inutil_queda_por_debajo_del_piso_de_veto():
     visto = {}
     orig = m._score_ultra_ball_play
 
-    def espia(ctx):
+    def spy(ctx):
         r = orig(ctx)
         visto.setdefault(ctx.state.turnActionCount, []).append(r)
         return r
 
-    _rest_score_ultra_ball_play = instalar("_score_ultra_ball_play", espia)
+    _rest_score_ultra_ball_play = instalar("_score_ultra_ball_play", spy)
     try:
         _reproducir(_observaciones())
     finally:
@@ -207,11 +207,11 @@ def test_la_ultra_ball_inutil_queda_por_debajo_del_piso_de_veto():
 def test_la_red_anti_turno_esteril_no_dispara_con_un_ataque_real():
     """The link that resurrected the vetoed Ultra Ball at 200: a turn that ends
     with a 210 Syrup Storm is not a dead turn."""
-    obs16 = _por_accion(_observaciones())[16]
+    obs16 = _by_action(_observaciones())[16]
     m.agent(obs16)
     # If the net had fired, the Ultra Ball would have come out at 200 and the
     # agent would have chosen it; the real attack is the proof that it did not.
-    assert _jugada(obs16, m.agent(obs16)) == ("ATTACK", SYRUP_STORM)
+    assert _play(obs16, m.agent(obs16)) == ("ATTACK", SYRUP_STORM)
 
 
 # ---------------------------------------------------------------------------
@@ -226,7 +226,7 @@ def test_con_el_supporter_libre_el_fetch_sigue_eligiendo_meowth():
     obs_list = _observaciones()
     for o in obs_list[:2]:          # it warms the state up to the fetch
         m.agent(o)
-    fetch = _por_accion(obs_list)[18]
+    fetch = _by_action(obs_list)[18]
     fetch = json.loads(json.dumps(fetch))
     fetch["current"]["supporterPlayed"] = False
-    assert _jugada(fetch, m.agent(fetch)) == ("CARTA", MEOWTH)
+    assert _play(fetch, m.agent(fetch)) == ("CARTA", MEOWTH)

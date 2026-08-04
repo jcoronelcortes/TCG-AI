@@ -86,22 +86,22 @@ with open(salida, "w") as f:
 """
 
 
-def _cargar_en_subproceso(main_py, cwd_carga, cwd_decision, tmp_path, etiqueta):
+def _load_in_subprocess(main_py, load_cwd, cwd_decision, tmp_path, etiqueta):
     """Loads `main_py` with Kaggle's loader in a clean interpreter."""
     script = tmp_path / f"runner_{etiqueta}.py"
     script.write_text(_RUNNER.format(tests_dir=str(TESTS_DIR)))
-    salida = tmp_path / f"salida_{etiqueta}.json"
+    output = tmp_path / f"salida_{etiqueta}.json"
 
     proc = subprocess.run(
-        [sys.executable, str(script), str(main_py), str(cwd_carga),
-         str(cwd_decision), str(FIXTURE), str(salida)],
+        [sys.executable, str(script), str(main_py), str(load_cwd),
+         str(cwd_decision), str(FIXTURE), str(output)],
         capture_output=True, text=True, timeout=300,
     )
-    assert salida.exists(), (
+    assert output.exists(), (
         f"el runner ({etiqueta}) murio sin escribir resultado.\n"
         f"returncode={proc.returncode}\nstdout={proc.stdout}\nstderr={proc.stderr}"
     )
-    return json.loads(salida.read_text())
+    return json.loads(output.read_text())
 
 
 # ===========================================================================
@@ -115,7 +115,7 @@ def test_el_cargador_de_kaggle_se_queda_con_agent(tmp_path):
     container would take THAT function as the agent and the game would die with a
     TypeError, without any other test noticing.
     """
-    r = _cargar_en_subproceso(ROOT / "main.py", ROOT, ROOT, tmp_path, "entrada")
+    r = _load_in_subprocess(ROOT / "main.py", ROOT, ROOT, tmp_path, "entrada")
     assert "error" not in r, r["error"]
     assert r["nombre"] == "agent", (
         f"el cargador de Kaggle se quedaria con {r['nombre']!r} en vez de con "
@@ -130,7 +130,7 @@ def test_main_no_es_un_modulo_para_el_contenedor(tmp_path):
     do `import main` -- and why the global state cannot stay in
     main.py once it is modularised (wave 3).
     """
-    r = _cargar_en_subproceso(ROOT / "main.py", ROOT, ROOT, tmp_path, "modulo")
+    r = _load_in_subprocess(ROOT / "main.py", ROOT, ROOT, tmp_path, "modulo")
     assert "error" not in r, r["error"]
     assert r["main_en_sys_modules"] is False
 
@@ -182,12 +182,12 @@ def test_la_submission_empaquetada_decide_igual_que_el_arbol(tmp_path):
         tar.extractall(agente_dir, filter="data")
 
     # Reference: the tree's main.py.
-    ref = _cargar_en_subproceso(ROOT / "main.py", ROOT, ROOT, tmp_path, "ref")
+    ref = _load_in_subprocess(ROOT / "main.py", ROOT, ROOT, tmp_path, "ref")
     assert "error" not in ref, ref["error"]
 
     # Candidate: the submission's; the DECISION is taken with the CWD outside the
     # agent's directory, because the container does not chdir.
-    cand = _cargar_en_subproceso(
+    cand = _load_in_subprocess(
         agente_dir / "main.py", agente_dir, tmp_path, tmp_path, "cand"
     )
     assert "error" not in cand, cand["error"]

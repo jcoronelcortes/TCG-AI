@@ -71,9 +71,9 @@ FOREST = m.Forest_of_Vitality
 FEZ = m.Fezandipiti_ex
 APPLIN = m.Applin
 OGERPON = m.Teal_Mask_Ogerpon_ex
-ENERGIA = m.Basic_Grass_Energy
+ENERGY = m.Basic_Grass_Energy
 
-CHIKORITA_RIVAL = 917               # the opponent's active/bench of the record
+CHIKORITA_OPPONENT = 917               # the opponent's active/bench of the record
 ABRA = 843                          # a basic of the Alakazam line (synthetic)
 
 _FIXTURE = (ROOT / "tests" / "fixtures"
@@ -114,11 +114,11 @@ def _observaciones():
         return json.load(f)["observaciones"]
 
 
-def _por_accion(obs_list):
+def _by_action(obs_list):
     return {o["current"]["turnActionCount"]: o for o in obs_list}
 
 
-def _jugada(obs, choice):
+def _play(obs, choice):
     """('PLAY'|'CARTA', card_id) / ('ATTACH'|'RETREAT'|'END', None)."""
     o = obs["select"]["option"][choice[0]]
     tipo = o["type"]
@@ -139,15 +139,15 @@ def _jugada(obs, choice):
     return (tipo, None)
 
 
-def _jugadas(obs):
-    return [_jugada(obs, [i]) for i in range(len(obs["select"]["option"]))]
+def _plays(obs):
+    return [_play(obs, [i]) for i in range(len(obs["select"]["option"]))]
 
 
 def _reproducir(obs_list):
     """Replays the turn IN ORDER and returns {turnActionCount: play}."""
     hecho = {}
     for obs in obs_list:
-        hecho[obs["current"]["turnActionCount"]] = _jugada(obs, m.agent(obs))
+        hecho[obs["current"]["turnActionCount"]] = _play(obs, m.agent(obs))
     return hecho
 
 
@@ -167,8 +167,8 @@ def test_paso22_juega_la_lillie_que_trajo_el_last_ditch():
 
 def test_paso22_el_menu_ofrecia_de_verdad_las_dos_jugadas():
     """Without both in the menu the test would discriminate nothing."""
-    obs13 = _por_accion(_observaciones())[13]
-    plays = _jugadas(obs13)
+    obs13 = _by_action(_observaciones())[13]
+    plays = _plays(obs13)
     assert ("PLAY", LILLIE) in plays, plays
     assert ("PLAY", DAWN) in plays, plays
     assert ("PLAY", XEROSIC) in plays, plays
@@ -182,11 +182,11 @@ def test_paso22_el_compromiso_es_lo_unico_que_decide():
     visto = {}
     orig = m._score_dawn_play
 
-    def espia(ctx):
+    def spy(ctx):
         visto["ctx"] = ctx
         return orig(ctx)
 
-    _rest_score_dawn_play = instalar("_score_dawn_play", espia)
+    _rest_score_dawn_play = instalar("_score_dawn_play", spy)
     try:
         _reproducir(obs_list)
     finally:
@@ -224,7 +224,7 @@ def test_el_compromiso_se_resetea_por_turno():
     obs_list = _observaciones()
     _reproducir(obs_list)
     assert m._ld_supp_comprometido == LILLIE
-    next_item = json.loads(json.dumps(_por_accion(obs_list)[13]))
+    next_item = json.loads(json.dumps(_by_action(obs_list)[13]))
     next_item["current"]["turn"] += 2
     next_item["current"]["turnActionCount"] = 1
     m.agent(next_item)
@@ -235,17 +235,17 @@ def test_el_compromiso_se_resetea_por_turno():
 # 3. A synthetic generalisation: the rule names no cards
 # ---------------------------------------------------------------------------
 
-def _menu_sintetico(hand):
+def _synthetic_menu(hand):
     """A neutral board (a mid game turn, with no special matchup) with `mano` in hand
     and a menu of one PLAY per card."""
     return (Escenario(turn=8, step=60, tac=4)
-            .my_active(pk(OGERPON, energias=[G, G]))
+            .my_active(pk(OGERPON, energies=[G, G]))
             .my_bench(pk(MEOWTH, aparecio=True), APPLIN)
             .my_hand(*hand)
-            .op_active(pk(CHIKORITA_RIVAL, energias=[C]))
+            .op_active(pk(CHIKORITA_OPPONENT, energies=[C]))
             .op_bench(pk(ABRA, hp=70, max_hp=70))
             .op_zonas(hand=5, deck=30, prizes=5)
-            .menu_mano()
+            .menu_hand()
             .build())
 
 
@@ -262,16 +262,16 @@ def _armar(obs, sid):
 def test_el_compromiso_gana_el_hueco_a_cualquier_otro_supporter():
     """With the commitment armed, any OTHER Supporter in hand yields the
     slot -- it is tested with a pair of cards different from the record's."""
-    obs = _menu_sintetico([BOSS, XEROSIC])
-    plays = _jugadas(obs)
+    obs = _synthetic_menu([BOSS, XEROSIC])
+    plays = _plays(obs)
     assert ("PLAY", BOSS) in plays, plays
     assert ("PLAY", XEROSIC) in plays, plays
 
     _armar(obs, BOSS)
-    assert _jugada(obs, m.agent(obs)) == ("PLAY", BOSS)
+    assert _play(obs, m.agent(obs)) == ("PLAY", BOSS)
 
     m._ld_supp_comprometido = XEROSIC
-    assert _jugada(obs, m.agent(obs)) == ("PLAY", XEROSIC)
+    assert _play(obs, m.agent(obs)) == ("PLAY", XEROSIC)
 
 
 def test_el_piso_esta_por_encima_de_la_banda_normal_de_supporters():
@@ -283,16 +283,16 @@ def test_el_piso_esta_por_encima_de_la_banda_normal_de_supporters():
     Supporter (a score > the floor, e.g. a Boss's that wins the game) can still
     keep the turn. Adding the veto cost -0.67 points of winrate
     (6000 games per variant); the floor alone gives +0.40."""
-    obs = _menu_sintetico([BOSS, XEROSIC])
+    obs = _synthetic_menu([BOSS, XEROSIC])
     m.agent(obs)                      # it leaves the turn's ctx built
     visto = {}
     orig = m._score_xerosic_play
 
-    def espia(ctx):
+    def spy(ctx):
         visto["ctx"] = ctx
         return orig(ctx)
 
-    _rest_score_xerosic_play = instalar("_score_xerosic_play", espia)
+    _rest_score_xerosic_play = instalar("_score_xerosic_play", spy)
     try:
         m.agent(obs)
     finally:
@@ -304,17 +304,17 @@ def test_el_piso_esta_por_encima_de_la_banda_normal_de_supporters():
 
 def test_el_compromiso_no_aplica_con_el_hueco_ya_gastado():
     """`supporterPlayed` rules: the commitment does not resurrect a spent slot."""
-    obs = _menu_sintetico([BOSS, XEROSIC])
+    obs = _synthetic_menu([BOSS, XEROSIC])
     obs["current"]["supporterPlayed"] = True
     _armar(obs, BOSS)
-    assert _jugada(obs, m.agent(obs))[1] != BOSS
+    assert _play(obs, m.agent(obs))[1] != BOSS
 
 
 def test_el_compromiso_se_desarma_si_su_carta_ya_no_esta_ofrecida():
     """If the committed Supporter disappears from hand (the cost of an Ultra
     Ball, a shuffle...) the rule must not leave the rest of the menu vetoed."""
-    obs = _menu_sintetico([XEROSIC, m.Ultra_Ball])
-    sin_compromiso = _jugada(obs, m.agent(obs))
+    obs = _synthetic_menu([XEROSIC, m.Ultra_Ball])
+    without_commitment = _play(obs, m.agent(obs))
 
     _armar(obs, BOSS)                     # committed... and no longer in hand
-    assert _jugada(obs, m.agent(obs)) == sin_compromiso
+    assert _play(obs, m.agent(obs)) == without_commitment

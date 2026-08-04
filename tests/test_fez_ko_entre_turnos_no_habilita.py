@@ -61,8 +61,8 @@ FEZ = m.Fezandipiti_ex
 STAMP = m.Unfair_Stamp
 
 _FIX = ROOT / "tests" / "fixtures"
-_FIX_ENTRE_TURNOS = _FIX / "marnie_ko_entre_turnos_no_baja_fez_step76.json"
-_FIX_TURNO_RIVAL = _FIX / "marnie_ko_en_turno_rival_habilita_el_sello_step107.json"
+_FIX_BETWEEN_TURNS = _FIX / "marnie_ko_entre_turnos_no_baja_fez_step76.json"
+_FIX_OPPONENT_TURN = _FIX / "marnie_ko_en_turno_rival_habilita_el_sello_step107.json"
 
 
 @pytest.fixture(autouse=True)
@@ -80,26 +80,26 @@ def reset_main_state():
     m._init_cards_tracking()
 
 
-def _cargar(fixture):
+def _load(fixture):
     """(previous observation, decision observation) from the record."""
     with open(fixture, encoding="utf-8") as f:
         data = json.load(f)
     return data["observacion_previa"], data["observation"]
 
 
-def _jugadas(obs):
+def _plays(obs):
     """(type, card_id) of each menu option."""
     yo = obs["current"]["yourIndex"]
     hand = obs["current"]["players"][yo]["hand"]
-    salida = []
+    output = []
     for o in obs["select"]["option"]:
         if o["type"] == int(m.OptionType.PLAY):
-            salida.append(("PLAY", hand[o["index"]]["id"]))
+            output.append(("PLAY", hand[o["index"]]["id"]))
         elif o["type"] == int(m.OptionType.END):
-            salida.append(("END", None))
+            output.append(("END", None))
         else:
-            salida.append((o["type"], None))
-    return salida
+            output.append((o["type"], None))
+    return output
 
 
 def _log(**campos):
@@ -111,10 +111,10 @@ def _log(**campos):
 # ---------------------------------------------------------------------------
 
 def test_ko_entre_turnos_no_baja_fezandipiti():
-    previa, decision = _cargar(_FIX_ENTRE_TURNOS)
+    previa, decision = _load(_FIX_BETWEEN_TURNS)
 
     # The real menu offered playing the Fezandipiti ex.
-    plays = _jugadas(decision)
+    plays = _plays(decision)
     assert ("PLAY", FEZ) in plays, plays
 
     # ... and the engine itself said the clause was NOT satisfied: we had the
@@ -142,7 +142,7 @@ def test_el_menu_del_motor_manda_sobre_la_inferencia_de_logs():
     rival took, but the Unfair Stamp is in hand and the engine does not
     offer it -- hence the clause is not satisfied and the ability does not exist either.
     """
-    _, decision = _cargar(_FIX_ENTRE_TURNOS)
+    _, decision = _load(_FIX_BETWEEN_TURNS)
     m.agent(decision)          # WITHOUT the previous observation: we did not see the TURN_END
     assert m._own_ko_outside_op_turn == -99
     assert not m.ko_last_turn
@@ -153,11 +153,11 @@ def test_el_menu_del_motor_manda_sobre_la_inferencia_de_logs():
 # ---------------------------------------------------------------------------
 
 def test_ko_por_habilidad_dentro_del_turno_rival_si_habilita():
-    previa, decision = _cargar(_FIX_TURNO_RIVAL)
+    previa, decision = _load(_FIX_OPPONENT_TURN)
 
     # Adrena-Brain (Munkidori) moved 3 counters and killed our Ogerpon ex
     # INSIDE the rival's turn: the engine offers the Stamp the next turn.
-    plays = _jugadas(decision)
+    plays = _plays(decision)
     assert ("PLAY", STAMP) in plays, plays
 
     m.agent(previa)
@@ -172,21 +172,21 @@ def test_ko_por_habilidad_dentro_del_turno_rival_si_habilita():
 # 3. The classifier, dry
 # ---------------------------------------------------------------------------
 
-def _ko_propio(serial=1, area=m.AreaType.BENCH):
+def _own_ko(serial=1, area=m.AreaType.BENCH):
     return _log(type=m.LogType.MOVE_CARD, playerIndex=1, cardId=FEZ,
                 serial=serial, fromArea=area, toArea=m.AreaType.DISCARD)
 
 
 @pytest.mark.parametrize("logs, dentro, fuera", [
     # A KO inside the rival's turn.
-    ([_log(type=m.LogType.TURN_START, playerIndex=0), _ko_propio()], 9, -99),
+    ([_log(type=m.LogType.TURN_START, playerIndex=0), _own_ko()], 9, -99),
     # A KO between turns (after the rival's TURN_END).
     ([_log(type=m.LogType.TURN_START, playerIndex=0),
-      _log(type=m.LogType.TURN_END, playerIndex=0), _ko_propio()], -99, 9),
+      _log(type=m.LogType.TURN_END, playerIndex=0), _own_ko()], -99, 9),
     # A self-KO on OUR turn (recoil): it does not enable anything either.
-    ([_log(type=m.LogType.TURN_START, playerIndex=1), _ko_propio()], -99, 9),
+    ([_log(type=m.LogType.TURN_START, playerIndex=1), _own_ko()], -99, 9),
     # With no turn marker there is no evidence: it is not classified.
-    ([_ko_propio()], -99, -99),
+    ([_own_ko()], -99, -99),
 ])
 def test_clasificador_de_ventana(logs, dentro, fuera):
     m._reset_ventana_de_ko()
@@ -217,7 +217,7 @@ def test_partida_nueva_borra_la_ventana():
     """Self-play chains episodes in the same process."""
     m._rastrear_ventana_de_ko([
         _log(type=m.LogType.TURN_START, playerIndex=0),
-        _log(type=m.LogType.TURN_END, playerIndex=0), _ko_propio()],
+        _log(type=m.LogType.TURN_END, playerIndex=0), _own_ko()],
         my_index=1, turn=9)
     assert m._own_ko_outside_op_turn == 9
     m._init_cards_tracking()

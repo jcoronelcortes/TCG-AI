@@ -184,18 +184,18 @@ def play_game(agente_p0, agente_p1, deck0=None, deck1=None,
     _watch_prizes()
     agentes = {0: agente_p0, 1: agente_p1}
     steps = 0
-    primer_jugador = -1
+    first_player = -1
     try:
         while obs["current"]["result"] == -1 and steps < max_steps:
             yi = obs["current"]["yourIndex"]
-            if primer_jugador == -1:
-                primer_jugador = obs["current"]["firstPlayer"]
+            if first_player == -1:
+                first_player = obs["current"]["firstPlayer"]
             try:
                 choice = agentes[yi].agent(obs)
                 obs = game.battle_select(choice)
             except Exception:
                 return {"result": f"error_p{yi}", "ganador": 1 - yi,
-                        "pasos": steps, "primer_jugador": primer_jugador,
+                        "pasos": steps, "primer_jugador": first_player,
                         "premios_tomados": _prizes_taken(
                             peak_prizes, _prizes_left(obs))}
             _watch_prizes()
@@ -203,12 +203,12 @@ def play_game(agente_p0, agente_p1, deck0=None, deck1=None,
         prizes = _prizes_taken(peak_prizes, _prizes_left(obs))
         if obs["current"]["result"] == -1:
             return {"result": "limite", "ganador": None, "pasos": steps,
-                    "primer_jugador": primer_jugador,
+                    "primer_jugador": first_player,
                     "premios_tomados": prizes}
         winner = obs["current"]["result"]
         return {"result": winner, "ganador": winner, "pasos": steps,
                 "primer_jugador": obs["current"]["firstPlayer"]
-                if primer_jugador == -1 else primer_jugador,
+                if first_player == -1 else first_player,
                 "premios_tomados": prizes}
     finally:
         game.battle_finish()

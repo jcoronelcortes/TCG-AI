@@ -128,8 +128,8 @@ def test_el_fixture_es_el_cambio_por_el_cuerpo_de_50pv():
 
 def test_no_se_retira_el_ogerpon_sano():
     o = _obs()
-    retirar = _opcion(o, int(m.OptionType.RETREAT))
-    assert m.agent(o) != [retirar], (
+    retreat = _opcion(o, int(m.OptionType.RETREAT))
+    assert m.agent(o) != [retreat], (
         "el activo de 210 PV ya noquea al Alakazam; retirarlo para subir el "
         "gemelo de 50 PV cuesta una energía y deja delante el cuerpo que muere")
 
@@ -146,9 +146,9 @@ def test_el_activo_aguanta_nueve_veces_mas_que_el_candidato():
     riv = cur.players[1 - yo]
 
     def margen(pkm):
-        amenaza = max((m._op_active_attack_damage_to(b, pkm, riv.handCount)
+        threat = max((m._op_active_attack_damage_to(b, pkm, riv.handCount)
                        for b in riv.bench if b is not None), default=0)
-        return (pkm.hp or 0) - amenaza
+        return (pkm.hp or 0) - threat
 
     active = mio.active[0]
     gemelo = next(b for b in mio.bench if b is not None and b.id == OGERPON)

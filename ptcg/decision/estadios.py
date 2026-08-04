@@ -27,15 +27,15 @@ class _GrandTreePlan(NamedTuple):
 
 def _gt_slots_propios(my_state):
     """`(area, index, pokemon)` of every Pokemon of ours in play."""
-    salida = []
+    output = []
     active = (my_state.active[0]
               if getattr(my_state, 'active', None) else None)
     if active is not None:
-        salida.append((AreaType.ACTIVE, 0, active))
+        output.append((AreaType.ACTIVE, 0, active))
     for k, pkmn in enumerate(getattr(my_state, 'bench', None) or []):
         if pkmn is not None:
-            salida.append((AreaType.BENCH, k, pkmn))
-    return salida
+            output.append((AreaType.BENCH, k, pkmn))
+    return output
 
 
 def _gt_body_value(card_id):

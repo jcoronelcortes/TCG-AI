@@ -10,7 +10,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import main as m
-from parcheo import parchear, instalar
+from parcheo import patch_name, instalar
 from cg.api import AreaType, EnergyType, LogType, OptionType, SelectContext
 
 
@@ -154,19 +154,19 @@ def test_our_effective_damage_resolute_heart_caps_at_full_hp():
 
 def test_prize_count_op_aplica_denegacion_del_campo_rival():
     munki = make_pokemon(m.Munkidori_ex, hp=210, max_hp=210)
-    fez_rival = make_pokemon(m.Fezandipiti_ex, hp=210, max_hp=210)  # rival {D}
+    opponent_fez = make_pokemon(m.Fezandipiti_ex, hp=210, max_hp=210)  # rival {D}
 
     # With no denials on the rival field: it counts normally.
     assert m.prize_count_op(munki) == 2
     # A rival Pecharunt ex in play ("Oh No You Don't"): Munkidori ex yields 1.
     m._op_prize_denial_pecharunt = True
     assert m.prize_count_op(munki) == 1
-    assert m.prize_count_op(fez_rival) == 2  # it is not Munkidori: no change
+    assert m.prize_count_op(opponent_fez) == 2  # it is not Munkidori: no change
     # A rival Mega Gengar ex ("Shadowy Concealment"): their {D} yield 1 less.
     m._op_prize_denial_gengar = True
-    assert m.prize_count_op(fez_rival) == 1
+    assert m.prize_count_op(opponent_fez) == 1
     # The prizes OUR side gives away (prize_count) are unaffected.
-    assert m.prize_count(fez_rival) == 2
+    assert m.prize_count(opponent_fez) == 2
 
 
 def test_ko_no_garantizado_detecta_hawlucha_y_survival_brace():
@@ -404,7 +404,7 @@ def test_eval_ub_best_target_returns_non_negative_value():
 def test_our_effective_damage_applies_weakness_and_resistance(monkeypatch):
     # `card_table` is bound in main and in thirteen modules of ptcg/: it has to be
     # set in all of them, or the function under test reads the one from ITS module.
-    parchear(
+    patch_name(
         monkeypatch,
         "card_table",
         {
@@ -1049,7 +1049,7 @@ def test_score_unfair_stamp_lower_when_hand_has_a_play():
     assert m._score_unfair_stamp_play(ctx) == 2500
 
 
-def _mazo(*ids):
+def _deck(*ids):
     """A minimal deck-belief: {id: {ESTADO_MAZO: 1}} for the given ids."""
     return {cid: {m.ZONE_DECK: 1} for cid in ids}
 
@@ -1066,7 +1066,7 @@ def test_score_poke_pad_enables_evolution_this_turn_scores_high():
     # searching for Meganium enables the evolution THIS turn -> a high score (>=22000).
     ctx = _make_boss_ctx(
         state=SimpleNamespace(turn=6, energyAttached=False),
-        cards_in_deck=_mazo(m.Meganium),
+        cards_in_deck=_deck(m.Meganium),
         field_counts={m.Bayleef: 1},
         field_at_turn_start={m.Bayleef: 1},
         bench_count=2,
@@ -1078,7 +1078,7 @@ def test_score_poke_pad_saves_resource_on_full_bench():
     # A full bench and no pre-evo to evolve with a search: it is kept (-1).
     ctx = _make_boss_ctx(
         state=SimpleNamespace(turn=6, energyAttached=False),
-        cards_in_deck=_mazo(m.Chikorita),
+        cards_in_deck=_deck(m.Chikorita),
         field_counts={},
         bench_count=5,
     )
@@ -2192,12 +2192,12 @@ def _comfey_supporter_obs(hand_size, grass_discard, comfey=True, ogerpon=False,
     relleno = max(0, hand_size - 3 - (1 if ogerpon else 0))
     for k in range(relleno):
         hand.append({"id": 1, "playerIndex": 1, "serial": 830 + k})
-    opciones = [{"index": 0, "type": 7}, {"index": 1, "type": 7},
+    options = [{"index": 0, "type": 7}, {"index": 1, "type": 7},
                 {"index": 2, "type": 7}]
     if ogerpon:
         hand.append({"id": m.Teal_Mask_Ogerpon_ex, "playerIndex": 1, "serial": 890})
-        opciones.append({"index": len(hand) - 1, "type": 7})
-    opciones.append({"type": 14})
+        options.append({"index": len(hand) - 1, "type": 7})
+    options.append({"type": 14})
     me["hand"] = hand
     if deck_count is not None:
         me["deckCount"] = deck_count
@@ -2205,7 +2205,7 @@ def _comfey_supporter_obs(hand_size, grass_discard, comfey=True, ogerpon=False,
                      for k in range(grass_discard)]
     o["select"] = {"context": 0, "contextCard": None, "deck": None, "effect": None,
                    "maxCount": 1, "minCount": 1, "type": 0, "remainDamageCounter": 0,
-                   "remainEnergyCost": 0, "option": opciones}
+                   "remainEnergyCost": 0, "option": options}
     cur["yourIndex"] = 1
     return o
 
@@ -2659,13 +2659,13 @@ def test_alakazam_reserve_allows_line_pieces():
 # the 2nd Meowth ex -- which stayed DEAD in hand -- and with no Xerosic the rival
 # gusted a bench Ogerpon ex with Boss's Orders and knocked it out (220 >= 210) for
 # their last 2 prizes.
-_ALK_RESERVE_MEOWTH_EN_BANCA_FIXTURE = (
+_ALK_RESERVE_MEOWTH_ON_BENCH_FIXTURE = (
     ROOT / "tests" / "fixtures"
     / "alakazam_step150_reserva_con_meowth_en_banca.json")
 
 
 def _alk_reserve_obs():
-    with open(_ALK_RESERVE_MEOWTH_EN_BANCA_FIXTURE, encoding="utf-8") as f:
+    with open(_ALK_RESERVE_MEOWTH_ON_BENCH_FIXTURE, encoding="utf-8") as f:
         return _copy.deepcopy(json.load(f)["observation"])
 
 
@@ -2695,11 +2695,11 @@ def test_alakazam_reserve_slot_con_meowth_ya_en_banca():
 # to 8 cards: the projected Powerful Hand = 20 x (8+2) = 200 < the Ogerpon ex's 210 HP,
 # so the second veto switches off -- and 8 is still above the >= 7 threshold
 # of the Xerosic engine, which is what the reservation protects.
-_ALK_MANO_RIVAL_SIN_REMATE = 8
+_ALK_OPPONENT_HAND_NO_FINISHER = 8
 
 
-def _alk_sin_remate(obs):
-    obs["current"]["players"][1]["handCount"] = _ALK_MANO_RIVAL_SIN_REMATE
+def _alk_no_finisher(obs):
+    obs["current"]["players"][1]["handCount"] = _ALK_OPPONENT_HAND_NO_FINISHER
     return obs
 
 
@@ -2707,7 +2707,7 @@ def test_alakazam_reserve_off_si_last_ditch_ya_gastada():
     # A negative control: the bench Meowth ex APPEARED THIS TURN -> its
     # Last-Ditch is already spent and a 2nd Meowth would search for nothing. With no engine to
     # take the slot there is nothing to reserve: the body is played again.
-    obs = _alk_sin_remate(_alk_reserve_obs())
+    obs = _alk_no_finisher(_alk_reserve_obs())
     for b in obs["current"]["players"][0]["bench"]:
         if b["id"] == 1071:
             b["appearThisTurn"] = True
@@ -2720,7 +2720,7 @@ def test_alakazam_reserve_off_si_last_ditch_ya_gastada():
 def test_alakazam_reserve_off_sin_meowth_alcanzable():
     # A negative control: the 2nd copy of Meowth ex is in the DISCARD -> no
     # body is left that could take the reserved slot.
-    obs = _alk_sin_remate(_alk_reserve_obs())
+    obs = _alk_no_finisher(_alk_reserve_obs())
     obs["current"]["players"][0]["discard"].append(
         {"id": 1071, "playerIndex": 0, "serial": 19})
     result = _alk_reserve_run(obs)
@@ -2731,7 +2731,7 @@ def test_alakazam_reserve_off_sin_meowth_alcanzable():
 def test_alakazam_reserve_off_sin_xerosic_en_mazo():
     # A negative control: the 2nd Xerosic to the discard as well -> there is no disruption
     # to dig for, the slot is not worth more than the body.
-    obs = _alk_sin_remate(_alk_reserve_obs())
+    obs = _alk_no_finisher(_alk_reserve_obs())
     obs["current"]["players"][0]["discard"].append(
         {"id": 1197, "playerIndex": 0, "serial": 62})
     result = _alk_reserve_run(obs)
@@ -2748,14 +2748,14 @@ def test_alakazam_reserve_off_sin_xerosic_en_mazo():
 # take the slot there is nothing to reserve).
 
 
-def _alk_sin_reserva(obs):
+def _alk_no_reservation(obs):
     obs["current"]["players"][0]["discard"].append(
         {"id": 1071, "playerIndex": 0, "serial": 19})
     return obs
 
 
 def test_alakazam_no_baja_ex_redundante_con_powerful_hand_letal():
-    obs = _alk_sin_reserva(_alk_reserve_obs())
+    obs = _alk_no_reservation(_alk_reserve_obs())
     op = obs["current"]["players"][1]
     assert op["handCount"] == 12 and len(op["prize"]) == 2
     assert m._powerful_hand_proyectado(op["handCount"]) >= 210  # Ogerpon ex HP
@@ -2769,7 +2769,7 @@ def test_alakazam_no_baja_ex_redundante_con_powerful_hand_letal():
 def test_alakazam_ex_redundante_ok_si_powerful_hand_no_remata():
     # A negative control: a rival hand of 8 -> 20 x 10 = 200 < 210 HP. The body does NOT
     # die in one blow, the veto does not apply and the duplicate is played again.
-    obs = _alk_sin_remate(_alk_sin_reserva(_alk_reserve_obs()))
+    obs = _alk_no_finisher(_alk_no_reservation(_alk_reserve_obs()))
     result = _alk_reserve_run(obs)
     assert result == [3], (
         f"si Powerful Hand no remata al cuerpo, el veto no aplica; "
@@ -2779,7 +2779,7 @@ def test_alakazam_ex_redundante_ok_si_powerful_hand_no_remata():
 def test_alakazam_ex_redundante_ok_si_rival_lejos_de_premios():
     # A negative control: the rival at 4 prizes. Even if Powerful Hand finishes, one more
     # target does not close the game: normal development continues.
-    obs = _alk_sin_reserva(_alk_reserve_obs())
+    obs = _alk_no_reservation(_alk_reserve_obs())
     obs["current"]["players"][1]["prize"] = [None] * 4
     result = _alk_reserve_run(obs)
     assert result == [3], (
@@ -5038,7 +5038,7 @@ def _alakazam_s85_replay(observation_key=None):
     return m.agent(obs), obs, data
 
 
-def _carta_jugada(obs, result):
+def _played_card(obs, result):
     opt = obs["select"]["option"][result[0]]
     if opt.get("type") != int(OptionType.PLAY):
         return None
@@ -5048,15 +5048,15 @@ def _carta_jugada(obs, result):
 
 def test_alakazam_step85_juega_xerosic_y_no_boss():
     result, obs, _ = _alakazam_s85_replay()
-    assert _carta_jugada(obs, result) == m.Xerosic_Machinations, (
+    assert _played_card(obs, result) == m.Xerosic_Machinations, (
         f"con el rival a 16 cartas, capar la mano (Powerful Hand = 20 x carta) "
         f"tiene prioridad sobre un gusteo que no gana la partida; obtuvo "
-        f"{result} -> id {_carta_jugada(obs, result)}")
+        f"{result} -> id {_played_card(obs, result)}")
 
 
 def test_alakazam_step85_no_gasta_el_boss_orders():
     result, obs, _ = _alakazam_s85_replay()
-    assert _carta_jugada(obs, result) != m.Boss_Orders, (
+    assert _played_card(obs, result) != m.Boss_Orders, (
         f"Boss's Orders solo tiene prioridad cuando GANA la partida; obtuvo "
         f"{result}")
 
@@ -5065,9 +5065,9 @@ def test_alakazam_step85_sin_xerosic_vuelve_boss():
     # A counterfactual: with no Xerosic in hand, Boss's is the play again.
     result, obs, _ = _alakazam_s85_replay(
         observation_key="synthetic_sin_xerosic")
-    assert _carta_jugada(obs, result) == m.Boss_Orders, (
+    assert _played_card(obs, result) == m.Boss_Orders, (
         f"sin Xerosic en mano el gusteo de 2 premios sigue siendo correcto; "
-        f"obtuvo {result} -> id {_carta_jugada(obs, result)}")
+        f"obtuvo {result} -> id {_played_card(obs, result)}")
 
 
 # =====================================================================
@@ -5153,7 +5153,7 @@ def _marnie_s107_replay(observation_key=None):
 
 def test_marnie_step107_baja_meowth_con_activo_condenado():
     result, obs, _ = _marnie_s107_replay()
-    assert _carta_jugada(obs, result) == m.Meowth_ex, (
+    assert _played_card(obs, result) == m.Meowth_ex, (
         f"con el activo a 10/210 y un solo cuerpo en banca, bajar Meowth ex "
         f"(gratis, no consume el ataque) para encadenar Lillie's va primero; "
         f"obtuvo {result}")
@@ -5384,7 +5384,7 @@ def _dragapult_p61_obs():
         return copy.deepcopy(json.load(f)["observation"])
 
 
-def _p61_sin_evolucion_ni_retirada(obs):
+def _p61_no_evolution_no_retreat(obs):
     """The menu of the real deadlock: neither evolving nor retreating, only playing or attacking."""
     obs["select"]["option"] = [
         o for o in obs["select"]["option"]
@@ -5393,7 +5393,7 @@ def _p61_sin_evolucion_ni_retirada(obs):
 
 
 def test_p61_turno_esteril_juega_lillie_en_vez_de_growl():
-    obs = _p61_sin_evolucion_ni_retirada(_dragapult_p61_obs())
+    obs = _p61_no_evolution_no_retreat(_dragapult_p61_obs())
     result = m.agent(obs)
     opt = obs["select"]["option"][result[0]]
     assert opt.get("type") == int(OptionType.PLAY), (
@@ -5408,7 +5408,7 @@ def test_p61_turno_esteril_juega_lillie_en_vez_de_growl():
 def test_p61_con_ataque_real_no_dispara_el_rescate():
     # Boundary: if the active DOES do damage (a charged Tapu Bulu, Wood Hammer 220)
     # the turn is not sterile and the rescue does not switch on.
-    obs = _p61_sin_evolucion_ni_retirada(_dragapult_p61_obs())
+    obs = _p61_no_evolution_no_retreat(_dragapult_p61_obs())
     me = _mi_lado(obs)
     yo = obs["current"]["yourIndex"]
     tapu = copy.deepcopy(me["bench"][0])
@@ -6913,13 +6913,13 @@ def test_promote_near_ready_ko_attacker_over_cheap_wall():
         "no promover un muro que no puede atacar en varios turnos")
 
 
-def _promote_near_ready_obs(sin_lillie=False, sin_fez=False):
+def _promote_near_ready_obs(without_lillie=False, without_fez=False):
     with open(_PROMOTE_NEAR_READY_FIXTURE, encoding="utf-8") as f:
         obs = json.loads(json.dumps(json.load(f)["observation"]))
     yi = obs["current"]["yourIndex"]; me = obs["current"]["players"][yi]
-    if sin_lillie:
+    if without_lillie:
         me["hand"] = [c for c in me["hand"] if c["id"] != m.Lillie_Determination]
-    if sin_fez:
+    if without_fez:
         me["bench"] = [b for b in me["bench"] if b["id"] != m.Fezandipiti_ex]
         obs["select"]["option"] = [
             {"area": 5, "index": i, "playerIndex": yi, "type": 3}
@@ -6939,7 +6939,7 @@ def test_promote_near_ready_defers_without_draw_engine():
     # turn it draws 3. That route (route `d` of `_ps_can_find_energy`) is real and is now
     # modelled, so the control has to switch it off too in order to measure what
     # it says it measures. See `test_promote_near_ready_fez_draw_engine_is_enough`.
-    obs = _promote_near_ready_obs(sin_lillie=True, sin_fez=True)
+    obs = _promote_near_ready_obs(without_lillie=True, without_fez=True)
     me = obs["current"]["players"][obs["current"]["yourIndex"]]
     ogerpon_opt = next(i for i, o in enumerate(obs["select"]["option"])
                        if me["bench"][o["index"]]["id"] == m.Teal_Mask_Ogerpon_ex)
@@ -6958,7 +6958,7 @@ def test_promote_near_ready_fez_draw_engine_is_enough():
     # find the missing Grass, and the Ogerpon ex at 2/3 keeps its way out
     # (retreat 1, it carries 2 energies) in case the draw fails. The
     # nearly ready attacker is promoted, not the Tapu Bulu 0/4 with retreat 3.
-    obs = _promote_near_ready_obs(sin_lillie=True)
+    obs = _promote_near_ready_obs(without_lillie=True)
     me = obs["current"]["players"][obs["current"]["yourIndex"]]
     assert any(b and b["id"] == m.Fezandipiti_ex for b in me["bench"])
     ogerpon_opt = next(i for i, o in enumerate(obs["select"]["option"])
@@ -7534,16 +7534,16 @@ def test_alakazam_last_ditch_no_trae_copia_ya_en_mano():
     me = obs["current"]["players"][obs["current"]["yourIndex"]]
     deck = obs["select"]["deck"]
     opts = obs["select"]["option"]
-    en_mano = {c["id"] for c in me["hand"]}
+    in_hand = {c["id"] for c in me["hand"]}
     xerosic = next(i for i, o in enumerate(opts)
                    if deck[o["index"]]["id"] == m.Xerosic_Machinations)
-    assert m.Xerosic_Machinations in en_mano, "el escenario exige Xerosic en mano"
+    assert m.Xerosic_Machinations in in_hand, "el escenario exige Xerosic en mano"
     m._init_cards_tracking()
     m.plan = m.AttackPlan()
     m.pre_turn = 0
     result = m.agent(obs)
     traido = deck[opts[result[0]]["index"]]["id"]
-    assert traido not in en_mano, (
+    assert traido not in in_hand, (
         f"el Last-Ditch no debe traer una 2a copia de un Supporter que ya esta "
         f"en la mano (Xerosic, opt {xerosic}); trajo {traido}")
 
@@ -7576,10 +7576,10 @@ def test_meowth_fetch_prediccion_detecta_el_duplicado():
         False, False, False, False, True, deck)
     assert target == m.Xerosic_Machinations
     # Our first turn keeps the anti-donk exception (it is not capped).
-    objetivo_t1, valor_t1 = m._meowth_fetch_prediccion(
+    target_t1, value_t1 = m._meowth_fetch_prediccion(
         {m.Xerosic_Machinations: 1}, {}, 4, True, 12, False,
         False, False, False, False, True, deck, first_turn=True)
-    assert objetivo_t1 == m.Xerosic_Machinations and valor_t1 > 40
+    assert target_t1 == m.Xerosic_Machinations and value_t1 > 40
 
 
 # ============================================================================
@@ -7602,9 +7602,9 @@ def test_no_baja_meowth_si_el_supporter_del_turno_ya_esta_en_mano():
                   and me["hand"][o["index"]]["id"] == m.Meowth_ex)
     # The scenario requires the Xerosic in hand and NO Lillie's: the fetch would
     # bring one from the deck, but the Xerosic takes the turn's Supporter.
-    en_mano = [c["id"] for c in me["hand"]]
-    assert m.Xerosic_Machinations in en_mano
-    assert m.Lillie_Determination not in en_mano
+    in_hand = [c["id"] for c in me["hand"]]
+    assert m.Xerosic_Machinations in in_hand
+    assert m.Lillie_Determination not in in_hand
     m._init_cards_tracking()
     m.plan = m.AttackPlan()
     m.pre_turn = 0
@@ -7629,16 +7629,16 @@ def test_supp_play_score_ordena_por_la_escala_que_decide():
     val_xerosic = m._supp_play_score(ctx, m.Xerosic_Machinations)
     # The Lillie's is valued on the hand AFTER the fetch (it enters the slot
     # the Meowth leaves), which is the board on which it would be decided.
-    mano_post = defaultdict(int, {m.Xerosic_Machinations: 1,
+    hand_after = defaultdict(int, {m.Xerosic_Machinations: 1,
                                   m.Lillie_Determination: 1})
-    ctx_post = m._dc_replace(ctx, hand_counts=mano_post)
+    ctx_post = m._dc_replace(ctx, hand_counts=hand_after)
     val_lillie = m._supp_play_score(ctx_post, m.Lillie_Determination)
     # (here the Lillie's is even VETOED by `no_barajar_ultimo_xerosic`:
     # with the Xerosic in hand, shuffling it away is worse than refreshing.)
     assert val_xerosic > val_lillie, (
         f"Xerosic ({val_xerosic}) debe ganar a la Lillie's buscada "
         f"({val_lillie}) en la escala de JUGADA")
-    best_id, best_val = m._best_supporter_in_hand(ctx_post, mano_post)
+    best_id, best_val = m._best_supporter_in_hand(ctx_post, hand_after)
     assert best_id == m.Xerosic_Machinations and best_val == val_xerosic
 
 
@@ -7651,11 +7651,11 @@ def test_supp_play_score_deja_pasar_el_fetch_que_gana_la_partida():
         op_hand_count=13,
         hand_counts={m.Xerosic_Machinations: 1, m.Meowth_ex: 1},
     )
-    mano_post = defaultdict(int, {m.Xerosic_Machinations: 1, m.Boss_Orders: 1})
-    ctx_post = m._dc_replace(ctx, hand_counts=mano_post,
+    hand_after = defaultdict(int, {m.Xerosic_Machinations: 1, m.Boss_Orders: 1})
+    ctx_post = m._dc_replace(ctx, hand_counts=hand_after,
                              win_via_boss_gust=True)
     val_boss = m._supp_play_score(ctx_post, m.Boss_Orders)
-    best_id, best_val = m._best_supporter_in_hand(ctx_post, mano_post)
+    best_id, best_val = m._best_supporter_in_hand(ctx_post, hand_after)
     assert best_id == m.Boss_Orders, (
         f"el gusteo GANADOR ({val_boss}) debe llevarse el turno; "
         f"gano {best_id} con {best_val}")
@@ -8255,7 +8255,7 @@ _STARMIE_FEZ_FIXTURE = (
     ROOT / "tests" / "fixtures" / "starmie_step74_baja_fez_flip_script.json")
 
 
-def _reset_estado_registro_008():
+def _reset_state_record_008():
     m._init_cards_tracking()
     m._cards_first_scan_done = False
     m._cards_last_turn = -1
@@ -8267,7 +8267,7 @@ def _reset_estado_registro_008():
 def test_starmie_step75_ns_recupera_energia_no_tapu():
     with open(_STARMIE_NS_FIXTURE, encoding="utf-8") as f:
         obs = json.load(f)["observation"]
-    _reset_estado_registro_008()
+    _reset_state_record_008()
     result = m.agent(obs)
     me = obs["current"]["players"][obs["current"]["yourIndex"]]
     opt = obs["select"]["option"][result[0]]
@@ -8280,7 +8280,7 @@ def test_starmie_step75_ns_recupera_energia_no_tapu():
 def test_starmie_step74_baja_fez_con_flip_script_viva():
     with open(_STARMIE_FEZ_FIXTURE, encoding="utf-8") as f:
         obs = json.load(f)["observation"]
-    _reset_estado_registro_008()
+    _reset_state_record_008()
     result = m.agent(obs)
     me = obs["current"]["players"][obs["current"]["yourIndex"]]
     opt = obs["select"]["option"][result[0]]
@@ -8306,7 +8306,7 @@ _ROCKET_LILLIE_FIXTURE = (
 def test_rocket_t4_lillie_sobre_boss_con_activo_condenado():
     with open(_ROCKET_LILLIE_FIXTURE, encoding="utf-8") as f:
         obs = json.load(f)["observation"]
-    _reset_estado_registro_008()
+    _reset_state_record_008()
     result = m.agent(obs)
     me = obs["current"]["players"][obs["current"]["yourIndex"]]
     opt = obs["select"]["option"][result[0]]
@@ -8333,7 +8333,7 @@ _ALK_MEOWTH_ENGINE_FIXTURE = (
 def test_alakazam_step85_meowth_engine_sobre_boss():
     with open(_ALK_MEOWTH_ENGINE_FIXTURE, encoding="utf-8") as f:
         obs = json.load(f)["observation"]
-    _reset_estado_registro_008()
+    _reset_state_record_008()
     result = m.agent(obs)
     me = obs["current"]["players"][obs["current"]["yourIndex"]]
     opt = obs["select"]["option"][result[0]]
@@ -8358,7 +8358,7 @@ _MARNIE_DIPPLIN_FIXTURE = (
 def test_marnie_step43_no_sobrecargar_dipplin_recien_evolucionado():
     with open(_MARNIE_DIPPLIN_FIXTURE, encoding="utf-8") as f:
         obs = json.load(f)["observation"]
-    _reset_estado_registro_008()
+    _reset_state_record_008()
     result = m.agent(obs)
     opt = obs["select"]["option"][result[0]]
     # The 2nd energy to the Dipplin (an ATTACH to bench1) is vetoed; the play
@@ -8385,7 +8385,7 @@ _CERULEDGE_UB_FIXTURE = (
 def test_ceruledge_t2_no_juega_ub_con_banca_poblada():
     with open(_CERULEDGE_UB_FIXTURE, encoding="utf-8") as f:
         obs = json.load(f)["observation"]
-    _reset_estado_registro_008()
+    _reset_state_record_008()
     result = m.agent(obs)
     opt = obs["select"]["option"][result[0]]
     assert opt.get("type") == int(OptionType.END), (
@@ -8424,7 +8424,7 @@ _ABOMASNOW_TEAL_FIXTURE = (
 def test_abomasnow_step68_juega_ns_para_el_syrup_letal():
     with open(_ABOMASNOW_NS_SYRUP_FIXTURE, encoding="utf-8") as f:
         obs = json.load(f)["observation"]
-    _reset_estado_registro_008()
+    _reset_state_record_008()
     result = m.agent(obs)
     me = obs["current"]["players"][obs["current"]["yourIndex"]]
     opt = obs["select"]["option"][result[0]]
@@ -8439,7 +8439,7 @@ def test_abomasnow_step68_juega_ns_para_el_syrup_letal():
 def test_abomasnow_step68_ns_recupera_la_planta_no_el_meganium():
     with open(_ABOMASNOW_NS_FETCH_FIXTURE, encoding="utf-8") as f:
         obs = json.load(f)["observation"]
-    _reset_estado_registro_008()
+    _reset_state_record_008()
     result = m.agent(obs)
     me = obs["current"]["players"][obs["current"]["yourIndex"]]
     opt = obs["select"]["option"][result[0]]
@@ -8452,7 +8452,7 @@ def test_abomasnow_step68_ns_recupera_la_planta_no_el_meganium():
 def test_abomasnow_step68_teal_dance_convierte_el_syrup_en_letal():
     with open(_ABOMASNOW_TEAL_FIXTURE, encoding="utf-8") as f:
         obs = json.load(f)["observation"]
-    _reset_estado_registro_008()
+    _reset_state_record_008()
     result = m.agent(obs)
     opt = obs["select"]["option"][result[0]]
     assert opt.get("type") == int(OptionType.ABILITY), (
@@ -8461,7 +8461,7 @@ def test_abomasnow_step68_teal_dance_convierte_el_syrup_en_letal():
         f"350); esperaba ABILITY, {opt}")
 
 
-_ABOMASNOW_REMATE_FIXTURE = (
+_ABOMASNOW_FINISHER_FIXTURE = (
     ROOT / "tests" / "fixtures"
     / "abomasnow_step68d_ataca_tras_teal_dance.json")
 
@@ -8469,9 +8469,9 @@ _ABOMASNOW_REMATE_FIXTURE = (
 def test_abomasnow_step68_remata_tras_la_carga():
     """Closing the NS -> Grass -> Teal Dance -> ATTACK chain: with the 12
     Grass already on the field the Syrup Storm does 390 >= 350 and knocks out."""
-    with open(_ABOMASNOW_REMATE_FIXTURE, encoding="utf-8") as f:
+    with open(_ABOMASNOW_FINISHER_FIXTURE, encoding="utf-8") as f:
         obs = json.load(f)["observation"]
-    _reset_estado_registro_008()
+    _reset_state_record_008()
     result = m.agent(obs)
     opt = obs["select"]["option"][result[0]]
     assert opt.get("type") == int(OptionType.ATTACK), (
@@ -8504,14 +8504,14 @@ _UB_BUDEW_FIXTURE = (
 _UB_PREEVO_FRESCA_FIXTURE = (
     ROOT / "tests" / "fixtures"
     / "abomasnow_t6_no_ub_preevo_bajada_este_turno.json")
-_UB_PREEVO_LISTA_FIXTURE = (
+_UB_PREEVO_READY_FIXTURE = (
     ROOT / "tests" / "fixtures" / "abomasnow_t6_ub_preevo_evolucionable.json")
 
 
 def _elige(fixture):
     with open(fixture, encoding="utf-8") as f:
         obs = json.load(f)["observation"]
-    _reset_estado_registro_008()
+    _reset_state_record_008()
     return obs, obs["select"]["option"][m.agent(obs)[0]]
 
 
@@ -8540,7 +8540,7 @@ def test_ub_no_busca_evolucion_de_una_preevo_bajada_este_turno():
 
 
 def test_ub_si_busca_la_evolucion_cuando_la_preevo_ya_puede_evolucionar():
-    obs, opt = _elige(_UB_PREEVO_LISTA_FIXTURE)
+    obs, opt = _elige(_UB_PREEVO_READY_FIXTURE)
     me = obs["current"]["players"][obs["current"]["yourIndex"]]
     assert opt.get("type") == int(OptionType.PLAY), (
         f"contrafactual: con el Applin asentado la evolucion SI es jugable "
@@ -8643,13 +8643,13 @@ def test_ub_no_cava_la_evolucion_que_ya_esta_en_la_mano():
             op_is_cornerstone_deck=False, op_active_is_budew=False,
             meowth_ability_lock=False)
 
-    con_meganium = _target({m.Meganium: 1})
-    sin_meganium = _target({})
-    assert sin_meganium >= 1000, (
-        f"sin el Meganium en la mano hay que cavarlo; objetivo {sin_meganium}")
-    assert con_meganium < 1000, (
+    with_meganium = _target({m.Meganium: 1})
+    without_meganium = _target({})
+    assert without_meganium >= 1000, (
+        f"sin el Meganium en la mano hay que cavarlo; objetivo {without_meganium}")
+    assert with_meganium < 1000, (
         f"con el Meganium ya en la mano la Ultra Ball no aporta a esa linea; "
-        f"objetivo {con_meganium}")
+        f"objetivo {with_meganium}")
 
 
 def test_ub_si_cava_la_evolucion_cuando_no_esta_en_la_mano():
@@ -8672,13 +8672,13 @@ def test_ub_si_cava_la_evolucion_cuando_no_esta_en_la_mano():
 def test_ub_cavar_meowth_se_juega_pide_la_last_ditch_libre():
     # A unit test of the helper: the card's rule (ONE Last-Ditch per turn) rules
     # over the body count.
-    ctx_libre = _make_boss_ctx(field_counts={m.Meowth_ex: 1},
+    free_ctx = _make_boss_ctx(field_counts={m.Meowth_ex: 1},
                               meowth_ld_free=True)
     ctx_gastada = _make_boss_ctx(field_counts={m.Meowth_ex: 1},
                                  meowth_ld_free=False)
     ctx_dos = _make_boss_ctx(field_counts={m.Meowth_ex: 2},
                              meowth_ld_free=True)
-    assert m._ub_dig_meowth_gets_played(ctx_libre) is True
+    assert m._ub_dig_meowth_gets_played(free_ctx) is True
     assert m._ub_dig_meowth_gets_played(ctx_gastada) is False
     assert m._ub_dig_meowth_gets_played(ctx_dos) is False
 
@@ -8715,13 +8715,13 @@ _ARCHA_P78D_FIXTURE = (
 def test_archaludon_step78_no_gustea_y_tira_el_remate_de_dos_premios():
     with open(_ARCHA_P78_FIXTURE, encoding="utf-8") as f:
         obs = json.load(f)["observation"]
-    _reset_estado_registro_008()
+    _reset_state_record_008()
     result = m.agent(obs)
     me = obs["current"]["players"][obs["current"]["yourIndex"]]
     opt = obs["select"]["option"][result[0]]
-    jugada = me["hand"][opt["index"]]["id"] if opt.get("type") == int(
+    play = me["hand"][opt["index"]]["id"] if opt.get("type") == int(
         OptionType.PLAY) else None
-    assert jugada != m.Boss_Orders, (
+    assert play != m.Boss_Orders, (
         "Boss's Orders sube al Duraludon (1 premio) y tira el remate de DOS "
         "premios contra el Archaludon ex: nunca se juega aqui")
 
@@ -8732,7 +8732,7 @@ def test_archaludon_step78b_remata_al_archaludon_por_dos_premios():
     270 = the exact life of the Archaludon ex (2 prizes)."""
     with open(_ARCHA_P78B_FIXTURE, encoding="utf-8") as f:
         obs = json.load(f)["observation"]
-    _reset_estado_registro_008()
+    _reset_state_record_008()
     result = m.agent(obs)
     opt = obs["select"]["option"][result[0]]
     assert opt.get("type") == int(OptionType.ATTACK), (
@@ -8747,7 +8747,7 @@ def test_archaludon_step78c_night_stretcher_entra_en_el_remate():
     30 = 300 >= 270. The Night Stretcher must enter that analysis."""
     with open(_ARCHA_P78C_FIXTURE, encoding="utf-8") as f:
         obs = json.load(f)["observation"]
-    _reset_estado_registro_008()
+    _reset_state_record_008()
     result = m.agent(obs)
     me = obs["current"]["players"][obs["current"]["yourIndex"]]
     opt = obs["select"]["option"][result[0]]
@@ -8760,7 +8760,7 @@ def test_archaludon_step78c_night_stretcher_entra_en_el_remate():
 def test_archaludon_step78d_la_night_stretcher_recupera_la_planta():
     with open(_ARCHA_P78D_FIXTURE, encoding="utf-8") as f:
         obs = json.load(f)["observation"]
-    _reset_estado_registro_008()
+    _reset_state_record_008()
     result = m.agent(obs)
     me = obs["current"]["players"][obs["current"]["yourIndex"]]
     opt = obs["select"]["option"][result[0]]
@@ -8783,7 +8783,7 @@ _ARCHA_P123_FIXTURE = (
 def test_archaludon_step123_ns_arma_el_remate_ganador():
     with open(_ARCHA_P123_FIXTURE, encoding="utf-8") as f:
         obs = json.load(f)["observation"]
-    _reset_estado_registro_008()
+    _reset_state_record_008()
     result = m.agent(obs)
     me = obs["current"]["players"][obs["current"]["yourIndex"]]
     opt = obs["select"]["option"][result[0]]
@@ -8806,7 +8806,7 @@ def test_archaludon_step123_ns_arma_el_remate_ganador():
 _XX_NO_EX_MENOR = (
     ROOT / "tests" / "fixtures"
     / "archaludon_hydra_no_retirar_ex_por_ex_menor.json")
-_XX_NO_1PREMIO_SIN_KO = (
+_XX_NO_1PRIZE_WITHOUT_KO = (
     ROOT / "tests" / "fixtures"
     / "archaludon_hydra_no_retirar_si_el_1premio_no_remata.json")
 _XX_SI_1PREMIO_KO = (
@@ -8820,7 +8820,7 @@ _XX_SI_EX_KO = (
 def _opcion_elegida(fixture):
     with open(fixture, encoding="utf-8") as f:
         obs = json.load(f)["observation"]
-    _reset_estado_registro_008()
+    _reset_state_record_008()
     return obs, obs["select"]["option"][m.agent(obs)[0]]
 
 
@@ -8832,7 +8832,7 @@ def test_no_cambiar_un_ex_por_otro_ex_con_menos_vida():
 
 
 def test_no_retirar_el_ex_si_el_cuerpo_de_un_premio_no_remata():
-    _, opt = _opcion_elegida(_XX_NO_1PREMIO_SIN_KO)
+    _, opt = _opcion_elegida(_XX_NO_1PRIZE_WITHOUT_KO)
     assert opt.get("type") != int(OptionType.RETREAT), (
         f"un Meganium listo que solo hace chip (110 contra 300 PV) no paga "
         f"cambiar el muro de 330; eligio {opt}")
@@ -8870,10 +8870,10 @@ _AERA_T11 = (
 _AERA_T13 = (
     ROOT / "tests" / "fixtures"
     / "archaludon_step117_energia_al_activo_para_retirar.json")
-_AERA_T9_BANCA = (
+_AERA_T9_BENCH = (
     ROOT / "tests" / "fixtures"
     / "archaludon_step90_energia_a_la_banca_si_deja_listo.json")
-_AERA_RETIRAR = (
+_AERA_RETREAT = (
     ROOT / "tests" / "fixtures"
     / "archaludon_step98b_retirar_para_atacar_con_meganium.json")
 
@@ -8896,7 +8896,7 @@ def test_archaludon_step117_energia_al_activo_aunque_el_chip_no_remate():
 
 
 def test_archaludon_step90_la_energia_va_a_la_banca_si_es_la_que_deja_listo():
-    obs, opt = _opcion_elegida(_AERA_T9_BANCA)
+    obs, opt = _opcion_elegida(_AERA_T9_BENCH)
     assert opt.get("type") == int(OptionType.ATTACH), f"esperaba ATTACH, {opt}"
     assert opt.get("inPlayArea") == int(AreaType.BENCH), (
         f"con el Meganium a e2 (necesita 4) la Planta es la que lo deja LISTO: su "
@@ -8905,7 +8905,7 @@ def test_archaludon_step90_la_energia_va_a_la_banca_si_es_la_que_deja_listo():
 
 
 def test_archaludon_step98b_retira_para_atacar_con_meganium():
-    obs, opt = _opcion_elegida(_AERA_RETIRAR)
+    obs, opt = _opcion_elegida(_AERA_RETREAT)
     assert opt.get("type") == int(OptionType.RETREAT), (
         f"con la Planta ya en el activo la retirada es legal: hay que retirar el "
         f"Meowth ex (no puede atacar) y subir el Meganium a atacar; eligio {opt}")
@@ -8935,7 +8935,7 @@ def _secuencia_fixture(fixture):
 
 def test_alakazam_step16_juega_lillie_en_vez_de_bajar_meowth():
     obs = _secuencia_fixture(_ALK_P16_NO_MEOWTH)[0]
-    _reset_estado_registro_008()
+    _reset_state_record_008()
     me = obs["current"]["players"][obs["current"]["yourIndex"]]
     result = m.agent(obs)
     opt = obs["select"]["option"][result[0]]
@@ -8951,17 +8951,17 @@ def test_alakazam_step16_motor_meowth_y_habilidad_no_se_contradicen():
     """An invariant: if the Meowth ex is played, its Last-Ditch MUST be used."""
     obs_play, obs_ability = _secuencia_fixture(_ALK_P16_NO_MEOWTH)
 
-    _reset_estado_registro_008()
+    _reset_state_record_008()
     me = obs_play["current"]["players"][obs_play["current"]["yourIndex"]]
     opt = obs_play["select"]["option"][m.agent(obs_play)[0]]
-    baja_meowth = (opt.get("type") == int(OptionType.PLAY)
+    plays_meowth = (opt.get("type") == int(OptionType.PLAY)
                    and me["hand"][opt["index"]]["id"] == m.Meowth_ex)
 
-    _reset_estado_registro_008()
-    usa_habilidad = (obs_ability["select"]["option"][m.agent(obs_ability)[0]]
+    _reset_state_record_008()
+    uses_ability = (obs_ability["select"]["option"][m.agent(obs_ability)[0]]
                      .get("type") == int(OptionType.YES))
 
-    assert not (baja_meowth and not usa_habilidad), (
+    assert not (plays_meowth and not uses_ability), (
         "incoherencia: se baja el Meowth ex por su Last-Ditch Catch y despues "
         "se RECHAZA el fetch -- se regala un cuerpo de 2 premios por nada")
 
@@ -8991,7 +8991,7 @@ _BCS_ANTES_OGERPON = (
     / "archaludon_step36_bcs_antes_de_bajar_ogerpon.json")
 
 
-def _bcs_y_pokemon_en_menu(obs):
+def _bcs_and_pokemon_in_menu(obs):
     """(the BCS's index, the indices of Pokemon plays) in the menu of `obs`."""
     me = obs["current"]["players"][obs["current"]["yourIndex"]]
     bcs, pokes = None, []
@@ -9011,8 +9011,8 @@ def _bcs_y_pokemon_en_menu(obs):
 def test_archaludon_step6_juega_bcs_antes_de_bajar_el_meowth():
     with open(_BCS_ANTES_MEOWTH, encoding="utf-8") as f:
         obs = json.load(f)["observation"]
-    _reset_estado_registro_008()
-    bcs, pokes = _bcs_y_pokemon_en_menu(obs)
+    _reset_state_record_008()
+    bcs, pokes = _bcs_and_pokemon_in_menu(obs)
     assert bcs is not None and pokes, "la fixture debe ofrecer BCS y bajar Pokemon"
     result = m.agent(obs)
     assert result == [bcs], (
@@ -9023,8 +9023,8 @@ def test_archaludon_step6_juega_bcs_antes_de_bajar_el_meowth():
 def test_archaludon_step36_juega_bcs_antes_de_bajar_el_ogerpon():
     with open(_BCS_ANTES_OGERPON, encoding="utf-8") as f:
         obs = json.load(f)["observation"]
-    _reset_estado_registro_008()
-    bcs, pokes = _bcs_y_pokemon_en_menu(obs)
+    _reset_state_record_008()
+    bcs, pokes = _bcs_and_pokemon_in_menu(obs)
     assert bcs is not None and pokes, "la fixture debe ofrecer BCS y bajar Pokemon"
     result = m.agent(obs)
     assert result == [bcs], (
@@ -9230,16 +9230,16 @@ def test_alakazam_step137_ripening_charge_apunta_al_activo():
 
     syn = copy.deepcopy(obs137)
     me = syn["current"]["players"][0]
-    opciones = [{"area": int(AreaType.ACTIVE), "index": 0, "playerIndex": 0,
+    options = [{"area": int(AreaType.ACTIVE), "index": 0, "playerIndex": 0,
                  "type": int(OptionType.CARD)}]
     for i in range(len(me["bench"])):
-        opciones.append({"area": int(AreaType.BENCH), "index": i,
+        options.append({"area": int(AreaType.BENCH), "index": i,
                          "playerIndex": 0, "type": int(OptionType.CARD)})
     syn["select"] = {
         "context": int(SelectContext.ATTACH_FROM), "contextCard": None,
         "deck": None,
         "effect": {"id": m.Hydrapple_ex, "playerIndex": 0, "serial": 18},
-        "maxCount": 1, "minCount": 1, "option": opciones,
+        "maxCount": 1, "minCount": 1, "option": options,
         "remainDamageCounter": 0, "remainEnergyCost": 0, "type": 1}
 
     for item in seq:
@@ -9273,12 +9273,12 @@ def test_alakazam_step137_ripening_charge_apunta_al_activo():
 # arithmetic and does not change because the turn is dead. See
 # `_ub_coste_destruye_carta_mejor`.
 # =====================================================================
-_UB_COSTE_LILLIE_FIXTURE = (
+_UB_LILLIE_COST_FIXTURE = (
     ROOT / "tests" / "fixtures" / "comfey_t1_primeros_no_ub_que_quema_lillie.json")
 
 
 def test_t1_primeros_no_juega_ub_que_descartaria_la_lillie():
-    with open(_UB_COSTE_LILLIE_FIXTURE, encoding="utf-8") as f:
+    with open(_UB_LILLIE_COST_FIXTURE, encoding="utf-8") as f:
         obs = json.load(f)["observation"]
 
     play_map = _resolve_play_options(obs)
@@ -9304,7 +9304,7 @@ def test_ub_coste_veta_solo_cuando_falta_forraje_real():
     turn into a universal Ultra Ball veto."""
     import copy
 
-    with open(_UB_COSTE_LILLIE_FIXTURE, encoding="utf-8") as f:
+    with open(_UB_LILLIE_COST_FIXTURE, encoding="utf-8") as f:
         obs = json.load(f)["observation"]
 
     # Face B: the same position but with TWO spare energies in hand (real
@@ -9339,7 +9339,7 @@ def test_ub_coste_veta_solo_cuando_falta_forraje_real():
 # (vs Cubchoo the exemption is kept: the conservative END is matchup policy
 # and the self-play gate backed it up, -1.3 points when lifting it.)
 # =====================================================================
-def _ub_turno_muerto_obs(op_active_id, ogerpon_en_juego):
+def _ub_dead_turn_obs(op_active_id, ogerpon_in_play):
     import copy
 
     with open(ROOT / "tests" / "fixtures" /
@@ -9351,8 +9351,8 @@ def _ub_turno_muerto_obs(op_active_id, ogerpon_en_juego):
     cur["supporterPlayed"] = True; cur["stadiumPlayed"] = True
     cur["energyAttached"] = True; cur["turn"] = 7; cur["yourIndex"] = 1
 
-    def body(cid, hp, serial, energias=0):
-        return {"appearThisTurn": False, "energies": [1] * energias,
+    def body(cid, hp, serial, energies=0):
+        return {"appearThisTurn": False, "energies": [1] * energies,
                 "energyCards": [], "hp": hp, "id": cid, "maxHp": hp,
                 "playerIndex": 1, "preEvolution": [], "serial": serial,
                 "tools": []}
@@ -9363,7 +9363,7 @@ def _ub_turno_muerto_obs(op_active_id, ogerpon_en_juego):
     op["bench"] = []
     me["active"] = [body(m.Teal_Mask_Ogerpon_ex, 210, 800, 3)]
     me["bench"] = [body(m.Teal_Mask_Ogerpon_ex, 210, 801, 1)
-                   if ogerpon_en_juego >= 2 else body(m.Chikorita, 70, 802)]
+                   if ogerpon_in_play >= 2 else body(m.Chikorita, 70, 802)]
     # A minimal hand with real fodder (2 Grass) so that the UB does not die on cost.
     me["hand"] = [{"id": m.Ultra_Ball, "playerIndex": 1, "serial": 810},
                   {"id": m.Basic_Grass_Energy, "playerIndex": 1, "serial": 811},
@@ -9376,14 +9376,14 @@ def _ub_turno_muerto_obs(op_active_id, ogerpon_en_juego):
 
 
 def test_comfey_turno_muerto_cava_ogerpon_si_queda_cupo():
-    obs = _ub_turno_muerto_obs(m.Comfey, ogerpon_en_juego=1)
+    obs = _ub_dead_turn_obs(m.Comfey, ogerpon_in_play=1)
     assert m.agent(obs) == [0], (
         "vs Comfey con hueco para un 2o Ogerpon ex, la Ultra Ball del turno "
         "muerto cava justo el cuerpo que el plan del matchup quiere")
 
 
 def test_comfey_turno_muerto_no_cava_si_el_plan_no_deja_bajar_nada():
-    obs = _ub_turno_muerto_obs(m.Comfey, ogerpon_en_juego=2)
+    obs = _ub_dead_turn_obs(m.Comfey, ogerpon_in_play=2)
     assert m.agent(obs) == [1], (
         "con los 2 Ogerpon ex ya en juego el plan veta bajar cualquier cuerpo: "
         "cavar quemaria dos cartas por una carta muerta, mejor terminar")
@@ -9407,7 +9407,7 @@ def test_comfey_turno_muerto_no_cava_si_el_plan_no_deja_bajar_nada():
 # scorer (which already protected this card: something was being kept in hand that
 # was then illegal to play).
 # =====================================================================
-def _estadio_hostil_obs(op_active_id, estadio_rival, forest_propio=False):
+def _hostile_stadium_obs(op_active_id, opponent_stadium, own_forest=False):
     import copy
 
     with open(ROOT / "tests" / "fixtures" /
@@ -9417,12 +9417,12 @@ def _estadio_hostil_obs(op_active_id, estadio_rival, forest_propio=False):
     cur = o["current"]; me = cur["players"][1]; op = cur["players"][0]
     cur["supporterPlayed"] = True; cur["stadiumPlayed"] = False
     cur["energyAttached"] = True; cur["turn"] = 9; cur["yourIndex"] = 1
-    cur["stadium"] = [{"id": m.Forest_of_Vitality if forest_propio
-                       else estadio_rival, "playerIndex": 1 if forest_propio else 0,
+    cur["stadium"] = [{"id": m.Forest_of_Vitality if own_forest
+                       else opponent_stadium, "playerIndex": 1 if own_forest else 0,
                        "serial": 950}]
 
-    def body(cid, hp, serial, energias=0):
-        return {"appearThisTurn": False, "energies": [1] * energias,
+    def body(cid, hp, serial, energies=0):
+        return {"appearThisTurn": False, "energies": [1] * energies,
                 "energyCards": [], "hp": hp, "id": cid, "maxHp": hp,
                 "playerIndex": 1, "preEvolution": [], "serial": serial,
                 "tools": []}
@@ -9443,7 +9443,7 @@ def _estadio_hostil_obs(op_active_id, estadio_rival, forest_propio=False):
 
 
 def test_comfey_juega_forest_para_quitar_neutralization_zone():
-    obs = _estadio_hostil_obs(m.Comfey, m.Neutralization_Zone)
+    obs = _hostile_stadium_obs(m.Comfey, m.Neutralization_Zone)
     assert m.agent(obs) == [0], (
         "la allowlist vs Comfey no puede vetar el Forest que quita la "
         "Neutralization Zone: sin quitarla, el Ogerpon ex del propio plan no "
@@ -9451,7 +9451,7 @@ def test_comfey_juega_forest_para_quitar_neutralization_zone():
 
 
 def test_comfey_juega_forest_para_quitar_watchtower():
-    obs = _estadio_hostil_obs(m.Comfey, m.Team_Rockets_Watchtower)
+    obs = _hostile_stadium_obs(m.Comfey, m.Team_Rockets_Watchtower)
     assert m.agent(obs) == [0], (
         "mismo criterio con Team Rocket's Watchtower, que apaga la habilidad "
         "de los {C} (Last-Ditch Catch de Meowth ex)")
@@ -9460,7 +9460,7 @@ def test_comfey_juega_forest_para_quitar_watchtower():
 def test_comfey_no_juega_forest_redundante_con_el_propio_en_mesa():
     # Control: with OUR Forest already on the table there is no lock to lift, so
     # the matchup's allowlist rules again and the 2nd Forest is not played.
-    obs = _estadio_hostil_obs(m.Comfey, m.Neutralization_Zone, forest_propio=True)
+    obs = _hostile_stadium_obs(m.Comfey, m.Neutralization_Zone, own_forest=True)
     assert m.agent(obs) == [1], (
         "sin estadio hostil en mesa la excepcion no aplica: vs Comfey el "
         "Forest redundante sigue vetado")
@@ -9469,7 +9469,7 @@ def test_comfey_no_juega_forest_redundante_con_el_propio_en_mesa():
 def test_contra_estadio_urgente_es_deck_agnostico():
     # The generic scorer already prioritised the counter-stadium (28000): the failure was
     # only the allowlist. This control pins it for any deck.
-    obs = _estadio_hostil_obs(m.Duraludon, m.Neutralization_Zone)
+    obs = _hostile_stadium_obs(m.Duraludon, m.Neutralization_Zone)
     assert m.agent(obs) == [0], (
         "vs cualquier mazo, con Neutralization Zone en mesa el Forest se juega")
 

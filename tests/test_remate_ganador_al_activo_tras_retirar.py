@@ -106,7 +106,7 @@ def _tipos(obs):
     return [o["type"] for o in obs["select"]["option"]]
 
 
-def _idx_de_tipo(obs, tipo):
+def _idx_of_type(obs, tipo):
     return _tipos(obs).index(int(tipo))
 
 
@@ -169,7 +169,7 @@ def test_retira_en_vez_de_gustear():
 
     # The real menu offered both: playing the Boss's and RETREATING.
     i_boss = _idx_play_boss(decision)
-    i_retreat = _idx_de_tipo(decision, m.OptionType.RETREAT)
+    i_retreat = _idx_of_type(decision, m.OptionType.RETREAT)
     assert i_boss >= 0 and i_retreat >= 0, _tipos(decision)
 
     m.agent(previa)
@@ -190,10 +190,10 @@ def test_la_linea_completa_cierra_la_partida():
     subido = bench[promo["select"]["option"][choice[0]]["index"]]
     assert subido["id"] == OGERPON and len(subido["energies"]) == 4, subido
 
-    ataque = fx["contrafactual_ataque"]
-    assert ataque["current"]["players"][0]["active"][0]["id"] == GRIMMSNARL
-    choice = m.agent(ataque)
-    opcion = ataque["select"]["option"][choice[0]]
+    attack_id = fx["contrafactual_ataque"]
+    assert attack_id["current"]["players"][0]["active"][0]["id"] == GRIMMSNARL
+    choice = m.agent(attack_id)
+    opcion = attack_id["select"]["option"][choice[0]]
     assert opcion["type"] == int(m.OptionType.ATTACK), opcion
 
 
@@ -218,7 +218,7 @@ def test_la_regla_no_depende_del_atacante_concreto():
 
     m.agent(fx["observacion_previa"])
     choice = m.agent(decision)
-    assert choice == [_idx_de_tipo(decision, m.OptionType.RETREAT)], choice
+    assert choice == [_idx_of_type(decision, m.OptionType.RETREAT)], choice
 
 
 def test_sin_rematador_en_banca_no_dispara():
@@ -237,7 +237,7 @@ def test_sin_rematador_en_banca_no_dispara():
     # The rule's contract is "close out the game by retreating". With no finisher it closes
     # nothing, so it must not hijack the turn; which of the NON-vetoed
     # Supporters wins afterwards is decided by other scorers.
-    assert choice != [_idx_de_tipo(decision, m.OptionType.RETREAT)], choice
+    assert choice != [_idx_of_type(decision, m.OptionType.RETREAT)], choice
 
 
 def test_sin_match_point_el_gusteo_sigue_vivo():
@@ -250,7 +250,7 @@ def test_sin_match_point_el_gusteo_sigue_vivo():
     m.agent(fx["observacion_previa"])
     choice = m.agent(decision)
 
-    assert choice != [_idx_de_tipo(decision, m.OptionType.RETREAT)], (
+    assert choice != [_idx_of_type(decision, m.OptionType.RETREAT)], (
         f"sin match point la retirada no debe mandar, eligio {choice}")
     assert choice == [_idx_play_boss(decision)], (
         f"sin match point el gusteo debe seguir disponible, eligio {choice}")

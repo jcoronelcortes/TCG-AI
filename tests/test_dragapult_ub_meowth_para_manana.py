@@ -81,7 +81,7 @@ BUDEW = m.Budew
 DREEPY = m.Dreepy
 MUNKIDORI = m.Munkidori
 
-TURNO = 2
+TURN = 2
 
 
 @pytest.fixture(autouse=True)
@@ -112,7 +112,7 @@ def reset_main_state():
     m._init_cards_tracking()
 
 
-def _jugada(obs, choice):
+def _play(obs, choice):
     o = obs["select"]["option"][choice[0]]
     if o["type"] == int(m.OptionType.PLAY):
         yo = obs["current"]["yourIndex"]
@@ -129,7 +129,7 @@ def _jugada(obs, choice):
 def test_paso17_juega_la_ultra_ball_en_vez_de_atacar_con_el_chikorita():
     with open(_FIXTURE, encoding="utf-8") as f:
         obs = json.load(f)["observation"]
-    assert _jugada(obs, m.agent(obs)) == ("PLAY", ULTRA_BALL), (
+    assert _play(obs, m.agent(obs)) == ("PLAY", ULTRA_BALL), (
         "con Budew en el activo rival la Ultra Ball CADUCA este turno y el "
         "tablero no ataca mañana: se cava el Meowth ex antes de atacar")
 
@@ -140,13 +140,13 @@ def test_paso17_juega_la_ultra_ball_en_vez_de_atacar_con_el_chikorita():
 # The record cuts off at step 17 (the agent attacked), so the fetch and the
 # next turn are FABRICATED with StateBuilder on the same board.
 
-def _campo(esc, fez_energias=0, mano_extra=()):
+def _campo(esc, fez_energies=0, extra_hand=()):
     return (esc
-            .my_active(pk(CHIKORITA, energias=[G], fisicas=1))
-            .my_bench(pk(FEZ, energias=[G] * fez_energias,
-                         fisicas=fez_energias))
+            .my_active(pk(CHIKORITA, energies=[G], fisicas=1))
+            .my_bench(pk(FEZ, energies=[G] * fez_energies,
+                         fisicas=fez_energies))
             .op_active(pk(BUDEW))
-            .op_bench(DREEPY, DREEPY, pk(MUNKIDORI, energias=[G], fisicas=0))
+            .op_bench(DREEPY, DREEPY, pk(MUNKIDORI, energies=[G], fisicas=0))
             .op_zonas(hand=5, deck=43, prizes=6))
 
 
@@ -155,14 +155,14 @@ def _campo(esc, fez_energias=0, mano_extra=()):
 # with no Bayleef underneath: the real game NEVER offers it) is left out of the hands
 # of the synthetic MAIN menus -- otherwise the agent "plays" it and the scenario
 # measures something else. In the fetch menu it can be there: the hand is not offered there.
-def _menu_main(fez_energias=0, hand=(GRASS, GRASS, GRASS, BOSS, BOSS,
+def _menu_main(fez_energies=0, hand=(GRASS, GRASS, GRASS, BOSS, BOSS,
                                      ULTRA_BALL, FOREST),
                op_generico=False, partidario_jugado=True):
     """Menu A: the MAIN of step 17 (the turn's energy already attached)."""
-    esc = Escenario(turn=TURNO, step=17, tac=6, primer_jugador=1,
-                    energia_jugada=True,
+    esc = Escenario(turn=TURN, step=17, tac=6, first_player=1,
+                    energy_played=True,
                     partidario_jugado=partidario_jugado)
-    esc = _campo(esc, fez_energias=fez_energias)
+    esc = _campo(esc, fez_energies=fez_energies)
     if op_generico:
         # CONTROL: the same board with no piece threatening to block
         # Items (neither Budew nor a Dreepy line) -> the Ultra Ball is kept.
@@ -171,37 +171,37 @@ def _menu_main(fez_energias=0, hand=(GRASS, GRASS, GRASS, BOSS, BOSS,
     return (esc
             .my_hand(*hand)
             .deck(MEOWTH, LILLIE, BAYLEEF, OGERPON, APPLIN)
-            .resto_al_descarte()
-            .menu_mano(con_ataque=True)
+            .rest_to_discard()
+            .menu_hand(with_attack=True)
             .build())
 
 
 def _menu_fetch():
     """Menu B: the fetch of the Ultra Ball just played."""
-    esc = Escenario(turn=TURNO, step=18, tac=7, primer_jugador=1,
-                    energia_jugada=True, partidario_jugado=True)
+    esc = Escenario(turn=TURN, step=18, tac=7, first_player=1,
+                    energy_played=True, partidario_jugado=True)
     return (_campo(esc)
             .my_hand(GRASS, BOSS, BOSS, MEGANIUM, FOREST)
             .deck(MEOWTH, LILLIE, BAYLEEF, OGERPON, APPLIN)
             .fetch_ultra_ball()
-            .resto_al_descarte()
+            .rest_to_discard()
             .build())
 
 
-def _menu_manana():
+def _menu_tomorrow():
     """Menu C: OUR next turn, already under the Itchy Pollen. Items
     cannot be played (that is why there is none in hand) but the
     Meowth ex can: its Last-Ditch Catch brings the Lillie's."""
-    obs = (Escenario(turn=TURNO + 2, step=30, tac=1, primer_jugador=1)
-           .my_active(pk(CHIKORITA, energias=[G], fisicas=1))
+    obs = (Escenario(turn=TURN + 2, step=30, tac=1, first_player=1)
+           .my_active(pk(CHIKORITA, energies=[G], fisicas=1))
            .my_bench(pk(FEZ))
            .op_active(pk(BUDEW))
-           .op_bench(DREEPY, DREEPY, pk(MUNKIDORI, energias=[G], fisicas=0))
+           .op_bench(DREEPY, DREEPY, pk(MUNKIDORI, energies=[G], fisicas=0))
            .op_zonas(hand=5, deck=40, prizes=6)
            .my_hand(MEOWTH, GRASS, GRASS)
            .deck(LILLIE, BAYLEEF, OGERPON, APPLIN)
-           .resto_al_descarte()
-           .menu_mano(con_ataque=True)
+           .rest_to_discard()
+           .menu_hand(with_attack=True)
            .build())
     # The Itchy Pollen of the opponent's turn: `itchy_pollen_active` is derived from the
     # ATTACK logs (see the "Opposing ITEM block" section of `agent()`).
@@ -212,20 +212,20 @@ def _menu_manana():
 
 def test_menuA_la_ultra_ball_gana_al_ataque_del_chikorita():
     obs = _menu_main()
-    assert _jugada(obs, m.agent(obs)) == ("PLAY", ULTRA_BALL)
+    assert _play(obs, m.agent(obs)) == ("PLAY", ULTRA_BALL)
 
 
 def test_menuB_el_fetch_de_la_busqueda_pagada_trae_el_meowth_ex():
     obs = _menu_fetch()
-    assert _jugada(obs, m.agent(obs)) == ("CARTA", MEOWTH), (
+    assert _play(obs, m.agent(obs)) == ("CARTA", MEOWTH), (
         "la Ultra Ball se pagó EXACTAMENTE por este cuerpo; sin la regla "
         "`bloqueo_de_items_manana` el veto `last_ditch_no_produce` la "
         "desviaba a otra carta")
 
 
 def test_menuC_manana_el_meowth_ex_se_baja_bajo_el_bloqueo_de_objetos():
-    obs = _menu_manana()
-    assert _jugada(obs, m.agent(obs)) == ("PLAY", MEOWTH), (
+    obs = _menu_tomorrow()
+    assert _play(obs, m.agent(obs)) == ("PLAY", MEOWTH), (
         "bajo el Itchy Pollen los Pokémon y las habilidades SIGUEN jugándose: "
         "el Meowth ex cavado ayer baja y su Last-Ditch trae la Lillie's")
 
@@ -236,7 +236,7 @@ def test_menuC_manana_el_meowth_ex_se_baja_bajo_el_bloqueo_de_objetos():
 
 def test_control_sin_amenaza_de_bloqueo_la_ultra_ball_se_guarda():
     obs = _menu_main(op_generico=True)
-    assert _jugada(obs, m.agent(obs)) != ("PLAY", ULTRA_BALL), (
+    assert _play(obs, m.agent(obs)) != ("PLAY", ULTRA_BALL), (
         "sin Budew ni línea Dreepy enfrente la Ultra Ball NO caduca: sigue "
         "valiendo la regla general de no cavar lo que no se juega hoy")
 
@@ -244,14 +244,14 @@ def test_control_sin_amenaza_de_bloqueo_la_ultra_ball_se_guarda():
 def test_control_con_atacante_a_una_energia_la_ultra_ball_se_guarda():
     # Fezandipiti ex at 2 energies: next turn's attachment puts it in
     # attack range (Cruel Arrow, 3) -> `_sin_atacante_para_manana` is False.
-    obs = _menu_main(fez_energias=2)
-    assert _jugada(obs, m.agent(obs)) != ("PLAY", ULTRA_BALL)
+    obs = _menu_main(fez_energies=2)
+    assert _play(obs, m.agent(obs)) != ("PLAY", ULTRA_BALL)
 
 
 def test_control_con_lillie_en_mano_no_hay_nada_que_cavar():
     obs = _menu_main(hand=(GRASS, GRASS, BOSS, LILLIE, ULTRA_BALL, FOREST),
                      partidario_jugado=False)
-    assert _jugada(obs, m.agent(obs)) != ("PLAY", ULTRA_BALL), (
+    assert _play(obs, m.agent(obs)) != ("PLAY", ULTRA_BALL), (
         "el Meowth ex vale por la Lillie's que busca; con la Lillie's ya en "
         "la mano el rodeo no compra nada")
 
@@ -270,12 +270,12 @@ def test_bloqueo_de_items_inminente_cubre_budew_y_la_linea_dragapult():
 def test_sin_atacante_para_manana_no_cuenta_al_chikorita_ni_a_los_basicos():
     from types import SimpleNamespace as NS
     _pk = lambda cid, e=0: NS(id=cid, energies=[G] * e)
-    tablero = NS(active=[_pk(CHIKORITA, 1)], bench=[_pk(FEZ, 0)])
+    board = NS(active=[_pk(CHIKORITA, 1)], bench=[_pk(FEZ, 0)])
 
     # The Chikorita attacks, but it is not a MAIN_ATTACKER; the Fezandipiti ex is at 3
     # energies and only ONE is attached per turn. A Tapu Bulu in hand (4
     # energies) is not "starting to attack tomorrow" either.
-    assert m._no_attacker_for_tomorrow(tablero, {m.Tapu_Bulu: 1}, {}) is True
+    assert m._no_attacker_for_tomorrow(board, {m.Tapu_Bulu: 1}, {}) is True
 
     # With the Fezandipiti at 2, tomorrow's attachment puts it in attack range.
     cargado = NS(active=[_pk(CHIKORITA, 1)], bench=[_pk(FEZ, 2)])
@@ -284,4 +284,4 @@ def test_sin_atacante_para_manana_no_cuenta_al_chikorita_ni_a_los_basicos():
     # An evolution from hand on top of its pre-evo on the table also counts: it inherits
     # the body's energy and attacks.
     assert m._no_attacker_for_tomorrow(
-        tablero, {MEGANIUM: 1}, {BAYLEEF: 1}) is False
+        board, {MEGANIUM: 1}, {BAYLEEF: 1}) is False

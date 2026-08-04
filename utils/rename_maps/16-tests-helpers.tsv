@@ -1,0 +1,243 @@
+# Phase 11 -- tests/: the StateBuilder API, the fixtures and the helpers.
+# The `test_*` names themselves are a separate batch: each is a sentence and
+# needs a real translation, not a stem swap.
+#
+# Applied repo-wide because `tests/state_builder.py` is an API the 43 test
+# files call, and `utils/` reads some of the same fixtures.
+
+# --- the StateBuilder API ----------------------------------------------------
+menu_mano	menu_hand
+menu_attach_energia	menu_attach_energy
+menu_gusteo	menu_gust
+menu_teal_dance	menu_teal_dance_options
+menu_grand_tree	menu_grand_tree_options
+resto_al_descarte	rest_to_discard
+promocion_desde_banca	promote_from_bench
+promocion_tras_retirada	promote_after_retreat
+seleccion_grand_tree_en_juego	grand_tree_selection_in_play
+seleccion_grand_tree_mazo	grand_tree_selection_deck
+fetch_descarte	fetch_discard
+yo_activo	me_active
+yo_banca	me_bench
+op_descarte	op_discard
+op_premios	op_prizes
+mi_descarte	my_discard
+premios_propios	own_prizes
+premios_rival	opponent_prizes
+primer_jugador	first_player	code
+primer_turno	first_turn	code
+estadio	stadium	str
+estadio_rival	opponent_stadium
+estadio_jugado	stadium_played
+banca_rival	opponent_bench
+banca_extra	extra_bench
+banca_llena	full_bench	code
+banca_idx	bench_idx
+mano_extra	extra_hand
+mano_grande	big_hand
+mano_obs	hand_obs
+mano_post	hand_after
+mazo_extra	extra_deck
+ids_mazo	deck_ids
+descarte	discard	str
+energias	energies	str
+energias_activo	active_energies
+energias_comp	energies_comp
+energia_activo	active_energy
+energia_dipplin	dipplin_energy
+energia_jugada	energy_played
+fez_energias	fez_energies
+ogerpon_energias	ogerpon_energies
+op_energias	op_energies
+plantas	grass_cards
+planta	grass
+PLANTA	GRASS
+ENERGIA	ENERGY	code
+TURNO	TURN
+tablero	board
+opciones	options	code
+jugada	play
+retirar	retreat
+atacar	attack
+ataque	attack_id
+amenaza	threat
+muerto	dead
+en_mano	in_hand
+por_id	by_id
+salida	output
+
+# --- fixture and roster names ------------------------------------------------
+CHIKORITA_RIVAL	CHIKORITA_OPPONENT
+ROSTER_PROPIO	OWN_ROSTER
+ROSTER_RIVAL	OPPONENT_ROSTER
+RUTA_REGISTROS	RECORDS_PATH
+RUTA_SNAPSHOT	SNAPSHOT_PATH
+_PREMIOS_DEFECTO	_DEFAULT_PRIZES
+_REGISTRO	_RECORD
+_RETIRAR	_RETREAT
+_ATACAR	_ATTACK
+_AERA_RETIRAR	_AERA_RETREAT
+_AERA_T9_BANCA	_AERA_T9_BENCH
+_ALK_MANO_RIVAL_SIN_REMATE	_ALK_OPPONENT_HAND_NO_FINISHER
+_ALK_RESERVE_MEOWTH_EN_BANCA_FIXTURE	_ALK_RESERVE_MEOWTH_ON_BENCH_FIXTURE
+_ABOMASNOW_REMATE_FIXTURE	_ABOMASNOW_FINISHER_FIXTURE
+_UB_COSTE_LILLIE_FIXTURE	_UB_LILLIE_COST_FIXTURE
+_UB_PREEVO_LISTA_FIXTURE	_UB_PREEVO_READY_FIXTURE
+_XX_NO_1PREMIO_SIN_KO	_XX_NO_1PRIZE_WITHOUT_KO
+_FIX_ENTRE_TURNOS	_FIX_BETWEEN_TURNS
+_FIX_TURNO_RIVAL	_FIX_OPPONENT_TURN
+
+# --- helpers ------------------------------------------------------------------
+_armar_turno	_build_turn
+_banca	_bench
+_cargar	_load
+_cargar_en_subproceso	_load_in_subprocess
+_carta_de_la_mano	_card_from_hand
+_carta_del_descarte	_card_from_discard
+_carta_elegida	_chosen_card
+_carta_jugada	_played_card
+_cartas_elegidas	_chosen_cards
+_cierre_de_turno	_turn_close
+_clave	_key
+_con_ko_previo	_with_previous_ko
+_ctx_lillie_del_paso116	_ctx_lillie_of_step116
+_datos	_data
+_destino_de_la_energia	_energy_destination
+_eleccion_valida	_valid_choice
+_energia_jugada	_energy_played
+_energia_va_a	_energy_goes_to
+_escenario_coste_3	_scenario_cost_3
+_escenario_t2_saliendo_segundo	_scenario_t2_going_second
+_espiar_pesca	_spy_on_fishing
+_estadio	_stadium
+_estadio_hostil_obs	_hostile_stadium_obs
+_ids_de_nuestro_mazo	_our_deck_ids
+_idx_de	_idx_of
+_idx_de_tipo	_idx_of_type
+_idx_play_de	_idx_play_of
+_idx_tapu	_idx_tapu_bulu
+_indice	_index
+_juega_el_sello	_plays_the_stamp
+_jugada	_play
+_jugada_elegida	_chosen_play
+_jugadas	_plays
+_ko_propio	_own_ko
+_leer_deck_csv	_read_deck_csv
+_mano_idx	_hand_idx
+_mazo	_deck
+_mazo_visible	_visible_deck
+_menu_bajar	_menu_play_body
+_menu_con_tapu	_menu_with_tapu
+_menu_con_tapu_en_mano	_menu_with_tapu_in_hand
+_menu_de_gusteo	_menu_of_gust
+_menu_manana	_menu_tomorrow
+_menu_sintetico	_synthetic_menu
+_menus_del_registro	_menus_of_the_record
+_mesa_con_meganium_herido	_board_with_wounded_meganium
+_mesa_para_bajar_applin	_board_to_play_applin
+_mesa_para_bajar_fez	_board_to_play_fez
+_mi_activo	_my_active
+_mi_banca	_my_bench
+_mi_descarte	_my_discard
+_mi_mano	_my_hand
+_modulos_del_agente	_agent_modules
+_n_premios	_n_prizes
+_nombre	_name
+_objetivo	_target
+_op_activo_spec	_op_active_spec
+_op_banca	_op_bench
+_op_descarte	_op_discard
+_opcion_de_mano	_hand_option
+_opciones_attach	_attach_options
+_p61_sin_evolucion_ni_retirada	_p61_no_evolution_no_retreat
+_paso	_step
+_paso_184	_step_184
+_pivote_asserts_ko	_pivot_asserts_ko
+_pivote_caminar	_pivot_walk
+_pivote_menu_main	_pivot_main_menu
+_pivote_obs	_pivot_obs
+_por_accion	_by_action
+_por_paso	_by_step
+_primer_jugador	_first_player
+_reset_estado_registro_008	_reset_state_record_008
+_restaurar_espia	_restore_spy
+_score_del_sello	_stamp_score
+_sin_items_en_mano	_no_items_in_hand
+_ub_turno_muerto_obs	_ub_dead_turn_obs
+_valor_dawn	_dawn_value
+_valor_lana	_lana_value
+_valor_ub_meowth	_ub_meowth_value
+_bcs_y_pokemon_en_menu	_bcs_and_pokemon_in_menu
+_alk_sin_remate	_alk_no_finisher
+_alk_sin_reserva	_alk_no_reservation
+_raging_menu	_raging_menu_options
+_menu_paso54	_menu_step54
+
+# --- locals and flags ---------------------------------------------------------
+act_rival	opponent_act
+activo_e	active_e
+activo_final	final_active
+activo_id	active_id
+activo_rival	opponent_active
+applin_en_activo	applin_active
+archivos_registro	record_files
+baja_meowth	plays_meowth
+cargar_snapshot	load_snapshot
+guardar_snapshot	save_snapshot
+generar_corpus	build_corpus
+reproducir_registro	replay_record
+con_ability	with_ability
+con_adjunte	with_attachment
+con_ataque	with_attack
+con_attach	with_attach
+con_banca	with_bench
+con_boss	with_boss
+con_cadena	with_chain
+con_evolucion_mano	with_evolution_in_hand
+con_forest	with_forest
+con_froslass	with_froslass
+con_goteo	with_drip
+con_lillie	with_lillie
+con_meganium	with_meganium
+con_munkidori	with_munkidori
+con_retirada	with_retreat
+sin_bono	without_bonus
+sin_compromiso	without_commitment
+sin_estadio	without_stadium	str
+sin_fez	without_fez
+sin_lillie	without_lillie
+sin_meganium	without_meganium
+sin_muro	without_wall
+sin_xerosic	without_xerosic
+ctx_libre	free_ctx
+cwd_carga	load_cwd
+dano_snorunt	snorunt_damage
+del_rival	of_the_opponent
+detalle	detail	code
+espia	spy
+parchear	patch_name
+fez_rival	opponent_fez
+forest_propio	own_forest
+idx_atk	idx_attack
+idx_e	idx_energy
+idx_ret	idx_retreat
+nuestro_indice	our_index
+objetivo_carga_habilidad	ability_charge_target
+objetivo_t1	target_t1
+obs_eleccion	obs_choice
+ogerpon_en_juego	ogerpon_in_play
+op_activo_id	op_active_id
+op_banca_id	op_bench_id
+paso_final	final_step
+rival_act	opponent_act_id
+tapu_en_banca	tapu_on_bench
+usa_habilidad	uses_ability
+valor_t1	value_t1
+# `energias` / `descarte` / `estadio` / `sin_estadio` carry `str`: they are keys
+# of the StateBuilder's own spec dicts, produced and read inside tests/, so the
+# key moves with the code.
+#
+# `ENERGIA`, `detalle`, `opciones`, `primer_jugador` carry `code`: those literals
+# are output data (the corpus label table, the autopsy JSON, the shadow report,
+# the self-play result dict). And `banca_llena` / `primer_turno` are RULE LABELS
+# in main.py and ptcg/decision, which stay in Spanish by policy.

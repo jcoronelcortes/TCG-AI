@@ -32,7 +32,7 @@ if str(_TESTS) not in sys.path:
     sys.path.insert(0, str(_TESTS))
 
 from cg.api import CardType, all_card_data
-from golden_corpus import nuestro_indice
+from golden_corpus import our_index
 
 
 def harvest_series(paths):
@@ -56,7 +56,7 @@ def harvest_series(paths):
     for path in paths:
         with open(path, encoding="utf-8") as f:
             data = json.load(f)
-        yo = nuestro_indice(data)
+        yo = our_index(data)
         rival = 1 - yo
         for step in data.get("steps", []):
             obs = None
@@ -139,10 +139,10 @@ def main(argv):
               f"{d.name if d else '?'}")
     print(f"Relleno: {relleno} x {tabla[basica].name}({basica})")
 
-    salida = _ROOT / args.salida
-    salida.parent.mkdir(parents=True, exist_ok=True)
-    salida.write_text("\n".join(str(c) for c in deck) + "\n")
-    print(f"Escrito {salida} ({len(deck)} cartas)")
+    output = _ROOT / args.output
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text("\n".join(str(c) for c in deck) + "\n")
+    print(f"Escrito {output} ({len(deck)} cartas)")
     return 0
 
 

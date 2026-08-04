@@ -67,7 +67,7 @@ import main as m
 from parcheo import instalar
 from golden_corpus import reset_agente
 
-_REGISTRO = ROOT / "registros" / "registro_010_pasos_103_hasta_116.json"
+_RECORD = ROOT / "registros" / "registro_010_pasos_103_hasta_116.json"
 
 LILLIE = m.Lillie_Determination
 ULTRA_BALL = m.Ultra_Ball
@@ -76,12 +76,12 @@ APPLIN = m.Applin
 BOSS = m.Boss_Orders
 
 pytestmark = pytest.mark.skipif(
-    not _REGISTRO.exists(),
+    not _RECORD.exists(),
     reason="registro local rotado (registros/ es transitorio)")
 
 
 def _frames():
-    data = json.load(open(_REGISTRO, encoding="utf-8"))
+    data = json.load(open(_RECORD, encoding="utf-8"))
     return [it["observation"] for st in data["steps"] for it in st
             if it.get("status") == "ACTIVE"
             and isinstance(it.get("observation"), dict)
@@ -100,7 +100,7 @@ def _replay(anular_marca_ld):
     return last
 
 
-def _carta_jugada(obs, choice):
+def _played_card(obs, choice):
     o = obs["select"]["option"][choice[0]]
     if o.get("type") != int(m.OptionType.PLAY):
         return None
@@ -135,7 +135,7 @@ def test_el_paso_116_tiene_las_dos_mitades_del_bloqueo():
 
 def test_paso116_juega_lillie_aunque_no_venga_de_un_last_ditch():
     obs, choice = _replay(anular_marca_ld=True)
-    assert _carta_jugada(obs, choice) == LILLIE, (
+    assert _played_card(obs, choice) == LILLIE, (
         "con la Lillie's como único Supporter y la Ultra Ball vetada por esa "
         "misma Lillie's, ceder el paso tira el hueco de Supporter del turno")
 
@@ -143,14 +143,14 @@ def test_paso116_juega_lillie_aunque_no_venga_de_un_last_ditch():
 def test_paso116_tambien_la_juega_por_la_via_del_last_ditch():
     """The `_ld_supp_comprometido` net still stands: the two routes agree."""
     obs, choice = _replay(anular_marca_ld=False)
-    assert _carta_jugada(obs, choice) == LILLIE
+    assert _played_card(obs, choice) == LILLIE
 
 
 # ---------------------------------------------------------------------------
 # 3. The two guards, each with its contrast
 # ---------------------------------------------------------------------------
 
-def _ctx_lillie_del_paso116(mutar=None):
+def _ctx_lillie_of_step116(mutar=None):
     """Builds the real `_CtxLillie` of step 116 and returns its flag."""
     reset_agente(m)
     frames = _frames()
@@ -181,14 +181,14 @@ def test_guarda2_con_otro_supporter_en_mano_el_veto_aguanta():
     """Contrast for the second guard: it is enough to add a Boss's Orders to the hand
     for the turn's slot to stop being wasted -- and then keeping
     the line is the right thing again."""
-    def con_boss(obs):
+    def with_boss(obs):
         yo = obs["current"]["players"][0]
         yo["hand"].append({"id": BOSS, "playerIndex": 0, "serial": 31})
         return obs
 
-    assert _ctx_lillie_del_paso116() is False, (
+    assert _ctx_lillie_of_step116() is False, (
         "sin Supporter de repuesto el bloqueo se rompe")
-    assert _ctx_lillie_del_paso116(mutar=con_boss) is True, (
+    assert _ctx_lillie_of_step116(mutar=with_boss) is True, (
         "con un Boss's al lado el Supporter del turno se juega igual: el veto "
         "de Lillie's no desperdicia nada y conserva la línea")
 
@@ -218,4 +218,4 @@ def test_guarda1_el_veto_por_coste_ajeno_no_rompe_el_bloqueo():
     assert all(not cancel_lillie for _, cancel_lillie, _ in reales)
     assert any(cancel_meowth for _, _, cancel_meowth in reales)
     # ...so the Lillie's is STILL vetoed and the line is kept.
-    assert _carta_jugada(obs, choice) != LILLIE
+    assert _played_card(obs, choice) != LILLIE

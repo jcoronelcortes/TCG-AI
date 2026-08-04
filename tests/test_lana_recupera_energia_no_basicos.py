@@ -109,10 +109,10 @@ def reset_main_state():
     m._init_cards_tracking()
 
 
-def _cartas_elegidas(obs, choice):
+def _chosen_cards(obs, choice):
     """The discard ids the selection returns, in order of preference."""
-    descarte = obs["current"]["players"][obs["current"]["yourIndex"]]["discard"]
-    return [descarte[obs["select"]["option"][i]["index"]]["id"] for i in choice]
+    discard = obs["current"]["players"][obs["current"]["yourIndex"]]["discard"]
+    return [discard[obs["select"]["option"][i]["index"]]["id"] for i in choice]
 
 
 # ---------------------------------------------------------------------------
@@ -125,15 +125,15 @@ def test_paso118_levanta_las_tres_energias():
     obs = fixture["observation"]
 
     # The real menu offered 4 Grass, 2 Applin and 1 Dipplin.
-    ofrecidas = _cartas_elegidas(obs, range(len(obs["select"]["option"])))
+    ofrecidas = _chosen_cards(obs, range(len(obs["select"]["option"])))
     assert sorted(ofrecidas) == sorted([GRASS] * 4 + [APPLIN] * 2 + [DIPPLIN])
     assert obs["select"]["maxCount"] == 3
 
     # What was played in the game (and lost the turn).
-    assert _cartas_elegidas(obs, fixture["recorded_action"]) == [APPLIN, APPLIN,
+    assert _chosen_cards(obs, fixture["recorded_action"]) == [APPLIN, APPLIN,
                                                                  DIPPLIN]
 
-    assert _cartas_elegidas(obs, m.agent(obs)) == [GRASS, GRASS, GRASS]
+    assert _chosen_cards(obs, m.agent(obs)) == [GRASS, GRASS, GRASS]
 
 
 def test_paso118_una_planta_pone_a_atacar_al_tapu_bulu():
@@ -187,14 +187,14 @@ def test_paso118_applin_y_dipplin_son_cartas_muertas():
 # `_plan_de_planta`: the board reading, in isolation
 # ---------------------------------------------------------------------------
 
-def _plan(active, bench=(), hand=(), energia_jugada=False, cambio=False):
-    obs = (Escenario(turn=10, energia_jugada=energia_jugada)
+def _plan(active, bench=(), hand=(), energy_played=False, cambio=False):
+    obs = (Escenario(turn=10, energy_played=energy_played)
            .my_active(active)
            .my_bench(*bench)
            .my_hand(*hand)
            .op_active(pk(CRUSTLE))
            .op_zonas(hand=5, deck=30, prizes=6)
-           .menu_mano()
+           .menu_hand()
            .build())
     o = m.to_observation_class(obs)
     mi = o.current.players[o.current.yourIndex]
@@ -214,8 +214,8 @@ def _plan(active, bench=(), hand=(), energia_jugada=False, cambio=False):
 def test_plan_todos_cargados_no_hay_demanda():
     """With no deficit there is no demand: energy stops being worth anything even if
     there are attachments left free."""
-    plan = _plan(pk(TAPU, energias=[G] * 4, fisicas=4),
-                 bench=[pk(OGERPON, energias=[G] * 3, fisicas=3)])
+    plan = _plan(pk(TAPU, energies=[G] * 4, fisicas=4),
+                 bench=[pk(OGERPON, energies=[G] * 3, fisicas=3)])
     assert plan.demanda == 0
     assert not plan.unlocks_today
 
@@ -223,7 +223,7 @@ def test_plan_todos_cargados_no_hay_demanda():
 def test_plan_sin_adjunte_libre_no_desbloquea_pero_sigue_habiendo_demanda():
     """With the manual attachment spent and no charging abilities, the Grass does not reach
     the field TODAY -- but it goes to hand and the attacker goes on asking for it."""
-    plan = _plan(pk(TAPU, energias=[G] * 2, fisicas=2), energia_jugada=True)
+    plan = _plan(pk(TAPU, energies=[G] * 2, fisicas=2), energy_played=True)
     assert not plan.unlocks_today
     assert plan.demanda >= 1
 
@@ -231,12 +231,12 @@ def test_plan_sin_adjunte_libre_no_desbloquea_pero_sigue_habiendo_demanda():
 def test_plan_la_planta_de_la_mano_ya_desbloquea():
     """With the Grass already in hand, recovering another unlocks nothing: the
     detector cannot charge twice for the same attack."""
-    plan = _plan(pk(TAPU, energias=[G] * 2, fisicas=2), hand=[GRASS])
+    plan = _plan(pk(TAPU, energies=[G] * 2, fisicas=2), hand=[GRASS])
     assert not plan.unlocks_today
 
 
 def test_plan_atacante_de_banca_solo_desbloquea_si_podemos_cambiar():
-    bench = [pk(MEGANIUM, energias=[G] * 2, fisicas=1)]
+    bench = [pk(MEGANIUM, energies=[G] * 2, fisicas=1)]
     active = pk(MEOWTH)               # Meowth ex is not a MAIN_ATTACKER
     assert not _plan(active, bench=bench).unlocks_today
     assert _plan(active, bench=bench, cambio=True).unlocks_today
@@ -246,13 +246,13 @@ def test_plan_con_las_habilidades_apagadas_solo_queda_el_adjunte_manual():
     """Under Watchtower / Iron Thorns (`meowth_ability_lock`) there is no Teal Dance
     or Ripening Charge: treating those routes as alive invents unlocks that do not
     exist (measured: -3.9 points of winrate vs the Iron Thorns deck)."""
-    active = pk(OGERPON, energias=[G], fisicas=1)      # 1 of 3 effective
-    bench = [pk(OGERPON, energias=[G] * 2, fisicas=2)]
+    active = pk(OGERPON, energies=[G], fisicas=1)      # 1 of 3 effective
+    bench = [pk(OGERPON, energies=[G] * 2, fisicas=2)]
 
     obs = (Escenario(turn=10)
            .my_active(active).my_bench(*bench)
            .op_active(pk(CRUSTLE)).op_zonas(hand=5, deck=30, prizes=6)
-           .menu_mano().build())
+           .menu_hand().build())
     o = m.to_observation_class(obs)
     mi = o.current.players[o.current.yourIndex]
     campo = {OGERPON: 2}
@@ -273,7 +273,7 @@ def test_plan_con_las_habilidades_apagadas_solo_queda_el_adjunte_manual():
 def test_plan_los_no_atacantes_no_inventan_demanda():
     """Chikorita and Applin have a cost in `ATTACK_ENERGY_REQ` but are not in
     `MAIN_ATTACKERS`: with them on the bench the board asks for no energy."""
-    plan = _plan(pk(TAPU, energias=[G] * 4, fisicas=4),
+    plan = _plan(pk(TAPU, energies=[G] * 4, fisicas=4),
                  bench=[pk(CHIKORITA), pk(APPLIN)])
     assert plan.demanda == 0
 
@@ -305,30 +305,30 @@ def test_injugable_no_aplica_a_lo_que_no_es_pokemon():
 # The selection, synthetically
 # ---------------------------------------------------------------------------
 
-def _seleccion_lana(active, bench, descarte, hand=(), energia_jugada=False):
+def _seleccion_lana(active, bench, discard, hand=(), energy_played=False):
     obs = (Escenario(turn=10, partidario_jugado=True,
-                     energia_jugada=energia_jugada)
+                     energy_played=energy_played)
            .my_active(active)
            .my_bench(*bench)
            .my_hand(*hand)
-           .mi_descarte(*descarte)
+           .my_discard(*discard)
            .op_active(pk(CRUSTLE))
            .op_bench(pk(DWEBBLE))
            .op_zonas(hand=5, deck=30, prizes=6)
-           .fetch_descarte(LANA, cuantas=3, solo=(GRASS, APPLIN, DIPPLIN,
+           .fetch_discard(LANA, cuantas=3, solo=(GRASS, APPLIN, DIPPLIN,
                                                   CHIKORITA))
            .build())
-    return obs, _cartas_elegidas(obs, m.agent(obs))
+    return obs, _chosen_cards(obs, m.agent(obs))
 
 
 def test_seleccion_banca_llena_la_energia_gana_al_desarrollo():
     """registro_018, synthetically."""
     _, elegidas = _seleccion_lana(
-        active=pk(TAPU, energias=[G] * 2, fisicas=1),
-        bench=[pk(MEGANIUM, energias=[G] * 2, fisicas=1), pk(MEOWTH),
-               pk(MEGANIUM), pk(OGERPON, energias=[G] * 2, fisicas=1),
+        active=pk(TAPU, energies=[G] * 2, fisicas=1),
+        bench=[pk(MEGANIUM, energies=[G] * 2, fisicas=1), pk(MEOWTH),
+               pk(MEGANIUM), pk(OGERPON, energies=[G] * 2, fisicas=1),
                pk(OGERPON)],
-        descarte=[GRASS, GRASS, GRASS, APPLIN, APPLIN, DIPPLIN])
+        discard=[GRASS, GRASS, GRASS, APPLIN, APPLIN, DIPPLIN])
     assert elegidas == [GRASS, GRASS, GRASS]
 
 
@@ -336,10 +336,10 @@ def test_seleccion_sin_demanda_de_energia_vuelve_el_desarrollo():
     """Boundary: with the active ALREADY charged and room on the bench, the energy is surplus and
     the recovery goes back to being development (starting the Hydrapple line)."""
     _, elegidas = _seleccion_lana(
-        active=pk(TAPU, energias=[G] * 4, fisicas=4),
+        active=pk(TAPU, energies=[G] * 4, fisicas=4),
         bench=[pk(MEOWTH)],
-        descarte=[GRASS, GRASS, GRASS, APPLIN, DIPPLIN],
-        energia_jugada=True)
+        discard=[GRASS, GRASS, GRASS, APPLIN, DIPPLIN],
+        energy_played=True)
     assert APPLIN in elegidas, elegidas
 
 
@@ -349,7 +349,7 @@ def test_seleccion_solo_la_planta_que_hace_falta_cobra_la_banda_alta():
     menu (the surplus Grass falls to `LANA_SEL_PLANTA_SOBRANTE`, below
     the Applin that starts the Hydrapple line)."""
     obs, elegidas = _seleccion_lana(
-        active=pk(TAPU, energias=[G] * 2, fisicas=1),
-        bench=[pk(MEGANIUM, energias=[G] * 4, fisicas=2), pk(MEOWTH)],
-        descarte=[GRASS, GRASS, GRASS, GRASS, APPLIN, CHIKORITA])
+        active=pk(TAPU, energies=[G] * 2, fisicas=1),
+        bench=[pk(MEGANIUM, energies=[G] * 4, fisicas=2), pk(MEOWTH)],
+        discard=[GRASS, GRASS, GRASS, GRASS, APPLIN, CHIKORITA])
     assert elegidas[:2] == [GRASS, APPLIN], elegidas

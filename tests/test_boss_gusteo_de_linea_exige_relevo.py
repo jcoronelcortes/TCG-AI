@@ -84,8 +84,8 @@ def reset_main_state():
     m._init_cards_tracking()
 
 
-def _pkm(card_id, energias=0):
-    return SimpleNamespace(id=card_id, energies=[1] * energias)
+def _pkm(card_id, energies=0):
+    return SimpleNamespace(id=card_id, energies=[1] * energies)
 
 
 def _op(active, bench):
@@ -156,19 +156,19 @@ def test_dunsparce_nunca_es_relevo():
 # 3. The full board: the `op_has_dreepy_line` branch
 # ---------------------------------------------------------------------------
 
-def _tablero(banca_extra=()):
+def _tablero(extra_bench=()):
     """Our turn with no attacker (Ogerpon ex at 1/3) and with Boss's Orders as the
     only card in hand: the menu is PLAY Boss's | END."""
-    return (Escenario(turn=6, step=70, tac=2, premios_propios=5)
-            .my_active(pk(OGERPON, energias=[G], fisicas=1))
+    return (Escenario(turn=6, step=70, tac=2, own_prizes=5)
+            .my_active(pk(OGERPON, energies=[G], fisicas=1))
             .my_bench(pk(OGERPON))
-            .op_active(pk(DRAGAPULT, hp=320, max_hp=320, energias=[G]))
-            .op_bench(*([pk(DRAKLOAK, hp=90, max_hp=90)] + list(banca_extra)))
+            .op_active(pk(DRAGAPULT, hp=320, max_hp=320, energies=[G]))
+            .op_bench(*([pk(DRAKLOAK, hp=90, max_hp=90)] + list(extra_bench)))
             .op_zonas(hand=5, deck=30, prizes=5)
             .my_hand(BOSS)
             .deck()
-            .resto_al_descarte()
-            .menu_mano()
+            .rest_to_discard()
+            .menu_hand()
             .build())
 
 
@@ -196,7 +196,7 @@ def test_no_se_cambia_su_dragapult_por_el_drakloak_que_lo_reemplaza():
 
 
 def test_con_un_cuerpo_muerto_detras_el_relevo_si_se_juega():
-    obs = _tablero(banca_extra=(pk(DUSCLOPS, hp=90, max_hp=90),))
+    obs = _tablero(extra_bench=(pk(DUSCLOPS, hp=90, max_hp=90),))
     assert m.agent(copy.deepcopy(obs)) == [0], (
         "el Dusclops pelado no puede pagar su ataque de coste 2: subirlo manda "
         "a la banca al Dragapult ex energizado y les cuesta el turno")

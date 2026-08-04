@@ -257,7 +257,7 @@ def main():
     for causa, n in Counter(r.split("`")[1] for r in a["razon"].values()).most_common(12):
         print(f"  {n:4d}  {causa}")
 
-    if args.detalle:
+    if args.detail:
         print("\n=== MOVIBLES ===")
         for n in sorted(mov, key=lambda x: defs[x].lineno):
             print(f"  {defs[n].lineno:6d}  {n}")

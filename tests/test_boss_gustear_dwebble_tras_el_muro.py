@@ -87,11 +87,11 @@ def _escenario(op_active=None, op_bench=None, hand=(BOSS, XEROSIC, ULTRA_BALL)):
     (Syrup Storm 390) and a rival bench with only Dwebble."""
     op_active = op_active if op_active is not None else pk(CRUSTLE)
     op_bench = op_bench if op_bench is not None else [pk(DWEBBLE), pk(DWEBBLE)]
-    return (Escenario(turn=8, step=78, energia_jugada=True)
-            .my_active(pk(HYDRAPPLE, hp=210, energias=[G, G], fisicas=1))
+    return (Escenario(turn=8, step=78, energy_played=True)
+            .my_active(pk(HYDRAPPLE, hp=210, energies=[G, G], fisicas=1))
             .my_bench(pk(MEGANIUM),
-                      pk(OGERPON, energias=[G] * 4, fisicas=2),
-                      pk(OGERPON, energias=[G] * 6, fisicas=3),
+                      pk(OGERPON, energies=[G] * 4, fisicas=2),
+                      pk(OGERPON, energies=[G] * 6, fisicas=3),
                       pk(MEOWTH))
             .my_hand(*hand)
             .op_active(op_active)
@@ -99,7 +99,7 @@ def _escenario(op_active=None, op_bench=None, hand=(BOSS, XEROSIC, ULTRA_BALL)):
             .op_zonas(hand=8, deck=30, prizes=6))
 
 
-def _jugada(obs, choice, hand):
+def _play(obs, choice, hand):
     o = obs["select"]["option"][choice[0]]
     if o["type"] == int(m.OptionType.PLAY):
         return ("PLAY", hand[o["index"]])
@@ -118,8 +118,8 @@ def test_con_el_muro_delante_se_juega_boss_orders():
     """The exact case of step 78: Boss's was VETOED (value 0) and Xerosic
     won. With the active cancelled by the wall, the gust is the only prize."""
     hand = [BOSS, XEROSIC, ULTRA_BALL]
-    obs = _escenario(hand=hand).menu_mano().build()
-    assert _jugada(obs, m.agent(obs), hand) == ("PLAY", BOSS)
+    obs = _escenario(hand=hand).menu_hand().build()
+    assert _play(obs, m.agent(obs), hand) == ("PLAY", BOSS)
 
 
 def test_el_objetivo_del_gusteo_es_el_dwebble_y_no_el_segundo_muro():
@@ -131,14 +131,14 @@ def test_el_objetivo_del_gusteo_es_el_dwebble_y_no_el_segundo_muro():
     fell into SCORE_FORBID and the argmax picked index 0 anyway, so
     the assertion passed even without the correction."""
     obs = (_escenario(op_bench=[pk(DWEBBLE), pk(CRUSTLE)])
-           .menu_gusteo().build())
+           .menu_gust().build())
     idx = obs["select"]["option"][m.agent(obs)[0]]["index"]
     assert obs["current"]["players"][1]["bench"][idx]["id"] == DWEBBLE
 
 
 def test_el_dwebble_gusteado_muere_al_syrup_storm():
     """The gust is only worth it if the KO is real: 30 + 30x12 = 390 on 70 HP."""
-    obs = _escenario().menu_gusteo().build()
+    obs = _escenario().menu_gust().build()
     st = m.to_observation_class(obs).current
     mio, riv = st.players[0], st.players[1]
     m.meganium_in_play = True
@@ -157,7 +157,7 @@ def test_sin_muro_el_dwebble_sigue_vetado_como_objetivo():
     DO hit), the Dwebble goes back to being fodder and is not gusted."""
     obs = (_escenario(op_active=pk(KANGASKHAN, hp=300),
                       op_bench=[pk(DWEBBLE), pk(CRUSTLE)])
-           .menu_gusteo().build())
+           .menu_gust().build())
     idx = obs["select"]["option"][m.agent(obs)[0]]["index"]
     assert obs["current"]["players"][1]["bench"][idx]["id"] != DWEBBLE
 
@@ -165,13 +165,13 @@ def test_sin_muro_el_dwebble_sigue_vetado_como_objetivo():
 def test_con_muro_pero_sin_KO_el_dwebble_sigue_vetado():
     """Boundary: the exemption requires a REAL KO. With our own active lacking enough
     energy to attack, the Dwebble is not a prize and the veto holds."""
-    obs = (Escenario(turn=8, step=78, energia_jugada=True)
+    obs = (Escenario(turn=8, step=78, energy_played=True)
            .my_active(pk(HYDRAPPLE, hp=210))          # 0 energies: it does not attack
            .my_bench(pk(MEOWTH))
            .my_hand(BOSS, ULTRA_BALL)
            .op_active(pk(CRUSTLE))
            .op_bench(pk(DWEBBLE), pk(CRUSTLE))
            .op_zonas(hand=8, deck=30, prizes=6)
-           .menu_gusteo().build())
+           .menu_gust().build())
     idx = obs["select"]["option"][m.agent(obs)[0]]["index"]
     assert obs["current"]["players"][1]["bench"][idx]["id"] != DWEBBLE

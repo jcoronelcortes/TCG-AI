@@ -128,14 +128,14 @@ def test_una_moneda_posterior_no_convierte_el_auto_dano_en_azar():
 
 
 def test_tapu_bulu_a_20_pv_se_noquea_con_su_propio_ataque():
-    assert m._self_ko_by_own_attack(_pkmn(TAPU, hp=20, energias=6))
-    assert not m._self_ko_by_own_attack(_pkmn(TAPU, hp=140, energias=6))
+    assert m._self_ko_by_own_attack(_pkmn(TAPU, hp=20, energies=6))
+    assert not m._self_ko_by_own_attack(_pkmn(TAPU, hp=140, energies=6))
 
 
 def test_sin_energia_para_pagar_el_ataque_no_hay_auto_dano():
     """The self-damage only counts if the attack can be USED: Wood Hammer costs
     4 units, and with 2 energies there is no attack (nor suicide) to fear."""
-    tapu = _pkmn(TAPU, hp=20, energias=2)
+    tapu = _pkmn(TAPU, hp=20, energies=2)
     assert m._self_damage_of_pokemon(tapu) == 0
     assert not m._self_ko_by_own_attack(tapu)
 
@@ -144,22 +144,22 @@ def test_sin_energia_para_pagar_el_ataque_no_hay_auto_dano():
 # 2. Step 184: retreat instead of signing off on the draw
 # ---------------------------------------------------------------------------
 
-def _paso_184(op_premios=1, my_prizes=1, tapu_hp=20, ogerpon_energias=6):
+def _step_184(op_prizes=1, my_prizes=1, tapu_hp=20, ogerpon_energies=6):
     """The exact board of step 184. Meganium on the bench => each physical Grass
     counts DOUBLE, so 3 energy cards give 6 effective units."""
     return (Escenario(turn=16, step=184, tac=1,
-                      premios_propios=my_prizes)
-            .my_active(pk(TAPU, hp=tapu_hp, energias=[G] * 6, fisicas=3))
+                      own_prizes=my_prizes)
+            .my_active(pk(TAPU, hp=tapu_hp, energies=[G] * 6, fisicas=3))
             .my_bench(pk(MEGANIUM, hp=80, pre_evo=[m.Chikorita, BAYLEEF]),
-                      pk(OGERPON, hp=100, energias=[G] * ogerpon_energias,
-                         fisicas=ogerpon_energias // 2),
+                      pk(OGERPON, hp=100, energies=[G] * ogerpon_energies,
+                         fisicas=ogerpon_energies // 2),
                       pk(HYDRAPPLE, hp=290, pre_evo=[m.Applin, m.Dipplin]))
             .my_hand(BAYLEEF, GRASS, LANAS)
-            .estadio(SPIKEMUTH_GYM, del_rival=True)
+            .stadium(SPIKEMUTH_GYM, of_the_opponent=True)
             .op_active(pk(IMPIDIMP))
             .op_bench(pk(IMPIDIMP), pk(IMPIDIMP), pk(IMPIDIMP),
                       pk(IMPIDIMP), pk(IMPIDIMP))
-            .op_zonas(hand=4, deck=25, prizes=op_premios))
+            .op_zonas(hand=4, deck=25, prizes=op_prizes))
 
 
 def _tipo_elegido(obs, choice):
@@ -169,15 +169,15 @@ def _tipo_elegido(obs, choice):
 def test_con_un_premio_por_lado_se_retira_en_vez_de_rematar_suicida():
     """THE FAILURE IN THE RECORD. Before: ATTACK (Wood Hammer) -> a 0-0 draw.
     Now: RETREAT, to promote the Ogerpon ex and win cleanly."""
-    obs = _paso_184().menu_mano(con_retirada=True, con_ataque=True).build()
+    obs = _step_184().menu_hand(with_retreat=True, with_attack=True).build()
     assert _tipo_elegido(obs, m.agent(obs)) == int(m.OptionType.RETREAT)
 
 
 def test_el_remate_suicida_queda_vetado_mientras_exista_el_relevo():
-    obs = _paso_184().menu_mano(con_retirada=True, con_ataque=True).build()
+    obs = _step_184().menu_hand(with_retreat=True, with_attack=True).build()
     scores = _scores(obs)
-    i_atk = _indice(obs, m.OptionType.ATTACK)
-    i_ret = _indice(obs, m.OptionType.RETREAT)
+    i_atk = _index(obs, m.OptionType.ATTACK)
+    i_ret = _index(obs, m.OptionType.RETREAT)
     assert scores[i_atk] <= 0
     assert scores[i_ret] > 0
 
@@ -187,31 +187,31 @@ def test_sin_relevo_en_banca_el_empate_es_el_mejor_resultado_y_no_se_veta():
     attack is NOT vetoed (passing also ends in a draw, but gives away the turn).
     The veto is measured rather than the choice because, with energy in hand, attaching it
     scores higher than attacking through rules PRIOR to this change."""
-    obs = (Escenario(turn=16, step=184, tac=1, premios_propios=1)
-           .my_active(pk(TAPU, hp=20, energias=[G] * 6, fisicas=3))
+    obs = (Escenario(turn=16, step=184, tac=1, own_prizes=1)
+           .my_active(pk(TAPU, hp=20, energies=[G] * 6, fisicas=3))
            .my_bench(pk(MEGANIUM, hp=80, pre_evo=[m.Chikorita, BAYLEEF]))
            .my_hand(GRASS)
            .op_active(pk(IMPIDIMP))
            .op_bench(pk(IMPIDIMP))
            .op_zonas(hand=4, deck=25, prizes=1)
-           .menu_mano(con_retirada=True, con_ataque=True).build())
-    assert _scores(obs)[_indice(obs, m.OptionType.ATTACK)] > 0
+           .menu_hand(with_retreat=True, with_attack=True).build())
+    assert _scores(obs)[_index(obs, m.OptionType.ATTACK)] > 0
 
 
 def test_con_el_rival_lejos_del_final_el_remate_suicida_sigue_ganando():
     """The brake looks at the RIVAL'S prizes, not at self-damage in the abstract: with 3
     rival prizes our corpse (1 prize) does not close out their count, so
     Wood Hammer is still the top-priority winning finisher."""
-    obs = _paso_184(op_premios=3).menu_mano(
-        con_retirada=True, con_ataque=True).build()
+    obs = _step_184(op_prizes=3).menu_hand(
+        with_retreat=True, with_attack=True).build()
     assert _tipo_elegido(obs, m.agent(obs)) == int(m.OptionType.ATTACK)
 
 
 def test_tapu_bulu_sano_no_se_suicida_y_remata_de_frente():
     """The same board with Tapu Bulu at 140/140: the 30 self-damage does not kill it,
     so there is no draw to avoid and ATTACKING is the first thing again."""
-    obs = _paso_184(tapu_hp=140).menu_mano(
-        con_retirada=True, con_ataque=True).build()
+    obs = _step_184(tapu_hp=140).menu_hand(
+        with_retreat=True, with_attack=True).build()
     assert _tipo_elegido(obs, m.agent(obs)) == int(m.OptionType.ATTACK)
 
 
@@ -219,16 +219,16 @@ def test_el_remate_suicida_que_PIERDE_se_veta_aunque_no_haya_relevo():
     """A worse case than the draw: our attack does NOT knock out (a 380 HP Duraludon
     survives the 220), so the self-damage only HANDS the rival their last
     prize. There, attacking is losing: it is vetoed with no need for a relief body."""
-    obs = (Escenario(turn=16, step=184, tac=1, premios_propios=3)
-           .my_active(pk(TAPU, hp=20, energias=[G] * 6, fisicas=3))
+    obs = (Escenario(turn=16, step=184, tac=1, own_prizes=3)
+           .my_active(pk(TAPU, hp=20, energies=[G] * 6, fisicas=3))
            .my_bench(pk(MEGANIUM, hp=80, pre_evo=[m.Chikorita, BAYLEEF]))
            .my_hand(GRASS)
            .op_active(pk(ARCHALUDON_EX, hp=300, max_hp=300))
            .op_bench(pk(IMPIDIMP))
            .op_zonas(hand=4, deck=25, prizes=1)
-           .menu_mano(con_retirada=True, con_ataque=True).build())
+           .menu_hand(with_retreat=True, with_attack=True).build())
     scores = _scores(obs)
-    assert scores[_indice(obs, m.OptionType.ATTACK)] <= 0
+    assert scores[_index(obs, m.OptionType.ATTACK)] <= 0
 
 
 # ---------------------------------------------------------------------------
@@ -239,7 +239,7 @@ def test_la_promocion_tras_retirar_sube_al_que_gana_la_partida():
     """The other half of the chain: without this we retreated well and then brought up the
     290 HP Hydrapple ex (no energy, it does not finish) instead of the charged
     Ogerpon ex, and the turn closed without taking the prize."""
-    obs = _paso_184().promocion_tras_retirada().build()
+    obs = _step_184().promote_after_retreat().build()
     choice = m.agent(obs)
     idx = obs["select"]["option"][choice[0]]["index"]
     bench = obs["current"]["players"][0]["bench"]
@@ -251,7 +251,7 @@ def test_la_promocion_forzada_tras_un_KO_no_cambia_de_criterio():
     (the SWITCH context, always on our turn and before attacking). The forced
     promotion after a KO (TO_ACTIVE) may fall on the rival's turn, where nobody
     attacks and the usual criterion is still the right one."""
-    obs = _paso_184().promocion_desde_banca().build()
+    obs = _step_184().promote_from_bench().build()
     choice = m.agent(obs)
     idx = obs["select"]["option"][choice[0]]["index"]
     bench = obs["current"]["players"][0]["bench"]
@@ -262,15 +262,15 @@ def test_la_promocion_forzada_tras_un_KO_no_cambia_de_criterio():
 # Utilities
 # ---------------------------------------------------------------------------
 
-def _pkmn(card_id, hp, max_hp=None, energias=0):
+def _pkmn(card_id, hp, max_hp=None, energies=0):
     """A loose Pokemon for the self-damage helpers (without a full observation)."""
     return m.Pokemon(id=card_id, serial=0, hp=hp,
                      maxHp=max_hp if max_hp is not None else hp,
-                     appearThisTurn=False, energies=[G] * energias,
+                     appearThisTurn=False, energies=[G] * energies,
                      energyCards=[], tools=[], preEvolution=[])
 
 
-def _indice(obs, tipo):
+def _index(obs, tipo):
     for i, o in enumerate(obs["select"]["option"]):
         if o["type"] == int(tipo):
             return i
@@ -282,13 +282,13 @@ def _scores(obs):
     capturado = {}
     original = m._debug_log_decision
 
-    def espia(context, select, scores, o, my_index, top_n=3):
+    def spy(context, select, scores, o, my_index, top_n=3):
         capturado.setdefault("scores", list(scores))
         return original(context, select, scores, o, my_index, top_n)
 
     # The spy is installed in ALL the modules that bind the name: the caller
     # now lives in ptcg/turno/finalize.py, not in main.
-    with parcheado("_debug_log_decision", espia):
+    with parcheado("_debug_log_decision", spy):
         m.agent(obs)
     assert "scores" in capturado, "el agente no puntuo el menu"
     return capturado["scores"]

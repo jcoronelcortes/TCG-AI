@@ -43,7 +43,7 @@ OGERPON = m.Teal_Mask_Ogerpon_ex
 TAPU = m.Tapu_Bulu
 MEOWTH = m.Meowth_ex
 FEZA = m.Fezandipiti_ex
-ENERGIA = m.Basic_Grass_Energy
+ENERGY = m.Basic_Grass_Energy
 
 _FIXTURE = ROOT / "tests" / "fixtures" / "grimmsnarl_step67_carga_activo_para_syrup.json"
 
@@ -84,7 +84,7 @@ def _obs_step67():
         return json.load(f)["observation"]
 
 
-def _opciones_attach(obs):
+def _attach_options(obs):
     """{position: 'activo'|'banca-k'} for the menu's ATTACH options."""
     destinos = {}
     for i, opt in enumerate(obs["select"]["option"]):
@@ -107,9 +107,9 @@ def test_step67_carga_el_activo_y_no_el_hydrapple_de_banca():
     assert mio["active"][0]["id"] == HYDRAPPLE
     assert mio["active"][0]["energies"] == []
     assert cur["energyAttached"] is False
-    assert sum(1 for c in mio["hand"] if c["id"] == ENERGIA) >= 2
+    assert sum(1 for c in mio["hand"] if c["id"] == ENERGY) >= 2
 
-    destinos = _opciones_attach(obs)
+    destinos = _attach_options(obs)
     assert "activo" in destinos.values()
     assert any(d.startswith("banca") for d in destinos.values())
 
@@ -129,7 +129,7 @@ def test_step67_ripening_charge_apunta_al_activo():
 
     # Simulating the next step: the manual attachment already put 1 Grass on the active
     # (1 is left for the cost of Syrup Storm, which the ability must supply).
-    energy = next(c for c in mio["hand"] if c["id"] == ENERGIA)
+    energy = next(c for c in mio["hand"] if c["id"] == ENERGY)
     mio["hand"] = [c for c in mio["hand"] if c is not energy]
     mio["handCount"] = len(mio["hand"])
     mio["active"][0]["energies"] = [G]
@@ -155,11 +155,11 @@ def test_step67_con_el_activo_cargado_ataca():
     cur = obs["current"]
     mio = cur["players"][cur["yourIndex"]]
 
-    energias = [c for c in mio["hand"] if c["id"] == ENERGIA][:2]
-    mio["hand"] = [c for c in mio["hand"] if c not in energias]
+    energies = [c for c in mio["hand"] if c["id"] == ENERGY][:2]
+    mio["hand"] = [c for c in mio["hand"] if c not in energies]
     mio["handCount"] = len(mio["hand"])
     mio["active"][0]["energies"] = [G, G]
-    mio["active"][0]["energyCards"] = energias
+    mio["active"][0]["energyCards"] = energies
     cur["energyAttached"] = True
     obs["select"]["option"] = [
         {"type": int(OptionType.ATTACK), "attackId": 195},
@@ -178,16 +178,16 @@ def test_activo_ogerpon_carga_a_si_mismo_para_rematar():
     used to take the Grass.
     """
     obs = (Escenario(turn=8, step=90, tac=2)
-           .my_active(pk(OGERPON, energias=[G, G]))
+           .my_active(pk(OGERPON, energies=[G, G]))
            .my_bench(pk(HYDRAPPLE, pre_evo=[APPLIN, DIPPLIN]), MEOWTH)
-           .my_hand(ENERGIA, ENERGIA)
+           .my_hand(ENERGY, ENERGY)
            .op_active(pk(m.Munkidori, hp=40))
            .op_bench(pk(m.Froslass, pre_evo=[m.Snorunt]))
            .op_zonas(hand=4, deck=30, prizes=4)
-           .menu_attach_energia()
+           .menu_attach_energy()
            .build())
 
-    destinos = _opciones_attach(obs)
+    destinos = _attach_options(obs)
     choice = m.agent(obs)
 
     assert destinos[choice[0]] == "activo", (
@@ -198,16 +198,16 @@ def test_activo_ogerpon_carga_a_si_mismo_para_rematar():
 def test_activo_sin_remate_pero_turno_esteril_tambien_carga_al_activo():
     """With no KO available, charging the active is the only way to attack today."""
     obs = (Escenario(turn=8, step=90, tac=2)
-           .my_active(pk(HYDRAPPLE, energias=[G], pre_evo=[APPLIN, DIPPLIN]))
+           .my_active(pk(HYDRAPPLE, energies=[G], pre_evo=[APPLIN, DIPPLIN]))
            .my_bench(pk(APPLIN), MEOWTH)
-           .my_hand(ENERGIA)
+           .my_hand(ENERGY)
            .op_active(pk(m.Grimmsnarl_ex, hp=320,
-                         energias=[G, G, G]))
+                         energies=[G, G, G]))
            .op_zonas(hand=4, deck=30, prizes=5)
-           .menu_attach_energia()
+           .menu_attach_energy()
            .build())
 
-    destinos = _opciones_attach(obs)
+    destinos = _attach_options(obs)
     choice = m.agent(obs)
 
     assert destinos[choice[0]] == "activo", (
@@ -222,16 +222,16 @@ def test_activo_que_ya_ataca_no_acapara_la_energia():
     normal distribution (bench development), not stay on the active.
     """
     obs = (Escenario(turn=8, step=90, tac=2)
-           .my_active(pk(HYDRAPPLE, energias=[G, G], pre_evo=[APPLIN, DIPPLIN]))
+           .my_active(pk(HYDRAPPLE, energies=[G, G], pre_evo=[APPLIN, DIPPLIN]))
            .my_bench(pk(OGERPON), MEOWTH)
-           .my_hand(ENERGIA)
+           .my_hand(ENERGY)
            .op_active(pk(m.Grimmsnarl_ex, hp=320,
-                         energias=[G, G, G]))
+                         energies=[G, G, G]))
            .op_zonas(hand=4, deck=30, prizes=5)
-           .menu_attach_energia()
+           .menu_attach_energy()
            .build())
 
-    destinos = _opciones_attach(obs)
+    destinos = _attach_options(obs)
     choice = m.agent(obs)
 
     assert destinos[choice[0]] != "activo", (

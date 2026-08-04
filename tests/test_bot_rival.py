@@ -42,16 +42,16 @@ TAPU = 920
 HYDRAPPLE = 150       # ex, 2 prizes, 330 HP
 
 
-def pk(cid, hp, max_hp, energias=0):
+def pk(cid, hp, max_hp, energies=0):
     return {"id": cid, "hp": hp, "maxHp": max_hp,
-            "energies": [7] * energias, "energyCards": [], "tools": [],
+            "energies": [7] * energies, "energyCards": [], "tools": [],
             "preEvolution": [], "serial": cid * 10 + hp}
 
 
-def obs(select, yo_activo, yo_banca, op_active, op_bench, yidx=1, turn=6):
+def obs(select, me_active, me_bench, op_active, op_bench, yidx=1, turn=6):
     jugadores = [None, None]
-    jugadores[yidx] = {"active": [yo_activo] if yo_activo else [],
-                       "bench": list(yo_banca), "prize": [None] * 4,
+    jugadores[yidx] = {"active": [me_active] if me_active else [],
+                       "bench": list(me_bench), "prize": [None] * 4,
                        "hand": [], "handCount": 0, "deckCount": 30,
                        "discard": []}
     jugadores[1 - yidx] = {"active": [op_active] if op_active else [],

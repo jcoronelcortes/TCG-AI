@@ -72,7 +72,7 @@ import main as m
 
 _FIXTURE = (ROOT / "tests" / "fixtures"
             / "dragapult_no_bajar_tapu_bulu_step43.json")
-_REGISTRO = (ROOT / "registros"
+_RECORD = (ROOT / "registros"
              / "registro_003_pasos_018_hasta_056.json")
 
 TAPU = m.Tapu_Bulu
@@ -113,7 +113,7 @@ def _obs():
     return copy.deepcopy(json.load(open(_FIXTURE, encoding="utf-8"))["observation"])
 
 
-def _idx_tapu(obs):
+def _idx_tapu_bulu(obs):
     """Index of the 'PLAY Tapu Bulu' option in the main menu."""
     hand = obs["current"]["players"][obs["current"]["yourIndex"]]["hand"]
     for i, o in enumerate(obs["select"]["option"]):
@@ -141,7 +141,7 @@ def test_el_fixture_es_la_banca_llena_vs_dragapult():
 
     # Tapu Bulu is in hand and the menu offers to play it.
     assert any(c["id"] == TAPU for c in mio["hand"])
-    assert _idx_tapu(o) == 2
+    assert _idx_tapu_bulu(o) == 2
 
     # The rival is Dragapult (a Dreepy line) and is NOT a wall deck: it neither cancels
     # abilities nor makes our ex immune, so Tapu Bulu is not needed.
@@ -156,7 +156,7 @@ def test_el_fixture_es_la_banca_llena_vs_dragapult():
 def test_no_se_baja_tapu_bulu():
     o = _obs()
     m.meganium_in_play = True
-    assert m.agent(o) != [_idx_tapu(o)], (
+    assert m.agent(o) != [_idx_tapu_bulu(o)], (
         "vs Dragapult, con 5 Pokémon ya en juego, Tapu Bulu no aporta ataque "
         "y sólo suma un cuerpo al reparto de Phantom Dive")
 
@@ -165,13 +165,13 @@ def test_no_se_baja_tapu_bulu():
 # 2. The faithful replay: the same turn reproduced from cold
 # ---------------------------------------------------------------------------
 
-def _replay_hasta(paso_final):
+def _replay_hasta(final_step):
     """Replays the record from its first step and returns the decisions."""
-    data = json.load(open(_REGISTRO, encoding="utf-8"))
+    data = json.load(open(_RECORD, encoding="utf-8"))
     steps = data["source_step_numbers"]
     decisiones = {}
     for i, par in enumerate(data["steps"]):
-        if steps[i] > paso_final:
+        if steps[i] > final_step:
             break
         for item in par:
             obs = item.get("observation") or {}
@@ -183,7 +183,7 @@ def _replay_hasta(paso_final):
 
 
 @pytest.mark.skipif(
-    not _REGISTRO.exists(),
+    not _RECORD.exists(),
     reason="registro local rotado (registros/ es transitorio)")
 def test_replay_fiel_ni_lo_busca_ni_lo_baja():
     dec = _replay_hasta(43)
@@ -200,7 +200,7 @@ def test_replay_fiel_ni_lo_busca_ni_lo_baja():
 
     # Step 43: and the turn goes on through the Ultra Ball (the one that brought Hydrapple ex).
     obs43, eleccion43 = dec[43]
-    assert eleccion43 != [_idx_tapu(obs43)]
+    assert eleccion43 != [_idx_tapu_bulu(obs43)]
 
 
 # ---------------------------------------------------------------------------
@@ -213,10 +213,10 @@ def test_con_dos_cuerpos_en_juego_si_se_baja():
     mio = o["current"]["players"][o["current"]["yourIndex"]]
     mio["bench"] = mio["bench"][:1]          # active + 1 = 2 in play
     m.meganium_in_play = True
-    assert m.agent(o) == [_idx_tapu(o)]
+    assert m.agent(o) == [_idx_tapu_bulu(o)]
 
 
-def _sin_items_en_mano(obs):
+def _no_items_in_hand(obs):
     """Removes the Ultra Ball and rebuilds the menu.
 
     Tapu Bulu has a ceiling of its own that comes before all this
@@ -243,17 +243,17 @@ def test_el_veto_cede_ante_un_muro_inmune():
     riv = o["current"]["players"][1 - yo]
     riv["active"][0]["id"] = m.Cornerstone_Mask_Ogerpon_ex
     riv["active"][0]["hp"] = riv["active"][0]["maxHp"] = 220
-    _sin_items_en_mano(o)
+    _no_items_in_hand(o)
     m.meganium_in_play = True
-    assert m.agent(o) == [_idx_tapu(o)]
+    assert m.agent(o) == [_idx_tapu_bulu(o)]
 
 
 def test_con_el_muro_fuera_el_veto_vuelve():
     """Control for the previous test: the same board WITHOUT the wall -> still vetoed."""
     o = _obs()
-    _sin_items_en_mano(o)
+    _no_items_in_hand(o)
     m.meganium_in_play = True
-    assert m.agent(o) != [_idx_tapu(o)]
+    assert m.agent(o) != [_idx_tapu_bulu(o)]
 
 
 def test_el_veto_no_toca_otros_matchups():
@@ -265,7 +265,7 @@ def test_el_veto_no_toca_otros_matchups():
         pk["id"] = m.Chikorita                 # any basic, non-Dragapult
         pk["hp"] = pk["maxHp"] = 70
     m.meganium_in_play = True
-    assert m.agent(o) == [_idx_tapu(o)]
+    assert m.agent(o) == [_idx_tapu_bulu(o)]
 
 
 # ---------------------------------------------------------------------------

@@ -70,16 +70,16 @@ def reset_main_state():
     m._init_cards_tracking()
 
 
-def _escenario(hand, bench=None, energia_activo=0, descarte=(GRASS, GRASS),
-               energia_jugada=False, retirado=False, op_hp=70):
-    bench = bench if bench is not None else [pk(TAPU, energias=[G, G, G, G]),
+def _escenario(hand, bench=None, active_energy=0, discard=(GRASS, GRASS),
+               energy_played=False, retirado=False, op_hp=70):
+    bench = bench if bench is not None else [pk(TAPU, energies=[G, G, G, G]),
                                              pk(MEOWTH)]
-    return (Escenario(turn=12, step=40, energia_jugada=energia_jugada,
+    return (Escenario(turn=12, step=40, energy_played=energy_played,
                       retirado=retirado)
-            .my_active(pk(FEZANDIPITI, energias=[G] * energia_activo))
+            .my_active(pk(FEZANDIPITI, energies=[G] * active_energy))
             .my_bench(*bench)
             .my_hand(*hand)
-            .mi_descarte(*descarte)
+            .my_discard(*discard)
             .op_active(pk(COMFEY, hp=op_hp))
             .op_zonas(hand=5, deck=20, prizes=3))
 
@@ -105,7 +105,7 @@ def test_night_stretcher_se_juega_para_pagar_la_retirada():
     """The record's case: with no Grass in hand and the finisher on the table, the
     Night Stretcher is played instead of ending the turn."""
     hand = [NIGHT_STRETCHER, ULTRA_BALL]
-    obs = _escenario(hand).menu_mano().build()
+    obs = _escenario(hand).menu_hand().build()
     assert _elegida(obs, m.agent(obs), hand) == ("PLAY", NIGHT_STRETCHER)
 
 
@@ -113,13 +113,13 @@ def test_deck_agnostico_el_rematador_no_necesita_habilidad_de_carga():
     """With a bench Teal Mask Ogerpon ex the play already came out right by
     chance (the `energia_activo_sin_teal` scenario). The rule must hold
     equally with any finisher -- here, both."""
-    for bench in ([pk(TAPU, energias=[G, G, G, G]), pk(MEOWTH)],
-                  [pk(OGERPON, energias=[G, G, G]), pk(MEOWTH)]):
+    for bench in ([pk(TAPU, energies=[G, G, G, G]), pk(MEOWTH)],
+                  [pk(OGERPON, energies=[G, G, G]), pk(MEOWTH)]):
         m._init_cards_tracking()
         m._cards_first_scan_done = False
         m._field_at_turn_start = {}
         hand = [NIGHT_STRETCHER, ULTRA_BALL]
-        obs = _escenario(hand, bench=bench).menu_mano().build()
+        obs = _escenario(hand, bench=bench).menu_hand().build()
         assert _elegida(obs, m.agent(obs), hand) == ("PLAY", NIGHT_STRETCHER)
 
 
@@ -127,7 +127,7 @@ def test_sin_energia_en_el_descarte_no_se_gasta_la_night_stretcher():
     """Boundary: if no Grass is left in the discard, the chain does not exist
     and the Night Stretcher must not be played through this rule."""
     hand = [NIGHT_STRETCHER, ULTRA_BALL]
-    obs = _escenario(hand, descarte=(ULTRA_BALL, ULTRA_BALL)).menu_mano().build()
+    obs = _escenario(hand, discard=(ULTRA_BALL, ULTRA_BALL)).menu_hand().build()
     assert _elegida(obs, m.agent(obs), hand) != ("PLAY", NIGHT_STRETCHER)
 
 
@@ -135,7 +135,7 @@ def test_con_planta_ya_en_mano_la_cadena_no_necesita_la_night_stretcher():
     """Boundary: with the Grass already in hand the first link is superfluous; what rules is the
     attachment to the ACTIVE (`_attach_enable_retreat_ko`, 41000)."""
     hand = [NIGHT_STRETCHER, GRASS]
-    obs = _escenario(hand).menu_mano(con_adjunte=True).build()
+    obs = _escenario(hand).menu_hand(with_attachment=True).build()
     tipo, destino = _elegida(obs, m.agent(obs), hand)
     assert tipo == "ATTACH" and destino == int(m.AreaType.ACTIVE)
 
@@ -145,8 +145,8 @@ def test_con_planta_ya_en_mano_la_cadena_no_necesita_la_night_stretcher():
 # ---------------------------------------------------------------------------
 
 def test_la_night_stretcher_recupera_la_energia_y_no_un_pokemon():
-    obs = (_escenario([ULTRA_BALL], descarte=(GRASS, GRASS, ULTRA_BALL))
-           .fetch_descarte(NIGHT_STRETCHER).build())
+    obs = (_escenario([ULTRA_BALL], discard=(GRASS, GRASS, ULTRA_BALL))
+           .fetch_discard(NIGHT_STRETCHER).build())
     choice = m.agent(obs)
     idx = obs["select"]["option"][choice[0]]["index"]
     assert obs["current"]["players"][0]["discard"][idx]["id"] == GRASS
@@ -154,15 +154,15 @@ def test_la_night_stretcher_recupera_la_energia_y_no_un_pokemon():
 
 def test_la_planta_recuperada_va_al_activo_no_a_la_banca():
     hand = [GRASS, ULTRA_BALL]
-    obs = _escenario(hand).menu_mano(con_adjunte=True).build()
+    obs = _escenario(hand).menu_hand(with_attachment=True).build()
     tipo, destino = _elegida(obs, m.agent(obs), hand)
     assert tipo == "ATTACH" and destino == int(m.AreaType.ACTIVE)
 
 
 def test_con_la_energia_puesta_se_retira():
     hand = [ULTRA_BALL]
-    obs = (_escenario(hand, energia_activo=1, energia_jugada=True)
-           .menu_mano(con_retirada=True).build())
+    obs = (_escenario(hand, active_energy=1, energy_played=True)
+           .menu_hand(with_retreat=True).build())
     assert _elegida(obs, m.agent(obs), hand) == ("RETREAT", None)
 
 
@@ -230,9 +230,9 @@ def test_coste_de_ataque_min_desconocido_es_none():
 
 
 def test_tras_retirar_se_promueve_al_rematador():
-    obs = (_escenario([ULTRA_BALL], energia_activo=1, energia_jugada=True,
+    obs = (_escenario([ULTRA_BALL], active_energy=1, energy_played=True,
                       retirado=True)
-           .promocion_desde_banca().build())
+           .promote_from_bench().build())
     choice = m.agent(obs)
     idx = obs["select"]["option"][choice[0]]["index"]
     assert obs["current"]["players"][0]["bench"][idx]["id"] == TAPU

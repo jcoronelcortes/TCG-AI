@@ -110,10 +110,10 @@ def load_corpus(origen):
         group["copias"] += 1
         group["arquetipos"][indice.get(path.name, "")] += 1
 
-    salida = []
+    output = []
     for group in groups.values():
         arq = group["arquetipos"].most_common(1)[0][0] if group["arquetipos"] else ""
-        salida.append(
+        output.append(
             {
                 "mazo": group["mazo"],
                 "copias": group["copias"],
@@ -121,15 +121,15 @@ def load_corpus(origen):
                 "arquetipo": arq,
             }
         )
-    salida.sort(key=lambda g: (-g["peso_meta"], g["arquetipo"], g["mazo"]))
+    output.sort(key=lambda g: (-g["peso_meta"], g["arquetipo"], g["mazo"]))
 
     # A name per archetype, numbered by descending weight within the archetype.
     por_arquetipo = Counter()
-    for group in salida:
+    for group in output:
         base = slug(group["arquetipo"])
         por_arquetipo[base] += 1
         group["nombre"] = f"{base}_{por_arquetipo[base]}"
-    return salida, total
+    return output, total
 
 
 def cribar(group, partidas, deck_referencia):
@@ -161,10 +161,10 @@ def cribar(group, partidas, deck_referencia):
     }
 
 
-def write_out(groups, salida):
-    salida.mkdir(parents=True, exist_ok=True)
-    rechazados = salida / "no_pilotables"
-    for viejo in salida.glob("*.csv"):
+def write_out(groups, output):
+    output.mkdir(parents=True, exist_ok=True)
+    rechazados = output / "no_pilotables"
+    for viejo in output.glob("*.csv"):
         viejo.unlink()
     if rechazados.is_dir():
         for viejo in rechazados.glob("*.csv"):
@@ -172,7 +172,7 @@ def write_out(groups, salida):
 
     filas = []
     for group in groups:
-        destino = salida if group["admitido"] else rechazados
+        destino = output if group["admitido"] else rechazados
         destino.mkdir(parents=True, exist_ok=True)
         (destino / f"{group['nombre']}.csv").write_text(
             "\n".join(str(cid) for cid in group["mazo"]) + "\n", encoding="utf-8"
@@ -193,7 +193,7 @@ def write_out(groups, salida):
                 "motivo": group.get("motivo", ""),
             }
         )
-    with (salida / "pesos.csv").open("w", encoding="utf-8-sig", newline="") as fh:
+    with (output / "pesos.csv").open("w", encoding="utf-8-sig", newline="") as fh:
         escritor = csv.DictWriter(fh, fieldnames=list(filas[0].keys()))
         escritor.writeheader()
         escritor.writerows(filas)
@@ -248,17 +248,17 @@ def main(argv):
                   f"({n}/{len(groups)}) {group['motivo']}", flush=True)
 
     print("\n== 3/3 Escritura ==")
-    filas = write_out(groups, Path(args.salida))
+    filas = write_out(groups, Path(args.output))
     admitidos = [g for g in groups if g["admitido"]]
     peso_ok = sum(g["peso_meta"] for g in admitidos)
-    print(f"Listas admitidas: {len(admitidos)}/{len(groups)}  ->  {args.salida}")
+    print(f"Listas admitidas: {len(admitidos)}/{len(groups)}  ->  {args.output}")
     print(f"COBERTURA DE META MEDIBLE: {100 * peso_ok:.1f}%")
     if len(admitidos) < len(groups):
         print("\nNo pilotables (el harness no puede medir esta parte del meta):")
         for g in groups:
             if not g["admitido"]:
                 print(f"  {g['nombre']:<28} peso {100 * g['peso_meta']:4.0f}%  {g['motivo']}")
-    print(f"\nPesos en {Path(args.salida) / 'pesos.csv'} ({len(filas)} filas)")
+    print(f"\nPesos en {Path(args.output) / 'pesos.csv'} ({len(filas)} filas)")
     return 0
 
 

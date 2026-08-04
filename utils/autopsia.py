@@ -273,10 +273,10 @@ def turn_census(m, decisiones):
             vias += sum(1 for b in campo if b["id"] == m.Hydrapple_ex)
             if act["id"] == m.Teal_Mask_Ogerpon_ex:
                 vias += 1
-            plantas = sum(1 for c in hand if c["id"] == m.Basic_Grass_Energy)
+            grass_cards = sum(1 for c in hand if c["id"] == m.Basic_Grass_Energy)
             missing = m.RETREAT_COST.get(act["id"], 1) - len(act["energies"])
             necesarias = -(-missing // unit)
-            retreat_payable_today = 1 <= necesarias <= min(vias, plantas)
+            retreat_payable_today = 1 <= necesarias <= min(vias, grass_cards)
         escapatoria = bool(retreat_in_menu or switch_in_hand
                            or retreat_payable_today)
 
@@ -341,9 +341,9 @@ def detectar(m, decisiones):
             for d in mains if d["eleccion"])
         if not ataco:
             for d in mains:
-                opciones = d["obs"]["select"]["option"]
+                options = d["obs"]["select"]["option"]
                 if not any(int(o.get("type", -1)) == int(OptionType.ATTACK)
-                           for o in opciones):
+                           for o in options):
                     continue
                 damage, opa = _lethal_damage_to_active(m, d["obs"])
                 if opa is None or damage <= 0:

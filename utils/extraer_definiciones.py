@@ -265,16 +265,16 @@ def main():
               f" (+{len(info['nombres'])} definiciones)")
 
     main_py = Path(args.main)
-    salida, puesto = [], False
+    output, puesto = [], False
     for i, line in enumerate(lines, start=1):
         if i in borrar:
             if not puesto:
-                salida.extend(marcas)
+                output.extend(marcas)
                 puesto = True
             continue
-        salida.append(line)
-    main_py.write_text("".join(salida))
-    print(f"\nmain.py: {len(lines)} -> {len(salida)} lineas")
+        output.append(line)
+    main_py.write_text("".join(output))
+    print(f"\nmain.py: {len(lines)} -> {len(output)} lineas")
     print("OJO: mueve los imports al bloque de cabecera (I1a).")
     return 0
 

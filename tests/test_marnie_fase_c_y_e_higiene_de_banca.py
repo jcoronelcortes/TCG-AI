@@ -98,7 +98,7 @@ def reset_main_state():
     m._init_cards_tracking()
 
 
-def _destino_de_la_energia(obs, choice):
+def _energy_destination(obs, choice):
     """The id of the Pokemon that receives the Grass, or None if no ATTACH was chosen."""
     opt = obs["select"]["option"][choice[0]]
     if opt.get("type") != int(m.OptionType.ATTACH):
@@ -109,7 +109,7 @@ def _destino_de_la_energia(obs, choice):
     return destino["id"]
 
 
-def _jugada(obs, choice):
+def _play(obs, choice):
     """('PLAY', id) / ('ATTACH', id) / ('END',) ... of the chosen option."""
     opt = obs["select"]["option"][choice[0]]
     tipo = opt.get("type")
@@ -117,7 +117,7 @@ def _jugada(obs, choice):
     if tipo == int(m.OptionType.PLAY):
         return ("PLAY", yo["hand"][opt["index"]]["id"])
     if tipo == int(m.OptionType.ATTACH):
-        return ("ATTACH", _destino_de_la_energia(obs, choice))
+        return ("ATTACH", _energy_destination(obs, choice))
     if tipo == int(m.OptionType.END):
         return ("END",)
     return (tipo,)
@@ -127,7 +127,7 @@ def _jugada(obs, choice):
 # PHASE C — the Grass does not go to the body the opponent can cash in tonight
 # ---------------------------------------------------------------------------
 
-def _mesa_con_meganium_herido(con_goteo=True):
+def _board_with_wounded_meganium(with_drip=True):
     """A benched Meganium at 30/160 (inside the window if there is drip) next to an
     INTACT benched Ogerpon ex. It reproduces the real flip of step 172 of
     `registros/marnie/partida_1`, where the Grass went to the dying Meganium.
@@ -135,28 +135,28 @@ def _mesa_con_meganium_herido(con_goteo=True):
     `con_goteo=False` is the CONTROL group: the same board with an opponent without
     Froslass or Munkidori, where the window is 0 and the rule does not exist.
     """
-    banca_rival = ([pk(FROSLASS, hp=90, max_hp=90),
-                    pk(MUNKIDORI, hp=110, max_hp=110, energias=[G], fisicas=1)]
-                   if con_goteo else [pk(MORGREM, hp=100, max_hp=100)])
+    opponent_bench = ([pk(FROSLASS, hp=90, max_hp=90),
+                    pk(MUNKIDORI, hp=110, max_hp=110, energies=[G], fisicas=1)]
+                   if with_drip else [pk(MORGREM, hp=100, max_hp=100)])
     return (Escenario(turn=12, step=172, tac=1)
-            .my_active(pk(HYDRAPPLE, hp=110, max_hp=330, energias=[G, G],
+            .my_active(pk(HYDRAPPLE, hp=110, max_hp=330, energies=[G, G],
                           fisicas=2, pre_evo=[APPLIN, DIPPLIN]))
             .my_bench(pk(MEGANIUM, hp=30, max_hp=160,
                          pre_evo=[CHIKORITA, BAYLEEF]),
-                      pk(OGERPON, hp=210, max_hp=210, energias=[G, G],
+                      pk(OGERPON, hp=210, max_hp=210, energies=[G, G],
                          fisicas=2))
             .my_hand(GRASS)
             .op_active(pk(GRIMMSNARL, hp=310, max_hp=320,
-                          energias=[G, G], fisicas=2))
-            .op_bench(*banca_rival)
+                          energies=[G, G], fisicas=2))
+            .op_bench(*opponent_bench)
             .op_zonas(hand=5, deck=35, prizes=3)
-            .menu_attach_energia()
+            .menu_attach_energy()
             .build())
 
 
 def test_la_planta_no_va_al_cuerpo_condenado():
-    obs = _mesa_con_meganium_herido(con_goteo=True)
-    destino = _destino_de_la_energia(obs, m.agent(obs))
+    obs = _board_with_wounded_meganium(with_drip=True)
+    destino = _energy_destination(obs, m.agent(obs))
     assert destino == OGERPON, (
         "con Froslass + Munkidori en mesa, el Meganium a 30 PV está DENTRO de "
         "la ventana de regalo (20 de goteo + 30 dirigibles): la Planta debe ir "
@@ -168,8 +168,8 @@ def test_sin_froslass_ni_munkidori_el_reparto_no_cambia():
     # CONTROL: the same board with no drip. The window is 0, no body
     # enters it and the rule cannot fire -- the destination is decided by the
     # usual criterion (the wounded Meganium, which is the one that asks for the most energy).
-    obs = _mesa_con_meganium_herido(con_goteo=False)
-    destino = _destino_de_la_energia(obs, m.agent(obs))
+    obs = _board_with_wounded_meganium(with_drip=False)
+    destino = _energy_destination(obs, m.agent(obs))
     assert destino == MEGANIUM, (
         "sin Froslass ni Munkidori la Fase C no existe y el reparto debe ser "
         f"el de siempre; obtuvo "
@@ -181,17 +181,17 @@ def test_el_activo_que_ataca_hoy_no_cuenta_como_condenado():
     # not doomed: the energy is cashed in before the opponent plays. An active Ogerpon
     # at 60 HP with 2 energies -> the 3rd pays for its Myriad Leaf Shower.
     obs = (Escenario(turn=12, step=1, tac=1)
-           .my_active(pk(OGERPON, hp=60, max_hp=210, energias=[G, G], fisicas=2))
+           .my_active(pk(OGERPON, hp=60, max_hp=210, energies=[G, G], fisicas=2))
            .my_bench(pk(BAYLEEF, hp=100, max_hp=100, pre_evo=[CHIKORITA]))
            .my_hand(GRASS)
-           .op_active(pk(GRIMMSNARL, hp=310, max_hp=320, energias=[G, G],
+           .op_active(pk(GRIMMSNARL, hp=310, max_hp=320, energies=[G, G],
                          fisicas=2))
            .op_bench(pk(FROSLASS, hp=90, max_hp=90),
-                     pk(MUNKIDORI, hp=110, max_hp=110, energias=[G], fisicas=1))
+                     pk(MUNKIDORI, hp=110, max_hp=110, energies=[G], fisicas=1))
            .op_zonas(hand=5, deck=35, prizes=3)
-           .menu_attach_energia()
+           .menu_attach_energy()
            .build())
-    assert _destino_de_la_energia(obs, m.agent(obs)) == OGERPON, (
+    assert _energy_destination(obs, m.agent(obs)) == OGERPON, (
         "el activo que ataca HOY con esa Planta cobra antes de morir: la Fase C "
         "no debe desviarla al Bayleef de banca")
 
@@ -200,7 +200,7 @@ def test_el_activo_que_ataca_hoy_no_cuenta_como_condenado():
 # PHASE E — the bench pays a toll with Froslass on the field
 # ---------------------------------------------------------------------------
 
-def _mesa_para_bajar_fez(con_froslass=True, premios_rival=6):
+def _board_to_play_fez(with_froslass=True, opponent_prizes=6):
     """A DEVELOPMENT turn with a Fezandipiti ex in hand and the bench in basics.
 
     The Fezandipiti ex development branch requires `bench_count <= 2` and that the
@@ -210,28 +210,28 @@ def _mesa_para_bajar_fez(con_froslass=True, premios_rival=6):
     `premios_rival=5` means the opponent took a prize: the tracking deduces
     that we were knocked out and `ko_last_turn` switches Flip the Script on.
     """
-    banca_rival = ([pk(FROSLASS, hp=90, max_hp=90)] if con_froslass
+    opponent_bench = ([pk(FROSLASS, hp=90, max_hp=90)] if with_froslass
                    else [pk(MORGREM, hp=100, max_hp=100)])
     return (Escenario(turn=6, step=1, tac=1)
-            .my_active(pk(OGERPON, hp=210, max_hp=210, energias=[G, G, G],
+            .my_active(pk(OGERPON, hp=210, max_hp=210, energies=[G, G, G],
                           fisicas=3))
             .my_bench(pk(TAPU, hp=140, max_hp=140))
             .my_hand(FEZ, GRASS)
-            .op_active(pk(GRIMMSNARL, hp=320, max_hp=320, energias=[G],
+            .op_active(pk(GRIMMSNARL, hp=320, max_hp=320, energies=[G],
                           fisicas=1))
-            .op_bench(*banca_rival)
-            .op_zonas(hand=5, deck=40, prizes=premios_rival)
-            .menu_mano(con_adjunte=True)
+            .op_bench(*opponent_bench)
+            .op_zonas(hand=5, deck=40, prizes=opponent_prizes)
+            .menu_hand(with_attachment=True)
             .build())
 
 
 def test_fezandipiti_no_se_banca_con_froslass_en_mesa():
-    obs = _mesa_para_bajar_fez(con_froslass=True)
-    jugada = _jugada(obs, m.agent(obs))
-    assert jugada != ("PLAY", FEZ), (
+    obs = _board_to_play_fez(with_froslass=True)
+    play = _play(obs, m.agent(obs))
+    assert play != ("PLAY", FEZ), (
         "Fezandipiti ex son DOS premios con habilidad: con Froslass en mesa "
         "paga 20 por ronda sin que el rival gaste nada y Munkidori puede "
-        f"rematarlo en la banca. No debe bajarse por desarrollo; jugó {jugada}")
+        f"rematarlo en la banca. No debe bajarse por desarrollo; jugó {play}")
 
 
 def test_sin_froslass_fezandipiti_si_se_baja():
@@ -239,12 +239,12 @@ def test_sin_froslass_fezandipiti_si_se_baja():
     # branch is still alive (15000) and the body is put down -- which proves that
     # the veto of the previous test comes from phase E1 and not from another condition of
     # the board.
-    obs = _mesa_para_bajar_fez(con_froslass=False)
-    assert _jugada(obs, m.agent(obs)) == ("PLAY", FEZ), (
+    obs = _board_to_play_fez(with_froslass=False)
+    assert _play(obs, m.agent(obs)) == ("PLAY", FEZ), (
         "sin Froslass la ruta de desarrollo de Fezandipiti ex no cambia")
 
 
-def _mesa_para_bajar_applin(con_munkidori=True, con_cadena=False):
+def _board_to_play_applin(with_munkidori=True, with_chain=False):
     """A development turn with an Applin in hand.
 
     `con_munkidori=True` puts the snipe (30) + one Adrena-Brain (30) on the board:
@@ -252,40 +252,40 @@ def _mesa_para_bajar_applin(con_munkidori=True, con_cadena=False):
     adds the Dipplin in hand and the Forest in play, so the Applin
     evolves the same turn and leaves the window.
     """
-    banca_rival = [pk(FROSLASS, hp=90, max_hp=90)]
-    if con_munkidori:
-        banca_rival.append(pk(MUNKIDORI, hp=110, max_hp=110,
-                              energias=[G], fisicas=1))
-    hand = [APPLIN, GRASS] + ([DIPPLIN] if con_cadena else [])
+    opponent_bench = [pk(FROSLASS, hp=90, max_hp=90)]
+    if with_munkidori:
+        opponent_bench.append(pk(MUNKIDORI, hp=110, max_hp=110,
+                              energies=[G], fisicas=1))
+    hand = [APPLIN, GRASS] + ([DIPPLIN] if with_chain else [])
     esc = (Escenario(turn=6, step=1, tac=1)
-           .my_active(pk(OGERPON, hp=210, max_hp=210, energias=[G, G, G],
+           .my_active(pk(OGERPON, hp=210, max_hp=210, energies=[G, G, G],
                          fisicas=3))
            .my_bench(pk(TAPU, hp=140, max_hp=140))
            .my_hand(*hand)
-           .op_active(pk(GRIMMSNARL, hp=320, max_hp=320, energias=[G],
+           .op_active(pk(GRIMMSNARL, hp=320, max_hp=320, energies=[G],
                          fisicas=1))
-           .op_bench(*banca_rival)
+           .op_bench(*opponent_bench)
            .op_zonas(hand=5, deck=40, prizes=6))
-    if con_cadena:
-        esc = esc.estadio(m.Forest_of_Vitality)
-    return esc.menu_mano(con_adjunte=True).build()
+    if with_chain:
+        esc = esc.stadium(m.Forest_of_Vitality)
+    return esc.menu_hand(with_attachment=True).build()
 
 
 def test_no_se_baja_un_applin_pelado_dentro_de_la_ventana():
-    obs = _mesa_para_bajar_applin(con_munkidori=True)
-    jugada = _jugada(obs, m.agent(obs))
-    assert jugada != ("PLAY", APPLIN), (
+    obs = _board_to_play_applin(with_munkidori=True)
+    play = _play(obs, m.agent(obs))
+    assert play != ("PLAY", APPLIN), (
         "un Applin recién bajado tiene 40 PV: el snipe de 30 más UN contador "
         "movido por Adrena-Brain ya lo matan, y sin Dipplin en mano no "
-        f"evoluciona este turno. Es un premio regalado; jugó {jugada}")
+        f"evoluciona este turno. Es un premio regalado; jugó {play}")
 
 
 def test_sin_munkidori_el_snipe_pelado_no_alcanza():
     # CONTROL: Froslass only. The Applin has no ability, so it does not pay the
     # drip, and the bare snipe (30) does not reach its 40 HP: the rule does not
     # switch on and development goes on as usual.
-    obs = _mesa_para_bajar_applin(con_munkidori=False)
-    assert _jugada(obs, m.agent(obs)) == ("PLAY", APPLIN), (
+    obs = _board_to_play_applin(with_munkidori=False)
+    assert _play(obs, m.agent(obs)) == ("PLAY", APPLIN), (
         "sin daño dirigible el Applin sobrevive al snipe y se baja igual que "
         "siempre")
 
@@ -295,8 +295,8 @@ def test_con_la_cadena_lista_el_applin_si_baja():
     # same turn -- the evolution raises the maximum HP without erasing counters, so
     # it leaves the window. That is exactly what the plan asks for: KEEP the piece
     # until it can be chained, not give up the line.
-    obs = _mesa_para_bajar_applin(con_munkidori=True, con_cadena=True)
-    assert _jugada(obs, m.agent(obs)) == ("PLAY", APPLIN), (
+    obs = _board_to_play_applin(with_munkidori=True, with_chain=True)
+    assert _play(obs, m.agent(obs)) == ("PLAY", APPLIN), (
         "con Forest + Dipplin la cadena se monta en un turno y el Applin no "
         "queda expuesto")
 
@@ -306,7 +306,7 @@ def test_con_flip_the_script_viva_si_se_baja():
     # this turn (it draws 3) and the toll stops mattering -- the same criterion
     # Lucario/Crustle/Cornerstone/Sylveon already used. The KO is declared through the
     # BOARD (the opponent went down to 5 prizes), not by touching the flag by hand.
-    obs = _mesa_para_bajar_fez(con_froslass=True, premios_rival=5)
-    assert _jugada(obs, m.agent(obs)) == ("PLAY", FEZ), (
+    obs = _board_to_play_fez(with_froslass=True, opponent_prizes=5)
+    assert _play(obs, m.agent(obs)) == ("PLAY", FEZ), (
         "con Flip the Script viva el Fezandipiti ex se cobra ESTE turno: la "
         "Fase E1 no debe vetarlo")

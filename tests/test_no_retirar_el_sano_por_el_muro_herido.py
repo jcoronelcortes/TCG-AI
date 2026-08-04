@@ -141,8 +141,8 @@ def test_el_fixture_es_el_muro_herido_a_90_pv():
 
 def test_no_se_retira_el_ogerpon_intacto():
     o = _obs()
-    retirar = _opcion(o, int(m.OptionType.RETREAT))
-    assert m.agent(o) != [retirar], (
+    retreat = _opcion(o, int(m.OptionType.RETREAT))
+    assert m.agent(o) != [retreat], (
         "el activo de 210/210 ya noquea al Alakazam; retirarlo para subir un "
         "Hydrapple ex a 90 PV cuesta una energia, no niega ningun premio y "
         "deja delante el cuerpo que muere")
@@ -150,8 +150,8 @@ def test_no_se_retira_el_ogerpon_intacto():
 
 def test_se_ataca_con_el_ogerpon_activo():
     o = _obs()
-    atacar = _opcion(o, int(m.OptionType.ATTACK))
-    assert m.agent(o) == [atacar]
+    attack = _opcion(o, int(m.OptionType.ATTACK))
+    assert m.agent(o) == [attack]
     # And the plan points at the ACTIVE (index 0): with `plan.attacker >= 1` the
     # scorer VETOES the active's attack and the turn goes through the retreat.
     assert m.plan.attacker == 0
@@ -170,8 +170,8 @@ def test_con_el_hydrapple_SANO_el_pivote_sigue_vivo():
                  if b and b["id"] == HYDRAPPLE)
     hydra["hp"] = 330  # healed: now it DOES survive more than the 210 Ogerpon
 
-    retirar = _opcion(o, int(m.OptionType.RETREAT))
-    assert m.agent(o) == [retirar], (
+    retreat = _opcion(o, int(m.OptionType.RETREAT))
+    assert m.agent(o) == [retreat], (
         "con el Hydrapple ex a 330 el pivote es el de siempre: mismo KO pero "
         "deja delante al cuerpo que aguanta mas")
 
@@ -184,5 +184,5 @@ def test_empatados_en_vida_no_se_paga_la_retirada():
                  if b and b["id"] == HYDRAPPLE)
     hydra["hp"] = o["current"]["players"][yo]["active"][0]["hp"]  # 210 = 210
 
-    retirar = _opcion(o, int(m.OptionType.RETREAT))
-    assert m.agent(o) != [retirar]
+    retreat = _opcion(o, int(m.OptionType.RETREAT))
+    assert m.agent(o) != [retreat]

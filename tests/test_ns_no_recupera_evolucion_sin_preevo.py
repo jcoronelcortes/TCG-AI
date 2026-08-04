@@ -114,18 +114,18 @@ def _observaciones():
         return copy.deepcopy(json.load(f)["observaciones"])
 
 
-def _por_paso(obs_list):
+def _by_step(obs_list):
     return {o["step"]: o for o in obs_list}
 
 
-def _carta_de_la_mano(obs, choice):
+def _card_from_hand(obs, choice):
     o = obs["select"]["option"][choice[0]]
     assert o["type"] == int(m.OptionType.PLAY), o
     yo = obs["current"]["yourIndex"]
     return obs["current"]["players"][yo]["hand"][o["index"]]["id"]
 
 
-def _carta_del_descarte(obs, choice):
+def _card_from_discard(obs, choice):
     o = obs["select"]["option"][choice[0]]
     assert o["type"] == int(m.OptionType.CARD), o
     yo = obs["current"]["yourIndex"]
@@ -178,44 +178,44 @@ def test_varias_copias_solo_pierde_la_que_evoluciono():
 # ---------------------------------------------------------------------------
 
 def test_paso84_no_se_juega_la_night_stretcher_por_una_preevo_fantasma():
-    obs = _por_paso(_observaciones())
+    obs = _by_step(_observaciones())
     m.agent(obs[76])                       # it sets the start-of-turn snapshot (with the Applin)
     choice = m.agent(obs[84])            # the main menu after evolving
-    jugada = _carta_de_la_mano(obs[84], choice)
-    assert jugada != NIGHT_STRETCHER, (
+    play = _card_from_hand(obs[84], choice)
+    assert play != NIGHT_STRETCHER, (
         "la Night Stretcher recupera un Dipplin sin Applin sobre el que subir")
-    assert jugada == UNFAIR_STAMP
+    assert play == UNFAIR_STAMP
 
 
 def test_paso84_el_unfair_stamp_se_juega_con_la_mano_entera():
     """The NS no longer slips in AHEAD of the Stamp, which remakes 4 cards and not 3."""
-    obs = _por_paso(_observaciones())
+    obs = _by_step(_observaciones())
     m.agent(obs[76])
     yo = obs[84]["current"]["yourIndex"]
     assert len(obs[84]["current"]["players"][yo]["hand"]) == 4
     choice = m.agent(obs[84])
-    assert _carta_de_la_mano(obs[84], choice) == UNFAIR_STAMP
+    assert _card_from_hand(obs[84], choice) == UNFAIR_STAMP
 
 
 def test_paso85_si_se_llega_al_menu_se_recupera_la_planta_no_el_dipplin():
     """A second line of defence: the FETCH does not pick the dead evolution either."""
-    obs = _por_paso(_observaciones())
+    obs = _by_step(_observaciones())
     m.agent(obs[76])
     m.agent(obs[84])
     choice = m.agent(obs[85])
-    recuperada = _carta_del_descarte(obs[85], choice)
+    recuperada = _card_from_discard(obs[85], choice)
     assert recuperada != DIPPLIN
     assert recuperada == GRASS
 
 
 def test_paso84_el_veto_no_depende_del_descarte_sino_del_campo():
     """The Applin in the DISCARD rehabilitates nothing: it is not in play."""
-    obs = _por_paso(_observaciones())
+    obs = _by_step(_observaciones())
     yo = obs[85]["current"]["yourIndex"]
-    descarte = [c["id"] for c in obs[85]["current"]["players"][yo]["discard"]]
-    assert APPLIN in descarte and DIPPLIN in descarte
+    discard = [c["id"] for c in obs[85]["current"]["players"][yo]["discard"]]
+    assert APPLIN in discard and DIPPLIN in discard
     campo = obs[84]["current"]["players"][yo]
     in_play = [c["id"] for c in campo["active"] + campo["bench"] if c]
     assert APPLIN not in in_play
     m.agent(obs[76])
-    assert _carta_de_la_mano(obs[84], m.agent(obs[84])) != NIGHT_STRETCHER
+    assert _card_from_hand(obs[84], m.agent(obs[84])) != NIGHT_STRETCHER

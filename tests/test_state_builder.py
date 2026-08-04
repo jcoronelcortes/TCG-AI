@@ -56,7 +56,7 @@ def reset_main_state():
     m._init_cards_tracking()
 
 
-def _escenario_paso69(op_active="kangaskhan", energia_dipplin=2):
+def _escenario_paso69(op_active="kangaskhan", dipplin_energy=2):
     """A synthetic replica of step 69 of registro_008 with variants.
 
     op_activo: "kangaskhan" (hittable by ex) or "crustle" (immune to ex,
@@ -64,31 +64,31 @@ def _escenario_paso69(op_active="kangaskhan", energia_dipplin=2):
     energia_dipplin: 2 = as in the real one (1 physical x Meganium = [G, G], it attacks
         after evolving); 0 = no energy (it does not attack after evolving).
     """
-    kang = pk(KANGASKHAN, hp=160, max_hp=400, energias=[C, G, C, C],
+    kang = pk(KANGASKHAN, hp=160, max_hp=400, energies=[C, G, C, C],
               fisicas=4, tools=[HEROS_CAPE])
     crustle = pk(CRUSTLE, pre_evo=[DWEBBLE])
     if op_active == "kangaskhan":
-        activo_rival, banca_rival = kang, crustle
+        opponent_active, opponent_bench = kang, crustle
     else:
-        activo_rival, banca_rival = crustle, kang
+        opponent_active, opponent_bench = crustle, kang
 
-    if energia_dipplin == 2:
-        dipplin = pk(m.Dipplin, energias=[G, G], fisicas=1,
+    if dipplin_energy == 2:
+        dipplin = pk(m.Dipplin, energies=[G, G], fisicas=1,
                      pre_evo=[m.Applin])
     else:
-        dipplin = pk(m.Dipplin, energias=[], fisicas=0, pre_evo=[m.Applin])
+        dipplin = pk(m.Dipplin, energies=[], fisicas=0, pre_evo=[m.Applin])
 
-    esc = (Escenario(turn=8, step=69, tac=3, primer_jugador=1)
+    esc = (Escenario(turn=8, step=69, tac=3, first_player=1)
            .my_active(dipplin)
            .my_bench(pk(m.Meganium, pre_evo=[m.Chikorita, m.Bayleef]),
-                     pk(m.Teal_Mask_Ogerpon_ex, energias=[G, G], fisicas=1),
+                     pk(m.Teal_Mask_Ogerpon_ex, energies=[G, G], fisicas=1),
                      m.Meowth_ex)
            .my_hand()
-           .estadio(m.Forest_of_Vitality)
-           .op_active(activo_rival)
-           .op_bench(banca_rival)
+           .stadium(m.Forest_of_Vitality)
+           .op_active(opponent_active)
+           .op_bench(opponent_bench)
            .op_zonas(hand=9, deck=37, prizes=2)
-           .op_descarte(m.Xerosic_Machinations, m.Lillie_Determination,
+           .op_discard(m.Xerosic_Machinations, m.Lillie_Determination,
                         m.Lillie_Determination, 1264)
            # The visible deck: the real composition of the select.deck of step 69.
            .deck(m.Hydrapple_ex, m.Tapu_Bulu, m.Lillie_Determination,
@@ -104,11 +104,11 @@ def _escenario_paso69(op_active="kangaskhan", energia_dipplin=2):
            # the Ultra Ball "in effect" is reserved from the pool and does not end up in the
            # discard (the strict accounting detects it if they are swapped).
            .fetch_ultra_ball()
-           .resto_al_descarte())
+           .rest_to_discard())
     return esc.build()
 
 
-def _carta_elegida(obs, choice):
+def _chosen_card(obs, choice):
     assert choice, f"el agente cancelo el fetch: {choice}"
     opt = obs["select"]["option"][choice[0]]
     return obs["select"]["deck"][opt["index"]]["id"]
@@ -121,7 +121,7 @@ def _carta_elegida(obs, choice):
 def test_replica_sintetica_paso69_coincide_con_decision_real():
     obs = _escenario_paso69()
     choice = m.agent(obs)
-    assert _carta_elegida(obs, choice) == m.Hydrapple_ex, (
+    assert _chosen_card(obs, choice) == m.Hydrapple_ex, (
         "la replica sintetica del paso 69 debe reproducir la decision del "
         "escenario real: buscar Hydrapple ex para evolucionar al Dipplin "
         "activo condenado")
@@ -132,7 +132,7 @@ def test_replica_sintetica_paso69_coincide_con_decision_real():
 # occurred in real games)
 # ---------------------------------------------------------------------
 
-@pytest.mark.parametrize("op_active, energia_dipplin, espera_hydrapple", [
+@pytest.mark.parametrize("op_active, dipplin_energy, espera_hydrapple", [
     # a hittable rival active + a Dipplin that attacks after evolving -> the exception
     ("kangaskhan", 2, True),
     # a rival active IMMUNE to ex -> the exception does not apply, the clamp returns
@@ -140,18 +140,18 @@ def test_replica_sintetica_paso69_coincide_con_decision_real():
     # a Dipplin with no energy: it evolves but does NOT attack -> no exception
     ("kangaskhan", 0, False),
 ])
-def test_frontera_ub_evo_doomed(op_active, energia_dipplin, espera_hydrapple):
+def test_frontera_ub_evo_doomed(op_active, dipplin_energy, espera_hydrapple):
     obs = _escenario_paso69(op_active=op_active,
-                            energia_dipplin=energia_dipplin)
+                            dipplin_energy=dipplin_energy)
     choice = m.agent(obs)
-    elegida = _carta_elegida(obs, choice)
+    elegida = _chosen_card(obs, choice)
     if espera_hydrapple:
         assert elegida == m.Hydrapple_ex, (
             f"con activo rival golpeable y Dipplin que ataca tras "
             f"evolucionar, el fetch debe ser Hydrapple ex; fue {elegida}")
     else:
         assert elegida != m.Hydrapple_ex, (
-            f"({op_active}, e={energia_dipplin}): la excepcion no aplica y "
+            f"({op_active}, e={dipplin_energy}): la excepcion no aplica y "
             f"el clamp vs Crustle debe impedir el fetch de Hydrapple ex; "
             f"fue {elegida}")
 
@@ -198,7 +198,7 @@ CUBCHOO = 506
 def _fetch_ub_vs(op_id):
     """An Ultra Ball fetch with a Chikorita on the bench and the line in the deck."""
     obs = (Escenario(turn=6, step=1, tac=1)
-           .my_active(pk(m.Teal_Mask_Ogerpon_ex, energias=[G], fisicas=1))
+           .my_active(pk(m.Teal_Mask_Ogerpon_ex, energies=[G], fisicas=1))
            .my_bench(pk(m.Chikorita))
            .my_hand()
            .op_active(pk(op_id, hp=210, max_hp=210))
@@ -206,7 +206,7 @@ def _fetch_ub_vs(op_id):
            .deck(m.Meganium, m.Bayleef, m.Tapu_Bulu, m.Teal_Mask_Ogerpon_ex,
                  m.Hydrapple_ex, m.Applin, m.Chikorita, m.Meowth_ex)
            .fetch_ultra_ball()
-           .resto_al_descarte()
+           .rest_to_discard()
            .build())
     choice = m.agent(obs)
     sel = obs["select"]
@@ -238,20 +238,20 @@ def test_sin_cornerstone_la_busqueda_no_cambia():
 # played a 2nd Ogerpon ex and left Tapu dead in hand.
 # ---------------------------------------------------------------------
 
-def _menu_con_tapu_en_mano(op_id):
+def _menu_with_tapu_in_hand(op_id):
     """The main menu vs a Cubchoo rival with Cornerstone (or not) as the active."""
     return (Escenario(turn=6, step=1, tac=1)
-            .my_active(pk(m.Teal_Mask_Ogerpon_ex, energias=[G], fisicas=1))
+            .my_active(pk(m.Teal_Mask_Ogerpon_ex, energies=[G], fisicas=1))
             .my_bench(pk(m.Bayleef, pre_evo=[m.Chikorita]))
             .my_hand(m.Basic_Grass_Energy, m.Tapu_Bulu)
             .op_active(pk(op_id, hp=210, max_hp=210))
             .op_bench(pk(CUBCHOO))
             .op_zonas(hand=4, deck=40, prizes=6)
-            .menu_attach_energia()
+            .menu_attach_energy()
             .build())
 
 
-def _energia_va_a(obs, choice):
+def _energy_goes_to(obs, choice):
     opt = obs["select"]["option"][choice[0]]
     if opt.get("type") != 8:
         return None
@@ -265,14 +265,14 @@ def test_cornerstone_energia_va_a_tapu_bulu():
     # With Tapu Bulu ALREADY on the bench, the energy must charge it (the only attacker
     # that damages Cornerstone), not the Ogerpon ex with its ability cancelled.
     obs = (Escenario(turn=6, step=1, tac=1)
-           .my_active(pk(m.Teal_Mask_Ogerpon_ex, energias=[G], fisicas=1))
+           .my_active(pk(m.Teal_Mask_Ogerpon_ex, energies=[G], fisicas=1))
            .my_bench(pk(m.Tapu_Bulu), pk(m.Bayleef, pre_evo=[m.Chikorita]))
            .my_hand(m.Basic_Grass_Energy)
            .op_active(pk(CORNERSTONE, hp=210, max_hp=210))
            .op_zonas(hand=4, deck=40, prizes=6)
-           .menu_attach_energia()
+           .menu_attach_energy()
            .build())
-    assert _energia_va_a(obs, m.agent(obs)) == m.Tapu_Bulu, (
+    assert _energy_goes_to(obs, m.agent(obs)) == m.Tapu_Bulu, (
         "vs Cornerstone la energia debe ir a Tapu Bulu: el Ogerpon ex tiene "
         "habilidad y su dano queda anulado")
 
@@ -280,14 +280,14 @@ def test_cornerstone_energia_va_a_tapu_bulu():
 def test_cornerstone_sin_el_la_energia_no_cambia():
     # Boundary: without Cornerstone the energy distribution keeps its criterion.
     obs = (Escenario(turn=6, step=1, tac=1)
-           .my_active(pk(m.Teal_Mask_Ogerpon_ex, energias=[G], fisicas=1))
+           .my_active(pk(m.Teal_Mask_Ogerpon_ex, energies=[G], fisicas=1))
            .my_bench(pk(m.Tapu_Bulu), pk(m.Bayleef, pre_evo=[m.Chikorita]))
            .my_hand(m.Basic_Grass_Energy)
            .op_active(pk(CUBCHOO, hp=70, max_hp=70))
            .op_zonas(hand=4, deck=40, prizes=6)
-           .menu_attach_energia()
+           .menu_attach_energy()
            .build())
-    assert _energia_va_a(obs, m.agent(obs)) == m.Teal_Mask_Ogerpon_ex, (
+    assert _energy_goes_to(obs, m.agent(obs)) == m.Teal_Mask_Ogerpon_ex, (
         "sin Cornerstone la energia sigue yendo al atacante habitual")
 
 
@@ -301,7 +301,7 @@ def test_cornerstone_sin_el_la_energia_no_cambia():
 TREVENANT = 879     # Hop's Trevenant (140 HP): it switches on op_is_hop_deck
 
 
-def _jugada_elegida(obs, choice):
+def _chosen_play(obs, choice):
     """('ABILITY', None) for Teal Dance; ('ATTACH', destination id) for an attachment."""
     opt = obs["select"]["option"][choice[0]]
     if opt.get("type") == int(m.OptionType.ABILITY):
@@ -314,23 +314,23 @@ def _jugada_elegida(obs, choice):
     return ("ATTACH", destino["id"])
 
 
-def _esc_hop(active, bench, op_energias=(), menu="attach"):
+def _esc_hop(active, bench, op_energies=(), menu="attach"):
     esc = (Escenario(turn=8, step=1, tac=1)
            .my_active(active)
            .my_bench(*bench)
            .my_hand(m.Basic_Grass_Energy)
-           .op_active(pk(TREVENANT, hp=140, max_hp=140, energias=list(op_energias)))
+           .op_active(pk(TREVENANT, hp=140, max_hp=140, energies=list(op_energies)))
            .op_zonas(hand=4, deck=40, prizes=4))
-    esc = esc.menu_teal_dance() if menu == "teal" else esc.menu_attach_energia()
+    esc = esc.menu_teal_dance_options() if menu == "teal" else esc.menu_attach_energy()
     return esc.build()
 
 
 def test_hop_tope_3_energias_ogerpon_banca():
     # 3 physical on the BENCH Ogerpon = the cap reached: the energy goes to another
     # body (before, the cap was 4 and the Ogerpon was overcharged).
-    obs = _esc_hop(pk(m.Dipplin, pre_evo=[m.Applin], energias=[G], fisicas=1),
-                   [pk(m.Teal_Mask_Ogerpon_ex, energias=[G, G, G], fisicas=3)])
-    tipo, destino = _jugada_elegida(obs, m.agent(obs))
+    obs = _esc_hop(pk(m.Dipplin, pre_evo=[m.Applin], energies=[G], fisicas=1),
+                   [pk(m.Teal_Mask_Ogerpon_ex, energies=[G, G, G], fisicas=3)])
+    tipo, destino = _chosen_play(obs, m.agent(obs))
     assert (tipo, destino) != ("ATTACH", m.Teal_Mask_Ogerpon_ex), (
         "vs Hop's un Ogerpon de banca con 3 energias fisicas esta en su tope: "
         "no se le adjunta una 4a")
@@ -338,18 +338,18 @@ def test_hop_tope_3_energias_ogerpon_banca():
 
 def test_hop_dos_energias_ogerpon_banca_sigue_permitido():
     # Boundary: with 2 physical the cap does not apply and the charge is still valid.
-    obs = _esc_hop(pk(m.Dipplin, pre_evo=[m.Applin], energias=[G], fisicas=1),
-                   [pk(m.Teal_Mask_Ogerpon_ex, energias=[G, G], fisicas=2)])
-    assert _jugada_elegida(obs, m.agent(obs)) == ("ATTACH", m.Teal_Mask_Ogerpon_ex), (
+    obs = _esc_hop(pk(m.Dipplin, pre_evo=[m.Applin], energies=[G], fisicas=1),
+                   [pk(m.Teal_Mask_Ogerpon_ex, energies=[G, G], fisicas=2)])
+    assert _chosen_play(obs, m.agent(obs)) == ("ATTACH", m.Teal_Mask_Ogerpon_ex), (
         "con 2 energias fisicas el Ogerpon aun no llega al tope de Hop's")
 
 
 def test_hop_cuarta_energia_solo_si_habilita_el_ko():
     # EXCEPTION: an ACTIVE Ogerpon with 3 physical; Myriad does 30+30*(3+0)=120 and does not
     # knock out the 140 Trevenant, but with the 4th it reaches 150 => it is allowed.
-    obs = _esc_hop(pk(m.Teal_Mask_Ogerpon_ex, energias=[G, G, G], fisicas=3),
-                   [pk(m.Tapu_Bulu, energias=[G, G, G], fisicas=3)])
-    assert _jugada_elegida(obs, m.agent(obs)) == ("ATTACH", m.Teal_Mask_Ogerpon_ex), (
+    obs = _esc_hop(pk(m.Teal_Mask_Ogerpon_ex, energies=[G, G, G], fisicas=3),
+                   [pk(m.Tapu_Bulu, energies=[G, G, G], fisicas=3)])
+    assert _chosen_play(obs, m.agent(obs)) == ("ATTACH", m.Teal_Mask_Ogerpon_ex), (
         "la 4a energia se permite cuando es la que HABILITA el KO del activo "
         "rival desde el Ogerpon activo")
 
@@ -357,10 +357,10 @@ def test_hop_cuarta_energia_solo_si_habilita_el_ko():
 def test_hop_cuarta_energia_vetada_si_el_ogerpon_ya_noquea():
     # Without the exception: the active Ogerpon ALREADY knocks out (30+30*(3+2 rival
     # energies) = 180 >= 140), so the 4th energy is surplus and goes to another attacker.
-    obs = _esc_hop(pk(m.Teal_Mask_Ogerpon_ex, energias=[G, G, G], fisicas=3),
-                   [pk(m.Tapu_Bulu, energias=[G, G, G], fisicas=3)],
-                   op_energias=[G, G])
-    tipo, destino = _jugada_elegida(obs, m.agent(obs))
+    obs = _esc_hop(pk(m.Teal_Mask_Ogerpon_ex, energies=[G, G, G], fisicas=3),
+                   [pk(m.Tapu_Bulu, energies=[G, G, G], fisicas=3)],
+                   op_energies=[G, G])
+    tipo, destino = _chosen_play(obs, m.agent(obs))
     assert (tipo, destino) != ("ATTACH", m.Teal_Mask_Ogerpon_ex), (
         "si el Ogerpon activo ya noquea, la energia extra no habilita nada: "
         "el tope de Hop's la reserva para otro cuerpo")
@@ -369,20 +369,20 @@ def test_hop_cuarta_energia_vetada_si_el_ogerpon_ya_noquea():
 def test_hop_teal_dance_respeta_el_tope():
     # Teal Dance also attaches: with 3 physical on the bench Ogerpon it is
     # vetoed (before it was used and left it at 4).
-    obs = _esc_hop(pk(m.Dipplin, pre_evo=[m.Applin], energias=[G], fisicas=1),
-                   [pk(m.Teal_Mask_Ogerpon_ex, energias=[G, G, G], fisicas=3)],
+    obs = _esc_hop(pk(m.Dipplin, pre_evo=[m.Applin], energies=[G], fisicas=1),
+                   [pk(m.Teal_Mask_Ogerpon_ex, energies=[G, G, G], fisicas=3)],
                    menu="teal")
-    assert _jugada_elegida(obs, m.agent(obs))[0] != "ABILITY", (
+    assert _chosen_play(obs, m.agent(obs))[0] != "ABILITY", (
         "Teal Dance sobre un Ogerpon de banca en su tope (3 fisicas vs Hop's) "
         "sobrecargaria: debe quedar vetada")
 
 
 def test_hop_teal_dance_permitida_si_habilita_el_ko():
     # The ACTIVE's exception also holds for Teal Dance (it attaches + DRAWS).
-    obs = _esc_hop(pk(m.Teal_Mask_Ogerpon_ex, energias=[G, G, G], fisicas=3),
-                   [pk(m.Tapu_Bulu, energias=[G, G, G], fisicas=3)],
+    obs = _esc_hop(pk(m.Teal_Mask_Ogerpon_ex, energies=[G, G, G], fisicas=3),
+                   [pk(m.Tapu_Bulu, energies=[G, G, G], fisicas=3)],
                    menu="teal")
-    assert _jugada_elegida(obs, m.agent(obs))[0] == "ABILITY", (
+    assert _chosen_play(obs, m.agent(obs))[0] == "ABILITY", (
         "con el Ogerpon activo a una energia del KO, Teal Dance es la jugada "
         "(adjunta la Planta y ademas roba)")
 
@@ -391,14 +391,14 @@ def test_hop_tope_2_energias_con_meganium():
     # With Meganium in play (Wild Growth doubles) the cap drops to 2 physical.
     obs = (Escenario(turn=8, step=1, tac=1)
            .my_active(pk(m.Meganium, pre_evo=[m.Chikorita, m.Bayleef]))
-           .my_bench(pk(m.Teal_Mask_Ogerpon_ex, energias=[G, G, G, G], fisicas=2),
+           .my_bench(pk(m.Teal_Mask_Ogerpon_ex, energies=[G, G, G, G], fisicas=2),
                      pk(m.Tapu_Bulu))
            .my_hand(m.Basic_Grass_Energy)
            .op_active(pk(TREVENANT, hp=140, max_hp=140))
            .op_zonas(hand=4, deck=40, prizes=4)
-           .menu_attach_energia()
+           .menu_attach_energy()
            .build())
-    tipo, destino = _jugada_elegida(obs, m.agent(obs))
+    tipo, destino = _chosen_play(obs, m.agent(obs))
     assert (tipo, destino) != ("ATTACH", m.Teal_Mask_Ogerpon_ex), (
         "con Meganium en juego 2 Plantas fisicas ya son 4 efectivas: el "
         "Ogerpon de banca esta en su tope")
@@ -430,26 +430,26 @@ KILOWATTREL = 271       # Iono's Kilowattrel, 120 HP
 MYRIAD_ATK = 120
 
 
-def _esc_combo_myriad(energias=4, plantas=1, energia_jugada=False,
-                      premios_propios=2):
+def _esc_combo_myriad(energies=4, grass_cards=1, energy_played=False,
+                      own_prizes=2):
     # `menu_teal_dance()` requires a Grass in hand (the ability attaches it
     # FROM the hand); for the later steps of the chain (`plantas=0`) it is
     # built with it and then moved to the discard, which is exactly where it ends up
     # after being used.
     obs = (Escenario(turn=12, step=227, tac=1,
-                     premios_propios=premios_propios,
-                     energia_jugada=energia_jugada)
-           .my_active(pk(m.Teal_Mask_Ogerpon_ex, energias=[G] * energias,
-                         fisicas=energias))
+                     own_prizes=own_prizes,
+                     energy_played=energy_played)
+           .my_active(pk(m.Teal_Mask_Ogerpon_ex, energies=[G] * energies,
+                         fisicas=energies))
            .my_bench(pk(m.Applin))
            .my_hand(m.Basic_Grass_Energy, m.Boss_Orders)
            .op_active(pk(KILOWATTREL, hp=120, max_hp=120))
            .op_bench(pk(BELLIBOLT_EX, hp=280, max_hp=280,
-                        energias=[G, G, G, G]))
+                        energies=[G, G, G, G]))
            .op_zonas(hand=5, deck=30, prizes=3)
-           .menu_teal_dance()
+           .menu_teal_dance_options()
            .build())
-    if plantas == 0:
+    if grass_cards == 0:
         me = obs["current"]["players"][obs["current"]["yourIndex"]]
         sobra = [c for c in me["hand"] if c["id"] == m.Basic_Grass_Energy]
         me["hand"] = [c for c in me["hand"] if c["id"] != m.Basic_Grass_Energy]
@@ -458,18 +458,18 @@ def _esc_combo_myriad(energias=4, plantas=1, energia_jugada=False,
     return obs
 
 
-def _menu_combo(obs, con_ability=True, con_attach=True):
+def _menu_combo(obs, with_ability=True, with_attach=True):
     """A realistic MAIN menu: Teal Dance + PLAY Boss's + attachments + attack."""
     me = obs["current"]["players"][obs["current"]["yourIndex"]]
     i_boss = next(i for i, c in enumerate(me["hand"]) if c["id"] == m.Boss_Orders)
     i_e = next((i for i, c in enumerate(me["hand"])
                 if c["id"] == m.Basic_Grass_Energy), None)
     ops = []
-    if con_ability:
+    if with_ability:
         ops.append({"type": int(m.OptionType.ABILITY),
                     "area": int(m.AreaType.ACTIVE), "index": 0})
     ops.append({"type": int(m.OptionType.PLAY), "index": i_boss})
-    if con_attach and i_e is not None:
+    if with_attach and i_e is not None:
         for area, idx in ((int(m.AreaType.ACTIVE), 0), (int(m.AreaType.BENCH), 0)):
             ops.append({"type": int(m.OptionType.ATTACH), "area": 2, "index": i_e,
                         "inPlayArea": area, "inPlayIndex": idx})
@@ -495,7 +495,7 @@ def test_combo_myriad_teal_dance_con_el_adjunte_ya_gastado():
     # has already been played, Teal Dance still adds the 5th energy and the
     # finisher must be detected all the same (before, `_mbw_dmg_to` only modelled the +1 of the
     # attachment and the finisher was lost).
-    obs = _menu_combo(_esc_combo_myriad(energia_jugada=True), con_attach=False)
+    obs = _menu_combo(_esc_combo_myriad(energy_played=True), with_attach=False)
     assert _tipo_elegido(obs, m.agent(obs)) == int(m.OptionType.ABILITY), (
         "con el adjunte manual gastado, Teal Dance sigue siendo la carga que "
         "habilita el remate ganador")
@@ -503,8 +503,8 @@ def test_combo_myriad_teal_dance_con_el_adjunte_ya_gastado():
 
 def test_combo_myriad_juega_boss_tras_teal_dance():
     # The second step of the chain: the Ogerpon already at 5 energies, with no Grass in hand.
-    obs = _menu_combo(_esc_combo_myriad(energias=5, plantas=0),
-                      con_ability=False, con_attach=False)
+    obs = _menu_combo(_esc_combo_myriad(energies=5, grass_cards=0),
+                      with_ability=False, with_attach=False)
     assert _tipo_elegido(obs, m.agent(obs)) == int(m.OptionType.PLAY), (
         "con el Ogerpon ya cargado, la jugada es Boss's Orders para subir al "
         "objetivo de 2 premios, no atacar al activo rival")
@@ -512,7 +512,7 @@ def test_combo_myriad_juega_boss_tras_teal_dance():
 
 def test_combo_myriad_gustea_el_bellibolt():
     # The third step: choosing the gust's target.
-    obs = _esc_combo_myriad(energias=5, plantas=0)
+    obs = _esc_combo_myriad(energies=5, grass_cards=0)
     yo = obs["current"]["yourIndex"]
     obs["select"] = {
         "context": int(m.SelectContext.TO_ACTIVE), "type": 1,
@@ -532,14 +532,14 @@ def test_combo_myriad_sin_remate_no_gasta_la_planta():
     # Boundary: with no prize target on the rival bench (only a Kilowattrel
     # worth 1 prize that we already knock out), the no-overcharging veto returns: the
     # energy does NOT go to the active Ogerpon via Teal Dance.
-    obs = (Escenario(turn=12, step=227, tac=1, premios_propios=2)
-           .my_active(pk(m.Teal_Mask_Ogerpon_ex, energias=[G] * 4, fisicas=4))
+    obs = (Escenario(turn=12, step=227, tac=1, own_prizes=2)
+           .my_active(pk(m.Teal_Mask_Ogerpon_ex, energies=[G] * 4, fisicas=4))
            .my_bench(pk(m.Applin))
            .my_hand(m.Basic_Grass_Energy, m.Boss_Orders)
            .op_active(pk(KILOWATTREL, hp=120, max_hp=120))
            .op_bench(pk(KILOWATTREL, hp=120, max_hp=120))
            .op_zonas(hand=5, deck=30, prizes=3)
-           .menu_teal_dance()
+           .menu_teal_dance_options()
            .build())
     obs = _menu_combo(obs)
     assert _tipo_elegido(obs, m.agent(obs)) != int(m.OptionType.ABILITY), (
@@ -566,10 +566,10 @@ ABRA_ALAKAZAM = 741     # an Abra of the Alakazam line (50 HP)
 KADABRA_ALK = 742
 
 
-def _pivote_obs(caso):
+def _pivot_obs(caso):
     esc = (Escenario(turn=6, step=40, tac=1)
-           .my_active(pk(m.Fezandipiti_ex, energias=[G], fisicas=1))
-           .my_bench(pk(m.Teal_Mask_Ogerpon_ex, energias=[G, G], fisicas=2),
+           .my_active(pk(m.Fezandipiti_ex, energies=[G], fisicas=1))
+           .my_bench(pk(m.Teal_Mask_Ogerpon_ex, energies=[G, G], fisicas=2),
                      pk(m.Applin)))
     if caso == "A":
         esc = esc.my_hand(m.Basic_Grass_Energy)
@@ -579,15 +579,15 @@ def _pivote_obs(caso):
            .op_active(pk(ABRA_ALAKAZAM, hp=50, max_hp=50))
            .op_bench(pk(KADABRA_ALK, hp=80, max_hp=80))
            .op_zonas(hand=5, deck=34, prizes=6)
-           .menu_teal_dance()  # the walker regenerates the menu at each step
+           .menu_teal_dance_options()  # the walker regenerates the menu at each step
            .build())
     yo = obs["current"]["players"][0]
     if caso in ("B", "C"):
         # the Grass was built in hand (a builder requirement); in the
         # real scenario it is in the DISCARD (case B) or does not exist (case C)
-        planta = next(c for c in yo["hand"] if c["id"] == m.Basic_Grass_Energy)
-        yo["hand"] = [c for c in yo["hand"] if c is not planta]
-        yo["discard"] = list(yo["discard"]) + [planta]
+        grass = next(c for c in yo["hand"] if c["id"] == m.Basic_Grass_Energy)
+        yo["hand"] = [c for c in yo["hand"] if c is not grass]
+        yo["discard"] = list(yo["discard"]) + [grass]
     if caso == "C":
         yo["hand"] = [c for c in yo["hand"] if c["id"] != m.Night_Stretcher]
         yo["discard"] = [c for c in yo["discard"]
@@ -596,7 +596,7 @@ def _pivote_obs(caso):
     return obs
 
 
-def _pivote_menu_main(obs):
+def _pivot_main_menu(obs):
     """A realistic MAIN menu for the current state (regenerated at each step)."""
     yo = obs["current"]["players"][0]
     ops = []
@@ -630,9 +630,9 @@ def _pivote_menu_main(obs):
     return obs
 
 
-def _pivote_caminar(obs, max_steps=10):
+def _pivot_walk(obs, max_steps=10):
     """Runs the chain; returns the list of labels of the decisions."""
-    obs = _pivote_menu_main(copy.deepcopy(obs))
+    obs = _pivot_main_menu(copy.deepcopy(obs))
     steps = []
     for _ in range(max_steps):
         r = m.agent(obs)
@@ -717,11 +717,11 @@ def _pivote_caminar(obs, max_steps=10):
             steps.append("END")
             return steps, obs
         if regen:
-            obs = _pivote_menu_main(obs)
+            obs = _pivot_main_menu(obs)
     raise AssertionError(f"cadena sin cierre: {steps}")
 
 
-def _pivote_asserts_ko(steps, obs):
+def _pivot_asserts_ko(steps, obs):
     assert steps[-1] == "ATTACK", steps
     act = obs["current"]["players"][0]["active"][0]
     opa = obs["current"]["players"][1]["active"][0]
@@ -731,22 +731,22 @@ def _pivote_asserts_ko(steps, obs):
 
 
 def test_pivote_ogerpon_retreat_ko_planta_en_mano():
-    steps, obs = _pivote_caminar(_pivote_obs("A"))
+    steps, obs = _pivot_walk(_pivot_obs("A"))
     assert steps == ["TEAL DANCE", "RETREAT",
                      "PROMUEVE Teal Mask Ogerpon ex", "ATTACK"], steps
-    _pivote_asserts_ko(steps, obs)
+    _pivot_asserts_ko(steps, obs)
 
 
 def test_pivote_ogerpon_retreat_ko_planta_via_night_stretcher():
-    steps, obs = _pivote_caminar(_pivote_obs("B"))
+    steps, obs = _pivot_walk(_pivot_obs("B"))
     assert steps == ["PLAY NS", "RECUPERA Basic {G} Energy", "TEAL DANCE",
                      "RETREAT", "PROMUEVE Teal Mask Ogerpon ex",
                      "ATTACK"], steps
-    _pivote_asserts_ko(steps, obs)
+    _pivot_asserts_ko(steps, obs)
 
 
 def test_pivote_ogerpon_sin_planta_no_malgasta_el_retiro():
-    steps, _ = _pivote_caminar(_pivote_obs("C"))
+    steps, _ = _pivot_walk(_pivot_obs("C"))
     assert steps == ["END"], (
         f"sin Planta alcanzable el pivote no dispara: retirar solo pagaria "
         f"una energia para subir un Ogerpon que no ataca; obtuvo {steps}")
@@ -762,20 +762,20 @@ def test_pivote_ogerpon_sin_planta_no_malgasta_el_retiro():
 CORNERSTONE_NOEX = 386
 
 
-def _menu_con_tapu(op_active, op_bench=(), op_descarte=()):
+def _menu_with_tapu(op_active, op_bench=(), op_discard=()):
     esc = (Escenario(turn=6, step=1, tac=1)
-           .my_active(pk(m.Teal_Mask_Ogerpon_ex, energias=[G], fisicas=1))
+           .my_active(pk(m.Teal_Mask_Ogerpon_ex, energies=[G], fisicas=1))
            .my_bench(pk(m.Chikorita))
            .my_hand(m.Tapu_Bulu, m.Basic_Grass_Energy)
            .op_active(pk(op_active, hp=70, max_hp=70)))
     if op_bench:
         esc = esc.op_bench(*[pk(b) for b in op_bench])
-    if op_descarte:
-        esc = esc.op_descarte(*op_descarte)
+    if op_discard:
+        esc = esc.op_discard(*op_discard)
     # menu_attach_energia() gives the builder's minimal select; it is replaced
     # below by the PLAY menu that exercises the whitelist.
     obs = (esc.op_zonas(hand=4, deck=38, prizes=6)
-           .menu_attach_energia().build())
+           .menu_attach_energy().build())
     yo = obs["current"]["players"][0]
     i_tapu = next(i for i, c in enumerate(yo["hand"])
                   if c["id"] == m.Tapu_Bulu)
@@ -792,7 +792,7 @@ def _menu_con_tapu(op_active, op_bench=(), op_descarte=()):
 def test_cornerstone_noex_en_banca_permite_tapu():
     # The non-ex 386 does not make anything immune (it has no ability) but it gives the archetype away: the
     # anti-Cubchoo whitelist must be extended with Tapu Bulu.
-    obs = _menu_con_tapu(CUBCHOO, op_bench=(CORNERSTONE_NOEX,))
+    obs = _menu_with_tapu(CUBCHOO, op_bench=(CORNERSTONE_NOEX,))
     r = m.agent(obs)
     assert obs["select"]["option"][r[0]]["type"] == int(m.OptionType.PLAY), (
         "con un Cornerstone no-ex en la banca rival, Tapu Bulu (la win "
@@ -802,7 +802,7 @@ def test_cornerstone_noex_en_banca_permite_tapu():
 def test_cornerstone_en_descarte_permite_tapu():
     # Seeing it in the DISCARD also identifies the deck (a PLAN flag; the
     # positional op_has_ability_immune_active is still tied to the board).
-    obs = _menu_con_tapu(CUBCHOO, op_descarte=(CORNERSTONE_NOEX,))
+    obs = _menu_with_tapu(CUBCHOO, op_discard=(CORNERSTONE_NOEX,))
     r = m.agent(obs)
     assert obs["select"]["option"][r[0]]["type"] == int(m.OptionType.PLAY), (
         "con un Cornerstone en el descarte rival, el plan del matchup "
@@ -812,7 +812,7 @@ def test_cornerstone_en_descarte_permite_tapu():
 def test_cubchoo_puro_sigue_vetando_tapu():
     # Boundary: with no trace of Cornerstone, the user's anti-Cubchoo plan
     # is left INTACT (Tapu Bulu is not played vs the pure Cubchoo deck).
-    obs = _menu_con_tapu(CUBCHOO, op_bench=(CUBCHOO,))
+    obs = _menu_with_tapu(CUBCHOO, op_bench=(CUBCHOO,))
     r = m.agent(obs)
     assert obs["select"]["option"][r[0]]["type"] == int(m.OptionType.END), (
         "vs Cubchoo puro la whitelist del usuario excluye a Tapu Bulu")
@@ -827,35 +827,35 @@ def test_cubchoo_puro_sigue_vetando_tapu():
 # prize and not 2. The real chain of step 27, walked with transitions.
 # ---------------------------------------------------------------------
 
-def _raging_obs(tapu_en_banca=False, ogerpon_cargado=False, bolt_hp=240):
+def _raging_obs(tapu_on_bench=False, ogerpon_cargado=False, bolt_hp=240):
     act = pk(m.Teal_Mask_Ogerpon_ex,
-             energias=[G] * (4 if ogerpon_cargado else 1),
+             energies=[G] * (4 if ogerpon_cargado else 1),
              fisicas=(4 if ogerpon_cargado else 1))
-    bench = [pk(m.Teal_Mask_Ogerpon_ex, energias=[G, G], fisicas=2),
+    bench = [pk(m.Teal_Mask_Ogerpon_ex, energies=[G, G], fisicas=2),
              pk(m.Meowth_ex)]
     hand = [m.Forest_of_Vitality, m.Dawn, m.Xerosic_Machinations,
             m.Meganium, m.Basic_Grass_Energy, m.Forest_of_Vitality]
-    if tapu_en_banca:
+    if tapu_on_bench:
         bench.append(pk(m.Tapu_Bulu, aparecio=True))
     else:
         hand.insert(4, m.Tapu_Bulu)
-    return (Escenario(turn=2, step=27, tac=14, primer_jugador=0,
-                      energia_jugada=True, partidario_jugado=True)
+    return (Escenario(turn=2, step=27, tac=14, first_player=0,
+                      energy_played=True, partidario_jugado=True)
             .my_active(act)
             .my_bench(*bench)
             .my_hand(*hand)
-            .mi_descarte(m.Night_Stretcher, m.Forest_of_Vitality,
+            .my_discard(m.Night_Stretcher, m.Forest_of_Vitality,
                          m.Ultra_Ball, m.Lillie_Determination)
             .op_active(pk(m.Raging_Bolt_ex, hp=bolt_hp, max_hp=240))
-            .op_bench(pk(m.Teal_Mask_Ogerpon_ex, energias=[G], fisicas=1),
-                      pk(m.Teal_Mask_Ogerpon_ex, energias=[G], fisicas=1),
+            .op_bench(pk(m.Teal_Mask_Ogerpon_ex, energies=[G], fisicas=1),
+                      pk(m.Teal_Mask_Ogerpon_ex, energies=[G], fisicas=1),
                       pk(m.Teal_Mask_Ogerpon_ex))
             .op_zonas(hand=2, deck=44, prizes=6)
-            .menu_teal_dance()   # the walker regenerates the menu at each step
+            .menu_teal_dance_options()   # the walker regenerates the menu at each step
             .build())
 
 
-def _raging_menu(obs):
+def _raging_menu_options(obs):
     yo = obs["current"]["players"][0]
     act = yo["active"][0]
     ops = []
@@ -881,7 +881,7 @@ def _raging_menu(obs):
 
 def _raging_caminar(obs, max_steps=10):
     steps = []
-    obs = _raging_menu(copy.deepcopy(obs))
+    obs = _raging_menu_options(copy.deepcopy(obs))
     for _ in range(max_steps):
         r = m.agent(obs)
         o = obs["select"]["option"][r[0]]
@@ -928,36 +928,36 @@ def _raging_caminar(obs, max_steps=10):
         else:
             steps.append("ATTACK" if t == int(m.OptionType.ATTACK) else "END")
             break
-        obs = _raging_menu(obs)
+        obs = _raging_menu_options(obs)
     return steps, obs["current"]["players"][0]["active"][0]
 
 
 def test_raging_bolt_descuadre_cadena_completa():
-    steps, activo_final = _raging_caminar(_raging_obs())
+    steps, final_active = _raging_caminar(_raging_obs())
     assert "BAJA Tapu Bulu" in steps and "RETREAT" in steps, steps
     assert "PROMUEVE Tapu Bulu" in steps, steps
-    assert activo_final["id"] == m.Tapu_Bulu, (
+    assert final_active["id"] == m.Tapu_Bulu, (
         f"vs Raging Bolt (todo ex de 2 premios), el turno debe terminar con "
-        f"un cuerpo de 1 premio delante; termino {activo_final['id']}: {steps}")
+        f"un cuerpo de 1 premio delante; termino {final_active['id']}: {steps}")
 
 
 def test_raging_bolt_con_1premio_en_banca_no_baja_otro_y_retira():
     # With the Tapu ALREADY on the bench there is no need to play another body: the chain goes
     # straight to retreating and promoting it.
-    steps, activo_final = _raging_caminar(_raging_obs(tapu_en_banca=True))
+    steps, final_active = _raging_caminar(_raging_obs(tapu_on_bench=True))
     assert "RETREAT" in steps and "PROMUEVE Tapu Bulu" in steps, steps
     assert not any(p.startswith("BAJA") for p in steps), steps
-    assert activo_final["id"] == m.Tapu_Bulu, steps
+    assert final_active["id"] == m.Tapu_Bulu, steps
 
 
 def test_raging_bolt_con_ko_disponible_no_sacrifica():
     # Boundary: the charged active Ogerpon KNOCKS OUT the damaged Bolt (Myriad
     # 30+30*4=150 >= 120): we attack, we do not give away the mismatch's tempo.
-    steps, activo_final = _raging_caminar(
+    steps, final_active = _raging_caminar(
         _raging_obs(ogerpon_cargado=True, bolt_hp=120))
     assert "RETREAT" not in steps, steps
     assert steps[-1] == "ATTACK", steps
-    assert activo_final["id"] == m.Teal_Mask_Ogerpon_ex, steps
+    assert final_active["id"] == m.Teal_Mask_Ogerpon_ex, steps
 
 
 # ---------------------------------------------------------------------
@@ -970,59 +970,59 @@ def test_raging_bolt_con_ko_disponible_no_sacrifica():
 # FIRST -- the rival cannot knock us out on their next turn yet.
 # ---------------------------------------------------------------------
 
-def _abomasnow_obs(primer_jugador=1, turn=2, tapu_en_banca=False):
+def _abomasnow_obs(first_player=1, turn=2, tapu_on_bench=False):
     # An active Ogerpon ex with a single energy: it canNOT use Myriad Leaf Shower
     # (it costs 3) => it does not knock out the Snover => the mismatch fires.
-    act = pk(m.Teal_Mask_Ogerpon_ex, energias=[G], fisicas=1)
-    bench = [pk(m.Teal_Mask_Ogerpon_ex, energias=[G, G], fisicas=2),
+    act = pk(m.Teal_Mask_Ogerpon_ex, energies=[G], fisicas=1)
+    bench = [pk(m.Teal_Mask_Ogerpon_ex, energies=[G, G], fisicas=2),
              pk(m.Meowth_ex)]
     hand = [m.Forest_of_Vitality, m.Dawn, m.Xerosic_Machinations,
             m.Meganium, m.Basic_Grass_Energy, m.Forest_of_Vitality]
-    if tapu_en_banca:
+    if tapu_on_bench:
         bench.append(pk(m.Tapu_Bulu, aparecio=True))
     else:
         hand.insert(4, m.Tapu_Bulu)
-    return (Escenario(turn=turn, step=14, tac=7, primer_jugador=primer_jugador,
-                      energia_jugada=True, partidario_jugado=True)
+    return (Escenario(turn=turn, step=14, tac=7, first_player=first_player,
+                      energy_played=True, partidario_jugado=True)
             .my_active(act)
             .my_bench(*bench)
             .my_hand(*hand)
             .op_active(pk(m.Snover))
             .op_bench(pk(m.Snover))
             .op_zonas(hand=5, deck=41, prizes=6)
-            .menu_teal_dance()   # the walker regenerates the menu at each step
+            .menu_teal_dance_options()   # the walker regenerates the menu at each step
             .build())
 
 
 def test_abomasnow_descuadre_cadena_completa():
     # Going SECOND (our first turn is turn 2), the rule applies:
     # play Tapu Bulu, retreat the Ogerpon ex and put it in front.
-    steps, activo_final = _raging_caminar(_abomasnow_obs())
+    steps, final_active = _raging_caminar(_abomasnow_obs())
     assert "BAJA Tapu Bulu" in steps and "RETREAT" in steps, steps
     assert "PROMUEVE Tapu Bulu" in steps, steps
-    assert activo_final["id"] == m.Tapu_Bulu, (
+    assert final_active["id"] == m.Tapu_Bulu, (
         f"vs Mega Abomasnow ex, sin poder noquear, el turno debe terminar con "
-        f"un cuerpo de 1 premio delante; termino {activo_final['id']}: {steps}")
+        f"un cuerpo de 1 premio delante; termino {final_active['id']}: {steps}")
 
 
 def test_abomasnow_primer_turno_primeros_no_sacrifica():
     # EXCEPTION (user): on OUR first turn going FIRST the rule does NOT
     # apply -- the rival cannot knock us out on their next turn yet, early
     # development is not sacrificed. The ex is not retreated.
-    steps, activo_final = _raging_caminar(
-        _abomasnow_obs(primer_jugador=0, turn=1))
+    steps, final_active = _raging_caminar(
+        _abomasnow_obs(first_player=0, turn=1))
     assert "RETREAT" not in steps, steps
-    assert activo_final["id"] == m.Teal_Mask_Ogerpon_ex, (
+    assert final_active["id"] == m.Teal_Mask_Ogerpon_ex, (
         f"primer turno partiendo primeros: el descuadre no aplica; "
-        f"termino {activo_final['id']}: {steps}")
+        f"termino {final_active['id']}: {steps}")
 
 
 def test_abomasnow_primeros_pero_turno_posterior_si_sacrifica():
     # The exception's boundary: the exception belongs ONLY to turn 1. Going
     # first but on a later turn (turn 3) the rule applies again.
-    steps, activo_final = _raging_caminar(
-        _abomasnow_obs(primer_jugador=0, turn=3))
-    assert "RETREAT" in steps and activo_final["id"] == m.Tapu_Bulu, steps
+    steps, final_active = _raging_caminar(
+        _abomasnow_obs(first_player=0, turn=3))
+    assert "RETREAT" in steps and final_active["id"] == m.Tapu_Bulu, steps
 
 
 # ---------------------------------------------------------------------
@@ -1036,16 +1036,16 @@ def test_abomasnow_primeros_pero_turno_posterior_si_sacrifica():
 MEGA_LUCARIO = 678
 
 
-def _menu_inmune_activo(op_activo_id, op_banca_id):
+def _menu_inmune_activo(op_active_id, op_bench_id):
     esc = (Escenario(turn=8, step=100, tac=0,
-                     partidario_jugado=False, estadio_jugado=True,
-                     premios_propios=4)
-           .my_active(pk(m.Hydrapple_ex, energias=[G, G, G, G], fisicas=4))
-           .my_bench(pk(m.Teal_Mask_Ogerpon_ex, energias=[G, G, G, G], fisicas=4),
-                     pk(m.Teal_Mask_Ogerpon_ex, energias=[G, G, G], fisicas=3))
+                     partidario_jugado=False, stadium_played=True,
+                     own_prizes=4)
+           .my_active(pk(m.Hydrapple_ex, energies=[G, G, G, G], fisicas=4))
+           .my_bench(pk(m.Teal_Mask_Ogerpon_ex, energies=[G, G, G, G], fisicas=4),
+                     pk(m.Teal_Mask_Ogerpon_ex, energies=[G, G, G], fisicas=3))
            .my_hand(m.Meowth_ex)
-           .op_active(pk(op_activo_id, energias=[C], fisicas=1))
-           .op_bench(pk(op_banca_id, energias=[], fisicas=0))
+           .op_active(pk(op_active_id, energies=[C], fisicas=1))
+           .op_bench(pk(op_bench_id, energies=[], fisicas=0))
            .op_zonas(hand=5, deck=28, prizes=4))
     esc._select = {
         "context": int(m.SelectContext.MAIN), "contextCard": None, "deck": None,
@@ -1098,7 +1098,7 @@ def test_activo_atacable_no_desvia_a_meowth():
 def _fetch_ub_motor_meowth_vs(op_id):
     """A UB with an empty hand and the refresh engine available in the deck."""
     obs = (Escenario(turn=6, step=1, tac=1)
-           .my_active(pk(m.Teal_Mask_Ogerpon_ex, energias=[G], fisicas=1))
+           .my_active(pk(m.Teal_Mask_Ogerpon_ex, energies=[G], fisicas=1))
            .my_bench(pk(m.Chikorita))
            .my_hand()
            .op_active(pk(op_id, hp=230, max_hp=230))
@@ -1106,7 +1106,7 @@ def _fetch_ub_motor_meowth_vs(op_id):
            .deck(m.Meowth_ex, m.Lillie_Determination, m.Tapu_Bulu,
                  m.Hydrapple_ex, m.Applin, m.Chikorita)
            .fetch_ultra_ball()
-           .resto_al_descarte()
+           .rest_to_discard()
            .build())
     choice = m.agent(obs)
     sel = obs["select"]
@@ -1140,8 +1140,8 @@ def test_sin_iron_thorns_el_motor_meowth_sigue_vivo():
 # (a7df1ce / 57db985), which use another route (score 200) and must not affect it.
 # =====================================================================
 
-def _escenario_t2_saliendo_segundo(hand):
-    return (Escenario(turn=2, tac=1, primer_jugador=1)
+def _scenario_t2_going_second(hand):
+    return (Escenario(turn=2, tac=1, first_player=1)
             .my_active(pk(m.Tapu_Bulu))
             .my_bench(pk(m.Chikorita))
             .my_hand(*hand)
@@ -1150,15 +1150,15 @@ def _escenario_t2_saliendo_segundo(hand):
             .deck(m.Meowth_ex, m.Lillie_Determination, m.Tapu_Bulu,
                   m.Hydrapple_ex, m.Applin, m.Teal_Mask_Ogerpon_ex)
             .fetch_ultra_ball()
-            .resto_al_descarte()
+            .rest_to_discard()
             .build())
 
 
-def _menu_main(obs, opciones):
+def _menu_main(obs, options):
     obs["select"] = {"context": 0, "contextCard": None, "deck": None,
                      "effect": None, "maxCount": 1, "minCount": 1, "type": 0,
                      "remainDamageCounter": 0, "remainEnergyCost": 0,
-                     "option": opciones}
+                     "option": options}
     return obs
 
 
@@ -1166,7 +1166,7 @@ def test_ub_t1_segundos_sin_lillie_busca_el_motor_meowth():
     # With neither Lillie's NOR Meowth in hand, with both in the DECK: the first-turn
     # UB going second IS played (the Last-Ditch -> Lillie's engine).
     obs = _menu_main(
-        _escenario_t2_saliendo_segundo([m.Ultra_Ball, m.Basic_Grass_Energy,
+        _scenario_t2_going_second([m.Ultra_Ball, m.Basic_Grass_Energy,
                                         m.Chikorita]),
         [{"index": 0, "type": 7}, {"index": 2, "type": 7}, {"type": 14}])
     choice = m.agent(obs)
@@ -1177,7 +1177,7 @@ def test_ub_t1_segundos_sin_lillie_busca_el_motor_meowth():
 
 
 def test_ub_t1_segundos_fetch_elige_meowth():
-    obs = _escenario_t2_saliendo_segundo([m.Basic_Grass_Energy, m.Chikorita])
+    obs = _scenario_t2_going_second([m.Basic_Grass_Energy, m.Chikorita])
     choice = m.agent(obs)
     sel = obs["select"]
     elegida = sel["deck"][sel["option"][choice[0]]["index"]]["id"]
@@ -1190,7 +1190,7 @@ def test_ub_t1_segundos_con_lillie_en_mano_se_veta():
     # Control: with the Lillie's ALREADY in hand the engine is not needed and the first-turn
     # UB is vetoed again (the Lillie's is played).
     obs = _menu_main(
-        _escenario_t2_saliendo_segundo([m.Ultra_Ball, m.Lillie_Determination,
+        _scenario_t2_going_second([m.Ultra_Ball, m.Lillie_Determination,
                                         m.Basic_Grass_Energy]),
         [{"index": 0, "type": 7}, {"index": 1, "type": 7}, {"type": 14}])
     choice = m.agent(obs)
@@ -1209,14 +1209,14 @@ def test_ub_t1_segundos_con_lillie_en_mano_se_veta():
 
 def _esc_corner_td(ogerpon_fisicas):
     return (Escenario(turn=8, step=1, tac=1)
-            .my_active(pk(m.Tapu_Bulu, energias=[G], fisicas=1))
+            .my_active(pk(m.Tapu_Bulu, energies=[G], fisicas=1))
             .my_bench(pk(m.Teal_Mask_Ogerpon_ex,
-                         energias=[G] * ogerpon_fisicas,
+                         energies=[G] * ogerpon_fisicas,
                          fisicas=ogerpon_fisicas))
             .my_hand(m.Basic_Grass_Energy)
             .op_active(pk(117, hp=210, max_hp=210))   # Cornerstone Mask O. ex
             .op_zonas(hand=4, deck=40, prizes=4)
-            .menu_teal_dance()
+            .menu_teal_dance_options()
             .build())
 
 
@@ -1225,7 +1225,7 @@ def test_cornerstone_td_tope_2_fisicas_redirige_a_tapu():
     # hand goes to Tapu Bulu (the cornerstone->Tapu +22000 energy_score rule
     # finally gets the energy).
     obs = _esc_corner_td(ogerpon_fisicas=2)
-    tipo, destino = _jugada_elegida(obs, m.agent(obs))
+    tipo, destino = _chosen_play(obs, m.agent(obs))
     assert (tipo, destino) == ("ATTACH", m.Tapu_Bulu), (
         f"vs Cornerstone un Ogerpon con 2 fisicas esta en su tope: la energia "
         f"va a Tapu Bulu; obtuvo {(tipo, destino)}")
@@ -1237,7 +1237,7 @@ def test_cornerstone_td_una_fisica_sigue_permitida():
     # but the cap does not kill it): we check that the veto does not fire by looking
     # at the fact that the choice is NOT END and that if a charge wins, it is legitimate.
     obs = _esc_corner_td(ogerpon_fisicas=1)
-    tipo, destino = _jugada_elegida(obs, m.agent(obs))
+    tipo, destino = _chosen_play(obs, m.agent(obs))
     assert tipo in ("ABILITY", "ATTACH"), (
         f"con 1 fisica el turno sigue produciendo (TD o adjunte); "
         f"obtuvo {(tipo, destino)}")
@@ -1248,14 +1248,14 @@ def test_generico_td_dos_fisicas_sin_muro_no_capa():
     # Kilowattrel 271) the cap does not apply and the Teal Dance of the Ogerpon with 2
     # physical is still alive.
     obs = (Escenario(turn=8, step=1, tac=1)
-           .my_active(pk(m.Tapu_Bulu, energias=[G], fisicas=1))
-           .my_bench(pk(m.Teal_Mask_Ogerpon_ex, energias=[G, G], fisicas=2))
+           .my_active(pk(m.Tapu_Bulu, energies=[G], fisicas=1))
+           .my_bench(pk(m.Teal_Mask_Ogerpon_ex, energies=[G, G], fisicas=2))
            .my_hand(m.Basic_Grass_Energy)
            .op_active(pk(271, hp=120, max_hp=120))    # Kilowattrel
            .op_zonas(hand=4, deck=40, prizes=4)
-           .menu_teal_dance()
+           .menu_teal_dance_options()
            .build())
-    tipo, _ = _jugada_elegida(obs, m.agent(obs))
+    tipo, _ = _chosen_play(obs, m.agent(obs))
     assert tipo == "ABILITY", (
         f"sin muro anti-habilidad el tope no aplica: Teal Dance sigue siendo "
         f"la jugada (adjunta + ROBA); obtuvo {tipo}")

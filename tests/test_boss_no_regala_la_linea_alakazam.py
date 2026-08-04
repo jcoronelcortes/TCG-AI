@@ -96,8 +96,8 @@ def _obs():
     return copy.deepcopy(json.load(open(_FIXTURE, encoding="utf-8"))["observation"])
 
 
-def _pk(card_id, energias=0):
-    return SimpleNamespace(id=card_id, energies=[1] * energias)
+def _pk(card_id, energies=0):
+    return SimpleNamespace(id=card_id, energies=[1] * energies)
 
 
 def _op(active, bench):
@@ -210,19 +210,19 @@ def test_un_activo_que_si_ataca_no_dispara_el_veto_generico():
 
 def test_los_motivos_con_premio_mandan_sobre_ambos_vetos():
     """No veto can cover up a finisher or a line cut WITH a KO."""
-    tablero = dict(op_is_alakazam_deck=True,
+    board = dict(op_is_alakazam_deck=True,
                    op_state=_op(_pk(FEZ, 0), [_pk(ABRA)] * 4))
-    assert (m._score_boss_orders_play(_boss_ctx(win_via_boss_gust=True, **tablero))
+    assert (m._score_boss_orders_play(_boss_ctx(win_via_boss_gust=True, **board))
             == m.BOSS_SCORE_WIN_NOW)
-    assert (m._score_boss_orders_play(_boss_ctx(gust_2prize_via_boss=True, **tablero))
+    assert (m._score_boss_orders_play(_boss_ctx(gust_2prize_via_boss=True, **board))
             == m.BOSS_SCORE_GUST_2PRIZE)
-    assert (m._score_boss_orders_play(_boss_ctx(boss_deny_alakazam_line=True, **tablero))
+    assert (m._score_boss_orders_play(_boss_ctx(boss_deny_alakazam_line=True, **board))
             == m.BOSS_SCORE_PRIZE_RANK_BASE)
     assert m._score_boss_orders_play(
-        _boss_ctx(boss_prize_rank=3, **tablero)) >= m.BOSS_SCORE_PRIZE_RANK_BASE
+        _boss_ctx(boss_prize_rank=3, **board)) >= m.BOSS_SCORE_PRIZE_RANK_BASE
     # The DEFENSIVE gust (they finish us off next turn) also survives.
     assert m._score_boss_orders_play(
-        _boss_ctx(boss_defensive_gust=True, **tablero)) > 0
+        _boss_ctx(boss_defensive_gust=True, **board)) > 0
 
 
 def test_una_preevo_de_amenaza_de_activo_no_dispara_el_veto_generico():
