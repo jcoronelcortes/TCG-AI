@@ -1,26 +1,26 @@
-# Dependencias de DESARROLLO (pruebas y gates).
+# DEVELOPMENT dependencies (tests and gates).
 #
-# EL AGENTE NO NECESITA NINGUNA DE ESTAS. `main.py`, `utils/` y el simulador
-# vendorizado en `cg/` usan SOLO la biblioteca estandar de Python mas `ctypes`
-# para la libreria nativa; esa es una restriccion deliberada, porque el agente
-# se ejecuta en el entorno de competicion de Kaggle, donde no se instala nada.
-# Antes de importar un paquete de terceros en `main.py` o en `utils/`, comprobar
-# que ese entorno lo tiene.
+# THE AGENT NEEDS NONE OF THESE. `main.py`, `utils/` and the vendored simulator
+# in `cg/` use only the Python standard library plus `ctypes` for the native
+# library, and that is a deliberate constraint: the agent runs in the Kaggle
+# competition container, where nothing gets installed. Before importing a
+# third-party package into `main.py` or `utils/`, check that the container
+# already has it.
 #
 #   python -m pip install -r requirements-dev.txt
 #   python -m pytest -q
 #
-# Probado con Python 3.11.5. Los pines son SUELOS (>=), no anclajes: aqui no hay
-# nada que reproducir bit a bit, solo evitar versiones demasiado viejas.
+# Tested on Python 3.10 through 3.12. The pins are FLOORS (>=), not anchors:
+# there is nothing here to reproduce bit for bit, only old versions to avoid.
 
-# Runner de la suite (924 pruebas).
+# The suite runner (986 tests).
 pytest>=7.4
 
-# Cobertura: `pytest -q --cov=. --cov-report=term-missing` (ver README).
+# Coverage: `pytest -q --cov=. --cov-report=term-missing` (see the README).
 pytest-cov>=4.1
 
-# Pruebas basadas en propiedades de la fase 5: tests/test_invariantes.py, que
-# genera tableros con el StateBuilder y comprueba invariantes del agente. Sin
-# este paquete ese fichero NI SIQUIERA COLECCIONA y pytest aborta la corrida
-# entera con un error de coleccion -- no lo salta.
+# Property-based testing: `tests/test_invariants.py` generates boards with the
+# StateBuilder and checks the agent's invariants against them. Without this
+# package that file does not even COLLECT, and pytest aborts the entire run
+# with a collection error -- it does not skip it.
 hypothesis>=6.100

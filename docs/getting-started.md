@@ -19,7 +19,7 @@ debug that function.
 
 ## Requirements
 
-- **Python 3.10 or newer** (tested on 3.11).
+- **Python 3.10 or newer** (tested on 3.10 through 3.12).
 - **No third-party packages for the agent itself.** This is deliberate: the
   agent runs inside the Kaggle competition container, where nothing gets
   installed. The agent, the tools in `utils/` and the bundled simulator in `cg/`

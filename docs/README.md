@@ -16,6 +16,7 @@ is written line by line. It is meant to stay readable as the code changes.
 | Page | What you get |
 | --- | --- |
 | [Getting started](getting-started.md) | Install, run the tests, play a game, package a submission. |
+| [Contributing](../CONTRIBUTING.md) | The four gates a change must pass, and how to review one. |
 | [How the agent thinks](how-the-agent-thinks.md) | The whole decision loop in one page. Read this before anything else. |
 | [Glossary](glossary.md) | Card-game terms and project vocabulary, defined once. |
 

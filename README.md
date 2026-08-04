@@ -56,3 +56,10 @@ Against the 89 real leaderboard decks, weighted by how often each appears:
 **93.1% expected ladder winrate**, +3.9 prizes per game, zero forfeits across
 35,600 games. The weakest matchup is the Crustle wall archetype. Details and
 method in [Matchups](docs/matchups.md).
+
+## Contributing and licence
+
+[CONTRIBUTING.md](CONTRIBUTING.md) explains the four gates a change has to pass
+and what to look at when reviewing one. The code is MIT licensed
+([LICENSE](LICENSE)); the vendored simulator under `cg/` belongs to the
+competition and keeps its own terms.
