@@ -11,7 +11,7 @@ decision, also asks the POST-refactor version with the SAME observation
 Both instances per seat receive the same stream of observations, so
 their global tracking evolves the same way (the same semantics as the golden corpus).
 
-Usage: python utils/sombra.py <pre.py> <post.py> [mirror N] [rival N]
+Usage: python utils/shadow.py <pre.py> <post.py> [mirror N] [rival N]
      (pre.py = a copy frozen BEFORE the refactor; exit 1 if there are flips)
 """
 import copy
@@ -77,13 +77,13 @@ def main(pre_path, post_path, n_espejo=40, n_opponent=40):
     # vs the opposing bot (the Crustle/Kangaskhan matchup): our seat only.
     opponent_path = ROOT / "deck" / "rivales" / "crustle_kangaskhan.csv"
     if n_opponent and opponent_path.exists():
-        from bot_rival import BotRival
-        bot_rival = BotRival()
+        from opponent_bot import BotRival
+        opponent_bot = BotRival()
         deck_r = sp.read_deck(opponent_path)
         steps_r = 0
         for i in range(n_opponent):
             asiento = i % 2
-            drv = {asiento: pre0, 1 - asiento: bot_rival}
+            drv = {asiento: pre0, 1 - asiento: opponent_bot}
             shd = {asiento: post0, 1 - asiento: None}
             decks = (deck, deck_r) if asiento == 0 else (deck_r, deck)
             flips, steps = play_with_shadow(drv, shd, decks[0], decks[1])

@@ -19,7 +19,7 @@ selection = agent(observation)   # -> the indexes of the options to play
 python -m pip install -r requirements-dev.txt   # test runner only; the agent needs nothing
 python -m pytest -q                             # run the test suite
 python utils/selfplay.py --partidas 100         # play 100 games locally
-python utils/empaquetar_proyecto.py             # build submission.tar.gz
+python utils/package_project.py             # build submission.tar.gz
 ```
 
 Requires Python 3.10+. **The agent itself has no third-party dependencies**, and

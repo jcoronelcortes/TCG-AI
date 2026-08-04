@@ -69,7 +69,7 @@ python utils/selfplay.py --partidas 200 --rival deck/rivales_reales/crustle_wall
 To see how the agent performs against the whole known meta:
 
 ```bash
-python utils/matriz_matchups.py --partidas 400 --pesos
+python utils/matchup_matrix.py --partidas 400 --pesos
 ```
 
 Both are described in [Tools](tools.md) and [Improving the agent](improving-the-agent.md).
@@ -77,7 +77,7 @@ Both are described in [Tools](tools.md) and [Improving the agent](improving-the-
 ## Package a submission
 
 ```bash
-python utils/empaquetar_proyecto.py
+python utils/package_project.py
 ```
 
 This writes `submission.tar.gz` at the repository root with `main.py`,

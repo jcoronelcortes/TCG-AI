@@ -1,8 +1,8 @@
 """Damage: base damage of our attackers, unguaranteed KOs and sniping.
 
-Extracted VERBATIM from main.py by utils/extraer_definiciones.py
+Extracted VERBATIM from main.py by utils/extract_definitions.py
 (docs/project-history.md). Its purity is verified by
-utils/pureza.py: nothing here touches mutable state or the runtime tables.
+utils/purity.py: nothing here touches mutable state or the runtime tables.
 """
 
 from ptcg.calc.card import prize_count_op

@@ -1,8 +1,8 @@
 """Reading the board: active, evolvable bodies and hand options.
 
-Extracted VERBATIM from main.py by utils/extraer_definiciones.py
+Extracted VERBATIM from main.py by utils/extract_definitions.py
 (docs/project-history.md). Its purity is verified by
-utils/pureza.py: nothing here touches mutable state or the runtime tables.
+utils/purity.py: nothing here touches mutable state or the runtime tables.
 """
 
 from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Chikorita, Dawn, Dipplin, Hydrapple_ex, Lanas_Aid, Lillie_Determination, Meganium, Teal_Mask_Ogerpon_ex, Xerosic_Machinations

@@ -1,0 +1,29 @@
+# Phase 13b -- the file names of utils/. The scripts moved with `git mv`; this
+# rewrites the imports between them and in tests/.
+#
+# `report` says NOT FOUND for most of these, and that is the expected answer:
+# they are standalone scripts that nobody imports. Only autopsy, opponent_bot,
+# package_project, lint_architecture and purity are imported by name.
+#
+# `autopsia` and `rival` are also DATA: "autopsia" is a CLI flag dest and a
+# directory under registros/, and "rival" is a key of the autopsy JSON and of
+# the self-play result. They carry `mod_code`: the module path moves, the
+# literals stay.
+autopsia	autopsy	mod_code
+bot_rival	opponent_bot	mod
+construir_mazos_meta	build_meta_decks	mod
+cosechar_deck_rival	harvest_opponent_deck	mod
+descargar_mazos_competidores	download_competitor_decks	mod
+empaquetar_proyecto	package_project	mod
+explorador_turno	turn_explorer	mod
+extraer_definiciones	extract_definitions	mod
+extraer_puros	extract_pure	mod
+grabar_corpus	record_corpus	mod
+lint_arquitectura	lint_architecture	mod
+matriz_matchups	matchup_matrix	mod
+migrar_estado	migrate_state	mod
+pureza	purity	mod
+radar_colisiones	collision_radar	mod
+rivales_reales	real_opponents	mod
+sombra	shadow	mod
+sonda_muro	wall_probe	mod

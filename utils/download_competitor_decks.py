@@ -20,7 +20,7 @@ is exactly the format `deck.csv` and `deck/rivales/*.csv` already consume.
 
 Typical usage:
 
-    python utils/descargar_mazos_competidores.py --top 100
+    python utils/download_competitor_decks.py --top 100
 
 The process is resumable: the decks already recovered are kept in a JSON cache,
 so relaunching it only asks the API for what is missing.

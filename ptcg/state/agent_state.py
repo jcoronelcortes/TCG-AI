@@ -10,7 +10,7 @@ WHY AN OBJECT AND NOT LOOSE NAMES
   the old value. It raises no exception, it breaks no test that sets the global
   on its own -- the agent simply decides badly in a real game. With an object
   there is nothing to copy: `ESTADO` is never reassigned, only its fields, and
-  every module looks at the same one. utils/lint_arquitectura.py (R1) watches it.
+  every module looks at the same one. utils/lint_architecture.py (R1) watches it.
 
   It has already happened twice with names that were NOT state and still behaved
   like it: `card_table` (wave 2) and `_score_xerosic_play` (wave 4). Both cases

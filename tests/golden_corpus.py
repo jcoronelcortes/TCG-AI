@@ -78,7 +78,7 @@ def reset_agente(m):
     m._cards_last_turn = -1
 
     # COMPATIBILITY branch: a main.py older than wave 3, where the state consists of
-    # module globals. utils/sombra.py compares the current version against a
+    # module globals. utils/shadow.py compares the current version against a
     # frozen baseline, so this reset has to serve both.
     m.plan = m.AttackPlan()
     m.pre_turn = 0

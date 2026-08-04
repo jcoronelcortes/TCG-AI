@@ -5,9 +5,9 @@ because the Stamp leaves the opponent at 2 cards either way and the only thing
 the order buys is the cards Xerosic sends to the discard FOREVER -- makes each
 scorer consult the other. Separating them produces a circular import.
 
-Extracted VERBATIM from main.py by utils/extraer_definiciones.py
+Extracted VERBATIM from main.py by utils/extract_definitions.py
 (docs/project-history.md). Its purity is verified by
-utils/pureza.py: nothing here touches mutable state or the runtime tables.
+utils/purity.py: nothing here touches mutable state or the runtime tables.
 """
 
 from ptcg.calc.board import _active_of

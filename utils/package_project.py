@@ -12,7 +12,7 @@ Forgetting was the most expensive possible failure: the submission starts broken
 with the 930 tests green (see docs/project-history.md, I1).
 
 Usage:
-    python utils/empaquetar_proyecto.py
+    python utils/package_project.py
 """
 
 import ast

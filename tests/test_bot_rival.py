@@ -1,4 +1,4 @@
-"""The reference opponent (`utils/bot_rival.py`) plays the ability engine.
+"""The reference opponent (`utils/opponent_bot.py`) plays the ability engine.
 
 Until 2026-08-02 the bot's docstring said *"Never RETREAT or ABILITY"*.
 A non-obvious consequence: **the harness was BLIND to the decks whose engine IS an
@@ -29,7 +29,7 @@ if str(ROOT) not in sys.path:
 if str(ROOT / "utils") not in sys.path:
     sys.path.insert(0, str(ROOT / "utils"))
 
-from bot_rival import BotRival
+from opponent_bot import BotRival
 from cg.api import AreaType, OptionType, SelectContext
 
 MUNKIDORI = 112

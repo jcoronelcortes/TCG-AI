@@ -15,7 +15,7 @@ REFERENCE DECK for the --rival mode of utils/selfplay.py (the differential
 winrate of two versions of main.py against the same fixed opponent).
 
 Usage:
-    python utils/cosechar_deck_rival.py --salida deck/rivales/crustle.csv
+    python utils/harvest_opponent_deck.py --salida deck/rivales/crustle.csv
 """
 
 import argparse

@@ -1,8 +1,8 @@
 """Scoring constants shared by several phases.
 
-Extracted VERBATIM from main.py by utils/extraer_definiciones.py
+Extracted VERBATIM from main.py by utils/extract_definitions.py
 (docs/project-history.md). Its purity is verified by
-utils/pureza.py: nothing here touches mutable state or the runtime tables.
+utils/purity.py: nothing here touches mutable state or the runtime tables.
 """
 
 from ptcg.cards.ids import Dipplin, Fezandipiti_ex, Hydrapple_ex, Meganium, Pinsir, Tapu_Bulu, Teal_Mask_Ogerpon_ex

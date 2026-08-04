@@ -1,7 +1,7 @@
 """Matchup matrix: the agent's winrate against EACH opposing deck.
 
 By default it measures against `deck/rivales_reales/` -- the REAL leaderboard
-lists (utils/rivales_reales.py), with their meta weight.
+lists (utils/real_opponents.py), with their meta weight.
 
 The synthetic ones in `deck/rivales/` are still there but they are NO LONGER the default, and
 it is worth knowing why: measured against the top-300, **8 of its 17 decks are
@@ -31,7 +31,7 @@ and +7.5 points. Hence the --partidas default rising to 400 and the existence of
 --control-carta: the warning was written from the start and even so it is easy
 to read as signal a delta that fits entirely inside the noise.
 
-With --pesos (and the corpus of utils/rivales_reales.py) the summary stops being a
+With --pesos (and the corpus of utils/real_opponents.py) the summary stops being a
 simple average: each matchup weighs what that archetype weighs in the real meta. It is the
 difference between "I beat 8 of 17 decks" and "I win X% of the games I am going
 to play on ladder" -- with a simple average, a +10 against an archetype that is
@@ -46,12 +46,12 @@ to move from -6.5 to +7.5 points, so a small delta without this breakdown
 means nothing.
 
 Usage:
-    python utils/matriz_matchups.py --partidas 400
-    python utils/matriz_matchups.py --partidas 400 --base HEAD~1
-    python utils/matriz_matchups.py --base HEAD~1 --control-carta 1266
-    python utils/matriz_matchups.py --solo dragapult,hops
-    python utils/matriz_matchups.py --rivales deck/rivales_reales --pesos
-    python utils/matriz_matchups.py --rivales deck/rivales_reales --pesos --base HEAD~1
+    python utils/matchup_matrix.py --partidas 400
+    python utils/matchup_matrix.py --partidas 400 --base HEAD~1
+    python utils/matchup_matrix.py --base HEAD~1 --control-carta 1266
+    python utils/matchup_matrix.py --solo dragapult,hops
+    python utils/matchup_matrix.py --rivales deck/rivales_reales --pesos
+    python utils/matchup_matrix.py --rivales deck/rivales_reales --pesos --base HEAD~1
 """
 
 import argparse
@@ -64,7 +64,7 @@ for _p in (_ROOT, _ROOT / "utils"):
         sys.path.insert(0, str(_p))
 
 import selfplay as sp
-from bot_rival import BotRival
+from opponent_bot import BotRival
 
 
 def is_deck(path):
@@ -84,7 +84,7 @@ def is_deck(path):
 
 
 def load_weights(directorio):
-    """Meta weight per deck, from the pesos.csv of utils/rivales_reales.py.
+    """Meta weight per deck, from the pesos.csv of utils/real_opponents.py.
 
     Without this the matrix treats every opponent equally, which is what
     makes a change get approved for winning against archetypes almost nobody
@@ -218,7 +218,7 @@ def main(argv):
                          "las listas REALES del leaderboard con sus pesos)")
     ap.add_argument("--pesos", action="store_true",
                     help="pondera por frecuencia real en el meta (necesita el "
-                         "pesos.csv de utils/rivales_reales.py)")
+                         "pesos.csv de utils/real_opponents.py)")
     args = ap.parse_args(argv)
 
     todos = sorted(Path(args.rivales).glob("*.csv"))
@@ -238,7 +238,7 @@ def main(argv):
     pesos = load_weights(args.rivales) if args.pesos else {}
     if args.pesos and not pesos:
         print(f"ERROR: no hay pesos.csv en {args.rivales}. "
-              f"Generalo con: python utils/rivales_reales.py", file=sys.stderr)
+              f"Generalo con: python utils/real_opponents.py", file=sys.stderr)
         return 1
 
     agent_state = sp.load_agent(_ROOT / args.candidato, "agente_matriz")

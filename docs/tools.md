@@ -35,8 +35,8 @@ Plays N games against **every** opponent deck in a folder and prints the table
 from weakest matchup to strongest, with confidence intervals and forfeits.
 
 ```bash
-python utils/matriz_matchups.py --partidas 400 --pesos
-python utils/matriz_matchups.py --partidas 200 --base <git-ref>   # per-matchup delta
+python utils/matchup_matrix.py --partidas 400 --pesos
+python utils/matchup_matrix.py --partidas 200 --base <git-ref>   # per-matchup delta
 ```
 
 By default it measures against the real leaderboard lists in
@@ -66,8 +66,8 @@ sterile turns (ended with a full hand and no damage). Each loss is classified by
 how we lost — prizes, bench-out, deck-out.
 
 ```bash
-python utils/autopsia.py --rival deck/rivales_reales/<deck>.csv --partidas 40
-python utils/autopsia.py --censo ...        # census with a control group
+python utils/autopsy.py --rival deck/rivales_reales/<deck>.csv --partidas 40
+python utils/autopsy.py --censo ...        # census with a control group
 ```
 
 ### `radar_colisiones.py` — collisions between matchup rules

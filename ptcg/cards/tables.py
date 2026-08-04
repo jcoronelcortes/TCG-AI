@@ -5,7 +5,7 @@ Extracted VERBATIM from main.py in wave 2 of the refactor
 
 They are not literal constants (they come from `cg.api`), but they ARE
 deterministic and read-only: they are built once at import time and nobody
-mutates them -- verified with `utils/pureza.py`. That is exactly the difference
+mutates them -- verified with `utils/purity.py`. That is exactly the difference
 with `ATTACK_ENERGY_REQ`, which looks like a fixed table and is really TURN
 state (the Nighttime Mine tax rewrites it on every `agent()` call), which is why
 that one stayed in main.py until wave 3.

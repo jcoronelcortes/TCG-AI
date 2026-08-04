@@ -23,8 +23,8 @@ THE TRAP OF THE MUTATED NAMES
   `augassign` is detected, and left where it is.
 
 Usage:
-    python utils/extraer_puros.py --desde 40 --hasta 1008 --destino ptcg/cartas/ids.py
-    python utils/extraer_puros.py ... --aplicar     # without this, it only reports
+    python utils/extract_pure.py --desde 40 --hasta 1008 --destino ptcg/cartas/ids.py
+    python utils/extract_pure.py ... --aplicar     # without this, it only reports
 """
 
 import argparse
@@ -43,10 +43,10 @@ MUTADORES = {"append", "extend", "update", "add", "pop", "clear", "insert",
 
 HEADER = '''"""{titulo}
 
-Extraido VERBATIM de main.py por utils/extraer_puros.py
+Extraido VERBATIM de main.py por utils/extract_pure.py
 (docs/project-history.md). Aqui NO hay logica: solo constantes que
 dependen unicamente de literales. Este modulo no puede importar estado ni tocar
-el simulador -- lo vigila utils/lint_arquitectura.py (R2).
+el simulador -- lo vigila utils/lint_architecture.py (R2).
 
 main.py lo reexporta con `import *`, asi que el `__all__` del final tiene que
 listar TODOS los nombres, incluidos los que empiezan por `_` (que `import *`
@@ -99,7 +99,7 @@ def planificar(main_py, desde, hasta):
     # main.py, and without this it would look impure and would never be moved.
     import sys as _sys
     _sys.path.insert(0, str(PROJECT_ROOT / "utils"))
-    from pureza import _constantes_del_paquete
+    from purity import _constantes_del_paquete
     puros = {n: True for n in _constantes_del_paquete()}
     bloqueadas, movibles = set(), {}
     for nodo in arbol.body:
@@ -149,7 +149,7 @@ def planificar(main_py, desde, hasta):
 
     # Names the moved code takes from modules that have ALREADY been extracted: they have to
     # be imported in the target or the new module blows up when loaded.
-    from pureza import _mapa_paquete
+    from purity import _mapa_paquete
     mapa = _mapa_paquete()
     propios = set(names)
     necesarios = {}

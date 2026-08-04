@@ -51,8 +51,8 @@ def test_a_game_against_the_generic_bot(instancias):
     a, _ = instancias
     path = ROOT / "deck" / "rivales" / "crustle_kangaskhan.csv"
     if not path.exists():
-        pytest.skip("mazo rival no cosechado (utils/cosechar_deck_rival.py)")
-    from utils.bot_rival import BotRival
+        pytest.skip("mazo rival no cosechado (utils/harvest_opponent_deck.py)")
+    from utils.opponent_bot import BotRival
     r = sp.play_game(a, BotRival(), deck1=sp.read_deck(path))
     assert r["ganador"] in (0, 1), f"partida sin ganador: {r}"
     assert not str(r["result"]).startswith("error"), (

@@ -21,8 +21,8 @@ three things, and knowing which one says which wave they belong to:
   * another blocked definition -> it is dragged along with it.
 
 Usage:
-    python utils/pureza.py                 # a summary
-    python utils/pureza.py --detalle       # plus why each one is blocked
+    python utils/purity.py                 # a summary
+    python utils/purity.py --detalle       # plus why each one is blocked
 """
 
 import argparse

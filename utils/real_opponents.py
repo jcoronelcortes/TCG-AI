@@ -1,9 +1,9 @@
 """Turns the leaderboard decks into MEASURABLE opponents for self-play.
 
-Phase 9 of the strategy improvement architecture. `utils/construir_mazos_meta.py`
+Phase 9 of the strategy improvement architecture. `utils/build_meta_decks.py`
 hand-defines synthetic opponents that "do not claim to be the exact lists of the
 meta"; here we start from the EXACT lists that
-`utils/descargar_mazos_competidores.py` downloaded from the leaderboard.
+`utils/download_competitor_decks.py` downloaded from the leaderboard.
 
 It does two things, and the second is the important one:
 
@@ -14,7 +14,7 @@ It does two things, and the second is the important one:
    deserves (how many of the 100 decks were that list).
 
 2. IT SCREENS BY PILOTABILITY. These are real lists, with trainers the generic
-   bot (utils/bot_rival.py) may not know how to use: its policy for an
+   bot (utils/opponent_bot.py) may not know how to use: its policy for an
    unknown select is "the first minCount options". A deck the bot
    cannot pilot does not measure the matchup, it measures the bot getting stuck -- and it returns
    a very high and FALSE winrate for us.
@@ -40,12 +40,12 @@ Output in deck/rivales_reales/:
     no_pilotables/        the rejected lists, for inspection
 
 Usage:
-    python utils/rivales_reales.py                     # dedupe + screening
-    python utils/rivales_reales.py --partidas 60       # a finer screening
-    python utils/rivales_reales.py --sin-criba         # dedupe only (fast)
+    python utils/real_opponents.py                     # dedupe + screening
+    python utils/real_opponents.py --partidas 60       # a finer screening
+    python utils/real_opponents.py --sin-criba         # dedupe only (fast)
 
 Afterwards, the matrix consumes the corpus and its weights:
-    python utils/matriz_matchups.py --rivales deck/rivales_reales --pesos
+    python utils/matchup_matrix.py --rivales deck/rivales_reales --pesos
 """
 
 import argparse
@@ -135,7 +135,7 @@ def load_corpus(origen):
 def cribar(group, partidas, deck_referencia):
     """Can the generic bot pilot this list? Bot(real) vs Bot(our deck)."""
     import selfplay as sp
-    from bot_rival import BotRival
+    from opponent_bot import BotRival
 
     # Separate instances: the bot carries per-turn state and sharing it between
     # the two seats would mix up both sides' ability counters.

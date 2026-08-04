@@ -24,9 +24,9 @@ energy attached + bodies played + evolutions. A sterile turn loses
 against any line that develops.
 
 Usage:
-    python utils/explorador_turno.py --demo                # the Myriad combo
-    python utils/explorador_turno.py --hallazgo registros/autopsia/X.json
-    python utils/explorador_turno.py --autopsia registros/autopsia/ --max 20
+    python utils/turn_explorer.py --demo                # the Myriad combo
+    python utils/turn_explorer.py --hallazgo registros/autopsia/X.json
+    python utils/turn_explorer.py --autopsia registros/autopsia/ --max 20
 """
 
 import argparse
@@ -490,7 +490,7 @@ def main(argv):
     ap.add_argument("--hallazgo", default=None)
     ap.add_argument("--indice", type=int, default=0)
     ap.add_argument("--autopsia", default=None,
-                    help="directorio de hallazgos de utils/autopsia.py")
+                    help="directorio de hallazgos de utils/autopsy.py")
     ap.add_argument("--max", type=int, default=10,
                     help="con --autopsia: numero maximo de hallazgos")
     args = ap.parse_args(argv)
@@ -500,8 +500,8 @@ def main(argv):
     if args.hallazgo:
         comparar_hallazgo(args.hallazgo, args.indice)
         return 0
-    if args.autopsia:
-        paths = sorted(Path(args.autopsia).glob("*.json"))[:args.max]
+    if args.autopsy:
+        paths = sorted(Path(args.autopsy).glob("*.json"))[:args.max]
         for path in paths:
             comparar_hallazgo(path)
             print()

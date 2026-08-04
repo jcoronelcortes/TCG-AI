@@ -1,8 +1,8 @@
 """Night Stretcher: recovering from the discard.
 
-Extracted VERBATIM from main.py by utils/extraer_definiciones.py
+Extracted VERBATIM from main.py by utils/extract_definitions.py
 (docs/project-history.md). Its purity is verified by
-utils/pureza.py: nothing here touches mutable state or the runtime tables.
+utils/purity.py: nothing here touches mutable state or the runtime tables.
 """
 
 from ptcg.engine.rules import _FixedRule

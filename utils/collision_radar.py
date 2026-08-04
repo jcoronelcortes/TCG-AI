@@ -23,8 +23,8 @@ is still capturing the menu and tracing the score (`sys.settrace` over `agent`,
 filtering changes of `frame.f_locals['score']`).
 
 Usage:
-    python utils/radar_colisiones.py --partidas 100
-    python utils/radar_colisiones.py --partidas 200 --solo cornerstone_cubchoo,crustle_kangaskhan
+    python utils/collision_radar.py --partidas 100
+    python utils/collision_radar.py --partidas 200 --solo cornerstone_cubchoo,crustle_kangaskhan
 """
 
 import argparse
@@ -38,7 +38,7 @@ for _p in (_ROOT, _ROOT / "utils"):
         sys.path.insert(0, str(_p))
 
 import selfplay as sp
-import autopsia as au
+import autopsy as au
 from cg.api import OptionType
 
 
@@ -310,7 +310,7 @@ SITUACIONES = (
 
 
 def radar(agent_state, opponent_deck, partidas):
-    from bot_rival import BotRival
+    from opponent_bot import BotRival
     cnt = collections.defaultdict(lambda: [0, 0])   # name -> [applies, resolved]
     for i in range(partidas):
         _res, dec, _fin = au.play_recording(

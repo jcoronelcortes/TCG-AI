@@ -349,7 +349,7 @@ def main(argv):
     candidato = load_agent(cand_path, "agente_candidato")
 
     if args.opponent:
-        from bot_rival import BotRival
+        from opponent_bot import BotRival
         opponent_deck = read_deck(_ROOT / args.opponent)
         bot = BotRival()
         stats = torneo(candidato, bot, args.partidas,

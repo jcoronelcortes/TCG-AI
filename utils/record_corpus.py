@@ -16,7 +16,7 @@ WHAT IT PLAYS AGAINST
   Against the REAL leaderboard decks (`deck/rivales_reales/`), piloted by
   the generic bot -- not against ourselves. A mirror corpus would measure a
   much narrower distribution of boards, and it would also be redundant with
-  `utils/sombra.py`, which already plays self-play. What the corpus contributes is a
+  `utils/shadow.py`, which already plays self-play. What the corpus contributes is a
   FIXED set of concrete situations, with its snapshot, that survives without
   needing to keep a copy of the previous version.
 
@@ -27,9 +27,9 @@ FORMAT
   the presence of `select` and `yourIndex`, and that fits just the same.
 
 Usage:
-    python utils/grabar_corpus.py                    # 12 games, 12 opponents
-    python utils/grabar_corpus.py --partidas 20
-    python utils/grabar_corpus.py --rivales deck/rivales_reales --semilla 3
+    python utils/record_corpus.py                    # 12 games, 12 opponents
+    python utils/record_corpus.py --partidas 20
+    python utils/record_corpus.py --rivales deck/rivales_reales --semilla 3
 """
 
 import argparse
@@ -97,7 +97,7 @@ def main():
                 for i in range(args.partidas)]
 
     agent_state = sp.load_agent(_ROOT / args.main, "corpus_agente")
-    from bot_rival import BotRival
+    from opponent_bot import BotRival
     bot = BotRival()
     deck_nuestro = sp.read_deck()
 

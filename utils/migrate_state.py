@@ -3,7 +3,7 @@
 WHY IT IS DIFFERENT FROM THE PREVIOUS WAVES
   Waves 1, 2 and 4 MOVE lines without touching them. This one REWRITES them: `ko_last_turn`
   becomes `ESTADO.ko_last_turn` in every place. That is why the equivalence gate
-  (utils/sombra.py) stops being a safety net and becomes the main instrument.
+  (utils/shadow.py) stops being a safety net and becomes the main instrument.
 
 WHY NOT `ast.unparse`
   Rewriting the tree and printing it again would destroy ALL the comments, which
@@ -20,9 +20,9 @@ SCOPE ANALYSIS
   in any helper would end up writing to the shared state.
 
 Usage:
-    python utils/migrar_estado.py --campos plan,pre_turn          # a dry run
-    python utils/migrar_estado.py --campos plan,pre_turn --aplicar
-    python utils/migrar_estado.py --listar                        # what is left
+    python utils/migrate_state.py --campos plan,pre_turn          # a dry run
+    python utils/migrate_state.py --campos plan,pre_turn --aplicar
+    python utils/migrate_state.py --listar                        # what is left
 """
 
 import argparse
@@ -33,7 +33,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT / "utils"))
 
-from pureza import analizar  # noqa: E402
+from purity import analizar  # noqa: E402
 
 OBJETO = "AGENT_STATE"
 

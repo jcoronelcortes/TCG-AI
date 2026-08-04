@@ -50,7 +50,7 @@ Measured against the **89 real leaderboard decks** in `deck/rivales_reales/`,
 400 games per matchup, weighted by how often each list actually appears:
 
 ```bash
-python utils/matriz_matchups.py --partidas 400 --pesos
+python utils/matchup_matrix.py --partidas 400 --pesos
 ```
 
 ```text

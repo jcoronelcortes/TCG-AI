@@ -1,9 +1,9 @@
 """Derived card groups: evolution lines and strategic sets.
 
-Extracted VERBATIM from main.py by utils/extraer_puros.py
+Extracted VERBATIM from main.py by utils/extract_pure.py
 (docs/project-history.md). There is NO logic here: only constants that
 depend solely on literals. This module cannot import state or touch the
-simulator -- utils/lint_arquitectura.py (R2) watches it.
+simulator -- utils/lint_architecture.py (R2) watches it.
 
 main.py re-exports it with `import *`, so the `__all__` at the end has to list
 ALL the names, including the ones starting with `_` (which `import *` would

@@ -3,7 +3,7 @@
 Extracted VERBATIM from main.py in wave 1 of the refactor
 (docs/project-history.md). There is NO logic here: only constants that
 depend solely on literals. Nothing in this module may import state or
-touch the simulator -- utils/lint_arquitectura.py (R2) watches it.
+touch the simulator -- utils/lint_architecture.py (R2) watches it.
 
 main.py re-exports it with `from ptcg.cartas.ids import *`, so the `__all__`
 below has to list ALL the names (including the ones starting with `_`, which

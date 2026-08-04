@@ -31,7 +31,7 @@ game without raising any exception.
             to be in sys.modules.
 
 Usage:
-    python utils/lint_arquitectura.py          # exit 1 if there are violations
+    python utils/lint_architecture.py          # exit 1 if there are violations
 """
 
 import ast
@@ -239,7 +239,7 @@ def revisar():
 def main():
     fallos = revisar()
     if not fallos:
-        print("lint_arquitectura: sin infracciones")
+        print("lint_architecture: sin infracciones")
         return 0
     for rule, file_path, line, mensaje in fallos:
         print(f"{file_path}:{line}: [{rule}] {mensaje}")

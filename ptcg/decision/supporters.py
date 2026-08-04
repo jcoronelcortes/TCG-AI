@@ -1,8 +1,8 @@
 """Assorted Supporters: Dawn, Lana's Aid and picking the best one in hand.
 
-Extracted VERBATIM from main.py by utils/extraer_definiciones.py
+Extracted VERBATIM from main.py by utils/extract_definitions.py
 (docs/project-history.md). Its purity is verified by
-utils/pureza.py: nothing here touches mutable state or the runtime tables.
+utils/purity.py: nothing here touches mutable state or the runtime tables.
 """
 
 from ptcg.state.agent_state import AGENT_STATE

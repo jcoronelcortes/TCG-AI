@@ -42,7 +42,7 @@ for _p in (str(ROOT), str(ROOT / "utils")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-import empaquetar_proyecto as ep  # noqa: E402
+import package_project as ep  # noqa: E402
 
 FIXTURE = TESTS_DIR / "fixtures" / "alakazam_boss_before_ub_step64.json"
 

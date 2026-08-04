@@ -1,6 +1,6 @@
 """PER-TURN probe of the jam behind the ex-immune wall (Crustle/Sylveon).
 
-The census of `utils/autopsia.py` left the Crustle matchup located but not
+The census of `utils/autopsy.py` left the Crustle matchup located but not
 solved: in the losses 64.3% of the turns close WITHOUT ATTACKING (41.7%
 in the wins). This probe answers the next question, which is the one that
 decides the SHAPE of the fix:
@@ -19,8 +19,8 @@ in the format of the tests/ fixtures) into registros/sonda_muro/ so the
 decision can be reproduced with main.agent() and one can read what scored above the relief.
 
 Usage:
-    python utils/sonda_muro.py --rival deck/rivales_reales/crustle_wall_2.csv
-    python utils/sonda_muro.py --rival ... --partidas 80 --volcar 15
+    python utils/wall_probe.py --rival deck/rivales_reales/crustle_wall_2.csv
+    python utils/wall_probe.py --rival ... --partidas 80 --volcar 15
 """
 
 import argparse
@@ -35,7 +35,7 @@ for _p in (_ROOT, _ROOT / "utils", _ROOT / "tests"):
         sys.path.insert(0, str(_p))
 
 import selfplay as sp
-from bot_rival import BotRival
+from opponent_bot import BotRival
 from cg.api import OptionType, SelectContext
 
 # Non-ex attackers that DO damage the wall (our ex do 0 to it).

@@ -1,5 +1,5 @@
 """Tests of autopsy v2 (step 5 of the jul 2026 plan): the loss MODE
-classifier. The prize convention is the one used in the rest of utils/autopsia.py: a
+classifier. The prize convention is the one used in the rest of utils/autopsy.py: a
 None entry in prize is a prize that player has STILL to take."""
 
 import sys
@@ -10,7 +10,7 @@ for _p in (ROOT, ROOT / "utils"):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
-from autopsia import clasificar_derrota
+from autopsy import clasificar_derrota
 
 
 def _obs_final(op_prize_restantes, my_active, my_bench, mi_deck):

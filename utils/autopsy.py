@@ -33,10 +33,10 @@ local data): ready to reproduce with main.agent(), turn into a
 fixture or sweep with the StateBuilder.
 
 Usage:
-    python utils/autopsia.py --rival deck/rivales/cornerstone_cubchoo.csv --partidas 100
-    python utils/autopsia.py --espejo --partidas 100
-    python utils/autopsia.py --todos --partidas 60   # every deck in deck/rivales/
-    python utils/autopsia.py --rival ... --partidas 400 --censo   # + a contrast
+    python utils/autopsy.py --rival deck/rivales/cornerstone_cubchoo.csv --partidas 100
+    python utils/autopsy.py --espejo --partidas 100
+    python utils/autopsy.py --todos --partidas 60   # every deck in deck/rivales/
+    python utils/autopsy.py --rival ... --partidas 400 --censo   # + a contrast
 
 v3 (Aug 2026): `--censo`. The detectors only look at LOSSES and only emit on
 the turns that already failed; that reproduces a failure, but it does not say what CAUSES it.
@@ -476,7 +476,7 @@ def census_summary(censo, etiqueta):
               f"max {max(rachas) if rachas else 0})")
 
 
-def autopsia(opponent_csv, partidas, espejo=False, destino=None, censar=False):
+def autopsy(opponent_csv, partidas, espejo=False, destino=None, censar=False):
     import main as m
     destino = destino or (_ROOT / "registros" / "autopsia")
     destino.mkdir(parents=True, exist_ok=True)
@@ -487,7 +487,7 @@ def autopsia(opponent_csv, partidas, espejo=False, destino=None, censar=False):
         opponent = sp.load_agent(_ROOT / "main.py", "rival_autopsia")
         opponent_deck, etiqueta = own_deck, "espejo"
     else:
-        from bot_rival import BotRival
+        from opponent_bot import BotRival
         opponent = BotRival()
         opponent_deck = sp.read_deck(opponent_csv)
         etiqueta = Path(opponent_csv).stem
@@ -567,15 +567,15 @@ def main(argv):
 
     if args.todos:
         for path in sorted((_ROOT / "deck" / "rivales").glob("*.csv")):
-            autopsia(path, args.partidas, censar=args.censo)
+            autopsy(path, args.partidas, censar=args.censo)
         return 0
     if args.espejo:
-        autopsia(None, args.partidas, espejo=True, censar=args.censo)
+        autopsy(None, args.partidas, espejo=True, censar=args.censo)
         return 0
     if not args.opponent:
         print("indica --rival, --espejo o --todos")
         return 1
-    autopsia(args.opponent, args.partidas, censar=args.censo)
+    autopsy(args.opponent, args.partidas, censar=args.censo)
     return 0
 
 

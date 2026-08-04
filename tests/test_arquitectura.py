@@ -1,6 +1,6 @@
 """Runs the refactor's architecture rules with the suite.
 
-See utils/lint_arquitectura.py and docs/project-history.md. The four
+See utils/lint_architecture.py and docs/project-history.md. The four
 rules cover failures that do not show up as a red test: they break the
 submission on Kaggle, or they make the agent read frozen state and decide badly in a
 game without raising any exception.
@@ -15,7 +15,7 @@ for _p in (str(ROOT), str(ROOT / "utils")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-import lint_arquitectura as la  # noqa: E402
+import lint_architecture as la  # noqa: E402
 
 
 def test_no_architecture_violations():

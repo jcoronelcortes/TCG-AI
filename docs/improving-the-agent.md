@@ -21,11 +21,11 @@ workflow.
 
 | Question | Tool |
 | --- | --- |
-| Which matchup do we actually lose? | `utils/matriz_matchups.py` — winrate and prize differential against every real leaderboard deck. |
-| What went wrong in the games we lost? | `utils/autopsia.py` — replays losses and runs detectors over them: a lethal attack that was available and not taken, a turn ended with a full hand and no damage. |
-| Is a rule for one matchup breaking another? | `utils/radar_colisiones.py` — measures how often we resolve the *same* canonical situation across different opponents. A resolution rate that collapses for one deck and not the others is a collision. |
-| Was there a better line this turn? | `utils/explorador_turno.py` — enumerates every legal sequence of our own actions for a turn and compares the best one with what the agent chose. |
-| Why do we stall against the wall? | `utils/sonda_muro.py` — per-turn probe of the immune-wall matchup; dumps the turns that ended dry so they can be replayed. |
+| Which matchup do we actually lose? | `utils/matchup_matrix.py` — winrate and prize differential against every real leaderboard deck. |
+| What went wrong in the games we lost? | `utils/autopsy.py` — replays losses and runs detectors over them: a lethal attack that was available and not taken, a turn ended with a full hand and no damage. |
+| Is a rule for one matchup breaking another? | `utils/collision_radar.py` — measures how often we resolve the *same* canonical situation across different opponents. A resolution rate that collapses for one deck and not the others is a collision. |
+| Was there a better line this turn? | `utils/turn_explorer.py` — enumerates every legal sequence of our own actions for a turn and compares the best one with what the agent chose. |
+| Why do we stall against the wall? | `utils/wall_probe.py` — per-turn probe of the immune-wall matchup; dumps the turns that ended dry so they can be replayed. |
 
 **Aggregate before you conclude.** The per-deck table names the single worst
 list; grouping by archetype often names a different culprit. That is exactly how
@@ -66,8 +66,8 @@ Run the gates in this order — cheapest first.
 | Unit suite | `python -m pytest -q` | Broken behaviour that someone already pinned. |
 | Golden corpus | `python tests/golden_corpus.py` | **Which historical decisions your change flipped**, with an explicit diff. |
 | Self-play | `python utils/selfplay.py --partidas 200 --base HEAD~1` | Does it win more games than the previous version. |
-| Matchup matrix | `python utils/matriz_matchups.py --partidas 400 --pesos --base <ref>` | Whether a gain in one matchup is paid for by a loss in another. |
-| Equivalence (refactors only) | `python utils/sombra.py <before.py> <after.py>` | A refactor that was supposed to change nothing but did. |
+| Matchup matrix | `python utils/matchup_matrix.py --partidas 400 --pesos --base <ref>` | Whether a gain in one matchup is paid for by a loss in another. |
+| Equivalence (refactors only) | `python utils/shadow.py <before.py> <after.py>` | A refactor that was supposed to change nothing but did. |
 
 ### The measurement rules that were learned the hard way
 

@@ -1,8 +1,8 @@
 """Boss's Orders: how much playing it is worth and who to gust.
 
-Extracted VERBATIM from main.py by utils/extraer_definiciones.py
+Extracted VERBATIM from main.py by utils/extract_definitions.py
 (docs/project-history.md). Its purity is verified by
-utils/pureza.py: nothing here touches mutable state or the runtime tables.
+utils/purity.py: nothing here touches mutable state or the runtime tables.
 """
 
 from ptcg.cards.ids import Dwebble_Fighting, Dwebble_Grass, EX_PREEVO_IDS, GUST_TRAP_IDS, SCORE_FORBID, THREAT_PREEVO_IDS

@@ -1,20 +1,20 @@
 """Library of synthetic META decks for the --rival mode of self-play.
 
-Phase 8 of the strategy improvement architecture. `utils/cosechar_deck_rival.py`
+Phase 8 of the strategy improvement architecture. `utils/harvest_opponent_deck.py`
 rebuilds decks from local records, but the records are transient:
 this piece does NOT depend on logs. Each meta archetype we face (project
 memory: Dragapult, Hop's, Alakazam, Mega Lucario, Comfey, Cornerstone/
 Cubchoo) is defined HERE by hand, with ids from the pool and a composition the
-generic bot (utils/bot_rival.py) can pilot: complete evolution lines, energy
+generic bot (utils/opponent_bot.py) can pilot: complete evolution lines, energy
 of the type their attacks pay and trainers with a simple select.
 
 They do not claim to be the exact lists of the meta: they are deterministic and legal
 REFERENCE OPPONENTS for measuring matchups (utils/selfplay.py --rival) and for
-the matchup matrix (utils/matriz_matchups.py).
+the matchup matrix (utils/matchup_matrix.py).
 
 Usage:
-    python utils/construir_mazos_meta.py            # writes deck/rivales/*.csv
-    python utils/construir_mazos_meta.py --verificar  # plus battle_start + 4 steps
+    python utils/build_meta_decks.py            # writes deck/rivales/*.csv
+    python utils/build_meta_decks.py --verificar  # plus battle_start + 4 steps
 """
 
 import argparse
@@ -238,7 +238,7 @@ def verificar(paths):
     """battle_start accepts each deck and the bot plays 4 steps without blowing up."""
     sys.path.insert(0, str(_ROOT / "utils"))
     from cg import game
-    from bot_rival import BotRival
+    from opponent_bot import BotRival
     deck_nuestro = [int(x) for x in
                     (_ROOT / "deck.csv").read_text().split("\n")[:60]]
     bot = BotRival()

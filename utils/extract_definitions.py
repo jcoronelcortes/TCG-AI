@@ -1,6 +1,6 @@
 """Moves PURE definitions out of main.py into package modules (waves 2 and 4).
 
-It complements `utils/extraer_puros.py` (which moves constants): this moves
+It complements `utils/extract_pure.py` (which moves constants): this moves
 functions and classes, which bring two problems constants do not have.
 
   1. CLOSURE. If a moved function calls another that stays in main.py, it blows up
@@ -14,7 +14,7 @@ functions and classes, which bring two problems constants do not have.
      derived from the free names of the moved set and distributed according to where
      each name came from in main.py (stdlib, cg.api, ptcg.cartas.ids).
 
-Purity is decided by `utils/pureza.py`; here only what that one already
+Purity is decided by `utils/purity.py`; here only what that one already
 declared movable is moved, and it aborts if something in the batch is not.
 
 The batch is described in a Python file with a `MODULOS` dict:
@@ -27,8 +27,8 @@ The batch is described in a Python file with a `MODULOS` dict:
     }
 
 Usage:
-    python utils/extraer_definiciones.py lote.py            # a dry run
-    python utils/extraer_definiciones.py lote.py --aplicar
+    python utils/extract_definitions.py lote.py            # a dry run
+    python utils/extract_definitions.py lote.py --aplicar
 """
 
 import argparse
@@ -41,13 +41,13 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT / "utils"))
 
-from pureza import analizar, BUILTINS, _mapa_paquete, free_names  # noqa: E402
+from purity import analizar, BUILTINS, _mapa_paquete, free_names  # noqa: E402
 
 HEADER = '''"""{titulo}
 
-Extraido VERBATIM de main.py por utils/extraer_definiciones.py
+Extraido VERBATIM de main.py por utils/extract_definitions.py
 (docs/project-history.md). Su pureza esta comprobada por
-utils/pureza.py: nada de aqui toca el estado mutable ni las tablas de runtime.
+utils/purity.py: nada de aqui toca el estado mutable ni las tablas de runtime.
 """
 
 '''

@@ -1525,7 +1525,7 @@ def puntuar(tc, o, score):
                 # hand a card that was then illegal to play.
                 # Self-play gate vs deck/rivales/comfey_yveltal_nz.csv
                 # (the deck from THIS game, harvested with
-                # utils/cosechar_deck_rival.py; no opponent in the repo
+                # utils/harvest_opponent_deck.py; no opponent in the repo
                 # ran the Zone and that is why the gate did not cover the case):
                 # 94.2% with the fix vs 74.2% without it, 8000 games per
                 # branch. +20 points.
