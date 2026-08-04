@@ -18,7 +18,7 @@ JUSTIFIES the play: the DEFENSIVE gust (`_bo_defensive_gust`, 940) is worth it b
 there EXISTS on their bench a body that cannot finish us off... and then the selector
 brought up another one.
 
-`sin_ko_prefiere_cuerpo_muerto` (+1500, in BOTH modes) puts ahead the
+`without_a_ko_prefer_the_dead_body` (+1500, in BOTH modes) puts ahead the
 body that cannot pay for its attack even by attaching one energy. +1500 beats
 the whole no-KO band (100-1200) and does not touch the KO tiers (>= 3000), which are
 gated by `can_ko`.
@@ -168,7 +168,7 @@ def test_the_walls_and_the_locker_do_not_get_the_bonus():
 # ---------------------------------------------------------------------------
 
 def test_nuisance_breaks_the_tie_towards_the_one_that_cannot_attack():
-    """`traba_neta` only looks at who cannot pay their RETREAT. With the same
+    """`net_stuck` only looks at who cannot pay their RETREAT. With the same
     stuckness (both retreat 2, no energy), it decides who cannot pay for their
     ATTACK: the Gardevoir ex attacks for 1, the Dusclops needs 2."""
     assert m.RETREAT_COST[m.Gardevoir_ex] == m.RETREAT_COST[DUSCLOPS] == 2

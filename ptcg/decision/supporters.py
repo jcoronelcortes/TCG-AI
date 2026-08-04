@@ -36,15 +36,15 @@ def _lana_veto_duro(c):
 
 
 _RULES_LANA_PLAY = [
-    _FixedRule("veto_duro",
+    _FixedRule("hard_veto",
                _lana_veto_duro,
                lambda c: SCORE_VETO),
-    # sin_valor can be RESCUED by suelo_linea_mega (faithful to the original,
+    # no_value can be RESCUED by mega_line_floor (faithful to the original,
     # where that max() lives after the assignment of the value veto).
-    _FixedRule("sin_valor",
+    _FixedRule("no_value",
                lambda c: c.supp_values.get(Lanas_Aid, 0) <= 0,
                lambda c: SCORE_VETO),
-    _FixedRule("valor_del_supporter",
+    _FixedRule("supporter_value",
                lambda c: True,
                lambda c: (SCORE_SUPPORTER_VALUE_BASE
                           + int(c.supp_values.get(Lanas_Aid, 0) * 1.4)
@@ -55,7 +55,7 @@ _RULES_LANA_PLAY = [
 _AJUSTES_LANA_PLAY = [
     # Meganium line active with no playable energy: recovering energy from
     # the discard is worth a floor of 4500.
-    _Adjustment("suelo_linea_mega",
+    _Adjustment("mega_line_floor",
             lambda c, s: (not _lana_veto_duro(c)
                           and c.mega_line_active and s < 4500
                           and not c.state.supporterPlayed
@@ -67,7 +67,7 @@ _AJUSTES_LANA_PLAY = [
     # Rule (user, log 86509038 step 62 vs Mega Lucario, LOST): with no
     # attacker this turn, Lana's only beats Lillie's if it ENABLES an attack;
     # otherwise it yields (cap 2000, still playable in case Lillie's falls).
-    _Adjustment("cede_a_lillie_sin_ataque",
+    _Adjustment("yields_to_lillie_no_attack",
             lambda c, s: (not _lana_veto_duro(c) and s > 0
                           and c.active_cant_attack
                           and c.hand_counts.get(Lillie_Determination, 0) >= 1

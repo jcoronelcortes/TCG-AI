@@ -1343,7 +1343,7 @@ def puntuar(tc, o, score):
                     # by "Lillie already played" when the Lillie's engine
                     # is EXHAUSTED (no copy left in the deck); if there are still
                     # copies, Meowth ex keeps priority (rule
-                    # lillie_en_mazo_refresco of _RULES_UB_MEOWTH).
+                    # lillie_in_deck_refresh of _RULES_UB_MEOWTH).
                     _dp_lillie_played = (
                         discard_counts.get(Lillie_Determination, 0) >= 1
                         and AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(
@@ -1379,11 +1379,11 @@ def puntuar(tc, o, score):
                     # but it NEVER decides: it changed 0 decisions in the 929
                     # steps of the records and 0 as well in the synthetic
                     # scenario built on purpose for it. The reason is
-                    # that `cede_a_dipplin_prioritario` (10) lives at the END of
+                    # that `yields_to_priority_dipplin` (10) lives at the END of
                     # `_RULES_UB_MEOWTH`, behind the
-                    # `hydra_muerto_prefiere_meowth` /
-                    # `meganium_muerto_prefiere_meowth` /
-                    # `sin_atacante_prefiere_meowth` family (1000-1250), which is
+                    # `dead_hydra_prefers_meowth` /
+                    # `dead_meganium_prefers_meowth` /
+                    # `no_attacker_prefers_meowth` family (1000-1250), which is
                     # exactly the one that fires on the boards of this matchup.
                     #
                     # That is: the real hook of E4 is not `_dipplin_priority`
@@ -1624,7 +1624,7 @@ def puntuar(tc, o, score):
                     # NO Dipplin (neither in play nor in hand), the Ultra Ball
                     # brought Hydrapple ex -- which cannot evolve anything and
                     # stays dead in hand -- because its
-                    # `applin_evolucionable` branch (180) plus the prized-copy
+                    # `applin_evolvable` branch (180) plus the prized-copy
                     # bonus (+150 = 330) beat the Dipplin (150), which
                     # is the link that is REALLY missing. The Meganium
                     # line already got this right (Bayleef 850 > Meganium

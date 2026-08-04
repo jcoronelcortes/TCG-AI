@@ -41,7 +41,7 @@ retreat 1). The only thing that separates them is how many energies they need to
 read from the card data, never by printed damage (Powerful Hand, Cruel Arrow and
 both attacks of Gardevoir ex are listed as 0 and all of them really hit).
 
-The rule that applies it is `sin_ko_prefiere_cuerpo_muerto` (+1500, in both
+The rule that applies it is `without_a_ko_prefer_the_dead_body` (+1500, in both
 modes of the selector), documented in `docs/strategy.md`. Here BOTH sides of the
 contrast are also pinned, which is what really protects against
 a regression: the bare Drakloak wins **and** the Dragapult ex stays below.
@@ -164,7 +164,7 @@ def test_harmless_body_measures_the_attack_cost_not_the_stage():
 
 def test_budew_is_never_a_dead_body_its_attack_costs_zero():
     """Itchy Pollen costs 0: bare and all, it attacks. It is also the one already vetoed
-    by `retirada_gratis` in nuisance mode (a retreat cost of 0)."""
+    by `free_retreat` in nuisance mode (a retreat cost of 0)."""
     assert m._op_body_is_harmless(_pk(m.Budew, 0)) is False
 
 
@@ -201,7 +201,7 @@ def test_walls_pass_for_dead_which_is_why_gust_trap_ids_exists():
     """Crustle, Sylveon, Cornerstone and Iron Thorns ex have cost-3 attacks:
     bare they give a deficit of 3 and the criterion would call them "dead". They are exactly the
     bodies we do NOT want in front, which is why `GUST_TRAP_IDS` excludes them from
-    `sin_ko_prefiere_cuerpo_muerto`. It pins the premise of that list."""
+    `without_a_ko_prefer_the_dead_body`. It pins the premise of that list."""
     for trampa in sorted(m.GUST_TRAP_IDS):
         pk = _pk(trampa, 0)
         assert m._op_attack_deficit(pk) >= 2

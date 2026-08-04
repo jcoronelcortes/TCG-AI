@@ -84,11 +84,11 @@ _RULES_MEOWTH_FETCH = [
     # Dawn...) may hijack the first-turn fetch. Deck-agnostic: if the deck has
     # no reachable Lillie's (`lillie_alcanzable`), the rule degrades nobody and
     # the normal ladder decides.
-    _FixedRule("primer_turno_solo_lillie",
+    _FixedRule("first_turn_lillie_only",
                lambda c: (c.first_turn
                           and c.card_id == Lillie_Determination),
                lambda c: 1400),
-    _FixedRule("primer_turno_resto_cede_a_lillie",
+    _FixedRule("first_turn_rest_yields_to_lillie",
                lambda c: c.first_turn and c.lillie_alcanzable,
                lambda c: min(c.sv, 40)),
     # REDUNDANT COPY (user, registro_010 step 118 vs Alakazam, WON with a
@@ -101,12 +101,12 @@ _RULES_MEOWTH_FETCH = [
     # may rescue a duplicate. 40 (not a veto) because the prompt requires
     # choosing a card: if ALL the candidates were duplicates we still have to
     # keep one. Deck-agnostic.
-    _FixedRule("copia_ya_en_mano",
+    _FixedRule("copy_already_in_hand",
                lambda c: (c.hand.get(c.card_id, 0) >= 1
                           and not c.first_turn),
                lambda c: 40),
     # Winning finisher / 2 prizes via a Boss's Orders from the DECK.
-    _FixedRule("boss_ganador",
+    _FixedRule("winning_boss",
                lambda c: ((c.win_via_boss or c.gust2_via_boss)
                           and c.card_id == Boss_Orders),
                lambda c: 1300),
@@ -120,7 +120,7 @@ _RULES_MEOWTH_FETCH = [
                lambda c: (c.deny_evo_via_boss
                           and c.card_id == Boss_Orders),
                lambda c: 1280),
-    _FixedRule("lillie_desarrollo",
+    _FixedRule("lillie_development",
                lambda c: (c.devel_lillie
                           and c.card_id == Lillie_Determination),
                lambda c: 1250),
@@ -157,28 +157,28 @@ _RULES_MEOWTH_FETCH = [
                           and c.strong_attacker
                           and not c.active_cant_attack),
                lambda c: 1100),
-    _FixedRule("mano_corta",
+    _FixedRule("short_hand",
                lambda c: c.hand_size <= 2,
                lambda c: (1200 if c.card_id == Lillie_Determination
                           else min(c.sv, 100))),
-    _FixedRule("atasco_sin_energia",
+    _FixedRule("stuck_without_energy",
                lambda c: c.active_cant_attack and c.no_energy_in_hand,
                lambda c: (1200 if c.card_id == Lillie_Determination
                           else min(c.sv, 150))),
-    _FixedRule("atasco_sin_lillie_en_mano",
+    _FixedRule("stuck_without_lillie_in_hand",
                lambda c: (c.active_cant_attack and
                           c.hand.get(Lillie_Determination, 0) == 0),
                lambda c: (1200 if c.card_id == Lillie_Determination
                           else min(c.sv, 150))),
-    _FixedRule("sin_atacante_mano_media",
+    _FixedRule("no_attacker_medium_hand",
                lambda c: not c.strong_attacker and c.hand_size <= 5,
                lambda c: (1000 if c.card_id == Lillie_Determination
                           else min(c.sv, 200))),
-    _FixedRule("sin_atacante",
+    _FixedRule("no_attacker",
                lambda c: not c.strong_attacker,
                lambda c: (800 if c.card_id == Lillie_Determination
                           else min(c.sv, 400))),
-    _FixedRule("valor_del_supporter",
+    _FixedRule("supporter_value",
                lambda c: True,
                _v_meowth_fetch_value),
 ]

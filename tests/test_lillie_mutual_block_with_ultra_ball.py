@@ -17,7 +17,7 @@ The Lillie's came from the *Last-Ditch Catch* of a Meowth ex played that same tu
 Cause: a **mutual block** between two vetoes that, each on its own, are
 correct:
 
-  * `ultra_ball_completa_linea` (a Lillie's rule) -- "do not play Lillie's:
+  * `ultra_ball_completes_the_line` (a Lillie's rule) -- "do not play Lillie's:
     it would shuffle away the Ultra Ball I am going to build Applin → Dipplin →
     Hydrapple ex with". It switches on because the gap exists **on paper**: Applin
     in play, Hydrapple ex in hand, Dipplin in the deck.
@@ -118,7 +118,7 @@ def test_step_116_has_both_halves_of_the_block():
     hand = [c["id"] for c in yo["hand"]]
     campo = [p["id"] for p in yo["active"] + [b for b in yo["bench"] if b]]
 
-    # the line gap that switches on `ultra_ball_completa_linea`...
+    # the line gap that switches on `ultra_ball_completes_the_line`...
     assert ULTRA_BALL in hand and HYDRAPPLE in hand
     assert APPLIN in campo and m.Dipplin not in campo
     # ...and the Lillie's as the ONLY Supporter in hand.

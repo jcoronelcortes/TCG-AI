@@ -339,7 +339,7 @@ def puntuar(tc, o, score):
                         # 22000), exempt on the argument that they "search for
                         # a Boss's that IS PLAYED this turn, it is not shuffled". That
                         # argument is FALSE: `_RULES_BOSS_PLAY` vetoes the Boss's
-                        # with `cede_a_unfair_stamp` (and the same is done by the
+                        # with `yields_to_unfair_stamp` (and the same is done by the
                         # Xerosic/Lillie's/Dawn/Lana's scorers: ALL the
                         # `_SUPP_PLAY_IDS` yield to the Stamp), so the fetched Boss's
                         # canNOT be played this turn and on top of that gets
@@ -1190,8 +1190,8 @@ def puntuar(tc, o, score):
                 # played afterwards. Vetoing it was, on top of that, a CIRCULAR BLOCK of
                 # three pieces (the same class as step 78): the Fezandipiti
                 # just dug out with the Ultra Ball was not put down (this veto), the
-                # Boss's was not played (`cede_a_unfair_stamp`) and the Unfair Stamp
-                # stayed at 2000 (`mano_con_pokemon_o_evo`: "put the Pokemon down first").
+                # Boss's was not played (`yields_to_unfair_stamp`) and the Unfair Stamp
+                # stayed at 2000 (`hand_with_a_pokemon_or_evo`: "put the Pokemon down first").
                 # The Stamp won by elimination and SHUFFLED into the deck
                 # the Fezandipiti that had just cost two cards -- and with it,
                 # the very Boss's this veto was yielding the turn to. The Fezandipiti

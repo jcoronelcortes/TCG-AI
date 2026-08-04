@@ -24,7 +24,7 @@ def _v_bcs_base(w):
 
 
 _RULES_BCS_PLAY = [
-    _FixedRule("sin_elegibles_en_mazo",
+    _FixedRule("no_eligible_cards_in_deck",
                lambda w: w.elegibles == 0,
                lambda w: SCORE_VETO),
     # Deck-out brake (step 4 of the jul 2026 plan; autopsy v2 vs crustle: 4/19
@@ -35,7 +35,7 @@ _RULES_BCS_PLAY = [
     # (the one that motivated the BCS of the anti-mill plan vs Comfey, b393426):
     # with no Grass in hand and the turn's attachment still pending, digging out
     # the energy enables attacking TODAY, and that is worth more than the clock.
-    _FixedRule("freno_deckout_mazo_critico",
+    _FixedRule("deckout_brake_critical_deck",
                lambda w: (getattr(w.my_state, 'deckCount', 60) <= 8
                           and not (w.hand_counts[Basic_Grass_Energy] == 0
                                    and not w.state.energyAttached)),
@@ -47,33 +47,33 @@ _RULES_BCS_PLAY = [
 
 
 _AJUSTES_BCS_PLAY = [
-    _Adjustment("prob_encontrar",
+    _Adjustment("probability_of_finding",
             lambda w, s: s > 0,
             lambda w, s: s + (800 if w.p_find >= 0.9
                               else (500 if w.p_find >= 0.7
                                     else (200 if w.p_find >= 0.5
                                           else -300)))),
-    _Adjustment("piezas_alto_valor",
+    _Adjustment("high_value_pieces",
             lambda w, s: s > 0 and w.high_value >= 1,
             lambda w, s: s + (600 if w.high_value >= 3
                               else (400 if w.high_value >= 2 else 200))),
-    _Adjustment("lineas_incompletas",
+    _Adjustment("incomplete_lines",
             lambda w, s: s > 0 and (not w.meganium_in_play
                                     or not w.has_hydrapple),
             lambda w, s: s + (300 if (not w.meganium_in_play
                                       and not w.has_hydrapple) else 150)),
-    _Adjustment("energia_seca",
+    _Adjustment("dry_energy",
             lambda w, s: (s > 0 and w.hand_counts[Basic_Grass_Energy] == 0
                           and not w.state.energyAttached),
             lambda w, s: s + 200),
-    _Adjustment("cavar_energia_belief",
+    _Adjustment("dig_energy_by_belief",
             lambda w, s: (s > 0 and w.hand_counts[Basic_Grass_Energy] == 0
                           and not w.state.energyAttached
                           and w.energy_starved_low_draw
                           and w.energy_in_deck > 0),
             lambda w, s: s + SCORE_BELIEF_DIG_ENERGY),
     # With Poke Pad playable (and without Itchy Pollen), BCS yields: cap 9000.
-    _Adjustment("tope_si_pokepad_jugable",
+    _Adjustment("cap_if_pokepad_playable",
             lambda w, s: (w.pp_playable_in_hand
                           and not w.itchy_pollen_active and s > 9000),
             lambda w, s: 9000),

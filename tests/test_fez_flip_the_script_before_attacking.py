@@ -25,9 +25,9 @@ Cause: a CIRCULAR BLOCK between three rules that are correct on their own.
     ability" (`_lillie_blocks_fez_ability`), so that Lillie's does not shuffle
     the 3 drawn cards back;
   * Lillie's vetoes itself by yielding to an executable Boss's
-    (`cede_a_boss_ejecutable`, -1);
+    (`yields_to_executable_boss`, -1);
   * and Boss's is downgraded to 20 by yielding to Lillie's with no bench attacker
-    (`sin_atacante_banca_cede_a_lillie`).
+    (`no_bench_attacker_yields_to_lillie`).
 
 None of the three is played, the attack (1100) wins the menu and the ability dies.
 
@@ -166,11 +166,11 @@ def test_step78_the_circular_block_really_exists():
 
 def test_step78_the_exact_window_of_the_circular_block():
     """Pins the ctx window in which the two rules yield the turn to each other, so
-    that a future change in `cede_a_boss_ejecutable` / `_boss_yields_to_dig` does not
+    that a future change in `yields_to_executable_boss` / `_boss_yields_to_dig` does not
     move it unnoticed: no bench attacker ready, a gustable pre-evo THREAT
     and an active doomed ONLY according to `attack_table`.
 
-    Closing the asymmetry (making `cede_a_boss_ejecutable` also look at
+    Closing the asymmetry (making `yields_to_executable_boss` also look at
     `active_doomed_real`, as `_boss_yields_to_dig` does) was MEASURED and came out at -0.39
     points with n=7000 per branch across 4 matchups; see the rule's comment in
     main.py. Here the turn is rescued by the deferrable ORDER veto: with no playable

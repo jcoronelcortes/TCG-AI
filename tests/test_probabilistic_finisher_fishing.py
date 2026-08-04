@@ -34,8 +34,8 @@ dead cards: the Ultra Ball discarded them to pay its cost.
 
 THE BUG: "digging" was not measured, it was assumed
 ---------------------------------------------------
-Lillie's ordering vetoes (`ultra_ball_completa_linea`,
-`cede_a_boss_ejecutable`) treat the refill as a generic development play that
+Lillie's ordering vetoes (`ultra_ball_completes_the_line`,
+`yields_to_executable_boss`) treat the refill as a generic development play that
 can always wait. When the draw is the ONLY line that attacks this turn,
 that is false -- and how much it is worth depends on a number the agent never
 computed: the probability that the draw brings the energy.

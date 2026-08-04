@@ -133,7 +133,7 @@ class DecisionContext:
     grand_tree_ability_pending: bool = False
     # The EX-IMMUNE WALL (Crustle / Sylveon) is the opposing ACTIVE and our active
     # KNOCKS IT OUT this turn (damage via `_our_effective_damage`, with the Sturdy
-    # cap applied). The `rematar_muro_inmune_antes_de_gustear` rule consults it:
+    # cap applied). The `finish_the_immune_wall_before_gusting` rule consults it:
     # gusting would move the wall to the bench and waste the only window in which
     # one of our NON-ex bodies can kill it (registro_006 step 47).
     # Default False: unit tests build the ctx directly.
@@ -152,7 +152,7 @@ class DecisionContext:
     # MATCH POINT against the opposing ACTIVE: knocking it out WINS the game (it is
     # worth at least the prizes we are missing) and the finisher is on the BENCH --
     # retreat -> promote -> attack, with the retreat payable. The
-    # `remate_ganador_al_activo_tras_retirar` rule consults it: gusting would swap
+    # `winning_finisher_on_the_active_after_retreating` rule consults it: gusting would swap
     # the opposing active for a body worth FEWER prizes and throw away the winning
     # turn (registro_010 step 144). See the `_win_ko_active_via_promote` block.
     # Default False: unit tests build the ctx directly.
@@ -160,8 +160,8 @@ class DecisionContext:
     # FINISHER FISHING (`_FinisherFishing` or None): the turn has no attack available,
     # but the refill DRAW may bring the energy that unlocks one -- with its
     # hypergeometric probability already computed over the deck belief. It is
-    # consulted by Lillie's `pescar_energia_para_remate` rule and by Boss's
-    # `cede_a_pesca_de_remate` yield (registro_004 step 49 vs Marnie).
+    # consulted by Lillie's `fish_energy_for_the_finisher` rule and by Boss's
+    # `yields_to_finisher_fishing` yield (registro_004 step 49 vs Marnie).
     # Default None: unit tests build the ctx directly.
     finisher_fishing: object = None
     # ITEM LOCK THREAT: the opponent can leave us without Items on OUR next turn

@@ -92,7 +92,7 @@ def _boss_unlock_gust(ctx):
     bench with Boss's switches it off instantly (unlike Watchtower, which is a
     stadium and the gust does not touch it). In 6 dead turns of the autopsy the
     agent had Boss's in hand, an opposing bench with non-lockers... and END
-    (`sin_valor`). It also chains with Meowth ex IN HAND: Boss's first (it
+    (`no_value`). It also chains with Meowth ex IN HAND: Boss's first (it
     un-locks), Meowth afterwards -> Last-Ditch works again.
     Guards: Iron Thorns ex in the opposing ACTIVE, a non-locker on their bench
     to bring up, and the un-locking being useful to us TODAY (Ogerpon ex /
@@ -146,14 +146,14 @@ def _v_gust_net_stuck(c):
 _RULES_GUST_NUISANCE = [
     # FREE retreat cost: the opponent sends it back to the bench without paying
     # anything; it does not get in the way at all (e.g. Budew). Discarded.
-    _FixedRule("retirada_gratis",
+    _FixedRule("free_retreat",
                lambda c: c.rc0 <= 0,
                lambda c: SCORE_FORBID),
     # Latias ex (Skyliner) lets any Basic retreat for FREE: gusting a Basic does
     # not jam anything, and gusting the Latias itself is useless (user,
     # registro 010 step 76 vs Dragapult). The right target is a NON-basic (e.g.
     # Drakloak).
-    _FixedRule("latias_libera_basicos",
+    _FixedRule("latias_frees_the_basics",
                lambda c: (c.op_latias
                           and (c.card_id == Latias_ex
                                or _gust_is_basic(c.card_id))),
@@ -161,15 +161,15 @@ _RULES_GUST_NUISANCE = [
     # Bringing up an Iron Thorns ex as a NUISANCE is shooting ourselves in the
     # foot: its Initialization in the active spot LOCKS our abilities (Teal Dance /
     # Ripening / Last-Ditch) -- if one was already in front, the gust that was
-    # supposed to un-lock (gusteo_deslockea_habilidades) keeps it there; if there
+    # supposed to un-lock (gust_unlocks_abilities) keeps it there; if there
     # was none, it creates one. In OFFENSIVE mode it does not apply: gusting it to
     # KNOCK IT OUT takes 2 prizes and removes it from the board.
-    _FixedRule("estorbo_crea_lock_iron_thorns",
+    _FixedRule("nuisance_creates_the_iron_thorns_lock",
                lambda c: c.card_id == Iron_Thorns_ex,
                lambda c: SCORE_FORBID),
     # The nuisance is proportional to the NET retreat cost (the part the opponent
     # cannot pay with their energy): the higher the unpaid cost, the more it jams.
-    _FixedRule("traba_neta",
+    _FixedRule("net_stuck",
                lambda c: c.stall_diff >= 1,
                _v_gust_net_stuck),
     # It can already pay its own retreat: a bad target (default -200).
@@ -181,7 +181,7 @@ _ADJUST_GUST_NUISANCE = [
     # ALWAYS favour the HIGHEST evolution of the opposing line that a benched
     # attacker can KNOCK OUT after retreating. Without this, nuisance mode
     # prefers the basic and lets the opposing line grow.
-    _Adjustment("linea_rival_mayor_evolucion",
+    _Adjustment("opponent_line_higher_evolution",
             # c.rc0 > 0: in the original this override lives INSIDE the else of the
             # free-retreat case; it must not rescue a FORBID caused by rc0<=0.
             lambda c, s: (c.rc0 > 0 and not c.op_alakazam
@@ -192,7 +192,7 @@ _ADJUST_GUST_NUISANCE = [
     # Rule (user, registro 014 step 146 vs Alakazam): in nuisance mode,
     # PRIORITISE the Alakazam line over other support basics; trapping their
     # pre-evolution cuts the development. Kadabra > Abra > Alakazam.
-    _Adjustment("linea_alakazam_estorbo",
+    _Adjustment("alakazam_line_nuisance",
             lambda c, s: (c.op_alakazam
                           and c.card_id in ALAKAZAM_LINE_IDS),
             lambda c, s: s + {Kadabra: 350, Abra: 300,
@@ -202,16 +202,16 @@ _ADJUST_GUST_NUISANCE = [
     # evolves the same turn). The relief only works with a bare Abra or with a body
     # outside the line (user, registro_002 step 20). It goes AFTER the adjustment
     # above so it overrides its bonus.
-    _Adjustment("linea_alakazam_no_promover_atacante",
+    _Adjustment("alakazam_line_do_not_promote_the_attacker",
             lambda c, s: (c.op_alakazam and not c.can_ko
                           and c.card_id in ALAKAZAM_ATTACKER_IDS),
             lambda c, s: SCORE_FORBID),
     # Same criterion as in OFFENSIVE mode (see there), and here it weighs more: in
     # nuisance mode our active CANNOT attack, so the body we bring up hits us with
-    # no answer. `traba_neta` only looks at who cannot pay their RETREAT; this looks
+    # no answer. `net_stuck` only looks at who cannot pay their RETREAT; this looks
     # at who cannot pay their ATTACK. `s > 0` so it does not rescue a SCORE_FORBID
     # from the rules above.
-    _Adjustment("sin_ko_prefiere_cuerpo_muerto",
+    _Adjustment("without_a_ko_prefer_the_dead_body",
             lambda c, s: (s > 0 and not c.can_ko and c.body_is_harmless
                           and c.card_id not in GUST_TRAP_IDS),
             lambda c, s: s + 1500),
@@ -477,7 +477,7 @@ def _boss_gust_without_purpose(ctx):
     branches of `evaluate_supporters` that score "bring up the highest evolution
     of their line" (Dragapult, Ethan's Typhlosion, Gardevoir, Zoroark, Slowking,
     Alakazam) and the JAM branch (`stall_val`) do not require a KO, and all of
-    them end up in the reserve rule `valor_del_supporter`.
+    them end up in the reserve rule `supporter_value`.
 
     EXCEPTION: if their active is a known threat pre-evolution
     (THREAT_PREEVO_IDS / EX_PREEVO_IDS) its current attack is not read -- it
@@ -671,7 +671,7 @@ def _ctx_gust_target(card, o, my_state, op_state, state, hand_counts,
 
 
 _ADJUST_GUST_OFFENSIVE = [
-    _Adjustment("objetivo_del_plan",
+    _Adjustment("target_of_the_plan",
             lambda c, s: c.plan_target_match,
             lambda c, s: s + 100),
     # WINNING GUST (user, registro_011 vs Mega Heracross ex, WON suboptimally):
@@ -681,7 +681,7 @@ _ADJUST_GUST_OFFENSIVE = [
     # the tie towards the one worth more prizes. It covers the case where the
     # finisher was available but the game gusted an ex worth fewer prizes.
     # Deck-agnostic.
-    _Adjustment("gust_gana_partida",
+    _Adjustment("gust_wins_the_game",
             lambda c, s: c.wins_now,
             lambda c, s: s + 100000),
     _Adjustment("tier_ko",
@@ -691,23 +691,23 @@ _ADJUST_GUST_OFFENSIVE = [
     # KNOCKED OUT, a CHARGED pre-evolution of an ex line (Duraludon ->
     # Archaludon ex) erases a future 2-prize ex attacker. Effective tier
     # 6.5 (19500): above any non-ex, below a real ex.
-    _Adjustment("preevo_ex_prioritaria",
+    _Adjustment("ex_preevo_takes_priority",
             lambda c, s: (c.can_ko and c.energy >= 1 and not c.is_exmega
                           and c.card_id in EX_PREEVO_IDS),
             lambda c, s: s + max(0, 19500 - c.tier_ko * 3000)),
     # No KO possible: gust as a nuisance (the highest NET retreat cost) with the
     # anti threat pre-evolution tie-break.
-    _Adjustment("traba_sin_ko",
+    _Adjustment("stuck_without_ko",
             lambda c, s: not c.can_ko and c.stall_diff >= 1,
             lambda c, s: s + c.stall_diff * 100
             - (50 if (c.card_id in THREAT_PREEVO_IDS
                       or c.card_id in EX_PREEVO_IDS) else 0)),
     # A CHARGED copy of an opposing active with no energy: re-gusting it collects
     # on the opponent's investment.
-    _Adjustment("regust_energizado",
+    _Adjustment("regust_the_energized_one",
             lambda c, s: c.regust_energized,
             lambda c, s: s + 200),
-    _Adjustment("linea_rival",
+    _Adjustment("opponent_line",
             lambda c, s: True,
             lambda c, s: s + _gust_opponent_line(c)),
     # WITHOUT a KO what rules is WHO COMES UP to the active spot, not which is the
@@ -727,7 +727,7 @@ _ADJUST_GUST_OFFENSIVE = [
     # (>= 3000), which are gated by `can_ko`. `GUST_TRAP_IDS` excludes the walls
     # and the locker: their attacks cost 3, so bare they would pass as harmless and
     # they are exactly the bodies we do NOT want in front.
-    _Adjustment("sin_ko_prefiere_cuerpo_muerto",
+    _Adjustment("without_a_ko_prefer_the_dead_body",
             lambda c, s: (not c.can_ko and c.body_is_harmless
                           and c.card_id not in GUST_TRAP_IDS),
             lambda c, s: s + 1500),
@@ -746,7 +746,7 @@ _ADJUST_GUST_OFFENSIVE = [
             lambda c, s: SCORE_FORBID),
     # FREE retreat without a KO: the opponent sends it back to the bench at no
     # cost; it is only worth gusting when it is a real KO.
-    _Adjustment("forbid_retirada_gratis_sin_ko",
+    _Adjustment("forbid_free_retreat_without_ko",
             lambda c, s: c.rc0 <= 0 and not c.can_ko,
             lambda c, s: SCORE_FORBID),
 ]

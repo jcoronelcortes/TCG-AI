@@ -5020,7 +5020,7 @@ def test_marnie_step20_with_no_teal_dance_the_attachment_does_not_yield():
 # their hand) went on hitting for 320 and swept the board. The rule: vs Alakazam, capping the hand takes
 # priority over Boss's; Boss's only has it when it WINS the game
 # (`win_via_boss_gust`, WIN_NOW 20000). Fix: a new rule
-# `alakazam_prioridad_sobre_boss` (XEROSIC_SCORE_SOBRE_BOSS=7000, above
+# `alakazam_priority_over_boss` (XEROSIC_SCORE_SOBRE_BOSS=7000, above
 # GUST_2PRIZE) and the yielding now requires the WINNING gust (before it yielded to
 # `boss_win_via_bench`, which only takes one prize).
 # =====================================================================
@@ -6451,7 +6451,7 @@ def test_step112_ripening_charge_targets_bench_hydrapple_not_ready_active():
 # (2 prizes, energized) instead of the Mega Heracross ex (3 prizes) that it knocked out
 # to WIN. Cause: the KO tier put megaEx and ex in the same tier (8/7) and the
 # +1 for "energized" made the 2-prize ex beat the 3-prize Mega. Fix: a
-# prize-aware tier (megaEx 10/9 > ex 8/7) + the `gust_gana_partida` override.
+# prize-aware tier (megaEx 10/9 > ex 8/7) + the `gust_wins_the_game` override.
 # =====================================================================
 _BOSS_GUST_FIXTURE = (ROOT / "tests" / "fixtures"
                       / "boss_gust_prefers_higher_prize_mega_ex.json")
@@ -6541,7 +6541,7 @@ def test_meowth_fetch_lillie_still_played_without_playable_stamp():
 # _meowth_immune_boss_engine 22000), exempt on the argument that "the Boss's
 # they search for is PLAYED this turn, it is not shuffled away". The argument is FALSE: ALL
 # the scorers of `_SUPP_PLAY_IDS` (Boss's, Xerosic, Lillie's, Dawn, Lana's)
-# veto with `cede_a_unfair_stamp`, so that Boss's canNOT be played this
+# veto with `yields_to_unfair_stamp`, so that Boss's canNOT be played this
 # turn and the Stamp sends it back to the deck. In step 90 (a 210 HP Fezandipiti ex
 # on the rival bench, finishable by Wood Hammer -> `_gust_2prize_via_boss`) the
 # agent played Meowth ex, dug the Boss's, played the Stamp -- which shuffled it away
@@ -6567,7 +6567,7 @@ def test_stamp_playable_vetoes_meowth_fetch_boss():
     pid = _played_id(obs, chosen[0])
     assert pid != _MEOWTH_EX, (
         "Con Unfair Stamp jugable, NO bajar Meowth ex a cavar un Boss's Orders "
-        "que el propio Sello devuelve al mazo (y que `cede_a_unfair_stamp` "
+        "que el propio Sello devuelve al mazo (y que `yields_to_unfair_stamp` "
         f"impide jugar este turno); el agente jugo id {pid}")
 
 
@@ -6819,14 +6819,14 @@ def test_win_by_empty_bench_does_not_fire_when_opponent_has_bench():
 # =====================================================================
 # A record against Alakazam (WON): with an Ultra Ball, with NO usable attacker and after
 # a KO on the previous turn (ko_last_turn), the fetch brought Fezandipiti ex (its
-# Flip the Script draws 3 when we are knocked out: the `refill_tras_ko` rule = 1050). It is
+# Flip the Script draws 3 when we are knocked out: the `refill_after_a_ko` rule = 1050). It is
 # a mistake while the Meowth ex -> Last-Ditch Catch -> Lillie's
 # Determination engine is STILL in the deck: playing Meowth ex searches for a Lillie's and remakes the WHOLE hand
 # (up to 8 cards), opening far more options than Fezandipiti's draw of 3.
 # Fezandipiti ex is a good search ONLY if we already have a usable attacker, or if the
 # Meowth ex engine is no longer available (no copies in the deck, a full bench, 2
 # Meowth already in play, a Lillie's in hand, the Supporter already played, or a Watchtower).
-# Fix: the `refill_tras_ko` rule of _RULES_UB_FEZ yields when
+# Fix: the `refill_after_a_ko` rule of _RULES_UB_FEZ yields when
 # `no_attacker_prefer_meowth` is active (the same predicate that favours
 # Meowth). The fixture injects a KO log (fromArea PRIZE) to derive
 # ko_last_turn from a single observation. Deck-agnostic.
@@ -7008,7 +7008,7 @@ def test_alakazam_step75_control_small_op_hand_allows_lillie():
     # Boundary: with a SMALL rival hand (< 7, outside the big Powerful
     # Hand zone) the disruption engine does NOT fire -> the Ultra Ball goes back to
     # its normal veto and Lillie's is no longer vetoed by
-    # `alakazam_reserva_supporter_para_xerosic`: it refreshes as before.
+    # `alakazam_reserves_supporter_for_xerosic`: it refreshes as before.
     import copy as _copy
     obs = _copy.deepcopy(_load_alakazam_step75_obs())
     obs["current"]["players"][1]["handCount"] = 6
@@ -7202,7 +7202,7 @@ def test_marnie_step47_control_active_on_ex_line_keeps_normal():
 # Machinations when the rival hand is MINIMAL (<= 4: capping only takes 1 card away)
 # (user, registro_002 step 17 vs Alakazam, LOST): turn 2, the rival with 4 cards;
 # we searched for a Lillie's with Meowth ex and the agent played Xerosic (7000, the rule
-# `alakazam_prioridad_sobre_boss` designed for a HUGE rival hand). With a minimal rival
+# `alakazam_priority_over_boss` designed for a HUGE rival hand). With a minimal rival
 # hand the disruption value is marginal and Lillie's is worth more.
 def _load_alakazam_step17_obs():
     import json as _json
@@ -7522,7 +7522,7 @@ def test_evo_link_state_classifies_missing_link_and_orphan():
 # WON with a mistake). Meowth ex is only worth its Last-Ditch Catch, and only
 # ONE Supporter is played per turn: bringing a 2nd copy of one already in
 # hand adds nothing and on top of that exposes a 2-prize body on the bench.
-#   (a) the FETCH never picks a duplicate (the `copia_ya_en_mano` rule);
+#   (a) the FETCH never picks a duplicate (the `copy_already_in_hand` rule);
 #   (b) if the ONLY thing searchable is a duplicate, the Meowth ex play is cancelled
 #       and the turn goes on with the Supporter we already had.
 # A documented exception: our first turn (the anti-donk line with an empty bench).
@@ -7633,7 +7633,7 @@ def test_supp_play_score_orders_by_the_scale_that_decides():
                                   m.Lillie_Determination: 1})
     ctx_post = m._dc_replace(ctx, hand_counts=hand_after)
     val_lillie = m._supp_play_score(ctx_post, m.Lillie_Determination)
-    # (here the Lillie's is even VETOED by `no_barajar_ultimo_xerosic`:
+    # (here the Lillie's is even VETOED by `do_not_shuffle_the_last_xerosic`:
     # with the Xerosic in hand, shuffling it away is worse than refreshing.)
     assert val_xerosic > val_lillie, (
         f"Xerosic ({val_xerosic}) debe ganar a la Lillie's buscada "
@@ -8069,7 +8069,7 @@ def test_generic_a_second_tapu_stays_vetoed_without_a_lock():
 # non-lockers on their bench, an Ogerpon ex on ours and Meowth ex + 2x Boss's
 # Orders in hand -- and the agent closed with END (`sin_valor=-1`). The lock is
 # POSITIONAL: gusting a non-locker into the rival active spot switches it off on the spot.
-# A new rule `gusteo_deslockea_habilidades` (BOSS_SCORE_UNLOCK_GUST).
+# A new rule `gust_unlocks_abilities` (BOSS_SCORE_UNLOCK_GUST).
 _IRON_THORNS_UNLOCK_FIXTURE = (
     ROOT / "tests" / "fixtures" / "iron_thorns_t10_boss_deslockea.json")
 
@@ -8143,7 +8143,7 @@ def test_boss_does_not_unlock_with_no_engine_to_wake():
 
 def test_gust_estorbo_forbid_iron_thorns():
     """NUISANCE mode never brings up an Iron Thorns ex: it creates/keeps the lock
-    on our own engine (the rule estorbo_crea_lock_iron_thorns)."""
+    on our own engine (the rule nuisance_creates_the_iron_thorns_lock)."""
     def _ctx(card_id):
         return m._CtxGustObjetivo(
             card_id=card_id, energy=0, rc0=2, rc1=2, stall_diff=2,
@@ -8293,7 +8293,7 @@ def test_starmie_step74_plays_fez_with_flip_the_script_alive():
 
 # Record 004 turn 4 vs Team Rocket (LOST): an active Ogerpon ex at 30/210
 # DOOMED with 3 energies, a bench with only a Tapu Bulu 1e (no ready relief). The
-# deadlock `cede_a_boss_ejecutable` (Lillie's yields to Boss's) +
+# deadlock `yields_to_executable_boss` (Lillie's yields to Boss's) +
 # `boss_ko_threat_preevo` (Boss's scores the 1-prize KO of the weak Spidops)
 # spent the Supporter on a gust that left the board with no plan. A deck-agnostic
 # fix: with `active_ko_likely and not has_ready_bench_attacker`,

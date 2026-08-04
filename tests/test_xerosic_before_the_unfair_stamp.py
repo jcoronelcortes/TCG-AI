@@ -26,7 +26,7 @@ ORDER — and they do different things with those 18 cards:
   discard FOR GOOD**; the Stamp leaves them at 2 all the same. The same board at the
   end of the turn, with half the rival deck dead.
 
-Why it failed: `cede_a_unfair_stamp` in `_RULES_XEROSIC_PLAY` vetoed
+Why it failed: `yields_to_unfair_stamp` in `_RULES_XEROSIC_PLAY` vetoed
 Xerosic **whenever** the Stamp was playable. That veto is right for
 Lillie's/Dawn/Lana's (the Stamp would shuffle away what they have just brought) but not for
 Xerosic, whose effect is immediate and irreversible and which the Stamp cannot undo.
@@ -34,7 +34,7 @@ Xerosic, whose effect is immediate and irreversible and which the Stamp cannot u
 Fix (`_xr_before_the_stamp`, deck-agnostic): with the Stamp playable, Xerosic
 in hand, the Supporter slot free and the rival hand >=
 `XEROSIC_STAMP_ORDEN_MIN_OP_HAND` (10), the order is reversed — Xerosic keeps
-its score and it is the **Stamp** that yields (`cede_el_orden_a_xerosic`). It is an ORDER
+its score and it is the **Stamp** that yields (`yields_the_order_to_xerosic`). It is an ORDER
 veto and it **auto-revokes**: as soon as Xerosic is played, `supporterPlayed`
 turns True, the predicate switches off and the Stamp is played in the same turn.
 
@@ -190,8 +190,8 @@ def test_with_no_xerosic_in_hand_the_stamp_is_played_normally():
 
 
 def test_if_xerosic_is_not_going_to_be_played_the_stamp_does_not_yield():
-    """Guard of `cede_el_orden_a_xerosic`: if some other rail knocks Xerosic down to
-    `XEROSIC_SCORE_LAST_RESORT` (e.g. `alakazam_cede_a_gusteo_ganador`, where
+    """Guard of `yields_the_order_to_xerosic`: if some other rail knocks Xerosic down to
+    `XEROSIC_SCORE_LAST_RESORT` (e.g. `alakazam_yields_to_winning_gust`, where
     the turn is decided by a Boss's), the Stamp does not yield the way to anyone."""
     # Xerosic has to be patched in `ptcg.decision.disrupcion`, NOT in `main`:
     # the one that consults it is `_score_unfair_stamp_play`, which lives in that same

@@ -245,10 +245,10 @@ def test_switching_off_festival_lead_comes_before_the_evolution_chain():
     the double attack kills us on this one. Below the Meowth engine, which on top of that
     is irreversible."""
     names = [r.name for r in m._RULES_FOREST_PLAY]
-    assert names.index("reactivar_motor_meowth_vs_watchtower") \
-        < names.index("apagar_festival_lead") \
-        < names.index("habilita_cadena_evolutiva") \
-        < names.index("reemplazar_estadio_rival")
+    assert names.index("revive_the_meowth_engine_vs_watchtower") \
+        < names.index("switch_off_festival_lead") \
+        < names.index("enables_the_evolution_chain") \
+        < names.index("replace_the_opponent_stadium")
 
 
 def test_the_hostile_flag_needs_the_opponent_line():

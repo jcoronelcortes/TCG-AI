@@ -98,18 +98,18 @@ def _pp_evolution_pending_search(c):
 
 
 _RULES_PP_PLAY = [
-    _FixedRule("sin_buscables",
+    _FixedRule("nothing_to_search_for",
                lambda c: not _pp_buscables(c),
                lambda c: SCORE_VETO),
-    _FixedRule("primer_turno",
+    _FixedRule("first_turn",
                _pp_es_t1,
                _v_pp_t1),
-    _FixedRule("evolucion_este_turno",
+    _FixedRule("evolution_this_turn",
                lambda c: _pp_evo_value(c) > 0,
                lambda c: (23000 if _pp_evo_value(c) >= 1100
                           else (22000 if _pp_evo_value(c) >= 900
                                 else 20000))),
-    _FixedRule("asegurar_chikorita",
+    _FixedRule("secure_chikorita",
                lambda c: (Chikorita in _pp_buscables(c)
                           and not c.meganium_in_play
                           and (c.field_counts.get(Chikorita, 0)
@@ -118,7 +118,7 @@ _RULES_PP_PLAY = [
                           and c.hand_counts.get(Chikorita, 0) == 0
                           and c.bench_count < 5),
                lambda c: 12800),
-    _FixedRule("asegurar_applin",
+    _FixedRule("secure_applin",
                lambda c: (Applin in _pp_buscables(c) and c.bench_count < 5),
                lambda c: 12600),
 ]
@@ -126,7 +126,7 @@ _RULES_PP_PLAY = [
 
 _AJUSTES_PP_PLAY = [
     # Search for Tapu Bulu as a 1-prize sacrifice (pivot vs Lucario).
-    _Adjustment("sacrificio_lucario_tapu",
+    _Adjustment("lucario_tapu_sacrifice",
             lambda c, s: (c.lucario_sac_pivot
                           and Tapu_Bulu in _pp_buscables(c)
                           and c.field_counts.get(Tapu_Bulu, 0) == 0
@@ -135,7 +135,7 @@ _AJUSTES_PP_PLAY = [
             lambda c, s: 13000),
     # Bench full and no pre-evolution to evolve WITH A SEARCH: keep the
     # resource (Poke Pad excludes the Dipplin->Hydrapple ex line).
-    _Adjustment("banca_llena_guardar",
+    _Adjustment("full_bench_keep_it",
             lambda c, s: (c.bench_count >= 5
                           and not _pp_evolution_pending_search(c)
                           and s > 0 and not _pp_budew_dump(c)),

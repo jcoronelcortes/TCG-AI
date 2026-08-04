@@ -23,19 +23,19 @@ Two independent mistakes in the same play:
    head-on, or to get out of the way the body that is going to hit us. Here there
    was no KO available and their active could not attack on their turn: *Cruel Arrow* costs
    3 energies and the Fezandipiti ex was bare (with one attachment it reaches 1).
-   -> `gusteo_sin_proposito`, deck-agnostic.
+   -> `gust_without_purpose`, deck-agnostic.
 
 2. **In THIS matchup bringing up the line is doing their work for them.** Abra -> Kadabra ->
    Alakazam is the deck's only attacking line. The only gust without a KO that
    pays off is the reverse one -- their Kadabra/Alakazam is already active WITH energy and we
    send it to the bench in exchange for a body that does not attack (`relief`).
-   -> `no_regalar_linea_alakazam`.
+   -> `do_not_give_away_the_alakazam_line`.
 
 The evaluation the gust came out of was the `elif op_is_alakazam_deck` branch
 of `evaluate_supporters`: it scored 700 for "bring up the highest evolution of the line
 on the bench" without requiring a KO (a bench Abra > the active Fezandipiti, which is not
 in the line). The 700 got past the turn-2 ceiling (200) and reached the reserve
-rule `valor_del_supporter`: 2400 + 200*1.4 = 2680, above the END.
+rule `supporter_value`: 2400 + 200*1.4 = 2680, above the END.
 
 Golden corpus: a single flip, this step's (1/93 decisions).
 """

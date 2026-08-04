@@ -164,7 +164,7 @@ def finalizar(tc):
         stadium_id != 0 and stadium_id != Forest_of_Vitality)
     # vs CRUSTLE, GOING SECOND: the stadium goes down BEFORE the Lillie's
     # (user's rule). Ordering mirror of the rule
-    # `t1_segundos_crustle_estadio_antes_de_lillie` of `_RULES_FOREST_PLAY`:
+    # `t1_second_crustle_stadium_before_lillie` of `_RULES_FOREST_PLAY`:
     # without this exception the hard veto here (-99999) crushed the score that
     # rule grants and the stadium went back into the deck with Lillie's shuffle.
     # The Crustle deck does not play a stadium (or runs one or two copies), so
@@ -254,9 +254,9 @@ def finalizar(tc):
     #   * the ability is vetoed because "first Lillie's Determination, THEN the
     #     ability" (`_lillie_blocks_fez_ability`),
     #   * Lillie's is vetoed because it yields to an executable Boss's
-    #     (`cede_a_boss_ejecutable`),
+    #     (`yields_to_executable_boss`),
     #   * and Boss's is degraded to 20 because it yields to Lillie's with no
-    #     benched attacker (`sin_atacante_banca_cede_a_lillie`).
+    #     benched attacker (`no_bench_attacker_yields_to_lillie`).
     # None of the three is played and the ability dies with the turn.
     #
     # The fix attacks the whole class of error, not this trio: an ORDERING veto
@@ -330,7 +330,7 @@ def finalizar(tc):
     # slot -- but it is not evaluated on OUR FIRST TURN (the anti-donk line
     # benches the Meowth anyway) and, above all, it forces nothing AFTER the fetch.
     # The play scorer decided again from scratch with the new hand and there a
-    # board veto governed (`no_barajar_ultimo_xerosic`, -1) which ignores that the
+    # board veto governed (`do_not_shuffle_the_last_xerosic`, -1) which ignores that the
     # Lillie's is already PAID FOR with a 2-prize body.
     #
     # The rule is about COMMITMENT, not value: once the resource is spent, the
@@ -371,7 +371,7 @@ def finalizar(tc):
         _TIER_KO_ENERGY = 60
         # The Grand Tree ability goes ABOVE any stadium play: if we put ours down
         # first (Forest, tier STADIUM), the Grand Tree would go to the discard
-        # with the free chain uncashed. The `esperar_habilidad_grand_tree` veto of
+        # with the free chain uncashed. The `wait_for_the_grand_tree_ability` veto of
         # `_RULES_FOREST_PLAY` covers the same case by score; this tier covers it
         # by ORDER, which is what really rules when two plays live in different
         # tiers.
@@ -570,7 +570,7 @@ def finalizar(tc):
     # which is DECK-AGNOSTIC (it protects equally against any mill) and does not
     # block the rescue when the deck can easily take it: there the deck had 38
     # cards and the refill left it at 33, nowhere near deck-out.
-    # Threshold <= 10 = "critical deck", the same one as `freno_deckout_mazo_critico`.
+    # Threshold <= 10 = "critical deck", the same one as `deckout_brake_critical_deck`.
     # The rescue only overrides "doing nothing", so on the turns vs Comfey that DO
     # produce something (the Ogerpon-only plan) the reserve stays intact.
     _lil_draw = 8 if my_prize >= 6 else 6
@@ -838,7 +838,7 @@ def finalizar(tc):
             # (Watchtower) or with the Last-Ditch already spent
             # (`_meowth_ld_free`), the PLAY branch will veto it when putting it
             # down and the Ultra Ball will have burned 2 cards for a dead card.
-            # Same criterion as the fetch (`last_ditch_no_produce`) and as
+            # Same criterion as the fetch (`last_ditch_produces_nothing`) and as
             # `_ub_dig_meowth_gets_played`.
             _st_meowth_useful = (not state.supporterPlayed
                                and not meowth_ability_lock

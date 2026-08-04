@@ -20,7 +20,7 @@ retreating) and the **Crustle at 30 HP** (1 prize, which *Solar Beam* itself kno
 
 Cause: `_bo_active_attack_sufficient`. The rule "if the attack on the active leaves it
 below 100 HP, keep the Boss's" set `values[Boss_Orders] = 0` **and**
-cancelled `_boss_prize_rank`, leaving the Supporter at `sin_valor` -> VETO. That
+cancelled `_boss_prize_rank`, leaving the Supporter at `no_value` -> VETO. That
 erasure overrode the **970** the scoring itself had already given it through
 `_bo_best_bench_prize (1) > _bo_active_prize (0)`. The rule had exceptions for
 deny_evo / key_bench / defensive / win_via_bench, but not for the most basic one:

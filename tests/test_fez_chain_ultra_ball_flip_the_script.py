@@ -27,9 +27,9 @@ turn":
      * playing the Fezandipiti was vetoed by the Req H ORDERING veto
        (`_lucario_riolu_gust`: "vs Mega Lucario with a gustable Riolu, yield the
        play to the Boss's"),
-     * the Boss's was vetoed by `cede_a_unfair_stamp` ("the Stamp first, since it
+     * the Boss's was vetoed by `yields_to_unfair_stamp` ("the Stamp first, since it
        shuffles the hand"),
-     * and the Stamp stayed at 2000 through `mano_con_pokemon_o_evo` ("put the
+     * and the Stamp stayed at 2000 through `hand_with_a_pokemon_or_evo` ("put the
        Pokemon in hand down first").
    The Stamp won by elimination and took into the deck the Fezandipiti AND the very
    Boss's that Req H was yielding the turn to.

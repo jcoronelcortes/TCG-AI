@@ -14,7 +14,7 @@ Scenario (user, episode 88706549 registro_006 step 47 vs Crustle, LOST):
     prizes left: 6 - 6
 
 The agent played **Boss's Orders** to bring up the Teal Mask Ogerpon ex from their bench
-and knock it out with Wood Hammer: 2 prizes (`gusteo_2_premios`, 6800) against the 1
+and knock it out with Wood Hammer: 2 prizes (`gust_for_2_prizes`, 6800) against the 1
 prize of the Crustle. Arithmetically it gains a prize; strategically it loses the
 game, because the Crustle stays on the table **unharmed**:
 
@@ -35,7 +35,7 @@ pieces:
     active KNOCKS IT OUT this turn. The damage is measured with the central evaluator
     `_our_effective_damage`, which applies the *Sturdy* cap of Crustle 533
     (at full life it survives on 10 HP): there there is NO KO and the rule stays quiet.
- 2. The rule `rematar_muro_inmune_antes_de_gustear` of `_RULES_BOSS_PLAY`,
+ 2. The rule `finish_the_immune_wall_before_gusting` of `_RULES_BOSS_PLAY`,
     right below the WINNING gust: it vetoes playing Boss's. The flag also switches off
     `gust_2prize_via_boss`/`_deny_evo_via_boss`, which feed the
     Meowth ex -> Last-Ditch -> Boss's engine (digging the card is not worth it either).

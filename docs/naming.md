@@ -124,12 +124,16 @@ already read this way keep their shape.
 **Verbs for actions, nouns for values.** `score_boss_orders_play` returns a
 score; `apply_rules` does something.
 
-**Rule labels are data, not code.** The first argument of `_ReglaFija(...)` is a
-label that shows up in `PTCG_DEBUG` traces and is quoted in docs and in the
-decision notes. Those strings stay in Spanish on purpose: renaming them would
-break the trail back to the write-up that justifies each rule.
+**Rule labels read as claims.** The first argument of `_FixedRule(...)` is the
+label that shows up in `PTCG_DEBUG` traces, so it is written the way the trace
+should read: `winning_gust`, `no_bench_attacker_yields_to_lillie`,
+`finish_the_immune_wall_before_gusting`. They were the last thing left in
+Spanish, and they moved once the project became something English speakers
+read. Notes written before that rename quote the old spellings; the map in
+`utils/rename_maps/25-rule-labels.tsv` is the bridge.
 
-**The CLI of `utils/` stays in Spanish.** Flags (`--games`, `--opponent`,
-`--weights`, `--control-card`) and printed output are the interface of tools that
-are run by hand every day; renaming them breaks muscle memory and local scripts
-for no gain.
+**The CLI of `utils/` is English.** Flags, `--help` text and printed reports
+all are: a tool whose interface is in another language is a wall at the first
+command. `tests/test_cli.py` keeps it that way -- it fails on a Spanish flag,
+and on any `args.X` a script reads that its parser never sets. The old-to-new
+flag table lives in [docs/tools.md](tools.md).

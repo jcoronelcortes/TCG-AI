@@ -20,16 +20,16 @@ playing it fires Last-Ditch Catch -> it searches the deck for a Supporter
 (Lillie's Determination) -> it is played -> the whole hand is remade. A dead turn
 in attack terms is not fixed with development; it is fixed with cards.
 
-Why it failed: the `ns->meganium` table gave 990 (`bayleef_evolucionable`, which
+Why it failed: the `ns->meganium` table gave 990 (`bayleef_evolvable`, which
 only looks at whether there is an unevolved Bayleef in play) and `ns->meowth`'s
-gave 800 at most (`fetch_supporter_del_mazo`, capped at `min(700, the value of the best
+gave 800 at most (`fetch_supporter_from_deck`, capped at `min(700, the value of the best
 Supporter in the deck)`). Development ALWAYS won.
 
 Fix (deck-agnostic): `_no_attack_today` measures with `ATTACK_ENERGY_REQ` whether
 some body gets to attack today -- the active as it stands, a bench attacker
 the active can bring up by paying its retreat, or either of the two with ONE
 energy more if a charging route is still open. If nobody gets there and the hand runs dry
-(<= 2 cards), the rule `motor_de_robo_turno_muerto` puts Meowth ex at 1250
+(<= 2 cards), the rule `draw_engine_on_a_dead_turn` puts Meowth ex at 1250
 and Fezandipiti ex at 1200, above all the development (990 + 200 from the
 last-copy bonus = 1190) and below the energy that produces an attack
 TODAY (1300/1400), which never coexists with a dead turn.

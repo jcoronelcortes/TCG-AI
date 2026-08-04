@@ -327,7 +327,7 @@ EX_IMMUNE_IDS = {Crustle_Grass, Crustle_Fighting, Sylveon}
 # "ex-immune wall" flag and it also switches on with Sylveon/Eevee, which share
 # the immunity but NOT the rest of the deck. Rules that depend on how the
 # Crustle deck is BUILT -- e.g. that it barely plays a stadium, see
-# `t1_segundos_crustle_estadio_antes_de_lillie` -- have to look at this list,
+# `t1_second_crustle_stadium_before_lillie` -- have to look at this list,
 # not at the flag.
 CRUSTLE_LINE_IDS = {Crustle_Grass, Crustle_Fighting,
                     Dwebble_Grass, Dwebble_Fighting}

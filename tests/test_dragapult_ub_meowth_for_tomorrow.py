@@ -43,8 +43,8 @@ Its two new pieces are shared with whoever already decided the same thing:
   * `_no_attacker_for_tomorrow` -- one turn further than `_no_attack_today`:
     it counts next turn's attachment and the evolutions the hand completes.
 
-The fetch has its own half (`bloqueo_de_items_manana` in `_RULES_UB_MEOWTH`,
-above `last_ditch_no_produce`): without it the already paid-for search would have
+The fetch has its own half (`item_lock_tomorrow` in `_RULES_UB_MEOWTH`,
+above `last_ditch_produces_nothing`): without it the already paid-for search would have
 brought back anything else.
 """
 
@@ -219,7 +219,7 @@ def test_menu_b_the_paid_search_fetches_the_meowth_ex():
     obs = _menu_fetch()
     assert _play(obs, m.agent(obs)) == ("CARTA", MEOWTH), (
         "la Ultra Ball se pagó EXACTAMENTE por este cuerpo; sin la regla "
-        "`bloqueo_de_items_manana` el veto `last_ditch_no_produce` la "
+        "`item_lock_tomorrow` el veto `last_ditch_produces_nothing` la "
         "desviaba a otra carta")
 
 

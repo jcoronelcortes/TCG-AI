@@ -30,9 +30,9 @@ THREE links failed at once, which is why none of the existing vetoes
 stopped the play:
 
   1. THE FETCH did not check that the ability could produce anything: the rule
-     `lillie_en_mazo_refresco` gave 1000 to Meowth ex (beating Chikorita 30 /
+     `lillie_in_deck_refresh` gave 1000 to Meowth ex (beating Chikorita 30 /
      Meganium 25 / Bayleef 20) by looking only at whether a Lillie's was left in the deck.
-     Fix: `last_ditch_no_produce` (with the Supporter played or the Last-Ditch
+     Fix: `last_ditch_produces_nothing` (with the Supporter played or the Last-Ditch
      already spent, Meowth falls to 10, as with Watchtower).
   2. THE ANTI-STERILE-TURN NET resurrected the vetoed Ultra Ball at 200 because it
      read `scores[best] <= 0` as "the turn ends in END". That is not the same: a

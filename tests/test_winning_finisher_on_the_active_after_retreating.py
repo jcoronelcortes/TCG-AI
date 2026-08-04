@@ -35,7 +35,7 @@ and `_bpr_active_can_ko` inside `_boss_prize_rank`. With the Fezandipiti
 stuck (2 effective, its attack asks for 3) that gives 0 damage, hence
 `_bo_active_prize = 0`: the 2-prize Grimmsnarl ex counted as ZERO
 prizes and any 1-prize bench body beat it. Boss's scored
-5200 (`gusteo_por_prize_rank`) against the retreat's 3500.
+5200 (`gust_by_prize_rank`) against the retreat's 3500.
 
 The asymmetry is the failure, not the number: for BENCH targets that same
 block DOES look through the retreat (`_bench_attacker_can_ko`, both in

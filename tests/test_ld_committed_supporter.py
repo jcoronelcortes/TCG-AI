@@ -31,7 +31,7 @@ Cause: NOBODY forced the search to be cashed in.
     FIRST TURN (the anti-donk line puts the Meowth down anyway) and, above all, it does not
     force anything AFTER the fetch;
   * with the new hand the play scorer decided again from scratch and there a
-    BOARD veto governed -- `no_barajar_ultimo_xerosic` (-1), which
+    BOARD veto governed -- `do_not_shuffle_the_last_xerosic` (-1), which
     protects access to the Xerosic's Machinations vs Alakazam -- which knows nothing
     about the Lillie's already being PAID FOR with a 2-prize body.
 
@@ -176,7 +176,7 @@ def test_step22_the_menu_really_offered_both_plays():
 
 def test_step22_the_commitment_is_the_only_thing_that_decides():
     """It documents the state that made the mistake inevitable: with the board of that
-    menu, the Lillie's scorer VETOES it (`no_barajar_ultimo_xerosic`) and the Dawn
+    menu, the Lillie's scorer VETOES it (`do_not_shuffle_the_last_xerosic`) and the Dawn
     one scores positive. Without the commitment, Dawn wins."""
     obs_list = _observaciones()
     visto = {}
