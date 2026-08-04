@@ -158,9 +158,9 @@ def test_paso118_una_planta_pone_a_atacar_al_tapu_bulu():
     assert tapu.id == TAPU
     assert len(tapu.energies) == 2 and m.ATTACK_ENERGY_REQ[TAPU] == 4
 
-    plan = m._plan_de_planta(mi, o.current, campo, mano)
-    assert plan.desbloquea_hoy
-    assert plan.cartas_para_atacar == 1
+    plan = m._grass_plan(mi, o.current, campo, mano)
+    assert plan.unlocks_today
+    assert plan.cards_to_attack == 1
     assert plan.demanda == 3          # the Meganium/Ogerpon ask for the rest
 
 
@@ -207,7 +207,7 @@ def _plan(activo, banca=(), mano=(), energia_jugada=False, cambio=False):
     cuentas = {}
     for c in (mi.hand or []):
         cuentas[c.id] = cuentas.get(c.id, 0) + 1
-    return m._plan_de_planta(mi, o.current, campo, cuentas,
+    return m._grass_plan(mi, o.current, campo, cuentas,
                              can_switch=cambio)
 
 
@@ -217,14 +217,14 @@ def test_plan_todos_cargados_no_hay_demanda():
     plan = _plan(pk(TAPU, energias=[G] * 4, fisicas=4),
                  banca=[pk(OGERPON, energias=[G] * 3, fisicas=3)])
     assert plan.demanda == 0
-    assert not plan.desbloquea_hoy
+    assert not plan.unlocks_today
 
 
 def test_plan_sin_adjunte_libre_no_desbloquea_pero_sigue_habiendo_demanda():
     """With the manual attachment spent and no charging abilities, the Grass does not reach
     the field TODAY -- but it goes to hand and the attacker goes on asking for it."""
     plan = _plan(pk(TAPU, energias=[G] * 2, fisicas=2), energia_jugada=True)
-    assert not plan.desbloquea_hoy
+    assert not plan.unlocks_today
     assert plan.demanda >= 1
 
 
@@ -232,14 +232,14 @@ def test_plan_la_planta_de_la_mano_ya_desbloquea():
     """With the Grass already in hand, recovering another unlocks nothing: the
     detector cannot charge twice for the same attack."""
     plan = _plan(pk(TAPU, energias=[G] * 2, fisicas=2), mano=[GRASS])
-    assert not plan.desbloquea_hoy
+    assert not plan.unlocks_today
 
 
 def test_plan_atacante_de_banca_solo_desbloquea_si_podemos_cambiar():
     banca = [pk(MEGANIUM, energias=[G] * 2, fisicas=1)]
     activo = pk(MEOWTH)               # Meowth ex is not a MAIN_ATTACKER
-    assert not _plan(activo, banca=banca).desbloquea_hoy
-    assert _plan(activo, banca=banca, cambio=True).desbloquea_hoy
+    assert not _plan(activo, banca=banca).unlocks_today
+    assert _plan(activo, banca=banca, cambio=True).unlocks_today
 
 
 def test_plan_con_las_habilidades_apagadas_solo_queda_el_adjunte_manual():
@@ -261,13 +261,13 @@ def test_plan_con_las_habilidades_apagadas_solo_queda_el_adjunte_manual():
 
     # With the abilities alive: the manual attachment + 2 Teal Dance -> 3 slots, and the
     # active (1 of 3) reaches 3 with 2 Grass.
-    vivas = m._plan_de_planta(mi, o.current, campo, {})
-    assert vivas.slots_hoy == 3 and vivas.desbloquea_hoy
+    vivas = m._grass_plan(mi, o.current, campo, {})
+    assert vivas.slots_today == 3 and vivas.unlocks_today
 
     # With the lock on, only the manual attachment is left: 1 Grass is not enough.
-    apagadas = m._plan_de_planta(mi, o.current, campo, {},
+    apagadas = m._grass_plan(mi, o.current, campo, {},
                                  abilities_off=True)
-    assert apagadas.slots_hoy == 1 and not apagadas.desbloquea_hoy
+    assert apagadas.slots_today == 1 and not apagadas.unlocks_today
 
 
 def test_plan_los_no_atacantes_no_inventan_demanda():

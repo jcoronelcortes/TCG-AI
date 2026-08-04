@@ -99,8 +99,23 @@ def rewrite(src, renames, in_strings, in_modules=frozenset()):
     out = []
     lines = src.splitlines(keepends=True)
     state = None           # None | "path" (dotted module path) | "names"
+    in_all = 0             # bracket depth inside an `__all__ = [...]`
     for tok in tokenize.generate_tokens(io.StringIO(src).readline):
         text = tok.string
+        # `__all__` holds names as STRINGS, and `import *` reads them from
+        # there: leaving them behind breaks the star imports at load time.
+        if tok.type == tokenize.NAME and text == "__all__":
+            in_all = -1                       # armed, waiting for the bracket
+        elif in_all == -1 and tok.type == tokenize.OP and text in "([":
+            in_all = 1
+        elif in_all > 0 and tok.type == tokenize.OP:
+            if text in "([":
+                in_all += 1
+            elif text in ")]":
+                in_all -= 1
+        elif in_all == -1 and tok.type in (tokenize.NEWLINE, tokenize.NL):
+            in_all = 0
+
         if tok.type == tokenize.NAME and text == "from" and state is None:
             state = "path"
         elif tok.type == tokenize.NAME and text == "import":
@@ -113,12 +128,12 @@ def rewrite(src, renames, in_strings, in_modules=frozenset()):
         if tok.type == tokenize.NAME and text in renames \
                 and (state != "path" or text in in_modules):
             text = renames[text]
-        elif tok.type == tokenize.STRING and in_strings:
+        elif tok.type == tokenize.STRING and (in_strings or in_all > 0):
             body = tok.string
             for quote in ('"""', "'''", '"', "'"):
                 if body.startswith(quote) and body.endswith(quote):
                     inner = body[len(quote):-len(quote)]
-                    if inner in renames and inner in in_strings:
+                    if inner in renames and (in_all > 0 or inner in in_strings):
                         text = quote + renames[inner] + quote
                     break
         out.append((tok.start, tok.end, text, tok.line))
@@ -226,6 +241,16 @@ class _Symbolic(ast.NodeTransformer):
         if isinstance(node.value, str) and node.value in self.s:
             node.value = self.r[node.value]
         return node
+
+    def visit_Assign(self, node):
+        # `__all__` is the export list `import *` reads: its strings are names.
+        if any(isinstance(t, ast.Name) and t.id == "__all__"
+               for t in node.targets) \
+                and isinstance(node.value, (ast.List, ast.Tuple)):
+            for e in node.value.elts:
+                if isinstance(e, ast.Constant) and isinstance(e.value, str):
+                    e.value = self._n(e.value)
+        return self.generic_visit(node)
 
 
 def dump(src, renames=None, in_strings=None, in_modules=None):
@@ -353,6 +378,20 @@ def cmd_report(renames, in_strings, in_modules, files):
             elif isinstance(node, ast.Attribute) and node.attr in fields:
                 outside.setdefault(node.attr, set()).add(f.relative_to(ROOT))
 
+    # A name written as a STRING: `monkeypatch.setattr(m, "NAME")`, a patch
+    # helper, an `__all__` entry in a file this batch does not touch. Renaming
+    # the code and leaving the string behind fails only at runtime.
+    as_string = {}
+    for f in project_files(None):
+        try:
+            tree = ast.parse(f.read_text(encoding="utf-8"))
+        except SyntaxError:
+            continue
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Constant) and isinstance(node.value, str) \
+                    and node.value in renames and node.value not in in_strings:
+                as_string.setdefault(node.value, set()).add(f.relative_to(ROOT))
+
     missing = [o for o in renames if o not in hits]
     print(f"map: {len(renames)} renames   files scanned: {len(files)}")
     print(f"names found: {len(hits)}   never found: {len(missing)}")
@@ -361,10 +400,14 @@ def cmd_report(renames, in_strings, in_modules, files):
               f"outside this batch: {', '.join(str(w) for w in sorted(where)[:3])}")
     for old in missing:
         print(f"  NOT FOUND  {old}")
+    for name, where in sorted(as_string.items()):
+        seen = ", ".join(str(w) for w in sorted(where)[:3])
+        print(f"  NAME AS STRING  {name} appears as a literal in "
+              f"{len(where)} file(s): {seen} -- add the `str` flag")
     for pair, where in sorted(collisions.items()):
         print(f"  CLASH  {pair} share a scope in {len(where)} place(s): "
               f"{'; '.join(where[:3])}")
-    return 1 if (missing or collisions or outside) else 0
+    return 1 if (missing or collisions or outside or as_string) else 0
 
 
 def cmd_apply(renames, in_strings, in_modules, files):

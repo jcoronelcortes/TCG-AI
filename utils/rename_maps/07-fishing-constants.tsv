@@ -1,0 +1,5 @@
+# Phase 4, batch E -- the two thresholds of the finisher fishing (ptcg/cartas/ids.py,
+# exported through `__all__`). `PESCA_PROB_MIN` is also patched BY NAME from a
+# test, so it carries the `str` flag.
+PESCA_PROB_MIN	FISHING_PROB_MIN	str
+PESCA_PREMIOS_MIN	FISHING_PRIZES_MIN	str

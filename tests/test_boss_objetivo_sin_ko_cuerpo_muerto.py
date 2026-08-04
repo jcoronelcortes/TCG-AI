@@ -104,7 +104,7 @@ def _ctx(card_id, energia=0, can_ko=False, op_linea_dragapult=False):
         linea_rank=0, linea_can_ko=False, op_alakazam=False,
         op_latias=False, op_linea_dragapult=op_linea_dragapult,
         op_linea_typhlosion=False,
-        cuerpo_inofensivo=m._op_cuerpo_inofensivo(_stub(card_id, energia)))
+        cuerpo_inofensivo=m._op_body_is_harmless(_stub(card_id, energia)))
 
 
 def _ofensivo(ctx):

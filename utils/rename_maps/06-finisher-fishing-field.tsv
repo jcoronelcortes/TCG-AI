@@ -1,0 +1,5 @@
+# Phase 4, batch D -- the `_FinisherFishing.cards_needed` field. It is read
+# as `plan.cartas` from its test, so the class and the test move together.
+# It could not travel with the other `cartas` locals: that word is also the
+# name of the `ptcg/cartas` package, which is renamed in phase 7.
+cartas	cards_needed

@@ -104,21 +104,21 @@ def test_el_dano_impreso_miente_y_por_eso_se_mide_el_coste():
         assert all((m.attack_table[a].damage or 0) == 0 for a in datos.attacks)
 
     # Powerful Hand costs 1: a bare Alakazam attacks on its next turn.
-    assert not m._op_cuerpo_inofensivo(_pkm(m.Alakazam_ex, 0))
+    assert not m._op_body_is_harmless(_pkm(m.Alakazam_ex, 0))
     # Cruel Arrow costs 3: a bare Fezandipiti ex does not.
-    assert m._op_cuerpo_inofensivo(_pkm(m.Fezandipiti_ex, 0))
-    assert not m._op_cuerpo_inofensivo(_pkm(m.Fezandipiti_ex, 2))
+    assert m._op_body_is_harmless(_pkm(m.Fezandipiti_ex, 0))
+    assert not m._op_body_is_harmless(_pkm(m.Fezandipiti_ex, 2))
 
 
 def test_cuerpo_inofensivo_es_conservador_con_lo_que_no_sabe():
-    assert not m._op_cuerpo_inofensivo(None)
-    assert not m._op_cuerpo_inofensivo(_pkm(-12345, 0))     # an unknown card
+    assert not m._op_body_is_harmless(None)
+    assert not m._op_body_is_harmless(_pkm(-12345, 0))     # an unknown card
     # Budew attacks for cost 0: it is never harmless.
-    assert not m._op_cuerpo_inofensivo(_pkm(m.Budew, 0))
+    assert not m._op_body_is_harmless(_pkm(m.Budew, 0))
     # A card WITHOUT `energies` (what `get_card` can return outside the
     # field) must not blow up: an exception in `agent()` is a forfeit.
-    assert not m._op_cuerpo_inofensivo(SimpleNamespace(id=m.Boss_Orders))
-    assert m._op_cuerpo_inofensivo(SimpleNamespace(id=m.Fezandipiti_ex))
+    assert not m._op_body_is_harmless(SimpleNamespace(id=m.Boss_Orders))
+    assert m._op_body_is_harmless(SimpleNamespace(id=m.Fezandipiti_ex))
 
 
 # ---------------------------------------------------------------------------
@@ -182,7 +182,7 @@ def test_el_tablero_sintetico_no_tiene_ni_ko_ni_ataque():
     assert all(len(p["energies"]) < m.ATTACK_ENERGY_REQ[OGERPON]
                for p in mio["active"] + [b for b in mio["bench"] if b])
     # Their Dragapult ex DOES attack (Jet Headbutt costs 1) -> there is something to relieve.
-    assert not m._op_cuerpo_inofensivo(_pkm(DRAGAPULT, 1))
+    assert not m._op_body_is_harmless(_pkm(DRAGAPULT, 1))
     assert riv["active"][0]["id"] == DRAGAPULT
     # The menu only offers the Boss's (0) and the END (1).
     assert [o["type"] for o in obs["select"]["option"]] == [7, 14]

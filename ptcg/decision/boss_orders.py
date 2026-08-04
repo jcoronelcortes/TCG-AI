@@ -6,7 +6,7 @@ utils/pureza.py: nothing here touches mutable state or the runtime tables.
 """
 
 from ptcg.cartas.ids import Dwebble_Fighting, Dwebble_Grass, EX_PREEVO_IDS, GUST_TRAMPA_IDS, SCORE_FORBID, THREAT_PREEVO_IDS
-from ptcg.calculo.rival import _alakazam_relevo_de_atacante, _op_activo_inofensivo, _op_cuerpo_inofensivo
+from ptcg.calculo.rival import _alakazam_attacker_relief, _op_active_is_harmless, _op_body_is_harmless
 from ptcg.calculo.energia import _can_attack_eff, _grass_attach_unit, _retreat_grass_units
 from ptcg.calculo.dano import _attacker_base_damage, _bench_attacker_best_damage, _bench_attacker_can_ko, _our_effective_damage
 from ptcg.calculo.carta import prize_count_op
@@ -14,7 +14,7 @@ from ptcg.estado.agente import ESTADO
 from ptcg.cartas.ids import Basic_Grass_Energy, Bayleef, DUNSPARCE_IDS, Dipplin, EX_PREEVO_IDS, Fezandipiti_ex, Hydrapple_ex, Meganium, OUR_EX_IDS, RETREAT_COST, THREAT_PREEVO_IDS, Tapu_Bulu, Teal_Mask_Ogerpon_ex
 from ptcg.calculo.tablero import _active_of
 from ptcg.calculo.energia import _grass_mult
-from ptcg.calculo.dano import _ko_no_garantizado
+from ptcg.calculo.dano import _ko_not_guaranteed
 from dataclasses import dataclass
 from ptcg.cartas.ids import ALAKAZAM_ATTACKER_IDS, ALAKAZAM_LINE_IDS, Abra, Alakazam_ex, Boss_Orders, Budew, Cyndaquil, Dragapult_ex, Drakloak, Dreepy, Dwebble_Fighting, Dwebble_Grass, EX_PREEVO_IDS, Froslass, GUST_TRAMPA_IDS, Hydrapple_ex, Iron_Thorns_ex, Kadabra, Latias_ex, Lillie_Determination, Meowth_ex, Munkidori, Quilava, SCORE_FORBID, Snorunt, THREAT_PREEVO_IDS, Teal_Mask_Ogerpon_ex, Typhlosion
 from ptcg.cartas.tablas import card_table
@@ -333,14 +333,14 @@ def _gust_releva_al_atacante(op_state):
     would be discarded for being a threat pre-evolution -- and its attack costs
     1 anyway, so it is not "harmless" by cost either.
     """
-    if _op_activo_inofensivo(op_state):
+    if _op_active_is_harmless(op_state):
         return False
     for _b in (op_state.bench or []):
         if _b is None or _b.id in DUNSPARCE_IDS:
             continue
         if _b.id in THREAT_PREEVO_IDS or _b.id in EX_PREEVO_IDS:
             continue
-        if _op_cuerpo_inofensivo(_b):
+        if _op_body_is_harmless(_b):
             return True
     return False
 
@@ -458,7 +458,7 @@ def _boss_regala_linea_alakazam(ctx):
     (`_boss_motivo_con_premio`) rules over this veto."""
     if not ctx.op_is_alakazam_deck or _boss_motivo_con_premio(ctx):
         return False
-    return not _alakazam_relevo_de_atacante(ctx.op_state)
+    return not _alakazam_attacker_relief(ctx.op_state)
 
 
 def _boss_gusteo_sin_proposito(ctx):
@@ -488,7 +488,7 @@ def _boss_gusteo_sin_proposito(ctx):
     if act is not None and (act.id in THREAT_PREEVO_IDS
                             or act.id in EX_PREEVO_IDS):
         return False
-    return _op_activo_inofensivo(ctx.op_state)
+    return _op_active_is_harmless(ctx.op_state)
 
 
 @dataclass
@@ -656,7 +656,7 @@ def _ctx_gust_objetivo(card, o, my_state, op_state, state, hand_counts,
         # `wins_now` also requires a GUARANTEED KO (P0.1): against Tenacious Body
         # (a coin flip) or Survival Brace the finisher can fail and hand the turn back.
         prizes=prizes, wins_now=(can_ko and prizes >= my_prize
-                                 and not _ko_no_garantizado(card)),
+                                 and not _ko_not_guaranteed(card)),
         is_stage1=is_stage1, is_stage2=is_stage2,
         tiene_tool=bool(getattr(card, 'tools', None)),
         can_ko=can_ko, tier_ko=tier,
@@ -667,7 +667,7 @@ def _ctx_gust_objetivo(card, o, my_state, op_state, state, hand_counts,
         op_linea_dragapult=op_linea_dragapult,
         op_linea_typhlosion=op_linea_typhlosion,
         muro_bloquea_activo=muro_bloquea_activo,
-        cuerpo_inofensivo=_op_cuerpo_inofensivo(card))
+        cuerpo_inofensivo=_op_body_is_harmless(card))
 
 
 _AJUSTES_GUST_OFENSIVO = [

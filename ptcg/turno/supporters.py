@@ -22,7 +22,7 @@ from ptcg.turno.supporters_ctx import CtxEvaluateSupporters  # noqa: F401
 def evaluate_supporters(tc):
     # Unpacking of the captures.
     _active_cant_attack_this_turn = tc._active_cant_attack_this_turn
-    _plan_de_planta = tc._plan_de_planta
+    _grass_plan = tc._grass_plan
     bench_count = tc.bench_count
     bench_max = tc.bench_max
     budew_on_op_field = tc.budew_on_op_field
@@ -1159,14 +1159,14 @@ def evaluate_supporters(tc):
     # (manual, Teal Dance, Ripening Charge). It is the SAME reading that then
     # decides what is picked up from the discard, so playing the card and using
     # it cannot disagree.
-    _lana_plan_play = _plan_de_planta(
+    _lana_plan_play = _grass_plan(
         my_state, state, field_counts, hand_counts,
         can_switch=(can_switch or has_switch_card),
         abilities_off=meowth_ability_lock)
     _lana_energy_enables_attack = (
         discard_basic_energy >= 1
-        and _lana_plan_play.desbloquea_hoy
-        and _lana_plan_play.cartas_para_atacar <= discard_basic_energy)
+        and _lana_plan_play.unlocks_today
+        and _lana_plan_play.cards_to_attack <= discard_basic_energy)
     if _lana_energy_enables_attack:
 
         lana_val = max(lana_val, 950)
@@ -1205,9 +1205,9 @@ def evaluate_supporters(tc):
     _lana_pk_necesario = (_lana_pk_jugable
                           and _lana_val_bonos > LANA_PLAY_BASE_RECUPERABLE)
     _lana_energia_jugable = (discard_basic_energy >= 1
-                             and _lana_plan_play.slots_hoy >= 1)
+                             and _lana_plan_play.slots_today >= 1)
     _lana_energia_util = (_lana_energia_jugable
-                          and _lana_plan_play.nuevas_utiles_hoy >= 1
+                          and _lana_plan_play.new_useful_today >= 1
                           and _lana_plan_play.demanda >= 1)
     if not (_lana_pk_jugable or _lana_energia_jugable):
         lana_val = 0

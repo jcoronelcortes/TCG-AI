@@ -77,7 +77,7 @@ def _grass_ability_slots(state, field_counts):
     return max(0, capacidad - max(0, usadas))
 
 
-def _grass_ability_slots_activo(state, my_state, field_counts):
+def _grass_ability_slots_active(state, my_state, field_counts):
     """Ability charges that can still put a Grass energy ON THE ACTIVE.
 
     A subset of `_grass_ability_slots`: Ripening Charge (Hydrapple ex) attaches
@@ -192,7 +192,7 @@ def _can_attack_eff(card_id, raw_energy):
     return _req is not None and raw_energy >= _req
 
 
-def _coste_de_ataque_min(card_id):
+def _min_attack_cost(card_id):
     """Minimum energy `card_id` needs in order to attack, DERIVED FROM THE
     CARD DATA (`card_table` -> attack ids -> `attack_table`).
 
@@ -206,15 +206,15 @@ def _coste_de_ataque_min(card_id):
     data = card_table.get(card_id)
     if data is None:
         return None
-    costes = []
+    costs = []
     for _aid in (getattr(data, 'attacks', None) or []):
         _atk = attack_table.get(_aid)
         if _atk is None:
             continue
         _n = len(getattr(_atk, 'energies', None) or [])
         if _n > 0:
-            costes.append(_n)
-    return min(costes) if costes else None
+            costs.append(_n)
+    return min(costs) if costs else None
 
 __all__ = [
     '_grass_mult',
@@ -223,12 +223,12 @@ __all__ = [
     'calc_syrup_storm_damage',
     '_grass_attach_unit',
     '_grass_ability_slots',
-    '_grass_ability_slots_activo',
+    '_grass_ability_slots_active',
     '_grass_attach_route_open',
     '_physical_energy',
     '_can_attack_eff',
     '_aplicar_impuesto_tera',
-    '_coste_de_ataque_min',
+    '_min_attack_cost',
     '_ripen_energy_capped',
     '_retreat_cards',
     '_retreat_grass_units',

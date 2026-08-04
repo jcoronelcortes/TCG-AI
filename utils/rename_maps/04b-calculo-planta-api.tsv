@@ -1,0 +1,6 @@
+# Phase 4, batch B2 -- the fields of the plan `_grass_plan` returns. Callers
+# build and read them by name, so they move repo-wide with their readers.
+cartas_para_atacar	cards_to_attack
+desbloquea_hoy	unlocks_today
+nuevas_utiles_hoy	new_useful_today
+slots_hoy	slots_today

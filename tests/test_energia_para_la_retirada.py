@@ -210,7 +210,7 @@ def test_cuerpos_del_mazo_excluidos_siguen_excluidos():
     leaves them out on purpose (utility bodies). The fallback by card
     data must not resurrect them."""
     for cid in (m.Meowth_ex, m.Fezandipiti_ex):
-        assert m._coste_de_ataque_min(cid) is not None   # they do have an attack...
+        assert m._min_attack_cost(cid) is not None   # they do have an attack...
         assert m._ns_umbral_energia_util(cid) is None    # ...but they do not count
 
 
@@ -219,13 +219,13 @@ def test_cuerpo_fuera_del_mazo_usa_el_dato_de_carta():
     returning False blindly and reasons with the real cost of its attack."""
     crustle = 345
     assert crustle not in m._DECK_POKEMON_IDS
-    assert m._ns_umbral_energia_util(crustle) == m._coste_de_ataque_min(crustle)
+    assert m._ns_umbral_energia_util(crustle) == m._min_attack_cost(crustle)
     assert m._ns_umbral_energia_util(crustle) > 0
 
 
 def test_coste_de_ataque_min_desconocido_es_none():
     """With no card data no threshold is invented."""
-    assert m._coste_de_ataque_min(-12345) is None
+    assert m._min_attack_cost(-12345) is None
     assert m._ns_umbral_energia_util(-12345) is None
 
 

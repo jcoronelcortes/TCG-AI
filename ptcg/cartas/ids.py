@@ -734,11 +734,11 @@ LILLIE_SCORE_PESCA_REMATE = 5900
 # that motivates it comes out at 0.63 (2 Grass out of 10 live, drawing 8 from
 # 42). Below this threshold the refill is still played for its normal value,
 # with no privileges.
-PESCA_PROB_MIN = 0.35
+FISHING_PROB_MIN = 0.35
 # Minimum prizes of the fished KO: the fishing only overrides the vetoes if what
 # it unlocks TAKES a prize (a probable chip does not pay for shuffling the hand
 # away).
-PESCA_PREMIOS_MIN = 1
+FISHING_PRIZES_MIN = 1
 
 
 
@@ -959,8 +959,8 @@ __all__ = [
     'XEROSIC_SCORE_LAST_RESORT',
     'XEROSIC_SCORE_SOBRE_BOSS',
     'LILLIE_SCORE_PESCA_REMATE',
-    'PESCA_PROB_MIN',
-    'PESCA_PREMIOS_MIN',
+    'FISHING_PROB_MIN',
+    'FISHING_PRIZES_MIN',
     'XEROSIC_STAMP_ORDEN_MIN_OP_HAND',
     'STAMP_MIN_OP_HAND',
     'STAMP_MAX_HAND_SACRIFICADA',

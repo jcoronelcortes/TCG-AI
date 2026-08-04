@@ -898,7 +898,7 @@ _REGLAS_BOSS_PLAY = [
     # It comes after the CERTAIN finishers (winning gust, 2 prizes, match point),
     # which `_pesca_remate_valida` already exempts.
     _ReglaFija("cede_a_pesca_de_remate",
-               lambda c: (_pesca_remate_valida(c)
+               lambda c: (_finisher_fishing_valid(c)
                           and c.hand_counts.get(Lillie_Determination, 0) >= 1),
                lambda c: BOSS_SCORE_EMPTY_GUST),
     _ReglaFija("primer_turno_cede_a_lillie",
@@ -1060,7 +1060,7 @@ def _ns_umbral_energia_util(card_id):
         return ESTADO.ATTACK_ENERGY_REQ.get(card_id)
     if card_id in _DECK_POKEMON_IDS:
         return None
-    return _coste_de_ataque_min(card_id)
+    return _min_attack_cost(card_id)
 
 
 def _ns_activo_no_llega_al_coste(w):
@@ -2384,7 +2384,7 @@ _REGLAS_LILLIE_PLAY = [
     # Grimmsnarl ex with 2 energies and a Grass weakness for a bare Snorunt
     # DEGRADES the finisher on the very turn it is being fished for.
     _ReglaFija("pescar_energia_para_remate",
-               _pesca_remate_valida,
+               _finisher_fishing_valid,
                lambda c: LILLIE_SCORE_PESCA_REMATE + c.supporter_boost),
     # Lillie's > Boss's priority with a charged Hydrapple ex in the active spot.
     # It scores ABOVE the maximum Boss's that does not win the game (~5600);
@@ -5668,7 +5668,7 @@ def agent(obs_dict: dict) -> list[int]:
                         # Survival Brace SCORE_WIN_GAME is not declared; the KO
                         # still scores through the normal route (prize/score).
                         if ((my_prize <= prize or _ko_wins_no_bench)
-                                and not _ko_no_garantizado(op_pokemon)):
+                                and not _ko_not_guaranteed(op_pokemon)):
                             score = SCORE_WIN_GAME
                         elif prize > 0:
 
@@ -6424,7 +6424,7 @@ def agent(obs_dict: dict) -> list[int]:
         return _evaluate_supporters_impl(
             CtxEvaluateSupporters(
             _active_cant_attack_this_turn=_active_cant_attack_this_turn,
-            _plan_de_planta=_plan_de_planta,
+            _grass_plan=_grass_plan,
             bench_count=bench_count,
             bench_max=bench_max,
             budew_on_op_field=budew_on_op_field,
@@ -6947,7 +6947,7 @@ def agent(obs_dict: dict) -> list[int]:
         # switched off: counting them would leave the 1st Grass stranded on an active trapped
         # with nobody to complete the cost (the same guard as
         # `_grass_attach_route_open(abilities_off=...)`).
-        _grass_active_routes += _grass_ability_slots_activo(
+        _grass_active_routes += _grass_ability_slots_active(
             state, my_state, field_counts)
     _grass_active_budget = max(
         1, min(hand_counts.get(Basic_Grass_Energy, 0), _grass_active_routes))
@@ -7687,7 +7687,7 @@ def agent(obs_dict: dict) -> list[int]:
         and op_state.active and op_state.active[0] is not None
         # GUARANTEED KO (P0.1): vs Tenacious Body/Survival Brace the "finisher"
         # can fail the coin flip; it is not given absolute victory priority.
-        and not _ko_no_garantizado(op_state.active[0])
+        and not _ko_not_guaranteed(op_state.active[0])
         # The finisher that KILLS US and closes the opponent's count does NOT win: it draws
         # (both KOs are simultaneous and each side takes its last prize).
         and not _suicide_hands_op_win
@@ -7702,7 +7702,7 @@ def agent(obs_dict: dict) -> list[int]:
     _snipe_attack_wins_now = (
         _active_snipe_ko_now
         and _snipe_target is not None
-        and not _ko_no_garantizado(_snipe_target)
+        and not _ko_not_guaranteed(_snipe_target)
         and not _suicide_hands_op_win
         and my_prize <= _active_snipe_ko_prizes)
     if _snipe_attack_wins_now:
@@ -7714,7 +7714,7 @@ def agent(obs_dict: dict) -> list[int]:
         _suicide_hands_op_win
         and _active_already_kos
         and op_state.active and op_state.active[0] is not None
-        and not _ko_no_garantizado(op_state.active[0])
+        and not _ko_not_guaranteed(op_state.active[0])
         and (my_prize <= prize_count_op(op_state.active[0])
              or _op_bench_empty))
     _suicide_only_draws = _suicide_hands_op_win and _suicide_ko_would_win
@@ -7728,7 +7728,7 @@ def agent(obs_dict: dict) -> list[int]:
     _suicide_swap_winner = None
     if (_suicide_hands_op_win and can_switch and _active_pokemon is not None
             and op_state.active and op_state.active[0] is not None
-            and not _ko_no_garantizado(op_state.active[0])):
+            and not _ko_not_guaranteed(op_state.active[0])):
         _ssw_opa = op_state.active[0]
         _ssw_opa_hp = _ssw_opa.hp or 0
         _ssw_gana_premios = (my_prize <= prize_count_op(_ssw_opa)
@@ -7826,13 +7826,13 @@ def agent(obs_dict: dict) -> list[int]:
             and hand_counts.get(Basic_Grass_Energy, 0) >= 1):
         _cav_req = ESTADO.ATTACK_ENERGY_REQ.get(_active_pokemon.id)
         if _cav_req is None:
-            _cav_req = _coste_de_ataque_min(_active_pokemon.id)
+            _cav_req = _min_attack_cost(_active_pokemon.id)
         _cav_e = len(_active_pokemon.energies)
         if _cav_req is not None and _cav_e < _cav_req:
             _cav_unit = _grass_attach_unit()
             # Charges that can still land on the ACTIVE, limited by the hand.
             _cav_rutas = ((0 if state.energyAttached else 1)
-                          + _grass_ability_slots_activo(state, my_state, field_counts))
+                          + _grass_ability_slots_active(state, my_state, field_counts))
             _cav_disp = min(hand_counts.get(Basic_Grass_Energy, 0), _cav_rutas)
             # Grass needed to reach the cost (rounded up).
             _cav_need = -(-(_cav_req - _cav_e) // _cav_unit)
@@ -7848,7 +7848,7 @@ def agent(obs_dict: dict) -> list[int]:
                 if _cav_dmg > 0:
                     _carga_activo_falta = _cav_need
                     if (_cav_dmg >= _op_active_hp
-                            and not _ko_no_garantizado(_cav_op_act)
+                            and not _ko_not_guaranteed(_cav_op_act)
                             # ...unless a CHEAPER KO ALREADY exists: a
                             # benched attacker that is already charged and only needs
                             # us to pay the active's retreat
@@ -9762,7 +9762,7 @@ def agent(obs_dict: dict) -> list[int]:
     if (context == SelectContext.MAIN
             and not state.supporterPlayed
             and hand_counts.get(Lillie_Determination, 0) >= 1):
-        _pesca_remate = _pesca_de_remate(
+        _pesca_remate = _finisher_fishing(
             my_state, op_state, state, hand_counts, field_counts,
             grass_in_deck=ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(
                 Basic_Grass_Energy, {}).get(ESTADO_MAZO, 0),
@@ -10009,8 +10009,8 @@ def agent(obs_dict: dict) -> list[int]:
     _lana_orden_planta = {}
     if (select.effect is not None and select.effect.id == Lanas_Aid
             and context == SelectContext.TO_HAND):
-        _lana_plan = _plan_de_planta(my_state, state, field_counts, hand_counts,
-                                     tope=select.maxCount or 1,
+        _lana_plan = _grass_plan(my_state, state, field_counts, hand_counts,
+                                     cap=select.maxCount or 1,
                                      can_switch=can_switch,
                                      abilities_off=meowth_ability_lock)
         _lana_n = 0

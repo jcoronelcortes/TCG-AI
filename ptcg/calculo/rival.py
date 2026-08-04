@@ -9,7 +9,7 @@ from ptcg.cartas.ids import ALAKAZAM_ATTACKER_IDS, CRUSTLE_LINE_IDS, DUNSPARCE_I
 from ptcg.cartas.tablas import attack_table, card_table
 
 
-def _alakazam_relevo_de_atacante(op_state):
+def _alakazam_attacker_relief(op_state):
     """vs Alakazam: does the gust RELIEVE their attacker instead of handing it over?
 
     Abra -> Kadabra -> Alakazam is the deck's ONLY attacking line, so bringing
@@ -42,7 +42,7 @@ def _alakazam_relevo_de_atacante(op_state):
     return False
 
 
-def _op_deficit_de_ataque(pkmn):
+def _op_attack_deficit(pkmn):
     """Energies `pkmn` (opponent) is MISSING in order to ATTACK: the cost of
     its cheapest attack minus the energies it already has (0 if it already can).
 
@@ -72,18 +72,18 @@ def _op_deficit_de_ataque(pkmn):
     data = card_table.get(getattr(pkmn, 'id', 0))
     if data is None:
         return None
-    costes = []
+    costs = []
     for _aid in (getattr(data, 'attacks', None) or []):
         _atk = attack_table.get(_aid)
         if _atk is None:
             continue
-        costes.append(len(getattr(_atk, 'energies', None) or []))
-    if not costes:
+        costs.append(len(getattr(_atk, 'energies', None) or []))
+    if not costs:
         return None
-    return max(0, min(costes) - len(getattr(pkmn, 'energies', None) or []))
+    return max(0, min(costs) - len(getattr(pkmn, 'energies', None) or []))
 
 
-def _op_cuerpo_inofensivo(pkmn):
+def _op_body_is_harmless(pkmn):
     """`pkmn` (opponent) CANNOT attack on its next turn EVEN by attaching one
     energy: ALL of its attacks cost more than `energies + 1`.
 
@@ -93,13 +93,13 @@ def _op_cuerpo_inofensivo(pkmn):
     never concluded on suspicion -- and also with a zero-cost attack, which they
     can use this very turn.
     """
-    _deficit = _op_deficit_de_ataque(pkmn)
+    _deficit = _op_attack_deficit(pkmn)
     return _deficit is not None and _deficit >= 2
 
 
-def _op_activo_inofensivo(op_state):
+def _op_active_is_harmless(op_state):
     """`_op_cuerpo_inofensivo` applied to the opposing ACTIVE."""
-    return _op_cuerpo_inofensivo(op_state.active[0] if op_state.active else None)
+    return _op_body_is_harmless(op_state.active[0] if op_state.active else None)
 
 
 def _op_juega_crustle(op_state):
@@ -130,7 +130,7 @@ def _op_disruption_belief(op_state, op_supporter_played):
     return max(0.05, min(0.85, p))
 
 
-def _alakazam_relevo_de_atacante(op_state):
+def _alakazam_attacker_relief(op_state):
     """vs Alakazam: does the gust RELIEVE their attacker instead of handing it over?
 
     Abra -> Kadabra -> Alakazam is the deck's ONLY attacking line, so bringing
@@ -163,7 +163,7 @@ def _alakazam_relevo_de_atacante(op_state):
     return False
 
 
-def _op_deficit_de_ataque(pkmn):
+def _op_attack_deficit(pkmn):
     """Energies `pkmn` (opponent) is MISSING in order to ATTACK: the cost of
     its cheapest attack minus the energies it already has (0 if it already can).
 
@@ -193,18 +193,18 @@ def _op_deficit_de_ataque(pkmn):
     data = card_table.get(getattr(pkmn, 'id', 0))
     if data is None:
         return None
-    costes = []
+    costs = []
     for _aid in (getattr(data, 'attacks', None) or []):
         _atk = attack_table.get(_aid)
         if _atk is None:
             continue
-        costes.append(len(getattr(_atk, 'energies', None) or []))
-    if not costes:
+        costs.append(len(getattr(_atk, 'energies', None) or []))
+    if not costs:
         return None
-    return max(0, min(costes) - len(getattr(pkmn, 'energies', None) or []))
+    return max(0, min(costs) - len(getattr(pkmn, 'energies', None) or []))
 
 
-def _op_cuerpo_inofensivo(pkmn):
+def _op_body_is_harmless(pkmn):
     """`pkmn` (opponent) CANNOT attack on its next turn EVEN by attaching one
     energy: ALL of its attacks cost more than `energies + 1`.
 
@@ -214,13 +214,13 @@ def _op_cuerpo_inofensivo(pkmn):
     never concluded on suspicion -- and also with a zero-cost attack, which they
     can use this very turn.
     """
-    _deficit = _op_deficit_de_ataque(pkmn)
+    _deficit = _op_attack_deficit(pkmn)
     return _deficit is not None and _deficit >= 2
 
 
-def _op_activo_inofensivo(op_state):
+def _op_active_is_harmless(op_state):
     """`_op_cuerpo_inofensivo` applied to the opposing ACTIVE."""
-    return _op_cuerpo_inofensivo(op_state.active[0] if op_state.active else None)
+    return _op_body_is_harmless(op_state.active[0] if op_state.active else None)
 
 
 def _op_juega_crustle(op_state):
@@ -251,18 +251,18 @@ def _op_disruption_belief(op_state, op_supporter_played):
     return max(0.05, min(0.85, p))
 
 __all__ = [
-    '_op_deficit_de_ataque',
-    '_op_cuerpo_inofensivo',
-    '_op_activo_inofensivo',
+    '_op_attack_deficit',
+    '_op_body_is_harmless',
+    '_op_active_is_harmless',
     '_op_juega_crustle',
     '_op_hand_size',
     '_op_disruption_belief',
-    '_alakazam_relevo_de_atacante',
-    '_op_deficit_de_ataque',
-    '_op_cuerpo_inofensivo',
-    '_op_activo_inofensivo',
+    '_alakazam_attacker_relief',
+    '_op_attack_deficit',
+    '_op_body_is_harmless',
+    '_op_active_is_harmless',
     '_op_juega_crustle',
     '_op_hand_size',
     '_op_disruption_belief',
-    '_alakazam_relevo_de_atacante',
+    '_alakazam_attacker_relief',
 ]

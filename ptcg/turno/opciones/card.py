@@ -7,7 +7,7 @@ VERBATIM. It unpacks from the context the 113 fields it reads and returns the
 
 from cg.api import AreaType, CardType, Pokemon, SelectContext
 from ptcg.calculo.carta import get_card, prize_count, prize_count_op
-from ptcg.calculo.dano import _attacker_base_damage, _bench_attacker_can_ko, _ko_no_garantizado, _our_effective_damage, _snipe_target_score
+from ptcg.calculo.dano import _attacker_base_damage, _bench_attacker_can_ko, _ko_not_guaranteed, _our_effective_damage, _snipe_target_score
 from ptcg.calculo.energia import _can_attack_eff, _grass_attach_route_open, _grass_attach_unit, _grass_mult
 from ptcg.calculo.tablero import _active_of, _count_hand_play_options
 from ptcg.cartas.grupos import GT_FETCH_BONUS
@@ -297,7 +297,7 @@ def puntuar(tc, o, score):
                         _wp_e = energy_count
                         if (_wp_opa is not None and _wp_opa_hp > 0
                                 and (_can_attack_now or _can_attack_with_attach)
-                                and not _ko_no_garantizado(_wp_opa)
+                                and not _ko_not_guaranteed(_wp_opa)
                                 and (my_prize <= prize_count_op(_wp_opa)
                                      or not any(b is not None
                                                 for b in (op_state.bench or [])))
@@ -1798,8 +1798,8 @@ def puntuar(tc, o, score):
                 if _lana_plan is not None:
                     if card.id == Basic_Grass_Energy:
                         _lana_orden = _lana_orden_planta.get(len(scores), 0)
-                        if (_lana_plan.desbloquea_hoy
-                                and _lana_orden < _lana_plan.cartas_para_atacar):
+                        if (_lana_plan.unlocks_today
+                                and _lana_orden < _lana_plan.cards_to_attack):
                             score = LANA_SEL_PLANTA_DESBLOQUEA
                         elif _lana_orden < _lana_plan.demanda:
                             score = LANA_SEL_PLANTA_DEMANDA

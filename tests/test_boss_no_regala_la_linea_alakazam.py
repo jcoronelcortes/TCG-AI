@@ -126,7 +126,7 @@ def test_el_fixture_es_el_turno_2_sin_atacante():
     # not even by attaching one energy can it attack on their turn.
     assert riv["active"][0]["id"] == FEZ
     assert riv["active"][0]["energies"] == []
-    assert m._coste_de_ataque_min(FEZ) == 3
+    assert m._min_attack_cost(FEZ) == 3
 
     # ...and their bench is only the Alakazam line (+ a Dunsparce, a FORBIDDEN target).
     assert sorted(b["id"] for b in riv["bench"] if b) == [DUNSPARCE] + [ABRA] * 4
@@ -152,29 +152,29 @@ def test_no_se_juega_el_boss_que_regala_el_abra():
 def test_activo_inofensivo_mide_el_coste_del_ataque():
     # Fezandipiti ex: Cruel Arrow costs 3. Bare it does not get there even with an attachment;
     # with 2 on it, it does -> it stops being harmless.
-    assert m._op_activo_inofensivo(_op(_pk(FEZ, 0), []))
-    assert not m._op_activo_inofensivo(_op(_pk(FEZ, 2), []))
+    assert m._op_active_is_harmless(_op(_pk(FEZ, 0), []))
+    assert not m._op_active_is_harmless(_op(_pk(FEZ, 2), []))
     # Powerful Hand costs ONE energy: the Alakazam is never harmless.
-    assert not m._op_activo_inofensivo(_op(_pk(ALAKAZAM, 0), []))
+    assert not m._op_active_is_harmless(_op(_pk(ALAKAZAM, 0), []))
     # An unknown card: it is not vetoed on suspicion.
-    assert not m._op_activo_inofensivo(_op(_pk(-12345, 0), []))
-    assert not m._op_activo_inofensivo(_op(None, []))
+    assert not m._op_active_is_harmless(_op(_pk(-12345, 0), []))
+    assert not m._op_active_is_harmless(_op(None, []))
 
 
 def test_relevo_solo_cambia_un_atacante_por_un_no_atacante():
     # The good case: their CHARGED Alakazam goes down to the bench and a bare Abra comes up.
-    assert m._alakazam_relevo_de_atacante(_op(_pk(ALAKAZAM, 1), [_pk(ABRA)]))
-    assert m._alakazam_relevo_de_atacante(_op(_pk(KADABRA, 1), [_pk(FEZ)]))
+    assert m._alakazam_attacker_relief(_op(_pk(ALAKAZAM, 1), [_pk(ABRA)]))
+    assert m._alakazam_attacker_relief(_op(_pk(KADABRA, 1), [_pk(FEZ)]))
     # With no energy on it there is nothing to leave stranded on the bench.
-    assert not m._alakazam_relevo_de_atacante(_op(_pk(ALAKAZAM, 0), [_pk(ABRA)]))
+    assert not m._alakazam_attacker_relief(_op(_pk(ALAKAZAM, 0), [_pk(ABRA)]))
     # Swapping one attacker for another relieves nothing.
-    assert not m._alakazam_relevo_de_atacante(
+    assert not m._alakazam_attacker_relief(
         _op(_pk(ALAKAZAM, 1), [_pk(KADABRA), _pk(ALAKAZAM)]))
     # Dunsparce never counts: it is a FORBIDDEN gust target.
-    assert not m._alakazam_relevo_de_atacante(_op(_pk(ALAKAZAM, 1), [_pk(DUNSPARCE)]))
+    assert not m._alakazam_attacker_relief(_op(_pk(ALAKAZAM, 1), [_pk(DUNSPARCE)]))
     # The record's case: their active is OUTSIDE the line -> there is no relief,
     # only the gift.
-    assert not m._alakazam_relevo_de_atacante(_op(_pk(FEZ, 0), [_pk(ABRA)] * 4))
+    assert not m._alakazam_attacker_relief(_op(_pk(FEZ, 0), [_pk(ABRA)] * 4))
 
 
 # ---------------------------------------------------------------------------

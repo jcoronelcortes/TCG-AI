@@ -171,16 +171,16 @@ def test_prize_count_op_aplica_denegacion_del_campo_rival():
 
 def test_ko_no_garantizado_detecta_hawlucha_y_survival_brace():
     # Tenacious Body (a coin flip): it is never a guaranteed KO.
-    assert m._ko_no_garantizado(
+    assert m._ko_not_guaranteed(
         make_pokemon(m.Mega_Hawlucha_ex, hp=250, max_hp=250)) is True
     # Survival Brace only protects at FULL life.
     brace = make_card(m.Survival_Brace)
-    assert m._ko_no_garantizado(
+    assert m._ko_not_guaranteed(
         make_pokemon(m.Slowpoke, hp=100, max_hp=100, tools=[brace])) is True
-    assert m._ko_no_garantizado(
+    assert m._ko_not_guaranteed(
         make_pokemon(m.Slowpoke, hp=70, max_hp=100, tools=[brace])) is False
-    assert m._ko_no_garantizado(make_pokemon(m.Slowpoke)) is False
-    assert m._ko_no_garantizado(None) is False
+    assert m._ko_not_guaranteed(make_pokemon(m.Slowpoke)) is False
+    assert m._ko_not_guaranteed(None) is False
 
 
 def test_attacker_base_damage_uses_card_specific_rules():

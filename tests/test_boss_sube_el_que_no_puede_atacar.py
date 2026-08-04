@@ -149,23 +149,23 @@ def test_paso65_el_escenario_es_el_que_discrimina():
 
 def test_cuerpo_inofensivo_mide_el_coste_del_ataque_no_la_etapa():
     # Dragapult ex: a cost-1 attack -> bare it ALREADY attacks next turn.
-    assert m._op_cuerpo_inofensivo(_pk(DRAGAPULT, 0)) is False
+    assert m._op_body_is_harmless(_pk(DRAGAPULT, 0)) is False
     # Drakloak: a cost-2 attack -> bare it does NOT attack even with the turn's attachment.
-    assert m._op_cuerpo_inofensivo(_pk(DRAKLOAK, 0)) is True
+    assert m._op_body_is_harmless(_pk(DRAKLOAK, 0)) is True
     # ...but with one energy on it, it is no longer dead.
-    assert m._op_cuerpo_inofensivo(_pk(DRAKLOAK, 1)) is False
+    assert m._op_body_is_harmless(_pk(DRAKLOAK, 1)) is False
     # Dreepy is a Basic and "smaller" than the Drakloak, but its attack costs
     # 1: the STAGE is not the criterion.
-    assert m._op_cuerpo_inofensivo(_pk(DREEPY, 0)) is False
+    assert m._op_body_is_harmless(_pk(DREEPY, 0)) is False
     # Munkidori with its energy reaches exactly the 2 it needs.
-    assert m._op_cuerpo_inofensivo(_pk(MUNKIDORI, 1)) is False
-    assert m._op_cuerpo_inofensivo(_pk(MUNKIDORI, 0)) is True
+    assert m._op_body_is_harmless(_pk(MUNKIDORI, 1)) is False
+    assert m._op_body_is_harmless(_pk(MUNKIDORI, 0)) is True
 
 
 def test_budew_nunca_es_cuerpo_muerto_su_ataque_cuesta_cero():
     """Itchy Pollen costs 0: bare and all, it attacks. It is also the one already vetoed
     by `retirada_gratis` in nuisance mode (a retreat cost of 0)."""
-    assert m._op_cuerpo_inofensivo(_pk(m.Budew, 0)) is False
+    assert m._op_body_is_harmless(_pk(m.Budew, 0)) is False
 
 
 # ---------------------------------------------------------------------------
@@ -177,24 +177,24 @@ def test_budew_nunca_es_cuerpo_muerto_su_ataque_cuesta_cero():
 # -- see the "MEASURED AND REVERTED" note next to `_v_gust_traba_neta`.
 
 def test_deficit_de_ataque_es_el_umbral_graduado_de_cuerpo_inofensivo():
-    assert m._op_deficit_de_ataque(_pk(DRAGAPULT, 0)) == 1     # it attacks with 1
-    assert m._op_deficit_de_ataque(_pk(DRAKLOAK, 0)) == 2      # dead by exactly one
-    assert m._op_deficit_de_ataque(_pk(DRAKLOAK, 1)) == 1
-    assert m._op_deficit_de_ataque(_pk(DRAKLOAK, 5)) == 0      # never negative
-    assert m._op_deficit_de_ataque(_pk(m.Dusknoir, 0)) == 3    # dead by a wide margin
+    assert m._op_attack_deficit(_pk(DRAGAPULT, 0)) == 1     # it attacks with 1
+    assert m._op_attack_deficit(_pk(DRAKLOAK, 0)) == 2      # dead by exactly one
+    assert m._op_attack_deficit(_pk(DRAKLOAK, 1)) == 1
+    assert m._op_attack_deficit(_pk(DRAKLOAK, 5)) == 0      # never negative
+    assert m._op_attack_deficit(_pk(m.Dusknoir, 0)) == 3    # dead by a wide margin
     # The threshold and the graduated axis cannot drift apart: one is a function of the other.
     for cid in (DREEPY, DRAKLOAK, DRAGAPULT, MUNKIDORI, m.Dusknoir):
         for en in range(4):
             pk = _pk(cid, en)
-            assert (m._op_cuerpo_inofensivo(pk)
-                    is (m._op_deficit_de_ataque(pk) >= 2))
+            assert (m._op_body_is_harmless(pk)
+                    is (m._op_attack_deficit(pk) >= 2))
 
 
 def test_deficit_desconocido_no_inventa_nada():
     """With no readable attacks, neither "dead" nor "stuck" is concluded."""
-    assert m._op_deficit_de_ataque(None) is None
-    assert m._op_deficit_de_ataque(_pk(m.Basic_Grass_Energy, 0)) is None
-    assert m._op_cuerpo_inofensivo(_pk(m.Basic_Grass_Energy, 0)) is False
+    assert m._op_attack_deficit(None) is None
+    assert m._op_attack_deficit(_pk(m.Basic_Grass_Energy, 0)) is None
+    assert m._op_body_is_harmless(_pk(m.Basic_Grass_Energy, 0)) is False
 
 
 def test_los_muros_pasan_por_muertos_y_por_eso_existe_gust_trampa_ids():
@@ -204,8 +204,8 @@ def test_los_muros_pasan_por_muertos_y_por_eso_existe_gust_trampa_ids():
     `sin_ko_prefiere_cuerpo_muerto`. It pins the premise of that list."""
     for trampa in sorted(m.GUST_TRAMPA_IDS):
         pk = _pk(trampa, 0)
-        assert m._op_deficit_de_ataque(pk) >= 2
-        assert m._op_cuerpo_inofensivo(pk) is True
+        assert m._op_attack_deficit(pk) >= 2
+        assert m._op_body_is_harmless(pk) is True
 
 
 def test_el_paso_65_lo_decide_el_umbral_no_un_desempate_graduado():
@@ -215,6 +215,6 @@ def test_el_paso_65_lo_decide_el_umbral_no_un_desempate_graduado():
     obs = _obs()
     muertos = [_pk(p["id"], len(p["energies"]))
                for p in obs["current"]["players"][1]["bench"]]
-    muertos = [pk for pk in muertos if m._op_cuerpo_inofensivo(pk)]
+    muertos = [pk for pk in muertos if m._op_body_is_harmless(pk)]
     assert muertos, "el paso tiene que tener algún cuerpo muerto"
-    assert {m._op_deficit_de_ataque(pk) for pk in muertos} == {2}
+    assert {m._op_attack_deficit(pk) for pk in muertos} == {2}

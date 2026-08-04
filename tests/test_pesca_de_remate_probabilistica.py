@@ -120,14 +120,14 @@ def _idx_play_de(obs, card_id):
 def _espiar_pesca(monkeypatch):
     """Captures the `_PescaRemate` the agent computes in the decision."""
     capturado = {}
-    original = m._pesca_de_remate
+    original = m._finisher_fishing
 
     def espia(*args, **kwargs):
         plan = original(*args, **kwargs)
         capturado["plan"] = plan
         return plan
 
-    monkeypatch.setattr(m, "_pesca_de_remate", espia)
+    monkeypatch.setattr(m, "_finisher_fishing", espia)
     return capturado
 
 
@@ -215,7 +215,7 @@ def test_paso49_pesca_dos_cartas_por_dos_premios(monkeypatch):
 
     assert plan is not None
     assert plan.attacker_id == OGERPON and not plan.from_bench
-    assert plan.cartas == 2, "faltan DOS Plantas (adjunte manual + Teal Dance)"
+    assert plan.cards_needed == 2, "faltan DOS Plantas (adjunte manual + Teal Dance)"
     assert plan.lethal and plan.prizes == 2
     assert plan.damage == 360
     # The belief counts what is UNSEEN (deck 38 + 6 prizes): 11 Grass in 48
@@ -236,7 +236,7 @@ def test_paso49_juega_lillie_para_pescar_no_boss():
 def test_paso49_contrafactual_sin_pesca_vuelve_a_gustear(monkeypatch):
     """Control: if the fishing is not measured (an unreachable threshold), the
     Boss's of the record reappears. It is the change the rule introduces, not another."""
-    parchear(monkeypatch, "PESCA_PROB_MIN", 1.1)
+    parchear(monkeypatch, "FISHING_PROB_MIN", 1.1)
     obs = _fixture()
     assert m.agent(obs) == [_idx_play_de(obs, BOSS)]
 
@@ -330,7 +330,7 @@ def test_frontera_de_probabilidad(monkeypatch):
         juega_lillie = (m.agent(obs) == [_idx_play_de(obs, LILLIE)])
         vistos[grass] = (capturado["plan"].prob, juega_lillie)
 
-    assert vistos[3][0] < m.PESCA_PROB_MIN < vistos[10][0]
+    assert vistos[3][0] < m.FISHING_PROB_MIN < vistos[10][0]
     assert vistos[3][1] is False, "3 Plantas de 42 robando 8: no paga barajar"
     assert vistos[10][1] is True
 

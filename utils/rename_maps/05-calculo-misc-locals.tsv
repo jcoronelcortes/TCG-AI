@@ -1,0 +1,5 @@
+# Phase 4, batch C -- the last locals of ptcg/calculo/: `costes` in energia.py
+# and rival.py, `es_activo` in dano.py, `cartas` in probabilidad.py (the
+# `_FinisherFishing` field: how many Grass the draw has to bring).
+costes	costs
+es_activo	is_active

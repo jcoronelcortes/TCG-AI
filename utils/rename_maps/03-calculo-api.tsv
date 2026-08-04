@@ -1,0 +1,18 @@
+# Phase 4, batch A -- the API of `ptcg/calculo/`: the names other modules
+# import, plus the one parameter a caller passes by keyword (`tope=`).
+# Applied repo-wide, because that is where the callers are.
+#
+# `_pesca_de_remate` is also written as a string: a test monkeypatches it by
+# name, so it carries the `str` flag.
+_ko_no_garantizado	_ko_not_guaranteed
+_grass_ability_slots_activo	_grass_ability_slots_active
+_coste_de_ataque_min	_min_attack_cost
+_plan_de_planta	_grass_plan
+_pesca_remate_valida	_finisher_fishing_valid
+_pesca_de_remate	_finisher_fishing	str
+_PescaRemate	_FinisherFishing
+_alakazam_relevo_de_atacante	_alakazam_attacker_relief
+_op_deficit_de_ataque	_op_attack_deficit
+_op_cuerpo_inofensivo	_op_body_is_harmless
+_op_activo_inofensivo	_op_active_is_harmless
+tope	cap

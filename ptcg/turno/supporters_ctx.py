@@ -14,7 +14,7 @@ class CtxEvaluateSupporters:
     """Captures of `evaluate_supporters`."""
 
     _active_cant_attack_this_turn: Any = None
-    _plan_de_planta: Any = None
+    _grass_plan: Any = None
     bench_count: Any = None
     bench_max: Any = None
     budew_on_op_field: Any = None

@@ -1,0 +1,10 @@
+# Phase 4, batch B -- locals of ptcg/calculo/planta.py.
+# File-scoped: none of these crosses a module boundary (`report` checks it).
+activo	active
+cartas	cards
+cuerpo	body
+cuerpos	bodies
+en_mano	in_hand
+es_activo	is_active
+falta	missing
+unidad	unit

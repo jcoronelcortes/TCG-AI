@@ -9,11 +9,11 @@ from ptcg.cartas.puntuacion import MAIN_ATTACKERS
 from ptcg.cartas.ids import Basic_Grass_Energy, Hydrapple_ex, RETREAT_COST, Teal_Mask_Ogerpon_ex
 from ptcg.calculo.tablero import _active_of
 from ptcg.calculo.energia import _grass_ability_slots, _grass_attach_unit, _retreat_grass_units
-from ptcg.calculo.dano import _attacker_base_damage, _ko_no_garantizado, _our_effective_damage
+from ptcg.calculo.dano import _attacker_base_damage, _ko_not_guaranteed, _our_effective_damage
 from ptcg.calculo.carta import prize_count_op
 from ptcg.estado.claves import ESTADO_MAZO, ESTADO_PREMIO
 from ptcg.estado.agente import ESTADO
-from ptcg.cartas.ids import PESCA_PREMIOS_MIN, PESCA_PROB_MIN
+from ptcg.cartas.ids import FISHING_PRIZES_MIN, FISHING_PROB_MIN
 from dataclasses import dataclass
 from math import comb as _comb
 
@@ -50,11 +50,11 @@ def _prob_al_menos(successes, population, draws, k):
 
 
 @dataclass
-class _PescaRemate:
+class _FinisherFishing:
     """An attack that this turn depends ONLY on the draw bringing energy."""
     attacker_id: int
     from_bench: bool     # requires retreating the active to promote it
-    cartas: int           # Grass the DRAW has to bring
+    cards_needed: int           # Grass the DRAW has to bring
     damage: int             # projected EFFECTIVE damage on the opposing active
     lethal: bool
     prizes: int          # prizes the KO takes (0 if not lethal)
@@ -124,7 +124,7 @@ def _prob_card_accessible(card_id):
     return 1.0 - p_all_prized
 
 
-def _pesca_remate_valida(c):
+def _finisher_fishing_valid(c):
     """The fishing is good enough to OVERRIDE Lillie's ordering vetoes.
 
     Gates (all required): a free Supporter slot; NO attack possible this turn
@@ -145,15 +145,15 @@ def _pesca_remate_valida(c):
                 and not c.has_ready_bench_attacker
                 and not getattr(c, 'pending_evo', False)
                 and p.lethal
-                and p.prizes >= PESCA_PREMIOS_MIN
-                and p.prob >= PESCA_PROB_MIN
+                and p.prizes >= FISHING_PRIZES_MIN
+                and p.prob >= FISHING_PROB_MIN
                 and not c.boss_win_via_bench
                 and not c.win_via_boss_gust
                 and not c.boss_dodge_redirect
                 and not c.win_ko_active_via_promote)
 
 
-def _pesca_de_remate(my_state, op_state, state, hand_counts, field_counts,
+def _finisher_fishing(my_state, op_state, state, hand_counts, field_counts,
                      grass_in_deck, draws, shuffles_hand=True,
                      meganium_in_play=False, neutralization_zone_active=False,
                      total_grass=0, bench_count=0, can_switch=False,
@@ -246,16 +246,16 @@ def _pesca_de_remate(my_state, op_state, state, hand_counts, field_counts,
         missing = req - len(body.energies)
         if missing <= 0:
             continue                      # already attacks: this is not fishing
-        cartas = -(-missing // unit)
+        cards_needed = -(-missing // unit)
         # Routes that can point at THIS body today (same criterion as
         # `_plan_de_planta`): Teal Dance only charges its bearer.
         targetable = manual_slots + n_hydrapple
         if body.id == Teal_Mask_Ogerpon_ex and not abilities_off:
             targetable += 1
         targetable = min(targetable, slots_today)
-        if cartas > targetable:
+        if cards_needed > targetable:
             continue                      # not even with every route does it attack today
-        if cartas <= min(grass_in_hand, targetable):
+        if cards_needed <= min(grass_in_hand, targetable):
             # The HAND already unlocks it: this is not fishing, it is a charge --
             # and with `baraja_la_mano` it would also be the worst possible
             # mistake (shuffling away exactly the energy that wins the turn).
@@ -263,19 +263,19 @@ def _pesca_de_remate(my_state, op_state, state, hand_counts, field_counts,
             # only covers part of the deficit, the later re-evaluation comes back
             # here with the attachment already spent and fewer cards to fish for.
             continue
-        from_draw = cartas - min(useful_in_hand, targetable)
+        from_draw = cards_needed - min(useful_in_hand, targetable)
         if from_draw <= 0:
             continue                      # the hand alone unlocks it: not fishing
         if from_draw > draws:
             continue                      # it does not fit even drawing everything
 
         grass_scales = ((total_grass if is_active else grass_after_retreat)
-                        + cartas * unit)
-        energy_after = len(body.energies) + cartas * unit
+                        + cards_needed * unit)
+        energy_after = len(body.energies) + cards_needed * unit
         base = _attacker_base_damage(
             body.id, target, energy_after,
             grass_scale=grass_scales,
-            teal_self_energy=len(body.energies) + cartas,
+            teal_self_energy=len(body.energies) + cards_needed,
             bench_count=bench_count)
         if base <= 0:
             continue
@@ -283,7 +283,7 @@ def _pesca_de_remate(my_state, op_state, state, hand_counts, field_counts,
                                      neutralization_zone_active)
         if damage <= 0:
             continue
-        lethal = damage >= (target.hp or 0) and not _ko_no_garantizado(target)
+        lethal = damage >= (target.hp or 0) and not _ko_not_guaranteed(target)
         prizes = prize_count_op(target) if lethal else 0
         prob = _prob_al_menos(outs, universe, draws, from_draw)
         if prob <= 0.0:
@@ -295,18 +295,18 @@ def _pesca_de_remate(my_state, op_state, state, hand_counts, field_counts,
                  0 if is_active else -1)
         if best_key is None or key > best_key:
             best_key = key
-            best = _PescaRemate(
+            best = _FinisherFishing(
                 attacker_id=body.id, from_bench=not is_active,
-                cartas=from_draw, damage=damage, lethal=lethal, prizes=prizes,
+                cards_needed=from_draw, damage=damage, lethal=lethal, prizes=prizes,
                 draws=draws, outs=outs, universe=universe, prob=prob)
     return best
 
 __all__ = [
     '_prob_al_menos',
-    '_PescaRemate',
-    '_pesca_remate_valida',
+    '_FinisherFishing',
+    '_finisher_fishing_valid',
     '_belief_deck_and_prizes',
     '_prob_draw_any',
     '_prob_card_accessible',
-    '_pesca_de_remate',
+    '_finisher_fishing',
 ]

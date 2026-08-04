@@ -29,7 +29,7 @@ def _powerful_hand_proyectado(op_hand_count: int) -> int:
     return 20 * (max(0, op_hand_count) + 2)
 
 
-def _ko_no_garantizado(op_pokemon):
+def _ko_not_guaranteed(op_pokemon):
     """True if the defender's KO is NOT guaranteed even though the projected
     damage is lethal: Mega Hawlucha ex (Tenacious Body: coin flip, on heads it
     survives at 10 HP) or Survival Brace (tool 1155: at full HP it survives at
@@ -76,7 +76,7 @@ def _snipe_targets(op_state):
     return out
 
 
-def _ventana_de_regalo(pokemon, es_activo, golpe_proyectado, incluir_movible=True):
+def _ventana_de_regalo(pokemon, is_active, golpe_proyectado, incluir_movible=True):
     """Damage the opponent can concentrate on `pokemon` before our next turn.
     A body with `hp <= _ventana_de_regalo(...)` is a prize the opponent can cash
     in whenever they want.
@@ -100,7 +100,7 @@ def _ventana_de_regalo(pokemon, es_activo, golpe_proyectado, incluir_movible=Tru
     # The Tera of Teal Mask Ogerpon ex: ON THE BENCH it prevents damage from
     # ATTACKS (and therefore automatic sniping), never counters that are placed or
     # moved.
-    golpe = 0 if (not es_activo and pid == Teal_Mask_Ogerpon_ex) \
+    golpe = 0 if (not is_active and pid == Teal_Mask_Ogerpon_ex) \
         else max(0, golpe_proyectado or 0)
     chip = ESTADO._op_chip_per_round if pid in OUR_ABILITY_IDS else 0
     return golpe + chip + (ESTADO._op_movable_dmg if incluir_movible else 0)
@@ -347,7 +347,7 @@ def _snipe_target_score(damage, target):
 __all__ = [
     '_powerful_hand_proyectado',
     '_ProjTarget',
-    '_ko_no_garantizado',
+    '_ko_not_guaranteed',
     '_snipe_targets',
     '_our_effective_damage',
     '_tiene_rule_box',

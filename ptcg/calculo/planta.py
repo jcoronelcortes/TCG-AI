@@ -16,12 +16,12 @@ from dataclasses import dataclass
 @dataclass
 class _PlanPlanta:
     """Reading of the BOARD in ENERGY terms (see `_plan_de_planta`)."""
-    unidad: int              # EFFECTIVE energy provided by ONE physical Grass
-    en_mano: int             # Grass already available in hand
-    slots_hoy: int           # Grass attachments that still fit THIS turn
-    nuevas_utiles_hoy: int   # NEW Grass that would reach the field TODAY
-    desbloquea_hoy: bool     # a NEW Grass puts a body in attack range TODAY
-    cartas_para_atacar: int  # NEW Grass that this unlock requires
+    unit: int              # EFFECTIVE energy provided by ONE physical Grass
+    in_hand: int             # Grass already available in hand
+    slots_today: int           # Grass attachments that still fit THIS turn
+    new_useful_today: int   # NEW Grass that would reach the field TODAY
+    unlocks_today: bool     # a NEW Grass puts a body in attack range TODAY
+    cards_to_attack: int  # NEW Grass that this unlock requires
     pendiente: int           # Grass demanded by every attacker in play
     demanda: int             # NEW Grass the board can use (<= `tope`)
 
@@ -29,17 +29,17 @@ class _PlanPlanta:
 @dataclass
 class _PlanPlanta:
     """Reading of the BOARD in ENERGY terms (see `_plan_de_planta`)."""
-    unidad: int              # EFFECTIVE energy provided by ONE physical Grass
-    en_mano: int             # Grass already available in hand
-    slots_hoy: int           # Grass attachments that still fit THIS turn
-    nuevas_utiles_hoy: int   # NEW Grass that would reach the field TODAY
-    desbloquea_hoy: bool     # a NEW Grass puts a body in attack range TODAY
-    cartas_para_atacar: int  # NEW Grass that this unlock requires
+    unit: int              # EFFECTIVE energy provided by ONE physical Grass
+    in_hand: int             # Grass already available in hand
+    slots_today: int           # Grass attachments that still fit THIS turn
+    new_useful_today: int   # NEW Grass that would reach the field TODAY
+    unlocks_today: bool     # a NEW Grass puts a body in attack range TODAY
+    cards_to_attack: int  # NEW Grass that this unlock requires
     pendiente: int           # Grass demanded by every attacker in play
     demanda: int             # NEW Grass the board can use (<= `tope`)
 
 
-def _plan_de_planta(my_state, state, field_counts, hand_counts, tope=3,
+def _grass_plan(my_state, state, field_counts, hand_counts, cap=3,
                     can_switch=False, abilities_off=False):
     """How many NEW Grass energies the board can use, and whether any of them
     UNLOCKS an attack TODAY.
@@ -80,63 +80,63 @@ def _plan_de_planta(my_state, state, field_counts, hand_counts, tope=3,
     only the manual attachment is left, and treating Teal Dance/Ripening as
     alive invents unlocks that do not exist.
     """
-    unidad = _grass_attach_unit()
-    en_mano = hand_counts.get(Basic_Grass_Energy, 0)
+    unit = _grass_attach_unit()
+    in_hand = hand_counts.get(Basic_Grass_Energy, 0)
     slots_manual = 0 if state.energyAttached else 1
     slots_hab = (0 if abilities_off
                  else _grass_ability_slots(state, field_counts))
-    slots_hoy = slots_manual + slots_hab
-    nuevas_utiles_hoy = max(0, slots_hoy - en_mano)
+    slots_today = slots_manual + slots_hab
+    new_useful_today = max(0, slots_today - in_hand)
     n_hydrapple = 0 if abilities_off else field_counts.get(Hydrapple_ex, 0)
 
-    desbloquea_hoy = False
-    cartas_para_atacar = 0
+    unlocks_today = False
+    cards_to_attack = 0
     pendiente = 0
-    activo = _active_of(my_state)
-    cuerpos = ([(activo, True)] if activo is not None else [])
-    cuerpos += [(bp, False) for bp in (my_state.bench or [])]
-    for cuerpo, es_activo in cuerpos:
-        if cuerpo is None or cuerpo.id not in MAIN_ATTACKERS:
+    active = _active_of(my_state)
+    bodies = ([(active, True)] if active is not None else [])
+    bodies += [(bp, False) for bp in (my_state.bench or [])]
+    for body, is_active in bodies:
+        if body is None or body.id not in MAIN_ATTACKERS:
             continue
-        req = ESTADO.ATTACK_ENERGY_REQ.get(cuerpo.id)
+        req = ESTADO.ATTACK_ENERGY_REQ.get(body.id)
         if req is None:
             continue
-        falta = req - len(cuerpo.energies)
-        if falta <= 0:
+        missing = req - len(body.energies)
+        if missing <= 0:
             continue                     # already attacks: asks for no energy
-        cartas = -(-falta // unidad)     # ceiling of the division
-        pendiente += cartas
-        if not es_activo and not can_switch:
+        cards = -(-missing // unit)     # ceiling of the division
+        pendiente += cards
+        if not is_active and not can_switch:
             continue                     # charged or not, it does not attack today
         # Routes that can point at THIS body today. Teal Dance only charges its own
         # bearer; the manual attachment and Ripening Charge, anyone.
         dirigibles = slots_manual + n_hydrapple
-        if cuerpo.id == Teal_Mask_Ogerpon_ex and not abilities_off:
+        if body.id == Teal_Mask_Ogerpon_ex and not abilities_off:
             dirigibles += 1
-        dirigibles = min(dirigibles, slots_hoy)
-        if cartas > dirigibles:
+        dirigibles = min(dirigibles, slots_today)
+        if cards > dirigibles:
             continue                     # not even with every route does it attack today
-        nuevas = cartas - min(en_mano, dirigibles)
-        if nuevas <= 0 or nuevas > nuevas_utiles_hoy:
+        nuevas = cards - min(in_hand, dirigibles)
+        if nuevas <= 0 or nuevas > new_useful_today:
             continue                     # the hand alone already unlocks it / does not fit
-        if not desbloquea_hoy or nuevas < cartas_para_atacar:
-            desbloquea_hoy = True
-            cartas_para_atacar = nuevas
+        if not unlocks_today or nuevas < cards_to_attack:
+            unlocks_today = True
+            cards_to_attack = nuevas
 
     # DEMAND is what the bodies ask for, not this turn's attachment capacity: the
     # recovery goes to the HAND, and a Grass energy kept there still works next
     # turn. With every attacker charged the demand is 0 and energy stops being
     # worth anything.
     return _PlanPlanta(
-        unidad=unidad, en_mano=en_mano, slots_hoy=slots_hoy,
-        nuevas_utiles_hoy=nuevas_utiles_hoy,
-        desbloquea_hoy=desbloquea_hoy,
-        cartas_para_atacar=cartas_para_atacar,
+        unit=unit, in_hand=in_hand, slots_today=slots_today,
+        new_useful_today=new_useful_today,
+        unlocks_today=unlocks_today,
+        cards_to_attack=cards_to_attack,
         pendiente=pendiente,
-        demanda=min(tope, max(0, pendiente - en_mano)))
+        demanda=min(cap, max(0, pendiente - in_hand)))
 
 __all__ = [
     '_PlanPlanta',
     '_PlanPlanta',
-    '_plan_de_planta',
+    '_grass_plan',
 ]
