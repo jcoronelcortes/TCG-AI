@@ -105,7 +105,7 @@ def leer_deck(ruta=None):
 
 def _reset_si_aplica(mod):
     # The opposing bot has no tracking; only the main.py instances do.
-    if hasattr(mod, "_init_cartas_tracking"):
+    if hasattr(mod, "_init_cards_tracking"):
         reset_agente(mod)
 
 

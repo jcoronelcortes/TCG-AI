@@ -50,8 +50,8 @@ those terms.
 
 | Spanish | English | Notes |
 |---|---|---|
-| estado | state | `ESTADO` -> `STATE`, `EstadoAgente` -> `AgentState` |
-| ESTADO_MAZO, ESTADO_MANO, ... | ZONE_DECK, ZONE_HAND, ... | belief zones, not agent state |
+| estado | state | `ESTADO` -> `AGENT_STATE` (the observation's own is `state`), `EstadoAgente` -> `AgentState` |
+| ESTADO_MAZO, ESTADO_MANO, ... | ZONE_DECK, ZONE_HAND, ... | belief zones, not agent state; their VALUES were translated too, they are internal keys |
 | decision | decision | |
 | eleccion | choice | the index we return |
 | opciones | options | the menu the engine offers |

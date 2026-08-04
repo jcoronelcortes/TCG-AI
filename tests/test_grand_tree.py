@@ -46,10 +46,10 @@ KANGASKHAN = 756
 
 @pytest.fixture(autouse=True)
 def reset_main_state():
-    m._init_cartas_tracking()
-    m._cartas_first_scan_done = False
-    m._cartas_prizes_identified = False
-    m._cartas_last_turn = -1
+    m._init_cards_tracking()
+    m._cards_first_scan_done = False
+    m._cards_prizes_identified = False
+    m._cards_last_turn = -1
     m.plan = m.AttackPlan()
     m.pre_turn = 0
     m.meganium_in_play = False
@@ -67,7 +67,7 @@ def reset_main_state():
     m._dodge_immune_serial = None
     m._dodge_immune_turn = -1
     yield
-    m._init_cartas_tracking()
+    m._init_cards_tracking()
 
 
 # ---------------------------------------------------------------------------
@@ -112,7 +112,7 @@ def _planes(activo, banca, mano=(), mazo=None, veta_ex=False,
     for p in [estado["active"][0]] + estado["bench"]:
         if p is not None:
             field[p["id"]] = field.get(p["id"], 0) + 1
-    return m._gt_planes(my_state, m.CARTAS_ACTIVAS_EN_MAZO, field,
+    return m._gt_planes(my_state, m.ACTIVE_CARDS_IN_DECK, field,
                         primer_turno, veta_etapa_ex=veta_ex)
 
 
@@ -200,7 +200,7 @@ def test_prefiere_banca_con_el_activo_condenado():
     from cg.api import to_observation_class
     my_state = to_observation_class(obs).current.players[0]
     field = {APPLIN: 2}
-    planes = m._gt_planes(my_state, m.CARTAS_ACTIVAS_EN_MAZO, field, False,
+    planes = m._gt_planes(my_state, m.ACTIVE_CARDS_IN_DECK, field, False,
                           activo_condenado=True)
     assert planes
     assert planes[0].area == m.AreaType.BENCH
@@ -370,8 +370,8 @@ def test_sin_grand_tree_el_bono_de_fetch_no_existe():
         return obs["select"]["deck"][elegida["index"]]["id"]
 
     con = _fetch(GRAND_TREE)
-    m._init_cartas_tracking()
-    m._cartas_first_scan_done = False
+    m._init_cards_tracking()
+    m._cards_first_scan_done = False
     m._field_at_turn_start = {}
     sin = _fetch(None)
     # With the stadium the new rule rules; without it, the search goes back to what
@@ -397,6 +397,6 @@ def test_con_raiz_en_juego_no_se_fuerza_la_busqueda():
            .resto_al_descarte())
     obs = esc.construir()
     m.agent(obs)  # it must not blow up; the choice is decided by the previous rules
-    ranking = m._gt_basicos_deseados(m.CARTAS_ACTIVAS_EN_MAZO,
+    ranking = m._gt_basicos_deseados(m.ACTIVE_CARDS_IN_DECK,
                                      {OGERPON: 1, APPLIN: 1})
     assert APPLIN in ranking and CHIKORITA in ranking

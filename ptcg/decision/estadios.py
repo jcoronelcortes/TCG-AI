@@ -5,13 +5,13 @@ Extracted VERBATIM from main.py by utils/extraer_definiciones.py
 utils/pureza.py: nothing here touches mutable state or the runtime tables.
 """
 
-from ptcg.estado.agente import ESTADO
+from ptcg.estado.agente import AGENT_STATE
 from ptcg.cartas.ids import Forest_of_Vitality
 from cg.api import AreaType
 from typing import NamedTuple
 from ptcg.cartas.ids import Applin, Bayleef, Chikorita, Dipplin, Hydrapple_ex, Meganium, Poke_Pad, Ultra_Ball
 from ptcg.cartas.tablas import card_table
-from ptcg.estado.claves import ESTADO_MAZO
+from ptcg.estado.claves import ZONE_DECK
 
 
 class _GrandTreePlan(NamedTuple):
@@ -65,7 +65,7 @@ def _fv_cadena_evolutiva(c):
     can be put down from hand by chaining basic+evolution)."""
     h, f = c.hand_counts, c.field_counts
     meg_fetchable = (
-        c.cards_in_deck.get(Meganium, {}).get(ESTADO_MAZO, 0) > 0 and
+        c.cards_in_deck.get(Meganium, {}).get(ZONE_DECK, 0) > 0 and
         (h.get(Poke_Pad, 0) >= 1 or h.get(Ultra_Ball, 0) >= 1))
     if f.get(Chikorita, 0) >= 1 and not c.meganium_in_play:
         if h.get(Bayleef, 0) >= 1 or h.get(Meganium, 0) >= 1:
@@ -112,7 +112,7 @@ def _v_fv_temprano(c):
 
 
 def _forest_disponible(c):
-    return ESTADO.forest_in_play or c.hand.get(Forest_of_Vitality, 0) >= 1
+    return AGENT_STATE.forest_in_play or c.hand.get(Forest_of_Vitality, 0) >= 1
 
 __all__ = [
     '_GrandTreePlan',

@@ -5,7 +5,7 @@ Extracted VERBATIM from main.py by utils/extraer_definiciones.py
 utils/pureza.py: nothing here touches mutable state or the runtime tables.
 """
 
-from ptcg.estado.agente import ESTADO
+from ptcg.estado.agente import AGENT_STATE
 from ptcg.cartas.tablas import attack_table, card_table
 from ptcg.cartas.ids import Applin, Chikorita, Hydrapple_ex, Tapu_Bulu, Teal_Mask_Ogerpon_ex
 from ptcg.cartas.grupos import Nighttime_Mine, OUR_TERA_IDS
@@ -58,7 +58,7 @@ def _grass_attach_unit():
     # EFFECTIVE energy provided by ONE freshly attached basic Grass energy (from
     # hand or recovered). With Meganium's Wild Growth in play one physical Grass
     # provides {G}{G} = 2 effective; without Meganium, 1.
-    return 2 if ESTADO.meganium_in_play else 1
+    return 2 if AGENT_STATE.meganium_in_play else 1
 
 
 def _grass_ability_slots(state, field_counts):
@@ -73,7 +73,7 @@ def _grass_ability_slots(state, field_counts):
     play is simply not proposed (it never invents an impossible charge)."""
     capacidad = (field_counts.get(Teal_Mask_Ogerpon_ex, 0)
                  + field_counts.get(Hydrapple_ex, 0))
-    usadas = ESTADO._grass_attaches_this_turn - (1 if state.energyAttached else 0)
+    usadas = AGENT_STATE._grass_attaches_this_turn - (1 if state.energyAttached else 0)
     return max(0, capacidad - max(0, usadas))
 
 
@@ -91,7 +91,7 @@ def _grass_ability_slots_active(state, my_state, field_counts):
     _act = _active_of(my_state)
     if _act is not None and _act.id == Teal_Mask_Ogerpon_ex:
         capacidad += 1
-    usadas = ESTADO._grass_attaches_this_turn - (1 if state.energyAttached else 0)
+    usadas = AGENT_STATE._grass_attaches_this_turn - (1 if state.energyAttached else 0)
     return max(0, capacidad - max(0, usadas))
 
 
@@ -111,7 +111,7 @@ def _physical_energy(effective_len):
     # Wild Growth) into PHYSICAL energy cards. With Meganium each physical Grass
     # counts as 2 effective, so physical = effective // 2; without Meganium,
     # effective == physical.
-    return effective_len // 2 if ESTADO.meganium_in_play else effective_len
+    return effective_len // 2 if AGENT_STATE.meganium_in_play else effective_len
 
 
 def _ripen_energy_capped(pokemon, ogerpon_phys_cap=None):
@@ -126,9 +126,9 @@ def _ripen_energy_capped(pokemon, ogerpon_phys_cap=None):
     if pid in (Chikorita, Applin):
         return phys >= 1
     if pid == Tapu_Bulu:
-        return phys >= (2 if ESTADO.meganium_in_play else 4)
+        return phys >= (2 if AGENT_STATE.meganium_in_play else 4)
     if pid == Teal_Mask_Ogerpon_ex:
-        if ESTADO.op_is_crustle_deck and phys >= 2:
+        if AGENT_STATE.op_is_crustle_deck and phys >= 2:
             return True
         if ogerpon_phys_cap is not None and phys >= ogerpon_phys_cap:
             return True
@@ -173,7 +173,7 @@ def _aplicar_impuesto_tera(stadium_cards) -> bool:
     for _tid in OUR_TERA_IDS:
         _base = ATTACK_ENERGY_REQ_BASE.get(_tid)
         if _base is not None:
-            ESTADO.ATTACK_ENERGY_REQ[_tid] = _base + (1 if activa else 0)
+            AGENT_STATE.ATTACK_ENERGY_REQ[_tid] = _base + (1 if activa else 0)
     return activa
 
 
@@ -188,7 +188,7 @@ def _can_attack_eff(card_id, raw_energy):
     # that no rule treats it as an attacker -- see the hard veto of Meowth ex on
     # the bench. Deriving the cost from card data here would turn it into an
     # attacker in ~20 places in the file.
-    _req = ESTADO.ATTACK_ENERGY_REQ.get(card_id)
+    _req = AGENT_STATE.ATTACK_ENERGY_REQ.get(card_id)
     return _req is not None and raw_energy >= _req
 
 

@@ -14,8 +14,8 @@ from ptcg.cartas.ids import ABILITY_IMMUNE_IDS, Abra, Alakazam_ex, Applin, BOSS_
 from ptcg.cartas.lineas import _pokemon_injugable, _preevo_of_ex_line, _is_more_evolved_than
 from ptcg.cartas.tablas import card_table
 from ptcg.decision.boss_orders import _gust_releva_al_atacante
-from ptcg.estado.agente import ESTADO
-from ptcg.estado.claves import ESTADO_MAZO
+from ptcg.estado.agente import AGENT_STATE
+from ptcg.estado.claves import ZONE_DECK
 from ptcg.turno.supporters_ctx import CtxEvaluateSupporters  # noqa: F401
 
 
@@ -77,7 +77,7 @@ def evaluate_supporters(tc):
 
     _op_active_is_crustle = (op_state.active and op_state.active[0] and
                              op_state.active[0].id in (Crustle_Grass, Crustle_Fighting))
-    _tapu_can_attack = (field_counts.get(Tapu_Bulu, 0) >= 1 and ESTADO.meganium_in_play and
+    _tapu_can_attack = (field_counts.get(Tapu_Bulu, 0) >= 1 and AGENT_STATE.meganium_in_play and
                         any(bp is not None and bp.id == Tapu_Bulu and len(bp.energies) >= 2
                             for bp in (my_state.bench + my_state.active)))
 
@@ -90,7 +90,7 @@ def evaluate_supporters(tc):
     # targets (e.g. another Crustle) return 0 damage and are discarded
     # automatically.
     crustle_gust_worth_it = False
-    if (ESTADO.op_is_crustle_deck and op_has_ex_immune_active
+    if (AGENT_STATE.op_is_crustle_deck and op_has_ex_immune_active
             and my_state.active and my_state.active[0] is not None
             and my_state.active[0].id in OUR_EX_IDS):
         our_attacker = my_state.active[0]
@@ -112,7 +112,7 @@ def evaluate_supporters(tc):
             if base_damage <= 0:
                 continue
             damage = _our_effective_damage(our_attacker, gust_target, base_damage,
-                                           ESTADO.meganium_in_play,
+                                           AGENT_STATE.meganium_in_play,
                                            neutralization_zone_active)
             if damage <= 0:
                 continue  # immune / unattackable target
@@ -151,7 +151,7 @@ def evaluate_supporters(tc):
     elif _fez_active_can_attack:
 
         values[Boss_Orders] = 0
-    elif (ESTADO.op_is_crustle_deck and _tapu_can_attack and not _op_active_is_crustle and
+    elif (AGENT_STATE.op_is_crustle_deck and _tapu_can_attack and not _op_active_is_crustle and
             op_has_crustle_bench):
         values[Boss_Orders] = 950
 
@@ -281,7 +281,7 @@ def evaluate_supporters(tc):
     elif op_is_zoroark_deck and any(
         p is not None and p.id == Zorua_N for p in op_state.bench):
         values[Boss_Orders] = 690 if _gust_releva_al_atacante(op_state) else 0
-    elif ESTADO.plan.target >= 1:
+    elif AGENT_STATE.plan.target >= 1:
         values[Boss_Orders] = 650
     elif op_prize <= 2:
         values[Boss_Orders] = 500
@@ -332,7 +332,7 @@ def evaluate_supporters(tc):
             # that never happened. The same migration fca07a1 did in ~30
             # places (P0.1).
             return _our_effective_damage(
-                _bo_atk, _tgt, _d, ESTADO.meganium_in_play,
+                _bo_atk, _tgt, _d, AGENT_STATE.meganium_in_play,
                 neutralization_zone_active)
 
         _bo_op_active = op_state.active[0]
@@ -353,7 +353,7 @@ def evaluate_supporters(tc):
             # it ended up bringing up a LESS jammed Pokemon (Mega Kangaskhan ex with
             # energies) instead of leaving as active the most jammed one (higher NET
             # retreat cost) and attackable.
-            if ESTADO.op_is_crustle_deck and _bo_bp.id in (Dwebble_Grass, Dwebble_Fighting):
+            if AGENT_STATE.op_is_crustle_deck and _bo_bp.id in (Dwebble_Grass, Dwebble_Fighting):
                 continue
             _bo_bp_dmg = _boss_dmg_to(_bo_bp)
             if _bo_bp_dmg > _bo_best_bench_dmg:
@@ -448,13 +448,13 @@ def evaluate_supporters(tc):
                 for _bo_wr_tgt in op_state.bench:
                     if _bo_wr_tgt is None:
                         continue
-                    if (ESTADO.op_is_crustle_deck
+                    if (AGENT_STATE.op_is_crustle_deck
                             and _bo_wr_tgt.id in (Dwebble_Grass, Dwebble_Fighting)):
                         continue
                     if prize_count_op(_bo_wr_tgt) < my_prize:
                         continue
                     if _bench_attacker_can_ko(
-                            my_state, _bo_wr_tgt, ESTADO.meganium_in_play, total_grass,
+                            my_state, _bo_wr_tgt, AGENT_STATE.meganium_in_play, total_grass,
                             bench_count, _bo_wr_grass_after,
                             neutralization_zone_active):
                         _bo_win_via_bench = True
@@ -483,7 +483,7 @@ def evaluate_supporters(tc):
                     continue
                 # log 86339758 step 98: Dwebble is vetoed as a gust target in a
                 # Crustle deck, it cannot motivate denying the line.
-                if ESTADO.op_is_crustle_deck and _bo_pe.id in (Dwebble_Grass, Dwebble_Fighting):
+                if AGENT_STATE.op_is_crustle_deck and _bo_pe.id in (Dwebble_Grass, Dwebble_Fighting):
                     continue
 
                 _bo_pe_is_threat = _bo_pe.id in THREAT_PREEVO_IDS
@@ -582,7 +582,7 @@ def evaluate_supporters(tc):
 
                 if not _bo_pe_ko and _bo_de_can_retreat:
                     _bo_pe_ko = _bench_attacker_can_ko(
-                        my_state, _bo_pe, ESTADO.meganium_in_play, total_grass,
+                        my_state, _bo_pe, AGENT_STATE.meganium_in_play, total_grass,
                         bench_count, _bo_de_grass_after,
                         neutralization_zone_active)
                 if _bo_pe_ko:
@@ -669,7 +669,7 @@ def evaluate_supporters(tc):
                 _bo_al_ko = (_bo_al_dmg >= (_bo_al.hp or 0) and _bo_al_dmg > 0)
                 if not _bo_al_ko and _bo_de_can_retreat:
                     _bo_al_ko = _bench_attacker_can_ko(
-                        my_state, _bo_al, ESTADO.meganium_in_play, total_grass,
+                        my_state, _bo_al, AGENT_STATE.meganium_in_play, total_grass,
                         bench_count, _bo_de_grass_after,
                         neutralization_zone_active)
                 if _bo_al_ko:
@@ -698,7 +698,7 @@ def evaluate_supporters(tc):
                 _bo_kp_ko = (_bo_kp_dmg >= (_bo_kp.hp or 0) and _bo_kp_dmg > 0)
                 if not _bo_kp_ko and _bo_de_can_retreat:
                     _bo_kp_ko = _bench_attacker_can_ko(
-                        my_state, _bo_kp, ESTADO.meganium_in_play, total_grass,
+                        my_state, _bo_kp, AGENT_STATE.meganium_in_play, total_grass,
                         bench_count, _bo_de_grass_after,
                         neutralization_zone_active)
                 if _bo_kp_ko:
@@ -978,7 +978,7 @@ def evaluate_supporters(tc):
         # we do not spend the supporter. It does not apply if there is already a
         # real offensive reason (a KO on a bench target) nor in the Crustle
         # immunity gust.
-        if (ESTADO.op_is_crustle_deck and not crustle_gust_worth_it
+        if (AGENT_STATE.op_is_crustle_deck and not crustle_gust_worth_it
                 and _boss_ko_ex_value <= 0 and _boss_ko_energy_value <= 0):
             _boc_active = op_state.active[0] if op_state.active else None
             _boc_imminent = False
@@ -1009,10 +1009,10 @@ def evaluate_supporters(tc):
             if not _boc_imminent:
                 values[Boss_Orders] = 0
 
-    if op_has_ability_immune_active and ESTADO.plan.target >= 1:
+    if op_has_ability_immune_active and AGENT_STATE.plan.target >= 1:
 
-        _attacker_ready = (ESTADO.plan.attacker >= 0 and not ESTADO.plan.energy)
-        _attacker_ready_with_attach = (ESTADO.plan.attacker >= 0 and ESTADO.plan.energy and
+        _attacker_ready = (AGENT_STATE.plan.attacker >= 0 and not AGENT_STATE.plan.energy)
+        _attacker_ready_with_attach = (AGENT_STATE.plan.attacker >= 0 and AGENT_STATE.plan.energy and
                                        hand_counts.get(Basic_Grass_Energy, 0) >= 1 and
                                        not state.energyAttached)
         if _attacker_ready or _attacker_ready_with_attach:
@@ -1041,9 +1041,9 @@ def evaluate_supporters(tc):
         if _has_non_ability_attacker_ready:
             values[Boss_Orders] = max(values.get(Boss_Orders, 0), 960)
 
-    if not ESTADO.meganium_in_play and not has_hydrapple:
+    if not AGENT_STATE.meganium_in_play and not has_hydrapple:
         values[Dawn] = 900
-    elif not ESTADO.meganium_in_play:
+    elif not AGENT_STATE.meganium_in_play:
         values[Dawn] = 800
     elif not has_hydrapple:
         values[Dawn] = 700
@@ -1091,8 +1091,8 @@ def evaluate_supporters(tc):
 
     if (hand_counts.get(Dawn, 0) >= 1 and
             hand_counts.get(Lillie_Determination, 0) >= 1 and
-            not (ESTADO.meganium_in_play and has_hydrapple)):
-        if ESTADO.forest_in_play:
+            not (AGENT_STATE.meganium_in_play and has_hydrapple)):
+        if AGENT_STATE.forest_in_play:
 
             values[Dawn] = max(values.get(Dawn, 0),
                                values.get(Lillie_Determination, 0) + 50)
@@ -1124,18 +1124,18 @@ def evaluate_supporters(tc):
             lana_val += 400
         elif bench_count <= 2:
             lana_val += 200
-        if Chikorita in discard_basic_pokemon and not ESTADO.meganium_in_play:
+        if Chikorita in discard_basic_pokemon and not AGENT_STATE.meganium_in_play:
             if field_counts[Chikorita] + field_counts[Bayleef] + field_counts[Meganium] == 0:
                 lana_val += 350
         if Applin in discard_basic_pokemon and not has_hydrapple:
             if field_counts[Applin] + field_counts[Dipplin] + field_counts[Hydrapple_ex] == 0:
                 lana_val += 300
-        if ESTADO.forest_in_play and any(pid in discard_basic_pokemon for pid in (Chikorita, Applin)):
+        if AGENT_STATE.forest_in_play and any(pid in discard_basic_pokemon for pid in (Chikorita, Applin)):
             lana_val += 200
         if total_recoverable >= 3:
             lana_val += 150
 
-        if ESTADO.op_is_crustle_deck:
+        if AGENT_STATE.op_is_crustle_deck:
             _tapu_in_play_lana = field_counts.get(Tapu_Bulu, 0) >= 1
             if Tapu_Bulu in discard_basic_pokemon and not _tapu_in_play_lana:
                 lana_val += 350
@@ -1221,7 +1221,7 @@ def evaluate_supporters(tc):
     # prioritise it over Lillie's when we have no attacker) from the rest.
     values['_lana_enables_attack'] = _lana_energy_enables_attack
 
-    if state.turn == 2 and not ESTADO.we_go_first:
+    if state.turn == 2 and not AGENT_STATE.we_go_first:
         values[Lillie_Determination] = 1000
         for _sid in (Boss_Orders, Dawn, Lanas_Aid):
             if _sid in values:
@@ -1230,13 +1230,13 @@ def evaluate_supporters(tc):
     if state.turn <= 2 and hand_size >= 10:
         values[Lillie_Determination] = -1
 
-    if (ESTADO.ko_last_turn and
+    if (AGENT_STATE.ko_last_turn and
             hand_counts.get(Dawn, 0) >= 1 and
             hand_counts.get(Lillie_Determination, 0) == 0 and
             hand_counts.get(Meowth_ex, 0) == 0 and
             hand_counts.get(Ultra_Ball, 0) == 0 and
             field_counts.get(Fezandipiti_ex, 0) == 0 and
-            ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Fezandipiti_ex, {}).get(ESTADO_MAZO, 0) > 0 and
+            AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Fezandipiti_ex, {}).get(ZONE_DECK, 0) > 0 and
             bench_count < 5):
         values[Dawn] = 1100
 
@@ -1264,7 +1264,7 @@ def evaluate_supporters(tc):
     # it: with the opposing bench full of Dwebble this cut-off cancelled the
     # 990 gust just computed and the turn died without prizes (user, episode
     # 88620891 step 78 vs Crustle, LOST).
-    if (ESTADO.op_is_crustle_deck and values.get(Boss_Orders, 0) > 0
+    if (AGENT_STATE.op_is_crustle_deck and values.get(Boss_Orders, 0) > 0
             and not crustle_gust_worth_it):
         _cru_act = op_state.active[0] if op_state.active else None
         _cru_act_ok = (_cru_act is not None and
@@ -1301,8 +1301,8 @@ def evaluate_supporters(tc):
             for _dw_pre, _dw_evo in zip(_dw_linea, _dw_linea[1:]):
                 if (field_counts.get(_dw_pre, 0) >= 1
                         and hand_counts.get(_dw_evo, 0) < 1
-                        and ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(
-                            _dw_evo, {}).get(ESTADO_MAZO, 0) > 0):
+                        and AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(
+                            _dw_evo, {}).get(ZONE_DECK, 0) > 0):
                     _dawn_need_evo = True
                     break
             if _dawn_need_evo:

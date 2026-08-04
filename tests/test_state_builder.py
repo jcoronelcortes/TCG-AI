@@ -32,10 +32,10 @@ HEROS_CAPE = 1159
 
 @pytest.fixture(autouse=True)
 def reset_main_state():
-    m._init_cartas_tracking()
-    m._cartas_first_scan_done = False
-    m._cartas_prizes_identified = False
-    m._cartas_last_turn = -1
+    m._init_cards_tracking()
+    m._cards_first_scan_done = False
+    m._cards_prizes_identified = False
+    m._cards_last_turn = -1
     m.plan = m.AttackPlan()
     m.pre_turn = 0
     m.meganium_in_play = False
@@ -53,7 +53,7 @@ def reset_main_state():
     m._dodge_immune_serial = None
     m._dodge_immune_turn = -1
     yield
-    m._init_cartas_tracking()
+    m._init_cards_tracking()
 
 
 def _escenario_paso69(op_activo="kangaskhan", energia_dipplin=2):
@@ -1062,7 +1062,7 @@ def _menu_inmune_activo(op_activo_id, op_banca_id):
 
 def test_activo_inmune_juega_meowth_para_gustear_banca():
     obs = _menu_inmune_activo(CORNERSTONE, MEGA_LUCARIO)
-    m._init_cartas_tracking()
+    m._init_cards_tracking()
     m.plan = m.AttackPlan()
     dec = m.agent(obs)
     tipo = obs["select"]["option"][dec[0]]["type"]
@@ -1078,7 +1078,7 @@ def test_activo_atacable_no_desvia_a_meowth():
     # Hydrapple ex DOES hit it (330), so the agent ATTACKS instead of detouring
     # into playing Meowth ex through the immunity engine's route.
     obs = _menu_inmune_activo(MEGA_LUCARIO, CORNERSTONE)
-    m._init_cartas_tracking()
+    m._init_cards_tracking()
     m.plan = m.AttackPlan()
     dec = m.agent(obs)
     tipo = obs["select"]["option"][dec[0]]["type"]

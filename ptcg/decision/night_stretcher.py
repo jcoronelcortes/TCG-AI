@@ -10,8 +10,8 @@ from ptcg.cartas.ids import Applin, Basic_Grass_Energy, Bayleef, Chikorita, Dipp
 from ptcg.calculo.energia import _can_attack_eff, _grass_attach_route_open, _grass_attach_unit, _retreat_grass_units
 from ptcg.calculo.dano import _attacker_base_damage, _op_active_attack_damage_to, _our_effective_damage
 from ptcg.calculo.carta import prize_count_op
-from ptcg.estado.claves import ESTADO_MAZO
-from ptcg.estado.agente import ESTADO
+from ptcg.estado.claves import ZONE_DECK
+from ptcg.estado.agente import AGENT_STATE
 from ptcg.cartas.ids import Applin, Basic_Grass_Energy, Bayleef, Chikorita, Dipplin, Hydrapple_ex, Meganium, Meowth_ex, RETREAT_COST, Tapu_Bulu, Teal_Mask_Ogerpon_ex
 from ptcg.calculo.tablero import _active_of, _evolvable_counts
 from ptcg.calculo.energia import _grass_mult, calc_syrup_storm_damage, count_total_grass_energy
@@ -373,7 +373,7 @@ def _ns_e_cargar_banca_crustle(w):
         if bp.id not in (Tapu_Bulu, Teal_Mask_Ogerpon_ex,
                          Hydrapple_ex, Meganium):
             continue
-        req = ESTADO.ATTACK_ENERGY_REQ.get(bp.id)
+        req = AGENT_STATE.ATTACK_ENERGY_REQ.get(bp.id)
         if req is None:
             continue
         if len(bp.energies) * _grass_mult() < req:
@@ -451,7 +451,7 @@ def _ctx_ns_fetch(my_state, state, hand_counts, field_counts, bench_count,
     # Crustle/Cornerstone matchup: recover the Grass to CHARGE a benched
     # attacker while we can still attach it this turn.
     ns_bench_charge = False
-    if ((ESTADO.op_is_crustle_deck or ESTADO.op_is_cornerstone_deck) and
+    if ((AGENT_STATE.op_is_crustle_deck or AGENT_STATE.op_is_cornerstone_deck) and
             hand_counts[Basic_Grass_Energy] == 0 and
             not state.energyAttached):
         for bp in (my_state.bench or []):
@@ -460,7 +460,7 @@ def _ctx_ns_fetch(my_state, state, hand_counts, field_counts, bench_count,
             if bp.id not in (Tapu_Bulu, Teal_Mask_Ogerpon_ex,
                              Hydrapple_ex, Meganium):
                 continue
-            req = ESTADO.ATTACK_ENERGY_REQ.get(bp.id)
+            req = AGENT_STATE.ATTACK_ENERGY_REQ.get(bp.id)
             if req is None:
                 continue
             if len(bp.energies) * _grass_mult() < req:
@@ -476,18 +476,18 @@ def _ctx_ns_fetch(my_state, state, hand_counts, field_counts, bench_count,
     # Hydrapple ex to be missing from play: here the evolution is not development,
     # it is a rescue.
     ns_evo_saves_doomed = False
-    if ESTADO._op_bench_snipe_dmg > 0 and hand_counts.get(Hydrapple_ex, 0) == 0:
+    if AGENT_STATE._op_bench_snipe_dmg > 0 and hand_counts.get(Hydrapple_ex, 0) == 0:
         for _nsd in (my_state.bench or []):
             if _nsd is None or _nsd.id != Dipplin:
                 continue
-            if (_nsd.hp or 0) > ESTADO._op_bench_snipe_dmg:
+            if (_nsd.hp or 0) > AGENT_STATE._op_bench_snipe_dmg:
                 continue  # it survives this turn's drip: not urgent
-            if getattr(_nsd, 'appearThisTurn', False) and not ESTADO.forest_in_play:
+            if getattr(_nsd, 'appearThisTurn', False) and not AGENT_STATE.forest_in_play:
                 continue  # it evolved this turn: it cannot evolve again
             ns_evo_saves_doomed = True
             break
-    evolvable_ns = _evolvable_counts(field_counts, ESTADO._field_at_turn_start,
-                                     ESTADO.forest_in_play)
+    evolvable_ns = _evolvable_counts(field_counts, AGENT_STATE._field_at_turn_start,
+                                     AGENT_STATE.forest_in_play)
     # DEAD TURN (user, registro_008 step 67 vs Alakazam, LOST): with no body able
     # to attack today and an empty hand, recovering an EVOLUTION is preparation
     # that never gets played -- the opponent knocks out the active and next turn we
@@ -515,18 +515,18 @@ def _ctx_ns_fetch(my_state, state, hand_counts, field_counts, bench_count,
         ns_evo_saves_doomed=ns_evo_saves_doomed,
         grass_enables_syrup_ko=grass_enables_syrup_ko,
         turno_muerto=turno_muerto, mano_agotada=mano_agotada,
-        ld_free=ld_free, ko_reciente=ESTADO.ko_last_turn,
+        ld_free=ld_free, ko_reciente=AGENT_STATE.ko_last_turn,
         dragapult_no_tapu=dragapult_no_tapu)
 
 
 def _v_ns_chikorita_arrancar(c):
     v = 800
-    if ESTADO.forest_in_play and (c.hand.get(Bayleef, 0) >= 1
+    if AGENT_STATE.forest_in_play and (c.hand.get(Bayleef, 0) >= 1
                            or c.hand.get(Meganium, 0) >= 1):
         v = 950
     elif c.hand.get(Bayleef, 0) >= 1:
         v = 900
-    if ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Chikorita, {}).get(ESTADO_MAZO, 0) == 0:
+    if AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Chikorita, {}).get(ZONE_DECK, 0) == 0:
         v += 100
     else:
         v -= 100
@@ -535,12 +535,12 @@ def _v_ns_chikorita_arrancar(c):
 
 def _v_ns_applin_arrancar(c):
     v = 700
-    if ESTADO.forest_in_play and (c.hand.get(Dipplin, 0) >= 1
+    if AGENT_STATE.forest_in_play and (c.hand.get(Dipplin, 0) >= 1
                            or c.hand.get(Hydrapple_ex, 0) >= 1):
         v = 870
     elif c.hand.get(Dipplin, 0) >= 1:
         v = 800
-    if ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Applin, {}).get(ESTADO_MAZO, 0) == 0:
+    if AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Applin, {}).get(ZONE_DECK, 0) == 0:
         v += 100
     else:
         v -= 100
@@ -553,15 +553,15 @@ def _v_ns_ogerpon_pocos(c):
         v = 700
     if c.bench_count <= 1:
         v += 100
-    if ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(
-            Teal_Mask_Ogerpon_ex, {}).get(ESTADO_MAZO, 0) == 0:
+    if AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(
+            Teal_Mask_Ogerpon_ex, {}).get(ZONE_DECK, 0) == 0:
         v += 100
     return v
 
 
 def _v_ns_meowth_fetch(c):
     v = min(700, c.best_supp_mazo_val)
-    if ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Meowth_ex, {}).get(ESTADO_MAZO, 0) == 0:
+    if AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Meowth_ex, {}).get(ZONE_DECK, 0) == 0:
         v += 100
     return v
 
@@ -612,7 +612,7 @@ _REGLAS_NS_FEZ = [
                lambda c: 1200),
     _FixedRule("refill_tras_ko",
                lambda c: (c.campo.get(Fezandipiti_ex, 0) == 0
-                          and ESTADO.ko_last_turn and c.bench_count < 5),
+                          and AGENT_STATE.ko_last_turn and c.bench_count < 5),
                lambda c: 850),
     # vs Lucario (which hits the bench): Fez only as an emergency body with an
     # empty bench; otherwise vetoed.
@@ -628,7 +628,7 @@ _REGLAS_NS_FEZ = [
 
 _REGLAS_NS_CHIKORITA = [
     _FixedRule("arrancar_linea_meganium",
-               lambda c: (not ESTADO.meganium_in_play
+               lambda c: (not AGENT_STATE.meganium_in_play
                           and (c.campo.get(Chikorita, 0)
                                + c.campo.get(Bayleef, 0)
                                + c.campo.get(Meganium, 0)) == 0),
@@ -673,7 +673,7 @@ _REGLAS_NS_TAPU = [
                lambda c: c.campo.get(Tapu_Bulu, 0) >= 1,
                lambda c: 15),
     _FixedRule("anti_ex_con_meganium",
-               lambda c: (ESTADO.meganium_in_play
+               lambda c: (AGENT_STATE.meganium_in_play
                           and (c.op_ex_immune_active
                                or c.op_ex_immune_bench)),
                lambda c: 800 if c.has_hydrapple else 700),
@@ -686,15 +686,15 @@ _REGLAS_NS_TAPU = [
 _REGLAS_NS_PINSIR = [
     _FixedRule("anti_ex",
                lambda c: (c.campo.get(Pinsir, 0) == 0
-                          and (ESTADO.op_is_crustle_deck
-                               or ESTADO.op_is_cornerstone_deck)),
+                          and (AGENT_STATE.op_is_crustle_deck
+                               or AGENT_STATE.op_is_cornerstone_deck)),
                lambda c: 850),
 ]
 
 
 _REGLAS_NS_MEOWTH = [
     _FixedRule("t1_saliendo_primeros_no",
-               lambda c: c.turno == 1 and ESTADO.we_go_first,
+               lambda c: c.turno == 1 and AGENT_STATE.we_go_first,
                lambda c: 10),
     # First option of the draw engine on a dead turn: it beats ALL development
     # (see the comment block about _ns_motor_meowth_vivo).
@@ -728,7 +728,7 @@ _REGLAS_NS_HYDRAPPLE = [
     _FixedRule("cadena_applin_dipplin_mano",
                lambda c: (c.campo.get(Applin, 0) >= 1
                           and c.hand.get(Dipplin, 0) >= 1
-                          and ESTADO.forest_in_play and not c.has_hydrapple),
+                          and AGENT_STATE.forest_in_play and not c.has_hydrapple),
                lambda c: 960),
 ]
 
@@ -736,12 +736,12 @@ _REGLAS_NS_HYDRAPPLE = [
 _REGLAS_NS_MEGANIUM = [
     _FixedRule("bayleef_evolucionable",
                lambda c: (c.evolvable_ns.get(Bayleef, 0) >= 1
-                          and not ESTADO.meganium_in_play),
+                          and not AGENT_STATE.meganium_in_play),
                lambda c: 990),
     _FixedRule("cadena_chikorita_bayleef_mano",
                lambda c: (c.campo.get(Chikorita, 0) >= 1
                           and c.hand.get(Bayleef, 0) >= 1
-                          and ESTADO.forest_in_play and not ESTADO.meganium_in_play),
+                          and AGENT_STATE.forest_in_play and not AGENT_STATE.meganium_in_play),
                lambda c: 975),
 ]
 
@@ -750,11 +750,11 @@ _REGLAS_NS_DIPPLIN = [
     _FixedRule("combo_applin_hydra_en_mano",
                lambda c: (c.hand.get(Applin, 0) >= 1
                           and c.hand.get(Hydrapple_ex, 0) >= 1
-                          and ESTADO.forest_in_play and c.bench_count < 5),
+                          and AGENT_STATE.forest_in_play and c.bench_count < 5),
                lambda c: 970),
     _FixedRule("applin_en_mano_con_forest",
                lambda c: (c.hand.get(Applin, 0) >= 1
-                          and ESTADO.forest_in_play and c.bench_count < 5),
+                          and AGENT_STATE.forest_in_play and c.bench_count < 5),
                lambda c: 880),
     _FixedRule("applin_evolucionable",
                lambda c: (c.evolvable_ns.get(Applin, 0) >= 1
@@ -767,17 +767,17 @@ _REGLAS_NS_BAYLEEF = [
     _FixedRule("combo_chikorita_meganium_en_mano",
                lambda c: (c.hand.get(Chikorita, 0) >= 1
                           and c.hand.get(Meganium, 0) >= 1
-                          and ESTADO.forest_in_play and c.bench_count < 5
-                          and not ESTADO.meganium_in_play),
+                          and AGENT_STATE.forest_in_play and c.bench_count < 5
+                          and not AGENT_STATE.meganium_in_play),
                lambda c: 985),
     _FixedRule("chikorita_en_mano_con_forest",
                lambda c: (c.hand.get(Chikorita, 0) >= 1
-                          and ESTADO.forest_in_play and c.bench_count < 5
-                          and not ESTADO.meganium_in_play),
+                          and AGENT_STATE.forest_in_play and c.bench_count < 5
+                          and not AGENT_STATE.meganium_in_play),
                lambda c: 910),
     _FixedRule("chikorita_evolucionable",
                lambda c: (c.evolvable_ns.get(Chikorita, 0) >= 1
-                          and not ESTADO.meganium_in_play),
+                          and not AGENT_STATE.meganium_in_play),
                lambda c: 870),
 ]
 

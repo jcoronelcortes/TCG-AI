@@ -67,17 +67,17 @@ _FIX_TURNO_RIVAL = _FIX / "marnie_ko_en_turno_rival_habilita_el_sello_step107.js
 
 @pytest.fixture(autouse=True)
 def reset_main_state():
-    m._init_cartas_tracking()
-    m._cartas_first_scan_done = False
-    m._cartas_prizes_identified = False
-    m._cartas_last_turn = -1
+    m._init_cards_tracking()
+    m._cards_first_scan_done = False
+    m._cards_prizes_identified = False
+    m._cards_last_turn = -1
     m.plan = m.AttackPlan()
     m.pre_turn = 0
     m.ko_last_turn = False
     m._ko_detected_this_turn = False
     m._prev_op_prize = 6
     yield
-    m._init_cartas_tracking()
+    m._init_cards_tracking()
 
 
 def _cargar(fixture):
@@ -144,7 +144,7 @@ def test_el_menu_del_motor_manda_sobre_la_inferencia_de_logs():
     """
     _, decision = _cargar(_FIX_ENTRE_TURNOS)
     m.agent(decision)          # WITHOUT the previous observation: we did not see the TURN_END
-    assert m._ko_propio_fuera_del_turno_rival == -99
+    assert m._own_ko_outside_op_turn == -99
     assert not m.ko_last_turn
 
 
@@ -191,8 +191,8 @@ def _ko_propio(serial=1, area=m.AreaType.BENCH):
 def test_clasificador_de_ventana(logs, dentro, fuera):
     m._reset_ventana_de_ko()
     m._rastrear_ventana_de_ko(logs, my_index=1, turno=9)
-    assert m._ko_propio_en_turno_rival == dentro
-    assert m._ko_propio_fuera_del_turno_rival == fuera
+    assert m._own_ko_inside_op_turn == dentro
+    assert m._own_ko_outside_op_turn == fuera
 
 
 def test_el_cuerpo_del_rival_y_las_energias_no_son_kos_nuestros():
@@ -209,8 +209,8 @@ def test_el_cuerpo_del_rival_y_las_energias_no_son_kos_nuestros():
         _log(type=m.LogType.MOVE_CARD, playerIndex=1, cardId=m.Applin, serial=7,
              fromArea=m.AreaType.PRE_EVOLUTION, toArea=m.AreaType.DISCARD),
     ], my_index=1, turno=9)
-    assert m._ko_propio_en_turno_rival == -99
-    assert m._ko_propio_fuera_del_turno_rival == -99
+    assert m._own_ko_inside_op_turn == -99
+    assert m._own_ko_outside_op_turn == -99
 
 
 def test_partida_nueva_borra_la_ventana():
@@ -219,7 +219,7 @@ def test_partida_nueva_borra_la_ventana():
         _log(type=m.LogType.TURN_START, playerIndex=0),
         _log(type=m.LogType.TURN_END, playerIndex=0), _ko_propio()],
         my_index=1, turno=9)
-    assert m._ko_propio_fuera_del_turno_rival == 9
-    m._init_cartas_tracking()
-    assert m._ko_propio_fuera_del_turno_rival == -99
-    assert m._log_turno_en_curso == m._TURNO_LOG_DESCONOCIDO
+    assert m._own_ko_outside_op_turn == 9
+    m._init_cards_tracking()
+    assert m._own_ko_outside_op_turn == -99
+    assert m._log_current_turn == m._TURN_LOG_UNKNOWN

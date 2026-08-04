@@ -12,7 +12,7 @@ utils/pureza.py: nothing here touches mutable state or the runtime tables.
 
 from ptcg.calculo.tablero import _active_of
 from ptcg.cartas.ids import Alakazam_ex, Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Hydrapple_ex, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, Poke_Pad, SCORE_VETO, STAMP_MAX_HAND_SACRIFICADA, STAMP_MIN_OP_HAND, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, XEROSIC_SCORE_ALAKAZAM, XEROSIC_SCORE_GENERIC, XEROSIC_SCORE_LAST_RESORT, XEROSIC_SCORE_SOBRE_BOSS, XEROSIC_STAMP_ORDEN_MIN_OP_HAND, Xerosic_Machinations
-from ptcg.estado.claves import ESTADO_MAZO
+from ptcg.estado.claves import ZONE_DECK
 from ptcg.motor.contexto import DecisionContext
 from ptcg.motor.reglas import _Adjustment, _FixedRule, _resolve_with_trace
 
@@ -238,7 +238,7 @@ def _xr_copia_respaldo(c):
     conservative timing (user, july 2026: -1 Poke Pad +1 Xerosic)."""
     return (c.hand_counts.get(Xerosic_Machinations, 0) >= 2
             or c.cards_in_deck.get(
-                Xerosic_Machinations, {}).get(ESTADO_MAZO, 0) >= 1)
+                Xerosic_Machinations, {}).get(ZONE_DECK, 0) >= 1)
 
 
 def _xr_gate_alakazam(c):

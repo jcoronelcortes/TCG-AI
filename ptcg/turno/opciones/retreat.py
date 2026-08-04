@@ -13,7 +13,7 @@ from ptcg.calculo.tablero import _active_of
 from ptcg.cartas.ids import Applin, Basic_Grass_Energy, Bayleef, Chikorita, Cornerstone_Mask_Ogerpon_ex, Crustle_Fighting, Crustle_Grass, Cubchoo, Dawn, Dipplin, Drednaw, Dwebble_Fighting, Dwebble_Grass, EEVEE_IDS, Fezandipiti_ex, Hydrapple_ex, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, OP_BENCH_SNIPE_DAMAGE, OUR_ABILITY_IDS, OUR_EX_IDS, Pinsir, RETREAT_COST, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex
 from ptcg.cartas.puntuacion import MAIN_ATTACKERS
 from ptcg.cartas.tablas import card_table
-from ptcg.estado.agente import ESTADO
+from ptcg.estado.agente import AGENT_STATE
 
 
 def puntuar(tc, o, score):
@@ -167,7 +167,7 @@ def puntuar(tc, o, score):
         _meg_retreat_for_hydra = False
         if (_active_reloc is not None and _active_reloc.id == Meganium
                 and can_switch
-                and not (ESTADO.op_is_crustle_deck or op_has_ex_immune_active
+                and not (AGENT_STATE.op_is_crustle_deck or op_has_ex_immune_active
                          or op_has_ex_immune_bench or op_is_sylveon_deck)):
             for _mrh_bp in (my_state.bench or []):
                 if _mrh_bp is not None and _mrh_bp.id == Hydrapple_ex:
@@ -176,7 +176,7 @@ def puntuar(tc, o, score):
         
         _grd_prefer_attack = False
         if (_active_reloc is not None and can_switch
-                and not (ESTADO.op_is_crustle_deck or ESTADO.op_is_cornerstone_deck)):
+                and not (AGENT_STATE.op_is_crustle_deck or AGENT_STATE.op_is_cornerstone_deck)):
             _grd_opa = (op_state.active[0]
                         if (op_state.active and op_state.active[0] is not None)
                         else None)
@@ -240,7 +240,7 @@ def puntuar(tc, o, score):
             if _acn_base > 0:
                 _acn_dmg = _our_effective_damage(
                     _active_reloc, _acn_op, _acn_base,
-                    ESTADO.meganium_in_play, neutralization_zone_active)
+                    AGENT_STATE.meganium_in_play, neutralization_zone_active)
                 if _acn_dmg > 0 and _acn_dmg >= (_acn_op.hp or 0):
                     _active_can_ko_now = True
         
@@ -374,7 +374,7 @@ def puntuar(tc, o, score):
                     continue
                 _hlp_dmg = _our_effective_damage(
                     _hlp_bp, _hlp_opa, 30 + 30 * _hlp_grass_after,
-                    ESTADO.meganium_in_play, neutralization_zone_active)
+                    AGENT_STATE.meganium_in_play, neutralization_zone_active)
                 if _hlp_dmg > 0 and _hlp_opa_hp > 0 and _hlp_dmg >= _hlp_opa_hp:
                     _hydra_lethal_promote = True
                     break
@@ -446,7 +446,7 @@ def puntuar(tc, o, score):
                     _olp_dmg = _our_effective_damage(
                         _olp_bp, _olp_opa,
                         30 + 30 * (_olp_eff_after + _olp_op_e),
-                        ESTADO.meganium_in_play, neutralization_zone_active)
+                        AGENT_STATE.meganium_in_play, neutralization_zone_active)
                     if _olp_dmg > 0 and _olp_opa_hp > 0 and _olp_dmg >= _olp_opa_hp:
                         _ogerpon_lethal_promote = True
                         break
@@ -466,8 +466,8 @@ def puntuar(tc, o, score):
         # handle those walls).
         if (_active_reloc is not None and _active_reloc.id == Tapu_Bulu
                 and _active_can_ko_now):
-            _tapu_ex_immune_match = (ESTADO.op_is_crustle_deck
-                                     or ESTADO.op_is_cornerstone_deck
+            _tapu_ex_immune_match = (AGENT_STATE.op_is_crustle_deck
+                                     or AGENT_STATE.op_is_cornerstone_deck
                                      or op_is_sylveon_deck)
             _tapu_opa_id = (op_state.active[0].id
                             if op_state.active
@@ -750,7 +750,7 @@ def puntuar(tc, o, score):
         elif _active_can_ko_now:
         
             score = SCORE_VETO
-        elif ESTADO.plan.attacker >= 1:
+        elif AGENT_STATE.plan.attacker >= 1:
         
             _retreat_active = my_state.active[0] if my_state.active else None
             _retreat_active_can_attack = False
@@ -782,7 +782,7 @@ def puntuar(tc, o, score):
             active = my_state.active[0]
             active_energy = len(active.energies)
         
-            _our_first_turn = (state.turn == 1 and ESTADO.we_go_first) or (state.turn == 2 and not ESTADO.we_go_first)
+            _our_first_turn = (state.turn == 1 and AGENT_STATE.we_go_first) or (state.turn == 2 and not AGENT_STATE.we_go_first)
         
             NON_ATTACKERS = (Meganium, Meowth_ex, Chikorita, Bayleef, Applin)
         
@@ -822,7 +822,7 @@ def puntuar(tc, o, score):
                 for bp in my_state.bench)
         
             _meg_only_attacker_retreat = False
-            if ((ESTADO.op_is_crustle_deck or ESTADO.op_is_cornerstone_deck) and
+            if ((AGENT_STATE.op_is_crustle_deck or AGENT_STATE.op_is_cornerstone_deck) and
                     can_switch and active.id != Meganium):
         
                 _opa_km = (op_state.active[0]
@@ -850,7 +850,7 @@ def puntuar(tc, o, score):
                     if _base <= 0:
                         return False
                     return _our_effective_damage(
-                        _p, _opa_km, _base, ESTADO.meganium_in_play,
+                        _p, _opa_km, _base, AGENT_STATE.meganium_in_play,
                         neutralization_zone_active) >= _opa_km_hp
         
                 _other_atk_ready_meg = any(
@@ -875,7 +875,7 @@ def puntuar(tc, o, score):
                     if _act_base_meg > 0:
                         _act_dmg_meg = _our_effective_damage(
                             active, _opa_meg, _act_base_meg,
-                            ESTADO.meganium_in_play, neutralization_zone_active)
+                            AGENT_STATE.meganium_in_play, neutralization_zone_active)
                         if _act_dmg_meg >= (_opa_meg.hp or 0) and _act_dmg_meg > 0:
                             _act_ko_rival_meg = True
                 if (not _other_atk_ready_meg and _meganium_bench_ready_meg and
@@ -886,7 +886,7 @@ def puntuar(tc, o, score):
         
                 score = 3500
         
-            elif ((ESTADO.op_is_crustle_deck or ESTADO.op_is_cornerstone_deck) and
+            elif ((AGENT_STATE.op_is_crustle_deck or AGENT_STATE.op_is_cornerstone_deck) and
                   active.id == Teal_Mask_Ogerpon_ex):
                 if not can_switch:
                     score = SCORE_VETO
@@ -901,7 +901,7 @@ def puntuar(tc, o, score):
                         _tmo_base = 30 + 30 * (len(active.energies) + _opa_tmo_e)
                         _tmo_dmg = _our_effective_damage(
                             active, _opa_tmo, _tmo_base,
-                            ESTADO.meganium_in_play, neutralization_zone_active)
+                            AGENT_STATE.meganium_in_play, neutralization_zone_active)
                         if _tmo_dmg >= (_opa_tmo.hp or 0) and _tmo_dmg > 0:
                             _tmo_ko_rival = True
                     if _tmo_ko_rival:
@@ -920,11 +920,11 @@ def puntuar(tc, o, score):
                             elif bp.id == Tapu_Bulu and _bp_eff >= 4:
                                 _tmo_attacker_ready = True
                                 break
-                            elif (ESTADO.op_is_crustle_deck and
+                            elif (AGENT_STATE.op_is_crustle_deck and
                                   bp.id == Dipplin and _bp_e >= 1):
                                 _tmo_attacker_ready = True
                                 break
-                            elif (ESTADO.op_is_crustle_deck and
+                            elif (AGENT_STATE.op_is_crustle_deck and
                                   bp.id == Meganium and _bp_eff >= 4):
                                 _tmo_attacker_ready = True
                                 break
@@ -965,7 +965,7 @@ def puntuar(tc, o, score):
                     for _xx_bp in (my_state.bench or []):
                         if _xx_bp is None:
                             continue
-                        _xx_req = ESTADO.ATTACK_ENERGY_REQ.get(_xx_bp.id)
+                        _xx_req = AGENT_STATE.ATTACK_ENERGY_REQ.get(_xx_bp.id)
                         if _xx_req is None:
                             continue
                         _xx_e = len(_xx_bp.energies)
@@ -984,14 +984,14 @@ def puntuar(tc, o, score):
                                 bench_count=bench_count)
                             if _xx_base > 0 and _our_effective_damage(
                                     _xx_bp, _xx_op, _xx_base,
-                                    ESTADO.meganium_in_play,
+                                    AGENT_STATE.meganium_in_play,
                                     neutralization_zone_active) >= (
                                         _xx_op.hp or 0):
                                 _xx_vale = True
                                 break
                 score = 3200 if _xx_vale else SCORE_VETO
         
-            elif (ESTADO.op_is_cornerstone_deck and can_switch and
+            elif (AGENT_STATE.op_is_cornerstone_deck and can_switch and
                   active.id in OUR_ABILITY_IDS and
                   op_state.active and op_state.active[0] is not None and
                   op_state.active[0].id == Cornerstone_Mask_Ogerpon_ex):
@@ -1004,7 +1004,7 @@ def puntuar(tc, o, score):
                 else:
                     score = SCORE_VETO
         
-            elif (ESTADO.op_is_crustle_deck and can_switch and
+            elif (AGENT_STATE.op_is_crustle_deck and can_switch and
                   active.id in OUR_EX_IDS):
         
                 _cr_op_act = op_state.active[0] if op_state.active else None
@@ -1019,7 +1019,7 @@ def puntuar(tc, o, score):
                     if _cr_base > 0:
                         _cr_dmg = _our_effective_damage(
                             active, _cr_op_act, _cr_base,
-                            ESTADO.meganium_in_play, neutralization_zone_active)
+                            AGENT_STATE.meganium_in_play, neutralization_zone_active)
                         if _cr_dmg >= (_cr_op_act.hp or 0) and _cr_dmg > 0:
                             _cr_ex_can_ko = True
                 if _cr_ex_can_ko:
@@ -1045,11 +1045,11 @@ def puntuar(tc, o, score):
                   and _fase58_promo_ready):
                 score = 3300
         
-            elif active.id == Fezandipiti_ex and ESTADO.plan.attacker == 0:
+            elif active.id == Fezandipiti_ex and AGENT_STATE.plan.attacker == 0:
                 score = SCORE_VETO
         
             elif (active.id == Fezandipiti_ex and
-                  state.turn == 2 and not ESTADO.we_go_first):
+                  state.turn == 2 and not AGENT_STATE.we_go_first):
                 score = SCORE_VETO
         
             elif active.id in NON_ATTACKERS:
@@ -1096,7 +1096,7 @@ def puntuar(tc, o, score):
                 for bp in my_state.bench:
                     if bp is None or bp.id not in STRATEGIC_ATTACKERS:
                         continue
-                    _bar_req = ESTADO.ATTACK_ENERGY_REQ.get(bp.id)
+                    _bar_req = AGENT_STATE.ATTACK_ENERGY_REQ.get(bp.id)
                     if _bar_req is None:
                         continue
                     _bar_eff = len(bp.energies) * _grass_mult()
@@ -1152,7 +1152,7 @@ def puntuar(tc, o, score):
                     and hand_counts.get(Bayleef, 0) >= 1
                     and bench_count >= 1
                     and not _active_can_ko_now
-                    and (ESTADO.forest_in_play
+                    and (AGENT_STATE.forest_in_play
                          or not getattr(active, 'appearThisTurn', False)))
         
                 if active.id in (Chikorita, Bayleef, Meganium):
@@ -1169,7 +1169,7 @@ def puntuar(tc, o, score):
                     # see energy_score) and having a body on the bench to promote.
                     # The promotion prefers an attacker and, failing that, an ex
                     # (Ogerpon ex first, see _best_promote).
-                    if (ESTADO.op_is_crustle_deck and active.id == Chikorita
+                    if (AGENT_STATE.op_is_crustle_deck and active.id == Chikorita
                             and field_counts.get(Chikorita, 0) <= 1
                             and bench_count >= 1):
                         score = 6500
@@ -1295,8 +1295,8 @@ def puntuar(tc, o, score):
                 elif (can_switch
                       and estimated_op_damage > 0
                       and estimated_op_damage >= (active.hp or 0)
-                      and not (ESTADO.plan.remain_hp is not None
-                               and ESTADO.plan.remain_hp <= 0)):
+                      and not (AGENT_STATE.plan.remain_hp is not None
+                               and AGENT_STATE.plan.remain_hp <= 0)):
                     # DEFENSIVE RETREAT: our active attacker CAN attack
                     # but will be knocked out next turn (the opponent's
                     # estimated damage >= its HP) and attacking with it does

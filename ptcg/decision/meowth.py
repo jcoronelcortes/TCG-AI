@@ -7,7 +7,7 @@ utils/pureza.py: nothing here touches mutable state or the runtime tables.
 
 from ptcg.motor.reglas import _FixedRule
 from ptcg.cartas.ids import Boss_Orders, Lillie_Determination, Xerosic_Machinations
-from ptcg.estado.agente import ESTADO
+from ptcg.estado.agente import AGENT_STATE
 from ptcg.cartas.ids import Boss_Orders, Dawn, Lillie_Determination
 from ptcg.cartas.ids import Basic_Grass_Energy, Boss_Orders, Dawn, Lanas_Aid, Lillie_Determination, Xerosic_Machinations
 
@@ -50,7 +50,7 @@ class _CtxMeowthFetch:
 
 def _v_meowth_fetch_valor(c):
     score = c.sv
-    if c.card_id == Boss_Orders and ESTADO.op_is_crustle_deck:
+    if c.card_id == Boss_Orders and AGENT_STATE.op_is_crustle_deck:
         score += 100
     # Dawn (searches Basic+Stage1+Stage2 to assemble the evolution line) is
     # ONLY worth fetching with Meowth ex if we have Forest of Vitality (1261)
@@ -61,7 +61,7 @@ def _v_meowth_fetch_valor(c):
     # Lillie's and not Dawn. WITH Forest in play Dawn keeps its value
     # (consistent with the Dawn/Lillie's tie-break around ~L6137). (user,
     # registro_004 step 53 vs Marnie's Grimmsnarl ex, LOST.)
-    if (c.card_id == Dawn and not ESTADO.forest_in_play
+    if (c.card_id == Dawn and not AGENT_STATE.forest_in_play
             and c.supp_values.get(Lillie_Determination, 0) > 0):
         score = min(score,
                     c.supp_values.get(Lillie_Determination, 0) - 50)

@@ -8,8 +8,8 @@ VERBATIM. It unpacks from the context the 25 fields it reads and returns the
 from cg.api import AreaType, OptionType
 from ptcg.calculo.carta import get_card, prize_count_op
 from ptcg.cartas.ids import Applin, Basic_Grass_Energy, Chikorita, Fezandipiti_ex, Hydrapple_ex, Lillie_Determination, Meowth_ex, Pinsir, RETREAT_COST, SCORE_VETO, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball
-from ptcg.estado.agente import ESTADO
-from ptcg.estado.claves import ESTADO_MAZO
+from ptcg.estado.agente import AGENT_STATE
+from ptcg.estado.claves import ZONE_DECK
 
 
 def puntuar(tc, o, score):
@@ -41,7 +41,7 @@ def puntuar(tc, o, score):
 
     try:
         score = 1000
-        if ESTADO.plan.attack_index >= 0:
+        if AGENT_STATE.plan.attack_index >= 0:
         
             score += 100
         
@@ -50,7 +50,7 @@ def puntuar(tc, o, score):
         # it is the highest priority play -- above any charge / development /
         # Teal Dance. The play-order tier (below) also raises it to the maximum
         # so it is executed NOW and closes the game.
-        if _active_attack_wins_now and ESTADO.plan.attacker == 0:
+        if _active_attack_wins_now and AGENT_STATE.plan.attacker == 0:
             score = 99000
         
         # SNIPE THAT TAKES A PRIZE (user, registro_004 step 54 vs Alakazam):
@@ -61,7 +61,7 @@ def puntuar(tc, o, score):
         # charges, development). It stays below the winning finishers (99000)
         # and the bigger-KO pivots (8900-9600), which have their own prize
         # guards.
-        elif _active_snipe_ko_now and ESTADO.plan.attacker == 0:
+        elif _active_snipe_ko_now and AGENT_STATE.plan.attacker == 0:
             score = 8500 + 100 * _active_snipe_ko_prizes
         
         # SUICIDAL FINISHER (user, registro_016 step 184 vs Marnie's Grimmsnarl,
@@ -77,7 +77,7 @@ def puntuar(tc, o, score):
         #     best result available and we attack anyway.
         # `plan.attacker == 0` limits the brakes to the attack OF THE ACTIVE,
         # which is the only body whose self-damage the flags measured.
-        if (ESTADO.plan.attacker == 0
+        if (AGENT_STATE.plan.attacker == 0
                 and (_suicide_loses
                      or (_suicide_only_draws and _suicide_swap_win_promote))):
             score = SCORE_VETO
@@ -85,7 +85,7 @@ def puntuar(tc, o, score):
         if condition_risky_attack:
             if _conf_should_attack:
                 score += 300
-            elif ESTADO.plan.remain_hp is not None and ESTADO.plan.remain_hp <= 0:
+            elif AGENT_STATE.plan.remain_hp is not None and AGENT_STATE.plan.remain_hp <= 0:
                 score += 50
             else:
                 score -= 500
@@ -93,7 +93,7 @@ def puntuar(tc, o, score):
         _active_is_hydrapple = (my_state.active and my_state.active[0] is not None and
                                 my_state.active[0].id == Hydrapple_ex)
         if _active_is_hydrapple and not itchy_pollen_active:
-            _atk_is_ko = (ESTADO.plan.remain_hp is not None and ESTADO.plan.remain_hp <= 0)
+            _atk_is_ko = (AGENT_STATE.plan.remain_hp is not None and AGENT_STATE.plan.remain_hp <= 0)
             if not _atk_is_ko:
         
                 _can_add_energy = False
@@ -113,7 +113,7 @@ def puntuar(tc, o, score):
         
                 if (hand_counts.get(Ultra_Ball, 0) >= 1 and
                         bench_count < 5 and _energy_in_hand >= 1 and
-                        ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Teal_Mask_Ogerpon_ex, {}).get(ESTADO_MAZO, 0) > 0):
+                        AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Teal_Mask_Ogerpon_ex, {}).get(ZONE_DECK, 0) > 0):
                     _hand_size_atk = len(my_state.hand) if my_state.hand else 0
                     if _hand_size_atk >= 3:
                         _can_add_energy = True
@@ -122,9 +122,9 @@ def puntuar(tc, o, score):
         
                     score = SCORE_VETO
         
-        if ESTADO.plan.attacker >= 1 and score > 0 and not _nonex_active_hits_wall:
+        if AGENT_STATE.plan.attacker >= 1 and score > 0 and not _nonex_active_hits_wall:
             _plan_atk_is_winning = False
-            if ESTADO.plan.remain_hp is not None and ESTADO.plan.remain_hp <= 0:
+            if AGENT_STATE.plan.remain_hp is not None and AGENT_STATE.plan.remain_hp <= 0:
                 _op_act_plan = op_state.active[0] if op_state.active else None
                 if _op_act_plan is not None and my_prize <= prize_count_op(_op_act_plan):
                     _plan_atk_is_winning = True
@@ -153,20 +153,20 @@ def puntuar(tc, o, score):
                     _atk_has_basic_mazo = False
                     for _atk_bid in (Chikorita, Applin, Teal_Mask_Ogerpon_ex,
                                      Tapu_Bulu, Meowth_ex, Fezandipiti_ex, Pinsir):
-                        if ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(_atk_bid, {}).get(ESTADO_MAZO, 0) > 0:
+                        if AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(_atk_bid, {}).get(ZONE_DECK, 0) > 0:
                             _atk_has_basic_mazo = True
                             break
                     if _atk_has_basic_mazo:
         
                         _atk_is_winning = False
-                        if ESTADO.plan.remain_hp is not None and ESTADO.plan.remain_hp <= 0:
+                        if AGENT_STATE.plan.remain_hp is not None and AGENT_STATE.plan.remain_hp <= 0:
                             _op_act_atk = op_state.active[0] if op_state.active else None
                             if _op_act_atk is not None and op_prize <= prize_count_op(_op_act_atk):
                                 _atk_is_winning = True
                         if not _atk_is_winning:
                             score = SCORE_VETO
         
-        if (state.turn == 2 and not ESTADO.we_go_first
+        if (state.turn == 2 and not AGENT_STATE.we_go_first
                 and hand_counts.get(Lillie_Determination, 0) >= 1):
             _lillie_playable_now = any(
                 _lo.type == OptionType.PLAY

@@ -11,8 +11,8 @@ from ptcg.calculo.tablero import _active_of
 from ptcg.calculo.energia import _grass_ability_slots, _grass_attach_unit, _retreat_grass_units
 from ptcg.calculo.dano import _attacker_base_damage, _ko_not_guaranteed, _our_effective_damage
 from ptcg.calculo.carta import prize_count_op
-from ptcg.estado.claves import ESTADO_MAZO, ESTADO_PREMIO
-from ptcg.estado.agente import ESTADO
+from ptcg.estado.claves import ZONE_DECK, ZONE_PRIZE
+from ptcg.estado.agente import AGENT_STATE
 from ptcg.cartas.ids import FISHING_PRIZES_MIN, FISHING_PROB_MIN
 from dataclasses import dataclass
 from math import comb as _comb
@@ -67,9 +67,9 @@ class _FinisherFishing:
 def _belief_deck_and_prizes():
     deck = 0
     prize = 0
-    for counts in ESTADO.CARTAS_ACTIVAS_EN_MAZO.values():
-        deck += counts.get(ESTADO_MAZO, 0)
-        prize += counts.get(ESTADO_PREMIO, 0)
+    for counts in AGENT_STATE.ACTIVE_CARDS_IN_DECK.values():
+        deck += counts.get(ZONE_DECK, 0)
+        prize += counts.get(ZONE_PRIZE, 0)
     return deck, prize
 
 
@@ -81,8 +81,8 @@ def _prob_draw_any(target_ids, draws=1):
     target_set = set(target_ids)
     deck = 0
     hits = 0
-    for cid, counts in ESTADO.CARTAS_ACTIVAS_EN_MAZO.items():
-        n = counts.get(ESTADO_MAZO, 0)
+    for cid, counts in AGENT_STATE.ACTIVE_CARDS_IN_DECK.items():
+        n = counts.get(ZONE_DECK, 0)
         deck += n
         if cid in target_set:
             hits += n
@@ -100,11 +100,11 @@ def _prob_draw_any(target_ids, draws=1):
 
 
 def _prob_card_accessible(card_id):
-    counts = ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(card_id)
+    counts = AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(card_id)
     if not counts:
         return 0.0
-    in_deck = counts.get(ESTADO_MAZO, 0)
-    in_prize = counts.get(ESTADO_PREMIO, 0)
+    in_deck = counts.get(ZONE_DECK, 0)
+    in_prize = counts.get(ZONE_PRIZE, 0)
     copies = in_deck + in_prize
     if copies <= 0:
         return 0.0
@@ -240,7 +240,7 @@ def _finisher_fishing(my_state, op_state, state, hand_counts, field_counts,
             continue
         if not is_active and not retreat_payable:
             continue                      # charged or not, it does not reach the front today
-        req = ESTADO.ATTACK_ENERGY_REQ.get(body.id)
+        req = AGENT_STATE.ATTACK_ENERGY_REQ.get(body.id)
         if req is None:
             continue
         missing = req - len(body.energies)

@@ -10,7 +10,7 @@ from ptcg.calculo.rival import _alakazam_attacker_relief, _op_active_is_harmless
 from ptcg.calculo.energia import _can_attack_eff, _grass_attach_unit, _retreat_grass_units
 from ptcg.calculo.dano import _attacker_base_damage, _bench_attacker_best_damage, _bench_attacker_can_ko, _our_effective_damage
 from ptcg.calculo.carta import prize_count_op
-from ptcg.estado.agente import ESTADO
+from ptcg.estado.agente import AGENT_STATE
 from ptcg.cartas.ids import Basic_Grass_Energy, Bayleef, DUNSPARCE_IDS, Dipplin, EX_PREEVO_IDS, Fezandipiti_ex, Hydrapple_ex, Meganium, OUR_EX_IDS, RETREAT_COST, THREAT_PREEVO_IDS, Tapu_Bulu, Teal_Mask_Ogerpon_ex
 from ptcg.calculo.tablero import _active_of
 from ptcg.calculo.energia import _grass_mult
@@ -573,7 +573,7 @@ def _ctx_gust_objetivo(card, o, my_state, op_state, state, hand_counts,
         # ex/ability immunities but ignored Drednaw (cancels >=200),
         # Sturdy/Resolute Heart (cap at hp-10), Farigiraf's Armor Tail and the
         # Neutralization Zone -> `can_ko`/`wins_now` could declare false KOs.
-        eff_dmg = _our_effective_damage(atk, card, dmg, ESTADO.meganium_in_play,
+        eff_dmg = _our_effective_damage(atk, card, dmg, AGENT_STATE.meganium_in_play,
                                         neutralization_zone_active)
         if eff_dmg >= hp:
             can_ko = True
@@ -586,7 +586,7 @@ def _ctx_gust_objetivo(card, o, my_state, op_state, state, hand_counts,
             grass_after = max(0, total_grass
                               - (0 if switch_hand else ret_cost))
             if _bench_attacker_can_ko(
-                    my_state, card, ESTADO.meganium_in_play, total_grass,
+                    my_state, card, AGENT_STATE.meganium_in_play, total_grass,
                     bench_count, grass_after, neutralization_zone_active):
                 can_ko = True
 
@@ -622,7 +622,7 @@ def _ctx_gust_objetivo(card, o, my_state, op_state, state, hand_counts,
             grass_after = max(0, total_grass
                               - (0 if switch_hand else ret_cost))
             if _bench_attacker_can_ko(
-                    my_state, card, ESTADO.meganium_in_play, total_grass,
+                    my_state, card, AGENT_STATE.meganium_in_play, total_grass,
                     bench_count, grass_after, neutralization_zone_active):
                 linea_can_ko = True
 
@@ -645,7 +645,7 @@ def _ctx_gust_objetivo(card, o, my_state, op_state, state, hand_counts,
             atk.id, op_act, _mb_raw * _grass_mult(), grass_scale=total_grass,
             teal_self_energy=_mb_raw, bench_count=bench_count)
         muro_bloquea_activo = _our_effective_damage(
-            atk, op_act, _mb_base, ESTADO.meganium_in_play,
+            atk, op_act, _mb_base, AGENT_STATE.meganium_in_play,
             neutralization_zone_active) <= 0
 
     return _CtxGustObjetivo(
@@ -660,7 +660,7 @@ def _ctx_gust_objetivo(card, o, my_state, op_state, state, hand_counts,
         is_stage1=is_stage1, is_stage2=is_stage2,
         tiene_tool=bool(getattr(card, 'tools', None)),
         can_ko=can_ko, tier_ko=tier,
-        plan_target_match=(o.index == ESTADO.plan.target - 1),
+        plan_target_match=(o.index == AGENT_STATE.plan.target - 1),
         regust_energized=regust,
         linea_rank=linea_rank, linea_can_ko=linea_can_ko,
         op_alakazam=op_is_alakazam, op_latias=op_latias,
@@ -740,7 +740,7 @@ _AJUSTES_GUST_OFENSIVO = [
     # turn closes with no prizes. With the wall in front, the knockable Dwebble is
     # the ONLY prize of the turn and it also denies a future Crustle.
     _Adjustment("forbid_dwebble_vs_crustle",
-            lambda c, s: (ESTADO.op_is_crustle_deck
+            lambda c, s: (AGENT_STATE.op_is_crustle_deck
                           and c.card_id in (Dwebble_Grass, Dwebble_Fighting)
                           and not (c.muro_bloquea_activo and c.can_ko)),
             lambda c, s: SCORE_FORBID),

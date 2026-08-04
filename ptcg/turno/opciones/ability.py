@@ -11,7 +11,7 @@ from ptcg.calculo.dano import _our_effective_damage
 from ptcg.calculo.energia import _grass_attach_unit, _grass_mult, _ogerpon_base_phys_cap, _physical_energy
 from ptcg.cartas.grupos import GT_SCORE_CADENA_COMPLETA, GT_SCORE_SOLO_FASE1
 from ptcg.cartas.ids import Basic_Grass_Energy, Dipplin, FEZ_DRAW_ABILITY_SCORE, Fezandipiti_ex, Grand_Tree, Hydrapple_ex, Lillie_Determination, Meganium, Meowth_ex, Pinsir, RIPEN_HEAL_ABILITY_SCORE, RIPEN_HEAL_EX_ABILITY_SCORE, SCORE_CHARGE_ACTIVE_ATTACK, SCORE_CHARGE_ACTIVE_FINISHER, SCORE_VETO, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Unfair_Stamp
-from ptcg.estado.agente import ESTADO
+from ptcg.estado.agente import AGENT_STATE
 
 
 def puntuar(tc, o, score):
@@ -94,7 +94,7 @@ def puntuar(tc, o, score):
                 _ogerpon_energy = len(card.energies) if isinstance(card, Pokemon) else 0
         
                 _crustle_atk_needs_grass = False
-                if ESTADO.op_is_crustle_deck and hand_counts.get(Basic_Grass_Energy, 0) == 1:
+                if AGENT_STATE.op_is_crustle_deck and hand_counts.get(Basic_Grass_Energy, 0) == 1:
                     for _cng in (list(my_state.active or []) + list(my_state.bench or [])):
                         if _cng is None:
                             continue
@@ -130,10 +130,10 @@ def puntuar(tc, o, score):
                                       if _td_eff_after >= 3 else 0)
                     _td_dmg_now = _our_effective_damage(
                         card, _td_op_act, _td_base_now,
-                        ESTADO.meganium_in_play, neutralization_zone_active)
+                        AGENT_STATE.meganium_in_play, neutralization_zone_active)
                     _td_dmg_after = _our_effective_damage(
                         card, _td_op_act, _td_base_after,
-                        ESTADO.meganium_in_play, neutralization_zone_active)
+                        AGENT_STATE.meganium_in_play, neutralization_zone_active)
                     _td_ko_now = (_td_dmg_now > 0 and _td_dmg_now >= _td_op_hp)
                     _td_ko_after = (_td_dmg_after > 0 and _td_dmg_after >= _td_op_hp)
                     _td_ko_on_active = (_td_ko_after and not _td_ko_now)
@@ -228,7 +228,7 @@ def puntuar(tc, o, score):
                     score = 31500 if _ogerpon_energy < 3 else 31490
                 elif (op_is_cubchoo_deck and
                         _physical_energy(_ogerpon_energy)
-                        >= (2 if ESTADO.meganium_in_play else 4)):
+                        >= (2 if AGENT_STATE.meganium_in_play else 4)):
                     # Cubchoo matchup (user): do not overcharge the Ogerpon with
                     # Teal Dance beyond the PHYSICAL cap (2 with Meganium / 4
                     # without). len(energies) comes DOUBLED by Wild Growth with
@@ -238,7 +238,7 @@ def puntuar(tc, o, score):
                     score = SCORE_VETO
                 elif ((op_is_alakazam_deck or op_is_hop_deck)
                         and _physical_energy(_ogerpon_energy)
-                        >= _ogerpon_base_phys_cap(ESTADO.meganium_in_play,
+                        >= _ogerpon_base_phys_cap(AGENT_STATE.meganium_in_play,
                                                   op_is_hop_deck)):
                     # Rule (user, vs Alakazam and vs Hop's): energy cap for Teal
                     # Mask Ogerpon ex via Teal Dance. PHYSICAL base = 2 with
@@ -269,8 +269,8 @@ def puntuar(tc, o, score):
                     # up Tapu and knock out on the next step. It must BEAT the
                     # manual attachment to Dipplin (~31000).
                     score = 31600
-                elif (((ESTADO.op_is_crustle_deck and not op_kang_ko_target)
-                        or ESTADO.op_is_cornerstone_deck
+                elif (((AGENT_STATE.op_is_crustle_deck and not op_kang_ko_target)
+                        or AGENT_STATE.op_is_cornerstone_deck
                         or op_has_ability_immune_active)
                         and _physical_energy(_ogerpon_energy) >= 2):
                     # Rule (user, vs Crustle, log 86583376 step 84): a Teal Mask
@@ -341,10 +341,10 @@ def puntuar(tc, o, score):
                 elif _active_hydra_ready:
         
                     score = 31300
-                elif (_active_needs_energy and not _enough_for_both and ESTADO.plan.attacker < 1
+                elif (_active_needs_energy and not _enough_for_both and AGENT_STATE.plan.attacker < 1
                         and not (
-                            ((state.turn == 1 and ESTADO.we_go_first) or
-                             (state.turn == 2 and not ESTADO.we_go_first))
+                            ((state.turn == 1 and AGENT_STATE.we_go_first) or
+                             (state.turn == 2 and not AGENT_STATE.we_go_first))
                             and o.area == AreaType.ACTIVE
                             and card.id in (Teal_Mask_Ogerpon_ex, Tapu_Bulu))):
         
@@ -379,7 +379,7 @@ def puntuar(tc, o, score):
                 # ex is an ex and does NOT damage Crustle, no lethal Syrup Storm
                 # is lost by not activating it.
                 _ripen_wasted_vs_crustle = False
-                if ESTADO.op_is_crustle_deck:
+                if AGENT_STATE.op_is_crustle_deck:
                     _rip_act = my_state.active[0] if my_state.active else None
                     _rip_active_tapu_full = (
                         _rip_act is not None and _rip_act.id == Tapu_Bulu

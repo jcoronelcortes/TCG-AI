@@ -46,10 +46,10 @@ COMFEY = 164                       # 70 HP: Wood Hammer (220) knocks it out
 
 @pytest.fixture(autouse=True)
 def reset_main_state():
-    m._init_cartas_tracking()
-    m._cartas_first_scan_done = False
-    m._cartas_prizes_identified = False
-    m._cartas_last_turn = -1
+    m._init_cards_tracking()
+    m._cards_first_scan_done = False
+    m._cards_prizes_identified = False
+    m._cards_last_turn = -1
     m.plan = m.AttackPlan()
     m.pre_turn = 0
     m.meganium_in_play = False
@@ -67,7 +67,7 @@ def reset_main_state():
     m._dodge_immune_serial = None
     m._dodge_immune_turn = -1
     yield
-    m._init_cartas_tracking()
+    m._init_cards_tracking()
 
 
 def _escenario(mano, banca=None, energia_activo=0, descarte=(GRASS, GRASS),
@@ -115,8 +115,8 @@ def test_deck_agnostico_el_rematador_no_necesita_habilidad_de_carga():
     equally with any finisher -- here, both."""
     for banca in ([pk(TAPU, energias=[G, G, G, G]), pk(MEOWTH)],
                   [pk(OGERPON, energias=[G, G, G]), pk(MEOWTH)]):
-        m._init_cartas_tracking()
-        m._cartas_first_scan_done = False
+        m._init_cards_tracking()
+        m._cards_first_scan_done = False
         m._field_at_turn_start = {}
         mano = [NIGHT_STRETCHER, ULTRA_BALL]
         obs = _escenario(mano, banca=banca).menu_mano().construir()

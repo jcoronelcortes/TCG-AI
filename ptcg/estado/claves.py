@@ -1,28 +1,28 @@
-"""Zone keys of the card tracking (ESTADO_MAZO, ESTADO_MANO...).
+"""Zone keys of the card tracking (ZONE_DECK, ZONE_HAND...).
 
 Extracted VERBATIM from main.py by utils/extraer_definiciones.py
 (docs/project-history.md). Its purity is verified by
 utils/pureza.py: nothing here touches mutable state or the runtime tables.
 """
 
-ESTADO_MAZO = "MAZO"
+ZONE_DECK = "DECK"
 
 
-ESTADO_BANCA = "BANCA"
+ZONE_BENCH = "BENCH"
 
 
-ESTADO_MANO = "MANO"
+ZONE_HAND = "HAND"
 
 
-ESTADO_PREMIO = "PREMIO"
+ZONE_PRIZE = "PRIZE"
 
 
-ESTADO_DESCARTE = "DESCARTE"
+ZONE_DISCARD = "DISCARD"
 
 __all__ = [
-    'ESTADO_MAZO',
-    'ESTADO_MANO',
-    'ESTADO_BANCA',
-    'ESTADO_DESCARTE',
-    'ESTADO_PREMIO',
+    'ZONE_DECK',
+    'ZONE_HAND',
+    'ZONE_BENCH',
+    'ZONE_DISCARD',
+    'ZONE_PRIZE',
 ]

@@ -75,7 +75,7 @@ D = int(m.EnergyType.DARKNESS)
 def reset_main_state():
     reset_agente(m)
     yield
-    m._init_cartas_tracking()
+    m._init_cards_tracking()
 
 
 def _fixture_obs():

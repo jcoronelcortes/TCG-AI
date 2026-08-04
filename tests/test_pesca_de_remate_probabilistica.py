@@ -82,10 +82,10 @@ _FIX = ROOT / "tests" / "fixtures" / "marnie_pesca_de_remate_step49.json"
 
 @pytest.fixture(autouse=True)
 def reset_main_state():
-    m._init_cartas_tracking()
-    m._cartas_first_scan_done = False
-    m._cartas_prizes_identified = False
-    m._cartas_last_turn = -1
+    m._init_cards_tracking()
+    m._cards_first_scan_done = False
+    m._cards_prizes_identified = False
+    m._cards_last_turn = -1
     m.plan = m.AttackPlan()
     m.pre_turn = 0
     m.ko_last_turn = False
@@ -99,7 +99,7 @@ def reset_main_state():
     m.op_has_mega_kangaskhan = False
     m._field_at_turn_start = {}
     yield
-    m._init_cartas_tracking()
+    m._init_cards_tracking()
 
 
 def _fixture():
@@ -321,10 +321,10 @@ def test_frontera_de_probabilidad(monkeypatch):
     the only thing that changes is how many Grass are left alive."""
     vistos = {}
     for grass in (3, 10):
-        m._init_cartas_tracking()
-        m._cartas_first_scan_done = False
-        m._cartas_prizes_identified = False
-        m._cartas_last_turn = -1
+        m._init_cards_tracking()
+        m._cards_first_scan_done = False
+        m._cards_prizes_identified = False
+        m._cards_last_turn = -1
         capturado = _espiar_pesca(monkeypatch)
         obs = _escenario_paso49(grass_in_deck=grass)
         juega_lillie = (m.agent(obs) == [_idx_play_de(obs, LILLIE)])

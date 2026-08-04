@@ -10,7 +10,7 @@ from ptcg.calculo.dano import _our_effective_damage
 from ptcg.calculo.energia import _can_attack_eff, _grass_attach_unit, _grass_mult, _ogerpon_base_phys_cap, _physical_energy
 from ptcg.cartas.ids import Applin, Basic_Grass_Energy, Bayleef, Chikorita, Dipplin, Fezandipiti_ex, Hydrapple_ex, Meganium, Meowth_ex, NON_ATTACKER_ENERGY_WASTE_IDS, OUR_EX_IDS, Pinsir, RETREAT_COST, SCORE_CHARGE_ACTIVE_ATTACK, SCORE_CHARGE_ACTIVE_FINISHER, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex
 from ptcg.cartas.tablas import card_table
-from ptcg.estado.agente import ESTADO
+from ptcg.estado.agente import AGENT_STATE
 from ptcg.turno.energia_ctx import CtxEnergyScoreBase  # noqa: F401
 
 
@@ -163,7 +163,7 @@ def _energy_score_base(tc, pokemon, active):
     if pokemon.id == Applin and _physical_energy(energy_count) >= 1:
         _apl_full_evolve_now = (hand_counts.get(Dipplin, 0) >= 1
                                 and hand_counts.get(Hydrapple_ex, 0) >= 1
-                                and not ESTADO.meganium_in_play)
+                                and not AGENT_STATE.meganium_in_play)
         if not _apl_full_evolve_now:
             if field_counts.get(Hydrapple_ex, 0) >= 1:
                 return 10
@@ -202,7 +202,7 @@ def _energy_score_base(tc, pokemon, active):
     # there is a body on the bench to promote after the retreat. Only the 1st
     # energy: the "Chikorita max 1" rule above still stands. It goes AFTER the
     # winning finisher (42000) so a KO is not blocked.
-    if (ESTADO.op_is_crustle_deck and active and pokemon.id == Chikorita
+    if (AGENT_STATE.op_is_crustle_deck and active and pokemon.id == Chikorita
             and _physical_energy(energy_count) == 0
             and field_counts.get(Chikorita, 0) <= 1
             and bench_count >= 1
@@ -235,7 +235,7 @@ def _energy_score_base(tc, pokemon, active):
     if active and (_win_via_boss_gust or _gust_2prize_via_boss):
         _active_extra_charge_wasted = (
             pokemon.id in (Tapu_Bulu, Meganium, Hydrapple_ex)
-            and energy_count >= ESTADO.ATTACK_ENERGY_REQ.get(pokemon.id, 99))
+            and energy_count >= AGENT_STATE.ATTACK_ENERGY_REQ.get(pokemon.id, 99))
         if not _active_extra_charge_wasted:
             return 42000
 
@@ -267,7 +267,7 @@ def _energy_score_base(tc, pokemon, active):
     # Ripening Charge (SelectContext.ATTACH_FROM), active or bench. It goes AFTER
     # the return of the winning play (42000) so a lethal finisher is not blocked.
     if pokemon.id == Tapu_Bulu:
-        _tapu_max_phys = 2 if ESTADO.meganium_in_play else 4
+        _tapu_max_phys = 2 if AGENT_STATE.meganium_in_play else 4
         if _physical_energy(energy_count) >= _tapu_max_phys:
             return SCORE_VETO
 
@@ -283,7 +283,7 @@ def _energy_score_base(tc, pokemon, active):
     # Hydrapple ex, where the extra energy on the board raises Syrup Storm's
     # damage). len(energies) is EFFECTIVE (Meganium's Wild Growth doubles every
     # Grass) => it is converted to PHYSICAL cards with _physical_energy.
-    if (ESTADO.op_is_crustle_deck and pokemon.id == Teal_Mask_Ogerpon_ex
+    if (AGENT_STATE.op_is_crustle_deck and pokemon.id == Teal_Mask_Ogerpon_ex
             and not op_kang_ko_target):
         _crus_phys = _physical_energy(energy_count)
         if not active:
@@ -311,7 +311,7 @@ def _energy_score_base(tc, pokemon, active):
     # len(energies) is EFFECTIVE => it is converted to PHYSICAL cards with
     # _physical_energy.
     if (op_is_alakazam_deck or op_is_hop_deck) and pokemon.id == Teal_Mask_Ogerpon_ex:
-        _alk_base_phys = _ogerpon_base_phys_cap(ESTADO.meganium_in_play, op_is_hop_deck)
+        _alk_base_phys = _ogerpon_base_phys_cap(AGENT_STATE.meganium_in_play, op_is_hop_deck)
         _alk_phys = _physical_energy(energy_count)
         if not active:
             if _alk_phys >= _alk_base_phys:
@@ -340,13 +340,13 @@ def _energy_score_base(tc, pokemon, active):
     # (SelectContext.ATTACH_FROM).
     if op_is_cubchoo_deck:
         _cub_phys = _physical_energy(energy_count)
-        if pokemon.id == Teal_Mask_Ogerpon_ex and _cub_phys >= (2 if ESTADO.meganium_in_play else 4):
+        if pokemon.id == Teal_Mask_Ogerpon_ex and _cub_phys >= (2 if AGENT_STATE.meganium_in_play else 4):
             return SCORE_VETO
         if pokemon.id == Applin and _cub_phys >= 1:
             return SCORE_VETO
-        if pokemon.id == Dipplin and _cub_phys >= (1 if ESTADO.meganium_in_play else 2):
+        if pokemon.id == Dipplin and _cub_phys >= (1 if AGENT_STATE.meganium_in_play else 2):
             return SCORE_VETO
-        if pokemon.id == Hydrapple_ex and _cub_phys >= (2 if ESTADO.meganium_in_play else 3):
+        if pokemon.id == Hydrapple_ex and _cub_phys >= (2 if AGENT_STATE.meganium_in_play else 3):
             return SCORE_VETO
         # Meganium line (Chikorita/Bayleef/Meganium): a cap of 3 PHYSICAL energies
         # across the whole line (user's rule, change 4).
@@ -407,7 +407,7 @@ def _energy_score_base(tc, pokemon, active):
             _hls_dmg = _our_effective_damage(
                 pokemon, _hls_opa,
                 30 + 30 * (total_grass + _grass_attach_unit()),
-                ESTADO.meganium_in_play, neutralization_zone_active)
+                AGENT_STATE.meganium_in_play, neutralization_zone_active)
             if _hls_dmg > 0 and _hls_opa_hp > 0 and _hls_dmg >= _hls_opa_hp:
                 return 41000
 
@@ -433,7 +433,7 @@ def _energy_score_base(tc, pokemon, active):
             for _bp in _hls_bench_hydra:
                 _hls_bdmg = _our_effective_damage(
                     _bp, _hls_opa2, 30 + 30 * total_grass,
-                    ESTADO.meganium_in_play, neutralization_zone_active)
+                    AGENT_STATE.meganium_in_play, neutralization_zone_active)
                 if _hls_bdmg > 0 and _hls_opa2_hp > 0 and _hls_bdmg >= _hls_opa2_hp:
                     _hls_promote_lethal = True
                     break
@@ -541,7 +541,7 @@ def _energy_score_base(tc, pokemon, active):
             and len(pokemon.energies) * _grass_mult() < 4):
         return 25000
 
-    if (ESTADO.op_is_crustle_deck or ESTADO.op_is_cornerstone_deck) and \
+    if (AGENT_STATE.op_is_crustle_deck or AGENT_STATE.op_is_cornerstone_deck) and \
             pokemon.id == Meganium and energy_count >= 4:
         return SCORE_VETO
 
@@ -558,7 +558,7 @@ def _energy_score_base(tc, pokemon, active):
                 and not _conf_active_can_attack):
             return 33000
 
-    if ESTADO.op_is_cornerstone_deck and not ESTADO.op_is_crustle_deck:
+    if AGENT_STATE.op_is_cornerstone_deck and not AGENT_STATE.op_is_crustle_deck:
 
         if pokemon.id == Tapu_Bulu:
 
@@ -604,7 +604,7 @@ def _energy_score_base(tc, pokemon, active):
                 score -= 300
         return score
 
-    if ESTADO.op_is_crustle_deck:
+    if AGENT_STATE.op_is_crustle_deck:
 
         # SURPLUS energy: if the ACTIVE Tapu Bulu is already charged (>=4
         # effective) it can attack as it is, so this turn's manual attachment
@@ -642,7 +642,7 @@ def _energy_score_base(tc, pokemon, active):
             # energies (< 4) and gave it charging priority.
             _meg_evolvable_now_tapu = (
                 not active
-                and not ESTADO.meganium_in_play
+                and not AGENT_STATE.meganium_in_play
                 and field_counts.get(Bayleef, 0) >= 1
                 and hand_counts.get(Meganium, 0) >= 1)
             if _meg_evolvable_now_tapu and energy_count * 2 >= 4:
@@ -860,11 +860,11 @@ def _energy_score_base(tc, pokemon, active):
                 score -= 300
                 return score
 
-    if (ESTADO.meganium_in_play and _active_pokemon is not None
+    if (AGENT_STATE.meganium_in_play and _active_pokemon is not None
             and _active_pokemon.id == Hydrapple_ex
             and len(_active_pokemon.energies) >= 1
             and _bench_has_chargeable
-            and not ESTADO.op_is_crustle_deck and not ESTADO.op_is_cornerstone_deck
+            and not AGENT_STATE.op_is_crustle_deck and not AGENT_STATE.op_is_cornerstone_deck
             and not neutralization_zone_active):
 
         if active:
@@ -884,7 +884,7 @@ def _energy_score_base(tc, pokemon, active):
         return SCORE_VETO
 
     if (_active_hydra_capped and _bench_has_chargeable
-            and not ESTADO.op_is_crustle_deck and not ESTADO.op_is_cornerstone_deck
+            and not AGENT_STATE.op_is_crustle_deck and not AGENT_STATE.op_is_cornerstone_deck
             and not neutralization_zone_active):
         if active:
             return SCORE_VETO
@@ -909,7 +909,7 @@ def _energy_score_base(tc, pokemon, active):
         return 8000 if energy_count < 1 else -1
 
     if _active_already_kos and not active and energy_count == 0 \
-            and not ESTADO.op_is_crustle_deck and not ESTADO.op_is_cornerstone_deck \
+            and not AGENT_STATE.op_is_crustle_deck and not AGENT_STATE.op_is_cornerstone_deck \
             and not neutralization_zone_active:
         if pokemon.id in NON_ATTACKER_ENERGY_WASTE_IDS:
             return SCORE_VETO
@@ -924,7 +924,7 @@ def _energy_score_base(tc, pokemon, active):
     _bench_hydra_pre_target = any(
         bp is not None and bp.id in (Dipplin, Applin) and len(bp.energies) < 1
         for bp in (my_state.bench or []))
-    if (not ESTADO.op_is_crustle_deck and not ESTADO.op_is_cornerstone_deck
+    if (not AGENT_STATE.op_is_crustle_deck and not AGENT_STATE.op_is_cornerstone_deck
             and not neutralization_zone_active
             and not _active_needs_energy
             and _active_pokemon is not None
@@ -1017,7 +1017,7 @@ def _energy_score_base(tc, pokemon, active):
         elif pokemon.id == Tapu_Bulu:
 
             if energy_count < 4:
-                if ESTADO.meganium_in_play:
+                if AGENT_STATE.meganium_in_play:
                     score += 23200
                     if op_has_ex_immune_active:
                         score += 500
@@ -1112,7 +1112,7 @@ def _energy_score_base(tc, pokemon, active):
                 score -= 100
         elif pokemon.id == Tapu_Bulu:
 
-            if not ESTADO.meganium_in_play:
+            if not AGENT_STATE.meganium_in_play:
                 score -= 100
             elif op_has_ex_immune_active or op_has_ex_immune_bench:
                 if energy_count < 2:
@@ -1161,7 +1161,7 @@ def _energy_score_base(tc, pokemon, active):
             elif energy_count == 1:
                 _applin_full_evolve_now = (hand_counts.get(Dipplin, 0) >= 1 and
                                            hand_counts.get(Hydrapple_ex, 0) >= 1)
-                if _applin_full_evolve_now and not ESTADO.meganium_in_play:
+                if _applin_full_evolve_now and not AGENT_STATE.meganium_in_play:
                     score += 50
                 else:
                     score -= 300
@@ -1192,9 +1192,9 @@ def _energy_score_base(tc, pokemon, active):
         elif pokemon.id == Fezandipiti_ex:
 
             _fez_energy_req = 3
-            _is_fez_attacker = (ESTADO.plan.attacker >= 1 and
-                my_state.bench[ESTADO.plan.attacker - 1] is not None and
-                my_state.bench[ESTADO.plan.attacker - 1].id == Fezandipiti_ex)
+            _is_fez_attacker = (AGENT_STATE.plan.attacker >= 1 and
+                my_state.bench[AGENT_STATE.plan.attacker - 1] is not None and
+                my_state.bench[AGENT_STATE.plan.attacker - 1].id == Fezandipiti_ex)
             if _is_fez_attacker and energy_count < _fez_energy_req:
                 score += 300
             elif energy_count < _fez_energy_req and not any(

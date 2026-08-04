@@ -37,7 +37,7 @@ def test_los_mutables_se_derivan_del_codigo():
     """
     mutables = la.nombres_mutables()
     assert len(mutables) >= 30, f"solo {len(mutables)} mutables detectados"
-    for esperado in ("plan", "ko_last_turn", "CARTAS_ACTIVAS_EN_MAZO"):
+    for esperado in ("plan", "ko_last_turn", "ACTIVE_CARDS_IN_DECK"):
         assert esperado in mutables, f"{esperado} dejo de vigilarse"
 
 

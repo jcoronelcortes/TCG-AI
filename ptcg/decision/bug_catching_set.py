@@ -7,7 +7,7 @@ utils/pureza.py: nothing here touches mutable state or the runtime tables.
 
 from ptcg.motor.reglas import _resolve_with_trace
 from ptcg.motor.contexto import DecisionContext
-from ptcg.estado.claves import ESTADO_MAZO
+from ptcg.estado.claves import ZONE_DECK
 from ptcg.cartas.tablas import card_table
 from ptcg.cartas.ids import Applin, Basic_Grass_Energy, Bayleef, Chikorita, Dipplin, Hydrapple_ex, Meganium, Teal_Mask_Ogerpon_ex
 from cg.api import CardType, EnergyType
@@ -90,9 +90,9 @@ class _CtxBCS:
         f = ctx.field_counts
         grass, energia, alto_valor = 0, 0, 0
         for cid, states in ctx.cards_in_deck.items():
-            if states[ESTADO_MAZO] <= 0:
+            if states[ZONE_DECK] <= 0:
                 continue
-            copias = states[ESTADO_MAZO]
+            copias = states[ZONE_DECK]
             cdata = card_table.get(cid)
             if cid == Basic_Grass_Energy:
                 energia += copias
@@ -127,7 +127,7 @@ class _CtxBCS:
         self.energia_mazo = energia
         self.elegibles = grass + energia
         self.alto_valor = alto_valor
-        total = sum(v[ESTADO_MAZO] for v in ctx.cards_in_deck.values())
+        total = sum(v[ZONE_DECK] for v in ctx.cards_in_deck.values())
         self.total_mazo = total
         if self.elegibles == 0:
             self.p_find = 0.0

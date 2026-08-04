@@ -5,7 +5,7 @@ Extracted VERBATIM from main.py by utils/extraer_definiciones.py
 utils/pureza.py: nothing here touches mutable state or the runtime tables.
 """
 
-from ptcg.estado.agente import ESTADO
+from ptcg.estado.agente import AGENT_STATE
 from ptcg.cartas.ids import Forest_of_Vitality
 from ptcg.cartas.ids import Basic_Grass_Energy, Dawn, Lanas_Aid, Lillie_Determination, SCORE_SUPPORTER_VALUE_BASE, SCORE_VETO
 from ptcg.motor.contexto import DecisionContext
@@ -103,7 +103,7 @@ def _score_dawn_play(ctx: DecisionContext) -> int:
 
 
 def _dawn_forest_avail(c):
-    return ESTADO.forest_in_play or c.hand.get(Forest_of_Vitality, 0) >= 1
+    return AGENT_STATE.forest_in_play or c.hand.get(Forest_of_Vitality, 0) >= 1
 
 __all__ = [
     '_robo_de_lillie',

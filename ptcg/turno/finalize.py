@@ -17,8 +17,8 @@ from ptcg.cartas.ids import Applin, Bayleef, Bug_Catching_Set, Chikorita, Dippli
 from ptcg.cartas.puntuacion import SCORE_LD_SUPP_COMPROMETIDO, _SUPP_PLAY_IDS
 from ptcg.cartas.tablas import attack_table, card_table
 from ptcg.decision.ultra_ball import _matchup_permite_bajar, _ub_coste_destruye_carta_mejor
-from ptcg.estado.agente import ESTADO
-from ptcg.estado.claves import ESTADO_MAZO
+from ptcg.estado.agente import AGENT_STATE
+from ptcg.estado.claves import ZONE_DECK
 from ptcg.motor.depuracion import _debug_log_decision
 from ptcg.turno.ctx import TurnoCtx  # noqa: F401
 
@@ -83,7 +83,7 @@ def finalizar(tc):
                                 (getattr(_pp_data, 'stage1', False) or
                                  getattr(_pp_data, 'stage2', False)))
             if _pp_is_basic:
-                ESTADO._poke_pad_target_id = _best_pp_id
+                AGENT_STATE._poke_pad_target_id = _best_pp_id
 
     if (_lucario_sac_pivot and select.effect is not None
             and select.effect.id == Poke_Pad and context == SelectContext.TO_HAND):
@@ -107,7 +107,7 @@ def finalizar(tc):
                 if _pp_sac_card is not None and _pp_sac_card.id == Tapu_Bulu:
                     if _pp_sac_idx < len(scores):
                         scores[_pp_sac_idx] = 99999
-                    ESTADO._poke_pad_target_id = Tapu_Bulu
+                    AGENT_STATE._poke_pad_target_id = Tapu_Bulu
                     break
 
     if select.effect is not None and select.effect.id == Ultra_Ball and context == SelectContext.TO_HAND:
@@ -120,11 +120,11 @@ def finalizar(tc):
                     _best_ub_score = scores[_ub_idx]
                     _best_ub_id = _ub_card.id
         if _best_ub_id == Meowth_ex and _best_ub_score > 10:
-            ESTADO._ub_meowth_pending = True
+            AGENT_STATE._ub_meowth_pending = True
         if _best_ub_id == Fezandipiti_ex and _best_ub_score > 10:
             # Chain UB -> Fezandipiti ex -> Flip the Script: the search is already
             # paid for, the body GOES DOWN (see `_ub_fez_pending`).
-            ESTADO._ub_fez_pending = True
+            AGENT_STATE._ub_fez_pending = True
 
     # Chain Meowth ex -> Last-Ditch Catch -> Supporter: the chosen Supporter is
     # noted so the rest of the turn PLAYS it (see `_ld_supp_comprometido`). Same
@@ -154,13 +154,13 @@ def finalizar(tc):
                         _best_ld_score = scores[_ld_idx]
                         _best_ld_id = _ld_card.id
             if _best_ld_id in _SUPP_PLAY_IDS and _best_ld_score > 10:
-                ESTADO._ld_supp_comprometido = _best_ld_id
+                AGENT_STATE._ld_supp_comprometido = _best_ld_id
 
     _vetoed_stadium_idxs = set()
-    _our_first_turn_guard = ((ESTADO.we_go_first and state.turn == 1) or
-                             (not ESTADO.we_go_first and state.turn == 2))
+    _our_first_turn_guard = ((AGENT_STATE.we_go_first and state.turn == 1) or
+                             (not AGENT_STATE.we_go_first and state.turn == 2))
     _replace_opp_stadium_ok = (
-        (not ESTADO.we_go_first) and state.turn == 2 and
+        (not AGENT_STATE.we_go_first) and state.turn == 2 and
         stadium_id != 0 and stadium_id != Forest_of_Vitality)
     # vs CRUSTLE, GOING SECOND: the stadium goes down BEFORE the Lillie's
     # (user's rule). Ordering mirror of the rule
@@ -170,7 +170,7 @@ def finalizar(tc):
     # The Crustle deck does not play a stadium (or runs one or two copies), so
     # ours does not run the risk that motivates the general veto.
     _crustle_stadium_before_lillie = (
-        (not ESTADO.we_go_first) and state.turn == 2
+        (not AGENT_STATE.we_go_first) and state.turn == 2
         and _op_juega_crustle(op_state)
         and not state.supporterPlayed
         and hand_counts.get(Lillie_Determination, 0) >= 1)
@@ -355,13 +355,13 @@ def finalizar(tc):
     # longer offered (discarded as a cost, shuffled away...) or when the slot has
     # already been spent (`supporterPlayed`).
     # =================================================================
-    if (ESTADO._ld_supp_comprometido and context == SelectContext.MAIN
+    if (AGENT_STATE._ld_supp_comprometido and context == SelectContext.MAIN
             and not state.supporterPlayed):
         for _ld_i, _ld_o in enumerate(select.option):
             if _ld_o.type != OptionType.PLAY or _ld_i >= len(scores):
                 continue
             _ld_c = get_card(obs, AreaType.HAND, _ld_o.index, my_index)
-            if _ld_c is not None and _ld_c.id == ESTADO._ld_supp_comprometido:
+            if _ld_c is not None and _ld_c.id == AGENT_STATE._ld_supp_comprometido:
                 scores[_ld_i] = max(scores[_ld_i],
                                     SCORE_LD_SUPP_COMPROMETIDO)
 
@@ -398,7 +398,7 @@ def finalizar(tc):
             if _po_i >= len(scores) or scores[_po_i] <= 0:
                 continue
             if (_po_o.type == OptionType.ATTACK
-                    and _active_attack_wins_now and ESTADO.plan.attacker == 0):
+                    and _active_attack_wins_now and AGENT_STATE.plan.attacker == 0):
                 # Winning finisher with the active: MAXIMUM tier so it is executed
                 # before any charge/development and closes the game (step 125).
                 _play_order_tier[_po_i] = _TIER_WIN_ATTACK
@@ -416,14 +416,14 @@ def finalizar(tc):
                 _play_order_tier[_po_i] = _TIER_DEVELOP
             elif _po_o.type == OptionType.ATTACH:
                 _po_is_ko_energy = (
-                    getattr(ESTADO.plan, 'energy', False)
-                    and ESTADO.plan.remain_hp is not None
-                    and ESTADO.plan.remain_hp <= 0
-                    and ESTADO.plan.attacker >= 0
+                    getattr(AGENT_STATE.plan, 'energy', False)
+                    and AGENT_STATE.plan.remain_hp is not None
+                    and AGENT_STATE.plan.remain_hp <= 0
+                    and AGENT_STATE.plan.attacker >= 0
                     and ((_po_o.inPlayArea == AreaType.ACTIVE
-                          and ESTADO.plan.attacker == 0)
+                          and AGENT_STATE.plan.attacker == 0)
                          or (_po_o.inPlayArea != AreaType.ACTIVE
-                             and ESTADO.plan.attacker == 1 + _po_o.inPlayIndex)))
+                             and AGENT_STATE.plan.attacker == 1 + _po_o.inPlayIndex)))
                 # Fix (user, log 86506312 step 97, vs Alakazam): do NOT treat the
                 # charge to the ACTIVE as "KO energy" (tier 6) when
                 # `_tapu_future_charge` is on. That flag already guarantees that the
@@ -692,7 +692,7 @@ def finalizar(tc):
                        or scores[_sb_best_i] <= 0)
         _sb_wins = False
         if (_sb_best_o.type == OptionType.ATTACK
-                and ESTADO.plan.remain_hp is not None and ESTADO.plan.remain_hp <= 0):
+                and AGENT_STATE.plan.remain_hp is not None and AGENT_STATE.plan.remain_hp <= 0):
             _sb_opa = op_state.active[0] if op_state.active else None
             if _sb_opa is not None and op_prize <= prize_count_op(_sb_opa):
                 _sb_wins = True
@@ -709,8 +709,8 @@ def finalizar(tc):
                 if _sbd is None:
                     continue
                 if (_sbc.id == Ultra_Ball and _sb_fetch_i < 0
-                        and any(ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(_b, {}).get(
-                                    ESTADO_MAZO, 0) > 0
+                        and any(AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(_b, {}).get(
+                                    ZONE_DECK, 0) > 0
                                 for _b in _sb_basics_deck)):
                     _sb_fetch_i = _sbi
                 elif (_sbd.cardType == CardType.POKEMON
@@ -808,13 +808,13 @@ def finalizar(tc):
                     break
         _st_wins = False
         if (_st_best_o.type == OptionType.ATTACK
-                and ESTADO.plan.remain_hp is not None and ESTADO.plan.remain_hp <= 0):
+                and AGENT_STATE.plan.remain_hp is not None and AGENT_STATE.plan.remain_hp <= 0):
             _st_opa = op_state.active[0] if op_state.active else None
             if _st_opa is not None and op_prize <= prize_count_op(_st_opa):
                 _st_wins = True
         if _st_sterile and not _st_wins:
             _st_en_mazo = lambda cid: (
-                ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(cid, {}).get(ESTADO_MAZO, 0) > 0)
+                AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(cid, {}).get(ZONE_DECK, 0) > 0)
             # ITEM LOCK EXCEPTION (user): with Budew on the opposing field
             # -- or against Dragapult, which runs it and can put it down -- the
             # Ultra Ball is "use it or lose it": next turn items cannot be
@@ -829,7 +829,7 @@ def finalizar(tc):
             _st_plan_ok = lambda cid: _matchup_permite_bajar(
                 cid, field_counts, op_is_comfey_deck, op_is_cubchoo_deck,
                 cubchoo_allow_tapu=(op_has_ability_immune_active
-                                    or ESTADO.op_is_cornerstone_deck),
+                                    or AGENT_STATE.op_is_cornerstone_deck),
                 dragapult_no_tapu=_dragapult_no_tapu)
             # Meowth ex only counts as a USEFUL target if its Last-Ditch Catch
             # can produce something this turn (user, registro_006 steps 98-104):
@@ -865,7 +865,7 @@ def finalizar(tc):
                 for _stp in ((my_state.active or []) + (my_state.bench or [])):
                     if _stp is None or _stp.id != pre_id:
                         continue
-                    if (_st_item_lock or ESTADO.forest_in_play
+                    if (_st_item_lock or AGENT_STATE.forest_in_play
                             or not getattr(_stp, 'appearThisTurn', False)):
                         return True
                 return False

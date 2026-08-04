@@ -7,41 +7,41 @@ utils/pureza.py: nothing here touches mutable state or the runtime tables.
 
 from collections import defaultdict
 from ptcg.cartas.ids import Ultra_Ball
-from ptcg.estado.agente import ESTADO
-from ptcg.estado.claves import ESTADO_BANCA, ESTADO_DESCARTE, ESTADO_MANO, ESTADO_MAZO, ESTADO_PREMIO
+from ptcg.estado.agente import AGENT_STATE
+from ptcg.estado.claves import ZONE_BENCH, ZONE_DISCARD, ZONE_HAND, ZONE_DECK, ZONE_PRIZE
 
 
 def _move_card_state(card_id, from_state, to_state):
-    if card_id in ESTADO.CARTAS_ACTIVAS_EN_MAZO:
-        if ESTADO.CARTAS_ACTIVAS_EN_MAZO[card_id][from_state] > 0:
-            ESTADO.CARTAS_ACTIVAS_EN_MAZO[card_id][from_state] -= 1
-            ESTADO.CARTAS_ACTIVAS_EN_MAZO[card_id][to_state] += 1
+    if card_id in AGENT_STATE.ACTIVE_CARDS_IN_DECK:
+        if AGENT_STATE.ACTIVE_CARDS_IN_DECK[card_id][from_state] > 0:
+            AGENT_STATE.ACTIVE_CARDS_IN_DECK[card_id][from_state] -= 1
+            AGENT_STATE.ACTIVE_CARDS_IN_DECK[card_id][to_state] += 1
             return True
     return False
 
 
 def _first_turn_scan(my_state):
-    if ESTADO._cartas_first_scan_done:
+    if AGENT_STATE._cards_first_scan_done:
         return
 
     if my_state.hand:
         for card in my_state.hand:
-            _move_card_state(card.id, ESTADO_MAZO, ESTADO_MANO)
+            _move_card_state(card.id, ZONE_DECK, ZONE_HAND)
 
     for pokemon in my_state.active + my_state.bench:
         if pokemon is None:
             continue
-        _move_card_state(pokemon.id, ESTADO_MAZO, ESTADO_BANCA)
+        _move_card_state(pokemon.id, ZONE_DECK, ZONE_BENCH)
         for pre in pokemon.preEvolution:
-            _move_card_state(pre.id, ESTADO_MAZO, ESTADO_BANCA)
+            _move_card_state(pre.id, ZONE_DECK, ZONE_BENCH)
         for ec in pokemon.energyCards:
-            _move_card_state(ec.id, ESTADO_MAZO, ESTADO_BANCA)
+            _move_card_state(ec.id, ZONE_DECK, ZONE_BENCH)
         for tc in pokemon.tools:
-            _move_card_state(tc.id, ESTADO_MAZO, ESTADO_BANCA)
+            _move_card_state(tc.id, ZONE_DECK, ZONE_BENCH)
 
     for card in my_state.discard:
-        _move_card_state(card.id, ESTADO_MAZO, ESTADO_DESCARTE)
-    ESTADO._cartas_first_scan_done = True
+        _move_card_state(card.id, ZONE_DECK, ZONE_DISCARD)
+    AGENT_STATE._cards_first_scan_done = True
 
 
 def _identify_prizes(obs, my_state=None):
@@ -70,88 +70,88 @@ def _identify_prizes(obs, my_state=None):
     for card in obs.select.deck:
         deck_counts[card.id] += 1
 
-    for cid, entry in ESTADO.CARTAS_ACTIVAS_EN_MAZO.items():
+    for cid, entry in AGENT_STATE.ACTIVE_CARDS_IN_DECK.items():
         total_copies = sum(entry.values())
         in_deck = deck_counts.get(cid, 0)
-        hidden = total_copies - entry[ESTADO_MANO] - entry[ESTADO_BANCA] - entry[ESTADO_DESCARTE]
+        hidden = total_copies - entry[ZONE_HAND] - entry[ZONE_BENCH] - entry[ZONE_DISCARD]
         if hidden < 0:
             hidden = 0
-        entry[ESTADO_MAZO] = in_deck
+        entry[ZONE_DECK] = in_deck
         premio = hidden - in_deck
-        entry[ESTADO_PREMIO] = premio if premio > 0 else 0
+        entry[ZONE_PRIZE] = premio if premio > 0 else 0
 
 
 def _sync_from_state(my_state):
 
-    actual = defaultdict(lambda: {ESTADO_MANO: 0, ESTADO_BANCA: 0, ESTADO_DESCARTE: 0})
+    actual = defaultdict(lambda: {ZONE_HAND: 0, ZONE_BENCH: 0, ZONE_DISCARD: 0})
     if my_state.hand:
         for card in my_state.hand:
-            actual[card.id][ESTADO_MANO] += 1
+            actual[card.id][ZONE_HAND] += 1
     for pokemon in my_state.active + my_state.bench:
         if pokemon is None:
             continue
-        actual[pokemon.id][ESTADO_BANCA] += 1
+        actual[pokemon.id][ZONE_BENCH] += 1
         for pre in pokemon.preEvolution:
-            actual[pre.id][ESTADO_BANCA] += 1
+            actual[pre.id][ZONE_BENCH] += 1
         for ec in pokemon.energyCards:
-            actual[ec.id][ESTADO_BANCA] += 1
+            actual[ec.id][ZONE_BENCH] += 1
         for tc in pokemon.tools:
-            actual[tc.id][ESTADO_BANCA] += 1
+            actual[tc.id][ZONE_BENCH] += 1
     for card in my_state.discard:
-        actual[card.id][ESTADO_DESCARTE] += 1
+        actual[card.id][ZONE_DISCARD] += 1
 
-    for cid in ESTADO.CARTAS_ACTIVAS_EN_MAZO:
-        entry = ESTADO.CARTAS_ACTIVAS_EN_MAZO[cid]
-        real_mano = actual[cid][ESTADO_MANO]
-        real_banca = actual[cid][ESTADO_BANCA]
-        real_descarte = actual[cid][ESTADO_DESCARTE]
+    for cid in AGENT_STATE.ACTIVE_CARDS_IN_DECK:
+        entry = AGENT_STATE.ACTIVE_CARDS_IN_DECK[cid]
+        real_hand = actual[cid][ZONE_HAND]
+        real_bench = actual[cid][ZONE_BENCH]
+        real_discard = actual[cid][ZONE_DISCARD]
 
         total_copies = sum(entry.values())
 
-        entry[ESTADO_MANO] = real_mano
-        entry[ESTADO_BANCA] = real_banca
-        entry[ESTADO_DESCARTE] = real_descarte
+        entry[ZONE_HAND] = real_hand
+        entry[ZONE_BENCH] = real_bench
+        entry[ZONE_DISCARD] = real_discard
 
-        remaining = total_copies - real_mano - real_banca - real_descarte
+        remaining = total_copies - real_hand - real_bench - real_discard
         if remaining < 0:
             remaining = 0
 
-        known_premio = min(entry[ESTADO_PREMIO], remaining)
-        entry[ESTADO_PREMIO] = known_premio
-        entry[ESTADO_MAZO] = remaining - known_premio
+        known_prize = min(entry[ZONE_PRIZE], remaining)
+        entry[ZONE_PRIZE] = known_prize
+        entry[ZONE_DECK] = remaining - known_prize
 
 
 def _move_card_state(card_id, from_state, to_state):
-    if card_id in ESTADO.CARTAS_ACTIVAS_EN_MAZO:
-        if ESTADO.CARTAS_ACTIVAS_EN_MAZO[card_id][from_state] > 0:
-            ESTADO.CARTAS_ACTIVAS_EN_MAZO[card_id][from_state] -= 1
-            ESTADO.CARTAS_ACTIVAS_EN_MAZO[card_id][to_state] += 1
+    if card_id in AGENT_STATE.ACTIVE_CARDS_IN_DECK:
+        if AGENT_STATE.ACTIVE_CARDS_IN_DECK[card_id][from_state] > 0:
+            AGENT_STATE.ACTIVE_CARDS_IN_DECK[card_id][from_state] -= 1
+            AGENT_STATE.ACTIVE_CARDS_IN_DECK[card_id][to_state] += 1
             return True
     return False
 
 
 def _first_turn_scan(my_state):
-    if ESTADO._cartas_first_scan_done:
+    if AGENT_STATE._cards_first_scan_done:
         return
 
     if my_state.hand:
         for card in my_state.hand:
-            _move_card_state(card.id, ESTADO_MAZO, ESTADO_MANO)
+            _move_card_state(card.id, ZONE_DECK, ZONE_HAND)
 
     for pokemon in my_state.active + my_state.bench:
         if pokemon is None:
             continue
-        _move_card_state(pokemon.id, ESTADO_MAZO, ESTADO_BANCA)
+        _move_card_state(pokemon.id, ZONE_DECK, ZONE_BENCH)
         for pre in pokemon.preEvolution:
-            _move_card_state(pre.id, ESTADO_MAZO, ESTADO_BANCA)
+            _move_card_state(pre.id, ZONE_DECK, ZONE_BENCH)
         for ec in pokemon.energyCards:
-            _move_card_state(ec.id, ESTADO_MAZO, ESTADO_BANCA)
+            _move_card_state(ec.id, ZONE_DECK, ZONE_BENCH)
         for tc in pokemon.tools:
-            _move_card_state(tc.id, ESTADO_MAZO, ESTADO_BANCA)
+            _move_card_state(tc.id, ZONE_DECK, ZONE_BENCH)
 
     for card in my_state.discard:
-        _move_card_state(card.id, ESTADO_MAZO, ESTADO_DESCARTE)
-    ESTADO._cartas_first_scan_done = True
+        _move_card_state(card.id, ZONE_DECK, ZONE_DISCARD)
+    AGENT_STATE._cards_first_scan_done = True
 
 
 def _identify_prizes(obs, my_state=None):
@@ -180,55 +180,55 @@ def _identify_prizes(obs, my_state=None):
     for card in obs.select.deck:
         deck_counts[card.id] += 1
 
-    for cid, entry in ESTADO.CARTAS_ACTIVAS_EN_MAZO.items():
+    for cid, entry in AGENT_STATE.ACTIVE_CARDS_IN_DECK.items():
         total_copies = sum(entry.values())
         in_deck = deck_counts.get(cid, 0)
-        hidden = total_copies - entry[ESTADO_MANO] - entry[ESTADO_BANCA] - entry[ESTADO_DESCARTE]
+        hidden = total_copies - entry[ZONE_HAND] - entry[ZONE_BENCH] - entry[ZONE_DISCARD]
         if hidden < 0:
             hidden = 0
-        entry[ESTADO_MAZO] = in_deck
+        entry[ZONE_DECK] = in_deck
         premio = hidden - in_deck
-        entry[ESTADO_PREMIO] = premio if premio > 0 else 0
+        entry[ZONE_PRIZE] = premio if premio > 0 else 0
 
 
 def _sync_from_state(my_state):
 
-    actual = defaultdict(lambda: {ESTADO_MANO: 0, ESTADO_BANCA: 0, ESTADO_DESCARTE: 0})
+    actual = defaultdict(lambda: {ZONE_HAND: 0, ZONE_BENCH: 0, ZONE_DISCARD: 0})
     if my_state.hand:
         for card in my_state.hand:
-            actual[card.id][ESTADO_MANO] += 1
+            actual[card.id][ZONE_HAND] += 1
     for pokemon in my_state.active + my_state.bench:
         if pokemon is None:
             continue
-        actual[pokemon.id][ESTADO_BANCA] += 1
+        actual[pokemon.id][ZONE_BENCH] += 1
         for pre in pokemon.preEvolution:
-            actual[pre.id][ESTADO_BANCA] += 1
+            actual[pre.id][ZONE_BENCH] += 1
         for ec in pokemon.energyCards:
-            actual[ec.id][ESTADO_BANCA] += 1
+            actual[ec.id][ZONE_BENCH] += 1
         for tc in pokemon.tools:
-            actual[tc.id][ESTADO_BANCA] += 1
+            actual[tc.id][ZONE_BENCH] += 1
     for card in my_state.discard:
-        actual[card.id][ESTADO_DESCARTE] += 1
+        actual[card.id][ZONE_DISCARD] += 1
 
-    for cid in ESTADO.CARTAS_ACTIVAS_EN_MAZO:
-        entry = ESTADO.CARTAS_ACTIVAS_EN_MAZO[cid]
-        real_mano = actual[cid][ESTADO_MANO]
-        real_banca = actual[cid][ESTADO_BANCA]
-        real_descarte = actual[cid][ESTADO_DESCARTE]
+    for cid in AGENT_STATE.ACTIVE_CARDS_IN_DECK:
+        entry = AGENT_STATE.ACTIVE_CARDS_IN_DECK[cid]
+        real_hand = actual[cid][ZONE_HAND]
+        real_bench = actual[cid][ZONE_BENCH]
+        real_discard = actual[cid][ZONE_DISCARD]
 
         total_copies = sum(entry.values())
 
-        entry[ESTADO_MANO] = real_mano
-        entry[ESTADO_BANCA] = real_banca
-        entry[ESTADO_DESCARTE] = real_descarte
+        entry[ZONE_HAND] = real_hand
+        entry[ZONE_BENCH] = real_bench
+        entry[ZONE_DISCARD] = real_discard
 
-        remaining = total_copies - real_mano - real_banca - real_descarte
+        remaining = total_copies - real_hand - real_bench - real_discard
         if remaining < 0:
             remaining = 0
 
-        known_premio = min(entry[ESTADO_PREMIO], remaining)
-        entry[ESTADO_PREMIO] = known_premio
-        entry[ESTADO_MAZO] = remaining - known_premio
+        known_prize = min(entry[ZONE_PRIZE], remaining)
+        entry[ZONE_PRIZE] = known_prize
+        entry[ZONE_DECK] = remaining - known_prize
 
 __all__ = [
     '_move_card_state',

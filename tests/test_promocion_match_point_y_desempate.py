@@ -60,10 +60,10 @@ GRIMMSNARL = 648                # Marnie's Grimmsnarl ex: Shadow Bullet 180
 
 @pytest.fixture(autouse=True)
 def reset_main_state():
-    m._init_cartas_tracking()
-    m._cartas_first_scan_done = False
-    m._cartas_prizes_identified = False
-    m._cartas_last_turn = -1
+    m._init_cards_tracking()
+    m._cards_first_scan_done = False
+    m._cards_prizes_identified = False
+    m._cards_last_turn = -1
     m.plan = m.AttackPlan()
     m.pre_turn = 0
     m.meganium_in_play = False
@@ -85,7 +85,7 @@ def reset_main_state():
     m._op_bench_count = 0
     m._festival_grounds_in_play = False
     yield
-    m._init_cartas_tracking()
+    m._init_cards_tracking()
 
 
 def _pk(cid, hp, energias=0, serial=900):

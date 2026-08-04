@@ -6,7 +6,7 @@ utils/pureza.py: nothing here touches mutable state or the runtime tables.
 """
 
 from ptcg.calculo.carta import prize_count_op
-from ptcg.estado.agente import ESTADO
+from ptcg.estado.agente import AGENT_STATE
 from ptcg.cartas.tablas import attack_table, card_table
 from ptcg.cartas.ids import ABILITY_IMMUNE_IDS, Alakazam_ex, Brave_Bangle, DO_THE_WAVE_ATTACK_ID, Dipplin, Drednaw, EX_IMMUNE_IDS, FULL_HP_SURVIVE_IDS, Farigiraf_ex, Fezandipiti_ex, Hydrapple_ex, Maximum_Belt, Meganium, OUR_ABILITY_IDS, OUR_BASIC_EX_IDS, OUR_EX_IDS, POWERFUL_HAND_ATTACK_ID, Pinsir, Tapu_Bulu, Teal_Mask_Ogerpon_ex
 from ptcg.calculo.energia import _grass_mult
@@ -102,8 +102,8 @@ def _ventana_de_regalo(pokemon, is_active, golpe_proyectado, incluir_movible=Tru
     # moved.
     golpe = 0 if (not is_active and pid == Teal_Mask_Ogerpon_ex) \
         else max(0, golpe_proyectado or 0)
-    chip = ESTADO._op_chip_per_round if pid in OUR_ABILITY_IDS else 0
-    return golpe + chip + (ESTADO._op_movable_dmg if incluir_movible else 0)
+    chip = AGENT_STATE._op_chip_per_round if pid in OUR_ABILITY_IDS else 0
+    return golpe + chip + (AGENT_STATE._op_movable_dmg if incluir_movible else 0)
 
 
 def _our_effective_damage(my_pokemon, op_pokemon, base_damage,
@@ -208,7 +208,7 @@ def _op_active_attack_damage_to(op_active, target, op_hand_count=None):
                 and op_hand_count is not None and _need <= avail):
             _dmg = 20 * (op_hand_count + 2)
         elif _aid == DO_THE_WAVE_ATTACK_ID:
-            _dmg = max(_dmg, 20 * ESTADO._op_bench_count)
+            _dmg = max(_dmg, 20 * AGENT_STATE._op_bench_count)
         if _need <= avail and _dmg > best:
             best = _dmg
     if best <= 0:
@@ -249,7 +249,7 @@ def _attacker_base_damage(attacker_id, target, effective_energy,
     Returns 0 if the attacker does not reach its energy requirement
     (ATTACK_ENERGY_REQ, the single source of truth).
     """
-    req = ESTADO.ATTACK_ENERGY_REQ
+    req = AGENT_STATE.ATTACK_ENERGY_REQ
     if attacker_id == Hydrapple_ex and effective_energy >= req[Hydrapple_ex]:
         return 30 + 30 * grass_scale
     if attacker_id == Teal_Mask_Ogerpon_ex and effective_energy >= req[Teal_Mask_Ogerpon_ex]:

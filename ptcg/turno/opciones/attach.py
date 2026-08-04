@@ -10,7 +10,7 @@ from ptcg.calculo.carta import get_card
 from ptcg.calculo.energia import _can_attack_eff, _grass_attach_unit
 from ptcg.cartas.ids import Applin, Basic_Grass_Energy, Chikorita, Dipplin, Fezandipiti_ex, Hydrapple_ex, Meowth_ex, Pinsir, RETREAT_COST, SCORE_VETO, Tapu_Bulu, Teal_Mask_Ogerpon_ex
 from ptcg.cartas.puntuacion import MAIN_ATTACKERS
-from ptcg.estado.agente import ESTADO
+from ptcg.estado.agente import AGENT_STATE
 
 
 def puntuar(tc, o, score):
@@ -58,10 +58,10 @@ def puntuar(tc, o, score):
                 # charged a benched Applin instead of the active Tapu Bulu). Only
                 # Tapu Bulu is exempted; Ogerpon ex stays vetoed (it does not
                 # damage the wall).
-                _ft_veto_ids = ((Teal_Mask_Ogerpon_ex,) if ESTADO.op_is_crustle_deck
+                _ft_veto_ids = ((Teal_Mask_Ogerpon_ex,) if AGENT_STATE.op_is_crustle_deck
                                 else (Teal_Mask_Ogerpon_ex, Tapu_Bulu))
-                if (((state.turn == 1 and ESTADO.we_go_first) or
-                        (state.turn == 2 and not ESTADO.we_go_first))
+                if (((state.turn == 1 and AGENT_STATE.we_go_first) or
+                        (state.turn == 2 and not AGENT_STATE.we_go_first))
                         and my_state.active and my_state.active[0] is not None
                         and my_state.active[0].id in _ft_veto_ids
                         # ...unless that charge FINISHES the game today (anti-DONK):
@@ -111,15 +111,15 @@ def puntuar(tc, o, score):
                     # best attacker) and below everything that enables a KO this
                     # turn (31300+, 31500, 41000).
                     score = 31200
-                elif (ESTADO.plan.attacker == 0 and ESTADO.plan.energy
+                elif (AGENT_STATE.plan.attacker == 0 and AGENT_STATE.plan.energy
                         # The band of `_carga_activo_habilita_ataque` (31300) is
                         # calibrated against the UB engine (31450) and Teal Dance
                         # (31500): the tie-break bonus would cross it.
                         and not _carga_activo_habilita_ataque):
                     score += 200
         
-                elif (ESTADO.plan.attacker >= 1 and has_ogerpon and score > 31000
-                        and not ESTADO.op_is_crustle_deck and not ESTADO.op_is_cornerstone_deck
+                elif (AGENT_STATE.plan.attacker >= 1 and has_ogerpon and score > 31000
+                        and not AGENT_STATE.op_is_crustle_deck and not AGENT_STATE.op_is_cornerstone_deck
                         and not (_win_via_boss_gust or _gust_2prize_via_boss)
                         # ...nor when this charge is the one that makes the active
                         # attack TODAY (a finisher or the turn's only attack).
@@ -145,11 +145,11 @@ def puntuar(tc, o, score):
                     if not _attach_needs_for_retreat:
                         score = 7500
             else:
-                if ESTADO.plan.attacker == 1 + o.inPlayIndex and ESTADO.plan.energy:
+                if AGENT_STATE.plan.attacker == 1 + o.inPlayIndex and AGENT_STATE.plan.energy:
                     score += 200
         
-                _our_first_turn_attach = ((state.turn == 1 and ESTADO.we_go_first) or
-                                          (state.turn == 2 and not ESTADO.we_go_first))
+                _our_first_turn_attach = ((state.turn == 1 and AGENT_STATE.we_go_first) or
+                                          (state.turn == 2 and not AGENT_STATE.we_go_first))
                 _active_blocked_ft = (
                     my_state.active and my_state.active[0] is not None
                     and my_state.active[0].id in (Teal_Mask_Ogerpon_ex, Tapu_Bulu))

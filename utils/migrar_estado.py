@@ -35,7 +35,7 @@ sys.path.insert(0, str(PROJECT_ROOT / "utils"))
 
 from pureza import analizar  # noqa: E402
 
-OBJETO = "ESTADO"
+OBJETO = "AGENT_STATE"
 
 
 class _Ambito(ast.NodeVisitor):

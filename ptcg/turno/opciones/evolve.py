@@ -12,7 +12,7 @@ from ptcg.calculo.energia import _grass_attach_unit, _grass_mult
 from ptcg.calculo.tablero import _active_of
 from ptcg.cartas.ids import Applin, Basic_Grass_Energy, Bayleef, Chikorita, Dipplin, Grand_Tree, Hydrapple_ex, Lillie_Determination, Meganium, RETREAT_COST, SCORE_VETO, Tapu_Bulu
 from ptcg.cartas.tablas import card_table
-from ptcg.estado.agente import ESTADO
+from ptcg.estado.agente import AGENT_STATE
 
 
 def puntuar(tc, o, score):
@@ -96,9 +96,9 @@ def puntuar(tc, o, score):
                 # but its Wild Growth DOUBLES every Grass, and with it in play
                 # Tapu Bulu attacks with 2 PHYSICAL Grass instead of 4.
                 # Assembling the line is therefore a priority in this matchup.
-                if (op_is_fire_deck or op_is_mirror or ESTADO.op_is_crustle_deck
+                if (op_is_fire_deck or op_is_mirror or AGENT_STATE.op_is_crustle_deck
                         or op_has_ability_immune_active
-                        or ESTADO.op_is_cornerstone_deck):
+                        or AGENT_STATE.op_is_cornerstone_deck):
                     score = 35500
         
                 if pokemon.id == Chikorita:
@@ -107,13 +107,13 @@ def puntuar(tc, o, score):
             elif card.id == Hydrapple_ex:
                 score = 33000
         
-                if ESTADO.op_is_crustle_deck and op_kang_ko_target:
+                if AGENT_STATE.op_is_crustle_deck and op_kang_ko_target:
         
                     score = 34500
-                elif ESTADO.op_is_crustle_deck and op_active_is_kangaskhan:
+                elif AGENT_STATE.op_is_crustle_deck and op_active_is_kangaskhan:
         
                     score = 33000
-                elif ESTADO.op_is_crustle_deck:
+                elif AGENT_STATE.op_is_crustle_deck:
                     score = SCORE_VETO
                 elif op_is_fire_deck:
                     score = 33500
@@ -153,7 +153,7 @@ def puntuar(tc, o, score):
                     else:
                         score = 22000
         
-                if pokemon.id == Applin and not ESTADO.op_is_crustle_deck:
+                if pokemon.id == Applin and not AGENT_STATE.op_is_crustle_deck:
                     score += 500
         
                 # ── Rule: do not waste a lethal Dipplin KO ──────────────
@@ -175,7 +175,7 @@ def puntuar(tc, o, score):
                         if _op_act_evo is not None and (_op_act_evo.hp or 0) > 0:
                             _dip_dmg = _our_effective_damage(
                                 pokemon, _op_act_evo, 20 * bench_count,
-                                ESTADO.meganium_in_play, neutralization_zone_active)
+                                AGENT_STATE.meganium_in_play, neutralization_zone_active)
                             _dip_kos = (_dip_dmg > 0 and _dip_dmg >= (_op_act_evo.hp or 0))
                             # Effective energy of Hydrapple ex after evolving
                             # (it inherits Dipplin's energy + a possible attachment).
@@ -183,11 +183,11 @@ def puntuar(tc, o, score):
                             if _has_energy_in_hand:
                                 _hydra_eff += _grass_attach_unit()
                             _hydra_kos = False
-                            if _hydra_eff >= ESTADO.ATTACK_ENERGY_REQ[Hydrapple_ex]:
+                            if _hydra_eff >= AGENT_STATE.ATTACK_ENERGY_REQ[Hydrapple_ex]:
                                 _hydra_grass = total_grass + (1 if _has_energy_in_hand else 0)
                                 _hydra_dmg = _our_effective_damage(
                                     pokemon, _op_act_evo, 30 + 30 * _hydra_grass,
-                                    ESTADO.meganium_in_play, neutralization_zone_active)
+                                    AGENT_STATE.meganium_in_play, neutralization_zone_active)
                                 _hydra_kos = (_hydra_dmg > 0 and _hydra_dmg >= (_op_act_evo.hp or 0))
                             if _dip_kos and not _hydra_kos:
                                 score = SCORE_VETO
@@ -236,7 +236,7 @@ def puntuar(tc, o, score):
                             score = SCORE_VETO
                 else:
                     score = 32000
-                    if op_is_fire_deck or op_is_mirror or ESTADO.op_is_crustle_deck:
+                    if op_is_fire_deck or op_is_mirror or AGENT_STATE.op_is_crustle_deck:
                         score = 32500
                     if op_is_cubchoo_deck:
                         # Change 4 (user): the Meganium line is the main evolution
@@ -356,7 +356,7 @@ def puntuar(tc, o, score):
                 _cub_evo_eff = _pkmn_energy
                 if _has_energy_in_hand:
                     _cub_evo_eff += _grass_attach_unit()
-                if _cub_evo_eff < ESTADO.ATTACK_ENERGY_REQ.get(card.id, 99):
+                if _cub_evo_eff < AGENT_STATE.ATTACK_ENERGY_REQ.get(card.id, 99):
                     score = SCORE_VETO
         
             if has_condition and _is_active and score > 0:

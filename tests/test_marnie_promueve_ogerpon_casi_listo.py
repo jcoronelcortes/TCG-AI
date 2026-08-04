@@ -67,10 +67,10 @@ GRIMMSNARL = 648                # Marnie's Grimmsnarl ex, 320 HP, {G} weakness
 
 @pytest.fixture(autouse=True)
 def reset_main_state():
-    m._init_cartas_tracking()
-    m._cartas_first_scan_done = False
-    m._cartas_prizes_identified = False
-    m._cartas_last_turn = -1
+    m._init_cards_tracking()
+    m._cards_first_scan_done = False
+    m._cards_prizes_identified = False
+    m._cards_last_turn = -1
     m.plan = m.AttackPlan()
     m.pre_turn = 0
     m.meganium_in_play = False
@@ -90,7 +90,7 @@ def reset_main_state():
     m._dodge_immune_serial = None
     m._dodge_immune_turn = -1
     yield
-    m._init_cartas_tracking()
+    m._init_cards_tracking()
 
 
 def _obs(**mut):

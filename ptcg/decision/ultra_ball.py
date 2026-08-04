@@ -10,7 +10,7 @@ from ptcg.cartas.ids import Applin, Bayleef, Chikorita, Dipplin, Fezandipiti_ex,
 from ptcg.decision.estadios import _forest_disponible
 from ptcg.calculo.energia import _grass_attach_unit
 from ptcg.calculo.dano import _attacker_base_damage, _our_effective_damage
-from ptcg.estado.agente import ESTADO
+from ptcg.estado.agente import AGENT_STATE
 from ptcg.decision.disrupcion import _sello_merece_jugarse
 from ptcg.cartas.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Chikorita, Dawn, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Hydrapple_ex, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Pinsir, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Unfair_Stamp
 from ptcg.calculo.tablero import _active_of
@@ -18,7 +18,7 @@ from ptcg.calculo.energia import count_total_grass_energy
 from dataclasses import dataclass
 from typing import NamedTuple
 from ptcg.cartas.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, CUBCHOO_ALLOWED_PLAY_IDS, Chikorita, Dawn, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Hydrapple_ex, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, Pinsir, SCORE_CANCEL, SCORE_VETO, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, XEROSIC_SCORE_LAST_RESORT, Xerosic_Machinations
-from ptcg.estado.claves import ESTADO_MAZO
+from ptcg.estado.claves import ZONE_DECK
 from ptcg.decision.disrupcion import _score_xerosic_play
 from ptcg.decision.poke_pad import _pp_es_t1
 
@@ -45,7 +45,7 @@ def _ub_derive_flags(ctx) -> _UBFlags:
     forest_in_play = ctx.forest_in_play
     can_attack = ctx.can_attack
     _field_at_turn_start = ctx.field_at_turn_start
-    CARTAS_ACTIVAS_EN_MAZO = ctx.cards_in_deck
+    ACTIVE_CARDS_IN_DECK = ctx.cards_in_deck
     op_is_crustle_deck = ctx.op_is_crustle_deck
     op_has_ex_immune_active = ctx.op_has_ex_immune_active
     op_has_ex_immune_bench = ctx.op_has_ex_immune_bench
@@ -80,16 +80,16 @@ def _ub_derive_flags(ctx) -> _UBFlags:
     _ub_evolve_needs_search = (
         (field_counts.get(Chikorita, 0) >= 1 and
          hand_counts.get(Bayleef, 0) == 0 and
-         CARTAS_ACTIVAS_EN_MAZO.get(Bayleef, {}).get(ESTADO_MAZO, 0) > 0) or
+         ACTIVE_CARDS_IN_DECK.get(Bayleef, {}).get(ZONE_DECK, 0) > 0) or
         (field_counts.get(Bayleef, 0) >= 1 and
          hand_counts.get(Meganium, 0) == 0 and
-         CARTAS_ACTIVAS_EN_MAZO.get(Meganium, {}).get(ESTADO_MAZO, 0) > 0) or
+         ACTIVE_CARDS_IN_DECK.get(Meganium, {}).get(ZONE_DECK, 0) > 0) or
         (field_counts.get(Applin, 0) >= 1 and
          hand_counts.get(Dipplin, 0) == 0 and
-         CARTAS_ACTIVAS_EN_MAZO.get(Dipplin, {}).get(ESTADO_MAZO, 0) > 0) or
+         ACTIVE_CARDS_IN_DECK.get(Dipplin, {}).get(ZONE_DECK, 0) > 0) or
         (field_counts.get(Dipplin, 0) >= 1 and
          hand_counts.get(Hydrapple_ex, 0) == 0 and
-         CARTAS_ACTIVAS_EN_MAZO.get(Hydrapple_ex, {}).get(ESTADO_MAZO, 0) > 0 and
+         ACTIVE_CARDS_IN_DECK.get(Hydrapple_ex, {}).get(ZONE_DECK, 0) > 0 and
          not _ub_op_ex_immune))
 
     # Variant of _ub_evolve_needs_search that also requires being able
@@ -104,19 +104,19 @@ def _ub_derive_flags(ctx) -> _UBFlags:
     _ub_evolve_now_search = (
         (field_counts.get(Chikorita, 0) >= 1 and
          hand_counts.get(Bayleef, 0) == 0 and
-         CARTAS_ACTIVAS_EN_MAZO.get(Bayleef, {}).get(ESTADO_MAZO, 0) > 0 and
+         ACTIVE_CARDS_IN_DECK.get(Bayleef, {}).get(ZONE_DECK, 0) > 0 and
          (forest_in_play or _field_at_turn_start.get(Chikorita, 0) >= 1)) or
         (field_counts.get(Bayleef, 0) >= 1 and
          hand_counts.get(Meganium, 0) == 0 and
-         CARTAS_ACTIVAS_EN_MAZO.get(Meganium, {}).get(ESTADO_MAZO, 0) > 0 and
+         ACTIVE_CARDS_IN_DECK.get(Meganium, {}).get(ZONE_DECK, 0) > 0 and
          (forest_in_play or _field_at_turn_start.get(Bayleef, 0) >= 1)) or
         (field_counts.get(Applin, 0) >= 1 and
          hand_counts.get(Dipplin, 0) == 0 and
-         CARTAS_ACTIVAS_EN_MAZO.get(Dipplin, {}).get(ESTADO_MAZO, 0) > 0 and
+         ACTIVE_CARDS_IN_DECK.get(Dipplin, {}).get(ZONE_DECK, 0) > 0 and
          (forest_in_play or _field_at_turn_start.get(Applin, 0) >= 1)) or
         (field_counts.get(Dipplin, 0) >= 1 and
          hand_counts.get(Hydrapple_ex, 0) == 0 and
-         CARTAS_ACTIVAS_EN_MAZO.get(Hydrapple_ex, {}).get(ESTADO_MAZO, 0) > 0 and
+         ACTIVE_CARDS_IN_DECK.get(Hydrapple_ex, {}).get(ZONE_DECK, 0) > 0 and
          (forest_in_play or _field_at_turn_start.get(Dipplin, 0) >= 1) and
          not _ub_op_ex_immune))
 
@@ -160,7 +160,7 @@ def _ub_terminal_overrides(ctx, ub_score, _ub_survival_mode, hand_size, _our_fir
     watchtower_in_play = ctx.meowth_ability_lock
     budew_on_op_field = ctx.budew_on_op_field
     budew_op_index = ctx.budew_op_index
-    CARTAS_ACTIVAS_EN_MAZO = ctx.cards_in_deck
+    ACTIVE_CARDS_IN_DECK = ctx.cards_in_deck
     _evolve_possible_in_play = ctx.evolve_possible_in_play
     _boss_deny_alakazam_line = ctx.boss_deny_alakazam_line
 
@@ -190,7 +190,7 @@ def _ub_terminal_overrides(ctx, ub_score, _ub_survival_mode, hand_size, _our_fir
             _ub_has_basic_in_mazo = False
             for _surv_id in (Chikorita, Applin, Teal_Mask_Ogerpon_ex,
                              Tapu_Bulu, Meowth_ex, Fezandipiti_ex, Pinsir):
-                if CARTAS_ACTIVAS_EN_MAZO.get(_surv_id, {}).get(ESTADO_MAZO, 0) > 0:
+                if ACTIVE_CARDS_IN_DECK.get(_surv_id, {}).get(ZONE_DECK, 0) > 0:
                     _ub_has_basic_in_mazo = True
                     break
             if _ub_has_basic_in_mazo:
@@ -212,8 +212,8 @@ def _ub_terminal_overrides(ctx, ub_score, _ub_survival_mode, hand_size, _our_fir
             not state.supporterPlayed and
             field_counts.get(Meowth_ex, 0) < 2 and
             bench_count < 5 and
-            CARTAS_ACTIVAS_EN_MAZO.get(Meowth_ex, {}).get(ESTADO_MAZO, 0) > 0 and
-            CARTAS_ACTIVAS_EN_MAZO.get(Lillie_Determination, {}).get(ESTADO_MAZO, 0) > 0)
+            ACTIVE_CARDS_IN_DECK.get(Meowth_ex, {}).get(ZONE_DECK, 0) > 0 and
+            ACTIVE_CARDS_IN_DECK.get(Lillie_Determination, {}).get(ZONE_DECK, 0) > 0)
         _ub_ft_case3 = (
             (not we_go_first) and
             not watchtower_in_play and
@@ -277,7 +277,7 @@ def _ub_cancel_stamp(ctx) -> bool:
     has_hydrapple = ctx.has_hydrapple
     forest_in_play = ctx.forest_in_play
     meganium_in_play = ctx.meganium_in_play
-    CARTAS_ACTIVAS_EN_MAZO = ctx.cards_in_deck
+    ACTIVE_CARDS_IN_DECK = ctx.cards_in_deck
 
     _ub_cancel_for_stamp = False
     if hand_counts.get(Unfair_Stamp, 0) >= 1:
@@ -319,7 +319,7 @@ def _ub_cancel_fez(ctx) -> bool:
     has_hydrapple = ctx.has_hydrapple
     forest_in_play = ctx.forest_in_play
     meganium_in_play = ctx.meganium_in_play
-    CARTAS_ACTIVAS_EN_MAZO = ctx.cards_in_deck
+    ACTIVE_CARDS_IN_DECK = ctx.cards_in_deck
 
     _ub_cancel_for_fez = False
     if (ko_last_turn and
@@ -364,7 +364,7 @@ def _ub_forraje_real(ctx, protegida) -> int:
     op_has_ex_immune_bench = ctx.op_has_ex_immune_bench
     has_hydrapple = ctx.has_hydrapple
     forest_in_play = ctx.forest_in_play
-    CARTAS_ACTIVAS_EN_MAZO = ctx.cards_in_deck
+    ACTIVE_CARDS_IN_DECK = ctx.cards_in_deck
 
     _ub_discardable_without_lillie = 0
     for _ub_llid, _ub_llcnt in hand_counts.items():
@@ -383,7 +383,7 @@ def _ub_forraje_real(ctx, protegida) -> int:
             elif (hand_counts.get(Dipplin, 0) >= 1 and
                   (forest_in_play or
                    hand_counts.get(Forest_of_Vitality, 0) >= 1) and
-                  CARTAS_ACTIVAS_EN_MAZO.get(Applin, {}).get(ESTADO_MAZO, 0) > 0):
+                  ACTIVE_CARDS_IN_DECK.get(Applin, {}).get(ZONE_DECK, 0) > 0):
                 _ub_ll_fodder = False
         elif _ub_llid == Dipplin:
             if (has_hydrapple and
@@ -394,7 +394,7 @@ def _ub_forraje_real(ctx, protegida) -> int:
             elif (hand_counts.get(Hydrapple_ex, 0) >= 1 and
                   (forest_in_play or
                    hand_counts.get(Forest_of_Vitality, 0) >= 1) and
-                  CARTAS_ACTIVAS_EN_MAZO.get(Applin, {}).get(ESTADO_MAZO, 0) > 0):
+                  ACTIVE_CARDS_IN_DECK.get(Applin, {}).get(ZONE_DECK, 0) > 0):
                 _ub_ll_fodder = False
         elif _ub_llid == Meganium:
             _ub_ll_fodder = not (field_counts.get(Bayleef, 0) >= 1)
@@ -567,14 +567,14 @@ def _ub_cancel_meowth(ctx) -> bool:
     has_hydrapple = ctx.has_hydrapple
     forest_in_play = ctx.forest_in_play
     meganium_in_play = ctx.meganium_in_play
-    CARTAS_ACTIVAS_EN_MAZO = ctx.cards_in_deck
+    ACTIVE_CARDS_IN_DECK = ctx.cards_in_deck
 
     _ub_cancel_for_meowth = False
     if (hand_counts.get(Meowth_ex, 0) >= 1 and
           field_counts.get(Meowth_ex, 0) == 0 and
           bench_count < 5 and
           not state.supporterPlayed and
-          CARTAS_ACTIVAS_EN_MAZO.get(Lillie_Determination, {}).get(ESTADO_MAZO, 0) > 0):
+          ACTIVE_CARDS_IN_DECK.get(Lillie_Determination, {}).get(ZONE_DECK, 0) > 0):
 
         _ub_safe_without_meowth = 0
         for _ub_cid, _ub_cnt in hand_counts.items():
@@ -771,13 +771,13 @@ def _alakazam_dig_xerosic_engine(c) -> bool:
     if hand.get(Xerosic_Machinations, 0) >= 1:
         return False
     if c.cards_in_deck.get(
-            Xerosic_Machinations, {}).get(ESTADO_MAZO, 0) < 1:
+            Xerosic_Machinations, {}).get(ZONE_DECK, 0) < 1:
         return False
     if c.field_counts.get(Meowth_ex, 0) >= 2 or c.bench_count >= 5:
         return False
     _meowth_in_hand = hand.get(Meowth_ex, 0) >= 1
     _meowth_diggable = (
-        c.cards_in_deck.get(Meowth_ex, {}).get(ESTADO_MAZO, 0) >= 1
+        c.cards_in_deck.get(Meowth_ex, {}).get(ZONE_DECK, 0) >= 1
         and hand.get(Ultra_Ball, 0) >= 1)
     return _meowth_in_hand or _meowth_diggable
 
@@ -931,11 +931,11 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
                 field_counts.get(Meowth_ex, 0) < 2 and
                 bench_count < 5 and
                 not meowth_ability_lock and
-                ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Meowth_ex, {}).get(ESTADO_MAZO, 0) > 0):
-            _lillie_in_mazo = ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Lillie_Determination, {}).get(ESTADO_MAZO, 0)
+                AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Meowth_ex, {}).get(ZONE_DECK, 0) > 0):
+            _lillie_in_mazo = AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Lillie_Determination, {}).get(ZONE_DECK, 0)
             if _lillie_in_mazo > 0:
                 ub_best_target = max(ub_best_target, 1100)
-            elif any(ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(sid, {}).get(ESTADO_MAZO, 0) > 0
+            elif any(AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(sid, {}).get(ZONE_DECK, 0) > 0
                      for sid in (Dawn, Lanas_Aid)):
                 ub_best_target = max(ub_best_target, 950)
 
@@ -947,7 +947,7 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
             _active_is_weak_basic = any(field_counts.get(pid, 0) >= 1
                                         for pid in (Applin, Chikorita))
             if not _has_basic_in_hand_t1s and _active_is_weak_basic:
-                if ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Teal_Mask_Ogerpon_ex, {}).get(ESTADO_MAZO, 0) > 0:
+                if AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Teal_Mask_Ogerpon_ex, {}).get(ZONE_DECK, 0) > 0:
                     ub_best_target = max(ub_best_target, 1050)
 
         return ub_best_target
@@ -967,8 +967,8 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
                 bench_count < 5 and
                 not state.supporterPlayed and
                 not meowth_ability_lock and
-                ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Meowth_ex, {}).get(ESTADO_MAZO, 0) > 0 and
-                ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Lillie_Determination, {}).get(ESTADO_MAZO, 0) > 0):
+                AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Meowth_ex, {}).get(ZONE_DECK, 0) > 0 and
+                AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Lillie_Determination, {}).get(ZONE_DECK, 0) > 0):
             return 1100
 
         _has_basic_in_hand = any(hand_counts.get(pid, 0) >= 1
@@ -980,14 +980,14 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
         _best_t1_val = 0
 
         if (field_counts.get(Teal_Mask_Ogerpon_ex, 0) == 0 and
-                ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Teal_Mask_Ogerpon_ex, {}).get(ESTADO_MAZO, 0) > 0):
+                AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Teal_Mask_Ogerpon_ex, {}).get(ZONE_DECK, 0) > 0):
             _val = 950
             if hand_counts.get(Basic_Grass_Energy, 0) >= 1:
                 _val = 1000
             _best_t1_val = max(_best_t1_val, _val)
 
         if (field_counts.get(Chikorita, 0) == 0 and
-                ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Chikorita, {}).get(ESTADO_MAZO, 0) > 0):
+                AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Chikorita, {}).get(ZONE_DECK, 0) > 0):
             _val = 850
             if field_counts.get(Applin, 0) >= 1 or field_counts.get(Teal_Mask_Ogerpon_ex, 0) >= 1:
                 _val = 900
@@ -996,7 +996,7 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
             _best_t1_val = max(_best_t1_val, _val)
 
         if (field_counts.get(Applin, 0) == 0 and
-                ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Applin, {}).get(ESTADO_MAZO, 0) > 0):
+                AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Applin, {}).get(ZONE_DECK, 0) > 0):
             _val = 800
             if field_counts.get(Chikorita, 0) >= 1 or field_counts.get(Teal_Mask_Ogerpon_ex, 0) >= 1:
                 _val = 850
@@ -1029,12 +1029,12 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
         (supporters_in_hand == 0 or _supp_in_hand_is_inferior) and
         field_counts.get(Meowth_ex, 0) == 0 and
         bench_count < 5 and
-        ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Meowth_ex, {}).get(ESTADO_MAZO, 0) > 0 and
+        AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Meowth_ex, {}).get(ZONE_DECK, 0) > 0 and
         _best_supp_in_mazo_val > 200
     )
 
     if not meowth_viable and op_is_crustle_deck:
-        _boss_in_mazo = ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Boss_Orders, {}).get(ESTADO_MAZO, 0) > 0
+        _boss_in_mazo = AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Boss_Orders, {}).get(ZONE_DECK, 0) > 0
         _boss_val_ub = _best_supp_in_mazo_val
         if (_boss_in_mazo and _boss_val_ub >= 900 and
                 not state.supporterPlayed and
@@ -1042,7 +1042,7 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
                 field_counts.get(Meowth_ex, 0) == 0 and
                 bench_count < 5 and
                 hand_counts.get(Boss_Orders, 0) == 0 and
-                ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Meowth_ex, {}).get(ESTADO_MAZO, 0) > 0):
+                AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Meowth_ex, {}).get(ZONE_DECK, 0) > 0):
             meowth_viable = True
     if meowth_viable:
         meowth_val = _best_supp_in_mazo_val
@@ -1053,7 +1053,7 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
         ub_best_target = max(ub_best_target, meowth_val)
 
     if has_energy_for_teal and field_counts.get(Teal_Mask_Ogerpon_ex, 0) < 2 and bench_count < 5:
-        if ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Teal_Mask_Ogerpon_ex, {}).get(ESTADO_MAZO, 0) > 0:
+        if AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Teal_Mask_Ogerpon_ex, {}).get(ZONE_DECK, 0) > 0:
             val = 650
             if field_counts.get(Teal_Mask_Ogerpon_ex, 0) == 0:
                 val = 750
@@ -1065,7 +1065,7 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
             field_counts.get(Teal_Mask_Ogerpon_ex, 0) >= 2 and
             bench_count < 5 and
             field_counts.get(Hydrapple_ex, 0) >= 1):
-        if ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Teal_Mask_Ogerpon_ex, {}).get(ESTADO_MAZO, 0) > 0:
+        if AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Teal_Mask_Ogerpon_ex, {}).get(ZONE_DECK, 0) > 0:
 
             _td_dmg_bonus = 60 if meganium_in_play else 30
             val = 500 + _td_dmg_bonus * 2
@@ -1079,7 +1079,7 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
 
     # It does NOT use `_evolvable_counts` (the cleaned-up snapshot): MEASURED AND
     # REVERTED. See the scope note in `_evolvable_counts`.
-    _evolvable = ESTADO._field_at_turn_start if (not forest_in_play and ESTADO._field_at_turn_start) else field_counts
+    _evolvable = AGENT_STATE._field_at_turn_start if (not forest_in_play and AGENT_STATE._field_at_turn_start) else field_counts
 
     if not meganium_in_play:
         if _evolvable.get(Bayleef, 0) >= 1:
@@ -1088,12 +1088,12 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
             # line evolves WITHOUT Ultra Ball and searching for a 2nd copy adds
             # nothing -- it only burns the card and 2 discards (user, registro_004 step
             # 35 vs Cynthia's Garchomp: Meganium in hand and it dug for it anyway).
-            if (ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Meganium, {}).get(ESTADO_MAZO, 0) > 0
+            if (AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Meganium, {}).get(ZONE_DECK, 0) > 0
                     and hand_counts.get(Meganium, 0) == 0):
                 ub_best_target = max(ub_best_target, 1000)
         elif _evolvable.get(Chikorita, 0) >= 1 and field_counts.get(Bayleef, 0) >= 1:
 
-            if ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Meganium, {}).get(ESTADO_MAZO, 0) > 0:
+            if AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Meganium, {}).get(ZONE_DECK, 0) > 0:
                 if forest_in_play:
 
                     ub_best_target = max(ub_best_target, 1000)
@@ -1108,7 +1108,7 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
                     ub_best_target = max(ub_best_target, 280)
         elif _evolvable.get(Chikorita, 0) >= 1:
 
-            if (ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Bayleef, {}).get(ESTADO_MAZO, 0) > 0
+            if (AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Bayleef, {}).get(ZONE_DECK, 0) > 0
                     and hand_counts.get(Bayleef, 0) == 0):
                 # It is only worth searching for a Bayleef if we do not already have one
                 # in hand: with a Chikorita in play, a single Bayleef is enough to
@@ -1116,7 +1116,7 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
                 # this line (and would spend 2 discarded cards on a duplicate).
                 ub_best_target = max(ub_best_target, 850)
 
-            elif (ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Meganium, {}).get(ESTADO_MAZO, 0) > 0 and
+            elif (AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Meganium, {}).get(ZONE_DECK, 0) > 0 and
                   (forest_in_play or hand_counts.get(Forest_of_Vitality, 0) >= 1) and
                   hand_counts.get(Bayleef, 0) >= 1):
                 _prot = 1
@@ -1126,9 +1126,9 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
                     ub_best_target = max(ub_best_target, 900)
 
         elif not _bench_full and field_counts.get(Chikorita, 0) + field_counts.get(Bayleef, 0) == 0:
-            if ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Chikorita, {}).get(ESTADO_MAZO, 0) > 0:
-                _has_mega_evo_in_mazo = (ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Bayleef, {}).get(ESTADO_MAZO, 0) > 0 or
-                                         ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Meganium, {}).get(ESTADO_MAZO, 0) > 0)
+            if AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Chikorita, {}).get(ZONE_DECK, 0) > 0:
+                _has_mega_evo_in_mazo = (AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Bayleef, {}).get(ZONE_DECK, 0) > 0 or
+                                         AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Meganium, {}).get(ZONE_DECK, 0) > 0)
                 _has_mega_evo_in_hand = (hand_counts.get(Bayleef, 0) >= 1 or hand_counts.get(Meganium, 0) >= 1)
                 _forest_available = (forest_in_play or hand_counts.get(Forest_of_Vitality, 0) >= 1)
 
@@ -1150,13 +1150,13 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
         if _evolvable.get(Dipplin, 0) >= 1:
             # With the Hydrapple ex ALREADY in hand the line evolves without Ultra
             # Ball (see the twin Meganium branch above).
-            if (ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(
-                    Hydrapple_ex, {}).get(ESTADO_MAZO, 0) > 0
+            if (AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(
+                    Hydrapple_ex, {}).get(ZONE_DECK, 0) > 0
                     and hand_counts.get(Hydrapple_ex, 0) == 0):
                 ub_best_target = max(ub_best_target, 950)
         elif _evolvable.get(Applin, 0) >= 1 and field_counts.get(Dipplin, 0) >= 1:
 
-            if ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Hydrapple_ex, {}).get(ESTADO_MAZO, 0) > 0:
+            if AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Hydrapple_ex, {}).get(ZONE_DECK, 0) > 0:
                 if forest_in_play:
                     ub_best_target = max(ub_best_target, 950)
                 else:
@@ -1170,13 +1170,13 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
                     ub_best_target = max(ub_best_target, 280)
         elif _evolvable.get(Applin, 0) >= 1:
 
-            if (ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Dipplin, {}).get(ESTADO_MAZO, 0) > 0
+            if (AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Dipplin, {}).get(ZONE_DECK, 0) > 0
                     and hand_counts.get(Dipplin, 0) == 0):
                 # Same criterion as Bayleef: do not search for a Dipplin if there is
                 # already one in hand (a single Dipplin is enough to evolve the only Applin).
                 ub_best_target = max(ub_best_target, 800)
 
-            elif (ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Hydrapple_ex, {}).get(ESTADO_MAZO, 0) > 0 and
+            elif (AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Hydrapple_ex, {}).get(ZONE_DECK, 0) > 0 and
                   (forest_in_play or hand_counts.get(Forest_of_Vitality, 0) >= 1) and
                   hand_counts.get(Dipplin, 0) >= 1):
                 _prot = 1
@@ -1185,9 +1185,9 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
                 if _hand_total - 1 - _prot >= 2:
                     ub_best_target = max(ub_best_target, 850)
         elif not _bench_full and field_counts.get(Applin, 0) + field_counts.get(Dipplin, 0) == 0:
-            if ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Applin, {}).get(ESTADO_MAZO, 0) > 0:
-                _has_hydra_evo_in_mazo = (ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Dipplin, {}).get(ESTADO_MAZO, 0) > 0 or
-                                           ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Hydrapple_ex, {}).get(ESTADO_MAZO, 0) > 0)
+            if AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Applin, {}).get(ZONE_DECK, 0) > 0:
+                _has_hydra_evo_in_mazo = (AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Dipplin, {}).get(ZONE_DECK, 0) > 0 or
+                                           AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Hydrapple_ex, {}).get(ZONE_DECK, 0) > 0)
                 _has_hydra_evo_in_hand = (hand_counts.get(Dipplin, 0) >= 1 or hand_counts.get(Hydrapple_ex, 0) >= 1)
                 _forest_available = (forest_in_play or hand_counts.get(Forest_of_Vitality, 0) >= 1)
 
@@ -1213,12 +1213,12 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
                         ub_best_target = max(ub_best_target, 180)
 
     if not _bench_full and not has_energy_for_teal and field_counts.get(Teal_Mask_Ogerpon_ex, 0) < 2:
-        if ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Teal_Mask_Ogerpon_ex, {}).get(ESTADO_MAZO, 0) > 0:
+        if AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Teal_Mask_Ogerpon_ex, {}).get(ZONE_DECK, 0) > 0:
             if field_counts.get(Teal_Mask_Ogerpon_ex, 0) == 0 and bench_count <= 2:
                 ub_best_target = max(ub_best_target, 350)
 
     if not _bench_full and field_counts.get(Tapu_Bulu, 0) == 0:
-        if ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Tapu_Bulu, {}).get(ESTADO_MAZO, 0) > 0:
+        if AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Tapu_Bulu, {}).get(ZONE_DECK, 0) > 0:
             if meganium_in_play and (op_has_ex_immune_active or op_has_ex_immune_bench):
                 val = 750
                 if has_hydrapple:
@@ -1226,7 +1226,7 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
                 ub_best_target = max(ub_best_target, val)
 
     if not _bench_full and field_counts.get(Pinsir, 0) == 0:
-        if ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Pinsir, {}).get(ESTADO_MAZO, 0) > 0:
+        if AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Pinsir, {}).get(ZONE_DECK, 0) > 0:
             if op_is_crustle_deck or op_is_cornerstone_deck:
                 val = 900
                 if meganium_in_play:
@@ -1237,12 +1237,12 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
             not hand_is_weak and not state.supporterPlayed and
             field_counts.get(Meowth_ex, 0) == 0 and supporters_in_hand == 0 and
             _best_supp_in_mazo_val >= 500):
-        if ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Meowth_ex, {}).get(ESTADO_MAZO, 0) > 0:
+        if AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Meowth_ex, {}).get(ZONE_DECK, 0) > 0:
             if state.turn <= 4:
                 ub_best_target = max(ub_best_target, min(_best_supp_in_mazo_val, 500))
 
     if not _bench_full and field_counts.get(Fezandipiti_ex, 0) == 0:
-        if ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Fezandipiti_ex, {}).get(ESTADO_MAZO, 0) > 0:
+        if AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Fezandipiti_ex, {}).get(ZONE_DECK, 0) > 0:
             if ko_last_turn:
                 ub_best_target = max(ub_best_target, 1050)
 
@@ -1276,9 +1276,9 @@ def _ub_engine_refresh_pivot(ctx) -> bool:
     if ctx.bench_count > 1:
         return False
     cartas = ctx.cards_in_deck
-    if cartas.get(Meowth_ex, {}).get(ESTADO_MAZO, 0) <= 0:
+    if cartas.get(Meowth_ex, {}).get(ZONE_DECK, 0) <= 0:
         return False
-    if cartas.get(Lillie_Determination, {}).get(ESTADO_MAZO, 0) <= 0:
+    if cartas.get(Lillie_Determination, {}).get(ZONE_DECK, 0) <= 0:
         return False
     if ctx.field_counts.get(Meowth_ex, 0) >= 2:
         return False
@@ -1317,7 +1317,7 @@ def _ctx_ub_fetch_hydrapple(my_state, state, hand_counts, field_counts,
         puede_adjuntar = (not state.energyAttached
                           and hand_counts.get(Basic_Grass_Energy, 0) >= 1)
         e_despues = e_ahora + _grass_attach_unit()
-        req = ESTADO.ATTACK_ENERGY_REQ.get(Hydrapple_ex, 2)
+        req = AGENT_STATE.ATTACK_ENERGY_REQ.get(Hydrapple_ex, 2)
         if e_ahora >= req or (puede_adjuntar and e_despues >= req):
             evo_atk = True
     return _CtxUBHydrapple(
@@ -1341,23 +1341,23 @@ def _uh_preparar_hydra_prox_turno(c):
     dipplin_unico_grass = (grass_en_juego == c.campo.get(Dipplin, 0))
 
     puede_evo_meganium_ya = (
-        not ESTADO.meganium_in_play and (
+        not AGENT_STATE.meganium_in_play and (
             c.evolvable.get(Bayleef, 0) >= 1
             or (c.evolvable.get(Chikorita, 0) >= 1
-                and (ESTADO.forest_in_play
+                and (AGENT_STATE.forest_in_play
                      or c.hand.get(Forest_of_Vitality, 0) >= 1)
                 and c.hand.get(Bayleef, 0) >= 1)))
     linea_meganium_dev = (
-        not ESTADO.meganium_in_play and (
+        not AGENT_STATE.meganium_in_play and (
             c.hand.get(Bayleef, 0) >= 1
             or c.hand.get(Meganium, 0) >= 1
-            or ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Bayleef, {}).get(ESTADO_MAZO, 0) > 0
-            or ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Meganium, {}).get(ESTADO_MAZO, 0) > 0))
+            or AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Bayleef, {}).get(ZONE_DECK, 0) > 0
+            or AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Meganium, {}).get(ZONE_DECK, 0) > 0))
     buscar_bayleef_ya = (
-        not ESTADO.meganium_in_play
+        not AGENT_STATE.meganium_in_play
         and c.evolvable.get(Chikorita, 0) >= 1
         and c.hand.get(Bayleef, 0) == 0
-        and ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Bayleef, {}).get(ESTADO_MAZO, 0) > 0)
+        and AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Bayleef, {}).get(ZONE_DECK, 0) > 0)
 
     return (dipplin_unico_grass
             or (linea_meganium_dev
@@ -1376,10 +1376,10 @@ def _ctx_ub_fetch_meowth(hand_counts, field_counts, bench_count, turno,
     return _CtxUBMeowth(
         hand=hand_counts, campo=field_counts, bench_count=bench_count,
         turno=turno, watchtower=watchtower, supp_values=supp_values,
-        lillie_in_mazo=ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(
-            Lillie_Determination, {}).get(ESTADO_MAZO, 0),
+        lillie_in_mazo=AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(
+            Lillie_Determination, {}).get(ZONE_DECK, 0),
         any_supp_in_mazo=any(
-            ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(sid, {}).get(ESTADO_MAZO, 0) > 0
+            AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(sid, {}).get(ZONE_DECK, 0) > 0
             for sid in (Lillie_Determination, Boss_Orders, Dawn, Lanas_Aid)),
         prefer_meowth_develop=prefer_meowth_develop,
         hydra_dead_prefer_meowth=hydra_dead_prefer_meowth,
@@ -1399,24 +1399,24 @@ def _um_boss_engine_vs_crustle(c):
     """vs Crustle, Meowth ex is used to bring Boss's Orders (a gust) via
     Last-Ditch: with no Boss's in hand, with copies in the deck and with a
     valuable projected gust (_supp_values)."""
-    return (ESTADO.op_is_crustle_deck
+    return (AGENT_STATE.op_is_crustle_deck
             and c.hand.get(Boss_Orders, 0) == 0
-            and ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(
-                Boss_Orders, {}).get(ESTADO_MAZO, 0) > 0
+            and AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(
+                Boss_Orders, {}).get(ZONE_DECK, 0) > 0
             and c.supp_values.get(Boss_Orders, 0) >= 900)
 
 
 def _um_es_primer_turno(c):
     """OUR first turn of play (turn 1 going first, turn 2 going second)."""
-    return ((c.turno == 1 and ESTADO.we_go_first)
-            or (c.turno == 2 and not ESTADO.we_go_first))
+    return ((c.turno == 1 and AGENT_STATE.we_go_first)
+            or (c.turno == 2 and not AGENT_STATE.we_go_first))
 
 
 def _v_ub_chikorita_arrancar(c):
     if _forest_disponible(c) and c.hand.get(Bayleef, 0) >= 1:
         return 880
-    if (ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Bayleef, {}).get(ESTADO_MAZO, 0) > 0
-            or ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Meganium, {}).get(ESTADO_MAZO, 0) > 0
+    if (AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Bayleef, {}).get(ZONE_DECK, 0) > 0
+            or AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Meganium, {}).get(ZONE_DECK, 0) > 0
             or c.hand.get(Bayleef, 0) >= 1):
         return 700
     return 200
@@ -1425,8 +1425,8 @@ def _v_ub_chikorita_arrancar(c):
 def _v_ub_applin_arrancar(c):
     if _forest_disponible(c) and c.hand.get(Dipplin, 0) >= 1:
         return 980 if c.hand.get(Hydrapple_ex, 0) >= 1 else 800
-    if (ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Dipplin, {}).get(ESTADO_MAZO, 0) > 0
-            or ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Hydrapple_ex, {}).get(ESTADO_MAZO, 0) > 0
+    if (AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Dipplin, {}).get(ZONE_DECK, 0) > 0
+            or AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Hydrapple_ex, {}).get(ZONE_DECK, 0) > 0
             or c.hand.get(Dipplin, 0) >= 1):
         return 650
     return 180
@@ -1443,7 +1443,7 @@ _REGLAS_UB_HYDRAPPLE = [
                lambda c: 980),
     _FixedRule("applin_evolucionable_full_linea",
                lambda c: (c.evolvable.get(Applin, 0) >= 1
-                          and (ESTADO.forest_in_play
+                          and (AGENT_STATE.forest_in_play
                                or c.hand.get(Forest_of_Vitality, 0) >= 1)
                           and c.hand.get(Dipplin, 0) >= 1),
                lambda c: 900),
@@ -1470,7 +1470,7 @@ _AJUSTES_UB_HYDRAPPLE = [
     _Adjustment("clamp_ex_muerto_vs_crustle",
             lambda c, s: (not (c.dipplin_evo_atk
                                and not c.op_ex_immune_active)
-                          and (ESTADO.op_is_crustle_deck
+                          and (AGENT_STATE.op_is_crustle_deck
                                or c.op_ex_immune_active
                                or c.op_ex_immune_bench)),
             lambda c, s: min(s, 40)),
@@ -1539,13 +1539,13 @@ _REGLAS_UB_MEOWTH = [
     _FixedRule("lillie_ya_en_mano_redundante",
                lambda c: (c.hand.get(Lillie_Determination, 0) >= 1
                           and not _um_boss_engine_vs_crustle(c)
-                          and not ESTADO._ub_engine_pivot_turn),
+                          and not AGENT_STATE._ub_engine_pivot_turn),
                lambda c: 10),
     # UB->Meowth->Lillie's engine (registro_008 step 58 vs Archaludon,
     # LOST): the Ultra Ball was played FOR the pivot; the fetch MUST
     # complete the chain. Above development (1000-1250) and evolutions.
     _FixedRule("engine_pivot_turn",
-               lambda c: ESTADO._ub_engine_pivot_turn,
+               lambda c: AGENT_STATE._ub_engine_pivot_turn,
                lambda c: 1300),
     # The only Pokemon in play + no playable Basic + no Lillie's in hand:
     # put Meowth down, search for Lillie's and refill.
@@ -1571,7 +1571,7 @@ _REGLAS_UB_MEOWTH = [
                lambda c: c.t1_going_second_meowth,
                lambda c: 1200),
     _FixedRule("t1_saliendo_primeros_no",
-               lambda c: c.turno == 1 and ESTADO.we_go_first,
+               lambda c: c.turno == 1 and AGENT_STATE.we_go_first,
                lambda c: 10),
     _FixedRule("ya_dos_meowth_en_juego",
                lambda c: c.campo.get(Meowth_ex, 0) >= 2,
@@ -1636,14 +1636,14 @@ _REGLAS_UB_OGERPON = [
 
 _REGLAS_UB_MEGANIUM = [
     _FixedRule("meganium_ya_en_juego",
-               lambda c: ESTADO.meganium_in_play,
+               lambda c: AGENT_STATE.meganium_in_play,
                lambda c: 25),
     # vs Cornerstone: Wild Growth doubles every Grass and lowers the cost of
     # Tapu Bulu -- the ONLY attacker that damages Cornerstone -- from 4 physical
     # Grass to 2. With the line already started in play, completing it is the
     # priority search even though Meganium itself cannot damage it.
     _FixedRule("linea_mega_habilita_tapu_vs_cornerstone",
-               lambda c: (ESTADO.op_is_cornerstone_deck
+               lambda c: (AGENT_STATE.op_is_cornerstone_deck
                           and (c.campo.get(Chikorita, 0) >= 1
                                or c.campo.get(Bayleef, 0) >= 1)),
                lambda c: 1050),
@@ -1666,7 +1666,7 @@ _REGLAS_UB_MEGANIUM = [
 
 _REGLAS_UB_BAYLEEF = [
     _FixedRule("meganium_ya_en_juego",
-               lambda c: ESTADO.meganium_in_play,
+               lambda c: AGENT_STATE.meganium_in_play,
                lambda c: 20),
     _FixedRule("bayleef_ya_en_campo",
                lambda c: c.campo.get(Bayleef, 0) >= 1,
@@ -1680,13 +1680,13 @@ _REGLAS_UB_BAYLEEF = [
     # doubles the Grass and leaves Tapu Bulu attacking with 2 physical) and it is
     # also one of the two bodies WITHOUT an ability that do damage it.
     _FixedRule("linea_mega_vs_cornerstone",
-               lambda c: (ESTADO.op_is_cornerstone_deck
+               lambda c: (AGENT_STATE.op_is_cornerstone_deck
                           and c.campo.get(Chikorita, 0) >= 1),
                lambda c: 1000),
     _FixedRule("chikorita_evolucionable",
                lambda c: c.evolvable.get(Chikorita, 0) >= 1,
                lambda c: 950 if (c.hand.get(Meganium, 0) >= 1
-                                 and ESTADO.forest_in_play) else 850),
+                                 and AGENT_STATE.forest_in_play) else 850),
     _FixedRule("chikorita_en_campo",
                lambda c: c.campo.get(Chikorita, 0) >= 1,
                lambda c: 200),
@@ -1709,7 +1709,7 @@ _REGLAS_UB_DIPPLIN = [
     _FixedRule("applin_evolucionable",
                lambda c: c.evolvable.get(Applin, 0) >= 1,
                lambda c: ((920 if (c.hand.get(Hydrapple_ex, 0) >= 1
-                                   and ESTADO.forest_in_play) else 800)
+                                   and AGENT_STATE.forest_in_play) else 800)
                           if c.dipplin_priority else 150)),
     _FixedRule("applin_en_campo",
                lambda c: c.campo.get(Applin, 0) >= 1,
@@ -1725,7 +1725,7 @@ _REGLAS_UB_CHIKORITA = [
                lambda c: c.t1_going_first_need_basic,
                _v_ub_chikorita_t1),
     _FixedRule("meganium_ya_en_juego",
-               lambda c: ESTADO.meganium_in_play,
+               lambda c: AGENT_STATE.meganium_in_play,
                lambda c: 30),
     _FixedRule("linea_meganium_ya_iniciada",
                lambda c: (c.campo.get(Chikorita, 0)
@@ -1763,7 +1763,7 @@ _REGLAS_UB_TAPU = [
     # A non-ex attacker against ex-immune opponents, with Meganium doubling
     # its energy; better still if Hydrapple ex already covers the ex role.
     _FixedRule("anti_ex_con_meganium",
-               lambda c: (ESTADO.meganium_in_play
+               lambda c: (AGENT_STATE.meganium_in_play
                           and (c.op_ex_immune_active
                                or c.op_ex_immune_bench)),
                lambda c: 850 if c.has_hydrapple else 750),
@@ -1773,8 +1773,8 @@ _REGLAS_UB_TAPU = [
 _REGLAS_UB_PINSIR = [
     _FixedRule("anti_ex",
                lambda c: (c.campo.get(Pinsir, 0) == 0
-                          and (ESTADO.op_is_crustle_deck
-                               or ESTADO.op_is_cornerstone_deck)),
+                          and (AGENT_STATE.op_is_crustle_deck
+                               or AGENT_STATE.op_is_cornerstone_deck)),
                lambda c: 900),
 ]
 
@@ -1792,7 +1792,7 @@ _REGLAS_UB_FEZ = [
     # search. Deck-agnostic.
     _FixedRule("refill_tras_ko",
                lambda c: (c.campo.get(Fezandipiti_ex, 0) == 0
-                          and ESTADO.ko_last_turn and c.bench_count < 5
+                          and AGENT_STATE.ko_last_turn and c.bench_count < 5
                           and not c.no_attacker_prefer_meowth),
                lambda c: 1050),
 ]

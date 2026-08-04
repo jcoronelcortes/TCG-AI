@@ -62,20 +62,20 @@ def reset_agente(m):
     sys.modules. There the assignments went to a dead attribute, the reset did
     not happen and the state leaked from one game to the next.
     """
-    estado = getattr(m, "ESTADO", None)
+    estado = getattr(m, "AGENT_STATE", None)
     if estado is not None:
         # ORDER: first `reset()` -- which leaves CARTAS_ACTIVAS_EN_MAZO empty -- and
         # THEN the scan that fills it from deck.csv. The other way round, the reset
         # erased the tracking that had just been built and the agent started each
         # game believing its deck is empty.
         estado.reset()
-        m._init_cartas_tracking()
+        m._init_cards_tracking()
         return
 
-    m._init_cartas_tracking()
-    m._cartas_first_scan_done = False
-    m._cartas_prizes_identified = False
-    m._cartas_last_turn = -1
+    m._init_cards_tracking()
+    m._cards_first_scan_done = False
+    m._cards_prizes_identified = False
+    m._cards_last_turn = -1
 
     # COMPATIBILITY branch: a main.py older than wave 3, where the state consists of
     # module globals. utils/sombra.py compares the current version against a

@@ -27,10 +27,10 @@ from ptcg.motor.plan import AttackPlan
 
 # Sentinel value of `_log_turno_en_curso`: we do not know yet which turn the
 # logs we are reading belong to.
-_TURNO_LOG_DESCONOCIDO = -1
+_TURN_LOG_UNKNOWN = -1
 
 
-class EstadoAgente:
+class AgentState:
     """Agent state that survives between calls to `agent()`.
 
     The fields are documented where they are used; only their initial values
@@ -107,12 +107,12 @@ class EstadoAgente:
         self._prev_op_prize = 6
         # Turn in progress according to the logs: player index, None = BETWEEN TURNS,
         # -1 = we have not seen any TURN_START/TURN_END yet.
-        self._log_turno_en_curso = _TURNO_LOG_DESCONOCIDO
+        self._log_current_turn = _TURN_LOG_UNKNOWN
         # The `state.turn` in which we saw the last KO OF OUR OWN inside the opponent's
         # turn (which enables Flip the Script / Unfair Stamp) and outside it (which does
         # not).
-        self._ko_propio_en_turno_rival = -99
-        self._ko_propio_fuera_del_turno_rival = -99
+        self._own_ko_inside_op_turn = -99
+        self._own_ko_outside_op_turn = -99
 
         # --- detected opposing matchup ----------------------------------------
         self.op_is_crustle_deck = False
@@ -134,10 +134,10 @@ class EstadoAgente:
         # `CARTAS_ACTIVAS_EN_MAZO[card_id][ZONE]` = how many copies are in each
         # zone. `_init_cartas_tracking()` fills it from deck.csv and
         # `_move_card_state` and `_update_cartas_tracking` move it around.
-        self.CARTAS_ACTIVAS_EN_MAZO = {}
-        self._cartas_first_scan_done = False
-        self._cartas_prizes_identified = False
-        self._cartas_last_turn = -1
+        self.ACTIVE_CARDS_IN_DECK = {}
+        self._cards_first_scan_done = False
+        self._cards_prizes_identified = False
+        self._cards_last_turn = -1
 
         # --- projected opposing damage ---------------------------------------
         # Projected damage of the opposing snipe to ONE Pokemon on our bench (recomputed
@@ -157,10 +157,10 @@ class EstadoAgente:
 
 # Single instance. It is NEVER reassigned: modules keep a reference to this
 # object, so reassigning it here would leave them looking at the old one.
-ESTADO = EstadoAgente()
+AGENT_STATE = AgentState()
 
 
 __all__ = [
-    'EstadoAgente',
-    'ESTADO',
+    'AgentState',
+    'AGENT_STATE',
 ]

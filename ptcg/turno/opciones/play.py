@@ -17,8 +17,8 @@ from ptcg.decision.disrupcion import _score_unfair_stamp_play, _score_xerosic_pl
 from ptcg.decision.poke_pad import _score_poke_pad_play
 from ptcg.decision.supporters import _score_dawn_play, _score_lanas_aid_play
 from ptcg.decision.ultra_ball import _contra_estadio_urgente
-from ptcg.estado.agente import ESTADO
-from ptcg.estado.claves import ESTADO_MAZO
+from ptcg.estado.agente import AGENT_STATE
+from ptcg.estado.claves import ZONE_DECK
 
 
 def puntuar(tc, o, score):
@@ -119,7 +119,7 @@ def puntuar(tc, o, score):
                 score = SCORE_DEVELOP_BASE
         
                 _block_4th_ex = False
-                if ((ESTADO.op_is_crustle_deck or ESTADO.op_is_cornerstone_deck)
+                if ((AGENT_STATE.op_is_crustle_deck or AGENT_STATE.op_is_cornerstone_deck)
                         and card.id in OUR_EX_IDS
                         # Meowth ex is UTILITY (Last-Ditch searches for a Boss's to
                         # gust the bench when the active is immune): it does
@@ -133,7 +133,7 @@ def puntuar(tc, o, score):
                         # crushed the 22000 of the refill and the draw
                         # was lost). Without the ability alive, the veto stands.
                         and not (card.id == Fezandipiti_ex
-                                 and ESTADO.ko_last_turn)):
+                                 and AGENT_STATE.ko_last_turn)):
                     _ex_in_play = sum(field_counts.get(_ex_id, 0)
                                       for _ex_id in OUR_EX_IDS)
                     if _ex_in_play >= 3:
@@ -174,7 +174,7 @@ def puntuar(tc, o, score):
                                  and (_alk_ld_engine_vivo
                                       or _meowth_immune_boss_engine))
                         and not (card.id == Fezandipiti_ex
-                                 and ESTADO.ko_last_turn)):
+                                 and AGENT_STATE.ko_last_turn)):
                     _alk_hp_cuerpo = getattr(data, 'hp', 0) or 0
                     if (_alk_hp_cuerpo and _powerful_hand_proyectado(
                             getattr(op_state, 'handCount', 0))
@@ -186,18 +186,18 @@ def puntuar(tc, o, score):
                 elif card.id == Chikorita:
         
                     _meg_line_count = field_counts[Chikorita] + field_counts[Bayleef] + field_counts[Meganium]
-                    _max_meg_line = 2 if (ESTADO.op_is_crustle_deck or ESTADO.op_is_cornerstone_deck) else 1
+                    _max_meg_line = 2 if (AGENT_STATE.op_is_crustle_deck or AGENT_STATE.op_is_cornerstone_deck) else 1
                     if _meg_line_count >= _max_meg_line:
                         score = SCORE_VETO
                     else:
-                        _forest_avail = ESTADO.forest_in_play or hand_counts.get(Forest_of_Vitality, 0) >= 1
+                        _forest_avail = AGENT_STATE.forest_in_play or hand_counts.get(Forest_of_Vitality, 0) >= 1
         
                         if (op_has_mega_starmie_active and
                                 not (_forest_avail and hand_counts.get(Bayleef, 0) >= 1)):
                             score = SCORE_VETO
                         else:
                             score = 21500
-                            if op_is_mirror or op_is_fire_deck or ESTADO.op_is_crustle_deck:
+                            if op_is_mirror or op_is_fire_deck or AGENT_STATE.op_is_crustle_deck:
                                 score = 21700
                             elif op_is_aggro_deck or op_is_beedrill_deck:
                                 score = 21700
@@ -224,7 +224,7 @@ def puntuar(tc, o, score):
                          RETREAT_COST.get(op_state.active[0].id, 1) == 0))
                     _dragapult_snipe_setup = _drag_snipe_charged and _op_active_free_retreat
                     _applin_evolvable_now = (
-                        ESTADO.forest_in_play and hand_counts.get(Dipplin, 0) >= 1)
+                        AGENT_STATE.forest_in_play and hand_counts.get(Dipplin, 0) >= 1)
         
                     # PHASE E3 (Marnie plan, section 4): an Applin JUST
                     # put down has 40 HP and no ability, so it does not
@@ -244,10 +244,10 @@ def puntuar(tc, o, score):
                     _applin_hp_impreso = getattr(
                         card_table.get(Applin), 'hp', 0) or 0
                     _applin_regalado = (
-                        ESTADO._op_movable_dmg > 0
+                        AGENT_STATE._op_movable_dmg > 0
                         and _applin_hp_impreso > 0
                         and _applin_hp_impreso <= _ventana_de_regalo(
-                            card, False, ESTADO._op_bench_snipe_dmg))
+                            card, False, AGENT_STATE._op_bench_snipe_dmg))
         
                     if bench_count >= 5:
                         score = SCORE_VETO
@@ -263,7 +263,7 @@ def puntuar(tc, o, score):
                         # already a member of the line on the board, do not put another Applin down.
                         score = SCORE_VETO
                     else:
-                        _forest_avail = ESTADO.forest_in_play or hand_counts.get(Forest_of_Vitality, 0) >= 1
+                        _forest_avail = AGENT_STATE.forest_in_play or hand_counts.get(Forest_of_Vitality, 0) >= 1
         
                         if (op_has_mega_starmie_active and
                                 not (_forest_avail and hand_counts.get(Dipplin, 0) >= 1)):
@@ -288,11 +288,11 @@ def puntuar(tc, o, score):
                                     score -= 500
                 elif card.id == Teal_Mask_Ogerpon_ex:
                     _meg_line_present = (
-                        ESTADO.meganium_in_play or
+                        AGENT_STATE.meganium_in_play or
                         field_counts.get(Bayleef, 0) >= 1 or
                         field_counts.get(Chikorita, 0) >= 1)
-                    if (ESTADO.op_is_crustle_deck or ESTADO.op_is_cornerstone_deck) and \
-                            not ESTADO.op_has_mega_kangaskhan and \
+                    if (AGENT_STATE.op_is_crustle_deck or AGENT_STATE.op_is_cornerstone_deck) and \
+                            not AGENT_STATE.op_has_mega_kangaskhan and \
                             field_counts[card.id] >= 2:
         
                         score = SCORE_VETO
@@ -302,7 +302,7 @@ def puntuar(tc, o, score):
         
                         if hand_counts.get(Basic_Grass_Energy, 0) >= 1:
                             score = 20500
-                        elif ESTADO.op_has_mega_kangaskhan and _meg_line_present:
+                        elif AGENT_STATE.op_has_mega_kangaskhan and _meg_line_present:
         
                             score = 20500
                         else:
@@ -355,7 +355,7 @@ def puntuar(tc, o, score):
                         score = SCORE_VETO
                     elif ((_win_via_boss_gust or _gust_2prize_via_boss)
                             and hand_counts.get(Boss_Orders, 0) == 0
-                            and ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Boss_Orders, {}).get(ESTADO_MAZO, 0) > 0
+                            and AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Boss_Orders, {}).get(ZONE_DECK, 0) > 0
                             and field_counts[card.id] < 2
                             and _meowth_ld_free
                             and bench_count < 5):
@@ -377,8 +377,8 @@ def puntuar(tc, o, score):
                         score = 22500
                     elif (_deny_evo_via_boss
                             and hand_counts.get(Boss_Orders, 0) == 0
-                            and ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(
-                                Boss_Orders, {}).get(ESTADO_MAZO, 0) > 0
+                            and AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(
+                                Boss_Orders, {}).get(ZONE_DECK, 0) > 0
                             and field_counts[card.id] < 2
                             and _meowth_ld_free
                             and bench_count < 5
@@ -417,8 +417,8 @@ def puntuar(tc, o, score):
                             and bench_count < 5
                             and not state.supporterPlayed
                             and hand_counts.get(Lillie_Determination, 0) == 0
-                            and ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(
-                                Lillie_Determination, {}).get(ESTADO_MAZO, 0) > 0
+                            and AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(
+                                Lillie_Determination, {}).get(ZONE_DECK, 0) > 0
                             and (len(my_state.hand) if my_state.hand else 0) <= 2
                             and _ready_attacker_count <= 1
                             and _ara_act is not None
@@ -451,8 +451,8 @@ def puntuar(tc, o, score):
                             and not meowth_ability_lock
                             and not op_has_froslass
                             and hand_counts.get(Lillie_Determination, 0) == 0
-                            and ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(
-                                Lillie_Determination, {}).get(ESTADO_MAZO, 0) > 0
+                            and AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(
+                                Lillie_Determination, {}).get(ZONE_DECK, 0) > 0
                             and _active_ready_attacker
                             and _ready_attacker_count <= 1
                             and my_prize >= 3
@@ -488,13 +488,13 @@ def puntuar(tc, o, score):
                             and bench_count < 5
                             and not state.supporterPlayed
                             and hand_counts.get(Lillie_Determination, 0) == 0
-                            and ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(
-                                Lillie_Determination, {}).get(ESTADO_MAZO, 0) > 0
+                            and AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(
+                                Lillie_Determination, {}).get(ZONE_DECK, 0) > 0
                             and (len(my_state.hand) if my_state.hand else 0) <= 4
                             and _ready_attacker_count <= 2
-                            and not (ESTADO.plan.attacker == 0
-                                     and ESTADO.plan.remain_hp is not None
-                                     and ESTADO.plan.remain_hp <= 0)
+                            and not (AGENT_STATE.plan.attacker == 0
+                                     and AGENT_STATE.plan.remain_hp is not None
+                                     and AGENT_STATE.plan.remain_hp <= 0)
                             and not meowth_ability_lock
                             and (not op_has_froslass
                                  or _ready_attacker_count <= 1)):
@@ -530,8 +530,8 @@ def puntuar(tc, o, score):
                             and not meowth_ability_lock
                             and not state.supporterPlayed
                             and hand_counts.get(Lillie_Determination, 0) == 0
-                            and ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(
-                                Lillie_Determination, {}).get(ESTADO_MAZO, 0) > 0):
+                            and AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(
+                                Lillie_Determination, {}).get(ZONE_DECK, 0) > 0):
                         # An EXCEPTION to the veto below (user, registro_014 step
                         # 107, vs Marnie): the active was a Teal Mask Ogerpon
                         # ex at 10/210 HP -- it falls to the first hit -- and the
@@ -582,7 +582,7 @@ def puntuar(tc, o, score):
                     elif (_meowth_devel_lillie
                             and hand_counts.get(Meowth_ex, 0) >= 1
                             and hand_counts.get(Lillie_Determination, 0) == 0
-                            and ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Lillie_Determination, {}).get(ESTADO_MAZO, 0) > 0
+                            and AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Lillie_Determination, {}).get(ZONE_DECK, 0) > 0
                             and field_counts[card.id] == 0
                             and bench_count < 5):
         
@@ -595,17 +595,17 @@ def puntuar(tc, o, score):
                             and _active_cant_attack_this_turn
                             and not state.supporterPlayed
                             and hand_counts.get(Lillie_Determination, 0) == 0
-                            and ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(
-                                Lillie_Determination, {}).get(ESTADO_MAZO, 0) > 0
+                            and AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(
+                                Lillie_Determination, {}).get(ZONE_DECK, 0) > 0
                             and not op_has_froslass
-                            and not (state.turn == 1 and ESTADO.we_go_first)):
+                            and not (state.turn == 1 and AGENT_STATE.we_go_first)):
         
                         score = 21700
                     elif field_counts[card.id] >= 1:
                         score = SCORE_VETO
                     elif bench_count >= 5:
                         score = SCORE_VETO
-                    elif state.turn == 1 and ESTADO.we_go_first:
+                    elif state.turn == 1 and AGENT_STATE.we_go_first:
         
                         _other_basics_in_hand = any(
                             hand_counts.get(pid, 0) >= 1
@@ -615,7 +615,7 @@ def puntuar(tc, o, score):
                             score = 19000
                         else:
                             score = SCORE_VETO
-                    elif state.turn == 2 and not ESTADO.we_go_first:
+                    elif state.turn == 2 and not AGENT_STATE.we_go_first:
         
                         if (not state.supporterPlayed and
                                 _best_supp_in_hand_val < 500 and
@@ -646,10 +646,10 @@ def puntuar(tc, o, score):
                             and len(_mw_act_reloc.energies)
                             >= RETREAT_COST.get(_mw_act_reloc.id, 1))
                         _mw_engine_in_mazo = (
-                            ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(
-                                Lillie_Determination, {}).get(ESTADO_MAZO, 0) > 0
-                            or ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(
-                                Lanas_Aid, {}).get(ESTADO_MAZO, 0) > 0)
+                            AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(
+                                Lillie_Determination, {}).get(ZONE_DECK, 0) > 0
+                            or AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(
+                                Lanas_Aid, {}).get(ZONE_DECK, 0) > 0)
                         if (_active_cant_attack_this_turn
                                 and not _mw_can_retreat
                                 and field_counts[card.id] == 0
@@ -663,21 +663,21 @@ def puntuar(tc, o, score):
                     elif (_active_cant_attack_this_turn and
                           not state.supporterPlayed and
                           hand_counts.get(Lillie_Determination, 0) == 0 and
-                          ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Lillie_Determination, {}).get(ESTADO_MAZO, 0) > 0):
+                          AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Lillie_Determination, {}).get(ZONE_DECK, 0) > 0):
         
                         score = 21800
                     elif (bench_count >= 1 and
                           hand_counts.get(Lillie_Determination, 0) >= 1 and
                           hand_counts.get(Ultra_Ball, 0) >= 1 and
-                          not (ESTADO.op_is_crustle_deck or op_is_drednaw_deck or op_is_sylveon_deck) and
+                          not (AGENT_STATE.op_is_crustle_deck or op_is_drednaw_deck or op_is_sylveon_deck) and
                           not (_best_supp_in_mazo_id == Boss_Orders and _best_supp_in_mazo_val >= 650)):
         
                         score = SCORE_VETO
                     elif _best_supp_in_hand_val >= 500:
         
-                        _boss_in_mazo = ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(Boss_Orders, {}).get(ESTADO_MAZO, 0) > 0
+                        _boss_in_mazo = AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Boss_Orders, {}).get(ZONE_DECK, 0) > 0
                         _boss_val = _supp_values.get(Boss_Orders, 0)
-                        if ESTADO.op_is_crustle_deck and _boss_in_mazo and _boss_val >= 900 and hand_counts.get(Boss_Orders, 0) == 0:
+                        if AGENT_STATE.op_is_crustle_deck and _boss_in_mazo and _boss_val >= 900 and hand_counts.get(Boss_Orders, 0) == 0:
                             score = 21500
                         elif (op_is_drednaw_deck and _boss_in_mazo and _boss_val >= 650
                               and hand_counts.get(Boss_Orders, 0) == 0):
@@ -725,7 +725,7 @@ def puntuar(tc, o, score):
         
                         elif _target_id == Dawn and _target_val >= 700:
         
-                            _forest_avail = ESTADO.forest_in_play or hand_counts.get(Forest_of_Vitality, 0) >= 1
+                            _forest_avail = AGENT_STATE.forest_in_play or hand_counts.get(Forest_of_Vitality, 0) >= 1
                             if _forest_avail:
                                 _meowth_score = 20500
                         elif _target_id == Lanas_Aid and _target_val >= 600:
@@ -780,8 +780,8 @@ def puntuar(tc, o, score):
                         score = SCORE_VETO
                     elif bench_count >= 5:
                         score = SCORE_VETO
-                    elif (op_is_lucario_deck or ESTADO.op_is_crustle_deck
-                          or ESTADO.op_is_cornerstone_deck or op_is_sylveon_deck
+                    elif (op_is_lucario_deck or AGENT_STATE.op_is_crustle_deck
+                          or AGENT_STATE.op_is_cornerstone_deck or op_is_sylveon_deck
                           # PHASE E1 (Marnie plan, D5): with FROSLASS on the field
                           # the bench is not a safe place. Fezandipiti ex
                           # has an ABILITY, so it pays the toll of
@@ -807,7 +807,7 @@ def puntuar(tc, o, score):
                         # turn = a loss. With a low score (500) any
                         # real development (a basic ~20000) is played first; Fez only
                         # comes down if there is no other way to have a body in play.
-                        if ESTADO.ko_last_turn:
+                        if AGENT_STATE.ko_last_turn:
                             score = 22000
                             if len(my_state.hand) <= 3:
                                 score = 22500
@@ -824,13 +824,13 @@ def puntuar(tc, o, score):
                     else:
                         fez_score = SCORE_VETO
         
-                        if ESTADO.ko_last_turn:
+                        if AGENT_STATE.ko_last_turn:
                             fez_score = 22000
         
                             if len(my_state.hand) <= 3:
                                 fez_score = 22500
         
-                        if not ESTADO.ko_last_turn and bench_count <= 2:
+                        if not AGENT_STATE.ko_last_turn and bench_count <= 2:
                             _all_bench_basics = True
                             for _bp_fez in my_state.bench:
                                 if _bp_fez is not None:
@@ -858,8 +858,8 @@ def puntuar(tc, o, score):
                         + bench_count)
         
                     _op_is_crustle_like = (
-                        ESTADO.op_is_crustle_deck or op_has_ability_immune_active or
-                        ESTADO.op_is_cornerstone_deck or op_is_sylveon_deck or
+                        AGENT_STATE.op_is_crustle_deck or op_has_ability_immune_active or
+                        AGENT_STATE.op_is_cornerstone_deck or op_is_sylveon_deck or
                         op_has_ex_immune_active or op_has_ex_immune_bench or
                         op_is_iron_thorns_deck)
         
@@ -897,25 +897,25 @@ def puntuar(tc, o, score):
                         else:
                             score = SCORE_VETO
                     elif (_tapu_in_play_count >= 4 and not _op_is_crustle_like and
-                          ESTADO.meganium_in_play and not _tapu_first_turn):
+                          AGENT_STATE.meganium_in_play and not _tapu_first_turn):
         
                         score = 16000
-                    elif (_tapu_in_play_count > 2 and not ESTADO.op_is_crustle_deck
+                    elif (_tapu_in_play_count > 2 and not AGENT_STATE.op_is_crustle_deck
                             and not op_is_iron_thorns_deck
                             # Cornerstone (autopsy p004 t2): Tapu Bulu is
                             # THE attacker of the matchup (the Ogerpon/Hydrapple
                             # with abilities do 0); crowding does not
                             # justify leaving it dead in hand.
-                            and not ESTADO.op_is_cornerstone_deck
+                            and not AGENT_STATE.op_is_cornerstone_deck
                             and not op_has_ability_immune_active):
         
                         score = SCORE_VETO
-                    elif ESTADO.op_is_crustle_deck:
+                    elif AGENT_STATE.op_is_crustle_deck:
         
                         score = 22000
-                        if ESTADO.meganium_in_play:
+                        if AGENT_STATE.meganium_in_play:
                             score = 22500
-                    elif op_has_ability_immune_active or ESTADO.op_is_cornerstone_deck:
+                    elif op_has_ability_immune_active or AGENT_STATE.op_is_cornerstone_deck:
         
                         score = 22500
                     elif op_is_iron_thorns_deck:
@@ -948,7 +948,7 @@ def puntuar(tc, o, score):
                     elif _tapu_first_turn:
         
                         score = SCORE_VETO
-                    elif not ESTADO.meganium_in_play:
+                    elif not AGENT_STATE.meganium_in_play:
         
                         score = SCORE_VETO
                     else:
@@ -970,12 +970,12 @@ def puntuar(tc, o, score):
         
                     score = SCORE_VETO
         
-                if (ESTADO._poke_pad_target_id > 0 and card.id == ESTADO._poke_pad_target_id and
+                if (AGENT_STATE._poke_pad_target_id > 0 and card.id == AGENT_STATE._poke_pad_target_id and
                         bench_count < 5):
                     if score <= 0:
                         score = 21000
         
-                if (ESTADO._ub_meowth_pending and card.id == Meowth_ex and
+                if (AGENT_STATE._ub_meowth_pending and card.id == Meowth_ex and
                         field_counts[Meowth_ex] < 2 and _meowth_ld_free
                         and bench_count < 5
                         and not state.supporterPlayed
@@ -1014,8 +1014,8 @@ def puntuar(tc, o, score):
                     and not state.supporterPlayed
                     and getattr(op_state, 'handCount', 0) >= 6
                     and hand_counts.get(Xerosic_Machinations, 0) == 0
-                    and ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(
-                        Xerosic_Machinations, {}).get(ESTADO_MAZO, 0) > 0
+                    and AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(
+                        Xerosic_Machinations, {}).get(ZONE_DECK, 0) > 0
                     and field_counts[Meowth_ex] < 2 and _meowth_ld_free
                     and bench_count < 5
                     and not _stamp_blocks_supp_chain
@@ -1111,7 +1111,7 @@ def puntuar(tc, o, score):
                     # left Tapu dead in hand. The whitelist is widened
                     # with Tapu Bulu ONLY in that case; without Cornerstone the
                     # anti-Cubchoo plan is untouched.
-                    if op_has_ability_immune_active or ESTADO.op_is_cornerstone_deck:
+                    if op_has_ability_immune_active or AGENT_STATE.op_is_cornerstone_deck:
                         _CUB_ALLOWED_PLAY = _CUB_ALLOWED_PLAY + (Tapu_Bulu,)
                     if card.id not in _CUB_ALLOWED_PLAY:
                         score = SCORE_VETO
@@ -1125,8 +1125,8 @@ def puntuar(tc, o, score):
                         _cub_meowth_ok = (
                             field_counts[Meowth_ex] == 0
                             and hand_counts.get(Lillie_Determination, 0) == 0
-                            and ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(
-                                Lillie_Determination, {}).get(ESTADO_MAZO, 0) > 0)
+                            and AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(
+                                Lillie_Determination, {}).get(ZONE_DECK, 0) > 0)
                         if not _cub_meowth_ok:
                             score = SCORE_VETO
         
@@ -1165,8 +1165,8 @@ def puntuar(tc, o, score):
                 # `_alk_ld_engine_vivo` (computed alongside `_meowth_ld_free`).
                 if (op_is_alakazam_deck and bench_count == 4
                         and _alk_ld_engine_vivo
-                        and ESTADO.CARTAS_ACTIVAS_EN_MAZO.get(
-                            Xerosic_Machinations, {}).get(ESTADO_MAZO, 0) > 0
+                        and AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(
+                            Xerosic_Machinations, {}).get(ZONE_DECK, 0) > 0
                         and score > 0
                         and card.id != Meowth_ex):
                     if (field_counts.get(card.id, 0) >= 1
@@ -1199,7 +1199,7 @@ def puntuar(tc, o, score):
                 # ability dead it is NOT put down (2 prizes given away), with the
                 # ability alive it is worth 22000. This veto overrode it silently.
                 if _lucario_riolu_gust and not (
-                        card.id == Fezandipiti_ex and ESTADO.ko_last_turn
+                        card.id == Fezandipiti_ex and AGENT_STATE.ko_last_turn
                         and field_counts.get(Fezandipiti_ex, 0) == 0
                         and bench_count < 5):
                     score = SCORE_VETO
@@ -1221,9 +1221,9 @@ def puntuar(tc, o, score):
                 # that contradict an already paid-for search. The PHYSICAL
                 # limits still rule (full bench / copy already in play) and
                 # the ability has to be alive.
-                if (ESTADO._ub_fez_pending and card.id == Fezandipiti_ex
+                if (AGENT_STATE._ub_fez_pending and card.id == Fezandipiti_ex
                         and score <= 0
-                        and ESTADO.ko_last_turn
+                        and AGENT_STATE.ko_last_turn
                         and field_counts.get(Fezandipiti_ex, 0) == 0
                         and bench_count < 5):
                     score = 22000
@@ -1305,8 +1305,8 @@ def puntuar(tc, o, score):
                 if card.id == Meowth_ex:
                     _meowth_played_this_turn = (
                         field_counts[Meowth_ex] >
-                        ESTADO._field_at_turn_start.get(Meowth_ex, 0)
-                        if ESTADO._field_at_turn_start is not None else False)
+                        AGENT_STATE._field_at_turn_start.get(Meowth_ex, 0)
+                        if AGENT_STATE._field_at_turn_start is not None else False)
                     if meowth_ability_lock:
                         # Team Rocket's Watchtower cancels the ability of
                         # {C} Pokemon: putting Meowth ex down now would NOT activate
@@ -1366,7 +1366,7 @@ def puntuar(tc, o, score):
                         # the rest of the hand is deployed and the Lillie's is
                         # played as soon as it is legal.
                         _mw_dev_exc = (
-                            _our_first_turn and ESTADO.we_go_first
+                            _our_first_turn and AGENT_STATE.we_go_first
                             and bench_count == 0 and _mw_lone_basic
                             and _meowth_antidonk_now)
                         if not _mw_dev_exc:
@@ -1533,7 +1533,7 @@ def puntuar(tc, o, score):
                     data.cardType == CardType.STADIUM
                     and _contra_estadio_urgente(
                         neutralization_zone_active, watchtower_in_play,
-                        ESTADO.forest_in_play, _festival_lead_hostil))
+                        AGENT_STATE.forest_in_play, _festival_lead_hostil))
                 if (op_is_comfey_deck and score > 0
                         and not _quita_candado_rival
                         and card.id not in (
@@ -1555,7 +1555,7 @@ def puntuar(tc, o, score):
                     # turn: putting it down now only GIVES it to the opponent, who
                     # will be able to use it on theirs.
                     score = SCORE_VETO
-                elif _gt_planes(my_state, ESTADO.CARTAS_ACTIVAS_EN_MAZO,
+                elif _gt_planes(my_state, AGENT_STATE.ACTIVE_CARDS_IN_DECK,
                                 field_counts, _our_first_turn,
                                 veta_etapa_ex=_gt_veta_etapa_ex):
                     # There is a chain that pays off IN THIS VERY TURN: the
@@ -1572,7 +1572,7 @@ def puntuar(tc, o, score):
                     # It is only played to REMOVE an annoying opposing stadium.
                     score = (14000 if _contra_estadio_urgente(
                         neutralization_zone_active, watchtower_in_play,
-                        ESTADO.forest_in_play, _festival_lead_hostil) else SCORE_VETO)
+                        AGENT_STATE.forest_in_play, _festival_lead_hostil) else SCORE_VETO)
         
             # Putting down the BASIC that serves as the root for Grand Tree (user's
             # rule: get it "so we can play the stadium afterwards"). An additive

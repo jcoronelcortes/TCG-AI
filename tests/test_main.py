@@ -16,10 +16,10 @@ from cg.api import AreaType, EnergyType, LogType, OptionType, SelectContext
 
 @pytest.fixture(autouse=True)
 def reset_main_state():
-    m._init_cartas_tracking()
-    m._cartas_first_scan_done = False
-    m._cartas_prizes_identified = False
-    m._cartas_last_turn = -1
+    m._init_cards_tracking()
+    m._cards_first_scan_done = False
+    m._cards_prizes_identified = False
+    m._cards_last_turn = -1
     m.plan = m.AttackPlan()
     m.pre_turn = 0
     m.meganium_in_play = False
@@ -40,7 +40,7 @@ def reset_main_state():
     m._op_prize_denial_pecharunt = False
     m._op_prize_denial_gengar = False
     yield
-    m._init_cartas_tracking()
+    m._init_cards_tracking()
 
 
 def make_pokemon(card_id, *, hp=100, max_hp=100, energies=None, pre_evolution=None, energy_cards=None, tools=None):
@@ -105,13 +105,13 @@ def test_can_attack_eff_checks_energy_requirements():
 
 def test_init_move_card_state_and_belief_tracking():
     first_card_id = m.my_deck[0]
-    assert m._move_card_state(first_card_id, m.ESTADO_MAZO, m.ESTADO_MANO) is True
-    assert m.CARTAS_ACTIVAS_EN_MAZO[first_card_id][m.ESTADO_MANO] == 1
-    assert m._move_card_state(first_card_id, m.ESTADO_MANO, m.ESTADO_BANCA) is True
+    assert m._move_card_state(first_card_id, m.ZONE_DECK, m.ZONE_HAND) is True
+    assert m.ACTIVE_CARDS_IN_DECK[first_card_id][m.ZONE_HAND] == 1
+    assert m._move_card_state(first_card_id, m.ZONE_HAND, m.ZONE_BENCH) is True
     deck, prize = m._belief_deck_and_prizes()
     assert deck + prize == len(m.my_deck) - 1
-    assert m._move_card_state(999999, m.ESTADO_MAZO, m.ESTADO_MANO) is False
-    assert m.CARTAS_ACTIVAS_EN_MAZO[first_card_id][m.ESTADO_BANCA] == 1
+    assert m._move_card_state(999999, m.ZONE_DECK, m.ZONE_HAND) is False
+    assert m.ACTIVE_CARDS_IN_DECK[first_card_id][m.ZONE_BENCH] == 1
 
 
 def test_prob_draw_any_and_prob_card_accessible_are_between_zero_and_one():
@@ -226,32 +226,32 @@ def test_first_turn_scan_moves_cards_to_expected_states():
 
     m._first_turn_scan(my_state)
 
-    assert m.CARTAS_ACTIVAS_EN_MAZO[m.Bug_Catching_Set][m.ESTADO_MANO] == 1
-    assert m.CARTAS_ACTIVAS_EN_MAZO[m.Chikorita][m.ESTADO_BANCA] == 1
-    assert m.CARTAS_ACTIVAS_EN_MAZO[m.Applin][m.ESTADO_BANCA] == 1
-    assert m._cartas_first_scan_done is True
+    assert m.ACTIVE_CARDS_IN_DECK[m.Bug_Catching_Set][m.ZONE_HAND] == 1
+    assert m.ACTIVE_CARDS_IN_DECK[m.Chikorita][m.ZONE_BENCH] == 1
+    assert m.ACTIVE_CARDS_IN_DECK[m.Applin][m.ZONE_BENCH] == 1
+    assert m._cards_first_scan_done is True
 
 
 def test_area_to_estado_maps_all_supported_areas():
-    assert m._area_to_estado(AreaType.DECK) == m.ESTADO_MAZO
-    assert m._area_to_estado(AreaType.HAND) == m.ESTADO_MANO
-    assert m._area_to_estado(AreaType.ACTIVE) == m.ESTADO_BANCA
-    assert m._area_to_estado(AreaType.DISCARD) == m.ESTADO_DESCARTE
-    assert m._area_to_estado(AreaType.PRIZE) == m.ESTADO_PREMIO
-    assert m._area_to_estado(999) is None
+    assert m._area_to_zone(AreaType.DECK) == m.ZONE_DECK
+    assert m._area_to_zone(AreaType.HAND) == m.ZONE_HAND
+    assert m._area_to_zone(AreaType.ACTIVE) == m.ZONE_BENCH
+    assert m._area_to_zone(AreaType.DISCARD) == m.ZONE_DISCARD
+    assert m._area_to_zone(AreaType.PRIZE) == m.ZONE_PRIZE
+    assert m._area_to_zone(999) is None
 
 
 def test_process_logs_updates_tracking():
-    m._move_card_state(m.Ultra_Ball, m.ESTADO_MAZO, m.ESTADO_MANO)
+    m._move_card_state(m.Ultra_Ball, m.ZONE_DECK, m.ZONE_HAND)
     obs = SimpleNamespace(logs=[SimpleNamespace(type=LogType.DRAW, playerIndex=0, cardId=m.Ultra_Ball)])
 
     m._process_logs(obs, my_index=0)
 
-    assert m.CARTAS_ACTIVAS_EN_MAZO[m.Ultra_Ball][m.ESTADO_MANO] >= 1
+    assert m.ACTIVE_CARDS_IN_DECK[m.Ultra_Ball][m.ZONE_HAND] >= 1
 
 
 def test_identify_prizes_reconciles_hidden_cards():
-    m._move_card_state(m.Ultra_Ball, m.ESTADO_MAZO, m.ESTADO_MANO)
+    m._move_card_state(m.Ultra_Ball, m.ZONE_DECK, m.ZONE_HAND)
     obs = SimpleNamespace(
         select=SimpleNamespace(
             deck=[SimpleNamespace(id=m.Ultra_Ball)],
@@ -261,7 +261,7 @@ def test_identify_prizes_reconciles_hidden_cards():
 
     m._identify_prizes(obs, my_state=None)
 
-    assert m.CARTAS_ACTIVAS_EN_MAZO[m.Ultra_Ball][m.ESTADO_MAZO] == 1
+    assert m.ACTIVE_CARDS_IN_DECK[m.Ultra_Ball][m.ZONE_DECK] == 1
 
 
 def test_sync_from_state_reconciles_visible_state():
@@ -274,7 +274,7 @@ def test_sync_from_state_reconciles_visible_state():
 
     m._sync_from_state(my_state)
 
-    assert m.CARTAS_ACTIVAS_EN_MAZO[m.Ultra_Ball][m.ESTADO_MANO] == 1
+    assert m.ACTIVE_CARDS_IN_DECK[m.Ultra_Ball][m.ZONE_HAND] == 1
 
 
 def test_update_cartas_tracking_initial_scan():
@@ -290,10 +290,10 @@ def test_update_cartas_tracking_initial_scan():
     )
     obs.select = SimpleNamespace(deck=None, effect=None)
 
-    m._update_cartas_tracking(obs, my_index=0, my_state=my_state)
+    m._update_cards_tracking(obs, my_index=0, my_state=my_state)
 
-    assert m._cartas_first_scan_done is True
-    assert m.CARTAS_ACTIVAS_EN_MAZO[m.Bug_Catching_Set][m.ESTADO_MANO] == 1
+    assert m._cards_first_scan_done is True
+    assert m.ACTIVE_CARDS_IN_DECK[m.Bug_Catching_Set][m.ZONE_HAND] == 1
 
 
 def test_get_card_reads_from_all_relevant_areas():
@@ -422,7 +422,7 @@ def test_our_effective_damage_applies_weakness_and_resistance(monkeypatch):
 
 
 def test_process_logs_move_card_updates_tracking():
-    m._move_card_state(m.Ultra_Ball, m.ESTADO_MAZO, m.ESTADO_MANO)
+    m._move_card_state(m.Ultra_Ball, m.ZONE_DECK, m.ZONE_HAND)
     obs = SimpleNamespace(
         logs=[
             SimpleNamespace(
@@ -437,12 +437,12 @@ def test_process_logs_move_card_updates_tracking():
 
     m._process_logs(obs, my_index=0)
 
-    assert m.CARTAS_ACTIVAS_EN_MAZO[m.Ultra_Ball][m.ESTADO_MANO] == 0
-    assert m.CARTAS_ACTIVAS_EN_MAZO[m.Ultra_Ball][m.ESTADO_DESCARTE] == 1
+    assert m.ACTIVE_CARDS_IN_DECK[m.Ultra_Ball][m.ZONE_HAND] == 0
+    assert m.ACTIVE_CARDS_IN_DECK[m.Ultra_Ball][m.ZONE_DISCARD] == 1
 
 
 def test_identify_prizes_ignores_partial_reveal():
-    before = m.CARTAS_ACTIVAS_EN_MAZO[m.Ultra_Ball][m.ESTADO_MAZO]
+    before = m.ACTIVE_CARDS_IN_DECK[m.Ultra_Ball][m.ZONE_DECK]
     obs = SimpleNamespace(
         select=SimpleNamespace(
             deck=[SimpleNamespace(id=m.Ultra_Ball)],
@@ -452,12 +452,12 @@ def test_identify_prizes_ignores_partial_reveal():
 
     m._identify_prizes(obs, my_state=SimpleNamespace(deckCount=2))
 
-    assert m.CARTAS_ACTIVAS_EN_MAZO[m.Ultra_Ball][m.ESTADO_MAZO] == before
+    assert m.ACTIVE_CARDS_IN_DECK[m.Ultra_Ball][m.ZONE_DECK] == before
 
 
 def test_eval_ub_best_target_handles_turn_two_and_turn_one_branches():
-    m.CARTAS_ACTIVAS_EN_MAZO[m.Meowth_ex][m.ESTADO_MAZO] = 1
-    m.CARTAS_ACTIVAS_EN_MAZO[m.Lillie_Determination][m.ESTADO_MAZO] = 1
+    m.ACTIVE_CARDS_IN_DECK[m.Meowth_ex][m.ZONE_DECK] = 1
+    m.ACTIVE_CARDS_IN_DECK[m.Lillie_Determination][m.ZONE_DECK] = 1
 
     turn_two_result = m._eval_ub_best_target(
         field_counts={m.Chikorita: 1},
@@ -484,7 +484,7 @@ def test_eval_ub_best_target_handles_turn_two_and_turn_one_branches():
     )
     assert turn_two_result >= 900
 
-    m.CARTAS_ACTIVAS_EN_MAZO[m.Teal_Mask_Ogerpon_ex][m.ESTADO_MAZO] = 1
+    m.ACTIVE_CARDS_IN_DECK[m.Teal_Mask_Ogerpon_ex][m.ZONE_DECK] = 1
     turn_one_result = m._eval_ub_best_target(
         field_counts={m.Applin: 1},
         hand_counts={m.Basic_Grass_Energy: 1},
@@ -1051,7 +1051,7 @@ def test_score_unfair_stamp_lower_when_hand_has_a_play():
 
 def _mazo(*ids):
     """A minimal deck-belief: {id: {ESTADO_MAZO: 1}} for the given ids."""
-    return {cid: {m.ESTADO_MAZO: 1} for cid in ids}
+    return {cid: {m.ZONE_DECK: 1} for cid in ids}
 
 
 def test_score_poke_pad_vetoed_when_nothing_searchable():
@@ -1143,7 +1143,7 @@ def test_score_bug_catching_set_positive_when_grass_energy_in_deck():
     # With Grass Energy in the deck (eligible), the play has positive value.
     ctx = _make_boss_ctx(
         state=SimpleNamespace(turn=6, energyAttached=False),
-        cards_in_deck={m.Basic_Grass_Energy: {m.ESTADO_MAZO: 5}},
+        cards_in_deck={m.Basic_Grass_Energy: {m.ZONE_DECK: 5}},
     )
     assert m._score_bug_catching_set_play(ctx) > 0
 
@@ -1158,7 +1158,7 @@ def test_bcs_freno_deckout_mazo_critico():
         state=SimpleNamespace(turn=20, energyAttached=False),
         my_state=SimpleNamespace(deckCount=8, discard=[], active=[None],
                                  bench=[], hand=[]),
-        cards_in_deck={m.Basic_Grass_Energy: {m.ESTADO_MAZO: 3}},
+        cards_in_deck={m.Basic_Grass_Energy: {m.ZONE_DECK: 3}},
         hand_counts={m.Basic_Grass_Energy: 2},  # there IS Grass in hand
     )
     assert m._score_bug_catching_set_play(ctx) == -1
@@ -1171,7 +1171,7 @@ def test_bcs_freno_cede_con_energia_seca():
         state=SimpleNamespace(turn=20, energyAttached=False),
         my_state=SimpleNamespace(deckCount=8, discard=[], active=[None],
                                  bench=[], hand=[]),
-        cards_in_deck={m.Basic_Grass_Energy: {m.ESTADO_MAZO: 3}},
+        cards_in_deck={m.Basic_Grass_Energy: {m.ZONE_DECK: 3}},
         hand_counts={},
     )
     assert m._score_bug_catching_set_play(ctx) > 0
@@ -1183,7 +1183,7 @@ def test_bcs_freno_no_aplica_con_mazo_sano():
         state=SimpleNamespace(turn=20, energyAttached=False),
         my_state=SimpleNamespace(deckCount=9, discard=[], active=[None],
                                  bench=[], hand=[]),
-        cards_in_deck={m.Basic_Grass_Energy: {m.ESTADO_MAZO: 3}},
+        cards_in_deck={m.Basic_Grass_Energy: {m.ZONE_DECK: 3}},
         hand_counts={m.Basic_Grass_Energy: 2},
     )
     assert m._score_bug_catching_set_play(ctx) > 0
@@ -2023,7 +2023,7 @@ def test_duraludon_step93_teal_dance_for_ko_accounting_resistance():
     obs2 = _c.deepcopy(obs)
     obs2["current"]["players"][1]["active"][0]["energies"] = []
     obs2["current"]["players"][1]["active"][0]["energyCards"] = []
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result2 = m.agent(obs2)
     assert result2 == [teal_active_opt], (
         f"sin energia rival la resistencia deja el golpe en 120 < 130: Teal "
@@ -2123,7 +2123,7 @@ def _score_by_hand_id(obs):
     _restaurar_spy = instalar("_debug_log_decision", spy)
     m.DEBUG_DECISIONS = True
     try:
-        m._init_cartas_tracking(); m.plan = m.AttackPlan()
+        m._init_cards_tracking(); m.plan = m.AttackPlan()
         m.agent(obs)
     finally:
         _restaurar_spy()
@@ -2300,7 +2300,7 @@ def _comfey_discard_obs():
 def test_comfey_rule2_xerosic_keeps_energy_over_trainers():
     obs = _comfey_discard_obs()
     hand = obs["current"]["players"][1]["hand"]
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     discarded = set(m.agent(obs))  # the indices of the 4 cards to discard
     discarded_ids = [hand[obs["select"]["option"][i]["index"]]["id"] for i in discarded]
     # The energies are KEPT (they are never discarded).
@@ -2341,7 +2341,7 @@ def test_comfey_rule4_confused_active_retreats_to_bench_attacker():
     obs = _comfey_confused_obs(bench_ready=True)
     retreat_opt = next(i for i, o in enumerate(obs["select"]["option"])
                        if o.get("type") == int(OptionType.RETREAT))
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     assert m.agent(obs) == [retreat_opt], (
         "activo confundido con atacante de banca listo: retirar (promover el cuerpo NO confundido)"
     )
@@ -2351,7 +2351,7 @@ def test_comfey_rule4_confused_active_attacks_when_no_bench_attacker():
     obs = _comfey_confused_obs(bench_ready=False)
     attack_opt = next(i for i, o in enumerate(obs["select"]["option"])
                       if o.get("type") == int(OptionType.ATTACK))
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     assert m.agent(obs) == [attack_opt], (
         "activo confundido sin atacante de banca: atacar con el confundido (aceptar la moneda)"
     )
@@ -2410,7 +2410,7 @@ def test_zone_promote_ex_when_active_is_ex():
     options = obs["select"]["option"]
     ex_opt = next(i for i, o in enumerate(options) if o.get("index") == 0)      # Ogerpon ex
     nonex_opt = next(i for i, o in enumerate(options) if o.get("index") == 1)   # Meganium
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
     assert result == [ex_opt], (
         f"activo rival ex bajo la zona: nuestros ex SI danan, promover el ex "
@@ -2427,7 +2427,7 @@ def test_zone_boss_gust_bench_ex():
     options = obs["select"]["option"]
     boss_opt = next(i for i, o in enumerate(options)
                     if o.get("type") == int(OptionType.PLAY) and o.get("index") == 0)
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
     assert result == [boss_opt], (
         f"bajo la zona, gustear con Boss's al ex del rival en banca para poder "
@@ -2457,7 +2457,7 @@ def test_alakazam_step108_charges_bench_meganium_before_attacking():
     attack_opt = next(i for i, o in enumerate(options)
                       if o.get("type") == int(OptionType.ATTACK))
 
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
 
     assert result == [meganium_attach], (
@@ -2487,7 +2487,7 @@ def test_lucario_step110_ripening_charge_to_retreat_fragile_ex_not_attack():
     attack_opt = next(i for i, o in enumerate(options)
                       if o.get("type") == int(OptionType.ATTACK))
 
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
 
     assert result != [attack_opt], (
@@ -2517,7 +2517,7 @@ def test_mewtwo_step119_boss_gust_2prize_over_attacking_active():
     attack_opt = next(i for i, o in enumerate(options)
                       if o.get("type") == int(OptionType.ATTACK))
 
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
 
     assert result == [boss_opt], (
@@ -2559,7 +2559,7 @@ def test_xerosic_vetoed_when_op_hand_small():
     obs = _load_xerosic_obs()
     obs = _copy.deepcopy(obs)
     obs["current"]["players"][1]["handCount"] = 3
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
     assert result != [0], (
         f"con mano rival 3 Xerosic no tiene efecto: NO jugarlo; obtuvo {result}")
@@ -2573,7 +2573,7 @@ def test_xerosic_vetoed_when_supporter_played():
     obs = _load_xerosic_obs()
     obs = _copy.deepcopy(obs)
     obs["current"]["supporterPlayed"] = True
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
     assert result == [2], (
         f"con supporter jugado, ni Xerosic ni Lillie's: atacar (opt 2); "
@@ -2603,7 +2603,7 @@ def test_meowth_fetch_not_xerosic_when_op_hand_small():
         obs = json.load(f)["observation"]
     obs = _copy.deepcopy(obs)
     obs["current"]["players"][1]["handCount"] = 3
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
     assert result != [2], (
         f"con mano rival 3, Xerosic no aporta: buscar otro supporter; obtuvo {result}")
@@ -2639,7 +2639,7 @@ def test_alakazam_reserve_allows_line_pieces():
         obs = json.load(f)["observation"]
     obs = _copy.deepcopy(obs)
     obs["current"]["players"][0]["hand"][0]["id"] = 92
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
     assert result == [0], (
         f"la reserva no debe bloquear piezas de linea (Applin, 1ra copia); "
@@ -2670,7 +2670,7 @@ def _alk_reserve_obs():
 
 
 def _alk_reserve_run(obs):
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     return m.agent(obs)
 
 
@@ -2823,7 +2823,7 @@ def test_marnie_step53_meowth_fetch_lillie_not_dawn_without_forest():
     # Forest of Vitality is NOT in play (there is the rival's Spikemuth Gym).
     assert 1261 not in [s["id"] for s in (obs["current"].get("stadium") or [])]
 
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
 
     assert result != [dawn_opt], (
@@ -2843,7 +2843,7 @@ def test_marnie_step53_meowth_fetch_dawn_when_forest_in_play():
     opts = obs["select"]["option"]
     dawn_opt = next(i for i, o in enumerate(opts) if deck[o["index"]]["id"] == 1231)
 
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
 
     assert result == [dawn_opt], (
@@ -2875,7 +2875,7 @@ def test_archaludon_step84_retreat_ogerpon_to_hydra_wall():
     retreat_opt = next(i for i, o in enumerate(options)
                        if o.get("type") == int(OptionType.RETREAT))
 
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
 
     assert result == [retreat_opt], (
@@ -2902,7 +2902,7 @@ def test_archaludon_wall_pivot_not_when_wall_would_die():
     attack_opt = next(i for i, o in enumerate(options)
                       if o.get("type") == int(OptionType.ATTACK))
 
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
 
     assert result == [attack_opt], (
@@ -2947,7 +2947,7 @@ def test_dragapult_step148_play_meowth_for_boss_win_engine():
     attack_opt = next(i for i, o in enumerate(options)
                       if o.get("type") == int(OptionType.ATTACK))
 
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
 
     assert result == [play_opt], (
@@ -2972,7 +2972,7 @@ def test_dragapult_meowth_win_engine_needs_last_ditch_free():
     attack_opt = next(i for i, o in enumerate(options)
                       if o.get("type") == int(OptionType.ATTACK))
 
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
 
     assert result == [attack_opt], (
@@ -3005,7 +3005,7 @@ def test_archaludon_step75_attack_active_duraludon_not_boss_bench():
                     if o.get("type") == int(OptionType.PLAY)
                     and obs["current"]["players"][0]["hand"][o["index"]]["id"] == 1182)
 
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
 
     assert result == [attack_opt], (
@@ -3031,7 +3031,7 @@ def test_archaludon_step75_still_boss_when_active_is_nonthreat():
                     if o.get("type") == int(OptionType.PLAY)
                     and obs["current"]["players"][0]["hand"][o["index"]]["id"] == 1182)
 
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
 
     assert result == [boss_opt], (
@@ -3063,7 +3063,7 @@ def test_iono_step161_boss_gust_bellibolt_ex_over_attacking_voltorb():
     attack_opt = next(i for i, o in enumerate(options)
                       if o.get("type") == int(OptionType.ATTACK))
 
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
 
     assert result == [boss_opt], (
@@ -3091,7 +3091,7 @@ def test_iono_step161_boss_gust_target_is_bellibolt_ex():
                    for i in range(len(opbench))],
         "remainDamageCounter": 0, "remainEnergyCost": 0, "type": 1}
 
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
 
     picked = opbench[obs["select"]["option"][result[0]]["index"]]["id"]
@@ -3648,7 +3648,7 @@ def _xerosic_bighand_mutated(mutate):
     with open(_XEROSIC_BIGHAND_FIXTURE, encoding="utf-8") as f:
         obs = _c.deepcopy(json.load(f)["observation"])
     mutate(obs)
-    m._init_cartas_tracking()
+    m._init_cards_tracking()
     m.plan = m.AttackPlan()
     result = m.agent(obs)
     opt = obs["select"]["option"][result[0]]
@@ -3679,9 +3679,9 @@ def _xerosic_bighand_no_backup(mutate):
     with open(_XEROSIC_BIGHAND_FIXTURE, encoding="utf-8") as f:
         obs = _c.deepcopy(json.load(f)["observation"])
     mutate(obs)
-    m._init_cartas_tracking()
-    m.CARTAS_ACTIVAS_EN_MAZO.setdefault(
-        m.Xerosic_Machinations, {m.ESTADO_MAZO: 0})[m.ESTADO_MAZO] = 0
+    m._init_cards_tracking()
+    m.ACTIVE_CARDS_IN_DECK.setdefault(
+        m.Xerosic_Machinations, {m.ZONE_DECK: 0})[m.ZONE_DECK] = 0
     m.plan = m.AttackPlan()
     result = m.agent(obs)
     opt = obs["select"]["option"][result[0]]
@@ -3740,9 +3740,9 @@ def test_lillies_guard_protects_last_xerosic_access():
     with open(_XEROSIC_BIGHAND_FIXTURE, encoding="utf-8") as f:
         obs = _c.deepcopy(json.load(f)["observation"])
     mut(obs)
-    m._init_cartas_tracking()
-    m.CARTAS_ACTIVAS_EN_MAZO.setdefault(
-        m.Meowth_ex, {m.ESTADO_MAZO: 0})[m.ESTADO_MAZO] = 0
+    m._init_cards_tracking()
+    m.ACTIVE_CARDS_IN_DECK.setdefault(
+        m.Meowth_ex, {m.ZONE_DECK: 0})[m.ZONE_DECK] = 0
     m.plan = m.AttackPlan()
     result = m.agent(obs)
     opt = obs["select"]["option"][result[0]]
@@ -4118,7 +4118,7 @@ def _prudence_promotion_obs(with_belt):
 
 def test_promotion_prudence_prefers_one_prize_when_both_doomed():
     obs = _prudence_promotion_obs(with_belt=True)
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
     bench = obs["current"]["players"][obs["current"]["yourIndex"]]["bench"]
     picked = bench[obs["select"]["option"][result[0]]["index"]]["id"]
@@ -4129,7 +4129,7 @@ def test_promotion_prudence_prefers_one_prize_when_both_doomed():
 
 def test_promotion_keeps_tank_ex_when_it_survives():
     obs = _prudence_promotion_obs(with_belt=False)
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
     bench = obs["current"]["players"][obs["current"]["yourIndex"]]["bench"]
     picked = bench[obs["select"]["option"][result[0]]["index"]]["id"]
@@ -4152,7 +4152,7 @@ def test_discard_inference_activates_alakazam_rule():
     assert any(c["id"] in (m.Abra, m.Kadabra) for c in op["discard"])
     options = obs["select"]["option"]
     nonex_opt = next(i for i, o in enumerate(options) if o.get("index") == 1)
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
     assert result == [nonex_opt], (
         f"Abra/Kadabra en el descarte rival deben activar la regla Alakazam "
@@ -4166,7 +4166,7 @@ def test_forest_replaces_watchtower_when_meowth_engine_alive():
     with open(_GARCHOMP_BOSS_GABITE_FIXTURE, encoding="utf-8") as f:
         data = json.load(f)
     seq = data["sequence"]
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     for item in seq[:-1]:
         m.agent(item["observation"])
     obs = _c.deepcopy(seq[-1]["observation"])
@@ -4210,7 +4210,7 @@ def test_ogerpon_attack_counts_opponent_energy():
                      "option": [{"attackId": 195, "type": 13}, {"type": 14}],
                      "remainDamageCounter": 0, "remainEnergyCost": 0,
                      "type": 0}
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
     assert result == [0], f"debe atacar; obtuvo {result}"
     assert m.plan.attacker == 0 and m.plan.remain_hp is not None \
@@ -4312,7 +4312,7 @@ def _lucario_ripen_data():
 def test_lucario_step113_ripening_beats_degraded_teal_dance():
     data = _lucario_ripen_data()
     obs = data["main"]
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
     opt = obs["select"]["option"][result[0]]
     assert (opt.get("type") == int(OptionType.ABILITY)
@@ -4324,7 +4324,7 @@ def test_lucario_step113_ripening_beats_degraded_teal_dance():
 def test_lucario_step113_ripening_targets_active_hydrapple():
     data = _lucario_ripen_data()
     obs = data["ripen_target"]
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
     opt = obs["select"]["option"][result[0]]
     assert opt.get("area") == int(AreaType.ACTIVE), (
@@ -4335,7 +4335,7 @@ def test_lucario_step113_ripening_targets_active_hydrapple():
 def test_lucario_step113_attacks_after_charge():
     data = _lucario_ripen_data()
     obs = data["attack"]
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
     opt = obs["select"]["option"][result[0]]
     assert opt.get("type") == int(OptionType.ATTACK), (
@@ -4365,7 +4365,7 @@ def _archaludon_s130_replay(mutate=None):
     with open(_ARCHALUDON_TANK_FIXTURE, encoding="utf-8") as f:
         data = json.load(f)
     seq = data["sequence"]
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     for item in seq[:-1]:
         m.agent(item["observation"])
     obs = seq[-1]["observation"]
@@ -4433,7 +4433,7 @@ def _archaludon_s139_replay(mutate=None):
     with open(_ARCHALUDON_PDX_FIXTURE, encoding="utf-8") as f:
         data = json.load(f)
     seq = data["sequence"]
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     for item in seq[:-1]:
         m.agent(item["observation"])
     obs = seq[-1]["observation"]
@@ -4524,7 +4524,7 @@ def _archaludon_s80_replay(mutate=None):
     with open(_ARCHALUDON_CAPED_FIXTURE, encoding="utf-8") as f:
         data = json.load(f)
     seq = data["sequence"]
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     for item in seq[:-1]:
         m.agent(item["observation"])
     obs = seq[-1]["observation"]
@@ -4581,7 +4581,7 @@ def _cinderace_t1_replay(mutate=None):
     with open(_CINDERACE_DONK_FIXTURE, encoding="utf-8") as f:
         data = json.load(f)
     obs = data["sequence"][0]["observation"]
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     if mutate is not None:
         obs = _c.deepcopy(obs)
         mutate(obs)
@@ -5538,7 +5538,7 @@ def _crustle_confusion_obs(active_is_crustle=False):
 
 
 def _tipo_elegido(obs):
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     res = m.agent(obs)
     return obs["select"]["option"][res[0]].get("type")
 
@@ -5618,7 +5618,7 @@ def _crustle_tapu_charge_obs():
 
 def test_crustle_carga_tapu_bulu_activo_primera_prioridad():
     obs = _crustle_tapu_charge_obs()
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     res = m.agent(obs)
     opt = obs["select"]["option"][res[0]]
     assert opt.get("type") == int(OptionType.ATTACH) and opt.get("inPlayArea") == 4, (
@@ -5656,7 +5656,7 @@ def test_step37_doomed_ex_retreats_instead_of_attacking():
     attack_opt = next(i for i, o in enumerate(options)
                       if o.get("type") == int(OptionType.ATTACK))
 
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
 
     assert result == [retreat_opt], (
@@ -5674,7 +5674,7 @@ def test_step41_promotes_cheapest_basic_sacrifice():
     applin_opt = next(i for i, o in enumerate(options)
                       if bench[o["index"]]["id"] == m.Applin)
 
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
 
     assert result == [applin_opt], (
@@ -5691,7 +5691,7 @@ def test_doomed_ex_retreat_generalizes_to_nonlucario():
     retreat_opt = next(i for i, o in enumerate(options)
                        if o.get("type") == int(OptionType.RETREAT))
 
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
 
     assert result == [retreat_opt], (
@@ -5714,7 +5714,7 @@ def test_doomed_ex_promote_basic_generalizes_to_nonlucario():
     bayleef_opt = next(i for i, o in enumerate(options)
                        if bench[o["index"]]["id"] == m.Bayleef)
 
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
 
     assert result == [applin_opt], (
@@ -5736,7 +5736,7 @@ def test_doomed_ex_does_not_sac_retreat_when_near_winning():
     retreat_opt = next(i for i, o in enumerate(options)
                        if o.get("type") == int(OptionType.RETREAT))
 
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
 
     assert result != [retreat_opt], (
@@ -5766,7 +5766,7 @@ def test_step57_plays_meowth_refresh_on_poor_board():
     attack_opt = next(i for i, o in enumerate(options)
                       if o.get("type") == int(OptionType.ATTACK))
 
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
 
     assert result == [play_opt], (
@@ -5788,7 +5788,7 @@ def test_step57_meowth_refresh_does_not_fire_with_strong_hand():
     attack_opt = next(i for i, o in enumerate(options)
                       if o.get("type") == int(OptionType.ATTACK))
 
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
 
     assert result == [attack_opt], (
@@ -5812,7 +5812,7 @@ def test_step57_meowth_refresh_does_not_fire_with_ready_bench_attacker():
     attack_opt = next(i for i, o in enumerate(options)
                       if o.get("type") == int(OptionType.ATTACK))
 
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
 
     assert result == [attack_opt], (
@@ -5836,7 +5836,7 @@ def test_step57_meowth_refresh_generalizes_to_nonalakazam():
     play_opt = next(i for i, o in enumerate(options)
                     if o.get("type") == int(OptionType.PLAY))
 
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
 
     assert result == [play_opt], (
@@ -5871,7 +5871,7 @@ def test_step78_plays_meowth_refresh_no_bench_attacker():
     attack_opt = next(i for i, o in enumerate(options)
                       if o.get("type") == int(OptionType.ATTACK))
 
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
 
     assert result == [meowth_opt], (
@@ -5897,7 +5897,7 @@ def test_step78_meowth_refresh_not_with_bench_attacker_body():
         if o.get("type") == int(OptionType.PLAY)
         and obs["current"]["players"][mi]["hand"][o["index"]]["id"] == m.Meowth_ex)
 
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
 
     assert result != [meowth_opt], (
@@ -5920,7 +5920,7 @@ def test_step78_meowth_refresh_not_when_active_not_doomed():
         if o.get("type") == int(OptionType.PLAY)
         and obs["current"]["players"][mi]["hand"][o["index"]]["id"] == m.Meowth_ex)
 
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
 
     assert result != [meowth_opt], (
@@ -5947,7 +5947,7 @@ def test_step78_meowth_refresh_generalizes_to_nonlucario():
         if o.get("type") == int(OptionType.PLAY)
         and obs["current"]["players"][mi]["hand"][o["index"]]["id"] == m.Meowth_ex)
 
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
 
     assert result == [meowth_opt], (
@@ -5983,7 +5983,7 @@ def test_step66_concentrates_manual_attach_on_lethal_ogerpon():
               key=lambda io: len(bench[io[1]["inPlayIndex"]]["energies"]))
     best_e = len(bench[best[1]["inPlayIndex"]]["energies"])
 
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
     chosen = options[result[0]]
 
@@ -6001,7 +6001,7 @@ def test_concentrate_focus_not_when_active_can_attack():
     # bench Ogerpon. It reuses the Ripening vs Lucario fixture (an active Hydrapple).
     data = _lucario_ripen_data()
     obs = data["ripen_target"]
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
     opt = obs["select"]["option"][result[0]]
     assert opt.get("area") == int(AreaType.ACTIVE), (
@@ -6031,7 +6031,7 @@ def test_step125_plays_winning_ogerpon_attack_over_charging_tapu():
     attack_opt = next(i for i, o in enumerate(options)
                       if o.get("type") == int(OptionType.ATTACK))
 
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
 
     assert result == [attack_opt], (
@@ -6054,7 +6054,7 @@ def test_step125_winning_attack_generalizes_without_resistance():
     attack_opt = next(i for i, o in enumerate(options)
                       if o.get("type") == int(OptionType.ATTACK))
 
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
 
     assert result == [attack_opt], (
@@ -6075,7 +6075,7 @@ def test_winning_attack_not_forced_when_ko_does_not_win():
     attack_opt = next(i for i, o in enumerate(options)
                       if o.get("type") == int(OptionType.ATTACK))
 
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
 
     assert result != [attack_opt], (
@@ -6108,7 +6108,7 @@ def test_step47_vs_cubchoo_does_not_waste_energy_retreating():
                     if o.get("type") == int(OptionType.RETREAT)]
     assert retreat_opts, "el fixture debe ofrecer una retirada"
 
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
 
     assert result[0] not in retreat_opts, (
@@ -6126,7 +6126,7 @@ def test_cubchoo_conserve_pass_is_deck_specific():
     with open(_CUBCHOO_RETREAT_FIXTURE, encoding="utf-8") as f:
         base = json.load(f)["observation"]
 
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     cub_choice = m.agent(_c.deepcopy(base))
     cub_type = base["select"]["option"][cub_choice[0]].get("type")
     assert cub_type == int(OptionType.END), (
@@ -6140,7 +6140,7 @@ def test_cubchoo_conserve_pass_is_deck_specific():
         if slot.get("id") in (506, 507):
             slot["id"] = 678
             slot["preEvolution"] = []
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     other = m.agent(obs)
     other_type = obs["select"]["option"][other[0]].get("type")
 
@@ -6178,7 +6178,7 @@ def test_step62_forced_discard_protects_forest_vs_neutralization_zone():
     mi = obs["current"]["yourIndex"]
     assert any(c["id"] == _FOREST_OF_VITALITY for c in obs["current"]["players"][mi]["hand"])
 
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
     discarded = _discarded_card_ids(obs, result)
 
@@ -6200,7 +6200,7 @@ def test_forest_discardable_when_no_hostile_op_stadium():
                       if obs["current"]["players"][mi]["hand"][o["index"]]["id"]
                       == _FOREST_OF_VITALITY)
 
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
 
     assert forest_opt in result, (
@@ -6237,7 +6237,7 @@ def test_step82_charges_blocked_hydrapple_to_enable_retreat():
                     and o.get("area") == int(AreaType.ACTIVE)]
     assert ripen_active, "el fixture debe ofrecer Ripening Charge en el activo"
 
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
 
     assert result[0] in ripen_active, (
@@ -6266,7 +6266,7 @@ def test_step96_routes_lanas_energy_to_blocked_active_hydrapple():
     with open(_CUBCHOO_LANAS_FIXTURE, encoding="utf-8") as f:
         obs = json.load(f)["observation"]
 
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
 
     chosen = obs["select"]["option"][result[0]]
@@ -6304,7 +6304,7 @@ def test_step47_does_not_shuffle_meganium_line_with_lillie():
                    and hand[o["index"]] == _LILLIE_DETERMINATION]
     assert lillie_opts, "el fixture debe ofrecer jugar Lillie's Determination"
 
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
 
     assert result[0] not in lillie_opts, (
@@ -6325,7 +6325,7 @@ def _lillie_gapped_flag(obs):
 
     m._CtxLillie = _Spy
     try:
-        m._init_cartas_tracking(); m.plan = m.AttackPlan()
+        m._init_cards_tracking(); m.plan = m.AttackPlan()
         m.agent(obs)
     finally:
         m._CtxLillie = orig
@@ -6377,7 +6377,7 @@ def test_step79_ripening_charge_targets_future_hydrapple_not_capped_tapu():
             return me["active"][0]["id"]
         return me["bench"][opt["index"]]["id"]
 
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
     chosen = obs["select"]["option"][result[0]]
     tid = target_id(chosen)
@@ -6423,7 +6423,7 @@ def _bench_target_id(obs, chosen):
 def test_step109_manual_energy_charges_bench_hydrapple_not_ready_active():
     with open(_ALK_STEP109, encoding="utf-8") as f:
         obs = json.load(f)["observation"]
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     chosen = obs["select"]["option"][m.agent(obs)[0]]
     tid, is_bench = _bench_target_id(obs, chosen)
     assert chosen.get("type") == int(OptionType.ATTACH), (
@@ -6436,7 +6436,7 @@ def test_step109_manual_energy_charges_bench_hydrapple_not_ready_active():
 def test_step112_ripening_charge_targets_bench_hydrapple_not_ready_active():
     with open(_ALK_STEP112, encoding="utf-8") as f:
         obs = json.load(f)["observation"]
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     chosen = obs["select"]["option"][m.agent(obs)[0]]
     tid, is_bench = _bench_target_id(obs, chosen)
     assert is_bench and tid == 150, (
@@ -6464,7 +6464,7 @@ def test_boss_gust_prefers_winning_3prize_mega_over_2prize_ex():
         obs = json.load(f)["observation"]
     mi = obs["current"]["yourIndex"]
     op_bench = obs["current"]["players"][1 - mi]["bench"]
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     chosen = obs["select"]["option"][m.agent(obs)[0]]
     tid = op_bench[chosen["index"]]["id"]
     assert tid == _MEGA_HERACROSS_EX, (
@@ -6508,7 +6508,7 @@ def _played_id(obs, chosen_idx):
 def test_stamp_playable_vetoes_meowth_fetch_lillie():
     with open(_STAMP_MEOWTH_FIXTURE, encoding="utf-8") as f:
         obs = json.load(f)["observation"]
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     chosen = m.agent(obs)
     pid = _played_id(obs, chosen[0])
     assert pid != _MEOWTH_EX, (
@@ -6525,7 +6525,7 @@ def test_meowth_fetch_lillie_still_played_without_playable_stamp():
     # and the Meowth -> Lillie's engine (a refresh) is still in force and DOES play Meowth ex.
     with open(_MEOWTH_NO_STAMP_FIXTURE, encoding="utf-8") as f:
         obs = json.load(f)["observation"]
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     chosen = m.agent(obs)
     pid = _played_id(obs, chosen[0])
     assert pid == _MEOWTH_EX, (
@@ -6562,7 +6562,7 @@ def test_stamp_playable_vetoes_meowth_fetch_boss():
     # Meowth ex is not played: the Stamp goes first and would shuffle that Boss's away.
     with open(_STAMP_MEOWTH_BOSS_FIXTURE, encoding="utf-8") as f:
         obs = json.load(f)["observation"]
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     chosen = m.agent(obs)
     pid = _played_id(obs, chosen[0])
     assert pid != _MEOWTH_EX, (
@@ -6581,7 +6581,7 @@ def test_stamp_playable_no_bloquea_el_supporter_del_turno():
     assert any(getattr(opt, "type", None) == m.OptionType.PLAY
                and me.hand[opt.index].id == _UNFAIR_STAMP
                for opt in o.select.option), "el Sello debe seguir en el menu"
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     assert m.agent(obs), "el agente debe elegir alguna opcion"
 
 
@@ -6591,7 +6591,7 @@ def test_meowth_fetch_boss_still_played_without_playable_stamp():
     # Boss's-via-Meowth-ex engine is intact and DOES play Meowth ex.
     with open(_MEOWTH_BOSS_NO_STAMP_FIXTURE, encoding="utf-8") as f:
         obs = json.load(f)["observation"]
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     chosen = m.agent(obs)
     pid = _played_id(obs, chosen[0])
     assert pid == _MEOWTH_EX, (
@@ -6621,7 +6621,7 @@ def test_vs_alakazam_charges_1prize_meganium_not_active_ex():
         obs = json.load(f)["observation"]
     mi = obs["current"]["yourIndex"]
     me = obs["current"]["players"][mi]
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     chosen = m.agent(obs)
     o = m.to_observation_class(obs)
     opt = o.select.option[chosen[0]]
@@ -6650,7 +6650,7 @@ def test_alakazam_retreats_ex_to_promote_ready_1prize_meganium():
     me["hand"] = []; me["handCount"] = 0
     obs["current"]["supporterPlayed"] = True
     obs["select"]["option"] = [{"attackId": 120, "type": 13}, {"type": 12}, {"type": 14}]
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     chosen = m.agent(obs)
     o = m.to_observation_class(obs)
     assert o.select.option[chosen[0]].type == int(m.OptionType.RETREAT), (
@@ -6677,7 +6677,7 @@ def test_never_ends_turn_with_empty_bench_plays_ultraball():
         obs = json.load(f)["observation"]
     mi = obs["current"]["yourIndex"]
     me = obs["current"]["players"][mi]
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     chosen = m.agent(obs)
     o = m.to_observation_class(obs)
     opt = o.select.option[chosen[0]]
@@ -6707,7 +6707,7 @@ def test_empty_bench_net_does_not_fire_with_bench_present():
         {"appearThisTurn": False, "energies": [], "energyCards": [],
          "hp": 70, "id": 164, "maxHp": 70, "playerIndex": 1,
          "preEvolution": [], "serial": 901, "tools": []})
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     chosen = m.agent(obs)
     o = m.to_observation_class(obs)
     opt = o.select.option[chosen[0]]
@@ -6737,7 +6737,7 @@ def test_alakazam_does_not_overcharge_ready_tapu_charges_dipplin():
     with open(_ALK_TAPU_FIXTURE, encoding="utf-8") as f:
         obs = json.load(f)["observation"]
     me = obs["current"]["players"][1]
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     chosen = m.agent(obs)
     o = m.to_observation_class(obs)
     opt = o.select.option[chosen[0]]
@@ -6776,7 +6776,7 @@ def test_ko_of_last_opponent_pokemon_attacks_active_to_win():
     retreat_opt = next(i for i, o in enumerate(options)
                        if o.get("type") == int(OptionType.RETREAT))
 
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
 
     assert result == [attack_opt], (
@@ -6808,7 +6808,7 @@ def test_win_by_empty_bench_does_not_fire_when_opponent_has_bench():
         "tools": [],
     }]
 
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     m.agent(obs)
     # With a rival bench, the active's KO no longer wins through the no-promotion rule;
     # the empty-bench finisher must not be active (`_active_win_plan` is not captured).
@@ -6844,7 +6844,7 @@ def test_ub_fetch_prefers_meowth_over_fez_when_no_attacker():
     meowth_opt = next(i for i, cid in search_map.items() if cid == m.Meowth_ex)
     fez_opt = next(i for i, cid in search_map.items() if cid == m.Fezandipiti_ex)
 
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
 
     assert result == [meowth_opt], (
@@ -6870,7 +6870,7 @@ def test_ub_fetch_gate_is_conditional_on_meowth_engine():
     search_map = _resolve_search_options(obs)
     meowth_opt = next(i for i, cid in search_map.items() if cid == m.Meowth_ex)
 
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
 
     assert result != [meowth_opt], (
@@ -6903,7 +6903,7 @@ def test_promote_near_ready_ko_attacker_over_cheap_wall():
     tapu_opt = next(i for i, o in enumerate(options)
                     if me["bench"][o["index"]]["id"] == 920)
 
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
 
     assert result == [ogerpon_opt], (
@@ -6944,7 +6944,7 @@ def test_promote_near_ready_defers_without_draw_engine():
     ogerpon_opt = next(i for i, o in enumerate(obs["select"]["option"])
                        if me["bench"][o["index"]]["id"] == m.Teal_Mask_Ogerpon_ex)
 
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
 
     assert result != [ogerpon_opt], (
@@ -6964,7 +6964,7 @@ def test_promote_near_ready_fez_draw_engine_is_enough():
     ogerpon_opt = next(i for i, o in enumerate(obs["select"]["option"])
                        if me["bench"][o["index"]]["id"] == m.Teal_Mask_Ogerpon_ex)
 
-    m._init_cartas_tracking(); m.plan = m.AttackPlan()
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
     assert m.agent(obs) == [ogerpon_opt]
 
 
@@ -6991,7 +6991,7 @@ def test_alakazam_step75_plays_ultra_ball_not_lillie():
     lillie_opt = next(
         i for i, cid in play_map.items() if cid == m.Lillie_Determination)
 
-    m._init_cartas_tracking()
+    m._init_cards_tracking()
     m.plan = m.AttackPlan()
     result = m.agent(obs)
 
@@ -7017,7 +7017,7 @@ def test_alakazam_step75_control_small_op_hand_allows_lillie():
     lillie_opt = next(
         i for i, cid in play_map.items() if cid == m.Lillie_Determination)
 
-    m._init_cartas_tracking()
+    m._init_cards_tracking()
     m.plan = m.AttackPlan()
     result = m.agent(obs)
 
@@ -7042,7 +7042,7 @@ def _load_lucario_step99_obs():
 
 def _promote_choice_id(obs):
     me = obs["current"]["players"][obs["current"]["yourIndex"]]
-    m._init_cartas_tracking()
+    m._init_cards_tracking()
     m.plan = m.AttackPlan()
     dec = m.agent(obs)
     opt = obs["select"]["option"][dec[0]]
@@ -7102,7 +7102,7 @@ def test_lucario_step80_ripening_charges_bench_hydrapple_over_teal_dance():
                  if o.get("type") == int(m.OptionType.ABILITY)
                  and me["bench"][o["index"]]["id"] == m.Teal_Mask_Ogerpon_ex]
     assert teal_opts, "el fixture debe ofrecer Teal Dance para que el test valga"
-    m._init_cartas_tracking()
+    m._init_cards_tracking()
     m.plan = m.AttackPlan()
     result = m.agent(obs)
     assert result == [ripen_opt], (
@@ -7129,7 +7129,7 @@ def test_lucario_step80_control_ready_bench_hydrapple_does_not_block_teal():
     ripen_opt = next(i for i, o in enumerate(opts)
                      if o.get("type") == int(m.OptionType.ABILITY)
                      and me["bench"][o["index"]]["id"] == m.Hydrapple_ex)
-    m._init_cartas_tracking()
+    m._init_cards_tracking()
     m.plan = m.AttackPlan()
     result = m.agent(obs)
     assert result != [ripen_opt], (
@@ -7165,7 +7165,7 @@ def test_marnie_step47_plays_boss_orders_not_dawn():
     dawn_opt = next(i for i, o in enumerate(opts)
                     if o.get("type") == int(m.OptionType.PLAY)
                     and me["hand"][o["index"]]["id"] == m.Dawn)
-    m._init_cartas_tracking()
+    m._init_cards_tracking()
     m.plan = m.AttackPlan()
     result = m.agent(obs)
     assert result == [boss_opt], (
@@ -7190,7 +7190,7 @@ def test_marnie_step47_control_active_on_ex_line_keeps_normal():
     boss_opt = next(i for i, o in enumerate(opts)
                     if o.get("type") == int(m.OptionType.PLAY)
                     and me["hand"][o["index"]]["id"] == m.Boss_Orders)
-    m._init_cartas_tracking()
+    m._init_cards_tracking()
     m.plan = m.AttackPlan()
     result = m.agent(obs)
     assert result != [boss_opt], (
@@ -7223,7 +7223,7 @@ def test_alakazam_step17_plays_lillie_not_xerosic_small_op_hand():
     xerosic_opt = next(i for i, o in enumerate(opts)
                        if o.get("type") == int(m.OptionType.PLAY)
                        and me["hand"][o["index"]]["id"] == m.Xerosic_Machinations)
-    m._init_cartas_tracking()
+    m._init_cards_tracking()
     m.plan = m.AttackPlan()
     m.pre_turn = 0
     result = m.agent(obs)
@@ -7244,7 +7244,7 @@ def test_alakazam_step17_control_large_op_hand_keeps_xerosic():
     xerosic_opt = next(i for i, o in enumerate(opts)
                        if o.get("type") == int(m.OptionType.PLAY)
                        and me["hand"][o["index"]]["id"] == m.Xerosic_Machinations)
-    m._init_cartas_tracking()
+    m._init_cards_tracking()
     m.plan = m.AttackPlan()
     m.pre_turn = 0
     result = m.agent(obs)
@@ -7275,7 +7275,7 @@ def test_alakazam_holds_xerosic_plays_it_not_meowth_fetch():
     meowth = next(i for i, o in enumerate(opts)
                   if o.get("type") == int(m.OptionType.PLAY)
                   and me["hand"][o["index"]]["id"] == m.Meowth_ex)
-    m._init_cartas_tracking()
+    m._init_cards_tracking()
     m.plan = m.AttackPlan()
     m.pre_turn = 0
     result = m.agent(obs)
@@ -7332,7 +7332,7 @@ def test_marnie_step122_ripening_charge_heals_doomed_dipplin():
         if o.get("type") == int(m.OptionType.ATTACH)
         and o.get("inPlayArea") != int(m.AreaType.ACTIVE)
         and me["bench"][o["inPlayIndex"]]["id"] == m.Dipplin)
-    m._init_cartas_tracking()
+    m._init_cards_tracking()
     m.plan = m.AttackPlan()
     m.pre_turn = 0
     result = m.agent(obs)
@@ -7354,7 +7354,7 @@ def test_marnie_step122_healthy_dipplin_keeps_manual_attach():
         if b["id"] == m.Dipplin:
             b["hp"] = 60
     ripen = _idx_ability(obs, m.Hydrapple_ex)
-    m._init_cartas_tracking()
+    m._init_cards_tracking()
     m.plan = m.AttackPlan()
     m.pre_turn = 0
     result = m.agent(obs)
@@ -7373,7 +7373,7 @@ def test_marnie_step122_ripening_targets_the_doomed_dipplin():
     dipplin = next(i for i, o in enumerate(obs["select"]["option"])
                    if o.get("area") == int(m.AreaType.BENCH)
                    and me["bench"][o["index"]]["id"] == m.Dipplin)
-    m._init_cartas_tracking()
+    m._init_cards_tracking()
     m.plan = m.AttackPlan()
     m.pre_turn = 0
     result = m.agent(obs)
@@ -7396,7 +7396,7 @@ def test_marnie_ripening_lethal_charge_beats_the_heal():
     dipplin = next(i for i, o in enumerate(obs["select"]["option"])
                    if o.get("area") == int(m.AreaType.BENCH)
                    and me["bench"][o["index"]]["id"] == m.Dipplin)
-    m._init_cartas_tracking()
+    m._init_cards_tracking()
     m.plan = m.AttackPlan()
     m.pre_turn = 0
     result = m.agent(obs)
@@ -7418,7 +7418,7 @@ def test_marnie_night_stretcher_recovers_hydrapple_to_save_dipplin():
                  if me["discard"][o["index"]]["id"] == m.Hydrapple_ex)
     energia = next(i for i, o in enumerate(opts)
                    if me["discard"][o["index"]]["id"] == m.Basic_Grass_Energy)
-    m._init_cartas_tracking()
+    m._init_cards_tracking()
     m.plan = m.AttackPlan()
     m.pre_turn = 0
     result = m.agent(obs)
@@ -7440,7 +7440,7 @@ def test_marnie_night_stretcher_healthy_dipplin_keeps_energy():
     opts = obs["select"]["option"]
     hydra = next(i for i, o in enumerate(opts)
                  if me["discard"][o["index"]]["id"] == m.Hydrapple_ex)
-    m._init_cartas_tracking()
+    m._init_cards_tracking()
     m.plan = m.AttackPlan()
     m.pre_turn = 0
     result = m.agent(obs)
@@ -7473,7 +7473,7 @@ def test_marnie_ub_fetch_takes_the_missing_link_not_the_orphan_stage2():
                if mazo[o["index"]]["id"] == m.Dipplin]
     hydra = next(i for i, o in enumerate(opts)
                  if mazo[o["index"]]["id"] == m.Hydrapple_ex)
-    m._init_cartas_tracking()
+    m._init_cards_tracking()
     m.plan = m.AttackPlan()
     m.pre_turn = 0
     result = m.agent(obs)
@@ -7493,7 +7493,7 @@ def test_marnie_ub_cancels_when_the_missing_link_left_the_deck():
     ub = next(i for i, o in enumerate(obs["select"]["option"])
               if o.get("type") == int(m.OptionType.PLAY)
               and me["hand"][o["index"]]["id"] == m.Ultra_Ball)
-    m._init_cartas_tracking()
+    m._init_cards_tracking()
     m.plan = m.AttackPlan()
     m.pre_turn = 0
     result = m.agent(obs)
@@ -7538,7 +7538,7 @@ def test_alakazam_last_ditch_no_trae_copia_ya_en_mano():
     xerosic = next(i for i, o in enumerate(opts)
                    if mazo[o["index"]]["id"] == m.Xerosic_Machinations)
     assert m.Xerosic_Machinations in en_mano, "el escenario exige Xerosic en mano"
-    m._init_cartas_tracking()
+    m._init_cards_tracking()
     m.plan = m.AttackPlan()
     m.pre_turn = 0
     result = m.agent(obs)
@@ -7557,7 +7557,7 @@ def test_alakazam_cancela_meowth_si_la_busqueda_es_redundante():
     meowth = next(i for i, o in enumerate(opts)
                   if o.get("type") == int(m.OptionType.PLAY)
                   and me["hand"][o["index"]]["id"] == m.Meowth_ex)
-    m._init_cartas_tracking()
+    m._init_cards_tracking()
     m.plan = m.AttackPlan()
     m.pre_turn = 0
     result = m.agent(obs)
@@ -7570,7 +7570,7 @@ def test_meowth_fetch_prediccion_detecta_el_duplicado():
     # The helper that decides BEFORE playing the Meowth: with Xerosic as the only
     # Supporter in the deck and a copy in hand, the predicted target is that
     # duplicate (the signal that cancels the play).
-    mazo = {m.Xerosic_Machinations: {m.ESTADO_MAZO: 1}}
+    mazo = {m.Xerosic_Machinations: {m.ZONE_DECK: 1}}
     objetivo, _ = m._meowth_fetch_prediccion(
         {m.Xerosic_Machinations: 1}, {}, 4, True, 12, False,
         False, False, False, False, True, mazo)
@@ -7605,7 +7605,7 @@ def test_no_baja_meowth_si_el_supporter_del_turno_ya_esta_en_mano():
     en_mano = [c["id"] for c in me["hand"]]
     assert m.Xerosic_Machinations in en_mano
     assert m.Lillie_Determination not in en_mano
-    m._init_cartas_tracking()
+    m._init_cards_tracking()
     m.plan = m.AttackPlan()
     m.pre_turn = 0
     result = m.agent(obs)
@@ -7680,7 +7680,7 @@ def test_alakazam_el_fetch_sigue_el_plan_del_menu_boss_orders():
     meowth = next(i for i, o in enumerate(menu["select"]["option"])
                   if o.get("type") == int(m.OptionType.PLAY)
                   and me["hand"][o["index"]]["id"] == m.Meowth_ex)
-    m._init_cartas_tracking()
+    m._init_cards_tracking()
     m.plan = m.AttackPlan()
     m.pre_turn = 0
     m._td_ability_serial = None
@@ -7716,7 +7716,7 @@ def test_teal_dance_disponible_es_estable_fuera_del_menu():
     # list abilities; with no previous menu it stays None (conservative).
     menu = _load_fixture_obs("alakazam_step118_menu_principal.json")
     me = menu["current"]["players"][menu["current"]["yourIndex"]]
-    m._init_cartas_tracking()
+    m._init_cards_tracking()
     m.plan = m.AttackPlan()
     m.pre_turn = 0
     m._td_ability_serial = None
@@ -7747,7 +7747,7 @@ def test_cubchoo_turno_muerto_baja_meowth_en_vez_de_terminar():
                   and me["hand"][o["index"]]["id"] == m.Meowth_ex)
     fin = next(i for i, o in enumerate(opts)
                if o.get("type") == int(m.OptionType.END))
-    m._init_cartas_tracking()
+    m._init_cards_tracking()
     m.plan = m.AttackPlan()
     m.pre_turn = 0
     result = m.agent(obs)
@@ -7773,7 +7773,7 @@ def test_cubchoo_con_jugada_real_sigue_vetando_el_segundo_meowth():
     meowth = next(i for i, o in enumerate(opts)
                   if o.get("type") == int(m.OptionType.PLAY)
                   and me["hand"][o["index"]]["id"] == m.Meowth_ex)
-    m._init_cartas_tracking()
+    m._init_cards_tracking()
     m.plan = m.AttackPlan()
     m.pre_turn = 0
     result = m.agent(obs)
@@ -7804,7 +7804,7 @@ def test_cubchoo_no_evoluciona_hydrapple_sin_energia():
     assert len(me["active"][0]["energies"]) == 0, "el escenario exige 0 energias"
     assert m.RETREAT_COST[m.Hydrapple_ex] >= 3
     evo = _idx_evolve(obs)
-    m._init_cartas_tracking()
+    m._init_cards_tracking()
     m.plan = m.AttackPlan()
     m.pre_turn = 0
     result = m.agent(obs)
@@ -7818,7 +7818,7 @@ def test_cubchoo_si_evoluciona_hydrapple_con_energia():
     # (it attacks, and the 330 HP wall makes up for the retreat cost).
     obs = _load_fixture_obs("cubchoo_si_evoluciona_hydrapple_con_energia.json")
     evo = _idx_evolve(obs)
-    m._init_cartas_tracking()
+    m._init_cards_tracking()
     m.plan = m.AttackPlan()
     m.pre_turn = 0
     result = m.agent(obs)
@@ -7832,7 +7832,7 @@ def test_regla_lenta_acotada_al_matchup_cubchoo():
     # there it recharges and retreats normally and the wall makes up for it.
     obs = _load_fixture_obs("generico_si_evoluciona_hydrapple_sin_energia.json")
     evo = _idx_evolve(obs)
-    m._init_cartas_tracking()
+    m._init_cards_tracking()
     m.plan = m.AttackPlan()
     m.pre_turn = 0
     result = m.agent(obs)
@@ -7861,7 +7861,7 @@ def test_cubchoo_teal_dance_habilita_la_retirada_hacia_el_ko():
     td = [i for i, o in enumerate(obs["select"]["option"])
           if o.get("type") == int(m.OptionType.ABILITY)
           and o.get("area") == int(m.AreaType.ACTIVE)]
-    m._init_cartas_tracking()
+    m._init_cards_tracking()
     m.plan = m.AttackPlan()
     m.pre_turn = 0
     result = m.agent(obs)
@@ -7875,7 +7875,7 @@ def test_cubchoo_tras_teal_dance_si_se_retira():
     obs = _load_fixture_obs("cubchoo_tras_teal_dance_retira_al_ogerpon.json")
     ret = [i for i, o in enumerate(obs["select"]["option"])
            if o.get("type") == int(m.OptionType.RETREAT)]
-    m._init_cartas_tracking()
+    m._init_cards_tracking()
     m.plan = m.AttackPlan()
     m.pre_turn = 0
     result = m.agent(obs)
@@ -7892,7 +7892,7 @@ def test_cubchoo_promueve_el_ogerpon_no_el_hydrapple_clavado():
             if me["bench"][o["index"]]["id"] == m.Teal_Mask_Ogerpon_ex]
     hydra = [i for i, o in enumerate(opts)
              if me["bench"][o["index"]]["id"] == m.Hydrapple_ex]
-    m._init_cartas_tracking()
+    m._init_cards_tracking()
     m.plan = m.AttackPlan()
     m.pre_turn = 0
     result = m.agent(obs)
@@ -7912,7 +7912,7 @@ def test_cubchoo_con_energia_invertida_sigue_pasando():
         m.RETREAT_COST[me["active"][0]["id"]], "el escenario exige excedente"
     ret = [i for i, o in enumerate(obs["select"]["option"])
            if o.get("type") == int(m.OptionType.RETREAT)]
-    m._init_cartas_tracking()
+    m._init_cards_tracking()
     m.plan = m.AttackPlan()
     m.pre_turn = 0
     result = m.agent(obs)
@@ -7936,7 +7936,7 @@ def test_cubchoo_con_energia_invertida_sigue_pasando():
 
 def _promo_elegido(obs):
     me = obs["current"]["players"][obs["current"]["yourIndex"]]
-    m._init_cartas_tracking()
+    m._init_cards_tracking()
     m.plan = m.AttackPlan()
     m.pre_turn = 0
     r = m.agent(obs)
@@ -8256,9 +8256,9 @@ _STARMIE_FEZ_FIXTURE = (
 
 
 def _reset_estado_registro_008():
-    m._init_cartas_tracking()
-    m._cartas_first_scan_done = False
-    m._cartas_last_turn = -1
+    m._init_cards_tracking()
+    m._cards_first_scan_done = False
+    m._cards_last_turn = -1
     m._prev_op_prize = 6
     m._ko_detected_this_turn = False
     m.plan = m.AttackPlan()
@@ -8586,7 +8586,7 @@ def _ub_cynthia_obs(mutar=None):
         obs = json.load(f)["observation"]
     if mutar is not None:
         mutar(obs)
-    m._init_cartas_tracking()
+    m._init_cards_tracking()
     m.plan = m.AttackPlan()
     m.pre_turn = 0
     m._td_ability_serial = None

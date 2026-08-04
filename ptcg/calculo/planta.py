@@ -5,7 +5,7 @@ Extracted VERBATIM from main.py by utils/extraer_definiciones.py
 utils/pureza.py: nothing here touches mutable state or the runtime tables.
 """
 
-from ptcg.estado.agente import ESTADO
+from ptcg.estado.agente import AGENT_STATE
 from ptcg.cartas.puntuacion import MAIN_ATTACKERS
 from ptcg.cartas.ids import Basic_Grass_Energy, Hydrapple_ex, Teal_Mask_Ogerpon_ex
 from ptcg.calculo.tablero import _active_of
@@ -98,7 +98,7 @@ def _grass_plan(my_state, state, field_counts, hand_counts, cap=3,
     for body, is_active in bodies:
         if body is None or body.id not in MAIN_ATTACKERS:
             continue
-        req = ESTADO.ATTACK_ENERGY_REQ.get(body.id)
+        req = AGENT_STATE.ATTACK_ENERGY_REQ.get(body.id)
         if req is None:
             continue
         missing = req - len(body.energies)

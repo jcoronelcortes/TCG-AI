@@ -8,7 +8,7 @@ utils/pureza.py: nothing here touches mutable state or the runtime tables.
 from cg.api import AreaType, Card, EnergyType, Observation, Pokemon
 from ptcg.cartas.ids import Alakazam_ex, Dusknoir, Gardevoir_ex, Meganium, Munkidori_ex, Slowking, Typhlosion
 from ptcg.cartas.tablas import card_table
-from ptcg.estado.agente import ESTADO
+from ptcg.estado.agente import AGENT_STATE
 
 
 def get_card(obs: Observation, area: AreaType, index: int, player_index: int) -> Pokemon | Card | None:
@@ -60,9 +60,9 @@ def prize_count_op(pokemon: Pokemon) -> int:
     count = prize_count(pokemon)
     if count <= 0:
         return 0
-    if ESTADO._op_prize_denial_pecharunt and pokemon.id == Munkidori_ex:
+    if AGENT_STATE._op_prize_denial_pecharunt and pokemon.id == Munkidori_ex:
         count -= 1
-    if ESTADO._op_prize_denial_gengar:
+    if AGENT_STATE._op_prize_denial_gengar:
         _pd_data = card_table.get(pokemon.id)
         if (_pd_data is not None
                 and getattr(_pd_data, 'energyType', None) == EnergyType.DARKNESS):
@@ -160,9 +160,9 @@ def prize_count_op(pokemon: Pokemon) -> int:
     count = prize_count(pokemon)
     if count <= 0:
         return 0
-    if ESTADO._op_prize_denial_pecharunt and pokemon.id == Munkidori_ex:
+    if AGENT_STATE._op_prize_denial_pecharunt and pokemon.id == Munkidori_ex:
         count -= 1
-    if ESTADO._op_prize_denial_gengar:
+    if AGENT_STATE._op_prize_denial_gengar:
         _pd_data = card_table.get(pokemon.id)
         if (_pd_data is not None
                 and getattr(_pd_data, 'energyType', None) == EnergyType.DARKNESS):

@@ -1,0 +1,36 @@
+# Phase 6 -- ptcg/estado/: the agent state that survives between turns, and the
+# zone keys of the deck belief. Applied repo-wide; `ESTADO` alone is the most
+# quoted name in the project.
+#
+# `ESTADO` becomes `AGENT_STATE`, not `STATE`: the observation's own state is
+# already called `state` everywhere, and two names that differ only in case
+# would read as the same thing.
+#
+# Three names are reached BY NAME at runtime and carry the `str` flag:
+# `getattr(m, "ESTADO")` in the corpus replay, `OBJETO = "ESTADO"` in the
+# state migrator, the architecture lint's expected field list, and
+# `hasattr(mod, "_init_cartas_tracking")` in the self-play loader.
+ESTADO	AGENT_STATE	str
+EstadoAgente	AgentState
+ESTADO_MAZO	ZONE_DECK
+ESTADO_MANO	ZONE_HAND
+ESTADO_BANCA	ZONE_BENCH
+ESTADO_DESCARTE	ZONE_DISCARD
+ESTADO_PREMIO	ZONE_PRIZE
+CARTAS_ACTIVAS_EN_MAZO	ACTIVE_CARDS_IN_DECK	str
+_TURNO_LOG_DESCONOCIDO	_TURN_LOG_UNKNOWN
+_cartas_first_scan_done	_cards_first_scan_done
+_cartas_last_turn	_cards_last_turn
+_cartas_prizes_identified	_cards_prizes_identified
+_init_cartas_tracking	_init_cards_tracking	str
+_update_cartas_tracking	_update_cards_tracking
+_ko_propio_en_turno_rival	_own_ko_inside_op_turn
+_ko_propio_fuera_del_turno_rival	_own_ko_outside_op_turn
+_log_turno_en_curso	_log_current_turn
+_area_to_estado	_area_to_zone
+from_estado	from_zone
+to_estado	to_zone
+known_premio	known_prize
+real_banca	real_bench
+real_descarte	real_discard
+real_mano	real_hand

@@ -6,7 +6,7 @@ lines, and a module of eight would help nobody understand anything.
 
 from cg.api import OptionType, SelectContext, SpecialConditionType
 from ptcg.cartas.ids import SCORE_NEVER, SCORE_VETO
-from ptcg.estado.agente import ESTADO
+from ptcg.estado.agente import AGENT_STATE
 
 
 def puntuar(tc, o, score):
@@ -42,7 +42,7 @@ def puntuar(tc, o, score):
             elif context == SelectContext.IS_FIRST:
     
                 score = SCORE_VETO
-                ESTADO.we_go_first = True
+                AGENT_STATE.we_go_first = True
             elif context == SelectContext.COIN_HEAD:
     
                 score = 2
@@ -51,14 +51,14 @@ def puntuar(tc, o, score):
                 score = SCORE_VETO
             elif context == SelectContext.IS_FIRST:
                 score = 2
-                ESTADO.we_go_first = False
+                AGENT_STATE.we_go_first = False
             elif context == SelectContext.ACTIVATE and _meowth_skip_fetch:
                 score = 10
         elif o.type == OptionType.END:
             if can_attack:
                 _end_attack_is_risky = (
                     condition_risky_attack and
-                    not (ESTADO.plan.remain_hp is not None and ESTADO.plan.remain_hp <= 0))
+                    not (AGENT_STATE.plan.remain_hp is not None and AGENT_STATE.plan.remain_hp <= 0))
                 if _conf_should_attack or not _end_attack_is_risky:
                     score = SCORE_NEVER
         elif o.type == OptionType.SPECIAL_CONDITION:
