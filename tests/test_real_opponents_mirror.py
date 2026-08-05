@@ -35,10 +35,10 @@ def test_copies_count_not_just_which_cards():
     match. What makes a mirror is playing the same NUMBER of copies, so the
     overlap is the sum of the minimum per card.
     """
-    cuatro = [7, 7, 7, 7]
-    una = [7]
-    assert overlap_with(cuatro, una) == 1
-    assert overlap_with(una, cuatro) == 1
+    four = [7, 7, 7, 7]
+    one = [7]
+    assert overlap_with(four, one) == 1
+    assert overlap_with(one, four) == 1
 
 
 def test_a_deck_with_nothing_in_common_scores_zero():
@@ -69,17 +69,17 @@ def test_the_corpus_marks_its_mirrors():
     import selfplay as sp
 
     base = ROOT / "deck" / "real_opponents"
-    pesos = base / "pesos.csv"
-    if not pesos.exists():                       # a fresh checkout has no corpus
+    weights = base / "pesos.csv"
+    if not weights.exists():                     # a fresh checkout has no corpus
         return
     ref = sp.read_deck(str(ROOT / "deck.csv"))
-    with pesos.open(encoding="utf-8-sig") as fh:
-        filas = list(csv.DictReader(fh))
-    assert filas and "solape_propio" in filas[0], "pesos.csv sin la columna"
+    with weights.open(encoding="utf-8-sig") as fh:
+        rows = list(csv.DictReader(fh))
+    assert rows and "solape_propio" in rows[0], "pesos.csv has no overlap column"
 
-    for row in filas:
-        ruta = base / row["archivo"]
-        if not ruta.exists():
-            ruta = base / "no_pilotables" / row["archivo"]
-        deck = [int(x) for x in ruta.read_text().split() if x.strip().isdigit()]
+    for row in rows:
+        path = base / row["archivo"]
+        if not path.exists():
+            path = base / "no_pilotables" / row["archivo"]
+        deck = [int(x) for x in path.read_text().split() if x.strip().isdigit()]
         assert overlap_with(deck, ref) == int(row["solape_propio"]), row["archivo"]

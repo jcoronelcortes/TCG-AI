@@ -96,9 +96,9 @@ def test_the_finding_carries_the_key_the_explorer_reads():
     """
     import turn_explorer
 
-    escrito = {"detector": "turno_esteril", "turno": 7, "detalle": "END",
+    written = {"detector": "turno_esteril", "turno": 7, "detalle": "END",
                "observation": {}}
-    assert turn_explorer.turn_of(escrito) == 7
+    assert turn_explorer.turn_of(written) == 7
 
     # A record written by a future English writer stays readable.
     assert turn_explorer.turn_of({"turn": 7}) == 7

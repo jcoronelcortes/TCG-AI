@@ -249,7 +249,7 @@ def main(argv):
     if not groups:
         print("ERROR: no deck was found", file=sys.stderr)
         return 1
-    print(f"{total} decks  ->  {len(groups)} listas unique")
+    print(f"{total} decks  ->  {len(groups)} unique lists")
     cubierto = sum(g["peso_meta"] for g in groups[: args.top]) if args.top else 1.0
     if args.top:
         groups = groups[: args.top]
@@ -276,11 +276,11 @@ def main(argv):
                   f"gana {100 * group['wr_criba']:5.1f}%  "
                   f"({n}/{len(groups)}) {group['motivo']}", flush=True)
 
-    print("\n== 3/3 Escritura ==")
+    print("\n== 3/3 Writing ==")
     filas = write_out(groups, Path(args.output))
     admitidos = [g for g in groups if g["admitido"]]
     peso_ok = sum(g["peso_meta"] for g in admitidos)
-    print(f"Listas admitidas: {len(admitidos)}/{len(groups)}  ->  {args.output}")
+    print(f"Lists admitted: {len(admitidos)}/{len(groups)}  ->  {args.output}")
     print(f"MEASURABLE META COVERAGE: {100 * peso_ok:.1f}%")
     if len(admitidos) < len(groups):
         print("\nNot pilotable (the harness cannot measure this part of the meta):")
@@ -288,19 +288,19 @@ def main(argv):
             if not g["admitido"]:
                 print(f"  {g['nombre']:<28} peso {100 * g['peso_meta']:4.0f}%  {g['motivo']}")
 
-    espejos = [g for g in admitidos if g["solape_propio"] >= MIRROR_OVERLAP]
-    if espejos:
-        peso_esp = sum(g["peso_meta"] for g in espejos)
+    mirrors = [g for g in admitidos if g["solape_propio"] >= MIRROR_OVERLAP]
+    if mirrors:
+        mirror_weight = sum(g["peso_meta"] for g in mirrors)
         print(f"\nNear-copies of our own list ({MIRROR_OVERLAP}+/60 cards in common). "
               "The bot pilots OUR engine here, badly, so the winrate against them "
               "reads high and is not a matchup:")
-        for g in sorted(espejos, key=lambda x: -x["solape_propio"]):
-            print(f"  {g['nombre']:<28} solape {g['solape_propio']}/60  "
-                  f"peso {100 * g['peso_meta']:4.1f}%  [{g['arquetipo']}]")
-        print(f"  -> {len(espejos)} listas, {100 * peso_esp:.1f}% del meta. They are KEPT "
-              "(somebody plays them), and marked in pesos.csv so the aggregation "
-              "can report with and without.")
-    print(f"\nPesos en {Path(args.output) / 'pesos.csv'} ({len(filas)} filas)")
+        for g in sorted(mirrors, key=lambda x: -x["solape_propio"]):
+            print(f"  {g['nombre']:<28} overlap {g['solape_propio']}/60  "
+                  f"weight {100 * g['peso_meta']:4.1f}%  [{g['arquetipo']}]")
+        print(f"  -> {len(mirrors)} lists, {100 * mirror_weight:.1f}% of the meta. "
+              "They are KEPT (somebody plays them), and marked in pesos.csv so the "
+              "aggregation can report with and without.")
+    print(f"\nWeights in {Path(args.output) / 'pesos.csv'} ({len(filas)} rows)")
     return 0
 
 
