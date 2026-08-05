@@ -74,3 +74,33 @@ def test_the_boundary_is_classified_outright():
 def test_a_broken_observation_does_not_raise():
     assert clasificar_derrota({}, asiento=0, result="pierde") == "desconocido"
     assert clasificar_derrota(None, asiento=0, result="pierde") == "desconocido"
+
+
+# ---------------------------------------------------------------------------
+# The boundary between the tool that WRITES the finding and the one that READS it
+# ---------------------------------------------------------------------------
+
+def test_the_finding_carries_the_key_the_explorer_reads():
+    """`utils/turn_explorer.py` has to be able to read what autopsy writes.
+
+    The key travels in JSON between two tools, so no test of either one alone
+    crosses that boundary -- and the Spanish->English rename walked straight
+    through the gap: the reader was changed to `turn` while every writer
+    (autopsy, shadow, the golden corpus) and the 900+ files already in
+    `records/` kept `turno`. The tool did not fail a test, it crashed with a
+    KeyError on the first real finding, which is a documented step of the
+    improvement loop silently unavailable.
+
+    This pins the contract from the reader's side: whatever the writers emit,
+    the explorer resolves a turn out of it without raising.
+    """
+    import turn_explorer
+
+    escrito = {"detector": "turno_esteril", "turno": 7, "detalle": "END",
+               "observation": {}}
+    assert turn_explorer.turn_of(escrito) == 7
+
+    # A record written by a future English writer stays readable.
+    assert turn_explorer.turn_of({"turn": 7}) == 7
+    # And a record with neither degrades instead of crashing.
+    assert turn_explorer.turn_of({}) == "?"

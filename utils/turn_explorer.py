@@ -446,13 +446,26 @@ def explore(obs, max_nodos=MAX_NODOS, respetar_menu=False):
     return best[0], best[1], nodos[0]
 
 
+def turn_of(hallazgo):
+    """The turn of a finding, from the key its WRITER uses.
+
+    `turno` is a field of the persisted record, not an identifier: autopsy.py,
+    shadow.py and the golden corpus all emit it, and the 900+ files already in
+    `records/` carry it. The Spanish->English rename reached the reader and not
+    the writers, so this tool crashed with a KeyError on every real finding --
+    a documented step of the improvement loop, silently unavailable. Both
+    spellings are accepted so an English writer would not break it again.
+    """
+    return hallazgo.get("turno", hallazgo.get("turn", "?"))
+
+
 def comparar_hallazgo(path, index=0, max_nodos=MAX_NODOS):
     data = json.loads(Path(path).read_text())
     h = data["hallazgos"][index]
     obs = h["observation"]
     # A real autopsy finding: the simulator's menu rules at the root node.
     puntaje, line, nodos = explore(obs, max_nodos, respetar_menu=True)
-    print(f"{Path(path).name} [{h['detector']} turn {h['turn']}]")
+    print(f"{Path(path).name} [{h['detector']} turn {turn_of(h)}]")
     print(f"  agent in the game: {h['detalle']}")
     print(f"  best line found by the explorer ({nodos} nodos): "
           f"{' -> '.join(line)}")
