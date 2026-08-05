@@ -109,6 +109,14 @@ lists this time, so the weighted figure covers 99.8% of the field instead of the
 98.8% of the previous corpus. When a list is rejected the average is quietly
 computed over a hole; there is effectively no hole now.
 
+**Five of the 93 are near-copies of our own list**, one of them identical card
+for card. Against those the bot is piloting our engine rather than an opposing
+deck, and it plays it badly, so they come back at 97%. They are kept — people do
+play them — but they flatter one archetype: dropping them moves Ogerpon Verde
+from 89.5% to **88.0%** and its prize differential from +2.78 to **+2.42**,
+which is the number to reason with. The overall figure barely notices (93.3% →
+93.2%), because together they are 1.7% of the field.
+
 ## Cards we deliberately do not model
 
 A card-by-card audit of the top archetypes (August 2026) found:

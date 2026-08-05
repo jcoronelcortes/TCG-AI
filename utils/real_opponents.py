@@ -74,6 +74,18 @@ MAX_FORFEITS = 0.02      # illegal plays on the opponent's side
 MAX_LIMITES = 0.15       # games that do not finish within the step cap
 MIN_WINRATE = 0.15       # below this, the deck does not get going (see the calibration above)
 
+# A list this close to OUR OWN 60 is not measuring a matchup. The bot pilots it
+# legally -- so the pilotability screen admits it -- but it pilots OUR engine,
+# which it plays badly, and the winrate comes back inflated. It is the same
+# failure the screen exists to catch, arriving from the other side: there the
+# opponent gets stuck, here it is simply us against a worse copy of ourselves.
+# The August 2026 corpus carried FIVE, one of them 60/60 identical.
+#
+# They are NOT thrown away: somebody really does play them on the ladder, so
+# dropping them would bias the ladder estimate. They are only marked, so the
+# aggregation can say what the number looks like without them.
+MIRROR_OVERLAP = 40      # cards in common with the reference deck, out of 60
+
 
 def slug(text):
     """A stable file name derived from the archetype."""
@@ -161,6 +173,16 @@ def cribar(group, games, deck_referencia):
     }
 
 
+def overlap_with(deck, reference):
+    """Cards in common between two 60-card lists, COUNTING COPIES.
+
+    Comparing sets would call two lists twins for sharing a staple; what makes a
+    list a mirror is playing the same number of copies of the same cards.
+    """
+    a, b = Counter(deck), Counter(reference)
+    return sum(min(a[cid], b[cid]) for cid in set(a) | set(b))
+
+
 def write_out(groups, output):
     output.mkdir(parents=True, exist_ok=True)
     rechazados = output / "no_pilotables"
@@ -184,6 +206,8 @@ def write_out(groups, output):
                 "peso_meta": round(group["peso_meta"], 4),
                 "mazos_origen": group["copias"],
                 "estado": "admitido" if group["admitido"] else "no_pilotable",
+                "solape_propio": ("" if group.get("solape_propio") is None
+                                  else group["solape_propio"]),
                 "wr_criba": ("" if group.get("wr_criba") is None
                              else round(group["wr_criba"], 3)),
                 "forfeits": ("" if group.get("forfeits") is None
@@ -231,14 +255,19 @@ def main(argv):
         groups = groups[: args.top]
         print(f"Limited to the {len(groups)} heaviest ({100 * cubierto:.0f}% of the meta)")
 
+    # The overlap is measured in BOTH branches: it costs nothing and a mirror
+    # slipping through --no-filter is exactly as misleading.
+    import selfplay as sp
+    deck_ref = sp.read_deck(args.reference)
+    for group in groups:
+        group["solape_propio"] = overlap_with(group["mazo"], deck_ref)
+
     if args.no_filter:
         for group in groups:
             group.update(admitido=True, wr_criba=None, forfeits=None,
                          limites=None, motivo="sin cribar")
     else:
         print(f"\n== 2/3 Pilotability screening ({args.games} games per list) ==")
-        import selfplay as sp
-        deck_ref = sp.read_deck(args.reference)
         for n, group in enumerate(groups, start=1):
             result = cribar(group, args.games, deck_ref)
             group.update(result)
@@ -258,6 +287,19 @@ def main(argv):
         for g in groups:
             if not g["admitido"]:
                 print(f"  {g['nombre']:<28} peso {100 * g['peso_meta']:4.0f}%  {g['motivo']}")
+
+    espejos = [g for g in admitidos if g["solape_propio"] >= MIRROR_OVERLAP]
+    if espejos:
+        peso_esp = sum(g["peso_meta"] for g in espejos)
+        print(f"\nNear-copies of our own list ({MIRROR_OVERLAP}+/60 cards in common). "
+              "The bot pilots OUR engine here, badly, so the winrate against them "
+              "reads high and is not a matchup:")
+        for g in sorted(espejos, key=lambda x: -x["solape_propio"]):
+            print(f"  {g['nombre']:<28} solape {g['solape_propio']}/60  "
+                  f"peso {100 * g['peso_meta']:4.1f}%  [{g['arquetipo']}]")
+        print(f"  -> {len(espejos)} listas, {100 * peso_esp:.1f}% del meta. They are KEPT "
+              "(somebody plays them), and marked in pesos.csv so the aggregation "
+              "can report with and without.")
     print(f"\nPesos en {Path(args.output) / 'pesos.csv'} ({len(filas)} filas)")
     return 0
 

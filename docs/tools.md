@@ -70,6 +70,13 @@ python utils/autopsy.py --opponent deck/real_opponents/<deck>.csv --games 40
 python utils/autopsy.py --census ...        # census with a control group
 ```
 
+**40 games collects records; it does not compare matchups.** At that size the
+winrate swings enormously: two 60-game runs on a matched pair of Crustle lists
+reported 83.3% and 81.7% — the same, to the eye — where the truth was 69.5% and
+85.0%, and both errors happened to point the wrong way at once. Raised to 200
+games both landed on the matrix's figure. Use the default to gather losses to
+read; if the number itself is the finding, it needs 200+ or the matchup matrix.
+
 ### `collision_radar.py` — collisions between matchup rules
 
 Finds the failure class nothing else finds: a veto written for one matchup that
@@ -115,7 +122,7 @@ turns are dumped as replayable observations.
 | Tool | Purpose |
 | --- | --- |
 | `download_competitor_decks.py` | Downloads the exact 60-card lists of the top leaderboard competitors from their public replays. Resumable. `--top 100` |
-| `real_opponents.py` | Turns those lists into *measurable* opponents: deduplicates them (300 decks are ~93 unique lists), keeps each one's meta weight, and screens out lists the generic bot cannot pilot — an unpilotable list measures the bot getting stuck, not the matchup, and returns a falsely high winrate. |
+| `real_opponents.py` | Turns those lists into *measurable* opponents: deduplicates them (300 decks are ~93 unique lists), keeps each one's meta weight, and screens out lists the generic bot cannot pilot — an unpilotable list measures the bot getting stuck, not the matchup, and returns a falsely high winrate. It also marks the lists that are near-copies of our own 60 (`solape_propio` in `pesos.csv`): the bot pilots those legally but pilots *our* engine, badly, so they read as a matchup we dominate. They are kept, because people play them, and flagged so the aggregation can report the field with and without. |
 | `build_meta_decks.py` | Hand-built synthetic archetype decks, for mechanics the real meta does not currently offer. |
 | `cosechar_deck_opponent.py` | Rebuilds a plausible 60-card opponent list from what was visible in local game records. |
 | `op_scaling_census.py` | Audits `ptcg/cards/op_scaling.py` against every opposing deck in the repo: which attacks scale with the board rather than doing their printed damage, which of them the agent reads, and which are missing. The suite runs it as a gate — a new deck that brings an unread one is invisible in a game, because the agent does not crash, it just walks into the hit. `--unmodelled` |
