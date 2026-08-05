@@ -83,9 +83,9 @@ installed.
 
 ## Current results
 
-Against the 89 real leaderboard decks, weighted by how often each appears:
-**93.1% expected ladder winrate**, +3.9 prizes per game, zero forfeits across
-35,600 games. The weakest matchup is the Crustle wall archetype. Details and
+Against the 93 real leaderboard decks, weighted by how often each appears:
+**93.3% expected ladder winrate**, +3.9 prizes per game, zero forfeits across
+37,200 games. The weakest matchup is the Crustle wall archetype. Details and
 method in [Matchups](docs/matchups.md).
 
 ## Contributing and licence

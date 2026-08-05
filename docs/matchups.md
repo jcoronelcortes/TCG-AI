@@ -46,7 +46,7 @@ another, so most of them are gated on these flags.
 
 ## Where we stand (August 2026)
 
-Measured against the **89 real leaderboard decks** in `deck/real_opponents/`,
+Measured against the **93 real leaderboard decks** in `deck/real_opponents/`,
 400 games per matchup, weighted by how often each list actually appears:
 
 ```bash
@@ -55,44 +55,59 @@ python utils/matchup_matrix.py --games 400 --weights
 
 ```text
 EXPECTED LADDER WINRATE (weighted by meta share)
-  weighted  : 93.1%   over 98.8% of the meta covered
-  unweighted: 92.0%
+  weighted  : 93.3%   over 99.8% of the meta covered
+  unweighted: 91.5%
   PRIZE DIFFERENTIAL, weighted: +3.905 per game
-  our forfeits: 0 across all 89 matchups
+  our forfeits: 0 across all 93 matchups
 ```
 
 Aggregated by archetype:
 
 | Archetype | Meta share | Winrate | Prize diff. | Ladder points lost |
 | --- | ---: | ---: | ---: | ---: |
-| **Crustle wall** | 8.7% | **75.3%** | **+1.94** | **2.15** |
-| Marnie Grimmsnarl | 43.4% | 95.4% | +4.56 | 2.01 |
-| Alakazam | 19.1% | 95.4% | +3.40 | 0.88 |
-| Ogerpon Verde | 4.2% | **85.8%** | **+1.99** | 0.60 |
-| Mega Lucario | 1.8% | 86.5% | +2.85 | 0.24 |
-| Mega Starmie | 1.2% | 88.2% | +2.96 | 0.14 |
-| Cynthia Garchomp | 5.2% | 97.6% | +4.61 | 0.13 |
-| *(11 remaining archetypes)* | 12.6% | 94–99% | +4 to +5 | 0.40 |
+| **Crustle wall** | 10.0% | **77.3%** | **+2.03** | **2.26** |
+| Marnie Grimmsnarl | 39.0% | 96.2% | +4.56 | 1.49 |
+| Alakazam | 18.0% | 94.1% | +3.51 | 1.06 |
+| Ogerpon Verde | 8.3% | **89.5%** | **+2.78** | 0.87 |
+| Mega Lucario | 2.6% | 89.3% | +3.21 | 0.28 |
+| Mega Starmie | 1.0% | 86.0% | +2.61 | 0.14 |
+| Mega Lopunny | 3.7% | 96.9% | +4.19 | 0.11 |
+| Dragapult | 3.3% | 96.7% | +4.70 | 0.11 |
+| *(9 remaining archetypes)* | 14.0% | 93–99% | +4 to +5 | 0.40 |
 
 ### Reading the table
 
 **Crustle wall is the real weakness, not Marnie.** Marnie costs more ladder
-points only because it is 43% of the field; we beat it 95% of the time. Crustle
-is 8.7% of the field and we win 75%. Three independent signals point at it: the
+points only because it is 39% of the field; we beat it 96% of the time. Crustle
+is 10% of the field and we win 77%. Three independent signals point at it: the
 worst winrate, the worst prize differential (games decided narrowly — which is
-exactly where a new rule can move the needle), and 11 distinct lists, so it is
+exactly where a new rule can move the needle), and 17 distinct lists, so it is
 the archetype and not one odd deck.
 
-**Ogerpon Verde is the second real hole** (85.8%), invisible in a
-winrate-sorted list because it weighs so little.
+The August refresh of the corpus **widened that gap instead of closing it**. In
+the previous measurement the two were nearly tied (2.15 against 2.01); now
+Crustle costs half again what Marnie does. Nothing about the agent changed
+between the two runs — the field did. Crustle grew from 8.7% to 10.0% while
+Marnie fell from 43.4% to 39.0%, so the archetype we win least is also the one
+gaining ground.
+
+**Ogerpon Verde is the second real hole** (89.5%), invisible in a
+winrate-sorted list because it weighs so little — though it is weighing more
+every month: 4.2% in the previous corpus, 8.3% in this one, which doubled its
+ladder cost even as the matchup itself improved by four points.
 
 **Winrate alone stops resolving once it saturates.** Above ~94% the generic
 opponent bot is the limiting factor. The **prize differential** keeps
 discriminating there, because a game can be won without taking all six prizes —
 it measures something else, not a disguised winrate.
 
-**Zero forfeits in 35,600 games** means the agent never crashed and never chose
+**Zero forfeits in 37,200 games** means the agent never crashed and never chose
 an illegal option against any real list.
+
+**The meta is measured almost whole.** The screening admitted all 93 unique
+lists this time, so the weighted figure covers 99.8% of the field instead of the
+98.8% of the previous corpus. When a list is rejected the average is quietly
+computed over a hole; there is effectively no hole now.
 
 ## Cards we deliberately do not model
 
@@ -112,6 +127,12 @@ A card-by-card audit of the top archetypes (August 2026) found:
   stops effects, not damage. The matchup is hard by construction.
 - **Cynthia's Roserade** was reviewed and skipped: the archetype is ~5% of the
   meta and we already win 97.6% of it with a +4.61 prize differential.
+- **Comet Punch** (Team Rocket's Kangaskhan ex) flips four coins for 30 each.
+  Left out with the rest of the coin flips: the expected value is computable,
+  the damage is not. Its three companions from the same corpus refresh — Mega
+  Symphonia, Verdant Storm and Buddy Blast — *were* implemented, because their
+  scale is sitting on the board where the agent can read it. See
+  `ptcg/cards/op_scaling.py`.
 
 > One method note worth keeping: searching for a card ID inside the source gives
 > **false negatives** — card IDs and attack IDs are different namespaces, and a

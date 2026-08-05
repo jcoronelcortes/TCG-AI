@@ -115,7 +115,7 @@ turns are dumped as replayable observations.
 | Tool | Purpose |
 | --- | --- |
 | `download_competitor_decks.py` | Downloads the exact 60-card lists of the top leaderboard competitors from their public replays. Resumable. `--top 100` |
-| `real_opponents.py` | Turns those lists into *measurable* opponents: deduplicates them (100 decks are ~39 unique lists), keeps each one's meta weight, and screens out lists the generic bot cannot pilot — an unpilotable list measures the bot getting stuck, not the matchup, and returns a falsely high winrate. |
+| `real_opponents.py` | Turns those lists into *measurable* opponents: deduplicates them (300 decks are ~93 unique lists), keeps each one's meta weight, and screens out lists the generic bot cannot pilot — an unpilotable list measures the bot getting stuck, not the matchup, and returns a falsely high winrate. |
 | `build_meta_decks.py` | Hand-built synthetic archetype decks, for mechanics the real meta does not currently offer. |
 | `cosechar_deck_opponent.py` | Rebuilds a plausible 60-card opponent list from what was visible in local game records. |
 | `op_scaling_census.py` | Audits `ptcg/cards/op_scaling.py` against every opposing deck in the repo: which attacks scale with the board rather than doing their printed damage, which of them the agent reads, and which are missing. The suite runs it as a gate — a new deck that brings an unread one is invisible in a game, because the agent does not crash, it just walks into the hit. `--unmodelled` |
