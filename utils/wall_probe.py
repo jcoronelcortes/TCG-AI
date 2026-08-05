@@ -81,7 +81,7 @@ def play(m, opponent_deck, games, dump, target_path):
     from cg import game
 
     summary = Counter()
-    secos = []
+    dry_turns = []
     for i in range(games):
         asiento = i % 2
         d0 = sp.read_deck() if asiento == 0 else opponent_deck
@@ -102,8 +102,8 @@ def play(m, opponent_deck, games, dump, target_path):
                         # It closes the previous turn before opening the new one.
                         if state is not None:
                             summary[state["desenlace"]] += 1
-                            if state["desenlace"] == "seco" and len(secos) < dump:
-                                secos.append(state["obs"])
+                            if state["desenlace"] == "seco" and len(dry_turns) < dump:
+                                dry_turns.append(state["obs"])
                         current_turn = turn
                         state = ({"desenlace": "seco", "obs": obs}
                                   if _califica(m, obs, asiento) else None)
@@ -125,17 +125,17 @@ def play(m, opponent_deck, games, dump, target_path):
                 steps += 1
             if state is not None:
                 summary[state["desenlace"]] += 1
-                if state["desenlace"] == "seco" and len(secos) < dump:
-                    secos.append(state["obs"])
+                if state["desenlace"] == "seco" and len(dry_turns) < dump:
+                    dry_turns.append(state["obs"])
         finally:
             game.battle_finish()
 
-    if secos:
+    if dry_turns:
         target_path.mkdir(parents=True, exist_ok=True)
-        for n, o in enumerate(secos, start=1):
+        for n, o in enumerate(dry_turns, start=1):
             (target_path / f"seco_{n:03d}.json").write_text(
                 json.dumps({"observation": o}, ensure_ascii=False), encoding="utf-8")
-    return summary, len(secos)
+    return summary, len(dry_turns)
 
 
 def main(argv):

@@ -129,15 +129,15 @@ def _play(obs, choice):
     o = obs["select"]["option"][choice[0]]
     tipo = o["type"]
     yo = obs["current"]["yourIndex"]
-    jugador = obs["current"]["players"][yo]
+    player = obs["current"]["players"][yo]
     if tipo == int(m.OptionType.PLAY):
-        return ("PLAY", jugador["hand"][o["index"]]["id"])
+        return ("PLAY", player["hand"][o["index"]]["id"])
     if tipo == int(m.OptionType.ABILITY):
-        zona = (jugador["active"] if o["area"] == int(m.AreaType.ACTIVE)
-                else jugador["bench"])
+        zona = (player["active"] if o["area"] == int(m.AreaType.ACTIVE)
+                else player["bench"])
         return ("ABILITY", zona[o["index"]]["id"])
     if tipo == int(m.OptionType.ATTACH):
-        return ("ATTACH", jugador["hand"][o["index"]]["id"])
+        return ("ATTACH", player["hand"][o["index"]]["id"])
     if tipo == int(m.OptionType.ATTACK):
         return ("ATTACK", o.get("attackId"))
     if tipo == int(m.OptionType.RETREAT):
@@ -203,17 +203,17 @@ def test_full_turn_the_ultra_ball_leaves_the_fezandipiti_pending():
     sets `_ub_fez_pending`, and the next menu PLAYS it (before, the
     Stamp was played and the body went back into the deck)."""
     menus = _menus_of_the_record()
-    elecciones = []
+    choices = []
     for obs in menus[:6]:
-        elecciones.append((obs["select"]["context"], m.agent(obs)))
+        choices.append((obs["select"]["context"], m.agent(obs)))
     # menu 4 = the Ultra Ball's selection (TO_HAND context): it searches for Fezandipiti.
     ub = menus[4]
-    idx = elecciones[4][1][0]
+    idx = choices[4][1][0]
     assert ub["select"]["effect"]["id"] == m.Ultra_Ball
     assert ub["select"]["deck"][ub["select"]["option"][idx]["index"]]["id"] == FEZ
     assert m._ub_fez_pending is True
     # menu 5 = the next main menu: the body goes down.
-    assert _play(menus[5], elecciones[5][1]) == ("PLAY", FEZ)
+    assert _play(menus[5], choices[5][1]) == ("PLAY", FEZ)
 
 
 # ---------------------------------------------------------------------------

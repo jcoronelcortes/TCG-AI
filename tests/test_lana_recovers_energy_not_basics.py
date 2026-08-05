@@ -306,7 +306,7 @@ def test_unplayable_does_not_apply_to_what_is_not_a_pokemon():
 # ---------------------------------------------------------------------------
 
 def _seleccion_lana(active, bench, discard, hand=(), energy_played=False):
-    obs = (Escenario(turn=10, partidario_jugado=True,
+    obs = (Escenario(turn=10, supporter_played=True,
                      energy_played=energy_played)
            .my_active(active)
            .my_bench(*bench)

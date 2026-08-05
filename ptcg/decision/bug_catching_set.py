@@ -92,38 +92,38 @@ class _CtxBCS:
         for cid, states in ctx.cards_in_deck.items():
             if states[ZONE_DECK] <= 0:
                 continue
-            copias = states[ZONE_DECK]
+            copies = states[ZONE_DECK]
             cdata = card_table.get(cid)
             if cid == Basic_Grass_Energy:
-                energy += copias
+                energy += copies
             elif cdata and cdata.cardType == CardType.POKEMON:
                 if cdata.energyType == EnergyType.GRASS:
-                    grass += copias
+                    grass += copies
                     if (cid == Meganium and not ctx.meganium_in_play
                             and (f.get(Bayleef, 0) >= 1
                                  or f.get(Chikorita, 0) >= 1)):
-                        high_value += copias
+                        high_value += copies
                     elif (cid == Hydrapple_ex and not ctx.has_hydrapple
                             and (f.get(Dipplin, 0) >= 1
                                  or f.get(Applin, 0) >= 1)):
-                        high_value += copias
+                        high_value += copies
                     elif (cid == Bayleef and not ctx.meganium_in_play
                             and f.get(Chikorita, 0) >= 1):
-                        high_value += copias
+                        high_value += copies
                     elif (cid == Dipplin and not ctx.has_hydrapple
                             and f.get(Applin, 0) >= 1):
-                        high_value += copias
+                        high_value += copies
                     elif (cid == Chikorita and not ctx.meganium_in_play
                             and f.get(Chikorita, 0) + f.get(Bayleef, 0)
                                 + f.get(Meganium, 0) == 0):
-                        high_value += copias
+                        high_value += copies
                     elif (cid == Applin and not ctx.has_hydrapple
                             and f.get(Applin, 0) + f.get(Dipplin, 0)
                                 + f.get(Hydrapple_ex, 0) == 0):
-                        high_value += copias
+                        high_value += copies
                     elif (cid == Teal_Mask_Ogerpon_ex
                             and f.get(Teal_Mask_Ogerpon_ex, 0) < 2):
-                        high_value += copias
+                        high_value += copies
         self.energy_in_deck = energy
         self.elegibles = grass + energy
         self.high_value = high_value

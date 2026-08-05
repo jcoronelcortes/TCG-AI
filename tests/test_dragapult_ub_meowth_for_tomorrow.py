@@ -157,11 +157,11 @@ def _campo(esc, fez_energies=0, extra_hand=()):
 # measures something else. In the fetch menu it can be there: the hand is not offered there.
 def _menu_main(fez_energies=0, hand=(GRASS, GRASS, GRASS, BOSS, BOSS,
                                      ULTRA_BALL, FOREST),
-               op_generico=False, partidario_jugado=True):
+               op_generico=False, supporter_played=True):
     """Menu A: the MAIN of step 17 (the turn's energy already attached)."""
     esc = Escenario(turn=TURN, step=17, tac=6, first_player=1,
                     energy_played=True,
-                    partidario_jugado=partidario_jugado)
+                    supporter_played=supporter_played)
     esc = _campo(esc, fez_energies=fez_energies)
     if op_generico:
         # CONTROL: the same board with no piece threatening to block
@@ -179,7 +179,7 @@ def _menu_main(fez_energies=0, hand=(GRASS, GRASS, GRASS, BOSS, BOSS,
 def _menu_fetch():
     """Menu B: the fetch of the Ultra Ball just played."""
     esc = Escenario(turn=TURN, step=18, tac=7, first_player=1,
-                    energy_played=True, partidario_jugado=True)
+                    energy_played=True, supporter_played=True)
     return (_campo(esc)
             .my_hand(GRASS, BOSS, BOSS, MEGANIUM, FOREST)
             .deck(MEOWTH, LILLIE, BAYLEEF, OGERPON, APPLIN)
@@ -250,7 +250,7 @@ def test_control_with_an_attacker_one_energy_away_the_ultra_ball_is_kept():
 
 def test_control_with_a_lillie_in_hand_there_is_nothing_to_dig():
     obs = _menu_main(hand=(GRASS, GRASS, BOSS, LILLIE, ULTRA_BALL, FOREST),
-                     partidario_jugado=False)
+                     supporter_played=False)
     assert _play(obs, m.agent(obs)) != ("PLAY", ULTRA_BALL), (
         "el Meowth ex vale por la Lillie's que busca; con la Lillie's ya en "
         "la mano el rodeo no compra nada")

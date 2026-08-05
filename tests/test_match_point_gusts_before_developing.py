@@ -114,10 +114,10 @@ def _idx_play(obs, card_id):
 def test_the_mate_existed_two_bench_bodies_died_to_the_current_energy():
     obs = m.to_observation_class(_fixture())
     st = obs.current
-    yo, rival = st.players[1], st.players[0]
+    yo, opponent = st.players[1], st.players[0]
 
     assert len(yo.prize) == 1, "nos faltaba UN premio"
-    assert len(rival.prize) == 1, "al rival tambien: match point mutuo"
+    assert len(opponent.prize) == 1, "al rival tambien: match point mutuo"
 
     ogerpon = yo.active[0]
     assert ogerpon.id == OGERPON and len(ogerpon.energies) == 4
@@ -127,7 +127,7 @@ def test_the_mate_existed_two_bench_bodies_died_to_the_current_energy():
     total_grass = sum(len(p.energies) for p in (yo.active + yo.bench)
                       if p is not None)
     letales = []
-    for cuerpo in rival.bench:
+    for cuerpo in opponent.bench:
         if cuerpo is None:
             continue
         base = m._attacker_base_damage(
@@ -144,7 +144,7 @@ def test_the_mate_existed_two_bench_bodies_died_to_the_current_energy():
     # And the rival ACTIVE was NOT lethal: 30 + 30 x (4+2) = 210 < 330. That is
     # why the turn had to go through the bench, and why the agent's line needed
     # eight energies to work.
-    opa = rival.active[0]
+    opa = opponent.active[0]
     assert m._attacker_base_damage(
         ogerpon.id, opa, len(ogerpon.energies), grass_scale=total_grass,
         teal_self_energy=len(ogerpon.energies),

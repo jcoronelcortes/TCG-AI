@@ -112,12 +112,12 @@ def _play(obs, choice):
     o = obs["select"]["option"][choice[0]]
     tipo = o["type"]
     yo = obs["current"]["yourIndex"]
-    jugador = obs["current"]["players"][yo]
+    player = obs["current"]["players"][yo]
     if tipo == int(m.OptionType.PLAY):
-        return ("PLAY", jugador["hand"][o["index"]]["id"])
+        return ("PLAY", player["hand"][o["index"]]["id"])
     if tipo == int(m.OptionType.ABILITY):
-        zona = (jugador["active"] if o["area"] == int(m.AreaType.ACTIVE)
-                else jugador["bench"])
+        zona = (player["active"] if o["area"] == int(m.AreaType.ACTIVE)
+                else player["bench"])
         return ("ABILITY", zona[o["index"]]["id"])
     if tipo == int(m.OptionType.ATTACK):
         return ("ATTACK", o.get("attackId"))

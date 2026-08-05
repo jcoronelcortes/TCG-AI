@@ -97,8 +97,8 @@ def amplificar(conteo_visto, tabla):
         if tipo == int(CardType.BASIC_ENERGY):
             basicas[cid] = visto
         else:
-            copias = 1 if getattr(data, "aceSpec", False) else 4
-            deck.extend([cid] * copias)
+            copies = 1 if getattr(data, "aceSpec", False) else 4
+            deck.extend([cid] * copies)
     if len(deck) > 60:
         raise SystemExit(
             f"la amplificacion x4 produce {len(deck)} cartas (>60): recorta "

@@ -125,11 +125,11 @@ def describir_opcion(m, obs, idx):
                 return f"CARTA {_name(m, sel['deck'][o['index']]['id'])}"
             if area == 2 and me.get("hand"):
                 return f"CARTA {_name(m, me['hand'][o['index']]['id'])}"
-            jugador = obs["current"]["players"][o.get("playerIndex", 0)]
-            if area == 4 and jugador["active"]:
-                return f"CARTA {_name(m, jugador['active'][0]['id'])}"
+            player = obs["current"]["players"][o.get("playerIndex", 0)]
+            if area == 4 and player["active"]:
+                return f"CARTA {_name(m, player['active'][0]['id'])}"
             if area == 5:
-                return f"CARTA {_name(m, jugador['bench'][o['index']]['id'])}"
+                return f"CARTA {_name(m, player['bench'][o['index']]['id'])}"
             return f"CARTA a{area} i{o.get('index')}"
         if t == 8:  # ATTACH: a target in play
             if o.get("inPlayArea") == 4:
@@ -173,15 +173,15 @@ def our_index(data):
                 asiento = cur.get("yourIndex")
                 if asiento in (0, 1):
                     decide[asiento] += 1
-            for idx, jugador in enumerate(cur.get("players", [])):
+            for idx, player in enumerate(cur.get("players", [])):
                 vistas = []
-                for pk in (jugador.get("active") or []) + (
-                        jugador.get("bench") or []):
+                for pk in (player.get("active") or []) + (
+                        player.get("bench") or []):
                     if pk:
                         vistas.append(pk.get("id"))
-                for card in (jugador.get("discard") or []):
+                for card in (player.get("discard") or []):
                     vistas.append(card.get("id"))
-                for card in (jugador.get("hand") or []):
+                for card in (player.get("hand") or []):
                     vistas.append(card.get("id"))
                 votos[idx] += sum(1 for cid in vistas if cid in deck)
     elegido = 0 if votos[0] >= votos[1] else 1

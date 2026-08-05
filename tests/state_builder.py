@@ -102,14 +102,14 @@ def _como_spec(x):
 class Escenario:
 
     def __init__(self, turn=2, step=1, tac=0, first_player=0,
-                 energy_played=False, partidario_jugado=False,
+                 energy_played=False, supporter_played=False,
                  stadium_played=False, retirado=False, own_prizes=None):
         self._turn = turn
         self._step = step
         self._tac = tac
         self._first_player = first_player
         self._energy_played = energy_played
-        self._partidario_jugado = partidario_jugado
+        self._partidario_jugado = supporter_played
         self._stadium_played = stadium_played
         self._retirado = retirado
         self._n_prizes = (_DEFAULT_PRIZES if own_prizes is None
@@ -265,7 +265,7 @@ class Escenario:
     # ------------------------------------------------------------------
     # Selects
     # ------------------------------------------------------------------
-    def fetch_ultra_ball(self, candidatos=None):
+    def fetch_ultra_ball(self, candidates=None):
         """The Ultra Ball's TO_HAND select over the visible deck.
 
         candidatos: eligible ids; by default, ALL the Pokemon in the deck
@@ -278,8 +278,8 @@ class Escenario:
         self._efecto = self._tomar(ULTRA_BALL, "efecto (Ultra Ball en juego)")
 
         def es_candidato(cid):
-            if candidatos is not None:
-                return cid in candidatos
+            if candidates is not None:
+                return cid in candidates
             data = _CARD_TABLE.get(cid)
             return data is not None and data.cardType == CardType.POKEMON
 

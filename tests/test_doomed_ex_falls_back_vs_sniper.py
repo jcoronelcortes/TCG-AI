@@ -79,7 +79,7 @@ def _turn_close(opponent_active="grimmsnarl", hp_ogerpon=30):
         opponent_act, opponent_bench = morgrem, grimm
 
     esc = (Escenario(turn=4, step=55, tac=8, first_player=1,
-                     partidario_jugado=True)
+                     supporter_played=True)
            .my_active(pk(m.Teal_Mask_Ogerpon_ex, hp=hp_ogerpon,
                          energies=[G], fisicas=1))
            .my_bench(pk(m.Meowth_ex),

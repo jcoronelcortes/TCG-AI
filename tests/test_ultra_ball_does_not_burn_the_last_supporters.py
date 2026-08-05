@@ -159,7 +159,7 @@ def _scenario(hand, supporter_played=True):
     hand, which is what these cases measure.
     """
     return (Escenario(turn=4, step=16, tac=3, first_player=1,
-                      partidario_jugado=supporter_played)
+                      supporter_played=supporter_played)
             .my_active(pk(TAPU))
             .my_bench(pk(TAPU), pk(OGERPON))
             .my_hand(*hand)

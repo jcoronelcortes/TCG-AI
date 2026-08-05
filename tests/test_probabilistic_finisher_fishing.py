@@ -339,7 +339,7 @@ def test_successful_fishing_turns_into_an_attack():
     """Closing the loop: with the 3 energies already placed (the fishing came off) and the
     hand empty, the 30 HP Ogerpon ex ATTACKS -- it neither retreats nor closes the turn."""
     esc = (Escenario(turn=4, step=49, tac=6, first_player=1,
-                     energy_played=True, partidario_jugado=True)
+                     energy_played=True, supporter_played=True)
            .my_active(pk(OGERPON, hp=30, energies=[G, G, G], fisicas=3))
            .my_bench(pk(m.Meowth_ex),
                      pk(m.Fezandipiti_ex, hp=180, energies=[G], fisicas=1),

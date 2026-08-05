@@ -175,7 +175,7 @@ def _promotion(hand, bench=(CHIKORITA, APPLIN, OGERPON)):
     """The SWITCH prompt right after retreating the doomed Meowth ex, with the
     board of the record: a charged Riolu in front and nothing ready to attack."""
     return (Escenario(turn=2, step=25, tac=10, first_player=1,
-                      energy_played=True, partidario_jugado=True)
+                      energy_played=True, supporter_played=True)
             .my_active(pk(MEOWTH, energies=[G]))
             .my_bench(*[b if isinstance(b, dict)
                         else pk(b, energies=[G]) if b == OGERPON else pk(b)
@@ -222,7 +222,7 @@ def test_the_two_prize_ogerpon_is_never_the_one_that_goes_up():
 
 def _main_menu(op_active, my_bench=(CHIKORITA, APPLIN), hand=(DIPPLIN, GRASS)):
     return (Escenario(turn=2, step=25, tac=10, first_player=1,
-                      energy_played=True, partidario_jugado=True)
+                      energy_played=True, supporter_played=True)
             .my_active(pk(MEOWTH, energies=[G]))
             .my_bench(*[pk(b) if not isinstance(b, dict) else b
                         for b in my_bench])

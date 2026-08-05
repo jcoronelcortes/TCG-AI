@@ -301,7 +301,7 @@ def _escenario_88631738(active=None, hand=(GRASS, GRASS, ULTRA_BALL),
                         energy_played=True):
     active = active if active is not None else pk(MEOWTH, hp=50)
     return (Escenario(turn=8, step=77, energy_played=energy_played,
-                      partidario_jugado=True)
+                      supporter_played=True)
             .my_active(active)
             .my_bench(pk(OGERPON, energies=[G] * 4, fisicas=2),
                       pk(HYDRAPPLE, hp=280, energies=[G] * 4, fisicas=2),

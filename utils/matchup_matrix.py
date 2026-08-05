@@ -115,7 +115,7 @@ def _carries_card(path, card_id):
         return False
 
 
-def informe_control(filas, base_by_deck, paths, card_id):
+def informe_control(rows, base_by_deck, paths, card_id):
     """Separates the AFFECTED decks (those with the card) from the CONTROL and compares their deltas.
 
     It is the only cheap way to know whether a delta is signal: the decks that do NOT
@@ -129,7 +129,7 @@ def informe_control(filas, base_by_deck, paths, card_id):
     """
     by_name = {r.stem: r for r in paths}
     with_card, without_card = [], []
-    for f in filas:
+    for f in rows:
         if f["deck"] not in base_by_deck:
             continue
         delta = f["wr"] - base_by_deck[f["deck"]]["wr"]
@@ -161,23 +161,23 @@ def informe_control(filas, base_by_deck, paths, card_id):
           "the control runs identical code in both arms.")
 
 
-def winrate_ponderado(filas, weights):
+def winrate_ponderado(rows, weights):
     """(expected ladder winrate, measured meta coverage).
 
     The winrate is normalised over what was ACTUALLY measured, and the coverage is
     returned separately: a number over 60% of the meta is not comparable with one
     over 100%, and hiding that would be the very error this metric exists to correct.
     """
-    cobertura = sum(weights.get(f["deck"], 0.0) for f in filas)
+    cobertura = sum(weights.get(f["deck"], 0.0) for f in rows)
     if cobertura <= 0:
         return None, 0.0
-    total = sum(weights.get(f["deck"], 0.0) * f["wr"] for f in filas)
+    total = sum(weights.get(f["deck"], 0.0) * f["wr"] for f in rows)
     return total / cobertura, cobertura
 
 
 def medir(agent_state, games, paths):
     bot = BotRival()
-    filas = []
+    rows = []
     for path in paths:
         opponent_deck = sp.read_deck(path)
         stats = sp.torneo(agent_state, bot, games, deck_base=opponent_deck)
@@ -185,7 +185,7 @@ def medir(agent_state, games, paths):
         wr = stats["candidate"] / dec if dec else 0.0
         lo, hi = sp.wilson_95(stats["candidate"], dec)
         pc, pb, prize_diff = sp.prizes_per_game(stats)
-        filas.append({
+        rows.append({
             "deck": path.stem, "wr": wr, "lo": lo, "hi": hi,
             "decididas": dec, "limites": stats["limites"],
             "forfeits": stats["errores_candidato"],
@@ -196,7 +196,7 @@ def medir(agent_state, games, paths):
         print(f"  {path.stem}: {100 * wr:.1f}% "
               f"[{100 * lo:.1f}-{100 * hi:.1f}]{extra} "
               f"(forfeits nuestros {stats['errores_candidato']})", flush=True)
-    return filas
+    return rows
 
 
 def main(argv):
@@ -247,7 +247,7 @@ def main(argv):
 
     agent_state = sp.load_agent(_ROOT / args.candidate, "agente_matriz")
     print(f"candidato={args.candidate}, {args.games} games per matchup")
-    filas = medir(agent_state, args.games, paths)
+    rows = medir(agent_state, args.games, paths)
 
     base_by_deck = {}
     if args.base:
@@ -256,11 +256,11 @@ def main(argv):
         base_by_deck = {f["deck"]: f for f in
                          medir(base, args.games, paths)}
 
-    without_weight = [f["deck"] for f in filas if f["deck"] not in weights] if weights else []
+    without_weight = [f["deck"] for f in rows if f["deck"] not in weights] if weights else []
 
     print("\n=== MATCHUP MATRIX (worst -> best) ===")
-    width = max(len(f["deck"]) for f in filas)
-    for f in sorted(filas, key=lambda x: x["wr"]):
+    width = max(len(f["deck"]) for f in rows)
+    for f in sorted(rows, key=lambda x: x["wr"]):
         line = (f"{f['deck']:<{width}}  {100 * f['wr']:5.1f}%  "
                  f"[{100 * f['lo']:.1f}-{100 * f['hi']:.1f}]"
                  f"  n={f['decididas']}")
@@ -281,18 +281,18 @@ def main(argv):
             if f["dif_premios"] is not None and base_prem is not None:
                 line += f"  dprem={f['dif_premios'] - base_prem:+.2f}"
         print(line)
-    worst = min(filas, key=lambda x: x["wr"])
+    worst = min(rows, key=lambda x: x["wr"])
     print(f"\nMatchup mas debil: {worst['deck']} ({100 * worst['wr']:.1f}%)")
 
     if args.control_card is not None and base_by_deck:
-        informe_control(filas, base_by_deck, paths, args.control_card)
+        informe_control(rows, base_by_deck, paths, args.control_card)
     elif args.control_card is not None:
         print("\n(--control-card needs --base: with no baseline there are no "
               "deltas to split)")
 
     if weights:
-        wr_pond, cobertura = winrate_ponderado(filas, weights)
-        media = sum(f["wr"] for f in filas) / len(filas)
+        wr_pond, cobertura = winrate_ponderado(rows, weights)
+        media = sum(f["wr"] for f in rows) / len(rows)
         print("\n=== EXPECTED LADDER WINRATE (weighted by meta share) ===")
         if wr_pond is None:
             print("no coverage: none of the measured decks carries a weight")
@@ -306,7 +306,7 @@ def main(argv):
         # This orders by ladder points lost, which is where it is worth
         # investing the effort.
         sangria = [t for t in sorted(
-            ((weights.get(f["deck"], 0.0) * (1 - f["wr"]), f) for f in filas),
+            ((weights.get(f["deck"], 0.0) * (1 - f["wr"]), f) for f in rows),
             key=lambda t: -t[0],
         )[:3] if t[0] > 0]
         if sangria:
@@ -322,7 +322,7 @@ def main(argv):
         # The weighted prize differential: the metric with resolution. The
         # winrate against the bot is saturated (>93%) and cannot arbitrate a
         # change; the prizes do grade it.
-        prem = [f for f in filas if f["dif_premios"] is not None]
+        prem = [f for f in rows if f["dif_premios"] is not None]
         if prem:
             cob_p = sum(weights.get(f["deck"], 0.0) for f in prem)
             if cob_p > 0:
@@ -334,7 +334,7 @@ def main(argv):
                       "resolution where the winrate no longer does)")
 
         if base_by_deck:
-            filas_base = [base_by_deck[f["deck"]] for f in filas
+            filas_base = [base_by_deck[f["deck"]] for f in rows
                           if f["deck"] in base_by_deck]
             wr_base, _ = winrate_ponderado(filas_base, weights)
             if wr_base is not None:

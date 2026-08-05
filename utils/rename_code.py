@@ -520,6 +520,17 @@ def cmd_verify(renames, in_strings, in_modules, files):
 
 
 def main():
+    # Python 3.12 is where PEP 701 made the interpolations inside an f-string
+    # ordinary tokens. Before that the whole f-string is ONE token, so this
+    # renamer cannot see into it and leaves `f"{old_name}"` behind while
+    # renaming the assignment above it -- code that imports fine and raises
+    # NameError when the line runs. `verify` does catch it, but only if it is
+    # run; refusing outright is cheaper than trusting that it was.
+    if sys.version_info < (3, 12):
+        print(f"ERROR: this tool needs Python 3.12+ (running {sys.version.split()[0]}). "
+              "Below that, names inside f-strings are invisible to it and the "
+              "rename comes out half-applied.", file=sys.stderr)
+        return 2
     if len(sys.argv) < 3:
         print(__doc__)
         return 2

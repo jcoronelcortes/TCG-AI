@@ -219,15 +219,15 @@ def analizar(main_py=None):
                         or free in movibles or free == name or free in const_main):
                     continue
                 if free in mutables:
-                    motivo = f"estado mutable `{free}`"
+                    reason = f"estado mutable `{free}`"
                 elif free in RUNTIME:
-                    motivo = f"runtime `{free}`"
+                    reason = f"runtime `{free}`"
                 elif free in definiciones:
-                    motivo = f"definicion bloqueada `{free}`"
+                    reason = f"definicion bloqueada `{free}`"
                 else:
-                    motivo = f"desconocido `{free}`"
+                    reason = f"desconocido `{free}`"
                 movibles.discard(name)
-                razon[name] = motivo
+                razon[name] = reason
                 cambio = True
                 break
 

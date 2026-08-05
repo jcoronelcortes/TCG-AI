@@ -110,20 +110,20 @@ class BotRival:
     def _pokemon_de(self, obs, opcion, own_index=None):
         """The Pokemon `opcion` points at, or None if the option does not point at one."""
         cur = obs.get("current") or {}
-        jugadores = cur.get("players") or []
+        players = cur.get("players") or []
         pi = opcion.get("playerIndex")
         if pi is None:
             pi = own_index
-        if pi is None or pi >= len(jugadores):
+        if pi is None or pi >= len(players):
             return None
-        jugador = jugadores[pi] or {}
+        player = players[pi] or {}
         area = opcion.get("area")
         idx = opcion.get("index") or 0
         try:
             if area == int(AreaType.ACTIVE):
-                pk = (jugador.get("active") or [None])[0]
+                pk = (player.get("active") or [None])[0]
             elif area == int(AreaType.BENCH):
-                pk = (jugador.get("bench") or [])[idx]
+                pk = (player.get("bench") or [])[idx]
             else:
                 return None
         except (IndexError, TypeError):
@@ -249,12 +249,12 @@ class BotRival:
         if ataques:
             cur = obs.get("current") or {}
             yo = cur.get("yourIndex", 0)
-            jugadores = cur.get("players") or []
+            players = cur.get("players") or []
             my_active = None
             their_active = None
-            if len(jugadores) > max(yo, 1 - yo):
-                my_active = ((jugadores[yo] or {}).get("active") or [None])[0]
-                their_active = ((jugadores[1 - yo] or {}).get("active") or [None])[0]
+            if len(players) > max(yo, 1 - yo):
+                my_active = ((players[yo] or {}).get("active") or [None])[0]
+                their_active = ((players[1 - yo] or {}).get("active") or [None])[0]
             best = max(ataques, key=lambda i: self._effective_damage(
                 my_active, their_active, options[i].get("attackId")))
             return [best]
@@ -278,10 +278,10 @@ class BotRival:
     def _id_in_hand(self, obs, opcion):
         cur = obs.get("current") or {}
         yo = cur.get("yourIndex", 0)
-        jugadores = cur.get("players") or []
-        if yo >= len(jugadores):
+        players = cur.get("players") or []
+        if yo >= len(players):
             return None
-        hand = (jugadores[yo] or {}).get("hand") or []
+        hand = (players[yo] or {}).get("hand") or []
         idx = opcion.get("index")
         if opcion.get("area") != int(AreaType.HAND) or idx is None:
             return None
@@ -295,10 +295,10 @@ class BotRival:
         conditioned on energy still dry: that engine goes first."""
         cur = obs.get("current") or {}
         yo = cur.get("yourIndex", 0)
-        jugadores = cur.get("players") or []
+        players = cur.get("players") or []
         active = None
-        if yo < len(jugadores):
-            active = ((jugadores[yo] or {}).get("active") or [None])[0]
+        if yo < len(players):
+            active = ((players[yo] or {}).get("active") or [None])[0]
         to_active = [i for i in adjuntes
                      if options[i].get("inPlayArea") == int(AreaType.ACTIVE)]
 
@@ -354,7 +354,7 @@ class BotRival:
 
         opponents = [i for i in range(len(options))
                    if options[i].get("playerIndex") not in (None, yo)]
-        candidatos = opponents or list(range(len(options)))
+        candidates = opponents or list(range(len(options)))
 
         def key(i):
             pk = self._pokemon_de(obs, options[i], own_index=yo)
@@ -368,8 +368,8 @@ class BotRival:
             return (2, 0, -hp)
 
         k = max(1, sel.get("minCount") or 1)
-        order = sorted(candidatos, key=key)
-        return sorted(order[:min(k, len(candidatos))])
+        order = sorted(candidates, key=key)
+        return sorted(order[:min(k, len(candidates))])
 
     # -- who goes to the active spot ----------------------------------------
 
@@ -385,15 +385,15 @@ class BotRival:
         """
         cur = obs.get("current") or {}
         yo = cur.get("yourIndex", 0)
-        jugadores = cur.get("players") or []
+        players = cur.get("players") or []
         k = max(1, sel.get("minCount") or 1)
 
         opponents = [i for i in range(len(options))
                    if options[i].get("playerIndex") not in (None, yo)]
         if opponents:
             my_active = None
-            if yo < len(jugadores):
-                my_active = ((jugadores[yo] or {}).get("active") or [None])[0]
+            if yo < len(players):
+                my_active = ((players[yo] or {}).get("active") or [None])[0]
 
             def gust_key(i):
                 pk = self._pokemon_de(obs, options[i])

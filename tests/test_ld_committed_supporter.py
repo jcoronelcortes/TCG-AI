@@ -123,9 +123,9 @@ def _play(obs, choice):
     o = obs["select"]["option"][choice[0]]
     tipo = o["type"]
     yo = obs["current"]["yourIndex"]
-    jugador = obs["current"]["players"][yo]
+    player = obs["current"]["players"][yo]
     if tipo == int(m.OptionType.PLAY):
-        return ("PLAY", jugador["hand"][o["index"]]["id"])
+        return ("PLAY", player["hand"][o["index"]]["id"])
     if tipo == int(m.OptionType.CARD):
         if o.get("area") == int(m.AreaType.DECK) and obs["select"].get("deck"):
             return ("CARTA", obs["select"]["deck"][o["index"]]["id"])

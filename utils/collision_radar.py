@@ -42,8 +42,8 @@ import autopsy as au
 from cg.api import OptionType
 
 
-def _act(jugador):
-    a = jugador.get("active") or []
+def _act(player):
+    a = player.get("active") or []
     return a[0] if a and a[0] else None
 
 
@@ -346,18 +346,18 @@ def main(argv):
         querer = {s.strip() for s in args.only.split(",")}
         decks = [p for p in decks if p.stem in querer]
 
-    filas = {}
+    rows = {}
     for path in decks:
         deck = sp.read_deck(path)
-        filas[path.stem] = radar(agent_state, deck, args.games)
+        rows[path.stem] = radar(agent_state, deck, args.games)
         print(f"  {path.stem}: hecho", flush=True)
 
     names = [n for n, _ in SITUACIONES]
-    width = max(len(k) for k in filas) if filas else 10
+    width = max(len(k) for k in rows) if rows else 10
     print(f"\n=== COLLISION RADAR (n={args.games}/deck) ===")
     print("RESOLUTION rate per situation; (n) = how often the situation applies")
     print(f"{'deck':<{width}} " + "  ".join(f"{n:>18}" for n in names))
-    for deck_name, cnt in sorted(filas.items()):
+    for deck_name, cnt in sorted(rows.items()):
         celdas = []
         for n in names:
             ap_, ok = cnt[n]
@@ -370,7 +370,7 @@ def main(argv):
     print("\n--- candidates (resolution well below the median) ---")
     hubo = False
     for n in names:
-        tasas = {mz: (c[n][1] / c[n][0]) for mz, c in filas.items()
+        tasas = {mz: (c[n][1] / c[n][0]) for mz, c in rows.items()
                  if c[n][0] >= 10}
         if len(tasas) < 3:
             continue

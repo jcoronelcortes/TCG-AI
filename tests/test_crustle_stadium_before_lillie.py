@@ -79,7 +79,7 @@ def reset_main_state():
     m._init_cards_tracking()
 
 
-def _escenario(op_basico=DWEBBLE, with_lillie=True, partidario_jugado=False,
+def _escenario(op_basico=DWEBBLE, with_lillie=True, supporter_played=False,
                first_player=1):
     """Our FIRST turn going second (turn 2) with the stadium and the
     Lillie's in hand. `primer_jugador=1` = the rival went first."""
@@ -88,7 +88,7 @@ def _escenario(op_basico=DWEBBLE, with_lillie=True, partidario_jugado=False,
         hand.append(m.Lillie_Determination)
     esc = (Escenario(turn=2, step=7, tac=0,
                      first_player=first_player,
-                     partidario_jugado=partidario_jugado)
+                     supporter_played=supporter_played)
            .my_active(pk(m.Tapu_Bulu))
            .my_bench(pk(m.Applin))
            .my_hand(*hand)
@@ -153,7 +153,7 @@ def test_control_with_no_lillie_in_hand_the_veto_holds():
 def test_control_a_played_supporter_does_not_revive_the_stadium():
     # With the turn's Supporter spent, the Lillie's in hand is no longer going to be
     # played: the stadium is in no danger and the exception does not apply.
-    obs = _escenario(partidario_jugado=True)
+    obs = _escenario(supporter_played=True)
     choice = m.agent(obs)
     assert _played_card(obs, choice) != m.Forest_of_Vitality, (
         "con el Supporter ya jugado no hay barajeo pendiente: el estadio "

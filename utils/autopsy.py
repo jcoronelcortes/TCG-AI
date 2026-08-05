@@ -108,7 +108,7 @@ def play_recording(agent_state, opponent, own_deck, opponent_deck, asiento):
         game.battle_finish()
 
 
-def clasificar_derrota(obs_final, asiento, result):
+def classify_loss(obs_final, asiento, result):
     """Classifies HOW the game was lost by looking at the final observation.
 
     Modes: "premios" (the opponent completed their prizes), "bench_out" (we
@@ -129,9 +129,9 @@ def clasificar_derrota(obs_final, asiento, result):
     # The convention of the rest of the file: a None entry in prize is a
     # prize that player has STILL to take.
     op_restantes = sum(1 for p in (op.get("prize") or []) if p is None)
-    activos = [p for p in (yo.get("active") or []) if p]
+    actives = [p for p in (yo.get("active") or []) if p]
     bench = [p for p in (yo.get("bench") or []) if p]
-    if op_restantes > 0 and not activos and not bench:
+    if op_restantes > 0 and not actives and not bench:
         return "bench_out"
     if op_restantes > 0 and (yo.get("deckCount") or 0) <= 0:
         return "deckout"
@@ -206,7 +206,7 @@ def turn_census(m, decisiones):
     Traits per turn: whether we attacked, the state of the ACTIVE (attack / retreat), whether
     there is a READY attacker waiting on the bench, the energy ammunition and how it closed.
     """
-    filas = []
+    rows = []
     per_turn = {}
     for d in decisiones:
         per_turn.setdefault(d["obs"]["current"]["turn"], []).append(d)
@@ -289,7 +289,7 @@ def turn_census(m, decisiones):
             == int(OptionType.ATTACK)
             for d in mains if d["eleccion"])
 
-        filas.append({
+        rows.append({
             "turno": turn,
             "selects": len(mains),
             "ataco": ataco,
@@ -315,11 +315,11 @@ def turn_census(m, decisiones):
             "supporter_gastado": bool(cur.get("supporterPlayed")),
             "mis_premios": sum(1 for p in (yo.get("prize") or []) if p is None),
         })
-    return filas
+    return rows
 
 
 def detectar(m, decisiones):
-    hallazgos = []
+    findings = []
 
     # group decisions by our own turn
     per_turn = {}
@@ -353,7 +353,7 @@ def detectar(m, decisiones):
                     my_prizes = sum(1 for p in yo.get("prize") or []
                                       if p is None)
                     gana = m.prize_count(opa) >= my_prizes
-                    hallazgos.append({
+                    findings.append({
                         "detector": "letal_perdido",
                         "critico": bool(gana),
                         "turno": turn, "paso": d["paso"],
@@ -390,7 +390,7 @@ def detectar(m, decisiones):
             options_without_end = sum(
                 1 for o in first["obs"]["select"]["option"]
                 if int(o.get("type", -1)) != int(OptionType.END))
-            hallazgos.append({
+            findings.append({
                 "detector": "turno_esteril",
                 "critico": False,
                 "turno": turn, "paso": first["paso"],
@@ -411,7 +411,7 @@ def detectar(m, decisiones):
                     {"paso": d["paso"], "eleccion": d["eleccion"],
                      "observation": d["obs"]} for d in mains],
             })
-    return hallazgos
+    return findings
 
 
 def census_summary(census, etiqueta):
@@ -446,12 +446,12 @@ def census_summary(census, etiqueta):
     print(f"  census [{etiqueta}]: {len(perd)} turns in losses vs "
           f"{len(gana)} in wins")
     print(f"    {'trait':40}{'loss':>9}{'win':>10}{'diff':>8}")
-    filas = []
+    rows = []
     for name, f in rasgos.items():
         pp = 100 * sum(1 for x in perd if f(x)) / len(perd)
         pg = 100 * sum(1 for x in gana if f(x)) / len(gana)
-        filas.append((pp - pg, name, pp, pg))
-    for dif, name, pp, pg in sorted(filas, reverse=True):
+        rows.append((pp - pg, name, pp, pg))
+    for dif, name, pp, pg in sorted(rows, reverse=True):
         print(f"    {name:40}{pp:8.1f}%{pg:9.1f}%{dif:+8.1f}")
     # Jam streaks: a single stuck turn is noise; a long streak is
     # a whole game played from behind a wall of our own making.
@@ -493,7 +493,7 @@ def autopsy(opponent_csv, games, mirror=False, target_path=None, censar=False):
         etiqueta = Path(opponent_csv).stem
 
     marcador = Counter()
-    modos = Counter()
+    modes = Counter()
     total_findings = []
     mode_per_game = {}
     census = []
@@ -513,9 +513,9 @@ def autopsy(opponent_csv, games, mirror=False, target_path=None, censar=False):
         # the interesting failure mode), as well as losses and forfeits.
         if result not in ("pierde", "forfeit", "limite"):
             continue
-        modo = clasificar_derrota(obs_final, asiento=i % 2,
+        modo = classify_loss(obs_final, asiento=i % 2,
                                   result=result)
-        modos[modo] += 1
+        modes[modo] += 1
         mode_per_game[i] = modo
         for h in detectar(m, decisiones):
             h["partida"] = i
@@ -537,8 +537,8 @@ def autopsy(opponent_csv, games, mirror=False, target_path=None, censar=False):
             ensure_ascii=False, indent=1))
 
     print(f"[{etiqueta}] {dict(marcador)}")
-    if modos:
-        print(f"  loss mode: {dict(modos.most_common())}")
+    if modes:
+        print(f"  loss mode: {dict(modes.most_common())}")
     summary = Counter((h["detector"], h["critico"]) for h in total_findings)
     for (det, critico), n in summary.most_common():
         print(f"  {det}{' CRITICO' if critico else ''}: {n} "

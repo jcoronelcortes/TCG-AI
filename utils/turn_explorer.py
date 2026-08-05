@@ -61,8 +61,8 @@ def _op(obs):
 
 
 def _pokes(j):
-    activos = [p for p in (j.get("active") or []) if p]
-    return activos + [p for p in (j.get("bench") or []) if p]
+    actives = [p for p in (j.get("active") or []) if p]
+    return actives + [p for p in (j.get("bench") or []) if p]
 
 
 def _firma(obs):
@@ -464,13 +464,13 @@ def comparar_hallazgo(path, index=0, max_nodos=MAX_NODOS):
     h = data["hallazgos"][index]
     obs = h["observation"]
     # A real autopsy finding: the simulator's menu rules at the root node.
-    puntaje, line, nodos = explore(obs, max_nodos, respetar_menu=True)
+    score, line, nodos = explore(obs, max_nodos, respetar_menu=True)
     print(f"{Path(path).name} [{h['detector']} turn {turn_of(h)}]")
     print(f"  agent in the game: {h['detalle']}")
     print(f"  best line found by the explorer ({nodos} nodos): "
           f"{' -> '.join(line)}")
-    print(f"  evaluation (wins, prizes, damage, development): {puntaje}")
-    return puntaje, line
+    print(f"  evaluation (wins, prizes, damage, development): {score}")
+    return score, line
 
 
 def demo_combo_myriad():
@@ -488,11 +488,11 @@ def demo_combo_myriad():
            .op_zonas(hand=5, deck=30, prizes=3)
            .menu_teal_dance_options()
            .build())
-    puntaje, line, nodos = explore(obs)
+    score, line, nodos = explore(obs)
     print("demo combo Myriad (registro_012 paso 227):")
     print(f"  mejor linea ({nodos} nodos): {' -> '.join(line)}")
-    print(f"  evaluacion: {puntaje}")
-    esperado = puntaje[0] == 1 and puntaje[1] == 2
+    print(f"  evaluacion: {score}")
+    esperado = score[0] == 1 and score[1] == 2
     print(f"  {'OK: it finds the WINNING 2-prize line' if esperado else 'FALLO'}")
     return 0 if esperado else 1
 

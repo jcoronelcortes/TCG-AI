@@ -49,16 +49,16 @@ def pk(cid, hp, max_hp, energies=0):
 
 
 def obs(select, me_active, me_bench, op_active, op_bench, yidx=1, turn=6):
-    jugadores = [None, None]
-    jugadores[yidx] = {"active": [me_active] if me_active else [],
+    players = [None, None]
+    players[yidx] = {"active": [me_active] if me_active else [],
                        "bench": list(me_bench), "prize": [None] * 4,
                        "hand": [], "handCount": 0, "deckCount": 30,
                        "discard": []}
-    jugadores[1 - yidx] = {"active": [op_active] if op_active else [],
+    players[1 - yidx] = {"active": [op_active] if op_active else [],
                            "bench": list(op_bench), "prize": [None] * 4,
                            "hand": [], "handCount": 0, "deckCount": 30,
                            "discard": []}
-    return {"current": {"players": jugadores, "yourIndex": yidx, "turn": turn,
+    return {"current": {"players": players, "yourIndex": yidx, "turn": turn,
                         "result": -1, "stadium": [], "retreated": False,
                         "energyAttached": False, "supporterPlayed": False},
             "select": select, "logs": []}

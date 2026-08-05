@@ -112,8 +112,8 @@ def _reset_si_aplica(mod):
 def _prizes_left(obs):
     """Prizes each seat has LEFT, or None if they cannot be read."""
     try:
-        jugadores = obs["current"]["players"]
-        return [len(jugadores[i].get("prize") or []) for i in (0, 1)]
+        players = obs["current"]["players"]
+        return [len(players[i].get("prize") or []) for i in (0, 1)]
     except (KeyError, IndexError, TypeError):
         return None
 

@@ -127,8 +127,8 @@ def clasificar_arquetipo(
     if not conteo:
         return "Desconocido"
     ex = [(n, nom) for nom, n in conteo.items() if card_key(nom).endswith(" ex")]
-    candidatos = ex or [(n, nom) for nom, n in conteo.items()]
-    _, chosen = sorted(candidatos, key=lambda t: (-t[0], t[1]))[0]
+    candidates = ex or [(n, nom) for nom, n in conteo.items()]
+    _, chosen = sorted(candidates, key=lambda t: (-t[0], t[1]))[0]
     return f"Otro / {chosen}"
 
 
@@ -139,13 +139,13 @@ def load_credentials() -> None:
     """Exposes the Kaggle token in the environment BEFORE importing the SDK."""
     if os.environ.get("KAGGLE_API_TOKEN") or os.environ.get("KAGGLE_KEY"):
         return
-    candidatos = [
+    candidates = [
         Path.home() / ".kaggle" / "access_token",
         Path.home() / ".kaggle" / "kaggle_token.txt",
         RAIZ / "kaggle_token.txt",
         Path("kaggle_token.txt"),
     ]
-    for path in candidatos:
+    for path in candidates:
         try:
             if path.is_file():
                 token = path.read_text(encoding="utf-8").strip()
@@ -354,7 +354,7 @@ def obtener_leaderboard(api, kaggle_mod, top_n: int) -> list[dict[str, Any]]:
     """Returns the first `top_n` positions (one team each, the highest score)."""
     from kaggle.api.kaggle_api_extended import ApiGetLeaderboardRequest
 
-    filas: list[dict[str, Any]] = []
+    rows: list[dict[str, Any]] = []
     token: str | None = None
     vistos: set[str] = set()
 
@@ -370,25 +370,25 @@ def obtener_leaderboard(api, kaggle_mod, top_n: int) -> list[dict[str, Any]]:
                 cliente.competitions.competition_api_client.get_leaderboard,
                 peticion,
             )
-            filas.extend(como_dict(item) for item in (respuesta.submissions or []))
+            rows.extend(como_dict(item) for item in (respuesta.submissions or []))
             next_item = str(respuesta.next_page_token or "")
             # With pages of 200 the first one is enough for a top-100, but paging
             # continues in case the endpoint returns shorter pages.
-            if len(filas) >= top_n * 2 or not next_item or next_item in vistos:
+            if len(rows) >= top_n * 2 or not next_item or next_item in vistos:
                 break
             vistos.add(next_item)
             token = next_item
 
     normalizadas = []
-    for row in filas:
+    for row in rows:
         team_id = first(row, "teamId", "team_id")
-        puntaje = a_float(first(row, "score", "publicScore", "public_score"))
-        if team_id is None or math.isnan(puntaje):
+        score = a_float(first(row, "score", "publicScore", "public_score"))
+        if team_id is None or math.isnan(score):
             continue
         normalizadas.append(
             {
                 "team_id": int(team_id),
-                "puntaje": puntaje,
+                "puntaje": score,
                 "fecha": first(row, "submissionDate", "submission_date"),
             }
         )
@@ -576,7 +576,7 @@ def index_row(
     file_path: str,
     deck: list[int],
     posicion: Any,
-    puntaje: Any,
+    score: Any,
     names: dict[int, str],
     ace_spec: set[int],
     pokemon: set[int],
@@ -596,7 +596,7 @@ def index_row(
     return {
         "archivo": file_path,
         "posicion_leaderboard": posicion,
-        "puntaje": puntaje,
+        "puntaje": score,
         "arquetipo": clasificar_arquetipo(deck, names, pokemon),
         "cartas": len(deck),
         "ids_distintos": len(conteo),
@@ -607,14 +607,14 @@ def index_row(
     }
 
 
-def write_index(out_dir: Path, filas: list[dict[str, Any]]) -> None:
+def write_index(out_dir: Path, rows: list[dict[str, Any]]) -> None:
     import csv
 
-    columnas = list(filas[0].keys()) if filas else ["archivo"]
+    columnas = list(rows[0].keys()) if rows else ["archivo"]
     with (out_dir / "indice.csv").open("w", encoding="utf-8-sig", newline="") as fh:
         escritor = csv.DictWriter(fh, fieldnames=columnas)
         escritor.writeheader()
-        escritor.writerows(filas)
+        escritor.writerows(rows)
 
 
 def regenerar_indice(
@@ -635,11 +635,11 @@ def regenerar_indice(
             for row in csv.DictReader(fh):
                 previo[row.get("archivo", "")] = row
 
-    filas: list[dict[str, Any]] = []
+    rows: list[dict[str, Any]] = []
     for path in sorted(out_dir.glob("mazo_*.csv")):
         deck = [int(x) for x in path.read_text(encoding="utf-8").split() if x.strip()]
         previous = previo.get(path.name, {})
-        filas.append(
+        rows.append(
             index_row(
                 path.name,
                 deck,
@@ -650,13 +650,13 @@ def regenerar_indice(
                 pokemon,
             )
         )
-    write_index(out_dir, filas)
-    return len(filas)
+    write_index(out_dir, rows)
+    return len(rows)
 
 
 def write_decks(
     recolector: Recolector,
-    filas_lb: list[dict[str, Any]],
+    leaderboard_rows: list[dict[str, Any]],
     out_dir: Path,
     names: dict[int, str],
     ace_spec: set[int],
@@ -669,7 +669,7 @@ def write_decks(
     for viejo in out_dir.glob("mazo_*.csv"):
         viejo.unlink()
 
-    score_by_position = {f["posicion"]: f["puntaje"] for f in filas_lb}
+    score_by_position = {f["posicion"]: f["puntaje"] for f in leaderboard_rows}
     recuperados = sorted(recolector.decks.values(), key=lambda d: d["posicion"])
 
     index: list[dict[str, Any]] = []
@@ -764,11 +764,11 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Known cards: {len(names)} | ACE SPEC: {len(ace_spec)} | Pokemon: {len(pokemon)}")
 
     print(f"\n== 1/3 Leaderboard: primeras {args.top} posiciones ==")
-    filas_lb = obtener_leaderboard(api, kaggle, args.top)
-    if not filas_lb:
+    leaderboard_rows = obtener_leaderboard(api, kaggle, args.top)
+    if not leaderboard_rows:
         print("ERROR: the leaderboard returned no rows.", file=sys.stderr)
         return 1
-    print(f"Equipos: {len(filas_lb)} | puntaje {filas_lb[0]['puntaje']:.1f} .. {filas_lb[-1]['puntaje']:.1f}")
+    print(f"Equipos: {len(leaderboard_rows)} | puntaje {leaderboard_rows[0]['puntaje']:.1f} .. {leaderboard_rows[-1]['puntaje']:.1f}")
 
     cache = load_cache(cache_path)
     submissions_cache: dict[str, Any] = cache.get("submissions", {})
@@ -778,7 +778,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"\n== 2/3 Active submission per team ==")
     objetivos: dict[int, int] = {}   # submission_id -> position
     without_submission = 0
-    for row in filas_lb:
+    for row in leaderboard_rows:
         team_id = row["team_id"]
         key = f"{team_id}:{row['puntaje']:.4f}"
         elegida = submissions_cache.get(key)
@@ -813,7 +813,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Reanudado desde cache: {len(recolector.decks)} decks already recovered")
 
     print(f"\n== 3/3 Game History -> replay -> 60 cards ==")
-    pendientes = [f for f in filas_lb if f.get("submission_id")]
+    pendientes = [f for f in leaderboard_rows if f.get("submission_id")]
     failures: Counter[str] = Counter()
 
     for n, row in enumerate(pendientes, start=1):
@@ -865,13 +865,13 @@ def main(argv: list[str] | None = None) -> int:
         save_cache(cache_path, {"submissions": submissions_cache, "mazos": decks_cache, "extra": extra_cache})
 
     print(f"\n== Escritura ==")
-    n_principal, n_extra = write_decks(recolector, filas_lb, out_dir, names, ace_spec, pokemon)
+    n_principal, n_extra = write_decks(recolector, leaderboard_rows, out_dir, names, ace_spec, pokemon)
     if not args.keep_replays:
         for sobrante in cache_dir.glob("*.json"):
             sobrante.unlink(missing_ok=True)
 
     with_warnings = sum(1 for d in recolector.decks.values() if validate_deck(d["mazo"], ace_spec))
-    print(f"Decks in the top {args.top}: {n_principal}/{len(filas_lb)}  ->  {out_dir}/mazo_XXX.csv")
+    print(f"Decks in the top {args.top}: {n_principal}/{len(leaderboard_rows)}  ->  {out_dir}/mazo_XXX.csv")
     if n_extra:
         print(f"Extra opponent decks (free, outside the top): {n_extra}  ->  {out_dir}/adicionales/")
     print(f"Replays descargados: {len(recolector.episodios_usados)} | API requests: {PACER.peticiones}")

@@ -840,7 +840,7 @@ def _raging_obs(tapu_on_bench=False, ogerpon_cargado=False, bolt_hp=240):
     else:
         hand.insert(4, m.Tapu_Bulu)
     return (Escenario(turn=2, step=27, tac=14, first_player=0,
-                      energy_played=True, partidario_jugado=True)
+                      energy_played=True, supporter_played=True)
             .my_active(act)
             .my_bench(*bench)
             .my_hand(*hand)
@@ -983,7 +983,7 @@ def _abomasnow_obs(first_player=1, turn=2, tapu_on_bench=False):
     else:
         hand.insert(4, m.Tapu_Bulu)
     return (Escenario(turn=turn, step=14, tac=7, first_player=first_player,
-                      energy_played=True, partidario_jugado=True)
+                      energy_played=True, supporter_played=True)
             .my_active(act)
             .my_bench(*bench)
             .my_hand(*hand)
@@ -1038,7 +1038,7 @@ MEGA_LUCARIO = 678
 
 def _menu_immune_active(op_active_id, op_bench_id):
     esc = (Escenario(turn=8, step=100, tac=0,
-                     partidario_jugado=False, stadium_played=True,
+                     supporter_played=False, stadium_played=True,
                      own_prizes=4)
            .my_active(pk(m.Hydrapple_ex, energies=[G, G, G, G], fisicas=4))
            .my_bench(pk(m.Teal_Mask_Ogerpon_ex, energies=[G, G, G, G], fisicas=4),

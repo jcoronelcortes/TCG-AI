@@ -160,16 +160,16 @@ def cribar(group, games, deck_referencia):
     forfeits = stats["errores_candidato"] / games if games else 0.0
     limites = stats["limites"] / games if games else 0.0
 
-    motivos = []
+    reasons = []
     if forfeits > MAX_FORFEITS:
-        motivos.append(f"jugadas ilegales {100 * forfeits:.0f}%")
+        reasons.append(f"jugadas ilegales {100 * forfeits:.0f}%")
     if limites > MAX_LIMITES:
-        motivos.append(f"partidas sin terminar {100 * limites:.0f}%")
+        reasons.append(f"partidas sin terminar {100 * limites:.0f}%")
     if wr < MIN_WINRATE:
-        motivos.append(f"no arranca (gana {100 * wr:.0f}%)")
+        reasons.append(f"no arranca (gana {100 * wr:.0f}%)")
     return {
         "wr_criba": wr, "forfeits": forfeits, "limites": limites,
-        "admitido": not motivos, "motivo": "; ".join(motivos),
+        "admitido": not reasons, "motivo": "; ".join(reasons),
     }
 
 
@@ -192,14 +192,14 @@ def write_out(groups, output):
         for viejo in rechazados.glob("*.csv"):
             viejo.unlink()
 
-    filas = []
+    rows = []
     for group in groups:
         target_path = output if group["admitido"] else rechazados
         target_path.mkdir(parents=True, exist_ok=True)
         (target_path / f"{group['nombre']}.csv").write_text(
             "\n".join(str(cid) for cid in group["mazo"]) + "\n", encoding="utf-8"
         )
-        filas.append(
+        rows.append(
             {
                 "archivo": f"{group['nombre']}.csv",
                 "arquetipo": group["arquetipo"],
@@ -218,10 +218,10 @@ def write_out(groups, output):
             }
         )
     with (output / "pesos.csv").open("w", encoding="utf-8-sig", newline="") as fh:
-        escritor = csv.DictWriter(fh, fieldnames=list(filas[0].keys()))
+        escritor = csv.DictWriter(fh, fieldnames=list(rows[0].keys()))
         escritor.writeheader()
-        escritor.writerows(filas)
-    return filas
+        escritor.writerows(rows)
+    return rows
 
 
 def main(argv):
@@ -265,7 +265,7 @@ def main(argv):
     if args.no_filter:
         for group in groups:
             group.update(admitido=True, wr_criba=None, forfeits=None,
-                         limites=None, motivo="sin cribar")
+                         limites=None, reason="sin cribar")
     else:
         print(f"\n== 2/3 Pilotability screening ({args.games} games per list) ==")
         for n, group in enumerate(groups, start=1):
@@ -277,18 +277,18 @@ def main(argv):
                   f"({n}/{len(groups)}) {group['motivo']}", flush=True)
 
     print("\n== 3/3 Writing ==")
-    filas = write_out(groups, Path(args.output))
-    admitidos = [g for g in groups if g["admitido"]]
-    peso_ok = sum(g["peso_meta"] for g in admitidos)
-    print(f"Lists admitted: {len(admitidos)}/{len(groups)}  ->  {args.output}")
+    rows = write_out(groups, Path(args.output))
+    admitted = [g for g in groups if g["admitido"]]
+    peso_ok = sum(g["peso_meta"] for g in admitted)
+    print(f"Lists admitted: {len(admitted)}/{len(groups)}  ->  {args.output}")
     print(f"MEASURABLE META COVERAGE: {100 * peso_ok:.1f}%")
-    if len(admitidos) < len(groups):
+    if len(admitted) < len(groups):
         print("\nNot pilotable (the harness cannot measure this part of the meta):")
         for g in groups:
             if not g["admitido"]:
                 print(f"  {g['nombre']:<28} peso {100 * g['peso_meta']:4.0f}%  {g['motivo']}")
 
-    mirrors = [g for g in admitidos if g["solape_propio"] >= MIRROR_OVERLAP]
+    mirrors = [g for g in admitted if g["solape_propio"] >= MIRROR_OVERLAP]
     if mirrors:
         mirror_weight = sum(g["peso_meta"] for g in mirrors)
         print(f"\nNear-copies of our own list ({MIRROR_OVERLAP}+/60 cards in common). "
@@ -300,7 +300,7 @@ def main(argv):
         print(f"  -> {len(mirrors)} lists, {100 * mirror_weight:.1f}% of the meta. "
               "They are KEPT (somebody plays them), and marked in pesos.csv so the "
               "aggregation can report with and without.")
-    print(f"\nWeights in {Path(args.output) / 'pesos.csv'} ({len(filas)} rows)")
+    print(f"\nWeights in {Path(args.output) / 'pesos.csv'} ({len(rows)} rows)")
     return 0
 
 

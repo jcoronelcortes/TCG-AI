@@ -141,8 +141,8 @@ def test_nobody_could_attack_with_the_energy_already_on_the_board():
     req = m.AGENT_STATE.ATTACK_ENERGY_REQ[OGERPON]
 
     assert len(mine.active[0].energies) < req, "el activo, a una energia"
-    banca = [p for p in mine.bench if p is not None and p.id == OGERPON]
-    assert banca and len(banca[0].energies) < req, "y el de banca, tambien"
+    bench = [p for p in mine.bench if p is not None and p.id == OGERPON]
+    assert bench and len(bench[0].energies) < req, "y el de banca, tambien"
 
 
 # ---------------------------------------------------------------------------
@@ -167,12 +167,12 @@ def test_the_bench_ogerpon_is_only_chargeable_thanks_to_that_payment():
     hand_counts = _counts(mine.hand)
     field_counts = _counts([p for p in (mine.active + mine.bench)
                             if p is not None])
-    banca = [p for p in mine.bench if p is not None and p.id == OGERPON][0]
+    bench = [p for p in mine.bench if p is not None and p.id == OGERPON][0]
 
-    sin_retirada = _reachable_grass_for(banca, state, mine, hand_counts,
+    sin_retirada = _reachable_grass_for(bench, state, mine, hand_counts,
                                         field_counts)
     con_retirada = _reachable_grass_for(
-        banca, state, mine, hand_counts, field_counts,
+        bench, state, mine, hand_counts, field_counts,
         extra_discard_grass=_retreat_grass_to_discard(mine.active[0]))
 
     assert sin_retirada == 0, (
@@ -192,10 +192,10 @@ def test_with_no_stretcher_in_hand_the_retreat_unlocks_nothing():
     hand_counts.pop(NS)
     field_counts = _counts([p for p in (mine.active + mine.bench)
                             if p is not None])
-    banca = [p for p in mine.bench if p is not None and p.id == OGERPON][0]
+    bench = [p for p in mine.bench if p is not None and p.id == OGERPON][0]
 
     assert _reachable_grass_for(
-        banca, state, mine, hand_counts, field_counts,
+        bench, state, mine, hand_counts, field_counts,
         extra_discard_grass=_retreat_grass_to_discard(mine.active[0])) == 0
 
 
@@ -206,15 +206,15 @@ def test_with_no_stretcher_in_hand_the_retreat_unlocks_nothing():
 def test_the_promoted_ogerpon_knocks_out_their_whole_board():
     obs = _fixture(_FIX45)
     m.agent(obs)
-    state, mine, rival = _sides(obs)
-    banca = [p for p in mine.bench if p is not None and p.id == OGERPON][0]
+    state, mine, opponent = _sides(obs)
+    bench = [p for p in mine.bench if p is not None and p.id == OGERPON][0]
 
     # After the retreat, the Stretcher and the Teal Dance: two physical Grass,
     # four effective with Wild Growth.
-    efectiva = len(banca.energies) + m._grass_attach_unit()
+    efectiva = len(bench.energies) + m._grass_attach_unit()
     assert efectiva >= m.AGENT_STATE.ATTACK_ENERGY_REQ[OGERPON]
 
-    for cuerpo in list(rival.active) + [p for p in rival.bench if p is not None]:
+    for cuerpo in list(opponent.active) + [p for p in opponent.bench if p is not None]:
         if cuerpo.id not in (LUNATONE, SOLROCK):
             continue
         base = m._attacker_base_damage(
@@ -222,7 +222,7 @@ def test_the_promoted_ogerpon_knocks_out_their_whole_board():
             grass_scale=sum(len(p.energies) for p in (mine.active + mine.bench)
                             if p is not None),
             teal_self_energy=efectiva, bench_count=len(mine.bench))
-        dano = m._our_effective_damage(banca, cuerpo, base,
+        dano = m._our_effective_damage(bench, cuerpo, base,
                                        m.AGENT_STATE.meganium_in_play, False)
         assert dano >= (cuerpo.hp or 0), (
             f"la familia Solrock es DEBIL a Planta: {cuerpo.id} deberia caer "
