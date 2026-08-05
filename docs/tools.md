@@ -85,6 +85,23 @@ dominated, you have a new scenario with the correct play already computed. It
 models our turn only (no draws, no opponent branching) — that limit is
 deliberate and documented in the script.
 
+### `turn_waste_census.py` — is there anything to write a rule about?
+
+Counts, per turn and per plan mode, the resources that were **legally playable
+in the menu** and were declined: the turn's energy attachment, the Supporter
+slot, an evolution, a body for the bench, an ability. It runs one step earlier
+than every other tool here — before asking whether a rule would change a
+decision, it asks whether the behaviour the rule would fix happens at all.
+
+The first run (250 games) came back negative, and that answer is the point: the
+agent is not leaving resources unspent, so the remaining ground is in *which*
+legal play it picks, not in what it fails to spend. The script's docstring
+carries the numbers.
+
+```bash
+python utils/turn_waste_census.py --games 250 --detail
+```
+
 ### `wall_probe.py` — the immune-wall probe
 
 Answers one specific question per turn: when our ex is blocked by an immune wall
@@ -101,6 +118,7 @@ turns are dumped as replayable observations.
 | `real_opponents.py` | Turns those lists into *measurable* opponents: deduplicates them (100 decks are ~39 unique lists), keeps each one's meta weight, and screens out lists the generic bot cannot pilot — an unpilotable list measures the bot getting stuck, not the matchup, and returns a falsely high winrate. |
 | `build_meta_decks.py` | Hand-built synthetic archetype decks, for mechanics the real meta does not currently offer. |
 | `cosechar_deck_opponent.py` | Rebuilds a plausible 60-card opponent list from what was visible in local game records. |
+| `op_scaling_census.py` | Audits `ptcg/cards/op_scaling.py` against every opposing deck in the repo: which attacks scale with the board rather than doing their printed damage, which of them the agent reads, and which are missing. The suite runs it as a gate — a new deck that brings an unread one is invisible in a game, because the agent does not crash, it just walks into the hit. `--unmodelled` |
 
 ---
 

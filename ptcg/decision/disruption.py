@@ -15,6 +15,7 @@ from ptcg.cards.ids import Alakazam_ex, Applin, Basic_Grass_Energy, Bayleef, Bos
 from ptcg.state.zones import ZONE_DECK
 from ptcg.engine.context import DecisionContext
 from ptcg.engine.rules import _Adjustment, _FixedRule, _resolve_with_trace
+from ptcg.turn.game_plan import plan_of
 
 
 def _stamp_worth_playing(op_hand_count, my_hand_len) -> bool:
@@ -47,9 +48,24 @@ def _stamp_pendiente(c) -> bool:
     card that was no longer going to be played. By sharing the predicate, when
     the Stamp waits (opposing hand <= 2 and our own hand large) the Supporters
     carry on as normal -- and if our hand drops below 5 by playing items, the
-    Stamp becomes available again in the same turn."""
+    Stamp becomes available again in the same turn.
+
+    IT DOES NOT WAIT FOR A TURN THAT ENDS THE GAME (user, registro_013 step 126
+    vs the mirror, WON suboptimally). At mutual match point -- one prize each --
+    our active Ogerpon ex already knocked out two different bodies on the
+    opponent's bench, and Boss's Orders was in hand: gust + attack closed the game
+    on the second action. This predicate returned True (we had been knocked out,
+    the Stamp was in hand, their hand was large), so `yields_to_unfair_stamp`
+    vetoed the Boss's down to -1 and the agent spent nineteen actions rebuilding a
+    board for a game that was already over. The Stamp's whole value is the
+    RESOURCES it denies for the turns to come; on a turn with a lethal route there
+    are no turns to come, and its 5-card refill only feeds an opponent who is one
+    prize from winning too. The plan answers that in one field, so every ordering
+    veto that reads this predicate -- Boss's, Lillie's, Lana's, Dawn, Xerosic, the
+    Meowth chain, Flip the Script -- steps back at once."""
     return (c.ko_last_turn
             and c.hand_counts.get(Unfair_Stamp, 0) >= 1
+            and not plan_of(c).wins_this_turn
             and _stamp_worth_playing(c.op_hand_count, c.my_hand_len))
 
 
@@ -250,6 +266,81 @@ def _xr_gate_alakazam(c):
                  or (_xr_copia_respaldo(c) and c.op_hand_count >= 4)))
 
 
+def _xr_last_copy_locked_in_hand(c):
+    """The Xerosic in hand is the LAST access to the Powerful Hand cap: no
+    second copy in the deck and no Meowth ex left to re-search for it. Shared
+    predicate: it is the condition of Lillie's `do_not_shuffle_the_last_xerosic`
+    veto (Lillie's shuffles the hand into the deck and loses it forever), and
+    the Xerosic side reads it so its own first-turn yield does not step aside
+    for a Lillie's that is itself vetoed -- which would lose the Supporter slot
+    entirely (the mutual-yield failure of Lillie's <-> Boss's)."""
+    return (c.op_is_alakazam_deck
+            and c.hand_counts.get(Xerosic_Machinations, 0) >= 1
+            and c.op_hand_count >= 4
+            and c.cards_in_deck.get(
+                Xerosic_Machinations, {}).get(ZONE_DECK, 0) == 0
+            and c.hand_counts.get(Meowth_ex, 0) == 0
+            and (c.field_counts.get(Meowth_ex, 0) >= 2
+                 or c.cards_in_deck.get(Meowth_ex, {}).get(ZONE_DECK, 0) == 0))
+
+
+def _xr_ruta_a_lillie(c):
+    """Is there a Lillie's Determination for THIS turn's Supporter slot -- in
+    hand, or reachable by the fetch Meowth ex -> Last-Ditch Catch (the Meowth
+    from hand, or dug out with an Ultra Ball)? It is the "no option to search
+    for a Lillie's" of the first-turn rule, written as the routes the deck
+    really has."""
+    if c.hand_counts.get(Lillie_Determination, 0) >= 1:
+        return True
+    if c.cards_in_deck.get(Lillie_Determination, {}).get(ZONE_DECK, 0) < 1:
+        return False
+    if (c.meowth_ability_lock or not c.meowth_ld_free
+            or c.bench_count >= 5 or c.field_counts.get(Meowth_ex, 0) >= 2):
+        return False
+    return (c.hand_counts.get(Meowth_ex, 0) >= 1
+            or (c.hand_counts.get(Ultra_Ball, 0) >= 1
+                and c.cards_in_deck.get(Meowth_ex, {}).get(ZONE_DECK, 0) >= 1))
+
+
+def _xr_first_turn_yields_to_lillie(c):
+    """OUR FIRST TURN GOING SECOND: Lillie's Determination takes the Supporter
+    slot and Xerosic waits.
+
+    On that turn the two cards are not comparable. With all six prizes untouched
+    Lillie's draws EIGHT -- the largest refill in the deck, and the only turn on
+    which the board is a lone active with nothing on the bench, so every card it
+    draws has somewhere to go. Xerosic, by contrast, is capping a hand that has
+    not been built yet: the opponent has just drawn their opening seven and
+    played none of it, and Powerful Hand does not threaten anything until they
+    have a board to attack from. Discarding those cards now only makes room for
+    them to redraw; the cap is worth its Supporter later, when their hand is
+    inflated AND an Alakazam is in play to punish it.
+
+    Only going SECOND: the player going first may not play a Supporter on their
+    first turn, so there is no slot to argue over.
+
+    Exception, as stated by the user: Xerosic keeps the turn when it is the only
+    Supporter we can reach -- no Lillie's in hand and no fetch that brings one
+    (`_xr_ruta_a_lillie`). Second exception, structural: if the Lillie's would be
+    vetoed anyway for being the card that shuffles our LAST Xerosic into the deck
+    (`_xr_last_copy_locked_in_hand`), yielding would leave BOTH at -1 and the
+    Supporter unplayed.
+
+    (user, registro_002 step 11, episode 89633820 vs Alakazam -- WON in spite of
+    this: hand {Ultra Ball, Xerosic, Lillie's, Lillie's, Meganium, Meganium},
+    opponent on 5 cards, and the agent spent the turn's Supporter on Xerosic.)
+    """
+    # `getattr` for the same reason as `_alakazam_dig_xerosic_engine`: the unit
+    # tests build stub contexts with only the fields their predicate reads, and
+    # off the first turn this rule must not even look at the rest.
+    if getattr(c, 'our_first_turn', False) is not True:
+        return False
+    return (not c.we_go_first
+            and not c.state.supporterPlayed
+            and _xr_ruta_a_lillie(c)
+            and not _xr_last_copy_locked_in_hand(c))
+
+
 _RULES_XEROSIC_PLAY = [
     _FixedRule("supporter_already_played",
                lambda c: c.state.supporterPlayed,
@@ -277,6 +368,17 @@ _RULES_XEROSIC_PLAY = [
     _FixedRule("alakazam_yields_to_winning_gust",
                lambda c: (_xr_gate_alakazam(c) and c.win_via_boss_gust
                           and c.hand_counts.get(Boss_Orders, 0) >= 1),
+               lambda c: XEROSIC_SCORE_LAST_RESORT),
+    # OUR FIRST TURN GOING SECOND: the slot belongs to Lillie's (draw EIGHT with
+    # all six prizes up) -- see `_xr_first_turn_yields_to_lillie`. It is the
+    # symmetric half of the Boss's `_boss_first_turn_yields` and of Lillie's own
+    # `first_turn_always`, the two rules that already gave that turn to the
+    # refill; Xerosic was the one Supporter that still took it. It goes ahead of
+    # every yield gated on `_xr_gate_alakazam`, because its reason is the
+    # calendar and not the matchup: on our first turn the cap is premature
+    # against any deck.
+    _FixedRule("first_turn_yields_to_lillie",
+               _xr_first_turn_yields_to_lillie,
                lambda c: XEROSIC_SCORE_LAST_RESORT),
     # No attack and a short hand: development (Lillie's) is worth more than
     # disruption this turn.
@@ -346,6 +448,9 @@ __all__ = [
     '_xr_letal_proyectado',
     '_xr_copia_respaldo',
     '_xr_gate_alakazam',
+    '_xr_last_copy_locked_in_hand',
+    '_xr_ruta_a_lillie',
+    '_xr_first_turn_yields_to_lillie',
     '_score_xerosic_play',
     '_RULES_XEROSIC_PLAY',
     '_stamp_worth_playing',

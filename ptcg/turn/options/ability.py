@@ -16,7 +16,7 @@ from ptcg.state.agent_state import AGENT_STATE
 
 def puntuar(tc, o, score):
     """Returns the score of `o`. It may return `_SALTAR`."""
-    _ability_order_veto = tc._ability_order_veto
+    _order_veto = tc._order_veto
     _ability_unlock_retreat_attack = tc._ability_unlock_retreat_attack
     _ability_unlock_retreat_ko = tc._ability_unlock_retreat_ko
     _active_already_kos = tc._active_already_kos
@@ -534,7 +534,7 @@ def puntuar(tc, o, score):
                 # loss: Flip the Script is ONCE PER TURN and its condition (we
                 # were knocked out last turn) does not come back. That is why
                 # they are registered as DEFERRABLE vetoes in
-                # `_ability_order_veto` and revoked further down (see the
+                # `_order_veto` and revoked further down (see the
                 # "REVOKE ORDERING VETOES" block), instead of killing the
                 # ability unconditionally here. The deck-out brake, which IS a
                 # VALUE veto, is evaluated BEFORE and is never revoked.
@@ -568,7 +568,7 @@ def puntuar(tc, o, score):
                             (Lillie_Determination, _lillie_blocks_fez_ability))
                         if _blk_on)
                     if _ab_order_blockers:
-                        _ability_order_veto[len(scores)] = (
+                        _order_veto[len(scores)] = (
                             score, _ab_order_blockers)
                         score = SCORE_VETO
             elif card.id == Meowth_ex:

@@ -37,7 +37,7 @@ starting a battle.
 | --- | --- |
 | `ids.py` | Card IDs and the named constants for every card the agent knows about. |
 | `groups.py` | Derived groupings: which cards are walls, threats, pre-evolutions of ex lines, and so on. |
-| `lines.py` | Evolution lines: stage of a card, its root basic, the chains our deck can build, and which link is missing. |
+| `lines.py` | Evolution lines: stage of a card, its root basic, the chains our deck can build, which link is missing, and what a body in play becomes in one step (which is how the defence sees an opposing pre-evolution for what it will be). |
 | `costs.py` | Printed attack costs of our attackers. The *effective* cost of the turn is derived from this (a stadium can tax it). |
 | `tables.py` | Card and attack tables built once from the simulator's data. |
 | `scoring.py` | Scoring constants shared by several phases. |
@@ -85,6 +85,7 @@ These are the cards whose "should I play it, and on what" is a topic in itself.
 | `ultra_ball.py` | Is the search worth its discard cost, and what should we dig for? The largest decision module in the project. |
 | `night_stretcher.py` | What is worth recovering from the discard — a body, an engine piece, or energy for a finisher? |
 | `meowth.py` | The hand engine: when to bench Meowth ex for its Supporter search, and what that search is worth. |
+| `op_scaling.py` | The opposing attacks whose damage is a count of the board, not the number printed on the card ("20x", "30+"). Fifteen of them appear in the opposing decks in the repo; four more are left out on purpose because their scale is a coin flip or the opponent's own choice. `utils/op_scaling_census.py` audits the table against the card pool. |
 | `disruption.py` | Hand disruption. Xerosic's Machinations and Unfair Stamp live together on purpose: the correct order between them makes each consult the other. |
 | `supporters.py` | The remaining Supporters and choosing the best one in hand. |
 | `poke_pad.py` | Which Pokémon is worth searching for. |
@@ -97,6 +98,7 @@ This is the body of what used to be one enormous function, split by phase.
 
 | Module | Purpose |
 | --- | --- |
+| `game_plan.py` | What the prize count says the turn is FOR, decided before the first decision: is there a route that closes the game, how many prizes we take, how many they take on the reply. The ordering vetoes read it so they do not step aside for a resource card on a turn that ends the game. |
 | `scoring.py` | The dispatcher: sends each menu option to the branch for its type. |
 | `opciones/` | One module per option type: `play`, `card`, `retreat`, `evolve`, `attach`, `ability`, `attack`, and the short ones together in `minor`. |
 | `supporters.py` | Valuing every Supporter in hand for this turn. |

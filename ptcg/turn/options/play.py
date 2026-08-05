@@ -37,12 +37,14 @@ def puntuar(tc, o, score):
     _prize_mismatch_matchup = tc._prize_mismatch_matchup
     _dragapult_no_tapu = tc._dragapult_no_tapu
     _festival_lead_hostil = tc._festival_lead_hostil
+    _ft_hold_lone_meowth = tc._ft_hold_lone_meowth
     _gt_planes = tc._gt_planes
     _gt_quiere_basico = tc._gt_quiere_basico
     _gt_root_in_play = tc._gt_root_in_play
     _gt_basics_ranking = tc._gt_basics_ranking
     _gt_vetoes_ex_stage = tc._gt_vetoes_ex_stage
     _gust_2prize_via_boss = tc._gust_2prize_via_boss
+    _lillie_play_order_veto = tc._lillie_play_order_veto
     _lucario_other_sac_available = tc._lucario_other_sac_available
     _lucario_riolu_gust = tc._lucario_riolu_gust
     _lucario_sac_pivot = tc._lucario_sac_pivot
@@ -83,6 +85,9 @@ def puntuar(tc, o, score):
     my_state = tc.my_state
     neutralization_zone_active = tc.neutralization_zone_active
     obs = tc.obs
+    _order_veto = tc._order_veto
+    _ub_offered_in_menu = tc._ub_offered_in_menu
+    scores = tc.scores
     op_bench_snipe_threat = tc.op_bench_snipe_threat
     op_has_ability_immune_active = tc.op_has_ability_immune_active
     op_has_ex_immune_active = tc.op_has_ex_immune_active
@@ -1307,7 +1312,30 @@ def puntuar(tc, o, score):
                         field_counts[Meowth_ex] >
                         AGENT_STATE._field_at_turn_start.get(Meowth_ex, 0)
                         if AGENT_STATE._field_at_turn_start is not None else False)
-                    if meowth_ability_lock:
+                    if _ft_hold_lone_meowth:
+                        # OUR FIRST TURN GOING FIRST, behind one of the tough
+                        # openers of the deck (210/210/170/140 HP) and with the
+                        # Meowth ex as the ONLY body left in hand: it stays
+                        # there. Nothing the opponent can assemble on their
+                        # first turn with a single attachment reaches those HP,
+                        # so the empty bench costs us nothing -- and the
+                        # Supporter the Last-Ditch would fetch gets shuffled
+                        # back into the deck by tomorrow's Lillie's anyway.
+                        # See `_ft_hold_lone_meowth` in agent() for the whole
+                        # reasoning and for the Solrock exception (a lone
+                        # Meowth ex active IS reachable by Cosmic Beam + the
+                        # four Premium Power Pro, and there it does go down).
+                        #
+                        # It is the ENVELOPE of the branch, not one more link in
+                        # the chain: it goes above every engine that scores the
+                        # Meowth (the Lillie's development one at 21800, the
+                        # anti-Alakazam Xerosic one at 21500, the anti-softlock
+                        # rescue) because on that turn the user's rule outranks
+                        # all of them. It cannot swallow the anti-donk guard
+                        # (21900): the flag is already False whenever
+                        # `_meowth_antidonk_now` projects a KO.
+                        score = SCORE_VETO
+                    elif meowth_ability_lock:
                         # Team Rocket's Watchtower cancels the ability of
                         # {C} Pokemon: putting Meowth ex down now would NOT activate
                         # Last-Ditch Catch (it does not search for a Supporter). We do not play it
@@ -1479,6 +1507,27 @@ def puntuar(tc, o, score):
                 elif card.id == Lillie_Determination:
                     # Priority 1 refactor: branch extracted to `_score_lillie_determination_play`.
                     score = _score_lillie_determination_play(ctx)
+                    # ...and if what vetoed it was an ORDER veto ("first the
+                    # Ultra Ball, THEN the refill"), it is registered as
+                    # DEFERRABLE instead of standing here: under item lock the
+                    # blocker canNOT be played this turn, so there is no
+                    # "afterwards" and the veto would cost the turn's Supporter
+                    # for nothing. The "REVOKE ORDERING VETOES" block reads the
+                    # real menu and lifts it. See `_lillie_play_order_veto`.
+                    #
+                    # Only when the Ultra Ball is NOT OFFERED. While it is on the
+                    # menu the order stands as it always has, even at -1: its
+                    # cost vetoes are about this instant and lift themselves
+                    # within the turn (registro_004 step 47: the Meowth ex goes
+                    # down first and the Ultra Ball is playable straight after).
+                    # Registering there would hand the revoke block a blocker it
+                    # reads as dead and would throw the line away.
+                    if (score <= 0 and _order_veto is not None
+                            and scores is not None
+                            and not _ub_offered_in_menu):
+                        _lil_deferred = _lillie_play_order_veto(ctx)
+                        if _lil_deferred is not None:
+                            _order_veto[len(scores)] = _lil_deferred
                 elif card.id == Dawn:
                     # Branch extracted to `_score_dawn_play` (shared with the
                     # `_supp_play_score` predictor).

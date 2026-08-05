@@ -23,6 +23,7 @@ THERE IS ONLY ONE RESET
 """
 
 from ptcg.cards.costs import ATTACK_ENERGY_REQ_BASE
+from ptcg.cards.op_scaling import EMPTY_SCALE
 from ptcg.engine.plan import AttackPlan
 
 # Sentinel value of `_log_current_turn`: we do not know yet which turn the
@@ -114,6 +115,25 @@ class AgentState:
         self._own_ko_inside_op_turn = -99
         self._own_ko_outside_op_turn = -99
 
+        # --- the turn plan ----------------------------------------------------
+        # `ptcg.turn.game_plan.TurnPlan` for the observation being answered: what
+        # the prize count says the turn is for (a lethal route and which one, the
+        # prizes we take today, the prizes they take on the reply). It is rebuilt
+        # on EVERY call to agent() -- the board changes inside the turn -- and
+        # cleared at the top of each call so that a stale plan can never reach a
+        # rule. `turn_plan_open` keeps the one from the FIRST menu of the turn:
+        # the opening sentence, for the PTCG_DEBUG trace and for rules that need
+        # to know what the turn was for before we started spending it.
+        self.turn_plan = None
+        self.turn_plan_open = None
+
+        # --- setup -------------------------------------------------------------
+        # Card id we sent to the ACTIVE spot in the setup. It is placed face
+        # down, so no later observation reveals it: the bench selection of that
+        # same setup reads it here to count how many bodies of a kind are really
+        # IN PLAY (the "a maximum of 2 Teal Mask Ogerpon ex" cap).
+        self.setup_active_id = None
+
         # --- detected opposing matchup ----------------------------------------
         self.op_is_crustle_deck = False
         self.op_is_cornerstone_deck = False
@@ -153,6 +173,14 @@ class AgentState:
         # travel in the signature of `_op_active_attack_damage_to`. Refreshed at the
         # start of agent(), in the same block as the prize denial flags.
         self._op_bench_count = 0              # scales Do the Wave (20 x opposing bench)
+        # The BoardScale of this turn: everything the opposing attacks that do
+        # NOT do their printed damage count (the opposing bench and Grass, our
+        # hand, our ex in play, the prizes we have taken...). Refreshed in the
+        # same block as `_op_bench_count` and published here for the same reason:
+        # it does not travel in the signature of `_op_active_attack_damage_to`,
+        # and a caller that forgot to pass it would silently go back to reading
+        # the placeholder printed on the card. See ptcg/cards/op_scaling.py.
+        self.op_scale = EMPTY_SCALE
 
 
 # Single instance. It is NEVER reassigned: modules keep a reference to this

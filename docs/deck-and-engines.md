@@ -81,6 +81,17 @@ it finds gets **used this turn**. The single exception is when item lock is
 coming: then Ultra Ball is not a resource we keep, it is a resource that
 *expires*, so we dig today for the body we will play tomorrow.
 
+The other half of the question is *what* pays. Those two discards have to come
+out of surplus, and the discard scorer prices a card by what it does **now** —
+which quietly inverts the value of a Supporter once the turn's Supporter slot is
+already spent. A Supporter that cannot be played today looks worthless today,
+so it is the first thing offered up to pay a cost, even though it is exactly the
+card that carries the next turn. So there is a floor: with the Ultra Ball plus
+only two other cards in hand, those two cards *are* the cost, the hand ends the
+turn at zero, and the search is refused if either of them is a Supporter. Ending
+the turn with the Supporter in hand beats benching a body and having no way to
+draw again.
+
 ### Free draw after a knockout: Fezandipiti ex
 
 *Flip the Script* draws three cards, once per turn, only if one of our Pokémon

@@ -55,6 +55,7 @@ def puntuar(tc, o, score):
     _gt_quiere_basico = tc._gt_quiere_basico
     _gt_basics_ranking = tc._gt_basics_ranking
     _gt_score_seleccion = tc._gt_score_seleccion
+    _doomed_sac_context = tc._doomed_sac_context
     _gust_2prize_via_boss = tc._gust_2prize_via_boss
     _has_bench_attacker = tc._has_bench_attacker
     _ko_prefer_basic_general = tc._ko_prefer_basic_general
@@ -70,11 +71,13 @@ def puntuar(tc, o, score):
     _op_best_damage_vs = tc._op_best_damage_vs
     _op_counter_threat_vs = tc._op_counter_threat_vs
     _our_first_action_turn = tc._our_first_action_turn
+    _promo_damage_to_op = tc._promo_damage_to_op
     _promo_kos_op = tc._promo_kos_op
     _promo_min_prize = tc._promo_min_prize
     _promo_op_act = tc._promo_op_act
     _promo_survives = tc._promo_survives
     _promo_survivors = tc._promo_survivors
+    _promo_wall_relief = tc._promo_wall_relief
     _promote_setup_ko_attacker = tc._promote_setup_ko_attacker
     _refresh_promote_prefer_basic = tc._refresh_promote_prefer_basic
     _ripen_heal_serial = tc._ripen_heal_serial
@@ -201,29 +204,62 @@ def puntuar(tc, o, score):
                 return _SALTAR   # it already did its own scores.append
         
             if context == SelectContext.SWITCH or context == SelectContext.TO_ACTIVE:
-                if o.playerIndex == my_index and _lucario_sac_context:
-                    # Promote a 1-prize sacrifice instead of the Ogerpon ex,
-                    # Applin > Chikorita; only when Tapu Bulu is really
-                    # a priority (an opponent with ex protection or the Hydrapple
-                    # ex + Meganium engine) is Tapu Bulu sacrificed first.
-                    if _tapu_sac_priority:
-                        if card.id == Tapu_Bulu:
-                            score = 6000
-                        elif card.id == Applin:
-                            score = 5500
-                        elif card.id == Chikorita:
-                            score = 5000
-                        else:
-                            score = 100
+                if (o.playerIndex == my_index
+                        and (_lucario_sac_context or _doomed_sac_context)):
+                    # WHICH BODY WE HAND OVER (user, registro_002 step 25 vs
+                    # Mega Lucario ex, LOST). We are retreating a doomed 2-prize
+                    # ex to concede one prize instead of two, so this menu is not
+                    # choosing an attacker: it is choosing what to LOSE. Both
+                    # contexts that reach here mean the same board -- the
+                    # anti-Lucario one (an opposing Riolu on turn 2) and the
+                    # deck-agnostic `_doomed_sac_context`, which reads the real
+                    # finisher, the evolution included.
+                    #
+                    # THE ORDER IS CHIKORITA, THEN APPLIN, and the reason is what
+                    # the two lines are worth to us: the Applin is the first link
+                    # of Dipplin -> Hydrapple ex, the attacker the deck is built
+                    # around, while the Chikorita line (Bayleef -> Meganium) is
+                    # support. The cheapest body is not the cheapest CARD.
+                    #
+                    # THE EXCEPTION the user named, and it overrules the order: a
+                    # body whose evolution is ALREADY IN HAND is not spare, it is
+                    # next turn's play. With a Bayleef in hand the Chikorita
+                    # stays and the Applin goes; with a Dipplin in hand -- the
+                    # case in the record -- the Applin stays and the Chikorita
+                    # goes; holding BOTH evolutions nothing distinguishes them
+                    # and the base order decides again. Read from the hand rather
+                    # than from a table of ids, so it holds for any line.
+                    _sac_evo_in_hand = any(
+                        _sh_n > 0
+                        and getattr(card_table.get(_sh_id), 'evolvesFrom', None)
+                        == getattr(card_table.get(card.id), 'name', None)
+                        for _sh_id, _sh_n in hand_counts.items())
+                    if _tapu_sac_priority and card.id == Tapu_Bulu:
+                        # Tapu Bulu only goes first where it really contributes
+                        # (an opponent with ex protection, or the Hydrapple ex +
+                        # Meganium engine that can charge it on the spot).
+                        score = 6000
+                    elif card.id == Chikorita:
+                        score = 5000 if _sac_evo_in_hand else 6000
+                    elif card.id == Applin:
+                        score = 4900 if _sac_evo_in_hand else 5900
+                    elif card.id == Tapu_Bulu:
+                        # The deck's MANUAL attacker: the one body we do not
+                        # feed. Still above any ex -- one prize beats two.
+                        score = 200
+                    elif prize_count(card) == 1:
+                        # Any other 1-prize body (a Bayleef, a Dipplin, a
+                        # Pinsir): worse than the two the rule names, better
+                        # than an ex. Without this rung the menu flattened every
+                        # unnamed body to the same number as a 2-prize ex and the
+                        # sacrifice could hand over TWO prizes -- the flip audit
+                        # of this change caught it promoting a Hydrapple ex on a
+                        # bench with no Chikorita and no Applin.
+                        score = 4000
                     else:
-                        if card.id == Applin:
-                            score = 6000
-                        elif card.id == Chikorita:
-                            score = 5500
-                        elif card.id == Tapu_Bulu:
-                            score = 200
-                        else:
-                            score = 100
+                        # An ex, only if there is nothing cheaper: the sturdiest
+                        # first, so the choice does not depend on the menu order.
+                        score = 100 + (card.hp or 0) // 10
                 elif o.playerIndex == my_index:
         
                     # Ready-to-attack via effective energy (single source:
@@ -916,7 +952,21 @@ def puntuar(tc, o, score):
                             #    a prize stops being a candidate. A penalty
                             #    (not a veto) so the relative order among the
                             #    doomed is kept if there is no alternative.
-                            if not _promo_survives(card):
+                            #
+                            #    UNLESS every survivor is MUTE against the
+                            #    opposing active (a wall that cancels our ex or
+                            #    our abilities) and this body is one of the few
+                            #    that DOES touch it -- see `_promo_wall_relief`
+                            #    in `agent()`, user, registro_008 step 78 vs
+                            #    Crustle. There "it endures" means "the wall
+                            #    already switched it off": the penalty is exactly
+                            #    the size of the +6000 the wall rule gives the
+                            #    unblocked attacker and cancelled it, promoting a
+                            #    charged ex that dealt 0.
+                            if (not _promo_survives(card)
+                                    and not (_promo_wall_relief
+                                             and _promo_damage_to_op is not None
+                                             and _promo_damage_to_op(card) > 0)):
                                 score -= PROMO_DOOMED_PENALTY
                         elif _promo_min_prize is not None:
                             # 2) Nobody endures: hand over the FEWEST prizes
@@ -1077,12 +1127,50 @@ def puntuar(tc, o, score):
                     elif op_is_fire_deck or op_is_aggro_deck:
                         score = 8
                 elif card.id == Teal_Mask_Ogerpon_ex:
-                    score = 6
-        
-                    if op_is_fire_deck:
-                        score = 7
+                    # A MAXIMUM OF 2 Teal Mask Ogerpon ex IN PLAY, also at setup
+                    # (user, log 89629887 vs Crustle/Cornerstone Mask Ogerpon ex,
+                    # LOST): the opening hand had THREE Ogerpon ex and all three
+                    # went to the bench, because this branch scored every copy
+                    # the same (6) and the setup takes every option with a
+                    # score >= 0. From turn 2 the opposing active was a
+                    # Cornerstone Mask Ogerpon ex, whose Cornerstone Stance
+                    # cancels the attacks of Pokemon WITH an ability: the three
+                    # bodies did 0 for the rest of the game, they were 6 prizes
+                    # parked on the bench, they left only one free slot for the
+                    # attackers that DO damage in that matchup (Tapu Bulu, the
+                    # Chikorita->Bayleef->Meganium line, Dipplin) and, with
+                    # three ex on the field, the `_block_4th_ex` veto of the PLAY
+                    # closed the door on any further ex -- Meowth ex included.
+                    #
+                    # The cap is DECK-AGNOSTIC because the setup is BLIND: the
+                    # opponent has not revealed their active, so neither
+                    # `op_is_crustle_deck` nor `op_is_cornerstone_deck` can be on
+                    # yet. It costs nothing to hold the third copy in hand: the
+                    # PLAY branch already treats it as marginal (20500 only with a
+                    # Grass in hand, SCORE_VETO otherwise) and puts it down later
+                    # if the matchup allows it, whereas a body already benched can
+                    # never be taken back.
+                    #
+                    # `field_counts` does NOT serve here: at setup the bench is
+                    # empty and the active is FACE DOWN, so it counts 0 for every
+                    # option. What is counted is the ordinal of the copy inside
+                    # the hand plus `setup_active_id`, which the SETUP_ACTIVE
+                    # decision wrote down (see finalize.py).
+                    _setup_og_in_play = (
+                        1 if AGENT_STATE.setup_active_id == Teal_Mask_Ogerpon_ex
+                        else 0)
+                    for _sh in (my_state.hand or [])[:o.index]:
+                        if _sh.id == Teal_Mask_Ogerpon_ex:
+                            _setup_og_in_play += 1
+                    if _setup_og_in_play >= 2:
+                        score = SCORE_VETO
+                    else:
+                        score = 6
+
+                        if op_is_fire_deck:
+                            score = 7
                 elif card.id == Meowth_ex:
-        
+
                     score = SCORE_VETO
                 elif card.id == Fezandipiti_ex:
                     # At the start of the game (setup) we do NOT put Fezandipiti
@@ -1142,7 +1230,9 @@ def puntuar(tc, o, score):
                         op_has_ex_immune_bench, op_is_lucario_deck,
                         meowth_ability_lock, _best_supp_in_hand_val,
                         _best_supp_in_deck_val,
-                        dragapult_no_tapu=_dragapult_no_tapu)
+                        dragapult_no_tapu=_dragapult_no_tapu,
+                        op_state=op_state,
+                        neutralization_zone_active=neutralization_zone_active)
                     _bcs_entry = _TABLA_BCS_FETCH.get(card.id)
                     if _bcs_entry is not None:
                         _bcs_et, _bcs_rules, _bcs_defecto = _bcs_entry
@@ -1189,7 +1279,9 @@ def puntuar(tc, o, score):
                                 state, field_counts,
                                 abilities_off=meowth_ability_lock)),
                         ld_free=_meowth_ld_free,
-                        dragapult_no_tapu=_dragapult_no_tapu)
+                        dragapult_no_tapu=_dragapult_no_tapu,
+                        op_state=op_state,
+                        neutralization_zone_active=neutralization_zone_active)
         
                     _ns_tablas = {
                         Basic_Grass_Energy: ("ns->grass",
@@ -1681,7 +1773,9 @@ def puntuar(tc, o, score):
                         op_has_ex_immune_bench, op_is_lucario_deck,
                         meowth_ability_lock, _best_supp_in_hand_val,
                         _best_supp_in_deck_val,
-                        dragapult_no_tapu=_dragapult_no_tapu)
+                        dragapult_no_tapu=_dragapult_no_tapu,
+                        op_state=op_state,
+                        neutralization_zone_active=neutralization_zone_active)
                     _dawn_entry = _TABLA_DAWN_FETCH.get(card.id)
                     if _dawn_entry is not None:
                         _dawn_et, _dawn_rules, _dawn_defecto = _dawn_entry

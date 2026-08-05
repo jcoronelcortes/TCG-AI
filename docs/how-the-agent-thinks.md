@@ -89,6 +89,80 @@ The plan can be rewritten by **pivot flags** when the position is bad — for
 example: "our active can attack but cannot knock out, and it dies next turn" →
 retreat and promote a body that survives instead.
 
+"It dies next turn" is a projection of the opponent's attack, and for a long
+time that projection only looked at the Pokémon standing in front of us. Against
+an evolution deck that is the wrong body: a pre-evolution with one energy looks
+harmless and becomes, on their next turn, the card that takes two prizes. So the
+projection also asks what the opposing active can **become in one step**, with
+the energy it already carries. Only the sacrifice pivot reads that second number
+— retreat the doomed two-prize Pokémon and put a one-prize body in front — for
+the same reason the rest of the defensive machinery still reads the first one:
+those rules were tuned against the smaller number, and a bigger one makes the
+agent retreat when it should be racing.
+
+### What the turn is for
+
+The attack plan says *what we can hit*. A second, smaller object says *what the
+turn is about*, and it is the prize count that decides: with one prize left, a
+turn that can end the game is not the same turn as one that can take a prize.
+The **turn plan** (`ptcg/turn/game_plan.py`) answers three questions once, before
+the first decision:
+
+- is there a route that **closes the game** — attack as we stand, retreat and
+  promote the finisher, or gust a bench body with Boss's Orders?
+- how many prizes can we take today?
+- how many do they take on the reply, and does that close *their* count?
+
+Those answers become one word — `WIN_NOW`, `DENY`, `RACE`, `DEVELOP` — that the
+ordering rules consult. It exists because they used to decide without it: on a
+turn with lethal on the board, a rule that says "play the disruption Supporter
+first" vetoed the Boss's Orders that ended the game, and the agent spent nineteen
+actions rebuilding a board it no longer needed. `PTCG_DEBUG=1` prints the plan
+above the ranking, which is usually the fastest way to see why a play lost.
+
+### The dead turn
+
+A third, cruder reading runs alongside those two: **can the active attack at
+all this turn?** When the answer is no, a different set of engines takes over —
+the ones that spend the turn buying options instead of taking prizes, above all
+benching Meowth ex so its search brings the hand refill out of the deck.
+
+The answer is not just "count the energy on it". Our energy acceleration can
+still charge the attacker mid-turn, so the reading prices that route: with
+Ogerpon on the board and Grass left in the deck, the dances draw cards and those
+cards may be the energy we need. What that estimate must never forget is the
+**seed**: the ability attaches an energy *from hand*, so with nothing to pay the
+first dance there is no dance, no draw and no route — and the whole chain is
+worth zero, not a coin flip. When the hand cannot start it, the turn is dead and
+the agent should be looking for the card that fixes tomorrow.
+
+### An order is not a value
+
+Many rules do not say "this play is bad", they say "not yet — play that other
+card first". Refill the hand *after* the search that completes the evolution
+line, so the refill does not shuffle away the pieces. Use the draw ability
+*after* the Stamp that reshuffles our hand. Those are orderings, and they are
+true only while the card being waited for can still be played this turn.
+
+Scored as if they were judgements, they cost whole turns. Three correct rules
+can point at each other in a circle and none of them gets played: it happened to
+a once-per-turn ability whose blocker was itself vetoed, and it happens to the
+Supporter of the turn against a deck that locks Items — the refill waits for a
+search that this turn will never allow, and dies in hand.
+
+So an ordering veto is not applied on the spot. It is filed, together with the
+score the option really deserves and the cards it is waiting for, and lifted
+again once the whole menu is known: if no blocker is on the menu, or if the turn
+closes with this very action, the "afterwards" is never going to arrive and the
+order is void. A **value** veto — the deck-out brake, keeping a line we can
+evolve today — is decided before that and never revoked.
+
+The subtlety is what counts as a blocker still being alive. Being *offered* and
+being *worth playing right now* are different things: a search can sit at a veto
+because its cost would eat the wrong card, and become playable ten seconds later
+in the same turn once that card has been benched. What the engine does not offer
+at all is the only reliable sign that a card cannot be played today.
+
 ### Turn state vs. permanent state
 
 Some things must survive between calls inside the same turn, and a few between

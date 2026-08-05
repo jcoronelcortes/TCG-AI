@@ -164,6 +164,16 @@ class DecisionContext:
     # `yields_to_finisher_fishing` yield (registro_004 step 49 vs Marnie).
     # Default None: unit tests build the ctx directly.
     finisher_fishing: object = None
+    # THE TURN PLAN (`ptcg.turn.game_plan.TurnPlan`): what the PRIZE COUNT says
+    # this turn is for, decided once and before the first decision -- is there a
+    # route that CLOSES the game, how many prizes do we take, how many do they
+    # take on the reply. The ordering vetoes read it so as not to step aside for a
+    # resource card on a turn that ends the game (registro_013 step 126: the
+    # Unfair Stamp vetoed the winning Boss's at mutual match point). Read it
+    # through `game_plan.plan_of(ctx)`, never directly: the contexts built by hand
+    # in the unit tests do not carry one.
+    # Default None: unit tests build the ctx directly.
+    turn_plan: object = None
     # ITEM LOCK THREAT: the opponent can leave us without Items on OUR next turn
     # (Budew on their field, or a Dragapult deck, which runs it). See
     # `_bloqueo_de_items_inminente`: with that hanging over us an Item is not a

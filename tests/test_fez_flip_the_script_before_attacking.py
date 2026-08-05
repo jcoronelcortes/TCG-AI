@@ -33,7 +33,7 @@ None of the three is played, the attack (1100) wins the menu and the ability die
 
 Fix (agnostic to the rival deck: it only looks at our hand and the menu). The ORDER
 vetoes on abilities are registered as DEFERRABLE in
-`_ability_order_veto` and the "REVOKE ORDER VETOES" block lifts them when the
+`_order_veto` and the "REVOKE ORDER VETOES" block lifts them when the
 "X first" is not going to happen:
 
   (a) no blocker is offered and playable (score > 0) in this menu -- with no playable

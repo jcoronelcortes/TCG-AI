@@ -8,7 +8,7 @@ VERBATIM. It unpacks from the context the 60 fields it reads and returns the
 from cg.api import AreaType, CardType, OptionType, Pokemon
 from ptcg.calc.card import get_card, prize_count, prize_count_op
 from ptcg.calc.damage import _attacker_base_damage, _op_active_attack_damage_to, _our_effective_damage
-from ptcg.calc.energy import _can_attack_eff, _grass_attach_route_open, _grass_attach_unit, _grass_mult, _physical_energy, _retreat_grass_units
+from ptcg.calc.energy import _can_attack_eff, _grass_attach_route_open, _grass_attach_unit, _grass_mult, _physical_energy, _reachable_grass_for, _retreat_grass_to_discard, _retreat_grass_units
 from ptcg.calc.board import _active_of
 from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Chikorita, Cornerstone_Mask_Ogerpon_ex, Crustle_Fighting, Crustle_Grass, Cubchoo, Dawn, Dipplin, Drednaw, Dwebble_Fighting, Dwebble_Grass, EEVEE_IDS, Fezandipiti_ex, Hydrapple_ex, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, OP_BENCH_SNIPE_DAMAGE, OUR_ABILITY_IDS, OUR_EX_IDS, Pinsir, RETREAT_COST, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex
 from ptcg.cards.scoring import MAIN_ATTACKERS
@@ -29,6 +29,7 @@ def puntuar(tc, o, score):
     _conf_can_attack_pkmn = tc._conf_can_attack_pkmn
     _conf_should_retreat = tc._conf_should_retreat
     _cubchoo_lock_stuck = tc._cubchoo_lock_stuck
+    _doomed_sac_context = tc._doomed_sac_context
     _prize_mismatch_matchup = tc._prize_mismatch_matchup
     _e = tc._e
     _eff = tc._eff
@@ -41,6 +42,7 @@ def puntuar(tc, o, score):
     _nonex_active_hits_wall = tc._nonex_active_hits_wall
     _op_act = tc._op_act
     _op_best_damage_vs = tc._op_best_damage_vs
+    _op_evo_dmg_to_active = tc._op_evo_dmg_to_active
     _our_first_turn = tc._our_first_turn
     _p = tc._p
     _prize_denial_pivot = tc._prize_denial_pivot
@@ -560,8 +562,8 @@ def puntuar(tc, o, score):
                 break
         
         _doomed_ex_sac_pivot = False
+        _doomed_sac_deferred = False
         if (not _raging_sac_pivot
-                and not _doomed_pending_play
                 and _active_reloc is not None
                 and _active_reloc.id in OUR_EX_IDS
                 and not _active_can_ko_now
@@ -573,8 +575,19 @@ def puntuar(tc, o, score):
                 and any(bp is not None and prize_count(bp) == 1
                         for bp in (my_state.bench or []))):
             _des_opa = op_state.active[0]
-            _des_op_dmg = _op_active_attack_damage_to(
-                _des_opa, _active_reloc, getattr(op_state, 'handCount', None))
+            # THE FINISHER THAT IS NOT ON THE BOARD YET (user, registro_002
+            # step 25 vs Mega Lucario ex, LOST): the body in front is not always
+            # the one that kills us. A Riolu with one energy projects 60 against
+            # our 170 HP Meowth ex; the Mega Lucario ex it becomes next turn
+            # hits for 320. `_op_evo_dmg_to_active` is the same projection run
+            # against what the active can BECOME (main.py, next to the turn
+            # plan), and it is 0 when the active is already a final stage -- so
+            # the max() costs nothing where there is no line to read.
+            _des_op_dmg = max(
+                _op_active_attack_damage_to(
+                    _des_opa, _active_reloc,
+                    getattr(op_state, 'handCount', None)),
+                _op_evo_dmg_to_active or 0)
             # SNIPE GUARD (user, registro_004 t4 vs Marnie's
             # Grimmsnarl, LOST): hiding the ex on the bench only denies
             # prizes if it SURVIVES THERE. Against an attacker that also hits
@@ -594,10 +607,36 @@ def puntuar(tc, o, score):
             # play, and switching the pivot off because of a sniper that is not
             # in front costs games (measured vs crustle/Kangaskhan: -3.1 points
             # with the broad version).
+            # THE GUARD STAYS ON THE BODY IN FRONT, and deliberately does NOT
+            # read the evolution the way the damage above does. Extending it was
+            # tried and it turns off the pivot for a sniper that is not there
+            # yet -- an opposing Morgrem, whose Grimmsnarl ex snipes for 30, is
+            # enough to strand a doomed ex at 30 HP (tests/
+            # test_doomed_ex_falls_back_vs_sniper.py). That is the same
+            # broadening the paragraph above records as measured at -3.1 points.
+            # The asymmetry is on purpose: the damage reading TURNS THE PIVOT
+            # ON where the agent was blind, the snipe reading would turn it OFF
+            # where it has been measured to work.
             _des_snipe = OP_BENCH_SNIPE_DAMAGE.get(_des_opa.id, 0)
             if (_des_op_dmg >= (_active_reloc.hp or 0)
                     and _des_snipe < (_active_reloc.hp or 0)):
-                _doomed_ex_sac_pivot = True
+                # THE POSTPONEMENT IS NOT A CANCELLATION (user, registro_002
+                # step 25). While a development play is still pending the
+                # retreat waits its turn, and that is right -- but the record
+                # shows what the waiting used to cost: the pending play was a
+                # Tapu Bulu that the turn-2 rule VETOES, so it never happened,
+                # the pivot stayed off all turn and the agent ENDED the turn
+                # with the doomed ex in front. A play that is not going to be
+                # made cannot postpone anything, and from inside this scorer
+                # there is no way to know which ones those are. So the deferral
+                # stops being a switch-off and becomes a score floor (see the
+                # end of the chain): the retreat still yields to any real play
+                # -- they all score above it, and putting a Pokemon down also
+                # outranks it by TIER -- but it never yields to ENDING THE TURN.
+                if _doomed_pending_play:
+                    _doomed_sac_deferred = True
+                else:
+                    _doomed_ex_sac_pivot = True
         
         if _suicide_swap_win_promote:
             # RELIEF OF THE SUICIDAL FINISHER (user, registro_016 step 184 vs
@@ -1089,9 +1128,11 @@ def puntuar(tc, o, score):
                 # Without this check the active was retreated to bring up
                 # an UNCHARGED attacker, which could not attack either,
                 # wasting the turn and the retreat cost.
-                _grass_attach_this_turn = (
-                    hand_counts.get(Basic_Grass_Energy, 0) >= 1
-                    and not state.energyAttached)
+                # "Attaching ONE Grass this turn" is not only the one in hand:
+                # `_reachable_grass_for` also counts the discard through Night
+                # Stretcher and the card the retreat itself is about to pay
+                # (ptcg/calc/energy.py).
+                _bar_discards = _retreat_grass_to_discard(active)
                 _bench_attacker_ready = False
                 for bp in my_state.bench:
                     if bp is None or bp.id not in STRATEGIC_ATTACKERS:
@@ -1103,8 +1144,11 @@ def puntuar(tc, o, score):
                     if _bar_eff >= _bar_req:
                         _bench_attacker_ready = True
                         break
-                    if (_grass_attach_this_turn
-                            and _bar_eff + _grass_attach_unit() >= _bar_req):
+                    _bar_reach = _reachable_grass_for(
+                        bp, state, my_state, hand_counts, field_counts,
+                        extra_discard_grass=_bar_discards)
+                    if (_bar_reach
+                            and _bar_eff + _bar_reach * _grass_attach_unit() >= _bar_req):
                         _bench_attacker_ready = True
                         break
         
@@ -1276,17 +1320,48 @@ def puntuar(tc, o, score):
         
                 if not _active_can_attack:
         
+                    # The Grass the retreat itself is about to discard: with a
+                    # Night Stretcher in hand it comes straight back and can be
+                    # attached to the body we promote. Weighing the retreat
+                    # WITHOUT counting it is what left a free prize on the table
+                    # in registro_004 step 45 -- see the block comment in
+                    # ptcg/calc/energy.py.
+                    _rt_discards = _retreat_grass_to_discard(active)
+
+                    # ... but only when the turn HAS an attack. Going first on
+                    # turn 1 nobody may attack, so promoting a body that becomes
+                    # ready is not a play, it is an energy thrown away and a turn
+                    # of development lost (tests/test_state_builder.py,
+                    # test_abomasnow_first_turn_going_first_it_does_not_sacrifice).
+                    # The already-charged branch below keeps the behaviour it had.
+                    _rt_attackless_turn = (state.turn == 1
+                                           and AGENT_STATE.we_go_first)
+
                     _has_ready_bench = False
                     for bp in my_state.bench:
                         if bp is None:
                             continue
                         # It counts any ready main attacker on the bench
-                        # (Meganium included, previously omitted).
-                        if (bp.id in MAIN_ATTACKERS
-                                and _can_attack_eff(bp.id, len(bp.energies))):
+                        # (Meganium included, previously omitted), and any that
+                        # BECOMES ready with the energy this turn can still reach
+                        # it: the manual attachment, a Teal Dance / Ripening
+                        # Charge, and the discard through Night Stretcher.
+                        if bp.id not in MAIN_ATTACKERS:
+                            continue
+                        _rb_eff = len(bp.energies)
+                        if _can_attack_eff(bp.id, _rb_eff):
                             _has_ready_bench = True
                             break
-        
+                        if _rt_attackless_turn:
+                            continue
+                        _rb_reach = _reachable_grass_for(
+                            bp, state, my_state, hand_counts, field_counts,
+                            extra_discard_grass=_rt_discards)
+                        if _rb_reach and _can_attack_eff(
+                                bp.id, _rb_eff + _rb_reach * _grass_attach_unit()):
+                            _has_ready_bench = True
+                            break
+
                     if _has_ready_bench:
                         score = 2500
                     else:
@@ -1515,6 +1590,24 @@ def puntuar(tc, o, score):
                     len(_active_reloc.energies)) >= _cc_ret_cost)
             if _cc_wastes_energy:
                 score = SCORE_VETO
+
+        # NEVER END THE TURN WITH THE SACRIFICE STILL AVAILABLE (user,
+        # registro_002 step 25 vs Mega Lucario ex, LOST). See
+        # `_doomed_sac_deferred` above: the retreat is postponed behind the
+        # development plays of the turn, not cancelled. A floor of 1 is all it
+        # takes -- ENDING THE TURN scores 0 and every real play scores in the
+        # thousands -- so the order of the turn is untouched and only the dead
+        # end changes: with a doomed 2-prize ex in front and a 1-prize body on
+        # the bench, retreating beats doing nothing.
+        #
+        # `_doomed_sac_context` is the same reading computed once on the board
+        # (main.py), and it is asked here for two reasons: it adds the guard
+        # this floor needs -- a turn that can still take a prize
+        # (`prizes_today`) is not a dead end -- and it keeps the whole rule
+        # switchable from a single place, which is what makes the A/B of the
+        # self-play gate measure the change and not half of it.
+        if _doomed_sac_deferred and _doomed_sac_context and score <= 0:
+            score = 1
         return score
     finally:
         tc._b = _b

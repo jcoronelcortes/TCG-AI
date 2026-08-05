@@ -313,6 +313,33 @@ EEVEE_IDS = {43, 145, 249, 317}
 
 OUR_EX_IDS = {Teal_Mask_Ogerpon_ex, Hydrapple_ex, Meowth_ex, Fezandipiti_ex}
 
+# Solrock: Cosmic Beam costs a single {F}, hits for 70 and needs a Lunatone on
+# the bench. It is the exception that lifts `FIRST_TURN_TOUGH_OPENERS` below:
+# stacking Premium Power Pro (+30 per copy, an Item) it is the only opening the
+# opponent can assemble on their FIRST turn that reaches the 170 HP of a lone
+# Meowth ex -- and only with all four copies (70 + 4x30 = 190).
+#
+# CAREFUL, it does NOT double: Meowth ex and Fezandipiti ex are weak to
+# FIGHTING and Solrock IS a Fighting Pokemon, but the attack says "isn't
+# affected by Weakness or Resistance" and the simulator honours it. Measured
+# over 597 Cosmic Beams in 1200 games against the six mega_lucario_* decks (the
+# ATTACK 980 log paired with the HP_CHANGE that follows): no Fighting-weak
+# target ever took 140; base 70, and the 100/130/160 steps are stacked Power
+# Pros. The rule does not depend on the arithmetic -- it fires on "the opposing
+# active is a Solrock" -- but a reader who assumes the x2 will misjudge it.
+Solrock = 676
+
+# THE BODIES THAT SURVIVE THE OPPONENT'S FIRST TURN (user). Going FIRST, our
+# turn 1 does not attack and the opponent answers with a single energy: with
+# 210 HP (Teal Mask Ogerpon ex, Fezandipiti ex), 170 (Meowth ex) or 140 (Tapu
+# Bulu) in the active spot, no first-turn attack in the format knocks us out,
+# so an empty bench costs us NOTHING and the second Meowth ex stays in hand
+# instead of becoming a free 2-prize body. The fragile openers of the deck
+# (Chikorita 70, Applin 60...) are deliberately OUT of the set: those DO get
+# donked, and the anti-empty-bench net has to keep working for them.
+FIRST_TURN_TOUGH_OPENERS = frozenset({
+    Teal_Mask_Ogerpon_ex, Fezandipiti_ex, Tapu_Bulu, Meowth_ex})
+
 # Item cards ("artefacts") of our deck. Used to postpone putting Tapu Bulu down
 # until the items that are worth playing have been played.
 DECK_ITEM_IDS = frozenset({Bug_Catching_Set, Ultra_Ball, Night_Stretcher,
@@ -721,6 +748,13 @@ XEROSIC_SCORE_ALAKAZAM = 5900        # Xerosic vs Alakazam: cap Powerful Hand (2
 XEROSIC_SCORE_GENERIC = 3380         # generic Xerosic with a very large opposing hand (>=7): disruption value, below a typical Lillie's (~3450)
 XEROSIC_SCORE_LAST_RESORT = 20       # no clear useful effect: only if no other supporter scores
 XEROSIC_SCORE_SOBRE_BOSS = 7000      # vs Alakazam with Boss's in hand: capping the hand beats ANY gust that does not WIN the game (above GUST_2PRIZE 6800); the winning gust (WIN_NOW 20000) is still higher
+# The band every Supporter play scorer uses to say "I have NO useful effect
+# today: play me only because nothing else scores" -- BOSS_SCORE_EMPTY_GUST and
+# XEROSIC_SCORE_LAST_RESORT both sit exactly here. A Supporter at this height is
+# not "the Supporter of the turn": it is what is left when the turn has none.
+# Any rule that reasons about WHICH Supporter takes the slot has to read it as
+# such (see `_meowth_fetch_loses_the_turn`).
+SUPP_SCORE_LAST_RESORT_BAND = 20
 # --- FINISHER FISHING (see `_finisher_fishing`) ------------------------------
 # Lillie's Determination when the turn has no attack available and the draw may
 # bring the energy that unlocks a KO. It is placed above the whole Boss's ladder
@@ -866,6 +900,8 @@ __all__ = [
     'Eevee_SSP',
     'EEVEE_IDS',
     'OUR_EX_IDS',
+    'Solrock',
+    'FIRST_TURN_TOUGH_OPENERS',
     'DECK_ITEM_IDS',
     'EX_IMMUNE_IDS',
     'CRUSTLE_LINE_IDS',
@@ -958,6 +994,7 @@ __all__ = [
     'XEROSIC_SCORE_GENERIC',
     'XEROSIC_SCORE_LAST_RESORT',
     'XEROSIC_SCORE_SOBRE_BOSS',
+    'SUPP_SCORE_LAST_RESORT_BAND',
     'LILLIE_SCORE_FISHING',
     'FISHING_PROB_MIN',
     'FISHING_PRIZES_MIN',

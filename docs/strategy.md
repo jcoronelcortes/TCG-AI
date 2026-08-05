@@ -68,6 +68,14 @@ The counter-rules keep the engine from firing pointlessly: don't refill if there
 is already a ready attacker, if the Supporter for the turn is already in hand, or
 if the Supporter slot is already spent.
 
+"Already in hand" means a Supporter that really takes the turn. Every Supporter
+scorer has a bottom band it uses to say *I do nothing today, play me only because
+nothing else scores* — an empty gust with no target, a hand cap against an
+opponent already down to four cards. A Supporter sitting in that band is not the
+Supporter of the turn, and it is no reason to leave the hand engine dead in hand:
+if nothing we hold does anything, a fresh Supporter out of the deck is worth the
+two-prize body on the bench. Above the band the counter-rule stands.
+
 ## 6. Searching must pay for itself this turn
 
 Ultra Ball discards two cards; Poké Pad, Bug Catching Set and Night Stretcher
@@ -77,6 +85,20 @@ pre-evolution is not in play, or an attacker we cannot charge, is a net loss.
 
 The exception is expiry: with item lock coming, the search is used today for
 tomorrow's play, because tomorrow it will be illegal.
+
+And the payment has to come out of surplus. A hand of the Ultra Ball plus two
+cards has no surplus: those two *are* the cost and the hand ends the turn empty.
+That is only acceptable when neither of them is a Supporter — because a
+Supporter that cannot be played today is not a spare card, it is the whole of
+tomorrow. Discarding it to bench a body trades a turn for a Pokémon.
+
+Surplus is not the same as hand size. What counts is how many cards the discard
+scorer would really let go: an evolution whose pre-evolution is on the board, a
+Meowth ex that can still be benched, the Unfair Stamp that is never discarded —
+none of those is spare. When fewer than two remain, the cost cannot help but
+take what the agent itself is protecting, and there the search is not paid for
+at all. The worst version of that is paying for the intermediate piece of a line
+with the top of the same line.
 
 ## 7. Energy goes where it changes something
 
@@ -120,6 +142,15 @@ matters: strip cards permanently first, then shuffle the hand away. The reverse
 order throws away the cards the first effect would have removed for good. Both
 also step aside when refilling our own hand is worth more.
 
+Disruption is worth nothing on our own first turn going second. The opponent has
+just opened, their hand is the smallest it will ever be, and the attacker that
+would punish a big hand is not on the board yet — while our refill supporter is
+at its maximum, drawing eight with all six prizes untouched into an empty bench
+that has room for everything it finds. The refill takes that turn's supporter
+slot; disruption only outbids it once the opposing hand is inflated and the
+threat behind it is real. The exception is having nothing else: no refill in
+hand and no search that brings one.
+
 ## 11. Walls: the immune body in front
 
 Several meta decks put a body in front that our ex attackers simply cannot
@@ -128,7 +159,14 @@ damage. This is the strategic problem the agent invests most in:
 - promote a **non-ex** attacker that can hit it;
 - a wounded wall is not a wall — the agent reads current HP, not printed HP;
 - kill the wall before spending Boss's Orders behind it;
-- don't feed energy into an attacker the wall is immune to.
+- don't feed energy into an attacker the wall is immune to;
+- don't fill the bench with bodies the wall cancels. At most **two** Teal Mask
+  Ogerpon ex are ever in play, the setup bench included. The bench has five
+  slots and against a wall they belong to the pieces that still deal damage —
+  Tapu Bulu, the Meganium line, Dipplin — plus room for a Meowth ex. The cap
+  also applies at setup, where the opponent has not revealed anything yet:
+  there is no cost to holding the third copy in hand, and a benched body can
+  never be taken back.
 
 ## 12. Play order
 

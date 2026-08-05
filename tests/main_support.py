@@ -62,6 +62,7 @@ def reset_main_state():
     m._dodge_immune_turn = -1
     m._op_prize_denial_pecharunt = False
     m._op_prize_denial_gengar = False
+    m.AGENT_STATE.setup_active_id = None
     yield
     m._init_cards_tracking()
 

@@ -26,6 +26,17 @@ workflow.
 | Is a rule for one matchup breaking another? | `utils/collision_radar.py` — measures how often we resolve the *same* canonical situation across different opponents. A resolution rate that collapses for one deck and not the others is a collision. |
 | Was there a better line this turn? | `utils/turn_explorer.py` — enumerates every legal sequence of our own actions for a turn and compares the best one with what the agent chose. |
 | Why do we stall against the wall? | `utils/wall_probe.py` — per-turn probe of the immune-wall matchup; dumps the turns that ended dry so they can be replayed. |
+| Is there anything to write a rule *about*? | `utils/turn_waste_census.py` — counts, per turn and per plan mode, the resources that were legally playable and were declined: the turn's attachment, the Supporter slot, an evolution, a body for the bench. |
+
+**The waste axis is measured out.** The census above was run over 250 games and
+found the agent is *not* leaving resources unspent: the turn's energy attachment
+goes unused on 1.3% of DEVELOP turns, the Supporter slot is lost on a turn that
+ends without attacking once in a thousand, and 90% of the declined benchings
+happen with a bench of two or more already. Three rules were written against that
+axis before it was measured; all three came back neutral or negative. What is
+left to gain is not in what the agent fails to *spend* — it is in *which* of
+several legal, scored plays it picks, and that is arbitrated by the golden corpus
+and the records, not by a volume census.
 
 **Aggregate before you conclude.** The per-deck table names the single worst
 list; grouping by archetype often names a different culprit. That is exactly how

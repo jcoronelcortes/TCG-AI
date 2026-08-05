@@ -20,7 +20,7 @@ class PuntuacionCtx:
     _SALTAR: Any = None
     _TABLA_BCS_FETCH: Any = None
     _TABLA_DAWN_FETCH: Any = None
-    _ability_order_veto: Any = None
+    _order_veto: Any = None
     _ability_unlock_retreat_attack: Any = None
     _ability_unlock_retreat_ko: Any = None
     _active_already_kos: Any = None
@@ -63,6 +63,7 @@ class PuntuacionCtx:
     _conf_should_retreat: Any = None
     _cubchoo_lock_stuck: Any = None
     _doomed_body: Any = None
+    _doomed_sac_context: Any = None
     _dc: Any = None
     _deny_evo_via_boss: Any = None
     _prize_mismatch_matchup: Any = None
@@ -80,6 +81,7 @@ class PuntuacionCtx:
     _extra_energy_enables_ko: Any = None
     _festival_lead_hostil: Any = None
     _forced_ko_promote: Any = None
+    _ft_hold_lone_meowth: Any = None
     _grass_anywhere_enables_syrup_ko: Any = None
     _grass_enables_promote_ko: Any = None
     _gt_plan: Any = None
@@ -122,16 +124,19 @@ class PuntuacionCtx:
     _ogerpon_lethal_focus_serial: Any = None
     _op_act: Any = None
     _op_best_damage_vs: Any = None
+    _op_evo_dmg_to_active: Any = None
     _op_counter_threat_vs: Any = None
     _our_first_action_turn: Any = None
     _our_first_turn: Any = None
     _p: Any = None
     _prize_denial_pivot: Any = None
+    _promo_damage_to_op: Any = None
     _promo_kos_op: Any = None
     _promo_min_prize: Any = None
     _promo_op_act: Any = None
     _promo_survives: Any = None
     _promo_survivors: Any = None
+    _promo_wall_relief: Any = None
     _promote_setup_ko_attacker: Any = None
     _ready_attacker_count: Any = None
     _refresh_promote_prefer_basic: Any = None
@@ -144,6 +149,7 @@ class PuntuacionCtx:
     _ripen_retreat_ko_pivot: Any = None
     _score_boss_orders_play: Any = None
     _score_forest_of_vitality_play: Any = None
+    _lillie_play_order_veto: Any = None
     _score_lillie_determination_play: Any = None
     _score_night_stretcher_play: Any = None
     _score_ultra_ball_play: Any = None
@@ -155,6 +161,7 @@ class PuntuacionCtx:
     _suicide_only_draws: Any = None
     _suicide_swap_win_promote: Any = None
     _supp_values: Any = None
+    _ub_offered_in_menu: Any = None
     _tapu_future_charge: Any = None
     _tapu_sac_enable_retreat: Any = None
     _tapu_sac_pivot: Any = None

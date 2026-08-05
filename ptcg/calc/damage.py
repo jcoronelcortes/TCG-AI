@@ -10,6 +10,8 @@ from ptcg.state.agent_state import AGENT_STATE
 from ptcg.cards.tables import attack_table, card_table
 from ptcg.cards.ids import ABILITY_IMMUNE_IDS, Alakazam_ex, Brave_Bangle, DO_THE_WAVE_ATTACK_ID, Dipplin, Drednaw, EX_IMMUNE_IDS, FULL_HP_SURVIVE_IDS, Farigiraf_ex, Fezandipiti_ex, Hydrapple_ex, Maximum_Belt, Meganium, OUR_ABILITY_IDS, OUR_BASIC_EX_IDS, OUR_EX_IDS, POWERFUL_HAND_ATTACK_ID, Pinsir, Tapu_Bulu, Teal_Mask_Ogerpon_ex
 from ptcg.calc.energy import _grass_mult
+from ptcg.cards.lines import _direct_evolution_ids
+from ptcg.cards.op_scaling import OP_SCALING_IGNORES_WEAKNESS, op_scaled_damage
 from cg.api import EnergyType
 from typing import NamedTuple
 from ptcg.cards.ids import Mega_Hawlucha_ex, Survival_Brace
@@ -164,7 +166,8 @@ def _tiene_rule_box(card_id) -> bool:
     return bool(getattr(_d, 'ex', False) or getattr(_d, 'megaEx', False))
 
 
-def _op_active_attack_damage_to(op_active, target, op_hand_count=None):
+def _op_active_attack_damage_to(op_active, target, op_hand_count=None,
+                                scaled=False):
     """Maximum PRINTED damage the opposing active can deal to `target`.
 
     It resolves the attack IDs via `attack_table` (the `card.attacks` entries
@@ -190,6 +193,36 @@ def _op_active_attack_damage_to(op_active, target, op_hand_count=None):
     the opposing BENCH. The scale is read from the per-turn flag
     `_op_bench_count` (see DO_THE_WAVE_ATTACK_ID): that way ALL callers see it,
     without depending on each one remembering to pass an extra parameter.
+
+    `scaled=True` -- THE REST OF THAT FAMILY, OPT-IN (ago 2026, registro_013).
+    Those two "exceptions" were the whole of the model. A census of the 406
+    opposing decks in the repo found FIFTEEN attacks whose damage is a count of
+    something on the board, and the other thirteen were being projected as the
+    placeholder printed on the card: 30 for a Syrup Storm that the engine
+    resolved at 270 in that very game. They live in `ptcg/cards/op_scaling.py`
+    and read the per-turn snapshot `AGENT_STATE.op_scale`.
+
+    WHY IT IS OPT-IN, AND NOT SIMPLY THE TRUTH FOR EVERYONE. Because the number
+    is right and the rules that read it are not calibrated for it. Turning it on
+    for all 42 call sites measured, against HEAD, three independent samples of
+    4000 self-play games:
+
+        turn plan only        51.1% / 49.2% / 50.4%   premios +0.08 / -0.03 / +0.00
+        + scale everywhere    49.2% / 48.9% / 49.8%   premios -0.10 / -0.08 / -0.05
+
+    Three negative prize differentials out of three is not shuffle noise. The
+    flips say what happened: the defensive machinery downstream of this function
+    (`active_ko_likely`, `active_doomed_real`, the doomed-ex sacrifice pivot, the
+    promotion that has to survive) was tuned to fire rarely BECAUSE the
+    projection was low, and a projection three times larger turns the agent
+    passive from turn 4 -- ATTACK becoming RETREAT with five prizes still on the
+    table.
+
+    So the accurate number ships where nothing was ever calibrated against the
+    blind one: the turn plan's `op_prizes_next` (ptcg/turn/game_plan.py), which
+    is new. Migrating the other call sites is a per-site job with its own
+    measurement, not a flag flip -- each of them encodes a threshold that was
+    fitted to the old reading.
     """
     if op_active is None or target is None:
         return 0
@@ -198,19 +231,28 @@ def _op_active_attack_damage_to(op_active, target, op_hand_count=None):
         return 0
     avail = len(op_active.energies) + 1
     best = 0
+    best_ignores_weakness = False
     for _aid in opd.attacks:
         _atk = attack_table.get(_aid)
         if _atk is None:
             continue
         _dmg = getattr(_atk, 'damage', 0) or 0
         _need = len(getattr(_atk, 'energies', []) or [])
+        _ignores_weakness = False
         if (op_active.id == Alakazam_ex and _aid == POWERFUL_HAND_ATTACK_ID
                 and op_hand_count is not None and _need <= avail):
             _dmg = 20 * (op_hand_count + 2)
         elif _aid == DO_THE_WAVE_ATTACK_ID:
             _dmg = max(_dmg, 20 * AGENT_STATE._op_bench_count)
+        elif scaled:
+            # THE ATTACKS THAT DO NOT DO THEIR PRINTED DAMAGE (ago 2026). See
+            # `scaled` in the docstring for why this is opt-in and not the
+            # default, and ptcg/cards/op_scaling.py for the table itself.
+            _dmg = op_scaled_damage(_aid, _dmg, op_active, AGENT_STATE.op_scale)
+            _ignores_weakness = _aid in OP_SCALING_IGNORES_WEAKNESS
         if _need <= avail and _dmg > best:
             best = _dmg
+            best_ignores_weakness = _ignores_weakness
     if best <= 0:
         return 0
     # Tools on the opposing attacker that add damage against our ACTIVE ex, before
@@ -226,12 +268,61 @@ def _op_active_attack_damage_to(op_active, target, op_hand_count=None):
             best += 30
     tgt = card_table.get(target.id)
     _op_type = getattr(opd, 'energyType', None)
+    if best_ignores_weakness:
+        # The attack's own text says so (Raging Curse). Without this the
+        # projector would double a number the engine never doubles.
+        return max(0, int(best))
     if tgt is not None and _op_type is not None:
         if getattr(tgt, 'weakness', None) == _op_type:
             best *= 2
         elif getattr(tgt, 'resistance', None) == _op_type:
             best = max(0, best - 30)
     return max(0, int(best))
+
+
+def _op_evolution_attack_damage_to(op_active, target, op_hand_count=None):
+    """Damage the EVOLUTION of the opposing active would deal to `target`.
+
+    THE THREAT THAT IS NOT ON THE BOARD YET (user, registro_002 step 25 vs Mega
+    Lucario ex, LOST). Every defensive reading of the agent asks
+    `_op_active_attack_damage_to`, and that function reads the body that is in
+    front of us TODAY. Against an evolution deck the body in front is not the
+    one that kills us: on turn 2 the opposing active was a Riolu with one energy
+    -- Accelerating Stab, 30 -- and the projector answered 60 against our 170 HP
+    Meowth ex. Their next turn it evolved into Mega Lucario ex and hit for 320.
+
+    So this is the same projection run against each card the opposing active can
+    become in ONE step, with the energies and tools it already carries (both
+    survive an evolution) -- and the projector's own "+1 energy for next turn"
+    on top. It answers 0 when the active is a final stage, which is why every
+    caller can take `max()` of the two readings without a special case.
+
+    IT ASSUMES THEY HOLD THE EVOLUTION, and that is the deliberate part. Their
+    hand is invisible; what is visible is that a pre-evolution is in play, and a
+    deck does not play the Basic without the card it evolves into. The agent
+    already reasons that way on the offensive side, where cutting the line of an
+    opposing pre-evolution with Boss's Orders is worth a Supporter
+    (`_preevo_of_ex_line`).
+
+    IT IS OPT-IN, exactly like `scaled=True` above and for the same measured
+    reason: the defensive machinery downstream was calibrated against the blind
+    reading, and turning a bigger number on for all of it makes the agent
+    passive. Its only consumer is the doomed-ex sacrifice pivot
+    (`ptcg/turn/options/retreat.py`), whose remaining gates -- three prizes
+    still to take, no ready attacker on the bench, a 1-prize body to put in
+    front -- keep it to the turns where the alternative is handing over two
+    prizes for nothing.
+    """
+    if op_active is None or target is None:
+        return 0
+    best = 0
+    for _evo_id in _direct_evolution_ids(op_active.id):
+        _proj = _ProjTarget(_evo_id,
+                            tuple(getattr(op_active, 'tools', None) or ()),
+                            tuple(getattr(op_active, 'energies', None) or ()))
+        best = max(best, _op_active_attack_damage_to(_proj, target,
+                                                     op_hand_count))
+    return best
 
 
 def _attacker_base_damage(attacker_id, target, effective_energy,
@@ -352,6 +443,7 @@ __all__ = [
     '_our_effective_damage',
     '_tiene_rule_box',
     '_op_active_attack_damage_to',
+    '_op_evolution_attack_damage_to',
     '_attacker_base_damage',
     '_bench_attacker_can_ko',
     '_bench_attacker_best_damage',

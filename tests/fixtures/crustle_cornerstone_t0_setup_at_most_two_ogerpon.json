@@ -1,0 +1,372 @@
+{
+ "origen": "log/89629887.json (episodio 89629887, PERDIDA)",
+ "paso": "2 (activo) y 5 (banca)",
+ "nota": "Setup vs Crustle + Cornerstone Mask Ogerpon ex: la mano de salida trae TRES Teal Mask Ogerpon ex (96), un Tapu Bulu (920) y un Meowth ex (1071). La secuencia son las dos decisiones del setup: el Pokemon inicial ACTIVO (paso 2, contexto 1) y la BANCA inicial (paso 5, contexto 2). El agente bajaba los tres Ogerpon ex a la banca; desde el turno 2 el activo rival fue un Cornerstone Mask Ogerpon ex, cuya Cornerstone Stance anula el dano de los Pokemon CON habilidad, asi que los tres cuerpos hacian 0 el resto de la partida y ocupaban el sitio de Tapu Bulu / la linea Meganium / Dipplin / Meowth ex.",
+ "accion_registrada": [
+  0,
+  1,
+  2
+ ],
+ "sequence": [
+  {
+   "paso": 2,
+   "observation": {
+    "current": {
+     "energyAttached": false,
+     "firstPlayer": 1,
+     "looking": null,
+     "players": [
+      {
+       "active": [],
+       "asleep": false,
+       "bench": [],
+       "benchMax": 5,
+       "burned": false,
+       "confused": false,
+       "deckCount": 53,
+       "discard": [],
+       "hand": [
+        {
+         "id": 96,
+         "playerIndex": 0,
+         "serial": 5
+        },
+        {
+         "id": 1184,
+         "playerIndex": 0,
+         "serial": 30
+        },
+        {
+         "id": 96,
+         "playerIndex": 0,
+         "serial": 3
+        },
+        {
+         "id": 1227,
+         "playerIndex": 0,
+         "serial": 26
+        },
+        {
+         "id": 920,
+         "playerIndex": 0,
+         "serial": 23
+        },
+        {
+         "id": 96,
+         "playerIndex": 0,
+         "serial": 4
+        },
+        {
+         "id": 1121,
+         "playerIndex": 0,
+         "serial": 36
+        }
+       ],
+       "handCount": 7,
+       "paralyzed": false,
+       "poisoned": false,
+       "prize": []
+      },
+      {
+       "active": [],
+       "asleep": false,
+       "bench": [],
+       "benchMax": 5,
+       "burned": false,
+       "confused": false,
+       "deckCount": 53,
+       "discard": [],
+       "hand": null,
+       "handCount": 7,
+       "paralyzed": false,
+       "poisoned": false,
+       "prize": []
+      }
+     ],
+     "result": -1,
+     "retreated": false,
+     "stadium": [],
+     "stadiumPlayed": false,
+     "supporterPlayed": false,
+     "turn": 0,
+     "turnActionCount": 2,
+     "yourIndex": 0
+    },
+    "logs": [
+     {
+      "playerIndex": 1,
+      "type": 5
+     },
+     {
+      "playerIndex": 1,
+      "type": 5
+     },
+     {
+      "playerIndex": 1,
+      "type": 5
+     },
+     {
+      "playerIndex": 1,
+      "type": 5
+     },
+     {
+      "playerIndex": 1,
+      "type": 5
+     },
+     {
+      "playerIndex": 1,
+      "type": 5
+     },
+     {
+      "playerIndex": 1,
+      "type": 5
+     },
+     {
+      "cardId": 96,
+      "playerIndex": 0,
+      "serial": 5,
+      "type": 4
+     },
+     {
+      "cardId": 1184,
+      "playerIndex": 0,
+      "serial": 30,
+      "type": 4
+     },
+     {
+      "cardId": 96,
+      "playerIndex": 0,
+      "serial": 3,
+      "type": 4
+     },
+     {
+      "cardId": 1227,
+      "playerIndex": 0,
+      "serial": 26,
+      "type": 4
+     },
+     {
+      "cardId": 920,
+      "playerIndex": 0,
+      "serial": 23,
+      "type": 4
+     },
+     {
+      "cardId": 96,
+      "playerIndex": 0,
+      "serial": 4,
+      "type": 4
+     },
+     {
+      "cardId": 1121,
+      "playerIndex": 0,
+      "serial": 36,
+      "type": 4
+     },
+     {
+      "hasBasicPokemon": false,
+      "playerIndex": 1,
+      "type": 1
+     },
+     {
+      "hasBasicPokemon": true,
+      "playerIndex": 0,
+      "type": 1
+     }
+    ],
+    "remainingOverageTime": 599.055759,
+    "search_begin_input": "AGIAXEAMBAGEAbICAGEAEB-+CCJ-PHHAEBR4DGhcEJ-MBDU-5KBw-ZB1-fIB-VEQ-VBL-+BI-UBBCw-3BGAECE-WBIB-2BBgAEhw-VBCABQ-2BYAEII-WBgE-h6mABMACIY-WBgE-hIywQACIU-WBgE-2LKABEACCD-WBIB-hSGEEACCI-WBIB*MxEBAFMACgAMMACgABCAKMACgABEAKMACgABF-FBwADGwAWQACGQAVBACBZAVQEABFAG=",
+    "select": {
+     "context": 1,
+     "contextCard": null,
+     "deck": null,
+     "effect": null,
+     "maxCount": 1,
+     "minCount": 1,
+     "option": [
+      {
+       "area": 2,
+       "index": 0,
+       "playerIndex": 0,
+       "type": 3
+      },
+      {
+       "area": 2,
+       "index": 2,
+       "playerIndex": 0,
+       "type": 3
+      },
+      {
+       "area": 2,
+       "index": 4,
+       "playerIndex": 0,
+       "type": 3
+      },
+      {
+       "area": 2,
+       "index": 5,
+       "playerIndex": 0,
+       "type": 3
+      }
+     ],
+     "remainDamageCounter": 0,
+     "remainEnergyCost": 0,
+     "type": 1
+    },
+    "step": 2
+   }
+  },
+  {
+   "paso": 5,
+   "observation": {
+    "current": {
+     "energyAttached": false,
+     "firstPlayer": 1,
+     "looking": null,
+     "players": [
+      {
+       "active": [
+        null
+       ],
+       "asleep": false,
+       "bench": [],
+       "benchMax": 5,
+       "burned": false,
+       "confused": false,
+       "deckCount": 46,
+       "discard": [],
+       "hand": [
+        {
+         "id": 96,
+         "playerIndex": 0,
+         "serial": 5
+        },
+        {
+         "id": 1184,
+         "playerIndex": 0,
+         "serial": 30
+        },
+        {
+         "id": 96,
+         "playerIndex": 0,
+         "serial": 3
+        },
+        {
+         "id": 1227,
+         "playerIndex": 0,
+         "serial": 26
+        },
+        {
+         "id": 96,
+         "playerIndex": 0,
+         "serial": 4
+        },
+        {
+         "id": 1121,
+         "playerIndex": 0,
+         "serial": 36
+        },
+        {
+         "id": 1071,
+         "playerIndex": 0,
+         "serial": 19
+        }
+       ],
+       "handCount": 7,
+       "paralyzed": false,
+       "poisoned": false,
+       "prize": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+       ]
+      },
+      {
+       "active": [
+        null
+       ],
+       "asleep": false,
+       "bench": [],
+       "benchMax": 5,
+       "burned": false,
+       "confused": false,
+       "deckCount": 47,
+       "discard": [],
+       "hand": null,
+       "handCount": 6,
+       "paralyzed": false,
+       "poisoned": false,
+       "prize": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+       ]
+      }
+     ],
+     "result": -1,
+     "retreated": false,
+     "stadium": [],
+     "stadiumPlayed": false,
+     "supporterPlayed": false,
+     "turn": 0,
+     "turnActionCount": 6,
+     "yourIndex": 0
+    },
+    "logs": [
+     {
+      "cardId": 1071,
+      "playerIndex": 0,
+      "serial": 19,
+      "type": 4
+     }
+    ],
+    "remainingOverageTime": 598.9947609999999,
+    "search_begin_input": "AGYATEBAKEAEBAGEAbIDALE-+CCm-lFRcANBg-ZBHAEBR4DGgQkEw-LBC4-PJEAPY-ZBBg-ZBv-fIB-VEQ-VBL-+BI-UBBCw-3BGAECE-WBIB-2BBgAEhw-VBCABQ-2BYAEII-WBgE-MtvBADpQ-VBCABQ-2LmABMACIk-VBBABIBA1Q-qHywQACIU-WBgE-2LKABEACCD-WBIB-hSGEEACCI-WBIB*WPCE*1hCBAFMACgAMMACgABCAKMACgABEAKMACgABG-FBQADFoAUBABQABUAG==",
+    "select": {
+     "context": 2,
+     "contextCard": null,
+     "deck": null,
+     "effect": null,
+     "maxCount": 4,
+     "minCount": 0,
+     "option": [
+      {
+       "area": 2,
+       "index": 0,
+       "playerIndex": 0,
+       "type": 3
+      },
+      {
+       "area": 2,
+       "index": 2,
+       "playerIndex": 0,
+       "type": 3
+      },
+      {
+       "area": 2,
+       "index": 4,
+       "playerIndex": 0,
+       "type": 3
+      },
+      {
+       "area": 2,
+       "index": 6,
+       "playerIndex": 0,
+       "type": 3
+      }
+     ],
+     "remainDamageCounter": 0,
+     "remainEnergyCost": 0,
+     "type": 1
+    },
+    "step": 5
+   }
+  }
+ ]
+}

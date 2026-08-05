@@ -162,11 +162,17 @@ def our_index(data):
     """
     deck = _our_deck_ids()
     votos = [0, 0]
+    decide = [0, 0]
     for step in data.get("steps", []):
         for item in step:
-            cur = (item.get("observation") or {}).get("current")
+            obs = item.get("observation") or {}
+            cur = obs.get("current")
             if not cur:
                 continue
+            if item.get("status") == "ACTIVE" and obs.get("select"):
+                asiento = cur.get("yourIndex")
+                if asiento in (0, 1):
+                    decide[asiento] += 1
             for idx, jugador in enumerate(cur.get("players", [])):
                 vistas = []
                 for pk in (jugador.get("active") or []) + (
@@ -178,7 +184,18 @@ def our_index(data):
                 for card in (jugador.get("hand") or []):
                     vistas.append(card.get("id"))
                 votos[idx] += sum(1 for cid in vistas if cid in deck)
-    return 0 if votos[0] >= votos[1] else 1
+    elegido = 0 if votos[0] >= votos[1] else 1
+    # A MIRROR match makes the vote meaningless: both seats play deck.csv, so it
+    # is decided by how much of each side happens to be visible. In
+    # registro_013 (episode 89616806, our agent against itself) it picked the seat
+    # that does not act in that segment and the record contributed ZERO decisions
+    # -- a record inside the corpus that gated nothing, and silently, because an
+    # empty list compares equal to an empty list forever.
+    # When the chosen seat takes no decision and the other one does, the other one
+    # is our seat: no record in the corpus may be a no-op.
+    if decide[elegido] == 0 and decide[1 - elegido] > 0:
+        return 1 - elegido
+    return elegido
 
 
 def replay_record(m, path):
@@ -255,6 +272,18 @@ def comparar(dorado, actual):
         if oro["md5"] != today["md5"]:
             cambiados.append(name)
             continue
+        # A DIFFERENT NUMBER OF DECISIONS ON THE SAME DATA is a flip too, and the
+        # `zip` below hides it: it stops at the shorter list, so a record that
+        # went from 0 decisions to 19 (which is what happened to registro_013 when
+        # the seat of a mirror match was resolved) compared as "no changes". The
+        # count is the first thing that has to match.
+        if len(oro["decisiones"]) != len(today["decisiones"]):
+            flips.append({
+                "archivo": name,
+                "paso": "recuento",
+                "dorado": f"{len(oro['decisiones'])} decisiones",
+                "actual": f"{len(today['decisiones'])} decisiones",
+            })
         for d_oro, d_today in zip(oro["decisiones"], today["decisiones"]):
             if d_oro["eleccion"] != d_today["eleccion"]:
                 _id = (f"paso {d_oro['paso']}" if d_oro.get("paso") is not None

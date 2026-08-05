@@ -5,7 +5,10 @@ Extracted VERBATIM from main.py by utils/extract_definitions.py
 utils/purity.py: nothing here touches mutable state or the runtime tables.
 """
 
-from ptcg.cards.ids import ALAKAZAM_ATTACKER_IDS, CRUSTLE_LINE_IDS, DUNSPARCE_IDS
+from cg.api import EnergyType
+
+from ptcg.cards.ids import ALAKAZAM_ATTACKER_IDS, Basic_Grass_Energy, CRUSTLE_LINE_IDS, DUNSPARCE_IDS
+from ptcg.cards.op_scaling import BoardScale
 from ptcg.cards.tables import attack_table, card_table
 
 
@@ -250,7 +253,87 @@ def _op_disruption_belief(op_state, op_supporter_played):
     p = 1.0 - p_none
     return max(0.05, min(0.85, p))
 
+
+# ---------------------------------------------------------------------------
+# The scale of the opposing attacks that do not do their printed damage
+# ---------------------------------------------------------------------------
+# Everything the card database has to answer -- which bodies are Basic, which
+# are ex, which belong to a named trainer -- is resolved HERE, once per turn, so
+# that `ptcg/cards/op_scaling.py` stays a table of pure arithmetic. See that
+# module for the census of which attacks scale and why four of them are left
+# out on purpose.
+
+def _is_basic(card_id):
+    data = card_table.get(card_id)
+    if data is None:
+        return False
+    return not (getattr(data, 'stage1', False) or getattr(data, 'stage2', False))
+
+
+def _is_ex(card_id):
+    data = card_table.get(card_id)
+    if data is None:
+        return False
+    return bool(getattr(data, 'ex', False) or getattr(data, 'megaEx', False))
+
+
+def _belongs_to(card_id, owner):
+    """Does the card's NAME start with a trainer's name ("Cynthia's Gabite")?
+
+    The card database has no "owner" field: the subset is part of the printed
+    name, which is also how the attacks refer to it ("each of your Team Rocket's
+    Pokemon"). Both apostrophes are accepted because the names use the ASCII one
+    and the attack texts the typographic one -- a mismatch that would silently
+    count zero.
+    """
+    name = getattr(card_table.get(card_id), 'name', '') or ''
+    return name.startswith(owner + "'s ") or name.startswith(owner + "’s ")
+
+
+def _damage_counters(pokemon):
+    if pokemon is None:
+        return 0
+    return max(0, ((pokemon.maxHp or 0) - (pokemon.hp or 0)) // 10)
+
+
+def build_op_scale(my_state, op_state, prizes_total=6):
+    """The `BoardScale` of this turn: what every scaling opposing attack counts.
+
+    `prizes_total` is how many prizes a player starts with in this format (6):
+    what Pecharunt ex's attack scales with is the prizes WE have already TAKEN,
+    and the observation only carries the ones that are LEFT.
+    """
+    op_field = [p for p in ((op_state.active or []) + (op_state.bench or []))
+                if p is not None]
+    my_field = [p for p in ((my_state.active or []) + (my_state.bench or []))
+                if p is not None]
+    my_active = (my_state.active or [None])[0]
+
+    return BoardScale(
+        op_bench=sum(1 for p in (op_state.bench or []) if p is not None),
+        op_grass_on_field=sum(
+            1 for p in op_field
+            for e in (p.energies or []) if e == EnergyType.GRASS),
+        op_basics_in_play=sum(1 for p in op_field if _is_basic(p.id)),
+        op_rocket_in_play=sum(1 for p in op_field
+                              if _belongs_to(p.id, "Team Rocket")),
+        op_cynthia_bench_counters=sum(
+            _damage_counters(p) for p in (op_state.bench or [])
+            if p is not None and _belongs_to(p.id, "Cynthia")),
+        my_bench=sum(1 for p in (my_state.bench or []) if p is not None),
+        my_hand=len(getattr(my_state, 'hand', None) or []),
+        my_active_energy=len(getattr(my_active, 'energies', None) or []),
+        my_ex_in_play=sum(1 for p in my_field if _is_ex(p.id)),
+        my_basic_energy_in_discard=sum(
+            1 for c in (getattr(my_state, 'discard', None) or [])
+            if getattr(c, 'id', 0) == Basic_Grass_Energy),
+        prizes_we_took=max(0, prizes_total
+                           - len(getattr(my_state, 'prize', None) or [])),
+    )
+
+
 __all__ = [
+    'build_op_scale',
     '_op_attack_deficit',
     '_op_body_is_harmless',
     '_op_active_is_harmless',

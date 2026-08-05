@@ -830,8 +830,17 @@ def test_alakazam_step17_plays_lillie_not_xerosic_small_op_hand():
 def test_alakazam_step17_control_large_op_hand_keeps_xerosic():
     # Boundary: with a BIG rival hand (>= 7) capping Powerful Hand IS worth more;
     # Xerosic must still beat Lillie's (it must not yield through the minimal hand).
+    #
+    # The turn is moved off 2 on purpose. The record is OUR FIRST TURN going
+    # second, and there Lillie's now wins whatever the size of the opposing hand
+    # (`first_turn_yields_to_lillie`, see
+    # tests/test_first_turn_lillie_over_xerosic.py). What this control pins is
+    # the OTHER boundary -- the one of `alakazam_yields_to_lillie_tiny_opponent_hand`,
+    # which reads the opposing hand and nothing else -- so it has to be measured
+    # on a turn where the calendar is not already deciding.
     import copy as _copy
     obs = _copy.deepcopy(_load_alakazam_step17_obs())
+    obs["current"]["turn"] = 4
     op = obs["current"]["players"][1 - obs["current"]["yourIndex"]]
     op["handCount"] = 9
     me = obs["current"]["players"][obs["current"]["yourIndex"]]

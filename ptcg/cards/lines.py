@@ -503,7 +503,33 @@ def _pokemon_injugable(card_id, field_counts, bench_count, bench_max):
                 return field_counts.get(pre, 0) == 0
     return True                          # a Basic with the bench full
 
+
+def _direct_evolution_ids(card_id):
+    """Ids of the cards `card_id` evolves into in ONE step (an empty tuple for a
+    final stage or an unknown card).
+
+    One step, not the whole chain: what it answers is "what can this body BE
+    NEXT TURN", which is the only thing a defensive projection is entitled to
+    assume. The chain-wide question already has its own reader
+    (`_line_ends_in_ex`).
+
+    Deck-agnostic and environment-wide: it reads the reverse index of
+    `evolvesFrom`, so an opposing Riolu answers Mega Lucario ex without anybody
+    having listed that line by hand.
+    """
+    data = card_table.get(card_id)
+    if data is None or data.cardType != CardType.POKEMON:
+        return ()
+    name = getattr(data, 'name', None)
+    if not name:
+        return ()
+    return tuple(getattr(evo, 'cardId', 0)
+                 for evo in _EVOLUTIONS_BY_NAME.get(name, ())
+                 if getattr(evo, 'cardId', 0))
+
+
 __all__ = [
+    '_direct_evolution_ids',
     '_evolution_stage',
     '_line_root',
     '_same_evolution_line',

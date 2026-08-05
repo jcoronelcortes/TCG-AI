@@ -7,7 +7,9 @@ utils/purity.py: nothing here touches mutable state or the runtime tables.
 
 from ptcg.state.agent_state import AGENT_STATE
 from ptcg.cards.tables import attack_table, card_table
-from ptcg.cards.ids import Applin, Chikorita, Hydrapple_ex, Tapu_Bulu, Teal_Mask_Ogerpon_ex
+from ptcg.cards.ids import (Applin, Basic_Grass_Energy, Chikorita, Hydrapple_ex,
+                            Night_Stretcher, RETREAT_COST, Tapu_Bulu,
+                            Teal_Mask_Ogerpon_ex)
 from ptcg.cards.groups import Nighttime_Mine, OUR_TERA_IDS
 from ptcg.cards.costs import ATTACK_ENERGY_REQ_BASE
 from ptcg.calc.board import _active_of
@@ -159,6 +161,116 @@ def _retreat_grass_units(retreat_cost):
     return _retreat_cards(retreat_cost) * _grass_attach_unit()
 
 
+# ---------------------------------------------------------------------------
+# REACHABLE energy: the Grass a body can still receive THIS turn
+# ---------------------------------------------------------------------------
+# Why this block exists (user, registro_004 step 45 vs Mega Lucario ex, LOST).
+# Board on our turn 4: active Teal Mask Ogerpon ex at 80/210 with ONE Grass (two
+# effective with Meganium's Wild Growth, one short of Myriad's three), an
+# untouched Ogerpon ex on the bench with another one, Night Stretcher in hand, no
+# energy in hand and NO energy in the discard. Every scorer that had to answer
+# "can anybody attack this turn?" answered no, the retreat was vetoed
+# (retreat.py, `_has_ready_bench`), the turn plan read `prizes_today=0` and the
+# turn ended without attacking. `utils/turn_explorer.py` on that same observation
+# finds the prize:
+#
+#     RETREAT -> NIGHT STRETCHER -> TEAL DANCE -> ATTACK
+#
+# The retreat is what makes the rest legal. Paying it discards the Grass off the
+# retreating body, and THAT is the card Night Stretcher brings back to hand for
+# Teal Dance to attach to the promoted Ogerpon: two physical Grass = four
+# effective >= the three of Myriad Leaf Shower. Before the retreat the discard
+# held only trainers and the simulator did not even offer the Stretcher.
+#
+# So the mistake was never a missing rule, it was a definition: "available
+# energy" meant `Basic_Grass_Energy in hand and not energyAttached`, copied into
+# four scorers. Energy sitting in the discard with a Stretcher in hand is exactly
+# as available -- and so is the energy the retreat we are weighing is about to
+# put there. These three functions are the single answer to that question.
+
+def _grass_attach_slots_for(pokemon, state, field_counts, abilities_off=False):
+    """Attach routes that can still put a Grass energy ON `pokemon` this turn.
+
+    Generalises the two counters above by TARGET. The manual attachment and
+    Ripening Charge (Hydrapple ex) reach any of our Pokemon; Teal Dance attaches
+    only to the Ogerpon that uses it, so it counts for that body alone -- and it
+    counts wherever the body stands, because the ability does not care about the
+    Active Spot (which is what makes the promoted attacker chargeable).
+
+    Same conservative estimate of already-spent ability charges as
+    `_grass_ability_slots`: if it overshoots, the play is simply not proposed.
+    """
+    slots = 0 if state.energyAttached else 1
+    if abilities_off:
+        return slots
+    capacity = (field_counts or {}).get(Hydrapple_ex, 0)
+    if pokemon is not None and getattr(pokemon, 'id', 0) == Teal_Mask_Ogerpon_ex:
+        capacity += 1
+    used = AGENT_STATE._grass_attaches_this_turn - (1 if state.energyAttached else 0)
+    return slots + max(0, capacity - max(0, used))
+
+
+def _retreat_grass_to_discard(pokemon):
+    """PHYSICAL Grass cards that paying `pokemon`'s retreat sends to the discard.
+
+    The counterpart of `_retreat_grass_units`, which answers what LEAVES the
+    field; this one answers what ARRIVES in the discard, where Night Stretcher
+    can reach it. Capped by what the body actually carries: a retreat it cannot
+    pay is not offered by the simulator and must not be counted on here.
+    """
+    if pokemon is None:
+        return 0
+    needed = _retreat_cards(RETREAT_COST.get(getattr(pokemon, 'id', 0), 0))
+    if needed <= 0:
+        return 0
+    carried = _physical_energy(len(getattr(pokemon, 'energies', []) or []))
+    return min(needed, carried)
+
+
+def _retreat_payable(pokemon):
+    """Can `pokemon` pay its own retreat with the energy it carries?
+
+    In a scorer the question is already answered -- the simulator only offers a
+    retreat it can charge for -- but the turn plan weighs the PROMOTE route
+    without a menu in front of it, and a route that cannot pay its first step is
+    not a route.
+    """
+    if pokemon is None:
+        return False
+    needed = _retreat_cards(RETREAT_COST.get(getattr(pokemon, 'id', 0), 0))
+    if needed <= 0:
+        return True
+    return _physical_energy(len(getattr(pokemon, 'energies', []) or [])) >= needed
+
+
+def _reachable_grass_for(pokemon, state, my_state, hand_counts, field_counts,
+                         extra_discard_grass=0, abilities_off=False):
+    """PHYSICAL Basic Grass cards we can still ATTACH to `pokemon` this turn.
+
+    Two ceilings, and the smaller one wins: the CARDS we can get into hand (the
+    ones already there, plus one per Night Stretcher for every Grass in the
+    discard) and the ROUTES that can put them on that body. `extra_discard_grass`
+    is the retreat's own payment when the caller is weighing a retreat -- see the
+    block comment above.
+
+    Returns PHYSICAL cards; multiply by `_grass_attach_unit()` for effective
+    energy. Deliberately left out: Lana's Aid and Ultra Ball, which also reach
+    the discard or the deck but spend the Supporter slot or a two-card cost that
+    the caller cannot see from here.
+    """
+    available = hand_counts.get(Basic_Grass_Energy, 0)
+    stretchers = hand_counts.get(Night_Stretcher, 0)
+    if stretchers > 0:
+        in_discard = sum(1 for c in (getattr(my_state, 'discard', None) or [])
+                         if getattr(c, 'id', 0) == Basic_Grass_Energy)
+        available += min(stretchers, in_discard + max(0, extra_discard_grass))
+    if available <= 0:
+        return 0
+    return min(available,
+               _grass_attach_slots_for(pokemon, state, field_counts,
+                                       abilities_off))
+
+
 def _aplicar_impuesto_tera(stadium_cards) -> bool:
     """Raises the cost of our Tera by +1 if Nighttime Mine is on the field.
 
@@ -232,4 +344,8 @@ __all__ = [
     '_ripen_energy_capped',
     '_retreat_cards',
     '_retreat_grass_units',
+    '_grass_attach_slots_for',
+    '_retreat_grass_to_discard',
+    '_retreat_payable',
+    '_reachable_grass_for',
 ]

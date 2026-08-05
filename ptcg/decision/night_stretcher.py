@@ -101,6 +101,9 @@ class _CtxNS:
     ns_bench_charge: bool        # vs Crustle: energy for a benched attacker
     ns_evo_saves_doomed: bool    # Hydrapple ex saves a doomed Dipplin
     grass_enables_syrup_ko: bool  # the Grass makes Syrup Storm LETHAL again
+    # The Grass, put on OUR ACTIVE, KNOCKS OUT the opposing active TODAY
+    # (`_grass_on_active_enables_ko` + a live route to the active).
+    grass_makes_the_active_ko: bool = False
     # --- Dead turn: the DRAW engine rules (registro_008 step 67) ------------
     dead_turn: bool = False   # nobody attacks today, not even with one more energy
     hand_exhausted: bool = False   # <=2 cards in hand after paying for the search
@@ -149,21 +152,78 @@ def _ns_charge_route_open(w):
         abilities_off=bool(getattr(w, 'meowth_ability_lock', False)))
 
 
-def _ns_charge_route_to_active(w):
-    """Same as `_ns_charge_route_open` but requiring that the Grass can
-    reach the ACTIVE: the manual attachment goes wherever we want, Ripening
-    Charge too (it attaches to 1 of your Pokemon) and Teal Dance only to the
-    Ogerpon itself."""
-    if not w.state.energyAttached:
+def _charge_route_to_active(my_state, state, field_counts, abilities_off=False):
+    """Whether ONE Grass from hand can still reach the ACTIVE this turn: the
+    manual attachment goes wherever we want, Ripening Charge too (it attaches to
+    1 of your Pokemon) and Teal Dance only to the Ogerpon that bears it.
+
+    Raw-argument core so the two contexts of the Night Stretcher share ONE
+    implementation: the PLAY scorer (which reads a DecisionContext) and the
+    FETCH tables (which build `_CtxNS` from the observation)."""
+    if not state.energyAttached:
         return True
-    if not _ns_charge_route_open(w):
+    if not _grass_attach_route_open(state, field_counts,
+                                    abilities_off=abilities_off):
         return False
-    act = _active_of(w.my_state)
+    act = _active_of(my_state)
     if act is None:
         return False
-    if w.field_counts.get(Hydrapple_ex, 0) >= 1:
+    if field_counts.get(Hydrapple_ex, 0) >= 1:
         return True
     return act.id == Teal_Mask_Ogerpon_ex
+
+
+def _ns_charge_route_to_active(w):
+    """`_charge_route_to_active` over a DecisionContext."""
+    return _charge_route_to_active(
+        w.my_state, w.state, w.field_counts,
+        abilities_off=bool(getattr(w, 'meowth_ability_lock', False)))
+
+
+def _grass_on_active_enables_ko(my_state, op_state, bench_count,
+                                meganium_in_play, neutralization_zone_active):
+    """ONE more Grass ON OUR ACTIVE turns its attack into a KNOCK OUT of the
+    opposing active, which it was not without it.
+
+    Deck-agnostic and card-agnostic: all the arithmetic is delegated to the
+    central evaluators. `_attacker_base_damage` returns 0 when the attacker does
+    not reach `ATTACK_ENERGY_REQ`, so the SAME comparison covers the two cases
+    that matter:
+
+      - the active ALREADY attacks and falls short of the KO (the extra Grass
+        scales Myriad Leaf Shower / Syrup Storm over the top);
+      - the active CANNOT attack at all yet (it is below its cost) and the extra
+        Grass both pays for the attack and knocks out.
+
+    `_our_effective_damage` applies weakness, resistance, Neutralization Zone and
+    the immunities (Crustle/Cornerstone against our ex, Drednaw, Sturdy), so an
+    unreachable target can never make this predicate fire: no matchup guard is
+    needed on top of it.
+
+    The caller is responsible for the ROUTE (`_charge_route_to_active`): a Grass
+    that cannot be attached to the active this turn knocks nothing out.
+    """
+    act = _active_of(my_state)
+    opp = _active_of(op_state)
+    if act is None or opp is None:
+        return False
+    hp = opp.hp or 0
+    if hp <= 0:
+        return False
+    total = count_total_grass_energy(my_state)
+    unit = _grass_attach_unit()
+    e = len(act.energies)
+
+    def _eff(_e, _grass):
+        base = _attacker_base_damage(
+            act.id, opp, _e, grass_scale=_grass, teal_self_energy=_e,
+            bench_count=bench_count)
+        if base <= 0:
+            return 0
+        return _our_effective_damage(
+            act, opp, base, meganium_in_play, neutralization_zone_active)
+
+    return _eff(e, total) < hp <= _eff(e + unit, total + unit)
 
 
 def _ns_e_retreat_lethal(w):
@@ -254,27 +314,9 @@ def _ns_e_finisher_with_active(w):
         return False
     if not _ns_charge_route_to_active(w):
         return False
-    act = _active_of(w.my_state)
-    opp = _active_of(w.op_state)
-    if act is None or opp is None:
-        return False
-    hp = opp.hp or 0
-    if hp <= 0:
-        return False
-    total = count_total_grass_energy(w.my_state)
-    unit = _grass_attach_unit()
-    e = len(act.energies)
-
-    def _eff(_e, _grass):
-        base = _attacker_base_damage(
-            act.id, opp, _e, grass_scale=_grass, teal_self_energy=_e,
-            bench_count=w.bench_count)
-        if base <= 0:
-            return 0
-        return _our_effective_damage(
-            act, opp, base, w.meganium_in_play, w.neutralization_zone_active)
-
-    return _eff(e, total) < hp <= _eff(e + unit, total + unit)
+    return _grass_on_active_enables_ko(
+        w.my_state, w.op_state, w.bench_count,
+        w.meganium_in_play, w.neutralization_zone_active)
 
 
 def _ns_e_finisher_via_promotion(w):
@@ -429,7 +471,8 @@ def _ctx_ns_fetch(my_state, state, hand_counts, field_counts, bench_count,
                   op_ex_immune_active, op_ex_immune_bench, op_is_lucario,
                   watchtower, best_supp_hand_val, best_supp_deck_val,
                   grass_enables_syrup_ko=False, ld_free=True,
-                  dragapult_no_tapu=False):
+                  dragapult_no_tapu=False, op_state=None,
+                  neutralization_zone_active=False):
     active = my_state.active[0] if my_state.active else None
     # An ACTIVE Ogerpon that does not attack yet (<3 effective) but that with ONE
     # Grass via Teal Dance (an ABILITY, independent of the manual attachment)
@@ -497,6 +540,24 @@ def _ctx_ns_fetch(my_state, state, hand_counts, field_counts, bench_count,
     dead_turn = _no_attack_today(my_state, state, field_counts,
                                    abilities_off=watchtower)
     hand_exhausted = len(my_state.hand or []) <= 2
+    # THE ENERGY THAT TAKES PRIZES TODAY (user, registro_008 step 85 vs Mega
+    # Kangaskhan ex, LOST): the fetch tables scored the Grass as DEVELOPMENT
+    # ("the active needs energy", 900) and lost to an Applin that was starting a
+    # line (800 + 150 for the last copy = 950). But that Grass was not
+    # development: the active Ogerpon ex sat at 2 of the 3 energies its attack
+    # costs, Teal Dance was unspent and the opposing active -- a 3-prize Mega ex --
+    # was at 90 HP. Grass -> Teal Dance -> attack knocked it out. The agent
+    # recovered the Applin and ended the turn without attacking.
+    # Same criterion as `grass_makes_syrup_storm_lethal`: a prize TODAY beats any
+    # development for tomorrow, so it goes into that band and not into the
+    # development one.
+    grass_makes_the_active_ko = (
+        hand_counts.get(Basic_Grass_Energy, 0) == 0
+        and _charge_route_to_active(my_state, state, field_counts,
+                                    abilities_off=watchtower)
+        and _grass_on_active_enables_ko(
+            my_state, op_state, bench_count,
+            AGENT_STATE.meganium_in_play, neutralization_zone_active))
     return _CtxNS(
         hand=hand_counts, campo=field_counts, evolvable_ns=evolvable_ns,
         bench_count=bench_count, total_grass=total_grass,
@@ -514,6 +575,7 @@ def _ctx_ns_fetch(my_state, state, hand_counts, field_counts, bench_count,
         ns_bench_charge=ns_bench_charge,
         ns_evo_saves_doomed=ns_evo_saves_doomed,
         grass_enables_syrup_ko=grass_enables_syrup_ko,
+        grass_makes_the_active_ko=grass_makes_the_active_ko,
         dead_turn=dead_turn, hand_exhausted=hand_exhausted,
         ld_free=ld_free, ko_reciente=AGENT_STATE.ko_last_turn,
         dragapult_no_tapu=dragapult_no_tapu)
@@ -572,6 +634,12 @@ _RULES_NS_GRASS = [
     # prize today is worth more than development for tomorrow.
     _FixedRule("grass_makes_syrup_storm_lethal",
                lambda c: c.grass_enables_syrup_ko,
+               lambda c: 1400),
+    # Its deck-agnostic sibling: the Grass that, ON THE ACTIVE, turns an attack
+    # that does NOT knock out -- or that cannot even be paid for -- into a KO
+    # this turn. Same band, same reason: a prize today.
+    _FixedRule("grass_makes_the_active_ko",
+               lambda c: c.grass_makes_the_active_ko,
                lambda c: 1400),
     # An ACTIVE Hydrapple ex with no attack: charging it with Ripening Charge WINS
     # over any other recovery target.
@@ -792,7 +860,9 @@ __all__ = [
     '_ns_meowth_engine_alive',
     '_ns_fez_engine_alive',
     '_ns_charge_route_open',
+    '_charge_route_to_active',
     '_ns_charge_route_to_active',
+    '_grass_on_active_enables_ko',
     '_ns_e_retreat_lethal',
     '_ns_e_retreat_chip',
     '_ns_e_active_pays_retreat',

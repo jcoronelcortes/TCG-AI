@@ -18,11 +18,12 @@ from typing import Any
 class TurnoCtx:
     """What the tail of `agent()` needs from the rest of the turn."""
 
-    _ability_order_veto: Any = None
+    _order_veto: Any = None
     _active_attack_wins_now: Any = None
     _attach_yields_to_teal_dance: Any = None
     _b: Any = None
     _dragapult_no_tapu: Any = None
+    _ft_hold_lone_meowth: Any = None
     _item_lock_incoming: Any = None
     _ld_card: Any = None
     _ld_opt: Any = None

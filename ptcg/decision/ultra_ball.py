@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from typing import NamedTuple
 from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, CUBCHOO_ALLOWED_PLAY_IDS, Chikorita, Dawn, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Hydrapple_ex, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, Pinsir, SCORE_CANCEL, SCORE_VETO, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, XEROSIC_SCORE_LAST_RESORT, Xerosic_Machinations
 from ptcg.state.zones import ZONE_DECK
+from ptcg.cards.scoring import _SUPP_PLAY_IDS
 from ptcg.decision.disruption import _score_xerosic_play
 from ptcg.decision.poke_pad import _pp_es_t1
 
@@ -553,6 +554,83 @@ def _ub_cancel_lillie(ctx) -> bool:
     return _ub_cancel_for_lillie
 
 
+def _ub_cancel_tomorrow_supporter(ctx) -> bool:
+    """Phase C of Ultra Ball: cost veto (the Supporter that carries NEXT turn).
+
+    Every other Supporter cost veto (`_ub_cancel_lillie`, `_ub_cancel_xerosic`,
+    `_ub_cancel_meowth`) is gated on `not state.supporterPlayed`, because they
+    compare the Ultra Ball against a Supporter that competes with it TODAY. Once
+    the turn's Supporter has been spent, that whole family goes blind -- and so
+    does the `SelectContext.DISCARD` scorer, which prices a card by what it does
+    NOW and therefore drops a Supporter that can no longer be played. The
+    valuation inverts exactly where it should not: the more useless a Supporter
+    is this turn, the more eagerly the Ultra Ball's cost eats it, even though it
+    is precisely the card that would carry the whole of the next turn.
+
+    (user, log 89628731 step 16 vs Alakazam -- registro_002, WON in spite of
+    this.) Our first turn, going second. Board: Tapu Bulu active and Tapu Bulu +
+    Teal Mask Ogerpon ex on the bench, NOT ONE energy in play and none in hand
+    (so no attacker, this turn or next, without a refill). Hand of exactly three
+    cards: {Ultra Ball, Xerosic's Machinations, Lillie's Determination}, with
+    the turn's Supporter already spent on the first Xerosic. The Ultra Ball was
+    vetoed (-1) by the first-turn gate, but the sterile-turn rescue net brought
+    it back to 200 -- `_ub_cost_destroys_better_card` saw no cost problem
+    because every veto in it requires an unplayed Supporter -- and it paid its
+    two discards with the Xerosic AND the Lillie's to fetch a Chikorita, a body
+    the matchup does not care about. The turn ended with a hand of ZERO cards
+    and no way to refill it. Ending the turn keeps both Supporters: next turn
+    Lillie's Determination draws a whole new hand, which is the only route back
+    to an attacker.
+
+    The rule is deck-agnostic -- it names no card, no target and no matchup,
+    only the shape of the hand -- and it is bounded by WHERE THE COST COMES
+    FROM. The Ultra Ball's two discards have to be paid out of SURPLUS. With the
+    Ultra Ball plus exactly two other cards there is no surplus: those two cards
+    ARE the cost, whatever they are, and the hand ends the turn at zero. Paying
+    with a Supporter out of a hand of seven is a trade (something is kept, and
+    the search usually completes an evolution line the same turn); paying with a
+    Supporter out of a hand of three is dismantling the engine to bench a body.
+    `_ub_score_before_overrides` already refuses the Ultra Ball below three
+    cards for this same reason -- this closes the boundary case, where the third
+    card is the one that would have restarted the hand.
+
+    Only ONE Supporter is played per turn, so what has to survive the cost is
+    ONE of them, not all. At this hand size that distinction collapses: the two
+    discards take everything, so any Supporter in hand is the last one -- a hand
+    of {Ultra Ball, Lillie's, Lillie's} ends with both Lillie's in the discard,
+    not with one kept.
+
+    Deliberately NOT extended above three cards. With four or more the same
+    arithmetic can still burn the last Supporter, but the hand survives and the
+    two measured counter-examples of the sterile-turn net live there
+    (`abomasnow_t6_ub_con_budew_rival`, `abomasnow_t6_ub_preevo_evolucionable`:
+    hands of 8 and 7 where the search completes an evolution THIS turn, or the
+    opponent's Budew makes the Item use-it-or-lose-it). Widening the bound
+    without a measurement would trade a proven gain for a guess.
+
+    Like the rest of the family this is COST arithmetic, not conservatism, so it
+    belongs in `_ub_cost_destroys_better_card` and is never revoked because the
+    turn came out sterile. The empty-bench survival rescue still overrides it
+    (`_ub_terminal_overrides`): with no bench there is no next turn to save the
+    Supporter for."""
+    state = ctx.state
+    hand_counts = ctx.hand_counts
+
+    if not state.supporterPlayed:
+        # The Supporter can still be played TODAY: that case belongs to
+        # `_ub_cancel_lillie` / `_ub_cancel_xerosic` / `_ub_cancel_meowth`,
+        # which also weigh what the Supporter would DO this turn.
+        return False
+
+    # The Ultra Ball itself + the two cards that pay for it. Above this the cost
+    # comes out of surplus and this veto has nothing to say.
+    _ub_hand_size = len(ctx.my_state.hand) if ctx.my_state.hand else 0
+    if _ub_hand_size > 3:
+        return False
+
+    return any(hand_counts.get(_ub_sid, 0) >= 1 for _ub_sid in _SUPP_PLAY_IDS)
+
+
 def _ub_cancel_meowth(ctx) -> bool:
     """Phase C of Ultra Ball: cost veto (meowth). Would playing the UB discard
     a valuable card as its cost of 2? A pure predicate; verbatim counting."""
@@ -707,11 +785,51 @@ def _bloqueo_de_items_inminente(budew_on_op_field, op_has_dragapult,
     return bool(budew_on_op_field or op_has_dragapult or op_has_dreepy_line)
 
 
+def _ub_cancel_no_surplus(ctx) -> bool:
+    """Phase C of Ultra Ball: cost veto with NO card to name.
+
+    The rest of the family each protect one card: Lillie's, the Xerosic that
+    caps Powerful Hand, the Meowth ex that fetches the Supporter, the Stamp, the
+    Fezandipiti after a KO, the Supporter that carries tomorrow. Each counts the
+    real fodder AROUND its own protected card. None of them fires when the two
+    cards that would pay are protected for DIFFERENT reasons and no single one
+    of them is "the" card at stake -- and that is a hand with no surplus at all,
+    which is the case the whole family exists for.
+
+    (user, registro_004 step 49, episode 89624781 vs Dragapult ex -- WON in
+    spite of this.) Hand of three: Unfair Stamp, Meowth ex and Hydrapple ex, with
+    an Applin already on the bench and the turn's Supporter spent. The Stamp is
+    never discarded (-10000), so the cost of two took the OTHER TWO, whatever
+    they were: it burned the Meowth ex and the Hydrapple ex to fetch a Dipplin --
+    the intermediate piece of the very line whose Stage 2 it was throwing away.
+    `_ub_cancel_meowth` and `_ub_cancel_lillie` were blind (both require the
+    turn's Supporter unplayed) and `_ub_cancel_tomorrow_supporter` names only
+    Supporters, so nothing spoke.
+
+    The arithmetic is the one already written: with fewer than two cards the
+    DISCARD scorer would really let go, the Ultra Ball cannot be paid for out of
+    surplus, so it is not paid for at all. It names no card, no target and no
+    matchup -- only the shape of the hand -- and, like the rest of the family, it
+    is COST arithmetic and is never revoked because the turn came out sterile.
+    The empty-bench survival rescue still overrides it (`_ub_terminal_overrides`):
+    with no bench there is no next turn to save anything for.
+
+    The SPARE COPIES of the Ultra Ball are added back. `_ub_real_fodder` skips
+    every Ultra Ball in hand, because for the vetoes it was written for the card
+    being played must not pay its own cost -- but only ONE copy is being played,
+    and a second one is the best fodder in the hand (the DISCARD scorer prices a
+    duplicate Ultra Ball at 95, above everything else). Counting them out turned
+    a hand of two Ultra Balls plus one protected card into a false cancel."""
+    _ubs_spare = max(0, ctx.hand_counts.get(Ultra_Ball, 0) - 1)
+    return _ub_real_fodder(ctx, None) + _ubs_spare < 2
+
+
 def _ub_cost_destroys_better_card(ctx) -> bool:
     """Would the Ultra Ball's COST (discarding 2) force us to throw away a card
-    BETTER than what the search brings? It groups the four cost vetoes of
+    BETTER than what the search brings? It groups the cost vetoes of
     phase C (`_ub_cancel_stamp` / `_ub_cancel_fez` / `_ub_cancel_lillie` /
-    `_ub_cancel_meowth` / `_ub_cancel_xerosic`): they all share the same count
+    `_ub_cancel_meowth` / `_ub_cancel_xerosic` /
+    `_ub_cancel_tomorrow_supporter`): they all share the same count
     (`_ub_real_fodder`) -- the cards in hand that the DISCARD scorer WOULD let
     go (real fodder) are enumerated and, if fewer than 2 remain, paying for the
     Ultra Ball means burning the Supporter / the evolution piece / the protected
@@ -725,7 +843,9 @@ def _ub_cost_destroys_better_card(ctx) -> bool:
     vetoed Ultra Balls must consult it before raising their score."""
     return bool(_ub_cancel_stamp(ctx) or _ub_cancel_fez(ctx)
                 or _ub_cancel_lillie(ctx) or _ub_cancel_meowth(ctx)
-                or _ub_cancel_xerosic(ctx))
+                or _ub_cancel_xerosic(ctx)
+                or _ub_cancel_tomorrow_supporter(ctx)
+                or _ub_cancel_no_surplus(ctx))
 
 
 def _alakazam_dig_xerosic_engine(c) -> bool:
@@ -1806,6 +1926,8 @@ __all__ = [
     '_ub_real_fodder',
     '_ub_cancel_xerosic',
     '_ub_cancel_lillie',
+    '_ub_cancel_tomorrow_supporter',
+    '_ub_cancel_no_surplus',
     '_ub_cancel_meowth',
     '_counter_stadium_urgent',
     '_matchup_allows_playing',

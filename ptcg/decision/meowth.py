@@ -124,6 +124,39 @@ _RULES_MEOWTH_FETCH = [
                lambda c: (c.devel_lillie
                           and c.card_id == Lillie_Determination),
                lambda c: 1250),
+    # THE CAP OUTRANKS THE GUST (user, registro_006 step 62 vs Alakazam, LOST).
+    # Same board, same turn and the same two cards as the play scorer's
+    # `alakazam_priority_over_boss` -- only here they are still in the DECK and
+    # the Last-Ditch Catch has to pick one. It picked the Boss's Orders: their
+    # Fezandipiti ex was gusted up and knocked out for two prizes (5 -> 3), and
+    # the opponent kept a hand of SIXTEEN. Their Powerful Hand hit back for 320,
+    # which is more than anything we own, and took the Ogerpon ex that was
+    # carrying six energies -- six turns of charging, for a two-prize trade they
+    # matched immediately. The gust also SAVED the Alakazam: switching it out of
+    # the active spot is what put it out of reach of the 240 our attack was
+    # already doing to it that same turn.
+    #
+    # The two scales contradicted each other. Once the pair is IN HAND the play
+    # scorer has said since registro_006 step 85 that capping the hand beats any
+    # gust that does not WIN the game (XEROSIC_SCORE_SOBRE_BOSS 7000 over
+    # BOSS_SCORE_GUST_2PRIZE 6800); the fetch, deciding which of the two ever
+    # reaches the hand, still ranked the gust first. The fetch cannot be allowed
+    # to hand-pick the card the play scorer would then refuse to play first.
+    #
+    # 1310 is the mirror of that band: above the two-prize gust (`winning_boss`
+    # 1300) and the deny-evo gust (`boss_deny_evo` 1280), and it steps aside for
+    # the gust that ENDS the game -- `not c.win_via_boss` is the same exemption
+    # as the play scorer's `alakazam_yields_to_winning_gust`. It carries the
+    # guards of `xerosic_alakazam` below unchanged, so it never fires anywhere
+    # that rule would not: a fat opposing hand and either a hand to play or an
+    # attacker already settled.
+    _FixedRule("xerosic_priority_over_boss",
+               lambda c: (c.card_id == Xerosic_Machinations
+                          and not c.win_via_boss
+                          and c.alakazam
+                          and c.op_hand_count >= 6
+                          and (c.hand_size >= 3 or c.strong_attacker)),
+               lambda c: 1310),
     # Xerosic vs Alakazam (user): with a fat opposing hand (Powerful Hand =
     # 20 x card), Meowth ex fetches Xerosic to cap the damage. Refined
     # (user, registro_004 step 53 vs Alakazam, LOST): if we ALREADY have a

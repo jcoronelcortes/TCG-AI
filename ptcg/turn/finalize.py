@@ -13,24 +13,26 @@ from ptcg.calc.damage import _attacker_base_damage
 from ptcg.calc.energy import _grass_mult
 from ptcg.calc.opponent import _op_juega_crustle
 from ptcg.calc.board import _active_of
-from ptcg.cards.ids import Applin, Bayleef, Bug_Catching_Set, Chikorita, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, Lillie_Determination, Meganium, Meowth_ex, Pinsir, Poke_Pad, SCORE_USELESS_ATTACK, SCORE_VETO, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Xerosic_Machinations
+from ptcg.cards.ids import Applin, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, Lillie_Determination, Meganium, Meowth_ex, Pinsir, Poke_Pad, SCORE_USELESS_ATTACK, SCORE_VETO, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Xerosic_Machinations
 from ptcg.cards.scoring import SCORE_LD_SUPP_COMPROMETIDO, _SUPP_PLAY_IDS
 from ptcg.cards.tables import attack_table, card_table
 from ptcg.decision.ultra_ball import _matchup_allows_playing, _ub_cost_destroys_better_card
 from ptcg.state.agent_state import AGENT_STATE
 from ptcg.state.zones import ZONE_DECK
-from ptcg.engine.debug import _debug_log_decision
+from ptcg.engine.debug import DEBUG_DECISIONS, _debug_log_decision
 from ptcg.turn.ctx import TurnoCtx  # noqa: F401
+from ptcg.turn.game_plan import plan_of
 
 
 def finalizar(tc):
     """Returns the option indexes the agent plays this turn."""
     # Unpacking of the context: same names as in agent().
-    _ability_order_veto = tc._ability_order_veto
+    _order_veto = tc._order_veto
     _active_attack_wins_now = tc._active_attack_wins_now
     _attach_yields_to_teal_dance = tc._attach_yields_to_teal_dance
     _b = tc._b
     _dragapult_no_tapu = tc._dragapult_no_tapu
+    _ft_hold_lone_meowth = tc._ft_hold_lone_meowth
     _item_lock_incoming = tc._item_lock_incoming
     _ld_card = tc._ld_card
     _ld_opt = tc._ld_opt
@@ -280,7 +282,7 @@ def finalizar(tc):
     # blocker wins the menu it is played first and, on leaving the hand, the veto
     # switches itself off in the next menu.
     # =================================================================
-    if _ability_order_veto and context == SelectContext.MAIN:
+    if _order_veto and context == SelectContext.MAIN:
         # Blockers REALLY playable now: {card id: score}.
         _aov_playable = {}
         # Best score among the plays that CLOSE the turn, and whether there is any
@@ -298,9 +300,9 @@ def finalizar(tc):
                     _aov_playable[_aov_c.id] = max(
                         _aov_playable.get(_aov_c.id, SCORE_VETO),
                         scores[_aov_i])
-            elif _aov_i not in _ability_order_veto:
+            elif _aov_i not in _order_veto:
                 _aov_otras_vivas = True
-        for _aov_idx, (_aov_score, _aov_blockers) in _ability_order_veto.items():
+        for _aov_idx, (_aov_score, _aov_blockers) in _order_veto.items():
             if _aov_idx >= len(scores) or scores[_aov_idx] > 0:
                 continue
             _aov_vivos = [_b for _b in _aov_blockers if _b in _aov_playable]
@@ -449,7 +451,28 @@ def finalizar(tc):
                 _po_card = get_card(obs, AreaType.HAND, _po_o.index, my_index)
                 if _po_card is not None:
                     _po_data = card_table.get(_po_card.id)
-                    if _po_card.id == Poke_Pad:
+                    if (_po_card.id == Boss_Orders
+                            and plan_of(ctx).gust_closes_it_now):
+                        # THE GUST THAT CLOSES THE GAME IS THE SAME PLAY AS THE
+                        # WINNING ATTACK (user, registro_013 step 126 vs the
+                        # mirror, WON suboptimally). The score already said so
+                        # (`winning_gust`, 20000), but Boss's is a PLAY and lived
+                        # in tier 0, so a Bug Catching Set (tier BUG_SET) and a
+                        # Teal Dance (tier ENERGY) beat it by ORDER and the turn
+                        # went off building a board for a game that ended two
+                        # actions later -- at mutual match point, with the
+                        # opponent one prize away as well. Same tier as the
+                        # winning finisher, for the same reason it was given to
+                        # the retreat of `_win_ko_active_via_promote`: gust and
+                        # attack are two halves of one play. It only fires when
+                        # the plan's route IS the gust, so a Boss's played for
+                        # value keeps its normal tier -- and only when the target
+                        # dies to the energy ALREADY on the attacker
+                        # (`gust_closes_it_now`): when the KO is one charge away,
+                        # the charge goes first and the gust waits its turn
+                        # (registro_012 step 227, the Myriad combo).
+                        _play_order_tier[_po_i] = _TIER_WIN_ATTACK
+                    elif _po_card.id == Poke_Pad:
                         _play_order_tier[_po_i] = _TIER_POKE_PAD
                     elif _po_card.id == Bug_Catching_Set:
                         _play_order_tier[_po_i] = _TIER_BUG_SET
@@ -633,6 +656,12 @@ def finalizar(tc):
     if (context == SelectContext.MAIN and scores
             and not state.supporterPlayed
             and not meowth_ability_lock
+            # OUR FIRST TURN GOING FIRST behind a tough opener: the lone Meowth
+            # ex stays in hand (see `_ft_hold_lone_meowth`). The turn being dead
+            # is not a reason to hand over a 2-prize body when the bench costs
+            # us nothing -- and the Supporter the fetch brings gets shuffled
+            # away by tomorrow's Lillie's anyway.
+            and not _ft_hold_lone_meowth
             and bench_count < 5
             and _meowth_ld_free
             and field_counts.get(Meowth_ex, 0) < 2
@@ -716,7 +745,15 @@ def finalizar(tc):
                 elif (_sbd.cardType == CardType.POKEMON
                       and not getattr(_sbd, 'stage1', False)
                       and not getattr(_sbd, 'stage2', False)
-                      and _sb_basic_i < 0):
+                      and _sb_basic_i < 0
+                      # OUR FIRST TURN GOING FIRST behind a tough opener: an
+                      # empty bench is NOT a danger (nothing on their first
+                      # turn reaches 140-210 HP), so the net must not spend the
+                      # lone Meowth ex to fill it -- see `_ft_hold_lone_meowth`
+                      # for the reasoning and for the Solrock exception. The
+                      # Ultra Ball branch above is untouched: digging a real
+                      # body is still better than ending.
+                      and not (_sbc.id == Meowth_ex and _ft_hold_lone_meowth)):
                     _sb_basic_i = _sbi
             _sb_pick = _sb_fetch_i if _sb_fetch_i >= 0 else _sb_basic_i
             if _sb_pick >= 0:
@@ -945,7 +982,25 @@ def finalizar(tc):
         enumerate(scores),
         key=lambda x: (_play_order_tier[x[0]], x[1]),
         reverse=True)]
+    if DEBUG_DECISIONS and context == SelectContext.MAIN:
+        # The sentence the turn is under, printed BEFORE the ranking: reading a
+        # trace without it means guessing whether a play lost because its score
+        # was wrong or because the turn was about something else entirely.
+        import sys as _sys_plan
+        print(f"[DBG] plan={plan_of(ctx)}", file=_sys_plan.stderr)
     _debug_log_decision(context, select, scores, obs, my_index)
+
+    if context == SelectContext.SETUP_ACTIVE_POKEMON and desc_indices:
+        # The starting active is placed FACE DOWN: `my_state.active` holds a
+        # None and the card tracking skips it, so the bench selection that comes
+        # right afterwards cannot see which body we sent to the active spot. We
+        # write it down here, which is the only moment when we know it, so that
+        # the "a maximum of 2 in play" cap of SETUP_BENCH_POKEMON counts the
+        # active as well (with no Tapu Bulu in hand the starter is a Teal Mask
+        # Ogerpon ex, and two more on the bench would make three).
+        _sa_card = get_card(obs, AreaType.HAND,
+                            select.option[desc_indices[0]].index, my_index)
+        AGENT_STATE.setup_active_id = _sa_card.id if _sa_card is not None else None
 
     if context == SelectContext.SETUP_BENCH_POKEMON:
         wanted = [i for i in desc_indices if scores[i] >= 0]
