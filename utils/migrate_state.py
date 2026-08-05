@@ -129,11 +129,11 @@ def migrate(text, fields):
     # 2) remove (or prune) the `global` statements
     quitados = 0
     for node in sorted(v.globales_decl, key=lambda n: -n.lineno):
-        restantes = [n for n in node.names if n not in fields]
+        remaining_count = [n for n in node.names if n not in fields]
         ln = node.lineno - 1
         sangria = lines[ln][:len(lines[ln]) - len(lines[ln].lstrip())]
-        if restantes:
-            lines[ln] = f"{sangria}global {', '.join(restantes)}\n"
+        if remaining_count:
+            lines[ln] = f"{sangria}global {', '.join(remaining_count)}\n"
         else:
             lines[ln] = ""
         quitados += 1

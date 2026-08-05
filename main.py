@@ -8891,7 +8891,7 @@ def agent(obs_dict: dict) -> list[int]:
                              else AGENT_STATE._op_bench_snipe_dmg)
                 _rh_vent = _ventana_de_regalo(_rh_pk, _rh_act, _rh_golpe)
                 _rh_gar = _ventana_de_regalo(_rh_pk, _rh_act, _rh_golpe,
-                                             incluir_movible=False)
+                                             include_movable=False)
                 if _rh_vent <= 0 or _rh_hp > _rh_vent:
                     continue  # outside the window: there is no prize to deny
                 _rh_nuevo = min(_rh_max, _rh_hp + RIPENING_HEAL)

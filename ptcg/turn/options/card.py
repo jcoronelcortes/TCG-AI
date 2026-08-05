@@ -1283,7 +1283,7 @@ def score_play(tc, o, score):
                         op_state=op_state,
                         neutralization_zone_active=neutralization_zone_active)
         
-                    _ns_tablas = {
+                    _ns_tables = {
                         Basic_Grass_Energy: ("ns->grass",
                                              _RULES_NS_GRASS, 300),
                         Fezandipiti_ex: ("ns->fez", _RULES_NS_FEZ, 10),
@@ -1303,7 +1303,7 @@ def score_play(tc, o, score):
                         Dipplin: ("ns->dipplin", _RULES_NS_DIPPLIN, 30),
                         Bayleef: ("ns->bayleef", _RULES_NS_BAYLEEF, 30),
                     }
-                    _ns_entry = _ns_tablas.get(card.id)
+                    _ns_entry = _ns_tables.get(card.id)
                     if _ns_entry is not None:
                         _ns_et, _ns_rules, _ns_defecto = _ns_entry
                         score = _resolve_with_trace(

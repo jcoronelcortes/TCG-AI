@@ -23,7 +23,7 @@ from ptcg.turn.options import minor
 from ptcg.turn.scoring_sentinel import _SALTAR  # noqa: F401
 
 
-_TABLA = {
+_TABLE = {
     OptionType.CARD: card.score_play,
     OptionType.PLAY: play.score_play,
     OptionType.ATTACH: attach.score_play,
@@ -39,7 +39,7 @@ def score_option(tc, o, score):
 
     It may return `_SALTAR`, in which case the caller must NOT append anything.
     """
-    fn = _TABLA.get(o.type)
+    fn = _TABLE.get(o.type)
     return fn(tc, o, score) if fn is not None else minor.score_play(tc, o, score)
 
 

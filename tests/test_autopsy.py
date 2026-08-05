@@ -13,7 +13,7 @@ for _p in (ROOT, ROOT / "utils"):
 from autopsy import classify_loss
 
 
-def _obs_final(op_prize_restantes, my_active, my_bench, mi_deck):
+def _obs_final(op_prizes_left, my_active, my_bench, mi_deck):
     """A minimal terminal observation for the classifier (seat 0)."""
     yo = {
         "active": [my_active] if my_active else [None],
@@ -25,26 +25,26 @@ def _obs_final(op_prize_restantes, my_active, my_bench, mi_deck):
         "active": [{"id": 37}],
         "bench": [],
         "deckCount": 30,
-        "prize": [None] * op_prize_restantes + [{"id": 1}] * (6 - op_prize_restantes),
+        "prize": [None] * op_prizes_left + [{"id": 1}] * (6 - op_prizes_left),
     }
     return {"current": {"players": [yo, op], "yourIndex": 0, "result": 1}}
 
 
 def test_loss_on_prizes():
-    obs = _obs_final(op_prize_restantes=0,
+    obs = _obs_final(op_prizes_left=0,
                      my_active={"id": 920}, my_bench=[{"id": 92}], mi_deck=20)
     assert classify_loss(obs, seat=0, result="pierde") == "premios"
 
 
 def test_loss_by_bench_out():
     # The opponent still had prizes pending: the cause is running out of Pokemon.
-    obs = _obs_final(op_prize_restantes=3,
+    obs = _obs_final(op_prizes_left=3,
                      my_active=None, my_bench=[None, None], mi_deck=20)
     assert classify_loss(obs, seat=0, result="pierde") == "bench_out"
 
 
 def test_loss_by_deckout():
-    obs = _obs_final(op_prize_restantes=3,
+    obs = _obs_final(op_prizes_left=3,
                      my_active={"id": 920}, my_bench=[], mi_deck=0)
     assert classify_loss(obs, seat=0, result="pierde") == "deckout"
 
@@ -52,7 +52,7 @@ def test_loss_by_deckout():
 def test_bench_out_gana_a_deckout():
     # An empty board AND the deck at 0 with prizes pending: the KO that swept the
     # board is the proximate cause.
-    obs = _obs_final(op_prize_restantes=1,
+    obs = _obs_final(op_prizes_left=1,
                      my_active=None, my_bench=[], mi_deck=0)
     assert classify_loss(obs, seat=0, result="pierde") == "bench_out"
 
@@ -60,13 +60,13 @@ def test_bench_out_gana_a_deckout():
 def test_prizes_dominates_deckout():
     # The opponent completed their prizes in a game that also left us at 0
     # deck: the loss is on prizes (the deck-out never got to happen).
-    obs = _obs_final(op_prize_restantes=0,
+    obs = _obs_final(op_prizes_left=0,
                      my_active={"id": 920}, my_bench=[], mi_deck=0)
     assert classify_loss(obs, seat=0, result="pierde") == "premios"
 
 
 def test_the_boundary_is_classified_outright():
-    obs = _obs_final(op_prize_restantes=2,
+    obs = _obs_final(op_prizes_left=2,
                      my_active={"id": 920}, my_bench=[], mi_deck=10)
     assert classify_loss(obs, seat=0, result="limite") == "limite"
 

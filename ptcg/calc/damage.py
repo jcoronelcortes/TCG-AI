@@ -78,7 +78,7 @@ def _snipe_targets(op_state):
     return out
 
 
-def _ventana_de_regalo(pokemon, is_active, projected_hit, incluir_movible=True):
+def _ventana_de_regalo(pokemon, is_active, projected_hit, include_movable=True):
     """Damage the opponent can concentrate on `pokemon` before our next turn.
     A body with `hp <= _ventana_de_regalo(...)` is a prize the opponent can cash
     in whenever they want.
@@ -105,7 +105,7 @@ def _ventana_de_regalo(pokemon, is_active, projected_hit, incluir_movible=True):
     golpe = 0 if (not is_active and pid == Teal_Mask_Ogerpon_ex) \
         else max(0, projected_hit or 0)
     chip = AGENT_STATE._op_chip_per_round if pid in OUR_ABILITY_IDS else 0
-    return golpe + chip + (AGENT_STATE._op_movable_dmg if incluir_movible else 0)
+    return golpe + chip + (AGENT_STATE._op_movable_dmg if include_movable else 0)
 
 
 def _our_effective_damage(my_pokemon, op_pokemon, base_damage,

@@ -48,19 +48,19 @@ RECORDS = _ROOT / "records"
 MAX_STEPS = 3000
 
 
-def _record_game(agent_state, bot, deck_nuestro, opponent_deck, nuestro_asiento):
+def _record_game(agent_state, bot, deck_nuestro, opponent_deck, our_seat):
     """Plays a game and returns its `steps` in replay format."""
     from cg import game
 
     sp._reset_si_aplica(agent_state)
     sp._reset_si_aplica(bot)
-    d0, d1 = ((deck_nuestro, opponent_deck) if nuestro_asiento == 0
+    d0, d1 = ((deck_nuestro, opponent_deck) if our_seat == 0
               else (opponent_deck, deck_nuestro))
     obs, sd = game.battle_start(list(d0), list(d1))
     if obs is None:
         raise RuntimeError(f"battle_start fallo: errorType={sd.errorType}")
 
-    agentes = {nuestro_asiento: agent_state, 1 - nuestro_asiento: bot}
+    agentes = {our_seat: agent_state, 1 - our_seat: bot}
     steps, n_steps = [], 0
     while obs["current"]["result"] == -1 and n_steps < MAX_STEPS:
         yi = obs["current"]["yourIndex"]

@@ -334,15 +334,15 @@ def main(argv):
                       "resolution where the winrate no longer does)")
 
         if base_by_deck:
-            filas_base = [base_by_deck[f["deck"]] for f in rows
+            base_rows = [base_by_deck[f["deck"]] for f in rows
                           if f["deck"] in base_by_deck]
-            wr_base, _ = winrate_ponderado(filas_base, weights)
+            wr_base, _ = winrate_ponderado(base_rows, weights)
             if wr_base is not None:
                 print(f"\n  baseline  : {100 * wr_base:5.1f}%   "
                       f"WEIGHTED DELTA = {100 * (wr_pond - wr_base):+.2f} points")
                 print("  (this delta, not the simple mean, is what decides whether the "
                       "change wins ladder games)")
-            base_prem = [b for b in filas_base if b.get("dif_premios") is not None]
+            base_prem = [b for b in base_rows if b.get("dif_premios") is not None]
             if prem and base_prem:
                 cob_b = sum(weights.get(b["deck"], 0.0) for b in base_prem)
                 if cob_b > 0 and cob_p > 0:

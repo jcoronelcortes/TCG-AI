@@ -116,10 +116,10 @@ def plan_extraction(main_py, since, up_to):
         if not ok or not (since <= a <= up_to):
             bloqueadas.update(range(a, b + 1))
 
-    es_movible = [False] * (len(lines) + 2)
+    is_movable = [False] * (len(lines) + 2)
     for a, (b, _) in movable.items():
         for ln in range(a, b + 1):
-            es_movible[ln] = True
+            is_movable[ln] = True
 
     def suelta(ln):
         t = lines[ln - 1].strip()
@@ -127,14 +127,14 @@ def plan_extraction(main_py, since, up_to):
 
     ranges, ln = [], since
     while ln <= up_to:
-        if not es_movible[ln]:
+        if not is_movable[ln]:
             ln += 1
             continue
         ini = ln
         while ini - 1 >= since and suelta(ini - 1) and (ini - 1) not in bloqueadas:
             ini -= 1
         fin = ln
-        while fin + 1 <= up_to and (es_movible[fin + 1]
+        while fin + 1 <= up_to and (is_movable[fin + 1]
                                     or (suelta(fin + 1) and (fin + 1) not in bloqueadas)):
             fin += 1
         while fin > ini and suelta(fin):      # the trailing comments belong to the
