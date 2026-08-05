@@ -151,7 +151,7 @@ def main(argv):
 
     import main as m
     opponent_deck = sp.read_deck(args.opponent)
-    summary, n_secos = play(m, opponent_deck, args.games, args.dump,
+    summary, n_dry = play(m, opponent_deck, args.games, args.dump,
                              Path(args.target_path))
 
     total = sum(summary.values())
@@ -163,8 +163,8 @@ def main(argv):
     for k in ("ataca", "retira", "seco"):
         v = summary.get(k, 0)
         print(f"  {k:<7} {v:4d}  ({100 * v / total:5.1f}%)")
-    if n_secos:
-        print(f"\nvolcados {n_secos} dry turns in {args.target_path}")
+    if n_dry:
+        print(f"\nvolcados {n_dry} dry turns in {args.target_path}")
     return 0
 
 

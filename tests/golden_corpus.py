@@ -107,7 +107,7 @@ def _name(m, cid):
     return f"{data.name}({cid})" if data is not None else str(cid)
 
 
-def describir_opcion(m, obs, idx):
+def describe_option(m, obs, idx):
     """A readable label for option `idx` of the select of `obs`."""
     sel = obs["select"]
     if idx >= len(sel["option"]):
@@ -222,7 +222,7 @@ def replay_record(m, path):
                 "accion": (obs.get("current") or {}).get("turnActionCount"),
                 "contexto": obs["select"].get("context"),
                 "eleccion": list(choice),
-                "detalle": [describir_opcion(m, obs, i) for i in choice],
+                "detalle": [describe_option(m, obs, i) for i in choice],
             })
     return decisiones
 

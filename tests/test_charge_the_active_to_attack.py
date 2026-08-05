@@ -34,7 +34,7 @@ if str(ROOT) not in sys.path:
 
 import main as m
 from cg.api import AreaType, OptionType
-from state_builder import G, Escenario, pk
+from state_builder import G, Scenario, pk
 
 APPLIN = m.Applin
 DIPPLIN = m.Dipplin
@@ -177,7 +177,7 @@ def test_an_active_ogerpon_charges_itself_to_finish():
     On the bench there is a Hydrapple ex at 0 energies, the "development" target that
     used to take the Grass.
     """
-    obs = (Escenario(turn=8, step=90, tac=2)
+    obs = (Scenario(turn=8, step=90, tac=2)
            .my_active(pk(OGERPON, energies=[G, G]))
            .my_bench(pk(HYDRAPPLE, pre_evo=[APPLIN, DIPPLIN]), MEOWTH)
            .my_hand(ENERGY, ENERGY)
@@ -197,7 +197,7 @@ def test_an_active_ogerpon_charges_itself_to_finish():
 
 def test_no_finisher_but_a_sterile_turn_also_charges_the_active():
     """With no KO available, charging the active is the only way to attack today."""
-    obs = (Escenario(turn=8, step=90, tac=2)
+    obs = (Scenario(turn=8, step=90, tac=2)
            .my_active(pk(HYDRAPPLE, energies=[G], pre_evo=[APPLIN, DIPPLIN]))
            .my_bench(pk(APPLIN), MEOWTH)
            .my_hand(ENERGY)
@@ -221,7 +221,7 @@ def test_an_active_that_already_attacks_does_not_hog_the_energy():
     The active Hydrapple ex with 2 energies already attacks; the Grass must follow the
     normal distribution (bench development), not stay on the active.
     """
-    obs = (Escenario(turn=8, step=90, tac=2)
+    obs = (Scenario(turn=8, step=90, tac=2)
            .my_active(pk(HYDRAPPLE, energies=[G, G], pre_evo=[APPLIN, DIPPLIN]))
            .my_bench(pk(OGERPON), MEOWTH)
            .my_hand(ENERGY)

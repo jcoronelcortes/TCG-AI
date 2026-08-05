@@ -24,23 +24,23 @@ from ptcg.turn.scoring_sentinel import _SALTAR  # noqa: F401
 
 
 _TABLA = {
-    OptionType.CARD: card.puntuar,
-    OptionType.PLAY: play.puntuar,
-    OptionType.ATTACH: attach.puntuar,
-    OptionType.EVOLVE: evolve.puntuar,
-    OptionType.ABILITY: ability.puntuar,
-    OptionType.RETREAT: retreat.puntuar,
-    OptionType.ATTACK: attack.puntuar,
+    OptionType.CARD: card.score_play,
+    OptionType.PLAY: play.score_play,
+    OptionType.ATTACH: attach.score_play,
+    OptionType.EVOLVE: evolve.score_play,
+    OptionType.ABILITY: ability.score_play,
+    OptionType.RETREAT: retreat.score_play,
+    OptionType.ATTACK: attack.score_play,
 }
 
 
-def puntuar_opcion(tc, o, score):
+def score_option(tc, o, score):
     """Score of option `o`. Higher = better; negative = veto.
 
     It may return `_SALTAR`, in which case the caller must NOT append anything.
     """
     fn = _TABLA.get(o.type)
-    return fn(tc, o, score) if fn is not None else minor.puntuar(tc, o, score)
+    return fn(tc, o, score) if fn is not None else minor.score_play(tc, o, score)
 
 
-__all__ = ['puntuar_opcion', '_SALTAR']
+__all__ = ['score_option', '_SALTAR']

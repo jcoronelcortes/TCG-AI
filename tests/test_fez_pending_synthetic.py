@@ -59,7 +59,7 @@ if str(ROOT) not in sys.path:
 
 import main as m
 from patching import instalar
-from state_builder import Escenario, pk, G
+from state_builder import Scenario, pk, G
 
 FEZ = m.Fezandipiti_ex
 STAMP = m.Unfair_Stamp
@@ -129,7 +129,7 @@ def _campo(esc, full_bench=False):
 
 def _menu_fetch():
     """Menu A: the Ultra Ball fetch, with a Fezandipiti ex in the deck."""
-    esc = Escenario(turn=TURN, step=90, tac=5, own_prizes=3)
+    esc = Scenario(turn=TURN, step=90, tac=5, own_prizes=3)
     return (_campo(esc)
             .my_hand(STAMP)
             .deck(FEZ, CHIKORITA, APPLIN)
@@ -145,7 +145,7 @@ def _menu_fetch():
 def _menu_play_body(full_bench=False):
     """Menu B: the next MAIN. A THIN hand (Stamp + Fez) so the Stamp
     scores in its high band and the test really discriminates."""
-    esc = Escenario(turn=TURN, step=91, tac=6, own_prizes=3)
+    esc = Scenario(turn=TURN, step=91, tac=6, own_prizes=3)
     return (_campo(esc, full_bench=full_bench)
             .my_hand(STAMP, FEZ)
             .deck(CHIKORITA, APPLIN)      # `rest_to_discard()` requires it

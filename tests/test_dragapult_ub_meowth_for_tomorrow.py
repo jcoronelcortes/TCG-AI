@@ -59,7 +59,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import main as m
-from state_builder import Escenario, pk, G
+from state_builder import Scenario, pk, G
 
 _FIXTURE = (ROOT / "tests" / "fixtures"
             / "dragapult_ub_meowth_para_manana_step17.json")
@@ -159,7 +159,7 @@ def _menu_main(fez_energies=0, hand=(GRASS, GRASS, GRASS, BOSS, BOSS,
                                      ULTRA_BALL, FOREST),
                op_generico=False, supporter_played=True):
     """Menu A: the MAIN of step 17 (the turn's energy already attached)."""
-    esc = Escenario(turn=TURN, step=17, tac=6, first_player=1,
+    esc = Scenario(turn=TURN, step=17, tac=6, first_player=1,
                     energy_played=True,
                     supporter_played=supporter_played)
     esc = _campo(esc, fez_energies=fez_energies)
@@ -178,7 +178,7 @@ def _menu_main(fez_energies=0, hand=(GRASS, GRASS, GRASS, BOSS, BOSS,
 
 def _menu_fetch():
     """Menu B: the fetch of the Ultra Ball just played."""
-    esc = Escenario(turn=TURN, step=18, tac=7, first_player=1,
+    esc = Scenario(turn=TURN, step=18, tac=7, first_player=1,
                     energy_played=True, supporter_played=True)
     return (_campo(esc)
             .my_hand(GRASS, BOSS, BOSS, MEGANIUM, FOREST)
@@ -192,7 +192,7 @@ def _menu_tomorrow():
     """Menu C: OUR next turn, already under the Itchy Pollen. Items
     cannot be played (that is why there is none in hand) but the
     Meowth ex can: its Last-Ditch Catch brings the Lillie's."""
-    obs = (Escenario(turn=TURN + 2, step=30, tac=1, first_player=1)
+    obs = (Scenario(turn=TURN + 2, step=30, tac=1, first_player=1)
            .my_active(pk(CHIKORITA, energies=[G], fisicas=1))
            .my_bench(pk(FEZ))
            .op_active(pk(BUDEW))

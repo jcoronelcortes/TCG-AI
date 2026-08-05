@@ -41,7 +41,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import main as m
-from state_builder import G, Escenario, pk
+from state_builder import G, Scenario, pk
 
 HYDRAPPLE = m.Hydrapple_ex
 OGERPON = m.Teal_Mask_Ogerpon_ex
@@ -82,12 +82,12 @@ def reset_main_state():
     m._init_cards_tracking()
 
 
-def _escenario(op_active=None, op_bench=None, hand=(BOSS, XEROSIC, ULTRA_BALL)):
+def _scenario(op_active=None, op_bench=None, hand=(BOSS, XEROSIC, ULTRA_BALL)):
     """The board of step 78: an active Hydrapple ex with Grass to spare
     (Syrup Storm 390) and a rival bench with only Dwebble."""
     op_active = op_active if op_active is not None else pk(CRUSTLE)
     op_bench = op_bench if op_bench is not None else [pk(DWEBBLE), pk(DWEBBLE)]
-    return (Escenario(turn=8, step=78, energy_played=True)
+    return (Scenario(turn=8, step=78, energy_played=True)
             .my_active(pk(HYDRAPPLE, hp=210, energies=[G, G], fisicas=1))
             .my_bench(pk(MEGANIUM),
                       pk(OGERPON, energies=[G] * 4, fisicas=2),
@@ -118,7 +118,7 @@ def test_with_the_wall_in_front_boss_orders_is_played():
     """The exact case of step 78: Boss's was VETOED (value 0) and Xerosic
     won. With the active cancelled by the wall, the gust is the only prize."""
     hand = [BOSS, XEROSIC, ULTRA_BALL]
-    obs = _escenario(hand=hand).menu_hand().build()
+    obs = _scenario(hand=hand).menu_hand().build()
     assert _play(obs, m.agent(obs), hand) == ("PLAY", BOSS)
 
 
@@ -130,7 +130,7 @@ def test_the_gust_target_is_the_dwebble_not_the_second_wall():
     not damage: it is the pair that DISCRIMINATES. With the record's two Dwebble both
     fell into SCORE_FORBID and the argmax picked index 0 anyway, so
     the assertion passed even without the correction."""
-    obs = (_escenario(op_bench=[pk(DWEBBLE), pk(CRUSTLE)])
+    obs = (_scenario(op_bench=[pk(DWEBBLE), pk(CRUSTLE)])
            .menu_gust().build())
     idx = obs["select"]["option"][m.agent(obs)[0]]["index"]
     assert obs["current"]["players"][1]["bench"][idx]["id"] == DWEBBLE
@@ -138,7 +138,7 @@ def test_the_gust_target_is_the_dwebble_not_the_second_wall():
 
 def test_the_gusted_dwebble_dies_to_syrup_storm():
     """The gust is only worth it if the KO is real: 30 + 30x12 = 390 on 70 HP."""
-    obs = _escenario().menu_gust().build()
+    obs = _scenario().menu_gust().build()
     st = m.to_observation_class(obs).current
     mio, riv = st.players[0], st.players[1]
     m.meganium_in_play = True
@@ -155,7 +155,7 @@ def test_the_gusted_dwebble_dies_to_syrup_storm():
 def test_without_the_wall_the_dwebble_is_still_a_vetoed_target():
     """Boundary: if the rival active does NOT cancel us (here a Mega Kangaskhan ex we
     DO hit), the Dwebble goes back to being fodder and is not gusted."""
-    obs = (_escenario(op_active=pk(KANGASKHAN, hp=300),
+    obs = (_scenario(op_active=pk(KANGASKHAN, hp=300),
                       op_bench=[pk(DWEBBLE), pk(CRUSTLE)])
            .menu_gust().build())
     idx = obs["select"]["option"][m.agent(obs)[0]]["index"]
@@ -165,7 +165,7 @@ def test_without_the_wall_the_dwebble_is_still_a_vetoed_target():
 def test_with_the_wall_but_no_ko_the_dwebble_is_still_vetoed():
     """Boundary: the exemption requires a REAL KO. With our own active lacking enough
     energy to attack, the Dwebble is not a prize and the veto holds."""
-    obs = (Escenario(turn=8, step=78, energy_played=True)
+    obs = (Scenario(turn=8, step=78, energy_played=True)
            .my_active(pk(HYDRAPPLE, hp=210))          # 0 energies: it does not attack
            .my_bench(pk(MEOWTH))
            .my_hand(BOSS, ULTRA_BALL)

@@ -44,10 +44,10 @@ from ptcg.decision.ultra_ball import *  # noqa: F401,F403
 from ptcg.cards.scoring import *  # noqa: F401,F403
 from ptcg.engine.debug import *  # noqa: F401,F403
 from ptcg.turn.game_plan import build_turn_plan  # noqa: F401
-from ptcg.turn.ctx import TurnoCtx  # noqa: F401
+from ptcg.turn.ctx import TurnCtx  # noqa: F401
 from ptcg.turn.finalize import finalizar  # noqa: F401
-from ptcg.turn.ctx_scoring import PuntuacionCtx  # noqa: F401
-from ptcg.turn.scoring import puntuar_opcion, _SALTAR  # noqa: F401
+from ptcg.turn.ctx_scoring import ScoringCtx  # noqa: F401
+from ptcg.turn.scoring import score_option, _SALTAR  # noqa: F401
 from ptcg.turn.supporters import evaluate_supporters as _evaluate_supporters_impl  # noqa: F401
 from ptcg.turn.supporters_ctx import CtxEvaluateSupporters  # noqa: F401
 from ptcg.turn.energy import _energy_score_base as _energy_score_base_impl  # noqa: F401
@@ -76,7 +76,7 @@ from ptcg.turn.energy_ctx import CtxEnergyScoreBase  # noqa: F401
 _STATE_FIELDS = frozenset(vars(AgentState()))
 _mod = sys.modules.get(globals().get('__name__') or '')
 if _mod is not None:
-    class _MainConEstado(type(_mod)):
+    class _MainWithState(type(_mod)):
         def __getattr__(self, name):
             if name in _STATE_FIELDS:
                 return getattr(AGENT_STATE, name)
@@ -88,7 +88,7 @@ if _mod is not None:
             else:
                 super().__setattr__(name, value)
 
-    _mod.__class__ = _MainConEstado
+    _mod.__class__ = _MainWithState
 
 
 # =============================================================================
@@ -310,7 +310,7 @@ def _gt_planes(my_state, cards_in_deck, field_counts, our_first_turn,
     return planes
 
 
-def _gt_score_seleccion(o, card, plan, planes, my_state, field_counts):
+def _gt_score_selection(o, card, plan, planes, my_state, field_counts):
     """Scores ONE option of the sub-selections opened by the Grand Tree ability
     (`select.effect.id == Grand_Tree`). The simulator emits them in later calls
     to `agent()` and with different contexts depending on the step, so here they
@@ -559,28 +559,28 @@ _init_cards_tracking()
 # And one that scales: "...10 damage to itself for each damage counter on it"
 # (Vanguard Punch), which is resolved with the damage the attacker has already
 # taken.
-import re as _re_autodano
+import re as _re_self_damage
 
 # `do` without the -s covers the optional form "You may have this Pokemon also DO
 # 60 damage to itself..." (Voltaic Fist), which would otherwise be left
 # unclassified.
-_RE_AUTODANO = _re_autodano.compile(
-    r"do(?:es)?\s+(\d+)\s+damage\s+to\s+itself", _re_autodano.IGNORECASE)
-_RE_AUTODANO_ESCALA = _re_autodano.compile(
-    r"to\s+itself\s+for\s+each\s+damage\s+counter", _re_autodano.IGNORECASE)
-_AUTODANO_CACHE: dict = {}
+_RE_SELF_DAMAGE = _re_self_damage.compile(
+    r"do(?:es)?\s+(\d+)\s+damage\s+to\s+itself", _re_self_damage.IGNORECASE)
+_RE_SELF_DAMAGE_SCALE = _re_self_damage.compile(
+    r"to\s+itself\s+for\s+each\s+damage\s+counter", _re_self_damage.IGNORECASE)
+_SELF_DAMAGE_CACHE: dict = {}
 
 
-def _autodano_spec(attack_id):
+def _self_damage_spec(attack_id):
     """(n, optional, chance, per_counter) of the attack's self-damage; None if it
     does not have any. The "You may" and the "Flip 2 coins" that condition the
     self-damage often live in the PREVIOUS sentence, so the context spans both."""
-    if attack_id in _AUTODANO_CACHE:
-        return _AUTODANO_CACHE[attack_id]
+    if attack_id in _SELF_DAMAGE_CACHE:
+        return _SELF_DAMAGE_CACHE[attack_id]
     spec = None
     _atk = attack_table.get(attack_id)
     text = (getattr(_atk, 'text', None) or '') if _atk is not None else ''
-    _m = _RE_AUTODANO.search(text)
+    _m = _RE_SELF_DAMAGE.search(text)
     if _m is not None:
         _ini = text.rfind('.', 0, _m.start()) + 1
         _fin = text.find('.', _m.end())
@@ -590,8 +590,8 @@ def _autodano_spec(attack_id):
         spec = (int(_m.group(1)),
                 'you may' in _ctx,
                 any(_w in _ctx for _w in ('flip', 'coin', 'heads', 'tails')),
-                bool(_RE_AUTODANO_ESCALA.search(_frase)))
-    _AUTODANO_CACHE[attack_id] = spec
+                bool(_RE_SELF_DAMAGE_SCALE.search(_frase)))
+    _SELF_DAMAGE_CACHE[attack_id] = spec
     return spec
 
 
@@ -600,7 +600,7 @@ def _attack_self_damage(attack_id, attacker=None, incierto=False):
 
     It returns the CERTAIN damage: 0 if it is optional (we decide it) or if it
     depends on a coin flip. With `incierto=True` it returns the WORST case."""
-    spec = _autodano_spec(attack_id)
+    spec = _self_damage_spec(attack_id)
     if spec is None:
         return 0
     _n, _opcional, _azar, _per_counter = spec
@@ -10476,15 +10476,15 @@ def agent(obs_dict: dict) -> list[int]:
     # from locals() because some of these variables are only bound in certain
     # branches of the turn; and from globals() because some functions and tables the
     # chain consults are still defined at module level in main.py.
-    _tcp = PuntuacionCtx()
+    _tcp = ScoringCtx()
     _loc = {**globals(), **locals()}
-    for _campo in PuntuacionCtx.__dataclass_fields__:
+    for _campo in ScoringCtx.__dataclass_fields__:
         if _campo in _loc:
             setattr(_tcp, _campo, _loc[_campo])
     for o in select.option:
         score = 0
 
-        score = puntuar_opcion(_tcp, o, score)
+        score = score_option(_tcp, o, score)
         if score is _SALTAR:
             continue
 
@@ -10496,9 +10496,9 @@ def agent(obs_dict: dict) -> list[int]:
     # the original code does not even read them -- the split itself would invent a
     # failure that does not exist. Whatever is not bound stays as None, and the same
     # guard that stopped it being read before still stops it.
-    _tc = TurnoCtx()
+    _tc = TurnCtx()
     _locales = locals()
-    for _campo in TurnoCtx.__dataclass_fields__:
+    for _campo in TurnCtx.__dataclass_fields__:
         if _campo in _locales:
             setattr(_tc, _campo, _locales[_campo])
     return finalizar(_tc)

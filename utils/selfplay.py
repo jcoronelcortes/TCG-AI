@@ -227,7 +227,7 @@ def wilson_95(victorias, n):
 
 
 def torneo(candidate, base, games, progress=None,
-           deck_candidato=None, deck_base=None):
+           deck_candidate=None, deck_base=None):
     """Pits the candidate against the base alternating seats. Returns stats.
 
     deck_candidato/deck_base: lists of 60 ids; by default, deck.csv.
@@ -247,9 +247,9 @@ def torneo(candidate, base, games, progress=None,
     for i in range(games):
         asiento_cand = i % 2
         if asiento_cand == 0:
-            p0, p1, d0, d1 = candidate, base, deck_candidato, deck_base
+            p0, p1, d0, d1 = candidate, base, deck_candidate, deck_base
         else:
-            p0, p1, d0, d1 = base, candidate, deck_base, deck_candidato
+            p0, p1, d0, d1 = base, candidate, deck_base, deck_candidate
         r = play_game(p0, p1, deck0=d0, deck1=d1)
         stats["pasos_totales"] += r["pasos"]
         prizes = r.get("premios_tomados") or [None, None]

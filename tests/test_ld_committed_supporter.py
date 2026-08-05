@@ -60,7 +60,7 @@ if str(ROOT) not in sys.path:
 
 import main as m
 from patching import instalar
-from state_builder import C, G, Escenario, pk
+from state_builder import C, G, Scenario, pk
 
 MEOWTH = m.Meowth_ex
 LILLIE = m.Lillie_Determination
@@ -238,7 +238,7 @@ def test_the_commitment_resets_each_turn():
 def _synthetic_menu(hand):
     """A neutral board (a mid game turn, with no special matchup) with `mano` in hand
     and a menu of one PLAY per card."""
-    return (Escenario(turn=8, step=60, tac=4)
+    return (Scenario(turn=8, step=60, tac=4)
             .my_active(pk(OGERPON, energies=[G, G]))
             .my_bench(pk(MEOWTH, aparecio=True), APPLIN)
             .my_hand(*hand)

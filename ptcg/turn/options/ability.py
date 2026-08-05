@@ -14,7 +14,7 @@ from ptcg.cards.ids import Basic_Grass_Energy, Dipplin, FEZ_DRAW_ABILITY_SCORE, 
 from ptcg.state.agent_state import AGENT_STATE
 
 
-def puntuar(tc, o, score):
+def score_play(tc, o, score):
     """Returns the score of `o`. It may return `_SALTAR`."""
     _order_veto = tc._order_veto
     _ability_unlock_retreat_attack = tc._ability_unlock_retreat_attack
@@ -584,4 +584,4 @@ def puntuar(tc, o, score):
         tc.card = card
 
 
-__all__ = ['puntuar']
+__all__ = ['score_play']

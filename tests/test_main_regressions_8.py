@@ -321,7 +321,7 @@ _XX_NO_1PRIZE_WITHOUT_KO = (
     ROOT / "tests" / "fixtures"
     / "archaludon_hydra_no_retirar_si_el_1premio_no_remata.json")
 
-_XX_SI_1PREMIO_KO = (
+_XX_IF_1PRIZE_KO = (
     ROOT / "tests" / "fixtures"
     / "archaludon_hydra_retirar_si_el_1premio_remata.json")
 
@@ -348,7 +348,7 @@ def test_do_not_retreat_the_ex_if_the_one_prize_body_does_not_finish():
         f"cambiar el muro de 330; eligio {opt}")
 
 def test_the_ex_does_retreat_when_the_one_prize_body_finishes():
-    _, opt = _opcion_elegida(_XX_SI_1PREMIO_KO)
+    _, opt = _opcion_elegida(_XX_IF_1PRIZE_KO)
     assert opt.get("type") == int(OptionType.RETREAT), (
         f"con un Meganium (1 premio) que NOQUEA al activo rival, retirar el ex "
         f"cobra premio y concede la mitad si nos responden; eligio {opt}")

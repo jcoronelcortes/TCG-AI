@@ -20,7 +20,7 @@ from ptcg.decision.ultra_ball import _matchup_allows_playing, _ub_cost_destroys_
 from ptcg.state.agent_state import AGENT_STATE
 from ptcg.state.zones import ZONE_DECK
 from ptcg.engine.debug import DEBUG_DECISIONS, _debug_log_decision
-from ptcg.turn.ctx import TurnoCtx  # noqa: F401
+from ptcg.turn.ctx import TurnCtx  # noqa: F401
 from ptcg.turn.game_plan import plan_of
 
 

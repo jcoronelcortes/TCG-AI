@@ -21,7 +21,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import main as m
-from state_builder import C, G, Escenario, EstadoInconsistente, pk
+from state_builder import C, G, Scenario, InconsistentState, pk
 
 # IDs that are not in our deck.csv (rival cards).
 KANGASKHAN = 756
@@ -56,7 +56,7 @@ def reset_main_state():
     m._init_cards_tracking()
 
 
-def _escenario_paso69(op_active="kangaskhan", dipplin_energy=2):
+def _scenario_step69(op_active="kangaskhan", dipplin_energy=2):
     """A synthetic replica of step 69 of registro_008 with variants.
 
     op_active: "kangaskhan" (hittable by ex) or "crustle" (immune to ex,
@@ -78,7 +78,7 @@ def _escenario_paso69(op_active="kangaskhan", dipplin_energy=2):
     else:
         dipplin = pk(m.Dipplin, energies=[], fisicas=0, pre_evo=[m.Applin])
 
-    esc = (Escenario(turn=8, step=69, tac=3, first_player=1)
+    esc = (Scenario(turn=8, step=69, tac=3, first_player=1)
            .my_active(dipplin)
            .my_bench(pk(m.Meganium, pre_evo=[m.Chikorita, m.Bayleef]),
                      pk(m.Teal_Mask_Ogerpon_ex, energies=[G, G], fisicas=1),
@@ -119,7 +119,7 @@ def _chosen_card(obs, choice):
 # ---------------------------------------------------------------------
 
 def test_the_synthetic_replica_of_step69_matches_the_real_decision():
-    obs = _escenario_paso69()
+    obs = _scenario_step69()
     choice = m.agent(obs)
     assert _chosen_card(obs, choice) == m.Hydrapple_ex, (
         "la replica sintetica del paso 69 debe reproducir la decision del "
@@ -141,7 +141,7 @@ def test_the_synthetic_replica_of_step69_matches_the_real_decision():
     ("kangaskhan", 0, False),
 ])
 def test_frontera_ub_evo_doomed(op_active, dipplin_energy, espera_hydrapple):
-    obs = _escenario_paso69(op_active=op_active,
+    obs = _scenario_step69(op_active=op_active,
                             dipplin_energy=dipplin_energy)
     choice = m.agent(obs)
     elegida = _chosen_card(obs, choice)
@@ -161,21 +161,21 @@ def test_frontera_ub_evo_doomed(op_active, dipplin_energy, espera_hydrapple):
 # ---------------------------------------------------------------------
 
 def test_the_builder_rejects_more_copies_than_the_deck_has():
-    esc = Escenario().my_active(pk(m.Dipplin, pre_evo=[m.Applin]))
-    with pytest.raises(EstadoInconsistente):
+    esc = Scenario().my_active(pk(m.Dipplin, pre_evo=[m.Applin]))
+    with pytest.raises(InconsistentState):
         # deck.csv has 2 Hydrapple ex: the 3rd copy must fail.
         esc.deck(m.Hydrapple_ex, m.Hydrapple_ex, m.Hydrapple_ex)
 
 
 def test_the_builder_rejects_a_leftover_that_is_not_the_prizes():
-    esc = (Escenario()
+    esc = (Scenario()
            .my_active(pk(m.Dipplin, pre_evo=[m.Applin]))
            .op_active(pk(KANGASKHAN, hp=160, max_hp=400))
            # a declared deck of 2 cards: ~50 are left unplaced (far more
            # than the 6 prizes) -> the construction must fail.
            .deck(m.Hydrapple_ex, m.Tapu_Bulu)
            .fetch_ultra_ball())
-    with pytest.raises(EstadoInconsistente):
+    with pytest.raises(InconsistentState):
         esc.build()
 
 
@@ -197,7 +197,7 @@ CUBCHOO = 506
 
 def _fetch_ub_vs(op_id):
     """An Ultra Ball fetch with a Chikorita on the bench and the line in the deck."""
-    obs = (Escenario(turn=6, step=1, tac=1)
+    obs = (Scenario(turn=6, step=1, tac=1)
            .my_active(pk(m.Teal_Mask_Ogerpon_ex, energies=[G], fisicas=1))
            .my_bench(pk(m.Chikorita))
            .my_hand()
@@ -240,7 +240,7 @@ def test_without_cornerstone_the_search_does_not_change():
 
 def _menu_with_tapu_in_hand(op_id):
     """The main menu vs a Cubchoo rival with Cornerstone (or not) as the active."""
-    return (Escenario(turn=6, step=1, tac=1)
+    return (Scenario(turn=6, step=1, tac=1)
             .my_active(pk(m.Teal_Mask_Ogerpon_ex, energies=[G], fisicas=1))
             .my_bench(pk(m.Bayleef, pre_evo=[m.Chikorita]))
             .my_hand(m.Basic_Grass_Energy, m.Tapu_Bulu)
@@ -264,7 +264,7 @@ def _energy_goes_to(obs, choice):
 def test_cornerstone_the_energy_goes_to_tapu_bulu():
     # With Tapu Bulu ALREADY on the bench, the energy must charge it (the only attacker
     # that damages Cornerstone), not the Ogerpon ex with its ability cancelled.
-    obs = (Escenario(turn=6, step=1, tac=1)
+    obs = (Scenario(turn=6, step=1, tac=1)
            .my_active(pk(m.Teal_Mask_Ogerpon_ex, energies=[G], fisicas=1))
            .my_bench(pk(m.Tapu_Bulu), pk(m.Bayleef, pre_evo=[m.Chikorita]))
            .my_hand(m.Basic_Grass_Energy)
@@ -279,7 +279,7 @@ def test_cornerstone_the_energy_goes_to_tapu_bulu():
 
 def test_cornerstone_without_it_the_energy_does_not_change():
     # Boundary: without Cornerstone the energy distribution keeps its criterion.
-    obs = (Escenario(turn=6, step=1, tac=1)
+    obs = (Scenario(turn=6, step=1, tac=1)
            .my_active(pk(m.Teal_Mask_Ogerpon_ex, energies=[G], fisicas=1))
            .my_bench(pk(m.Tapu_Bulu), pk(m.Bayleef, pre_evo=[m.Chikorita]))
            .my_hand(m.Basic_Grass_Energy)
@@ -315,7 +315,7 @@ def _chosen_play(obs, choice):
 
 
 def _esc_hop(active, bench, op_energies=(), menu="attach"):
-    esc = (Escenario(turn=8, step=1, tac=1)
+    esc = (Scenario(turn=8, step=1, tac=1)
            .my_active(active)
            .my_bench(*bench)
            .my_hand(m.Basic_Grass_Energy)
@@ -389,7 +389,7 @@ def test_hop_teal_dance_permitida_si_habilita_el_ko():
 
 def test_hop_cap_of_2_energies_with_meganium():
     # With Meganium in play (Wild Growth doubles) the cap drops to 2 physical.
-    obs = (Escenario(turn=8, step=1, tac=1)
+    obs = (Scenario(turn=8, step=1, tac=1)
            .my_active(pk(m.Meganium, pre_evo=[m.Chikorita, m.Bayleef]))
            .my_bench(pk(m.Teal_Mask_Ogerpon_ex, energies=[G, G, G, G], fisicas=2),
                      pk(m.Tapu_Bulu))
@@ -436,7 +436,7 @@ def _esc_combo_myriad(energies=4, grass_cards=1, energy_played=False,
     # FROM the hand); for the later steps of the chain (`plantas=0`) it is
     # built with it and then moved to the discard, which is exactly where it ends up
     # after being used.
-    obs = (Escenario(turn=12, step=227, tac=1,
+    obs = (Scenario(turn=12, step=227, tac=1,
                      own_prizes=own_prizes,
                      energy_played=energy_played)
            .my_active(pk(m.Teal_Mask_Ogerpon_ex, energies=[G] * energies,
@@ -532,7 +532,7 @@ def test_myriad_combo_with_no_finisher_it_keeps_the_grass():
     # Boundary: with no prize target on the rival bench (only a Kilowattrel
     # worth 1 prize that we already knock out), the no-overcharging veto returns: the
     # energy does NOT go to the active Ogerpon via Teal Dance.
-    obs = (Escenario(turn=12, step=227, tac=1, own_prizes=2)
+    obs = (Scenario(turn=12, step=227, tac=1, own_prizes=2)
            .my_active(pk(m.Teal_Mask_Ogerpon_ex, energies=[G] * 4, fisicas=4))
            .my_bench(pk(m.Applin))
            .my_hand(m.Basic_Grass_Energy, m.Boss_Orders)
@@ -567,7 +567,7 @@ KADABRA_ALK = 742
 
 
 def _pivot_obs(caso):
-    esc = (Escenario(turn=6, step=40, tac=1)
+    esc = (Scenario(turn=6, step=40, tac=1)
            .my_active(pk(m.Fezandipiti_ex, energies=[G], fisicas=1))
            .my_bench(pk(m.Teal_Mask_Ogerpon_ex, energies=[G, G], fisicas=2),
                      pk(m.Applin)))
@@ -763,7 +763,7 @@ CORNERSTONE_NOEX = 386
 
 
 def _menu_with_tapu(op_active, op_bench=(), op_discard=()):
-    esc = (Escenario(turn=6, step=1, tac=1)
+    esc = (Scenario(turn=6, step=1, tac=1)
            .my_active(pk(m.Teal_Mask_Ogerpon_ex, energies=[G], fisicas=1))
            .my_bench(pk(m.Chikorita))
            .my_hand(m.Tapu_Bulu, m.Basic_Grass_Energy)
@@ -839,7 +839,7 @@ def _raging_obs(tapu_on_bench=False, ogerpon_cargado=False, bolt_hp=240):
         bench.append(pk(m.Tapu_Bulu, aparecio=True))
     else:
         hand.insert(4, m.Tapu_Bulu)
-    return (Escenario(turn=2, step=27, tac=14, first_player=0,
+    return (Scenario(turn=2, step=27, tac=14, first_player=0,
                       energy_played=True, supporter_played=True)
             .my_active(act)
             .my_bench(*bench)
@@ -982,7 +982,7 @@ def _abomasnow_obs(first_player=1, turn=2, tapu_on_bench=False):
         bench.append(pk(m.Tapu_Bulu, aparecio=True))
     else:
         hand.insert(4, m.Tapu_Bulu)
-    return (Escenario(turn=turn, step=14, tac=7, first_player=first_player,
+    return (Scenario(turn=turn, step=14, tac=7, first_player=first_player,
                       energy_played=True, supporter_played=True)
             .my_active(act)
             .my_bench(*bench)
@@ -1037,7 +1037,7 @@ MEGA_LUCARIO = 678
 
 
 def _menu_immune_active(op_active_id, op_bench_id):
-    esc = (Escenario(turn=8, step=100, tac=0,
+    esc = (Scenario(turn=8, step=100, tac=0,
                      supporter_played=False, stadium_played=True,
                      own_prizes=4)
            .my_active(pk(m.Hydrapple_ex, energies=[G, G, G, G], fisicas=4))
@@ -1097,7 +1097,7 @@ def test_an_attackable_active_does_not_detour_to_meowth():
 
 def _fetch_ub_meowth_engine_vs(op_id):
     """A UB with an empty hand and the refresh engine available in the deck."""
-    obs = (Escenario(turn=6, step=1, tac=1)
+    obs = (Scenario(turn=6, step=1, tac=1)
            .my_active(pk(m.Teal_Mask_Ogerpon_ex, energies=[G], fisicas=1))
            .my_bench(pk(m.Chikorita))
            .my_hand()
@@ -1141,7 +1141,7 @@ def test_without_iron_thorns_the_meowth_engine_stays_alive():
 # =====================================================================
 
 def _scenario_t2_going_second(hand):
-    return (Escenario(turn=2, tac=1, first_player=1)
+    return (Scenario(turn=2, tac=1, first_player=1)
             .my_active(pk(m.Tapu_Bulu))
             .my_bench(pk(m.Chikorita))
             .my_hand(*hand)
@@ -1208,7 +1208,7 @@ def test_ub_t1_going_second_with_a_lillie_in_hand_it_is_vetoed():
 # as d801d57 (the anti-Cubchoo whitelist extended with the immune wall in play).
 
 def _esc_corner_td(ogerpon_fisicas):
-    return (Escenario(turn=8, step=1, tac=1)
+    return (Scenario(turn=8, step=1, tac=1)
             .my_active(pk(m.Tapu_Bulu, energies=[G], fisicas=1))
             .my_bench(pk(m.Teal_Mask_Ogerpon_ex,
                          energies=[G] * ogerpon_fisicas,
@@ -1247,7 +1247,7 @@ def test_generic_td_two_physical_without_a_wall_is_not_capped():
     # The inverse control: with no Cornerstone/Crustle/wall in front (a neutral rival,
     # Kilowattrel 271) the cap does not apply and the Teal Dance of the Ogerpon with 2
     # physical is still alive.
-    obs = (Escenario(turn=8, step=1, tac=1)
+    obs = (Scenario(turn=8, step=1, tac=1)
            .my_active(pk(m.Tapu_Bulu, energies=[G], fisicas=1))
            .my_bench(pk(m.Teal_Mask_Ogerpon_ex, energies=[G, G], fisicas=2))
            .my_hand(m.Basic_Grass_Energy)

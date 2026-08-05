@@ -53,14 +53,14 @@ def _resolve_with_trace(etiqueta, rules, adjustments, ctx, default):
     return score
 
 
-def _resolve_max(escenarios, ctx):
+def _resolve_max(scenarios, ctx):
     """ARGMAX mode of the engine: evaluates ALL scenarios (same shape as
     _FixedRule) and returns (best_value, trace). Unlike the
     first-one-that-applies chain, here every scenario that fires competes and
     the highest value wins (0 if none fires). For accumulators of the form
     `best = max(best, ...)` over independent scenarios."""
     best, winner, disparados = 0, None, 0
-    for e in escenarios:
+    for e in scenarios:
         if e.when(ctx):
             disparados += 1
             v = e.value(ctx)

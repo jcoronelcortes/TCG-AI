@@ -50,20 +50,20 @@ TAM_LOTE = 100
 ENFRIAMIENTO_LOTE_S = 60.0
 MAX_REINTENTOS = 6
 MAX_ESPERA_REINTENTO_S = 60.0
-ESTADOS_REINTENTABLES = {408, 425, 500, 502, 503, 504}
+RETRYABLE_STATUSES = {408, 425, 500, 502, 503, 504}
 
 COMPETICION = "pokemon-tcg-ai-battle"
 TAM_PAGINA_LEADERBOARD = 200
 
 # Basic energies: the only cards with no copy limit.
 BASIC_ENERGIES = set(range(1, 9))
-MAX_COPIAS = 4
+MAX_COPIES = 4
 
 # Archetype rules, copied from the published notebook. They are evaluated from top
 # to bottom: the specific hybrids go BEFORE the single-card rules.
 #   "all" -> every marker card must be present
 #   "any" -> one is enough
-ARQUETIPOS: list[dict[str, Any]] = [
+ARCHETYPES: list[dict[str, Any]] = [
     {"nombre": "Great Tusk / Crustle", "all": ["Great Tusk", "Crustle"]},
     {"nombre": "Marnie Grimmsnarl", "any": ["Marnie's Grimmsnarl ex"]},
     {"nombre": "Cynthia Garchomp", "any": ["Cynthia's Garchomp ex"]},
@@ -106,14 +106,14 @@ def card_key(name: Any) -> str:
     return re.sub(r"\s+", " ", text.strip()).casefold()
 
 
-def clasificar_arquetipo(
+def classify_archetype(
     deck: list[int], names: dict[int, str], pokemon: set[int]
 ) -> str:
     """Labels the deck by marker cards; if there is no rule, it falls back to the ex Pokemon."""
     if not names:
         return ""
     presentes = {card_key(names.get(cid, "")) for cid in deck}
-    for rule in ARQUETIPOS:
+    for rule in ARCHETYPES:
         exigidas = {card_key(n) for n in rule.get("all", [])}
         alguna = {card_key(n) for n in rule.get("any", [])}
         if (not exigidas or exigidas.issubset(presentes)) and (not alguna or alguna & presentes):
@@ -284,7 +284,7 @@ def llamar(etiqueta: str, func: Callable, *args, **kwargs):
             # A 429 is skipped immediately: insisting only makes the limit worse.
             if state == 429:
                 break
-            recuperable = state is None or state in ESTADOS_REINTENTABLES
+            recuperable = state is None or state in RETRYABLE_STATUSES
             if not recuperable or intento == MAX_REINTENTOS - 1:
                 break
             espera = min(
@@ -339,8 +339,8 @@ def validate_deck(deck: list[int], ace_spec: set[int]) -> list[str]:
     for cid, n in sorted(conteo.items()):
         if cid in BASIC_ENERGIES:
             continue  # a basic energy: no cap
-        if n > MAX_COPIAS:
-            avisos.append(f"{n} copias del ID {cid} (max {MAX_COPIAS})")
+        if n > MAX_COPIES:
+            avisos.append(f"{n} copias del ID {cid} (max {MAX_COPIES})")
     n_ace = sum(n for cid, n in conteo.items() if cid in ace_spec)
     if n_ace > 1:
         avisos.append(f"{n_ace} cartas ACE SPEC (max 1)")
@@ -597,7 +597,7 @@ def index_row(
         "archivo": file_path,
         "posicion_leaderboard": posicion,
         "puntaje": score,
-        "arquetipo": clasificar_arquetipo(deck, names, pokemon),
+        "arquetipo": classify_archetype(deck, names, pokemon),
         "cartas": len(deck),
         "ids_distintos": len(conteo),
         "energias_basicas": sum(n for cid, n in conteo.items() if cid in BASIC_ENERGIES),

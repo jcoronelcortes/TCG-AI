@@ -65,7 +65,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import main as m
-from state_builder import G, Escenario, pk
+from state_builder import G, Scenario, pk
 
 GRASS = m.Basic_Grass_Energy
 TAPU = m.Tapu_Bulu                 # Wood Hammer: 4 effective energies
@@ -188,7 +188,7 @@ def test_step118_applin_and_dipplin_are_dead_cards():
 # ---------------------------------------------------------------------------
 
 def _plan(active, bench=(), hand=(), energy_played=False, cambio=False):
-    obs = (Escenario(turn=10, energy_played=energy_played)
+    obs = (Scenario(turn=10, energy_played=energy_played)
            .my_active(active)
            .my_bench(*bench)
            .my_hand(*hand)
@@ -249,7 +249,7 @@ def test_plan_with_abilities_off_only_the_manual_attachment_is_left():
     active = pk(OGERPON, energies=[G], fisicas=1)      # 1 of 3 effective
     bench = [pk(OGERPON, energies=[G] * 2, fisicas=2)]
 
-    obs = (Escenario(turn=10)
+    obs = (Scenario(turn=10)
            .my_active(active).my_bench(*bench)
            .op_active(pk(CRUSTLE)).op_zonas(hand=5, deck=30, prizes=6)
            .menu_hand().build())
@@ -305,8 +305,8 @@ def test_unplayable_does_not_apply_to_what_is_not_a_pokemon():
 # The selection, synthetically
 # ---------------------------------------------------------------------------
 
-def _seleccion_lana(active, bench, discard, hand=(), energy_played=False):
-    obs = (Escenario(turn=10, supporter_played=True,
+def _lana_selection(active, bench, discard, hand=(), energy_played=False):
+    obs = (Scenario(turn=10, supporter_played=True,
                      energy_played=energy_played)
            .my_active(active)
            .my_bench(*bench)
@@ -323,7 +323,7 @@ def _seleccion_lana(active, bench, discard, hand=(), energy_played=False):
 
 def test_selection_full_bench_the_energy_beats_development():
     """registro_018, synthetically."""
-    _, elegidas = _seleccion_lana(
+    _, elegidas = _lana_selection(
         active=pk(TAPU, energies=[G] * 2, fisicas=1),
         bench=[pk(MEGANIUM, energies=[G] * 2, fisicas=1), pk(MEOWTH),
                pk(MEGANIUM), pk(OGERPON, energies=[G] * 2, fisicas=1),
@@ -335,7 +335,7 @@ def test_selection_full_bench_the_energy_beats_development():
 def test_selection_with_no_energy_demand_development_returns():
     """Boundary: with the active ALREADY charged and room on the bench, the energy is surplus and
     the recovery goes back to being development (starting the Hydrapple line)."""
-    _, elegidas = _seleccion_lana(
+    _, elegidas = _lana_selection(
         active=pk(TAPU, energies=[G] * 4, fisicas=4),
         bench=[pk(MEOWTH)],
         discard=[GRASS, GRASS, GRASS, APPLIN, DIPPLIN],
@@ -348,7 +348,7 @@ def test_selection_only_the_needed_grass_gets_the_high_band():
     development: the ordinal stops four tied copies taking the whole
     menu (the surplus Grass falls to `LANA_SEL_GRASS_SURPLUS`, below
     the Applin that starts the Hydrapple line)."""
-    obs, elegidas = _seleccion_lana(
+    obs, elegidas = _lana_selection(
         active=pk(TAPU, energies=[G] * 2, fisicas=1),
         bench=[pk(MEGANIUM, energies=[G] * 4, fisicas=2), pk(MEOWTH)],
         discard=[GRASS, GRASS, GRASS, GRASS, APPLIN, CHIKORITA])

@@ -44,7 +44,7 @@ if str(ROOT) not in sys.path:
 
 import main as m
 from patching import parcheado
-from state_builder import G, Escenario, pk
+from state_builder import G, Scenario, pk
 
 TAPU = m.Tapu_Bulu             # 920: Wood Hammer 220, -30 to itself
 OGERPON = m.Teal_Mask_Ogerpon_ex
@@ -147,7 +147,7 @@ def test_with_no_energy_to_pay_the_attack_there_is_no_self_damage():
 def _step_184(op_prizes=1, my_prizes=1, tapu_hp=20, ogerpon_energies=6):
     """The exact board of step 184. Meganium on the bench => each physical Grass
     counts DOUBLE, so 3 energy cards give 6 effective units."""
-    return (Escenario(turn=16, step=184, tac=1,
+    return (Scenario(turn=16, step=184, tac=1,
                       own_prizes=my_prizes)
             .my_active(pk(TAPU, hp=tapu_hp, energies=[G] * 6, fisicas=3))
             .my_bench(pk(MEGANIUM, hp=80, pre_evo=[m.Chikorita, BAYLEEF]),
@@ -187,7 +187,7 @@ def test_with_no_relief_on_the_bench_the_draw_is_the_best_outcome_and_is_not_vet
     attack is NOT vetoed (passing also ends in a draw, but gives away the turn).
     The veto is measured rather than the choice because, with energy in hand, attaching it
     scores higher than attacking through rules PRIOR to this change."""
-    obs = (Escenario(turn=16, step=184, tac=1, own_prizes=1)
+    obs = (Scenario(turn=16, step=184, tac=1, own_prizes=1)
            .my_active(pk(TAPU, hp=20, energies=[G] * 6, fisicas=3))
            .my_bench(pk(MEGANIUM, hp=80, pre_evo=[m.Chikorita, BAYLEEF]))
            .my_hand(GRASS)
@@ -219,7 +219,7 @@ def test_a_suicidal_finisher_that_loses_is_vetoed_even_with_no_relief():
     """A worse case than the draw: our attack does NOT knock out (a 380 HP Duraludon
     survives the 220), so the self-damage only HANDS the rival their last
     prize. There, attacking is losing: it is vetoed with no need for a relief body."""
-    obs = (Escenario(turn=16, step=184, tac=1, own_prizes=3)
+    obs = (Scenario(turn=16, step=184, tac=1, own_prizes=3)
            .my_active(pk(TAPU, hp=20, energies=[G] * 6, fisicas=3))
            .my_bench(pk(MEGANIUM, hp=80, pre_evo=[m.Chikorita, BAYLEEF]))
            .my_hand(GRASS)

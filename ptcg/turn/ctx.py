@@ -15,7 +15,7 @@ from typing import Any
 
 
 @dataclass
-class TurnoCtx:
+class TurnCtx:
     """What the tail of `agent()` needs from the rest of the turn."""
 
     _order_veto: Any = None
@@ -61,4 +61,4 @@ class TurnoCtx:
     total_grass: Any = None
 
 
-__all__ = ['TurnoCtx']
+__all__ = ['TurnCtx']

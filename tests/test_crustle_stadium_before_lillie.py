@@ -46,7 +46,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import main as m
-from state_builder import Escenario, pk
+from state_builder import Scenario, pk
 
 DWEBBLE = 344          # the Crustle line (switches on `op_is_crustle_deck`)
 EEVEE = m.Eevee_TWM    # the Sylveon line: it ALSO switches on `op_is_crustle_deck`
@@ -79,14 +79,14 @@ def reset_main_state():
     m._init_cards_tracking()
 
 
-def _escenario(op_basico=DWEBBLE, with_lillie=True, supporter_played=False,
+def _scenario(op_basico=DWEBBLE, with_lillie=True, supporter_played=False,
                first_player=1):
     """Our FIRST turn going second (turn 2) with the stadium and the
     Lillie's in hand. `primer_jugador=1` = the rival went first."""
     hand = [m.Forest_of_Vitality, m.Basic_Grass_Energy, m.Ultra_Ball]
     if with_lillie:
         hand.append(m.Lillie_Determination)
-    esc = (Escenario(turn=2, step=7, tac=0,
+    esc = (Scenario(turn=2, step=7, tac=0,
                      first_player=first_player,
                      supporter_played=supporter_played)
            .my_active(pk(m.Tapu_Bulu))
@@ -107,7 +107,7 @@ def _played_card(obs, choice):
 
 
 def test_vs_crustle_going_second_the_stadium_goes_before_the_lillie():
-    obs = _escenario()
+    obs = _scenario()
     choice = m.agent(obs)
     assert _played_card(obs, choice) == m.Forest_of_Vitality, (
         "vs Crustle, saliendo segundos y con estadio + Lillie's en la mano, "
@@ -119,7 +119,7 @@ def test_vs_crustle_going_second_the_stadium_goes_before_the_lillie():
 def test_control_another_matchup_keeps_the_first_turn_veto():
     # The same board against a deck that CAN replace the stadium: the
     # exception belongs to the matchup, it is not a general relaxation of the veto.
-    obs = _escenario(op_basico=DREEPY)
+    obs = _scenario(op_basico=DREEPY)
     choice = m.agent(obs)
     assert _played_card(obs, choice) != m.Forest_of_Vitality, (
         "fuera del matchup Crustle el estadio sigue vetado en nuestro primer "
@@ -131,7 +131,7 @@ def test_control_sylveon_does_not_inherit_the_exception():
     # immunity to ex, which is what that flag means. But the exception is not
     # born of the immunity but of the fact that the Crustle deck plays no stadium, so
     # the gate looks at the LINE on the board and Sylveon does not inherit it.
-    obs = _escenario(op_basico=EEVEE)
+    obs = _scenario(op_basico=EEVEE)
     choice = m.agent(obs)
     assert m.op_is_crustle_deck, (
         "premisa del control: Eevee enciende `op_is_crustle_deck`")
@@ -143,7 +143,7 @@ def test_control_sylveon_does_not_inherit_the_exception():
 def test_control_with_no_lillie_in_hand_the_veto_holds():
     # With no Lillie's there is no shuffle to fear: the stadium is in no danger in
     # hand and there is no reason to play it early.
-    obs = _escenario(with_lillie=False)
+    obs = _scenario(with_lillie=False)
     choice = m.agent(obs)
     assert _played_card(obs, choice) != m.Forest_of_Vitality, (
         "la excepcion solo existe para salvar el estadio del barajeo de "
@@ -153,7 +153,7 @@ def test_control_with_no_lillie_in_hand_the_veto_holds():
 def test_control_a_played_supporter_does_not_revive_the_stadium():
     # With the turn's Supporter spent, the Lillie's in hand is no longer going to be
     # played: the stadium is in no danger and the exception does not apply.
-    obs = _escenario(supporter_played=True)
+    obs = _scenario(supporter_played=True)
     choice = m.agent(obs)
     assert _played_card(obs, choice) != m.Forest_of_Vitality, (
         "con el Supporter ya jugado no hay barajeo pendiente: el estadio "
@@ -163,7 +163,7 @@ def test_control_a_played_supporter_does_not_revive_the_stadium():
 def test_control_going_first_the_veto_holds():
     # The user's rule bounds the exception to going SECOND. Going first
     # (turn 1) the rival has not played yet and the general veto holds.
-    obs = _escenario(first_player=0)
+    obs = _scenario(first_player=0)
     obs["current"]["turn"] = 1
     choice = m.agent(obs)
     assert _played_card(obs, choice) != m.Forest_of_Vitality, (

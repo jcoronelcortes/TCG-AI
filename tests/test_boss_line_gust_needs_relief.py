@@ -47,7 +47,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import main as m
-from state_builder import Escenario, pk, G
+from state_builder import Scenario, pk, G
 
 OGERPON = m.Teal_Mask_Ogerpon_ex
 BOSS = m.Boss_Orders
@@ -159,7 +159,7 @@ def test_dunsparce_is_never_relief():
 def _board(extra_bench=()):
     """Our turn with no attacker (Ogerpon ex at 1/3) and with Boss's Orders as the
     only card in hand: the menu is PLAY Boss's | END."""
-    return (Escenario(turn=6, step=70, tac=2, own_prizes=5)
+    return (Scenario(turn=6, step=70, tac=2, own_prizes=5)
             .my_active(pk(OGERPON, energies=[G], fisicas=1))
             .my_bench(pk(OGERPON))
             .op_active(pk(DRAGAPULT, hp=320, max_hp=320, energies=[G]))

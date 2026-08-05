@@ -55,7 +55,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import main as m
-from state_builder import G, Escenario, pk
+from state_builder import G, Scenario, pk
 
 TAPU = m.Tapu_Bulu                 # 920: Wood Hammer 220 (-30 to itself)
 OGERPON = m.Teal_Mask_Ogerpon_ex   # 96: a 2-prize ex, 210 HP
@@ -151,14 +151,14 @@ def test_step47_the_wall_is_knockable_and_the_flag_sees_it():
 # Synthetic scenarios: the rule and its boundaries
 # ---------------------------------------------------------------------------
 
-def _escenario(op_active=None, my_active=None, own_prizes=None,
+def _scenario(op_active=None, my_active=None, own_prizes=None,
                hand=(BOSS, ULTRA_BALL)):
     """A charged Tapu Bulu in front of the wall, with a 2-prize rival ex on their
     bench (the gust the agent preferred)."""
     op_active = op_active if op_active is not None else pk(CRUSTLE)
     my_active = (my_active if my_active is not None
                  else pk(TAPU, energies=[G] * 4, fisicas=4))
-    return (Escenario(turn=8, step=47, energy_played=True,
+    return (Scenario(turn=8, step=47, energy_played=True,
                       own_prizes=own_prizes)
             .my_active(my_active)
             .my_bench(pk(MEGANIUM), pk(MEOWTH))
@@ -173,7 +173,7 @@ def _escenario(op_active=None, my_active=None, own_prizes=None,
 def test_with_a_knockable_wall_the_boss_is_not_played():
     """The record's case synthetically: 2 prizes on the rival bench do NOT
     justify leaving alive the wall that cancels our whole deck."""
-    obs = _escenario()
+    obs = _scenario()
     accion, _ = _play(obs, m.agent(obs))
     assert accion == "ATTACK", _play(obs, m.agent(obs))
 
@@ -181,7 +181,7 @@ def test_with_a_knockable_wall_the_boss_is_not_played():
 def test_boundary_an_ex_active_keeps_the_gust_alive():
     """With an Ogerpon ex active the wall is UNTOUCHABLE (0 damage): there is no
     window to protect and Boss's is the play again."""
-    obs = _escenario(my_active=pk(OGERPON, energies=[G] * 6, fisicas=3))
+    obs = _scenario(my_active=pk(OGERPON, energies=[G] * 6, fisicas=3))
     assert _play(obs, m.agent(obs)) == ("PLAY", BOSS)
 
 
@@ -189,14 +189,14 @@ def test_boundary_sturdy_with_no_ko_keeps_the_gust_alive():
     """Crustle 533 at FULL life survives on 10 HP (*Sturdy*): Wood Hammer does not
     knock it out, so there is no wall to finish and the 2-prize gust rules.
     That is why the flag is measured with `_our_effective_damage`."""
-    obs = _escenario(op_active=pk(CRUSTLE_STURDY))
+    obs = _scenario(op_active=pk(CRUSTLE_STURDY))
     assert _play(obs, m.agent(obs)) == ("PLAY", BOSS)
 
 
 def test_boundary_a_winning_gust_rules_over_the_wall():
     """At 2 prizes, gusting the bench ex WINS the game on the spot: the
     finisher (`win_via_boss_gust`) still comes above the wall."""
-    obs = _escenario(own_prizes=2)
+    obs = _scenario(own_prizes=2)
     assert _play(obs, m.agent(obs)) == ("PLAY", BOSS)
 
 

@@ -34,7 +34,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import main as m
-from state_builder import Escenario, G, pk
+from state_builder import Scenario, G, pk
 
 GRIMMSNARL = 648      # Shadow Bullet: 180 to the active + 30 to a benched one
 MORGREM = 647         # Corkscrew Punch: 60, no snipe
@@ -78,7 +78,7 @@ def _turn_close(opponent_active="grimmsnarl", hp_ogerpon=30):
     else:
         opponent_act, opponent_bench = morgrem, grimm
 
-    esc = (Escenario(turn=4, step=55, tac=8, first_player=1,
+    esc = (Scenario(turn=4, step=55, tac=8, first_player=1,
                      supporter_played=True)
            .my_active(pk(m.Teal_Mask_Ogerpon_ex, hp=hp_ogerpon,
                          energies=[G], fisicas=1))

@@ -13,7 +13,7 @@ from ptcg.cards.scoring import MAIN_ATTACKERS
 from ptcg.state.agent_state import AGENT_STATE
 
 
-def puntuar(tc, o, score):
+def score_play(tc, o, score):
     """Returns the score of `o`. It may return `_SALTAR`."""
     _attach_yields_to_teal_dance = tc._attach_yields_to_teal_dance
     _attach_enable_retreat_attack = tc._attach_enable_retreat_attack
@@ -272,4 +272,4 @@ def puntuar(tc, o, score):
         tc.pokemon = pokemon
 
 
-__all__ = ['puntuar']
+__all__ = ['score_play']

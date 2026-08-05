@@ -57,7 +57,7 @@ if str(ROOT) not in sys.path:
 
 import main as m
 from cg.api import OptionType
-from tests.state_builder import Escenario, pk, C, G
+from tests.state_builder import Scenario, pk, C, G
 
 _FIXTURE = (ROOT / "tests" / "fixtures"
             / "lucario_t2_retreat_before_the_evolution_step25.json")
@@ -174,7 +174,7 @@ def test_it_retreats_the_doomed_meowth_instead_of_ending_the_turn():
 def _promotion(hand, bench=(CHIKORITA, APPLIN, OGERPON)):
     """The SWITCH prompt right after retreating the doomed Meowth ex, with the
     board of the record: a charged Riolu in front and nothing ready to attack."""
-    return (Escenario(turn=2, step=25, tac=10, first_player=1,
+    return (Scenario(turn=2, step=25, tac=10, first_player=1,
                       energy_played=True, supporter_played=True)
             .my_active(pk(MEOWTH, energies=[G]))
             .my_bench(*[b if isinstance(b, dict)
@@ -221,7 +221,7 @@ def test_the_two_prize_ogerpon_is_never_the_one_that_goes_up():
 # ---------------------------------------------------------------------------
 
 def _main_menu(op_active, my_bench=(CHIKORITA, APPLIN), hand=(DIPPLIN, GRASS)):
-    return (Escenario(turn=2, step=25, tac=10, first_player=1,
+    return (Scenario(turn=2, step=25, tac=10, first_player=1,
                       energy_played=True, supporter_played=True)
             .my_active(pk(MEOWTH, energies=[G]))
             .my_bench(*[pk(b) if not isinstance(b, dict) else b

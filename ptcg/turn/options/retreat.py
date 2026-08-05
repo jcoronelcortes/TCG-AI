@@ -16,7 +16,7 @@ from ptcg.cards.tables import card_table
 from ptcg.state.agent_state import AGENT_STATE
 
 
-def puntuar(tc, o, score):
+def score_play(tc, o, score):
     """Returns the score of `o`. It may return `_SALTAR`."""
     _active_snipe_ko_now = tc._active_snipe_ko_now
     _active_snipe_ko_prizes = tc._active_snipe_ko_prizes
@@ -1623,4 +1623,4 @@ def puntuar(tc, o, score):
         tc.bp = bp
 
 
-__all__ = ['puntuar']
+__all__ = ['score_play']

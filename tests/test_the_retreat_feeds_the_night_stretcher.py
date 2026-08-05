@@ -169,15 +169,15 @@ def test_the_bench_ogerpon_is_only_chargeable_thanks_to_that_payment():
                             if p is not None])
     bench = [p for p in mine.bench if p is not None and p.id == OGERPON][0]
 
-    sin_retirada = _reachable_grass_for(bench, state, mine, hand_counts,
+    without_retreat = _reachable_grass_for(bench, state, mine, hand_counts,
                                         field_counts)
-    con_retirada = _reachable_grass_for(
+    with_retreat = _reachable_grass_for(
         bench, state, mine, hand_counts, field_counts,
         extra_discard_grass=_retreat_grass_to_discard(mine.active[0]))
 
-    assert sin_retirada == 0, (
+    assert without_retreat == 0, (
         "sin retirar no hay energia alcanzable: ni mano ni descarte")
-    assert con_retirada == 1, (
+    assert with_retreat == 1, (
         "la Planta que paga la retirada vuelve con la Stretcher y la pega el "
         "Teal Dance")
 

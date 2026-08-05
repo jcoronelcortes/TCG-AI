@@ -65,7 +65,7 @@ def _pokes(j):
     return actives + [p for p in (j.get("bench") or []) if p]
 
 
-def _firma(obs):
+def _signature(obs):
     """State signature used to deduplicate transpositions."""
     def pk_sig(p):
         return (p["id"], len(p.get("energies") or []), p.get("hp"))
@@ -157,7 +157,7 @@ def _remove_from_hand(yo, card_id):
     return card
 
 
-def _adjunta(p, card):
+def _attach(p, card):
     p["energies"] = list(p.get("energies") or []) + [1]
     p["energyCards"] = list(p.get("energyCards") or []) + [card]
 
@@ -222,7 +222,7 @@ def acciones_legales(obs):
                 y2 = _yo(o2)
                 card = _remove_from_hand(y2, m.Basic_Grass_Energy)
                 tgt = dict(_slots(y2))[_n]
-                _adjunta(tgt, card)
+                _attach(tgt, card)
                 o2["current"]["energyAttached"] = True
                 return o2
             acciones.append((f"ATTACH->{m.card_table[p['id']].name}", ap))
@@ -238,7 +238,7 @@ def acciones_legales(obs):
                     o2 = copy.deepcopy(obs)
                     y2 = _yo(o2)
                     card = _remove_from_hand(y2, m.Basic_Grass_Energy)
-                    _adjunta(dict(_slots(y2))[_n], card)
+                    _attach(dict(_slots(y2))[_n], card)
                     o2["_td_usadas"] = tuple(obs.get("_td_usadas", ())) + (_s,)
                     return o2
                 acciones.append(("TEAL DANCE", ap))
@@ -255,7 +255,7 @@ def acciones_legales(obs):
                         o2 = copy.deepcopy(obs)
                         y2 = _yo(o2)
                         card = _remove_from_hand(y2, m.Basic_Grass_Energy)
-                        _adjunta(dict(_slots(y2))[_n], card)
+                        _attach(dict(_slots(y2))[_n], card)
                         o2["_rc_usadas"] = tuple(
                             obs.get("_rc_usadas", ())) + (_s,)
                         return o2
@@ -436,7 +436,7 @@ def explore(obs, max_nodos=MAX_NODOS, respetar_menu=False):
             # After the first transition the state is SIMULATED: the recorded
             # menu no longer describes it and legality goes back to the model.
             nuevo["_simulado"] = True
-            next_state = _firma(nuevo)
+            next_state = _signature(nuevo)
             if next_state in vistos:
                 continue
             vistos.add(next_state)
@@ -446,7 +446,7 @@ def explore(obs, max_nodos=MAX_NODOS, respetar_menu=False):
     return best[0], best[1], nodos[0]
 
 
-def turn_of(hallazgo):
+def turn_of(finding):
     """The turn of a finding, from the key its WRITER uses.
 
     `turno` is a field of the persisted record, not an identifier: autopsy.py,
@@ -456,10 +456,10 @@ def turn_of(hallazgo):
     a documented step of the improvement loop, silently unavailable. Both
     spellings are accepted so an English writer would not break it again.
     """
-    return hallazgo.get("turno", hallazgo.get("turn", "?"))
+    return finding.get("turno", finding.get("turn", "?"))
 
 
-def comparar_hallazgo(path, index=0, max_nodos=MAX_NODOS):
+def compare_finding(path, index=0, max_nodos=MAX_NODOS):
     data = json.loads(Path(path).read_text())
     h = data["hallazgos"][index]
     obs = h["observation"]
@@ -475,10 +475,10 @@ def comparar_hallazgo(path, index=0, max_nodos=MAX_NODOS):
 
 def demo_combo_myriad():
     """The explorer must rediscover the combo of registro_012 step 227."""
-    from state_builder import Escenario, pk, G
+    from state_builder import Scenario, pk, G
     import golden_corpus as gc
     gc.reset_agent(m)
-    obs = (Escenario(turn=12, step=227, tac=1, own_prizes=2)
+    obs = (Scenario(turn=12, step=227, tac=1, own_prizes=2)
            .my_active(pk(m.Teal_Mask_Ogerpon_ex, energies=[G] * 4, fisicas=4))
            .my_bench(pk(m.Applin))
            .my_hand(m.Basic_Grass_Energy, m.Boss_Orders)
@@ -511,12 +511,12 @@ def main(argv):
     if args.demo:
         return demo_combo_myriad()
     if args.finding:
-        comparar_hallazgo(args.finding, args.index)
+        compare_finding(args.finding, args.index)
         return 0
     if args.autopsy:
         paths = sorted(Path(args.autopsy).glob("*.json"))[:args.max]
         for path in paths:
-            comparar_hallazgo(path)
+            compare_finding(path)
             print()
         return 0
     print("pass --demo, --finding or --autopsy")

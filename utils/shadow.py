@@ -55,7 +55,7 @@ def play_with_shadow(drv, shd, deck0, deck1, max_steps=3000):
     return flips, steps
 
 
-def main(pre_path, post_path, n_espejo=40, n_opponent=40):
+def main(pre_path, post_path, n_mirror=40, n_opponent=40):
     deck = sp.read_deck()
     total_flips, total_dec, total_steps = [], 0, 0
 
@@ -64,7 +64,7 @@ def main(pre_path, post_path, n_espejo=40, n_opponent=40):
     pre1 = sp.load_agent(pre_path, "pre1")
     post0 = sp.load_agent(post_path, "post0")
     post1 = sp.load_agent(post_path, "post1")
-    for i in range(n_espejo):
+    for i in range(n_mirror):
         flips, steps = play_with_shadow(
             {0: pre0, 1: pre1}, {0: post0, 1: post1}, deck, deck)
         total_flips += flips
@@ -72,7 +72,7 @@ def main(pre_path, post_path, n_espejo=40, n_opponent=40):
         total_steps += steps
         if flips:
             print(f"  espejo #{i}: {len(flips)} flips")
-    print(f"espejo: {n_espejo} games, {total_steps} decisiones")
+    print(f"espejo: {n_mirror} games, {total_steps} decisiones")
 
     # vs the opposing bot (the Crustle/Kangaskhan matchup): our seat only.
     opponent_path = ROOT / "deck" / "opponents" / "crustle_kangaskhan.csv"

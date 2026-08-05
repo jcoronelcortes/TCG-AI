@@ -17,7 +17,7 @@ from typing import NamedTuple
 from ptcg.cards.ids import Mega_Hawlucha_ex, Survival_Brace
 
 
-def _powerful_hand_proyectado(op_hand_count: int) -> int:
+def _powerful_hand_projected(op_hand_count: int) -> int:
     """Powerful Hand damage projected onto the opponent's NEXT turn.
 
     Same model as `_op_active_attack_damage_to`: 20 x (hand + 2), where the +2
@@ -78,7 +78,7 @@ def _snipe_targets(op_state):
     return out
 
 
-def _ventana_de_regalo(pokemon, is_active, golpe_proyectado, incluir_movible=True):
+def _ventana_de_regalo(pokemon, is_active, projected_hit, incluir_movible=True):
     """Damage the opponent can concentrate on `pokemon` before our next turn.
     A body with `hp <= _ventana_de_regalo(...)` is a prize the opponent can cash
     in whenever they want.
@@ -103,7 +103,7 @@ def _ventana_de_regalo(pokemon, is_active, golpe_proyectado, incluir_movible=Tru
     # ATTACKS (and therefore automatic sniping), never counters that are placed or
     # moved.
     golpe = 0 if (not is_active and pid == Teal_Mask_Ogerpon_ex) \
-        else max(0, golpe_proyectado or 0)
+        else max(0, projected_hit or 0)
     chip = AGENT_STATE._op_chip_per_round if pid in OUR_ABILITY_IDS else 0
     return golpe + chip + (AGENT_STATE._op_movable_dmg if incluir_movible else 0)
 
@@ -436,7 +436,7 @@ def _snipe_target_score(damage, target):
     return 100 + int(100 * damage / max(1, _hp))
 
 __all__ = [
-    '_powerful_hand_proyectado',
+    '_powerful_hand_projected',
     '_ProjTarget',
     '_ko_not_guaranteed',
     '_snipe_targets',

@@ -31,7 +31,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import main as m
-from state_builder import G, Escenario, pk
+from state_builder import G, Scenario, pk
 
 FEZANDIPITI = m.Fezandipiti_ex     # a blocked active: 0 energies, cost 1
 TAPU = m.Tapu_Bulu                 # a bench finisher WITHOUT a charging ability
@@ -70,11 +70,11 @@ def reset_main_state():
     m._init_cards_tracking()
 
 
-def _escenario(hand, bench=None, active_energy=0, discard=(GRASS, GRASS),
+def _scenario(hand, bench=None, active_energy=0, discard=(GRASS, GRASS),
                energy_played=False, retirado=False, op_hp=70):
     bench = bench if bench is not None else [pk(TAPU, energies=[G, G, G, G]),
                                              pk(MEOWTH)]
-    return (Escenario(turn=12, step=40, energy_played=energy_played,
+    return (Scenario(turn=12, step=40, energy_played=energy_played,
                       retirado=retirado)
             .my_active(pk(FEZANDIPITI, energies=[G] * active_energy))
             .my_bench(*bench)
@@ -105,7 +105,7 @@ def test_night_stretcher_is_played_to_pay_the_retreat():
     """The record's case: with no Grass in hand and the finisher on the table, the
     Night Stretcher is played instead of ending the turn."""
     hand = [NIGHT_STRETCHER, ULTRA_BALL]
-    obs = _escenario(hand).menu_hand().build()
+    obs = _scenario(hand).menu_hand().build()
     assert _elegida(obs, m.agent(obs), hand) == ("PLAY", NIGHT_STRETCHER)
 
 
@@ -119,7 +119,7 @@ def test_deck_agnostic_the_finisher_needs_no_charging_ability():
         m._cards_first_scan_done = False
         m._field_at_turn_start = {}
         hand = [NIGHT_STRETCHER, ULTRA_BALL]
-        obs = _escenario(hand, bench=bench).menu_hand().build()
+        obs = _scenario(hand, bench=bench).menu_hand().build()
         assert _elegida(obs, m.agent(obs), hand) == ("PLAY", NIGHT_STRETCHER)
 
 
@@ -127,7 +127,7 @@ def test_with_no_energy_in_the_discard_the_night_stretcher_is_kept():
     """Boundary: if no Grass is left in the discard, the chain does not exist
     and the Night Stretcher must not be played through this rule."""
     hand = [NIGHT_STRETCHER, ULTRA_BALL]
-    obs = _escenario(hand, discard=(ULTRA_BALL, ULTRA_BALL)).menu_hand().build()
+    obs = _scenario(hand, discard=(ULTRA_BALL, ULTRA_BALL)).menu_hand().build()
     assert _elegida(obs, m.agent(obs), hand) != ("PLAY", NIGHT_STRETCHER)
 
 
@@ -135,7 +135,7 @@ def test_with_grass_already_in_hand_the_chain_needs_no_night_stretcher():
     """Boundary: with the Grass already in hand the first link is superfluous; what rules is the
     attachment to the ACTIVE (`_attach_enable_retreat_ko`, 41000)."""
     hand = [NIGHT_STRETCHER, GRASS]
-    obs = _escenario(hand).menu_hand(with_attachment=True).build()
+    obs = _scenario(hand).menu_hand(with_attachment=True).build()
     tipo, target_path = _elegida(obs, m.agent(obs), hand)
     assert tipo == "ATTACH" and target_path == int(m.AreaType.ACTIVE)
 
@@ -145,7 +145,7 @@ def test_with_grass_already_in_hand_the_chain_needs_no_night_stretcher():
 # ---------------------------------------------------------------------------
 
 def test_the_night_stretcher_recovers_the_energy_not_a_pokemon():
-    obs = (_escenario([ULTRA_BALL], discard=(GRASS, GRASS, ULTRA_BALL))
+    obs = (_scenario([ULTRA_BALL], discard=(GRASS, GRASS, ULTRA_BALL))
            .fetch_discard(NIGHT_STRETCHER).build())
     choice = m.agent(obs)
     idx = obs["select"]["option"][choice[0]]["index"]
@@ -154,14 +154,14 @@ def test_the_night_stretcher_recovers_the_energy_not_a_pokemon():
 
 def test_the_recovered_grass_goes_to_the_active_not_the_bench():
     hand = [GRASS, ULTRA_BALL]
-    obs = _escenario(hand).menu_hand(with_attachment=True).build()
+    obs = _scenario(hand).menu_hand(with_attachment=True).build()
     tipo, target_path = _elegida(obs, m.agent(obs), hand)
     assert tipo == "ATTACH" and target_path == int(m.AreaType.ACTIVE)
 
 
 def test_with_the_energy_attached_it_retreats():
     hand = [ULTRA_BALL]
-    obs = (_escenario(hand, active_energy=1, energy_played=True)
+    obs = (_scenario(hand, active_energy=1, energy_played=True)
            .menu_hand(with_retreat=True).build())
     assert _elegida(obs, m.agent(obs), hand) == ("RETREAT", None)
 
@@ -230,7 +230,7 @@ def test_an_unknown_min_attack_cost_is_none():
 
 
 def test_after_retreating_the_finisher_is_promoted():
-    obs = (_escenario([ULTRA_BALL], active_energy=1, energy_played=True,
+    obs = (_scenario([ULTRA_BALL], active_energy=1, energy_played=True,
                       retirado=True)
            .promote_from_bench().build())
     choice = m.agent(obs)

@@ -234,7 +234,7 @@ def _score_unfair_stamp_play(ctx: DecisionContext) -> int:
                                _AJUSTES_STAMP_PLAY, ctx, default=7500)
 
 
-def _xr_letal_proyectado(c):
+def _xr_projected_lethal(c):
     """EARLY anti-Alakazam trigger: with an opposing hand of 4-5, if the
     Alakazam is ALREADY active and its projected Powerful Hand (20 x (hand + 2))
     KNOCKS OUT our active, cap the hand NOW (waiting for hand >= 6 gives away
@@ -248,7 +248,7 @@ def _xr_letal_proyectado(c):
                 >= (c.my_state.active[0].hp or 0))
 
 
-def _xr_copia_respaldo(c):
+def _xr_backup_copy(c):
     """A 2nd copy of Xerosic reachable (hand or deck): the 1st is played EARLY
     (opposing hand >= 4); the second late cap is destructive. Without a backup,
     conservative timing (user, july 2026: -1 Poke Pad +1 Xerosic)."""
@@ -262,8 +262,8 @@ def _xr_gate_alakazam(c):
     Hand 120+), a projected KO on our active, or a backup copy with the opposing
     hand already growing (>= 4)."""
     return (c.op_is_alakazam_deck
-            and (c.op_hand_count >= 6 or _xr_letal_proyectado(c)
-                 or (_xr_copia_respaldo(c) and c.op_hand_count >= 4)))
+            and (c.op_hand_count >= 6 or _xr_projected_lethal(c)
+                 or (_xr_backup_copy(c) and c.op_hand_count >= 4)))
 
 
 def _xr_last_copy_locked_in_hand(c):
@@ -445,8 +445,8 @@ def _score_xerosic_play(ctx: DecisionContext) -> int:
 
 __all__ = [
     '_xr_before_the_stamp',
-    '_xr_letal_proyectado',
-    '_xr_copia_respaldo',
+    '_xr_projected_lethal',
+    '_xr_backup_copy',
     '_xr_gate_alakazam',
     '_xr_last_copy_locked_in_hand',
     '_xr_ruta_a_lillie',

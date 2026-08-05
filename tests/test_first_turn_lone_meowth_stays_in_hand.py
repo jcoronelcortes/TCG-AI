@@ -84,7 +84,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import main as m
-from tests.state_builder import Escenario, pk
+from tests.state_builder import Scenario, pk
 
 _FIXTURE = (ROOT / "tests" / "fixtures"
             / "dragapult_t1_lone_meowth_stays_in_hand_step7.json")
@@ -149,7 +149,7 @@ def _plays_meowth(obs):
 
 def _scenario(active, hand, op_active=BUDEW, turn=1, first_player=0):
     """Turn 1 going first: empty bench and a single body in hand."""
-    return (Escenario(turn=turn, step=7, tac=1, first_player=first_player,
+    return (Scenario(turn=turn, step=7, tac=1, first_player=first_player,
                       energy_played=True)
             .my_active(pk(active))
             .my_hand(*hand)

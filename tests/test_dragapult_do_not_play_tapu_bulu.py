@@ -190,17 +190,17 @@ def test_the_faithful_replay_neither_searches_nor_plays_it():
 
     # Step 42: the Bug Catching Set looks at 7 cards and picks 2. Tapu Bulu is
     # no longer one of them (before it came out Grass + Tapu Bulu).
-    obs42, eleccion42 = dec[42]
+    obs42, choice42 = dec[42]
     vistas = obs42["select"]["deck"] or obs42["current"]["looking"]
     elegidas = [vistas[obs42["select"]["option"][i]["index"]]["id"]
-                for i in eleccion42]
+                for i in choice42]
     assert TAPU in [c["id"] for c in vistas], "el BCS SÍ veía a Tapu Bulu"
     assert TAPU not in elegidas, (
         "no se busca lo que después no se va a poder bajar")
 
     # Step 43: and the turn goes on through the Ultra Ball (the one that brought Hydrapple ex).
-    obs43, eleccion43 = dec[43]
-    assert eleccion43 != [_idx_tapu_bulu(obs43)]
+    obs43, choice43 = dec[43]
+    assert choice43 != [_idx_tapu_bulu(obs43)]
 
 
 # ---------------------------------------------------------------------------

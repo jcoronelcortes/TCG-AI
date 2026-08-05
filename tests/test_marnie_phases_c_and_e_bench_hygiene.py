@@ -50,7 +50,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import main as m
-from state_builder import Escenario, pk, G
+from state_builder import Scenario, pk, G
 
 OGERPON = m.Teal_Mask_Ogerpon_ex
 HYDRAPPLE = m.Hydrapple_ex
@@ -138,7 +138,7 @@ def _board_with_wounded_meganium(with_drip=True):
     opponent_bench = ([pk(FROSLASS, hp=90, max_hp=90),
                     pk(MUNKIDORI, hp=110, max_hp=110, energies=[G], fisicas=1)]
                    if with_drip else [pk(MORGREM, hp=100, max_hp=100)])
-    return (Escenario(turn=12, step=172, tac=1)
+    return (Scenario(turn=12, step=172, tac=1)
             .my_active(pk(HYDRAPPLE, hp=110, max_hp=330, energies=[G, G],
                           fisicas=2, pre_evo=[APPLIN, DIPPLIN]))
             .my_bench(pk(MEGANIUM, hp=30, max_hp=160,
@@ -180,7 +180,7 @@ def test_an_active_that_attacks_today_does_not_count_as_doomed():
     # The ACTIVE that is inside the window but ATTACKS this turn with that same Grass is
     # not doomed: the energy is cashed in before the opponent plays. An active Ogerpon
     # at 60 HP with 2 energies -> the 3rd pays for its Myriad Leaf Shower.
-    obs = (Escenario(turn=12, step=1, tac=1)
+    obs = (Scenario(turn=12, step=1, tac=1)
            .my_active(pk(OGERPON, hp=60, max_hp=210, energies=[G, G], fisicas=2))
            .my_bench(pk(BAYLEEF, hp=100, max_hp=100, pre_evo=[CHIKORITA]))
            .my_hand(GRASS)
@@ -212,7 +212,7 @@ def _board_to_play_fez(with_froslass=True, opponent_prizes=6):
     """
     opponent_bench = ([pk(FROSLASS, hp=90, max_hp=90)] if with_froslass
                    else [pk(MORGREM, hp=100, max_hp=100)])
-    return (Escenario(turn=6, step=1, tac=1)
+    return (Scenario(turn=6, step=1, tac=1)
             .my_active(pk(OGERPON, hp=210, max_hp=210, energies=[G, G, G],
                           fisicas=3))
             .my_bench(pk(TAPU, hp=140, max_hp=140))
@@ -257,7 +257,7 @@ def _board_to_play_applin(with_munkidori=True, with_chain=False):
         opponent_bench.append(pk(MUNKIDORI, hp=110, max_hp=110,
                               energies=[G], fisicas=1))
     hand = [APPLIN, GRASS] + ([DIPPLIN] if with_chain else [])
-    esc = (Escenario(turn=6, step=1, tac=1)
+    esc = (Scenario(turn=6, step=1, tac=1)
            .my_active(pk(OGERPON, hp=210, max_hp=210, energies=[G, G, G],
                          fisicas=3))
            .my_bench(pk(TAPU, hp=140, max_hp=140))

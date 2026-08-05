@@ -144,7 +144,7 @@ def load_corpus(source_path):
     return output, total
 
 
-def cribar(group, games, deck_referencia):
+def screen_list(group, games, deck_referencia):
     """Can the generic bot pilot this list? Bot(real) vs Bot(our deck)."""
     import selfplay as sp
     from opponent_bot import BotRival
@@ -153,7 +153,7 @@ def cribar(group, games, deck_referencia):
     # the two seats would mix up both sides' ability counters.
     stats = sp.torneo(
         BotRival(), BotRival(), games,
-        deck_candidato=list(group["mazo"]), deck_base=list(deck_referencia),
+        deck_candidate=list(group["mazo"]), deck_base=list(deck_referencia),
     )
     decididas = stats["candidate"] + stats["base"]
     wr = stats["candidate"] / decididas if decididas else 0.0
@@ -269,7 +269,7 @@ def main(argv):
     else:
         print(f"\n== 2/3 Pilotability screening ({args.games} games per list) ==")
         for n, group in enumerate(groups, start=1):
-            result = cribar(group, args.games, deck_ref)
+            result = screen_list(group, args.games, deck_ref)
             group.update(result)
             marca = "ok " if group["admitido"] else "NO "
             print(f"  {marca}{group['nombre']:<28} peso {100 * group['peso_meta']:4.0f}%  "
@@ -279,9 +279,9 @@ def main(argv):
     print("\n== 3/3 Writing ==")
     rows = write_out(groups, Path(args.output))
     admitted = [g for g in groups if g["admitido"]]
-    peso_ok = sum(g["peso_meta"] for g in admitted)
+    weight_ok = sum(g["peso_meta"] for g in admitted)
     print(f"Lists admitted: {len(admitted)}/{len(groups)}  ->  {args.output}")
-    print(f"MEASURABLE META COVERAGE: {100 * peso_ok:.1f}%")
+    print(f"MEASURABLE META COVERAGE: {100 * weight_ok:.1f}%")
     if len(admitted) < len(groups):
         print("\nNot pilotable (the harness cannot measure this part of the meta):")
         for g in groups:

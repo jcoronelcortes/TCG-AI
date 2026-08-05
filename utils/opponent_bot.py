@@ -89,7 +89,7 @@ DAMAGE_PER_COUNTER = 10
 class BotRival:
 
     def __init__(self):
-        self._ataques = {a.attackId: a for a in all_attack()}
+        self._attacks = {a.attackId: a for a in all_attack()}
         self._damage = {a.attackId: a.damage for a in all_attack()}
         self._cards = {c.cardId: c for c in all_card_data()}
         self._turn = None
@@ -221,9 +221,9 @@ class BotRival:
         for i, o in enumerate(options):
             by_type.setdefault(o.get("type"), []).append(i)
 
-        adjuntes = by_type.get(int(OptionType.ATTACH))
-        if adjuntes:
-            return [self._best_attachment(obs, options, adjuntes)]
+        attachments = by_type.get(int(OptionType.ATTACH))
+        if attachments:
+            return [self._best_attachment(obs, options, attachments)]
 
         evoluciones = by_type.get(int(OptionType.EVOLVE))
         if evoluciones:
@@ -242,9 +242,9 @@ class BotRival:
 
         # With no attack available, RETREATING is the only thing that changes anything: a
         # body that does not hit, nailed in the active spot, loses the game on its own.
-        retiradas = by_type.get(int(OptionType.RETREAT))
-        if not ataques and retiradas:
-            return [retiradas[0]]
+        retreats = by_type.get(int(OptionType.RETREAT))
+        if not ataques and retreats:
+            return [retreats[0]]
 
         if ataques:
             cur = obs.get("current") or {}
@@ -290,7 +290,7 @@ class BotRival:
         except (IndexError, TypeError):
             return None
 
-    def _best_attachment(self, obs, options, adjuntes):
+    def _best_attachment(self, obs, options, attachments):
         """To the ACTIVE, unless it already has energy and there is a body with an ability
         conditioned on energy still dry: that engine goes first."""
         cur = obs.get("current") or {}
@@ -299,11 +299,11 @@ class BotRival:
         active = None
         if yo < len(players):
             active = ((players[yo] or {}).get("active") or [None])[0]
-        to_active = [i for i in adjuntes
+        to_active = [i for i in attachments
                      if options[i].get("inPlayArea") == int(AreaType.ACTIVE)]
 
         if active and len(active.get("energies") or []) >= 1:
-            for i in adjuntes:
+            for i in attachments:
                 target_path = self._pokemon_de(
                     obs,
                     {"area": options[i].get("inPlayArea"),
@@ -313,7 +313,7 @@ class BotRival:
                         and self._ability_needs_energy(target_path.get("id"))):
                     return i
 
-        return to_active[0] if to_active else adjuntes[0]
+        return to_active[0] if to_active else attachments[0]
 
     def _pick_ability(self, indices, options):
         """One activation per Pokemon and per turn, with a hard per-turn cap."""

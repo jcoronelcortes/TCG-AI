@@ -63,7 +63,7 @@ if str(ROOT) not in sys.path:
 
 import main as m
 from patching import patch_name
-from state_builder import Escenario, G, pk
+from state_builder import Scenario, G, pk
 
 OGERPON = m.Teal_Mask_Ogerpon_ex
 LILLIE = m.Lillie_Determination
@@ -245,7 +245,7 @@ def test_step49_counterfactual_with_no_fishing_it_gusts_again(monkeypatch):
 # Synthetic boundaries (StateBuilder): probability, energy in hand
 # ---------------------------------------------------------------------------
 
-def _escenario_paso49(grass_in_deck=10, grass_in_hand=0, with_attachment=False):
+def _scenario_step49(grass_in_deck=10, grass_in_hand=0, with_attachment=False):
     """A synthetic replica of step 49 with the deck parameterised.
 
     grass_in_deck: LIVE Grass in the deck (the rest goes to the discard).
@@ -254,7 +254,7 @@ def _escenario_paso49(grass_in_deck=10, grass_in_hand=0, with_attachment=False):
     hand = [LILLIE, BOSS, LILLIE, m.Hydrapple_ex, m.Ultra_Ball]
     hand += [GRASS] * grass_in_hand
 
-    esc = (Escenario(turn=4, step=49, tac=1, first_player=1)
+    esc = (Scenario(turn=4, step=49, tac=1, first_player=1)
            .my_active(pk(OGERPON, hp=30, energies=[G], fisicas=1))
            .my_bench(pk(m.Meowth_ex),
                      pk(m.Fezandipiti_ex, hp=180, energies=[G], fisicas=1),
@@ -300,7 +300,7 @@ def _escenario_paso49(grass_in_deck=10, grass_in_hand=0, with_attachment=False):
 
 def test_synthetic_reproduces_the_real_decision(monkeypatch):
     capturado = _spy_on_fishing(monkeypatch)
-    obs = _escenario_paso49()
+    obs = _scenario_step49()
     assert m.agent(obs) == [_idx_play_of(obs, LILLIE)]
     assert capturado["plan"].prizes == 2
 
@@ -309,7 +309,7 @@ def test_with_the_deck_dry_of_grass_the_fishing_does_not_override_the_vetoes(mon
     """Boundary: with a single live Grass the draw canNOT bring the two that
     are missing (prob 0) and the refill loses its privilege."""
     capturado = _spy_on_fishing(monkeypatch)
-    obs = _escenario_paso49(grass_in_deck=1)
+    obs = _scenario_step49(grass_in_deck=1)
     assert capturado is not None
     choice = m.agent(obs)
     assert capturado["plan"] is None, "sin outs suficientes no hay pesca"
@@ -326,7 +326,7 @@ def test_frontera_de_probabilidad(monkeypatch):
         m._cards_prizes_identified = False
         m._cards_last_turn = -1
         capturado = _spy_on_fishing(monkeypatch)
-        obs = _escenario_paso49(grass_in_deck=grass)
+        obs = _scenario_step49(grass_in_deck=grass)
         juega_lillie = (m.agent(obs) == [_idx_play_of(obs, LILLIE)])
         vistos[grass] = (capturado["plan"].prob, juega_lillie)
 
@@ -338,7 +338,7 @@ def test_frontera_de_probabilidad(monkeypatch):
 def test_successful_fishing_turns_into_an_attack():
     """Closing the loop: with the 3 energies already placed (the fishing came off) and the
     hand empty, the 30 HP Ogerpon ex ATTACKS -- it neither retreats nor closes the turn."""
-    esc = (Escenario(turn=4, step=49, tac=6, first_player=1,
+    esc = (Scenario(turn=4, step=49, tac=6, first_player=1,
                      energy_played=True, supporter_played=True)
            .my_active(pk(OGERPON, hp=30, energies=[G, G, G], fisicas=3))
            .my_bench(pk(m.Meowth_ex),
@@ -363,7 +363,7 @@ def test_with_the_energy_already_in_hand_the_hand_is_not_shuffled(monkeypatch):
     """A critical control: if the HAND already brings the 2 missing Grass, playing
     Lillie's would return them to the deck. There is NO fishing there: it charges."""
     capturado = _spy_on_fishing(monkeypatch)
-    obs = _escenario_paso49(grass_in_hand=2, with_attachment=True)
+    obs = _scenario_step49(grass_in_hand=2, with_attachment=True)
     choice = m.agent(obs)
 
     assert capturado["plan"] is None, (

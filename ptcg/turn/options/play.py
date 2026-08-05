@@ -7,7 +7,7 @@ VERBATIM. It unpacks from the context the 87 fields it reads and returns the
 
 from cg.api import AreaType, CardType, EnergyType
 from ptcg.calc.card import get_card, prize_count
-from ptcg.calc.damage import _powerful_hand_proyectado, _ventana_de_regalo
+from ptcg.calc.damage import _powerful_hand_projected, _ventana_de_regalo
 from ptcg.calc.energy import _grass_mult
 from ptcg.cards.groups import GT_PLAY_BASICO_BONUS
 from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Budew, Bug_Catching_Set, CUBCHOO_ALLOWED_PLAY_IDS, Chikorita, DECK_ITEM_IDS, Dawn, Dipplin, Dragapult_ex, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, OUR_EX_IDS, Pinsir, Poke_Pad, RETREAT_COST, SCORE_DEVELOP_BASE, SCORE_FORBID, SCORE_ITEM_BASE, SCORE_VETO, TAPU_WAIT_FOR_ITEMS_SCORE, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, Xerosic_Machinations
@@ -21,7 +21,7 @@ from ptcg.state.agent_state import AGENT_STATE
 from ptcg.state.zones import ZONE_DECK
 
 
-def puntuar(tc, o, score):
+def score_play(tc, o, score):
     """Returns the score of `o`. It may return `_SALTAR`."""
     _active_already_kos = tc._active_already_kos
     _active_cant_attack_this_turn = tc._active_cant_attack_this_turn
@@ -181,7 +181,7 @@ def puntuar(tc, o, score):
                         and not (card.id == Fezandipiti_ex
                                  and AGENT_STATE.ko_last_turn)):
                     _alk_body_hp = getattr(data, 'hp', 0) or 0
-                    if (_alk_body_hp and _powerful_hand_proyectado(
+                    if (_alk_body_hp and _powerful_hand_projected(
                             getattr(op_state, 'handCount', 0))
                             >= _alk_body_hp):
                         _alk_ex_redundante_letal = True
@@ -1080,14 +1080,14 @@ def puntuar(tc, o, score):
                 if _prize_mismatch_matchup:
                     _rb_act = my_state.active[0] if my_state.active else None
                     _rb_data = card_table.get(card.id)
-                    _rb_es_1premio_basico = (
+                    _rb_is_1prize_basic = (
                         _rb_data is not None
                         and not _rb_data.ex and not _rb_data.megaEx
                         and not _rb_data.stage1 and not _rb_data.stage2)
                     _rb_bench_with_1prize = any(
                         bp is not None and prize_count(bp) == 1
                         for bp in (my_state.bench or []))
-                    if (_rb_es_1premio_basico
+                    if (_rb_is_1prize_basic
                             and _rb_act is not None
                             and _rb_act.id in OUR_EX_IDS
                             and not _active_already_kos
@@ -1642,4 +1642,4 @@ def puntuar(tc, o, score):
         tc.pid = pid
 
 
-__all__ = ['puntuar']
+__all__ = ['score_play']

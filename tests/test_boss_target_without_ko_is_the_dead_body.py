@@ -44,7 +44,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import main as m
-from state_builder import Escenario, pk, G
+from state_builder import Scenario, pk, G
 
 DRAGAPULT, DRAKLOAK, DREEPY = m.Dragapult_ex, m.Drakloak, m.Dreepy
 DUSCLOPS = m.Dusclops
@@ -192,7 +192,7 @@ def _board(active_energies):
     """An active Bayleef (60 damage: it knocks out nothing on the board) against a
     Dragapult ex. On their bench, another Dragapult ex with 1 energy -- ready to
     attack -- and a bare Dusclops."""
-    return (Escenario(turn=8, step=80, tac=4, own_prizes=4)
+    return (Scenario(turn=8, step=80, tac=4, own_prizes=4)
             .my_active(pk(BAYLEEF, energies=[G] * active_energies,
                           fisicas=active_energies, pre_evo=[CHIKORITA]))
             .my_bench(pk(CHIKORITA))

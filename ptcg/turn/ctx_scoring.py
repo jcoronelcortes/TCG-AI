@@ -14,7 +14,7 @@ from typing import Any
 
 
 @dataclass
-class PuntuacionCtx:
+class ScoringCtx:
     """Snapshot of the turn used to score one option."""
 
     _SALTAR: Any = None
@@ -91,7 +91,7 @@ class PuntuacionCtx:
     _gt_quiere_basico: Any = None
     _gt_root_in_play: Any = None
     _gt_basics_ranking: Any = None
-    _gt_score_seleccion: Any = None
+    _gt_score_selection: Any = None
     _gt_vetoes_ex_stage: Any = None
     _gust_2prize_via_boss: Any = None
     _has_bench_attacker: Any = None
@@ -254,4 +254,4 @@ class PuntuacionCtx:
 REASIGNADAS = ['_atk', '_b', '_bench_attacker_ready', '_bp', '_bp_e', '_bp_eff', '_dc', '_e', '_eff', '_energy_in_hand', '_has_bench_attacker', '_lillie_protected_once', '_op_act', '_our_first_turn', '_sid', '_tb_req', 'b', 'bp', 'card', 'data', 'energy_count', 'pid', 'pokemon']
 
 
-__all__ = ['PuntuacionCtx', 'REASIGNADAS']
+__all__ = ['ScoringCtx', 'REASIGNADAS']

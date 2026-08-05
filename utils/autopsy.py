@@ -492,7 +492,7 @@ def autopsy(opponent_csv, games, mirror=False, target_path=None, censar=False):
         opponent_deck = sp.read_deck(opponent_csv)
         etiqueta = Path(opponent_csv).stem
 
-    marcador = Counter()
+    scoreboard = Counter()
     modes = Counter()
     total_findings = []
     mode_per_game = {}
@@ -500,7 +500,7 @@ def autopsy(opponent_csv, games, mirror=False, target_path=None, censar=False):
     for i in range(games):
         result, decisiones, obs_final = play_recording(
             agent_state, opponent, own_deck, opponent_deck, asiento=i % 2)
-        marcador[result] += 1
+        scoreboard[result] += 1
         # THE CENSUS: it is built from ALL the games, wins included. It is the
         # CONTROL group -- without it, a pattern that is frequent in the losses cannot be
         # told apart from a pattern that is simply frequent.
@@ -536,7 +536,7 @@ def autopsy(opponent_csv, games, mirror=False, target_path=None, censar=False):
              "hallazgos": hs},
             ensure_ascii=False, indent=1))
 
-    print(f"[{etiqueta}] {dict(marcador)}")
+    print(f"[{etiqueta}] {dict(scoreboard)}")
     if modes:
         print(f"  loss mode: {dict(modes.most_common())}")
     summary = Counter((h["detector"], h["critico"]) for h in total_findings)

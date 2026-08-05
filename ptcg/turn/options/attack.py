@@ -12,7 +12,7 @@ from ptcg.state.agent_state import AGENT_STATE
 from ptcg.state.zones import ZONE_DECK
 
 
-def puntuar(tc, o, score):
+def score_play(tc, o, score):
     """Returns the score of `o`. It may return `_SALTAR`."""
     _active_attack_wins_now = tc._active_attack_wins_now
     _active_snipe_ko_now = tc._active_snipe_ko_now
@@ -195,4 +195,4 @@ def puntuar(tc, o, score):
         tc.pid = pid
 
 
-__all__ = ['puntuar']
+__all__ = ['score_play']

@@ -35,7 +35,7 @@ if str(ROOT / "tests") not in sys.path:
 
 import main as m
 from golden_corpus import reset_agent
-from state_builder import C, G, Escenario, EstadoInconsistente, pk
+from state_builder import C, G, Scenario, InconsistentState, pk
 
 KANGASKHAN = 756
 CRUSTLE = 345
@@ -93,7 +93,7 @@ def test_invariante_fetch_ub_robusto(active_id, active_energies, bench,
                                      hand, extra_deck, opponent, turn):
     reset_agent(m)
     try:
-        esc = (Escenario(turn=turn, step=1, tac=1)
+        esc = (Scenario(turn=turn, step=1, tac=1)
                .my_active(pk(active_id, energies=active_energies))
                .my_bench(*bench)
                .my_hand(*hand)
@@ -104,7 +104,7 @@ def test_invariante_fetch_ub_robusto(active_id, active_energies, bench,
                .fetch_ultra_ball()
                .rest_to_discard())
         obs = esc.build()
-    except EstadoInconsistente:
+    except InconsistentState:
         assume(False)  # an impossible composition: discard the example
         return
     choice = m.agent(obs)
@@ -131,7 +131,7 @@ def test_invariant_applin_at_most_one_energy(applin_active, companiero,
     applin = pk(m.Applin, energies=[G], fisicas=1)
     comp = pk(companiero, energies=energies_comp)
     try:
-        esc = Escenario(turn=turn, step=1, tac=0)
+        esc = Scenario(turn=turn, step=1, tac=0)
         if applin_active:
             esc.my_active(applin).my_bench(comp, *extra_bench)
             pos_applin = ("activo", None)
@@ -145,7 +145,7 @@ def test_invariant_applin_at_most_one_energy(applin_active, companiero,
                .op_zonas(hand=5, deck=30, prizes=6)
                .menu_attach_energy()
                .build())
-    except EstadoInconsistente:
+    except InconsistentState:
         assume(False)
         return
     choice = m.agent(obs)

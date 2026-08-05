@@ -781,7 +781,7 @@ def test_alakazam_does_not_play_a_redundant_ex_under_a_lethal_powerful_hand():
     obs = _alk_no_reservation(_alk_reserve_obs())
     op = obs["current"]["players"][1]
     assert op["handCount"] == 12 and len(op["prize"]) == 2
-    assert m._powerful_hand_proyectado(op["handCount"]) >= 210  # Ogerpon ex HP
+    assert m._powerful_hand_projected(op["handCount"]) >= 210  # Ogerpon ex HP
     result = _alk_reserve_run(obs)
     assert result != [3], (
         f"con Powerful Hand proyectado 280 >= 210 PV y el rival a 2 premios, "

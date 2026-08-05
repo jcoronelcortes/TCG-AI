@@ -78,7 +78,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import main as m
-from tests.state_builder import Escenario, pk
+from tests.state_builder import Scenario, pk
 
 _FIXTURE = (ROOT / "tests" / "fixtures"
             / "alakazam_t2_ultra_ball_does_not_burn_the_last_supporters_step16.json")
@@ -158,7 +158,7 @@ def _scenario(hand, supporter_played=True):
     in the position argues for or against the Ultra Ball beyond the shape of the
     hand, which is what these cases measure.
     """
-    return (Escenario(turn=4, step=16, tac=3, first_player=1,
+    return (Scenario(turn=4, step=16, tac=3, first_player=1,
                       supporter_played=supporter_played)
             .my_active(pk(TAPU))
             .my_bench(pk(TAPU), pk(OGERPON))

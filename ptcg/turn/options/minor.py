@@ -9,7 +9,7 @@ from ptcg.cards.ids import SCORE_NEVER, SCORE_VETO
 from ptcg.state.agent_state import AGENT_STATE
 
 
-def puntuar(tc, o, score):
+def score_play(tc, o, score):
     """Returns the score of `o` for the types without a module of their own."""
     _conf_should_attack = tc._conf_should_attack
     _gt_prompt_si_no = tc._gt_prompt_si_no
@@ -93,4 +93,4 @@ def puntuar(tc, o, score):
         pass
 
 
-__all__ = ['puntuar']
+__all__ = ['score_play']

@@ -57,7 +57,7 @@ if str(ROOT) not in sys.path:
 
 import main as m
 from patching import instalar
-from state_builder import C, G, Escenario, pk
+from state_builder import C, G, Scenario, pk
 
 OGERPON = m.Teal_Mask_Ogerpon_ex    # 96: the active of step 78
 FEZ = m.Fezandipiti_ex              # 140: Flip the Script (draw 3)
@@ -216,13 +216,13 @@ def test_step78_the_ability_is_used_before_any_turn_close():
 # A synthetic generalisation: the requested ORDER is still alive
 # ---------------------------------------------------------------------------
 
-def _escenario(hand, with_attack=True):
+def _scenario(hand, with_attack=True):
     """The board of step 78 rebuilt with the StateBuilder, with a parametric hand.
 
     The ABILITY option of the benched Fezandipiti ex (slot 4) is added by hand, which
     `menu_hand` does not emit, right before the turn-closing options.
     """
-    esc = (Escenario(turn=6, step=78, tac=7)
+    esc = (Scenario(turn=6, step=78, tac=7)
            .my_active(pk(OGERPON, energies=[G, G, G]))
            .my_bench(pk(BAYLEEF, pre_evo=[m.Chikorita]), MEOWTH, APPLIN,
                      APPLIN, pk(FEZ, aparecio=True))
@@ -255,7 +255,7 @@ def _with_previous_ko(obs):
 def test_synthetic_with_no_blocker_it_uses_the_ability():
     """Case (a) in its simplest form: with no Lillie's or Stamp in hand the
     ability is cashed in before attacking."""
-    obs = _with_previous_ko(_escenario([BOSS]))
+    obs = _with_previous_ko(_scenario([BOSS]))
     assert ("ABILITY", FEZ) in _plays(obs)
     assert _play(obs, m.agent(obs)) == ("ABILITY", FEZ)
 
@@ -264,7 +264,7 @@ def test_synthetic_a_playable_unfair_stamp_goes_first():
     """The requested order is NOT broken: with a playable Unfair Stamp and another live play
     (Boss's) the Stamp goes first and the ability waits for the next menu -- if
     not, the Stamp would shuffle the 3 drawn cards back."""
-    obs = _with_previous_ko(_escenario([STAMP, BOSS]))
+    obs = _with_previous_ko(_scenario([STAMP, BOSS]))
     plays = _plays(obs)
     assert ("PLAY", STAMP) in plays, plays
     assert ("ABILITY", FEZ) in plays, plays
@@ -274,7 +274,7 @@ def test_synthetic_a_playable_unfair_stamp_goes_first():
 def test_synthetic_a_playable_lillie_goes_first():
     """The same order with the other blocker: Lillie's Determination before the
     ability when Lillie's IS playable."""
-    obs = _with_previous_ko(_escenario([LILLIE]))
+    obs = _with_previous_ko(_scenario([LILLIE]))
     plays = _plays(obs)
     assert ("PLAY", LILLIE) in plays, plays
     assert _play(obs, m.agent(obs)) == ("PLAY", LILLIE)
@@ -283,7 +283,7 @@ def test_synthetic_a_playable_lillie_goes_first():
 def test_synthetic_deck_out_still_vetoes_the_ability():
     """The deck-out brake is a VALUE veto, not an ORDER one: the revocation does not
     lift it even with a hand free of blockers."""
-    esc = (Escenario(turn=6, step=78, tac=7)
+    esc = (Scenario(turn=6, step=78, tac=7)
            .my_active(pk(OGERPON, energies=[G, G, G]))
            .my_bench(pk(FEZ, aparecio=True))
            .my_hand(BOSS)

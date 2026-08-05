@@ -51,7 +51,7 @@ if str(ROOT / "tests") not in sys.path:
 
 import main as m
 from golden_corpus import reset_agent
-from state_builder import G, Escenario, pk
+from state_builder import G, Scenario, pk
 
 _FIXTURE = (ROOT / "tests" / "fixtures"
             / "marnie_ripening_cura_el_ogerpon_de_banca_step121.json")
@@ -173,7 +173,7 @@ def test_the_grass_goes_to_the_ogerpon_ex_not_the_meganium():
 
     The third Ogerpon (130 HP) is OUTSIDE its window of 100 and does not compete.
     """
-    obs = (Escenario(turn=10, step=121, tac=6)
+    obs = (Scenario(turn=10, step=121, tac=6)
            .my_active(pk(HYDRAPPLE, hp=70, energies=[G, G],
                          fisicas=1, pre_evo=[APPLIN, DIPPLIN]))
            .my_bench(pk(MEGANIUM, hp=110, pre_evo=[CHIKORITA, BAYLEEF]),
@@ -211,7 +211,7 @@ def test_movable_damage_is_elastic_it_does_not_doom_half_the_board():
     body per turn, so healing is still worth it: it forces the opponent to spend it.
     Between the two, the one worth MORE PRIZES wins, the Ogerpon ex.
     """
-    obs = (Escenario(turn=14, step=167, tac=5, own_prizes=3)
+    obs = (Scenario(turn=14, step=167, tac=5, own_prizes=3)
            .my_active(pk(HYDRAPPLE, hp=110, energies=[G, G],
                          fisicas=1, pre_evo=[APPLIN, DIPPLIN]))
            .my_bench(pk(MEGANIUM, hp=30, pre_evo=[CHIKORITA, BAYLEEF]),
@@ -238,7 +238,7 @@ def test_movable_damage_is_elastic_it_does_not_doom_half_the_board():
 
 def test_with_no_froslass_or_munkidori_the_window_does_not_change():
     """Against a deck without those pieces, chip and movable damage are 0."""
-    obs = (Escenario(turn=8, step=60, tac=3)
+    obs = (Scenario(turn=8, step=60, tac=3)
            .my_active(pk(HYDRAPPLE, hp=300, energies=[G, G],
                          fisicas=1, pre_evo=[APPLIN, DIPPLIN]))
            .my_bench(pk(MEGANIUM, hp=90, pre_evo=[CHIKORITA, BAYLEEF]),
@@ -288,7 +288,7 @@ def test_with_no_froslass_or_munkidori_the_window_does_not_change():
 
 def test_munkidori_enciende_la_ventana_tambien_fuera_de_marnie():
     """A Dragapult opponent with Munkidori: without a single Marnie Pokemon on the field."""
-    obs = (Escenario(turn=8, step=60, tac=3)
+    obs = (Scenario(turn=8, step=60, tac=3)
            .my_active(pk(HYDRAPPLE, hp=300, energies=[G, G],
                          fisicas=1, pre_evo=[APPLIN, DIPPLIN]))
            .my_bench(pk(MEGANIUM, hp=90, pre_evo=[CHIKORITA, BAYLEEF]),
@@ -312,7 +312,7 @@ def test_munkidori_enciende_la_ventana_tambien_fuera_de_marnie():
 
 def test_the_window_grows_with_munkidori_and_no_marnie_on_the_table():
     """The movable damage enters the window even if the opponent is not Marnie."""
-    obs = (Escenario(turn=8, step=60, tac=3)
+    obs = (Scenario(turn=8, step=60, tac=3)
            .my_active(pk(HYDRAPPLE, hp=300, energies=[G, G],
                          fisicas=1, pre_evo=[APPLIN, DIPPLIN]))
            .my_bench(pk(MEGANIUM, hp=90, pre_evo=[CHIKORITA, BAYLEEF]),
@@ -346,7 +346,7 @@ def test_without_froslass_a_munkidori_with_no_ammunition_is_no_threat():
     difference between the Marnie matchup (renewable ammunition) and a Dragapult that
     simply runs Munkidori.
     """
-    obs = (Escenario(turn=8, step=60, tac=3)
+    obs = (Scenario(turn=8, step=60, tac=3)
            .my_active(pk(HYDRAPPLE, hp=300, energies=[G, G],
                          fisicas=1, pre_evo=[APPLIN, DIPPLIN]))
            .my_bench(pk(MEGANIUM, hp=90, pre_evo=[CHIKORITA, BAYLEEF]),

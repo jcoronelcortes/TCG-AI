@@ -15,14 +15,14 @@ from ptcg.cards.tables import card_table
 from ptcg.state.agent_state import AGENT_STATE
 
 
-def puntuar(tc, o, score):
+def score_play(tc, o, score):
     """Returns the score of `o`. It may return `_SALTAR`."""
     _SALTAR = tc._SALTAR
     _atk = tc._atk
     _bp = tc._bp
     _gt_plan = tc._gt_plan
     _gt_turn_plans = tc._gt_turn_plans
-    _gt_score_seleccion = tc._gt_score_seleccion
+    _gt_score_selection = tc._gt_score_selection
     _op_act = tc._op_act
     active_ko_likely = tc.active_ko_likely
     bench_count = tc.bench_count
@@ -70,7 +70,7 @@ def puntuar(tc, o, score):
             # Evolution served by Grand Tree: it is decided by the stadium's
             # plan, not by the bands of evolving from hand (which assume a
             # card in hand is spent and that the body was already chosen).
-            _gt_evo_score = _gt_score_seleccion(
+            _gt_evo_score = _gt_score_selection(
                 o, card, _gt_plan, _gt_turn_plans, my_state, field_counts)
             if pokemon is not None and _gt_plan is not None:
                 # Tie-break by the chosen Basic: the option points at both the
@@ -371,4 +371,4 @@ def puntuar(tc, o, score):
         tc.pokemon = pokemon
 
 
-__all__ = ['puntuar']
+__all__ = ['score_play']

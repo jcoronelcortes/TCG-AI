@@ -27,7 +27,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import main as m
-from state_builder import (FOREST_OF_VITALITY, GRAND_TREE, G, Escenario,
+from state_builder import (FOREST_OF_VITALITY, GRAND_TREE, G, Scenario,
                            pk)
 
 APPLIN = m.Applin
@@ -94,7 +94,7 @@ def test_body_value_prefers_hydrapple_over_meganium():
 def _planes(active, bench, hand=(), deck=None, veta_ex=False,
             first_turn=False):
     """Runs `_gt_planes` on a minimal synthetic board."""
-    esc = (Escenario(turn=8, step=40)
+    esc = (Scenario(turn=8, step=40)
            .my_active(active)
            .my_bench(*bench)
            .my_hand(*hand)
@@ -189,7 +189,7 @@ def test_the_first_turn_has_no_plans():
 def test_it_prefers_the_bench_when_the_active_is_doomed():
     """With the active about to die, turning it into a body worth MORE prizes
     yields the turn to a bench Basic."""
-    esc = (Escenario(turn=8, step=40)
+    esc = (Scenario(turn=8, step=40)
            .my_active(pk(APPLIN, hp=10))
            .my_bench(pk(APPLIN))
            .stadium(GRAND_TREE, of_the_opponent=True)
@@ -212,7 +212,7 @@ def test_it_prefers_the_bench_when_the_active_is_doomed():
 
 def _obs_menu(hand=(), bench=None, with_forest=False, deck=None, turn=8):
     bench = bench if bench is not None else [pk(APPLIN), pk(CHIKORITA)]
-    esc = (Escenario(turn=turn, step=40)
+    esc = (Scenario(turn=turn, step=40)
            .my_active(pk(OGERPON, energies=[G, G, G]))
            .my_bench(*bench)
            .my_hand(*hand)
@@ -255,7 +255,7 @@ def test_with_no_executable_plan_the_forest_is_played():
 def test_the_ability_comes_before_evolving_from_hand():
     """Grand Tree does not spend a card from hand: it is cashed in before the manual
     evolution, which is still available afterwards."""
-    esc = (Escenario(turn=8, step=40)
+    esc = (Scenario(turn=8, step=40)
            .my_active(pk(OGERPON, energies=[G, G, G]))
            .my_bench(pk(APPLIN), pk(CHIKORITA))
            .my_hand(BAYLEEF)
@@ -274,7 +274,7 @@ def test_the_ability_comes_before_evolving_from_hand():
 def test_choosing_the_pokemon_to_evolve_follows_the_plan():
     """With Meganium in play, the sub-selection picks the Applin (Hydrapple ex's
     chain), not the Chikorita."""
-    esc = (Escenario(turn=8, step=41)
+    esc = (Scenario(turn=8, step=41)
            .my_active(pk(OGERPON, energies=[G, G, G]))
            .my_bench(pk(MEGANIUM, pre_evo=[CHIKORITA, BAYLEEF]),
                      pk(APPLIN), pk(CHIKORITA))
@@ -291,7 +291,7 @@ def test_choosing_the_pokemon_to_evolve_follows_the_plan():
 
 def test_choosing_the_card_from_the_deck_follows_the_plan():
     """Offered Dipplin and Bayleef, it brings the link of the plan (Dipplin)."""
-    esc = (Escenario(turn=8, step=41)
+    esc = (Scenario(turn=8, step=41)
            .my_active(pk(OGERPON, energies=[G, G, G]))
            .my_bench(pk(MEGANIUM, pre_evo=[CHIKORITA, BAYLEEF]),
                      pk(APPLIN), pk(CHIKORITA))
@@ -310,7 +310,7 @@ def test_step_2_brings_the_stage_2_even_if_the_plan_no_longer_points_at_the_basi
     """With step 1 resolved, the Basic is already a Stage 1 and `_gt_plan` stops
     pointing at it; the deck-agnostic criterion (an evolution whose pre-evolution is in
     play) still brings the Hydrapple ex."""
-    esc = (Escenario(turn=8, step=42)
+    esc = (Scenario(turn=8, step=42)
            .my_active(pk(OGERPON, energies=[G, G, G]))
            .my_bench(pk(DIPPLIN, pre_evo=[APPLIN]))
            .stadium(GRAND_TREE, of_the_opponent=True)
@@ -331,7 +331,7 @@ def test_step_2_brings_the_stage_2_even_if_the_plan_no_longer_points_at_the_basi
 def test_the_ultra_ball_searches_the_root_basic_if_there_is_none():
     """The user's rule: with no root Basic in play, the turn's search brings the
     one that opens the Grand Tree chain."""
-    esc = (Escenario(turn=8, step=30)
+    esc = (Scenario(turn=8, step=30)
            .my_active(pk(OGERPON, energies=[G, G, G]))
            .my_bench(pk(TAPU, energies=[G, G]))
            .my_hand(GRASS, GRASS)
@@ -352,7 +352,7 @@ def test_without_grand_tree_the_fetch_bonus_does_not_exist():
     """The whole engine is INERT without the stadium on the table: the same board without
     Grand Tree does not force the search for the root Basic."""
     def _fetch(stadium):
-        esc = (Escenario(turn=8, step=30)
+        esc = (Scenario(turn=8, step=30)
                .my_active(pk(OGERPON, energies=[G, G, G]))
                .my_bench(pk(TAPU, energies=[G, G]))
                .my_hand(GRASS, GRASS)
@@ -384,7 +384,7 @@ def test_without_grand_tree_the_fetch_bonus_does_not_exist():
 def test_with_the_root_in_play_the_search_is_not_forced():
     """With an Applin already on the bench the root exists: the bonus does not apply and
     the rest of the deck's priorities rule."""
-    esc = (Escenario(turn=8, step=30)
+    esc = (Scenario(turn=8, step=30)
            .my_active(pk(OGERPON, energies=[G, G, G]))
            .my_bench(pk(APPLIN, aparecio=True))
            .my_hand(GRASS, GRASS)

@@ -66,7 +66,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import main as m
-from tests.state_builder import Escenario, pk
+from tests.state_builder import Scenario, pk
 
 _FIXTURE = (ROOT / "tests" / "fixtures"
             / "kangaskhan_t8_night_stretcher_takes_the_energy_step85.json")
@@ -163,7 +163,7 @@ def _scenario_tapu(op_hp):
     100 + 150 = 950), which is exactly what beat the energy in the record.
     """
     req = m.AGENT_STATE.ATTACK_ENERGY_REQ[TAPU]
-    return (Escenario(turn=8, step=85, tac=4, first_player=1)
+    return (Scenario(turn=8, step=85, tac=4, first_player=1)
             .my_active(pk(TAPU, energies=req - 1))
             .my_bench(pk(MEOWTH), pk(OGERPON))
             .my_hand(m.Ultra_Ball)
@@ -194,7 +194,7 @@ def test_with_the_route_to_the_active_closed_the_rule_does_not_fire():
     ability can reach a Tapu Bulu: the Grass cannot get onto the active this
     turn, so it stops being a prize today."""
     req = m.AGENT_STATE.ATTACK_ENERGY_REQ[TAPU]
-    obs = (Escenario(turn=8, step=85, tac=4, first_player=1,
+    obs = (Scenario(turn=8, step=85, tac=4, first_player=1,
                      energy_played=True)
            .my_active(pk(TAPU, energies=req - 1))
            .my_bench(pk(MEOWTH), pk(m.Fezandipiti_ex))
@@ -218,7 +218,7 @@ def _board_of_the_record(active_energy, hand, menu):
     Kangaskhan ex at 90 HP with three energies of its own: Myriad Leaf Shower
     with three of ours does 30 + 30 x (3 + 3) = 210.
     """
-    esc = (Escenario(turn=8, step=86, tac=5, first_player=1)
+    esc = (Scenario(turn=8, step=86, tac=5, first_player=1)
            .my_active(pk(OGERPON, energies=active_energy))
            .my_bench(pk(OGERPON, energies=2), pk(OGERPON, energies=2),
                      pk(MEOWTH))

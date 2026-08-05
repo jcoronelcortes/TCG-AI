@@ -25,7 +25,7 @@ from ptcg.state.zones import ZONE_DECK, ZONE_PRIZE
 from ptcg.engine.rules import _resolve_with_trace
 
 
-def puntuar(tc, o, score):
+def score_play(tc, o, score):
     """Returns the score of `o`. It may return `_SALTAR`."""
     _SALTAR = tc._SALTAR
     _TABLA_BCS_FETCH = tc._TABLA_BCS_FETCH
@@ -54,7 +54,7 @@ def puntuar(tc, o, score):
     _gt_turn_plans = tc._gt_turn_plans
     _gt_quiere_basico = tc._gt_quiere_basico
     _gt_basics_ranking = tc._gt_basics_ranking
-    _gt_score_seleccion = tc._gt_score_seleccion
+    _gt_score_selection = tc._gt_score_selection
     _doomed_sac_context = tc._doomed_sac_context
     _gust_2prize_via_boss = tc._gust_2prize_via_boss
     _has_bench_attacker = tc._has_bench_attacker
@@ -158,7 +158,7 @@ def puntuar(tc, o, score):
                 # a context (TO_FIELD / EVOLVES_FROM / TO_HAND...) with
                 # selections of other cards and without this cut-off they
                 # would fall into the wrong scorer.
-                scores.append(_gt_score_seleccion(
+                scores.append(_gt_score_selection(
                     o, card, _gt_plan, _gt_turn_plans, my_state,
                     field_counts))
                 return _SALTAR   # it already did its own scores.append
@@ -1045,12 +1045,12 @@ def puntuar(tc, o, score):
                             and not _promo_kos_op(card)):
                         _tb_req = AGENT_STATE.ATTACK_ENERGY_REQ.get(card.id)
                         if _tb_req is None:
-                            _tb_pasos = 3      # it does not attack: the furthest away
+                            _tb_steps = 3      # it does not attack: the furthest away
                         else:
                             _tb_missing = max(0, _tb_req - len(card.energies))
                             _tb_unit = max(1, _grass_attach_unit())
-                            _tb_pasos = min(3, -(-_tb_missing // _tb_unit))
-                        score += 300 - 100 * _tb_pasos
+                            _tb_steps = min(3, -(-_tb_missing // _tb_unit))
+                        score += 300 - 100 * _tb_steps
                         if prize_count(card) <= 1:
                             score += 150
                 else:
@@ -2383,4 +2383,4 @@ def puntuar(tc, o, score):
         tc.pid = pid
 
 
-__all__ = ['puntuar']
+__all__ = ['score_play']

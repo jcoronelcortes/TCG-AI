@@ -65,7 +65,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import main as m
-from state_builder import C, G, Escenario, pk
+from state_builder import C, G, Scenario, pk
 
 FEZ = m.Fezandipiti_ex          # 140: Flip the Script (draw 3)
 HYDRA = m.Hydrapple_ex          # 150: Ripening Charge
@@ -252,9 +252,9 @@ def test_step102_the_winning_finisher_still_beats_the_draw():
 # 3. A synthetic generalisation
 # ---------------------------------------------------------------------------
 
-def _escenario_lucario(hand, with_attack=True):
+def _scenario_lucario(hand, with_attack=True):
     """The board of step 91 rebuilt with the StateBuilder, with a parametric hand."""
-    esc = (Escenario(turn=6, step=91, tac=6)
+    esc = (Scenario(turn=6, step=91, tac=6)
            .my_active(pk(HYDRA, energies=[G, G], pre_evo=[APPLIN, DIPPLIN]))
            .my_bench(MEOWTH, pk(MEGANIUM, pre_evo=[CHIKORITA, BAYLEEF]),
                      pk(OGERPON, energies=[G]), OGERPON)
@@ -276,7 +276,7 @@ def test_synthetic_req_h_no_longer_vetoes_the_fezandipiti_with_a_live_ability():
     """With a Boss's in hand (Req H active) and a Riolu on the opposing bench, playing the
     Fezandipiti ex is NO longer vetoed: it does not consume the Supporter, so the Boss's is
     played afterwards anyway."""
-    obs = _escenario_lucario([FEZ, BOSS])
+    obs = _scenario_lucario([FEZ, BOSS])
     assert ("PLAY", FEZ) in _plays(obs)
     assert _play(obs, m.agent(obs)) == ("PLAY", FEZ)
 
@@ -284,17 +284,17 @@ def test_synthetic_req_h_no_longer_vetoes_the_fezandipiti_with_a_live_ability():
 def test_synthetic_req_h_still_vetoes_ordinary_development():
     """The Req H veto has not been disabled: a development body (Chikorita)
     still yields the play to the Boss's."""
-    obs = _escenario_lucario([CHIKORITA, BOSS])
+    obs = _scenario_lucario([CHIKORITA, BOSS])
     plays = _plays(obs)
     assert ("PLAY", CHIKORITA) in plays, plays
     assert _play(obs, m.agent(obs)) != ("PLAY", CHIKORITA)
 
 
-def _escenario_teal_lillie(hand):
+def _scenario_teal_lillie(hand):
     """A board with ONE single Ogerpon ex in play: with Lillie's + Ogerpon ex +
     Grass in hand, `_fez_prefer_teal_lillie` switches on, which vetoes playing the
     Fezandipiti in order to prefer Teal + Teal Dance + Lillie's."""
-    esc = (Escenario(turn=6, step=91, tac=6)
+    esc = (Scenario(turn=6, step=91, tac=6)
            .my_active(pk(HYDRA, energies=[G, G], pre_evo=[APPLIN, DIPPLIN]))
            .my_bench(MEOWTH, pk(MEGANIUM, pre_evo=[CHIKORITA, BAYLEEF]),
                      pk(OGERPON, energies=[G]))
@@ -314,18 +314,18 @@ def _escenario_teal_lillie(hand):
 def test_synthetic_ub_fez_pending_completes_the_paid_search():
     """`_fez_prefer_teal_lillie` (Lillie's + Ogerpon ex + Grass in hand) vetoes
     playing the Fezandipiti... unless the Ultra Ball has just paid for it."""
-    obs = _escenario_teal_lillie([FEZ, LILLIE, OGERPON, GRASS])
+    obs = _scenario_teal_lillie([FEZ, LILLIE, OGERPON, GRASS])
     assert ("PLAY", FEZ) in _plays(obs)
     assert _play(obs, m.agent(obs)) != ("PLAY", FEZ)
 
-    obs = _escenario_teal_lillie([FEZ, LILLIE, OGERPON, GRASS])
+    obs = _scenario_teal_lillie([FEZ, LILLIE, OGERPON, GRASS])
     m._ub_fez_pending = True
     assert _play(obs, m.agent(obs)) == ("PLAY", FEZ)
 
 
 def test_synthetic_pending_does_not_break_the_physical_limits():
     """The override does not fill an already complete bench (a PHYSICAL limit)."""
-    esc = (Escenario(turn=6, step=91, tac=6)
+    esc = (Scenario(turn=6, step=91, tac=6)
            .my_active(pk(HYDRA, energies=[G, G], pre_evo=[APPLIN, DIPPLIN]))
            .my_bench(MEOWTH, pk(MEGANIUM, pre_evo=[CHIKORITA, BAYLEEF]),
                      pk(OGERPON, energies=[G]), OGERPON, APPLIN)
