@@ -7,7 +7,7 @@ utils/purity.py: nothing here touches mutable state or the runtime tables.
 
 from cg.api import EnergyType
 
-from ptcg.cards.ids import ALAKAZAM_ATTACKER_IDS, Basic_Grass_Energy, CRUSTLE_LINE_IDS, DUNSPARCE_IDS
+from ptcg.cards.ids import ALAKAZAM_ATTACKER_IDS, Basic_Grass_Energy, CRUSTLE_LINE_IDS, DUNSPARCE_IDS, Ethans_Adventure
 from ptcg.cards.op_scaling import BoardScale
 from ptcg.cards.tables import attack_table, card_table
 
@@ -314,15 +314,23 @@ def build_op_scale(my_state, op_state, prizes_total=6):
         op_grass_on_field=sum(
             1 for p in op_field
             for e in (p.energies or []) if e == EnergyType.GRASS),
+        op_psychic_on_field=sum(
+            1 for p in op_field
+            for e in (p.energies or []) if e == EnergyType.PSYCHIC),
         op_basics_in_play=sum(1 for p in op_field if _is_basic(p.id)),
         op_rocket_in_play=sum(1 for p in op_field
                               if _belongs_to(p.id, "Team Rocket")),
         op_cynthia_bench_counters=sum(
             _damage_counters(p) for p in (op_state.bench or [])
             if p is not None and _belongs_to(p.id, "Cynthia")),
+        op_ethan_adventure_in_discard=sum(
+            1 for c in (getattr(op_state, 'discard', None) or [])
+            if getattr(c, 'id', 0) == Ethans_Adventure),
         my_bench=sum(1 for p in (my_state.bench or []) if p is not None),
         my_hand=len(getattr(my_state, 'hand', None) or []),
         my_active_energy=len(getattr(my_active, 'energies', None) or []),
+        my_energy_on_field=sum(
+            len(p.energies or []) for p in my_field),
         my_ex_in_play=sum(1 for p in my_field if _is_ex(p.id)),
         my_basic_energy_in_discard=sum(
             1 for c in (getattr(my_state, 'discard', None) or [])

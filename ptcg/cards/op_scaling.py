@@ -17,20 +17,23 @@ validation game): the opposing Hydrapple ex hit for **270** on turn 12 and the
 projector called it **30** -- the printed value of Syrup Storm.
 
 CENSUS, not intuition. The table covers the scaling attacks that actually appear
-in the 406 opposing decks in the repo (`deck/opponents/`, `deck/real_opponents/`,
-`competitor_decks/`): 19 of them, of which 15 are deterministic and observable
-from the observation. Those 15 are here.
+in the 411 opposing decks in the repo (`deck/opponents/`, `deck/real_opponents/`,
+`competitor_decks/`): 20 of them, of which 15 are deterministic and observable
+from the observation. Those 15 are here, plus three that the corpus of an
+earlier leaderboard brought and the current one no longer does -- an entry is
+kept when its deck leaves, because the deck comes back.
 
 WHAT IS DELIBERATELY LEFT OUT, and why
 --------------------------------------
 The line is "can the agent READ the number, or would it be guessing?".
 
   * COIN FLIPS -- Rapid-Fire Combo (Mega Kangaskhan ex, 45 decks: 200 + 50 per
-    heads until tails) and Continuous Headbutt (Beartic, 1). The expected value
-    is computable, the damage is not. Rapid-Fire Combo's +50 was already tried
-    and MEASURED AND REVERTED (see the policy note in the memory index): it is a
-    better-founded estimate, not a correction of a wrong reading, which is a
-    different class of change from everything in this table.
+    heads until tails), Continuous Headbutt (Beartic, 1) and Comet Punch (Team
+    Rocket's Kangaskhan ex, 5 decks: four coins, 30 per heads). The expected
+    value is computable, the damage is not. Rapid-Fire Combo's +50 was already
+    tried and MEASURED AND REVERTED (see the policy note in the memory index):
+    it is a better-founded estimate, not a correction of a wrong reading, which
+    is a different class of change from everything in this table.
   * THE OPPONENT'S CHOICE -- Erasure Ball (TR Mewtwo ex: 160 + 60 per Energy
     they choose to discard, 6 decks) and Bellowing Thunder (Raging Bolt ex: 70
     per Basic Energy they choose to discard, 5 decks). The scale is not on the
@@ -68,14 +71,17 @@ class BoardScale:
     # --- THEIR side ("your ..." in the card text) ------------------------
     op_bench: int                 # Pokemon on their bench
     op_grass_on_field: int        # {G} energies on ALL of their Pokemon
+    op_psychic_on_field: int      # {P} energies on ALL of their Pokemon
     op_basics_in_play: int        # their Basic Pokemon in play (active + bench)
     op_rocket_in_play: int        # their "Team Rocket's ..." Pokemon in play
     op_cynthia_bench_counters: int  # damage counters on their benched "Cynthia's ..."
+    op_ethan_adventure_in_discard: int  # "Ethan's Adventure" cards in THEIR discard
 
     # --- OUR side ("your opponent's ..." in the card text) ---------------
     my_bench: int                 # Pokemon on our bench
     my_hand: int                  # cards in our hand
     my_active_energy: int         # energies on OUR active
+    my_energy_on_field: int       # energies of ANY type on ALL of our Pokemon
     my_ex_in_play: int            # our Pokemon ex / Mega ex in play
     my_basic_energy_in_discard: int   # Basic Energy cards in OUR discard
     prizes_we_took: int           # Prize cards WE have already taken
@@ -86,9 +92,11 @@ class BoardScale:
 # counter at zero means every entry below returns its printed floor, which is
 # exactly the behaviour the projector had before this table existed.
 EMPTY_SCALE = BoardScale(
-    op_bench=0, op_grass_on_field=0, op_basics_in_play=0, op_rocket_in_play=0,
-    op_cynthia_bench_counters=0, my_bench=0, my_hand=0, my_active_energy=0,
-    my_ex_in_play=0, my_basic_energy_in_discard=0, prizes_we_took=0,
+    op_bench=0, op_grass_on_field=0, op_psychic_on_field=0, op_basics_in_play=0,
+    op_rocket_in_play=0, op_cynthia_bench_counters=0,
+    op_ethan_adventure_in_discard=0, my_bench=0, my_hand=0, my_active_energy=0,
+    my_energy_on_field=0, my_ex_in_play=0, my_basic_energy_in_discard=0,
+    prizes_we_took=0,
 )
 
 
@@ -164,6 +172,21 @@ OP_SCALING_DAMAGE = {
 
     # Back Draft (N's Darmanitan, 1 deck) -- 30 per Basic Energy in OUR discard.
     355: lambda atk, s: 30 * s.my_basic_energy_in_discard,
+
+    # Mega Symphonia (Mega Gardevoir ex, 2 decks) -- 50 per {P} on ALL of THEIR
+    # Pokemon. The Psychic twin of Syrup Storm, and just as steep: four Psychic
+    # spread over their board is already 200 off a card that prints 0.
+    1079: lambda atk, s: 50 * s.op_psychic_on_field,
+
+    # Verdant Storm (Leafeon ex, 2 decks) -- 60 per Energy on ALL of OUR
+    # Pokemon, ANY type. Ours is the deck that charges three or four bodies, so
+    # this is the entry that punishes our own setup hardest.
+    324: lambda atk, s: 60 * s.my_energy_on_field,
+
+    # Buddy Blast (Ethan's Typhlosion, 2 decks) -- 40 + 60 per "Ethan's
+    # Adventure" in THEIR discard. It is the only entry counted out of a discard
+    # pile of theirs, and the observation carries it.
+    490: lambda atk, s: 40 + 60 * s.op_ethan_adventure_in_discard,
 }
 
 # Attacks whose own text says the damage is NOT affected by Weakness. The

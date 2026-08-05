@@ -182,6 +182,12 @@ Maximum_Belt = 1158
 Brave_Bangle = 1175
 Basic_Grass_Energy = 1
 
+# Ethan's Adventure (1215): what Buddy Blast counts, and it counts it in THEIR
+# discard pile, not on the board. Ethan's Typhlosion prints 40 and adds 60 per
+# copy already discarded, so a deck that has cycled three of them is attacking
+# for 220 off a card that reads 40.
+Ethans_Adventure = 1215
+
 Budew = 235
 
 Crustle_Grass = 345

@@ -50,6 +50,7 @@ _SCALES = re.compile(r"more damage for each|damage for each|times the number",
 _EXCLUDED = {
     1092: "coin flips (Rapid-Fire Combo); the +50 estimate was measured and reverted",
     717: "coin flips (Continuous Headbutt)",
+    6: "coin flips (Comet Punch: four coins, 30 per heads)",
     608: "the opponent chooses how much Energy to discard (Erasure Ball)",
     72: "the opponent chooses how much Energy to discard (Bellowing Thunder)",
 }

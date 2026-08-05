@@ -1,7 +1,7 @@
 """The opposing attacks whose damage is not the number printed on the card.
 
 `ptcg/cards/op_scaling.py` fixes a blind spot, not an estimate: for thirteen of
-the fifteen scaling attacks that appear in the 406 opposing decks in the repo,
+the fifteen scaling attacks that appear in the 411 opposing decks in the repo,
 the projector used to return the placeholder printed on the card. The anchor of
 this file is the one case where the engine wrote down the right answer for us:
 
@@ -15,6 +15,7 @@ PERSPECTIVE ("your" is theirs, "your opponent's" is ours) and the attacks that
 are left out on purpose.
 """
 
+import dataclasses
 import json
 import sys
 from pathlib import Path
@@ -40,6 +41,10 @@ RAGING_CURSE = 540
 RAPID_FIRE_COMBO = 1092
 BELLOWING_THUNDER = 72
 ERASURE_BALL = 608
+COMET_PUNCH = 6
+MEGA_SYMPHONIA = 1079
+VERDANT_STORM = 324
+BUDDY_BLAST = 490
 
 
 @pytest.fixture(autouse=True)
@@ -127,6 +132,44 @@ def test_the_attacks_that_count_our_side_grow_with_our_board():
     assert sc.op_scaled_damage(TENACIOUS_TAIL, 0, attacker, scale) == 60 * 1
     # Myriad counts BOTH actives: their 2 energies plus our 4.
     assert sc.op_scaled_damage(MYRIAD, 30, attacker, scale) == 30 + 30 * 6
+    # Verdant Storm counts every Energy on OUR WHOLE field, not just the active:
+    # 4 on the Ogerpon and 4 on the Tapu Bulu behind it.
+    assert scale.my_energy_on_field == 8
+    assert sc.op_scaled_damage(VERDANT_STORM, 0, attacker, scale) == 60 * 8
+
+
+# ---------------------------------------------------------------------------
+# The three the top-300 of Aug 2026 brought in
+# ---------------------------------------------------------------------------
+
+def test_the_lists_of_august_bring_three_more_readings():
+    """Mega Symphonia, Verdant Storm and Buddy Blast.
+
+    They arrived with the corpus refresh and each prints a number the engine
+    contradicts: 0, 0 and 40. The census gate is what caught them, and the point
+    of pinning them here is the SIDE each one counts -- reading Mega Symphonia
+    off our own board instead of theirs is silent and always returns a smaller
+    number, which is the direction that loses games.
+    """
+    obs = _fixture()
+    attacker = m.to_observation_class(obs).current.players[0].active[0]
+    board = dataclasses.replace(
+        sc.EMPTY_SCALE,
+        op_psychic_on_field=4,        # THEIR {P}: Mega Symphonia
+        my_energy_on_field=5,         # OUR energies, any type: Verdant Storm
+        op_ethan_adventure_in_discard=3,  # THEIR discard: Buddy Blast
+    )
+
+    assert sc.op_scaled_damage(MEGA_SYMPHONIA, 0, attacker, board) == 200
+    assert sc.op_scaled_damage(VERDANT_STORM, 0, attacker, board) == 300
+    assert sc.op_scaled_damage(BUDDY_BLAST, 40, attacker, board) == 40 + 180
+
+    # With nothing on the board every one of them falls back to its printed
+    # value: an entry raises a floor, it never invents damage out of an empty
+    # board.
+    assert sc.op_scaled_damage(MEGA_SYMPHONIA, 0, attacker, sc.EMPTY_SCALE) == 0
+    assert sc.op_scaled_damage(VERDANT_STORM, 0, attacker, sc.EMPTY_SCALE) == 0
+    assert sc.op_scaled_damage(BUDDY_BLAST, 40, attacker, sc.EMPTY_SCALE) == 40
 
 
 # ---------------------------------------------------------------------------
@@ -174,7 +217,7 @@ def test_the_attacks_left_out_are_left_out_on_purpose():
     +50 was already tried as an estimate and reverted by policy, and projecting
     the maximum of an Erasure Ball would make every turn look lost.
     """
-    for aid in (RAPID_FIRE_COMBO, BELLOWING_THUNDER, ERASURE_BALL):
+    for aid in (RAPID_FIRE_COMBO, BELLOWING_THUNDER, ERASURE_BALL, COMET_PUNCH):
         assert aid not in sc.OP_SCALING_DAMAGE
 
 
