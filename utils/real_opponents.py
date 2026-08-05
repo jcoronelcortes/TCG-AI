@@ -147,12 +147,12 @@ def load_corpus(source_path):
 def screen_list(group, games, deck_referencia):
     """Can the generic bot pilot this list? Bot(real) vs Bot(our deck)."""
     import selfplay as sp
-    from opponent_bot import BotRival
+    from opponent_bot import OpponentBot
 
     # Separate instances: the bot carries per-turn state and sharing it between
     # the two seats would mix up both sides' ability counters.
     stats = sp.torneo(
-        BotRival(), BotRival(), games,
+        OpponentBot(), OpponentBot(), games,
         deck_candidate=list(group["mazo"]), deck_base=list(deck_referencia),
     )
     decididas = stats["candidate"] + stats["base"]

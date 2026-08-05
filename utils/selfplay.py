@@ -87,13 +87,13 @@ def load_agent(path, name):
 
 def load_agent_from_git(ref, name):
     """Loads the main.py version of a git ref (the baseline)."""
-    fuente = subprocess.run(
+    source = subprocess.run(
         ["git", "show", f"{ref}:main.py"], cwd=_ROOT, capture_output=True,
         text=True, check=True).stdout
     with tempfile.NamedTemporaryFile(
             "w", suffix=".py", prefix=f"main_{name}_",
             delete=False) as f:
-        f.write(fuente)
+        f.write(source)
         path = f.name
     return load_agent(path, name)
 
@@ -351,9 +351,9 @@ def main(argv):
     candidate = load_agent(cand_path, "agente_candidato")
 
     if args.opponent:
-        from opponent_bot import BotRival
+        from opponent_bot import OpponentBot
         opponent_deck = read_deck(_ROOT / args.opponent)
-        bot = BotRival()
+        bot = OpponentBot()
         stats = torneo(candidate, bot, args.games,
                        progress=args.progress or None,
                        deck_base=opponent_deck)

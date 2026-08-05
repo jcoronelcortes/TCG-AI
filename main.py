@@ -1494,7 +1494,7 @@ _RULES_FOREST_PLAY = [
     # so it goes ahead of the evolution chain (21900-22000): the chain pays off next
     # turn, the double attack kills us this one. It stays below the Meowth engine
     # (27000), which is also irreversible.
-    # NOT MEASURED in self-play: the generic BotRival cannot pilot the Festival Lead
+    # NOT MEASURED in self-play: the generic OpponentBot cannot pilot the Festival Lead
     # deck (98.9% in both arms), so the gate has no signal.
     _FixedRule("switch_off_festival_lead",
                lambda c: c.festival_lead_hostil,
@@ -3497,7 +3497,7 @@ _RULES_BCS_GRASS = [
                lambda c: 400),
 ]
 
-_TABLA_BCS_FETCH = {
+_BCS_FETCH_TABLE = {
     Chikorita: ("bcs->chikorita", _RULES_BCS_CHIKORITA, 50),
     Bayleef: ("bcs->bayleef", _RULES_BCS_BAYLEEF, 30),
     Meganium: ("bcs->meganium", _RULES_BCS_MEGANIUM, 20),
@@ -4012,7 +4012,7 @@ _RULES_DAWN_FOREST = [
                lambda c: 600),
 ]
 
-_TABLA_DAWN_FETCH = {
+_DAWN_FETCH_TABLE = {
     Meganium: ("dawn->meganium", _RULES_DAWN_MEGANIUM, 200),
     Bayleef: ("dawn->bayleef", _RULES_DAWN_BAYLEEF, 150),
     Chikorita: ("dawn->chikorita", _RULES_DAWN_CHIKORITA, 500),

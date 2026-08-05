@@ -87,7 +87,7 @@ def _es_puro(node, puros):
     return True
 
 
-def planificar(main_py, since, up_to):
+def plan_extraction(main_py, since, up_to):
     """Returns (ranges, names): which lines would move and which bindings they contain."""
     src = main_py.read_text(encoding="utf-8")
     lines = src.splitlines(keepends=True)
@@ -101,7 +101,7 @@ def planificar(main_py, since, up_to):
     _sys.path.insert(0, str(PROJECT_ROOT / "utils"))
     from purity import _package_constants
     puros = {n: True for n in _package_constants()}
-    bloqueadas, movibles = set(), {}
+    bloqueadas, movable = set(), {}
     for node in tree.body:
         a, b = node.lineno, node.end_lineno
         ok = False
@@ -112,12 +112,12 @@ def planificar(main_py, since, up_to):
                 puros[name] = True
                 ok = True
                 if since <= a <= up_to:
-                    movibles[a] = (b, name)
+                    movable[a] = (b, name)
         if not ok or not (since <= a <= up_to):
             bloqueadas.update(range(a, b + 1))
 
     es_movible = [False] * (len(lines) + 2)
-    for a, (b, _) in movibles.items():
+    for a, (b, _) in movable.items():
         for ln in range(a, b + 1):
             es_movible[ln] = True
 
@@ -125,7 +125,7 @@ def planificar(main_py, since, up_to):
         t = lines[ln - 1].strip()
         return t == "" or t.startswith("#")
 
-    rangos, ln = [], since
+    ranges, ln = [], since
     while ln <= up_to:
         if not es_movible[ln]:
             ln += 1
@@ -139,13 +139,13 @@ def planificar(main_py, since, up_to):
             fin += 1
         while fin > ini and suelta(fin):      # the trailing comments belong to the
             fin -= 1                          # node that comes AFTERWARDS
-        if not rangos or ini > rangos[-1][1]:
-            rangos.append([ini, fin])
+        if not ranges or ini > ranges[-1][1]:
+            ranges.append([ini, fin])
         else:
-            rangos[-1][1] = max(rangos[-1][1], fin)
+            ranges[-1][1] = max(ranges[-1][1], fin)
         ln = fin + 1
 
-    names = [n for a, (b, n) in sorted(movibles.items())]
+    names = [n for a, (b, n) in sorted(movable.items())]
 
     # Names the moved code takes from modules that have ALREADY been extracted: they have to
     # be imported in the target or the new module blows up when loaded.
@@ -153,7 +153,7 @@ def planificar(main_py, since, up_to):
     mapa = _mapa_paquete()
     propios = set(names)
     necesarios = {}
-    for a, b in rangos:
+    for a, b in ranges:
         fragmento = "".join(lines[a - 1:b])
         try:
             sub = ast.parse(fragmento)
@@ -163,7 +163,7 @@ def planificar(main_py, since, up_to):
             if isinstance(n, ast.Name) and isinstance(n.ctx, ast.Load):
                 if n.id in mapa and n.id not in propios:
                     necesarios.setdefault(mapa[n.id], set()).add(n.id)
-    return lines, rangos, names, necesarios
+    return lines, ranges, names, necesarios
 
 
 def main():
@@ -178,11 +178,11 @@ def main():
     args = ap.parse_args()
 
     main_py = PROJECT_ROOT / args.main
-    lines, rangos, names, necesarios = planificar(main_py, args.since, args.up_to)
+    lines, ranges, names, necesarios = plan_extraction(main_py, args.since, args.up_to)
 
-    total = sum(b - a + 1 for a, b in rangos)
-    print(f"rangos: {len(rangos)}   lines: {total}   bindings: {len(names)}")
-    for a, b in rangos:
+    total = sum(b - a + 1 for a, b in ranges)
+    print(f"rangos: {len(ranges)}   lines: {total}   bindings: {len(names)}")
+    for a, b in ranges:
         print(f"  {a:6d}-{b:<6d} ({b - a + 1:4d} l)  {lines[a - 1].strip()[:56]}")
 
     if not args.apply:
@@ -196,7 +196,7 @@ def main():
         if package != PROJECT_ROOT and not ini.exists():
             ini.write_text('"""Paquete del agente. Ver docs/project-history.md."""\n')
 
-    body = ["".join(lines[a - 1:b]) for a, b in rangos]
+    body = ["".join(lines[a - 1:b]) for a, b in ranges]
     imports = "".join(
         f"from {mod} import {', '.join(sorted(ns))}\n"
         for mod, ns in sorted(necesarios.items()))
@@ -207,7 +207,7 @@ def main():
                        + "\n".join(body) + "\n\n" + all_list)
 
     borrar = set()
-    for a, b in rangos:
+    for a, b in ranges:
         borrar.update(range(a, b + 1))
     module_name = args.target_path.replace("/", ".").removesuffix(".py")
     marca = f"from {module_name} import *  # noqa: F401,F403\n"

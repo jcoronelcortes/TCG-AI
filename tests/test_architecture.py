@@ -52,29 +52,29 @@ def test_the_migrated_state_is_still_watched():
 # ---------------------------------------------------------------------------
 # The rules have to BITE: a linter that cannot fail is worth nothing.
 # ---------------------------------------------------------------------------
-def _fallos_de_r3(fuente, tmp_path, monkeypatch):
+def _fallos_de_r3(source, tmp_path, monkeypatch):
     file_path = tmp_path / "main.py"
-    file_path.write_text(fuente)
+    file_path.write_text(source)
     monkeypatch.setattr(la, "MAIN_PY", file_path)
     return la.rule_3_agent_is_last()
 
 
 def test_r3_accepts_agent_at_the_end(tmp_path, monkeypatch):
-    fuente = "from cg.api import Card\n\ndef agent(obs):\n    return [0]\n"
-    assert _fallos_de_r3(fuente, tmp_path, monkeypatch) == []
+    source = "from cg.api import Card\n\ndef agent(obs):\n    return [0]\n"
+    assert _fallos_de_r3(source, tmp_path, monkeypatch) == []
 
 
 def test_r3_catches_a_reexport_after_agent(tmp_path, monkeypatch):
     """Failure mode I1b: the container would keep the re-export."""
-    fuente = "def agent(obs):\n    return [0]\n\nfrom cg.api import Card\n"
-    failures = _fallos_de_r3(fuente, tmp_path, monkeypatch)
+    source = "def agent(obs):\n    return [0]\n\nfrom cg.api import Card\n"
+    failures = _fallos_de_r3(source, tmp_path, monkeypatch)
     assert len(failures) == 1 and failures[0][0] == "R3"
 
 
 def test_r3_catches_a_class_after_agent(tmp_path, monkeypatch):
     """A class is callable too, so it also hijacks the entry point."""
-    fuente = "def agent(obs):\n    return [0]\n\nclass Ayuda:\n    pass\n"
-    failures = _fallos_de_r3(fuente, tmp_path, monkeypatch)
+    source = "def agent(obs):\n    return [0]\n\nclass Ayuda:\n    pass\n"
+    failures = _fallos_de_r3(source, tmp_path, monkeypatch)
     assert len(failures) == 1 and failures[0][0] == "R3"
 
 

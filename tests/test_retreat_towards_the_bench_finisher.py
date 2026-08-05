@@ -104,7 +104,7 @@ def _scenario(active=None, bench=None, hand=(GRASS, ULTRA_BALL),
             .op_zones(hand=6, deck=20, prizes=3))
 
 
-def _destino(obs, choice):
+def _target(obs, choice):
     """The area of the Pokemon chosen as the charge's destination."""
     o = obs["select"]["option"][choice[0]]
     return o.get("area", o.get("inPlayArea"))
@@ -118,7 +118,7 @@ def test_the_charging_ability_puts_the_grass_on_the_trapped_active():
     """The exact case of step 101: the Ripening Charge Grass goes to the ACTIVE
     to pay its retreat, not to a benched body."""
     obs = _scenario().ability_charge_target(bench_idx=1).build()
-    assert _destino(obs, m.agent(obs)) == int(m.AreaType.ACTIVE)
+    assert _target(obs, m.agent(obs)) == int(m.AreaType.ACTIVE)
 
 
 def test_the_ogerpon_focus_does_not_steal_the_retreat_grass():
@@ -130,7 +130,7 @@ def test_the_ogerpon_focus_does_not_steal_the_retreat_grass():
              pk(HYDRAPPLE),
              pk(OGERPON, energies=[G, G], fisicas=1)]   # the focus's bait
     obs = _scenario(bench=bench).ability_charge_target(bench_idx=1).build()
-    assert _destino(obs, m.agent(obs)) == int(m.AreaType.ACTIVE)
+    assert _target(obs, m.agent(obs)) == int(m.AreaType.ACTIVE)
 
 
 def test_deck_agnostic_any_bench_finisher_will_do():
@@ -138,7 +138,7 @@ def test_deck_agnostic_any_bench_finisher_will_do():
     Tapu Bulu (220 >= 140) the Grass must still go to the ACTIVE."""
     bench = [pk(TAPU, energies=[G] * 4), pk(HYDRAPPLE), pk(MEOWTH)]
     obs = _scenario(bench=bench).ability_charge_target(bench_idx=1).build()
-    assert _destino(obs, m.agent(obs)) == int(m.AreaType.ACTIVE)
+    assert _target(obs, m.agent(obs)) == int(m.AreaType.ACTIVE)
 
 
 # ---------------------------------------------------------------------------
@@ -319,7 +319,7 @@ def test_88631738_the_ability_charges_the_active_with_the_attachment_spent():
     Ripening Charge -- and its Grass has to go to the ACTIVE to pay the
     retreat, not to a benched Ogerpon."""
     obs = _scenario_88631738().ability_charge_target(bench_idx=1).build()
-    assert _destino(obs, m.agent(obs)) == int(m.AreaType.ACTIVE)
+    assert _target(obs, m.agent(obs)) == int(m.AreaType.ACTIVE)
 
 
 def test_88631738_with_the_grass_attached_the_active_retreats():
@@ -407,7 +407,7 @@ def test_the_ability_completes_the_second_grass_on_the_active():
     obs = (_scenario_cost_3(active_e=2, hand=(GRASS, ULTRA_BALL),
                               energy_played=True)
            .ability_charge_target(bench_idx=1).build())
-    assert _destino(obs, m.agent(obs)) == int(m.AreaType.ACTIVE)
+    assert _target(obs, m.agent(obs)) == int(m.AreaType.ACTIVE)
 
 
 def test_without_enough_grass_in_hand_the_line_does_not_open():

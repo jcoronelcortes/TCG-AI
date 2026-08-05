@@ -28,8 +28,8 @@ from ptcg.engine.rules import _resolve_with_trace
 def score_play(tc, o, score):
     """Returns the score of `o`. It may return `_SALTAR`."""
     _SALTAR = tc._SALTAR
-    _TABLA_BCS_FETCH = tc._TABLA_BCS_FETCH
-    _TABLA_DAWN_FETCH = tc._TABLA_DAWN_FETCH
+    _BCS_FETCH_TABLE = tc._BCS_FETCH_TABLE
+    _DAWN_FETCH_TABLE = tc._DAWN_FETCH_TABLE
     _active_cant_attack_this_turn = tc._active_cant_attack_this_turn
     _active_needs_energy = tc._active_needs_energy
     _active_ready_attacker = tc._active_ready_attacker
@@ -1233,7 +1233,7 @@ def score_play(tc, o, score):
                         dragapult_no_tapu=_dragapult_no_tapu,
                         op_state=op_state,
                         neutralization_zone_active=neutralization_zone_active)
-                    _bcs_entry = _TABLA_BCS_FETCH.get(card.id)
+                    _bcs_entry = _BCS_FETCH_TABLE.get(card.id)
                     if _bcs_entry is not None:
                         _bcs_et, _bcs_rules, _bcs_defecto = _bcs_entry
                         score = _resolve_with_trace(
@@ -1776,7 +1776,7 @@ def score_play(tc, o, score):
                         dragapult_no_tapu=_dragapult_no_tapu,
                         op_state=op_state,
                         neutralization_zone_active=neutralization_zone_active)
-                    _dawn_entry = _TABLA_DAWN_FETCH.get(card.id)
+                    _dawn_entry = _DAWN_FETCH_TABLE.get(card.id)
                     if _dawn_entry is not None:
                         _dawn_et, _dawn_rules, _dawn_defecto = _dawn_entry
                         score = _resolve_with_trace(

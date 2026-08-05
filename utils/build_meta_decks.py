@@ -238,10 +238,10 @@ def verify(paths):
     """battle_start accepts each deck and the bot plays 4 steps without blowing up."""
     sys.path.insert(0, str(_ROOT / "utils"))
     from cg import game
-    from opponent_bot import BotRival
+    from opponent_bot import OpponentBot
     deck_nuestro = [int(x) for x in
                     (_ROOT / "deck.csv").read_text().split("\n")[:60]]
-    bot = BotRival()
+    bot = OpponentBot()
     for path in paths:
         opponent_deck = [int(x) for x in path.read_text().split()]
         obs, sd = game.battle_start(list(opponent_deck), list(deck_nuestro))

@@ -85,12 +85,12 @@ def harvest_series(paths):
     return serials
 
 
-def amplificar(conteo_visto, tabla):
+def amplificar(conteo_visto, table):
     """Amplifies the observed count up to 60 cards according to the documented rule."""
     deck = []
     basicas = {}
     for cid, visto in sorted(conteo_visto.items()):
-        data = tabla.get(cid)
+        data = table.get(cid)
         if data is None:
             continue
         tipo = data.cardType
@@ -127,17 +127,17 @@ def main(argv):
     for cid in serials.values():
         conteo[cid] += 1
 
-    tabla = {c.cardId: c for c in all_card_data()}
-    deck, basica, relleno = amplificar(conteo, tabla)
+    table = {c.cardId: c for c in all_card_data()}
+    deck, basica, relleno = amplificar(conteo, table)
 
     print(f"Opponent cards seen ({sum(conteo.values())} en "
           f"{len(paths)} registros):")
     for cid, visto in sorted(conteo.items()):
-        d = tabla.get(cid)
+        d = table.get(cid)
         in_deck = deck.count(cid)
         print(f"  {cid:>5} visto x{visto} -> in deck x{in_deck}  "
               f"{d.name if d else '?'}")
-    print(f"Relleno: {relleno} x {tabla[basica].name}({basica})")
+    print(f"Relleno: {relleno} x {table[basica].name}({basica})")
 
     output = _ROOT / args.output
     output.parent.mkdir(parents=True, exist_ok=True)

@@ -61,16 +61,16 @@ def mutated_names(tree):
     # locals of `agent()` that get mutated (`score.append(...)`, `hand_counts[x]=y`)
     # would enter the list and would wrongly block definitions that merely
     # share a name with them.
-    de_modulo = set()
+    from_module = set()
     for n in tree.body:
         if isinstance(n, ast.Assign):
             for t in n.targets:
                 if isinstance(t, ast.Name):
-                    de_modulo.add(t.id)
+                    from_module.add(t.id)
         elif isinstance(n, (ast.AnnAssign, ast.AugAssign)) and isinstance(n.target, ast.Name):
-            de_modulo.add(n.target.id)
+            from_module.add(n.target.id)
         elif isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-            de_modulo.add(n.name)
+            from_module.add(n.name)
 
     mutados = set()
     for n in ast.walk(tree):
@@ -82,7 +82,7 @@ def mutated_names(tree):
                 mutados.add(n.value.id)
         elif isinstance(n, ast.AugAssign) and isinstance(n.target, ast.Name):
             mutados.add(n.target.id)
-    return mutados & de_modulo
+    return mutados & from_module
 
 
 def _args_de(node):
@@ -174,7 +174,7 @@ def _mapa_paquete():
     return mapa
 
 
-def analizar(main_py=None):
+def analyse(main_py=None):
     main_py = Path(main_py or PROJECT_ROOT / "main.py")
     src = main_py.read_text(encoding="utf-8")
     tree = ast.parse(src)
@@ -207,16 +207,16 @@ def analizar(main_py=None):
             asignaciones[n.targets[0].id] = n
 
     const_main = set(asignaciones) - RUNTIME - mutables
-    libres = {k: free_names(v) for k, v in definiciones.items()}
+    free_by_name = {k: free_names(v) for k, v in definiciones.items()}
 
-    movibles, razon = set(definiciones), {}
+    movable, reason_of = set(definiciones), {}
     cambio = True
     while cambio:
         cambio = False
-        for name in sorted(movibles):
-            for free in libres[name]:
+        for name in sorted(movable):
+            for free in free_by_name[name]:
                 if (free in BUILTINS or free in importados or free in of_the_package
-                        or free in movibles or free == name or free in const_main):
+                        or free in movable or free == name or free in const_main):
                     continue
                 if free in mutables:
                     reason = f"estado mutable `{free}`"
@@ -226,13 +226,13 @@ def analizar(main_py=None):
                     reason = f"definicion bloqueada `{free}`"
                 else:
                     reason = f"desconocido `{free}`"
-                movibles.discard(name)
-                razon[name] = reason
+                movable.discard(name)
+                reason_of[name] = reason
                 cambio = True
                 break
 
     return {
-        "movibles": movibles, "razon": razon, "libres": libres,
+        "movibles": movable, "razon": reason_of, "libres": free_by_name,
         "definiciones": definiciones, "asignaciones": asignaciones,
         "importados": importados, "of_the_package": of_the_package,
         "const_main": const_main, "mutables": mutables,
@@ -245,7 +245,7 @@ def main():
     ap.add_argument("--main", default=None)
     args = ap.parse_args()
 
-    a = analizar(args.main)
+    a = analyse(args.main)
     defs, mov = a["definiciones"], a["movibles"]
     lines = sum(defs[n].end_lineno - defs[n].lineno + 1 for n in mov)
 

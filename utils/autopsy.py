@@ -487,8 +487,8 @@ def autopsy(opponent_csv, games, mirror=False, target_path=None, censar=False):
         opponent = sp.load_agent(_ROOT / "main.py", "rival_autopsia")
         opponent_deck, etiqueta = own_deck, "mirror"
     else:
-        from opponent_bot import BotRival
-        opponent = BotRival()
+        from opponent_bot import OpponentBot
+        opponent = OpponentBot()
         opponent_deck = sp.read_deck(opponent_csv)
         etiqueta = Path(opponent_csv).stem
 

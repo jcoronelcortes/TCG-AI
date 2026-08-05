@@ -86,7 +86,7 @@ MAX_ABILITIES_PER_TURN = 8
 DAMAGE_PER_COUNTER = 10
 
 
-class BotRival:
+class OpponentBot:
 
     def __init__(self):
         self._attacks = {a.attackId: a for a in all_attack()}

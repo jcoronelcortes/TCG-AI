@@ -86,15 +86,15 @@ def _obs_step67():
 
 def _attach_options(obs):
     """{position: 'activo'|'banca-k'} for the menu's ATTACH options."""
-    destinos = {}
+    targets = {}
     for i, opt in enumerate(obs["select"]["option"]):
         if opt.get("type") != OptionType.ATTACH:
             continue
         if opt.get("inPlayArea") == AreaType.ACTIVE:
-            destinos[i] = "activo"
+            targets[i] = "activo"
         else:
-            destinos[i] = f"banca-{opt.get('inPlayIndex')}"
-    return destinos
+            targets[i] = f"banca-{opt.get('inPlayIndex')}"
+    return targets
 
 
 def test_step67_charges_the_active_not_the_bench_hydrapple():
@@ -109,16 +109,16 @@ def test_step67_charges_the_active_not_the_bench_hydrapple():
     assert cur["energyAttached"] is False
     assert sum(1 for c in mio["hand"] if c["id"] == ENERGY) >= 2
 
-    destinos = _attach_options(obs)
-    assert "activo" in destinos.values()
-    assert any(d.startswith("banca") for d in destinos.values())
+    targets = _attach_options(obs)
+    assert "activo" in targets.values()
+    assert any(d.startswith("banca") for d in targets.values())
 
     choice = m.agent(obs)
 
-    assert len(choice) == 1 and choice[0] in destinos, (
-        f"esperaba un ATTACH, obtuvo {choice} (destinos={destinos})")
-    assert destinos[choice[0]] == "activo", (
-        f"la energia debia ir al ACTIVO, fue a {destinos[choice[0]]}")
+    assert len(choice) == 1 and choice[0] in targets, (
+        f"esperaba un ATTACH, obtuvo {choice} (destinos={targets})")
+    assert targets[choice[0]] == "activo", (
+        f"la energia debia ir al ACTIVO, fue a {targets[choice[0]]}")
 
 
 def test_step67_ripening_charge_aims_at_the_active():
@@ -187,12 +187,12 @@ def test_an_active_ogerpon_charges_itself_to_finish():
            .menu_attach_energy()
            .build())
 
-    destinos = _attach_options(obs)
+    targets = _attach_options(obs)
     choice = m.agent(obs)
 
-    assert destinos[choice[0]] == "activo", (
+    assert targets[choice[0]] == "activo", (
         f"la Planta debia ir al Ogerpon ACTIVO (remata), fue a "
-        f"{destinos[choice[0]]}")
+        f"{targets[choice[0]]}")
 
 
 def test_no_finisher_but_a_sterile_turn_also_charges_the_active():
@@ -207,12 +207,12 @@ def test_no_finisher_but_a_sterile_turn_also_charges_the_active():
            .menu_attach_energy()
            .build())
 
-    destinos = _attach_options(obs)
+    targets = _attach_options(obs)
     choice = m.agent(obs)
 
-    assert destinos[choice[0]] == "activo", (
+    assert targets[choice[0]] == "activo", (
         f"sin la carga al activo el turno seria esteril; fue a "
-        f"{destinos[choice[0]]}")
+        f"{targets[choice[0]]}")
 
 
 def test_an_active_that_already_attacks_does_not_hog_the_energy():
@@ -231,8 +231,8 @@ def test_an_active_that_already_attacks_does_not_hog_the_energy():
            .menu_attach_energy()
            .build())
 
-    destinos = _attach_options(obs)
+    targets = _attach_options(obs)
     choice = m.agent(obs)
 
-    assert destinos[choice[0]] != "activo", (
+    assert targets[choice[0]] != "activo", (
         "el activo ya podia atacar: la energia debia ir a la banca")

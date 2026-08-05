@@ -33,7 +33,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT / "utils"))
 
-from purity import analizar  # noqa: E402
+from purity import analyse  # noqa: E402
 
 OBJETO = "AGENT_STATE"
 
@@ -153,7 +153,7 @@ def main():
     text = main_py.read_text(encoding="utf-8")
 
     if args.list_only:
-        a = analizar(main_py)
+        a = analyse(main_py)
         tree = ast.parse(text)
         cuenta = {}
         for n in ast.walk(tree):

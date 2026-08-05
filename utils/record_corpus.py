@@ -97,8 +97,8 @@ def main():
                 for i in range(args.games)]
 
     agent_state = sp.load_agent(_ROOT / args.main, "corpus_agente")
-    from opponent_bot import BotRival
-    bot = BotRival()
+    from opponent_bot import OpponentBot
+    bot = OpponentBot()
     deck_nuestro = sp.read_deck()
 
     RECORDS.mkdir(exist_ok=True)

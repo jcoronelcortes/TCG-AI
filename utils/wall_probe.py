@@ -35,7 +35,7 @@ for _p in (_ROOT, _ROOT / "utils", _ROOT / "tests"):
         sys.path.insert(0, str(_p))
 
 import selfplay as sp
-from opponent_bot import BotRival
+from opponent_bot import OpponentBot
 from cg.api import OptionType, SelectContext
 
 # Non-ex attackers that DO damage the wall (our ex do 0 to it).
@@ -89,7 +89,7 @@ def play(m, opponent_deck, games, dump, target_path):
         obs, sd = game.battle_start(list(d0), list(d1))
         if obs is None:
             continue
-        agentes = {seat: m, 1 - seat: BotRival()}
+        agentes = {seat: m, 1 - seat: OpponentBot()}
         steps = 0
         current_turn = None
         state = None  # the current turn's dict, if it qualifies

@@ -310,11 +310,11 @@ SITUACIONES = (
 
 
 def radar(agent_state, opponent_deck, games):
-    from opponent_bot import BotRival
+    from opponent_bot import OpponentBot
     cnt = collections.defaultdict(lambda: [0, 0])   # name -> [applies, resolved]
     for i in range(games):
         _res, dec, _fin = au.play_recording(
-            agent_state, BotRival(), agent_state.my_deck, opponent_deck, i % 2)
+            agent_state, OpponentBot(), agent_state.my_deck, opponent_deck, i % 2)
         turns = collections.defaultdict(list)
         for d in dec:
             turns[d["obs"]["current"]["turn"]].append(d)

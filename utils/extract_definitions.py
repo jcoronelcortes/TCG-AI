@@ -41,7 +41,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT / "utils"))
 
-from purity import analizar, BUILTINS, _mapa_paquete, free_names  # noqa: E402
+from purity import analyse, BUILTINS, _mapa_paquete, free_names  # noqa: E402
 
 HEADER = '''"""{titulo}
 
@@ -87,50 +87,50 @@ def _block_with_comments(lines, node):
     return ini, node.end_lineno
 
 
-def planificar(batch, main_py):
-    a = analizar(main_py)
+def plan_extraction(batch, main_py):
+    a = analyse(main_py)
     src = Path(main_py).read_text(encoding="utf-8")
     lines = src.splitlines(keepends=True)
     tree = ast.parse(src)
     source_path = _origen_de_imports(tree)
     mapa = _mapa_paquete()
 
-    donde = {}
+    where = {}
     for mod, spec in batch.items():
         for n in spec["nombres"]:
-            donde[n] = mod
+            where[n] = mod
 
     # A batch can list `def`/`class` and also ASSIGNMENTS: the
     # `_REGLAS_*`/`_AJUSTES_*` tables of the rules engine are data belonging to the
     # module of their card, and without them the scorer cannot move.
     nodes = dict(a["definiciones"])
-    libres = dict(a["libres"])
+    free_by_name = dict(a["libres"])
     for n, node in a["asignaciones"].items():
         nodes.setdefault(n, node)
-        libres.setdefault(n, free_names(node))
+        free_by_name.setdefault(n, free_names(node))
 
-    problemas = []
-    for n in donde:
+    problems = []
+    for n in where:
         if n not in nodes:
-            problemas.append(f"{n}: no esta a nivel de modulo en main.py")
+            problems.append(f"{n}: no esta a nivel de modulo en main.py")
         elif n in a["definiciones"] and n not in a["movibles"]:
-            problemas.append(f"{n}: NO es puro ({a['razon'].get(n, '?')})")
+            problems.append(f"{n}: NO es puro ({a['razon'].get(n, '?')})")
         elif n in a["asignaciones"] and n in a["mutables"]:
-            problemas.append(f"{n}: es estado MUTABLE, no una tabla constante")
+            problems.append(f"{n}: es estado MUTABLE, no una tabla constante")
 
     plan = {}
     for mod, spec in batch.items():
         names = spec["nombres"]
         imports_stdlib, imports_from, of_the_package, cruzados = set(), {}, {}, {}
         for n in names:
-            if n not in libres:
+            if n not in free_by_name:
                 continue
-            for free in libres[n]:
+            for free in free_by_name[n]:
                 if free in BUILTINS or free in names:
                     continue
-                if free in donde and donde[free] != mod:
-                    cruzados.setdefault(donde[free], set()).add(free)
-                elif free in donde:
+                if free in where and where[free] != mod:
+                    cruzados.setdefault(where[free], set()).add(free)
+                elif free in where:
                     continue
                 elif free in a["of_the_package"]:
                     # from WHICH package module it comes: `card_table` is in
@@ -142,7 +142,7 @@ def planificar(batch, main_py):
                     if origen_mod == mod.replace("/", ".").removesuffix(".py"):
                         continue
                     if origen_mod is None:
-                        problemas.append(f"{mod}: `{free}` esta en el paquete pero "
+                        problems.append(f"{mod}: `{free}` esta en el paquete pero "
                                          "no se sabe en que modulo")
                     else:
                         of_the_package.setdefault(origen_mod, set()).add(free)
@@ -153,24 +153,24 @@ def planificar(batch, main_py):
                     else:
                         imports_from.setdefault(o[1], set()).add((o[2], o[3]))
                 elif free in a["const_main"]:
-                    problemas.append(
+                    problems.append(
                         f"{mod}: `{n}` usa la constante `{free}`, que sigue en main.py "
                         f"(muevela antes con extraer_puros.py)")
                 else:
-                    problemas.append(f"{mod}: `{n}` usa `{free}`, sin resolver")
+                    problems.append(f"{mod}: `{n}` usa `{free}`, sin resolver")
 
-        rangos = []
+        ranges = []
         for n in names:
-            rangos.append((_block_with_comments(lines, nodes[n]), n))
-        rangos.sort()
+            ranges.append((_block_with_comments(lines, nodes[n]), n))
+        ranges.sort()
         plan[mod] = {
             "title": spec.get("title", "Extraido de main.py."),
-            "nombres": names, "rangos": rangos,
+            "nombres": names, "rangos": ranges,
             "imports_stdlib": sorted(imports_stdlib),
             "imports_from": imports_from, "of_the_package": of_the_package,
             "cruzados": cruzados,
         }
-    return plan, problemas, lines
+    return plan, problems, lines
 
 
 def _imports_header(info, mod_actual):
@@ -196,7 +196,7 @@ def main():
     args = ap.parse_args()
 
     batch = runpy.run_path(args.batch)["MODULOS"]
-    plan, problemas, lines = planificar(batch, args.main)
+    plan, problems, lines = plan_extraction(batch, args.main)
 
     total = 0
     for mod, info in plan.items():
@@ -208,9 +208,9 @@ def main():
             print(f"    cruzados : { {k: sorted(v) for k, v in info['cruzados'].items()} }")
     print(f"\nTOTAL: {total} lines")
 
-    if problemas:
+    if problems:
         print("\n⚠ PROBLEMS (nothing is applied):")
-        for p in problemas:
+        for p in problems:
             print("  -", p)
         return 1
 

@@ -77,8 +77,8 @@ def main(pre_path, post_path, n_mirror=40, n_opponent=40):
     # vs the opposing bot (the Crustle/Kangaskhan matchup): our seat only.
     opponent_path = ROOT / "deck" / "opponents" / "crustle_kangaskhan.csv"
     if n_opponent and opponent_path.exists():
-        from opponent_bot import BotRival
-        opponent_bot = BotRival()
+        from opponent_bot import OpponentBot
+        opponent_bot = OpponentBot()
         deck_r = sp.read_deck(opponent_path)
         steps_r = 0
         for i in range(n_opponent):

@@ -4,7 +4,7 @@
 
 Everything in `utils/` is a command-line tool. None of them are needed to *run*
 the agent — they exist to measure it, feed it opponents, debug it and ship it.
-Flags are in Spanish because the scripts are; the descriptions here are not.
+Flags and identifiers are in English; a few stored data fields are still Spanish, and the last section says which and why.
 
 Run them from the repository root.
 
@@ -47,7 +47,7 @@ them are archetypes that do not exist in the current meta, and measuring against
 them spent half the budget on imaginary opponents. They remain useful for
 exercising **mechanics** the real meta does not offer (item lock, mill).
 
-### `bot_opponent.py` — the reference opponent
+### `opponent_bot.py` — the reference opponent
 
 The generic bot that pilots any deck legally and consistently. It is not a good
 player and does not try to be: because its policy is fixed and deterministic,
@@ -58,7 +58,7 @@ though the bot's absolute level is not.
 
 ## Understand losses
 
-### `autopsia.py` — automatic autopsy of losses
+### `autopsy.py` — automatic autopsy of losses
 
 Plays N games, records the decision stream of the ones we lost, and runs
 detectors over them: a lethal attack that was available and never taken, and
@@ -124,7 +124,7 @@ turns are dumped as replayable observations.
 | `download_competitor_decks.py` | Downloads the exact 60-card lists of the top leaderboard competitors from their public replays. Resumable. `--top 100` |
 | `real_opponents.py` | Turns those lists into *measurable* opponents: deduplicates them (300 decks are ~93 unique lists), keeps each one's meta weight, and screens out lists the generic bot cannot pilot — an unpilotable list measures the bot getting stuck, not the matchup, and returns a falsely high winrate. It also marks the lists that are near-copies of our own 60 (`solape_propio` in `pesos.csv`): the bot pilots those legally but pilots *our* engine, badly, so they read as a matchup we dominate. They are kept, because people play them, and flagged so the aggregation can report the field with and without. |
 | `build_meta_decks.py` | Hand-built synthetic archetype decks, for mechanics the real meta does not currently offer. |
-| `cosechar_deck_opponent.py` | Rebuilds a plausible 60-card opponent list from what was visible in local game records. |
+| `harvest_opponent_deck.py` | Rebuilds a plausible 60-card opponent list from what was visible in local game records. |
 | `op_scaling_census.py` | Audits `ptcg/cards/op_scaling.py` against every opposing deck in the repo: which attacks scale with the board rather than doing their printed damage, which of them the agent reads, and which are missing. The suite runs it as a gate — a new deck that brings an unread one is invisible in a game, because the agent does not crash, it just walks into the hit. `--unmodelled` |
 
 ---
@@ -161,10 +161,10 @@ These exist because of the large refactor described in
 | Tool | Purpose |
 | --- | --- |
 | `lint_architecture.py` | Four architecture rules, checked by the test suite. They cover failures that do **not** show up as a red test: importing a mutable by name (freezes a stale copy), data modules touching state, anything bound after the agent entry point (breaks the competition loader), and eager imports that break the container. |
-| `pureza.py` | Proves which definitions can be moved out of `main.py` without touching mutable state. |
+| `purity.py` | Proves which definitions can be moved out of `main.py` without touching mutable state. |
 | `extract_pure.py` / `extract_definitions.py` | Move constants and definitions into package modules, carrying their comments with them. |
 | `migrate_state.py` | Rewrites module-level state into fields of the state object, editing text in place so comments survive. |
-| `sombra.py` | The equivalence gate: plays self-play with the old version and asks the new one for the same observation. Any different choice is a flip. |
+| `shadow.py` | The equivalence gate: plays self-play with the old version and asks the new one for the same observation. Any different choice is a flip. |
 
 ---
 
@@ -207,3 +207,32 @@ commands you may have written down:
 `tests/test_cli.py` keeps it that way: it fails if a script offers a Spanish
 flag again, and if any `args.X` a script reads is not a `dest` its parser
 declares.
+
+## What is still Spanish, and why
+
+The identifiers are done: four batches renamed them with
+`utils/rename_code.py`, which proves against git that **only** the mapped names
+moved. What is left is **stored data**, and it is left on purpose:
+
+- the finding fields the tools write and read — `turno`, `hallazgos`,
+  `detector`, `detalle`, `modo_derrota` — carried by the 900+ files under
+  `records/` and by the golden decisions;
+- the `pesos.csv` columns — `archivo`, `arquetipo`, `peso_meta`,
+  `solape_propio`, `motivo`.
+
+Renaming a stored field is not a rename, it is a migration: every file already
+written keeps the old spelling, and the reader that stops accepting it breaks
+silently. That is not hypothetical — it is what left `turn_explorer.py`
+crashing on every real finding until it was fixed. When these do move, they
+move with a converter for the existing records and a reader that accepts both
+spellings, with the golden corpus as the witness.
+
+Two rules that come out of doing the batches:
+
+- **Run `rename_code.py` on Python 3.12 or newer.** Below that a whole
+  f-string is one token, so `f"{old_name}"` survives the rename while the
+  assignment above it does not. The tool now refuses to start.
+- **Screen the map for collisions first.** The AST proof shows that nothing but
+  names changed; it cannot show that two different symbols were not merged into
+  one. Check every target against the names already present in the files the
+  source appears in.

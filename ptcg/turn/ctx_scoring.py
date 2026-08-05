@@ -18,8 +18,8 @@ class ScoringCtx:
     """Snapshot of the turn used to score one option."""
 
     _SALTAR: Any = None
-    _TABLA_BCS_FETCH: Any = None
-    _TABLA_DAWN_FETCH: Any = None
+    _BCS_FETCH_TABLE: Any = None
+    _DAWN_FETCH_TABLE: Any = None
     _order_veto: Any = None
     _ability_unlock_retreat_attack: Any = None
     _ability_unlock_retreat_ko: Any = None

@@ -29,7 +29,7 @@ if str(ROOT) not in sys.path:
 if str(ROOT / "utils") not in sys.path:
     sys.path.insert(0, str(ROOT / "utils"))
 
-from opponent_bot import BotRival
+from opponent_bot import OpponentBot
 from cg.api import AreaType, OptionType, SelectContext
 
 MUNKIDORI = 112
@@ -71,7 +71,7 @@ def sel(context, option, minCount=1, maxCount=1):
 
 @pytest.fixture
 def bot():
-    return BotRival()
+    return OpponentBot()
 
 
 # --- 1. it activates abilities, with an anti-loop guard --------------------

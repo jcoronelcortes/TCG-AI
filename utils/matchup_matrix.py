@@ -64,7 +64,7 @@ for _p in (_ROOT, _ROOT / "utils"):
         sys.path.insert(0, str(_p))
 
 import selfplay as sp
-from opponent_bot import BotRival
+from opponent_bot import OpponentBot
 
 
 def is_deck(path):
@@ -176,7 +176,7 @@ def winrate_ponderado(rows, weights):
 
 
 def medir(agent_state, games, paths):
-    bot = BotRival()
+    bot = OpponentBot()
     rows = []
     for path in paths:
         opponent_deck = sp.read_deck(path)
