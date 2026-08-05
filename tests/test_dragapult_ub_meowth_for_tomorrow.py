@@ -140,14 +140,14 @@ def test_step17_plays_the_ultra_ball_instead_of_attacking_with_the_chikorita():
 # The record cuts off at step 17 (the agent attacked), so the fetch and the
 # next turn are FABRICATED with StateBuilder on the same board.
 
-def _campo(esc, fez_energies=0, extra_hand=()):
+def _field(esc, fez_energies=0, extra_hand=()):
     return (esc
             .my_active(pk(CHIKORITA, energies=[G], fisicas=1))
             .my_bench(pk(FEZ, energies=[G] * fez_energies,
                          fisicas=fez_energies))
             .op_active(pk(BUDEW))
             .op_bench(DREEPY, DREEPY, pk(MUNKIDORI, energies=[G], fisicas=0))
-            .op_zonas(hand=5, deck=43, prizes=6))
+            .op_zones(hand=5, deck=43, prizes=6))
 
 
 # NOTE: `menu_hand()` emits a PLAY option for EACH card in hand, without the
@@ -162,7 +162,7 @@ def _menu_main(fez_energies=0, hand=(GRASS, GRASS, GRASS, BOSS, BOSS,
     esc = Scenario(turn=TURN, step=17, tac=6, first_player=1,
                     energy_played=True,
                     supporter_played=supporter_played)
-    esc = _campo(esc, fez_energies=fez_energies)
+    esc = _field(esc, fez_energies=fez_energies)
     if op_generico:
         # CONTROL: the same board with no piece threatening to block
         # Items (neither Budew nor a Dreepy line) -> the Ultra Ball is kept.
@@ -180,7 +180,7 @@ def _menu_fetch():
     """Menu B: the fetch of the Ultra Ball just played."""
     esc = Scenario(turn=TURN, step=18, tac=7, first_player=1,
                     energy_played=True, supporter_played=True)
-    return (_campo(esc)
+    return (_field(esc)
             .my_hand(GRASS, BOSS, BOSS, MEGANIUM, FOREST)
             .deck(MEOWTH, LILLIE, BAYLEEF, OGERPON, APPLIN)
             .fetch_ultra_ball()
@@ -197,7 +197,7 @@ def _menu_tomorrow():
            .my_bench(pk(FEZ))
            .op_active(pk(BUDEW))
            .op_bench(DREEPY, DREEPY, pk(MUNKIDORI, energies=[G], fisicas=0))
-           .op_zonas(hand=5, deck=40, prizes=6)
+           .op_zones(hand=5, deck=40, prizes=6)
            .my_hand(MEOWTH, GRASS, GRASS)
            .deck(LILLIE, BAYLEEF, OGERPON, APPLIN)
            .rest_to_discard()

@@ -101,7 +101,7 @@ def _scenario(active=None, bench=None, hand=(GRASS, ULTRA_BALL),
             .my_bench(*bench)
             .my_hand(*hand)
             .op_active(pk(ALAKAZAM, hp=op_hp, energies=[G] * op_energies))
-            .op_zonas(hand=6, deck=20, prizes=3))
+            .op_zones(hand=6, deck=20, prizes=3))
 
 
 def _destino(obs, choice):
@@ -182,7 +182,7 @@ def _scenario_meganium(active=None, hand=(GRASS, ULTRA_BALL)):
             .op_active(pk(SHAYMIN))
             .op_bench(pk(KADABRA, pre_evo=[ABRA]), pk(DUNSPARCE), pk(ABRA),
                       pk(DUNSPARCE))
-            .op_zonas(hand=8, deck=20, prizes=5))
+            .op_zones(hand=8, deck=20, prizes=5))
 
 
 def test_with_meganium_in_play_the_grass_still_goes_to_the_trapped_active():
@@ -311,7 +311,7 @@ def _scenario_88631738(active=None, hand=(GRASS, GRASS, ULTRA_BALL),
             .my_hand(*hand)
             .op_active(pk(MEGA_STARMIE, hp=240))
             .op_bench(pk(1030))
-            .op_zonas(hand=2, deck=39, prizes=4))
+            .op_zones(hand=2, deck=39, prizes=4))
 
 
 def test_88631738_the_ability_charges_the_active_with_the_attachment_spent():
@@ -376,7 +376,7 @@ def _scenario_cost_3(active_e=1, hand=(GRASS, GRASS, ULTRA_BALL),
                       pk(MEOWTH))
             .my_hand(*hand)
             .op_active(pk(ALAKAZAM, hp=140, energies=[G]))
-            .op_zonas(hand=6, deck=20, prizes=3))
+            .op_zones(hand=6, deck=20, prizes=3))
 
 
 def test_with_a_budget_of_one_grass_there_is_no_line():

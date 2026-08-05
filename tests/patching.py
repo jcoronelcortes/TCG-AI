@@ -85,7 +85,7 @@ def instalar(name, value):
     for mod, _ in previos:
         setattr(mod, name, value)
 
-    def restaurar():
+    def restore():
         for mod, viejo in previos:
             setattr(mod, name, viejo)
-    return restaurar
+    return restore

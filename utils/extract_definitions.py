@@ -27,8 +27,8 @@ The batch is described in a Python file with a `MODULOS` dict:
     }
 
 Usage:
-    python utils/extract_definitions.py lote.py            # a dry run
-    python utils/extract_definitions.py lote.py --apply
+    python utils/extract_definitions.py batch.py            # a dry run
+    python utils/extract_definitions.py batch.py --apply
 """
 
 import argparse
@@ -87,7 +87,7 @@ def _block_with_comments(lines, node):
     return ini, node.end_lineno
 
 
-def planificar(lote, main_py):
+def planificar(batch, main_py):
     a = analizar(main_py)
     src = Path(main_py).read_text(encoding="utf-8")
     lines = src.splitlines(keepends=True)
@@ -96,22 +96,22 @@ def planificar(lote, main_py):
     mapa = _mapa_paquete()
 
     donde = {}
-    for mod, spec in lote.items():
+    for mod, spec in batch.items():
         for n in spec["nombres"]:
             donde[n] = mod
 
     # A batch can list `def`/`class` and also ASSIGNMENTS: the
     # `_REGLAS_*`/`_AJUSTES_*` tables of the rules engine are data belonging to the
     # module of their card, and without them the scorer cannot move.
-    nodos = dict(a["definiciones"])
+    nodes = dict(a["definiciones"])
     libres = dict(a["libres"])
     for n, node in a["asignaciones"].items():
-        nodos.setdefault(n, node)
+        nodes.setdefault(n, node)
         libres.setdefault(n, free_names(node))
 
     problemas = []
     for n in donde:
-        if n not in nodos:
+        if n not in nodes:
             problemas.append(f"{n}: no esta a nivel de modulo en main.py")
         elif n in a["definiciones"] and n not in a["movibles"]:
             problemas.append(f"{n}: NO es puro ({a['razon'].get(n, '?')})")
@@ -119,7 +119,7 @@ def planificar(lote, main_py):
             problemas.append(f"{n}: es estado MUTABLE, no una tabla constante")
 
     plan = {}
-    for mod, spec in lote.items():
+    for mod, spec in batch.items():
         names = spec["nombres"]
         imports_stdlib, imports_from, of_the_package, cruzados = set(), {}, {}, {}
         for n in names:
@@ -161,7 +161,7 @@ def planificar(lote, main_py):
 
         rangos = []
         for n in names:
-            rangos.append((_block_with_comments(lines, nodos[n]), n))
+            rangos.append((_block_with_comments(lines, nodes[n]), n))
         rangos.sort()
         plan[mod] = {
             "title": spec.get("title", "Extraido de main.py."),
@@ -190,13 +190,13 @@ def _imports_header(info, mod_actual):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("lote", help="a .py file holding the MODULOS dict")
+    ap.add_argument("batch", help="a .py file holding the MODULOS dict")
     ap.add_argument("--main", default=str(PROJECT_ROOT / "main.py"))
     ap.add_argument("--apply", action="store_true")
     args = ap.parse_args()
 
-    lote = runpy.run_path(args.lote)["MODULOS"]
-    plan, problemas, lines = planificar(lote, args.main)
+    batch = runpy.run_path(args.batch)["MODULOS"]
+    plan, problemas, lines = planificar(batch, args.main)
 
     total = 0
     for mod, info in plan.items():

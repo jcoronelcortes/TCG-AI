@@ -214,8 +214,8 @@ def test_step84_the_veto_depends_on_the_field_not_the_discard():
     yo = obs[85]["current"]["yourIndex"]
     discard = [c["id"] for c in obs[85]["current"]["players"][yo]["discard"]]
     assert APPLIN in discard and DIPPLIN in discard
-    campo = obs[84]["current"]["players"][yo]
-    in_play = [c["id"] for c in campo["active"] + campo["bench"] if c]
+    field = obs[84]["current"]["players"][yo]
+    in_play = [c["id"] for c in field["active"] + field["bench"] if c]
     assert APPLIN not in in_play
     m.agent(obs[76])
     assert _card_from_hand(obs[84], m.agent(obs[84])) != NIGHT_STRETCHER

@@ -115,9 +115,9 @@ class _Ctx:
             self.energies = []
 
     def __init__(self, hand, op_hand=11, supporter_played=False,
-                 alakazam=True, campo=None, deck=None):
+                 alakazam=True, field=None, deck=None):
         self.hand_counts = dict(hand)
-        self.field_counts = dict(campo or {})
+        self.field_counts = dict(field or {})
         self.bench_count = 3
         self.state = self._State(supporter_played)
         self.op_hand_count = op_hand
@@ -199,7 +199,7 @@ def test_real_fodder_respects_the_evolution_pieces():
     keeps it and lets the Supporter go in its place."""
     ctx = _Ctx({m.Meganium: 1, m.Basic_Grass_Energy: 1,
                 m.Lillie_Determination: 1, m.Ultra_Ball: 1},
-               campo={m.Bayleef: 1})
+               field={m.Bayleef: 1})
     assert m._ub_real_fodder(ctx, m.Lillie_Determination) == 1
     assert m._ub_cancel_lillie(ctx)
 

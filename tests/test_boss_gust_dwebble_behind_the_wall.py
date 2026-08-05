@@ -96,7 +96,7 @@ def _scenario(op_active=None, op_bench=None, hand=(BOSS, XEROSIC, ULTRA_BALL)):
             .my_hand(*hand)
             .op_active(op_active)
             .op_bench(*op_bench)
-            .op_zonas(hand=8, deck=30, prizes=6))
+            .op_zones(hand=8, deck=30, prizes=6))
 
 
 def _play(obs, choice, hand):
@@ -171,7 +171,7 @@ def test_with_the_wall_but_no_ko_the_dwebble_is_still_vetoed():
            .my_hand(BOSS, ULTRA_BALL)
            .op_active(pk(CRUSTLE))
            .op_bench(pk(DWEBBLE), pk(CRUSTLE))
-           .op_zonas(hand=8, deck=30, prizes=6)
+           .op_zones(hand=8, deck=30, prizes=6)
            .menu_gust().build())
     idx = obs["select"]["option"][m.agent(obs)[0]]["index"]
     assert obs["current"]["players"][1]["bench"][idx]["id"] != DWEBBLE

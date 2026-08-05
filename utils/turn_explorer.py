@@ -43,7 +43,7 @@ for _p in (_ROOT, _ROOT / "utils", _ROOT / "tests"):
 import main as m
 from cg.api import OptionType
 
-MAX_NODOS = 30000
+MAX_NODES = 30000
 
 
 # --------------------------------------------------------------------------
@@ -405,7 +405,7 @@ def evaluar_terminal(obs, ataca):
     return (int(gana), prizes, damage, desarrollo)
 
 
-def explore(obs, max_nodos=MAX_NODOS, respetar_menu=False):
+def explore(obs, max_nodes=MAX_NODES, respetar_menu=False):
     """Returns (best_score, best_line) by exploring the complete turn.
 
     With `respetar_menu` (step 6b), the ROOT node only generates actions whose
@@ -419,12 +419,12 @@ def explore(obs, max_nodos=MAX_NODOS, respetar_menu=False):
         inicial["_respetar_menu"] = True
     best = [None, None]
     vistos = set()
-    nodos = [0]
+    nodes = [0]
 
     def dfs(state, line):
-        if nodos[0] >= max_nodos:
+        if nodes[0] >= max_nodes:
             return
-        nodos[0] += 1
+        nodes[0] += 1
         for etiqueta, apply in acciones_legales(state):
             if apply is None:  # terminal: ATTACK or END
                 p = evaluar_terminal(state, etiqueta == "ATTACK")
@@ -443,7 +443,7 @@ def explore(obs, max_nodos=MAX_NODOS, respetar_menu=False):
             dfs(nuevo, line + [etiqueta])
 
     dfs(inicial, [])
-    return best[0], best[1], nodos[0]
+    return best[0], best[1], nodes[0]
 
 
 def turn_of(finding):
@@ -459,15 +459,15 @@ def turn_of(finding):
     return finding.get("turno", finding.get("turn", "?"))
 
 
-def compare_finding(path, index=0, max_nodos=MAX_NODOS):
+def compare_finding(path, index=0, max_nodes=MAX_NODES):
     data = json.loads(Path(path).read_text())
     h = data["hallazgos"][index]
     obs = h["observation"]
     # A real autopsy finding: the simulator's menu rules at the root node.
-    score, line, nodos = explore(obs, max_nodos, respetar_menu=True)
+    score, line, nodes = explore(obs, max_nodes, respetar_menu=True)
     print(f"{Path(path).name} [{h['detector']} turn {turn_of(h)}]")
     print(f"  agent in the game: {h['detalle']}")
-    print(f"  best line found by the explorer ({nodos} nodos): "
+    print(f"  best line found by the explorer ({nodes} nodos): "
           f"{' -> '.join(line)}")
     print(f"  evaluation (wins, prizes, damage, development): {score}")
     return score, line
@@ -485,16 +485,16 @@ def demo_combo_myriad():
            .op_active(pk(271, hp=120, max_hp=120))          # Kilowattrel
            .op_bench(pk(269, hp=280, max_hp=280,
                         energies=[G, G, G, G]))             # Bellibolt ex
-           .op_zonas(hand=5, deck=30, prizes=3)
+           .op_zones(hand=5, deck=30, prizes=3)
            .menu_teal_dance_options()
            .build())
-    score, line, nodos = explore(obs)
+    score, line, nodes = explore(obs)
     print("demo combo Myriad (registro_012 paso 227):")
-    print(f"  mejor linea ({nodos} nodos): {' -> '.join(line)}")
+    print(f"  mejor linea ({nodes} nodos): {' -> '.join(line)}")
     print(f"  evaluacion: {score}")
-    esperado = score[0] == 1 and score[1] == 2
-    print(f"  {'OK: it finds the WINNING 2-prize line' if esperado else 'FALLO'}")
-    return 0 if esperado else 1
+    expected = score[0] == 1 and score[1] == 2
+    print(f"  {'OK: it finds the WINNING 2-prize line' if expected else 'FALLO'}")
+    return 0 if expected else 1
 
 
 def main(argv):

@@ -165,7 +165,7 @@ def _scenario(op_active=None, my_active=None, own_prizes=None,
             .my_hand(*hand)
             .op_active(op_active)
             .op_bench(pk(OGERPON, energies=[G]), pk(DWEBBLE))
-            .op_zonas(hand=6, deck=30, prizes=6)
+            .op_zones(hand=6, deck=30, prizes=6)
             .menu_hand(with_attack=True)
             .build())
 

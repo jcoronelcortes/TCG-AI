@@ -91,7 +91,7 @@ def _turn_close(opponent_active="grimmsnarl", hp_ogerpon=30):
            .op_active(opponent_act)
            .op_bench(opponent_bench, pk(SNORUNT, hp=70, max_hp=70),
                      pk(IMPIDIMP, hp=70, max_hp=70, energies=[DARK, DARK]))
-           .op_zonas(hand=5, deck=32, prizes=6))
+           .op_zones(hand=5, deck=32, prizes=6))
     esc.deck(*sorted(esc._pool.elements())[:34]).rest_to_discard()
     obs = esc.menu_hand(with_retreat=True).build()
     obs["select"]["option"] = [

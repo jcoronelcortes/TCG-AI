@@ -1601,7 +1601,7 @@ def score_play(tc, o, score):
                     # _REGLAS_UB_* (before agent()). PTCG_DEBUG
                     # prints the trace of each resolution.
                     _ub_fetch_ctx = _CtxUBFetch(
-                        hand=hand_counts, campo=field_counts,
+                        hand=hand_counts, field=field_counts,
                         evolvable=_ub_evolvable, bench_count=bench_count,
                         prefer_meowth_develop=_ub_prefer_meowth_develop,
                         t1_going_second_need_ogerpon=_t1_going_second_need_ogerpon,

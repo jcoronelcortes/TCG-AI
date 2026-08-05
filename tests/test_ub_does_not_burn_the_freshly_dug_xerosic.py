@@ -131,9 +131,9 @@ class _Ctx:
             self.supporterPlayed = supporter_played
             self.turn = 4
 
-    def __init__(self, hand, supporter_played=False, campo=None):
+    def __init__(self, hand, supporter_played=False, field=None):
         self.hand_counts = dict(hand)
-        self.field_counts = dict(campo or {})
+        self.field_counts = dict(field or {})
         self.bench_count = 4
         self.state = self._State(supporter_played)
         self.ko_last_turn = False

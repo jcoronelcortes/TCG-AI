@@ -81,7 +81,7 @@ def _ns_crustle_evos_permitidas(w):
 @dataclass
 class _CtxNS:
     hand: dict
-    campo: dict
+    field: dict
     evolvable_ns: dict
     bench_count: int
     total_grass: int
@@ -119,7 +119,7 @@ def _v_ns_grass_none_in_hand(c):
     v = 600
     if not c.energy_attached:
         v = 700
-    if (c.campo.get(Teal_Mask_Ogerpon_ex, 0) >= 1
+    if (c.field.get(Teal_Mask_Ogerpon_ex, 0) >= 1
             and c.hand.get(Basic_Grass_Energy, 0) == 0):
         v = 750
     return v
@@ -129,7 +129,7 @@ def _ns_meowth_engine_alive(c):
     """The recovered Meowth ex is PUT DOWN this turn and its Last-Ditch Catch
     brings a Supporter from the deck that is better than anything left in hand."""
     return (not c.watchtower and c.ld_free
-            and c.campo.get(Meowth_ex, 0) < 2
+            and c.field.get(Meowth_ex, 0) < 2
             and c.bench_count < 5
             and not c.supporter_played
             and c.best_supp_hand_val < 500
@@ -140,7 +140,7 @@ def _ns_fez_engine_alive(c):
     """The recovered Fezandipiti ex is PUT DOWN this turn and Flip the Script
     draws 3 (it requires one of our own KOs on the previous turn)."""
     return (not c.watchtower and c.ko_reciente
-            and c.campo.get(Fezandipiti_ex, 0) == 0
+            and c.field.get(Fezandipiti_ex, 0) == 0
             and c.bench_count < 5)
 
 
@@ -559,7 +559,7 @@ def _ctx_ns_fetch(my_state, state, hand_counts, field_counts, bench_count,
             my_state, op_state, bench_count,
             AGENT_STATE.meganium_in_play, neutralization_zone_active))
     return _CtxNS(
-        hand=hand_counts, campo=field_counts, evolvable_ns=evolvable_ns,
+        hand=hand_counts, field=field_counts, evolvable_ns=evolvable_ns,
         bench_count=bench_count, total_grass=total_grass,
         has_hydrapple=has_hydrapple,
         active_needs_energy=active_needs_energy,
@@ -611,7 +611,7 @@ def _v_ns_applin_arrancar(c):
 
 def _v_ns_ogerpon_pocos(c):
     v = 550
-    if c.campo.get(Teal_Mask_Ogerpon_ex, 0) == 0:
+    if c.field.get(Teal_Mask_Ogerpon_ex, 0) == 0:
         v = 700
     if c.bench_count <= 1:
         v += 100
@@ -679,17 +679,17 @@ _RULES_NS_FEZ = [
                           and _ns_fez_engine_alive(c)),
                lambda c: 1200),
     _FixedRule("refill_after_a_ko",
-               lambda c: (c.campo.get(Fezandipiti_ex, 0) == 0
+               lambda c: (c.field.get(Fezandipiti_ex, 0) == 0
                           and AGENT_STATE.ko_last_turn and c.bench_count < 5),
                lambda c: 850),
     # vs Lucario (which hits the bench): Fez only as an emergency body with an
     # empty bench; otherwise vetoed.
     _FixedRule("vs_lucario",
                lambda c: c.op_is_lucario,
-               lambda c: (200 if (c.campo.get(Fezandipiti_ex, 0) == 0
+               lambda c: (200 if (c.field.get(Fezandipiti_ex, 0) == 0
                                   and c.bench_count == 0) else SCORE_VETO)),
     _FixedRule("first_fez",
-               lambda c: c.campo.get(Fezandipiti_ex, 0) == 0,
+               lambda c: c.field.get(Fezandipiti_ex, 0) == 0,
                lambda c: 200),
 ]
 
@@ -697,9 +697,9 @@ _RULES_NS_FEZ = [
 _RULES_NS_CHIKORITA = [
     _FixedRule("start_the_meganium_line",
                lambda c: (not AGENT_STATE.meganium_in_play
-                          and (c.campo.get(Chikorita, 0)
-                               + c.campo.get(Bayleef, 0)
-                               + c.campo.get(Meganium, 0)) == 0),
+                          and (c.field.get(Chikorita, 0)
+                               + c.field.get(Bayleef, 0)
+                               + c.field.get(Meganium, 0)) == 0),
                _v_ns_chikorita_arrancar),
 ]
 
@@ -709,9 +709,9 @@ _RULES_NS_APPLIN = [
                lambda c: c.has_hydrapple,
                lambda c: 35),
     _FixedRule("start_the_hydra_line",
-               lambda c: (c.campo.get(Applin, 0)
-                          + c.campo.get(Dipplin, 0)
-                          + c.campo.get(Hydrapple_ex, 0)) == 0,
+               lambda c: (c.field.get(Applin, 0)
+                          + c.field.get(Dipplin, 0)
+                          + c.field.get(Hydrapple_ex, 0)) == 0,
                _v_ns_applin_arrancar),
     _FixedRule("short_bench",
                lambda c: c.bench_count <= 1,
@@ -721,13 +721,13 @@ _RULES_NS_APPLIN = [
 
 _RULES_NS_OGERPON = [
     _FixedRule("fewer_than_two_ogerpon",
-               lambda c: c.campo.get(Teal_Mask_Ogerpon_ex, 0) < 2,
+               lambda c: c.field.get(Teal_Mask_Ogerpon_ex, 0) < 2,
                _v_ns_ogerpon_pocos),
     # A 3rd Ogerpon as a Syrup Storm accelerator (Teal Dance adds Grass).
     _FixedRule("third_ogerpon_for_syrup",
                lambda c: (c.bench_count < 5
                           and c.hand.get(Basic_Grass_Energy, 0) >= 1
-                          and c.campo.get(Hydrapple_ex, 0) >= 1),
+                          and c.field.get(Hydrapple_ex, 0) >= 1),
                lambda c: 500),
 ]
 
@@ -738,7 +738,7 @@ _RULES_NS_TAPU = [
                lambda c: c.dragapult_no_tapu,
                lambda c: SCORE_VETO),
     _FixedRule("tapu_already_on_field",
-               lambda c: c.campo.get(Tapu_Bulu, 0) >= 1,
+               lambda c: c.field.get(Tapu_Bulu, 0) >= 1,
                lambda c: 15),
     _FixedRule("anti_ex_with_meganium",
                lambda c: (AGENT_STATE.meganium_in_play
@@ -753,7 +753,7 @@ _RULES_NS_TAPU = [
 
 _RULES_NS_PINSIR = [
     _FixedRule("anti_ex",
-               lambda c: (c.campo.get(Pinsir, 0) == 0
+               lambda c: (c.field.get(Pinsir, 0) == 0
                           and (AGENT_STATE.op_is_crustle_deck
                                or AGENT_STATE.op_is_cornerstone_deck)),
                lambda c: 850),
@@ -774,7 +774,7 @@ _RULES_NS_MEOWTH = [
     # deck that beats what is in hand.
     _FixedRule("fetch_supporter_from_deck",
                lambda c: (not c.watchtower
-                          and c.campo.get(Meowth_ex, 0) == 0
+                          and c.field.get(Meowth_ex, 0) == 0
                           and c.bench_count < 5
                           and not c.supporter_played
                           and c.best_supp_hand_val < 500
@@ -794,7 +794,7 @@ _RULES_NS_HYDRAPPLE = [
                           and not c.has_hydrapple),
                lambda c: 980),
     _FixedRule("applin_dipplin_chain_in_hand",
-               lambda c: (c.campo.get(Applin, 0) >= 1
+               lambda c: (c.field.get(Applin, 0) >= 1
                           and c.hand.get(Dipplin, 0) >= 1
                           and AGENT_STATE.forest_in_play and not c.has_hydrapple),
                lambda c: 960),
@@ -807,7 +807,7 @@ _RULES_NS_MEGANIUM = [
                           and not AGENT_STATE.meganium_in_play),
                lambda c: 990),
     _FixedRule("chikorita_bayleef_chain_in_hand",
-               lambda c: (c.campo.get(Chikorita, 0) >= 1
+               lambda c: (c.field.get(Chikorita, 0) >= 1
                           and c.hand.get(Bayleef, 0) >= 1
                           and AGENT_STATE.forest_in_play and not AGENT_STATE.meganium_in_play),
                lambda c: 975),

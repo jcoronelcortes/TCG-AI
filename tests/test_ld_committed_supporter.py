@@ -244,7 +244,7 @@ def _synthetic_menu(hand):
             .my_hand(*hand)
             .op_active(pk(CHIKORITA_OPPONENT, energies=[C]))
             .op_bench(pk(ABRA, hp=70, max_hp=70))
-            .op_zonas(hand=5, deck=30, prizes=5)
+            .op_zones(hand=5, deck=30, prizes=5)
             .menu_hand()
             .build())
 

@@ -109,10 +109,10 @@ def main():
     for i, opponent in enumerate(chosen_ones):
         # Alternating seats: our decisions are not the same going
         # first as going second, and the corpus must cover both.
-        asiento = i % 2
+        seat = i % 2
         steps, result = _record_game(
-            agent_state, bot, deck_nuestro, sp.read_deck(opponent), asiento)
-        name = f"registro_{i:03d}_{opponent.stem}_asiento{asiento}.json"
+            agent_state, bot, deck_nuestro, sp.read_deck(opponent), seat)
+        name = f"registro_{i:03d}_{opponent.stem}_asiento{seat}.json"
         (RECORDS / name).write_text(
             json.dumps({"steps": steps}, ensure_ascii=False), encoding="utf-8")
         total_steps += len(steps)

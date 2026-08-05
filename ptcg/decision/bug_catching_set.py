@@ -134,12 +134,12 @@ class _CtxBCS:
         elif total <= 7:
             self.p_find = 1.0
         else:
-            p_miss, restante = 1.0, total
+            p_miss, remaining = 1.0, total
             for _ in range(min(7, total)):
-                if restante <= 0:
+                if remaining <= 0:
                     break
-                p_miss *= (restante - self.elegibles) / restante
-                restante -= 1
+                p_miss *= (remaining - self.elegibles) / remaining
+                remaining -= 1
             self.p_find = 1.0 - p_miss
 
     def __getattr__(self, name):

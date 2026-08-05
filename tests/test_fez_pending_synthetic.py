@@ -112,7 +112,7 @@ def _build_turn():
     m._ko_detected_this_turn = True
 
 
-def _campo(esc, full_bench=False):
+def _field(esc, full_bench=False):
     """The board common to both menus."""
     extra = (m.Tapu_Bulu,) if full_bench else ()
     return (esc
@@ -124,13 +124,13 @@ def _campo(esc, full_bench=False):
                       OGERPON, *extra)
             .op_active(pk(MEGA_LUCARIO, hp=340, max_hp=340))
             .op_bench(RIOLU)
-            .op_zonas(hand=5, deck=30, prizes=4))
+            .op_zones(hand=5, deck=30, prizes=4))
 
 
 def _menu_fetch():
     """Menu A: the Ultra Ball fetch, with a Fezandipiti ex in the deck."""
     esc = Scenario(turn=TURN, step=90, tac=5, own_prizes=3)
-    return (_campo(esc)
+    return (_field(esc)
             .my_hand(STAMP)
             .deck(FEZ, CHIKORITA, APPLIN)
             # `fetch_ultra_ball()` consumes an Ultra Ball from the pool (the card "in
@@ -146,7 +146,7 @@ def _menu_play_body(full_bench=False):
     """Menu B: the next MAIN. A THIN hand (Stamp + Fez) so the Stamp
     scores in its high band and the test really discriminates."""
     esc = Scenario(turn=TURN, step=91, tac=6, own_prizes=3)
-    return (_campo(esc, full_bench=full_bench)
+    return (_field(esc, full_bench=full_bench)
             .my_hand(STAMP, FEZ)
             .deck(CHIKORITA, APPLIN)      # `rest_to_discard()` requires it
             .rest_to_discard()

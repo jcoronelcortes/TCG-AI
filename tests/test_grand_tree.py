@@ -100,7 +100,7 @@ def _planes(active, bench, hand=(), deck=None, veta_ex=False,
            .my_hand(*hand)
            .stadium(GRAND_TREE, of_the_opponent=True)
            .op_active(pk(KANGASKHAN, hp=400))
-           .op_zonas(hand=5, deck=30, prizes=4))
+           .op_zones(hand=5, deck=30, prizes=4))
     if deck is not None:
         esc = esc.deck(*deck).rest_to_discard()
     obs = esc.menu_grand_tree_options().build()
@@ -194,7 +194,7 @@ def test_it_prefers_the_bench_when_the_active_is_doomed():
            .my_bench(pk(APPLIN))
            .stadium(GRAND_TREE, of_the_opponent=True)
            .op_active(pk(KANGASKHAN, hp=400))
-           .op_zonas(hand=5, deck=30, prizes=4))
+           .op_zones(hand=5, deck=30, prizes=4))
     obs = esc.menu_grand_tree_options().build()
     m.agent(obs)
     from cg.api import to_observation_class
@@ -218,7 +218,7 @@ def _obs_menu(hand=(), bench=None, with_forest=False, deck=None, turn=8):
            .my_hand(*hand)
            .stadium(GRAND_TREE, of_the_opponent=True)
            .op_active(pk(KANGASKHAN, hp=400))
-           .op_zonas(hand=5, deck=30, prizes=4))
+           .op_zones(hand=5, deck=30, prizes=4))
     if deck is not None:
         esc = esc.deck(*deck).rest_to_discard()
     return esc.menu_grand_tree_options(with_forest=with_forest).build()
@@ -261,7 +261,7 @@ def test_the_ability_comes_before_evolving_from_hand():
            .my_hand(BAYLEEF)
            .stadium(GRAND_TREE, of_the_opponent=True)
            .op_active(pk(KANGASKHAN, hp=400))
-           .op_zonas(hand=5, deck=30, prizes=4))
+           .op_zones(hand=5, deck=30, prizes=4))
     obs = esc.menu_grand_tree_options(with_evolution_in_hand=True).build()
     choice = m.agent(obs)
     assert obs["select"]["option"][choice[0]]["type"] == int(m.OptionType.ABILITY)
@@ -280,7 +280,7 @@ def test_choosing_the_pokemon_to_evolve_follows_the_plan():
                      pk(APPLIN), pk(CHIKORITA))
            .stadium(GRAND_TREE, of_the_opponent=True)
            .op_active(pk(KANGASKHAN, hp=400))
-           .op_zonas(hand=5, deck=30, prizes=4))
+           .op_zones(hand=5, deck=30, prizes=4))
     obs = esc.grand_tree_selection_in_play().build()
     choice = m.agent(obs)
     elegida = obs["select"]["option"][choice[0]]
@@ -297,7 +297,7 @@ def test_choosing_the_card_from_the_deck_follows_the_plan():
                      pk(APPLIN), pk(CHIKORITA))
            .stadium(GRAND_TREE, of_the_opponent=True)
            .op_active(pk(KANGASKHAN, hp=400))
-           .op_zonas(hand=5, deck=30, prizes=4)
+           .op_zones(hand=5, deck=30, prizes=4)
            .deck(DIPPLIN, BAYLEEF, HYDRAPPLE, GRASS)
            .rest_to_discard())
     obs = esc.grand_tree_selection_deck(DIPPLIN, BAYLEEF).build()
@@ -315,7 +315,7 @@ def test_step_2_brings_the_stage_2_even_if_the_plan_no_longer_points_at_the_basi
            .my_bench(pk(DIPPLIN, pre_evo=[APPLIN]))
            .stadium(GRAND_TREE, of_the_opponent=True)
            .op_active(pk(KANGASKHAN, hp=400))
-           .op_zonas(hand=5, deck=30, prizes=4)
+           .op_zones(hand=5, deck=30, prizes=4)
            .deck(HYDRAPPLE, GRASS)
            .rest_to_discard())
     obs = esc.grand_tree_selection_deck(HYDRAPPLE).build()
@@ -337,7 +337,7 @@ def test_the_ultra_ball_searches_the_root_basic_if_there_is_none():
            .my_hand(GRASS, GRASS)
            .stadium(GRAND_TREE, of_the_opponent=True)
            .op_active(pk(KANGASKHAN, hp=400))
-           .op_zonas(hand=5, deck=30, prizes=4)
+           .op_zones(hand=5, deck=30, prizes=4)
            .deck(APPLIN, DIPPLIN, HYDRAPPLE, CHIKORITA, BAYLEEF, MEGANIUM,
                  GRASS, GRASS)
            .fetch_ultra_ball()
@@ -357,7 +357,7 @@ def test_without_grand_tree_the_fetch_bonus_does_not_exist():
                .my_bench(pk(TAPU, energies=[G, G]))
                .my_hand(GRASS, GRASS)
                .op_active(pk(KANGASKHAN, hp=400))
-               .op_zonas(hand=5, deck=30, prizes=4))
+               .op_zones(hand=5, deck=30, prizes=4))
         if stadium is not None:
             esc = esc.stadium(stadium, of_the_opponent=True)
         obs = (esc.deck(APPLIN, DIPPLIN, HYDRAPPLE, CHIKORITA, BAYLEEF,
@@ -390,7 +390,7 @@ def test_with_the_root_in_play_the_search_is_not_forced():
            .my_hand(GRASS, GRASS)
            .stadium(GRAND_TREE, of_the_opponent=True)
            .op_active(pk(KANGASKHAN, hp=400))
-           .op_zonas(hand=5, deck=30, prizes=4)
+           .op_zones(hand=5, deck=30, prizes=4)
            .deck(APPLIN, DIPPLIN, HYDRAPPLE, CHIKORITA, BAYLEEF, MEGANIUM,
                  GRASS, GRASS)
            .fetch_ultra_ball()

@@ -170,9 +170,9 @@ def our_index(data):
             if not cur:
                 continue
             if item.get("status") == "ACTIVE" and obs.get("select"):
-                asiento = cur.get("yourIndex")
-                if asiento in (0, 1):
-                    decide[asiento] += 1
+                seat = cur.get("yourIndex")
+                if seat in (0, 1):
+                    decide[seat] += 1
             for idx, player in enumerate(cur.get("players", [])):
                 vistas = []
                 for pk in (player.get("active") or []) + (

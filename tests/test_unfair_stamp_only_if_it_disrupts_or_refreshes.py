@@ -190,13 +190,13 @@ def test_with_a_long_opponent_hand_the_stamp_returns_even_if_we_sacrifice_a_lot(
 
 def test_the_edge_of_our_own_hand():
     """Sacrificing 4 passes; sacrificing 5 no longer does (hand = sacrifice + the Stamp)."""
-    assert m._stamp_worth_playing(1, m.STAMP_MAX_HAND_SACRIFICADA + 1)
-    assert not m._stamp_worth_playing(1, m.STAMP_MAX_HAND_SACRIFICADA + 2)
+    assert m._stamp_worth_playing(1, m.STAMP_MAX_HAND_SACRIFICED + 1)
+    assert not m._stamp_worth_playing(1, m.STAMP_MAX_HAND_SACRIFICED + 2)
 
 
 def test_the_edge_of_the_opponent_hand():
     """The Stamp leaves the rival at 2: with 2 it takes nothing, with 3 it takes 1."""
-    big_hand = m.STAMP_MAX_HAND_SACRIFICADA + 5
+    big_hand = m.STAMP_MAX_HAND_SACRIFICED + 5
     assert not m._stamp_worth_playing(m.STAMP_MIN_OP_HAND - 1, big_hand)
     assert m._stamp_worth_playing(m.STAMP_MIN_OP_HAND, big_hand)
 
@@ -219,12 +219,12 @@ def test_with_no_data_it_invents_no_plays():
 def test_el_veto_no_lo_resucita_ningun_bonus_de_matchup(matchup):
     """`_AJUSTES_STAMP_PLAY` bonuses plays that are going to be made (+250..+400 by
     matchup); none of them must pull the veto (-1) up to positive numbers."""
-    ctx = _ctx(op_hand=1, hand=m.STAMP_MAX_HAND_SACRIFICADA + 2)
-    for campo in ("op_is_alakazam_deck", "op_is_control_deck",
+    ctx = _ctx(op_hand=1, hand=m.STAMP_MAX_HAND_SACRIFICED + 2)
+    for field in ("op_is_alakazam_deck", "op_is_control_deck",
                   "op_is_slowking_deck", "op_is_gardevoir_deck",
                   "op_is_zoroark_deck", "op_is_aggro_deck",
                   "op_is_beedrill_deck"):
-        setattr(ctx, campo, campo == matchup)
+        setattr(ctx, field, field == matchup)
     ctx.state = SimpleNamespace(turn=3, supporterPlayed=False,
                                 energyAttached=False)
     ctx.my_prize, ctx.op_prize = 4, 2
@@ -240,10 +240,10 @@ def test_el_veto_no_lo_resucita_ningun_bonus_de_matchup(matchup):
 def test_a_vetoed_stamp_stops_blocking_the_supporters():
     """`_stamp_pendiente` is the single source of the order vetoes (Boss's,
     Lillie's, Lana's, Dawn, Xerosic, the Meowth chain and Flip the Script)."""
-    espera = _ctx(op_hand=1, hand=m.STAMP_MAX_HAND_SACRIFICADA + 2)
-    assert not m._stamp_pendiente(espera)
+    wait = _ctx(op_hand=1, hand=m.STAMP_MAX_HAND_SACRIFICED + 2)
+    assert not m._stamp_pendiente(wait)
 
-    juega = _ctx(op_hand=1, hand=m.STAMP_MAX_HAND_SACRIFICADA + 1)
+    juega = _ctx(op_hand=1, hand=m.STAMP_MAX_HAND_SACRIFICED + 1)
     assert m._stamp_pendiente(juega)
 
 

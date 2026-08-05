@@ -799,7 +799,7 @@ XEROSIC_STAMP_ORDEN_MIN_OP_HAND = 10  # minimum opposing hand for Xerosic to be 
 #       itself) is <= 4 cards; above that the Stamp burns more playable
 #       resources than it returns.
 STAMP_MIN_OP_HAND = 3          # minimum opposing hand for the Stamp to DISRUPT (it leaves them at 2)
-STAMP_MAX_HAND_SACRIFICADA = 4  # our own cards (hand without the Stamp) that can be shuffled away
+STAMP_MAX_HAND_SACRIFICED = 4  # our own cards (hand without the Stamp) that can be shuffled away
 
 
 __all__ = [
@@ -1006,5 +1006,5 @@ __all__ = [
     'FISHING_PRIZES_MIN',
     'XEROSIC_STAMP_ORDEN_MIN_OP_HAND',
     'STAMP_MIN_OP_HAND',
-    'STAMP_MAX_HAND_SACRIFICADA',
+    'STAMP_MAX_HAND_SACRIFICED',
 ]

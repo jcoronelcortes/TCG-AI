@@ -242,12 +242,12 @@ def test_the_meowth_fetch_prediction_spots_the_duplicate():
     # Supporter in the deck and a copy in hand, the predicted target is that
     # duplicate (the signal that cancels the play).
     deck = {m.Xerosic_Machinations: {m.ZONE_DECK: 1}}
-    target, _ = m._meowth_fetch_prediccion(
+    target, _ = m._meowth_fetch_prediction(
         {m.Xerosic_Machinations: 1}, {}, 4, True, 12, False,
         False, False, False, False, True, deck)
     assert target == m.Xerosic_Machinations
     # Our first turn keeps the anti-donk exception (it is not capped).
-    target_t1, value_t1 = m._meowth_fetch_prediccion(
+    target_t1, value_t1 = m._meowth_fetch_prediction(
         {m.Xerosic_Machinations: 1}, {}, 4, True, 12, False,
         False, False, False, False, True, deck, first_turn=True)
     assert target_t1 == m.Xerosic_Machinations and value_t1 > 40

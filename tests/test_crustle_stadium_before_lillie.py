@@ -93,7 +93,7 @@ def _scenario(op_basico=DWEBBLE, with_lillie=True, supporter_played=False,
            .my_bench(pk(m.Applin))
            .my_hand(*hand)
            .op_active(pk(op_basico, hp=70, max_hp=70))
-           .op_zonas(hand=5, deck=50, prizes=6)
+           .op_zones(hand=5, deck=50, prizes=6)
            .menu_hand(with_attachment=True))
     return esc.build()
 

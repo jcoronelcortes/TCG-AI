@@ -45,15 +45,15 @@ from typing import Any, Callable
 RAIZ = Path(__file__).resolve().parent.parent
 
 # --- Request policy (the same as the published notebook) -------------------
-INTERVALO_PETICION_S = 2.0
-TAM_LOTE = 100
-ENFRIAMIENTO_LOTE_S = 60.0
-MAX_REINTENTOS = 6
-MAX_ESPERA_REINTENTO_S = 60.0
+REQUEST_INTERVAL_S = 2.0
+BATCH_SIZE = 100
+BATCH_COOLDOWN_S = 60.0
+MAX_RETRIES = 6
+MAX_RETRY_WAIT_S = 60.0
 RETRYABLE_STATUSES = {408, 425, 500, 502, 503, 504}
 
-COMPETICION = "pokemon-tcg-ai-battle"
-TAM_PAGINA_LEADERBOARD = 200
+COMPETITION = "pokemon-tcg-ai-battle"
+LEADERBOARD_PAGE_SIZE = 200
 
 # Basic energies: the only cards with no copy limit.
 BASIC_ENERGIES = set(range(1, 9))
@@ -205,7 +205,7 @@ def a_float(value: Any) -> float:
 # ---------------------------------------------------------------------------
 # Pacer + retries
 # ---------------------------------------------------------------------------
-class FalloDePeticion(RuntimeError):
+class RequestFailure(RuntimeError):
     def __init__(self, etiqueta: str, state: int | None, intentos: int):
         self.state = state
         self.intentos = intentos
@@ -213,29 +213,29 @@ class FalloDePeticion(RuntimeError):
         super().__init__(f"{etiqueta} fallo tras {intentos} intento(s) ({detail}).")
 
 
-class Marcapasos:
+class Pacer:
     """Spaces out ALL the requests and cools down after each batch."""
 
-    def __init__(self, interval: float, tam_lote: int, enfriamiento: float):
+    def __init__(self, interval: float, batch_size: int, cooldown: float):
         self.interval = float(interval)
-        self.tam_lote = int(tam_lote)
-        self.enfriamiento = float(enfriamiento)
+        self.batch_size = int(batch_size)
+        self.cooldown = float(cooldown)
         self.last_start = 0.0
-        self.peticiones = 0
+        self.requests = 0
 
     def esperar(self) -> None:
-        if self.peticiones and self.peticiones % self.tam_lote == 0:
-            print(f"  [pause] batch of {self.tam_lote} requests: {self.enfriamiento:.0f}s")
-            time.sleep(self.enfriamiento)
+        if self.requests and self.requests % self.batch_size == 0:
+            print(f"  [pause] batch of {self.batch_size} requests: {self.cooldown:.0f}s")
+            time.sleep(self.cooldown)
             self.last_start = time.monotonic()
         resto = self.interval - (time.monotonic() - self.last_start)
         if resto > 0:
             time.sleep(resto)
         self.last_start = time.monotonic()
-        self.peticiones += 1
+        self.requests += 1
 
 
-PACER = Marcapasos(INTERVALO_PETICION_S, TAM_LOTE, ENFRIAMIENTO_LOTE_S)
+PACER = Pacer(REQUEST_INTERVAL_S, BATCH_SIZE, BATCH_COOLDOWN_S)
 ERRORES: Counter[str] = Counter()
 
 
@@ -272,7 +272,7 @@ def llamar(etiqueta: str, func: Callable, *args, **kwargs):
     """An API call with pacing, retries and a 429 = do-not-insist policy."""
     last: Exception | None = None
     intentos = 0
-    for intento in range(MAX_REINTENTOS):
+    for intento in range(MAX_RETRIES):
         intentos = intento + 1
         PACER.esperar()
         try:
@@ -285,15 +285,15 @@ def llamar(etiqueta: str, func: Callable, *args, **kwargs):
             if state == 429:
                 break
             recuperable = state is None or state in RETRYABLE_STATUSES
-            if not recuperable or intento == MAX_REINTENTOS - 1:
+            if not recuperable or intento == MAX_RETRIES - 1:
                 break
-            espera = min(
-                MAX_ESPERA_REINTENTO_S,
+            wait = min(
+                MAX_RETRY_WAIT_S,
                 max(reintentar_tras(exc) or 0.0, 2.0 * (2**intento)) + random.uniform(0.25, 1.25),
             )
-            print(f"  [reintento] {etiqueta}: {state or type(exc).__name__}; espero {espera:.1f}s")
-            time.sleep(espera)
-    raise FalloDePeticion(etiqueta, http_status(last) if last else None, intentos) from last
+            print(f"  [reintento] {etiqueta}: {state or type(exc).__name__}; espero {wait:.1f}s")
+            time.sleep(wait)
+    raise RequestFailure(etiqueta, http_status(last) if last else None, intentos) from last
 
 
 # ---------------------------------------------------------------------------
@@ -360,15 +360,15 @@ def obtener_leaderboard(api, kaggle_mod, top_n: int) -> list[dict[str, Any]]:
 
     with api.build_kaggle_client() as cliente:
         while True:
-            peticion = ApiGetLeaderboardRequest()
-            peticion.competition_name = COMPETICION
-            peticion.page_size = TAM_PAGINA_LEADERBOARD
+            request = ApiGetLeaderboardRequest()
+            request.competition_name = COMPETITION
+            request.page_size = LEADERBOARD_PAGE_SIZE
             if token:
-                peticion.page_token = token
+                request.page_token = token
             respuesta = llamar(
                 "pagina de leaderboard",
                 cliente.competitions.competition_api_client.get_leaderboard,
-                peticion,
+                request,
             )
             rows.extend(como_dict(item) for item in (respuesta.submissions or []))
             next_item = str(respuesta.next_page_token or "")
@@ -411,19 +411,19 @@ def obtener_leaderboard(api, kaggle_mod, top_n: int) -> list[dict[str, Any]]:
 def elegir_submission(api, team_id: int, puntaje_lb: float) -> dict[str, Any] | None:
     """The public submission whose score is closest to the leaderboard's."""
     submissions = llamar("submissions del equipo", api.competition_team_submissions, int(team_id)) or []
-    candidatas: list[dict[str, Any]] = []
+    candidate_episodes: list[dict[str, Any]] = []
     for item in submissions:
         row = como_dict(item)
         sid = first(row, "id", "ref", "submissionId", "submission_id")
         if sid is None:
             continue
-        candidatas.append(
+        candidate_episodes.append(
             {
                 "submission_id": int(sid),
                 "puntaje": a_float(first(row, "publicScore", "public_score", "score")),
             }
         )
-    if not candidatas:
+    if not candidate_episodes:
         return None
 
     def order(row: dict[str, Any]):
@@ -431,7 +431,7 @@ def elegir_submission(api, team_id: int, puntaje_lb: float) -> dict[str, Any] | 
         distancia = abs(p - puntaje_lb) if not math.isnan(p) else math.inf
         return (distancia, -p if not math.isnan(p) else math.inf, -row["submission_id"])
 
-    return min(candidatas, key=order)
+    return min(candidate_episodes, key=order)
 
 
 # ---------------------------------------------------------------------------
@@ -469,10 +469,10 @@ def download_replay(api, episode_id: int, cache_dir: Path) -> dict[str, Any]:
             target_path.unlink(missing_ok=True)
 
     def once() -> bytes:
-        peticion = ApiGetEpisodeReplayRequest()
-        peticion.episode_id = int(episode_id)
+        request = ApiGetEpisodeReplayRequest()
+        request.episode_id = int(episode_id)
         with api.build_kaggle_client() as cliente:
-            respuesta = cliente.competitions.competition_api_client.get_episode_replay(peticion)
+            respuesta = cliente.competitions.competition_api_client.get_episode_replay(request)
             respuesta.raise_for_status()
             return respuesta.content
 
@@ -487,13 +487,13 @@ def extract_decks(replay: dict[str, Any]) -> dict[int, list[int]]:
     decks: dict[int, list[int]] = {}
 
     if len(steps) > 1 and isinstance(steps[1], list):
-        for asiento, entry in enumerate(steps[1]):
+        for seat, entry in enumerate(steps[1]):
             try:
                 accion = entry.get("action", [])
             except AttributeError:
                 continue
             if isinstance(accion, list) and len(accion) == 60 and all(isinstance(x, int) for x in accion):
-                decks[asiento] = [int(x) for x in accion]
+                decks[seat] = [int(x) for x in accion]
     if decks:
         return decks
 
@@ -502,9 +502,9 @@ def extract_decks(replay: dict[str, Any]) -> dict[int, list[int]]:
         visualize = steps[0][0].get("visualize", [])
         crudos = visualize[0].get("action", []) if visualize else []
         if isinstance(crudos, list) and len(crudos) == 2:
-            for asiento, deck in enumerate(crudos):
+            for seat, deck in enumerate(crudos):
                 if isinstance(deck, list) and len(deck) == 60:
-                    decks[asiento] = [int(x) for x in deck]
+                    decks[seat] = [int(x) for x in deck]
     except (AttributeError, IndexError, KeyError, TypeError, ValueError):
         pass
     return decks
@@ -538,8 +538,8 @@ class Recolector:
             except (TypeError, ValueError):
                 by_seat[order] = row
 
-        for asiento, deck in decks.items():
-            agent_state = by_seat.get(asiento, {})
+        for seat, deck in decks.items():
+            agent_state = by_seat.get(seat, {})
             sid = first(agent_state, "submissionId", "submission_id")
             if sid is None:
                 continue
@@ -587,11 +587,11 @@ def index_row(
     if names:
         # The most repeated Pokemon. CAREFUL: it is not the archetype -- it is usually a
         # support piece at 4 copies. The `arquetipo` column is the one that classifies.
-        candidatas = [(n, cid) for cid, n in conteo.items() if cid in pokemon]
-        if not candidatas:
-            candidatas = [(n, cid) for cid, n in conteo.items() if cid not in BASIC_ENERGIES]
-        if candidatas:
-            _, cid = max(candidatas, key=lambda t: (t[0], -t[1]))
+        candidate_episodes = [(n, cid) for cid, n in conteo.items() if cid in pokemon]
+        if not candidate_episodes:
+            candidate_episodes = [(n, cid) for cid, n in conteo.items() if cid not in BASIC_ENERGIES]
+        if candidate_episodes:
+            _, cid = max(candidate_episodes, key=lambda t: (t[0], -t[1]))
             principal = names.get(cid, "")
     return {
         "archivo": file_path,
@@ -718,7 +718,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--top", type=int, default=100, help="leaderboard positions to analyse (default 100)")
     parser.add_argument("--output", default=str(RAIZ / "competitor_decks"), help="output folder")
     parser.add_argument("--max-episodes", type=int, default=3, help="replays to try per competitor before giving up")
-    parser.add_argument("--interval", type=float, default=INTERVALO_PETICION_S, help="seconds between API requests")
+    parser.add_argument("--interval", type=float, default=REQUEST_INTERVAL_S, help="seconds between API requests")
     parser.add_argument("--no-extra", action="store_true", help="do not save opponent decks outside the top N")
     parser.add_argument(
         "--index-only",
@@ -785,7 +785,7 @@ def main(argv: list[str] | None = None) -> int:
         if elegida is None:
             try:
                 elegida = elegir_submission(api, team_id, row["puntaje"])
-            except FalloDePeticion as exc:
+            except RequestFailure as exc:
                 print(f"  pos {row['posicion']:>3}: no submission ({exc})")
                 without_submission += 1
                 continue
@@ -824,7 +824,7 @@ def main(argv: list[str] | None = None) -> int:
 
         try:
             episodios = listar_episodios(api, sid)
-        except FalloDePeticion as exc:
+        except RequestFailure as exc:
             print(f"  pos {posicion:>3}: no history ({exc})")
             failures["episodios"] += 1
             continue
@@ -837,7 +837,7 @@ def main(argv: list[str] | None = None) -> int:
             eid = int(episodio["id"])
             try:
                 replay = download_replay(api, eid, cache_dir)
-            except FalloDePeticion as exc:
+            except RequestFailure as exc:
                 failures["replay"] += 1
                 if exc.state == 429:
                     print(f"  pos {posicion:>3}: HTTP 429, skipped")
@@ -874,7 +874,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Decks in the top {args.top}: {n_principal}/{len(leaderboard_rows)}  ->  {out_dir}/mazo_XXX.csv")
     if n_extra:
         print(f"Extra opponent decks (free, outside the top): {n_extra}  ->  {out_dir}/adicionales/")
-    print(f"Replays descargados: {len(recolector.episodios_usados)} | API requests: {PACER.peticiones}")
+    print(f"Replays descargados: {len(recolector.episodios_usados)} | API requests: {PACER.requests}")
     print(f"Decks with build warnings: {with_warnings}")
     if failures:
         print("Fallos:", dict(failures))

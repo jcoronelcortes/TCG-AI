@@ -159,7 +159,7 @@ def _step_184(op_prizes=1, my_prizes=1, tapu_hp=20, ogerpon_energies=6):
             .op_active(pk(IMPIDIMP))
             .op_bench(pk(IMPIDIMP), pk(IMPIDIMP), pk(IMPIDIMP),
                       pk(IMPIDIMP), pk(IMPIDIMP))
-            .op_zonas(hand=4, deck=25, prizes=op_prizes))
+            .op_zones(hand=4, deck=25, prizes=op_prizes))
 
 
 def _tipo_elegido(obs, choice):
@@ -193,7 +193,7 @@ def test_with_no_relief_on_the_bench_the_draw_is_the_best_outcome_and_is_not_vet
            .my_hand(GRASS)
            .op_active(pk(IMPIDIMP))
            .op_bench(pk(IMPIDIMP))
-           .op_zonas(hand=4, deck=25, prizes=1)
+           .op_zones(hand=4, deck=25, prizes=1)
            .menu_hand(with_retreat=True, with_attack=True).build())
     assert _scores(obs)[_index(obs, m.OptionType.ATTACK)] > 0
 
@@ -225,7 +225,7 @@ def test_a_suicidal_finisher_that_loses_is_vetoed_even_with_no_relief():
            .my_hand(GRASS)
            .op_active(pk(ARCHALUDON_EX, hp=300, max_hp=300))
            .op_bench(pk(IMPIDIMP))
-           .op_zonas(hand=4, deck=25, prizes=1)
+           .op_zones(hand=4, deck=25, prizes=1)
            .menu_hand(with_retreat=True, with_attack=True).build())
     scores = _scores(obs)
     assert scores[_index(obs, m.OptionType.ATTACK)] <= 0

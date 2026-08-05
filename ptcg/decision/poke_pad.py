@@ -159,7 +159,7 @@ class _CtxPPFetch:
                  state):
         self.card_id = card_id
         self.hand = hand_counts
-        self.campo = field_counts
+        self.field = field_counts
         self.bench_count = bench_count
         self.first_turn = ((state.turn == 1 and AGENT_STATE.we_go_first) or
                            (state.turn == 2 and not AGENT_STATE.we_go_first))
@@ -205,21 +205,21 @@ _RULES_PP_FETCH = [
                lambda c: (c.has_evo and c.card_id == Meganium
                           and not AGENT_STATE.meganium_in_play
                           and c.hand.get(Meganium, 0) == 0
-                          and c.campo.get(Bayleef, 0) >= 1),
+                          and c.field.get(Bayleef, 0) >= 1),
                lambda c: 1000),
     _FixedRule("evo_meganium_rush",
                lambda c: (c.has_evo and c.card_id == Meganium
                           and not AGENT_STATE.meganium_in_play
                           and c.hand.get(Meganium, 0) == 0
                           and AGENT_STATE.forest_in_play
-                          and c.campo.get(Chikorita, 0) >= 1
+                          and c.field.get(Chikorita, 0) >= 1
                           and c.hand.get(Bayleef, 0) >= 1),
                lambda c: 900),
     _FixedRule("evo_bayleef_rush",
                lambda c: (c.has_evo and c.card_id == Bayleef
                           and not AGENT_STATE.meganium_in_play
                           and c.hand.get(Bayleef, 0) == 0
-                          and c.campo.get(Chikorita, 0) >= 1
+                          and c.field.get(Chikorita, 0) >= 1
                           and AGENT_STATE.forest_in_play
                           and c.hand.get(Meganium, 0) >= 1),
                lambda c: 950),
@@ -227,19 +227,19 @@ _RULES_PP_FETCH = [
                lambda c: (c.has_evo and c.card_id == Bayleef
                           and not AGENT_STATE.meganium_in_play
                           and c.hand.get(Bayleef, 0) == 0
-                          and c.campo.get(Chikorita, 0) >= 1),
+                          and c.field.get(Chikorita, 0) >= 1),
                lambda c: 850),
     _FixedRule("evo_dipplin_rush",
                lambda c: (c.has_evo and c.card_id == Dipplin
                           and c.hand.get(Dipplin, 0) == 0
-                          and c.campo.get(Applin, 0) >= 1
+                          and c.field.get(Applin, 0) >= 1
                           and AGENT_STATE.forest_in_play
                           and c.hand.get(Hydrapple_ex, 0) >= 1),
                lambda c: 920),
     _FixedRule("evo_dipplin",
                lambda c: (c.has_evo and c.card_id == Dipplin
                           and c.hand.get(Dipplin, 0) == 0
-                          and c.campo.get(Applin, 0) >= 1),
+                          and c.field.get(Applin, 0) >= 1),
                lambda c: 800),
     _FixedRule("evo_otro",
                lambda c: c.has_evo,
@@ -259,9 +259,9 @@ _RULES_PP_FETCH = [
                lambda c: 700),
     _FixedRule("fb_chikorita",
                lambda c: (c.card_id == Chikorita and not AGENT_STATE.meganium_in_play
-                          and c.campo.get(Chikorita, 0)
-                          + c.campo.get(Bayleef, 0)
-                          + c.campo.get(Meganium, 0) < 1
+                          and c.field.get(Chikorita, 0)
+                          + c.field.get(Bayleef, 0)
+                          + c.field.get(Meganium, 0) < 1
                           and c.hand.get(Chikorita, 0) < 1
                           and c.bench_count < 5),
                lambda c: 800),

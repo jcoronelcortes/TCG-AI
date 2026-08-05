@@ -2672,13 +2672,13 @@ _RULES_UB_HYDRAPPLE = [
                lambda c: c.evolvable.get(Applin, 0) >= 1,
                lambda c: 180),
     _FixedRule("applin_on_field",
-               lambda c: c.campo.get(Applin, 0) >= 1,
+               lambda c: c.field.get(Applin, 0) >= 1,
                lambda c: 130),
 ]
 
 _AJUSTES_UB_HYDRAPPLE = [
     _Adjustment("prepare_hydra_for_next_turn",
-            lambda c, s: (c.campo.get(Dipplin, 0) >= 1 and s < 860
+            lambda c, s: (c.field.get(Dipplin, 0) >= 1 and s < 860
                           and _uh_prepare_hydra_next_turn(c)),
             lambda c, s: 860),
     # Against decks with EX IMMUNITY (e.g. Crustle), Hydrapple ex is an
@@ -2800,10 +2800,10 @@ _RULES_UB_MEOWTH = [
                lambda c: c.turn == 1 and AGENT_STATE.we_go_first,
                lambda c: 10),
     _FixedRule("already_two_meowth_in_play",
-               lambda c: c.campo.get(Meowth_ex, 0) >= 2,
+               lambda c: c.field.get(Meowth_ex, 0) >= 2,
                lambda c: 10),
     _FixedRule("one_meowth_and_the_active_attacks",
-               lambda c: (c.campo.get(Meowth_ex, 0) >= 1
+               lambda c: (c.field.get(Meowth_ex, 0) >= 1
                           and not c.active_cant_attack),
                lambda c: 10),
     _FixedRule("full_bench",
@@ -2857,14 +2857,14 @@ _RULES_UB_OGERPON = [
                lambda c: c.t1_going_first_need_basic,
                _v_ub_ogerpon_t1_primeros),
     _FixedRule("already_two_ogerpon",
-               lambda c: c.campo.get(Teal_Mask_Ogerpon_ex, 0) >= 2,
+               lambda c: c.field.get(Teal_Mask_Ogerpon_ex, 0) >= 2,
                lambda c: 350 if (c.has_energy_for_teal
                                  and c.bench_count < 5) else 15),
     _FixedRule("energy_for_teal_dance",
                lambda c: c.has_energy_for_teal and c.bench_count < 5,
                _v_ub_ogerpon_teal),
     _FixedRule("first_ogerpon_short_bench",
-               lambda c: (c.campo.get(Teal_Mask_Ogerpon_ex, 0) == 0
+               lambda c: (c.field.get(Teal_Mask_Ogerpon_ex, 0) == 0
                           and c.bench_count <= 2),
                lambda c: 300),
 ]
@@ -2879,8 +2879,8 @@ _RULES_UB_MEGANIUM = [
     # priority search even though Meganium itself cannot damage it.
     _FixedRule("mega_line_enables_tapu_vs_cornerstone",
                lambda c: (AGENT_STATE.op_is_cornerstone_deck
-                          and (c.campo.get(Chikorita, 0) >= 1
-                               or c.campo.get(Bayleef, 0) >= 1)),
+                          and (c.field.get(Chikorita, 0) >= 1
+                               or c.field.get(Bayleef, 0) >= 1)),
                lambda c: 1050),
     _FixedRule("bayleef_evolvable",
                lambda c: c.evolvable.get(Bayleef, 0) >= 1,
@@ -2894,7 +2894,7 @@ _RULES_UB_MEGANIUM = [
                lambda c: c.evolvable.get(Chikorita, 0) >= 1,
                lambda c: 200),
     _FixedRule("chikorita_on_field",
-               lambda c: c.campo.get(Chikorita, 0) >= 1,
+               lambda c: c.field.get(Chikorita, 0) >= 1,
                lambda c: 150),
 ]
 
@@ -2903,7 +2903,7 @@ _RULES_UB_BAYLEEF = [
                lambda c: AGENT_STATE.meganium_in_play,
                lambda c: 20),
     _FixedRule("bayleef_already_on_field",
-               lambda c: c.campo.get(Bayleef, 0) >= 1,
+               lambda c: c.field.get(Bayleef, 0) >= 1,
                lambda c: 20),
     # There is already a Bayleef IN HAND: searching for another is redundant (one
     # is enough for the only Chikorita); do not waste the UB or its discard.
@@ -2915,14 +2915,14 @@ _RULES_UB_BAYLEEF = [
     # also one of the two bodies WITHOUT an ability that do damage it.
     _FixedRule("mega_line_vs_cornerstone",
                lambda c: (AGENT_STATE.op_is_cornerstone_deck
-                          and c.campo.get(Chikorita, 0) >= 1),
+                          and c.field.get(Chikorita, 0) >= 1),
                lambda c: 1000),
     _FixedRule("chikorita_evolvable",
                lambda c: c.evolvable.get(Chikorita, 0) >= 1,
                lambda c: 950 if (c.hand.get(Meganium, 0) >= 1
                                  and AGENT_STATE.forest_in_play) else 850),
     _FixedRule("chikorita_on_field",
-               lambda c: c.campo.get(Chikorita, 0) >= 1,
+               lambda c: c.field.get(Chikorita, 0) >= 1,
                lambda c: 200),
 ]
 
@@ -2931,7 +2931,7 @@ _RULES_UB_DIPPLIN = [
                lambda c: c.has_hydrapple,
                lambda c: 20),
     _FixedRule("dipplin_already_on_field",
-               lambda c: c.campo.get(Dipplin, 0) >= 1,
+               lambda c: c.field.get(Dipplin, 0) >= 1,
                lambda c: 20),
     # Same criterion as Bayleef: a redundant duplicate.
     _FixedRule("dipplin_already_in_hand",
@@ -2945,7 +2945,7 @@ _RULES_UB_DIPPLIN = [
                                    and AGENT_STATE.forest_in_play) else 800)
                           if c.dipplin_priority else 150)),
     _FixedRule("applin_on_field",
-               lambda c: c.campo.get(Applin, 0) >= 1,
+               lambda c: c.field.get(Applin, 0) >= 1,
                lambda c: 200),
     _FixedRule("opponent_anti_ex",
                lambda c: c.op_ex_immune_active or c.op_ex_immune_bench,
@@ -2962,9 +2962,9 @@ _RULES_UB_CHIKORITA = [
                lambda c: AGENT_STATE.meganium_in_play,
                lambda c: 30),
     _FixedRule("meganium_line_already_started",
-               lambda c: (c.campo.get(Chikorita, 0)
-                          + c.campo.get(Bayleef, 0)
-                          + c.campo.get(Meganium, 0)) > 0,
+               lambda c: (c.field.get(Chikorita, 0)
+                          + c.field.get(Bayleef, 0)
+                          + c.field.get(Meganium, 0)) > 0,
                lambda c: 150),
     _FixedRule("start_the_meganium_line",
                lambda c: True,
@@ -2981,9 +2981,9 @@ _RULES_UB_APPLIN = [
                lambda c: c.has_hydrapple,
                lambda c: 25),
     _FixedRule("hydra_line_already_started",
-               lambda c: (c.campo.get(Applin, 0)
-                          + c.campo.get(Dipplin, 0)
-                          + c.campo.get(Hydrapple_ex, 0)) > 0,
+               lambda c: (c.field.get(Applin, 0)
+                          + c.field.get(Dipplin, 0)
+                          + c.field.get(Hydrapple_ex, 0)) > 0,
                lambda c: 120),
     _FixedRule("start_the_hydra_line",
                lambda c: True,
@@ -2992,7 +2992,7 @@ _RULES_UB_APPLIN = [
 
 _RULES_UB_TAPU = [
     _FixedRule("tapu_already_on_field",
-               lambda c: c.campo.get(Tapu_Bulu, 0) >= 1,
+               lambda c: c.field.get(Tapu_Bulu, 0) >= 1,
                lambda c: 15),
     # A non-ex attacker against ex-immune opponents, with Meganium doubling
     # its energy; better still if Hydrapple ex already covers the ex role.
@@ -3005,7 +3005,7 @@ _RULES_UB_TAPU = [
 
 _RULES_UB_PINSIR = [
     _FixedRule("anti_ex",
-               lambda c: (c.campo.get(Pinsir, 0) == 0
+               lambda c: (c.field.get(Pinsir, 0) == 0
                           and (AGENT_STATE.op_is_crustle_deck
                                or AGENT_STATE.op_is_cornerstone_deck)),
                lambda c: 900),
@@ -3023,7 +3023,7 @@ _RULES_UB_FEZ = [
     # (`no_attacker_prefers_meowth`=1250 or other refill branches) wins the
     # search. Deck-agnostic.
     _FixedRule("refill_after_a_ko",
-               lambda c: (c.campo.get(Fezandipiti_ex, 0) == 0
+               lambda c: (c.field.get(Fezandipiti_ex, 0) == 0
                           and AGENT_STATE.ko_last_turn and c.bench_count < 5
                           and not c.no_attacker_prefer_meowth),
                lambda c: 1050),
@@ -3137,17 +3137,17 @@ _RULES_NS_FEZ = [
                           and _ns_fez_engine_alive(c)),
                lambda c: 1200),
     _FixedRule("refill_after_a_ko",
-               lambda c: (c.campo.get(Fezandipiti_ex, 0) == 0
+               lambda c: (c.field.get(Fezandipiti_ex, 0) == 0
                           and AGENT_STATE.ko_last_turn and c.bench_count < 5),
                lambda c: 850),
     # vs Lucario (which hits the bench): Fez only as an emergency body with an
     # empty bench; otherwise vetoed.
     _FixedRule("vs_lucario",
                lambda c: c.op_is_lucario,
-               lambda c: (200 if (c.campo.get(Fezandipiti_ex, 0) == 0
+               lambda c: (200 if (c.field.get(Fezandipiti_ex, 0) == 0
                                   and c.bench_count == 0) else SCORE_VETO)),
     _FixedRule("first_fez",
-               lambda c: c.campo.get(Fezandipiti_ex, 0) == 0,
+               lambda c: c.field.get(Fezandipiti_ex, 0) == 0,
                lambda c: 200),
 ]
 
@@ -3155,9 +3155,9 @@ _RULES_NS_FEZ = [
 _RULES_NS_CHIKORITA = [
     _FixedRule("start_the_meganium_line",
                lambda c: (not AGENT_STATE.meganium_in_play
-                          and (c.campo.get(Chikorita, 0)
-                               + c.campo.get(Bayleef, 0)
-                               + c.campo.get(Meganium, 0)) == 0),
+                          and (c.field.get(Chikorita, 0)
+                               + c.field.get(Bayleef, 0)
+                               + c.field.get(Meganium, 0)) == 0),
                _v_ns_chikorita_arrancar),
 ]
 
@@ -3167,9 +3167,9 @@ _RULES_NS_APPLIN = [
                lambda c: c.has_hydrapple,
                lambda c: 35),
     _FixedRule("start_the_hydra_line",
-               lambda c: (c.campo.get(Applin, 0)
-                          + c.campo.get(Dipplin, 0)
-                          + c.campo.get(Hydrapple_ex, 0)) == 0,
+               lambda c: (c.field.get(Applin, 0)
+                          + c.field.get(Dipplin, 0)
+                          + c.field.get(Hydrapple_ex, 0)) == 0,
                _v_ns_applin_arrancar),
     _FixedRule("short_bench",
                lambda c: c.bench_count <= 1,
@@ -3179,13 +3179,13 @@ _RULES_NS_APPLIN = [
 
 _RULES_NS_OGERPON = [
     _FixedRule("fewer_than_two_ogerpon",
-               lambda c: c.campo.get(Teal_Mask_Ogerpon_ex, 0) < 2,
+               lambda c: c.field.get(Teal_Mask_Ogerpon_ex, 0) < 2,
                _v_ns_ogerpon_pocos),
     # A 3rd Ogerpon as a Syrup Storm accelerator (Teal Dance adds Grass).
     _FixedRule("third_ogerpon_for_syrup",
                lambda c: (c.bench_count < 5
                           and c.hand.get(Basic_Grass_Energy, 0) >= 1
-                          and c.campo.get(Hydrapple_ex, 0) >= 1),
+                          and c.field.get(Hydrapple_ex, 0) >= 1),
                lambda c: 500),
 ]
 
@@ -3195,7 +3195,7 @@ _RULES_NS_TAPU = [
                lambda c: c.dragapult_no_tapu,
                lambda c: SCORE_VETO),
     _FixedRule("tapu_already_on_field",
-               lambda c: c.campo.get(Tapu_Bulu, 0) >= 1,
+               lambda c: c.field.get(Tapu_Bulu, 0) >= 1,
                lambda c: 15),
     _FixedRule("anti_ex_with_meganium",
                lambda c: (AGENT_STATE.meganium_in_play
@@ -3209,7 +3209,7 @@ _RULES_NS_TAPU = [
 
 _RULES_NS_PINSIR = [
     _FixedRule("anti_ex",
-               lambda c: (c.campo.get(Pinsir, 0) == 0
+               lambda c: (c.field.get(Pinsir, 0) == 0
                           and (AGENT_STATE.op_is_crustle_deck
                                or AGENT_STATE.op_is_cornerstone_deck)),
                lambda c: 850),
@@ -3230,7 +3230,7 @@ _RULES_NS_MEOWTH = [
     # deck that beats what is in hand.
     _FixedRule("fetch_supporter_from_deck",
                lambda c: (not c.watchtower
-                          and c.campo.get(Meowth_ex, 0) == 0
+                          and c.field.get(Meowth_ex, 0) == 0
                           and c.bench_count < 5
                           and not c.supporter_played
                           and c.best_supp_hand_val < 500
@@ -3249,7 +3249,7 @@ _RULES_NS_HYDRAPPLE = [
                           and not c.has_hydrapple),
                lambda c: 980),
     _FixedRule("applin_dipplin_chain_in_hand",
-               lambda c: (c.campo.get(Applin, 0) >= 1
+               lambda c: (c.field.get(Applin, 0) >= 1
                           and c.hand.get(Dipplin, 0) >= 1
                           and AGENT_STATE.forest_in_play and not c.has_hydrapple),
                lambda c: 960),
@@ -3261,7 +3261,7 @@ _RULES_NS_MEGANIUM = [
                           and not AGENT_STATE.meganium_in_play),
                lambda c: 990),
     _FixedRule("chikorita_bayleef_chain_in_hand",
-               lambda c: (c.campo.get(Chikorita, 0) >= 1
+               lambda c: (c.field.get(Chikorita, 0) >= 1
                           and c.hand.get(Bayleef, 0) >= 1
                           and AGENT_STATE.forest_in_play and not AGENT_STATE.meganium_in_play),
                lambda c: 975),
@@ -3295,31 +3295,31 @@ _RULES_BCS_CHIKORITA = [
     # hand, the evolution rush raises the priority.
     _FixedRule("line_from_scratch_rush",
                lambda c: (not AGENT_STATE.meganium_in_play
-                          and c.campo.get(Chikorita, 0)
-                          + c.campo.get(Bayleef, 0)
-                          + c.campo.get(Meganium, 0) == 0
+                          and c.field.get(Chikorita, 0)
+                          + c.field.get(Bayleef, 0)
+                          + c.field.get(Meganium, 0) == 0
                           and AGENT_STATE.forest_in_play
                           and (c.hand.get(Bayleef, 0) >= 1
                                or c.hand.get(Meganium, 0) >= 1)),
                lambda c: 950),
     _FixedRule("line_from_scratch",
                lambda c: (not AGENT_STATE.meganium_in_play
-                          and c.campo.get(Chikorita, 0)
-                          + c.campo.get(Bayleef, 0)
-                          + c.campo.get(Meganium, 0) == 0),
+                          and c.field.get(Chikorita, 0)
+                          + c.field.get(Bayleef, 0)
+                          + c.field.get(Meganium, 0) == 0),
                lambda c: 800),
 ]
 
 _RULES_BCS_BAYLEEF = [
     _FixedRule("immediate_evo_rush",
                lambda c: (not AGENT_STATE.meganium_in_play
-                          and c.campo.get(Chikorita, 0) >= 1
+                          and c.field.get(Chikorita, 0) >= 1
                           and AGENT_STATE.forest_in_play
                           and c.hand.get(Meganium, 0) >= 1),
                lambda c: 950),
     _FixedRule("immediate_evo",
                lambda c: (not AGENT_STATE.meganium_in_play
-                          and c.campo.get(Chikorita, 0) >= 1),
+                          and c.field.get(Chikorita, 0) >= 1),
                lambda c: 850),
     _FixedRule("chikorita_in_hand",
                lambda c: (not AGENT_STATE.meganium_in_play
@@ -3333,11 +3333,11 @@ _RULES_BCS_BAYLEEF = [
 _RULES_BCS_MEGANIUM = [
     _FixedRule("immediate_evo",
                lambda c: (not AGENT_STATE.meganium_in_play
-                          and c.campo.get(Bayleef, 0) >= 1),
+                          and c.field.get(Bayleef, 0) >= 1),
                lambda c: 1000),
     _FixedRule("rush_from_chikorita",
                lambda c: (not AGENT_STATE.meganium_in_play
-                          and c.campo.get(Chikorita, 0) >= 1
+                          and c.field.get(Chikorita, 0) >= 1
                           and AGENT_STATE.forest_in_play),
                lambda c: 900),
     _FixedRule("no_line_in_play",
@@ -3348,18 +3348,18 @@ _RULES_BCS_MEGANIUM = [
 _RULES_BCS_APPLIN = [
     _FixedRule("line_from_scratch_rush",
                lambda c: (not c.has_hydrapple
-                          and c.campo.get(Applin, 0)
-                          + c.campo.get(Dipplin, 0)
-                          + c.campo.get(Hydrapple_ex, 0) == 0
+                          and c.field.get(Applin, 0)
+                          + c.field.get(Dipplin, 0)
+                          + c.field.get(Hydrapple_ex, 0) == 0
                           and AGENT_STATE.forest_in_play
                           and (c.hand.get(Dipplin, 0) >= 1
                                or c.hand.get(Hydrapple_ex, 0) >= 1)),
                lambda c: 850),
     _FixedRule("line_from_scratch",
                lambda c: (not c.has_hydrapple
-                          and c.campo.get(Applin, 0)
-                          + c.campo.get(Dipplin, 0)
-                          + c.campo.get(Hydrapple_ex, 0) == 0),
+                          and c.field.get(Applin, 0)
+                          + c.field.get(Dipplin, 0)
+                          + c.field.get(Hydrapple_ex, 0) == 0),
                lambda c: 700),
     _FixedRule("no_hydrapple",
                lambda c: not c.has_hydrapple,
@@ -3369,13 +3369,13 @@ _RULES_BCS_APPLIN = [
 _RULES_BCS_DIPPLIN = [
     _FixedRule("immediate_evo_rush",
                lambda c: (not c.has_hydrapple
-                          and c.campo.get(Applin, 0) >= 1
+                          and c.field.get(Applin, 0) >= 1
                           and AGENT_STATE.forest_in_play
                           and c.hand.get(Hydrapple_ex, 0) >= 1),
                lambda c: 900),
     _FixedRule("immediate_evo",
                lambda c: (not c.has_hydrapple
-                          and c.campo.get(Applin, 0) >= 1),
+                          and c.field.get(Applin, 0) >= 1),
                lambda c: 800),
     _FixedRule("applin_in_hand",
                lambda c: (not c.has_hydrapple
@@ -3393,11 +3393,11 @@ _RULES_BCS_DIPPLIN = [
 _RULES_BCS_HYDRAPPLE = [
     _FixedRule("immediate_evo",
                lambda c: (not c.has_hydrapple
-                          and c.campo.get(Dipplin, 0) >= 1),
+                          and c.field.get(Dipplin, 0) >= 1),
                lambda c: 950),
     _FixedRule("rush_from_applin",
                lambda c: (not c.has_hydrapple
-                          and c.campo.get(Applin, 0) >= 1
+                          and c.field.get(Applin, 0) >= 1
                           and AGENT_STATE.forest_in_play),
                lambda c: 850),
     _FixedRule("no_hydrapple",
@@ -3408,13 +3408,13 @@ _RULES_BCS_HYDRAPPLE = [
 _RULES_BCS_OGERPON = [
     # Up to 2 Ogerpon in play; with a short bench, +100 (an early body).
     _FixedRule("fewer_than_two",
-               lambda c: c.campo.get(Teal_Mask_Ogerpon_ex, 0) < 2,
+               lambda c: c.field.get(Teal_Mask_Ogerpon_ex, 0) < 2,
                lambda c: 700 if c.bench_count <= 2 else 600),
     # A 3rd Ogerpon as a Syrup Storm accelerator (Teal Dance adds Grass).
     _FixedRule("syrup_accelerator",
                lambda c: (c.bench_count < 5 and
                           c.hand.get(Basic_Grass_Energy, 0) >= 1 and
-                          c.campo.get(Hydrapple_ex, 0) >= 1),
+                          c.field.get(Hydrapple_ex, 0) >= 1),
                lambda c: 550),
 ]
 
@@ -3424,24 +3424,24 @@ _RULES_BCS_TAPU = [
                lambda c: c.dragapult_no_tapu,
                lambda c: SCORE_VETO),
     _FixedRule("anti_wall_with_meganium_and_hydra",
-               lambda c: (c.campo.get(Tapu_Bulu, 0) == 0
+               lambda c: (c.field.get(Tapu_Bulu, 0) == 0
                           and AGENT_STATE.meganium_in_play
                           and (c.op_ex_immune_active or c.op_ex_immune_bench)
                           and c.has_hydrapple),
                lambda c: 700),
     _FixedRule("anti_wall_with_meganium",
-               lambda c: (c.campo.get(Tapu_Bulu, 0) == 0
+               lambda c: (c.field.get(Tapu_Bulu, 0) == 0
                           and AGENT_STATE.meganium_in_play
                           and (c.op_ex_immune_active or c.op_ex_immune_bench)),
                lambda c: 600),
     _FixedRule("first_tapu",
-               lambda c: c.campo.get(Tapu_Bulu, 0) == 0,
+               lambda c: c.field.get(Tapu_Bulu, 0) == 0,
                lambda c: 50),
 ]
 
 _RULES_BCS_PINSIR = [
     _FixedRule("anti_wall",
-               lambda c: (c.campo.get(Pinsir, 0) == 0 and
+               lambda c: (c.field.get(Pinsir, 0) == 0 and
                           (AGENT_STATE.op_is_crustle_deck or AGENT_STATE.op_is_cornerstone_deck)),
                lambda c: 750),
 ]
@@ -3451,7 +3451,7 @@ _RULES_BCS_MEOWTH = [
     # a free Supporter, a weak hand and a valuable Supporter in the deck).
     _FixedRule("supporter_engine",
                lambda c: (not c.watchtower and
-                          c.campo.get(Meowth_ex, 0) == 0
+                          c.field.get(Meowth_ex, 0) == 0
                           and not c.supporter_played and
                           c.best_supp_hand_val < 500
                           and c.best_supp_deck_val >= 400),
@@ -3461,7 +3461,7 @@ _RULES_BCS_MEOWTH = [
 _RULES_BCS_FEZ = [
     _FixedRule("lucario_answers",
                lambda c: (c.op_is_lucario
-                          and c.campo.get(Fezandipiti_ex, 0) == 0 and
+                          and c.field.get(Fezandipiti_ex, 0) == 0 and
                           (AGENT_STATE.ko_last_turn or c.bench_count == 0)),
                lambda c: 650),
     # vs Mega Lucario, outside the opening/answer it is KEPT (weak to Fighting).
@@ -3469,7 +3469,7 @@ _RULES_BCS_FEZ = [
                lambda c: c.op_is_lucario,
                lambda c: SCORE_VETO),
     _FixedRule("after_a_ko",
-               lambda c: (c.campo.get(Fezandipiti_ex, 0) == 0
+               lambda c: (c.field.get(Fezandipiti_ex, 0) == 0
                           and AGENT_STATE.ko_last_turn),
                lambda c: 650),
 ]
@@ -3543,21 +3543,21 @@ _RULES_PP_FETCH = [
                lambda c: (c.has_evo and c.card_id == Meganium
                           and not AGENT_STATE.meganium_in_play
                           and c.hand.get(Meganium, 0) == 0
-                          and c.campo.get(Bayleef, 0) >= 1),
+                          and c.field.get(Bayleef, 0) >= 1),
                lambda c: 1000),
     _FixedRule("evo_meganium_rush",
                lambda c: (c.has_evo and c.card_id == Meganium
                           and not AGENT_STATE.meganium_in_play
                           and c.hand.get(Meganium, 0) == 0
                           and AGENT_STATE.forest_in_play
-                          and c.campo.get(Chikorita, 0) >= 1
+                          and c.field.get(Chikorita, 0) >= 1
                           and c.hand.get(Bayleef, 0) >= 1),
                lambda c: 900),
     _FixedRule("evo_bayleef_rush",
                lambda c: (c.has_evo and c.card_id == Bayleef
                           and not AGENT_STATE.meganium_in_play
                           and c.hand.get(Bayleef, 0) == 0
-                          and c.campo.get(Chikorita, 0) >= 1
+                          and c.field.get(Chikorita, 0) >= 1
                           and AGENT_STATE.forest_in_play
                           and c.hand.get(Meganium, 0) >= 1),
                lambda c: 950),
@@ -3565,19 +3565,19 @@ _RULES_PP_FETCH = [
                lambda c: (c.has_evo and c.card_id == Bayleef
                           and not AGENT_STATE.meganium_in_play
                           and c.hand.get(Bayleef, 0) == 0
-                          and c.campo.get(Chikorita, 0) >= 1),
+                          and c.field.get(Chikorita, 0) >= 1),
                lambda c: 850),
     _FixedRule("evo_dipplin_rush",
                lambda c: (c.has_evo and c.card_id == Dipplin
                           and c.hand.get(Dipplin, 0) == 0
-                          and c.campo.get(Applin, 0) >= 1
+                          and c.field.get(Applin, 0) >= 1
                           and AGENT_STATE.forest_in_play
                           and c.hand.get(Hydrapple_ex, 0) >= 1),
                lambda c: 920),
     _FixedRule("evo_dipplin",
                lambda c: (c.has_evo and c.card_id == Dipplin
                           and c.hand.get(Dipplin, 0) == 0
-                          and c.campo.get(Applin, 0) >= 1),
+                          and c.field.get(Applin, 0) >= 1),
                lambda c: 800),
     _FixedRule("evo_otro",
                lambda c: c.has_evo,
@@ -3597,9 +3597,9 @@ _RULES_PP_FETCH = [
                lambda c: 700),
     _FixedRule("fb_chikorita",
                lambda c: (c.card_id == Chikorita and not AGENT_STATE.meganium_in_play
-                          and c.campo.get(Chikorita, 0)
-                          + c.campo.get(Bayleef, 0)
-                          + c.campo.get(Meganium, 0) < 1
+                          and c.field.get(Chikorita, 0)
+                          + c.field.get(Bayleef, 0)
+                          + c.field.get(Meganium, 0) < 1
                           and c.hand.get(Chikorita, 0) < 1
                           and c.bench_count < 5),
                lambda c: 800),
@@ -3767,7 +3767,7 @@ _RULES_MEOWTH_FETCH = [
 ]
 
 
-def _meowth_fetch_prediccion(hand_counts, supp_values, hand_size,
+def _meowth_fetch_prediction(hand_counts, supp_values, hand_size,
                              strong_attacker, op_hand_count,
                              active_cant_attack, win_via_boss, gust2_via_boss,
                              deny_evo_via_boss, devel_lillie, alakazam,
@@ -3809,14 +3809,14 @@ _RULES_DAWN_MEGANIUM = [
     _FixedRule("already_in_play",
                lambda c: AGENT_STATE.meganium_in_play, lambda c: 10),
     _FixedRule("immediate_evo",
-               lambda c: c.campo.get(Bayleef, 0) >= 1, lambda c: 1000),
+               lambda c: c.field.get(Bayleef, 0) >= 1, lambda c: 1000),
     _FixedRule("rush_from_field_with_bayleef",
-               lambda c: (c.campo.get(Chikorita, 0) >= 1
+               lambda c: (c.field.get(Chikorita, 0) >= 1
                           and _dawn_forest_avail(c)
                           and c.hand.get(Bayleef, 0) >= 1),
                lambda c: 980),
     _FixedRule("rush_from_field",
-               lambda c: (c.campo.get(Chikorita, 0) >= 1
+               lambda c: (c.field.get(Chikorita, 0) >= 1
                           and _dawn_forest_avail(c)),
                lambda c: 950),
     _FixedRule("rush_from_hand_with_bayleef",
@@ -3836,14 +3836,14 @@ _RULES_DAWN_BAYLEEF = [
     # The immediate evolution rises if the Meganium that completes the line is
     # reachable (in hand or still in the deck).
     _FixedRule("immediate_evo_rush",
-               lambda c: (c.campo.get(Chikorita, 0) >= 1
+               lambda c: (c.field.get(Chikorita, 0) >= 1
                           and _dawn_forest_avail(c)
                           and (c.hand.get(Meganium, 0) >= 1 or
                                AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(
                                    Meganium, {}).get(ZONE_DECK, 0) > 0)),
                lambda c: 970),
     _FixedRule("immediate_evo",
-               lambda c: c.campo.get(Chikorita, 0) >= 1, lambda c: 900),
+               lambda c: c.field.get(Chikorita, 0) >= 1, lambda c: 900),
     _FixedRule("rush_from_hand",
                lambda c: (c.hand.get(Chikorita, 0) >= 1
                           and _dawn_forest_avail(c)),
@@ -3858,9 +3858,9 @@ _RULES_DAWN_CHIKORITA = [
     _FixedRule("meganium_already_in_play",
                lambda c: AGENT_STATE.meganium_in_play, lambda c: 10),
     _FixedRule("line_in_play",
-               lambda c: (c.campo.get(Chikorita, 0)
-                          + c.campo.get(Bayleef, 0)
-                          + c.campo.get(Meganium, 0) >= 1),
+               lambda c: (c.field.get(Chikorita, 0)
+                          + c.field.get(Bayleef, 0)
+                          + c.field.get(Meganium, 0) >= 1),
                lambda c: 50),
     _FixedRule("full_bench",
                lambda c: c.bench_count >= 5, lambda c: 30),
@@ -3878,14 +3878,14 @@ _RULES_DAWN_HYDRAPPLE = [
     _FixedRule("already_in_play",
                lambda c: c.has_hydrapple, lambda c: 10),
     _FixedRule("immediate_evo",
-               lambda c: c.campo.get(Dipplin, 0) >= 1, lambda c: 980),
+               lambda c: c.field.get(Dipplin, 0) >= 1, lambda c: 980),
     _FixedRule("rush_from_field_with_dipplin",
-               lambda c: (c.campo.get(Applin, 0) >= 1
+               lambda c: (c.field.get(Applin, 0) >= 1
                           and _dawn_forest_avail(c)
                           and c.hand.get(Dipplin, 0) >= 1),
                lambda c: 960),
     _FixedRule("rush_from_field",
-               lambda c: (c.campo.get(Applin, 0) >= 1
+               lambda c: (c.field.get(Applin, 0) >= 1
                           and _dawn_forest_avail(c)),
                lambda c: 930),
     _FixedRule("rush_from_hand_with_dipplin",
@@ -3902,17 +3902,17 @@ _RULES_DAWN_HYDRAPPLE = [
 _RULES_DAWN_DIPPLIN = [
     _FixedRule("redundant_with_hydrapple",
                lambda c: (c.has_hydrapple
-                          and c.campo.get(Dipplin, 0) >= 1),
+                          and c.field.get(Dipplin, 0) >= 1),
                lambda c: 10),
     _FixedRule("immediate_evo_rush",
-               lambda c: (c.campo.get(Applin, 0) >= 1
+               lambda c: (c.field.get(Applin, 0) >= 1
                           and _dawn_forest_avail(c)
                           and (c.hand.get(Hydrapple_ex, 0) >= 1 or
                                AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(
                                    Hydrapple_ex, {}).get(ZONE_DECK, 0) > 0)),
                lambda c: 950),
     _FixedRule("immediate_evo",
-               lambda c: c.campo.get(Applin, 0) >= 1, lambda c: 880),
+               lambda c: c.field.get(Applin, 0) >= 1, lambda c: 880),
     _FixedRule("rush_from_hand",
                lambda c: (c.hand.get(Applin, 0) >= 1
                           and _dawn_forest_avail(c)),
@@ -3926,13 +3926,13 @@ _RULES_DAWN_DIPPLIN = [
 _RULES_DAWN_APPLIN = [
     _FixedRule("full_line",
                lambda c: (c.has_hydrapple
-                          and c.campo.get(Applin, 0)
-                          + c.campo.get(Dipplin, 0) >= 1),
+                          and c.field.get(Applin, 0)
+                          + c.field.get(Dipplin, 0) >= 1),
                lambda c: 10),
     _FixedRule("doubled_line",
-               lambda c: (c.campo.get(Applin, 0)
-                          + c.campo.get(Dipplin, 0)
-                          + c.campo.get(Hydrapple_ex, 0) >= 2),
+               lambda c: (c.field.get(Applin, 0)
+                          + c.field.get(Dipplin, 0)
+                          + c.field.get(Hydrapple_ex, 0) >= 2),
                lambda c: 30),
     _FixedRule("full_bench",
                lambda c: c.bench_count >= 5, lambda c: 30),
@@ -3948,12 +3948,12 @@ _RULES_DAWN_APPLIN = [
 
 _RULES_DAWN_OGERPON = [
     _FixedRule("two_in_play",
-               lambda c: c.campo.get(Teal_Mask_Ogerpon_ex, 0) >= 2,
+               lambda c: c.field.get(Teal_Mask_Ogerpon_ex, 0) >= 2,
                lambda c: 10),
     _FixedRule("full_bench",
                lambda c: c.bench_count >= 5, lambda c: 30),
     _FixedRule("first_ogerpon",
-               lambda c: c.campo.get(Teal_Mask_Ogerpon_ex, 0) == 0,
+               lambda c: c.field.get(Teal_Mask_Ogerpon_ex, 0) == 0,
                lambda c: 500),
 ]
 
@@ -3963,7 +3963,7 @@ _RULES_DAWN_TAPU = [
                lambda c: c.dragapult_no_tapu,
                lambda c: SCORE_VETO),
     _FixedRule("already_in_play",
-               lambda c: c.campo.get(Tapu_Bulu, 0) >= 1, lambda c: 10),
+               lambda c: c.field.get(Tapu_Bulu, 0) >= 1, lambda c: 10),
     _FixedRule("anti_wall_with_meganium",
                lambda c: ((AGENT_STATE.op_is_crustle_deck or c.op_ex_immune_active
                            or c.op_ex_immune_bench)
@@ -3977,14 +3977,14 @@ _RULES_DAWN_TAPU = [
 
 _RULES_DAWN_FEZ = [
     _FixedRule("already_in_play",
-               lambda c: c.campo.get(Fezandipiti_ex, 0) >= 1, lambda c: 10),
+               lambda c: c.field.get(Fezandipiti_ex, 0) >= 1, lambda c: 10),
     _FixedRule("after_a_ko",
                lambda c: AGENT_STATE.ko_last_turn, lambda c: 500),
 ]
 
 _RULES_DAWN_MEOWTH = [
     _FixedRule("already_in_play",
-               lambda c: c.campo.get(Meowth_ex, 0) >= 1, lambda c: 10),
+               lambda c: c.field.get(Meowth_ex, 0) >= 1, lambda c: 10),
     _FixedRule("supporter_engine",
                lambda c: (not c.watchtower and not c.supporter_played
                           and c.bench_count < 5),
@@ -8990,7 +8990,7 @@ def agent(obs_dict: dict) -> list[int]:
     # the fetch ended up bringing (a useless 2nd copy).
     #
     # `hand_size - 1` because the fetch is resolved AFTER benching the Meowth.
-    _meowth_fetch_id, _meowth_fetch_val = _meowth_fetch_prediccion(
+    _meowth_fetch_id, _meowth_fetch_val = _meowth_fetch_prediction(
         hand_counts, _supp_values,
         max(0, (len(my_state.hand) if my_state.hand else 0) - 1),
         (field_counts.get(Hydrapple_ex, 0) >= 1
@@ -10478,9 +10478,9 @@ def agent(obs_dict: dict) -> list[int]:
     # chain consults are still defined at module level in main.py.
     _tcp = ScoringCtx()
     _loc = {**globals(), **locals()}
-    for _campo in ScoringCtx.__dataclass_fields__:
-        if _campo in _loc:
-            setattr(_tcp, _campo, _loc[_campo])
+    for _field in ScoringCtx.__dataclass_fields__:
+        if _field in _loc:
+            setattr(_tcp, _field, _loc[_field])
     for o in select.option:
         score = 0
 
@@ -10498,7 +10498,7 @@ def agent(obs_dict: dict) -> list[int]:
     # guard that stopped it being read before still stops it.
     _tc = TurnCtx()
     _locales = locals()
-    for _campo in TurnCtx.__dataclass_fields__:
-        if _campo in _locales:
-            setattr(_tc, _campo, _locales[_campo])
+    for _field in TurnCtx.__dataclass_fields__:
+        if _field in _locales:
+            setattr(_tc, _field, _locales[_field])
     return finalizar(_tc)

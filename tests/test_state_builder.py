@@ -87,7 +87,7 @@ def _scenario_step69(op_active="kangaskhan", dipplin_energy=2):
            .stadium(m.Forest_of_Vitality)
            .op_active(opponent_active)
            .op_bench(opponent_bench)
-           .op_zonas(hand=9, deck=37, prizes=2)
+           .op_zones(hand=9, deck=37, prizes=2)
            .op_discard(m.Xerosic_Machinations, m.Lillie_Determination,
                         m.Lillie_Determination, 1264)
            # The visible deck: the real composition of the select.deck of step 69.
@@ -202,7 +202,7 @@ def _fetch_ub_vs(op_id):
            .my_bench(pk(m.Chikorita))
            .my_hand()
            .op_active(pk(op_id, hp=210, max_hp=210))
-           .op_zonas(hand=4, deck=40, prizes=6)
+           .op_zones(hand=4, deck=40, prizes=6)
            .deck(m.Meganium, m.Bayleef, m.Tapu_Bulu, m.Teal_Mask_Ogerpon_ex,
                  m.Hydrapple_ex, m.Applin, m.Chikorita, m.Meowth_ex)
            .fetch_ultra_ball()
@@ -246,7 +246,7 @@ def _menu_with_tapu_in_hand(op_id):
             .my_hand(m.Basic_Grass_Energy, m.Tapu_Bulu)
             .op_active(pk(op_id, hp=210, max_hp=210))
             .op_bench(pk(CUBCHOO))
-            .op_zonas(hand=4, deck=40, prizes=6)
+            .op_zones(hand=4, deck=40, prizes=6)
             .menu_attach_energy()
             .build())
 
@@ -269,7 +269,7 @@ def test_cornerstone_the_energy_goes_to_tapu_bulu():
            .my_bench(pk(m.Tapu_Bulu), pk(m.Bayleef, pre_evo=[m.Chikorita]))
            .my_hand(m.Basic_Grass_Energy)
            .op_active(pk(CORNERSTONE, hp=210, max_hp=210))
-           .op_zonas(hand=4, deck=40, prizes=6)
+           .op_zones(hand=4, deck=40, prizes=6)
            .menu_attach_energy()
            .build())
     assert _energy_goes_to(obs, m.agent(obs)) == m.Tapu_Bulu, (
@@ -284,7 +284,7 @@ def test_cornerstone_without_it_the_energy_does_not_change():
            .my_bench(pk(m.Tapu_Bulu), pk(m.Bayleef, pre_evo=[m.Chikorita]))
            .my_hand(m.Basic_Grass_Energy)
            .op_active(pk(CUBCHOO, hp=70, max_hp=70))
-           .op_zonas(hand=4, deck=40, prizes=6)
+           .op_zones(hand=4, deck=40, prizes=6)
            .menu_attach_energy()
            .build())
     assert _energy_goes_to(obs, m.agent(obs)) == m.Teal_Mask_Ogerpon_ex, (
@@ -320,7 +320,7 @@ def _esc_hop(active, bench, op_energies=(), menu="attach"):
            .my_bench(*bench)
            .my_hand(m.Basic_Grass_Energy)
            .op_active(pk(TREVENANT, hp=140, max_hp=140, energies=list(op_energies)))
-           .op_zonas(hand=4, deck=40, prizes=4))
+           .op_zones(hand=4, deck=40, prizes=4))
     esc = esc.menu_teal_dance_options() if menu == "teal" else esc.menu_attach_energy()
     return esc.build()
 
@@ -395,7 +395,7 @@ def test_hop_cap_of_2_energies_with_meganium():
                      pk(m.Tapu_Bulu))
            .my_hand(m.Basic_Grass_Energy)
            .op_active(pk(TREVENANT, hp=140, max_hp=140))
-           .op_zonas(hand=4, deck=40, prizes=4)
+           .op_zones(hand=4, deck=40, prizes=4)
            .menu_attach_energy()
            .build())
     tipo, target_path = _chosen_play(obs, m.agent(obs))
@@ -446,7 +446,7 @@ def _esc_combo_myriad(energies=4, grass_cards=1, energy_played=False,
            .op_active(pk(KILOWATTREL, hp=120, max_hp=120))
            .op_bench(pk(BELLIBOLT_EX, hp=280, max_hp=280,
                         energies=[G, G, G, G]))
-           .op_zonas(hand=5, deck=30, prizes=3)
+           .op_zones(hand=5, deck=30, prizes=3)
            .menu_teal_dance_options()
            .build())
     if grass_cards == 0:
@@ -538,7 +538,7 @@ def test_myriad_combo_with_no_finisher_it_keeps_the_grass():
            .my_hand(m.Basic_Grass_Energy, m.Boss_Orders)
            .op_active(pk(KILOWATTREL, hp=120, max_hp=120))
            .op_bench(pk(KILOWATTREL, hp=120, max_hp=120))
-           .op_zonas(hand=5, deck=30, prizes=3)
+           .op_zones(hand=5, deck=30, prizes=3)
            .menu_teal_dance_options()
            .build())
     obs = _menu_combo(obs)
@@ -578,7 +578,7 @@ def _pivot_obs(caso):
     obs = (esc
            .op_active(pk(ABRA_ALAKAZAM, hp=50, max_hp=50))
            .op_bench(pk(KADABRA_ALK, hp=80, max_hp=80))
-           .op_zonas(hand=5, deck=34, prizes=6)
+           .op_zones(hand=5, deck=34, prizes=6)
            .menu_teal_dance_options()  # the walker regenerates the menu at each step
            .build())
     yo = obs["current"]["players"][0]
@@ -774,7 +774,7 @@ def _menu_with_tapu(op_active, op_bench=(), op_discard=()):
         esc = esc.op_discard(*op_discard)
     # menu_attach_energy() gives the builder's minimal select; it is replaced
     # below by the PLAY menu that exercises the whitelist.
-    obs = (esc.op_zonas(hand=4, deck=38, prizes=6)
+    obs = (esc.op_zones(hand=4, deck=38, prizes=6)
            .menu_attach_energy().build())
     yo = obs["current"]["players"][0]
     i_tapu = next(i for i, c in enumerate(yo["hand"])
@@ -850,7 +850,7 @@ def _raging_obs(tapu_on_bench=False, ogerpon_cargado=False, bolt_hp=240):
             .op_bench(pk(m.Teal_Mask_Ogerpon_ex, energies=[G], fisicas=1),
                       pk(m.Teal_Mask_Ogerpon_ex, energies=[G], fisicas=1),
                       pk(m.Teal_Mask_Ogerpon_ex))
-            .op_zonas(hand=2, deck=44, prizes=6)
+            .op_zones(hand=2, deck=44, prizes=6)
             .menu_teal_dance_options()   # the walker regenerates the menu at each step
             .build())
 
@@ -989,7 +989,7 @@ def _abomasnow_obs(first_player=1, turn=2, tapu_on_bench=False):
             .my_hand(*hand)
             .op_active(pk(m.Snover))
             .op_bench(pk(m.Snover))
-            .op_zonas(hand=5, deck=41, prizes=6)
+            .op_zones(hand=5, deck=41, prizes=6)
             .menu_teal_dance_options()   # the walker regenerates the menu at each step
             .build())
 
@@ -1046,7 +1046,7 @@ def _menu_immune_active(op_active_id, op_bench_id):
            .my_hand(m.Meowth_ex)
            .op_active(pk(op_active_id, energies=[C], fisicas=1))
            .op_bench(pk(op_bench_id, energies=[], fisicas=0))
-           .op_zonas(hand=5, deck=28, prizes=4))
+           .op_zones(hand=5, deck=28, prizes=4))
     esc._select = {
         "context": int(m.SelectContext.MAIN), "contextCard": None, "deck": None,
         "effect": None, "maxCount": 1, "minCount": 1,
@@ -1102,7 +1102,7 @@ def _fetch_ub_meowth_engine_vs(op_id):
            .my_bench(pk(m.Chikorita))
            .my_hand()
            .op_active(pk(op_id, hp=230, max_hp=230))
-           .op_zonas(hand=4, deck=40, prizes=6)
+           .op_zones(hand=4, deck=40, prizes=6)
            .deck(m.Meowth_ex, m.Lillie_Determination, m.Tapu_Bulu,
                  m.Hydrapple_ex, m.Applin, m.Chikorita)
            .fetch_ultra_ball()
@@ -1146,7 +1146,7 @@ def _scenario_t2_going_second(hand):
             .my_bench(pk(m.Chikorita))
             .my_hand(*hand)
             .op_active(pk(103, hp=60, max_hp=60))
-            .op_zonas(hand=6, deck=40, prizes=6)
+            .op_zones(hand=6, deck=40, prizes=6)
             .deck(m.Meowth_ex, m.Lillie_Determination, m.Tapu_Bulu,
                   m.Hydrapple_ex, m.Applin, m.Teal_Mask_Ogerpon_ex)
             .fetch_ultra_ball()
@@ -1215,7 +1215,7 @@ def _esc_corner_td(ogerpon_fisicas):
                          fisicas=ogerpon_fisicas))
             .my_hand(m.Basic_Grass_Energy)
             .op_active(pk(117, hp=210, max_hp=210))   # Cornerstone Mask O. ex
-            .op_zonas(hand=4, deck=40, prizes=4)
+            .op_zones(hand=4, deck=40, prizes=4)
             .menu_teal_dance_options()
             .build())
 
@@ -1252,7 +1252,7 @@ def test_generic_td_two_physical_without_a_wall_is_not_capped():
            .my_bench(pk(m.Teal_Mask_Ogerpon_ex, energies=[G, G], fisicas=2))
            .my_hand(m.Basic_Grass_Energy)
            .op_active(pk(271, hp=120, max_hp=120))    # Kilowattrel
-           .op_zonas(hand=4, deck=40, prizes=4)
+           .op_zones(hand=4, deck=40, prizes=4)
            .menu_teal_dance_options()
            .build())
     tipo, _ = _chosen_play(obs, m.agent(obs))

@@ -99,7 +99,7 @@ def test_the_first_turn_fetch_prediction_points_at_lillie():
     deck = {m.Xerosic_Machinations: {m.ZONE_DECK: 2},
             m.Lillie_Determination: {m.ZONE_DECK: 4}}
     supp = {m.Xerosic_Machinations: 600, m.Lillie_Determination: 500}
-    target, _ = m._meowth_fetch_prediccion(
+    target, _ = m._meowth_fetch_prediction(
         {}, supp, 5, True, 8, False, False, False, False, False, True,
         deck, first_turn=True)
     assert target == m.Lillie_Determination
@@ -111,7 +111,7 @@ def test_outside_the_first_turn_the_fetch_keeps_the_xerosic_branch():
     deck = {m.Xerosic_Machinations: {m.ZONE_DECK: 2},
             m.Lillie_Determination: {m.ZONE_DECK: 4}}
     supp = {m.Xerosic_Machinations: 600, m.Lillie_Determination: 500}
-    target, _ = m._meowth_fetch_prediccion(
+    target, _ = m._meowth_fetch_prediction(
         {}, supp, 5, True, 8, False, False, False, False, False, True,
         deck, first_turn=False)
     assert target == m.Xerosic_Machinations
@@ -122,7 +122,7 @@ def test_with_no_lillie_in_the_deck_the_first_turn_does_not_degrade_the_rest():
     rule caps nobody and the normal ladder decides."""
     deck = {m.Xerosic_Machinations: {m.ZONE_DECK: 2}}
     supp = {m.Xerosic_Machinations: 600}
-    target, value = m._meowth_fetch_prediccion(
+    target, value = m._meowth_fetch_prediction(
         {}, supp, 5, True, 8, False, False, False, False, False, True,
         deck, first_turn=True)
     assert target == m.Xerosic_Machinations and value > 40
@@ -134,7 +134,7 @@ def test_with_no_lillie_in_the_deck_the_first_turn_does_not_degrade_the_rest():
 
 def _ctx_ub_meowth(hand, turn=1, lillie_in_deck=4):
     return m._CtxUBMeowth(
-        hand=hand, campo={}, bench_count=1, turn=turn, watchtower=False,
+        hand=hand, field={}, bench_count=1, turn=turn, watchtower=False,
         supp_values={m.Lillie_Determination: 900}, lillie_in_deck=lillie_in_deck,
         any_supp_in_deck=True, prefer_meowth_develop=True,
         hydra_dead_prefer_meowth=False, mega_dead_prefer_meowth=False,

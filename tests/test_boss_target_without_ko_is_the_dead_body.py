@@ -199,7 +199,7 @@ def _board(active_energies):
             .op_active(pk(DRAGAPULT, hp=320, max_hp=320, energies=[G, G]))
             .op_bench(pk(DRAGAPULT, hp=320, max_hp=320, energies=[G]),
                       pk(DUSCLOPS, hp=90, max_hp=90))
-            .op_zonas(hand=5, deck=25, prizes=4)
+            .op_zones(hand=5, deck=25, prizes=4)
             .deck()
             # `menu_gust()` consumes a Boss's Orders from the pool (the card "in
             # effect"), so it goes BEFORE `rest_to_discard()`.

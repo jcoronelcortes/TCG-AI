@@ -139,11 +139,11 @@ class Scenario:
     # ------------------------------------------------------------------
     # Accounting of our own pool
     # ------------------------------------------------------------------
-    def _tomar(self, card_id, zona):
+    def _tomar(self, card_id, zone):
         if self._pool[card_id] <= 0:
             raise InconsistentState(
                 f"no quedan copias de la carta {card_id} en deck.csv para "
-                f"colocar en {zona} (ya se usaron todas)")
+                f"colocar en {zone} (ya se usaron todas)")
         self._pool[card_id] -= 1
         return {"id": card_id, "playerIndex": 0, "serial": next(self._serial_mio)}
 
@@ -256,7 +256,7 @@ class Scenario:
                               "serial": next(self._serial_op)} for cid in ids]
         return self
 
-    def op_zonas(self, hand=0, deck=30, prizes=6):
+    def op_zones(self, hand=0, deck=30, prizes=6):
         self._op_hand = hand
         self._op_deck = deck
         self._op_prizes = prizes
@@ -719,22 +719,22 @@ class Scenario:
             raise InconsistentState(
                 "falta el select (p.ej. fetch_ultra_ball())")
 
-        restante = sum(self._pool.values())
+        remaining = sum(self._pool.values())
         if self._visible_deck is not None:
             # With the deck declared, the remainder is exactly the prizes.
-            if restante != self._n_prizes:
+            if remaining != self._n_prizes:
                 sobra = {k: v for k, v in self._pool.items() if v > 0}
                 raise InconsistentState(
                     f"la contabilidad no cuadra: con el mazo declarado deben "
                     f"sobrar exactamente {self._n_prizes} cartas (premios "
-                    f"boca abajo) y sobran {restante}: {sobra}. Ajusta "
+                    f"boca abajo) y sobran {remaining}: {sobra}. Ajusta "
                     f"descarte/mano/mazo o usa resto_al_descarte().")
             deck_count = len(self._visible_deck)
         else:
-            deck_count = restante - self._n_prizes
+            deck_count = remaining - self._n_prizes
             if deck_count < 0:
                 raise InconsistentState(
-                    f"quedan {restante} cartas sin colocar, menos que los "
+                    f"quedan {remaining} cartas sin colocar, menos que los "
                     f"{self._n_prizes} premios: el escenario coloco de mas")
 
         mi_player = {

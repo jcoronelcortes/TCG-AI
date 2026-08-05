@@ -167,7 +167,7 @@ def _build_deck_chains(deck_ids):
             by_name[pre].add(cid)
     evo_by_name = {name: tuple(sorted(v)) for name, v in by_name.items()}
 
-    cadenas = []
+    strings = []
     for cid in sorted(ids):
         data = card_table.get(cid)
         if data is None or data.cardType != CardType.POKEMON or not data.basic:
@@ -179,10 +179,10 @@ def _build_deck_chains(deck_ids):
             s2s = evo_by_name.get(s1_data.name, ())
             if s2s:
                 for s2 in s2s:
-                    cadenas.append((cid, s1, s2))
+                    strings.append((cid, s1, s2))
             else:
-                cadenas.append((cid, s1, 0))
-    return evo_by_name, tuple(cadenas)
+                strings.append((cid, s1, 0))
+    return evo_by_name, tuple(strings)
 
 
 def _evo_link_state(hand_counts, field_counts):
@@ -413,7 +413,7 @@ def _build_deck_chains(deck_ids):
             by_name[pre].add(cid)
     evo_by_name = {name: tuple(sorted(v)) for name, v in by_name.items()}
 
-    cadenas = []
+    strings = []
     for cid in sorted(ids):
         data = card_table.get(cid)
         if data is None or data.cardType != CardType.POKEMON or not data.basic:
@@ -425,10 +425,10 @@ def _build_deck_chains(deck_ids):
             s2s = evo_by_name.get(s1_data.name, ())
             if s2s:
                 for s2 in s2s:
-                    cadenas.append((cid, s1, s2))
+                    strings.append((cid, s1, s2))
             else:
-                cadenas.append((cid, s1, 0))
-    return evo_by_name, tuple(cadenas)
+                strings.append((cid, s1, 0))
+    return evo_by_name, tuple(strings)
 
 
 def _evo_link_state(hand_counts, field_counts):

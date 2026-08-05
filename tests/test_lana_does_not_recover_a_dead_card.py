@@ -194,9 +194,9 @@ def test_the_fixture_is_the_dead_recovery():
     assert recuperable == [APPLIN]
 
     # And that Applin is a dead card: a Basic with the bench full.
-    campo = collections.Counter([c["id"] for c in mio["bench"]] +
+    field = collections.Counter([c["id"] for c in mio["bench"]] +
                                 [mio["active"][0]["id"]])
-    assert m._pokemon_injugable(APPLIN, campo, len(mio["bench"]),
+    assert m._pokemon_injugable(APPLIN, field, len(mio["bench"]),
                                 mio["benchMax"])
 
     assert _hand_option(o, m.Lanas_Aid) is not None
@@ -304,13 +304,13 @@ def test_the_fixture_has_both_lines_already_evolved():
     o = _obs()
     yo = o["current"]["yourIndex"]
     mio = o["current"]["players"][yo]
-    campo = [c["id"] for c in mio["bench"]] + [mio["active"][0]["id"]]
-    assert m.Meganium in campo and m.Hydrapple_ex in campo
+    field = [c["id"] for c in mio["bench"]] + [mio["active"][0]["id"]]
+    assert m.Meganium in field and m.Hydrapple_ex in field
     # No body in play admits an evolution: there is nothing Dawn can bring
     # and put on top.
     for line in m.EVO_LINES:
         for pre, evo in zip(line, line[1:]):
-            assert pre not in campo, (pre, evo)
+            assert pre not in field, (pre, evo)
     assert _hand_option(o, m.Dawn) is not None
 
 

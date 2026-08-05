@@ -164,7 +164,7 @@ def _board(extra_bench=()):
             .my_bench(pk(OGERPON))
             .op_active(pk(DRAGAPULT, hp=320, max_hp=320, energies=[G]))
             .op_bench(*([pk(DRAKLOAK, hp=90, max_hp=90)] + list(extra_bench)))
-            .op_zonas(hand=5, deck=30, prizes=5)
+            .op_zones(hand=5, deck=30, prizes=5)
             .my_hand(BOSS)
             .deck()
             .rest_to_discard()

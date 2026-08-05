@@ -82,10 +82,10 @@ def main(pre_path, post_path, n_mirror=40, n_opponent=40):
         deck_r = sp.read_deck(opponent_path)
         steps_r = 0
         for i in range(n_opponent):
-            asiento = i % 2
-            drv = {asiento: pre0, 1 - asiento: opponent_bot}
-            shd = {asiento: post0, 1 - asiento: None}
-            decks = (deck, deck_r) if asiento == 0 else (deck_r, deck)
+            seat = i % 2
+            drv = {seat: pre0, 1 - seat: opponent_bot}
+            shd = {seat: post0, 1 - seat: None}
+            decks = (deck, deck_r) if seat == 0 else (deck_r, deck)
             flips, steps = play_with_shadow(drv, shd, decks[0], decks[1])
             total_flips += flips
             steps_r += steps

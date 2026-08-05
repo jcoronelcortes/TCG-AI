@@ -182,7 +182,7 @@ def _promotion(hand, bench=(CHIKORITA, APPLIN, OGERPON)):
                         for b in bench])
             .my_hand(*hand)
             .op_active(pk(RIOLU, energies=[int(m.EnergyType.FIGHTING)]))
-            .op_zonas(hand=7, deck=42, prizes=6)
+            .op_zones(hand=7, deck=42, prizes=6)
             .promote_after_retreat()
             .build())
 
@@ -228,7 +228,7 @@ def _main_menu(op_active, my_bench=(CHIKORITA, APPLIN), hand=(DIPPLIN, GRASS)):
                         for b in my_bench])
             .my_hand(*hand)
             .op_active(op_active)
-            .op_zonas(hand=7, deck=42, prizes=6)
+            .op_zones(hand=7, deck=42, prizes=6)
             .menu_hand(with_retreat=True)
             .build())
 

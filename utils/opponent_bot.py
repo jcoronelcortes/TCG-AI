@@ -238,15 +238,15 @@ class BotRival:
         if ability is not None:
             return [ability]
 
-        ataques = by_type.get(int(OptionType.ATTACK))
+        attack_options = by_type.get(int(OptionType.ATTACK))
 
         # With no attack available, RETREATING is the only thing that changes anything: a
         # body that does not hit, nailed in the active spot, loses the game on its own.
         retreats = by_type.get(int(OptionType.RETREAT))
-        if not ataques and retreats:
+        if not attack_options and retreats:
             return [retreats[0]]
 
-        if ataques:
+        if attack_options:
             cur = obs.get("current") or {}
             yo = cur.get("yourIndex", 0)
             players = cur.get("players") or []
@@ -255,7 +255,7 @@ class BotRival:
             if len(players) > max(yo, 1 - yo):
                 my_active = ((players[yo] or {}).get("active") or [None])[0]
                 their_active = ((players[1 - yo] or {}).get("active") or [None])[0]
-            best = max(ataques, key=lambda i: self._effective_damage(
+            best = max(attack_options, key=lambda i: self._effective_damage(
                 my_active, their_active, options[i].get("attackId")))
             return [best]
 

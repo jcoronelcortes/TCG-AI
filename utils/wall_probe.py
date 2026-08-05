@@ -54,11 +54,11 @@ def _tipo_elegido(obs, choice):
         return None
 
 
-def _califica(m, obs, asiento):
+def _califica(m, obs, seat):
     """Does this turn begin with the ex blocked and the answer ready on the bench?"""
     cur = obs["current"]
-    yo = cur["players"][asiento]
-    op = cur["players"][1 - asiento]
+    yo = cur["players"][seat]
+    op = cur["players"][1 - seat]
     act = (yo.get("active") or [None])[0]
     oact = (op.get("active") or [None])[0]
     if not act or not oact:
@@ -83,13 +83,13 @@ def play(m, opponent_deck, games, dump, target_path):
     summary = Counter()
     dry_turns = []
     for i in range(games):
-        asiento = i % 2
-        d0 = sp.read_deck() if asiento == 0 else opponent_deck
-        d1 = opponent_deck if asiento == 0 else sp.read_deck()
+        seat = i % 2
+        d0 = sp.read_deck() if seat == 0 else opponent_deck
+        d1 = opponent_deck if seat == 0 else sp.read_deck()
         obs, sd = game.battle_start(list(d0), list(d1))
         if obs is None:
             continue
-        agentes = {asiento: m, 1 - asiento: BotRival()}
+        agentes = {seat: m, 1 - seat: BotRival()}
         steps = 0
         current_turn = None
         state = None  # the current turn's dict, if it qualifies
@@ -97,7 +97,7 @@ def play(m, opponent_deck, games, dump, target_path):
             while obs["current"]["result"] == -1 and steps < 3000:
                 yi = obs["current"]["yourIndex"]
                 turn = obs["current"]["turn"]
-                if yi == asiento and _es_main(obs):
+                if yi == seat and _es_main(obs):
                     if turn != current_turn:
                         # It closes the previous turn before opening the new one.
                         if state is not None:
@@ -106,12 +106,12 @@ def play(m, opponent_deck, games, dump, target_path):
                                 dry_turns.append(state["obs"])
                         current_turn = turn
                         state = ({"desenlace": "seco", "obs": obs}
-                                  if _califica(m, obs, asiento) else None)
+                                  if _califica(m, obs, seat) else None)
                 try:
                     choice = agentes[yi].agent(obs)
                 except Exception:
                     break
-                if state is not None and yi == asiento and _es_main(obs):
+                if state is not None and yi == seat and _es_main(obs):
                     t = _tipo_elegido(obs, choice)
                     if t == int(OptionType.ATTACK):
                         state["desenlace"] = "ataca"

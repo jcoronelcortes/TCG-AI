@@ -133,9 +133,9 @@ def _play(obs, choice):
     if tipo == int(m.OptionType.PLAY):
         return ("PLAY", player["hand"][o["index"]]["id"])
     if tipo == int(m.OptionType.ABILITY):
-        zona = (player["active"] if o["area"] == int(m.AreaType.ACTIVE)
+        zone = (player["active"] if o["area"] == int(m.AreaType.ACTIVE)
                 else player["bench"])
-        return ("ABILITY", zona[o["index"]]["id"])
+        return ("ABILITY", zone[o["index"]]["id"])
     if tipo == int(m.OptionType.ATTACH):
         return ("ATTACH", player["hand"][o["index"]]["id"])
     if tipo == int(m.OptionType.ATTACK):
@@ -262,7 +262,7 @@ def _scenario_lucario(hand, with_attack=True):
            .op_active(pk(MEGA_LUCARIO, hp=340, max_hp=340, energies=[C, C],
                          pre_evo=[RIOLU]))
            .op_bench(RIOLU, RIOLU)
-           .op_zonas(hand=6, deck=23, prizes=4)
+           .op_zones(hand=6, deck=23, prizes=4)
            .menu_hand(with_attack=with_attack))
     obs = esc.build()
     # Step 91 arrives after we were knocked out: it replicates the tracking.
@@ -302,7 +302,7 @@ def _scenario_teal_lillie(hand):
            .op_active(pk(MEGA_LUCARIO, hp=340, max_hp=340, energies=[C, C],
                          pre_evo=[RIOLU]))
            .op_bench(RIOLU, RIOLU)
-           .op_zonas(hand=6, deck=23, prizes=4)
+           .op_zones(hand=6, deck=23, prizes=4)
            .menu_hand(with_attack=True))
     obs = esc.build()
     m.ko_last_turn = True
@@ -333,7 +333,7 @@ def test_synthetic_pending_does_not_break_the_physical_limits():
            .op_active(pk(MEGA_LUCARIO, hp=340, max_hp=340, energies=[C, C],
                          pre_evo=[RIOLU]))
            .op_bench(RIOLU)
-           .op_zonas(hand=6, deck=23, prizes=4)
+           .op_zones(hand=6, deck=23, prizes=4)
            .menu_hand(with_attack=True))
     obs = esc.build()
     m.ko_last_turn = True

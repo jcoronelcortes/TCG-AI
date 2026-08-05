@@ -155,7 +155,7 @@ def _scenario(active, hand, op_active=BUDEW, turn=1, first_player=0):
             .my_hand(*hand)
             .op_active(pk(op_active))
             .op_bench(pk(m.Dreepy))
-            .op_zonas(hand=6, deck=46, prizes=6)
+            .op_zones(hand=6, deck=46, prizes=6)
             .menu_hand()
             .build())
 

@@ -118,8 +118,8 @@ def _pk_elegido(obs, choice):
     """The opposing Pokemon pointed at by option `eleccion` of the DAMAGE menu."""
     o = obs["select"]["option"][choice[0]]
     opponent = obs["current"]["players"][o["playerIndex"]]
-    zona = opponent["active"] if o["area"] == int(m.AreaType.ACTIVE) else opponent["bench"]
-    return zona[o["index"]]
+    zone = opponent["active"] if o["area"] == int(m.AreaType.ACTIVE) else opponent["bench"]
+    return zone[o["index"]]
 
 
 # ---------------------------------------------------------------------------

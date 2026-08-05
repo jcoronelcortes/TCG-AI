@@ -164,7 +164,7 @@ def _scenario(hand, supporter_played=True):
             .my_bench(pk(TAPU), pk(OGERPON))
             .my_hand(*hand)
             .op_active(pk(ABRA))
-            .op_zonas(hand=3, deck=45, prizes=6)
+            .op_zones(hand=3, deck=45, prizes=6)
             .menu_hand()
             .build())
 

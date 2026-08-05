@@ -68,7 +68,7 @@ MIN_HAND_STERILE = 4
 SWITCH_CARD = 1123
 
 
-def play_recording(agent_state, opponent, own_deck, opponent_deck, asiento):
+def play_recording(agent_state, opponent, own_deck, opponent_deck, seat):
     """Plays a game recording OUR decisions.
 
     It returns (result, decisions, final_obs) with the result in {"gana",
@@ -80,12 +80,12 @@ def play_recording(agent_state, opponent, own_deck, opponent_deck, asiento):
 
     sp._reset_si_aplica(agent_state)
     sp._reset_si_aplica(opponent)
-    decks = ((own_deck, opponent_deck) if asiento == 0
+    decks = ((own_deck, opponent_deck) if seat == 0
              else (opponent_deck, own_deck))
     obs, sd = game.battle_start(list(decks[0]), list(decks[1]))
     if obs is None:
         raise RuntimeError(f"battle_start fallo: {sd.errorType}")
-    agentes = {asiento: agent_state, 1 - asiento: opponent}
+    agentes = {seat: agent_state, 1 - seat: opponent}
     decisiones, steps = [], 0
     try:
         while obs["current"]["result"] == -1 and steps < MAX_STEPS:
@@ -93,22 +93,22 @@ def play_recording(agent_state, opponent, own_deck, opponent_deck, asiento):
             try:
                 choice = agentes[yi].agent(obs)
             except Exception:
-                return (("forfeit" if yi == asiento else "gana"),
+                return (("forfeit" if yi == seat else "gana"),
                         decisiones, obs)
-            if yi == asiento:
+            if yi == seat:
                 decisiones.append({"obs": obs, "eleccion": list(choice),
                                    "paso": steps})
             obs = game.battle_select(choice)
             steps += 1
         if obs["current"]["result"] == -1:
             return "limite", decisiones, obs
-        return (("gana" if obs["current"]["result"] == asiento
+        return (("gana" if obs["current"]["result"] == seat
                  else "pierde"), decisiones, obs)
     finally:
         game.battle_finish()
 
 
-def classify_loss(obs_final, asiento, result):
+def classify_loss(obs_final, seat, result):
     """Classifies HOW the game was lost by looking at the final observation.
 
     Modes: "premios" (the opponent completed their prizes), "bench_out" (we
@@ -122,20 +122,20 @@ def classify_loss(obs_final, asiento, result):
         return "limite"
     try:
         cur = obs_final["current"]
-        yo = cur["players"][asiento]
-        op = cur["players"][1 - asiento]
+        yo = cur["players"][seat]
+        op = cur["players"][1 - seat]
     except (KeyError, IndexError, TypeError):
         return "desconocido"
     # The convention of the rest of the file: a None entry in prize is a
     # prize that player has STILL to take.
-    op_restantes = sum(1 for p in (op.get("prize") or []) if p is None)
+    op_remaining = sum(1 for p in (op.get("prize") or []) if p is None)
     actives = [p for p in (yo.get("active") or []) if p]
     bench = [p for p in (yo.get("bench") or []) if p]
-    if op_restantes > 0 and not actives and not bench:
+    if op_remaining > 0 and not actives and not bench:
         return "bench_out"
-    if op_restantes > 0 and (yo.get("deckCount") or 0) <= 0:
+    if op_remaining > 0 and (yo.get("deckCount") or 0) <= 0:
         return "deckout"
-    if op_restantes == 0:
+    if op_remaining == 0:
         return "premios"
     return "desconocido"
 
@@ -264,13 +264,13 @@ def turn_census(m, decisiones):
         switch_in_hand = any(c["id"] == SWITCH_CARD for c in hand)
         retreat_payable_today = False
         if act is not None and not can_retreat:
-            campo = [act] + [b for b in (yo.get("bench") or []) if b]
-            unit = 2 if any(b["id"] == m.Meganium for b in campo) else 1
+            field = [act] + [b for b in (yo.get("bench") or []) if b]
+            unit = 2 if any(b["id"] == m.Meganium for b in field) else 1
             # Attachment routes that can leave a Grass ON THE ACTIVE today:
             # the manual one if it is still free, the Ripening Charge of each Hydrapple ex
             # (which charges anyone) and Teal Dance only if the ACTIVE is the Ogerpon.
             vias = (0 if cur.get("energyAttached") else 1)
-            vias += sum(1 for b in campo if b["id"] == m.Hydrapple_ex)
+            vias += sum(1 for b in field if b["id"] == m.Hydrapple_ex)
             if act["id"] == m.Teal_Mask_Ogerpon_ex:
                 vias += 1
             grass_cards = sum(1 for c in hand if c["id"] == m.Basic_Grass_Energy)
@@ -499,7 +499,7 @@ def autopsy(opponent_csv, games, mirror=False, target_path=None, censar=False):
     census = []
     for i in range(games):
         result, decisiones, obs_final = play_recording(
-            agent_state, opponent, own_deck, opponent_deck, asiento=i % 2)
+            agent_state, opponent, own_deck, opponent_deck, seat=i % 2)
         scoreboard[result] += 1
         # THE CENSUS: it is built from ALL the games, wins included. It is the
         # CONTROL group -- without it, a pattern that is frequent in the losses cannot be
@@ -513,15 +513,15 @@ def autopsy(opponent_csv, games, mirror=False, target_path=None, censar=False):
         # the interesting failure mode), as well as losses and forfeits.
         if result not in ("pierde", "forfeit", "limite"):
             continue
-        modo = classify_loss(obs_final, asiento=i % 2,
+        loss_mode = classify_loss(obs_final, seat=i % 2,
                                   result=result)
-        modes[modo] += 1
-        mode_per_game[i] = modo
+        modes[loss_mode] += 1
+        mode_per_game[i] = loss_mode
         for h in detectar(m, decisiones):
             h["partida"] = i
             h["rival"] = etiqueta
             h["resultado"] = result
-            h["modo_derrota"] = modo
+            h["modo_derrota"] = loss_mode
             total_findings.append(h)
 
     # persist: one file per game with its findings

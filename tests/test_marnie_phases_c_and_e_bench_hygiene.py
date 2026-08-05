@@ -149,7 +149,7 @@ def _board_with_wounded_meganium(with_drip=True):
             .op_active(pk(GRIMMSNARL, hp=310, max_hp=320,
                           energies=[G, G], fisicas=2))
             .op_bench(*opponent_bench)
-            .op_zonas(hand=5, deck=35, prizes=3)
+            .op_zones(hand=5, deck=35, prizes=3)
             .menu_attach_energy()
             .build())
 
@@ -188,7 +188,7 @@ def test_an_active_that_attacks_today_does_not_count_as_doomed():
                          fisicas=2))
            .op_bench(pk(FROSLASS, hp=90, max_hp=90),
                      pk(MUNKIDORI, hp=110, max_hp=110, energies=[G], fisicas=1))
-           .op_zonas(hand=5, deck=35, prizes=3)
+           .op_zones(hand=5, deck=35, prizes=3)
            .menu_attach_energy()
            .build())
     assert _energy_destination(obs, m.agent(obs)) == OGERPON, (
@@ -220,7 +220,7 @@ def _board_to_play_fez(with_froslass=True, opponent_prizes=6):
             .op_active(pk(GRIMMSNARL, hp=320, max_hp=320, energies=[G],
                           fisicas=1))
             .op_bench(*opponent_bench)
-            .op_zonas(hand=5, deck=40, prizes=opponent_prizes)
+            .op_zones(hand=5, deck=40, prizes=opponent_prizes)
             .menu_hand(with_attachment=True)
             .build())
 
@@ -265,7 +265,7 @@ def _board_to_play_applin(with_munkidori=True, with_chain=False):
            .op_active(pk(GRIMMSNARL, hp=320, max_hp=320, energies=[G],
                          fisicas=1))
            .op_bench(*opponent_bench)
-           .op_zonas(hand=5, deck=40, prizes=6))
+           .op_zones(hand=5, deck=40, prizes=6))
     if with_chain:
         esc = esc.stadium(m.Forest_of_Vitality)
     return esc.menu_hand(with_attachment=True).build()

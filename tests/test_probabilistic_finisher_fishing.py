@@ -268,7 +268,7 @@ def _scenario_step49(grass_in_deck=10, grass_in_hand=0, with_attachment=False):
                         pre_evo=[IMPIDIMP]),
                      pk(SNORUNT, hp=70, max_hp=70),
                      pk(IMPIDIMP, hp=70, max_hp=70, energies=[DARK, DARK]))
-           .op_zonas(hand=5, deck=32, prizes=6))
+           .op_zones(hand=5, deck=32, prizes=6))
 
     # Deck: the requested live Grass + filler from the pool (including the Dipplin
     # that makes the Ultra Ball "complete a line", as in the record).
@@ -351,7 +351,7 @@ def test_successful_fishing_turns_into_an_attack():
            .op_bench(pk(MORGREM, hp=100, max_hp=100, energies=[DARK, DARK],
                         pre_evo=[IMPIDIMP]),
                      pk(SNORUNT, hp=70, max_hp=70))
-           .op_zonas(hand=5, deck=32, prizes=6))
+           .op_zones(hand=5, deck=32, prizes=6))
     esc.deck(*sorted(esc._pool.elements())[:34]).rest_to_discard()
     obs = esc.menu_hand(with_retreat=True, with_attack=True).build()
     choice = m.agent(obs)

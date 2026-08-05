@@ -116,9 +116,9 @@ def _play(obs, choice):
     if tipo == int(m.OptionType.PLAY):
         return ("PLAY", player["hand"][o["index"]]["id"])
     if tipo == int(m.OptionType.ABILITY):
-        zona = (player["active"] if o["area"] == int(m.AreaType.ACTIVE)
+        zone = (player["active"] if o["area"] == int(m.AreaType.ACTIVE)
                 else player["bench"])
-        return ("ABILITY", zona[o["index"]]["id"])
+        return ("ABILITY", zone[o["index"]]["id"])
     if tipo == int(m.OptionType.ATTACK):
         return ("ATTACK", o.get("attackId"))
     if tipo == int(m.OptionType.RETREAT):
@@ -233,7 +233,7 @@ def _scenario(hand, with_attack=True):
            .op_active(pk(ARCHALUDON, hp=400, max_hp=400, energies=[C, C, C],
                          pre_evo=[DURALUDON]))
            .op_bench(pk(DURALUDON, hp=130, max_hp=130, energies=[C, C, C]))
-           .op_zonas(hand=9, deck=23, prizes=4)
+           .op_zones(hand=9, deck=23, prizes=4)
            .menu_hand(with_attack=with_attack))
     obs = esc.build()
     options = obs["select"]["option"]
@@ -291,7 +291,7 @@ def test_synthetic_deck_out_still_vetoes_the_ability():
            .rest_to_discard()
            .op_active(pk(ARCHALUDON, hp=400, max_hp=400, energies=[C, C, C],
                          pre_evo=[DURALUDON]))
-           .op_zonas(hand=5, deck=20, prizes=4)
+           .op_zones(hand=5, deck=20, prizes=4)
            .menu_hand(with_attack=True))
     obs = esc.build()
     options = obs["select"]["option"]

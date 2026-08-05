@@ -98,7 +98,7 @@ def test_invariante_fetch_ub_robusto(active_id, active_energies, bench,
                .my_bench(*bench)
                .my_hand(*hand)
                .op_active(opponent)
-               .op_zonas(hand=5, deck=30, prizes=6)
+               .op_zones(hand=5, deck=30, prizes=6)
                # the deck always carries a searchable Pokemon + random extras
                .deck(m.Teal_Mask_Ogerpon_ex, *extra_deck)
                .fetch_ultra_ball()
@@ -142,7 +142,7 @@ def test_invariant_applin_at_most_one_energy(applin_active, companiero,
                .my_hand(m.Basic_Grass_Energy)  # without Dipplin+Hydrapple: no
                # the complete-evolution-this-turn exception applies
                .op_active(opponent)
-               .op_zonas(hand=5, deck=30, prizes=6)
+               .op_zones(hand=5, deck=30, prizes=6)
                .menu_attach_energy()
                .build())
     except InconsistentState:

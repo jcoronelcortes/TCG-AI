@@ -169,7 +169,7 @@ def _scenario_tapu(op_hp):
             .my_hand(m.Ultra_Ball)
             .my_discard(GRASS, GRASS, APPLIN, APPLIN)
             .op_active(pk(MEGA_KANGASKHAN, hp=op_hp, max_hp=300))
-            .op_zonas(hand=4, deck=39, prizes=2)
+            .op_zones(hand=4, deck=39, prizes=2)
             .fetch_discard(NIGHT_STRETCHER, only=(GRASS, APPLIN))
             .build())
 
@@ -201,7 +201,7 @@ def test_with_the_route_to_the_active_closed_the_rule_does_not_fire():
            .my_hand(m.Ultra_Ball)
            .my_discard(GRASS, GRASS, APPLIN, APPLIN)
            .op_active(pk(MEGA_KANGASKHAN, hp=200, max_hp=300))
-           .op_zonas(hand=4, deck=39, prizes=2)
+           .op_zones(hand=4, deck=39, prizes=2)
            .fetch_discard(NIGHT_STRETCHER, only=(GRASS, APPLIN))
            .build())
     assert _chosen_id(obs) == APPLIN
@@ -225,7 +225,7 @@ def _board_of_the_record(active_energy, hand, menu):
            .my_hand(*hand)
            .my_discard(APPLIN, APPLIN)
            .op_active(pk(MEGA_KANGASKHAN, hp=90, max_hp=300, energies=3))
-           .op_zonas(hand=4, deck=39, prizes=2))
+           .op_zones(hand=4, deck=39, prizes=2))
     return menu(esc).build()
 
 

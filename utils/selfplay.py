@@ -245,8 +245,8 @@ def torneo(candidate, base, games, progress=None,
         "premios_candidato": 0, "premios_base": 0, "partidas_con_premios": 0,
     }
     for i in range(games):
-        asiento_cand = i % 2
-        if asiento_cand == 0:
+        candidate_seat = i % 2
+        if candidate_seat == 0:
             p0, p1, d0, d1 = candidate, base, deck_candidate, deck_base
         else:
             p0, p1, d0, d1 = base, candidate, deck_base, deck_candidate
@@ -254,27 +254,27 @@ def torneo(candidate, base, games, progress=None,
         stats["pasos_totales"] += r["pasos"]
         prizes = r.get("premios_tomados") or [None, None]
         if prizes[0] is not None and prizes[1] is not None:
-            stats["premios_candidato"] += prizes[asiento_cand]
-            stats["premios_base"] += prizes[1 - asiento_cand]
+            stats["premios_candidato"] += prizes[candidate_seat]
+            stats["premios_base"] += prizes[1 - candidate_seat]
             stats["partidas_con_premios"] += 1
         if isinstance(r["result"], str) and r["result"].startswith("error"):
             asiento_err = int(r["result"][-1])
-            if asiento_err == asiento_cand:
+            if asiento_err == candidate_seat:
                 stats["errores_candidato"] += 1
             else:
                 stats["errores_base"] += 1
         if r["ganador"] is None:
             stats["limites"] += 1
         else:
-            gano_cand = (r["ganador"] == asiento_cand)
+            gano_cand = (r["ganador"] == candidate_seat)
             stats["candidate" if gano_cand else "base"] += 1
-            seat = stats["cand_j0"] if asiento_cand == 0 else stats["cand_j1"]
+            seat = stats["cand_j0"] if candidate_seat == 0 else stats["cand_j1"]
             seat[1] += 1
             seat[0] += int(gano_cand)
-            if r["primer_jugador"] == asiento_cand:
+            if r["primer_jugador"] == candidate_seat:
                 stats["cand_primero"][1] += 1
                 stats["cand_primero"][0] += int(gano_cand)
-            elif r["primer_jugador"] == 1 - asiento_cand:
+            elif r["primer_jugador"] == 1 - candidate_seat:
                 stats["cand_segundo"][1] += 1
                 stats["cand_segundo"][0] += int(gano_cand)
         if progress and (i + 1) % progress == 0:

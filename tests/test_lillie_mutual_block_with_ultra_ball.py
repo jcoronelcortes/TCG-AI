@@ -116,11 +116,11 @@ def test_step_116_has_both_halves_of_the_block():
     obs = _frames()[-1]
     yo = obs["current"]["players"][0]
     hand = [c["id"] for c in yo["hand"]]
-    campo = [p["id"] for p in yo["active"] + [b for b in yo["bench"] if b]]
+    field = [p["id"] for p in yo["active"] + [b for b in yo["bench"] if b]]
 
     # the line gap that switches on `ultra_ball_completes_the_line`...
     assert ULTRA_BALL in hand and HYDRAPPLE in hand
-    assert APPLIN in campo and m.Dipplin not in campo
+    assert APPLIN in field and m.Dipplin not in field
     # ...and the Lillie's as the ONLY Supporter in hand.
     assert hand.count(LILLIE) == 1
     assert not any(s in hand for s in m._SUPP_PLAY_IDS if s != LILLIE)

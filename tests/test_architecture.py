@@ -37,8 +37,8 @@ def test_mutables_are_derived_from_the_code():
     """
     mutables = la.mutable_names()
     assert len(mutables) >= 30, f"solo {len(mutables)} mutables detectados"
-    for esperado in ("plan", "ko_last_turn", "ACTIVE_CARDS_IN_DECK"):
-        assert esperado in mutables, f"{esperado} dejo de vigilarse"
+    for expected in ("plan", "ko_last_turn", "ACTIVE_CARDS_IN_DECK"):
+        assert expected in mutables, f"{expected} dejo de vigilarse"
 
 
 def test_the_migrated_state_is_still_watched():

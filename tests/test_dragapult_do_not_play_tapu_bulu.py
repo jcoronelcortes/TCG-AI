@@ -273,11 +273,11 @@ def test_the_veto_does_not_touch_other_matchups():
 # ---------------------------------------------------------------------------
 
 def test_matchup_permite_bajar_veta_tapu_vs_dragapult():
-    campo = {}
-    assert m._matchup_allows_playing(TAPU, campo, False, False,
+    field = {}
+    assert m._matchup_allows_playing(TAPU, field, False, False,
                                     dragapult_no_tapu=True) is False
     # Without the veto (<=2 bodies, or another rival) it is still allowed...
-    assert m._matchup_allows_playing(TAPU, campo, False, False) is True
+    assert m._matchup_allows_playing(TAPU, field, False, False) is True
     # ...and it only affects Tapu Bulu.
-    assert m._matchup_allows_playing(OGERPON, campo, False, False,
+    assert m._matchup_allows_playing(OGERPON, field, False, False,
                                     dragapult_no_tapu=True) is True

@@ -145,10 +145,10 @@ def test_step118_one_grass_puts_the_tapu_bulu_in_attack_range():
 
     o = m.to_observation_class(obs)
     mi = o.current.players[o.current.yourIndex]
-    campo = {}
+    field = {}
     for p in mi.active + mi.bench:
         if p is not None:
-            campo[p.id] = campo.get(p.id, 0) + 1
+            field[p.id] = field.get(p.id, 0) + 1
     hand = {}
     for c in (mi.hand or []):
         hand[c.id] = hand.get(c.id, 0) + 1
@@ -158,7 +158,7 @@ def test_step118_one_grass_puts_the_tapu_bulu_in_attack_range():
     assert tapu.id == TAPU
     assert len(tapu.energies) == 2 and m.ATTACK_ENERGY_REQ[TAPU] == 4
 
-    plan = m._grass_plan(mi, o.current, campo, hand)
+    plan = m._grass_plan(mi, o.current, field, hand)
     assert plan.unlocks_today
     assert plan.cards_to_attack == 1
     assert plan.demanda == 3          # the Meganium/Ogerpon ask for the rest
@@ -171,16 +171,16 @@ def test_step118_applin_and_dipplin_are_dead_cards():
         obs = json.load(f)["observation"]
     o = m.to_observation_class(obs)
     mi = o.current.players[o.current.yourIndex]
-    campo = {}
+    field = {}
     for p in mi.active + mi.bench:
         if p is not None:
-            campo[p.id] = campo.get(p.id, 0) + 1
+            field[p.id] = field.get(p.id, 0) + 1
     bench = len([p for p in mi.bench if p is not None])
 
     assert bench == mi.benchMax
-    assert m._pokemon_injugable(APPLIN, campo, bench, mi.benchMax)
-    assert m._pokemon_injugable(DIPPLIN, campo, bench, mi.benchMax)
-    assert not m._pokemon_injugable(GRASS, campo, bench, mi.benchMax)
+    assert m._pokemon_injugable(APPLIN, field, bench, mi.benchMax)
+    assert m._pokemon_injugable(DIPPLIN, field, bench, mi.benchMax)
+    assert not m._pokemon_injugable(GRASS, field, bench, mi.benchMax)
 
 
 # ---------------------------------------------------------------------------
@@ -193,21 +193,21 @@ def _plan(active, bench=(), hand=(), energy_played=False, cambio=False):
            .my_bench(*bench)
            .my_hand(*hand)
            .op_active(pk(CRUSTLE))
-           .op_zonas(hand=5, deck=30, prizes=6)
+           .op_zones(hand=5, deck=30, prizes=6)
            .menu_hand()
            .build())
     o = m.to_observation_class(obs)
     mi = o.current.players[o.current.yourIndex]
-    campo = {}
+    field = {}
     for p in mi.active + mi.bench:
         if p is not None:
-            campo[p.id] = campo.get(p.id, 0) + 1
-    m.meganium_in_play = campo.get(MEGANIUM, 0) >= 1
+            field[p.id] = field.get(p.id, 0) + 1
+    m.meganium_in_play = field.get(MEGANIUM, 0) >= 1
     m._grass_attaches_this_turn = 0
-    cuentas = {}
+    counts = {}
     for c in (mi.hand or []):
-        cuentas[c.id] = cuentas.get(c.id, 0) + 1
-    return m._grass_plan(mi, o.current, campo, cuentas,
+        counts[c.id] = counts.get(c.id, 0) + 1
+    return m._grass_plan(mi, o.current, field, counts,
                              can_switch=cambio)
 
 
@@ -251,21 +251,21 @@ def test_plan_with_abilities_off_only_the_manual_attachment_is_left():
 
     obs = (Scenario(turn=10)
            .my_active(active).my_bench(*bench)
-           .op_active(pk(CRUSTLE)).op_zonas(hand=5, deck=30, prizes=6)
+           .op_active(pk(CRUSTLE)).op_zones(hand=5, deck=30, prizes=6)
            .menu_hand().build())
     o = m.to_observation_class(obs)
     mi = o.current.players[o.current.yourIndex]
-    campo = {OGERPON: 2}
+    field = {OGERPON: 2}
     m.meganium_in_play = False
     m._grass_attaches_this_turn = 0
 
     # With the abilities alive: the manual attachment + 2 Teal Dance -> 3 slots, and the
     # active (1 of 3) reaches 3 with 2 Grass.
-    vivas = m._grass_plan(mi, o.current, campo, {})
+    vivas = m._grass_plan(mi, o.current, field, {})
     assert vivas.slots_today == 3 and vivas.unlocks_today
 
     # With the lock on, only the manual attachment is left: 1 Grass is not enough.
-    apagadas = m._grass_plan(mi, o.current, campo, {},
+    apagadas = m._grass_plan(mi, o.current, field, {},
                                  abilities_off=True)
     assert apagadas.slots_today == 1 and not apagadas.unlocks_today
 
@@ -283,17 +283,17 @@ def test_plan_non_attackers_do_not_invent_demand():
 # ---------------------------------------------------------------------------
 
 def test_unplayable_with_a_bench_slot_nothing_is_dead():
-    campo = {MEGANIUM: 1}
-    assert not m._pokemon_injugable(APPLIN, campo, 3, 5)
-    assert not m._pokemon_injugable(DIPPLIN, campo, 3, 5)
+    field = {MEGANIUM: 1}
+    assert not m._pokemon_injugable(APPLIN, field, 3, 5)
+    assert not m._pokemon_injugable(DIPPLIN, field, 3, 5)
 
 
 def test_unplayable_full_bench_the_evolution_lives_if_its_preevo_is_in_play():
     """The Dipplin is still playable with a full bench if there is an Applin in
     play: it evolves on top of it, it takes no slot."""
-    campo = {APPLIN: 1, MEGANIUM: 4}
-    assert not m._pokemon_injugable(DIPPLIN, campo, 5, 5)
-    assert m._pokemon_injugable(APPLIN, campo, 5, 5)
+    field = {APPLIN: 1, MEGANIUM: 4}
+    assert not m._pokemon_injugable(DIPPLIN, field, 5, 5)
+    assert m._pokemon_injugable(APPLIN, field, 5, 5)
 
 
 def test_unplayable_does_not_apply_to_what_is_not_a_pokemon():
@@ -314,7 +314,7 @@ def _lana_selection(active, bench, discard, hand=(), energy_played=False):
            .my_discard(*discard)
            .op_active(pk(CRUSTLE))
            .op_bench(pk(DWEBBLE))
-           .op_zonas(hand=5, deck=30, prizes=6)
+           .op_zones(hand=5, deck=30, prizes=6)
            .fetch_discard(LANA, cuantas=3, only=(GRASS, APPLIN, DIPPLIN,
                                                   CHIKORITA))
            .build())

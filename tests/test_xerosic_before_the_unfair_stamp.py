@@ -134,8 +134,8 @@ def _scores(obs):
     try:
         m.agent(obs)
     finally:
-        for restaurar in restauradores:
-            restaurar()
+        for restore in restauradores:
+            restore()
     return visto
 
 

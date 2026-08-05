@@ -183,7 +183,7 @@ def test_an_active_ogerpon_charges_itself_to_finish():
            .my_hand(ENERGY, ENERGY)
            .op_active(pk(m.Munkidori, hp=40))
            .op_bench(pk(m.Froslass, pre_evo=[m.Snorunt]))
-           .op_zonas(hand=4, deck=30, prizes=4)
+           .op_zones(hand=4, deck=30, prizes=4)
            .menu_attach_energy()
            .build())
 
@@ -203,7 +203,7 @@ def test_no_finisher_but_a_sterile_turn_also_charges_the_active():
            .my_hand(ENERGY)
            .op_active(pk(m.Grimmsnarl_ex, hp=320,
                          energies=[G, G, G]))
-           .op_zonas(hand=4, deck=30, prizes=5)
+           .op_zones(hand=4, deck=30, prizes=5)
            .menu_attach_energy()
            .build())
 
@@ -227,7 +227,7 @@ def test_an_active_that_already_attacks_does_not_hog_the_energy():
            .my_hand(ENERGY)
            .op_active(pk(m.Grimmsnarl_ex, hp=320,
                          energies=[G, G, G]))
-           .op_zonas(hand=4, deck=30, prizes=5)
+           .op_zones(hand=4, deck=30, prizes=5)
            .menu_attach_energy()
            .build())
 

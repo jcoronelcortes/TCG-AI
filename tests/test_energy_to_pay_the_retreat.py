@@ -81,7 +81,7 @@ def _scenario(hand, bench=None, active_energy=0, discard=(GRASS, GRASS),
             .my_hand(*hand)
             .my_discard(*discard)
             .op_active(pk(COMFEY, hp=op_hp))
-            .op_zonas(hand=5, deck=20, prizes=3))
+            .op_zones(hand=5, deck=20, prizes=3))
 
 
 def _elegida(obs, choice, hand):
