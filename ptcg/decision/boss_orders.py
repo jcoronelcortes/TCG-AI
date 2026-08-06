@@ -8,8 +8,8 @@ utils/purity.py: nothing here touches mutable state or the runtime tables.
 from ptcg.cards.ids import Dwebble_Fighting, Dwebble_Grass, EX_PREEVO_IDS, GUST_TRAP_IDS, SCORE_FORBID, THREAT_PREEVO_IDS
 from ptcg.calc.opponent import _alakazam_attacker_relief, _op_active_is_harmless, _op_body_is_harmless
 from ptcg.calc.energy import _can_attack_eff, _grass_attach_unit, _retreat_grass_units
-from ptcg.calc.damage import _attacker_base_damage, _bench_attacker_best_damage, _bench_attacker_can_ko, _our_effective_damage
-from ptcg.calc.card import prize_count_op
+from ptcg.calc.damage import _attacker_base_damage, _bench_attacker_best_damage, _bench_attacker_can_ko, _bench_finisher_that_survives, _hand_revealed_lethal_reply, _op_active_attack_damage_to, _our_effective_damage, _reply_closes_the_game
+from ptcg.calc.card import prize_count, prize_count_op
 from ptcg.state.agent_state import AGENT_STATE
 from ptcg.cards.ids import Basic_Grass_Energy, Bayleef, DUNSPARCE_IDS, Dipplin, EX_PREEVO_IDS, Fezandipiti_ex, Hydrapple_ex, Meganium, OUR_EX_IDS, RETREAT_COST, THREAT_PREEVO_IDS, Tapu_Bulu, Teal_Mask_Ogerpon_ex
 from ptcg.calc.board import _active_of
@@ -417,8 +417,53 @@ def _grass_unlocks_active_retreat(my_state, op_state, meganium_active,
         act_dmg = _our_effective_damage(act, opa, _act_base, meganium_active,
                                         neutral_zone)
         if act_dmg > 0 and act_dmg >= (opa.hp or 0):
-            # The active FINISHES with that Grass: attacking with it comes first.
-            return False, False
+            # The active FINISHES with that Grass: attacking with it comes
+            # first -- UNLESS standing there afterwards is what loses the game
+            # (user, registro_012 step 120 vs Alakazam, LOST -- deck-agnostic).
+            #
+            # Turn 12, four prizes to three. Our active was a Hydrapple ex at
+            # 110 of its 330 HP with two energies, and its Syrup Storm knocked
+            # out their Alakazam from the front. So the guard fired, the turn
+            # went into Teal Dance and we attacked with the active. Their reply
+            # -- Powerful Hand, 20 per card in a hand of six, plus the Maximum
+            # Belt against our ex -- knocked out that 110 HP body, took the two
+            # prizes it hands over, and closed the game.
+            #
+            # One energy short of its retreat cost sat the answer: a benched
+            # Teal Mask Ogerpon ex with three energies that ALSO finished their
+            # Alakazam, at 210 HP, out of reach of that same reply. Same prize
+            # this turn, and the body left in front survives to take the next
+            # one.
+            #
+            # So "the active finishes" only settles it while the active can
+            # afford to stay. When the projected reply knocks it out AND those
+            # are their last prizes, the choice is not whether to finish but
+            # WHICH of the two finishers is left standing -- and the retreat
+            # line wins whenever the relay survives and hands over no more
+            # prizes.
+            #
+            # The prize gate (`_reply_closes_the_game`) is what keeps this a
+            # defensive pivot and not a preference. Without it the rule also
+            # fires on boards where the trade is merely unpleasant, and there
+            # the turn is worth more spent elsewhere -- healing the body that is
+            # about to die, charging the bench -- as several measured records
+            # already fix.
+            #
+            # It reads the attack of the active we are about to knock out, as a
+            # proxy for the body that replaces it -- in an evolution-line deck
+            # that is the same threat again, and the guard only ever loosens
+            # towards a strictly tougher body of ours.
+            _op_reply = _hand_revealed_lethal_reply(
+                opa, act, getattr(op_state, 'handCount', None))
+            _relay_survives = (
+                _op_reply > 0
+                and _reply_closes_the_game(act, op_state, opa)
+                and _bench_finisher_that_survives(
+                    my_state, opa, meganium_active, bench_count,
+                    max(0, total_grass - _retreat_grass_units(rc)),
+                    neutral_zone, _op_reply, prize_count(act)))
+            if not _relay_survives:
+                return False, False
     # The attached energy is discarded when paying the retreat: the Grass on the
     # field after retreating is approximated with the current one (net ~0).
     grass_after = max(0, total_grass - _retreat_grass_units(rc))
@@ -524,6 +569,15 @@ class _CtxGustObjetivo:
     # is the datum that decides the target when there is NO KO: bringing up a dead
     # body costs them the turn; bringing up one that attacks does their work.
     body_is_harmless: bool = False
+    # The turn plan says their reply CLOSES the game: the body in front of us
+    # knocks our active out and that KO takes their last prizes. Read from the
+    # plan and not recomputed; see `ptcg/turn/game_plan.py`.
+    op_wins_next: bool = False
+    # This target LOCKS their next turn: it survives our attack, it cannot attack
+    # us from the active spot even after one attachment, and it cannot pay its own
+    # retreat to get back to the bench. The three together are what makes the gust
+    # a denial and not just a nuisance.
+    traps_their_turn: bool = False
 
 
 def _ctx_gust_target(card, o, my_state, op_state, state, hand_counts,
@@ -648,6 +702,18 @@ def _ctx_gust_target(card, o, my_state, op_state, state, hand_counts,
             atk, op_act, _mb_base, AGENT_STATE.meganium_in_play,
             neutralization_zone_active) <= 0
 
+    # THE TRAP: a body that survives the turn, cannot answer and cannot leave.
+    # `not can_ko` is not a weakness of the target, it is the point -- a corpse
+    # does not stay in the active spot, and after a gust KO the opponent promotes
+    # whatever they like, which is exactly the body we were trying to move.
+    # `GUST_TRAP_IDS` (walls and the ability locker) is excluded for the same
+    # reason as in `without_a_ko_prefer_the_dead_body`: their attacks cost 3, so
+    # bare they read as harmless and they are the last bodies we want in front.
+    body_harmless = _op_body_is_harmless(card)
+    traps_their_turn = (not can_ko and body_harmless
+                        and RETREAT_COST.get(card.id, 0) - energy >= 1
+                        and card.id not in GUST_TRAP_IDS)
+
     return _CtxGustObjetivo(
         card_id=card.id, energy=energy,
         rc0=RETREAT_COST.get(card.id, 0), rc1=RETREAT_COST.get(card.id, 1),
@@ -667,7 +733,9 @@ def _ctx_gust_target(card, o, my_state, op_state, state, hand_counts,
         op_dragapult_line=op_dragapult_line,
         op_typhlosion_line=op_typhlosion_line,
         wall_blocks_active=wall_blocks_active,
-        body_is_harmless=_op_body_is_harmless(card))
+        body_is_harmless=body_harmless,
+        op_wins_next=bool(getattr(AGENT_STATE.turn_plan, 'op_wins_next', False)),
+        traps_their_turn=traps_their_turn)
 
 
 _ADJUST_GUST_OFFENSIVE = [
@@ -731,6 +799,32 @@ _ADJUST_GUST_OFFENSIVE = [
             lambda c, s: (not c.can_ko and c.body_is_harmless
                           and c.card_id not in GUST_TRAP_IDS),
             lambda c, s: s + 1500),
+    # THE KO THAT DOES NOT SAVE THE TURN (user, registro_016 step 132 vs Crustle,
+    # LOST). Their active a Crustle -- immune to our ex, so our Teal Mask Ogerpon
+    # ex at 90 HP does 0 from the front -- and Superb Scissors hits for 120: their
+    # reply knocks it out and their LAST prize closes the game. On their bench, two
+    # Dwebble (70 HP, a real KO for 1 prize) and a Mega Kangaskhan ex: 300 HP, ONE
+    # energy of the three its attack costs, and a retreat cost of three it cannot
+    # pay. The agent gusted a Dwebble, took its prize, the Crustle came straight
+    # back to the active spot and we lost on the reply.
+    #
+    # The gap is that `tier_ko` treats a gust KO as if it emptied the active spot.
+    # It does not: the corpse leaves and the opponent PROMOTES whatever they like,
+    # so the body that threatens us is back in front for free. A KO that neither
+    # wins the game nor removes that body buys one prize and hands the same board
+    # back. Gusting the trap instead spends their whole turn: it cannot attack us,
+    # it cannot retreat, and it is a 3-prize body parked where we can chip it down.
+    #
+    # Gated on the plan saying their reply CLOSES the game (`op_wins_next`, that is
+    # MODE_DENY), which is what makes "one more prize" worthless. `wins_now` still
+    # rules above with its 100000: if the KO ends the game, it ends the game. The
+    # 40000 clears the KO band (10 tiers x 3000 plus the line bonus) and stays
+    # under it. Prizes only break ties BETWEEN traps, which is the reading of the
+    # record: the Mega worth 3 is the one to park. Deck-agnostic.
+    _Adjustment("under_denial_the_trap_beats_the_small_ko",
+            lambda c, s: (s > 0 and c.op_wins_next and not c.wins_now
+                          and c.traps_their_turn),
+            lambda c, s: s + 40000 + c.prizes * 100),
     # vs Crustle, the Dwebble is NEVER gusted (wall fodder)... UNLESS the opposing
     # active is a WALL that cancels our attacker and that Dwebble is a real KO
     # (user, episode 88620891 step 78, LOST): active Hydrapple ex against a Crustle

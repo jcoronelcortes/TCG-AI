@@ -31,6 +31,24 @@ displaces it has to justify itself. A turn that ends with a full hand and zero
 damage is treated as a failure mode — there is a dedicated detector for it in
 the loss-autopsy tool.
 
+**But "attacking comes first" says nothing about who attacks.** When the body in
+front can finish the target and a benched body can finish it just as well, the
+question stops being whether to swing and becomes which of the two is left
+standing afterwards. If their reply knocks our active out and those are their
+last prizes, then taking the prize from the front takes it and loses the game;
+paying a retreat to take the same prize with a body that outlasts the reply
+wins. Two conditions keep this from becoming a habit rather than a rescue: the
+body coming up must actually survive their projected hit and hand over no more
+prizes, and the reply must be the match — a trade we merely dislike is not worth
+the retreat cost.
+
+There is one place the agent used to be blind to this, and it is the reason the
+rule exists: an attack that prints no damage at all. Powerful Hand places
+counters and scales with the size of their hand, so the attack table reads zero
+and every defensive rule sees a harmless attacker. That is the only seam the
+pivot is allowed to open. Where the opposing attack is readable the ordinary
+way, the pivots already measured against those boards keep deciding.
+
 ## 3. Prizes are the currency, not damage
 
 Every body is priced in prizes. A two-prize ex trading with a one-prize
@@ -56,6 +74,38 @@ from behind a wall.
 **Not worth it:** a non-ex pre-evolution; a body that cannot be knocked out
 (chip damage to the front is not a prize); a copy of a threat the active already
 represents; dragging a line out without the follow-up to actually kill it.
+
+**And one case where the knockout is the wrong answer.** A gust knockout does
+not empty the opposing active spot: the body we killed leaves, and the opponent
+promotes whatever they like, for free, with no retreat to pay. So the attacker
+that was in front of us is back in front one action later. That is fine while we
+still have time to spend the prize — but not when their next attack ends the
+game. When the turn plan says their reply closes it, a prize that does not win
+buys nothing, and the better target is the one that cannot answer and cannot
+leave: a body short of the energy its attack costs, and short of its own retreat
+cost. Dragging that one out costs them the whole turn, and the bigger it is the
+better, because it stands there while we chip it down. A gust that actually ends
+the game still outranks everything.
+
+**And the dead turn, where the same body is the whole play.** Some turns have no
+attack and no knockout anywhere: the active is one energy short, the attachment
+is spent, nothing on the bench is any closer. The Supporter for the turn is then
+about to be thrown away with the hand, and ending the turn keeps a Boss's Orders
+that buys nothing later either. If their bench holds a body that cannot answer
+from the active spot even after an attachment, and cannot pay its own retreat to
+get back, dragging it out is not a nuisance — it is a denial. They lose the
+attack, or they lose the energy they have to spend getting that body out of the
+way. It is the last thing the card is asked to do, below every reason with a
+prize behind it and below refilling the hand, and it is still worth more than
+ending the turn with the card in hand.
+
+Two things stop it. One: their active has to be attacking, otherwise the gust is
+a free retreat we hand them. Two: what comes up must not be a pre-evolution of
+their attacking line. A bare pre-evolution looks harmless — its own attack costs
+more than it can pay — but it evolves in the active spot and attacks with the new
+body, so putting it in front of us is doing their work. The walls and the ability
+lockers read as harmless for the same reason and are excluded for a worse one:
+from the active spot they cancel our attackers.
 
 ## 5. Don't waste turns — the hand engine exists for this
 
@@ -86,6 +136,19 @@ pre-evolution is not in play, or an attacker we cannot charge, is a net loss.
 The exception is expiry: with item lock coming, the search is used today for
 tomorrow's play, because tomorrow it will be illegal.
 
+A card can also stop being playable in the middle of our own turn, and the
+Unfair Stamp is the way it happens: it shuffles **our** whole hand back into the
+deck, so anything a search leaves in hand and does not play before it is gone.
+While the Stamp is going to be played this turn, the Meowth ex the Ultra Ball
+digs out is not a body, it is a Supporter engine — and every Supporter yields the
+turn to the Stamp, so that engine cannot fire before the shuffle. That fetch is
+the Item plus its two discards for nothing. What survives the shuffle is what
+reaches the **board**: with the Stamp pending, the search takes the body it can
+put down now. The mirror of the same fact is that emptying the hand with Items
+before the Stamp is *good* — it is what makes its refresh clause pay. The line
+is not "no Items before the Stamp", it is "nothing bought may still be in hand
+when it resolves".
+
 And the payment has to come out of surplus. A hand of the Ultra Ball plus two
 cards has no surplus: those two *are* the cost and the hand ends the turn empty.
 That is only acceptable when neither of them is a Supporter — because a
@@ -100,6 +163,31 @@ take what the agent itself is protecting, and there the search is not paid for
 at all. The worst version of that is paying for the intermediate piece of a line
 with the top of the same line.
 
+But a line protects the copies it can wear, not every copy. An evolution goes on
+top of a body, and one body wears one card: with a single Applin on the bench,
+the second Hydrapple ex in hand cannot reach the field by any route. It is not a
+spare attacker, it is cardboard — and it is exactly what the cost should eat.
+Counting pieces instead of bodies makes a hand look like it has nothing to spare
+when the cheapest card in it is sitting right there, and the search gets
+cancelled over a card that was never going to be played. The seats are the
+bodies already in play below the card, plus the basics of that line the bench
+still has room for; anything past that number is the first thing to go. A piece
+in hand does not add a seat — it stacks onto a body that is already counted.
+
+A refill Supporter is spare least of all once the Supporter slot for the turn is
+already spent. The temptation runs the other way: a card that can no longer be
+played today looks free, and a scorer that prices cards by what they do now will
+hand it over first. But nothing can compete for that slot tomorrow, so a lone
+refill Supporter with the slot gone is not a leftover — it is next turn's whole
+hand, and it is the last thing a cost may take.
+
+Even a search that is paid for out of real surplus still has to buy something.
+On a turn with no attack, a basic dug out of the deck cannot swing and cannot
+evolve: all it buys is a seat on the bench. That is worth two cards only while
+the bench is short enough that one knockout would leave us with no body to
+promote. From two bodies up, ending the turn and keeping the cards is worth
+more than the seat.
+
 ## 7. Energy goes where it changes something
 
 Energy attachment is the scarcest resource of the turn — one per turn plus what
@@ -113,7 +201,27 @@ this energy, not who is our best Pokémon:
 - energy that will be wasted is wasted **at the moment of the knockout**, which
   is why doomed bodies are not charged.
 
-## 8. Retreating is a real play, not an admission of failure
+## 8. Evolving is not healing: which body takes the evolution
+
+Damage carries over when a Pokemon evolves — only the maximum goes up. That
+makes the choice of body, when two copies of the same pre-evolution are in play,
+a real decision and not a formality:
+
+- the **wounded** copy is the one that gains from evolving: the counters it
+  already carries stop being lethal inside a bigger pool, and the intact copy
+  is the one that can wait on the bench;
+- evolving the healthy one instead leaves the wounded one sitting there as a
+  prize that any automatic snipe cashes in for free, without the opponent
+  spending an attack on it;
+- the exception is a body the evolution cannot rescue: if it stays inside the
+  window the opponent can cash before our next turn **and** the evolution hands
+  over more prizes than the pre-evolution, evolving there does not save a body,
+  it upgrades their prize.
+
+This orders bodies only. It never decides which card is played, which line is
+assembled, or whether evolving is worth it at all — those are settled first.
+
+## 9. Retreating is a real play, not an admission of failure
 
 Retreat is how a stuck position becomes a winning one, and the agent treats it
 as a scored option like any other:
@@ -127,7 +235,24 @@ as a scored option like any other:
 - don't swap an ex for a worse body, and don't pivot into a body that is doomed
   anyway.
 
-## 9. After a knockout, promote for tomorrow
+Two things are easy to get wrong, and both were paid for in the same turn:
+
+- **A pivot pays for its own retreat before it is allowed to promise anything.**
+  Our big attack scales with the energy on the field and the retreat cost is
+  discarded off it, so the body coming up hits a field one card smaller than the
+  one the projection is reading. A knockout believed on the pre-retreat count
+  can miss by exactly that margin — and, worse, it points the plan at the bench
+  and silences the attack the active already had.
+- **Hiding a doomed ex on the bench only denies prizes if it survives down
+  there.** What reaches it is the snipe of the attacker in front, the drip of
+  the abilities that fire on every checkup, and the counters the opponent can
+  aim at it. That last term is measured after **our own** attack lands: damage
+  we deal is the ammunition their movers use, so a board that looks harmless
+  before we attack is not the board that will be there when they play. When
+  they can cash the ex on the bench, staying is better — their attack is spent
+  on a body that was already lost, and the wall behind it stays whole.
+
+## 10. After a knockout, promote for tomorrow
 
 The choice of who comes up is not about who is strongest today. It is about who
 can attack **next** turn, who survives the projected hit, and who gives away the
@@ -135,12 +260,32 @@ fewest prizes. A wall pinned in place with no attack is worse than a mobile body
 that can act. And the bench is never left empty: ending a turn with an empty
 bench loses the game outright.
 
-## 10. Disrupt on the right order
+## 11. Disrupt on the right order
 
 Hand disruption is cheap value against decks that hoard cards, but the order
 matters: strip cards permanently first, then shuffle the hand away. The reverse
 order throws away the cards the first effect would have removed for good. Both
 also step aside when refilling our own hand is worth more.
+
+Two disruptors in the same turn is one too many. The second one lands on a hand
+the first one already emptied, and what it denies there is a card or two — while
+the price is the same as always. That price is highest for the one-shot card:
+the copy that shuffles both hands is a single copy, and its value scales with
+the hand it lands on, so the turn to spend it is the one where the opposing hand
+is fat, not the one right after we capped it ourselves. Waiting costs almost
+nothing when the card's own condition — one of our bodies knocked out last turn
+— reopens every turn against a deck that is knocking us out.
+
+Measure the disruption in cards denied, not in hand size. The shuffle leaves the
+opponent at two, so a hand of three gives up one card, and one card is what any
+draw engine hands back without noticing. When a body on their board draws them
+three the moment we take a knockout — and taking a knockout is exactly what we
+are doing on the turn this card is legal — the floor has to be higher still.
+
+And it shuffles OUR hand too. A card in that hand that cannot be played today
+because its slot is spent is not a spare: if it is the last copy of the answer
+to their main attacker, five fresh cards do not pay for burying it. The refill
+is worth its price only while it is not the price.
 
 Disruption is worth nothing on our own first turn going second. The opponent has
 just opened, their hand is the smallest it will ever be, and the attacker that
@@ -151,7 +296,7 @@ slot; disruption only outbids it once the opposing hand is inflated and the
 threat behind it is real. The exception is having nothing else: no refill in
 hand and no search that brings one.
 
-## 11. Walls: the immune body in front
+## 12. Walls: the immune body in front
 
 Several meta decks put a body in front that our ex attackers simply cannot
 damage. This is the strategic problem the agent invests most in:
@@ -168,7 +313,48 @@ damage. This is the strategic problem the agent invests most in:
   there is no cost to holding the third copy in hand, and a benched body can
   never be taken back.
 
-## 12. Play order
+## 13. The first turn: the body that costs one prize
+
+The first turn does not attack, and often cannot. What it decides is what the
+opponent has to chew through next, and what that costs us when it falls.
+
+The body we want in front is a **basic worth one prize that is hard to remove**
+— in this deck Tapu Bulu, but the agent recognises it by its properties (basic,
+one prize, high HP, and a real attacker), so another deck's equivalent inherits
+the rule. Three things follow from that:
+
+- it goes on the bench **before the hand refill**. A Supporter that shuffles the
+  hand into the deck takes it with it, and it is the one card in that hand that
+  drawing more cards cannot replace;
+- the energy for the turn goes to the **active**, up to its retreat cost, when
+  the plan is to swap: the engine only offers a retreat once the cost is already
+  on the body;
+- if the turn has no attack in it, the active retreats and the wall takes the
+  front. Fewer prizes when it falls, and turns spent on it are turns we spend
+  building the bench.
+
+There are two reasons to make that swap, and they are not paid for in the same
+way. One is a **threat**: their projection, counting the attack they have and
+the one it becomes in a single step, takes the body in front down and does not
+take the wall down. The other is the **prize count** on its own — an ex in front
+is a two-prize body standing where a one-prize body could stand, and waiting
+until the threat arrives is waiting until the swap is no longer cheap, because
+an ex with its energy on it cannot be pulled back for a single attachment.
+
+The difference is what each is worth. A threat is worth **buying** the retreat:
+the turn's energy goes to the active, up to its retreat cost, because the engine
+only offers a retreat once the cost is already on the body. Denying a prize is
+not worth that — the energy would be leaving an attacker half assembled to pay
+for walking away — so it only fires when the cost is already sitting on the
+active. Going first on turn one neither applies: the opponent has not played a
+card, so there is nothing to answer and nothing to deny.
+
+The rule stands down completely against a deck whose active makes our ex do
+**zero** damage. There the one-prize body is not a shield we spend, it is the
+only attacker we have, and hiding an ex behind it would be hiding an ex behind
+our own plan.
+
+## 14. Play order
 
 Two plays can both be right and still lose the turn if they happen in the wrong
 order. The agent enforces a sequence: energy that enables a knockout, then the

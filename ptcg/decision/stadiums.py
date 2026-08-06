@@ -23,6 +23,13 @@ class _GrandTreePlan(NamedTuple):
     stage1_id: int
     stage2_id: int     # 0 = the chain stops EXPRESSLY at Stage 1
     value: int
+    # Preference between two plans of EQUAL value, which in practice means two
+    # copies of the same Basic: `evolution_body_bias` (the damaged body is the
+    # one that gains from evolving, the intact one is the one that can wait).
+    # It is kept OUT of `value` on purpose -- the value scale moves in steps of
+    # 1200-2000 between chains and a body term must not perturb the choice of
+    # CHAIN, only the choice of body inside it.
+    body_bias: int = 0
 
 
 def _gt_slots_propios(my_state):

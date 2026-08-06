@@ -884,7 +884,31 @@ def finalizar(tc):
             _st_body_ok = lambda cid: (
                 _st_plan_ok(cid)
                 and (cid != Meowth_ex or _st_meowth_useful))
-            _st_basic_useful = (bench_count < 5 and any(
+            # A BODY THAT ONLY SITS ON THE BENCH RESCUES NOTHING ONCE THE BENCH
+            # ALREADY COVERS THE PROMOTION (user, registro_002 step 22 vs
+            # Marnie, episode 90088766, WON in spite of this). The evolution
+            # branch below was already sharpened to "it has to evolve TODAY"
+            # ([[ultraball-solo-si-el-objetivo-se-usa-este-turno]]); the basic
+            # branch kept the loose reading -- a bench with room plus any basic
+            # in the deck -- and a basic put down this turn cannot attack and
+            # cannot evolve either, so it buys exactly one bench slot for TWO
+            # cards of hand. Here it dug an Applin (40 HP, no Dipplin anywhere)
+            # onto a bench that already held Meowth ex and Teal Mask Ogerpon ex,
+            # behind a 210 HP active, and paid with the hand's whole engine.
+            # The rule the user states: the only reasons to pay for the Ultra
+            # Ball are to be able to ATTACK, or to stop being one knockout away
+            # from having no bodies. The first is not this net's business (it
+            # only fires on turns with no attack); the second is the bench
+            # depth. With `bench_count <= 1` a knockout on the active promotes
+            # our last body and the next one loses the game, so a fresh body IS
+            # the turn -- which is also the case the net was built on (the
+            # crustle t2 board with a bench of one). From two bodies up, ending
+            # the turn keeps the two cards, and they are worth more than the
+            # slot. The item lock keeps the old reading: there the Ultra Ball is
+            # use-it-or-lose-it and buying next turn is the whole point.
+            _st_basic_useful = (bench_count < 5
+                                and (bench_count <= 1 or _st_item_lock)
+                                and any(
                 _st_in_deck(_b) and _st_body_ok(_b) for _b in (
                     Chikorita, Applin, Teal_Mask_Ogerpon_ex, Tapu_Bulu,
                     Meowth_ex, Fezandipiti_ex)))

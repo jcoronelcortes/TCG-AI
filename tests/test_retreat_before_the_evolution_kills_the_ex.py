@@ -113,6 +113,41 @@ def _chosen(obs):
     return o.get("type"), o
 
 
+def _walk(obs, max_steps=6):
+    """The types the agent chooses, in order, applying its PLAY decisions.
+
+    A menu is not a turn: the plays of a turn are decided one observation at a
+    time. To check that something happens BEFORE the turn closes, the
+    development plays it chooses first have to be applied to the board.
+    """
+    obs = copy.deepcopy(obs)
+    types = []
+    for _ in range(max_steps):
+        idx = m.agent(obs)[0]
+        opt = obs["select"]["option"][idx]
+        types.append(int(opt["type"]))
+        if int(opt["type"]) != int(OptionType.PLAY):
+            break
+        cur = obs["current"]
+        mine = cur["players"][cur["yourIndex"]]
+        card = mine["hand"][opt["index"]]
+        data = m.card_table[card["id"]]
+        mine["hand"] = [c for i, c in enumerate(mine["hand"]) if i != opt["index"]]
+        mine["handCount"] = len(mine["hand"])
+        if data.cardType == m.CardType.POKEMON:
+            mine["bench"] = list(mine["bench"]) + [{
+                "id": card["id"], "serial": card["serial"],
+                "playerIndex": cur["yourIndex"], "hp": data.hp,
+                "maxHp": data.hp, "appearThisTurn": True, "energies": [],
+                "energyCards": [], "tools": [], "preEvolution": []}]
+        obs["select"]["option"] = [o for i, o in enumerate(obs["select"]["option"])
+                                   if i != idx]
+        for o in obs["select"]["option"]:
+            if o.get("type") == int(OptionType.PLAY) and o.get("index", 0) > opt["index"]:
+                o["index"] -= 1
+    return types
+
+
 def _promoted_id(obs):
     cur = obs["current"]
     bench = cur["players"][cur["yourIndex"]]["bench"]
@@ -163,8 +198,22 @@ def test_the_fixture_is_the_turn_2_that_was_lost():
 
 
 def test_it_retreats_the_doomed_meowth_instead_of_ending_the_turn():
-    """The regression of the record: it used to choose END."""
-    assert _chosen(_obs_fixture())[0] == int(OptionType.RETREAT)
+    """The regression of the record: it used to choose END.
+
+    The turn now opens by putting the Tapu Bulu of that hand on the bench --
+    the one-prize wall of our first turn, which used to be vetoed and which the
+    Lillie's of that same hand would have shuffled into the deck (see
+    `_ft_wall_in_hand` in main.py). That is the postponement this pivot was
+    built with, not a cancellation: the retreat still outranks ENDING THE TURN,
+    so it is the very next decision. What the test pins is that the turn does
+    not close with the doomed Meowth ex in front, so it walks past the
+    development play instead of demanding the retreat be first.
+    """
+    steps = _walk(_obs_fixture())
+    assert int(OptionType.RETREAT) in steps, (
+        f"el turno se cerro sin retirar al Meowth ex condenado: {steps}")
+    assert int(OptionType.END) not in steps[:steps.index(int(OptionType.RETREAT))], (
+        f"termino el turno antes de retirarse: {steps}")
 
 
 # ---------------------------------------------------------------------------

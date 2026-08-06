@@ -195,7 +195,9 @@ def test_the_edge_of_our_own_hand():
 
 
 def test_the_edge_of_the_opponent_hand():
-    """The Stamp leaves the rival at 2: with 2 it takes nothing, with 3 it takes 1."""
+    """The Stamp leaves the rival at 2, so the disruption is `op_hand - 2`. The
+    floor is TWO cards denied: one card is the rounding error of any draw engine
+    (registro_006 step 88, `test_the_stamp_does_not_bury_the_last_xerosic`)."""
     big_hand = m.STAMP_MAX_HAND_SACRIFICED + 5
     assert not m._stamp_worth_playing(m.STAMP_MIN_OP_HAND - 1, big_hand)
     assert m._stamp_worth_playing(m.STAMP_MIN_OP_HAND, big_hand)

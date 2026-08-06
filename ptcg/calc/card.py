@@ -5,8 +5,9 @@ Extracted VERBATIM from main.py by utils/extract_definitions.py
 utils/purity.py: nothing here touches mutable state or the runtime tables.
 """
 
-from cg.api import AreaType, Card, EnergyType, Observation, Pokemon
-from ptcg.cards.ids import Alakazam_ex, Dusknoir, Gardevoir_ex, Meganium, Munkidori_ex, Slowking, Typhlosion
+from cg.api import AreaType, Card, CardType, EnergyType, Observation, Pokemon
+from ptcg.cards.ids import Alakazam_ex, Dusknoir, FIRST_TURN_WALL_MIN_HP, Gardevoir_ex, Meganium, Munkidori_ex, Slowking, Typhlosion
+from ptcg.cards.scoring import MAIN_ATTACKERS
 from ptcg.cards.tables import card_table
 from ptcg.state.agent_state import AGENT_STATE
 
@@ -210,8 +211,37 @@ def pokemon_score(pokemon: Pokemon) -> int:
     score += pokemon.hp
     return score
 
+def is_one_prize_wall(card_id: int) -> bool:
+    """Is this card the body we want in front while we build the bench?
+
+    Three properties, read off the card and not off a list of ids, so any deck
+    gets the rule for free:
+
+      * a BASIC -- it can be put down and promoted the same turn, with no line
+        to assemble first;
+      * worth ONE prize -- when it falls the opponent is no closer to winning
+        than one prize, which is the whole point of hiding an ex behind it;
+      * hard to remove (`FIRST_TURN_WALL_MIN_HP`) and an ATTACKER. The HP is
+        what buys the turns; being a real attacker is what stops the body from
+        being a mute wall that hands the opponent a free tempo prize. A deck
+        whose 1-prize basics are all fragile or mute simply never sees this
+        rule fire.
+    """
+    data = card_table.get(card_id)
+    if data is None or data.cardType != CardType.POKEMON:
+        return False
+    if getattr(data, 'ex', False) or getattr(data, 'megaEx', False):
+        return False
+    if getattr(data, 'stage1', False) or getattr(data, 'stage2', False):
+        return False
+    if (getattr(data, 'hp', 0) or 0) < FIRST_TURN_WALL_MIN_HP:
+        return False
+    return card_id in MAIN_ATTACKERS
+
+
 __all__ = [
     'get_card',
+    'is_one_prize_wall',
     'prize_count',
     'prize_count_op',
     'pokemon_score',

@@ -169,6 +169,13 @@ class AgentState:
         self._op_chip_per_round = 0
         # Damage Adrena-Brain can AIM at any of our Pokemon this turn.
         self._op_movable_dmg = 0
+        # The two halves of the line above, published apart because our OWN
+        # attack moves one of them: the ceiling is what the charged Munkidori
+        # can carry (30 each) and the ammunition is the counters already on
+        # their board -- which is 0 until we hit them. See
+        # `_movable_dmg_after_our_hit`.
+        self._op_movable_cap = 0
+        self._op_movable_ammo = 0
         # OPPOSING board per turn: data the damage projections need and that does NOT
         # travel in the signature of `_op_active_attack_damage_to`. Refreshed at the
         # start of agent(), in the same block as the prize denial flags.

@@ -5,10 +5,10 @@ Extracted VERBATIM from main.py by utils/extract_definitions.py
 utils/purity.py: nothing here touches mutable state or the runtime tables.
 """
 
-from ptcg.calc.card import prize_count_op
+from ptcg.calc.card import prize_count, prize_count_op
 from ptcg.state.agent_state import AGENT_STATE
 from ptcg.cards.tables import attack_table, card_table
-from ptcg.cards.ids import ABILITY_IMMUNE_IDS, Alakazam_ex, Brave_Bangle, DO_THE_WAVE_ATTACK_ID, Dipplin, Drednaw, EX_IMMUNE_IDS, FULL_HP_SURVIVE_IDS, Farigiraf_ex, Fezandipiti_ex, Hydrapple_ex, Maximum_Belt, Meganium, OUR_ABILITY_IDS, OUR_BASIC_EX_IDS, OUR_EX_IDS, POWERFUL_HAND_ATTACK_ID, Pinsir, Tapu_Bulu, Teal_Mask_Ogerpon_ex
+from ptcg.cards.ids import ABILITY_IMMUNE_IDS, Alakazam_ex, EVO_BODY_DAMAGE, EVO_BODY_EXPOSURE, EVO_BODY_RESCUE, OP_BENCH_SNIPE_DAMAGE, Brave_Bangle, DO_THE_WAVE_ATTACK_ID, Dipplin, Drednaw, EX_IMMUNE_IDS, FULL_HP_SURVIVE_IDS, Farigiraf_ex, Fezandipiti_ex, Hydrapple_ex, Maximum_Belt, Meganium, OUR_ABILITY_IDS, OUR_BASIC_EX_IDS, OUR_EX_IDS, POWERFUL_HAND_ATTACK_ID, Pinsir, Tapu_Bulu, Teal_Mask_Ogerpon_ex
 from ptcg.calc.energy import _grass_mult
 from ptcg.cards.lines import _direct_evolution_ids
 from ptcg.cards.op_scaling import OP_SCALING_IGNORES_WEAKNESS, op_scaled_damage
@@ -106,6 +106,115 @@ def _ventana_de_regalo(pokemon, is_active, projected_hit, include_movable=True):
         else max(0, projected_hit or 0)
     chip = AGENT_STATE._op_chip_per_round if pid in OUR_ABILITY_IDS else 0
     return golpe + chip + (AGENT_STATE._op_movable_dmg if include_movable else 0)
+
+
+def _prizes_of_id(card_id):
+    """Prizes a card hands over when knocked out, WITHOUT the denial that
+    depends on what it carries. It compares a body against what it will become,
+    and the evolution is still in hand: it carries nothing yet."""
+    data = card_table.get(card_id)
+    if data is None:
+        return 1
+    return 3 if data.megaEx else 2 if data.ex else 1
+
+
+def evolution_body_bias(pokemon, evo_card_id, is_active, projected_hit):
+    """How much better this BODY is than another one for the SAME evolution
+    card. Deck-agnostic: it only reads life, the projected window and prizes.
+
+    Evolving does not heal -- the damage carries over and only the maximum goes
+    up (Applin 10/40 -> Hydrapple ex 300/330) -- so the copy worth evolving is
+    the DAMAGED one: the counters it already has stop being lethal inside a
+    bigger pool and the intact copy is the one that can wait on the bench.
+    Evolving the healthy one instead leaves the wounded copy there as a prize
+    anyone with a snipe cashes in for free.
+
+    Three terms, all bounded (see EVO_BODY_* in cards/ids.py) so that this
+    orders bodies and never decides which CARD is played:
+
+      * the body leaves the gift window -> EVO_BODY_RESCUE (the real rescue);
+      * it stays inside it AND the evolution is worth more prizes -> the
+        evolution is not saving anything, it is raising the opponent's prize:
+        -EVO_BODY_EXPOSURE;
+      * otherwise, a gradient proportional to the damage already taken.
+
+    `projected_hit` is what reaches that slot: `estimated_op_damage` for the
+    ACTIVE, `_op_bench_snipe_dmg` for the bench (the same convention as
+    `_ventana_de_regalo`). With no threat on the board both windows are 0, only
+    the gradient survives and the damaged body still wins.
+    """
+    if pokemon is None:
+        return 0
+    data = card_table.get(evo_card_id)
+    evo_max_hp = (getattr(data, 'hp', 0) or 0) if data is not None else 0
+    max_hp = getattr(pokemon, 'maxHp', 0) or 0
+    hp = getattr(pokemon, 'hp', 0) or 0
+    if evo_max_hp <= 0 or max_hp <= 0:
+        return 0
+
+    damage = max(0, max_hp - hp)
+    hit = max(0, projected_hit or 0)
+    hp_after = max(0, evo_max_hp - damage)
+    # `_ProjTarget` is the body it is ABOUT to become: `_ventana_de_regalo`
+    # only reads `.id`, and the window can GROW while evolving (an Applin has no
+    # ability and pays no Freezing Shroud drip; a Dipplin does).
+    window_after = _ventana_de_regalo(_ProjTarget(evo_card_id), is_active, hit)
+
+    if hp_after <= window_after:
+        # The evolution does not take it out of the window: the body dies
+        # anyway and the card dies underneath it.
+        if _prizes_of_id(evo_card_id) > _prizes_of_id(getattr(pokemon, 'id', 0)):
+            return -EVO_BODY_EXPOSURE
+        return 0
+
+    bias = min(EVO_BODY_DAMAGE, (damage * EVO_BODY_DAMAGE) // max_hp)
+    if hp <= _ventana_de_regalo(pokemon, is_active, hit):
+        bias += EVO_BODY_RESCUE
+    return bias
+
+
+def _movable_dmg_after_our_hit(our_damage):
+    """`_op_movable_dmg` recomputed with the counters OUR OWN attack is about
+    to leave on their board.
+
+    Adrena-Brain only moves counters that ALREADY exist, so on a healthy
+    opposing board the window reads 0 -- and it stops reading 0 the instant we
+    attack. Projecting what reaches our bench BEFORE our attack lands therefore
+    measures a board that will not exist by the time the opponent plays: our
+    own damage is their ammunition.
+
+    User, registro_012 step 112 vs Marnie's Grimmsnarl ex. Their four benched
+    bodies were at full HP (0 counters, movable window 0) and we hid a Teal Mask
+    Ogerpon ex at 30 HP behind the Hydrapple ex wall. Then Syrup Storm put 360
+    on their active, and with two charged Munkidori they moved 30 of those
+    counters onto the hidden ex: two prizes without attacking, and their
+    attacker healed 30 in the same motion.
+    """
+    return min(AGENT_STATE._op_movable_cap,
+               AGENT_STATE._op_movable_ammo + max(0, our_damage or 0))
+
+
+def _bench_cashable_after_retreat(pokemon, op_active, our_damage=0):
+    """Would the body we are about to hide on the bench die there anyway?
+
+    The retreat of a doomed ex only denies prizes if the ex SURVIVES down
+    there ([[repliegue-del-ex-condenado-vs-sniper]]). Three things reach it:
+    the snipe of the attacker IN FRONT (the narrow reading -- the table flag
+    `_op_bench_snipe_dmg` falls to a default 30 with any drip threat in play
+    and switching pivots off with it measured -3.1 points vs
+    crustle/Kangaskhan), the Freezing Shroud drip, and the counters
+    Adrena-Brain can aim once our attack has loaded their board.
+
+    The Tera of a benched Teal Mask Ogerpon ex is already handled by
+    `_ventana_de_regalo`: it cuts the snipe (damage from an ATTACK) and does
+    nothing against moved counters -- which is exactly how the record died.
+    """
+    if pokemon is None:
+        return False
+    snipe = OP_BENCH_SNIPE_DAMAGE.get(getattr(op_active, 'id', 0), 0)
+    window = (_ventana_de_regalo(pokemon, False, snipe, include_movable=False)
+              + _movable_dmg_after_our_hit(our_damage))
+    return (getattr(pokemon, 'hp', 0) or 0) <= window
 
 
 def _our_effective_damage(my_pokemon, op_pokemon, base_damage,
@@ -390,6 +499,90 @@ def _bench_attacker_can_ko(my_state, target, meganium_active, total_grass_field,
     return False
 
 
+def _hand_revealed_lethal_reply(op_active, target, op_hand_count):
+    """The opponent's lethal reply on `target` -- but only when their HAND SIZE
+    is what makes it lethal. 0 otherwise.
+
+    Some attacks print no damage at all: Powerful Hand places counters, so the
+    table reads 0 and the whole defensive model sees a harmless attacker. That
+    is the one seam where the pivots are blind, and it is the seam this answers.
+    It reads the opposing attack twice -- the way every other rule already reads
+    it, and again counting their hand -- and only speaks when the second is
+    lethal and the first is not.
+
+    Everywhere else the ordinary reading is already right, and the machinery
+    built and measured against those boards keeps its say.
+    """
+    hp = getattr(target, 'hp', 0) or 0
+    if hp <= 0:
+        return 0
+    if _op_active_attack_damage_to(op_active, target) >= hp:
+        return 0
+    seen = _op_active_attack_damage_to(op_active, target,
+                                       op_hand_count=op_hand_count)
+    return seen if seen >= hp else 0
+
+
+def _reply_closes_the_game(my_active, op_state, op_active):
+    """Would their reply on our ACTIVE take their LAST prizes?
+
+    Counted after the knockout we are about to take this turn: their remaining
+    prizes minus what the body we are knocking out is worth, against what our
+    active hands over. It is the line between "the body standing in front is a
+    trade" and "the body standing in front is the game", and it is what tells a
+    defensive pivot apart from a preference.
+
+    False when that subtraction leaves them at zero: there our knockout already
+    wins, and there is no reply to survive.
+    """
+    if my_active is None or op_active is None:
+        return False
+    left = (len(getattr(op_state, 'prize', None) or [])
+            - prize_count_op(op_active))
+    return left >= 1 and prize_count(my_active) >= left
+
+
+def _bench_finisher_that_survives(my_state, target, meganium_active, bench_count,
+                                  retreat_grass_after, neutral_zone,
+                                  incoming_damage, max_prizes):
+    """Is there a benched body that FINISHES `target` after we retreat AND is
+    still standing when their reply lands?
+
+    The lethal sibling of `_bench_attacker_can_ko`, with the two conditions the
+    plain one cannot express. The body must outlast `incoming_damage` -- the
+    reply we project onto whatever we leave in the active spot -- and it must
+    not hand over more prizes than the body it replaces (`max_prizes`). Both
+    numbers come from the caller, because only the caller knows which body is
+    being replaced and how their attack was projected.
+
+    It answers the question that decides a turn where the knockout is available
+    either way: not "can I finish from the front", but "which of the two bodies
+    that finish is the one I want standing there afterwards".
+    """
+    if target is None:
+        return False
+    _thp = target.hp or 0
+    if _thp <= 0:
+        return False
+    for bp in (my_state.bench or []):
+        if bp is None:
+            continue
+        if (bp.hp or 0) <= incoming_damage:
+            continue          # it dies to the same reply: the swap buys nothing
+        if prize_count(bp) > max_prizes:
+            continue          # it hands over more than the body it replaces
+        e = len(bp.energies)
+        base = _attacker_base_damage(bp.id, target, e * _grass_mult(),
+                                     grass_scale=retreat_grass_after,
+                                     teal_self_energy=e, bench_count=bench_count)
+        if base <= 0:
+            continue
+        if _our_effective_damage(bp, target, base, meganium_active,
+                                 neutral_zone) >= _thp:
+            return True
+    return False
+
+
 def _bench_attacker_best_damage(my_state, target, meganium_active, bench_count,
                                 retreat_grass_after, neutral_zone,
                                 min_body_hp=0):
@@ -446,7 +639,13 @@ __all__ = [
     '_op_evolution_attack_damage_to',
     '_attacker_base_damage',
     '_bench_attacker_can_ko',
+    '_bench_finisher_that_survives',
+    '_hand_revealed_lethal_reply',
+    '_reply_closes_the_game',
     '_bench_attacker_best_damage',
     '_snipe_target_score',
     '_ventana_de_regalo',
+    'evolution_body_bias',
+    '_movable_dmg_after_our_hit',
+    '_bench_cashable_after_retreat',
 ]

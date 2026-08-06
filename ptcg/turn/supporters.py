@@ -9,8 +9,9 @@ from cg.api import EnergyType
 from ptcg.calc.card import prize_count_op
 from ptcg.calc.damage import _attacker_base_damage, _bench_attacker_can_ko, _our_effective_damage
 from ptcg.calc.energy import _grass_attach_unit, _grass_mult, _retreat_grass_units
+from ptcg.calc.opponent import _op_body_is_harmless
 from ptcg.cards.groups import EVO_LINES
-from ptcg.cards.ids import ABILITY_IMMUNE_IDS, Abra, Alakazam_ex, Applin, BOSS_PRIORITY_CRUSTLE_GUST, Basic_Grass_Energy, Bayleef, Boss_Orders, Chikorita, Crustle_Fighting, Crustle_Grass, Dawn, Dipplin, Drednaw, Dusclops, Duskull, Dwebble_Fighting, Dwebble_Grass, EX_IMMUNE_IDS, EX_PREEVO_IDS, Fezandipiti_ex, Froslass, HIGH_PRIORITY_BENCH_TARGETS, Hydrapple_ex, KEY_BENCH_ATTACKER_IDS, Kadabra, Kirlia, LANA_PLAY_BASE_RECUPERABLE, LANA_PLAY_NO_DEMAND, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Munkidori, NONEX_FINAL_PREEVO_IDS, OUR_ABILITY_IDS, OUR_EX_IDS, Pinsir, RETREAT_COST, Ralts, Slowpoke, THREAT_PREEVO_IDS, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Zorua_N
+from ptcg.cards.ids import ABILITY_IMMUNE_IDS, Abra, Alakazam_ex, Applin, BOSS_PRIORITY_CRUSTLE_GUST, Basic_Grass_Energy, Bayleef, Boss_Orders, Chikorita, Crustle_Fighting, Crustle_Grass, DUNSPARCE_IDS, Dawn, Dipplin, Drednaw, Dusclops, Duskull, Dwebble_Fighting, Dwebble_Grass, EX_IMMUNE_IDS, EX_PREEVO_IDS, Fezandipiti_ex, Froslass, GUST_TRAP_IDS, HIGH_PRIORITY_BENCH_TARGETS, Hydrapple_ex, KEY_BENCH_ATTACKER_IDS, Kadabra, Kirlia, LANA_PLAY_BASE_RECUPERABLE, LANA_PLAY_NO_DEMAND, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Munkidori, NONEX_FINAL_PREEVO_IDS, OUR_ABILITY_IDS, OUR_EX_IDS, Pinsir, RETREAT_COST, Ralts, Slowpoke, THREAT_PREEVO_IDS, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Zorua_N
 from ptcg.cards.lines import _pokemon_injugable, _preevo_of_ex_line, _is_more_evolved_than
 from ptcg.cards.tables import card_table
 from ptcg.decision.boss_orders import _gust_relieves_the_attacker
@@ -958,6 +959,63 @@ def evaluate_supporters(tc):
                                 _best_stall_diff = _diff
                                 _has_stall_target = True
 
+                # THE TRAP THE RETREAT GAP DOES NOT SEE (user, registro_004 step
+                # 60 vs Alakazam, LOST -- deck-agnostic). The turn was dead: our
+                # Hydrapple ex had just evolved with one of the two energies its
+                # attack costs, nothing on the board knocked anything out, and all
+                # that was left in hand was a Boss's Orders and a Tapu Bulu. The
+                # agent ended the turn and threw the Supporter of the turn away.
+                #
+                # The scan above only measures the RETREAT gap and demands two:
+                # every body on their bench had retreat one and no energy, a gap
+                # of one, so it found nothing. But a gap of one with ZERO energy
+                # attached is already a body that cannot leave: to send it back
+                # they have to attach the energy of their turn TO IT and burn it
+                # paying the retreat. Making them spend that attachment is the
+                # play.
+                #
+                # What the gap does not measure is the other half: whether the
+                # body can ANSWER from the active spot. Their bench held a
+                # Fezandipiti ex with no energy whose attack costs three -- it
+                # does not attack even after an attachment -- next to Kadabra and
+                # Alakazam that attack for one. The trap is the pair, cannot
+                # answer AND cannot leave, and it is the same reading the target
+                # selector already uses to choose WHO comes up once the Boss's is
+                # played; what was missing was the reason to play it at all.
+                #
+                # Left out, the same three exclusions the relief of an attacker
+                # already makes plus one of its own: Dunsparce (a forbidden
+                # target); the known threat pre-evolutions, because their attack
+                # cost today says nothing -- they evolve IN THE ACTIVE SPOT and
+                # attack with the new body, which is how a bare Drakloak turns
+                # into the Dragapult ex that replaces the one we sent away; the
+                # walls and the ability locker (their attacks cost three, so bare
+                # they read as harmless, and they are the last bodies we want in
+                # front); and, with a Latias ex on their board, the Basics, which
+                # it retreats for free. The deck-agnostic vetoes of the rule
+                # ladder keep the last word on top of all this.
+                _bo_trap_gust = False
+                if not _has_stall_target:
+                    for _bpt in op_state.bench:
+                        if _bpt is None or _bpt.id in DUNSPARCE_IDS:
+                            continue
+                        if (_bpt.id in THREAT_PREEVO_IDS
+                                or _bpt.id in EX_PREEVO_IDS):
+                            continue
+                        if _bpt.id in GUST_TRAP_IDS:
+                            continue
+                        if RETREAT_COST.get(_bpt.id, 0) - len(_bpt.energies) < 1:
+                            continue
+                        if op_has_latias_ex:
+                            _cdt = card_table.get(_bpt.id)
+                            if (_cdt and not getattr(_cdt, 'stage1', False)
+                                    and not getattr(_cdt, 'stage2', False)):
+                                continue
+                        if not _op_body_is_harmless(_bpt):
+                            continue
+                        _bo_trap_gust = True
+                        break
+
                 if _has_stall_target:
 
                     if _best_stall_diff >= 2:
@@ -965,6 +1023,12 @@ def evaluate_supporters(tc):
                     else:
                         stall_val = 900
                     values[Boss_Orders] = max(values.get(Boss_Orders, 0), stall_val)
+                elif _bo_trap_gust:
+                    # 890 on purpose: below the 900 the immune-wall branch reads,
+                    # so a trap never promotes itself into a wall gust. The play
+                    # is carried by its own rule in the ladder, not by this value.
+                    values[Boss_Orders] = max(values.get(Boss_Orders, 0), 890)
+                    values['_boss_trap_gust'] = True
                 elif values.get(Boss_Orders, 0) <= 0:
                     values[Boss_Orders] = 0
 

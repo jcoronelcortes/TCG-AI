@@ -7,7 +7,7 @@ VERBATIM. It unpacks from the context the 41 fields it reads and returns the
 
 from cg.api import AreaType
 from ptcg.calc.card import get_card
-from ptcg.calc.damage import _our_effective_damage
+from ptcg.calc.damage import _our_effective_damage, evolution_body_bias
 from ptcg.calc.energy import _grass_attach_unit, _grass_mult
 from ptcg.calc.board import _active_of
 from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Chikorita, Dipplin, Grand_Tree, Hydrapple_ex, Lillie_Determination, Meganium, RETREAT_COST, SCORE_VETO, Tapu_Bulu
@@ -359,6 +359,23 @@ def score_play(tc, o, score):
                 if _cub_evo_eff < AGENT_STATE.ATTACK_ENERGY_REQ.get(card.id, 99):
                     score = SCORE_VETO
         
+            # ── WHICH BODY evolves ─────────────────────────────────────
+            # Everything above scores the CARD (and at most the species of the
+            # body): with two copies of the same pre-evolution in play both
+            # options come out with the SAME score and the argmax falls on
+            # whichever the menu listed first. Damage carries over on evolution,
+            # so the copy that gains from it is the DAMAGED one -- and the
+            # intact one is the one that can be left waiting on the bench.
+            #
+            # It goes LAST, after the ceilings and vetoes, so it can only order
+            # what has already been decided to be worth playing. Its magnitude
+            # (<= 260, see EVO_BODY_* ) never crosses the bands above.
+            if score > 0:
+                score += evolution_body_bias(
+                    pokemon, card.id, _is_active,
+                    estimated_op_damage if _is_active
+                    else AGENT_STATE._op_bench_snipe_dmg)
+
             if has_condition and _is_active and score > 0:
                 score += condition_urgency
         return score

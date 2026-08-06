@@ -7,7 +7,7 @@ VERBATIM. It unpacks from the context the 60 fields it reads and returns the
 
 from cg.api import AreaType, CardType, OptionType, Pokemon
 from ptcg.calc.card import get_card, prize_count, prize_count_op
-from ptcg.calc.damage import _attacker_base_damage, _op_active_attack_damage_to, _our_effective_damage
+from ptcg.calc.damage import _attacker_base_damage, _bench_finisher_that_survives, _hand_revealed_lethal_reply, _op_active_attack_damage_to, _our_effective_damage, _reply_closes_the_game
 from ptcg.calc.energy import _can_attack_eff, _grass_attach_route_open, _grass_attach_unit, _grass_mult, _physical_energy, _reachable_grass_for, _retreat_grass_to_discard, _retreat_grass_units
 from ptcg.calc.board import _active_of
 from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Chikorita, Cornerstone_Mask_Ogerpon_ex, Crustle_Fighting, Crustle_Grass, Cubchoo, Dawn, Dipplin, Drednaw, Dwebble_Fighting, Dwebble_Grass, EEVEE_IDS, Fezandipiti_ex, Hydrapple_ex, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, OP_BENCH_SNIPE_DAMAGE, OUR_ABILITY_IDS, OUR_EX_IDS, Pinsir, RETREAT_COST, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex
@@ -30,6 +30,7 @@ def score_play(tc, o, score):
     _conf_should_retreat = tc._conf_should_retreat
     _cubchoo_lock_stuck = tc._cubchoo_lock_stuck
     _doomed_sac_context = tc._doomed_sac_context
+    _ft_wall_pivot = tc._ft_wall_pivot
     _prize_mismatch_matchup = tc._prize_mismatch_matchup
     _e = tc._e
     _eff = tc._eff
@@ -257,7 +258,58 @@ def score_play(tc, o, score):
         _active_kos_op_active = _active_can_ko_now
         if _active_snipe_ko_now:
             _active_can_ko_now = True
-        
+
+        # THE RELAY THAT SURVIVES (user, registro_012 step 120 vs Alakazam,
+        # LOST -- deck-agnostic). "The active can knock out now" vetoes the
+        # retreat further down, and most of the time that is right: taking the
+        # prize from the front costs nothing. It costs something when the body
+        # taking it cannot afford to stand there afterwards.
+        #
+        # Turn 12, four prizes to three. Our active was a Hydrapple ex at 110 of
+        # its 330 HP, its Syrup Storm finished their Alakazam, and one energy
+        # short of its retreat cost sat a benched Teal Mask Ogerpon ex with
+        # three energies whose Myriad Leaf Shower finished it just as well --
+        # from 210 HP. We attacked from the front, their Powerful Hand read a
+        # hand of six, and the two prizes that body hands over ended the game.
+        #
+        # The generalisation of `_active_ex_fragile_pivot`, which asks the same
+        # question through the card: it wants the active to be an ex other than
+        # Hydrapple with a PRINTED HP under 330, and the relay to be a benched
+        # Hydrapple ex. Printed HP is the wrong number -- a Hydrapple at 110 of
+        # 330 is the fragile body here, and the tougher relay is an Ogerpon --
+        # so this one asks the board instead: does their projected reply knock
+        # our active out, are those their LAST prizes, and is there a benched
+        # body that finishes the same target, outlasts that reply and hands over
+        # no more prizes.
+        #
+        # The prize gate is what keeps it a defensive pivot rather than a
+        # preference. A trade we merely dislike is not worth the retreat cost;
+        # the game is.
+        #
+        # The named pivots above keep their scores and their priority; this one
+        # only picks up what they do not name.
+        _relay_finisher_pivot = False
+        if (_active_reloc is not None and can_switch
+                and _active_kos_op_active
+                and op_state.active and op_state.active[0] is not None):
+            _rfp_opa = op_state.active[0]
+            # Attacking from the front when it already WINS the game needs no
+            # relay: there is no next turn to survive into.
+            if not (my_prize <= prize_count_op(_rfp_opa)):
+                _rfp_reply = _hand_revealed_lethal_reply(
+                    _rfp_opa, _active_reloc,
+                    getattr(op_state, 'handCount', None))
+                if (_rfp_reply > 0
+                        and _reply_closes_the_game(_active_reloc, op_state,
+                                                   _rfp_opa)):
+                    _rfp_grass_after = max(0, total_grass - _retreat_grass_units(
+                        RETREAT_COST.get(_active_reloc.id, 1)))
+                    _relay_finisher_pivot = _bench_finisher_that_survives(
+                        my_state, _rfp_opa, AGENT_STATE.meganium_in_play,
+                        bench_count, _rfp_grass_after,
+                        neutralization_zone_active, _rfp_reply,
+                        prize_count(_active_reloc))
+
         # Protecting Hydrapple ex: if our active Hydrapple ex is going to be
         # knocked out next turn and cannot take a KO this turn, it is better to
         # retreat it and promote a non-ex benched attacker (e.g. Dipplin) that
@@ -675,6 +727,12 @@ def score_play(tc, o, score):
             # their own scorers (_td_ko_on_active gives 31500 to the Teal Dance
             # that enables the KO, and the ATTACK scorer finishes if it is lethal).
             score = 8900
+        elif _relay_finisher_pivot:
+            # Retreat and take the same prize with the benched body that
+            # survives their reply (see the flag). 8850: the same family as the
+            # two lethal promotions above -- take the prize now -- and just
+            # under them, so the cases they already name keep their behaviour.
+            score = 8850
         elif (_op_active_is_cubchoo and can_switch
                 and not _cub_bench_attacker_ready):
             # Cubchoo matchup: their attack leaves our active unable to attack
@@ -1493,6 +1551,22 @@ def score_play(tc, o, score):
         # instead of attacking with the ex; it is still below the
         # "Supporter before retreating" threshold (2000) to respect that order.
         if _alakazam_pivot_1prize:
+            score = max(score, 6000)
+
+        # THE ONE-PRIZE WALL TAKES THE FRONT ON OUR FIRST TURN (user,
+        # registro_002 step 14 vs Marnie, LOST). See `_ft_wall_pivot` in
+        # main.py: the flag already asked for everything that matters -- our
+        # first turn, no attack available, an undamaged wall on the bench, and
+        # an active that either hands over more prizes or endures less than it.
+        #
+        # The same 6000 as the pivot above, and for the same reason: it has to
+        # beat attacking with the body in front (~1100) while staying under the
+        # "play the Supporter BEFORE retreating" ceiling (2000) that the block
+        # below applies. That ceiling is not an obstacle here, it is the rest
+        # of the rule -- the refill is played first and the retreat is
+        # re-evaluated when nothing else in the turn is left, which is exactly
+        # "if by the end of the turn we cannot attack".
+        if _ft_wall_pivot:
             score = max(score, 6000)
         
         # Rule (user, registro 004 step 53 vs Archaludon ex, WON):

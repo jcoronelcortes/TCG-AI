@@ -346,6 +346,26 @@ Solrock = 676
 FIRST_TURN_TOUGH_OPENERS = frozenset({
     Teal_Mask_Ogerpon_ex, Fezandipiti_ex, Tapu_Bulu, Meowth_ex})
 
+# THE ONE-PRIZE WALL OF OUR FIRST TURN. The HP floor a BASIC worth ONE prize
+# has to clear before it is worth putting it in the active spot on our first
+# turn: enough that the opponent needs more than one attack to take it down,
+# so the turns they spend chewing it are turns we spend building the bench --
+# and when it finally falls it hands over a single prize. In this deck only
+# Tapu Bulu (140) clears it; the fragile openers (Chikorita 70, Applin 60) do
+# not, which is exactly the difference the rule is about. It is a THRESHOLD and
+# not a list of ids on purpose: another deck's 1-prize basic inherits the rule
+# without touching this file. See `is_one_prize_wall`.
+FIRST_TURN_WALL_MIN_HP = 130
+
+# The play band of that wall on our first turn. It sits INSIDE the development
+# band (a body on the bench, `SCORE_DEVELOP_BASE`) and above every Supporter
+# and item, because the play it has to beat is the hand REFILL: a Supporter
+# that shuffles the hand into the deck takes the wall with it, and the wall is
+# the one card of the hand that cannot be replaced by drawing more. Below the
+# Meowth ex engines (21800) and the anti-donk net (21900), which are about not
+# losing the game on the spot.
+FIRST_TURN_WALL_PLAY_SCORE = 21600
+
 # Item cards ("artefacts") of our deck. Used to postpone putting Tapu Bulu down
 # until the items that are worth playing have been played.
 DECK_ITEM_IDS = frozenset({Bug_Catching_Set, Ultra_Ball, Night_Stretcher,
@@ -515,6 +535,40 @@ RIPEN_HEAL_ABILITY_SCORE = 31250
 # is not worth two prizes. It stays below the lethal bands (41000+) and below
 # the retreat pivots (31600).
 RIPEN_HEAL_EX_ABILITY_SCORE = 31550
+
+# --- WHICH BODY EVOLVES (user, vs Marnie's Grimmsnarl ex) --------------------
+# With two copies of the same pre-evolution in play, the evolution used to land
+# on whichever body the menu listed FIRST: the scores of
+# ptcg/turn/options/evolve.py read the CARD being played (Hydrapple ex 33000,
+# Meganium 35000...) and the SPECIES of the body, never its life, so two
+# Applin -- one at 40/40 and one at 10/40 -- got exactly the same score. The
+# agent evolved the healthy one and left the 10 HP copy on the bench, where any
+# snipe cashes it in for free.
+#
+# Evolving does NOT heal: the damage carries over and only the maximum goes up
+# (Applin 10/40 -> Dipplin 50/80 -> Hydrapple ex 300/330). That is precisely why
+# the DAMAGED copy is the one to evolve -- the same damage stops being lethal
+# inside a bigger pool -- and the intact copy is the one that can wait.
+#
+# The three terms are deliberately SMALL. They order BODIES for the same card;
+# they must never decide WHICH card is played, and the deliberate score bands of
+# evolve.py are 500 apart. The widest possible swing between two options is
+# RESCUE + DAMAGE - (-EXPOSURE) = 460 < 500.
+#
+# The body was a prize the opponent could cash in before our next turn
+# (`_ventana_de_regalo`) and evolving takes it out of that window. This is the
+# real rescue and it beats everything else that separates two equal bodies.
+EVO_BODY_RESCUE = 200
+# The opposite case: even after evolving it stays inside the window (it dies
+# anyway) AND the evolution hands over MORE prizes than the pre-evolution. Then
+# evolving does not save a body, it upgrades the opponent's prize -- the same
+# reasoning as GT_PENALTY_DOOMED_ACTIVE, applied to any body.
+EVO_BODY_EXPOSURE = 200
+# With nobody in danger, the damage still decides: at equal everything else, the
+# board is left better off by moving the counters into the bigger pool and
+# leaving the intact copy behind. Scaled by the fraction of life already lost,
+# so it is a gradient and not a cliff.
+EVO_BODY_DAMAGE = 60
 
 # Ceiling of the charge on a DOOMED body (phase C of the Marnie plan): the
 # opponent can cash it in before our next turn and it does not attack today, so
@@ -749,6 +803,14 @@ BOSS_SCORE_PRIZE_RANK_BASE = 5200    # a gust that enables a KO (refined by priz
 BOSS_SCORE_LOW_VALUE_GUST = 1500     # a low-value gust
 BOSS_SCORE_DEFENSIVE_GUST = 1500     # a defensive gust (vs Crustle)
 BOSS_SCORE_UNLOCK_GUST = 2600        # gust to UN-LOCK abilities (Iron Thorns ex active)
+# The TRAP gust of a DEAD turn: no KO anywhere and no attack this turn, so the
+# Supporter of the turn is going to be thrown away. It brings up a body that
+# cannot answer from the active spot and cannot pay its own retreat. It is the
+# LAST branch of the ladder before the "no value" veto, and it is deliberately
+# placed at the height a generic Supporter would score through the reserve rule
+# (2400 + 1.4 x its value): the play is real, but it takes no prize and must not
+# outrank a refill (Lillie's, 5000) nor any branch with a prize behind it.
+BOSS_SCORE_TRAP_GUST = 3700
 BOSS_SCORE_EMPTY_GUST = 20           # a NON-executable gust: yield to Lillie's
 XEROSIC_SCORE_ALAKAZAM = 5900        # Xerosic vs Alakazam: cap Powerful Hand (20 x opposing hand). Above a hydra-charged Lillie's (5800); below GUST_2PRIZE (6800) and the defensive pivots (~6600). It yields to boss_win_via_bench through its own guard
 XEROSIC_SCORE_GENERIC = 3380         # generic Xerosic with a very large opposing hand (>=7): disruption value, below a typical Lillie's (~3450)
@@ -761,6 +823,50 @@ XEROSIC_SCORE_SOBRE_BOSS = 7000      # vs Alakazam with Boss's in hand: capping 
 # Any rule that reasons about WHICH Supporter takes the slot has to read it as
 # such (see `_meowth_fetch_loses_the_turn`).
 SUPP_SCORE_LAST_RESORT_BAND = 20
+# --- FORCED DISCARD: the Supporter is priced by the BOARD --------------------
+# (user, episode 90115646 step 132 vs Archaludon ex, LOST). Xerosic's
+# Machinations forced us to throw away six of nine cards. The `DISCARD` scorer
+# prices every Supporter with STATIC proxies -- "how many copies are in hand",
+# "is it the last refill", "how big is the discard pile" -- and none of them
+# looks at the board. So Lana's Aid scored 35 (`len(discard) > 2`) and fell,
+# while Dawn kept its 3 for being the last refill and Boss's Orders its 20 for
+# `op_prize <= 3`. The value layer had ALREADY read the board that same
+# decision and said the opposite: Lana's Aid 750, Dawn 0, Boss's Orders 0. We
+# discarded the only card that could recover Grass from a discard holding four
+# of them (eight after the KO that turn), and with it the game: the turn after,
+# Teal Dance + the manual attachment would have taken the active Ogerpon ex to
+# 8 effective energy -- Myriad Leaf Shower 30 + 30 x (8 + 3) = 360, -30 for
+# Archaludon's Grass resistance = 330 on a 300 HP body -- knocking out their ex
+# for the last two prizes. With one Grass short the attack stops at 270.
+#
+# The rule is deck-agnostic because it does not name a card: among the
+# Supporters ACTUALLY IN HAND, the forced discard follows the live value the
+# agent already computes (`_supp_values`, the same reading that decides which
+# Supporter gets played), not the static proxies.
+#
+# Both constants are deliberately confined to the Supporter band so the change
+# is a PERMUTATION among Supporters and nothing else:
+#   * KEEP (2) is the floor the branches already use for "the last refill"
+#     (Lillie's under `_protect_refresh_supporter`, Meowth ex with a line to
+#     build, Forest as the critical counter-stadium).
+#   * DROP (36) sits ABOVE the highest single-copy Supporter score (Lana's 35)
+#     and BELOW a single Ultra Ball (38), which is the cheapest generic item.
+#     A Supporter the board cannot use therefore falls before another
+#     Supporter, and never before an item that used to survive: how many
+#     non-Supporters are discarded does not change, only WHICH Supporter is
+#     sacrificed.
+DISCARD_SUPPORTER_LIVE_KEEP = 2
+DISCARD_SUPPORTER_DEAD_DROP = 36
+# --- SURPLUS COPY OF AN EVOLUTION PIECE (see `_evo_copies_usable`) -----------
+# The line-protection branches price an evolution by the BODY waiting under it
+# (a Hydrapple ex with an Applin on the bench scores 3, "do not throw this
+# away"), but they price EVERY copy in hand the same. One Applin can only ever
+# wear one Hydrapple ex, so the second copy is unplayable cardboard. It is
+# scored at 55 -- the same band the branch already gives a spare copy when one
+# is ALREADY in play (`has_hydrapple and hand > 1`) -- which keeps it below the
+# generic junk (an Ultra Ball surplus at 95, a Poke Pad at 55+) and above every
+# card the line really needs.
+DISCARD_EVO_SPARE_COPY = 55
 # --- FINISHER FISHING (see `_finisher_fishing`) ------------------------------
 # Lillie's Determination when the turn has no attack available and the draw may
 # bring the energy that unlocks a KO. It is placed above the whole Boss's ladder
@@ -782,7 +888,8 @@ FISHING_PRIZES_MIN = 1
 
 
 
-XEROSIC_STAMP_ORDEN_MIN_OP_HAND = 10  # minimum opposing hand for Xerosic to be played BEFORE Unfair Stamp: the Stamp leaves them at 2 either way, so the only thing the order buys is the `op_hand - 3` cards Xerosic sends to the discard FOREVER; it is only worth the Supporter slot when that beats a whole hand (>=7 cards)
+XEROSIC_HAND_CAP = 3  # cards Xerosic's Machinations leaves in the opposing hand ("discards cards from their hand until they have 3"). PRINTED on the card, and the reason `STAMP_MIN_OP_HAND` has to stay ABOVE it: a hand our own Xerosic just capped must never reach the Stamp's disruption clause again (registro_013 step 136, episode 90215840 vs Alakazam)
+XEROSIC_STAMP_ORDEN_MIN_OP_HAND = 10  # minimum opposing hand for Xerosic to be played BEFORE Unfair Stamp: the Stamp leaves them at 2 either way, so the only thing the order buys is the `op_hand - XEROSIC_HAND_CAP` cards Xerosic sends to the discard FOREVER; it is only worth the Supporter slot when that beats a whole hand (>=7 cards)
 
 # --- Unfair Stamp: when the Stamp DESERVES to be played (user, August 2026) --
 # The Stamp is an ACE SPEC (Item) that shuffles BOTH hands into the decks and
@@ -798,7 +905,33 @@ XEROSIC_STAMP_ORDEN_MIN_OP_HAND = 10  # minimum opposing hand for Xerosic to be 
 #       It is worth it while what is sacrificed (the hand WITHOUT the Stamp
 #       itself) is <= 4 cards; above that the Stamp burns more playable
 #       resources than it returns.
-STAMP_MIN_OP_HAND = 3          # minimum opposing hand for the Stamp to DISRUPT (it leaves them at 2)
+#
+# The DISRUPTION is measured in CARDS DENIED, `op_hand - 2`, and that is what
+# these two floors say (registro_006 step 88, episode 90092191 vs Alakazam,
+# LOST). There the threshold was 3 -- ONE card denied -- and the Stamp was spent
+# on an opposing hand that our own Xerosic had just capped to 3 the action
+# before: the copy-unique ACE SPEC went for a single card, and the KO on their
+# active was already on the board (Myriad Leaf Shower 30 + 30x(3+1) = 150 on a
+# 140 HP body). One card denied is not disruption; it is the rounding error of
+# any draw engine.
+#
+# The SEQUENCE this closes (registro_013 step 136, episode 90215840 vs Alakazam,
+# WON): with their hand at 16 the order is right -- Xerosic first, discarding
+# thirteen cards forever, and the Stamp keeps its slot for the same turn
+# (`_xr_before_the_stamp`). But Xerosic leaves them at `XEROSIC_HAND_CAP`, so
+# from that action on the Stamp can only deny ONE card, and it was played
+# anyway: a curated seven-card hand (Boss's, Lana's, Forest, a spare Hydrapple
+# ex) shuffled away for five random ones. The floor being STRICTLY ABOVE the cap
+# is what makes the second half of the sequence impossible; keep it that way.
+STAMP_MIN_OP_HAND = 4          # minimum opposing hand for the Stamp to DISRUPT (it leaves them at 2, so this denies 2 cards). Invariant: > XEROSIC_HAND_CAP
+# ...and 6 (4 cards denied) when the opponent has a REFILL ENGINE on the board.
+# Their Fezandipiti ex hands them 3 cards with Flip the Script on the turn after
+# we take a KO -- which is exactly the turn we play the Stamp, since the Stamp
+# itself needs one of OUR bodies to have been knocked out. Denying two cards to a
+# board that draws three back is spending the ACE SPEC to give the opponent
+# tempo. It is read off their BOARD (`_op_refill_engine`), not off a matchup
+# whitelist: the card behaves the same way wherever that engine sits.
+STAMP_MIN_OP_HAND_VS_REFILL = 6
 STAMP_MAX_HAND_SACRIFICED = 4  # our own cards (hand without the Stamp) that can be shuffled away
 
 
@@ -908,6 +1041,8 @@ __all__ = [
     'OUR_EX_IDS',
     'Solrock',
     'FIRST_TURN_TOUGH_OPENERS',
+    'FIRST_TURN_WALL_MIN_HP',
+    'FIRST_TURN_WALL_PLAY_SCORE',
     'DECK_ITEM_IDS',
     'EX_IMMUNE_IDS',
     'CRUSTLE_LINE_IDS',
@@ -940,6 +1075,9 @@ __all__ = [
     'RIPEN_HEAL_TARGET_SCORE',
     'RIPEN_HEAL_ABILITY_SCORE',
     'RIPEN_HEAL_EX_ABILITY_SCORE',
+    'EVO_BODY_RESCUE',
+    'EVO_BODY_EXPOSURE',
+    'EVO_BODY_DAMAGE',
     'SCORE_CHARGE_DOOMED',
     'SCORE_CHARGE_LETHAL_FLOOR',
     'FEZ_DRAW_ABILITY_SCORE',
@@ -995,16 +1133,22 @@ __all__ = [
     'BOSS_SCORE_LOW_VALUE_GUST',
     'BOSS_SCORE_DEFENSIVE_GUST',
     'BOSS_SCORE_UNLOCK_GUST',
+    'BOSS_SCORE_TRAP_GUST',
     'BOSS_SCORE_EMPTY_GUST',
     'XEROSIC_SCORE_ALAKAZAM',
     'XEROSIC_SCORE_GENERIC',
     'XEROSIC_SCORE_LAST_RESORT',
     'XEROSIC_SCORE_SOBRE_BOSS',
     'SUPP_SCORE_LAST_RESORT_BAND',
+    'DISCARD_SUPPORTER_LIVE_KEEP',
+    'DISCARD_SUPPORTER_DEAD_DROP',
+    'DISCARD_EVO_SPARE_COPY',
     'LILLIE_SCORE_FISHING',
     'FISHING_PROB_MIN',
     'FISHING_PRIZES_MIN',
+    'XEROSIC_HAND_CAP',
     'XEROSIC_STAMP_ORDEN_MIN_OP_HAND',
     'STAMP_MIN_OP_HAND',
+    'STAMP_MIN_OP_HAND_VS_REFILL',
     'STAMP_MAX_HAND_SACRIFICED',
 ]

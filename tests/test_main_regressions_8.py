@@ -158,19 +158,49 @@ def test_no_ub_to_dig_a_second_meowth_with_the_last_ditch_spent():
         f"con el activo cargado la jugada del turno es Boss's Orders "
         f"(opt {play[m.Boss_Orders]}) y noquear; obtuvo {result}")
 
+def _settle_the_meowth(obs):
+    """The SAME board with the bench Meowth ex from a PREVIOUS turn: the turn's
+    Last-Ditch is free again, so a 2nd Meowth ex WOULD search."""
+    me = obs["current"]["players"][obs["current"]["yourIndex"]]
+    for pk in me["bench"]:
+        if pk["id"] == m.Meowth_ex:
+            pk["appearThisTurn"] = False
+
+
+def test_no_ub_for_the_second_meowth_when_the_turn_supporter_is_in_hand():
+    # Counterfactual (1), REVISED (user, registro_004 step 36 vs Alakazam,
+    # episode 90106609, LOST -- `_supp_in_hand_takes_the_turn`). A free
+    # Last-Ditch is NOT enough on its own: what the fetch brings has to be able
+    # to be PLAYED. Here the hand already holds a Boss's Orders that wins the
+    # turn's only Supporter slot (3751) and, once the body has been paid for,
+    # `_ld_supp_comprometido` prices the fetched Supporter at 8000 -- the chain
+    # does not BANK a Supporter for tomorrow, it HIJACKS today's gust, and it
+    # pays 2 cards plus a 2-prize body on the bench for it.
+    obs, play, result = _ub_cynthia_obs(_settle_the_meowth)
+    assert result == [play[m.Boss_Orders]], (
+        f"con Boss's Orders en mano (la jugada del turno) cavar un 2o Meowth ex "
+        f"solo secuestra el hueco de Supporter; esperaba Boss's "
+        f"(opt {play[m.Boss_Orders]}); obtuvo {result}")
+
+
 def test_the_ub_digs_the_second_meowth_if_the_last_ditch_is_still_free():
-    # Counterfactual (1): the SAME board with the Meowth ex from a PREVIOUS turn.
-    # The Last-Ditch is free, the 2nd Meowth WOULD search for a Supporter and the PLAY
-    # branch plays it (`_ub_meowth_pending`) -> the chain is completed and it digs.
-    def _asentar_meowth(obs):
+    # Counterfactual (2): the ORIGINAL rule, still alive. With the Last-Ditch
+    # free AND no Supporter in hand to lose the slot to, the chain UB -> Meowth
+    # -> Last-Ditch -> Supporter does produce, and the Ultra Ball digs. The
+    # Meganium goes too, only so that the argmax is readable: evolving the
+    # benched Bayleef is a development play (20000) that always goes first.
+    def _settle_and_empty_the_supporters(obs):
+        _settle_the_meowth(obs)
         me = obs["current"]["players"][obs["current"]["yourIndex"]]
-        for pk in me["bench"]:
-            if pk["id"] == m.Meowth_ex:
-                pk["appearThisTurn"] = False
-    obs, play, result = _ub_cynthia_obs(_asentar_meowth)
+        me["hand"] = [c for c in me["hand"]
+                      if c["id"] not in (m.Boss_Orders, m.Xerosic_Machinations,
+                                         m.Meganium)]
+        me["handCount"] = len(me["hand"])
+    obs, play, result = _ub_cynthia_obs(_settle_and_empty_the_supporters)
     assert result == [play[_ULTRA_BALL]], (
-        f"con la Last-Ditch libre la cadena UB->Meowth->Supporter si produce: "
-        f"esperaba jugar la Ultra Ball (opt {play[_ULTRA_BALL]}); obtuvo {result}")
+        f"con la Last-Ditch libre y sin Supporter en mano la cadena "
+        f"UB->Meowth->Supporter si produce: esperaba jugar la Ultra Ball "
+        f"(opt {play[_ULTRA_BALL]}); obtuvo {result}")
 
 def test_the_ub_does_not_dig_the_evolution_already_in_hand():
     # A unit test of the Bayleef->Meganium branch: with the Meganium IN HAND the line

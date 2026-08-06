@@ -704,8 +704,19 @@ def test_lucario_step115_stamp_is_still_playable_now():
 def test_lucario_step115_plays_meowth_after_stamp_gone():
     # A counterfactual: the Unfair Stamp has already been played (out of the hand). The Meowth
     # engine is still alive -> now Meowth ex IS played for the Last-Ditch.
+    #
+    # `_ub_meowth_pending` is injected because the sequence no longer sets it on
+    # its own: the Ultra Ball of that turn used to be spent on a Meowth ex WITH
+    # THE STAMP PENDING, and that purchase is exactly what
+    # `the_stamp_shuffles_the_last_ditch_supporter` now refuses (the fetch takes
+    # Teal Mask Ogerpon ex instead -- see
+    # tests/test_the_stamp_shuffles_what_the_ultra_ball_buys.py). What this test
+    # guards is unchanged and is the other half of the same rule: the Stamp's
+    # veto is one of ORDER, so once the Stamp leaves the hand a Meowth ex we
+    # have already paid an Ultra Ball for is put down.
     _, _, data = _lucario_s115_replay()
     post = data["synthetic_post_stamp"]
+    m.AGENT_STATE._ub_meowth_pending = True
     ch = m.agent(post)
     opt = post["select"]["option"][ch[0]]
     hand = post["current"]["players"][0]["hand"]

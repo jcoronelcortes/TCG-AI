@@ -44,6 +44,7 @@ def _energy_score_base(tc, pokemon, active):
     _ex_stuck_promo_ready = tc._ex_stuck_promo_ready
     _extra_energy_enables_ko = tc._extra_energy_enables_ko
     _feza_lucario_wall = tc._feza_lucario_wall
+    _ft_wall_charge_active = tc._ft_wall_charge_active
     _gust_2prize_via_boss = tc._gust_2prize_via_boss
     _hydra_fragile_pivot = tc._hydra_fragile_pivot
     _meganium_alk_1prize_attacker = tc._meganium_alk_1prize_attacker
@@ -208,6 +209,22 @@ def _energy_score_base(tc, pokemon, active):
             and bench_count >= 1
             and not state.energyAttached):
         return 41500
+
+    # THE ACTIVE PAYS THE RETREAT TOWARDS THE FIRST-TURN WALL (user,
+    # registro_002 step 14 vs Marnie, LOST). The DESTINATION half of
+    # `_ft_wall_charge_active` (see main.py): on our first turn, with a
+    # one-prize wall waiting on the bench and no attack available, this turn's
+    # energy goes to the ACTIVE up to its retreat cost -- that is what makes
+    # the engine offer the retreat at all, and the pivot is the only thing this
+    # energy can still buy today.
+    #
+    # It has to sit ABOVE `_tapu_future_charge` (40000), which is the rule that
+    # would otherwise take it: charging the wall itself towards an attack it
+    # cannot make for several turns yet, while the fragile body stays in front
+    # handing over the tempo. It stays BELOW everything that takes a prize
+    # TODAY (41000+), which on our first turn is empty anyway.
+    if active and _ft_wall_charge_active:
+        return 40500
 
     # Rule (user, log 85855786 step 141, vs Alakazam, WE WON): if this turn there
     # is a WINNING / 2-prize play via Boss's Orders (gusting from the opposing
@@ -1045,9 +1062,49 @@ def _energy_score_base(tc, pokemon, active):
             _retreat_cost = RETREAT_COST.get(pokemon.id, 1)
             # Wild Growth doubles the basic Grass energy for the retreat.
             _cb_ret_eff = energy_count * _grass_mult()
-            if _cb_ret_eff < _retreat_cost:
+            if _cb_ret_eff >= _retreat_cost:
+                score -= 500
+            elif _bench_attacker_ready:
                 score += 23200
             else:
+                # THE RETREAT FEE NEEDS SOMEBODY TO HAND OVER TO (user,
+                # `records/registro_002_pasos_014_hasta_027.json` step 18,
+                # episode 90114194 vs Mega Lopunny -- game WON, this turn
+                # wasted). Turn 2, our first: active Chikorita at 0 energy,
+                # bench a Teal Mask Ogerpon ex and an Applin, BOTH at 0
+                # energy, and a single Grass in hand with the benched Ogerpon's
+                # Teal Dance still unused.
+                #
+                # The charge on the active is not development -- Chikorita and
+                # Bayleef are not attackers, and Growl does no damage. It buys
+                # exactly ONE thing: the retreat cost. So the 23200 is the fee
+                # of a pivot, and a fee is only worth the turn's attachment
+                # when the body coming up can do something the active cannot.
+                #
+                # Here it could not. The agent charged the Chikorita (31210,
+                # over Teal Dance at 7500), retreated, promoted the Ogerpon ex
+                # at 0 energy and closed the turn: Myriad Leaf Shower costs
+                # three, so the engine offered NO attack after the swap. The
+                # Grass went from the hand to the discard while paying the
+                # retreat, and it neither attacked nor drew. The Teal Dance it
+                # outscored puts that same Grass on the Ogerpon that is being
+                # assembled AND draws a card AND does not consume the turn's
+                # manual attachment.
+                #
+                # `_bench_attacker_ready` is the reading the rest of the file
+                # already uses for "there is somebody to promote": a benched
+                # attacker with the energy to attack TODAY. The Meowth ex and
+                # Fezandipiti ex branches just below ask the same question of
+                # the same charge -- they settle for the attacker's ID being on
+                # the bench, which on this board would have passed with an
+                # Ogerpon that cannot pay its own attack.
+                #
+                # This is not the lethal line: when the promoted body knocks
+                # something out or chips it, `_attach_enable_retreat_ko` /
+                # `_attach_enable_retreat_attack` (41000 / 31250) have already
+                # returned far above. What is left here is the fee with nothing
+                # behind it, and it drops to the development band so that Teal
+                # Dance and the bench charges take the Grass.
                 score -= 500
         elif pokemon.id == Meowth_ex:
 

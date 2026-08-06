@@ -41,6 +41,7 @@ class CtxEnergyScoreBase:
     _ex_stuck_promo_ready: Any = None
     _extra_energy_enables_ko: Any = None
     _feza_lucario_wall: Any = None
+    _ft_wall_charge_active: Any = None
     _gust_2prize_via_boss: Any = None
     _hydra_fragile_pivot: Any = None
     _meganium_alk_1prize_attacker: Any = None

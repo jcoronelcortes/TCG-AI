@@ -453,6 +453,54 @@ class Scenario:
         }
         return self
 
+    def _evolve_options(self):
+        """One EVOLVE option per (evolution in hand, body in play it evolves
+        from), in the order the simulator emits them: by hand card, and inside
+        each card the active first and then the bench."""
+        options = []
+        in_play = ([self._my_active] if self._my_active else []) + self._my_bench
+        for i, c in enumerate(self._my_hand):
+            data = _CARD_TABLE.get(c["id"])
+            pre = getattr(data, "evolvesFrom", None) if data else None
+            if not pre:
+                continue
+            for j, p in enumerate(in_play):
+                p_data = _CARD_TABLE.get(p["id"])
+                if p_data is None or p_data.name != pre:
+                    continue
+                options.append({
+                    "type": int(OptionType.EVOLVE),
+                    "area": int(AreaType.HAND), "index": i,
+                    "inPlayArea": int(AreaType.ACTIVE if j == 0
+                                      else AreaType.BENCH),
+                    "inPlayIndex": 0 if j == 0 else j - 1})
+        return options
+
+    def menu_evolve(self, with_end=True):
+        """A MAIN select with ONLY the EVOLVE options (plus END).
+
+        For scenarios that measure WHICH BODY the evolution lands on: the noise
+        of the rest of the menu would decide the turn somewhere else.
+        """
+        options = self._evolve_options()
+        if not options:
+            raise InconsistentState(
+                "menu_evolve() no encontro ninguna evolucion jugable: revisa "
+                "my_hand()/my_bench()")
+        if with_end:
+            options.append({"type": int(OptionType.END)})
+        self._select = {
+            "type": int(SelectType.MAIN),
+            "context": int(SelectContext.MAIN),
+            "minCount": 1, "maxCount": 1,
+            "remainDamageCounter": 0, "remainEnergyCost": 0,
+            "option": options,
+            "deck": None,
+            "contextCard": None,
+            "effect": None,
+        }
+        return self
+
     def fetch_discard(self, efecto_id, cuantas=1, only=None):
         """A TO_HAND select of a RECOVERY card (Night Stretcher, Lana's
         Aid...) over our own already declared discard. It consumes a copy of
@@ -614,22 +662,7 @@ class Scenario:
                     "Vitality en mi_mano()")
             options.append({"type": int(OptionType.PLAY), "index": idx})
         if with_evolution_in_hand:
-            in_play = ([self._my_active] if self._my_active else []) + self._my_bench
-            for i, c in enumerate(self._my_hand):
-                data = _CARD_TABLE.get(c["id"])
-                pre = getattr(data, "evolvesFrom", None) if data else None
-                if not pre:
-                    continue
-                for j, p in enumerate(in_play):
-                    p_data = _CARD_TABLE.get(p["id"])
-                    if p_data is None or p_data.name != pre:
-                        continue
-                    options.append({
-                        "type": int(OptionType.EVOLVE),
-                        "area": int(AreaType.HAND), "index": i,
-                        "inPlayArea": int(AreaType.ACTIVE if j == 0
-                                          else AreaType.BENCH),
-                        "inPlayIndex": 0 if j == 0 else j - 1})
+            options.extend(self._evolve_options())
         options.append({"type": int(OptionType.END)})
         self._select = {
             "type": int(SelectType.MAIN),

@@ -10,7 +10,7 @@ from ptcg.calc.card import get_card, prize_count
 from ptcg.calc.damage import _powerful_hand_projected, _ventana_de_regalo
 from ptcg.calc.energy import _grass_mult
 from ptcg.cards.groups import GT_PLAY_BASICO_BONUS
-from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Budew, Bug_Catching_Set, CUBCHOO_ALLOWED_PLAY_IDS, Chikorita, DECK_ITEM_IDS, Dawn, Dipplin, Dragapult_ex, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, OUR_EX_IDS, Pinsir, Poke_Pad, RETREAT_COST, SCORE_DEVELOP_BASE, SCORE_FORBID, SCORE_ITEM_BASE, SCORE_VETO, TAPU_WAIT_FOR_ITEMS_SCORE, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, Xerosic_Machinations
+from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Budew, Bug_Catching_Set, CUBCHOO_ALLOWED_PLAY_IDS, Chikorita, DECK_ITEM_IDS, Dawn, Dipplin, Dragapult_ex, FIRST_TURN_WALL_PLAY_SCORE, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, OUR_EX_IDS, Pinsir, Poke_Pad, RETREAT_COST, SCORE_DEVELOP_BASE, SCORE_FORBID, SCORE_ITEM_BASE, SCORE_VETO, TAPU_WAIT_FOR_ITEMS_SCORE, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, Xerosic_Machinations
 from ptcg.cards.tables import card_table
 from ptcg.decision.bug_catching_set import _score_bug_catching_set_play
 from ptcg.decision.disruption import _score_unfair_stamp_play, _score_xerosic_play
@@ -38,6 +38,7 @@ def score_play(tc, o, score):
     _dragapult_no_tapu = tc._dragapult_no_tapu
     _festival_lead_hostil = tc._festival_lead_hostil
     _ft_hold_lone_meowth = tc._ft_hold_lone_meowth
+    _ft_wall_in_hand = tc._ft_wall_in_hand
     _gt_planes = tc._gt_planes
     _gt_quiere_basico = tc._gt_quiere_basico
     _gt_root_in_play = tc._gt_root_in_play
@@ -1633,6 +1634,25 @@ def score_play(tc, o, score):
                     and data is not None
                     and data.cardType == CardType.POKEMON):
                 score += GT_PLAY_BASICO_BONUS
+
+        # THE ONE-PRIZE WALL GOES DOWN ON OUR FIRST TURN (user, registro_002
+        # step 14 vs Marnie, LOST). See `_ft_wall_in_hand` in main.py for the
+        # whole plan; this is the half that saves the body. It is an ENVELOPE
+        # and not another link of the per-card ladder because what it has to
+        # beat is spread all over that ladder: the first-turn veto of the
+        # matchup branches, and the "wait until the items have been played"
+        # cap, which on a turn with a hand refill in it means "wait until the
+        # refill has shuffled the wall into the deck". A cap that has to win
+        # against every branch goes where nothing can be added after it.
+        #
+        # It does NOT override the matchup veto that reads the OPPONENT
+        # (`_dragapult_no_tapu`, a deck that snipes the bench): there the body
+        # on the bench is not a wall we are keeping, it is a target.
+        if (_ft_wall_in_hand is not None
+                and card is not None and card.id == _ft_wall_in_hand
+                and not _dragapult_no_tapu
+                and score < FIRST_TURN_WALL_PLAY_SCORE):
+            score = FIRST_TURN_WALL_PLAY_SCORE
         return score
     finally:
         tc.b = b

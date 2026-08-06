@@ -137,12 +137,54 @@ def test_the_fixture_is_turn_2_with_no_attacker():
 
 
 def test_the_boss_that_gives_away_the_abra_is_not_played():
+    """The turn closes without the gust.
+
+    It no longer closes on the FIRST decision: the Tapu Bulu of that hand is
+    the one-prize wall of our first turn and now goes on the bench (see
+    `_ft_wall_in_hand` in main.py) -- which is also the body this matchup wants
+    in front, one prize against a deck that only knows how to knock out. What
+    the test pins is the gust, so it walks the turn to the end and checks that
+    the Boss's is never the play.
+
+    AND IT NO LONGER CLOSES IN END. With the wall on the bench and the retreat
+    cost already on the active, the turn ends by putting that wall in FRONT
+    (`_ft_wall_pivot`, prize arm -- see
+    tests/test_the_one_prize_wall_takes_the_front.py). The close is a different
+    one, the reading is the same one this file was written for: against a deck
+    whose whole plan is knocking things out, the body in front should be worth
+    one prize and their only attacker should stay in pieces on their bench.
+    """
     o = _obs()
-    fin = next(i for i, opt in enumerate(o["select"]["option"])
-               if opt.get("type") == 14)
-    assert m.agent(o) == [fin], (
+    played = []
+    for _ in range(4):
+        opt = o["select"]["option"][m.agent(o)[0]]
+        mine = o["current"]["players"][o["current"]["yourIndex"]]
+        if opt.get("type") != 7:
+            played.append((opt["type"], None))
+            break
+        card = mine["hand"][opt["index"]]
+        played.append((7, card["id"]))
+        data = m.card_table[card["id"]]
+        mine["hand"] = [c for i, c in enumerate(mine["hand"]) if i != opt["index"]]
+        mine["handCount"] = len(mine["hand"])
+        mine["bench"] = list(mine["bench"]) + [{
+            "id": card["id"], "serial": card["serial"],
+            "playerIndex": o["current"]["yourIndex"],
+            "hp": data.hp, "maxHp": data.hp, "appearThisTurn": True,
+            "energies": [], "energyCards": [], "tools": [], "preEvolution": []}]
+        o["select"]["option"] = [x for i, x in enumerate(o["select"]["option"])
+                                 if x is not opt]
+        for x in o["select"]["option"]:
+            if x.get("type") == 7 and x.get("index", 0) > opt["index"]:
+                x["index"] -= 1
+
+    assert (7, m.Boss_Orders) not in played, (
         "sin KO y con el activo rival incapaz de atacar, el Boss's se guarda: "
         "subir un Abra le entrega la pre-evolucion de su unico atacante")
+    assert played[0] == (7, m.Tapu_Bulu), (
+        f"la primera jugada es bajar el muro de 1 premio, no el gusteo: {played}")
+    assert played[-1] == (int(m.OptionType.RETREAT), None), (
+        f"el turno se cierra poniendo ese muro delante: {played}")
 
 
 # ---------------------------------------------------------------------------

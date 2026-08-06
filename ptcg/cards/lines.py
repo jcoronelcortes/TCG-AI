@@ -528,8 +528,37 @@ def _direct_evolution_ids(card_id):
                  if getattr(evo, 'cardId', 0))
 
 
+def _evo_copies_usable(card_id, hand_counts, field_counts, free_bench=0):
+    """How many copies of `card_id` this board could still PUT INTO PLAY.
+
+    An evolution goes ON TOP of a body, so what bounds it is the number of
+    distinct LINE INSTANCES underneath it -- not how many pieces the hand holds.
+    A Dipplin in hand with one Applin on the bench is ONE future Hydrapple ex,
+    not two: that Dipplin will sit on that very Applin. Hence the count is
+
+        bodies in play at a stage BELOW `card_id`
+      + basics of the line still in hand that a free bench slot would fit
+
+    Copies beyond that number can never reach the field: they are the cheapest
+    thing the hand owns, whatever the line-protection branches say about the
+    FIRST copy. Deck-agnostic -- the stages come from `EVO_LINES`.
+
+    Returns None when `card_id` is not an evolution of one of our lines (the
+    caller then has nothing to cap).
+    """
+    for line in EVO_LINES:
+        if card_id == line[0] or card_id not in line:
+            continue
+        idx = line.index(card_id)
+        seats = sum(field_counts.get(pre, 0) for pre in line[:idx])
+        seats += min(hand_counts.get(line[0], 0), max(0, free_bench))
+        return seats
+    return None
+
+
 __all__ = [
     '_direct_evolution_ids',
+    '_evo_copies_usable',
     '_evolution_stage',
     '_line_root',
     '_same_evolution_line',

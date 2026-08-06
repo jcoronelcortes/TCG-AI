@@ -107,6 +107,12 @@ class DecisionContext:
     # copy (registro_007 step 80 vs Archaludon: still no KO because of the Cape).
     # Default False: unit tests build the ctx directly.
     boss_active_threat_dominates: bool = False
+    # The gust TRAPS their turn: with no KO available and no attack of ours this
+    # turn, there is a body on their bench that cannot answer from the active spot
+    # even after an attachment and cannot pay its own retreat. Bringing it up costs
+    # them either the turn or the energy they attach to get it out.
+    # Default False: unit tests build the ctx directly.
+    boss_trap_gust: bool = False
     # A REAL opposing finisher on our active, resolved via attack_table
     # (`_op_active_attack_damage_to` >= the active's HP). The `active_ko_likely`
     # heuristic leans on `_op_best_damage_vs`, which reads the damage of an attack

@@ -77,11 +77,16 @@ class ScoringCtx:
     _enough_for_both: Any = None
     _evo_huerfanos: Any = None
     _evo_necesarios: Any = None
+    _evo_spare_seen: Any = None
     _ex_stuck_promo_ready: Any = None
     _extra_energy_enables_ko: Any = None
     _festival_lead_hostil: Any = None
     _forced_ko_promote: Any = None
     _ft_hold_lone_meowth: Any = None
+    _ft_wall_body: Any = None
+    _ft_wall_charge_active: Any = None
+    _ft_wall_in_hand: Any = None
+    _ft_wall_pivot: Any = None
     _grass_anywhere_enables_syrup_ko: Any = None
     _grass_enables_promote_ko: Any = None
     _gt_plan: Any = None
@@ -171,6 +176,7 @@ class ScoringCtx:
     _teal_dance_slots: Any = None
     _teal_wall_pivot: Any = None
     _ub_meowth_for_tomorrow: Any = None
+    _ub_supp_in_hand_turn: Any = None
     _wall_ko_promote: Any = None
     _win_ko_active_via_promote: Any = None
     _win_via_boss_gust: Any = None
@@ -251,7 +257,7 @@ class ScoringCtx:
     watchtower_in_play: Any = None
 
 
-REASIGNADAS = ['_atk', '_b', '_bench_attacker_ready', '_bp', '_bp_e', '_bp_eff', '_dc', '_e', '_eff', '_energy_in_hand', '_has_bench_attacker', '_lillie_protected_once', '_op_act', '_our_first_turn', '_sid', '_tb_req', 'b', 'bp', 'card', 'data', 'energy_count', 'pid', 'pokemon']
+REASIGNADAS = ['_atk', '_b', '_bench_attacker_ready', '_bp', '_bp_e', '_bp_eff', '_dc', '_e', '_eff', '_energy_in_hand', '_evo_spare_seen', '_has_bench_attacker', '_lillie_protected_once', '_op_act', '_our_first_turn', '_sid', '_tb_req', 'b', 'bp', 'card', 'data', 'energy_count', 'pid', 'pokemon']
 
 
 __all__ = ['ScoringCtx', 'REASIGNADAS']

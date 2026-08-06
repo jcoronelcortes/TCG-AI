@@ -21,6 +21,7 @@ def score_play(tc, o, score):
     _bcs_playable_in_hand = tc._bcs_playable_in_hand
     _charge_active_enables_attack = tc._charge_active_enables_attack
     _charge_active_finishes = tc._charge_active_finishes
+    _ft_wall_charge_active = tc._ft_wall_charge_active
     _gust_2prize_via_boss = tc._gust_2prize_via_boss
     _lucario_sac_pivot = tc._lucario_sac_pivot
     _tapu_future_charge = tc._tapu_future_charge
@@ -67,7 +68,13 @@ def score_play(tc, o, score):
                         # ...unless that charge FINISHES the game today (anti-DONK):
                         # the first-turn veto exists to avoid wasting energy, not to
                         # give up a KO.
-                        and not _charge_active_finishes):
+                        and not _charge_active_finishes
+                        # ...nor to block the RETREAT FEE towards the one-prize
+                        # wall (`_ft_wall_charge_active`, main.py). That energy
+                        # is not overcharging the opening attacker: it is what
+                        # buys the swap that hides this 2-prize body behind a
+                        # body that costs one.
+                        and not _ft_wall_charge_active):
                     if _lucario_sac_pivot:
                         # Charging the active Ogerpon ex: when it retreats later, it
                         # keeps energy on the bench (it pays the retreat cost and

@@ -11,11 +11,12 @@ from ptcg.calc.damage import _attacker_base_damage, _bench_attacker_can_ko, _ko_
 from ptcg.calc.energy import _can_attack_eff, _grass_attach_route_open, _grass_attach_unit, _grass_mult
 from ptcg.calc.board import _active_of, _count_hand_play_options
 from ptcg.cards.groups import GT_FETCH_BONUS
-from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, DUNSPARCE_IDS, Dawn, Dipplin, Drednaw, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, LANA_SEL_INJUGABLE, LANA_SEL_GRASS_DEMAND, LANA_SEL_GRASS_UNLOCKS, LANA_SEL_GRASS_SURPLUS, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, OUR_ABILITY_IDS, OUR_EX_IDS, Pinsir, Poke_Pad, RETREAT_COST, RIPEN_HEAL_TARGET_SCORE, SCORE_FORBID, SCORE_LOOKAHEAD_PROMOTE_KO, SCORE_LOOKAHEAD_PROMOTE_SAFE, SCORE_NEVER, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, Xerosic_Machinations
-from ptcg.cards.lines import _pokemon_injugable
-from ptcg.cards.scoring import MAIN_ATTACKERS, PROMO_DOOMED_PENALTY, PROMO_KO_BONUS, PROMO_MATCH_POINT_VETO, PROMO_PRIZE_PENALTY
+from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, DISCARD_EVO_SPARE_COPY, DISCARD_SUPPORTER_DEAD_DROP, DISCARD_SUPPORTER_LIVE_KEEP, DUNSPARCE_IDS, Dawn, Dipplin, Drednaw, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, LANA_SEL_INJUGABLE, LANA_SEL_GRASS_DEMAND, LANA_SEL_GRASS_UNLOCKS, LANA_SEL_GRASS_SURPLUS, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, OUR_ABILITY_IDS, OUR_EX_IDS, Pinsir, Poke_Pad, RETREAT_COST, RIPEN_HEAL_TARGET_SCORE, SCORE_FORBID, SCORE_LOOKAHEAD_PROMOTE_KO, SCORE_LOOKAHEAD_PROMOTE_SAFE, SCORE_NEVER, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, Xerosic_Machinations
+from ptcg.cards.lines import _evo_copies_usable, _pokemon_injugable
+from ptcg.cards.scoring import MAIN_ATTACKERS, PROMO_DOOMED_PENALTY, PROMO_KO_BONUS, PROMO_MATCH_POINT_VETO, PROMO_PRIZE_PENALTY, _SUPP_PLAY_IDS
 from ptcg.cards.tables import card_table
 from ptcg.decision.boss_orders import _ADJUST_GUST_NUISANCE, _ADJUST_GUST_OFFENSIVE, _RULES_GUST_NUISANCE, _ctx_gust_target
+from ptcg.decision.disruption import _stamp_pendiente
 from ptcg.decision.meowth import _CtxMeowthFetch, _MEOWTH_FETCH_SUPPS, _RULES_MEOWTH_FETCH
 from ptcg.decision.night_stretcher import _RULES_NS_APPLIN, _RULES_NS_BAYLEEF, _RULES_NS_CHIKORITA, _RULES_NS_DIPPLIN, _RULES_NS_FEZ, _RULES_NS_GRASS, _RULES_NS_HYDRAPPLE, _RULES_NS_MEGANIUM, _RULES_NS_MEOWTH, _RULES_NS_OGERPON, _RULES_NS_PINSIR, _RULES_NS_TAPU, _ctx_ns_fetch, _ns_fez_engine_alive, _ns_meowth_engine_alive
 from ptcg.decision.poke_pad import _CtxPPFetch, _RULES_PP_FETCH
@@ -45,9 +46,12 @@ def score_play(tc, o, score):
     _prize_mismatch_matchup = tc._prize_mismatch_matchup
     _dragapult_no_tapu = tc._dragapult_no_tapu
     _evo_huerfanos = tc._evo_huerfanos
+    _evo_spare_seen = tc._evo_spare_seen
     _evo_necesarios = tc._evo_necesarios
     _festival_lead_hostil = tc._festival_lead_hostil
     _forced_ko_promote = tc._forced_ko_promote
+    _ft_wall_body = tc._ft_wall_body
+    _ft_wall_pivot = tc._ft_wall_pivot
     _grass_anywhere_enables_syrup_ko = tc._grass_anywhere_enables_syrup_ko
     _grass_enables_promote_ko = tc._grass_enables_promote_ko
     _gt_plan = tc._gt_plan
@@ -882,7 +886,28 @@ def score_play(tc, o, score):
                     if (_promote_setup_ko_attacker is not None
                             and card is _promote_setup_ko_attacker):
                         score = 9500
-        
+
+                    # THE OTHER HALF OF THE FIRST-TURN WALL PIVOT (user,
+                    # registro_002 step 14 vs Marnie, LOST). The retreat is
+                    # decided in the MAIN menu; WHICH body goes up is decided
+                    # here, one observation later, and by then nothing on the
+                    # board says why we retreated. Without this the generic
+                    # ranking (prizes x 1000 + HP) promotes the biggest body,
+                    # which is precisely the 2-prize ex the pivot exists to
+                    # hide.
+                    #
+                    # SelectContext.SWITCH only -- the VOLUNTARY retreat we
+                    # just chose. The promotion after a knockout (TO_ACTIVE) is
+                    # a different question, with its own measured logic, and it
+                    # does not get to be answered by a flag about our own
+                    # first turn. 9400 leaves the guaranteed finisher above it
+                    # (9500) and keeps the terminal survival adjustments -- the
+                    # one that knocks out, match point -- with the last word.
+                    if (_ft_wall_pivot and _ft_wall_body is not None
+                            and card is _ft_wall_body
+                            and context == SelectContext.SWITCH):
+                        score = 9400
+
                     # ANTI-CUBCHOO: do not promote a body that would be left NAILED
                     # down (user, registro_036 step 146). Same principle as the
                     # evolution veto vs Cubchoo: against a deck that locks and
@@ -1400,8 +1425,25 @@ def score_play(tc, o, score):
                         hand_counts.get(pid, 0) >= 1
                         for pid in (Chikorita, Applin, Teal_Mask_Ogerpon_ex,
                                     Tapu_Bulu, Fezandipiti_ex, Pinsir, Meowth_ex))
+                    # THE REFILL ENGINE IS NOT AVAILABLE UNDER A PENDING STAMP
+                    # (user, registro_008 step 70). The four `*_prefer_meowth`
+                    # premises below all say the same thing -- "the Meowth ex ->
+                    # Last-Ditch -> Lillie's engine refills better than the body
+                    # this fetch would otherwise bring" -- and each of them
+                    # SUPPRESSES a rival target (Ogerpon, Hydrapple, Meganium,
+                    # Fezandipiti). With an Unfair Stamp that is going to be
+                    # played this turn the engine cannot run at all: the whole
+                    # hand goes back into the deck before any fetched Supporter
+                    # can be played. Leaving the premises on made the Ultra Ball
+                    # veto the target it had been BOUGHT for (the Fezandipiti
+                    # refill) in favour of a Meowth ex that was shuffled away.
+                    # One concept, one gate, and it reads the same against any
+                    # opposing deck.
+                    _ub_stamp_pending = _stamp_pendiente(ctx)
+
                     _ub_prefer_meowth_develop = (
-                        _ub_only_active_in_play
+                        not _ub_stamp_pending
+                        and _ub_only_active_in_play
                         and _ub_no_playable_basic_hand
                         and hand_counts.get(Lillie_Determination, 0) == 0
                         and not meowth_ability_lock
@@ -1519,7 +1561,8 @@ def score_play(tc, o, score):
                             if _ub_hdip_after >= AGENT_STATE.ATTACK_ENERGY_REQ.get(Hydrapple_ex, 2):
                                 _ub_hydra_can_attack_now = True
                     _ub_hydra_dead_prefer_meowth = (
-                        _ub_hydra_evolvable_now
+                        not _ub_stamp_pending
+                        and _ub_hydra_evolvable_now
                         and not _ub_hydra_can_attack_now
                         and not meowth_ability_lock
                         and field_counts.get(Meowth_ex, 0) < 2
@@ -1549,7 +1592,8 @@ def score_play(tc, o, score):
                         and (AGENT_STATE.forest_in_play or hand_counts.get(Forest_of_Vitality, 0) >= 1)
                         and hand_counts.get(Bayleef, 0) >= 1)
                     _ub_mega_dead_prefer_meowth = (
-                        not AGENT_STATE.meganium_in_play
+                        not _ub_stamp_pending
+                        and not AGENT_STATE.meganium_in_play
                         and not _ub_mega_evolvable_now
                         and not _ub_mega_chain_now
                         and not _active_ready_attacker
@@ -1587,7 +1631,8 @@ def score_play(tc, o, score):
                         _active_ready_attacker
                         or (_ub_active_can_retreat and _ub_bench_ready_attacker))
                     _ub_no_attacker_prefer_meowth = (
-                        not _ub_usable_attacker
+                        not _ub_stamp_pending
+                        and not _ub_usable_attacker
                         and not meowth_ability_lock
                         and field_counts.get(Meowth_ex, 0) < 2
                         and bench_count < 5
@@ -1626,7 +1671,10 @@ def score_play(tc, o, score):
                             _mega_line_active, op_is_dragapult_dusknoir,
                             supporter_played=state.supporterPlayed,
                             ld_free=_meowth_ld_free,
-                            meowth_tomorrow=_ub_meowth_for_tomorrow(ctx))
+                            meowth_tomorrow=_ub_meowth_for_tomorrow(ctx),
+                            supp_in_hand_takes_the_turn=bool(
+                                tc._ub_supp_in_hand_turn),
+                            stamp_pending=_ub_stamp_pending)
                         score = _resolve_with_trace(
                             "ub->meowth", _RULES_UB_MEOWTH, [],
                             _ub_meo_ctx, default=10)
@@ -1962,8 +2010,20 @@ def score_play(tc, o, score):
         
                 _refresh_supps_in_hand = (hand_counts.get(Lillie_Determination, 0) +
                                           hand_counts.get(Dawn, 0))
-                _protect_refresh_supporter = (not state.supporterPlayed and
-                                              _refresh_supps_in_hand <= 1)
+                # A LONE REFILL SUPPORTER IS PROTECTED **BECAUSE** THE TURN'S
+                # SUPPORTER IS SPENT, NOT DESPITE IT (user, registro_002 step 22
+                # vs Marnie, episode 90088766, WON in spite of this). The gate
+                # used to be `not state.supporterPlayed`, which inverted the
+                # valuation exactly where it hurts: this block prices a card by
+                # what it does NOW, so a Supporter that can no longer be played
+                # dropped from 2 to 14 and became the cheapest thing in the hand
+                # -- and the cost of an Ultra Ball ate it. With the slot already
+                # spent that Supporter is GUARANTEED playable next turn (nothing
+                # can compete for it) and it is the only card that replaces the
+                # hand the cost is emptying: that is when it is worth most, not
+                # least. `_protect_last_supporter` keeps its own gate: it is
+                # about the Supporter we can still play THIS turn.
+                _protect_refresh_supporter = (_refresh_supps_in_hand <= 1)
         
                 _ogerpon_on_field = (field_counts.get(Teal_Mask_Ogerpon_ex, 0) >= 1)
                 _ogerpon_playable = (hand_counts.get(Teal_Mask_Ogerpon_ex, 0) >= 1 and bench_count < 5)
@@ -2324,6 +2384,87 @@ def score_play(tc, o, score):
         
                     score = SCORE_NEVER
         
+                # A LINE PROTECTS THE COPIES IT CAN WEAR, NOT EVERY COPY
+                # (user, registro_002 step 26 vs Marnie, episode 90181011,
+                # LOST). The branches above price an evolution by the body
+                # waiting underneath it -- a Hydrapple ex with an Applin on the
+                # bench scores 3, "do not throw this away" -- but they give that
+                # same 3 to EVERY copy in hand. One Applin only ever wears one
+                # Hydrapple ex: with two in hand the second is cardboard that
+                # cannot reach the field, and it was still ranked as the most
+                # protected card of the hand. So the Ultra Ball's cost had
+                # nothing cheap to pay with (`_ub_cancel_no_surplus`) and the
+                # turn fell back to a Dawn that, with no Forest of Vitality in
+                # play, searches a line we cannot evolve yet -- instead of Ultra
+                # Ball -> Meowth ex -> Last-Ditch -> Lillie's Determination.
+                #
+                # `_evo_copies_usable` counts the SEATS (bodies in play below
+                # the card + basics of the line the bench still fits), the first
+                # copies keep the branch's protective score and the surplus goes
+                # to the spare-copy band -- the very band the Hydrapple branch
+                # already uses when one is in play. It names no card: the stages
+                # come from `EVO_LINES`.
+                if score < DISCARD_EVO_SPARE_COPY:
+                    _evo_seats = _evo_copies_usable(
+                        card.id, hand_counts, field_counts,
+                        free_bench=max(0, my_state.benchMax - bench_count))
+                    if _evo_seats is not None:
+                        # ALWAYS at least one copy: with no seat at all the piece
+                        # is an ORPHAN, and how much an orphan is worth is a
+                        # different question that the branches above already
+                        # answer (Hydrapple ex 12, Meganium 18...). This block
+                        # only prices the copies BEYOND the first, which is the
+                        # only reading the board settles on its own.
+                        _evo_seats = max(1, _evo_seats)
+                        if _evo_spare_seen.get(card.id, 0) >= _evo_seats:
+                            score = DISCARD_EVO_SPARE_COPY
+                        else:
+                            _evo_spare_seen[card.id] = (
+                                _evo_spare_seen.get(card.id, 0) + 1)
+
+                # THE FORCED DISCARD PRICES A SUPPORTER BY WHAT IT DOES ON
+                # *THIS* BOARD (user, episode 90115646 step 132 vs Archaludon
+                # ex, LOST). Every branch above prices a Supporter with static
+                # proxies -- copies in hand, "the last refill", the size of the
+                # discard pile -- and not one of them asks the board what the
+                # card would actually do. In the record that inverted the whole
+                # hand: Lana's Aid fell at 35 (`len(discard) > 2`) while Dawn
+                # kept its 3 for being the last refill and Boss's Orders its 20
+                # for `op_prize <= 3`. The value layer had already read that
+                # exact board in that exact decision and said the opposite --
+                # Lana's Aid 750, Dawn 0, Boss's Orders 0 -- because with a full
+                # bench Dawn had nothing to search for and Boss's no gust worth
+                # taking, while the discard held the Grass that on the next turn
+                # takes Myriad Leaf Shower from 270 to 330 on a 300 HP ex.
+                #
+                # So the ordering AMONG the Supporters in hand follows
+                # `_supp_values`, the same reading that decides which Supporter
+                # gets played -- the card we keep and the card we would play
+                # cannot disagree. It names no card, so it holds for any deck.
+                #
+                # Two guards keep it a strict no-op unless the board really has
+                # a preference:
+                #   * it needs ANOTHER Supporter in hand to trade against (with
+                #     a single one there is nothing to permute);
+                #   * KEEP asks for a STRICT maximum and DROP for a live value
+                #     of zero facing a sibling above zero. With `_supp_values`
+                #     silent (every entry 0, or the dict empty) neither fires.
+                #
+                # And it stays inside the Supporter band on purpose (see the
+                # constants): it changes WHICH Supporter is sacrificed, never
+                # how many non-Supporters are.
+                if card.id in _SUPP_PLAY_IDS:
+                    _dsv_live = _supp_values.get(card.id, 0) or 0
+                    _dsv_rivals = [_supp_values.get(_sid, 0) or 0
+                                   for _sid in _SUPP_PLAY_IDS
+                                   if _sid != card.id
+                                   and hand_counts.get(_sid, 0) >= 1]
+                    if _dsv_rivals:
+                        if _dsv_live > 0 and _dsv_live > max(_dsv_rivals):
+                            score = min(score, DISCARD_SUPPORTER_LIVE_KEEP)
+                        elif _dsv_live <= 0 and max(_dsv_rivals) > 0:
+                            score = max(score, DISCARD_SUPPORTER_DEAD_DROP)
+
                 # Strategy vs Comfey (user, registro_005): a discard forced by
                 # Xerosic's Machinations (it leaves us with ONLY 3 cards in hand). The
                 # KEEPING priority is: Energies > Night Stretcher > Lana's
@@ -2373,6 +2514,7 @@ def score_play(tc, o, score):
     finally:
         tc._bp = _bp
         tc._dc = _dc
+        tc._evo_spare_seen = _evo_spare_seen
         tc._has_bench_attacker = _has_bench_attacker
         tc._lillie_protected_once = _lillie_protected_once
         tc._tb_req = _tb_req

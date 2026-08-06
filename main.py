@@ -305,8 +305,19 @@ def _gt_planes(my_state, cards_in_deck, field_counts, our_first_turn,
             planes.append(_GrandTreePlan(
                 area=area, index=idx, serial=getattr(pkmn, 'serial', -1),
                 basic_id=basico, stage1_id=s1,
-                stage2_id=(s2 if s2_ok else 0), value=value))
-    planes.sort(key=lambda p: (-p.value, int(p.area), p.index))
+                stage2_id=(s2 if s2_ok else 0), value=value,
+                # Two copies of the same Basic produce two IDENTICAL plans and
+                # the sort used to keep the one in the lowest slot. Evolving
+                # does not heal, so the copy that gains from the chain is the
+                # damaged one. The attack projected against the ACTIVE does not
+                # travel in this signature (`doomed_active` already covers that
+                # case), so up front it is measured with 0: the drip and the
+                # movable counters only, which never over-states the danger.
+                body_bias=evolution_body_bias(
+                    pkmn, final, area == AreaType.ACTIVE,
+                    0 if area == AreaType.ACTIVE
+                    else AGENT_STATE._op_bench_snipe_dmg)))
+    planes.sort(key=lambda p: (-p.value, -p.body_bias, int(p.area), p.index))
     return planes
 
 
@@ -965,6 +976,25 @@ _RULES_BOSS_PLAY = [
     _FixedRule("defensive_gust",
                lambda c: c.boss_defensive_gust,
                lambda c: BOSS_SCORE_DEFENSIVE_GUST + c.supporter_boost),
+    # THE GUST THAT TRAPS THEIR TURN (user, registro_004 step 60 vs Alakazam,
+    # LOST -- deck-agnostic). The last branch before the "no value" veto, and the
+    # one that answers the dead turn: we cannot attack, nothing on the board
+    # knocks anything out, and the Supporter of the turn is on its way to being
+    # thrown away with the hand. If their bench holds a body that cannot answer
+    # from the active spot even after an attachment and cannot pay its own
+    # retreat, bringing it up is not a nuisance, it is a denial: they lose the
+    # attack, or they lose the energy they have to attach to it to get it out.
+    #
+    # It is the LAST branch on purpose. Every reason with a prize behind it has
+    # already returned above; the yields to Lillie's (an empty gust, no benched
+    # attacker, the first turn) come first too, so a refill still takes the
+    # Supporter slot when there is one to take. And it sits UNDER the two
+    # deck-agnostic vetoes, which is what keeps it from handing over the
+    # pre-evolution of their only attacking line or from paying their retreat for
+    # an active that was not going to hit us anyway. See `_boss_trap_gust`.
+    _FixedRule("gust_traps_their_turn",
+               lambda c: c.boss_trap_gust,
+               lambda c: BOSS_SCORE_TRAP_GUST + c.supporter_boost),
     _FixedRule("no_value",
                lambda c: _boss_val_de(c) <= 0,
                lambda c: SCORE_VETO),
@@ -1651,6 +1681,12 @@ def _ub_target_score(ctx, _ubf) -> int:
     _ub_hand_is_weak = (_ub_hand_play_options <= 1 and hand_size <= 4)
     _ub_has_energy_for_teal = hand_counts.get(Basic_Grass_Energy, 0) >= 1
 
+    # ONE question, asked ONCE for the whole Ultra Ball: does the Supporter we
+    # already hold win the turn's only Supporter slot? If it does, every branch
+    # here that values the Ultra Ball as "a searcher for the Meowth ex that
+    # searches for a Supporter" is buying a card that cannot be played today.
+    _ub_supp_in_hand_turn = _supp_in_hand_takes_the_turn(ctx)
+
     ub_best_target = _eval_ub_best_target(
         field_counts, hand_counts, meganium_in_play, has_hydrapple,
         forest_in_play, op_has_ex_immune_active, op_has_ex_immune_bench,
@@ -1661,7 +1697,9 @@ def _ub_target_score(ctx, _ubf) -> int:
         op_is_crustle_deck, op_is_cornerstone_deck,
         budew_on_op_field and budew_op_index == 0,
         watchtower_in_play,
-        op_hand_count=ctx.op_hand_count)
+        op_hand_count=ctx.op_hand_count,
+        op_state=ctx.op_state, cards_in_deck=ACTIVE_CARDS_IN_DECK,
+        supp_in_hand_takes_the_turn=_ub_supp_in_hand_turn)
 
     # Chain UB -> Meowth ex -> Last-Ditch Catch -> Supporter. `field_counts < 2`
     # was NOT enough: with ONE Meowth ex already in play the PLAY branch vetoes the
@@ -1670,6 +1708,7 @@ def _ub_target_score(ctx, _ubf) -> int:
     if (not _stamp_pendiente(ctx) and
             hand_counts.get(Meowth_ex, 0) == 0 and
             hand_counts.get(Lillie_Determination, 0) == 0 and
+            not _ub_supp_in_hand_turn and
             not state.supporterPlayed and
             _ub_dig_meowth_gets_played(ctx) and
             bench_count < 5 and
@@ -1686,7 +1725,13 @@ def _ub_target_score(ctx, _ubf) -> int:
     # `_ub_meowth_for_tomorrow`). It is the only branch that does not require the
     # target to be used this turn, because it is the only one where keeping the
     # Ultra Ball is the same as throwing it away.
-    if _ub_meowth_for_tomorrow(ctx):
+    #
+    # ...but not under a PENDING STAMP: "tomorrow" never arrives for a card that
+    # this turn's Unfair Stamp shuffles back into the deck TODAY. Without this
+    # gate the score would keep buying the Ultra Ball for a Meowth ex that the
+    # fetch now refuses (`the_stamp_shuffles_the_last_ditch_supporter`), and the
+    # Item would be spent on whatever came second.
+    if _ub_meowth_for_tomorrow(ctx) and not _stamp_pendiente(ctx):
         ub_best_target = max(ub_best_target, 1100)
 
     if ub_best_target == 0:
@@ -2343,8 +2388,7 @@ _RULES_LILLIE_PLAY = [
     _FixedRule("alakazam_stamp_two_ex_ready",
                lambda c: (c.op_is_alakazam_deck and
                           c.hand_counts.get(Unfair_Stamp, 0) >= 1 and
-                          _stamp_worth_playing(c.op_hand_count,
-                                                c.my_hand_len) and
+                          _stamp_worth_playing_ctx(c) and
                           c.ready_ex_attackers >= 2 and
                           c.op_hand_count > 3),
                lambda c: SCORE_VETO),
@@ -2646,6 +2690,60 @@ def _best_supporter_in_hand(ctx: DecisionContext, hand_counts=None):
         if _val > best:
             best_id, best = _sid, _val
     return best_id, best
+
+
+def _supp_in_hand_takes_the_turn(ctx: DecisionContext) -> bool:
+    """True when the Supporter ALREADY IN HAND wins the turn's only Supporter
+    slot against ANYTHING the Last-Ditch Catch could bring up from the deck.
+
+    It is the same question `_meowth_fetch_loses_the_turn` asks, moved one step
+    earlier in the chain: there the Meowth ex is already in hand and the fetch
+    target is known, so the veto only has to stop a body going down; here the
+    Meowth ex is still in the DECK and what is about to be paid is the whole
+    Ultra Ball -- two cards off the hand -- to dig out a searcher whose only
+    product, a Supporter, cannot be played today because the slot is already
+    taken. That gap was the documented one (user, registro_004 step 36 vs
+    Alakazam, episode 90106609, LOST): with a ready Ogerpon ex active, a second
+    one one energy short on the bench and XEROSIC'S MACHINATIONS in hand against
+    a 10-card Alakazam hand, the agent played the Ultra Ball, paid it with Tapu
+    Bulu and the Night Stretcher, put a 2-prize Meowth ex on the bench, fetched
+    Lillie's Determination -- and Lillie's, committed by the fetch, took the
+    turn's Supporter and SHUFFLED the Xerosic back into the deck. The opponent
+    kept its ten cards and Powerful Hand (20 per card) answered for 200+.
+
+    Both sides are measured on the PLAY scale (`_supp_play_score`), which is the
+    one that really resolves the slot: the fetch scale orders the same pair the
+    other way round (it scored Lillie's 1200 over Xerosic <=150 while the play
+    scorer scores Xerosic over Lillie's). The deck side is scored over the
+    HYPOTHETICAL hand the card would arrive into, and it has to beat the hand
+    STRICTLY: a tie is not worth the Ultra Ball plus a 2-prize body.
+
+    Deck-agnostic on purpose -- it names no card, it only asks the real scorers
+    which Supporter wins the slot. See
+    [[supporter-del-turno-ya-en-mano-no-meowth]]."""
+    if ctx.state.supporterPlayed:
+        return False
+    # OUR first turn is exempt, like `_meowth_fetch_loses_the_turn`: the
+    # anti-donk line puts a body down even with the Supporter already in hand.
+    if ctx.our_first_turn:
+        return False
+    _hand_id, _hand_val = _best_supporter_in_hand(ctx)
+    # `SUPP_SCORE_LAST_RESORT_BAND` is the height at which every Supporter
+    # scorer says "play me only because nothing else scores": a Supporter down
+    # there is not "the Supporter of the turn" and cannot be a reason to give up
+    # a refill from the deck. Same cut-off as `_meowth_fetch_loses_the_turn`.
+    if _hand_id is None or _hand_val <= SUPP_SCORE_LAST_RESORT_BAND:
+        return False
+    for _sid in _SUPP_PLAY_IDS:
+        if ctx.cards_in_deck.get(_sid, {}).get(ZONE_DECK, 0) < 1:
+            continue
+        # a defaultdict, not a dict: the scorers index it by brackets.
+        _hand_post = defaultdict(int, ctx.hand_counts)
+        _hand_post[_sid] = _hand_post.get(_sid, 0) + 1
+        if _supp_play_score(_dc_replace(ctx, hand_counts=_hand_post),
+                            _sid) > _hand_val:
+            return False
+    return True
 
 
 # --- Rules of the Ultra Ball -> Hydrapple ex fetch --------------------------
@@ -4131,6 +4229,34 @@ _ADJUST_GUST_OFFENSIVE = [
             lambda c, s: (not c.can_ko and c.body_is_harmless
                           and c.card_id not in GUST_TRAP_IDS),
             lambda c, s: s + 1500),
+    # THE KO THAT DOES NOT SAVE THE TURN (user, registro_016 step 132 vs
+    # Crustle, LOST). Their active a Crustle -- immune to our ex, so our Teal
+    # Mask Ogerpon ex at 90 HP does 0 from the front -- and Superb Scissors hits
+    # for 120: their reply knocks it out and their LAST prize closes the game. On
+    # their bench, two Dwebble (70 HP, a real KO for 1 prize) and a Mega
+    # Kangaskhan ex: 300 HP, ONE energy of the three its attack costs, and a
+    # retreat cost of three it cannot pay. The agent gusted a Dwebble, took its
+    # prize, the Crustle came straight back to the active spot and we lost on the
+    # reply.
+    #
+    # The gap is that `tier_ko` treats a gust KO as if it emptied the active
+    # spot. It does not: the corpse leaves and the opponent PROMOTES whatever
+    # they like, so the body that threatens us is back in front for free. A KO
+    # that neither wins the game nor removes that body buys one prize and hands
+    # the same board back. Gusting the trap instead spends their whole turn: it
+    # cannot attack us, it cannot retreat, and it is a 3-prize body parked where
+    # we can chip it down.
+    #
+    # Gated on the plan saying their reply CLOSES the game (`op_wins_next`, that
+    # is MODE_DENY), which is what makes "one more prize" worthless. `wins_now`
+    # still rules above with its 100000: if the KO ends the game, it ends the
+    # game. The 40000 clears the KO band (10 tiers x 3000 plus the line bonus)
+    # and stays under it. Prizes only break ties BETWEEN traps, which is the
+    # reading of the record: the Mega worth 3 is the one to park. Deck-agnostic.
+    _Adjustment("under_denial_the_trap_beats_the_small_ko",
+            lambda c, s: (s > 0 and c.op_wins_next and not c.wins_now
+                          and c.traps_their_turn),
+            lambda c, s: s + 40000 + c.prizes * 100),
     # vs Crustle, the Dwebble is NEVER gusted (wall fodder)... UNLESS the
     # opposing active is a WALL that cancels our attacker and that Dwebble is a
     # real KO (user, episode 88620891 step 78, LOST): an active Hydrapple ex
@@ -4477,10 +4603,21 @@ def agent(obs_dict: dict) -> list[int]:
     # ...and only if the Stamp DESERVES to be played (a card rule, `_sello_merece_
     # jugarse`): with the opposing hand <= 2 and ours large the Stamp waits, so
     # it must block neither the ability nor the Supporter chain.
+    # The two board clauses travel with it: this scope runs BEFORE the matchup
+    # flags are computed, but `_op_refill_engine` and `_stamp_buries_the_last_
+    # xerosic` only read the board, the hand and the deck census, all of which
+    # are already here. Without them this flag would go on blocking the chain
+    # for a Stamp that the scoring is now going to veto -- the very paralysis
+    # `_stamp_pendiente` documents.
     _stamp_blocks_supp_chain = (
         AGENT_STATE.ko_last_turn and hand_counts.get(Unfair_Stamp, 0) >= 1
-        and _stamp_worth_playing(getattr(op_state, 'handCount', 0),
-                                  len(my_state.hand or [])))
+        and _stamp_worth_playing(
+            getattr(op_state, 'handCount', 0),
+            len(my_state.hand or []),
+            op_refill_engine=_op_refill_engine(op_state),
+            buries_the_last_xerosic=_stamp_buries_the_last_xerosic(
+                hand_counts, AGENT_STATE.ACTIVE_CARDS_IN_DECK,
+                state.supporterPlayed, op_state)))
 
     # Order Lillie's Determination -> Flip the Script (user's request): if
     # we have Lillie's Determination in hand and have not played a Supporter yet
@@ -5017,7 +5154,9 @@ def agent(obs_dict: dict) -> list[int]:
     _op_counters_disponibles = (
         _op_counters_en_mesa
         + FREEZING_SHROUD_COUNTER * _n_froslass * _n_activaciones)
-    AGENT_STATE._op_movable_dmg = min(ADRENA_BRAIN_MOVE * _n_activaciones,
+    AGENT_STATE._op_movable_cap = ADRENA_BRAIN_MOVE * _n_activaciones
+    AGENT_STATE._op_movable_ammo = _op_counters_disponibles
+    AGENT_STATE._op_movable_dmg = min(AGENT_STATE._op_movable_cap,
                           _op_counters_disponibles)
 
     # PRIZE MISMATCH (user): matchups whose attacker ONE-SHOTS any
@@ -5065,11 +5204,15 @@ def agent(obs_dict: dict) -> list[int]:
         _hwp_ret_phys = _physical_energy(len(_hwp_active.energies))
         _hwp_ret_cost = RETREAT_COST.get(_hwp_active.id, 1)
         if not _hwp_oger_ko and _hwp_ret_phys >= _hwp_ret_cost:
+            _hwp_wall_hit = 30 + 30 * max(
+                0, total_grass - _retreat_grass_units(_hwp_ret_cost))
             for _hwp_bp in (my_state.bench or []):
                 if (_hwp_bp is not None and _hwp_bp.id == Hydrapple_ex
                         and _hwp_bp.hp >= (_hwp_bp.maxHp or 0)
                         and len(_hwp_bp.energies) * _grass_mult() >= 2
-                        and (_hwp_bp.hp or 0) > _op_best_damage_vs(_hwp_bp)):
+                        and (_hwp_bp.hp or 0) > _op_best_damage_vs(_hwp_bp)
+                        and not _bench_cashable_after_retreat(
+                            _hwp_active, _hwp_op_active, _hwp_wall_hit)):
                     _hydra_wall_pivot = True
                     break
 
@@ -5119,11 +5262,46 @@ def agent(obs_dict: dict) -> list[int]:
                         and (_gwp_bp.hp or 0) > _op_active_attack_damage_to(
                             _hwp_op_active, _gwp_bp, _gwp_op_hand)):
                     _gwp_wall_dmg = _our_effective_damage(
-                        _gwp_bp, _hwp_op_active, 30 + 30 * total_grass,
+                        _gwp_bp, _hwp_op_active,
+                        30 + 30 * max(0, total_grass
+                                      - _retreat_grass_units(_gwp_ret_cost)),
                         AGENT_STATE.meganium_in_play, neutralization_zone_active)
-                    if _gwp_wall_dmg > 0:
+                    # THE HIDDEN EX HAS TO SURVIVE DOWN THERE (user, registro_012
+                    # step 112 vs Marnie's Grimmsnarl ex). Putting up the wall
+                    # only denies prizes if the ex we tuck away on the bench is
+                    # out of reach; when they can cash it there, the retreat pays
+                    # a Grass and 180 on the wall to concede the SAME two prizes
+                    # they were going to take from the front. Staying at least
+                    # spends their attack on a corpse and keeps the wall whole.
+                    if (_gwp_wall_dmg > 0
+                            and not _bench_cashable_after_retreat(
+                                _hwp_active, _hwp_op_active, _gwp_wall_dmg)):
                         _hydra_wall_pivot = True
                         break
+
+    # The same guard for the OTHER wall pivot, the one whose active canNOT
+    # attack (`_teal_wall_pivot`, decided much further up, before the gift
+    # window of this turn has been measured -- hence the cancellation here and
+    # not a condition up there). Fixing one branch of a pair and leaving its
+    # twin alone is how this very turn was lost, so both walls answer the same
+    # question: does the ex survive on the bench?
+    if _teal_wall_pivot:
+        _twp_op_active = _active_of(op_state)
+        _twp_active = my_state.active[0] if my_state.active else None
+        _twp_grass_after = max(
+            0, total_grass - _retreat_grass_units(
+                RETREAT_COST.get(getattr(_twp_active, 'id', 0), 1)))
+        _twp_wall_hit = 0
+        for _twp_bp in (my_state.bench or []):
+            if (_twp_bp is not None and _twp_bp.id == Hydrapple_ex
+                    and len(_twp_bp.energies) * _grass_mult() >= 2):
+                _twp_wall_hit = _our_effective_damage(
+                    _twp_bp, _twp_op_active, 30 + 30 * _twp_grass_after,
+                    AGENT_STATE.meganium_in_play, neutralization_zone_active)
+                break
+        if _bench_cashable_after_retreat(
+                _twp_active, _twp_op_active, _twp_wall_hit):
+            _teal_wall_pivot = False
 
     # Feza -> Hydrapple ex wall vs Mega Lucario (user, log 86342087 step 130,
     # WE LOST): if the ACTIVE is a Fezandipiti ex WEAK to Fighting that will be
@@ -5253,6 +5431,15 @@ def agent(obs_dict: dict) -> list[int]:
         is_confused and not _conf_bench_attacker_ready and _conf_active_can_attack)
 
     can_attack = False
+    # The one-prize wall of our first turn. Its four flags are COMPUTED much
+    # further down (they need the whole board read, `can_attack` included), but
+    # `_energy_score_base` is a closure over this scope and can be called
+    # before that point: bound here so an early call reads "off" instead of
+    # tripping over an unbound name.
+    _ft_wall_in_hand = None
+    _ft_wall_body = None
+    _ft_wall_pivot = False
+    _ft_wall_charge_active = False
     _active_cant_attack_this_turn = False
     _hydra_pivot_active = False
     _tapu_sac_pivot = False
@@ -6148,16 +6335,32 @@ def agent(obs_dict: dict) -> list[int]:
             # tank is promoted: it knocks out all the same and survives the counterattack (the
             # fragile one would die and, being an ex, would concede 2 prizes). Hydrapple's attack
             # (Syrup Storm) scales with the TOTAL Grass on the field, which DROPS because of the
-            # retreat cost; when the active is a Hydrapple that cost is subtracted when checking
-            # the benched one's KO.
+            # retreat cost, so the KO is checked against the field that will exist
+            # AFTER the retreat -- WHICHEVER body is retreating.
+            #
+            # The discount used to be applied only when the active was another
+            # Hydrapple, and the missing half cost a turn (user, registro_012
+            # step 112 vs Marnie's Grimmsnarl ex): active Teal Mask Ogerpon ex at
+            # 30 HP with 4 Grass, benched Hydrapple ex with 2, six Grass on the
+            # field. The pivot read 30 + 30 x 6 = 210, doubled by weakness = 420
+            # = exactly the 420 HP of the Grimmsnarl ex, so it promised a KO,
+            # pointed `plan.attacker` at the bench and SUPPRESSED the attack of
+            # the active. The retreat then burned one Grass and the real Syrup
+            # Storm landed 360: the Grimmsnarl survived on 60, healed itself with
+            # Adrena-Brain and moved those counters onto the 30 HP Ogerpon ex we
+            # had just hidden on the bench -- two prizes for free. The attack
+            # that was suppressed (Myriad Leaf Shower, 30 + 30 x (4 + 2) = 210
+            # doubled = 420) WAS the exact KO. Same arithmetic as
+            # `_retreat_grass_units` (registro_006 step 78 vs Archaludon ex),
+            # which is the helper that already knew about this.
             _piv_active_is_hydra = (_ret_active is not None
                                     and _ret_active.id == Hydrapple_ex)
-            if _piv_active_is_hydra:
-                _piv_ret_cost = 0 if has_switch_card else RETREAT_COST.get(Hydrapple_ex, 2)
-                _piv_grass_after = max(
-                    0, total_grass - _retreat_grass_units(_piv_ret_cost))
+            if _ret_active is None or has_switch_card:
+                _piv_ret_cost = 0
             else:
-                _piv_grass_after = total_grass
+                _piv_ret_cost = RETREAT_COST.get(_ret_active.id, 1)
+            _piv_grass_after = max(
+                0, total_grass - _retreat_grass_units(_piv_ret_cost))
             if (can_switch and _op_act_main is not None and _ret_active is not None
                     and not _tapu_active_ko_here
                     and (active_ko_likely or active_hp_ratio <= 0.6)):
@@ -6817,6 +7020,12 @@ def agent(obs_dict: dict) -> list[int]:
     _boss_dodge_redirect = bool(_supp_values.get('_boss_dodge_redirect'))
 
     _boss_deny_alakazam_line = bool(_supp_values.get('_boss_deny_alakazam_line'))
+
+    # The trap gust of a dead turn. The value is read as well, because the
+    # anti-Crustle guard at the end of `evaluate_supporters` can still zero the
+    # Boss's after the flag has been raised.
+    _boss_trap_gust = (bool(_supp_values.get('_boss_trap_gust'))
+                       and _supp_values.get(Boss_Orders, 0) > 0)
 
     _best_supp_in_deck_val = 0
     _best_supp_in_deck_id = None
@@ -8735,6 +8944,7 @@ def agent(obs_dict: dict) -> list[int]:
             _ex_stuck_promo_ready=_ex_stuck_promo_ready,
             _extra_energy_enables_ko=_extra_energy_enables_ko,
             _feza_lucario_wall=_feza_lucario_wall,
+            _ft_wall_charge_active=_ft_wall_charge_active,
             _gust_2prize_via_boss=_gust_2prize_via_boss,
             _hydra_fragile_pivot=_hydra_fragile_pivot,
             _meganium_alk_1prize_attacker=_meganium_alk_1prize_attacker,
@@ -9148,6 +9358,13 @@ def agent(obs_dict: dict) -> list[int]:
     # copy evaluated gets a protective score and only the spare copies are
     # freely discardable.
     _lillie_protected_once = False
+
+    # The same idea for the EVOLUTION pieces, but counting seats instead of
+    # copies: the line-protection branches keep as many copies as the board can
+    # actually wear (`_evo_copies_usable`) and the rest fall as fodder. This
+    # dict tallies, per card id, how many copies the current DISCARD menu has
+    # already protected.
+    _evo_spare_seen = {}
 
     # ------------------------------------------------------------------
     # Promotion after a KO: ALWAYS choose the best benched attacker according to the
@@ -10165,6 +10382,166 @@ def agent(obs_dict: dict) -> list[int]:
                         for _dsc_bp in (my_state.bench or []))):
             _doomed_sac_context = True
 
+    # =================================================================
+    # THE ONE-PRIZE WALL OF OUR FIRST TURN (user, registro_002 step 14 vs
+    # Marnie, LOST). Our first turn, active Chikorita, Meowth ex on the bench
+    # and a TAPU BULU in hand -- a 140 HP basic worth ONE prize. The agent
+    # played Lillie's Determination, which shuffles the whole hand into the
+    # deck, and the Tapu Bulu went with it: the one body of that hand that
+    # drawing more cards cannot replace was spent to draw more cards.
+    #
+    # The turn we want instead has three parts, and they are three flags
+    # because they are read in three different places:
+    #
+    #   * `_ft_wall_in_hand` -- the wall goes DOWN before the refill can
+    #     shuffle it away (the PLAY branch);
+    #   * `_ft_wall_charge_active` -- this turn's energy goes to the ACTIVE, up
+    #     to its retreat cost, so the pivot below is payable at all (the
+    #     DESTINATION of the energy is decided by `energy_score`, a different
+    #     function from the one that scores the act of attaching -- a charge
+    #     rule that only does one of the two halves does nothing);
+    #   * `_ft_wall_pivot` -- if by the end of the turn we canNOT attack, the
+    #     active retreats and the wall takes the front (the RETREAT branch and,
+    #     one observation later, the promotion in the SWITCH menu).
+    #
+    # Attacking still comes first: the pivot asks for `not can_attack`, so a
+    # turn that has an attack available takes it and the wall simply waits on
+    # the bench. What the pivot buys when there is no attack is the shape of
+    # the next two turns: they have to chew through a body that endures and
+    # pays a single prize while our real attacker is assembled behind it.
+    #
+    # WHAT IT COSTS, stated plainly: the retreat DISCARDS the energy that pays
+    # it. On our first turn that is at most the ONE Grass we attached this same
+    # turn -- there is no earlier attachment to destroy -- and that bound is
+    # why the rule is limited to the first turn instead of being a general
+    # pivot. Deck-agnostic: `is_one_prize_wall` reads HP, prizes and stage off
+    # the card, so the rule fires for whatever body a deck has in that role.
+    # (The four names are pre-bound where `can_attack` is, see the note there.)
+    #
+    # THE ONE MATCHUP THAT DOES NOT WANT IT (user, ago 2026): an opponent whose
+    # active makes the damage of our ex ZERO -- Crustle and Cornerstone Mask
+    # Ogerpon ex. There the very body this rule spends as a shield is the only
+    # thing on our side that can attack at all, and the ladder already treats it
+    # that way (`_op_is_crustle_like` in ptcg/turn/options/play.py puts it down
+    # at 22000/22500 as THE attacker of the matchup, and `_tapu_reserve` in
+    # ptcg/turn/options/retreat.py refuses to retreat it away). Hiding an ex
+    # behind it would be hiding an ex behind our own attacker: the wall goes in
+    # front to take hits and the retreat burns the energy that should be
+    # assembling it. It is stated as a property and not as a deck name -- what
+    # excludes the matchup is that our ex cannot damage what is in front, so the
+    # one-prize body stops being a wall and becomes the plan.
+    _ftw_wall_is_our_attacker = (AGENT_STATE.op_is_crustle_deck
+                                 or AGENT_STATE.op_is_cornerstone_deck)
+    if _our_first_turn and not _ftw_wall_is_our_attacker:
+        _ftw_act = _active_of(my_state)
+
+        # (1) The copy in HAND. A second copy adds nothing (one wall is enough
+        # in front) and the crowding vetoes of the PLAY branch already own that
+        # decision, so we only claim the FIRST one.
+        if bench_count < bench_max:
+            for _ftw_c in (my_state.hand or []):
+                if (is_one_prize_wall(_ftw_c.id)
+                        and field_counts.get(_ftw_c.id, 0) == 0):
+                    _ft_wall_in_hand = _ftw_c.id
+                    break
+
+        # (2) The copy already on the BENCH -- possibly the one we put down
+        # earlier in this same turn. Undamaged: a wall that already took a hit
+        # is not the body that buys turns.
+        for _ftw_bp in (my_state.bench or []):
+            if (_ftw_bp is not None and is_one_prize_wall(_ftw_bp.id)
+                    and (_ftw_bp.hp or 0) >= (_ftw_bp.maxHp or 0)):
+                _ft_wall_body = _ftw_bp
+                break
+
+        # (3) The pivot. It only makes sense if the swap is an IMPROVEMENT: an
+        # active that hands over more prizes than the wall (an ex in front) or
+        # one that endures less than it. An active that is itself a one-prize
+        # wall is already the body we want and nothing is gained by shuffling
+        # bodies around.
+        #
+        # AND THE WALL HAS TO SURVIVE. It is the premise of the whole idea: a
+        # body the opponent one-shots buys no turns, hands over its prize just
+        # the same, and the promotion is then a SACRIFICE -- a different
+        # question, with its own measured answer (`_doomed_sac_context`:
+        # nobody survives, so hand over the cheapest). Reading it with
+        # `_op_evo_dmg_to_active` as well is what keeps a Riolu from being
+        # priced as a Riolu when it is one card away from being a Mega Lucario.
+        #
+        # AND THERE HAS TO BE A REASON TO PAY THE FEE, of which there are two
+        # (user, ago 2026, registro_002 step 25 vs Alakazam):
+        #
+        #   * THE THREAT. Their projection -- the attack of the active they
+        #     have AND the one it becomes in one step -- takes the body in
+        #     front down. This is the arm that was measured first.
+        #   * THE PRIZE COUNT. Even with nothing threatening yet, an ex in
+        #     front is a 2-prize body sitting where a 1-prize body could sit.
+        #     Their bench is not built either: the KO does not come this turn
+        #     or the next, and by the time it comes the swap is no longer free
+        #     (an ex with its energy on it cannot be pulled back for one Grass).
+        #     Paying the fee NOW -- on the only turn where the whole cost is the
+        #     single Grass attached this same turn -- is what buys the three
+        #     things the record asked for: an opponent who has to chew through
+        #     a body that endures, ONE prize instead of two when it falls, and
+        #     the turns in between to build the bench.
+        #
+        # The prize arm does NOT apply on turn 1 GOING FIRST -- the same seat
+        # the prize mismatch already exempts (`_prize_mismatch_matchup`): there
+        # the opponent has not played a card yet, so there is nothing to deny
+        # and sacrificing early development only slows us down
+        # (`test_abomasnow_first_turn_going_first_it_does_not_sacrifice`). The
+        # threat arm is left alone: if something on that board really does
+        # knock our body in front out, answering it was never the rule under
+        # discussion.
+        _ftw_op_act = _active_of(op_state)
+        _ftw_op_hand = getattr(op_state, 'handCount', None)
+
+        def _ftw_op_kos(_ftw_body):
+            if _ftw_body is None or _ftw_op_act is None:
+                return False
+            return max(
+                _op_active_attack_damage_to(_ftw_op_act, _ftw_body,
+                                            _ftw_op_hand),
+                _op_evolution_attack_damage_to(_ftw_op_act, _ftw_body,
+                                               _ftw_op_hand)
+            ) >= (_ftw_body.hp or 0)
+
+        _ftw_threat = _ftw_op_kos(_ftw_act)
+        _ftw_prize_denial = (
+            _ftw_act is not None and _ft_wall_body is not None
+            and prize_count(_ftw_act) > prize_count(_ft_wall_body)
+            and not (state.turn == 1 and AGENT_STATE.we_go_first))
+
+        if (_ft_wall_body is not None and _ftw_act is not None
+                and not can_attack
+                and not is_one_prize_wall(_ftw_act.id)
+                and (prize_count(_ftw_act) > 1
+                     or (_ftw_act.hp or 0) < (_ft_wall_body.hp or 0))
+                and (_ftw_threat or _ftw_prize_denial)
+                and not _ftw_op_kos(_ft_wall_body)):
+            _ftw_rc = RETREAT_COST.get(_ftw_act.id, 1)
+            _ftw_phys = _physical_energy(len(_ftw_act.energies))
+            # The engine only OFFERS the retreat once the cost is already on
+            # the body, so the two flags are exclusive: either it is paid and
+            # we pivot, or this turn's attachment is what pays it.
+            #
+            # ONLY THE THREAT ARM BUYS THE FEE IN ADVANCE. Diverting the one
+            # attachment of the turn to a body we are about to walk away from
+            # is a real price -- it is an energy that does not go to the
+            # attacker being assembled -- and a threat that lands next turn is
+            # what pays for it. Denying a prize is worth the swap when the fee
+            # is ALREADY on the active (the record's board: the Grass that Teal
+            # Dance attached this same turn), not worth spending the turn's
+            # energy on. With the arm off the wall simply waits on the bench,
+            # which is where the rule found it.
+            _ft_wall_pivot = _ftw_phys >= _ftw_rc
+            _ft_wall_charge_active = (
+                _ftw_threat
+                and not _ft_wall_pivot
+                and not state.energyAttached
+                and hand_counts.get(Basic_Grass_Energy, 0) >= 1
+                and _ftw_phys + 1 >= _ftw_rc)
+
     # The decision context (Priority 1 refactor): invariant inputs that
     # the extracted `_score_*` scorers consume. It is built a single time.
     ctx = DecisionContext(
@@ -10233,6 +10610,7 @@ def agent(obs_dict: dict) -> list[int]:
         boss_dodge_redirect=_boss_dodge_redirect,
         boss_defensive_gust=_boss_defensive_gust,
         boss_deny_alakazam_line=_boss_deny_alakazam_line,
+        boss_trap_gust=_boss_trap_gust,
         boss_low_value_gust=_boss_low_value_gust,
         boss_active_threat_dominates=_bo_act_threat_dom,
         boss_prize_rank=_boss_prize_rank,
@@ -10285,6 +10663,12 @@ def agent(obs_dict: dict) -> list[int]:
     # searches: the Last-Ditch Catch is free and keeping the Supporter for the
     # next turn is a net gain (unlike the redundant copy of
     # `_meowth_skip_fetch`, which never contributes anything).
+    # The same question one step earlier in the chain, for the Meowth ex that is
+    # still in the DECK: it is read by the Ultra Ball (its value AND its fetch),
+    # which is resolved in a deck-search prompt and not only in the MAIN menu,
+    # so it is computed with no context gate. See `_supp_in_hand_takes_the_turn`.
+    _ub_supp_in_hand_turn = _supp_in_hand_takes_the_turn(ctx)
+
     _meowth_supp_turn_id, _meowth_supp_turn_val = None, 0
     _meowth_fetch_play_val = 0
     _meowth_fetch_loses_the_turn = False

@@ -11,14 +11,101 @@ utils/purity.py: nothing here touches mutable state or the runtime tables.
 """
 
 from ptcg.calc.board import _active_of
-from ptcg.cards.ids import Alakazam_ex, Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Hydrapple_ex, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, Poke_Pad, SCORE_VETO, STAMP_MAX_HAND_SACRIFICED, STAMP_MIN_OP_HAND, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, XEROSIC_SCORE_ALAKAZAM, XEROSIC_SCORE_GENERIC, XEROSIC_SCORE_LAST_RESORT, XEROSIC_SCORE_SOBRE_BOSS, XEROSIC_STAMP_ORDEN_MIN_OP_HAND, Xerosic_Machinations
+from ptcg.cards.ids import Abra, Alakazam_ex, Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Hydrapple_ex, Kadabra, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, Poke_Pad, SCORE_VETO, STAMP_MAX_HAND_SACRIFICED, STAMP_MIN_OP_HAND, STAMP_MIN_OP_HAND_VS_REFILL, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, XEROSIC_SCORE_ALAKAZAM, XEROSIC_SCORE_GENERIC, XEROSIC_SCORE_LAST_RESORT, XEROSIC_SCORE_SOBRE_BOSS, XEROSIC_STAMP_ORDEN_MIN_OP_HAND, Xerosic_Machinations
 from ptcg.state.zones import ZONE_DECK
 from ptcg.engine.context import DecisionContext
 from ptcg.engine.rules import _Adjustment, _FixedRule, _resolve_with_trace
 from ptcg.turn.game_plan import plan_of
 
 
-def _stamp_worth_playing(op_hand_count, my_hand_len) -> bool:
+def _op_bodies(op_state):
+    """Every Pokemon on THEIR board (active + bench).
+
+    A pure board reading, and that is the point: the two predicates below are
+    also consulted from the `agent()` scope, where the Stamp <-> Flip the Script
+    chain is built LONG BEFORE the matchup flags (`op_is_alakazam_deck` and
+    company) have been computed. What sits on the board is available everywhere.
+    """
+    if op_state is None:
+        return []
+    out = []
+    act = _active_of(op_state)
+    if act is not None:
+        out.append(act)
+    for p in (getattr(op_state, 'bench', None) or []):
+        if p is not None:
+            out.append(p)
+    return out
+
+
+def _op_refill_engine(op_state) -> bool:
+    """Does their board REFUND the cards the Stamp denies?
+
+    Fezandipiti ex: "Flip the Script" draws them 3 cards on a turn after one of
+    their Pokemon was knocked out. The Stamp is played on the turn after one of
+    OURS was -- i.e. on the turn we are answering with a KO of our own -- so the
+    refund and the disruption land in the same window and cancel out. With that
+    body on their board the Stamp has to deny FOUR cards
+    (`STAMP_MIN_OP_HAND_VS_REFILL`) before it is worth its single copy.
+
+    (registro_006 step 88 vs Alakazam, LOST: their Fezandipiti ex sat untouched
+    on the bench, the Stamp denied one card, and the KO we took that same turn
+    handed it back three.)
+    """
+    return any(getattr(p, 'id', 0) == Fezandipiti_ex for p in _op_bodies(op_state))
+
+
+def _op_powerful_hand_line(op_state) -> bool:
+    """Abra / Kadabra / Alakazam anywhere on their board, pre-evolutions of the
+    stacks included. It is the board fact that makes OUR Xerosic irreplaceable:
+    Powerful Hand does 20 per card in their hand, and capping that hand is the
+    only answer the deck carries."""
+    ids = set()
+    for p in _op_bodies(op_state):
+        ids.add(getattr(p, 'id', 0))
+        for pre in (getattr(p, 'preEvolution', None) or []):
+            ids.add(getattr(pre, 'id', 0))
+    return bool(ids & {Abra, Kadabra, Alakazam_ex})
+
+
+def _stamp_buries_the_last_xerosic(hand_counts, cards_in_deck,
+                                   supporter_played, op_state) -> bool:
+    """Would the Stamp shuffle away our LAST access to the Powerful Hand cap?
+
+    The Stamp shuffles OUR WHOLE hand into the deck, and against the Alakazam
+    line the Xerosic in that hand is not one more card: it is the answer to the
+    attack that knocks our ex out (registro_006 step 75: Powerful Hand for 240
+    on a 210 HP Ogerpon ex; the Xerosic capped their hand from 14 to 3 and left
+    that same attack at 60).
+
+    Three conditions, and all three have to hold:
+
+      * a Xerosic in hand,
+      * the turn's Supporter is ALREADY SPENT, so it cannot be played now and
+        the only way to use it is to KEEP it for a later turn,
+      * no other copy left in the deck -- with a drawable copy, shuffling the one
+        in hand does not lose the access.
+
+    It is the symmetric half of Lillie's `do_not_shuffle_the_last_xerosic`
+    (main.py): Lillie's already refused to shuffle that card away, and the Stamp
+    was the other card in the deck that shuffles our hand and did not.
+
+    It only applies BELOW the disruption floor: with a big opposing hand the
+    Stamp is worth the Xerosic, and the caller returns before reaching here.
+    """
+    if not _op_powerful_hand_line(op_state):
+        return False
+    if (hand_counts or {}).get(Xerosic_Machinations, 0) < 1:
+        return False
+    if not supporter_played:
+        return False
+    return (cards_in_deck or {}).get(
+        Xerosic_Machinations, {}).get(ZONE_DECK, 0) == 0
+
+
+def _stamp_worth_playing(op_hand_count, my_hand_len, *,
+                         op_refill_engine=False,
+                         buries_the_last_xerosic=False) -> bool:
     """Card rule for Unfair Stamp (user, August 2026): the Stamp is only played
     if it DISRUPTS the opponent (opposing hand >= `STAMP_MIN_OP_HAND`, because
     it leaves them at 2) or if the REFILL is cheap (we sacrifice <=
@@ -26,15 +113,51 @@ def _stamp_worth_playing(op_hand_count, my_hand_len) -> bool:
     itself). See the constants block for the full reasoning.
 
     It holds for ANY opposing deck: the card behaves the same in every matchup,
-    so no whitelist enters here.
+    so no whitelist enters here. The two keyword-only clauses (August 2026) are
+    not a whitelist either -- they are read off the BOARD by `_op_refill_engine`
+    and `_stamp_buries_the_last_xerosic`, and they are optional so that a caller
+    without a board at hand keeps the behaviour it had.
+
+      * `op_refill_engine` RAISES the disruption floor: a board that draws three
+        cards back the moment we take a KO refunds anything smaller.
+      * `buries_the_last_xerosic` closes the REFILL clause: five new cards do not
+        pay for the only copy of the card that answers Powerful Hand.
 
     With `None` (a caller without that datum at hand) it returns True: the rule
     only SUBTRACTS plays, it never invents one.
     """
     if op_hand_count is None or my_hand_len is None:
         return True
-    return (op_hand_count >= STAMP_MIN_OP_HAND
-            or max(0, my_hand_len - 1) <= STAMP_MAX_HAND_SACRIFICED)
+    floor = (STAMP_MIN_OP_HAND_VS_REFILL if op_refill_engine
+             else STAMP_MIN_OP_HAND)
+    if op_hand_count >= floor:
+        return True
+    if buries_the_last_xerosic:
+        return False
+    return max(0, my_hand_len - 1) <= STAMP_MAX_HAND_SACRIFICED
+
+
+def _stamp_worth_playing_ctx(c) -> bool:
+    """`_stamp_worth_playing` with the two board clauses filled in from the
+    context. THE single entry point for every consumer that has a context: the
+    scoring rule, `_stamp_pendiente` and the anti-Alakazam Lillie's veto all read
+    the same answer, so a Stamp that is going to wait never collects the ordering
+    yields of the turn (the paralysis documented in `_stamp_pendiente`).
+
+    `getattr` throughout because the unit tests build stub contexts carrying only
+    the fields their predicate reads.
+    """
+    state = getattr(c, 'state', None)
+    op_state = getattr(c, 'op_state', None)
+    return _stamp_worth_playing(
+        getattr(c, 'op_hand_count', None),
+        getattr(c, 'my_hand_len', None),
+        op_refill_engine=_op_refill_engine(op_state),
+        buries_the_last_xerosic=_stamp_buries_the_last_xerosic(
+            getattr(c, 'hand_counts', None),
+            getattr(c, 'cards_in_deck', None),
+            bool(getattr(state, 'supporterPlayed', False)),
+            op_state))
 
 
 def _stamp_pendiente(c) -> bool:
@@ -66,7 +189,7 @@ def _stamp_pendiente(c) -> bool:
     return (c.ko_last_turn
             and c.hand_counts.get(Unfair_Stamp, 0) >= 1
             and not plan_of(c).wins_this_turn
-            and _stamp_worth_playing(c.op_hand_count, c.my_hand_len))
+            and _stamp_worth_playing_ctx(c))
 
 
 def _us_pokemon_jugable(c):
@@ -165,8 +288,7 @@ _RULES_STAMP_PLAY = [
     # board changes (e.g. our own hand drops by playing items). See
     # `_stamp_worth_playing`.
     _FixedRule("no_disruption_no_refresh",
-               lambda c: not _stamp_worth_playing(c.op_hand_count,
-                                                   c.my_hand_len),
+               lambda c: not _stamp_worth_playing_ctx(c),
                lambda c: SCORE_VETO),
     # ORDERING veto, not a value one (user, jul 2026): with a giant opposing hand,
     # Xerosic goes first and the Stamp waits for the same turn. The Xerosic is
@@ -453,7 +575,12 @@ __all__ = [
     '_xr_first_turn_yields_to_lillie',
     '_score_xerosic_play',
     '_RULES_XEROSIC_PLAY',
+    '_op_bodies',
+    '_op_refill_engine',
+    '_op_powerful_hand_line',
+    '_stamp_buries_the_last_xerosic',
     '_stamp_worth_playing',
+    '_stamp_worth_playing_ctx',
     '_stamp_pendiente',
     '_us_pokemon_jugable',
     '_us_evo_jugable',

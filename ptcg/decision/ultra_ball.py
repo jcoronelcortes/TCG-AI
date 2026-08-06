@@ -11,7 +11,7 @@ from ptcg.decision.stadiums import _forest_disponible
 from ptcg.calc.energy import _grass_attach_unit
 from ptcg.calc.damage import _attacker_base_damage, _our_effective_damage
 from ptcg.state.agent_state import AGENT_STATE
-from ptcg.decision.disruption import _stamp_worth_playing
+from ptcg.decision.disruption import _op_refill_engine, _stamp_buries_the_last_xerosic, _stamp_worth_playing
 from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Chikorita, Dawn, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Hydrapple_ex, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Pinsir, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Unfair_Stamp
 from ptcg.calc.board import _active_of
 from ptcg.calc.energy import count_total_grass_energy
@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from typing import NamedTuple
 from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, CUBCHOO_ALLOWED_PLAY_IDS, Chikorita, Dawn, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Hydrapple_ex, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, Pinsir, SCORE_CANCEL, SCORE_VETO, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, XEROSIC_SCORE_LAST_RESORT, Xerosic_Machinations
 from ptcg.state.zones import ZONE_DECK
+from ptcg.cards.lines import _evo_copies_usable
 from ptcg.cards.scoring import _SUPP_PLAY_IDS
 from ptcg.decision.disruption import _score_xerosic_play
 from ptcg.decision.poke_pad import _pp_es_t1
@@ -456,6 +457,36 @@ def _ub_real_fodder(ctx, protegida) -> int:
                 _ub_ll_fodder = False
         if _ub_ll_fodder:
             _ub_discardable_without_lillie += _ub_llcnt
+        else:
+            # A PROTECTED EVOLUTION ONLY PROTECTS THE COPIES THE BOARD CAN WEAR
+            # (user, registro_002 step 26 vs Marnie, episode 90181011, LOST).
+            # Our first turn, hand {Hydrapple ex x2, Dipplin, Dawn, Xerosic,
+            # Ultra Ball} with an Applin on the bench. Every branch above said
+            # "protected": both Hydrapple ex for the Applin in play, the Dipplin
+            # for the same Applin, Dawn for being the lone refill -> real fodder
+            # = 1 (the Xerosic) and `_ub_cancel_no_surplus` killed the Ultra
+            # Ball. But ONE Applin can only ever wear ONE Hydrapple ex: the
+            # second copy was unplayable cardboard and exactly the card the cost
+            # should have eaten. Without the Ultra Ball the turn fell back to
+            # Dawn (2680), which with no Forest of Vitality in play searches an
+            # evolution line we cannot evolve for two more turns -- instead of
+            # Ultra Ball -> Meowth ex -> Last-Ditch -> Lillie's Determination,
+            # the refill that actually opens the turn.
+            #
+            # `_evo_copies_usable` is the same arithmetic the DISCARD scorer now
+            # applies (`DISCARD_EVO_SPARE_COPY`), so this count keeps mirroring
+            # what the discarder would really let go.
+            _ub_bench_max = getattr(getattr(ctx, 'my_state', None),
+                                    'benchMax', 5) or 5
+            _ub_usable = _evo_copies_usable(
+                _ub_llid, hand_counts, field_counts,
+                free_bench=max(0, _ub_bench_max - bench_count))
+            if _ub_usable is not None:
+                # The same floor of one copy the DISCARD scorer keeps: reaching
+                # here means a branch above protected the piece, and this only
+                # counts the copies BEYOND the first.
+                _ub_discardable_without_lillie += max(
+                    0, _ub_llcnt - max(1, _ub_usable))
     return _ub_discardable_without_lillie
 
 
@@ -968,6 +999,16 @@ class _CtxUBMeowth:
     # the fetch MUST complete that purchase even if the Last-Ditch produces nothing
     # today.
     meowth_tomorrow: bool = False
+    # The Supporter ALREADY IN HAND wins the turn's only Supporter slot against
+    # anything the Last-Ditch could bring (`_supp_in_hand_takes_the_turn`): the
+    # fetch would arrive dead. The deck-agnostic generalisation of
+    # `lillie_already_in_hand_redundant`.
+    supp_in_hand_takes_the_turn: bool = False
+    # An Unfair Stamp that is going to be played THIS TURN (`_stamp_pendiente`).
+    # It shuffles our whole hand back into the deck, so anything the Last-Ditch
+    # fetches returns to the deck unplayed. See
+    # `the_stamp_shuffles_the_last_ditch_supporter`.
+    stamp_pending: bool = False
 
 
 @dataclass
@@ -1037,7 +1078,8 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
                          _best_supp_in_hand_val=0,
                          op_is_crustle_deck=False, op_is_cornerstone_deck=False,
                          op_active_is_budew=False, meowth_ability_lock=False,
-                         op_hand_count=None):
+                         op_hand_count=None, op_state=None, cards_in_deck=None,
+                         supp_in_hand_takes_the_turn=False):
     ub_best_target = 0
 
     _bench_full = (bench_count >= 5)
@@ -1129,11 +1171,16 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
 
     # The Stamp only blocks the Supporter chain if it is really going to be played
     # (a card rule: `_stamp_worth_playing`). Without `op_hand_count` the gate
-    # falls back to the previous behaviour.
+    # falls back to the previous behaviour, and the same holds for the two board
+    # clauses: without `op_state`/`cards_in_deck` they are simply off.
     _stamp_blocks_supp_chain = (ko_last_turn
                                 and hand_counts.get(Unfair_Stamp, 0) >= 1
-                                and _stamp_worth_playing(op_hand_count,
-                                                          _hand_total))
+                                and _stamp_worth_playing(
+                                    op_hand_count, _hand_total,
+                                    op_refill_engine=_op_refill_engine(op_state),
+                                    buries_the_last_xerosic=_stamp_buries_the_last_xerosic(
+                                        hand_counts, cards_in_deck,
+                                        state.supporterPlayed, op_state)))
 
     _supp_in_hand_is_inferior = False
     if supporters_in_hand >= 1 and _best_supp_in_deck_val >= 600:
@@ -1141,11 +1188,20 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
         if _best_supp_in_deck_val > _best_supp_in_hand_val + 100:
             _supp_in_hand_is_inferior = True
 
+    # ...and the "is the one in hand inferior?" comparison above is BLIND to
+    # half the Supporters: `_best_supp_in_hand_val` only censuses
+    # Boss's/Dawn/Lillie's/Lana's on the `_supp_values` scale, so a hand holding
+    # XEROSIC'S MACHINATIONS reads as 0 and the deck always looks better. That
+    # is how registro_004 step 36 (vs Alakazam, LOST) paid an Ultra Ball to dig
+    # a Meowth ex for a Lillie's while the Xerosic that caps Powerful Hand sat
+    # in hand. `supp_in_hand_takes_the_turn` asks the same question with the
+    # scorers that really resolve the slot; see `_supp_in_hand_takes_the_turn`.
     meowth_viable = (
         not _stamp_blocks_supp_chain and
         not (state.turn <= 1 and _we_go_first) and
         not state.supporterPlayed and
         not meowth_ability_lock and
+        not supp_in_hand_takes_the_turn and
         (supporters_in_hand == 0 or _supp_in_hand_is_inferior) and
         field_counts.get(Meowth_ex, 0) == 0 and
         bench_count < 5 and
@@ -1492,7 +1548,9 @@ def _ctx_ub_fetch_meowth(hand_counts, field_counts, bench_count, turn,
                          dipplin_priority, active_cant_attack,
                          mega_line_active, dragapult,
                          supporter_played=False, ld_free=True,
-                         meowth_tomorrow=False):
+                         meowth_tomorrow=False,
+                         supp_in_hand_takes_the_turn=False,
+                         stamp_pending=False):
     return _CtxUBMeowth(
         hand=hand_counts, field=field_counts, bench_count=bench_count,
         turn=turn, watchtower=watchtower, supp_values=supp_values,
@@ -1512,7 +1570,9 @@ def _ctx_ub_fetch_meowth(hand_counts, field_counts, bench_count, turn,
         dragapult=dragapult,
         supporter_played=supporter_played,
         ld_free=ld_free,
-        meowth_tomorrow=meowth_tomorrow)
+        meowth_tomorrow=meowth_tomorrow,
+        supp_in_hand_takes_the_turn=supp_in_hand_takes_the_turn,
+        stamp_pending=stamp_pending)
 
 
 def _um_boss_engine_vs_crustle(c):
@@ -1622,6 +1682,24 @@ _RULES_UB_MEOWTH = [
     _FixedRule("watchtower_cancels_the_ability",
                lambda c: c.watchtower,
                lambda c: 10),
+    # THE STAMP SHUFFLES BACK WHATEVER THE LAST-DITCH BRINGS (user, registro_008
+    # step 70 vs Marnie's Grimmsnarl, WON suboptimally). A third way for the
+    # ability to produce nothing, and the only one that is not on the board but
+    # in the ORDER of the turn: with an Unfair Stamp that is going to be played
+    # this turn (`_stamp_pendiente`), every `_SUPP_PLAY_IDS` scorer yields the
+    # turn to it, so NO Supporter the Last-Ditch could fetch is playable before
+    # the Stamp -- and the Stamp shuffles our whole hand into the deck. In that
+    # step the Ultra Ball was BOUGHT for the Fezandipiti refill
+    # (`refill_after_a_ko`, 1050 -> ub_score 12250) and then spent on a Meowth ex
+    # that went straight back to the deck three actions later, together with the
+    # Night Stretcher and the Dipplin its cost had already discarded FOREVER.
+    #
+    # It goes ABOVE `item_lock_tomorrow`: buying a body for TOMORROW is void too
+    # when the Stamp returns it to the deck TODAY. It is a rule of the CARD, not
+    # of the matchup -- the Stamp reads the same against any opposing deck.
+    _FixedRule("the_stamp_shuffles_the_last_ditch_supporter",
+               lambda c: c.stamp_pending,
+               lambda c: 10),
     # ITEM LOCK TOMORROW: the Ultra Ball was played EXACTLY to dig out this
     # body (`_ub_meowth_for_tomorrow`, registro_002 step 17 vs Dragapult), so
     # the fetch has to complete the purchase. It goes ABOVE
@@ -1656,8 +1734,21 @@ _RULES_UB_MEOWTH = [
     # purpose is to search for Lillie's); a useful evolution is better. EXCEPTION:
     # vs Crustle, Meowth ex brings Boss's Orders (a gust), not a refill. (user,
     # log 86339167 step 23, LOST vs Mega Starmie)
-    _FixedRule("lillie_already_in_hand_redundant",
-               lambda c: (c.hand.get(Lillie_Determination, 0) >= 1
+    #
+    # GENERALISED to any Supporter (user, registro_004 step 36 vs Alakazam,
+    # episode 90106609, LOST): the redundancy is not "Lillie's is in hand", it
+    # is "the Supporter slot of this turn is already taken by something better
+    # than what the Last-Ditch can bring". There the card in hand was XEROSIC'S
+    # MACHINATIONS against a 10-card hand (Powerful Hand = 20 per card), this
+    # rule stayed silent because it only knows Lillie's, and the ladder fell to
+    # `lillie_in_deck_refresh` (1000): the Ultra Ball dug out the Meowth ex, the
+    # Last-Ditch brought Lillie's, and the committed Lillie's spent the slot AND
+    # shuffled the Xerosic back into the deck. `supp_in_hand_takes_the_turn`
+    # answers the same question with the real play scorers -- see
+    # `_supp_in_hand_takes_the_turn` in main.py.
+    _FixedRule("the_turns_supporter_is_already_in_hand",
+               lambda c: ((c.hand.get(Lillie_Determination, 0) >= 1
+                           or c.supp_in_hand_takes_the_turn)
                           and not _um_boss_engine_vs_crustle(c)
                           and not AGENT_STATE._ub_engine_pivot_turn),
                lambda c: 10),
