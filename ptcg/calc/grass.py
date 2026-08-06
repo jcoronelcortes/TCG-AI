@@ -26,19 +26,6 @@ class _PlanPlanta:
     demanda: int             # NEW Grass the board can use (<= `cap`)
 
 
-@dataclass
-class _PlanPlanta:
-    """Reading of the BOARD in ENERGY terms (see `_grass_plan`)."""
-    unit: int              # EFFECTIVE energy provided by ONE physical Grass
-    in_hand: int             # Grass already available in hand
-    slots_today: int           # Grass attachments that still fit THIS turn
-    new_useful_today: int   # NEW Grass that would reach the field TODAY
-    unlocks_today: bool     # a NEW Grass puts a body in attack range TODAY
-    cards_to_attack: int  # NEW Grass that this unlock requires
-    pendiente: int           # Grass demanded by every attacker in play
-    demanda: int             # NEW Grass the board can use (<= `cap`)
-
-
 def _grass_plan(my_state, state, field_counts, hand_counts, cap=3,
                     can_switch=False, abilities_off=False):
     """How many NEW Grass energies the board can use, and whether any of them
@@ -136,7 +123,6 @@ def _grass_plan(my_state, state, field_counts, hand_counts, cap=3,
         demanda=min(cap, max(0, pendiente - in_hand)))
 
 __all__ = [
-    '_PlanPlanta',
     '_PlanPlanta',
     '_grass_plan',
 ]

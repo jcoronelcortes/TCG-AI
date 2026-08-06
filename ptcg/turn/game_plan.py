@@ -44,9 +44,12 @@ from ptcg.calc.card import prize_count, prize_count_op
 from ptcg.calc.damage import (_attacker_base_damage, _ko_not_guaranteed,
                               _op_active_attack_damage_to,
                               _our_effective_damage)
-from ptcg.calc.energy import (_grass_attach_unit, _grass_mult,
-                              _reachable_grass_for, _retreat_grass_to_discard)
-from ptcg.cards.ids import Basic_Grass_Energy, Boss_Orders
+from ptcg.calc.energy import (_grass_attach_slots_for, _grass_attach_unit,
+                              _grass_mult, _reachable_grass_for,
+                              _retreat_grass_to_discard)
+from ptcg.cards.ids import (Basic_Grass_Energy, Boss_Orders, LANAS_AID_RECOVERS,
+                            Lanas_Aid)
+from ptcg.state.agent_state import AGENT_STATE
 
 # The four sentences a turn can be under. They are ordered by urgency: the first
 # one that applies wins, because a turn that ENDS the game does not care what the
@@ -63,6 +66,7 @@ MODE_DEVELOP = 'DEVELOP'    # nothing decisive today: build the board
 ROUTE_ACTIVE = 'ACTIVE'              # attack the opposing active as it stands
 ROUTE_PROMOTE = 'PROMOTE'            # retreat -> promote the bench finisher -> attack
 ROUTE_GUST = 'GUST'                  # Boss's Orders on a bench target -> attack
+ROUTE_RECOVER = 'RECOVER'            # Lana's Aid recovers Grass -> charge twice -> attack
 
 
 @dataclass(frozen=True)
@@ -125,6 +129,18 @@ class TurnPlan:
         distinction is a field and not an afterthought.
         """
         return self.lethal_gust and not self.win_needs_charge
+
+    @property
+    def lethal_recovery(self) -> bool:
+        """The winning route goes through Lana's Aid: the Supporter slot of this
+        turn belongs to the RECOVERY, not to a gust and not to a refill.
+
+        The mirror of `lethal_gust`, and the reason the route is worth
+        detecting at all: without a consumer that reserves the slot, the plan
+        would see the line and the turn would still spend the Supporter
+        elsewhere (`ptcg/decision/supporters.py`, `winning_recovery`).
+        """
+        return self.win_route == ROUTE_RECOVER
 
     def denial_saves_the_game(self, body_prizes: int) -> bool:
         """Would putting a `body_prizes`-prize body in front instead of the
@@ -350,6 +366,116 @@ def _gust_is_lethal_without_charging(my_state, op_state, my_prize, total_grass,
     return False
 
 
+def _win_via_energy_recovery(my_state, op_state, state, hand_counts,
+                             field_counts, my_prize, total_grass, bench_count,
+                             meganium_in_play, neutralization_zone,
+                             abilities_off):
+    """Does recovering Grass with Lana's Aid turn our active's attack LETHAL?
+
+    Why this route exists (user, episode 90115646 turn 10 vs Archaludon ex,
+    LOST). Our active Teal Mask Ogerpon ex carried 4 effective energy against
+    their active Archaludon ex, 300 HP with 3 energy, EIGHT Basic Grass sat in
+    our discard and Lana's Aid was in hand. Lana's recovers three of them; the
+    manual attachment and Teal Dance put two on the Ogerpon (Meganium's Wild
+    Growth makes each one worth 2), which is 8 effective energy:
+
+        Myriad Leaf Shower 30 + 30 x (8 ours + 3 theirs) = 360, -30 for
+        Archaludon's Grass resistance = 330 on a 300 HP body
+
+    -- their ex for the last two prizes, the game. The plan printed
+    `win_route=''`, `op_wins_next=True`, `mode='DENY'`: it ALREADY KNEW it lost
+    on the reply and it played a Boss's Orders that gusted a 1-prize body.
+
+    Two deliberate limits added up until they hid the line, and neither one is
+    wrong on its own:
+
+      * `_charge_this_turn` projects at most ONE attachment, so the plan never
+        claims damage the turn will not do. But Teal Dance IS a second real
+        attachment, and Myriad scales with every energy.
+      * `_reachable_grass_for` leaves Lana's Aid out on purpose: it spends the
+        Supporter slot, which its callers cannot see from where they stand.
+
+    So this route pays BOTH costs explicitly instead of loosening either
+    primitive for everybody. It asks for the Supporter slot (that is what
+    `win_needs_supporter` reports) and it counts every attach route the body
+    really has (`_grass_attach_slots_for`: the manual attachment, Ripening
+    Charge on each Hydrapple ex, and Teal Dance on the Ogerpon that bears it).
+
+    Confined on purpose:
+
+      * only the ACTIVE, never the promote route -- a retreat on top of the
+        Supporter and two charges is a line long enough that the turn cannot
+        be trusted to hold together;
+      * only when it WINS, that is when the target is worth every prize we are
+        missing. It never feeds `prizes_today`, which governs the mode of the
+        whole turn;
+      * only when the recovery is what CREATES the KO -- and the floor it is
+        measured against is not an empty board but everything the turn already
+        reaches WITHOUT the Supporter (`_reachable_grass_for`). A KO an Item
+        was already paying for does not justify spending the Supporter.
+
+    What it does NOT replicate are the matchup vetoes of the play layer
+    (`_lana_veto_duro`): the rule that consumes this route asks them itself, so
+    the arithmetic here stays about the board and not about which deck is on
+    the other side.
+    """
+    if state.supporterPlayed or hand_counts.get(Lanas_Aid, 0) < 1:
+        return False
+    if AGENT_STATE.op_is_crustle_deck:
+        # CONFINED BY MEASUREMENT, not by taste. Replaying the 11 boards where
+        # this route really fired in self-play (`utils/measure_route_recover.py`
+        # dumps them), the Crustle matchup DETECTED the win and did not execute
+        # it: the recovered Grass went to the bench in 8 of them, because
+        # charging the ACTIVE Ogerpon there is vetoed by several stacked layers
+        # -- the physical caps whose only exception (`_extra_energy_enables_ko`)
+        # counts +1 while this line needs +2, and another veto above
+        # `energy_score`. That is not incidental: the whole premise of the
+        # matchup is that our ex cannot attack the wall, so energy is SAVED.
+        # A WIN_NOW route that cannot be carried out is worse than no route --
+        # it spends the Supporter and puts the entire turn under the wrong
+        # sentence -- so it does not fire here until something measures it.
+        return False
+    attacker = my_state.active[0] if my_state.active else None
+    target = op_state.active[0] if op_state.active else None
+    if attacker is None or target is None or _ko_not_guaranteed(target):
+        return False
+    if prize_count_op(target) < my_prize:
+        return False              # it knocks out, but it does not END the game
+    in_discard = sum(1 for c in (getattr(my_state, 'discard', None) or [])
+                     if getattr(c, 'id', 0) == Basic_Grass_Energy)
+    if in_discard <= 0:
+        return False
+    cards = min(hand_counts.get(Basic_Grass_Energy, 0)
+                + min(LANAS_AID_RECOVERS, in_discard),
+                _grass_attach_slots_for(attacker, state, field_counts,
+                                        abilities_off))
+    if cards <= 0:
+        return False
+    hp = target.hp or 0
+    if hp <= 0:
+        return False
+    # The floor is not "no energy at all", it is EVERYTHING THE TURN ALREADY
+    # REACHES WITHOUT THE SUPPORTER -- the Grass in hand plus what a Night
+    # Stretcher brings back, which is precisely the question
+    # `_reachable_grass_for` answers (it knows the Stretcher and leaves Lana's
+    # out). Measured over 400 games vs archaludon.csv, the route's only flip was
+    # `PLAY Night Stretcher` -> `PLAY Lana's Aid`: without this floor the route
+    # spends the turn's Supporter on a KO an ITEM was already paying for.
+    already = _reachable_grass_for(attacker, state, my_state, hand_counts,
+                                   field_counts, 0, abilities_off)
+    now = _our_damage_to(attacker, target, already,
+                         total_grass + already * _grass_attach_unit(),
+                         bench_count, meganium_in_play, neutralization_zone)
+    # The recovered Grass lands ON THE FIELD, so it raises `total_grass` too --
+    # which is what Syrup Storm (Hydrapple ex) scales with, while Myriad reads
+    # the attacker's own energy and ignores it. Leaving the count untouched
+    # would make the route Ogerpon-only without ever saying so.
+    after = _our_damage_to(attacker, target, cards,
+                           total_grass + cards * _grass_attach_unit(),
+                           bench_count, meganium_in_play, neutralization_zone)
+    return now < hp <= after
+
+
 def _we_knock_out_their_active(my_state, op_state, state, hand_counts,
                                field_counts, total_grass, bench_count,
                                meganium_in_play, neutralization_zone,
@@ -437,14 +563,23 @@ def build_turn_plan(*, my_prize, op_prize, my_state, op_state, state,
         win_route = ROUTE_PROMOTE
     elif win_via_boss_gust and boss_playable:
         win_route = ROUTE_GUST
+    elif _win_via_energy_recovery(my_state, op_state, state, hand_counts,
+                                  field_counts, my_prize, total_grass,
+                                  bench_count, meganium_in_play,
+                                  neutralization_zone, abilities_off):
+        # Last of the four: it spends the Supporter slot AND every charge the
+        # turn has. Behind the gust on purpose -- both want the Supporter, and
+        # a gust that already knocks out needs nothing else to happen first.
+        win_route = ROUTE_RECOVER
     else:
         win_route = ''
 
     win_needs_charge = (
-        win_route == ROUTE_GUST
-        and not _gust_is_lethal_without_charging(
-            my_state, op_state, my_prize, total_grass, bench_count,
-            meganium_in_play, neutralization_zone))
+        win_route == ROUTE_RECOVER
+        or (win_route == ROUTE_GUST
+            and not _gust_is_lethal_without_charging(
+                my_state, op_state, my_prize, total_grass, bench_count,
+                meganium_in_play, neutralization_zone)))
 
     prizes_today = _prizes_we_can_take(
         my_state, op_state, state, hand_counts, field_counts, total_grass,
@@ -475,7 +610,7 @@ def build_turn_plan(*, my_prize, op_prize, my_state, op_state, state,
     return TurnPlan(
         my_prize=my_prize, op_prize=op_prize,
         win_route=win_route,
-        win_needs_supporter=(win_route == ROUTE_GUST),
+        win_needs_supporter=(win_route in (ROUTE_GUST, ROUTE_RECOVER)),
         win_needs_charge=win_needs_charge,
         prizes_today=prizes_today,
         op_prizes_next=op_prizes_next,
@@ -496,6 +631,6 @@ def plan_of(ctx):
 
 __all__ = [
     'MODE_WIN_NOW', 'MODE_DENY', 'MODE_RACE', 'MODE_DEVELOP',
-    'ROUTE_ACTIVE', 'ROUTE_PROMOTE', 'ROUTE_GUST',
+    'ROUTE_ACTIVE', 'ROUTE_PROMOTE', 'ROUTE_GUST', 'ROUTE_RECOVER',
     'TurnPlan', 'NO_PLAN', 'build_turn_plan', 'plan_of',
 ]

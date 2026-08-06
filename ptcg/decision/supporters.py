@@ -7,10 +7,11 @@ utils/purity.py: nothing here touches mutable state or the runtime tables.
 
 from ptcg.state.agent_state import AGENT_STATE
 from ptcg.cards.ids import Forest_of_Vitality
-from ptcg.cards.ids import Basic_Grass_Energy, Dawn, Lanas_Aid, Lillie_Determination, SCORE_SUPPORTER_VALUE_BASE, SCORE_VETO
+from ptcg.cards.ids import Basic_Grass_Energy, Dawn, LANA_SCORE_WIN_NOW, Lanas_Aid, Lillie_Determination, SCORE_SUPPORTER_VALUE_BASE, SCORE_VETO
 from ptcg.engine.context import DecisionContext
 from ptcg.engine.rules import _Adjustment, _FixedRule, _resolve_with_trace
 from ptcg.decision.disruption import _stamp_pendiente
+from ptcg.turn.game_plan import plan_of
 
 
 def _lillie_draw_count(my_prize):
@@ -39,6 +40,19 @@ _RULES_LANA_PLAY = [
     _FixedRule("hard_veto",
                _lana_veto_duro,
                lambda c: SCORE_VETO),
+    # THE RECOVERY IS THE FINISHER (user, episode 90115646 turn 10 vs
+    # Archaludon ex, LOST). It goes above `no_value` because the value layer
+    # cannot see this line: `_grass_plan` prices Grass by whether it puts a body
+    # in ATTACK RANGE, and the active Ogerpon ex already reached
+    # `ATTACK_ENERGY_REQ` -- it asked for nothing. For an attacker that SCALES
+    # (Myriad Leaf Shower, Syrup Storm) the extra energy is not legality, it is
+    # damage, and two more Grass were the difference between 270 and the 330
+    # that knocked out their 300 HP ex for the last two prizes. See
+    # `_win_via_energy_recovery`, which is the one that does the arithmetic.
+    _FixedRule("winning_recovery",
+               lambda c: (not _lana_veto_duro(c)
+                          and plan_of(c).lethal_recovery),
+               lambda c: LANA_SCORE_WIN_NOW),
     # no_value can be RESCUED by mega_line_floor (faithful to the original,
     # where that max() lives after the assignment of the value veto).
     _FixedRule("no_value",
@@ -69,6 +83,9 @@ _AJUSTES_LANA_PLAY = [
     # otherwise it yields (cap 2000, still playable in case Lillie's falls).
     _Adjustment("yields_to_lillie_no_attack",
             lambda c, s: (not _lana_veto_duro(c) and s > 0
+                          # ... but a route that ENDS THE GAME yields to nothing:
+                          # the cap is about a turn that still has a tomorrow.
+                          and not plan_of(c).lethal_recovery
                           and c.active_cant_attack
                           and c.hand_counts.get(Lillie_Determination, 0) >= 1
                           and not c.state.supporterPlayed

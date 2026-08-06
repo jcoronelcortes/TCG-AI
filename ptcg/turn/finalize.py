@@ -13,7 +13,7 @@ from ptcg.calc.damage import _attacker_base_damage
 from ptcg.calc.energy import _grass_mult
 from ptcg.calc.opponent import _op_juega_crustle
 from ptcg.calc.board import _active_of
-from ptcg.cards.ids import Applin, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, Lillie_Determination, Meganium, Meowth_ex, Pinsir, Poke_Pad, SCORE_USELESS_ATTACK, SCORE_VETO, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Xerosic_Machinations
+from ptcg.cards.ids import Applin, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Pinsir, Poke_Pad, SCORE_USELESS_ATTACK, SCORE_VETO, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Xerosic_Machinations
 from ptcg.cards.scoring import SCORE_LD_SUPP_COMPROMETIDO, _SUPP_PLAY_IDS
 from ptcg.cards.tables import attack_table, card_table
 from ptcg.decision.ultra_ball import _matchup_allows_playing, _ub_cost_destroys_better_card
@@ -471,6 +471,24 @@ def finalizar(tc):
                         # (`gust_closes_it_now`): when the KO is one charge away,
                         # the charge goes first and the gust waits its turn
                         # (registro_012 step 227, the Myriad combo).
+                        _play_order_tier[_po_i] = _TIER_WIN_ATTACK
+                    elif (_po_card.id == Lanas_Aid
+                            and plan_of(ctx).lethal_recovery):
+                        # THE RECOVERY THAT WINS IS THE FIRST HALF OF THE SAME
+                        # PLAY (user, episode 90115646 turn 10 vs Archaludon ex).
+                        # Identical failure to the winning gust above, and it was
+                        # measured the same way: the score said Lana's Aid, and
+                        # an Applin in hand still went down first, because a
+                        # Pokemon PLAY sits in `_TIER_DEVELOP` (40) and a
+                        # Supporter PLAY in tier 0. Raising the score does not
+                        # help -- the tier decides before it.
+                        #
+                        # Unlike the gust it takes the tier WITH a charge
+                        # pending, and that is the point: `ROUTE_RECOVER` always
+                        # needs one (`win_needs_charge`), and the charge cannot
+                        # happen before the energy is in hand. So this play goes
+                        # FIRST of the whole turn -- recovery, then the
+                        # attachments (tier KO_ENERGY/ENERGY), then the attack.
                         _play_order_tier[_po_i] = _TIER_WIN_ATTACK
                     elif _po_card.id == Poke_Pad:
                         _play_order_tier[_po_i] = _TIER_POKE_PAD

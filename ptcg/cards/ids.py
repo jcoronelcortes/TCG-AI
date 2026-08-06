@@ -759,12 +759,39 @@ LANA_SEL_GRASS_UNLOCKS = 1400  # the Grass that enables an attack this turn
 LANA_SEL_GRASS_DEMAND = 900      # Grass an attacker in play still asks for
 LANA_SEL_GRASS_SURPLUS = 120     # more Grass than the board can use
 LANA_SEL_INJUGABLE = 5             # it cannot be put into play: last resort
+# Cards Lana's Aid takes out of the discard. It is the ceiling of the WINNING
+# RECOVERY route (`ROUTE_RECOVER`): what the plan may count on getting into hand.
+LANAS_AID_RECOVERS = 3
+# The recovery that ENDS THE GAME (`TurnPlan.lethal_recovery`). Above every band
+# of the selection scale because under a winning route nothing that is not the
+# finisher matters: a Pokemon for a bench that has no tomorrow scores in the
+# ~150-280 band of the generic scorer, and the Grass that wins must never lose
+# to it -- which is what happens with a charged bench, where `_grass_plan`
+# reports no demand and the Grass falls to SURPLUS (120).
+LANA_SEL_GRASS_WINS = 3000
 
 # BASE value of the PLAY layer for having something recoverable in the discard,
 # before the need bonuses (short bench, fallen line, Forest, >=3 recoverable,
 # matchup). `lana_val` staying EXACTLY at this base means "there is a card down
 # there, but the board is not asking for it".
 LANA_PLAY_BASE_RECUPERABLE = 300
+
+# Playing Lana's Aid when the RECOVERY is the finisher (`TurnPlan.lethal_recovery`,
+# `ROUTE_RECOVER`): the Supporter slot of this turn belongs to the route that
+# ENDS it. It can never collide with the winning gust -- the plan picks ONE
+# route and checks the gust first because it is cheaper -- so a board where
+# Boss's wins never hands Lana's this score.
+#
+# The height is the same as the gust's, and for the same reason -- but the
+# height is NOT what makes it win. Measured while building this: with an Applin
+# in hand the turn benched the Basic anyway, and raising the score to 41000 did
+# not change it, because a Pokemon PLAY lives in `_TIER_DEVELOP` (40) and a
+# Supporter PLAY in tier 0, and the ORDER TIER decides before the score. The
+# fix is the tier, in `finalize.py` next to the one the winning gust already
+# has; this constant only has to beat the other Supporters, which at 20000 it
+# does by a wide margin (`BOSS_SCORE_PRIZE_RANK_BASE` 5200 is the gust the
+# agent really played in episode 90115646 turn 10).
+LANA_SCORE_WIN_NOW = 20000
 
 # Ceiling of the VALUE of playing Lana's Aid (PLAY layer) when what can be put
 # into play today is not needed: Energy nobody asks for (every attacker in play
@@ -1119,8 +1146,11 @@ __all__ = [
     'LANA_SEL_GRASS_UNLOCKS',
     'LANA_SEL_GRASS_DEMAND',
     'LANA_SEL_GRASS_SURPLUS',
+    'LANA_SEL_GRASS_WINS',
     'LANA_SEL_INJUGABLE',
+    'LANAS_AID_RECOVERS',
     'LANA_PLAY_BASE_RECUPERABLE',
+    'LANA_SCORE_WIN_NOW',
     'LANA_PLAY_NO_DEMAND',
     'BOSS_PRIORITY_CRUSTLE_GUST',
     'TAPU_WAIT_FOR_ITEMS_SCORE',

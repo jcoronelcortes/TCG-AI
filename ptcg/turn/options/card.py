@@ -11,7 +11,7 @@ from ptcg.calc.damage import _attacker_base_damage, _bench_attacker_can_ko, _ko_
 from ptcg.calc.energy import _can_attack_eff, _grass_attach_route_open, _grass_attach_unit, _grass_mult
 from ptcg.calc.board import _active_of, _count_hand_play_options
 from ptcg.cards.groups import GT_FETCH_BONUS
-from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, DISCARD_EVO_SPARE_COPY, DISCARD_SUPPORTER_DEAD_DROP, DISCARD_SUPPORTER_LIVE_KEEP, DUNSPARCE_IDS, Dawn, Dipplin, Drednaw, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, LANA_SEL_INJUGABLE, LANA_SEL_GRASS_DEMAND, LANA_SEL_GRASS_UNLOCKS, LANA_SEL_GRASS_SURPLUS, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, OUR_ABILITY_IDS, OUR_EX_IDS, Pinsir, Poke_Pad, RETREAT_COST, RIPEN_HEAL_TARGET_SCORE, SCORE_FORBID, SCORE_LOOKAHEAD_PROMOTE_KO, SCORE_LOOKAHEAD_PROMOTE_SAFE, SCORE_NEVER, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, Xerosic_Machinations
+from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, DISCARD_EVO_SPARE_COPY, DISCARD_SUPPORTER_DEAD_DROP, DISCARD_SUPPORTER_LIVE_KEEP, DUNSPARCE_IDS, Dawn, Dipplin, Drednaw, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, LANA_SEL_INJUGABLE, LANA_SEL_GRASS_DEMAND, LANA_SEL_GRASS_UNLOCKS, LANA_SEL_GRASS_SURPLUS, LANA_SEL_GRASS_WINS, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, OUR_ABILITY_IDS, OUR_EX_IDS, Pinsir, Poke_Pad, RETREAT_COST, RIPEN_HEAL_TARGET_SCORE, SCORE_FORBID, SCORE_LOOKAHEAD_PROMOTE_KO, SCORE_LOOKAHEAD_PROMOTE_SAFE, SCORE_NEVER, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, Xerosic_Machinations
 from ptcg.cards.lines import _evo_copies_usable, _pokemon_injugable
 from ptcg.cards.scoring import MAIN_ATTACKERS, PROMO_DOOMED_PENALTY, PROMO_KO_BONUS, PROMO_MATCH_POINT_VETO, PROMO_PRIZE_PENALTY, _SUPP_PLAY_IDS
 from ptcg.cards.tables import card_table
@@ -1937,7 +1937,28 @@ def score_play(tc, o, score):
                 # The ordinal (`_lana_grass_order`) is what avoids the
                 # symmetric failure: with a demand of 1 and 4 Grass in the discard, without
                 # it all 4 would tie at the top and take all 3 choices.
-                if _lana_plan is not None:
+                #
+                # Above all three bands sits the RECOVERY THAT WINS THE GAME
+                # (`ROUTE_RECOVER`): there the Grass is the finisher itself, and
+                # the bands cannot see it. `unlocks_today` and `demanda` both
+                # measure ATTACK RANGE, so an attacker that already reaches
+                # `ATTACK_ENERGY_REQ` asks for nothing -- with a charged bench
+                # the Grass that wins the game falls to SURPLUS (120) and loses
+                # to a Pokemon for a bench that has no tomorrow.
+                #
+                # It reads `turn_plan_open` and not `turn_plan`: by the time this
+                # menu is offered, Lana's Aid has ALREADY been played, so the
+                # plan rebuilt for this observation sees the Supporter slot spent
+                # and no longer reports the route. The opening plan is what the
+                # turn was for before we started spending it, which is exactly
+                # what that field is kept for.
+                _lana_win_recovery = (
+                    _lana_plan is not None
+                    and getattr(AGENT_STATE.turn_plan_open,
+                                'lethal_recovery', False))
+                if _lana_win_recovery and card.id == Basic_Grass_Energy:
+                    score = LANA_SEL_GRASS_WINS
+                elif _lana_plan is not None:
                     if card.id == Basic_Grass_Energy:
                         _lana_orden = _lana_grass_order.get(len(scores), 0)
                         if (_lana_plan.unlocks_today
