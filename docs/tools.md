@@ -149,8 +149,13 @@ the actionable population is 0.08% of decisions.
 Plays games with two agent instances: the driver sees the real menu, the shadow
 sees the same board with the options shuffled, and their choices are compared as
 PLAYS rather than as indexes. Any difference is a decision the rules did not
-make. Currently **0.56%** of decisions, most of them ties over which card a
+make. Currently **0.6-0.7%** of decisions, most of them ties over which card a
 search brings back.
+
+`--dump DIR` writes each diverging board out whole, observation included, so it
+can be replayed and turned into a fixture; `--kinds ABILITY,ATTACH` narrows the
+dump to one class of tie. The percentage alone is not a finding — a board nobody
+can reopen cannot be arbitrated.
 
 ### `mutation_probe.py` — which safety nets can actually fail?
 

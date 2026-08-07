@@ -27,6 +27,14 @@ Usage:
     python utils/permutation_probe.py                 # 40 mirror games
     python utils/permutation_probe.py --games 200 --seed 7
     python utils/permutation_probe.py --records       # over records/ instead
+    python utils/permutation_probe.py --games 150 --dump log/ties --kinds ABILITY,ATTACH
+
+THE COUNT IS NOT THE DELIVERABLE. A percentage says how often the order decides;
+it does not say WHICH board, and a board nobody can reopen is not a finding. With
+`--dump` every divergence is written out whole -- the observation included -- so
+it can be replayed, turned into a fixture and pinned. `--kinds` narrows the dump
+to one class of tie (the names of the option kinds that tied, comma separated),
+because the interesting classes are a handful and the rest are copies of a card.
 """
 
 import argparse
@@ -108,7 +116,13 @@ def _permuted(obs, rng):
     return twin
 
 
-def compare(driver, shadow, obs, rng):
+def kinds_of(divergence):
+    """The set of option kinds that tied, as the summary groups them."""
+    return tuple(sorted({str(x).split(":")[0] for x in
+                         (divergence["chose"] + divergence["chose_permuted"])}))
+
+
+def compare(driver, shadow, obs, rng, keep_board=False):
     """(choice the driver makes, divergence or None)."""
     choice = driver.agent(obs)
     select = obs.get("select") or {}
@@ -121,16 +135,21 @@ def compare(driver, shadow, obs, rng):
     twin_meant = [meaning(shadow, twin, i) for i in twin_choice]
     if sorted(meant) == sorted(twin_meant):
         return choice, None
-    return choice, {
+    bad = {
         "turn": (obs.get("current") or {}).get("turn"),
         "context": select.get("context"),
         "n_options": len(select["option"]),
         "chose": meant,
         "chose_permuted": twin_meant,
     }
+    if keep_board:
+        # A copy, because the caller hands this same dict back to the simulator
+        # and the next `battle_select` is free to mutate it.
+        bad["observation"] = copy.deepcopy(obs)
+    return choice, bad
 
 
-def over_games(games, seed):
+def over_games(games, seed, keep_board=False):
     from cg import game
 
     driver = sp.load_agent(str(_ROOT / "main.py"), "perm_driver")
@@ -138,7 +157,7 @@ def over_games(games, seed):
     rng = random.Random(seed)
     deck = sp.read_deck()
     seen, divergences = 0, []
-    for _ in range(games):
+    for game_no in range(games):
         sp._reset_si_aplica(driver)
         sp._reset_si_aplica(shadow)
         obs, _sd = game.battle_start(list(deck), list(deck))
@@ -147,10 +166,10 @@ def over_games(games, seed):
         steps = 0
         try:
             while obs and obs["current"]["result"] == -1 and steps < 3000:
-                choice, bad = compare(driver, shadow, obs, rng)
+                choice, bad = compare(driver, shadow, obs, rng, keep_board)
                 seen += 1
                 if bad:
-                    divergences.append(bad)
+                    divergences.append({**bad, "game": game_no, "step": steps})
                 obs = game.battle_select(choice)
                 steps += 1
         finally:
@@ -158,7 +177,7 @@ def over_games(games, seed):
     return seen, divergences
 
 
-def over_records(seed):
+def over_records(seed, keep_board=False):
     driver = sp.load_agent(str(_ROOT / "main.py"), "perm_driver")
     shadow = sp.load_agent(str(_ROOT / "main.py"), "perm_shadow")
     rng = random.Random(seed)
@@ -175,11 +194,27 @@ def over_records(seed):
                 if (item.get("status") != "ACTIVE" or not obs.get("select")
                         or current.get("yourIndex") != ours):
                     continue
-                _choice, bad = compare(driver, shadow, obs, rng)
+                _choice, bad = compare(driver, shadow, obs, rng, keep_board)
                 seen += 1
                 if bad:
                     divergences.append({**bad, "record": path.name})
     return seen, divergences
+
+
+def dump(divergences, directory, wanted_kinds=None):
+    """Write one JSON per divergence, board included. Returns how many."""
+    out = Path(directory)
+    out.mkdir(parents=True, exist_ok=True)
+    written = 0
+    for n, d in enumerate(divergences):
+        if wanted_kinds is not None and set(kinds_of(d)) != wanted_kinds:
+            continue
+        name = (f"tie_{n:03d}_t{d.get('turn')}_c{d.get('context')}"
+                f"_{'-'.join(kinds_of(d))}.json")
+        (out / name).write_text(json.dumps(d, ensure_ascii=False, indent=1),
+                                encoding="utf-8")
+        written += 1
+    return written
 
 
 def main(argv):
@@ -188,13 +223,20 @@ def main(argv):
     parser.add_argument("--seed", type=int, default=20260807)
     parser.add_argument("--records", action="store_true",
                         help="replay records/ instead of playing games")
+    parser.add_argument("--dump",
+                        help="directory to write each diverging board to")
+    parser.add_argument("--kinds",
+                        help="dump only this class of tie, e.g. ABILITY,ATTACH")
     args = parser.parse_args(argv)
 
+    wanted = ({k.strip().upper() for k in args.kinds.split(",")}
+              if args.kinds else None)
     if args.records:
-        seen, divergences = over_records(args.seed)
+        seen, divergences = over_records(args.seed, keep_board=bool(args.dump))
         source = f"{len(record_files())} records"
     else:
-        seen, divergences = over_games(args.games, args.seed)
+        seen, divergences = over_games(args.games, args.seed,
+                                       keep_board=bool(args.dump))
         source = f"{args.games} games"
 
     print(f"decisions compared: {seen}  ({source})")
@@ -207,9 +249,7 @@ def main(argv):
     from collections import Counter
     by_class = Counter()
     for d in divergences:
-        kinds = tuple(sorted({str(x).split(":")[0] for x in
-                              (d["chose"] + d["chose_permuted"])}))
-        by_class[(d.get("context"), kinds)] += 1
+        by_class[(d.get("context"), kinds_of(d))] += 1
     if by_class:
         print("\nties, by context and by the kinds that tie:")
         for (context, kinds), n in by_class.most_common():
@@ -217,6 +257,9 @@ def main(argv):
     for d in divergences[:10]:
         print(f"  turn {d.get('turn')} context {d.get('context')} "
               f"({d['n_options']} options): {d['chose']} vs {d['chose_permuted']}")
+    if args.dump:
+        written = dump(divergences, args.dump, wanted)
+        print(f"\nboards written: {written} -> {args.dump}")
     return 1 if divergences else 0
 
 

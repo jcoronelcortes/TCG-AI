@@ -49,6 +49,7 @@ is written line by line. It is meant to stay readable as the code changes.
 | [Project history](project-history.md) | Why the code is shaped the way it is, and the mistakes that shaped it. |
 | [The night of 7 Aug 2026](history/night-2026-08-07.md) | A full measurement session, written up: what was found, what was measured, and what was deliberately not shipped. |
 | [Tournament principles audit](history/tournament-principles-audit.md) | The five habits that separate a casual player from a tournament one, checked one by one against the code. |
+| [The menu-order ties](history/menu-order-ties.md) | The 0.67% of decisions the emission order settles, class by class: which ones are harmless, and the promotion that handed the game away. |
 
 ---
 

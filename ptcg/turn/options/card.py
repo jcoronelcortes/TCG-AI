@@ -685,6 +685,38 @@ def score_play(tc, o, score):
                             if not (_nz_meg_data
                                     and (_nz_meg_data.ex or _nz_meg_data.megaEx)):
                                 _meg_designated_attacker = True
+                        # THEIR MATCH POINT OVERRULES THE ENGINE (self-play
+                        # mirror, game 276 turn 8; the census in
+                        # log/perm_ties_main/FINDINGS.md). We retreat with them
+                        # TWO prizes from the game, so every ex on our bench IS
+                        # the game: the agent's own projector reads
+                        # op_wins_next=True for the Ogerpon ex and for both
+                        # Meowth ex, and False for the Meganium at 4 Grass, the
+                        # one body that answers and only pays one prize. It
+                        # promoted the Ogerpon ex AT ZERO ENERGY -- because this
+                        # veto had already removed the Meganium from the menu
+                        # (-10000) and the ex was simply the biggest thing left.
+                        #
+                        # The rule that should have decided is thirty lines
+                        # above and HAD fired: prize denial when promoting
+                        # (+3000 to a body worth fewer prizes than they need).
+                        # `score = SCORE_NEVER` is an assignment, so it
+                        # overwrote it. This exemption is that same sentence,
+                        # `op_prize <= 2 and prize_count(card) < op_prize`, so
+                        # the two halves cannot disagree: at their match point
+                        # the front seat is not where we protect Wild Growth.
+                        #
+                        # It stays as narrow as its neighbours. `_can_attack_now`
+                        # -- a Meganium that cannot answer this turn is the
+                        # engine and nothing else. And with their pile at ONE it
+                        # does not fire (1 < 1 is false), because there the
+                        # one-prize body hands over the game exactly like the ex
+                        # and the denial buys nothing, which is the measured
+                        # sentence the prize-denial rule already carries.
+                        elif (card.id == Meganium and _can_attack_now
+                                and op_prize <= 2
+                                and prize_count(card) < op_prize):
+                            _meg_designated_attacker = True
                         # FORCED PROMOTION AFTER A KO: the turn in which we bring
                         # the body up is the OPPONENT's turn -- nobody attacks
                         # any more -- so "ready to attack" is measured with NEXT
