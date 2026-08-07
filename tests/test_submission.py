@@ -59,46 +59,46 @@ import json, os, sys
 sys.path.insert(0, {tests_dir!r})
 from kaggle_loader import get_last_callable
 
-main_py, cwd_carga, cwd_decision, fixture, salida = sys.argv[1:6]
-resultado = {{}}
+main_py, load_cwd, decide_cwd, fixture, out_path = sys.argv[1:6]
+result = {{}}
 try:
-    os.chdir(cwd_carga)
+    os.chdir(load_cwd)
     with open(main_py) as f:
         fn = get_last_callable(f.read(), path=main_py)
-    resultado["nombre"] = getattr(fn, "__name__", repr(fn))
-    os.chdir(cwd_decision)          # el contenedor NO hace chdir al dir del agente
+    result["name"] = getattr(fn, "__name__", repr(fn))
+    os.chdir(decide_cwd)            # the container does NOT chdir to the agent dir
     with open(fixture) as f:
         obs = json.load(f)["observation"]
-    resultado["decision"] = fn(obs)
-    resultado["main_en_sys_modules"] = "main" in sys.modules
+    result["decision"] = fn(obs)
+    result["main_in_sys_modules"] = "main" in sys.modules
 except BaseException as e:
-    resultado["error"] = "{{}}: {{}}".format(type(e).__name__, e)
-# Si el callable secuestro el punto de entrada (I1b), lo que devuelve puede no
-# ser serializable: degradar a repr en vez de morir con un JSONDecodeError
-# opaco en el test.
+    result["error"] = "{{}}: {{}}".format(type(e).__name__, e)
+# If some other callable hijacked the entry point (I1b), what it returns may not
+# be serialisable: degrade to repr instead of dying with an opaque
+# JSONDecodeError inside the test.
 try:
-    json.dumps(resultado.get("decision"))
+    json.dumps(result.get("decision"))
 except TypeError:
-    resultado["decision"] = "<no serializable: {{}}>".format(
-        type(resultado["decision"]).__name__)
-with open(salida, "w") as f:
-    json.dump(resultado, f)
+    result["decision"] = "<not serialisable: {{}}>".format(
+        type(result["decision"]).__name__)
+with open(out_path, "w") as f:
+    json.dump(result, f)
 """
 
 
-def _load_in_subprocess(main_py, load_cwd, cwd_decision, tmp_path, etiqueta):
+def _load_in_subprocess(main_py, load_cwd, decide_cwd, tmp_path, label):
     """Loads `main_py` with Kaggle's loader in a clean interpreter."""
-    script = tmp_path / f"runner_{etiqueta}.py"
+    script = tmp_path / f"runner_{label}.py"
     script.write_text(_RUNNER.format(tests_dir=str(TESTS_DIR)))
-    output = tmp_path / f"salida_{etiqueta}.json"
+    output = tmp_path / f"output_{label}.json"
 
     proc = subprocess.run(
         [sys.executable, str(script), str(main_py), str(load_cwd),
-         str(cwd_decision), str(FIXTURE), str(output)],
+         str(decide_cwd), str(FIXTURE), str(output)],
         capture_output=True, text=True, timeout=300,
     )
     assert output.exists(), (
-        f"el runner ({etiqueta}) murio sin escribir resultado.\n"
+        f"the runner ({label}) died without writing a result.\n"
         f"returncode={proc.returncode}\nstdout={proc.stdout}\nstderr={proc.stderr}"
     )
     return json.loads(output.read_text())
@@ -115,11 +115,11 @@ def test_the_kaggle_loader_keeps_agent(tmp_path):
     container would take THAT function as the agent and the game would die with a
     TypeError, without any other test noticing.
     """
-    r = _load_in_subprocess(ROOT / "main.py", ROOT, ROOT, tmp_path, "entrada")
+    r = _load_in_subprocess(ROOT / "main.py", ROOT, ROOT, tmp_path, "entry")
     assert "error" not in r, r["error"]
-    assert r["nombre"] == "agent", (
-        f"el cargador de Kaggle se quedaria con {r['nombre']!r} en vez de con "
-        "'agent': mueve los re-exports ARRIBA, antes de `def agent`"
+    assert r["name"] == "agent", (
+        f"Kaggle's loader would keep {r['name']!r} instead of 'agent': move the "
+        "re-exports UP, above `def agent`"
     )
 
 
@@ -130,9 +130,9 @@ def test_main_is_not_a_module_for_the_container(tmp_path):
     do `import main` -- and why the global state cannot stay in
     main.py once it is modularised (wave 3).
     """
-    r = _load_in_subprocess(ROOT / "main.py", ROOT, ROOT, tmp_path, "modulo")
+    r = _load_in_subprocess(ROOT / "main.py", ROOT, ROOT, tmp_path, "module")
     assert "error" not in r, r["error"]
-    assert r["main_en_sys_modules"] is False
+    assert r["main_in_sys_modules"] is False
 
 
 # ===========================================================================
@@ -141,21 +141,21 @@ def test_main_is_not_a_module_for_the_container(tmp_path):
 def test_the_submission_includes_the_packages_main_imports(tmp_path):
     """Every local package imported by main.py appears in the tar."""
     target_path = tmp_path / "submission.tar.gz"
-    incluidos = ep.build(target_path=target_path)
+    included = ep.build(target_path=target_path)
 
     with tarfile.open(target_path) as tar:
-        raices = {Path(mi.name).parts[0] for mi in tar.getmembers()}
+        roots = {Path(mi.name).parts[0] for mi in tar.getmembers()}
 
-    assert "main.py" in raices and "deck.csv" in raices
-    for path in incluidos:
-        assert path.name in raices, (
-            f"{path.name} lo importa main.py pero no viaja en la submission"
+    assert "main.py" in roots and "deck.csv" in roots
+    for path in included:
+        assert path.name in roots, (
+            f"main.py imports {path.name} but it does not travel in the submission"
         )
     # cg/ is the historical minimum; if it disappears, the detection broke
-    assert "cg" in raices
+    assert "cg" in roots
 
 
-def test_la_submission_no_lleva_pycache(tmp_path):
+def test_the_submission_carries_no_pycache(tmp_path):
     target_path = tmp_path / "submission.tar.gz"
     ep.build(target_path=target_path)
     with tarfile.open(target_path) as tar:
@@ -192,9 +192,9 @@ def test_the_packaged_submission_decides_like_the_tree(tmp_path):
     )
     assert "error" not in cand, cand["error"]
 
-    assert cand["nombre"] == "agent"
+    assert cand["name"] == "agent"
     assert cand["decision"] == ref["decision"], (
-        f"la submission decide {cand['decision']} y el arbol {ref['decision']}"
+        f"the submission decides {cand['decision']} and the tree {ref['decision']}"
     )
     assert isinstance(cand["decision"], list) and cand["decision"]
 
