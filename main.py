@@ -4423,6 +4423,13 @@ def agent(obs_dict: dict) -> list[int]:
         AGENT_STATE.pre_turn = state.turn
         AGENT_STATE.plan = AttackPlan()
 
+        # WHERE OUR PRIZE PILE STARTED THIS TURN. A prize cashed inside the turn
+        # is invisible afterwards -- the observation only carries the pile as it
+        # stands -- and Settle the Score (Okidogi) scales with the prizes of one
+        # TURN, not of the game. Frozen here, on the only line that knows a turn
+        # just changed.
+        AGENT_STATE._prize_pile_at_turn_start = my_prize
+
         # Counter of Grass energies put on the field this turn (see
         # `_grass_ability_slots`): it is PER TURN.
         AGENT_STATE._grass_attaches_this_turn = 0
@@ -4564,7 +4571,9 @@ def agent(obs_dict: dict) -> list[int]:
     # damage (see ptcg/cards/op_scaling.py). It goes in the same block and for
     # the same reason as the line above: the projector reads it from the state,
     # not from its signature.
-    AGENT_STATE.op_scale = build_op_scale(my_state, op_state)
+    AGENT_STATE.op_scale = build_op_scale(
+        my_state, op_state,
+        prize_pile_at_turn_start=AGENT_STATE._prize_pile_at_turn_start)
     AGENT_STATE._festival_grounds_in_play = any(
         getattr(c, 'id', 0) == Festival_Grounds for c in (state.stadium or []))
 

@@ -90,6 +90,12 @@ class AgentState:
         # --- the attack plan and the turn in progress ------------------------
         self.plan = AttackPlan()
         self.pre_turn = 0
+        # OUR prize pile the first time we were asked to decide this turn. The
+        # observation carries the pile as it stands NOW, so the only way to know
+        # how many prizes THIS TURN has cashed is to remember where it started.
+        # Settle the Score (Okidogi) scales with exactly that number; see
+        # ptcg/cards/op_scaling.py. None until the first turn transition.
+        self._prize_pile_at_turn_start = None
         self.we_go_first = False
 
         # --- reading OUR board (recomputed every turn) -----------------------

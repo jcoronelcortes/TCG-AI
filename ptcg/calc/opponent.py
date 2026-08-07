@@ -296,12 +296,20 @@ def _damage_counters(pokemon):
     return max(0, ((pokemon.maxHp or 0) - (pokemon.hp or 0)) // 10)
 
 
-def build_op_scale(my_state, op_state, prizes_total=6):
+def build_op_scale(my_state, op_state, prizes_total=6,
+                   prize_pile_at_turn_start=None):
     """The `BoardScale` of this turn: what every scaling opposing attack counts.
 
     `prizes_total` is how many prizes a player starts with in this format (6):
     what Pecharunt ex's attack scales with is the prizes WE have already TAKEN,
     and the observation only carries the ones that are LEFT.
+
+    `prize_pile_at_turn_start` is the size of our prize pile the first time we
+    were asked to decide this turn (`AGENT_STATE._prize_pile_at_turn_start`).
+    Settle the Score counts the prizes of ONE turn, not of the game, and a turn
+    boundary is not in the observation -- it has to be remembered. None means we
+    have no reading yet, and the counter stays at zero, which leaves that attack
+    at its printed value.
     """
     op_field = [p for p in ((op_state.active or []) + (op_state.bench or []))
                 if p is not None]
@@ -337,6 +345,10 @@ def build_op_scale(my_state, op_state, prizes_total=6):
             if getattr(c, 'id', 0) == Basic_Grass_Energy),
         prizes_we_took=max(0, prizes_total
                            - len(getattr(my_state, 'prize', None) or [])),
+        prizes_we_took_this_turn=(
+            0 if prize_pile_at_turn_start is None
+            else max(0, prize_pile_at_turn_start
+                     - len(getattr(my_state, 'prize', None) or []))),
     )
 
 

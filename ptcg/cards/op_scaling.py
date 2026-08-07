@@ -85,6 +85,11 @@ class BoardScale:
     my_ex_in_play: int            # our Pokemon ex / Mega ex in play
     my_basic_energy_in_discard: int   # Basic Energy cards in OUR discard
     prizes_we_took: int           # Prize cards WE have already taken
+    # Prize cards WE have taken during the turn IN PROGRESS -- not the whole
+    # game. The card text that needs it says "during their last turn", and when
+    # we are the ones deciding, "their last turn" is the turn we are playing
+    # right now. See the entry for Settle the Score.
+    prizes_we_took_this_turn: int
 
 
 # The empty snapshot: what a consumer sees before `agent()` has built one (a unit
@@ -96,7 +101,7 @@ EMPTY_SCALE = BoardScale(
     op_rocket_in_play=0, op_cynthia_bench_counters=0,
     op_ethan_adventure_in_discard=0, my_bench=0, my_hand=0, my_active_energy=0,
     my_energy_on_field=0, my_ex_in_play=0, my_basic_energy_in_discard=0,
-    prizes_we_took=0,
+    prizes_we_took=0, prizes_we_took_this_turn=0,
 )
 
 
@@ -172,6 +177,27 @@ OP_SCALING_DAMAGE = {
 
     # Back Draft (N's Darmanitan, 1 deck) -- 30 per Basic Energy in OUR discard.
     355: lambda atk, s: 30 * s.my_basic_energy_in_discard,
+
+    # Settle the Score (Okidogi, 1 deck) -- 80 + 60 per Prize WE took during the
+    # turn that is running. It is the twin of Irritated Outburst above, with one
+    # difference that changes what can be read: Pecharunt counts the prizes of
+    # the WHOLE game, which the observation carries as "six minus the pile", and
+    # this one counts the prizes of ONE turn, which it does not.
+    #
+    # WHAT THIS ENTRY READS, AND WHAT IT DELIBERATELY DOES NOT. The counter is
+    # the pile at the start of the turn minus the pile now: the prizes already
+    # cashed in this turn, an observation and not a guess. The prize that the
+    # attack we are SCORING is about to take is not in it, and in our deck that
+    # is the common case -- a knockout ends the turn, so most of the time this
+    # entry sees zero and returns the printed 80.
+    #
+    # That is a floor, which is the direction this table is allowed to be wrong
+    # in (see the exclusions at the top: projecting a maximum makes every turn
+    # look lost). Reading the prize our own pending attack would cash is a
+    # projection over an action that has not happened, it belongs to the rule
+    # that decides WHETHER to cash it, and it is measured there rather than
+    # smuggled into a damage table.
+    1284: lambda atk, s: 80 + 60 * s.prizes_we_took_this_turn,
 
     # Mega Symphonia (Mega Gardevoir ex, 2 decks) -- 50 per {P} on ALL of THEIR
     # Pokemon. The Psychic twin of Syrup Storm, and just as steep: four Psychic
