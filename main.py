@@ -10841,16 +10841,33 @@ def agent(obs_dict: dict) -> list[int]:
     # gate on the offensive side -- a turn that can attack takes its attack --
     # and the promotion order the user gave lives in STARMIE_SAC_PROMOTE_ORDER.
     #
-    # THE ONE SEAT THAT DOES NOT WANT IT: turn 1 going FIRST. It is the same
-    # exemption `_prize_mismatch_matchup` already carries, and here it is not a
-    # nicety but the difference between a rule and a tax: the player going
-    # first canNOT attack on turn 1 by rule, so `not can_attack` is true in
-    # every single game, and the pivot would burn the only Grass of the turn
-    # before the opponent has played a card. Their KO does not come next turn
-    # either -- a Staryu that has just been placed cannot be a Mega Starmie
+    # IT IS AN OPENING RULE, AND THE GATE IS WHY (ago 2026, n=1000 per arm
+    # against `deck/real_opponents/mega_starmie_1.csv` and `_2.csv`, two arms
+    # that differ ONLY in `op_is_starmie_deck`, control `alakazam.csv` at -0.5
+    # points / +0.01 prizes):
+    #
+    #     rule OFF                 88.3% / 88.6%   prizes +2.95 / +2.66
+    #     every turn we cannot attack   84.0% / 81.3%   prizes +2.41 / +1.97
+    #     OUR FIRST TURN only      88.5% / 85.7%   prizes +2.90 / +2.48
+    #
+    # Stated for any turn, the pivot fires 9.8-11.4 times PER GAME -- turns 2,
+    # 4, 6, 8, 10, 12... -- because "we cannot attack" is the ordinary shape of
+    # a turn spent developing. Every one of those firings discards an energy
+    # and hands a 40 HP Applin to a deck that is happy to take it: three to six
+    # points and half a prize per game, far outside the control's noise. What
+    # the record asked for is the OPENING -- the user's own words are "to avoid
+    # giving away two prizes at the START of the game" -- and there it is one
+    # firing, it fixes step 28, and it costs nothing the gate can measure.
+    #
+    # `_our_first_turn` also subsumes the seat exemption that
+    # `_prize_mismatch_matchup` carries: on turn 1 going FIRST the player
+    # cannot attack by rule, so the pivot would burn the only Grass of the turn
+    # before the opponent has played a card -- and their knockout does not come
+    # next turn either, since a Staryu just placed cannot be a Mega Starmie
     # attacking for 210 on the following one.
     _sty_act = _active_of(my_state)
     if (AGENT_STATE.op_is_starmie_deck
+            and _our_first_turn
             and not can_attack
             and _sty_act is not None
             and _sty_act.id in OUR_EX_IDS

@@ -37,11 +37,24 @@ turn if that is where it is), then an Applin -- the copy WITHOUT energy first,
 so the charged one keeps its attachment on the bench -- then Chikorita,
 Dipplin, Bayleef, Meowth ex, and finally any other option.
 
-THE SEAT THAT DOES NOT WANT IT: turn 1 going FIRST. The player going first
-cannot attack on turn 1 by rule, so `not can_attack` would be true in every
-single game and the pivot would burn the only Grass of the turn before the
-opponent has played a card. It is the same exemption `_prize_mismatch_matchup`
-already carries.
+IT IS AN OPENING RULE, AND THE GATE IS WHY (ago 2026, n=1000 per arm against
+`deck/real_opponents/mega_starmie_1.csv` and `_2.csv`, two arms differing ONLY
+in `op_is_starmie_deck`, control `alakazam.csv` at -0.5 points):
+
+    rule OFF                     88.3% / 88.6%   prizes +2.95 / +2.66
+    every turn we cannot attack  84.0% / 81.3%   prizes +2.41 / +1.97
+    OUR FIRST TURN only          88.5% / 85.7%   prizes +2.90 / +2.48
+
+"We cannot attack" is the ordinary shape of a turn spent developing: stated for
+any turn the pivot fires 9.8-11.4 times PER GAME, and each firing discards an
+energy and hands a 40 HP Applin to a deck happy to take it. Bounded to the
+opening -- which is the rule's own motivation, "to avoid giving away two prizes
+at the START of the game" -- it fires once, fixes step 28, and costs nothing the
+gate can measure.
+
+`_our_first_turn` also subsumes the seat exemption `_prize_mismatch_matchup`
+carries: on turn 1 going FIRST the player cannot attack by rule, so without it
+the pivot would burn the only Grass of the turn in every single game.
 """
 
 import copy
@@ -240,6 +253,16 @@ def test_turn_1_going_first_does_not_sacrifice():
     exemption the pivot would fire in every single game, before the opponent
     has played a card."""
     obs = _scenario(turn=1, first_player=0,
+                    bench=(pk(APPLIN), pk(MEOWTH)),
+                    hand=(m.Ultra_Ball,)).menu_hand(with_retreat=True).build()
+    assert _chosen(obs)["type"] != int(m.OptionType.RETREAT)
+
+
+def test_it_is_an_opening_rule_and_does_not_fire_later():
+    """The same board four turns on. "We cannot attack" is the ordinary shape
+    of a developing turn: left unbounded the pivot fires ten times a game and
+    the gate charges 3 to 6 points for it."""
+    obs = _scenario(turn=6,
                     bench=(pk(APPLIN), pk(MEOWTH)),
                     hand=(m.Ultra_Ball,)).menu_hand(with_retreat=True).build()
     assert _chosen(obs)["type"] != int(m.OptionType.RETREAT)

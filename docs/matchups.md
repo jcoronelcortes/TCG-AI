@@ -40,6 +40,7 @@ another, so most of them are gated on these flags.
 | **Cornerstone / Cubchoo** | Same immunity problem, plus a body that punishes retreating. | Same relief attacker, with different energy caps — the two plans collide and are tuned together. |
 | **Dragapult** | Item lock. Our search cards stop being playable. | Spend the search **before** the lock, digging for what we will play next turn. |
 | **Mega Lucario / Mega Lopunny / Mega Kangaskhan / Mega Starmie** | High-prize attackers that kill our ex bodies in one hit. | Trade with one-prize bodies; pivot the fragile ex out. |
+| **Mega Starmie**, specifically | The body they show is a 70 HP Staryu that threatens nothing; the body it becomes prints **Nebula Beam 210**, the exact HP of our Teal Mask Ogerpon ex. The damage projector only ever sees Jetting Blow (120), because three energies is more than a Staryu with one can pay — so no "is my active doomed?" reading fires in time. | Named as a **matchup**, not as an arithmetic threshold: on **our first turn**, with no attack available and a 2-prize ex in front, retreat it and put a one-prize body up (`STARMIE_SAC_PROMOTE_ORDER`). Bounded to the opening — see below. |
 | **Comfey (mill)** | Wins by decking us out rather than on prizes. | Stop spending draw, commit to a single attacker plan. |
 | **Iron Thorns / ability lock** | Turns off our engines entirely. | Play around the lock and treat it as a deck-size limit, not an ability question. |
 | **Cynthia Garchomp, Festival Lead, Archaludon, Zoroark, Gardevoir, Greninja, Raging Bolt, Abomasnow…** | Individually rarer. | Targeted rules only where they were measured to matter. |
@@ -130,6 +131,31 @@ dropping them moves Ogerpon Verde from 86.7% to **86.2%** and its prize
 differential from +2.38 to **+2.27**, which is the number to reason with. The
 overall figure barely notices (92.78% → 92.75%), because together they are 0.9%
 of the field — a third of what they were in the previous corpus.
+
+### "We cannot attack" is not a rare board — hiding the ex is bounded to the opening
+
+The Mega Starmie rule above is gated on `not can_attack`, and the first version
+of it stopped there. Instrumented over 300 games it fired **9.8–11.4 times per
+game**, spread over turns 2, 4, 6, 8, 10, 12 and beyond: a turn with no attack
+available is simply what a developing turn looks like, and every firing discards
+an energy to put a 40 HP body in front of a deck that is glad to take it.
+
+Measured with two arms that differ only in `AGENT_STATE.op_is_starmie_deck`,
+n=1000 per arm, control `alakazam.csv` (a deck the rule cannot fire against) at
+−0.5 points / +0.01 prizes:
+
+| Scope | `mega_starmie_1` | `mega_starmie_2` |
+| --- | ---: | ---: |
+| rule OFF | 88.3% (+2.95) | 88.6% (+2.66) |
+| every turn we cannot attack | 84.0% (+2.41) | 81.3% (+1.97) |
+| **our first turn only** | **88.5% (+2.90)** | **85.7% (+2.48)** |
+| no-surplus-fee discriminant, any turn | 81.8% (+2.25) | 81.6% (+2.05) |
+
+The shipped scope is our first turn: three independent runs put it inside the
+control's band (+0.0/−0.7 points, −0.13/−0.10 prizes on the confirming run) and
+it fixes the decision the rule was written for (`registro_002` step 28). The
+general lesson is the first row of the table: a defensive rule gated only on "we
+cannot attack" is not an opening rule, it is a per-turn tax.
 
 ## Cards we deliberately do not model
 
