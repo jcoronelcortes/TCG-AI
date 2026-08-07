@@ -753,7 +753,49 @@ def score_play(tc, o, score):
                     _doomed_sac_deferred = True
                 else:
                     _doomed_ex_sac_pivot = True
-        
+
+        # THE PLAN'S POINTER IS A PROMISE, AND IT EXPIRES (user, registro_004
+        # step 28 vs Alakazam, WON). `plan.attacker` is chosen ONCE per turn:
+        # the loop that picks it only overwrites the pointer when it finds a
+        # BETTER route, never when the route it already wrote stops existing.
+        # So the pointer survives the turn that spends what backed it.
+        #
+        # In the record it pointed at the benched Teal Mask Ogerpon ex on turn
+        # 4, when the plan was "attach the Grass in hand to it -> Myriad Leaf
+        # Shower for the KO". The Grass did get attached -- by Teal Dance, and
+        # to the ACTIVE Ogerpon, which is another body. By the end of the turn
+        # both twins carried 2 energies, Myriad costs 3, and neither could
+        # attack. The pointer still said "the bench attacks", and the branch
+        # below cashed it for 3500: retreat, pay one Grass to the discard,
+        # promote the identical twin. Same species, same HP, one Grass less --
+        # the swap bought nothing and the menu did not even offer an ATTACK.
+        #
+        # So before the branch trusts the pointer, the body it points at is
+        # ASKED AGAIN whether it can attack TODAY. `_reachable_grass_for` is
+        # wider than the test the plan itself used (it also counts Teal Dance /
+        # Ripening Charge and the Grass the retreat fee is about to send to the
+        # discard), so a pointer that is still valid always survives this
+        # re-reading: only a promise that has actually expired falls through.
+        _plan_relay = None
+        _pr_bench = my_state.bench or []
+        _pr_i = AGENT_STATE.plan.attacker - 1
+        if 0 <= _pr_i < len(_pr_bench):
+            _plan_relay = _pr_bench[_pr_i]
+        _plan_relay_can_attack = False
+        if _plan_relay is not None:
+            _pr_req = AGENT_STATE.ATTACK_ENERGY_REQ.get(_plan_relay.id)
+            if _pr_req is not None:
+                _pr_eff = len(_plan_relay.energies) * _grass_mult()
+                if _pr_eff >= _pr_req:
+                    _plan_relay_can_attack = True
+                else:
+                    _pr_reach = _reachable_grass_for(
+                        _plan_relay, state, my_state, hand_counts, field_counts,
+                        extra_discard_grass=_retreat_grass_to_discard(
+                            _active_reloc))
+                    _plan_relay_can_attack = (
+                        _pr_eff + _pr_reach * _grass_attach_unit() >= _pr_req)
+
         if _suicide_swap_win_promote:
             # RELIEF OF THE SUICIDAL FINISHER (user, registro_016 step 184 vs
             # Marnie's Grimmsnarl, DRAW): the active's attack knocks out but
@@ -918,8 +960,8 @@ def score_play(tc, o, score):
         elif _active_can_ko_now:
         
             score = SCORE_VETO
-        elif AGENT_STATE.plan.attacker >= 1:
-        
+        elif AGENT_STATE.plan.attacker >= 1 and _plan_relay_can_attack:
+
             _retreat_active = my_state.active[0] if my_state.active else None
             _retreat_active_can_attack = False
             if _retreat_active is not None:
