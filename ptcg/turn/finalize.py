@@ -13,7 +13,7 @@ from ptcg.calc.damage import _attacker_base_damage
 from ptcg.calc.energy import _grass_mult
 from ptcg.calc.opponent import _op_juega_crustle
 from ptcg.calc.board import _active_of
-from ptcg.cards.ids import Applin, BOSS_SCORE_PRIZE_RANK_BASE, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Pinsir, Poke_Pad, SCORE_USELESS_ATTACK, SCORE_VETO, SUPP_SCORE_LAST_RESORT_BAND, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Xerosic_Machinations
+from ptcg.cards.ids import Applin, BOSS_SCORE_PRIZE_RANK_BASE, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, KO_WINDOW_PLAY_IDS, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Pinsir, Poke_Pad, SCORE_USELESS_ATTACK, SCORE_VETO, SUPP_SCORE_LAST_RESORT_BAND, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Xerosic_Machinations
 from ptcg.cards.scoring import SCORE_LD_SUPP_COMPROMETIDO, _SUPP_PLAY_IDS
 from ptcg.cards.tables import HAND_COST_ABILITY_IDS, HAND_RESET_PLAY_IDS, attack_table, card_table
 from ptcg.decision.ultra_ball import _matchup_allows_playing, _ub_cost_destroys_better_card
@@ -425,6 +425,7 @@ def finalizar(tc):
             if _bcs_c is not None and _bcs_c.id == Bug_Catching_Set:
                 _bcs_play_idx = _bcs_i
                 break
+
         # Is the ability the parked attachment yields to REALLY going to be
         # played? `_attach_yields_to_teal_dance` is filled from
         # `_teal_dance_slots`, and that set is built from the MENU -- an ability
@@ -512,7 +513,8 @@ def finalizar(tc):
                         and _attach_park_beneficiary_alive):
                     # A pure development attachment with a Teal Dance pending: it
                     # stays in tier 0 next to the ability so the score decides
-                    # (Teal Dance 7500 > capped attachment 7000).
+                    # (Teal Dance 7500 > capped attachment 7000). Only while that
+                    # ability is ALIVE -- see `_attach_park_beneficiary_alive`.
                     continue
                 _play_order_tier[_po_i] = (
                     _TIER_KO_ENERGY if _po_is_ko_energy else _TIER_ENERGY)
@@ -1090,7 +1092,7 @@ def finalizar(tc):
                         break
 
     # =================================================================
-    # THE SUPPORTER OF THE TURN IS PLAYED BEFORE THE ATTACK THAT CLOSES IT
+    # WHAT DIES WITH THE TURN IS PLAYED BEFORE THE ATTACK THAT CLOSES IT
     # (user, registro_008 step 111 vs Alakazam, WON with a mistake).
     #
     # State at step 111 (turn 8, our seat):
@@ -1149,6 +1151,50 @@ def finalizar(tc):
     #
     # Deck-agnostic: it reads `cardType`, not a card list.
     #
+    # -----------------------------------------------------------------
+    # THE KO WINDOW IS THE OTHER SLOT THAT DOES NOT ACCUMULATE
+    # (user, registro_016 step 150, turn 16 vs Hop's, LOST).
+    #
+    # The same turn, one card later. Our Teal Mask Ogerpon ex had been knocked
+    # out during their turn 15, so the turn opened with the KO window OPEN: the
+    # agent cashed Flip the Script (step 145) and the three cards it drew
+    # included the UNFAIR STAMP. The menu that followed offered two Ultra Balls,
+    # Lana's Aid, Lillie's Determination, the Stamp and Cruel Arrow, with their
+    # hand on 6 cards -- above `STAMP_MIN_OP_HAND`, so the card rule said PLAY IT
+    # (`_stamp_worth_playing`). The ranking was
+    #
+    #     attack 8600  >  STAMP 2200  >  Lillie's -1
+    #
+    # and the agent SNIPED. The turn closed with the Stamp in hand and, worse,
+    # with the Supporter slot unspent too: that -1 on Lillie's is
+    # `yields_to_unfair_stamp`, the ordering veto by which every Supporter steps
+    # aside for a Stamp that is going to be played. Both cards were lost to the
+    # same action.
+    #
+    # The Stamp is an ITEM, so the net above did not look at it -- and the reason
+    # the net exists applies to it MORE strongly than to any Supporter. A
+    # Supporter kept in hand is played tomorrow; the Stamp carries printed the
+    # clause "only if any of your Pokemon were Knocked Out during your opponent's
+    # last turn", so tomorrow it is ILLEGAL unless we are knocked out again --
+    # which is the opponent's choice, not ours. The window does not accumulate
+    # either, and it is rarer than the slot.
+    #
+    # So the candidate set is widened by exactly that property
+    # (`KO_WINDOW_PLAY_IDS`, the printed clause -- not a matchup list, and it
+    # holds against every opposing deck) and the free-slot guard moves INSIDE the
+    # Supporter half: a window play has no slot to be free, and after a Supporter
+    # has been played the Stamp still has to be rescued on the next menu.
+    #
+    # It needs no floor of its own: `_RULES_STAMP_PLAY` already vetoes the Stamp
+    # to -1 whenever it is not worth its single copy (no disruption and no cheap
+    # refill, a Lillie's with their hand short, or a Xerosic that goes first),
+    # and a vetoed play never enters here. What the net adds is only the ORDER,
+    # which is what no score could fix. The two live candidates never collide in
+    # practice: while the Stamp is pending every Supporter of the deck is at -1
+    # by its own yield, and when Xerosic takes the order it is the Stamp that is
+    # at -1 -- so taking the highest-scoring candidate reproduces the order the
+    # card rules already agreed on.
+    #
     # Self-play gate, 8 matchups x 1200 games per branch (9600 per branch):
     # mean winrate 89.24% with the net vs 88.67% without it (+0.56). Nothing is
     # hurt beyond the noise (the worst cell is archaludon at -1.10, z=-1.42) and
@@ -1158,27 +1204,33 @@ def finalizar(tc):
     # there to rule out that it costs anything.
     # Golden corpus: ONE flip over the 13 records, the very decision above.
     # =================================================================
-    if (context == SelectContext.MAIN and scores
-            and not state.supporterPlayed):
+    if context == SelectContext.MAIN and scores:
         _sba_best_i = max(range(len(scores)),
                           key=lambda i: (_play_order_tier[i], scores[i]))
         if (select.option[_sba_best_i].type == OptionType.ATTACK
                 and _play_order_tier[_sba_best_i] == 0):
             _sba_i = -1
-            _sba_best_supp = SUPP_SCORE_LAST_RESORT_BAND
+            _sba_best = 0
             for _sbai, _sbao in enumerate(select.option):
                 if _sbai >= len(scores) or _sbao.type != OptionType.PLAY:
                     continue
-                if scores[_sbai] <= _sba_best_supp:
+                if scores[_sbai] <= _sba_best:
                     continue
                 _sbac = get_card(obs, AreaType.HAND, _sbao.index, my_index)
                 if _sbac is None or _sbac.id == Boss_Orders:
                     continue
-                _sbad = card_table.get(_sbac.id)
-                if _sbad is None or _sbad.cardType != CardType.SUPPORTER:
-                    continue
+                if _sbac.id not in KO_WINDOW_PLAY_IDS:
+                    # The Supporter half: the slot has to still be free, and
+                    # the card has to have something to say today.
+                    if state.supporterPlayed:
+                        continue
+                    _sbad = card_table.get(_sbac.id)
+                    if _sbad is None or _sbad.cardType != CardType.SUPPORTER:
+                        continue
+                    if scores[_sbai] <= SUPP_SCORE_LAST_RESORT_BAND:
+                        continue
                 _sba_i = _sbai
-                _sba_best_supp = scores[_sbai]
+                _sba_best = scores[_sbai]
             if _sba_i >= 0:
                 scores[_sba_i] = scores[_sba_best_i] + 100
 

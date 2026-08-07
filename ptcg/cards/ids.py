@@ -1159,6 +1159,22 @@ STAMP_MIN_OP_HAND = 4          # minimum opposing hand for the Stamp to DISRUPT 
 STAMP_MIN_OP_HAND_VS_REFILL = 6
 STAMP_MAX_HAND_SACRIFICED = 4  # our own cards (hand without the Stamp) that can be shuffled away
 
+# PLAYS WHOSE LEGALITY WINDOW IS THE TURN ITSELF.
+#
+# Cards printed with the clause "you may play this card only if any of your
+# Pokemon were Knocked Out during your opponent's last turn" -- the same
+# `ko_last_turn` that Flip the Script asks for. That window behaves exactly like
+# the Supporter slot and for the same reason: it does NOT accumulate. A Supporter
+# left in hand can be played tomorrow; a card of this set canNOT -- tomorrow the
+# clause is false unless we are knocked out AGAIN, which is not something we get
+# to choose. So it is not "kept for later": if the attack closes the turn with it
+# in hand, it is thrown away.
+#
+# `finalizar` reads this set to know which plays die with the attack. It is a
+# property of the CARD's printed text, not a matchup list: it holds against every
+# opposing deck. Any future card with the same clause belongs here.
+KO_WINDOW_PLAY_IDS = frozenset({Unfair_Stamp})
+
 
 __all__ = [
     'RETREAT_COST',
@@ -1397,4 +1413,5 @@ __all__ = [
     'STAMP_MIN_OP_HAND',
     'STAMP_MIN_OP_HAND_VS_REFILL',
     'STAMP_MAX_HAND_SACRIFICED',
+    'KO_WINDOW_PLAY_IDS',
 ]

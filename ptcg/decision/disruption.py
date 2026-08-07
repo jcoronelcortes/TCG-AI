@@ -10,7 +10,7 @@ Extracted VERBATIM from main.py by utils/extract_definitions.py
 utils/purity.py: nothing here touches mutable state or the runtime tables.
 """
 
-from ptcg.calc.board import _active_of
+from ptcg.calc.board import _active_of, _evolvable_counts
 from ptcg.cards.ids import Abra, Alakazam_ex, Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Hydrapple_ex, Kadabra, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, Poke_Pad, SCORE_VETO, STAMP_MAX_HAND_SACRIFICED, STAMP_MIN_OP_HAND, STAMP_MIN_OP_HAND_VS_REFILL, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, XEROSIC_SCORE_ALAKAZAM, XEROSIC_SCORE_GENERIC, XEROSIC_SCORE_LAST_RESORT, XEROSIC_SCORE_SOBRE_BOSS, XEROSIC_STAMP_ORDEN_MIN_OP_HAND, Xerosic_Machinations
 from ptcg.state.zones import ZONE_DECK
 from ptcg.engine.context import DecisionContext
@@ -216,7 +216,32 @@ def _us_pokemon_jugable(c):
 
 
 def _us_evo_jugable(c):
-    h, f = c.hand_counts, c.field_counts
+    """Is there an evolution the hand can really make THIS TURN?
+
+    The pre-evolutions are counted through `_evolvable_counts`, not off the raw
+    field: a body that came down (or evolved) during this turn cannot be evolved
+    again, and the ladder this feeds is explicitly about what the hand can do
+    TODAY (`_RULES_STAMP_PLAY`: Pokemon/evo 2000 < item 2500 < energy 3000 <
+    nothing 7500). Without the filter the census counted a phantom evolution and
+    pinned the Stamp to its lowest rung.
+
+    (user, episode 90587542 step 150 vs Hop's: the Dipplin had evolved from an
+    Applin on step 141 and the bench was full, so the menu offered NO evolution
+    at all -- and the two Hydrapple ex in hand still priced the Stamp at 2000.
+    It is the same shape as registro_006 step 84, the record that made
+    `_evolvable_counts` exist.)
+
+    MEASURED (`log/census_gate/`): the census disagreed on 31 of the 707 boards
+    where the Stamp is priced (4.4%), and all 31 moved the rung. It buys ~2
+    decisions in 1600 games -- 7 of 8 matchups bit-identical, `crustle_kangaskhan`
+    among them, which is the matchup that punished this same cleanup at the four
+    OTHER sites (see `_evolvable_counts`: do not unify those without measuring
+    it again). Golden corpus 0 flips; winrate mean -0.23 with every cell inside
+    the noise. A correctness fix, not a winrate one.
+    """
+    h = c.hand_counts
+    f = _evolvable_counts(c.field_counts, c.field_at_turn_start,
+                          c.forest_in_play)
     if h.get(Meganium, 0) >= 1 and f.get(Bayleef, 0) >= 1 and not c.meganium_in_play:
         return True
     if h.get(Bayleef, 0) >= 1 and f.get(Chikorita, 0) >= 1:

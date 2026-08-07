@@ -52,6 +52,14 @@ def _evolvable_counts(field_counts, at_turn_start, forest_in_play_flag):
     that matchup again. (The deltas are ALWAYS from the same run: the bot's
     absolute level moves ~3 points between runs, the paired delta does not.)
 
+    A THIRD consumer joined in August 2026, measured the same way and adopted:
+    `_us_evo_jugable`, the "is there an evolution to make" rung of the Unfair
+    Stamp's ladder (`ptcg/decision/disruption.py`). There the dirty snapshot is
+    NOT a proxy for anything -- the rung is explicitly about what the hand can do
+    TODAY -- and Crustle/Kangaskhan, the matchup that punished the other four,
+    came out bit-identical: 0 flipped decisions in 200 paired games. Full
+    numbers in `log/census_gate/README.md`.
+
     Empty snapshot = no data (first menu of the turn, before it is filled): the
     current one rules, just like the original idiom (`{}` is falsy).
     """
