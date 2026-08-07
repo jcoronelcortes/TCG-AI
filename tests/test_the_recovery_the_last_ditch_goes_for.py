@@ -53,6 +53,10 @@ Coverage:
   * control -- a hand of two: the refill contains the recovery and wins;
   * control -- a benched attacker already at its cost: the retreat rescues the
     turn, it is not dead, and the Boss's Orders keeps it;
+  * DETECT IS NOT EXECUTE -- the tail of the line on the record's board: the
+    recovered Grass reaches the ACTIVE and not the bench (which is how
+    `ROUTE_RECOVER` failed against Crustle), the attack happens, and the very
+    same board without the recovery ends the turn;
   * the shared arithmetic, and that factoring it out left `ROUTE_RECOVER`
     answering exactly as before (`test_the_recovery_that_wins_the_game.py`).
 """
@@ -69,7 +73,7 @@ for _p in (str(ROOT), str(ROOT / "tests")):
         sys.path.insert(0, _p)
 
 import main as m
-from cg.api import OptionType
+from cg.api import AreaType, OptionType
 import ptcg.turn.game_plan as gp
 
 GRASS = m.Basic_Grass_Energy
@@ -201,7 +205,76 @@ def test_a_ready_bench_attacker_keeps_the_turn_alive():
 
 
 # ---------------------------------------------------------------------------
-# 4. The shared arithmetic
+# 4. DETECT IS NOT EXECUTE: the tail of the line
+# ---------------------------------------------------------------------------
+# A rule that spots a knockout and then cannot carry it out is worse than no
+# rule: it spends the Supporter and the body for nothing. That is exactly how
+# `ROUTE_RECOVER` failed against Crustle -- it detected the win in 11 boards and
+# the recovered Grass went to the BENCH in 8 of them. So the three steps after
+# the fetch are pinned here on the record's board rebuilt with the scenario
+# builder: the Grass reaches the ACTIVE, the attack happens, and without the
+# recovery the very same board ends the turn.
+
+def _after_the_recovery(active_energy, active_physical, hand, **menu):
+    from state_builder import Scenario, pk, G
+    import golden_corpus as gc
+    gc.reset_agent(m)
+    return (Scenario(turn=8, step=88, tac=6, first_player=1,
+                     supporter_played=True,
+                     energy_played=menu.pop("energy_played", False))
+            .my_active(pk(OGERPON, hp=20, energies=[G] * active_energy,
+                          fisicas=active_physical))
+            .my_bench(pk(MEGANIUM, hp=150, energies=[G, G], fisicas=1,
+                         pre_evo=[m.Chikorita, m.Bayleef]),
+                      pk(OGERPON, hp=200),
+                      pk(OGERPON, hp=200, energies=[G, G], fisicas=1),
+                      pk(TAPU, hp=140),
+                      pk(MEOWTH, hp=170))
+            .my_hand(*hand)
+            .op_active(pk(648, hp=310, max_hp=320, energies=[8, 8]))
+            .op_bench(pk(104, hp=90, max_hp=90),
+                      pk(112, hp=100, max_hp=110, energies=[8]),
+                      pk(646, hp=70, max_hp=70))
+            .op_zones(hand=3, deck=34, prizes=4)
+            .deck(LANA)
+            .rest_to_discard()
+            .menu_hand(**menu)
+            .build())
+
+
+def test_the_recovered_grass_goes_to_the_active():
+    obs = _after_the_recovery(2, 1, [GRASS, GRASS],
+                              with_attachment=True, with_attack=True)
+    choice = m.agent(obs)
+    opt = obs["select"]["option"][choice[0]]
+    assert opt.get("type") == int(OptionType.ATTACH), (
+        f"the recovery exists to charge the attacker; got {opt}")
+    assert opt.get("inPlayArea") == int(AreaType.ACTIVE), (
+        "parked on the bench the recovery buys nothing -- this is how "
+        "ROUTE_RECOVER failed against Crustle")
+
+
+def test_with_the_cost_covered_the_agent_attacks():
+    obs = _after_the_recovery(4, 2, [], energy_played=True, with_attack=True)
+    choice = m.agent(obs)
+    opt = obs["select"]["option"][choice[0]]
+    assert opt.get("attackId") == 120, (
+        f"Myriad Leaf Shower is on the menu and knocks their active out; "
+        f"got {opt}")
+
+
+def test_without_the_recovery_the_same_board_ends_the_turn():
+    # The premise of the whole rule, measured instead of asserted: at 2 of 3 and
+    # with the attachment spent, there is nothing to do with this turn.
+    obs = _after_the_recovery(2, 1, [], energy_played=True, with_attack=True)
+    choice = m.agent(obs)
+    opt = obs["select"]["option"][choice[0]]
+    assert opt.get("type") == int(OptionType.END), (
+        f"if this board could do something, the turn was never dead; got {opt}")
+
+
+# ---------------------------------------------------------------------------
+# 5. The shared arithmetic
 # ---------------------------------------------------------------------------
 
 def _recovery_flag_on(obs):
