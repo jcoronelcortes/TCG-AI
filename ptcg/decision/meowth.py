@@ -23,8 +23,16 @@ class _CtxMeowthFetch:
                  strong_attacker, op_hand_count, active_cant_attack,
                  win_via_boss, gust2_via_boss, deny_evo_via_boss,
                  devel_lillie, alakazam, first_turn=False,
-                 lillie_alcanzable=False):
+                 lillie_alcanzable=False, gust_over_immune_active=False):
         self.card_id = card_id
+        # Is their active UNTOUCHABLE and their bench not? (`_boss_gust_immune_active`:
+        # a dodge on heads, a Cornerstone, a Crustle, the Neutralization Zone --
+        # whatever the reason, our attack on the body in front resolves for zero
+        # and there is a body behind it that it would not). Then the ONLY
+        # Supporter that turns this turn into damage is Boss's Orders, and the
+        # fetch has to say so before the "no ready attacker" caps -- which are
+        # true here, and for that very reason -- bury it under a refill.
+        self.gust_over_immune_active = gust_over_immune_active
         # OUR FIRST turn: the anti-donk line benches Meowth ex even if the
         # Supporter is already in hand, and its fetch keeps the exception.
         self.first_turn = first_turn
@@ -120,6 +128,29 @@ _RULES_MEOWTH_FETCH = [
                lambda c: (c.deny_evo_via_boss
                           and c.card_id == Boss_Orders),
                lambda c: 1280),
+    # THE BODY IN FRONT CANNOT BE TOUCHED, THE ONE BEHIND IT CAN (user, episode
+    # 90325863, turn 8 vs a Dragapult / Azumarill deck). Their Marill hid
+    # behind a Hide that came up heads: every attack of ours resolves for zero
+    # against it, and the only card in the deck that turns the turn back into
+    # damage is Boss's Orders -- gust an attackable body off their bench and
+    # knock THAT one out.
+    #
+    # The fetch did not see it, and the reason it did not is worth writing
+    # down: an untouchable active makes `strong_attacker` false, so the
+    # `no_attacker*` rules further down fire and cap every candidate that is
+    # not Lillie's at `min(sv, 200)`. The Boss's -- the answer -- was being
+    # punished by the very fact that created the problem. In the record it
+    # came out behind Dawn.
+    #
+    # 1270: under the winning finisher (1300) and the line cut (1280), over
+    # the refill (1200-1250) and well over those caps. Deck-agnostic and
+    # wall-agnostic: `gust_over_immune_active` is the same
+    # `_boss_gust_immune_active` that already feeds the Meowth engine, so a
+    # Cornerstone or a Crustle in front reads exactly like the coin.
+    _FixedRule("boss_beats_the_untouchable_active",
+               lambda c: (c.gust_over_immune_active
+                          and c.card_id == Boss_Orders),
+               lambda c: 1270),
     _FixedRule("lillie_development",
                lambda c: (c.devel_lillie
                           and c.card_id == Lillie_Determination),

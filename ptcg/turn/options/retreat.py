@@ -7,7 +7,7 @@ VERBATIM. It unpacks from the context the 60 fields it reads and returns the
 
 from cg.api import AreaType, CardType, OptionType, Pokemon
 from ptcg.calc.card import get_card, prize_count, prize_count_op
-from ptcg.calc.damage import _attacker_base_damage, _bench_finisher_that_survives, _hand_revealed_lethal_reply, _op_active_attack_damage_to, _our_effective_damage, _reply_closes_the_game
+from ptcg.calc.damage import UPGRADE_PRIZE, _attacker_base_damage, _bench_finisher_that_survives, _bench_finisher_upgrade, _ex_active_is_a_wall, _hand_revealed_lethal_reply, _op_active_attack_damage_to, _our_effective_damage, _reply_closes_the_game
 from ptcg.calc.energy import _can_attack_eff, _grass_attach_route_open, _grass_attach_unit, _grass_mult, _physical_energy, _reachable_grass_for, _retreat_grass_to_discard, _retreat_grass_units
 from ptcg.calc.board import _active_of
 from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Chikorita, Cornerstone_Mask_Ogerpon_ex, Crustle_Fighting, Crustle_Grass, Cubchoo, Dawn, Dipplin, Drednaw, Dwebble_Fighting, Dwebble_Grass, EEVEE_IDS, Fezandipiti_ex, Hydrapple_ex, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, OP_BENCH_SNIPE_DAMAGE, OUR_ABILITY_IDS, OUR_EX_IDS, Pinsir, RETREAT_COST, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex
@@ -309,6 +309,69 @@ def score_play(tc, o, score):
                         bench_count, _rfp_grass_after,
                         neutralization_zone_active, _rfp_reply,
                         prize_count(_active_reloc))
+
+        # THE FRONT SPOT GOES TO THE BODY THAT PAYS LESS (user, registro_008
+        # step 126 vs Alakazam, WON -- episode 90336164).
+        #
+        # Turn 8, five prizes to four. Their Alakazam had just hit our active
+        # Teal Mask Ogerpon ex for 140 and left it at 70 of its 210. Myriad Leaf
+        # Shower still finished the Alakazam from there -- 30 + 30x(6+1) = 240
+        # over 140 -- and the agent took the prize from the front. On the bench
+        # stood the SAME card at 210/210 with four energies, whose Myriad
+        # finished the same Alakazam just as well (30 + 30x(4+1) = 180). Their
+        # next Powerful Hand read a hand of seven: 140. Against the body we left
+        # in front that is a knockout and two prizes; against the one we left on
+        # the bench it is 140 of 210 and nothing.
+        #
+        # `_relay_finisher_pivot`, right above, asks the same question and only
+        # answers it when their reply CLOSES THE GAME. Here it did not -- two of
+        # their four prizes were left -- so the pivot stayed silent and the
+        # cheapest reading of the board never happened: when two of our bodies
+        # take the SAME knockout, the one that stands there afterwards is not
+        # free, and the bill has two lines. PRIZES first: a 1-prize finisher
+        # takes the same prize and hands over half as much if it falls. Then HP:
+        # with the prizes tied, the healthier body makes the opponent spend more
+        # cards on the same removal.
+        #
+        # Both comparisons are STRICT, because the swap pays the retreat's
+        # energy, and it is CURRENT HP that is compared -- the mirror of
+        # `_pdx_act_margin`, which stops the same retreat when the bench body is
+        # the wounded one (registro_012 step 174: a healthy 210 active does NOT
+        # step aside for its twin at 50).
+        #
+        # What it does NOT widen is the rest of that pivot. The relay still has
+        # to OUTLAST the blow the active does not -- where their reply kills
+        # both bodies, or neither, the swap buys nothing and only pays the
+        # retreat -- and the blow is still the one only their HAND reveals.
+        # Reading it with the ordinary projector instead makes the rule general
+        # and costs four decisions the project already measured (the Marnie
+        # step 107 Meowth and the three of `test_ns_no_evolution_without_its_preevo`
+        # step 84, which spend that turn on the Unfair Stamp): where the threat
+        # is plainly readable, the machinery built against those boards keeps
+        # its say. Widening it there is a separate change and needs its own
+        # measurement.
+        #
+        # Measured: 1 flip in the whole record corpus (this step). Fires 8 times
+        # in 300 games against the Alakazam bot -- 3 PRIZE, 5 BODY -- and never
+        # in 400 mirror games, where nothing hides its damage behind a hand.
+        _front_spot_upgrade = ''
+        if (_active_reloc is not None and can_switch
+                and not _relay_finisher_pivot
+                and _active_kos_op_active
+                and op_state.active and op_state.active[0] is not None):
+            _fsu_opa = op_state.active[0]
+            # Attacking from the front when it already WINS the game needs no
+            # relay: there is no next turn to be standing in.
+            if not (my_prize <= prize_count_op(_fsu_opa)):
+                _fsu_grass_after = max(0, total_grass - _retreat_grass_units(
+                    RETREAT_COST.get(_active_reloc.id, 1)))
+                _front_spot_upgrade = _bench_finisher_upgrade(
+                    my_state, _active_reloc, _fsu_opa,
+                    AGENT_STATE.meganium_in_play, bench_count,
+                    _fsu_grass_after, neutralization_zone_active,
+                    _hand_revealed_lethal_reply(
+                        _fsu_opa, _active_reloc,
+                        getattr(op_state, 'handCount', None)))
 
         # Protecting Hydrapple ex: if our active Hydrapple ex is going to be
         # knocked out next turn and cannot take a KO this turn, it is better to
@@ -733,6 +796,13 @@ def score_play(tc, o, score):
             # two lethal promotions above -- take the prize now -- and just
             # under them, so the cases they already name keep their behaviour.
             score = 8850
+        elif _front_spot_upgrade:
+            # Retreat and take the same prize with the body that pays less for
+            # standing there afterwards (see the flag). Under the relay that
+            # survives (8850) -- the case it generalises keeps its own reading --
+            # and the cheaper CORPSE goes above the tougher BODY, which is the
+            # order the ladder is written in.
+            score = 8840 if _front_spot_upgrade == UPGRADE_PRIZE else 8830
         elif (_op_active_is_cubchoo and can_switch
                 and not _cub_bench_attacker_ready):
             # Cubchoo matchup: their attack leaves our active unable to attack
@@ -1052,9 +1122,28 @@ def score_play(tc, o, score):
                 # coming up neither finishes nor endures, the chip damage does
                 # not pay for the swap. Deck-agnostic: it looks at HP,
                 # effective KO and retreat cost, not at specific cards.
+                #
+                # A THIRD WAY OUT, (c), when the body going down is not a wall
+                # (user, episode 90321662 step 104 vs Crustle/Great Tusk, LOST):
+                # a Meowth ex at 170/170 has no attack in any state of the game,
+                # so the 170 it "endures" buys nothing but the two prizes it
+                # hands over when it eventually falls. With their Neutralization
+                # Zone zeroing our ex against their 1-prize active, the only
+                # bodies that could hurt anything were non-ex smaller than 170,
+                # (a) and (b) both failed, the retreat was vetoed and the turn
+                # ended without attacking -- again.
+                #
+                # So when the active is an ex we never attack with
+                # (`_ex_active_is_a_wall`), a relay that DOES damage and hands
+                # over no more prizes is also enough. It is strictly a way OUT:
+                # (a) and (b) keep their say untouched, which is what leaves the
+                # defensive pivot to a bigger wall in place for the boards where
+                # nothing can hurt their active at all.
                 _xx_act = active
                 _xx_op = _active_of(op_state)
                 _xx_act_hp = (_xx_act.hp or 0) if _xx_act is not None else 0
+                _xx_wall = _ex_active_is_a_wall(_xx_act)
+                _xx_act_prizes = prize_count(_xx_act) if _xx_act is not None else 0
                 _xx_vale = False
                 if _xx_act is None or _xx_act.id not in OUR_EX_IDS:
                     _xx_vale = True   # the active is not an ex: the rule does not apply
@@ -1079,11 +1168,15 @@ def score_play(tc, o, score):
                                         RETREAT_COST.get(_xx_act.id, 1))),
                                 teal_self_energy=_xx_e,
                                 bench_count=bench_count)
-                            if _xx_base > 0 and _our_effective_damage(
-                                    _xx_bp, _xx_op, _xx_base,
-                                    AGENT_STATE.meganium_in_play,
-                                    neutralization_zone_active) >= (
-                                        _xx_op.hp or 0):
+                            _xx_dmg = _our_effective_damage(
+                                _xx_bp, _xx_op, _xx_base,
+                                AGENT_STATE.meganium_in_play,
+                                neutralization_zone_active) if _xx_base > 0 else 0
+                            if _xx_dmg >= (_xx_op.hp or 0) and _xx_base > 0:
+                                _xx_vale = True
+                                break
+                            if (not _xx_wall and _xx_dmg > 0
+                                    and prize_count(_xx_bp) <= _xx_act_prizes):
                                 _xx_vale = True
                                 break
                 score = 3200 if _xx_vale else SCORE_VETO
@@ -1256,7 +1349,8 @@ def score_play(tc, o, score):
                     and not _active_can_ko_now
                     and (AGENT_STATE.forest_in_play
                          or not getattr(active, 'appearThisTurn', False)))
-        
+
+
                 if active.id in (Chikorita, Bayleef, Meganium):
         
                     # Rule (user, log 86607718 turn 2, vs Crustle, WE LOST):
@@ -1364,7 +1458,7 @@ def score_play(tc, o, score):
                 elif _has_bench_attacker:
                     score = 3000
                 elif _bench_has_only_non_attackers and _has_attacker_in_hand:
-        
+
                     score = SCORE_VETO
                 else:
                     score = 2500

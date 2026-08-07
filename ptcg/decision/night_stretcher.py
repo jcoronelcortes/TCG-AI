@@ -6,7 +6,7 @@ utils/purity.py: nothing here touches mutable state or the runtime tables.
 """
 
 from ptcg.engine.rules import _FixedRule
-from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Chikorita, Dipplin, Fezandipiti_ex, Hydrapple_ex, Meganium, Meowth_ex, Pinsir, SCORE_VETO, Tapu_Bulu, Teal_Mask_Ogerpon_ex
+from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Chikorita, Dipplin, Fezandipiti_ex, Hydrapple_ex, Meganium, Meowth_ex, Pinsir, SCORE_VETO, Tapu_Bulu, Teal_Mask_Ogerpon_ex
 from ptcg.calc.energy import _can_attack_eff, _grass_attach_route_open, _grass_attach_unit, _retreat_grass_units
 from ptcg.calc.damage import _attacker_base_damage, _op_active_attack_damage_to, _our_effective_damage
 from ptcg.calc.card import prize_count_op
@@ -113,6 +113,10 @@ class _CtxNS:
     # `_dragapult_no_tapu`): it is not searched for either -- bringing it to hand
     # only fills the hand with a dead card.
     dragapult_no_tapu: bool = False
+    # Their active cannot be touched and their bench can
+    # (`_boss_gust_immune_active`): the Meowth ex is recovered for the Boss's
+    # Orders its Last-Ditch Catch brings, not for a refill.
+    gust_over_immune_active: bool = False
 
 
 def _v_ns_grass_none_in_hand(c):
@@ -472,7 +476,8 @@ def _ctx_ns_fetch(my_state, state, hand_counts, field_counts, bench_count,
                   watchtower, best_supp_hand_val, best_supp_deck_val,
                   grass_enables_syrup_ko=False, ld_free=True,
                   dragapult_no_tapu=False, op_state=None,
-                  neutralization_zone_active=False):
+                  neutralization_zone_active=False,
+                  gust_over_immune_active=False):
     active = my_state.active[0] if my_state.active else None
     # An ACTIVE Ogerpon that does not attack yet (<3 effective) but that with ONE
     # Grass via Teal Dance (an ABILITY, independent of the manual attachment)
@@ -578,7 +583,8 @@ def _ctx_ns_fetch(my_state, state, hand_counts, field_counts, bench_count,
         grass_makes_the_active_ko=grass_makes_the_active_ko,
         dead_turn=dead_turn, hand_exhausted=hand_exhausted,
         ld_free=ld_free, ko_reciente=AGENT_STATE.ko_last_turn,
-        dragapult_no_tapu=dragapult_no_tapu)
+        dragapult_no_tapu=dragapult_no_tapu,
+        gust_over_immune_active=gust_over_immune_active)
 
 
 def _v_ns_chikorita_arrancar(c):
@@ -770,6 +776,25 @@ _RULES_NS_MEOWTH = [
                lambda c: (c.dead_turn and c.hand_exhausted
                           and _ns_meowth_engine_alive(c)),
                lambda c: 1250),
+    # THEIR ACTIVE CANNOT BE TOUCHED (user, episode 90325863, turn 8 vs a
+    # Dragapult / Azumarill deck): their Marill hid behind a Hide that came up
+    # heads. The Night Stretcher then recovers the Meowth ex not to refill but
+    # to reach the BOSS'S ORDERS in the deck, the one card that turns the turn
+    # back into damage by gusting an attackable body off their bench. It goes
+    # ABOVE `fetch_supporter_from_deck`, whose `best_supp_hand_val < 500` gate
+    # would switch the line off for the wrong reason: a Lillie's in hand scores
+    # far above 500 and answers nothing here.
+    _FixedRule("boss_engine_vs_untouchable",
+               lambda c: (c.gust_over_immune_active
+                          and not c.watchtower
+                          and c.hand.get(Boss_Orders, 0) == 0
+                          and AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(
+                              Boss_Orders, {}).get(ZONE_DECK, 0) > 0
+                          and c.field.get(Meowth_ex, 0) < 2
+                          and c.ld_free
+                          and c.bench_count < 5
+                          and not c.supporter_played),
+               lambda c: 1300),
     # Recover Meowth ex to put it down so Last-Ditch fetches a Supporter from the
     # deck that beats what is in hand.
     _FixedRule("fetch_supporter_from_deck",

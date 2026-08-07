@@ -1360,7 +1360,21 @@ def score_play(tc, o, score):
                           # >=6 already chooses Xerosic. Without this exception the veto
                           # overrode the engine's 21500 and the agent gusted
                           # with Boss's leaving Powerful Hand loaded.
-                          and not _alk_meowth_hand_engine):
+                          and not _alk_meowth_hand_engine
+                          # THE SAME EXCEPTION, FOR AN UNTOUCHABLE ACTIVE (user,
+                          # episode 90325863, turn 8 vs a Dragapult /
+                          # Azumarill deck). This veto says "the fetch is
+                          # redundant: the Lillie's it would bring is already in
+                          # hand". Under `_meowth_immune_boss_engine` the fetch
+                          # does not point at a Lillie's either -- it points at
+                          # the BOSS'S ORDERS in the deck, and the Lillie's we
+                          # are holding is no answer to a Marill that came up
+                          # heads on Hide: it draws cards at a body nothing we
+                          # own can damage. Same shape as the Xerosic exception
+                          # above, and just as narrow -- the engine already
+                          # demands the Boss's be absent from hand, alive in the
+                          # deck, the Supporter slot free and a bench slot open.
+                          and not _meowth_immune_boss_engine):
                         # Rule (user, registro_003 p17 vs Archaludon): NEVER
                         # put Meowth ex down to search (Last-Ditch Catch) for a
                         # Lillie's Determination if we ALREADY have one in hand:

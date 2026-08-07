@@ -2417,6 +2417,41 @@ _RULES_LILLIE_PLAY = [
     _FixedRule("first_turn_always",
                lambda c: c.our_first_turn,
                lambda c: 5000),
+    # THE DECK IS A CLOCK AND IT HAS RUN OUT (user, episode 90321662 step 132 vs
+    # Crustle / Great Tusk, LOST). Turn 30: an active Tapu Bulu at 4 energies
+    # ready to knock out their Great Tusk, FOUR prizes still to take -- and TWO
+    # cards left in our deck. Taking the prize needs at least four more turns of
+    # ours and the deck pays for two: the game was already lost on time, and the
+    # agent attacked. It attacked again on turn 32 and on turn 34, and lost by
+    # deck-out with two prizes still on the table.
+    #
+    # In hand, unplayed, was this Lillie's Determination and ten cards. It
+    # shuffles nine of them back and draws six: the deck goes 2 -> 5, which is
+    # the three turns the win was missing. And it costs NOTHING -- a Supporter
+    # does not end the turn, so the Tapu still attacks afterwards.
+    #
+    # What silenced it was `line_pending` further down ("evolve first, then
+    # refill"), a veto about VALUE that assumes there is a later turn to refill
+    # in. When `_deck_clock_runs_out` there may not be one, so this rule sits
+    # above every ordering and value veto that merely POSTPONES the refill, and
+    # below the hard ones that make it illegal or duplicated (a spent Supporter,
+    # a pending Stamp -- which shuffles the hand back too and nets even more --,
+    # the Xerosic guards).
+    #
+    # `_refill_deck_delta > 0` is what keeps it honest: with a short hand
+    # Lillie's BURNS deck, and firing there would bring the end closer instead of
+    # pushing it away. It is the same arithmetic the deck-out brake above already
+    # uses, read from the other side.
+    #
+    # Deliberately NOT paired with a brake on the cards the engine burns (Teal
+    # Dance, Ultra Ball, Bug Catching Set) when the clock is short: that was
+    # built and measured in the July 2026 crustle autopsy and it converted
+    # deck-out losses into prize losses one for one, -0.9 points at n=1000. The
+    # deck-out there was a symptom. Here it is the whole cause: the board was
+    # winning and the clock was not.
+    _FixedRule("the_deck_clock_runs_out",
+               _lillie_beats_the_deck_clock,
+               lambda c: LILLIE_SCORE_DECK_CLOCK + c.supporter_boost),
     # FINISHER FISHING (user, registro_004 step 49 vs Marnie, LOST): the turn
     # has NO attack possible -- an active Teal Mask Ogerpon ex with 1 of the
     # 3 energies of Myriad, an uncharged bench and ZERO Grass in hand -- but
@@ -2856,6 +2891,19 @@ _RULES_UB_MEOWTH = [
     _FixedRule("last_ditch_produces_nothing",
                lambda c: c.supporter_played or not c.ld_free,
                lambda c: 10),
+    # THE BODY IN FRONT CANNOT BE TOUCHED (user, episode 90325863, turn 8 vs
+    # a Dragapult / Azumarill deck): their Marill hid behind a Hide that came
+    # up heads, so every attack of ours resolves for zero against it. The
+    # Ultra Ball is then not digging for a refill -- it is digging for the
+    # Meowth ex whose Last-Ditch Catch brings the BOSS'S ORDERS that gusts an
+    # attackable body off their bench. It goes right after the vetoes that say
+    # the ability cannot work at all (Watchtower, Supporter spent, Last-Ditch
+    # spent) and ABOVE `lillie_already_in_hand_redundant`: a Lillie's in hand
+    # is no answer to an untouchable active, it only draws cards at it.
+    # 1300, the height of the other paid-for chains. Wall-agnostic.
+    _FixedRule("boss_engine_vs_untouchable",
+               _um_boss_engine_vs_untouchable,
+               lambda c: 1300),
     # With Lillie's ALREADY in hand the Meowth ex fetch is redundant (its only
     # purpose is to search for Lillie's); a useful evolution is better. EXCEPTION:
     # vs Crustle, Meowth ex brings Boss's Orders (a gust), not a refill. (user,
@@ -3324,6 +3372,25 @@ _RULES_NS_MEOWTH = [
                lambda c: (c.dead_turn and c.hand_exhausted
                           and _ns_meowth_engine_alive(c)),
                lambda c: 1250),
+    # THEIR ACTIVE CANNOT BE TOUCHED (user, episode 90325863, turn 8 vs a
+    # Dragapult / Azumarill deck): their Marill hid behind a Hide that came up
+    # heads. The Night Stretcher then recovers the Meowth ex not to refill but
+    # to reach the BOSS'S ORDERS in the deck, the one card that turns the turn
+    # back into damage by gusting an attackable body off their bench. It goes
+    # ABOVE `fetch_supporter_from_deck`, whose `best_supp_hand_val < 500` gate
+    # would switch the line off for the wrong reason: a Lillie's in hand scores
+    # far above 500 and answers nothing here.
+    _FixedRule("boss_engine_vs_untouchable",
+               lambda c: (c.gust_over_immune_active
+                          and not c.watchtower
+                          and c.hand.get(Boss_Orders, 0) == 0
+                          and AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(
+                              Boss_Orders, {}).get(ZONE_DECK, 0) > 0
+                          and c.field.get(Meowth_ex, 0) < 2
+                          and c.ld_free
+                          and c.bench_count < 5
+                          and not c.supporter_played),
+               lambda c: 1300),
     # Recover Meowth ex to put it down so Last-Ditch fetches a Supporter from the
     # deck that beats what is in hand.
     _FixedRule("fetch_supporter_from_deck",
@@ -3769,6 +3836,29 @@ _RULES_MEOWTH_FETCH = [
                lambda c: (c.deny_evo_via_boss
                           and c.card_id == Boss_Orders),
                lambda c: 1280),
+    # THE BODY IN FRONT CANNOT BE TOUCHED, THE ONE BEHIND IT CAN (user, episode
+    # 90325863, turn 8 vs a Dragapult / Azumarill deck). Their Marill hid
+    # behind a Hide that came up heads: every attack of ours resolves for zero
+    # against it, and the only card in the deck that turns the turn back into
+    # damage is Boss's Orders -- gust an attackable body off their bench and
+    # knock THAT one out.
+    #
+    # The fetch did not see it, and the reason it did not is worth writing
+    # down: an untouchable active makes `strong_attacker` false, so the
+    # `no_attacker*` rules further down fire and cap every candidate that is
+    # not Lillie's at `min(sv, 200)`. The Boss's -- the answer -- was being
+    # punished by the very fact that created the problem. In the record it
+    # came out behind Dawn.
+    #
+    # 1270: under the winning finisher (1300) and the line cut (1280), over
+    # the refill (1200-1250) and well over those caps. Deck-agnostic and
+    # wall-agnostic: `gust_over_immune_active` is the same
+    # `_boss_gust_immune_active` that already feeds the Meowth engine, so a
+    # Cornerstone or a Crustle in front reads exactly like the coin.
+    _FixedRule("boss_beats_the_untouchable_active",
+               lambda c: (c.gust_over_immune_active
+                          and c.card_id == Boss_Orders),
+               lambda c: 1270),
     _FixedRule("lillie_development",
                lambda c: (c.devel_lillie
                           and c.card_id == Lillie_Determination),
@@ -3869,7 +3959,8 @@ def _meowth_fetch_prediction(hand_counts, supp_values, hand_size,
                              strong_attacker, op_hand_count,
                              active_cant_attack, win_via_boss, gust2_via_boss,
                              deny_evo_via_boss, devel_lillie, alakazam,
-                             cards_in_deck, first_turn=False):
+                             cards_in_deck, first_turn=False,
+                             gust_over_immune_active=False):
     """(id, value) of the Supporter Last-Ditch Catch would bring RIGHT NOW.
 
     It reproduces the REAL fetch (`_RULES_MEOWTH_FETCH`, the same board) over
@@ -3888,7 +3979,8 @@ def _meowth_fetch_prediction(hand_counts, supp_values, hand_size,
             _sid, supp_values.get(_sid, 0), hand_counts, supp_values,
             hand_size, strong_attacker, op_hand_count, active_cant_attack,
             win_via_boss, gust2_via_boss, deny_evo_via_boss, devel_lillie,
-            alakazam, first_turn, _lillie_alcanzable)
+            alakazam, first_turn, _lillie_alcanzable,
+            gust_over_immune_active)
         _val, _ = _resolve_rules(_RULES_MEOWTH_FETCH, [], _ctx, 50)
         if _val > best_val:
             best_id, best_val = _sid, _val
@@ -4799,13 +4891,26 @@ def agent(obs_dict: dict) -> list[int]:
             and op_state.active[0].id in OP_ITEM_LOCK_ACTIVE_IDS):
         itchy_pollen_active = True
 
+    # THE COIN OF THE PREVIOUS TURN DECIDES WHETHER THERE IS ANYTHING TO ATTACK
+    # (user, episode 90325863, turn 8 vs a Dragapult / Azumarill deck). Their
+    # Marill declared Hide, the coin came up HEADS, and our whole turn 8 went
+    # into a Syrup Storm that the log itself scored at zero (`type:16,
+    # value: 0`). The read is the OPPONENT'S LAST TURN, replayed here: the
+    # ATTACK log gives the serial of the body that hid, the COIN_FLIP log right
+    # after it gives the side, and only heads + that same serial still in the
+    # active spot means "this body cannot be touched today".
+    #
+    # It is the ATTACK ID that carries the effect, never the card: `Hide`,
+    # `Splashing Dodge`, `Dig`, `Fly`... are the same sentence on twelve
+    # different bodies (`COIN_DODGE_ATTACK_IDS`). Reading a single card id --
+    # which is what this loop did while it only knew about Hop's Phantump --
+    # makes every other one of them invisible.
     op_active_dodge_immune = False
     _dodge_pending_serial = None
     for log in obs.logs:
         _lt = getattr(log, 'type', None)
         if _lt == LogType.ATTACK:
-            if (getattr(log, 'cardId', None) == Hops_Phantump
-                    and getattr(log, 'attackId', None) == Splashing_Dodge_Atk
+            if (getattr(log, 'attackId', None) in COIN_DODGE_ATTACK_IDS
                     and getattr(log, 'playerIndex', None) != my_index):
                 _dodge_pending_serial = getattr(log, 'serial', None)
         elif _lt == COIN_FLIP_LOG_TYPE:
@@ -5439,6 +5544,7 @@ def agent(obs_dict: dict) -> list[int]:
     _ft_wall_in_hand = None
     _ft_wall_body = None
     _ft_wall_pivot = False
+    _ft_wall_promote = False
     _ft_wall_charge_active = False
     _active_cant_attack_this_turn = False
     _hydra_pivot_active = False
@@ -7471,7 +7577,18 @@ def agent(obs_dict: dict) -> list[int]:
         or getattr(_op_act_imm_data, 'megaEx', False)))
     _active_immune_vs_op_active = False
     if _ara_act is not None and _op_act_imm is not None:
-        if op_has_ability_immune_active and _ara_act.id in OUR_ABILITY_IDS:
+        if op_active_dodge_immune:
+            # THE COIN IS ANOTHER WALL, and the widest one: the dodge
+            # (`COIN_DODGE_ATTACK_IDS` on heads) does not read our attacker's
+            # id the way Cornerstone and Crustle do -- it blanks EVERY body we
+            # own, ex and non-ex alike. So it is entered without asking who is
+            # in front of it, and every consumer downstream of this flag treats
+            # the turn the same way it treats an immune wall: the active is not
+            # a "ready attacker" (attacking it resolves for zero, registro_009
+            # step 99) and the productive line is the Boss's engine -- from
+            # hand, or from the deck through Meowth ex's Last-Ditch Catch.
+            _active_immune_vs_op_active = True
+        elif op_has_ability_immune_active and _ara_act.id in OUR_ABILITY_IDS:
             _active_immune_vs_op_active = True
         elif op_has_ex_immune_active and _ara_act.id in OUR_EX_IDS:
             _active_immune_vs_op_active = True
@@ -9036,8 +9153,23 @@ def agent(obs_dict: dict) -> list[int]:
         development, and developing a body the opponent cashes in tonight is
         handing them the Grass. The relative ORDER between doomed bodies is preserved
         (a tiny fraction) so that, if the WHOLE board is inside the window, the same
-        body that used to win still wins."""
+        body that used to win still wins.
+
+        The SECOND ceiling answers the mirror question and rides here for the
+        same reason. While the turn's only attack hangs on the ACTIVE receiving
+        the Grass that pays its retreat, no BENCH charge may outrank it: the
+        active's band (31200/31250) was calibrated on "above any bench charge
+        (<= 31150)", and the per-matchup branches of `_energy_score_base` --
+        which answer "which body do I develop", a question that only arises when
+        the energy is not doing anything better -- break that invariant with
+        scores of up to 44000. See `SCORE_BENCH_YIELDS_TO_RETREAT_UNLOCK`."""
         score = _energy_score_base(pokemon, active)
+        if (not active
+                and (_attach_enable_retreat_attack
+                     or _ability_unlock_retreat_attack)
+                and SCORE_BENCH_YIELDS_TO_RETREAT_UNLOCK < score
+                < SCORE_CHARGE_LETHAL_FLOOR):
+            score = SCORE_BENCH_YIELDS_TO_RETREAT_UNLOCK + score / 1000000.0
         if 0 < score < SCORE_CHARGE_LETHAL_FLOOR and _doomed_body(pokemon, active):
             return SCORE_CHARGE_DOOMED + score / 1000000.0
         return score
@@ -9209,7 +9341,8 @@ def agent(obs_dict: dict) -> list[int]:
         (_active_cant_attack_this_turn or _sel_active_cant_attack),
         _win_via_boss_gust, _gust_2prize_via_boss, _deny_evo_via_boss,
         _meowth_devel_lillie, op_is_alakazam_deck,
-        AGENT_STATE.ACTIVE_CARDS_IN_DECK, _our_first_action_turn)
+        AGENT_STATE.ACTIVE_CARDS_IN_DECK, _our_first_action_turn,
+        _boss_gust_immune_active)
     _meowth_fetch_redundante = (
         _meowth_fetch_id is not None
         and hand_counts.get(_meowth_fetch_id, 0) >= 1)
@@ -10122,6 +10255,66 @@ def agent(obs_dict: dict) -> list[int]:
                 and not any(_promo_survives(_pb) for _pb in _pw_hitters))
     # ------------------------------------------------------------------
 
+    # --- MATCH POINT ON THE ACTIVE SPOT (user, registro_014 step 130 vs
+    # Alakazam, LOST -- episode 90350002, deck-agnostic) -----------------------
+    #
+    # Turn 14, four prizes to ONE. Our active Hydrapple ex stood at 170 of its
+    # 330 and finished their Alakazam from the front; on the bench a Teal Mask
+    # Ogerpon ex at 210/210 with four energies finished the same Alakazam just
+    # as well, and a Tapu Bulu at 140 finished it too. The agent retreated and
+    # promoted the TAPU BULU -- one prize instead of the ex's two -- it knocked
+    # the Alakazam out, Wood Hammer left it at 110, and their next attacker
+    # collected the last prize they needed.
+    #
+    # Every rule that chose it was arguing about a DISCOUNT THAT DOES NOT
+    # EXIST. "Hand over one prize instead of two" and "so that an opposing KO
+    # does not close the game" are worth something only while
+    # `prize_count(body) < op_prize`. With their pile at ONE, the cheapest body
+    # on our bench closes their count exactly as fast as the most expensive:
+    # the price tag stops being information, and the only thing that still
+    # separates the candidates is whether their reply can remove them at all.
+    # 200 of Powerful Hand goes through a 140 HP Tapu Bulu and stops at a
+    # 210 HP Ogerpon.
+    #
+    # WHY IT NEEDS ITS OWN SURVIVAL CENSUS. `_promo_survives` reads the
+    # projector the ordinary way, and that is the seam where Powerful Hand
+    # prints 0 (see `_op_active_attack_damage_to`): against the deck that
+    # produced this record every candidate "survives" and the whole survival
+    # band is asleep. This reading takes the maximum of the two -- the ordinary
+    # one and the one that counts their hand -- exactly as
+    # `_hand_revealed_lethal_reply` and `estimated_op_damage` already do.
+    #
+    # It only speaks with POSITIVE EVIDENCE: the candidate's own projection has
+    # to be lethal and some other candidate has to outlast that same blow. With
+    # an unreadable attack (a projection of 0) nobody is penalised, which is the
+    # same guard `PROMO_MATCH_POINT_VETO` is written with.
+    _mp_op_hand = getattr(op_state, 'handCount', None)
+
+    def _mp_reply_to(_pk):
+        """Their projected reply on `_pk`, reading their HAND where the card
+        prints 0 damage. The maximum of both readings: never below what the
+        rest of the model already sees."""
+        if _promo_op_act is None or _pk is None:
+            return 0
+        return max(_op_active_attack_damage_to(_promo_op_act, _pk),
+                   _op_active_attack_damage_to(_promo_op_act, _pk,
+                                               op_hand_count=_mp_op_hand))
+
+    def _mp_outlasts(_pk):
+        """The candidate is still standing after that reply."""
+        if _pk is None:
+            return False
+        return _mp_reply_to(_pk) < (_pk.hp or 0)
+
+    _mp_front_survivors = 0
+    if (context == SelectContext.SWITCH or context == SelectContext.TO_ACTIVE):
+        for _pb in my_state.bench:
+            if _pb is None:
+                continue
+            if _mp_reply_to(_pb) > 0 and _mp_outlasts(_pb):
+                _mp_front_survivors += 1
+    # ------------------------------------------------------------------
+
     # Rule (user, log 86345562 p55): when PROMOTING (a retreat or a KO) and NO
     # benched body can attack this turn and we have Lillie's Determination
     # in hand to refill, we prefer to bring up a 1-prize BASIC
@@ -10535,6 +10728,34 @@ def agent(obs_dict: dict) -> list[int]:
             # energy on. With the arm off the wall simply waits on the bench,
             # which is where the rule found it.
             _ft_wall_pivot = _ftw_phys >= _ftw_rc
+            # THE FEE IS PAID BEFORE THE PROMOTION IS ASKED (user,
+            # registro_002 step 31/33 vs Marnie, WON -- episode 90361829).
+            #
+            # `_ft_wall_pivot` decides the RETREAT, and one observation later
+            # the same flag was being asked again to decide WHO COMES UP. By
+            # then the simulator has already discarded the retreat cost from
+            # the active, so `_ftw_phys` is the energy that is LEFT, not the
+            # energy that paid. In the canonical case of this rule -- the one
+            # Grass of our first turn against a cost of one -- that leaves
+            # `_ftw_phys` at 0, the flag comes out False exactly on the menu
+            # where its second half had to act, and the generic ranking
+            # (prizes x 1000 + HP) brings up the biggest body: the 2-prize ex
+            # the pivot exists to hide. The record shows the whole cycle: an
+            # active Teal Mask Ogerpon ex with one Grass retreats, the Grass
+            # goes to the discard, and the promotion brings up ANOTHER Teal
+            # Mask Ogerpon ex with one Grass. Same body in front, one energy
+            # less.
+            #
+            # The affordability question belongs to the retreat and only to
+            # it. Once `retreated` is set the fee is already spent: asking
+            # again whether we can afford it is asking about money we have
+            # already handed over. The rest of the pivot's conditions -- our
+            # first turn, no attack, the wall alive on the bench, the active
+            # worth more prizes or enduring less -- are still required, and
+            # the promotion branch reads this flag only inside a SWITCH
+            # context (ptcg/turn/options/card.py), the voluntary retreat we
+            # just chose.
+            _ft_wall_promote = _ft_wall_pivot or bool(state.retreated)
             _ft_wall_charge_active = (
                 _ftw_threat
                 and not _ft_wall_pivot
@@ -10723,11 +10944,38 @@ def agent(obs_dict: dict) -> list[int]:
         # Xerosic at 20 keeps it as the net that takes the slot when the Meowth is
         # vetoed for some other reason, so the two never yield to each other and
         # lose the Supporter entirely (the measured Lillie's <-> Boss's failure).
+        #
+        # ONE EXEMPTION, AND IT IS ABOUT WHAT THE COMPARISON CANNOT SEE (user,
+        # episode 90325863, turn 8 vs a Dragapult / Azumarill deck). The whole
+        # Boss's projection -- `_bo_*` in the Supporter scorer, and with it
+        # `_boss_dodge_redirect` and every gust value -- is computed inside
+        # `if hand_counts.get(Boss_Orders, 0) >= 1`. With the Boss's still in
+        # the DECK, which is the only situation in which a Meowth ex is worth
+        # benching for it, `_supp_play_score` for the Boss's does not come back
+        # low: it comes back -1, `no_value`, because nothing was projected at
+        # all. Substituting the hypothetical hand does not undo that; the
+        # projection is upstream of the hand.
+        #
+        # So on the record's board the comparison read a real Lillie's at 5800
+        # (`charged_hydra_over_boss`: our Hydrapple ex was charged) against a
+        # Boss's at -1, vetoed the Meowth, played the Lillie's -- and the
+        # Lillie's DREW the Boss's Orders, one card too late, with the turn's
+        # only Supporter already spent. Their Marill sat there untouchable and
+        # our Syrup Storm resolved for zero.
+        #
+        # The exemption is as narrow as the blindness: only when the gust is
+        # the turn's line because their active cannot be touched and their
+        # bench can (`_boss_gust_immune_active`, the same flag that already
+        # scores the Meowth play at 22000), and only when the fetch really
+        # points at the Boss's. Everywhere else the comparison still rules --
+        # this does not widen it, it stops it deciding a case it never measured.
         _meowth_fetch_loses_the_turn = (
             _meowth_supp_turn_id is not None
             and _meowth_supp_turn_id != _meowth_fetch_id
             and _meowth_supp_turn_val > SUPP_SCORE_LAST_RESORT_BAND
-            and _meowth_supp_turn_val >= _meowth_fetch_play_val)
+            and _meowth_supp_turn_val >= _meowth_fetch_play_val
+            and not (_boss_gust_immune_active
+                     and _meowth_fetch_id == Boss_Orders))
 
     # Teal Dance PRECEDES the manual attachment (user, registro_004 step 28, vs
     # Mega Starmie): if a Teal Mask Ogerpon ex STILL has its Teal
@@ -10811,7 +11059,17 @@ def agent(obs_dict: dict) -> list[int]:
             _akp_prizes_from_ko = prize_count_op(_akp_op)
             _akp_my_left = len([p for p in (my_state.prize or []) if p is None])
             _akp_win_now = _akp_my_left <= _akp_prizes_from_ko
-            if _akp_can_retreat and _akp_bench_ko_1prize and not _akp_win_now:
+            # THE DISCOUNT HAS TO DISCOUNT (user, registro_014 step 127 vs
+            # Alakazam, LOST -- episode 90350002). This whole pivot is one
+            # sentence long: "if it is then knocked out we concede 1 prize
+            # instead of 2". With their pile at ONE that sentence is false --
+            # the one prize the cheap body hands over is the prize that ends the
+            # game -- and paying a retreat for it burns the ex's energy to buy
+            # nothing. At match point the front spot is decided by who OUTLASTS
+            # their reply, which is `_mp_outlasts`'s business, not by the price
+            # tag. See [[el-puesto-activo-lo-ocupa-el-cuerpo-que-paga-menos]].
+            if (_akp_can_retreat and _akp_bench_ko_1prize and not _akp_win_now
+                    and op_prize > 1):
                 _alakazam_pivot_1prize = True
 
     # Indexes of manual attachments that YIELD to a pending Teal Dance

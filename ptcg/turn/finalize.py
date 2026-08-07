@@ -13,7 +13,7 @@ from ptcg.calc.damage import _attacker_base_damage
 from ptcg.calc.energy import _grass_mult
 from ptcg.calc.opponent import _op_juega_crustle
 from ptcg.calc.board import _active_of
-from ptcg.cards.ids import Applin, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Pinsir, Poke_Pad, SCORE_USELESS_ATTACK, SCORE_VETO, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Xerosic_Machinations
+from ptcg.cards.ids import Applin, BOSS_SCORE_PRIZE_RANK_BASE, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Pinsir, Poke_Pad, SCORE_USELESS_ATTACK, SCORE_VETO, SUPP_SCORE_LAST_RESORT_BAND, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Xerosic_Machinations
 from ptcg.cards.scoring import SCORE_LD_SUPP_COMPROMETIDO, _SUPP_PLAY_IDS
 from ptcg.cards.tables import attack_table, card_table
 from ptcg.decision.ultra_ball import _matchup_allows_playing, _ub_cost_destroys_better_card
@@ -357,8 +357,37 @@ def finalizar(tc):
     # longer offered (discarded as a cost, shuffled away...) or when the slot has
     # already been spent (`supporterPlayed`).
     # =================================================================
+    # ... BUT THE COMMITMENT ARBITRATES BETWEEN REFILLS, NOT AGAINST A GUST THAT
+    # IS CASHING (user, episode 90333949 turn 4, step 47 vs Archaludon, LOST).
+    # The floor is 8000 because that clears "the normal band of ANY other
+    # Supporter" -- and every Supporter that sentence weighed is a REFILL: Dawn,
+    # Lillie's, Lana's, Xerosic. Boss's Orders is not one. It does not refill
+    # anything: it rewrites which body is in the active spot, and the whole upper
+    # half of its ladder is an attack with a KO already behind it. At 8000 the
+    # floor sat above almost that entire ladder, so a fetched refill outranked
+    # the finisher it was supposed to be digging FOR.
+    #
+    # In the record: Boss's on their benched Duraludon (the pre-evolution of
+    # Archaludon ex, the deck's real attacker) was worth 5220 -- gust, knock out,
+    # a prize and the line cut -- and Lillie's had ALREADY vetoed itself for that
+    # exact reason (`yields_to_executable_boss`, -1). The floor resurrected it to
+    # 8000, the Boss's went back into the deck with the rest of the hand, and the
+    # attack it left us did 150 to a 160 HP Cinderace: no prize.
+    #
+    # The line is `BOSS_SCORE_PRIZE_RANK_BASE`, and it is the ladder's own seam:
+    # at or above it every branch has a prize, a wall or a win behind it
+    # (WIN_NOW, GUST_2PRIZE, WIN_VIA_BENCH, WALL_GUST, DODGE_REDIRECT,
+    # PRIZE_RANK); below it sit the gusts that take nothing (TRAP 3700, UNLOCK
+    # 2600, LOW_VALUE 1500, EMPTY 20) and those DO yield to a refill, commitment
+    # or not. Deck-agnostic: it reads the Boss's own score, not a board.
+    _ld_gust_cashes = any(
+        _ldg_o.type == OptionType.PLAY and _ldg_i < len(scores)
+        and scores[_ldg_i] >= BOSS_SCORE_PRIZE_RANK_BASE
+        and (lambda _c: _c is not None and _c.id == Boss_Orders)(
+            get_card(obs, AreaType.HAND, _ldg_o.index, my_index))
+        for _ldg_i, _ldg_o in enumerate(select.option))
     if (AGENT_STATE._ld_supp_comprometido and context == SelectContext.MAIN
-            and not state.supporterPlayed):
+            and not state.supporterPlayed and not _ld_gust_cashes):
         for _ld_i, _ld_o in enumerate(select.option):
             if _ld_o.type != OptionType.PLAY or _ld_i >= len(scores):
                 continue
@@ -1019,6 +1048,99 @@ def finalizar(tc):
                             _play_order_tier[_sti],
                             _play_order_tier[_st_best_i])
                         break
+
+    # =================================================================
+    # THE SUPPORTER OF THE TURN IS PLAYED BEFORE THE ATTACK THAT CLOSES IT
+    # (user, registro_008 step 111 vs Alakazam, WON with a mistake).
+    #
+    # State at step 111 (turn 8, our seat):
+    #
+    #     US                                   OPPONENT
+    #     active  Fezandipiti ex 210 4e        active  Alakazam ex 140
+    #     bench   Meganium, Meowth ex 10,      bench   Kadabra, 2x 70 HP basics,
+    #             2x Teal Mask Ogerpon ex,             Fezandipiti ex
+    #             Tapu Bulu
+    #     hand    Boss's Orders, XEROSIC'S MACHINATIONS, Ultra Ball,
+    #             Lana's Aid, Dawn        supporterPlayed: NO
+    #     their hand: 19 cards
+    #
+    # The menu offered the five plays plus Cruel Arrow. The ranking was
+    # attack 8600 (`_active_snipe_ko_now`, 8500 + 100 per prize) > Xerosic 7300
+    # (`alakazam_priority_over_boss`) > Boss's 5240. The agent SNIPED and closed
+    # the turn with a NINETEEN-card opposing hand untouched and the turn's
+    # Supporter slot unspent. Xerosic's Machinations would have sent 16 of those
+    # 19 cards to the discard FOREVER (`XEROSIC_HAND_CAP` = 3) -- and against
+    # Alakazam that hand is also their damage: Powerful Hand hits for 20 per card.
+    #
+    # The mistake is not one of value, it is one of ORDER, and no score can fix
+    # it: the two plays were never alternatives. A Supporter does not consume the
+    # attack and the attack does not consume the Supporter -- but the attack ENDS
+    # THE TURN, and the Supporter slot does NOT accumulate. Comparing 8600 with
+    # 7300 answers "which of the two is worth more", which is the wrong question;
+    # the right one is "which of the two can still be played afterwards", and the
+    # answer is only ever the attack. Both lived in tier 0, so the score decided
+    # and the free play was thrown away.
+    #
+    # The net fires only when the turn is ABOUT to close: the winner of the menu
+    # (tier, score) is already the attack AND it is winning on score alone, in
+    # tier 0. That last condition is what keeps the WINNING finisher out of
+    # reach -- it lives in `_TIER_WIN_ATTACK` and nothing matters after the game
+    # ends -- and it is written as `tier == 0` rather than as a re-reading of
+    # `_active_attack_wins_now` so that every future reason to promote an attack
+    # inherits the exemption. Any play parked in a higher tier keeps its turn
+    # first and lets this net fire on a later menu. It lifts the best live
+    # Supporter just above the attack and touches no tier. On the next menu
+    # `supporterPlayed` is on, every Supporter vetoes itself and the attack fires
+    # unchanged: the reorder costs the turn nothing.
+    #
+    # Two limits, both about not burning a card for nothing:
+    #
+    #   * the Supporter has to score ABOVE `SUPP_SCORE_LAST_RESORT_BAND`. At that
+    #     height a scorer is saying "I have NO useful effect today, play me only
+    #     because nothing else scores" -- and the slot being free is not a reason
+    #     to spend the CARD, which keeps its value for tomorrow.
+    #   * BOSS'S ORDERS is excluded. It is the one Supporter that rewrites the
+    #     board the attack acts on: gusting changes WHO is in the active spot and
+    #     therefore what the attack does, so gust and attack ARE alternatives and
+    #     the score comparison between them is the right question. Its order
+    #     against the attack is already decided where it belongs -- by its own
+    #     ladder, and by `_TIER_WIN_ATTACK` when `gust_closes_it_now` makes the
+    #     two halves of a single play.
+    #
+    # Deck-agnostic: it reads `cardType`, not a card list.
+    #
+    # Self-play gate, 8 matchups x 1200 games per branch (9600 per branch):
+    # mean winrate 89.24% with the net vs 88.67% without it (+0.56). Nothing is
+    # hurt beyond the noise (the worst cell is archaludon at -1.10, z=-1.42) and
+    # the two clearest cells are marnie_grimmsnarl (+3.30, z=2.76) and dragapult
+    # (+1.50, z=1.99). The rule stands on the game's own arithmetic -- the
+    # attack ends the turn, the slot does not accumulate -- and the gate is only
+    # there to rule out that it costs anything.
+    # Golden corpus: ONE flip over the 13 records, the very decision above.
+    # =================================================================
+    if (context == SelectContext.MAIN and scores
+            and not state.supporterPlayed):
+        _sba_best_i = max(range(len(scores)),
+                          key=lambda i: (_play_order_tier[i], scores[i]))
+        if (select.option[_sba_best_i].type == OptionType.ATTACK
+                and _play_order_tier[_sba_best_i] == 0):
+            _sba_i = -1
+            _sba_best_supp = SUPP_SCORE_LAST_RESORT_BAND
+            for _sbai, _sbao in enumerate(select.option):
+                if _sbai >= len(scores) or _sbao.type != OptionType.PLAY:
+                    continue
+                if scores[_sbai] <= _sba_best_supp:
+                    continue
+                _sbac = get_card(obs, AreaType.HAND, _sbao.index, my_index)
+                if _sbac is None or _sbac.id == Boss_Orders:
+                    continue
+                _sbad = card_table.get(_sbac.id)
+                if _sbad is None or _sbad.cardType != CardType.SUPPORTER:
+                    continue
+                _sba_i = _sbai
+                _sba_best_supp = scores[_sbai]
+            if _sba_i >= 0:
+                scores[_sba_i] = scores[_sba_best_i] + 100
 
     desc_indices = [i for i, _ in sorted(
         enumerate(scores),

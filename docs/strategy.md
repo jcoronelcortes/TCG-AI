@@ -61,6 +61,17 @@ everywhere:
   pays the most prizes;
 - when promoting after a knockout, prefer survival and fewer prizes given away.
 
+**And the deck is the clock the prizes are raced against.** One card is drawn
+every turn and at best one prize is taken every turn, so a deck holding fewer
+cards than the prizes still owed has already lost the race on time, however well
+the board is going. In that corner a Supporter that shuffles the hand back in
+stops being a refill and becomes the only play that buys the turns the win
+needs — it goes first, ahead of the vetoes that merely postpone it, and it costs
+nothing, because a Supporter does not end the turn. What is deliberately *not*
+paired with it is a brake on the cards the engine burns: that was built and
+measured against the wall decks and it only converted deck-out losses into prize
+losses, one for one.
+
 ## 4. Boss's Orders: drag the right body, or don't drag at all
 
 Boss's Orders costs the Supporter for the turn, so it has to buy something real.
@@ -86,6 +97,15 @@ leave: a body short of the energy its attack costs, and short of its own retreat
 cost. Dragging that one out costs them the whole turn, and the bigger it is the
 better, because it stands there while we chip it down. A gust that actually ends
 the game still outranks everything.
+
+**And a gust that cashes is not a Supporter to weigh against the other
+Supporters.** Refills compete with each other for the one slot the turn has, and
+a refill that was already paid for — searched out with a body we put on the
+bench for it — keeps that slot against the rest. Boss's Orders is not in that
+argument. It refills nothing: it rewrites which body is in the active spot, and
+when a knockout is already behind it, it is the attack. So the whole upper half
+of its ladder — the branches that need a prize, a wall or a win — outranks a
+committed refill, and only the gusts that take nothing yield to one.
 
 **And the dead turn, where the same body is the whole play.** Some turns have no
 attack and no knockout anywhere: the active is one energy short, the attachment
@@ -233,7 +253,12 @@ as a scored option like any other:
   attachment for the turn exists purely to pay a retreat;
 - play the Supporter **before** retreating when the retreat would end the turn;
 - don't swap an ex for a worse body, and don't pivot into a body that is doomed
-  anyway.
+  anyway — but "worse body" is measured against a body that is doing something.
+  An ex we never attack with (the draw engine) is not a wall: the HP it endures
+  buys nothing but the two prizes it eventually hands over, and a one-prize
+  relay that can actually hit is an improvement on both counts. Getting that
+  backwards costs the whole turn, because it vetoes the attachment that pays
+  the retreat **and** the retreat itself.
 
 Two things are easy to get wrong, and both were paid for in the same turn:
 
@@ -313,6 +338,39 @@ damage. This is the strategic problem the agent invests most in:
   there is no cost to holding the third copy in hand, and a benched body can
   never be taken back.
 
+### 12.1 The wall that lasts one turn: the coin of the dodge
+
+Not every untouchable active is a wall we can see on the board. Twelve attacks
+in the environment carry the same sentence word for word — *"Flip a coin. If
+heads, during your opponent's next turn, prevent all damage from and effects of
+attacks done to this Pokémon"* — on bodies as small as a 70 HP Marill (Hide) or
+a Hop's Phantump (Splashing Dodge). On heads, nothing we own damages that body
+for one turn. There is no marker on the board: the only evidence is **the
+opponent's previous turn**, an `ATTACK` log followed by a `COIN_FLIP` log.
+
+The agent reads that pair, and reads it by **attack id**, never by card id: the
+effect belongs to the attack, and the same sentence appears on Hide, Splashing
+Dodge, Dig, Fly, Dive, Agility, Undulate and Swift Flight
+(`COIN_DODGE_ATTACK_IDS`). On heads, and only while that same body is still
+active, the turn is replanned exactly as it is against a Cornerstone or a
+Crustle:
+
+- **the attack is vetoed** — it resolves for zero and ends the turn for nothing;
+- **Boss's Orders becomes the turn**, gusting an attackable body off their
+  bench; it outranks a refill, and a refill that would burn the Supporter slot
+  yields to it;
+- **if the Boss's is not in hand but is alive in the deck**, the routes to it
+  are, in order: a Meowth ex from hand (its Last-Ditch Catch fetches the
+  Supporter without spending the slot), an Ultra Ball that digs the Meowth ex
+  out, or a Night Stretcher that brings it back from the discard;
+- **on tails, none of this fires.** Nothing about the board changed; only the
+  coin did.
+
+The failure this was written from is worth keeping: with a Lillie's in hand the
+agent refilled, drew the Boss's Orders one card too late — the Supporter slot
+already spent — and then attacked the hidden body for zero. A refill is not an
+answer to a body that cannot be touched.
+
 ## 13. The first turn: the body that costs one prize
 
 The first turn does not attack, and often cannot. What it decides is what the
@@ -361,6 +419,22 @@ order. The agent enforces a sequence: energy that enables a knockout, then the
 stadium, then evolutions and development, then searching, then ordinary energy,
 then the rest. Ordering never overrides a veto — it only sorts plays that were
 already worth making.
+
+**The attack goes last, because it is the play that ends the turn.** When the
+attack and something else are both worth doing, comparing what they are worth
+is the wrong question: the attack does not consume the supporter, the ability or
+the attachment, and none of them consume the attack — but the turn's supporter
+slot, its ability and its attachment do not carry over to tomorrow, and the
+attack takes them all with it. So the question is not "which is worth more", it
+is "which of the two can still be played afterwards", and the answer is only
+ever the attack. Every non-accumulating resource is sorted above it: the
+attachments and abilities by their tier, and the turn's supporter by a net that
+lifts it just over an attack about to win the menu. Two limits keep it from
+burning cards: a supporter scoring in the last-resort band is saying it has no
+useful effect today, and a gust is excluded because it rewrites *who* the attack
+hits — gust and attack really are alternatives. The one attack that is never
+delayed is the one that wins the game: nothing survives the turn if the turn is
+the last one.
 
 ---
 

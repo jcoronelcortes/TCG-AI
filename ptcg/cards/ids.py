@@ -229,6 +229,34 @@ Hops_Trevenant = 879
 Splashing_Dodge_Atk = 1266
 COIN_FLIP_LOG_TYPE = 22
 
+Marill = 961
+Azumarill = 315
+Hide_Marill_Atk = 1382
+
+# THE COIN THAT HIDES THE BODY. Twelve attacks in the environment share one
+# effect word for word: "Flip a coin. If heads, during your opponent's next
+# turn, prevent all damage from and effects of attacks done to this Pokemon."
+# On heads, the body that declared it cannot be touched on OUR next turn --
+# every attack of ours resolves for zero, and the log proves it (registro_009
+# step 99: `type:16, value: 0` on the Marill our Syrup Storm had just "hit").
+#
+# The detector used to be written against ONE of them, Hop's Phantump's
+# Splashing Dodge, because that was the deck the loss came from. The effect is
+# not the card's: it is the attack's, so the reading is the attack id and the
+# whole table is listed. The names are here so the next one is added by
+# reading, not by guessing; `test_the_coin_that_hides_the_marill.py` re-derives
+# this set from the environment's attack texts and fails if it drifts.
+#
+#   75 Dig (Dunsparce)                  788 Fly (Tranquill)
+#  244 Splashing Dodge (Flittle)        790 Swift Flight (Unfezant)
+#  505 Undulate (Cynthia's Feebas)     1054 Hide (Snom)
+#  595 Dive (Barraskewda)              1266 Splashing Dodge (Hop's Phantump)
+#  684 Hide (Petilil)                  1309 Agility (Noivern)
+# 1382 Hide (Marill)                   1470 Hide (Spewpa)
+COIN_DODGE_ATTACK_IDS = frozenset({
+    75, 244, 505, 595, 684, 788, 790, 1054, 1266, 1309, 1382, 1470,
+})
+
 Mega_Greninja_ex = 40
 Mega_Starmie_ex = 1031
 Slowking = 163
@@ -584,6 +612,34 @@ SCORE_CHARGE_DOOMED = 20
 # phase C ceiling knows where to stop.
 SCORE_CHARGE_LETHAL_FLOOR = 41000
 
+# Ceiling of a BENCH charge while the turn's only attack hangs on the ACTIVE
+# getting the Grass that pays its retreat (`_attach_enable_retreat_attack` /
+# `_ability_unlock_retreat_attack`; user, episode 90319176 step 147 vs
+# Crustle/Great Tusk).
+#
+# That line already had its band: the attachment to the active scores 31200 and
+# its ability twin 31250, and both were calibrated on a documented invariant --
+# "above any bench charge (<= 31150)". The invariant was true of the generic
+# development bands (~8000) and of the ~30000 ones, and FALSE of the per-matchup
+# branches of `_energy_score_base`, which return up to 44000 for the body the
+# matchup wants charged (vs Crustle a benched Tapu Bulu is 8000 + 20000 + 11000
+# = 39000). Those branches answer "which body do I develop", a question that
+# only comes up when nothing better is being done with the energy -- and here
+# the alternative was ATTACKING: active Meganium with no energy (it can neither
+# attack nor retreat), a Dipplin on the bench already charged and hitting for
+# 100, and one Grass in hand. Wild Growth turns that single Grass into the {G}{G}
+# of Meganium's retreat, so the whole line -- attach, retreat, promote, attack --
+# cost exactly the card the matchup wanted to park on a Tapu Bulu. The agent
+# parked it and closed the turn without attacking.
+#
+# So it is a CEILING and not a veto, and it keeps the relative order among
+# benched bodies (the same tiny fraction as the phase C ceiling): the matchup
+# still decides WHERE the Grass goes if the active does not take it. It only
+# applies BELOW the lethal floor -- a charge worth 41000+ takes a prize today
+# and outranks any chip -- and only to the CHIP variants of the line, which are
+# the ones that require the active to have no attack of its own this turn.
+SCORE_BENCH_YIELDS_TO_RETREAT_UNLOCK = 31150
+
 # Score of FLIP THE SCRIPT (Fezandipiti ex: drawing 3 after a KO of ours). It
 # goes ABOVE the whole family of non-lethal CHARGING abilities -- Teal Dance
 # (29000-31500) and Ripening Charge (30500-31600) -- because it is FREE, it is
@@ -621,6 +677,16 @@ SCORE_CHARGE_ACTIVE_FINISHER = 41900
 SCORE_CHARGE_ACTIVE_ATTACK = 31300
 
 NON_ATTACKER_ENERGY_WASTE_IDS = {Meowth_ex, Fezandipiti_ex}
+
+# The retreat fee wins the tie-break among INERT development charges (see
+# `_fee_beats_parking_it` in ptcg/turn/energy.py). It is a tie-break, not a
+# priority: the whole inert band lives between 7900 (a benched Meowth ex) and
+# 8040 (a benched Applin), so +100 over the base 8000 is enough to take the
+# Grass from bodies that this energy leaves exactly as useless as they were,
+# and it stays far below 9000 -- the ceiling of the DEVELOPMENT band, where a
+# pending Teal Dance still caps every attachment at 7000 and where the charges
+# that really do something this turn (31000+) are out of reach.
+FEE_OVER_INERT_DEVELOPMENT = 100
 
 HIGH_PRIORITY_BENCH_TARGETS = {Budew, Munkidori, Froslass, Snorunt, Dreepy, Drakloak, Dwebble_Grass, Dwebble_Fighting}
 
@@ -902,6 +968,15 @@ DISCARD_EVO_SPARE_COPY = 55
 # than any development gust, and gusting also DEGRADES the target (Myriad Leaf
 # Shower scales with the energy on the opposing active).
 LILLIE_SCORE_FISHING = 5900
+# --- THE DECK IS A CLOCK (see `_deck_clock_runs_out`) ------------------------
+# Lillie's Determination when our deck no longer covers the prizes we still
+# need AND shuffling the hand back in really NETS cards. There the refill has
+# stopped being a refill: it is the only play that buys the turns the win needs,
+# so it goes above the whole Boss's ladder INCLUDING the two-prize gust
+# (GUST_2PRIZE 6800) -- two prizes do not matter if we deck out before we can
+# take the rest -- and stays below BOSS_SCORE_WIN_NOW (20000), the gust that
+# closes the game on the spot and therefore never needs another turn.
+LILLIE_SCORE_DECK_CLOCK = 6900
 # Minimum probability for the fishing to OVERRIDE Lillie's ordering vetoes (an
 # Ultra Ball that completes a line, yielding to an executable gust...). The case
 # that motivates it comes out at 0.63 (2 Grass out of 10 live, drawing 8 from
@@ -1021,6 +1096,10 @@ __all__ = [
     'Hops_Trevenant',
     'Splashing_Dodge_Atk',
     'COIN_FLIP_LOG_TYPE',
+    'Marill',
+    'Azumarill',
+    'Hide_Marill_Atk',
+    'COIN_DODGE_ATTACK_IDS',
     'Mega_Greninja_ex',
     'Mega_Starmie_ex',
     'Slowking',
@@ -1105,12 +1184,14 @@ __all__ = [
     'EVO_BODY_RESCUE',
     'EVO_BODY_EXPOSURE',
     'EVO_BODY_DAMAGE',
+    'SCORE_BENCH_YIELDS_TO_RETREAT_UNLOCK',
     'SCORE_CHARGE_DOOMED',
     'SCORE_CHARGE_LETHAL_FLOOR',
     'FEZ_DRAW_ABILITY_SCORE',
     'SCORE_CHARGE_ACTIVE_FINISHER',
     'SCORE_CHARGE_ACTIVE_ATTACK',
     'NON_ATTACKER_ENERGY_WASTE_IDS',
+    'FEE_OVER_INERT_DEVELOPMENT',
     'HIGH_PRIORITY_BENCH_TARGETS',
     'META_BENCH_TARGETS',
     'FIRE_POKEMON_IDS',
@@ -1174,6 +1255,7 @@ __all__ = [
     'DISCARD_SUPPORTER_DEAD_DROP',
     'DISCARD_EVO_SPARE_COPY',
     'LILLIE_SCORE_FISHING',
+    'LILLIE_SCORE_DECK_CLOCK',
     'FISHING_PROB_MIN',
     'FISHING_PRIZES_MIN',
     'XEROSIC_HAND_CAP',

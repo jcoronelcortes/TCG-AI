@@ -8,7 +8,7 @@ utils/purity.py: nothing here touches mutable state or the runtime tables.
 from ptcg.cards.ids import Dwebble_Fighting, Dwebble_Grass, EX_PREEVO_IDS, GUST_TRAP_IDS, SCORE_FORBID, THREAT_PREEVO_IDS
 from ptcg.calc.opponent import _alakazam_attacker_relief, _op_active_is_harmless, _op_body_is_harmless
 from ptcg.calc.energy import _can_attack_eff, _grass_attach_unit, _retreat_grass_units
-from ptcg.calc.damage import _attacker_base_damage, _bench_attacker_best_damage, _bench_attacker_can_ko, _bench_finisher_that_survives, _hand_revealed_lethal_reply, _op_active_attack_damage_to, _our_effective_damage, _reply_closes_the_game
+from ptcg.calc.damage import _attacker_base_damage, _bench_attacker_best_damage, _bench_attacker_can_ko, _bench_finisher_that_survives, _ex_active_is_a_wall, _hand_revealed_lethal_reply, _op_active_attack_damage_to, _our_effective_damage, _reply_closes_the_game
 from ptcg.calc.card import prize_count, prize_count_op
 from ptcg.state.agent_state import AGENT_STATE
 from ptcg.cards.ids import Basic_Grass_Energy, Bayleef, DUNSPARCE_IDS, Dipplin, EX_PREEVO_IDS, Fezandipiti_ex, Hydrapple_ex, Meganium, OUR_EX_IDS, RETREAT_COST, THREAT_PREEVO_IDS, Tapu_Bulu, Teal_Mask_Ogerpon_ex
@@ -474,10 +474,33 @@ def _grass_unlocks_active_retreat(my_state, op_state, meganium_active,
         return False, False
     # The "do not swap an ex for a worse body" guard (mirror of the retreat
     # scorer): the body coming up must endure at least what the ex has left.
-    min_hp = (act.hp or 0) if act.id in OUR_EX_IDS else 0
+    #
+    # The HP floor only makes sense while the ex in front IS a wall (user,
+    # episode 90321662 step 104 vs Crustle/Great Tusk, LOST by deck-out with
+    # five prizes still on the table). Our active was a Meowth ex at 170/170 and
+    # 0 energy -- retreat cost 1, no attack in any state of the game -- with two
+    # charged Dipplin on the bench and a Neutralization Zone of theirs on the
+    # field, which zeroes our ex against their 1-prize active. So EVERY body
+    # that could hurt their Great Tusk was a non-ex smaller than 170, the floor
+    # discarded all of them, `chip` came out 0 and the line died: the Grass went
+    # to a benched Tapu Bulu (28000) and the turn ended without attacking. The
+    # same shape had been repeating for turns, and we never took a prize.
+    #
+    # When the ex is not a wall the guard keeps its OTHER half -- the one the
+    # Archaludon case was really about, "the opponent takes the same prizes with
+    # less effort": the body coming up may not hand over more prizes than the
+    # one going down. A 1-prize Dipplin that hits for the 2-prize engine that
+    # cannot is a strict improvement on both counts.
+    min_hp = 0
+    max_prizes = None
+    if act.id in OUR_EX_IDS:
+        if _ex_active_is_a_wall(act):
+            min_hp = act.hp or 0
+        else:
+            max_prizes = prize_count(act)
     chip = _bench_attacker_best_damage(
         my_state, opa, meganium_active, bench_count, grass_after,
-        neutral_zone, min_body_hp=min_hp)
+        neutral_zone, min_body_hp=min_hp, max_prizes=max_prizes)
     return False, chip > act_dmg
 
 

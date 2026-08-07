@@ -44,6 +44,7 @@ class ScoringCtx:
     _bcs_playable_in_hand: Any = None
     _bdg_retreat_ko: Any = None
     _bench_attacker_ready: Any = None
+    _boss_gust_immune_active: Any = None
     _bench_has_chargeable: Any = None
     _best_promote_card: Any = None
     _best_promote_key: Any = None
@@ -87,6 +88,7 @@ class ScoringCtx:
     _ft_wall_charge_active: Any = None
     _ft_wall_in_hand: Any = None
     _ft_wall_pivot: Any = None
+    _ft_wall_promote: Any = None
     _grass_anywhere_enables_syrup_ko: Any = None
     _grass_enables_promote_ko: Any = None
     _gt_plan: Any = None
@@ -138,6 +140,8 @@ class ScoringCtx:
     _promo_damage_to_op: Any = None
     _promo_kos_op: Any = None
     _promo_min_prize: Any = None
+    _mp_front_survivors: Any = None
+    _mp_outlasts: Any = None
     _promo_op_act: Any = None
     _promo_survives: Any = None
     _promo_survivors: Any = None

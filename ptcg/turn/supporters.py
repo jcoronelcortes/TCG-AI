@@ -302,23 +302,31 @@ def evaluate_supporters(tc):
             _eff = len(_bo_atk.energies) * _grass_mult()
             _eff_after = _eff + (_grass_attach_unit() if _bo_attach else 0)
             _atk_e = len(_bo_atk.energies) + (1 if _bo_attach else 0)
-            _d = 0
-            if _bo_atk.id == Hydrapple_ex and _eff_after >= 2:
-                _d = 30 + 30 * total_grass
-            elif _bo_atk.id == Teal_Mask_Ogerpon_ex and _eff_after >= 3:
-                _d = 30 + 30 * _atk_e
-            elif _bo_atk.id == Tapu_Bulu and _eff_after >= 4:
-                _d = 220
-            elif _bo_atk.id == Fezandipiti_ex and _eff_after >= 3:
-                _d = 100
-            elif _bo_atk.id == Meganium and _eff_after >= 4:
-                _d = 140
-            elif _bo_atk.id == Dipplin and _eff_after >= 1:
-                _wave_bench = (bench_count if _wave_bench_override is None
-                               else _wave_bench_override)
-                _d = 20 * _wave_bench
-            elif _bo_atk.id == Pinsir and _eff_after >= 2:
-                _d = 100
+            _wave_bench = (bench_count if _wave_bench_override is None
+                           else _wave_bench_override)
+            # CENTRAL base damage (`_attacker_base_damage`), not an inline copy.
+            # The copy that used to live here read Myriad Leaf Shower as
+            # `30 + 30 * our energy` and forgot the half of the text that says
+            # "each Energy attached to BOTH Active Pokemon" -- the target of a
+            # gust BECOMES the active, so its energies count. That single missing
+            # term is what lost episode 90333949 (turn 4, step 47, vs Archaludon):
+            # their Duraludon (130 HP, FOUR energies, the pre-evolution of their
+            # real attacker) was read at 120 damage instead of 240 - 30 of Metal
+            # resistance = 210, so the KO on the gust target did not exist for the
+            # value layer. With no bench prize to beat it, the "attacking the
+            # active is enough" rule below cancelled the Boss's, Lillie's took the
+            # Supporter slot and shuffled it back into the deck, and the attack it
+            # preferred did 150 to a 160 HP Cinderace: no prize, and the Duraludon
+            # evolved into an Archaludon ex.
+            #
+            # The gates come from `ATTACK_ENERGY_REQ` for the same reason: the
+            # hardcoded numbers here ignored the Nighttime Mine tax (+1 on our
+            # Tera), so this copy also declared attacks that could not be paid.
+            _d = _attacker_base_damage(
+                _bo_atk.id, _tgt, _eff_after,
+                grass_scale=total_grass,
+                teal_self_energy=_atk_e,
+                bench_count=_wave_bench)
             if _d <= 0:
                 return 0
 
@@ -883,7 +891,13 @@ def evaluate_supporters(tc):
                 _our_dmg = 30
 
             if _our_dmg > 0:
-                _our_attackers_info.append((_our_p, _our_dmg))
+                # Myriad Leaf Shower is the one attack here whose damage depends
+                # on the TARGET: it counts the energy on BOTH actives, and the
+                # body we gust becomes the active. Its 30-per-energy is added
+                # inside the target loop below -- the same half of the text that
+                # `_boss_dmg_to` used to drop (see its comment).
+                _our_attackers_info.append(
+                    (_our_p, _our_dmg, _our_p.id == Teal_Mask_Ogerpon_ex))
 
         for _op_bp in op_state.bench:
             if _op_bp is None:
@@ -893,8 +907,9 @@ def evaluate_supporters(tc):
             _is_stage2_target = (_op_data_b and getattr(_op_data_b, 'stage2', False))
             _op_bench_energy = len(_op_bp.energies)
 
-            for _atk_p, _atk_dmg in _our_attackers_info:
-                _eff_dmg = _atk_dmg
+            for _atk_p, _atk_dmg, _atk_counts_target in _our_attackers_info:
+                _eff_dmg = _atk_dmg + (30 * _op_bench_energy
+                                       if _atk_counts_target else 0)
 
                 if _atk_p.id != Fezandipiti_ex and _op_data_b:
                     if _op_data_b.weakness == EnergyType.GRASS:

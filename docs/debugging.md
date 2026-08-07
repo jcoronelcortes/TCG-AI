@@ -17,7 +17,7 @@ seat, and carries a decision request. Feed it to the agent.
 > frames or inert ones through the agent pollutes its internal tracking, and the
 > decision you reproduce will not be the one that happened.
 
-**Per turn.** `python utils/split_turns.py` splits the single log in `log/` into
+**Per turn.** `python utils/split_turns.py` splits the single log in `log_analisys/` into
 one record per turn under `records/` — much easier to navigate than one
 enormous file.
 

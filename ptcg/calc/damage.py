@@ -583,15 +583,118 @@ def _bench_finisher_that_survives(my_state, target, meganium_active, bench_count
     return False
 
 
+UPGRADE_PRIZE = 'PRIZE'
+UPGRADE_BODY = 'BODY'
+
+
+def _bench_finisher_upgrade(my_state, active, target, meganium_active,
+                            bench_count, retreat_grass_after, neutral_zone,
+                            incoming_damage):
+    """Among the bodies that take the SAME knockout, which one should be
+    STANDING there when the prize is collected?
+
+    The knockout is not in question here: the caller only asks when the active
+    already finishes `target`. What is in question is the bill for the body left
+    in the active spot afterwards, and it is paid in two currencies:
+
+      * `UPGRADE_PRIZE` -- a benched finisher handing over FEWER prizes than the
+        active. The same prize, and half the corpse when it is collected.
+      * `UPGRADE_BODY`  -- with the prizes TIED, a benched finisher that
+        OUTLASTS the blow the active does not, so the same removal costs the
+        opponent another turn and another handful of cards.
+
+    Both are scoped by `incoming_damage`, the projected lethal reply on the
+    ACTIVE (0 when their attack does not knock it out): the question is which
+    body we are about to TRADE, and where nothing is being traded there is
+    nothing to choose. That is also what keeps the rule from talking over the
+    plays that are about the prize itself -- a Boss's Orders onto a 2-prize
+    bench body is worth more than swapping who takes a 1-prize knockout, and it
+    only gets to say so if this rule stays quiet on boards where our active is
+    in no danger.
+
+    `''` when the active is already the right body. Prize beats HP, and both
+    comparisons are STRICT: a tie is not worth the retreat cost.
+
+    Note what the second tier compares WITHOUT naming it: surviving a blow that
+    the active does not means CURRENT HP above it, which is the reading
+    `_pdx_act_margin` makes from the other side -- an ex at 50 of its 210 is the
+    fragile body, whatever the card prints. The two together are one symmetric
+    rule: the healthy twin goes in front and the wounded one waits on the bench,
+    whichever of them happens to be standing there now.
+    """
+    if active is None or target is None:
+        return ''
+    _thp = target.hp or 0
+    if _thp <= 0:
+        return ''
+    if incoming_damage <= 0 or incoming_damage < (active.hp or 0):
+        return ''             # nothing is being traded: nothing to choose
+    _act_prizes = prize_count(active)
+    best = ''
+    for bp in (my_state.bench or []):
+        if bp is None:
+            continue
+        _bp_prizes = prize_count(bp)
+        if _bp_prizes < _act_prizes:
+            tier = UPGRADE_PRIZE
+        elif (_bp_prizes == _act_prizes
+                and (bp.hp or 0) > incoming_damage):
+            tier = UPGRADE_BODY
+        else:
+            continue          # it pays more, or it does not outlast the reply
+        if tier == UPGRADE_BODY and best == UPGRADE_PRIZE:
+            continue          # a cheaper corpse was already found
+        e = len(bp.energies)
+        base = _attacker_base_damage(bp.id, target, e * _grass_mult(),
+                                     grass_scale=retreat_grass_after,
+                                     teal_self_energy=e, bench_count=bench_count)
+        if base <= 0:
+            continue          # it does not attack today: it is no relay
+        if _our_effective_damage(bp, target, base, meganium_active,
+                                 neutral_zone) < _thp:
+            continue          # it does not finish: the prize would be lost
+        if tier == UPGRADE_PRIZE:
+            return UPGRADE_PRIZE
+        best = UPGRADE_BODY
+    return best
+
+
+def _ex_active_is_a_wall(act):
+    """Is our active ex a body the "do not swap it for a worse body" guard
+    should be defending?
+
+    That guard protects a WALL: a big body that costs the opponent a whole turn
+    to remove and that pays for itself by attacking once it is charged. Meowth
+    ex is not one. It has no entry in `ATTACK_ENERGY_REQ` -- the CURATED list of
+    bodies we really attack with, which leaves it out on purpose (see
+    `_can_attack_eff`) -- so no amount of energy ever turns it into damage. It
+    is a draw engine that got stuck in the active spot, and while it stands
+    there the turn cannot attack at all.
+
+    Defending its HP therefore defends nothing, and its two prizes are exactly
+    what the opponent is collecting meanwhile. The same reading the promotion
+    menu already makes: in front of a body we cannot hurt, ENDURING is not a
+    virtue if the survivor takes no HP off it.
+
+    False for anything that is not one of our ex: there the guard never applied.
+    """
+    if act is None or act.id not in OUR_EX_IDS:
+        return False
+    return AGENT_STATE.ATTACK_ENERGY_REQ.get(act.id) is not None
+
+
 def _bench_attacker_best_damage(my_state, target, meganium_active, bench_count,
                                 retreat_grass_after, neutral_zone,
-                                min_body_hp=0):
+                                min_body_hp=0, max_prizes=None):
     """Best EFFECTIVE damage a benched attacker would do to `target` today if we
     promote it (0 = none is ready). Non-lethal sibling of
     `_bench_attacker_can_ko`: it measures CHIP damage, not the KO.
 
     `min_body_hp` discards bodies that endure less than that threshold (mirror of
     the "do not swap an ex for a worse body" guard in the retreat scorer).
+    `max_prizes` discards bodies that hand over more prizes than that -- the
+    other half of the same guard, and the only half left when the body going
+    down is not a wall (`_ex_active_is_a_wall`).
     """
     if target is None:
         return 0
@@ -600,6 +703,8 @@ def _bench_attacker_best_damage(my_state, target, meganium_active, bench_count,
         if bp is None:
             continue
         if (bp.hp or 0) < min_body_hp:
+            continue
+        if max_prizes is not None and prize_count(bp) > max_prizes:
             continue
         e = len(bp.energies)
         base = _attacker_base_damage(bp.id, target, e * _grass_mult(),
@@ -640,9 +745,13 @@ __all__ = [
     '_attacker_base_damage',
     '_bench_attacker_can_ko',
     '_bench_finisher_that_survives',
+    '_bench_finisher_upgrade',
+    'UPGRADE_PRIZE',
+    'UPGRADE_BODY',
     '_hand_revealed_lethal_reply',
     '_reply_closes_the_game',
     '_bench_attacker_best_damage',
+    '_ex_active_is_a_wall',
     '_snipe_target_score',
     '_ventana_de_regalo',
     'evolution_body_bias',

@@ -12,7 +12,7 @@ from ptcg.calc.energy import _can_attack_eff, _grass_attach_route_open, _grass_a
 from ptcg.calc.board import _active_of, _count_hand_play_options
 from ptcg.cards.groups import GT_FETCH_BONUS
 from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, DISCARD_EVO_SPARE_COPY, DISCARD_SUPPORTER_DEAD_DROP, DISCARD_SUPPORTER_LIVE_KEEP, DUNSPARCE_IDS, Dawn, Dipplin, Drednaw, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, LANA_SEL_INJUGABLE, LANA_SEL_GRASS_DEMAND, LANA_SEL_GRASS_UNLOCKS, LANA_SEL_GRASS_SURPLUS, LANA_SEL_GRASS_WINS, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, OUR_ABILITY_IDS, OUR_EX_IDS, Pinsir, Poke_Pad, RETREAT_COST, RIPEN_HEAL_TARGET_SCORE, SCORE_FORBID, SCORE_LOOKAHEAD_PROMOTE_KO, SCORE_LOOKAHEAD_PROMOTE_SAFE, SCORE_NEVER, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, Xerosic_Machinations
-from ptcg.cards.lines import _evo_copies_usable, _pokemon_injugable
+from ptcg.cards.lines import _evo_copies_usable, _line_base_benchable, _pokemon_injugable
 from ptcg.cards.scoring import MAIN_ATTACKERS, PROMO_DOOMED_PENALTY, PROMO_KO_BONUS, PROMO_MATCH_POINT_VETO, PROMO_PRIZE_PENALTY, _SUPP_PLAY_IDS
 from ptcg.cards.tables import card_table
 from ptcg.decision.boss_orders import _ADJUST_GUST_NUISANCE, _ADJUST_GUST_OFFENSIVE, _RULES_GUST_NUISANCE, _ctx_gust_target
@@ -38,6 +38,7 @@ def score_play(tc, o, score):
     _best_promote_key = tc._best_promote_key
     _best_supp_in_hand_val = tc._best_supp_in_hand_val
     _best_supp_in_deck_val = tc._best_supp_in_deck_val
+    _boss_gust_immune_active = tc._boss_gust_immune_active
     _bp = tc._bp
     _cm_use_ex = tc._cm_use_ex
     _conf_is_matchup_attacker = tc._conf_is_matchup_attacker
@@ -51,7 +52,7 @@ def score_play(tc, o, score):
     _festival_lead_hostil = tc._festival_lead_hostil
     _forced_ko_promote = tc._forced_ko_promote
     _ft_wall_body = tc._ft_wall_body
-    _ft_wall_pivot = tc._ft_wall_pivot
+    _ft_wall_promote = tc._ft_wall_promote
     _grass_anywhere_enables_syrup_ko = tc._grass_anywhere_enables_syrup_ko
     _grass_enables_promote_ko = tc._grass_enables_promote_ko
     _gt_plan = tc._gt_plan
@@ -75,6 +76,8 @@ def score_play(tc, o, score):
     _op_best_damage_vs = tc._op_best_damage_vs
     _op_counter_threat_vs = tc._op_counter_threat_vs
     _our_first_action_turn = tc._our_first_action_turn
+    _mp_front_survivors = tc._mp_front_survivors
+    _mp_outlasts = tc._mp_outlasts
     _promo_damage_to_op = tc._promo_damage_to_op
     _promo_kos_op = tc._promo_kos_op
     _promo_min_prize = tc._promo_min_prize
@@ -365,8 +368,19 @@ def score_play(tc, o, score):
                     # GIVES A BONUS to non-ex attackers (it never penalises the
                     # ex): if the only body able to attack is an ex, it is still
                     # promoted normally.
+                    #
+                    # `prize_count(card) < op_prize` IS the rule's own sentence
+                    # (user, registro_014 step 130 vs Alakazam, LOST -- episode
+                    # 90350002). Denial only denies while the cheap body leaves
+                    # them short: with their pile at ONE the 1-prize body hands
+                    # over the prize that ends the game exactly like the ex, the
+                    # bonus buys nothing, and the +3000 it pays steers the front
+                    # spot to the FRAGILE body -- a 140 HP Tapu Bulu ahead of a
+                    # 210 HP Ogerpon ex against 200 of Powerful Hand. There the
+                    # criterion is survival, and it is applied by the MATCH
+                    # POINT block at the end of this chain.
                     if (op_prize <= 2 and _can_attack_now
-                            and prize_count(card) <= 1):
+                            and prize_count(card) < op_prize):
                         score += 3000
         
                     # PRIZE MISMATCH when promoting (user, vs Raging Bolt and
@@ -903,7 +917,15 @@ def score_play(tc, o, score):
                     # first turn. 9400 leaves the guaranteed finisher above it
                     # (9500) and keeps the terminal survival adjustments -- the
                     # one that knocks out, match point -- with the last word.
-                    if (_ft_wall_pivot and _ft_wall_body is not None
+                    #
+                    # It reads `_ft_wall_promote` and not `_ft_wall_pivot`
+                    # (user, registro_002 step 33 vs Marnie): by the time this
+                    # menu arrives the simulator has already discarded the
+                    # retreat cost from the active, and the pivot's
+                    # affordability test -- the energy that is LEFT on a body
+                    # that just paid -- came out False on precisely the boards
+                    # the rule was written for. See the note in main.py.
+                    if (_ft_wall_promote and _ft_wall_body is not None
                             and card is _ft_wall_body
                             and context == SelectContext.SWITCH):
                         score = 9400
@@ -1032,7 +1054,48 @@ def score_play(tc, o, score):
                             and not (_promo_gets_to_attack
                                      and _promo_kos_op(card))):
                         score = PROMO_MATCH_POINT_VETO
-        
+
+                    # MATCH POINT AMONG THE ONES THAT KNOCK OUT (user,
+                    # registro_014 step 130 vs Alakazam, LOST -- episode
+                    # 90350002, deck-agnostic).
+                    #
+                    # `PROMO_KO_BONUS` says it plainly: "among several knockers
+                    # the base score decides". That base score orders by prizes
+                    # first and HP second, and at match point the first half of
+                    # it is a fiction -- their next knockout takes their last
+                    # prize whichever of our bodies it lands on -- while the
+                    # second half is the whole question. Three of our bodies
+                    # finished the same Alakazam that turn; the one the base
+                    # score picked was the 140 HP Tapu Bulu, and 200 of Powerful
+                    # Hand went through it. The 210 HP Ogerpon ex it beat took
+                    # the same prize and would still have been standing.
+                    #
+                    # So the doomed penalty, which the knockers are exempt from
+                    # by design, comes back for them HERE and only here: their
+                    # exemption is written on "the play can close the game in our
+                    # favour", and at match point against us it cannot -- unless
+                    # our own knockout closes it FIRST, which is the exemption
+                    # kept below.
+                    #
+                    # A penalty and not a veto, and the same size as the ordinary
+                    # doomed one: it reorders INSIDE the +20000 band -- the
+                    # knocker that dies still outranks any body that takes no
+                    # prize at all -- and never surrenders the knockout itself.
+                    #
+                    # `_mp_front_survivors` / `_mp_outlasts` read their attack
+                    # counting their HAND, which is where this family of cards
+                    # prints 0 damage; with an unreadable attack nobody is
+                    # penalised. See the block in `agent()`.
+                    if (isinstance(card, Pokemon) and score > 0
+                            and _promo_op_act is not None
+                            and op_prize <= prize_count(card)
+                            and (_mp_front_survivors or 0) > 0
+                            and callable(_mp_outlasts)
+                            and not _mp_outlasts(card)
+                            and not (_promo_kos_op(card)
+                                     and my_prize <= prize_count_op(_promo_op_act))):
+                        score -= PROMO_DOOMED_PENALTY
+
                     # TIE-BREAK BETWEEN SURVIVORS (user, priorities 3 and
                     # 4). With survival already settled (1) and the Wild Growth
                     # multiplier protected (2, via the "the Meganium line
@@ -1306,7 +1369,9 @@ def score_play(tc, o, score):
                         ld_free=_meowth_ld_free,
                         dragapult_no_tapu=_dragapult_no_tapu,
                         op_state=op_state,
-                        neutralization_zone_active=neutralization_zone_active)
+                        neutralization_zone_active=neutralization_zone_active,
+                        gust_over_immune_active=bool(
+                            _boss_gust_immune_active))
         
                     _ns_tables = {
                         Basic_Grass_Energy: ("ns->grass",
@@ -1674,7 +1739,9 @@ def score_play(tc, o, score):
                             meowth_tomorrow=_ub_meowth_for_tomorrow(ctx),
                             supp_in_hand_takes_the_turn=bool(
                                 tc._ub_supp_in_hand_turn),
-                            stamp_pending=_ub_stamp_pending)
+                            stamp_pending=_ub_stamp_pending,
+                            gust_over_immune_active=bool(
+                                _boss_gust_immune_active))
                         score = _resolve_with_trace(
                             "ub->meowth", _RULES_UB_MEOWTH, [],
                             _ub_meo_ctx, default=10)
@@ -1803,7 +1870,8 @@ def score_play(tc, o, score):
                             _win_via_boss_gust, _gust_2prize_via_boss,
                             _deny_evo_via_boss, _meowth_devel_lillie,
                             op_is_alakazam_deck, _our_first_action_turn,
-                            _ld_lillie_ofrecida)
+                            _ld_lillie_ofrecida,
+                            bool(_boss_gust_immune_active))
                         score = _resolve_with_trace(
                             "meowth->fetch", _RULES_MEOWTH_FETCH, [],
                             _mf_ctx, default=50)
@@ -2213,9 +2281,18 @@ def score_play(tc, o, score):
                         score = 30
                     elif field_counts.get(Dipplin, 0) >= 1 or field_counts.get(Applin, 0) >= 1:
                         score = 3
+                    # The other half of the line in hand AND the Basic that will
+                    # wear it: with the Forest on the field the three pieces are
+                    # one turn away from a Hydrapple ex, so this copy is not
+                    # what the cost should eat. The Basic must be IN HAND -- one
+                    # sitting in the DECK is not a seat and this branch used to
+                    # count it (`_line_base_benchable`; it has to say exactly the
+                    # same as `_ub_real_fodder`, which decides whether the Ultra
+                    # Ball is played at all).
                     elif (hand_counts.get(Dipplin, 0) >= 1 and
                           (AGENT_STATE.forest_in_play or hand_counts.get(Forest_of_Vitality, 0) >= 1) and
-                          AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Applin, {}).get(ZONE_DECK, 0) > 0):
+                          _line_base_benchable(Hydrapple_ex, hand_counts,
+                                               max(0, my_state.benchMax - bench_count))):
                         score = 3
                     else:
                         score = 12
@@ -2235,7 +2312,8 @@ def score_play(tc, o, score):
                         score = 5
                     elif (hand_counts.get(Hydrapple_ex, 0) >= 1 and
                           (AGENT_STATE.forest_in_play or hand_counts.get(Forest_of_Vitality, 0) >= 1) and
-                          AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Applin, {}).get(ZONE_DECK, 0) > 0):
+                          _line_base_benchable(Dipplin, hand_counts,
+                                               max(0, my_state.benchMax - bench_count))):
                         score = 3
                     elif op_has_ex_immune_active or op_has_ex_immune_bench:
                         score = 8

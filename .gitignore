@@ -19,10 +19,13 @@ coverage.xml
 .ruff_cache/
 
 # --- Game data and generated output (the CONTENT is ignored) ---
-# log/: game logs (local data). records/: the output of split_turns.py.
+# log/: game logs (local data). log_analisys/: the raw log split_turns.py reads.
+# records/: the output of split_turns.py.
 # The folders are kept via .gitkeep; everything else inside is ignored.
 /log/*
 !/log/.gitkeep
+/log_analisys/*
+!/log_analisys/.gitkeep
 /records/*
 !/records/.gitkeep
 
@@ -73,6 +76,9 @@ dist/
 .env
 .env.*
 *.local
+
+# --- Claude Code local settings (personal permission allowlist, not team config) ---
+.claude/settings.local.json
 
 # --- macOS extra ---
 .AppleDouble

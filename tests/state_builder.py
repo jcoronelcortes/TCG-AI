@@ -112,6 +112,9 @@ class Scenario:
         self._supporter_played = supporter_played
         self._stadium_played = stadium_played
         self._retirado = retirado
+        # Set by `promote_after_retreat()`: the energy cards the retreat we are
+        # already past has discarded. `False` means "no retreat has been paid".
+        self._retreat_fee = False
         self._n_prizes = (_DEFAULT_PRIZES if own_prizes is None
                            else own_prizes)
 
@@ -570,7 +573,7 @@ class Scenario:
         }
         return self
 
-    def promote_after_retreat(self):
+    def promote_after_retreat(self, fee=None):
         """A SWITCH select: choosing who COMES UP from the bench when the active retreats.
 
         It is the prompt the simulator emits right after paying the retreat
@@ -578,11 +581,25 @@ class Scenario:
         context, CARD options over our own BENCH). It is distinct from
         `promote_from_bench` (TO_ACTIVE), which is the FORCED promotion after a
         KO and can fall on the opponent's turn.
+
+        THE FEE IS ALREADY PAID (user, registro_002 step 33 vs Marnie). "Right
+        after paying the retreat cost" is not a detail of the wording: by the
+        time this menu arrives the simulator has ALREADY moved that energy from
+        the active to the discard, and a scenario that leaves it on the body
+        builds a board that cannot exist. It is not a cosmetic difference --
+        rules that read the active's energy here (the first-turn wall pivot,
+        the anti-Cubchoo penalty) see a body that still has what it just spent,
+        and a test written on that board pins a decision the agent never faces.
+
+        `fee`: energy CARDS the retreat discarded. By default the active's
+        printed retreat cost; pass 0 for a switch that costs nothing (a Switch
+        card, an ability).
         """
         if not self._my_bench:
             raise InconsistentState(
                 "promocion_tras_retirada() requiere mi_banca(...)")
         self._retirado = True
+        self._retreat_fee = fee
         self._select = {
             "type": int(SelectType.CARD),
             "context": int(SelectContext.SWITCH),
@@ -740,6 +757,45 @@ class Scenario:
         }
         return self
 
+    def _pay_the_retreat(self):
+        """Move the retreat cost from the active to the discard.
+
+        Only for the board of `promote_after_retreat()`: the menu that comes
+        AFTER the payment. It is done at build time, not when the select is
+        declared, so it does not depend on the order in which the scenario
+        names its zones. The accounting of the 60 cards is untouched -- the
+        energy cards only change zone.
+        """
+        if self._retreat_fee is False or self._my_active is None:
+            return
+        fee = self._retreat_fee
+        if fee is None:
+            data = _CARD_TABLE.get(self._my_active["id"])
+            fee = (getattr(data, "retreatCost", 0) or 0) if data else 0
+        if not fee:
+            return
+        cards = self._my_active["energyCards"]
+        if not cards:
+            raise InconsistentState(
+                f"el activo no lleva energia y su retirada cuesta {fee}: no "
+                f"pudo pagarla. Usa promocion_tras_retirada(fee=0) si el "
+                f"cambio fue gratis (Switch, habilidad).")
+        # `energies` are EFFECTIVE and `energyCards` PHYSICAL: with Meganium's
+        # Wild Growth one card pays for TWO symbols (ceiling division, the same
+        # arithmetic as `_retreat_cards` in ptcg/calc/energy.py). The ratio is
+        # also what keeps both lists coherent after the discount.
+        per_card = max(1, len(self._my_active["energies"]) // len(cards))
+        spent = -(-fee // per_card)
+        if len(cards) < spent:
+            raise InconsistentState(
+                f"el activo lleva {len(cards)} energias y su retirada cuesta "
+                f"{fee} ({spent} cartas): no pudo pagarla. Usa "
+                f"promocion_tras_retirada(fee=0) si el cambio fue gratis "
+                f"(Switch, habilidad).")
+        self._my_discard.extend(cards[:spent])
+        self._my_active["energyCards"] = cards[spent:]
+        self._my_active["energies"] = self._my_active["energies"][spent * per_card:]
+
     # ------------------------------------------------------------------
     # Final construction
     # ------------------------------------------------------------------
@@ -751,6 +807,8 @@ class Scenario:
         if self._select is None:
             raise InconsistentState(
                 "falta el select (p.ej. fetch_ultra_ball())")
+
+        self._pay_the_retreat()
 
         remaining = sum(self._pool.values())
         if self._visible_deck is not None:

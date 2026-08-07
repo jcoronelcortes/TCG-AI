@@ -7,8 +7,9 @@ was in main.py.
 
 from cg.api import Pokemon
 from ptcg.calc.damage import _our_effective_damage
-from ptcg.calc.energy import _can_attack_eff, _grass_attach_unit, _grass_mult, _ogerpon_base_phys_cap, _physical_energy
-from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Chikorita, Dipplin, Fezandipiti_ex, Hydrapple_ex, Meganium, Meowth_ex, NON_ATTACKER_ENERGY_WASTE_IDS, OUR_EX_IDS, Pinsir, RETREAT_COST, SCORE_CHARGE_ACTIVE_ATTACK, SCORE_CHARGE_ACTIVE_FINISHER, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex
+from ptcg.calc.energy import _can_attack_eff, _grass_ability_slots, _grass_attach_unit, _grass_mult, _ogerpon_base_phys_cap, _physical_energy
+from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Chikorita, Dipplin, FEE_OVER_INERT_DEVELOPMENT, Fezandipiti_ex, Hydrapple_ex, Meganium, Meowth_ex, NON_ATTACKER_ENERGY_WASTE_IDS, OUR_EX_IDS, Pinsir, RETREAT_COST, SCORE_CHARGE_ACTIVE_ATTACK, SCORE_CHARGE_ACTIVE_FINISHER, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex
+from ptcg.cards.scoring import MAIN_ATTACKERS
 from ptcg.cards.tables import card_table
 from ptcg.state.agent_state import AGENT_STATE
 from ptcg.turn.energy_ctx import CtxEnergyScoreBase  # noqa: F401
@@ -80,6 +81,75 @@ def _energy_score_base(tc, pokemon, active):
     total_grass = tc.total_grass
 
     energy_count = len(pokemon.energies)
+
+    def _fee_beats_parking_it(_fee_active):
+        """The retreat fee when NOTHING ELSE turns this Grass into progress.
+
+        THE INERT DEVELOPMENT CHARGE (user, episode 90316244 turn 8 vs Mega
+        Venusaur ex, WON with a sterile turn). Step 44: active Meowth ex at 0
+        energy, bench a Meganium at 0/4 and a 20 HP Meowth ex, and one Grass in
+        hand. With no attacker on the bench, the branches above demote the
+        charge on the active to 7500 ("the fee needs somebody to hand over to")
+        and the Grass goes to the Meganium (7950).
+
+        But the Meganium is not an attacker being assembled either: one
+        attachment leaves it at 2 of the 4 it needs and nothing this turn or the
+        next closes that gap. BOTH destinations are inert -- and only one of
+        them can still be spent. That is the asymmetry this reading adds: energy
+        on the ACTIVE is the only energy that can still become a play in the
+        same turn, because it pays the retreat that brings up an attacker that
+        the turn has not built YET. In that record the turn went on to assemble
+        a Hydrapple ex on the bench (Unfair Stamp -> Bug Catching Set -> Applin
+        -> Dipplin -> Hydrapple ex) and the pivot was there -- but the only
+        charging route left that could reach the active was Ripening Charge, so
+        it had to pay the fee, the Hydrapple was promoted at 0 energy and the
+        turn ended without attacking. With the Grass on the active from the
+        start, Ripening Charge charges the Hydrapple that comes up and it
+        attacks.
+
+        The fee only wins the tie-break; it does NOT stop yielding to a real
+        use of the energy. It is refused when:
+          * there is nobody on the bench worth handing the turn over to. The
+            original rule asked for an attacker READY today, which is what this
+            board did not have; this asks for a real attacker AT ALL
+            (`MAIN_ATTACKERS`, charged or not) -- in the record, the Meganium.
+            Two mirror games out of 120 flipped on a bench holding a lone
+            Bayleef: there the Grass belongs on the Bayleef, which carries it
+            into the Meganium it evolves into, and not on a retreat towards a
+            body that is not an attacker in the first place;
+          * the attachment does not even cover the retreat cost -- then it buys
+            nothing at all;
+          * a benched attacker gets closer to its attack cost with it
+            (`_bench_attacker_needs_energy`), or this very attachment leaves one
+            AT its cost -- a Meganium at 2 of the 4 it needs is not an inert
+            body, it is one Grass away from attacking (registro of Archaludon ex
+            step 90). That is progress; the fee is not;
+          * a charging ability is still live (Teal Dance / Ripening Charge):
+            those attach the same Grass without spending the turn's attachment
+            -- and Teal Dance also draws a card. This is what keeps the measured
+            case of `records/registro_002` (an active Chikorita with a benched
+            Ogerpon's Teal Dance unused) deciding exactly as before.
+
+        Deck-agnostic: it reads a retreat cost, a bench and the charging routes
+        of the turn, never a particular attacker.
+        """
+        if not any(_fee_bp is not None and _fee_bp.id in MAIN_ATTACKERS
+                   for _fee_bp in (my_state.bench or [])):
+            return False
+        if (len(_fee_active.energies) + _grass_attach_unit()
+                < RETREAT_COST.get(_fee_active.id, 1)):
+            return False
+        if _bench_attacker_needs_energy:
+            return False
+        for _fee_bp in (my_state.bench or []):
+            if _fee_bp is None:
+                continue
+            _fee_e = len(_fee_bp.energies)
+            if (not _can_attack_eff(_fee_bp.id, _fee_e)
+                    and _can_attack_eff(_fee_bp.id,
+                                        _fee_e + _grass_attach_unit())):
+                return False
+        return _grass_ability_slots(state, field_counts) < 1
 
     # ATTACKING WITH THE ACTIVE COMES FIRST (see `_charge_active_finishes`): if the
     # energy that can still move this turn leaves the ACTIVE at its attack cost
@@ -1105,7 +1175,15 @@ def _energy_score_base(tc, pokemon, active):
                 # returned far above. What is left here is the fee with nothing
                 # behind it, and it drops to the development band so that Teal
                 # Dance and the bench charges take the Grass.
-                score -= 500
+                #
+                # ...unless there is no Teal Dance and no bench charge either:
+                # see `_fee_beats_parking_it`. Then nothing else converts the
+                # Grass and the fee takes the tie-break, still inside the
+                # development band.
+                if _fee_beats_parking_it(pokemon):
+                    score += FEE_OVER_INERT_DEVELOPMENT
+                else:
+                    score -= 500
         elif pokemon.id == Meowth_ex:
 
             # ACTIVE Meowth ex: we only charge it when the retreat is NECESSARY, that is,
@@ -1119,6 +1197,8 @@ def _energy_score_base(tc, pokemon, active):
                         break
                 if _has_bench_attacker:
                     score += 23200
+                elif _fee_beats_parking_it(pokemon):
+                    score += FEE_OVER_INERT_DEVELOPMENT
                 else:
                     score -= 500
             else:

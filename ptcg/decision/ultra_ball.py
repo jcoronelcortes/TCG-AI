@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from typing import NamedTuple
 from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, CUBCHOO_ALLOWED_PLAY_IDS, Chikorita, Dawn, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Hydrapple_ex, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, Pinsir, SCORE_CANCEL, SCORE_VETO, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, XEROSIC_SCORE_LAST_RESORT, Xerosic_Machinations
 from ptcg.state.zones import ZONE_DECK
-from ptcg.cards.lines import _evo_copies_usable
+from ptcg.cards.lines import _evo_copies_usable, _line_base_benchable
 from ptcg.cards.scoring import _SUPP_PLAY_IDS
 from ptcg.decision.disruption import _score_xerosic_play
 from ptcg.decision.poke_pad import _pp_es_t1
@@ -366,7 +366,9 @@ def _ub_real_fodder(ctx, protegida) -> int:
     op_has_ex_immune_bench = ctx.op_has_ex_immune_bench
     has_hydrapple = ctx.has_hydrapple
     forest_in_play = ctx.forest_in_play
-    ACTIVE_CARDS_IN_DECK = ctx.cards_in_deck
+
+    _ub_bench_max = getattr(getattr(ctx, 'my_state', None), 'benchMax', 5) or 5
+    _ub_free_bench = max(0, _ub_bench_max - bench_count)
 
     _ub_discardable_without_lillie = 0
     for _ub_llid, _ub_llcnt in hand_counts.items():
@@ -382,10 +384,18 @@ def _ub_real_fodder(ctx, protegida) -> int:
             elif (field_counts.get(Dipplin, 0) >= 1 or
                   field_counts.get(Applin, 0) >= 1):
                 _ub_ll_fodder = False
+            # THE OTHER HALF OF THE LINE IN HAND, AND THE BASIC TO WEAR IT.
+            # The Forest lets a Basic benched this turn evolve on the spot, so
+            # {Applin + Dipplin + Hydrapple ex} in hand is a whole chain in one
+            # turn and none of the three pieces is fodder. The Basic has to be
+            # IN HAND: with it only in the DECK this protection was circular --
+            # it vetoed the only card that could dig the Applin out. See
+            # `_line_base_benchable`.
             elif (hand_counts.get(Dipplin, 0) >= 1 and
                   (forest_in_play or
                    hand_counts.get(Forest_of_Vitality, 0) >= 1) and
-                  ACTIVE_CARDS_IN_DECK.get(Applin, {}).get(ZONE_DECK, 0) > 0):
+                  _line_base_benchable(Hydrapple_ex, hand_counts,
+                                       _ub_free_bench)):
                 _ub_ll_fodder = False
         elif _ub_llid == Dipplin:
             if (has_hydrapple and
@@ -396,7 +406,7 @@ def _ub_real_fodder(ctx, protegida) -> int:
             elif (hand_counts.get(Hydrapple_ex, 0) >= 1 and
                   (forest_in_play or
                    hand_counts.get(Forest_of_Vitality, 0) >= 1) and
-                  ACTIVE_CARDS_IN_DECK.get(Applin, {}).get(ZONE_DECK, 0) > 0):
+                  _line_base_benchable(Dipplin, hand_counts, _ub_free_bench)):
                 _ub_ll_fodder = False
         elif _ub_llid == Meganium:
             _ub_ll_fodder = not (field_counts.get(Bayleef, 0) >= 1)
@@ -476,11 +486,9 @@ def _ub_real_fodder(ctx, protegida) -> int:
             # `_evo_copies_usable` is the same arithmetic the DISCARD scorer now
             # applies (`DISCARD_EVO_SPARE_COPY`), so this count keeps mirroring
             # what the discarder would really let go.
-            _ub_bench_max = getattr(getattr(ctx, 'my_state', None),
-                                    'benchMax', 5) or 5
             _ub_usable = _evo_copies_usable(
                 _ub_llid, hand_counts, field_counts,
-                free_bench=max(0, _ub_bench_max - bench_count))
+                free_bench=_ub_free_bench)
             if _ub_usable is not None:
                 # The same floor of one copy the DISCARD scorer keeps: reaching
                 # here means a branch above protected the piece, and this only
@@ -1009,6 +1017,11 @@ class _CtxUBMeowth:
     # fetches returns to the deck unplayed. See
     # `the_stamp_shuffles_the_last_ditch_supporter`.
     stamp_pending: bool = False
+    # Their active cannot be touched and their bench can
+    # (`_boss_gust_immune_active`): a dodge on heads, a Cornerstone, a Crustle,
+    # the Neutralization Zone. The Meowth ex is then not being dug out for a
+    # refill but for the Boss's Orders that turns the turn back into damage.
+    gust_over_immune_active: bool = False
 
 
 @dataclass
@@ -1550,7 +1563,8 @@ def _ctx_ub_fetch_meowth(hand_counts, field_counts, bench_count, turn,
                          supporter_played=False, ld_free=True,
                          meowth_tomorrow=False,
                          supp_in_hand_takes_the_turn=False,
-                         stamp_pending=False):
+                         stamp_pending=False,
+                         gust_over_immune_active=False):
     return _CtxUBMeowth(
         hand=hand_counts, field=field_counts, bench_count=bench_count,
         turn=turn, watchtower=watchtower, supp_values=supp_values,
@@ -1572,7 +1586,31 @@ def _ctx_ub_fetch_meowth(hand_counts, field_counts, bench_count, turn,
         ld_free=ld_free,
         meowth_tomorrow=meowth_tomorrow,
         supp_in_hand_takes_the_turn=supp_in_hand_takes_the_turn,
-        stamp_pending=stamp_pending)
+        stamp_pending=stamp_pending,
+        gust_over_immune_active=gust_over_immune_active)
+
+
+def _um_boss_engine_vs_untouchable(c):
+    """The Ultra Ball digs out the Meowth ex FOR the Boss's Orders when their
+    active cannot be touched and their bench can.
+
+    Sibling of `_um_boss_engine_vs_crustle` with one deliberate difference: it
+    does NOT ask `supp_values[Boss_Orders] >= 900`. With the Boss's still in
+    the deck -- the only board on which digging for it makes sense -- the
+    Supporter scorer has run none of its `_bo_*` refinements (they all live
+    inside `if hand_counts[Boss_Orders] >= 1`), so the value is whatever the
+    ungated base band left. That band reaches 900+ only on branches that name
+    an opposing deck: 990 for the Crustle gust, 980 for Drednaw, 950 for the
+    Tapu line. A coin dodge has no such branch and falls to the generic tail
+    (650 / 500 / 0), so the gate that keeps the Crustle engine honest would
+    shut this one off exactly where it is needed.
+    `gust_over_immune_active` already carries the whole reason: their active is
+    untouchable, their bench is not.
+    """
+    return (c.gust_over_immune_active
+            and c.hand.get(Boss_Orders, 0) == 0
+            and AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(
+                Boss_Orders, {}).get(ZONE_DECK, 0) > 0)
 
 
 def _um_boss_engine_vs_crustle(c):
@@ -1730,6 +1768,19 @@ _RULES_UB_MEOWTH = [
     _FixedRule("last_ditch_produces_nothing",
                lambda c: c.supporter_played or not c.ld_free,
                lambda c: 10),
+    # THE BODY IN FRONT CANNOT BE TOUCHED (user, episode 90325863, turn 8 vs
+    # a Dragapult / Azumarill deck): their Marill hid behind a Hide that came
+    # up heads, so every attack of ours resolves for zero against it. The
+    # Ultra Ball is then not digging for a refill -- it is digging for the
+    # Meowth ex whose Last-Ditch Catch brings the BOSS'S ORDERS that gusts an
+    # attackable body off their bench. It goes right after the vetoes that say
+    # the ability cannot work at all (Watchtower, Supporter spent, Last-Ditch
+    # spent) and ABOVE `lillie_already_in_hand_redundant`: a Lillie's in hand
+    # is no answer to an untouchable active, it only draws cards at it.
+    # 1300, the height of the other paid-for chains. Wall-agnostic.
+    _FixedRule("boss_engine_vs_untouchable",
+               _um_boss_engine_vs_untouchable,
+               lambda c: 1300),
     # With Lillie's ALREADY in hand the Meowth ex fetch is redundant (its only
     # purpose is to search for Lillie's); a useful evolution is better. EXCEPTION:
     # vs Crustle, Meowth ex brings Boss's Orders (a gust), not a refill. (user,
@@ -2036,6 +2087,7 @@ __all__ = [
     '_ub_engine_refresh_pivot',
     '_uh_prepare_hydra_next_turn',
     '_um_boss_engine_vs_crustle',
+    '_um_boss_engine_vs_untouchable',
     '_um_is_first_turn',
     '_v_ub_chikorita_arrancar',
     '_v_ub_applin_arrancar',

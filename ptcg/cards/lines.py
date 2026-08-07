@@ -528,6 +528,33 @@ def _direct_evolution_ids(card_id):
                  if getattr(evo, 'cardId', 0))
 
 
+def _line_base_benchable(card_id, hand_counts, free_bench=0):
+    """Is the BASIC of `card_id`'s line in HAND, with a bench slot that fits it?
+
+    The companion question to `_evo_copies_usable`, asked by the cost vetoes of
+    the Ultra Ball and by the forced-discard scorer: an evolution piece in hand
+    is only worth protecting while some body can WEAR it. That body is either
+    already on the board (the caller reads `field_counts` for that) or it is the
+    line's Basic still in hand waiting for a bench slot.
+
+    THE DECK IS NOT A SEAT. A Basic that only exists in the deck cannot dress
+    anything: it has to be drawn or searched for first, and the only searcher in
+    hand is usually the very Ultra Ball whose cost we are refusing to pay --
+    which makes the protection circular and turns the whole hand into cardboard
+    (user, registro_004 step 26 vs Archaludon ex, LOST). Same doctrine as
+    `_evo_copies_usable` ("a line protects the seats, not the copies") and as
+    `_evo_link_state`, which already calls a piece ORPHANED when its
+    pre-evolution is "neither in play nor in hand".
+
+    Deck-agnostic: the stages come from `EVO_LINES`.
+    """
+    for line in EVO_LINES:
+        if card_id == line[0] or card_id not in line:
+            continue
+        return hand_counts.get(line[0], 0) >= 1 and free_bench >= 1
+    return False
+
+
 def _evo_copies_usable(card_id, hand_counts, field_counts, free_bench=0):
     """How many copies of `card_id` this board could still PUT INTO PLAY.
 
@@ -559,6 +586,7 @@ def _evo_copies_usable(card_id, hand_counts, field_counts, free_bench=0):
 __all__ = [
     '_direct_evolution_ids',
     '_evo_copies_usable',
+    '_line_base_benchable',
     '_evolution_stage',
     '_line_root',
     '_same_evolution_line',

@@ -20,6 +20,49 @@ def _lillie_draw_count(my_prize):
     return 8 if my_prize == 6 else 6
 
 
+def _refill_deck_delta(deck_count, hand_len, my_prize):
+    """Cards the DECK gains from playing Lillie's Determination (negative = it
+    burns them).
+
+    It shuffles the hand back in -- everything except the Supporter itself --
+    and then draws. So the deck ends at `deck + (hand - 1) - draw`, and the
+    delta is what the deck-out brake already reasons with, written down once.
+    """
+    return (hand_len - 1) - _lillie_draw_count(my_prize)
+
+
+def _deck_clock_runs_out(deck_count, my_prize):
+    """Does our own deck run out before we can take the prizes we still need?
+
+    The deck is a CLOCK, and both hands of it are known: we draw one card at the
+    start of every turn of ours, and at the very best we take one prize per turn.
+    So `prizes left` turns are needed and only `deck` are available -- when the
+    deck does not cover them the race is already lost on time, however well the
+    board is going, and every card the engine burns brings the end closer.
+
+    The comparison is `<=` and not `<` because equality only survives the
+    perfect game: a prize on every single turn and not one card spent on
+    searching, drawing or charging. Anything else and the last draw comes up
+    empty.
+    """
+    return deck_count <= my_prize
+
+
+def _lillie_beats_the_deck_clock(c):
+    """Is this Lillie's the play that buys the turns the win still needs?
+
+    Both halves are required and both are deck-agnostic: the clock has run out
+    (`_deck_clock_runs_out`) AND shuffling the hand back really NETS deck cards
+    (`_refill_deck_delta` > 0). With a short hand the refill BURNS deck, and
+    firing there would bring the end closer instead of pushing it away.
+    """
+    _my = c.my_state
+    _deck = getattr(_my, 'deckCount', 60)
+    _prize = len(getattr(_my, 'prize', None) or [])
+    return (_deck_clock_runs_out(_deck, _prize)
+            and _refill_deck_delta(_deck, c.hand_len, _prize) > 0)
+
+
 def _lana_veto_duro(c):
     """Vetoes that in the original RETURN without going through the
     adjustments (the adjustments below must not rescue them)."""
@@ -124,6 +167,9 @@ def _dawn_forest_avail(c):
 
 __all__ = [
     '_lillie_draw_count',
+    '_refill_deck_delta',
+    '_deck_clock_runs_out',
+    '_lillie_beats_the_deck_clock',
     '_lana_veto_duro',
     '_score_lanas_aid_play',
     '_score_dawn_play',

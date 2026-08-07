@@ -31,9 +31,16 @@ draws the line by reading the attack twice, once the way everyone else reads it
 and once counting their hand, and only speaks when the second is lethal and the
 first is not.
 
-The prize gate (`_reply_closes_the_game`) keeps it a defensive pivot rather than
-a preference: a trade we merely dislike is not worth the retreat cost, the game
-is.
+The prize gate (`_reply_closes_the_game`) keeps THIS pivot a defensive one
+rather than a preference: a trade we merely dislike is not worth the retreat
+cost, the game is. It is also what still scopes the expensive half of the line,
+the Grass spent on the active to unlock the retreat.
+
+Later note (registro_008 step 126): the RETREAT itself is no longer only this
+pivot's business. `_front_spot_upgrade` reads the same shape -- two of our
+bodies take the same knockout, their reply removes one of them -- without the
+prize gate, and takes the boards this one leaves alone. See
+`test_the_front_spot_goes_to_the_body_that_pays_less.py`.
 
 Golden corpus: 3 flips, all of them in this same losing turn, all of them Teal
 Dance -> charge the active for the retreat.
@@ -202,11 +209,24 @@ def test_a_relay_that_dies_to_the_same_reply_buys_nothing():
     assert chosen["type"] == int(m.OptionType.ATTACK), chosen
 
 
-def test_it_does_not_fire_when_their_reply_is_not_the_game():
-    """Six prizes on their side: our ex is a trade, not the match. The retreat
-    cost is not worth paying for that."""
-    chosen = _chosen(_board("retreat", active_energies=3, op_prizes=6))
-    assert chosen["type"] == int(m.OptionType.ATTACK), chosen
+def test_when_their_reply_is_only_a_trade_the_wider_rule_takes_the_board():
+    """Six prizes on their side: our ex is a trade, not the match, and THIS
+    pivot stays silent -- `_reply_closes_the_game` is what scopes it, and it is
+    what the Grass-to-the-active half is still spent on.
+
+    The retreat happens anyway, and by a different name. `_front_spot_upgrade`
+    (registro_008 step 126) reads the same board without the prize gate: two
+    bodies take the same knockout, their reply removes one of them and not the
+    other, so the one left standing is the one that outlasts it. The boundary
+    moved on purpose; what this test pins is that it moved to the OTHER rule and
+    that this one did not grow the gate it was measured without."""
+    obs = _board("retreat", active_energies=3, op_prizes=6)
+    cur = m.to_observation_class(copy.deepcopy(obs)).current
+    mine = cur.players[cur.yourIndex]
+    theirs = cur.players[1 - cur.yourIndex]
+    assert m._reply_closes_the_game(mine.active[0], theirs,
+                                    theirs.active[0]) is False
+    assert _chosen(obs)["type"] == int(m.OptionType.RETREAT)
 
 
 def test_the_seam_is_the_reply_only_their_hand_reveals():
