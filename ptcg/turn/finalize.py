@@ -15,7 +15,7 @@ from ptcg.calc.opponent import _op_juega_crustle
 from ptcg.calc.board import _active_of
 from ptcg.cards.ids import Applin, BOSS_SCORE_PRIZE_RANK_BASE, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Pinsir, Poke_Pad, SCORE_USELESS_ATTACK, SCORE_VETO, SUPP_SCORE_LAST_RESORT_BAND, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Xerosic_Machinations
 from ptcg.cards.scoring import SCORE_LD_SUPP_COMPROMETIDO, _SUPP_PLAY_IDS
-from ptcg.cards.tables import attack_table, card_table
+from ptcg.cards.tables import HAND_COST_ABILITY_IDS, HAND_RESET_PLAY_IDS, attack_table, card_table
 from ptcg.decision.ultra_ball import _matchup_allows_playing, _ub_cost_destroys_better_card
 from ptcg.state.agent_state import AGENT_STATE
 from ptcg.state.zones import ZONE_DECK
@@ -425,6 +425,45 @@ def finalizar(tc):
             if _bcs_c is not None and _bcs_c.id == Bug_Catching_Set:
                 _bcs_play_idx = _bcs_i
                 break
+        # Is the ability the parked attachment yields to REALLY going to be
+        # played? `_attach_yields_to_teal_dance` is filled from
+        # `_teal_dance_slots`, and that set is built from the MENU -- an ability
+        # OFFERED, not an ability WANTED:
+        #
+        #     if _tds_o.type == OptionType.ABILITY and _tds_card.id == Teal_Mask_Ogerpon_ex:
+        #         _teal_dance_slots.add((_tds_o.area, _tds_o.index))
+        #
+        # So when the Teal Dance is offered but VETOED -- the anti-overcharge
+        # caps vs Crustle / Cubchoo / Cornerstone, which are the reason those
+        # vetoes exist -- the attachment yields the way to a play that is never
+        # going to happen. Capping its score to 7000 was harmless (the comment in
+        # the ATTACH branch says so: "if the ability were vetoed by another route
+        # the attachment is still playable"), but dropping it out of
+        # `_TIER_ENERGY` into tier 0 is NOT: down there it loses by ORDER to
+        # every tier-0 play, and the free, non-accumulating attachment of the
+        # turn goes with it -- most visibly to a refill that then shuffles the
+        # very energy into the deck.
+        #
+        # Same shape as `_stamp_worth_playing` ("it yielded the way to a card
+        # that was no longer going to be played") and as the REVOKE ORDERING
+        # VETOES block: a deference only stands while its beneficiary is alive.
+        # With a live ability nothing changes -- the attachment stays parked next
+        # to it and the score decides (Teal Dance 7500 > capped 7000). With none
+        # alive, the board behaves like a board with no Teal Dance at all, which
+        # is what it is.
+        #
+        # Census over 4000 self-play games (`log/hand_reset_gate/residual_census.py`):
+        # the parked-with-nothing-to-yield-to attachment loses to a live refill
+        # in 102 of 139.663 menus (0.073%), and in 75% of them the attachment is
+        # in the real development band (5000/7000) rather than the near-worthless
+        # one (10-20).
+        _attach_park_beneficiary_alive = any(
+            _apa_o.type == OptionType.ABILITY and _apa_i < len(scores)
+            and scores[_apa_i] > 0
+            and (lambda _c: _c is not None and _c.id in HAND_COST_ABILITY_IDS)(
+                get_card(obs, _apa_o.area, _apa_o.index, my_index))
+            for _apa_i, _apa_o in enumerate(select.option))
+
         for _po_i, _po_o in enumerate(select.option):
             if _po_i >= len(scores) or scores[_po_i] <= 0:
                 continue
@@ -469,7 +508,8 @@ def finalizar(tc):
                 if (_tapu_future_charge
                         and _po_o.inPlayArea == AreaType.ACTIVE):
                     _po_is_ko_energy = False
-                if _po_i in _attach_yields_to_teal_dance:
+                if (_po_i in _attach_yields_to_teal_dance
+                        and _attach_park_beneficiary_alive):
                     # A pure development attachment with a Teal Dance pending: it
                     # stays in tier 0 next to the ability so the score decides
                     # (Teal Dance 7500 > capped attachment 7000).
@@ -1141,6 +1181,87 @@ def finalizar(tc):
                 _sba_best_supp = scores[_sbai]
             if _sba_i >= 0:
                 scores[_sba_i] = scores[_sba_best_i] + 100
+
+    # =================================================================
+    # WHAT THE HAND PAYS GOES BEFORE THE HAND IS SHUFFLED AWAY
+    # (user, registro_002 step 29, turn 2 vs Marnie, LOST).
+    #
+    # Board: active Teal Mask Ogerpon ex with the single Grass its own Teal Dance
+    # had just attached, a SECOND Ogerpon ex on the bench with NO energy and its
+    # Teal Dance still unused, and in hand one Basic {G} Energy plus the Lillie's
+    # Determination that the Meowth ex's Last-Ditch Catch had fetched two actions
+    # earlier. The ranking was
+    #
+    #     Lillie's 8000  >  Teal Dance 7500  >  attachment 7000
+    #
+    # and the agent REFILLED. Lillie's shuffles the hand into the deck, so the
+    # only Grass on the table went back into the deck without ever reaching a
+    # body: the bench Ogerpon spent the turn empty, the free draw of the ability
+    # was never taken, and the turn's attachment had nothing left to attach.
+    #
+    # None of the three numbers is wrong, and that is the point. Teal Dance is at
+    # 7500 because of the reserve band ("the Grass is being saved for the ACTIVE,
+    # do not spend it on the bench"), the attachment at 7000 because it yielded to
+    # that same Teal Dance, and Lillie's at 8000 because the Last-Ditch commitment
+    # floors the Supporter it paid a 2-prize body for. The commitment says WHETHER
+    # the Supporter is played, never WHEN -- and a reserve is a bet on a card
+    # STAYING IN HAND, which is exactly the bet a hand reset cancels. Once the
+    # refill is on the menu, "save it for later" buys nothing: there is no later.
+    #
+    # It cannot be fixed by score, because it is not a value question. Both plays
+    # live in tier 0 -- Supporters always do, and a DEGRADED charging ability does
+    # too (its `_TIER_ENERGY` promotion asks for >= 29000, the guard that stops it
+    # from crushing Ripening Charge and which is deliberately NOT touched here) --
+    # so within the tier the bigger number wins whatever the numbers mean. The
+    # relation between them is ORDER, and this is where order is decided.
+    #
+    # The fix is a SWAP, not a boost: the hand-paying plays are lifted just above
+    # the refill by a SHARED delta, so their order among themselves is untouched
+    # and everything else keeps its place. The refill drops exactly one notch and
+    # wins the next menu -- with the ability spent, its slot still free and one
+    # card fewer to shuffle away.
+    #
+    # Deck-agnostic on both halves, and read off the PRINTED TEXT rather than off
+    # a card list (see `HAND_RESET_PLAY_IDS` / `HAND_COST_ABILITY_IDS`): any
+    # refill that empties the hand (Lillie's, Lacey, Judge, Carmine, the Unfair
+    # Stamp) yields to any ability that pays with a card from it (Teal Dance,
+    # Ripening Charge, Inferno Fandango...).
+    #
+    # It does NOT invert the opposite order, which is also right: an ability that
+    # PRODUCES cards (Flip the Script's 3-card draw) goes AFTER the refill, since
+    # drawing first only feeds those cards back into the deck. That half already
+    # exists as `_lillie_blocks_fez_ability` / `_stamp_blocks_supp_chain`, and the
+    # two never collide -- the discriminator is which way the cards flow.
+    #
+    # A VETOED ability (<= 0) is left alone: there the scorer is saying the
+    # attachment itself is wrong (the anti-overcharge caps), not that the card is
+    # being saved, and shuffling it away costs nothing.
+    # =================================================================
+    if context == SelectContext.MAIN and scores:
+        _hr_reset = SCORE_VETO
+        for _hr_i, _hr_o in enumerate(select.option):
+            if (_hr_i >= len(scores) or scores[_hr_i] <= 0
+                    or _hr_o.type != OptionType.PLAY
+                    or _play_order_tier[_hr_i] != 0):
+                continue
+            _hr_c = get_card(obs, AreaType.HAND, _hr_o.index, my_index)
+            if _hr_c is not None and _hr_c.id in HAND_RESET_PLAY_IDS:
+                _hr_reset = max(_hr_reset, scores[_hr_i])
+        if _hr_reset > 0:
+            _hr_payers = []
+            for _hr_i, _hr_o in enumerate(select.option):
+                if (_hr_i >= len(scores) or scores[_hr_i] <= 0
+                        or _hr_o.type != OptionType.ABILITY
+                        or _play_order_tier[_hr_i] != 0):
+                    continue
+                _hr_c = get_card(obs, _hr_o.area, _hr_o.index, my_index)
+                if _hr_c is not None and _hr_c.id in HAND_COST_ABILITY_IDS:
+                    _hr_payers.append(_hr_i)
+            if _hr_payers:
+                _hr_delta = _hr_reset + 1 - min(scores[_i] for _i in _hr_payers)
+                if _hr_delta > 0:
+                    for _hr_i in _hr_payers:
+                        scores[_hr_i] += _hr_delta
 
     desc_indices = [i for i, _ in sorted(
         enumerate(scores),
