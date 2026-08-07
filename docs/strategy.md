@@ -221,6 +221,22 @@ this energy, not who is our best Pokémon:
 - energy that will be wasted is wasted **at the moment of the knockout**, which
   is why doomed bodies are not charged.
 
+The Grass that is *not* spent today is not free either. Teal Dance and Ripening
+Charge attach **from hand**, so once no charging ability can still fire this turn
+the last Grass in hand is what makes tomorrow's charge — an attachment *and*,
+with Teal Dance, a card — payable at all:
+
+- with a route to a Lillie's Determination tomorrow (the Supporter itself, a
+  Meowth ex or an Ultra Ball in hand), or with a second Grass, the energy is
+  spent today **on the Teal Mask Ogerpon ex that is still short of its cost** and
+  not on a body that will not attack. Holding it would not even be holding: the
+  refill shuffles the hand — Grass included — back into the deck;
+- without that route, the last Grass stays in hand and pays tomorrow's Teal
+  Dance;
+- against Crustle and Cornerstone none of the above applies. Our ex does not
+  damage the wall: there the Chikorita is the first rung of the Meganium line,
+  Tapu Bulu is the plan, and the energy belongs to the bench.
+
 ## 8. Evolving is not healing: which body takes the evolution
 
 Damage carries over when a Pokemon evolves — only the maximum goes up. That

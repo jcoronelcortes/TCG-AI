@@ -756,6 +756,23 @@ NON_ATTACKER_ENERGY_WASTE_IDS = {Meowth_ex, Fezandipiti_ex}
 # that really do something this turn (31000+) are out of reach.
 FEE_OVER_INERT_DEVELOPMENT = 100
 
+# The Teal Mask Ogerpon ex that is still SHORT of Myriad Leaf Shower takes the
+# turn's attachment ahead of any body that will not attack (a Chikorita, an
+# Applin: they appear in ATTACK_ENERGY_REQ because of their chip attack, and one
+# energy does not make attackers of them).
+#
+# 8800 = the same rung the first-turn bench table of ptcg/turn/options/attach.py
+# already gives a benched Teal Mask Ogerpon ex (8000 + 800), and the value is
+# chosen to BE that rung and not to outbid it: it beats Tapu Bulu (8750), Pinsir
+# (8650), Applin (8500), Chikorita (8400) and Fezandipiti ex (8200), and yields
+# to the Hydrapple ex line -- Hydrapple ex (8900) and Dipplin (8850) -- which
+# accelerates energy and is the reason that table exists. It lives INSIDE the
+# development band (< 9000), so a pending Teal Dance still caps it at 7000 and
+# every charge that does something TODAY (31000+) is out of its reach: this
+# decides WHICH body gets a development energy, never whether development beats
+# a play with a prize behind it.
+SCORE_CHARGE_FUTURE_OGERPON = 8800
+
 HIGH_PRIORITY_BENCH_TARGETS = {Budew, Munkidori, Froslass, Snorunt, Dreepy, Drakloak, Dwebble_Grass, Dwebble_Fighting}
 
 META_BENCH_TARGETS = {Slowpoke, Slowking, Weedle, Kakuna, Beedrill, Zorua_N, Zoroark_N,
@@ -1267,6 +1284,7 @@ __all__ = [
     'SCORE_CHARGE_ACTIVE_ATTACK',
     'NON_ATTACKER_ENERGY_WASTE_IDS',
     'FEE_OVER_INERT_DEVELOPMENT',
+    'SCORE_CHARGE_FUTURE_OGERPON',
     'HIGH_PRIORITY_BENCH_TARGETS',
     'META_BENCH_TARGETS',
     'FIRE_POKEMON_IDS',

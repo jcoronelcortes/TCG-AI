@@ -7,10 +7,47 @@ VERBATIM. It unpacks from the context the 26 fields it reads and returns the
 
 from cg.api import AreaType
 from ptcg.calc.card import get_card
-from ptcg.calc.energy import _can_attack_eff, _grass_attach_unit
-from ptcg.cards.ids import Applin, Basic_Grass_Energy, Chikorita, Dipplin, Fezandipiti_ex, Hydrapple_ex, Meowth_ex, Pinsir, RETREAT_COST, SCORE_VETO, Tapu_Bulu, Teal_Mask_Ogerpon_ex
+from ptcg.calc.energy import _can_attack_eff, _grass_ability_slots, _grass_attach_unit
+from ptcg.cards.ids import Applin, Basic_Grass_Energy, Chikorita, Dipplin, Fezandipiti_ex, Hydrapple_ex, Lillie_Determination, Meowth_ex, Pinsir, RETREAT_COST, SCORE_CHARGE_FUTURE_OGERPON, SCORE_VETO, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball
 from ptcg.cards.scoring import MAIN_ATTACKERS
 from ptcg.state.agent_state import AGENT_STATE
+
+
+def _ogerpon_still_short(my_state):
+    """Is there a Teal Mask Ogerpon ex in play still short of Myriad Leaf Shower?
+
+    The question behind it is "is there a body on our field that this Grass is
+    really FOR, today or tomorrow". An Ogerpon ex that already covers its cost is
+    not one: charging it further is the overcharge that half the per-matchup caps
+    exist to stop, and reserving a Grass for a Teal Dance that would only
+    overcharge it buys nothing but the draw.
+    """
+    for _p in list(my_state.active or []) + list(my_state.bench or []):
+        if (_p is not None and _p.id == Teal_Mask_Ogerpon_ex
+                and not _can_attack_eff(_p.id, len(_p.energies))):
+            return True
+    return False
+
+
+def _is_our_first_turn(state):
+    """Our first turn of the game, whichever seat we play from."""
+    return ((state.turn == 1 and AGENT_STATE.we_go_first)
+            or (state.turn == 2 and not AGENT_STATE.we_go_first))
+
+
+def _lillie_route_next_turn(hand_counts):
+    """Can the hand still put a Lillie's Determination on the table TOMORROW?
+
+    The three routes, exactly as the user spelled them out: the Supporter itself
+    in hand, a Meowth ex in hand (Last-Ditch Catch fetches it when the body is
+    benched) or an Ultra Ball in hand (which digs the Meowth ex out). A Meowth ex
+    ALREADY on the bench is deliberately NOT a route: Last-Ditch Catch triggers
+    on playing the body from hand, so a Meowth that is already sitting there
+    fetches nothing tomorrow.
+    """
+    return (hand_counts.get(Lillie_Determination, 0) >= 1
+            or hand_counts.get(Meowth_ex, 0) >= 1
+            or hand_counts.get(Ultra_Ball, 0) >= 1)
 
 
 def score_play(tc, o, score):
@@ -31,6 +68,7 @@ def score_play(tc, o, score):
     _win_via_boss_gust = tc._win_via_boss_gust
     card = tc.card
     energy_score = tc.energy_score
+    field_counts = tc.field_counts
     hand_counts = tc.hand_counts
     has_ogerpon = tc.has_ogerpon
     itchy_pollen_active = tc.itchy_pollen_active
@@ -287,6 +325,99 @@ def score_play(tc, o, score):
                                  + _grass_attach_unit()))):
                 score = min(score, 7000)
                 _attach_yields_to_teal_dance.add(len(scores))
+
+            # ==============================================================
+            # ONCE THE CHARGING ABILITIES OF THE TURN ARE SPENT: WHOSE GRASS?
+            # ==============================================================
+            # The two blocks above ask "is there still a Teal Dance TODAY". This
+            # one answers the question that opens the moment the answer is no,
+            # and that the agent was resolving by the bench table alone (user,
+            # registro_002 step 21, episode 90591443 vs Marnie, LOST): active
+            # Teal Mask Ogerpon ex with the one energy its own Teal Dance had
+            # just attached, a Chikorita on the bench and a single Grass left in
+            # hand. The attachment to the active was vetoed by the first-turn
+            # rule ("do not overcharge the opening attacker") and the Chikorita
+            # -- the only target left -- took the Grass at 8400. A Chikorita with
+            # one energy is not an attacker: the Grass went to a body that was
+            # never going to use it while the body that WAS going to attack sat
+            # in front at 1 of 3.
+            #
+            # THE MATCHUP DECIDES WHO THE ATTACKER IS, and that is why the rule
+            # steps aside for the two wall decks. Against Crustle and against
+            # Cornerstone our ex does not damage the wall: there the Chikorita is
+            # the first rung of the Meganium line and Tapu Bulu is the plan, so
+            # charging the bench line IS the right play and the behaviour is left
+            # exactly as it was. Against every other deck we know -- Marnie,
+            # Cynthia's Garchomp, Hop's, Alakazam, Dragapult, Archaludon, Mega
+            # Starmie -- the Teal Mask Ogerpon ex is our first real attacker, and
+            # against the two Grass-weak ones (Marnie's Grimmsnarl line,
+            # Cynthia's Garchomp) Myriad Leaf Shower is the fastest prize on the
+            # board. The per-matchup energy CAPS are not touched: this only ever
+            # moves an Ogerpon ex that is still SHORT of its cost.
+            #
+            # And the Grass that is not spent today is not free either. Teal
+            # Dance is once per turn per body and it is paid FROM HAND: the last
+            # Grass in hand is what makes tomorrow's Teal Dance -- an attachment
+            # AND A CARD -- payable at all. So:
+            #
+            #   * last Grass and no route to a Lillie's Determination tomorrow
+            #     -> HOLD IT. Spending it on development today buys one energy on
+            #     a body; holding it buys the same energy tomorrow PLUS the draw.
+            #   * a Lillie's route, or a second Grass in hand
+            #     -> SPEND IT ON THE OGERPON. With a Lillie's coming, holding is
+            #     not even holding: the refill SHUFFLES THE HAND INTO THE DECK,
+            #     Grass included, so a Grass kept back for tomorrow is a Grass
+            #     given away. That is precisely what happened in the record two
+            #     steps later.
+            #
+            # Both halves live in the DEVELOPMENT band and gate on it (the same
+            # `0 < score < 9000` and "does not become an attacker with this
+            # energy" guard as the block above): a charge that enables a retreat,
+            # an attack or a KO today scores 31000+ and neither half can see it.
+            #
+            # "THE ABILITIES ARE SPENT" IS ASKED TWICE, AND ON PURPOSE. The menu
+            # (`_teal_dance_slots`) is the honest test of "can it be used from
+            # HERE"; `_grass_ability_slots` is the one that knows a Teal Dance or
+            # a Ripening Charge is still alive on a body the menu is not offering
+            # right now. A live charging ability spends this same Grass for free,
+            # so while either says yes the question below is not open yet and
+            # neither half of the rule may answer it.
+            if (not _teal_dance_slots
+                    and _grass_ability_slots(state, field_counts) < 1
+                    and pokemon is not None
+                    and not AGENT_STATE.op_is_crustle_deck
+                    and not AGENT_STATE.op_is_cornerstone_deck
+                    and _ogerpon_still_short(my_state)):
+                if (hand_counts.get(Basic_Grass_Energy, 0) <= 1
+                        and not _lillie_route_next_turn(hand_counts)):
+                    if (0 < score < 9000
+                            and not (pokemon.id in MAIN_ATTACKERS
+                                     and _can_attack_eff(
+                                         pokemon.id,
+                                         len(pokemon.energies)
+                                         + _grass_attach_unit()))):
+                        score = SCORE_VETO
+                elif (pokemon.id == Teal_Mask_Ogerpon_ex
+                        and not _can_attack_eff(pokemon.id, len(pokemon.energies))
+                        and (0 < score < SCORE_CHARGE_FUTURE_OGERPON
+                             # THE ONLY VETO IT LIFTS IS THE ONE IT ARGUES WITH.
+                             # A veto is a veto: the per-matchup energy caps, the
+                             # Hydrapple redirections and the anti-waste rules all
+                             # speak through one, and a rule about which body gets
+                             # a DEVELOPMENT energy has no business overruling
+                             # them. The exception is the first-turn veto on our
+                             # own opening Ogerpon ex -- "do not overcharge the
+                             # opening attacker" -- which is precisely the
+                             # judgement the record disputes: at 1 of 3 this is
+                             # not overcharging it, it is building it.
+                             or (score <= 0
+                                 and o.inPlayArea == AreaType.ACTIVE
+                                 and _is_our_first_turn(state)))):
+                    # It RAISES, it never lowers: an Ogerpon ex the matchup
+                    # already scores above this band (the Hydrapple/Meganium
+                    # redirections of `_energy_score_base`, any charge with a
+                    # prize behind it) keeps its own number.
+                    score = SCORE_CHARGE_FUTURE_OGERPON
         return score
     finally:
         tc.card = card
