@@ -238,30 +238,31 @@ def test_the_arithmetic_says_no_once_the_discard_is_empty_of_grass():
         "reads it must never fire on a board where Lana's Aid brings no energy")
 
 
-def test_both_copies_of_the_fetch_ladder_agree():
-    """`_RULES_MEOWTH_FETCH` exists TWICE and BOTH copies are live.
+def test_there_is_only_one_fetch_ladder():
+    """`_RULES_MEOWTH_FETCH` must stay a SINGLE object, and here is why.
 
-    main.py re-binds the name after `from ptcg.decision.meowth import *`, so its
-    copy shadows the package's -- and the two are read from different places:
+    It used to exist twice -- main.py re-bound the name after
+    `from ptcg.decision.meowth import *`, shadowing the package's copy -- and
+    the two were read from different places:
 
       * `_meowth_fetch_prediction` (main.py) decides, BEFORE benching the Meowth
-        ex, which Supporter the search would bring, and it reads main's copy;
-      * the real Last-Ditch prompt (`ptcg/turn/options/card.py`) imports the rule
-        list from `ptcg.decision.meowth`, so it reads the package's.
+        ex, which Supporter the search would bring, and it read main's copy;
+      * the real Last-Ditch prompt (`ptcg/turn/options/card.py`) imports the
+        rule list from `ptcg.decision.meowth`, so it read the package's.
 
-    A rule added to one and not the other makes the agent bench a body for a
-    fetch it then does not make. (Two OTHER duplicated ladders in this
-    repository have already drifted -- `_RULES_NS_GRASS` and `_RULES_UB_MEOWTH`
-    -- and they are harmless only because both are read from the package side
-    alone. This one is not in that position.)
+    A rule added to one and not the other makes the agent bench a 2-prize body
+    for a fetch it then does not make -- and nothing would say so: no exception,
+    no red test, just a different decision in a game. Two sibling ladders had
+    already drifted that way (`_RULES_NS_GRASS`, `_RULES_UB_MEOWTH`).
+
+    So main.py's copies were deleted rather than kept in sync, and this is the
+    invariant that replaces the synchronisation: one list, one truth.
     """
     import ptcg.decision.meowth as pkg
-    assert m._RULES_MEOWTH_FETCH is not pkg._RULES_MEOWTH_FETCH, (
-        "if the shadow ever goes away this test can go with it")
-    assert ([r.name for r in m._RULES_MEOWTH_FETCH]
-            == [r.name for r in pkg._RULES_MEOWTH_FETCH]), (
-        "the prediction and the real fetch would disagree about which Supporter "
-        "the Last-Ditch Catch brings")
+    assert m._RULES_MEOWTH_FETCH is pkg._RULES_MEOWTH_FETCH, (
+        "main.py has re-bound the fetch ladder again: the prediction and the "
+        "real fetch can now disagree about which Supporter the Last-Ditch "
+        "Catch brings")
 
 
 def test_the_shared_arithmetic_is_the_one_the_winning_route_uses():
