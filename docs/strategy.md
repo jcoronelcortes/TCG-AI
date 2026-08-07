@@ -459,6 +459,17 @@ hits — gust and attack really are alternatives. The one attack that is never
 delayed is the one that wins the game: nothing survives the turn if the turn is
 the last one.
 
+**A rule and its own special case have an order too, and the general one goes
+first.** `_attach_enable_retreat_ko` -- energy onto the active so it can retreat
+towards a benched attacker that finishes the job -- generalises an older rule
+that said the same thing about one body in particular (a Tapu Bulu with four
+Grass). The `elif` chain tested the special case first, and its band was fitted
+back when its only competition was bench *development*, so on exactly the boards
+the special case covers the lethal line scored below a routine bench *charge* and
+lost. The agent declined a knockout it had already found. When a rule is
+generalised, the general one takes the chain's first seat and the special case
+keeps its own band for whatever the general one does not claim.
+
 ---
 
 ## How these rules get added

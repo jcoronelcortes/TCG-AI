@@ -299,6 +299,34 @@ COIN_DODGE_ATTACK_IDS = frozenset({
 
 Mega_Greninja_ex = 40
 Mega_Starmie_ex = 1031
+# The pre-evolution of Mega Starmie ex: a 70 HP Basic worth ONE prize that is
+# ONE card away from a 330 HP body whose Nebula Beam prints 210 -- exactly the
+# HP of our Teal Mask Ogerpon ex. The line is what names the matchup
+# (`op_is_starmie_deck`): the body they show is harmless, the body they show
+# NEXT turn one-shots any ex we leave in front of it.
+Staryu = 1030
+MEGA_STARMIE_LINE_IDS = frozenset({Staryu, Mega_Starmie_ex})
+
+# WHO GOES IN FRONT WHEN WE HIDE AN EX FROM THE MEGA STARMIE LINE (user,
+# registro_002 step 28, episode 90583594, LOST). The order is the user's, and
+# each rung says what the body is worth to the deck rather than what it costs:
+#
+#   Tapu Bulu   -- 140 HP and one prize: the only body that both endures a turn
+#                  and is a real attacker afterwards.
+#   Applin      -- the cheapest prize we own. The copy WITHOUT energy first: the
+#                  charged one stays on the bench with its investment intact
+#                  (`_starmie_sac_rank` reads the energies for that half).
+#   Chikorita   -- the other 70 HP basic; the Bayleef/Meganium line is support,
+#                  not the plan.
+#   Dipplin     -- a Stage 1 already spent from the Applin line.
+#   Bayleef     -- the middle of the Meganium line.
+#   Meowth ex   -- two prizes, but 170 HP: the last named rung, only reached
+#                  when nothing cheaper is on the bench.
+#
+# Anything not on the list keeps its ordinary promotion score, which is what
+# "and finally any other option" means.
+STARMIE_SAC_PROMOTE_ORDER = (Tapu_Bulu, Applin, Chikorita, Dipplin, Bayleef,
+                             Meowth_ex)
 Slowking = 163
 Slowpoke = 162
 
@@ -1146,6 +1174,9 @@ __all__ = [
     'COIN_DODGE_ATTACK_IDS',
     'Mega_Greninja_ex',
     'Mega_Starmie_ex',
+    'Staryu',
+    'MEGA_STARMIE_LINE_IDS',
+    'STARMIE_SAC_PROMOTE_ORDER',
     'Slowking',
     'Slowpoke',
     'Beedrill',

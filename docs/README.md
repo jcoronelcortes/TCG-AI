@@ -47,6 +47,8 @@ is written line by line. It is meant to stay readable as the code changes.
 | [Debugging a decision](debugging.md) | How to reproduce one concrete decision and find out why the agent chose it. |
 | [Rename maps](history/rename-maps/README.md) | What became what when the project was translated to English. |
 | [Project history](project-history.md) | Why the code is shaped the way it is, and the mistakes that shaped it. |
+| [The night of 7 Aug 2026](history/night-2026-08-07.md) | A full measurement session, written up: what was found, what was measured, and what was deliberately not shipped. |
+| [Tournament principles audit](history/tournament-principles-audit.md) | The five habits that separate a casual player from a tournament one, checked one by one against the code. |
 
 ---
 

@@ -82,20 +82,6 @@ def score_play(tc, o, score):
                         score = 8500
                     else:
                         score = SCORE_VETO
-                elif _tapu_sac_enable_retreat:
-                    # Attaching energy to the active ex (2 prizes) to reach its
-                    # retreat cost and be able to pivot to an already charged Tapu
-                    # Bulu that knocks out the opposing active (user, log 86029588
-                    # turn 16 step 148, vs Alakazam/Dunsparce). Fezandipiti ex's
-                    # retreat cost is 1, so ONE Grass already enables the retreat
-                    # this very turn -> bring up Tapu and finish. It used to score
-                    # 8000, but a BENCHED Dipplin at 0 energy scores 8150 (8000+150)
-                    # and WON the tie-break, wasting the energy on a non-attacker
-                    # and breaking the KO line. It is raised above any bench
-                    # development (non-lethal Dipplin/Applin/Tapu) so the attachment
-                    # to the active wins; it is still below a LETHAL charge for this
-                    # turn (41000/42000).
-                    score = 24000
                 elif _attach_enable_retreat_ko:
                     # An attachment that enables retreat + a bench KO (user,
                     # registro_034 step 141 vs Terrakion): it is a LETHAL line
@@ -106,7 +92,35 @@ def score_play(tc, o, score):
                     # plan with can_switch, promotion, attack) is already
                     # resolved by the existing machinery once the retreat is
                     # legal.
+                    #
+                    # IT GOES BEFORE `_tapu_sac_enable_retreat`, AND THAT ORDER IS
+                    # THE RULE. The Tapu branch below is the SPECIAL CASE this one
+                    # generalises -- Tapu Bulu with four Grass, which is the whole
+                    # plan of the Crustle matchup -- and it was being tested first,
+                    # so on precisely the boards it covers the lethal line scored
+                    # 24000 instead of 41000 and lost to a routine bench charge at
+                    # 31000. Found by dumping the dry turns of
+                    # `utils/wall_probe.py` against crustle_wall_6: seco_019, turn
+                    # 14, active Meowth ex at 0 energy with retreat cost 1, one
+                    # Grass in hand, a Tapu Bulu with four on the bench and a
+                    # Crustle 170/170 in front. Grass -> active, retreat, promote,
+                    # Wood Hammer 220: a prize. The agent attached to a benched
+                    # Dipplin at 0 energy and ended the turn.
                     score = 41000
+                elif _tapu_sac_enable_retreat:
+                    # THE SPECIAL CASE OF THE BRANCH ABOVE, kept for the boards
+                    # where the general detector stays quiet. Attaching to the
+                    # active ex (2 prizes) to reach its retreat cost and pivot to an
+                    # already charged Tapu Bulu that knocks the opposing active out
+                    # (user, log 86029588 turn 16 step 148, vs Alakazam/Dunsparce).
+                    # Fezandipiti ex's retreat cost is 1, so ONE Grass enables the
+                    # retreat this very turn -> bring up Tapu and finish. It used to
+                    # score 8000, but a BENCHED Dipplin at 0 energy scores 8150 and
+                    # won the tie-break, wasting the energy on a non-attacker.
+                    # Raised above any bench DEVELOPMENT -- which is not the same as
+                    # above any bench CHARGE, and that gap is what made the ordering
+                    # above matter.
+                    score = 24000
                 elif _attach_enable_retreat_attack:
                     # The same line without a KO (user, log 88162794 turns 11/13 vs
                     # Archaludon ex): the active can neither attack nor retreat and

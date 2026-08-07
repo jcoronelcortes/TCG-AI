@@ -32,6 +32,19 @@ MAIN_ATTACKERS = (
 )
 
 
+# WHO GOES IN FRONT OF THE MEGA STARMIE LINE. The top of the user's order and
+# the gap between its rungs. The band sits ABOVE the sacrifice menu's own top
+# rung (6000, the Chikorita of `_doomed_sac_context`) because it is a different
+# question with a different answer: that order asks which of two evolution
+# lines we would rather spend, this one asks which body pays ONE prize instead
+# of two against a deck that one-shots any ex we leave in front. Seven rungs
+# 100 apart -- Tapu Bulu, Applin without energy, Applin with energy, Chikorita,
+# Dipplin, Bayleef, Meowth ex -- so no two of them can ever tie and have the
+# menu order decide. See STARMIE_SAC_PROMOTE_ORDER in ptcg/cards/ids.py.
+STARMIE_SAC_PROMOTE_TOP = 7000
+STARMIE_SAC_PROMOTE_STEP = 100
+
+
 # Terminal PROMOTION adjustment (see "SURVIVAL WHEN PROMOTING"). The doomed body
 # drops far enough to yield to any real survivor (the measured case: a charged
 # Ogerpon 4557 -> -1443, below the Hydrapple ex at 259).
@@ -68,4 +81,6 @@ __all__ = [
     'PROMO_KO_BONUS',
     'PROMO_MATCH_POINT_VETO',
     'PROMO_PRIZE_PENALTY',
+    'STARMIE_SAC_PROMOTE_TOP',
+    'STARMIE_SAC_PROMOTE_STEP',
 ]

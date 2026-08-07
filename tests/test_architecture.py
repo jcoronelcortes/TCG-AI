@@ -1,6 +1,6 @@
 """Runs the refactor's architecture rules with the suite.
 
-See utils/lint_architecture.py and docs/project-history.md. The four
+See utils/lint_architecture.py and docs/project-history.md. The five
 rules cover failures that do not show up as a red test: they break the
 submission on Kaggle, or they make the agent read frozen state and decide badly in a
 game without raising any exception.
@@ -126,3 +126,36 @@ def test_r2_allows_state_in_calc(tmp_path, monkeypatch):
     (package / "calc" / "energy.py").write_text("from ptcg.state.agent_state import AGENT_STATE\n")
     monkeypatch.setattr(la, "PACKAGE", package)
     assert la.rule_2_purity() == []
+
+
+def test_r5_catches_a_name_defined_twice(tmp_path, monkeypatch):
+    """The failure mode that cost 634 lines of `ptcg/`: an extraction appended
+    its block twice, Python kept the second copy, and the first read like live
+    code while editing it changed nothing."""
+    package = tmp_path / "ptcg"
+    package.mkdir(parents=True)
+    (package / "__init__.py").write_text("")
+    (package / "calc.py").write_text(
+        "def prize_count(pk):\n    return 2\n\n\n"
+        "def prize_count(pk):\n    return 1\n"
+    )
+    monkeypatch.setattr(la, "PACKAGE", package)
+    monkeypatch.setattr(la, "MAIN_PY", tmp_path / "does_not_exist.py")
+    failures = la.rule_5_no_redefinition()
+    assert [f[0] for f in failures] == ["R5"]
+    assert "prize_count" in failures[0][3]
+
+
+def test_r5_accepts_a_method_that_shadows_a_function(tmp_path, monkeypatch):
+    """Only TOP-LEVEL names collide. A method named like a module function is
+    ordinary code and must not be reported."""
+    package = tmp_path / "ptcg"
+    package.mkdir(parents=True)
+    (package / "__init__.py").write_text("")
+    (package / "calc.py").write_text(
+        "def reset():\n    return 0\n\n\n"
+        "class State:\n    def reset(self):\n        return 1\n"
+    )
+    monkeypatch.setattr(la, "PACKAGE", package)
+    monkeypatch.setattr(la, "MAIN_PY", tmp_path / "does_not_exist.py")
+    assert la.rule_5_no_redefinition() == []

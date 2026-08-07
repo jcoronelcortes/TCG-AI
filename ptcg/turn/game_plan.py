@@ -38,7 +38,7 @@ here is the DEFENSIVE half -- the prizes the opponent takes on their next turn -
 and the single sentence that combines both halves.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from ptcg.calc.card import prize_count, prize_count_op
 from ptcg.calc.damage import (_attacker_base_damage, _ko_not_guaranteed,
@@ -102,6 +102,17 @@ class TurnPlan:
     op_wins_next: bool
 
     mode: str
+
+    # --- defence, the half that only exists once we take the knockout -----
+    # Prizes the body they PROMOTE takes from our active, when our own attack
+    # knocks their active out this turn. `op_prizes_next` is zero on exactly
+    # those boards -- the body that would reply is on its way to the discard --
+    # and this is what stands up in its place. See `_reply_after_promotion`.
+    op_prizes_after_ko: int = 0
+    # ... and that closes their count: the knockout we are about to take is the
+    # one that loses the game, unless the same knockout is taken by a body that
+    # outlasts what comes up.
+    op_wins_after_ko: bool = False
 
     @property
     def wins_this_turn(self) -> bool:
@@ -532,6 +543,61 @@ def _opponent_reply(my_state, op_state, op_hand_count):
     return prize_count(my_active), True
 
 
+def _reply_after_promotion(my_state, op_state, op_hand_count):
+    """(prizes the body they PROMOTE takes from our active, does it knock it out).
+
+    THE HOLE THIS FILLS. `_we_knock_out_their_active` switches the whole
+    defensive half off when our attack finishes their active, and the reason it
+    gives is sound as far as it goes: the body that would reply is on its way to
+    the discard. What it leaves out is that a knockout does not end their turn,
+    it forces a PROMOTION -- and unlike a bench swap or a gust, which need a
+    hand we cannot see, the bench they promote from is fully in the observation.
+    So on the boards where we take the knockout, the plan was reporting that
+    nobody replies, and the body with four energies sitting on their bench was
+    invisible.
+
+    Found by sweeping the board rather than by losing a game: 288 cells of
+    `tests/test_grid_attack_or_retreat.py` decide identically at every value of
+    their prize pile, including their match point, because the flag that would
+    have distinguished them is zero on all of them.
+
+    WHAT IT PROJECTS, AND WHAT IT REFUSES TO. The best of their benched bodies
+    against our active, read exactly the way their active is read -- the same
+    projector, `scaled=True`, and the same "one energy attached next turn"
+    assumption. It does NOT model which one they would actually choose (that is
+    their decision, not a reading), so it takes the worst case for us, which is
+    the only assumption a defensive projection can make honestly.
+
+    THE BENCH IS ONE BODY SMALLER once one of them is standing in front. Do the
+    Wave counts their bench, so the projection runs on a corrected snapshot;
+    without it their damage reads 20 too high, which is the direction that makes
+    a defensive rule fire when it should not.
+
+    This function computes DATA. It does not touch `mode`, and no rule that
+    existed before it reads its output -- the defensive machinery of this agent
+    has been measured negative three separate times when it was made to fire
+    more often, and a projection that is newly correct is not a licence to
+    repeat that.
+    """
+    my_active = my_state.active[0] if my_state.active else None
+    if my_active is None:
+        return 0, False
+    bench = [p for p in (op_state.bench or []) if p is not None]
+    if not bench:
+        # Nothing to promote: knocking their active out wins by bench-out, and
+        # that route is already the plan's business.
+        return 0, False
+    scale = replace(AGENT_STATE.op_scale,
+                    op_bench=max(0, AGENT_STATE.op_scale.op_bench - 1))
+    worst = 0
+    for body in bench:
+        worst = max(worst, _op_active_attack_damage_to(
+            body, my_active, op_hand_count, scaled=True, scale=scale))
+    if worst < (my_active.hp or 0):
+        return 0, False
+    return prize_count(my_active), True
+
+
 def build_turn_plan(*, my_prize, op_prize, my_state, op_state, state,
                     hand_counts, total_grass, bench_count, meganium_in_play,
                     neutralization_zone, op_hand_count,
@@ -588,15 +654,23 @@ def build_turn_plan(*, my_prize, op_prize, my_state, op_state, state,
 
     # Their reply is only THEIRS if the body that would make it survives our
     # turn. See `_we_knock_out_their_active`.
+    op_prizes_after_ko, op_kos_after_promotion = 0, False
     if _we_knock_out_their_active(my_state, op_state, state, hand_counts,
                                   field_counts, total_grass, bench_count,
                                   meganium_in_play, neutralization_zone,
                                   abilities_off):
         op_prizes_next, op_kos_our_active = 0, False
+        # ... and the body they PROMOTE in its place is the one that replies.
+        # Data only: nothing below reads it into `mode`. See
+        # `_reply_after_promotion`.
+        op_prizes_after_ko, op_kos_after_promotion = _reply_after_promotion(
+            my_state, op_state, op_hand_count)
     else:
         op_prizes_next, op_kos_our_active = _opponent_reply(
             my_state, op_state, op_hand_count)
     op_wins_next = op_kos_our_active and op_prize <= op_prizes_next
+    op_wins_after_ko = (op_kos_after_promotion
+                        and op_prize <= op_prizes_after_ko)
 
     if win_route:
         mode = MODE_WIN_NOW
@@ -616,6 +690,8 @@ def build_turn_plan(*, my_prize, op_prize, my_state, op_state, state,
         op_prizes_next=op_prizes_next,
         op_wins_next=op_wins_next,
         mode=mode,
+        op_prizes_after_ko=op_prizes_after_ko,
+        op_wins_after_ko=op_wins_after_ko,
     )
 
 

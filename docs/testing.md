@@ -106,11 +106,49 @@ cover failures that never show up as a red test: importing a mutable by name
 data modules reaching into game state, binding anything after the entry point,
 and import timing that breaks in the container.
 
+## 8. Metamorphic properties — no expected answer needed
+
+The tests above all need somebody to know the right play. A **metamorphic**
+property does not: it says how the answer must RELATE to another answer, so it
+can be checked on boards nobody has ever looked at.
+
+- **The menu's order must not decide**
+  (`tests/test_the_menu_order_does_not_decide.py`). The agent answers with
+  indexes into the list of legal options, so permuting the list may move the
+  index and must not move the play. It catches what no red test does: a rule
+  reaching for `option[0]`, a tie broken by position, a scan that stops at the
+  first option of a kind instead of the best one.
+- **The decision must stay decided** (`tests/decision_grid.py`,
+  `tests/test_grid_attack_or_retreat.py`). Sweep an axis from calm to desperate --
+  their prize pile shrinking, their attacker growing -- and a defensive decision
+  may switch on once and must never switch back off. A rule that retreats at
+  four prizes, attacks at three and retreats at two is two rules interfering,
+  which is invisible on the single board each of them was measured on.
+
+The grid also reports **where** a decision changes (`boundaries()`), which is the
+list of thresholds the code really has as opposed to the ones its comments claim.
+
+## 9. Mutation — measuring the suite instead of the agent
+
+`utils/mutation_probe.py` rewrites one expression at a time and runs the suite
+against each mutant. A mutant that survives is a line no test is watching. It is
+the rule below, automated, and it found its first hole immediately: rewriting the
+`>=` of `_hand_revealed_lethal_reply` as `>` -- so that a blow landing exactly on
+the last hit point stopped counting as lethal -- passed all 1498 tests.
+
+Use `--changed <ref>` when proposing a change: it mutates only the lines the diff
+added, which answers "does the test I just wrote watch what I just wrote".
+
 ## A rule about tests themselves
 
 **A green test proves nothing until you have seen it fail.** Every safety net in
 this project was validated by mutation: inject the bug on purpose, confirm the
 test goes red, then remove it.
+
+State the sensitivity you measured, too. The permutation file above is honest
+about its limit: a positional bias of +500 is invisible to it, +5000 is caught,
+and a change to how TIES break is invisible at any size, because the synthetic
+boards carry no ties. That is why the probe over played games exists next to it.
 
 ---
 

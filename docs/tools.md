@@ -115,6 +115,58 @@ Answers one specific question per turn: when our ex is blocked by an immune wall
 and a non-ex answer is already charged on the bench, how does the turn end? Dry
 turns are dumped as replayable observations.
 
+**Read the dumps.** They are the point of the tool, not a side effect. Twenty-two
+dry turns against `crustle_wall_6` shared one shape -- our active at zero energy
+with no retreat in the menu while a charged Tapu Bulu sat on the bench -- and one
+of them (`seco_019`) turned out to be a lethal line the agent could see and was
+outbid on. That is the band-ordering bug of `_attach_enable_retreat_ko`.
+
+### `healing_census.py` — how much of our damage gets healed away
+
+Follows every opposing body by serial and separates the hit points we take off it
+from the ones a card puts back. The number that matters is the ratio: damage that
+never became a prize.
+
+```bash
+python utils/healing_census.py --opponent deck/real_opponents/crustle_wall_6.csv
+```
+
+Fifty-five of the ninety-seven real lists carry healing and the agent reads none
+of it. Against `crustle_wall_6` -- the worst matchup in the matrix --
+**83% of the damage we deal is healed back**; against `crustle_wall_2`, 44%;
+against Marnie, 26%; in the mirror, 0%, which is the method's noise floor.
+
+### `promoted_reply_census.py` — is a rule worth writing?
+
+The shape every candidate rule should be put through before it is written: count
+the nested populations, from "the situation happens" down to "and we had a choice
+about it". It was built for one question (when our attack knocks their active
+out, does the body they promote reply?) and its answer was to NOT write the rule:
+the actionable population is 0.08% of decisions.
+
+### `permutation_probe.py` — does the menu's order decide?
+
+Plays games with two agent instances: the driver sees the real menu, the shadow
+sees the same board with the options shuffled, and their choices are compared as
+PLAYS rather than as indexes. Any difference is a decision the rules did not
+make. Currently **0.56%** of decisions, most of them ties over which card a
+search brings back.
+
+### `mutation_probe.py` — which safety nets can actually fail?
+
+Rewrites one expression at a time (comparisons, small integer boundaries, boolean
+operators, `not`) and runs the suite against each mutant. A SURVIVOR is a line no
+test is watching.
+
+```bash
+python utils/mutation_probe.py ptcg/calc/damage.py --lines 560-600
+python utils/mutation_probe.py --changed HEAD~3     # only the lines a diff added
+```
+
+It edits the file in place -- the suite imports the agent from the tree -- and
+restores it on exit, on exception and on a kill. `--changed` is the mode worth
+using: it asks whether the test you just wrote watches the code you just wrote.
+
 ---
 
 ## Opponent decks

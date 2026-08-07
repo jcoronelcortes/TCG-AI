@@ -295,7 +295,7 @@ def _has_energy_of_type(pokemon, energy_type):
 
 
 def _op_active_attack_damage_to(op_active, target, op_hand_count=None,
-                                scaled=False):
+                                scaled=False, scale=None):
     """Maximum PRINTED damage the opposing active can deal to `target`.
 
     It resolves the attack IDs via `attack_table` (the `card.attacks` entries
@@ -351,6 +351,16 @@ def _op_active_attack_damage_to(op_active, target, op_hand_count=None,
     is new. Migrating the other call sites is a per-site job with its own
     measurement, not a flag flip -- each of them encodes a threshold that was
     fitted to the old reading.
+
+    `scale` -- THE BOARD THIS PROJECTION HAPPENS ON. Default None means "the
+    board as it stands", `AGENT_STATE.op_scale`, which is right for every
+    question about their NEXT turn asked from the board of this one. It is not
+    right for a projection over a board our own turn is about to change: after
+    we knock their active out, the body that replies comes off their bench, and
+    their bench is one body smaller than the snapshot says. Do the Wave counts
+    exactly that, so the caller passes a corrected snapshot rather than
+    overstating their damage by 20 -- the same arithmetic as `_promo_bench_after`
+    on our side of the table, and the same direction of error if it is skipped.
     """
     if op_active is None or target is None:
         return 0
@@ -371,12 +381,29 @@ def _op_active_attack_damage_to(op_active, target, op_hand_count=None,
                 and op_hand_count is not None and _need <= avail):
             _dmg = 20 * (op_hand_count + 2)
         elif _aid == DO_THE_WAVE_ATTACK_ID:
-            _dmg = max(_dmg, 20 * AGENT_STATE._op_bench_count)
+            # The bench this attack counts is THEIRS, and `scale` is how a
+            # caller says which board it is asking about. None -- every caller
+            # that existed before -- keeps reading the per-turn flag, byte for
+            # byte. A caller projecting the body they PROMOTE passes a snapshot
+            # with that bench already one smaller, because the body doing the
+            # counting is the one standing up.
+            #
+            # This branch sits ABOVE the `scaled` one, so entry 115 of
+            # OP_SCALING_DAMAGE is never reached from here: Do the Wave was
+            # modelled before the table existed and is not opt-in. The two
+            # formulas are pinned against each other in
+            # tests/test_the_reply_comes_from_their_bench.py so they cannot
+            # drift apart while both exist.
+            _bench = (AGENT_STATE._op_bench_count if scale is None
+                      else scale.op_bench)
+            _dmg = max(_dmg, 20 * _bench)
         elif scaled:
             # THE ATTACKS THAT DO NOT DO THEIR PRINTED DAMAGE (ago 2026). See
             # `scaled` in the docstring for why this is opt-in and not the
             # default, and ptcg/cards/op_scaling.py for the table itself.
-            _dmg = op_scaled_damage(_aid, _dmg, op_active, AGENT_STATE.op_scale)
+            _dmg = op_scaled_damage(
+                _aid, _dmg, op_active,
+                AGENT_STATE.op_scale if scale is None else scale)
             _ignores_weakness = _aid in OP_SCALING_IGNORES_WEAKNESS
         if _need <= avail and _dmg > best:
             best = _dmg
