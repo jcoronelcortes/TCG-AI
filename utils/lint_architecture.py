@@ -1,6 +1,6 @@
 """Architecture rules of the wave refactor (docs/project-history.md).
 
-Four AST rules over `main.py` and the agent package. They all cover failures
+Five AST rules over `main.py` and the agent package. They all cover failures
 that do NOT show up as a red test: either they break the submission on Kaggle with the
 suite green, or they make the agent read frozen state and decide badly in a
 game without raising any exception.
@@ -24,6 +24,12 @@ game without raising any exception.
   R3  (I1b) In main.py, nothing binds a new name AFTER `def agent`.
             The container keeps the LAST callable of the namespace: a
             re-export placed below hijacks the entry point.
+
+  R5  No module defines the same top-level name twice.
+            Python keeps the LAST definition. A duplicated function is dead code
+            that reads like live code: the fix goes into the copy at the top, the
+            copy at the bottom is what runs, and nothing changes. Five modules of
+            `ptcg/` carried a verbatim second copy of themselves.
 
   R4  (I1a/I1c) Neither `import <our own package>` inside a function, nor
             `import main` anywhere in the package. The agent's directory leaves
@@ -220,11 +226,52 @@ def rule_4_lazy_imports():
     return failures
 
 
+# ---------------------------------------------------------------------------
+# R5 -- one module, one definition per name
+# ---------------------------------------------------------------------------
+def rule_5_no_redefinition():
+    """No module may define the same top-level name twice.
+
+    Python keeps the LAST definition and discards the first without a word. A
+    duplicated function is therefore dead code that reads exactly like live
+    code: someone fixes the copy at the top of the file, the suite stays green
+    because the copy at the bottom is the one that runs, and the fix silently
+    does nothing. It is the same failure mode as R1 -- a name that looks bound
+    to what you are reading and is bound to something else.
+
+    This is not hypothetical. The extraction that moved definitions out of
+    main.py in wave 2 appended its block twice in five modules, and 634 lines of
+    `ptcg/` were a second copy of the 634 above them -- including
+    `prize_count` and `prize_count_op`, the two functions of the prize
+    arithmetic that had already cost one wrong-pile bug.
+    """
+    failures = []
+    for path in [MAIN_PY] + _package_files():
+        if not path.is_file():
+            continue
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        first = {}
+        for node in tree.body:
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef,
+                                 ast.ClassDef)):
+                if node.name in first:
+                    failures.append((
+                        "R5", _rel(path), node.lineno,
+                        f"`{node.name}` is already defined at line "
+                        f"{first[node.name]}: the first definition is dead code "
+                        "and editing it changes nothing",
+                    ))
+                else:
+                    first[node.name] = node.lineno
+    return failures
+
+
 RULES = (
     rule_1_imported_mutables,
     rule_2_purity,
     rule_3_agent_is_last,
     rule_4_lazy_imports,
+    rule_5_no_redefinition,
 )
 
 
