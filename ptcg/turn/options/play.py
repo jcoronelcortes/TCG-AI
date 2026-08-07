@@ -500,9 +500,14 @@ def score_play(tc, o, score):
                                 Lillie_Determination, {}).get(ZONE_DECK, 0) > 0
                             and (len(my_state.hand) if my_state.hand else 0) <= 4
                             and _ready_attacker_count <= 2
-                            and not (AGENT_STATE.plan.attacker == 0
-                                     and AGENT_STATE.plan.remain_hp is not None
-                                     and AGENT_STATE.plan.remain_hp <= 0)
+                            # Lethal attack: it no longer vetoes the refill on its
+                            # own, it only tightens it. See "TODAY'S KNOCKOUT
+                            # DOES NOT PAY FOR TOMORROW'S RELIEF" in the body.
+                            and (not (AGENT_STATE.plan.attacker == 0
+                                      and AGENT_STATE.plan.remain_hp is not None
+                                      and AGENT_STATE.plan.remain_hp <= 0)
+                                 or (_ready_attacker_count <= 1
+                                     and op_prize > 2))
                             and not meowth_ability_lock
                             and (not op_has_froslass
                                  or _ready_attacker_count <= 1)):
@@ -518,8 +523,8 @@ def score_play(tc, o, score):
                         # Teal Mask Ogerpon ex, 21000) or throwing a WEAK non-lethal
                         # attack (Dipplin ~1100) at a 330 HP wall. It requires that
                         # there be a ready attacker but FEW (<=2: if there are already many
-                        # ready there is no need to refill), that the active's attack
-                        # NOT be lethal (if it knocks out, we attack and take the prize),
+                        # ready there is no need to refill; <=1 plus `op_prize > 2`
+                        # when the active's attack IS lethal -- see the clause above),
                         # that no Supporter has been played and that its ability is not
                         # cancelled (Watchtower always vetoes). Froslass also
                         # vetoes EXCEPT when our ONLY ready attacker is the
@@ -529,6 +534,61 @@ def score_play(tc, o, score):
                         # Meowth ex against Froslass (case 86699707: an active Dipplin
                         # chipping vs a 320 HP Grimmsnarl ex). It beats the
                         # redundant body (21500 > 21000) so Meowth ex wins.
+                        #
+                        # TODAY'S KNOCKOUT DOES NOT PAY FOR TOMORROW'S RELIEF
+                        # (user, registro_008 step 82, episode 90598536 vs
+                        # Marnie, WON suboptimally). The lethality clause used to
+                        # be a flat `not (the active's attack is lethal)`, on the
+                        # argument "if it knocks out, we attack and take the
+                        # prize". That argument states an EXCLUSIVITY THAT DOES
+                        # NOT EXIST: benching a Basic does not consume the
+                        # attack. The three sibling branches of this very ladder
+                        # already say so in their own words (21600: "EVEN IF the
+                        # active knocks out"; 21550 and 21400: "it does not
+                        # consume the attack: the Basic is benched and we attack
+                        # afterwards in the same turn"), and the play ORDER
+                        # guarantees it -- a Pokemon PLAY lives in
+                        # `_TIER_DEVELOP` (40) and the attack in tier 0, so the
+                        # body goes down, the Last-Ditch fetches, the Supporter
+                        # is played and the attack still closes the turn with its
+                        # prize intact. Audited over 1100 self-play games (600
+                        # mirror + 500 vs the Marnie bot,
+                        # `log/meowth_ko_refill/audit_*.log`): of the 164 turns
+                        # that bench a Meowth ex on a lethal turn, 164 END WITH
+                        # THE ATTACK.
+                        #
+                        # In the record: an active Teal Mask Ogerpon ex with 6
+                        # energy that KNOCKS OUT, `_ready_attacker_count` = 1
+                        # (the WHOLE bench uncharged -- Meganium, a second
+                        # Ogerpon ex and two Applin, none able to answer if the
+                        # active falls), a 3-card hand whose two Supporters were
+                        # BOTH vetoed (Boss's `no_value` = -1, Xerosic
+                        # `opponent_hand_already_short` = -1) and three Lillie's
+                        # Determination alive in the deck -- the fetch predictor
+                        # scored it 5000. The agent attacked as action #1 of the
+                        # turn and threw away, for nothing, the turn's Supporter
+                        # slot AND the free bench development: it took its prize
+                        # and stayed with no relief behind the attacker.
+                        #
+                        # What the knockout does NOT excuse is the PRICE of the
+                        # body, so the lethal arm carries two guards of its own
+                        # and the non-lethal arm is left exactly as it was:
+                        #   * `_ready_attacker_count <= 1` -- the active is our
+                        #     ONLY ready attacker, which is the whole reason to
+                        #     dig: if it falls there is no answer behind it. With
+                        #     a relief already charged on the bench the turn
+                        #     throws nothing away and a 2-prize body is not worth
+                        #     a refill (fixture `marnie_step107 /
+                        #     synthetic_activo_sano`: a healthy Ogerpon ex
+                        #     knocking out with a Dipplin charged behind it --
+                        #     there we still attack).
+                        #   * `op_prize > 2` -- plain arithmetic: Meowth ex pays
+                        #     TWO prizes, so at their match point the body we
+                        #     bench IS the game, and no hand refill buys that
+                        #     back.
+                        # Deck-agnostic: it names no archetype, only the plan's
+                        # lethality, the count of ready attackers and the prize
+                        # arithmetic.
                         score = 21500
                     elif (_active_ready_attacker
                             and field_counts[card.id] == 0

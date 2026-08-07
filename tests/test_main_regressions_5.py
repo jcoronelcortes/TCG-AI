@@ -85,6 +85,55 @@ def test_marnie_step107_a_developed_bench_does_not_play_meowth():
         f"con la banca desarrollada no hace falta el cuerpo de repuesto; "
         f"obtuvo {result} -> {opt}")
 
+_MARNIE_S82_FIXTURE = (
+    ROOT / "tests" / "fixtures" / "marnie_step82_meowth_refill_con_ko.json")
+
+def _marnie_s82_replay(observation_key=None):
+    with open(_MARNIE_S82_FIXTURE, encoding="utf-8") as f:
+        data = json.load(f)
+    seq = data["sequence"]
+    for item in seq[:-1]:
+        m.agent(item["observation"])
+    obs = data[observation_key] if observation_key else seq[-1]["observation"]
+    return m.agent(obs), obs, data
+
+def test_marnie_step82_plays_meowth_even_though_the_active_knocks_out():
+    # El KO de hoy no paga el relevo de manana: bajar el Basico NO consume el
+    # ataque (PLAY vive en _TIER_DEVELOP=40 y el ataque en tier 0), asi que el
+    # premio sigue intacto y ademas se cobra el hueco de Supporter del turno.
+    result, obs, _ = _marnie_s82_replay()
+    assert _played_card(obs, result) == m.Meowth_ex, (
+        f"con el activo como UNICO atacante listo y los dos Supporters de la "
+        f"mano vetados, bajar Meowth ex va antes del ataque que cierra el "
+        f"turno; obtuvo {result}")
+
+def test_marnie_step82_the_attack_is_still_on_the_menu():
+    # El ataque no se pierde: sigue ofertado y puntuado por encima de terminar.
+    _, obs, _ = _marnie_s82_replay()
+    assert any(o.get("type") == int(OptionType.ATTACK)
+               for o in obs["select"]["option"]), (
+        "el escenario deja de medir lo que dice si el ataque no esta en el menu")
+
+def test_marnie_step82_a_charged_relief_on_the_bench_attacks():
+    # Frontera 1: con un segundo Ogerpon ex ya cargado en banca hay respuesta si
+    # cae el activo, y un cuerpo de 2 premios no vale un refresco.
+    result, obs, _ = _marnie_s82_replay(
+        observation_key="synthetic_relevo_en_banca")
+    opt = obs["select"]["option"][result[0]]
+    assert opt.get("type") == int(OptionType.ATTACK), (
+        f"con relevo cargado en banca el refresco no justifica exponer 2 "
+        f"premios; obtuvo {result} -> {opt}")
+
+def test_marnie_step82_at_their_match_point_it_attacks():
+    # Frontera 2: aritmetica pura. Con el rival a 2 premios, el Meowth ex que
+    # bajamos ES la partida; ningun refresco de mano compra eso de vuelta.
+    result, obs, _ = _marnie_s82_replay(
+        observation_key="synthetic_rival_a_dos_premios")
+    opt = obs["select"]["option"][result[0]]
+    assert opt.get("type") == int(OptionType.ATTACK), (
+        f"a match point del rival no se regala un cuerpo de 2 premios por "
+        f"robar cartas; obtuvo {result} -> {opt}")
+
 _SETUP_TAPU_FIXTURE = ROOT / "tests" / "fixtures" / "setup_activo_tapu_bulu.json"
 
 def _setup_obs():
