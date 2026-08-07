@@ -16,6 +16,7 @@ class CtxEnergyScoreBase:
     _ability_unlock_retreat_attack: Any = None
     _ability_unlock_retreat_ko: Any = None
     _active_already_kos: Any = None
+    _active_doomed_real: Any = None
     _active_hydra_capped: Any = None
     _active_needs_energy: Any = None
     _active_pokemon: Any = None

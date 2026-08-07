@@ -8149,6 +8149,7 @@ def agent(obs_dict: dict) -> list[int]:
             _ability_unlock_retreat_attack=_ability_unlock_retreat_attack,
             _ability_unlock_retreat_ko=_ability_unlock_retreat_ko,
             _active_already_kos=_active_already_kos,
+            _active_doomed_real=_active_doomed_real,
             _active_hydra_capped=_active_hydra_capped,
             _active_needs_energy=_active_needs_energy,
             _active_pokemon=_active_pokemon,

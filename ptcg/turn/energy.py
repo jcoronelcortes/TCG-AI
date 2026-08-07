@@ -8,7 +8,7 @@ was in main.py.
 from cg.api import Pokemon
 from ptcg.calc.damage import _our_effective_damage
 from ptcg.calc.energy import _can_attack_eff, _grass_ability_slots, _grass_attach_unit, _grass_mult, _ogerpon_base_phys_cap, _physical_energy
-from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Chikorita, Dipplin, FEE_OVER_INERT_DEVELOPMENT, Fezandipiti_ex, Hydrapple_ex, Meganium, Meowth_ex, NON_ATTACKER_ENERGY_WASTE_IDS, OUR_EX_IDS, Pinsir, RETREAT_COST, SCORE_CHARGE_ACTIVE_ATTACK, SCORE_CHARGE_ACTIVE_FINISHER, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex
+from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Chikorita, Dipplin, FEE_OVER_INERT_DEVELOPMENT, Fezandipiti_ex, Hydrapple_ex, Meganium, Meowth_ex, NON_ATTACKER_ENERGY_WASTE_IDS, OUR_EX_IDS, Pinsir, RETREAT_COST, SCORE_CHARGE_ACTIVE_ATTACK, SCORE_CHARGE_ACTIVE_FINISHER, SCORE_CHARGE_DOOMED, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex
 from ptcg.cards.scoring import MAIN_ATTACKERS
 from ptcg.cards.tables import card_table
 from ptcg.state.agent_state import AGENT_STATE
@@ -20,6 +20,7 @@ def _energy_score_base(tc, pokemon, active):
     _ability_unlock_retreat_attack = tc._ability_unlock_retreat_attack
     _ability_unlock_retreat_ko = tc._ability_unlock_retreat_ko
     _active_already_kos = tc._active_already_kos
+    _active_doomed_real = tc._active_doomed_real
     _active_hydra_capped = tc._active_hydra_capped
     _active_needs_energy = tc._active_needs_energy
     _active_pokemon = tc._active_pokemon
@@ -1027,7 +1028,27 @@ def _energy_score_base(tc, pokemon, active):
     if active:
         score += 10
 
-        if active_ko_likely:
+        # THE ENERGY DOES NOT GO INTO A BODY THAT CANNOT CASH IT (user,
+        # registro_004 step 30, episode 90593852 vs Cynthia's Garchomp, WON with
+        # this turn wasted). Active Tapu Bulu at 70 of 140 and 0 energy, bench an
+        # Applin with one and a Fezandipiti ex at 210 with none, four Grass in
+        # hand. The Grass went onto the Tapu: with one of the four Wood Hammer
+        # needs -- and no Meganium in play to double it -- the Tapu could not
+        # attack, could not pay its retreat of 3 either, and their Gabite (40
+        # printed, 70 with the benched Roserade) knocked it out next turn with our
+        # Grass still on it. The turn ended without attacking.
+        #
+        # `active_ko_likely` is the reading this branch was written against and it
+        # said "fine": it hangs off `_op_best_damage_vs`, which reads the printed
+        # 40 and nothing their bench adds. `_active_doomed_real` is the same
+        # question asked honestly -- the scaled attacks plus the team buff -- and
+        # it is the first rule to consume it. See OP_TEAM_DAMAGE_BUFF.
+        #
+        # Deck-agnostic by construction: what it asks about the target is our own
+        # arithmetic (does this energy make it attack, does it pay its retreat),
+        # and what it asks about the threat is a projection that reads their
+        # board, never a matchup list.
+        if active_ko_likely or _active_doomed_real:
             _after_energy = energy_count + _grass_attach_unit()
             _after_energy_raw = energy_count + 1
 
@@ -1055,7 +1076,18 @@ def _energy_score_base(tc, pokemon, active):
                     break
 
             if not _can_attack_after and (not _can_retreat_after or not _has_bench_atk_retreat):
-                return score - 100
+                # AND IT HAS TO DEMOTE BELOW THE OTHER BODIES, which `score - 100`
+                # did not. The active carries a +10 bonus of its own, so on the
+                # record's board the doomed Tapu came out at 7910 against a
+                # Fezandipiti ex at 7900 and took the Grass anyway: the rule fired
+                # and changed nothing. `SCORE_CHARGE_DOOMED` (20) is the answer the
+                # file already gives to this exact question -- it is the ceiling
+                # `energy_score` puts on a body inside the opponent's gift window --
+                # and it is a CEILING and not a veto for the same reason: with an
+                # empty bench there is nowhere else for the energy to go, and a
+                # turn that hangs is worse than a Grass that dies. The relative
+                # order between doomed bodies is kept in the fraction.
+                return SCORE_CHARGE_DOOMED + max(0.0, score) / 1000000.0
 
         effective_energy = energy_count * _grass_mult()
 
