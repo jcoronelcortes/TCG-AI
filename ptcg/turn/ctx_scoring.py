@@ -120,6 +120,7 @@ class ScoringCtx:
     _mega_line_active: Any = None
     _meowth_antidonk_now: Any = None
     _meowth_devel_lillie: Any = None
+    _meowth_recovery_ko: Any = None
     _meowth_fetch_loses_the_turn: Any = None
     _meowth_fetch_redundante: Any = None
     _meowth_fetch_already_in_hand: Any = None

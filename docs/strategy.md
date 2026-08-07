@@ -208,6 +208,23 @@ the bench is short enough that one knockout would leave us with no body to
 promote. From two bodies up, ending the turn and keeping the cards is worth
 more than the seat.
 
+**On a dead turn, ask what is missing before choosing the refill.** When nothing
+of ours reaches its attack cost, the reflex answer is to refill the hand — and it
+is the right one when what we are short of is a *card*. It is the wrong one when
+what we are short of is *energy that is already ours*, sitting in our own
+discard: there Lana's Aid recovers it, the attachment and Teal Dance put it on
+the attacker, and the turn that was about to end for nothing takes a prize
+instead. The agent only prefers the recovery when the arithmetic closes — the
+Grass in the discard, the attach routes still alive this turn and the damage
+formula have to add up to a knockout on the body in front — and it yields to a
+hand of two or fewer, where the eight-card refill contains the recovery anyway
+and shuffles nothing worth keeping.
+
+A **legal retreat is not a play**, either. "The active cannot attack but it can
+retreat" only rescues a turn when somebody on the bench can attack once it is up;
+with every body short of its own cost, paying a retreat changes which Pokémon is
+standing still.
+
 ## 7. Energy goes where it changes something
 
 Energy attachment is the scarcest resource of the turn — one per turn plus what

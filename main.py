@@ -43,7 +43,7 @@ from ptcg.decision.supporters import *  # noqa: F401,F403
 from ptcg.decision.ultra_ball import *  # noqa: F401,F403
 from ptcg.cards.scoring import *  # noqa: F401,F403
 from ptcg.engine.debug import *  # noqa: F401,F403
-from ptcg.turn.game_plan import build_turn_plan  # noqa: F401
+from ptcg.turn.game_plan import build_turn_plan, _recovery_creates_the_ko  # noqa: F401
 from ptcg.turn.ctx import TurnCtx  # noqa: F401
 from ptcg.turn.finalize import finalizar  # noqa: F401
 from ptcg.turn.ctx_scoring import ScoringCtx  # noqa: F401
@@ -3837,6 +3837,50 @@ _RULES_MEOWTH_FETCH = [
                lambda c: (c.deny_evo_via_boss
                           and c.card_id == Boss_Orders),
                lambda c: 1280),
+    # THE FETCH THAT UNLOCKS THE ATTACK, NOT THE ONE THAT REFILLS THE HAND
+    # (user, episode 90591443 step 84, turn 8 vs Marnie's Grimmsnarl ex, LOST).
+    # A dead turn: our active Teal Mask Ogerpon ex at 2 of the 3 Myriad Leaf
+    # Shower costs, a Meganium at 2 of 4, a second Ogerpon ex at 2 of 3, a bare
+    # Tapu Bulu -- and NOT ONE GRASS IN HAND, so neither the turn's attachment
+    # nor Teal Dance had anything to attach. The one place energy still existed
+    # was the DISCARD, and the one card that reaches it is Lana's Aid.
+    #
+    # The ladder below reads that board correctly and answers it with the wrong
+    # card: `stuck_without_energy` fires on exactly these boards ("the active
+    # cannot attack and there is no Grass in hand") and hard-codes Lillie's
+    # Determination as the answer, capping every other candidate -- Lana's Aid
+    # included -- at 150. Refilling the hand is the right answer when it is a
+    # CARD we are missing; here we were missing ENERGY, and it was already ours.
+    #
+    # What the recovery bought on the record's board: two Grass back, one on the
+    # active (Meganium's Wild Growth makes each worth 2), Myriad Leaf Shower
+    # 30 + 30 x (4 ours + 2 theirs) = 210, doubled by their Grass weakness = 420
+    # on a 310 HP Marnie's Grimmsnarl ex -- their attacker and two prizes, from
+    # a turn that was about to end having gusted a Froslass for nothing.
+    #
+    # It asks the SHARED arithmetic (`_recovery_creates_the_ko`), the same one
+    # the winning route uses, so it is deck-agnostic: no card is named beyond
+    # the two this deck recovers with, and the flag is false the moment the
+    # discard, the attach routes or the damage do not add up. 1290: under the
+    # gust that ends the game or takes two prizes without needing a charge chain
+    # to hold together (`winning_boss` 1300), over the line cut
+    # (`boss_deny_evo` 1280) -- a knockout on the body in front is worth more
+    # than denying an evolution -- and over every cap further down.
+    #
+    # IT YIELDS TO A SHORT HAND, and that is not a hedge: with two cards or
+    # fewer the refill is not competing with the recovery, it CONTAINS it.
+    # Lillie's Determination draws eight, the deck is thirteen Basic Grass deep,
+    # and shuffling a hand that small away costs nothing -- so the refill very
+    # probably pays the same attack AND leaves a hand behind it. The recovery
+    # only wins when there is a real hand to protect, which is the record's
+    # board (seven cards: a Hydrapple ex, a second Meowth ex, a Boss's Orders)
+    # and the reason a Lillie's there would have thrown the turn away twice.
+    # `hand_size <= 2` is the ladder's own cut-off, the one `short_hand` below
+    # already uses; this rule does not invent a second one.
+    _FixedRule("recovery_creates_the_ko",
+               lambda c: (c.recovery_ko and c.card_id == Lanas_Aid
+                          and c.hand_size >= 3),
+               lambda c: 1290),
     # THE BODY IN FRONT CANNOT BE TOUCHED, THE ONE BEHIND IT CAN (user, episode
     # 90325863, turn 8 vs a Dragapult / Azumarill deck). Their Marill hid
     # behind a Hide that came up heads: every attack of ours resolves for zero
@@ -3961,7 +4005,8 @@ def _meowth_fetch_prediction(hand_counts, supp_values, hand_size,
                              active_cant_attack, win_via_boss, gust2_via_boss,
                              deny_evo_via_boss, devel_lillie, alakazam,
                              cards_in_deck, first_turn=False,
-                             gust_over_immune_active=False):
+                             gust_over_immune_active=False,
+                             recovery_ko=False):
     """(id, value) of the Supporter Last-Ditch Catch would bring RIGHT NOW.
 
     It reproduces the REAL fetch (`_RULES_MEOWTH_FETCH`, the same board) over
@@ -3981,7 +4026,7 @@ def _meowth_fetch_prediction(hand_counts, supp_values, hand_size,
             hand_size, strong_attacker, op_hand_count, active_cant_attack,
             win_via_boss, gust2_via_boss, deny_evo_via_boss, devel_lillie,
             alakazam, first_turn, _lillie_alcanzable,
-            gust_over_immune_active)
+            gust_over_immune_active, recovery_ko)
         _val, _ = _resolve_rules(_RULES_MEOWTH_FETCH, [], _ctx, 50)
         if _val > best_val:
             best_id, best_val = _sid, _val
@@ -9354,6 +9399,36 @@ def agent(obs_dict: dict) -> list[int]:
     # the fetch ended up bringing (a useless 2nd copy).
     #
     # `hand_size - 1` because the fetch is resolved AFTER benching the Meowth.
+    # THE ENERGY WE ARE MISSING IS ALREADY OURS, IT IS JUST IN THE DISCARD
+    # (user, episode 90591443 step 84 vs Marnie's Grimmsnarl ex, LOST). On a turn
+    # that cannot attack at all, the Last-Ditch Catch is asked which Supporter
+    # gets us out of it, and the answer is not always the refill: when the discard
+    # holds the Grass that completes our active's attack cost, LANA'S AID is what
+    # turns the turn into a knockout. See the `recovery_creates_the_ko` rule of
+    # `_RULES_MEOWTH_FETCH` for the record and the arithmetic.
+    #
+    # It is the SAME sum the winning route uses (`_recovery_creates_the_ko`, in
+    # ptcg/turn/game_plan.py), with the two guards that route cannot lift moved
+    # here where they belong: the card is in the DECK and not in hand -- if it
+    # were in hand there would be no fetch to decide -- and the knockout does not
+    # have to END the game, because this is a choice between two Supporters and
+    # not a route that commits the whole turn.
+    #
+    # `_bench_attacker_ready` is the other half of "the turn cannot attack": an
+    # active that cannot attack while a charged body waits on the bench is a
+    # retreat away from attacking, and that turn does not need rescuing.
+    _meowth_recovery_ko = (
+        not state.supporterPlayed
+        and (_active_cant_attack_this_turn or _sel_active_cant_attack)
+        and not _bench_attacker_ready
+        and hand_counts.get(Lanas_Aid, 0) == 0
+        and AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(
+            Lanas_Aid, {}).get(ZONE_DECK, 0) > 0
+        and _recovery_creates_the_ko(
+            my_state, op_state, state, hand_counts, field_counts, total_grass,
+            bench_count, AGENT_STATE.meganium_in_play,
+            neutralization_zone_active, meowth_ability_lock))
+
     _meowth_fetch_id, _meowth_fetch_val = _meowth_fetch_prediction(
         hand_counts, _supp_values,
         max(0, (len(my_state.hand) if my_state.hand else 0) - 1),
@@ -9364,7 +9439,7 @@ def agent(obs_dict: dict) -> list[int]:
         _win_via_boss_gust, _gust_2prize_via_boss, _deny_evo_via_boss,
         _meowth_devel_lillie, op_is_alakazam_deck,
         AGENT_STATE.ACTIVE_CARDS_IN_DECK, _our_first_action_turn,
-        _boss_gust_immune_active)
+        _boss_gust_immune_active, _meowth_recovery_ko)
     _meowth_fetch_redundante = (
         _meowth_fetch_id is not None
         and hand_counts.get(_meowth_fetch_id, 0) >= 1)

@@ -446,12 +446,43 @@ def _win_via_energy_recovery(my_state, op_state, state, hand_counts,
         # it spends the Supporter and puts the entire turn under the wrong
         # sentence -- so it does not fire here until something measures it.
         return False
+    target = op_state.active[0] if op_state.active else None
+    if target is None:
+        return False
+    if prize_count_op(target) < my_prize:
+        return False              # it knocks out, but it does not END the game
+    return _recovery_creates_the_ko(
+        my_state, op_state, state, hand_counts, field_counts, total_grass,
+        bench_count, meganium_in_play, neutralization_zone, abilities_off)
+
+
+def _recovery_creates_the_ko(my_state, op_state, state, hand_counts,
+                             field_counts, total_grass, bench_count,
+                             meganium_in_play, neutralization_zone,
+                             abilities_off):
+    """Does recovering Grass with Lana's Aid turn our ACTIVE's attack into a
+    knockout the turn does not otherwise reach?
+
+    THE ARITHMETIC, AND NOTHING ELSE. It asks nothing about who holds the
+    Lana's Aid, whether the Supporter slot is free, how many prizes the
+    knockout is worth or which deck is on the other side. Those are the
+    caller's questions, and the two callers ask them differently:
+
+      * `_win_via_energy_recovery` (above) wants the recovery that ENDS THE
+        GAME, with the card already in hand -- that is a WIN_NOW route and it
+        commits the whole turn;
+      * the Last-Ditch Catch fetch (`ptcg/decision/meowth.py`) wants the one
+        that turns a DEAD TURN into a knockout, with the card still in the
+        DECK -- that is a choice between two Supporters, not a route.
+
+    Both need this exact sum, and the second copy of it would be the one that
+    drifts. See the docstring above for the record that established the
+    arithmetic and for why `_reachable_grass_for` is the floor.
+    """
     attacker = my_state.active[0] if my_state.active else None
     target = op_state.active[0] if op_state.active else None
     if attacker is None or target is None or _ko_not_guaranteed(target):
         return False
-    if prize_count_op(target) < my_prize:
-        return False              # it knocks out, but it does not END the game
     in_discard = sum(1 for c in (getattr(my_state, 'discard', None) or [])
                      if getattr(c, 'id', 0) == Basic_Grass_Energy)
     if in_discard <= 0:
@@ -709,4 +740,5 @@ __all__ = [
     'MODE_WIN_NOW', 'MODE_DENY', 'MODE_RACE', 'MODE_DEVELOP',
     'ROUTE_ACTIVE', 'ROUTE_PROMOTE', 'ROUTE_GUST', 'ROUTE_RECOVER',
     'TurnPlan', 'NO_PLAN', 'build_turn_plan', 'plan_of',
+    '_recovery_creates_the_ko',
 ]

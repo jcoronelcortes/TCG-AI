@@ -74,6 +74,7 @@ def score_play(tc, o, score):
     _starmie_sac_promote = tc._starmie_sac_promote
     _mega_line_active = tc._mega_line_active
     _meowth_devel_lillie = tc._meowth_devel_lillie
+    _meowth_recovery_ko = tc._meowth_recovery_ko
     _meowth_ld_free = tc._meowth_ld_free
     _op_best_damage_vs = tc._op_best_damage_vs
     _op_counter_threat_vs = tc._op_counter_threat_vs
@@ -1916,7 +1917,8 @@ def score_play(tc, o, score):
                             _deny_evo_via_boss, _meowth_devel_lillie,
                             op_is_alakazam_deck, _our_first_action_turn,
                             _ld_lillie_ofrecida,
-                            bool(_boss_gust_immune_active))
+                            bool(_boss_gust_immune_active),
+                            bool(_meowth_recovery_ko))
                         score = _resolve_with_trace(
                             "meowth->fetch", _RULES_MEOWTH_FETCH, [],
                             _mf_ctx, default=50)

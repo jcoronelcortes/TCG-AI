@@ -30,6 +30,7 @@ def score_play(tc, o, score):
     _alk_ld_engine_alive = tc._alk_ld_engine_alive
     _ara_act = tc._ara_act
     _bcs_playable_in_hand = tc._bcs_playable_in_hand
+    _bench_attacker_ready = tc._bench_attacker_ready
     _best_supp_in_hand_val = tc._best_supp_in_hand_val
     _best_supp_in_deck_id = tc._best_supp_in_deck_id
     _best_supp_in_deck_val = tc._best_supp_in_deck_val
@@ -637,8 +638,8 @@ def score_play(tc, o, score):
                         # Normally Meowth ex (2 prizes) is not benched against
                         # Froslass (which pings the bench). EXCEPTION (user, registro_008
                         # step 84, vs Marnie/Froslass, LOST): on a DEAD
-                        # TURN -- the active can neither ATTACK nor RETREAT (0
-                        # energy < the retreat cost), there is no benched attacker
+                        # TURN -- the active cannot attack, no retreat rescues the
+                        # turn, there is no benched attacker
                         # to bring up and there are no cards in hand to enable an
                         # attack -- with room on the bench and the refill engine in
                         # the DECK (Meowth ex -> Last-Ditch Catch searches for Lana's Aid
@@ -647,18 +648,33 @@ def score_play(tc, o, score):
                         # Aid) or refilling the hand (Lillie's) opens up attack
                         # options in the coming turns. The Lana's/Lillie's choice
                         # is resolved by the Supporter search.
+                        #
+                        # "IT CANNOT RETREAT" WAS THE WRONG HALF OF THE QUESTION
+                        # (user, episode 90591443 step 84, the same matchup one
+                        # episode later, LOST). The clause read the retreat COST
+                        # alone, so an active with the energy to pay it switched
+                        # the exception off -- and on that board retreating led
+                        # nowhere: Meganium at 2 of the 4 it needs, two Teal Mask
+                        # Ogerpon ex at 2 and 0 of 3, a bare Tapu Bulu, and not
+                        # one Grass in hand to close any of those gaps. A LEGAL
+                        # retreat is not a play; it is a play only when somebody
+                        # on the bench can attack once it is up. So the clause now
+                        # asks the whole question -- retreat AND a body ready to
+                        # come up -- and the turn stays dead exactly when it is.
                         _mw_act_reloc = my_state.active[0] if my_state.active else None
                         _mw_can_retreat = (
                             _mw_act_reloc is not None
                             and len(_mw_act_reloc.energies)
                             >= RETREAT_COST.get(_mw_act_reloc.id, 1))
+                        _mw_retreat_rescues = (_mw_can_retreat
+                                               and _bench_attacker_ready)
                         _mw_engine_in_deck = (
                             AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(
                                 Lillie_Determination, {}).get(ZONE_DECK, 0) > 0
                             or AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(
                                 Lanas_Aid, {}).get(ZONE_DECK, 0) > 0)
                         if (_active_cant_attack_this_turn
-                                and not _mw_can_retreat
+                                and not _mw_retreat_rescues
                                 and field_counts[card.id] == 0
                                 and bench_count < 5
                                 and not state.supporterPlayed
