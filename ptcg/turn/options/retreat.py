@@ -1350,6 +1350,59 @@ def score_play(tc, o, score):
                     and (AGENT_STATE.forest_in_play
                          or not getattr(active, 'appearThisTurn', False)))
 
+                # THE FRONT SPOT IS A BILL AND THE RETREAT CHOOSES WHO PAYS IT
+                # (user, episode 90481101 step 58, vs Teal Mask Ogerpon ex, WE
+                # LOST). Active Applin 40/40 -- ONE prize -- with a Teal Mask
+                # Ogerpon ex on the bench carrying two energies (Myriad Leaf
+                # Shower costs three, so it cannot attack the turn it is
+                # promoted), and in front of us their Ogerpon ex with FIVE:
+                # 30 + 30x(5+2) = 240 against anything we can put up. The agent
+                # retreated -- 3000, awarded for nothing more than a
+                # STRATEGIC_ATTACKER being on the bench -- and handed over a mute
+                # 2-prize body. Ending the turn hands over the Applin and ONE.
+                #
+                # The two generic arms of this branch only ever asked "is there
+                # an attacker on the bench?": not whether it can act today, not
+                # what it costs when it falls, and above all not whether their
+                # attack knocks it out next turn. That last question is the one
+                # this flag adds. If EVERY body we could promote (a) hands over
+                # MORE prizes than the active we are retreating, (b) cannot
+                # attack the turn it goes up and (c) dies to the opponent's
+                # projected attack, then the retreat buys no damage, no wall and
+                # no tempo -- only a bigger prize for the same knock-out.
+                #
+                # Any one of the three failing is an escape: a body that costs no
+                # more is a free swap, one that attacks pays its own way, and one
+                # that SURVIVES is the defensive pivot this branch exists for.
+                #
+                # `scaled=True` is deliberate, and it is the same reading the
+                # turn plan uses in `_opponent_reply`: the blind projector
+                # answers the 30 PRINTED on a Myriad Leaf Shower the engine
+                # resolves at 240, and with that number this rule could never see
+                # a knock-out at all. It is admissible here for the reason stated
+                # in `_op_active_attack_damage_to`: this is a NEW rule, with no
+                # threshold ever fitted to the blind reading.
+                _pf_op = _active_of(op_state)
+                _pf_act_prizes = prize_count(active) if active is not None else 0
+                _pf_op_hand = getattr(op_state, 'handCount', None)
+                _pf_every_relay_costs_more = False
+                if (can_switch and _pf_op is not None and bench_count >= 1
+                        and not _bench_attacker_ready):
+                    _pf_every_relay_costs_more = True
+                    for _pf_bp in (my_state.bench or []):
+                        if _pf_bp is None:
+                            continue
+                        if prize_count(_pf_bp) <= _pf_act_prizes:
+                            _pf_every_relay_costs_more = False   # (a) costs no more
+                            break
+                        if _can_attack_eff(_pf_bp.id, len(_pf_bp.energies)):
+                            _pf_every_relay_costs_more = False   # (b) it acts today
+                            break
+                        if _op_active_attack_damage_to(
+                                _pf_op, _pf_bp, _pf_op_hand,
+                                scaled=True) < (_pf_bp.hp or 0):
+                            _pf_every_relay_costs_more = False   # (c) it survives
+                            break
 
                 if active.id in (Chikorita, Bayleef, Meganium):
         
@@ -1456,12 +1509,14 @@ def score_play(tc, o, score):
                     else:
                         score = SCORE_VETO
                 elif _has_bench_attacker:
-                    score = 3000
+                    score = (SCORE_VETO if _pf_every_relay_costs_more
+                             else 3000)
                 elif _bench_has_only_non_attackers and _has_attacker_in_hand:
 
                     score = SCORE_VETO
                 else:
-                    score = 2500
+                    score = (SCORE_VETO if _pf_every_relay_costs_more
+                             else 2500)
         
             elif active.id in STRATEGIC_ATTACKERS:
         

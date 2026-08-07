@@ -259,6 +259,13 @@ as a scored option like any other:
   relay that can actually hit is an improvement on both counts. Getting that
   backwards costs the whole turn, because it vetoes the attachment that pays
   the retreat **and** the retreat itself.
+- **The retreat chooses who pays the prize the opponent is about to collect.**
+  Handing the front spot to a body that hands over *more* prizes only makes
+  sense if the body buys something with them: a hit this turn, or enough HP to
+  live through the reply. When the relay does neither — it cannot pay its attack
+  and their projected attack knocks it out anyway — the swap changes nothing
+  about the knockout and doubles its price, so the cheap body stays in front and
+  attacks for whatever chip it has.
 
 Two things are easy to get wrong, and both were paid for in the same turn:
 
