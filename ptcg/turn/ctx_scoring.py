@@ -141,8 +141,10 @@ class ScoringCtx:
     _promo_damage_to_op: Any = None
     _promo_kos_op: Any = None
     _promo_min_prize: Any = None
+    _mp_cheaper_candidate: Any = None
     _mp_front_survivors: Any = None
     _mp_outlasts: Any = None
+    _mp_price_ends_the_game: Any = None
     _promo_op_act: Any = None
     _promo_survives: Any = None
     _promo_survivors: Any = None

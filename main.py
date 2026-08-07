@@ -9472,6 +9472,50 @@ def agent(obs_dict: dict) -> list[int]:
                 continue
             if _mp_reply_to(_pb) > 0 and _mp_outlasts(_pb):
                 _mp_front_survivors += 1
+
+    # THE SAME SEAM, ONE ROW FURTHER DOWN: THE SCALE (self-play mirror, game 90
+    # turn 17; the census in docs/history/menu-order-ties.md). The reading above
+    # was widened for Powerful Hand, which prints 0 damage. Syrup Storm has the
+    # same problem with a different shape: it PRINTS 30 and counts the Grass
+    # across their whole field, and the engine resolved it at 210 on that board.
+    # Read without the scale all five candidates "survived", so nobody was
+    # doomed, the prize fallback never ran, `PROMO_MATCH_POINT_VETO`'s own guard
+    # was satisfied by phantom survivors, and a Teal Mask Ogerpon ex took the
+    # front worth exactly the two prizes they still needed.
+    #
+    # `ptcg/cards/op_scaling.py` is opt-in on purpose -- switching the true
+    # number on at all 42 call sites measured negative three times out of three,
+    # because the thresholds downstream were fitted to the blind one. That
+    # argument is about CALIBRATION, and this reading is not used to calibrate
+    # anything: `_mp_price_ends_the_game` can only ever REMOVE from the menu a
+    # body whose price IS their remaining pile. It can never promote a more
+    # expensive one, which is what a blanket `scaled=True` did here -- measured
+    # over 350 promotions against `crustle_wall_6`, it moved three, and two of
+    # them from a 1-prize body to an ex.
+    #
+    # Positive evidence only, like its neighbours: their pile has to be at most
+    # what this body pays AND their real blow has to remove it. With an
+    # unreadable attack nothing is vetoed.
+    def _mp_reply_scaled_to(_pk):
+        """Their reply, now also reading the attack's real scale."""
+        if _promo_op_act is None or _pk is None:
+            return 0
+        return max(_mp_reply_to(_pk),
+                   _op_active_attack_damage_to(
+                       _promo_op_act, _pk, op_hand_count=_mp_op_hand,
+                       scaled=True, scale=AGENT_STATE.op_scale))
+
+    _mp_cheaper_candidate = any(
+        _pb is not None and prize_count(_pb) < op_prize
+        for _pb in (my_state.bench or []))
+
+    def _mp_price_ends_the_game(_pk):
+        """This body hands them the last prize, and their blow takes it."""
+        if _pk is None or _promo_op_act is None:
+            return False
+        if op_prize > prize_count(_pk):
+            return False
+        return _mp_reply_scaled_to(_pk) >= (_pk.hp or 0)
     # ------------------------------------------------------------------
 
     # Rule (user, log 86345562 p55): when PROMOTING (a retreat or a KO) and NO

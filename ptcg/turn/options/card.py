@@ -79,8 +79,10 @@ def score_play(tc, o, score):
     _op_best_damage_vs = tc._op_best_damage_vs
     _op_counter_threat_vs = tc._op_counter_threat_vs
     _our_first_action_turn = tc._our_first_action_turn
+    _mp_cheaper_candidate = tc._mp_cheaper_candidate
     _mp_front_survivors = tc._mp_front_survivors
     _mp_outlasts = tc._mp_outlasts
+    _mp_price_ends_the_game = tc._mp_price_ends_the_game
     _promo_damage_to_op = tc._promo_damage_to_op
     _promo_kos_op = tc._promo_kos_op
     _promo_min_prize = tc._promo_min_prize
@@ -1173,6 +1175,36 @@ def score_play(tc, o, score):
                             and not (_promo_kos_op(card)
                                      and my_prize <= prize_count_op(_promo_op_act))):
                         score -= PROMO_DOOMED_PENALTY
+
+                    # THEIR MATCH POINT, READ WITH THE ATTACK'S REAL SCALE
+                    # (self-play mirror, game 90 turn 17; see
+                    # `_mp_price_ends_the_game` in agent() for the whole story).
+                    # The veto above asks whether the candidate survives through
+                    # a projector that reads Syrup Storm as its printed 30, so on
+                    # a board where their real blow is 210 every candidate looked
+                    # safe and a Teal Mask Ogerpon ex went to the front worth
+                    # exactly the two prizes they still needed.
+                    #
+                    # It is a VETO and it goes LAST, after the whole chain and
+                    # after the doomed penalty, for the same reason the one above
+                    # is: no bonus written for a board where the front body lives
+                    # gets to buy a body whose death ends the game. And it is
+                    # written so that it can only ever REMOVE a candidate that
+                    # pays their last prize -- never raise a more expensive one --
+                    # with `_mp_cheaper_candidate` guaranteeing the menu still
+                    # has something to promote afterwards.
+                    #
+                    # The one exemption is the one its neighbours already carry:
+                    # a body that knocks out and with that closes OUR count first
+                    # wins the game before their reply exists.
+                    if (isinstance(card, Pokemon)
+                            and _promo_op_act is not None
+                            and _mp_cheaper_candidate
+                            and callable(_mp_price_ends_the_game)
+                            and _mp_price_ends_the_game(card)
+                            and not (_promo_kos_op(card)
+                                     and my_prize <= prize_count_op(_promo_op_act))):
+                        score = PROMO_MATCH_POINT_VETO
 
                     # TIE-BREAK BETWEEN SURVIVORS (user, priorities 3 and
                     # 4). With survival already settled (1) and the Wild Growth

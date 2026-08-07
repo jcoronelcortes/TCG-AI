@@ -152,15 +152,82 @@ projector says loses the game is a wrong value, not a preference.
 A self-play A/B was NOT run, deliberately: with 0 decisions changed out of 485,
 any winrate difference would be noise measured at some expense.
 
+## 4. Following it one row further down: the projector under the rules
+
+The census left a second board of a different shape (game 90 turn 17): a charged
+Teal Mask Ogerpon ex promoted at their match point where the safe candidates were
+mute. Reading it turned out to be the more general finding of the two.
+
+Every rule that could have stopped it is already written and already measured --
+the doomed penalty, the "hand over the fewest prizes" fallback, and an explicit
+`PROMO_MATCH_POINT_VETO` whose sentence IS this board ("bringing up a doomed body
+is not a bad trade: it is losing the game"). All of them hang on one question,
+*does this candidate survive their attack*, and it was being asked of
+`_op_active_attack_damage_to` without `scaled=True`:
+
+    candidate               hp    blind   scaled
+    Meganium               160       30      210
+    Fezandipiti ex         210       30      210
+    Teal Mask Ogerpon ex   210       30      210
+    Applin                  40       30      210
+
+Syrup Storm PRINTS 30 and counts the Grass across their whole field. Read blind,
+every candidate survived: nobody was doomed, the fallback never ran, the veto's
+own guard was satisfied by phantom survivors, and the front seat went to a body
+worth exactly the two prizes they still needed.
+
+**The first attempt was wrong and the measurement said so.** Switching the scale
+on for the whole promotion block moved 3 of 350 promotions against
+`crustle_wall_6` -- and two of them from a one-prize body to an ex, because a
+truer projection also tells the doomed penalty which big bodies now "survive".
+`ptcg/cards/op_scaling.py` is opt-in for exactly this reason.
+
+What shipped instead is a veto of its own, `_mp_price_ends_the_game`, next to the
+Powerful Hand census that already exists for the same seam. It reads the scale,
+and it can only ever REMOVE from the menu a body whose price is their remaining
+pile -- never raise a more expensive one -- guarded by `_mp_cheaper_candidate` so
+the menu still has something to promote.
+
+### Measured, the second time
+
+| Gate | Result |
+| --- | --- |
+| Unit suite | 1613 green |
+| Architecture lint | clean |
+| Golden corpus | **1 flip, reviewed and accepted** |
+| Promotions changed, mirror | 11 / 485 |
+| Promotions changed, `crustle_wall_6` | 14 / 1406 (1.00%) |
+| Promotions changed, `ogerpon_verde_1` | 0 / 184 |
+
+24 of those 25 changes go from a two-prize ex to a cheaper body at their match
+point; the twenty-fifth swaps a wounded ex for a healthy one that outlasts the
+blow. The golden flip is registro_013 step 144, turn 13 at two prizes each
+against Alakazam, where Powerful Hand projects 280 and kills every candidate:
+the agent used to promote a Teal Mask Ogerpon ex, which pays both of their
+remaining prizes, and now promotes the Meganium -- one prize, the game continues,
+and it can answer.
+
+Prize differential, 3000 games per cell against the generic bot:
+
+| Deck | candidate | base | delta |
+| --- | ---: | ---: | ---: |
+| `deck.csv` | +4.55 | +4.56 | −0.01 |
+| `marnie_grimmsnarl_1` | +4.55 | +4.58 | −0.03 |
+| `crustle_wall_6` | −0.51 | −0.38 | −0.13 |
+
+Crustle was replicated twice more and read **+0.07** and **−0.19**. It is noise,
+and the frequency proves it rather than the sign: the rule moves 0.0175
+decisions per game there, so even if every one of them swung the maximum six
+prizes the differential could not move by more than 0.105 -- less than the spread
+between the three readings. Kept.
+
 ## What is still open
 
 1. **The attack-vs-retreat arbiter** (§2). The plan's `op_wins_next` has to be
-   read against the promotion the agent WOULD make, which §3 now shows how to
-   compute.
-2. **The other shape of unsafe promotion**: a second census board promoted a
-   charged Ogerpon ex at their match point where the only safe bodies were mute
-   (a Meganium at zero energy, two Applin). Mute survival against a two-prize
-   attacker is a different question, and the project has measured before that
-   surviving is not worth it if the survivor cannot answer. It deserves its own
-   board, not an extension of this rule.
+   read against the promotion the agent WOULD make, which §3 shows how to
+   compute. Note that §4 removes the worst of its consequences -- the two boards
+   where retreating handed the game away both did so through the promotion.
+2. **The rest of the seam.** `op_scaling` is still opt-in everywhere except the
+   turn plan and this one veto. The next place worth reading is the retreat's own
+   survival tests, which ask the same blind question.
 3. The remaining tie classes: 13 ATTACK vs PLAY, 24 ability against ability.
