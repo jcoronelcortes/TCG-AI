@@ -353,3 +353,21 @@ def test_a_cheaper_body_in_front_needs_them_closer_to_the_win():
     # does it from two, because it buys them half as much.
     assert gate(hydra, 3) and not gate(hydra, 4)
     assert gate(dipplin, 2) and not gate(dipplin, 3)
+
+
+def test_a_reply_that_does_exactly_the_remaining_hp_is_lethal():
+    """The boundary, found by `utils/mutation_probe.py` and not by a lost game.
+
+    `_hand_revealed_lethal_reply` ends on `seen if seen >= hp else 0`. Rewriting
+    that `>=` as `>` -- the reply that lands EXACTLY on the last hit point stops
+    counting as lethal -- survived the entire suite: 1498 tests, all green, on an
+    agent that would walk into every exactly-lethal blow in the game.
+
+    Powerful Hand does 20 x (hand + 2), so a hand of 6 reads 160. A body with
+    exactly 160 left dies to it, and one with 170 does not. The prize gate above
+    only ever fires behind this predicate, which makes this the outer boundary of
+    the whole pivot.
+    """
+    alakazam = _stub(ALAKAZAM, 140, energies=1)
+    assert m._hand_revealed_lethal_reply(alakazam, _stub(HYDRA, 160), 6) == 160
+    assert m._hand_revealed_lethal_reply(alakazam, _stub(HYDRA, 170), 6) == 0

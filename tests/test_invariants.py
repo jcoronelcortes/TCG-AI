@@ -20,6 +20,7 @@ counterexample to the minimal state that violates it.
 Requires `hypothesis` (pip install hypothesis).
 """
 
+import os
 import sys
 from pathlib import Path
 
@@ -52,8 +53,19 @@ OPPONENT_ROSTER = [
     pk(DWEBBLE),
 ]
 
+# HOW MANY BOARDS. Sixty is what the suite can afford on every run; the
+# invariants are worth far more than sixty boards, and the difference is a SOAK:
+#
+#     PTCG_HYPOTHESIS_EXAMPLES=3000 python -m pytest -q tests/test_invariants.py
+#
+# `derandomize=True` keeps every run reproducible per code version -- raising the
+# count explores MORE of the same deterministic space, it does not make the suite
+# flaky. A counterexample found at 3000 is a counterexample at 3000 for anyone
+# who runs it again.
+EXAMPLES = int(os.environ.get("PTCG_HYPOTHESIS_EXAMPLES", "60"))
+
 AJUSTES = dict(
-    max_examples=60, deadline=None, derandomize=True,
+    max_examples=EXAMPLES, deadline=None, derandomize=True,
     suppress_health_check=[HealthCheck.filter_too_much,
                            HealthCheck.too_slow])
 
