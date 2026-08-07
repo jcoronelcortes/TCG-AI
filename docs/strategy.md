@@ -292,6 +292,22 @@ fewest prizes. A wall pinned in place with no attack is worse than a mobile body
 that can act. And the bench is never left empty: ending a turn with an empty
 bench loses the game outright.
 
+**Two menus ask this question, and they are not the same question.** After a
+knockout the choice is resolved on the opponent's turn: the body that comes up
+attacks *tomorrow*, today's damage says nothing, and survival is what matters.
+After a voluntary retreat the choice happens on our own turn, seconds before we
+attack — so "this body hits for X" is a fact, not a forecast, and a body that
+finishes the opposing active is worth more than one that merely endures.
+
+The distinction is not only about timing; the boards differ too. **A retreat
+swaps two bodies, a knockout removes one.** When we retreat, the body coming up
+leaves the bench and the retreating active takes its slot, so the bench is the
+same size as before. After a knockout nothing replaces the body that comes up
+and the bench is one smaller. Any projection that counts our bench — the attack
+that does twenty damage per benched Pokémon is the one in our deck — has to use
+the right number, or an attacker that really does finish the job looks like one
+that falls short.
+
 ## 11. Disrupt on the right order
 
 Hand disruption is cheap value against decks that hoard cards, but the order

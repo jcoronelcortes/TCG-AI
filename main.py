@@ -10157,6 +10157,34 @@ def agent(obs_dict: dict) -> list[int]:
             return True
         return _op_active_attack_damage_to(_promo_op_act, _pk) < (_pk.hp or 0)
 
+    # HOW MANY BODIES OUR BENCH HAS AFTER THE PROMOTION -- the number that
+    # scales the attack that reads it (Dipplin's Do the Wave). The two contexts
+    # that promote do NOT agree on it:
+    #
+    #   TO_ACTIVE: the active was knocked out and is gone. The candidate leaves
+    #   the bench and nothing takes its slot -> one body FEWER. With a raw
+    #   `bench_count` the Dipplin of log 88971843 step 117 projected 20x4 = 80
+    #   and "knocked out" the opposing 80 HP Dipplin: that handed it the
+    #   PROMO_KO_BONUS of 20000 and also skipped the doomed-body penalty,
+    #   bringing up an 80 HP body against a hit of 100. The real value is 20x3.
+    #
+    #   SWITCH: our voluntary retreat SWAPS the two bodies -- the candidate
+    #   leaves the bench and the retreating active takes its slot, so the count
+    #   does NOT drop. Subtracting there is the mirror error, and it hides
+    #   damage instead of inventing it: the Dipplin of registro_008 step 78 was
+    #   projected at 20x4 = 80 when it hits the Crustle for 20x5 = 100. It did
+    #   not change that decision (80 > 0 was already enough for
+    #   `_promo_wall_relief`), but `_promo_kos_op` is a THRESHOLD with 20000
+    #   behind it, so under-counting can silence a finisher that is really there.
+    #
+    # The other two places that project onto a promoted body
+    # (`_prom_bench_after` and `_promote_setup_ko_attacker`) keep their plain
+    # subtraction: both hang off `_forced_ko_promote`, which demands an EMPTY
+    # active spot, so they only ever run on the knockout path even though their
+    # context test admits SWITCH.
+    _promo_bench_after = (bench_count if context == SelectContext.SWITCH
+                          else max(0, bench_count - 1))
+
     def _promo_kos_op(_pk):
         """The candidate KNOCKS OUT the opposing active after being promoted (with its
         current energy plus the manual attachment if it is still unspent)."""
@@ -10165,17 +10193,9 @@ def agent(obs_dict: dict) -> list[int]:
         _pe = len(_pk.energies) * _grass_mult()
         if not state.energyAttached and hand_counts.get(Basic_Grass_Energy, 0) >= 1:
             _pe += _grass_attach_unit()
-        # The candidate LEAVES the bench when promoted, so the attack that
-        # scales with our bench (Dipplin's Do the Wave) counts one body
-        # LESS. With a raw `bench_count`, the Dipplin of log 88971843 step 117
-        # projected 20x4 = 80 and "knocked out" the opposing 80 HP Dipplin: that
-        # gave it the PROMO_KO_BONUS of 20000 and also skipped the doomed-body
-        # penalty, bringing up an 80 HP body against a hit of 100. The real value is
-        # 20x3 = 60. The other two places that project onto a promoted body
-        # (`_prom_bench_after` and `_promote_setup_ko_attacker`) already subtracted 1.
         _pbase = _attacker_base_damage(
             _pk.id, _promo_op_act, _pe, grass_scale=total_grass,
-            teal_self_energy=_pe, bench_count=max(0, bench_count - 1))
+            teal_self_energy=_pe, bench_count=_promo_bench_after)
         if _pbase <= 0:
             return False
         _peff = _our_effective_damage(
@@ -10187,10 +10207,10 @@ def agent(obs_dict: dict) -> list[int]:
         """Effective damage the candidate deals to the opposing active once promoted.
 
         The SAME projection as `_promo_kos_op` -- current energy, plus the manual
-        attachment if it is still unspent, and one body fewer on the bench --
-        read as a QUANTITY instead of as a threshold. Against a wall the
-        question is not whether the body finishes the wall off; it is whether it
-        touches it AT ALL.
+        attachment if it is still unspent, and the bench as it stands after the
+        promotion -- read as a QUANTITY instead of as a threshold. Against a wall
+        the question is not whether the body finishes the wall off; it is whether
+        it touches it AT ALL.
         """
         if _promo_op_act is None or _pk is None:
             return 0
@@ -10199,7 +10219,7 @@ def agent(obs_dict: dict) -> list[int]:
             _pe += _grass_attach_unit()
         _pbase = _attacker_base_damage(
             _pk.id, _promo_op_act, _pe, grass_scale=total_grass,
-            teal_self_energy=_pe, bench_count=max(0, bench_count - 1))
+            teal_self_energy=_pe, bench_count=_promo_bench_after)
         if _pbase <= 0:
             return 0
         return _our_effective_damage(

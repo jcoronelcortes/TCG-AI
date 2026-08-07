@@ -32,6 +32,36 @@ energy, answer a number. The agent has one scoring branch per type — see the
 Both are enumerations in the simulator's API, and both are used constantly
 throughout the documentation and the code.
 
+## What the observation already resolves for you
+
+The board the engine sends is not the text printed on the cards: it is the state
+**after** the engine has applied every effect in play. That sounds obvious and it
+is the easiest rule in the project to break, because a card's text invites you to
+re-derive something the observation already contains.
+
+Two concrete shapes of it, both verified by probing the engine directly:
+
+- **HP already includes the buffs.** A Pokémon whose ability or tool grants extra
+  HP arrives with that HP in `maxHp` — the field is documented as *current* max
+  HP, not printed HP. Okidogi's Adrena-Power is the worked example: it reports
+  230 the moment the condition is met and 130 when it is not. Recomputing the
+  bonus would invent a body that cannot be knocked out.
+- **An Energy reports the type it actually provides.** `energies` carries
+  resolved energy types, so a special Energy shows up as whatever it supplies on
+  the body it is attached to. Prism Energy provides every type on a *Basic* and
+  only Colorless otherwise, and the engine reports exactly that: rainbow on a
+  Basic, colorless on a Stage 1. The "must be a Basic" clause is the engine's job
+  and it has already done it.
+
+The working rule: **only compute what the observation does not contain.** Damage
+an attack will do next turn is ours to project, because it has not happened yet.
+The state of the board is not.
+
+When you are unsure which side of the line a card falls on, the cheapest answer
+is an experiment: build a small deck around the card, play games through `cg/`
+with the generic bot, and read the raw observation. That is how both examples
+above were settled, and it takes minutes.
+
 ## Data files around the simulator
 
 | Path | What it is |
