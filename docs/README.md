@@ -52,9 +52,12 @@ is written line by line. It is meant to stay readable as the code changes.
 
 ## Documentation conventions
 
-- **English only.** All documentation written from now on is in English. (Code
-  comments and docstrings are still in Spanish; they carry a lot of domain
-  history and are being left as-is for now.)
+- **English only, everywhere.** Everything written *into* the project is
+  English: documentation, code comments, docstrings, test docstrings, test
+  assertion messages and commit messages. The Spanish comments still in the tree
+  are legacy — translate one when you touch that code, rather than sweeping for
+  its own sake. (Replies to the user in the editor console are a different
+  audience and stay in Spanish.)
 - **No line numbers, no line ranges.** Code moves constantly. Pages point at
   folders, packages and concepts instead.
 - **Purpose over mechanics.** Each page answers "what is this for, when do I use
