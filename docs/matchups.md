@@ -147,6 +147,34 @@ A card-by-card audit of the top archetypes (August 2026) found:
 > "known" ID once turned out to be an attack. The only real bug in that audit was
 > found by reading opposing lists by hand.
 
+## Abilities that change what their attack does
+
+Attacks that scale with the board live in `ptcg/cards/op_scaling.py`. A second,
+smaller family changes the damage without touching the attack at all: an
+**ability on the attacker** that adds a flat amount while some visible condition
+holds. These are modelled inline in the opponent-damage projector, next to the
+tools that do the same thing, because the bonus is flat, readable and lands
+before weakness.
+
+**Okidogi's Adrena-Power** is the one currently modelled: while it holds a
+Darkness Energy its attack does 100 more to our active — an attack printed at 70
+arriving as 170, or 340 against a body weak to Fighting. Two traps came with it,
+and both are the same trap:
+
+- the ability *also* grants +100 HP, and the engine already applies that. We read
+  the HP it sends and never recompute it;
+- the Darkness Energy does not have to be a basic one. **Prism Energy** provides
+  every type on a Basic Pokémon, and the engine reports it as rainbow — which is
+  exactly how the only list in the repo running Okidogi switches the ability on.
+  Matching on "basic Darkness Energy" would have been blind to it.
+
+See [the simulator layer](simulator.md) for the general rule both traps come
+from: the observation already carries whatever the engine resolved.
+
+**Still open:** a *different* Okidogi in the card pool has an attack that scales
+with the prizes we took last turn. It is unmodelled, and the census gate in the
+test suite is red because of it — that is the gate doing its job.
+
 ---
 
 Next: [Improving the agent](improving-the-agent.md) · [Tools](tools.md)

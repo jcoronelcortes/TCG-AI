@@ -8,7 +8,7 @@ utils/purity.py: nothing here touches mutable state or the runtime tables.
 from ptcg.calc.card import prize_count, prize_count_op
 from ptcg.state.agent_state import AGENT_STATE
 from ptcg.cards.tables import attack_table, card_table
-from ptcg.cards.ids import ABILITY_IMMUNE_IDS, Alakazam_ex, EVO_BODY_DAMAGE, EVO_BODY_EXPOSURE, EVO_BODY_RESCUE, OP_BENCH_SNIPE_DAMAGE, Brave_Bangle, DO_THE_WAVE_ATTACK_ID, Dipplin, Drednaw, EX_IMMUNE_IDS, FULL_HP_SURVIVE_IDS, Farigiraf_ex, Fezandipiti_ex, Hydrapple_ex, Maximum_Belt, Meganium, OUR_ABILITY_IDS, OUR_BASIC_EX_IDS, OUR_EX_IDS, POWERFUL_HAND_ATTACK_ID, Pinsir, Tapu_Bulu, Teal_Mask_Ogerpon_ex
+from ptcg.cards.ids import ABILITY_IMMUNE_IDS, Alakazam_ex, EVO_BODY_DAMAGE, EVO_BODY_EXPOSURE, EVO_BODY_RESCUE, OP_ACTIVE_ABILITY_DAMAGE, OP_BENCH_SNIPE_DAMAGE, RAINBOW_ENERGY_TYPE, Brave_Bangle, DO_THE_WAVE_ATTACK_ID, Dipplin, Drednaw, EX_IMMUNE_IDS, FULL_HP_SURVIVE_IDS, Farigiraf_ex, Fezandipiti_ex, Hydrapple_ex, Maximum_Belt, Meganium, OUR_ABILITY_IDS, OUR_BASIC_EX_IDS, OUR_EX_IDS, POWERFUL_HAND_ATTACK_ID, Pinsir, Tapu_Bulu, Teal_Mask_Ogerpon_ex
 from ptcg.calc.energy import _grass_mult
 from ptcg.cards.lines import _direct_evolution_ids
 from ptcg.cards.op_scaling import OP_SCALING_IGNORES_WEAKNESS, op_scaled_damage
@@ -275,6 +275,25 @@ def _tiene_rule_box(card_id) -> bool:
     return bool(getattr(_d, 'ex', False) or getattr(_d, 'megaEx', False))
 
 
+def _has_energy_of_type(pokemon, energy_type):
+    """Does `pokemon` hold an Energy that PROVIDES `energy_type`?
+
+    `energies` carries EnergyType already resolved by the engine, so a special
+    Energy appears as what it really provides on the body it sits on. RAINBOW is
+    the engine's way of saying "every type", so it satisfies any requirement.
+
+    That one line is what makes Prism Energy (16) work without a special case.
+    Its text is conditional -- "provides {C}; if attached to a Basic Pokemon it
+    provides every type" -- and the engine resolves the condition for us: probed
+    directly, a Prism reports RAINBOW on Applin (Basic) and COLORLESS on Dipplin
+    (Stage 1). Re-deriving `card.basic` here would duplicate a rule the engine
+    already applies, and duplicated rules drift. Legacy Energy (12) is rainbow
+    unconditionally and rides the same path.
+    """
+    return any(_e in (energy_type, RAINBOW_ENERGY_TYPE)
+               for _e in (getattr(pokemon, 'energies', None) or []))
+
+
 def _op_active_attack_damage_to(op_active, target, op_hand_count=None,
                                 scaled=False):
     """Maximum PRINTED damage the opposing active can deal to `target`.
@@ -364,6 +383,24 @@ def _op_active_attack_damage_to(op_active, target, op_hand_count=None,
             best_ignores_weakness = _ignores_weakness
     if best <= 0:
         return 0
+    # An ABILITY on the opposing attacker that boosts EVERY attack it uses
+    # against our active, before weakness/resistance: Adrena-Power (Okidogi 116)
+    # adds 100 while it holds any {D} Energy. Unlike the tools below it does not
+    # care whether the target is an ex -- the card says "your opponent's Active
+    # Pokemon", full stop -- and this projector is exactly that question: what
+    # their active does to the body standing in front of it.
+    #
+    # Read off the board, not guessed: the condition is the energies attached,
+    # which are in the observation. Verified against the engine -- with {D} the
+    # Good Punch that PRINTS 70 takes 170 off our active, and 140 off a
+    # Fighting-weak body without it, so the bonus really does land before the
+    # doubling. See OP_ACTIVE_ABILITY_DAMAGE in ptcg/cards/ids.py for why the
+    # +100 HP half of the same ability is deliberately NOT modelled.
+    _ability = OP_ACTIVE_ABILITY_DAMAGE.get(op_active.id)
+    if _ability is not None:
+        _energy_needed, _bonus = _ability
+        if _has_energy_of_type(op_active, _energy_needed):
+            best += _bonus
     # Tools on the opposing attacker that add damage against our ACTIVE ex, before
     # weakness/resistance. Maximum Belt (1158, +50) is unconditional; Brave Bangle
     # (1175, +30) only counts if the HOLDER has no Rule Box (Dipplin does not have
@@ -740,6 +777,7 @@ __all__ = [
     '_snipe_targets',
     '_our_effective_damage',
     '_tiene_rule_box',
+    '_has_energy_of_type',
     '_op_active_attack_damage_to',
     '_op_evolution_attack_damage_to',
     '_attacker_base_damage',

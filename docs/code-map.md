@@ -59,7 +59,7 @@ have to.
 | Module | Purpose |
 | --- | --- |
 | `energy.py` | Effective energy: our Grass energy counts double while our accelerator is in play, and a stadium can raise attack costs. Answers "can this Pokémon attack?". |
-| `damage.py` | What our attackers actually do: base damage, whether a knockout is guaranteed, sniping the bench. |
+| `damage.py` | What both sides' attacks actually do: our base damage, whether a knockout is guaranteed, sniping the bench — and the projector for the **opposing** active's hit, which every defensive rule in the agent hangs off. Tools and attacker abilities that add a flat amount before weakness are applied there. |
 | `card.py` | Reading a card from the observation: its prize value, how good a body it is. |
 | `opponent.py` | Reading the opponent: can it attack, which of its bodies are harmless, how big is its hand. |
 | `board.py` | Board reading: our active, what can evolve, what the hand can do. |

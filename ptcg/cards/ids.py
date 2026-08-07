@@ -182,6 +182,46 @@ Maximum_Belt = 1158
 Brave_Bangle = 1175
 Basic_Grass_Energy = 1
 
+# ADRENA-POWER (Okidogi 116, a Fighting basic printed at 130 HP): "If this
+# Pokemon has any {D} Energy attached, it gets +100 HP, and the attacks it uses
+# do 100 more damage to your opponent's Active Pokemon (before applying Weakness
+# and Resistance)". Its only attack, Good Punch, costs two {F} and prints 70, so
+# switched on it hits the ACTIVE for 170 -- and for 340 against a body weak to
+# Fighting, because the +100 lands BEFORE the doubling.
+#
+# ONLY THE DAMAGE IS MODELLED HERE. The +100 HP is already in the observation:
+# probed against the engine (60 games each arm), Okidogi reports maxHp=230 the
+# moment it holds {D} and maxHp=130 in a deck that carries no {D} at all. `hp`
+# and `maxHp` are what the engine says they are -- adding the ability's HP on top
+# of them would count it twice and invent a 330 HP body that does not exist.
+#
+# A TABLE and not an `if` in the projector: this is the same shape as the tools
+# above (a flat, exactly readable bonus applied before weakness) and the same
+# lesson as ptcg/cards/op_scaling.py -- one card of a family arrives, then the
+# next one does.
+# WHICH ENERGY COUNTS, and why we do not re-derive it. `energies` carries
+# EnergyType, already RESOLVED by the engine, so a special energy shows up as
+# whatever it actually provides on the body it is attached to. Probed with
+# Prism Energy (16), whose text reads "provides {C}; if attached to a Basic
+# Pokemon it provides every type":
+#
+#     Prism on Applin  (BASIC)    -> energies reports 10  (RAINBOW, every type)
+#     Prism on Dipplin (STAGE 1)  -> energies reports  0  (COLORLESS)
+#
+# So the "must be a Basic" condition is the ENGINE's job and it already did it;
+# re-checking `card.basic` here would duplicate a rule we would then have to keep
+# in sync. What is ours is only to know that RAINBOW satisfies any requirement --
+# which also covers Legacy Energy (12), rainbow unconditionally, and leaves
+# Team Rocket's Energy (15) to report {D} on its own when it is on a Team
+# Rocket's Pokemon.
+Okidogi_Fighting = 116
+DARKNESS_ENERGY_TYPE = 7          # cg.api.EnergyType.DARKNESS
+RAINBOW_ENERGY_TYPE = 10          # cg.api.EnergyType.RAINBOW -- "Every Types"
+# card id -> (energy type that switches the ability on, damage added to our ACTIVE)
+OP_ACTIVE_ABILITY_DAMAGE = {
+    Okidogi_Fighting: (DARKNESS_ENERGY_TYPE, 100),
+}
+
 # Ethan's Adventure (1215): what Buddy Blast counts, and it counts it in THEIR
 # discard pile, not on the board. Ethan's Typhlosion prints 40 and adds 60 per
 # copy already discarded, so a deck that has cycled three of them is attacking
@@ -1068,6 +1108,10 @@ __all__ = [
     'Maximum_Belt',
     'Brave_Bangle',
     'Basic_Grass_Energy',
+    'Okidogi_Fighting',
+    'DARKNESS_ENERGY_TYPE',
+    'RAINBOW_ENERGY_TYPE',
+    'OP_ACTIVE_ABILITY_DAMAGE',
     'Budew',
     'Crustle_Grass',
     'Dwebble_Grass',
