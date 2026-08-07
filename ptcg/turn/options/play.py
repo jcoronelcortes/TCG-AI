@@ -318,7 +318,19 @@ def score_play(tc, o, score):
                     else:
                         score = 21000
                 elif card.id == Meowth_ex:
-        
+                    # Can the active STEP ASIDE at all? A doomed active that can
+                    # pay its own retreat still has a move left this turn (the
+                    # clean retreat-sacrifice of the mismatch), and the ladder
+                    # prefers it to exposing a 2-prize body. Only a body NAILED
+                    # in front -- it cannot pay the retreat -- turns a chip into
+                    # the whole turn. Read from the energies on the card, not
+                    # from any card list.
+                    _mw_act_now = my_state.active[0] if my_state.active else None
+                    _mw_active_stuck = (
+                        _mw_act_now is not None
+                        and len(_mw_act_now.energies)
+                        < RETREAT_COST.get(_mw_act_now.id, 1))
+
                     if meowth_ability_lock:
                         # Team Rocket's Watchtower cancels the ability of
                         # Meowth ex (a Colorless Pokemon): do not bench it.
@@ -616,6 +628,93 @@ def score_play(tc, o, score):
                         # the situation is reversed. It is scored below the
                         # full refill (21500) and above the attack.
                         score = 21400
+                    elif (_active_ready_attacker
+                            and field_counts[card.id] < 2
+                            and _meowth_ld_free
+                            and bench_count < 5
+                            and not meowth_ability_lock
+                            and not state.supporterPlayed
+                            and hand_counts.get(Lillie_Determination, 0) == 0
+                            and AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(
+                                Lillie_Determination, {}).get(ZONE_DECK, 0) > 0
+                            and _ready_attacker_count <= 1
+                            and _active_doomed_real
+                            and not (AGENT_STATE.plan.attacker == 0
+                                     and AGENT_STATE.plan.remain_hp is not None
+                                     and AGENT_STATE.plan.remain_hp <= 0)
+                            and _mw_active_stuck
+                            and my_prize >= 3
+                            and op_prize > 2):
+                        # A STERILE TURN IS A DEAD TURN THAT CAN STILL SWING
+                        # (user, registro_004 step 53, episode 90589108 vs
+                        # Marnie, WON suboptimally). Active Dipplin at 50/80
+                        # with one Grass, "Do the Wave" for 60 against a 320 HP
+                        # Marnie's Grimmsnarl ex at FULL health that knocks it
+                        # out next turn (`_active_doomed_real`); the bench holds
+                        # no charged body (`_ready_attacker_count` = 1, the
+                        # doomed active itself), the hand's two Supporters are
+                        # both worth 0 (`_best_supp_in_hand_val` = 0), the
+                        # Supporter slot is free and three Lillie's
+                        # Determination are alive in the deck. The agent
+                        # ATTACKED and closed the turn: a chip that changes
+                        # nothing, paid for with the whole turn.
+                        #
+                        # Why the ladder let it: every arm that says "a ready
+                        # active does not veto free development" is gated on
+                        # `field_counts == 0`, and here ONE Meowth ex was
+                        # already on the bench. With the second copy the only
+                        # surviving door is the `field_counts == 1` branch
+                        # below, whose gate is `_active_cant_attack_this_turn` —
+                        # a binary "can it attack AT ALL", which is the wrong
+                        # question. The right one is whether the attack CHANGES
+                        # anything and whether anything answers when the active
+                        # falls. A turn that chips a full-health wall, dies, and
+                        # leaves nothing behind is a dead turn in everything but
+                        # the legality of its attack.
+                        #
+                        # Benching a Basic does not consume the attack: a
+                        # Pokemon PLAY lives in `_TIER_DEVELOP` (40) and the
+                        # attack in tier 0, so the body goes down, Last-Ditch
+                        # Catch fetches Lillie's, the Supporter is played and
+                        # the attack still closes the turn — with MORE damage
+                        # here, since one more benched body is one more step of
+                        # "Do the Wave". Same sequencing class as
+                        # [[el-hueco-de-supporter-muere-con-el-ataque]] and
+                        # [[el-ko-de-hoy-no-paga-el-relevo-de-manana]].
+                        #
+                        # What is NOT excused is the PRICE of the body, so the
+                        # arm carries its own guards, all of them readings of
+                        # the board and none of an archetype:
+                        #   * `_active_doomed_real` + non-lethal plan — the
+                        #     turn is sterile. With a healthy active, or with a
+                        #     knockout on the table, the veto below stands.
+                        #   * `_ready_attacker_count <= 1` — the doomed active
+                        #     is our ONLY charged body. An uncharged attacker on
+                        #     the bench is not relief THIS turn; that is why the
+                        #     signal is the count of READY attackers and not
+                        #     `_no_second_attacker_path`, which answers the
+                        #     other question (could we ever assemble one).
+                        #   * `_mw_active_stuck` — the active cannot pay its own
+                        #     retreat. With a legal retreat the turn is not
+                        #     sterile: the measured preference is the clean
+                        #     retreat-sacrifice of the mismatch over a 2-prize
+                        #     body (controls `test_step37_doomed_ex_retreats*`,
+                        #     `test_step78_meowth_refresh_not_with_bench_
+                        #     attacker_body`, all three still red without this
+                        #     clause).
+                        #   * `_meowth_ld_free` — with the turn's Last-Ditch
+                        #     already spent the second copy fetches NOTHING and
+                        #     is a naked 2-prize body.
+                        #   * `my_prize >= 3` and `op_prize > 2` — prize
+                        #     arithmetic: not while either side is at match
+                        #     point, where the body we bench IS the game.
+                        # Froslass does not veto here for the reason spelled out
+                        # in the 21500 arm: with the active as our only ready
+                        # attacker and its attack not lethal there is no
+                        # pressure to protect, and digging beats chipping.
+                        # 21450: below the full refill (21500), above the
+                        # thin-bench exception (21400) and far above the chip.
+                        score = 21450
                     elif (_active_ready_attacker
                             and field_counts[card.id] == 0):
                         # Rule (user, log 86511741 step 57, vs Mega Abomasnow
