@@ -6280,24 +6280,19 @@ def agent(obs_dict: dict) -> list[int]:
             and (hand_counts.get(Boss_Orders, 0) >= 1
                  or AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Boss_Orders, {}).get(ZONE_DECK, 0) > 0)):
         _mbw_atk = my_state.active[0]
-        _mbw_grass_hand = hand_counts.get(Basic_Grass_Energy, 0)
-        _mbw_attach = (_mbw_grass_hand >= 1 and not state.energyAttached)
         # Teal Dance of the ACTIVE itself (user, pending from the Myriad combo): the
         # ability attaches ANOTHER Grass from hand and is INDEPENDENT of the
         # manual attachment, so the energy reachable this turn can be +2
         # (attachment + Teal Dance) and not +1. Without modelling it, the winning finisher via
         # Boss's was not detected as soon as the manual attachment was already spent
-        # (energyAttached) even if the ability was still available. It is detected
-        # as in the rest of the file: through the menu's ABILITY option, which the
-        # engine only offers if the ability is usable. The extra total cannot
-        # exceed the Grass in hand (both come from there).
-        _mbw_td = (_mbw_atk is not None
-                   and _mbw_atk.id == Teal_Mask_Ogerpon_ex
-                   and _mbw_grass_hand >= 1
-                   and AGENT_STATE._td_ability_serial is not None
-                   and getattr(_mbw_atk, 'serial', None) == AGENT_STATE._td_ability_serial)
-        _mbw_extra = min(_mbw_grass_hand,
-                         (1 if _mbw_attach else 0) + (1 if _mbw_td else 0))
+        # (energyAttached) even if the ability was still available.
+        # `_pending_grass_extra_eff` is now the SINGLE SOURCE OF TRUTH for that
+        # projection: the gust TARGET scorer (`_ctx_gust_target`) reads the very
+        # same helper, so the body this detector promises the game on is the body
+        # the target scorer aims at (registro_014 step 154).
+        _mbw_extra_eff = _pending_grass_extra_eff(
+            _mbw_atk, hand_counts.get(Basic_Grass_Energy, 0),
+            state.energyAttached)
 
         def _mbw_dmg_to(_tgt):
             if _mbw_atk is None or _tgt is None:
@@ -6307,7 +6302,7 @@ def agent(obs_dict: dict) -> list[int]:
             # attached Grass adds `_grass_attach_unit()` (2 with Meganium), so
             # Myriad's own energy is the SAME effective magnitude
             # (before, `_atk_e` added +1 raw and with Meganium it fell short).
-            _eff_after = _eff + _mbw_extra * _grass_attach_unit()
+            _eff_after = _eff + _mbw_extra_eff
             _atk_e = _eff_after
             # Base damage via the single table _attacker_base_damage (the same formula
             # and thresholds as before; the weakness/resistance/immunity finish
@@ -6354,7 +6349,7 @@ def agent(obs_dict: dict) -> list[int]:
         # so there is NO KO of the wall there and the rule must not fire.
         if _mbw_act.id in EX_IMMUNE_IDS:
             _wall_eff = (len(_mbw_atk.energies) * _grass_mult()
-                         + _mbw_extra * _grass_attach_unit())
+                         + _mbw_extra_eff)
             _wall_dmg = _our_effective_damage(
                 _mbw_atk, _mbw_act,
                 _attacker_base_damage(_mbw_atk.id, _mbw_act, _wall_eff,

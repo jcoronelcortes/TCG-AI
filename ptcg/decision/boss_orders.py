@@ -7,7 +7,7 @@ utils/purity.py: nothing here touches mutable state or the runtime tables.
 
 from ptcg.cards.ids import Dwebble_Fighting, Dwebble_Grass, EX_PREEVO_IDS, GUST_TRAP_IDS, SCORE_FORBID, THREAT_PREEVO_IDS
 from ptcg.calc.opponent import _alakazam_attacker_relief, _op_active_is_harmless, _op_body_is_harmless
-from ptcg.calc.energy import _can_attack_eff, _grass_attach_unit, _retreat_grass_units
+from ptcg.calc.energy import _can_attack_eff, _grass_attach_unit, _pending_grass_extra_eff, _retreat_grass_units
 from ptcg.calc.damage import _attacker_base_damage, _bench_attacker_best_damage, _bench_attacker_can_ko, _bench_finisher_that_survives, _ex_active_is_a_wall, _hand_revealed_lethal_reply, _op_active_attack_damage_to, _our_effective_damage, _reply_reaches_match_point
 from ptcg.calc.card import prize_count, prize_count_op
 from ptcg.state.agent_state import AGENT_STATE
@@ -627,16 +627,34 @@ def _ctx_gust_target(card, o, my_state, op_state, state, hand_counts,
         eff_e = len(atk.energies) * _grass_mult()
         can_attach = (hand_counts.get(Basic_Grass_Energy, 0) >= 1
                       and not state.energyAttached)
-        eff_after = eff_e + (_grass_attach_unit() if can_attach else 0)
+        # THE SAME projection the winning-gust detector makes (`_win_via_boss_gust`
+        # in agent()): the manual attachment AND the active's own Teal Dance, in
+        # EFFECTIVE energy. Two models of the same attack is how the agent came to
+        # promise a game and cash one prize (registro_014 step 154 vs Alakazam:
+        # the detector projected Teal Dance -> Myriad 210 -> the Fezandipiti ex on
+        # their bench = our last two prizes = 20000 `winning_gust`, which VETOED
+        # the Xerosic; this scorer read the same Ogerpon without the ability, saw
+        # 150 on a 210 HP body, found "no KO" and aimed the gust at an Abra worth
+        # one prize). The projection only ever ADDS knockable targets, and it
+        # cannot promise energy the ability scorer will refuse to attach: the
+        # matchup caps on Teal Dance (Alakazam / Hop's / Cubchoo / Crustle) all
+        # make an exception for the attachment that ENABLES the KO on the
+        # opposing active, which is exactly the case that flips `can_ko` here.
+        eff_after = eff_e + _pending_grass_extra_eff(
+            atk, hand_counts.get(Basic_Grass_Energy, 0), state.energyAttached)
         dmg = 0
         if atk.id == Hydrapple_ex and eff_after >= 2:
             dmg = 30 + 30 * total_grass
         elif atk.id == Dipplin and eff_after >= 1:
             dmg = 20 * bench_count
         elif atk.id == Teal_Mask_Ogerpon_ex and eff_after >= 3:
+            # Myriad Leaf Shower counts the energy on BOTH actives, and OURS is
+            # the EFFECTIVE one (Wild Growth doubles every Grass): `eff_after` is
+            # what `_attacker_base_damage` calls `teal_self_energy`. The copy that
+            # lived here added the pending attachment RAW (+1), so with Meganium
+            # in play it fell 30 damage short of the real number.
             o_e = energy
-            m_e = len(atk.energies) + (1 if can_attach else 0)
-            dmg = 30 + 30 * (o_e + m_e)
+            dmg = 30 + 30 * (o_e + eff_after)
         elif atk.id == Tapu_Bulu and eff_after >= 4:
             dmg = 220
         elif atk.id == Fezandipiti_ex and eff_after >= 3:

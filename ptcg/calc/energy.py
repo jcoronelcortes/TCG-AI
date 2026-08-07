@@ -63,6 +63,44 @@ def _grass_attach_unit():
     return 2 if AGENT_STATE.meganium_in_play else 1
 
 
+def _pending_grass_extra_eff(active, hand_grass, energy_attached):
+    """EFFECTIVE Grass energy our ACTIVE can still gain THIS TURN, from the
+    manual attachment AND from its own Teal Dance.
+
+    SINGLE SOURCE OF TRUTH for the two places that ask "how hard does our active
+    hit after finishing this turn's charging": the winning-gust detector
+    (`_win_via_boss_gust` in agent()) and the gust TARGET scorer
+    (`_ctx_gust_target`). They used to disagree -- the detector projected Teal
+    Dance, the target scorer did not -- and the whole point of the Boss's is that
+    the body we AIM AT is the body the detector promised (registro_014 step 154
+    vs Alakazam, WON in spite of this: opponent on 2 prizes with a benched
+    Fezandipiti ex, our active Ogerpon ex at 4 effective energy. The detector saw
+    Teal Dance -> 6 effective -> Myriad Leaf Shower 30+30x6 = 210 = the exact HP
+    of the Fezandipiti ex = the last two prizes, scored the Boss's as
+    `winning_gust` 20000 and, on that promise, VETOED the Xerosic that caps
+    Powerful Hand. The target scorer then read the same active as 4 effective
+    energy -> 150 damage -> "no KO on the Fezandipiti" and gusted the Abra
+    instead: one prize, and neither the game nor the cap).
+
+    Teal Dance is only counted when the MAIN menu of this turn OFFERED the
+    ability on this same body (`AGENT_STATE._td_ability_serial`, the way the rest
+    of the file detects a usable ability): once used, the engine stops offering
+    it and the projection switches itself off. Both charges come out of the SAME
+    hand, hence the `min` against the Grass we hold.
+
+    Returns EFFECTIVE energy (Wild Growth already applied by
+    `_grass_attach_unit`), which is what `_attacker_base_damage` expects.
+    """
+    if active is None or hand_grass < 1:
+        return 0
+    manual = 1 if not energy_attached else 0
+    teal = 1 if (getattr(active, 'id', None) == Teal_Mask_Ogerpon_ex
+                 and AGENT_STATE._td_ability_serial is not None
+                 and getattr(active, 'serial', None)
+                 == AGENT_STATE._td_ability_serial) else 0
+    return min(hand_grass, manual + teal) * _grass_attach_unit()
+
+
 def _grass_ability_slots(state, field_counts):
     """Grass charging abilities (Teal Dance on each Teal Mask Ogerpon ex +
     Ripening Charge on each Hydrapple ex) that can STILL attach this turn.
@@ -334,6 +372,7 @@ __all__ = [
     'count_total_grass_energy',
     'calc_syrup_storm_damage',
     '_grass_attach_unit',
+    '_pending_grass_extra_eff',
     '_grass_ability_slots',
     '_grass_ability_slots_active',
     '_grass_attach_route_open',
