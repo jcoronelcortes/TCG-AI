@@ -44,10 +44,11 @@ another, so most of them are gated on these flags.
 | **Iron Thorns / ability lock** | Turns off our engines entirely. | Play around the lock and treat it as a deck-size limit, not an ability question. |
 | **Cynthia Garchomp, Festival Lead, Archaludon, Zoroark, Gardevoir, Greninja, Raging Bolt, Abomasnow…** | Individually rarer. | Targeted rules only where they were measured to matter. |
 
-## Where we stand (August 2026)
+## Where we stand (7 August 2026)
 
-Measured against the **93 real leaderboard decks** in `deck/real_opponents/`,
-400 games per matchup, weighted by how often each list actually appears:
+Measured against the **97 real leaderboard decks** in `deck/real_opponents/`,
+rebuilt from the August top-300 download, 400 games per matchup, weighted by how
+often each list actually appears:
 
 ```bash
 python utils/matchup_matrix.py --games 400 --weights
@@ -55,67 +56,80 @@ python utils/matchup_matrix.py --games 400 --weights
 
 ```text
 EXPECTED LADDER WINRATE (weighted by meta share)
-  weighted  : 93.3%   over 99.8% of the meta covered
-  unweighted: 91.5%
-  PRIZE DIFFERENTIAL, weighted: +3.905 per game
-  our forfeits: 0 across all 93 matchups
+  weighted  : 92.8%   over 99.4% of the meta covered
+  unweighted: 91.1%
+  PRIZE DIFFERENTIAL, weighted: +3.803 per game
+  our forfeits: 0 across all 97 matchups
 ```
 
 Aggregated by archetype:
 
 | Archetype | Meta share | Winrate | Prize diff. | Ladder points lost |
 | --- | ---: | ---: | ---: | ---: |
-| **Crustle wall** | 10.0% | **77.3%** | **+2.03** | **2.26** |
-| Marnie Grimmsnarl | 39.0% | 96.2% | +4.56 | 1.49 |
-| Alakazam | 18.0% | 94.1% | +3.51 | 1.06 |
-| Ogerpon Verde | 8.3% | **89.5%** | **+2.78** | 0.87 |
-| Mega Lucario | 2.6% | 89.3% | +3.21 | 0.28 |
-| Mega Starmie | 1.0% | 86.0% | +2.61 | 0.14 |
-| Mega Lopunny | 3.7% | 96.9% | +4.19 | 0.11 |
-| Dragapult | 3.3% | 96.7% | +4.70 | 0.11 |
-| *(9 remaining archetypes)* | 14.0% | 93–99% | +4 to +5 | 0.40 |
+| **Crustle wall** | 10.2% | **76.8%** | **+1.89** | **2.37** |
+| Marnie Grimmsnarl | 38.0% | 95.4% | +4.53 | 1.76 |
+| **Ogerpon Verde** | 7.3% | **86.7%** | **+2.38** | 0.97 |
+| Alakazam | 18.5% | 95.4% | +3.47 | 0.85 |
+| Mega Lucario | 2.2% | 89.6% | +3.21 | 0.23 |
+| Mega Starmie | 0.9% | 82.7% | +2.23 | 0.16 |
+| Mega Kangaskhan | 2.2% | 93.9% | +4.49 | 0.13 |
+| Mega Lopunny | 3.3% | 96.7% | +4.16 | 0.11 |
+| *(9 remaining archetypes)* | 14.5% | 93–99% | +4 to +5 | 0.42 |
+
+The previous corpus (5 August, 93 lists) read 93.3% weighted and +3.905. Half a
+point of that difference is the field and not the agent: the corpus was rebuilt
+in between, four new lists came in, and the agent's only changes since were
+readings that flip no decision (golden corpus, 0 flips).
+
+**The worst single list is `crustle_wall_6` at 58.2%, with a prize differential
+of -0.22** -- the only matchup in the table where the opponent takes more prizes
+than we do. It is a pure stall build: 4 Crustle, 4 Jumbo Ice Cream, 4 Cook,
+3 Waitress, 13 Grass, and two Teal Mask Ogerpon ex as the only other attacker. No
+Boss's Orders, no Kangaskhan. Against it, `utils/healing_census.py` reports that
+**83% of the damage we deal is healed back** before it becomes a prize.
 
 ### Reading the table
 
 **Crustle wall is the real weakness, not Marnie.** Marnie costs more ladder
-points only because it is 39% of the field; we beat it 96% of the time. Crustle
+points only because it is 38% of the field; we beat it 95% of the time. Crustle
 is 10% of the field and we win 77%. Three independent signals point at it: the
 worst winrate, the worst prize differential (games decided narrowly — which is
-exactly where a new rule can move the needle), and 17 distinct lists, so it is
-the archetype and not one odd deck.
+exactly where a new rule can move the needle), and **18** distinct lists, so it
+is the archetype and not one odd deck.
 
-The August refresh of the corpus **widened that gap instead of closing it**. In
-the previous measurement the two were nearly tied (2.15 against 2.01); now
-Crustle costs half again what Marnie does. Nothing about the agent changed
-between the two runs — the field did. Crustle grew from 8.7% to 10.0% while
-Marnie fell from 43.4% to 39.0%, so the archetype we win least is also the one
-gaining ground.
+Two corpus refreshes in a row have **widened that gap instead of closing it**.
+Nothing about the agent changed between the runs — the field did. Crustle went
+8.7% → 10.0% → 10.2% of the meta while Marnie fell 43.4% → 39.0% → 38.0%, so the
+archetype we win least is the one gaining ground.
 
-**Ogerpon Verde is the second real hole** (89.5%), invisible in a
-winrate-sorted list because it weighs so little — though it is weighing more
-every month: 4.2% in the previous corpus, 8.3% in this one, which doubled its
-ladder cost even as the matchup itself improved by four points.
+**Ogerpon Verde is the second real hole** (86.7%, and it lost three points on
+the refresh even as its share fell), invisible in a
+winrate-sorted list because it weighs so little. Its share has moved 4.2% →
+8.3% → 7.3% across the three corpora and the matchup itself has now given back
+the four points it had gained, so it costs about one ladder point either way.
 
 **Winrate alone stops resolving once it saturates.** Above ~94% the generic
 opponent bot is the limiting factor. The **prize differential** keeps
 discriminating there, because a game can be won without taking all six prizes —
 it measures something else, not a disguised winrate.
 
-**Zero forfeits in 37,200 games** means the agent never crashed and never chose
+**Zero forfeits in 38,800 games** means the agent never crashed and never chose
 an illegal option against any real list.
 
-**The meta is measured almost whole.** The screening admitted all 93 unique
-lists this time, so the weighted figure covers 99.8% of the field instead of the
-98.8% of the previous corpus. When a list is rejected the average is quietly
-computed over a hole; there is effectively no hole now.
+**The meta is measured almost whole.** The screening admitted 97 of the 98
+unique lists, so the weighted figure covers 99.4% of the field. The one rejection
+is an N's Zoroark ex build the generic bot cannot start (13% for the bot against
+itself, which measures the bot and not the matchup). When a list is rejected the
+average is quietly computed over a hole; the hole is one list wide.
 
-**Five of the 93 are near-copies of our own list**, one of them identical card
-for card. Against those the bot is piloting our engine rather than an opposing
-deck, and it plays it badly, so they come back at 97%. They are kept — people do
-play them — but they flatter one archetype: dropping them moves Ogerpon Verde
-from 89.5% to **88.0%** and its prize differential from +2.78 to **+2.42**,
-which is the number to reason with. The overall figure barely notices (93.3% →
-93.2%), because together they are 1.7% of the field.
+**Three of the 97 are near-copies of our own list** (two Festival Lead at 52 and
+57 cards in common, one Ogerpon Verde at 47). Against those the bot is piloting
+our engine rather than an opposing deck, and it plays it badly, so they come back
+at 94–98%. They are kept — people do play them — but they flatter one archetype:
+dropping them moves Ogerpon Verde from 86.7% to **86.2%** and its prize
+differential from +2.38 to **+2.27**, which is the number to reason with. The
+overall figure barely notices (92.78% → 92.75%), because together they are 0.9%
+of the field — a third of what they were in the previous corpus.
 
 ## Cards we deliberately do not model
 
