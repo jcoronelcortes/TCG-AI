@@ -8,7 +8,7 @@ utils/purity.py: nothing here touches mutable state or the runtime tables.
 from ptcg.cards.ids import Dwebble_Fighting, Dwebble_Grass, EX_PREEVO_IDS, GUST_TRAP_IDS, SCORE_FORBID, THREAT_PREEVO_IDS
 from ptcg.calc.opponent import _alakazam_attacker_relief, _op_active_is_harmless, _op_body_is_harmless
 from ptcg.calc.energy import _can_attack_eff, _grass_attach_unit, _retreat_grass_units
-from ptcg.calc.damage import _attacker_base_damage, _bench_attacker_best_damage, _bench_attacker_can_ko, _bench_finisher_that_survives, _ex_active_is_a_wall, _hand_revealed_lethal_reply, _op_active_attack_damage_to, _our_effective_damage, _reply_closes_the_game
+from ptcg.calc.damage import _attacker_base_damage, _bench_attacker_best_damage, _bench_attacker_can_ko, _bench_finisher_that_survives, _ex_active_is_a_wall, _hand_revealed_lethal_reply, _op_active_attack_damage_to, _our_effective_damage, _reply_reaches_match_point
 from ptcg.calc.card import prize_count, prize_count_op
 from ptcg.state.agent_state import AGENT_STATE
 from ptcg.cards.ids import Basic_Grass_Energy, Bayleef, DUNSPARCE_IDS, Dipplin, EX_PREEVO_IDS, Fezandipiti_ex, Hydrapple_ex, Meganium, OUR_EX_IDS, RETREAT_COST, THREAT_PREEVO_IDS, Tapu_Bulu, Teal_Mask_Ogerpon_ex
@@ -442,7 +442,7 @@ def _grass_unlocks_active_retreat(my_state, op_state, meganium_active,
             # line wins whenever the relay survives and hands over no more
             # prizes.
             #
-            # The prize gate (`_reply_closes_the_game`) is what keeps this a
+            # The prize gate (`_reply_reaches_match_point`) is what keeps this a
             # defensive pivot and not a preference. Without it the rule also
             # fires on boards where the trade is merely unpleasant, and there
             # the turn is worth more spent elsewhere -- healing the body that is
@@ -457,7 +457,7 @@ def _grass_unlocks_active_retreat(my_state, op_state, meganium_active,
                 opa, act, getattr(op_state, 'handCount', None))
             _relay_survives = (
                 _op_reply > 0
-                and _reply_closes_the_game(act, op_state, opa)
+                and _reply_reaches_match_point(act, op_state, opa)
                 and _bench_finisher_that_survives(
                     my_state, opa, meganium_active, bench_count,
                     max(0, total_grass - _retreat_grass_units(rc)),

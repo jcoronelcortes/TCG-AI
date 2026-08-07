@@ -560,23 +560,43 @@ def _hand_revealed_lethal_reply(op_active, target, op_hand_count):
     return seen if seen >= hp else 0
 
 
-def _reply_closes_the_game(my_active, op_state, op_active):
-    """Would their reply on our ACTIVE take their LAST prizes?
+def _reply_reaches_match_point(my_active, op_state, op_active):
+    """Would their reply on our ACTIVE leave them one knockout from winning?
 
-    Counted after the knockout we are about to take this turn: their remaining
-    prizes minus what the body we are knocking out is worth, against what our
-    active hands over. It is the line between "the body standing in front is a
-    trade" and "the body standing in front is the game", and it is what tells a
-    defensive pivot apart from a preference.
+    True when the prizes our active hands over take them to their last prize or
+    past it -- either their reply wins outright, or it leaves them needing one
+    more knockout and nothing else. That is the line between "the body standing
+    in front is a trade" and "the body standing in front is the game", and it is
+    what tells a defensive pivot apart from a preference.
 
-    False when that subtraction leaves them at zero: there our knockout already
-    wins, and there is no reply to survive.
+    WHICH PILE IS WHICH. Prizes cashed for knocking a body out come from the
+    pile of the player who cashes them: `prize_count(our body)` comes off
+    THEIRS, `prize_count_op(their body)` comes off OURS. This predicate used to
+    subtract our own winnings from their pile before comparing -- the one place
+    in the codebase that mixed the two sides. Verified on the board of record
+    90350002: finishing their Alakazam moved OUR prizes from 4 to 3 and left
+    theirs at 1. Everywhere else already reads it correctly (`my_prize <=
+    prize_count_op(op_act)` is us winning, `op_prize <= prize_count(card)` is
+    them winning).
+
+    The subtraction cost it at both ends. It silenced the rule at THEIR match
+    point -- one prize left, where any knockout wins and the pivot matters most
+    -- and it fired on boards where their reply is a plain trade, because a pile
+    of three minus a two-prize ex reads like a pile of one.
+
+    WHY MATCH POINT AND NOT THE WIN ITSELF. Because that is the boundary the
+    rule was measured on. Its founding board (record 90099795, registro_012 step
+    120) has them on three prizes against our two-prize ex: their reply leaves
+    them on one, not zero. Reading it as "their reply must WIN" would switch the
+    whole line off there -- including the Grass spent on the active to pay the
+    retreat -- and that line was kept because it was the difference in a game we
+    lost. A body that puts them one knockout from the game is already worth a
+    retreat; one that merely trades is not.
     """
     if my_active is None or op_active is None:
         return False
-    left = (len(getattr(op_state, 'prize', None) or [])
-            - prize_count_op(op_active))
-    return left >= 1 and prize_count(my_active) >= left
+    op_left = len(getattr(op_state, 'prize', None) or [])
+    return op_left >= 1 and prize_count(my_active) >= op_left - 1
 
 
 def _bench_finisher_that_survives(my_state, target, meganium_active, bench_count,
@@ -787,7 +807,7 @@ __all__ = [
     'UPGRADE_PRIZE',
     'UPGRADE_BODY',
     '_hand_revealed_lethal_reply',
-    '_reply_closes_the_game',
+    '_reply_reaches_match_point',
     '_bench_attacker_best_damage',
     '_ex_active_is_a_wall',
     '_snipe_target_score',

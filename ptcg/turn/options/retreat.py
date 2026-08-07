@@ -7,7 +7,7 @@ VERBATIM. It unpacks from the context the 60 fields it reads and returns the
 
 from cg.api import AreaType, CardType, OptionType, Pokemon
 from ptcg.calc.card import get_card, prize_count, prize_count_op
-from ptcg.calc.damage import UPGRADE_PRIZE, _attacker_base_damage, _bench_finisher_that_survives, _bench_finisher_upgrade, _ex_active_is_a_wall, _hand_revealed_lethal_reply, _op_active_attack_damage_to, _our_effective_damage, _reply_closes_the_game
+from ptcg.calc.damage import UPGRADE_PRIZE, _attacker_base_damage, _bench_finisher_that_survives, _bench_finisher_upgrade, _ex_active_is_a_wall, _hand_revealed_lethal_reply, _op_active_attack_damage_to, _our_effective_damage, _reply_reaches_match_point
 from ptcg.calc.energy import _can_attack_eff, _grass_attach_route_open, _grass_attach_unit, _grass_mult, _physical_energy, _reachable_grass_for, _retreat_grass_to_discard, _retreat_grass_units
 from ptcg.calc.board import _active_of
 from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Chikorita, Cornerstone_Mask_Ogerpon_ex, Crustle_Fighting, Crustle_Grass, Cubchoo, Dawn, Dipplin, Drednaw, Dwebble_Fighting, Dwebble_Grass, EEVEE_IDS, Fezandipiti_ex, Hydrapple_ex, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, OP_BENCH_SNIPE_DAMAGE, OUR_ABILITY_IDS, OUR_EX_IDS, Pinsir, RETREAT_COST, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex
@@ -300,7 +300,7 @@ def score_play(tc, o, score):
                     _rfp_opa, _active_reloc,
                     getattr(op_state, 'handCount', None))
                 if (_rfp_reply > 0
-                        and _reply_closes_the_game(_active_reloc, op_state,
+                        and _reply_reaches_match_point(_active_reloc, op_state,
                                                    _rfp_opa)):
                     _rfp_grass_after = max(0, total_grass - _retreat_grass_units(
                         RETREAT_COST.get(_active_reloc.id, 1)))

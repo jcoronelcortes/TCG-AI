@@ -31,10 +31,27 @@ draws the line by reading the attack twice, once the way everyone else reads it
 and once counting their hand, and only speaks when the second is lethal and the
 first is not.
 
-The prize gate (`_reply_closes_the_game`) keeps THIS pivot a defensive one
+The prize gate (`_reply_reaches_match_point`) keeps THIS pivot a defensive one
 rather than a preference: a trade we merely dislike is not worth the retreat
 cost, the game is. It is also what still scopes the expensive half of the line,
 the Grass spent on the active to unlock the retreat.
+
+THAT GATE WAS READING THE WRONG PILE (fixed Aug 2026). It used to subtract
+`prize_count_op(their active)` from their prizes before comparing, as if the
+knockout we are about to take came out of THEIR pile. It comes out of ours
+(record 90350002: finishing their Alakazam moved OUR prizes from 4 to 3 and left
+theirs at 1; `utils/selfplay.py` says the same thing where it counts prizes
+taken). The subtraction made a pile of three read like a pile of one and -- the
+part that cost something -- made their MATCH POINT read as zero, so the gate
+failed its own `>= 1` guard and went quiet on the one board where losing the
+active loses the game.
+
+Sweeping their pile from one to six over this same board, exactly ONE decision
+changes: at a pile of one the Grass now goes to the active instead of the bench.
+Two upwards is untouched, which is also why 900 self-play games against the
+Alakazam bot showed ZERO divergence between the old formula and the new one --
+the gate is only reachable behind Powerful Hand, and we win that matchup often
+enough that they rarely reach one prize while still threatening.
 
 Later note (registro_008 step 126): the RETREAT itself is no longer only this
 pivot's business. `_front_spot_upgrade` reads the same shape -- two of our
@@ -211,7 +228,7 @@ def test_a_relay_that_dies_to_the_same_reply_buys_nothing():
 
 def test_when_their_reply_is_only_a_trade_the_wider_rule_takes_the_board():
     """Six prizes on their side: our ex is a trade, not the match, and THIS
-    pivot stays silent -- `_reply_closes_the_game` is what scopes it, and it is
+    pivot stays silent -- `_reply_reaches_match_point` is what scopes it, and it is
     what the Grass-to-the-active half is still spent on.
 
     The retreat happens anyway, and by a different name. `_front_spot_upgrade`
@@ -224,7 +241,7 @@ def test_when_their_reply_is_only_a_trade_the_wider_rule_takes_the_board():
     cur = m.to_observation_class(copy.deepcopy(obs)).current
     mine = cur.players[cur.yourIndex]
     theirs = cur.players[1 - cur.yourIndex]
-    assert m._reply_closes_the_game(mine.active[0], theirs,
+    assert m._reply_reaches_match_point(mine.active[0], theirs,
                                     theirs.active[0]) is False
     assert _chosen(obs)["type"] == int(m.OptionType.RETREAT)
 
@@ -244,18 +261,95 @@ def test_the_seam_is_the_reply_only_their_hand_reveals():
     assert m._hand_revealed_lethal_reply(alakazam, _stub(OGERPON, 210), 6) == 0
 
 
-def test_the_prize_gate_reads_the_board_after_our_own_knockout():
-    """Their prizes minus what we are about to knock out, against what our
-    active hands over."""
+def test_at_their_match_point_the_grass_finally_pays_the_retreat():
+    """The board the old gate could never see, and the only one that moved.
+
+    With one prize left on their side, ANY knockout wins it for them -- so the
+    doomed body in front is the game, which is the exact shape this pivot exists
+    for. The old gate subtracted our own winnings from their pile first, so at a
+    pile of one it came out at zero, failed its own `>= 1` guard and went quiet
+    precisely there. The Grass went to the bench and the 110 HP active stayed in
+    front of a reply that finishes it.
+
+    Sweeping their pile from one to six, this is the ONLY value whose decision
+    changes: everything from two upwards already agreed.
+    """
+    chosen = _chosen(_board("attach", op_prizes=1))
+    assert chosen["type"] == int(m.OptionType.ATTACH)
+    assert chosen["inPlayArea"] == int(m.AreaType.ACTIVE), (
+        "at their match point the Grass belongs on the active: it pays the "
+        "retreat that puts a body they cannot finish in front"
+    )
+
+
+def test_the_boards_above_match_point_did_not_move():
+    """Two prizes and up keep the decision they were measured with."""
+    assert _chosen(_board("attach", op_prizes=2))["inPlayArea"] == int(m.AreaType.ACTIVE)
+    assert _chosen(_board("attach", op_prizes=3))["inPlayArea"] == int(m.AreaType.ACTIVE)
+    for op_prizes in (4, 5, 6):
+        assert _chosen(_board("attach", op_prizes=op_prizes))["inPlayArea"] == int(
+            m.AreaType.BENCH), op_prizes
+
+
+def test_the_prize_gate_reads_only_their_pile():
+    """What our active hands over, against THEIR remaining prizes.
+
+    The gate used to subtract `prize_count_op(their active)` from their pile
+    first, as if the knockout we are about to take came out of it. It does not:
+    prizes are cashed from the pile of the player cashing them, so our winnings
+    leave OUR pile (verified on record 90350002). Mixing the two sides made a
+    pile of three read like a pile of one, and made their match point -- the
+    board where this pivot matters most -- read as nothing at all.
+    """
     alakazam = _stub(ALAKAZAM, 140)          # a 1-prize Stage 2
     hydra = _stub(HYDRA, 110)                # ours, 2 prizes
     assert m.prize_count_op(alakazam) == 1 and m.prize_count(hydra) == 2
-    # Three prizes left: after our knockout they need two, and our ex is two.
-    assert m._reply_closes_the_game(hydra, SimpleNamespace(prize=[None] * 3),
-                                    alakazam)
-    # Four: they still need one more turn after cashing our ex.
-    assert not m._reply_closes_the_game(hydra, SimpleNamespace(prize=[None] * 4),
-                                        alakazam)
-    # And our own knockout already winning is not a reply to survive.
-    assert not m._reply_closes_the_game(hydra, SimpleNamespace(prize=[None]),
-                                        alakazam)
+
+    def gate(their_prizes):
+        return m._reply_reaches_match_point(
+            hydra, SimpleNamespace(prize=[None] * their_prizes), alakazam)
+
+    # Three: their reply cashes our two and leaves them on one. Match point.
+    assert gate(3)
+    # Four: it leaves them on two, needing a further turn after that. A trade.
+    assert not gate(4)
+    assert not gate(6)
+    # One or two: their reply wins outright. This is where the old subtraction
+    # went quiet, and it is the board the pivot exists for.
+    assert gate(1)
+    assert gate(2)
+
+
+def test_the_gate_does_not_read_the_body_we_are_knocking_out():
+    """Their active's own prize value must not move the answer.
+
+    It is the whole of the bug in one assertion: swap the body we are about to
+    finish for one worth twice as many prizes and nothing about THEIR pile has
+    changed, so the gate cannot change either.
+    """
+    hydra = _stub(HYDRA, 110)
+    one_prize = _stub(ALAKAZAM, 140)
+    two_prize = _stub(OGERPON, 210)                  # an ex: 2 prizes
+    assert m.prize_count_op(one_prize) == 1 and m.prize_count_op(two_prize) == 2
+
+    for their_prizes in (1, 2, 3, 4, 6):
+        pile = SimpleNamespace(prize=[None] * their_prizes)
+        assert (m._reply_reaches_match_point(hydra, pile, one_prize)
+                is m._reply_reaches_match_point(hydra, pile, two_prize))
+
+
+def test_a_cheaper_body_in_front_needs_them_closer_to_the_win():
+    """The gate is about what WE hand over, so a one-prize body raises the bar."""
+    hydra = _stub(HYDRA, 110)                        # ours, 2 prizes
+    dipplin = _stub(DIPPLIN, 80)                     # ours, 1 prize
+    alakazam = _stub(ALAKAZAM, 140)
+    assert m.prize_count(hydra) == 2 and m.prize_count(dipplin) == 1
+
+    def gate(body, their_prizes):
+        return m._reply_reaches_match_point(
+            body, SimpleNamespace(prize=[None] * their_prizes), alakazam)
+
+    # Our two-prize ex reaches match point from three; the one-prize body only
+    # does it from two, because it buys them half as much.
+    assert gate(hydra, 3) and not gate(hydra, 4)
+    assert gate(dipplin, 2) and not gate(dipplin, 3)

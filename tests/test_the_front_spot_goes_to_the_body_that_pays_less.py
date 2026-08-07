@@ -190,7 +190,7 @@ def test_step126_the_existing_relay_pivot_could_not_see_it():
     assert m._hand_revealed_lethal_reply(opa, active, theirs.handCount) == 100
     assert m.prize_count(active) == 2
     assert len(theirs.prize) == 4
-    assert m._reply_closes_the_game(active, theirs, opa) is False
+    assert m._reply_reaches_match_point(active, theirs, opa) is False
 
 
 def test_step126_the_wounded_twin_steps_aside():
