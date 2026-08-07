@@ -144,6 +144,13 @@ class AgentState:
         self.op_is_crustle_deck = False
         self.op_is_cornerstone_deck = False
         self.op_has_mega_kangaskhan = False
+        # The Mega Starmie ex line (Staryu -> Mega Starmie ex). STICKY, like
+        # the two above: the deck announces itself with a 70 HP Staryu that
+        # threatens nothing, and the whole point of the rule that reads this
+        # flag is to have acted BEFORE the 330 HP body shows up. A matchup
+        # forgotten the turn the Staryu retreats to the bench is a matchup we
+        # would re-learn one KO too late.
+        self.op_is_starmie_deck = False
         # Per-turn flags (P0.2): prize denial active on the OPPONENT's field.
         # They are refreshed at the start of agent() together with meganium_in_play.
         self._op_prize_denial_pecharunt = False   # Pecharunt ex (141) on the opposing field

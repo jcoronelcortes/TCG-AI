@@ -79,6 +79,7 @@ def reset_main_state():
     m.op_is_crustle_deck = False
     m.op_is_cornerstone_deck = False
     m.op_has_mega_kangaskhan = False
+    m.op_is_starmie_deck = False
     m._field_at_turn_start = {}
     m._poke_pad_target_id = 0
     m._ub_meowth_pending = False

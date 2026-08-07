@@ -39,6 +39,7 @@ def score_play(tc, o, score):
     _festival_lead_hostil = tc._festival_lead_hostil
     _ft_hold_lone_meowth = tc._ft_hold_lone_meowth
     _ft_wall_in_hand = tc._ft_wall_in_hand
+    _starmie_wall_in_hand = tc._starmie_wall_in_hand
     _gt_planes = tc._gt_planes
     _gt_quiere_basico = tc._gt_quiere_basico
     _gt_root_in_play = tc._gt_root_in_play
@@ -1664,6 +1665,25 @@ def score_play(tc, o, score):
         # on the bench is not a wall we are keeping, it is a target.
         if (_ft_wall_in_hand is not None
                 and card is not None and card.id == _ft_wall_in_hand
+                and not _dragapult_no_tapu
+                and score < FIRST_TURN_WALL_PLAY_SCORE):
+            score = FIRST_TURN_WALL_PLAY_SCORE
+
+        # THE TAPU BULU GOES DOWN SO IT CAN COME UP (user, registro_002 step 28
+        # vs Mega Starmie ex). The head of the sacrifice order is the one rung
+        # that can be missing from the board and still be arranged for: it is a
+        # Basic, so the same turn puts it on the bench and promotes it. See
+        # `_starmie_wall_in_hand` in main.py.
+        #
+        # It is the SAME envelope, at the same height and for the same reason
+        # as the first-turn wall above -- what it has to beat is spread across
+        # the whole per-card ladder, the hand refill that would shuffle the body
+        # away included -- so it is stated here, where nothing can be added
+        # after it, and it keeps the same respect for the matchup veto that
+        # reads the OPPONENT: against a deck that snipes the bench the body we
+        # would be saving is a target, not a wall.
+        if (_starmie_wall_in_hand is not None
+                and card is not None and card.id == _starmie_wall_in_hand
                 and not _dragapult_no_tapu
                 and score < FIRST_TURN_WALL_PLAY_SCORE):
             score = FIRST_TURN_WALL_PLAY_SCORE

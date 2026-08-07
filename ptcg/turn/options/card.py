@@ -13,7 +13,8 @@ from ptcg.calc.board import _active_of, _count_hand_play_options
 from ptcg.cards.groups import GT_FETCH_BONUS
 from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, DISCARD_EVO_SPARE_COPY, DISCARD_SUPPORTER_DEAD_DROP, DISCARD_SUPPORTER_LIVE_KEEP, DUNSPARCE_IDS, Dawn, Dipplin, Drednaw, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, LANA_SEL_INJUGABLE, LANA_SEL_GRASS_DEMAND, LANA_SEL_GRASS_UNLOCKS, LANA_SEL_GRASS_SURPLUS, LANA_SEL_GRASS_WINS, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, OUR_ABILITY_IDS, OUR_EX_IDS, Pinsir, Poke_Pad, RETREAT_COST, RIPEN_HEAL_TARGET_SCORE, SCORE_FORBID, SCORE_LOOKAHEAD_PROMOTE_KO, SCORE_LOOKAHEAD_PROMOTE_SAFE, SCORE_NEVER, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, Xerosic_Machinations
 from ptcg.cards.lines import _evo_copies_usable, _line_base_benchable, _pokemon_injugable
-from ptcg.cards.scoring import MAIN_ATTACKERS, PROMO_DOOMED_PENALTY, PROMO_KO_BONUS, PROMO_MATCH_POINT_VETO, PROMO_PRIZE_PENALTY, _SUPP_PLAY_IDS
+from ptcg.cards.ids import STARMIE_SAC_PROMOTE_ORDER
+from ptcg.cards.scoring import MAIN_ATTACKERS, PROMO_DOOMED_PENALTY, PROMO_KO_BONUS, PROMO_MATCH_POINT_VETO, PROMO_PRIZE_PENALTY, STARMIE_SAC_PROMOTE_STEP, STARMIE_SAC_PROMOTE_TOP, _SUPP_PLAY_IDS
 from ptcg.cards.tables import card_table
 from ptcg.decision.boss_orders import _ADJUST_GUST_NUISANCE, _ADJUST_GUST_OFFENSIVE, _RULES_GUST_NUISANCE, _ctx_gust_target
 from ptcg.decision.disruption import _stamp_pendiente
@@ -70,6 +71,7 @@ def score_play(tc, o, score):
     _lillie_protected_once = tc._lillie_protected_once
     _lucario_ko_prefer_basic = tc._lucario_ko_prefer_basic
     _lucario_sac_context = tc._lucario_sac_context
+    _starmie_sac_promote = tc._starmie_sac_promote
     _mega_line_active = tc._mega_line_active
     _meowth_devel_lillie = tc._meowth_devel_lillie
     _meowth_ld_free = tc._meowth_ld_free
@@ -211,8 +213,19 @@ def score_play(tc, o, score):
                 return _SALTAR   # it already did its own scores.append
         
             if context == SelectContext.SWITCH or context == SelectContext.TO_ACTIVE:
+                # THE MEGA STARMIE SACRIFICE ONLY OWNS THE VOLUNTARY RETREAT
+                # (user, registro_002 step 28). `SelectContext.SWITCH` is the
+                # promotion of the retreat we just chose, on our own turn; the
+                # FORCED promotion after a knockout (TO_ACTIVE) can fall inside
+                # the OPPONENT's turn and is a different question, with its own
+                # measured answer -- survival, match point, the body that
+                # attacks first. A flag about hiding an ex does not get to
+                # answer it.
+                _starmie_sac_menu = (_starmie_sac_promote
+                                     and context == SelectContext.SWITCH)
                 if (o.playerIndex == my_index
-                        and (_lucario_sac_context or _doomed_sac_context)):
+                        and (_lucario_sac_context or _doomed_sac_context
+                             or _starmie_sac_menu)):
                     # WHICH BODY WE HAND OVER (user, registro_002 step 25 vs
                     # Mega Lucario ex, LOST). We are retreating a doomed 2-prize
                     # ex to concede one prize instead of two, so this menu is not
@@ -241,7 +254,39 @@ def score_play(tc, o, score):
                         and getattr(card_table.get(_sh_id), 'evolvesFrom', None)
                         == getattr(card_table.get(card.id), 'name', None)
                         for _sh_id, _sh_n in hand_counts.items())
-                    if _tapu_sac_priority and card.id == Tapu_Bulu:
+                    # THE ORDER THE USER GAVE FOR THE MEGA STARMIE LINE
+                    # (registro_002 step 28, episode 90583594, LOST). It
+                    # REPLACES the Chikorita-first order above, and the reason
+                    # it may is that the two are answering different questions:
+                    # `_doomed_sac_context` is spending one of two evolution
+                    # lines and asks which line we can spare, while this menu
+                    # is buying the difference between one prize and two
+                    # against a deck that one-shots any ex left in front. The
+                    # rungs and what each is worth are in
+                    # STARMIE_SAC_PROMOTE_ORDER (ptcg/cards/ids.py).
+                    #
+                    # THE APPLIN WITHOUT ENERGY GOES FIRST. Both copies hand
+                    # over the same single prize, so what separates them is
+                    # what stays behind: the charged one keeps a Grass we
+                    # already paid for, and sending it to the front throws that
+                    # attachment away with the body. The record's board had
+                    # exactly the two -- an Applin with a Grass and a bare one.
+                    #
+                    # Anything the order does not name falls through to the
+                    # rungs below, which is what "and finally any other option"
+                    # means: an unnamed one-prize body still beats an ex, and
+                    # among ex the sturdiest goes first.
+                    if _starmie_sac_menu and card.id in STARMIE_SAC_PROMOTE_ORDER:
+                        _sty_rank = STARMIE_SAC_PROMOTE_ORDER.index(card.id)
+                        if card.id == Applin and energy_count > 0:
+                            # The charged copy sits one rung below the bare one;
+                            # everything under it shifts down by that rung.
+                            _sty_rank += 1
+                        elif _sty_rank >= STARMIE_SAC_PROMOTE_ORDER.index(Applin) + 1:
+                            _sty_rank += 1
+                        score = (STARMIE_SAC_PROMOTE_TOP
+                                 - _sty_rank * STARMIE_SAC_PROMOTE_STEP)
+                    elif _tapu_sac_priority and card.id == Tapu_Bulu:
                         # Tapu Bulu only goes first where it really contributes
                         # (an opponent with ex protection, or the Hydrapple ex +
                         # Meganium engine that can charge it on the spot).

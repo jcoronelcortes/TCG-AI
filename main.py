@@ -799,6 +799,7 @@ def _update_cards_tracking(obs, my_index, my_state):
         AGENT_STATE.op_is_crustle_deck = False
         AGENT_STATE.op_is_cornerstone_deck = False
         AGENT_STATE.op_has_mega_kangaskhan = False
+        AGENT_STATE.op_is_starmie_deck = False
     AGENT_STATE._cards_last_turn = obs.current.turn
 
     if not AGENT_STATE._cards_first_scan_done and obs.current is not None:
@@ -5032,6 +5033,8 @@ def agent(obs_dict: dict) -> list[int]:
 
             op_has_mega_starmie_active = True
             op_bench_snipe_threat = True
+        if op_active_id in MEGA_STARMIE_LINE_IDS:
+            AGENT_STATE.op_is_starmie_deck = True
         if op_active_id == Latias_ex:
             op_has_latias_ex = True
         if op_active_id in (Riolu, Mega_Lucario_ex):
@@ -5126,6 +5129,8 @@ def agent(obs_dict: dict) -> list[int]:
                 op_is_cubchoo_deck = True
             if pokemon.id in (Hops_Phantump, Hops_Trevenant):
                 op_is_hop_deck = True
+            if pokemon.id in MEGA_STARMIE_LINE_IDS:
+                AGENT_STATE.op_is_starmie_deck = True
             if pokemon.id == Iron_Thorns_ex:
                 op_is_iron_thorns_deck = True
 
@@ -5201,6 +5206,8 @@ def agent(obs_dict: dict) -> list[int]:
             op_is_raging_bolt_deck = True
         elif _dcid in (Snover, Mega_Abomasnow_ex):
             op_is_abomasnow_deck = True
+        elif _dcid in MEGA_STARMIE_LINE_IDS:
+            AGENT_STATE.op_is_starmie_deck = True
         elif _dcid == Lugia_VSTAR:
             op_is_aggro_deck = True
         elif _dcid in (Cornerstone_Mask_Ogerpon_ex, Cornerstone_Mask_Ogerpon):
@@ -5555,6 +5562,12 @@ def agent(obs_dict: dict) -> list[int]:
     _ft_wall_pivot = False
     _ft_wall_promote = False
     _ft_wall_charge_active = False
+    # Hiding the ex from the Mega Starmie line. Same reason for being bound
+    # here as the five above: they are computed once the whole board is read,
+    # and anything that runs before that point has to see them switched off.
+    _starmie_wall_in_hand = None
+    _starmie_sac_pivot = False
+    _starmie_sac_promote = False
     _active_cant_attack_this_turn = False
     _hydra_pivot_active = False
     _tapu_sac_pivot = False
@@ -10791,6 +10804,96 @@ def agent(obs_dict: dict) -> list[int]:
                 and not state.energyAttached
                 and hand_counts.get(Basic_Grass_Energy, 0) >= 1
                 and _ftw_phys + 1 >= _ftw_rc)
+
+    # =================================================================
+    # THE EX DOES NOT WAIT IN FRONT OF THE MEGA STARMIE LINE (user,
+    # registro_002 step 28, episode 90583594 vs Mega Starmie ex, LOST).
+    #
+    # The board of that step: our first turn, an active Teal Mask Ogerpon ex
+    # with the one Grass of the turn on it -- not enough to attack -- and on
+    # the bench an Applin with a Grass, a Meowth ex, a second Ogerpon ex with a
+    # Grass and a bare Applin. In front of us, a Staryu with one Water.
+    #
+    # Every existing pivot looked at that Staryu and answered "no threat", each
+    # for a reason that is correct in general:
+    #
+    #   * `_ft_wall_pivot` wants an undamaged one-prize WALL on the bench
+    #     (`is_one_prize_wall`: a Basic, one prize, >= FIRST_TURN_WALL_MIN_HP
+    #     and a real attacker). Two 40 HP Applin are not that, so the flag
+    #     never even looked for a body.
+    #   * `_doomed_sac_context` and `_doomed_ex_sac_pivot` ask the damage
+    #     projector, evolution included. It answers 120 -- Jetting Blow, the
+    #     only Mega Starmie attack whose cost a Staryu with one energy plus the
+    #     projector's "+1 next turn" can pay -- and 120 does not knock out a
+    #     210 HP ex, so nobody is doomed and nothing fires.
+    #
+    # What both readings miss is the SECOND attack on that card. Mega Starmie
+    # ex prints Nebula Beam at 210 for three energies: the exact HP of our
+    # Ogerpon ex, and the deck reaches three energies in one turn with the
+    # Ignition Energy it runs. The projector is right about what they can pay
+    # TODAY and wrong about what this particular line is, which is why the rule
+    # is stated as a MATCHUP and not as an arithmetic threshold: against the
+    # Staryu -> Mega Starmie ex line, an ex left in front is two prizes handed
+    # over on the turn they choose, and the cheapest body we own is one.
+    #
+    # So: with no attack available and a 2-prize ex in the active spot, retreat
+    # it and put a one-prize body in front. `not can_attack` is the whole
+    # gate on the offensive side -- a turn that can attack takes its attack --
+    # and the promotion order the user gave lives in STARMIE_SAC_PROMOTE_ORDER.
+    #
+    # THE ONE SEAT THAT DOES NOT WANT IT: turn 1 going FIRST. It is the same
+    # exemption `_prize_mismatch_matchup` already carries, and here it is not a
+    # nicety but the difference between a rule and a tax: the player going
+    # first canNOT attack on turn 1 by rule, so `not can_attack` is true in
+    # every single game, and the pivot would burn the only Grass of the turn
+    # before the opponent has played a card. Their KO does not come next turn
+    # either -- a Staryu that has just been placed cannot be a Mega Starmie
+    # attacking for 210 on the following one.
+    _sty_act = _active_of(my_state)
+    if (AGENT_STATE.op_is_starmie_deck
+            and not can_attack
+            and _sty_act is not None
+            and _sty_act.id in OUR_EX_IDS
+            and not op_has_ex_immune_active
+            and not (state.turn == 1 and AGENT_STATE.we_go_first)):
+        # (1) THE BODY IN HAND. Tapu Bulu heads the user's order and is the one
+        # rung that can be missing from the board and still be arranged for:
+        # it is a Basic, so it goes down and comes up in the same turn. Only
+        # the first copy, and only with a free slot -- the crowding vetoes of
+        # the PLAY branch own everything else about benching it.
+        if bench_count < bench_max and hand_counts.get(Tapu_Bulu, 0) >= 1:
+            _starmie_wall_in_hand = Tapu_Bulu
+
+        # (2) THE BODY ALREADY ON THE BENCH. What the retreat needs is only
+        # that ONE prize can go in front instead of two; WHICH of them goes up
+        # is the promotion menu's question and is answered there, with the full
+        # order. Asking the same ranking twice would let the two halves of one
+        # rule disagree about who is available.
+        _starmie_sac_body = next(
+            (_sty_bp for _sty_bp in (my_state.bench or [])
+             if _sty_bp is not None and prize_count(_sty_bp) == 1), None)
+
+        # (3) THE FEE. The retreat discards the cost off the active, and the
+        # engine only offers the option once that cost is already on the body;
+        # a Switch card pays it for free.
+        _sty_rc = RETREAT_COST.get(_sty_act.id, 1)
+        _sty_phys = _physical_energy(len(_sty_act.energies))
+        # The one-prize body has to be ON THE BENCH, not in hand: a retreat
+        # into a bench of nothing but ex spends the fee and changes which two
+        # prizes we are offering. The copy in hand is a reason to PLAY it
+        # (21600, above the refill that would shuffle it away) and the pivot
+        # comes back one decision later, with the body already seated.
+        _starmie_sac_pivot = (
+            _starmie_sac_body is not None
+            and (has_switch_card or _sty_phys >= _sty_rc))
+
+        # THE FEE IS ALREADY PAID BY THE TIME THE PROMOTION IS ASKED. The same
+        # trap `_ft_wall_promote` documents at length: this menu arrives one
+        # observation later, the simulator has already moved the retreat cost
+        # to the discard, and re-asking the affordability question reads the
+        # energy that is LEFT instead of the energy that paid. With `retreated`
+        # set the question is already answered.
+        _starmie_sac_promote = _starmie_sac_pivot or bool(state.retreated)
 
     # The decision context (Priority 1 refactor): invariant inputs that
     # the extracted `_score_*` scorers consume. It is built a single time.

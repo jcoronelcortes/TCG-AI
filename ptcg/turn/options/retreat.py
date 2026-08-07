@@ -48,6 +48,7 @@ def score_play(tc, o, score):
     _p = tc._p
     _prize_denial_pivot = tc._prize_denial_pivot
     _sid = tc._sid
+    _starmie_sac_pivot = tc._starmie_sac_pivot
     _suicide_swap_win_promote = tc._suicide_swap_win_promote
     _supp_values = tc._supp_values
     _tapu_sac_pivot = tc._tapu_sac_pivot
@@ -1717,7 +1718,24 @@ def score_play(tc, o, score):
         # "if by the end of the turn we cannot attack".
         if _ft_wall_pivot:
             score = max(score, 6000)
-        
+
+        # THE EX DOES NOT WAIT IN FRONT OF THE MEGA STARMIE LINE (user,
+        # registro_002 step 28, episode 90583594, LOST). See
+        # `_starmie_sac_pivot` in main.py: the flag has already asked for the
+        # matchup, for no attack being available, for a 2-prize ex in the
+        # active spot, for a one-prize body to put in front of it and for the
+        # fee being payable.
+        #
+        # The same 6000 as the two pivots above, and it is the same sentence:
+        # it beats attacking with the body in front (~1100) and stays under the
+        # "play the Supporter BEFORE retreating" ceiling (2000) applied below,
+        # which is not an obstacle but the rest of the rule -- the refill is
+        # played first and the retreat comes back when the turn has nothing
+        # else left, which is what "if we cannot attack" means at the end of a
+        # turn.
+        if _starmie_sac_pivot:
+            score = max(score, 6000)
+
         # Rule (user, registro 004 step 53 vs Archaludon ex, WON):
         # ALWAYS play the Supporter (Dawn / Lillie's / Lana's Aid) BEFORE
         # retreating. Retreating first wastes what the Supporter contributes to

@@ -97,6 +97,7 @@ def reset_main_state():
     m.op_is_crustle_deck = False
     m.op_is_cornerstone_deck = False
     m.op_has_mega_kangaskhan = False
+    m.op_is_starmie_deck = False
     m._field_at_turn_start = {}
     yield
     m._init_cards_tracking()
