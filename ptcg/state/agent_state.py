@@ -193,6 +193,12 @@ class AgentState:
         # travel in the signature of `_op_active_attack_damage_to`. Refreshed at the
         # start of agent(), in the same block as the prize denial flags.
         self._op_bench_count = 0              # scales Do the Wave (20 x opposing bench)
+        # Flat damage their ACTIVE's attacks get from an ability on their FIELD
+        # (Cynthia's Roserade, Hop's Snorlax). It travels here and not in the
+        # signature for the same reason as the bench count: the buff body sits on
+        # their BENCH and the projector only ever receives the attacker. See
+        # `_op_team_damage_buff` and OP_TEAM_DAMAGE_BUFF.
+        self._op_team_dmg_buff = 0
         # The BoardScale of this turn: everything the opposing attacks that do
         # NOT do their printed damage count (the opposing bench and Grass, our
         # hand, our ex in play, the prizes we have taken...). Refreshed in the

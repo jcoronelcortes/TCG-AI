@@ -295,7 +295,7 @@ def _has_energy_of_type(pokemon, energy_type):
 
 
 def _op_active_attack_damage_to(op_active, target, op_hand_count=None,
-                                scaled=False, scale=None):
+                                scaled=False, scale=None, team_buff=False):
     """Maximum PRINTED damage the opposing active can deal to `target`.
 
     It resolves the attack IDs via `attack_table` (the `card.attacks` entries
@@ -428,6 +428,20 @@ def _op_active_attack_damage_to(op_active, target, op_hand_count=None,
         _energy_needed, _bonus = _ability
         if _has_energy_of_type(op_active, _energy_needed):
             best += _bonus
+    # ...and the same shape of bonus granted by a body on THEIR BENCH to their
+    # whole team (Cheer On to Glory, Extra Helpings). It rides on the per-turn
+    # flag for the reason the flag exists -- the buff body is not the attacker,
+    # so it does not travel in this signature -- and it lands here, before
+    # weakness, because that is what the cards print.
+    #
+    # OPT-IN, exactly like `scaled` and for the same measured reason: this
+    # function has 94 call sites and every defensive threshold downstream of it
+    # was fitted to a projection that did not include the buff. The reading is
+    # correct for all of them; switching them over is a per-site job with its own
+    # measurement. Today it ships at the site whose whole job is to answer "can
+    # they cash this body before we use it".
+    if team_buff:
+        best += AGENT_STATE._op_team_dmg_buff
     # Tools on the opposing attacker that add damage against our ACTIVE ex, before
     # weakness/resistance. Maximum Belt (1158, +50) is unconditional; Brave Bangle
     # (1175, +30) only counts if the HOLDER has no Rule Box (Dipplin does not have
@@ -453,7 +467,8 @@ def _op_active_attack_damage_to(op_active, target, op_hand_count=None,
     return max(0, int(best))
 
 
-def _op_evolution_attack_damage_to(op_active, target, op_hand_count=None):
+def _op_evolution_attack_damage_to(op_active, target, op_hand_count=None,
+                                   team_buff=False):
     """Damage the EVOLUTION of the opposing active would deal to `target`.
 
     THE THREAT THAT IS NOT ON THE BOARD YET (user, registro_002 step 25 vs Mega
@@ -494,7 +509,8 @@ def _op_evolution_attack_damage_to(op_active, target, op_hand_count=None):
                             tuple(getattr(op_active, 'tools', None) or ()),
                             tuple(getattr(op_active, 'energies', None) or ()))
         best = max(best, _op_active_attack_damage_to(_proj, target,
-                                                     op_hand_count))
+                                                     op_hand_count,
+                                                     team_buff=team_buff))
     return best
 
 

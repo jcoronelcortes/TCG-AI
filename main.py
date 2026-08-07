@@ -3644,6 +3644,11 @@ def agent(obs_dict: dict) -> list[int]:
     # module flags -- and not as parameters -- so that ALL the callers of
     # `_op_active_attack_damage_to` see them; see DO_THE_WAVE_ATTACK_ID.
     AGENT_STATE._op_bench_count = sum(1 for p in (op_state.bench or []) if p is not None)
+    # ... and the damage their BENCH hands to their ATTACKER: an ability such as
+    # Cheer On to Glory (Cynthia's Roserade) or Extra Helpings (Hop's Snorlax)
+    # adds a flat 30 to every attack their team uses against our active, and it
+    # lives on a body the projector never sees. Same block, same reason.
+    AGENT_STATE._op_team_dmg_buff = _op_team_damage_buff(op_state)
     # ... and the FULL scale of the opposing attacks that do not do their printed
     # damage (see ptcg/cards/op_scaling.py). It goes in the same block and for
     # the same reason as the line above: the projector reads it from the state,
@@ -6784,6 +6789,16 @@ def agent(obs_dict: dict) -> list[int]:
     # `_boss_yields_to_dig` does with the window is yield the Supporter slot to a
     # Lillie's that, in that window, is usually not in hand. That is the next
     # thread to pull, and it is a rule-design problem, not a projection one.
+    #
+    # `team_buff=True` closes the OTHER half of the same blindness (user,
+    # registro_004 step 30 vs Cynthia's Garchomp). `scaled` fixes the attacks
+    # whose printed number is a placeholder; this fixes the attacks whose number
+    # is right and gets a flat bonus from a body on THEIR BENCH. Their Gabite's
+    # Dragonslice prints 40, their benched Roserade adds 30, and the engine took
+    # exactly 70 off a Tapu Bulu that had 70 left -- while this flag said the
+    # Tapu was fine. It belongs here and not in `active_ko_likely` for the reason
+    # the whole projection is opt-in: this flag is the one written to be honest,
+    # the heuristic next to it is the one calibrated against the blind number.
     _active_doomed_real = False
     _adr_act = my_state.active[0] if my_state.active else None
     _adr_opa = _active_of(op_state)
@@ -6791,7 +6806,7 @@ def agent(obs_dict: dict) -> list[int]:
         _active_doomed_real = (
             _op_active_attack_damage_to(
                 _adr_opa, _adr_act, getattr(op_state, 'handCount', None),
-                scaled=True)
+                scaled=True, team_buff=True)
             >= (_adr_act.hp or 0))
 
     _ctm_dipplin_low = False

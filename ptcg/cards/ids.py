@@ -222,6 +222,44 @@ OP_ACTIVE_ABILITY_DAMAGE = {
     Okidogi_Fighting: (DARKNESS_ENERGY_TYPE, 100),
 }
 
+# THE BUFF THAT IS NOT ON THE ATTACKER (user, registro_004 step 30, episode
+# 90593852 vs Cynthia's Garchomp). The table above answers "what does the body in
+# front of us add to its OWN attacks"; this one answers the question that body
+# cannot: a Pokemon sitting on THEIR BENCH whose ability boosts the attacks of
+# their WHOLE TEAM. Cynthia's Roserade prints "Attacks used by your Cynthia's
+# Pokemon do 30 more damage to your opponent's Active Pokemon (before applying
+# Weakness and Resistance)", and it was invisible: their Gabite used Dragonslice,
+# which PRINTS 40, and the engine took 70 off our Tapu Bulu -- exactly the 70 it
+# had left. Every defensive reading answered "it survives".
+#
+# card id -> (owner whose Pokemon get the bonus, damage added to our ACTIVE).
+# The owner is resolved by NAME with `_belongs_to` (the card database has no
+# owner field, the subset is part of the printed name); None would mean "every
+# Pokemon of theirs", which no entry needs yet.
+#
+# THE BONUSES DO NOT STACK and the reading takes the MAXIMUM, never the sum:
+# Extra Helpings says so in print ("The effect of Extra Helpings doesn't stack"),
+# and two Roserades on the bench are one +30, not two.
+#
+# CENSUS, not intuition (`utils/op_buff_census.py`): of the ten damage buffs that
+# appear in the 416 opposing decks in the repo, these are the two that a body IN
+# PLAY grants to its team and that the agent can therefore READ off the board.
+# Deliberately left out, and why:
+#   * the tools -- Maximum Belt, Brave Bangle, Hop's Choice Band -- ride on the
+#     ATTACKER and are already read where the attacker is read (ptcg/calc/damage.py);
+#   * the self-buffs -- Adrena-Power (Okidogi), Compound Eyes (Galvantula) --
+#     belong to OP_ACTIVE_ABILITY_DAMAGE above, which is the same shape;
+#   * Premium Power Pro, Black Belt's Training and Kieran last "during this
+#     turn" and live in THEIR HAND until they are played. Projecting them would
+#     mean assuming a card we cannot see, which is the line this file's siblings
+#     (ptcg/cards/op_scaling.py) already draw.
+Cynthias_Roserade = 342
+Hops_Snorlax = 304
+OP_TEAM_DAMAGE_BUFF = {
+    Cynthias_Roserade: ("Cynthia", 30),
+    Hops_Snorlax: ("Hop", 30),
+}
+
 # Ethan's Adventure (1215): what Buddy Blast counts, and it counts it in THEIR
 # discard pile, not on the board. Ethan's Typhlosion prints 40 and adds 60 per
 # copy already discarded, so a deck that has cycled three of them is attacking
@@ -1157,6 +1195,9 @@ __all__ = [
     'DARKNESS_ENERGY_TYPE',
     'RAINBOW_ENERGY_TYPE',
     'OP_ACTIVE_ABILITY_DAMAGE',
+    'Cynthias_Roserade',
+    'Hops_Snorlax',
+    'OP_TEAM_DAMAGE_BUFF',
     'Budew',
     'Crustle_Grass',
     'Dwebble_Grass',

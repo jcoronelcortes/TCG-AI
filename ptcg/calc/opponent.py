@@ -7,7 +7,7 @@ utils/purity.py: nothing here touches mutable state or the runtime tables.
 
 from cg.api import EnergyType
 
-from ptcg.cards.ids import ALAKAZAM_ATTACKER_IDS, Basic_Grass_Energy, CRUSTLE_LINE_IDS, DUNSPARCE_IDS, Ethans_Adventure
+from ptcg.cards.ids import ALAKAZAM_ATTACKER_IDS, Basic_Grass_Energy, CRUSTLE_LINE_IDS, DUNSPARCE_IDS, Ethans_Adventure, OP_TEAM_DAMAGE_BUFF
 from ptcg.cards.op_scaling import BoardScale
 from ptcg.cards.tables import attack_table, card_table
 
@@ -175,6 +175,43 @@ def _damage_counters(pokemon):
     return max(0, ((pokemon.maxHp or 0) - (pokemon.hp or 0)) // 10)
 
 
+def _op_team_damage_buff(op_state):
+    """Flat damage their ACTIVE's attacks get from an ability on THEIR FIELD.
+
+    The question the projector could not ask (user, registro_004 step 30 vs
+    Cynthia's Garchomp): `_op_active_attack_damage_to` receives the attacker and
+    nothing else, so a Cynthia's Roserade sitting on their bench -- "Attacks used
+    by your Cynthia's Pokemon do 30 more damage to your opponent's Active
+    Pokemon" -- was worth exactly zero to every defensive reading in the agent.
+    In that record their Gabite hit our Tapu Bulu for 70 off an attack that
+    prints 40, and 70 was all the Tapu had left.
+
+    It is resolved for the body that IS their active, because that is the
+    attacker every consumer of this number projects -- including the evolution
+    projection, which keeps the same owner and therefore the same bonus.
+
+    MAXIMUM and not sum: the bonuses do not stack (see OP_TEAM_DAMAGE_BUFF).
+    Zero whenever there is nothing to read -- no active, no buff body in play, or
+    a buff whose owner is not the attacker's: the reading never guesses upwards.
+    """
+    if op_state is None:
+        return 0
+    act = (op_state.active or [None])[0]
+    if act is None:
+        return 0
+    best = 0
+    for _p in list(op_state.active or []) + list(op_state.bench or []):
+        if _p is None:
+            continue
+        _entry = OP_TEAM_DAMAGE_BUFF.get(_p.id)
+        if _entry is None:
+            continue
+        _owner, _bonus = _entry
+        if _owner is None or _belongs_to(act.id, _owner):
+            best = max(best, _bonus)
+    return best
+
+
 def build_op_scale(my_state, op_state, prizes_total=6,
                    prize_pile_at_turn_start=None):
     """The `BoardScale` of this turn: what every scaling opposing attack counts.
@@ -233,6 +270,7 @@ def build_op_scale(my_state, op_state, prizes_total=6,
 
 __all__ = [
     'build_op_scale',
+    '_op_team_damage_buff',
     '_op_attack_deficit',
     '_op_body_is_harmless',
     '_op_active_is_harmless',
