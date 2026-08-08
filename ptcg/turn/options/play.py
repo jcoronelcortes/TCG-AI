@@ -60,6 +60,7 @@ def score_play(tc, o, score):
     _meowth_ld_free = tc._meowth_ld_free
     _no_second_attacker_path = tc._no_second_attacker_path
     _our_first_turn = tc._our_first_turn
+    _ready_attack_is_inert = tc._ready_attack_is_inert
     _ready_attacker_count = tc._ready_attacker_count
     _score_boss_orders_play = tc._score_boss_orders_play
     _score_forest_of_vitality_play = tc._score_forest_of_vitality_play
@@ -715,6 +716,80 @@ def score_play(tc, o, score):
                         # 21450: below the full refill (21500), above the
                         # thin-bench exception (21400) and far above the chip.
                         score = 21450
+                    elif (_ready_attack_is_inert
+                            and field_counts[card.id] == 0
+                            and _meowth_ld_free
+                            and bench_count < 5
+                            and not meowth_ability_lock
+                            and not state.supporterPlayed
+                            and hand_counts.get(Lillie_Determination, 0) == 0
+                            and _best_supp_in_deck_val > 0
+                            and _ready_attacker_count <= 1
+                            and my_prize >= 3
+                            and op_prize > 2):
+                        # THE READY ATTACK THAT TAKES NO PRIZE DOES NOT BUY THE
+                        # TURN (user, registro_008 step 57, episode 90874130 vs
+                        # Mega Lucario ex, LOST). The board and the arithmetic
+                        # are written out where `_ready_attack_is_inert` is
+                        # computed; what belongs here is why the veto below --
+                        # "we already have an attacker, we do not need a
+                        # Supporter" -- was reading the wrong thing.
+                        #
+                        # That veto is right about a turn whose attack IS the
+                        # turn. It measured the wrong half: whether an attack is
+                        # LEGAL, not whether it is worth anything. Myriad Leaf
+                        # Shower for 150 into a 340 HP Mega Lucario at full
+                        # health takes no prize, and the Ogerpon that throws it
+                        # is dead to Mega Brave before it can throw a second
+                        # one. The turn's whole value was what the hand could
+                        # still build, and the hand held a Meowth ex whose
+                        # Last-Ditch Catch was free.
+                        #
+                        # The three arms above already say this for three
+                        # narrower boards, and each of them misses this one for
+                        # a reason that has nothing to do with the problem:
+                        # 21500 is gated on a hand of <= 4 cards (ours held
+                        # EIGHT, of which nothing was playable -- hand SIZE is
+                        # not hand QUALITY), 21400 on a bench of <= 1 (ours held
+                        # four), 21450 on `_mw_active_stuck`, an active that
+                        # cannot pay its own retreat (ours could). This arm asks
+                        # the question all three were circling: does the attack
+                        # take a prize, and does the body survive to throw
+                        # another one.
+                        #
+                        # What is NOT excused is the PRICE of the body, so the
+                        # guards of the 21450 arm are kept verbatim -- they are
+                        # about the 2-prize Meowth, not about the attack:
+                        #   * `_ready_attacker_count <= 1` -- the inert attacker
+                        #     is our ONLY charged body. With spare attackers
+                        #     ready there is something else to do with the turn
+                        #     and the body is not worth exposing.
+                        #   * `_meowth_ld_free` + `not meowth_ability_lock` --
+                        #     with the turn's Last-Ditch already spent or locked
+                        #     the copy fetches NOTHING and is a naked 2-prize
+                        #     body.
+                        #   * `_best_supp_in_deck_val > 0` -- and there has to be
+                        #     a Supporter in the deck worth fetching. The FINAL
+                        #     VALIDATION further down still cancels the play if
+                        #     the fetch would duplicate a card in hand
+                        #     (`_meowth_fetch_redundante`) or lose the Supporter
+                        #     slot to one already held
+                        #     (`_meowth_fetch_loses_the_turn`).
+                        #   * `my_prize >= 3` and `op_prize > 2` -- not while
+                        #     either side is at match point, where the body we
+                        #     bench IS the game
+                        #     ([[promocion-match-point-y-desempate-supervivientes]]).
+                        # `field_counts == 0` mirrors the veto it steps in front
+                        # of: the SECOND copy is the 21450 arm's business and
+                        # keeps its own stricter gates.
+                        #
+                        # 21350: below the thin-bench exception (21400) and the
+                        # sterile-turn arm (21450), above a redundant body (a
+                        # 2nd Teal Mask Ogerpon ex, 21000) -- with one bench slot
+                        # left, the body that fetches a Supporter beats the body
+                        # that only sits there. Deck-agnostic: no archetype, no
+                        # card beyond the two this branch is already about.
+                        score = 21350
                     elif (_active_ready_attacker
                             and field_counts[card.id] == 0):
                         # Rule (user, log 86511741 step 57, vs Mega Abomasnow

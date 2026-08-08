@@ -129,6 +129,7 @@ class ScoringCtx:
     _meowth_ld_free: Any = None
     _meowth_skip_fetch: Any = None
     _no_second_attacker_path: Any = None
+    _ready_attack_is_inert: Any = None
     _nonex_active_hits_wall: Any = None
     _ogerpon_lethal_focus_serial: Any = None
     _op_act: Any = None

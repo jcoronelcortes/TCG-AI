@@ -9868,6 +9868,59 @@ def agent(obs_dict: dict) -> list[int]:
         AGENT_STATE.turn_plan_open = AGENT_STATE.turn_plan
 
     # =================================================================
+    # A READY ATTACK THAT TAKES NO PRIZE IS NOT WHAT THE TURN IS FOR
+    # (user, registro_008 step 57, episode 90874130 vs Mega Lucario ex, LOST).
+    #
+    # `_active_ready_attacker` answers "is our active charged enough to attack",
+    # and half a dozen rules read that answer as "the turn already has its
+    # purpose, do not spend anything else on it". That reading is only true when
+    # the attack is worth the turn. On the record's board it was not:
+    #
+    #     US (6 prizes)                       RIVAL (5 prizes)
+    #     active Teal Mask Ogerpon ex         active Mega Lucario ex 340/340
+    #            210/210, 3 Grass             bench  a 2nd Mega Lucario ex 340/340
+    #     bench  Chikorita, Applin,                  + Solrock/Lunatone/Riolu
+    #            2x Ogerpon ex (1 Grass each)
+    #     hand   Meowth ex, Hydrapple ex, Meganium, Ogerpon ex,
+    #            Xerosic's, Unfair Stamp, 2x Forest -- and NO Grass
+    #
+    # Myriad Leaf Shower with three on us and one on them is 30 + 30x4 = 150
+    # against 340 at full health: no knockout, no prize, and the body that
+    # throws it dies to Mega Brave (270) on the reply. The plan had already said
+    # so -- `prizes_today=0`, `op_prizes_next=2`, mode DEVELOP -- and the turn
+    # was still handed to the attack, ending with eight cards in hand, the
+    # Supporter slot unspent and the Last-Ditch Catch of a Meowth ex in hand
+    # never used. In the record the attack chipped the Lucario to 190, they
+    # attacked with that same 190 body and won the game.
+    #
+    # The important half is that IT WAS NEVER A CHOICE. Benching a Basic lives
+    # in `_TIER_DEVELOP` and the attack in tier 0, so the body goes down,
+    # Last-Ditch Catch fetches the Supporter, the Supporter is played and the
+    # attack STILL closes the turn ([[el-hueco-de-supporter-muere-con-el-ataque-
+    # que-cierra-el-turno]]). The veto was paying for an attack it was not
+    # competing with.
+    #
+    # The flag is the sentence "the attack is inert", read off the plan and
+    # nothing else, so it is deck-agnostic in both directions -- ours and
+    # theirs. It is the general case of a carve-out `_active_ready_attacker`
+    # already carries: an attacker that does ZERO to an immune wall is not a
+    # ready attacker. Zero damage is just the degenerate end of "takes no
+    # prize"; what makes the turn sterile is the prize count, not the number on
+    # the card. See [[gusteo-graduar-el-eje-del-ataque-inerte]] and
+    # [[un-turno-esteril-es-un-turno-muerto-que-todavia-puede-mover]].
+    #
+    # `op_prizes_next >= 1` is what keeps a patient chip out of it: a body that
+    # SURVIVES the reply attacks again next turn, so the 150 it puts on today is
+    # an instalment and not a waste. Only when the attacker dies on the reply is
+    # today's damage all the damage that body will ever do.
+    # =================================================================
+    _ready_attack_is_inert = (
+        _active_ready_attacker
+        and not AGENT_STATE.turn_plan.wins_this_turn
+        and AGENT_STATE.turn_plan.prizes_today == 0
+        and AGENT_STATE.turn_plan.op_prizes_next >= 1)
+
+    # =================================================================
     # THE FINISHER THAT IS NOT ON THE BOARD YET (user, registro_002 step 25 vs
     # Mega Lucario ex, episode 89628162, LOST).
     #

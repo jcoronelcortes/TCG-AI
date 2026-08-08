@@ -532,10 +532,45 @@ def test_step37_doomed_ex_retreats_instead_of_attacking():
     m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
 
-    assert result == [retreat_opt], (
+    assert result != [attack_opt], (
         f"ex condenado que no noquea y muere el proximo turno, sin atacante de "
-        f"banca: RETIRAR (opt {retreat_opt}) para ceder 1 premio, no atacar "
-        f"(opt {attack_opt}); obtuvo {result}")
+        f"banca: NO atacar (opt {attack_opt}); obtuvo {result}")
+    # ...and once the free development of the turn is done, the retreat-
+    # sacrifice is still the play. See `_retreat_survives_the_development`
+    # below for why this test now measures the OUTCOME and not the first
+    # action: the Meowth ex that goes down first does not consume the retreat.
+    assert _after_benching_the_meowth(obs) == "RETREAT", (
+        f"tras bajar el cuerpo, RETIRAR (opt {retreat_opt}) para ceder 1 premio")
+
+def _after_benching_the_meowth(obs):
+    """The same board with the Meowth ex already on the bench and off the menu.
+
+    THE ORDER OF THE TURN CHANGED, NOT ITS OUTCOME (registro_008 step 57,
+    episode 90874130). `_ready_attack_is_inert` stopped a ready-but-worthless
+    attack from vetoing the hand engine, and on these two boards the Meowth ex
+    play (21350, `_TIER_DEVELOP`) now precedes the retreat. It does not replace
+    it: a Pokemon PLAY is tier 40 and the retreat is tier 0, so the body goes
+    down, Last-Ditch Catch fetches the Supporter and the retreat-sacrifice --
+    which is what these two tests were built to pin -- still happens in the
+    same turn. This helper measures exactly that, so the assertion is about the
+    turn and not about which of its actions comes first.
+    """
+    o = copy.deepcopy(obs)
+    mine = o["current"]["players"][o["current"]["yourIndex"]]
+    meowth = next(c for c in mine["hand"] if c["id"] == m.Meowth_ex)
+    mine["hand"].remove(meowth)
+    mine["handCount"] = len(mine["hand"])
+    mine["bench"].append({
+        "appearThisTurn": True, "energies": [], "energyCards": [], "hp": 170,
+        "id": m.Meowth_ex, "maxHp": 170, "playerIndex": mine["active"][0]["playerIndex"],
+        "preEvolution": [], "serial": 999, "tools": []})
+    o["select"]["option"] = [x for x in o["select"]["option"]
+                             if x.get("type") != int(OptionType.PLAY)]
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
+    chosen = o["select"]["option"][m.agent(o)[0]]
+    return {int(OptionType.RETREAT): "RETREAT",
+            int(OptionType.ATTACK): "ATTACK",
+            int(OptionType.END): "END"}.get(chosen.get("type"), str(chosen))
 
 def test_step41_promotes_cheapest_basic_sacrifice():
     with open(_DOOMED_EX_PROMOTE_FIXTURE, encoding="utf-8") as f:
@@ -562,12 +597,17 @@ def test_doomed_ex_retreat_generalizes_to_nonlucario():
     retreat_opt = next(i for i, o in enumerate(options)
                        if o.get("type") == int(OptionType.RETREAT))
 
+    attack_opt = next(i for i, o in enumerate(options)
+                      if o.get("type") == int(OptionType.ATTACK))
+
     m._init_cards_tracking(); m.plan = m.AttackPlan()
     result = m.agent(obs)
 
-    assert result == [retreat_opt], (
-        f"generalizacion (rival no-Lucario que one-shotea): RETIRAR "
-        f"(opt {retreat_opt}); obtuvo {result}")
+    assert result != [attack_opt], (
+        f"generalizacion (rival no-Lucario que one-shotea): NO atacar "
+        f"(opt {attack_opt}); obtuvo {result}")
+    assert _after_benching_the_meowth(obs) == "RETREAT", (
+        f"generalizacion: tras el desarrollo, RETIRAR (opt {retreat_opt})")
 
 def test_doomed_ex_promote_basic_generalizes_to_nonlucario():
     # The promotion also generalises: with no bench attacker and with the rival
