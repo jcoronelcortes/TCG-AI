@@ -762,7 +762,46 @@ def _energy_score_base(tc, pokemon, active):
                 if _ctm_tapu_high:
 
                     score += 5000
-                if _ctm_chikorita_bench:
+                # THE CRUSTLE BAND, AND WHAT REALLY EARNS IT (user, ago 2026).
+                # This +11000 is Crustle-only either way -- `_ctm_chikorita_bench`
+                # is itself gated on `op_is_crustle_deck` (main.py) -- but it was
+                # being paid for the wrong reason: what it read was whether the
+                # Chikorita LINE happened to be on our bench, which says nothing
+                # about the body being charged.
+                #
+                # What earns it is being the ACTIVE TAPU BULU against that wall.
+                # Our ex do zero to Crustle, so Tapu Bulu's Wood Hammer is the
+                # only thing on our side that removes it, and every turn its
+                # climb to four energies is deferred is a turn the wall lives.
+                # That is the rule this project already accepted -- "vs Crustle
+                # the active Tapu Bulu ALWAYS has the first charging priority,
+                # from the first turn" -- and only half of it was implemented:
+                # `_ft_veto_ids` (ptcg/turn/options/attach.py) lifted the
+                # first-turn veto that CANCELLED the attachment, while the
+                # DESTINATION half left the Tapu at 20100 against a benched
+                # Applin at 28500 (22000 + the 6500 of `_ctm_applin_bench`).
+                # With a Chikorita on the bench the old clause paid the 11000 and
+                # hid the hole; with the Applin line alone the active Tapu never
+                # got the turn's energy until it already had three.
+                #
+                # It is the same trap the first-turn wall documents: the
+                # DESTINATION of the energy is decided by `energy_score`, a
+                # different function from the one that scores the act of
+                # attaching, and a charge rule that only does one of the two
+                # halves does nothing.
+                #
+                # The two arms do NOT stack: the band is one band, and 42100
+                # would climb into the lethal floor (41000+) reserved for
+                # charges that take a prize TODAY.
+                #
+                # MEASURED (ago 2026, n=4000 per arm, the base isolating just
+                # this change): crustle_wall_1 -0.6, _4 +1.0, _8 +0.7, _13 -0.3,
+                # _17 +1.9 -- mean +0.5 points, and the PRIZE differential is
+                # non-negative in all five (+0.00/+0.04/+0.09/+0.01/+0.09),
+                # which is the finer signal the harness itself recommends when
+                # the winrate saturates. Control alakazam_1 +0.3.
+                if _ctm_chikorita_bench or (active and
+                                            AGENT_STATE.op_is_crustle_deck):
 
                     score += 11000
                 if active:
