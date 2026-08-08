@@ -41,8 +41,8 @@ MAIN_ATTACKERS = (
 # 100 apart -- Tapu Bulu, Applin without energy, Applin with energy, Chikorita,
 # Dipplin, Bayleef, Meowth ex -- so no two of them can ever tie and have the
 # menu order decide. See STARMIE_SAC_PROMOTE_ORDER in ptcg/cards/ids.py.
-STARMIE_SAC_PROMOTE_TOP = 7000
-STARMIE_SAC_PROMOTE_STEP = 100
+OPENING_SAC_PROMOTE_TOP = 7000
+OPENING_SAC_PROMOTE_STEP = 100
 
 
 # Terminal PROMOTION adjustment (see "SURVIVAL WHEN PROMOTING"). The doomed body
@@ -81,6 +81,6 @@ __all__ = [
     'PROMO_KO_BONUS',
     'PROMO_MATCH_POINT_VETO',
     'PROMO_PRIZE_PENALTY',
-    'STARMIE_SAC_PROMOTE_TOP',
-    'STARMIE_SAC_PROMOTE_STEP',
+    'OPENING_SAC_PROMOTE_TOP',
+    'OPENING_SAC_PROMOTE_STEP',
 ]

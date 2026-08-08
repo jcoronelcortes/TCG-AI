@@ -164,8 +164,11 @@ def test_setup_active_tapu_bulu_over_ogerpon():
         "el Teal Mask Ogerpon ex (2 premios)")
 
 def test_setup_active_without_tapu_nothing_changes():
-    # Boundary: with no Tapu Bulu among the options, the previous preference is
-    # intact (Chikorita over the rest of the basics).
+    # Boundary: with no Tapu Bulu among the options the setup falls to the next
+    # rung it HAS. In this fixture the only other Pokemon offered is the
+    # Chikorita, so the full order (Tapu Bulu, Applin, Chikorita, and only then
+    # the ex) is pinned in
+    # tests/test_the_opening_puts_one_prize_in_front.py, not here.
     obs = _setup_obs()
     me = obs["current"]["players"][obs["current"]["yourIndex"]]
     obs["select"]["option"] = [o for o in obs["select"]["option"]

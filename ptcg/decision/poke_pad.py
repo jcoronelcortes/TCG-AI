@@ -8,7 +8,7 @@ utils/purity.py: nothing here touches mutable state or the runtime tables.
 from ptcg.engine.rules import _FixedRule
 from ptcg.state.agent_state import AGENT_STATE
 from ptcg.cards.ids import Applin, Bayleef, Chikorita, Dipplin, Meganium
-from ptcg.cards.ids import Applin, Bayleef, Chikorita, Dipplin, Hydrapple_ex, Meganium, SCORE_VETO, Tapu_Bulu
+from ptcg.cards.ids import Applin, Bayleef, Chikorita, Dipplin, Hydrapple_ex, Meganium, SCORE_VETO, SETUP_ACTIVE_BASIC_ORDER, Tapu_Bulu
 from ptcg.state.zones import ZONE_DECK
 from ptcg.engine.context import DecisionContext
 from ptcg.engine.rules import _Adjustment, _FixedRule, _resolve_with_trace
@@ -124,7 +124,45 @@ _RULES_PP_PLAY = [
 ]
 
 
+def _pp_opening_sac_target(c):
+    """The body the OPENING SACRIFICE is missing, or None.
+
+    Our first turn has an ex in the active spot, a matchup that can knock it
+    out early and NO one-prize body anywhere -- not on the bench, not in hand
+    (`opening_sac_needs_body`, main.py). The Poke Pad is the one card that can
+    still produce one, and it searches in the user's order: Tapu Bulu first,
+    then Applin, then Chikorita. It only names a body that is actually left in
+    the DECK and not already in hand or in play: fetching a fourth copy of what
+    we hold changes nothing about who stands in front.
+    """
+    if not c.opening_sac_needs_body:
+        return None
+    searchable = _pp_buscables(c)
+    for cid in SETUP_ACTIVE_BASIC_ORDER:
+        if cid not in searchable:
+            continue
+        if c.field_counts.get(cid, 0) >= 1 or c.hand_counts.get(cid, 0) >= 1:
+            continue
+        return cid
+    return None
+
+
 _AJUSTES_PP_PLAY = [
+    # THE POKE PAD BUYS THE BODY THE OPENING SACRIFICE NEEDS (user, ago 2026):
+    # "it is allowed to use a Poke Pad this turn to look for a Basic,
+    # especially if we do not have Tapu Bulu and need to find it". Without a
+    # one-prize body the pivot cannot fire at all and the turn ends with a
+    # 2-prize ex in front of a deck that knocks it out on its second turn --
+    # which is the whole thing the opening rule exists to prevent.
+    #
+    # Same band (13000) as the Lucario sacrifice below, and for the same
+    # reason: both are searching for the body that turns two prizes into one,
+    # so neither should lose the Poke Pad to the ordinary first-turn
+    # development rungs (12800 / 12600) that are only stocking the bench.
+    _Adjustment("opening_sac_body",
+            lambda c, s: (_pp_opening_sac_target(c) is not None
+                          and c.bench_count < 5),
+            lambda c, s: 13000),
     # Search for Tapu Bulu as a 1-prize sacrifice (pivot vs Lucario).
     _Adjustment("lucario_tapu_sacrifice",
             lambda c, s: (c.lucario_sac_pivot
@@ -156,11 +194,15 @@ class _CtxPPFetch:
     """Ctx of the Poke Pad fetch: candidate card + values derived from the mode."""
 
     def __init__(self, card_id, hand_counts, field_counts, bench_count,
-                 state):
+                 state, opening_sac_needs_body=False):
         self.card_id = card_id
         self.hand = hand_counts
         self.field = field_counts
         self.bench_count = bench_count
+        # The opening sacrifice has no one-prize body to promote (main.py):
+        # this fetch is the one that produces it. Defaults to False so the
+        # contexts the unit tests build by hand keep working.
+        self.opening_sac_needs_body = opening_sac_needs_body
         self.first_turn = ((state.turn == 1 and AGENT_STATE.we_go_first) or
                            (state.turn == 2 and not AGENT_STATE.we_go_first))
         self.have_chik = (field_counts.get(Chikorita, 0) >= 1 or
@@ -187,7 +229,36 @@ class _CtxPPFetch:
         self.has_evo = has_evo
 
 
+def _pp_fetch_osac_rank(c):
+    """Rung of this candidate in the opening-sacrifice order, or None.
+
+    The mirror of `_pp_opening_sac_target` on the FETCH side: same list, same
+    order, same "do not fetch what we already hold" filter. It is a separate
+    function because the two contexts are different objects -- the PLAY one
+    carries the whole DecisionContext, this one only the card and the counts --
+    and the alternative, threading a chosen id from one decision to the other,
+    is the trap `_ld_supp_comprometido` documents: two halves of one rule that
+    can disagree about what the board looks like.
+    """
+    if not c.opening_sac_needs_body:
+        return None
+    if c.card_id not in SETUP_ACTIVE_BASIC_ORDER:
+        return None
+    if c.field.get(c.card_id, 0) >= 1 or c.hand.get(c.card_id, 0) >= 1:
+        return None
+    return SETUP_ACTIVE_BASIC_ORDER.index(c.card_id)
+
+
 _RULES_PP_FETCH = [
+    # (0) THE BODY THAT STANDS IN FRONT OF THE ex (user, ago 2026). This search
+    # is not stocking the bench, it is buying the difference between one prize
+    # and two on the opponent's first knockout, so it outranks every
+    # development rung below -- Tapu Bulu at 2200 beats the t1_applin 2000 that
+    # would otherwise take the fetch. Three rungs 100 apart in the user's
+    # order, so the menu order can never decide between them.
+    _FixedRule("opening_sac_body",
+               lambda c: _pp_fetch_osac_rank(c) is not None,
+               lambda c: 2200 - 100 * _pp_fetch_osac_rank(c)),
     # (1) First turn: put down the basics of both lines before anything else.
     _FixedRule("t1_applin",
                lambda c: (c.first_turn and c.card_id == Applin
@@ -277,6 +348,8 @@ __all__ = [
     '_v_pp_t1',
     '_pp_evo_value',
     '_pp_evolution_pending_search',
+    '_pp_opening_sac_target',
+    '_pp_fetch_osac_rank',
     '_score_poke_pad_play',
     '_RULES_PP_PLAY',
     '_AJUSTES_PP_PLAY',

@@ -169,9 +169,11 @@ class ScoringCtx:
     _self_ko_by_own_attack: Any = None
     _sid: Any = None
     _stamp_blocks_supp_chain: Any = None
-    _starmie_sac_pivot: Any = None
-    _starmie_sac_promote: Any = None
-    _starmie_wall_in_hand: Any = None
+    _opening_sac_charge_active: Any = None
+    _opening_sac_needs_body: Any = None
+    _opening_sac_pivot: Any = None
+    _opening_sac_promote: Any = None
+    _opening_sac_wall_in_hand: Any = None
     _suicide_loses: Any = None
     _suicide_only_draws: Any = None
     _suicide_swap_win_promote: Any = None

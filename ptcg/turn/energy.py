@@ -47,6 +47,7 @@ def _energy_score_base(tc, pokemon, active):
     _extra_energy_enables_ko = tc._extra_energy_enables_ko
     _feza_lucario_wall = tc._feza_lucario_wall
     _ft_wall_charge_active = tc._ft_wall_charge_active
+    _opening_sac_charge_active = tc._opening_sac_charge_active
     _gust_2prize_via_boss = tc._gust_2prize_via_boss
     _hydra_fragile_pivot = tc._hydra_fragile_pivot
     _meganium_alk_1prize_attacker = tc._meganium_alk_1prize_attacker
@@ -295,6 +296,22 @@ def _energy_score_base(tc, pokemon, active):
     # handing over the tempo. It stays BELOW everything that takes a prize
     # TODAY (41000+), which on our first turn is empty anyway.
     if active and _ft_wall_charge_active:
+        return 40500
+
+    # THE ACTIVE ex PAYS ITS OWN RETREAT ON OUR FIRST TURN (user, ago 2026):
+    # "if we start with an ex in the active spot we attach ONE energy to it".
+    # The DESTINATION half of `_opening_sac_charge_active` (see main.py), the
+    # twin of the wall charge above and at the same height for the same
+    # reasons: over `_tapu_future_charge` (40000), which would otherwise take
+    # the attachment towards an attack several turns away while the 2-prize
+    # body stays in front, and under everything that takes a prize TODAY
+    # (41000+), which on our first turn is empty anyway.
+    #
+    # The flag already asked for the whole board -- our first turn, no attack,
+    # a matchup that is not on the safe list, a one-prize body seated or
+    # arriving, the attachment still free and one energy enough to close the
+    # cost -- so there is nothing left to check here but WHERE the energy goes.
+    if active and _opening_sac_charge_active:
         return 40500
 
     # Rule (user, log 85855786 step 141, vs Alakazam, WE WON): if this turn there

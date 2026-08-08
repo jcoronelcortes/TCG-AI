@@ -187,6 +187,13 @@ class DecisionContext:
     # `_ub_meowth_for_tomorrow`.
     # Default False: unit tests build the ctx directly.
     item_lock_incoming: bool = False
+    # THE OPENING SACRIFICE HAS NOWHERE TO RETREAT TO: our first turn, a
+    # 2-prize ex in the active spot, a matchup that is not on the safe list and
+    # NO one-prize body on the bench or in hand. The Poke Pad rule reads it to
+    # go and search for one (`_pp_opening_sac_target`). See
+    # `_opening_sac_needs_body` in main.py.
+    # Default False: unit tests build the ctx directly.
+    opening_sac_needs_body: bool = False
 
 __all__ = [
     'DecisionContext',

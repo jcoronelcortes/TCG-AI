@@ -13,8 +13,8 @@ from ptcg.calc.board import _active_of, _count_hand_play_options
 from ptcg.cards.groups import GT_FETCH_BONUS
 from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, DISCARD_EVO_SPARE_COPY, DISCARD_SUPPORTER_DEAD_DROP, DISCARD_SUPPORTER_LIVE_KEEP, DUNSPARCE_IDS, Dawn, Dipplin, Drednaw, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, LANA_SEL_INJUGABLE, LANA_SEL_GRASS_DEMAND, LANA_SEL_GRASS_UNLOCKS, LANA_SEL_GRASS_SURPLUS, LANA_SEL_GRASS_WINS, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, OUR_ABILITY_IDS, OUR_EX_IDS, Pinsir, Poke_Pad, RETREAT_COST, RIPEN_HEAL_TARGET_SCORE, SCORE_FORBID, SCORE_LOOKAHEAD_PROMOTE_KO, SCORE_LOOKAHEAD_PROMOTE_SAFE, SCORE_NEVER, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, Xerosic_Machinations
 from ptcg.cards.lines import _evo_copies_usable, _line_base_benchable, _pokemon_injugable
-from ptcg.cards.ids import STARMIE_SAC_PROMOTE_ORDER
-from ptcg.cards.scoring import MAIN_ATTACKERS, PROMO_DOOMED_PENALTY, PROMO_KO_BONUS, PROMO_MATCH_POINT_VETO, PROMO_PRIZE_PENALTY, STARMIE_SAC_PROMOTE_STEP, STARMIE_SAC_PROMOTE_TOP, _SUPP_PLAY_IDS
+from ptcg.cards.ids import OPENING_SAC_PROMOTE_ORDER, SETUP_ACTIVE_BASIC_ORDER, SETUP_ACTIVE_BASIC_TOP, SETUP_ACTIVE_EX_ORDER, SETUP_ACTIVE_EX_TOP, SETUP_ACTIVE_OTHER, SETUP_ACTIVE_OTHER_BASIC, SETUP_ACTIVE_STEP
+from ptcg.cards.scoring import MAIN_ATTACKERS, PROMO_DOOMED_PENALTY, PROMO_KO_BONUS, PROMO_MATCH_POINT_VETO, PROMO_PRIZE_PENALTY, OPENING_SAC_PROMOTE_STEP, OPENING_SAC_PROMOTE_TOP, _SUPP_PLAY_IDS
 from ptcg.cards.tables import card_table
 from ptcg.decision.boss_orders import _ADJUST_GUST_NUISANCE, _ADJUST_GUST_OFFENSIVE, _RULES_GUST_NUISANCE, _ctx_gust_target
 from ptcg.decision.disruption import _stamp_pendiente
@@ -71,7 +71,8 @@ def score_play(tc, o, score):
     _lillie_protected_once = tc._lillie_protected_once
     _lucario_ko_prefer_basic = tc._lucario_ko_prefer_basic
     _lucario_sac_context = tc._lucario_sac_context
-    _starmie_sac_promote = tc._starmie_sac_promote
+    _opening_sac_needs_body = tc._opening_sac_needs_body
+    _opening_sac_promote = tc._opening_sac_promote
     _mega_line_active = tc._mega_line_active
     _meowth_devel_lillie = tc._meowth_devel_lillie
     _meowth_recovery_ko = tc._meowth_recovery_ko
@@ -216,19 +217,38 @@ def score_play(tc, o, score):
                 return _SALTAR   # it already did its own scores.append
         
             if context == SelectContext.SWITCH or context == SelectContext.TO_ACTIVE:
-                # THE MEGA STARMIE SACRIFICE ONLY OWNS THE VOLUNTARY RETREAT
-                # (user, registro_002 step 28). `SelectContext.SWITCH` is the
+                # THE OPENING SACRIFICE ONLY OWNS THE VOLUNTARY RETREAT (user,
+                # registro_002 step 28). `SelectContext.SWITCH` is the
                 # promotion of the retreat we just chose, on our own turn; the
                 # FORCED promotion after a knockout (TO_ACTIVE) can fall inside
                 # the OPPONENT's turn and is a different question, with its own
                 # measured answer -- survival, match point, the body that
                 # attacks first. A flag about hiding an ex does not get to
                 # answer it.
-                _starmie_sac_menu = (_starmie_sac_promote
-                                     and context == SelectContext.SWITCH)
+                #
+                # ...AND IT YIELDS TO THE DOOMED SACRIFICE, which is its
+                # SPECIAL CASE and therefore asked first. Both orders come from
+                # the user and they disagree about the same two bodies --
+                # opening: Tapu Bulu, Applin, Chikorita; doomed: Chikorita,
+                # then Applin, unless an evolution waits in hand -- because
+                # they are answering different questions on boards that
+                # overlap. The opening order is picking a body to STAND there:
+                # Tapu Bulu heads it because 140 HP endures a turn and attacks
+                # afterwards, and the Applin goes ahead of the Chikorita
+                # because its line is the one worth developing. The doomed
+                # order is picking a body to LOSE -- `_doomed_sac_context`
+                # means the projection, evolution included, kills whoever we
+                # promote -- and there enduring is worth nothing, so what
+                # counts is which line we can spare and which body already has
+                # its evolution in hand. Where nobody survives, the informed
+                # order wins.
+                _opening_sac_menu = (_opening_sac_promote
+                                     and context == SelectContext.SWITCH
+                                     and not _lucario_sac_context
+                                     and not _doomed_sac_context)
                 if (o.playerIndex == my_index
                         and (_lucario_sac_context or _doomed_sac_context
-                             or _starmie_sac_menu)):
+                             or _opening_sac_menu)):
                     # WHICH BODY WE HAND OVER (user, registro_002 step 25 vs
                     # Mega Lucario ex, LOST). We are retreating a doomed 2-prize
                     # ex to concede one prize instead of two, so this menu is not
@@ -279,16 +299,16 @@ def score_play(tc, o, score):
                     # rungs below, which is what "and finally any other option"
                     # means: an unnamed one-prize body still beats an ex, and
                     # among ex the sturdiest goes first.
-                    if _starmie_sac_menu and card.id in STARMIE_SAC_PROMOTE_ORDER:
-                        _sty_rank = STARMIE_SAC_PROMOTE_ORDER.index(card.id)
+                    if _opening_sac_menu and card.id in OPENING_SAC_PROMOTE_ORDER:
+                        _osac_rank = OPENING_SAC_PROMOTE_ORDER.index(card.id)
                         if card.id == Applin and energy_count > 0:
                             # The charged copy sits one rung below the bare one;
                             # everything under it shifts down by that rung.
-                            _sty_rank += 1
-                        elif _sty_rank >= STARMIE_SAC_PROMOTE_ORDER.index(Applin) + 1:
-                            _sty_rank += 1
-                        score = (STARMIE_SAC_PROMOTE_TOP
-                                 - _sty_rank * STARMIE_SAC_PROMOTE_STEP)
+                            _osac_rank += 1
+                        elif _osac_rank >= OPENING_SAC_PROMOTE_ORDER.index(Applin) + 1:
+                            _osac_rank += 1
+                        score = (OPENING_SAC_PROMOTE_TOP
+                                 - _osac_rank * OPENING_SAC_PROMOTE_STEP)
                     elif _tapu_sac_priority and card.id == Tapu_Bulu:
                         # Tapu Bulu only goes first where it really contributes
                         # (an opponent with ex protection, or the Hydrapple ex +
@@ -1285,31 +1305,46 @@ def score_play(tc, o, score):
                                 "boss->objetivo", [], _ADJUST_GUST_OFFENSIVE,
                                 _gt_ctx, default=0)
             elif context == SelectContext.SETUP_ACTIVE_POKEMON:
-        
-                if card.id == Tapu_Bulu:
-                    # Rule (user): if at the START of the game we have a Tapu
-                    # Bulu in hand, it is ALWAYS our starting active
-                    # Pokemon. It is the reference non-ex attacker (1 prize,
-                    # 220 damage with Wood Hammer, and the only one that damages the
-                    # opponents that cancel ex or abilities), so it starts
-                    # in the active spot to be charged from turn 1 and not
-                    # expose a 2-prize ex from the outset. A ceiling above
-                    # Teal Mask Ogerpon ex (100), which used to be the preferred one.
-                    score = 200
-                elif card.id == Teal_Mask_Ogerpon_ex:
-                    score = 100
-                elif card.id in (Chikorita, Applin) and hand_counts.get(card.id, 0) >= 2:
-        
-                    score = 7
-                elif card.id == Applin:
-                    score = 5
-                elif card.id == Chikorita:
-                    score = 3
-                elif card.id == Meowth_ex:
-                    score = 0
+                # WHO STARTS IN FRONT (user, ago 2026). The order and the reason
+                # for each rung are in SETUP_ACTIVE_BASIC_ORDER /
+                # SETUP_ACTIVE_EX_ORDER (ptcg/cards/ids.py); the one sentence
+                # that governs the whole branch is that NO ex outranks ANY
+                # non-ex Basic, because what the active spot decides is whether
+                # the opponent's first knockout pays one prize or two.
+                #
+                # Every body in this deck is a Basic, ex included, so the split
+                # is read off the CARD TABLE and not off `prize_count`: at setup
+                # the option points at a card in HAND, which has no
+                # `energyCards` or `tools` for that helper to walk.
+                #
+                # THE OLD DUPLICATE TIE-BREAK IS GONE. The previous ladder gave
+                # a Chikorita/Applin we held TWO of the same score (7), which on
+                # a hand with two Chikorita and one Applin put the Chikorita in
+                # front -- the user's order says Applin. Holding a second copy
+                # is a reason to be relaxed about the one we seat, not a reason
+                # to change WHICH line starts developing.
+                _setup_data = card_table.get(card.id)
+                _setup_is_ex = bool(
+                    _setup_data is not None
+                    and (getattr(_setup_data, 'ex', False)
+                         or getattr(_setup_data, 'megaEx', False)))
+                if not _setup_is_ex and card.id in SETUP_ACTIVE_BASIC_ORDER:
+                    score = (SETUP_ACTIVE_BASIC_TOP
+                             - SETUP_ACTIVE_STEP
+                             * SETUP_ACTIVE_BASIC_ORDER.index(card.id))
+                elif not _setup_is_ex:
+                    # Any other one-prize Basic the opening hand happens to
+                    # carry (a Pinsir): below the three the user names, above
+                    # every ex. Without this rung an unnamed Basic tied with the
+                    # "anything else" floor and a 210 HP ex took the front.
+                    score = SETUP_ACTIVE_OTHER_BASIC
+                elif card.id in SETUP_ACTIVE_EX_ORDER:
+                    score = (SETUP_ACTIVE_EX_TOP
+                             - SETUP_ACTIVE_STEP
+                             * SETUP_ACTIVE_EX_ORDER.index(card.id))
                 else:
-                    score = 1
-        
+                    score = SETUP_ACTIVE_OTHER
+
             elif context == SelectContext.SETUP_BENCH_POKEMON:
         
                 if card.id == Chikorita:
@@ -1452,7 +1487,8 @@ def score_play(tc, o, score):
                     score = _resolve_with_trace(
                         "pp->fetch", _RULES_PP_FETCH, [],
                         _CtxPPFetch(card.id, hand_counts, field_counts,
-                                    bench_count, state),
+                                    bench_count, state,
+                                    _opening_sac_needs_body),
                         default=10)
         
                 elif select.effect is not None and select.effect.id == Night_Stretcher:

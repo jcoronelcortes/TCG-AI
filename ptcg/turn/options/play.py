@@ -40,7 +40,7 @@ def score_play(tc, o, score):
     _festival_lead_hostil = tc._festival_lead_hostil
     _ft_hold_lone_meowth = tc._ft_hold_lone_meowth
     _ft_wall_in_hand = tc._ft_wall_in_hand
-    _starmie_wall_in_hand = tc._starmie_wall_in_hand
+    _opening_sac_wall_in_hand = tc._opening_sac_wall_in_hand
     _gt_planes = tc._gt_planes
     _gt_quiere_basico = tc._gt_quiere_basico
     _gt_root_in_play = tc._gt_root_in_play
@@ -1844,11 +1844,14 @@ def score_play(tc, o, score):
                 and score < FIRST_TURN_WALL_PLAY_SCORE):
             score = FIRST_TURN_WALL_PLAY_SCORE
 
-        # THE TAPU BULU GOES DOWN SO IT CAN COME UP (user, registro_002 step 28
-        # vs Mega Starmie ex). The head of the sacrifice order is the one rung
-        # that can be missing from the board and still be arranged for: it is a
-        # Basic, so the same turn puts it on the bench and promotes it. See
-        # `_starmie_wall_in_hand` in main.py.
+        # THE ONE-PRIZE BODY GOES DOWN SO IT CAN COME UP (user, registro_002
+        # step 28 vs Mega Starmie ex, generalised ago 2026). The rungs of the
+        # sacrifice order -- Tapu Bulu, then Applin, then Chikorita -- are the
+        # ones that can be missing from the board and still be arranged for:
+        # all three are Basics, so the same turn puts one on the bench and
+        # promotes it. WHICH one is picked in main.py
+        # (`_opening_sac_wall_in_hand`); this envelope only makes sure the card
+        # survives the rest of the turn.
         #
         # It is the SAME envelope, at the same height and for the same reason
         # as the first-turn wall above -- what it has to beat is spread across
@@ -1857,8 +1860,8 @@ def score_play(tc, o, score):
         # after it, and it keeps the same respect for the matchup veto that
         # reads the OPPONENT: against a deck that snipes the bench the body we
         # would be saving is a target, not a wall.
-        if (_starmie_wall_in_hand is not None
-                and card is not None and card.id == _starmie_wall_in_hand
+        if (_opening_sac_wall_in_hand is not None
+                and card is not None and card.id == _opening_sac_wall_in_hand
                 and not _dragapult_no_tapu
                 and score < FIRST_TURN_WALL_PLAY_SCORE):
             score = FIRST_TURN_WALL_PLAY_SCORE

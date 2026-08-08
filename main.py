@@ -4077,6 +4077,12 @@ def agent(obs_dict: dict) -> list[int]:
     op_is_comfey_deck = False
     op_is_raging_bolt_deck = False
     op_is_abomasnow_deck = False
+    # The two archetypes that had no flag of their own until the opening
+    # sacrifice needed to name them (`OPENING_SAC_SAFE_MATCHUPS`): Marnie's
+    # Grimmsnarl ex and Cynthia's Garchomp ex. Detected exactly like the rest --
+    # their line on the opposing ACTIVE, on their BENCH or in their DISCARD.
+    op_is_marnie_deck = False
+    op_is_cynthia_deck = False
     # Iron Thorns ex on the opposing FIELD (P1.4 plan B): even if it is not the active
     # yet, its presence announces the ability lock -> the plan pivots to
     # the attackers WITHOUT an ability with a Rule Box (Tapu Bulu, the Meganium line).
@@ -4166,6 +4172,10 @@ def agent(obs_dict: dict) -> list[int]:
             op_is_abomasnow_deck = True
         if op_active_id == Iron_Thorns_ex:
             op_is_iron_thorns_deck = True
+        if op_active_id in MARNIE_LINE_IDS:
+            op_is_marnie_deck = True
+        if op_active_id in CYNTHIA_LINE_IDS:
+            op_is_cynthia_deck = True
     for idx, pokemon in enumerate(op_state.bench):
         if pokemon is not None:
             if pokemon.id in EX_IMMUNE_IDS:
@@ -4254,6 +4264,10 @@ def agent(obs_dict: dict) -> list[int]:
                 op_is_raging_bolt_deck = True
             if pokemon.id in (Snover, Mega_Abomasnow_ex):
                 op_is_abomasnow_deck = True
+            if pokemon.id in MARNIE_LINE_IDS:
+                op_is_marnie_deck = True
+            if pokemon.id in CYNTHIA_LINE_IDS:
+                op_is_cynthia_deck = True
 
     # Archetype inference from the opponent's DISCARD (July 2026 audit,
     # suggestion 7): detection by Pokemon IN PLAY arrives late against
@@ -4289,6 +4303,10 @@ def agent(obs_dict: dict) -> list[int]:
             op_is_abomasnow_deck = True
         elif _dcid in MEGA_STARMIE_LINE_IDS:
             AGENT_STATE.op_is_starmie_deck = True
+        elif _dcid in MARNIE_LINE_IDS:
+            op_is_marnie_deck = True
+        elif _dcid in CYNTHIA_LINE_IDS:
+            op_is_cynthia_deck = True
         elif _dcid == Lugia_VSTAR:
             op_is_aggro_deck = True
         elif _dcid in (Cornerstone_Mask_Ogerpon_ex, Cornerstone_Mask_Ogerpon):
@@ -4643,12 +4661,15 @@ def agent(obs_dict: dict) -> list[int]:
     _ft_wall_pivot = False
     _ft_wall_promote = False
     _ft_wall_charge_active = False
-    # Hiding the ex from the Mega Starmie line. Same reason for being bound
-    # here as the five above: they are computed once the whole board is read,
-    # and anything that runs before that point has to see them switched off.
-    _starmie_wall_in_hand = None
-    _starmie_sac_pivot = False
-    _starmie_sac_promote = False
+    # Hiding the ex behind a one-prize body on our first turn. Same reason for
+    # being bound here as the five above: they are computed once the whole
+    # board is read, and anything that runs before that point has to see them
+    # switched off.
+    _opening_sac_wall_in_hand = None
+    _opening_sac_pivot = False
+    _opening_sac_promote = False
+    _opening_sac_charge_active = False
+    _opening_sac_needs_body = False
     _active_cant_attack_this_turn = False
     _hydra_pivot_active = False
     _tapu_sac_pivot = False
@@ -8171,6 +8192,7 @@ def agent(obs_dict: dict) -> list[int]:
             _extra_energy_enables_ko=_extra_energy_enables_ko,
             _feza_lucario_wall=_feza_lucario_wall,
             _ft_wall_charge_active=_ft_wall_charge_active,
+            _opening_sac_charge_active=_opening_sac_charge_active,
             _gust_2prize_via_boss=_gust_2prize_via_boss,
             _hydra_fragile_pivot=_hydra_fragile_pivot,
             _meganium_alk_1prize_attacker=_meganium_alk_1prize_attacker,
@@ -9967,8 +9989,9 @@ def agent(obs_dict: dict) -> list[int]:
                 and _ftw_phys + 1 >= _ftw_rc)
 
     # =================================================================
-    # THE EX DOES NOT WAIT IN FRONT OF THE MEGA STARMIE LINE (user,
-    # registro_002 step 28, episode 90583594 vs Mega Starmie ex, LOST).
+    # THE EX DOES NOT WAIT IN FRONT ON OUR FIRST TURN (user, registro_002 step
+    # 28, episode 90583594 vs Mega Starmie ex, LOST -- and generalised to the
+    # whole field in ago 2026 at the user's request).
     #
     # The board of that step: our first turn, an active Teal Mask Ogerpon ex
     # with the one Grass of the turn on it -- not enough to attack -- and on
@@ -9991,16 +10014,26 @@ def agent(obs_dict: dict) -> list[int]:
     # What both readings miss is the SECOND attack on that card. Mega Starmie
     # ex prints Nebula Beam at 210 for three energies: the exact HP of our
     # Ogerpon ex, and the deck reaches three energies in one turn with the
-    # Ignition Energy it runs. The projector is right about what they can pay
-    # TODAY and wrong about what this particular line is, which is why the rule
-    # is stated as a MATCHUP and not as an arithmetic threshold: against the
-    # Staryu -> Mega Starmie ex line, an ex left in front is two prizes handed
-    # over on the turn they choose, and the cheapest body we own is one.
+    # Ignition Energy it runs.
+    #
+    # WHY THE RULE IS NOW STATED AS A DEFAULT AND NOT AS A DECK NAME. Mega
+    # Starmie was the deck that got caught, not the only deck that does it: the
+    # projector is right about what any of them can pay TODAY and blind to what
+    # their line BECOMES in one card, and the list of lines that turn a
+    # harmless opener into a 200+ damage body on their second turn is most of
+    # the field -- Alakazam, Ogerpon Verde, Festival Lead, Mega Lopunny,
+    # Dragapult, Mega Kangaskhan, Mega Lucario, Team Rocket's Mewtwo, Mega
+    # Starmie, N's Zoroark ex, Archaludon, Mega Abomasnow, Hop's Phantump,
+    # Slowpoke, Raging Bolt ex, Iron Thorns ex. Enumerating THEM would mean a
+    # new unknown deck defaults to the wrong answer, and an unknown deck is
+    # exactly the one whose evolution we cannot project. So the default is to
+    # hide the ex, and what is enumerated is the SHORT list of openings where
+    # hiding it is wrong (`_opening_sac_safe_matchup` below).
     #
     # So: with no attack available and a 2-prize ex in the active spot, retreat
     # it and put a one-prize body in front. `not can_attack` is the whole
     # gate on the offensive side -- a turn that can attack takes its attack --
-    # and the promotion order the user gave lives in STARMIE_SAC_PROMOTE_ORDER.
+    # and the promotion order the user gave lives in OPENING_SAC_PROMOTE_ORDER.
     #
     # IT IS AN OPENING RULE, AND THE GATE IS WHY (ago 2026, n=1000 per arm
     # against `deck/real_opponents/mega_starmie_1.csv` and `_2.csv`, two arms
@@ -10025,45 +10058,167 @@ def agent(obs_dict: dict) -> list[int]:
     # cannot attack by rule, so the pivot would burn the only Grass of the turn
     # before the opponent has played a card -- and their knockout does not come
     # next turn either, since a Staryu just placed cannot be a Mega Starmie
-    # attacking for 210 on the following one.
-    _sty_act = _active_of(my_state)
-    if (AGENT_STATE.op_is_starmie_deck
+    # attacking for 210 on the following one. The user's own statement of the
+    # rule names the same seat ("many of them, IF THEY GO FIRST, can already
+    # knock one of our ex out on their second turn"): going second, our first
+    # turn is turn 2 and the exemption does not apply.
+    #
+    # -----------------------------------------------------------------------
+    # THE OPENINGS THAT DO NOT WANT IT (user's list, ago 2026). Seven
+    # archetypes where leaving the ex in front costs nothing, so paying a
+    # retreat fee out of the single attachment of the turn is pure loss:
+    #
+    #   Marnie's Grimmsnarl ex  -- their damage comes from a Stage 2 that is
+    #   Cynthia's Garchomp ex      several turns away; nothing on the board
+    #                              on their second turn takes 210 HP down.
+    #   Crustle Wall            -- and Sylveon, which sets the same flag: a
+    #   Sylveon                    wall deck whose whole plan is NOT to race.
+    #   Cubchoo                 -- it locks our active instead of killing it.
+    #   Comfey                  -- mill: it wins by decking us out, and every
+    #                              turn we spend retreating helps it.
+    #   Ralts (Gardevoir ex)    -- another Stage 2 ramp; the Ralts in front on
+    #                              their first turn threatens nothing.
+    #
+    # ...plus Cornerstone Mask Ogerpon ex, which is NOT on the user's list but
+    # is the same sentence as Crustle Wall and is already written down as such
+    # elsewhere (`_ftw_wall_is_our_attacker`, twenty lines up): against an
+    # active our ex cannot damage at all, the one-prize body is not a shield we
+    # hide behind, it is the only attacker we have -- and the retreat burns the
+    # energy that should be assembling it.
+    #
+    # Against all eight the ex STAYS in front and the second turn picks the
+    # matchup plan back up with the board intact.
+    #
+    # WHAT THE GATE SAYS ABOUT THE GENERALISATION (ago 2026, candidate = this
+    # tree vs base = the tree before it, both piloting deck.csv against the
+    # bot; n=3000-4000 per arm, always from the SECOND seat, which is the seat
+    # the rule fires in). Winrate delta, candidate minus base:
+    #
+    #   alakazam_1 +0.0   dragapult_1 -0.2   mega_lucario_1 -1.2
+    #   mega_lopunny_1 +0.5   team_rocket_mewtwo_1 +0.1   ogerpon_verde_1 +1.1
+    #   otro_ns_zoroark_ex_1 +0.0   mega_kangaskhan_1 -1.3   archaludon_1 -0.5
+    #   mega_starmie_1 -0.8   festival_lead_1 +0.3
+    #   marnie_grimmsnarl_1 -0.3   cynthia_garchomp_1 -0.6   crustle_wall_1 +0.1
+    #
+    # Mean -0.2 points. NOTHING here is outside the harness's own noise: two
+    # base runs of archaludon_1 at n=4000 came out 93.4% and 94.3%, so the
+    # floor is around a point per matchup and every number above sits inside
+    # it. The rule is measured NEUTRAL and kept because it is the user's
+    # strategy, stated for a reason the gate cannot see: the bot opponent does
+    # not reliably assemble the second-turn knockout that the rule is insurance
+    # against, so what it costs is measurable and what it buys is not.
+    _opening_sac_safe_matchup = (AGENT_STATE.op_is_crustle_deck
+                                 or AGENT_STATE.op_is_cornerstone_deck
+                                 or op_is_sylveon_deck
+                                 or op_is_cubchoo_deck
+                                 or op_is_comfey_deck
+                                 or op_is_gardevoir_deck
+                                 or op_is_marnie_deck
+                                 or op_is_cynthia_deck)
+    _osac_act = _active_of(my_state)
+    # ...AND THE PROJECTOR MUST NOT ALREADY SEE THE KNOCKOUT. The whole premise
+    # of this rule is the knockout the opponent has NOT shown yet: the body in
+    # front is healthy, their board says "no threat", and the rule fires anyway
+    # because what kills us is the evolution still in their hand. A board where
+    # the projection ALREADY takes our active down -- a wounded ex, an opposing
+    # attacker that is simply big enough -- is a different board, and it
+    # belongs to the pivots built on that projection (`_doomed_ex_sac_pivot`,
+    # the prize-denial pivot, the survival ranking of the promotion), which are
+    # better informed than an order that only knows about prizes: where a
+    # benched body SURVIVES their reply, promoting it hands over ZERO prizes,
+    # and no rung of this order beats zero.
+    _osac_doomed_now = (
+        _osac_act is not None
+        and (_active_doomed_real
+             or _op_evo_dmg_to_active >= (_osac_act.hp or 0)))
+    if (not _opening_sac_safe_matchup
             and _our_first_turn
             and not can_attack
-            and _sty_act is not None
-            and _sty_act.id in OUR_EX_IDS
+            and not _osac_doomed_now
+            and _osac_act is not None
+            and _osac_act.id in OUR_EX_IDS
             and not op_has_ex_immune_active
             and not (state.turn == 1 and AGENT_STATE.we_go_first)):
-        # (1) THE BODY IN HAND. Tapu Bulu heads the user's order and is the one
-        # rung that can be missing from the board and still be arranged for:
-        # it is a Basic, so it goes down and comes up in the same turn. Only
-        # the first copy, and only with a free slot -- the crowding vetoes of
-        # the PLAY branch own everything else about benching it.
-        if bench_count < bench_max and hand_counts.get(Tapu_Bulu, 0) >= 1:
-            _starmie_wall_in_hand = Tapu_Bulu
-
-        # (2) THE BODY ALREADY ON THE BENCH. What the retreat needs is only
+        # (1) THE BODY ALREADY ON THE BENCH. What the retreat needs is only
         # that ONE prize can go in front instead of two; WHICH of them goes up
         # is the promotion menu's question and is answered there, with the full
         # order. Asking the same ranking twice would let the two halves of one
         # rule disagree about who is available.
-        _starmie_sac_body = next(
-            (_sty_bp for _sty_bp in (my_state.bench or [])
-             if _sty_bp is not None and prize_count(_sty_bp) == 1), None)
+        _opening_sac_body = next(
+            (_osac_bp for _osac_bp in (my_state.bench or [])
+             if _osac_bp is not None and prize_count(_osac_bp) == 1), None)
+
+        # (2) THE BODY IN HAND, walked in the user's order. These are the rungs
+        # that can be missing from the board and still be arranged for: all
+        # three are Basics, so they go down and come up in the same turn.
+        #
+        # TAPU BULU IS CLAIMED EVEN WITH A BODY ALREADY SEATED, the other two
+        # only when the bench has nothing to promote. Tapu heads the order --
+        # 140 HP and a real attacker afterwards -- so putting it down improves
+        # a pivot that was going to happen anyway; an Applin or a Chikorita
+        # benched on top of a bench that already holds a one-prize body would
+        # be a second body given away for a swap the first one already pays
+        # for. Only the first copy, and only with a free slot: the crowding
+        # vetoes of the PLAY branch own everything else about benching them.
+        if bench_count < bench_max:
+            for _osac_hand_id in SETUP_ACTIVE_BASIC_ORDER:
+                if hand_counts.get(_osac_hand_id, 0) < 1:
+                    continue
+                if (_osac_hand_id != Tapu_Bulu
+                        and _opening_sac_body is not None):
+                    break
+                _opening_sac_wall_in_hand = _osac_hand_id
+                break
 
         # (3) THE FEE. The retreat discards the cost off the active, and the
         # engine only offers the option once that cost is already on the body;
         # a Switch card pays it for free.
-        _sty_rc = RETREAT_COST.get(_sty_act.id, 1)
-        _sty_phys = _physical_energy(len(_sty_act.energies))
+        _osac_rc = RETREAT_COST.get(_osac_act.id, 1)
+        _osac_phys = _physical_energy(len(_osac_act.energies))
         # The one-prize body has to be ON THE BENCH, not in hand: a retreat
         # into a bench of nothing but ex spends the fee and changes which two
         # prizes we are offering. The copy in hand is a reason to PLAY it
         # (21600, above the refill that would shuffle it away) and the pivot
         # comes back one decision later, with the body already seated.
-        _starmie_sac_pivot = (
-            _starmie_sac_body is not None
-            and (has_switch_card or _sty_phys >= _sty_rc))
+        _opening_sac_pivot = (
+            _opening_sac_body is not None
+            and (has_switch_card or _osac_phys >= _osac_rc))
+
+        # (4) THE ENERGY OF THE TURN PAYS THE FEE (user, ago 2026): "if we
+        # start with an ex in the active spot we attach ONE energy to it". Read
+        # as arithmetic that is the same sentence as the pivot -- the engine
+        # only OFFERS a retreat once the cost is on the body, so with an
+        # unpaid fee the pivot cannot fire at all and the ex ends the turn in
+        # front, which is the outcome the whole rule exists to avoid.
+        #
+        # It is the twin of `_ft_wall_charge_active` and it is deliberately
+        # WIDER than that one. There the arm was gated on a projected THREAT,
+        # because the wall it hides behind is a 140 HP body that could simply
+        # wait on the bench one more turn; here the premise is that the threat
+        # is exactly what the projector canNOT see (the evolution that is one
+        # card away), so demanding it would switch the rule off on every board
+        # it was written for -- the Staryu of the record included.
+        #
+        # The two flags are EXCLUSIVE, like there: either the fee is already
+        # paid and we pivot, or this turn's attachment is what pays it. And it
+        # only claims the attachment while it is still free and while ONE more
+        # energy actually closes the cost: buying a retreat we still cannot
+        # afford would throw the energy away for nothing.
+        _opening_sac_charge_active = (
+            not _opening_sac_pivot
+            and (_opening_sac_body is not None
+                 or _opening_sac_wall_in_hand is not None)
+            and not state.energyAttached
+            and hand_counts.get(Basic_Grass_Energy, 0) >= 1
+            and _osac_phys + 1 >= _osac_rc)
+
+        # (5) NO ONE-PRIZE BODY ANYWHERE: the Poke Pad goes and gets one. The
+        # flag says only "the pivot wants a body and the board has none"; WHICH
+        # body the search brings is the fetch menu's question, answered with
+        # the same order (`_RULES_PP_FETCH`, the `opening_sac_*` rungs).
+        _opening_sac_needs_body = (_opening_sac_body is None
+                                   and _opening_sac_wall_in_hand is None
+                                   and bench_count < bench_max)
 
         # THE FEE IS ALREADY PAID BY THE TIME THE PROMOTION IS ASKED. The same
         # trap `_ft_wall_promote` documents at length: this menu arrives one
@@ -10071,7 +10226,7 @@ def agent(obs_dict: dict) -> list[int]:
         # to the discard, and re-asking the affordability question reads the
         # energy that is LEFT instead of the energy that paid. With `retreated`
         # set the question is already answered.
-        _starmie_sac_promote = _starmie_sac_pivot or bool(state.retreated)
+        _opening_sac_promote = _opening_sac_pivot or bool(state.retreated)
 
     # The decision context (Priority 1 refactor): invariant inputs that
     # the extracted `_score_*` scorers consume. It is built a single time.
@@ -10133,6 +10288,7 @@ def agent(obs_dict: dict) -> list[int]:
         budew_op_index=budew_op_index,
         budew_on_op_field=budew_on_op_field,
         item_lock_incoming=_item_lock_incoming,
+        opening_sac_needs_body=_opening_sac_needs_body,
         lucario_sac_pivot=_lucario_sac_pivot,
         win_via_boss_gust=_win_via_boss_gust,
         gust_2prize_via_boss=_gust_2prize_via_boss,

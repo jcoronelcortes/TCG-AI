@@ -1,4 +1,4 @@
-"""The ex does not wait in front of the Mega Starmie line.
+"""The ex does not wait in front on our first turn.
 
 Scenario (`records/registro_002_pasos_009_hasta_028.json`, step 28, episode
 90583594, turn 2 -- our first turn, going second, vs Mega Starmie ex, LOST):
@@ -55,6 +55,29 @@ gate can measure.
 `_our_first_turn` also subsumes the seat exemption `_prize_mismatch_matchup`
 carries: on turn 1 going FIRST the player cannot attack by rule, so without it
 the pivot would burn the only Grass of the turn in every single game.
+
+GENERALISED TO THE WHOLE FIELD (user, ago 2026). Mega Starmie was the deck that
+got caught, not the only deck that does it: the list of lines that turn a
+harmless opener into a 200+ damage body on their second turn is most of the
+format -- Alakazam, Ogerpon Verde, Festival Lead, Mega Lopunny, Dragapult, Mega
+Kangaskhan, Mega Lucario, Team Rocket's Mewtwo, Mega Starmie, N's Zoroark ex,
+Archaludon, Mega Abomasnow, Hop's Phantump, Slowpoke, Raging Bolt ex, Iron
+Thorns ex, "and others". Enumerating THEM would default an unknown deck to the
+wrong answer, and an unknown deck is exactly the one whose evolution we cannot
+project -- so the rule is now the DEFAULT and what is enumerated is the short
+list of openings where hiding the ex is wrong (`_opening_sac_safe_matchup`):
+Marnie's Grimmsnarl, Cynthia's Garchomp, Crustle Wall, Sylveon, Cubchoo,
+Comfey, Ralts/Gardevoir -- plus Cornerstone, the same sentence as Crustle Wall.
+
+Two guards keep the default honest, and both are pinned below:
+
+  * the SAFE LIST: against those eight the ex stays in front and the second
+    turn picks the matchup plan back up with the board intact;
+  * the PROJECTOR ALREADY SEEING THE KNOCKOUT (`_osac_doomed_now`). The premise
+    of the whole rule is the knockout they have NOT shown yet; a board where
+    the projection already takes our active down belongs to the pivots built on
+    that projection, which know that a benched body SURVIVING their reply hands
+    over ZERO prizes -- and no rung of a one-prize order beats zero.
 """
 
 import copy
@@ -268,13 +291,88 @@ def test_it_is_an_opening_rule_and_does_not_fire_later():
     assert _chosen(obs)["type"] != int(m.OptionType.RETREAT)
 
 
-def test_the_rule_is_deck_specific():
-    """Against another deck the same board keeps the answer it had before."""
+def test_the_rule_is_the_default_and_not_a_deck_name():
+    """The generalisation, stated as the test it replaces. The same board that
+    used to end the turn against an Alakazam now retreats: what the projector
+    cannot see about a Staryu it cannot see about an Abra either, and an
+    unknown opener is the one we can project least of all."""
     obs = _scenario(op_active=pk(ALAKAZAM, energies=[G]),
                     bench=(pk(APPLIN, energies=[G]), pk(MEOWTH), pk(APPLIN)),
                     hand=(m.Ultra_Ball,)).menu_hand(with_retreat=True).build()
     assert not m.AGENT_STATE.op_is_starmie_deck
-    assert _chosen(obs)["type"] == int(m.OptionType.END)
+    assert _chosen(obs)["type"] == int(m.OptionType.RETREAT)
+
+
+@pytest.mark.parametrize("name,op_active", [
+    ("marnie", pk(m.Marnies_Impidimp, energies=[int(m.EnergyType.DARKNESS)])),
+    ("cynthia", pk(m.Cynthias_Gible, energies=[int(m.EnergyType.FIGHTING)])),
+    ("crustle", pk(m.Dwebble_Grass, energies=[G])),
+    ("sylveon", pk(m.Sylveon, energies=[int(m.EnergyType.PSYCHIC)])),
+    ("cubchoo", pk(m.Cubchoo, energies=[W])),
+    ("comfey", pk(m.Comfey, energies=[G])),
+    ("ralts", pk(m.Ralts, energies=[int(m.EnergyType.PSYCHIC)])),
+    ("cornerstone", pk(m.Cornerstone_Mask_Ogerpon_ex, energies=[G])),
+])
+def test_the_openings_that_do_not_want_it(name, op_active):
+    """The user's safe list (plus Cornerstone, the same sentence as Crustle
+    Wall). None of these eight has a way to cash our ex in early: paying a
+    retreat fee out of the single attachment of the turn buys nothing, and
+    against the two walls the one-prize body is not a shield, it is the only
+    attacker we own."""
+    obs = _scenario(op_active=op_active,
+                    bench=(pk(APPLIN, energies=[G]), pk(MEOWTH), pk(APPLIN)),
+                    hand=(m.Ultra_Ball,)).menu_hand(with_retreat=True).build()
+    assert _chosen(obs)["type"] != int(m.OptionType.RETREAT), name
+
+
+@pytest.mark.parametrize("where", ["active", "bench", "discard"])
+def test_the_safe_archetypes_are_recognised_wherever_they_show_up(where):
+    """The two flags the safe list needed and the codebase did not have. Like
+    every other archetype flag they read the line off the active spot, the
+    bench and the discard alike."""
+    for line_active, line_body in ((m.Marnies_Impidimp, m.Marnies_Morgrem),
+                                   (m.Cynthias_Gible, m.Cynthias_Gabite)):
+        m.AGENT_STATE.reset()
+        m._init_cards_tracking()
+        sc = _scenario(bench=(pk(APPLIN, energies=[G]), pk(MEOWTH), pk(APPLIN)),
+                       hand=(m.Ultra_Ball,),
+                       op_active=pk(ALAKAZAM, energies=[G]))
+        if where == "active":
+            sc = _scenario(bench=(pk(APPLIN, energies=[G]), pk(MEOWTH),
+                                  pk(APPLIN)),
+                           hand=(m.Ultra_Ball,),
+                           op_active=pk(line_active, energies=[G]))
+        elif where == "bench":
+            sc = sc.op_bench(pk(line_body))
+        else:
+            sc = sc.op_discard(line_body)
+        obs = sc.menu_hand(with_retreat=True).build()
+        assert _chosen(obs)["type"] != int(m.OptionType.RETREAT), (
+            f"{line_active} en {where}")
+
+
+def test_a_projection_that_already_kills_the_active_belongs_to_the_old_pivots():
+    """`_osac_doomed_now`. A wounded ex in front of an attacker that reaches it
+    is not the board this rule is about, and there a benched body that SURVIVES
+    hands over zero prizes -- which no one-prize rung beats. The contrast is
+    the point: the same board with the ex at full HP is the rule's own."""
+    def _answer(hp):
+        m.AGENT_STATE.reset()
+        m._init_cards_tracking()
+        obs = _scenario(active=pk(OGERPON, hp=hp, energies=[G]),
+                        bench=(pk(CHIKORITA), pk(APPLIN)),
+                        hand=(m.Ultra_Ball,),
+                        op_active=pk(ALAKAZAM, energies=[G])) \
+            .promote_after_retreat().build()
+        return _promoted(obs)["id"]
+
+    # Full HP: the opening order owns the menu and it says Applin before
+    # Chikorita -- the Applin line is the one worth developing.
+    assert _answer(210) == APPLIN
+    # Wounded past their projection: the doomed order owns it instead, and it
+    # says the opposite -- Chikorita, because the Applin is the first link of
+    # the attacker the deck is built around and that is the line we spare.
+    assert _answer(20) == CHIKORITA
 
 
 # ---------------------------------------------------------------------------

@@ -48,7 +48,7 @@ def score_play(tc, o, score):
     _p = tc._p
     _prize_denial_pivot = tc._prize_denial_pivot
     _sid = tc._sid
-    _starmie_sac_pivot = tc._starmie_sac_pivot
+    _opening_sac_pivot = tc._opening_sac_pivot
     _suicide_swap_win_promote = tc._suicide_swap_win_promote
     _supp_values = tc._supp_values
     _tapu_sac_pivot = tc._tapu_sac_pivot
@@ -1775,7 +1775,7 @@ def score_play(tc, o, score):
         # played first and the retreat comes back when the turn has nothing
         # else left, which is what "if we cannot attack" means at the end of a
         # turn.
-        if _starmie_sac_pivot:
+        if _opening_sac_pivot:
             score = max(score, 6000)
 
         # Rule (user, registro 004 step 53 vs Archaludon ex, WON):

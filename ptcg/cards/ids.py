@@ -293,6 +293,10 @@ Charizard_ex = 790
 Grimmsnarl_ex = 648
 Marnies_Impidimp = 646
 Marnies_Morgrem = 647
+# The whole Marnie's Grimmsnarl ex line. It names the ARCHETYPE
+# (`op_is_marnie_deck`), which is one of the openings that does NOT make us hide
+# an ex behind a one-prize body -- see OPENING_SAC_SAFE_MATCHUPS below.
+MARNIE_LINE_IDS = frozenset({Marnies_Impidimp, Marnies_Morgrem, Grimmsnarl_ex})
 Latias_ex = 184
 Cornerstone_Mask_Ogerpon_ex = 117
 # NON-ex Cornerstone Mask Ogerpon (no ability, attackable): it does not grant
@@ -345,15 +349,17 @@ Mega_Starmie_ex = 1031
 Staryu = 1030
 MEGA_STARMIE_LINE_IDS = frozenset({Staryu, Mega_Starmie_ex})
 
-# WHO GOES IN FRONT WHEN WE HIDE AN EX FROM THE MEGA STARMIE LINE (user,
-# registro_002 step 28, episode 90583594, LOST). The order is the user's, and
-# each rung says what the body is worth to the deck rather than what it costs:
+# WHO GOES IN FRONT WHEN WE HIDE AN EX ON OUR FIRST TURN (user; the order was
+# first given for the Mega Starmie line, registro_002 step 28, episode 90583594,
+# LOST, and then extended to every matchup that can knock an ex out early). The
+# order is the user's, and each rung says what the body is worth to the deck
+# rather than what it costs:
 #
 #   Tapu Bulu   -- 140 HP and one prize: the only body that both endures a turn
 #                  and is a real attacker afterwards.
 #   Applin      -- the cheapest prize we own. The copy WITHOUT energy first: the
 #                  charged one stays on the bench with its investment intact
-#                  (`_starmie_sac_rank` reads the energies for that half).
+#                  (`_osac_rank` reads the energies for that half).
 #   Chikorita   -- the other 70 HP basic; the Bayleef/Meganium line is support,
 #                  not the plan.
 #   Dipplin     -- a Stage 1 already spent from the Applin line.
@@ -363,7 +369,14 @@ MEGA_STARMIE_LINE_IDS = frozenset({Staryu, Mega_Starmie_ex})
 #
 # Anything not on the list keeps its ordinary promotion score, which is what
 # "and finally any other option" means.
-STARMIE_SAC_PROMOTE_ORDER = (Tapu_Bulu, Applin, Chikorita, Dipplin, Bayleef,
+#
+# The first three rungs are the SAME three bodies, in the SAME order, as
+# `SETUP_ACTIVE_BASIC_ORDER` below, and that is not a coincidence: both answer
+# the one question the opening is about -- which one-prize body stands in front
+# while the real attacker is assembled behind it. The setup answers it before
+# the game starts, this order answers it again once the hand actually dealt has
+# put an ex in the active spot.
+OPENING_SAC_PROMOTE_ORDER = (Tapu_Bulu, Applin, Chikorita, Dipplin, Bayleef,
                              Meowth_ex)
 Slowking = 163
 Slowpoke = 162
@@ -424,6 +437,11 @@ Mega_Lopunny_ex = 849
 Cynthias_Gible = 379
 Cynthias_Gabite = 380
 Cynthias_Garchomp_ex = 381
+# The Cynthia archetype: the Garchomp ex line plus the Roserade that buffs it.
+# Like MARNIE_LINE_IDS, it exists to NAME the deck (`op_is_cynthia_deck`), which
+# is one of the openings listed in OPENING_SAC_SAFE_MATCHUPS.
+CYNTHIA_LINE_IDS = frozenset({Cynthias_Gible, Cynthias_Gabite,
+                              Cynthias_Garchomp_ex, Cynthias_Roserade})
 Gardevoir_ex = 747
 Ralts = 745
 Kirlia = 746
@@ -452,6 +470,76 @@ Eevee_SSP = 317
 EEVEE_IDS = {43, 145, 249, 317}
 
 OUR_EX_IDS = {Teal_Mask_Ogerpon_ex, Hydrapple_ex, Meowth_ex, Fezandipiti_ex}
+
+# ============================================================================
+# WHO STARTS IN THE ACTIVE SPOT (user, ago 2026). The setup is the first half
+# of one plan whose second half is OPENING_SAC_PROMOTE_ORDER above, and the
+# plan is a single sentence: WHEN THE OPPONENT STARTS TAKING PRIZES, THE BODY
+# IN FRONT PAYS ONE, NOT TWO -- while the real attacker is assembled on the
+# bench behind it.
+#
+# Every body in our deck is a Basic, ex included, so "start with a Basic" here
+# means START WITH A BASIC THAT IS NOT AN ex. That is the whole difference the
+# rule is about: one prize instead of two, on the turn the opponent chooses.
+# Many of the decks in the field knock a 210 HP ex out on their SECOND turn --
+# and if they go first, that is our second turn, before we have attacked once.
+#
+# THE ORDER AMONG THE NON-ex BASICS, and why it is not "sturdiest first":
+#
+#   Tapu Bulu (140 HP) -- the only one-prize body that both endures a turn and
+#                         is a real attacker afterwards (Wood Hammer 220, and
+#                         it has no ability, so it is the one body the decks
+#                         that cancel ex or abilities cannot switch off). It is
+#                         the reference opener and it is charged from turn 1.
+#   Applin    (60 HP)  -- the first link of Applin -> Dipplin -> Hydrapple ex,
+#                         the line the deck is built around: opening with it
+#                         puts the engine on the board a turn earlier.
+#   Chikorita (70 HP)  -- the Bayleef -> Meganium line is support, not the
+#                         plan, so it is the last of the three.
+#
+# Applin goes ahead of Chikorita even though it has LESS HP: what the active
+# spot buys on turn 1 is not survival -- both are donkable and both pay a
+# single prize -- it is which line starts developing first.
+SETUP_ACTIVE_BASIC_ORDER = (Tapu_Bulu, Applin, Chikorita)
+
+# ...and the order among our ex, for the hands that have no other Basic. It is
+# a fallback, not a preference: reaching it means every body in hand costs two
+# prizes, and then what matters is which of them the FIRST TURN can still use.
+#
+#   Teal Mask Ogerpon ex -- 210 HP and Teal Dance: the one ex whose ability
+#                           develops the board from the active spot.
+#   Fezandipiti ex       -- 210 HP as well, but its Flip the Script only pays
+#                           out AFTER it is knocked out.
+#   Meowth ex            -- 170 HP and the softest: its Last-Ditch Catch works
+#                           from the BENCH, so the active spot wastes it.
+#
+# It is the SAME ranking the setup bench uses upside down (`SETUP_BENCH` in
+# ptcg/turn/options/card.py vetoes a benched Meowth ex outright), and the same
+# one `_opening_sac_*` walks back on the last decision of the turn: whichever
+# of these three the setup was forced to seat, the first turn tries to buy it
+# back behind a one-prize body.
+SETUP_ACTIVE_EX_ORDER = (Teal_Mask_Ogerpon_ex, Fezandipiti_ex, Meowth_ex)
+
+# The setup bands. Two blocks that cannot overlap, because the whole rule is
+# that NO ex outranks ANY non-ex Basic: the ex band tops out at 100 and the
+# Basic band starts at 200, so an unnamed one-prize Basic (a Pinsir dealt into
+# the opening hand) still goes in front of a 210 HP ex.
+#
+#   200 + 10*rung  -- the three named non-ex Basics (Tapu 220 / Applin 210 /
+#                     Chikorita 200)
+#   150            -- any other non-ex Basic: below the three we name, above
+#                     every ex
+#   100 - 10*rung  -- the three named ex (Ogerpon 100 / Fezandipiti 90 /
+#                     Meowth 80)
+#   50             -- anything else that can legally start
+#
+# The steps are 10 apart and the rungs are unique, so the setup never ties and
+# never lets the menu order decide.
+SETUP_ACTIVE_BASIC_TOP = 220
+SETUP_ACTIVE_EX_TOP = 100
+SETUP_ACTIVE_STEP = 10
+SETUP_ACTIVE_OTHER_BASIC = 150
+SETUP_ACTIVE_OTHER = 50
 
 # Solrock: Cosmic Beam costs a single {F}, hits for 70 and needs a Lunatone on
 # the bench. It is the exception that lifts `FIRST_TURN_TOUGH_OPENERS` below:
@@ -1234,6 +1322,7 @@ __all__ = [
     'Grimmsnarl_ex',
     'Marnies_Impidimp',
     'Marnies_Morgrem',
+    'MARNIE_LINE_IDS',
     'Latias_ex',
     'Cornerstone_Mask_Ogerpon_ex',
     'Cornerstone_Mask_Ogerpon',
@@ -1250,7 +1339,7 @@ __all__ = [
     'Mega_Starmie_ex',
     'Staryu',
     'MEGA_STARMIE_LINE_IDS',
-    'STARMIE_SAC_PROMOTE_ORDER',
+    'OPENING_SAC_PROMOTE_ORDER',
     'Slowking',
     'Slowpoke',
     'Beedrill',
@@ -1271,6 +1360,7 @@ __all__ = [
     'Cynthias_Gible',
     'Cynthias_Gabite',
     'Cynthias_Garchomp_ex',
+    'CYNTHIA_LINE_IDS',
     'Gardevoir_ex',
     'Ralts',
     'Kirlia',
@@ -1294,6 +1384,13 @@ __all__ = [
     'Eevee_SSP',
     'EEVEE_IDS',
     'OUR_EX_IDS',
+    'SETUP_ACTIVE_BASIC_ORDER',
+    'SETUP_ACTIVE_EX_ORDER',
+    'SETUP_ACTIVE_BASIC_TOP',
+    'SETUP_ACTIVE_EX_TOP',
+    'SETUP_ACTIVE_STEP',
+    'SETUP_ACTIVE_OTHER_BASIC',
+    'SETUP_ACTIVE_OTHER',
     'Solrock',
     'FIRST_TURN_TOUGH_OPENERS',
     'FIRST_TURN_WALL_MIN_HP',

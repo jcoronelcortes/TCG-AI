@@ -59,6 +59,7 @@ def score_play(tc, o, score):
     _charge_active_enables_attack = tc._charge_active_enables_attack
     _charge_active_finishes = tc._charge_active_finishes
     _ft_wall_charge_active = tc._ft_wall_charge_active
+    _opening_sac_charge_active = tc._opening_sac_charge_active
     _gust_2prize_via_boss = tc._gust_2prize_via_boss
     _lucario_sac_pivot = tc._lucario_sac_pivot
     _tapu_future_charge = tc._tapu_future_charge
@@ -112,7 +113,13 @@ def score_play(tc, o, score):
                         # is not overcharging the opening attacker: it is what
                         # buys the swap that hides this 2-prize body behind a
                         # body that costs one.
-                        and not _ft_wall_charge_active):
+                        and not _ft_wall_charge_active
+                        # ...nor the same fee paid by the ex itself
+                        # (`_opening_sac_charge_active`). This veto exists to
+                        # stop the turn's energy being wasted on the opening
+                        # attacker; an energy that buys the retreat is spent on
+                        # the swap, not on the body.
+                        and not _opening_sac_charge_active):
                     if _lucario_sac_pivot:
                         # Charging the active Ogerpon ex: when it retreats later, it
                         # keeps energy on the bench (it pays the retreat cost and

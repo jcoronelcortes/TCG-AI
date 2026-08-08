@@ -432,6 +432,34 @@ answer to a body that cannot be touched.
 The first turn does not attack, and often cannot. What it decides is what the
 opponent has to chew through next, and what that costs us when it falls.
 
+### 13.0 Who starts in front
+
+Every body in this deck is a basic, the ex included, so "start with a basic"
+means **start with a basic that is not an ex**. That is the whole difference the
+setup decides: when the opponent takes their first knockout, it pays one prize
+or it pays two — and most of the field reaches a 210 HP ex on its *second* turn,
+which, if they go first, is our second turn, before we have attacked once.
+
+The order among the non-ex basics is **Tapu Bulu, Applin, Chikorita**, and it is
+not "sturdiest first". Tapu Bulu (140 HP) is the only one-prize body that both
+endures a turn and is a real attacker afterwards, and it has no ability, so the
+decks that cancel ex or abilities cannot switch it off. Applin (60 HP) goes
+ahead of Chikorita (70 HP) because what the active spot buys on turn one is not
+survival — both are donkable and both pay a single prize — it is which line
+starts developing, and Applin opens Dipplin → Hydrapple ex, the attacker the
+deck is built around.
+
+Only a hand with none of the three reaches the ex, and there the order is **Teal
+Mask Ogerpon ex, Fezandipiti ex, Meowth ex**: it is a fallback, not a
+preference, so what ranks them is which of them the first turn can still use.
+Teal Dance develops from the active spot; Flip the Script only pays out after a
+knockout; Last-Ditch Catch works from the *bench*, so the active spot wastes the
+Meowth ex outright.
+
+No ex ever outranks a non-ex basic, not even one the order does not name.
+
+### 13.1 …and what the first turn does about it
+
 The body we want in front is a **basic worth one prize that is hard to remove**
 — in this deck Tapu Bulu, but the agent recognises it by its properties (basic,
 one prize, high HP, and a real attacker), so another deck's equivalent inherits
@@ -467,6 +495,46 @@ The rule stands down completely against a deck whose active makes our ex do
 **zero** damage. There the one-prize body is not a shield we spend, it is the
 only attacker we have, and hiding an ex behind it would be hiding an ex behind
 our own plan.
+
+### 13.2 When the setup could not seat a basic
+
+A hand that only had ex in it puts a two-prize body in front, and the first turn
+tries to buy that back. Two plays, and then the swap:
+
+- the single attachment of the turn goes to the **active ex**. It is not
+  overcharging an opening attacker: the engine only offers a retreat once the
+  cost is on the body, so an unpaid fee means the ex simply ends the turn in
+  front;
+- a one-prize body is produced for it to retreat into — from hand, and failing
+  that with a **Poke Pad**, searching in the same order (Tapu Bulu, Applin,
+  Chikorita). Tapu Bulu is claimed even when the bench already holds a one-prize
+  body, because it improves a swap that was going to happen anyway; the other
+  two only when the bench has nothing to promote, since a second body benched on
+  top of the first is a second prize given away for one swap.
+
+Then, at the end of the turn, **the ex retreats and the one-prize body takes the
+front**. That is the *default*, not a list of decks, and the reason is the shape
+of the mistake it fixes: the damage projector is honest about what an opponent
+can pay today and blind to what their line becomes in one card, and the lines
+that turn a harmless opener into a 200-plus body on their second turn are most
+of the format. Naming them would default an unknown deck to the wrong answer —
+and an unknown deck is exactly the one whose evolution we cannot project.
+
+What *is* named is the short list of openings where hiding the ex is wrong:
+**Marnie's Grimmsnarl, Cynthia's Garchomp, Crustle Wall, Sylveon, Cubchoo,
+Comfey, Ralts/Gardevoir** — none of them can cash the ex in early, so a retreat
+fee out of the turn's only attachment buys nothing — plus **Cornerstone**, which
+is the same sentence as Crustle Wall. Against those eight the ex stays in front
+and the second turn picks the matchup plan back up with the board intact.
+
+Two more guards keep the default honest. It is an *opening* rule — stated for
+any turn it fires ten times a game, because "we cannot attack" is the ordinary
+shape of a developing turn, and each firing discards an energy and hands over a
+cheap body for nothing. And it stands down when the projector **already** sees
+the knockout: a wounded ex in front of an attacker that reaches it belongs to
+the pivots built on that projection, which know that a benched body surviving
+the reply hands over *zero* prizes — and no rung of a one-prize order beats
+zero.
 
 ## 14. Play order
 
