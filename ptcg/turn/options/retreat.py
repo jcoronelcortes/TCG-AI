@@ -29,6 +29,7 @@ def score_play(tc, o, score):
     _conf_can_attack_pkmn = tc._conf_can_attack_pkmn
     _conf_should_retreat = tc._conf_should_retreat
     _cubchoo_lock_stuck = tc._cubchoo_lock_stuck
+    _doomed_mute_pivot = tc._doomed_mute_pivot
     _doomed_sac_context = tc._doomed_sac_context
     _ft_wall_pivot = tc._ft_wall_pivot
     _prize_mismatch_matchup = tc._prize_mismatch_matchup
@@ -890,6 +891,21 @@ def score_play(tc, o, score):
             # the bench (Hydrapple ex, 330 HP) even if it cannot attack yet: do
             # not give the active away for nothing and put up a wall. The
             # promotion chooses the one with the most HP.
+            score = 6450
+        elif _doomed_mute_pivot and can_switch:
+            # THE MUTE BODY DOES NOT PAY FOR THE FRONT SPOT: the same play as
+            # the branch above, read off any two bodies instead of off the
+            # Ogerpon/Hydrapple pair (see the flag in main.py). The active
+            # cannot attack today, the opponent's REAL finisher kills it before
+            # our next turn and its retreat is ALREADY paid -- so standing
+            # there buys nothing and costs its whole price, while the body that
+            # relieves it either survives the hit or is cheaper.
+            #
+            # Same score as the special case, because it is the same play: the
+            # ladder above (lethal promotions, the prize sacrifices) keeps
+            # ruling, and WHICH body comes up is not decided here but by the
+            # promotion chain, which already ranks survival first and prizes
+            # second.
             score = 6450
         elif _hydra_wall_pivot:
             # A doomed active Teal Mask Ogerpon ex that CAN attack but does

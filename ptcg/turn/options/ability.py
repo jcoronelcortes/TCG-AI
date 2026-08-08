@@ -10,7 +10,7 @@ from ptcg.calc.card import get_card
 from ptcg.calc.damage import _our_effective_damage
 from ptcg.calc.energy import _grass_attach_unit, _grass_mult, _ogerpon_base_phys_cap, _physical_energy
 from ptcg.cards.groups import GT_SCORE_FULL_CHAIN, GT_SCORE_STAGE1_ONLY
-from ptcg.cards.ids import Basic_Grass_Energy, Dipplin, FEZ_DRAW_ABILITY_SCORE, Fezandipiti_ex, Grand_Tree, Hydrapple_ex, Lillie_Determination, Meganium, Meowth_ex, Pinsir, RIPEN_HEAL_ABILITY_SCORE, RIPEN_HEAL_EX_ABILITY_SCORE, SCORE_CHARGE_ACTIVE_ATTACK, SCORE_CHARGE_ACTIVE_FINISHER, SCORE_VETO, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Unfair_Stamp
+from ptcg.cards.ids import Basic_Grass_Energy, Dipplin, FEZ_DRAW_ABILITY_SCORE, Fezandipiti_ex, Grand_Tree, Hydrapple_ex, Lillie_Determination, Meganium, Meowth_ex, Pinsir, RETREAT_COST, RIPEN_HEAL_ABILITY_SCORE, RIPEN_HEAL_EX_ABILITY_SCORE, SCORE_CHARGE_ACTIVE_ATTACK, SCORE_CHARGE_ACTIVE_FINISHER, SCORE_VETO, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Unfair_Stamp
 from ptcg.state.agent_state import AGENT_STATE
 
 
@@ -251,13 +251,27 @@ def score_play(tc, o, score):
                     # exception we do not overcharge: we save the energy.
                     # len(energies) is EFFECTIVE => it is converted to physical cards.
                     score = SCORE_VETO
-                elif _teal_wall_pivot and o.area == AreaType.ACTIVE:
+                elif (_teal_wall_pivot and o.area == AreaType.ACTIVE
+                        and _physical_energy(_ogerpon_energy)
+                            < RETREAT_COST.get(Teal_Mask_Ogerpon_ex, 1)):
                     # A doomed active (Teal Mask Ogerpon ex) that cannot attack +
                     # Hydrapple ex (the wall) on the bench: use Teal Dance on the
                     # ACTIVE (it attaches Grass + DRAWS 1) to enable its retreat
                     # (cost 1) and then bring up the stronger body. It must BEAT
                     # the manual attachment (~31200) so the draw is used and the
                     # turn's energy is not wasted.
+                    #
+                    # ...WHILE THE RETREAT IS STILL UNPAID. The band buys one
+                    # thing, the retreat cost of a body that is leaving the
+                    # front spot, and once the body already pays it the Grass
+                    # is only riding to the discard with the retreat (user,
+                    # `records/registro_006_pasos_085_hasta_102.json` turn 6:
+                    # active Ogerpon ex with one Grass on it, benched Hydrapple
+                    # ex one Grass short of Syrup Storm -- Teal Dance took the
+                    # 31600 and the wall came up MUTE). Same reading as the
+                    # `_attach_buys_retreat` guard in `_energy_score_base`: an
+                    # attachment justified by a fee is worth the fee only while
+                    # the fee is owed.
                     score = 31600
                 elif _teal_dance_ko_pivot and o.area == AreaType.ACTIVE:
                     # Teal Dance -> retreat -> promote a lethal attacker pivot

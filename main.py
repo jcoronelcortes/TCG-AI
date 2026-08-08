@@ -3888,6 +3888,8 @@ def agent(obs_dict: dict) -> list[int]:
     active_hp_ratio = 1.0
     estimated_op_damage = 0
     _teal_wall_pivot = False
+    # Deck-agnostic twin of the above; see the block that fills it in.
+    _doomed_mute_pivot = False
 
     _mega_line_active = False
     if my_state.active and my_state.active[0] is not None:
@@ -3960,6 +3962,119 @@ def agent(obs_dict: dict) -> list[int]:
                             and _twp_bp.hp >= (_twp_bp.maxHp or 0)):
                         _teal_wall_pivot = True
                         break
+
+            # THE MUTE BODY DOES NOT PAY FOR THE FRONT SPOT (user,
+            # `records/registro_004_pasos_050_hasta_063.json` step 62, episode
+            # 90871654 vs Mega Lucario ex, LOST). The pivot above is the same
+            # play written for two cards and one Grass: active Teal Mask
+            # Ogerpon ex, benched Hydrapple ex at full HP, and a Grass in hand
+            # because the story it was written from was "Teal Dance pays the
+            # retreat and THEN we retreat".
+            #
+            # In the record the Ogerpon had already danced: it stood at 20 of
+            # 210 with one Grass on it and a retreat cost of ONE, so the pivot
+            # was fully paid for and needed nothing from the hand. The agent
+            # spent the last Grass on it anyway, the `hand_counts >= 1` gate
+            # went false, the pivot switched off, the retreat was vetoed and
+            # the turn ENDED with a 2-prize body at 20 HP in front. Two prizes
+            # handed over for a card that bought nothing.
+            #
+            # So the general rule, which the one above is a case of:
+            #
+            #   a doomed ACTIVE that cannot attack this turn, whose retreat is
+            #   ALREADY payable, hands the front spot to a bench body that
+            #   costs the opponent MORE than it does -- fewer prizes, or the
+            #   same prizes and it SURVIVES their hit.
+            #
+            # Nothing here is card or matchup data: the sentence is read off
+            # the two bodies and the opponent's REAL finisher
+            # (`_op_active_attack_damage_to`, not the `active_ko_likely`
+            # heuristic the narrow branch uses -- see
+            # [[descuadre-generalizado-ex-condenado-sin-atacante]], where the
+            # same generalisation was made with the same reading).
+            #
+            # It cannot concede more than staying does: the promoted body is
+            # never worth more prizes than the one it replaces, and the ex we
+            # tuck away is checked by the `_bench_cashable_after_retreat` guard
+            # further down, which both walls share.
+            #
+            # IT GETS ITS OWN FLAG AND DOES NOT RIDE ON `_teal_wall_pivot`,
+            # which was the first way this was written and measured -3.7 / -2.4
+            # / -1.2 points vs the crustle, marnie and lucario bots (n=400 per
+            # arm). That flag is read in three places, and only ONE of them is
+            # the retreat: the other two are card-locked side effects written
+            # for the board it was born on -- Teal Dance on the ACTIVE at 31600
+            # (`ptcg/turn/options/ability.py`) and +4000 to promoting a
+            # Hydrapple ex (`ptcg/turn/options/card.py`). Switching the flag on
+            # across the whole generalised region dragged those two along, and
+            # the +4000 is the expensive one: it puts a 2-prize ex in front of
+            # the very ladder this rule exists to serve, over the 1-prize body
+            # that `PROMO_PRIZE_PENALTY` had already chosen. The general rule
+            # decides ONE thing, which body stands in front, and leaves the
+            # promotion to the deck-agnostic chain that already ranks it
+            # ([[promover-supervivencia-y-menos-premios]]).
+            _doomed_mute_pivot = False
+            if not _teal_wall_pivot:
+                _dwp_req = AGENT_STATE.ATTACK_ENERGY_REQ.get(my_active.id)
+                _dwp_eff = len(my_active.energies)
+                # MUTE = it cannot attack TODAY, and "today" is read with the
+                # honest census (`_reachable_grass_for`: the Grass in hand, the
+                # one a Night Stretcher gets back, and the routes -- the
+                # turn's attachment if it is still there, plus the charging
+                # abilities), not with a phantom attachment. The narrow branch
+                # above assumes one Grass unconditionally, which reads a body
+                # as ATTACKING on a turn whose attachment is already spent.
+                _dwp_reach = _reachable_grass_for(
+                    my_active, state, my_state, hand_counts, field_counts)
+                _dwp_mute = (
+                    my_active.id == Meowth_ex
+                    or (_dwp_req is not None
+                        and _dwp_eff < _dwp_req
+                        and _dwp_eff + _dwp_reach * _grass_attach_unit()
+                        < _dwp_req))
+                _dwp_pays_retreat = (
+                    _physical_energy(_dwp_eff)
+                    >= RETREAT_COST.get(my_active.id, 1))
+                _dwp_op_hand = getattr(op_state, 'handCount', None)
+                _dwp_doomed = (
+                    _op_active_attack_damage_to(op_active, my_active,
+                                                _dwp_op_hand)
+                    >= (my_active.hp or 0))
+                # THE SNIPE GUARD, IN THE SAME NARROW READING THE OTHER
+                # SACRIFICE PIVOT WAS MEASURED WITH
+                # ([[repliegue-del-ex-condenado-vs-sniper]]): hiding the body
+                # only denies prizes if it survives DOWN THERE, and an
+                # attacker that also reaches the bench (Shadow Bullet: 180 to
+                # the active and 30 to a benched one) cashes it anyway --
+                # retreating then concedes 1 + 2 instead of 2. It is read off
+                # the ATTACKER IN FRONT and not off the board flag, because
+                # switching pivots off for a sniper sitting on their bench
+                # measured -3.1 points vs crustle/Kangaskhan.
+                #
+                # It duplicates what `_bench_cashable_after_retreat` (the
+                # shared cancellation further down) already asks, and on
+                # purpose: that one honours the Tera of a benched Teal Mask
+                # Ogerpon ex and answers "it survives", while the reading the
+                # -3.1 was measured against does not. Widening a pivot into
+                # the region a measurement told us to stay out of is not
+                # something a generalisation gets to do for free.
+                _dwp_snipe = OP_BENCH_SNIPE_DAMAGE.get(
+                    getattr(op_active, 'id', 0), 0)
+                if (_dwp_mute and _dwp_pays_retreat and _dwp_doomed
+                        and _dwp_snipe < (my_active.hp or 0)):
+                    _dwp_price = prize_count(my_active)
+                    for _dwp_bp in (my_state.bench or []):
+                        if _dwp_bp is None:
+                            continue
+                        _dwp_bp_price = prize_count(_dwp_bp)
+                        if _dwp_bp_price > _dwp_price:
+                            continue
+                        _dwp_survives = (
+                            (_dwp_bp.hp or 0) > _op_active_attack_damage_to(
+                                op_active, _dwp_bp, _dwp_op_hand))
+                        if _dwp_bp_price < _dwp_price or _dwp_survives:
+                            _doomed_mute_pivot = True
+                            break
 
     # The opponent's ITEM lock (P1.5). The flag keeps its historical name
     # (`itchy_pollen_active`, after Budew's Itchy Pollen) but since the jul 2026
@@ -4522,6 +4637,31 @@ def agent(obs_dict: dict) -> list[int]:
         if _bench_cashable_after_retreat(
                 _twp_active, _twp_op_active, _twp_wall_hit):
             _teal_wall_pivot = False
+
+    # And the same question of the deck-agnostic twin, plus the exclusion its
+    # older brother `_doomed_ex_sac_pivot` already carries. Both live here and
+    # not up in the flag because `op_has_ex_immune_active` is only known after
+    # the opposing board has been read.
+    #
+    #   * does the body we hide survive down there? (the shared guard; the
+    #     promotion has not been decided yet, so our damage is read as 0 --
+    #     the conservative side of `_movable_dmg_after_our_hit`, which counts
+    #     no counters we have not loaded onto their board);
+    #
+    #   * is the opposing active a wall that immunises our ex? There the
+    #     retreat is not this rule's business: the matchup has its own logic
+    #     (`_ex_stuck_promo_ready` / `_nonex_active_hits_wall`), which waits
+    #     for the non-ex that DOES hit the wall to be READY before spending
+    #     the retreat. Firing first at 6450 pre-empted it and paid the fee to
+    #     promote a body that could not attack either -- measured -3.7 and
+    #     -2.5 points vs the crustle bot (n=400 per arm, two runs) while the
+    #     other matchups were flat.
+    if _doomed_mute_pivot and (
+            op_has_ex_immune_active
+            or _bench_cashable_after_retreat(
+                my_state.active[0] if my_state.active else None,
+                _active_of(op_state))):
+        _doomed_mute_pivot = False
 
     # Feza -> Hydrapple ex wall vs Mega Lucario (user, log 86342087 step 130,
     # WE LOST): if the ACTIVE is a Fezandipiti ex WEAK to Fighting that will be

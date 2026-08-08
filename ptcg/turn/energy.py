@@ -1124,6 +1124,29 @@ def _energy_score_base(tc, pokemon, active):
             # Effective energy after attaching (Wild Growth doubles Grass):
             # 1 energy on Meganium already pays its retreat cost of 2.
             _can_retreat_after = (_after_energy >= _retreat_cost_pkmn)
+            # ...AND THE RETREAT HAS TO BE SOMETHING THE ATTACHMENT BUYS (user,
+            # `records/registro_004_pasos_050_hasta_063.json` step 62, episode
+            # 90871654 vs Mega Lucario ex, LOST). Active Teal Mask Ogerpon ex at
+            # 20 of 210 with ONE Grass already on it, Myriad Leaf Shower costing
+            # three, two healthy Hydrapple ex on the bench and the last Grass in
+            # hand. The escape hatch read "after attaching it can retreat" and
+            # let the charge through at 31210 -- but the retreat costs ONE and
+            # the Ogerpon was already paying it. The second Grass bought
+            # NOTHING: the body still could not attack, it left in the discard
+            # with the retreat, and it was the same card the fresh benched
+            # Ogerpon's Teal Dance needed (attach + DRAW). The turn ended with
+            # the 2-prize body still in front.
+            #
+            # The hatch exists for the charge that UNLOCKS the pivot -- attach,
+            # retreat, promote the relay -- so it has to ask whether the retreat
+            # was payable BEFORE. If it already was, this is a doomed body being
+            # fed, which is precisely what the branch is here to stop.
+            # Deck-agnostic by construction: pure arithmetic on the body's own
+            # cost, no matchup list. Cf. the narrow twin further down, the
+            # `Tapu_Bulu` + `op_is_lucario_deck` veto, which is this same
+            # reading written for one card and one deck.
+            _can_retreat_before = (energy_count >= _retreat_cost_pkmn)
+            _attach_buys_retreat = (_can_retreat_after and not _can_retreat_before)
 
             _has_bench_atk_retreat = False
             for _bp in (my_state.bench or []):
@@ -1131,7 +1154,7 @@ def _energy_score_base(tc, pokemon, active):
                     _has_bench_atk_retreat = True
                     break
 
-            if not _can_attack_after and (not _can_retreat_after or not _has_bench_atk_retreat):
+            if not _can_attack_after and (not _attach_buys_retreat or not _has_bench_atk_retreat):
                 # AND IT HAS TO DEMOTE BELOW THE OTHER BODIES, which `score - 100`
                 # did not. The active carries a +10 bonus of its own, so on the
                 # record's board the doomed Tapu came out at 7910 against a

@@ -64,6 +64,7 @@ class ScoringCtx:
     _conf_should_retreat: Any = None
     _cubchoo_lock_stuck: Any = None
     _doomed_body: Any = None
+    _doomed_mute_pivot: Any = None
     _doomed_sac_context: Any = None
     _dc: Any = None
     _deny_evo_via_boss: Any = None
