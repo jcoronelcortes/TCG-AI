@@ -221,7 +221,7 @@ def over_games(games, opponent=None, tolerance=0, liar=None, progress=None):
 
     stats = {"games": 0, "decisions": 0, "attack_decisions": 0,
              "attacks_judged": 0, "skipped_multi": 0,
-             "skipped_sentinel": 0, "forfeits": 0}
+             "skipped_sentinel": 0, "skipped_repeat_attack": 0, "forfeits": 0}
     findings = []
 
     for game_no in range(games):
@@ -231,6 +231,7 @@ def over_games(games, opponent=None, tolerance=0, liar=None, progress=None):
         if obs is None:
             continue
         stats["games"] += 1
+        judged_turns = set()
         steps = 0
         try:
             while obs and obs["current"]["result"] == -1 and steps < 3000:
@@ -258,6 +259,25 @@ def over_games(games, opponent=None, tolerance=0, liar=None, progress=None):
                     stats["attack_decisions"] += 1
                 if plan is None or obs is None or not attacking:
                     continue
+
+                # ONE JUDGEMENT PER TURN, per seat. The plan is written once per
+                # turn -- main.py ~3522 rebuilds AttackPlan() only when
+                # `AGENT_STATE.pre_turn != state.turn` -- while an attack can
+                # land more than once in a turn (Festival Grounds' double
+                # attack) and the MAIN choice plus its follow-up ATTACK context
+                # are two decisions for the same attack. Judging every one of
+                # them compares a single prediction against several different
+                # boards: on festival_lead the findings arrive at consecutive
+                # steps carrying an identical prediction (step 116 "predicted
+                # 230, resolved 200", step 117 "predicted 230, resolved 70").
+                #
+                # The prediction belongs to the FIRST attack of the turn. The
+                # rest cannot be attributed without a per-attack plan, which
+                # would mean changing the agent, so they are skipped and counted.
+                turn_key = (yi, (snapshot.get("current") or {}).get("turn"))
+                if turn_key in judged_turns:
+                    stats["skipped_repeat_attack"] += 1
+                    continue
                 after = bodies(obs, opp)
                 finding, skip = judge(before, after, plan, tolerance)
                 if skip == "sentinel":
@@ -266,6 +286,7 @@ def over_games(games, opponent=None, tolerance=0, liar=None, progress=None):
                 if skip:
                     stats["skipped_multi"] += 1
                     continue
+                judged_turns.add(turn_key)
                 if finding:
                     stats["attacks_judged"] += 1
                     findings.append({**finding, "game": game_no, "step": steps,
@@ -346,6 +367,7 @@ def report(stats, findings):
           f"ataques juzgados: {stats['attacks_judged']}")
     print(f"Sin atribuir (dano repartido en varios cuerpos): {stats['skipped_multi']}")
     print(f"Sin prediccion (remain_hp centinela = vida actual): {stats['skipped_sentinel']}")
+    print(f"Ataque repetido en el mismo turno (plan es por turno): {stats['skipped_repeat_attack']}")
     if stats["forfeits"]:
         print(f"El agente lanzo excepcion en {stats['forfeits']} partidas")
     by_kind = {}
