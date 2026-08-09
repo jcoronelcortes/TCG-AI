@@ -150,7 +150,7 @@ def plan_snapshot(mod):
 
 
 def judge(before, after, plan, tolerance):
-    """(finding or None, 'skipped_multi' flag).
+    """(finding or None, skip reason: False | True (spread) | "sentinel").
 
     `before`/`after` are {serial: hp} of the OPPONENT's bodies.
     """
@@ -170,6 +170,20 @@ def judge(before, after, plan, tolerance):
     # Healing is not our attack landing; the projector does not predict it.
     if hp_after is not None and hp_after > hp_before:
         return None, False
+
+    # `remain_hp` left EQUAL to the target's current hp is not a prediction of
+    # zero damage, it is the absence of a prediction. Several paths in main.py
+    # (the Dipplin and Tapu Bulu "who attacks" blocks, ~7113 and ~7134) set
+    # attacker/target/attack_index and fill remain_hp with `op_active.hp` as a
+    # placeholder, because no damage projection was computed there. Read as a
+    # prediction it says "this attack does nothing", so every one of them came
+    # back as MISSED_KO -- 84 % of that finding class before this guard.
+    #
+    # A genuine prediction of zero damage (an immune wall) is indistinguishable
+    # from the sentinel without changing the agent, which tonight's standing
+    # orders forbid. So it is skipped and COUNTED, never silently dropped.
+    if plan["remain_hp"] == hp_before:
+        return None, "sentinel"
 
     predicted_ko = plan["remain_hp"] <= 0
     # A body at 0 hp IS knocked out; the engine simply has not removed it from
@@ -206,7 +220,8 @@ def over_games(games, opponent=None, tolerance=0, liar=None, progress=None):
     op_deck = sp.read_deck(opponent) if opponent else list(deck)
 
     stats = {"games": 0, "decisions": 0, "attack_decisions": 0,
-             "attacks_judged": 0, "skipped_multi": 0, "forfeits": 0}
+             "attacks_judged": 0, "skipped_multi": 0,
+             "skipped_sentinel": 0, "forfeits": 0}
     findings = []
 
     for game_no in range(games):
@@ -244,14 +259,19 @@ def over_games(games, opponent=None, tolerance=0, liar=None, progress=None):
                 if plan is None or obs is None or not attacking:
                     continue
                 after = bodies(obs, opp)
-                finding, multi = judge(before, after, plan, tolerance)
-                if multi:
+                finding, skip = judge(before, after, plan, tolerance)
+                if skip == "sentinel":
+                    stats["skipped_sentinel"] += 1
+                    continue
+                if skip:
                     stats["skipped_multi"] += 1
                     continue
                 if finding:
                     stats["attacks_judged"] += 1
                     findings.append({**finding, "game": game_no, "step": steps,
-                                     "seat": yi, "observation": snapshot})
+                                     "seat": yi, "choice": list(choice or []),
+                                     "select_context": (snapshot.get("select") or {}).get("context"),
+                                     "observation": snapshot})
                 elif before != after:
                     stats["attacks_judged"] += 1
         finally:
@@ -325,6 +345,7 @@ def report(stats, findings):
           f"decisiones de ataque: {stats['attack_decisions']}   "
           f"ataques juzgados: {stats['attacks_judged']}")
     print(f"Sin atribuir (dano repartido en varios cuerpos): {stats['skipped_multi']}")
+    print(f"Sin prediccion (remain_hp centinela = vida actual): {stats['skipped_sentinel']}")
     if stats["forfeits"]:
         print(f"El agente lanzo excepcion en {stats['forfeits']} partidas")
     by_kind = {}
