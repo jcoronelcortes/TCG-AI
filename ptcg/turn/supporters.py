@@ -969,6 +969,14 @@ def evaluate_supporters(tc):
                     elif _op_data_b.resistance == EnergyType.GRASS:
                         _eff_dmg -= 30
 
+                # Full Metal Lab, after weakness/resistance (wave 2, copy 3 of
+                # 4). This one prices the GUST: over-reading our damage into
+                # their Metal bench is how a Boss's Orders buys a target we
+                # cannot actually knock out.
+                if (AGENT_STATE.full_metal_lab_in_play and _op_data_b
+                        and getattr(_op_data_b, 'energyType', None) == EnergyType.METAL):
+                    _eff_dmg -= 30
+
                 _atk_is_ex = (_atk_p.id in OUR_EX_IDS)
                 if _op_bp.id in EX_IMMUNE_IDS and _atk_is_ex:
                     _eff_dmg = 0

@@ -1553,6 +1553,13 @@ def score_play(tc, o, score):
                             elif _dip_td.resistance == EnergyType.GRASS:
                                 _dwave_now -= 30
                                 _dwave_boost -= 30
+                            # Full Metal Lab (wave 2, copy 4 of 4). Do the Wave
+                            # is 20 per bench body, so 30 off is more than one
+                            # whole bench slot of it.
+                            if (AGENT_STATE.full_metal_lab_in_play
+                                    and getattr(_dip_td, 'energyType', None) == EnergyType.METAL):
+                                _dwave_now -= 30
+                                _dwave_boost -= 30
                         _dip_ko_now = (_dwave_now >= _dip_op_hp and _dwave_now > 0)
                         _dip_ko_boost = (_dwave_boost >= _dip_op_hp and _dwave_boost > 0)
                         if _dip_ko_boost and not _dip_ko_now:
