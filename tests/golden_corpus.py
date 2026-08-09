@@ -26,6 +26,7 @@ from cold). Only the ACTIVE items with a select are replayed.
 """
 
 import hashlib
+import gzip
 import json
 import os
 import sys
@@ -199,11 +200,43 @@ def our_index(data):
     return elegido
 
 
+FROZEN_BUNDLE = _ROOT / "tests" / "corpus" / "frozen_records.json.gz"
+FROZEN_SNAPSHOT = _ROOT / "tests" / "corpus" / "frozen_decisions.json"
+
+
+def frozen_records():
+    """The committed corpus: {record name: {"seat": n, "steps": [...]}}.
+
+    `records/` is transient and git-ignored, so on a clean checkout the local
+    corpus has nothing to replay and its test skips -- which is exactly when a
+    reviewer most wants the flip-diff. This bundle is the same games with only
+    OUR decisions kept, gzipped small enough to live in git. Built by
+    utils/freeze_corpus.py.
+    """
+    if not FROZEN_BUNDLE.exists():
+        return {}
+    with gzip.open(FROZEN_BUNDLE, "rt", encoding="utf-8") as f:
+        return json.load(f)
+
+
 def replay_record(m, path):
-    """Replays a record from cold and returns OUR decisions."""
+    """Replays a record file from cold and returns OUR decisions."""
     with open(path, encoding="utf-8") as f:
         data = json.load(f)
-    yo = our_index(data)
+    return replay_data(m, data)
+
+
+def replay_data(m, data):
+    """Replays an already-parsed record and returns OUR decisions.
+
+    `seat` is honoured when the record carries one. The frozen bundle does,
+    because it keeps only one seat's observations and `our_index` decides by
+    counting visible cards of ours on BOTH seats -- a vote whose input that
+    bundle has deliberately thrown half of away.
+    """
+    yo = data.get("seat")
+    if yo not in (0, 1):
+        yo = our_index(data)
     reset_agent(m)
     decisiones = []
     for step in data.get("steps", []):
@@ -247,6 +280,12 @@ def build_corpus():
     return corpus
 
 
+def load_frozen_snapshot():
+    """The committed snapshot of the frozen corpus."""
+    with open(FROZEN_SNAPSHOT, encoding="utf-8") as f:
+        return json.load(f)
+
+
 def load_snapshot():
     if not SNAPSHOT_PATH.exists():
         return None
@@ -270,7 +309,15 @@ def comparar(dorado, actual):
     nuevos = sorted(set(actual) - set(dorado))
     for name in sorted(set(dorado) & set(actual)):
         oro, today = dorado[name], actual[name]
-        if oro["md5"] != today["md5"]:
+        # `.get`, because the FROZEN corpus has no md5 and does not want one.
+        # The hash exists to separate "the record on disk changed" from "the
+        # code flipped a decision", and that ambiguity only exists for records/,
+        # which is regenerated whenever new games are analysed. The frozen
+        # bundle is versioned by git: it changes when somebody commits a change
+        # to it, so every difference here IS a flip. Both sides come back None
+        # and the comparison falls through to the decisions, which is the whole
+        # point of that corpus.
+        if oro.get("md5") != today.get("md5"):
             cambiados.append(name)
             continue
         # A DIFFERENT NUMBER OF DECISIONS ON THE SAME DATA is a flip too, and the

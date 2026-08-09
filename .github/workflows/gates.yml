@@ -1,14 +1,17 @@
 # The gates that can run on a clean checkout.
 #
-# Two of the project's four gates are reproducible from the repository alone
-# and run here on every push and pull request. The other two are not, and
-# saying so is more useful than pretending:
+# THREE of the project's four gates are reproducible from the repository alone
+# and run here. It was two until the corpus was frozen; the fourth still is not,
+# and saying so is more useful than pretending:
 #
-#   * the GOLDEN CORPUS replays `records/`, which is game data produced locally
-#     by `utils/split_turns.py` and deliberately git-ignored. The suite's own
-#     `test_golden_corpus.py` skips when the records are absent, so the corpus
-#     is exercised here only as far as a clean checkout allows -- the real
-#     comparison happens on the machine that has the games;
+#   * the GOLDEN CORPUS runs here now, and used to be the first entry on this
+#     list. `records/` is game data produced locally and deliberately
+#     git-ignored, so `test_golden_corpus.py` still skips on a clean checkout --
+#     but `tests/corpus/` carries the same fifty games with only OUR decisions
+#     kept, 0.85 MB gzipped, with its snapshot committed beside it. The
+#     flip-diff therefore runs on every push, which is the point: it is the most
+#     useful review artefact this project produces and it was the one a reviewer
+#     could not see;
 #   * SELF-PLAY and the matchup matrix play hundreds of complete games. They
 #     take minutes and answer a different question ("does this win more?"),
 #     which belongs to the person proposing a strategy change, not to a push.
