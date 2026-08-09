@@ -15,9 +15,9 @@ they stay yours to run before you propose a change. All four are cheap, and a
 change is not ready until all four are green.
 
 ```bash
-python -m pytest -q                      # 986 tests, ~7 s
+python -m pytest -q                      # 1784 tests, ~11 s
 python tests/golden_corpus.py            # replays every record, ~0.5 s
-python utils/lint_architecture.py        # R1-R4, the Kaggle-safety rules
+python utils/lint_architecture.py        # R1-R5, the Kaggle-safety rules
 python -m pytest -q tests/test_submission.py   # loads main.py the way the container does
 ```
 
