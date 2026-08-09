@@ -50,12 +50,19 @@ survivor is not proof the line is wrong; it is proof that if it ever becomes
 wrong nothing will say so, and it prints the exact rewrite that went unnoticed,
 which is the missing test's docstring already written.
 
+VALIDATE IT BEFORE YOU TRUST ITS ZERO. `self_test()` runs first by default and
+ABORTS the run if it fails -- see its docstring for why that, and not the
+doctrine, is what has actually caught this class of mistake here.
+
 Usage:
     python utils/gate_mutation.py --changed HEAD~1
+    python utils/gate_mutation.py --self-test-only
     python utils/gate_mutation.py --changed HEAD~1 --report-only
 """
 
 import argparse
+import contextlib
+import io
 import re
 import sys
 from pathlib import Path
@@ -115,6 +122,83 @@ def candidate_tests(path, ranges):
         if any(name in text for name in names):
             wanted.add(str(test.relative_to(_ROOT)))
     return sorted(wanted)
+
+
+SELFTEST_DIR = _ROOT / "utils" / "_gate_selftest"
+SELFTEST_TARGET = SELFTEST_DIR / "target.py"
+SELFTEST_TESTS = ["utils/_gate_selftest/test_target.py"]
+
+# The one line of the target nothing watches: its `decide` signature. Resolved
+# from the source rather than written down, so moving a line does not silently
+# pass -- and matched on the DEF rather than on the parameter, because the
+# parameter is also named in the module docstring and the first version of this
+# happily resolved to that.
+SELFTEST_BLIND = "def decide("
+
+
+def self_test():
+    """Run the gate against a file whose verdict is known, and abort if it is wrong.
+
+    THIS IS THE ONLY THING THAT HAS WORKED. Three detectors in this project have
+    reported their own bugs as defects of the agent: the differential oracle over
+    three rounds, DECK_BELIEF and ENERGY_CAP the same morning, and this gate --
+    which claimed fifteen survivors on a fix that had none, twice, for two
+    unrelated reasons. Every one of those was written under a doctrine that
+    already said "validate the harness", and the doctrine did not stop any of
+    them. What stops them is a check that runs first and REFUSES TO CONTINUE.
+
+    Both halves, because a detector has two ways to be useless and only one of
+    them looks like a result:
+
+      * SENSITIVITY -- four sites of `utils/_gate_selftest/target.py` are pinned
+        by its companion test and must come back killed. A gate that cannot kill
+        reports everything as unwatched, which reads as a pile of findings;
+      * SPECIFICITY -- exactly one site, the default of a parameter nothing
+        reads, must come back a survivor. A gate that reports nothing passes any
+        sensitivity check by never finding anything.
+
+    The two boolean literals sit on ONE line of identical byte length on
+    purpose: that is the shape that made CPython hand the second mutant the
+    first one's cached bytecode. If that returns, this reports two survivors and
+    the run stops here.
+    """
+    if not SELFTEST_TARGET.exists():
+        print(f"AUTO-TEST IMPOSIBLE: falta {SELFTEST_TARGET}.", file=sys.stderr)
+        return False
+    source = SELFTEST_TARGET.read_text(encoding="utf-8").splitlines()
+    blind = next((n for n, line in enumerate(source, 1)
+                  if SELFTEST_BLIND in line), None)
+    if blind is None:
+        print(f"AUTO-TEST IMPOSIBLE: no encuentro `{SELFTEST_BLIND}` en el "
+              f"objetivo.", file=sys.stderr)
+        return False
+
+    print("Auto-test: el gate contra un fichero de respuesta conocida ...",
+          flush=True)
+    captured = io.StringIO()
+    with contextlib.redirect_stdout(captured):
+        survivors = mp.probe(SELFTEST_TARGET, 1, 10 ** 9, SELFTEST_TESTS)
+
+    if len(survivors) == 1 and survivors[0][0] == blind:
+        print(f"  OK: mata las 4 que estan vigiladas y deja viva la 1 que no "
+              f"(linea {blind}).\n", flush=True)
+        return True
+
+    print(f"AUTO-TEST FALLIDO: se esperaba 1 superviviente en la linea {blind} "
+          f"y hubo {len(survivors)}.", file=sys.stderr)
+    for line, kind, description in survivors:
+        print(f"    superviviente linea {line}: {kind} {description}",
+              file=sys.stderr)
+    if len(survivors) > 1:
+        print("    Dos supervivientes en la misma linea es la firma del "
+              "bytecode rancio (ver utils/mutation_probe.py::_drop_bytecode).",
+              file=sys.stderr)
+    if not survivors:
+        print("    Cero supervivientes significa que el gate no sabe ver uno: "
+              "cualquier 'el gate pasa' que dé sera vacio.", file=sys.stderr)
+    print("\n--- salida del probe durante el auto-test ---", file=sys.stderr)
+    print(captured.getvalue(), file=sys.stderr)
+    return False
 
 
 def _waived_lines(path, low, high):
@@ -192,8 +276,17 @@ def main(argv):
                         help="ref de git: vigila solo las lineas anadidas desde el")
     parser.add_argument("--report-only", action="store_true",
                         help="informa pero sale con 0")
+    parser.add_argument("--no-self-test", action="store_true",
+                        help="no validar el gate antes de fiarse de su cero")
+    parser.add_argument("--self-test-only", action="store_true",
+                        help="solo el auto-test")
     args = parser.parse_args(argv)
 
+    if not args.no_self_test:
+        if not self_test():
+            return 2
+        if args.self_test_only:
+            return 0
     if not args.changed:
         parser.error("da --changed <ref>")
     return gate(args.changed, report_only=args.report_only)

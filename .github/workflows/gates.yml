@@ -108,3 +108,42 @@ jobs:
 
       - name: Compare against the floors
         run: python utils/gate_coverage.py --check coverage.json
+
+  mutation:
+    name: the lines you added, are they watched
+    # Mutates ONLY the lines this pull request adds and asks whether any test
+    # goes red. A survivor is not proof the line is wrong -- it is proof that if
+    # it ever becomes wrong, nothing will say so, and it prints the exact
+    # rewrite that went unnoticed.
+    #
+    # NON-BLOCKING for now, and on purpose. Two versions of this gate have
+    # already reported findings that were its own bugs, and a gate that wedges
+    # the repository on a false positive teaches people to ignore it. It reports
+    # for a while first; flip `continue-on-error` off once its output has been
+    # right for a run or two.
+    if: github.event_name == 'pull_request'
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The gate diffs against the base of the PR, so it needs the history.
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install the test dependencies
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Validate the gate before trusting its zero
+        # Both halves against a file whose verdict is known. It aborts the run
+        # rather than reporting, which is the only thing that has caught this
+        # class of mistake in this repository.
+        run: python utils/gate_mutation.py --self-test-only
+
+      - name: Mutate the added lines
+        run: python utils/gate_mutation.py --changed ${{ github.event.pull_request.base.sha }}
