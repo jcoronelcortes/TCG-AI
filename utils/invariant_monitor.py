@@ -23,6 +23,88 @@ WHAT IT WATCHES
   * `STALE_READ`       -- the same promise being READ while its premise is dead,
                           which is the one that can actually mislead a decision.
                           See below.
+  * `DECK_BELIEF`      -- the agent's card tracker against the engine's own
+                          count. See below: it is the only check here with a
+                          source of truth OUTSIDE the agent.
+  * `ENERGY_CAP`       -- an energy sent to a body already at its documented
+                          cap. The DECISION, not the board: see below.
+  * `DOUBLE_ATTACH`    -- a second manual attachment inside one turn.
+
+DECK_BELIEF, and why it is the strongest of these. `AGENT_STATE.ACTIVE_CARDS_IN_DECK`
+is a belief the agent maintains about where all 60 cards are, and several rules
+read it to decide whether a line is still live at all (`_gt_planes` will not
+plan a search for a body whose last copy is in the discard). `_sync_from_state`
+rebuilds it by subtraction: total copies minus what it can SEE in hand, in play
+and in the discard, with the remainder split between deck and prizes. Nothing in
+that arithmetic ever looks at how many cards the engine says are left.
+
+`deckCount` is exactly that number, it comes from libcg, and comparing the two
+is therefore a real reconciliation and not a restatement -- the same shape as
+the differential oracle, whose whole point is that the truth must come from
+somewhere the agent cannot write. A drift here means some card moved by a route
+`_process_logs` does not model, and every rule that reads the tracker has been
+reasoning about a deck that is not there.
+
+It carries a SENTINEL, and it needed one. Half of all decisions are taken while
+the board is mid-effect -- a card drawn but not yet in hand, the opening active
+on its way down, a search with the deck spread out -- and on those boards the
+engine's own zones do not add up to 60, so `deckCount` counts nothing stable.
+The first version had no sentinel and reported 37 799 findings in 38 143
+decisions, which is the same over-report the differential oracle had to be
+talked out of three times in one night. With the sentinel the identity is
+EXACT: over 1 933 self-consistent boards the tracker's deck equals `deckCount`
+plus the prizes it has not yet identified, zero drift, which is what makes any
+future violation worth reading. The boards skipped are counted and printed.
+
+ENERGY_CAP watches the DECISION, and the first version did not. A cap says "do
+not send another energy there"; it does not say a body can never CARRY that
+much, because a body can inherit it. An Applin allowed its second energy by its
+own documented exception evolves into a Dipplin holding two, over the Dipplin
+cap, with nobody having done anything wrong -- and that accounted for 7 of the 7
+board-level findings in 300 games. So what is judged is the option chosen and
+the body it points at, which is exactly the domain of the rule in
+`ptcg/turn/energy.py`.
+
+And only on the BENCH, which is the second correction the measurement forced.
+The decision version still reported 2 findings in 300 games, both a second Grass
+onto the ACTIVE Dipplin. Tracing the live scorer -- `ptcg/turn/scoring.py`
+binds `attach.score_play` into `_TABLE` at import, so the function has to be
+replaced THERE and not on the module -- the Dipplin scored 41 000 against the
+Ogerpon's -1 and the Bayleef's 7 000. That is the lethal band: the energy pays
+the retreat that brings up the body which takes a prize this turn, and the cap
+yields to it by design ("this cap does not block lethal finishers"). Correct
+play, twice. Every one of those overrides lives inside the ACTIVE branch, so the
+bench is where the cap is unconditional and the bench is what is judged.
+
+What it deliberately does NOT watch. The caps that belong to a
+CARD are checked -- Chikorita 1, Applin 1, Dipplin 1 -- because they are hard
+vetoes in `ptcg/turn/energy.py` with documented exceptions that can be read off
+the observation, and they hold in every matchup. The caps that belong to a
+MATCHUP are not: the Ogerpon ceiling is `_ogerpon_base_phys_cap(meganium, hop)`
+gated by which deck is across the table, plus a separate Cubchoo ladder, plus
+one allowance on the active when the extra energy enables the knockout. Writing
+that ladder out again here would create a second copy of a rule the first copy
+already owns, which is the exact defect class (B) the differential oracle exists
+to catch, and it would fail the same way: the copies drift and the monitor
+starts reporting the DIFFERENCE between them as if it were the agent's mistake.
+A cap with a matchup gate belongs to a unit test, not to a monitor.
+
+DOUBLE_ATTACH is cheap and is expected to stay at zero: the engine does not
+offer a second attachment, so this is the harness proving it can see a turn
+rather than a likely defect. It is here because a zero that has been checked is
+worth more than an assumption, and it costs four lines.
+
+THE ONE FROM THE PLAN THAT IS NOT HERE, and the refusal is the point. The night
+plan also lists "never retreat into a body that cannot act next turn". It is not
+an invariant, on two counts. First, it is false as stated: measured while gating
+the anti-Mega-Starmie pivot, "we cannot attack" holds 9.8-11.4 times per game on
+turns 2, 4, 6, 8, 10 -- a turn without an attack available is the ordinary shape
+of a development turn, not a rare board. Second, deciding whether the body CAN
+act needs the energy-and-cost model the agent already owns, and a second copy of
+it here is the class-B duplication this file refuses for the matchup caps. The
+retreats worth judging (into a wall, into a mute body) are strategy, and
+strategy belongs to self-play and to the tests, not to a monitor whose whole
+value is that it needs nobody to know the right play.
 
 STALE_FLAG, and why it is worth its own tool. Of the roughly twenty fixes made
 on 7-8 August 2026, FIVE were one shape: a flag on AGENT_STATE armed under some
@@ -105,10 +187,13 @@ for _p in (_ROOT, _ROOT / "utils", _ROOT / "tests"):
         sys.path.insert(0, str(_p))
 
 import selfplay as sp  # noqa: E402
-from cg.api import CardType, OptionType  # noqa: E402
+from cg.api import AreaType, CardType, OptionType  # noqa: E402
+from ptcg.cards.ids import Applin, Chikorita, Dipplin, Hydrapple_ex  # noqa: E402
 from ptcg.cards.tables import card_table  # noqa: E402
+from ptcg.state.zones import ZONE_DECK, ZONE_PRIZE  # noqa: E402
 
 END_OPTION = int(OptionType.END)
+ATTACH_OPTION = int(OptionType.ATTACH)
 
 
 # --------------------------------------------------------------------------
@@ -130,6 +215,28 @@ def free_bench_seats(obs):
 
 def supporter_spent(obs):
     return bool((obs.get("current") or {}).get("supporterPlayed"))
+
+
+def our_bodies(obs):
+    """Every Pokemon of ours on the field, active first."""
+    side = my_side(obs)
+    out = list(side.get("active") or [])
+    out += [b for b in (side.get("bench") or []) if b]
+    return [b for b in out if b]
+
+
+def hand_counts(obs):
+    counts = {}
+    for card in (my_side(obs).get("hand") or []):
+        counts[card.get("id")] = counts.get(card.get("id"), 0) + 1
+    return counts
+
+
+def field_counts(obs):
+    counts = {}
+    for body in our_bodies(obs):
+        counts[body.get("id")] = counts.get(body.get("id"), 0) + 1
+    return counts
 
 
 # --------------------------------------------------------------------------
@@ -297,6 +404,197 @@ def check_end_with_empty_bench(obs, choice):
     return "ending the turn with an empty bench: the next knockout is the game"
 
 
+def cards_on_our_field(side):
+    """Every physical card of ours in play: bodies, their pre-evolutions, the
+    energy attached and the tools."""
+    total = 0
+    for body in (side.get("active") or []) + [b for b in (side.get("bench") or []) if b]:
+        if not body:
+            continue
+        total += (1 + len(body.get("preEvolution") or [])
+                  + len(body.get("energyCards") or [])
+                  + len(body.get("tools") or []))
+    return total
+
+
+def board_in_transit(obs, expected_total):
+    """True while the ENGINE's own zones do not add up to the whole deck.
+
+    Half of all decisions are taken mid-effect: a card drawn but not yet in
+    hand, the opening active still on its way down, a search with the deck
+    spread out. On those boards `deckCount` is not a count of anything stable,
+    and judging the tracker against it invents a finding on every one of them --
+    the first version of this check fired on 37 799 of 38 143 decisions, which
+    is the same over-report the differential oracle had to be talked out of.
+
+    So this is the sentinel: the truth has to be self-consistent before it can
+    be used as truth. The count of boards skipped is printed, so the blind spot
+    is a number rather than a silence.
+    """
+    side = my_side(obs)
+    deck_count = side.get("deckCount")
+    if not isinstance(deck_count, int) or not expected_total:
+        return True
+    seen = (deck_count
+            + len(side.get("prize") or [])
+            + len(side.get("hand") or [])
+            + len(side.get("discard") or [])
+            + cards_on_our_field(side)
+            + len((obs.get("current") or {}).get("looking") or []))
+    return seen != expected_total
+
+
+def check_deck_belief(obs, mod):
+    """The agent's card tracker against the engine's own count.
+
+    `AGENT_STATE.ACTIVE_CARDS_IN_DECK` is rebuilt by SUBTRACTION -- total copies
+    minus what can be seen in hand, in play and in the discard, with the
+    remainder split between the deck and the prizes. Nothing in that arithmetic
+    ever looks at `deckCount`, so comparing the two is a real reconciliation.
+
+    The identity, once the prizes are accounted for: what the tracker calls the
+    DECK is the engine's `deckCount` plus every prize it has not yet identified.
+    Measured over 1 933 self-consistent boards it holds EXACTLY -- zero drift --
+    which is what makes a future violation worth reading.
+    """
+    try:
+        belief = mod.AGENT_STATE.ACTIVE_CARDS_IN_DECK
+    except AttributeError:
+        return []
+    if not belief:
+        return []
+    side = my_side(obs)
+    prizes_left = len(side.get("prize") or [])
+    believed_deck = sum(entry.get(ZONE_DECK, 0) for entry in belief.values())
+    believed_prize = sum(entry.get(ZONE_PRIZE, 0) for entry in belief.values())
+
+    out = []
+    expected = side["deckCount"] + (prizes_left - believed_prize)
+    if believed_deck != expected:
+        out.append(f"the tracker believes {believed_deck} cards are left in the "
+                   f"deck; the engine has {side['deckCount']} with "
+                   f"{prizes_left - believed_prize} prizes still unidentified")
+    if believed_prize > prizes_left:
+        out.append(f"the tracker places {believed_prize} cards in the prizes; "
+                   f"only {prizes_left} are still face down")
+    return out
+
+
+# The caps that belong to a CARD, not to a matchup -- see the module docstring
+# for why the Ogerpon ceiling is deliberately absent. Each entry is
+# (card id, name, cap in PHYSICAL energy, why, predicate for the documented
+# exception that legitimately allows going over).
+
+def _applin_over_cap_allowed(obs, mod):
+    """The two exceptions written into `energy_score` for the Applin cap.
+
+    (a) a COMPLETE evolution in hand -- Dipplin AND Hydrapple ex, no Meganium:
+        the second energy ends up on the future Hydrapple ex, so it is not
+        wasted; (b) our Hydrapple ex already in play, where a Grass on the field
+        scales Syrup Storm and the attachment is allowed as a last resort.
+    """
+    hand = hand_counts(obs)
+    meganium = bool(getattr(mod.AGENT_STATE, "meganium_in_play", False))
+    full_evolve = (hand.get(Dipplin, 0) >= 1 and hand.get(Hydrapple_ex, 0) >= 1
+                   and not meganium)
+    return full_evolve or field_counts(obs).get(Hydrapple_ex, 0) >= 1
+
+
+def _dipplin_over_cap_allowed(obs, mod):
+    """The mirror of the Applin exceptions, for the Dipplin cap."""
+    if hand_counts(obs).get(Hydrapple_ex, 0) >= 1:
+        return True
+    return field_counts(obs).get(Hydrapple_ex, 0) >= 1
+
+
+CARD_CAPS = [
+    (Chikorita, "Chikorita", 1,
+     "its only attack costs 1 and the surplus is saved for real attackers",
+     lambda obs, mod: False),
+    (Applin, "Applin", 1,
+     "its attack costs 1 and Dipplin's Do the Wave costs 1 too",
+     _applin_over_cap_allowed),
+    (Dipplin, "Dipplin", 1,
+     "Do the Wave costs 1 and its damage does not scale with energy",
+     _dipplin_over_cap_allowed),
+]
+
+
+def _attach_target(obs, option):
+    """The body an ATTACH option points at, or None."""
+    side = my_side(obs)
+    area = option.get("inPlayArea")
+    index = option.get("inPlayIndex")
+    if not isinstance(index, int):
+        return None
+    if area == int(AreaType.ACTIVE):
+        bodies = side.get("active") or []
+    elif area == int(AreaType.BENCH):
+        bodies = side.get("bench") or []
+    else:
+        return None
+    if not (0 <= index < len(bodies)):
+        return None
+    return bodies[index]
+
+
+def check_energy_caps(obs, mod, choice):
+    """The cap is about the DECISION to attach, not about the board.
+
+    Checking the board reports plays that are correct: the Applin exception
+    legitimately allows a second energy, and the Applin then EVOLVES into a
+    Dipplin carrying both -- a Dipplin over its own cap that nobody put there.
+    Measured, that was 7 of the 7 board-level findings in 300 games.
+
+    What `energy_score` actually forbids is sending ANOTHER energy to a body
+    already at its cap, so that is what is watched: the option chosen, and the
+    body it points at. It covers the manual attachment; Ripening Charge reaches
+    the same scorer through a second select (`SelectContext.ATTACH_FROM`) whose
+    target is not on this menu, and is not judged here.
+    """
+    options = (obs.get("select") or {}).get("option") or []
+    meganium = bool(getattr(mod.AGENT_STATE, "meganium_in_play", False))
+    out = []
+    for i in (choice or []):
+        if not (isinstance(i, int) and 0 <= i < len(options)):
+            continue
+        option = options[i]
+        if option.get("type") != ATTACH_OPTION:
+            continue
+        if option.get("inPlayArea") != int(AreaType.BENCH):
+            continue          # the ACTIVE has documented overrides -- see above
+        body = _attach_target(obs, option)
+        if not body:
+            continue
+        for card_id, name, cap, why, allowed in CARD_CAPS:
+            if body.get("id") != card_id:
+                continue
+            effective = len(body.get("energies") or [])
+            physical = effective // 2 if meganium else effective
+            if physical < cap:
+                continue
+            try:
+                if allowed(obs, mod):
+                    continue
+            except Exception:
+                continue
+            out.append(f"another energy sent to a {name} that already carries "
+                       f"{physical} of a cap of {cap}: {why}")
+    return out
+
+
+def check_double_attachment(obs, choice):
+    """A second manual attachment inside one turn."""
+    if not (obs.get("current") or {}).get("energyAttached"):
+        return None
+    options = (obs.get("select") or {}).get("option") or []
+    for i in (choice or []):
+        if 0 <= i < len(options) and options[i].get("type") == ATTACH_OPTION:
+            return ("a manual attachment chosen with the turn's attachment "
+                    "already spent")
+    return None
+
+
 def check_stale_reads(obs, names):
     """G-A, sharpened. A promise READ as True while its premise is dead."""
     out = []
@@ -348,8 +646,10 @@ def over_games(games, opponent=None, saboteur=None, progress=None):
     deck = sp.read_deck()
     op_deck = sp.read_deck(opponent) if opponent else list(deck)
 
+    deck_size = len(deck)
     watched = [(m, _install_read_watch(m)) for m in agents]
-    stats = {"games": 0, "decisions": 0, "raised": 0, "reads_watched": 0}
+    stats = {"games": 0, "decisions": 0, "raised": 0, "reads_watched": 0,
+             "skipped_transit": 0}
     findings = []
 
     def record(kind, detail, obs, game_no, step, seat):
@@ -386,6 +686,16 @@ def over_games(games, opponent=None, saboteur=None, progress=None):
                     bad = check_end_with_empty_bench(snapshot, choice)
                     if bad:
                         record("END_EMPTY_BENCH", bad, snapshot, game_no, steps, yi)
+                twice = check_double_attachment(snapshot, choice)
+                if twice:
+                    record("DOUBLE_ATTACH", twice, snapshot, game_no, steps, yi)
+                if board_in_transit(snapshot, deck_size):
+                    stats["skipped_transit"] += 1
+                else:
+                    for drift in check_deck_belief(snapshot, mod):
+                        record("DECK_BELIEF", drift, snapshot, game_no, steps, yi)
+                for over in check_energy_caps(snapshot, mod, choice):
+                    record("ENERGY_CAP", over, snapshot, game_no, steps, yi)
                 reads = list(_READS)
                 stats["reads_watched"] += len(reads)
                 for stale in check_stale_reads(snapshot, reads):
@@ -412,28 +722,95 @@ def over_games(games, opponent=None, saboteur=None, progress=None):
 # Validating the monitor
 # --------------------------------------------------------------------------
 
-def _sabotage_arm_every_promise(mod):
-    """Hold every promise up permanently. Its premise must die eventually."""
+def _sabotage(mod):
+    """Two lies at once: every promise held up, and one card invented.
+
+    The promises must eventually stand on a dead premise, and the extra copy in
+    the tracker's deck must show up as a disagreement with `deckCount` -- which
+    is the whole point of DECK_BELIEF, so it has to be shown to catch one.
+    """
     for name, _why, _p in PROMISES:
         try:
             setattr(mod.AGENT_STATE, name, True)
         except AttributeError:
             pass
+    belief = getattr(mod.AGENT_STATE, "ACTIVE_CARDS_IN_DECK", None)
+    if belief:
+        entry = belief[next(iter(belief))]
+        entry[ZONE_DECK] = entry.get(ZONE_DECK, 0) + 1
+
+
+def _self_test_pure_checkers():
+    """The two checkers a saboteur cannot reach, tested on synthetic boards.
+
+    `check_energy_caps` and `check_double_attachment` read the OBSERVATION, and
+    the observation is snapshotted before the saboteur runs -- so the only way
+    to show they fire is to hand them a board. Both directions are asserted:
+    the board that violates and the board that does not, because a checker that
+    always fires is as useless as one that never does.
+    """
+    menu = {"select": {"option": [{"type": ATTACH_OPTION, "area": 2, "index": 0,
+                                   "inPlayArea": int(AreaType.BENCH),
+                                   "inPlayIndex": 0}]}}
+    over = dict(menu, current={"yourIndex": 0, "players": [
+        {"active": [], "bench": [{"id": Applin, "energies": [1]}], "hand": []},
+    ]})
+    if not check_energy_caps(over, _FakeAgentModule(), [0]):
+        return ("check_energy_caps did not see a second energy sent to an Applin "
+                "that already carries one")
+    exempt = dict(menu, current={"yourIndex": 0, "players": [
+        {"active": [], "hand": [],
+         "bench": [{"id": Applin, "energies": [1]},
+                   {"id": Hydrapple_ex, "energies": []}]},
+    ]})
+    if check_energy_caps(exempt, _FakeAgentModule(), [0]):
+        return ("check_energy_caps fired with our Hydrapple ex in play, which is "
+                "the documented exception")
+    if check_energy_caps(over, _FakeAgentModule(), []):
+        return "check_energy_caps fired on a choice that attaches nothing"
+    twice = {"current": {"energyAttached": True, "yourIndex": 0, "players": [{}]},
+             "select": {"option": [{"type": ATTACH_OPTION}]}}
+    if not check_double_attachment(twice, [0]):
+        return "check_double_attachment did not see a second attachment"
+    if check_double_attachment(twice, []):
+        return "check_double_attachment fired on a choice that attaches nothing"
+    return None
+
+
+class _FakeAgentModule:
+    """Just enough of an agent module for the pure checkers: no Meganium."""
+
+    class AGENT_STATE:
+        meganium_in_play = False
 
 
 def self_test(games=8, opponent=None):
-    print("Auto-test 1/2 (sensibilidad): se dejan las promesas armadas a la fuerza ...",
+    print("Auto-test 1/3 (sensibilidad, checkers puros): tableros sinteticos ...",
+          flush=True)
+    bad = _self_test_pure_checkers()
+    if bad:
+        print(f"AUTO-TEST FALLIDO: {bad}.", file=sys.stderr)
+        return False
+    print("  OK: topes y doble adjunte responden en los dos sentidos.", flush=True)
+
+    print("Auto-test 2/3 (sensibilidad): promesas armadas y una carta inventada ...",
           flush=True)
     _stats, findings, _m = over_games(games, opponent=opponent,
-                                      saboteur=_sabotage_arm_every_promise)
+                                      saboteur=_sabotage)
     stale = [f for f in findings if f["kind"] == "STALE_FLAG"]
     if not stale:
         print("AUTO-TEST FALLIDO: una promesa sin premisa no se detecto.",
               file=sys.stderr)
         return False
-    print(f"  OK: {len(stale)} STALE_FLAG sobre el sabotaje.", flush=True)
+    drift = [f for f in findings if f["kind"] == "DECK_BELIEF"]
+    if not drift:
+        print("AUTO-TEST FALLIDO: una carta inventada en el mazo no se detecto.",
+              file=sys.stderr)
+        return False
+    print(f"  OK: {len(stale)} STALE_FLAG y {len(drift)} DECK_BELIEF sobre el "
+          f"sabotaje.", flush=True)
 
-    print("Auto-test 2/2 (especificidad): sin sabotaje no puede haber indices ilegales ...",
+    print("Auto-test 3/3 (especificidad): sin sabotaje no puede haber indices ilegales ...",
           flush=True)
     stats, honest, _m = over_games(games, opponent=opponent)
     illegal = [f for f in honest if f["kind"] in ("ILLEGAL_INDEX", "AGENT_RAISED")]
@@ -465,6 +842,8 @@ def report(stats, findings, mod):
     print("\nMonitor de invariantes")
     print(f"Partidas: {stats['games']}   decisiones: {stats['decisions']}   "
           f"lecturas de promesa vistas: {stats.get('reads_watched', 0)}")
+    print(f"Tableros en transito (el motor no cuadra 60, no se juzga el "
+          f"seguimiento de cartas): {stats.get('skipped_transit', 0)}")
     pending = unregistered_flags(mod)
     print(f"Promesas con premisa escrita: {len(PROMISES)}   "
           f"banderas booleanas SIN premisa: {len(pending)}")
