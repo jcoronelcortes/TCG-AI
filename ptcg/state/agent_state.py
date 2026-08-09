@@ -101,6 +101,12 @@ class AgentState:
         # --- reading OUR board (recomputed every turn) -----------------------
         self.meganium_in_play = False
         self.forest_in_play = False
+        # Full Metal Lab on the field: -30 onto {M} bodies, after weakness and
+        # resistance. It lives here rather than as a local of agent() because the
+        # arithmetic it corrects is duplicated across ptcg/turn/, and those
+        # modules have no other way to see the stadium. ptcg/calc/ is pure and
+        # takes it as a parameter instead.
+        self.full_metal_lab_in_play = False
         self._field_at_turn_start = {}
         # Grass energies attached to OUR Pokemon during the current turn (accumulated
         # from the ATTACH logs on every call to agent() and reset when the turn

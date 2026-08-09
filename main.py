@@ -3634,6 +3634,12 @@ def agent(obs_dict: dict) -> list[int]:
 
     neutralization_zone_active = (stadium_id == Neutralization_Zone)
 
+    # Full Metal Lab: -30 onto {M} bodies, after weakness and resistance. Only
+    # THEIR Metal is reachable by it -- everything we play is Grass -- so this
+    # flag only ever subtracts from our own projected damage.
+    full_metal_lab_active = (stadium_id == Full_Metal_Lab)
+    AGENT_STATE.full_metal_lab_in_play = full_metal_lab_active
+
     # Team Rocket's Watchtower: the {C} Pokemon in play (both players) do NOT
     # have Abilities. Meowth ex is {C}, so its Last-Ditch Catch (searching for a
     # Supporter when benched) is CANCELLED while this stadium is still in
@@ -5192,6 +5198,15 @@ def agent(obs_dict: dict) -> list[int]:
                             elif data.resistance == EnergyType.GRASS:
                                 damage -= 30
 
+                        # Full Metal Lab, AFTER weakness/resistance as the card
+                        # says. This is the line the differential oracle found:
+                        # `plan.remain_hp` is written 15 lines below, and while
+                        # that stadium was on the field it was 30 too generous on
+                        # 51 of 51 measured attacks into their Metal.
+                        if (full_metal_lab_active and damage > 0
+                                and getattr(data, 'energyType', None) == EnergyType.METAL):
+                            damage -= 30
+
                         if _drednaw_shell_active and damage >= 200:
                             damage = 0
 
@@ -6560,6 +6575,10 @@ def agent(obs_dict: dict) -> list[int]:
                     _d *= 2
                 elif _td.resistance == EnergyType.GRASS:
                     _d -= 30
+            # Full Metal Lab, after weakness/resistance (wave 2, copy 1 of 4).
+            if (full_metal_lab_active and _td
+                    and getattr(_td, 'energyType', None) == EnergyType.METAL):
+                _d -= 30
             if _tgt.id == Drednaw and _d >= 200:
                 return 0
             return _d
@@ -7390,9 +7409,11 @@ def agent(obs_dict: dict) -> list[int]:
     _op_active_hp = 0
     _op_active_weakness_grass = False
     _op_active_resistance_grass = False
+    _op_active_metal = False
     if op_state.active and op_state.active[0] is not None:
         _op_active_hp = op_state.active[0].hp
         _op_data = card_table.get(op_state.active[0].id)
+        _op_active_metal = (getattr(_op_data, 'energyType', None) == EnergyType.METAL)
         if _op_data and _op_data.weakness == EnergyType.GRASS:
             _op_active_weakness_grass = True
         # Grass resistance (e.g. Archaludon ex): the engine subtracts 30 damage
@@ -7407,6 +7428,10 @@ def agent(obs_dict: dict) -> list[int]:
         if _op_active_weakness_grass:
             _syrup_dmg_now *= 2
         elif _op_active_resistance_grass:
+            _syrup_dmg_now = max(0, _syrup_dmg_now - 30)
+        # Full Metal Lab, after weakness/resistance (wave 2, copy 2 of 4). Their
+        # Archaludon line is BOTH Grass-resisting and Metal, so both apply.
+        if _op_active_metal and full_metal_lab_active:
             _syrup_dmg_now = max(0, _syrup_dmg_now - 30)
         _active_hydra_cannot_ko = (_syrup_dmg_now < _op_active_hp)
 

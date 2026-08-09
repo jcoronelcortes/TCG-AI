@@ -218,7 +218,8 @@ def _bench_cashable_after_retreat(pokemon, op_active, our_damage=0):
 
 
 def _our_effective_damage(my_pokemon, op_pokemon, base_damage,
-                          meganium_active=False, neutralization_zone=False):
+                          meganium_active=False, neutralization_zone=False,
+                          full_metal_lab=False):
     if op_pokemon is None or base_damage is None:
         return 0
     data = card_table.get(op_pokemon.id)
@@ -249,6 +250,16 @@ def _our_effective_damage(my_pokemon, op_pokemon, base_damage,
             damage *= 2
         elif data.resistance == EnergyType.GRASS:
             damage -= 30
+
+    # Full Metal Lab: 30 less onto {M} bodies, and the card says AFTER weakness
+    # and resistance, which is why it sits on this line and not above. Against
+    # the Archaludon line the two stack (-30 resistance, then -30 stadium) and
+    # that second 30 is what turns a projected knockout into a body left at 30.
+    # Unlike the resistance this is NOT conditioned on `is_fez`: the stadium
+    # reduces damage from any attack, and the Fezandipiti exception above is
+    # about weakness and resistance only.
+    if full_metal_lab and getattr(data, 'energyType', None) == EnergyType.METAL:
+        damage -= 30
 
     if op_pokemon.id == Drednaw and damage >= 200:
         return 0
