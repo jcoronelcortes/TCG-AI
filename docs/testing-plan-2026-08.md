@@ -168,7 +168,15 @@ thing excluding `.venv-1/`. Verified to lose nothing: all 153 test files of the
 project are in `tests/`, and 1784 passed / 13 skipped is identical from the
 root, from `tests/`, on one file, under `-k` and with an explicit `.`.
 
-**T0.2 · Coverage ratchet in CI** — 2–3 h
+**T0.2 · Coverage ratchet in CI** — ✅ **DONE, 2026-08-09**
+`utils/gate_coverage.py` + `coverage-floors.json` (37 modules, seeded at
+today's measurement) + the `coverage` job in `.github/workflows/gates.yml`.
+Validated in both directions, which is the house rule for a detector: it stays
+quiet on the real report and fails with exit 1 on a synthetic 7-point drop in
+`retreat.py`. Tolerance 0.5 points, so a refactor that deletes covered
+statements does not cry wolf; modules under 40 statements are not floored
+because their percentage moves in whole digits.
+*Original estimate below, kept for the record.* — 2–3 h
 Publish per-module coverage in the CI job and fail when any module drops below
 its recorded floor (a checked-in `coverage-floors.json`, raised as it improves;
 never lowered without a comment).
@@ -177,7 +185,27 @@ touches it.
 *Benefit:* new code can no longer land unwatched. Cheap, permanent, no
 judgement calls.
 
-**T0.3 · Mutation as a pre-merge gate** — 4–6 h ⭐
+**T0.3 · Mutation as a pre-merge gate** — 🔶 **BUILT 2026-08-09, not yet in CI**
+`utils/gate_mutation.py`, which is the narrowing this task turned out to need.
+The unquantified risk in the paragraph below was measured on the night of 8–9
+August: the raw `--changed` sweep of a five-commit diff was heading for ~90
+minutes, because every one of ~100 mutants re-ran all 1 800 tests. The gate now
+builds a line→test map once with coverage CONTEXTS and runs each mutant only
+against the tests that execute its line; a changed line NO test executes is
+reported as `UNCOVERED` without spending a mutant at all, and a line carrying
+`# mutation: <reason>` is skipped before it is mutated rather than after.
+**The runtime, measured end to end on the four-commit diff of this morning:
+8.6 SECONDS** (six files, 74 added lines), against the ~90 minutes the raw
+sweep was heading for. It fits in a pre-merge hook with room to spare.
+
+Its first run is also its own justification: the Full Metal Lab fix that landed
+this morning — found by a night of self-play — came back with **15 surviving
+mutants and 6 ranges no test executes at all**, including both wave-2 copies in
+`supporters.py` and `play.py`. The canonical copy's three survivors are now
+killed by `tests/test_the_stadium_takes_thirty_in_the_canonical_model.py`
+(verified: 3 SURVIVED → 3 killed); the rest are the standing work list.
+*Still open:* the CI job.
+*Original text.* — 4–6 h ⭐
 Wire `utils/mutation_probe.py --changed <base>` into the pre-merge script and a
 CI job on pull requests. Budget: **zero surviving mutants on added lines**, or
 an explicit `# mutation: <reason>` waiver on the line.
@@ -191,7 +219,12 @@ against a `-x -q` subset selected by coverage of that file.
 
 ### Phase 1 — Fix the oracle · ≈4–6 days ⭐
 
-**T1.1 · Generalise the rule trace and assert on it** — 2–3 days
+**T1.1 · Generalise the rule trace and assert on it** — 🔶 **HALF DONE**
+`tests/rule_trace.py` hands back the trace the engine already builds, with
+`assert_reason(trace, "winning_gust")` and `assert_adjusted`, validated in both
+directions and demonstrated on a real ladder of the agent. What remains is the
+judgement half: deciding WHICH rule name each board ought to name.
+*Original text.* — 2–3 days
 Extend `_resolve_with_trace` coverage beyond the piloted subset to the five
 hottest decision paths (gust ranking, promotion, retreat, attachment, Ultra
 Ball), expose the trace through a test helper, and add
@@ -220,7 +253,17 @@ the ones its comments claim.
 
 ### Phase 2 — Explore what nobody has looked at · ≈6–9 days ⭐
 
-**T2.1 · Invariant monitor inside self-play** — 2–3 days ⭐
+**T2.1 · Invariant monitor inside self-play** — ✅ **DONE, 2026-08-09**
+`utils/invariant_monitor.py`. Six of the seven invariants below are in, and the
+seventh is refused in writing: "never retreat into a body that cannot act next
+turn" is not an invariant — measured, `not can_attack` holds 9.8–11.4 times per
+GAME, so a turn without an attack is the ordinary shape of a development turn,
+and judging it needs the agent's own energy model, i.e. a second copy of it.
+Two findings so far, and the second is real: the empty-bench one was correct
+play (pinned), and `DECK_BELIEF` caught the card tracker filing the Ultra Ball
+it is CURRENTLY PLAYING as a prize — see
+`tests/test_the_ultra_ball_in_flight_becomes_a_prize.py`.
+*Original text.* — 2–3 days ⭐
 Run the existing harness with a checker on **every** decision, not just the
 final score. Violations dump the full observation to `log/violations/` in
 fixture format, ready to be pinned. Starting invariant set:
@@ -239,7 +282,12 @@ construct, and an invariant needs no human to know the right play.
 the plan. It converts compute into fixtures automatically, which is exactly the
 loop the project already runs by hand after every loss.
 
-**T2.2 · Differential oracle: our model vs the simulator** — 2 days ⭐
+**T2.2 · Differential oracle: our model vs the simulator** — ✅ **DONE, 2026-08-09**
+`utils/differential_oracle.py`. It found the real defect the plan hoped for
+(Full Metal Lab, unmodelled: the agent's own damage projection was 30 too
+generous) and it cost three corrections of the DETECTOR to get there, which is
+the lesson worth keeping: v1 reported 16 764 findings that were its own bugs.
+*Original text.* — 2 days ⭐
 At every attack, retreat and knockout in self-play, compare what the agent
 *predicted* (`_our_effective_damage`, the KO prediction, retreat cost, prize
 count) against what `libcg` actually *resolved*. Any mismatch is dumped.
@@ -263,7 +311,12 @@ database, with `derandomize` in the PR job so the suite never flakes.
 *Benefit:* covers the shrinking-input path — when it breaks, it hands back the
 *minimal* counterexample, which is the expensive part of every autopsy today.
 
-**T2.4 · Observation fuzzing for robustness** — 1 day
+**T2.4 · Observation fuzzing for robustness** — ✅ **DONE, 2026-08-09**
+`tests/test_the_agent_survives_a_board_it_has_never_seen.py`: 12 real boards x
+8 structural mutations (every zone emptied in turn, the stadium removed, a card
+id in no table, `minCount` 0, their bench swept). Zero exceptions, zero illegal
+answers. The legality checker is itself checked in both directions.
+*Original text.* — 1 day
 Mutate real observations structurally (empty zones, absent stadium, unknown
 card id, a zone at maximum, a select with `minCount` 0) and assert only "does
 not raise, returns something legal".
