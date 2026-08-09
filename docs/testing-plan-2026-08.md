@@ -337,7 +337,20 @@ test can find it**, because the test asserts the same wrong belief the code has.
 *Benefit:* the simulator is a free, perfect oracle that is currently unused as
 one. Highest confidence-per-day ratio in the plan.
 
-**T2.3 · Hypothesis: 2 → ~15 properties, with a nightly soak** — 2–3 days
+**T2.3 · Hypothesis properties** — 🔶 **2 → 6, and the rest declined on purpose**
+`tests/test_properties_of_any_legal_board.py` adds four: determinism, the agent
+does not write on the observation it is given, the answer is always a legal
+index, it never raises. Each was MEASURED on 40 real boards before being
+asserted. Soak: `PTCG_HYPOTHESIS_EXAMPLES=5000` runs all six in 36 s.
+
+The other candidates below are monotonicity claims — "a strictly better board
+never produces a strictly worse plan mode", "removing a threat never makes it
+more defensive" — and each needs a judgement about what *better* and *more
+defensive* mean in this game. That judgement is exactly what a property test
+exists to avoid needing, and getting it slightly wrong produces a generator that
+reports correct play as a violation. Four detectors did that this week; these
+are not being added on a guess.
+*Original text.* — 2–3 days
 Candidate properties, all of which need no expected answer:
 never raises on a legal board · returns a legal index · the documented caps
 hold across the whole generated space · a strictly better board never produces a

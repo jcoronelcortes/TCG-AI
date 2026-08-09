@@ -444,6 +444,28 @@ def board_in_transit(obs, expected_total):
     return seen != expected_total
 
 
+def our_deck_seat(seat, opponent):
+    """Is this seat actually playing OUR sixty cards?
+
+    Both seats are driven by our agent, which is what makes the monitor cheap.
+    With `--opponent`, though, seat 1 is dealt the RIVAL's deck while the agent
+    driving it still initialised `ACTIVE_CARDS_IN_DECK` from ours, so its belief
+    is about a deck it is not holding and every reconciliation against it is
+    nonsense.
+
+    That is not a hypothesis. Run against `alakazam.csv` before this guard
+    existed, DECK_BELIEF reported 16 980 findings in 14 579 judged boards, all
+    of them "the tracker believes 59 cards are left" -- one card ever leaving a
+    deck the agent was never dealt. Sixteen thousand findings that were the
+    harness, in a file whose whole subject is detectors reporting themselves.
+
+    The mirror (no `--opponent`) deals our deck to both seats, which is why the
+    first measurements were clean and why this went unnoticed until a fixture
+    disagreed with them.
+    """
+    return opponent is None or seat == 0
+
+
 def check_deck_belief(obs, mod):
     """The agent's card tracker against the engine's own count.
 
@@ -649,7 +671,7 @@ def over_games(games, opponent=None, saboteur=None, progress=None):
     deck_size = len(deck)
     watched = [(m, _install_read_watch(m)) for m in agents]
     stats = {"games": 0, "decisions": 0, "raised": 0, "reads_watched": 0,
-             "skipped_transit": 0}
+             "skipped_transit": 0, "skipped_foreign_deck": 0}
     findings = []
 
     def record(kind, detail, obs, game_no, step, seat):
@@ -689,7 +711,9 @@ def over_games(games, opponent=None, saboteur=None, progress=None):
                 twice = check_double_attachment(snapshot, choice)
                 if twice:
                     record("DOUBLE_ATTACH", twice, snapshot, game_no, steps, yi)
-                if board_in_transit(snapshot, deck_size):
+                if not our_deck_seat(yi, opponent):
+                    stats["skipped_foreign_deck"] += 1
+                elif board_in_transit(snapshot, deck_size):
                     stats["skipped_transit"] += 1
                 else:
                     for drift in check_deck_belief(snapshot, mod):
@@ -844,6 +868,9 @@ def report(stats, findings, mod):
           f"lecturas de promesa vistas: {stats.get('reads_watched', 0)}")
     print(f"Tableros en transito (el motor no cuadra 60, no se juzga el "
           f"seguimiento de cartas): {stats.get('skipped_transit', 0)}")
+    if stats.get("skipped_foreign_deck"):
+        print(f"Decisiones del asiento que NO juega nuestro mazo (su creencia "
+              f"no es sobre su baraja): {stats['skipped_foreign_deck']}")
     pending = unregistered_flags(mod)
     print(f"Promesas con premisa escrita: {len(PROMISES)}   "
           f"banderas booleanas SIN premisa: {len(pending)}")
