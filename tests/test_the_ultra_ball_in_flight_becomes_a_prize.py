@@ -37,20 +37,30 @@ reconciliation at all, only the ones that reveal the WHOLE deck do -- Ultra Ball
 always, anything else only when `len(select.deck) == deckCount`. A "look at the
 top 7" (Bug Catching Set) is skipped by that guard and cannot produce this.
 
-The fix belongs to `_identify_prizes` and it changes what the agent believes, so
-it is not made here. What is here is the evidence, frozen, plus one strict xfail
-that states the invariant: when the fix lands, that test turns green and pytest
-fails on the unexpected pass, which is the reminder to delete the xfail.
+FIXED, and the shape of the fix is the interesting part. The obvious version --
+"if this is the effect's card and something is unaccounted, it is in flight" --
+guesses, because from inside the loop a copy of the searcher sitting in a PRIZE
+looks exactly like one in flight. Measured, that guess was wrong 65 times in
+26 280 boards: it moved the error rather than removing it.
+
+What the fix does instead is ask the ENGINE. There are exactly
+`len(my_state.prize)` cards face down; if the reconciliation has placed more
+than that, the belief is provably impossible and the surplus is the one card we
+can name. Deciding against a count nobody can fudge can only fire when something
+is definitely wrong, so it cannot invent the opposite error -- and it does not:
+zero violations of either kind over 26 617 judged boards, where the old code had
+3 281 of them.
+
+The tests below now pin the fixed behaviour. The evidence of what it used to do
+is kept in the fixture and in the first two, because the board is the finding.
 """
 
 import json
 from pathlib import Path
 
-import pytest
-
 import main as m
 from golden_corpus import reset_agent
-from ptcg.state.zones import ZONE_DECK, ZONE_PRIZE
+from ptcg.state.zones import ZONE_DECK, ZONE_DISCARD, ZONE_PRIZE
 
 FIXTURE = (Path(__file__).parent / "fixtures"
            / "the_ultra_ball_in_flight_becomes_a_prize.json")
@@ -95,36 +105,37 @@ def test_the_reveal_is_complete_and_shows_three_of_the_four_ultra_balls():
     assert m.my_deck.count(ULTRA_BALL) == COPIES_IN_THE_DECK
 
 
-def test_the_agent_places_seven_cards_in_six_prizes():
-    """The live reproduction: the real agent, on this board, right now."""
+def test_the_agent_no_longer_places_seven_cards_in_six_prizes():
+    """The live regression: the real agent, on the board that used to fail."""
     board = _board()
     reset_agent(m)
     m.agent(board["observation"])
     belief = m.AGENT_STATE.ACTIVE_CARDS_IN_DECK
-    assert _believed_prizes(belief) == 7
     assert _prizes_face_down(board["observation"]) == 6
+    assert _believed_prizes(belief) == 6, "seven, once"
 
 
-def test_the_invented_prize_is_the_ultra_ball_being_played():
-    """The mechanism, named: the searcher files itself under PRIZE.
+def test_the_ultra_ball_in_flight_is_booked_where_it_is_going():
+    """The mechanism, named, and now pointing at the right zone.
 
-    Three copies in the revealed deck and one filed as prized accounts for all
-    four, which leaves nothing for the copy actually being played -- that copy
-    IS the one in the prize slot.
+    Three copies in the revealed deck plus the one being played accounts for all
+    four, and the fourth is not in the prizes -- it is on its way to the
+    discard, which is where it is booked until the next decision syncs the zone
+    from the observation. The five zones still add up to the four copies, which
+    is the half the first attempt at this fix got wrong.
     """
     reset_agent(m)
     m.agent(_board()["observation"])
     entry = m.AGENT_STATE.ACTIVE_CARDS_IN_DECK[ULTRA_BALL]
     assert entry[ZONE_DECK] == 3
-    assert entry[ZONE_PRIZE] == 1
+    assert entry[ZONE_PRIZE] == 0, "not a prize"
+    assert entry[ZONE_DISCARD] == 1, "on its way to the discard"
     assert sum(entry.values()) == COPIES_IN_THE_DECK
 
 
-@pytest.mark.xfail(strict=True,
-                   reason="_identify_prizes counts the card in flight as hidden; "
-                          "when that is fixed this passes and the xfail goes")
 def test_the_tracker_never_believes_more_prizes_than_are_face_down():
-    """The invariant itself, stated as the code should satisfy it."""
+    """The invariant itself, which is what utils/invariant_monitor.py checks on
+    every decision of every game, asserted here on the board that broke it."""
     board = _board()
     reset_agent(m)
     m.agent(board["observation"])

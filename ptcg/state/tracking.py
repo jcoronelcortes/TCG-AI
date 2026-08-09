@@ -70,6 +70,29 @@ def _identify_prizes(obs, my_state=None):
     for card in obs.select.deck:
         deck_counts[card.id] += 1
 
+    # THE CARD PAYING FOR THIS SEARCH IS IN FLIGHT, and without this line it is
+    # filed as a prize. The reveal only happens because a card was PLAYED, and
+    # at this instant that card is in none of the zones the subtraction below
+    # can see: it has left the hand and has not reached the discard. So it
+    # counts as `hidden`, it is not in the deck view, and `hidden - in_deck`
+    # files it under PRIZE -- every full-deck search invents one prize, and it
+    # is always the searcher itself.
+    #
+    # Found by utils/invariant_monitor.py, on the invariant that the tracker
+    # cannot place more cards in the prizes than there are prizes face down: it
+    # reported 7 in 6, on 3 281 of 13 358 judged boards. It is not bookkeeping.
+    # `_gt_planes` and `_gt_wanted_basics` will not plan a line whose next card
+    # reads `ZONE_DECK == 0`, and the Meowth -> Lillie's engine asks the same of
+    # both its halves; a copy filed under PRIZE is a copy the deck does not have
+    # as far as every one of them is concerned. Nor did it settle by itself: the
+    # next reveal corrected the previous searcher and mis-filed the new one, so
+    # there was always exactly one card the agent believed it could not draw.
+    #
+    # Pinned by tests/test_the_ultra_ball_in_flight_becomes_a_prize.py on the
+    # board that found it: the deck shows three of the four Ultra Balls and the
+    # fourth is the one being played.
+    _in_flight = getattr(obs.select.effect, 'id', None)
+
     for cid, entry in AGENT_STATE.ACTIVE_CARDS_IN_DECK.items():
         total_copies = sum(entry.values())
         in_deck = deck_counts.get(cid, 0)
@@ -79,6 +102,31 @@ def _identify_prizes(obs, my_state=None):
         entry[ZONE_DECK] = in_deck
         prize = hidden - in_deck
         entry[ZONE_PRIZE] = prize if prize > 0 else 0
+
+    # ...and now the ARBITER, because the subtraction above cannot tell an
+    # unaccounted copy from a prized one and the engine can. There are exactly
+    # `len(my_state.prize)` cards face down; if the reconciliation has placed
+    # more than that, the surplus is the searcher in flight, and the searcher
+    # is the one card we can name.
+    #
+    # The first version of this fix decided in the loop -- "if this is the
+    # effect's card and something is unaccounted, it is in flight" -- and that
+    # guess was wrong 65 times in 26 280 boards, because a copy of the searcher
+    # sitting in a PRIZE looks identical from inside the loop. Deciding against
+    # the prize count instead can only fire when the belief is provably
+    # impossible, so it cannot invent the opposite error.
+    _prizes = len(getattr(my_state, 'prize', None) or []) if my_state is not None else None
+    if _prizes is not None and _in_flight in AGENT_STATE.ACTIVE_CARDS_IN_DECK:
+        _placed = sum(e[ZONE_PRIZE] for e in AGENT_STATE.ACTIVE_CARDS_IN_DECK.values())
+        _entry = AGENT_STATE.ACTIVE_CARDS_IN_DECK[_in_flight]
+        if _placed > _prizes and _entry[ZONE_PRIZE] > 0:
+            # It is not in the prizes, it is on its way to the DISCARD, so it
+            # is booked there: the five zones have to keep adding up to the
+            # sixty cards of the deck. `_sync_from_state` overwrites DISCARD
+            # from the observation on the very next decision, so this only has
+            # to hold until then.
+            _entry[ZONE_PRIZE] -= 1
+            _entry[ZONE_DISCARD] += 1
 
 
 def _sync_from_state(my_state):
