@@ -144,6 +144,21 @@ Poke_Pad = 1152
 Forest_of_Vitality = 1261
 Neutralization_Zone = 1247
 Team_Rockets_Watchtower = 1256
+# Full Metal Lab (1244): the Archaludon deck's stadium. "{M} Pokemon (both yours
+# and your opponent's) take 30 less damage from attacks from the opponent's
+# Pokemon (AFTER applying Weakness and Resistance)."
+#
+# It went unmodelled until utils/differential_oracle.py measured it: against
+# `deck/opponents/archaludon.csv`, every judged attack into a Metal body was 30
+# short of what we projected WHILE THIS WAS ON THE FIELD (51 of 51), and exact
+# under any other stadium (113 of 113). It costs a whole turn rather than a
+# rounding error, because Duraludon and Archaludon ex also RESIST Grass: the
+# resistance brings the number down onto the target's hp exactly, the agent
+# reads a lethal attack, and the engine leaves the body at 30.
+#
+# Our own bodies are Grass, so the "both yours and your opponent's" half of the
+# card never touches us. It reduces OUR damage into THEIR Metal, and nothing else.
+Full_Metal_Lab = 1244
 # Festival Grounds (1245): the opponent's "Festival Lead" stadium. Just like
 # Grand Tree it is SHARED -- what matters is that it is ON THE FIELD, not who
 # played it -- and it switches on the Festival Lead ability of ANY Dipplin in
@@ -1316,6 +1331,7 @@ __all__ = [
     'Forest_of_Vitality',
     'Neutralization_Zone',
     'Team_Rockets_Watchtower',
+    'Full_Metal_Lab',
     'Festival_Grounds',
     'Grand_Tree',
     'Maximum_Belt',

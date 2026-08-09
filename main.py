@@ -3634,6 +3634,11 @@ def agent(obs_dict: dict) -> list[int]:
 
     neutralization_zone_active = (stadium_id == Neutralization_Zone)
 
+    # Full Metal Lab: -30 onto {M} bodies, after weakness and resistance. Only
+    # THEIR Metal is reachable by it -- everything we play is Grass -- so this
+    # flag only ever subtracts from our own projected damage.
+    full_metal_lab_active = (stadium_id == Full_Metal_Lab)
+
     # Team Rocket's Watchtower: the {C} Pokemon in play (both players) do NOT
     # have Abilities. Meowth ex is {C}, so its Last-Ditch Catch (searching for a
     # Supporter when benched) is CANCELLED while this stadium is still in
@@ -5191,6 +5196,15 @@ def agent(obs_dict: dict) -> list[int]:
                                 damage *= 2
                             elif data.resistance == EnergyType.GRASS:
                                 damage -= 30
+
+                        # Full Metal Lab, AFTER weakness/resistance as the card
+                        # says. This is the line the differential oracle found:
+                        # `plan.remain_hp` is written 15 lines below, and while
+                        # that stadium was on the field it was 30 too generous on
+                        # 51 of 51 measured attacks into their Metal.
+                        if (full_metal_lab_active and damage > 0
+                                and getattr(data, 'energyType', None) == EnergyType.METAL):
+                            damage -= 30
 
                         if _drednaw_shell_active and damage >= 200:
                             damage = 0
