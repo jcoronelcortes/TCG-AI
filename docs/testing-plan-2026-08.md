@@ -68,14 +68,17 @@ measurement in this document, and section 3 explains why it happens.
 `ATTACK:195` vs `RETREAT`, which is not a cosmetic tie but a strategic fork
 resolved by the position the simulator happened to emit.
 
-### One broken thing, right now
+### One broken thing, right now — ~~broken~~ **FIXED, commit `d14179e`**
 
 `python -m pytest -q` from the repository root — the command `CONTRIBUTING.md`
-and `docs/testing.md` both name as the *first gate* — **fails on this machine
+and `docs/testing.md` both name as the *first gate* — **failed on this machine
 with 294 collection errors**. `log/*/base_tree/tests/` and
 `log/*/cand_tree/tests/` are full copies of the suite left behind by self-play
-gates, and pytest collects them and hits basename collisions. CI does not see
-it because `log/` is git-ignored. Locally, the documented first gate is red.
+gates, and pytest collected them and hit basename collisions. CI did not see
+it because `log/` is git-ignored. Locally, the documented first gate was red.
+
+Closed by T0.1: `testpaths` + `norecursedirs` in `pytest.ini`. Same 1784
+passed / 13 skipped from the root as from `tests/`.
 
 ---
 
@@ -153,17 +156,17 @@ earlier.
 
 ### Phase 0 — Unblock and instrument · ≈1 day
 
-**T0.1 · Fix suite collection** — 15 min
-Add to `pytest.ini`:
-```ini
-testpaths = tests
-norecursedirs = log .venv* .git __pycache__ competitor_decks notebook dataset records
-```
-*Why:* the documented first gate is currently red locally (294 collection
-errors from self-play tree copies under `log/`).
+**T0.1 · Fix suite collection** — ✅ **DONE, commit `d14179e`** (15 min, as estimated)
+*Why:* the documented first gate was red locally (294 collection errors from
+self-play tree copies under `log/`).
 *Benefit:* the command in `CONTRIBUTING.md` works on a machine that has ever
 run a gate. Removes a trap that silently trains a contributor to distrust the
 suite.
+*As shipped:* `testpaths = tests` plus a `norecursedirs` that keeps `.*` in
+front — overriding `norecursedirs` discards pytest's default, which is the only
+thing excluding `.venv-1/`. Verified to lose nothing: all 153 test files of the
+project are in `tests/`, and 1784 passed / 13 skipped is identical from the
+root, from `tests/`, on one file, under `-k` and with an explicit `.`.
 
 **T0.2 · Coverage ratchet in CI** — 2–3 h
 Publish per-module coverage in the CI job and fail when any module drops below
