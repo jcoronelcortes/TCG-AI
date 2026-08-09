@@ -81,3 +81,30 @@ jobs:
             fi
           done
           echo "all argparse scripts answered --help"
+
+  coverage:
+    name: no module loses its watch
+    # A RATCHET, not a target. `coverage-floors.json` records what the unit
+    # suite covers of each module today; this fails when one of them drops.
+    # It exists because ptcg/turn/options/evolve.py reached 6 % covered while
+    # the diffs of that week were being written into it, and nothing said so.
+    # See the header of utils/gate_coverage.py for what this number is NOT.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install the test dependencies
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Measure
+        run: |
+          python -m pytest -q --cov=main --cov=ptcg \
+            --cov-report=json:coverage.json > /dev/null
+
+      - name: Compare against the floors
+        run: python utils/gate_coverage.py --check coverage.json
