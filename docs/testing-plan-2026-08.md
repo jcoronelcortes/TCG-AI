@@ -415,10 +415,24 @@ produces — starts working on a clean checkout and on every pull request.
 
 ### Phase 4 — Sustain · ongoing
 
-**T4.1 · One nightly script** — 0.5 day
-The `log/night_2026-08-07/` run already is this pipeline, executed by hand.
-Turn it into a committed script: suite → lint → corpus → mutation sweep →
-permutation → hypothesis soak → matrix, one report file.
+**T4.1 · One nightly script** — ✅ **DONE, 2026-08-09**
+`utils/nightly.py`, three profiles (`--quick` ~40 s, default ~1 h, `--full`
+hours with the matchup matrix), one `REPORT.md` per run under
+`log/nightly_<stamp>/`.
+
+The part worth more than the wiring is the classification, and it is the lesson
+of the two days that produced it: **a stage whose SELF-TEST failed is INVALID
+regardless of its exit code — including zero — and its numbers are replaced in
+the report rather than shown.** A detector that cannot prove it still works and
+then says "nothing found" is the most misleading of the three outcomes, not the
+most reassuring. Separately, a non-zero exit from a tool that reports by exit
+code (the permutation probe, the mutation gate, the corpus) is FINDINGS and not
+FAILED — calling a tool's findings a failure is how a pipeline teaches people to
+ignore its red. Both rules are pinned by
+`tests/test_the_night_quarantines_a_detector_that_cannot_validate_itself.py`,
+including a check that the phrases it greps for are still the ones the detectors
+actually print.
+*Original text.* — 0.5 day
 
 **T4.2 · Test-suite hygiene, mutation-informed** — 0.5 day + ongoing
 45 073 lines of tests is an asset with a maintenance cost. Use the mutation
