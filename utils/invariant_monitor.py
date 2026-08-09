@@ -15,7 +15,10 @@ WHAT IT WATCHES
   * `END_EMPTY_BENCH`  -- ending a turn with nothing on the bench, which loses
                           the game the moment the active falls. There is already
                           a last-resort net for this in main.py; this is the
-                          check that it holds.
+                          check that it holds. It carries the ONE documented
+                          exception -- see `_first_turn_going_first` below -- and
+                          the first version of this file did not, which turned 16
+                          correct plays into a reported defect.
   * `STALE_FLAG`       -- see below. The big one.
 
 STALE_FLAG, and why it is worth its own tool. Of the roughly twenty fixes made
@@ -64,7 +67,8 @@ for _p in (_ROOT, _ROOT / "utils", _ROOT / "tests"):
         sys.path.insert(0, str(_p))
 
 import selfplay as sp  # noqa: E402
-from cg.api import OptionType  # noqa: E402
+from cg.api import CardType, OptionType  # noqa: E402
+from ptcg.cards.tables import card_table  # noqa: E402
 
 END_OPTION = int(OptionType.END)
 
@@ -147,6 +151,53 @@ def check_illegal_index(obs, choice):
     return None
 
 
+def first_turn_going_first(obs):
+    """The one board where an empty bench is not a danger, and it is deliberate.
+
+    On OUR first turn having gone first, the opponent has not had a turn: nothing
+    they can do reaches the 140-210 hp of our opener, so there is no knockout to
+    be promoted from. main.py holds the lone Meowth ex back rather than spending
+    it to fill the bench (`_ft_hold_lone_meowth`), which is a reasoned trade and
+    not an oversight.
+
+    This exception exists because the invariant without it reported 16 violations
+    in 500 games and ALL SIXTEEN were this board. An invariant that flags correct
+    play is not a weaker detector, it is a broken one: it buries the real finding
+    it is supposed to surface.
+    """
+    current = obs.get("current") or {}
+    return (current.get("turn") == 1
+            and current.get("firstPlayer") == current.get("yourIndex"))
+
+
+def could_have_filled_the_bench(obs):
+    """Is there a play on the menu that actually puts a body on the bench?
+
+    Ending with an empty bench is only a defect if it was AVOIDABLE. Three
+    things make it unavoidable and all three occur: no PLAY option at all, no
+    Basic Pokemon in hand, or PLAY options that are items and stadiums -- which
+    fill nothing. Measured over 800 games, 20 of 35 empty-bench endings had no
+    playable card whatsoever and the other 15 offered only non-Pokemon plays.
+    Without this the invariant reports all 35 and buries whatever real one turns
+    up later.
+    """
+    side = my_side(obs)
+    hand = side.get("hand") or []
+    for opt in ((obs.get("select") or {}).get("option") or []):
+        if opt.get("type") != int(OptionType.PLAY):
+            continue
+        idx = opt.get("index")
+        if not isinstance(idx, int) or not (0 <= idx < len(hand)):
+            continue
+        data = card_table.get(hand[idx].get("id"))
+        if data is None:
+            continue
+        if (getattr(data, "cardType", None) == CardType.POKEMON
+                and getattr(data, "basic", False)):
+            return True
+    return False
+
+
 def check_end_with_empty_bench(obs, choice):
     options = (obs.get("select") or {}).get("option") or []
     ends = any(0 <= i < len(options)
@@ -158,6 +209,10 @@ def check_end_with_empty_bench(obs, choice):
     bench = [b for b in (side.get("bench") or []) if b]
     if bench:
         return None
+    if first_turn_going_first(obs):
+        return None
+    if not could_have_filled_the_bench(obs):
+        return None                      # nothing on the menu fills a bench
     return "ending the turn with an empty bench: the next knockout is the game"
 
 

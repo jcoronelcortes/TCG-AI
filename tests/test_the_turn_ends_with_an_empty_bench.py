@@ -1,51 +1,55 @@
-"""Ending turn one with an empty bench and a Meowth ex still in hand.
+"""Holding the lone Meowth ex on turn one, and why that is not the bug it looks like.
 
-FOUND BY `utils/invariant_monitor.py`, and it is the first thing this project has
-that finds a board NOBODY LOST A GAME ON. Every other file in tests/ is named
-after a defeat; this one is named after an invariant that a machine checked on
-63 769 decisions in an afternoon.
+THIS FILE STARTED LIFE AS A FALSE ALARM, and it is kept because the false alarm
+is the lesson.
 
-THE INVARIANT. Never end a turn with an empty bench. It needs no judgement about
-the game to state: with nothing on the bench, the next knockout is not a prize,
-it is the match.
+`utils/invariant_monitor.py` was built to check things that must never be true on
+every decision of every game. Its first run reported 16 violations of "never end
+a turn with an empty bench" in 500 games, all 16 with a Meowth ex still in hand,
+all 16 reproducing deterministically. It looked like the first defect this
+project had ever found without losing a game for it.
 
-THE BOARD (turn 1, ours):
+It was not a defect. All sixteen are OUR FIRST TURN HAVING GONE FIRST, and on
+that board main.py holds the lone Meowth ex on purpose (`_ft_hold_lone_meowth`,
+consumed by the anti-empty-bench net in ptcg/turn/finalize.py). The reasoning is
+already written next to the exception: the opponent has not had a turn yet, and
+nothing they can do on their first one reaches the 140-210 hp of our opener, so
+there is no knockout to be promoted from and no danger to insure against. The
+Meowth is worth more as the first half of Meowth -> Lillie's later than as a
+body on the bench now.
 
+THE BOARD, which is what this file actually pins:
+
+    turn 1, we went first
     active  Tapu Bulu, no energy
     bench   EMPTY
-    hand    Basic {G} x3, Meganium, Forest of Vitality, Lana's Aid, **Meowth ex**
-    menu    3x ATTACH, 2x PLAY, END          -> the agent chooses END
+    hand    Basic {G} x3, Meganium, Forest of Vitality, Lana's Aid, Meowth ex
+    menu    3x ATTACH, 2x PLAY, END          -> the agent ends the turn
 
-Meowth ex is a Basic. Putting it down costs nothing, is offered on the menu, and
-turns "the next knockout ends the match" into "the next knockout is one prize".
+WHAT WAS LEARNED, and it now lives in the monitor as code rather than as a
+comment: an invariant that flags correct play is not a weaker detector, it is a
+broken one -- it buries the real finding it exists to surface. Three conditions
+were added, each measured over 800 games:
 
-WHY IT IS A DEFECT AND NOT A JUDGEMENT CALL. main.py already carries a
-last-resort net written for exactly this -- post-scoring, deliberately
-independent of whether the individual vetoes misfire: if the bench is empty and
-the best option is END or sterile, find something that develops the bench (an
-Ultra Ball that can dig a Basic, or a Basic in hand) and force it above the best
-score. The net exists, the board satisfies its premise, and it does not fire.
+    exception                         boards it explains
+    ------------------------------------------------------------------
+    our first turn going first        16 of 16 in the first run
+    nothing playable at all           20 of 35 in the second
+    only non-Pokemon plays offered    15 of 35 in the second
 
-The most likely reason it does not is the Meowth veto: there is a separate rule
-against putting Meowth ex down when the active is already a ready attacker, and
-that rule was written about a healthy board where the bench is not empty. This
-is the pattern the project keeps rediscovering -- a special case outliving the
-general rule it was carved out of.
+With all three encoded, END_EMPTY_BENCH reports ZERO violations over 800 games
+and 102 234 decisions. The last-resort net holds. That zero is worth more than
+the 16 it replaced, because the monitor's two self-tests show it can still fail.
 
-FREQUENCY, measured: 16 boards in 500 games, all 16 with Meowth ex as the card
-left in hand, and all 16 reproduce deterministically when replayed through
-main.py. A further 54 empty-bench endings in the same run were FORCED -- nothing
-playable in hand -- and those are not defects; the monitor separates them.
-
-The fix is behavioural and is not attempted here.
+So these tests guard the EXCEPTION. If someone reads the invariant, decides the
+agent should always fill its bench, and deletes `_ft_hold_lone_meowth`, this file
+goes red and explains why the obvious fix is wrong.
 """
 
 import copy
 import json
 import sys
 from pathlib import Path
-
-import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 for _extra in (str(ROOT), str(ROOT / "utils")):
@@ -68,30 +72,27 @@ def _mine(board):
     return obs["current"]["players"][board["violation"]["seat"]]
 
 
-def _agent():
-    import selfplay as sp
-    mod = sp.load_agent(str(ROOT / "main.py"), "empty_bench_regression")
-    sp._reset_si_aplica(mod)
-    return mod
-
-
 def _chosen_types(board):
-    mod = _agent()
+    import selfplay as sp
+    mod = sp.load_agent(str(ROOT / "main.py"), "empty_bench_exception")
+    sp._reset_si_aplica(mod)
     obs = board["observation"]
     choice = mod.agent(copy.deepcopy(obs))
     options = obs["select"]["option"]
     return [options[i].get("type") for i in choice]
 
 
-def test_the_bench_is_empty_on_this_board():
+def test_the_board_is_our_first_turn_having_gone_first():
+    """The premise of the exception, on the board itself."""
+    current = _board()["observation"]["current"]
+    assert current["turn"] == 1
+    assert current["firstPlayer"] == current["yourIndex"], "we went first"
+
+
+def test_the_bench_is_empty_and_a_basic_is_in_hand():
+    """Without both of these the exception would never be reached."""
     mine = _mine(_board())
     assert [b for b in (mine.get("bench") or []) if b] == []
-    assert mine["active"], "there is an active, so this is not a promotion"
-
-
-def test_a_basic_pokemon_is_sitting_in_hand():
-    """The card that would fix the board is in hand and is a Basic."""
-    mine = _mine(_board())
     basics = [card_table.get(c["id"]) for c in (mine.get("hand") or [])]
     basics = [cd for cd in basics
               if cd is not None
@@ -100,22 +101,18 @@ def test_a_basic_pokemon_is_sitting_in_hand():
     assert [getattr(cd, "name", "?") for cd in basics] == ["Meowth ex"]
 
 
-def test_the_menu_offers_something_other_than_ending():
-    """This is what separates the defect from a forced ending.
-
-    54 of the 70 empty-bench endings in the same 500-game run had nothing
-    playable at all. On this board the menu offers two PLAY options, so ending
-    is a choice.
-    """
-    options = _board()["observation"]["select"]["option"]
-    kinds = [o.get("type") for o in options]
+def test_the_menu_does_offer_a_play_so_ending_is_a_choice():
+    """Ending here is deliberate, not forced -- which is the whole point."""
+    kinds = [o.get("type") for o in _board()["observation"]["select"]["option"]]
     assert int(OptionType.END) in kinds
     assert kinds.count(int(OptionType.PLAY)) >= 1
 
 
-@pytest.mark.xfail(strict=True,
-                   reason="open: the last-resort net for an empty bench does not "
-                          "fire here; the fix is behavioural and needs a gate")
-def test_the_agent_does_not_end_the_turn_with_an_empty_bench():
-    """Live, against main.py, so it goes green the day the net is fixed."""
-    assert int(OptionType.END) not in _chosen_types(_board())
+def test_the_agent_keeps_the_meowth_and_ends_the_turn():
+    """The behaviour under test, live against main.py.
+
+    Going red here means somebody removed the first-turn exception. Before
+    'fixing' that, read the top of this file: the empty bench cannot be punished
+    on a turn the opponent has not had yet.
+    """
+    assert int(OptionType.END) in _chosen_types(_board())
