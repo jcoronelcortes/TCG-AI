@@ -47,6 +47,7 @@ def score_play(tc, o, score):
     _op_evo_dmg_to_active = tc._op_evo_dmg_to_active
     _our_first_turn = tc._our_first_turn
     _p = tc._p
+    _plan_relay_is_inert = tc._plan_relay_is_inert
     _prize_denial_pivot = tc._prize_denial_pivot
     _sid = tc._sid
     _opening_sac_pivot = tc._opening_sac_pivot
@@ -90,7 +91,7 @@ def score_play(tc, o, score):
         # the active would make the promotion bring up a Pokemon of the SAME
         # species as the one we are retreating, the retreat changes nothing and
         # only wastes the energy of the retreat cost. It is cancelled
-        # (score = SCORE_VETO) to leave the Pokemon in the active spot. Two cases:
+        # (score = SCORE_VETO) to leave the Pokemon in the active spot. Three cases:
         #   (a) every bench candidate is the same species as the active (the only
         #       candidate is the same Pokemon), or
         #   (b) the promotion prefers bringing up a 1-prize BASIC (we have
@@ -98,7 +99,10 @@ def score_play(tc, o, score):
         #       this turn, opponent not immune to ex/abilities) and that basic
         #       would again be the active's species (e.g. an active Applin with
         #       another Applin on the bench): swapping Applin for Applin adds
-        #       nothing.
+        #       nothing, or
+        #   (c) NOBODY ELSE CAN TAKE THE FRONT: the twin is on the bench and no
+        #       body of another species would act on the spot, so the promotion
+        #       has nothing to prefer over the twin (see below).
         _same_species_retreat = False
         if _active_reloc is not None:
             _ss_bench = [bp for bp in (my_state.bench or [])
@@ -162,8 +166,104 @@ def score_play(tc, o, score):
                     and _active_reloc.id not in OUR_EX_IDS
                     and _ss_same_basic)
         
-                _same_species_retreat = _ss_only_same or _ss_prefer_same
-        
+                # (c) THE TWIN TAKES THE FRONT BECAUSE NOBODY ELSE CAN (user,
+                # records/registro_002 step 20 vs Marnie, WON). Cases (a) and
+                # (b) only see the twin when it is the ONLY candidate or when a
+                # Lillie's in hand turns the promotion into "prefer a basic".
+                # On that board neither fired -- the bench held the twin AND a
+                # Chikorita, and the Lillie's had already been played on step
+                # 19 -- and the promotion brought the twin up anyway: the
+                # Meganium line does not go active with a bench of two
+                # (SCORE_NEVER in ptcg/turn/options/card.py), so the second
+                # Applin was the only body the menu could choose. The fee
+                # discarded the Grass that let the ACTIVE attack and the front
+                # spot ended up holding the same 40 HP, now bare.
+                #
+                # The veto only fires where the twin is CERTAIN to be the body
+                # that comes up, and it is certain when the promotion has no
+                # other body it is allowed to choose. That is exactly what
+                # happened on the record: the Chikorita was not passed over,
+                # it was REFUSED, and the reason a menu refuses a body does not
+                # depend on the retreat -- see `_ss_promotion_refuses`. A body
+                # of another species the menu can take is the escape: there the
+                # promotion has something to prefer and the retreat is a real
+                # play, decided by the rules that own it.
+                _ss_twins = [bp for bp in _ss_bench
+                             if bp.id == _active_reloc.id]
+                _ss_op_act = _active_of(op_state)
+                _ss_attach_unit = (_grass_attach_unit() if _ss_grass_attach
+                                   else 0)
+
+                def _ss_front_damage(_pk):
+                    """What `_pk` would hit the opposing active for if the
+                    retreat handed it the front. The canonical damage model
+                    (ATTACK_ENERGY_REQ + weakness/immunity), counting the Grass
+                    still to be attached this turn and a bench that does NOT
+                    shrink -- the retreat SWAPS bodies."""
+                    if _pk is None or _ss_op_act is None:
+                        return 0
+                    _pk_eff = (len(_pk.energies) * _grass_mult()
+                               + _ss_attach_unit)
+                    _pk_base = _attacker_base_damage(
+                        _pk.id, _ss_op_act, _pk_eff,
+                        grass_scale=total_grass,
+                        teal_self_energy=_pk_eff,
+                        bench_count=bench_count)
+                    if _pk_base <= 0:
+                        return 0
+                    return _our_effective_damage(
+                        _pk, _ss_op_act, _pk_base,
+                        AGENT_STATE.meganium_in_play,
+                        neutralization_zone_active)
+
+                def _ss_promotion_refuses(_pk):
+                    """The promotion menu cannot hand the front to `_pk`.
+
+                    THE MEGANIUM LINE DOES NOT GO ACTIVE (the SCORE_NEVER of
+                    ptcg/turn/options/card.py): with more than one body on the
+                    bench a Chikorita/Bayleef/Meganium is struck out of the
+                    menu to protect Wild Growth from the front spot, and every
+                    exemption it has is a Meganium that ATTACKS on the spot
+                    (the remaining one, `_forced_ko_promote`, needs an EMPTY
+                    active spot and so cannot apply to our own retreat)."""
+                    if _pk.id in (Chikorita, Bayleef, Meganium) and bench_count > 1:
+                        return not (_pk.id == Meganium
+                                    and _can_attack_eff(Meganium,
+                                                        len(_pk.energies)))
+                    return False
+
+                _ss_other_candidates = [
+                    bp for bp in _ss_bench
+                    if bp.id != _active_reloc.id and not _ss_promotion_refuses(bp)]
+                _ss_promotion_is_twin = (bool(_ss_twins)
+                                         and not _ss_other_candidates)
+
+                _same_species_retreat = (_ss_only_same or _ss_prefer_same
+                                         or _ss_promotion_is_twin)
+
+                # THE TWO EXCEPTIONS THE RULE NAMES (user), and both are about
+                # the twin itself, not about the rest of the bench:
+                #   * IT KNOCKS THE OPPONENT OUT. Then the swap is not a swap,
+                #     it is a prize: the body in front cannot take it and the
+                #     one behind can, which is the whole point of retreating.
+                #   * IT HAS LESS LIFE LEFT THAN THE ACTIVE. The two copies
+                #     hand over the same prize, so the front spot should be
+                #     paid with the body already spent and the healthy copy
+                #     kept behind for its evolution.
+                # Read on remaining HP (`hp`), not on the printed maximum: what
+                # the exception is about is the copy that is already damaged.
+                if _same_species_retreat and _ss_twins:
+                    _ss_act_hp = (_active_reloc.hp or 0)
+                    for _ss_tw in _ss_twins:
+                        _ss_tw_dmg = _ss_front_damage(_ss_tw)
+                        if (_ss_op_act is not None and _ss_tw_dmg > 0
+                                and _ss_tw_dmg >= (_ss_op_act.hp or 0)):
+                            _same_species_retreat = False
+                            break
+                        if (_ss_tw.hp or 0) < _ss_act_hp:
+                            _same_species_retreat = False
+                            break
+
         # Rule: Meganium active + Hydrapple ex on the bench + opponent WITHOUT
         # ex protection (no Crustle/Sylveon/ex-immune bodies) => retreat Meganium
         # to promote Hydrapple ex (the key attacker/engine). Meganium stays on the
@@ -797,6 +897,20 @@ def score_play(tc, o, score):
                     _plan_relay_can_attack = (
                         _pr_eff + _pr_reach * _grass_attach_unit() >= _pr_req)
 
+        # THE RELAY THAT TAKES NO PRIZE DOES NOT EARN THE FRONT SPOT (user,
+        # registro_004 step 37 vs Iono's Bellibolt ex, LOST). The arm below cashes
+        # `plan.attacker` on the strength of `_plan_relay_can_attack`, which says
+        # the relay's attack is LEGAL and never that it is worth the swap. The
+        # other half of the question is `_plan_relay_is_inert`, written out in
+        # main.py: no prize by ANY route today (`prizes_today` already counts this
+        # very retreat, through `_prizes_via_promote`) and nothing to run from.
+        #
+        # `_conf_should_retreat` is the escape this side adds to the ones the flag
+        # already carries: a swap that is escaping a special condition is not
+        # being paid for by the relay's damage either.
+        _relay_earns_the_front_spot = (
+            not _plan_relay_is_inert or bool(_conf_should_retreat))
+
         if _suicide_swap_win_promote:
             # RELIEF OF THE SUICIDAL FINISHER (user, registro_016 step 184 vs
             # Marnie's Grimmsnarl, DRAW): the active's attack knocks out but
@@ -998,11 +1112,16 @@ def score_play(tc, o, score):
                 elif _retreat_active.id == Fezandipiti_ex:
                     _retreat_active_can_attack = (_ra_eff_after >= 3)
         
-            if not _retreat_active_can_attack:
-        
+            if not _relay_earns_the_front_spot:
+                # The pointer names a body that CAN attack and the plan says
+                # that attack takes nothing: the swap has no buyer. See the
+                # flag above.
+                score = SCORE_VETO
+            elif not _retreat_active_can_attack:
+
                 score = 3500
             else:
-        
+
                 score = 2500
         elif my_state.active and my_state.active[0] is not None:
             active = my_state.active[0]

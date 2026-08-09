@@ -1700,7 +1700,8 @@ def _ub_target_score(ctx, _ubf) -> int:
         watchtower_in_play,
         op_hand_count=ctx.op_hand_count,
         op_state=ctx.op_state, cards_in_deck=ACTIVE_CARDS_IN_DECK,
-        supp_in_hand_takes_the_turn=_ub_supp_in_hand_turn)
+        supp_in_hand_takes_the_turn=_ub_supp_in_hand_turn,
+        bench_max=getattr(my_state, 'benchMax', 5) or 5)
 
     # Chain UB -> Meowth ex -> Last-Ditch Catch -> Supporter. `field_counts < 2`
     # was NOT enough: with ONE Meowth ex already in play the PLAY branch vetoes the
@@ -1864,10 +1865,33 @@ def _ub_target_score(ctx, _ubf) -> int:
                 # Lillie's is played afterwards, so as not to shuffle
                 # back into the deck Ultra Balls that this turn
                 # enabled evolutions.
+                #
+                # ...AND THE EXEMPTION HAS TO BE BACKED BY THE VALUE IT CLAIMS
+                # (user, registro_004 step 50 vs Alakazam, LOST).
+                # `_ub_evolve_now_search` only says a pre-evolution on the board
+                # is evolvable and its piece is in the deck; it does NOT say the
+                # Ultra Ball is going to fetch THAT piece. In that step it was
+                # true (an Applin from the start of the turn, a Dipplin in the
+                # deck) while the valuation had priced the search at 280 -- its
+                # "preparation" band, the one that means "adds nothing this
+                # turn" -- because a Dipplin from the OTHER Applin was already
+                # in play. So the Ultra Ball skipped the refill on the strength
+                # of an evolution nobody was buying, and the Lillie's it
+                # postponed shuffled the fetched card back into the deck four
+                # actions later.
+                #
+                # `_ub_enables_evo` is the value's own answer to the same
+                # question, and it was already computed right here. Requiring
+                # both leaves the exemption exactly where it was designed to
+                # work (an evolution that completes TODAY prices at 800-1000)
+                # and closes it where the value itself says the target waits
+                # for tomorrow. See
+                # [[el-hueco-de-supporter-muere-con-el-ataque-que-cierra-el-turno]]
+                # and [[lo-que-la-mano-paga-va-antes-de-que-la-mano-se-baraje]].
                 _lillie_draws_8 = (my_prize == 6)
                 if ((hand_size < 4 or not _ub_enables_evo
                         or _lillie_draws_8)
-                        and not _ub_evolve_now_search):
+                        and not (_ub_evolve_now_search and _ub_enables_evo)):
                     ub_score = 4500
 
             # Do not burn Lillie's Determination as the cost
@@ -4675,24 +4699,65 @@ def agent(obs_dict: dict) -> list[int]:
     # suppress the Feza's attack and expose the retreat (the same mechanism as the
     # Ogerpon pivot above). The Feza has to be able to retreat already (physical
     # energy >= its retreat cost of 1).
+    #
+    # THE RULE READ THE FLAG THAT CANNOT SEE MEGA LUCARIO (user, registro_008
+    # step 123, WE LOST). This branch was gated on `active_ko_likely`, which is
+    # built on `_op_best_damage_vs` -- the helper that resolves `card.attacks`
+    # entries as objects when they are ints, and therefore returns 0 for EVERY
+    # opposing attack (see `_op_active_attack_damage_to`'s docstring). Against
+    # the very card the rule names it read 0 damage on a body its own comment
+    # prices at 540, so the whole line -- charge the wall, retreat, promote --
+    # never fired once: with the Feza in front of a Mega Lucario ex and a bare
+    # Hydrapple ex on the bench, the turn routed the Ripening Charge INTO the
+    # doomed Feza and spent it on a Cruel Arrow. One prize for us (6->5), two for
+    # them on the reply (3->1), and the 330 wall that eats Mega Brave whole
+    # (270 < 330) still sitting on the bench.
+    #
+    # So the condemnation is asked of the projector that reads the attack table,
+    # exactly as its Ogerpon twin twenty lines above already asks it -- the same
+    # call, the same conservative 0 when the attack cannot be read, no `scaled`
+    # (Mega Brave prints its real 270; the opt-in scale is a different argument
+    # and belongs to the turn plan). `active_ko_likely` is kept as an OR so no
+    # board that fired before stops firing.
+    #
+    # And the guard that was supposed to check the wall gets teeth in the same
+    # motion: `(hp or 0) > _op_best_damage_vs(...)` was `330 > 0`, i.e. nothing.
+    # It now also asks the real projection, which is what makes "the wall
+    # SURVIVES" a fact instead of a hope.
     _feza_lucario_wall = False
-    if (op_is_lucario_deck and active_ko_likely
+    _flw_op_hand = getattr(op_state, 'handCount', None)
+    if (op_is_lucario_deck
             and _hwp_active is not None
             and _hwp_active.id == Fezandipiti_ex
-            and _hwp_op_active is not None):
+            and _hwp_op_active is not None
+            and (active_ko_likely
+                 or _op_active_attack_damage_to(
+                     _hwp_op_active, _hwp_active, _flw_op_hand)
+                 >= (_hwp_active.hp or 0))):
         _flw_ret_phys = _physical_energy(len(_hwp_active.energies))
         _flw_ret_cost = RETREAT_COST.get(_hwp_active.id, 1)
         if _flw_ret_phys >= _flw_ret_cost:
             for _flw_bp in (my_state.bench or []):
                 if (_flw_bp is not None and _flw_bp.id == Hydrapple_ex
                         and _flw_bp.hp >= (_flw_bp.maxHp or 0)
-                        and (_flw_bp.hp or 0) > _op_best_damage_vs(_flw_bp)):
+                        and (_flw_bp.hp or 0) > max(
+                            _op_best_damage_vs(_flw_bp),
+                            _op_active_attack_damage_to(
+                                _hwp_op_active, _flw_bp, _flw_op_hand))):
                     _feza_lucario_wall = True
                     if len(_flw_bp.energies) * _grass_mult() >= 2:
                         # Hydrapple already charged: switch on the wall pivot to
                         # retreat the Feza and promote the wall (it reuses the plan.attacker
                         # reassignment block further down).
-                        _hydra_wall_pivot = True
+                        #
+                        # The shared guard of both walls: hiding the Feza only
+                        # denies the two prizes if it SURVIVES on the bench. Its
+                        # twin above already asks it, and "fixing one branch of a
+                        # pair and leaving its twin alone is how this very turn
+                        # was lost".
+                        if not _bench_cashable_after_retreat(
+                                _hwp_active, _hwp_op_active):
+                            _hydra_wall_pivot = True
 
     # FRAGILE Hydrapple ex pivot: retreat the active with low HP and promote the
     # healthy one (user, log 86027506 step 81, vs Abomasnow, WON). If the ACTIVE is a
@@ -6240,44 +6305,27 @@ def agent(obs_dict: dict) -> list[int]:
     # crustle/cornerstone games (120/1500, against 0.8% vs Marnie) and both matchups
     # lost ~0.6-0.75 pp. With the guard the firing is restricted to the
     # boards where nobody else looks at the opposing active through the retreat.
-    _win_ko_active_via_promote = False
+    #
+    # `_promote_ko_active_prizes` answers the whole question in ONE place (see its
+    # docstring): how many prizes the KO on the opposing ACTIVE is worth through
+    # the retreat, 0 when that route does not exist. `_win_ko_active_via_promote`
+    # is now the special case "and those prizes WIN the game", and
+    # `_boss_active_prizes_via_promote` is the same number for the comparisons
+    # that do NOT close the game (see `_boss_prize_rank` further down).
+    _boss_active_prizes_via_promote = 0
     if (context == SelectContext.MAIN and can_switch
             and not op_has_ex_immune_active
             and not op_has_ability_immune_active
             and op_state.active and op_state.active[0] is not None
             and my_state.active and my_state.active[0] is not None):
-        _wkap_opa = op_state.active[0]
-        _wkap_act = my_state.active[0]
-        if ((_wkap_opa.hp or 0) > 0
-                and prize_count_op(_wkap_opa) >= my_prize):
-            # Does the CURRENT active already finish it? Then we attack, we do not retreat.
-            _wkap_a_e = len(_wkap_act.energies)
-            _wkap_a_attach = (hand_counts.get(Basic_Grass_Energy, 0) >= 1
-                              and not state.energyAttached)
-            _wkap_a_eff = (_wkap_a_e * _grass_mult()
-                           + (_grass_attach_unit() if _wkap_a_attach else 0))
-            _wkap_a_base = _attacker_base_damage(
-                _wkap_act.id, _wkap_opa, _wkap_a_eff,
-                grass_scale=total_grass,
-                teal_self_energy=_wkap_a_e + (1 if _wkap_a_attach else 0),
-                bench_count=bench_count)
-            _wkap_active_kos = (
-                _wkap_a_base > 0
-                and _our_effective_damage(
-                    _wkap_act, _wkap_opa, _wkap_a_base, AGENT_STATE.meganium_in_play,
-                    neutralization_zone_active) >= (_wkap_opa.hp or 0))
-            _wkap_cost = 0 if has_switch_card else RETREAT_COST.get(_wkap_act.id, 1)
-            if (not _wkap_active_kos
-                    and (has_switch_card
-                         or len(_wkap_act.energies) >= _wkap_cost)):
-                # The retreat DISCARDS whole cards: the Grass on the field that
-                # scales Hydrapple is measured AFTER the retreat.
-                _wkap_grass_after = max(
-                    0, total_grass - (0 if has_switch_card
-                                      else _retreat_grass_units(_wkap_cost)))
-                _win_ko_active_via_promote = _bench_attacker_can_ko(
-                    my_state, _wkap_opa, AGENT_STATE.meganium_in_play, total_grass,
-                    bench_count, _wkap_grass_after, neutralization_zone_active)
+        _boss_active_prizes_via_promote = _promote_ko_active_prizes(
+            my_state, op_state.active[0], can_switch, has_switch_card,
+            (hand_counts.get(Basic_Grass_Energy, 0) >= 1
+             and not state.energyAttached),
+            total_grass, bench_count, AGENT_STATE.meganium_in_play,
+            neutralization_zone_active)
+    _win_ko_active_via_promote = (_boss_active_prizes_via_promote >= my_prize
+                                  and _boss_active_prizes_via_promote > 0)
 
     _boss_prize_rank = 0
     # `_boss_ko_threat_preevo`: there is a THREAT PRE-EVOLUTION on the opposing bench
@@ -6286,6 +6334,9 @@ def agent(obs_dict: dict) -> list[int]:
     # the attack on the active is "enough": it serves to decide to KEEP the Boss's
     # (vetoing Lillie's) even if the active could attack (user, registro_007 p78).
     _boss_ko_threat_preevo = False
+    # Best PRIZE among the gust targets this loop declares knockable: the term the
+    # comparison against the opposing active was missing (see below).
+    _bpr_best_prizes = 0
     if (context == SelectContext.MAIN
             and hand_counts.get(Boss_Orders, 0) >= 1
             and op_state.active and op_state.active[0] is not None):
@@ -6350,14 +6401,37 @@ def agent(obs_dict: dict) -> list[int]:
             _bpr_rank = _bpr_base + (0 if len(_bpr_tgt.energies) >= 1 else 1)
             if _boss_prize_rank == 0 or _bpr_rank < _boss_prize_rank:
                 _boss_prize_rank = _bpr_rank
+            if prize_count_op(_bpr_tgt) > _bpr_best_prizes:
+                _bpr_best_prizes = prize_count_op(_bpr_tgt)
             if _bpr_tgt.id in THREAT_PREEVO_IDS:
                 _boss_ko_threat_preevo = True
+
+    # THE PRIZE IN FRONT, DOWN THE SAME ROUTE (user, registro_006 step 97 vs
+    # Marnie's Grimmsnarl ex, LOST -- deck-agnostic). Our active was a Teal Mask
+    # Ogerpon ex at 2 energies (it does NOT reach Myriad Leaf Shower's 3, so
+    # `_bpr_active_can_ko` read 0 against everything) and on the BENCH there was
+    # another one already at 3. In front stood the **Marnie's Grimmsnarl ex at
+    # 310/320 with 3 energies and a Grass weakness**: 30 + 30 x (3 ours + 3
+    # theirs) = 210, x2 = 420 >= 310 -> a **2-prize** KO, served up by the very
+    # retreat this loop already grants the BENCH targets (`_bench_attacker_can_ko`,
+    # right above). The loop only measured their bench, found the charged
+    # Marnie's Morgrem (rank 7) and played Boss's on it: the same turn cashed
+    # **1 prize instead of 2** and left the Grimmsnarl ex alive to answer.
+    #
+    # The rule is the dominance, not the deck: a gust is a SWAP of the target we
+    # knock out, so it can never be right to pay a Supporter to swap what is in
+    # front for something worth STRICTLY FEWER prizes when the same retreat
+    # already finishes what is in front. STRICT `>` on purpose -- on EQUAL prizes
+    # the gust keeps ruling, which is what cutting the opposing line lives on
+    # ([[boss-gust-mayor-evolucion-fase2]], `_bo_pe_outranks_active` and company).
+    _bpr_active_prize_dominates = (_boss_active_prizes_via_promote > _bpr_best_prizes)
 
     if (_bo_active_attack_sufficient
             or _supp_values.get('_active_attack_sufficient')
             # The opposing active IS ALREADY the winning prize and the bench finishes it after
             # retreating: no lesser-prize gust can motivate the Supporter.
-            or _win_ko_active_via_promote):
+            or _win_ko_active_via_promote
+            or _bpr_active_prize_dominates):
         _boss_prize_rank = 0
 
     # =================================================================
@@ -8815,6 +8889,10 @@ def agent(obs_dict: dict) -> list[int]:
     #   - An active Crustle: it discards our ex and brings up the best non-ex.
     #   - An active Cornerstone: it brings up an attacker that does not depend on an ability.
     _best_promote_card = None
+    # The pre-evolution that `_evk_*` (further down) promotes BECAUSE the
+    # evolution in hand knocks out. The scorer needs it by name: the doomed
+    # penalty measures a hit this body never takes as it is.
+    _promo_evo_koer = None
     _forced_ko_promote = (
         (context == SelectContext.SWITCH or context == SelectContext.TO_ACTIVE)
         and not (my_state.active and my_state.active[0] is not None)
@@ -9179,6 +9257,112 @@ def agent(obs_dict: dict) -> list[int]:
                 if _ev_best is not None:
                     _best_promote_card = _ev_best
 
+        # --- AN EVOLUTION IN HAND THAT KNOCKS OUT -----------------------------
+        # (user, registro_009 step 120 vs Mega Lopunny ex, WON in spite of this.)
+        # The candidate loop above reads every benched body as THE CARD IT IS
+        # NOW: the hand only enters it as energy (`_prom_can_attach`). So a
+        # pre-evolution is scored with its own little attack and loses on HP to
+        # any ex, even when the hand holds the evolution that turns it into the
+        # finisher. There: bench = 2 Teal Mask Ogerpon ex (210 HP, 6 energy),
+        # Meowth ex, Meganium and a Dipplin; hand = Hydrapple ex + 2 Grass +
+        # Night Stretcher; opposing active = Mega Lopunny ex at 330/330 and we
+        # were at 2 prizes. The Ogerpon came up and hit for 240 -- no knockout.
+        # The Dipplin evolves into Hydrapple ex and Syrup Storm (30 + 30 per
+        # Grass on our field, 12 of them) does 390: it knocks out a THREE-prize
+        # Mega ex and closes the game on the spot.
+        #
+        # The rechargeable-tank and the evolution-survivor overrides above cover
+        # priority (2) of the user's order ("the body that best ENDURES"); this
+        # one covers priority (1) ("a body that KNOCKS OUT"), which is why it is
+        # applied last and wins over them. It only acts when NOBODY on the bench
+        # knocks out as it is (`_best_promote_key[0] == 0`): a knockout already
+        # available is a bird in the hand and does not spend the evolution.
+        #
+        # It shares the premise the whole branch is written on -- the promotion
+        # resolves on the OPPONENT's turn, so our turn (evolve, attach, attack)
+        # comes before their next attack. The one modelled exception, Festival
+        # Lead attacking again as soon as we promote, switches it off.
+        _evk_no_koer = (_best_promote_card is None
+                        or (_best_promote_key is not None
+                            and _best_promote_key[0] == 0))
+        if (_evk_no_koer and _op_prom_remain > 0
+                and not op_double_attack_pending):
+            _evk_op_act = _active_of(op_state)
+            # PHYSICAL Grass we can still put on the field next turn (the same
+            # sources `_prom_can_attach` accepts, counted instead of tested).
+            _evk_grass = hand_counts.get(Basic_Grass_Energy, 0)
+            if (_evk_grass == 0
+                    and hand_counts.get(Night_Stretcher, 0) >= 1
+                    and discard_counts.get(Basic_Grass_Energy, 0) >= 1):
+                _evk_grass = 1
+            _evk_unit = _grass_attach_unit()
+            _evk_best = None
+            _evk_best_key = None
+            for _evk_pb in my_state.bench:
+                if _evk_pb is None or not isinstance(_evk_pb, Pokemon):
+                    continue
+                if getattr(_evk_pb, 'appearThisTurn', False):
+                    continue  # it just came down: it does not evolve next turn
+                _evk_pre_data = card_table.get(_evk_pb.id)
+                _evk_pre_name = getattr(_evk_pre_data, 'name', None)
+                if _evk_pre_name is None:
+                    continue
+                # A DIRECT evolution in hand whose pre-evolution is this body.
+                _evk_to_id = None
+                for _hid, _hn in hand_counts.items():
+                    if _hn <= 0:
+                        continue
+                    _hd = card_table.get(_hid)
+                    if (_hd is not None
+                            and getattr(_hd, 'evolvesFrom', None) == _evk_pre_name):
+                        _evk_to_id = _hid
+                        break
+                if _evk_to_id is None:
+                    continue
+                _evk_req = AGENT_STATE.ATTACK_ENERGY_REQ.get(_evk_to_id)
+                if _evk_req is None:
+                    continue  # not an attacker we can price: we invent nothing
+                # Energy the evolution reaches: what the pre-evolution already
+                # carries (evolving keeps it) plus what we can attach next turn.
+                # Attachment slots: the manual one, plus a Ripening Charge for
+                # each bearer that will be in play (it charges ANY of our
+                # Pokemon); Teal Dance only charges its own body, so it counts
+                # only when the promoted body IS that Ogerpon.
+                _evk_slots = 1
+                if not meowth_ability_lock:
+                    _evk_slots += field_counts.get(Hydrapple_ex, 0)
+                    if _evk_to_id in (Hydrapple_ex, Teal_Mask_Ogerpon_ex):
+                        _evk_slots += 1
+                _evk_eff = (len(_evk_pb.energies)
+                            + min(_evk_grass, _evk_slots) * _evk_unit)
+                if _evk_eff < _evk_req:
+                    continue  # we cannot pay for its attack
+                # Damage through the single source. `total_grass` is NOT topped
+                # up with the energy we are about to attach: falling short here
+                # only refuses knockouts, it never invents one.
+                _evk_dmg = _our_effective_damage(
+                    _ProjTarget(_evk_to_id), _evk_op_act,
+                    _attacker_base_damage(_evk_to_id, _evk_op_act, _evk_eff,
+                                          grass_scale=total_grass,
+                                          teal_self_energy=_evk_eff,
+                                          bench_count=_prom_bench_after),
+                    meganium_active=AGENT_STATE.meganium_in_play,
+                    neutralization_zone=neutralization_zone_active)
+                if _evk_dmg < _op_prom_remain:
+                    continue  # it does not knock out: this branch says nothing
+                _evk_to_data = card_table.get(_evk_to_id)
+                _evk_prizes = (3 if getattr(_evk_to_data, 'megaEx', False)
+                               else 2 if getattr(_evk_to_data, 'ex', False)
+                               else 1)
+                _evk_key = (-_evk_prizes, getattr(_evk_to_data, 'hp', 0) or 0,
+                            _evk_dmg)
+                if _evk_best_key is None or _evk_key > _evk_best_key:
+                    _evk_best_key = _evk_key
+                    _evk_best = _evk_pb
+            if _evk_best is not None:
+                _best_promote_card = _evk_best
+                _promo_evo_koer = _evk_best
+
     # Rule (user) vs Mega Lucario: when the opponent KNOCKS OUT one of our Pokemon and on
     # the bench there is NO attacker able to attack this turn
     # (`_best_promote_card is None`), we ALWAYS prefer to promote a
@@ -9486,13 +9670,55 @@ def agent(obs_dict: dict) -> list[int]:
     _promo_bench_after = (bench_count if context == SelectContext.SWITCH
                           else max(0, bench_count - 1))
 
+    # THE ATTACHMENT THAT LOADS THE PROMOTED BODY IS **NEXT TURN'S** (user,
+    # registro_007 step 135 vs Marnie's Grimmsnarl ex, LOST -- episode
+    # 90898627, deck-agnostic).
+    #
+    # Turn 7, both piles at TWO. Their Grimmsnarl ex knocked out our Hydrapple ex
+    # and, with the splash, the Meganium behind it: Wild Growth died with it, so
+    # every Grass on our board went back to providing one. The menu offered a
+    # Fezandipiti ex at 0 energy, TWO Teal Mask Ogerpon ex at 2/3 and a Tapu Bulu
+    # at 1/4, with one Grass and a Boss's Orders in hand. Promoting an Ogerpon,
+    # attaching that Grass and swinging Myriad Leaf Shower is 30+30x(3+3) = 210
+    # doubled by the Darkness weakness = 420 on a 320 HP body: the last two
+    # prizes, on OUR turn, before they can reply. The agent brought up the Tapu
+    # Bulu -- which needs four energy and had one -- and lost.
+    #
+    # Every rule that could have promoted the Ogerpon was overruled by the same
+    # -30000, `PROMO_MATCH_POINT_VETO`: at their match point a 2-prize body that
+    # their blow removes (180 through a wounded 170 HP Ogerpon) is the game. Both
+    # veto sites carry the one exemption that fits this board -- the body that
+    # KNOCKS OUT and with that closes OUR count first -- and both ask
+    # `_promo_kos_op` for it. It answered NO, and the reason was arithmetic, not
+    # strategic: the projection refused to count the manual attachment because
+    # `state.energyAttached` was True. That flag belongs to the turn IN PROGRESS,
+    # and the turn in progress is THEIRS -- they attached and attacked with it.
+    # The body we are choosing does not attack today; it attacks on our next
+    # turn, which arrives with its attachment intact. Read at 2 energy the
+    # Ogerpon does not reach Myriad's cost, `_attacker_base_damage` returns 0 and
+    # a 420-damage finisher was priced at zero.
+    #
+    # So the flag is only believed while there IS an active in the spot -- the
+    # voluntary retreat (SWITCH), which really does spend TODAY's attachment on
+    # the body we bring up. With the spot EMPTY the promotion is forced and what
+    # is being projected is next turn: the attachment counts. It is the same
+    # reading `_ref_can_attach` already uses further down
+    # (`not state.energyAttached or _ref_forced_promote`) and the one
+    # `_prom_can_attach` uses inside `_best_promote_card` -- which is why that
+    # selector DID see the Ogerpon and marked it: the two halves of the same
+    # question disagreed, and the half with the veto behind it was the blind one.
+    _promo_attach_open = (
+        hand_counts.get(Basic_Grass_Energy, 0) >= 1
+        and (not state.energyAttached
+             or not (my_state.active and my_state.active[0] is not None)))
+
     def _promo_kos_op(_pk):
         """The candidate KNOCKS OUT the opposing active after being promoted (with its
-        current energy plus the manual attachment if it is still unspent)."""
+        current energy plus the manual attachment if it is still available)."""
         if _promo_op_act is None or _pk is None:
             return False
         _pe = len(_pk.energies) * _grass_mult()
-        if not state.energyAttached and hand_counts.get(Basic_Grass_Energy, 0) >= 1:
+        if _promo_attach_open:
             _pe += _grass_attach_unit()
         _pbase = _attacker_base_damage(
             _pk.id, _promo_op_act, _pe, grass_scale=total_grass,
@@ -9508,15 +9734,15 @@ def agent(obs_dict: dict) -> list[int]:
         """Effective damage the candidate deals to the opposing active once promoted.
 
         The SAME projection as `_promo_kos_op` -- current energy, plus the manual
-        attachment if it is still unspent, and the bench as it stands after the
-        promotion -- read as a QUANTITY instead of as a threshold. Against a wall
-        the question is not whether the body finishes the wall off; it is whether
-        it touches it AT ALL.
+        attachment if it is still available (`_promo_attach_open`), and the bench
+        as it stands after the promotion -- read as a QUANTITY instead of as a
+        threshold. Against a wall the question is not whether the body finishes
+        the wall off; it is whether it touches it AT ALL.
         """
         if _promo_op_act is None or _pk is None:
             return 0
         _pe = len(_pk.energies) * _grass_mult()
-        if not state.energyAttached and hand_counts.get(Basic_Grass_Energy, 0) >= 1:
+        if _promo_attach_open:
             _pe += _grass_attach_unit()
         _pbase = _attacker_base_damage(
             _pk.id, _promo_op_act, _pe, grass_scale=total_grass,
@@ -9919,6 +10145,95 @@ def agent(obs_dict: dict) -> list[int]:
         and not AGENT_STATE.turn_plan.wins_this_turn
         and AGENT_STATE.turn_plan.prizes_today == 0
         and AGENT_STATE.turn_plan.op_prizes_next >= 1)
+
+    # =================================================================
+    # THE RELAY THAT TAKES NO PRIZE DOES NOT EARN THE FRONT SPOT (user,
+    # registro_004 step 37, episode 90880936 vs Iono's Bellibolt ex, LOST).
+    #
+    #     US (6 prizes)                      RIVAL (6 prizes)
+    #     active Chikorita 70/70, 1 Grass    active Iono's Bellibolt ex
+    #            (Growl does 0; Seed Bomb           280/280, ZERO energy
+    #             costs two)                 bench  3x Tadbulb, a 120 HP stage 1
+    #     bench  Dipplin 80/80, 1 Grass             and a 70 HP body on TWO
+    #     hand   Hydrapple ex, Boss's,              energies
+    #            Xerosic's, 1 Grass
+    #
+    # `plan.attacker` pointed at the benched Dipplin, and TWO rules cash that
+    # pointer without ever asking what the body it names would achieve: the
+    # retreat scores 3500 for "the relay can attack" and the ATTACK of our own
+    # active is vetoed for the same reason ("do not attack, retreat to the
+    # relay"). The turn attached its Grass to the Chikorita, the retreat fee
+    # discarded that same card, the Dipplin came up and threw Do the Wave -- 20
+    # damage for each of our Benched Pokemon, and after the swap the bench holds
+    # ONE. Twenty, into 280 at full health.
+    #
+    # What it bought is in the next record: the promoted Dipplin was knocked out
+    # on the reply, Applin and Dipplin went to the discard together, the opponent
+    # took a prize, and the Hydrapple ex stayed in hand with no body left to
+    # evolve. The chip paid for the other side's prize.
+    #
+    # `_plan_relay_can_attack` measures whether the relay's attack is LEGAL. This
+    # is the other half -- whether it is WORTH the swap -- and the front spot has
+    # exactly THREE things to sell, so the flag is only true when the relay buys
+    # none of them:
+    #
+    #   1. A PRIZE. `prizes_today` already answers it for BOTH routes a turn has
+    #      -- `_prizes_via_promote` IS this retreat -- so a relay that knocks
+    #      something out clears the flag by itself, with no card id involved.
+    #   2. A KNOCKOUT WITHIN REACH. A chip is an instalment when one more of the
+    #      same finishes the body it lands on, which is `remain_hp` <= the damage
+    #      that produced it. Meganium leaving a Great Tusk at 40 is buying the
+    #      next turn's prize; a Dipplin taking 20 off a 280 HP ex is buying a
+    #      number. This is the user's sentence -- "it does not beat the active
+    #      because it is an ex" -- with the ex read off its HP and not its type.
+    #   3. A CHEAPER BODY IN FRONT. The retreat also chooses who pays the prize
+    #      when the front spot falls ([[la-retirada-elige-quien-paga-el-premio]]),
+    #      and a 2-prize body handing the spot to a 1-prize one is worth the fee
+    #      with no damage at all ([[el-ex-mudo-no-es-un-muro]]).
+    #
+    # `op_prizes_next == 0` is the fourth escape, and the mirror image of the one
+    # `_ready_attack_is_inert` uses one block above: when our active is knocked
+    # out on the reply the swap is a RESCUE, and what pays for it is the body it
+    # saves, not anything the relay does.
+    #
+    # See [[el-ataque-listo-que-no-toma-premio-no-es-el-turno]] -- the same
+    # sentence for the attack our own active throws -- and
+    # [[la-tasa-de-retirada-exige-relevo-que-pueda-actuar]], whose floor ("the
+    # relay must be able to act") this raises to "the relay must achieve
+    # something". And it is one flag for two menus on purpose:
+    # [[una-bandera-de-dos-observaciones-no-puede-reevaluar-lo-ya-pagado]] --
+    # a pointer that stops justifying the retreat must stop vetoing the attack
+    # in the same breath, or the turn is left with no play at all.
+    # =================================================================
+    _pri_act = my_state.active[0] if my_state.active else None
+    _pri_bench = [_b for _b in (my_state.bench or []) if _b is not None]
+    _pri_i = AGENT_STATE.plan.attacker - 1
+    _pri_relay = _pri_bench[_pri_i] if 0 <= _pri_i < len(_pri_bench) else None
+
+    # The plan indexes the opposing bodies the way the loop that wrote it did:
+    # 0 is their active, the rest is their bench with the empty slots removed.
+    _pri_targets = ([op_state.active[0]] if op_state.active else [])
+    _pri_targets += [_b for _b in (op_state.bench or []) if _b is not None]
+    _pri_target = (_pri_targets[AGENT_STATE.plan.target]
+                   if 0 <= AGENT_STATE.plan.target < len(_pri_targets) else None)
+    _pri_remain = AGENT_STATE.plan.remain_hp
+
+    _pri_ko_in_reach = (
+        _pri_target is None or _pri_remain is None
+        or _pri_remain <= (_pri_target.hp or 0) - _pri_remain)
+
+    _pri_cheaper_body = (
+        _pri_relay is not None and _pri_act is not None
+        and prize_count(_pri_relay) < prize_count(_pri_act))
+
+    _plan_relay_is_inert = (
+        AGENT_STATE.plan.attacker >= 1
+        and _pri_relay is not None
+        and not AGENT_STATE.turn_plan.wins_this_turn
+        and AGENT_STATE.turn_plan.prizes_today == 0
+        and AGENT_STATE.turn_plan.op_prizes_next == 0
+        and not _pri_ko_in_reach
+        and not _pri_cheaper_body)
 
     # =================================================================
     # THE FINISHER THAT IS NOT ON THE BOARD YET (user, registro_002 step 25 vs

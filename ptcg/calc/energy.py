@@ -7,9 +7,9 @@ utils/purity.py: nothing here touches mutable state or the runtime tables.
 
 from ptcg.state.agent_state import AGENT_STATE
 from ptcg.cards.tables import attack_table, card_table
-from ptcg.cards.ids import (Applin, Basic_Grass_Energy, Chikorita, Hydrapple_ex,
-                            Night_Stretcher, RETREAT_COST, Tapu_Bulu,
-                            Teal_Mask_Ogerpon_ex)
+from ptcg.cards.ids import (Applin, Basic_Grass_Energy, Chikorita,
+                            GRASS_DOUBLER_IDS, Hydrapple_ex, Night_Stretcher,
+                            RETREAT_COST, Tapu_Bulu, Teal_Mask_Ogerpon_ex)
 from ptcg.cards.groups import Nighttime_Mine, OUR_TERA_IDS
 from ptcg.cards.costs import ATTACK_ENERGY_REQ_BASE
 from ptcg.calc.board import _active_of
@@ -61,6 +61,35 @@ def _grass_attach_unit():
     # hand or recovered). With Meganium's Wild Growth in play one physical Grass
     # provides {G}{G} = 2 effective; without Meganium, 1.
     return 2 if AGENT_STATE.meganium_in_play else 1
+
+
+def energy_after_evolution(pokemon, evo_card_id, grass_to_attach=0):
+    """EFFECTIVE energy the body would count on THE INSTANT it evolves.
+
+    `len(energies)` is already effective (the observation applies Wild Growth,
+    see `_grass_mult`), and that is enough for every body ALREADY in play. It is
+    not enough for the one we are about to create: the card being played may be
+    the doubler ITSELF. A Bayleef carrying two physical Grass reads 2 effective
+    today and swings Solar Beam -- cost 4 -- the moment it becomes a Meganium.
+    Asking "can it attack once it evolves" with today's reading answers no, and
+    the whole point of the question is the board AFTER the play.
+
+    `grass_to_attach` is the number of PHYSICAL basic Grass the turn can still
+    put on it (0 or 1: the manual attachment), converted at the rate that will
+    be in force ONCE THE CARD IS DOWN -- which is why it is not simply
+    `_grass_attach_unit()`: that reads the board of before the play.
+    """
+    unit = _grass_attach_unit()
+    if pokemon is None:
+        return max(0, grass_to_attach) * unit
+    eff = len(getattr(pokemon, 'energies', None) or [])
+    if evo_card_id in GRASS_DOUBLER_IDS and not AGENT_STATE.meganium_in_play:
+        # Wild Growth switches on WITH this evolution: every physical Grass
+        # already on the body goes from providing one to providing two.
+        eff += sum(1 for _e in (getattr(pokemon, 'energyCards', None) or [])
+                   if getattr(_e, 'id', 0) == Basic_Grass_Energy)
+        unit = 2
+    return eff + max(0, grass_to_attach) * unit
 
 
 def _pending_grass_extra_eff(active, hand_grass, energy_attached):
@@ -372,6 +401,7 @@ __all__ = [
     'count_total_grass_energy',
     'calc_syrup_storm_damage',
     '_grass_attach_unit',
+    'energy_after_evolution',
     '_pending_grass_extra_eff',
     '_grass_ability_slots',
     '_grass_ability_slots_active',

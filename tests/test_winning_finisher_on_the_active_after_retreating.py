@@ -241,9 +241,17 @@ def test_with_no_finisher_on_the_bench_it_does_not_fire():
     assert choice != [_idx_of_type(decision, m.OptionType.RETREAT)], choice
 
 
-def test_without_match_point_the_gust_stays_alive():
-    """With THREE prizes left, the KO on the active (2 prizes) no longer closes
-    the game: the veto does not fire and Boss's Orders is playable again."""
+def test_without_match_point_the_bigger_prize_still_rules():
+    """With THREE prizes left the KO on the active no longer CLOSES the game --
+    but it is still worth 2 prizes against the gust's 1, and the retreat is the
+    play. This used to assert the opposite: `_win_ko_active_via_promote` only
+    looked through the retreat when the KO won on the spot, so at 3 prizes the
+    rival active went back to counting ZERO and a 1-prize Froslass beat a 2-prize
+    ex. That was the narrow scope of the rule, not a measured decision; the
+    generalisation (`_bpr_active_prize_dominates` /
+    `_bo_gust_prize_dominated`, user, registro_006 step 97) prices the active
+    spot down the SAME route the gust already uses.
+    """
     fx = _fixture()
     decision = copy.deepcopy(fx["observation"])
     decision["current"]["players"][1]["prize"] = [None, None, None]
@@ -251,7 +259,33 @@ def test_without_match_point_the_gust_stays_alive():
     m.agent(fx["observacion_previa"])
     choice = m.agent(decision)
 
+    assert choice == [_idx_of_type(decision, m.OptionType.RETREAT)], (
+        "2 premios delante contra 1 en la banca: se retira y se remata al ex, "
+        f"eligio {choice}")
+
+
+def test_with_equal_prizes_the_gust_stays_alive():
+    """THE BOUNDARY of the generalisation: the dominance is STRICT. With a
+    1-prize body in the active spot the retreat cashes exactly what the gust
+    cashes, so nothing is thrown away by gusting -- and that tie is what every
+    line-cut rule lives on ([[boss-gust-mayor-evolucion-fase2]]): same prize,
+    but it removes the pre-evolution of their attacker.
+
+    Same board, with the Marnie's Morgrem (100 HP, Stage 1, 1 prize, Grass
+    weakness) in front instead of the Grimmsnarl ex: the benched Ogerpon at 4
+    energies still knocks it out after retreating (30 + 30x4 = 150, x2 = 300 >=
+    100), but now for the SAME prize as the Froslass on their bench.
+    """
+    fx = _fixture()
+    decision = copy.deepcopy(fx["observation"])
+    active = decision["current"]["players"][0]["active"][0]
+    active["id"] = m.Marnies_Morgrem
+    active["hp"] = active["maxHp"] = 100
+    active["preEvolution"] = [{"id": m.Marnies_Impidimp, "playerIndex": 0,
+                               "serial": 900}]
+
+    m.agent(fx["observacion_previa"])
+    choice = m.agent(decision)
+
     assert choice != [_idx_of_type(decision, m.OptionType.RETREAT)], (
-        f"sin match point la retirada no debe mandar, eligio {choice}")
-    assert choice == [_idx_play_boss(decision)], (
-        f"sin match point el gusteo debe seguir disponible, eligio {choice}")
+        f"a premios iguales el gusteo no cede: eligio {choice}")

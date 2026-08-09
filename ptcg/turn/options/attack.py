@@ -20,6 +20,7 @@ def score_play(tc, o, score):
     _conf_should_attack = tc._conf_should_attack
     _energy_in_hand = tc._energy_in_hand
     _nonex_active_hits_wall = tc._nonex_active_hits_wall
+    _plan_relay_is_inert = tc._plan_relay_is_inert
     _suicide_loses = tc._suicide_loses
     _suicide_only_draws = tc._suicide_only_draws
     _suicide_swap_win_promote = tc._suicide_swap_win_promote
@@ -122,7 +123,16 @@ def score_play(tc, o, score):
         
                     score = SCORE_VETO
         
-        if AGENT_STATE.plan.attacker >= 1 and score > 0 and not _nonex_active_hits_wall:
+        # `_plan_relay_is_inert` (main.py, "the relay that takes no prize does not
+        # earn the front spot") is the OTHER menu of the same pointer: the retreat
+        # it was justifying is vetoed on that board, so the veto below has to lift
+        # in the same breath. Left standing it would forbid the attack for the
+        # sake of a retreat that no longer happens, and the turn would be left
+        # with no play at all -- which is how registro_004 step 37 ended up
+        # spending a Boss's Orders on nothing.
+        if (AGENT_STATE.plan.attacker >= 1 and score > 0
+                and not _nonex_active_hits_wall
+                and not _plan_relay_is_inert):
             _plan_atk_is_winning = False
             if AGENT_STATE.plan.remain_hp is not None and AGENT_STATE.plan.remain_hp <= 0:
                 _op_act_plan = op_state.active[0] if op_state.active else None

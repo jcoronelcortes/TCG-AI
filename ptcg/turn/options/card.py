@@ -21,7 +21,7 @@ from ptcg.decision.disruption import _stamp_pendiente
 from ptcg.decision.meowth import _CtxMeowthFetch, _MEOWTH_FETCH_SUPPS, _RULES_MEOWTH_FETCH
 from ptcg.decision.night_stretcher import _RULES_NS_APPLIN, _RULES_NS_BAYLEEF, _RULES_NS_CHIKORITA, _RULES_NS_DIPPLIN, _RULES_NS_FEZ, _RULES_NS_GRASS, _RULES_NS_HYDRAPPLE, _RULES_NS_MEGANIUM, _RULES_NS_MEOWTH, _RULES_NS_OGERPON, _RULES_NS_PINSIR, _RULES_NS_TAPU, _ctx_ns_fetch, _ns_fez_engine_alive, _ns_meowth_engine_alive
 from ptcg.decision.poke_pad import _CtxPPFetch, _RULES_PP_FETCH
-from ptcg.decision.ultra_ball import _AJUSTES_UB_HYDRAPPLE, _CtxUBFetch, _RULES_UB_APPLIN, _RULES_UB_BAYLEEF, _RULES_UB_CHIKORITA, _RULES_UB_DIPPLIN, _RULES_UB_FEZ, _RULES_UB_HYDRAPPLE, _RULES_UB_MEGANIUM, _RULES_UB_MEOWTH, _RULES_UB_OGERPON, _RULES_UB_PINSIR, _RULES_UB_TAPU, _counter_stadium_urgent, _ctx_ub_fetch_hydrapple, _ctx_ub_fetch_meowth
+from ptcg.decision.ultra_ball import _AJUSTES_UB_HYDRAPPLE, _CtxUBFetch, _ub_target_covered_by_hand, _ub_target_has_no_seat, _RULES_UB_APPLIN, _RULES_UB_BAYLEEF, _RULES_UB_CHIKORITA, _RULES_UB_DIPPLIN, _RULES_UB_FEZ, _RULES_UB_HYDRAPPLE, _RULES_UB_MEGANIUM, _RULES_UB_MEOWTH, _RULES_UB_OGERPON, _RULES_UB_PINSIR, _RULES_UB_TAPU, _counter_stadium_urgent, _ctx_ub_fetch_hydrapple, _ctx_ub_fetch_meowth
 from ptcg.state.agent_state import AGENT_STATE
 from ptcg.state.zones import ZONE_DECK, ZONE_PRIZE
 from ptcg.engine.rules import _resolve_with_trace
@@ -89,6 +89,7 @@ def score_play(tc, o, score):
     _promo_min_prize = tc._promo_min_prize
     _promo_op_act = tc._promo_op_act
     _promo_survives = tc._promo_survives
+    _promo_evo_koer = tc._promo_evo_koer
     _promo_survivors = tc._promo_survivors
     _promo_wall_relief = tc._promo_wall_relief
     _promote_setup_ko_attacker = tc._promote_setup_ko_attacker
@@ -1110,7 +1111,20 @@ def score_play(tc, o, score):
                             #    the size of the +6000 the wall rule gives the
                             #    unblocked attacker and cancelled it, promoting a
                             #    charged ex that dealt 0.
+                            #
+                            #    AND UNLESS this body is the pre-evolution that
+                            #    `_promo_evo_koer` picked: the penalty measures a
+                            #    hit it never takes AS IT IS. Our turn comes
+                            #    first, the evolution goes on it from hand and
+                            #    what the opponent finds in front of them is the
+                            #    finisher, not the 80 HP pre-evolution (user,
+                            #    registro_009 step 120 vs Mega Lopunny ex). It is
+                            #    the same exemption the bodies that knock out
+                            #    already have -- "we take a prize before dying" --
+                            #    reaching the one that knocks out one evolution
+                            #    later.
                             if (not _promo_survives(card)
+                                    and card is not _promo_evo_koer
                                     and not (_promo_wall_relief
                                              and _promo_damage_to_op is not None
                                              and _promo_damage_to_op(card) > 0)):
@@ -1995,6 +2009,53 @@ def score_play(tc, o, score):
                         # (20/25/40) in case a future branch applies them
                         # to an intermediate link.
                         score = max(score, 900)
+
+                    # THE ULTRA BALL DOES NOT BUY WHAT THE HAND ALREADY HOLDS
+                    # (user, registro_010 step 112 vs Mega Lucario ex). The
+                    # same rule that gates the Ultra Ball's VALUE
+                    # (`_ub_target_covered_by_hand`) has to gate its FETCH, or
+                    # the two menus disagree: the play branch buys the Item for
+                    # target A and the prompt spends it on target B. There the
+                    # ladder took a SECOND Meowth ex with one already in hand
+                    # -- `lillie_in_deck_refresh` (1000) only asks whether a
+                    # Supporter is alive in the deck -- discarding the Meganium
+                    # and the Chikorita of our own line to buy a card the hand
+                    # already had. It goes AFTER the scarcity bonus and the
+                    # link clamps so it has the LAST word, and it lands on 10,
+                    # the floor the "this fetch produces nothing" rules of
+                    # `_RULES_UB_MEOWTH` already use -- below the `> 10` gate
+                    # that arms `_ub_meowth_pending` / `_ub_fez_pending` in
+                    # `finalizar`, so a body clamped here is not committed to
+                    # the bench either. Deck-agnostic: it names no card.
+                    _ub_free_seats = max(
+                        0, (getattr(my_state, 'benchMax', 5) or 5)
+                        - bench_count)
+                    if _ub_target_covered_by_hand(
+                            card.id, hand_counts, field_counts,
+                            _ub_free_seats):
+                        score = min(score, 10)
+
+                    # ...AND IT DOES NOT BUY A BODY WITH NOWHERE TO SIT (user,
+                    # registro_004 steps 50-57 vs Alakazam, LOST). The same
+                    # sentence read from the other side: with the bench FULL a
+                    # BASIC cannot enter play this turn at all, so the fetch
+                    # brings a card that sleeps in hand while its two discards
+                    # are paid today -- and there the Lillie's Determination
+                    # that was sitting in that very hand shuffled both fetched
+                    # Meowth ex straight back into the deck.
+                    #
+                    # Every branch of `_RULES_UB_MEOWTH` that asks for a seat
+                    # (`full_bench`) sat BELOW the engine rules, and the engine
+                    # flag `_ub_engine_pivot_turn` had been armed earlier in the
+                    # turn with a seat still free: a promise that outlived its
+                    # premise (see [[el-puntero-del-plan-es-una-promesa-y-caduca]]).
+                    # Here the question is asked about the CARD, not about the
+                    # plan, so no engine can talk over it -- and it is asked of
+                    # every target, not only of the Meowth ex.
+                    # `_ub_target_has_no_seat` reads the stage off the card
+                    # data: deck-agnostic, it names no card.
+                    if _ub_target_has_no_seat(card.id, _ub_free_seats):
+                        score = min(score, 10)
         
                 elif select.effect is not None and select.effect.id == Meowth_ex:
         

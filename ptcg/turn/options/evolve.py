@@ -5,14 +5,37 @@ VERBATIM. It unpacks from the context the 41 fields it reads and returns the
 6 it reassigns; the rest stay as they were, just like before.
 """
 
-from cg.api import AreaType
+from cg.api import AreaType, OptionType
 from ptcg.calc.card import get_card
-from ptcg.calc.damage import _our_effective_damage, evolution_body_bias
-from ptcg.calc.energy import _grass_attach_unit, _grass_mult
+from ptcg.calc.damage import (_op_window_against_evolution,
+                              _our_effective_damage, evolution_body_bias)
+from ptcg.calc.energy import (_can_attack_eff, _grass_attach_unit, _grass_mult,
+                              energy_after_evolution)
 from ptcg.calc.board import _active_of
-from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Chikorita, Dipplin, Grand_Tree, Hydrapple_ex, Lillie_Determination, Meganium, RETREAT_COST, SCORE_VETO, Tapu_Bulu
+from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Chikorita, Dipplin, Grand_Tree, Hydrapple_ex, Lillie_Determination, Meganium, RETREAT_COST, SCORE_EVO_BODY_WITHOUT_A_JOB, SCORE_VETO, Tapu_Bulu
 from ptcg.cards.tables import card_table
 from ptcg.state.agent_state import AGENT_STATE
+
+
+def _evolution_also_fits_the_bench(tc, o, card_id):
+    """Does THIS MENU offer the same evolution card on a BENCH body?
+
+    The question the demotion above depends on: refusing the front spot is only
+    a play if the card has somewhere else to go. It is read off the option list
+    and not off the board because the menu is the authority on which bodies are
+    legal targets -- a bench copy that cannot legally wear the card never shows
+    up here, and no rule has to re-derive the line.
+    """
+    for _other in (getattr(tc.select, 'option', None) or []):
+        if _other is o or _other.type != OptionType.EVOLVE:
+            continue
+        if _other.inPlayArea != AreaType.BENCH:
+            continue
+        _area = _other.area if _other.area is not None else AreaType.HAND
+        _c = get_card(tc.obs, _area, _other.index, tc.my_index)
+        if _c is not None and _c.id == card_id:
+            return True
+    return False
 
 
 def score_play(tc, o, score):
@@ -266,69 +289,62 @@ def score_play(tc, o, score):
                     elif op_is_sylveon_deck:
                         score = 30500
         
-            if _is_active and active_ko_likely and score > 0 and card.id != Meganium:
-                _evo_effective_energy = _pkmn_energy * _grass_mult()
-                if _has_energy_in_hand:
-                    _evo_effective_energy += _grass_attach_unit()
-                _evo_can_attack = False
-                if card.id == Hydrapple_ex:
-                    _evo_can_attack = (_evo_effective_energy >= 2)
-                elif card.id == Dipplin:
-                    _evo_can_attack = (_pkmn_energy >= 1 or _has_energy_in_hand)
-                elif card.id == Bayleef:
-                    _evo_can_attack = False
-        
-                if not _evo_can_attack and not (has_condition and _is_active):
-                    score = 8000
-        
-                elif _evo_can_attack and card.id != Hydrapple_ex:
-        
-                    _evo_data = card_table.get(card.id)
-                    _evo_max_hp = _evo_data.hp if (_evo_data and hasattr(_evo_data, 'hp')) else 0
-        
-                    _current_damage = pokemon.maxHp - pokemon.hp if hasattr(pokemon, 'maxHp') else 0
-                    _evo_hp_after = _evo_max_hp - max(0, _current_damage)
-        
-                    _evo_op_damage = estimated_op_damage
-                    if _evo_data:
-                        _op_act = _active_of(op_state)
-                        if _op_act is not None:
-                            _op_act_data = card_table.get(_op_act.id)
-                            if (_op_act_data and hasattr(_evo_data, 'weakness') and
-                                    hasattr(_op_act_data, 'energyType') and
-                                    _evo_data.weakness == _op_act_data.energyType):
-        
-                                _base_op_dmg = 0
-                                if _op_act_data.attacks:
-                                    for _atk in _op_act_data.attacks:
-                                        if hasattr(_atk, 'damage') and _atk.damage is not None:
-                                            _base_op_dmg = max(_base_op_dmg, _atk.damage)
-                                _evo_op_damage = _base_op_dmg * 2
-                            elif (hasattr(_evo_data, 'weakness') and
-                                  hasattr(_op_act_data, 'energyType') and
-                                  _evo_data.weakness != _op_act_data.energyType):
-        
-                                _base_op_dmg = 0
-                                if _op_act_data.attacks:
-                                    for _atk in _op_act_data.attacks:
-                                        if hasattr(_atk, 'damage') and _atk.damage is not None:
-                                            _base_op_dmg = max(_base_op_dmg, _atk.damage)
-                                _evo_op_damage = _base_op_dmg
-        
-                    _evo_survives = (_evo_hp_after > _evo_op_damage)
-        
-                    if not _evo_survives:
-        
-                        _bench_has_same_preevo = False
-                        for _bp in my_state.bench:
-                            if _bp is not None and _bp.id == pokemon.id:
-                                _bench_has_same_preevo = True
-                                break
-        
-                        if _bench_has_same_preevo and not (has_condition and _is_active):
-        
-                            score = 8000
-        
+            # ── THE STAGE GOES ON A BODY THAT CAN USE IT ───────────────
+            # An evolution played in the ACTIVE spot only earns its band if the
+            # body it creates DOES SOMETHING in front: it attacks this turn, or
+            # it survives what reaches the active spot before our next turn. A
+            # body that does neither is a Stage buried under a corpse -- it
+            # neither trades nor blocks, and the card dies with the prize.
+            #
+            # Then the same card is worth more on ANY other body the menu
+            # offers on the bench: down there it charges, it inherits the energy
+            # it already carries and it is still ours next turn.
+            #
+            # Deck-agnostic: `energy_after_evolution` + `ATTACK_ENERGY_REQ`
+            # answer the attack, `_op_window_against_evolution` answers the
+            # reply, and "somewhere else to put it" is read off THIS menu. No
+            # card id and no matchup appear in the gate.
+            #
+            # User, registro_004 step 44 vs Abra/Kadabra/Alakazam (WON in spite
+            # of it): active Bayleef 80/110 with ZERO energy, an identical
+            # Bayleef at 110/110 WITH a Grass on the bench, Meganium in hand and
+            # the turn's attachment already spent. Both options scored 35000 and
+            # the +16 damage gradient of `evolution_body_bias` sent the Stage 2
+            # to the front, where it could neither attack (Solar Beam costs 4,
+            # it had 0) nor retreat (cost 2) nor survive the Alakazam their
+            # three Kadabra were one card away from. The bench copy would have
+            # started at 2 of the 4 it needs.
+            if _is_active and score > 0 and not has_condition:
+                _evo_eff = energy_after_evolution(
+                    pokemon, card.id, 1 if _has_energy_in_hand else 0)
+                _evo_can_attack = _can_attack_eff(card.id, _evo_eff)
+
+                _evo_data = card_table.get(card.id)
+                _evo_max_hp = (getattr(_evo_data, 'hp', 0) or 0) if _evo_data else 0
+                _evo_damage_carried = max(
+                    0, (getattr(pokemon, 'maxHp', 0) or 0) - (getattr(pokemon, 'hp', 0) or 0))
+                _evo_hp_after = _evo_max_hp - _evo_damage_carried
+                _evo_window = max(
+                    estimated_op_damage,
+                    _op_window_against_evolution(
+                        _active_of(op_state), card.id,
+                        getattr(op_state, 'handCount', None)))
+                _evo_survives = (_evo_hp_after > _evo_window)
+
+                # `active_ko_likely` stays as an INDEPENDENT trigger, and one
+                # that does not ask where else the card could go: it is the
+                # reading the branch already used and it fires on boards where
+                # the projection alone reads low (a heuristic on life and their
+                # energy, not on damage). With the active already condemned,
+                # putting the Stage under it buries it whether or not there is a
+                # second body -- it is the same play as burying it, one turn
+                # earlier.
+                if not _evo_can_attack and (
+                        active_ko_likely
+                        or (not _evo_survives
+                            and _evolution_also_fits_the_bench(tc, o, card.id))):
+                    score = SCORE_EVO_BODY_WITHOUT_A_JOB
+
             # ANTI-CUBCHOO: do NOT evolve into a SLOW body that does not reach
             # its attack (user, registro_034 step 131 vs Cubchoo, LOST).
             # That deck locks and discards energy, so a Pokemon with a HIGH

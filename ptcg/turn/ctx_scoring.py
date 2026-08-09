@@ -48,6 +48,7 @@ class ScoringCtx:
     _bench_has_chargeable: Any = None
     _best_promote_card: Any = None
     _best_promote_key: Any = None
+    _promo_evo_koer: Any = None
     _best_supp_in_hand_val: Any = None
     _best_supp_in_deck_id: Any = None
     _best_supp_in_deck_val: Any = None
@@ -129,6 +130,7 @@ class ScoringCtx:
     _meowth_ld_free: Any = None
     _meowth_skip_fetch: Any = None
     _no_second_attacker_path: Any = None
+    _plan_relay_is_inert: Any = None
     _ready_attack_is_inert: Any = None
     _nonex_active_hits_wall: Any = None
     _ogerpon_lethal_focus_serial: Any = None

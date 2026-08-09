@@ -9,12 +9,12 @@ from ptcg.calc.card import prize_count, prize_count_op
 from ptcg.state.agent_state import AGENT_STATE
 from ptcg.cards.tables import attack_table, card_table
 from ptcg.cards.ids import ABILITY_IMMUNE_IDS, Alakazam_ex, EVO_BODY_DAMAGE, EVO_BODY_EXPOSURE, EVO_BODY_RESCUE, OP_ACTIVE_ABILITY_DAMAGE, OP_BENCH_SNIPE_DAMAGE, RAINBOW_ENERGY_TYPE, Brave_Bangle, DO_THE_WAVE_ATTACK_ID, Dipplin, Drednaw, EX_IMMUNE_IDS, FULL_HP_SURVIVE_IDS, Farigiraf_ex, Fezandipiti_ex, Hydrapple_ex, Maximum_Belt, Meganium, OUR_ABILITY_IDS, OUR_BASIC_EX_IDS, OUR_EX_IDS, POWERFUL_HAND_ATTACK_ID, Pinsir, Tapu_Bulu, Teal_Mask_Ogerpon_ex
-from ptcg.calc.energy import _grass_mult
+from ptcg.calc.energy import _grass_attach_unit, _grass_mult, _retreat_grass_units
 from ptcg.cards.lines import _direct_evolution_ids
 from ptcg.cards.op_scaling import OP_SCALING_IGNORES_WEAKNESS, op_scaled_damage
 from cg.api import EnergyType
 from typing import NamedTuple
-from ptcg.cards.ids import Mega_Hawlucha_ex, Survival_Brace
+from ptcg.cards.ids import Mega_Hawlucha_ex, RETREAT_COST, Survival_Brace
 
 
 def _powerful_hand_projected(op_hand_count: int) -> int:
@@ -514,6 +514,36 @@ def _op_evolution_attack_damage_to(op_active, target, op_hand_count=None,
     return best
 
 
+def _op_window_against_evolution(op_active, evo_card_id, op_hand_count=None):
+    """Damage that reaches the ACTIVE spot before our next turn, measured
+    against the body an evolution is ABOUT to create.
+
+    It is `_ventana_de_regalo` asked about a body that is not in play yet, and
+    it takes the two readings of the opposing threat at their maximum: the one
+    in front of us TODAY (`_op_active_attack_damage_to`) and the one they are a
+    single evolution away from (`_op_evolution_attack_damage_to`). Both are
+    needed because the question this answers spans exactly one opposing turn,
+    which is the turn where their pre-evolution stops being a pre-evolution.
+
+    The record that asks for it (registro_004 step 44 vs Abra/Kadabra/Alakazam,
+    WON): their active was a Kadabra with one Psychic -- Super Psy Bolt, 30 --
+    and our Bayleef at 80/110 became a 130 HP Meganium, which survives 30 with
+    room to spare. Their next turn that Kadabra was an Alakazam and Powerful
+    Hand hit for 20 x their hand. Reading only the body in front prices the
+    front spot off the one threat that will not be there.
+
+    THIS FUNCTION IS THE OPT-IN OF `_op_evolution_attack_damage_to` AT ONE MORE
+    SITE, with the same caveat written on it: it ships where the question is
+    "can this body do its job in front", never as a global upgrade of
+    `estimated_op_damage`, which the defensive machinery was calibrated blind
+    against.
+    """
+    proj = _ProjTarget(evo_card_id)
+    hit = max(_op_active_attack_damage_to(op_active, proj, op_hand_count),
+              _op_evolution_attack_damage_to(op_active, proj, op_hand_count))
+    return _ventana_de_regalo(proj, True, hit)
+
+
 def _attacker_base_damage(attacker_id, target, effective_energy,
                           grass_scale, teal_self_energy, bench_count):
     """Base damage of one of our attackers against `target`, BEFORE applying
@@ -577,6 +607,65 @@ def _bench_attacker_can_ko(my_state, target, meganium_active, total_grass_field,
         if _our_effective_damage(bp, target, base, meganium_active, neutral_zone) >= _thp:
             return True
     return False
+
+
+def _promote_ko_active_prizes(my_state, op_active, can_switch, has_switch_card,
+                              can_attach_grass, total_grass, bench_count,
+                              meganium_active, neutral_zone):
+    """Prizes the KO on the opposing ACTIVE is worth **through the retreat**;
+    0 when that route does not exist.
+
+    Every other reading of "can I knock out what is in front?" is taken with the
+    body standing in the active spot TODAY (`_boss_dmg_to` -> `_bo_can_ko_active`,
+    `_bpr_active_can_ko`). For the BENCH targets of a gust the very same blocks DO
+    look through the retreat (`_bench_attacker_can_ko`), and that asymmetry is a
+    bug: with our active stuck the opposing active is read at 0 prizes and ANY
+    1-prize gust beats that 0 -- so the Boss's swaps a 2-prize ex in front for a
+    pre-evolution on the bench and the turn cashes half of what it could.
+    This answers the same question with the same route the gust is allowed to
+    use: retreat, promote, attack.
+
+    It returns 0 -- "the route does not exist" -- when:
+      * the CURRENT active already knocks it out (then the play is to ATTACK, and
+        `_bo_can_ko_active` is already reading that);
+      * the retreat cannot be paid (no switch card and not enough energy);
+      * no benched body finishes it after paying that retreat.
+
+    The immunity guards (an ex-immune / ability-immune wall in the active spot)
+    belong to the CALLER: against those walls the gust is preferred on purpose
+    (`_wall_ko_promote`, [[boss-el-chip-al-activo-no-es-un-premio]]).
+    """
+    if op_active is None or not can_switch:
+        return 0
+    if (op_active.hp or 0) <= 0:
+        return 0
+    act = (my_state.active or [None])[0] if my_state.active else None
+    if act is None:
+        return 0
+
+    _e = len(act.energies)
+    _eff = _e * _grass_mult() + (_grass_attach_unit() if can_attach_grass else 0)
+    _base = _attacker_base_damage(act.id, op_active, _eff,
+                                  grass_scale=total_grass,
+                                  teal_self_energy=_e + (1 if can_attach_grass else 0),
+                                  bench_count=bench_count)
+    if (_base > 0
+            and _our_effective_damage(act, op_active, _base, meganium_active,
+                                      neutral_zone) >= (op_active.hp or 0)):
+        return 0
+
+    _cost = 0 if has_switch_card else RETREAT_COST.get(act.id, 1)
+    if not has_switch_card and len(act.energies) < _cost:
+        return 0
+    # The retreat DISCARDS whole cards: the Grass on the field that scales
+    # Hydrapple is measured AFTER paying it.
+    _grass_after = max(0, total_grass - (0 if has_switch_card
+                                         else _retreat_grass_units(_cost)))
+    if not _bench_attacker_can_ko(my_state, op_active, meganium_active,
+                                  total_grass, bench_count, _grass_after,
+                                  neutral_zone):
+        return 0
+    return prize_count_op(op_active)
 
 
 def _hand_revealed_lethal_reply(op_active, target, op_hand_count):
@@ -843,8 +932,10 @@ __all__ = [
     '_has_energy_of_type',
     '_op_active_attack_damage_to',
     '_op_evolution_attack_damage_to',
+    '_op_window_against_evolution',
     '_attacker_base_damage',
     '_bench_attacker_can_ko',
+    '_promote_ko_active_prizes',
     '_bench_finisher_that_survives',
     '_bench_finisher_upgrade',
     'UPGRADE_PRIZE',

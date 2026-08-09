@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from typing import NamedTuple
 from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, CUBCHOO_ALLOWED_PLAY_IDS, Chikorita, Dawn, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Hydrapple_ex, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, Pinsir, SCORE_CANCEL, SCORE_VETO, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, XEROSIC_SCORE_LAST_RESORT, Xerosic_Machinations
 from ptcg.state.zones import ZONE_DECK
-from ptcg.cards.lines import _evo_copies_usable, _line_base_benchable
+from ptcg.cards.lines import _evo_copies_usable, _evolution_stage, _line_base_benchable
 from ptcg.cards.scoring import _SUPP_PLAY_IDS
 from ptcg.decision.disruption import _score_xerosic_play
 from ptcg.decision.poke_pad import _pp_es_t1
@@ -1083,6 +1083,95 @@ def _v_ub_applin_t1(c):
     return v
 
 
+def _ub_target_covered_by_hand(cid, hand_counts, field_counts,
+                               free_bench=0) -> bool:
+    """Do the copies of `cid` ALREADY IN HAND cover everything the board can do
+    with that card this turn? Then the Ultra Ball has nothing to search for.
+
+    The Ultra Ball costs TWO cards from hand. It is only ever worth that price
+    for something the turn NEEDS and does not already hold: a card that is
+    already in hand is played by taking it out of the hand, for free. Digging a
+    second copy pays two discards to obtain exactly the board we already had --
+    and the two cards it eats are chosen by the DISCARD scorer, so they are the
+    two the hand valued least, not two blanks.
+
+    (user, `records/registro_010_pasos_109_hasta_131.json`, step 112, turn 10 vs
+    Mega Lucario ex -- WON in spite of this.) Hand {Ultra Ball, **Meowth ex**,
+    Night Stretcher x2, Meganium, Chikorita, Hydrapple ex, Grass}, the turn's
+    Supporter free, Hydrapple ex active and a lone Meganium on the bench. The
+    Meowth ex branch of `_eval_ub_best_target` only asked whether there was one
+    IN PLAY (`field_counts == 0`) and whether a Supporter was reachable in the
+    deck, so it valued the Ultra Ball at the height of the refill engine (~1000,
+    over the Teal Mask Ogerpon ex at 750 that the Grass in hand could have
+    charged) -- and the fetch ladder, which asks the same question the same way,
+    took the SECOND Meowth ex. Cost of the turn: the Meganium and the Chikorita
+    of our own evolution line discarded to buy a card that was already sitting
+    in the hand, while the Ogerpon that turns that loose Grass into damage
+    stayed in the deck.
+
+    The arithmetic is the one the evolution branches had already written one
+    line at a time ("if the Bayleef / Meganium / Dipplin / Hydrapple ex is
+    ALREADY in hand, the line evolves without an Ultra Ball"), lifted to a rule
+    with no card in it. `_evo_copies_usable` answers it for the evolutions --
+    what bounds a Stage is the number of BODIES underneath it, so with two
+    Applins on the bench a second Dipplin in hand is still worth searching for.
+    Outside our evolution lines the answer is ONE: a Basic in hand is the body
+    this turn puts down, and no board uses two copies of the same body for the
+    same job in the same turn (Meowth ex is the clearest case -- one Last-Ditch
+    Catch per turn, so the second copy is a 2-prize gift for zero).
+
+    Deck-agnostic: it names no card and no matchup. The copy in hand does not
+    have to be PLAYABLE for this to hold -- if the bench is full or the matchup
+    vetoes the body, the searched copy is just as dead, and the Ultra Ball is
+    already cancelled by its own full-bench safeguards."""
+    _in_hand = hand_counts.get(cid, 0)
+    if _in_hand < 1:
+        return False
+    _seats = _evo_copies_usable(cid, hand_counts, field_counts,
+                                free_bench=free_bench)
+    if _seats is None:
+        _seats = 1
+    return _in_hand >= max(1, _seats)
+
+
+def _ub_target_has_no_seat(cid, free_bench) -> bool:
+    """Is this Ultra Ball target a BODY with nowhere to sit?
+
+    The twin of `_ub_target_covered_by_hand`, and the other half of the same
+    question: the Ultra Ball is only worth two cards for something the turn can
+    USE. A card the hand already holds cannot be used twice; a card the board
+    has no room for cannot be used at all.
+
+    A card enters play by exactly one of two doors, and the card data says
+    which: a BASIC (`_evolution_stage == 0`) needs a free BENCH SEAT, an
+    evolution needs a BODY of its line already in play -- and the bench being
+    full does not close that second door. So with no free seat the Ultra Ball
+    fetching a Basic buys a card that stays in hand until the opponent knocks
+    something out, while its cost (two cards, chosen by the discard scorer, so
+    the two the hand valued least, not two blanks) is paid TODAY. Nothing in
+    our own turn ever frees a seat: retreating swaps bodies, it does not
+    shrink the bench (see [[la-retirada-intercambia-cuerpos-la-banca-no-encoge]]).
+
+    (user, `records/registro_004_pasos_039_hasta_063.json`, episode 90891885,
+    steps 50-57, turn 4 vs Alakazam -- LOST.) Bench FULL (Fezandipiti ex,
+    Dipplin, Applin, Teal Mask Ogerpon ex, Chikorita), hand {Ultra Ball x2,
+    **Lillie's Determination x2**, Meganium, Dawn, Teal Mask Ogerpon ex,
+    Boss's Orders}. The agent played BOTH Ultra Balls and both fetched a
+    **Meowth ex** -- a Basic, with no seat for it -- discarding a Teal Mask
+    Ogerpon ex, a Dawn, the Meganium and the Boss's Orders to pay for them.
+    Four actions later the Lillie's Determination shuffled the two Meowth back
+    into the deck. Two Items, four cards and the whole turn's development for
+    exactly nothing.
+
+    Deck-agnostic: it names no card, no line and no matchup -- it reads the
+    stage off the card data, so it holds for any deck.csv. See
+    [[ultraball-solo-si-el-objetivo-se-usa-este-turno]] and
+    [[ub-el-hueco-de-banca-no-vale-dos-cartas]]."""
+    if free_bench >= 1:
+        return False
+    return _evolution_stage(cid) == 0
+
+
 def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrapple,
                          forest_in_play, op_has_ex_immune_active, op_has_ex_immune_bench,
                          op_prize, bench_count, state, ko_last_turn,
@@ -1092,12 +1181,37 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
                          op_is_crustle_deck=False, op_is_cornerstone_deck=False,
                          op_active_is_budew=False, meowth_ability_lock=False,
                          op_hand_count=None, op_state=None, cards_in_deck=None,
-                         supp_in_hand_takes_the_turn=False):
+                         supp_in_hand_takes_the_turn=False, bench_max=5):
     ub_best_target = 0
 
     _bench_full = (bench_count >= 5)
 
     _hand_total = sum(hand_counts.values())
+
+    # The FREE SEATS are counted off the board's own `benchMax`, the same way
+    # the fetch ladder of `ptcg/turn/options/card.py` counts them. The two
+    # menus have to answer "is there room for this body?" with the same
+    # number, or the play branch buys the Item for a target the prompt then
+    # refuses (see `_offer` and [[coherencia-menu-prompt-habilidades-disponibles]]).
+    _ub_free_bench = max(0, (bench_max or 5) - bench_count)
+
+    def _offer(cid, value):
+        """Offer `value` for searching `cid`, unless the hand ALREADY covers it
+        or the board has NO ROOM for it.
+
+        The single gate every target of this valuation goes through: the Ultra
+        Ball pays two cards from hand, so it is only worth it for something the
+        turn needs, does not already hold (`_ub_target_covered_by_hand`) and
+        can actually put into play (`_ub_target_has_no_seat`). The fetch ladder
+        of `ptcg/turn/options/card.py` applies the same two gates, so the two
+        menus cannot buy the Item for one target and spend it on another."""
+        nonlocal ub_best_target
+        if _ub_target_covered_by_hand(cid, hand_counts, field_counts,
+                                      _ub_free_bench):
+            return
+        if _ub_target_has_no_seat(cid, _ub_free_bench):
+            return
+        ub_best_target = max(ub_best_target, value)
 
     if state.turn == 2 and not _we_go_first:
 
@@ -1109,10 +1223,10 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
                 AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Meowth_ex, {}).get(ZONE_DECK, 0) > 0):
             _lillie_in_deck = AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Lillie_Determination, {}).get(ZONE_DECK, 0)
             if _lillie_in_deck > 0:
-                ub_best_target = max(ub_best_target, 1100)
+                _offer(Meowth_ex, 1100)
             elif any(AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(sid, {}).get(ZONE_DECK, 0) > 0
                      for sid in (Dawn, Lanas_Aid)):
-                ub_best_target = max(ub_best_target, 950)
+                _offer(Meowth_ex, 950)
 
         if bench_count == 0:
             _has_basic_in_hand_t1s = any(hand_counts.get(pid, 0) >= 1
@@ -1123,7 +1237,7 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
                                         for pid in (Applin, Chikorita))
             if not _has_basic_in_hand_t1s and _active_is_weak_basic:
                 if AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Teal_Mask_Ogerpon_ex, {}).get(ZONE_DECK, 0) > 0:
-                    ub_best_target = max(ub_best_target, 1050)
+                    _offer(Teal_Mask_Ogerpon_ex, 1050)
 
         return ub_best_target
 
@@ -1239,7 +1353,7 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
             meowth_val += 200
         elif hand_is_weak:
             meowth_val += 100
-        ub_best_target = max(ub_best_target, meowth_val)
+        _offer(Meowth_ex, meowth_val)
 
     if has_energy_for_teal and field_counts.get(Teal_Mask_Ogerpon_ex, 0) < 2 and bench_count < 5:
         if AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Teal_Mask_Ogerpon_ex, {}).get(ZONE_DECK, 0) > 0:
@@ -1248,7 +1362,7 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
                 val = 750
             if hand_counts.get(Basic_Grass_Energy, 0) >= 2:
                 val += 100
-            ub_best_target = max(ub_best_target, val)
+            _offer(Teal_Mask_Ogerpon_ex, val)
 
     if (has_energy_for_teal and
             field_counts.get(Teal_Mask_Ogerpon_ex, 0) >= 2 and
@@ -1264,7 +1378,7 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
 
             if field_counts.get(Teal_Mask_Ogerpon_ex, 0) >= 2:
                 val += 50
-            ub_best_target = max(ub_best_target, val)
+            _offer(Teal_Mask_Ogerpon_ex, val)
 
     # It does NOT use `_evolvable_counts` (the cleaned-up snapshot): MEASURED AND
     # REVERTED. See the scope note in `_evolvable_counts`.
@@ -1279,13 +1393,13 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
             # 35 vs Cynthia's Garchomp: Meganium in hand and it dug for it anyway).
             if (AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Meganium, {}).get(ZONE_DECK, 0) > 0
                     and hand_counts.get(Meganium, 0) == 0):
-                ub_best_target = max(ub_best_target, 1000)
+                _offer(Meganium, 1000)
         elif _evolvable.get(Chikorita, 0) >= 1 and field_counts.get(Bayleef, 0) >= 1:
 
             if AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Meganium, {}).get(ZONE_DECK, 0) > 0:
                 if forest_in_play:
 
-                    ub_best_target = max(ub_best_target, 1000)
+                    _offer(Meganium, 1000)
                 else:
                     # A Bayleef just evolved THIS turn (there was a Chikorita at the
                     # start of the turn) and WITHOUT Forest: it will not be able to evolve
@@ -1294,7 +1408,7 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
                     # as not to spend an Ultra Ball + 2 discards on an unusable piece if
                     # there are better targets or few safe discards (with >=2 safe discards
                     # and no better target it is still searched for).
-                    ub_best_target = max(ub_best_target, 280)
+                    _offer(Meganium, 280)
         elif _evolvable.get(Chikorita, 0) >= 1:
 
             if (AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Bayleef, {}).get(ZONE_DECK, 0) > 0
@@ -1303,7 +1417,7 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
                 # in hand: with a Chikorita in play, a single Bayleef is enough to
                 # evolve it. If we already have it, the Ultra Ball adds nothing for
                 # this line (and would spend 2 discarded cards on a duplicate).
-                ub_best_target = max(ub_best_target, 850)
+                _offer(Bayleef, 850)
 
             elif (AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Meganium, {}).get(ZONE_DECK, 0) > 0 and
                   (forest_in_play or hand_counts.get(Forest_of_Vitality, 0) >= 1) and
@@ -1312,7 +1426,7 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
                 if not forest_in_play:
                     _prot += 1
                 if _hand_total - 1 - _prot >= 2:
-                    ub_best_target = max(ub_best_target, 900)
+                    _offer(Meganium, 900)
 
         elif not _bench_full and field_counts.get(Chikorita, 0) + field_counts.get(Bayleef, 0) == 0:
             if AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Chikorita, {}).get(ZONE_DECK, 0) > 0:
@@ -1328,12 +1442,12 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
                         _prot += 1
                     if _hand_total - 1 - _prot >= 2:
                         _can_chain_mega = True
-                        ub_best_target = max(ub_best_target, 700)
+                        _offer(Chikorita, 700)
                 if not _can_chain_mega:
                     if _has_mega_evo_in_deck or _has_mega_evo_in_hand:
-                        ub_best_target = max(ub_best_target, 500)
+                        _offer(Chikorita, 500)
                     else:
-                        ub_best_target = max(ub_best_target, 200)
+                        _offer(Chikorita, 200)
 
     if not has_hydrapple:
         if _evolvable.get(Dipplin, 0) >= 1:
@@ -1342,12 +1456,12 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
             if (AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(
                     Hydrapple_ex, {}).get(ZONE_DECK, 0) > 0
                     and hand_counts.get(Hydrapple_ex, 0) == 0):
-                ub_best_target = max(ub_best_target, 950)
+                _offer(Hydrapple_ex, 950)
         elif _evolvable.get(Applin, 0) >= 1 and field_counts.get(Dipplin, 0) >= 1:
 
             if AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Hydrapple_ex, {}).get(ZONE_DECK, 0) > 0:
                 if forest_in_play:
-                    ub_best_target = max(ub_best_target, 950)
+                    _offer(Hydrapple_ex, 950)
                 else:
                     # A Dipplin just evolved THIS turn (there was an Applin at the start
                     # of the turn) and WITHOUT Forest: it will not be able to evolve into
@@ -1356,14 +1470,14 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
                     # 2 discards on an unusable piece if there are better targets or few safe
                     # discards (with >=2 safe discards and no better target it is still
                     # searched for).
-                    ub_best_target = max(ub_best_target, 280)
+                    _offer(Hydrapple_ex, 280)
         elif _evolvable.get(Applin, 0) >= 1:
 
             if (AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Dipplin, {}).get(ZONE_DECK, 0) > 0
                     and hand_counts.get(Dipplin, 0) == 0):
                 # Same criterion as Bayleef: do not search for a Dipplin if there is
                 # already one in hand (a single Dipplin is enough to evolve the only Applin).
-                ub_best_target = max(ub_best_target, 800)
+                _offer(Dipplin, 800)
 
             elif (AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Hydrapple_ex, {}).get(ZONE_DECK, 0) > 0 and
                   (forest_in_play or hand_counts.get(Forest_of_Vitality, 0) >= 1) and
@@ -1372,7 +1486,7 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
                 if not forest_in_play:
                     _prot += 1
                 if _hand_total - 1 - _prot >= 2:
-                    ub_best_target = max(ub_best_target, 850)
+                    _offer(Hydrapple_ex, 850)
         elif not _bench_full and field_counts.get(Applin, 0) + field_counts.get(Dipplin, 0) == 0:
             if AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Applin, {}).get(ZONE_DECK, 0) > 0:
                 _has_hydra_evo_in_deck = (AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Dipplin, {}).get(ZONE_DECK, 0) > 0 or
@@ -1391,20 +1505,20 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
                         _can_chain_hydra = True
                         if hand_counts.get(Hydrapple_ex, 0) >= 1:
 
-                            ub_best_target = max(ub_best_target, 950)
+                            _offer(Applin, 950)
                         else:
 
-                            ub_best_target = max(ub_best_target, 600)
+                            _offer(Applin, 600)
                 if not _can_chain_hydra:
                     if _has_hydra_evo_in_deck or _has_hydra_evo_in_hand:
-                        ub_best_target = max(ub_best_target, 450)
+                        _offer(Applin, 450)
                     else:
-                        ub_best_target = max(ub_best_target, 180)
+                        _offer(Applin, 180)
 
     if not _bench_full and not has_energy_for_teal and field_counts.get(Teal_Mask_Ogerpon_ex, 0) < 2:
         if AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Teal_Mask_Ogerpon_ex, {}).get(ZONE_DECK, 0) > 0:
             if field_counts.get(Teal_Mask_Ogerpon_ex, 0) == 0 and bench_count <= 2:
-                ub_best_target = max(ub_best_target, 350)
+                _offer(Teal_Mask_Ogerpon_ex, 350)
 
     if not _bench_full and field_counts.get(Tapu_Bulu, 0) == 0:
         if AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Tapu_Bulu, {}).get(ZONE_DECK, 0) > 0:
@@ -1412,7 +1526,7 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
                 val = 750
                 if has_hydrapple:
                     val = 850
-                ub_best_target = max(ub_best_target, val)
+                _offer(Tapu_Bulu, val)
 
     if not _bench_full and field_counts.get(Pinsir, 0) == 0:
         if AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Pinsir, {}).get(ZONE_DECK, 0) > 0:
@@ -1420,7 +1534,7 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
                 val = 900
                 if meganium_in_play:
                     val = 950
-                ub_best_target = max(ub_best_target, val)
+                _offer(Pinsir, val)
 
     if (not _bench_full and not _stamp_blocks_supp_chain and
             not hand_is_weak and not state.supporterPlayed and
@@ -1428,12 +1542,12 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
             _best_supp_in_deck_val >= 500):
         if AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Meowth_ex, {}).get(ZONE_DECK, 0) > 0:
             if state.turn <= 4:
-                ub_best_target = max(ub_best_target, min(_best_supp_in_deck_val, 500))
+                _offer(Meowth_ex, min(_best_supp_in_deck_val, 500))
 
     if not _bench_full and field_counts.get(Fezandipiti_ex, 0) == 0:
         if AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Fezandipiti_ex, {}).get(ZONE_DECK, 0) > 0:
             if ko_last_turn:
-                ub_best_target = max(ub_best_target, 1050)
+                _offer(Fezandipiti_ex, 1050)
 
     return ub_best_target
 
@@ -1720,6 +1834,24 @@ _RULES_UB_MEOWTH = [
     _FixedRule("watchtower_cancels_the_ability",
                lambda c: c.watchtower,
                lambda c: 10),
+    # NO SEAT, NO BODY, NO ABILITY (user, registro_004 steps 50-57 vs Alakazam,
+    # LOST). It used to sit near the bottom of this ladder, below every engine,
+    # and that is where it lost: `_ub_engine_pivot_turn` had been armed earlier
+    # in the turn -- with the bench at 4 and a slot to spare -- and by the time
+    # the Ultra Ball was actually played the Chikorita had filled the bench.
+    # The flag does not know that; `engine_pivot_turn` (1300) fired anyway and
+    # the fetch bought a Meowth ex that could not be put down.
+    #
+    # It belongs HERE, with the other "the Last-Ditch cannot produce anything"
+    # vetoes: a body that cannot be put down has no ability to use, which is
+    # the same thing the Watchtower does to it. No engine outranks that, because
+    # every engine that arms itself (`_ub_engine_refresh_pivot`,
+    # `_alakazam_dig_xerosic_engine`, `_ub_meowth_for_tomorrow`) already
+    # required a free seat when it did: this only stops the promise from
+    # outliving the premise. See [[la-cesion-solo-vale-mientras-su-beneficiario-siga-vivo]].
+    _FixedRule("full_bench",
+               lambda c: c.bench_count >= 5,
+               lambda c: 10),
     # THE STAMP SHUFFLES BACK WHATEVER THE LAST-DITCH BRINGS (user, registro_008
     # step 70 vs Marnie's Grimmsnarl, WON suboptimally). A third way for the
     # ability to produce nothing, and the only one that is not on the board but
@@ -1841,9 +1973,6 @@ _RULES_UB_MEOWTH = [
     _FixedRule("one_meowth_and_the_active_attacks",
                lambda c: (c.field.get(Meowth_ex, 0) >= 1
                           and not c.active_cant_attack),
-               lambda c: 10),
-    _FixedRule("full_bench",
-               lambda c: c.bench_count >= 5,
                lambda c: 10),
     # A condition that favours Dipplin holds: Meowth yields.
     _FixedRule("yields_to_priority_dipplin",
@@ -2066,6 +2195,7 @@ __all__ = [
     '_ub_cancel_stamp',
     '_ub_cancel_fez',
     '_ub_real_fodder',
+    '_ub_target_covered_by_hand',
     '_ub_cancel_xerosic',
     '_ub_cancel_lillie',
     '_ub_cancel_tomorrow_supporter',
@@ -2077,6 +2207,7 @@ __all__ = [
     '_ub_cost_destroys_better_card',
     '_alakazam_dig_xerosic_engine',
     '_ub_dig_meowth_gets_played',
+    '_ub_target_has_no_seat',
     '_CtxUBHydrapple',
     '_CtxUBMeowth',
     '_CtxUBFetch',

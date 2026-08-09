@@ -7,7 +7,7 @@ was in main.py.
 
 from cg.api import EnergyType
 from ptcg.calc.card import prize_count_op
-from ptcg.calc.damage import _attacker_base_damage, _bench_attacker_can_ko, _our_effective_damage
+from ptcg.calc.damage import _attacker_base_damage, _bench_attacker_can_ko, _our_effective_damage, _promote_ko_active_prizes
 from ptcg.calc.energy import _grass_attach_unit, _grass_mult, _retreat_grass_units
 from ptcg.calc.opponent import _op_body_is_harmless
 from ptcg.cards.groups import EVO_LINES
@@ -288,6 +288,40 @@ def evaluate_supporters(tc):
         values[Boss_Orders] = 500
     else:
         values[Boss_Orders] = 0
+
+    # THE PRIZE IN FRONT, DOWN THE SAME ROUTE (user, registro_006 step 97 vs
+    # Marnie's Grimmsnarl ex, LOST -- deck-agnostic). Every "can I knock out the
+    # opposing ACTIVE?" below is read with `_boss_dmg_to`, i.e. with the body
+    # standing in the active spot TODAY; the BENCH targets, on the other hand, are
+    # allowed to be reached through the retreat (`_bench_attacker_can_ko`, used by
+    # `_bo_win_via_bench`, deny-evo and key-bench). With our active stuck that
+    # asymmetry prices the opposing active at 0 prizes and ANY 1-prize gust wins
+    # the comparison. `_promote_ko_active_prizes` asks the SAME question down the
+    # SAME route, and `_bo_gust_prize_dominated` turns it into the only conclusion
+    # that admits no discussion: never pay the Supporter to swap the target we
+    # knock out for one worth STRICTLY FEWER prizes.
+    #
+    # STRICT `<` on purpose: on EQUAL prizes the gust keeps ruling, which is what
+    # the line cuts live on ([[boss-gust-mayor-evolucion-fase2]]). Against IMMUNE
+    # walls it is switched off: there the gust is preferred deliberately
+    # ([[boss-el-chip-al-activo-no-es-un-premio]], `_wall_ko_promote`).
+    _bo_promote_prizes = 0
+    if (hand_counts.get(Boss_Orders, 0) >= 1
+            and not op_has_ex_immune_active and not op_has_ability_immune_active
+            and op_state.active and op_state.active[0] is not None
+            and my_state.active and my_state.active[0] is not None):
+        _bo_promote_prizes = _promote_ko_active_prizes(
+            my_state, op_state.active[0], can_switch, has_switch_card,
+            (hand_counts.get(Basic_Grass_Energy, 0) >= 1
+             and not state.energyAttached),
+            total_grass, bench_count, AGENT_STATE.meganium_in_play,
+            neutralization_zone_active)
+
+    def _bo_gust_prize_dominated(_tgt):
+        """Is `_tgt` worth STRICTLY fewer prizes than what the retreat already
+        finishes in the active spot? Then gusting it throws prizes away."""
+        return (_bo_promote_prizes > 0 and _tgt is not None
+                and prize_count_op(_tgt) < _bo_promote_prizes)
 
     _bo_active_attack_sufficient = False
     if (hand_counts.get(Boss_Orders, 0) >= 1 and not _fez_active_can_attack
@@ -586,6 +620,10 @@ def evaluate_supporters(tc):
                         or _bo_pe_is_ex_line_vs_wall
                         or _bo_pe_outranks_active):
                     continue
+                # Cutting the line is worth the SAME prize, never FEWER than the
+                # one the retreat already takes in the active spot.
+                if _bo_gust_prize_dominated(_bo_pe):
+                    continue
                 _bo_pe_dmg = _boss_dmg_to(_bo_pe)
                 _bo_pe_ko = (_bo_pe_dmg >= (_bo_pe.hp or 0) and _bo_pe_dmg > 0)
 
@@ -703,6 +741,8 @@ def evaluate_supporters(tc):
             for _bo_kp in op_state.bench:
                 if _bo_kp is None or _bo_kp.id not in KEY_BENCH_ATTACKER_IDS:
                     continue
+                if _bo_gust_prize_dominated(_bo_kp):
+                    continue
                 _bo_kp_dmg = _boss_dmg_to(_bo_kp)
                 _bo_kp_ko = (_bo_kp_dmg >= (_bo_kp.hp or 0) and _bo_kp_dmg > 0)
                 if not _bo_kp_ko and _bo_de_can_retreat:
@@ -726,14 +766,19 @@ def evaluate_supporters(tc):
                 values['_boss_dodge_redirect'] = True
 
         _bo_bench_prize_beats_active = False
-        if _bo_best_bench_prize > _bo_active_prize and _bo_best_bench_prize > 0:
+        # The prizes the active spot is worth are the ones the CURRENT active
+        # cashes (`_bo_active_prize`) OR the ones the retreat cashes with a
+        # benched finisher: reading only the first is what let a 1-prize gust
+        # "beat" a 2-prize ex standing in front (see `_bo_promote_prizes`).
+        _bo_active_prize_eff = max(_bo_active_prize, _bo_promote_prizes)
+        if _bo_best_bench_prize > _bo_active_prize_eff and _bo_best_bench_prize > 0:
 
             _bo_active_prize_val = prize_count_op(_bo_op_active)
             _bo_trade_down = (not _bo_can_ko_active and _bo_active_dmg > 0
                               and _bo_active_prize_val > _bo_best_bench_prize)
             if not _bo_trade_down:
                 _bo_bench_prize_beats_active = True
-                _bo_prize_diff = _bo_best_bench_prize - _bo_active_prize
+                _bo_prize_diff = _bo_best_bench_prize - _bo_active_prize_eff
                 values[Boss_Orders] = max(values.get(Boss_Orders, 0),
                                           960 + 10 * _bo_prize_diff)
 
@@ -901,6 +946,13 @@ def evaluate_supporters(tc):
 
         for _op_bp in op_state.bench:
             if _op_bp is None:
+                continue
+            # This block scans ONLY their bench: it asks "does any of my bodies
+            # -- promoted if need be -- knock something out there?" and never asks
+            # the same about what is ALREADY in front. That is the asymmetry
+            # `_bo_promote_prizes` measures; a gust worth strictly fewer prizes
+            # than the retreat's own KO is prizes thrown away.
+            if _bo_gust_prize_dominated(_op_bp):
                 continue
             _op_data_b = card_table.get(_op_bp.id)
             _is_ex_target = (_op_data_b and getattr(_op_data_b, 'ex', False))

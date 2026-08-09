@@ -792,6 +792,32 @@ EVO_BODY_EXPOSURE = 200
 # so it is a gradient and not a cliff.
 EVO_BODY_DAMAGE = 60
 
+# --- THE STAGE GOES ON A BODY THAT CAN USE IT --------------------------------
+# The bias above orders bodies that are all worth evolving. This is the case it
+# cannot express, because it is not an ordering but a DEMOTION: an evolution
+# that lands in the ACTIVE spot on a body that will neither attack this turn nor
+# survive the reply is a card BURIED under a corpse. It stops being the play of
+# the turn (35000) and becomes what it really is -- development, and bad
+# development at that -- so any other evolution of the same card, on any body
+# the menu offers on the BENCH, wins by a full band.
+#
+# 8000 is the DEVELOPMENT band that the branch already used for this
+# (`ptcg/turn/options/evolve.py`, the `active_ko_likely` demotion) and it is the
+# right rung: below every deliberate evolution band (25000+, 500 apart) so it
+# never competes with them, and above the vetoes, so with NO other body to wear
+# the card evolving in front is still better than not evolving at all.
+SCORE_EVO_BODY_WITHOUT_A_JOB = 8000
+
+# Our Pokemon whose ability DOUBLES every basic Grass already attached
+# (Meganium's Wild Growth). It is the twin of `_grass_attach_unit`, which
+# answers the same question for the energy that is still IN HAND, and it exists
+# because the observation applies the doubling for the bodies ALREADY in play
+# and cannot apply it for the one we are about to create: a Bayleef carrying two
+# physical Grass reads 2 effective today and attacks with 4 the instant it
+# becomes a Meganium. Whoever asks "can this body attack once it evolves" has to
+# read the ability the evolution itself switches on.
+GRASS_DOUBLER_IDS = frozenset({Meganium})
+
 # Ceiling of the charge on a DOOMED body (phase C of the Marnie plan): the
 # opponent can cash it in before our next turn and it does not attack today, so
 # the Grass goes to the discard with it. It is a CEILING, not a veto: it sits
@@ -1430,6 +1456,8 @@ __all__ = [
     'EVO_BODY_RESCUE',
     'EVO_BODY_EXPOSURE',
     'EVO_BODY_DAMAGE',
+    'SCORE_EVO_BODY_WITHOUT_A_JOB',
+    'GRASS_DOUBLER_IDS',
     'SCORE_BENCH_YIELDS_TO_RETREAT_UNLOCK',
     'SCORE_CHARGE_DOOMED',
     'SCORE_CHARGE_LETHAL_FLOOR',

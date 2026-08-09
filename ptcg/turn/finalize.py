@@ -393,6 +393,31 @@ def finalizar(tc):
                 continue
             _ld_c = get_card(obs, AreaType.HAND, _ld_o.index, my_index)
             if _ld_c is not None and _ld_c.id == AGENT_STATE._ld_supp_comprometido:
+                # ... AND THE COMMITMENT DOES NOT RESURRECT A GUST THE BOARD
+                # VETOED (user, episode 91069873 turn 6, step 80 vs Marnie's
+                # Grimmsnarl ex, WON in spite of this).
+                #
+                # Mirror of `_ld_gust_cashes` above: there the committed refill
+                # yields to a Boss's that cashes; here the COMMITTED card is the
+                # Boss's itself and its own ladder scored it a veto. In the
+                # record our Hydrapple ex was in the active spot with the KO
+                # already served on their 320 HP Grimmsnarl ex (2 prizes), the
+                # Boss's ladder had said so (`no_value`, -1) -- and the floor
+                # lifted that -1 to 8000, played it anyway, gusted up a 100 HP
+                # Morgrem and the turn cashed ONE prize instead of two.
+                #
+                # The asymmetry with the founding case is the card, not the
+                # board: a refill (Dawn, Lillie's, Lana's, Xerosic) only moves
+                # OUR cards, so a commitment -- an argument about a resource
+                # already spent -- may overrule the resource veto that stopped
+                # it. Boss's Orders is the one Supporter that rewrites the body
+                # in the active spot, which is the body we KNOCK OUT: its veto
+                # is a decision about PRIZES, and no amount of sunk Meowth ex
+                # buys prizes back. Deck-agnostic and reason-agnostic: it reads
+                # the Boss's own score, and every live rung of that ladder is
+                # above zero (the lowest, EMPTY, is 20).
+                if (_ld_c.id == Boss_Orders and scores[_ld_i] <= 0):
+                    continue
                 scores[_ld_i] = max(scores[_ld_i],
                                     SCORE_LD_SUPP_COMPROMETIDO)
 
