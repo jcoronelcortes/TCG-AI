@@ -196,3 +196,39 @@ def test_a_night_stretcher_with_nothing_to_recover_does_not_count():
     _keep_grass(o, 0)
     _drop(o, GRASS, zone="discard")
     assert _promoted(o) == OGERPON
+
+
+# ---------------------------------------------------------------------------
+# Boundary 4 -- which candidate wins when two of them are the same
+# ---------------------------------------------------------------------------
+
+def _second_dipplin_on_the_bench(o, at):
+    """Copy the benched Dipplin into another seat, identical but for its id.
+
+    The fixture offers exactly ONE candidate, which is why nothing in this file
+    could reach the comparison that RANKS them. Two identical ones make the
+    ranking the only thing left to decide the answer.
+    """
+    twin = copy.deepcopy(_mine(o)["bench"][4])
+    twin["serial"] = 9999
+    _mine(o)["bench"][at] = twin
+    return o
+
+
+def test_between_two_identical_candidates_the_first_one_keeps_the_seat():
+    """`_evk_key > _evk_best_key`, and the `>` is load-bearing.
+
+    With two Dipplins that evolve into the same Hydrapple ex, the ranking key
+    -- prizes, then hp, then damage -- is EQUAL, and the only thing separating
+    them is whether a later tie replaces an earlier one. It must not: rewriting
+    that `>` as `>=` hands the seat to the last body the loop happens to see,
+    which is the bench order and not a reason. The rest of this project treats a
+    tie broken by option order as a defect (`utils/permutation_probe.py` exists
+    to count them), so the stable answer is the correct one.
+
+    Measured on the live agent: bench seat 1, the first of the two.
+    """
+    o = _second_dipplin_on_the_bench(_obs(), at=1)
+    chosen = o["select"]["option"][m.agent(copy.deepcopy(o))[0]]
+    assert _mine(o)["bench"][chosen["index"]]["id"] == DIPPLIN
+    assert chosen["index"] == 1, "the earlier seat, not the later one"

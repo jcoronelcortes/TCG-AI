@@ -180,13 +180,21 @@ def _protect(path, source):
     return restore
 
 
-def probe(path, low, high, tests, limit=None):
+def probe(path, low, high, tests, limit=None, skip_lines=None):
+    """Mutate lines `low`-`high` of `path`, one at a time, against `tests`.
+
+    `skip_lines` is the waiver channel used by utils/gate_mutation.py: a line
+    marked `# mutation: <reason>` is not mutated at all, so the waiver costs
+    nothing rather than costing a full suite run whose result is discarded.
+    """
     path = Path(path)
     source = path.read_text(encoding="utf-8")
     restore = _protect(path, source)
     collector = _Collector(low, high)
     collector.visit(ast.parse(source))
     sites = collector.found
+    if skip_lines:
+        sites = [s for s in sites if s[0] not in skip_lines]
     if limit:
         sites = sites[:limit]
 
