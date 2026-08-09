@@ -30,10 +30,19 @@ THE SECOND 30 IS NOT THE RESISTANCE, and the numbers say so on their own: base
 and at 140 with it on. That was the hypothesis that cost the most time on the
 night this was found, so it is pinned here as arithmetic rather than as prose.
 
-The other four copies of this arithmetic (main.py:5206, 6579, 7412, 7434) are
-still unwatched and `ptcg/turn/supporters.py:972-979` and
-`ptcg/turn/options/play.py:1556-1562` are not executed by any test at all. That
-is the gate's list, not a guess, and it is the next piece of work.
+A CORRECTION, because the first version of this docstring said the opposite.
+The gate that produced these three also reported twelve more survivors across
+`main.py` and both wave-2 copies, and every one of them was an artifact: its
+line-to-test map was truncated (see `utils/gate_mutation.py`) and the mutation
+probe was reusing stale bytecode between same-size mutants. Re-run after both
+were fixed, the whole Full Metal Lab fix comes back with ZERO survivors except
+one equivalent mutant. The four other copies of the arithmetic ARE watched.
+
+The equivalent one, kept here because knowing it is dead saves the next reader
+the same search: `meganium_active=False -> True` on the signature survives
+because `meganium_active` is never read inside this function -- zero uses in the
+body, while its two neighbours have one each. It is a parameter the ~70 call
+sites still pass and nothing consumes.
 """
 
 import pytest
@@ -42,6 +51,7 @@ from ptcg.calc.damage import _our_effective_damage
 
 ARCHALUDON_EX = 190          # Metal, resists Grass, 300 hp
 MEGA_LOPUNNY_EX = 849        # not Metal: the control
+DURALUDON = 169             # Metal and resists Grass, but NOT an ex
 HYDRAPPLE_EX = 150           # one of ours, and not the Fezandipiti exception
 
 BASE = 200
@@ -73,6 +83,39 @@ def test_a_body_that_is_not_metal_is_untouched_either_way(lab):
     it ON it is the pair that refuses `and -> or` and `== -> !=`.
     """
     assert _damage(MEGA_LOPUNNY_EX, lab) == BASE
+
+
+def test_the_stadium_is_off_unless_a_caller_says_otherwise():
+    """The DEFAULT of the keyword, which is a different claim from its False arm.
+
+    The gate's last survivor on this fix: `full_metal_lab=False` rewritten to
+    `=True` and the whole suite stayed green, because every test that cares
+    passes the flag EXPLICITLY. The keyword exists so that the ~70 call sites
+    which know nothing about the stadium did not have to change at once, and
+    what protects them is precisely the default -- so it is asserted without
+    naming it.
+    """
+    assert _our_effective_damage(_Body(HYDRAPPLE_EX), _Body(ARCHALUDON_EX),
+                                 BASE) == 170
+
+
+def test_the_other_two_switches_are_off_by_default_as_well():
+    """The whole keyword row, not just the stadium.
+
+    `_our_effective_damage` takes three optional switches and each is a rule
+    that turns damage OFF: with `neutralization_zone` our ex do nothing to a
+    body without a rule box, and the stadium takes its 30. All three default to
+    False so that the ~70 call sites that know about none of them keep working,
+    which makes the defaults load-bearing and, until now, unasserted.
+
+    Duraludon is the body that separates them: Metal, resists Grass, and NOT an
+    ex, so Neutralization Zone would take our Hydrapple ex to zero if it were on.
+    """
+    assert _our_effective_damage(_Body(HYDRAPPLE_EX), _Body(DURALUDON),
+                                 BASE) == 170, "neutralization zone off"
+    assert _our_effective_damage(_Body(HYDRAPPLE_EX), _Body(DURALUDON), BASE,
+                                 neutralization_zone=True) == 0, (
+        "and the arm that proves the assertion above is not vacuous")
 
 
 def test_the_resistance_is_already_in_the_170():

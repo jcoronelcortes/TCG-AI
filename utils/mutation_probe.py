@@ -149,10 +149,39 @@ def _position(node):
 
 
 def run_suite(tests):
+    # `-B`: do not WRITE bytecode. Together with `_drop_bytecode` below this
+    # closes a hole that made the probe report false survivors -- see there.
     result = subprocess.run(
-        [sys.executable, "-m", "pytest", "-x", "-q", *tests],
+        [sys.executable, "-B", "-m", "pytest", "-x", "-q", *tests],
         cwd=_ROOT, capture_output=True, text=True)
     return result.returncode
+
+
+def _drop_bytecode(path):
+    """Delete the cached bytecode of the file about to be mutated.
+
+    THE FALSE SURVIVOR THIS EXISTS TO STOP. CPython validates a `.pyc` against
+    the source's mtime IN WHOLE SECONDS and its size in bytes. Two mutants of
+    the same file routinely differ in neither: `meganium_active=False -> True`
+    and `neutralization_zone=False -> True` produce sources of identical length,
+    and the probe writes them milliseconds apart. The second run then imports
+    the FIRST mutant's bytecode, the tests pass because that mutant was already
+    killed and reverted... and the second is reported as a survivor.
+
+    Found while a test that demonstrably fails against `neutralization_zone=True`
+    was being reported as not watching it. It is not a rare corner: every
+    boolean-literal pair on one line has this shape, and so does every
+    `>= -> >`.
+    """
+    cache = Path(path).parent / "__pycache__"
+    if not cache.is_dir():
+        return
+    stem = Path(path).stem
+    for stale in cache.glob(f"{stem}.*.pyc"):
+        try:
+            stale.unlink()
+        except OSError:
+            pass
 
 
 def _protect(path, source):
@@ -207,6 +236,7 @@ def probe(path, low, high, tests, limit=None, skip_lines=None):
                 errors += 1
                 continue
             path.write_text(mutated, encoding="utf-8")
+            _drop_bytecode(path)
             code = run_suite(tests)
             if code == 0:
                 survivors.append((line, kind_name, description))

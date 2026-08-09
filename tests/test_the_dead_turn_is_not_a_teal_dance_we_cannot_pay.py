@@ -130,11 +130,19 @@ def _locals_of_agent(obs, keys):
                 out[k] = frame.f_locals.get(k)
         return _trace
 
+    # Put back whatever was tracing BEFORE us, which under `--cov-context=test`
+    # is coverage's own tracer. A bare `settrace(None)` uninstalls it for the REST
+    # OF THE PROCESS: line coverage recovers on the next test, but the dynamic
+    # CONTEXT does not, so every test that runs after this file is recorded
+    # under the empty context. Measured: 225 contexts for 1 843 tests, 11 test
+    # files of 153, which silently broke the line->test map that
+    # utils/gate_mutation.py selects its tests with.
+    _previous_tracer = sys.gettrace()
     sys.settrace(_trace)
     try:
         m.agent(obs)
     finally:
-        sys.settrace(None)
+        sys.settrace(_previous_tracer)
     return out
 
 

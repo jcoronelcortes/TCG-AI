@@ -22,6 +22,24 @@ the working tree of 2026-08-08, not estimated.
 | A/B (self-play) | manual, minutes per run, not in CI |
 | Gates in CI | 2 of 4 (suite + architecture lint) |
 
+> **CORRECTION, 2026-08-09 — the coverage numbers in this section were wrong,
+> and by a lot.** Every percentage below was measured while `sys.settrace(None)`
+> in three tests had silently switched coverage off for the rest of the process:
+> only 11 of 153 test files were being measured at all. Re-measured with that
+> fixed, the unit suite covers **88.0 %**, not 51.5 %, and the module this
+> section singles out — `ptcg/turn/options/evolve.py`, "6 %" — is at **75.4 %**.
+> The real floor of the tree is `ptcg/turn/energy.py` at 68.6 %.
+>
+> The bad number cost a day's worth of the wrong conclusion: "new rules are
+> being written into the least-watched part of the tree" was the headline of
+> this section and it is not supported. What survives is the SHAPE of the
+> argument — the weakest modules are still the decision modules — and every
+> task in the plan that does not depend on the level. What does not survive is
+> the level. See `docs/history/day-2026-08-09.md` §7.
+>
+> Honest coverage also costs what it costs: the measurement is **11 minutes**,
+> not the 18 seconds it appeared to take while it was measuring almost nothing.
+
 ### Coverage where the code actually is
 
 The suite is thinnest exactly where the code is densest. The ten biggest
@@ -194,17 +212,38 @@ builds a line→test map once with coverage CONTEXTS and runs each mutant only
 against the tests that execute its line; a changed line NO test executes is
 reported as `UNCOVERED` without spending a mutant at all, and a line carrying
 `# mutation: <reason>` is skipped before it is mutated rather than after.
-**The runtime, measured end to end on the four-commit diff of this morning:
-8.6 SECONDS** (six files, 74 added lines), against the ~90 minutes the raw
-sweep was heading for. It fits in a pre-merge hook with room to spare.
+**Runtime, measured end to end on the four-commit Full Metal Lab diff: 2 min
+31 s** (six files, 74 added lines), against the ~90 minutes the raw sweep was
+heading for. It fits in a pre-merge hook.
 
-Its first run is also its own justification: the Full Metal Lab fix that landed
-this morning — found by a night of self-play — came back with **15 surviving
-mutants and 6 ranges no test executes at all**, including both wave-2 copies in
-`supporters.py` and `play.py`. The canonical copy's three survivors are now
-killed by `tests/test_the_stadium_takes_thirty_in_the_canonical_model.py`
-(verified: 3 SURVIVED → 3 killed); the rest are the standing work list.
-*Still open:* the CI job.
+**A CORRECTION, and it is the useful part of this entry.** The first version of
+this gate reported *8.6 seconds*, *15 survivors* and *6 ranges no test executes*
+— and all three numbers were wrong, in the direction that looks like a finding.
+Two defects, both now fixed and both guarded:
+
+* the line→test map was built with coverage CONTEXTS, and
+  `sys.settrace(None)` in three unrelated tests turned coverage's context off
+  for the rest of the process. The map held **11 test files of 153**, so most
+  changed lines came back as "nothing watches this" and most mutants were never
+  run at all — which is also why it was so fast. Guarded by
+  `tests/test_no_test_uninstalls_the_tracer.py`;
+* `utils/mutation_probe.py` was reusing **stale bytecode**: CPython validates a
+  `.pyc` by whole-second mtime and byte size, and two mutants of one file
+  routinely match on both, so the second run imported the first one's code and
+  came back SURVIVED.
+
+Contexts are gone from the design entirely — they cost 15+ minutes to build,
+they go stale whenever a test changes, and a stale one does not look broken, it
+looks like good news. What replaced them is one rule: **a kill is trustworthy
+whatever you ran; a survival is only trustworthy against the whole suite.** A
+cheap candidate set kills most mutants in seconds, and anything that survives it
+is re-run against everything before it is reported.
+
+Re-run under that design, the Full Metal Lab fix comes back with **zero
+survivors** bar one equivalent mutant — `meganium_active` is never read inside
+`_our_effective_damage`, so no test can kill flipping its default. The four
+other copies of the arithmetic ARE watched.
+*Still open:* the CI job, and the dead parameter.
 *Original text.* — 4–6 h ⭐
 Wire `utils/mutation_probe.py --changed <base>` into the pre-merge script and a
 CI job on pull requests. Budget: **zero surviving mutants on added lines**, or
