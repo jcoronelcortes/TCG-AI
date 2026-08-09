@@ -60,7 +60,8 @@ from pathlib import Path
 
 import main as m
 from golden_corpus import reset_agent
-from ptcg.state.zones import ZONE_DECK, ZONE_DISCARD, ZONE_PRIZE
+from ptcg.state.zones import (ZONE_BENCH, ZONE_DECK, ZONE_DISCARD,
+                              ZONE_HAND, ZONE_PRIZE)
 
 FIXTURE = (Path(__file__).parent / "fixtures"
            / "the_ultra_ball_in_flight_becomes_a_prize.json")
@@ -141,3 +142,157 @@ def test_the_tracker_never_believes_more_prizes_than_are_face_down():
     m.agent(board["observation"])
     believed = _believed_prizes(m.AGENT_STATE.ACTIVE_CARDS_IN_DECK)
     assert believed <= _prizes_face_down(board["observation"])
+
+
+# ---------------------------------------------------------------------------
+# The arbiter's boundary: it may only fire on a belief that is IMPOSSIBLE
+# ---------------------------------------------------------------------------
+
+class _Card:
+    def __init__(self, card_id):
+        self.id = card_id
+
+
+class _Effect:
+    def __init__(self, card_id):
+        self.id = card_id
+
+
+class _Select:
+    def __init__(self, deck, effect_id):
+        self.deck = deck
+        self.effect = _Effect(effect_id)
+
+
+class _Obs:
+    def __init__(self, deck, effect_id):
+        self.select = _Select(deck, effect_id)
+
+
+class _MyState:
+    """`deckCount` matters: without it, a reveal by anything OTHER than an Ultra
+    Ball returns before reconciling at all -- `_identify_prizes` only trusts a
+    partial view when `len(select.deck) == deckCount`. The first version of the
+    foreign-effect test below had no deckCount and therefore passed without
+    reaching the code it was written for."""
+
+    def __init__(self, prizes, deck_count=3):
+        self.prize = [object()] * prizes
+        self.deckCount = deck_count
+
+
+def _belief(m, entries):
+    m.AGENT_STATE.ACTIVE_CARDS_IN_DECK = {
+        cid: dict(zip((ZONE_DECK, ZONE_BENCH, ZONE_HAND, ZONE_PRIZE, ZONE_DISCARD),
+                      zones))
+        for cid, zones in entries.items()}
+
+
+def test_a_belief_that_is_merely_correct_is_left_alone():
+    """FOUND BY `utils/gate_mutation.py` on this very fix, the day it landed.
+
+    The arbiter reads "if the reconciliation placed MORE cards in the prizes
+    than there are face down". Rewriting that `>` as `>=` left the whole suite
+    green, because every board that exercises the arbiter is a board where the
+    belief was impossible -- and on those, firing once or firing one time too
+    early gives the same answer.
+
+    The board that separates them is this one: a searcher with a copy GENUINELY
+    in the prizes, already discarded rather than in flight, and a prize count
+    that adds up. Nothing is wrong here, so the arbiter must not touch it. With
+    `>=` it demotes a real prize to the discard and the tracker starts believing
+    it can draw a card that is face down.
+    """
+    from ptcg.cards.ids import Basic_Grass_Energy
+    from ptcg.state.tracking import _identify_prizes
+
+    reset_agent(m)
+    # 4 Ultra Balls: 1 discarded, 2 visible in the deck, 1 REALLY in the prizes.
+    # 12 Grass: 11 discarded, 1 visible in the deck, none prized.
+    # (DECK, BENCH, HAND, PRIZE, DISCARD), and they have to ADD UP to the
+    # copies the deck runs -- `_identify_prizes` takes the total from the sum.
+    _belief(m, {ULTRA_BALL: (2, 0, 0, 1, 1),          # 4: 2 in deck, 1 prized, 1 discarded
+                Basic_Grass_Energy: (1, 0, 0, 0, 11)})  # 12: 1 in deck, 11 discarded
+    deck_view = [_Card(ULTRA_BALL), _Card(ULTRA_BALL), _Card(Basic_Grass_Energy)]
+
+    _identify_prizes(_Obs(deck_view, ULTRA_BALL), _MyState(prizes=1))
+
+    entry = m.AGENT_STATE.ACTIVE_CARDS_IN_DECK[ULTRA_BALL]
+    assert entry[ZONE_PRIZE] == 1, "el premio era real y sigue siendolo"
+    assert entry[ZONE_DISCARD] == 1, "no se ha inventado un descarte"
+
+
+def test_and_a_belief_that_is_impossible_is_corrected():
+    """The other side of the same boundary, so the pair means something.
+
+    One card too many in the prizes -- which is what an in-flight searcher
+    produces -- and the arbiter moves exactly that one to the discard.
+    """
+    from ptcg.cards.ids import Basic_Grass_Energy
+    from ptcg.state.tracking import _identify_prizes
+
+    reset_agent(m)
+    # (DECK, BENCH, HAND, PRIZE, DISCARD), and they have to ADD UP to the
+    # copies the deck runs -- `_identify_prizes` takes the total from the sum.
+    _belief(m, {ULTRA_BALL: (2, 0, 0, 1, 1),          # 4: 2 in deck, 1 prized, 1 discarded
+                Basic_Grass_Energy: (1, 0, 0, 0, 11)})  # 12: 1 in deck, 11 discarded
+    deck_view = [_Card(ULTRA_BALL), _Card(ULTRA_BALL), _Card(Basic_Grass_Energy)]
+
+    _identify_prizes(_Obs(deck_view, ULTRA_BALL), _MyState(prizes=0))
+
+    entry = m.AGENT_STATE.ACTIVE_CARDS_IN_DECK[ULTRA_BALL]
+    assert entry[ZONE_PRIZE] == 0, "no habia premios: el sobrante no lo era"
+    assert entry[ZONE_DISCARD] == 2, "va a donde se dirige"
+
+
+def test_a_surplus_that_is_not_the_searcher_is_left_where_it_is():
+    """The arbiter may only demote the ONE card it can name.
+
+    It fires on "more prizes placed than exist", and the card it blames is the
+    searcher -- because that is the only copy it can prove is in flight. When
+    the searcher has no prize attributed at all, the surplus belongs to
+    something else and the arbiter has nothing to say: rewriting its
+    `_entry[ZONE_PRIZE] > 0` as `>= 0` makes it decrement a zero to MINUS ONE
+    and invent a discard to match.
+
+    Not hypothetical: a reveal triggered by Meowth ex's ability is exactly this
+    board, because that searcher is in PLAY rather than in flight.
+    """
+    from ptcg.cards.ids import Basic_Grass_Energy
+    from ptcg.state.tracking import _identify_prizes
+
+    reset_agent(m)
+    # The Grass carries the surplus prize; the Ultra Ball carries none.
+    _belief(m, {ULTRA_BALL: (2, 0, 0, 0, 2),
+                Basic_Grass_Energy: (1, 0, 0, 1, 10)})
+    deck_view = [_Card(ULTRA_BALL), _Card(ULTRA_BALL), _Card(Basic_Grass_Energy)]
+
+    _identify_prizes(_Obs(deck_view, ULTRA_BALL), _MyState(prizes=0))
+
+    entry = m.AGENT_STATE.ACTIVE_CARDS_IN_DECK[ULTRA_BALL]
+    assert entry[ZONE_PRIZE] == 0, "no tenia premio y sigue sin tenerlo"
+    assert entry[ZONE_PRIZE] >= 0, "y desde luego no un premio negativo"
+    assert entry[ZONE_DISCARD] == 2, "no se ha inventado un descarte"
+
+
+def test_an_effect_from_a_card_that_is_not_ours_does_not_reach_the_arbiter():
+    """Both halves of the guard, and the `and` between them is load-bearing.
+
+    The reveal can be triggered by a card the tracker has never heard of, and
+    the arbiter indexes the belief by that id. Turning its `and` into an `or`
+    reaches `ACTIVE_CARDS_IN_DECK[<id nobody has>]` and raises inside `agent()`,
+    which in the container is the game.
+    """
+    from ptcg.cards.ids import Basic_Grass_Energy
+    from ptcg.state.tracking import _identify_prizes
+
+    reset_agent(m)
+    _belief(m, {ULTRA_BALL: (2, 0, 0, 1, 1),
+                Basic_Grass_Energy: (1, 0, 0, 0, 11)})
+    deck_view = [_Card(ULTRA_BALL), _Card(ULTRA_BALL), _Card(Basic_Grass_Energy)]
+
+    _identify_prizes(_Obs(deck_view, 999999),
+                     _MyState(prizes=0, deck_count=len(deck_view)))
+
+    entry = m.AGENT_STATE.ACTIVE_CARDS_IN_DECK[ULTRA_BALL]
+    assert entry[ZONE_PRIZE] == 1, "sin buscador nuestro, el arbitro calla"
