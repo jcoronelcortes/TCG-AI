@@ -19,7 +19,10 @@ WHAT IT WATCHES
                           exception -- see `_first_turn_going_first` below -- and
                           the first version of this file did not, which turned 16
                           correct plays into a reported defect.
-  * `STALE_FLAG`       -- see below. The big one.
+  * `STALE_FLAG`       -- a promise standing while its premise is dead.
+  * `STALE_READ`       -- the same promise being READ while its premise is dead,
+                          which is the one that can actually mislead a decision.
+                          See below.
 
 STALE_FLAG, and why it is worth its own tool. Of the roughly twenty fixes made
 on 7-8 August 2026, FIVE were one shape: a flag on AGENT_STATE armed under some
@@ -36,6 +39,41 @@ registry mapping each flag to a predicate over the OBSERVATION that must still
 hold while the flag is up. It is seeded with the flags that have already failed,
 and every run prints how many boolean flags on AGENT_STATE are NOT registered,
 so the blind spot is a number rather than a silence.
+
+STALE_FLAG VERSUS STALE_READ, and why the second one exists. A flag standing on
+a dead premise harms nothing if nobody looks at it, and several consumers here
+re-check the premise themselves -- which is why the first version of this file
+reported 440 stale episodes that were not defects. What can mislead a decision is
+a READ: the moment some rule asks "is this promise up?", gets True, and acts on
+it while the reason the promise was made no longer holds.
+
+Reads are observable without touching the agent. Every module binds the same
+AGENT_STATE object (`from ptcg.state.agent_state import AGENT_STATE` copies the
+reference, not the value), so swapping that one instance's `__class__` for a
+subclass that overrides `__getattribute__` sees every read from everywhere, and
+the class is put back afterwards. A read is recorded only when it returns True --
+a guard asking "is it NOT up?" and getting False is exactly the code doing its
+job.
+
+WHAT THE READ WATCH ACTUALLY FOUND, and it is a negative result worth writing
+down rather than a defect. Over 600 games: 4312 decisions with a promise standing
+on a dead premise, of which 743 involved an actual READ. Zero of those are
+defects. The single real consumer of `_ub_meowth_pending`
+(ptcg/turn/options/play.py:1235) reads it inside a compound condition that
+re-checks BOTH halves of the premise itself -- `bench_count < 5` and
+`not state.supporterPlayed`. The flag is read, the premise is dead, and the other
+terms of the `and` throw the play out anyway.
+
+That is the limit of watching from outside: a read is one term of a condition,
+and the terms beside it are invisible here. Detecting G-A properly needs either
+static analysis of each read site, or the agent stating its own premises. Both
+are design work, not more instrumentation, and STALE_READ is left in place
+reporting honestly rather than quietly tuned to zero -- a number that needs its
+read site inspected is still worth more than no number.
+
+The good news is the finding itself: all three registered promises ARE guarded
+where they are consumed. tests/test_the_promise_is_guarded_where_it_is_read.py
+pins that, so removing one of those guards goes red.
 
 VALIDATE IT BEFORE TRUSTING ITS ZERO -- both halves, because a detector has two
 ways to be useless and only one of them looks like a result:
@@ -129,6 +167,49 @@ def unregistered_flags(mod):
 
 
 # --------------------------------------------------------------------------
+# Watching the reads
+# --------------------------------------------------------------------------
+
+_READS = []          # names read as True since the last clear
+_WATCHING = set()
+
+
+def _install_read_watch(mod):
+    """Swap AGENT_STATE's class so every read of a promise is recorded.
+
+    Returns the original class so the caller can put it back. Every module holds
+    the SAME AGENT_STATE object, so this observes all of them at once; nothing in
+    the agent is modified.
+    """
+    state = mod.AGENT_STATE
+    original = type(state)
+    watched = {name for name, _why, _p in PROMISES}
+
+    class _Watched(original):
+        def __getattribute__(self, name):
+            value = original.__getattribute__(self, name)
+            if name in watched and value is True:
+                _READS.append(name)
+            return value
+
+    try:
+        state.__class__ = _Watched
+    except TypeError:
+        return None            # not swappable: reads simply go unwatched
+    _WATCHING.add(id(state))
+    return original
+
+
+def _remove_read_watch(mod, original):
+    if original is None:
+        return
+    try:
+        mod.AGENT_STATE.__class__ = original
+    except (AttributeError, TypeError):
+        pass
+
+
+# --------------------------------------------------------------------------
 # The invariants
 # --------------------------------------------------------------------------
 
@@ -216,6 +297,26 @@ def check_end_with_empty_bench(obs, choice):
     return "ending the turn with an empty bench: the next knockout is the game"
 
 
+def check_stale_reads(obs, names):
+    """G-A, sharpened. A promise READ as True while its premise is dead."""
+    out = []
+    seen = set()
+    for name in names:
+        if name in seen:
+            continue
+        seen.add(name)
+        for flag, why, premise in PROMISES:
+            if flag != name:
+                continue
+            try:
+                if not premise(obs):
+                    out.append(f"{name} was READ as True while its premise was "
+                               f"dead: {why}")
+            except Exception:
+                pass
+    return out
+
+
 def check_stale_flags(obs, mod):
     """G-A. A promise still up whose premise has died."""
     out = []
@@ -247,7 +348,8 @@ def over_games(games, opponent=None, saboteur=None, progress=None):
     deck = sp.read_deck()
     op_deck = sp.read_deck(opponent) if opponent else list(deck)
 
-    stats = {"games": 0, "decisions": 0, "raised": 0}
+    watched = [(m, _install_read_watch(m)) for m in agents]
+    stats = {"games": 0, "decisions": 0, "raised": 0, "reads_watched": 0}
     findings = []
 
     def record(kind, detail, obs, game_no, step, seat):
@@ -267,6 +369,7 @@ def over_games(games, opponent=None, saboteur=None, progress=None):
                 yi = obs["current"]["yourIndex"]
                 mod = agents[yi]
                 snapshot = copy.deepcopy(obs)
+                _READS.clear()
                 try:
                     choice = mod.agent(obs)
                 except Exception as exc:
@@ -283,6 +386,10 @@ def over_games(games, opponent=None, saboteur=None, progress=None):
                     bad = check_end_with_empty_bench(snapshot, choice)
                     if bad:
                         record("END_EMPTY_BENCH", bad, snapshot, game_no, steps, yi)
+                reads = list(_READS)
+                stats["reads_watched"] += len(reads)
+                for stale in check_stale_reads(snapshot, reads):
+                    record("STALE_READ", stale, snapshot, game_no, steps, yi)
                 for stale in check_stale_flags(snapshot, mod):
                     record("STALE_FLAG", stale, snapshot, game_no, steps, yi)
 
@@ -296,6 +403,8 @@ def over_games(games, opponent=None, saboteur=None, progress=None):
         if progress and stats["games"] % progress == 0:
             print(f"  ... {stats['games']}/{games} partidas, "
                   f"{len(findings)} violaciones", flush=True)
+    for mod, original in watched:
+        _remove_read_watch(mod, original)
     return stats, findings, agents[0]
 
 
@@ -354,7 +463,8 @@ def dump(findings, where):
 
 def report(stats, findings, mod):
     print("\nMonitor de invariantes")
-    print(f"Partidas: {stats['games']}   decisiones: {stats['decisions']}")
+    print(f"Partidas: {stats['games']}   decisiones: {stats['decisions']}   "
+          f"lecturas de promesa vistas: {stats.get('reads_watched', 0)}")
     pending = unregistered_flags(mod)
     print(f"Promesas con premisa escrita: {len(PROMISES)}   "
           f"banderas booleanas SIN premisa: {len(pending)}")
