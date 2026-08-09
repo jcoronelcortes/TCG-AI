@@ -83,10 +83,14 @@ for _p in (_ROOT, _ROOT / "utils", _ROOT / "tests"):
         sys.path.insert(0, str(_p))
 
 import selfplay as sp  # noqa: E402
+from cg.api import OptionType, SelectContext  # noqa: E402
 
 # `remain_hp` starts here: AttackPlan's class default. Anything else means a
 # decision in this turn wrote a prediction.
 NO_PREDICTION = -1
+
+ATTACK_OPTION = int(OptionType.ATTACK)
+ATTACK_CONTEXT = int(SelectContext.ATTACK)
 
 
 def bodies(obs, player_index):
@@ -101,6 +105,33 @@ def bodies(obs, player_index):
             if card and card.get("serial") is not None:
                 out[card["serial"]] = card.get("hp")
     return out
+
+
+def is_attack_decision(obs, choice):
+    """Did THIS decision launch an attack?
+
+    The first version of this file judged any decision after which an opposing
+    body's hp had changed, and that was wrong: hp changes for many reasons that
+    are not our attack -- a Munkidori moving damage counters, poison between
+    turns, the opponent's own effects. Against Comfey, where counters move every
+    turn, it invented thousands of findings by comparing a plan formed earlier
+    in the turn against a change that plan did not cause.
+
+    So the attack has to be identified from the CHOICE, not inferred from the
+    board moving. Two shapes count: picking ATTACK off the MAIN menu, and the
+    follow-up context where the engine asks WHICH attack.
+    """
+    select = obs.get("select") or {}
+    if select.get("context") == ATTACK_CONTEXT:
+        return True
+    options = select.get("option") or []
+    for i in (choice or []):
+        try:
+            if options[i].get("type") == ATTACK_OPTION:
+                return True
+        except (IndexError, TypeError, AttributeError):
+            continue
+    return False
 
 
 def plan_snapshot(mod):
@@ -141,7 +172,10 @@ def judge(before, after, plan, tolerance):
         return None, False
 
     predicted_ko = plan["remain_hp"] <= 0
-    actual_ko = hp_after is None
+    # A body at 0 hp IS knocked out; the engine simply has not removed it from
+    # the field yet in the observation that follows the attack. Requiring it to
+    # have disappeared reported every lethal attack as a phantom.
+    actual_ko = hp_after is None or hp_after <= 0
     common = {"serial": serial, "hp_before": hp_before, "hp_after": hp_after,
               "predicted_remain_hp": plan["remain_hp"], "plan": plan}
 
@@ -171,8 +205,8 @@ def over_games(games, opponent=None, tolerance=0, liar=None, progress=None):
     deck = sp.read_deck()
     op_deck = sp.read_deck(opponent) if opponent else list(deck)
 
-    stats = {"games": 0, "decisions": 0, "attacks_judged": 0,
-             "skipped_multi": 0, "forfeits": 0}
+    stats = {"games": 0, "decisions": 0, "attack_decisions": 0,
+             "attacks_judged": 0, "skipped_multi": 0, "forfeits": 0}
     findings = []
 
     for game_no in range(games):
@@ -201,10 +235,13 @@ def over_games(games, opponent=None, tolerance=0, liar=None, progress=None):
                 if liar is not None:
                     liar(mod)
                 plan = plan_snapshot(mod)
+                attacking = is_attack_decision(snapshot, choice)
                 obs = game.battle_select(choice)
                 stats["decisions"] += 1
                 steps += 1
-                if plan is None or obs is None:
+                if attacking:
+                    stats["attack_decisions"] += 1
+                if plan is None or obs is None or not attacking:
                     continue
                 after = bodies(obs, opp)
                 finding, multi = judge(before, after, plan, tolerance)
@@ -233,22 +270,39 @@ def _lie_always_ko(mod):
         pass
 
 
-def self_test(games=6):
-    """Show the oracle failing before trusting it to pass.
+def self_test(games=6, opponent=None):
+    """Show the oracle failing, AND show it staying quiet, before trusting it.
 
-    A monitor whose zero has never been falsified is not evidence. This installs
-    a plan that lies in one direction ("everything dies") and requires the
-    oracle to notice.
+    Two halves, because the first version of this file only had the first one
+    and that was not enough. Sensitivity says the detector can catch a lie.
+    SPECIFICITY says it does not invent one -- and it was specificity that broke:
+    judging every decision after which the board moved produced ~16 700 findings
+    over 38 000 games, of which the overwhelming majority were damage counters
+    being shuffled around by a Munkidori, not our attack missing.
+
+    A detector that fires on everything is as useless as one that never fires,
+    and only the second failure looks like a result.
     """
-    print("Auto-test: se inyecta un plan que miente (todo muere) ...", flush=True)
-    _stats, findings = over_games(games, liar=_lie_always_ko)
+    print("Auto-test 1/2 (sensibilidad): se inyecta un plan que miente ...", flush=True)
+    _stats, findings = over_games(games, opponent=opponent, liar=_lie_always_ko)
     phantoms = [f for f in findings if f["kind"] == "PHANTOM_KO"]
     if not phantoms:
         print("AUTO-TEST FALLIDO: la mentira no se detecto. El oraculo no es fiable.",
               file=sys.stderr)
         return False
-    print(f"Auto-test OK: {len(phantoms)} PHANTOM_KO detectados sobre la mentira.\n",
+    print(f"  OK: {len(phantoms)} PHANTOM_KO sobre la mentira.", flush=True)
+
+    print("Auto-test 2/2 (especificidad): solo se juzgan decisiones de ATAQUE ...",
           flush=True)
+    stats, honest = over_games(games, opponent=opponent)
+    judged = stats["attacks_judged"]
+    if judged > stats["attack_decisions"]:
+        print(f"AUTO-TEST FALLIDO: {judged} ataques juzgados sobre solo "
+              f"{stats['attack_decisions']} decisiones de ataque. El oraculo "
+              f"esta atribuyendo cambios que no causo un ataque.", file=sys.stderr)
+        return False
+    print(f"  OK: {judged} juzgados sobre {stats['attack_decisions']} decisiones "
+          f"de ataque, {len(honest)} hallazgos.\n", flush=True)
     return True
 
 
@@ -268,6 +322,7 @@ def dump(findings, where):
 def report(stats, findings):
     print("\nOraculo diferencial: la creencia del agente contra lo que resolvio el motor")
     print(f"Partidas: {stats['games']}   decisiones: {stats['decisions']}   "
+          f"decisiones de ataque: {stats['attack_decisions']}   "
           f"ataques juzgados: {stats['attacks_judged']}")
     print(f"Sin atribuir (dano repartido en varios cuerpos): {stats['skipped_multi']}")
     if stats["forfeits"]:
