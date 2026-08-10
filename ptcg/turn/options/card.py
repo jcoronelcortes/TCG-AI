@@ -10,9 +10,9 @@ from ptcg.calc.card import get_card, prize_count, prize_count_op
 from ptcg.calc.damage import _attacker_base_damage, _bench_attacker_can_ko, _ko_not_guaranteed, _our_effective_damage, _snipe_target_score
 from ptcg.calc.energy import _can_attack_eff, _grass_attach_route_open, _grass_attach_unit, _grass_mult
 from ptcg.calc.board import _active_of, _count_hand_play_options
-from ptcg.cards.groups import GT_FETCH_BONUS
-from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, DISCARD_BODY_WITHOUT_SEAT, DISCARD_EVO_SPARE_COPY, DISCARD_SUPPORTER_DEAD_DROP, DISCARD_SUPPORTER_LIVE_KEEP, DUNSPARCE_IDS, Dawn, Dipplin, Drednaw, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, LANA_SEL_INJUGABLE, LANA_SEL_GRASS_DEMAND, LANA_SEL_GRASS_UNLOCKS, LANA_SEL_GRASS_SURPLUS, LANA_SEL_GRASS_WINS, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, OUR_ABILITY_IDS, OUR_EX_IDS, Pinsir, Poke_Pad, RETREAT_COST, RIPEN_HEAL_TARGET_SCORE, SCORE_FORBID, SCORE_LOOKAHEAD_PROMOTE_KO, SCORE_LOOKAHEAD_PROMOTE_SAFE, SCORE_NEVER, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, Xerosic_Machinations
-from ptcg.cards.lines import _evo_copies_usable, _line_base_benchable, _pokemon_injugable
+from ptcg.cards.groups import EVO_LINES, GT_FETCH_BONUS
+from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, DISCARD_BODY_WITHOUT_SEAT, DISCARD_EVO_SPARE_COPY, DISCARD_LINK_THE_SEARCH_BUYS, DISCARD_SUPPORTER_DEAD_DROP, DISCARD_SUPPORTER_LIVE_KEEP, DUNSPARCE_IDS, Dawn, Dipplin, Drednaw, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, LANA_SEL_INJUGABLE, LANA_SEL_GRASS_DEMAND, LANA_SEL_GRASS_UNLOCKS, LANA_SEL_GRASS_SURPLUS, LANA_SEL_GRASS_WINS, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, OUR_ABILITY_IDS, OUR_EX_IDS, Pinsir, Poke_Pad, RETREAT_COST, RIPEN_HEAL_TARGET_SCORE, SCORE_FORBID, SCORE_LOOKAHEAD_PROMOTE_KO, SCORE_LOOKAHEAD_PROMOTE_SAFE, SCORE_NEVER, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, Xerosic_Machinations
+from ptcg.cards.lines import _evo_copies_usable, _evo_top_unlocked_by_the_search, _line_base_benchable, _pokemon_injugable
 from ptcg.cards.ids import OPENING_SAC_PROMOTE_ORDER, SETUP_ACTIVE_BASIC_ORDER, SETUP_ACTIVE_BASIC_TOP, SETUP_ACTIVE_EX_ORDER, SETUP_ACTIVE_EX_TOP, SETUP_ACTIVE_OTHER, SETUP_ACTIVE_OTHER_BASIC, SETUP_ACTIVE_STEP
 from ptcg.cards.scoring import MAIN_ATTACKERS, PROMO_DOOMED_PENALTY, PROMO_KO_BONUS, PROMO_MATCH_POINT_VETO, PROMO_PRIZE_PENALTY, OPENING_SAC_PROMOTE_STEP, OPENING_SAC_PROMOTE_TOP, _SUPP_PLAY_IDS
 from ptcg.cards.tables import card_table
@@ -2861,6 +2861,53 @@ def score_play(tc, o, score):
         
                     score = SCORE_NEVER
         
+                # THE COST DOES NOT EAT THE CARD THAT MAKES ITS OWN PURCHASE
+                # WORTH MAKING (user, `records/registro_004_pasos_029_hasta_042
+                # .json`, episode 91601506, step 33, turn 4 vs Crustle -- WON in
+                # spite of this). Hand of four -- Fezandipiti ex, Lillie's
+                # Determination, **Meganium**, Boss's Orders -- two Chikorita on
+                # a full bench, our Forest of Vitality on the field, and an
+                # Ultra Ball just played TO FETCH THE BAYLEEF. The cost took the
+                # Meganium (40) and the Fezandipiti (38) and kept the Boss's
+                # Orders (36) that `_supp_values` had already priced as a gust
+                # worth nothing on that board.
+                #
+                # Every branch was right about the board it was shown. The
+                # Meganium ladder asks for a **Bayleef in play** and, failing
+                # that, falls to "there is another copy in the deck" (40) --
+                # the reading of an ORPHAN, and the comment says so out loud:
+                # "having only a Chikorita does NOT count, two evolutions are
+                # missing". But the second evolution was the card being BOUGHT:
+                # `_RULES_UB_BAYLEEF` had scored that very fetch 950 instead of
+                # 850 *because we were holding the Meganium in hand*, and the
+                # cost then threw away the reason for its own price. The two
+                # halves of one Ultra Ball contradicted each other, which is the
+                # same doctrine the Supporter block below already applies: the
+                # card we keep and the card we would play cannot disagree.
+                #
+                # The discard is paid BEFORE the fetch resolves, so the scorer
+                # is pricing a hand against a board this very card is about to
+                # change. `_evo_top_unlocked_by_the_search` puts the incoming
+                # link on the board first, and only then asks the question: an
+                # orphaned top whose missing link is `necesario` (its own
+                # pre-evolution already in play) and still IN THE DECK is one
+                # evolution away, not cardboard. It names no card -- the stages
+                # come from `EVO_LINES`, so it holds for the Hydrapple ex line
+                # exactly as it holds for the Meganium one.
+                #
+                # It only ever PROTECTS (`min`) and it stays gated on OUR OWN
+                # Ultra Ball: on a discard forced by their card nothing is being
+                # bought, and the orphan is an orphan again.
+                if (not _forced_discard and select.effect is not None
+                        and getattr(select.effect, 'id', None) == Ultra_Ball
+                        and score > DISCARD_LINK_THE_SEARCH_BUYS
+                        and _evo_top_unlocked_by_the_search(
+                            card.id, hand_counts, field_counts,
+                            {_lk: AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(
+                                _lk, {}).get(ZONE_DECK, 0)
+                             for _line in EVO_LINES for _lk in _line[1:-1]})):
+                    score = DISCARD_LINK_THE_SEARCH_BUYS
+
                 # A LINE PROTECTS THE COPIES IT CAN WEAR, NOT EVERY COPY
                 # (user, registro_002 step 26 vs Marnie, episode 90181011,
                 # LOST). The branches above price an evolution by the body

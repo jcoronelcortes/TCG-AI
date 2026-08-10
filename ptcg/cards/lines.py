@@ -228,6 +228,45 @@ def _evo_link_state(hand_counts, field_counts):
     return necesarios, huerfanos
 
 
+def _evo_top_unlocked_by_the_search(card_id, hand_counts, field_counts,
+                                    deck_counts):
+    """Is `card_id` an ORPHANED top of one of our lines whose ONLY missing link
+    a Pokemon search can still pull out of the DECK?
+
+    The question a discard cost cannot answer with `field_counts` alone. An
+    evolution whose pre-evolution is neither in play nor in hand is an orphan
+    (`_evo_link_state`), and every branch that prices such a piece prices it as
+    cardboard -- correctly, because nothing on the board can wear it. But when
+    the card being PAID FOR is a Pokemon tutor, the board the piece will meet is
+    not the board the scorer is looking at: the very card the search brings is
+    the link that un-orphans it.
+
+    Both halves are required and both are read off the same board:
+
+      * `card_id` is the TOP of the line and it is an orphan -- with the link
+        already in hand or in play there is nothing for the search to supply and
+        the ordinary branches already say so;
+      * the missing link is `necesario` (its own pre-evolution IS in play, so it
+        can be worn the moment it arrives) AND there is still a copy in the
+        DECK, which is the only zone a search reaches. THE DISCARD IS NOT A
+        SEAT, the same way `_line_base_benchable` refuses to count the deck.
+
+    Deck-agnostic: the stages come from `EVO_LINES` and the classification from
+    `_evo_link_state`. `deck_counts` is a plain `{card_id: copies in the deck}`
+    so the function stays pure.
+    """
+    necesarios, huerfanos = _evo_link_state(hand_counts, field_counts)
+    if card_id not in huerfanos:
+        return False
+    for line in EVO_LINES:
+        if card_id != line[-1]:
+            continue
+        for link in line[1:-1]:
+            if link in necesarios and deck_counts.get(link, 0) >= 1:
+                return True
+    return False
+
+
 def _pokemon_injugable(card_id, field_counts, bench_count, bench_max):
     """True if bringing `card_id` to hand brings a DEAD card: a Pokemon that
     cannot be put into play today or on the next turn.
@@ -377,6 +416,7 @@ __all__ = [
     '_direct_evolution_ids',
     '_evo_body_in_play',
     '_evo_copies_usable',
+    '_evo_top_unlocked_by_the_search',
     '_line_base_benchable',
     '_evolution_stage',
     '_line_root',

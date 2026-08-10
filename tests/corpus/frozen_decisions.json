@@ -10641,12 +10641,12 @@
     "accion": 2,
     "contexto": 8,
     "detalle": [
-     "CARTA Meganium(710)",
-     "CARTA Fezandipiti ex(140)"
+     "CARTA Fezandipiti ex(140)",
+     "CARTA Night Stretcher(1097)"
     ],
     "eleccion": [
-     1,
-     2
+     2,
+     0
     ],
     "paso": null,
     "turno": 4
@@ -17432,11 +17432,11 @@
     "contexto": 8,
     "detalle": [
      "CARTA Meganium(710)",
-     "CARTA Meganium(710)"
+     "CARTA Dipplin(93)"
     ],
     "eleccion": [
      3,
-     1
+     0
     ],
     "paso": null,
     "turno": 16
@@ -25825,12 +25825,12 @@
     "accion": 3,
     "contexto": 8,
     "detalle": [
-     "CARTA Hydrapple ex(150)",
-     "CARTA Lana’s Aid(1184)"
+     "CARTA Lana’s Aid(1184)",
+     "CARTA Hydrapple ex(150)"
     ],
     "eleccion": [
-     0,
-     1
+     1,
+     0
     ],
     "paso": null,
     "turno": 6
@@ -43490,11 +43490,11 @@
     "contexto": 8,
     "detalle": [
      "CARTA Meganium(710)",
-     "CARTA Meganium(710)"
+     "CARTA Boss’s Orders(1182)"
     ],
     "eleccion": [
      3,
-     2
+     0
     ],
     "paso": null,
     "turno": 2

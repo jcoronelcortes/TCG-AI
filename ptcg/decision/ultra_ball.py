@@ -412,6 +412,25 @@ def _ub_real_fodder(ctx, protegida) -> int:
             _ub_ll_fodder = not (field_counts.get(Bayleef, 0) >= 1)
         elif _ub_llid == Bayleef:
             _ub_ll_fodder = not (field_counts.get(Chikorita, 0) >= 1)
+        # THE PIECE THE SEARCH UN-ORPHANS IS STILL FODDER **HERE** (user,
+        # registro_004 step 33 vs Crustle). The `SelectContext.DISCARD` scorer
+        # now keeps the top of a line whose missing link this very Ultra Ball
+        # will fetch (`_evo_top_unlocked_by_the_search`), and the reflex is to
+        # mirror that rule into this count, which exists to say what the
+        # discarder would really let go. It is NOT mirrored, on purpose.
+        #
+        # That protection is a RANKING among the cards the cost will take, not a
+        # claim that the piece is untouchable: the menu takes `minCount` cards
+        # whatever the scores say, so with no cheaper card in hand the Meganium
+        # still falls and nothing deadlocks. Feeding it here would turn the
+        # preference into a VETO -- and the veto would cancel the Ultra Ball
+        # that is the only thing that un-orphans the piece, leaving us with
+        # neither the link nor the search. It is the same circularity
+        # `_line_base_benchable` documents ("THE DECK IS NOT A SEAT"), measured
+        # on the frozen corpus: mirroring it cancelled three Ultra Balls
+        # (registro_017 turn 8, registro_018 turn 6, registro_029 turn 6) that
+        # the discarder was perfectly able to pay for out of the rest of the
+        # hand.
         elif _ub_llid == Fezandipiti_ex:
             if (ko_last_turn and
                     field_counts.get(Fezandipiti_ex, 0) == 0 and

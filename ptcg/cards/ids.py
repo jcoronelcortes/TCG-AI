@@ -1282,6 +1282,19 @@ DISCARD_SUPPORTER_DEAD_DROP = 36
 # generic junk (an Ultra Ball surplus at 95, a Poke Pad at 55+) and above every
 # card the line really needs.
 DISCARD_EVO_SPARE_COPY = 55
+# --- THE LINK THE SEARCH IS BUYING (see `_evo_top_unlocked_by_the_search`) ---
+# The cost of an Ultra Ball is paid BEFORE its fetch resolves, so the discard
+# scorer prices the hand against a board the very same card is about to change.
+# The top of a line whose missing link the search will supply is not the orphan
+# the branches see: it is one evolution away, exactly like the Meganium with a
+# Bayleef already on the bench.
+#
+# 3 is that branch's own score, on purpose -- the two say the same sentence and
+# must rank the same. It stays ABOVE the untouchable floor (2: the last refill
+# Supporter, the critical counter-stadium, the live Supporter of `_supp_values`)
+# so a piece we are still only BUYING never outranks a card that is already
+# doing its job, and far below every band the cost really eats.
+DISCARD_LINK_THE_SEARCH_BUYS = 3
 # --- A BODY WITH NOWHERE TO SIT (see `_ub_target_has_no_seat`) ---------------
 # The evolution branches above ask "is there a body that can WEAR this piece?".
 # A BASIC enters play by the other door -- a free bench seat -- and nothing in
@@ -1637,6 +1650,7 @@ __all__ = [
     'DISCARD_SUPPORTER_LIVE_KEEP',
     'DISCARD_SUPPORTER_DEAD_DROP',
     'DISCARD_EVO_SPARE_COPY',
+    'DISCARD_LINK_THE_SEARCH_BUYS',
     'DISCARD_BODY_WITHOUT_SEAT',
     'LILLIE_SCORE_FISHING',
     'LILLIE_SCORE_DECK_CLOCK',
