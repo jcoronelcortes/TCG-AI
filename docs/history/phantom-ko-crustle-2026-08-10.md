@@ -158,7 +158,49 @@ premios negativos y **nadie la había medido nunca**: es una de las seis listas
 
 ---
 
-## 6. Por dónde entrar mañana
+## 6. El mazo retirado, medido antes de que dejara de importar — B2b
+
+La noche anterior preguntaba cuál de tres cosas era `crustle_wall`: defecto del
+agente, defecto del bot, o un matchup duro y ya está. El puente contestó
+«ninguna, el mazo se fue del meta». **B2b contesta la que quedaba: era real.**
+
+```
+crustle_wall_6 RETIRADO, desde el respaldo del 7-ago, n=1000:
+    58,8 %  [55,7-61,8]   premios −0,27
+    (a n=200 daba 54,5 % [47,6-61,3]; los intervalos se solapan)
+
+sus dos vecinos del mismo corpus retirado:
+    crustle_wall_2   73,5 %   premios +1,83
+    crustle_wall_1   85,8 %   premios +2,31
+```
+
+**No era el ±7 de una muestra corta.** Veinticinco puntos por debajo de su
+propia familia, con el intervalo estrecho. Ese mazo nos ganaba de verdad, y se
+fue solo.
+
+### Lo que sobrevivió a la rotación no es el mazo, es la firma
+
+| | winrate | premios |
+|---|---:|---:|
+| `crustle_wall_6` **retirado** (7-ago) | 58,8 % | **−0,27** |
+| `crustle_wall_6` **nuevo** (a 32 cartas del anterior) | 71,4 % | **−0,22** |
+| cualquier otra lista de los dos corpus | 71,8-91,3 % | +1,50 a +3,27 |
+
+Son **dos mazos distintos** que comparten nombre por accidente del puesto, y
+comparten dos cosas más: ser el más débil de su corpus y ser los **únicos con la
+carrera de premios en negativo**. Ganamos esas partidas sin ganar los premios.
+
+El fenómeno sobrevivió a la rotación del meta aunque el mazo no; lo que perdió
+son doce puntos de severidad. Y **el marcador no es el winrate, es el
+diferencial de premios**: es lo que separa a estos dos de las otras treinta y
+siete listas medidas esta noche.
+
+Eso también dice cómo buscarlo la próxima vez que el meta rote: no por el nombre
+ni por el arquetipo, sino barriendo el corpus por **premios negativos**.
+
+---
+
+## 7. Por dónde entrar mañana
 
 1. Los 234 JSON son fixtures listos. **Detectar no es ejecutar**: reproducir el
    tablero es otro trabajo (ver [[detectar-no-es-ejecutar-replicar-los-tableros-del-flip]]).
