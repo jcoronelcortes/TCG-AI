@@ -517,6 +517,34 @@ OUR_EX_IDS = {Teal_Mask_Ogerpon_ex, Hydrapple_ex, Meowth_ex, Fezandipiti_ex}
 # single prize -- it is which line starts developing first.
 SETUP_ACTIVE_BASIC_ORDER = (Tapu_Bulu, Applin, Chikorita)
 
+# ...and the order the DOOMED SACRIFICE benches a body with, which is the same
+# list read backwards for the reason the two orders always disagree: the
+# opening order is picking a body to STAND (Tapu Bulu heads it -- 140 HP
+# endures a turn and attacks afterwards), the doomed order is picking a body to
+# LOSE, and there enduring is worth nothing.
+#
+# It mirrors, rung for rung, the promotion order already written in
+# `ptcg/turn/options/card.py` for that same board -- Chikorita 6000, Applin
+# 5900, any other one-prize body 4000, Tapu Bulu 200 -- because the two halves
+# of one rule may not disagree about which body is spare. Tapu Bulu is
+# deliberately ABSENT: the promotion parks it one rung above the ex precisely
+# so that we do not spend the deck's manual attacker, and benching it here to
+# hand it over would undo that.
+DOOMED_SAC_BENCH_ORDER = (Chikorita, Applin)
+
+# The score the PLAY envelope of that sacrifice lifts the body to, and the
+# reason it is SMALL. The two envelopes it sits next to (`_ft_wall_in_hand`,
+# `_opening_sac_wall_in_hand`) are racing a hand refill that would shuffle the
+# body into the deck, so they are worth 21600 -- above everything. This one is
+# racing nothing: the shield only has to be seated before the RETREAT, which is
+# the last action of a turn that has already given up on attacking. So it clears
+# the development veto that would otherwise leave it in hand (a second Chikorita
+# with a Bayleef already in play scores SCORE_VETO) and stays under every real
+# play, which -- together with the tier it is demoted to in
+# `ptcg/turn/finalize.py` -- is what makes it the LAST thing the turn does
+# before retreating.
+DOOMED_SAC_WALL_PLAY_SCORE = 900
+
 # ...and the order among our ex, for the hands that have no other Basic. It is
 # a fallback, not a preference: reaching it means every body in hand costs two
 # prizes, and then what matters is which of them the FIRST TURN can still use.
@@ -971,6 +999,33 @@ PSYCHIC_CONTROL_IDS = {Slowking, Alakazam_ex, Gardevoir_ex}
 Riolu = 677
 Mega_Lucario_ex = 678
 Duraludon = 169
+Archaludon_ex = 190
+
+# --- THE EVOLUTION THAT ARRIVES ALREADY CHARGED -----------------------------
+# `_op_evolution_attack_damage_to` projects what the opposing active can BE in
+# one step by handing the evolution the energies the pre-evolution already
+# carries, plus the one attachment of their turn. That is the right arithmetic
+# for a body that has to be charged by hand -- and it under-reads by a whole
+# attack cost against an evolution whose ABILITY pays part of the cost the
+# moment it is played.
+#
+# Archaludon ex (190) is the case that showed it (episode 91522306, step 37,
+# LOST): "Assemble Alloy -- when you play this Pokemon from your hand to evolve
+# 1 of your Pokemon during your turn, you may attach up to 2 Basic {M} Energy
+# cards from your discard pile to your {M} Pokemon in any way you like". Their
+# active was a Duraludon with ONE Metal, so the projection gave it 1 + 1 = 2
+# against a Metal Defender that costs {M}{M}{M} and answered 0 damage. In the
+# record it evolved, Assemble Alloy attached the two Metals from the discard,
+# and 220 took our 210 HP Teal Mask Ogerpon ex and two prizes.
+#
+# The number is the ability's own ceiling, and the projection takes the worst
+# case for us -- all of it on the attacker -- because that is the branch a
+# defensive reading has to survive. Keyed by the CARD that prints the ability,
+# so nothing here is a matchup: any evolution that pays its own cost on the way
+# in belongs in this table.
+OP_EVO_ENERGY_ON_PLAY = {
+    Archaludon_ex: 2,
+}
 # Rocket's Mewtwo line (limitless /decks/337, analysed July 2026): the deck's
 # cheap damage engine is Team Rocket's Tarountula (400, 50 HP) -> Team Rocket's
 # Spidops (401, Stage 1, a 4-4 line); Team Rocket's Mewtwo ex (431, 280 HP,
@@ -1459,6 +1514,8 @@ __all__ = [
     'EEVEE_IDS',
     'OUR_EX_IDS',
     'SETUP_ACTIVE_BASIC_ORDER',
+    'DOOMED_SAC_BENCH_ORDER',
+    'DOOMED_SAC_WALL_PLAY_SCORE',
     'SETUP_ACTIVE_EX_ORDER',
     'SETUP_ACTIVE_BASIC_TOP',
     'SETUP_ACTIVE_EX_TOP',
@@ -1524,6 +1581,8 @@ __all__ = [
     'Riolu',
     'Mega_Lucario_ex',
     'Duraludon',
+    'Archaludon_ex',
+    'OP_EVO_ENERGY_ON_PLAY',
     'Rockets_Tarountula',
     'Rockets_Spidops',
     'Rockets_Mewtwo_ex',

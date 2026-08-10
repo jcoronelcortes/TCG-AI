@@ -10406,7 +10406,8 @@ def agent(obs_dict: dict) -> list[int]:
     _dsc_op_act = _active_of(op_state)
     if _dsc_my_act is not None and _dsc_op_act is not None:
         _op_evo_dmg_to_active = _op_evolution_attack_damage_to(
-            _dsc_op_act, _dsc_my_act, getattr(op_state, 'handCount', None))
+            _dsc_op_act, _dsc_my_act, getattr(op_state, 'handCount', None),
+            op_discard=op_state.discard)
 
     # THE PROMOTION SIDE OF THE SAME SACRIFICE. The retreat is decided in the
     # MAIN menu (`ptcg/turn/options/retreat.py`); WHICH body goes up is decided
@@ -10429,27 +10430,89 @@ def agent(obs_dict: dict) -> list[int]:
     # promoting a 70 HP Chikorita over a healthy Hydrapple ex, a 330 HP wall that
     # takes the turn and keeps attacking. The projection is measured on each
     # benched body AS THE ACTIVE, which is where it is going.
+    #
+    # `_doomed_sac_armed` is the same reading MINUS the "a one-prize body is
+    # already on the bench" clause, and it exists because the block below has
+    # to be able to ARRANGE that body: asking for it first would switch the
+    # arrangement off on exactly the boards that need it. Everything else --
+    # the doomed active, nobody surviving, no attacker ready, no prize today --
+    # is shared, so the two flags can never disagree about whether this is a
+    # sacrifice board.
     _doomed_sac_context = False
+    _doomed_sac_armed = False
     if (_dsc_my_act is not None and _dsc_my_act.id in OUR_EX_IDS
             and _dsc_op_act is not None
             and my_prize >= 3
             and not op_has_ex_immune_active
             and not _bench_attacker_ready
-            and AGENT_STATE.turn_plan.prizes_today == 0
-            and any(_dsc_bp is not None and prize_count(_dsc_bp) == 1
-                    for _dsc_bp in (my_state.bench or []))):
+            and AGENT_STATE.turn_plan.prizes_today == 0):
         _dsc_hand = getattr(op_state, 'handCount', None)
 
         def _dsc_lethal_to(_dsc_body):
             return max(
                 _op_active_attack_damage_to(_dsc_op_act, _dsc_body, _dsc_hand),
-                _op_evolution_attack_damage_to(_dsc_op_act, _dsc_body,
-                                               _dsc_hand)) >= (_dsc_body.hp or 0)
+                _op_evolution_attack_damage_to(
+                    _dsc_op_act, _dsc_body, _dsc_hand,
+                    op_discard=op_state.discard)) >= (_dsc_body.hp or 0)
 
         if (_dsc_lethal_to(_dsc_my_act)
                 and all(_dsc_bp is None or _dsc_lethal_to(_dsc_bp)
                         for _dsc_bp in (my_state.bench or []))):
-            _doomed_sac_context = True
+            _doomed_sac_armed = True
+            _doomed_sac_context = any(
+                _dsc_bp is not None and prize_count(_dsc_bp) == 1
+                for _dsc_bp in (my_state.bench or []))
+
+    # THE BODY WE HAND OVER IS A BASIC, AND IF IT IS NOT ON THE BENCH WE PUT IT
+    # THERE (user, episode 91522306 step 37 vs Archaludon ex, LOST).
+    #
+    #   US                                     RIVAL (Archaludon ex)
+    #   active  Teal Mask Ogerpon ex 180 (3 G)  active  Duraludon 130 (1 M)
+    #   bench   Dipplin 80, Bayleef 110,        bench   Duraludon 130
+    #           Teal Mask Ogerpon ex 210 (1)
+    #   hand    Chikorita, Hydrapple ex x2, ...
+    #
+    # Myriad Leaf Shower does not knock the Duraludon out (the whole line is
+    # Metal and RESISTS Grass, -30), so attacking buys chip and leaves a
+    # 2-prize ex in front of a body that evolves into Archaludon ex and hits
+    # for 220. The projector above now sees that finisher, so the retreat
+    # pivot fires -- but with the bench as it stands the body handed over is a
+    # Dipplin or a Bayleef, halves of the two lines the deck attacks with, and
+    # the CHIKORITA that is the actual spare body is sitting in hand.
+    #
+    # The user's ladder, in their words: put down a Basic from HAND first, or
+    # one we can SEARCH for; only then hand over one already on the bench; and
+    # with no Basic anywhere, attack. These are the same three pieces the
+    # OPENING sacrifice already carries -- the body in hand, the PLAY envelope
+    # that keeps it from being vetoed as development, the Poke Pad that buys
+    # one -- asked of the board where the finisher is already visible.
+    #
+    # A ONE-PRIZE BODY ON THE BENCH DOES NOT SATISFY IT. It satisfies the
+    # RETREAT (`_doomed_ex_sac_pivot` only ever needed one prize to go in front
+    # instead of two), which is why nothing here gates that pivot: what this
+    # arranges is a BETTER body to hand over, and if it never arrives the
+    # retreat happens anyway with what the bench has. The order comes from the
+    # promotion menu that will choose one observation later, which already
+    # ranks a fresh Chikorita (6000) over a Bayleef or a Dipplin (4000).
+    _doomed_sac_wall_in_hand = None
+    _doomed_sac_needs_body = False
+    if _doomed_sac_armed:
+        _dsc_basic_benched = any(
+            _dsb is not None
+            and _dsb.id not in OUR_EX_IDS
+            and not getattr(card_table.get(_dsb.id), 'stage1', False)
+            and not getattr(card_table.get(_dsb.id), 'stage2', False)
+            for _dsb in (my_state.bench or []))
+        if not _dsc_basic_benched and bench_count < bench_max:
+            for _dsc_hand_id in DOOMED_SAC_BENCH_ORDER:
+                if hand_counts.get(_dsc_hand_id, 0) >= 1:
+                    _doomed_sac_wall_in_hand = _dsc_hand_id
+                    break
+            # NO SPARE BASIC ANYWHERE: the search goes and gets one. The flag
+            # says only "the sacrifice wants a cheap body and the board has
+            # none"; WHICH body it brings is the fetch menu's question, and it
+            # answers with this same order.
+            _doomed_sac_needs_body = _doomed_sac_wall_in_hand is None
 
     # =================================================================
     # THE ONE-PRIZE WALL OF OUR FIRST TURN (user, registro_002 step 14 vs
@@ -10572,7 +10635,8 @@ def agent(obs_dict: dict) -> list[int]:
                 _op_active_attack_damage_to(_ftw_op_act, _ftw_body,
                                             _ftw_op_hand),
                 _op_evolution_attack_damage_to(_ftw_op_act, _ftw_body,
-                                               _ftw_op_hand)
+                                               _ftw_op_hand,
+                                               op_discard=op_state.discard)
             ) >= (_ftw_body.hp or 0)
 
         _ftw_threat = _ftw_op_kos(_ftw_act)
@@ -10940,6 +11004,7 @@ def agent(obs_dict: dict) -> list[int]:
         budew_on_op_field=budew_on_op_field,
         item_lock_incoming=_item_lock_incoming,
         opening_sac_needs_body=_opening_sac_needs_body,
+        doomed_sac_needs_body=_doomed_sac_needs_body,
         lucario_sac_pivot=_lucario_sac_pivot,
         win_via_boss_gust=_win_via_boss_gust,
         gust_2prize_via_boss=_gust_2prize_via_boss,

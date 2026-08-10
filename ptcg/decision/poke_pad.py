@@ -8,7 +8,7 @@ utils/purity.py: nothing here touches mutable state or the runtime tables.
 from ptcg.engine.rules import _FixedRule
 from ptcg.state.agent_state import AGENT_STATE
 from ptcg.cards.ids import Applin, Bayleef, Chikorita, Dipplin, Meganium
-from ptcg.cards.ids import Applin, Bayleef, Chikorita, Dipplin, Hydrapple_ex, Meganium, SCORE_VETO, SETUP_ACTIVE_BASIC_ORDER, Tapu_Bulu
+from ptcg.cards.ids import Applin, Bayleef, Chikorita, DOOMED_SAC_BENCH_ORDER, Dipplin, Hydrapple_ex, Meganium, SCORE_VETO, SETUP_ACTIVE_BASIC_ORDER, Tapu_Bulu
 from ptcg.state.zones import ZONE_DECK
 from ptcg.engine.context import DecisionContext
 from ptcg.engine.rules import _Adjustment, _FixedRule, _resolve_with_trace
@@ -147,6 +147,34 @@ def _pp_opening_sac_target(c):
     return None
 
 
+def _pp_doomed_sac_target(c):
+    """The body the DOOMED sacrifice is missing, or None.
+
+    The twin of `_pp_opening_sac_target` on the board where the knockout is
+    already visible: our active is a 2-prize ex the projection kills, nothing
+    on the bench survives that hit either, and the retreat has no spare BASIC
+    to put in front -- not benched, not in hand (`_doomed_sac_needs_body`,
+    main.py). It searches in the SACRIFICE order (Chikorita, then Applin), the
+    same one the promotion menu ranks with, and not in the opening order: this
+    is picking a body to LOSE, so Tapu Bulu -- the deck's manual attacker --
+    is deliberately not on the list.
+
+    Like its twin it only names a body still left in the DECK and not already
+    held: fetching a copy of what we have changes nothing about who stands in
+    front.
+    """
+    if not c.doomed_sac_needs_body:
+        return None
+    searchable = _pp_buscables(c)
+    for cid in DOOMED_SAC_BENCH_ORDER:
+        if cid not in searchable:
+            continue
+        if c.field_counts.get(cid, 0) >= 1 or c.hand_counts.get(cid, 0) >= 1:
+            continue
+        return cid
+    return None
+
+
 _AJUSTES_PP_PLAY = [
     # THE POKE PAD BUYS THE BODY THE OPENING SACRIFICE NEEDS (user, ago 2026):
     # "it is allowed to use a Poke Pad this turn to look for a Basic,
@@ -161,6 +189,15 @@ _AJUSTES_PP_PLAY = [
     # development rungs (12800 / 12600) that are only stocking the bench.
     _Adjustment("opening_sac_body",
             lambda c, s: (_pp_opening_sac_target(c) is not None
+                          and c.bench_count < 5),
+            lambda c, s: 13000),
+    # ...AND THE SAME PURCHASE ON THE TURN THE FINISHER IS ALREADY VISIBLE
+    # (user, episode 91522306 step 37 vs Archaludon ex). Same band and same
+    # sentence as the rung above -- the card that turns two prizes into one --
+    # asked of the board where the projection, evolution included, already
+    # kills whatever we leave in front.
+    _Adjustment("doomed_sac_body",
+            lambda c, s: (_pp_doomed_sac_target(c) is not None
                           and c.bench_count < 5),
             lambda c, s: 13000),
     # Search for Tapu Bulu as a 1-prize sacrifice (pivot vs Lucario).
@@ -194,7 +231,8 @@ class _CtxPPFetch:
     """Ctx of the Poke Pad fetch: candidate card + values derived from the mode."""
 
     def __init__(self, card_id, hand_counts, field_counts, bench_count,
-                 state, opening_sac_needs_body=False):
+                 state, opening_sac_needs_body=False,
+                 doomed_sac_needs_body=False):
         self.card_id = card_id
         self.hand = hand_counts
         self.field = field_counts
@@ -203,6 +241,9 @@ class _CtxPPFetch:
         # this fetch is the one that produces it. Defaults to False so the
         # contexts the unit tests build by hand keep working.
         self.opening_sac_needs_body = opening_sac_needs_body
+        # ...and the same for the sacrifice whose finisher is already on the
+        # board and has no spare BASIC to hand over.
+        self.doomed_sac_needs_body = doomed_sac_needs_body
         self.first_turn = ((state.turn == 1 and AGENT_STATE.we_go_first) or
                            (state.turn == 2 and not AGENT_STATE.we_go_first))
         self.have_chik = (field_counts.get(Chikorita, 0) >= 1 or
@@ -249,6 +290,23 @@ def _pp_fetch_osac_rank(c):
     return SETUP_ACTIVE_BASIC_ORDER.index(c.card_id)
 
 
+def _pp_fetch_dsac_rank(c):
+    """Rung of this candidate in the DOOMED-sacrifice order, or None.
+
+    The mirror of `_pp_doomed_sac_target` on the FETCH side, exactly as
+    `_pp_fetch_osac_rank` mirrors its twin, and for the same reason: the two
+    contexts are different objects and threading a chosen id between them is
+    how two halves of one rule end up disagreeing about the board.
+    """
+    if not c.doomed_sac_needs_body:
+        return None
+    if c.card_id not in DOOMED_SAC_BENCH_ORDER:
+        return None
+    if c.field.get(c.card_id, 0) >= 1 or c.hand.get(c.card_id, 0) >= 1:
+        return None
+    return DOOMED_SAC_BENCH_ORDER.index(c.card_id)
+
+
 _RULES_PP_FETCH = [
     # (0) THE BODY THAT STANDS IN FRONT OF THE ex (user, ago 2026). This search
     # is not stocking the bench, it is buying the difference between one prize
@@ -259,6 +317,15 @@ _RULES_PP_FETCH = [
     _FixedRule("opening_sac_body",
                lambda c: _pp_fetch_osac_rank(c) is not None,
                lambda c: 2200 - 100 * _pp_fetch_osac_rank(c)),
+    # (0b) ...and the body the DOOMED sacrifice is missing. Same band, same
+    # spacing and the same reason to sit above every development rung; the
+    # order is the sacrifice one (Chikorita, then Applin), so the two rungs
+    # cannot both fire on the same board -- the two flags that arm them are
+    # exclusive by construction (one asks for our first turn, the other for a
+    # projection that already kills the active).
+    _FixedRule("doomed_sac_body",
+               lambda c: _pp_fetch_dsac_rank(c) is not None,
+               lambda c: 2200 - 100 * _pp_fetch_dsac_rank(c)),
     # (1) First turn: put down the basics of both lines before anything else.
     _FixedRule("t1_applin",
                lambda c: (c.first_turn and c.card_id == Applin

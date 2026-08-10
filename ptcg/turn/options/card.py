@@ -73,6 +73,7 @@ def score_play(tc, o, score):
     _lucario_ko_prefer_basic = tc._lucario_ko_prefer_basic
     _lucario_sac_context = tc._lucario_sac_context
     _opening_sac_needs_body = tc._opening_sac_needs_body
+    _doomed_sac_needs_body = tc._doomed_sac_needs_body
     _opening_sac_promote = tc._opening_sac_promote
     _mega_line_active = tc._mega_line_active
     _meowth_devel_lillie = tc._meowth_devel_lillie
@@ -1526,7 +1527,8 @@ def score_play(tc, o, score):
                         "pp->fetch", _RULES_PP_FETCH, [],
                         _CtxPPFetch(card.id, hand_counts, field_counts,
                                     bench_count, state,
-                                    _opening_sac_needs_body),
+                                    _opening_sac_needs_body,
+                                    _doomed_sac_needs_body),
                         default=10)
         
                 elif select.effect is not None and select.effect.id == Night_Stretcher:

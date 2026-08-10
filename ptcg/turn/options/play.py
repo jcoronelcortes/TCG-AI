@@ -10,7 +10,7 @@ from ptcg.calc.card import get_card, prize_count
 from ptcg.calc.damage import _powerful_hand_projected, _ventana_de_regalo
 from ptcg.calc.energy import _grass_mult
 from ptcg.cards.groups import GT_PLAY_BASICO_BONUS
-from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Budew, Bug_Catching_Set, CUBCHOO_ALLOWED_PLAY_IDS, Chikorita, DECK_ITEM_IDS, Dawn, Dipplin, Dragapult_ex, FIRST_TURN_WALL_PLAY_SCORE, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, OUR_EX_IDS, Pinsir, Poke_Pad, RETREAT_COST, SCORE_DEVELOP_BASE, SCORE_FORBID, SCORE_ITEM_BASE, SCORE_VETO, TAPU_WAIT_FOR_ITEMS_SCORE, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, Xerosic_Machinations
+from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Budew, Bug_Catching_Set, CUBCHOO_ALLOWED_PLAY_IDS, Chikorita, DECK_ITEM_IDS, DOOMED_SAC_WALL_PLAY_SCORE, Dawn, Dipplin, Dragapult_ex, FIRST_TURN_WALL_PLAY_SCORE, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, OUR_EX_IDS, Pinsir, Poke_Pad, RETREAT_COST, SCORE_DEVELOP_BASE, SCORE_FORBID, SCORE_ITEM_BASE, SCORE_VETO, TAPU_WAIT_FOR_ITEMS_SCORE, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, Xerosic_Machinations
 from ptcg.cards.tables import card_table
 from ptcg.decision.bug_catching_set import _score_bug_catching_set_play
 from ptcg.decision.disruption import _score_unfair_stamp_play, _score_xerosic_play
@@ -41,6 +41,7 @@ def score_play(tc, o, score):
     _ft_hold_lone_meowth = tc._ft_hold_lone_meowth
     _ft_wall_in_hand = tc._ft_wall_in_hand
     _opening_sac_wall_in_hand = tc._opening_sac_wall_in_hand
+    _doomed_sac_wall_in_hand = tc._doomed_sac_wall_in_hand
     _gt_planes = tc._gt_planes
     _gt_quiere_basico = tc._gt_quiere_basico
     _gt_root_in_play = tc._gt_root_in_play
@@ -1951,6 +1952,27 @@ def score_play(tc, o, score):
                 and not _dragapult_no_tapu
                 and score < FIRST_TURN_WALL_PLAY_SCORE):
             score = FIRST_TURN_WALL_PLAY_SCORE
+
+        # ...AND THE SAME ENVELOPE FOR THE SACRIFICE WE CAN ALREADY SEE COMING
+        # (user, episode 91522306 step 37 vs Archaludon ex, LOST). The two above
+        # save a body from the hand refill; this one saves it from the
+        # DEVELOPMENT vetoes, which is where the record died: the Chikorita was
+        # the spare body of that hand and the crowding cap of its own line --
+        # one Meganium-line body in play, and a Bayleef was on the bench --
+        # scored it SCORE_VETO. That cap is answering "is a second copy of this
+        # line worth a bench slot", a good question about development and the
+        # wrong one here: the body is not going to develop, it is going to be
+        # handed over instead of a half-built Bayleef.
+        #
+        # Same height and same shape as its two siblings, including the respect
+        # for the matchup veto that reads the OPPONENT: against a deck that
+        # snipes the bench, a body parked there is a target and not a shield.
+        # WHICH body is named in main.py (`_doomed_sac_wall_in_hand`).
+        if (_doomed_sac_wall_in_hand is not None
+                and card is not None and card.id == _doomed_sac_wall_in_hand
+                and not _dragapult_no_tapu
+                and score < DOOMED_SAC_WALL_PLAY_SCORE):
+            score = DOOMED_SAC_WALL_PLAY_SCORE
         return score
     finally:
         tc.b = b

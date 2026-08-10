@@ -68,6 +68,7 @@ class ScoringCtx:
     _doomed_body: Any = None
     _doomed_mute_pivot: Any = None
     _doomed_sac_context: Any = None
+    _doomed_sac_wall_in_hand: Any = None
     _dc: Any = None
     _deny_evo_via_boss: Any = None
     _prize_mismatch_matchup: Any = None
@@ -178,6 +179,7 @@ class ScoringCtx:
     _stamp_blocks_supp_chain: Any = None
     _opening_sac_charge_active: Any = None
     _opening_sac_needs_body: Any = None
+    _doomed_sac_needs_body: Any = None
     _opening_sac_pivot: Any = None
     _opening_sac_promote: Any = None
     _opening_sac_wall_in_hand: Any = None

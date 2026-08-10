@@ -13,7 +13,7 @@ from ptcg.calc.damage import _attacker_base_damage
 from ptcg.calc.energy import _grass_mult
 from ptcg.calc.opponent import _op_juega_crustle
 from ptcg.calc.board import _active_of
-from ptcg.cards.ids import Applin, BOSS_SCORE_PRIZE_RANK_BASE, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, KO_WINDOW_PLAY_IDS, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Pinsir, Poke_Pad, SCORE_USELESS_ATTACK, SCORE_VETO, SUPP_SCORE_LAST_RESORT_BAND, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Xerosic_Machinations
+from ptcg.cards.ids import Applin, BOSS_SCORE_PRIZE_RANK_BASE, DOOMED_SAC_WALL_PLAY_SCORE, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, KO_WINDOW_PLAY_IDS, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Pinsir, Poke_Pad, SCORE_USELESS_ATTACK, SCORE_VETO, SUPP_SCORE_LAST_RESORT_BAND, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Xerosic_Machinations
 from ptcg.cards.scoring import SCORE_LD_SUPP_COMPROMETIDO, _SUPP_PLAY_IDS
 from ptcg.cards.tables import HAND_COST_ABILITY_IDS, HAND_RESET_PLAY_IDS, attack_table, card_table
 from ptcg.decision.ultra_ball import _matchup_allows_playing, _ub_cost_destroys_better_card
@@ -32,6 +32,7 @@ def finalizar(tc):
     _attach_yields_to_teal_dance = tc._attach_yields_to_teal_dance
     _b = tc._b
     _dragapult_no_tapu = tc._dragapult_no_tapu
+    _doomed_sac_wall_in_hand = tc._doomed_sac_wall_in_hand
     _ft_hold_lone_meowth = tc._ft_hold_lone_meowth
     _item_lock_incoming = tc._item_lock_incoming
     _ld_card = tc._ld_card
@@ -467,6 +468,19 @@ def finalizar(tc):
         _TIER_BUG_SET = 20
         _TIER_DEVELOP_AFTER_BCS = 15
         _TIER_ENERGY = 10
+        # THE SHIELD OF THE DOOMED SACRIFICE GOES DOWN LAST (user, episode
+        # 91522306 step 37 vs Archaludon ex, LOST). The body benched so the
+        # retreat has something cheap to hand over is a PLAY, and a Pokemon PLAY
+        # lives in `_TIER_DEVELOP` (40) -- above the energy tier and above every
+        # other body in hand. Left there it took the whole turn over: the record
+        # replayed with the Chikorita going down BEFORE the second Teal Mask
+        # Ogerpon ex, before Teal Dance and before the attachment, none of which
+        # it has any business preceding. The pivot's own doctrine says the
+        # opposite -- "we develop first and the retreat comes out at the end"
+        # (`_doomed_pending_play`) -- so the shield sits BELOW everything that
+        # builds the turn and ABOVE tier 0, which is where the RETREAT it exists
+        # to feed is waiting.
+        _TIER_SAC_WALL = 5
 
         # IS THERE A SEARCH BODY WAITING TO BE PAID FOR? (user, august 2026,
         # records/registro_005 step 50 -- episode 91176376 vs Alakazam, LOST).
@@ -679,6 +693,15 @@ def finalizar(tc):
                         _play_order_tier[_po_i] = _TIER_ENERGY
                     elif _po_data is not None and _po_data.cardType == CardType.STADIUM:
                         _play_order_tier[_po_i] = _TIER_STADIUM
+                    elif (_doomed_sac_wall_in_hand is not None
+                            and _po_card.id == _doomed_sac_wall_in_hand
+                            and scores[_po_i] <= DOOMED_SAC_WALL_PLAY_SCORE):
+                        # The shield of the sacrifice, and ONLY when the envelope
+                        # is what put it above zero: the same body can be a
+                        # perfectly ordinary development play on another board
+                        # (its own ladder scores in the thousands), and there it
+                        # keeps the development tier it earned.
+                        _play_order_tier[_po_i] = _TIER_SAC_WALL
                     elif _po_data is not None and _po_data.cardType == CardType.POKEMON:
                         # Putting a Pokemon down yields to a pending Bug Catching
                         # Set (see the block header): with the 2 new cards in hand

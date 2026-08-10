@@ -12,9 +12,9 @@ from ptcg.cards.ids import ABILITY_IMMUNE_IDS, Alakazam_ex, EVO_BODY_DAMAGE, EVO
 from ptcg.calc.energy import _grass_attach_unit, _grass_mult, _retreat_grass_units
 from ptcg.cards.lines import _direct_evolution_ids
 from ptcg.cards.op_scaling import OP_SCALING_IGNORES_WEAKNESS, op_scaled_damage
-from cg.api import EnergyType
+from cg.api import CardType, EnergyType
 from typing import NamedTuple
-from ptcg.cards.ids import Mega_Hawlucha_ex, RETREAT_COST, Survival_Brace
+from ptcg.cards.ids import Mega_Hawlucha_ex, OP_EVO_ENERGY_ON_PLAY, RETREAT_COST, Survival_Brace
 
 
 def _powerful_hand_projected(op_hand_count: int) -> int:
@@ -478,8 +478,28 @@ def _op_active_attack_damage_to(op_active, target, op_hand_count=None,
     return max(0, int(best))
 
 
+def _op_basic_energy_in(cards, energy_type):
+    """Basic energy cards of `energy_type` in a zone (their discard pile).
+
+    The resource half of `OP_EVO_ENERGY_ON_PLAY`: an ability that attaches
+    "from your discard pile" can only attach what is IN that pile, and on their
+    first turns it is empty. Reading it is what keeps the projection from
+    inventing a finisher two turns before its fuel exists.
+    """
+    if not cards or energy_type is None:
+        return 0
+    n = 0
+    for _c in cards:
+        _d = card_table.get(getattr(_c, 'id', 0))
+        if (_d is not None
+                and getattr(_d, 'cardType', None) == CardType.BASIC_ENERGY
+                and getattr(_d, 'energyType', None) == energy_type):
+            n += 1
+    return n
+
+
 def _op_evolution_attack_damage_to(op_active, target, op_hand_count=None,
-                                   team_buff=False):
+                                   team_buff=False, op_discard=None):
     """Damage the EVOLUTION of the opposing active would deal to `target`.
 
     THE THREAT THAT IS NOT ON THE BOARD YET (user, registro_002 step 25 vs Mega
@@ -516,9 +536,36 @@ def _op_evolution_attack_damage_to(op_active, target, op_hand_count=None,
         return 0
     best = 0
     for _evo_id in _direct_evolution_ids(op_active.id):
+        _energies = tuple(getattr(op_active, 'energies', None) or ())
+        # ...AND THE EVOLUTION THAT PAYS ITS OWN COST ON THE WAY IN (episode
+        # 91522306, step 37 vs Archaludon ex, LOST). Inheriting the energies of
+        # the body in front is right for an evolution that has to be charged by
+        # hand; against one whose ability attaches on evolution it under-reads
+        # by exactly what that ability brings. Their Duraludon carried ONE Metal
+        # -- 1 + the attachment of their turn = 2 against a Metal Defender that
+        # costs three -- so the projection answered 0 while the real turn was
+        # evolve, Assemble Alloy for two Metals out of the discard, 220 and two
+        # prizes. The table (OP_EVO_ENERGY_ON_PLAY) is keyed by the card that
+        # prints the ability and the energies are of the evolution's own type,
+        # which is what those abilities attach.
+        #
+        # AND IT IS CAPPED BY THE FUEL THAT IS ACTUALLY THERE. Assemble Alloy
+        # attaches "from your DISCARD PILE", so on their first turns -- an
+        # empty discard -- it brings nothing, and a projection that credited it
+        # anyway would condemn our active from turn 1 against a board that
+        # cannot yet do anything. `op_discard=None` means the caller did not
+        # say, and then nothing is credited: this reading only ever fires where
+        # somebody looked.
+        _accel = OP_EVO_ENERGY_ON_PLAY.get(_evo_id, 0)
+        if _accel:
+            _evo_data = card_table.get(_evo_id)
+            _evo_type = getattr(_evo_data, 'energyType', None)
+            _accel = min(_accel, _op_basic_energy_in(op_discard, _evo_type))
+            if _accel and _evo_type is not None:
+                _energies = _energies + (int(_evo_type),) * _accel
         _proj = _ProjTarget(_evo_id,
                             tuple(getattr(op_active, 'tools', None) or ()),
-                            tuple(getattr(op_active, 'energies', None) or ()))
+                            _energies)
         best = max(best, _op_active_attack_damage_to(_proj, target,
                                                      op_hand_count,
                                                      team_buff=team_buff))

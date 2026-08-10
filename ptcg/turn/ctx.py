@@ -23,6 +23,7 @@ class TurnCtx:
     _attach_yields_to_teal_dance: Any = None
     _b: Any = None
     _dragapult_no_tapu: Any = None
+    _doomed_sac_wall_in_hand: Any = None
     _ft_hold_lone_meowth: Any = None
     _item_lock_incoming: Any = None
     _ld_card: Any = None

@@ -194,6 +194,14 @@ class DecisionContext:
     # `_opening_sac_needs_body` in main.py.
     # Default False: unit tests build the ctx directly.
     opening_sac_needs_body: bool = False
+    # ...and the same question asked on the board where the finisher is ALREADY
+    # visible: a doomed 2-prize ex in front, nothing on the bench that survives
+    # their reply, and no spare BASIC to hand over -- neither benched nor in
+    # hand. The user's ladder for that turn is "a Basic from hand, or one we can
+    # search for, and only then a body already on the bench"; this is the middle
+    # rung. See `_doomed_sac_needs_body` in main.py.
+    # Default False: unit tests build the ctx directly.
+    doomed_sac_needs_body: bool = False
 
 __all__ = [
     'DecisionContext',
