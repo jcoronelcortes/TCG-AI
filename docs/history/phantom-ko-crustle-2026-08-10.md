@@ -1,6 +1,45 @@
 # El PHANTOM_KO de Crustle — 234 tableros, y lo que ya se puede descartar
 
-**Estado: medido, sin culpable. No se ha tocado una línea del agente.**
+> ## ⚠ CORRECCIÓN, 10 de agosto: el 89 % de esto era el detector
+>
+> **`judge()` comparaba la predicción de un cuerpo con el desenlace de otro.**
+> El plan lleva `target` —0 es su activo, 1 y arriba su banca— y nada lo leía:
+> `remain_hp` se atribuía a quien hubiera perdido vida ese paso.
+>
+> De los **611 `PHANTOM_KO` volcados, 545 (el 89,2 %)** tenían el plan apuntando
+> a un cuerpo de **su banca** mientras el ataque caía sobre el activo. Tres
+> tomados al azar predecían dejar un cuerpo de 70 en −70 y se puntuaron contra
+> uno de 150 o 300 que acababa de recibir 100. **El agente tenía razón**: *si
+> gusteo eso, cae*. Luego no gusteó, atacó al muro de enfrente y el muro
+> sobrevivió.
+>
+> Y explica por qué Crustle encabezaba todas las tablas: contra un muro la mejor
+> ruta de premios es casi siempre un gusteo a su banca, así que ahí apunta el
+> plan y ahí vive la mala atribución. **La concentración era del detector, no
+> del agente.**
+>
+> Re-medido en `crustle_wall_9` a n=1 000 con el objetivo comprobado:
+>
+> | | antes | ahora |
+> |---|---:|---:|
+> | `PHANTOM_KO` | 124 | **17** |
+> | `DAMAGE_DRIFT` | 76 | 42 |
+> | tasa de la lista | 4,92 % | **1,58 %** |
+> | descartados por ser otro cuerpo | — | 209 |
+>
+> Arreglado en `utils/differential_oracle.py` (`planned_serial`), fijado en
+> `tests/test_the_oracle_judges_the_body_the_plan_was_about.py` y validado en
+> ambas direcciones: un phantom **sobre el cuerpo del plan** se sigue
+> reportando.
+>
+> **Qué sobrevive de este documento:** las secciones 2 y 3 —el motor resuelve el
+> daño base, y no es el estadio, ni una herramienta, ni el doble ataque— siguen
+> siendo medidas correctas sobre los tableros que sí estaban bien atribuidos. Lo
+> que **no** sobrevive es la magnitud, y con ella la urgencia. La §5 ya avisaba
+> de que el residuo no explicaba el matchup (r = +0,09); ahora se sabe por qué.
+
+**Estado: medido, y el culpable era el instrumento. No se ha tocado una línea
+del agente.**
 
 Sale del censo B1a de la noche del 9-10 de agosto (`docs/night-plan-2026-08-10-c.md`),
 el primero contra las 87 listas reales del meta recolectado el 9.

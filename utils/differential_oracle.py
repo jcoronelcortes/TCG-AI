@@ -107,6 +107,35 @@ def bodies(obs, player_index):
     return out
 
 
+def planned_serial(obs, player_index, target):
+    """The serial `plan.target` names, or None if it cannot be resolved.
+
+    `AGENT_STATE.plan.target` is an index over the OPPONENT's bodies in the
+    order the agent walks them: 0 is their active, 1 and up are their bench
+    (main.py ~5523, `AGENT_STATE.plan.target = j`). `bodies()` builds its dict
+    in the same order, but a dict is not an index, so the list is rebuilt here.
+
+    WHY THIS EXISTS. Without it `judge` attributed the prediction to whichever
+    single body lost hp, which is a DIFFERENT body every time the plan was
+    about a gust that did not happen. Measured on the 611 PHANTOM_KO of the
+    night of 9-10 August: 545 of them --- 89.2 % --- had the plan pointing at
+    a benched body while the attack landed on the active. Three of them, taken
+    at random, predicted leaving a 70 hp body at -70 and were scored against a
+    150 or 300 hp body that had just taken 100.
+    """
+    if target is None or target < 0:
+        return None
+    try:
+        p = obs["current"]["players"][player_index]
+    except (KeyError, IndexError, TypeError):
+        return None
+    orden = list(p.get("active") or []) + list(p.get("bench") or [])
+    if target >= len(orden):
+        return None
+    card = orden[target]
+    return (card or {}).get("serial")
+
+
 def is_attack_decision(obs, choice):
     """Did THIS decision launch an attack?
 
@@ -149,10 +178,17 @@ def plan_snapshot(mod):
             "remain_hp": remain}
 
 
-def judge(before, after, plan, tolerance):
-    """(finding or None, skip reason: False | True (spread) | "sentinel").
+def judge(before, after, plan, tolerance, target_serial=None):
+    """(finding or None, skip reason: False | True (spread) | "sentinel" | "target").
 
     `before`/`after` are {serial: hp} of the OPPONENT's bodies.
+
+    `target_serial` is the body the PLAN was about (see `planned_serial`). A
+    prediction is only comparable against the body it was made for; judging it
+    against whatever happened to take damage is how this detector reported 545
+    phantom knockouts that were the agent correctly predicting a gust it then
+    did not play. Passing None keeps the old behaviour and is only for the
+    self-test, which builds its boards with a single body.
     """
     hit = []
     for serial, hp_before in before.items():
@@ -166,6 +202,10 @@ def judge(before, after, plan, tolerance):
     if len(hit) > 1:
         return None, True                         # spread: cannot attribute
     serial, hp_before, hp_after = hit[0]
+
+    # The prediction was about ANOTHER body: not comparable, and counted.
+    if target_serial is not None and serial != target_serial:
+        return None, "target"
 
     # Healing is not our attack landing; the projector does not predict it.
     if hp_after is not None and hp_after > hp_before:
@@ -221,7 +261,8 @@ def over_games(games, opponent=None, tolerance=0, liar=None, progress=None):
 
     stats = {"games": 0, "decisions": 0, "attack_decisions": 0,
              "attacks_judged": 0, "skipped_multi": 0,
-             "skipped_sentinel": 0, "skipped_repeat_attack": 0, "forfeits": 0}
+             "skipped_sentinel": 0, "skipped_repeat_attack": 0,
+             "skipped_other_target": 0, "forfeits": 0}
     findings = []
 
     for game_no in range(games):
@@ -279,7 +320,11 @@ def over_games(games, opponent=None, tolerance=0, liar=None, progress=None):
                     stats["skipped_repeat_attack"] += 1
                     continue
                 after = bodies(obs, opp)
-                finding, skip = judge(before, after, plan, tolerance)
+                objetivo = planned_serial(snapshot, opp, plan.get("target"))
+                finding, skip = judge(before, after, plan, tolerance, objetivo)
+                if skip == "target":
+                    stats["skipped_other_target"] += 1
+                    continue
                 if skip == "sentinel":
                     stats["skipped_sentinel"] += 1
                     continue
@@ -368,6 +413,8 @@ def report(stats, findings):
     print(f"Sin atribuir (dano repartido en varios cuerpos): {stats['skipped_multi']}")
     print(f"Sin prediccion (remain_hp centinela = vida actual): {stats['skipped_sentinel']}")
     print(f"Ataque repetido en el mismo turno (plan es por turno): {stats['skipped_repeat_attack']}")
+    print(f"La prediccion era sobre OTRO cuerpo (gusteo que no se jugo): "
+          f"{stats['skipped_other_target']}")
     if stats["forfeits"]:
         print(f"El agente lanzo excepcion en {stats['forfeits']} partidas")
     by_kind = {}
