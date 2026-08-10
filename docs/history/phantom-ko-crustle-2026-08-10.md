@@ -1,0 +1,113 @@
+# El PHANTOM_KO de Crustle — 234 tableros, y lo que ya se puede descartar
+
+**Estado: medido, sin culpable. No se ha tocado una línea del agente.**
+
+Sale del censo B1a de la noche del 9-10 de agosto (`docs/night-plan-2026-08-10-c.md`),
+el primero contra las 87 listas reales del meta recolectado el 9.
+
+---
+
+## 1. Dónde está
+
+El residuo del oráculo por familia, sobre 128 338 ataques juzgados:
+
+| familia | listas | tasa media | deriva mediana | % optimista |
+|---|---:|---:|---:|---:|
+| **`crustle_wall`** | 16 | **4,58 %** | **+40** | **90 %** |
+| `great_tusk_crustle` | 1 | 4,06 % | −10 | 40 % |
+| `festival_lead` | 11 | 3,98 % | −30 | 44 % |
+| `marnie_grimmsnarl` | 9 | 0,11 % | +25 | 50 % |
+
+No es un mazo descolgado: es la familia entera, dieciséis listas, seis de ellas
+sin haber sido medidas nunca.
+
+**Y la categoría separa mejor que la tasa.** A n=1 000 partidas por lista:
+
+| lista | PHANTOM_KO | MISSED_KO | DAMAGE_DRIFT |
+|---|---:|---:|---:|
+| `crustle_wall_9` | **124** | 5 | 76 |
+| `crustle_wall_6` | **110** | 2 | 55 |
+| `festival_lead_10` | 2 | **112** | 616 |
+| `festival_lead_8` | 6 | **91** | 442 |
+
+`festival_lead` lidera la tasa y **gana el 97 % de sus matchups** porque su
+residuo es `MISSED_KO`: predijo que quedaba vida y el cuerpo cayó — una sorpresa
+buena. Crustle es `PHANTOM_KO` a veinte veces esa tasa: **predijo que el cuerpo
+caía y no cayó**. Ésa se paga con el turno.
+
+---
+
+## 2. Qué dicen los 234 tableros volcados
+
+`log/noche_2026-08-10-c/violaciones_oraculo/crustle_wall_{6,9}/phantom_ko_*.json`,
+cada uno con la observación entera.
+
+**El motor resuelve exactamente el daño base. Siempre.**
+
+| par | n | daño que resolvió el motor |
+|---|---:|---|
+| Dipplin → Crustle | 77 | **100** con banca 5, **80** con banca 4 |
+| Tapu Bulu → Mega Kangaskhan ex | 31 | **220**, sin una sola excepción |
+| Meganium → Crustle | 30 | **140** en 22 de 30 |
+
+`Do the Wave` son 20 × nuestra banca: 5 → 100, 4 → 80. Exacto. Los 220 de Tapu
+Bulu y los 140 de Meganium son su daño impreso. Exacto.
+
+**Crustle no está reduciendo nada.** La hipótesis natural —«el muro absorbe»—
+está descartada por los propios números: el motor aplicó el daño completo. El
+exceso es enteramente de nuestra proyección.
+
+Lo que el agente predijo, en cambio, está por todas partes: Dipplin 180 (×29) y
+200 (×19); Tapu Bulu 370 (×20); Meganium 220 (×11) y 240 (×6).
+
+Exceso (predicho − real) sobre los 234:
+
+```
++80  x43     +230 x33     +100 x31     +150 x28
++60  x13     +330 x12     +50  x11     +110 x8
+```
+
+---
+
+## 3. Lo que ya se puede descartar
+
+Tres hipótesis baratas, las tres muertas con los datos que ya hay:
+
+1. **No es el estadio.** La distribución del exceso es la misma con
+   `Forest of Vitality` (148 casos), con `Battle Cage` (77) y sin estadio (9).
+   Si un estadio inflara la proyección, el reparto cambiaría con él.
+2. **No es una herramienta.** Nuestro atacante va sin herramienta en **234 de
+   234**.
+3. **No es el doble ataque de Festival Grounds.** Ese estadio no está en mesa en
+   ninguno de los 234 (ver [[festival-grounds-dipplin-doble-ataque]]).
+
+---
+
+## 4. Lo que queda, y por qué no se hizo esta noche
+
+Los excesos que más se repiten —**+80** y **+100**— aparecen en pares distintos
+(Dipplin 100→180, Meganium 140→220), lo que apunta a un sumando de nuestro lado
+y no a un multiplicador. Confirmarlo exige **leer `_our_effective_damage` y el
+proyector del plan**, no agregar más tableros.
+
+Eso es código del agente, y la regla de la noche es que **una regla que aterriza
+a mitad significa que los bloques de antes y los de después midieron dos agentes
+distintos**. Por eso se para aquí.
+
+Es la segunda vez que aparece esta clase: la primera fue Full Metal Lab, donde
+«la proyección de daño del propio agente era 30 demasiado generosa» y la
+encontró este mismo oráculo. Aquélla movió 2 decisiones en 50 955. **Ésta son
+110-124 tableros por cada 1 000 partidas**, así que antes de tocar nada conviene
+medir la frecuencia — pero el orden de magnitud ya no es el mismo.
+
+---
+
+## 5. Por dónde entrar mañana
+
+1. Los 234 JSON son fixtures listos. **Detectar no es ejecutar**: reproducir el
+   tablero es otro trabajo (ver [[detectar-no-es-ejecutar-replicar-los-tableros-del-flip]]).
+2. `B8.log` añade `crustle_wall_11`, `crustle_wall_12` y `great_tusk_crustle_1`
+   —las de deriva positiva que B1b no alcanzó, porque elegía por tasa y tres de
+   sus cinco huecos se fueron a la familia inofensiva.
+3. Empezar por **Dipplin → Crustle**, que son 77 de los 234 y el único par donde
+   el daño real es una función conocida y verificable del tablero (20 × banca).
