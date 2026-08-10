@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from typing import NamedTuple
 from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, CUBCHOO_ALLOWED_PLAY_IDS, Chikorita, Dawn, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Hydrapple_ex, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, Pinsir, SCORE_CANCEL, SCORE_VETO, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, XEROSIC_SCORE_LAST_RESORT, Xerosic_Machinations
 from ptcg.state.zones import ZONE_DECK
-from ptcg.cards.lines import _evo_copies_usable, _evolution_stage, _line_base_benchable
+from ptcg.cards.lines import _evo_body_in_play, _evo_copies_usable, _evolution_stage, _line_base_benchable
 from ptcg.cards.scoring import _SUPP_PLAY_IDS
 from ptcg.decision.disruption import _score_xerosic_play
 from ptcg.decision.poke_pad import _pp_es_t1
@@ -1172,6 +1172,95 @@ def _ub_target_has_no_seat(cid, free_bench) -> bool:
     return _evolution_stage(cid) == 0
 
 
+def _ub_wearable_bodies(my_state, field_counts, evolvable_counts,
+                        forest_available):
+    """The bodies an Ultra Ball target could be played ON TOP OF this turn,
+    counted BODY BY BODY.
+
+    With a Forest of Vitality available the question disappears -- anything on
+    the board can be evolved, including what came down this turn -- and the
+    whole CURRENT field is the answer. Available means in play OR still in
+    hand: the copy in hand is one Item away from lifting the restriction, and
+    that is the premise of the one-turn chains this same ladder prices
+    (`_can_chain_hydra`, `_v_ub_applin_arrancar`: Applin down this turn +
+    Forest from hand + the Dipplin the Ultra Ball fetches + the Hydrapple ex in
+    hand = a Stage 2 TODAY). A gate blind to it would veto the very search
+    those branches buy. Same reading as `_forest_disponible`.
+
+    Without it, what counts is `appearThisTurn` ON EACH BODY, not the
+    start-of-turn snapshot per SPECIES. The snapshot answers "was there one of
+    these when the turn began", and that is a different question: with an
+    Applin on the bench at the start of the turn, evolving it into Dipplin and
+    then benching a FRESH Applin leaves the snapshot still saying `Applin: 1`
+    while the only Applin in play cannot be evolved until tomorrow -- the
+    Ultra Ball then buys a Dipplin that sleeps in hand. It is the same reading
+    `_st_evolvable` (`ptcg/turn/finalize.py`) already writes for the
+    anti-sterile-turn net, and for the same reason: "with two Applin, one just
+    played and another settled, the line DOES come out" is only true body by
+    body.
+
+    `evolvable_counts` (`_ub_evolvable`) stays as the FALLBACK for a state with
+    no board to read -- the synthetic states of the unit tests -- so those keep
+    the behaviour they were written against. This is deliberately the only
+    place the sharpened reading lives: the VALUATION branches of this file
+    still hang off the start-of-turn snapshot, whose clean-up is measured and
+    reverted (see the scope note in `_evolvable_counts`).
+    """
+    if forest_available:
+        return field_counts
+    bodies = []
+    if my_state is not None:
+        bodies = list(getattr(my_state, 'active', None) or [])
+        bodies += list(getattr(my_state, 'bench', None) or [])
+    if not bodies:
+        return evolvable_counts
+    counts = {}
+    for pkmn in bodies:
+        if pkmn is None or getattr(pkmn, 'appearThisTurn', False):
+            continue
+        counts[pkmn.id] = counts.get(pkmn.id, 0) + 1
+    return counts
+
+
+def _ub_target_cannot_be_worn(cid, evolvable_counts) -> bool:
+    """Is this Ultra Ball target an EVOLUTION with no body that can WEAR IT
+    THIS TURN?
+
+    The third gate of the same sentence the other two write: the Ultra Ball
+    pays two cards from hand, so it is only ever worth that price for a card
+    the turn can USE. `_ub_target_covered_by_hand` refuses what the hand
+    already holds, `_ub_target_has_no_seat` refuses a Basic with no bench slot,
+    and this one refuses the evolution whose body is not evolvable until the
+    NEXT turn -- the same "use it or lose it" arithmetic, read on the third
+    door a card has into play.
+
+    A Pokemon that came down THIS TURN cannot be evolved (only a Forest of
+    Vitality lifts that, in play or one Item away in hand). So the question is
+    asked of the bodies that can be EVOLVED today -- `_ub_wearable_bodies`,
+    which reads `appearThisTurn` body by body -- and not of `field_counts`.
+
+    (user, `records/registro_004_pasos_037_hasta_060.json`, episode 91184399,
+    steps 43-46, turn 4 vs Marnie -- WON in spite of this.) Bench {Meowth ex,
+    **Chikorita played this very turn**}, no Forest. The second Ultra Ball of
+    the turn discarded a **Meganium** and a Night Stretcher to fetch a
+    **Bayleef** that had nothing to evolve: `_evo_link_state` reads the CURRENT
+    field, saw the fresh Chikorita as a seat, called the Bayleef the missing
+    LINK and lifted it to 900 -- over the Applin (650) that the empty bench
+    seat could have put down at once. Four actions later an Unfair Stamp
+    shuffled that Bayleef back into the deck. The VALUE menu had priced the
+    Item for an Applin and the FETCH menu spent it on a Bayleef: exactly the
+    disagreement between the two menus that these gates exist to close.
+
+    Deck-agnostic: it names no card, no line and no matchup -- the stage and
+    the pre-evolution come from the card data (see `_evo_body_in_play`), so it
+    holds for any deck.csv. See [[ultraball-solo-si-el-objetivo-se-usa-este-turno]]
+    and [[coherencia-menu-prompt-habilidades-disponibles]]."""
+    _stage = _evolution_stage(cid)
+    if not _stage:                      # None (not a Pokemon) or 0 (a Basic)
+        return False
+    return not _evo_body_in_play(cid, evolvable_counts)
+
+
 def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrapple,
                          forest_in_play, op_has_ex_immune_active, op_has_ex_immune_bench,
                          op_prize, bench_count, state, ko_last_turn,
@@ -1195,21 +1284,46 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
     # refuses (see `_offer` and [[coherencia-menu-prompt-habilidades-disponibles]]).
     _ub_free_bench = max(0, (bench_max or 5) - bench_count)
 
+    # WHAT CAN BE EVOLVED THIS TURN. It does NOT use `_evolvable_counts` (the
+    # cleaned-up snapshot): MEASURED AND REVERTED. See the scope note in
+    # `_evolvable_counts`. It is read HERE, above `_offer`, because the gate on
+    # every target needs it and the turn-1/turn-2 branches return before the
+    # evolution ladder below.
+    _evolvable = AGENT_STATE._field_at_turn_start if (not forest_in_play and AGENT_STATE._field_at_turn_start) else field_counts
+
+    # ...and the BOARD, for the one question that has to be asked body by body
+    # ("can this evolution be worn TODAY", `_ub_wearable_bodies`). The
+    # synthetic states of the unit tests carry no `players`, and there the
+    # helper falls back to the snapshot.
+    _ub_players = getattr(state, 'players', None)
+    _ub_seat = getattr(state, 'yourIndex', None)
+    _ub_my_state = None
+    if _ub_players and isinstance(_ub_seat, int) and 0 <= _ub_seat < len(_ub_players):
+        _ub_my_state = _ub_players[_ub_seat]
+    _ub_forest_available = (forest_in_play
+                            or hand_counts.get(Forest_of_Vitality, 0) >= 1)
+    _ub_wearable = _ub_wearable_bodies(_ub_my_state, field_counts, _evolvable,
+                                       _ub_forest_available)
+
     def _offer(cid, value):
-        """Offer `value` for searching `cid`, unless the hand ALREADY covers it
-        or the board has NO ROOM for it.
+        """Offer `value` for searching `cid`, unless the hand ALREADY covers it,
+        the board has NO ROOM for it or nothing on the board can WEAR it today.
 
         The single gate every target of this valuation goes through: the Ultra
         Ball pays two cards from hand, so it is only worth it for something the
         turn needs, does not already hold (`_ub_target_covered_by_hand`) and
-        can actually put into play (`_ub_target_has_no_seat`). The fetch ladder
-        of `ptcg/turn/options/card.py` applies the same two gates, so the two
+        can actually put into play -- a Basic through a free bench seat
+        (`_ub_target_has_no_seat`), an evolution through a body that came down
+        BEFORE this turn (`_ub_target_cannot_be_worn`). The fetch ladder of
+        `ptcg/turn/options/card.py` applies the same three gates, so the two
         menus cannot buy the Item for one target and spend it on another."""
         nonlocal ub_best_target
         if _ub_target_covered_by_hand(cid, hand_counts, field_counts,
                                       _ub_free_bench):
             return
         if _ub_target_has_no_seat(cid, _ub_free_bench):
+            return
+        if _ub_target_cannot_be_worn(cid, _ub_wearable):
             return
         ub_best_target = max(ub_best_target, value)
 
@@ -1379,10 +1493,6 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
             if field_counts.get(Teal_Mask_Ogerpon_ex, 0) >= 2:
                 val += 50
             _offer(Teal_Mask_Ogerpon_ex, val)
-
-    # It does NOT use `_evolvable_counts` (the cleaned-up snapshot): MEASURED AND
-    # REVERTED. See the scope note in `_evolvable_counts`.
-    _evolvable = AGENT_STATE._field_at_turn_start if (not forest_in_play and AGENT_STATE._field_at_turn_start) else field_counts
 
     if not meganium_in_play:
         if _evolvable.get(Bayleef, 0) >= 1:
@@ -2208,6 +2318,8 @@ __all__ = [
     '_alakazam_dig_xerosic_engine',
     '_ub_dig_meowth_gets_played',
     '_ub_target_has_no_seat',
+    '_ub_target_cannot_be_worn',
+    '_ub_wearable_bodies',
     '_CtxUBHydrapple',
     '_CtxUBMeowth',
     '_CtxUBFetch',

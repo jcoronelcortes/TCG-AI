@@ -814,8 +814,13 @@ _ALK_MEOWTH_ENGINE_FIXTURE = (
     ROOT / "tests" / "fixtures" / "alakazam_step85_meowth_engine_sobre_boss.json")
 
 def test_alakazam_step85_meowth_engine_sobre_boss():
+    # Con un Fezandipiti ex en la banca y Flip the Script viva, el robo gratis va
+    # primero (`_TIER_FEZ_BEFORE_SEARCH`, agosto 2026). La comparacion que mide
+    # este test -- bajar Meowth ex por encima del gusteo de Boss's -- se lee con
+    # la habilidad ya cobrada, que es UNA VEZ POR TURNO.
+    from fez_menu import sin_flip_the_script
     with open(_ALK_MEOWTH_ENGINE_FIXTURE, encoding="utf-8") as f:
-        obs = json.load(f)["observation"]
+        obs = sin_flip_the_script(json.load(f)["observation"])
     _reset_state_record_008()
     result = m.agent(obs)
     me = obs["current"]["players"][obs["current"]["yourIndex"]]

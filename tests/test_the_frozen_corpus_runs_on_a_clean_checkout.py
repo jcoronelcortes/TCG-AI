@@ -26,10 +26,18 @@ the agent altered decisions on 3 580 recorded boards, and it prints which ones.
 If the change was intended -- as it is for most rule work -- the flips are
 reviewed and then:
 
-    python utils/freeze_corpus.py
+    python utils/freeze_corpus.py --snapshot-only
 
-rewrites the bundle and the snapshot together, and the diff of that commit is
-the record of what was accepted, which is the artefact worth having.
+re-plays the committed bundle and rewrites its snapshot, and the diff of that
+commit is the record of what was accepted, which is the artefact worth having.
+
+The flag matters. Without it the tool also REBUILDS the bundle out of
+`records/`, which is transient and git-ignored: a working tree usually holds a
+handful of games while the bundle holds every game somebody ever froze, so
+accepting a flip that way silently shrinks the gate -- and the bundle is a
+gzip, so the commit diff does not show it. `freeze_corpus.py` now refuses to
+shrink without `--force`; use the plain form only after
+`utils/record_corpus.py --games 50` has refilled `records/`.
 """
 
 import sys
@@ -109,4 +117,4 @@ def test_no_historical_decision_has_flipped():
         pytest.fail(
             "el corpus congelado ya no dice lo mismo:\n" + "\n".join(problems)
             + "\n\nSi el cambio es intencionado, revisa los flips y luego:"
-              "\n    python utils/freeze_corpus.py")
+              "\n    python utils/freeze_corpus.py --snapshot-only")

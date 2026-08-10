@@ -1237,10 +1237,14 @@ def score_play(tc, o, score):
                         and bench_count < 5
                         and not state.supporterPlayed
                         and not _stamp_blocks_supp_chain):
-                    # `_ub_meowth_pending` (an earlier Ultra Ball brought Meowth ex)
+                    # `_ub_meowth_pending` (a card of OURS spent itself this turn to
+                    # put Meowth ex in hand -- an Ultra Ball out of the deck, a Night
+                    # Stretcher out of the discard, any future search or recovery:
+                    # the flag is armed in `finalize.py` off the fetch prompt, not off
+                    # the fetching card's id, despite the `_ub_` in its name)
                     # forces putting it down to chain Last-Ditch Catch -> search for the
                     # Supporter (Lillie's) and REFILL the hand. User's rule
-                    # (registro_008 step 71 vs Hop's, WON): if the Ultra Ball
+                    # (registro_008 step 71 vs Hop's, WON): if the fetch
                     # CHOSE to search for Meowth ex, the play has to be COMPLETED and it
                     # has to be put down ALWAYS -- even if the active is already a ready
                     # attacker: benching the Meowth does NOT prevent attacking afterwards, and

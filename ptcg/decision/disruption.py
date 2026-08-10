@@ -381,36 +381,31 @@ def _score_unfair_stamp_play(ctx: DecisionContext) -> int:
                                _AJUSTES_STAMP_PLAY, ctx, default=7500)
 
 
-def _xr_projected_lethal(c):
-    """EARLY anti-Alakazam trigger: with an opposing hand of 4-5, if the
-    Alakazam is ALREADY active and its projected Powerful Hand (20 x (hand + 2))
-    KNOCKS OUT our active, cap the hand NOW (waiting for hand >= 6 gives away
-    the KO)."""
-    if not (c.op_is_alakazam_deck and 4 <= c.op_hand_count < 6
-            and c.my_state.active and c.my_state.active[0] is not None):
-        return False
-    op_act = _active_of(c.op_state)
-    return (op_act is not None and op_act.id == Alakazam_ex
-            and 20 * (c.op_hand_count + 2)
-                >= (c.my_state.active[0].hp or 0))
-
-
-def _xr_backup_copy(c):
-    """A 2nd copy of Xerosic reachable (hand or deck): the 1st is played EARLY
-    (opposing hand >= 4); the second late cap is destructive. Without a backup,
-    conservative timing (user, july 2026: -1 Poke Pad +1 Xerosic)."""
-    return (c.hand_counts.get(Xerosic_Machinations, 0) >= 2
-            or c.cards_in_deck.get(
-                Xerosic_Machinations, {}).get(ZONE_DECK, 0) >= 1)
+def _xr_below_the_alakazam_floor(c):
+    """vs Alakazam, is the opposing hand still BELOW the six cards the cap
+    needs? The floor of `_xr_gate_alakazam`, written on its own because it is
+    also read as a hard veto (`alakazam_needs_six_cards`) and by the Last-Ditch
+    fetch: the rule has to be answered BEFORE the card is searched for, not only
+    when it is already in hand."""
+    return c.op_is_alakazam_deck and c.op_hand_count < 6
 
 
 def _xr_gate_alakazam(c):
-    """vs Alakazam (the card's reason to exist): opposing hand >= 6 (Powerful
-    Hand 120+), a projected KO on our active, or a backup copy with the opposing
-    hand already growing (>= 4)."""
-    return (c.op_is_alakazam_deck
-            and (c.op_hand_count >= 6 or _xr_projected_lethal(c)
-                 or (_xr_backup_copy(c) and c.op_hand_count >= 4)))
+    """vs Alakazam (the card's reason to exist): opposing hand >= 6, i.e.
+    Powerful Hand already projecting 20 x (6 + 2) = 160.
+
+    CARD RULE (user, august 2026, records/registro_003 step 17 -- episode
+    91176376 vs Alakazam, LOST): SIX cards is a floor and it has no exceptions.
+    On that turn the opponent held FOUR cards, the gate let the play through on
+    its "a backup copy is left in the deck" branch, and the turn's Supporter was
+    spent to discard ONE single card (4 -> 3): Powerful Hand went from 120 to
+    100 while our hand kept a Xerosic that would have been worth 200+ damage of
+    cap two turns later, when their hand was actually inflated. The two old
+    escape hatches -- the early trigger with the Alakazam already active
+    projecting lethal at 4-5 cards, and the backup copy that allowed spending
+    the first copy from 4 -- are gone with it: both existed to play the cap
+    BELOW the floor, which is exactly the mistake being fixed."""
+    return c.op_is_alakazam_deck and not _xr_below_the_alakazam_floor(c)
 
 
 def _xr_last_copy_locked_in_hand(c):
@@ -497,6 +492,28 @@ _RULES_XEROSIC_PLAY = [
     _FixedRule("opponent_hand_already_short",
                lambda c: c.op_hand_count <= 3,
                lambda c: SCORE_VETO),
+    # THE FLOOR OF SIX CARDS vs ALAKAZAM (user, august 2026, records/registro_003
+    # step 17 -- episode 91176376, LOST). Against the deck the card exists for,
+    # the cap is NOT played until the opposing hand reaches six. See
+    # `_xr_gate_alakazam` for the record.
+    #
+    # It is a VETO and not a fall-through to the last-resort band, and that is
+    # the whole point of writing it as a rule of its own: below the floor the
+    # ladder returned `XEROSIC_SCORE_LAST_RESORT` (20), and 20 is not "do not
+    # play it", it is "play it if nothing else scores". On the record's turn the
+    # menu was exactly {play Xerosic, end turn}, so the last-resort band would
+    # have kept spending the Supporter on a one-card discard by elimination.
+    # Below the floor the Xerosic is a card we are HOLDING for later, not a play
+    # we are short of alternatives for.
+    #
+    # It goes ahead of every `_xr_gate_alakazam` branch below (which now cannot
+    # fire under six anyway) and, deliberately, ahead of `generic_very_big_hand`
+    # too: that branch needs >= 7 and is unreachable here, so the order costs
+    # nothing and the floor reads as absolute. Only the Alakazam matchup is
+    # touched; against every other deck the ladder is unchanged.
+    _FixedRule("alakazam_needs_six_cards",
+               _xr_below_the_alakazam_floor,
+               lambda c: SCORE_VETO),
     # With a KO last turn and the Stamp in hand, the Stamp goes FIRST (it is an
     # Item and re-shuffles OUR hand). Same gate as Boss's/Lana's/Dawn.
     # EXCEPTION (user, jul 2026): with a GIANT opposing hand the order is
@@ -534,23 +551,13 @@ _RULES_XEROSIC_PLAY = [
                           and sum(c.hand_counts.values()) <= 3
                           and c.hand_counts.get(Lillie_Determination, 0) >= 1),
                lambda c: XEROSIC_SCORE_LAST_RESORT),
-    # With the opposing hand already MINIMAL (<= 4: capping only takes 1 card away)
-    # Xerosic's disruption value is marginal (Powerful Hand drops by 20 damage); if
-    # we have Lillie's Determination in hand (refill + development, especially when
-    # we searched for it with Meowth ex and it is therefore the planned play), that
-    # is worth more. It yields the turn's Supporter to Lillie's (user, registro_002
-    # step 17 vs Alakazam, LOST: turn 2, opponent with 4 cards, the agent played
-    # Xerosic instead of the Lillie's it had just fetched with Meowth ex). Different
-    # from `alakazam_yields_to_lillie_short_hand` (which gates on OUR hand <= 3 + an
-    # active that cannot attack): here the gate is the minimal OPPOSING hand, with
-    # no condition on ours. It goes BEFORE
-    # `alakazam_priority_over_boss`/`_capar_mano` because those would fire
-    # 7000/5900 even when only 1 card is taken away.
-    _FixedRule("alakazam_yields_to_lillie_tiny_opponent_hand",
-               lambda c: (_xr_gate_alakazam(c)
-                          and c.op_hand_count <= 4
-                          and c.hand_counts.get(Lillie_Determination, 0) >= 1),
-               lambda c: XEROSIC_SCORE_LAST_RESORT),
+    # (REMOVED, august 2026: `alakazam_yields_to_lillie_tiny_opponent_hand`.
+    # With a minimal opposing hand -- <= 4, where the cap discards ONE card --
+    # it handed the Supporter to a Lillie's in hand (user, registro_002 step 17
+    # vs Alakazam, LOST). The floor of six subsumes it and answers the same
+    # board harder: under six the Xerosic is not played whether or not we hold a
+    # Lillie's, so the rule could no longer fire -- `_xr_gate_alakazam` and
+    # `op_hand_count <= 4` are now mutually exclusive.)
     # PRIORITY OVER BOSS'S (user, registro_006 step 85 vs Alakazam, LOST): with
     # Boss's Orders in hand and the opponent at 16 cards, the agent played Boss's
     # (a 2-prize gust, 6800) instead of Xerosic (6200) and left the opposing hand
@@ -592,8 +599,7 @@ def _score_xerosic_play(ctx: DecisionContext) -> int:
 
 __all__ = [
     '_xr_before_the_stamp',
-    '_xr_projected_lethal',
-    '_xr_backup_copy',
+    '_xr_below_the_alakazam_floor',
     '_xr_gate_alakazam',
     '_xr_last_copy_locked_in_hand',
     '_xr_ruta_a_lillie',

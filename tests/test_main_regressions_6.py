@@ -324,8 +324,15 @@ def test_meowth_fetch_boss_still_played_without_playable_stamp():
     # Control: the SAME board without the Stamp (nor the Xerosic, which would take the
     # Supporter slot through `_meowth_fetch_loses_the_turn`) -> the
     # Boss's-via-Meowth-ex engine is intact and DOES play Meowth ex.
+    #
+    # El tablero trae ademas un Fezandipiti ex con Flip the Script viva, y desde
+    # `_TIER_FEZ_BEFORE_SEARCH` (agosto 2026) el robo gratis va ANTES del cuerpo
+    # que paga la busqueda. Lo que este control mide -- que sin Sello el motor
+    # Boss's via Meowth ex sigue vigente -- se lee con la habilidad ya cobrada
+    # (es UNA VEZ POR TURNO, asi que despues ya no se ofrece).
+    from fez_menu import sin_flip_the_script
     with open(_MEOWTH_BOSS_NO_STAMP_FIXTURE, encoding="utf-8") as f:
-        obs = json.load(f)["observation"]
+        obs = sin_flip_the_script(json.load(f)["observation"])
     m._init_cards_tracking(); m.plan = m.AttackPlan()
     chosen = m.agent(obs)
     pid = _played_id(obs, chosen[0])

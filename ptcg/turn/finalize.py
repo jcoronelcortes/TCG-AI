@@ -112,7 +112,30 @@ def finalizar(tc):
                     AGENT_STATE._poke_pad_target_id = Tapu_Bulu
                     break
 
-    if select.effect is not None and select.effect.id == Ultra_Ball and context == SelectContext.TO_HAND:
+    # THE BODY THIS TURN PAID FOR (user, registro_012 step 77, episode 91179054
+    # vs Mega Starmie ex, LOST). What arms these two flags is not WHICH card did
+    # the fetching: it is that a card of OURS spent itself this turn to put that
+    # body in hand. The guard used to name `Ultra_Ball`, so the very same chain
+    # through a Night Stretcher was invisible: the Stretcher's own selection rule
+    # (`fetch_supporter_from_deck`, `_RULES_NS_MEOWTH`) says in its comment
+    # "recover Meowth ex TO PUT IT DOWN so Last-Ditch fetches a Supporter",
+    # recovered it from the discard for exactly that -- and then the play ladder
+    # killed the body with the generic "the active is already a ready attacker"
+    # veto (`play.py`, the log 86511741 arm). The Stretcher went to the discard,
+    # the Meowth ex stayed dead in hand, the Supporter slot went unused and the
+    # turn closed with a 150 chip into a 330 HP wall.
+    #
+    # It is the same incoherence that `test_both_copies_of_the_fetch_ladder_agree`
+    # watches for on the fetch ladder, one layer up: the half that PAYS and the
+    # half that EXECUTES answered the same board differently. Reading the source
+    # card out of the condition makes the flags say what they always meant -- a
+    # search already paid for is completed -- for any recovery or search card,
+    # in any deck. The names keep their `_ub_` prefix because ~20 tests and the
+    # notes reset them by name; read it as "fetch pending", not "Ultra Ball".
+    #
+    # `select.effect` is the card of ours resolving the prompt, and this whole
+    # function only ever runs on OUR menus, so no opposing effect can arm them.
+    if select.effect is not None and context == SelectContext.TO_HAND:
         _best_ub_score = SCORE_VETO
         _best_ub_id = 0
         for _ub_idx, _ub_opt in enumerate(select.option):
@@ -124,8 +147,8 @@ def finalizar(tc):
         if _best_ub_id == Meowth_ex and _best_ub_score > 10:
             AGENT_STATE._ub_meowth_pending = True
         if _best_ub_id == Fezandipiti_ex and _best_ub_score > 10:
-            # Chain UB -> Fezandipiti ex -> Flip the Script: the search is already
-            # paid for, the body GOES DOWN (see `_ub_fez_pending`).
+            # Chain fetch -> Fezandipiti ex -> Flip the Script: the search is
+            # already paid for, the body GOES DOWN (see `_ub_fez_pending`).
             AGENT_STATE._ub_fez_pending = True
 
     # Chain Meowth ex -> Last-Ditch Catch -> Supporter: the chosen Supporter is
@@ -433,11 +456,64 @@ def finalizar(tc):
         # tiers.
         _TIER_STADIUM_ABILITY = 55
         _TIER_STADIUM = 50
+        # THE FREE DRAW GOES BEFORE THE BODY THAT PAYS FOR THE SEARCH (user,
+        # august 2026, records/registro_005 step 50 -- episode 91176376 vs
+        # Alakazam, LOST). See `_fez_before_the_search_body` below: Flip the
+        # Script above `_TIER_DEVELOP` so the 3 cards are drawn BEFORE Meowth ex
+        # is benched to search for a Supporter.
+        _TIER_FEZ_BEFORE_SEARCH = 45
         _TIER_DEVELOP = 40
         _TIER_POKE_PAD = 30
         _TIER_BUG_SET = 20
         _TIER_DEVELOP_AFTER_BCS = 15
         _TIER_ENERGY = 10
+
+        # IS THERE A SEARCH BODY WAITING TO BE PAID FOR? (user, august 2026,
+        # records/registro_005 step 50 -- episode 91176376 vs Alakazam, LOST).
+        #
+        # On that turn our Dipplin had been knocked out, so Fezandipiti ex's Flip
+        # the Script was live on the bench, and in hand sat a Meowth ex whose
+        # entire worth is its Last-Ditch Catch: bench it and search the deck for
+        # a Supporter. The agent benched the Meowth (21500), searched out a Dawn,
+        # played it -- and only THEN drew the three cards of Flip the Script.
+        # Nothing in the scores says to do that: the ability was the highest
+        # number on the menu (31700). The Pokemon PLAY simply lives in
+        # `_TIER_DEVELOP` (40) and the ability in `_TIER_ENERGY` (10), and the
+        # tier decides before the score does.
+        #
+        # The order is wrong because the two plays are not independent. Flip the
+        # Script draws THREE cards for free; the search brings ONE, and charges a
+        # two-prize body on the bench for it. Draw first and the search may
+        # simply not be needed -- the Supporter we were digging for can be among
+        # the three -- and when it still is, it is decided with three more cards
+        # of information. Draw second and the Meowth is already sitting on the
+        # bench either way. The ability cannot be deferred to make up for it: it
+        # is free, ONCE PER TURN, and its condition (being knocked out last turn)
+        # dies with the turn.
+        #
+        # This is the same sentence the Bug Catching Set already writes right
+        # below ("with the 2 new cards in hand it is decided BETTER which body
+        # goes down"), with a stronger reason: here the body costs two prizes.
+        #
+        # It PROMOTES the ability rather than demoting the Meowth, and that is
+        # not cosmetic. Dropping the Meowth below `_TIER_DEVELOP` would put it
+        # behind every other Pokemon in the menu, and with the bench at 4/5 an
+        # Applin would take the last seat the search body needs. Drawing three
+        # cards earlier cannot invalidate a later play; being outrun to a bench
+        # seat can.
+        #
+        # Deck-agnostic: it names our own two cards and no matchup, no opposing
+        # deck and no board shape. It fires only while BOTH are really on the
+        # menu, so a Flip the Script that any of its own guards has silenced --
+        # the deck-out brake, or the still-standing ordering vetoes that give the
+        # turn to Unfair Stamp / Lillie's first -- keeps the old order and the
+        # Meowth engine is decided by the rules that already govern it.
+        _meowth_play_live = any(
+            _fbs_o.type == OptionType.PLAY and _fbs_i < len(scores)
+            and scores[_fbs_i] > 0
+            and (lambda _c: _c is not None and _c.id == Meowth_ex)(
+                get_card(obs, AreaType.HAND, _fbs_o.index, my_index))
+            for _fbs_i, _fbs_o in enumerate(select.option))
 
         # A Bug Catching Set play really available NOW (offered in the menu and
         # with score > 0): while it exists, putting a Pokemon down yields.
@@ -638,6 +714,18 @@ def finalizar(tc):
                         and _po_ab_card.id == Teal_Mask_Ogerpon_ex
                         and scores[_po_i] >= 29000):
                     _play_order_tier[_po_i] = _TIER_ENERGY
+                elif (_po_ab_card is not None
+                        and _po_ab_card.id == Fezandipiti_ex
+                        and scores[_po_i] >= 29000
+                        and _meowth_play_live):
+                    # THE DRAW GOES BEFORE THE SEARCH BODY (see
+                    # `_meowth_play_live` in the block header): with a Meowth ex
+                    # waiting in hand to be benched for its Last-Ditch Catch, the
+                    # free three-card draw is cashed FIRST -- above
+                    # `_TIER_DEVELOP`, where the Meowth play lives -- and only
+                    # then is the search decided, with three cards more in hand
+                    # and possibly no longer needed at all.
+                    _play_order_tier[_po_i] = _TIER_FEZ_BEFORE_SEARCH
                 elif (_po_ab_card is not None
                         and _po_ab_card.id == Fezandipiti_ex
                         and scores[_po_i] >= 29000):

@@ -12,7 +12,7 @@ from ptcg.calc.damage import (_op_window_against_evolution,
 from ptcg.calc.energy import (_can_attack_eff, _grass_attach_unit, _grass_mult,
                               energy_after_evolution)
 from ptcg.calc.board import _active_of
-from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Chikorita, Dipplin, Grand_Tree, Hydrapple_ex, Lillie_Determination, Meganium, RETREAT_COST, SCORE_EVO_BODY_WITHOUT_A_JOB, SCORE_VETO, Tapu_Bulu
+from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Chikorita, Dipplin, Grand_Tree, Hydrapple_ex, Lillie_Determination, Meganium, RETREAT_COST, SCORE_EVO_BODY_WITHOUT_A_JOB, SCORE_EVO_CONDITION_UNLOCK, SCORE_VETO, Tapu_Bulu
 from ptcg.cards.tables import card_table
 from ptcg.state.agent_state import AGENT_STATE
 
@@ -374,7 +374,52 @@ def score_play(tc, o, score):
                     _cub_evo_eff += _grass_attach_unit()
                 if _cub_evo_eff < AGENT_STATE.ATTACK_ENERGY_REQ.get(card.id, 99):
                     score = SCORE_VETO
-        
+
+            # ── THE EVOLUTION THAT WAKES THE ACTIVE ────────────────────
+            # An Asleep active neither attacks nor pays a retreat: the turn is
+            # gone. Evolving is the ONLY key we hold -- a Pokemon that evolves
+            # recovers from every Special Condition -- because our deck has no
+            # switching card and the other way out is the coin of the Pokemon
+            # Checkup, which is not ours to call.
+            #
+            # This is the GENERAL rule of a special case the Bayleef branch
+            # above already wrote by hand. The environment holds ten attacks
+            # that put our active to sleep -- Spheal's Powder Snow (10 damage
+            # for one energy, the cheapest of them, and the third lock body of
+            # the Crustle/Cubchoo deck), Amaura's Icy Wind, Musharna's Sleep
+            # Pulse, Milotic ex, Mega Froslass ex, Erika's Vileplume ex... --
+            # and the body that has to wake up is not always a Chikorita.
+            # Measured before writing it: with an Asleep Dipplin carrying two
+            # Grass and Hydrapple ex in hand vs Crustle, the agent ENDED THE
+            # TURN -- it could not attack, could not retreat, and declined the
+            # one card that gives back both.
+            #
+            # THE GATE IS WHAT THE WOKEN BODY CAN DO TODAY: reach its attack
+            # cost, or pay its retreat (there is a bench and the retreat is
+            # still unspent). Waking a body that can do NEITHER buys nothing
+            # this turn: it spends the evolution and, with a Stage 2 ex, plants
+            # two prizes in the very spot the opponent is locking. That is
+            # registro_034 vs Cubchoo, and the veto right above it -- whose
+            # gate is the attack cost of a slow, expensive-to-retreat body --
+            # keeps its word on exactly those boards.
+            #
+            # The damage of that attack is deliberately NOT checked. Against a
+            # wall that zeroes us the attack is worth little, but the
+            # alternative while asleep is literally nothing, and the retreat
+            # the same wake-up restores is the way off the wall.
+            #
+            # It only LIFTS the score, never lowers it: Meganium (35000) and
+            # the Bayleef unlock keep the values they were measured with.
+            if (_is_active and condition_blocks_action
+                    and score < SCORE_EVO_CONDITION_UNLOCK):
+                _wake_eff = energy_after_evolution(
+                    pokemon, card.id, 1 if _has_energy_in_hand else 0)
+                _wake_can_retreat = (
+                    can_switch and not getattr(state, 'retreated', False)
+                    and _wake_eff >= RETREAT_COST.get(card.id, 1))
+                if _can_attack_eff(card.id, _wake_eff) or _wake_can_retreat:
+                    score = SCORE_EVO_CONDITION_UNLOCK
+
             # ── WHICH BODY evolves ─────────────────────────────────────
             # Everything above scores the CARD (and at most the species of the
             # body): with two copies of the same pre-evolution in play both

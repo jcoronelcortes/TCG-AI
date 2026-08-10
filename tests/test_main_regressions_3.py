@@ -533,9 +533,24 @@ def _meowth_over_applin_replay(mutate_tac2=None):
         m.agent(obs)
 
 def test_alakazam_step147_plays_meowth_over_applin():
+    # El tablero trae un Fezandipiti ex con Flip the Script viva, asi que la
+    # PRIMERA respuesta del turno es el robo (`_TIER_FEZ_BEFORE_SEARCH`, agosto
+    # 2026: el robo gratis va antes del cuerpo que paga la busqueda). Lo que
+    # vigila este test -- que el slot de banca se lo lleve el Meowth ex y no el
+    # Applin -- se lee una accion despues, con la habilidad ya cobrada.
+    from fez_menu import ofrece_flip_the_script, sin_flip_the_script
     result, obs = _meowth_over_applin_replay()
+    assert ofrece_flip_the_script(obs), (
+        "el escenario incluye la habilidad viva: es la premisa del orden")
     opt = obs["select"]["option"][result[0]]
-    hand = [c["id"] for c in obs["current"]["players"][0]["hand"]]
+    assert opt.get("type") == int(OptionType.ABILITY), (
+        f"con Flip the Script viva el robo va primero; obtuvo {result} -> {opt}")
+
+    post = sin_flip_the_script(obs)
+    m._init_cards_tracking(); m.plan = m.AttackPlan()
+    result = m.agent(post)
+    opt = post["select"]["option"][result[0]]
+    hand = [c["id"] for c in post["current"]["players"][0]["hand"]]
     assert opt.get("type") == 7 and hand[opt["index"]] == m.Meowth_ex, (
         f"con el motor Xerosic vivo (mano rival 11, un slot de banca) debe bajar "
         f"el Meowth ex, no el Applin; obtuvo {result} -> {opt}")
@@ -631,16 +646,21 @@ def _xerosic_bighand_mutated(mutate):
               if opt.get("type") == int(OptionType.PLAY) else None)
     return played, opt
 
-def test_xerosic_early_trigger_on_projected_ko():
-    # a rival hand of 5 (below the threshold of 6) + our own active at 130 HP: the projection
-    # 20 x (5+2) = 140 >= 130 -> play Xerosic NOW.
+def test_xerosic_does_not_fire_below_six_on_a_projected_ko():
+    # THE FLOOR OF SIX (user, august 2026, records/registro_003 step 17 vs
+    # Alakazam, LOST): this board used to be the EARLY TRIGGER -- a rival hand
+    # of 5 and our active at 130 HP, so the projection 20 x (5+2) = 140 >= 130
+    # knocked us out and the cap was played at once. The rule no longer has that
+    # exception: under six cards the Xerosic waits, projected KO or not. The
+    # full statement of the rule and its boundary at six live in
+    # tests/test_the_cap_waits_until_their_hand_is_worth_capping.py.
     def mut(o):
         cur = o["current"]
         cur["players"][cur["yourIndex"]]["active"][0]["hp"] = 130
         cur["players"][1 - cur["yourIndex"]]["handCount"] = 5
     played, opt = _xerosic_bighand_mutated(mut)
-    assert played == m.Xerosic_Machinations, (
-        f"con KO proyectado (140 >= 130) debe jugar Xerosic; obtuvo {opt}")
+    assert played != m.Xerosic_Machinations, (
+        f"mano rival 5 < 6: ni con KO proyectado se juega el tope; obtuvo {opt}")
 
 def _xerosic_bighand_no_backup(mutate):
     # A variant with NO backup copy: the 2nd copy of Xerosic (deck, July
@@ -662,17 +682,19 @@ def _xerosic_bighand_no_backup(mutate):
               if opt.get("type") == int(OptionType.PLAY) else None)
     return played, opt
 
-def test_xerosic_early_with_backup_copy():
-    # The 2nd copy in the DECK (July 2026): with a rival hand of 5 (>= 4) the 1st copy
-    # is played EARLY even if the active is healthy -- a double-hit
-    # strategy: slow them down now and keep the 2nd for the late cap.
+def test_xerosic_backup_copy_does_not_lower_the_floor():
+    # The other half of the same change (user, august 2026): the 2nd copy in the
+    # DECK used to buy the FIRST one an early play from a rival hand of 4
+    # ("slow them down now, keep the 2nd for the late cap"). That is the branch
+    # that spent the Supporter of registro_003 step 17 to discard ONE card. A
+    # backup copy no longer lowers the floor of six.
     def mut(o):
         cur = o["current"]
         cur["players"][1 - cur["yourIndex"]]["handCount"] = 5
     played, opt = _xerosic_bighand_mutated(mut)
-    assert played == m.Xerosic_Machinations, (
-        f"con copia de respaldo en el mazo, la 1a se juega temprano "
-        f"(mano rival 5 >= 4); obtuvo {opt}")
+    assert played != m.Xerosic_Machinations, (
+        f"con copia de respaldo en el mazo el suelo sigue en 6 "
+        f"(mano rival 5); obtuvo {opt}")
 
 def test_xerosic_early_trigger_not_on_healthy_active_last_copy():
     # The LAST copy (no backup) + a rival hand of 5 + a healthy active (330):
@@ -700,6 +722,14 @@ def test_xerosic_early_trigger_needs_alakazam_active():
 def test_lillies_guard_protects_last_xerosic_access():
     # Xerosic in hand, a rival hand of 5, and with NO re-searchable Meowth (0 in hand,
     # 0 in the deck): Lillie's would shuffle it away with no recovery -> a veto.
+    # The 2nd copy of Xerosic is taken OUT OF THE DECK too, which is what makes
+    # the one in hand the LAST access and therefore what
+    # `_xr_last_copy_locked_in_hand` -- the condition of the guard under test --
+    # actually asks. Until august 2026 the test passed without that edit for a
+    # reason that had nothing to do with the guard: with a backup copy in the
+    # deck the Xerosic itself outscored the Lillie's (5900) and the assertion
+    # held by accident. With the floor of six that branch is gone, and the
+    # scenario now has to be built the way it is described.
     def mut(o):
         cur = o["current"]
         cur["players"][1 - cur["yourIndex"]]["handCount"] = 5
@@ -710,6 +740,8 @@ def test_lillies_guard_protects_last_xerosic_access():
     m._init_cards_tracking()
     m.ACTIVE_CARDS_IN_DECK.setdefault(
         m.Meowth_ex, {m.ZONE_DECK: 0})[m.ZONE_DECK] = 0
+    m.ACTIVE_CARDS_IN_DECK.setdefault(
+        m.Xerosic_Machinations, {m.ZONE_DECK: 0})[m.ZONE_DECK] = 0
     m.plan = m.AttackPlan()
     result = m.agent(obs)
     opt = obs["select"]["option"][result[0]]

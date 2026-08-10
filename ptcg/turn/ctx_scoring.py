@@ -64,6 +64,7 @@ class ScoringCtx:
     _conf_should_attack: Any = None
     _conf_should_retreat: Any = None
     _cubchoo_lock_stuck: Any = None
+    _cubchoo_mute_cashes_prize: Any = None
     _doomed_body: Any = None
     _doomed_mute_pivot: Any = None
     _doomed_sac_context: Any = None
@@ -149,6 +150,7 @@ class ScoringCtx:
     _mp_front_survivors: Any = None
     _mp_outlasts: Any = None
     _mp_price_ends_the_game: Any = None
+    _promo_ko_wins_the_game: Any = None
     _promo_op_act: Any = None
     _promo_survives: Any = None
     _promo_survivors: Any = None

@@ -823,6 +823,21 @@ EVO_BODY_DAMAGE = 60
 # the card evolving in front is still better than not evolving at all.
 SCORE_EVO_BODY_WITHOUT_A_JOB = 8000
 
+# --- THE EVOLUTION THAT WAKES THE ACTIVE -------------------------------------
+# An Asleep or Paralysed active neither attacks nor pays a retreat, and a
+# Pokemon that EVOLVES recovers from every Special Condition. Our deck carries
+# no switching card (deck.csv has no Switch and no Escape Rope), so evolving is
+# the only key we hold: the other way out is the coin of the Pokemon Checkup,
+# and that one is not ours to call.
+#
+# 34000 is the band the Bayleef branch of `ptcg/turn/options/evolve.py` already
+# wrote by hand for exactly this ("has_condition and condition_blocks_action"),
+# and this constant is that number given a name so the rest of the evolutions
+# can share it. It sits above the deliberate evolution bands (25000-33500) --
+# unlocking the turn outranks development -- and below Meganium's 35000 and the
+# Bayleef unlock itself, which are already measured and keep their word.
+SCORE_EVO_CONDITION_UNLOCK = 34000
+
 # Our Pokemon whose ability DOUBLES every basic Grass already attached
 # (Meganium's Wild Growth). It is the twin of `_grass_attach_unit`, which
 # answers the same question for the energy that is still IN HAND, and it exists
@@ -1473,6 +1488,7 @@ __all__ = [
     'EVO_BODY_EXPOSURE',
     'EVO_BODY_DAMAGE',
     'SCORE_EVO_BODY_WITHOUT_A_JOB',
+    'SCORE_EVO_CONDITION_UNLOCK',
     'GRASS_DOUBLER_IDS',
     'SCORE_BENCH_YIELDS_TO_RETREAT_UNLOCK',
     'SCORE_CHARGE_DOOMED',

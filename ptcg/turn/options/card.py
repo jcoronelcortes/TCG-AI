@@ -21,7 +21,7 @@ from ptcg.decision.disruption import _stamp_pendiente
 from ptcg.decision.meowth import _CtxMeowthFetch, _MEOWTH_FETCH_SUPPS, _RULES_MEOWTH_FETCH
 from ptcg.decision.night_stretcher import _RULES_NS_APPLIN, _RULES_NS_BAYLEEF, _RULES_NS_CHIKORITA, _RULES_NS_DIPPLIN, _RULES_NS_FEZ, _RULES_NS_GRASS, _RULES_NS_HYDRAPPLE, _RULES_NS_MEGANIUM, _RULES_NS_MEOWTH, _RULES_NS_OGERPON, _RULES_NS_PINSIR, _RULES_NS_TAPU, _ctx_ns_fetch, _ns_fez_engine_alive, _ns_meowth_engine_alive
 from ptcg.decision.poke_pad import _CtxPPFetch, _RULES_PP_FETCH
-from ptcg.decision.ultra_ball import _AJUSTES_UB_HYDRAPPLE, _CtxUBFetch, _ub_target_covered_by_hand, _ub_target_has_no_seat, _RULES_UB_APPLIN, _RULES_UB_BAYLEEF, _RULES_UB_CHIKORITA, _RULES_UB_DIPPLIN, _RULES_UB_FEZ, _RULES_UB_HYDRAPPLE, _RULES_UB_MEGANIUM, _RULES_UB_MEOWTH, _RULES_UB_OGERPON, _RULES_UB_PINSIR, _RULES_UB_TAPU, _counter_stadium_urgent, _ctx_ub_fetch_hydrapple, _ctx_ub_fetch_meowth
+from ptcg.decision.ultra_ball import _AJUSTES_UB_HYDRAPPLE, _CtxUBFetch, _ub_target_cannot_be_worn, _ub_wearable_bodies, _ub_target_covered_by_hand, _ub_target_has_no_seat, _RULES_UB_APPLIN, _RULES_UB_BAYLEEF, _RULES_UB_CHIKORITA, _RULES_UB_DIPPLIN, _RULES_UB_FEZ, _RULES_UB_HYDRAPPLE, _RULES_UB_MEGANIUM, _RULES_UB_MEOWTH, _RULES_UB_OGERPON, _RULES_UB_PINSIR, _RULES_UB_TAPU, _counter_stadium_urgent, _ctx_ub_fetch_hydrapple, _ctx_ub_fetch_meowth
 from ptcg.state.agent_state import AGENT_STATE
 from ptcg.state.zones import ZONE_DECK, ZONE_PRIZE
 from ptcg.engine.rules import _resolve_with_trace
@@ -86,6 +86,7 @@ def score_play(tc, o, score):
     _mp_price_ends_the_game = tc._mp_price_ends_the_game
     _promo_damage_to_op = tc._promo_damage_to_op
     _promo_kos_op = tc._promo_kos_op
+    _promo_ko_wins_the_game = tc._promo_ko_wins_the_game
     _promo_min_prize = tc._promo_min_prize
     _promo_op_act = tc._promo_op_act
     _promo_survives = tc._promo_survives
@@ -1156,6 +1157,17 @@ def score_play(tc, o, score):
                     #     close the game in our favour. Under Festival
                     #     Lead `_promo_gets_to_attack` is already False for the
                     #     doomed ones, so the exemption does not open.
+                    #   * the guaranteed finisher is exempt WHEN ITS KNOCKOUT
+                    #     ENDS THE GAME (`_promo_ko_wins_the_game`, user,
+                    #     registro_013 step 116). The exemption above reads
+                    #     `_promo_kos_op`, which measures TODAY's energy, so the
+                    #     body that is one attachment from lethal fails it and
+                    #     the veto sank the very play that wins. It is the same
+                    #     sentence the +9500 branch thirty lines up is written
+                    #     with -- this promotion resolves at the END of their
+                    #     turn, ours comes next and this body attacks FIRST --
+                    #     and the guard makes it unambiguous: our prize is the
+                    #     last one, so their reply never happens.
                     #
                     # With the opposing damage unreadable (a projection of 0) EVERYBODY
                     # "survives" and this does not fire: with no evidence nothing is
@@ -1166,7 +1178,10 @@ def score_play(tc, o, score):
                             and op_prize <= prize_count(card)
                             and not _promo_survives(card)
                             and not (_promo_gets_to_attack
-                                     and _promo_kos_op(card))):
+                                     and _promo_kos_op(card))
+                            and not (_promo_ko_wins_the_game
+                                     and _promote_setup_ko_attacker is not None
+                                     and card is _promote_setup_ko_attacker)):
                         score = PROMO_MATCH_POINT_VETO
 
                     # MATCH POINT AMONG THE ONES THAT KNOCK OUT (user,
@@ -1230,14 +1245,22 @@ def score_play(tc, o, score):
                     #
                     # The one exemption is the one its neighbours already carry:
                     # a body that knocks out and with that closes OUR count first
-                    # wins the game before their reply exists.
+                    # wins the game before their reply exists. It reaches the
+                    # guaranteed finisher for the same reason it does one veto
+                    # up: `_promo_kos_op` measures TODAY's energy, and the body
+                    # this branch of the chain is about is the one that is a
+                    # single attachment from lethal ON OUR TURN, which comes
+                    # first (see `_promo_ko_wins_the_game`).
                     if (isinstance(card, Pokemon)
                             and _promo_op_act is not None
                             and _mp_cheaper_candidate
                             and callable(_mp_price_ends_the_game)
                             and _mp_price_ends_the_game(card)
                             and not (_promo_kos_op(card)
-                                     and my_prize <= prize_count_op(_promo_op_act))):
+                                     and my_prize <= prize_count_op(_promo_op_act))
+                            and not (_promo_ko_wins_the_game
+                                     and _promote_setup_ko_attacker is not None
+                                     and card is _promote_setup_ko_attacker)):
                         score = PROMO_MATCH_POINT_VETO
 
                     # TIE-BREAK BETWEEN SURVIVORS (user, priorities 3 and
@@ -2056,7 +2079,35 @@ def score_play(tc, o, score):
                     # data: deck-agnostic, it names no card.
                     if _ub_target_has_no_seat(card.id, _ub_free_seats):
                         score = min(score, 10)
-        
+
+                    # ...AND IT DOES NOT BUY AN EVOLUTION THAT HAS NOTHING TO
+                    # EVOLVE TODAY (user, registro_004 steps 43-46 vs Marnie).
+                    # The third door into play, and the same sentence: a body
+                    # that came down THIS TURN cannot be evolved, so an
+                    # evolution whose only seat is that fresh body is a card
+                    # that sleeps in hand while its two discards are paid now.
+                    # There the fresh Chikorita made `_evo_link_state` -- which
+                    # reads the CURRENT field -- call the Bayleef the missing
+                    # LINK and lift it to 900 over the Applin (650) that the
+                    # free bench seat could have put down at once; the Unfair
+                    # Stamp of that same turn shuffled it back into the deck.
+                    #
+                    # It is asked of `_ub_evolvable`, the start-of-turn
+                    # snapshot, which is also what folds in the Forest of
+                    # Vitality (with the stadium on the board it IS the current
+                    # field, and the fresh body evolves at once -- the control
+                    # in tests/test_the_ultra_ball_fetches_the_link_not_a_new_line.py).
+                    # It goes LAST, after the link clamps, so no promotion can
+                    # talk over it, and it lands on the same 10 as its two
+                    # sisters. Deck-agnostic: it names no card.
+                    if _ub_target_cannot_be_worn(
+                            card.id,
+                            _ub_wearable_bodies(
+                                my_state, field_counts, _ub_evolvable,
+                                (AGENT_STATE.forest_in_play
+                                 or hand_counts.get(Forest_of_Vitality, 0) >= 1))):
+                        score = min(score, 10)
+
                 elif select.effect is not None and select.effect.id == Meowth_ex:
         
                     # Block migrated to the RULES ENGINE (phase 4):
@@ -2079,7 +2130,14 @@ def score_play(tc, o, score):
                             op_is_alakazam_deck, _our_first_action_turn,
                             _ld_lillie_ofrecida,
                             bool(_boss_gust_immune_active),
-                            bool(_meowth_recovery_ko))
+                            bool(_meowth_recovery_ko),
+                            # The price of the turn's Supporter slot: the best
+                            # Supporter ALREADY in hand, on this same scale. See
+                            # `the_slot_is_taken_so_bring_what_survives`.
+                            max((_supp_values.get(_hsv_id, 0)
+                                 for _hsv_id in _MEOWTH_FETCH_SUPPS
+                                 if hand_counts.get(_hsv_id, 0) >= 1),
+                                default=0))
                         score = _resolve_with_trace(
                             "meowth->fetch", _RULES_MEOWTH_FETCH, [],
                             _mf_ctx, default=50)

@@ -3198,6 +3198,11 @@ def _meowth_fetch_prediction(hand_counts, supp_values, hand_size,
     best_id, best_val = None, 0
     _lillie_alcanzable = (cards_in_deck.get(
         Lillie_Determination, {}).get(ZONE_DECK, 0) > 0)
+    # The price of the turn's Supporter slot, on the fetch's own scale: what the
+    # hand ALREADY holds. See `the_slot_is_taken_so_bring_what_survives`.
+    _hand_supp_val = max(
+        (supp_values.get(_hsv_id, 0) for _hsv_id in _MEOWTH_FETCH_SUPPS
+         if hand_counts.get(_hsv_id, 0) >= 1), default=0)
     for _sid in _MEOWTH_FETCH_SUPPS:
         if cards_in_deck.get(_sid, {}).get(ZONE_DECK, 0) <= 0:
             continue
@@ -3206,7 +3211,7 @@ def _meowth_fetch_prediction(hand_counts, supp_values, hand_size,
             hand_size, strong_attacker, op_hand_count, active_cant_attack,
             win_via_boss, gust2_via_boss, deny_evo_via_boss, devel_lillie,
             alakazam, first_turn, _lillie_alcanzable,
-            gust_over_immune_active, recovery_ko)
+            gust_over_immune_active, recovery_ko, _hand_supp_val)
         _val, _ = _resolve_rules(_RULES_MEOWTH_FETCH, [], _ctx, 50)
         if _val > best_val:
             best_id, best_val = _sid, _val
@@ -8262,6 +8267,47 @@ def agent(obs_dict: dict) -> list[int]:
             my_state, op_state.active[0], AGENT_STATE.meganium_in_play, total_grass,
             bench_count, _cls_grass_after, neutralization_zone_active)
 
+    # A MUTED BODY WHOSE ENERGY WAS NEVER INVESTMENT CASHES THE PRIZE (user,
+    # registro_007 turn 7 vs crustle_cubchoo_spheal, LOST). Same shape as
+    # `_cubchoo_lock_stuck` and it exempts from the SAME conservation veto, but it
+    # is a separate flag because it must NOT reach that flag's other two consumers
+    # (the 6000 tier of the RETREAT branch and the 24000 charge-to-pay-the-retreat
+    # of energy_score). Widening those as well TRIPLES the blast radius --
+    # `utils/shadow.py` over 300 games vs crustle_cubchoo_spheal: 13 flips
+    # (0.031%) against 4 (0.010%) for this flag alone -- and every extra flip is
+    # an attachment, a decision this board never asked about. Neither variant can
+    # be arbitrated by winrate at that frequency
+    # ([[matchpoint-el-gate-no-arbitra-mide-la-frecuencia]]), so the tie-break is
+    # the smallest blast radius that fixes the decision.
+    #
+    # The board: our active is a **Meowth ex** muted by Snotted Up with 3 Grass on
+    # it, on the bench a Teal Mask Ogerpon ex charged to 3, and in front a Cubchoo
+    # at 70 HP that Myriad Leaf Shower (which counts the energy on BOTH actives)
+    # knocks out. There is no ATTACK option in the menu; the retreat costs 1 and
+    # cashes a prize. The turn closed with END instead -- and, in the golden
+    # corpus, so did turns 9, 11, 13, 15, 17, 19, 21 and 23 of that same game: the
+    # same frozen board, nine turns in a row, zero prizes.
+    #
+    # What exempts a body is that its energy is NOT attack investment, so
+    # retreating destroys nothing that would ever become damage. That is true of
+    # the bodies in `NON_ATTACKER_ENERGY_WASTE_IDS` -- Meowth ex, Fezandipiti ex --
+    # which are hand engines and do not attack at all: every energy on them is dead
+    # the moment it lands. The charged Teal Mask Ogerpon ex of
+    # [[anti-cubchoo-no-retirada-pivote-conservar-energia]] (registro_004 p47) stays
+    # OUT on purpose: its Myriad Leaf Shower scales with its OWN energy, those Grass
+    # ARE investment, and the PASS still stands.
+    _cubchoo_mute_cashes_prize = False
+    if (op_is_cubchoo_deck and not can_attack
+            and _my_active_pk is not None
+            and _my_active_pk.id in NON_ATTACKER_ENERGY_WASTE_IDS
+            and op_state.active and op_state.active[0] is not None):
+        _cmcp_rc = RETREAT_COST.get(_my_active_pk.id, 1)
+        _cmcp_grass_after = max(
+            0, total_grass - _retreat_grass_units(_cmcp_rc))
+        _cubchoo_mute_cashes_prize = _bench_attacker_can_ko(
+            my_state, op_state.active[0], AGENT_STATE.meganium_in_play, total_grass,
+            bench_count, _cmcp_grass_after, neutralization_zone_active)
+
     _ripen_retreat_ko_pivot = False
     if ((_ex_stuck_promo_ready or _fragile_ex_sac_pivot or _cubchoo_lock_stuck)
             and _my_active_pk is not None
@@ -9388,6 +9434,40 @@ def agent(obs_dict: dict) -> list[int]:
                 _best_promote_card = _evk_best
                 _promo_evo_koer = _evk_best
 
+    # --- OUR OWN MATCH POINT AT THE PROMOTION (user, registro_013 step 116 vs
+    # Mega Lucario, LOST -- episode 91191469, deck-agnostic) ------------------
+    #
+    # Their Mega Lucario ex stood at 40 of its 340 and we needed ONE prize.
+    # Knocking that body out next turn does not "trade well": it ENDS THE GAME.
+    # On our bench the Meganium carried one physical Grass -- two effective
+    # under Wild Growth -- so a single attachment reached Solar Beam's four and
+    # its 140 buries a 40 HP active. Every other candidate sat at zero energy,
+    # two attachments away from anything. The agent promoted a Meowth ex,
+    # spent the turn playing bodies, never attacked, and handed the game over
+    # on the reply.
+    #
+    # Every rule that chose that Meowth ex is an argument about SURVIVING TO A
+    # LATER TURN: hand over one prize instead of two, put up a cheap wall, keep
+    # the engine safe on the bench. At our own match point there is no later
+    # turn to buy -- our knockout resolves first, on our turn, and closes the
+    # game before their reply exists. So the only question that survives is the
+    # one the user states: WHICH BODY IS CLOSEST TO LANDING THAT KNOCKOUT,
+    # measured in attachments still owed (energy required vs energy carried).
+    #
+    # This flag is what lets the deck-agnostic "almost-ready finisher" selector
+    # (`_promote_setup_ko_attacker`, below) speak over the wall rules on those
+    # boards. It is written from the prize piles and the opposing active's own
+    # price, so it holds for any deck: `my_prize <= prize_count_op(active)`
+    # means their body IS the rest of our pile.
+    _promo_op_act_now = (op_state.active[0]
+                         if op_state.active and op_state.active[0] is not None
+                         else None)
+    _promo_ko_wins_the_game = (
+        _forced_ko_promote
+        and _promo_op_act_now is not None
+        and (getattr(_promo_op_act_now, 'hp', 0) or 0) > 0
+        and my_prize <= prize_count_op(_promo_op_act_now))
+
     # Rule (user) vs Mega Lucario: when the opponent KNOCKS OUT one of our Pokemon and on
     # the bench there is NO attacker able to attack this turn
     # (`_best_promote_card is None`), we ALWAYS prefer to promote a
@@ -9455,9 +9535,20 @@ def agent(obs_dict: dict) -> list[int]:
     # a basic because the opponent one-shots the tank): if the promoted ex KNOCKS OUT
     # the opposing active NEXT turn -- which is OUR turn, we attack first --,
     # the opponent does not even get to hit it, so the premise of the sacrifice does not apply.
+    #
+    # ... AND IT OVERRIDES THE LUCARIO WALL AT OUR MATCH POINT (user,
+    # registro_013 step 116, LOST). The `vs Lucario` exclusion above is the one
+    # per-matchup clause in this rule, and it is written on the same premise as
+    # the sacrifice it defers to: the promoted body is a wall we hand over so
+    # that a LATER turn exists. `_promo_ko_wins_the_game` is exactly the board
+    # where that premise is false -- the knockout this selector is looking for
+    # takes the last prize we need -- so there the general rule goes first
+    # ([[la-regla-general-va-antes-que-su-caso-especial]]). It only LIFTS the
+    # veto; if no candidate is one attachment from a lethal hit, this stays
+    # None and the basic wall keeps the slot exactly as before.
     _promote_setup_ko_attacker = None
     if (_forced_ko_promote and _best_promote_card is None
-            and not _lucario_ko_prefer_basic
+            and (not _lucario_ko_prefer_basic or _promo_ko_wins_the_game)
             and not op_has_ex_immune_active
             and not op_has_ability_immune_active
             and not neutralization_zone_active
@@ -9586,7 +9677,24 @@ def agent(obs_dict: dict) -> list[int]:
             """
             return len(_pk.energies) >= RETREAT_COST.get(_pk.id, 1)
 
-        if _ps_remain > 0 and (_ps_can_find_energy or _ps_fez_draw_engine):
+        # ROUTE (e), OUR MATCH POINT ONLY: THE TURN'S OWN DRAW. Routes (a)-(d)
+        # all ask the board to GUARANTEE the missing Grass, because on an
+        # ordinary turn a failed bet costs a body and buys nothing. At our match
+        # point the arithmetic inverts: the alternative to betting is promoting
+        # a wall whose chance of winning the game is exactly zero, so the top
+        # card of the deck -- one draw, with Grass still hidden in there -- is
+        # not a weak route, it is the ONLY route. Same guard as its neighbours:
+        # `_ps_grass_reachable` (a copy is still unseen); with every Grass in
+        # the discard and no recovery, nothing fires and the wall keeps the slot.
+        #
+        # The exit test goes with it. `_ps_keeps_its_way_out` protects a NEXT
+        # turn -- "if the draw fails we retreat and put the wall up then" -- and
+        # at match point the turn after this one only exists if we lose, where
+        # a nailed-down body costs nothing extra.
+        _ps_last_prize_bet = (_promo_ko_wins_the_game and _ps_grass_reachable)
+
+        if _ps_remain > 0 and (_ps_can_find_energy or _ps_fez_draw_engine
+                               or _ps_last_prize_bet):
             _ps_best_key = None
             for _psb in my_state.bench:
                 if _psb is None or not isinstance(_psb, Pokemon):
@@ -9598,8 +9706,11 @@ def agent(obs_dict: dict) -> list[int]:
                 # Script --, the candidate has to keep its exit: if the
                 # Grass does not appear, it retreats and the wall comes up the
                 # following turn. With any of the SEARCH routes (a/b/c) the
-                # energy is practically assured and it is not needed.
-                if not _ps_can_find_energy and not _ps_keeps_its_way_out(_psb):
+                # energy is practically assured and it is not needed, and at our
+                # match point (route (e)) there is no following turn to keep the
+                # exit for.
+                if (not _ps_can_find_energy and not _promo_ko_wins_the_game
+                        and not _ps_keeps_its_way_out(_psb)):
                     continue
                 _ps_cur = len(_psb.energies)
                 _ps_deficit = _ps_req - _ps_cur

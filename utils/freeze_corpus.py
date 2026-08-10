@@ -29,9 +29,20 @@ self-heals: records are transient, so a changed md5 silently re-snapshots. The
 frozen one CANNOT self-heal -- it is versioned by git, so a flip is a flip and
 the diff is the finding. That is what makes it usable as a gate.
 
+IT REBUILDS THE BUNDLE, and that is the trap. `records/` is transient and
+git-ignored, so a working tree usually holds a handful of games while the
+committed bundle holds every game somebody once froze (measured Aug 2026: 50
+records / 3 580 decisions in the bundle against 13 in `records/`). Running this
+to ACCEPT a flip -- which is what the failing test tells you to do -- would
+throw away the difference, and the bundle is a gzip, so the commit diff does not
+show it. `--snapshot-only` is the flag for that job: it re-plays the bundle that
+is already committed and rewrites only the snapshot. Shrinking now needs
+`--force`.
+
 Usage:
     python utils/record_corpus.py --games 50     # play the games
     python utils/freeze_corpus.py                # freeze them + the snapshot
+    python utils/freeze_corpus.py --snapshot-only  # accept reviewed flips
     python utils/freeze_corpus.py --check        # what would change
 """
 
@@ -76,12 +87,8 @@ def build_bundle():
     return bundle
 
 
-def write(bundle):
-    BUNDLE.parent.mkdir(parents=True, exist_ok=True)
-    blob = json.dumps(bundle, ensure_ascii=False,
-                      separators=(",", ":")).encode("utf-8")
-    BUNDLE.write_bytes(gzip.compress(blob, 9))
-
+def write_snapshot(bundle):
+    """Re-plays `bundle` with the CURRENT code and rewrites only the snapshot."""
     module = gc._main_mod()
     snapshot = {name: {"decisiones": gc.replay_data(module, data)}
                 for name, data in sorted(bundle.items())}
@@ -90,8 +97,16 @@ def write(bundle):
         encoding="utf-8")
     decisions = sum(len(v["decisiones"]) for v in snapshot.values())
     print(f"\n{len(bundle)} registros, {decisions} decisiones")
-    print(f"  {BUNDLE.relative_to(_ROOT)}   {BUNDLE.stat().st_size / 1e6:.2f} MB")
     print(f"  {SNAPSHOT.relative_to(_ROOT)}  {SNAPSHOT.stat().st_size / 1e6:.2f} MB")
+
+
+def write(bundle):
+    BUNDLE.parent.mkdir(parents=True, exist_ok=True)
+    blob = json.dumps(bundle, ensure_ascii=False,
+                      separators=(",", ":")).encode("utf-8")
+    BUNDLE.write_bytes(gzip.compress(blob, 9))
+    write_snapshot(bundle)
+    print(f"  {BUNDLE.relative_to(_ROOT)}   {BUNDLE.stat().st_size / 1e6:.2f} MB")
 
 
 def check():
@@ -103,11 +118,19 @@ def check():
     actual = {name: {"decisiones": gc.replay_data(module, data)}
               for name, data in sorted(frozen.items())}
     stored = json.loads(SNAPSHOT.read_text(encoding="utf-8"))
-    flips = gc.comparar(stored, actual)
-    if not flips:
+    # `comparar` devuelve CUATRO listas, no una: pasarle la tupla entera a
+    # `formatear_flips` reventaba con TypeError, asi que el unico camino que
+    # imprime el flip-diff sin reescribir nada estaba muerto.
+    _cambiados, faltantes, nuevos, flips = gc.comparar(stored, actual)
+    if not (flips or faltantes or nuevos):
         print(f"{len(frozen)} registros congelados, sin flips.")
         return 0
-    print(gc.formatear_flips(flips))
+    if faltantes:
+        print(f"registros que ya no estan en el snapshot: {faltantes}")
+    if nuevos:
+        print(f"registros sin entrada en el snapshot: {nuevos}")
+    if flips:
+        print(gc.formatear_flips(flips))
     return 1
 
 
@@ -115,14 +138,47 @@ def main(argv):
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--check", action="store_true",
                         help="compara sin reescribir")
+    parser.add_argument("--snapshot-only", action="store_true",
+                        help="re-juega el bundle YA congelado y reescribe solo "
+                             "el snapshot (para aceptar flips revisados)")
+    parser.add_argument("--force", action="store_true",
+                        help="reconstruye el bundle aunque encoja")
     args = parser.parse_args(argv)
     if args.check:
         return check()
+
+    if args.snapshot_only:
+        frozen = gc.frozen_records()
+        if not frozen:
+            print("No hay corpus congelado todavia.", file=sys.stderr)
+            return 2
+        write_snapshot(frozen)
+        return 0
+
     bundle = build_bundle()
     if not bundle:
         print("No hay registros en records/. Corre utils/record_corpus.py antes.",
               file=sys.stderr)
         return 2
+
+    # NO SE ENCOGE EL GATE SIN DECIRLO. `records/` es transitorio: un arbol de
+    # trabajo normal tiene un punado de partidas y el bundle commiteado tiene
+    # todas las que alguien congelo. Reconstruirlo aqui para ACEPTAR un flip
+    # tiraria la diferencia, y como el bundle es un .gz el diff del commit no lo
+    # ensena.
+    frozen = gc.frozen_records()
+    if frozen and len(bundle) < len(frozen) and not args.force:
+        print(f"records/ tiene {len(bundle)} registros y el bundle congelado "
+              f"{len(frozen)}: reconstruirlo PERDERIA "
+              f"{len(frozen) - len(bundle)}.\n"
+              "  Para aceptar flips ya revisados:  "
+              "python utils/freeze_corpus.py --snapshot-only\n"
+              "  Para regenerar el corpus entero:  "
+              "python utils/record_corpus.py --games 50\n"
+              "  Si de verdad quieres encogerlo:   --force",
+              file=sys.stderr)
+        return 2
+
     write(bundle)
     return 0
 

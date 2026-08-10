@@ -29,6 +29,7 @@ def score_play(tc, o, score):
     _conf_can_attack_pkmn = tc._conf_can_attack_pkmn
     _conf_should_retreat = tc._conf_should_retreat
     _cubchoo_lock_stuck = tc._cubchoo_lock_stuck
+    _cubchoo_mute_cashes_prize = tc._cubchoo_mute_cashes_prize
     _doomed_mute_pivot = tc._doomed_mute_pivot
     _doomed_sac_context = tc._doomed_sac_context
     _ft_wall_pivot = tc._ft_wall_pivot
@@ -1994,8 +1995,15 @@ def score_play(tc, o, score):
         # Crustle -- the same scenario WITHOUT Cubchoo in the deck -- it is
         # 82.6-100%). The active was a Teal Mask Ogerpon ex in 167 of 169 of
         # those menus and the turn closed by ATTACKING for 0 (67 times).
+        # `_cubchoo_mute_cashes_prize` (user, registro_007 turn 7 vs
+        # crustle_cubchoo_spheal): the muted active is a body that does not attack
+        # at all -- Meowth ex, Fezandipiti ex -- so its energy was never attack
+        # investment and there is nothing to conserve, while a benched attacker
+        # knocks out the opposing active. See the flag in main.py: it is separate
+        # from `_cubchoo_lock_stuck` so that it exempts ONLY here.
         if (op_is_cubchoo_deck and score > 0 and not active_ko_likely
                 and not _cubchoo_lock_stuck
+                and not _cubchoo_mute_cashes_prize
                 and not _cc_cashes_dead_body
                 and not _ex_stuck_promo_ready
                 and not _suicide_swap_win_promote

@@ -337,8 +337,45 @@ def _evo_copies_usable(card_id, hand_counts, field_counts, free_bench=0):
     return None
 
 
+def _evo_body_in_play(card_id, field_counts):
+    """Is there a body in `field_counts` that `card_id` evolves DIRECTLY from?
+
+    The door an evolution enters play by. A Basic needs a free bench SEAT
+    (`_ub_target_has_no_seat` asks that half); an evolution needs the body of
+    its immediately lower stage already on the board, and it is placed on top
+    of it. This answers the second half, and it answers it about ONE step: a
+    Meganium does not sit on a Chikorita, it sits on a Bayleef.
+
+    Whatever `field_counts` the caller passes is the definition of "on the
+    board" this function uses. That is deliberate: pass the CURRENT field and
+    the answer is "could it ever be worn"; pass the start-of-turn snapshot
+    (`_ub_evolvable`) and the answer becomes "could it be worn THIS TURN",
+    because a body that came down this turn cannot be evolved.
+
+    Deck-agnostic: the pre-evolution is read off the card data (`evolvesFrom`,
+    which stores a NAME) and every id in `field_counts` is resolved back to its
+    name, so two printings of the same Pokemon -- different ids, same name --
+    both count as a seat. Returns False for a Basic and for anything that is
+    not a Pokemon: neither has a body to sit on.
+    """
+    data = card_table.get(card_id)
+    if data is None or data.cardType != CardType.POKEMON:
+        return False
+    pre = getattr(data, 'evolvesFrom', None)
+    if not pre:
+        return False
+    for cid, n in (field_counts or {}).items():
+        if not n:
+            continue
+        cd = card_table.get(cid)
+        if cd is not None and getattr(cd, 'name', None) == pre:
+            return True
+    return False
+
+
 __all__ = [
     '_direct_evolution_ids',
+    '_evo_body_in_play',
     '_evo_copies_usable',
     '_line_base_benchable',
     '_evolution_stage',

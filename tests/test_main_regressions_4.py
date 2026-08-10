@@ -714,8 +714,15 @@ def test_lucario_step115_plays_meowth_after_stamp_gone():
     # guards is unchanged and is the other half of the same rule: the Stamp's
     # veto is one of ORDER, so once the Stamp leaves the hand a Meowth ex we
     # have already paid an Ultra Ball for is put down.
+    #
+    # El tablero lleva un Fezandipiti ex con Flip the Script viva (nos noquearon
+    # el turno pasado: es la misma condicion que hacia jugable el Sello), y desde
+    # `_TIER_FEZ_BEFORE_SEARCH` (agosto 2026) ese robo gratis va ANTES de bajar
+    # el cuerpo de busqueda. La pregunta de este test -- si el Meowth se baja o
+    # no una vez el Sello ya no esta -- se lee con la habilidad ya cobrada.
+    from fez_menu import sin_flip_the_script
     _, _, data = _lucario_s115_replay()
-    post = data["synthetic_post_stamp"]
+    post = sin_flip_the_script(data["synthetic_post_stamp"])
     m.AGENT_STATE._ub_meowth_pending = True
     ch = m.agent(post)
     opt = post["select"]["option"][ch[0]]

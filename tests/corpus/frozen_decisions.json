@@ -10927,10 +10927,10 @@
     "accion": 13,
     "contexto": 7,
     "detalle": [
-     "CARTA Meganium(710)"
+     "CARTA Bayleef(709)"
     ],
     "eleccion": [
-     4
+     3
     ],
     "paso": null,
     "turno": 6
@@ -15423,10 +15423,10 @@
     "accion": 6,
     "contexto": 0,
     "detalle": [
-     "PLAY Meowth ex(1071)"
+     "ABILITY Fezandipiti ex(140)"
     ],
     "eleccion": [
-     0
+     7
     ],
     "paso": null,
     "turno": 8
@@ -18341,10 +18341,10 @@
     "accion": 16,
     "contexto": 0,
     "detalle": [
-     "PLAY Ultra Ball(1121)"
+     "RETREAT"
     ],
     "eleccion": [
-     0
+     1
     ],
     "paso": null,
     "turno": 4
@@ -18367,10 +18367,10 @@
     "accion": 18,
     "contexto": 7,
     "detalle": [
-     "CARTA Meganium(710)"
+     "CARTA Bayleef(709)"
     ],
     "eleccion": [
-     5
+     7
     ],
     "paso": null,
     "turno": 4

@@ -10,6 +10,7 @@ from ptcg.cards.ids import Boss_Orders, Lillie_Determination, Xerosic_Machinatio
 from ptcg.state.agent_state import AGENT_STATE
 from ptcg.cards.ids import Boss_Orders, Dawn, Lillie_Determination
 from ptcg.cards.ids import Basic_Grass_Energy, Boss_Orders, Dawn, Lanas_Aid, Lillie_Determination, Xerosic_Machinations
+from ptcg.cards.tables import HAND_RESET_PLAY_IDS
 
 
 _MEOWTH_FETCH_SUPPS = (Boss_Orders, Dawn, Lillie_Determination,
@@ -24,7 +25,15 @@ class _CtxMeowthFetch:
                  win_via_boss, gust2_via_boss, deny_evo_via_boss,
                  devel_lillie, alakazam, first_turn=False,
                  lillie_alcanzable=False, gust_over_immune_active=False,
-                 recovery_ko=False):
+                 recovery_ko=False, hand_supp_val=0):
+        # The best Supporter ALREADY IN HAND, on this same scale (`supp_values`).
+        # It is the price of the turn's only Supporter slot: whatever the
+        # Last-Ditch brings has to beat it to be played TODAY. See
+        # `the_slot_is_taken_so_bring_what_survives`. Zero when the hand holds no
+        # Supporter that the board values -- which includes the known blind spot
+        # of `evaluate_supporters` (it never prices Xerosic's Machinations), and
+        # zero is the conservative reading there: the rule simply does not fire.
+        self.hand_supp_val = hand_supp_val
         # Does recovering Grass with Lana's Aid turn THIS turn -- a turn that
         # cannot attack at all -- into a knockout on their active? Computed once
         # in agent() as `_meowth_recovery_ko` over the shared arithmetic of
@@ -120,6 +129,26 @@ _RULES_MEOWTH_FETCH = [
     _FixedRule("copy_already_in_hand",
                lambda c: (c.hand.get(c.card_id, 0) >= 1
                           and not c.first_turn),
+               lambda c: 40),
+    # THE FLOOR OF SIX CARDS, ASKED BEFORE THE SEARCH (user, august 2026,
+    # records/registro_003 step 17 vs Alakazam, LOST). The play side now vetoes
+    # the cap while the opposing hand is under six
+    # (`alakazam_needs_six_cards`), and a Supporter we are not going to play is
+    # not a Supporter worth spending the Last-Ditch Catch on: the Meowth ex is a
+    # 2-prize body on the bench and the fetch only gets one card. The two
+    # Xerosic branches below already ask for `op_hand_count >= 6`, so under the
+    # floor they are silent -- what this rule closes is the ladder's TAIL, where
+    # `supporter_value` would still let a Xerosic through on its raw value if
+    # every other candidate scored lower.
+    # 40 and not a veto, for the same reason as `copy_already_in_hand` above:
+    # the prompt forces us to pick a card, so if every candidate were vetoed we
+    # would still have to keep one. It fires only vs Alakazam; against any other
+    # deck the generic branch (`xerosic_generico`, opposing hand >= 7) decides
+    # as before.
+    _FixedRule("alakazam_xerosic_needs_six_cards",
+               lambda c: (c.card_id == Xerosic_Machinations
+                          and c.alakazam
+                          and c.op_hand_count < 6),
                lambda c: 40),
     # Winning finisher / 2 prizes via a Boss's Orders from the DECK.
     _FixedRule("winning_boss",
@@ -273,6 +302,51 @@ _RULES_MEOWTH_FETCH = [
                           and c.strong_attacker
                           and not c.active_cant_attack),
                lambda c: 1100),
+    # THE SLOT IS ALREADY TAKEN, SO WHAT IS BROUGHT IS FOR TOMORROW (user,
+    # august 2026, `records/registro_005_pasos_041_hasta_059.json` step 52 --
+    # episode 91176376 vs Alakazam, LOST).
+    #
+    # The Last-Ditch Catch brought a **Dawn** while a **Boss's Orders** sat in
+    # hand, and the ctx of that very prompt priced them on this same scale:
+    #
+    #     Boss's Orders (in hand) 970  >  Dawn 900  >  Lillie's Determination 800
+    #
+    # Only ONE Supporter is played per turn. With the Boss's above every
+    # candidate, the card the fetch brings CANNOT be the Supporter of this turn
+    # -- and the record played it out exactly so: the Boss's gusted a Kadabra for
+    # the prize and the Dawn was still in hand when the turn ended.
+    #
+    # The ladder never asked the question. Every branch above compares the
+    # candidates against EACH OTHER; none of them looks at what the hand already
+    # holds, so a card is chosen for a slot that is not on offer.
+    #
+    # Once the slot is gone the fetch is choosing for a LATER turn, and that
+    # changes which card is best. Dawn is above Lillie's here only because of the
+    # SAME-TURN rush its premium is made of (`_v_meowth_fetch_value` lets it keep
+    # its value when a Forest of Vitality is in play, which is what lets a body
+    # played this turn evolve at once) -- and a rush needs the slot the Boss's is
+    # taking. The refill does not: Lillie's draws eight whenever it is played.
+    #
+    # So the refills are EXEMPT and everything else is capped at 40, the same
+    # "the prompt still forces a card" band as `copy_already_in_hand`. Deck-
+    # agnostic on both halves: the refills are `HAND_RESET_PLAY_IDS`, read off
+    # the PRINTED TEXT (any card that shuffles or discards the hand -- Lillie's,
+    # Lacey, Judge, Carmine), and the comparison is a number the ctx already
+    # carries.
+    #
+    # It goes LAST of the reasons and just above the caps, which is what keeps it
+    # honest: every branch that names a REASON to bring a card -- the winning
+    # gust, the line cut, the recovery that creates the KO, the Xerosic cap vs
+    # Alakazam -- has already returned above it. Those say "this card is worth
+    # more than the one in hand even if the scales disagree", and this rule must
+    # not talk over them (`xerosic_priority_over_boss` is literally the case
+    # where the fetch scale and the play scale rank the two cards the opposite
+    # way round). What is left below is the tail, where nothing has a reason.
+    _FixedRule("the_slot_is_taken_so_bring_what_survives",
+               lambda c: (c.hand_supp_val > 0
+                          and c.hand_supp_val >= c.sv
+                          and c.card_id not in HAND_RESET_PLAY_IDS),
+               lambda c: min(c.sv, 40)),
     _FixedRule("short_hand",
                lambda c: c.hand_size <= 2,
                lambda c: (1200 if c.card_id == Lillie_Determination
