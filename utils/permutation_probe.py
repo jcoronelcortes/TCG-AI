@@ -28,6 +28,16 @@ Usage:
     python utils/permutation_probe.py --games 200 --seed 7
     python utils/permutation_probe.py --records       # over records/ instead
     python utils/permutation_probe.py --games 150 --dump log/ties --kinds ABILITY,ATTACH
+    python utils/permutation_probe.py --games 500 --opponent deck/real_opponents/crustle_wall_9.csv
+
+THE MIRROR IS THE DEFAULT, AND IT IS A LIMIT. Both seats were hardcoded to our
+own list, so every figure this probe has ever published --- the 0.63-0.67 % that
+three night plans quote --- was measured with our deck facing itself. That is
+the right default (it is what those numbers mean, and changing it silently
+would make the next one incomparable) and it is not the whole question: the
+triage of 10 August found 73 ATTACK-vs-RETREAT ties whose opposing active was
+Hydrapple ex, Tapu Bulu, Applin --- our own cards, because there was nothing
+else it could be. `--opponent` points seat 1 at a real list.
 
 THE COUNT IS NOT THE DELIVERABLE. A percentage says how often the order decides;
 it does not say WHICH board, and a board nobody can reopen is not a finding. With
@@ -40,6 +50,7 @@ because the interesting classes are a handful and the rest are copies of a card.
 import argparse
 import copy
 import json
+import pathlib
 import random
 import sys
 from pathlib import Path
@@ -149,18 +160,22 @@ def compare(driver, shadow, obs, rng, keep_board=False):
     return choice, bad
 
 
-def over_games(games, seed, keep_board=False):
+def over_games(games, seed, keep_board=False, opponent=None):
     from cg import game
 
     driver = sp.load_agent(str(_ROOT / "main.py"), "perm_driver")
     shadow = sp.load_agent(str(_ROOT / "main.py"), "perm_shadow")
     rng = random.Random(seed)
     deck = sp.read_deck()
+    # The mirror stays the default: it is what every published figure of this
+    # probe was measured on, and changing the default would silently make the
+    # new number incomparable with the three night plans that quote 0.63-0.67 %.
+    rival = sp.read_deck(opponent) if opponent else deck
     seen, divergences = 0, []
     for game_no in range(games):
         sp._reset_si_aplica(driver)
         sp._reset_si_aplica(shadow)
-        obs, _sd = game.battle_start(list(deck), list(deck))
+        obs, _sd = game.battle_start(list(deck), list(rival))
         if obs is None:
             continue
         steps = 0
@@ -227,6 +242,10 @@ def main(argv):
                         help="directory to write each diverging board to")
     parser.add_argument("--kinds",
                         help="dump only this class of tie, e.g. ABILITY,ATTACH")
+    parser.add_argument("--opponent", default=None,
+                        help="deck for seat 1 (default: the mirror, which is "
+                             "what every published figure of this probe was "
+                             "measured on)")
     args = parser.parse_args(argv)
 
     wanted = ({k.strip().upper() for k in args.kinds.split(",")}
@@ -236,8 +255,11 @@ def main(argv):
         source = f"{len(record_files())} records"
     else:
         seen, divergences = over_games(args.games, args.seed,
-                                       keep_board=bool(args.dump))
-        source = f"{args.games} games"
+                                       keep_board=bool(args.dump),
+                                       opponent=args.opponent)
+        source = (f"{args.games} games"
+                  + (f" vs {pathlib.Path(args.opponent).stem}"
+                     if args.opponent else " (mirror)"))
 
     print(f"decisions compared: {seen}  ({source})")
     print(f"order-dependent    : {len(divergences)}"
