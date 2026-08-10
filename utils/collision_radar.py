@@ -25,6 +25,15 @@ filtering changes of `frame.f_locals['score']`).
 Usage:
     python utils/collision_radar.py --games 100
     python utils/collision_radar.py --games 200 --only cornerstone_cubchoo,crustle_kangaskhan
+    python utils/collision_radar.py --opponents deck/real_opponents --games 400
+
+The default folder is still `deck/opponents/`, the 19 synthetic decks the method
+was built on, because a canonical situation needs a deck whose engine is known.
+`--opponents` points it at any other folder -- `deck/real_opponents/` above --
+which is what turns the radar from "the sibling matchups disagree" into "THIS
+real list is where the situation collapses". Auxiliary CSVs in that folder
+(`pesos.csv`) are skipped rather than read as a deck and crashed on, which
+otherwise happens AFTER every good matchup has already been played.
 """
 
 import argparse
@@ -332,19 +341,52 @@ def radar(agent_state, opponent_deck, games):
     return cnt
 
 
+def is_deck(path):
+    """Is the CSV a list of 60 ids and not something else?
+
+    `deck/real_opponents/` also carries `pesos.csv`. Without this filter the
+    radar reads it as a deck and blows up AFTER having played every good
+    matchup, which is the expensive place to fail.
+    """
+    try:
+        lines = [x for x in path.read_text(encoding="utf-8-sig").split() if x.strip()]
+    except (OSError, UnicodeDecodeError):
+        return False
+    if len(lines) != 60:
+        return False
+    return all(x.lstrip("-").isdigit() for x in lines)
+
+
 def main(argv):
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--games", type=int, default=100)
     ap.add_argument("--candidate", default="main.py")
     ap.add_argument("--only", default=None,
                     help="comma-separated list of decks")
+    ap.add_argument("--opponents", default=str(_ROOT / "deck" / "opponents"),
+                    help="folder of opposing decks (default: deck/opponents, "
+                         "the 19 synthetic ones; deck/real_opponents points it "
+                         "at the real leaderboard lists)")
     args = ap.parse_args(argv)
 
     agent_state = sp.load_agent(_ROOT / args.candidate, "agente_radar")
-    decks = sorted((_ROOT / "deck" / "opponents").glob("*.csv"))
+    carpeta = Path(args.opponents)
+    if not carpeta.is_absolute():
+        carpeta = _ROOT / carpeta
+    if not carpeta.is_dir():
+        print(f"ERROR: there is no {carpeta}", file=sys.stderr)
+        return 2
+    todos = sorted(carpeta.glob("*.csv"))
+    decks = [p for p in todos if is_deck(p)]
+    omitidos = [p.name for p in todos if p not in decks]
+    if omitidos:
+        print(f"(not decks, skipped: {', '.join(omitidos)})")
     if args.only:
         querer = {s.strip() for s in args.only.split(",")}
         decks = [p for p in decks if p.stem in querer]
+    if not decks:
+        print(f"ERROR: no deck to measure in {carpeta}", file=sys.stderr)
+        return 2
 
     rows = {}
     for path in decks:
