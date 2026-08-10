@@ -178,6 +178,35 @@ OP_SCALING_DAMAGE = {
     # Back Draft (N's Darmanitan, 1 deck) -- 30 per Basic Energy in OUR discard.
     355: lambda atk, s: 30 * s.my_basic_energy_in_discard,
 
+    # Linked Lightning (Tapu Koko ex, 1 deck) -- 60 + 20 per Pokemon on THEIR
+    # bench. The same shape as Do the Wave at entry 115, with a printed base.
+    #
+    # It arrived with the harvest of 9 August 2026 and turned
+    # `test_no_opposing_attack_scales_without_being_read` red without a line of
+    # code changing, which is exactly the job that test was written to do. The
+    # deck is `mega_kangaskhan_1` of the corpus (leaderboard 278), so this is an
+    # attack the agent meets in the matchups it is measured on, not a card seen
+    # only in a list file.
+    #
+    # It is modelled rather than excluded because their bench is IN the
+    # observation: the exclusions above are for scales that are not on the board
+    # (coin flips, Energy the opponent chooses to discard), and a bench count is
+    # not one of them.
+    #
+    # MEASURED, 100 games against that list: the entry is consulted 718 times
+    # and returns 80 to 200 against a printed 60 --- benches here reach EIGHT,
+    # not the five a paper game would cap them at, so there is no ceiling to
+    # write down. And it changes **0 decisions of 12 431**. The harness that
+    # says so was checked in both directions: deleting the most-consulted entry
+    # instead (Myriad Leaf Shower, 120) flips 10 decisions of 5 225, so it can
+    # see a difference when there is one.
+    #
+    # Correct and, for now, inert --- which is the expected shape for a table
+    # that is opt-in and read only by the turn plan, whose thresholds were
+    # fitted against the blind number. It closes the blind spot; nobody should
+    # expect it to move a game.
+    458: lambda atk, s: 60 + 20 * s.op_bench,
+
     # Settle the Score (Okidogi, 1 deck) -- 80 + 60 per Prize WE took during the
     # turn that is running. It is the twin of Irritated Outburst above, with one
     # difference that changes what can be read: Pecharunt counts the prizes of

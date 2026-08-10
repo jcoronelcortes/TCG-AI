@@ -253,3 +253,96 @@ def test_the_census_still_matches_the_card_database():
         assert atk is not None, f"el ataque {aid} ya no existe en el entorno"
         assert "for each" in (atk.text or ""), (
             f"{aid} ({atk.name}) ya no escala: sobra de la tabla")
+
+
+# ---------------------------------------------------------------------------
+# Linked Lightning: the entry the harvest of 9 August 2026 asked for
+#
+# Written as BOUNDARY PAIRS (T1.3) rather than as one board. The defect class
+# the mutation probe reports most is an off-by-one in a fitted threshold, and a
+# single board pins the answer at exactly one point of the input space: move the
+# 20 to a 30 or the 60 to a 50 and the same board can still produce the same
+# decision. A pair on each side of every step cannot.
+# ---------------------------------------------------------------------------
+
+LINKED_LIGHTNING = 458
+
+
+def _linked(op_bench=0, my_bench=0):
+    scale = dataclasses.replace(sc.EMPTY_SCALE, op_bench=op_bench,
+                                my_bench=my_bench)
+    return sc.OP_SCALING_DAMAGE[LINKED_LIGHTNING](None, scale)
+
+
+@pytest.mark.parametrize("bench,damage", [(0, 60), (1, 80), (2, 100),
+                                          (3, 120), (4, 140), (5, 160)])
+def test_linked_lightning_is_sixty_plus_twenty_a_body(bench, damage):
+    """Every step of the ramp, so no single point can carry a wrong slope."""
+    assert _linked(op_bench=bench) == damage
+
+
+def test_the_base_survives_an_empty_bench():
+    """The pair that kills `60 + 20*n` rewritten as `20*n`.
+
+    An empty bench is the only board where the base is visible on its own, and
+    it is a board that happens: a bench swept by a knockout on their turn.
+    """
+    assert _linked(op_bench=0) == 60
+    assert _linked(op_bench=1) == 80
+
+
+def test_each_extra_body_is_worth_exactly_twenty():
+    """The pair that kills a 20 rewritten as 10 or 30, at every step."""
+    for bench in range(5):
+        assert _linked(op_bench=bench + 1) - _linked(op_bench=bench) == 20
+
+
+def test_it_counts_THEIR_bench_and_not_ours():
+    """The perspective, which is the half that is silent when it is wrong.
+
+    "your Benched Pokemon" on their card is THEIR bench. Reading ours instead
+    gives a plausible number on almost every board --- both benches are usually
+    similar --- and it is wrong exactly when it matters, which is when they have
+    built a wide board and we have not.
+    """
+    for mine in range(6):
+        assert _linked(op_bench=3, my_bench=mine) == 120
+
+
+def test_the_printed_sixty_is_a_hundred_short_on_five_bodies():
+    """What being blind to this entry costs, stated as the number it costs.
+
+    The projector returns the printed damage for an attack it does not model.
+    With five on their bench that is 60 against a real 160, and the bodies that
+    survive 60 and die to 160 are most of ours.
+    """
+    printed = m.attack_table[LINKED_LIGHTNING].damage or 0
+    assert printed == 60
+    assert _linked(op_bench=5) - printed == 100
+
+
+def test_the_bench_is_not_capped_at_five_here():
+    """There is no ceiling to write into this entry, and it was nearly written.
+
+    A first draft of the comment above said "with a full bench this is 160".
+    Measured over 40 games against the list that plays it, THEIR bench reaches
+    SIX 232 times, SEVEN 76 and EIGHT 125 --- this engine does not cap it at the
+    five a paper game would. A formula that saturated at 160 would have been
+    wrong on the widest boards, which are exactly the ones this attack is for.
+    """
+    assert _linked(op_bench=8) == 220
+    assert _linked(op_bench=8) > _linked(op_bench=5)
+
+
+def test_linked_lightning_is_modelled_and_not_excluded():
+    """It is in the table, and deliberately not in the exclusions.
+
+    The exclusions are for scales that are NOT on the board --- coin flips, the
+    Energy the opponent chooses to discard. A bench count is in the observation,
+    so excluding this one would have recorded a reason that is not true.
+    """
+    sys.path.insert(0, str(ROOT / "utils"))
+    import op_scaling_census as census
+
+    assert LINKED_LIGHTNING in sc.OP_SCALING_DAMAGE
+    assert LINKED_LIGHTNING not in census._EXCLUDED
