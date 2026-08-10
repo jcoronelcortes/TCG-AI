@@ -46,8 +46,11 @@ from golden_corpus import reset_agent  # a mirror of the tests' reset
 
 MAX_STEPS = 3000
 
+# Exported git trees, keyed by (ref, name): see `checkout_tree`.
+_TREE_CACHE = {}
 
-def load_agent(path, name):
+
+def load_agent(path, name, root=None):
     """Loads an independent instance of an agent module.
 
     INDEPENDENT INCLUDES ITS OWN `ptcg/` TREE. Since wave 3 of the refactor the
@@ -59,8 +62,16 @@ def load_agent(path, name):
     its own tree; the modules already loaded keep their direct references,
     so the previous instance goes on working with its own.
 
+    `root`, when given, is the directory those `from ptcg... import` lines are
+    resolved against -- see `load_agent_from_git`, which is where it matters. It
+    is prepended to `sys.path` only while this module executes; the 39 imports
+    main.py opens with all run in that window, and rule R4 of
+    `utils/lint_architecture.py` (no lazy import of our own package) is what
+    guarantees there is no later one to catch the wrong tree.
+
     `cg` is NOT touched: `cg/sim.py` calls `GameInitialize()` when imported and
-    doing that twice ABORTS the interpreter.
+    doing that twice ABORTS the interpreter. It stays in sys.modules, so both
+    agents keep playing inside the SAME simulator -- which is the point.
     """
     def _ramas_ptcg():
         return [k for k in sys.modules if k == "ptcg" or k.startswith("ptcg.")]
@@ -68,11 +79,18 @@ def load_agent(path, name):
     previos = {k: sys.modules[k] for k in _ramas_ptcg()}
     for k in previos:
         del sys.modules[k]
+    if root is not None:
+        sys.path.insert(0, str(root))
     try:
         spec = importlib.util.spec_from_file_location(name, str(path))
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
     finally:
+        if root is not None:
+            try:
+                sys.path.remove(str(root))
+            except ValueError:
+                pass
         # And the ambient tree is RETURNED to sys.modules. The instance just
         # created already keeps direct references to its own, so it keeps its
         # own AGENT_STATE; but if the process were left without the original tree,
@@ -85,17 +103,49 @@ def load_agent(path, name):
     return mod
 
 
+def checkout_tree(ref, name):
+    """Materialises the WHOLE tree of a git ref and returns its root.
+
+    Cached per (ref, name) for the life of the process, so the baseline is
+    exported once however many times it is loaded.
+    """
+    key = (ref, name)
+    cached = _TREE_CACHE.get(key)
+    if cached is not None:
+        return cached
+    root = Path(tempfile.mkdtemp(prefix=f"tree_{name}_"))
+    archive = subprocess.run(["git", "archive", "--format=tar", ref],
+                             cwd=_ROOT, capture_output=True, check=True).stdout
+    subprocess.run(["tar", "-x", "-C", str(root)], input=archive, check=True)
+    _TREE_CACHE[key] = root
+    return root
+
+
 def load_agent_from_git(ref, name):
-    """Loads the main.py version of a git ref (the baseline)."""
-    source = subprocess.run(
-        ["git", "show", f"{ref}:main.py"], cwd=_ROOT, capture_output=True,
-        text=True, check=True).stdout
-    with tempfile.NamedTemporaryFile(
-            "w", suffix=".py", prefix=f"main_{name}_",
-            delete=False) as f:
-        f.write(source)
-        path = f.name
-    return load_agent(path, name)
+    """Loads the agent of a git ref -- main.py AND the `ptcg/` package it imports.
+
+    IT USED TO LOAD ONLY main.py, AND THAT MADE THE GATE BLIND TO MOST OF THE
+    AGENT (user, August 2026, measured). The baseline was written to a temporary
+    file and imported from there, but its `from ptcg... import` lines resolved
+    through `sys.path` to the WORKING TREE -- so candidate and baseline shared
+    every module object under `ptcg`:
+
+        baseline resolves ptcg.turn.options.card to .../ptcg/turn/options/card.py
+        SAME MODULE OBJECT as working tree: True
+
+    That was harmless while main.py WAS the agent. After the refactor it is
+    11 328 lines against 26 571 in `ptcg/`, and every rule now lives in the
+    package: a change there measured EXACTLY ZERO difference, by construction,
+    in both `selfplay.py` and `utils/matchup_matrix.py` -- the two heavy gates
+    that decide whether a rule is kept or reverted.
+
+    Exporting the whole tree fixes it. What is deliberately NOT taken from the
+    ref is the DECK: main.py reads `deck.csv` relative to the process's working
+    directory, so both sides pilot the same 60 cards. Comparing two rule sets on
+    two different decks would not be a comparison.
+    """
+    root = checkout_tree(ref, name)
+    return load_agent(root / "main.py", name, root=root)
 
 
 def read_deck(path=None):
