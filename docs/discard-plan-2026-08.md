@@ -608,6 +608,36 @@ matrix of §7.2. Reach for self-play when a wave changes a decision class
 *broadly* — which is what the tier work of Wave 2 will do, and this wave did
 not.
 
+### 10.3b The same question asked of the whole day, once the gate worked
+
+Three behaviour changes landed on 10 August: the counter-stadium and seatless
+body (`ab1945a`), the doomed sacrifice's basic shield (`b5cf071`), and the
+horizon read above (`93a27eb`). All three live mostly under `ptcg/`, which means
+any measurement taken of them before `6c08b87` was zero by construction. Re-run
+against the morning's baseline with the fixed gate:
+
+    HEAD vs 51dc87d, 1000 games
+    Score:          511 - 489
+    Winrate:        51.1%  [95% CI 48.0% - 54.2%]
+    Prizes/game:    4.47 - 4.37   (differential +0.10)
+    Forfeits:       0 / 0
+
+**This is not a demonstrated improvement.** Eleven wins above even, against a
+standard deviation of ~16 at this sample size, is 0.7 sigma — squarely inside
+noise. The interval crosses 50% and the prize differential is just as small.
+
+What it does establish is that the day's work did not make the agent *worse*,
+and that is a sentence nobody could say before the gate was fixed: the old one
+would have returned this same shape whether the three changes were good or
+disastrous. The sign is at least consistent — same direction in both seats
+(51.8% and 50.4%) and in both metrics — which is the profile expected of three
+changes each touching a small fraction of decisions, not of a real effect hiding
+under noise.
+
+Resolving an effect of ~1 point would take on the order of 10 000 games. That is
+the price of arbitrating work at this granularity with self-play, and it is why
+§10.3 recommends the corpus and the scenario matrix instead.
+
 ### 10.4 A tool fixed on the way
 
 The measurement above was only possible because `--base` was fixed first. It
