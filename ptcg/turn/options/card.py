@@ -2349,9 +2349,42 @@ def score_play(tc, o, score):
                         score += 100
         
             elif context == SelectContext.DISCARD:
-        
+
                 score = 50
-        
+
+                # WHOSE TURN IS THIS DISCARD ON? (user, August 2026, measured on
+                # `records/registro_006_pasos_077_hasta_100.json`, episode
+                # 91519548, step 99.) This one menu serves two callers with
+                # OPPOSITE time horizons:
+                #
+                #   * the COST of our own Ultra Ball -- our turn, and what the
+                #     hand still has to spend TODAY is exactly the right reading;
+                #   * a discard FORCED by their card (Xerosic's Machinations cuts
+                #     us down to three) -- THEIR turn. The hand that survives is
+                #     the hand we start OUR next turn with.
+                #
+                # The block below prices several cards off `state.supporterPlayed`
+                # and `state.energyAttached`, and on a forced discard those two
+                # flags describe what the OPPONENT spent, not us. Measured on that
+                # step: `supporterPlayed=True`, `energyAttached=True` -- and
+                # Xerosic's Machinations IS a Supporter, so `supporterPlayed` is
+                # ALWAYS True by the time we are asked. `_protect_last_supporter`
+                # is gated on `not state.supporterPlayed`, which means the
+                # protection of our last playable Supporter was dead code on
+                # every forced discard the agent has ever answered.
+                #
+                # So the two turn-scoped flags are read through the horizon: on a
+                # forced discard the Supporter slot and the turn's attachment are
+                # FREE, because the turn they belong to has not started yet. The
+                # discriminator names no card -- it asks whose card is making us
+                # discard -- so it holds for any opposing hand-cutter, and with no
+                # effect at all it falls back to today's reading.
+                _forced_discard = (
+                    select.effect is not None
+                    and getattr(select.effect, 'playerIndex', my_index) != my_index)
+                _supporter_spent = state.supporterPlayed and not _forced_discard
+                _energy_spent = state.energyAttached and not _forced_discard
+
                 _has_recovery = (hand_counts.get(Night_Stretcher, 0) >= 1 or
                                 hand_counts.get(Lanas_Aid, 0) >= 1 or
                                 AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Night_Stretcher, {}).get(ZONE_DECK, 0) > 0 or
@@ -2364,7 +2397,7 @@ def score_play(tc, o, score):
                                        hand_counts.get(Dawn, 0) +
                                        hand_counts.get(Lanas_Aid, 0) +
                                        hand_counts.get(Xerosic_Machinations, 0))
-                _protect_last_supporter = (not state.supporterPlayed and _total_supps_in_hand <= 1)
+                _protect_last_supporter = (not _supporter_spent and _total_supps_in_hand <= 1)
         
                 _refresh_supps_in_hand = (hand_counts.get(Lillie_Determination, 0) +
                                           hand_counts.get(Dawn, 0))
@@ -2420,7 +2453,7 @@ def score_play(tc, o, score):
                             score = 70
                         else:
                             score = 35
-                            if state.energyAttached:
+                            if _energy_spent:
                                 score = 65
         
                     if _has_recovery:
@@ -2611,13 +2644,34 @@ def score_play(tc, o, score):
                         score = 18
         
                 elif card.id == Meowth_ex:
+                    # WHAT MAKES THIS COPY DEAD IS THE SEAT, NOT THE SUPPORTER
+                    # SLOT (user, August 2026, `registro_032_cynthia_garchomp_3`
+                    # turn 7, found by the frozen corpus). The gate used to read
+                    # `bench_count >= 5 and state.supporterPlayed`, and the two
+                    # halves are not the same claim:
+                    #
+                    #   * the spent Supporter slot only says the Last-Ditch chain
+                    #     cannot cash out THIS turn -- and on a forced discard the
+                    #     spent slot is the OPPONENT'S, so the half was simply
+                    #     false (see the top of this block);
+                    #   * the FULL BENCH says the card cannot enter play at all --
+                    #     not this turn, not the next, not until they knock
+                    #     something out. Nothing in our own turn opens a seat.
+                    #
+                    # That second half is the one that makes the copy fodder, and
+                    # it is the same question `_ub_target_has_no_seat` asks before
+                    # the Ultra Ball will spend two cards fetching a body. In that
+                    # record the bench was 5/5 with no Meowth ex on it, we were
+                    # ahead 3 prizes to 6, and dropping the `supporterPlayed` half
+                    # alone would have kept an unplayable Meowth ex over the Ultra
+                    # Ball that still had a turn to do something with.
                     if field_counts.get(Meowth_ex, 0) >= 1:
                         score = 82
-                    elif bench_count >= 5 and state.supporterPlayed:
-        
+                    elif bench_count >= 5:
+
                         score = 65
                     else:
-        
+
                         score = 2
         
                 elif card.id == Fezandipiti_ex:
@@ -2659,14 +2713,27 @@ def score_play(tc, o, score):
                         score = 72
                     else:
                         _lillie_protected_once = True
-                        if _protect_last_supporter:
-        
-                            score = 5
-                        elif _protect_refresh_supporter:
-        
+                        # THE STRONGEST PROTECTION FIRST (user, August 2026,
+                        # `registro_021_crustle_wall_18` turn 5, found by the
+                        # frozen corpus). These two gates are not exclusive and
+                        # the ladder used to test the WEAKER one first: a card
+                        # that is both "the last refill" (2) and "the last
+                        # Supporter we can still play" (5) came out at 5 -- less
+                        # protected for satisfying one more reason to keep it.
+                        #
+                        # It stayed invisible while `_protect_last_supporter` was
+                        # dead code on forced discards. The moment the horizon
+                        # read revived it, a Lillie's Determination that was the
+                        # last refill against the Crustle wall started falling to
+                        # a second Meowth ex scored at 2.
+                        if _protect_refresh_supporter:
+
                             score = 2
-                        elif state.turn <= 5 and not state.supporterPlayed:
-        
+                        elif _protect_last_supporter:
+
+                            score = 5
+                        elif state.turn <= 5 and not _supporter_spent:
+
                             score = 8
                         elif hand_counts.get(Lillie_Determination, 0) > 1:
                             # There are duplicates and we have already played a supporter: we keep
@@ -2683,12 +2750,16 @@ def score_play(tc, o, score):
                             score = 14
         
                 elif card.id == Dawn:
+                    # Strongest protection first, same as the Lillie's ladder
+                    # above: the two gates are not exclusive, and being the last
+                    # refill (3) must not be overruled by the weaker "last
+                    # Supporter we can still play" (12).
                     if AGENT_STATE.meganium_in_play and has_hydrapple:
                         score = 75
-                    elif _protect_last_supporter:
-                        score = 12
                     elif _protect_refresh_supporter:
                         score = 3
+                    elif _protect_last_supporter:
+                        score = 12
                     elif state.turn <= 5 and (hand_counts.get(Lillie_Determination, 0) >= 1 or
                                               hand_counts.get(Boss_Orders, 0) >= 1):
         
@@ -2721,27 +2792,44 @@ def score_play(tc, o, score):
                         score = 60
         
                 elif card.id == Night_Stretcher:
-                    # Night Stretcher only recovers a Pokemon or a BASIC
-                    # Energy from the discard. Rule (user): do NOT play it if the ONLY
-                    # recoverable target is basic Energy that we canNOT use
-                    # this turn (we already attached energy: state.energyAttached).
-                    # Recovering a dead energy wastes the card without contributing
-                    # anything. If there is a recoverable Pokemon, or we can still attach
-                    # the energy (energyAttached False), the veto does NOT apply.
-                    _ns_disc_poke = any(
-                        (card_table.get(_dc.id) is not None
-                         and card_table[_dc.id].cardType == CardType.POKEMON)
-                        for _dc in my_state.discard)
-                    _ns_disc_basic_energy = any(
-                        _dc.id == Basic_Grass_Energy
-                        for _dc in my_state.discard)
-                    _ns_only_dead_energy = (
-                        not _ns_disc_poke
-                        and _ns_disc_basic_energy
-                        and state.energyAttached)
-                    if _ns_only_dead_energy:
-                        score = SCORE_VETO
-                    elif hand_counts.get(Night_Stretcher, 0) > 1:
+                    # A PLAY-CONTEXT SENTENCE THAT WAS PRICING A DISCARD (user,
+                    # August 2026, measured; found while reading the forced
+                    # discard). This branch used to open with a fourth case: if
+                    # the ONLY recoverable target is basic Energy we cannot use
+                    # this turn (`state.energyAttached`), then `SCORE_VETO`.
+                    #
+                    # That sentence belongs to the PLAY scorer, where SCORE_VETO
+                    # means "do not play it" (see `_score_night_stretcher_play`,
+                    # which asks the same question with thirty scenarios instead
+                    # of three). In the DISCARD context the scale runs the other
+                    # way: a NEGATIVE score means "keep this above everything",
+                    # second only to the Unfair Stamp's SCORE_NEVER. So the branch
+                    # handed its strongest protection to the card it had just
+                    # judged useless. Measured on the step-99 board with the
+                    # Pokemon stripped out of the discard pile, the Stretcher came
+                    # out at -1: ranked above the last playable Supporter (5) and
+                    # above the critical counter-stadium (2), the one card that
+                    # lifts a Neutralization Zone. It has been there since the
+                    # first commit and no test ever covered it.
+                    #
+                    # It is DELETED rather than re-signed, because the reading
+                    # itself does not survive either caller of this menu:
+                    #
+                    #   * on a FORCED discard the spent attachment is the
+                    #     OPPONENT'S (see the top of this block). Next turn ours
+                    #     is free and the energy is not dead at all;
+                    #   * on our own ULTRA BALL cost the pile it measures is the
+                    #     pile BEFORE the cost -- and the cost is about to throw
+                    #     two cards into it. In `registro_003_alakazam_3` turn 6
+                    #     the very same discard sent a Tapu Bulu down, which is
+                    #     exactly the Pokemon the branch had just certified the
+                    #     Stretcher could not find.
+                    #
+                    # With it gone the Stretcher is priced by the ladder that is
+                    # left, which asks what it always asked: is this a spare copy
+                    # (78), is the pile too thin to be worth recovering from (70),
+                    # or is it a live recovery card (30).
+                    if hand_counts.get(Night_Stretcher, 0) > 1:
                         score = 78
                     elif len(my_state.discard) <= 1:
                         score = 70
