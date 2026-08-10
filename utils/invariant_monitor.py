@@ -849,10 +849,25 @@ def self_test(games=8, opponent=None):
     return True
 
 
-def dump(findings, where):
+# The kinds a dumped observation is worth writing for. STALE_FLAG and
+# STALE_READ are deliberately out: this file's own docstring records that a
+# flag standing on a dead premise "harms nothing if nobody looks at it", and
+# both come out in the tens of thousands on any real run.
+#
+# Measured, 20 000 games on the night of 9-10 August 2026: five real invariants
+# at ZERO, and `--dump` wrote **196 575 files, 2.1 GB**, every one of them a
+# known non-defect. A dump that costs two gigabytes to record nothing is not a
+# dump, it is a way of making the real finding harder to see when it lands.
+DEFECT_KINDS = ("AGENT_RAISED", "DECK_BELIEF", "DOUBLE_ATTACH",
+                "END_EMPTY_BENCH", "ENERGY_CAP", "ILLEGAL_INDEX")
+
+
+def dump(findings, where, kinds=DEFECT_KINDS):
     out = Path(where)
     out.mkdir(parents=True, exist_ok=True)
     written = []
+    if kinds is not None:
+        findings = [f for f in findings if f["kind"] in kinds]
     for n, f in enumerate(findings):
         name = f"{f['kind'].lower()}_g{f.get('game', 0)}_s{f.get('step', 0)}_{n}.json"
         path = out / name
@@ -895,6 +910,10 @@ def main(argv):
     parser.add_argument("--games", type=int, default=200)
     parser.add_argument("--opponent", default=None)
     parser.add_argument("--dump", default=None)
+    parser.add_argument("--dump-kinds", default=",".join(DEFECT_KINDS),
+                        help="kinds worth writing an observation for "
+                             "(default: the real defects; 'all' for every "
+                             "kind, STALE_FLAG and STALE_READ included)")
     parser.add_argument("--progress", type=int, default=None)
     parser.add_argument("--no-self-test", action="store_true")
     parser.add_argument("--self-test-only", action="store_true")
@@ -910,8 +929,18 @@ def main(argv):
                                       progress=args.progress)
     report(stats, findings, mod)
     if args.dump and findings:
-        written = dump(findings, args.dump)
+        pedido = (args.dump_kinds or "").strip()
+        kinds = None if pedido.lower() == "all" else tuple(
+            k.strip() for k in pedido.split(",") if k.strip())
+        written = dump(findings, args.dump, kinds)
         print(f"\n{len(written)} observaciones escritas en {args.dump}")
+        if kinds is not None:
+            omitidos = len(findings) - len(written)
+            if omitidos:
+                # Said out loud, because a silent cap reads as "that is all
+                # there was" when it means "that is all that was written".
+                print(f"({omitidos} hallazgos NO volcados por no estar en "
+                      f"--dump-kinds: {pedido}. 'all' los escribe todos)")
     return 0
 
 
