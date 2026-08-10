@@ -127,10 +127,39 @@ Cada bloque escribe su propio log y **ninguno puede parar la noche**.
 fallo**: la sonda de permutación informa por código de salida, y llamar fallo a
 los hallazgos de una herramienta es como se enseña a ignorar el rojo.
 
+> **B1a ya terminó (57m 17s, rc=0) y cambió cómo se lee todo lo demás.**
+> **2 664 hallazgos sobre 128 338 ataques juzgados: 2,08 %**, contra el
+> 1,39-1,42 % de los sintéticos. No es un orden de magnitud, así que los mazos
+> cargaron bien.
+>
+> Lo que importa es la forma. Por familia, `crustle_wall` lidera con **4,58 %
+> de media sobre dieciséis listas** — no un mazo descolgado, la familia entera —
+> con `great_tusk_crustle`, el otro cascarón de Crustle, justo detrás.
+> `marnie_grimmsnarl`, que es el 36 % del meta, está en **0,11 %**.
+>
+> **Y la tasa sola no distingue un residuo peligroso de uno inofensivo: el
+> signo sí.** Una deriva positiva es el agente prediciendo MÁS daño del que el
+> motor resuelve — cree que noquea, ataca contra un cuerpo que sobrevive y
+> regala el turno. `crustle_wall` es **90 % positiva, mediana +40**.
+> `festival_lead` tiene tasa comparable con un **44 % positiva**, y por eso su
+> residuo nunca ha predicho perder.
+>
+> Dos cautelas: el sesgo optimista es **general** (casi todas las familias entre
+> 60 % y 90 %), lo singular de Crustle es tenerlo casi puro Y la tasa más alta a
+> la vez; y la deriva se resume por **mediana**, no por moda — la moda decía
+> «−70» junto a «67 % positivas».
+>
+> **Consecuencia para B1b:** elige los cinco peores **por tasa**, criterio
+> fijado antes de saber que el signo manda, y tres de sus cinco huecos se van a
+> `festival_lead`. Por eso hay un **B8** encolado que arranca al terminar la
+> noche y vuelca `crustle_wall_11`, `crustle_wall_12` y `great_tusk_crustle_1`,
+> que son deriva positiva y B1b no alcanza.
+
 | Log | Qué buscar | Lo que ya sabemos |
 |---|---|---|
-| `B1a.log` | la tasa por lista real | Global esperada ≈1,4 % contra los sintéticos. **Si vuelve con un orden de magnitud distinto, sospecha de la carga de los mazos antes que del agente**: estas 87 listas nunca han pasado por el oráculo |
-| `B1b.log` + `violaciones_oraculo/` | un JSON por hallazgo, observación incluida | Cada uno es un fixture listo para fijar. **Detectar no es ejecutar**: reproducir el tablero es otro trabajo |
+| `B1a.log` | ~~la tasa por lista~~ **el signo por familia** | Ver el recuadro de arriba: hecho y leído |
+| `B1b.log` + `violaciones_oraculo/` | un JSON por hallazgo, observación incluida | Cada uno es un fixture listo para fijar. **Detectar no es ejecutar**: reproducir el tablero es otro trabajo. Los tres `festival_lead` de aquí son la familia inofensiva |
+| `B8.log` | los volcados de deriva **positiva** | Suplementario, arranca solo al acabar la noche |
 | `B2.log` | si alguna `crustle_wall` se descuelga de su familia | El mazo que se descolgaba ya no está. La pregunta es si el hueco lo ocupa otro o si era de aquel mazo |
 | `B2b.log` | `crustle_wall_6` del respaldo a n=1 000 (±3) | A 200 partidas daba 54,5 % [47,6-61,3]. Si sube hacia 76 %, era el ±7 y no había nada |
 | `B3.log` | `DECK_BELIEF`, `ILLEGAL_INDEX`, `END_EMPTY_BENCH`, `ENERGY_CAP`, `DOUBLE_ATTACH` | Los cinco a **0** sobre 2 000 partidas. `STALE_FLAG`/`STALE_READ` salen a miles y **no son defectos** |
