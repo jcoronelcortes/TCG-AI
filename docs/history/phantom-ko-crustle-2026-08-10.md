@@ -102,7 +102,63 @@ medir la frecuencia — pero el orden de magnitud ya no es el mismo.
 
 ---
 
-## 5. Por dónde entrar mañana
+## 5. Y sin embargo NO explica el matchup — B2, n=1 000 por lista
+
+Esto hay que leerlo antes de arreglar nada, porque es lo que impide la
+conclusión falsa.
+
+La familia entera contra el grupo de control:
+
+| | rango | media |
+|---|---|---:|
+| `crustle_wall` (16 listas) | 71,4 % – 85,4 % | ~77,5 % |
+| `mega_lucario` (4, control) | 87,7 % – 91,3 % | ~89,3 % |
+
+**Los intervalos ni se rozan** (el techo de Crustle es 85,4 %, el suelo del
+control 87,7 %), así que Crustle sí es genuinamente ~12 puntos más duro. Y **no
+hay ningún mazo descolgado**: es una banda, no un valor atípico. El 54,5 % de la
+noche anterior no tiene heredero.
+
+Pero dentro de la familia, cruzando las dos mediciones de esta misma noche:
+
+```
+correlacion tasa-del-oraculo vs winrate, n=16 listas:  r = +0.09
+```
+
+`crustle_wall_12` tiene un residuo del 5,25 % y gana el **85,4 %**;
+`crustle_wall_5` tiene 1,87 % y gana el **73,0 %**. **La tasa del oráculo no
+predice el winrate dentro de la familia.**
+
+Son dos hechos separados y conviene no fundirlos:
+
+1. **La proyección se equivoca.** 110-124 tableros por cada 1 000 partidas, con
+   la observación volcada. Es un defecto de corrección y se arregla por eso.
+2. **Crustle es un matchup duro.** Doce puntos por debajo del control, y el
+   residuo **no** lo explica.
+
+Arreglar (1) esperando mover (2) es exactamente el error que este proyecto ya
+tiene con nombre: **mide la frecuencia antes que el winrate**. La frecuencia
+justifica el arreglo; el winrate no lo va a agradecer necesariamente.
+
+### La anomalía que sí es nueva: los premios de `crustle_wall_6`
+
+| lista | winrate | premios |
+|---|---:|---:|
+| `crustle_wall_6` | 71,4 % | **−0,22** |
+| `crustle_wall_4` | 71,8 % | +1,56 |
+| resto de la familia | 72-85 % | +1,50 a +2,56 |
+
+Mismo winrate que su vecino y el diferencial de premios se desploma quince
+décimas. Ganamos el 71 % de las partidas **perdiendo la carrera de premios**, lo
+que apunta a que esas victorias vienen por otra vía — el mazo como reloj (ver
+[[el-mazo-es-el-reloj-de-la-carrera-de-premios]] y
+[[deckout-vs-crustle-medido-sin-culpable]]). Es la única lista del corpus con
+premios negativos y **nadie la había medido nunca**: es una de las seis listas
+`crustle_wall` que el puente marcó como NUEVAS.
+
+---
+
+## 6. Por dónde entrar mañana
 
 1. Los 234 JSON son fixtures listos. **Detectar no es ejecutar**: reproducir el
    tablero es otro trabajo (ver [[detectar-no-es-ejecutar-replicar-los-tableros-del-flip]]).
