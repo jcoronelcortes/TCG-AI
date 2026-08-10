@@ -29,6 +29,15 @@ mixes, and alternates seats between games, because the simulator's shuffles and
 coin flips cannot be seeded. Output: score, winrate with a 95% confidence
 interval, and the split by seat.
 
+**`--base` compares whole trees, not just `main.py`.** The baseline is exported
+with `git archive` and its `ptcg/` package is what that copy of the agent
+imports. This matters because most of the agent now lives in the package: while
+the baseline was a lone `main.py`, its imports resolved to the working tree and
+a change under `ptcg/` came out of both arms identically — the gate reported
+neutral no matter what the change did. Two things stay deliberately shared: the
+simulator (`cg`, which aborts the interpreter if initialised twice) and
+`deck.csv`, so both sides pilot the same sixty cards.
+
 ### `matchup_matrix.py` — the matchup matrix
 
 Plays N games against **every** opponent deck in a folder and prints the table
