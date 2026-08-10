@@ -95,6 +95,37 @@ def censo_del_oraculo(texto: str) -> list[tuple[float, str, int, int]]:
     return filas
 
 
+def familia(nombre: str) -> str:
+    return re.sub(r"_\d+$", "", nombre)
+
+
+def deriva_por_familia(texto: str) -> dict[str, list[int]]:
+    """The SIGN of every drift the census printed, grouped by family.
+
+    Measured on the night of 9-10 August and the reason this function exists:
+    the RATE alone does not separate a dangerous residue from a harmless one.
+    `festival_lead` carries the highest rate in the corpus and wins 97 % of its
+    matchups, because its drift is NEGATIVE --- the agent under-predicts its own
+    damage and gets a pleasant surprise. `crustle_wall` carries a slightly lower
+    rate and a POSITIVE drift: the agent believes it knocks a body out, attacks
+    into one that survives, and hands over the turn.
+
+    Same instrument, same number, opposite meaning. The sign is the reading.
+    """
+    mazo = None
+    salida: dict[str, list[int]] = {}
+    for linea in texto.splitlines():
+        cab = re.match(r"### (\S+)", linea)
+        if cab:
+            mazo = cab.group(1)
+            continue
+        m = re.search(r"predicted (\d+) hp left, engine resolved (\d+)", linea)
+        if m and mazo:
+            salida.setdefault(familia(mazo), []).append(
+                int(m.group(2)) - int(m.group(1)))
+    return salida
+
+
 def invariantes(texto: str) -> list[tuple[str, int]]:
     """The five that are defects. STALE_FLAG/STALE_READ are not."""
     reales = ("DECK_BELIEF", "ILLEGAL_INDEX", "END_EMPTY_BENCH",
@@ -210,6 +241,49 @@ def informe(carpeta: Path) -> str:
             limpias = sum(1 for f in filas if f[2] == 0)
             add("")
             add(f"Listas con **cero** hallazgos: {limpias} de {len(filas)}.")
+
+            # By family, because one list is an anecdote and a family is a shape.
+            por_fam: dict[str, list[float]] = {}
+            for t, mazo, _h, _j in filas:
+                por_fam.setdefault(familia(mazo), []).append(100 * t)
+            add("")
+            add("### Por familia — y el SIGNO, que es la lectura")
+            add("")
+            add("La tasa sola no separa un residuo peligroso de uno inofensivo. "
+                "Una deriva **positiva** es el agente prediciendo MÁS daño del "
+                "que hay: cree que noquea, ataca contra un cuerpo que sobrevive "
+                "y regala el turno. Una **negativa** es pesimismo, y sólo da "
+                "sorpresas buenas.")
+            add("")
+            add("| familia | n | tasa media | peor | deriva mediana | % optimista |")
+            add("|---|---:|---:|---:|---:|---:|")
+            derivas = deriva_por_familia(b1a)
+            orden = sorted(por_fam.items(),
+                           key=lambda kv: -sum(kv[1]) / len(kv[1]))
+            for fam, tasas in orden:
+                media = sum(tasas) / len(tasas)
+                d = sorted(derivas.get(fam, []))
+                if d:
+                    mediana = d[len(d) // 2] if len(d) % 2 else \
+                        (d[len(d) // 2 - 1] + d[len(d) // 2]) / 2
+                    cuota = 100 * sum(1 for x in d if x > 0) / len(d)
+                    celda = f"{mediana:+.0f}"
+                    marca = f"**{cuota:.0f} %**" if cuota >= 85 else f"{cuota:.0f} %"
+                else:
+                    celda, marca = "—", "—"
+                add(f"| `{fam}` | {len(tasas)} | {media:.2f} % | "
+                    f"{max(tasas):.2f} % | {celda} | {marca} |")
+            add("")
+            add("**La moda estaba mintiendo aquí y se ha quitado**: en varias "
+                "familias señalaba una deriva negativa mientras dos tercios de "
+                "las muestras eran positivas. Mediana y cuota sí concuerdan.")
+            add("")
+            add("Léase con la salvedad de que son las muestras que el log "
+                "IMPRIME (las primeras de cada mazo y categoría), no los "
+                "hallazgos completos: sirven para la forma, no para citar una "
+                "magnitud. Y el sesgo optimista es **general**, no de una "
+                "familia: lo que distingue a `crustle_wall` es tenerlo casi "
+                "puro Y la tasa más alta a la vez.")
         add("")
 
     # --- B2 / B2b, the Crustle axis -----------------------------------------
