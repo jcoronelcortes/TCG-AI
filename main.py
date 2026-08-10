@@ -8938,6 +8938,13 @@ def agent(obs_dict: dict) -> list[int]:
     # freely discardable.
     _lillie_protected_once = False
 
+    # The same latch for the counter-stadium: while an OPPOSING stadium is
+    # switching off part of our engine, the first copy evaluated is the OUT and
+    # is protected; the rest are spare copies. Gating that protection on
+    # "only one copy in hand" switched it off precisely when we held two --
+    # and the forced discard took both (see the DISCARD branch).
+    _counter_stadium_kept_once = False
+
     # The same idea for the EVOLUTION pieces, but counting seats instead of
     # copies: the line-protection branches keep as many copies as the board can
     # actually wear (`_evo_copies_usable`) and the rest fall as fodder. This

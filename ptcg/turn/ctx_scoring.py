@@ -81,6 +81,7 @@ class ScoringCtx:
     _enough_for_both: Any = None
     _evo_huerfanos: Any = None
     _evo_necesarios: Any = None
+    _counter_stadium_kept_once: Any = None
     _evo_spare_seen: Any = None
     _ex_stuck_promo_ready: Any = None
     _extra_energy_enables_ko: Any = None
@@ -275,7 +276,7 @@ class ScoringCtx:
     watchtower_in_play: Any = None
 
 
-REASIGNADAS = ['_atk', '_b', '_bench_attacker_ready', '_bp', '_bp_e', '_bp_eff', '_dc', '_e', '_eff', '_energy_in_hand', '_evo_spare_seen', '_has_bench_attacker', '_lillie_protected_once', '_op_act', '_our_first_turn', '_sid', '_tb_req', 'b', 'bp', 'card', 'data', 'energy_count', 'pid', 'pokemon']
+REASIGNADAS = ['_atk', '_b', '_bench_attacker_ready', '_bp', '_bp_e', '_bp_eff', '_counter_stadium_kept_once', '_dc', '_e', '_eff', '_energy_in_hand', '_evo_spare_seen', '_has_bench_attacker', '_lillie_protected_once', '_op_act', '_our_first_turn', '_sid', '_tb_req', 'b', 'bp', 'card', 'data', 'energy_count', 'pid', 'pokemon']
 
 
 __all__ = ['ScoringCtx', 'REASIGNADAS']

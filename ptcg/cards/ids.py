@@ -1227,6 +1227,23 @@ DISCARD_SUPPORTER_DEAD_DROP = 36
 # generic junk (an Ultra Ball surplus at 95, a Poke Pad at 55+) and above every
 # card the line really needs.
 DISCARD_EVO_SPARE_COPY = 55
+# --- A BODY WITH NOWHERE TO SIT (see `_ub_target_has_no_seat`) ---------------
+# The evolution branches above ask "is there a body that can WEAR this piece?".
+# A BASIC enters play by the other door -- a free bench seat -- and nothing in
+# our own turn ever opens one (retreating swaps bodies, it does not shrink the
+# bench). With the bench full, a Basic in hand cannot be played today whatever
+# the plan says about it, so a forced discard should let it go before it lets
+# go of a card the turn can still USE.
+#
+# 46 is placed inside the same narrow corridor the other DISCARD constants use:
+#   * BELOW the spare evolution copy (55) -- a piece that can never reach the
+#     field is still cheaper than one that merely has no seat TODAY;
+#   * ABOVE the whole live-utility band (Lana's Aid 35, Night Stretcher 30,
+#     Boss's Orders 22, Lillie's 16) so the seatless body is sacrificed instead
+#     of a card that still does something;
+#   * BELOW the generic junk (a spare Ultra Ball 95, a spare Forest 88), so it
+#     never saves a body at the cost of keeping real fodder.
+DISCARD_BODY_WITHOUT_SEAT = 46
 # --- FINISHER FISHING (see `_finisher_fishing`) ------------------------------
 # Lillie's Determination when the turn has no attack available and the draw may
 # bring the energy that unlocks a KO. It is placed above the whole Boss's ladder
@@ -1561,6 +1578,7 @@ __all__ = [
     'DISCARD_SUPPORTER_LIVE_KEEP',
     'DISCARD_SUPPORTER_DEAD_DROP',
     'DISCARD_EVO_SPARE_COPY',
+    'DISCARD_BODY_WITHOUT_SEAT',
     'LILLIE_SCORE_FISHING',
     'LILLIE_SCORE_DECK_CLOCK',
     'FISHING_PROB_MIN',

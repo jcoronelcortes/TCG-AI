@@ -8259,12 +8259,12 @@
     "accion": 15,
     "contexto": 8,
     "detalle": [
-     "CARTA Boss’s Orders(1182)",
-     "CARTA Xerosic’s Machinations(1197)"
+     "CARTA Teal Mask Ogerpon ex(96)",
+     "CARTA Boss’s Orders(1182)"
     ],
     "eleccion": [
-     2,
-     5
+     4,
+     2
     ],
     "paso": null,
     "turno": 6
@@ -8803,8 +8803,8 @@
      "CARTA Meowth ex(1071)",
      "CARTA Poké Pad(1152)",
      "CARTA Dipplin(93)",
-     "CARTA Ultra Ball(1121)",
-     "CARTA Night Stretcher(1097)"
+     "CARTA Teal Mask Ogerpon ex(96)",
+     "CARTA Teal Mask Ogerpon ex(96)"
     ],
     "eleccion": [
      8,
@@ -8815,8 +8815,8 @@
      3,
      6,
      10,
-     0,
-     5
+     1,
+     11
     ],
     "paso": null,
     "turno": 15
@@ -15756,19 +15756,19 @@
      "CARTA Forest of Vitality(1261)",
      "CARTA Meowth ex(1071)",
      "CARTA Xerosic’s Machinations(1197)",
-     "CARTA Ultra Ball(1121)",
      "CARTA Teal Mask Ogerpon ex(96)",
      "CARTA Teal Mask Ogerpon ex(96)",
-     "CARTA Teal Mask Ogerpon ex(96)"
+     "CARTA Teal Mask Ogerpon ex(96)",
+     "CARTA Ultra Ball(1121)"
     ],
     "eleccion": [
      0,
      7,
      1,
-     3,
      2,
      4,
-     5
+     5,
+     3
     ],
     "paso": null,
     "turno": 9

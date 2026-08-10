@@ -11,7 +11,7 @@ from ptcg.calc.damage import _attacker_base_damage, _bench_attacker_can_ko, _ko_
 from ptcg.calc.energy import _can_attack_eff, _grass_attach_route_open, _grass_attach_unit, _grass_mult
 from ptcg.calc.board import _active_of, _count_hand_play_options
 from ptcg.cards.groups import GT_FETCH_BONUS
-from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, DISCARD_EVO_SPARE_COPY, DISCARD_SUPPORTER_DEAD_DROP, DISCARD_SUPPORTER_LIVE_KEEP, DUNSPARCE_IDS, Dawn, Dipplin, Drednaw, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, LANA_SEL_INJUGABLE, LANA_SEL_GRASS_DEMAND, LANA_SEL_GRASS_UNLOCKS, LANA_SEL_GRASS_SURPLUS, LANA_SEL_GRASS_WINS, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, OUR_ABILITY_IDS, OUR_EX_IDS, Pinsir, Poke_Pad, RETREAT_COST, RIPEN_HEAL_TARGET_SCORE, SCORE_FORBID, SCORE_LOOKAHEAD_PROMOTE_KO, SCORE_LOOKAHEAD_PROMOTE_SAFE, SCORE_NEVER, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, Xerosic_Machinations
+from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, DISCARD_BODY_WITHOUT_SEAT, DISCARD_EVO_SPARE_COPY, DISCARD_SUPPORTER_DEAD_DROP, DISCARD_SUPPORTER_LIVE_KEEP, DUNSPARCE_IDS, Dawn, Dipplin, Drednaw, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, LANA_SEL_INJUGABLE, LANA_SEL_GRASS_DEMAND, LANA_SEL_GRASS_UNLOCKS, LANA_SEL_GRASS_SURPLUS, LANA_SEL_GRASS_WINS, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, OUR_ABILITY_IDS, OUR_EX_IDS, Pinsir, Poke_Pad, RETREAT_COST, RIPEN_HEAL_TARGET_SCORE, SCORE_FORBID, SCORE_LOOKAHEAD_PROMOTE_KO, SCORE_LOOKAHEAD_PROMOTE_SAFE, SCORE_NEVER, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, Xerosic_Machinations
 from ptcg.cards.lines import _evo_copies_usable, _line_base_benchable, _pokemon_injugable
 from ptcg.cards.ids import OPENING_SAC_PROMOTE_ORDER, SETUP_ACTIVE_BASIC_ORDER, SETUP_ACTIVE_BASIC_TOP, SETUP_ACTIVE_EX_ORDER, SETUP_ACTIVE_EX_TOP, SETUP_ACTIVE_OTHER, SETUP_ACTIVE_OTHER_BASIC, SETUP_ACTIVE_STEP
 from ptcg.cards.scoring import MAIN_ATTACKERS, PROMO_DOOMED_PENALTY, PROMO_KO_BONUS, PROMO_MATCH_POINT_VETO, PROMO_PRIZE_PENALTY, OPENING_SAC_PROMOTE_STEP, OPENING_SAC_PROMOTE_TOP, _SUPP_PLAY_IDS
@@ -48,6 +48,7 @@ def score_play(tc, o, score):
     _prize_mismatch_matchup = tc._prize_mismatch_matchup
     _dragapult_no_tapu = tc._dragapult_no_tapu
     _evo_huerfanos = tc._evo_huerfanos
+    _counter_stadium_kept_once = tc._counter_stadium_kept_once
     _evo_spare_seen = tc._evo_spare_seen
     _evo_necesarios = tc._evo_necesarios
     _festival_lead_hostil = tc._festival_lead_hostil
@@ -2446,11 +2447,32 @@ def score_play(tc, o, score):
                     # agent threw it away -- losing the only way to recover the
                     # attack. Our own stadium in the DISCARD does not count:
                     # it is only played from hand.
+                    #
+                    # THE COUNTER-STADIUM KEEPS ONE COPY, NOT ZERO (user,
+                    # `records/registro_006_pasos_077_hasta_100.json`, episode
+                    # 91519548, step 99, turn 6 vs Alakazam -- LOST). The
+                    # protection used to be gated on
+                    # `hand_counts[Forest_of_Vitality] <= 1`, so it switched OFF
+                    # exactly when we held more than one out: with two copies in
+                    # hand the branch fell through to the spare-copy score (88)
+                    # -- which is the score of BOTH copies -- and their Xerosic's
+                    # Machinations took the two of them. Under their
+                    # Neutralization Zone, with no rule-box body anywhere on
+                    # their board, our ex do 0 damage (`_our_effective_damage`),
+                    # and those two Forests were the only cards in the deck that
+                    # could lift it.
+                    #
+                    # The `<= 1` guard was reading "spare copies are cheap" --
+                    # true -- and answering "so throw away the only out too" --
+                    # not true. The surplus is what is cheap; the FIRST copy is
+                    # the out. Same shape as `_lillie_protected_once` and
+                    # `_evo_spare_seen`: protect one, let the rest be fodder.
                     _forest_counters_op_stadium = _counter_stadium_urgent(
                         neutralization_zone_active, watchtower_in_play,
                         AGENT_STATE.forest_in_play, _festival_lead_hostil)
                     if (_forest_counters_op_stadium
-                            and hand_counts.get(Forest_of_Vitality, 0) <= 1):
+                            and not _counter_stadium_kept_once):
+                        _counter_stadium_kept_once = True
                         score = 2
                     elif AGENT_STATE.forest_in_play:
                         score = 95
@@ -2787,6 +2809,62 @@ def score_play(tc, o, score):
                             _evo_spare_seen[card.id] = (
                                 _evo_spare_seen.get(card.id, 0) + 1)
 
+                # A BODY WITH NOWHERE TO SIT IS NOT WHAT THE FORCED DISCARD
+                # KEEPS (user, `records/registro_006_pasos_077_hasta_100.json`,
+                # episode 91519548, step 99, turn 6 vs Alakazam -- LOST). Their
+                # Xerosic's Machinations cut a hand of six down to three:
+                # Meganium (one already in play), Night Stretcher, Lana's Aid,
+                # Teal Mask Ogerpon ex and two Forest of Vitality, on a bench
+                # that was FULL -- Meganium, Teal Mask Ogerpon ex, Meowth ex,
+                # Fezandipiti ex, Tapu Bulu.
+                #
+                # The block above fixes the Forests. What is left is the second
+                # half of the same mistake: the scorer kept the Teal Mask
+                # Ogerpon ex (25, "only one in play") over the Night Stretcher
+                # (30) and the Lana's Aid (35) -- a Basic that with 5/5 on the
+                # bench could not be played that turn, the next one, or any turn
+                # until the opponent knocked something out.
+                #
+                # The evolution branches already ask the seat question from the
+                # other side (`_evo_copies_usable`, `_line_base_benchable`): an
+                # evolution needs a BODY of its line in play, and the block above
+                # caps the copies by those bodies. A Basic enters through the
+                # other door and nobody was asking about it. `_ub_target_has_no
+                # _seat` is the very predicate the Ultra Ball already uses to
+                # refuse to FETCH such a body -- what we will not spend two cards
+                # to buy is not what we should spend a keep-slot to hold.
+                #
+                # NO SEAT IS NOT ENOUGH -- THE BOARD MUST ALREADY BE DOING THE
+                # BODY'S JOB. A full bench is a snapshot, not a sentence: a
+                # knock-out opens a seat, and the piece that could not sit today
+                # may be the only answer tomorrow. The corpus said so out loud
+                # -- with the rule asking only for the seat, three frozen
+                # decisions started throwing away a **Tapu Bulu** against
+                # ex-immune walls, where it is the one body that can break
+                # through and nothing on our bench does its job.
+                #
+                # So the rule asks for BOTH halves: the bench cannot fit it AND
+                # a copy of that same card is ALREADY IN PLAY. Then the card in
+                # hand is not the plan, it is a duplicate of the plan -- which
+                # is the record exactly: a second Teal Mask Ogerpon ex with one
+                # already on the bench. Same doctrine as `_evo_copies_usable`
+                # ("a line protects the SEATS, not the copies"), asked of the
+                # door a Basic actually walks through.
+                #
+                # `max` on purpose: it only ever makes such a body MORE
+                # discardable. A card the branches already priced as fodder
+                # (a Meganium with one in play at 95, a spare Forest at 88)
+                # keeps its score, so this never rescues junk -- it only moves
+                # the duplicate below the utility cards the turn can still use.
+                _seatless_data = card_table.get(card.id)
+                if (_seatless_data is not None
+                        and _seatless_data.cardType == CardType.POKEMON
+                        and field_counts.get(card.id, 0) >= 1
+                        and _ub_target_has_no_seat(
+                            card.id,
+                            max(0, my_state.benchMax - bench_count))):
+                    score = max(score, DISCARD_BODY_WITHOUT_SEAT)
+
                 # THE FORCED DISCARD PRICES A SUPPORTER BY WHAT IT DOES ON
                 # *THIS* BOARD (user, episode 90115646 step 132 vs Archaludon
                 # ex, LOST). Every branch above prices a Supporter with static
@@ -2879,6 +2957,7 @@ def score_play(tc, o, score):
     finally:
         tc._bp = _bp
         tc._dc = _dc
+        tc._counter_stadium_kept_once = _counter_stadium_kept_once
         tc._evo_spare_seen = _evo_spare_seen
         tc._has_bench_attacker = _has_bench_attacker
         tc._lillie_protected_once = _lillie_protected_once
