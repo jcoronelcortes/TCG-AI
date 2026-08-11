@@ -1,250 +1,252 @@
-# El PHANTOM_KO de Crustle — 234 tableros, y lo que ya se puede descartar
+# The Crustle PHANTOM_KO — 234 boards, and what can already be ruled out
 
-> ## ⚠ CORRECCIÓN, 10 de agosto: el 89 % de esto era el detector
+> ## ⚠ CORRECTION, 10 August: 89% of this was the detector
 >
-> **`judge()` comparaba la predicción de un cuerpo con el desenlace de otro.**
-> El plan lleva `target` —0 es su activo, 1 y arriba su banca— y nada lo leía:
-> `remain_hp` se atribuía a quien hubiera perdido vida ese paso.
+> **`judge()` was comparing one body's prediction with another body's outcome.**
+> The plan carries `target` — 0 is their active, 1 and up their bench — and
+> nothing read it: `remain_hp` was attributed to whichever body had lost hit
+> points that step.
 >
-> De los **611 `PHANTOM_KO` volcados, 545 (el 89,2 %)** tenían el plan apuntando
-> a un cuerpo de **su banca** mientras el ataque caía sobre el activo. Tres
-> tomados al azar predecían dejar un cuerpo de 70 en −70 y se puntuaron contra
-> uno de 150 o 300 que acababa de recibir 100. **El agente tenía razón**: *si
-> gusteo eso, cae*. Luego no gusteó, atacó al muro de enfrente y el muro
-> sobrevivió.
+> Of the **611 dumped `PHANTOM_KO`, 545 (89.2%)** had the plan pointing at a body
+> on **their bench** while the attack landed on the active. Three taken at random
+> predicted leaving a 70 HP body at −70 and were scored against one of 150 or 300
+> that had just taken 100. **The agent was right**: *if I gust that, it falls*.
+> Then it did not gust, it attacked the wall in front, and the wall survived.
 >
-> Y explica por qué Crustle encabezaba todas las tablas: contra un muro la mejor
-> ruta de premios es casi siempre un gusteo a su banca, así que ahí apunta el
-> plan y ahí vive la mala atribución. **La concentración era del detector, no
-> del agente.**
+> And it explains why Crustle topped every table: against a wall the best prize
+> route is almost always a gust to their bench, so that is where the plan points
+> and that is where the misattribution lives. **The concentration belonged to the
+> detector, not the agent.**
 >
-> Re-medido en `crustle_wall_9` a n=1 000 con el objetivo comprobado:
+> Re-measured on `crustle_wall_9` at n=1 000 with the target checked:
 >
-> | | antes | ahora |
+> | | before | now |
 > |---|---:|---:|
 > | `PHANTOM_KO` | 124 | **17** |
 > | `DAMAGE_DRIFT` | 76 | 42 |
-> | tasa de la lista | 4,92 % | **1,58 %** |
-> | descartados por ser otro cuerpo | — | 209 |
+> | rate for the list | 4.92% | **1.58%** |
+> | discarded for being a different body | — | 209 |
 >
-> Arreglado en `utils/differential_oracle.py` (`planned_serial`), fijado en
-> `tests/test_the_oracle_judges_the_body_the_plan_was_about.py` y validado en
-> ambas direcciones: un phantom **sobre el cuerpo del plan** se sigue
-> reportando.
+> Fixed in `utils/differential_oracle.py` (`planned_serial`), pinned in
+> `tests/test_the_oracle_judges_the_body_the_plan_was_about.py` and validated in
+> both directions: a phantom **on the plan's own body** is still reported.
 >
-> **Qué sobrevive de este documento:** las secciones 2 y 3 —el motor resuelve el
-> daño base, y no es el estadio, ni una herramienta, ni el doble ataque— siguen
-> siendo medidas correctas sobre los tableros que sí estaban bien atribuidos. Lo
-> que **no** sobrevive es la magnitud, y con ella la urgencia. La §5 ya avisaba
-> de que el residuo no explicaba el matchup (r = +0,09); ahora se sabe por qué.
+> **What survives of this document:** sections 2 and 3 — the engine resolves the
+> base damage, and it is not the stadium, not a tool, not the double attack —
+> remain correct measurements over the boards that *were* correctly attributed.
+> What does **not** survive is the magnitude, and with it the urgency. §5 already
+> warned that the residue did not explain the matchup (r = +0.09); now we know
+> why.
 
-**Estado: medido, y el culpable era el instrumento. No se ha tocado una línea
-del agente.**
+**Status: measured, and the culprit was the instrument. Not one line of the agent
+has been touched.**
 
-Sale del censo B1a de la noche del 9-10 de agosto (`docs/night-plan-2026-08-10-c.md`),
-el primero contra las 87 listas reales del meta recolectado el 9.
+It comes out of census B1a of the night of 9–10 August
+(`docs/night-plan-2026-08-10-c.md`), the first against the 87 real lists of the
+meta harvested on the 9th.
 
 ---
 
-## 1. Dónde está
+## 1. Where it is
 
-El residuo del oráculo por familia, sobre 128 338 ataques juzgados:
+The oracle's residue by family, over 128 338 attacks judged:
 
-| familia | listas | tasa media | deriva mediana | % optimista |
+| family | lists | mean rate | median drift | % optimistic |
 |---|---:|---:|---:|---:|
-| **`crustle_wall`** | 16 | **4,58 %** | **+40** | **90 %** |
-| `great_tusk_crustle` | 1 | 4,06 % | −10 | 40 % |
-| `festival_lead` | 11 | 3,98 % | −30 | 44 % |
-| `marnie_grimmsnarl` | 9 | 0,11 % | +25 | 50 % |
+| **`crustle_wall`** | 16 | **4.58%** | **+40** | **90%** |
+| `great_tusk_crustle` | 1 | 4.06% | −10 | 40% |
+| `festival_lead` | 11 | 3.98% | −30 | 44% |
+| `marnie_grimmsnarl` | 9 | 0.11% | +25 | 50% |
 
-No es un mazo descolgado: es la familia entera, dieciséis listas, seis de ellas
-sin haber sido medidas nunca.
+It is not one deck breaking away: it is the whole family, sixteen lists, six of
+which had never been measured.
 
-**Y la categoría separa mejor que la tasa.** A n=1 000 partidas por lista:
+**And the category separates better than the rate does.** At n=1 000 games per
+list:
 
-| lista | PHANTOM_KO | MISSED_KO | DAMAGE_DRIFT |
+| list | PHANTOM_KO | MISSED_KO | DAMAGE_DRIFT |
 |---|---:|---:|---:|
 | `crustle_wall_9` | **124** | 5 | 76 |
 | `crustle_wall_6` | **110** | 2 | 55 |
 | `festival_lead_10` | 2 | **112** | 616 |
 | `festival_lead_8` | 6 | **91** | 442 |
 
-`festival_lead` lidera la tasa y **gana el 97 % de sus matchups** porque su
-residuo es `MISSED_KO`: predijo que quedaba vida y el cuerpo cayó — una sorpresa
-buena. Crustle es `PHANTOM_KO` a veinte veces esa tasa: **predijo que el cuerpo
-caía y no cayó**. Ésa se paga con el turno.
+`festival_lead` leads the rate and **wins 97% of its matchups** because its
+residue is `MISSED_KO`: it predicted hit points would be left and the body fell
+— a good surprise. Crustle is `PHANTOM_KO` at twenty times that rate: **it
+predicted the body would fall and it did not**. That one costs the turn.
 
 ---
 
-## 2. Qué dicen los 234 tableros volcados
+## 2. What the 234 dumped boards say
 
 `log/noche_2026-08-10-c/violaciones_oraculo/crustle_wall_{6,9}/phantom_ko_*.json`,
-cada uno con la observación entera.
+each with the whole observation.
 
-**El motor resuelve exactamente el daño base. Siempre.**
+**The engine resolves exactly the base damage. Every time.**
 
-| par | n | daño que resolvió el motor |
+| pairing | n | damage the engine resolved |
 |---|---:|---|
-| Dipplin → Crustle | 77 | **100** con banca 5, **80** con banca 4 |
-| Tapu Bulu → Mega Kangaskhan ex | 31 | **220**, sin una sola excepción |
-| Meganium → Crustle | 30 | **140** en 22 de 30 |
+| Dipplin → Crustle | 77 | **100** with a bench of 5, **80** with 4 |
+| Tapu Bulu → Mega Kangaskhan ex | 31 | **220**, without a single exception |
+| Meganium → Crustle | 30 | **140** in 22 of 30 |
 
-`Do the Wave` son 20 × nuestra banca: 5 → 100, 4 → 80. Exacto. Los 220 de Tapu
-Bulu y los 140 de Meganium son su daño impreso. Exacto.
+`Do the Wave` is 20 × our bench: 5 → 100, 4 → 80. Exact. Tapu Bulu's 220 and
+Meganium's 140 are their printed damage. Exact.
 
-**Crustle no está reduciendo nada.** La hipótesis natural —«el muro absorbe»—
-está descartada por los propios números: el motor aplicó el daño completo. El
-exceso es enteramente de nuestra proyección.
+**Crustle is not reducing anything.** The natural hypothesis — "the wall absorbs
+it" — is ruled out by the numbers themselves: the engine applied the full
+damage. The excess is entirely our projection's.
 
-Lo que el agente predijo, en cambio, está por todas partes: Dipplin 180 (×29) y
-200 (×19); Tapu Bulu 370 (×20); Meganium 220 (×11) y 240 (×6).
+What the agent predicted, by contrast, is all over the place: Dipplin 180 (×29)
+and 200 (×19); Tapu Bulu 370 (×20); Meganium 220 (×11) and 240 (×6).
 
-Exceso (predicho − real) sobre los 234:
+Excess (predicted − actual) over the 234:
 
-```
+```text
 +80  x43     +230 x33     +100 x31     +150 x28
 +60  x13     +330 x12     +50  x11     +110 x8
 ```
 
 ---
 
-## 3. Lo que ya se puede descartar
+## 3. What can already be ruled out
 
-Tres hipótesis baratas, las tres muertas con los datos que ya hay:
+Three cheap hypotheses, all three dead on the data already in hand:
 
-1. **No es el estadio.** La distribución del exceso es la misma con
-   `Forest of Vitality` (148 casos), con `Battle Cage` (77) y sin estadio (9).
-   Si un estadio inflara la proyección, el reparto cambiaría con él.
-2. **No es una herramienta.** Nuestro atacante va sin herramienta en **234 de
-   234**.
-3. **No es el doble ataque de Festival Grounds.** Ese estadio no está en mesa en
-   ninguno de los 234 (ver [[festival-grounds-dipplin-doble-ataque]]).
-
----
-
-## 4. Lo que queda, y por qué no se hizo esta noche
-
-Los excesos que más se repiten —**+80** y **+100**— aparecen en pares distintos
-(Dipplin 100→180, Meganium 140→220), lo que apunta a un sumando de nuestro lado
-y no a un multiplicador. Confirmarlo exige **leer `_our_effective_damage` y el
-proyector del plan**, no agregar más tableros.
-
-Eso es código del agente, y la regla de la noche es que **una regla que aterriza
-a mitad significa que los bloques de antes y los de después midieron dos agentes
-distintos**. Por eso se para aquí.
-
-Es la segunda vez que aparece esta clase: la primera fue Full Metal Lab, donde
-«la proyección de daño del propio agente era 30 demasiado generosa» y la
-encontró este mismo oráculo. Aquélla movió 2 decisiones en 50 955. **Ésta son
-110-124 tableros por cada 1 000 partidas**, así que antes de tocar nada conviene
-medir la frecuencia — pero el orden de magnitud ya no es el mismo.
+1. **It is not the stadium.** The distribution of the excess is the same with
+   `Forest of Vitality` (148 cases), with `Battle Cage` (77) and with no stadium
+   (9). If a stadium inflated the projection, the split would move with it.
+2. **It is not a tool.** Our attacker carries no tool in **234 of 234**.
+3. **It is not Festival Grounds' double attack.** That stadium is not on the
+   board in any of the 234.
 
 ---
 
-## 5. Y sin embargo NO explica el matchup — B2, n=1 000 por lista
+## 4. What is left, and why it was not done that night
 
-Esto hay que leerlo antes de arreglar nada, porque es lo que impide la
-conclusión falsa.
+The most repeated excesses — **+80** and **+100** — appear across different
+pairings (Dipplin 100→180, Meganium 140→220), which points at an addend on our
+side rather than a multiplier. Confirming it requires **reading
+`_our_effective_damage` and the plan's projector**, not aggregating more boards.
 
-La familia entera contra el grupo de control:
+That is agent code, and the rule of the night is that **a rule landing halfway
+through means the blocks before and after measured two different agents**. So it
+stops here.
 
-| | rango | media |
+It is the second time this class has appeared: the first was Full Metal Lab,
+where "the agent's own damage projection was 30 too generous", and this same
+oracle found it. That one moved 2 decisions in 50 955. **This one is 110–124
+boards per 1 000 games**, so the frequency still has to be measured before
+touching anything — but the order of magnitude is no longer the same.
+
+---
+
+## 5. And yet it does NOT explain the matchup — B2, n=1 000 per list
+
+This has to be read before fixing anything, because it is what prevents the
+false conclusion.
+
+The whole family against the control group:
+
+| | range | mean |
 |---|---|---:|
-| `crustle_wall` (16 listas) | 71,4 % – 85,4 % | ~77,5 % |
-| `mega_lucario` (4, control) | 87,7 % – 91,3 % | ~89,3 % |
+| `crustle_wall` (16 lists) | 71.4% – 85.4% | ~77.5% |
+| `mega_lucario` (4, control) | 87.7% – 91.3% | ~89.3% |
 
-**Los intervalos ni se rozan** (el techo de Crustle es 85,4 %, el suelo del
-control 87,7 %), así que Crustle sí es genuinamente ~12 puntos más duro. Y **no
-hay ningún mazo descolgado**: es una banda, no un valor atípico. El 54,5 % de la
-noche anterior no tiene heredero.
+**The intervals do not even touch** (Crustle's ceiling is 85.4%, the control's
+floor 87.7%), so Crustle genuinely is ~12 points harder. And **no deck breaks
+away**: it is a band, not an outlier. The previous night's 54.5% has no heir.
 
-Pero dentro de la familia, cruzando las dos mediciones de esta misma noche:
+But within the family, crossing the two measurements from that same night:
 
+```text
+correlation oracle-rate vs winrate, n=16 lists:  r = +0.09
 ```
-correlacion tasa-del-oraculo vs winrate, n=16 listas:  r = +0.09
-```
 
-`crustle_wall_12` tiene un residuo del 5,25 % y gana el **85,4 %**;
-`crustle_wall_5` tiene 1,87 % y gana el **73,0 %**. **La tasa del oráculo no
-predice el winrate dentro de la familia.**
+`crustle_wall_12` has a 5.25% residue and wins **85.4%**; `crustle_wall_5` has
+1.87% and wins **73.0%**. **The oracle's rate does not predict the winrate
+within the family.**
 
-Son dos hechos separados y conviene no fundirlos:
+These are two separate facts and they should not be merged:
 
-1. **La proyección se equivoca.** 110-124 tableros por cada 1 000 partidas, con
-   la observación volcada. Es un defecto de corrección y se arregla por eso.
-2. **Crustle es un matchup duro.** Doce puntos por debajo del control, y el
-   residuo **no** lo explica.
+1. **The projection is wrong.** 110–124 boards per 1 000 games, with the
+   observation dumped. It is a correctness defect and it gets fixed for that
+   reason.
+2. **Crustle is a hard matchup.** Twelve points below the control, and the
+   residue does **not** explain it.
 
-Arreglar (1) esperando mover (2) es exactamente el error que este proyecto ya
-tiene con nombre: **mide la frecuencia antes que el winrate**. La frecuencia
-justifica el arreglo; el winrate no lo va a agradecer necesariamente.
+Fixing (1) expecting to move (2) is exactly the error this project already has a
+name for: **measure the frequency before the winrate**. The frequency justifies
+the fix; the winrate will not necessarily thank you for it.
 
-### La anomalía que sí es nueva: los premios de `crustle_wall_6`
+### The anomaly that IS new: `crustle_wall_6`'s prizes
 
-| lista | winrate | premios |
+| list | winrate | prizes |
 |---|---:|---:|
-| `crustle_wall_6` | 71,4 % | **−0,22** |
-| `crustle_wall_4` | 71,8 % | +1,56 |
-| resto de la familia | 72-85 % | +1,50 a +2,56 |
+| `crustle_wall_6` | 71.4% | **−0.22** |
+| `crustle_wall_4` | 71.8% | +1.56 |
+| rest of the family | 72–85% | +1.50 to +2.56 |
 
-Mismo winrate que su vecino y el diferencial de premios se desploma quince
-décimas. Ganamos el 71 % de las partidas **perdiendo la carrera de premios**, lo
-que apunta a que esas victorias vienen por otra vía — el mazo como reloj (ver
-[[el-mazo-es-el-reloj-de-la-carrera-de-premios]] y
-[[deckout-vs-crustle-medido-sin-culpable]]). Es la única lista del corpus con
-premios negativos y **nadie la había medido nunca**: es una de las seis listas
-`crustle_wall` que el puente marcó como NUEVAS.
+The same winrate as its neighbour and the prize differential collapses by more
+than a point and a half. We win 71% of the games **while losing the prize race**,
+which points at those wins coming through another route — the deck as a clock.
+It is the only list in the corpus with negative prizes and **nobody had ever
+measured it**: it is one of the six `crustle_wall` lists the bridge marked NEW.
 
 ---
 
-## 6. El mazo retirado, medido antes de que dejara de importar — B2b
+## 6. The retired deck, measured before it stopped mattering — B2b
 
-La noche anterior preguntaba cuál de tres cosas era `crustle_wall`: defecto del
-agente, defecto del bot, o un matchup duro y ya está. El puente contestó
-«ninguna, el mazo se fue del meta». **B2b contesta la que quedaba: era real.**
+The previous night asked which of three things `crustle_wall` was: a defect of
+the agent, a defect of the bot, or just a hard matchup. The bridge answered
+"none, the deck left the meta". **B2b answers the one that was left: it was
+real.**
 
+```text
+crustle_wall_6 RETIRED, from the 7 Aug backup, n=1000:
+    58.8%  [55.7-61.8]   prizes -0.27
+    (at n=200 it read 54.5% [47.6-61.3]; the intervals overlap)
+
+its two neighbours from the same retired corpus:
+    crustle_wall_2   73.5%   prizes +1.83
+    crustle_wall_1   85.8%   prizes +2.31
 ```
-crustle_wall_6 RETIRADO, desde el respaldo del 7-ago, n=1000:
-    58,8 %  [55,7-61,8]   premios −0,27
-    (a n=200 daba 54,5 % [47,6-61,3]; los intervalos se solapan)
 
-sus dos vecinos del mismo corpus retirado:
-    crustle_wall_2   73,5 %   premios +1,83
-    crustle_wall_1   85,8 %   premios +2,31
-```
+**It was not the ±7 of a short sample.** Twenty-five points below its own
+family, with a narrow interval. That deck genuinely beat us, and it left on its
+own.
 
-**No era el ±7 de una muestra corta.** Veinticinco puntos por debajo de su
-propia familia, con el intervalo estrecho. Ese mazo nos ganaba de verdad, y se
-fue solo.
+### What survived the rotation is not the deck, it is the signature
 
-### Lo que sobrevivió a la rotación no es el mazo, es la firma
-
-| | winrate | premios |
+| | winrate | prizes |
 |---|---:|---:|
-| `crustle_wall_6` **retirado** (7-ago) | 58,8 % | **−0,27** |
-| `crustle_wall_6` **nuevo** (a 32 cartas del anterior) | 71,4 % | **−0,22** |
-| cualquier otra lista de los dos corpus | 71,8-91,3 % | +1,50 a +3,27 |
+| `crustle_wall_6` **retired** (7 Aug) | 58.8% | **−0.27** |
+| `crustle_wall_6` **new** (32 cards from the previous one) | 71.4% | **−0.22** |
+| any other list in either corpus | 71.8–91.3% | +1.50 to +3.27 |
 
-Son **dos mazos distintos** que comparten nombre por accidente del puesto, y
-comparten dos cosas más: ser el más débil de su corpus y ser los **únicos con la
-carrera de premios en negativo**. Ganamos esas partidas sin ganar los premios.
+They are **two different decks** sharing a name by accident of rank, and they
+share two more things: being the weakest in their corpus, and being the **only
+ones with the prize race in the negative**. We win those games without winning
+the prizes.
 
-El fenómeno sobrevivió a la rotación del meta aunque el mazo no; lo que perdió
-son doce puntos de severidad. Y **el marcador no es el winrate, es el
-diferencial de premios**: es lo que separa a estos dos de las otras treinta y
-siete listas medidas esta noche.
+The phenomenon survived the meta's rotation even though the deck did not; what
+it lost is twelve points of severity. And **the marker is not the winrate, it is
+the prize differential**: that is what separates these two from the other
+thirty-seven lists measured that night.
 
-Eso también dice cómo buscarlo la próxima vez que el meta rote: no por el nombre
-ni por el arquetipo, sino barriendo el corpus por **premios negativos**.
+That also says how to look for it the next time the meta rotates: not by name
+and not by archetype, but by sweeping the corpus for **negative prizes**.
 
 ---
 
-## 7. Por dónde entrar mañana
+## 7. Where to start tomorrow
 
-1. Los 234 JSON son fixtures listos. **Detectar no es ejecutar**: reproducir el
-   tablero es otro trabajo (ver [[detectar-no-es-ejecutar-replicar-los-tableros-del-flip]]).
-2. `B8.log` añade `crustle_wall_11`, `crustle_wall_12` y `great_tusk_crustle_1`
-   —las de deriva positiva que B1b no alcanzó, porque elegía por tasa y tres de
-   sus cinco huecos se fueron a la familia inofensiva.
-3. Empezar por **Dipplin → Crustle**, que son 77 de los 234 y el único par donde
-   el daño real es una función conocida y verificable del tablero (20 × banca).
+1. The 234 JSON files are ready-made fixtures. **Detecting is not executing**:
+   reproducing the board is another job.
+2. `B8.log` adds `crustle_wall_11`, `crustle_wall_12` and
+   `great_tusk_crustle_1` — the positive-drift lists B1b did not reach, because
+   it chose by rate and three of its five slots went to the harmless family.
+3. Start with **Dipplin → Crustle**, which is 77 of the 234 and the only pairing
+   where the real damage is a known, verifiable function of the board
+   (20 × bench).

@@ -6,7 +6,40 @@ Everything in `utils/` is a command-line tool. None of them are needed to *run*
 the agent — they exist to measure it, feed it opponents, debug it and ship it.
 Flags and identifiers are in English; a few stored data fields are still Spanish, and the last section says which and why.
 
-Run them from the repository root.
+Run them from the repository root. This page is the catalogue, one entry per
+script. For *which* of them to reach for and in what order —  and for the rule
+that decides whether a number they print may be believed — read
+[The instruments](instruments.md) first.
+
+```bash
+python utils/nightly.py --quick    # every gate and every detector, a few minutes
+```
+
+---
+
+## Run everything
+
+### `nightly.py` — the whole pipeline as one script
+
+Every gate and every detector, in the order the dependencies want, with a report
+written to `log/nightly_<timestamp>/REPORT.md` and one log per stage.
+
+```bash
+python utils/nightly.py --quick                       # a few minutes: is the pipeline still working
+python utils/nightly.py --since HEAD~5                # ~1 hour, the default
+python utils/nightly.py --full --since origin/main    # hours, matchup matrix included
+```
+
+It exists because the pipeline used to be a sequence of commands in one person's
+terminal, and **a night nobody else can relaunch is not infrastructure.** A stage
+whose self-test fails is marked INVALID and its output is quarantined in the
+report rather than summarised. The mutation stage is the only one that writes to
+the tree (it restores on exit, on exception and on a kill), which is why nothing
+else may read the tree while it runs.
+
+`informe_noche.py` renders the report; the `noche-*.sh` scripts are the
+per-session run-books of individual measurement nights, kept for reproducibility
+rather than for reuse — each one names the tree it measured.
 
 ---
 
@@ -208,6 +241,27 @@ self-test is historical rather than planted: `Meowth ex` is the standing corpus
 flip (if the audit cannot see it, it is not looking) and `Forest of Vitality` was
 latched in `ab1945a` (if the audit reports it, it is reading wrong).
 
+### `promoted_relay_census.py` — the same shape, for the body that outlasts
+
+Counts how often "the prize is cashed by the body that outlasts" actually fires
+and what it flips. Its argument for existing is the one above: over 2 485 mirror
+decisions the full population of the rule was **two boards**, and a rule that
+fires in a fraction of a per cent has a ceiling of effect far below the noise
+floor of the self-play gate. Asking the gate for a verdict there repeats an
+error this project has already made.
+
+### `op_buff_census.py` — the bench body that raises their damage
+
+Sibling of `op_scaling_census.py`, auditing the other family: not the attack
+whose printed number is a placeholder, but the **flat bonus that is not on the
+attacker at all** — a body on their bench whose ability boosts the whole team.
+
+The failure it guards against is a Gabite whose Dragonslice prints 40 and took
+70 off a Tapu Bulu that had 70 left. The extra 30 was a Roserade on their bench.
+Nothing in the agent read it, so every defensive rule answered "it survives" and
+the turn's energy went onto a body that was knocked out with the Grass still on
+it.
+
 ### `op_immunity_census.py` — the tables that cancel our damage, against the cards
 
 Third sibling of the two censuses above, and it exists for the same reason: a
@@ -250,6 +304,45 @@ can be replayed and turned into a fixture; `--kinds ABILITY,ATTACH` narrows the
 dump to one class of tie. The percentage alone is not a finding — a board nobody
 can reopen cannot be arbitrated.
 
+### `differential_oracle.py` — what the plan predicted vs. what the engine resolved
+
+The agent's attack plan states, before the attack, what it expects to happen. The
+engine then resolves it. This replays games with both recorded and reports where
+they disagree — a predicted knockout that did not happen is a `PHANTOM_KO`.
+
+```bash
+python utils/differential_oracle.py --games 40 --opponent deck/real_opponents/alakazam_1.csv
+```
+
+**Two readings that took three rounds to get right, both now built in.** It
+judges the body *the plan was about*, not the one that took the hit: 89% of its
+first findings were gusts the turn never played. And it is a **mirror** — it
+watches whichever agent it is attached to, so pointed at self-play, half of its
+residue is our agent failing to pilot the opponent's deck.
+
+Its self-test has both halves (plant a lying plan, see the findings; remove it,
+see the silence) and it refuses to print without them. That discipline is the
+subject of [The instruments](instruments.md).
+
+### `invariant_monitor.py` — things that must never be true
+
+Checks, on every decision of every game, the properties that need no human to
+know the right play: an index outside the option list, a turn ended with an
+empty bench, and a **promise standing while its premise is dead**
+(`STALE_FLAG` / `STALE_READ`).
+
+The last of those needs a premise written next to the flag. Sixteen boolean
+flags currently have none, and the monitor prints their names — a flag with no
+premise is a flag nothing watches, which is how "our agent never goes first"
+stayed invisible.
+
+```bash
+python utils/invariant_monitor.py --games 200 --dump log/ --dump-kinds STALE_READ
+```
+
+`--dump` without `--dump-kinds` counts findings and writes none. The tool says
+so; read what it says.
+
 ### `mutation_probe.py` — which safety nets can actually fail?
 
 Rewrites one expression at a time (comparisons, small integer boundaries, boolean
@@ -276,6 +369,8 @@ using: it asks whether the test you just wrote watches the code you just wrote.
 | `build_meta_decks.py` | Hand-built synthetic archetype decks, for mechanics the real meta does not currently offer. |
 | `harvest_opponent_deck.py` | Rebuilds a plausible 60-card opponent list from what was visible in local game records. |
 | `op_scaling_census.py` | Audits `ptcg/cards/op_scaling.py` against every opposing deck in the repo: which attacks scale with the board rather than doing their printed damage, which of them the agent reads, and which are missing. The suite runs it as a gate — a new deck that brings an unread one is invisible in a game, because the agent does not crash, it just walks into the hit. `--unmodelled` |
+| `meta_representation_report.py` | Reads the harvested leaderboard index and answers two questions that are **not** the same one: how much of the top an archetype occupies, and how that presence is distributed across bands of thirty positions. An archetype can be 10% of the field and own the first band, or be everywhere and never reach the top 30. |
+| `corpus_bridge.py` | Carries a finding across a rebuild of the corpus, matching by content instead of by name. See above. |
 
 ---
 
@@ -288,6 +383,87 @@ using: it asks whether the test you just wrote watches the code you just wrote.
 | `record_corpus.py` | Records fresh games against the real leaderboard decks, in the same format, so the golden corpus can be regenerated without depending on downloaded replays. |
 
 See [Debugging a decision](debugging.md) for how these fit together.
+
+---
+
+## The corpus, frozen
+
+### `freeze_corpus.py` — make the flip-diff run on a clean checkout
+
+The flip-diff — *which historical decisions did your change flip, exactly* — is
+the most useful review artefact this project produces, and for a long time it
+did not exist for anyone who had just cloned the repository: `records/` is
+git-ignored transient data, so the local corpus test skips.
+
+The corpus only ever replays **our own decisions**, so keeping just those and
+gzipping takes 50 whole games from 41 MB to **0.85 MB**, which is small enough
+to commit. No sampling and no "representative subset": all of them.
+
+```bash
+python utils/record_corpus.py --games 50       # play the games
+python utils/freeze_corpus.py                  # freeze them + the snapshot
+python utils/freeze_corpus.py --snapshot-only  # accept reviewed flips
+```
+
+**`--snapshot-only` is the flag for accepting a flip**, and getting this wrong
+is the trap the script's header is mostly about. The bare command *rebuilds the
+bundle* from whatever is in your `records/` — usually a handful of games against
+the fifty in the committed bundle — and the bundle is a gzip, so the commit diff
+does not show what was thrown away. Shrinking now needs `--force`.
+
+Both corpora are kept, because they behave differently on purpose: the local one
+self-heals when a record is replaced, the frozen one cannot, and that is what
+makes it usable as a gate.
+
+### `corpus_bridge.py` — carry a finding across a rebuild of the opponent corpus
+
+`crustle_wall_6` is not a deck, it is a **rank**: the lists are numbered by
+descending meta weight within their archetype, so after the leaderboard is
+re-harvested the same name lands on different sixty cards. A finding recorded by
+name then either gets re-measured against the wrong deck and called
+irreproducible, or measured against the right deck under a name nobody wrote
+down.
+
+The bridge matches by **content**, never by name, and sorts every list into
+IDENTICAL, DRIFTED (with the card distance printed, not assumed), GONE — the
+deck left the top 300, which is a result and not a failure — or NEW.
+
+```bash
+python utils/corpus_bridge.py --old deck/real_opponents_2026-08-07 \
+                              --new deck/real_opponents
+```
+
+---
+
+## The CI gates
+
+These are the two jobs in [.github/workflows/gates.yml](../.github/workflows/gates.yml)
+that are not simply "run the suite".
+
+| Tool | Purpose |
+| --- | --- |
+| `gate_coverage.py` | A **ratchet**, not a target. `coverage-floors.json` records what the unit suite covers of each module today, and the gate fails when one of them drops by more than half a point. It exists because a module reached 6% covered while that week's diffs were being written into it and nothing said so. `--update` raises the floors; lowering one belongs in a commit message. |
+| `gate_mutation.py` | Mutates **only the lines a pull request adds** and asks whether any test goes red. A survivor is not proof the line is wrong — it is proof that if it ever becomes wrong, nothing will say so. It runs `--self-test-only` first and aborts rather than reporting, because two earlier versions of it reported their own bugs as findings. Non-blocking for now, on purpose. |
+
+### The per-rule gates: `gate_*.py`
+
+The rest of the `gate_*.py` family is written **per candidate rule**, not per
+project: `gate_the_engine_waits.py`, `gate_the_cap_reads_their_hand.py`,
+`gate_promoted_relay.py`, `gate_what_the_search_bought.py` and so on. Each one
+exports two trees, loads an agent from each, and plays the same matchups with
+both, so the change under test is the only difference between the arms.
+
+Three things a new one must do, all three learned from a gate that reported a
+false neutral:
+
+1. **export both trees**, package included. A change under `ptcg/` that both
+   arms import from the working tree comes out of both arms identically, and the
+   gate reports exactly zero;
+2. **define and call `provenance()`**, which prints what each arm actually is.
+   Rule R7 of `lint_architecture.py` checks this statically;
+3. **state its own control** — an opponent the rule cannot fire against, run in
+   the same session. A delta that does not clear the control's noise floor is
+   not a delta.
 
 ---
 
@@ -315,6 +491,7 @@ These exist because of the large refactor described in
 | `extract_pure.py` / `extract_definitions.py` | Move constants and definitions into package modules, carrying their comments with them. |
 | `migrate_state.py` | Rewrites module-level state into fields of the state object, editing text in place so comments survive. |
 | `shadow.py` | The equivalence gate: plays self-play with the old version and asks the new one for the same observation. Any different choice is a flip. |
+| `measure_route_recover.py` | The shadow pattern applied to one rule that lives entirely under `ptcg/`, where `selfplay.py --base` measures 50% by construction. It loads each agent with `sys.path` pointing at its own complete tree and checks the `__file__` of the function under test before trusting a single number — the same lesson that later became lint rule R7. |
 
 ---
 

@@ -69,9 +69,15 @@ above were settled, and it takes minutes.
 | `deck.csv` | Our deck: 60 card IDs, one per line. This exact format is what every deck file in the project uses. |
 | `dataset/EN_Card_Data.csv` | Official English card reference data for the challenge. |
 | `dataset/Card_ID List_EN.pdf` | The official card list, used by the deck-image renderer. |
-| `deck/real_opponents/` | Real leaderboard lists, deduplicated and screened for whether the generic bot can pilot them, with a weights file giving each list its true meta frequency. Lists the bot cannot pilot are kept aside — they are not a failure, they are the part of the meta the harness cannot measure yet. |
-| `deck/opponents/` | Hand-built synthetic archetype decks, kept for exercising mechanics the current meta does not offer. |
+| `deck/real_opponents/` | The measurable meta: 87 real leaderboard lists, deduplicated and screened for whether the generic bot can pilot them, plus `pesos.csv` giving each list its meta frequency, its archetype and how many cards it shares with our own sixty. Lists the bot cannot pilot go to `no_pilotables/` — not a failure, but the part of the meta the harness cannot measure yet. |
+| `deck/real_opponents_2026-08-07/` | The corpus this one replaced, kept rather than deleted. A finding is only reproducible while the list it was written against exists, and a rebuild moves sixty of them. `utils/corpus_bridge.py` carries a finding across the gap. |
+| `deck/opponents/` | Hand-built synthetic archetype decks, kept for exercising mechanics the current meta does not offer (item lock, mill). No longer the default target of the matchup matrix. |
 | `competitor_decks/` | The raw download: 60-card lists from the top of the leaderboard, plus an index classifying each by archetype, position and score. |
+
+The `<archetype>_<n>.csv` naming is by descending meta weight **within** an
+archetype, which makes a name a **rank, not a deck**: after a re-harvest,
+`crustle_wall_6` lands on different sixty cards. Record a finding against the
+list's contents, not its filename.
 
 ## Native-library notes
 

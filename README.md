@@ -48,14 +48,15 @@ If you are here to read the agent rather than to run it, start with
 
 ```bash
 python -m pip install -r requirements-dev.txt   # test runner only; the agent needs nothing
-python -m pytest -q                             # run the test suite
-python utils/selfplay.py --games 100             # play 100 games locally
+python -m pytest -q                             # run the test suite (~2 250 tests, ~27 s)
+python tests/golden_corpus.py                   # replay the frozen games: which decisions moved
+python utils/selfplay.py --games 100            # play 100 games locally
 python utils/package_project.py                 # build submission.tar.gz
 ```
 
-Requires Python 3.10+. **The agent itself has no third-party dependencies**, and
-that is deliberate: it runs in a competition container where nothing gets
-installed.
+Requires Python 3.10+ (CI runs 3.10 and 3.12). **The agent itself has no
+third-party dependencies**, and that is deliberate: it runs in a competition
+container where nothing gets installed.
 
 ## Where things are
 
@@ -66,9 +67,10 @@ installed.
 | `cg/` | The competition simulator, vendored (includes the native engine). |
 | `deck.csv` | Our 60-card deck. |
 | `deck/`, `competitor_decks/`, `dataset/` | Opponent lists, leaderboard decks and card reference data. |
-| `tests/` | The safety nets: behaviour tests, real fixtures, invariants, golden corpus. |
-| `utils/` | Command-line tools: play, measure, autopsy, package. |
+| `tests/` | The safety nets: behaviour tests, real fixtures, invariants, and the frozen corpus that ships with the repo. |
+| `utils/` | Command-line tools: play, measure, audit, autopsy, package — plus `nightly.py`, which runs them as one pipeline. |
 | `docs/` | The documentation. |
+| `log/`, `log_analisys/`, `records/` | Local, throwaway game data. Git-ignored; the folders are kept, the content is not. |
 
 ## Documentation
 
@@ -79,19 +81,30 @@ installed.
 - [Strategy](docs/strategy.md) · [Matchups](docs/matchups.md) — what the agent knows about playing well
 - [Code map](docs/code-map.md) — where everything lives
 - [Improving the agent](docs/improving-the-agent.md) — how a change is measured before it is kept
+- [The instruments](docs/instruments.md) — the measuring tools, and the rule that keeps their numbers honest
 - [Tools](docs/tools.md) · [Testing](docs/testing.md) · [Debugging a decision](docs/debugging.md)
 
 ## Current results
 
-Against the 93 real leaderboard decks, weighted by how often each appears:
-**93.3% expected ladder winrate**, +3.9 prizes per game, zero forfeits across
-37,200 games. The weakest matchup is the Crustle wall archetype. Details and
-method in [Matchups](docs/matchups.md).
+Against the **87 real leaderboard decks** in `deck/real_opponents/`, 400 games
+each, weighted by how often each list actually appears:
+
+| | |
+| --- | --- |
+| Expected ladder winrate (weighted) | **94.0%**, over 99.5% of the meta |
+| Unweighted mean | 91.4% |
+| Prize differential (weighted) | **+3.853** per game |
+| Forfeits | 1 in 34 800 games |
+| Weakest matchup | `crustle_wall_5`, 69.8% |
+
+Measured 10–11 August 2026 (`utils/matchup_matrix.py --games 400 --weights`).
+One bound applies to every figure in this repository: the reference bot takes
+the first turn, so these numbers describe the **going-second** half of the game.
+Details, the per-archetype table and that bound in [Matchups](docs/matchups.md).
 
 ## Contributing and licence
 
-[CONTRIBUTING.md](CONTRIBUTING.md) explains the four gates a change has to pass
--- two of them run in CI on every push and pull request -- and what to look at
-when reviewing one. The code is MIT licensed ([LICENSE](LICENSE)); the
-vendored simulator under `cg/` belongs to the competition and keeps its own
-terms.
+[CONTRIBUTING.md](CONTRIBUTING.md) explains the gates a change has to pass —
+most of them run in CI on every push and pull request — and what to look at when
+reviewing one. The code is MIT licensed ([LICENSE](LICENSE)); the vendored
+simulator under `cg/` belongs to the competition and keeps its own terms.

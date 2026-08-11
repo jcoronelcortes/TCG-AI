@@ -8,7 +8,7 @@ workflow.
 
 ## The loop
 
-```
+```text
 1. FIND     a weakness that costs real games
 2. REPRODUCE the exact decision that lost them
 3. PIN       it with a test that fails today
@@ -27,6 +27,15 @@ workflow.
 | Was there a better line this turn? | `utils/turn_explorer.py` — enumerates every legal sequence of our own actions for a turn and compares the best one with what the agent chose. |
 | Why do we stall against the wall? | `utils/wall_probe.py` — per-turn probe of the immune-wall matchup; dumps the turns that ended dry so they can be replayed. |
 | Is there anything to write a rule *about*? | `utils/turn_waste_census.py` — counts, per turn and per plan mode, the resources that were legally playable and were declined: the turn's attachment, the Supporter slot, an evolution, a body for the bench. |
+| Which rules never fire at all? | `utils/rule_census.py` — chain walked / evaluated / fired / decided, per named rule, sorted into four bands of deadness. A rule that is dead by *ordering* is a different bug from one dead by *condition*. |
+| Does the agent believe something the engine disagrees with? | `utils/differential_oracle.py` — the attack plan's prediction against what actually resolved. `utils/invariant_monitor.py` — a promise still standing while its premise is dead. |
+| Is a table of card IDs still true? | The census family: `op_scaling_census.py`, `op_buff_census.py`, `op_immunity_census.py`. They diff a table against the printed card text in both directions. |
+
+All of these are catalogued in [Tools](tools.md), and the discipline that governs
+them — **no detector reports a number until it has proved in the same run that it
+can catch a planted defect and stay quiet without one** — is in
+[The instruments](instruments.md). Read that before trusting a finding from any
+of them.
 
 **The waste axis is measured out.** The census above was run over 250 games and
 found the agent is *not* leaving resources unspent: the turn's energy attachment
@@ -76,9 +85,14 @@ Run the gates in this order — cheapest first.
 | --- | --- | --- |
 | Unit suite | `python -m pytest -q` | Broken behaviour that someone already pinned. |
 | Golden corpus | `python tests/golden_corpus.py` | **Which historical decisions your change flipped**, with an explicit diff. |
+| Mutation of your own lines | `python utils/gate_mutation.py --changed HEAD~1` | Whether the test you just wrote watches the code you just wrote. |
 | Self-play | `python utils/selfplay.py --games 200 --base HEAD~1` | Does it win more games than the previous version. |
+| A two-arm gate for the rule | `python utils/gate_<your_rule>.py` | The same, with the change as the *only* difference between the arms — and a control the rule cannot fire against. |
 | Matchup matrix | `python utils/matchup_matrix.py --games 400 --weights --base <ref>` | Whether a gain in one matchup is paid for by a loss in another. |
 | Equivalence (refactors only) | `python utils/shadow.py <before.py> <after.py>` | A refactor that was supposed to change nothing but did. |
+
+Or `python utils/nightly.py --quick`, which runs the reproducible ones in the
+order the dependencies want and writes a report.
 
 ### The measurement rules that were learned the hard way
 
@@ -95,6 +109,16 @@ Run the gates in this order — cheapest first.
   happened, and it invalidated a whole batch of experiments.
 - **Winrate saturates; prize differential does not.** Above ~94% against the
   generic bot, use the prize differential to tell changes apart.
+- **The weighted ladder figure cannot see a hard-matchup gain.** 36% of the
+  field is a matchup we win 98% of, so a change worth eleven points against
+  Crustle — 10% of the field — moves the weighted mean by a fraction. A gain can
+  be real and the meta not contain it. Measure hard-matchup changes on the hard
+  matchups, and say which you are reporting.
+- **Every `--opponent` run is the going-second half of the game.** The reference
+  bot takes the first turn unless told otherwise. See [Matchups](matchups.md).
+- **Suspect the gate first.** A gate that shares modules between its arms
+  reports exactly zero, and zero orders a revert here. Run the instrument twice
+  before believing it, and check that its self-test ran.
 
 ## 6. Keep or revert
 
@@ -102,6 +126,12 @@ Write down what you measured, including the reverts. A rule that was tried,
 measured neutral and removed is worth as much as one that shipped — it stops the
 next person from spending the same week.
 
+Where that goes: a page under `docs/history/` for a whole session, or the commit
+message for a single change. Both are append-only — a write-up records what was
+true on its date, and a later page says when a finding was closed or reversed.
+The write-ups already there are indexed from the
+[documentation index](README.md).
+
 ---
 
-Next: [Tools](tools.md) · [Testing](testing.md) · [Debugging a decision](debugging.md)
+Next: [The instruments](instruments.md) · [Tools](tools.md) · [Testing](testing.md) · [Debugging a decision](debugging.md)

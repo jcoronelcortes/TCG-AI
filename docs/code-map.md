@@ -2,8 +2,9 @@
 
 [← Documentation index](README.md)
 
-Where everything lives and what it is responsible for. Module names are in
-Spanish (so is the code); the descriptions here are what matters.
+Where everything lives and what it is responsible for. Identifiers, filenames
+and flags are English throughout; what is still Spanish is *stored data*, and
+[Tools](tools.md) says which fields and why.
 
 ## Top level
 
@@ -16,10 +17,15 @@ Spanish (so is the code); the descriptions here are what matters.
 | `deck/` | Deck-adjacent assets: opponent deck lists and the deck-image renderer. |
 | `dataset/` | Official card reference data for the challenge. |
 | `competitor_decks/` | Real 60-card lists downloaded from the leaderboard, with an index by archetype and score. |
-| `tests/` | The safety nets. See [Testing](testing.md). |
-| `utils/` | Command-line tools: play games, measure matchups, autopsy losses, package the submission. See [Tools](tools.md). |
-| `records/`, `log/` | Local, throwaway game data (git-ignored). Recorded games and per-turn records used to reproduce decisions. |
+| `tests/` | The safety nets, including the committed frozen corpus. See [Testing](testing.md). |
+| `utils/` | Command-line tools: play games, measure matchups, audit tables, autopsy losses, package the submission. See [Tools](tools.md) and [The instruments](instruments.md). |
+| `records/`, `log/`, `log_analisys/` | Local, throwaway game data (git-ignored, the folders kept via `.gitkeep`). Recorded games, per-turn records, and everything the gates and the nightly pipeline write. |
 | `notebook/` | Meta-analysis notebooks (not versioned). |
+
+Working locally you will also see git-ignored files at the root that are not
+part of the project: `_v_*.py` (ablation copies of `main.py` for A/B runs),
+`main_pre_*.py` (snapshots taken before a large change) and `submission.tar.gz`.
+A fresh clone has none of them.
 
 ## Inside `ptcg/`
 
@@ -41,6 +47,7 @@ starting a battle.
 | `costs.py` | Printed attack costs of our attackers. The *effective* cost of the turn is derived from this (a stadium can tax it). |
 | `tables.py` | Card and attack tables built once from the simulator's data. |
 | `scoring.py` | Scoring constants shared by several phases. |
+| `op_scaling.py` | The **opposing** attacks whose damage is a count of the board rather than the number printed on the card ("20x", "30+"). It lives here because it is a table, not a decision. `utils/op_scaling_census.py` audits it against every opposing deck in the repo, and the suite runs that audit as a gate. |
 
 ### `ptcg/engine/` — the decision scaffolding
 
@@ -85,8 +92,7 @@ These are the cards whose "should I play it, and on what" is a topic in itself.
 | `ultra_ball.py` | Is the search worth its discard cost, and what should we dig for? The largest decision module in the project. |
 | `night_stretcher.py` | What is worth recovering from the discard — a body, an engine piece, or energy for a finisher? |
 | `meowth.py` | The hand engine: when to bench Meowth ex for its Supporter search, and what that search is worth. |
-| `op_scaling.py` | The opposing attacks whose damage is a count of the board, not the number printed on the card ("20x", "30+"). Fifteen of them appear in the opposing decks in the repo; four more are left out on purpose because their scale is a coin flip or the opponent's own choice. `utils/op_scaling_census.py` audits the table against the card pool. |
-| `disruption.py` | Hand disruption. Xerosic's Machinations and Unfair Stamp live together on purpose: the correct order between them makes each consult the other. |
+| `disruption.py` | Hand disruption, in **both** directions. Playing Xerosic's Machinations and the Unfair Stamp lives here — they are together on purpose, because the correct order between them makes each consult the other — and so does the other half: what to keep when *their* card forces a discard on us. See [Discarding well](discard-plan-2026-08.md). |
 | `supporters.py` | The remaining Supporters and choosing the best one in hand. |
 | `poke_pad.py` | Which Pokémon is worth searching for. |
 | `bug_catching_set.py` | Bug-type search. |
@@ -98,14 +104,32 @@ This is the body of what used to be one enormous function, split by phase.
 
 | Module | Purpose |
 | --- | --- |
-| `game_plan.py` | What the prize count says the turn is FOR, decided before the first decision: is there a route that closes the game, how many prizes we take, how many they take on the reply. The ordering vetoes read it so they do not step aside for a resource card on a turn that ends the game. |
+| `game_plan.py` | What the prize count says the turn is FOR, decided before the first decision: is there a route that closes the game, how many prizes we take, how many they take on the reply. It answers with one word — `WIN_NOW`, `DENY`, `RACE`, `DEVELOP` — and the ordering vetoes read it so they do not step aside for a resource card on a turn that ends the game. |
 | `scoring.py` | The dispatcher: sends each menu option to the branch for its type. |
-| `opciones/` | One module per option type: `play`, `card`, `retreat`, `evolve`, `attach`, `ability`, `attack`, and the short ones together in `minor`. |
+| `scoring_sentinel.py` | The one sentinel value the branches return to say "I appended my own scores". It lives in its own module so the dispatcher and the branches do not have to import each other. |
+| `options/` | One module per option type: `play`, `card`, `retreat`, `evolve`, `attach`, `ability`, `attack`, and the short ones together in `minor` (including the yes/no select that decides whether we take the first turn). |
 | `supporters.py` | Valuing every Supporter in hand for this turn. |
 | `energy.py` | Who deserves the energy attachment this turn. |
-| `finalize.py` | The close of the turn: play-order tiers, last-second rescues, and the final choice. |
-| `ctx*.py` | The context objects that carry the turn's facts between those phases. |
+| `finalize.py` | The close of the turn: play-order tiers, last-second rescues, the filed ordering vetoes being lifted or confirmed, and the final choice. |
+| `ctx.py`, `ctx_scoring.py`, `energy_ctx.py`, `supporters_ctx.py` | The context objects that carry the turn's facts between those phases, so each phase reads one snapshot instead of recomputing the board. |
+
+## Inside `tests/`
+
+Most of `tests/` is one file per lesson learned; those are described in
+[Testing](testing.md). The modules that are *not* tests are the shared
+machinery:
+
+| Module | Purpose |
+| --- | --- |
+| `state_builder.py` | Builds synthetic observations with strict 60-card accounting. |
+| `golden_corpus.py` | The replay engine behind both corpora, and a command line of its own. |
+| `corpus/` | The committed frozen corpus: 50 games reduced to our own decisions, plus the snapshot to compare against. |
+| `fixtures/` | Observations captured from real games, self-contained JSON. |
+| `kaggle_loader.py` | A verbatim copy of the competition loader, so the smoke test loads the submission exactly as the container does. |
+| `patching.py` | Sets a name everywhere it is bound — several names live in more than one module, so patching one does not reach the others. |
+| `main_support.py` | What more than one slice of the `main.py` regression log needs. |
+| `decision_grid.py`, `rule_trace.py`, `fez_menu.py` | The metamorphic sweep, rule-chain tracing, and one shared menu builder. |
 
 ---
 
-Next: [The simulator layer](simulator.md) · [Strategy](strategy.md) · [Tools](tools.md)
+Next: [The simulator layer](simulator.md) · [Strategy](strategy.md) · [Tools](tools.md) · [The instruments](instruments.md)

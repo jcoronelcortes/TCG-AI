@@ -43,12 +43,14 @@ another, so most of them are gated on these flags.
 | **Mega Starmie**, specifically | The body they show is a 70 HP Staryu that threatens nothing; the body it becomes prints **Nebula Beam 210**, the exact HP of our Teal Mask Ogerpon ex. The damage projector only ever sees Jetting Blow (120), because three energies is more than a Staryu with one can pay — so no "is my active doomed?" reading fires in time. | Named as a **matchup**, not as an arithmetic threshold: on **our first turn**, with no attack available and a 2-prize ex in front, retreat it and put a one-prize body up (`STARMIE_SAC_PROMOTE_ORDER`). Bounded to the opening — see below. |
 | **Comfey (mill)** | Wins by decking us out rather than on prizes. | Stop spending draw, commit to a single attacker plan. |
 | **Iron Thorns / ability lock** | Turns off our engines entirely. | Play around the lock and treat it as a deck-size limit, not an ability question. |
-| **Cynthia Garchomp, Festival Lead, Archaludon, Zoroark, Gardevoir, Greninja, Raging Bolt, Abomasnow…** | Individually rarer. | Targeted rules only where they were measured to matter. |
+| **Festival Lead** | 4.3% of the field across 11 lists, and several of them are near-copies of our own sixty. The shared stadium that evolves for free arms *both* sides. | We beat it 97.5%. The rule worth knowing is that the stadium they brought also arms our Dipplin. |
+| **Team Rocket Mewtwo** | New in the August corpus: 5 lists, 2% of the field. | No dedicated plan; 95.3% on the general machinery. |
+| **Cynthia Garchomp, Archaludon, Zoroark, Gardevoir, Greninja, Raging Bolt, Abomasnow, Chandelure…** | Individually rarer. | Targeted rules only where they were measured to matter. |
 
-## Where we stand (7 August 2026)
+## Where we stand (11 August 2026)
 
-Measured against the **97 real leaderboard decks** in `deck/real_opponents/`,
-rebuilt from the August top-300 download, 400 games per matchup, weighted by how
+Measured against the **87 real leaderboard decks** in `deck/real_opponents/`,
+rebuilt from the 9 August top-300 harvest, 400 games per matchup, weighted by how
 often each list actually appears:
 
 ```bash
@@ -57,80 +59,123 @@ python utils/matchup_matrix.py --games 400 --weights
 
 ```text
 EXPECTED LADDER WINRATE (weighted by meta share)
-  weighted  : 92.8%   over 99.4% of the meta covered
-  unweighted: 91.1%
-  PRIZE DIFFERENTIAL, weighted: +3.803 per game
-  our forfeits: 0 across all 97 matchups
+  weighted  : 94.0%   over 99.5% of the meta covered
+  unweighted: 91.4%
+  PRIZE DIFFERENTIAL, weighted: +3.853 per game
+  our forfeits: 1 across 34 800 games
+  weakest matchup: crustle_wall_5 at 69.8%
 ```
 
-Aggregated by archetype:
+Aggregated by archetype (shares from `deck/real_opponents/pesos.csv`):
 
-| Archetype | Meta share | Winrate | Prize diff. | Ladder points lost |
-| --- | ---: | ---: | ---: | ---: |
-| **Crustle wall** | 10.2% | **76.8%** | **+1.89** | **2.37** |
-| Marnie Grimmsnarl | 38.0% | 95.4% | +4.53 | 1.76 |
-| **Ogerpon Verde** | 7.3% | **86.7%** | **+2.38** | 0.97 |
-| Alakazam | 18.5% | 95.4% | +3.47 | 0.85 |
-| Mega Lucario | 2.2% | 89.6% | +3.21 | 0.23 |
-| Mega Starmie | 0.9% | 82.7% | +2.23 | 0.16 |
-| Mega Kangaskhan | 2.2% | 93.9% | +4.49 | 0.13 |
-| Mega Lopunny | 3.3% | 96.7% | +4.16 | 0.11 |
-| *(9 remaining archetypes)* | 14.5% | 93–99% | +4 to +5 | 0.42 |
+| Archetype | Meta share | Lists | Winrate | Prize diff. | Ladder points lost |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| **Crustle wall** | 10.0% | 16 | **77.4%** | **+1.92** | **2.25** |
+| Alakazam | 19.0% | 11 | 94.3% | +3.31 | 1.08 |
+| Marnie Grimmsnarl | 36.0% | 9 | 97.6% | +4.55 | 0.88 |
+| **Ogerpon Verde** | 5.0% | 8 | **88.8%** | **+2.66** | 0.56 |
+| Mega Lopunny / Mega Froslass | 8.0% | 1 | 96.2% | +4.07 | 0.30 |
+| Mega Lucario | 3.3% | 4 | 92.5% | +3.30 | 0.25 |
+| Festival Lead | 4.3% | 11 | 97.5% | +4.59 | 0.11 |
+| Team Rocket Mewtwo | 2.0% | 5 | 95.3% | +4.13 | 0.09 |
+| Mega Kangaskhan | 1.3% | 4 | 93.3% | +4.24 | 0.09 |
+| **Mega Starmie** | 0.7% | 2 | **87.1%** | **+2.52** | 0.08 |
+| *(8 remaining archetypes)* | 9.9% | 16 | 91–99% | +3.3 to +5.2 | 0.20 |
 
-The previous corpus (5 August, 93 lists) read 93.3% weighted and +3.905. Half a
-point of that difference is the field and not the agent: the corpus was rebuilt
-in between, four new lists came in, and the agent's only changes since were
-readings that flip no decision (golden corpus, 0 flips).
+The previous corpus (7 August, 97 lists) read 92.8% weighted and +3.803. Both
+halves of the field and the agent moved in between, so the two figures are not a
+clean before/after: sixty lists changed, sixteen disappeared and six are new.
+The retired corpus is kept as `deck/real_opponents_2026-08-07/`, because a
+finding written against a list is only reproducible while that list exists.
 
-**The worst single list is `crustle_wall_6` at 58.2%, with a prize differential
-of -0.22** -- the only matchup in the table where the opponent takes more prizes
-than we do. It is a pure stall build: 4 Crustle, 4 Jumbo Ice Cream, 4 Cook,
-3 Waitress, 13 Grass, and two Teal Mask Ogerpon ex as the only other attacker. No
-Boss's Orders, no Kangaskhan. Against it, `utils/healing_census.py` reports that
-**83% of the damage we deal is healed back** before it becomes a prize.
+**The worst single list is `crustle_wall_5` at 69.8%**, and `crustle_wall_6` is
+the one with almost no prize differential left (+0.05). That family is a pure
+stall build — Crustle behind healing and buff tools, with two Teal Mask Ogerpon ex
+as the only other attacker. Against those lists `utils/healing_census.py` reports
+that a large majority of the damage we deal is healed back before it becomes a
+prize; on the worst list of the previous corpus it was **83%**.
 
 ### Reading the table
 
-**Crustle wall is the real weakness, not Marnie.** Marnie costs more ladder
-points only because it is 38% of the field; we beat it 95% of the time. Crustle
-is 10% of the field and we win 77%. Three independent signals point at it: the
-worst winrate, the worst prize differential (games decided narrowly — which is
-exactly where a new rule can move the needle), and **18** distinct lists, so it
-is the archetype and not one odd deck.
+**Crustle wall is the real weakness, not Marnie.** Marnie is 36% of the field
+and we beat it 98%. Crustle is 10% and we win 77%. Three independent signals
+point at it: the worst winrate, the worst prize differential — games decided
+narrowly, which is exactly where a new rule can move the needle — and **16**
+distinct lists, so it is the archetype and not one odd deck.
 
-Two corpus refreshes in a row have **widened that gap instead of closing it**.
-Nothing about the agent changed between the runs — the field did. Crustle went
-8.7% → 10.0% → 10.2% of the meta while Marnie fell 43.4% → 39.0% → 38.0%, so the
-archetype we win least is the one gaining ground.
+Three corpus refreshes in a row have **widened that gap instead of closing it**,
+and mostly because the field moved rather than the agent: Crustle went
+8.7% → 10.0% → 10.2% → 10.0% of the meta while Marnie fell 43.4% → 39.0% → 38.0%
+→ 36.0%. The archetype we win least is the one holding ground while the one we
+beat recedes.
 
-**Ogerpon Verde is the second real hole** (86.7%, and it lost three points on
-the refresh even as its share fell), invisible in a
-winrate-sorted list because it weighs so little. Its share has moved 4.2% →
-8.3% → 7.3% across the three corpora and the matchup itself has now given back
-the four points it had gained, so it costs about one ladder point either way.
+**Ogerpon Verde and Mega Starmie are the other two real holes** (88.8% and
+87.1%), invisible in a winrate-sorted list because they weigh so little
+together.
 
 **Winrate alone stops resolving once it saturates.** Above ~94% the generic
 opponent bot is the limiting factor. The **prize differential** keeps
 discriminating there, because a game can be won without taking all six prizes —
 it measures something else, not a disguised winrate.
 
-**Zero forfeits in 38,800 games** means the agent never crashed and never chose
-an illegal option against any real list.
+**One forfeit in 34 800 games**, against `mega_kangaskhan_1`. It is the first in
+several corpus generations; every other list is clean, meaning the agent never
+crashed and never chose an illegal option.
 
-**The meta is measured almost whole.** The screening admitted 97 of the 98
-unique lists, so the weighted figure covers 99.4% of the field. The one rejection
-is an N's Zoroark ex build the generic bot cannot start (13% for the bot against
-itself, which measures the bot and not the matchup). When a list is rejected the
-average is quietly computed over a hole; the hole is one list wide.
+**The meta is measured almost whole.** The screening admitted 87 of the 88 unique
+lists, so the weighted figure covers 99.5% of the field. The one rejection — an
+N's Zoroark ex build the generic bot cannot start — sits in
+`deck/real_opponents/no_pilotables/`. An unpilotable list measures the bot
+getting stuck, not the matchup, and returns a falsely high winrate.
 
-**Three of the 97 are near-copies of our own list** (two Festival Lead at 52 and
-57 cards in common, one Ogerpon Verde at 47). Against those the bot is piloting
-our engine rather than an opposing deck, and it plays it badly, so they come back
-at 94–98%. They are kept — people do play them — but they flatter one archetype:
-dropping them moves Ogerpon Verde from 86.7% to **86.2%** and its prize
-differential from +2.38 to **+2.27**, which is the number to reason with. The
-overall figure barely notices (92.78% → 92.75%), because together they are 0.9%
-of the field — a third of what they were in the previous corpus.
+**Some of the lists are near-copies of our own sixty.** `pesos.csv` records the
+overlap per list in its `solape_propio` column, and two Festival Lead builds
+share 52 and 60 cards with us. Against those the bot is piloting *our* engine
+rather than an opposing deck, and it plays it badly, so they read as matchups we
+dominate. They are kept — people do play them — and flagged, so the aggregation
+can report the field with and without.
+
+### The bound on every number above: we always go second
+
+The reference bot answers YES to the "do you go first?" select, and our agent
+**vetoes going first deliberately** (`ptcg/turn/options/minor.py`), which is
+defensible under current rules, where the second player may attack on their
+first turn. Two policies multiply, and the result is that in matchup mode the
+bot went first in 60 of 60 games.
+
+That does not invalidate a winrate. It bounds its **scope**: the matrix above,
+the Crustle axis and nearly every `--opponent` gate in this repository describe
+only the going-second half of the game, and every branch reading
+`we_go_first == True` is code self-play does not execute.
+
+`OpponentBot(first_choice="second")` makes the bot decline so the coin flip
+decides, inside a single run. 800 games per deck, six decks:
+
+| Deck | Going first | Going second | Δ |
+| --- | ---: | ---: | ---: |
+| crustle_kangaskhan | 79.00% | 68.00% | **+11.00** |
+| marnie_grimmsnarl | 94.25% | 89.50% | +4.75 |
+| alakazam | 99.50% | 99.25% | +0.25 |
+| dragapult | 98.00% | 97.75% | +0.25 |
+| cynthia_garchomp | 98.75% | 99.00% | −0.25 |
+| festival_lead | 98.50% | 99.25% | −0.75 |
+| **aggregate** | **94.67%** | **92.12%** | **+2.54** |
+
+And then the weighted matrix said no. At matched n over the 87 real lists, the
+same flag is worth **+1.0 point unweighted and +0.2 weighted**, with the prize
+differential moving +3.882 → +3.998.
+
+Both readings are the same fact from two directions, and it is the one this
+project keeps having to relearn: **the gain is real and the meta does not contain
+it.** Going first is worth eleven points against Crustle, and Crustle is 2% of
+the ladder by weight; 31% of it is a single Marnie list where we already win 98%
+and there is no room. So this is a change to make for the hard matchups and to
+measure on the hard matchups — not a ladder-winrate play.
+
+One latent defect sits in the same lines and is worth knowing about:
+`AGENT_STATE.we_go_first` is assigned while each option is **scored**, not when
+one is chosen, so its value is whatever the last-scored option wrote. It is
+correct today only because the menu happens to list YES before NO.
 
 ### "We cannot attack" is not a rare board — hiding the ex is bounded to the opening
 
@@ -173,14 +218,21 @@ A card-by-card audit of the top archetypes (August 2026) found:
 - **Crustle's package** (extra-HP tools, healing, effect-blocking energy) is not
   a blind spot: the HP we read already includes the buffs, and the effect-blocker
   stops effects, not damage. The matchup is hard by construction.
-- **Cynthia's Roserade** was reviewed and skipped: the archetype is ~5% of the
-  meta and we already win 97.6% of it with a +4.61 prize differential.
-- **Comet Punch** (Team Rocket's Kangaskhan ex) flips four coins for 30 each.
-  Left out with the rest of the coin flips: the expected value is computable,
-  the damage is not. Its three companions from the same corpus refresh — Mega
-  Symphonia, Verdant Storm and Buddy Blast — *were* implemented, because their
-  scale is sitting on the board where the agent can read it. See
-  `ptcg/cards/op_scaling.py`.
+- **Cynthia's Roserade** was reviewed and skipped once, on the grounds that we
+  already won 98% of the archetype — and then a real game showed a Gabite whose
+  Dragonslice prints 40 taking 70 off a Tapu Bulu that had 70 left. The extra 30
+  was the Roserade on their bench. It is now in `OP_TEAM_DAMAGE_BUFF`, together
+  with Hop's Snorlax, and `utils/op_buff_census.py` audits that table. A winrate
+  we already win is not evidence that a reading is right.
+- **The coin-flip family** is left out on purpose, and the census makes each
+  exclusion state its reason: Comet Punch (four coins for 30 each), Continuous
+  Headbutt and Rapid-Fire Combo flip; Erasure Ball and Bellowing Thunder scale
+  with how much energy the *opponent* chooses to discard. The expected value is
+  computable in every case; the damage is not.
+- **Everything else scaling is modelled.** `utils/op_scaling_census.py` currently
+  reports 14 modelled, 5 excluded with a written reason, and **0 unmodelled**
+  across every opposing deck in the repository. The suite runs it as a gate, so
+  a corpus refresh that brings in an unread scaling attack turns it red.
 
 > One method note worth keeping: searching for a card ID inside the source gives
 > **false negatives** — card IDs and attack IDs are different namespaces, and a
@@ -196,7 +248,13 @@ holds. These are modelled inline in the opponent-damage projector, next to the
 tools that do the same thing, because the bonus is flat, readable and lands
 before weakness.
 
-**Okidogi's Adrena-Power** is the one currently modelled: while it holds a
+There are two of them, and the split is deliberate. An ability on the **attacker
+itself** goes in `OP_ACTIVE_ABILITY_DAMAGE`; an ability on a body sitting on
+**their bench** that boosts the whole team goes in `OP_TEAM_DAMAGE_BUFF`. Both
+tables live in `ptcg/cards/ids.py` and both are audited by
+`utils/op_buff_census.py`.
+
+**Okidogi's Adrena-Power** is the self-buff currently modelled: while it holds a
 Darkness Energy its attack does 100 more to our active — an attack printed at 70
 arriving as 170, or 340 against a body weak to Fighting. Two traps came with it,
 and both are the same trap:
@@ -211,10 +269,12 @@ and both are the same trap:
 See [the simulator layer](simulator.md) for the general rule both traps come
 from: the observation already carries whatever the engine resolved.
 
-**Still open:** a *different* Okidogi in the card pool has an attack that scales
-with the prizes we took last turn. It is unmodelled, and the census gate in the
-test suite is red because of it — that is the gate doing its job.
+A *different* Okidogi in the card pool (a different card ID, same name) has an
+attack that scales with the prizes we took last turn. It was the last entry in
+the unmodelled bucket, and it is no longer in any opposing list in the
+repository — which is why the census gate is green today and will say so again
+the moment a refresh brings the card back.
 
 ---
 
-Next: [Improving the agent](improving-the-agent.md) · [Tools](tools.md)
+Next: [Improving the agent](improving-the-agent.md) · [Tools](tools.md) · [The instruments](instruments.md)

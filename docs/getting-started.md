@@ -45,14 +45,23 @@ used by the deck-image renderer.
 python -m pytest -q
 ```
 
-The suite runs in a few seconds and is the fastest signal that nothing broke.
+About 2 250 tests in half a minute, and the fastest signal that nothing broke.
 With coverage:
 
 ```bash
-python -m pytest -q --cov=. --cov-report=term-missing
+python -m pytest -q --cov=main --cov=ptcg --cov-report=term-missing
 ```
 
-See [Testing](testing.md) for what the different kinds of tests protect.
+The other reproducible gates, in the order they are cheapest:
+
+```bash
+python tests/golden_corpus.py        # which historical decisions your change flipped
+python utils/lint_architecture.py    # R1-R8
+python utils/nightly.py --quick      # all of the above plus every detector, a few minutes
+```
+
+See [Testing](testing.md) for what the different kinds of tests protect, and
+[The instruments](instruments.md) for what the detectors are.
 
 ## Play games locally
 
@@ -91,3 +100,4 @@ the competition while every local test stays green.
 - Want to understand the decisions? → [How the agent thinks](how-the-agent-thinks.md)
 - Want to find some code? → [Code map](code-map.md)
 - Want to change the strategy? → [Improving the agent](improving-the-agent.md)
+- Want to know whether a number can be trusted? → [The instruments](instruments.md)

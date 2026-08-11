@@ -42,12 +42,39 @@ is written line by line. It is meant to stay readable as the code changes.
 | Page | What you get |
 | --- | --- |
 | [Improving the agent](improving-the-agent.md) | The measurement workflow: how a strategy change is proposed, measured, and kept or reverted. |
+| [The instruments](instruments.md) | The measuring apparatus as a whole — the four questions it answers, and the rule that decides whether a number may be believed. |
 | [Tools](tools.md) | Catalogue of the scripts in `utils/`: what each one is for and how to run it. |
-| [Testing](testing.md) | The safety nets: unit tests, real fixtures, golden corpus, invariants, architecture lint. |
+| [Testing](testing.md) | The safety nets: unit tests, real fixtures, both golden corpora, invariants, mutation, architecture lint, and what runs in CI. |
 | [Debugging a decision](debugging.md) | How to reproduce one concrete decision and find out why the agent chose it. |
-| [Rename maps](history/rename-maps/README.md) | What became what when the project was translated to English. |
 | [Project history](project-history.md) | Why the code is shaped the way it is, and the mistakes that shaped it. |
-| [The night of 7 Aug 2026](history/night-2026-08-07.md) | A full measurement session, written up: what was found, what was measured, and what was deliberately not shipped. |
+| [Rename maps](history/rename-maps/README.md) | What became what when the project was translated to English. |
+
+## Work in progress
+
+Plans with a status line at the top. They are living documents: each one says
+which waves have shipped, which are still plan, and what running the shipped
+ones actually cost.
+
+| Page | What it plans |
+| --- | --- |
+| [Discarding well](discard-plan-2026-08.md) | The forced-discard decision: what the per-card price list gets wrong, the keep-set planner meant to replace it, and the waves to get there. Waves 0–1 shipped. |
+| [The testing plan](testing-plan-2026-08.md) | How the safety nets were rebuilt in August 2026 — the frozen corpus, the coverage ratchet, the mutation gate, the nightly pipeline. |
+| [Night plan, 11 Aug](night-plan-2026-08-11.md) | The most recent session plan. Earlier ones: [9 Aug](night-plan-2026-08-09.md), [10 Aug](night-plan-2026-08-10.md), [10 Aug b](night-plan-2026-08-10-b.md), [10 Aug c](night-plan-2026-08-10-c.md). |
+
+## Measurement sessions, written up
+
+A session is planned, run, and then written up — including the reverts, because
+a rule that was tried, measured neutral and removed stops the next person from
+spending the same week.
+
+| Page | What it found |
+| --- | --- |
+| [The night of 11 Aug 2026](history/night-2026-08-11.md) | The most recent, and the most instructive: three defects nobody had read, two detectors that caught their own authors, and a gain that was real while the meta did not contain it. |
+| [The night of 10 Aug 2026 (c)](history/night-2026-08-10-c.md) | The session that produced the corpus rebuild and the corpus bridge. |
+| [The day of 9 Aug 2026](history/day-2026-08-09.md) | The full day, gate by gate. |
+| [The 9 Aug full run](history/night-2026-08-09-full-run.md) | The complete pipeline end to end. |
+| [The night of 7 Aug 2026](history/night-2026-08-07.md) | What was found, what was measured, and what was deliberately not shipped. |
+| [Phantom knockouts vs Crustle](history/phantom-ko-crustle-2026-08-10.md) | One detector's findings chased to the bottom — and the artefacts of its own that were in the way. |
 | [Tournament principles audit](history/tournament-principles-audit.md) | The five habits that separate a casual player from a tournament one, checked one by one against the code. |
 | [The menu-order ties](history/menu-order-ties.md) | The 0.67% of decisions the emission order settles, class by class: which ones are harmless, and the promotion that handed the game away. |
 
@@ -57,11 +84,20 @@ is written line by line. It is meant to stay readable as the code changes.
 
 - **English only, everywhere.** Everything written *into* the project is
   English: documentation, code comments, docstrings, test docstrings, test
-  assertion messages and commit messages. The Spanish comments still in the tree
-  are legacy — translate one when you touch that code, rather than sweeping for
-  its own sake. (Replies to the user in the editor console are a different
-  audience and stay in Spanish.)
+  assertion messages and commit messages. Two deliberate exceptions: what the
+  tools **print** to the console is a reply to the user and stays in Spanish,
+  and so do stored data fields already written to disk (see the last section of
+  [Tools](tools.md) — renaming one of those is a migration, not a rename).
 - **No line numbers, no line ranges.** Code moves constantly. Pages point at
   folders, packages and concepts instead.
 - **Purpose over mechanics.** Each page answers "what is this for, when do I use
   it, why does it exist" — the source is the authority on the exact rules.
+- **A measured number carries its method.** Where a page states a winrate, a
+  frequency or a share, it also states the sample size, the corpus and the date.
+  A number with no method behind it rots into folklore, and this project has
+  reverted rules on the strength of numbers that turned out to be their own
+  instrument's bug.
+- **Session write-ups are append-only.** `docs/history/` records what was
+  measured on a date, and it is not edited afterwards to match what is true
+  today. When a finding is later closed or reversed, the newer page says so.
+  Everything outside `history/` is expected to describe the present.

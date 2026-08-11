@@ -1,153 +1,153 @@
-# La noche del 9-10 de agosto — la corrida que la infraestructura estaba esperando
+# The night of 9–10 August — the run the infrastructure was waiting for
 
-**La ejecutas tú.** Este documento es la tarea, no un informe.
+**You are the one who runs it.** This document is the task, not a report.
 
-Toda la maquinaria construida el 8 y el 9 de agosto —el oráculo diferencial, el
-monitor de invariantes, el gate de mutación, los suelos de cobertura, el corpus
-congelado, las propiedades— existe para producir **una lista de hallazgos**. Esa
-lista no se ha generado todavía ni una sola vez a tamaño completo. Eso es lo que
-hace esta noche.
+Everything built on 8 and 9 August — the differential oracle, the invariant
+monitor, the mutation gate, the coverage floors, the frozen corpus, the
+properties — exists to produce **a list of findings**. That list has never once
+been generated at full size. That is what tonight does.
 
 ---
 
-## 0. Antes de lanzar — 2 minutos
+## 0. Before launching — 2 minutes
 
 ```bash
 cd "/Users/jcoronel/Desktop/VS Proyectos/TCG AI"
-git status --short          # tiene que estar limpio
-git log --oneline -1        # apunta el hash: todo se mide contra él
+git status --short          # must be clean
+git log --oneline -1        # note the hash: everything is measured against it
 ```
 
-**Si el árbol no está limpio, commitea o guarda antes.** El gate de mutación
-reescribe ficheros en disco mientras corre y los restaura al terminar; con
-cambios sin guardar encima, un corte a mitad es más difícil de deshacer.
+**If the tree is not clean, commit or stash first.** The mutation gate rewrites
+files on disk while it runs and restores them when it finishes; with unsaved
+changes on top, an interruption halfway is harder to undo.
 
-Comprobación de que el pipeline está sano (40 segundos, no es la corrida buena):
+A check that the pipeline is healthy (40 seconds, this is not the real run):
 
 ```bash
 python utils/nightly.py --quick --since HEAD~1
 ```
 
-Tiene que terminar con **todas las etapas OK o HALLAZGOS**, ninguna en FALLO ni
-en INVÁLIDO. Si alguna sale INVÁLIDO, para: significa que un detector no puede
-validarse a sí mismo y **sus números de esta noche no valdrían nada**.
+It has to finish with **every stage OK or FINDINGS**, none FAILED and none
+INVALID. If any comes back INVALID, stop: it means a detector cannot validate
+itself, and **its numbers tonight would be worth nothing**.
 
 ---
 
-## 1. El comando de la noche
+## 1. The command for the night
 
 ```bash
 python utils/nightly.py --full --since 69ad2e3 2>&1 | tee log/noche_10ago.txt
 ```
 
-`69ad2e3` es el commit anterior al trabajo del 9 de agosto: así el gate de
-mutación vigila **todo lo que se añadió hoy al agente**, que es lo que interesa
-comprobar. Si prefieres cubrir solo lo último, usa `--since HEAD~1`.
+`69ad2e3` is the commit before the 9 August work, so the mutation gate watches
+**everything added to the agent today**, which is what needs checking. To cover
+only the latest change, use `--since HEAD~1`.
 
-Deja el portátil enchufado y sin suspender.
+Leave the laptop plugged in and awake.
 
-### Cuánto tarda, medido y no estimado
+### How long it takes, measured rather than estimated
 
-| Etapa | Tamaño en `--full` | Tiempo |
+| Stage | Size under `--full` | Time |
 |---|---|---:|
 | Suite | 1 878 tests | 16 s |
 | Lint | — | 1 s |
-| Corpus dorado local | 50 registros | 2 s |
-| **Cobertura contra los suelos** | suite entera instrumentada | **11 min** |
-| **Gate de mutación** | líneas nuevas desde `69ad2e3` | **1 min** |
-| **Oráculo diferencial** | 19 mazos × 2 000 partidas | **≈57 min** |
-| Monitor de invariantes | 2 000 partidas | ≈4 min |
-| Sonda de permutación | 2 000 partidas | ≈6 min |
-| Soak de propiedades | 20 000 ejemplos | ≈3 min |
-| **Matriz de matchups** | 98 mazos reales × 200 partidas | **≈12 min** |
+| Local golden corpus | 50 records | 2 s |
+| **Coverage against the floors** | whole suite instrumented | **11 min** |
+| **Mutation gate** | lines added since `69ad2e3` | **1 min** |
+| **Differential oracle** | 19 decks × 2 000 games | **≈57 min** |
+| Invariant monitor | 2 000 games | ≈4 min |
+| Permutation probe | 2 000 games | ≈6 min |
+| Property soak | 20 000 examples | ≈3 min |
+| **Matchup matrix** | 98 real decks × 200 games | **≈12 min** |
 | | | **≈1 h 35 min** |
 
-Los tres números en negrita son los medidos hoy directamente; el resto es
-extrapolación lineal de corridas cortas reales (la escala de este simulador es
-lineal: 0,1 s por partida completa).
+The three figures in bold were measured directly today; the rest is a linear
+extrapolation from real short runs (this simulator scales linearly: 0.1 s per
+complete game).
 
-**No es una noche entera, es hora y media.** Si quieres que la máquina trabaje
-más, la §5 dice en qué gastar las horas restantes — pero no alargues por
-alargar: más partidas de lo mismo compran precisión, no verdad.
+**It is not a whole night, it is an hour and a half.** If you want the machine
+to work longer, §5 says what to spend the remaining hours on — but do not extend
+for the sake of extending: more games of the same thing buy precision, not
+truth.
 
 ---
 
-## 2. Qué mirar al despertar, en este orden
+## 2. What to look at on waking, in this order
 
-Todo queda en `log/nightly_<fecha>_<hora>/`, con un `REPORT.md` y un log por
-etapa.
+Everything lands in `log/nightly_<date>_<time>/`, with a `REPORT.md` and one log
+per stage.
 
-**Primero, la sección «Lectura» del informe.** Está diseñada para leerse antes
-que ningún número:
+**First, the report's "Reading" section.** It is designed to be read before any
+number:
 
-1. **¿Hay etapas INVÁLIDAS?** Son las que fallaron su propio auto-test. Sus
-   números están *sustituidos*, no mostrados, y con razón: un detector que no
-   puede demostrar que sigue funcionando y encima dice «no he encontrado nada»
-   es el resultado más engañoso de los tres. Si hay alguna, esa etapa no ha
-   medido nada esta noche.
-2. **¿Hay etapas en FALLO?** Eso es el árbol roto, no un hallazgo.
-3. **Las etapas en HALLAZGOS** son las que encontraron algo. Salida distinta de
-   cero **porque ese es su informe**, no porque estén rotas.
+1. **Are any stages INVALID?** Those are the ones that failed their own
+   self-test. Their numbers are *replaced*, not shown, and rightly so: a
+   detector that cannot demonstrate it still works and on top of that says "I
+   found nothing" is the most misleading of the three outcomes. If there is one,
+   that stage measured nothing tonight.
+2. **Are any stages FAILED?** That is a broken tree, not a finding.
+3. **Stages with FINDINGS** are the ones that found something. A non-zero exit
+   code **because that is their report**, not because they are broken.
 
-**Después, los números, en orden de cuánto cuesta un defecto:**
+**Then the numbers, in order of what a defect there costs:**
 
-| Log | Qué buscar | Qué sabemos hoy |
+| Log | What to look for | What we know today |
 |---|---|---|
-| `*_oracle_*.log` | `PHANTOM_KO`, `MISSED_KO`, `DAMAGE_DRIFT` | El residuo era **2 351 sobre 165 199 ataques (1,42 %)**. `festival_lead` era el 39 % de él y **sigue sin explicación** |
-| `*_monitor.log` | `DECK_BELIEF`, `ILLEGAL_INDEX`, `END_EMPTY_BENCH`, `ENERGY_CAP` | Todos deberían salir **0**. `STALE_FLAG`/`STALE_READ` salen a miles y **no son defectos** (documentado en el propio fichero) |
-| `*_mutation.log` | `SUPERVIVIENTES` | Hoy quedó en **cero**. Cada superviviente nuevo es la frase del test que falta |
-| `*_permutation.log` | `order-dependent` | **0,6-0,7 %** es el nivel conocido. Un salto es la señal |
-| `*_matrix.log` | `Matchup mas debil` | Es la única etapa que contesta «¿gana más?» |
+| `*_oracle_*.log` | `PHANTOM_KO`, `MISSED_KO`, `DAMAGE_DRIFT` | The residue was **2 351 over 165 199 attacks (1.42%)**. `festival_lead` was 39% of it and is **still unexplained** |
+| `*_monitor.log` | `DECK_BELIEF`, `ILLEGAL_INDEX`, `END_EMPTY_BENCH`, `ENERGY_CAP` | All should come out **0**. `STALE_FLAG`/`STALE_READ` come out in the thousands and **are not defects** (documented in the file itself) |
+| `*_mutation.log` | `SURVIVORS` | Today it stood at **zero**. Every new survivor is the sentence of a missing test |
+| `*_permutation.log` | `order-dependent` | **0.6–0.7%** is the known level. A jump is the signal |
+| `*_matrix.log` | the weakest matchup | The only stage that answers "does it win more?" |
 
 ---
 
-## 3. Si algo se rompe
+## 3. If something breaks
 
-**Sáltalo y sigue.** El script ya lo hace solo salvo con la suite y el lint, que
-paran la noche a propósito: una corrida sobre un árbol roto atribuye su propio
-daño a la etapa equivocada.
+**Skip it and carry on.** The script already does that by itself, except for the
+suite and the lint, which stop the night on purpose: a run over a broken tree
+attributes its own damage to the wrong stage.
 
-Si tienes que cortar la corrida entera, **Ctrl-C es seguro**. El gate de
-mutación atrapa SIGINT/SIGTERM y restaura el fichero que estuviera mutando; ese
-mecanismo existe porque una vez dejó un módulo sin parsear en disco. Después de
-cortar, comprueba:
+If you have to kill the whole run, **Ctrl-C is safe**. The mutation gate traps
+SIGINT/SIGTERM and restores whichever file it was mutating; that mechanism
+exists because it once left an unparseable module on disk. After killing it,
+check:
 
 ```bash
-git status --short     # tiene que volver a estar limpio
+git status --short     # has to be clean again
 ```
 
 ---
 
-## 4. La regla que no se salta
+## 4. The rule that is never skipped
 
-**Ningún hallazgo de esta noche se convierte en un cambio del agente sin
-medirlo.** No porque sea prudente en abstracto, sino porque en dos días
-**cuatro** detectores de este repositorio reportaron sus propios fallos como
-defectos del agente:
+**No finding from tonight becomes a change to the agent without being
+measured.** Not because that is prudent in the abstract, but because in two days
+**four** detectors in this repository reported their own bugs as defects of the
+agent:
 
-- el oráculo diferencial, tres rondas, 16 764 hallazgos inexistentes en la v1;
-- el monitor, dos veces en una mañana (37 799 y 16 980);
-- el gate de mutación, dos veces más, por dos causas distintas.
+- the differential oracle, three rounds, 16 764 non-existent findings in v1;
+- the monitor, twice in one morning (37 799 and 16 980);
+- the mutation gate, twice more, from two different causes.
 
-Todos ellos con la doctrina «valida el arnés» ya escrita. Lo único que ha
-funcionado es el **auto-test que aborta la corrida**, y por eso `nightly.py`
-marca INVÁLIDO por encima del código de salida.
+Every one of them with the "validate the harness" doctrine already written down.
+The only thing that has worked is the **self-test that aborts the run**, which is
+why `nightly.py` marks INVALID above the exit code.
 
-Y si un hallazgo sí resulta real: **mide la frecuencia antes que el winrate**.
-El arreglo de hoy corregía una creencia imposible en el 25 % de los tableros y
-movía **2 decisiones en 50 955** — con esa frecuencia un gate de winrate solo
-puede devolver NEUTRO por construcción.
+And if a finding does turn out to be real: **measure the frequency before the
+winrate**. Today's fix corrected an impossible belief on 25% of boards and moved
+**2 decisions in 50 955** — at that frequency a winrate gate can only return
+NEUTRAL by construction.
 
 ---
 
-## 5. Si quieres que la máquina trabaje más horas
+## 5. If you want the machine to work more hours
 
-En orden de lo que más aporta por hora, y ninguna de las tres es «más de lo
-mismo»:
+In order of what contributes most per hour, and none of the three is "more of
+the same":
 
-1. **El oráculo contra los mazos REALES** (`deck/real_opponents/`, 98 listas)
-   en vez de los 19 sintéticos. Hoy solo se ha medido contra los sintéticos, y
-   el residuo sin explicar vive justo ahí:
+1. **The oracle against the REAL decks** (`deck/real_opponents/`, 98 lists)
+   instead of the 19 synthetic ones. Today it has only been measured against the
+   synthetic ones, and the unexplained residue lives exactly there:
 
    ```bash
    for f in deck/real_opponents/*.csv; do
@@ -156,16 +156,16 @@ mismo»:
    done 2>&1 | tee log/oracle_reales.log
    ```
 
-2. **El monitor con volcado**, para que cada violación quede como fixture lista
-   para fijar:
+2. **The monitor with a dump**, so every violation is left as a fixture ready to
+   be pinned:
 
    ```bash
    python utils/invariant_monitor.py --games 20000 \
      --dump log/monitor_soak/violations 2>&1 | tee log/monitor_soak.log
    ```
 
-3. **El soak de propiedades a lo grande** — es la única herramienta que llega a
-   tableros que ninguna partida ha producido:
+3. **The property soak at scale** — it is the only tool that reaches boards no
+   game has ever produced:
 
    ```bash
    PTCG_HYPOTHESIS_EXAMPLES=200000 python -m pytest -q \
@@ -175,13 +175,13 @@ mismo»:
 
 ---
 
-## 6. El criterio de éxito
+## 6. The success criterion
 
-La noche ha valido la pena si por la mañana hay **una lista de hallazgos
-reproducibles y unos detectores que siguen validándose**. No se mide en líneas
-cambiadas en `main.py`: ese número debería ser **cero**, igual que anoche.
+The night was worth it if the morning has **a list of reproducible findings and
+detectors that still validate themselves**. It is not measured in lines changed
+in `main.py`: that number should be **zero**, as it was last night.
 
-Y una corrida que no encuentre nada **es un resultado**, no una noche perdida:
-significa que el residuo del oráculo bajó donde tenía que bajar y que los
-invariantes aguantan. Escríbelo tal cual. El modo de fallo que este proyecto ya
-conoce por su nombre es *un número que nadie leyó*.
+And a run that finds nothing **is a result**, not a wasted night: it means the
+oracle's residue dropped where it had to drop and the invariants hold. Write it
+down exactly like that. The failure mode this project already knows by name is
+*a number nobody read*.

@@ -377,6 +377,36 @@ slot; disruption only outbids it once the opposing hand is inflated and the
 threat behind it is real. The exception is having nothing else: no refill in
 hand and no search that brings one.
 
+### 11.1 Being discarded is a decision too, and it happens on their clock
+
+The opponent's hand-cutter takes us to three cards and hands **us** the choice of
+which three survive. That is not the mirror image of playing one: it is a
+different question, asked at a different time.
+
+**The turn's resources are free, because the turn has not started.** The
+Supporter slot and the energy attachment are turn-scoped flags, and on a forced
+discard they describe what the *opponent* spent. Their hand-cutter is itself a
+Supporter, so "the Supporter slot is already gone" is true on every forced
+discard it can ever produce — which made the protection of our last playable
+Supporter unreachable code for as long as it existed. The rule that comes out of
+it generalises past any one card: **read a turn-scoped flag through the horizon
+of whose turn it is**, and when there is no effect to attribute, fall back to
+today's reading. It is now checked by the architecture lint (R8).
+
+**The hand that survives is the hand our next turn opens with**, so what it is
+worth is what it can do then: attack, unblock, take a prize. Pricing each card
+in isolation against static proxies — copies in hand, copies in play, size of
+the discard pile — answers a question nobody asked.
+
+**A protection meaning "this is our only out" cannot be handed to two copies.**
+A discard menu prices cards one at a time, so both copies of a card receive it,
+and only one of them can be the out. The fix shape is a latch — protect once,
+then let the second copy be priced on its own merits — and
+`utils/duplicate_protection_audit.py` finds where it is missing.
+
+The full analysis, the criterion meant to replace the price list, and which
+waves have shipped, are in [Discarding well](discard-plan-2026-08.md).
+
 ## 12. Walls: the immune body in front
 
 Several meta decks put a body in front that our ex attackers simply cannot
@@ -580,4 +610,12 @@ implemented, and then **measured**: if it does not change decisions, or it
 changes them without winning more games, it is reverted. See
 [Improving the agent](improving-the-agent.md).
 
-Next: [Matchups](matchups.md) · [Improving the agent](improving-the-agent.md)
+One qualifier the measurement discipline had to learn about itself: **"neutral"
+sometimes means "below the instrument's resolution", not "no effect".** A change
+that alters one decision in 3 580 cannot be separated from noise by any
+affordable number of games — the confidence interval is two orders of magnitude
+wider than the effect. There the call is made on correctness, not on the
+winrate, and the census that measured how rare the change is has to be run
+*before* the games, not after. See [The instruments](instruments.md).
+
+Next: [Matchups](matchups.md) · [Improving the agent](improving-the-agent.md) · [The instruments](instruments.md)

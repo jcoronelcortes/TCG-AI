@@ -1,214 +1,214 @@
-# La segunda noche del 9-10 de agosto — las tres preguntas que la corrida completa dejó abiertas
+# The second night of 9–10 August — the three questions the full run left open
 
-**La ejecutas tú.** Este documento es la tarea, no un informe.
+**You are the one who runs it.** This document is the task, not a report.
 
-`docs/night-plan-2026-08-10.md` era la corrida completa, y se gastó de día:
-`utils/nightly.py --full` terminó a las 15:52 con 28 etapas, 1 h 38 min, cero
-FALLO y cero INVÁLIDO. Esa noche ya está hecha. Lo que sigue no es repetirla más
-grande: es **lo que aquella corrida preguntó y no pudo contestar con la muestra
-que tenía**.
-
----
-
-## 0. Qué dejó abierto, en tres frases
-
-1. **El residuo del oráculo reproduce y sigue sin explicación.** 2 303 hallazgos
-   sobre 165 104 ataques juzgados (1,39 %), contra 2 351 y 1,42 % la noche
-   anterior. Medido dos veces, estable — y medido **solo contra los 19 mazos
-   sintéticos** de `deck/opponents`.
-2. **`crustle_wall` es la familia débil.** 18 listas reales, media 76,6 %, peor
-   54,5 %, contra una media global de 91,4 % y ninguna otra familia por debajo
-   de 87 %. Y `crustle_wall_6`, a 54,5 %, está **18 puntos por debajo de su
-   propia familia**, no solo del resto del meta.
-3. **1 698 decisiones dependientes del orden (0,67 %)** que nadie ha mirado una
-   por una. Es la única etapa que salió en HALLAZGOS y su volcado nunca se ha
-   triado.
-
-**Y un cruce que conviene leer antes de lanzar nada.** `festival_lead` tiene el
-**mayor** residuo del oráculo — 885 hallazgos, el 5,2 % de sus ataques juzgados,
-casi cuatro veces la tasa global — y a la vez gana el **97,1 %** de sus
-matchups. El residuo, por sí solo, **no predice perder**. `crustle_wall` es el
-único sitio donde los dos instrumentos señalan a la vez, y por eso es el objetivo
-de esta noche y no `festival_lead`.
+`docs/night-plan-2026-08-10.md` was the full run, and it got spent during the
+day: `utils/nightly.py --full` finished at 15:52 with 28 stages, 1 h 38 min,
+zero FAILED and zero INVALID. That night is done. What follows is not repeating
+it bigger: it is **what that run asked and could not answer with the sample it
+had**.
 
 ---
 
-## 1. Antes de lanzar — 3 minutos, y el primero no es opcional
+## 0. What it left open, in three sentences
 
-**El árbol está sucio ahora mismo y no lo he tocado.** A las 16:56 había una
-regla a medio escribir:
+1. **The oracle's residue reproduces and is still unexplained.** 2 303 findings
+   over 165 104 attacks judged (1.39%), against 2 351 and 1.42% the night
+   before. Measured twice, stable — and measured **only against the 19 synthetic
+   decks** in `deck/opponents`.
+2. **`crustle_wall` is the weak family.** 18 real lists, mean 76.6%, worst
+   54.5%, against an overall mean of 91.4% and no other family below 87%. And
+   `crustle_wall_6`, at 54.5%, is **18 points below its own family**, not just
+   below the rest of the meta.
+3. **1 698 order-dependent decisions (0.67%)** that nobody has looked at one by
+   one. It is the only stage that came back with FINDINGS, and its dump has
+   never been triaged.
 
-```
+**And a cross-reading worth doing before launching anything.** `festival_lead`
+has the **largest** oracle residue — 885 findings, 5.2% of its judged attacks,
+almost four times the global rate — and at the same time wins **97.1%** of its
+matchups. The residue on its own **does not predict losing**. `crustle_wall` is
+the only place where both instruments point at once, which is why it is
+tonight's target and `festival_lead` is not.
+
+---
+
+## 1. Before launching — 3 minutes, and the first is not optional
+
+**The tree is dirty right now and I have not touched it.** At 16:56 there was a
+half-written rule:
+
+```text
  M ptcg/cards/ids.py            SCORE_EVO_CONDITION_UNLOCK = 34000
- M ptcg/turn/options/evolve.py  la evolución que despierta al activo
+ M ptcg/turn/options/evolve.py  the evolution that wakes the active
 ```
 
-Hay otra sesión trabajando en el mismo árbol (`tcg-ai-09`). **Decide qué mide la
-noche antes de arrancarla**: commitea la regla, o guárdala con `git stash`. Lo
-que haya en el árbol a la hora de lanzar es lo que se mide durante dos horas y
-media, y una regla que aterriza a mitad significa que B1 y B2 midieron **dos
-agentes distintos** y ninguno de sus dos números compara con el otro.
+There is another session working in the same tree (`tcg-ai-09`). **Decide what
+the night measures before starting it**: commit the rule, or set it aside with
+`git stash`. Whatever is in the tree at launch time is what gets measured for
+two and a half hours, and a rule that lands halfway means B1 and B2 measured
+**two different agents**, and neither of their numbers compares with the other.
 
-No es el peligro de la otra noche —esta corrida no ejecuta el gate de mutación,
-así que nadie va a reescribir ficheros en disco—; es el peligro peor de que los
-números salgan bien y no se sepa de qué.
+This is not the danger of the other night — this run does not execute the
+mutation gate, so nobody is going to rewrite files on disk. It is the worse
+danger of the numbers coming out fine and nobody knowing what they are of.
 
-Con el árbol ya decidido:
+With the tree decided:
 
 ```bash
 cd "/Users/jcoronel/Desktop/VS Proyectos/TCG AI"
-git status --short           # que diga lo que quieres que diga
-git log --oneline -1         # apunta el hash: todo se mide contra él
+git status --short           # let it say what you want it to say
+git log --oneline -1         # note the hash: everything is measured against it
 python utils/nightly.py --quick --since HEAD~1      # ~40 s
 ```
 
-El `--quick` tiene que terminar sin FALLO y **sin INVÁLIDO**. Un INVÁLIDO
-significa que un detector no puede validarse a sí mismo, y entonces sus números
-de esta noche no valdrían nada.
+The `--quick` has to finish with no FAILED and **no INVALID**. An INVALID means
+a detector cannot validate itself, and then its numbers tonight would be worth
+nothing.
 
 ---
 
-## 2. El comando de la noche
+## 2. The command for the night
 
 ```bash
 bash utils/noche_2026-08-10.sh 2>&1 | tee log/noche_10ago_b.txt
 ```
 
-Todo lo que produce vive bajo `log/noche_2026-08-10/`: un log por bloque, un
-`RESUMEN.txt` con el código de salida y el tiempo de cada uno, y los volcados.
-Ningún bloque puede parar la noche — el que falle deja su log y el siguiente
-arranca.
+Everything it produces lives under `log/noche_2026-08-10/`: one log per block, a
+`RESUMEN.txt` with the exit code and elapsed time of each, and the dumps. No
+block can stop the night — one that fails leaves its log and the next one
+starts.
 
-Palancas, por si quieres una noche más corta o relanzar solo una parte:
+Levers, in case you want a shorter night or to relaunch only one part:
 
 ```bash
-SOLO=B2,B3 bash utils/noche_2026-08-10.sh          # solo esos bloques
-CENSO_GAMES=150 MONITOR_GAMES=8000 bash utils/...  # media noche
-PY=.venv/bin/python bash utils/...                 # otro intérprete
+SOLO=B2,B3 bash utils/noche_2026-08-10.sh          # only those blocks
+CENSO_GAMES=150 MONITOR_GAMES=8000 bash utils/...  # half a night
+PY=.venv/bin/python bash utils/...                 # a different interpreter
 ```
 
 ---
 
-## 3. Los seis bloques y qué contesta cada uno
+## 3. The six blocks and what each one answers
 
-| | Pregunta que contesta | Tamaño | Tiempo |
+| | The question it answers | Size | Time |
 |---|---|---|---:|
-| **B1a** | ¿El residuo del 1,4 % existe igual contra los mazos con los que se juega **de verdad**? | 98 mazos reales × 300 partidas | ~45 min |
-| **B1b** | Los cinco peores **por tasa**, volcados como fixtures | 5 × 1 000, con `--dump` | ~7 min |
-| **B2** | ¿El 54,5 % es real, o es el ±7 que tienen 200 partidas? | 18 `crustle_wall` + 5 `mega_lucario` × 1 000 | ~18 min |
-| **B3** | Los invariantes a diez veces la muestra, con cada violación volcada | 20 000 partidas | ~32 min |
-| **B4** | Los 1 698 dependientes del orden, volcados para triarlos | 2 000 partidas | ~6 min |
-| **B5** | Las propiedades a diez veces el presupuesto | 200 000 ejemplos | ~30 min |
-| **B6** | El radar de colisiones — la herramienta construida para justo la pregunta de B2 | 19 sintéticos × 400 | ~12 min |
+| **B1a** | Does the 1.4% residue exist the same way against the decks people **actually** play? | 98 real decks × 300 games | ~45 min |
+| **B1b** | The five worst **by rate**, dumped as fixtures | 5 × 1 000, with `--dump` | ~7 min |
+| **B2** | Is the 54.5% real, or is it the ±7 that 200 games carry? | 18 `crustle_wall` + 5 `mega_lucario` × 1 000 | ~18 min |
+| **B3** | The invariants at ten times the sample, with every violation dumped | 20 000 games | ~32 min |
+| **B4** | The 1 698 order-dependent decisions, dumped for triage | 2 000 games | ~6 min |
+| **B5** | The properties at ten times the budget | 200 000 examples | ~30 min |
+| **B6** | The collision radar — the tool built for exactly B2's question | 19 synthetic × 400 | ~12 min |
 | | | | **~2 h 30** |
 
-Los tiempos son extrapolación lineal de la corrida de hoy (0,07 s por partida
-del oráculo, 0,094 s del monitor, 0,17 s del permutador), que es lineal y está
-medida. **Lo que sí está verificado es que los seis lanzan**: he probado el
-oráculo a 3 partidas contra `crustle_wall_6`, la sonda a 5, el radar a 2 y la
-matriz a 2 sobre las 23 listas exactas de B2. Los cuatro contestaron. Lo que no
-está verificado es el tiempo a tamaño completo.
+The times are a linear extrapolation from today's run (0.07 s per oracle game,
+0.094 s per monitor game, 0.17 s per permutation game), which is linear and
+measured. **What is verified is that all six launch**: I have run the oracle at
+3 games against `crustle_wall_6`, the probe at 5, the radar at 2 and the matrix
+at 2 over the exact 23 lists of B2. All four answered. What is not verified is
+the time at full size.
 
-**Por qué B1b elige por tasa y no por número de hallazgos:** un mazo que juzga el
-doble de ataques reporta el doble de hallazgos con el mismo nivel de defecto.
-`festival_lead` lidera en absoluto (885) y también en tasa (5,2 %); pero en el
-censo de los 98 esa distinción va a decidir a qué cinco mazos se les gasta el
-volcado.
+**Why B1b picks by rate and not by number of findings:** a deck that judges
+twice as many attacks reports twice as many findings at the same defect level.
+`festival_lead` leads in absolute terms (885) and in rate too (5.2%); but across
+the census of 98, that distinction is what decides which five decks the dump
+budget is spent on.
 
-**Por qué B2 lleva grupo de control:** `mega_lucario` es la familia siguiente
-más débil (87,0 %). Sin ella, un número de Crustle más estrecho no se distingue
-de que todo salga más estrecho.
+**Why B2 carries a control group:** `mega_lucario` is the next weakest family
+(87.0%). Without it, a narrower Crustle figure cannot be told apart from
+everything coming out narrower.
 
 ---
 
-## 4. Qué mirar al despertar, en este orden
+## 4. What to look at on waking, in this order
 
-**Primero `log/noche_2026-08-10/RESUMEN.txt`**, que cabe en una pantalla.
-`rc != 0` en **B4 no es un fallo**: la sonda de permutación informa por código de
-salida, y llamar fallo a los hallazgos de una herramienta es como se enseña a
-ignorar el rojo de un pipeline.
+**First `log/noche_2026-08-10/RESUMEN.txt`**, which fits on one screen.
+`rc != 0` **in B4 is not a failure**: the permutation probe reports through its
+exit code, and calling a tool's findings a failure is how people are taught to
+ignore a red pipeline.
 
-Después, por lo que cuesta un defecto de cada clase:
+Then, in order of what a defect of each class costs:
 
-| Log | Qué buscar | Qué sabemos ya |
+| Log | What to look for | What we already know |
 |---|---|---|
-| `B1a.log` | la tasa por mazo real | Global esperada ≈1,4 %. **Si vuelve con un orden de magnitud distinto, sospecha de la carga de los mazos antes que del agente**: estas 98 listas nunca han pasado por el oráculo |
-| `B1b.log` + `violaciones_oraculo/` | un JSON por hallazgo, observación incluida | Cada uno es un fixture listo para fijar. Detectar no es ejecutar: reproducir el tablero es otro trabajo |
-| `B2.log` | `crustle_wall_6` con n=1 000 (±3) | A 200 partidas daba 54,5 % [47,6-61,3]. La pregunta es si sigue solo, o si baja el resto de la familia con él |
-| `B3.log` | `DECK_BELIEF`, `ILLEGAL_INDEX`, `END_EMPTY_BENCH`, `ENERGY_CAP`, `DOUBLE_ATTACH` | Los cinco a **0** sobre 2 000 partidas hoy. `STALE_FLAG`/`STALE_READ` salen a miles y **no son defectos** |
-| `B4.log` + `permutacion/` | no cuántos, sino **cuántos son `ATTACK` vs `RETREAT`** | 0,67 % es el nivel conocido. Un empate `CARD` vs `CARD` es cosmético; una bifurcación atacar-o-retirar la decide la posición en el menú |
-| `B5.log` | cualquier falsación | Es el artefacto más valioso que puede producir la noche, porque viene **minimizado** |
-| `B6.log` | «resolution well below the median» | Hoy, a 2 partidas de ruido, ya señalaba `juega_supporter` en `festival_lead` al 23,5 % contra una mediana del 50 % |
+| `B1a.log` | the rate per real deck | Expected overall ≈1.4%. **If it comes back an order of magnitude different, suspect the deck loading before the agent**: these 98 lists have never been through the oracle |
+| `B1b.log` + `violaciones_oraculo/` | one JSON per finding, observation included | Each one is a fixture ready to be pinned. Detecting is not executing: reproducing the board is another job |
+| `B2.log` | `crustle_wall_6` at n=1 000 (±3) | At 200 games it read 54.5% [47.6–61.3]. The question is whether it stays alone, or takes the rest of the family down with it |
+| `B3.log` | `DECK_BELIEF`, `ILLEGAL_INDEX`, `END_EMPTY_BENCH`, `ENERGY_CAP`, `DOUBLE_ATTACH` | All five at **0** over 2 000 games today. `STALE_FLAG`/`STALE_READ` come out in the thousands and **are not defects** |
+| `B4.log` + `permutacion/` | not how many, but **how many are `ATTACK` vs `RETREAT`** | 0.67% is the known level. A `CARD` vs `CARD` tie is cosmetic; an attack-or-retreat fork decided by menu position is not |
+| `B5.log` | any falsification | It is the most valuable artefact the night can produce, because it arrives **minimised** |
+| `B6.log` | "resolution well below the median" | Today, at a noise level of 2 games, it was already flagging `juega_supporter` on `festival_lead` at 23.5% against a median of 50% |
 
 ---
 
-## 5. La regla que no se salta
+## 5. The rule that is never skipped
 
-**Ningún hallazgo de esta noche se convierte en un cambio del agente sin
-medirlo.** En dos días, **cuatro** detectores de este repositorio reportaron sus
-propios fallos como defectos del agente: el oráculo tres veces (16 764 hallazgos
-inexistentes en la v1), el monitor dos, el gate de mutación dos más. Lo único que
-ha funcionado es el auto-test que aborta la corrida.
+**No finding from tonight becomes a change to the agent without being
+measured.** In two days, **four** detectors in this repository reported their own
+bugs as defects of the agent: the oracle three times (16 764 non-existent
+findings in v1), the monitor twice, the mutation gate twice more. The only thing
+that has worked is the self-test that aborts the run.
 
-Su versión de esta noche: **B1a es la primera vez que el oráculo ve las listas
-reales.** El script lanza una invocación por mazo, y no una sola con todos, justo
-para que cada una corra su propio auto-test. Un censo cuyo detector no puede
-demostrar que sigue funcionando es el resultado que peor engaña.
+Tonight's version of it: **B1a is the first time the oracle sees the real
+lists.** The script launches one invocation per deck rather than a single one
+with all of them, precisely so that each runs its own self-test. A census whose
+detector cannot demonstrate it still works is the most deceptive result there
+is.
 
-Y si un hallazgo resulta real: **mide la frecuencia antes que el winrate.** El
-arreglo del 9 de agosto corregía una creencia imposible en el 25 % de los
-tableros y movía **2 decisiones en 50 955**; con esa frecuencia, un gate de
-winrate solo puede devolver NEUTRO por construcción.
-
----
-
-## 6. Lo que la noche NO hace — las tareas de manos que quedan
-
-De `docs/testing-plan-2026-08.md`, ordenadas por lo que esta noche vuelve urgente:
-
-1. **T3.1 · Una suite para `opponent_bot.py`** — 1-2 días, y esta noche lo
-   asciende a lo primero de mañana. **Todo el hallazgo de Crustle descansa sobre
-   un bot con 13 tests, y los 13 son del motor de habilidades.** Su objetivo de
-   gusteo, su prioridad de adjunte y su condición de retirada no están fijados,
-   y su cobertura ni siquiera se mide (`utils/` no entra en `coverage.json`). Si
-   el bot juega Crustle mal, el 54,5 % es una medida **del bot**. Los tres
-   desenlaces posibles —defecto del agente, defecto del bot, matchup
-   sencillamente duro— solo se distinguen con esto hecho.
-2. **T1.3 · Pares de frontera** desde `decision_grid.boundaries()`: mata por
-   construcción las familias de mutantes `boundary: 1 -> 2` y `GtE -> Gt`.
-3. **T1.2 · Aserciones de razón** en los 30 tests de más valor (la familia del
-   gusteo de Boss's, promoción, retirada).
-4. **T3.4 · Crecer y congelar el corpus dorado**: hay 50 registros locales, pero
-   CI sigue saltándose la comparación. El flip-diff es el artefacto de revisión
-   más útil del proyecto y en un checkout limpio todavía no existe.
-5. **T3.3 · SPRT** para el A/B, y **T3.2 · una segunda política rival**.
-6. **T4.2 · Higiene** e índice regla → fichero de test.
-
-Y dos correcciones al propio documento del plan, que ya está desfasado:
-
-- **T0.3 dice «not yet in CI» y es falso**: el job `mutation` existe en
-  `.github/workflows/gates.yml`, con `--self-test-only` antes de fiarse de su
-  cero. Lo que de verdad queda es el parámetro muerto `meganium_active`.
-- **Un trabajo de 15 minutos que B6 pide a gritos**: `utils/collision_radar.py`
-  tiene `deck/opponents` escrito a fuego en la línea 344, así que **no puede
-  mirar a `crustle_wall_6`**. Darle un `--opponents` como el que ya tiene
-  `matchup_matrix.py` convierte el radar en la herramienta que contesta la
-  pregunta de esta noche contra las listas reales.
+And if a finding turns out to be real: **measure the frequency before the
+winrate.** The 9 August fix corrected an impossible belief on 25% of boards and
+moved **2 decisions in 50 955**; at that frequency, a winrate gate can only
+return NEUTRAL by construction.
 
 ---
 
-## 7. El criterio de éxito
+## 6. What the night does NOT do — the hand work that remains
 
-El mismo de anoche: **una lista de hallazgos reproducibles y unos detectores que
-siguen validándose**, con **cero líneas cambiadas en `main.py`**.
+From `docs/testing-plan-2026-08.md`, ordered by what tonight makes urgent:
 
-Y uno propio de esta noche: por la mañana tiene que poderse escribir, en una
-frase, cuál de las tres es `crustle_wall` — **defecto del agente** (lo dirían B1a
-y B1b, con la tasa del oráculo concentrada en esas listas), **defecto del bot**
-(lo diría B2 si el 54,5 % se sostiene pero el radar de B6 no encuentra ninguna
-situación que colapse) o **un matchup duro y ya está** (lo diría B2 si con
-n=1 000 la familia sube hacia la media y el 54,5 % era el ±7).
+1. **T3.1 · A suite for `opponent_bot.py`** — 1–2 days, and tonight promotes it
+   to the first thing tomorrow. **The whole Crustle finding rests on a bot with
+   13 tests, and all 13 are about the ability engine.** Its gust target, its
+   attachment priority and its retreat condition are unpinned, and its coverage
+   is not even measured (`utils/` is not in `coverage.json`). If the bot plays
+   Crustle badly, the 54.5% is a measurement **of the bot**. The three possible
+   outcomes — a defect of the agent, a defect of the bot, or simply a hard
+   matchup — can only be told apart once this is done.
+2. **T1.3 · Boundary pairs** from `decision_grid.boundaries()`: kills the
+   `boundary: 1 -> 2` and `GtE -> Gt` mutant families by construction.
+3. **T1.2 · Reason assertions** on the 30 highest-value tests (the Boss's gust
+   family, promotion, retreat).
+4. **T3.4 · Grow and freeze the golden corpus**: there are 50 local records, but
+   CI still skips the comparison. The flip-diff is the project's most useful
+   review artefact and on a clean checkout it does not yet exist.
+5. **T3.3 · SPRT** for the A/B, and **T3.2 · a second opponent policy**.
+6. **T4.2 · Hygiene** and a rule → test-file index.
 
-Una noche que conteste «ninguna de las tres, hace falta T3.1 primero» también es
-un resultado. El modo de fallo que este proyecto conoce por su nombre es *un
-número que nadie leyó*.
+And two corrections to the plan document itself, which is already out of date:
+
+- **T0.3 says "not yet in CI" and that is false**: the `mutation` job exists in
+  `.github/workflows/gates.yml`, with `--self-test-only` before trusting its
+  zero. What actually remains is the dead `meganium_active` parameter.
+- **A 15-minute job that B6 is crying out for**: `utils/collision_radar.py` has
+  `deck/opponents` hard-wired at line 344, so **it cannot look at
+  `crustle_wall_6`**. Giving it an `--opponents` like the one `matchup_matrix.py`
+  already has turns the radar into the tool that answers tonight's question
+  against the real lists.
+
+---
+
+## 7. The success criterion
+
+The same as last night: **a list of reproducible findings and detectors that
+still validate themselves**, with **zero lines changed in `main.py`**.
+
+And one specific to tonight: by morning it has to be possible to write, in one
+sentence, which of the three `crustle_wall` is — **a defect of the agent** (B1a
+and B1b would say so, with the oracle's rate concentrated on those lists), **a
+defect of the bot** (B2 would say so if the 54.5% holds but B6's radar finds no
+situation that collapses) or **just a hard matchup** (B2 would say so if at
+n=1 000 the family rises towards the mean and the 54.5% was the ±7).
+
+A night that answers "none of the three, T3.1 is needed first" is also a result.
+The failure mode this project knows by name is *a number nobody read*.

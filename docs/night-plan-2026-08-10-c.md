@@ -1,253 +1,253 @@
-# La noche del 10 de agosto — la primera contra el meta que existe
+# The night of 10 August — the first one against the meta that exists
 
-**Esta corre sola.** Se lanzó a las 23:01:48 sobre `HEAD 450c996` y no necesita
-a nadie. Este documento es lo que hay que leer al despertar.
+**This one runs on its own.** It was launched at 23:01:48 on `HEAD 450c996` and
+needs nobody. This document is what to read on waking.
 
 ---
 
-## 0. Por qué esta noche no es la noche anterior otra vez
+## 0. Why this night is not the previous one again
 
-`docs/night-plan-2026-08-10-b.md` planteó seis preguntas y contestó una, a 5
-partidas en vez de 2 000. Sus cinco bloques sin ejecutar siguen siendo las
-preguntas correctas — pero estaban escritas contra un corpus que ya no existe.
+`docs/night-plan-2026-08-10-b.md` posed six questions and answered one, at 5
+games instead of 2 000. Its five unexecuted blocks are still the right
+questions — but they were written against a corpus that no longer exists.
 
-El 9 de agosto a las 21:11 se rehizo la recolecta del top 300. El resultado no
-es «los mismos mazos, actualizados»:
+On 9 August at 21:11 the top-300 harvest was redone. The result is not "the same
+decks, updated":
 
-| | Antes | Ahora |
+| | Before | Now |
 |---|---:|---:|
-| Mazos del top 300 con contenido distinto | — | **267 de 300** |
-| Listas únicas | 98 | **88** |
-| Mega Lopunny / Mega Froslass | 9 mazos | **24** |
+| Top-300 decks with different contents | — | **267 of 300** |
+| Unique lists | 98 | **88** |
+| Mega Lopunny / Mega Froslass | 9 decks | **24** |
 | Ogerpon Verde | 23 | 15 |
 | Marnie Grimmsnarl | 115 | 108 |
 | Crustle Wall | 32 | 30 |
 
-Y `deck/real_opponents/` — el corpus que consumen el oráculo, la matriz y el
-radar — era **del 7 de agosto**. Todo lo que la noche anterior iba a medir
-estaba apuntando a listas retiradas.
+And `deck/real_opponents/` — the corpus the oracle, the matrix and the radar all
+consume — was **from 7 August**. Everything the previous night was going to
+measure was pointing at retired lists.
 
 ---
 
-## 1. Lo que la fase A ya contestó, antes de lanzar nada
+## 1. What phase A already answered, before launching anything
 
-### A1 · El corpus, reconstruido
+### A1 · The corpus, rebuilt
 
-`deck/real_opponents_2026-08-07/` guarda el viejo. El nuevo son **87 listas
-pilotables de 88**, y la parte del meta que el arnés puede medir es el
-**99,7 %**. Una sola lista (`otro_ns_zoroark_ex_2`) no arranca con el bot.
+`deck/real_opponents_2026-08-07/` holds the old one. The new one is **87
+pilotable lists out of 88**, and the share of the meta the harness can measure is
+**99.7%**. A single list (`otro_ns_zoroark_ex_2`) will not start with the bot.
 
-Cuatro listas del corpus son **casi copias de la nuestra** (`festival_lead_4`
-comparte las 60 cartas). El bot pilota NUESTRO motor ahí, mal, así que su
-winrate se lee alto y no es un matchup. Están marcadas en `pesos.csv`.
+Four lists in the corpus are **near-copies of ours** (`festival_lead_4` shares
+all 60 cards). The bot pilots OUR engine there, badly, so its winrate reads high
+and it is not a matchup. They are flagged in `pesos.csv`.
 
-### A2 · El hallazgo de Crustle ya no se puede reproducir — y eso es una respuesta
+### A2 · The Crustle finding can no longer be reproduced — and that is an answer
 
-`utils/corpus_bridge.py`, escrito para esto, empareja por **contenido** y no por
-nombre, porque `real_opponents.py` numera por peso de meta y por tanto
-`crustle_wall_6` **no es un mazo, es un puesto**.
+`utils/corpus_bridge.py`, written for this, matches by **content** and not by
+name, because `real_opponents.py` numbers by meta weight and therefore
+`crustle_wall_6` **is not a deck, it is a rank**.
 
 | | |
 |---|---:|
-| Listas viejas idénticas en el corpus nuevo | 45 |
-| Con deriva (≤12 cartas) | 37 |
-| **Desaparecidas del top 300** | **15** |
-| Listas nuevas que nadie ha medido jamás | **32** |
+| Old lists identical in the new corpus | 45 |
+| Drifted (≤12 cards) | 37 |
+| **Gone from the top 300** | **15** |
+| New lists nobody has ever measured | **32** |
 
-**El `crustle_wall_6` que medía 54,5 % está entre las 15.** La lista más cercana
-del meta nuevo está a **32 cartas**, y el nombre `crustle_wall_6` ha caído sobre
-un mazo que nunca ha jugado una partida contra nosotros. Seis de las dieciséis
-listas `crustle_wall` nuevas son de las que nadie ha medido.
+**The `crustle_wall_6` that measured 54.5% is among the 15.** The closest list in
+the new meta is **32 cards away**, and the name `crustle_wall_6` has landed on a
+deck that has never played a game against us. Six of the sixteen new
+`crustle_wall` lists are ones nobody has measured.
 
-Por eso la noche lleva un bloque **B2b** que no estaba en ningún plan: medir el
-mazo muerto a n=1 000 **desde el respaldo**, que es la última ocasión de saber
-si el 54,5 % era real o el ±7 de 200 partidas. Una de las dos respuestas se
-traslada a las seis listas nuevas y la otra no.
+That is why the night carries a **B2b** block that was in no plan: measure the
+dead deck at n=1 000 **from the backup**, which is the last chance to know
+whether the 54.5% was real or the ±7 of 200 games. One of the two answers
+transfers to the six new lists and the other does not.
 
-### A3 · El meta nuevo, y quién manda arriba
+### A3 · The new meta, and who rules at the top
 
-`log/noche_2026-08-10-c/A4_meta.md`. El titular no es la presencia, es la banda:
+`log/noche_2026-08-10-c/A4_meta.md`. The headline is not the presence, it is the
+band:
 
-> **Mega Lopunny / Mega Froslass es el 26,7 % de los puestos 1-30** siendo solo
-> el 8 % del campo. Es el arquetipo que gana, no el que más se juega.
+> **Mega Lopunny / Mega Froslass is 26.7% of positions 1–30** while being only
+> 8% of the field. It is the archetype that wins, not the one most played.
 
-Y en el corpus es **una sola lista**: los 24 mazos son idénticos carta por
-carta. Un solo fichero vale el 8 % del meta y un cuarto del top 30.
+And in the corpus it is **a single list**: the 24 decks are identical card for
+card. One file is worth 8% of the meta and a quarter of the top 30.
 
-### A4 · Un test rojo que trajo la recolecta
+### A4 · A red test the harvest brought in
 
 `tests/test_op_scaling_attacks.py::test_no_opposing_attack_scales_without_being_read`
-falla ahora, y **no lo rompió ningún cambio de código**:
+now fails, and **no code change broke it**:
 
+```text
+Tapu Koko ex — Linked Lightning (458): 60 base, +20 for each of their
+Pokemon on the bench. Nobody reads it.
 ```
-Tapu Koko ex — Linked Lightning (458): 60 de base, +20 por cada uno de sus
-Pokémon en banca. Nadie lo lee.
-```
 
-La carta 329 está en **1 mazo de 408 ahora y en 0 antes** de la recolecta
-(`mazo_278.csv`, Mega Kangaskhan, puesto 278). El test es exactamente el guardia
-que se escribió para esto: un mazo nuevo que trae un ataque que escala y el
-agente no lo ve; no revienta, se mete debajo.
+Card 329 is in **1 deck of 408 now and in 0 before** the harvest
+(`mazo_278.csv`, Mega Kangaskhan, position 278). The test is exactly the guard
+written for this: a new deck brings a scaling attack and the agent does not see
+it; it does not crash, it walks into the hit.
 
-**No se toca esta noche.** Meterlo en `OP_SCALING_DAMAGE` es un cambio del
-agente, y una regla que aterriza a mitad de la noche significa que los bloques
-de antes y los de después midieron dos agentes distintos. Con 1 mazo de 408 no
-hay ninguna prisa. Decisión para mañana: ¿el número se **lee** del tablero (sí:
-su banca es visible) o estaríamos adivinando?
+**Not touched tonight.** Putting it into `OP_SCALING_DAMAGE` is a change to the
+agent, and a rule landing halfway through the night means the blocks before and
+after measured two different agents. At 1 deck in 408 there is no hurry. A
+decision for tomorrow: is the number **read** off the board (yes: their bench is
+visible), or would we be guessing?
 
 ---
 
-## 2. Lo que está corriendo
+## 2. What is running
 
-```
-log/noche_2026-08-10-c/RESUMEN.txt     ← empieza por aquí
-log/noche_10ago_c.txt                  ← la traza con marcas de tiempo
+```text
+log/noche_2026-08-10-c/RESUMEN.txt     ← start here
+log/noche_10ago_c.txt                  ← the trace, with timestamps
 ```
 
-| | Pregunta que contesta | Tamaño | Estimado |
+| | The question it answers | Size | Estimate |
 |---|---|---|---:|
-| **B1a** | ¿El residuo del oráculo existe contra las listas con las que se juega ahora? | 87 listas × 300 partidas | ~60 min |
-| **B1b** | Los cinco peores **por tasa**, volcados como fixtures | 5 × 1 000, con `--dump` | ~12 min |
-| **B2** | ¿Hay una `crustle_wall` que se descuelgue, con la familia entera a ±3? | 16 Crustle + 4 Lucario × 1 000 | ~33 min |
-| **B2b** | El `crustle_wall_6` **retirado**: ¿54,5 % real o ruido? | 3 × 1 000, desde el respaldo | ~5 min |
-| **B3** | Los invariantes a diez veces la muestra, cada violación volcada | 20 000 partidas | ~40 min |
-| **B4** | Las decisiones dependientes del orden, volcadas para triarlas | 2 000 partidas | ~6 min |
-| **B5** | Las propiedades a diez veces el presupuesto | 200 000 ejemplos | ~24 min |
-| **B6** | El radar de colisiones **sobre las listas reales** — por primera vez | 87 listas × 400 | ~81 min |
-| **B7** | ¿Cómo vamos contra el meta ponderado? No existe para estas listas | 87 × 300, con `--weights` | ~44 min |
+| **B1a** | Does the oracle's residue exist against the lists people play now? | 87 lists × 300 games | ~60 min |
+| **B1b** | The five worst **by rate**, dumped as fixtures | 5 × 1 000, with `--dump` | ~12 min |
+| **B2** | Is there a `crustle_wall` that breaks away, with the whole family at ±3? | 16 Crustle + 4 Lucario × 1 000 | ~33 min |
+| **B2b** | The **retired** `crustle_wall_6`: real 54.5% or noise? | 3 × 1 000, from the backup | ~5 min |
+| **B3** | The invariants at ten times the sample, every violation dumped | 20 000 games | ~40 min |
+| **B4** | The order-dependent decisions, dumped for triage | 2 000 games | ~6 min |
+| **B5** | The properties at ten times the budget | 200 000 examples | ~24 min |
+| **B6** | The collision radar **over the real lists** — for the first time | 87 lists × 400 | ~81 min |
+| **B7** | How are we doing against the weighted meta? It does not exist for these lists | 87 × 300, with `--weights` | ~44 min |
 | | | | **~4 h 30** |
 
-Cada bloque escribe su propio log y **ninguno puede parar la noche**.
+Each block writes its own log and **none of them can stop the night**.
 
 ---
 
-## 3. Qué mirar al despertar, en este orden
+## 3. What to look at on waking, in this order
 
-**Primero `RESUMEN.txt`**, que cabe en una pantalla. `rc != 0` en **B4 no es un
-fallo**: la sonda de permutación informa por código de salida, y llamar fallo a
-los hallazgos de una herramienta es como se enseña a ignorar el rojo.
+**First `RESUMEN.txt`**, which fits on one screen. `rc != 0` **in B4 is not a
+failure**: the permutation probe reports through its exit code, and calling a
+tool's findings a failure is how people are taught to ignore the red.
 
-> **B1a ya terminó (57m 17s, rc=0) y cambió cómo se lee todo lo demás.**
-> **2 664 hallazgos sobre 128 338 ataques juzgados: 2,08 %**, contra el
-> 1,39-1,42 % de los sintéticos. No es un orden de magnitud, así que los mazos
-> cargaron bien.
+> **B1a has already finished (57m 17s, rc=0) and it changes how everything else
+> reads.** **2 664 findings over 128 338 attacks judged: 2.08%**, against the
+> 1.39–1.42% of the synthetic decks. Not an order of magnitude, so the decks
+> loaded correctly.
 >
-> Lo que importa es la forma. Por familia, `crustle_wall` lidera con **4,58 %
-> de media sobre dieciséis listas** — no un mazo descolgado, la familia entera —
-> con `great_tusk_crustle`, el otro cascarón de Crustle, justo detrás.
-> `marnie_grimmsnarl`, que es el 36 % del meta, está en **0,11 %**.
+> What matters is the shape. By family, `crustle_wall` leads with **4.58% mean
+> across sixteen lists** — not one deck breaking away, the whole family — with
+> `great_tusk_crustle`, the other Crustle shell, right behind.
+> `marnie_grimmsnarl`, which is 36% of the meta, sits at **0.11%**.
 >
-> **Y la tasa sola no distingue un residuo peligroso de uno inofensivo: el
-> signo sí.** Una deriva positiva es el agente prediciendo MÁS daño del que el
-> motor resuelve — cree que noquea, ataca contra un cuerpo que sobrevive y
-> regala el turno. `crustle_wall` es **90 % positiva, mediana +40**.
-> `festival_lead` tiene tasa comparable con un **44 % positiva**, y por eso su
-> residuo nunca ha predicho perder.
+> **And the rate alone does not separate a dangerous residue from a harmless
+> one: the sign does.** A positive drift is the agent predicting MORE damage
+> than the engine resolves — it believes it knocks out, attacks into a body that
+> survives, and hands over the turn. `crustle_wall` is **90% positive, median
+> +40**. `festival_lead` has a comparable rate at **44% positive**, which is why
+> its residue has never predicted losing.
 >
-> Dos cautelas: el sesgo optimista es **general** (casi todas las familias entre
-> 60 % y 90 %), lo singular de Crustle es tenerlo casi puro Y la tasa más alta a
-> la vez; y la deriva se resume por **mediana**, no por moda — la moda decía
-> «−70» junto a «67 % positivas».
+> Two cautions: the optimistic bias is **general** (nearly every family between
+> 60% and 90%); what is singular about Crustle is having it almost pure AND the
+> highest rate at the same time. And the drift is summarised by **median**, not
+> by mode — the mode said "−70" next to "67% positive".
 >
-> **Consecuencia para B1b:** elige los cinco peores **por tasa**, criterio
-> fijado antes de saber que el signo manda, y tres de sus cinco huecos se van a
-> `festival_lead`. Por eso hay un **B8** encolado que arranca al terminar la
-> noche y vuelca `crustle_wall_11`, `crustle_wall_12` y `great_tusk_crustle_1`,
-> que son deriva positiva y B1b no alcanza.
+> **Consequence for B1b:** it picks the five worst **by rate**, a criterion
+> fixed before anyone knew the sign was what mattered, and three of its five
+> slots go to `festival_lead`. Hence a queued **B8** that starts when the night
+> ends and dumps `crustle_wall_11`, `crustle_wall_12` and
+> `great_tusk_crustle_1`, which are positive drift and B1b does not reach.
 
-| Log | Qué buscar | Lo que ya sabemos |
+| Log | What to look for | What we already know |
 |---|---|---|
-| `B1a.log` | ~~la tasa por lista~~ **el signo por familia** | Ver el recuadro de arriba: hecho y leído |
-| `B1b.log` + `violaciones_oraculo/` | un JSON por hallazgo, observación incluida | Cada uno es un fixture listo para fijar. **Detectar no es ejecutar**: reproducir el tablero es otro trabajo. Los tres `festival_lead` de aquí son la familia inofensiva |
-| `B8.log` | los volcados de deriva **positiva** | Suplementario, arranca solo al acabar la noche |
-| `B2.log` | si alguna `crustle_wall` se descuelga de su familia | El mazo que se descolgaba ya no está. La pregunta es si el hueco lo ocupa otro o si era de aquel mazo |
-| `B2b.log` | `crustle_wall_6` del respaldo a n=1 000 (±3) | A 200 partidas daba 54,5 % [47,6-61,3]. Si sube hacia 76 %, era el ±7 y no había nada |
-| `B3.log` | `DECK_BELIEF`, `ILLEGAL_INDEX`, `END_EMPTY_BENCH`, `ENERGY_CAP`, `DOUBLE_ATTACH` | Los cinco a **0** sobre 2 000 partidas. `STALE_FLAG`/`STALE_READ` salen a miles y **no son defectos** |
-| `B4.log` + `permutacion/` | no cuántos, sino **cuántos son `ATTACK` vs `RETREAT`** | 0,67 % es el nivel conocido. Un empate `CARD` vs `CARD` es cosmético; una bifurcación atacar-o-retirar la decide la posición en el menú |
-| `B5.log` | cualquier falsación | El artefacto más valioso que puede salir, porque viene **minimizado** |
-| `B6.log` | «resolution well below the median» | **Primera vez que el radar mira listas reales.** Contra los sintéticos ya señalaba `juega_supporter` en `festival_lead` |
-| `B7.log` | el número ponderado contra el meta nuevo | No hay con qué comparar: es la línea base de este corpus. Las 4 casi-copias inflan; `pesos.csv` las marca |
+| `B1a.log` | ~~the rate per list~~ **the sign per family** | See the box above: done and read |
+| `B1b.log` + `violaciones_oraculo/` | one JSON per finding, observation included | Each is a fixture ready to be pinned. **Detecting is not executing**: reproducing the board is another job. The three `festival_lead` entries here are the harmless family |
+| `B8.log` | the dumps with **positive** drift | Supplementary, starts on its own when the night ends |
+| `B2.log` | whether any `crustle_wall` breaks away from its family | The deck that was breaking away is gone. The question is whether another takes the slot, or whether it belonged to that one deck |
+| `B2b.log` | `crustle_wall_6` from the backup at n=1 000 (±3) | At 200 games it read 54.5% [47.6–61.3]. If it rises towards 76%, it was the ±7 and there was nothing there |
+| `B3.log` | `DECK_BELIEF`, `ILLEGAL_INDEX`, `END_EMPTY_BENCH`, `ENERGY_CAP`, `DOUBLE_ATTACH` | All five at **0** over 2 000 games. `STALE_FLAG`/`STALE_READ` come out in the thousands and **are not defects** |
+| `B4.log` + `permutacion/` | not how many, but **how many are `ATTACK` vs `RETREAT`** | 0.67% is the known level. A `CARD` vs `CARD` tie is cosmetic; an attack-or-retreat fork decided by menu position is not |
+| `B5.log` | any falsification | The most valuable artefact that can come out, because it arrives **minimised** |
+| `B6.log` | "resolution well below the median" | **First time the radar looks at real lists.** Against the synthetic ones it was already flagging `juega_supporter` on `festival_lead` |
+| `B7.log` | the weighted figure against the new meta | There is nothing to compare it with: it is this corpus's baseline. The 4 near-copies inflate it; `pesos.csv` flags them |
 
 ---
 
-## 4. La regla que no se salta
+## 4. The rule that is never skipped
 
-**Ningún hallazgo de esta noche se convierte en un cambio del agente sin
-medirlo.** En dos días, cuatro detectores de este repositorio reportaron sus
-propios fallos como defectos del agente: el oráculo tres veces (16 764 hallazgos
-inexistentes en la v1), el monitor dos, el gate de mutación dos más.
+**No finding from tonight becomes a change to the agent without being
+measured.** In two days, four detectors in this repository reported their own
+bugs as defects of the agent: the oracle three times (16 764 non-existent
+findings in v1), the monitor twice, the mutation gate twice more.
 
-Su versión de esta noche ya cobró una pieza. El ensayo en seco del guión reveló
-que `listas()` usaba `find | xargs basename`, que `xargs` parte por espacios,
-que este proyecto vive bajo `VS Proyectos/TCG AI` y que por tanto el censo
-midió alegremente **261 mazos en vez de 87** — entre ellos dos llamados `VS` y
-`TCG` — durante siete minutos, **con código de salida 0 y un log completo**. Un
-número con toda la pinta de una medición.
+Tonight's version of it has already claimed a scalp. The script's dry run
+revealed that `listas()` used `find | xargs basename`, that `xargs` splits on
+spaces, that this project lives under `VS Proyectos/TCG AI`, and that the census
+therefore happily measured **261 decks instead of 87** — two of them called `VS`
+and `TCG` — for seven minutes, **with exit code 0 and a complete log**. A number
+that looked exactly like a measurement.
 
-Y si un hallazgo resulta real: **mide la frecuencia antes que el winrate.** El
-arreglo del 9 de agosto corregía una creencia imposible en el 25 % de los
-tableros y movía 2 decisiones en 50 955; con esa frecuencia un gate de winrate
-solo puede devolver NEUTRO por construcción.
-
----
-
-## 5. Lo que se hizo mientras corría
-
-**T3.1 · La suite de `opponent_bot.py`** — hecha, commit `6165426`. Era «lo
-primero de mañana» del plan anterior porque todo hallazgo de matchup descansa
-sobre ese bot. 22 tests sobre la mitad de la política que nadie había fijado:
-el orden del menú, la evolución por fase, el ataque por daño y no por posición,
-y la rama *else* de cada regla cuya rama *then* ya estaba fijada.
-
-Las 22 pasaron a la primera, que es cuando menos hay que fiarse de un test, así
-que cada política se rompió en memoria y se volvió a correr: **siete de siete
-fallan cuando su regla se rompe**.
-
-De ahí salió una corrección al propio docstring del bot, escrita como test:
-**la debilidad ×2 no puede cambiar qué ataque se elige** — los dos ataques de un
-mismo atacante comparten su tipo, así que el ×2 escala a todos por igual. Donde
-sí decide es en el **objetivo del gusteo**, y eso se fija aparte.
+And if a finding turns out to be real: **measure the frequency before the
+winrate.** The 9 August fix corrected an impossible belief on 25% of boards and
+moved 2 decisions in 50 955; at that frequency a winrate gate can only return
+NEUTRAL by construction.
 
 ---
 
-## 6. Lo que la noche NO hace — las tareas de manos que quedan
+## 5. What was done while it ran
 
-De `docs/testing-plan-2026-08.md`, reordenadas por lo que esta noche vuelve
-urgente:
+**T3.1 · The `opponent_bot.py` suite** — done, commit `6165426`. It was "the
+first thing tomorrow" in the previous plan because every matchup finding rests
+on that bot. 22 tests over the half of its policy nobody had pinned: menu order,
+evolution by stage, attacking by damage rather than by position, and the *else*
+branch of every rule whose *then* branch was already pinned.
 
-1. **T1.3 · Pares de frontera** desde `decision_grid.boundaries()`: mata por
-   construcción las familias de mutantes `boundary: 1 -> 2` y `GtE -> Gt`.
-2. **T1.2 · Aserciones de razón** en los 30 tests de más valor (la familia del
-   gusteo de Boss's, promoción, retirada).
-3. **T3.4 · Crecer y congelar el corpus dorado**: CI sigue saltándose la
-   comparación, y el flip-diff es el artefacto de revisión más útil del
-   proyecto.
-4. **T3.3 · SPRT** para el A/B, y **T3.2 · una segunda política rival**.
-5. **T4.2 · Higiene** e índice regla → fichero de test.
-6. **El parámetro muerto `meganium_active`** en `_our_effective_damage`, que el
-   gate de mutación señaló como mutante equivalente.
+All 22 passed first time, which is when a test deserves the least trust, so each
+policy was broken in memory and re-run: **seven of seven fail when their rule is
+broken**.
 
-Y las dos de estrategia que la memoria tenía marcadas PENDIENTE, ninguna de las
-cuales es medición:
-
-- **El proyector «qué cuerpo, al bajarlo, sube MI daño»** (caso Dipplin / Do the
-  Wave: el agente gastó un Meowth ex de 2 premios donde el Ogerpon solo ya daba
-  el KO exacto). Afecta a todo atacante cuyo daño cuenta cuerpos.
-- **El tempo del rival**: `_op_disruption_belief` ignora su segundo parámetro y
-  nadie mira su descarte entre turnos, que es de donde sale «su mano está
-  atascada».
+Out of that came a correction to the bot's own docstring, written as a test:
+**×2 weakness cannot change which attack is chosen** — both attacks of the same
+attacker share its type, so the ×2 scales all of them equally. Where it does
+decide is the **gust target**, and that is pinned separately.
 
 ---
 
-## 7. El criterio de éxito
+## 6. What the night does NOT do — the hand work that remains
 
-El mismo de siempre: **una lista de hallazgos reproducibles y unos detectores
-que siguen validándose**, con **cero líneas cambiadas en `main.py`**.
+From `docs/testing-plan-2026-08.md`, reordered by what tonight makes urgent:
 
-Y uno propio de esta noche. La pregunta de la anterior era cuál de tres es
-`crustle_wall`, y **el puente ya contestó que ninguna de las tres**: el mazo se
-fue del meta. Lo que hay que poder escribir por la mañana, en una frase, es si
-el hueco lo hereda alguna de las dieciséis listas nuevas (lo diría B2), o si
-aquel 54,5 % era el ±7 de una muestra corta (lo diría B2b) — y en ese caso el
-proyecto ha estado dos noches persiguiendo ruido, que también es un resultado y
-de los baratos.
+1. **T1.3 · Boundary pairs** from `decision_grid.boundaries()`: kills the
+   `boundary: 1 -> 2` and `GtE -> Gt` mutant families by construction.
+2. **T1.2 · Reason assertions** on the 30 highest-value tests (the Boss's gust
+   family, promotion, retreat).
+3. **T3.4 · Grow and freeze the golden corpus**: CI still skips the comparison,
+   and the flip-diff is the project's most useful review artefact.
+4. **T3.3 · SPRT** for the A/B, and **T3.2 · a second opponent policy**.
+5. **T4.2 · Hygiene** and a rule → test-file index.
+6. **The dead `meganium_active` parameter** in `_our_effective_damage`, which the
+   mutation gate flagged as an equivalent mutant.
+
+And the two strategy items memory had marked PENDING, neither of which is
+measurement:
+
+- **The projector for "which body, when benched, raises MY damage"** (the
+  Dipplin / Do the Wave case: the agent spent a 2-prize Meowth ex where the
+  Ogerpon alone already gave the exact knockout). It affects every attacker
+  whose damage counts bodies.
+- **The opponent's tempo**: `_op_disruption_belief` ignores its second parameter
+  and nobody looks at their discard between turns, which is where "their hand is
+  stuck" comes from.
+
+---
+
+## 7. The success criterion
+
+The usual one: **a list of reproducible findings and detectors that still
+validate themselves**, with **zero lines changed in `main.py`**.
+
+And one specific to tonight. The previous night's question was which of three
+`crustle_wall` is, and **the bridge has already answered "none of the three"**:
+the deck left the meta. What has to be writable by morning, in one sentence, is
+whether any of the sixteen new lists inherits the hole (B2 would say so), or
+whether that 54.5% was the ±7 of a short sample (B2b would say so) — in which
+case the project has spent two nights chasing noise, which is also a result, and
+one of the cheap ones.

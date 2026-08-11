@@ -1,133 +1,130 @@
-# La primera corrida completa del pipeline — 9 de agosto, 14:11-15:49
+# The first complete run of the pipeline — 9 August, 14:11–15:49
 
-`python utils/nightly.py --full --since 69ad2e3`, sobre `7bb0bb6`. **1 h 38 min**
-(estimado 1 h 35). 28 etapas, **cero en FALLO, cero en INVÁLIDO**, código de
-salida 0.
+`python utils/nightly.py --full --since 69ad2e3`, on `7bb0bb6`. **1 h 38 min**
+(estimated 1 h 35). 28 stages, **zero FAILED, zero INVALID**, exit code 0.
 
-Es la primera vez que toda la maquinaria del 8 y 9 de agosto se ejecuta junta y
-a tamaño completo. Este documento es lo que produjo.
+This is the first time the whole apparatus built on 8 and 9 August ran together
+and at full size. This document is what it produced.
 
 ---
 
-## 1. Las puertas: todas verdes
+## 1. The gates: all green
 
 | | |
 |---|---|
 | Suite | 1 878 tests, 16 s |
-| Lint de arquitectura | sin violaciones |
-| Corpus dorado local | 50 registros, sin flips |
-| Suelos de cobertura | 37 módulos, **ninguno por debajo** (26 min) |
-| **Gate de mutación** | sobre TODO el diff del agente del día: **cero supervivientes** |
+| Architecture lint | no violations |
+| Local golden corpus | 50 records, no flips |
+| Coverage floors | 37 modules, **none below** (26 min) |
+| **Mutation gate** | over the whole of the day's agent diff: **zero survivors** |
 
-El gate de mutación pasando a cero sobre las líneas que se escribieron hoy es el
-número que más cuesta conseguir de los cinco, y esta mañana no lo hacía: valía
-un superviviente en el propio arreglo de los premios.
+The mutation gate passing at zero over the lines written today is the hardest of
+the five numbers to get, and it was not passing this morning: it stood at one
+survivor inside the prize fix itself.
 
 ---
 
-## 2. El oráculo diferencial: el residuo se REPRODUCE
+## 2. The differential oracle: the residue REPRODUCES
 
-19 mazos × 2 000 partidas, **165 104 ataques juzgados**.
+19 decks × 2 000 games, **165 104 attacks judged**.
 
-| | anoche (v4) | ahora | Δ |
+| | last night (v4) | now | Δ |
 |---|---:|---:|---:|
-| Hallazgos | 2 351 | **2 303** | −48 |
-| Tasa sobre ataques juzgados | 1,42 % | **1,39 %** | −0,03 pts |
+| Findings | 2 351 | **2 303** | −48 |
+| Rate over attacks judged | 1.42% | **1.39%** | −0.03 pts |
 
-Ninguna diferencia por mazo pasa de lo que mueve la varianza entre corridas sin
-semilla (la mayor es −36 sobre `archaludon`, que tiene 101). **Eso es lo
-importante:** el residuo no era ruido de una corrida. Es un número estable,
-medido dos veces de forma independiente, y **sigue sin explicación**.
+No per-deck difference exceeds what the variance between unseeded runs moves on
+its own (the largest is −36 on `archaludon`, which has 101). **That is the
+point:** the residue was not the noise of one run. It is a stable number,
+measured twice independently, and it is **still unexplained**.
 
-Dónde vive, y no se ha movido:
+Where it lives, and it has not moved:
 
-| Mazo | Hallazgos | % del total |
+| Deck | Findings | % of total |
 |---|---:|---:|
-| `festival_lead` | 885 | 38 % |
-| `crustle_great_tusk_nz` | 356 | 15 % |
-| `crustle_kangaskhan` | 285 | 12 % |
-| `jellicent_lock` | 170 | 7 % |
-| los otros 15 | 607 | 26 % |
+| `festival_lead` | 885 | 38% |
+| `crustle_great_tusk_nz` | 356 | 15% |
+| `crustle_kangaskhan` | 285 | 12% |
+| `jellicent_lock` | 170 | 7% |
+| the other 15 | 607 | 26% |
 
 ---
 
-## 3. El monitor de invariantes: cero en todo lo objetivo
+## 3. The invariant monitor: zero on everything objective
 
-2 000 partidas. Los únicos contadores distintos de cero son `STALE_FLAG`
-(14 851) y `STALE_READ` (2 490), que **están documentados como no-defectos** en
-el propio fichero: se auditaron 743 lecturas y las tres promesas registradas
-están guardadas en sus puntos de consumo.
+2 000 games. The only non-zero counters are `STALE_FLAG` (14 851) and
+`STALE_READ` (2 490), which are **documented as non-defects** in the file
+itself: 743 reads were audited and the three recorded promises are guarded at
+their consumption points.
 
-Lo que importa es lo que **no** sale, sobre 2 000 partidas completas:
+What matters is what does **not** come out, over 2 000 complete games:
 
     DECK_BELIEF 0 · ILLEGAL_INDEX 0 · END_EMPTY_BENCH 0
     ENERGY_CAP 0 · DOUBLE_ATTACH 0 · AGENT_RAISED 0
 
-El arreglo de `_identify_prizes` de esta mañana aguanta a escala: cero creencias
-imposibles sobre los premios en 2 000 partidas.
+This morning's `_identify_prizes` fix holds at scale: zero impossible beliefs
+about the prizes across 2 000 games.
 
 ---
 
-## 4. Permutación y propiedades
+## 4. Permutation and properties
 
-- **0,67 % de decisiones dependientes del orden** sobre **253 197 decisiones**.
-  El nivel conocido era 0,56-0,77 % medido sobre 40-150 partidas; ahora es un
-  número sólido y no una muestra.
-- **20 000 ejemplos** de hypothesis, las 6 propiedades verdes en 2 min 53 s.
+- **0.67% of decisions are order-dependent** over **253 197 decisions**. The
+  known level was 0.56–0.77% measured over 40–150 games; now it is a solid
+  number rather than a sample.
+- **20 000 examples** of hypothesis, all 6 properties green in 2 min 53 s.
 
 ---
 
-## 5. EL HALLAZGO DE LA NOCHE: la familia Crustle
+## 5. THE FINDING OF THE NIGHT: the Crustle family
 
-La matriz de matchups —98 listas reales del ranking × 200 partidas— por
-arquetipo:
+The matchup matrix — 98 real leaderboard lists × 200 games — by archetype:
 
-| Familia | Listas | Winrate medio | Peor |
+| Family | Lists | Mean winrate | Worst |
 |---|---:|---:|---:|
-| **`crustle_wall`** | **18** | **76,6 %** | **54,5 %** |
-| `mega_lucario` | 5 | 87,0 % | 84,0 % |
-| `mega_starmie` | 3 | 89,5 % | 87,5 % |
-| `ogerpon_verde` | 11 | 90,7 % | 84,0 % |
-| `alakazam` | 10 | 95,8 % | 93,5 % |
-| … los otros 12 arquetipos | | 94-99 % | |
-| **Global** | **97** | **91,4 %** | |
+| **`crustle_wall`** | **18** | **76.6%** | **54.5%** |
+| `mega_lucario` | 5 | 87.0% | 84.0% |
+| `mega_starmie` | 3 | 89.5% | 87.5% |
+| `ogerpon_verde` | 11 | 90.7% | 84.0% |
+| `alakazam` | 10 | 95.8% | 93.5% |
+| … the other 12 archetypes | | 94–99% | |
+| **Overall** | **97** | **91.4%** | |
 
-`crustle_wall` está **10 puntos por debajo** de la siguiente familia peor y
-**15 por debajo** de la media. Con 18 listas y 200 partidas cada una no es una
-lista rara: es el arquetipo.
+`crustle_wall` is **10 points below** the next worst family and **15 below** the
+mean. With 18 lists at 200 games each it is not one odd list: it is the
+archetype.
 
-**Y dos detectores independientes apuntan al mismo sitio.** Los dos residuos más
-grandes del oráculo después de `festival_lead` son los dos mazos de Crustle
-(641 hallazgos entre los dos, el 28 % del total). El oráculo dice «el agente se
-equivoca al proyectar su daño contra estos mazos» y la matriz dice «y contra
-estos mazos gana mucho menos». Que coincidan no lo demuestra, pero es la
-primera vez que dos herramientas construidas para cosas distintas señalan el
-mismo arquetipo.
+**And two independent detectors point at the same place.** The two largest
+oracle residues after `festival_lead` are the two Crustle decks (641 findings
+between them, 28% of the total). The oracle says "the agent gets its damage
+projection wrong against these decks" and the matrix says "and against these
+decks it wins much less". Agreement does not prove it, but it is the first time
+two tools built for different things have named the same archetype.
 
-**Salvedad honesta:** la matriz mide contra el bot genérico. Un 54,5 % contra
-ese bot no es un 54,5 % contra una persona. Lo que sí es comparable es el
-GAP: las 97 listas se miden igual, y esta familia está 15 puntos por debajo.
+**An honest caveat:** the matrix measures against the generic bot. 54.5% against
+that bot is not 54.5% against a person. What *is* comparable is the GAP: the 97
+lists are measured the same way, and this family is 15 points below.
 
 ---
 
-## 6. La lista de la mañana
+## 6. The morning's list
 
-1. **Los 641 hallazgos del oráculo contra los dos Crustle**, cruzados con el
-   54-84 % de la matriz. Es el único sitio donde dos detectores coinciden, y hay
-   volcados para reproducir cada uno.
-2. **`festival_lead`, 885 hallazgos, el 38 %**, medido dos veces igual. Sigue
-   sin explicación desde anoche.
-3. Nada más. Las puertas están verdes, los invariantes objetivos a cero y el
-   gate de mutación a cero: **no hay una tercera cosa que arreglar**, y decirlo
-   vale tanto como las dos primeras.
+1. **The oracle's 641 findings against the two Crustle decks**, crossed with the
+   54–84% from the matrix. It is the only place where two detectors agree, and
+   there are dumps to reproduce each one.
+2. **`festival_lead`, 885 findings, 38%**, measured the same way twice. Still
+   unexplained since last night.
+3. Nothing else. The gates are green, the objective invariants are at zero and
+   the mutation gate is at zero: **there is no third thing to fix**, and saying
+   so is worth as much as the first two.
 
-## Lo que NO haría
+## What I would NOT do
 
-- **No tocar el agente por el residuo del oráculo sin reproducir un caso
-  concreto primero.** 2 303 hallazgos no son 2 303 defectos: anoche el mismo
-  detector tuvo tres versiones y las dos primeras reportaban miles de cosas que
-  no existían.
-- **No perseguir el 0,67 % de permutación.** Está en su banda histórica y es la
-  medida más grande que se le ha hecho.
-- **No añadir etapas al pipeline.** La que falta no es una etapa, es leer las
-  dos de arriba.
+- **Do not touch the agent over the oracle's residue without reproducing a
+  concrete case first.** 2 303 findings are not 2 303 defects: last night the
+  same detector had three versions, and the first two reported thousands of
+  things that did not exist.
+- **Do not chase the 0.67% of permutation.** It is inside its historical band,
+  and this is the largest measurement ever made of it.
+- **Do not add stages to the pipeline.** What is missing is not a stage — it is
+  reading the two items above.
