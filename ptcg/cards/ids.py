@@ -639,7 +639,18 @@ DECK_ITEM_IDS = frozenset({Bug_Catching_Set, Ultra_Ball, Night_Stretcher,
 # Both variants of Crustle share the anti-ex ability; the Fighting one (533)
 # switched on `op_is_crustle_deck` but was missing here, so the specific damage
 # computation believed our ex DID damage it (July 2026 audit).
-EX_IMMUNE_IDS = {Crustle_Grass, Crustle_Fighting, Sylveon}
+# CRUSTLE_FIGHTING IS NOT IN HERE, and it was until 11 August 2026. The two
+# Crustle share a name and nothing else: 345 prints "Mysterious Rock Inn"
+# (prevent all damage from your opponent's Pokemon {ex}) and 533 prints
+# "Sturdy" (at full HP it survives a lethal hit at 10), which is why 533 belongs
+# in FULL_HP_SURVIVE_IDS below and only there. Listed here, it made every attack
+# from our ex read as ZERO against a 150 HP body that falls in one hit.
+#
+# It cost nothing -- 0 of the 87 real lists play it -- and it is fixed because
+# the meta rotates, not because it was bleeding. `utils/op_immunity_census.py`
+# is what found it and what will find the next one: these are tables of ids and
+# a table of ids rots silently.
+EX_IMMUNE_IDS = {Crustle_Grass, Sylveon}
 
 # The Crustle LINE (pre-evolution included). `op_is_crustle_deck` is the
 # "ex-immune wall" flag and it also switches on with Sylveon/Eevee, which share

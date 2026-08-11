@@ -67,12 +67,43 @@ class _FakeTool:
     def __init__(self, id):
         self.id = id
 
-def test_crustle_fighting_in_ex_immune_ids():
-    assert m.Crustle_Fighting in m.EX_IMMUNE_IDS
-    crustle_f = _FakePkm(m.Crustle_Fighting, hp=140)
+def test_crustle_fighting_is_STURDY_not_ex_immune():
+    """It asserted the opposite until 11 August 2026, and the card says so.
+
+    The two Crustle share a name and nothing else. 345 prints "Mysterious Rock
+    Inn" -- prevent all damage from your opponent's Pokemon {ex} -- and 533
+    prints "Sturdy": at full HP it survives a lethal hit at 10. The old
+    assertion here ("la variante Fighting de Crustle tambien es inmune a
+    nuestros ex") was a BELIEF, and the simulator's own card data contradicts
+    it, which is the exact failure `utils/differential_oracle.py` was written
+    for -- a test asserting the same wrong belief the code has, green forever.
+
+    Found by `utils/op_immunity_census.py`, which diffs the three immunity
+    tables against the printed text. Exposure was 0 of the 87 real lists, so
+    nothing was bleeding; the entry is corrected because the meta rotates.
+    """
     oger = _FakePkm(m.Teal_Mask_Ogerpon_ex, energies=[1, 1, 1], hp=210)
-    assert m._our_effective_damage(oger, crustle_f, 120) == 0, (
-        "la variante Fighting de Crustle tambien es inmune a nuestros ex")
+    assert m.Crustle_Fighting not in m.EX_IMMUNE_IDS
+    assert m.Crustle_Fighting in m.FULL_HP_SURVIVE_IDS
+
+    # Wounded: Sturdy does not apply and the body takes everything (Grass
+    # weakness doubles it).
+    herida = _FakePkm(m.Crustle_Fighting, hp=140, maxHp=150)
+    assert m._our_effective_damage(oger, herida, 200) == 400
+
+    # At FULL hp a lethal hit is capped at hp - 10, which is what Sturdy says
+    # and all it says.
+    entera = _FakePkm(m.Crustle_Fighting, hp=150)
+    assert m._our_effective_damage(oger, entera, 200) == 140
+
+
+def test_the_other_crustle_is_the_wall_and_stays_one():
+    """The control: removing the wrong entry must not remove the real wall.
+    345 is in 51 opposing decks and it is what this project routes around."""
+    oger = _FakePkm(m.Teal_Mask_Ogerpon_ex, energies=[1, 1, 1], hp=210)
+    muro = _FakePkm(m.Crustle_Grass, hp=150)
+    assert m.Crustle_Grass in m.EX_IMMUNE_IDS
+    assert m._our_effective_damage(oger, muro, 200) == 0
 
 def test_rockets_tarountula_is_threat_preevo():
     assert m.Rockets_Tarountula in m.THREAT_PREEVO_IDS
