@@ -63,6 +63,23 @@ player and does not try to be: because its policy is fixed and deterministic,
 the **difference** between two versions of our agent against it is signal, even
 though the bot's absolute level is not.
 
+**It takes the first turn every time, and that bounds every matchup number this
+project has.** Our agent vetoes going first on purpose
+(`ptcg/turn/options/minor.py`) and the bot answers YES to the `IS_FIRST` select
+like any other yes/no, so in matchup mode the bot went first in 60 of 60 games
+while the mirror ran 30/30. The matchup matrix, the Crustle axis and nearly every
+gate therefore describe only the going-**second** half of the game.
+
+```python
+OpponentBot()                        # unchanged: the historical measuring stick
+OpponentBot(first_choice="second")   # it declines, and the coin flip decides
+```
+
+The default is deliberately untouched — moving the stick silently would break
+comparison with every figure on record. A first reading of the other half, 400
+games vs `crustle_kangaskhan` with the split decided by the flip inside one run:
+**78.0% going first against 68.5% going second**.
+
 ---
 
 ## Understand losses
@@ -153,6 +170,52 @@ about it". It was built for one question (when our attack knocks their active
 out, does the body they promote reply?) and its answer was to NOT write the rule:
 the actionable population is 0.08% of decisions.
 
+### `rule_census.py` — which named rules never fire
+
+Every scoring rule here carries a NAME and every chain resolves through one choke
+point in `ptcg/engine/rules.py`, and until August 2026 nobody counted. This does:
+chain walked / evaluated / fired / decided, per rule, over the frozen corpus and
+over self-play, sorted into four bands — the chain never ran, the rule was never
+evaluated (dead by **ordering**), it was evaluated and never fired (dead by
+**condition**), it fired and never decided.
+
+```bash
+python utils/rule_census.py --self-test
+python utils/rule_census.py --corpus --games 400 --dump log/censo.json
+python utils/rule_census.py --games 800 --opponent deck/opponents/alakazam.csv
+```
+
+It touches nothing: the rule OBJECTS are found by walking the loaded agent and
+their `when`/`value` are wrapped in place, so the engine runs the code it always
+runs. It refuses to print if its self-test fails.
+
+**The output is a worklist, not a verdict**, and a zero says as much about the
+workload as about the rule — run it at more than one load. What survives 2 400
+games is what deserves reading. It found `xerosic_alakazam` (dominated by the
+rule above it: 350 267 evaluations, zero fires) and `tapu_vs_crustle` (needs
+`op_is_crustle_deck` and lives in the chain chosen when the opponent is *not*
+Crustle).
+
+### `duplicate_protection_audit.py` — who protects the second copy too
+
+A discard menu prices cards one at a time, so a protection meaning "this is our
+only out" is handed to every copy in the hand — and only one copy can be the out.
+The audit replays the frozen corpus with `score_option` wrapped and reports every
+menu where two copies of a card came out with the SAME score in the keep band.
+
+The fix shape is a latch (`_lillie_protected_once`, `_evo_spare_seen`). Its
+self-test is historical rather than planted: `Meowth ex` is the standing corpus
+flip (if the audit cannot see it, it is not looking) and `Forest of Vitality` was
+latched in `ab1945a` (if the audit reports it, it is reading wrong).
+
+### `fodder_ladder_audit.py` — the cost paying with the fuel it is buying
+
+Counts, over the same capture, how often a Basic Grass is scored ABOVE an
+evolution the agent itself calls orphaned (`_evo_link_state`: pre-evolution
+neither in play nor in hand) — the energy leaves and the dead card stays. On the
+frozen corpus: **12 of 118 discard menus**, five of them dropping the last energy
+in hand.
+
 ### `permutation_probe.py` — does the menu's order decide?
 
 Plays games with two agent instances: the driver sees the real menu, the shadow
@@ -226,7 +289,7 @@ These exist because of the large refactor described in
 
 | Tool | Purpose |
 | --- | --- |
-| `lint_architecture.py` | Four architecture rules, checked by the test suite. They cover failures that do **not** show up as a red test: importing a mutable by name (freezes a stale copy), data modules touching state, anything bound after the agent entry point (breaks the competition loader), and eager imports that break the container. |
+| `lint_architecture.py` | **Eight** architecture rules, checked by the test suite. They cover failures that do **not** show up as a red test. R1–R5 watch the agent: importing a mutable by name (freezes a stale copy), data modules touching state, anything bound after the agent entry point (breaks the competition loader), lazy imports that break the container, one name defined twice. R6–R8 watch the INSTRUMENTS, and each comes from a bug that shipped on 10 August 2026: a test may not read a `records/` file without a skip guard (that directory is re-harvested), a two-arm `gate_*.py` must define **and call** `provenance()` (a gate that cannot see its own change reports neutral, and neutral orders a revert here), and inside the DISCARD block the turn-scoped flags may only be read through the horizon (on a forced discard they are the opponent's). |
 | `purity.py` | Proves which definitions can be moved out of `main.py` without touching mutable state. |
 | `extract_pure.py` / `extract_definitions.py` | Move constants and definitions into package modules, carrying their comments with them. |
 | `migrate_state.py` | Rewrites module-level state into fields of the state object, editing text in place so comments survive. |
