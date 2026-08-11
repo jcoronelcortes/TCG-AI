@@ -136,6 +136,34 @@ def planned_serial(obs, player_index, target):
     return (card or {}).get("serial")
 
 
+def planned_attacker_is_the_one_attacking(obs, player_index, attacker):
+    """Is the body `plan.attacker` names the one standing in the ACTIVE spot?
+
+    THE SAME DEFECT AS `planned_serial`, ON THE OTHER SIDE OF THE ATTACK, and
+    left standing when that one was fixed. `AGENT_STATE.plan.attacker` is an
+    index over OUR bodies in the same order -- 0 is our active, 1 and up are our
+    bench -- and only the active can attack. A plan whose attacker is a BENCHED
+    body is a plan about a body we intended to promote or retreat into; if the
+    turn then attacks with whoever is already in front, the prediction and the
+    damage belong to two different Pokemon.
+
+    MEASURED on `crustle_wall_9`, 800 games, after the mirror-seat split had
+    already removed the other artefact: of the 45 DAMAGE_DRIFT that survived,
+    37 had `plan.attacker` pointing at the bench. The signature is a giveaway --
+    the projection sits at a CONSTANT 140 while the engine resolves 20, 60, 80
+    and 100, which is exactly `20 x bench` for the Dipplin that did attack. The
+    engine was right about the bench every single time; the two numbers were
+    simply about different attackers.
+
+    `None` or a negative index means the turn recorded no attacker, and that
+    keeps the old behaviour: judged. Everything else is one comparison -- only
+    the ACTIVE can attack, so only a plan about the active is comparable.
+    """
+    if attacker is None or attacker < 0:
+        return True
+    return attacker == 0
+
+
 def is_attack_decision(obs, choice):
     """Did THIS decision launch an attack?
 
@@ -262,6 +290,7 @@ def over_games(games, opponent=None, tolerance=0, liar=None, progress=None):
     stats = {"games": 0, "decisions": 0, "attack_decisions": 0,
              "attacks_judged": 0, "skipped_multi": 0,
              "skipped_sentinel": 0, "skipped_repeat_attack": 0,
+             "skipped_other_attacker": 0,
              "skipped_other_target": 0, "forfeits": 0}
     findings = []
 
@@ -318,6 +347,13 @@ def over_games(games, opponent=None, tolerance=0, liar=None, progress=None):
                 turn_key = (yi, (snapshot.get("current") or {}).get("turn"))
                 if turn_key in judged_turns:
                     stats["skipped_repeat_attack"] += 1
+                    continue
+                # The attacker guard runs BEFORE the target one: a prediction
+                # made about a body that did not attack is not comparable
+                # whatever it was aimed at.
+                if not planned_attacker_is_the_one_attacking(
+                        snapshot, yi, plan.get("attacker")):  # noqa: E501
+                    stats["skipped_other_attacker"] += 1
                     continue
                 after = bodies(obs, opp)
                 objetivo = planned_serial(snapshot, opp, plan.get("target"))
@@ -415,6 +451,8 @@ def report(stats, findings):
     print(f"Ataque repetido en el mismo turno (plan es por turno): {stats['skipped_repeat_attack']}")
     print(f"La prediccion era sobre OTRO cuerpo (gusteo que no se jugo): "
           f"{stats['skipped_other_target']}")
+    print(f"La prediccion era de OTRO ATACANTE (un cuerpo de la banca): "
+          f"{stats.get('skipped_other_attacker', 0)}")
     if stats["forfeits"]:
         print(f"El agente lanzo excepcion en {stats['forfeits']} partidas")
     by_kind = {}
