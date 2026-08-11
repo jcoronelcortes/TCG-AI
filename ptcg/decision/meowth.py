@@ -279,6 +279,26 @@ _RULES_MEOWTH_FETCH = [
     # already settled) -> 1260, above the development Lillie's (1250) and the
     # short-hand refill (1200), below the winning Boss's (1300). Without a
     # strong attacker the previous rule stands (only with hand >= 3, at 1200).
+    #
+    # IT NEVER FIRES, AND IT IS NOT DEAD -- do not delete it (user, August 2026;
+    # `utils/rule_census.py` reports it evaluated 351 197 times over the frozen
+    # corpus and 2 400 games with ZERO fires, and it reads exactly like a rule
+    # the one above swallowed).
+    #
+    # The arithmetic that looks like domination: this predicate is
+    # `xerosic_priority_over_boss`'s minus its `not c.win_via_boss`, and a chain
+    # breaks at the first rule that fires. So this one is reachable EXACTLY when
+    # `win_via_boss` holds -- the corner the rule above deliberately steps aside
+    # from -- and that corner is empty in the workload, not in the game. Its
+    # play-side twin says the same thing from the other side:
+    # `_RULES_XEROSIC_PLAY[4] alakazam_yields_to_winning_gust` is evaluated
+    # 38 963 times and fires zero as well.
+    #
+    # And in that corner it carries weight. `winning_boss` (1300) answers only
+    # the Boss's CANDIDATE; if the winning Boss's is already in HAND it is not a
+    # fetch candidate at all, and then this rule is what prices the Xerosic --
+    # 1260 against the development Lillie's at 1250. Delete it and that board
+    # falls through to `xerosic_generico` (1100) and loses to the refill.
     _FixedRule("xerosic_alakazam",
                lambda c: (c.card_id == Xerosic_Machinations
                           and c.alakazam

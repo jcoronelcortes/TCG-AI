@@ -844,6 +844,15 @@ def _update_cards_tracking(obs, my_index, my_state):
 
 
 _RULES_BOSS_PLAY = [
+    # IT NEVER FIRES, AND IT IS KEPT ON PURPOSE (user, August 2026,
+    # `utils/rule_census.py`: this veto and its two twins in the other Supporter
+    # PLAY chains were evaluated ~222 000 times over the frozen corpus and 2 400
+    # games and fired ZERO between them). The reason is not a wrong premise --
+    # the failure mode of `_protect_last_supporter`, which was gated on a flag
+    # that on a forced discard belongs to the OPPONENT -- it is that the ENGINE
+    # already enforces one Supporter per turn and never offers a second one to
+    # play. The guard is therefore redundant with a rule of the game, not with
+    # another rule of ours, and it costs one comparison to keep saying so.
     _FixedRule("supporter_already_played",
                lambda c: c.state.supporterPlayed,
                lambda c: SCORE_VETO),
@@ -1250,10 +1259,21 @@ _ESC_NS_RECUPERACION = [
                        or w.cards_in_deck.get(
                            Bayleef, {}).get(ZONE_DECK, 0) > 0)), 890),
     # Bodies of situational value.
-    _E("tapu_vs_crustle",
-       lambda w: (Tapu_Bulu in w.basics
-                  and w.field_counts.get(Tapu_Bulu, 0) == 0
-                  and w.op_is_crustle_deck and w.bench_count < 5), 850),
+    #
+    # `tapu_vs_crustle` LIVED HERE AND COULD NEVER FIRE (user, August 2026,
+    # `utils/rule_census.py`: evaluated 11 706 times over the frozen corpus and
+    # 2 400 games, fired ZERO). Not rare -- IMPOSSIBLE, and provably so rather
+    # than by counting: `_score_night_stretcher_play` picks THIS chain only
+    # under `not (op_is_crustle_deck or op_is_cornerstone_deck)`, and the rule
+    # asked for `w.op_is_crustle_deck`. `_CtxNSPlay.__getattr__` delegates
+    # straight to the ctx, so the two readings are the same object and the
+    # contradiction is airtight.
+    #
+    # Its intent was already served, and better, by the chain that DOES run
+    # against that wall: `_ESC_NS_CRUSTLE[0] basico_whitelist` opens its
+    # whitelist with Tapu Bulu and scores it 900, above the 850 this rule would
+    # have given. Removing it changes no decision; that it changes none is the
+    # argument for removing it.
     _E("fez_tras_ko",
        lambda w: (Fezandipiti_ex in w.basics
                   and w.field_counts.get(Fezandipiti_ex, 0) == 0
@@ -2395,6 +2415,8 @@ _RULES_LILLIE_PLAY = [
                           and getattr(c.my_state, 'deckCount', 60) <= 10
                           and 4 <= c.hand_len < 7),
                lambda c: SCORE_VETO),
+    # The third of the twins: never fires, kept on purpose. See the note on
+    # `_RULES_BOSS_PLAY[0]` -- the engine enforces one Supporter per turn.
     _FixedRule("supporter_already_played",
                lambda c: c.state.supporterPlayed,
                lambda c: SCORE_VETO),

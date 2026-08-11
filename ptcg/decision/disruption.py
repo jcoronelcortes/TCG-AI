@@ -550,6 +550,15 @@ def _xr_first_turn_yields_to_lillie(c):
 
 
 _RULES_XEROSIC_PLAY = [
+    # IT NEVER FIRES, AND IT IS KEPT ON PURPOSE (user, August 2026,
+    # `utils/rule_census.py`: this veto and its two twins in the other Supporter
+    # PLAY chains were evaluated ~222 000 times over the frozen corpus and 2 400
+    # games and fired ZERO between them). The reason is not a wrong premise --
+    # the failure mode of `_protect_last_supporter`, which was gated on a flag
+    # that on a forced discard belongs to the OPPONENT -- it is that the ENGINE
+    # already enforces one Supporter per turn and never offers a second one to
+    # play. The guard is therefore redundant with a rule of the game, not with
+    # another rule of ours, and it costs one comparison to keep saying so.
     _FixedRule("supporter_already_played",
                lambda c: c.state.supporterPlayed,
                lambda c: SCORE_VETO),

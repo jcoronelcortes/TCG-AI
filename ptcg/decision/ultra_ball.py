@@ -2204,6 +2204,14 @@ _RULES_UB_MEOWTH = [
                lambda c: c.lillie_in_deck > 0,
                lambda c: 1000),
     # Another supporter in the deck: refill anyway.
+    #
+    # NEVER EVALUATED, AND NOT DEAD (user, August 2026, `utils/rule_census.py`:
+    # the chain is walked 3 416 times and this `when` is never called). It is
+    # the tail of the chain, so the rule above it always fired -- and that rule
+    # asks `lillie_in_deck > 0`, which with four Lillie's in a sixty-card deck
+    # is nearly always true. The corner this one answers is the late game where
+    # the deck has run out of Lillie's and still holds some other Supporter.
+    # The workload did not reach it; the game can.
     _FixedRule("another_supporter_in_deck",
                lambda c: c.any_supp_in_deck,
                lambda c: 850),
