@@ -21,6 +21,23 @@ itself calls ORPHANED -- `_evo_link_state`, pre-evolution neither in play nor in
 hand. The orphan reading is the agent's own, read off the scoring context; this
 file re-implements no rule and asserts no fix.
 
+AND IT REPORTED ITS OWN COARSENESS AS THE AGENT'S DEFECT (11 Aug 2026, the fifth
+detector in this repository to do so). Its first run said TWELVE inversions and
+that number went into the project's memory as a 10.2 % population. FIVE of the
+twelve were the ladder being right: `_evo_link_state` only asks whether the
+pre-evolution is in play or in hand, while the ladder also asks whether the
+missing link is one step away -- an Applin already on the bench with the Dipplin
+in the deck, or a Chikorita in play with our own Ultra Ball about to fetch the
+Bayleef. `lectura_de_eslabon` now asks the agent that finer question with the
+agent's own `_evo_top_unlocked_by_the_search`, and the report prints the rescued
+rows as their OWN population instead of quietly dropping them.
+
+    the number is SEVEN of 118 menus (5.9 %), not twelve (10.2 %)
+
+Which is still fifty times the population that got the cost/search rule reverted,
+and still the largest open item in the queue -- but it is the smaller, true
+number, and half the worklist was the tool.
+
 IT DOES NOT FIX IT, on purpose. Re-ordering the ladder touches EVERY forced
 discard, not just the Ultra Ball cost, and the memory of this project says so:
 that change deserves its own record, its own census and its own gate. What was
@@ -51,11 +68,69 @@ import selfplay as sp  # noqa: E402
 from duplicate_protection_audit import instrumentar, replay  # noqa: E402
 
 
+def lectura_de_eslabon(agente):
+    """An `extra(tc)` hook: which orphans here are ONE LINK from being live.
+
+    THE AUDIT ACCUSED ITSELF FIRST, and this is the repair (user, 11 Aug 2026).
+    The first run of this file reported 12 inversions and the number went into
+    the project's memory as a 10.2 % population. FIVE of the twelve were not
+    defects: `_evo_link_state` is a COARSE reading -- "pre-evolution neither in
+    play nor in hand" -- and the ladder deliberately asks two finer questions
+    that it does not:
+
+      * `registro_031` t4/t6, `registro_045` t2, `registro_007` t3: an **Applin
+        on the bench** with the Dipplin still in the deck. The Hydrapple ex in
+        hand has no pre-evolution, so the coarse reading calls it an orphan, and
+        the ladder scores it 3 because the line is one link from complete;
+      * `registro_037` t4: a **Chikorita in play** and the Bayleef in the deck,
+        with our own Ultra Ball paying the cost. That is the exact board
+        `DISCARD_LINK_THE_SEARCH_BUYS` was written for -- the cost is priced
+        against a board the very card being paid for is about to change.
+
+    Both are the same sentence, and the agent already has the function that says
+    it: `_evo_top_unlocked_by_the_search` puts the missing link on the board and
+    asks whether the top is then one evolution away. It is called here, not
+    reimplemented. What it answers is "is this piece dead?", so it is asked of
+    every menu -- the LADDER only acts on it while our own Ultra Ball is paying,
+    but a card one link from live is not cardboard on their turn either.
+
+    A row it rescues is NOT dropped from the report: it is printed as its own
+    population, because a tool that silently shrinks its own finding reads as
+    "we looked and there was less" when it means "we looked differently".
+    """
+    from ptcg.cards.lines import _evo_top_unlocked_by_the_search
+    lineas = agente.EVO_LINES
+    zona = agente.ZONE_DECK
+    estado = agente.AGENT_STATE
+
+    def extra(tc):
+        huerfanas = getattr(tc, "_evo_huerfanos", None) or ()
+        if not huerfanas:
+            return {"a_un_eslabon": frozenset()}
+        en_mazo = {lk: estado.ACTIVE_CARDS_IN_DECK.get(lk, {}).get(zona, 0)
+                   for linea in lineas for lk in linea[1:-1]}
+        rescatadas = set()
+        for cid in huerfanas:
+            try:
+                if _evo_top_unlocked_by_the_search(
+                        cid, tc.hand_counts, tc.field_counts, en_mazo):
+                    rescatadas.add(cid)
+            except Exception:          # a reading that cannot answer says nothing
+                pass
+        return {"a_un_eslabon": frozenset(rescatadas)}
+
+    return extra
+
+
 def contradicciones(captura, energia_id):
     """(score of the energy, orphan id, its score) for every inversion here.
 
     An inversion is the energy scoring STRICTLY higher than an orphan: higher
     means discarded sooner, so the fuel leaves and the dead card stays.
+
+    This is the RAW comparison and it stays raw on purpose: it asks only whether
+    the energy falls first. Whether the orphan is really dead is the next
+    question, and `clasificar` is where it is asked.
     """
     energias = [(cid, s) for cid, _, s in captura.opciones if cid == energia_id]
     huerfanas = [(cid, nombre, s) for cid, nombre, s in captura.opciones
@@ -66,6 +141,25 @@ def contradicciones(captura, energia_id):
             if score_e > score_h:
                 salida.append((score_e, cid, nombre, score_h))
     return salida, len(energias)
+
+
+def clasificar(captura, energia_id):
+    """The inversions split in two: `(muertas, a_un_eslabon)`.
+
+    `muertas` is the worklist -- the energy falls before a piece the board
+    cannot use and no search is about to complete. `a_un_eslabon` is the ladder
+    being right: those pieces are one link from live and the agent's own reading
+    says so (see `lectura_de_eslabon`).
+
+    A capture taken WITHOUT the hook has no reading to split on. It then
+    reports everything as `muertas`, which is what the audit did before the
+    reading existed -- the old, coarse answer, and never a silently smaller one.
+    """
+    rescatadas = captura.extra.get("a_un_eslabon") or frozenset()
+    inversiones, energias = contradicciones(captura, energia_id)
+    muertas = [i for i in inversiones if i[1] not in rescatadas]
+    vivas = [i for i in inversiones if i[1] in rescatadas]
+    return muertas, vivas, energias
 
 
 def informe(capturas, energia_id, records):
@@ -79,11 +173,15 @@ def informe(capturas, energia_id, records):
     # above one dead Meganium is one inversion seen three times, and printing it
     # three times reads as three findings.
     filas, por_carta, pares = [], Counter(), 0
+    rescatadas, menus_rescatados = [], set()
     for captura in menus:
-        inversiones, energias = contradicciones(captura, energia_id)
-        pares += len(inversiones)
+        muertas, vivas, energias = clasificar(captura, energia_id)
+        pares += len(muertas)
+        for score_e, cid, nombre, score_h in vivas:
+            rescatadas.append((score_e, nombre, score_h, captura))
+            menus_rescatados.add(id(captura))
         peor = {}
-        for score_e, cid, nombre, score_h in inversiones:
+        for score_e, cid, nombre, score_h in muertas:
             previo = peor.get(cid)
             if previo is None or score_e > previo[0]:
                 peor[cid] = (score_e, nombre, score_h)
@@ -92,6 +190,20 @@ def informe(capturas, energia_id, records):
             filas.append((score_e - score_h, score_e, nombre, score_h,
                           energias, captura))
             por_carta[nombre] += 1
+
+    if rescatadas:
+        # Printed BEFORE the worklist and never folded into it: this is the
+        # audit's own correction, and burying it would leave the smaller number
+        # looking like a smaller problem instead of a better reading.
+        print(f"\n  LA ESCALERA TENIA RAZON en {len(rescatadas)} de ellas "
+              f"({len(menus_rescatados)} menus): la pieza esta A UN ESLABON de "
+              f"jugarse y el propio agente lo sabe")
+        # Sorted on the numbers only: a Captura does not compare with a Captura,
+        # which is the same trap the worklist below already carries a note about.
+        for score_e, nombre, score_h, captura in sorted(
+                rescatadas, key=lambda r: (r[0], r[2], r[1]), reverse=True):
+            print(f"     energia {score_e:>3}  vs  {nombre:<16} {score_h:>3}   "
+                  f"{captura.registro} t{captura.turno} a{captura.accion}")
 
     if not filas:
         print("  ninguna: la energia nunca cae antes que una evolucion huerfana")
@@ -105,8 +217,9 @@ def informe(capturas, energia_id, records):
     # Sorted on the numbers only: the capture rides along in the tuple and two
     # of them are not comparable.
     filas.sort(key=lambda f: (f[0], f[1], f[3]), reverse=True)
-    print(f"  {len(filas)} inversiones (la energia cae antes que la carta muerta) "
-          f"en {len({id(f[5]) for f in filas})} menus, {pares} pares carta a carta")
+    print(f"\n  {len(filas)} inversiones REALES (la energia cae antes que una "
+          f"carta que el tablero no puede usar) en {len({id(f[5]) for f in filas})} "
+          f"menus, {pares} pares carta a carta")
     print("\n  delta  energia  huerfana                      su score  energias  donde")
     for delta, score_e, nombre, score_h, energias, captura in filas:
         print(f"  {delta:>5}  {score_e:>7}  {nombre:<28} {score_h:>8}  "
@@ -129,6 +242,13 @@ def auto_test(capturas, energia_id):
 
     SPECIFICITY: an orphan is never compared against itself, and a menu with no
     orphan can produce no inversion.
+
+    AND THE SAME TWO HALVES FOR THE FINER READING, which is what halved this
+    audit's own number and therefore has to prove it is running: the link
+    reading must FIRE somewhere in the corpus (sensitivity -- an unwired hook
+    silently reports the old, bigger number and looks like a finding), and it
+    must never rescue a card the agent did not call an orphan in the first place
+    (specificity -- it may only ever narrow the orphan set, never widen it).
     """
     print("AUTO-TEST (las dos mitades) ...", flush=True)
     fallos = []
@@ -145,11 +265,25 @@ def auto_test(capturas, energia_id):
             fallos.append(f"{captura.registro} no tiene huerfanas y produjo una "
                           "inversion: la lectura del tablero esta mal")
             break
+
+    con_eslabon = [c for c in menus if c.extra.get("a_un_eslabon")]
+    if not con_eslabon:
+        fallos.append("la lectura de eslabon no se disparo en ningun menu: sin "
+                      "ella el informe vuelve al numero viejo y mas grande sin "
+                      "decirlo")
+    for captura in menus:
+        de_mas = (captura.extra.get("a_un_eslabon") or frozenset()) - captura.huerfanos
+        if de_mas:
+            fallos.append(f"{captura.registro} rescata {sorted(de_mas)}, que el "
+                          "agente no llamo huerfanas: la lectura solo puede "
+                          "estrechar el conjunto, nunca ampliarlo")
+            break
     for f in fallos:
         print(f"  AUTO-TEST FALLA: {f}")
     if not fallos:
         print(f"  AUTO-TEST OK: {len(comparables)} menus donde la comparacion "
-              f"puede dispararse\n", flush=True)
+              f"puede dispararse, {len(con_eslabon)} donde la lectura de "
+              f"eslabon acota\n", flush=True)
     return fallos
 
 
@@ -164,7 +298,7 @@ def main(argv=None):
     agente = sp.load_agent(_ROOT / "main.py", "forraje")
     energia_id = agente.Basic_Grass_Energy
     capturas = []
-    restaurar = instrumentar(agente, capturas)
+    restaurar = instrumentar(agente, capturas, lectura_de_eslabon(agente))
     try:
         records = replay(agente, capturas)
         fallos = auto_test(capturas, energia_id)

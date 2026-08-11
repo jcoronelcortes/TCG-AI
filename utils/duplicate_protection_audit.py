@@ -66,9 +66,10 @@ UMBRAL_FORRAJE = 30
 class Captura:
     """One DISCARD menu, with the score the ladder gave each option."""
 
-    __slots__ = ("registro", "turno", "accion", "forzado", "opciones", "huerfanos")
+    __slots__ = ("registro", "turno", "accion", "forzado", "opciones",
+                 "huerfanos", "extra")
 
-    def __init__(self, registro, turno, accion, forzado, huerfanos=()):
+    def __init__(self, registro, turno, accion, forzado, huerfanos=(), extra=None):
         self.registro = registro
         self.turno = turno
         self.accion = accion
@@ -79,6 +80,13 @@ class Captura:
         # from the scoring context rather than re-derived, so a second audit
         # asking about dead cards is asking the agent, not a copy of it.
         self.huerfanos = frozenset(huerfanos or ())
+        # Whatever the caller's `extra(tc)` hook read off the live context when
+        # this menu opened. It exists because the readings an audit needs are
+        # only reachable while `tc` is alive, and reconstructing them afterwards
+        # from the capture is how an audit stops asking the agent and starts
+        # guessing -- which is exactly the failure mode this family of tools
+        # keeps finding in itself.
+        self.extra = dict(extra or {})
 
     @property
     def duplicados(self):
@@ -95,11 +103,16 @@ class Captura:
         return str(card_id)
 
 
-def instrumentar(agente, capturas):
+def instrumentar(agente, capturas, extra=None):
     """Wraps `score_option` and records every DISCARD menu it prices.
 
     Returns an undo callable. The wrapper delegates: the score is the agent's,
     computed by the agent's own code, and this only watches it go past.
+
+    `extra(tc)` is an optional hook called ONCE per menu, the moment it opens,
+    whose dict is stored on the capture. Audits that need a reading only the
+    live context can answer -- and every one of them so far has -- ask for it
+    here instead of rebuilding the board from the capture afterwards.
     """
     scoring = espacio(agente, "ptcg.turn.scoring")
     if scoring is None:
@@ -141,7 +154,8 @@ def instrumentar(agente, capturas):
                        and getattr(efecto, "playerIndex", tc.my_index) != tc.my_index)
             captura = Captura("?", getattr(actual, "turn", None),
                               getattr(actual, "turnActionCount", None), forzado,
-                              getattr(tc, "_evo_huerfanos", None))
+                              getattr(tc, "_evo_huerfanos", None),
+                              extra(tc) if extra is not None else None)
             abiertas[clave] = (tc.select, captura)
             capturas.append(captura)
         card = get_card(tc.obs, o.area, o.index,
