@@ -1344,6 +1344,37 @@ DISCARD_WHAT_THE_SEARCH_ALREADY_BOUGHT = 4
 #   * BELOW the generic junk (a spare Ultra Ball 95, a spare Forest 88), so it
 #     never saves a body at the cost of keeping real fodder.
 DISCARD_BODY_WITHOUT_SEAT = 46
+# --- THE HAND RECYCLER vs A MILL DECK (see `HAND_TO_DECK_PLAY_IDS`) ----------
+# Lives on the Comfey ladder's own scale (80...850), not on the 0-100 one of
+# the constants above: that block REPLACES the computed score, so a number from
+# the other scale would mean nothing there.
+#
+# The rung is the TOP of the keep ladder -- below the energy (80) -- and it is
+# the only card allowed above it. Against a mill deck their win condition is our
+# deck reaching zero and their Xerosic's Machinations cuts us to three cards, so
+# the Supporter that shuffles our hand back INTO OUR DECK is the one card in
+# hand that answers both halves of their plan at once: it feeds the clock they
+# are running down and it is the only way a three-card hand becomes a hand
+# again. The energy it outranks is fuel for one attachment; there is a body on
+# the field wearing plenty already and the deck holds more.
+#
+# ONE COPY, like every other keep on this ladder (`_cf_refill_kept_once`). The
+# spares are not a second answer to anything -- the first copy shuffles them
+# straight back into the deck -- so they drop to the generic bucket (850).
+#
+# KEEPING IT IS NOT SPENDING IT, and in this matchup the two rules are already
+# the two halves of one plan. The refill shuffles the hand back and draws 6, so
+# its deck delta is `hand - 7` (`_refill_deck_delta`): on the three-card hand
+# their Xerosic leaves us with, playing it would BURN four cards off the very
+# clock it is being kept for. That is why the play scorer vetoes it here until
+# the hand is fat again (`comfey_short_hand`, hand < 10 -> SCORE_VETO), which is
+# exactly the band where the shuffle NETS deck cards.
+#
+# So the discard buys the OPTION and the veto picks the turn. Throwing the card
+# away is the one move that cannot be undone: the deck holds more copies, but
+# their Xerosic comes back every turn and the hand it cuts is the hand that was
+# supposed to draw one.
+DISCARD_CF_HAND_RECYCLER = 60
 # --- FINISHER FISHING (see `_finisher_fishing`) ------------------------------
 # Lillie's Determination when the turn has no attack available and the draw may
 # bring the energy that unlocks a KO. It is placed above the whole Boss's ladder
@@ -1685,6 +1716,7 @@ __all__ = [
     'DISCARD_LINK_THE_SEARCH_BUYS',
     'DISCARD_WHAT_THE_SEARCH_ALREADY_BOUGHT',
     'DISCARD_BODY_WITHOUT_SEAT',
+    'DISCARD_CF_HAND_RECYCLER',
     'LILLIE_SCORE_FISHING',
     'LILLIE_SCORE_DECK_CLOCK',
     'FISHING_PROB_MIN',

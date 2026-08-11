@@ -109,12 +109,36 @@ HAND_COST_ABILITY_IDS = frozenset(
     if c.cardType == CardType.POKEMON
     and re.search(r'cards? from your hand', _PRINTED_TEXT[cid]))
 
+# =============================================================================
+# THE HAND RECYCLER: the half of the reset that FEEDS THE DECK
+# -----------------------------------------------------------------------------
+# `HAND_RESET_PLAY_IDS` above answers "does this play wipe my hand?", and for
+# the ORDER question that is the whole property: a card that is about to be
+# destroyed has to be spent first, and it makes no difference whether it is
+# destroyed into the deck or into the discard pile.
+#
+# Against a MILL deck the difference is the entire game. Their win condition is
+# our deck reaching zero, so where the hand LANDS is the only thing that
+# matters: "shuffle your hand into your deck" (Lillie's Determination, Lacey,
+# the Unfair Stamp, Judge) hands cards BACK to the clock they are running down,
+# and "discard your hand" (Carmine, Larry's Skill) helps them finish it.
+#
+# This subset is therefore NOT a rewording of the one above -- it is the
+# narrower claim, and only it may be read as "the card that answers a mill".
+# Same discipline as its parent: derived from the printed text, so it holds for
+# whichever refill the deck ends up running.
+HAND_TO_DECK_PLAY_IDS = frozenset(
+    cid for cid in HAND_RESET_PLAY_IDS
+    if re.search(r'shuffle[sd]? (?:your|their) hand into (?:your|their) deck',
+                 _PRINTED_TEXT[cid]))
+
 
 __all__ = [
     'all_card',
     'card_table',
     'attack_table',
     'HAND_RESET_PLAY_IDS',
+    'HAND_TO_DECK_PLAY_IDS',
     'HAND_COST_ABILITY_IDS',
     '_CARD_BY_NAME',
     '_EVOLUTIONS_BY_NAME',

@@ -56,7 +56,7 @@ from ptcg.turn.energy_ctx import CtxEnergyScoreBase  # noqa: F401
 # =============================================================================
 # Compatibility bridge: `main.<state field>` <-> `AGENT_STATE.<field>`
 # -----------------------------------------------------------------------------
-# The state that persists between turns lives in `AGENT_STATE` (ptcg/estado/agente.py),
+# The state that persists between turns lives in `AGENT_STATE` (ptcg/state/agent_state.py),
 # but the suite sets and reads it as an attribute of `main` in ~1,285 places.
 # Without this bridge those writes would go to a dead attribute: the tests WOULD
 # KEEP PASSING while the agent reads state that nobody updates -- exactly the
@@ -9177,6 +9177,15 @@ def agent(obs_dict: dict) -> list[int]:
     # set holds the ids the current DISCARD menu has already kept for that
     # reason; the copies after them keep whatever price the ladder gave.
     _supp_live_keep_once = set()
+
+    # And the same latch for the HAND RECYCLER of the mill matchup
+    # (`DISCARD_CF_HAND_RECYCLER`). The Comfey ladder replaces the ordinary
+    # scores, so `_lillie_protected_once` -- which the ladder above has already
+    # set by the time that block runs -- cannot tell the first copy from the
+    # spares there. This set holds the ids the current DISCARD menu has already
+    # kept as the recycler; the copies after them fall as generic fodder,
+    # because the first one shuffles them back into the deck anyway.
+    _cf_refill_kept_once = set()
 
     # The same idea for the EVOLUTION pieces, but counting seats instead of
     # copies: the line-protection branches keep as many copies as the board can

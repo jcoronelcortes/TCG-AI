@@ -11,11 +11,11 @@ from ptcg.calc.damage import _attacker_base_damage, _bench_attacker_can_ko, _ko_
 from ptcg.calc.energy import _can_attack_eff, _grass_attach_route_open, _grass_attach_unit, _grass_mult
 from ptcg.calc.board import _active_of, _count_hand_play_options
 from ptcg.cards.groups import EVO_LINES, GT_FETCH_BONUS
-from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, DISCARD_BODY_WITHOUT_SEAT, DISCARD_EVO_SPARE_COPY, DISCARD_LINK_THE_SEARCH_BUYS, DISCARD_SUPPORTER_DEAD_DROP, DISCARD_SUPPORTER_LIVE_KEEP, DISCARD_WHAT_THE_SEARCH_ALREADY_BOUGHT, DUNSPARCE_IDS, Dawn, Dipplin, Drednaw, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, LANA_SEL_INJUGABLE, LANA_SEL_GRASS_DEMAND, LANA_SEL_GRASS_UNLOCKS, LANA_SEL_GRASS_SURPLUS, LANA_SEL_GRASS_WINS, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, OUR_ABILITY_IDS, OUR_EX_IDS, Pinsir, Poke_Pad, RETREAT_COST, RIPEN_HEAL_TARGET_SCORE, SCORE_FORBID, SCORE_LOOKAHEAD_PROMOTE_KO, SCORE_LOOKAHEAD_PROMOTE_SAFE, SCORE_NEVER, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, XEROSIC_BIG_HAND, DISCARD_XEROSIC_CAPS_A_FAT_HAND, Xerosic_Machinations
+from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, DISCARD_BODY_WITHOUT_SEAT, DISCARD_CF_HAND_RECYCLER, DISCARD_EVO_SPARE_COPY, DISCARD_LINK_THE_SEARCH_BUYS, DISCARD_SUPPORTER_DEAD_DROP, DISCARD_SUPPORTER_LIVE_KEEP, DISCARD_WHAT_THE_SEARCH_ALREADY_BOUGHT, DUNSPARCE_IDS, Dawn, Dipplin, Drednaw, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, LANA_SEL_INJUGABLE, LANA_SEL_GRASS_DEMAND, LANA_SEL_GRASS_UNLOCKS, LANA_SEL_GRASS_SURPLUS, LANA_SEL_GRASS_WINS, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, OUR_ABILITY_IDS, OUR_EX_IDS, Pinsir, Poke_Pad, RETREAT_COST, RIPEN_HEAL_TARGET_SCORE, SCORE_FORBID, SCORE_LOOKAHEAD_PROMOTE_KO, SCORE_LOOKAHEAD_PROMOTE_SAFE, SCORE_NEVER, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, XEROSIC_BIG_HAND, DISCARD_XEROSIC_CAPS_A_FAT_HAND, Xerosic_Machinations
 from ptcg.cards.lines import _evo_copies_usable, _evo_top_unlocked_by_the_search, _line_base_benchable, _pokemon_injugable
 from ptcg.cards.ids import OPENING_SAC_PROMOTE_ORDER, SETUP_ACTIVE_BASIC_ORDER, SETUP_ACTIVE_BASIC_TOP, SETUP_ACTIVE_EX_ORDER, SETUP_ACTIVE_EX_TOP, SETUP_ACTIVE_OTHER, SETUP_ACTIVE_OTHER_BASIC, SETUP_ACTIVE_STEP
 from ptcg.cards.scoring import MAIN_ATTACKERS, PROMO_DOOMED_PENALTY, PROMO_KO_BONUS, PROMO_LAST_STAND, PROMO_MATCH_POINT_VETO, PROMO_PRIZE_PENALTY, OPENING_SAC_PROMOTE_STEP, OPENING_SAC_PROMOTE_TOP, _SUPP_PLAY_IDS, _purchase_of_this_turn
-from ptcg.cards.tables import card_table
+from ptcg.cards.tables import HAND_TO_DECK_PLAY_IDS, card_table
 from ptcg.decision.boss_orders import _ADJUST_GUST_NUISANCE, _ADJUST_GUST_OFFENSIVE, _RULES_GUST_NUISANCE, _ctx_gust_target
 from ptcg.decision.disruption import _stamp_pendiente
 from ptcg.decision.meowth import _CtxMeowthFetch, _MEOWTH_FETCH_SUPPS, _RULES_MEOWTH_FETCH
@@ -41,6 +41,7 @@ def score_play(tc, o, score):
     _best_supp_in_deck_val = tc._best_supp_in_deck_val
     _boss_gust_immune_active = tc._boss_gust_immune_active
     _bp = tc._bp
+    _cf_refill_kept_once = tc._cf_refill_kept_once
     _cm_use_ex = tc._cm_use_ex
     _conf_is_matchup_attacker = tc._conf_is_matchup_attacker
     _dc = tc._dc
@@ -3230,14 +3231,51 @@ def score_play(tc, o, score):
 
                 # Strategy vs Comfey (user, registro_005): a discard forced by
                 # Xerosic's Machinations (it leaves us with ONLY 3 cards in hand). The
-                # KEEPING priority is: Energies > Night Stretcher > Lana's
+                # KEEPING priority is: the hand recycler > Energies > Night
+                # Stretcher > Lana's
                 # Aid > Unfair Stamp > the other trainers. The score here is a
                 # DISCARD one (higher = discarded sooner), so the cards to
                 # KEEP carry a LOW score. An EXTRA Ogerpon ex (there are already 2 in
                 # play) is useless -> it is discarded; if more still fit (<2), it is kept
                 # above the trainers because it is the matchup's plan.
+                #
+                # THE CARD THAT ANSWERS THE MILL WAS IN THE `else` (user,
+                # `records/registro_009_pasos_072_hasta_078.json`, episode
+                # 91837627, step 77, turn 9 vs Comfey/Brambleghast -- LOST while
+                # AHEAD on prizes 4-6, which is what deck-out looks like).
+                #
+                # Their Xerosic's Machinations cut a hand of sixteen down to
+                # three. Twelve of the thirteen discards were right -- the two
+                # Xerosic of ours are dead against a deck with nothing to cap,
+                # the line pieces had no seat -- and the thirteenth was Lillie's
+                # Determination, the only card in hand that puts cards BACK into
+                # the deck they are emptying.
+                #
+                # It did not lose on a judgement. This ladder names six cards and
+                # sends EVERYTHING else to one number: Lillie's came out at 850,
+                # tied with a spare Applin. The general ladder had already priced
+                # that same copy at 2 (`_protect_refresh_supporter`, "the last
+                # refill") sixty lines above, and this block overwrote it --
+                # a matchup table speaking about a card it never measured. Same
+                # shape as `el-silencio-de-una-capa-de-valor-no-es-un-cero`, one
+                # layer down.
+                #
+                # The fix is a rung, not a hole in the table: the recycler is
+                # read off the printed text (`HAND_TO_DECK_PLAY_IDS`) rather than
+                # by name, and it takes the top of the ladder. See
+                # `DISCARD_CF_HAND_RECYCLER` for why it outranks the energy and
+                # why keeping it is not the same as playing it.
                 if op_is_comfey_deck:
-                    if card.id == Basic_Grass_Energy:
+                    if (card.id in HAND_TO_DECK_PLAY_IDS
+                            and card.id != Unfair_Stamp
+                            and card.id not in _cf_refill_kept_once):
+                        # The Unfair Stamp recycles the hand too, but it is
+                        # playable only after they knock one of our Pokemon out
+                        # -- against a mill deck that may never happen -- so it
+                        # keeps the conditional rung it already had, below.
+                        _cf_refill_kept_once.add(card.id)
+                        score = DISCARD_CF_HAND_RECYCLER
+                    elif card.id == Basic_Grass_Energy:
                         score = 80
                     elif card.id == Teal_Mask_Ogerpon_ex:
                         score = (850 if field_counts.get(Teal_Mask_Ogerpon_ex, 0) >= 2
