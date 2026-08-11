@@ -175,8 +175,15 @@ def winrate_ponderado(rows, weights):
     return total / cobertura, cobertura
 
 
-def medir(agent_state, games, paths):
-    bot = OpponentBot()
+def medir(agent_state, games, paths, bot_first_choice="first"):
+    # `bot_first_choice="second"` makes the bot DECLINE the first turn, so the
+    # coin flip decides who takes it. The default reproduces every figure on
+    # record: our agent vetoes going first and the bot answers YES, so the
+    # matrix has only ever measured the going-SECOND half of the game (measured
+    # 11 August 2026: 0 of 60 games first in matchup mode against 30/30 in the
+    # mirror). Going first was then worth +2.54 points aggregated and +11.00
+    # against crustle_kangaskhan, which is exactly where this matrix is weakest.
+    bot = OpponentBot(first_choice=bot_first_choice)
     rows = []
     for path in paths:
         opponent_deck = sp.read_deck(path)
@@ -219,6 +226,10 @@ def main(argv):
                          "                         deck/real_opponents, the"
                          "                         REAL leaderboard lists"
                          "                         with their weights)")
+    ap.add_argument("--bot-declines-first", action="store_true",
+                    help="the bot declines the first turn, so the coin flip "
+                         "decides it. Off by default: the numbers on record are "
+                         "all going-second")
     ap.add_argument("--weights", action="store_true",
                     help="weight by real meta share (needs the pesos.csv"
                          "                         produced by"
@@ -247,14 +258,15 @@ def main(argv):
 
     agent_state = sp.load_agent(_ROOT / args.candidate, "agente_matriz")
     print(f"candidato={args.candidate}, {args.games} games per matchup")
-    rows = medir(agent_state, args.games, paths)
+    eleccion = "second" if args.bot_declines_first else "first"
+    rows = medir(agent_state, args.games, paths, eleccion)
 
     base_by_deck = {}
     if args.base:
         base = sp.load_agent_from_git(args.base, "agente_matriz_base")
         print(f"\nbaseline={args.base}")
         base_by_deck = {f["deck"]: f for f in
-                         medir(base, args.games, paths)}
+                         medir(base, args.games, paths, eleccion)}
 
     without_weight = [f["deck"] for f in rows if f["deck"] not in weights] if weights else []
 
