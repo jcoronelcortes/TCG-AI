@@ -222,6 +222,21 @@ def build_stages(profile, since, decks):
                "tests/test_properties_of_any_legal_board.py"],
               lambda out: _grep(r"passed|failed", out),
               env={"PTCG_HYPOTHESIS_EXAMPLES": str(p["examples"])}),
+        # THE THREE INSTRUMENTS OF 11 AUGUST, in the pipeline rather than in
+        # somebody's terminal -- which is this file's whole reason for existing.
+        # All three read the frozen corpus and none of them writes to the tree.
+        Stage("rules", "Censo de reglas: las que nunca disparan",
+              [py, "utils/rule_census.py", "--corpus", "--games", str(p["games"])],
+              lambda out: " | ".join(
+                  ln.strip() for ln in out.splitlines()
+                  if re.match(r"(CENSO DE REGLAS|NUNCA EVALUADA|EVALUADA, NUNCA)", ln)
+              ) or _grep(r"regla", out)),
+        Stage("duplicates", "Auditoria de doble copia en el descarte",
+              [py, "utils/duplicate_protection_audit.py"],
+              lambda out: _grep(r"pares con score IDENTICO|ninguna carta", out)),
+        Stage("fuel", "El coste que paga con el combustible que compra",
+              [py, "utils/fodder_ladder_audit.py"],
+              lambda out: _grep(r"inversiones|ninguna:", out)),
     ]
 
     if p["matrix"]:
