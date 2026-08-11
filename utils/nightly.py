@@ -237,6 +237,11 @@ def build_stages(profile, since, decks):
         Stage("fuel", "El coste que paga con el combustible que compra",
               [py, "utils/fodder_ladder_audit.py"],
               lambda out: _grep(r"inversiones|ninguna:", out)),
+        # The three id tables, diffed against the printed card text. Cheap, and
+        # it is the stage that catches a table going stale between harvests.
+        Stage("immunity", "Las tablas de inmunidad contra el texto de las cartas",
+              [py, "utils/op_immunity_census.py", "--check"],
+              lambda out: _grep(r"resumen:|dicen lo que dicen", out)),
     ]
 
     if p["matrix"]:

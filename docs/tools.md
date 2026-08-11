@@ -208,6 +208,27 @@ self-test is historical rather than planted: `Meowth ex` is the standing corpus
 flip (if the audit cannot see it, it is not looking) and `Forest of Vitality` was
 latched in `ab1945a` (if the audit reports it, it is reading wrong).
 
+### `op_immunity_census.py` — the tables that cancel our damage, against the cards
+
+Third sibling of the two censuses above, and it exists for the same reason: a
+table of ids rots silently. It diffs `EX_IMMUNE_IDS`, `ABILITY_IMMUNE_IDS` and
+`FULL_HP_SURVIVE_IDS` against the printed ability text, in both directions — an
+id in a table whose card does not say that thing, and a card that says it and is
+in no table.
+
+```bash
+python utils/op_immunity_census.py            # the buckets
+python utils/op_immunity_census.py --check    # exit 1 if a table is WRONG
+```
+
+It found `EX_IMMUNE_IDS` carrying Crustle **533**, whose ability is Sturdy — the
+ex-immune wall is **345**, and the two share a name and nothing else. Every
+attack from our ex read as zero against a 150 HP body that falls in one hit.
+Exposure was 0 of 87 real lists, so nothing was bleeding; a wall that is not
+there is still walked around for free. An exclusion (`Acerola's Mischief`: their
+hand, their choice, one turn) has to carry its argument in `_EXCLUDED`, and a
+test enforces that.
+
 ### `fodder_ladder_audit.py` — the cost paying with the fuel it is buying
 
 Counts, over the same capture, how often a Basic Grass is scored ABOVE an
