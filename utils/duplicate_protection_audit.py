@@ -66,14 +66,19 @@ UMBRAL_FORRAJE = 30
 class Captura:
     """One DISCARD menu, with the score the ladder gave each option."""
 
-    __slots__ = ("registro", "turno", "accion", "forzado", "opciones")
+    __slots__ = ("registro", "turno", "accion", "forzado", "opciones", "huerfanos")
 
-    def __init__(self, registro, turno, accion, forzado):
+    def __init__(self, registro, turno, accion, forzado, huerfanos=()):
         self.registro = registro
         self.turno = turno
         self.accion = accion
         self.forzado = forzado
         self.opciones = []      # (card_id, nombre, score)
+        # The agent's OWN reading of which evolutions are orphaned on this board
+        # (`_evo_link_state`): pre-evolution neither in play nor in hand. Taken
+        # from the scoring context rather than re-derived, so a second audit
+        # asking about dead cards is asking the agent, not a copy of it.
+        self.huerfanos = frozenset(huerfanos or ())
 
     @property
     def duplicados(self):
@@ -118,8 +123,15 @@ def instrumentar(agente, capturas):
             return resultado
         if resultado is saltar:
             return resultado
+        # KEYED BY id(), AND THE SELECT IS KEPT ALIVE ON PURPOSE. CPython reuses
+        # an address as soon as the object at it is collected, so keying menus by
+        # `id(tc.select)` alone merged distinct menus into one capture whenever a
+        # select landed on a freed address -- the same corpus reported 90 menus
+        # on one run and 98 on the next. Holding a reference in the value makes
+        # the id unique for as long as the audit needs it.
         clave = id(tc.select)
-        captura = abiertas.get(clave)
+        entrada = abiertas.get(clave)
+        captura = entrada[1] if entrada is not None else None
         if captura is None:
             # `tc.obs` is an `Observation`, not the raw dict the records carry:
             # by the time the scorer sees it the simulator has already parsed it.
@@ -128,8 +140,9 @@ def instrumentar(agente, capturas):
             forzado = (efecto is not None
                        and getattr(efecto, "playerIndex", tc.my_index) != tc.my_index)
             captura = Captura("?", getattr(actual, "turn", None),
-                              getattr(actual, "turnActionCount", None), forzado)
-            abiertas[clave] = captura
+                              getattr(actual, "turnActionCount", None), forzado,
+                              getattr(tc, "_evo_huerfanos", None))
+            abiertas[clave] = (tc.select, captura)
             capturas.append(captura)
         card = get_card(tc.obs, o.area, o.index,
                         getattr(o, "playerIndex", tc.my_index))
