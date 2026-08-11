@@ -120,7 +120,7 @@ def _scores(obs):
     """Returns {'stamp': score, 'xerosic': score} of the real decision."""
     visto = {}
     # The spies are installed in ALL the modules that bind the name: the one that
-    # calls the scorers now lives in ptcg/turno/puntuacion.py, not in `main`.
+    # calls the scorers now lives in ptcg/turn/scoring.py, not in `main`.
     restauradores = []
     for key, name in (("stamp", "_score_unfair_stamp_play"),
                           ("xerosic", "_score_xerosic_play")):

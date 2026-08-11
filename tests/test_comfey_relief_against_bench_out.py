@@ -126,8 +126,8 @@ def _scores(obs):
     def spy(ctx, sel, sc, ob, mi, top_n=3):
         visto.setdefault("s", list(sc))
 
-    # `_debug_log_decision` and `DEBUG_DECISIONS` live in ptcg/motor/depuracion.py,
-    # and the one that consults them is in ptcg/turno/finalize.py: they have to be set in
+    # `_debug_log_decision` and `DEBUG_DECISIONS` live in ptcg/engine/debug.py,
+    # and the one that consults them is in ptcg/turn/finalize.py: they have to be set in
     # all the modules that bind them, not just in `main`.
     _restore_spy = instalar("_debug_log_decision", spy)
     _restaurar_flag = instalar("DEBUG_DECISIONS", True)

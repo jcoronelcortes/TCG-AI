@@ -20,7 +20,7 @@ declared movable is moved, and it aborts if something in the batch is not.
 The batch is described in a Python file with a `MODULOS` dict:
 
     MODULOS = {
-        "ptcg/motor/reglas.py": {
+        "ptcg/engine/rules.py": {
             "titulo": "Rules engine: ...",
             "nombres": ["_FixedRule", "_Adjustment", "_resolve_rules"],
         },

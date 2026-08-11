@@ -23,7 +23,7 @@ THE TRAP OF THE MUTATED NAMES
   `augassign` is detected, and left where it is.
 
 Usage:
-    python utils/extract_pure.py --from-line 40 --to-line 1008 --target ptcg/cartas/ids.py
+    python utils/extract_pure.py --from-line 40 --to-line 1008 --target ptcg/cards/ids.py
     python utils/extract_pure.py ... --apply     # without this, it only reports
 """
 
@@ -171,7 +171,7 @@ def main():
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--from-line", dest="since", type=int, required=True)
     ap.add_argument("--to-line", dest="up_to", type=int, required=True)
-    ap.add_argument("--target", dest="target_path", required=True, help="ruta relativa, p.ej. ptcg/cartas/ids.py")
+    ap.add_argument("--target", dest="target_path", required=True, help="ruta relativa, p.ej. ptcg/cards/ids.py")
     ap.add_argument("--title", default="Constantes extraidas de main.py.")
     ap.add_argument("--main", default="main.py")
     ap.add_argument("--apply", action="store_true")

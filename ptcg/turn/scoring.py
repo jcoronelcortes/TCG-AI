@@ -1,6 +1,6 @@
 """Scoring one menu option: dispatch table by `o.type`.
 
-Every large branch lives in `ptcg/turno/opciones/<type>.py` and receives the
+Every large branch lives in `ptcg/turn/options/<type>.py` and receives the
 same context; the short ones live together in `menores.py`. This used to be an
 if/elif chain of 6,628 lines in a single file: to touch how a retreat is scored
 you had to go in there and locate its 1,425.

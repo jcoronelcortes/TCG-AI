@@ -288,7 +288,7 @@ def _scores(obs):
         return original(context, select, scores, o, my_index, top_n)
 
     # The spy is installed in ALL the modules that bind the name: the caller
-    # now lives in ptcg/turno/finalize.py, not in main.
+    # now lives in ptcg/turn/finalize.py, not in main.
     with parcheado("_debug_log_decision", spy):
         m.agent(obs)
     assert "scores" in capturado, "el agente no puntuo el menu"

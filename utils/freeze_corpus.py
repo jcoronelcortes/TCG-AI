@@ -118,9 +118,9 @@ def check():
     actual = {name: {"decisiones": gc.replay_data(module, data)}
               for name, data in sorted(frozen.items())}
     stored = json.loads(SNAPSHOT.read_text(encoding="utf-8"))
-    # `comparar` devuelve CUATRO listas, no una: pasarle la tupla entera a
-    # `formatear_flips` reventaba con TypeError, asi que el unico camino que
-    # imprime el flip-diff sin reescribir nada estaba muerto.
+    # `comparar` returns FOUR lists, not one: handing the whole tuple to
+    # `formatear_flips` blew up with TypeError, so the only path that prints the
+    # flip-diff without rewriting anything was dead.
     _cambiados, faltantes, nuevos, flips = gc.comparar(stored, actual)
     if not (flips or faltantes or nuevos):
         print(f"{len(frozen)} registros congelados, sin flips.")
@@ -161,11 +161,11 @@ def main(argv):
               file=sys.stderr)
         return 2
 
-    # NO SE ENCOGE EL GATE SIN DECIRLO. `records/` es transitorio: un arbol de
-    # trabajo normal tiene un punado de partidas y el bundle commiteado tiene
-    # todas las que alguien congelo. Reconstruirlo aqui para ACEPTAR un flip
-    # tiraria la diferencia, y como el bundle es un .gz el diff del commit no lo
-    # ensena.
+    # THE GATE DOES NOT SHRINK WITHOUT SAYING SO. `records/` is transient: a
+    # normal working tree holds a handful of games while the committed bundle
+    # holds every game somebody once froze. Rebuilding it here to ACCEPT a flip
+    # would throw the difference away, and since the bundle is a .gz the commit
+    # diff does not show it.
     frozen = gc.frozen_records()
     if frozen and len(bundle) < len(frozen) and not args.force:
         print(f"records/ tiene {len(bundle)} registros y el bundle congelado "

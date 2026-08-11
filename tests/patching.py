@@ -6,7 +6,7 @@ THE PROBLEM
   main.py does `import *`, it takes its own copy; and thirteen modules of `ptcg/`
   have theirs. That is why `monkeypatch.setattr(m, "card_table", ...)` stops
   reaching `_our_effective_damage` as soon as that function moves to
-  `ptcg/calculo/dano.py`: the function reads the binding of ITS module.
+  `ptcg/calc/damage.py`: the function reads the binding of ITS module.
 
   It is not a production problem -- there nobody reassigns these names -- but a problem
   for the tests, which inject doubles to isolate a case.
@@ -18,7 +18,7 @@ THE SOLUTION
   module no longer breaks the test that isolated it.
 
   For mutable state it is NOT needed: it lives in `AGENT_STATE`, which is an object and is
-  never reassigned (see ptcg/estado/agente.py).
+  never reassigned (see ptcg/state/agent_state.py).
 """
 
 import sys
