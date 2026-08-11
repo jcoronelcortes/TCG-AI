@@ -8912,24 +8912,6 @@ def agent(obs_dict: dict) -> list[int]:
             _sel_active_cant_attack = True
 
     _sel_ctx_card = getattr(select, 'contextCard', None)
-    # THE LAST-DITCH FETCH CONTRIBUTES NOTHING: the Supporter we want to play is already
-    # in HAND and only ONE is played per turn. A BOARD predicate -- without
-    # the select's context -- so that the decision to PUT the Meowth ex DOWN and the
-    # decision to USE its ability cannot contradict each other. It used to live embedded in
-    # `_meowth_skip_fetch` (the ACTIVATE context only) and that opened the hole of
-    # log 88162677 step 16 vs Alakazam (LOST): the engine put the Meowth ex down
-    # and immediately afterwards the ability's prompt REJECTED the fetch, so
-    # a 2-prize body was given away on the bench for nothing.
-    _meowth_fetch_already_in_hand = (
-        _meowth_devel_lillie
-        and hand_counts.get(Lillie_Determination, 0) >= 1
-        and not _win_via_boss_gust and not _gust_2prize_via_boss
-    )
-    _meowth_skip_fetch = (
-        context == SelectContext.ACTIVATE
-        and _sel_ctx_card is not None and _sel_ctx_card.id == Meowth_ex
-        and _meowth_fetch_already_in_hand
-    )
 
     # OUR FIRST turn of play (the same criterion as the Ultra
     # Ball block): the anti-donk line puts Meowth ex down even if the Supporter is already in
@@ -9014,6 +8996,53 @@ def agent(obs_dict: dict) -> list[int]:
     _meowth_fetch_redundante = (
         _meowth_fetch_id is not None
         and hand_counts.get(_meowth_fetch_id, 0) >= 1)
+
+    # THE LAST-DITCH FETCH CONTRIBUTES NOTHING: the Supporter we want to play is already
+    # in HAND and only ONE is played per turn. A BOARD predicate -- without
+    # the select's context -- so that the decision to PUT the Meowth ex DOWN and the
+    # decision to USE its ability cannot contradict each other. It used to live embedded in
+    # `_meowth_skip_fetch` (the ACTIVATE context only) and that opened the hole of
+    # log 88162677 step 16 vs Alakazam (LOST): the engine put the Meowth ex down
+    # and immediately afterwards the ability's prompt REJECTED the fetch, so
+    # a 2-prize body was given away on the bench for nothing.
+    #
+    # ...AND THE REDUNDANCY IS DECIDED BY THE PREDICTION, NOT BY THE SPECIES
+    # (user, registro_004 step 59, episode 91839511, turn 4 vs Alakazam, WON in
+    # spite of this). "A Lillie's Determination in hand" is a PROXY for "the
+    # fetch would bring a copy of what I am already holding", and vs Alakazam
+    # with a fat opposing hand the proxy is false: the Last-Ditch points at the
+    # XEROSIC'S MACHINATIONS in the deck, which is a different card AND the one
+    # that wins the turn's only Supporter slot. On that turn the proxy deadlocked
+    # the whole board: the Ultra Ball had already been paid for by
+    # `_alakazam_dig_xerosic_engine` (5950, `_ub_engine_pivot_turn` armed), its
+    # fetch had spent two discards bringing the Meowth ex (1300,
+    # `engine_pivot_turn`, `_ub_meowth_pending` armed) and then the PLAY was
+    # vetoed here while the Lillie's was vetoed by
+    # `alakazam_reserves_supporter_for_xerosic` -- both plays at -1, so the
+    # sterile-turn rescue of `finalize.py` lifted the Lillie's to 1500 and
+    # shuffled the just-bought Meowth ex straight back into the deck.
+    #
+    # `_meowth_fetch_redundante` is the GENERAL, deck-agnostic form of this very
+    # veto: it replays `_RULES_MEOWTH_FETCH` over the Supporters left in the deck
+    # and asks whether THAT card is already in hand. The special case is
+    # subordinated to the general rule, not the other way round: that
+    # keeps every board where the fetch really would bring a second Lillie's --
+    # log 88162677 step 16 among them, where the first-turn rule ranks Lillie's
+    # above Xerosic -- and only lifts the veto when the prediction names another
+    # card. The two decisions still read the SAME predicate, so the invariant
+    # `test_alakazam_step16_the_meowth_engine_and_the_ability_do_not_contradict`
+    # holds by construction.
+    _meowth_fetch_already_in_hand = (
+        _meowth_devel_lillie
+        and hand_counts.get(Lillie_Determination, 0) >= 1
+        and not _win_via_boss_gust and not _gust_2prize_via_boss
+        and _meowth_fetch_redundante
+    )
+    _meowth_skip_fetch = (
+        context == SelectContext.ACTIVATE
+        and _sel_ctx_card is not None and _sel_ctx_card.id == Meowth_ex
+        and _meowth_fetch_already_in_hand
+    )
 
     # When we are behind on prizes and the only Boss's Orders gust is
     # a low-value target (a 1-prize basic/pre-evolution, a high rank) that neither
