@@ -88,7 +88,14 @@ DAMAGE_PER_COUNTER = 10
 
 class OpponentBot:
 
-    def __init__(self):
+    def __init__(self, first_choice="first"):
+        # "first" reproduces the historical bot exactly (it answers YES to
+        # IS_FIRST like any other yes/no). "second" makes it decline, which is
+        # the only way to play the half of the game our agent's own veto has
+        # kept off the board -- see `_si_no`.
+        if first_choice not in ("first", "second"):
+            raise ValueError("first_choice tiene que ser 'first' o 'second'")
+        self.first_choice = first_choice
         self._attacks = {a.attackId: a for a in all_attack()}
         self._damage = {a.attackId: a.damage for a in all_attack()}
         self._cards = {c.cardId: c for c in all_card_data()}
@@ -420,6 +427,19 @@ class OpponentBot:
     def _si_no(self, context, options):
         prefiere_no = context in (int(SelectContext.MULLIGAN),
                                    int(SelectContext.MORE_DEVOLVE))
+        # WHO GOES FIRST IS NOT A YES/NO LIKE THE OTHERS (measured, night of 11
+        # August 2026). This branch answers YES to `IS_FIRST`, so the bot takes
+        # the first turn every time it is asked -- and OUR agent vetoes going
+        # first on purpose (`ptcg/turn/options/minor.py`), so in matchup mode
+        # the bot ended up first in 60 of 60 games while the mirror ran 30/30.
+        # Every number this project has taken with `--opponent` therefore
+        # describes only the going-SECOND half of the game.
+        #
+        # The default is left exactly as it was: the bot is the measuring stick
+        # and moving it silently would break comparison with every figure on
+        # record. `first_choice="second"` is how the other half gets played.
+        if context == int(SelectContext.IS_FIRST) and self.first_choice == "second":
+            prefiere_no = True
         buscado = int(OptionType.NO) if prefiere_no else int(OptionType.YES)
         for i, o in enumerate(options):
             if o.get("type") == buscado:
