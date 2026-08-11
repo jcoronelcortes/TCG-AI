@@ -40,9 +40,31 @@ def score_play(tc, o, score):
                 if _meowth_skip_fetch:
                     score = SCORE_VETO
             elif context == SelectContext.IS_FIRST:
-    
+                # A SCORER PRICES AN OPTION; IT DOES NOT WRITE STATE (user,
+                # August 2026). These two branches used to set
+                # `AGENT_STATE.we_go_first` -- True here, False on the NO below
+                # -- while SCORING each option, so the value that survived was
+                # the LAST option priced, not the one chosen. It came out right
+                # by accident: measured over 60 openings the simulator lists
+                # this menu as (YES, NO) every time, so NO was always scored
+                # last and left the flag False, which is what going second
+                # means. Had that order ever flipped, every `we_go_first` branch
+                # in the tree would have inverted in silence.
+                #
+                # There is nothing to replace them with, because the flag is a
+                # MIRROR of the board and a mirror has exactly one honest
+                # writer: the code that reads the observation. `agent()` does
+                # that -- `if state.firstPlayer >= 0: we_go_first =
+                # (firstPlayer == yourIndex)` -- and the write here was trying
+                # to PREDICT it before the board knew: `firstPlayer` is -1 in
+                # all 60 of those menus, because the coin has not resolved yet.
+                # Between this menu and our next decision the engine resolves
+                # it, and no decision of OURS reads the flag in between (the
+                # scoring context is snapshotted before the loop, so even
+                # within this call the write was invisible).
+                #
+                # `utils/lint_architecture.py` R9 is what keeps it out.
                 score = SCORE_VETO
-                AGENT_STATE.we_go_first = True
             elif context == SelectContext.COIN_HEAD:
     
                 score = 2
@@ -50,8 +72,11 @@ def score_play(tc, o, score):
             if _gt_prompt_si_no:
                 score = SCORE_VETO
             elif context == SelectContext.IS_FIRST:
+                # The other half of the same defect; see the YES branch above.
+                # Going second is the policy (in the current rules the second
+                # player may attack on its first turn and the first may not),
+                # and 2 over the vetoed YES is what says so.
                 score = 2
-                AGENT_STATE.we_go_first = False
             elif context == SelectContext.ACTIVATE and _meowth_skip_fetch:
                 score = 10
         elif o.type == OptionType.END:

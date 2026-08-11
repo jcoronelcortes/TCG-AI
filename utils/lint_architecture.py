@@ -456,6 +456,60 @@ def rule_8_discard_reads_its_horizon(archivo=None):
     return failures
 
 
+# ---------------------------------------------------------------------------
+# R9 -- a per-option scorer prices an option; it does not write state
+# ---------------------------------------------------------------------------
+OPTIONS_DIR = PACKAGE / "turn" / "options"
+
+
+def rule_9_scorers_do_not_write_state(directorio=None):
+    """No module under `ptcg/turn/options/` may assign to `AGENT_STATE.<field>`.
+
+    THE BUG (user, August 2026). `ptcg/turn/options/minor.py` set
+    `AGENT_STATE.we_go_first` inside the IS_FIRST branch -- True while scoring
+    the YES option, False while scoring the NO -- so the value that survived was
+    the LAST option PRICED, never the one CHOSEN. It came out right only because
+    the simulator happens to list that menu as (YES, NO): measured over 60
+    openings, always. Flip that order and every `we_go_first` branch in the tree
+    inverts in silence, with nothing going red.
+
+    The shape generalises, which is why this is a rule and not a fix. These
+    modules are called ONCE PER OPTION, over a list whose order belongs to the
+    simulator; anything they write is therefore a function of that order. A
+    score is not: it is returned, and the caller decides. `ptcg/turn/finalize.py`
+    writes plenty of state and is untouched by this rule -- it runs after the
+    choice, which is precisely the difference.
+
+    It is the same family as [[el-orden-del-menu-decide-decisiones]], one level
+    down: there the order decides which option wins, here it decided what the
+    agent believed afterwards.
+    """
+    raiz = Path(directorio) if directorio else OPTIONS_DIR
+    if not raiz.is_dir():
+        return []
+    failures = []
+    for path in sorted(raiz.rglob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            objetivos = []
+            if isinstance(node, ast.Assign):
+                objetivos = list(node.targets)
+            elif isinstance(node, (ast.AugAssign, ast.AnnAssign)):
+                objetivos = [node.target]
+            for t in objetivos:
+                if (isinstance(t, ast.Attribute) and isinstance(t.value, ast.Name)
+                        and t.value.id == "AGENT_STATE"):
+                    failures.append((
+                        "R9", _rel(path), node.lineno,
+                        f"`AGENT_STATE.{t.attr} = ...` en un puntuador: se llama "
+                        "UNA VEZ POR OPCION, asi que lo que escriba es funcion "
+                        "del ORDEN del menu, no de la eleccion. Devuelve un "
+                        "score; el estado se escribe tras elegir (finalize.py) "
+                        "o se deriva de la observacion en agent().",
+                    ))
+    return failures
+
+
 RULES = (
     rule_1_imported_mutables,
     rule_2_purity,
@@ -465,6 +519,7 @@ RULES = (
     rule_6_records_are_transient,
     rule_7_gates_check_provenance,
     rule_8_discard_reads_its_horizon,
+    rule_9_scorers_do_not_write_state,
 )
 
 
