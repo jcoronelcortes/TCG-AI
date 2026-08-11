@@ -103,6 +103,9 @@ def score_play(tc, o, score):
     _sel_active_cant_attack = tc._sel_active_cant_attack
     _self_ko_by_own_attack = tc._self_ko_by_own_attack
     _supp_values = tc._supp_values
+    # Mutated in place (`.add`), so it needs no write-back: it is the same set
+    # every option of this menu sees. See `REASIGNADAS` in ctx_scoring.py.
+    _supp_live_keep_once = tc._supp_live_keep_once
     _tapu_sac_priority = tc._tapu_sac_priority
     _tb_req = tc._tb_req
     _teal_wall_pivot = tc._teal_wall_pivot
@@ -3198,7 +3201,30 @@ def score_play(tc, o, score):
                                    and hand_counts.get(_sid, 0) >= 1]
                     if _dsv_rivals:
                         if _dsv_live > 0 and _dsv_live > max(_dsv_rivals):
-                            score = min(score, DISCARD_SUPPORTER_LIVE_KEEP)
+                            # AND ONLY THE FIRST COPY GETS IT (user, August
+                            # 2026, found by `utils/duplicate_protection_audit
+                            # .py` over the 118 discard menus of the frozen
+                            # corpus: four records where two Lillie's
+                            # Determination came out of this block sharing a 2).
+                            #
+                            # The floor is a ROLE -- "the best Supporter I could
+                            # still play" -- and only one card can play it: a
+                            # turn plays ONE Supporter. Said of every copy in
+                            # hand it protects the surplus, which is the one
+                            # thing that can never be the reason. The ladder
+                            # already knew (`_lillie_protected_once`: keep one
+                            # at 2, release the spare at 72) and this `min()`
+                            # pulled the spare back down to 2 sixty lines later
+                            # -- the general rule undoing its own special case.
+                            #
+                            # The DROP branch below does NOT latch, and the
+                            # asymmetry is the argument: "this Supporter is dead
+                            # and another one is live" is equally true of every
+                            # copy, and every copy really should go. Only a KEEP
+                            # claims a job.
+                            if card.id not in _supp_live_keep_once:
+                                _supp_live_keep_once.add(card.id)
+                                score = min(score, DISCARD_SUPPORTER_LIVE_KEEP)
                         elif _dsv_live <= 0 and max(_dsv_rivals) > 0:
                             score = max(score, DISCARD_SUPPORTER_DEAD_DROP)
 

@@ -5713,12 +5713,12 @@
     "accion": 5,
     "contexto": 8,
     "detalle": [
-     "CARTA Ultra Ball(1121)",
-     "CARTA Boss’s Orders(1182)"
+     "CARTA Lillie's Determination(1227)",
+     "CARTA Ultra Ball(1121)"
     ],
     "eleccion": [
-     4,
-     0
+     3,
+     4
     ],
     "paso": null,
     "turno": 4
@@ -6631,16 +6631,16 @@
     "accion": 2,
     "contexto": 8,
     "detalle": [
+     "CARTA Lillie's Determination(1227)",
      "CARTA Forest of Vitality(1261)",
      "CARTA Poké Pad(1152)",
-     "CARTA Boss’s Orders(1182)",
-     "CARTA Basic {G} Energy(1)"
+     "CARTA Boss’s Orders(1182)"
     ],
     "eleccion": [
+     3,
      2,
      4,
-     1,
-     6
+     1
     ],
     "paso": null,
     "turno": 3
@@ -14364,15 +14364,15 @@
     "contexto": 8,
     "detalle": [
      "CARTA Lana’s Aid(1184)",
+     "CARTA Lillie's Determination(1227)",
      "CARTA Night Stretcher(1097)",
-     "CARTA Forest of Vitality(1261)",
-     "CARTA Bug Catching Set(1094)"
+     "CARTA Forest of Vitality(1261)"
     ],
     "eleccion": [
      8,
+     6,
      3,
-     7,
-     2
+     7
     ],
     "paso": null,
     "turno": 1
@@ -25070,17 +25070,17 @@
     "contexto": 8,
     "detalle": [
      "CARTA Forest of Vitality(1261)",
+     "CARTA Lillie's Determination(1227)",
      "CARTA Xerosic’s Machinations(1197)",
      "CARTA Meganium(710)",
-     "CARTA Fezandipiti ex(140)",
-     "CARTA Basic {G} Energy(1)"
+     "CARTA Fezandipiti ex(140)"
     ],
     "eleccion": [
      2,
+     4,
      7,
      5,
-     1,
-     3
+     1
     ],
     "paso": null,
     "turno": 7

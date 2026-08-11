@@ -9145,6 +9145,17 @@ def agent(obs_dict: dict) -> list[int]:
     # and the forced discard took both (see the DISCARD branch).
     _counter_stadium_kept_once = False
 
+    # And the same latch one level up, for the CARD-AGNOSTIC Supporter block of
+    # the forced discard (`DISCARD_SUPPORTER_LIVE_KEEP`). That block keeps the
+    # Supporter the value layer prices highest, which is a claim on a JOB -- one
+    # Supporter per turn -- and a job cannot be held twice. Without the latch
+    # the block handed the same floor to every copy in hand and undid the
+    # ladder's own latch sixty lines above it: `_lillie_protected_once` released
+    # the spare at 72 and the `min()` pulled it straight back down to 2. This
+    # set holds the ids the current DISCARD menu has already kept for that
+    # reason; the copies after them keep whatever price the ladder gave.
+    _supp_live_keep_once = set()
+
     # The same idea for the EVOLUTION pieces, but counting seats instead of
     # copies: the line-protection branches keep as many copies as the board can
     # actually wear (`_evo_copies_usable`) and the rest fall as fodder. This

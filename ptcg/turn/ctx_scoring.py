@@ -189,6 +189,7 @@ class ScoringCtx:
     _suicide_only_draws: Any = None
     _suicide_swap_win_promote: Any = None
     _supp_values: Any = None
+    _supp_live_keep_once: Any = None
     _ub_offered_in_menu: Any = None
     _tapu_future_charge: Any = None
     _tapu_sac_enable_retreat: Any = None
