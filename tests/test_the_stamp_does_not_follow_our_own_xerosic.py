@@ -30,8 +30,17 @@ refresh (7 -> 5).
 The floor at `STAMP_MIN_OP_HAND` = 4 is what closes it, and the number is not a
 coincidence: it sits one above `XEROSIC_HAND_CAP`, so a hand that our own
 Xerosic capped can NEVER reach the disruption clause again. That invariant is
-asserted below; the refill clause is deliberately left open (with a hand of
-<= 5 the Stamp still pays, which is the case the clause exists for).
+asserted below.
+
+SUPERSEDED IN PART (user, registro_006 step 81, episode 91690421 vs Alakazam,
+LOST): the refill clause used to be left open here on purpose -- "with a hand of
+<= 5 the Stamp still pays, which is the case the clause exists for" -- and that
+is the half that lost the later record, shuffling a Lillie's Determination and a
+Hydrapple ex back into the deck for five random cards. After OUR OWN Xerosic the
+Stamp is now kept for a later turn, both halves closed
+(`_our_cap_already_spent`, tests/test_the_stamp_is_kept_after_our_own_xerosic.py).
+What the clause below still says is the part that survives: the refill stays open
+when the short opposing hand is NOT our own doing.
 """
 
 import copy
@@ -153,9 +162,13 @@ def test_a_hand_capped_by_xerosic_never_reaches_the_disruption_clause():
         assert not m._stamp_worth_playing(op_hand, big_hand), op_hand
 
 
-def test_the_refill_clause_stays_open_after_xerosic():
-    """Deliberate exception: with a hand the Stamp can afford to shuffle
-    (<= `STAMP_MAX_HAND_SACRIFICED` cards beyond the Stamp itself) the refill
-    half still pays, capped opposing hand or not."""
-    assert m._stamp_worth_playing(m.XEROSIC_HAND_CAP,
-                                  m.STAMP_MAX_HAND_SACRIFICED + 1)
+def test_the_refill_clause_only_stays_open_when_the_cap_is_not_ours():
+    """With a hand the Stamp can afford to shuffle (<=
+    `STAMP_MAX_HAND_SACRIFICED` cards beyond the Stamp itself) the refill half
+    still pays against a short opposing hand -- but NOT when that hand is short
+    because our own Xerosic made it so (registro_006 step 81; see
+    `_our_cap_already_spent`)."""
+    small_hand = m.STAMP_MAX_HAND_SACRIFICED + 1
+    assert m._stamp_worth_playing(m.XEROSIC_HAND_CAP, small_hand)
+    assert not m._stamp_worth_playing(m.XEROSIC_HAND_CAP, small_hand,
+                                      our_cap_already_spent=True)

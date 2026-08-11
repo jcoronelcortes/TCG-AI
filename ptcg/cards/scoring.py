@@ -73,12 +73,51 @@ PROMO_KO_BONUS = 20000
 # the body that endures and the one that makes us lose.
 PROMO_MATCH_POINT_VETO = -30000
 
+
+# THE LAST STAND: at their match point every body on our bench pays at least
+# their remaining pile, so the price tag stops separating the candidates and
+# what is left is who absorbs their reply best (`_mp_last_stand`).
+#
+# 9450 places it just BELOW the two branches that are about acting FIRST -- the
+# guaranteed finisher (9500) and, above everything, the body that knocks out
+# (+`PROMO_KO_BONUS`) -- and above the whole cheap-wall family (8500 + hp/10 of
+# `_ko_prefer_basic_general`, 9000 for an Applin, 6100 for the sturdy basic):
+# when their next knockout ends the game, taking a prize or removing their
+# attacker still comes first, and handing over a cheaper corpse no longer does.
+PROMO_LAST_STAND = 9450
+
+
+def _purchase_of_this_turn(card_id, hand, bought_serials):
+    """How many copies of `card_id` in `hand` OUR OWN searches bought today.
+
+    The other side of `_SUPP_PLAY_IDS` above, and the same doctrine: the
+    decision that SPENDS a resource and the decision that PRICES the hand
+    afterwards cannot contradict each other. Here the resource has already been
+    spent -- an Ultra Ball, a Meowth ex ability, a Bug Catching Set went and got
+    this card -- and the discard ladders, which know only what a card IS, are
+    about to price it as if it had always been sitting there.
+
+    A COUNT, not a list of serials, because copies of one card are
+    interchangeable: what has to survive the next cost is as many copies as the
+    search brought, not the physical ones it brought. `bought_serials` is
+    `AGENT_STATE._bought_this_turn` (taken off the MOVE_CARD logs; a DRAW is not
+    a purchase). It names no card and no deck.
+    """
+    if not bought_serials:
+        return 0
+    return sum(1 for c in hand
+               if getattr(c, 'id', None) == card_id
+               and getattr(c, 'serial', None) in bought_serials)
+
+
 __all__ = [
     'SCORE_LD_SUPP_COMPROMETIDO',
     '_SUPP_PLAY_IDS',
+    '_purchase_of_this_turn',
     'MAIN_ATTACKERS',
     'PROMO_DOOMED_PENALTY',
     'PROMO_KO_BONUS',
+    'PROMO_LAST_STAND',
     'PROMO_MATCH_POINT_VETO',
     'PROMO_PRIZE_PENALTY',
     'OPENING_SAC_PROMOTE_TOP',

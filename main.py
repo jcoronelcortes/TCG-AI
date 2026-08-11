@@ -1527,8 +1527,19 @@ _RULES_FOREST_PLAY = [
     # (27000), which is also irreversible.
     # NOT MEASURED in self-play: the generic OpponentBot cannot pilot the Festival Lead
     # deck (98.9% in both arms), so the gate has no signal.
+    #
+    # ... AND NOT ON THE TURN THE STADIUM IS PAYING US (user, registro_006 steps
+    # 81-86). The card is SHARED: with a Dipplin of ours able to attack and its
+    # Do the Wave already knocking their Active out, Festival Grounds is worth a
+    # prize TODAY -- twice over, since the same Dipplin throws the attack again
+    # (`_festival_double_wave`). Replacing it that turn spends the prize to buy a
+    # defence, and the Forest is still there to be played the turn the wave stops
+    # cashing. It is the narrowest possible guard on purpose: `festival_lead_hostil`
+    # keeps deciding whether the counter-stadium is worth FETCHING, and this only
+    # holds back the turn it would cost a knockout.
     _FixedRule("switch_off_festival_lead",
-               lambda c: c.festival_lead_hostil,
+               lambda c: (c.festival_lead_hostil
+                          and not c.festival_lead_pays_us_now),
                lambda c: 26000),
     _FixedRule("enables_the_evolution_chain",
                _fv_evolution_chain,
@@ -1701,7 +1712,8 @@ def _ub_target_score(ctx, _ubf) -> int:
         op_hand_count=ctx.op_hand_count,
         op_state=ctx.op_state, cards_in_deck=ACTIVE_CARDS_IN_DECK,
         supp_in_hand_takes_the_turn=_ub_supp_in_hand_turn,
-        bench_max=getattr(my_state, 'benchMax', 5) or 5)
+        bench_max=getattr(my_state, 'benchMax', 5) or 5,
+        our_cap_already_spent=AGENT_STATE._xerosic_played_this_turn)
 
     # Chain UB -> Meowth ex -> Last-Ditch Catch -> Supporter. `field_counts < 2`
     # was NOT enough: with ONE Meowth ex already in play the PLAY branch vetoes the
@@ -3540,6 +3552,16 @@ def agent(obs_dict: dict) -> list[int]:
         # `_grass_ability_slots`): it is PER TURN.
         AGENT_STATE._grass_attaches_this_turn = 0
 
+        # Our own Xerosic cap (see `_our_cap_already_spent`): PER TURN too. The
+        # Stamp it holds back is held back for THIS turn only; on the next one
+        # their hand has refilled and the card is worth playing again.
+        AGENT_STATE._xerosic_played_this_turn = False
+
+        # What OUR OWN searches have already bought into this hand: PER TURN.
+        # A purchase is the reason a cost was paid TODAY; next turn the card is
+        # just a card in hand and the ordinary ladders price it.
+        AGENT_STATE._bought_this_turn = set()
+
         AGENT_STATE._field_at_turn_start = None
 
         # The OPENING sentence of the turn: the plan of its first menu, kept so
@@ -3747,6 +3769,31 @@ def agent(obs_dict: dict) -> list[int]:
                 and getattr(_ga_log, 'playerIndex', None) == my_index
                 and getattr(_ga_log, 'cardId', None) == Basic_Grass_Energy):
             AGENT_STATE._grass_attaches_this_turn += 1
+        # ...and, off the same batch and with the same turn boundary, whether OUR
+        # OWN Xerosic's Machinations has already capped their hand this turn. It
+        # cannot be read off the board: `supporterPlayed` does not say WHICH
+        # Supporter went down, and a Xerosic in the discard may be one we played
+        # three turns ago or one an Ultra Ball threw away. Only the PLAY log
+        # dates it. See `_our_cap_already_spent` (disruption.py).
+        elif (getattr(_ga_log, 'type', None) == LogType.PLAY
+                and getattr(_ga_log, 'playerIndex', None) == my_index
+                and getattr(_ga_log, 'cardId', None) == Xerosic_Machinations):
+            AGENT_STATE._xerosic_played_this_turn = True
+        # ...and, off the same batch and with the same turn boundary, WHICH
+        # cards of this hand our own searches went and got today. A card that
+        # arrives from the DECK or from the DISCARD PILE into our hand was
+        # fetched by something we PLAYED (Ultra Ball, a Meowth ex ability, a
+        # Bug Catching Set, a Night Stretcher...): we paid for it. A DRAW is a
+        # different log and does not count -- nobody chose it, so it is not the
+        # reason any cost was paid. See
+        # `DISCARD_WHAT_THE_SEARCH_ALREADY_BOUGHT` in the DISCARD scorer.
+        elif (getattr(_ga_log, 'type', None) == LogType.MOVE_CARD
+                and getattr(_ga_log, 'playerIndex', None) == my_index
+                and getattr(_ga_log, 'toArea', None) == AreaType.HAND
+                and getattr(_ga_log, 'fromArea', None) in (AreaType.DECK,
+                                                           AreaType.DISCARD)
+                and getattr(_ga_log, 'serial', None) is not None):
+            AGENT_STATE._bought_this_turn.add(_ga_log.serial)
 
     # The turn window of OUR KOs (see `_rastrear_ventana_de_ko`): it has to be
     # tracked in EVERY observation, including the forced selections
@@ -3821,12 +3868,13 @@ def agent(obs_dict: dict) -> list[int]:
     # ...and only if the Stamp DESERVES to be played (a card rule, `_sello_merece_
     # jugarse`): with the opposing hand <= 2 and ours large the Stamp waits, so
     # it must block neither the ability nor the Supporter chain.
-    # The two board clauses travel with it: this scope runs BEFORE the matchup
+    # The three extra clauses travel with it: this scope runs BEFORE the matchup
     # flags are computed, but `_op_refill_engine` and `_stamp_buries_the_last_
-    # xerosic` only read the board, the hand and the deck census, all of which
-    # are already here. Without them this flag would go on blocking the chain
-    # for a Stamp that the scoring is now going to veto -- the very paralysis
-    # `_stamp_pendiente` documents.
+    # xerosic` only read the board, the hand and the deck census, and the Xerosic
+    # cap of the turn is already accumulated above -- all of them are here.
+    # Without them this flag would go on blocking the chain for a Stamp that the
+    # scoring is now going to veto -- the very paralysis `_stamp_pendiente`
+    # documents.
     _stamp_blocks_supp_chain = (
         AGENT_STATE.ko_last_turn and hand_counts.get(Unfair_Stamp, 0) >= 1
         and _stamp_worth_playing(
@@ -3835,7 +3883,8 @@ def agent(obs_dict: dict) -> list[int]:
             op_refill_engine=_op_refill_engine(op_state),
             buries_the_last_xerosic=_stamp_buries_the_last_xerosic(
                 hand_counts, AGENT_STATE.ACTIVE_CARDS_IN_DECK,
-                state.supporterPlayed, op_state)))
+                state.supporterPlayed, op_state),
+            our_cap_already_spent=AGENT_STATE._xerosic_played_this_turn))
 
     # Order Lillie's Determination -> Flip the Script (user's request): if
     # we have Lillie's Determination in hand and have not played a Supporter yet
@@ -4890,6 +4939,8 @@ def agent(obs_dict: dict) -> list[int]:
     _hydra_pivot_active = False
     _tapu_sac_pivot = False
     _tapu_sac_enable_retreat = False
+    _festival_sac_pivot = False
+    _festival_lead_pays_us_now = False
     _prize_denial_pivot = False
 
     _bo_active_attack_sufficient = False
@@ -5934,6 +5985,133 @@ def agent(obs_dict: dict) -> list[int]:
                     if _tsac_cur_e < _tsac_rc and _tsac_cur_e + 1 >= _tsac_rc:
                         _tapu_sac_enable_retreat = True
 
+            # =================================================================
+            # THE STADIUM THEY BROUGHT ARMS OUR DIPPLIN TOO (user,
+            # registro_006 steps 81-86, episode 91522323 vs *Festival Lead*,
+            # LOST).
+            #
+            #     US (5 prizes)                       RIVAL (4 prizes)
+            #     active Teal Mask Ogerpon ex         active Dipplin 80/80, 1 {G}
+            #            **10**/210, 3 {G}            bench  Volbeat 70, Thwackey 100,
+            #     bench  Tapu Bulu 140 (1 {G})               Grookey 70, Applin 40,
+            #            Applin 40, Bayleef 110,             Applin 40
+            #            Teal Mask Ogerpon ex 210    stadium **Festival Grounds** (theirs)
+            #     hand   Dipplin, Ultra Ball, 1 {G}
+            #
+            # Their Dipplin had just thrown Do the Wave TWICE into our Ogerpon ex
+            # (210 -> 110 -> 10) and the turn read the board correctly as far as
+            # it went: evolve the benched Applin into Dipplin, and Myriad Leaf
+            # Shower (30 + 30 x (3 + 1) = 150) knocks their Dipplin out. One
+            # prize. Then the 10 HP ex stayed in the Active spot and the reply
+            # took TWO -- `turn_plan.op_prizes_after_ko` said so out loud on that
+            # very board, and nobody was listening.
+            #
+            # The whole turn was available at a better price. The Grass goes onto
+            # the Dipplin we just evolved, the ex RETREATS (cost 1, it carries 3),
+            # and Do the Wave = 20 x 4 benched = 80 knocks the same Dipplin out
+            # -- and then, because **Festival Grounds is on the field**, it
+            # attacks AGAIN (`_festival_double_wave`): three of the five bodies
+            # they can promote die to a second 80. The prize is cashed by a
+            # 1-PRIZE body that stays alive, and the wounded ex is not merely
+            # hidden -- Teal Mask Ogerpon ex's Tera prevents ALL damage to it
+            # while it is on our bench.
+            #
+            # WHY NO EXISTING PIVOT FIRED. `_doomed_ex_sac_pivot` stands aside
+            # when the doomed ex can still knock out (`not _active_can_ko_now`):
+            # cash the prize before it dies. `_prize_denial_pivot` needs the KO
+            # to CLOSE their count (2 >= 4 is false here). `_tapu_sac_pivot` is
+            # this same sentence -- retreat the doomed ex, hand a 1-prize body
+            # the front spot, take the knockout anyway -- but it is written for a
+            # Tapu Bulu that is ALREADY charged, and the body that was ready here
+            # needed the one Grass in hand.
+            #
+            # So this is `_tapu_sac_pivot` with the other attacker: the ONE card
+            # whose price the stadium changes. Outside Festival Grounds a Dipplin
+            # taking the front spot is a chip and
+            # [[el-relevo-que-no-toma-premio-no-gana-el-puesto-activo]] already
+            # forbids it; under the stadium the same body throws its attack twice
+            # and the swap is the whole turn. Requiring the KNOCKOUT on the first
+            # wave is what keeps the two apart: the relay never gives up the prize
+            # the doomed ex was going to cash, it only refuses to pay two for it.
+            # See [[el-doble-ataque-del-estadio-tambien-es-nuestro]].
+            # =================================================================
+            # THE OTHER EDGE, read for the WHOLE board and not only for the
+            # pivot: is the stadium paying US this turn? A Dipplin of ours --
+            # active or benched -- that can attack today and whose Do the Wave
+            # knocks their Active out is cashing a prize that only exists while
+            # Festival Grounds is on the field. The counter-stadium rule reads it
+            # so it does not buy next turn's safety with this turn's prize.
+            if AGENT_STATE._festival_grounds_in_play and _op_act_main is not None:
+                _flpn_op_hp = _op_act_main.hp or 0
+                for _flpn_i, _flpn_pk in enumerate(my_cards):
+                    if _flpn_pk is None or _flpn_pk.id != Dipplin:
+                        continue
+                    # The wave counts the bench the ATTACK sees: with the Dipplin
+                    # already in front that is the bench as it stands, and from
+                    # the bench it is the bench the retreat swaps it out of --
+                    # the same count either way
+                    # ([[la-retirada-intercambia-cuerpos-la-banca-no-encoge]]).
+                    if _flpn_i >= 1 and not can_switch:
+                        continue
+                    _flpn_eff = len(_flpn_pk.energies) * _grass_mult()
+                    if _flpn_eff < AGENT_STATE.ATTACK_ENERGY_REQ.get(Dipplin, 1):
+                        if state.energyAttached or hand_counts.get(Basic_Grass_Energy, 0) < 1:
+                            continue
+                        if _flpn_eff + _grass_attach_unit() < AGENT_STATE.ATTACK_ENERGY_REQ.get(Dipplin, 1):
+                            continue
+                    _flpn_dmg = _our_effective_damage(
+                        _flpn_pk, _op_act_main, 20 * bench_count,
+                        AGENT_STATE.meganium_in_play, neutralization_zone_active)
+                    if _flpn_dmg > 0 and _flpn_dmg >= _flpn_op_hp:
+                        _festival_lead_pays_us_now = True
+                        break
+
+            if (not _hydra_pivot_active and not _tapu_sac_pivot
+                    and can_switch
+                    and AGENT_STATE._festival_grounds_in_play
+                    and _op_act_main is not None and _ret_active is not None
+                    and _ret_active.id in OUR_EX_IDS
+                    and active_ko_likely
+                    and my_prize > prize_count_op(_op_act_main)):
+                _fsac_op_hp = _op_act_main.hp or 0
+                # The bench the wave counts is the one the RETREAT leaves behind,
+                # and a retreat SWAPS bodies -- the ex goes down as the Dipplin
+                # comes up, so the count does not change
+                # ([[la-retirada-intercambia-cuerpos-la-banca-no-encoge]]). The
+                # promotion after a knockout is the other case and discounts one;
+                # that is not this route.
+                for _fsac_i, _fsac_pk in enumerate(my_cards):
+                    if _fsac_i == 0 or _fsac_pk is None or _fsac_pk.id != Dipplin:
+                        continue
+                    _fsac_e = len(_fsac_pk.energies)
+                    _fsac_eff = _fsac_e * _grass_mult()
+                    # Do the Wave costs ONE Grass: the body is either already
+                    # charged or this turn's attachment reaches it. The retreat
+                    # fee is paid by the ACTIVE and cannot charge the relay.
+                    _fsac_needs_energy = _fsac_eff < AGENT_STATE.ATTACK_ENERGY_REQ.get(Dipplin, 1)
+                    if _fsac_needs_energy:
+                        if state.energyAttached or hand_counts.get(Basic_Grass_Energy, 0) < 1:
+                            continue
+                        _fsac_eff += _grass_attach_unit()
+                        if _fsac_eff < AGENT_STATE.ATTACK_ENERGY_REQ.get(Dipplin, 1):
+                            continue
+                    _fsac_dmg = _our_effective_damage(
+                        _fsac_pk, _op_act_main, 20 * bench_count,
+                        AGENT_STATE.meganium_in_play, neutralization_zone_active)
+                    if _fsac_dmg <= 0 or _fsac_dmg < _fsac_op_hp:
+                        continue
+                    # The relay must not hand over MORE than the body it replaces
+                    # ([[la-retirada-elige-quien-paga-el-premio]]).
+                    if prize_count(_fsac_pk) >= prize_count(_ret_active):
+                        continue
+                    AGENT_STATE.plan.attacker = _fsac_i
+                    AGENT_STATE.plan.target = 0
+                    AGENT_STATE.plan.attack_index = 0
+                    AGENT_STATE.plan.remain_hp = _fsac_op_hp - _fsac_dmg
+                    AGENT_STATE.plan.energy = _fsac_needs_energy
+                    _festival_sac_pivot = True
+                    break
+
             # --- Prize denial: defensive pivot to a 1-prize body ---
             # An analysis BEFORE attacking (user, log 86211357 step 128, LOST vs
             # Mega Starmie). If our active is an ex (2 prizes) that will be
@@ -5950,6 +6128,7 @@ def agent(obs_dict: dict) -> list[int]:
             # itself can finish and WIN this very turn, it does not retreat (it attacks).
             if (not _prize_denial_pivot
                     and not _hydra_pivot_active and not _tapu_sac_pivot
+                    and not _festival_sac_pivot
                     and can_switch
                     and _op_act_main is not None and _ret_active is not None
                     and _ret_active.id in OUR_EX_IDS
@@ -8952,6 +9131,15 @@ def agent(obs_dict: dict) -> list[int]:
     # already protected.
     _evo_spare_seen = {}
 
+    # The same latch again, for the copies OUR OWN searches bought this turn
+    # (`DISCARD_WHAT_THE_SEARCH_ALREADY_BOUGHT`). Copies of one card are
+    # interchangeable, so the purchase is not a SERIAL, it is a COUNT: the first
+    # copies the menu offers keep their ordinary price -- there are that many
+    # more of them in hand than the search brought -- and the rest are the
+    # purchase. This dict tallies, per card id, how many spares the current
+    # DISCARD menu has already let through.
+    _bought_spare_seen = {}
+
     # ------------------------------------------------------------------
     # Promotion after a KO: ALWAYS choose the best benched attacker according to the
     # opposing ACTIVE Pokemon (not according to what cards it has in its deck). For each
@@ -9495,6 +9683,23 @@ def agent(obs_dict: dict) -> list[int]:
     # of the `_doomed_ex_sac_pivot` pivot: it is detected with the REAL opposing finisher, not with
     # a list of matchups, so it applies to any deck (Mega Lucario included).
     # It excludes ex/ability-immune walls (there the promotion brings up its own wall).
+    #
+    # THE CHEAP BODY HAS TO BE CHEAPER THAN THEIR PILE (user, registro_011 step
+    # 130 vs Alakazam, LOST -- episode 91532527, deck-agnostic). The whole rule
+    # is one sentence -- "hand over a cheap body (1 prize) instead of an ex (2
+    # prizes)" -- and that sentence is only worth something while the cheap body
+    # buys us a turn. With their pile at ONE it buys nothing: the 1-prize basic
+    # closes their count exactly as fast as the ex, so the discount it is priced
+    # on does not exist. It is the same correction the other two members of this
+    # family already carry (the +3000 prize denial and `_alakazam_pivot_1prize`,
+    # registro_014 step 130): `prize_count(body) < op_prize`.
+    #
+    # There, on a bench of five bodies with no energy anywhere, the rule handed
+    # 8500 + hp/10 to a 140 HP Tapu Bulu against a Powerful Hand of 20 x (15+2);
+    # the 330 HP Hydrapple ex it beat is the only body that their real blow --
+    # every card they play takes 20 off it -- can fall short of. See
+    # `_mp_last_stand` below, which is the criterion that replaces this one when
+    # their pile makes every price the same price.
     _ko_prefer_basic_general = False
     if (_forced_ko_promote and _best_promote_card is None
             and not _lucario_ko_prefer_basic
@@ -9513,7 +9718,8 @@ def agent(obs_dict: dict) -> list[int]:
             if (_kbp_d is not None
                     and not getattr(_kbp_d, 'stage1', False)
                     and not getattr(_kbp_d, 'stage2', False)
-                    and _kbp.id not in OUR_EX_IDS):
+                    and _kbp.id not in OUR_EX_IDS
+                    and prize_count(_kbp) < op_prize):
                 _kpb_has_basic = True
             if (_kbp.hp or 0) > _kpb_tank_hp:
                 _kpb_tank_hp = _kbp.hp or 0
@@ -10047,6 +10253,74 @@ def agent(obs_dict: dict) -> list[int]:
         if op_prize > prize_count(_pk):
             return False
         return _mp_reply_scaled_to(_pk) >= (_pk.hp or 0)
+
+    # THE LAST STAND: WHEN EVERY PRICE IS THE SAME PRICE (user, registro_011
+    # step 130 vs Alakazam, LOST -- episode 91532527, deck-agnostic).
+    #
+    # Turn 11, four prizes to ONE. Their Powerful Hand had just taken our
+    # Teal Mask Ogerpon ex for 20 x 13 and the menu offered five bodies with no
+    # energy on any of them: Meganium 160, Hydrapple ex 330, Fezandipiti ex 210,
+    # Meowth ex 170 and a Tapu Bulu of 140. Nobody attacks next turn, nobody
+    # knocks anything out; the only thing being chosen is who takes their next
+    # blow. The agent promoted the TAPU BULU, the smallest body on the bench,
+    # and the reply went through it with 200 to spare.
+    #
+    # Everything that pointed there was the prize discount again -- here
+    # `_ko_prefer_basic_general`, "hand over a cheap body instead of an ex",
+    # 8500 + hp/10 -- and at their match point that discount does not exist: a
+    # 1-prize corpse closes their count exactly like a 2-prize one. The guard
+    # above (`prize_count < op_prize`) takes that argument away; this is what
+    # replaces it.
+    #
+    # WHEN THE PRICE STOPS BEING INFORMATION: `not _mp_cheaper_candidate`, i.e.
+    # NO body on our bench pays less than their remaining pile. Whichever one
+    # goes to the front, their next knockout ends the game, so the criterion is
+    # the other one -- how much of their reply the body absorbs. It is read with
+    # `_mp_reply_to` (the projector that counts their HAND, where this family of
+    # attacks prints 0) and ordered by MARGIN: the bodies that outlast the blow
+    # first, and among the doomed the one that comes CLOSEST to outlasting it.
+    #
+    # The margin is what matters and not just the raw HP because their number is
+    # an UPPER bound -- `20 x (hand + 2)` -- that shrinks with every card they
+    # play; the 330 HP Hydrapple ex is the only body on that bench their real
+    # turn can fall short of, and it is the one line that keeps the game alive.
+    #
+    # AND THE BLOW HAS TO SEPARATE THEM. If their reply leaves EVERY candidate
+    # standing, nobody is making a last stand and the ordinary criteria -- who
+    # is closest to attacking, who protects the engine -- are the right ones;
+    # this rule only speaks when their attack REMOVES at least one of the bodies
+    # on the menu, which is when "who takes the blow" becomes the question.
+    #
+    # Positive evidence only, like its neighbours: a candidate whose reply is
+    # unreadable (a projection of 0) is not ranked, and with the whole bench
+    # unreadable nobody is chosen. It never surrenders a knockout: the bodies
+    # that finish the opposing active are left out of the ranking altogether --
+    # among knockers the base score decides, as `PROMO_KO_BONUS` documents --
+    # and `PROMO_LAST_STAND` sits below the guaranteed finisher and far below
+    # that bonus. It only decides who tanks when nothing else can be done.
+    _mp_last_stand = None
+    if ((context == SelectContext.SWITCH or context == SelectContext.TO_ACTIVE)
+            and _promo_op_act is not None
+            and not _mp_cheaper_candidate):
+        _ls_best_key = None
+        _ls_removes_one = False
+        for _pb in my_state.bench:
+            if _pb is None or not isinstance(_pb, Pokemon):
+                continue
+            _ls_reply = _mp_reply_to(_pb)
+            if _ls_reply <= 0:
+                continue
+            if _ls_reply >= (_pb.hp or 0):
+                _ls_removes_one = True
+            if _promo_kos_op(_pb):
+                continue
+            _ls_key = ((_pb.hp or 0) - _ls_reply, _pb.hp or 0,
+                       -prize_count(_pb))
+            if _ls_best_key is None or _ls_key > _ls_best_key:
+                _ls_best_key = _ls_key
+                _mp_last_stand = _pb
+        if not _ls_removes_one:
+            _mp_last_stand = None
     # ------------------------------------------------------------------
 
     # Rule (user, log 86345562 p55): when PROMOTING (a retreat or a KO) and NO
@@ -10965,6 +11239,7 @@ def agent(obs_dict: dict) -> list[int]:
         has_hydrapple=has_hydrapple,
         watchtower_in_play=watchtower_in_play,
         festival_lead_hostil=_festival_lead_hostil,
+        festival_lead_pays_us_now=_festival_lead_pays_us_now,
         meowth_ability_lock=meowth_ability_lock,
         neutralization_zone_active=neutralization_zone_active,
         mega_line_active=_mega_line_active,
@@ -11005,6 +11280,7 @@ def agent(obs_dict: dict) -> list[int]:
         item_lock_incoming=_item_lock_incoming,
         opening_sac_needs_body=_opening_sac_needs_body,
         doomed_sac_needs_body=_doomed_sac_needs_body,
+        our_xerosic_capped_this_turn=AGENT_STATE._xerosic_played_this_turn,
         lucario_sac_pivot=_lucario_sac_pivot,
         win_via_boss_gust=_win_via_boss_gust,
         gust_2prize_via_boss=_gust_2prize_via_boss,

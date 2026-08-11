@@ -604,17 +604,37 @@ def test_promote_near_ready_defers_without_draw_engine():
     # turn it draws 3. That route (route `d` of `_ps_can_find_energy`) is real and is now
     # modelled, so the control has to switch it off too in order to measure what
     # it says it measures. See `test_promote_near_ready_fez_draw_engine_is_enough`.
+    #
+    # WHAT THIS CONTROL MEASURES IS THE OVERRIDE, and that is what it asserts:
+    # `_promote_setup_ko_attacker` has to come out None. It used to assert the
+    # OUTCOME instead ("anything but the Ogerpon ex"), and on this board the
+    # outcome moved on its own account -- their pile is at ONE and their
+    # Powerful Hand projects 20 x (14+2) = 320, which removes all four
+    # candidates. There the cheap 1-prize wall the assertion was written for
+    # hands over exactly the prize that ends the game, and the front spot goes
+    # to the body their blow clears by the least: the 210 HP Ogerpon ex. See
+    # `tests/test_the_last_stand_takes_the_front_spot.py` (`_mp_last_stand`).
+    # The two rules reach the same body for different reasons, so the override
+    # is now read directly rather than through who was promoted.
     obs = _promote_near_ready_obs(without_lillie=True, without_fez=True)
-    me = obs["current"]["players"][obs["current"]["yourIndex"]]
-    ogerpon_opt = next(i for i, o in enumerate(obs["select"]["option"])
-                       if me["bench"][o["index"]]["id"] == m.Teal_Mask_Ogerpon_ex)
+
+    seen = {}
+    _original = m.score_option
+
+    def _spy(tc, o, score):
+        seen.setdefault("override", tc._promote_setup_ko_attacker)
+        return _original(tc, o, score)
 
     m._init_cards_tracking(); m.plan = m.AttackPlan()
-    result = m.agent(obs)
+    m.score_option = _spy
+    try:
+        m.agent(obs)
+    finally:
+        m.score_option = _original
 
-    assert result != [ogerpon_opt], (
-        f"sin motor de robo alguno el override no debe forzar Ogerpon ex; "
-        f"obtuvo {result}")
+    assert seen["override"] is None, (
+        "sin motor de robo alguno el override del atacante casi listo no debe "
+        f"existir; obtuvo {seen['override']}")
 
 def test_promote_near_ready_fez_draw_engine_is_enough():
     # Without a Lillie's but WITH the Fezandipiti ex on the bench: Flip the Script (draw 3,

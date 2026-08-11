@@ -48,6 +48,16 @@ sites still pass and nothing consumes.
 import pytest
 
 from ptcg.calc.damage import _our_effective_damage
+from ptcg.state.agent_state import AGENT_STATE
+
+
+@pytest.fixture(autouse=True)
+def _no_stadium_unless_the_test_says_so():
+    """The flag is global and now load-bearing: every test here starts from an
+    empty field and leaves it empty."""
+    AGENT_STATE.full_metal_lab_in_play = False
+    yield
+    AGENT_STATE.full_metal_lab_in_play = False
 
 ARCHALUDON_EX = 190          # Metal, resists Grass, 300 hp
 MEGA_LOPUNNY_EX = 849        # not Metal: the control
@@ -85,18 +95,43 @@ def test_a_body_that_is_not_metal_is_untouched_either_way(lab):
     assert _damage(MEGA_LOPUNNY_EX, lab) == BASE
 
 
-def test_the_stadium_is_off_unless_a_caller_says_otherwise():
+def test_the_default_asks_the_board_instead_of_answering_no():
     """The DEFAULT of the keyword, which is a different claim from its False arm.
 
-    The gate's last survivor on this fix: `full_metal_lab=False` rewritten to
-    `=True` and the whole suite stayed green, because every test that cares
-    passes the flag EXPLICITLY. The keyword exists so that the ~70 call sites
-    which know nothing about the stadium did not have to change at once, and
-    what protects them is precisely the default -- so it is asserted without
-    naming it.
+    IT USED TO BE `False`, and the docstring here defended it: the keyword
+    existed so that "the ~70 call sites which know nothing about the stadium did
+    not have to change at once". None of them ever did -- zero of 69 passed it --
+    so the canonical model knew the card and was never asked about it, and every
+    finisher went on over-reading by 30 into their Metal. That cost episode
+    91627381 (see `test_the_stadium_is_the_finisher_it_was_hiding`).
+
+    So the default is now `None` = ASK THE BOARD, i.e. read
+    `AGENT_STATE.full_metal_lab_in_play`, which `agent()` writes from the
+    stadium on every observation. True/False still force the answer, for these
+    tests and for any caller projecting a board where the stadium is about to
+    change.
+
+    Both arms, because the read is what the fix is: the stadium off is the 170
+    the old default gave for the wrong reason, and the stadium on is the 140 no
+    call site could reach.
     """
+    AGENT_STATE.full_metal_lab_in_play = False
     assert _our_effective_damage(_Body(HYDRAPPLE_EX), _Body(ARCHALUDON_EX),
-                                 BASE) == 170
+                                 BASE) == 170, "no stadium in play"
+    AGENT_STATE.full_metal_lab_in_play = True
+    assert _our_effective_damage(_Body(HYDRAPPLE_EX), _Body(ARCHALUDON_EX),
+                                 BASE) == 140, "and the board is what says so"
+
+
+def test_an_explicit_keyword_still_overrides_the_board():
+    """The projector's escape hatch: what the damage would be under ANOTHER
+    stadium. With Full Metal Lab really on the field, `full_metal_lab=False`
+    answers the question "and if we replaced it?" -- which is the very play the
+    record's board needed."""
+    AGENT_STATE.full_metal_lab_in_play = True
+    assert _damage(ARCHALUDON_EX, False) == 170
+    AGENT_STATE.full_metal_lab_in_play = False
+    assert _damage(ARCHALUDON_EX, True) == 140
 
 
 def test_the_other_two_switches_are_off_by_default_as_well():
@@ -104,13 +139,15 @@ def test_the_other_two_switches_are_off_by_default_as_well():
 
     `_our_effective_damage` takes three optional switches and each is a rule
     that turns damage OFF: with `neutralization_zone` our ex do nothing to a
-    body without a rule box, and the stadium takes its 30. All three default to
-    False so that the ~70 call sites that know about none of them keep working,
-    which makes the defaults load-bearing and, until now, unasserted.
+    body without a rule box, and the stadium takes its 30. The other two still
+    default to False -- only the stadium graduated to reading the board -- and
+    those defaults stay load-bearing for the ~70 call sites that name none of
+    them.
 
     Duraludon is the body that separates them: Metal, resists Grass, and NOT an
     ex, so Neutralization Zone would take our Hydrapple ex to zero if it were on.
     """
+    AGENT_STATE.full_metal_lab_in_play = False
     assert _our_effective_damage(_Body(HYDRAPPLE_EX), _Body(DURALUDON),
                                  BASE) == 170, "neutralization zone off"
     assert _our_effective_damage(_Body(HYDRAPPLE_EX), _Body(DURALUDON), BASE,

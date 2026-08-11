@@ -11,10 +11,10 @@ from ptcg.calc.damage import _attacker_base_damage, _bench_attacker_can_ko, _ko_
 from ptcg.calc.energy import _can_attack_eff, _grass_attach_route_open, _grass_attach_unit, _grass_mult
 from ptcg.calc.board import _active_of, _count_hand_play_options
 from ptcg.cards.groups import EVO_LINES, GT_FETCH_BONUS
-from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, DISCARD_BODY_WITHOUT_SEAT, DISCARD_EVO_SPARE_COPY, DISCARD_LINK_THE_SEARCH_BUYS, DISCARD_SUPPORTER_DEAD_DROP, DISCARD_SUPPORTER_LIVE_KEEP, DUNSPARCE_IDS, Dawn, Dipplin, Drednaw, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, LANA_SEL_INJUGABLE, LANA_SEL_GRASS_DEMAND, LANA_SEL_GRASS_UNLOCKS, LANA_SEL_GRASS_SURPLUS, LANA_SEL_GRASS_WINS, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, OUR_ABILITY_IDS, OUR_EX_IDS, Pinsir, Poke_Pad, RETREAT_COST, RIPEN_HEAL_TARGET_SCORE, SCORE_FORBID, SCORE_LOOKAHEAD_PROMOTE_KO, SCORE_LOOKAHEAD_PROMOTE_SAFE, SCORE_NEVER, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, Xerosic_Machinations
+from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, DISCARD_BODY_WITHOUT_SEAT, DISCARD_EVO_SPARE_COPY, DISCARD_LINK_THE_SEARCH_BUYS, DISCARD_SUPPORTER_DEAD_DROP, DISCARD_SUPPORTER_LIVE_KEEP, DISCARD_WHAT_THE_SEARCH_ALREADY_BOUGHT, DUNSPARCE_IDS, Dawn, Dipplin, Drednaw, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, LANA_SEL_INJUGABLE, LANA_SEL_GRASS_DEMAND, LANA_SEL_GRASS_UNLOCKS, LANA_SEL_GRASS_SURPLUS, LANA_SEL_GRASS_WINS, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, OUR_ABILITY_IDS, OUR_EX_IDS, Pinsir, Poke_Pad, RETREAT_COST, RIPEN_HEAL_TARGET_SCORE, SCORE_FORBID, SCORE_LOOKAHEAD_PROMOTE_KO, SCORE_LOOKAHEAD_PROMOTE_SAFE, SCORE_NEVER, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, Xerosic_Machinations
 from ptcg.cards.lines import _evo_copies_usable, _evo_top_unlocked_by_the_search, _line_base_benchable, _pokemon_injugable
 from ptcg.cards.ids import OPENING_SAC_PROMOTE_ORDER, SETUP_ACTIVE_BASIC_ORDER, SETUP_ACTIVE_BASIC_TOP, SETUP_ACTIVE_EX_ORDER, SETUP_ACTIVE_EX_TOP, SETUP_ACTIVE_OTHER, SETUP_ACTIVE_OTHER_BASIC, SETUP_ACTIVE_STEP
-from ptcg.cards.scoring import MAIN_ATTACKERS, PROMO_DOOMED_PENALTY, PROMO_KO_BONUS, PROMO_MATCH_POINT_VETO, PROMO_PRIZE_PENALTY, OPENING_SAC_PROMOTE_STEP, OPENING_SAC_PROMOTE_TOP, _SUPP_PLAY_IDS
+from ptcg.cards.scoring import MAIN_ATTACKERS, PROMO_DOOMED_PENALTY, PROMO_KO_BONUS, PROMO_LAST_STAND, PROMO_MATCH_POINT_VETO, PROMO_PRIZE_PENALTY, OPENING_SAC_PROMOTE_STEP, OPENING_SAC_PROMOTE_TOP, _SUPP_PLAY_IDS, _purchase_of_this_turn
 from ptcg.cards.tables import card_table
 from ptcg.decision.boss_orders import _ADJUST_GUST_NUISANCE, _ADJUST_GUST_OFFENSIVE, _RULES_GUST_NUISANCE, _ctx_gust_target
 from ptcg.decision.disruption import _stamp_pendiente
@@ -50,6 +50,7 @@ def score_play(tc, o, score):
     _evo_huerfanos = tc._evo_huerfanos
     _counter_stadium_kept_once = tc._counter_stadium_kept_once
     _evo_spare_seen = tc._evo_spare_seen
+    _bought_spare_seen = tc._bought_spare_seen
     _evo_necesarios = tc._evo_necesarios
     _festival_lead_hostil = tc._festival_lead_hostil
     _forced_ko_promote = tc._forced_ko_promote
@@ -84,6 +85,7 @@ def score_play(tc, o, score):
     _our_first_action_turn = tc._our_first_action_turn
     _mp_cheaper_candidate = tc._mp_cheaper_candidate
     _mp_front_survivors = tc._mp_front_survivors
+    _mp_last_stand = tc._mp_last_stand
     _mp_outlasts = tc._mp_outlasts
     _mp_price_ends_the_game = tc._mp_price_ends_the_game
     _promo_damage_to_op = tc._promo_damage_to_op
@@ -997,6 +999,24 @@ def score_play(tc, o, score):
                         elif card.id == Dipplin:
                             score = 8000
         
+                    # THE LAST STAND (user, registro_011 step 130 vs Alakazam,
+                    # LOST -- episode 91532527, deck-agnostic). At their match
+                    # point every body on our bench pays at least their
+                    # remaining pile: whichever one goes to the front, their
+                    # next knockout ends the game. The price tag stops being
+                    # information and the front spot goes to whoever absorbs
+                    # their reply best -- see `_mp_last_stand` in `agent()` for
+                    # the board and the reading.
+                    #
+                    # `score > 0` so that it cannot resurrect a vetoed body:
+                    # "the Meganium line does not go active" (SCORE_NEVER) is
+                    # protecting the Wild Growth engine, and a tank that costs
+                    # us the engine is not a last stand. And it goes BEFORE the
+                    # two branches about acting first, which keep the last word.
+                    if (_mp_last_stand is not None and card is _mp_last_stand
+                            and score > 0):
+                        score = PROMO_LAST_STAND
+
                     # Promote the ALMOST ready attacker that finishes next
                     # turn (user, registro_009 p111): it dominates the basic wall
                     # and any other promotion branch. See
@@ -2908,6 +2928,72 @@ def score_play(tc, o, score):
                              for _line in EVO_LINES for _lk in _line[1:-1]})):
                     score = DISCARD_LINK_THE_SEARCH_BUYS
 
+                # ...AND IT DOES NOT EAT WHAT AN EARLIER SEARCH OF THE SAME TURN
+                # ALREADY BOUGHT (user, `records/registro_004_pasos_031_hasta
+                # _045.json`, episode 91650234, turn 4 -- LOST). The turn spent
+                # an Ultra Ball and two cards to bench a Meowth ex, activated
+                # its Last-Ditch Catch and, of the whole deck, brought back a
+                # **Lillie's Determination**. Four menus later the SECOND Ultra
+                # Ball paid its cost with that same Lillie's -- with the
+                # Supporter slot still free -- and the turn ended having paid
+                # twice for a card that never touched the board.
+                #
+                # Nothing had "changed its mind": the two halves never spoke.
+                # The fetch scorer reads the deck against the board and answers
+                # "this is what this board needs"; the discard ladders read the
+                # hand with static proxies (copies in hand, the last refill, the
+                # size of the pile) and none of them can tell a card that was
+                # drawn from a card WE WENT AND GOT ten seconds ago. So the
+                # cheapest card in hand and the most valuable card in the deck
+                # were allowed to be the same card.
+                #
+                # `_bought_this_turn` is that missing memory, taken off the
+                # MOVE_CARD logs (deck/discard -> hand, ours, this turn), so the
+                # rule names no card and no deck: whatever the search bought is
+                # what the next cost stops pricing as fodder.
+                #
+                # TWO GUARDS, and the second is the one the corpus asked for:
+                #   * OUR OWN cost only. On a discard forced by their card
+                #     nothing of ours is being bought (`_forced_discard`).
+                #   * THE PURCHASE IS A COUNT, NOT A SERIAL. Copies of one card
+                #     are interchangeable, so what has to survive the cost is as
+                #     many copies as the search brought, not the physical ones
+                #     it brought. The spares -- the copies in hand BEYOND the
+                #     purchase -- keep their ordinary price and are what the
+                #     cost eats; only the rest are protected. Same reading as
+                #     `_evo_copies_usable` ("a line protects the SEATS, not the
+                #     copies"). It is what the frozen corpus asked for: its only
+                #     event was a Basic Grass the Night Stretcher had recovered
+                #     with two more sitting in the same hand, and protecting
+                #     THAT copy would only have moved the cost onto its twin.
+                #
+                # It only ever PROTECTS (`min`) and it goes BEFORE the three
+                # blocks below, which ask whether the card can be used at all
+                # (no seat for the body, a surplus copy of a line, a Supporter
+                # `_supp_values` prices at zero). Those keep the last word: what
+                # the board cannot use today is not saved by having been bought.
+                #
+                # WHAT IS DELIBERATELY *NOT* DONE, for the same reason the block
+                # above documents: it is NOT mirrored into `_ub_real_fodder`.
+                # This is a RANKING among the cards the cost takes, not a claim
+                # that the purchase is untouchable -- the menu still takes
+                # `minCount` cards whatever the scores say. Fed to the veto
+                # family it would cancel the very search the purchase was made
+                # for.
+                _bought_copies = (
+                    0 if _forced_discard else _purchase_of_this_turn(
+                        card.id, my_state.hand,
+                        AGENT_STATE._bought_this_turn))
+                if _bought_copies:
+                    _bought_spares = max(
+                        0, hand_counts.get(card.id, 0) - _bought_copies)
+                    if _bought_spare_seen.get(card.id, 0) >= _bought_spares:
+                        score = min(score,
+                                    DISCARD_WHAT_THE_SEARCH_ALREADY_BOUGHT)
+                    else:
+                        _bought_spare_seen[card.id] = (
+                            _bought_spare_seen.get(card.id, 0) + 1)
+
                 # A LINE PROTECTS THE COPIES IT CAN WEAR, NOT EVERY COPY
                 # (user, registro_002 step 26 vs Marnie, episode 90181011,
                 # LOST). The branches above price an evolution by the body
@@ -3030,10 +3116,48 @@ def score_play(tc, o, score):
                 #     of zero facing a sibling above zero. With `_supp_values`
                 #     silent (every entry 0, or the dict empty) neither fires.
                 #
+                # AND IT ONLY SPEAKS ABOUT THE SUPPORTERS THE VALUE LAYER
+                # ACTUALLY PRICES (user, `records/registro_013_pasos_113_hasta
+                # _124.json`, episode 91513072, step 114, turn 13 vs Alakazam --
+                # LOST). Their Xerosic's Machinations cut a hand of seven down to
+                # three and the agent paid with its OWN Xerosic's Machinations --
+                # the one card the matchup is built around, the cap on a
+                # Powerful Hand that was reading an 18-card hand at the time.
+                #
+                # The branch above had already answered that question the right
+                # way (`op_is_alakazam_deck` -> 5, "protect it like the Meganium
+                # line"), and this block overwrote it with 36. Not because it
+                # judged the cap useless: because `evaluate_supporters` prices
+                # FOUR ids -- Boss's, Lillie's, Dawn, Lana's -- and Xerosic's
+                # Machinations is not one of them. Its play value lives on the
+                # other scale (`_score_xerosic_play`, the disruption engine), so
+                # `_supp_values.get(card.id, 0)` read a MISSING KEY as a live
+                # value of zero and the block declared dead the only Supporter it
+                # had never asked about. Structural, not situational: on that
+                # scale the cap can never be anything but dead, in any deck, on
+                # any board, and the same holds for any Supporter added to
+                # `_SUPP_PLAY_IDS` without a branch in the value layer.
+                #
+                # So SILENCE IS NOT A ZERO. The block asks for MEMBERSHIP, not
+                # for a default: a card the layer never priced is unmeasured, and
+                # about the unmeasured this reading says nothing -- neither KEEP
+                # nor DROP -- leaving the last word to the ladder branch above,
+                # which is where the matchup knowledge already lives.
+                #
+                # The membership guard is on the SUBJECT of the sentence only.
+                # The rivals list is left exactly as it was, and deliberately: it
+                # answers a different question -- "is there another Supporter in
+                # hand that could be sacrificed instead?" -- and an unpriced
+                # sibling is still a Supporter one can trade against. Filtering
+                # it out of there as well was measured against the frozen corpus
+                # and it emptied the rivals list on a hand whose only two
+                # Supporters were a priced one and the cap, cancelling a KEEP
+                # that had nothing to do with this bug (registro_028, turn 7).
+                #
                 # And it stays inside the Supporter band on purpose (see the
                 # constants): it changes WHICH Supporter is sacrificed, never
                 # how many non-Supporters are.
-                if card.id in _SUPP_PLAY_IDS:
+                if card.id in _SUPP_PLAY_IDS and card.id in _supp_values:
                     _dsv_live = _supp_values.get(card.id, 0) or 0
                     _dsv_rivals = [_supp_values.get(_sid, 0) or 0
                                    for _sid in _SUPP_PLAY_IDS
@@ -3096,6 +3220,7 @@ def score_play(tc, o, score):
         tc._dc = _dc
         tc._counter_stadium_kept_once = _counter_stadium_kept_once
         tc._evo_spare_seen = _evo_spare_seen
+        tc._bought_spare_seen = _bought_spare_seen
         tc._has_bench_attacker = _has_bench_attacker
         tc._lillie_protected_once = _lillie_protected_once
         tc._tb_req = _tb_req

@@ -113,6 +113,25 @@ class AgentState:
         # changes). It tells how many charging ABILITIES (Teal Dance / Ripening Charge)
         # are still alive once the MANUAL attachment has been spent.
         self._grass_attaches_this_turn = 0
+        # OUR OWN Xerosic's Machinations has already been played THIS TURN, so the
+        # opposing hand is already capped at `XEROSIC_HAND_CAP` and those cards are
+        # in the discard FOREVER. Read by `_stamp_worth_playing`: after our own cap
+        # the Unfair Stamp has no half left to pay with, and it is kept for a later
+        # turn (`_our_cap_already_spent`). Accumulated from the PLAY logs on every
+        # call to agent() -- they arrive in incremental batches, so the fact has to
+        # survive from the menu that played Xerosic to the menus that follow it --
+        # and reset when the turn changes.
+        self._xerosic_played_this_turn = False
+        # Serials that OUR OWN searches have moved into this hand DURING THE
+        # CURRENT TURN (deck -> hand, discard -> hand). A draw is not a purchase
+        # and does not enter here: this is the set of cards a card we PLAYED
+        # went and got, which is what makes them the reason a cost was paid.
+        # Accumulated from the MOVE_CARD logs on every call to agent() -- they
+        # arrive in incremental batches, so the fact has to survive from the
+        # menu that resolved the search to the menus that follow it -- and reset
+        # when the turn changes. Read by the DISCARD scorer (see
+        # `DISCARD_WHAT_THE_SEARCH_ALREADY_BOUGHT`).
+        self._bought_this_turn = set()
 
         # --- KOs and the prize window ----------------------------------------
         self.ko_last_turn = False

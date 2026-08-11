@@ -1295,6 +1295,25 @@ DISCARD_EVO_SPARE_COPY = 55
 # so a piece we are still only BUYING never outranks a card that is already
 # doing its job, and far below every band the cost really eats.
 DISCARD_LINK_THE_SEARCH_BUYS = 3
+# --- WHAT AN EARLIER SEARCH OF THIS TURN ALREADY BOUGHT ---------------------
+# (see `AGENT_STATE._bought_this_turn`). The constant above covers the card the
+# CURRENT search is about to buy. This one covers the other half of the same
+# sentence: a card an earlier search of the SAME TURN already went and got, and
+# that the next cost then prices as if it had always been in the hand.
+#
+# Nothing in the discard ladders knows where a card came from. They are static
+# proxies -- copies in hand, "the last refill", the size of the discard pile --
+# so the two halves of one turn can contradict each other out loud: the fetch
+# scorer says "of everything in the deck, THIS is what this board needs", and
+# four menus later the cost scorer says "of everything in hand, THIS is the
+# cheapest". The turn then pays twice for nothing: the search, its cost, and the
+# card it bought.
+#
+# 4, immediately above `DISCARD_LINK_THE_SEARCH_BUYS`: when both are in hand the
+# piece the search is completing RIGHT NOW keeps the last word, and both stay
+# above the untouchable floor (2) so a purchase never outranks a card that is
+# already doing its job.
+DISCARD_WHAT_THE_SEARCH_ALREADY_BOUGHT = 4
 # --- A BODY WITH NOWHERE TO SIT (see `_ub_target_has_no_seat`) ---------------
 # The evolution branches above ask "is there a body that can WEAR this piece?".
 # A BASIC enters play by the other door -- a free bench seat -- and nothing in
@@ -1651,6 +1670,7 @@ __all__ = [
     'DISCARD_SUPPORTER_DEAD_DROP',
     'DISCARD_EVO_SPARE_COPY',
     'DISCARD_LINK_THE_SEARCH_BUYS',
+    'DISCARD_WHAT_THE_SEARCH_ALREADY_BOUGHT',
     'DISCARD_BODY_WITHOUT_SEAT',
     'LILLIE_SCORE_FISHING',
     'LILLIE_SCORE_DECK_CLOCK',

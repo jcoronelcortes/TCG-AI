@@ -5,6 +5,8 @@ Extracted VERBATIM from main.py by utils/extract_definitions.py
 utils/purity.py: nothing here touches mutable state or the runtime tables.
 """
 
+from dataclasses import replace
+
 from ptcg.calc.card import prize_count, prize_count_op
 from ptcg.state.agent_state import AGENT_STATE
 from ptcg.cards.tables import attack_table, card_table
@@ -54,6 +56,69 @@ def _ko_not_guaranteed(op_pokemon):
                     for _t in (getattr(op_pokemon, 'tools', None) or []))):
         return True
     return False
+
+
+def _festival_double_wave(attacker_id) -> bool:
+    """FESTIVAL LEAD IS OURS TOO: with Festival Grounds on the field, OUR Dipplin
+    uses its attack TWICE in the same turn.
+
+    The card (dataset/EN_Card_Data.csv, id 93): *"If Festival Grounds is in play,
+    this Pokemon may use an attack it has twice. If the first attack Knocks Out
+    your opponent's Active Pokemon, you may attack again after your opponent
+    chooses a new Active Pokemon."* The second wave is NOT conditional on the
+    knockout -- the knockout sentence only says WHEN it resolves. Verified in the
+    record this reading comes from (user, registro_006 turn 5, episode 91522323):
+    the opposing Dipplin threw Do the Wave twice into the SAME body, 210 -> 110 ->
+    10, with no knockout in between.
+
+    Festival Grounds is a SHARED stadium and we do not carry it in deck.csv, so
+    the copy on the field is always theirs -- and it arms our Dipplin exactly as
+    it arms theirs. Until this predicate existed the flag
+    `_festival_grounds_in_play` was read only DEFENSIVELY (their double attack,
+    and the counter-stadium that switches it off), and the whole offensive half
+    of the same card was invisible: see [[el-doble-ataque-del-estadio-tambien-es-nuestro]].
+    """
+    return bool(attacker_id == Dipplin and AGENT_STATE._festival_grounds_in_play)
+
+
+def _festival_second_wave_prizes(op_state, damage, knocked_out=None) -> int:
+    """Prizes the SECOND Do the Wave cashes, once the first one has knocked
+    `knocked_out` out of the Active spot. 0 when the wave does not close a
+    second body.
+
+    THE OPPONENT CHOOSES WHO COMES UP, so this counts a prize only when EVERY
+    body they can promote dies to the same `damage` -- the same conservative
+    reading `_promoted_reply_damage` uses from the other side of the table. A
+    bench with one survivor in it (a 100 HP Thwackey against a wave of 80) is
+    worth ZERO here, not "sometimes one": a projection that assumes the opponent
+    promotes badly is how a turn gets spent on a prize that never arrives.
+
+    THE CANDIDATES ARE EVERY BODY THEY HAVE LEFT, not their bench: when the wave
+    is aimed at a gusted body, the Active it displaced goes back to the bench and
+    is promotable again. Hence `knocked_out` rather than "their active".
+
+    `damage` is the EFFECTIVE damage of the first wave, already through
+    `_our_effective_damage`. Do the Wave scales with OUR bench, which the second
+    wave does not change, so the same number lands twice -- and it is compared
+    here against HP only, which is why a body that RESISTS or is weak to Grass
+    would need its own reading before this could claim its prize.
+    """
+    if damage <= 0:
+        return 0
+    _koed = getattr(knocked_out, 'serial', None)
+    _in_play = (list(getattr(op_state, 'active', None) or [])
+                + list(getattr(op_state, 'bench', None) or []))
+    candidates = [p for p in _in_play
+                  if p is not None and p is not knocked_out
+                  and (_koed is None or getattr(p, 'serial', None) != _koed)]
+    if not candidates:
+        return 0            # no body comes up: the game already ended with the KO
+    best = 0
+    for body in candidates:
+        if _ko_not_guaranteed(body) or damage < (body.hp or 0):
+            return 0        # they promote this one and the second wave takes nothing
+        best = max(best, prize_count_op(body))
+    return best
 
 
 class _ProjTarget(NamedTuple):
@@ -219,7 +284,41 @@ def _bench_cashable_after_retreat(pokemon, op_active, our_damage=0):
 
 def _our_effective_damage(my_pokemon, op_pokemon, base_damage,
                           meganium_active=False, neutralization_zone=False,
-                          full_metal_lab=False):
+                          full_metal_lab=None):
+    """Our base damage, resolved against the body that receives it.
+
+    `full_metal_lab` is a THREE-state switch, and the third state is the one
+    that matters: `None` (the default) means "ask the board", i.e. read
+    `AGENT_STATE.full_metal_lab_in_play`. True/False force the answer and exist
+    for the tests and for any caller projecting a board where the stadium is
+    about to change.
+
+    It was NOT always so. The morning the stadium was taught to the model it
+    arrived as `full_metal_lab=False`, expressly so that the ~70 call sites
+    "did not have to change at once" -- and none of them ever did. Zero of 69
+    passed it, so the canonical model knew the card and was never asked about
+    it: the four inline copies of the arithmetic (the turn plan, Syrup Storm's
+    can-KO, the gust's price and Do the Wave) carried the whole fix while every
+    finisher kept over-reading by 30.
+
+    That is what a lost game looks like (episode 91627381, record
+    registro_007 step 63, turn 7 vs Archaludon). Their Duraludon, 130/130 and
+    ALONE -- an empty bench, so the knockout ends the game. Syrup Storm with
+    five Grass on our side is 180, minus 30 Grass resistance = 150, and
+    `_active_already_kos` read 150 >= 130 and set `_active_attack_wins_now`.
+    That flag is absolute priority (`_TIER_WIN_ATTACK`, 99000): it empties the
+    menu. So the agent attacked at once, playing nothing -- and the engine
+    logged `value: -120`, because the stadium takes its 30 after the
+    resistance. Duraludon survived at 10 and the game was lost from there.
+
+    Two cards in that hand won on the spot, and the over-read hid both: our own
+    Forest of Vitality (replace the stadium and 180-30 = 150 is lethal) and the
+    Night Stretcher (recover one of the three Grass in the discard, attach it,
+    and 210-30-30 = 150 is lethal WITH the stadium still up). One wrong number,
+    three plays not made.
+    """
+    if full_metal_lab is None:
+        full_metal_lab = AGENT_STATE.full_metal_lab_in_play
     if op_pokemon is None or base_damage is None:
         return 0
     data = card_table.get(op_pokemon.id)
@@ -750,6 +849,101 @@ def _hand_revealed_lethal_reply(op_active, target, op_hand_count):
     return seen if seen >= hp else 0
 
 
+def _promoted_reply_damage(my_state, op_state, op_hand_count):
+    """Damage the body they PROMOTE deals to our ACTIVE, once our own attack
+    knocks their active out this turn.
+
+    THE BODY THAT REPLIES IS NOT THE ONE IN FRONT. Every defensive projection in
+    this file reads the opposing ACTIVE, and on the boards where we take the
+    knockout that body is on its way to the discard. A knockout does not end
+    their turn, it forces a PROMOTION -- and unlike a bench swap or a gust,
+    which need a hand nobody can see, the bench they promote from is entirely in
+    the observation. So the one number a "should I take this prize from the
+    front?" rule depends on was being read off a corpse.
+
+    Founding board (user, registro_006 step 54 vs Mega Starmie ex, LOST --
+    episode 91693960). Their active was a Cinderace, 160 HP and one energy, whose
+    Turbo Flare reads 50; one slot behind it stood a Mega Starmie ex with three
+    energies, whose Nebula Beam reads 210. Our Teal Mask Ogerpon ex finished the
+    Cinderace from the front for one prize and was then removed by exactly 210 for
+    two, with four Grass going to the discard with it. Read off their active the
+    reply was 50 and nothing was in danger; read off the body that actually stood
+    up it was the game.
+
+    WHAT IT PROJECTS, AND WHAT IT REFUSES TO. The best of their benched bodies
+    against our active, read exactly the way their active is read -- the same
+    projector, `scaled=True`, the same "one energy attached next turn". It does
+    NOT model which one they would choose (that is their decision, not a
+    reading), so it takes the worst case for us, the only assumption a defensive
+    projection can make honestly.
+
+    THE BENCH IS ONE BODY SMALLER once one of them is standing in front. Do the
+    Wave counts their bench, so the projection runs on a corrected snapshot;
+    without it their damage reads 20 too high, which is the direction that makes
+    a defensive rule fire when it should not.
+
+    0 when their bench is empty: there the knockout wins by bench-out and there
+    is no reply to project at all.
+
+    This is the number `_reply_after_promotion` (ptcg/turn/game_plan.py) already
+    turned into prizes for the turn plan; both read it from here so the plan's
+    data and the retreat's rules cannot drift apart.
+    """
+    my_active = my_state.active[0] if my_state.active else None
+    if my_active is None:
+        return 0
+    bench = [p for p in (op_state.bench or []) if p is not None]
+    if not bench:
+        return 0
+    scale = replace(AGENT_STATE.op_scale,
+                    op_bench=max(0, AGENT_STATE.op_scale.op_bench - 1))
+    worst = 0
+    for body in bench:
+        worst = max(worst, _op_active_attack_damage_to(
+            body, my_active, op_hand_count, scaled=True, scale=scale))
+    return worst
+
+
+def _promoted_lethal_reply(my_state, op_state, op_hand_count):
+    """The reply that only the body they PROMOTE makes lethal. 0 otherwise.
+
+    The same discipline as `_hand_revealed_lethal_reply`, and for the same
+    reason: a correction to a projection is only allowed to speak where the
+    ordinary reading is BLIND. It reads the blow twice -- off their active, the
+    way every pivot already reads it, and off the bench they are about to
+    promote from -- and answers only when the second is lethal and the first is
+    not.
+
+    That is the whole seam. Where their active already kills our active, the
+    machinery written on a doomed body (the sacrifice pivots, the doomed-ex
+    promotions, `_hand_revealed_lethal_reply` itself) has been measured on those
+    boards and keeps its say; adding a second lethal reading there changes
+    nothing about the board and everything about which rule answers for it --
+    measured, and it costs the Marnie step 107 Meowth and two Boss's Orders
+    gusts the project already paid for.
+
+    Where their active does NOT kill it, nothing spoke at all. That is the board
+    of registro_006 step 54: a Cinderace in front reading 50 against our 210 HP
+    ex, and a Mega Starmie ex one slot behind it reading 210. Every defensive
+    rule saw the 50.
+
+    NOT symmetric with the hand-revealed reading in one respect: this one is
+    only meaningful when our own attack is about to knock their active out --
+    otherwise the body that replies is the one standing there. The CALLER owns
+    that condition; every call site in ptcg/turn/options/retreat.py is already
+    gated on `_active_kos_op_active`.
+    """
+    my_active = my_state.active[0] if my_state.active else None
+    hp = (getattr(my_active, 'hp', 0) or 0) if my_active is not None else 0
+    if hp <= 0:
+        return 0
+    op_active = op_state.active[0] if op_state.active else None
+    if _op_active_attack_damage_to(op_active, my_active, op_hand_count) >= hp:
+        return 0
+    promoted = _promoted_reply_damage(my_state, op_state, op_hand_count)
+    return promoted if promoted >= hp else 0
+
+
 def _reply_reaches_match_point(my_active, op_state, op_active):
     """Would their reply on our ACTIVE leave them one knockout from winning?
 
@@ -789,9 +983,50 @@ def _reply_reaches_match_point(my_active, op_state, op_active):
     return op_left >= 1 and prize_count(my_active) >= op_left - 1
 
 
+def _relay_reading(bp, target, bench_count, retreat_grass_after,
+                   reachable_grass=None):
+    """(base damage, effective energy) of a benched body used as a RELAY, with
+    the charge the turn can still put on it.
+
+    THE RELAY ARRIVES CHARGED, or it does not arrive at all. Both finisher
+    predicates below used to read `len(bp.energies)` and stop there, which asks
+    "does this body attack with what is already on it" -- a question about the
+    board as it stands, on a rule about a board our own turn is about to change.
+    A Hydrapple ex one energy short of Syrup Storm reads as MUTE, and the Night
+    Stretcher in hand that recovers the Grass, plus the attachment nobody has
+    spent yet, are simply not part of the reading. Every other promote pivot in
+    `ptcg/turn/options/retreat.py` already counts that charge
+    (`_ogerpon_lethal_promote` names the Night Stretcher route explicitly); these
+    two were the ones that did not.
+
+    `reachable_grass` is a callable `(bp) -> physical Grass cards we can still
+    attach to bp this turn`, which is `_reachable_grass_for`'s job -- it knows
+    both ceilings, the CARDS (hand + Night Stretcher over the discard, the
+    retreat's own payment included) and the ROUTES (a free attachment, a
+    Ripening Charge, a Teal Dance). None means "read the board as it stands",
+    which is what every caller did before and is still the default.
+
+    The recovered Grass counts TWICE and both are real: once as energy on the
+    relay, so it reaches its attack cost, and once in `retreat_grass_after`,
+    because a Syrup Storm scales with the Grass on the whole field and that card
+    lands on the field. Founding board: registro_006 step 54, where the
+    Hydrapple ex needed the first to attack at all and the second to reach 180
+    over a 160 HP body -- without either number the relay is invisible.
+    """
+    extra = 0
+    if reachable_grass is not None:
+        extra = max(0, reachable_grass(bp)) * _grass_attach_unit()
+    e = len(bp.energies) + extra
+    base = _attacker_base_damage(bp.id, target, e * _grass_mult(),
+                                 grass_scale=retreat_grass_after + extra,
+                                 teal_self_energy=e, bench_count=bench_count)
+    return base, e
+
+
 def _bench_finisher_that_survives(my_state, target, meganium_active, bench_count,
                                   retreat_grass_after, neutral_zone,
-                                  incoming_damage, max_prizes):
+                                  incoming_damage, max_prizes,
+                                  reachable_grass=None):
     """Is there a benched body that FINISHES `target` after we retreat AND is
     still standing when their reply lands?
 
@@ -818,10 +1053,8 @@ def _bench_finisher_that_survives(my_state, target, meganium_active, bench_count
             continue          # it dies to the same reply: the swap buys nothing
         if prize_count(bp) > max_prizes:
             continue          # it hands over more than the body it replaces
-        e = len(bp.energies)
-        base = _attacker_base_damage(bp.id, target, e * _grass_mult(),
-                                     grass_scale=retreat_grass_after,
-                                     teal_self_energy=e, bench_count=bench_count)
+        base, _ = _relay_reading(bp, target, bench_count, retreat_grass_after,
+                                 reachable_grass)
         if base <= 0:
             continue
         if _our_effective_damage(bp, target, base, meganium_active,
@@ -836,7 +1069,7 @@ UPGRADE_BODY = 'BODY'
 
 def _bench_finisher_upgrade(my_state, active, target, meganium_active,
                             bench_count, retreat_grass_after, neutral_zone,
-                            incoming_damage):
+                            incoming_damage, reachable_grass=None):
     """Among the bodies that take the SAME knockout, which one should be
     STANDING there when the prize is collected?
 
@@ -891,10 +1124,8 @@ def _bench_finisher_upgrade(my_state, active, target, meganium_active,
             continue          # it pays more, or it does not outlast the reply
         if tier == UPGRADE_BODY and best == UPGRADE_PRIZE:
             continue          # a cheaper corpse was already found
-        e = len(bp.energies)
-        base = _attacker_base_damage(bp.id, target, e * _grass_mult(),
-                                     grass_scale=retreat_grass_after,
-                                     teal_self_energy=e, bench_count=bench_count)
+        base, _ = _relay_reading(bp, target, bench_count, retreat_grass_after,
+                                 reachable_grass)
         if base <= 0:
             continue          # it does not attack today: it is no relay
         if _our_effective_damage(bp, target, base, meganium_active,
@@ -984,6 +1215,8 @@ __all__ = [
     '_powerful_hand_projected',
     '_ProjTarget',
     '_ko_not_guaranteed',
+    '_festival_double_wave',
+    '_festival_second_wave_prizes',
     '_snipe_targets',
     '_our_effective_damage',
     '_tiene_rule_box',
@@ -999,6 +1232,8 @@ __all__ = [
     'UPGRADE_PRIZE',
     'UPGRADE_BODY',
     '_hand_revealed_lethal_reply',
+    '_promoted_reply_damage',
+    '_promoted_lethal_reply',
     '_reply_reaches_match_point',
     '_bench_attacker_best_damage',
     '_ex_active_is_a_wall',

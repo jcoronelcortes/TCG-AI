@@ -155,6 +155,13 @@ class DecisionContext:
     # `_festival_lead_hostil`.
     # Default False: unit tests build the ctx directly.
     festival_lead_hostil: bool = False
+    # ... and the OTHER edge of the same stadium: OUR Dipplin is in play, can
+    # attack THIS TURN, and its Do the Wave knocks the opposing Active out -- so
+    # Festival Grounds is paying US right now, twice (`_festival_double_wave`).
+    # Replacing the stadium on such a turn buys next turn's safety with this
+    # turn's prize. See `_festival_lead_pays_us_now`.
+    # Default False: unit tests build the ctx directly.
+    festival_lead_pays_us_now: bool = False
     # MATCH POINT against the opposing ACTIVE: knocking it out WINS the game (it is
     # worth at least the prizes we are missing) and the finisher is on the BENCH --
     # retreat -> promote -> attack, with the retreat payable. The
@@ -202,6 +209,13 @@ class DecisionContext:
     # rung. See `_doomed_sac_needs_body` in main.py.
     # Default False: unit tests build the ctx directly.
     doomed_sac_needs_body: bool = False
+    # OUR OWN Xerosic's Machinations has already been played THIS TURN: their hand
+    # is capped at `XEROSIC_HAND_CAP` and what it took is in the discard forever.
+    # `_stamp_worth_playing` reads it to KEEP the Unfair Stamp for a later turn --
+    # after our own cap it denies one card and refills a hand nobody asked it to
+    # refill (`_our_cap_already_spent`, registro_006 step 81 vs Alakazam).
+    # Default False: unit tests build the ctx directly.
+    our_xerosic_capped_this_turn: bool = False
 
 __all__ = [
     'DecisionContext',

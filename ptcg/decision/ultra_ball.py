@@ -1289,7 +1289,8 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
                          op_is_crustle_deck=False, op_is_cornerstone_deck=False,
                          op_active_is_budew=False, meowth_ability_lock=False,
                          op_hand_count=None, op_state=None, cards_in_deck=None,
-                         supp_in_hand_takes_the_turn=False, bench_max=5):
+                         supp_in_hand_takes_the_turn=False, bench_max=5,
+                         our_cap_already_spent=False):
     ub_best_target = 0
 
     _bench_full = (bench_count >= 5)
@@ -1431,8 +1432,9 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
 
     # The Stamp only blocks the Supporter chain if it is really going to be played
     # (a card rule: `_stamp_worth_playing`). Without `op_hand_count` the gate
-    # falls back to the previous behaviour, and the same holds for the two board
-    # clauses: without `op_state`/`cards_in_deck` they are simply off.
+    # falls back to the previous behaviour, and the same holds for the three extra
+    # clauses: without `op_state`/`cards_in_deck`/`our_cap_already_spent` they are
+    # simply off.
     _stamp_blocks_supp_chain = (ko_last_turn
                                 and hand_counts.get(Unfair_Stamp, 0) >= 1
                                 and _stamp_worth_playing(
@@ -1440,7 +1442,8 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
                                     op_refill_engine=_op_refill_engine(op_state),
                                     buries_the_last_xerosic=_stamp_buries_the_last_xerosic(
                                         hand_counts, cards_in_deck,
-                                        state.supporterPlayed, op_state)))
+                                        state.supporterPlayed, op_state),
+                                    our_cap_already_spent=our_cap_already_spent))
 
     _supp_in_hand_is_inferior = False
     if supporters_in_hand >= 1 and _best_supp_in_deck_val >= 600:

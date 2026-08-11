@@ -7,7 +7,7 @@ VERBATIM. It unpacks from the context the 60 fields it reads and returns the
 
 from cg.api import AreaType, CardType, OptionType, Pokemon
 from ptcg.calc.card import get_card, prize_count, prize_count_op
-from ptcg.calc.damage import UPGRADE_PRIZE, _attacker_base_damage, _bench_finisher_that_survives, _bench_finisher_upgrade, _ex_active_is_a_wall, _hand_revealed_lethal_reply, _op_active_attack_damage_to, _our_effective_damage, _reply_reaches_match_point
+from ptcg.calc.damage import UPGRADE_PRIZE, _attacker_base_damage, _bench_finisher_that_survives, _bench_finisher_upgrade, _ex_active_is_a_wall, _hand_revealed_lethal_reply, _op_active_attack_damage_to, _our_effective_damage, _promoted_lethal_reply, _reply_reaches_match_point
 from ptcg.calc.energy import _can_attack_eff, _grass_attach_route_open, _grass_attach_unit, _grass_mult, _physical_energy, _reachable_grass_for, _retreat_grass_to_discard, _retreat_grass_units
 from ptcg.calc.board import _active_of
 from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Chikorita, Cornerstone_Mask_Ogerpon_ex, Crustle_Fighting, Crustle_Grass, Cubchoo, Dawn, Dipplin, Drednaw, Dwebble_Fighting, Dwebble_Grass, EEVEE_IDS, Fezandipiti_ex, Hydrapple_ex, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, OP_BENCH_SNIPE_DAMAGE, OUR_ABILITY_IDS, OUR_EX_IDS, Pinsir, RETREAT_COST, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex
@@ -33,6 +33,8 @@ def score_play(tc, o, score):
     _doomed_mute_pivot = tc._doomed_mute_pivot
     _doomed_sac_context = tc._doomed_sac_context
     _ft_wall_pivot = tc._ft_wall_pivot
+    _gust_2prize_via_boss = tc._gust_2prize_via_boss
+    _win_via_boss_gust = tc._win_via_boss_gust
     _prize_mismatch_matchup = tc._prize_mismatch_matchup
     _e = tc._e
     _eff = tc._eff
@@ -55,6 +57,7 @@ def score_play(tc, o, score):
     _suicide_swap_win_promote = tc._suicide_swap_win_promote
     _supp_values = tc._supp_values
     _tapu_sac_pivot = tc._tapu_sac_pivot
+    _festival_sac_pivot = tc._festival_sac_pivot
     _teal_wall_pivot = tc._teal_wall_pivot
     _wall_ko_promote = tc._wall_ko_promote
     _win_ko_active_via_promote = tc._win_ko_active_via_promote
@@ -265,6 +268,77 @@ def score_play(tc, o, score):
                             _same_species_retreat = False
                             break
 
+                # (d) THE BODY THAT ATTACKS DOES NOT HAND THE FRONT TO ITS TWIN
+                # (user, registro_004 step 55 vs Mega Abomasnow ex, LOST).
+                #
+                #   US                                   RIVAL
+                #   active Teal Mask Ogerpon ex 210 (4)  active Mega Abomasnow ex 350
+                #          Myriad Leaf Shower ON THE MENU        hits for 200
+                #   bench  Meganium 160, Meowth ex 170,
+                #          Applin 40, Fezandipiti ex 210,
+                #          Teal Mask Ogerpon ex 210 (2)  <- the twin, MUTE
+                #
+                # The menu offered the attack and the agent retreated instead:
+                # the fee discarded a Grass and the promotion brought up the
+                # twin, because at 200 damage the only bodies that ENDURE are
+                # the two 210s and the twin is the better-scoring one. The turn
+                # ended with the same 210 HP Ogerpon ex in front, one energy
+                # poorer and unable to attack.
+                #
+                # Cases (a)-(c) all ask WHO comes up, and answer only where the
+                # twin is the sole body the promotion may take -- here it was
+                # one candidate among five. This case does not ask who comes up,
+                # because on this board NO answer was worth the fee: THE FRONT
+                # SPOT CANNOT BE UPGRADED. Nothing behind attacks, nothing
+                # behind is bigger, and one of the bodies back there is the
+                # active's own copy. Whatever the promotion picks, the turn
+                # hands back the attack it already had and gets no more body for
+                # it.
+                #
+                # The clauses are what keeps it from eating the retreats that
+                # ARE right, and each one names the family it excludes:
+                #   * `can_attack`: the attack is really on the menu. The pivots
+                #     that open the turn with no attack available
+                #     (`_ft_wall_pivot`, `_opening_sac_pivot`) never reach here.
+                #   * `not _ss_bench_atk_ready`: nothing behind can attack, this
+                #     turn's pending attachment included. Any pivot that
+                #     retreats TOWARDS a body that acts (`_wall_ko_promote`,
+                #     `_tapu_sac_pivot`, `_alakazam_pivot_1prize`,
+                #     `_hydra_wall_pivot`) is out, and so is the twin that
+                #     KNOCKS OUT -- the first exception of the block above, which
+                #     is why it is not re-asked here.
+                #   * NOTHING BEHIND IS BIGGER (`_ss_bench_max_hp`, read on
+                #     remaining HP). This is the clause that tells the record
+                #     apart from a retreat that swaps a 40 HP Applin for a 140 HP
+                #     Tapu Bulu: there the front spot IS upgraded even though
+                #     neither body attacks. It also keeps the second exception of
+                #     the block above -- the twin already damaged goes to the
+                #     front -- because a bench holding a healthier body than the
+                #     active fails it.
+                #   * the active ENDURES: the retreat is not buying a prize
+                #     sacrifice. Every sacrifice pivot -- `_raging_sac_pivot`,
+                #     `_doomed_ex_sac_pivot`, `_prize_denial_pivot`,
+                #     `_teal_wall_pivot` -- is written on a DOOMED active, and
+                #     the evolution the opponent has not played yet is read too
+                #     (`_op_evo_dmg_to_active`), the same way those pivots read
+                #     it. It is also what makes the HP clause enough on its own:
+                #     a cheaper body behind is only an upgrade when the front
+                #     body is going to FALL, and here it is not.
+                #   * no wall in front: with an ex-immune or ability-immune
+                #     active facing us, "the active can attack" does not mean
+                #     the attack does anything, and that board has its own rules
+                #     (`_nonex_active_hits_wall`, `_ex_stuck_promo_ready`).
+                _ss_active_survives = (
+                    not active_ko_likely
+                    and (_op_evo_dmg_to_active or 0) < (_active_reloc.hp or 0))
+                _ss_bench_max_hp = max((bp.hp or 0) for bp in _ss_bench)
+                if (_ss_twins and can_attack and not _ss_bench_atk_ready
+                        and _ss_bench_max_hp <= (_active_reloc.hp or 0)
+                        and _ss_active_survives
+                        and not op_has_ex_immune_active
+                        and not op_has_ability_immune_active):
+                    _same_species_retreat = True
+
         # Rule: Meganium active + Hydrapple ex on the bench + opponent WITHOUT
         # ex protection (no Crustle/Sylveon/ex-immune bodies) => retreat Meganium
         # to promote Hydrapple ex (the key attacker/engine). Meganium stays on the
@@ -391,6 +465,135 @@ def score_play(tc, o, score):
         #
         # The named pivots above keep their scores and their priority; this one
         # only picks up what they do not name.
+        # THE REPLY COMES OFF THEIR BENCH, AND THE RELAY ARRIVES CHARGED (user,
+        # registro_006 step 54 vs Mega Starmie ex, LOST -- episode 91693960).
+        # Deck-agnostic; the two readings the pivots below are built on, both of
+        # which were being taken from the wrong board.
+        #
+        #   US                                    RIVAL
+        #   active Teal Mask Ogerpon ex 210 (4G)  active Cinderace 160 (1W)
+        #          Myriad Leaf Shower -> 180              Turbo Flare -> 50
+        #   bench  Hydrapple ex 330/330 (1G)      bench  Mega Starmie ex 330 (3W)
+        #          Bayleef 110 (0)                       Mega Starmie ex 330 (3W)
+        #   hand   Night Stretcher, ... ; discard 2 Grass ; six prizes to five
+        #
+        # We took the prize from the front. They promoted a Mega Starmie ex,
+        # Nebula Beam read 210 against exactly 210 HP, and the trade was one
+        # prize for two plus the four Grass that went to the discard with the
+        # body. The line that was on the menu takes the SAME prize: retreat
+        # (one Grass), promote the Hydrapple ex, Night Stretcher the Grass back,
+        # attach it -- Syrup Storm at 30 + 30x5 = 180 over 160 -- and 210 lands
+        # on a 330 HP body instead, with the Ogerpon safe on the bench under its
+        # own Tera.
+        #
+        # Neither pivot below could see it, for two independent reasons:
+        #
+        #   1. THE REPLY. Both are scoped by the blow their ACTIVE lands, and
+        #      both only ever run when that active is the body our attack is
+        #      about to knock out. So the number came off a corpse: 50 from the
+        #      Cinderace, where the board's real answer was 210 from the bench.
+        #      `_promoted_reply_damage` reads the body that stands up; it is the
+        #      same projection `TurnPlan.op_prizes_after_ko` already published as
+        #      data, and this is the first rule to consume it.
+        #
+        #      It is taken as the MAX with the hand-revealed reading, not in
+        #      place of it. That reading exists for the attacks whose damage only
+        #      their HAND SIZE reveals (Powerful Hand), the machinery downstream
+        #      of it was measured on boards where it fires, and the honest
+        #      defensive projection is the worse of the two blows anyway.
+        #
+        #   2. THE RELAY. `len(bp.energies)` and nothing else: a Hydrapple ex one
+        #      energy short of Syrup Storm reads MUTE, and the Night Stretcher in
+        #      hand plus the attachment nobody has spent are not part of the
+        #      question. `_reachable_grass_for` is what the rest of this file
+        #      already uses for exactly that -- it knows the CARDS (hand, plus one
+        #      per Night Stretcher over the discard, the retreat's own payment
+        #      included) and the ROUTES that can still put them on that body.
+        #
+        # Both corrections point the same way and neither invents a route: what
+        # they buy is that the body cashing the prize is the one that can afford
+        # to stand there when the prize is collected.
+        #
+        # THE SCOPE, AND WHY IT IS THIS ONE. The promoted reading is allowed to
+        # speak only where EVERY reading the agent already has says the body in
+        # front is safe: `not active_ko_likely`, which is the whole defensive
+        # model of this turn condensed into one flag, and it is computed from
+        # their ACTIVE (plus bench bursts) -- exactly the reading the promotion
+        # is blind to. `_promoted_lethal_reply` adds the same test on the raw
+        # projection; this adds the two clauses the flag carries on top of it (a
+        # body under 60 HP against two energies, a body under a third of its
+        # maximum against one).
+        #
+        # Measured, and each one is a decision the project already paid for:
+        #
+        #   * WITHOUT the flag, `iono_step161` and `mewtwo_step119` flip. Both
+        #     are a Hydrapple ex at 30 of its 330 taking a knockout from the
+        #     front: their active reads 20 and the reading opens, but that body
+        #     is a corpse to anything on their board and the rules written on a
+        #     doomed active own it -- there the turn is worth a Boss's Orders
+        #     onto a 2-prize bench body, not a retreat that saves a body already
+        #     lost.
+        #   * `marnie_step107` is the same shape one step further along (an
+        #     Ogerpon ex at 10 of 210) and is what makes the pair a boundary and
+        #     not a coincidence.
+        #
+        # What is left is the seam and nothing else: a HEALTHY body in front,
+        # every projection saying it survives, and one blow on their bench that
+        # says otherwise the moment our own attack clears the way for it.
+        #
+        # AND A BIGGER PRIZE ON THE TABLE SILENCES IT (user, registro_006 step
+        # 119 vs Mewtwo ex; the same shape at Iono step 161). This reading is
+        # about WHO takes a knockout that is happening either way; a Boss's
+        # Orders onto a 2-prize body on their bench is about a DIFFERENT and
+        # bigger knockout, and `_front_spot_upgrade`'s own note says the swap
+        # must not talk over it. The quiet-on-safe-boards scoping used to buy
+        # that for free -- a rule that never fired where the active was safe
+        # could not outbid anything -- and seeing a danger that was previously
+        # invisible is what takes it away.
+        #
+        # It is not only an ordering preference. The blow being projected comes
+        # off their BENCH, and the gust REMOVES a body from that bench -- quite
+        # possibly the very one the projection is reading. Weighing a bench
+        # reply against a turn that is about to delete a body from that bench is
+        # incoherent whichever way it lands.
+        _promoted_reply = 0
+        if (_active_reloc is not None and _active_kos_op_active
+                and not active_ko_likely
+                and not (_win_via_boss_gust or _gust_2prize_via_boss)
+                and my_state.active and my_state.active[0] is not None):
+            _promoted_reply = _promoted_lethal_reply(
+                my_state, op_state, getattr(op_state, 'handCount', None))
+
+        # AND IT MAY ONLY TURN THE PIVOTS ON, NEVER OFF. Both predicates below
+        # FILTER by the reply -- a relay whose HP does not clear it is dropped --
+        # so feeding them a bigger number can silence a pivot the old reading
+        # found, and the boards where that happens were measured under the old
+        # reading. So the promoted number is not substituted into the question:
+        # it is asked as a SECOND question, and only where the first answered
+        # nothing. `_promoted_retry` is that "the first said nothing" guard.
+        #
+        # Measured (utils/gate_promoted_relay.py, n=1500 per arm against a
+        # baseline built from this same tree with the change switched off):
+        # substituting the number reads 47.8% [45.3-50.3], asking it additively
+        # 50.5% [47.9-53.0]. The census (utils/promoted_relay_census.py, 300
+        # games over the 87 real opponent decks) says why: additively the change
+        # touches 12 of 19 886 decisions, and what substitution added on top of
+        # those were REMOVALS -- retreats the hand-revealed reading had granted
+        # and the bigger number took away, on the Alakazam boards the front-spot
+        # rule was measured on. Asked second, those boards keep the answer they
+        # were measured with and the new reading only speaks where nothing spoke.
+        def _promoted_retry(found, old_reply):
+            return (not found) and _promoted_reply > old_reply
+
+        def _relay_grass(_bp, _act=_active_reloc):
+            # PHYSICAL Grass the turn can still put on `_bp` if we retreat now.
+            # The retreat's own payment is part of the discard this reads,
+            # because a Night Stretcher reaches it there.
+            return _reachable_grass_for(
+                _bp, state, my_state, hand_counts, field_counts,
+                extra_discard_grass=_retreat_grass_to_discard(_act),
+                abilities_off=meowth_ability_lock)
+
         _relay_finisher_pivot = False
         if (_active_reloc is not None and can_switch
                 and _active_kos_op_active
@@ -402,16 +605,23 @@ def score_play(tc, o, score):
                 _rfp_reply = _hand_revealed_lethal_reply(
                     _rfp_opa, _active_reloc,
                     getattr(op_state, 'handCount', None))
-                if (_rfp_reply > 0
-                        and _reply_reaches_match_point(_active_reloc, op_state,
-                                                   _rfp_opa)):
-                    _rfp_grass_after = max(0, total_grass - _retreat_grass_units(
-                        RETREAT_COST.get(_active_reloc.id, 1)))
-                    _relay_finisher_pivot = _bench_finisher_that_survives(
+                _rfp_grass_after = max(0, total_grass - _retreat_grass_units(
+                    RETREAT_COST.get(_active_reloc.id, 1)))
+
+                def _rfp_ask(_reply):
+                    if _reply <= 0 or not _reply_reaches_match_point(
+                            _active_reloc, op_state, _rfp_opa):
+                        return False
+                    return _bench_finisher_that_survives(
                         my_state, _rfp_opa, AGENT_STATE.meganium_in_play,
                         bench_count, _rfp_grass_after,
-                        neutralization_zone_active, _rfp_reply,
-                        prize_count(_active_reloc))
+                        neutralization_zone_active, _reply,
+                        prize_count(_active_reloc),
+                        reachable_grass=_relay_grass)
+
+                _relay_finisher_pivot = _rfp_ask(_rfp_reply)
+                if _promoted_retry(_relay_finisher_pivot, _rfp_reply):
+                    _relay_finisher_pivot = _rfp_ask(_promoted_reply)
 
         # THE FRONT SPOT GOES TO THE BODY THAT PAYS LESS (user, registro_008
         # step 126 vs Alakazam, WON -- episode 90336164).
@@ -457,6 +667,17 @@ def score_play(tc, o, score):
         # Measured: 1 flip in the whole record corpus (this step). Fires 8 times
         # in 300 games against the Alakazam bot -- 3 PRIZE, 5 BODY -- and never
         # in 400 mirror games, where nothing hides its damage behind a hand.
+        #
+        # SINCE THEN, one more blow reaches this question, and it is asked
+        # SECOND (registro_006 step 54, the block above): the body they PROMOTE
+        # once our own attack clears their active. "The blow is still the one
+        # only their HAND reveals" remains true of the FIRST ask, and every
+        # board in the paragraph above still gets exactly the answer it was
+        # measured with -- the promoted reading is only consulted where this one
+        # answered nothing, and only where their active is harmless, our active
+        # is in no danger by any existing reading, and no bigger prize is on the
+        # table. That is the separate change with its own measurement the
+        # paragraph above asks for.
         _front_spot_upgrade = ''
         if (_active_reloc is not None and can_switch
                 and not _relay_finisher_pivot
@@ -468,13 +689,20 @@ def score_play(tc, o, score):
             if not (my_prize <= prize_count_op(_fsu_opa)):
                 _fsu_grass_after = max(0, total_grass - _retreat_grass_units(
                     RETREAT_COST.get(_active_reloc.id, 1)))
-                _front_spot_upgrade = _bench_finisher_upgrade(
-                    my_state, _active_reloc, _fsu_opa,
-                    AGENT_STATE.meganium_in_play, bench_count,
-                    _fsu_grass_after, neutralization_zone_active,
-                    _hand_revealed_lethal_reply(
-                        _fsu_opa, _active_reloc,
-                        getattr(op_state, 'handCount', None)))
+                _fsu_reply = _hand_revealed_lethal_reply(
+                    _fsu_opa, _active_reloc,
+                    getattr(op_state, 'handCount', None))
+
+                def _fsu_ask(_reply):
+                    return _bench_finisher_upgrade(
+                        my_state, _active_reloc, _fsu_opa,
+                        AGENT_STATE.meganium_in_play, bench_count,
+                        _fsu_grass_after, neutralization_zone_active, _reply,
+                        reachable_grass=_relay_grass)
+
+                _front_spot_upgrade = _fsu_ask(_fsu_reply)
+                if _promoted_retry(_front_spot_upgrade, _fsu_reply):
+                    _front_spot_upgrade = _fsu_ask(_promoted_reply)
 
         # Protecting Hydrapple ex: if our active Hydrapple ex is going to be
         # knocked out next turn and cannot take a KO this turn, it is better to
@@ -719,12 +947,35 @@ def score_play(tc, o, score):
         # promote the 1-prize body. Their attacker one-shots any of ours, so
         # whoever is in front is going to fall: let the opponent's KO pay 1 prize
         # and not 2 (their deck, all 2-3 prize ex, needs big KOs to win in time).
+        #
+        # AND THE BODY IN FRONT HAS TO BE THE ONE THAT FALLS (user,
+        # registro_004 step 55 vs Mega Abomasnow ex, LOST). The sentence the
+        # rule is written on -- "their attacker one-shots any of ours, so
+        # whoever is in front is going to fall" -- is a claim about the BOARD,
+        # and the flag only checked the MATCHUP. On that record their Mega
+        # Abomasnow ex hit for 200 and our active Teal Mask Ogerpon ex had 210:
+        # it endured. There is no prize to save, so the sacrifice bought
+        # nothing -- and the promotion, correctly preferring a body that
+        # survives 200, brought up the OTHER 210 HP ex, mute where the one it
+        # replaced had Myriad Leaf Shower on the menu.
+        # It is read exactly as its deck-agnostic twin `_doomed_ex_sac_pivot`
+        # reads it, the opponent's unplayed evolution included: the finisher
+        # that kills us is not always the body already in front.
+        _rsp_doomed = False
+        if (_active_reloc is not None
+                and op_state.active and op_state.active[0] is not None):
+            _rsp_doomed = max(
+                _op_active_attack_damage_to(
+                    op_state.active[0], _active_reloc,
+                    getattr(op_state, 'handCount', None)),
+                _op_evo_dmg_to_active or 0) >= (_active_reloc.hp or 0)
         _raging_sac_pivot = (
             _prize_mismatch_matchup
             and _active_reloc is not None
             and _active_reloc.id in OUR_EX_IDS
             and not _active_can_ko_now
             and can_switch
+            and _rsp_doomed
             and any(bp is not None and prize_count(bp) == 1
                     for bp in (my_state.bench or [])))
         
@@ -1040,6 +1291,19 @@ def score_play(tc, o, score):
             # (_active_can_ko_now). The plan points at Tapu, so the option of
             # ATTACKING with the active is suppressed (plan.attacker>=1).
             score = 6600
+        elif _festival_sac_pivot:
+            # THE STADIUM THEY BROUGHT ARMS OUR DIPPLIN TOO (user, registro_006
+            # steps 81-86 vs Festival Lead, LOST): the same prize sacrifice as
+            # the arm above with the body Festival Grounds turns into an
+            # attacker. Our doomed 2-prize ex retreats, the benched Dipplin takes
+            # the SAME knockout with Do the Wave and -- because the stadium is on
+            # the field -- throws it a second time (`_festival_double_wave`).
+            # 6590, just under the charged Tapu Bulu, which hits for 220 and does
+            # not need this turn's attachment. Like every arm in this family it
+            # is ABOVE the `_active_can_ko_now` veto, which is exactly the rule
+            # that kept the 10 HP ex in front of the record: the prize is not
+            # given up, it is cashed by the body that survives to keep it.
+            score = 6590
         elif _raging_sac_pivot:
             # Mismatch vs Raging Bolt (see the flag above). 6540: alongside
             # the other prize sacrifices (6450-6600), above the generic veto

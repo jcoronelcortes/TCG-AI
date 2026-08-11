@@ -103,9 +103,48 @@ def _stamp_buries_the_last_xerosic(hand_counts, cards_in_deck,
         Xerosic_Machinations, {}).get(ZONE_DECK, 0) == 0
 
 
+def _our_cap_already_spent(c) -> bool:
+    """Has OUR OWN Xerosic's Machinations already capped their hand THIS TURN?
+
+    CARD RULE (user, `records/registro_006_pasos_074_hasta_087.json`, episode
+    91690421, turn 6 vs Alakazam, LOST): once Xerosic has been played, the Unfair
+    Stamp is NOT played -- not on that turn, not even with one of our bodies
+    knocked out the turn before. It is KEPT for a later turn.
+
+    The ORDER stays exactly as it was: with a giant opposing hand Xerosic goes
+    first (`_xr_before_the_stamp`) because it DISCARDS and the Stamp only
+    SHUFFLES. What changes is the second half of that sequence -- the Stamp no
+    longer follows. After our own cap neither of its two halves pays:
+
+      * DISRUPTION: Xerosic leaves them at `XEROSIC_HAND_CAP` = 3 and the Stamp
+        leaves them at 2, so it denies ONE card and hands them two FRESH ones off
+        the top of their deck. `STAMP_MIN_OP_HAND` = 4 already closed this half
+        (that invariant is what registro_013 step 136 bought); it is stated here
+        again because the rule is about the CARD, not about the floor.
+      * REFILL: this is the half that was still open, and the one that lost this
+        record. At step 81 our hand was three cards -- Lillie's Determination,
+        Hydrapple ex and the Stamp -- so "we only sacrifice two" looked cheap and
+        the Stamp went down: a Supporter for the next turn and the evolution of
+        our Dipplin shuffled back into the deck to draw five random ones, and the
+        single copy of the ACE SPEC burned for one denied card.
+
+    The whole value of the Stamp is the resources it denies, and that value is
+    measured against a FAT opposing hand. Our own Xerosic has just removed it:
+    there is nothing left to deny today, and there will be on some later turn.
+    Deck-agnostic on purpose -- it reads OUR play, not their archetype -- so it
+    holds in every matchup, and it AUTO-EXPIRES: the flag is per-turn, so the
+    Stamp is fully available again on the next one.
+
+    `getattr` because the unit tests build stub contexts carrying only the fields
+    their predicate reads.
+    """
+    return bool(getattr(c, 'our_xerosic_capped_this_turn', False))
+
+
 def _stamp_worth_playing(op_hand_count, my_hand_len, *,
                          op_refill_engine=False,
-                         buries_the_last_xerosic=False) -> bool:
+                         buries_the_last_xerosic=False,
+                         our_cap_already_spent=False) -> bool:
     """Card rule for Unfair Stamp (user, August 2026): the Stamp is only played
     if it DISRUPTS the opponent (opposing hand >= `STAMP_MIN_OP_HAND`, because
     it leaves them at 2) or if the REFILL is cheap (we sacrifice <=
@@ -122,10 +161,14 @@ def _stamp_worth_playing(op_hand_count, my_hand_len, *,
         cards back the moment we take a KO refunds anything smaller.
       * `buries_the_last_xerosic` closes the REFILL clause: five new cards do not
         pay for the only copy of the card that answers Powerful Hand.
+      * `our_cap_already_spent` closes BOTH clauses: after our own Xerosic the
+        Stamp is kept for a later turn. See `_our_cap_already_spent`.
 
     With `None` (a caller without that datum at hand) it returns True: the rule
     only SUBTRACTS plays, it never invents one.
     """
+    if our_cap_already_spent:
+        return False
     if op_hand_count is None or my_hand_len is None:
         return True
     floor = (STAMP_MIN_OP_HAND_VS_REFILL if op_refill_engine
@@ -138,7 +181,7 @@ def _stamp_worth_playing(op_hand_count, my_hand_len, *,
 
 
 def _stamp_worth_playing_ctx(c) -> bool:
-    """`_stamp_worth_playing` with the two board clauses filled in from the
+    """`_stamp_worth_playing` with the three extra clauses filled in from the
     context. THE single entry point for every consumer that has a context: the
     scoring rule, `_stamp_pendiente` and the anti-Alakazam Lillie's veto all read
     the same answer, so a Stamp that is going to wait never collects the ordering
@@ -157,7 +200,8 @@ def _stamp_worth_playing_ctx(c) -> bool:
             getattr(c, 'hand_counts', None),
             getattr(c, 'cards_in_deck', None),
             bool(getattr(state, 'supporterPlayed', False)),
-            op_state))
+            op_state),
+        our_cap_already_spent=_our_cap_already_spent(c))
 
 
 def _stamp_pendiente(c) -> bool:
@@ -295,9 +339,17 @@ def _xr_before_the_stamp(c):
     The cost is real -- the Supporter slot is spent BEFORE the Stamp's refill, so
     the 5 new cards can no longer pay for another Supporter -- hence the
     `XEROSIC_STAMP_ORDEN_MIN_OP_HAND` threshold: only when what gets burned is
-    worth more than a whole hand. It revokes itself: as soon as Xerosic is
-    played, `supporterPlayed` becomes True and the Stamp recovers its normal
-    score in the same turn.
+    worth more than a whole hand.
+
+    IT DOES NOT HAND THE TURN BACK (user, registro_006 step 81, episode 91690421
+    vs Alakazam, LOST). This predicate used to revoke itself -- as soon as
+    Xerosic was played `supporterPlayed` became True, and the Stamp was expected
+    to recover its normal score and go down in the SAME turn. It no longer does:
+    `_our_cap_already_spent` takes over the moment Xerosic resolves, and the
+    Stamp is kept for a later turn. The two predicates hand off cleanly and there
+    is no window between them -- this one holds while the Supporter slot is free,
+    that one from the PLAY log onwards -- so the Stamp is vetoed for the whole
+    turn either way, and by a rule that says which.
     """
     return (c.ko_last_turn
             and c.hand_counts.get(Unfair_Stamp, 0) >= 1
@@ -307,16 +359,30 @@ def _xr_before_the_stamp(c):
 
 
 _RULES_STAMP_PLAY = [
+    # CARD RULE (user, registro_006 step 81 vs Alakazam): our OWN Xerosic has
+    # already capped their hand this turn -> the Stamp is KEPT for a later turn.
+    # It is the first rule of the ladder so the trace names the real reason: the
+    # value clause below would veto the same board, but reading
+    # "no_disruption_no_refresh" hides that what closed it was a card WE played.
+    # See `_our_cap_already_spent`.
+    _FixedRule("our_xerosic_already_capped_them",
+               _our_cap_already_spent,
+               lambda c: SCORE_VETO),
     # CARD RULE (user, August 2026): without disruption (opposing hand <= 2) or a
     # cheap refill (we sacrifice > 4 cards) the Stamp is NOT played. It is not an
     # ordering veto: no other card of the turn revokes it, it only changes if the
     # board changes (e.g. our own hand drops by playing items). See
     # `_stamp_worth_playing`.
+    # ...and BOTH halves are closed once our own Xerosic has capped their hand
+    # this turn (`_our_cap_already_spent`): that one IS irrevocable for the rest
+    # of the turn -- no later item can reopen it -- and the Stamp waits for a
+    # turn where there is a hand left to deny.
     _FixedRule("no_disruption_no_refresh",
                lambda c: not _stamp_worth_playing_ctx(c),
                lambda c: SCORE_VETO),
     # ORDERING veto, not a value one (user, jul 2026): with a giant opposing hand,
-    # Xerosic goes first and the Stamp waits for the same turn. The Xerosic is
+    # Xerosic goes first and the Stamp waits -- for a LATER turn, ever since
+    # `_our_cap_already_spent` picks it up where this rule leaves off. The Xerosic is
     # required to be REALLY going to be played (a score above last resort): if any
     # of its guards knocks it down to `XEROSIC_SCORE_LAST_RESORT` -- e.g.
     # `alakazam_yields_to_winning_gust`, where a Boss's decides the turn -- the
@@ -610,6 +676,7 @@ __all__ = [
     '_op_refill_engine',
     '_op_powerful_hand_line',
     '_stamp_buries_the_last_xerosic',
+    '_our_cap_already_spent',
     '_stamp_worth_playing',
     '_stamp_worth_playing_ctx',
     '_stamp_pendiente',

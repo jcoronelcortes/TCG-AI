@@ -41,9 +41,11 @@ and the single sentence that combines both halves.
 from dataclasses import dataclass, replace
 
 from ptcg.calc.card import prize_count, prize_count_op
-from ptcg.calc.damage import (_attacker_base_damage, _ko_not_guaranteed,
+from ptcg.calc.damage import (_attacker_base_damage, _festival_double_wave,
+                              _festival_second_wave_prizes,
+                              _ko_not_guaranteed,
                               _op_active_attack_damage_to,
-                              _our_effective_damage)
+                              _our_effective_damage, _promoted_reply_damage)
 from ptcg.calc.energy import (_grass_attach_slots_for, _grass_attach_unit,
                               _grass_mult, _reachable_grass_for,
                               _retreat_grass_to_discard)
@@ -276,8 +278,16 @@ def _prizes_we_can_take(my_state, op_state, state, hand_counts, field_counts,
 
 
 def _best_prize_against(attacker, targets, extra, total_grass, bench_count,
-                        meganium_in_play, neutralization_zone):
-    """Prizes of the best target `attacker` knocks out, 0 if it knocks out none."""
+                        meganium_in_play, neutralization_zone, op_state=None):
+    """Prizes of the best target `attacker` knocks out, 0 if it knocks out none.
+
+    THE SECOND WAVE COUNTS AS A PRIZE. Under Festival Grounds our Dipplin throws
+    Do the Wave TWICE (`_festival_double_wave`), so the turn can close two bodies
+    with one attacker -- and `prizes_today` is the number every ordering rule
+    reads to tell a RACE from a DEVELOP. `_festival_second_wave_prizes` only adds
+    it when EVERY body they can promote dies to the same wave, so a bench with a
+    survivor still scores the single prize the first wave takes.
+    """
     best = 0
     for target in targets:
         if target is None or _ko_not_guaranteed(target):
@@ -286,7 +296,10 @@ def _best_prize_against(attacker, targets, extra, total_grass, bench_count,
                                 bench_count, meganium_in_play,
                                 neutralization_zone)
         if damage > 0 and damage >= (target.hp or 0):
-            best = max(best, prize_count_op(target))
+            taken = prize_count_op(target)
+            if op_state is not None and _festival_double_wave(attacker.id):
+                taken += _festival_second_wave_prizes(op_state, damage, target)
+            best = max(best, taken)
     return best
 
 
@@ -309,7 +322,8 @@ def _prizes_via_active(my_state, op_state, state, hand_counts, field_counts,
                               field_counts, abilities_off=abilities_off)
     return _best_prize_against(attacker, _targets(op_state, boss_in_hand),
                                extra, total_grass, bench_count,
-                               meganium_in_play, neutralization_zone)
+                               meganium_in_play, neutralization_zone,
+                               op_state=op_state)
 
 
 def _prizes_via_promote(my_state, op_state, state, hand_counts, field_counts,
@@ -348,7 +362,7 @@ def _prizes_via_promote(my_state, op_state, state, hand_counts, field_counts,
                                   abilities_off=abilities_off)
         best = max(best, _best_prize_against(
             body, targets, extra, grass_after, bench_count, meganium_in_play,
-            neutralization_zone))
+            neutralization_zone, op_state=op_state))
     return best
 
 
@@ -613,17 +627,12 @@ def _reply_after_promotion(my_state, op_state, op_hand_count):
     my_active = my_state.active[0] if my_state.active else None
     if my_active is None:
         return 0, False
-    bench = [p for p in (op_state.bench or []) if p is not None]
-    if not bench:
-        # Nothing to promote: knocking their active out wins by bench-out, and
-        # that route is already the plan's business.
-        return 0, False
-    scale = replace(AGENT_STATE.op_scale,
-                    op_bench=max(0, AGENT_STATE.op_scale.op_bench - 1))
-    worst = 0
-    for body in bench:
-        worst = max(worst, _op_active_attack_damage_to(
-            body, my_active, op_hand_count, scaled=True, scale=scale))
+    # The projection itself lives in `_promoted_reply_damage` (ptcg/calc/damage.py):
+    # the retreat's rules read the same number, and a reading duplicated in two
+    # files drifts. An empty opposing bench answers 0 there -- nothing to promote,
+    # so the knockout wins by bench-out and that route is already the plan's
+    # business.
+    worst = _promoted_reply_damage(my_state, op_state, op_hand_count)
     if worst < (my_active.hp or 0):
         return 0, False
     return prize_count(my_active), True

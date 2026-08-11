@@ -84,6 +84,7 @@ class ScoringCtx:
     _evo_necesarios: Any = None
     _counter_stadium_kept_once: Any = None
     _evo_spare_seen: Any = None
+    _bought_spare_seen: Any = None
     _ex_stuck_promo_ready: Any = None
     _extra_energy_enables_ko: Any = None
     _festival_lead_hostil: Any = None
@@ -150,6 +151,7 @@ class ScoringCtx:
     _promo_min_prize: Any = None
     _mp_cheaper_candidate: Any = None
     _mp_front_survivors: Any = None
+    _mp_last_stand: Any = None
     _mp_outlasts: Any = None
     _mp_price_ends_the_game: Any = None
     _promo_ko_wins_the_game: Any = None
@@ -191,6 +193,7 @@ class ScoringCtx:
     _tapu_future_charge: Any = None
     _tapu_sac_enable_retreat: Any = None
     _tapu_sac_pivot: Any = None
+    _festival_sac_pivot: Any = None
     _tapu_sac_priority: Any = None
     _tb_req: Any = None
     _teal_dance_ko_pivot: Any = None
@@ -278,7 +281,7 @@ class ScoringCtx:
     watchtower_in_play: Any = None
 
 
-REASIGNADAS = ['_atk', '_b', '_bench_attacker_ready', '_bp', '_bp_e', '_bp_eff', '_counter_stadium_kept_once', '_dc', '_e', '_eff', '_energy_in_hand', '_evo_spare_seen', '_has_bench_attacker', '_lillie_protected_once', '_op_act', '_our_first_turn', '_sid', '_tb_req', 'b', 'bp', 'card', 'data', 'energy_count', 'pid', 'pokemon']
+REASIGNADAS = ['_atk', '_b', '_bench_attacker_ready', '_bought_spare_seen', '_bp', '_bp_e', '_bp_eff', '_counter_stadium_kept_once', '_dc', '_e', '_eff', '_energy_in_hand', '_evo_spare_seen', '_has_bench_attacker', '_lillie_protected_once', '_op_act', '_our_first_turn', '_sid', '_tb_req', 'b', 'bp', 'card', 'data', 'energy_count', 'pid', 'pokemon']
 
 
 __all__ = ['ScoringCtx', 'REASIGNADAS']

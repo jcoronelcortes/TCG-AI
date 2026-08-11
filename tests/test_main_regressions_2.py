@@ -181,32 +181,46 @@ def test_duraludon_step93_teal_dance_for_ko_accounting_resistance():
         and o.get("inPlayArea") == int(AreaType.BENCH)
         and bench[o["inPlayIndex"]]["id"] == m.Tapu_Bulu]
 
-    # UPDATED (July 2026 audit, the inline copies of Myriad corrected):
-    # with the VERIFIED formula (30+30*(ours+theirs); the memory
-    # ogerpon-myriad-cuenta-ambos-activos, 6 records of real damage), the
-    # Duraludon of the fixture carries 1 energy -> 30+30*(4+1)=180 -> 150 after the
-    # resistance >= 130: the active ALREADY knocks out WITHOUT Teal Dance, and charging the
-    # future Tapu (the alakazam-cargar-meganium-atacante-futuro rule generalised by
-    # _tapu_future_charge) is the right line. This test had been written
-    # with the old "ours only" formula (voided as wrong).
+    # UPDATED TWICE, and the second time restores the name of the test.
+    #
+    # July 2026 (the inline copies of Myriad corrected): with the VERIFIED
+    # formula (30+30*(ours+theirs); the memory ogerpon-myriad-cuenta-ambos-
+    # activos, 6 records of real damage) the Duraludon of the fixture carries 1
+    # energy -> 30+30*(4+1) = 180 -> 150 after the resistance >= 130, so the
+    # active "already knocked out" and charging the future Tapu was the line.
+    #
+    # August 2026: that 150 was the same over-read that lost episode 91627381
+    # (tests/test_the_stadium_is_the_finisher_it_was_hiding.py). THIS FIXTURE
+    # ALSO CARRIES FULL METAL LAB -- `stadium: 1244`, theirs -- and the card
+    # takes 30 more off a {M} body after weakness and resistance:
+    #
+    #     180 - 30 resistance - 30 stadium = 120 < 130     -> NO knockout
+    #     Teal Dance -> 5 of ours: 30+30*(5+1) = 210
+    #     210 - 30 - 30 = 150 >= 130                       -> the knockout
+    #
+    # Which is exactly what the test was called for. It only ever looked like a
+    # "charge the future Tapu" board because the canonical damage model was
+    # never asked about the stadium (`full_metal_lab` defaulted to False and
+    # zero of 69 call sites passed it).
     result = m.agent(obs)
-    assert result[0] in tapu_attach_opts, (
-        f"con el KO ya asegurado (180-30=150 >= 130) se carga el Tapu futuro; "
-        f"obtuvo {result}")
+    assert result == [teal_active_opt], (
+        f"con el estadio el golpe queda en 120 < 130: Teal Dance en el activo "
+        f"habilita el KO (210-30-30 = 150); obtuvo {result}")
 
-    # A COUNTERFACTUAL (it preserves the test's original intent: the RESISTANCE
-    # is accounted for): with the Duraludon WITHOUT energy, 30+30*4=150 -> 120 after
-    # the resistance < 130 -> the active does NOT knock out and Teal Dance (it goes up to 6 of ours:
-    # 30+30*6=210 -> 180 >= 130) enables the KO.
+    # THE COUNTERFACTUAL, on the axis that actually moves the decision. The same
+    # board under ANY other stadium is 180-30 = 150 >= 130: the active already
+    # knocks out and charging the future Tapu (alakazam-cargar-meganium-
+    # atacante-futuro, generalised by _tapu_future_charge) is right again. The
+    # resistance is still in the number -- that is the 30 between 180 and 150 --
+    # so the test's original intent survives in both arms.
     import copy as _c
     obs2 = _c.deepcopy(obs)
-    obs2["current"]["players"][1]["active"][0]["energies"] = []
-    obs2["current"]["players"][1]["active"][0]["energyCards"] = []
-    m._init_cards_tracking(); m.plan = m.AttackPlan()
+    obs2["current"]["stadium"] = []
+    m.AGENT_STATE.reset(); m._init_cards_tracking(); m.plan = m.AttackPlan()
     result2 = m.agent(obs2)
-    assert result2 == [teal_active_opt], (
-        f"sin energia rival la resistencia deja el golpe en 120 < 130: Teal "
-        f"Dance en el activo habilita el KO; obtuvo {result2}")
+    assert result2[0] in tapu_attach_opts, (
+        f"sin el estadio el KO ya esta asegurado (180-30=150 >= 130) y se carga "
+        f"el Tapu futuro; obtuvo {result2}")
 
 def test_ogerpon_damage_counts_both_active_energy():
     # Myriad Leaf Shower (attack 120): 30 + 30 for each Energy attached to BOTH

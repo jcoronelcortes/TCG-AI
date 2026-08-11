@@ -1589,12 +1589,12 @@
     "accion": 3,
     "contexto": 8,
     "detalle": [
-     "CARTA Xerosic’s Machinations(1197)",
-     "CARTA Dipplin(93)"
+     "CARTA Dipplin(93)",
+     "CARTA Hydrapple ex(150)"
     ],
     "eleccion": [
-     4,
-     0
+     0,
+     2
     ],
     "paso": null,
     "turno": 9

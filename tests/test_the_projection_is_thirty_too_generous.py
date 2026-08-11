@@ -71,6 +71,18 @@ ptcg/turn/options/play.py:1553). They are wave 2, one at a time, each measured:
 this is the same "one copy was fixed and the others kept lying" that produced
 this defect in the first place, and fixing five copies blind would be the same
 mistake in the other direction.
+
+WAVE 3, and it is the sentence above that had to be paid for. The four copies
+were done and the canonical function was left behind its `False` default --
+"so that none of its 70 call sites had to change at once", and none of them ever
+did: zero of 69 passed the keyword. The model knew the card and was never asked.
+Episode 91627381 was lost to it (turn 7, a lone Duraludon at 130 under this same
+stadium, Syrup Storm read at 150 and resolved at 120), so the keyword now
+defaults to `None` = read `AGENT_STATE.full_metal_lab_in_play`. See
+tests/test_the_stadium_is_the_finisher_it_was_hiding.py. The lesson is the one
+this docstring already had and applied to the wrong list: the copy that is alive
+is the one the decision calls, and here that was the copy nobody was passing the
+flag to.
 """
 
 import json
