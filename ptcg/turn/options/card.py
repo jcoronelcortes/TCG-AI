@@ -11,7 +11,7 @@ from ptcg.calc.damage import _attacker_base_damage, _bench_attacker_can_ko, _ko_
 from ptcg.calc.energy import _can_attack_eff, _grass_attach_route_open, _grass_attach_unit, _grass_mult
 from ptcg.calc.board import _active_of, _count_hand_play_options
 from ptcg.cards.groups import EVO_LINES, GT_FETCH_BONUS
-from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, DISCARD_BODY_WITHOUT_SEAT, DISCARD_EVO_SPARE_COPY, DISCARD_LINK_THE_SEARCH_BUYS, DISCARD_SUPPORTER_DEAD_DROP, DISCARD_SUPPORTER_LIVE_KEEP, DISCARD_WHAT_THE_SEARCH_ALREADY_BOUGHT, DUNSPARCE_IDS, Dawn, Dipplin, Drednaw, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, LANA_SEL_INJUGABLE, LANA_SEL_GRASS_DEMAND, LANA_SEL_GRASS_UNLOCKS, LANA_SEL_GRASS_SURPLUS, LANA_SEL_GRASS_WINS, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, OUR_ABILITY_IDS, OUR_EX_IDS, Pinsir, Poke_Pad, RETREAT_COST, RIPEN_HEAL_TARGET_SCORE, SCORE_FORBID, SCORE_LOOKAHEAD_PROMOTE_KO, SCORE_LOOKAHEAD_PROMOTE_SAFE, SCORE_NEVER, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, Xerosic_Machinations
+from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, DISCARD_BODY_WITHOUT_SEAT, DISCARD_EVO_SPARE_COPY, DISCARD_LINK_THE_SEARCH_BUYS, DISCARD_SUPPORTER_DEAD_DROP, DISCARD_SUPPORTER_LIVE_KEEP, DISCARD_WHAT_THE_SEARCH_ALREADY_BOUGHT, DUNSPARCE_IDS, Dawn, Dipplin, Drednaw, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, LANA_SEL_INJUGABLE, LANA_SEL_GRASS_DEMAND, LANA_SEL_GRASS_UNLOCKS, LANA_SEL_GRASS_SURPLUS, LANA_SEL_GRASS_WINS, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, OUR_ABILITY_IDS, OUR_EX_IDS, Pinsir, Poke_Pad, RETREAT_COST, RIPEN_HEAL_TARGET_SCORE, SCORE_FORBID, SCORE_LOOKAHEAD_PROMOTE_KO, SCORE_LOOKAHEAD_PROMOTE_SAFE, SCORE_NEVER, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, XEROSIC_BIG_HAND, DISCARD_XEROSIC_CAPS_A_FAT_HAND, Xerosic_Machinations
 from ptcg.cards.lines import _evo_copies_usable, _evo_top_unlocked_by_the_search, _line_base_benchable, _pokemon_injugable
 from ptcg.cards.ids import OPENING_SAC_PROMOTE_ORDER, SETUP_ACTIVE_BASIC_ORDER, SETUP_ACTIVE_BASIC_TOP, SETUP_ACTIVE_EX_ORDER, SETUP_ACTIVE_EX_TOP, SETUP_ACTIVE_OTHER, SETUP_ACTIVE_OTHER_BASIC, SETUP_ACTIVE_STEP
 from ptcg.cards.scoring import MAIN_ATTACKERS, PROMO_DOOMED_PENALTY, PROMO_KO_BONUS, PROMO_LAST_STAND, PROMO_MATCH_POINT_VETO, PROMO_PRIZE_PENALTY, OPENING_SAC_PROMOTE_STEP, OPENING_SAC_PROMOTE_TOP, _SUPP_PLAY_IDS, _purchase_of_this_turn
@@ -2810,6 +2810,39 @@ def score_play(tc, o, score):
                         score = 5
                     else:
                         score = 60
+                        # THE FIXED 60 ASKED NOTHING (user, August 2026, found by
+                        # `utils/rule_census.py` and measured on the frozen
+                        # corpus: 34 of the 40 Xerosic options priced in 50
+                        # records take this branch, in 25 different games).
+                        #
+                        # Outside the Alakazam matchup the cap was fodder of
+                        # middling price WHATEVER the opposing hand held -- with
+                        # their hand at twelve and with their hand at four. The
+                        # PLAY scorer has never agreed with that: at or above
+                        # XEROSIC_BIG_HAND it prices the same card
+                        # XEROSIC_SCORE_GENERIC (3380) and below it drops to
+                        # XEROSIC_SCORE_LAST_RESORT (20). This is the doctrine
+                        # the Supporter block already applies to the other four:
+                        # the card we KEEP and the card we would PLAY cannot
+                        # disagree.
+                        #
+                        # It is the SECOND question and it only SUBTRACTS: the
+                        # 60 above is asked first and is what still answers on a
+                        # thin hand, the Alakazam branch is untouched, and the
+                        # threshold is the play rule's own constant so the two
+                        # scorers cannot drift apart.
+                        #
+                        # WHICH HAND. The count read is the one on the board.
+                        # On a discard FORCED by their card that is their hand
+                        # in the middle of THEIR turn -- already spent, their own
+                        # Supporter just played -- so it is a LOWER bound on what
+                        # they will hold when we could play the cap: the reading
+                        # protects less often than it might, never more. On the
+                        # cost of our own Ultra Ball it is their hand right now.
+                        # Deliberately the same threshold in both: an
+                        # observed number, not a projected one.
+                        if getattr(op_state, 'handCount', 0) >= XEROSIC_BIG_HAND:
+                            score = min(score, DISCARD_XEROSIC_CAPS_A_FAT_HAND)
         
                 elif card.id == Night_Stretcher:
                     # A PLAY-CONTEXT SENTENCE THAT WAS PRICING A DISCARD (user,

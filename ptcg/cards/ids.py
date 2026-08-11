@@ -1230,6 +1230,8 @@ BOSS_SCORE_EMPTY_GUST = 20           # a NON-executable gust: yield to Lillie's
 XEROSIC_SCORE_ALAKAZAM = 5900        # Xerosic vs Alakazam: cap Powerful Hand (20 x opposing hand). Above a hydra-charged Lillie's (5800); below GUST_2PRIZE (6800) and the defensive pivots (~6600). It yields to boss_win_via_bench through its own guard
 XEROSIC_SCORE_GENERIC = 3380         # generic Xerosic with a very large opposing hand (>=7): disruption value, below a typical Lillie's (~3450)
 XEROSIC_SCORE_LAST_RESORT = 20       # no clear useful effect: only if no other supporter scores
+XEROSIC_BIG_HAND = 7                 # the opposing hand at which the generic cap starts paying. ONE number for the two scorers: `generic_very_big_hand` decides whether to PLAY it and `DISCARD_XEROSIC_CAPS_A_FAT_HAND` whether to KEEP it, and the card we keep cannot disagree with the card we would play
+DISCARD_XEROSIC_CAPS_A_FAT_HAND = 22  # outside the Alakazam matchup the cap was a FIXED 60 in the discard: fodder of middling price whatever the opposing hand held. With a hand at or above XEROSIC_BIG_HAND the play scorer prices it at XEROSIC_SCORE_GENERIC (3380), so it is not fodder -- protected here at the same height as a single Boss's Orders (22): kept, but the first Supporter to fall if one has to
 XEROSIC_SCORE_SOBRE_BOSS = 7000      # vs Alakazam with Boss's in hand: capping the hand beats ANY gust that does not WIN the game (above GUST_2PRIZE 6800); the winning gust (WIN_NOW 20000) is still higher
 # The band every Supporter play scorer uses to say "I have NO useful effect
 # today: play me only because nothing else scores" -- BOSS_SCORE_EMPTY_GUST and

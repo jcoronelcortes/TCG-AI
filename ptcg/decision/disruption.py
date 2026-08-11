@@ -11,7 +11,7 @@ utils/purity.py: nothing here touches mutable state or the runtime tables.
 """
 
 from ptcg.calc.board import _active_of, _evolvable_counts
-from ptcg.cards.ids import Abra, Alakazam_ex, Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Hydrapple_ex, Kadabra, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, Poke_Pad, SCORE_VETO, STAMP_MAX_HAND_SACRIFICED, STAMP_MIN_OP_HAND, STAMP_MIN_OP_HAND_VS_REFILL, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, XEROSIC_SCORE_ALAKAZAM, XEROSIC_SCORE_GENERIC, XEROSIC_SCORE_LAST_RESORT, XEROSIC_SCORE_SOBRE_BOSS, XEROSIC_STAMP_ORDEN_MIN_OP_HAND, Xerosic_Machinations
+from ptcg.cards.ids import Abra, Alakazam_ex, Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Hydrapple_ex, Kadabra, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, Poke_Pad, SCORE_VETO, STAMP_MAX_HAND_SACRIFICED, STAMP_MIN_OP_HAND, STAMP_MIN_OP_HAND_VS_REFILL, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, XEROSIC_BIG_HAND, XEROSIC_SCORE_ALAKAZAM, XEROSIC_SCORE_GENERIC, XEROSIC_SCORE_LAST_RESORT, XEROSIC_SCORE_SOBRE_BOSS, XEROSIC_STAMP_ORDEN_MIN_OP_HAND, Xerosic_Machinations
 from ptcg.state.zones import ZONE_DECK
 from ptcg.engine.context import DecisionContext
 from ptcg.engine.rules import _Adjustment, _FixedRule, _resolve_with_trace
@@ -649,7 +649,7 @@ _RULES_XEROSIC_PLAY = [
     # Generic: taking 4+ cards away is real value, but without Powerful Hand it goes
     # below a useful Lillie's/Lana's/Boss's. Only with an opposing hand >= 7.
     _FixedRule("generic_very_big_hand",
-               lambda c: c.op_hand_count >= 7,
+               lambda c: c.op_hand_count >= XEROSIC_BIG_HAND,
                lambda c: XEROSIC_SCORE_GENERIC + c.supporter_boost),
     # default: last resort (opposing hand 4-6 without the Alakazam matchup).
 ]
