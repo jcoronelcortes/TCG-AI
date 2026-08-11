@@ -427,9 +427,36 @@ def report(stats, findings):
     for kind in ("AGENT_RAISED", "PHANTOM_KO", "MISSED_KO", "DAMAGE_DRIFT"):
         items = by_kind.get(kind) or []
         if items:
-            print(f"  {kind}: {len(items)}")
+            nuestro = sum(1 for f in items if f.get("seat") == 0)
+            print(f"  {kind}: {len(items)}   "
+                  f"(nuestro mazo {nuestro} / el suyo {len(items) - nuestro})")
             for f in items[:5]:
-                print(f"    partida {f.get('game')} paso {f.get('step')}: {f['detail']}")
+                print(f"    partida {f.get('game')} paso {f.get('step')}"
+                      f"{' [SU MAZO]' if f.get('seat') else ''}: {f['detail']}")
+
+    # THE SPLIT THAT REFRAMES THE WHOLE TABLE, and it took the night of 11 August
+    # to notice it was missing. This oracle is a MIRROR: our agent pilots BOTH
+    # seats, seat 0 with `deck.csv` and seat 1 with the opponent list. So half of
+    # what it reports is our damage model predicting attacks made by cards WE DO
+    # NOT RUN, and being wrong about them costs us nothing -- it is not a defect
+    # of playing against that deck, it is our model not knowing that deck's own
+    # cards.
+    #
+    # Measured on `festival_lead_10`, which the wide run of that night ranked as
+    # the WORST deck in the whole 87-list corpus at 8.44%: every one of its 637
+    # DAMAGE_DRIFT findings is seat 1 attacking with a Dipplin carrying a Brave
+    # Bangle (+30 if the holder has no Rule Box). Our deck runs no Brave Bangle,
+    # and the DEFENSIVE projection -- the one that matters, their Dipplin hitting
+    # our ex -- adds the 30 correctly (verified: 100 -> 130). The residue was an
+    # artefact of the harness and the ranking it produced was misleading.
+    del_suyo = sum(1 for f in findings if f.get("seat"))
+    if del_suyo:
+        print(f"\n{del_suyo} de {len(findings)} hallazgos son del asiento que "
+              f"pilota SU mazo ({100 * del_suyo / len(findings):.0f}%).")
+        print("  Este oraculo es un ESPEJO: el mismo agente juega los dos lados, "
+              "asi que esos miden lo que nuestro modelo de dano NO sabe de las "
+              "cartas de ESE mazo -- no lo que nos cuesta jugar contra el. Para "
+              "leer nuestro juego, la columna es 'nuestro mazo'.")
 
 
 def main(argv):
