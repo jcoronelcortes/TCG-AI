@@ -119,6 +119,9 @@ def _kept(obs, choice):
     return kept
 
 
+from ptcg.cards import ids as _ids   # las dos constantes nuevas no se re-exportan por main
+
+
 def _run(obs=None):
     """Returns (obs, choice, per-card discard scores)."""
     obs = _obs() if obs is None else obs
@@ -268,11 +271,46 @@ def _swap_alakazam_for_dudunsparce(obs):
     return obs
 
 
-def test_without_the_matchup_the_cap_is_discardable_again():
-    obs, choice, scores = _run(_swap_alakazam_for_dudunsparce(_obs()))
-    assert scores[XEROSIC] == 60, (
-        f"fuera del matchup manda la otra rama de la escalera; "
+def test_without_the_matchup_the_OTHER_branch_of_the_ladder_decides():
+    """Outside Alakazam the matchup branch (5) must not be what answers.
+
+    IT USED TO ASSERT THE LITERAL 60, and that number stopped being the whole
+    of the other branch when the cap learned to read the opposing hand
+    (`DISCARD_XEROSIC_CAPS_A_FAT_HAND`). The board it runs on keeps 18 cards on
+    their side, which is well over `XEROSIC_BIG_HAND`, so the honest reading
+    there is the protected one -- the play scorer prices that same cap at
+    XEROSIC_SCORE_GENERIC against a hand that size, and the card we keep cannot
+    disagree with the card we would play.
+
+    What this test was always about survives intact and is now asserted
+    directly: it is the generic branch that answers, never the matchup one. The
+    two tests below pin both of its halves, which is more than the single
+    constant ever did.
+    """
+    _obs_, _choice, scores = _run(_swap_alakazam_for_dudunsparce(_obs()))
+    assert scores[XEROSIC] != 5, (
+        f"fuera del matchup la rama Alakazam no puede decidir; "
         f"obtuvo {scores[XEROSIC]}")
+
+
+def test_outside_the_matchup_a_FAT_hand_protects_the_cap():
+    """18 cards on their side: over the threshold, so the cap is kept."""
+    _obs_, _choice, scores = _run(_swap_alakazam_for_dudunsparce(_obs()))
+    assert scores[XEROSIC] == _ids.DISCARD_XEROSIC_CAPS_A_FAT_HAND
+
+
+def test_outside_the_matchup_a_THIN_hand_leaves_the_old_price_standing():
+    """And the 60 is still there, which is the half the constant used to pin.
+
+    Below `XEROSIC_BIG_HAND` the second question does not fire and the branch
+    answers exactly as it did before the reading existed -- the cap is ordinary
+    fodder and goes.
+    """
+    obs = _swap_alakazam_for_dudunsparce(_obs())
+    obs["current"]["players"][1]["handCount"] = _ids.XEROSIC_BIG_HAND - 1
+    obs, choice, scores = _run(obs)
+    assert scores[XEROSIC] == 60, (
+        f"con su mano corta manda el precio de siempre; obtuvo {scores[XEROSIC]}")
     assert XEROSIC in _discarded(obs, choice)
 
 

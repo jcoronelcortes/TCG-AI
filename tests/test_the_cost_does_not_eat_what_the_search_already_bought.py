@@ -245,14 +245,22 @@ def test_control_without_the_purchase_the_ladders_eat_it():
     """The load-bearing control: the SAME hand, with no search behind it.
 
     Starting the replay at the cost menu means the fetch log never arrives, so
-    the card is just a card in hand and the ordinary ladders price it -- the
-    Xerosic at 60, the most discardable thing there. That is the decision the
+    the card is just a card in hand and the ordinary ladders price it -- the Bug
+    Catching Set the most discardable thing there. That is the decision the
     record would still be making, and it is what the rule changes.
+
+    IT USED TO BE THE XEROSIC, and the card had to change when the cap learned
+    to read the opposing hand (`DISCARD_XEROSIC_CAPS_A_FAT_HAND`). On this board
+    their hand is over the threshold, so the ordinary ladder now KEEPS the cap --
+    which makes it a fine card and a useless control. Measured while swapping it:
+    of the five candidates only the Bug Catching Set is still eaten here; every
+    Supporter in the hand is protected by its own branch, with or without this
+    rule. A control has to be a card the ladder really does throw away.
     """
-    paid = _cost_paid_with(_turn(bought_is=XEROSIC), from_step=COST_STEP)
-    assert XEROSIC in paid, (
-        "sin la compra, la escalera ordinaria tira el Xerosic: si esto deja de "
-        "pasar, la regla nueva ya no es la que salva la carta")
+    paid = _cost_paid_with(_turn(bought_is=BUG_SET), from_step=COST_STEP)
+    assert BUG_SET in paid, (
+        "sin la compra, la escalera ordinaria tira el Bug Catching Set: si esto "
+        "deja de pasar, la regla nueva ya no es la que salva la carta")
 
 
 def test_control_the_lillie_of_the_record_is_saved_by_her_own_ladder():
@@ -277,9 +285,9 @@ def test_a_twin_nobody_bought_is_what_pays():
     the purchase survives -- exactly what the frozen corpus asked for, where the
     recovered card was a Basic Grass with two twins beside it.
     """
-    menus = _turn(bought_is=XEROSIC, twin=XEROSIC)
+    menus = _turn(bought_is=BUG_SET, twin=BUG_SET)
     paid = _cost_paid_with(menus)
-    assert paid.count(XEROSIC) == 1, (
+    assert paid.count(BUG_SET) == 1, (
         f"solo la copia sobrante paga; pago {paid}")
     assert BAYLEEF in paid
 
@@ -287,10 +295,10 @@ def test_a_twin_nobody_bought_is_what_pays():
 def test_a_discard_forced_by_their_card_buys_nothing():
     """The whole rule hangs on the cost being OURS. Under an opposing
     hand-cutter nothing of ours is being bought and the ladders rule again."""
-    menus = _turn(bought_is=XEROSIC)
+    menus = _turn(bought_is=BUG_SET)
     _menu(menus, COST_STEP)["select"]["effect"] = {
         "id": XEROSIC, "playerIndex": 1 - SEAT, "serial": 300}
-    assert XEROSIC in _cost_paid_with(menus)
+    assert BUG_SET in _cost_paid_with(menus)
 
 
 def test_the_ultra_ball_is_still_played_at_all():
