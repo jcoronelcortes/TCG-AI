@@ -5063,14 +5063,35 @@ def agent(obs_dict: dict) -> list[int]:
                     # case needing it, and the safe direction of this estimator is to fall
                     # SHORT (if it overestimates, it vetoes the active's
                     # attack because of a bench KO that does not exist).
-                    if (hand_counts.get(Basic_Grass_Energy, 0) >= 1
-                            and not state.energyAttached):
-                        _syrup_grass += _grass_attach_unit()
-                    elif (hand_counts.get(Basic_Grass_Energy, 0) == 0
-                          and hand_counts.get(Night_Stretcher, 0) >= 1
-                          and discard_counts.get(Basic_Grass_Energy, 0) >= 1
-                          and _sg_route and not _plan_act_kos_now):
-                        _syrup_grass += _grass_attach_unit()
+                    #
+                    # AND THE TURN'S ATTACHMENT HAS TO STILL EXIST, for BOTH
+                    # routes (user, August 2026, found by the differential
+                    # oracle on crustle_wall_9). The Grass-in-hand branch asked
+                    # `not state.energyAttached` from the day it was written; the
+                    # Night Stretcher branch below it never did, so with the
+                    # attachment already spent it still added a Grass it could
+                    # not attach. With Meganium in play `_grass_attach_unit()` is
+                    # TWO, so the projection came out 60 damage high and the
+                    # ATTACK block believed a knockout it did not have.
+                    #
+                    # Measured: 9 of 9 PHANTOM_KO in 1200 games against that deck
+                    # had exactly this board -- no Grass in hand, a Night
+                    # Stretcher in hand, Grass in the discard, `energyAttached`
+                    # already True -- and every one of them predicted the target
+                    # would fall and left it at 30 (or at 10 behind a Hero's
+                    # Cape). The engine was right every single time.
+                    #
+                    # The shared precondition is hoisted rather than repeated:
+                    # what both branches are really saying is "if I can still
+                    # attach one this turn, from wherever I get it".
+                    if not state.energyAttached:
+                        if hand_counts.get(Basic_Grass_Energy, 0) >= 1:
+                            _syrup_grass += _grass_attach_unit()
+                        elif (hand_counts.get(Basic_Grass_Energy, 0) == 0
+                              and hand_counts.get(Night_Stretcher, 0) >= 1
+                              and discard_counts.get(Basic_Grass_Energy, 0) >= 1
+                              and _sg_route and not _plan_act_kos_now):
+                            _syrup_grass += _grass_attach_unit()
                     syrup_dmg = 30 + 30 * _syrup_grass
                     attack_options.append((2, syrup_dmg, 0, True))
                 elif my_pokemon.id == Dipplin:
