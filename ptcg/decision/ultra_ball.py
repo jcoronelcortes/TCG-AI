@@ -1738,6 +1738,85 @@ def _ub_engine_refresh_pivot(ctx) -> bool:
     return dmg < (op_act.hp or 0)
 
 
+class _StateSupporterFree:
+    """Read-only view of `state` with the turn's Supporter slot UNSPENT.
+
+    Everything else is delegated to the real state; only `supporterPlayed`
+    answers False. It exists so a predicate written for "this turn" can be asked
+    about the NEXT one without copying it -- see
+    `_ub_engine_waits_for_tomorrow`."""
+
+    supporterPlayed = False
+
+    def __init__(self, state):
+        self._state = state
+
+    def __getattr__(self, name):
+        return getattr(self._state, name)
+
+
+class _CtxSupporterFree:
+    """DecisionContext view whose `state` is `_StateSupporterFree`."""
+
+    def __init__(self, ctx):
+        self.c = ctx
+        self.state = _StateSupporterFree(ctx.state)
+
+    def __getattr__(self, name):
+        return getattr(self.c, name)
+
+
+def _ub_engine_waits_for_tomorrow(ctx) -> bool:
+    """Is THIS board the engine board of `_ub_engine_refresh_pivot`, missing
+    only the Supporter slot that this turn has already spent?
+
+    (user, registro_002 step 14 vs Cynthia's Garchomp ex, episode 91529732,
+    LOST.) Our first turn going second. Active Tapu Bulu with nothing attached,
+    a single Applin on the bench, the turn's Lillie's Determination already
+    played and the attachment already made. Hand of six: {Ultra Ball, 2x Grass
+    Energy, Bayleef, Meganium, Hydrapple ex} -- the three evolution pieces are
+    dead cards (no Chikorita and no Dipplin in play, none in hand), so the whole
+    hand is the Ultra Ball plus its two energies. `_score_ultra_ball_play`
+    vetoed the Ultra Ball correctly (-1, the first-turn gate: with the Supporter
+    spent there is no chain to run today), END scored 0, and the anti-sterile
+    net resurrected it at 200 to dig out a Teal Mask Ogerpon ex. The cost took
+    the two Grass -- the only fuel that body has -- and the turn ended with a
+    210 HP Pokemon that cannot be charged and a hand of three cards that cannot
+    be played. The next turn depended entirely on the card drawn.
+
+    What the net never asks is WHEN the Ultra Ball is worth most. It is not a
+    card that expires with the turn: ending here keeps it, and the very next
+    turn -- Supporter slot free again -- it IS the engine
+    `_ub_engine_refresh_pivot` describes: Ultra Ball -> Meowth ex -> Last-Ditch
+    Catch -> a refill
+    Supporter -> a whole new hand. Every other condition of that engine is
+    already met on this board (an underdeveloped bench, two cheap energies to
+    pay the cost, Meowth ex and the Supporter alive in the deck, an active that
+    cannot knock anything out); the ONLY thing missing is the slot, and the slot
+    comes back by itself. So the comparison the net makes -- "a body versus
+    nothing" -- is the wrong one: it is "a body now versus the same search
+    tomorrow, plus the two cards it costs, plus the Supporter it would fetch".
+
+    Matchup-agnostic: it names no opposing deck and no target of its own, it
+    just asks the engine predicate on a view of the state whose Supporter slot
+    is free (`_CtxSupporterFree`) -- the only cards in it are the ones OUR
+    refill chain is made of, and they are already that predicate's. Any board
+    where waiting one turn turns the search into a refill answers True, whoever
+    is sitting across the table. It is deliberately the SECOND question the net
+    asks, never a replacement: the empty-bench net runs first (with no bench the
+    body has to land today or a knockout ends the game) and the item-lock
+    exception is kept by the caller (with Budew about to shut the Items off
+    there is no tomorrow to wait for).
+
+    It does NOT touch the evolution branch of the net: completing a line is an
+    action TODAY, and this rule only says that buying an inert body is not."""
+    if not ctx.state.supporterPlayed:
+        # The slot is free NOW: whatever the engine is worth, it is worth it
+        # this turn, and `_score_ultra_ball_play` already prices it (31450).
+        return False
+    return _ub_engine_refresh_pivot(_CtxSupporterFree(ctx))
+
+
 def _ctx_ub_fetch_hydrapple(my_state, state, hand_counts, field_counts,
                             ub_evolvable, op_ex_immune_active,
                             op_ex_immune_bench, hydra_dead_prefer_meowth):
@@ -2350,6 +2429,9 @@ __all__ = [
     '_v_ub_chikorita_t1',
     '_v_ub_applin_t1',
     '_ub_engine_refresh_pivot',
+    '_StateSupporterFree',
+    '_CtxSupporterFree',
+    '_ub_engine_waits_for_tomorrow',
     '_uh_prepare_hydra_next_turn',
     '_um_boss_engine_vs_crustle',
     '_um_boss_engine_vs_untouchable',

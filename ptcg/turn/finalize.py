@@ -16,7 +16,7 @@ from ptcg.calc.board import _active_of
 from ptcg.cards.ids import Applin, BOSS_SCORE_PRIZE_RANK_BASE, DOOMED_SAC_WALL_PLAY_SCORE, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, KO_WINDOW_PLAY_IDS, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Pinsir, Poke_Pad, SCORE_USELESS_ATTACK, SCORE_VETO, SUPP_SCORE_LAST_RESORT_BAND, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Xerosic_Machinations
 from ptcg.cards.scoring import SCORE_LD_SUPP_COMPROMETIDO, _SUPP_PLAY_IDS
 from ptcg.cards.tables import HAND_COST_ABILITY_IDS, HAND_RESET_PLAY_IDS, attack_table, card_table
-from ptcg.decision.ultra_ball import _matchup_allows_playing, _ub_cost_destroys_better_card
+from ptcg.decision.ultra_ball import _matchup_allows_playing, _ub_cost_destroys_better_card, _ub_engine_waits_for_tomorrow
 from ptcg.state.agent_state import AGENT_STATE
 from ptcg.state.zones import ZONE_DECK
 from ptcg.engine.debug import DEBUG_DECISIONS, _debug_log_decision
@@ -1137,6 +1137,22 @@ def finalizar(tc):
                 _st_in_deck(_b) and _st_body_ok(_b) for _b in (
                     Chikorita, Applin, Teal_Mask_Ogerpon_ex, Tapu_Bulu,
                     Meowth_ex, Fezandipiti_ex)))
+            # ...AND THE BODY IS NOT BOUGHT WITH THE ENGINE THAT WOULD RUN
+            # TOMORROW (user, registro_002 step 14 vs Cynthia's Garchomp ex,
+            # LOST). The bench-depth reading above is asked FIRST and is left
+            # exactly as it was measured; this is the second question, and it
+            # only ever subtracts. The Ultra Ball does not expire with the turn:
+            # on a board that is already the engine board of
+            # `_ub_engine_refresh_pivot` except for the Supporter slot this turn
+            # has spent, ending here keeps the card and the NEXT turn it buys
+            # Meowth ex -> Last-Ditch -> a refill Supporter -> a whole new hand,
+            # instead of an inert body paid for with the hand's last two
+            # energies. The item lock is excluded because there the card really
+            # does expire (`_st_item_lock` is what the exception is written on).
+            # See `_ub_engine_waits_for_tomorrow` for the board and the reading.
+            if (_st_basic_useful and not _st_item_lock
+                    and _ub_engine_waits_for_tomorrow(ctx)):
+                _st_basic_useful = False
             # The pre-evolution has to be able to EVOLVE THIS TURN (user,
             # registro_003 vs Mega Abomasnow ex): with the Applin just put down
             # (`appearThisTurn`, without Forest of Vitality) there is no way to
