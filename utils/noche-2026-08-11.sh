@@ -247,9 +247,15 @@ bloque M2 "El suelo de ruido de esa misma corrida (--control), n=$GATE_GAMES" --
     "$PY" utils/gate_the_search_buys.py --games "$GATE_GAMES" --progress 1000 --control
 bloque M34 "El oraculo (arreglado) contra las $(listas | wc -l | tr -d ' ') listas reales, + los cinco peores" -- \
     oraculo_censo_y_profundo
+# `--dump-kinds all` and not the default: the first run of this block asked for a
+# dump, counted 294 012 findings and wrote ZERO observations, because the default
+# kind list does not include the two that actually fired (STALE_FLAG and
+# STALE_READ). The monitor said so in its own output -- which is the behaviour
+# this repository asks of a detector -- and the script is what should have
+# listened. A dump nobody can open is a finding nobody can act on.
 bloque M5 "El monitor de invariantes a $MONITOR_GAMES partidas, con volcado" -- \
     "$PY" utils/invariant_monitor.py --games "$MONITOR_GAMES" \
-        --dump "$OUT/violaciones_monitor" --progress 2000
+        --dump "$OUT/violaciones_monitor" --dump-kinds all --progress 2000
 bloque M6 "La sonda de permutacion a $PERM_GAMES, volcada para triaje" -- \
     "$PY" utils/permutation_probe.py --games "$PERM_GAMES" --dump "$OUT/permutacion"
 bloque M7 "Soak de propiedades a $EJEMPLOS ejemplos" -- \
