@@ -58,6 +58,46 @@ def neutralise(agent_module):
     return agent_module
 
 
+def provenance(candidate, base, control):
+    """Refuse to measure two arms that are secretly the same agent.
+
+    THIS GATE HAD NO SUCH CHECK, and R7 of the architecture linter is what found
+    it (night of 11 August). It matters more here than in the gates that have
+    one, because `neutralise` above patches two seams by two different routes:
+    an ATTRIBUTE on the `retreat` module and an entry in the globals dict of the
+    module that defines `_bench_finisher_upgrade`. `from ... import` binds a
+    copy, so an attribute patch reaches only the callers that go through the
+    module object -- rename either seam, or move its caller, and the patch lands
+    on nothing while the run goes on printing a winrate.
+
+    A gate that cannot see its own change reports NEUTRAL, and in this project
+    neutral orders a revert. The check needs no board: the neutralised arm holds
+    a `lambda *a, **k` where the real one holds a function with a signature, and
+    the two are asked directly.
+    """
+    def seams(agent):
+        retreat = agent.score_option.__globals__['retreat']
+        damage = retreat._bench_finisher_upgrade.__globals__
+        return retreat._promoted_lethal_reply, damage['_relay_reading']
+
+    if candidate.score_option is base.score_option:
+        raise SystemExit("los dos brazos son el MISMO agente: la medida seria cero")
+
+    reply_c, relay_c = seams(candidate)
+    reply_b, relay_b = seams(base)
+    if reply_c is reply_b or relay_c is relay_b:
+        raise SystemExit("una de las dos costuras es el MISMO objeto en los dos "
+                         "brazos: la neutralizacion no ha llegado")
+    if reply_b() != 0:
+        raise SystemExit("el brazo baseline no lleva neutralizado _promoted_lethal_reply")
+    neutralizado_c = getattr(reply_c, "__name__", "") == "<lambda>"
+    if neutralizado_c is not bool(control):
+        raise SystemExit("el brazo candidato no esta como dice estar "
+                         f"(control={bool(control)}, neutralizado={neutralizado_c})")
+    print(f"procedencia OK (candidato {'NEUTRALIZADO: control' if control else 'con la regla'}, "
+          f"baseline sin ella)\n", flush=True)
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--games", type=int, default=1200)
@@ -73,6 +113,7 @@ def main(argv=None):
     base = neutralise(sp.load_agent(main_py, "arm_without"))
     if args.control:
         neutralise(candidate)
+    provenance(candidate, base, args.control)
 
     label_c = "with the rule" + (" (NEUTRALISED: control)" if args.control else "")
     label_b = "without the rule"

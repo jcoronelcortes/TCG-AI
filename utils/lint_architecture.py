@@ -1,9 +1,11 @@
 """Architecture rules of the wave refactor (docs/project-history.md).
 
-Five AST rules over `main.py` and the agent package. They all cover failures
-that do NOT show up as a red test: either they break the submission on Kaggle with the
-suite green, or they make the agent read frozen state and decide badly in a
-game without raising any exception.
+Eight AST rules over `main.py`, the agent package, the tools and the suite. They
+all cover failures that do NOT show up as a red test: either they break the
+submission on Kaggle with the suite green, or they make the agent read frozen
+state and decide badly in a game without raising any exception -- or, for the
+three added on 11 August, they make an INSTRUMENT report a number that is not a
+measurement.
 
   R1  (I5)  Never `from <module> import <mutable>`.
             `from x import ko_last_turn` COPIES the value at the moment of the
@@ -36,11 +38,35 @@ game without raising any exception.
             sys.path as soon as main.py's exec finishes, and main.py never gets
             to be in sys.modules.
 
+  R6  A test that READS a `records/` file must carry a skip guard.
+            `records/` is transient local data and gets re-harvested. A census
+            that pinned `registro_006_pasos_054...json` step 54 went red when a
+            harvest took that board away, with nothing about the rule having
+            changed (32a5537). Citing a record in a docstring is provenance and
+            stays allowed; depending on the file is what needs the guard.
+
+  R7  A gate that loads two arms must define AND call `provenance()`.
+            Before 6c08b87 both arms shared every module under `ptcg/`, so a
+            change to any rule measured EXACTLY ZERO -- and the written rule of
+            this project is that neutral means revert. A gate that cannot see
+            its own change is the most expensive thing here. The rule found a
+            live one the day it landed: `utils/gate_promoted_relay.py`.
+
+  R8  In the DISCARD block, the turn flags are read through the horizon.
+            `state.supporterPlayed` / `state.energyAttached` describe what the
+            OPPONENT spent when the discard is forced by their card, and
+            Xerosic's Machinations is itself a Supporter -- so that flag is True
+            on every forced discard it can produce, and the protection gated on
+            its negation was unreachable code (93a27eb). Only the two
+            assignments that build `_supporter_spent` / `_energy_spent` may
+            read them there.
+
 Usage:
     python utils/lint_architecture.py          # exit 1 if there are violations
 """
 
 import ast
+import re
 import sys
 from pathlib import Path
 
@@ -266,12 +292,179 @@ def rule_5_no_redefinition():
     return failures
 
 
+# ---------------------------------------------------------------------------
+# R6 -- a test may not pin a `records/` filename without a guard
+# ---------------------------------------------------------------------------
+TESTS = PROJECT_ROOT / "tests"
+
+# A record FILENAME, or a path into the directory. Deliberately not the bare
+# word: half the suite cites `registro_004 step 33` in prose, and prose is the
+# provenance of a finding, not a dependency on a file. Nor the bare `records/`
+# either -- the first draft of this rule flagged the assertion message
+# "--snapshot-only no puede mirar records/", which is a sentence about the
+# directory and not a read of it.
+_REGISTRO = re.compile(r"registro_\d+\w*\.json|(?:^|[./])records/\w")
+
+
+def _cadenas_ejecutables(tree):
+    """String literals that are not somebody's docstring."""
+    docs = {ast.get_docstring(n, clean=False) for n in ast.walk(tree)
+            if isinstance(n, (ast.Module, ast.FunctionDef,
+                              ast.AsyncFunctionDef, ast.ClassDef))}
+    return [n for n in ast.walk(tree)
+            if isinstance(n, ast.Constant) and isinstance(n.value, str)
+            and n.value not in docs]
+
+
+def rule_6_records_are_transient(archivos=None):
+    """`records/` is re-harvested; a test that needs one must say what to do
+    when it is not there.
+
+    THE BUG (32a5537). The census of "the prize is cashed by the body that
+    outlasts" pinned `registro_006_pasos_054_hasta_056.json` step 54. A harvest
+    replaced the bundle, the foundational board left with it, and the test went
+    red without one thing about the rule changing -- while the skip guard at the
+    top of that same file already said, out loud, that `records/` is transient
+    local data. The repair was to assert the property whichever games happen to
+    be on disk.
+
+    So: cite a record in a docstring as much as you like; the moment a test
+    READS one it must carry `pytest.skip`/`skipif`.
+    """
+    failures = []
+    for path in (archivos if archivos is not None
+                 else sorted(TESTS.glob("test_*.py")) if TESTS.is_dir() else []):
+        source = Path(path).read_text(encoding="utf-8")
+        tree = ast.parse(source, filename=str(path))
+        if "pytest.skip" in source or "skipif" in source:
+            continue
+        for node in _cadenas_ejecutables(tree):
+            if _REGISTRO.search(node.value):
+                failures.append((
+                    "R6", _rel(path), node.lineno,
+                    f"usa {node.value[:40]!r} sin guarda: records/ es dato "
+                    "transitorio y se recosecha; anade pytest.skip o afirma la "
+                    "propiedad, no el fichero",
+                ))
+    return failures
+
+
+# ---------------------------------------------------------------------------
+# R7 -- a two-arm gate must prove its arms differ before it measures
+# ---------------------------------------------------------------------------
+UTILS = PROJECT_ROOT / "utils"
+
+
+def rule_7_gates_check_provenance(archivos=None):
+    """A gate that cannot see its own change reports NEUTRAL, and in this
+    project neutral orders a revert.
+
+    THE BUG (6c08b87). `selfplay --base` exported one file and both arms then
+    resolved `from ptcg... import` through the working tree, so they shared every
+    module object under `ptcg`: after the refactor -- 26 571 lines there against
+    11 328 in main.py -- a change to any rule measured EXACTLY ZERO, by
+    construction, in the two tools named as the heavy gates. The gates written
+    since answer it with `provenance()`, which asks both arms on a board the rule
+    is about and refuses to measure if they agree.
+
+    The rule is scoped to gates that load an agent more than once, because that
+    is what a two-arm gate IS. `gate_coverage.py` and `gate_mutation.py` load
+    none and are none.
+    """
+    failures = []
+    for path in (archivos if archivos is not None
+                 else sorted(UTILS.glob("gate_*.py")) if UTILS.is_dir() else []):
+        tree = ast.parse(Path(path).read_text(encoding="utf-8"), filename=str(path))
+        cargas = [n for n in ast.walk(tree)
+                  if isinstance(n, ast.Call)
+                  and (getattr(n.func, "attr", None) or getattr(n.func, "id", None))
+                  in ("load_agent", "load_agent_from_git")]
+        if len(cargas) < 2:
+            continue
+        definida = any(isinstance(n, ast.FunctionDef) and n.name == "provenance"
+                       for n in ast.walk(tree))
+        llamada = any(isinstance(n, ast.Call) and getattr(n.func, "id", None) == "provenance"
+                      for n in ast.walk(tree))
+        if not (definida and llamada):
+            falta = "no la define" if not definida else "la define y no la llama"
+            failures.append((
+                "R7", _rel(path), cargas[0].lineno,
+                f"carga {len(cargas)} agentes y {falta} `provenance()`: un gate "
+                "ciego informa NEUTRO, y neutro aqui ordena revertir",
+            ))
+    return failures
+
+
+# ---------------------------------------------------------------------------
+# R8 -- the turn flags of a forced discard are the OPPONENT's
+# ---------------------------------------------------------------------------
+CARD_PY = PACKAGE / "turn" / "options" / "card.py"
+BANDERAS_DE_TURNO = ("supporterPlayed", "energyAttached")
+HORIZONTE = ("_supporter_spent", "_energy_spent")
+
+
+def rule_8_discard_reads_its_horizon(archivo=None):
+    """Inside the DISCARD block, `state.supporterPlayed` and
+    `state.energyAttached` may only be read to build the horizon.
+
+    THE BUG (93a27eb). One menu serves two callers with opposite horizons: the
+    COST of our own Ultra Ball, on our turn, and a discard FORCED by their card,
+    which happens on THEIR turn. Those two flags describe what THEY spent, and
+    Xerosic's Machinations IS a Supporter, so `supporterPlayed` is True on every
+    forced discard it can produce -- `_protect_last_supporter`, gated on `not
+    state.supporterPlayed`, was not misfiring, it was unreachable code on that
+    whole path.
+
+    The block now asks `_forced_discard` first and derives `_supporter_spent` /
+    `_energy_spent` from it. This rule is what stops the raw flags coming back:
+    the two assignments that BUILD the horizon are the only readings allowed.
+    """
+    path = Path(archivo) if archivo else CARD_PY
+    if not path.is_file():
+        return []
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+
+    def es_bloque_discard(node):
+        return (isinstance(node, ast.If)
+                and any(isinstance(c, ast.Attribute) and c.attr == "DISCARD"
+                        for c in ast.walk(node.test)))
+
+    def permitido(asignacion):
+        return (isinstance(asignacion, ast.Assign)
+                and any(isinstance(t, ast.Name) and t.id in HORIZONTE
+                        for t in asignacion.targets))
+
+    failures = []
+    for node in ast.walk(tree):
+        if not es_bloque_discard(node):
+            continue
+        for sentencia in node.body:
+            if permitido(sentencia):
+                continue
+            for hijo in ast.walk(sentencia):
+                if (isinstance(hijo, ast.Attribute)
+                        and hijo.attr in BANDERAS_DE_TURNO
+                        and isinstance(hijo.value, ast.Name)
+                        and hijo.value.id == "state"):
+                    failures.append((
+                        "R8", _rel(path), hijo.lineno,
+                        f"`state.{hijo.attr}` crudo en el bloque DISCARD: en un "
+                        "descarte FORZADO esa bandera es del RIVAL. Leela por "
+                        f"{HORIZONTE[0]}/{HORIZONTE[1]}, que pasan por "
+                        "`_forced_discard`",
+                    ))
+    return failures
+
+
 RULES = (
     rule_1_imported_mutables,
     rule_2_purity,
     rule_3_agent_is_last,
     rule_4_lazy_imports,
     rule_5_no_redefinition,
+    rule_6_records_are_transient,
+    rule_7_gates_check_provenance,
+    rule_8_discard_reads_its_horizon,
 )
 
 
