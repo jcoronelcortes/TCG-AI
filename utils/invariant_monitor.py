@@ -23,6 +23,10 @@ WHAT IT WATCHES
   * `STALE_READ`       -- the same promise being READ while its premise is dead,
                           which is the one that can actually mislead a decision.
                           See below.
+  * `FLAG_MIRROR`      -- a belief about the board that the board contradicts.
+                          See "THREE SHAPES" below.
+  * `FLAG_UNSTUCK`     -- a matchup remembered and then forgotten inside one
+                          game. Same section.
   * `DECK_BELIEF`      -- the agent's card tracker against the engine's own
                           count. See below: it is the only check here with a
                           source of truth OUTSIDE the agent.
@@ -122,6 +126,33 @@ hold while the flag is up. It is seeded with the flags that have already failed,
 and every run prints how many boolean flags on AGENT_STATE are NOT registered,
 so the blind spot is a number rather than a silence.
 
+THREE SHAPES, because the sixteen unwatched flags were not one (11 Aug 2026).
+That count included `we_go_first`, the flag that turned out to be assigned from
+inside a scorer, and the monitor could not see it because nobody had written
+down what it promises. Forcing all sixteen into "a premise that must still hold"
+would have produced a detector firing on correct play, so they were triaged:
+
+  * `PROMISES` (3) -- a plan whose reason can die. Reported as STALE_FLAG /
+    STALE_READ, and soft: several consumers re-check the premise themselves.
+  * `MIRRORS` (7) -- a BELIEF recomputed every turn straight from the
+    observation (`forest_in_play`, `meganium_in_play`, `we_go_first`, ...). The
+    law is EQUALITY with the board and a break is HARD: some rule is reasoning
+    about a board that is not there. Same shape as DECK_BELIEF and strong for
+    the same reason -- the truth comes from outside the agent. Each expectation
+    is rebuilt from the raw observation here, never by calling the agent's own
+    helper, which would restate the belief instead of reconciling it.
+  * `STICKY` (6) -- matchup memory, one-way ON PURPOSE. A premise that must
+    still hold is the wrong law for these: the board stops showing the Crustle
+    and the flag must stay up. What is checkable is the FALL.
+  * `SIN_PREMISA` (3) -- and the three that cannot be watched from outside at
+    all, with the reason written down. They are accumulated from the LOG stream
+    inside a turn and one observation carries nothing to reconcile them against.
+
+The blind spot is now 0, and over 600 games (76 284 decisions) FLAG_MIRROR and
+FLAG_UNSTUCK are both ZERO -- which also scopes the `we_go_first` defect: the
+mirror only speaks while `firstPlayer >= 0`, the same guard the agent's own
+assignment carries, so a wrong value can live only inside the IS_FIRST menu.
+
 STALE_FLAG VERSUS STALE_READ, and why the second one exists. A flag standing on
 a dead premise harms nothing if nobody looks at it, and several consumers here
 re-check the premise themselves -- which is why the first version of this file
@@ -188,7 +219,9 @@ for _p in (_ROOT, _ROOT / "utils", _ROOT / "tests"):
 
 import selfplay as sp  # noqa: E402
 from cg.api import AreaType, CardType, OptionType  # noqa: E402
-from ptcg.cards.ids import Applin, Chikorita, Dipplin, Hydrapple_ex  # noqa: E402
+from ptcg.cards.ids import (Applin, Chikorita, Dipplin, Festival_Grounds,  # noqa: E402
+                            Forest_of_Vitality, Full_Metal_Lab, Hydrapple_ex,
+                            Mega_Gengar_ex, Meganium, Pecharunt_ex)
 from ptcg.cards.tables import card_table  # noqa: E402
 from ptcg.state.zones import ZONE_DECK, ZONE_PRIZE  # noqa: E402
 
@@ -260,11 +293,144 @@ PROMISES = [
      lambda obs: free_bench_seats(obs) >= 1),
 ]
 
-_REGISTERED = {name for name, _why, _p in PROMISES}
+# --------------------------------------------------------------------------
+# G-A, second shape: the flags that MIRROR the board
+# --------------------------------------------------------------------------
+#
+# A promise can outlive its premise and that is a soft finding. A BELIEF that
+# disagrees with the board is a hard one: these flags are recomputed at the top
+# of `agent()` from the observation itself, so any disagreement means some rule
+# is reasoning about a board that is not there. It is the same shape as
+# DECK_BELIEF and it is strong for the same reason -- the truth comes from
+# OUTSIDE the agent. Each expectation is rebuilt from the raw observation here
+# and never by calling the agent's own helper, which would restate the belief
+# instead of reconciling it.
+#
+# `applies` exists for the one flag that is not always answerable: before the
+# coin is resolved `firstPlayer` is -1, and the agent itself only assigns
+# `we_go_first` under `state.firstPlayer >= 0`. Asking outside that window would
+# be the monitor reporting its own coarseness as a defect of the agent, which is
+# how a detector in this repository has already wasted a night.
+
+def _stadium_ids(obs):
+    return [c.get("id") for c in ((obs.get("current") or {}).get("stadium") or [])]
+
+
+def _op_side(obs):
+    cur = obs.get("current") or {}
+    try:
+        return cur["players"][1 - cur["yourIndex"]]
+    except (KeyError, IndexError, TypeError):
+        return {}
+
+
+def _op_field_ids(obs):
+    side = _op_side(obs)
+    bodies = list(side.get("active") or []) + [b for b in (side.get("bench") or []) if b]
+    return [b.get("id") for b in bodies if b]
+
+
+MIRRORS = [
+    ("we_go_first",
+     "the seat the engine says moved first",
+     lambda obs: (obs.get("current") or {}).get("firstPlayer", -1) >= 0,
+     lambda obs: (obs["current"]["firstPlayer"] == obs["current"]["yourIndex"])),
+    ("meganium_in_play",
+     "a Meganium among OUR bodies",
+     lambda obs: True,
+     lambda obs: Meganium in field_counts(obs)),
+    ("forest_in_play",
+     "our Forest of Vitality is the stadium",
+     lambda obs: True,
+     lambda obs: Forest_of_Vitality in _stadium_ids(obs)),
+    ("full_metal_lab_in_play",
+     "Full Metal Lab is the stadium",
+     lambda obs: True,
+     lambda obs: Full_Metal_Lab in _stadium_ids(obs)),
+    ("_festival_grounds_in_play",
+     "Festival Grounds is the stadium, whoever played it",
+     lambda obs: True,
+     lambda obs: Festival_Grounds in _stadium_ids(obs)),
+    ("_op_prize_denial_pecharunt",
+     "a Pecharunt ex on the opposing field",
+     lambda obs: True,
+     lambda obs: Pecharunt_ex in _op_field_ids(obs)),
+    ("_op_prize_denial_gengar",
+     "a Mega Gengar ex on the opposing field",
+     lambda obs: True,
+     lambda obs: Mega_Gengar_ex in _op_field_ids(obs)),
+]
+
+
+# --------------------------------------------------------------------------
+# G-A, third shape: the flags that are STICKY on purpose
+# --------------------------------------------------------------------------
+#
+# Matchup memory is deliberately one-way. The comment on `op_is_starmie_deck`
+# says it out loud: "the deck announces itself with a 70 HP Staryu that
+# threatens nothing, and the whole point of the rule that reads this flag is to
+# have acted BEFORE the 330 HP body shows up. A matchup forgotten the turn the
+# Staryu retreats to the bench is a matchup we would re-learn one KO too late."
+#
+# So a premise that "must still hold" would be exactly the WRONG law for these:
+# the board stops showing the Crustle and the flag must stay up. What can be
+# checked is the opposite -- that it never comes back DOWN inside one game. The
+# bookkeeping latches of the card tracker are one-way for the same structural
+# reason and travel in the same list.
+
+STICKY = [
+    ("op_is_crustle_deck",
+     "matchup memory: seen once is known for the rest of the game"),
+    ("op_is_cornerstone_deck",
+     "matchup memory: seen once is known for the rest of the game"),
+    ("op_is_starmie_deck",
+     "matchup memory: the Staryu announces the deck long before the ex lands"),
+    ("op_has_mega_kangaskhan",
+     "matchup memory: seen once is known for the rest of the game"),
+    ("_cards_first_scan_done",
+     "the deck scan happens once per game and cannot un-happen"),
+    ("_cards_prizes_identified",
+     "the prizes, once identified, stay identified"),
+]
+
+
+# --------------------------------------------------------------------------
+# And the ones that CANNOT be watched from outside, with the reason
+# --------------------------------------------------------------------------
+#
+# Writing "we cannot check this, and here is why" is worth more than leaving the
+# flag in an anonymous blind-spot count: the next reader knows the question was
+# asked. All three are per-turn events accumulated from the LOGS, and the logs
+# arrive in incremental batches that a single observation does not carry -- so
+# there is nothing in `obs` to reconcile them against. Watching them needs the
+# log stream, which is a different instrument, not a premise.
+
+SIN_PREMISA = {
+    "_xerosic_played_this_turn":
+        "accumulated from the PLAY logs inside the turn; one observation does "
+        "not say whether our own Xerosic was played earlier in it",
+    "_ko_detected_this_turn":
+        "accumulated from the KO logs inside the turn; the observation shows "
+        "the prize count, not when it moved",
+    "ko_last_turn":
+        "it is a fact about the PREVIOUS turn, which no current observation "
+        "carries",
+}
+
+
+_REGISTERED = ({name for name, _why, _p in PROMISES}
+               | {name for name, _why, _a, _e in MIRRORS}
+               | {name for name, _why in STICKY}
+               | set(SIN_PREMISA))
 
 
 def unregistered_flags(mod):
-    """Boolean flags on AGENT_STATE with no premise written down."""
+    """Boolean flags on AGENT_STATE with no law written down at all.
+
+    Not "no premise": a flag can be governed by any of the three shapes above,
+    or be explicitly exempt with a reason. What this counts is the flags nobody
+    has thought about yet, which is the only honest blind spot.
+    """
     try:
         state = vars(mod.AGENT_STATE)
     except (AttributeError, TypeError):
@@ -656,6 +822,48 @@ def check_stale_flags(obs, mod):
     return out
 
 
+def check_flag_mirrors(obs, mod):
+    """G-A, hard shape. A belief about the board that the board contradicts."""
+    out = []
+    try:
+        state = mod.AGENT_STATE
+    except AttributeError:
+        return out
+    for name, why, applies, expected in MIRRORS:
+        try:
+            if not applies(obs):
+                continue
+            real = bool(expected(obs))
+        except Exception:
+            continue
+        held = bool(getattr(state, name, False))
+        if held != real:
+            out.append(f"{name} is {held} but the board says {real}: {why}")
+    return out
+
+
+def check_sticky_flags(mod, seen_up):
+    """G-A, one-way shape. A matchup remembered and then forgotten.
+
+    `seen_up` is the caller's per-GAME memory, `{flag: True}` once the flag has
+    been up at any decision of it. A game boundary must clear it or every game
+    after the first would inherit the previous one's matchup.
+    """
+    out = []
+    try:
+        state = mod.AGENT_STATE
+    except AttributeError:
+        return out
+    for name, why in STICKY:
+        up = bool(getattr(state, name, False))
+        if up:
+            seen_up[name] = True
+        elif seen_up.get(name):
+            out.append(f"{name} went back DOWN inside one game: {why}")
+            seen_up[name] = False        # report the fall once, not every step
+    return out
+
+
 # --------------------------------------------------------------------------
 # Driving
 # --------------------------------------------------------------------------
@@ -686,6 +894,10 @@ def over_games(games, opponent=None, saboteur=None, progress=None):
             continue
         stats["games"] += 1
         steps = 0
+        # Per-GAME and per-SEAT: the two agents keep separate AGENT_STATEs, and
+        # a matchup remembered from the previous game would report every fresh
+        # game as a forgetting.
+        pegajosas = [{}, {}]
         try:
             while obs and obs["current"]["result"] == -1 and steps < 3000:
                 yi = obs["current"]["yourIndex"]
@@ -726,6 +938,10 @@ def over_games(games, opponent=None, saboteur=None, progress=None):
                     record("STALE_READ", stale, snapshot, game_no, steps, yi)
                 for stale in check_stale_flags(snapshot, mod):
                     record("STALE_FLAG", stale, snapshot, game_no, steps, yi)
+                for wrong in check_flag_mirrors(snapshot, mod):
+                    record("FLAG_MIRROR", wrong, snapshot, game_no, steps, yi)
+                for fallen in check_sticky_flags(mod, pegajosas[yi]):
+                    record("FLAG_UNSTUCK", fallen, snapshot, game_no, steps, yi)
 
                 if bad and "index" in (bad or ""):
                     break              # an illegal index cannot be resolved
@@ -746,6 +962,9 @@ def over_games(games, opponent=None, saboteur=None, progress=None):
 # Validating the monitor
 # --------------------------------------------------------------------------
 
+_SABOTAJE = {"n": 0}
+
+
 def _sabotage(mod):
     """Two lies at once: every promise held up, and one card invented.
 
@@ -756,6 +975,28 @@ def _sabotage(mod):
     for name, _why, _p in PROMISES:
         try:
             setattr(mod.AGENT_STATE, name, True)
+        except AttributeError:
+            pass
+    # A belief the board contradicts, and a matchup forgotten. The mirror is
+    # inverted rather than forced True: `meganium_in_play = True` on a board
+    # that HAS a Meganium is not a lie, and a saboteur that can be right by
+    # accident proves nothing.
+    for name, _why, _a, _e in MIRRORS:
+        try:
+            setattr(mod.AGENT_STATE, name,
+                    not bool(getattr(mod.AGENT_STATE, name, False)))
+        except AttributeError:
+            pass
+    # A sticky flag is sabotaged by RAISING it and then dropping it, alternating
+    # by decision. Forcing it False every time would prove nothing: the check
+    # only reports a FALL, so it first has to have seen the flag up. Flipping
+    # would not do either -- against a mirror deck the matchup flags never go up
+    # on their own, so an inversion would hold them permanently True.
+    _SABOTAJE["n"] += 1
+    arriba = _SABOTAJE["n"] % 2 == 1
+    for name, _why in STICKY:
+        try:
+            setattr(mod.AGENT_STATE, name, arriba)
         except AttributeError:
             pass
     belief = getattr(mod.AGENT_STATE, "ACTIVE_CARDS_IN_DECK", None)
@@ -831,11 +1072,22 @@ def self_test(games=8, opponent=None):
         print("AUTO-TEST FALLIDO: una carta inventada en el mazo no se detecto.",
               file=sys.stderr)
         return False
-    print(f"  OK: {len(stale)} STALE_FLAG y {len(drift)} DECK_BELIEF sobre el "
+    espejo = [f for f in findings if f["kind"] == "FLAG_MIRROR"]
+    if not espejo:
+        print("AUTO-TEST FALLIDO: una creencia invertida respecto al tablero no "
+              "se detecto.", file=sys.stderr)
+        return False
+    despegada = [f for f in findings if f["kind"] == "FLAG_UNSTUCK"]
+    if not despegada:
+        print("AUTO-TEST FALLIDO: un matchup recordado y luego olvidado no se "
+              "detecto.", file=sys.stderr)
+        return False
+    print(f"  OK: {len(stale)} STALE_FLAG, {len(drift)} DECK_BELIEF, "
+          f"{len(espejo)} FLAG_MIRROR y {len(despegada)} FLAG_UNSTUCK sobre el "
           f"sabotaje.", flush=True)
 
-    print("Auto-test 3/3 (especificidad): sin sabotaje no puede haber indices ilegales ...",
-          flush=True)
+    print("Auto-test 3/3 (especificidad): sin sabotaje no puede haber indices "
+          "ilegales, ni creencias contra el tablero ...", flush=True)
     stats, honest, _m = over_games(games, opponent=opponent)
     illegal = [f for f in honest if f["kind"] in ("ILLEGAL_INDEX", "AGENT_RAISED")]
     if illegal:
@@ -845,7 +1097,22 @@ def self_test(games=8, opponent=None):
         for f in illegal[:3]:
             print(f"    {f['kind']}: {f['detail']}", file=sys.stderr)
         return False
-    print(f"  OK: {stats['decisions']} decisiones limpias, 0 ilegales.\n", flush=True)
+    # SPECIFICITY FOR THE MIRRORS, and it is the half that matters for them.
+    # A mirror rebuilt slightly differently from the agent's own reading fires
+    # on every honest board, which is a detector reporting its own coarseness as
+    # a defect -- this repository has paid for that five times. A clean run must
+    # be silent here, and if it is not the mirror is wrong, not the agent.
+    desajuste = [f for f in honest if f["kind"] == "FLAG_MIRROR"]
+    if desajuste:
+        print(f"AUTO-TEST FALLIDO: {len(desajuste)} desacuerdos creencia/tablero "
+              f"en una corrida LIMPIA. El espejo esta reconstruido de otra "
+              f"forma que la creencia; el defecto es del monitor.",
+              file=sys.stderr)
+        for f in desajuste[:3]:
+            print(f"    {f['detail']}", file=sys.stderr)
+        return False
+    print(f"  OK: {stats['decisions']} decisiones limpias, 0 ilegales, "
+          f"0 creencias contra el tablero.\n", flush=True)
     return True
 
 
@@ -858,8 +1125,15 @@ def self_test(games=8, opponent=None):
 # at ZERO, and `--dump` wrote **196 575 files, 2.1 GB**, every one of them a
 # known non-defect. A dump that costs two gigabytes to record nothing is not a
 # dump, it is a way of making the real finding harder to see when it lands.
+#
+# FLAG_MIRROR and FLAG_UNSTUCK ARE in the list, unlike the two STALE_* kinds.
+# The difference is not severity, it is what the finding costs to read: a stale
+# promise is soft and comes out in the tens of thousands, while a belief the
+# board contradicts is a hard defect that should be rare -- and if it ever is
+# not, its observation is exactly what a person needs to see.
 DEFECT_KINDS = ("AGENT_RAISED", "DECK_BELIEF", "DOUBLE_ATTACH",
-                "END_EMPTY_BENCH", "ENERGY_CAP", "ILLEGAL_INDEX")
+                "END_EMPTY_BENCH", "ENERGY_CAP", "FLAG_MIRROR", "FLAG_UNSTUCK",
+                "ILLEGAL_INDEX")
 
 
 def dump(findings, where, kinds=DEFECT_KINDS):
@@ -887,8 +1161,10 @@ def report(stats, findings, mod):
         print(f"Decisiones del asiento que NO juega nuestro mazo (su creencia "
               f"no es sobre su baraja): {stats['skipped_foreign_deck']}")
     pending = unregistered_flags(mod)
-    print(f"Promesas con premisa escrita: {len(PROMISES)}   "
-          f"banderas booleanas SIN premisa: {len(pending)}")
+    print(f"Banderas con ley escrita: {len(PROMISES)} promesas + "
+          f"{len(MIRRORS)} espejos del tablero + {len(STICKY)} pegajosas, "
+          f"{len(SIN_PREMISA)} exentas con motivo escrito")
+    print(f"Banderas booleanas que nadie ha pensado todavia: {len(pending)}")
     if pending:
         print(f"  (sin vigilar: {', '.join(pending)})")
     by_kind = {}
