@@ -1,0 +1,290 @@
+# The night of 12 August 2026 — what the detectors found
+
+[← Documentation index](README.md) · [the plan this executed](night-plan-2026-08-12.md)
+
+**Answers to §0, all defaults:** commit the baseline to `main` (Q1) · branch per
+change, merge on criterion (Q2) · C1–C4 plus B1/B2/B3 (Q3) · ~8 h, `JOBS=6` (Q4)
+· the agent may change (Q5) · **zero findings fixed in flight** (Q6).
+
+**Baseline.** `710c198`, suite 2419 green, lint clean. Q1 answered itself: a
+parallel session committed the three pending fixes (`9a3361c`, `fc63ea8`,
+`e6449b7`) while the plan was being written, so the tree was already clean.
+Exported to `log/noche-2026-08-12/tree/` at `c929ebc`; every M block ran from
+there.
+
+**Tree at the end:** suite **2437 green**, lint clean on **ten** rules, frozen
+corpus unchanged, six commits.
+
+---
+
+## 1. The headline
+
+The plan bet the night on one measurement: *thirteen of thirteen defects on 12
+August were found by a person reading a lost game.* The detectors were built to
+find those classes without a human in the loop. **Three of the four produced
+findings on their first run, and one of them paid for a fix the same night.**
+
+| Block | Result | Where it points |
+|---|---|---|
+| **C1** card-text census | 408 lists, 227 cards with printable text, **94 in band 1** | The Deluxe Bomb family: **four** cards, not one |
+| **C2** tier-vs-score | **280 inversions in 2 097 MAIN menus (13.35 %)**, 18 tier pairs | `_TIER_DEVELOP` over `_TIER_ENERGY`, 124×, median gap 10 000 |
+| **C3** lint R10 | Two open fields on HEAD, **three on `710c198^`** including `op_wins_after_ko` | The calibration is the finding: it goes quiet where the fix landed |
+| **C4** blind window | 4 rules blind 100 % of the turn — and **37 guards it cannot reach** | Its own coverage is the finding |
+
+---
+
+## 2. C1 — the card texts the code had never heard of
+
+`utils/card_text_census.py`. The three existing censuses start from **a table we
+wrote** and check it against the printed text, so a card nobody ever thought
+about is in no table and therefore in no census. This one starts from the card
+pool and ends at the code.
+
+    NUNCA REFERENCIADA   94
+    SOLO NOMBRADA         0
+    MODELADA            133
+
+**The finding is not a card, it is a family.** The sentence Deluxe Bomb prints —
+damage the DEFENDER's attachment puts on OUR attacker, *"even if this Pokémon is
+Knocked Out"* — is printed by three more, and unlike the one that lost the game
+they are in lists we can measure against:
+
+| card | effect | measurable lists |
+|---|---|---|
+| Spiky Energy (14) | 20 to our attacker | **17** |
+| Handheld Fan (1161) | **moves an Energy off it** | **8** |
+| Punk Helmet (1176) | 40, `{D}` holders only | 2 |
+| Deluxe Bomb (1167) | 120 to our attacker | **0** |
+
+Handheld Fan deserves a second reading: Myriad Leaf Shower is 30 + 30 × (energy
+on both actives), so an energy moved off our attacker is 30 damage gone from the
+next swing *and* a body on their bench that did not pay for it.
+
+**Top of band 1 by lists that play it** (the rest in
+`log/noche-2026-08-12/C/C1_card_text.log`): Buddy-Buddy Poffin 338 · Pokégear 3.0
+230 · Rare Candy 193 · Hilda 166 · Team Rocket's Petrel 146 · Tool Scrapper 123 ·
+Spikemuth Gym 119 · Enriching Energy 99 · Hero's Cape 95 · Mist Energy 82 ·
+Sacred Ash 81 · Battle Cage 80 · Jumbo Ice Cream 73 · Enhanced Hammer 68.
+
+Most of that list needs no rule and the report says so in its own header. The
+ones worth a reading are the ones that change a projection we already make:
+**Battle Cage** (prevents damage counters on benched Pokémon — our snipe),
+**Mist Energy** (prevents effects of attacks), **Jumbo Ice Cream** and the two
+**Hammers** (they discard our energy, and two of our attackers scale with it).
+
+**B10 is absorbed.** The Iono/Bellibolt line is now one row of a ranked table
+instead of a standing pending item.
+
+## 3. C2 — 280 times an order beat a number
+
+`utils/tier_inversion_census.py`, plus a seam in `ptcg/turn/finalize.py`
+(`TIER_CENSUS_SINK`, `None` in production).
+
+    2097 menus MAIN, 280 inversiones (13.35%), 18 pares de tier
+
+    tier gana  tier pierde    n   hueco med  hueco max   el peor caso
+           40           10  124       10000      33000   PLAY / ABILITY Teal Mask Ogerpon ex
+           20           10   62       19550      29950   PLAY / ABILITY Teal Mask Ogerpon ex
+           50           10   26       16375      32000   PLAY / ATTACH Basic {G} Energy
+           20           15   25        9100      12500   PLAY / PLAY
+           30           10    9       18700      26500   PLAY / ATTACH Basic {G} Energy
+
+**The row to read first** is the top one: a Pokémon drop (`_TIER_DEVELOP`, 40)
+outranking a **Teal Dance** (`_TIER_ENERGY`, 10) priced up to 33 000 higher, 124
+times — on a tree that already carries a rule saying Teal Dance comes before
+developing the bench. Widest gap in
+`registro_029_crustle_wall_9_asiento1.json`; every row names its own record.
+
+**An inversion is not a defect.** It is the shape of every correct execution of a
+winning attack (`_TIER_WIN_ATTACK` over everything), and most rows are the tier
+doing its job. What is read is the gap. **Nothing was fixed** (Q6).
+
+**The caveat that limits this number, and it is the next version's job:** the
+tier decides *order*, and an option outranked in one menu is usually still on
+the next. An inversion only costs something when the play that goes first
+CONSUMES what the other needed — the cards in hand, the bench seat, the turn's
+attachment. That is exactly what `74f85f1` was, and separating those rows from
+the harmless reorderings needs the loser tracked to the next menu.
+
+## 4. C3 — R10, a field somebody computed has to be read
+
+The tenth architecture rule. **Calibrated against real history:** exported
+`710c198^` and ran it there.
+
+    710c198^  ->  win_needs_supporter, op_prizes_after_ko, op_wins_after_ko
+    HEAD      ->  win_needs_supporter, op_prizes_after_ko
+
+`op_wins_after_ko` is the field that lost episode 92260006, and the rule goes
+quiet exactly where the fix landed. Both halves against real boards, for free,
+because the defects were fixed today and git still holds the trees.
+
+**The trap that would have made it useless:** these fields are read *through
+their properties*. A grep-shaped R10 accuses `win_route`, `mode` and two more on
+a tree where all four are load-bearing. The rule resolves each `@property` back
+to the fields it touches and counts `getattr(x, 'f', d)` as a read.
+
+**The two survivors are open, not argued.** They carry `# R10:` exemptions whose
+text says they have no consumer and are on the B list — the exemption is the
+record that the field was seen, not a defence. `op_prizes_after_ko` is the COUNT
+behind the boolean that got its consumer today.
+
+## 5. C4 — the guard that stops asking, and the 37 it cannot reach
+
+    CIEGA SIEMPRE (4)   supporter_already_played x3, LANA hard_veto
+    CIEGA LA MAYOR PARTE (1)   STAMP hand_with_energy_or_stadium (64%)
+    FUERA DEL ALCANCE   51 funciones, 37 con el guard NEGADO
+
+The four are the ones the rule census already reported as never firing, and this
+says **why**: not because their condition is rare, but because the menu never
+offers a Supporter play after the slot is spent. Same finding, one level deeper.
+They were kept on 11 August with their reason written beside them; nothing here
+changes that.
+
+**The important half is the third band.** The dynamic pass can only wrap
+`_FixedRule` objects. A plain `def` opening with `not state.supporterPlayed` has
+the same blind window and no counter reaches it — **and that is exactly where
+`f229ff1` lived**. So the instrument does not cover the case it was written for,
+and it prints that as a number instead of publishing a comfortable four-row
+table. Reaching those 37 is the next version.
+
+---
+
+## 6. Track B
+
+### B1 — CLOSED, with no change to the agent
+
+The premise of the pending note was wrong. At `registro_026` t8 a8 the Meowth ex
+does not "score below END": it is **forbidden**.
+
+    [3] END       score = 0          <- chosen
+    [1] PLAY      score = -1         (the Ultra Ball)
+    [2] RETREAT   score = -1
+    [0] PLAY      score = -100000    <- the Meowth ex
+
+`ptcg/turn/options/play.py:1756`, with its reason beside it since
+`registro_004` step 60 vs Abomasnow: the Meowth ex is only worth its Last-Ditch
+Catch, and with the Supporter slot already spent that fetch is useless, so
+benching a 2-prize body is waste. `SCORE_FORBID` puts it below both the attack
+and ending the turn. The only exception kept is an empty bench.
+
+**What remains is a new question, ranked not built:** on that board the bench was
+2 of 5 and a Crustle wall blocked the attack, so a free body is not worth zero.
+Relaxing the premise needs a census of how often `play.py:1756` fires with
+`bench_count > 0` and the attack vetoed.
+
+*Method worth keeping:* a `sys.settrace` line trace restricted to the one corpus
+decision, filtering assignments to `score` in our own files. It named the
+deciding line in one run; neither of the two suspected branches was it.
+
+### B3 — LANDED (the reader), with its limit stated
+
+`_defender_punish_damage` reads their active's **tools and energy cards** — Spiky
+Energy is an Energy, and a reader that walked only `tools` would miss 17 of the
+27 measurable lists — with the three conditions the text prints: active spot
+only, only if our swing damages them, and Punk Helmet's `{D}` qualifier. They
+add up. Handheld Fan is deliberately absent from the damage table: it moves an
+energy, and inventing HP for it would be a lie.
+
+**Consumed in one place only:** `_active_self_ko_now`, the brake that stops a
+"winning" finisher claiming priority when it kills the attacker — the same
+instant, the same body as Wood Hammer's self-damage.
+
+**Not consumed where the game was actually lost.** The Ogerpon took 120,
+survived at 90/210 and died on the reply. Pricing that means telling
+`_opponent_reply` our HP is lower than the board says, and that machinery has
+measured negative three separate times when made to fire more often. It gets
+measured before it is written.
+
+**Honest exposure:** near zero. Against measurable lists the punish is Spiky
+Energy's 20, which only knocks out a body already at 20 HP. The frozen corpus
+does not move. What landed is the reader, the table checked against the printed
+text, and the class named where the next reading will look.
+
+### B2 — NOT STARTED
+
+The projector "which body, when I bench it, lifts MY damage over the threshold"
+is still open, and it is still the largest capability hole on the list. It was
+not begun: the night's construction budget went to C1–C4 and to B3, and its own
+plan entry says census first. **Its first step is that census** — how many corpus
+decisions bench a body while a cheaper one reaches the same threshold — and it
+needs a projection over hypothetical boards, which is a build, not a query.
+
+---
+
+## 7. Track M
+
+| id | Result |
+|---|---|
+| **M0** | Rule census over corpus + 400 games. Bands unchanged from 11 August; four `supporter_already_played` rules confirmed as never firing, explained by C4 |
+| **M1** | Weighted matchup matrix, 400 games/list, bot declines first — **the post-12-August baseline**, in `log/noche-2026-08-12/M/M1_matchup_matrix.log` |
+| **M2** | Differential oracle, mirror, 300 games / 38 445 decisions: **1 finding**, both self-test halves green |
+| **M2b** | Oracle per archetype, 20 lists × 200 games: **69 findings, and 55 of them are Festival Lead** |
+| **M7** | **NOT RUN — deliberately.** See below |
+
+### M2b is the night's second independent finding
+
+Twenty archetypes, and the oracle is silent on fourteen of them. Then:
+
+    festival_lead    55 DAMAGE_DRIFT      (80% of the whole residue)
+    jellicent_lock    3 PHANTOM_KO + 2
+    archaludon        3 DAMAGE_DRIFT
+    everything else   0-2
+
+**Read it with the mirror caveat the oracle prints itself:** 62 of 62 findings
+sit on the seat piloting THEIR deck, so they measure what our damage model does
+not know about *those cards* — not what it costs us to play against them. It
+still matters, because the same model is what projects their reply against us.
+
+That two instruments built for different questions — a static census of card
+text and a dynamic oracle over 200 games — both point at the Festival Lead
+corner is the strongest signal of the night. It is also the corner where today's
+three fixes came from.
+
+### Why M7 was not run
+
+The mutation gate *is* the tree for the length of its run, and this project has
+lost work to that twice in one night. Two conditions made it unsafe: M1 was
+still running, and **a parallel session was committing to `main` throughout**
+(three commits landed while the plan was being written). The plan's own hard
+rule says no swap-based harness while an M block is alive. It is not a failure
+of the night; it is the rule working.
+
+---
+
+## 8. The pending list, replacing §4 of the plan
+
+| id | State |
+|---|---|
+| B1 | **CLOSED**, no change. New sub-question ranked: relax the "only worth its search" premise when the bench is short and the attack is walled |
+| B2 | Open, not started. Largest hole. Census first |
+| B3 | **Reader landed.** Open half: the reply projection at lower HP, to be measured before written |
+| B4 | Open — promoting the Tera pulls an immune 2-prize body off the bench |
+| B5 | Open — the Stamp sentence with Xerosic |
+| B6 | Open — the Meowth ex pair in the KEEP band |
+| B7 | Open — 280 Ripening ↔ Teal Dance ties. **C2's top row may be the same axis**: read them together |
+| B8 | Open — where the ability points when it forces its attachment |
+| B9 | Open — `_teal_dance_possible` reads before the search resolves |
+| B10 | **ABSORBED by C1** |
+| *new* | R10's two survivors: `win_needs_supporter`, `op_prizes_after_ko` |
+| *new* | C2 v2: track the outranked option to the next menu, to separate real losses from reorderings |
+| *new* | C4 v2: reach the 37 unwatched guards |
+| *new* | The Festival Lead damage model (55 drifts / 200 games) |
+
+---
+
+## 9. Judging the premise
+
+§9 of the plan asked to be falsified: *if C1–C4 produce worklists nobody can act
+on, the premise was wrong.*
+
+They did not. C1 produced a four-card class that was modelled the same night and
+a ranked list of 94 more. C2 produced a population for a doctrine that had none,
+with a record name on every row. C3 caught, on a real historical tree, the exact
+field whose absence of a consumer lost a game. C4's most useful output was the
+size of its own blind spot.
+
+The premise held for one night. What it has not yet proved is the part that
+matters: **whether a detector finds tomorrow's defect, not yesterday's.** Every
+finding above was calibrated against a bug already known. The first honest test
+of this apparatus is the next lost game — and whether a person still has to read
+it.
