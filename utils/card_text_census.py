@@ -28,16 +28,22 @@ thought about is in no table, so it is in no census. This one starts from the
 CARD POOL and ends at the code, which is the only direction that can find a hole
 rather than a mistake.
 
-THE THREE BANDS, from most to least suspicious:
+THE FOUR BANDS, from most to least suspicious:
 
-    NUNCA REFERENCIADA   neither the card id, nor any of its attack ids, nor any
-                         constant bound to them appears anywhere under main.py
-                         or ptcg/. The code does not know this card exists.
-                         <- Deluxe Bomb's band
-    SOLO NOMBRADA        `ptcg/cards/ids.py` binds a name to it, and no module
-                         outside that file ever mentions it. We wrote the name
-                         down and then nothing read it.
-    MODELADA             some module outside ids.py names it.
+    NUNCA REFERENCIADA     neither the card id, nor any of its attack ids, nor
+                           any constant bound to them appears anywhere under
+                           main.py or ptcg/, and no sibling census has argued
+                           about it. The code does not know this card exists.
+                           <- Deluxe Bomb's band
+    SOLO NOMBRADA          `ptcg/cards/ids.py` binds a name to it and no module
+                           outside that file ever mentions it. We wrote the name
+                           down and then nothing read it.
+    EXAMINADA Y EXCLUIDA   a sibling census looked at it and decided IN WRITING
+                           not to model it -- a card that lives in their hand
+                           until played, a coin flip, an effect they aim. A
+                           decided question does not belong on a worklist of
+                           open ones, and the reason is printed with the row.
+    MODELADA               some module outside ids.py names it.
 
 A card with no ability text and no attack text is not reported at all: there is
 nothing to model. Everything else is ranked by HOW MANY OPPOSING DECKS PLAY IT,
@@ -103,8 +109,24 @@ _DECK_GLOBS = ("deck/opponents/*.csv", "deck/real_opponents/*.csv",
                "competitor_decks/mazo_*.csv")
 _OUR_DECK = "deck.csv"
 
-BAND_NEVER, BAND_NAMED, BAND_MODELLED = "NUNCA REFERENCIADA", "SOLO NOMBRADA", "MODELADA"
-_ORDER = (BAND_NEVER, BAND_NAMED, BAND_MODELLED)
+BAND_NEVER, BAND_NAMED = "NUNCA REFERENCIADA", "SOLO NOMBRADA"
+BAND_ARGUED, BAND_MODELLED = "EXAMINADA Y EXCLUIDA", "MODELADA"
+_ORDER = (BAND_NEVER, BAND_NAMED, BAND_ARGUED, BAND_MODELLED)
+
+# The sibling censuses each keep an `_EXCLUDED` dict: a card whose text says the
+# thing they measure, deliberately NOT modelled, with the reason written next to
+# it. Reading them is what keeps this instrument honest.
+#
+# THE BUG THIS FIXES, found the same day the census landed. The 55 damage drifts
+# the oracle reports against Festival Lead are all 30 or 40, and they are Kieran
+# (+30) and Black Belt's Training (+40) -- two Supporters that live in the
+# opponent's HAND until played, which is exactly why `op_buff_census` excluded
+# them in writing. This census called Kieran NUNCA REFERENCIADA, because no
+# module names it, and that reading is true and useless: it puts a decided
+# question back on a worklist of open ones. Comparing against the FINEST reading
+# the project has, not the coarsest, is the doctrine this repository already
+# paid for once.
+_SIBLINGS = ("op_buff_census", "op_immunity_census", "op_scaling_census")
 
 # A constant whose NAME says it lives in the attack namespace. Card ids and
 # attack ids collide (see the blind spot above), and this is the only signal
@@ -115,6 +137,21 @@ _ATTACK_NAME = re.compile(r"ATTACK|ATAQUE", re.IGNORECASE)
 # --------------------------------------------------------------------------
 # the card pool that can be played against us
 # --------------------------------------------------------------------------
+
+def argued_exclusions():
+    """card id -> the reason a sibling census gives for not modelling it."""
+    import importlib
+
+    out = {}
+    for name in _SIBLINGS:
+        try:
+            module = importlib.import_module(name)
+        except Exception:
+            continue
+        for card_id, reason in (getattr(module, "_EXCLUDED", None) or {}).items():
+            out.setdefault(card_id, f"{name}: {reason}")
+    return out
+
 
 def _deck_counts(globs):
     """card id -> in how many decks it appears, and how many files were read."""
@@ -245,6 +282,7 @@ def census(include_ours=False, strip_symbols=()):
     counts, n_decks = _deck_counts(_DECK_GLOBS)
     ours, _ = _deck_counts((_OUR_DECK,)) if include_ours else (Counter(), 0)
     known = id_constants()
+    argued = argued_exclusions()
     words, numbers = _index_code()
     # The plant takes the symbols out of BOTH the code index and the id file:
     # what is being simulated is a card this project never wrote down, and half
@@ -274,6 +312,8 @@ def census(include_ours=False, strip_symbols=()):
         note = ("  ? " + ", ".join(str(n) for n in weak[:3])) if weak else ""
         if strong:
             band, evidence = BAND_MODELLED, ", ".join(strong[:3]) + note
+        elif card_id in argued:
+            band, evidence = BAND_ARGUED, argued[card_id]
         elif named:
             band, evidence = BAND_NAMED, "ids.py: " + ", ".join(symbols[:3]) + note
         else:
