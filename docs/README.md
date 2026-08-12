@@ -59,7 +59,7 @@ ones actually cost.
 | --- | --- |
 | [Discarding well](discard-plan-2026-08.md) | The forced-discard decision: what the per-card price list gets wrong, the keep-set planner meant to replace it, and the waves to get there. Waves 0–1 shipped. |
 | [The testing plan](testing-plan-2026-08.md) | How the safety nets were rebuilt in August 2026 — the frozen corpus, the coverage ratchet, the mutation gate, the nightly pipeline. |
-| [Night plan, 11 Aug](night-plan-2026-08-11.md) | The most recent session plan. Earlier ones: [9 Aug](night-plan-2026-08-09.md), [10 Aug](night-plan-2026-08-10.md), [10 Aug b](night-plan-2026-08-10-b.md), [10 Aug c](night-plan-2026-08-10-c.md). |
+| [Night plan, 12 Aug](night-plan-2026-08-12.md) | The most recent session plan — detectors for the eight defect classes of 12 August, plus the consolidated pending backlog. Earlier ones: [11 Aug](night-plan-2026-08-11.md), [9 Aug](night-plan-2026-08-09.md), [10 Aug](night-plan-2026-08-10.md), [10 Aug b](night-plan-2026-08-10-b.md), [10 Aug c](night-plan-2026-08-10-c.md). |
 
 ## Measurement sessions, written up
 
