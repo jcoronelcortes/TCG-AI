@@ -57,10 +57,17 @@ Two independent things threw the line away, and neither was a score:
      bench is waiting to become a Hydrapple") and the winning energy went to
      the wrong body. Fixed in `main.py`, on the same do-or-die gate.
 
-All three are gated on `TurnPlan.do_or_die` -- 18 of the 3580 decisions of the
-frozen corpus, 0.50% -- so nothing changes on a turn that has a tomorrow. The
-control tests below are that gate: with the opponent's prize pile deeper the
-old order, the old fetch and the old charge have to come back unchanged.
+All three shipped gated on `TurnPlan.do_or_die` -- 18 of the 3580 decisions of
+the frozen corpus, 0.50% -- so nothing changed on a turn that has a tomorrow.
+The control tests below are that gate: with the opponent's prize pile deeper
+the old order and the old fetch have to come back unchanged.
+
+THE THIRD ONE NO LONGER HAS THAT GATE. The confinement lost the next game
+(`records/registro_014` turn 14 vs Dragapult ex: the same charge, the same
+knockout, a turn that opens in mode RACE), so the destination of the winning
+Grass is now decided by the arithmetic alone -- see
+`test_the_charge_that_finishes_needs_no_do_or_die`, and the control at the
+bottom of this file, which reads the same board with a tomorrow.
 
 The fixture replays the whole rescue in order. Step 137 is the record's real
 menu and 140 its real search menu with the fifth seat still free; 141-144 are
@@ -313,12 +320,21 @@ def test_control_with_a_tomorrow_the_fetch_keeps_its_own_ladder():
         "decided by the ladder that was measured for it")
 
 
-def test_control_with_a_tomorrow_the_charge_keeps_its_own_ladder():
-    """The third fix is the one that reaches furthest -- it overrides every
-    energy cap in the file -- so its gate is the one worth pinning down."""
+def test_the_charge_no_longer_waits_for_the_do_or_die():
+    """The third fix OUTGREW its gate, and this test is the record of it.
+
+    It shipped here confined to `do_or_die` and the confinement is what lost
+    the next game (`records/registro_014` turn 14 vs Dragapult ex, the same
+    shape on a turn that opens in mode RACE:
+    `test_the_charge_that_finishes_needs_no_do_or_die`). Deepening their prize
+    pile takes away the licence, not the arithmetic -- one physical Grass on
+    this active is still 30 + 30x(8+3) = 360 - 60 = 300 on a 300 HP
+    Archaludon ex, two prizes -- and on the bench it is still a body that does
+    not attack. The other two fixes of the file stay where they were: the
+    controls above are the ones that pin THEIR gate.
+    """
     obs, choice = _replay([137, 140, 141, 142, 143], _give_them_room)
     opt = obs["select"]["option"][choice[0]]
-    assert opt.get("inPlayArea") != int(m.AreaType.ACTIVE), (
-        "off the do-or-die board the active already pays for its attack and "
-        "the energy scorer decides where the Grass goes exactly as it always "
-        "did; `_charge_active_finishes` must not have fired")
+    assert opt.get("inPlayArea") == int(m.AreaType.ACTIVE), (
+        "with a tomorrow the charge still buys their ex: the knockout is what "
+        "the rule reads, not the plan's mode")

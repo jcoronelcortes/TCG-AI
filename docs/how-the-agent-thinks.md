@@ -146,9 +146,28 @@ reading a question one step away from the one that mattered:
   Our attacks scale with energy, so past the cost each Grass is more damage:
   the number that decides is the opposing HP, not the printed cost.
 
-All three corrections are gated on `do_or_die`, which is 0.5% of the decisions
-in the frozen corpus. That gate is deliberate — the defensive machinery here has
-measured negative three separate times when it was made to fire more often.
+The first two corrections are gated on `do_or_die`, which is 0.5% of the
+decisions in the frozen corpus. That gate is deliberate — the defensive
+machinery here has measured negative three separate times when it was made to
+fire more often.
+
+**The third one outgrew the gate, and the next game is why.** Turn 14 against
+Dragapult ex: an active Ogerpon at 6 effective energy, one Grass in hand, a
+320 HP body in front with 2 energies of its own, and our last prize on the
+table. Myriad Leaf Shower counts *both* actives, so that one card — doubled by
+Wild Growth — takes the attack from 270 to 330 and ends the game. The turn
+opened in mode `RACE`, so the gate stayed shut, the Ogerpon was past its cost
+of 3 so the other half never looked either, and the Grass went to a benched
+Applin. The destination of a *finishing* charge is now decided by the
+arithmetic alone, on any turn.
+
+What replaced the gate is a narrower question, and it is the one worth
+remembering when reading that block: **does the knockout depend on where the
+card lands?** Myriad Leaf Shower counts the energy on the attacker, so it does.
+Syrup Storm counts the Grass on our whole field, so it does not — and there
+this rule has nothing to say, which is what keeps it from walking over the
+bench hygiene that decides those boards. Both readings come from the same
+damage evaluators every other rule uses, so nothing in it names a card.
 
 ### The dead turn
 

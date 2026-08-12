@@ -8053,19 +8053,33 @@ def agent(obs_dict: dict) -> list[int]:
         # knockout. What was missing was anything that PREFERS the active for the
         # same reason.
         #
-        # CONFINED TO THE TURN WITH NO TOMORROW. The general form ("prefer the
-        # active whenever one more Grass creates the knockout") is very probably
-        # right and reaches far more boards than this one, which is exactly why
-        # it is not switched on here without a measurement: the score it hands
-        # out (`SCORE_CHARGE_ACTIVE_FINISHER`) walks over every energy cap in the
-        # file, and those caps were each measured. The OPENING plan is what is
-        # read (`turn_plan_open`) and not the live one: by this menu the plan has
-        # already counted the charge it is being asked about, sees the knockout
-        # and reports mode RACE -- the same reason the Lana's selection reads the
-        # opening plan (`ptcg/turn/options/card.py`).
-        _cav_do_or_die = bool(getattr(AGENT_STATE.turn_plan_open,
-                                      'do_or_die', False))
-        if _cav_req is not None and (_cav_e < _cav_req or _cav_do_or_die):
+        # IT IS NO LONGER CONFINED TO THE TURN WITH NO TOMORROW (user,
+        # `records/registro_014_pasos_156_hasta_169.json`, episode 92354161,
+        # step 165, turn 14 vs Dragapult ex, LOST). It shipped gated on
+        # `do_or_die` -- 0.50% of the boards -- because the score it hands out
+        # (`SCORE_CHARGE_ACTIVE_FINISHER`) walks over every energy cap in the
+        # file and those caps were each measured. The gate is what LOST this
+        # game: active Teal Mask Ogerpon ex at 6 effective energy, a Basic {G}
+        # in hand, the manual attachment unspent, and a 320 HP Dragapult ex with
+        # 2 energies in front. Myriad Leaf Shower reads BOTH actives, so today
+        # it is 30 + 30x(6+2) = 270 and with that one Grass on the ACTIVE it is
+        # 30 + 30x(8+2) = 330 -- their ex, and we were on our last prize: the
+        # game. The turn opened in mode RACE, the gate stayed shut, the Ogerpon
+        # was past its cost of 3 so the `_cav_e < _cav_req` half never looked
+        # either, and the Grass fell through to the development band: onto a
+        # benched Applin, 23500 against the active's 8250.
+        #
+        # DECK-AGNOSTIC BY CONSTRUCTION: nothing below names a card. The cost
+        # comes from ATTACK_ENERGY_REQ, the damage from the central evaluators
+        # (`_attacker_base_damage` + `_our_effective_damage`, which is what makes
+        # it work for an attack that SCALES -- Myriad with both actives, Syrup
+        # Storm with the Grass on the field -- and for one that does not), and
+        # the branch only speaks when the arithmetic reaches the HP in front.
+        # The narrow guards it already carried are what keep the caps safe: a
+        # knockout that is not guaranteed (`_ko_not_guaranteed`) sets nothing,
+        # and a CHEAPER knockout that already exists through the retreat wins
+        # the flag back below.
+        if _cav_req is not None:
             _cav_unit = _grass_attach_unit()
             # Charges that can still land on the ACTIVE, limited by the hand.
             _dig_routes = ((0 if state.energyAttached else 1)
@@ -8091,6 +8105,21 @@ def agent(obs_dict: dict) -> list[int]:
                 # and must leave the scorer untouched. `_ko_not_guaranteed` is
                 # asked here for the same reason -- a body the KO is not
                 # guaranteed against never sets the number.
+                #
+                # ...AND ONLY WHEN THE DESTINATION IS WHAT MAKES IT. Two kinds
+                # of attack scale with energy and they do not ask the same
+                # question. Myriad Leaf Shower counts the energy ON THE
+                # ATTACKER (plus the opposing active's), so the Grass has to
+                # land on the active or the knockout does not exist. Syrup
+                # Storm counts the Grass on our WHOLE field, so it knocks out
+                # from wherever the card lands -- and there this rule has
+                # nothing to say: claiming the destination with a 41900 would
+                # walk over the hygiene that decides it (not feeding a body
+                # inside their reach, `_doomed_body`) to buy a prize that was
+                # already bought. `_grass_anywhere_enables_syrup_ko` is the flag
+                # written for that half. So the same charge is priced twice, on
+                # the attacker and off it, and the rule only speaks when the
+                # difference is the knockout.
                 _cav_need = 0
                 for _cav_n in (() if _ko_not_guaranteed(_cav_op_act)
                                else range(1, max(0, _cav_disp) + 1)):
@@ -8103,7 +8132,20 @@ def agent(obs_dict: dict) -> list[int]:
                             teal_self_energy=_cav_try, bench_count=bench_count),
                         AGENT_STATE.meganium_in_play, neutralization_zone_active)
                     if _cav_try_dmg >= _op_active_hp:
-                        _cav_need = _cav_n
+                        # The same cards, anywhere else of ours: the attacker
+                        # keeps the energy it has today and only the field
+                        # count goes up.
+                        _cav_off_dmg = _our_effective_damage(
+                            _active_pokemon, _cav_op_act,
+                            _attacker_base_damage(
+                                _active_pokemon.id, _cav_op_act, _cav_e,
+                                grass_scale=total_grass + _cav_n * _cav_unit,
+                                teal_self_energy=_cav_e,
+                                bench_count=bench_count),
+                            AGENT_STATE.meganium_in_play,
+                            neutralization_zone_active)
+                        if _cav_off_dmg < _op_active_hp:
+                            _cav_need = _cav_n
                         break
             if 1 <= _cav_need <= _cav_disp:
                 _cav_e_after = _cav_e + _cav_need * _cav_unit
@@ -8134,6 +8176,18 @@ def agent(obs_dict: dict) -> list[int]:
                         _charge_active_finishes = True
                     elif (not (_bench_attacker_ready and can_switch)
                             and not op_is_cubchoo_deck):
+                        # THIS CONSOLATION PRIZE IS FOR AN ACTIVE THAT CANNOT
+                        # ATTACK AT ALL, and now that the block above is no
+                        # longer confined to the do-or-die turn it is worth
+                        # saying why it needs no guard keeping it there. The
+                        # branch that measures the HP sets `_cav_need` ONLY when
+                        # the charge knocks out, so the single way to fall
+                        # through to here from it is with a cheaper knockout
+                        # already on the table (`_attach_enable_retreat_ko` /
+                        # `_ability_unlock_retreat_ko`) -- and those two lines
+                        # put the Grass ON THE ACTIVE as well, to pay a retreat
+                        # that is not payable yet. Same destination, so where it
+                        # can still fire it agrees with what it would displace.
                         # Without a KO the charge is only prioritised when there is NO other
                         # body that is going to attack today (an already ready and
                         # promotable benched attacker rules: that line is resolved by the
