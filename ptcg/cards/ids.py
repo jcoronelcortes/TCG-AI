@@ -433,6 +433,11 @@ DO_THE_WAVE_ATTACK_ID = 115
 # play -- exactly the opposite of the premise the promotion branch assumes ("the
 # promotion happens on the OPPONENT's turn, where nobody attacks any more").
 FESTIVAL_LEAD_IDS = {Dipplin}
+# "TWICE" is a CEILING on the turn, not a standing threat: once both waves have
+# been thrown the turn owes us nothing, however the stadium and the Dipplin still
+# look on the board. `op_double_attack_pending` counts the ATTACK logs of the
+# turn against this number before believing a second hit is coming.
+FESTIVAL_LEAD_MAX_WAVES = 2
 
 
 
@@ -1581,6 +1586,7 @@ __all__ = [
     'POWERFUL_HAND_ATTACK_ID',
     'DO_THE_WAVE_ATTACK_ID',
     'FESTIVAL_LEAD_IDS',
+    'FESTIVAL_LEAD_MAX_WAVES',
     'ALAKAZAM_LINE_IDS',
     'ALAKAZAM_ATTACKER_IDS',
     'Buneary',

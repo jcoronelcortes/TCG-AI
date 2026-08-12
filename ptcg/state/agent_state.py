@@ -132,6 +132,15 @@ class AgentState:
         # when the turn changes. Read by the DISCARD scorer (see
         # `DISCARD_WHAT_THE_SEARCH_ALREADY_BOUGHT`).
         self._bought_this_turn = set()
+        # How many ATTACKS each OPPOSING body has already declared during the
+        # current turn, keyed by serial. Only Festival Lead makes a second one
+        # possible ("this Pokemon may use an attack it has twice"), and only
+        # `op_double_attack_pending` reads it: a wave already spent is not a
+        # wave still owed to us. Accumulated from the ATTACK logs on every call
+        # to agent() -- during the OPPONENT'S turn we are only called for forced
+        # selections, so the count has to survive from one of those menus to the
+        # next -- and reset when the turn changes.
+        self._op_attack_waves_this_turn = {}
 
         # --- KOs and the prize window ----------------------------------------
         self.ko_last_turn = False

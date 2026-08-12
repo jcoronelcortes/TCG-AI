@@ -3621,6 +3621,11 @@ def agent(obs_dict: dict) -> list[int]:
         # just a card in hand and the ordinary ladders price it.
         AGENT_STATE._bought_this_turn = set()
 
+        # Attacks each opposing body has declared this turn (see
+        # `op_double_attack_pending`): PER TURN. Festival Lead grants a SECOND
+        # wave inside one turn, never a third, and next turn the pair starts over.
+        AGENT_STATE._op_attack_waves_this_turn = {}
+
         AGENT_STATE._field_at_turn_start = None
 
         # The OPENING sentence of the turn: the plan of its first menu, kept so
@@ -3853,6 +3858,19 @@ def agent(obs_dict: dict) -> list[int]:
                                                            AreaType.DISCARD)
                 and getattr(_ga_log, 'serial', None) is not None):
             AGENT_STATE._bought_this_turn.add(_ga_log.serial)
+        # ...and, off the same batch and with the same turn boundary, HOW MANY
+        # times each opposing body has already attacked today. Festival Lead is
+        # the only sentence in the format that lets one attack twice in a turn,
+        # and the whole point of `op_double_attack_pending` is the wave STILL
+        # OWED to us. The log dates it and nothing else can: the board at the
+        # promotion looks identical whether the knockout came from their first
+        # wave (a second one is coming) or from their second (the turn is over).
+        elif (getattr(_ga_log, 'type', None) == LogType.ATTACK
+                and getattr(_ga_log, 'playerIndex', None) != my_index
+                and getattr(_ga_log, 'serial', None) is not None):
+            AGENT_STATE._op_attack_waves_this_turn[_ga_log.serial] = (
+                AGENT_STATE._op_attack_waves_this_turn.get(_ga_log.serial, 0)
+                + 1)
 
     # The turn window of OUR KOs (see `_rastrear_ventana_de_ko`): it has to be
     # tracked in EVERY observation, including the forced selections
@@ -9384,15 +9402,39 @@ def agent(obs_dict: dict) -> list[int]:
     # `_ko_dentro_de_ventana` is required (our body fell INSIDE the opponent's
     # turn) because the second attack only exists if the first one knocked out: a
     # promotion after a self-KO on OUR turn (Wood Hammer) does not trigger it.
+    #
+    # And the wave has to be one they still OWE us. Festival Lead reads "may use
+    # an attack it has TWICE": two is the ceiling of the turn, not a standing
+    # threat. (user, registro_003 step 62, episode 92355371 vs *Festival Lead*,
+    # LOST.) There their Dipplin threw both Do the Wave at the same Tapu Bulu --
+    # 140 -> 40 -> knocked out -- and only THEN did we promote: nothing was
+    # pending, and the flag fired anyway. It cost the turn twice over. It struck
+    # off the bodies that do not survive a hit that was never coming (Applin 40,
+    # Chikorita 70), and above all it switched off `_promo_evo_koer`, the branch
+    # that would have brought up that same Applin: with the Dipplin in hand and
+    # one Grass it evolves and its own Do the Wave, 20 x 4 benched = 80, buries
+    # their 80 HP Dipplin. Instead a Teal Mask Ogerpon ex left the bench --
+    # where its Tera prevents ALL damage -- to stand in front as a 2-prize body.
+    #
+    # The board at the promotion cannot tell the two cases apart: only the log
+    # dates the waves (`_op_attack_waves_this_turn`, ATTACK entries of THIS turn
+    # by that serial). The read is asked SECOND and only ever LOWERS the flag --
+    # with no evidence in the log the count is 0 and the guard behaves exactly
+    # as it did before.
     _op_prom_act_dbl = (op_state.active[0]
                         if op_state.active and op_state.active[0] is not None
                         else None)
+    _op_dbl_waves_spent = (
+        AGENT_STATE._op_attack_waves_this_turn.get(
+            getattr(_op_prom_act_dbl, 'serial', None), 0)
+        if _op_prom_act_dbl is not None else 0)
     op_double_attack_pending = (
         _forced_ko_promote
         and AGENT_STATE._festival_grounds_in_play
         and _ko_dentro_de_ventana
         and _op_prom_act_dbl is not None
-        and _op_prom_act_dbl.id in FESTIVAL_LEAD_IDS)
+        and _op_prom_act_dbl.id in FESTIVAL_LEAD_IDS
+        and _op_dbl_waves_spent < FESTIVAL_LEAD_MAX_WAVES)
 
     if _forced_ko_promote:
         _op_prom_active = (op_state.active[0]
