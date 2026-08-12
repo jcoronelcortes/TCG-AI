@@ -1807,20 +1807,66 @@ def _ub_engine_refresh_pivot(ctx) -> bool:
     """The UB -> Meowth -> Lillie's engine BEFORE spending the energies in hand
     (user, registro_008 steps 58-61 vs Archaludon ex, LOST): with the active
     Hydrapple ex unable to KNOCK OUT the opponent, the bench underdeveloped
-    (<=1) and the hand holding 2+ energies (cheap fodder for the Ultra Ball's
-    discard), the agent attached an energy and used Ripening Charge with the
-    other -- the hand was left at [UB, Boss's] and the Ultra Ball DIED (with no
-    2 cards to discard). The correct line: play the UB NOW (discarding the 2
+    (<=1) and the hand holding two cards of SURPLUS (cheap fodder for the Ultra
+    Ball's discard), the agent attached an energy and used Ripening Charge with
+    the other -- the hand was left at [UB, Boss's] and the Ultra Ball DIED (with
+    no 2 cards to discard). The correct line: play the UB NOW (discarding the 2
     energies), search for Meowth ex, put it down (Last-Ditch -> Lillie's) and
     refill: the new hand develops the bench, and Syrup Storm scales with the
     TOTAL Grass on the field. The turn's attachment is still available AFTER
-    the refill."""
+    the refill.
+
+    The surplus is read by `_ub_real_fodder`, not by counting energies: see the
+    block on the fodder test below (registro_006 step 53, the same matchup with
+    ONE energy and a dead evolution piece next to it)."""
     state = ctx.state
     if state.supporterPlayed:
         return False
     hand_counts = ctx.hand_counts
-    # Cheap fodder: the UB's discard eats the 2 energies, not the Boss's.
-    if hand_counts.get(Basic_Grass_Energy, 0) < 2:
+    # CHEAP FODDER IS A PROPERTY OF THE HAND, NOT THE NAME OF A CARD (user,
+    # registro_006 step 53 vs Archaludon ex, episode 92216882, LOST). Turn 6,
+    # six prizes to five, our Tapu Bulu knocked out the turn before:
+    #
+    #     US                                  RIVAL
+    #     active Hydrapple ex 330/330,        active Archaludon ex 400/400
+    #            2 Grass, no KO in sight             + tool
+    #     bench  Bayleef 110/110 (1 of 5)     bench  Duraludon, Dudunsparce
+    #     hand   ULTRA BALL, Hydrapple ex,    stadium Full Metal Lab
+    #            Basic {G} Energy
+    #
+    #     [1] Grass -> Bayleef       score  8000   tier 10
+    #     [2] Ultra Ball             score 12400   tier  0
+    #     [3] Ripening Charge        score 30000   tier 10   <-- played
+    #
+    # The board is this pivot's board, letter by letter -- an active that does
+    # not knock out, one body on the bench, the turn's Supporter unspent, Meowth
+    # ex and Lillie's Determination in the deck -- and the pivot stayed silent
+    # for ONE reason: it asked for two Basic {G} Energy and the hand held one.
+    # So the Ultra Ball kept its ordinary 12400 in tier 0, Ripening Charge took
+    # the order (tier 10 decides before any score), the Grass went from hand to
+    # the Bayleef, and with two cards left the Ultra Ball -- which discards TWO
+    # -- was no longer on the menu at all. The turn ended with the second
+    # Hydrapple ex and the Ultra Ball dead in hand and four empty bench seats.
+    #
+    # The second fodder card was there the whole time. That second Hydrapple ex
+    # was UNPLAYABLE cardboard (no Dipplin in play or in hand, one Hydrapple ex
+    # already worn), which is exactly what `_ub_real_fodder` is for: it prices
+    # EVERY card in hand by what the DISCARD scorer would really let go, keeping
+    # the linked evolution pieces, the lone refill Supporter, the playable
+    # Meowth ex and the Stamp. Two energies are one instance of "surplus", not
+    # the definition of it -- and naming the card made the rule a rule about one
+    # deck's hand. This is the same arithmetic `_ub_cancel_no_surplus` uses, and
+    # for the same question ("can the cost be paid out of surplus?"), spare
+    # copies of the Ultra Ball included: only one copy is being played and a
+    # duplicate is the best fodder in the hand.
+    #
+    # The pivot's own guards are what keep it honest when the surplus includes
+    # the last energy in hand: it only fires with the bench at 1 or less and
+    # with the active unable to knock out EVEN WITH the turn's attachment, so
+    # the energy the cost eats had no KO to enable -- and the refill it buys is
+    # what puts the next ones in hand.
+    _ubp_spare = max(0, hand_counts.get(Ultra_Ball, 0) - 1)
+    if _ub_real_fodder(ctx, None) + _ubp_spare < 2:
         return False
     # With Lillie's or Meowth ALREADY in hand the engine does not need the UB now.
     if (hand_counts.get(Lillie_Determination, 0) >= 1

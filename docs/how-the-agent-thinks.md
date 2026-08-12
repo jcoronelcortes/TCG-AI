@@ -225,6 +225,33 @@ the real plays are gone nothing outscores the attachment any more, it takes its
 tier back and still goes down before the attack — where the energy of the turn,
 which does not accumulate, belongs.
 
+### A card that pays with the hand is priced against the hand, not against a card
+
+The same turn against Archaludon ex, six days and one deck later, lost the same
+Ultra Ball to a play the agent had scored at *thirty thousand*, not at twenty —
+so no band-reading could have saved it. The active could not knock out anything,
+the bench held one body, the turn's Supporter was unspent and the deck still had
+Meowth ex and Lillie's Determination: the exact board of the pivot that plays
+the search **first**, ahead of the energies, because the Ultra Ball is the only
+card on the menu that is about the rest of the game. The pivot did not fire, for
+one reason: it asked for two Basic Grass Energy in hand, and the hand held one
+Grass, one Ultra Ball and a second Hydrapple ex that no board of ours could ever
+put into play.
+
+A cost of "discard two" is a question about **surplus**, and surplus is a
+property of the whole hand. The agent already had the count that answers it —
+the one that walks every card and asks what the discard scorer would really let
+go, keeping linked evolution pieces, a lone refill Supporter, a playable Meowth
+ex — and three cost vetoes were already using it. Two energies were one instance
+of surplus, not the definition of it; naming the card turned a general rule into
+a rule about one deck's opening hand. The dead Stage 2 was surplus by every
+reading except the one that was being asked.
+
+The general shape, worth recognising anywhere: a rule that names cards where it
+means a property will be silent on every board that has the property under
+different names, and no amount of tuning its score will help — the rule never
+speaks at all.
+
 ### Turn state vs. permanent state
 
 Some things must survive between calls inside the same turn, and a few between

@@ -32365,10 +32365,10 @@
     "accion": 4,
     "contexto": 0,
     "detalle": [
-     "ABILITY Teal Mask Ogerpon ex(96)"
+     "PLAY Ultra Ball(1121)"
     ],
     "eleccion": [
-     5
+     3
     ],
     "paso": null,
     "turno": 2
@@ -39521,10 +39521,10 @@
     "accion": 9,
     "contexto": 0,
     "detalle": [
-     "PLAY Ultra Ball(1121)"
+     "END"
     ],
     "eleccion": [
-     1
+     2
     ],
     "paso": null,
     "turno": 2
