@@ -36,6 +36,20 @@ here are the tier system doing precisely its job. What makes a row worth reading
 is the GAP: an order that wins by 600 times the score it beat is a different
 object from one that wins by 40.
 
+AND THEN THE READING THAT DECIDES WHICH ONES COST ANYTHING. The tier decides
+ORDER, so an outranked option is usually still on the NEXT menu of the same turn
+and gets played there. Every inversion is therefore followed until the turn ends:
+
+    recuperada   the outranked option was chosen later in the same turn
+    perdida      the turn never came back to it
+
+On the frozen corpus that is **280 inversions, of which 262 recovered and 18
+were lost** -- 0.86% of MAIN menus, not 13%. Four of the eighteen sit under
+`_TIER_WIN_ATTACK`, where the attack ended the turn and abandoning the rest was
+the point. Without this reading the census reports 280 events and cannot say
+which of them cost a thing, which is the difference between a worklist and a
+scare.
+
 THE REPORT IS A WORKLIST RANKED BY FREQUENCY x GAP, never a verdict.
 
 Usage:
@@ -93,6 +107,18 @@ class Registro:
 
     def __init__(self):
         self.gaps = defaultdict(list)
+        self.seats = defaultdict(list)
+        # THE READING THAT TURNS A REORDERING INTO A LOSS. The tier decides
+        # ORDER, so an option outranked in one menu is usually still on the next
+        # one and gets played anyway. `recovered` counts the outranked options
+        # that WERE chosen later in the same turn; `lost` counts the ones the
+        # turn never came back to. Without this the census reports 280 events
+        # and cannot say which of them cost anything.
+        self.recovered = defaultdict(int)
+        self.lost = defaultdict(int)
+        self.pending = []
+        self.turn_key = None
+        self.lost_where = []
         self.example = {}
         self.menus = 0
         self.inversions = 0
@@ -100,10 +126,41 @@ class Registro:
         # 3580 decisions" is not a worklist: the row has to name a board.
         self.where = "?"
 
-    def note(self, tier_win, tier_lose, gap, label_win, label_lose):
+    def start_turn(self, key):
+        """A new turn: whatever is still pending was never played."""
+        if key == self.turn_key:
+            return
+        for row_key, _label, where in self.pending:
+            self.lost[row_key] += 1
+            self.lost_where.append((row_key, _label, where))
+        self.pending = []
+        self.turn_key = key
+
+    def played_now(self, label):
+        """The option this menu actually chose: it settles the pending losers."""
+        still = []
+        for row_key, loser, where in self.pending:
+            if loser == label:
+                self.recovered[row_key] += 1
+            else:
+                still.append((row_key, loser, where))
+        self.pending = still
+
+    def note(self, tier_win, tier_lose, gap, label_win, label_lose, seats=None):
         key = (tier_win, tier_lose)
+        self.pending.append((key, label_lose, self.turn_key))
         self.gaps[key].append(gap)
         self.inversions += 1
+        # THE SEAT IS WHAT SEPARATES A REORDERING FROM A LOSS. The tier decides
+        # ORDER, and an option outranked in one menu is usually still on the
+        # next -- so most inversions cost nothing. They cost something when the
+        # play that goes first CONSUMES what the other one needed, and on this
+        # board the resource is the bench seat: `fcfb17d` was exactly that, a
+        # body taking the fifth seat from the search that decides what the seat
+        # is for. `seats` is the FREE seats before the play; 1 means the winner
+        # takes the last one.
+        if seats is not None:
+            self.seats[key].append(seats)
         # The example kept is the WIDEST gap of its row: the cheapest way to see
         # what a row is about is the worst thing it ever did.
         best = self.example.get(key)
@@ -122,6 +179,12 @@ class Registro:
                 "rank": len(gaps) * statistics.median(gaps),
                 "worst_win": label_win, "worst_lose": label_lose,
                 "worst_where": where,
+                # How many of this row's inversions had the winner taking the
+                # LAST free bench seat, and how many had room to spare.
+                "takes_last_seat": sum(1 for s in self.seats[key] if s == 1),
+                "seats_known": len(self.seats[key]),
+                "recovered": self.recovered[key],
+                "lost": self.lost[key],
             })
         out.sort(key=lambda r: -r["rank"])
         return out
@@ -168,11 +231,44 @@ def instrument(agent, registro):
     get_card = space["get_card"]
     select_context = space["SelectContext"]
     option_type = space["OptionType"]
+    card_type = space["CardType"]
+
+    def seat_cost(select, obs, my_index, index):
+        """Free bench slots before the play -- but only if the play TAKES one.
+
+        The first version of this reading counted free seats whichever option
+        won, and reported a stadium and an energy attachment as "taking the last
+        seat". Only a POKEMON play consumes one, so anything else answers None
+        and stays out of the count: a metric that inflates the interesting band
+        is worse than no metric.
+        """
+        try:
+            option = select.option[index]
+            if option_type(option.type) != option_type.PLAY:
+                return None
+            # A PLAY option indexes THE HAND, not an area -- `get_card` answers
+            # None for it, which is why the first version of this reading found
+            # no Pokemon plays at all and reported every row as costing no seat.
+            me = obs.current.players[my_index]
+            card = (me.hand or [])[option.index]
+            data = card_table.get(card.id) if card is not None else None
+            if data is None or data.cardType != card_type.POKEMON:
+                return None
+            return int(me.benchMax) - len(me.bench or [])
+        except Exception:
+            return None
 
     def sink(context, select, scores, tiers, obs, my_index):
         if context != select_context.MAIN:
             return
         registro.menus += 1
+        try:
+            registro.start_turn((registro.where, obs.current.turn))
+        except Exception:
+            pass
+        chosen = max(range(len(scores)), key=lambda i: (tiers[i], scores[i]))
+        registro.played_now(_label(select, obs, my_index, chosen, card_table,
+                                   get_card, option_type))
         verdict = classify(scores, tiers)
         if verdict is None:
             return
@@ -180,7 +276,8 @@ def instrument(agent, registro):
         registro.note(
             tier_win, tier_lose, gap,
             _label(select, obs, my_index, played, card_table, get_card, option_type),
-            _label(select, obs, my_index, by_score, card_table, get_card, option_type))
+            _label(select, obs, my_index, by_score, card_table, get_card, option_type),
+            seats=seat_cost(select, obs, my_index, played))
 
     previous = space[_SINK]
     space[_SINK] = sink
@@ -306,9 +403,29 @@ def main(argv):
         print(f"{row['tier_win']:>9} {row['tier_lose']:>11} {row['n']:>6} "
               f"{row['median_gap']:>10} {row['max_gap']:>10}   "
               f"{row['worst_win']} sobre {row['worst_lose']}")
-        print(f"{'':>39}   en {row['worst_where']}")
+        _seat = (f"{row['takes_last_seat']}/{row['seats_known']} bajan un "
+                 f"POKEMON al ULTIMO asiento" if row['seats_known'] else
+                 "el ganador no gasta asiento")
+        print(f"{'':>39}   en {row['worst_where']}   {_seat}")
+        print(f"{'':>39}   el apartado se jugo despues {row['recovered']} veces"
+              f", NUNCA {row['lost']}")
     if len(rows) > args.top:
         print(f"... y {len(rows) - args.top} pares mas")
+
+    _rec = sum(r["recovered"] for r in rows)
+    _lost = sum(r["lost"] for r in rows)
+    print(f"\nDE LAS {registro.inversions} INVERSIONES, el orden solo COSTO algo "
+          f"en {_lost}: en las otras {_rec} la opcion apartada se jugo mas tarde "
+          f"en el mismo turno ({100.0*_lost/max(1,_lost+_rec):.1f}% de perdida "
+          f"real, {100.0*_lost/max(1,registro.menus):.2f}% de los menus).")
+    print("\nLAS QUE NO VOLVIERON (tier 70 = el ataque cerro el turno, y "
+          "abandonarlas era lo correcto):")
+    from collections import Counter as _C
+    for (key, loser, where), n in _C(registro.lost_where).most_common(12):
+        print(f"  tier {key[0]:>3} sobre {key[1]:<3}  {loser:<34} "
+              f"{where[0] if where else '?'} t{where[1] if where else '?'}"
+              + (f"  x{n}" if n > 1 else "")
+              + ("   <- el ataque cerro el turno" if key[0] == 70 else ""))
 
     print("\nUNA INVERSION NO ES UN DEFECTO: es la forma que tiene el tier de "
           "hacer su trabajo, y la mayoria de estas filas son correctas. Lo que "
