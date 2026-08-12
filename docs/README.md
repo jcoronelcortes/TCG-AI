@@ -59,6 +59,7 @@ ones actually cost.
 | --- | --- |
 | [Discarding well](discard-plan-2026-08.md) | The forced-discard decision: what the per-card price list gets wrong, the keep-set planner meant to replace it, and the waves to get there. Waves 0–1 shipped. |
 | [The testing plan](testing-plan-2026-08.md) | How the safety nets were rebuilt in August 2026 — the frozen corpus, the coverage ratchet, the mutation gate, the nightly pipeline. |
+| [The engine source](engine-source-plan-2026-08-12.md) | What arriving at the simulator's C++ source unlocks — seeded, reproducible games; a forward-simulation API we have never used — and the four phases to exploit it. Includes the measured correction that the "top-300" is 88 distinct decks we already have. |
 | [Night plan, 12 Aug](night-plan-2026-08-12.md) | The most recent session plan — detectors for the eight defect classes of 12 August, plus the consolidated pending backlog. Earlier ones: [11 Aug](night-plan-2026-08-11.md), [9 Aug](night-plan-2026-08-09.md), [10 Aug](night-plan-2026-08-10.md), [10 Aug b](night-plan-2026-08-10-b.md), [10 Aug c](night-plan-2026-08-10-c.md). |
 
 ## Measurement sessions, written up
@@ -69,7 +70,8 @@ spending the same week.
 
 | Page | What it found |
 | --- | --- |
-| [The night of 11 Aug 2026](history/night-2026-08-11.md) | The most recent, and the most instructive: three defects nobody had read, two detectors that caught their own authors, and a gain that was real while the meta did not contain it. |
+| [The night of 12 Aug 2026](history/night-2026-08-12.md) | The most recent: four detectors built for the eight defect classes of the day, three of which found something on their first run — a four-card family the code had never heard of, 280 menus where an order beat a number, and a lint rule calibrated against the exact field that lost a game. |
+| [The night of 11 Aug 2026](history/night-2026-08-11.md) | Three defects nobody had read, two detectors that caught their own authors, and a gain that was real while the meta did not contain it. |
 | [The night of 10 Aug 2026 (c)](history/night-2026-08-10-c.md) | The session that produced the corpus rebuild and the corpus bridge. |
 | [The day of 9 Aug 2026](history/day-2026-08-09.md) | The full day, gate by gate. |
 | [The 9 Aug full run](history/night-2026-08-09-full-run.md) | The complete pipeline end to end. |
