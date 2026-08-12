@@ -41,6 +41,17 @@ instead of by taking prizes.
 
 **Mirror** — playing against our own deck.
 
+**Match point** — a player needs only one more knockout to take their last
+prize. It changes what a body in front is *worth*: at their match point every
+one of our bodies pays their whole remaining pile, so the cheap-corpse rules
+stop separating candidates and survival takes over.
+
+**Snipe** — damage aimed past the active at a benched Pokémon. The best snipe
+target is rarely the biggest body, so it has its own target selection.
+
+**The reply** — what the opponent does on their next turn in answer to ours.
+Half of every defensive reading in the agent is a projection of the reply.
+
 ## Project terms
 
 **Observation** — everything the simulator tells us at one decision point: the
@@ -58,11 +69,45 @@ positive value from other rules can overcome it.
 turn, so that plays happen in a sensible sequence. It only reorders options that
 already scored positive.
 
-**The plan** — the turn's chosen attacker, target and attack, computed once
-before scoring so that every later phase agrees on it.
+**The attack plan** — the turn's chosen attacker, target and attack, computed
+once before scoring so that every later phase agrees on it (`AttackPlan`). Where
+the docs say just "the plan" in a scoring context, this is the one.
+
+**The turn plan** — a different object, and the distinction matters. The attack
+plan says *what we can hit*; the turn plan (`TurnPlan`) says *what the turn is
+for*, decided from the prize count before the first decision. Its answer is one
+of four **modes**.
+
+**Mode** — `WIN_NOW` (a route closes the game), `DENY` (no route of ours, and
+their reply closes it), `RACE` (we take prizes and survive) or `DEVELOP`
+(nothing decisive today). Ordering rules consult it so they do not step aside
+for a resource card on a turn that ends the game.
+
+**Route** — how a `WIN_NOW` turn actually closes: `ACTIVE`, `PROMOTE`, `GUST`
+or `RECOVER`. Ordered cheapest first, because the route that commits fewest
+resources is the one a bad draw cannot break.
+
+**Do-or-die** — the `DENY` turn seen from the agent's side: the last turn we
+get, so every rule that prices a play against future turns is worth nothing.
+About 0.5% of decisions in the frozen corpus.
 
 **Pivot** — rewriting the plan when the position is bad: retreat out of a doomed
 active into a body that survives or trades better.
+
+**Relay** — retreating so that a *charged* body on the bench can come up and
+attack. Offensive, not defensive, and often the whole turn.
+
+**Fodder** — the cards spent to pay a cost (the Ultra Ball's two discards).
+Cheapness is a property of **the hand**, not of the card: the right thing to
+throw away is whatever this hand cannot use today.
+
+**Gift window** — the damage a body will have taken by the time the opponent
+next acts: their attack plus the recurring chip and any damage they can move
+onto it. "Will this body still be alive" means this.
+
+**Commitment** — a resource already spent that obliges a later play. Benching
+Meowth ex costs two prizes and is only paid for by the Supporter its ability
+fetches, so that Supporter must actually be played.
 
 **Effective energy** — energy counted *after* our accelerator doubles Grass
 energy and after any stadium raises our attack costs. All "can this attack?"
@@ -85,6 +130,18 @@ regression.
 
 **Gate** — a measurement that a change has to pass before it is kept: the test
 suite, the corpus, self-play winrate, the matchup matrix.
+
+**Census** — a tool that counts how often a situation occurs at all, before
+anyone writes a rule about it. Cheaper than a game, and several rules here were
+written, measured neutral and reverted for a population under a tenth of a per
+cent of decisions. See [The instruments](instruments.md).
+
+**Rule / adjustment** — the shape every decision in `ptcg/decision/` is written
+in. A **rule** is a named rung that prices an option; the first one that applies
+wins (a **chain**), or, in **argmax** mode, the highest value does. An
+**adjustment** then corrects the surviving score. Naming the rungs is what lets
+a census count them and a test assert on *which rule* decided rather than on the
+number it produced.
 
 **Generic bot** — the reference opponent that pilots any deck legally but not
 well. Useful because it is fixed: differences between our versions are signal,

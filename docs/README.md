@@ -95,6 +95,13 @@ spending the same week.
   folders, packages and concepts instead.
 - **Purpose over mechanics.** Each page answers "what is this for, when do I use
   it, why does it exist" — the source is the authority on the exact rules.
+- **These pages orient; the modules explain themselves.** Documentation stops at
+  the level that stays true as the code moves. Below it, every package carries an
+  `__init__.py` docstring for its layer and every module opens with what it is
+  for, how its logic is organised and which traps it has already fallen into.
+  When a page and a docstring disagree, the docstring is nearer the code and
+  more likely right — and the page is a bug. Start at
+  [Code map](code-map.md) to find the file, then read the file.
 - **A measured number carries its method.** Where a page states a winrate, a
   frequency or a share, it also states the sample size, the corpus and the date.
   A number with no method behind it rots into folklore, and this project has

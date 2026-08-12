@@ -1,22 +1,27 @@
 """Architecture rules of the wave refactor (docs/project-history.md).
 
-Ten AST rules over `main.py`, the agent package, the tools and the suite. They
-all cover failures that do NOT show up as a red test: either they break the
+ELEVEN AST rules over `main.py`, the agent package, the tools and the suite.
+They all cover failures that do NOT show up as a red test: either they break the
 submission on Kaggle with the suite green, or they make the agent read frozen
 state and decide badly in a game without raising any exception -- or, for the
-three added on 11 August, they make an INSTRUMENT report a number that is not a
-measurement.
+ones added from 11 August on, they make an INSTRUMENT report a number that is
+not a measurement.
+
+They fall into three groups: R1-R5 keep the agent loadable and correct on
+Kaggle, R6-R8 and R11 watch the INSTRUMENTS, and R9-R10 watch the agent's own
+internal discipline. `docs/testing.md` carries the same list in prose.
 
   R1  (I5)  Never `from <module> import <mutable>`.
             `from x import ko_last_turn` COPIES the value at the moment of the
             import; when main.py reassigns it, the module goes on seeing the old
             value. Silently. It is always accessed through the object: `estado.ko_last_turn`.
 
-  R2  (purity)  Nothing under cartas/ or motor/ may touch the state.
-            `cartas/` is data and `motor/` is the generic rules resolver:
-            both are read and tested without setting up a game.
+  R2  (purity)  Nothing under `ptcg/cards/` or `ptcg/engine/` may touch state.
+            `cards/` is data and `engine/` is the generic rules resolver:
+            both are read and tested without setting up a game. The enforced
+            list is `PURE_SUBPACKAGES` below.
 
-            `calculo/` MAY: leaving it pure was attempted and the code proved
+            `calc/` MAY: leaving it pure was attempted and the code proved
             it is not. The effective energy depends on whether Meganium is in play, and
             the attack cost on the Nighttime Mine tax; passing that through
             parameters to `_can_attack_eff`, `_physical_energy` and company would be

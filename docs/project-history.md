@@ -72,6 +72,22 @@ the original never took.
 **7. A green test proves nothing until it can fail.** Every safety net was
 validated by injecting the bug and confirming it went red.
 
+## What the split left behind
+
+Breaking one enormous function into phases meant giving its local variables an
+explicit home, and that is what the context objects (`ScoringCtx`, `TurnCtx`,
+and one per lifted closure) are. They look strange on purpose — flat bags of
+`Any` fields defaulting to `None`, filled from `locals()` rather than by keyword
+— and lessons 5 and 6 below are why: some of those names are only bound on
+certain paths, so passing them explicitly would force their evaluation and raise
+on exactly the paths the original never took.
+
+The same split is why a scorer may not write state (rule R9). The per-option
+modules run once per option, over a list whose order belongs to the simulator,
+so anything they write is a function of that order — which is how a flag ended
+up holding the value of the *last* option priced rather than the answer to the
+question it was named for.
+
 ## The measurement discipline
 
 Alongside the refactor, the project built a set of gates that now define how any

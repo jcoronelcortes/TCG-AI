@@ -14,9 +14,9 @@ cannot: it takes minutes and answers a different question. All four are cheap,
 and a change is not ready until all four are green.
 
 ```bash
-python -m pytest -q                      # 2249 tests, ~27 s
+python -m pytest -q                      # 2440 tests, ~23 s
 python tests/golden_corpus.py            # replays the frozen games, ~0.5 s
-python utils/lint_architecture.py        # R1-R8: Kaggle safety, plus the instrument rules
+python utils/lint_architecture.py        # R1-R11: Kaggle safety, the instruments, the scorers
 python -m pytest -q tests/test_submission.py   # loads main.py the way the container does
 ```
 
@@ -48,14 +48,20 @@ frozen one is `python utils/freeze_corpus.py --snapshot-only` — never the bare
 command, which would rebuild the bundle from whatever games happen to be in your
 `records/` and quietly shrink the gate.
 
-**The architecture lint** enforces eight AST rules. R1–R5 keep the agent
+**The architecture lint** enforces eleven AST rules. R1–R5 keep the agent
 loadable on Kaggle — no importing a mutable by name, no state inside the pure
 subpackages, nothing bound after `def agent`, no lazy import of our own package,
 no top-level name defined twice. R6–R8 watch the *instruments* instead, and each
 one comes from a defect that shipped green in August 2026: a test may not read a
 `records/` file without a skip guard, a two-arm `gate_*.py` must define **and
 call** `provenance()`, and inside the DISCARD block the turn flags may only be
-read through the horizon. See [docs/instruments.md](docs/instruments.md).
+read through the horizon. R9–R10 watch the agent's own discipline — a per-option
+scorer prices an option and does not write state, and a field of `TurnPlan` or
+`AgentState` that nobody reads is a question the agent asked and then ignored.
+R11 keeps the two apart: the seeded local engine the tools measure with may
+never be reachable from `main.py` or `ptcg/`. Full list with the defect behind
+each one in [docs/testing.md](docs/testing.md); see also
+[docs/instruments.md](docs/instruments.md).
 
 **The submission smoke test** packages the tree and loads it with a verbatim
 copy of Kaggle's loader, which uses `exec`, not `import`. Three real failure

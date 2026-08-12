@@ -86,6 +86,25 @@ neutral no matter what the change did. Two things stay deliberately shared: the
 simulator (`cg`, which aborts the interpreter if initialised twice) and
 `deck.csv`, so both sides pilot the same sixty cards.
 
+### `parallel.py` and `local_engine.py` — what makes the two above fast and repeatable
+
+Neither is run directly; both are the machinery `selfplay.py` and
+`matchup_matrix.py` sit on, and knowing they exist explains most of the flags
+above.
+
+| Module | What it provides |
+| --- | --- |
+| `parallel.py` | The process pool behind `--jobs`. Processes rather than threads because the agent is ~85% of wall time and pure Python, so the GIL binds and threads buy nothing; the engine itself is happy to run concurrent battles once the pointer stops being a Python global (`cg/battle.py`). One pool serves a whole matrix, not one per deck. |
+| `local_engine.py` | Loads the **locally built** engine, the one that honours a seed. The shipped `cg/libcg.*` sets `deviceRand = true`, so every shuffle and both coin paths draw from a fresh `std::random_device` and the seed is ignored — which is why `--seeds` needs the local build and errors without it. |
+
+`local_engine.py` is **for tools only**, and that boundary is enforced rather
+than trusted: rule **R11** of the architecture lint fails the build if anything
+under `main.py` or `ptcg/` reaches for it. What we submit runs on the official
+binaries, and the local one is git-ignored and simply absent on Kaggle. It also
+carries a **drift guard** — it compares the card-data hash on every load, so a
+local build that quietly diverged from the official engine cannot silently
+invalidate every measurement taken with it.
+
 ### `matchup_matrix.py` — the matchup matrix
 
 Plays N games against **every** opponent deck in a folder and prints the table
@@ -265,6 +284,21 @@ games is what deserves reading. It found `xerosic_alakazam` (dominated by the
 rule above it: 350 267 evaluations, zero fires) and `tapu_vs_crustle` (needs
 `op_is_crustle_deck` and lives in the chain chosen when the opponent is *not*
 Crustle).
+
+### `blind_window_census.py` — how much of the turn a guard cannot see
+
+A rule that opens with `not state.supporterPlayed` is not asking a question, it
+is asking a question **with an expiry date**: before the Supporter slot is spent
+it arbitrates, and afterwards it is a branch that can never be taken. The
+decisions of the turn that happen after the resource is gone are that rule's
+**blind window**, and this measures it per guard.
+
+It exists for two real and expensive bugs. `_protect_last_supporter` was gated
+on `not state.supporterPlayed` — and Xerosic's Machinations *is* a Supporter, so
+on every forced discard that card can produce the flag was already True. The
+rule was not misfiring, it was **unreachable**, blind window 100%, and had been
+since it was written. That is the shape this census finds: a guard whose window
+is near 100% is dead code that reads exactly like a live rule.
 
 ### `duplicate_protection_audit.py` — who protects the second copy too
 
@@ -589,9 +623,17 @@ that are not simply "run the suite".
 
 The rest of the `gate_*.py` family is written **per candidate rule**, not per
 project: `gate_the_engine_waits.py`, `gate_the_cap_reads_their_hand.py`,
-`gate_promoted_relay.py`, `gate_what_the_search_bought.py` and so on. Each one
-exports two trees, loads an agent from each, and plays the same matchups with
-both, so the change under test is the only difference between the arms.
+`gate_promoted_relay.py`, `gate_what_the_search_bought.py`,
+`gate_the_search_buys.py` and so on. Each one exports two trees, loads an agent
+from each, and plays the same matchups with both, so the change under test is
+the only difference between the arms.
+
+`gate_the_search_buys.py` is worth reading as the model of the *other* way to
+build an arm: instead of exporting two trees, it loads the same tree twice and
+switches the predicate off on one of the loaded module objects. Nothing on disk
+is rewritten, so it is safe to leave running while you edit other files — unlike
+the mutation and A/B-by-swap harnesses, which **are** the working tree while
+they run.
 
 Three things a new one must do, all three learned from a gate that reported a
 false neutral:

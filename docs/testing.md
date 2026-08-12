@@ -125,7 +125,7 @@ breaking the real submission:
 
 ## 7. Architecture rules
 
-`tests/test_architecture.py` runs the **eight** AST rules of
+`tests/test_architecture.py` runs the **eleven** AST rules of
 `utils/lint_architecture.py` with the suite. Like the submission test, they cover
 failures that never show up as a red test.
 
@@ -147,6 +147,20 @@ in August 2026:
 | R6 | A test that reads a `records/` file must carry a skip guard — that directory is re-harvested, and a census pinned to a board that a harvest took away goes red with nothing having changed. Citing a record in a docstring is provenance and stays allowed. |
 | R7 | A two-arm `gate_*.py` must define **and call** `provenance()`. A gate that cannot see its own change reports neutral, and neutral orders a revert here. |
 | R8 | Inside the DISCARD block, the turn-scoped flags may only be read through the horizon. On a forced discard, `supporterPlayed` and `energyAttached` describe what the **opponent** spent. |
+
+**R9–R10 watch the agent's own discipline** — not a crash and not an
+instrument, but a shape that reads as correct and is not:
+
+| | |
+| --- | --- |
+| R9 | A per-option scorer prices an option; it does not write state. Modules under `ptcg/turn/options/` run **once per option**, over a list whose order belongs to the simulator, so anything they write is a function of that order. `we_go_first` was assigned while scoring the first-turn menu and survived as the value of the *last* option priced. |
+| R10 | A field of `TurnPlan` or `AgentState` that nobody outside its module reads. A computed field with no consumer is a question the agent asked and then ignored, and from the outside it reads exactly like a fact in use — `op_wins_after_ko` was computed every turn and read by nobody for two days. Properties resolve back to the fields they touch, and `getattr(x, 'f', d)` counts as a read; without both, the rule accuses four load-bearing fields. Exempt with `# R10: <reason>` in the field's comment block — the reason is required. |
+
+**R11 keeps the instruments away from the submission**:
+
+| | |
+| --- | --- |
+| R11 | `utils/local_engine.py` loads a **modified** engine — one that honours the seed the official binary throws away, so games can be replayed. Tools may use it; `main.py` and `ptcg/` may not. What we submit runs on the shipped `cg/libcg.*`, and the local binary is git-ignored and simply absent on Kaggle. |
 
 `tests/test_the_linter_learned_the_days_bugs.py` is the linter's own suite: it
 plants each violation and confirms the rule catches it.

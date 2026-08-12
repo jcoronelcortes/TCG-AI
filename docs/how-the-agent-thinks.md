@@ -108,8 +108,12 @@ turn that can end the game is not the same turn as one that can take a prize.
 The **turn plan** (`ptcg/turn/game_plan.py`) answers three questions once, before
 the first decision:
 
-- is there a route that **closes the game** — attack as we stand, retreat and
-  promote the finisher, or gust a bench body with Boss's Orders?
+- is there a route that **closes the game**? There are four, and they are
+  ordered cheapest first, because the route that commits fewest resources is
+  also the one a bad draw cannot break: attack as we stand (`ACTIVE`), retreat
+  and promote the finisher (`PROMOTE`), gust a bench body with Boss's Orders
+  (`GUST`), or recover energy with Lana's Aid and charge into the knockout
+  (`RECOVER`).
 - how many prizes can we take today?
 - how many do they take on the reply, and does that close *their* count?
 

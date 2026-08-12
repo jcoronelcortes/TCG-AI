@@ -16,6 +16,14 @@ agent reads and every game the tools play goes through it.
 | `utils.py` | Turning JSON and dictionaries into the data classes above. |
 | `cg.dll`, `libcg.so`, `libcg.dylib`, `libcg-arm64.so` | The native engine itself, one per platform. These are versioned on purpose — nothing runs without them. |
 
+Two things in `cg/` are **ours**, not the vendor's, and are the reason the
+measurement tooling can do what it does:
+
+| Ours | Purpose |
+| --- | --- |
+| `battle.py` | A battle as an **object**, so one process can run several. `game.py` keeps the whole battle in module state — `Battle.battle_ptr` in `sim.py` is a class attribute, so starting a second game overwrites the first. That was a limit of the *Python wrapper*, never of the engine: every C entry point already takes the pointer as its first argument, and two concurrent battles return two distinct pointers and play without interfering. This is what `--jobs` stands on. It adds the handle without touching `game.py`, which some twenty tools and tests import. |
+| `build_local_engine.sh`, `engine_patches/` | The **seeded** build. The shipped binary sets `deviceRand = true`, so every shuffle and both coin paths draw from a fresh `std::random_device` and the seed is ignored — games cannot be replayed. The patches add a seeded entry point; `utils/local_engine.py` loads the result, and rule R11 keeps it away from anything we submit. |
+
 ## The two things worth understanding
 
 **The decision context tells you what is being asked.** The same agent function

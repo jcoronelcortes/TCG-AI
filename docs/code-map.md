@@ -34,6 +34,12 @@ Data and rules at the bottom, board reading in the middle, per-card decisions an
 turn phases on top. An architecture linter enforces the boundaries — see
 [Testing](testing.md).
 
+> **This page is the index; the modules explain themselves.** Every package has
+> a `__init__.py` docstring covering its layer, and every module opens with what
+> it is for, how its logic is organised and which traps it has already fallen
+> into. Read `ptcg/__init__.py` for the layer map, then the module itself — this
+> table only tells you which file to open.
+
 ### `ptcg/cards/` — card data
 
 Pure data. No game state, no simulator access; readable and testable without
@@ -80,7 +86,7 @@ have to.
 | `agent_state.py` | `AGENT_STATE`: the mutable state that survives between turns (the plan, who goes first, whether we got knocked out, pending search commitments, opponent-archetype flags). One object, never reassigned. |
 | `tracking.py` | The belief about our own deck: initial scan, card movement between zones, prize identification. |
 | `zones.py` | The zone keys used by that tracking (deck / hand / in play / discard / prize). |
-| `logs.py` | Reading the observation's event log, including the knockout window. |
+| `logs.py` | Reading the observation's event log — the draws and card movements that keep the deck belief current between decisions. (The knockout *window*, which is a different question, is decided in `main.py`.) |
 
 ### `ptcg/decision/` — one module per card that has real strategy
 

@@ -45,7 +45,7 @@ used by the deck-image renderer.
 python -m pytest -q
 ```
 
-About 2 250 tests in half a minute, and the fastest signal that nothing broke.
+About 2 440 tests in half a minute, and the fastest signal that nothing broke.
 With coverage:
 
 ```bash
@@ -56,7 +56,7 @@ The other reproducible gates, in the order they are cheapest:
 
 ```bash
 python tests/golden_corpus.py        # which historical decisions your change flipped
-python utils/lint_architecture.py    # R1-R8
+python utils/lint_architecture.py    # R1-R11
 python utils/nightly.py --quick      # all of the above plus every detector, a few minutes
 ```
 

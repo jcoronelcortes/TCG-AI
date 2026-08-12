@@ -53,6 +53,37 @@ That tells you *what outscored the play you expected*. From there, the rule to
 inspect is the one that produced the winning score, in the branch for that
 option type ([Code map](code-map.md)).
 
+## Step 3b — ask which *rule* decided, not which number won
+
+A score tells you how much; it does not tell you which rung of which ladder
+produced it. Every rule chain already carries that answer — `_resolve_rules`
+returns a trace naming the rule that fired and each adjustment that moved the
+score afterwards — and `tests/rule_trace.py` hands it back:
+
+```python
+score, why = resolve(_RULES_BOSS_PLAY, [], ctx, default=0)
+assert_reason(why, "winning_gust")
+```
+
+Worth reaching for whenever two rules could plausibly have produced the same
+number. It is also the better thing to assert in the test you write at step 5:
+a test pinned to the score dies when a band is renumbered and survives when the
+wrong rule fires at the right number — exactly backwards.
+
+## Step 3c — was a better line available at all?
+
+If the suspicion is "the agent missed something", not "the agent chose wrong
+between two options", enumerate the turn instead:
+
+```bash
+python utils/turn_explorer.py --finding records/autopsia/<board>.json
+```
+
+It plays out every legal sequence of our actions for that turn with a model of
+its own and reports the dominant line. If the agent's line comes out dominated,
+you have the board *and* the correct play already computed. Read its documented
+limits first — it models our turn only, and no draws.
+
 ## Step 4 — check whether it was a veto or a preference
 
 Two very different situations:

@@ -71,6 +71,8 @@ cent of decisions. A census is minutes; 200 games is not.
 | `healing_census.py` | How much of the damage we deal gets healed back before it becomes a prize. |
 | `fodder_ladder_audit.py` | Discard menus where a Basic Grass outranked an evolution the agent itself calls orphaned. |
 | `duplicate_protection_audit.py` | Menus where two copies of a card came out with the same "this is our only out" score. |
+| `blind_window_census.py` | Per guard, how much of the turn it **cannot see**. A rule opening with `not state.supporterPlayed` arbitrates until the slot is spent and is unreachable afterwards; a guard near 100% blind is dead code that reads like a live rule. |
+| `tier_inversion_census.py` | Every menu where an **order** beat a **number** — the one line in the project where a category decides before a value. Load-bearing and, on the day it was written, the source of two separate defects. |
 
 A zero from a census is a statement about the **workload**, not only about the
 rule. The rule census at three loads makes that visible: 120 rules never fire
@@ -89,6 +91,7 @@ whose card does not say that thing, and a card that says it and is in no table.
 | `op_scaling_census.py` | `ptcg/cards/op_scaling.py` — the opposing attacks whose damage counts the board. |
 | `op_buff_census.py` | The abilities and tools that add a flat amount to an opposing attack. |
 | `op_immunity_census.py` | `EX_IMMUNE_IDS`, `ABILITY_IMMUNE_IDS`, `FULL_HP_SURVIVE_IDS`. |
+| `card_text_census.py` | The fourth sibling, and it asks what the other three cannot: of every card that can be put on the table against us, which ones does the code **not mention at all**? The three above each check one table against the cards; this one finds the cards no table has heard of. |
 
 They pay for themselves. The immunity audit found `EX_IMMUNE_IDS` carrying a
 Crustle whose ability is Sturdy — the ex-immune wall is a different card that

@@ -132,8 +132,16 @@ Spanish, and they moved once the project became something English speakers
 read. Notes written before that rename quote the old spellings; the map in
 `docs/history/rename-maps/25-rule-labels.tsv` is the bridge.
 
-**The CLI of `utils/` is English.** Flags, `--help` text and printed reports
-all are: a tool whose interface is in another language is a wall at the first
-command. `tests/test_cli.py` keeps it that way -- it fails on a Spanish flag,
-and on any `args.X` a script reads that its parser never sets. The old-to-new
-flag table lives in [docs/tools.md](tools.md).
+**The CLI of `utils/` is English -- the interface, not the report.** Flags and
+`--help` text are English: a tool whose *interface* is in another language is a
+wall at the first command. `tests/test_cli.py` enforces exactly that and no
+more -- it fails on a Spanish option string, and on any `args.X` a script reads
+that its parser never sets. The old-to-new flag table lives in
+[docs/tools.md](tools.md).
+
+What a tool **prints** is a different question and goes the other way: a
+report is a reply to the user, so it stays Spanish (`CENSO DE REGLAS`, `AVISO`,
+`AUTO-TEST`). Nothing enforces that one; it is a convention. The general split
+is in the conventions section of [the documentation index](README.md) --
+anything written *into* the project is English, what is printed *out* to the
+user is Spanish.
