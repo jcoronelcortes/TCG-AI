@@ -17,12 +17,13 @@ from ptcg.calc.board import _active_of
 from ptcg.calc.energy import count_total_grass_energy
 from dataclasses import dataclass
 from typing import NamedTuple
-from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, CUBCHOO_ALLOWED_PLAY_IDS, Chikorita, Dawn, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Hydrapple_ex, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, Pinsir, SCORE_CANCEL, SCORE_VETO, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, XEROSIC_SCORE_LAST_RESORT, Xerosic_Machinations
+from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, CUBCHOO_ALLOWED_PLAY_IDS, Chikorita, Dawn, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Hydrapple_ex, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, Pinsir, SCORE_CANCEL, SCORE_VETO, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, XEROSIC_BIG_HAND, XEROSIC_SCORE_LAST_RESORT, Xerosic_Machinations
 from ptcg.state.zones import ZONE_DECK
 from ptcg.cards.lines import _evo_body_in_play, _evo_copies_usable, _evolution_stage, _line_base_benchable
 from ptcg.cards.scoring import _SUPP_PLAY_IDS
-from ptcg.decision.disruption import _score_xerosic_play
+from ptcg.decision.disruption import _score_xerosic_play, _xr_gate_alakazam
 from ptcg.decision.poke_pad import _pp_es_t1
+from ptcg.turn.game_plan import plan_of
 
 
 class _UBFlags(NamedTuple):
@@ -355,7 +356,22 @@ def _ub_real_fodder(ctx, protegida) -> int:
     discarded).
 
     Extracted from the body of `_ub_cancel_lillie` (verbatim counting) so that
-    the other cost vetoes protecting a Supporter use the SAME arithmetic."""
+    the other cost vetoes protecting a Supporter use the SAME arithmetic.
+
+    `protegida` is ONE card id, or a collection of them, or None. The plural
+    form exists because two cards can be protected for the same reason at the
+    same time, and asked one at a time the count lets each of them pay for the
+    other: with {Xerosic, Lillie's, Dawn} in hand, `protegida=Xerosic` counts
+    the Lillie's as fodder and `protegida=Lillie's` counts the Xerosic, so both
+    vetoes stay silent and the cost eats the pair (see
+    `_ub_cancel_engine_supporters`)."""
+    if protegida is None:
+        _ub_protegidas = ()
+    elif isinstance(protegida, int):
+        _ub_protegidas = (protegida,)
+    else:
+        _ub_protegidas = tuple(protegida)
+
     hand_counts = ctx.hand_counts
     field_counts = ctx.field_counts
     bench_count = ctx.bench_count
@@ -372,7 +388,7 @@ def _ub_real_fodder(ctx, protegida) -> int:
 
     _ub_discardable_without_lillie = 0
     for _ub_llid, _ub_llcnt in hand_counts.items():
-        if _ub_llid in (Ultra_Ball, protegida, Unfair_Stamp):
+        if _ub_llid in (Ultra_Ball, Unfair_Stamp) or _ub_llid in _ub_protegidas:
             continue
         _ub_ll_fodder = True
         if _ub_llid == Hydrapple_ex:
@@ -689,6 +705,108 @@ def _ub_cancel_tomorrow_supporter(ctx) -> bool:
     return any(hand_counts.get(_ub_sid, 0) >= 1 for _ub_sid in _SUPP_PLAY_IDS)
 
 
+# The two Supporters an Ultra Ball is never allowed to eat. They are not a
+# ranking of "the best Supporters": they are the two halves of the engine this
+# deck runs on -- the CAP on Powerful Hand and the REFILL that restarts a dead
+# hand -- and both are cards whose whole value is that they are still there on
+# the turn they are needed. Anything else in hand is a body, a piece or an
+# Item, and the cost is welcome to it.
+_UB_ENGINE_SUPPORTERS = (Xerosic_Machinations, Lillie_Determination)
+
+
+def _ub_engine_supporters_held(ctx):
+    """Which of `_UB_ENGINE_SUPPORTERS` are in hand AND are an engine on THIS
+    board. The two halves do not answer the same way and neither reading is new:
+
+      * LILLIE'S DETERMINATION is the refill, and this deck has no board on
+        which drawing a fresh hand is worth nothing. Holding it is enough.
+
+      * XEROSIC'S MACHINATIONS is a cap, and a cap with nothing to cap is
+        cardboard -- vs Marnie, with a small opposing hand, its own play scorer
+        says `XEROSIC_SCORE_LAST_RESORT` and the discard ladder prices it as
+        fodder at 60. So it is an engine only on the boards where the play
+        scorer would spend a Supporter on it: the Alakazam matchup above its
+        floor of six (`_xr_gate_alakazam`, the branch `alakazam_cap_the_hand`)
+        or any deck with their hand at `XEROSIC_BIG_HAND` (the branch
+        `generic_very_big_hand`). Both are readings of the BOARD, which is why
+        they can be asked here: unlike `_score_xerosic_play` they do not go
+        silent the moment this turn's Supporter has been spent, and the whole
+        point of this veto is the turn AFTER that one.
+
+    The measured counter-example is the second bullet's reason for existing:
+    `tests/test_the_spare_stage_two_pays_the_ultra_ball.py` (registro_002 step
+    26 vs Marnie), where the spare Stage 2 and a dead Xerosic pay for the search
+    that opens the turn. Protecting a cap with nothing to cap would have
+    cancelled it."""
+    _ub_engine = []
+    if ctx.hand_counts.get(Lillie_Determination, 0) >= 1:
+        _ub_engine.append(Lillie_Determination)
+    if (ctx.hand_counts.get(Xerosic_Machinations, 0) >= 1
+            and (_xr_gate_alakazam(ctx)
+                 or ctx.op_hand_count >= XEROSIC_BIG_HAND)):
+        _ub_engine.append(Xerosic_Machinations)
+    return _ub_engine
+
+
+def _ub_cancel_engine_supporters(ctx) -> bool:
+    """Phase C of Ultra Ball: cost veto (the cost may not eat the engine).
+
+    CARD RULE, as stated by the user: an Ultra Ball NEVER discards a Xerosic's
+    Machinations or a Lillie's Determination, unless the Pokemon it is searching
+    for wins the game.
+
+    (user, `records/registro_006_pasos_062_hasta_085.json`, episode 91851762,
+    step 81, turn 6 vs Alakazam -- LOST.) Tapu Bulu active with no energy on it
+    (no attack this turn), the opponent holding TEN cards, hand of four
+    {Xerosic's Machinations, Dawn, Ultra Ball, Lillie's Determination} and the
+    turn's Supporter already spent. The menu was exactly {play Ultra Ball, end
+    turn}: the Ultra Ball was played, paid its two discards with the **Xerosic
+    AND the Lillie's**, and fetched a Chikorita -- a Basic that attacks for
+    nothing, on a turn that could not attack at all. The turn ended with a hand
+    of {Dawn, Chikorita}, the cap on a 240-damage Powerful Hand in the discard
+    pile, and no refill left.
+
+    WHY NOTHING SPOKE. Three vetoes already protect exactly these two cards
+    (`_ub_cancel_xerosic`, `_ub_cancel_lillie`, `_ub_cancel_meowth`) and all
+    three open with `not state.supporterPlayed`, because they were written to
+    settle a competition for TODAY'S Supporter slot. Once that slot is spent
+    the family goes blind -- and so does the `SelectContext.DISCARD` scorer,
+    which prices a card by what it does now. `_ub_cancel_tomorrow_supporter` was
+    written for precisely this blindness, and it is bounded at a hand of three;
+    this hand had four. One card outside every net.
+
+    AND A SECOND HOLE, INDEPENDENT OF THE FIRST: the count is asked ONE card at
+    a time. `_ub_real_fodder(prot=Xerosic)` saw the Lillie's and called it
+    fodder; `_ub_real_fodder(prot=Lillie's)` saw the Xerosic and called it
+    fodder. Each of the two cards the cost was about to burn was the other's
+    proof that nothing was being burnt. That is why this veto protects them as
+    a SET and not one by one -- `_ub_real_fodder` takes a collection for this.
+
+    WHAT IT IS NOT. It is not conservatism about Ultra Balls: it says nothing
+    about a hand that can pay out of surplus, which is the ordinary case. It
+    fires only when the two discards CANNOT be found among the rest of the hand
+    -- exactly the arithmetic of the family it joins -- so a hand with two
+    spare cards plays its Ultra Ball and keeps the engine, both.
+
+    THE EXCEPTION IS THE ONE THE USER NAMED: unless the search wins the game.
+    Read as `plan_of(ctx).wins_this_turn`, the project's own answer to "is there
+    a lethal route today" -- so a Ultra Ball that fetches the finisher of a
+    ROUTE_PROMOTE, or the body a lethal line is missing, still pays with
+    whatever it has to. A game that ends this turn has no next turn to keep a
+    Supporter for. The empty-bench survival rescue overrides it as well, through
+    `_ub_terminal_overrides`, for the same reason and by the same route as the
+    rest of the family.
+
+    Deck-agnostic in shape, named in cards on purpose: the two ids are this
+    deck's engine, the way `_ub_cancel_stamp` names the Unfair Stamp."""
+    _ub_held = _ub_engine_supporters_held(ctx)
+    if not _ub_held:
+        return False
+    if plan_of(ctx).wins_this_turn:
+        return False
+    return _ub_real_fodder(ctx, _ub_held) < 2
+
+
 def _ub_cancel_meowth(ctx) -> bool:
     """Phase C of Ultra Ball: cost veto (meowth). Would playing the UB discard
     a valuable card as its cost of 2? A pure predicate; verbatim counting."""
@@ -903,6 +1021,7 @@ def _ub_cost_destroys_better_card(ctx) -> bool:
                 or _ub_cancel_lillie(ctx) or _ub_cancel_meowth(ctx)
                 or _ub_cancel_xerosic(ctx)
                 or _ub_cancel_tomorrow_supporter(ctx)
+                or _ub_cancel_engine_supporters(ctx)
                 or _ub_cancel_no_surplus(ctx))
 
 
@@ -2418,6 +2537,9 @@ __all__ = [
     '_ub_cancel_xerosic',
     '_ub_cancel_lillie',
     '_ub_cancel_tomorrow_supporter',
+    '_UB_ENGINE_SUPPORTERS',
+    '_ub_engine_supporters_held',
+    '_ub_cancel_engine_supporters',
     '_ub_cancel_no_surplus',
     '_ub_cancel_meowth',
     '_counter_stadium_urgent',

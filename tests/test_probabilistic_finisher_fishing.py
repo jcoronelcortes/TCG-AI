@@ -118,6 +118,27 @@ def _idx_play_of(obs, card_id):
     return -1
 
 
+def _ctx_of_fixture(obs):
+    """The real DecisionContext of a board, so the Supporter scorers are read on
+    the board that produced the decision and not on a stub."""
+    import copy as _copy
+    captured = {}
+    orig = m._score_boss_orders_play
+
+    def spy(ctx, *args, **kwargs):
+        captured.setdefault("ctx", ctx)
+        return orig(ctx, *args, **kwargs)
+
+    m._score_boss_orders_play = spy
+    try:
+        m.agent(_copy.deepcopy(obs))
+    finally:
+        m._score_boss_orders_play = orig
+    ctx = captured.get("ctx")
+    assert ctx is not None, "el tablero no llega a puntuar el Boss's"
+    return ctx
+
+
 def _spy_on_fishing(monkeypatch):
     """Captures the `_FinisherFishing` the agent computes in the decision."""
     capturado = {}
@@ -234,12 +255,35 @@ def test_step49_plays_lillie_to_fish_not_boss():
         "distancia, el hueco de Supporter es de Lillie's")
 
 
-def test_step49_counterfactual_with_no_fishing_it_gusts_again(monkeypatch):
-    """Control: if the fishing is not measured (an unreachable threshold), the
-    Boss's of the record reappears. It is the change the rule introduces, not another."""
+def test_step49_counterfactual_with_no_fishing_the_refill_no_longer_flies(monkeypatch):
+    """Control: with the threshold unreachable the fishing does not fire, and
+    Lillie's loses the `LILLIE_SCORE_FISHING` height that this rule gives it.
+
+    It used to assert that the Boss's of the record REAPPEARED. It no longer
+    does, and not because the fishing changed: a SECOND law, born of the same
+    lost game, covers this board on its own -- a Boss's Orders sitting at
+    `SUPP_SCORE_LAST_RESORT_BAND` (its own chain saying "the active cannot
+    attack, this gust is empty") cannot hold Lillie's ordering veto in place
+    (`_lillie_play_order_veto`, registro_004 step 39). So below the threshold
+    the slot still goes to the refill, at the ordinary 5000 and not at 5900.
+
+    What this control guards is therefore stated directly: the fishing is what
+    lifts Lillie's to its own height, and with it switched off nothing else
+    does."""
+    capturado = _spy_on_fishing(monkeypatch)
     patch_name(monkeypatch, "FISHING_PROB_MIN", 1.1)
     obs = _fixture()
-    assert m.agent(obs) == [_idx_play_of(obs, BOSS)]
+    ctx = _ctx_of_fixture(obs)
+    # `_finisher_fishing` still MEASURES the route -- the threshold is applied
+    # by the rule, downstream -- so what has to be below the bar is its
+    # probability, not the plan's existence.
+    assert capturado["plan"].prob < m.FISHING_PROB_MIN, (
+        "con el umbral inalcanzable la ruta medida no lo alcanza")
+    assert m._score_lillie_determination_play(ctx) != m.LILLIE_SCORE_FISHING, (
+        "sin pesca, la Lillie's no puede seguir en la altura de la pesca")
+    assert m._supp_play_score(ctx, BOSS) == m.SUPP_SCORE_LAST_RESORT_BAND, (
+        "y el Boss's de este tablero es el gusteo vacio de la banda de ultimo "
+        "recurso: por eso el hueco sigue sin ser suyo")
 
 
 # ---------------------------------------------------------------------------
@@ -312,14 +356,26 @@ def test_with_the_deck_dry_of_grass_the_fishing_does_not_override_the_vetoes(mon
     capturado = _spy_on_fishing(monkeypatch)
     obs = _scenario_step49(grass_in_deck=1)
     assert capturado is not None
-    choice = m.agent(obs)
+    m.agent(obs)
     assert capturado["plan"] is None, "sin outs suficientes no hay pesca"
-    assert choice != [_idx_play_of(obs, LILLIE)]
+    # The refill loses its PRIVILEGE -- the `LILLIE_SCORE_FISHING` height -- and
+    # that is all this boundary owns. Whether Lillie's is played anyway is
+    # decided by another law on another axis: with the Boss's of this board in
+    # the last-resort band the slot was never going to be its own
+    # (`_lillie_play_order_veto`, registro_004 step 39).
+    ctx = _ctx_of_fixture(obs)
+    assert m._score_lillie_determination_play(ctx) != m.LILLIE_SCORE_FISHING
 
 
 def test_frontera_de_probabilidad(monkeypatch):
     """The fishing fires above the threshold and stays quiet below it, with the SAME board:
-    the only thing that changes is how many Grass are left alive."""
+    the only thing that changes is how many Grass are left alive.
+
+    The boundary is read on the SCORE and not on which option is chosen. Below
+    the threshold Lillie's is still the play -- an empty gust in the last-resort
+    band never had a claim on the slot (`_lillie_play_order_veto`) -- but it is
+    played as an ordinary refill, not at the fishing's own height. That
+    difference is exactly what this rule owns."""
     vistos = {}
     for grass in (3, 10):
         m._init_cards_tracking()
@@ -328,8 +384,10 @@ def test_frontera_de_probabilidad(monkeypatch):
         m._cards_last_turn = -1
         capturado = _spy_on_fishing(monkeypatch)
         obs = _scenario_step49(grass_in_deck=grass)
-        juega_lillie = (m.agent(obs) == [_idx_play_of(obs, LILLIE)])
-        vistos[grass] = (capturado["plan"].prob, juega_lillie)
+        ctx = _ctx_of_fixture(obs)
+        pesca = (m._score_lillie_determination_play(ctx)
+                 == m.LILLIE_SCORE_FISHING)
+        vistos[grass] = (capturado["plan"].prob, pesca)
 
     assert vistos[3][0] < m.FISHING_PROB_MIN < vistos[10][0]
     assert vistos[3][1] is False, "3 Plantas de 42 robando 8: no paga barajar"

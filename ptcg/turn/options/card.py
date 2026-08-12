@@ -14,7 +14,7 @@ from ptcg.cards.groups import EVO_LINES, GT_FETCH_BONUS
 from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, DISCARD_BODY_WITHOUT_SEAT, DISCARD_CF_HAND_RECYCLER, DISCARD_EVO_SPARE_COPY, DISCARD_LINK_THE_SEARCH_BUYS, DISCARD_SUPPORTER_DEAD_DROP, DISCARD_SUPPORTER_LIVE_KEEP, DISCARD_WHAT_THE_SEARCH_ALREADY_BOUGHT, DUNSPARCE_IDS, Dawn, Dipplin, Drednaw, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, LANA_SEL_INJUGABLE, LANA_SEL_GRASS_DEMAND, LANA_SEL_GRASS_UNLOCKS, LANA_SEL_GRASS_SURPLUS, LANA_SEL_GRASS_WINS, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, OUR_ABILITY_IDS, OUR_EX_IDS, Pinsir, Poke_Pad, RETREAT_COST, RIPEN_HEAL_TARGET_SCORE, SCORE_FORBID, SCORE_LOOKAHEAD_PROMOTE_KO, SCORE_LOOKAHEAD_PROMOTE_SAFE, SCORE_NEVER, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, XEROSIC_BIG_HAND, DISCARD_XEROSIC_CAPS_A_FAT_HAND, Xerosic_Machinations
 from ptcg.cards.lines import _evo_copies_usable, _evo_top_unlocked_by_the_search, _line_base_benchable, _pokemon_injugable
 from ptcg.cards.ids import OPENING_SAC_PROMOTE_ORDER, SETUP_ACTIVE_BASIC_ORDER, SETUP_ACTIVE_BASIC_TOP, SETUP_ACTIVE_EX_ORDER, SETUP_ACTIVE_EX_TOP, SETUP_ACTIVE_OTHER, SETUP_ACTIVE_OTHER_BASIC, SETUP_ACTIVE_STEP
-from ptcg.cards.scoring import MAIN_ATTACKERS, PROMO_DOOMED_PENALTY, PROMO_KO_BONUS, PROMO_LAST_STAND, PROMO_MATCH_POINT_VETO, PROMO_PRIZE_PENALTY, OPENING_SAC_PROMOTE_STEP, OPENING_SAC_PROMOTE_TOP, _SUPP_PLAY_IDS, _purchase_of_this_turn
+from ptcg.cards.scoring import MAIN_ATTACKERS, PROMO_DOOMED_PENALTY, PROMO_KO_BONUS, PROMO_KO_FRONT, PROMO_LAST_STAND, PROMO_MATCH_POINT_VETO, PROMO_PRIZE_PENALTY, OPENING_SAC_PROMOTE_STEP, OPENING_SAC_PROMOTE_TOP, _SUPP_PLAY_IDS, _purchase_of_this_turn
 from ptcg.cards.tables import HAND_TO_DECK_PLAY_IDS, card_table
 from ptcg.decision.boss_orders import _ADJUST_GUST_NUISANCE, _ADJUST_GUST_OFFENSIVE, _RULES_GUST_NUISANCE, _ctx_gust_target
 from ptcg.decision.disruption import _stamp_pendiente
@@ -84,6 +84,7 @@ def score_play(tc, o, score):
     _op_best_damage_vs = tc._op_best_damage_vs
     _op_counter_threat_vs = tc._op_counter_threat_vs
     _our_first_action_turn = tc._our_first_action_turn
+    _ko_front_outranked = tc._ko_front_outranked
     _mp_cheaper_candidate = tc._mp_cheaper_candidate
     _mp_front_survivors = tc._mp_front_survivors
     _mp_last_stand = tc._mp_last_stand
@@ -1250,6 +1251,37 @@ def score_play(tc, o, score):
                             and not (_promo_kos_op(card)
                                      and my_prize <= prize_count_op(_promo_op_act))):
                         score -= PROMO_DOOMED_PENALTY
+
+                    # THE FRONT SPOT AMONG THE ONES THAT KNOCK OUT (user,
+                    # registro_012 step 172 vs Alakazam, LOST -- episode
+                    # 91919734, deck-agnostic).
+                    #
+                    # The rule right above is this same sentence read through
+                    # SURVIVAL, and survival is exactly what could not be read on
+                    # that board: their reply is projected onto the active we are
+                    # about to knock out, and our own Xerosic had just cut their
+                    # hand to three, so Powerful Hand printed 100 and all five
+                    # candidates "outlasted" it. Two of them finished the same
+                    # Alakazam -- a Teal Mask Ogerpon ex at 210/210 and a
+                    # Hydrapple ex at 140 of its 330 -- and the base score picked
+                    # the wounded one by TWO points.
+                    #
+                    # So among the knockers, and only among them, the order is
+                    # the user's: first the body that leaves them SHORT of their
+                    # pile (a Meganium, a Tapu Bulu -- while that price is still
+                    # information), then the one with the most CURRENT HP. See
+                    # `ko_front_price_rung` and the block in `agent()`.
+                    #
+                    # A penalty on the dominated body and never a bonus on the
+                    # chosen one: it reorders INSIDE the +20000 band, so it can
+                    # never promote a body that takes no prize, and it is sized
+                    # (`PROMO_KO_FRONT`) to beat the flavour bonuses of the base
+                    # score and to yield to every rule that scores in thousands.
+                    if (isinstance(card, Pokemon) and score > 0
+                            and _promo_op_act is not None
+                            and callable(_ko_front_outranked)
+                            and _ko_front_outranked(card)):
+                        score -= PROMO_KO_FRONT
 
                     # THEIR MATCH POINT, READ WITH THE ATTACK'S REAL SCALE
                     # (self-play mirror, game 90 turn 17; see

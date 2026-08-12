@@ -50,7 +50,7 @@ from ptcg.calc.energy import (_grass_attach_slots_for, _grass_attach_unit,
                               _grass_mult, _reachable_grass_for,
                               _retreat_grass_to_discard)
 from ptcg.cards.ids import (Basic_Grass_Energy, Boss_Orders, LANAS_AID_RECOVERS,
-                            Lanas_Aid)
+                            Lanas_Aid, SNIPE_ANY_TARGET_IDS)
 from ptcg.state.agent_state import AGENT_STATE
 
 # The four sentences a turn can be under. They are ordered by urgency: the first
@@ -303,11 +303,24 @@ def _best_prize_against(attacker, targets, extra, total_grass, bench_count,
     return best
 
 
-def _targets(op_state, boss_in_hand):
+def _targets(op_state, boss_in_hand, attacker=None):
     """The bodies this turn's attack can reach: their active always, their bench
-    only when Boss's Orders is really playable."""
+    when Boss's Orders is really playable -- OR when the ATTACKER picks its own
+    target.
+
+    The Supporter is not the only way to the opposing bench. Cruel Arrow
+    (`SNIPE_ANY_TARGET_IDS`) aims at any of their Pokemon by itself, so for a
+    sniper their whole field is reachable with nothing in hand. Reading the
+    reach off the hand alone is what made the planner declare a turn sterile
+    while a benched Fezandipiti ex was one retreat away from closing the game
+    (registro_014 step 129; the full story is on `_bench_snipe_best`).
+
+    `attacker=None` keeps the old answer, which is the right one for the callers
+    that ask about the board rather than about one body.
+    """
     targets = list(op_state.active or [])
-    if boss_in_hand:
+    if boss_in_hand or (attacker is not None
+                        and attacker.id in SNIPE_ANY_TARGET_IDS):
         targets += [p for p in (op_state.bench or []) if p is not None]
     return targets
 
@@ -320,7 +333,8 @@ def _prizes_via_active(my_state, op_state, state, hand_counts, field_counts,
         return 0
     extra = _charge_this_turn(attacker, state, my_state, hand_counts,
                               field_counts, abilities_off=abilities_off)
-    return _best_prize_against(attacker, _targets(op_state, boss_in_hand),
+    return _best_prize_against(attacker,
+                               _targets(op_state, boss_in_hand, attacker),
                                extra, total_grass, bench_count,
                                meganium_in_play, neutralization_zone,
                                op_state=op_state)
@@ -350,7 +364,6 @@ def _prizes_via_promote(my_state, op_state, state, hand_counts, field_counts,
     if discarded * _grass_attach_unit() > len(active.energies):
         return 0            # the retreat cannot be paid: there is no route
 
-    targets = _targets(op_state, boss_in_hand)
     grass_after = max(0, total_grass - discarded * _grass_attach_unit())
     best = 0
     for body in (my_state.bench or []):
@@ -360,9 +373,12 @@ def _prizes_via_promote(my_state, op_state, state, hand_counts, field_counts,
                                   field_counts,
                                   extra_discard_grass=discarded,
                                   abilities_off=abilities_off)
+        # The reach is asked PER BODY: the one we promote may be the sniper
+        # that reaches their bench on its own.
         best = max(best, _best_prize_against(
-            body, targets, extra, grass_after, bench_count, meganium_in_play,
-            neutralization_zone, op_state=op_state))
+            body, _targets(op_state, boss_in_hand, body), extra, grass_after,
+            bench_count, meganium_in_play, neutralization_zone,
+            op_state=op_state))
     return best
 
 

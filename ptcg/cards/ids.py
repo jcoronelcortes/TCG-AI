@@ -667,6 +667,18 @@ ABILITY_IMMUNE_IDS = {Cornerstone_Mask_Ogerpon_ex}
 
 OUR_ABILITY_IDS = {Teal_Mask_Ogerpon_ex, Hydrapple_ex, Meganium, Fezandipiti_ex, Meowth_ex, Dipplin}
 
+# ATTACKS THAT CHOOSE THEIR TARGET (SNIPE). Cruel Arrow (Fezandipiti ex) does a
+# fixed 100 to ANY ONE of the opponent's Pokemon, active or bench. Every other
+# attack of ours reaches their BENCH only behind a Boss's Orders, which is why
+# the planner's reachable-target set is a function of the ATTACKER and not only
+# of the Supporter in hand (`_reachable_targets`).
+#
+# It lives here, with the data, because BOTH sides of the board read it: the
+# body standing in the active spot today (`_snipe_best_target`) and the one a
+# retreat would promote (`_bench_snipe_best`). While the set lived in main.py
+# next to the first of those two, the second could not exist.
+SNIPE_ANY_TARGET_IDS = frozenset({Fezandipiti_ex})
+
 # Bodies that are NEVER worth bringing up with Boss's even if they cannot
 # attack: the WALLS that cancel our attackers (Crustle/Sylveon vs ex,
 # Cornerstone vs abilities) and the LOCKER Iron Thorns ex, whose Initialization
@@ -1451,6 +1463,16 @@ STAMP_MIN_OP_HAND = 4          # minimum opposing hand for the Stamp to DISRUPT 
 STAMP_MIN_OP_HAND_VS_REFILL = 6
 STAMP_MAX_HAND_SACRIFICED = 4  # our own cards (hand without the Stamp) that can be shuffled away
 
+# THE TWO HANDS THE STAMP LEAVES BEHIND. Printed on the card: "each player
+# shuffles their hand into their deck. Then, you draw 5 cards, and your opponent
+# draws 2 cards." Every constant above reads the FIRST of them as prose ("it
+# leaves them at 2"); these two are the same numbers written down so that the
+# projector can use them, because there are attacks whose damage IS a count of
+# one of those hands (Powerful Hand reads theirs, Resentful Refrain and Mind
+# Ruler read ours). See `_mp_reply_after_our_reset` in main.py.
+STAMP_OP_HAND_AFTER = 2
+STAMP_OUR_HAND_AFTER = 5
+
 # PLAYS WHOSE LEGALITY WINDOW IS THE TURN ITSELF.
 #
 # Cards printed with the clause "you may play this card only if any of your
@@ -1479,6 +1501,7 @@ __all__ = [
     'Hydrapple_ex',
     'Meowth_ex',
     'Fezandipiti_ex',
+    'SNIPE_ANY_TARGET_IDS',
     'Tapu_Bulu',
     'Pinsir',
     'Lillie_Determination',
@@ -1726,5 +1749,7 @@ __all__ = [
     'STAMP_MIN_OP_HAND',
     'STAMP_MIN_OP_HAND_VS_REFILL',
     'STAMP_MAX_HAND_SACRIFICED',
+    'STAMP_OP_HAND_AFTER',
+    'STAMP_OUR_HAND_AFTER',
     'KO_WINDOW_PLAY_IDS',
 ]

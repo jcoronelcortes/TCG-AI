@@ -150,6 +150,7 @@ class ScoringCtx:
     _promo_damage_to_op: Any = None
     _promo_kos_op: Any = None
     _promo_min_prize: Any = None
+    _ko_front_outranked: Any = None
     _mp_cheaper_candidate: Any = None
     _mp_front_survivors: Any = None
     _mp_last_stand: Any = None

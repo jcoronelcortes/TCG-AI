@@ -127,7 +127,51 @@ def score_play(tc, o, score):
             data = card_table[card.id]
             if data.cardType == CardType.POKEMON:
                 score = SCORE_DEVELOP_BASE
-        
+
+                # THE BODY THAT CASHES IN TODAY IS NOT DEVELOPMENT (general law;
+                # user, registro_005 step 57 vs Alakazam, episode 91859188).
+                #
+                # Putting Fezandipiti ex down with Flip the Script ALIVE is not
+                # "developing the bench": it is DRAWING 3 CARDS this turn. The
+                # ability is FREE, it is ONCE PER TURN, it triggers when the body
+                # is PLAYED from hand, and its condition -- we were knocked out
+                # during the opponent's last turn -- DIES with the turn. There is
+                # no "later": what this menu does not play is not played at all.
+                #
+                # Every veto in this branch that speaks about the FUTURE -- a
+                # redundant body, a bench slot reserved for a body that may
+                # arrive, an ordering veto that yields the play to another card --
+                # is priced against a play that can still be made afterwards.
+                # Against a payment that expires the price is wrong, and the veto
+                # becomes a dead loss. So the exemption is written ONCE, here,
+                # with a name, and every one of those vetoes consults it. It used
+                # to be copied by hand into the two vetoes that had already been
+                # caught doing this (the 4th ex vs Crustle/Cornerstone --
+                # registro_008 step 74 -- and the redundant lethal ex vs Alakazam
+                # -- registro_010 step 150), which is exactly why the THIRD one
+                # was missing it: the bench reservation vs Alakazam vetoed the
+                # Fezandipiti by NAME to keep the last slot for a Meowth ex still
+                # in the deck. In the record the turn closed with no attack, three
+                # cards in hand and Flip the Script unused -- and the three cards
+                # it would have drawn are the likeliest place that very Meowth ex
+                # (or its Xerosic) was going to come from.
+                #
+                # The DECK-OUT brake is part of the law, not an exception to it:
+                # `ptcg/turn/options/ability.py` vetoes Flip the Script with the
+                # deck at <= 4, and a Fezandipiti whose ability is not going to be
+                # used pays NOTHING today -- it is just a 2-prize body, and every
+                # veto here is right about it.
+                #
+                # It reads no matchup on purpose. It is not "the exemption vs
+                # Alakazam": a payment that expires with the turn outranks a
+                # reservation for tomorrow against ANY deck.
+                _pays_today_expiring = (
+                    card.id == Fezandipiti_ex
+                    and AGENT_STATE.ko_last_turn
+                    and field_counts.get(Fezandipiti_ex, 0) == 0
+                    and bench_count < 5
+                    and getattr(my_state, 'deckCount', 60) > 4)
+
                 _block_4th_ex = False
                 if ((AGENT_STATE.op_is_crustle_deck or AGENT_STATE.op_is_cornerstone_deck)
                         and card.id in OUR_EX_IDS
@@ -142,8 +186,8 @@ def score_play(tc, o, score):
                         # Mega Starmie with a tech Cornerstone: the 4th-ex block
                         # crushed the 22000 of the refill and the draw
                         # was lost). Without the ability alive, the veto stands.
-                        and not (card.id == Fezandipiti_ex
-                                 and AGENT_STATE.ko_last_turn)):
+                        # See `_pays_today_expiring` above: the law is written once.
+                        and not _pays_today_expiring):
                     _ex_in_play = sum(field_counts.get(_ex_id, 0)
                                       for _ex_id in OUR_EX_IDS)
                     if _ex_in_play >= 3:
@@ -183,8 +227,7 @@ def score_play(tc, o, score):
                         and not (card.id == Meowth_ex
                                  and (_alk_ld_engine_alive
                                       or _meowth_immune_boss_engine))
-                        and not (card.id == Fezandipiti_ex
-                                 and AGENT_STATE.ko_last_turn)):
+                        and not _pays_today_expiring):
                     _alk_body_hp = getattr(data, 'hp', 0) or 0
                     if (_alk_body_hp and _powerful_hand_projected(
                             getattr(op_state, 'handCount', 0))
@@ -1425,12 +1468,28 @@ def score_play(tc, o, score):
                 # deck): with no body to fill the slot there is nothing to
                 # reserve. The three conditions live together in
                 # `_alk_ld_engine_alive` (computed alongside `_meowth_ld_free`).
+                #
+                # THE RESERVATION IS FOR TOMORROW, AND YIELDS TO WHAT PAYS TODAY
+                # (user, registro_005 step 57 vs Alakazam, episode 91859188, the
+                # bug this `_pays_today_expiring` guard closes). Our active had
+                # been knocked out the turn before, the promoted body could not
+                # attack, and the whole turn was a stadium and two evolutions.
+                # The last menu was exactly two options -- put Fezandipiti ex down
+                # or END TURN -- and this veto crushed its 22500, so the turn
+                # closed with three cards in hand and Flip the Script UNUSED.
+                # What the reservation was protecting is a Meowth ex still in the
+                # DECK: a slot held for a body that has to be drawn, against three
+                # cards drawn NOW -- three cards which are the likeliest place
+                # that same Meowth ex was going to come from. The veto names
+                # Fezandipiti ex explicitly, which is why the exemption the other
+                # two vetoes already carried never reached it.
                 if (op_is_alakazam_deck and bench_count == 4
                         and _alk_ld_engine_alive
                         and AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(
                             Xerosic_Machinations, {}).get(ZONE_DECK, 0) > 0
                         and score > 0
-                        and card.id != Meowth_ex):
+                        and card.id != Meowth_ex
+                        and not _pays_today_expiring):
                     if (field_counts.get(card.id, 0) >= 1
                             or card.id == Fezandipiti_ex):
                         score = SCORE_VETO
@@ -1460,10 +1519,7 @@ def score_play(tc, o, score):
                 # branch already decides the vs-Fighting case on its own: with the
                 # ability dead it is NOT put down (2 prizes given away), with the
                 # ability alive it is worth 22000. This veto overrode it silently.
-                if _lucario_riolu_gust and not (
-                        card.id == Fezandipiti_ex and AGENT_STATE.ko_last_turn
-                        and field_counts.get(Fezandipiti_ex, 0) == 0
-                        and bench_count < 5):
+                if _lucario_riolu_gust and not _pays_today_expiring:
                     score = SCORE_VETO
         
                 # COMPLETING THE UB -> FEZANDIPITI EX CHAIN (user,
@@ -1793,17 +1849,21 @@ def score_play(tc, o, score):
                     # for nothing. The "REVOKE ORDERING VETOES" block reads the
                     # real menu and lifts it. See `_lillie_play_order_veto`.
                     #
-                    # Only when the Ultra Ball is NOT OFFERED. While it is on the
-                    # menu the order stands as it always has, even at -1: its
-                    # cost vetoes are about this instant and lift themselves
-                    # within the turn (registro_004 step 47: the Meowth ex goes
-                    # down first and the Ultra Ball is playable straight after).
-                    # Registering there would hand the revoke block a blocker it
-                    # reads as dead and would throw the line away.
+                    # Whether the Ultra Ball being ON the menu keeps the order
+                    # alive is decided INSIDE `_lillie_play_order_veto`, which
+                    # is where the rest of that law already lives: with the
+                    # blocker offered the order stands as it always has (its
+                    # cost vetoes lift themselves within the turn), UNLESS the
+                    # Supporter waiting to take the slot is one sitting at
+                    # `SUPP_SCORE_LAST_RESORT_BAND` -- a card whose own scorer
+                    # says it has no useful effect today. There the slot is not
+                    # used, it is wasted, and "afterwards" never arrives
+                    # (registro_004 step 39 vs Marnie). The menu fact is passed
+                    # in; the judgement is not duplicated here.
                     if (score <= 0 and _order_veto is not None
-                            and scores is not None
-                            and not _ub_offered_in_menu):
-                        _lil_deferred = _lillie_play_order_veto(ctx)
+                            and scores is not None):
+                        _lil_deferred = _lillie_play_order_veto(
+                            ctx, blocker_offered_in_menu=_ub_offered_in_menu)
                         if _lil_deferred is not None:
                             _order_veto[len(scores)] = _lil_deferred
                 elif card.id == Dawn:

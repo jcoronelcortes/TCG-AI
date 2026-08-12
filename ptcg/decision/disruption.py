@@ -621,8 +621,35 @@ _RULES_XEROSIC_PLAY = [
                lambda c: XEROSIC_SCORE_LAST_RESORT),
     # No attack and a short hand: development (Lillie's) is worth more than
     # disruption this turn.
+    #
+    # ...BUT ONLY WHILE THE CAP IS STILL CHEAP (user, `records/registro_006
+    # _pasos_062_hasta_085.json`, episode 91851762, step 71, turn 6 vs Alakazam
+    # -- LOST). Tapu Bulu promoted after a knockout with no energy on it, hand
+    # of exactly three {Meganium, Lillie's Determination, Xerosic's
+    # Machinations}, and the opponent holding TEN cards. This rule fired --
+    # `active_cant_attack` and a hand of three, both true -- and dropped the cap
+    # to `XEROSIC_SCORE_LAST_RESORT` (20), so the turn's Supporter went to
+    # Lillie's (`refresh_short_hand`, 5000). Powerful Hand kept reading 20 x
+    # (10 + 2) = 240 for the rest of the game.
+    #
+    # The premise was never wrong, it was UNBOUNDED: the sentence "development
+    # is worth more than disruption" was said about the size of OUR hand and
+    # never once asked how big THEIR hand was. Between the floor of six and an
+    # opposing hand of twenty it answered the same thing, which is the same
+    # blind spot `alakazam_yields_to_lillie_tiny_opponent_hand` was removed for,
+    # read from the other end.
+    #
+    # The reading is `XEROSIC_BIG_HAND`, and deliberately no new number: it is
+    # the ONE constant the play scorer (`generic_very_big_hand`) and the discard
+    # scorer (`DISCARD_XEROSIC_CAPS_A_FAT_HAND`) already share to say "at this
+    # size the cap is worth its Supporter". A card we would refuse to throw away
+    # cannot be a card we refuse to play. With `_xr_gate_alakazam` imposing a
+    # floor of six, the yield now lives in exactly one window -- an opposing
+    # hand of six, where the cap discards three cards -- and above it the cap
+    # takes the turn and the Lillie's waits.
     _FixedRule("alakazam_yields_to_lillie_short_hand",
                lambda c: (_xr_gate_alakazam(c) and c.active_cant_attack
+                          and c.op_hand_count < XEROSIC_BIG_HAND
                           and sum(c.hand_counts.values()) <= 3
                           and c.hand_counts.get(Lillie_Determination, 0) >= 1),
                lambda c: XEROSIC_SCORE_LAST_RESORT),

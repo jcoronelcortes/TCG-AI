@@ -50,6 +50,31 @@ def prize_count(pokemon: Pokemon) -> int:
     return max(0, count)
 
 
+def ko_front_price_rung(pokemon: Pokemon, op_prize: int) -> int:
+    """What this body COSTS us as the front seat, as a comparable rung.
+
+    The price of a body separates the candidates only while it leaves the
+    opponent SHORT of their remaining pile -- the sentence
+    `prize_count < op_prize` that prize denial and the match-point veto are
+    already written with. Once a price REACHES their pile it stops being
+    information (registro_011: at their match point the cheapest corpse closes
+    their count exactly like the dearest), so every such body is CLAMPED onto
+    the same rung and whatever ranks inside a rung decides between them.
+
+    Used by "THE FRONT SPOT AMONG THE ONES THAT KNOCK OUT" (user, registro_012
+    step 172 vs Alakazam) to group the knockers before ordering them by HP. It
+    never reorders ACROSS rungs: which price we would rather pay is decided by
+    the measured rules that already do it (prize denial, the basic-wall family,
+    the Crustle/Kangaskhan split), and a generic tie-break does not get to
+    overrule them -- measured, it moved two corpus decisions from a Teal Mask
+    Ogerpon ex to the Tapu Bulu those matchups keep on the bench on purpose.
+    """
+    _price = prize_count(pokemon)
+    if op_prize is not None and _price >= op_prize:
+        _price = op_prize
+    return _price
+
+
 def prize_count_op(pokemon: Pokemon) -> int:
     """prize_count for OPPONENT Pokemon: applies the prize denial on their
     side (P0.2). Munkidori ex with Pecharunt ex in play yields 1 less; with
@@ -141,6 +166,7 @@ def is_one_prize_wall(card_id: int) -> bool:
 
 __all__ = [
     'get_card',
+    'ko_front_price_rung',
     'is_one_prize_wall',
     'prize_count',
     'prize_count_op',

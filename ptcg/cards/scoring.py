@@ -61,8 +61,34 @@ PROMO_PRIZE_PENALTY = 1500
 # depend on the knocker scoring higher base than the tank:
 # `_ko_prefer_basic_general` gives 8500+ to a 1-prize basic and the sturdy wall
 # 6100, so a knocker at ~4500 could lose. Among several knockers the base score
-# decides.
+# decides -- EXCEPT where `PROMO_KO_FRONT` speaks (see below).
 PROMO_KO_BONUS = 20000
+
+
+# THE FRONT SPOT AMONG THE ONES THAT KNOCK OUT (user, registro_012 step 172 vs
+# Alakazam). "Among several knockers the base score decides" was measured false:
+# that base score is 500 + `hp // 10` + energies + a flavour bonus per species,
+# so between a Teal Mask Ogerpon ex at 210 HP and a Hydrapple ex at 140 -- both
+# finishing the same Alakazam -- HP was worth SEVEN points and the flavour
+# ninety. This demotes a knocker that an EQUALLY PRICED knocker outlives: the
+# knockers are grouped by price (`ko_front_price_rung`) and ordered by current HP
+# INSIDE each group. Across prices it says nothing -- which price we would rather
+# pay is already decided by rules measured one board at a time.
+#
+# 1200 sits ABOVE every incidental adjustment of that branch -- the 150 between
+# "attacks now" and "attacks after attaching", `hp // 10` (<= 33), the energy
+# count, the +-100 per species, the 120/40 of the promotion lookahead, the -250
+# for weakness, the -300 of anti-Cubchoo and the +-280 of the Drednaw / Sylveon
+# / Neutralization Zone blocks -- and BELOW every deliberate one, which is where
+# this generic tie-break has to yield: the +2000 of the matchup attacker when
+# confused, the +2500 of the prize mismatch, the +3000 of prize denial, the
+# +4000 of the best attacker, the +5000 / +6000 of the anti-wall rules.
+#
+# It stays inside the knocker band by construction: 20000 - 1200 = 18800, and
+# even stacked with the match-point penalty of the sibling rule
+# (20000 - 6000 - 1200 = 12800) it is still far above the 9500 of the highest
+# body that takes no prize.
+PROMO_KO_FRONT = 1200
 
 
 # MATCH POINT: the opponent only needs to knock this body out to take the last
@@ -117,6 +143,7 @@ __all__ = [
     'MAIN_ATTACKERS',
     'PROMO_DOOMED_PENALTY',
     'PROMO_KO_BONUS',
+    'PROMO_KO_FRONT',
     'PROMO_LAST_STAND',
     'PROMO_MATCH_POINT_VETO',
     'PROMO_PRIZE_PENALTY',

@@ -222,13 +222,23 @@ def test_the_two_halves_of_the_rule_read_on_the_same_body():
         unreadable reply, match point   ->  neither fires (the baseline)
         readable reply, TWO prizes      ->  +3000: the denial denies again
         readable reply, ONE prize       ->  -6000: the knocker that dies yields
+
+    The baseline carries ONE term that is not part of this rule and does not
+    depend on their attack: `PROMO_KO_FRONT` (user, registro_012 step 172), the
+    tie-break that gives the front seat to the taller of two EQUALLY PRICED
+    knockers. At match point every price is clamped onto one rung -- which is
+    this file's whole thesis -- so the 210 HP Ogerpon and the 140 HP Tapu Bulu
+    share it and the Tapu pays 1200. It cancels out of both differences below;
+    it is written into the baseline so the ladder still reads as three boards on
+    one body. Off match point (two prizes) the two bodies sit on different rungs
+    and it is silent, which is why the +3000 comes out clean.
     """
     obs = _obs(_FIX_SWITCH)
     baseline = _scores(_their_hand(obs, 0))[TAPU]
     off_match_point = _scores(_their_prizes(obs, 2))[TAPU]
     at_match_point = _scores(obs)[TAPU]
 
-    assert off_match_point - baseline == 3000, (
+    assert off_match_point - (baseline + m.PROMO_KO_FRONT) == 3000, (
         "with two prizes on their side the cheap body denies a real prize")
     assert baseline - at_match_point == m.PROMO_DOOMED_PENALTY, (
         "at match point the knocker that does not outlast their reply pays the "
@@ -287,9 +297,17 @@ def test_a_knockout_that_wins_the_game_is_never_demoted():
 def test_with_an_unreadable_attack_nobody_is_penalised():
     """The same guard `PROMO_MATCH_POINT_VETO` is written with. An empty hand
     makes Powerful Hand unreadable, there is no evidence that anybody dies, and
-    the survival half stays quiet -- the prize half, which is about their pile
-    and not about their attack, goes on applying."""
+    the SURVIVAL half stays quiet -- the prize half, which is about their pile
+    and not about their attack, goes on applying.
+
+    What the Tapu Bulu still pays here is `PROMO_KO_FRONT` and nothing else: the
+    tie-break between equally priced knockers reads HP, a fact about OUR body,
+    so an unreadable attack does not silence it -- that is the point of it (user,
+    registro_012 step 172, where every survival reading said the wounded body
+    was safe). The assertion is that the -6000 of THIS rule did not fire.
+    """
     obs = _obs(_FIX_SWITCH)
     scores = _scores(_their_hand(obs, 0))
-    assert scores[TAPU] > 20000, "it keeps the whole knockout band, undemoted"
+    assert scores[TAPU] > 20000 - m.PROMO_KO_FRONT, (
+        "it keeps the knockout band: no survival penalty, only the HP tie-break")
     assert abs(scores[OGERPON] - scores[TAPU]) < m.PROMO_DOOMED_PENALTY

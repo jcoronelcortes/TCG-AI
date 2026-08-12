@@ -359,10 +359,10 @@
     "accion": 10,
     "contexto": 0,
     "detalle": [
-     "PLAY Lillie's Determination(1227)"
+     "PLAY Xerosic’s Machinations(1197)"
     ],
     "eleccion": [
-     1
+     0
     ],
     "paso": null,
     "turno": 4
@@ -2139,10 +2139,10 @@
     "accion": 2,
     "contexto": 0,
     "detalle": [
-     "ABILITY Teal Mask Ogerpon ex(96)"
+     "PLAY Fezandipiti ex(140)"
     ],
     "eleccion": [
-     9
+     3
     ],
     "paso": null,
     "turno": 6
@@ -2163,10 +2163,10 @@
     "accion": 4,
     "contexto": 0,
     "detalle": [
-     "PLAY Unfair Stamp(1080)"
+     "PLAY Fezandipiti ex(140)"
     ],
     "eleccion": [
-     0
+     3
     ],
     "paso": null,
     "turno": 6
@@ -2383,10 +2383,10 @@
     "accion": 2,
     "contexto": 0,
     "detalle": [
-     "ABILITY Teal Mask Ogerpon ex(96)"
+     "PLAY Fezandipiti ex(140)"
     ],
     "eleccion": [
-     9
+     7
     ],
     "paso": null,
     "turno": 8
@@ -2407,10 +2407,10 @@
     "accion": 4,
     "contexto": 0,
     "detalle": [
-     "PLAY Night Stretcher(1097)"
+     "PLAY Fezandipiti ex(140)"
     ],
     "eleccion": [
-     1
+     2
     ],
     "paso": null,
     "turno": 8
@@ -2443,10 +2443,10 @@
     "accion": 7,
     "contexto": 0,
     "detalle": [
-     "PLAY Dawn(1231)"
+     "PLAY Fezandipiti ex(140)"
     ],
     "eleccion": [
-     0
+     1
     ],
     "paso": null,
     "turno": 8
@@ -2479,10 +2479,10 @@
     "accion": 11,
     "contexto": 0,
     "detalle": [
-     "ATTACK id120"
+     "PLAY Fezandipiti ex(140)"
     ],
     "eleccion": [
-     2
+     0
     ],
     "paso": null,
     "turno": 8
@@ -23663,10 +23663,10 @@
     "accion": 8,
     "contexto": 0,
     "detalle": [
-     "PLAY Ultra Ball(1121)"
+     "END"
     ],
     "eleccion": [
-     1
+     3
     ],
     "paso": null,
     "turno": 8

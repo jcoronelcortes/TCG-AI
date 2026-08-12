@@ -8,7 +8,7 @@ utils/purity.py: nothing here touches mutable state or the runtime tables.
 from ptcg.cards.ids import Dwebble_Fighting, Dwebble_Grass, EX_PREEVO_IDS, GUST_TRAP_IDS, SCORE_FORBID, THREAT_PREEVO_IDS
 from ptcg.calc.opponent import _alakazam_attacker_relief, _op_active_is_harmless, _op_body_is_harmless
 from ptcg.calc.energy import _can_attack_eff, _grass_attach_unit, _pending_grass_extra_eff, _retreat_grass_units
-from ptcg.calc.damage import _attacker_base_damage, _bench_attacker_best_damage, _bench_attacker_can_ko, _bench_finisher_that_survives, _ex_active_is_a_wall, _hand_revealed_lethal_reply, _op_active_attack_damage_to, _our_effective_damage, _reply_reaches_match_point
+from ptcg.calc.damage import _attacker_base_damage, _bench_attacker_best_damage, _bench_attacker_can_ko, _bench_finisher_that_survives, _bench_snipe_can_ko, _ex_active_is_a_wall, _hand_revealed_lethal_reply, _op_active_attack_damage_to, _our_effective_damage, _reply_reaches_match_point
 from ptcg.calc.card import prize_count, prize_count_op
 from ptcg.state.agent_state import AGENT_STATE
 from ptcg.cards.ids import Basic_Grass_Energy, Bayleef, DUNSPARCE_IDS, Dipplin, EX_PREEVO_IDS, Fezandipiti_ex, Hydrapple_ex, Meganium, OUR_EX_IDS, RETREAT_COST, THREAT_PREEVO_IDS, Tapu_Bulu, Teal_Mask_Ogerpon_ex
@@ -469,6 +469,15 @@ def _grass_unlocks_active_retreat(my_state, op_state, meganium_active,
     grass_after = max(0, total_grass - _retreat_grass_units(rc))
     if _bench_attacker_can_ko(my_state, opa, meganium_active, total_grass,
                               bench_count, grass_after, neutral_zone):
+        return True, False
+    # SECOND question, never a substitute for the one above: the body we promote
+    # may be a SNIPER, and then the KO does not have to be in front of us
+    # (registro_014 step 129 -- the whole story is on `_bench_snipe_best`). It is
+    # asked before the `active_can_attack` cut-off because that cut-off is the
+    # one that swallowed the case: our Hydrapple ex COULD attack, into a
+    # Cornerstone wall, for zero.
+    if _bench_snipe_can_ko(my_state, op_state, meganium_active, bench_count,
+                           grass_after, neutral_zone):
         return True, False
     if active_can_attack:
         return False, False

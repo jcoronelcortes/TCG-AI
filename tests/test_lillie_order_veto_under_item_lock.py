@@ -22,17 +22,23 @@ the chain would give without the ordering rule.
 
 Two bounds, both measured, both of them the reason this stays narrow:
 
-* it is registered ONLY when the Ultra Ball is NOT OFFERED at all. While it is
-  on the menu the order stands even at -1: its cost vetoes are about this
-  instant and lift themselves within the turn -- in registro_004 step 47 the
-  Meowth ex goes down first and the Ultra Ball is playable right after. That
-  case is pinned by `test_step47_does_not_shuffle_meganium_line_with_lillie`.
-* it is registered ONLY when this Lillie's is the only Supporter in hand. That
-  bound is not new: it is the one the `ub_gapped_line` mutual-block breaker
-  already decided for this very rule -- with another Supporter in hand the slot
-  is used anyway, so the veto costs nothing. Without it, half the measured flips
-  were Boss's / Dawn / Lana's giving way to Lillie's, which is a change of
-  Supporter PRIORITY and a different question.
+* while the Ultra Ball IS OFFERED the order stands even at -1: its cost vetoes
+  are about this instant and lift themselves within the turn -- in registro_004
+  step 47 the Meowth ex goes down first and the Ultra Ball is playable right
+  after. That case is pinned by
+  `test_step47_does_not_shuffle_meganium_line_with_lillie`.
+* it is registered ONLY when no OTHER Supporter in hand is really the Supporter
+  of the turn. That bound is not new -- it is the one the `ub_gapped_line`
+  mutual-block breaker already decided for this rule -- but it is read on
+  `_supp_play_score` and not by counting cards. Its premise was "with another
+  Supporter in hand the slot is used anyway, so the veto costs nothing", and
+  that is false for one band: `SUPP_SCORE_LAST_RESORT_BAND`, where a Supporter's
+  own scorer says it has no useful effect today. Down there the slot is not
+  used, it is WASTED -- see `test_a_last_resort_supporter_does_not_keep_the_veto`
+  and, for the game it cost, `tests/test_the_empty_gust_does_not_eat_the_refill.py`.
+  Above the band nothing changes: a real Dawn / Lana's / Xerosic still keeps
+  Lillie's waiting, because deciding WHICH Supporter wins the slot is a
+  different question.
 
 Fixture: a real observation captured from self-play against `jellicent_lock.csv`,
 frozen at the step where the repair changes the choice.
@@ -129,9 +135,9 @@ def _ctx_of(obs):
     captured = {}
     orig = m._lillie_play_order_veto
 
-    def spy(ctx):
+    def spy(ctx, *args, **kwargs):
         captured.setdefault("ctx", ctx)
-        return orig(ctx)
+        return orig(ctx, *args, **kwargs)
 
     m._lillie_play_order_veto = spy
     try:
@@ -151,15 +157,41 @@ def test_the_predicate_publishes_a_real_score_and_the_blocker():
     assert blockers == (ULTRA_BALL,), "lo que se esta esperando es la Ultra Ball"
 
 
-def test_another_supporter_in_hand_keeps_the_veto():
-    """The bound of the `ub_gapped_line` mutual-block breaker: with a second
-    Supporter the slot gets used anyway, so the veto costs nothing and the line
-    is preserved. Repairing a wasted slot is one question; deciding WHICH
-    Supporter wins it is another."""
+def test_a_supporter_that_really_takes_the_turn_keeps_the_veto():
+    """The bound of the `ub_gapped_line` mutual-block breaker: when a second
+    Supporter really takes the slot it gets used anyway, so the veto costs
+    nothing and the line is preserved. Repairing a wasted slot is one question;
+    deciding WHICH Supporter wins it is another.
+
+    The three are read at their REAL score on this very board -- no stub: what
+    the bound compares against is `SUPP_SCORE_LAST_RESORT_BAND`, and all three
+    sit far above it."""
+    for _sid in (m.Dawn, m.Lanas_Aid, m.Xerosic_Machinations):
+        ctx = _ctx_of(_obs())
+        assert ctx is not None
+        ctx.hand_counts[_sid] = ctx.hand_counts.get(_sid, 0) + 1
+        assert m._supp_play_score(ctx, _sid) > m.SUPP_SCORE_LAST_RESORT_BAND, (
+            "el escenario exige un Supporter que SI se lleva el turno")
+        assert m._lillie_play_order_veto(ctx) is None
+
+
+def test_a_last_resort_supporter_does_not_keep_the_veto():
+    """...and the band where that premise is FALSE (registro_004 step 39 vs
+    Marnie, episode 91861054, LOST).
+
+    A Boss's Orders whose own chain returned `BOSS_SCORE_EMPTY_GUST` has said,
+    in its own scorer, that the active cannot attack and the gust is empty --
+    "Lillie's should take this slot". It does not USE the slot, it wastes it, so
+    it cannot be the reason to keep Lillie's waiting for an Ultra Ball."""
     ctx = _ctx_of(_obs())
     assert ctx is not None
     ctx.hand_counts[BOSS] = ctx.hand_counts.get(BOSS, 0) + 1
-    assert m._lillie_play_order_veto(ctx) is None
+    assert m._supp_play_score(ctx, BOSS) == m.SUPP_SCORE_LAST_RESORT_BAND, (
+        "el escenario exige un Boss's en la banda de ultimo recurso")
+    deferred = m._lillie_play_order_veto(ctx)
+    assert deferred is not None, (
+        "un Supporter de ultimo recurso no sostiene el veto de orden")
+    assert deferred[0] > 0 and deferred[1] == (ULTRA_BALL,)
 
 
 def test_with_the_ultra_ball_on_the_menu_the_order_stands():

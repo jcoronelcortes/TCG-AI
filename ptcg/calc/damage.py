@@ -16,7 +16,7 @@ from ptcg.cards.lines import _direct_evolution_ids
 from ptcg.cards.op_scaling import OP_SCALING_IGNORES_WEAKNESS, op_scaled_damage
 from cg.api import CardType, EnergyType
 from typing import NamedTuple
-from ptcg.cards.ids import Mega_Hawlucha_ex, OP_EVO_ENERGY_ON_PLAY, RETREAT_COST, Survival_Brace
+from ptcg.cards.ids import Mega_Hawlucha_ex, OP_EVO_ENERGY_ON_PLAY, RETREAT_COST, SNIPE_ANY_TARGET_IDS, Survival_Brace
 
 
 def _powerful_hand_projected(op_hand_count: int) -> int:
@@ -1195,6 +1195,94 @@ def _bench_attacker_best_damage(my_state, target, meganium_active, bench_count,
     return best
 
 
+def _snipe_best_target(attacker, op_state, effective_energy, meganium_active,
+                       neutral_zone, bench_count=0, grass_scale=0):
+    """(target, effective_damage, is_ko) of the BEST opposing Pokemon for the
+    `attacker`'s attack, when that attack can also aim at the bench.
+
+    It returns (None, 0, False) if the attacker is not a sniper or does not
+    reach the cost of its attack. The damage comes from `_our_effective_damage`,
+    which already applies ex immunity (Crustle), the Neutralization Zone,
+    Sturdy/Resolute Heart and the weakness/resistance skip specific to
+    Fezandipiti (fixed damage)."""
+    if attacker is None or attacker.id not in SNIPE_ANY_TARGET_IDS:
+        return None, 0, False
+    best, best_dmg, best_score = None, 0, 0
+    for tgt in _snipe_targets(op_state):
+        base = _attacker_base_damage(
+            attacker.id, tgt, effective_energy,
+            grass_scale=grass_scale, teal_self_energy=effective_energy,
+            bench_count=bench_count)
+        if base <= 0:
+            continue  # the attacker does not reach the cost of its attack
+        dmg = _our_effective_damage(attacker, tgt, base, meganium_active,
+                                    neutral_zone)
+        sc = _snipe_target_score(dmg, tgt)
+        if best is None or sc > best_score:
+            best, best_dmg, best_score = tgt, dmg, sc
+    if best is None:
+        return None, 0, False
+    return best, best_dmg, (best_dmg > 0 and best_dmg >= (best.hp or 0))
+
+
+def _bench_snipe_best(my_state, op_state, meganium_active, bench_count,
+                      retreat_grass_after, neutral_zone):
+    """(attacker, target, damage, is_ko) of the best snipe a body ON OUR BENCH
+    would fire if a retreat promoted it -- measured against the WHOLE opposing
+    field, not only against what is standing in front.
+
+    THE SAME QUESTION AS `_snipe_best_target`, ASKED FROM THE OTHER SIDE OF THE
+    RETREAT (user, registro_014 step 129 vs Cornerstone/Ceruledge ex, WON with
+    the win thrown away). Our active Hydrapple ex had two energies and a retreat
+    cost of three; their active was a Cornerstone Mask Ogerpon ex, whose stance
+    cancels every attacker of ours that carries an Ability -- Syrup Storm for a
+    literal zero. On our bench sat a Fezandipiti ex at eight energies and on
+    theirs two 70 HP bodies, with ONE prize left on our side: Cruel Arrow closed
+    the game. One Grass from hand paid the retreat.
+
+    Nothing in the agent saw it. The snipe was only ever read for the body
+    ALREADY in the active spot, and the whole retreat/promote family
+    (`_bench_attacker_can_ko`, `_bench_attacker_best_damage`,
+    `_prizes_via_promote`) prices the promoted body against the opposing ACTIVE
+    -- so the sniper's 100 was read as 0 against the wall, no route existed, and
+    the energy went to the bench by the generic development band (7700). The
+    turn ended attacking the wall for nothing.
+
+    This is a SECOND reading, never a substitute: `_bench_attacker_can_ko`
+    answers "does a benched body knock out THIS target" and its callers (the
+    gust) mean that literally. Widening it there would answer a question nobody
+    asked. Callers that mean "does a benched body knock out ANYTHING" ask both.
+
+    `retreat_grass_after` is the Grass left on the field once the retreat is
+    paid (whole cards leave, `_retreat_grass_units`): the same correction every
+    other relay reading applies before scaling damage.
+    """
+    best = (None, None, 0, False)
+    best_score = 0
+    for bp in (my_state.bench or []):
+        if bp is None or bp.id not in SNIPE_ANY_TARGET_IDS:
+            continue
+        tgt, dmg, is_ko = _snipe_best_target(
+            bp, op_state, len(bp.energies) * _grass_mult(), meganium_active,
+            neutral_zone, bench_count=bench_count,
+            grass_scale=retreat_grass_after)
+        if tgt is None or dmg <= 0:
+            continue
+        score = _snipe_target_score(dmg, tgt)
+        if score > best_score:
+            best, best_score = (bp, tgt, dmg, is_ko), score
+    return best
+
+
+def _bench_snipe_can_ko(my_state, op_state, meganium_active, bench_count,
+                        retreat_grass_after, neutral_zone):
+    """Does a benched SNIPER knock something out through the retreat? The
+    predicate half of `_bench_snipe_best`, shaped like `_bench_attacker_can_ko`
+    so the relay call sites can simply ask both."""
+    return _bench_snipe_best(my_state, op_state, meganium_active, bench_count,
+                             retreat_grass_after, neutral_zone)[3]
+
+
 def _snipe_target_score(damage, target):
     """Ranking of a snipe target with the damage ALREADY made effective:
       1) KO (more prizes > more charged > more HP = more developed),
@@ -1237,6 +1325,9 @@ __all__ = [
     '_reply_reaches_match_point',
     '_bench_attacker_best_damage',
     '_ex_active_is_a_wall',
+    '_snipe_best_target',
+    '_bench_snipe_best',
+    '_bench_snipe_can_ko',
     '_snipe_target_score',
     '_ventana_de_regalo',
     'evolution_body_bias',

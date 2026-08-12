@@ -683,44 +683,19 @@ def _self_ko_by_own_attack(pokemon, incierto=False):
 # bring up an Ogerpon that could not even attack -- with a knockable 80 HP
 # Kadabra on the opposing bench.
 #
-# These four pieces are the SINGLE source of truth for the snipe and they are
-# shared by the planner (which decides whether to attack or retreat) and the
-# actual target selection in the DAMAGE menu, which therefore cannot disagree.
-SNIPE_ANY_TARGET_IDS = frozenset({Fezandipiti_ex})
+# These pieces are the SINGLE source of truth for the snipe and they are shared
+# by the planner (which decides whether to attack or retreat) and the actual
+# target selection in the DAMAGE menu, which therefore cannot disagree.
+#
+# They now live in `ptcg/cards/ids.py` (the id set) and `ptcg/calc/damage.py`
+# (`_snipe_best_target`, `_bench_snipe_best`), and arrive here through the star
+# imports at the top. They were moved because the reading was needed from BOTH
+# sides of a retreat, and while it lived here only the active side could see it
+# -- registro_014 step 129, documented on `_bench_snipe_best`.
 
 
 
 
-
-
-def _snipe_best_target(attacker, op_state, effective_energy, meganium_active,
-                       neutral_zone, bench_count=0, grass_scale=0):
-    """(target, effective_damage, is_ko) of the BEST opposing Pokemon for the
-    `attacker`'s attack, when that attack can also aim at the bench.
-
-    It returns (None, 0, False) if the attacker is not a sniper or does not
-    reach the cost of its attack. The damage comes from `_our_effective_damage`,
-    which already applies ex immunity (Crustle), the Neutralization Zone,
-    Sturdy/Resolute Heart and the weakness/resistance skip specific to
-    Fezandipiti (fixed damage)."""
-    if attacker is None or attacker.id not in SNIPE_ANY_TARGET_IDS:
-        return None, 0, False
-    best, best_dmg, best_score = None, 0, 0
-    for tgt in _snipe_targets(op_state):
-        base = _attacker_base_damage(
-            attacker.id, tgt, effective_energy,
-            grass_scale=grass_scale, teal_self_energy=effective_energy,
-            bench_count=bench_count)
-        if base <= 0:
-            continue  # the attacker does not reach the cost of its attack
-        dmg = _our_effective_damage(attacker, tgt, base, meganium_active,
-                                    neutral_zone)
-        sc = _snipe_target_score(dmg, tgt)
-        if best is None or sc > best_score:
-            best, best_dmg, best_score = tgt, dmg, sc
-    if best is None:
-        return None, 0, False
-    return best, best_dmg, (best_dmg > 0 and best_dmg >= (best.hp or 0))
 
 
 
@@ -2030,6 +2005,12 @@ def _ub_score_before_overrides(ctx, _ubf) -> int:
         # spent the cost was free to eat the whole Supporter hand. See
         # `_ub_cancel_tomorrow_supporter`.
         _ub_cancel_for_tomorrow = _ub_cancel_tomorrow_supporter(ctx)
+        # THE ENGINE ITSELF: the cap (Xerosic) and the refill (Lillie's) are
+        # never paid as a cost, at any hand size and whether or not the turn's
+        # Supporter is spent, unless the search wins the game. It protects them
+        # as a SET, which is what the one-card-at-a-time vetoes above could not
+        # do. See `_ub_cancel_engine_supporters` (registro_006 step 81).
+        _ub_cancel_for_engine = _ub_cancel_engine_supporters(ctx)
         # NO SURPLUS AT ALL: the two cards that would pay are protected for
         # DIFFERENT reasons, so no single-card veto above speaks for them. See
         # `_ub_cancel_no_surplus` (registro_004 step 49).
@@ -2037,10 +2018,11 @@ def _ub_score_before_overrides(ctx, _ubf) -> int:
         if (_ub_cancel_for_stamp or _ub_cancel_for_fez
                 or _ub_cancel_for_lillie or _ub_cancel_for_meowth
                 or _ub_cancel_for_xerosic or _ub_cancel_for_tomorrow
+                or _ub_cancel_for_engine
                 or _ub_cancel_for_surplus):
             ub_score = SCORE_VETO
 
-        if not _ub_cancel_for_meowth and not _ub_cancel_for_stamp and not _ub_cancel_for_fez and not _ub_cancel_for_lillie and not _ub_cancel_for_xerosic and not _ub_cancel_for_tomorrow and not _ub_cancel_for_surplus:
+        if not _ub_cancel_for_meowth and not _ub_cancel_for_stamp and not _ub_cancel_for_fez and not _ub_cancel_for_lillie and not _ub_cancel_for_xerosic and not _ub_cancel_for_tomorrow and not _ub_cancel_for_engine and not _ub_cancel_for_surplus:
             ub_score = _ub_target_score(ctx, _ubf)
     return ub_score
 
@@ -2695,7 +2677,26 @@ def _score_lillie_determination_play(ctx: DecisionContext) -> int:
 _LILLIE_ORDER_VETOES = {"ultra_ball_completes_the_line": (Ultra_Ball,)}
 
 
-def _lillie_play_order_veto(ctx: DecisionContext):
+def _best_other_supporter_val(ctx: DecisionContext) -> int:
+    """Best PLAY score among the Supporters in HAND other than Lillie's.
+
+    It answers, on the scale that really resolves the slot (`_supp_play_score`),
+    the question "if Lillie's stays vetoed, WHO takes the turn's Supporter?".
+    0 when nobody would take it. The same reading
+    `_supp_in_hand_takes_the_turn` and `_meowth_fetch_loses_the_turn` already
+    do; written once here so the third caller cannot disagree with them."""
+    _bos_best = 0
+    for _bos_sid in _SUPP_PLAY_IDS:
+        if _bos_sid == Lillie_Determination:
+            continue
+        if ctx.hand_counts.get(_bos_sid, 0) < 1:
+            continue
+        _bos_best = max(_bos_best, _supp_play_score(ctx, _bos_sid))
+    return _bos_best
+
+
+def _lillie_play_order_veto(ctx: DecisionContext,
+                            blocker_offered_in_menu: bool = False):
     """(real score, blockers) when what vetoed Lillie's is a DEFERRABLE ORDER
     veto, else None.
 
@@ -2721,16 +2722,52 @@ def _lillie_play_order_veto(ctx: DecisionContext):
     evolution line we CAN evolve today, the deck-out brake, yielding to an
     executable gust) is about what Lillie's would cost, not about when.
 
-    And ONLY when this Lillie's is the ONLY Supporter in hand. That bound is not
-    new: it is the same one the `ub_gapped_line` mutual-block breaker already
-    decided for this very rule -- with ANOTHER Supporter in hand the turn's slot
-    gets used anyway, so keeping Lillie's vetoed costs nothing AND preserves the
-    line. What is being repaired here is the wasted slot, not which Supporter
-    wins it. Without the bound, half the measured flips were Boss's / Dawn /
-    Lana's giving way to Lillie's -- a change of Supporter priority, which is a
-    different question and needs its own measurement."""
-    if any(ctx.hand_counts.get(_lov_sid, 0) >= 1
-           for _lov_sid in _SUPP_PLAY_IDS if _lov_sid != Lillie_Determination):
+    And ONLY when no OTHER Supporter in hand is really the Supporter of the
+    turn. The bound itself is not new -- it is the one the `ub_gapped_line`
+    mutual-block breaker already decided for this rule -- but it used to be read
+    by COUNTING cards ("is there another Supporter in hand?") when the agent
+    holds a far finer reading of the same question: `_supp_play_score`, the
+    scale that actually resolves the slot. Its premise was "with ANOTHER
+    Supporter in hand the turn's slot gets used anyway, so keeping Lillie's
+    vetoed costs nothing", and that premise is FALSE for exactly one band of
+    Supporters -- `SUPP_SCORE_LAST_RESORT_BAND`, the height at which every
+    Supporter scorer says "I have no useful effect today: play me only because
+    nothing else scores". A Supporter down there does not USE the slot, it
+    WASTES it, and the order "first the Ultra Ball, THEN the refill" turns into
+    "the gust eats my slot and the refill never comes".
+
+    Measured case (user, registro_004 step 39 vs Marnie, episode 91861054,
+    LOST). Turn 4, our Tapu Bulu active with ZERO energy -- it cannot attack --
+    and a hand of {Boss's Orders, Hydrapple ex, Meowth ex, Ultra Ball, Meganium,
+    Lillie's Determination}. Four cards blocked each other in a circle:
+
+      Lillie's       -1  `ultra_ball_completes_the_line` -- "the Ultra Ball first"
+      Ultra Ball     -1  `_ub_cancel_meowth` -- "the Meowth ex first" (and that
+                         veto is itself gated on `not supporterPlayed`)
+      Meowth ex      -1
+      Boss's Orders  20  `empty_gust_yields_to_lillie` -- its OWN scorer saying
+                         "the active cannot attack, this gust is empty, Lillie's
+                         should take the slot"
+
+    ...so the only positive card was the one that had just declared it did not
+    want the slot, and Boss's Orders won by default and spent it. The gust took
+    no prize; the Ultra Ball became playable one action later precisely BECAUSE
+    the Supporter was gone, and the turn closed with Lillie's still in hand.
+    Boss's yield was a promise the score could not keep: 20 still beats -1.
+
+    This is deck-agnostic on purpose. It names no matchup and no gust: it asks
+    the real scorers who takes the slot, and only refuses to defer to a Supporter
+    that is genuinely taking it."""
+    _lov_other = _best_other_supporter_val(ctx)
+    if _lov_other > SUPP_SCORE_LAST_RESORT_BAND:
+        return None
+    # With the blocker OFFERED in the menu the order stands as it always has,
+    # even at -1: its cost vetoes are about this instant and lift themselves
+    # within the turn (registro_004 step 47: the Meowth ex goes down first and
+    # the Ultra Ball is playable straight after). The single exception is the
+    # circle above -- a last-resort Supporter waiting to eat the slot -- where
+    # "afterwards" is exactly what does not arrive.
+    if blocker_offered_in_menu and _lov_other <= 0:
         return None
     _lov_c = _CtxLillie(ctx)
     for _lov_r in _RULES_LILLIE_PLAY:
@@ -3897,7 +3934,13 @@ def agent(obs_dict: dict) -> list[int]:
     # Without them this flag would go on blocking the chain for a Stamp that the
     # scoring is now going to veto -- the very paralysis `_stamp_pendiente`
     # documents.
-    _stamp_blocks_supp_chain = (
+    # THE SAME SENTENCE, UNDER THE NAME OF WHAT IT IS. "We were knocked out, the
+    # Stamp is in hand and the card rule says it is worth playing" is the
+    # ordering veto above AND a BOARD FACT about the turn that is coming: their
+    # hand is about to be two cards. The projector needs the fact, not the veto
+    # (see `_mp_reply_after_our_reset`), so the expression is written once and
+    # wears both names.
+    _stamp_reset_pending = (
         AGENT_STATE.ko_last_turn and hand_counts.get(Unfair_Stamp, 0) >= 1
         and _stamp_worth_playing(
             getattr(op_state, 'handCount', 0),
@@ -3907,6 +3950,7 @@ def agent(obs_dict: dict) -> list[int]:
                 hand_counts, AGENT_STATE.ACTIVE_CARDS_IN_DECK,
                 state.supporterPlayed, op_state),
             our_cap_already_spent=AGENT_STATE._xerosic_played_this_turn))
+    _stamp_blocks_supp_chain = _stamp_reset_pending
 
     # Order Lillie's Determination -> Flip the Script (user's request): if
     # we have Lillie's Determination in hand and have not played a Supporter yet
@@ -10154,22 +10198,45 @@ def agent(obs_dict: dict) -> list[int]:
              or not (my_state.active and my_state.active[0] is not None)))
 
     def _promo_kos_op(_pk):
-        """The candidate KNOCKS OUT the opposing active after being promoted (with its
-        current energy plus the manual attachment if it is still available)."""
-        if _promo_op_act is None or _pk is None:
+        """The candidate TAKES A PRIZE once promoted (with its current energy
+        plus the manual attachment if it is still available).
+
+        ASKED TWICE. First against the body in FRONT, which is what every
+        consumer of this predicate was written around. Only if that says no, and
+        only for a candidate whose attack picks its OWN target
+        (`SNIPE_ANY_TARGET_IDS`), against the WHOLE opposing field: Cruel Arrow
+        needs no Boss's Orders to reach their bench, so for a Fezandipiti ex "it
+        knocks nothing out" and "it does not reach the wall in front" are two
+        different sentences.
+
+        The consumers all mean the wider one -- `PROMO_KO_BONUS` ("bring up the
+        attacker that takes the prize"), the match-point exemptions ("the body
+        that knocks out and closes OUR count first"), `_mp_last_stand` ("never
+        surrender a knockout"), `_ko_front_outranked` ("among knockers"). Read
+        only against the active, a sniper that closes the game reads as a mute
+        body: user, registro_014 step 129, where promoting it WON on the spot
+        and the agent brought up a Teal Mask Ogerpon ex to hit a Cornerstone
+        wall for zero (see `_bench_snipe_best`).
+        """
+        if _pk is None:
             return False
         _pe = len(_pk.energies) * _grass_mult()
         if _promo_attach_open:
             _pe += _grass_attach_unit()
-        _pbase = _attacker_base_damage(
-            _pk.id, _promo_op_act, _pe, grass_scale=total_grass,
-            teal_self_energy=_pe, bench_count=_promo_bench_after)
-        if _pbase <= 0:
-            return False
-        _peff = _our_effective_damage(
-            _pk, _promo_op_act, _pbase, AGENT_STATE.meganium_in_play,
-            neutralization_zone_active)
-        return _peff >= (_promo_op_act.hp or 0)
+        if _promo_op_act is not None:
+            _pbase = _attacker_base_damage(
+                _pk.id, _promo_op_act, _pe, grass_scale=total_grass,
+                teal_self_energy=_pe, bench_count=_promo_bench_after)
+            if _pbase > 0:
+                _peff = _our_effective_damage(
+                    _pk, _promo_op_act, _pbase, AGENT_STATE.meganium_in_play,
+                    neutralization_zone_active)
+                if _peff >= (_promo_op_act.hp or 0):
+                    return True
+        return _snipe_best_target(
+            _pk, op_state, _pe, AGENT_STATE.meganium_in_play,
+            neutralization_zone_active, bench_count=_promo_bench_after,
+            grass_scale=total_grass)[2]
 
     def _promo_damage_to_op(_pk):
         """Effective damage the candidate deals to the opposing active once promoted.
@@ -10338,13 +10405,80 @@ def agent(obs_dict: dict) -> list[int]:
         _pb is not None and prize_count(_pb) < op_prize
         for _pb in (my_state.bench or []))
 
+    # THE BLOW IS PRICED ON A HAND WE ARE ABOUT TO TAKE AWAY (user,
+    # registro_009 step 118 vs Alakazam, LOST -- episode 92106273,
+    # deck-agnostic).
+    #
+    # Turn 9, three prizes to TWO. Their Alakazam knocked out our Meganium and
+    # the promotion menu offered a Meowth ex 170, a Teal Mask Ogerpon ex 210
+    # with two Grass, a Fezandipiti ex 210, a Tapu Bulu 140 and an Applin 40.
+    # The Ogerpon FINISHES that Alakazam -- one Grass from hand puts Myriad Leaf
+    # Shower at 30+30x(3+1) = 150 on a 140 HP body -- and `_promo_kos_op` said
+    # so. It was vetoed anyway: their hand stood at SEVENTEEN cards, Powerful
+    # Hand reads 20 x (17+2) = 380, that goes through every body on our bench,
+    # and a 2-prize ex removed by their blow is their last two prizes. The Tapu
+    # Bulu went up with no energy on it, could not attack, and the game was
+    # over one turn later.
+    #
+    # The veto is right about the arithmetic and wrong about WHOSE number it is.
+    # This promotion resolves at the END of their turn: OUR turn comes first,
+    # and in that hand sat an Unfair Stamp, whose printed condition -- "only if
+    # any of your Pokemon were Knocked Out during your opponent's last turn" --
+    # is the very event that opened this menu. Playing it leaves them at
+    # `STAMP_OP_HAND_AFTER` cards, and 20 x (2+2) = 80 does not remove a 210 HP
+    # body. The blow the veto is priced on is not a fact about the board; it is
+    # a quantity WE control, and we hold the card that collapses it.
+    #
+    # DECK-AGNOSTIC on their side: nothing here names Alakazam. It re-reads the
+    # SAME three projections with the two hands the Stamp leaves behind, so it
+    # speaks for every attack whose damage counts a hand -- theirs (Powerful
+    # Hand) or ours (Resentful Refrain, Mind Ruler, which the reset makes
+    # BIGGER, and then the veto simply stands).
+    #
+    # A SECOND QUESTION, NEVER A SUBSTITUTION. `_mp_op_hand` keeps feeding the
+    # whole family untouched -- the survival census, `_mp_outlasts`, the doomed
+    # penalty among the knockers -- because those consumers use the projection
+    # as a FILTER and every one of them was calibrated on the blind reading;
+    # swapping a shared projection for a truer one was measured at 47.8% against
+    # 50.5% for asking it second. So this reading only speaks where the first
+    # one already answered "lethal", and all it can do is REMOVE a veto: it can
+    # never raise a score, never doom a body, and never promote anything on its
+    # own.
+    def _mp_reply_after_our_reset(_pk):
+        """Their reply once our own hand reset has resolved.
+
+        The same three readings as `_mp_reply_scaled_to`, with both hands set to
+        what the Stamp prints. The plain reading stays in the `max()` because a
+        blow that never counted a hand is not defused by emptying one.
+        """
+        if _promo_op_act is None or _pk is None:
+            return 0
+        _rs_scale = AGENT_STATE.op_scale
+        if _rs_scale is not None:
+            _rs_scale = _dc_replace(_rs_scale, my_hand=STAMP_OUR_HAND_AFTER)
+        return max(
+            _op_active_attack_damage_to(_promo_op_act, _pk),
+            _op_active_attack_damage_to(_promo_op_act, _pk,
+                                        op_hand_count=STAMP_OP_HAND_AFTER),
+            _op_active_attack_damage_to(
+                _promo_op_act, _pk, op_hand_count=STAMP_OP_HAND_AFTER,
+                scaled=True, scale=_rs_scale))
+
+    def _mp_our_reset_defuses(_pk):
+        """We hold the reset, and after it their blow no longer removes `_pk`."""
+        if not _stamp_reset_pending or _pk is None:
+            return False
+        return _mp_reply_after_our_reset(_pk) < (_pk.hp or 0)
+
     def _mp_price_ends_the_game(_pk):
         """This body hands them the last prize, and their blow takes it."""
         if _pk is None or _promo_op_act is None:
             return False
         if op_prize > prize_count(_pk):
             return False
-        return _mp_reply_scaled_to(_pk) >= (_pk.hp or 0)
+        if _mp_reply_scaled_to(_pk) < (_pk.hp or 0):
+            return False
+        return not _mp_our_reset_defuses(_pk)
 
     # THE LAST STAND: WHEN EVERY PRICE IS THE SAME PRICE (user, registro_011
     # step 130 vs Alakazam, LOST -- episode 91532527, deck-agnostic).
@@ -10413,6 +10547,98 @@ def agent(obs_dict: dict) -> list[int]:
                 _mp_last_stand = _pb
         if not _ls_removes_one:
             _mp_last_stand = None
+    # ------------------------------------------------------------------
+
+    # --- THE FRONT SPOT AMONG THE ONES THAT KNOCK OUT (user, registro_012
+    # step 172 vs Alakazam, LOST -- episode 91919734, deck-agnostic) ----------
+    #
+    # Turn 12, two prizes to TWO. We retreat the Dipplin and the menu offers
+    # FIVE bodies, two of which finish the same 140 HP Alakazam from the front:
+    # a Teal Mask Ogerpon ex at 210/210 with four Grass (Myriad Leaf Shower) and
+    # a Hydrapple ex at 140 of its 330, already carved up, with two. The agent
+    # promoted the HYDRAPPLE -- and it did take the prize -- but it left our
+    # front seat at 140 HP and worth the exact two prizes they still needed,
+    # with a 210 HP body that took the SAME prize sitting on the bench.
+    #
+    # NOTHING STRATEGIC DECIDED IT. `PROMO_KO_BONUS` says "among several
+    # knockers the base score decides", and the base score of the two was 597
+    # against 595: 500 for "it attacks now", `hp // 10` (21 for the Ogerpon, 14
+    # for the Hydrapple), the energy count, +60 because a Hydrapple is a
+    # Hydrapple and +21 for the size of Syrup Storm. HP IS in there -- it is
+    # worth seven points, and the flavour bonuses on top of it are worth ninety.
+    # The one criterion that separates the two bodies was outvoted by the ones
+    # that do not.
+    #
+    # WHY THE MATCH-POINT RULE DID NOT CATCH IT. The sibling block below
+    # (registro_014 step 130, the same matchup) penalises a knocker that their
+    # reply removes when another knocker outlasts it. Their reply is projected
+    # ONTO THE ACTIVE WE ARE ABOUT TO KNOCK OUT, and our own Xerosic had just
+    # cut their hand to three: Powerful Hand read 20 x (3+2) = 100 and every
+    # candidate on the bench "outlasted" it. The body that answers on their NEXT
+    # turn is not on the board yet, so no survival reading can see it. Raw HP
+    # can.
+    #
+    # THE ORDER, AND WHERE IT STOPS. The user's rung above this one -- "first a
+    # one-prize body that beats them, a Meganium, a Tapu Bulu; only if we do not
+    # have one, the ex with the most HP" -- is ALREADY decided, and decided by
+    # rules that were measured one board at a time: prize denial (+3000 to a
+    # 1-prize attacker while its price leaves them short), the basic-wall family
+    # (8500 + hp/10), the Meganium designated against this very matchup (+400),
+    # the Crustle/Kangaskhan split that keeps the Tapu Bulu on the bench ON
+    # PURPOSE. This block does NOT re-decide it: reordering across prices was
+    # tried first and moved two frozen-corpus decisions from a Teal Mask
+    # Ogerpon ex to that same Tapu Bulu, which is a different question with an
+    # answer somebody already measured.
+    #
+    # So the knockers are GROUPED by price (`ko_front_price_rung`, which clamps
+    # every price that already reaches their pile onto one rung -- at their
+    # match point the cheapest corpse closes their count exactly like the
+    # dearest) and ordered ONLY INSIDE each group, by the most CURRENT HP:
+    # `hp` and not the printed maximum, since the Hydrapple of this record is a
+    # 330 HP body standing at 140.
+    #
+    # It only ever DEMOTES a knocker that an equally-priced knocker outlives, so
+    # it can never promote a body that takes no prize, never change what the
+    # front seat COSTS us, and never overturn a rule that scores in thousands
+    # (the +3000 of prize denial, the +4000 of the best attacker, the +6000 of
+    # the wall): see `PROMO_KO_FRONT` for where the size comes from.
+    #
+    # AND A BODY THAT CANNOT LEAVE THE FRONT DOES NOT SET THE BAR (user,
+    # registro_036 step 146, the anti-Cubchoo rule thirty lines down in the
+    # scorer). "The taller one takes the front" assumes both bodies are equally
+    # usable there; against a deck that locks the active and discards its
+    # energy, a candidate whose retreat cost it cannot pay is NAILED DOWN, and
+    # that is a measured -300 on exactly this menu. Without this the 310 HP
+    # Hydrapple ex (retreat 3, two energies) would demote the 210 HP Teal Mask
+    # Ogerpon ex (retreat 1, four) that rule exists to promote. It is not
+    # vetoed -- it stays a candidate and can still come up if it is the only
+    # knocker -- it just does not get to demote a body that can pivot out.
+    def _ko_front_nailed(_pk):
+        if not op_is_cubchoo_deck or _pk is None:
+            return False
+        _kf_rc = RETREAT_COST.get(_pk.id, 1)
+        return _kf_rc >= 3 and len(_pk.energies) < _kf_rc
+
+    _ko_front_top_hp = {}
+    if ((context == SelectContext.SWITCH or context == SelectContext.TO_ACTIVE)
+            and _promo_op_act is not None):
+        for _kf_b in (my_state.bench or []):
+            if _kf_b is None or not isinstance(_kf_b, Pokemon):
+                continue
+            if not _promo_kos_op(_kf_b) or _ko_front_nailed(_kf_b):
+                continue
+            _kf_rung = ko_front_price_rung(_kf_b, op_prize)
+            if (_kf_b.hp or 0) > _ko_front_top_hp.get(_kf_rung, 0):
+                _ko_front_top_hp[_kf_rung] = (_kf_b.hp or 0)
+
+    def _ko_front_outranked(_pk):
+        """Another knocker of the SAME price stands taller than this one."""
+        if not _ko_front_top_hp or _pk is None:
+            return False
+        if not _promo_kos_op(_pk):
+            return False
+        _kf_rung = ko_front_price_rung(_pk, op_prize)
+        return _ko_front_top_hp.get(_kf_rung, 0) > (_pk.hp or 0)
     # ------------------------------------------------------------------
 
     # Rule (user, log 86345562 p55): when PROMOTING (a retreat or a KO) and NO
