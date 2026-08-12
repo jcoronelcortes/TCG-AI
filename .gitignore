@@ -105,3 +105,12 @@ dataset/Card_ID List_EN.pdf
 # and the raw replays (~4 MB each).
 competitor_decks/.decks_cache.json
 competitor_decks/.cache_replays/
+
+# --- Local engine workspace ---
+# ptcg_engine/ is a local working copy, not part of the versioned project.
+ptcg_engine/
+
+# --- Local measurement engine (phase B) ---
+# Built from ptcg_engine/ by cg/build_local_engine.sh. The PATCH is versioned;
+# the source and the binary are not (competition-use-only, and it never ships).
+cg/build/
