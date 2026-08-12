@@ -463,6 +463,49 @@ def finalizar(tc):
         # Script above `_TIER_DEVELOP` so the 3 cards are drawn BEFORE Meowth ex
         # is benched to search for a Supporter.
         _TIER_FEZ_BEFORE_SEARCH = 45
+        # THE LAST BENCH SEAT IS NOT SPENT BEFORE THE SEARCH THAT MAY NEED IT
+        # (user, registro_010 step 137 vs Archaludon ex, LOST). Turn 10, us at
+        # two prizes, them at one; their Archaludon ex knocks our active out on
+        # the reply and takes the game. The plan said so out loud --
+        # `win_route=''`, `op_prizes_next=2`, `op_wins_next=True`, mode DENY.
+        #
+        #     US (2 prizes)                      RIVAL (1 prize)
+        #     active Teal Mask Ogerpon ex        active Archaludon ex 300/300,
+        #            210/210, 6 effective               3 energies, {G} resistance
+        #     bench  Meowth ex, Ogerpon ex,      bench  Archaludon ex, 2x Relicanth
+        #            Meganium, Dipplin  (4/5)    stadium Full Metal Lab (-30 to {M})
+        #     hand   Tapu Bulu, 2x Boss's, ULTRA BALL
+        #
+        # Myriad Leaf Shower was 30 + 30x(6+3) = 300, minus 30 for the Grass
+        # resistance and 30 for the Full Metal Lab = 240 into 300 HP. ONE more
+        # physical Grass (Meganium's Wild Growth doubles it) makes it
+        # 30 + 30x(8+3) = 360 - 60 = 300 and ends the game, and that Grass was
+        # in the deck behind Ultra Ball -> Meowth ex -> Last-Ditch Catch ->
+        # Lillie's Determination -> six cards.
+        #
+        # The scores had it right: the Ultra Ball was the highest number on the
+        # menu (11900) and the Tapu Bulu that could not attack this turn scored
+        # 8900. The TIER decided instead -- a Pokemon PLAY lives in
+        # `_TIER_DEVELOP` (40) and an ordinary Ultra Ball in tier 0 -- so the
+        # Tapu Bulu took the fifth seat, and three actions later `ub->meowth`
+        # was vetoed by `full_bench` (10) and the search fell to an evolution
+        # that did nothing (`dipplin_evolvable`, 980). The turn ended, they
+        # attacked, they won.
+        #
+        # Nobody chose that. It is the failure `_fez_before_the_search_body`
+        # already names one paragraph below -- "with the bench at 4/5 an Applin
+        # would take the last seat the search body needs" -- with the search
+        # body still in the DECK, where no rule that reads the hand can see it.
+        # The seat is the scarce resource, so the card that decides what the
+        # seat is FOR goes first: after the search we know which body we have,
+        # and a body put down first can never be taken back.
+        #
+        # It is the same sentence the Bug Catching Set writes by demoting the
+        # body (`_TIER_DEVELOP_AFTER_BCS`), written here as a promotion because
+        # only these boards want it: gated on `do_or_die` (0.50% of the frozen
+        # corpus) and on the seat really being the last one, because on any turn
+        # with a tomorrow the body benched now is not lost, only early.
+        _TIER_SEARCH_KEEPS_THE_SEAT = 44
         _TIER_DEVELOP = 40
         _TIER_POKE_PAD = 30
         _TIER_BUG_SET = 20
@@ -528,6 +571,16 @@ def finalizar(tc):
             and (lambda _c: _c is not None and _c.id == Meowth_ex)(
                 get_card(obs, AreaType.HAND, _fbs_o.index, my_index))
             for _fbs_i, _fbs_o in enumerate(select.option))
+
+        # THE SEAT IS THE LAST ONE AND THE TURN HAS NO TOMORROW: see
+        # `_TIER_SEARCH_KEEPS_THE_SEAT`. Both halves are required. Without the
+        # seat being the last one there is nothing to protect (the body and the
+        # search both fit); without `do_or_die` the body benched first is early,
+        # not lost, and reordering every turn's development around a search is a
+        # change of a different size that nothing has measured.
+        _searches_keep_the_last_seat = (
+            plan_of(ctx).do_or_die
+            and (getattr(my_state, 'benchMax', 5) or 5) - bench_count == 1)
 
         # A Bug Catching Set play really available NOW (offered in the menu and
         # with score > 0): while it exists, putting a Pokemon down yields.
@@ -753,6 +806,18 @@ def finalizar(tc):
                         # FIRST of the whole turn -- recovery, then the
                         # attachments (tier KO_ENERGY/ENERGY), then the attack.
                         _play_order_tier[_po_i] = _TIER_WIN_ATTACK
+                    elif (_searches_keep_the_last_seat
+                            and _po_card.id in (Ultra_Ball, Poke_Pad)):
+                        # The search that can still buy a body goes BEFORE the
+                        # body that would take the last seat (see the tier's
+                        # own block). Both cards are here because both put a
+                        # Pokemon in hand and both are outranked by
+                        # `_TIER_DEVELOP` as they stand -- the Ultra Ball from
+                        # tier 0, the Poke Pad from 30. The Bug Catching Set
+                        # needs no entry: the body already yields to IT
+                        # (`_TIER_DEVELOP_AFTER_BCS`), which is this same law
+                        # written from the other side.
+                        _play_order_tier[_po_i] = _TIER_SEARCH_KEEPS_THE_SEAT
                     elif _po_card.id == Poke_Pad:
                         _play_order_tier[_po_i] = _TIER_POKE_PAD
                     elif _po_card.id == Bug_Catching_Set:

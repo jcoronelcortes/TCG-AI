@@ -126,6 +126,28 @@ class TurnPlan:
         return bool(self.win_route)
 
     @property
+    def do_or_die(self) -> bool:
+        """No route closes the game and THEIR reply does: this turn is the last
+        one, whatever it fails to produce is never produced.
+
+        `MODE_DENY` read as a sentence instead of as a string, and the reason it
+        deserves a name of its own: every rule in this agent prices a play
+        against the turns that come after it -- a body benched for tomorrow, a
+        prize taken on account, a search kept for when it is needed. On a
+        do-or-die turn there is no afterwards, so all of that arithmetic is
+        worth zero and the only question left is whether the turn can still
+        MANUFACTURE the knockout that ends the game.
+
+        It is rare enough to be treated as the exception it is: 18 of the 3580
+        decisions of the frozen corpus, 0.50%. That number is the licence --
+        the defensive machinery of this agent has been measured negative three
+        separate times when it was made to fire more often, so what hangs off
+        this property has to stay on the boards where the game really ends on
+        the reply, not on the boards where the reply merely hurts.
+        """
+        return self.mode == MODE_DENY
+
+    @property
     def lethal_gust(self) -> bool:
         """The winning route goes through Boss's Orders: the Supporter slot of
         this turn is SPOKEN FOR and no other Supporter may take it."""

@@ -120,6 +120,36 @@ first" vetoed the Boss's Orders that ended the game, and the agent spent ninetee
 actions rebuilding a board it no longer needed. `PTCG_DEBUG=1` prints the plan
 above the ranking, which is usually the fastest way to see why a play lost.
 
+### The turn with no tomorrow
+
+One of those four words is different in kind from the other three. `DENY` means
+no route closes the game *and* their reply does: the turn is the last one we
+get. The plan publishes it under a name of its own, `do_or_die`, because almost
+every rule in the agent prices a play against the turns that come after it — a
+body benched for tomorrow, a prize taken on account, a search kept for when it
+is needed — and on that turn none of that arithmetic is worth anything. The only
+question left is whether the turn can still *manufacture* the knockout.
+
+Three habits of the agent turn out to be wrong there, and each of them was
+reading a question one step away from the one that mattered:
+
+- **the last bench seat.** A body goes down before a search is played, because
+  a Pokémon play outranks an Item by play-order tier. With one seat left that
+  order decides what the search is allowed to buy, and the search is the card
+  that knows what the seat is for.
+- **what the search buys.** "Do we have an attacker?" is answered by asking
+  whether an attack is *legal*. On this turn ours was legal and took 240 off a
+  300 HP body, which is the same as no attacker at all — so the search should
+  buy the deepest look at the deck, not a body for a board we will not have.
+- **where the energy goes.** The rule that puts the finishing charge on the
+  active only looked at attackers that could not yet *pay* for their attack.
+  Our attacks scale with energy, so past the cost each Grass is more damage:
+  the number that decides is the opposing HP, not the printed cost.
+
+All three corrections are gated on `do_or_die`, which is 0.5% of the decisions
+in the frozen corpus. That gate is deliberate — the defensive machinery here has
+measured negative three separate times when it was made to fire more often.
+
 ### The dead turn
 
 A third, cruder reading runs alongside those two: **can the active attack at

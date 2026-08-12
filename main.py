@@ -8010,14 +8010,83 @@ def agent(obs_dict: dict) -> list[int]:
         if _cav_req is None:
             _cav_req = _min_attack_cost(_active_pokemon.id)
         _cav_e = len(_active_pokemon.energies)
-        if _cav_req is not None and _cav_e < _cav_req:
+        # THE CHARGE THAT DOES NOT UNLOCK THE ATTACK BUT DOES CREATE THE KNOCKOUT
+        # (user, registro_010 turn 10 vs Archaludon ex, LOST). Everything below
+        # used to hang off `_cav_e < _cav_req` alone: the charge was worth the
+        # ACTIVE only while the active could not yet PAY for its attack. That
+        # reads the cost, and the cost is not what the turn is about when the
+        # attack SCALES with energy -- Myriad Leaf Shower is 30 + 30 for every
+        # energy on both actives, so past the cost each Grass is 60 more damage,
+        # not waste.
+        #
+        # On that turn our Ogerpon carried 6 effective energy against a 300 HP
+        # Archaludon ex with 3: 30 + 30x9 = 300, minus 30 for its Grass
+        # resistance and 30 for their Full Metal Lab = 240. One more physical
+        # Grass (Meganium doubles it) makes it 30 + 30x11 = 360 - 60 = 300, their
+        # ex, our last two prizes, the game. The active reached its cost of 3
+        # eight times over, so this flag never even looked, and the energy scorer
+        # fell through to a development rule that sends the Grass to a benched
+        # pre-evolution instead ("the active does not need energy and there is a
+        # Dipplin waiting to become a Hydrapple").
+        #
+        # It is the POSITIVE half of a question the anti-overcharge caps already
+        # ask: `_extra_energy_enables_ko` is their one exception, so the codebase
+        # has already decided that a cap yields to the energy that creates the
+        # knockout. What was missing was anything that PREFERS the active for the
+        # same reason.
+        #
+        # CONFINED TO THE TURN WITH NO TOMORROW. The general form ("prefer the
+        # active whenever one more Grass creates the knockout") is very probably
+        # right and reaches far more boards than this one, which is exactly why
+        # it is not switched on here without a measurement: the score it hands
+        # out (`SCORE_CHARGE_ACTIVE_FINISHER`) walks over every energy cap in the
+        # file, and those caps were each measured. The OPENING plan is what is
+        # read (`turn_plan_open`) and not the live one: by this menu the plan has
+        # already counted the charge it is being asked about, sees the knockout
+        # and reports mode RACE -- the same reason the Lana's selection reads the
+        # opening plan (`ptcg/turn/options/card.py`).
+        _cav_do_or_die = bool(getattr(AGENT_STATE.turn_plan_open,
+                                      'do_or_die', False))
+        if _cav_req is not None and (_cav_e < _cav_req or _cav_do_or_die):
             _cav_unit = _grass_attach_unit()
             # Charges that can still land on the ACTIVE, limited by the hand.
             _dig_routes = ((0 if state.energyAttached else 1)
                           + _grass_ability_slots_active(state, my_state, field_counts))
             _cav_disp = min(hand_counts.get(Basic_Grass_Energy, 0), _dig_routes)
-            # Grass needed to reach the cost (rounded up).
-            _cav_need = -(-(_cav_req - _cav_e) // _cav_unit)
+            if _cav_e < _cav_req:
+                # Grass needed to reach the cost (rounded up).
+                _cav_need = -(-(_cav_req - _cav_e) // _cav_unit)
+            else:
+                # Already at its cost: the number that matters is the one that
+                # reaches the opposing HP, and the CHEAPEST one -- a second Grass
+                # asked for by a body that dies to the first is energy the turn
+                # still needs elsewhere. Zero when no reachable amount knocks
+                # out, and the guard below (`1 <= _cav_need`) then leaves this
+                # whole block exactly as it was.
+                #
+                # STRICTLY THE KNOCKOUT. The cost branch above may leave
+                # `_cav_need` set on a charge that only CHIPS -- that is what the
+                # `elif` below (`_charge_active_enables_attack`) is for, and it
+                # is the right answer for an active that cannot attack at all.
+                # This branch has no such consolation prize: the active already
+                # attacks, so a charge that does not reach the HP buys nothing
+                # and must leave the scorer untouched. `_ko_not_guaranteed` is
+                # asked here for the same reason -- a body the KO is not
+                # guaranteed against never sets the number.
+                _cav_need = 0
+                for _cav_n in (() if _ko_not_guaranteed(_cav_op_act)
+                               else range(1, max(0, _cav_disp) + 1)):
+                    _cav_try = _cav_e + _cav_n * _cav_unit
+                    _cav_try_dmg = _our_effective_damage(
+                        _active_pokemon, _cav_op_act,
+                        _attacker_base_damage(
+                            _active_pokemon.id, _cav_op_act, _cav_try,
+                            grass_scale=total_grass + _cav_n * _cav_unit,
+                            teal_self_energy=_cav_try, bench_count=bench_count),
+                        AGENT_STATE.meganium_in_play, neutralization_zone_active)
+                    if _cav_try_dmg >= _op_active_hp:
+                        _cav_need = _cav_n
+                        break
             if 1 <= _cav_need <= _cav_disp:
                 _cav_e_after = _cav_e + _cav_need * _cav_unit
                 _cav_base = _attacker_base_damage(

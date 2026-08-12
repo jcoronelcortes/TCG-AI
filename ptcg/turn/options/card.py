@@ -1934,9 +1934,45 @@ def score_play(tc, o, score):
                         _bp is not None and _bp.id in MAIN_ATTACKERS
                         and _can_attack_eff(_bp.id, len(_bp.energies))
                         for _bp in (my_state.bench or []))
+                    # ON A DO-OR-DIE TURN AN ATTACK THAT DOES NOT CLOSE THE GAME
+                    # IS NOT A USABLE ATTACKER (user, registro_010 step 140 vs
+                    # Archaludon ex, LOST). The board is written out in
+                    # `_TIER_SEARCH_KEEPS_THE_SEAT`: their reply takes their last
+                    # prize, so the turn either manufactures the knockout or the
+                    # game is over, and this fetch is the only place the missing
+                    # Grass can come from. With the seat kept free the ladder
+                    # still bought the wrong body -- `ub->fez` 1050
+                    # (`refill_after_a_ko`, three cards off Flip the Script) over
+                    # `ub->meowth` 1000 -- because the flag below asks whether an
+                    # attack is LEGAL and our Ogerpon could indeed attack. For
+                    # 240 into a 300 HP body, on the last turn we get.
+                    #
+                    # `do_or_die` is exactly the condition under which "we have
+                    # an attacker, we do not need the search" stops being true:
+                    # the mode is only DENY when NO route closes the game (a
+                    # lethal attack would have made it WIN_NOW) and their reply
+                    # does. What the turn has then is not an attacker, it is a
+                    # body that throws a number. It is the same correction
+                    # `_ready_attack_is_inert` (main.py) makes for the PLAY
+                    # branch -- "a ready attack that takes no prize is not what
+                    # the turn is for" -- extended to the one case that flag
+                    # deliberately leaves out: `prizes_today >= 1`. On this board
+                    # it was 1 (a Boss's Orders on a benched Relicanth), and a
+                    # prize taken on a turn we do not survive is not a prize.
+                    #
+                    # The consequence is one flag and no new rule: with it true
+                    # `no_attacker_prefers_meowth` (1250) wins `ub->meowth`, and
+                    # `refill_after_a_ko` already yields to that same flag
+                    # (`not c.no_attacker_prefer_meowth`), so the Fez arm falls
+                    # back to its default. The deepest look at the deck wins the
+                    # search: Last-Ditch Catch fetches the Supporter it wants and
+                    # Lillie's Determination draws six, against three drawn blind.
+                    _ub_do_or_die = bool(getattr(
+                        AGENT_STATE.turn_plan, 'do_or_die', False))
                     _ub_usable_attacker = (
-                        _active_ready_attacker
-                        or (_ub_active_can_retreat and _ub_bench_ready_attacker))
+                        (_active_ready_attacker
+                         or (_ub_active_can_retreat and _ub_bench_ready_attacker))
+                        and not _ub_do_or_die)
                     _ub_no_attacker_prefer_meowth = (
                         not _ub_stamp_pending
                         and not _ub_usable_attacker
