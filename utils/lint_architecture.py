@@ -1,6 +1,6 @@
 """Architecture rules of the wave refactor (docs/project-history.md).
 
-Eight AST rules over `main.py`, the agent package, the tools and the suite. They
+Ten AST rules over `main.py`, the agent package, the tools and the suite. They
 all cover failures that do NOT show up as a red test: either they break the
 submission on Kaggle with the suite green, or they make the agent read frozen
 state and decide badly in a game without raising any exception -- or, for the
@@ -60,6 +60,24 @@ measurement.
             its negation was unreachable code (93a27eb). Only the two
             assignments that build `_supporter_spent` / `_energy_spent` may
             read them there.
+
+  R9  A per-option scorer prices an option; it does not write state.
+            Modules under `ptcg/turn/options/` are called ONCE PER OPTION, over a
+            list whose order belongs to the simulator, so anything they write is
+            a function of that order. `we_go_first` was assigned while SCORING
+            the IS_FIRST menu and survived as the value of the LAST option
+            priced.
+
+  R10 A field of `TurnPlan` or `AgentState` that nobody outside its module
+            reads. `op_wins_after_ko` was computed every turn, printed in the
+            plan and read by NOBODY for two days, while the board that lost
+            episode 92260006 published it out loud (710c198). A field with no
+            consumer is a question the agent asked and then ignored, and from
+            outside it reads exactly like a fact in use. Properties resolve back
+            to the fields they touch and `getattr(x, 'f', d)` counts as a read --
+            without both, the rule accuses four load-bearing fields. Exempt with
+            `# R10: <reason>` in the field's comment block; the reason is
+            required.
 
 Usage:
     python utils/lint_architecture.py          # exit 1 if there are violations
@@ -510,6 +528,146 @@ def rule_9_scorers_do_not_write_state(directorio=None):
     return failures
 
 
+# ---------------------------------------------------------------------------
+# R10 -- a field somebody bothered to compute has to be read
+# ---------------------------------------------------------------------------
+PLAN_FILE = PACKAGE / "turn" / "game_plan.py"
+R10_EXEMPT = re.compile(r"#\s*R10:\s*(?P<reason>.{12,})")
+
+
+def _r10_fields_of(path, class_name):
+    """(field -> line) for a state carrier, plus (property -> the fields it reads).
+
+    THE TRAP, and it is what makes the difference between a rule and a nuisance:
+    these fields are read THROUGH THEIR PROPERTIES. `plan.win_route` appears
+    nowhere outside `game_plan.py`, and yet three properties resolve it and half
+    the agent reads those. A grep-shaped version of this rule accuses
+    `win_route`, `mode`, `win_needs_supporter` and `win_needs_charge` on a tree
+    where all four are load-bearing -- measured, on the tree of 12 August 2026,
+    while this rule was being written.
+    """
+    source = path.read_text(encoding="utf-8")
+    lines = source.splitlines()
+    tree = ast.parse(source, filename=str(path))
+    fields, properties = {}, {}
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.ClassDef) and node.name == class_name):
+            continue
+        for item in node.body:
+            # `x: int` / `x: int = 0` -- a dataclass field
+            if isinstance(item, ast.AnnAssign) and isinstance(item.target, ast.Name):
+                fields[item.target.id] = item.lineno
+            # `self.x = ...` inside __init__ -- a hand-written carrier
+            if isinstance(item, ast.FunctionDef) and item.name == "__init__":
+                for sub in ast.walk(item):
+                    targets = (list(sub.targets) if isinstance(sub, ast.Assign)
+                               else [sub.target] if isinstance(sub, (ast.AugAssign,
+                                                                     ast.AnnAssign))
+                               else [])
+                    for target in targets:
+                        if (isinstance(target, ast.Attribute)
+                                and isinstance(target.value, ast.Name)
+                                and target.value.id == "self"):
+                            fields.setdefault(target.attr, sub.lineno)
+            if isinstance(item, ast.FunctionDef) and any(
+                    isinstance(d, ast.Name) and d.id == "property"
+                    for d in item.decorator_list):
+                read = set()
+                for sub in ast.walk(item):
+                    if (isinstance(sub, ast.Attribute)
+                            and isinstance(sub.value, ast.Name)
+                            and sub.value.id == "self"):
+                        read.add(sub.attr)
+                properties[item.name] = read
+    # The exemption belongs to the COMMENT BLOCK attached to the field, walked
+    # upwards until the comments stop. Probing a fixed two lines was tried and
+    # it failed on the first two real exemptions written against it: the reason
+    # a field has no consumer takes more than one line to state, which is the
+    # entire point of demanding it.
+    exempt = {}
+    for name, lineno in fields.items():
+        probe = lineno - 2                       # 0-based, the line above
+        while probe >= 0 and lines[probe].strip().startswith("#"):
+            found = R10_EXEMPT.search(lines[probe])
+            if found:
+                exempt[name] = found.group("reason").strip()
+                break
+            probe -= 1
+    return fields, properties, exempt
+
+
+def _r10_names_read_outside(exclude):
+    """Every `.name` an attribute access reaches, outside the defining module."""
+    names = set()
+    files = [PROJECT_ROOT / "main.py"] + sorted(PACKAGE.rglob("*.py"))
+    for path in files:
+        if path in exclude or not path.exists():
+            continue
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Attribute) and isinstance(node.ctx, ast.Load):
+                names.add(node.attr)
+            # `getattr(x, 'field', default)` is how half this agent reads the
+            # plan, and a rule that missed it would accuse exactly the fields
+            # that are read most defensively.
+            if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+                    and node.func.id == "getattr" and len(node.args) >= 2
+                    and isinstance(node.args[1], ast.Constant)
+                    and isinstance(node.args[1].value, str)):
+                names.add(node.args[1].value)
+    return names
+
+
+def rule_10_data_has_a_consumer(carriers=None):
+    """A field of `TurnPlan` or `AgentState` that no module outside its own reads.
+
+    THE BUG (user, `710c198`, 12 August 2026). `op_prizes_after_ko` and
+    `op_wins_after_ko` were computed on every turn, printed inside the plan, and
+    READ BY NOBODY for two days. On the board that found it the plan said
+    `op_wins_after_ko=True` out loud -- our Hydrapple ex was about to take the
+    prize from the front and die to the reply, with the same knockout available
+    from a body that survives it -- and the agent attacked anyway, because the
+    sentence had no consumer.
+
+    That is a whole class. A field with no reader is not dead weight: it is a
+    QUESTION THE AGENT ASKED AND THEN IGNORED, and it reads, to anyone auditing
+    the plan, exactly like a fact that is being used.
+
+    A field may be exempted with `# R10: <reason>` on the line above it. The
+    reason is required and it has to be a sentence, for the same purpose the
+    exemptions of the immunity census carry theirs: an unread field with an
+    argument is a decision, an unread field without one is an oversight.
+    """
+    targets = carriers or ((PLAN_FILE, "TurnPlan"),
+                           (PACKAGE / "state" / "agent_state.py", "AgentState"))
+    failures = []
+    for path, class_name in targets:
+        if not path.exists():
+            continue
+        fields, properties, exempt = _r10_fields_of(path, class_name)
+        outside = _r10_names_read_outside({path})
+        # A property read outside carries every field it resolves.
+        via_property = set()
+        for prop, reads in properties.items():
+            if prop in outside:
+                via_property |= reads
+        for name, lineno in sorted(fields.items(), key=lambda kv: kv[1]):
+            if name.startswith("__") or name in exempt:
+                continue
+            if name in outside or name in via_property:
+                continue
+            failures.append((
+                "R10", _rel(path), lineno,
+                f"`{class_name}.{name}` se calcula y no lo lee nadie fuera de "
+                "este modulo, ni directamente ni a traves de una propiedad. Un "
+                "campo sin consumidor es una PREGUNTA QUE EL AGENTE SE HIZO Y "
+                "LUEGO IGNORO, y desde fuera se lee igual que un dato que si se "
+                "usa (`op_wins_after_ko`, 710c198). Leelo, borralo, o exime la "
+                "linea con `# R10: <motivo>`.",
+            ))
+    return failures
+
+
 RULES = (
     rule_1_imported_mutables,
     rule_2_purity,
@@ -520,6 +678,7 @@ RULES = (
     rule_7_gates_check_provenance,
     rule_8_discard_reads_its_horizon,
     rule_9_scorers_do_not_write_state,
+    rule_10_data_has_a_consumer,
 )
 
 

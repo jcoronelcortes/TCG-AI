@@ -82,6 +82,11 @@ class TurnPlan:
     # '' when no route closes the game; otherwise one of the ROUTE_* constants.
     win_route: str
     # The route spends the turn's Supporter slot (Boss's Orders in hand).
+    # R10: OPEN, not argued. No agent code reads it -- only four tests and this
+    # module. It is on the night's B list with its sibling below; the exemption
+    # is here so the rule can land, and it is a RECORD that the field was seen,
+    # not a claim that having no consumer is correct. The rule that would read
+    # it is `lethal_gust`, which resolves `win_route` instead.
     win_needs_supporter: bool
     # The route is NOT lethal with the energy already on the attacker: it needs a
     # charge this turn (the manual attachment, a Teal Dance, a Ripening Charge)
@@ -110,6 +115,12 @@ class TurnPlan:
     # knocks their active out this turn. `op_prizes_next` is zero on exactly
     # those boards -- the body that would reply is on its way to the discard --
     # and this is what stands up in its place. See `_reply_after_promotion`.
+    # R10: OPEN, not argued. Its sibling `op_wins_after_ko` got its consumer in
+    # 710c198 -- the same day, off the same board -- and this one is still read
+    # by nobody but `utils/promoted_reply_census.py` and the tests. It is the
+    # COUNT behind that boolean: how many prizes the promoted body takes, which
+    # is what tells "they win on the reply" from "they hurt on the reply". On
+    # the B list; this line is the record, not a defence.
     op_prizes_after_ko: int = 0
     # ... and that closes their count: the knockout we are about to take is the
     # one that loses the game, unless the same knockout is taken by a body that
