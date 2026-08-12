@@ -42,12 +42,26 @@ body coming up must actually survive their projected hit and hand over no more
 prizes, and the reply must be the match — a trade we merely dislike is not worth
 the retreat cost.
 
-There is one place the agent used to be blind to this, and it is the reason the
-rule exists: an attack that prints no damage at all. Powerful Hand places
-counters and scales with the size of their hand, so the attack table reads zero
-and every defensive rule sees a harmless attacker. That is the only seam the
-pivot is allowed to open. Where the opposing attack is readable the ordinary
-way, the pivots already measured against those boards keep deciding.
+Three places the agent used to be blind to this, and each one is a seam where
+the ordinary reading of their reply is simply *wrong*, not merely pessimistic.
+Outside them the pivots already measured against those boards keep deciding.
+
+- **The attack that prints no damage at all.** Powerful Hand places counters and
+  scales with the size of their hand, so the attack table reads zero and every
+  defensive rule sees a harmless attacker.
+- **The reply that comes off their bench.** These rules only run when our own
+  attack is about to knock their active out — which means the body they were
+  reading is on its way to the discard. What actually replies is whatever they
+  promote, and their bench is fully visible.
+- **The knockout that loses the game.** The two above open only where their
+  active looks harmless. When it does *not* — when the body in front is doomed
+  whatever we do — the turn belongs to the rules written on a doomed active, and
+  those refuse to retreat while a prize is available from the front. That is
+  right except on one board: their promoted body knocks our active out and those
+  prizes close their count. There, cashing the prize from the front *is* the
+  losing move, and the plan already says so (`op_wins_after_ko`). The relay still
+  has to take the same knockout, so the prize is never given up — only the corpse
+  left behind changes.
 
 ## 3. Prizes are the currency, not damage
 

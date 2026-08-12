@@ -250,6 +250,53 @@ fires in a fraction of a per cent has a ceiling of effect far below the noise
 floor of the self-play gate. Asking the gate for a verdict there repeats an
 error this project has already made.
 
+### `relay_saves_the_game_census.py` — the retreat that saves the last prize
+
+Third of the family, for the narrowest board any of them names: our attack takes
+the knockout, the body they promote knocks our active out in reply, and those
+prizes **close their count**. Same argument for existing as the two above — the
+population is a subset of a fraction of a per cent — with one instrument the
+others lack. It counts **firings** directly, by spying for the score only this
+rule produces, instead of differencing two runs; and it carries a `--control`
+arm in which the neutralisation does nothing, because asking the agent twice
+about the same board perturbs what it answers about the next one and that noise
+has to be measured before any flip column can be read.
+
+```bash
+python utils/relay_saves_the_game_census.py --games 300
+python utils/relay_saves_the_game_census.py --games 300 --control   # the floor
+```
+
+### `match_point_reply_census.py` — and does the projection come true?
+
+Fourth of the family, and the only one that asks a question about the READING
+rather than about a rule. It takes the shelf `op_wins_after_ko` sits on — their
+promoted reply closes their count, with an attack and a retreat both on the menu
+— splits it three ways (a relay takes the same knockout / no knockout but a body
+outlasts the reply / everything dies to the same reply) and then, for every board
+where we attacked anyway, records whether the game **actually ended on their
+reply**.
+
+That second half is what stops a population from being mistaken for a licence.
+Measured at 300 mirror games (19 018 decisions) and 300 games over the 87 real
+opponent decks (20 660):
+
+| | mirror | real opponents |
+| --- | --- | --- |
+| the shelf | 248 (1.30%) | 5 (0.02%) |
+| ... a relay takes the same KO | 5 | 0 |
+| ... a body merely outlasts the reply | 9 | 0 |
+| ... everything dies to the same reply | 234 (94.4% of the shelf) | 5 |
+| we attacked and the game closed on the reply | 32 of 59 (54.2%) | 1 of 1 |
+
+Two conclusions, and both are load-bearing. The shelf is almost entirely boards
+that were already lost — 94% of it — so the room for a rule is the 3.6% left.
+And the flag is a **coin flip** as a prediction: it says the reply ends the game
+and the reply ends the game a little over half the time. That is fine for a rule
+whose downside is the retreat's energy and which cashes the prize either way; it
+is not enough to pay a *prize* for, which is why the wider pivot was dropped
+before it was written rather than after 400 games.
+
 ### `op_buff_census.py` — the bench body that raises their damage
 
 Sibling of `op_scaling_census.py`, auditing the other family: not the attack

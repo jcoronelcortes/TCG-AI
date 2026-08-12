@@ -66,6 +66,8 @@ cent of decisions. A census is minutes; 200 games is not.
 | `turn_waste_census.py` | Resources that were legally playable and were declined, per turn and per plan mode. |
 | `promoted_reply_census.py` | The nested populations of one candidate rule, from "the situation happens" down to "and we had a choice about it". |
 | `promoted_relay_census.py` | The same shape, for the body promoted after a knockout. |
+| `relay_saves_the_game_census.py` | The retreat that cashes the last prize with a body that outlasts the promotion: how often the rule fires, and whether it moves anything. Carries a `--control` arm that measures the noise floor of asking the agent twice about the same board. |
+| `match_point_reply_census.py` | The shelf `op_wins_after_ko` sits on, split three ways, **and whether the prediction comes true**: of the boards where we attacked anyway, how many actually ended on their reply. The second half is the one that matters — it prices the reading before a rule is written on it. |
 | `healing_census.py` | How much of the damage we deal gets healed back before it becomes a prize. |
 | `fodder_ladder_audit.py` | Discard menus where a Basic Grass outranked an evolution the agent itself calls orphaned. |
 | `duplicate_protection_audit.py` | Menus where two copies of a card came out with the same "this is our only out" score. |

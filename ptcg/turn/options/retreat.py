@@ -7,7 +7,7 @@ VERBATIM. It unpacks from the context the 60 fields it reads and returns the
 
 from cg.api import AreaType, CardType, OptionType, Pokemon
 from ptcg.calc.card import get_card, prize_count, prize_count_op
-from ptcg.calc.damage import UPGRADE_PRIZE, _attacker_base_damage, _bench_finisher_that_survives, _bench_finisher_upgrade, _ex_active_is_a_wall, _hand_revealed_lethal_reply, _op_active_attack_damage_to, _our_effective_damage, _promoted_lethal_reply, _reply_reaches_match_point
+from ptcg.calc.damage import UPGRADE_PRIZE, _attacker_base_damage, _bench_finisher_that_survives, _bench_finisher_upgrade, _ex_active_is_a_wall, _hand_revealed_lethal_reply, _op_active_attack_damage_to, _our_effective_damage, _promoted_lethal_reply, _promoted_reply_damage, _reply_reaches_match_point
 from ptcg.calc.energy import _can_attack_eff, _grass_attach_route_open, _grass_attach_unit, _grass_mult, _physical_energy, _reachable_grass_for, _retreat_grass_to_discard, _retreat_grass_units
 from ptcg.calc.board import _active_of
 from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Chikorita, Cornerstone_Mask_Ogerpon_ex, Crustle_Fighting, Crustle_Grass, Cubchoo, Dawn, Dipplin, Drednaw, Dwebble_Fighting, Dwebble_Grass, EEVEE_IDS, Fezandipiti_ex, Hydrapple_ex, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, OP_BENCH_SNIPE_DAMAGE, OUR_ABILITY_IDS, OUR_EX_IDS, Pinsir, RETREAT_COST, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex
@@ -623,6 +623,92 @@ def score_play(tc, o, score):
                 if _promoted_retry(_relay_finisher_pivot, _rfp_reply):
                     _relay_finisher_pivot = _rfp_ask(_promoted_reply)
 
+        # THE LAST PRIZE IS CASHED BY A BODY THAT IS STILL THERE (user,
+        # registro_012 step 133 vs Archaludon, LOST -- episode 92260006).
+        # Deck-agnostic: it names no card, only the prize count.
+        #
+        #   US                                     RIVAL   (one prize left)
+        #   active Hydrapple ex   10/330 (4G)      active Duraludon 130 (2M)
+        #          Syrup Storm -> lethal                  <- gusted by our Boss's
+        #   bench  Teal Mask Ogerpon ex 210 (6G)   bench  Cinderace 160 (1M)
+        #          Myriad 30+30x(6+2) = 270               Duraludon 130, Fan Rotom
+        #
+        # We attacked from the front. The knockout was real -- our second prize
+        # of the game -- and then the Cinderace came up, 10 HP was all it had to
+        # get through, and the two prizes that Hydrapple ex hands over closed a
+        # count that only needed one. The same knockout was on the bench: retreat,
+        # promote the Ogerpon ex, Myriad finishes the same Duraludon for the same
+        # prize, and what stands in the active spot afterwards is 210 HP against a
+        # 100-damage reply. Same prize, and the game does not end.
+        #
+        # WHY NOTHING SAW IT, and it is one reason with two faces. The turn plan
+        # had the whole picture -- `op_prizes_after_ko=2`, `op_wins_after_ko=True`
+        # on that very board -- and it is published as DATA that no rule reads.
+        # The two pivots above are the ones that should have read it, and both go
+        # silent for the same reason: their reply is scoped to blows the ordinary
+        # projector CANNOT see (`_hand_revealed_lethal_reply` for the ones only a
+        # hand size reveals, `_promoted_lethal_reply` for the ones only a bench
+        # promotion reveals), and here the ordinary projector saw it perfectly
+        # well -- their Duraludon reads 80 against 10 HP. So the board fell into
+        # "their active already kills our active", where the machinery written on
+        # a doomed body owns the turn... except that machinery is switched off by
+        # `_active_can_ko_now`, which vetoes the retreat outright (score -1) on
+        # the grounds that taking the prize from the front costs nothing.
+        #
+        # It costs nothing EXCEPT on the boards this flag names, and there it
+        # costs the game. Hence the gate: `op_wins_after_ko`, the plan's own
+        # sentence for "the knockout we are about to take is the one that loses
+        # the game". The body they promote knocks our active out AND those prizes
+        # close their count. It is the strictly worse half of what
+        # `_relay_finisher_pivot` calls match point, so it is asked FIRST and
+        # scored just above it.
+        #
+        # WHAT IT DOES NOT DO, on purpose. It does not give up the prize. The
+        # relay has to take the SAME knockout (`_bench_finisher_that_survives`,
+        # the same predicate, the same charge reading, the same "no more prizes
+        # than the body it replaces" clause), so the only bill is the retreat's
+        # energy: the prize is collected either way and what changes is the
+        # corpse left behind. A retreat that DROPS the prize to survive is the
+        # pivot `TurnPlan.denial_saves_the_game` describes, measured and reverted
+        # twice (game_plan.py), and it stays reverted.
+        #
+        # AND THAT IS NOT FASTIDIOUSNESS, IT IS THE PRICE OF THE READING.
+        # `op_wins_after_ko` projects the WORST body on their bench and assumes
+        # they promote it and can pay for it -- the only honest assumption a
+        # defensive projection can make, and wrong about half the time. Measured
+        # (utils/match_point_reply_census.py, 300 mirror games): of the boards
+        # where the flag was true and we attacked anyway, the game actually ended
+        # on their reply 32 times out of 59, 54.2%. A rule that cashes the same
+        # prize either way survives a coin flip -- when the projection is wrong
+        # we still took the prize and merely stood behind a healthier body. One
+        # that pays a PRIZE for the same reading does not. Same census, same
+        # sample: that wider pivot's whole population is 9 decisions in 19 018,
+        # and exactly one of them was an attack-or-retreat decision.
+        #
+        # And it reads the reply off the body that will actually make it --
+        # `_promoted_reply_damage`, not their active, which by construction is
+        # the corpse our own attack is about to make. That is the reading the
+        # plan already uses for `op_wins_after_ko`; taking it from anywhere else
+        # would let the flag and its evidence drift apart.
+        _relay_saves_the_game = False
+        if (_active_reloc is not None and can_switch
+                and _active_kos_op_active
+                and getattr(AGENT_STATE.turn_plan, 'op_wins_after_ko', False)
+                and op_state.active and op_state.active[0] is not None):
+            _rsg_opa = op_state.active[0]
+            # Attacking from the front when it already WINS the game needs no
+            # relay: there is no reply to survive into.
+            if not (my_prize <= prize_count_op(_rsg_opa)):
+                _rsg_reply = _promoted_reply_damage(
+                    my_state, op_state, getattr(op_state, 'handCount', None))
+                _rsg_grass_after = max(0, total_grass - _retreat_grass_units(
+                    RETREAT_COST.get(_active_reloc.id, 1)))
+                _relay_saves_the_game = _bench_finisher_that_survives(
+                    my_state, _rsg_opa, AGENT_STATE.meganium_in_play,
+                    bench_count, _rsg_grass_after, neutralization_zone_active,
+                    _rsg_reply, prize_count(_active_reloc),
+                    reachable_grass=_relay_grass)
+
         # THE FRONT SPOT GOES TO THE BODY THAT PAYS LESS (user, registro_008
         # step 126 vs Alakazam, WON -- episode 90336164).
         #
@@ -1200,6 +1286,14 @@ def score_play(tc, o, score):
             # their own scorers (_td_ko_on_active gives 31500 to the Teal Dance
             # that enables the KO, and the ATTACK scorer finishes if it is lethal).
             score = 8900
+        elif _relay_saves_the_game:
+            # Retreat and take the SAME prize with the benched body that is
+            # still standing when the reply lands, on the boards where the body
+            # in front is not (see the flag). 8860: immediately above the pivot
+            # it is the extreme case of -- there their reply reaches match
+            # point, here it ARRIVES -- and under the lethal promotions, which
+            # end the game outright and need no reply projected at all.
+            score = 8860
         elif _relay_finisher_pivot:
             # Retreat and take the same prize with the benched body that
             # survives their reply (see the flag). 8850: the same family as the
