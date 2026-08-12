@@ -41,6 +41,25 @@ def test_sim_selects_expected_library_path(monkeypatch, system_name, machine_nam
     monkeypatch.setattr(platform, "system", lambda: system_name)
     monkeypatch.setattr(platform, "machine", lambda: machine_name)
     monkeypatch.setattr(ctypes.cdll, "LoadLibrary", lambda path: fake_lib)
+    # The REAL cg.sim is put back afterwards. Without this the fake module -- and
+    # with it a FakeLib in place of the engine -- stays in sys.modules for the
+    # rest of the session, and anything importing `cg.sim` LATER gets the stub.
+    # `cg/game.py` never noticed because it binds `lib` at its own import time,
+    # which happens first; `cg/battle.py` did, and the mirror game died on a
+    # BattleStart that returned None
+    # ([[from-import-liga-una-copia-no-una-vista]]).
+    # TWO places remember the module, and restoring only one leaves the fake
+    # reachable: `importlib.import_module("cg.sim")` both inserts into
+    # sys.modules AND sets `sim` as an attribute of the `cg` package, which is
+    # what `from . import sim` resolves through.
+    import cg as cg_pkg
+    real = sys.modules.get("cg.sim")
+    if real is not None:
+        monkeypatch.setitem(sys.modules, "cg.sim", real)
+        monkeypatch.setattr(cg_pkg, "sim", real, raising=False)
+    else:
+        monkeypatch.delitem(sys.modules, "cg.sim", raising=False)
+        monkeypatch.delattr(cg_pkg, "sim", raising=False)
     sys.modules.pop("cg.sim", None)
 
     module = importlib.import_module("cg.sim")

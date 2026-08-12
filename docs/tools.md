@@ -55,12 +55,27 @@ python utils/selfplay.py --games 100                      # mirror: sanity check
 python utils/selfplay.py --games 200 --base HEAD~1        # candidate vs. a previous version
 python utils/selfplay.py --games 200 --opponent deck/real_opponents/crustle_wall_2.csv
 python utils/selfplay.py --games 200 --opponent ... --base HEAD~1   # matchup delta
+python utils/selfplay.py --games 1000 --jobs 6             # every core (default: perf cores)
+python utils/selfplay.py --games 200 --base HEAD~1 --seeds 200   # paired: both arms, same games
 ```
 
 It loads two independent copies of the agent so their internal tracking never
-mixes, and alternates seats between games, because the simulator's shuffles and
-coin flips cannot be seeded. Output: score, winrate with a 95% confidence
-interval, and the split by seat.
+mixes, and alternates seats between games. Output: score, winrate with a 95%
+confidence interval, and the split by seat.
+
+**`--jobs` spreads the games over processes.** The engine runs concurrent
+battles happily — the old one-at-a-time limit was a Python global, not the
+engine — and the agent is ~85 % of wall time and pure Python, so processes are
+what help and threads are not. Measured on the 1000-game mirror: 76.2 s at
+`--jobs 1`, 15.1 s at 6 (**5.06×**), 11.3 s at 10 (**6.76×**), with the three
+winrates agreeing (49.1 / 49.8 / 50.2 %). `--jobs 1` runs in-process and is the
+control when a parallel result looks wrong.
+
+**`--seeds` makes the games themselves reproducible**, which is what the
+shipped engine cannot do. It needs the local build (`cg/build_local_engine.sh`);
+asking for a seed without it is an error rather than an unseeded game reported
+as seeded. Both arms replay the *same* games, so a candidate that decides
+identically scores identically — see the matrix below for why that matters.
 
 **`--base` compares whole trees, not just `main.py`.** The baseline is exported
 with `git archive` and its `ptcg/` package is what that copy of the agent
@@ -79,7 +94,29 @@ from weakest matchup to strongest, with confidence intervals and forfeits.
 ```bash
 python utils/matchup_matrix.py --games 400 --weights
 python utils/matchup_matrix.py --games 200 --base <git-ref>   # per-matchup delta
+python utils/matchup_matrix.py --games 400 --weights --allocation peso   # spend by meta share
+python utils/matchup_matrix.py --games 200 --base <ref> --seeds 200      # paired, noise floor 0
 ```
+
+**`--seeds` is what makes a small delta readable.** Without it the per-matchup
+noise reaches ±6.5 points at 200 games, which is why `--games` had to rise to
+400 and why `--control-card` exists. With it, both arms replay the same games,
+so a matchup the change cannot affect reports a delta of *exactly* zero.
+Verified 12 August 2026 over the whole corpus: candidate against `HEAD` with a
+clean `main.py` and `ptcg/`, **87 of 87 matchups at delta 0.0000**, in winrate
+and in prize differential alike. The limit is honest and worth knowing: once the
+two arms genuinely decide differently the RNG streams diverge and variance
+returns *for that matchup* — what becomes free is every matchup the change does
+not touch, which is most of them.
+
+**`--allocation peso` fixes where the budget goes.** The corpus has 88 lists
+but they are not equally common: 66 appear once each (0.33 % of the meta) while
+the top three are 53.7 % between them, so the uniform default spends 75 % of
+the compute on 22 % of the meta. `peso` keeps the same total and redistributes
+it by meta share, with a floor (`--games // 4`) so the tail keeps enough games
+to catch a change that breaks it outright. The summary now prints a 95 %
+interval on the weighted winrate, which is the number the schedule is
+optimising and the only way to judge one split against another.
 
 By default it measures against the real leaderboard lists in
 `deck/real_opponents/`. `--weights` weights each list by how often it actually

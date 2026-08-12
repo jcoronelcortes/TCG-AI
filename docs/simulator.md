@@ -72,7 +72,28 @@ above were settled, and it takes minutes.
 | `deck/real_opponents/` | The measurable meta: 87 real leaderboard lists, deduplicated and screened for whether the generic bot can pilot them, plus `pesos.csv` giving each list its meta frequency, its archetype and how many cards it shares with our own sixty. Lists the bot cannot pilot go to `no_pilotables/` — not a failure, but the part of the meta the harness cannot measure yet. |
 | `deck/real_opponents_2026-08-07/` | The corpus this one replaced, kept rather than deleted. A finding is only reproducible while the list it was written against exists, and a rebuild moves sixty of them. `utils/corpus_bridge.py` carries a finding across the gap. |
 | `deck/opponents/` | Hand-built synthetic archetype decks, kept for exercising mechanics the current meta does not offer (item lock, mill). No longer the default target of the matchup matrix. |
-| `competitor_decks/` | The raw download: 60-card lists from the top of the leaderboard, plus an index classifying each by archetype, position and score. |
+| `competitor_decks/` | The raw download: 60-card lists from the top of the leaderboard, plus an index classifying each by archetype, position and score. **300 files, 88 distinct decks** — see below. |
+
+### The top-300 is 88 decks, and `deck/real_opponents/` already is them
+
+Measured 12 August 2026 over `competitor_decks/mazo_*.csv`: all 300 files load
+into `battle_start` without error, but deduplicated by sorted card multiset they
+are **88 unique lists** — the other 212 files are exact copies. Of those 88,
+**87 are already in `deck/real_opponents/`**; the missing one is the list
+`pesos.csv` marks `no_pilotable`.
+
+The duplicate count *is* the meta weight, and `pesos.csv` already encodes it:
+multiplicities 92, 45, 24, 9, 7… map onto `peso_meta` 0.3067, 0.15, 0.08, 0.03…
+
+Two consequences worth stating plainly, because both are easy to get wrong:
+
+- **There is no deck-harvesting work left.** Running the 300 files instead of
+  the 88 costs 3.4× the compute for exactly zero additional information.
+- **Equal games per deck misallocates the budget.** 66 of the 88 lists appear
+  exactly once (0.33 % of the meta each) while the top three are 53.7 % between
+  them, so a uniform schedule spends **75 % of the compute on 22 % of the
+  meta**. That is what `--weights` and `--allocation` exist to fix; see
+  [Tools](tools.md).
 
 The `<archetype>_<n>.csv` naming is by descending meta weight **within** an
 archetype, which makes a name a **rank, not a deck**: after a re-harvest,

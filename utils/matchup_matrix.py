@@ -55,6 +55,7 @@ Usage:
 """
 
 import argparse
+import math
 import sys
 from pathlib import Path
 
@@ -63,8 +64,8 @@ for _p in (_ROOT, _ROOT / "utils"):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
+import parallel
 import selfplay as sp
-from opponent_bot import OpponentBot
 
 
 def is_deck(path):
@@ -175,34 +176,123 @@ def winrate_ponderado(rows, weights):
     return total / cobertura, cobertura
 
 
-def medir(agent_state, games, paths, bot_first_choice="first"):
-    # `bot_first_choice="second"` makes the bot DECLINE the first turn, so the
-    # coin flip decides who takes it. The default reproduces every figure on
-    # record: our agent vetoes going first and the bot answers YES, so the
-    # matrix has only ever measured the going-SECOND half of the game (measured
-    # 11 August 2026: 0 of 60 games first in matchup mode against 30/30 in the
-    # mirror). Going first was then worth +2.54 points aggregated and +11.00
-    # against crustle_kangaskhan, which is exactly where this matrix is weakest.
-    bot = OpponentBot(first_choice=bot_first_choice)
+def error_ponderado(rows, weights):
+    """Standard error of the weighted winrate. None if it cannot be computed.
+
+    This is THE number `--allocation` is optimising, and without it the choice
+    of schedule cannot be judged: a uniform split and a weighted one spend the
+    same games, so the only way one can be better is by producing a tighter
+    estimate of the same quantity.
+
+    The weighted winrate is a weighted mean of independent per-deck proportions,
+    so its variance is the weighted sum of theirs:
+
+        Var = sum(w_i^2 * p_i(1-p_i)/n_i) / (sum w_i)^2
+
+    Which is exactly why the uniform split is wasteful: it buys precision on
+    terms whose w_i^2 is ~0.
+    """
+    cobertura = sum(weights.get(f["deck"], 0.0) for f in rows)
+    if cobertura <= 0:
+        return None
+    var = 0.0
+    for f in rows:
+        w = weights.get(f["deck"], 0.0)
+        n = f["decididas"]
+        if w <= 0 or n <= 0:
+            continue
+        p = f["wr"]
+        var += (w ** 2) * p * (1 - p) / n
+    return math.sqrt(var) / cobertura
+
+
+def allocate(paths, games, weights, mode, floor=None):
+    """How many games each matchup gets. Returns {deck stem: games}.
+
+    `mode="uniforme"` is the historical behaviour: every deck gets `--games`.
+    Measured 12 August 2026, that is where the budget leaks -- 66 of the 88
+    lists in the corpus are 0.33 % of the meta each while the top three are
+    53.7 % between them, so a flat schedule spends **75 % of the compute on
+    22 % of the meta**.
+
+    `mode="peso"` keeps the SAME TOTAL and redistributes it proportional to
+    `peso_meta`, with a floor so the long tail keeps regression coverage rather
+    than falling to zero. The floor is what stops this becoming "measure the
+    three decks that matter and go blind everywhere else": a matchup at the
+    floor still catches a change that breaks it outright, which is most of what
+    the tail was ever catching.
+    """
+    stems = [p.stem for p in paths]
+    if mode != "peso" or not weights:
+        return {s: games for s in stems}
+    floor = games // 4 if floor is None else floor
+    total = games * len(stems)
+    share = {s: max(weights.get(s, 0.0), 0.0) for s in stems}
+    suma = sum(share.values())
+    if suma <= 0:
+        return {s: games for s in stems}
+    presupuesto = total - floor * len(stems)
+    if presupuesto <= 0:  # the floor already spends everything
+        return {s: games for s in stems}
+    out = {}
+    for s in stems:
+        out[s] = floor + int(round(presupuesto * share[s] / suma))
+    return out
+
+
+def _row(stem, stats):
+    dec = stats["candidate"] + stats["base"]
+    wr = stats["candidate"] / dec if dec else 0.0
+    lo, hi = sp.wilson_95(stats["candidate"], dec)
+    pc, pb, prize_diff = sp.prizes_per_game(stats)
+    return {
+        "deck": stem, "wr": wr, "lo": lo, "hi": hi,
+        "decididas": dec, "limites": stats["limites"],
+        "forfeits": stats["errores_candidato"],
+        "forfeits_bot": stats["errores_base"],
+        "premios": pc, "premios_bot": pb, "dif_premios": prize_diff,
+    }
+
+
+def _print_row(f):
+    extra = "" if f["dif_premios"] is None else f" premios {f['dif_premios']:+.2f}"
+    print(f"  {f['deck']}: {100 * f['wr']:.1f}% "
+          f"[{100 * f['lo']:.1f}-{100 * f['hi']:.1f}]{extra} "
+          f"(n={f['decididas']}, forfeits nuestros {f['forfeits']})", flush=True)
+
+
+def medir_paralelo(cand_spec, paths, reparto, bot_first_choice="first",
+                   jobs=None, seeds=None, etiqueta=""):
+    """The whole matrix through ONE pool, instead of one pool per matchup.
+
+    `bot_first_choice="second"` makes the bot DECLINE the first turn, so the
+    coin flip decides who takes it. The default reproduces every figure on
+    record: our agent vetoes going first and the bot answers YES, so the matrix
+    has only ever measured the going-SECOND half of the game (measured 11 August
+    2026: 0 of 60 games first in matchup mode against 30/30 in the mirror).
+    Going first was then worth +2.54 points aggregated and +11.00 against
+    crustle_kangaskhan, which is exactly where this matrix is weakest.
+
+    Flattening every matchup into a single job list is what keeps the cores fed:
+    a pool per deck would pay worker startup 87 times and idle at each deck's
+    tail. Measured on the mirror gate: 5.06x at 6 workers, 6.76x at 10.
+    """
+    matchups = [(p.stem, sp.read_deck(p), reparto[p.stem]) for p in paths]
+    total = sum(n for _, _, n in matchups)
+    print(f"  {len(matchups)} matchups, {total} partidas{etiqueta}", flush=True)
+    jobs_list = parallel.build_matchup_jobs(matchups, seeds=seeds)
+    results = parallel.run_jobs(jobs_list, cand_spec,
+                                parallel.spec_bot(bot_first_choice),
+                                jobs_n=jobs, progress=max(1, total // 10))
+    por_mazo = parallel.group_by_tag(results)
     rows = []
     for path in paths:
-        opponent_deck = sp.read_deck(path)
-        stats = sp.torneo(agent_state, bot, games, deck_base=opponent_deck)
-        dec = stats["candidate"] + stats["base"]
-        wr = stats["candidate"] / dec if dec else 0.0
-        lo, hi = sp.wilson_95(stats["candidate"], dec)
-        pc, pb, prize_diff = sp.prizes_per_game(stats)
-        rows.append({
-            "deck": path.stem, "wr": wr, "lo": lo, "hi": hi,
-            "decididas": dec, "limites": stats["limites"],
-            "forfeits": stats["errores_candidato"],
-            "forfeits_bot": stats["errores_base"],
-            "premios": pc, "premios_bot": pb, "dif_premios": prize_diff,
-        })
-        extra = "" if prize_diff is None else f" premios {prize_diff:+.2f}"
-        print(f"  {path.stem}: {100 * wr:.1f}% "
-              f"[{100 * lo:.1f}-{100 * hi:.1f}]{extra} "
-              f"(forfeits nuestros {stats['errores_candidato']})", flush=True)
+        stem = path.stem
+        stats = sp.new_stats(reparto[stem])
+        for seat, r in por_mazo.get(stem, []):
+            sp.accumulate(stats, r, seat)
+        rows.append(_row(stem, stats))
+        _print_row(rows[-1])
     return rows
 
 
@@ -234,7 +324,24 @@ def main(argv):
                     help="weight by real meta share (needs the pesos.csv"
                          "                         produced by"
                          "                         utils/real_opponents.py)")
+    ap.add_argument("--jobs", type=int, default=None,
+                    help="worker processes (default: performance cores)")
+    ap.add_argument("--seeds", default=None,
+                    help="engine seeds ('N' or a comma list): both arms replay "
+                         "the SAME games. Needs the local engine "
+                         "(cg/build_local_engine.sh)")
+    ap.add_argument("--allocation", choices=("uniforme", "peso"),
+                    default="uniforme",
+                    help="how --games is spread. 'uniforme' (default) gives "
+                         "every deck the same; 'peso' keeps the same TOTAL and "
+                         "redistributes it by meta share with a floor, because "
+                         "uniform spends 75%% of the compute on 22%% of the meta")
     args = ap.parse_args(argv)
+
+    seeds = sp.parse_seeds(args.seeds)
+    if seeds:
+        import local_engine
+        local_engine.load()  # fail now, not an hour of games in
 
     all_decks = sorted(Path(args.opponents).glob("*.csv"))
     paths = [r for r in all_decks if is_deck(r)]
@@ -256,17 +363,29 @@ def main(argv):
               f"Generate it with: python utils/real_opponents.py", file=sys.stderr)
         return 1
 
-    agent_state = sp.load_agent(_ROOT / args.candidate, "agente_matriz")
-    print(f"candidato={args.candidate}, {args.games} games per matchup")
+    if args.allocation == "peso" and not weights:
+        print("ERROR: --allocation peso needs --weights (it is the meta share "
+              "that decides the split)", file=sys.stderr)
+        return 1
+    reparto = allocate(paths, args.games, weights, args.allocation)
+
+    cand_spec = parallel.spec_file(_ROOT / args.candidate)
+    print(f"candidato={args.candidate}, {args.games} games per matchup "
+          f"(reparto {args.allocation}"
+          f"{', semillas ' + args.seeds if seeds else ''})")
     eleccion = "second" if args.bot_declines_first else "first"
-    rows = medir(agent_state, args.games, paths, eleccion)
+    rows = medir_paralelo(cand_spec, paths, reparto, eleccion,
+                          jobs=args.jobs, seeds=seeds)
 
     base_by_deck = {}
     if args.base:
-        base = sp.load_agent_from_git(args.base, "agente_matriz_base")
+        base_spec = parallel.spec_tree(
+            sp.checkout_tree(args.base, "agente_matriz_base"),
+            "agente_matriz_base")
         print(f"\nbaseline={args.base}")
         base_by_deck = {f["deck"]: f for f in
-                         medir(base, args.games, paths, eleccion)}
+                        medir_paralelo(base_spec, paths, reparto, eleccion,
+                                       jobs=args.jobs, seeds=seeds)}
 
     without_weight = [f["deck"] for f in rows if f["deck"] not in weights] if weights else []
 
@@ -309,8 +428,13 @@ def main(argv):
         if wr_pond is None:
             print("no coverage: none of the measured decks carries a weight")
             return 0
-        print(f"  ponderado : {100 * wr_pond:5.1f}%   over "
-              f"{100 * cobertura:.1f}% of the meta covered")
+        se = error_ponderado(rows, weights)
+        margen = "" if se is None else (
+            f"  +-{100 * 1.96 * se:.2f} (IC95 "
+            f"{100 * (wr_pond - 1.96 * se):.1f}-"
+            f"{100 * (wr_pond + 1.96 * se):.1f})")
+        print(f"  ponderado : {100 * wr_pond:5.1f}%{margen}")
+        print(f"              over {100 * cobertura:.1f}% of the meta covered")
         print(f"  unweighted: {100 * media:5.1f}%   (simple mean, for comparison)")
 
         # The weakest matchup is NOT where the most is lost: a 40% against an

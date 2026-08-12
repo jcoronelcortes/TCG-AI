@@ -2,10 +2,12 @@
 
 [← Documentation index](README.md)
 
-**Status: written 12 August 2026. Every number below was measured on this machine
-today, not estimated.** The engine source arrived as `ptcg_engine/ptcgProgram 22/`
-(gitignored, and it must stay that way — see §6). This page is the analysis and
-the work plan that follows from it.
+**Status: written and executed 12 August 2026. Phases A, B and C have SHIPPED
+and passed their acceptance criteria; phase D is not started; phase E is
+deliberately deferred.** Every number here was measured on this machine, not
+estimated. The engine source arrived as `ptcg_engine/ptcgProgram 22/`
+(gitignored, and it must stay that way — see §6). This page is the analysis, the
+work plan that followed from it, and — in §8 — what running it actually produced.
 
 ---
 
@@ -267,6 +269,117 @@ once.
 * **No engine modifications that change game rules.** Seeding and tracing change
   *how randomness is drawn and observed*, never what is legal. Any patch that
   alters a rule makes every measurement taken with it worthless.
+
+---
+
+## 8. What running it produced (12 August 2026)
+
+### Phase A — shipped
+
+| Piece | Where |
+| --- | --- |
+| A1 · a battle that owns its own pointer | `cg/battle.py` |
+| A2 · the process pool | `utils/parallel.py` |
+| A3 · `--jobs` on both harnesses | `utils/selfplay.py`, `utils/matchup_matrix.py` |
+
+**Acceptance: PASSED.** 1000-game mirror, `main.py` against itself:
+
+| `--jobs` | Wall | Speedup | Winrate |
+| --- | --- | --- | --- |
+| 1 | 76.16 s | — | 49.1 % [46.0–52.2] |
+| 6 | 15.05 s | **5.06×** | 49.8 % [46.7–52.9] |
+| 10 | 11.27 s | **6.76×** | 50.2 % [47.1–53.3] |
+
+Each winrate falls inside the others' intervals and all three contain the 50 %
+a mirror must produce. The criterion asked for ≥4×; note that at 200 games it
+was only 3.89×, because worker startup is a fixed cost — the speedup is a
+property of the workload size, and the sizes these tools actually run at are
+well past it.
+
+One design note worth keeping: the matrix flattens **every matchup into one job
+list and one pool**. A pool per matchup would pay startup 87 times and idle its
+cores at each matchup's tail.
+
+### Phase B — shipped
+
+| Piece | Where |
+| --- | --- |
+| B1 · the patch (53 lines) and the build script | `cg/engine_patches/0001-seeded-battle-start.patch`, `cg/build_local_engine.sh` |
+| B2 · `BattleStartSeeded`, `BattleStart` untouched | same patch |
+| B3 · the loader, the drift guard, rule R11 | `utils/local_engine.py`, `utils/lint_architecture.py` |
+| B4 · `--seeds` on both harnesses | `utils/selfplay.py`, `utils/matchup_matrix.py` |
+
+**Acceptance: PASSED, exactly as specified.** `matchup_matrix --games 40 --base
+HEAD --seeds 40 --weights` with `main.py` and `ptcg/` clean, so the two arms are
+behaviourally identical:
+
+> **87 of 87 matchups reported delta 0.0000** — in winrate *and* in prize
+> differential. Maximum |delta| across the corpus: 0.0000.
+
+Against the ±6.5-to-+7.5 point drift the same control group showed unseeded,
+that is the whole point of the phase.
+
+Two things had to be got right and are worth recording:
+
+* **The patch must not contain the engine.** The first attempt diffed files
+  whose CRLF line endings had been normalised, producing a 988-line patch that
+  embedded both source files whole — which would have versioned
+  competition-use-only source. Editing at byte level keeps CRLF and the BOM
+  intact and the patch at **53 lines**. `patch --binary` applies it.
+* **The drift guard runs on every load**, not on request. `utils/local_engine.py`
+  compares `AllCard()`/`AllAttack()` against the shipped engine and refuses to
+  return a handle if they differ.
+
+### Phase C — shipped
+
+**Acceptance: PASSED, by more than expected.** Same corpus, same total compute,
+seeded, `--games 120`:
+
+| Schedule | Games | Weighted winrate | 95 % interval |
+| --- | --- | --- | --- |
+| `uniforme` | 10 440 | 92.8 % | **±1.50** (91.3–94.3) |
+| `peso` | 10 443 | 93.5 % | **±0.46** (93.0–93.9) |
+
+A **3.3× tighter interval for the same games**. Reaching ±0.46 on the uniform
+schedule would take roughly 10.6× the compute. The summary now prints that
+interval, because it is the quantity the schedule optimises and there was
+previously no way to compare two splits at all.
+
+### C2 — the 88th list, decided
+
+`otro_ns_zoroark_ex_2.csv` sits in `no_pilotables/` with the reason *"no arranca
+(gana 10%)"*. Re-measured at 60 games: **we win 100 %**, with **zero** bot
+forfeits, zero step-limit games and normal 126-step games.
+
+So the recorded reason is wrong — the bot pilots it perfectly legally, it just
+loses every game. **The decision is nevertheless to leave it excluded**, for a
+different reason than the file gives: a matchup won 100 % of the time has no
+resolution and can never arbitrate a change. It is 0.33 % of the meta, and it is
+now an excluded-on-purpose list rather than an accident.
+
+### Not done
+
+* **Phase D (the Search API)** — untouched, exactly as planned; it is weeks of
+  research and the plan puts it after A+B, which have only just landed.
+* **Phase E (tracing builds)** — deliberately deferred until an investigation
+  needs one.
+
+### A defect the work exposed
+
+`tests/test_cg_sim.py` reimports `cg.sim` with a fake library to check the
+per-platform path selection, and **never put the real one back**. It restored
+neither `sys.modules["cg.sim"]` nor the `sim` attribute on the `cg` package,
+which is what `from . import sim` actually resolves through.
+
+`cg/game.py` never noticed because it binds `lib` at its own import time, which
+happens first. `cg/battle.py` did notice: five tests died on a `BattleStart`
+that returned `None`, because the new module was importing the stub. It is
+[[from-import-liga-una-copia-no-una-vista]] again, and it was latent in the
+suite before any of this work — waiting for the next module to import `cg.sim`
+late. Both halves are fixed: the test restores both places, and `cg/battle.py`
+resolves the library lazily rather than capturing it.
+
+Suite after the change: **2440 passed, 15 skipped**; `lint_architecture` clean.
 
 ---
 

@@ -41,7 +41,11 @@ if str(_ROOT) not in sys.path:
 _TESTS = _ROOT / "tests"
 if str(_TESTS) not in sys.path:
     sys.path.insert(0, str(_TESTS))
+_UTILS = _ROOT / "utils"
+if str(_UTILS) not in sys.path:
+    sys.path.insert(0, str(_UTILS))
 
+import parallel  # noqa: E402  (needs _UTILS on the path first)
 from golden_corpus import reset_agent  # a mirror of the tests' reset
 
 MAX_STEPS = 3000
@@ -148,6 +152,23 @@ def load_agent_from_git(ref, name):
     return load_agent(root / "main.py", name, root=root)
 
 
+def parse_seeds(text):
+    """'500' -> [1..500]; '3,7,11' -> [3, 7, 11]; None/'' -> None.
+
+    Seed 0 is rejected rather than accepted: the engine reads 0 as "roll one",
+    so it would play an UNSEEDED game while the report claimed a seeded one.
+    """
+    if not text:
+        return None
+    if "," in text:
+        seeds = [int(s) for s in text.split(",") if s.strip()]
+    else:
+        seeds = list(range(1, int(text) + 1))
+    if not seeds or any(not 0 < s < 2 ** 32 for s in seeds):
+        raise ValueError("seeds must be in 1..2**32-1")
+    return seeds
+
+
 def read_deck(path=None):
     csv = Path(path or _ROOT / "deck.csv").read_text().split("\n")
     return [int(csv[i]) for i in range(60)]
@@ -192,8 +213,18 @@ def _prizes_taken(pico, final):
 
 
 def play_game(agent_p0, agent_p1, deck0=None, deck1=None,
-                  max_steps=MAX_STEPS):
+                  max_steps=MAX_STEPS, seed=None, lib=None):
     """Plays a complete game. Returns a dict with the outcome.
+
+    Since phase A it drives `cg.battle.Battle` -- a battle that owns its own
+    engine pointer -- instead of the module-global one in `cg/game.py`. Inside a
+    worker the games are still sequential, so the global would have worked; the
+    handle is what lets a `seed` exist at all, and what stops a future caller
+    from assuming there is only ever one battle.
+
+    `seed`, when given, requires an engine exporting `BattleStartSeeded` (the
+    local build, see `utils/local_engine.py`). Same seed and same decisions ->
+    the same game, which is what makes a paired comparison possible.
 
     result: 0/1 (the winner), "limite" (the step cap) or "error_pX" (the agent
     in seat X raised an exception or chose an invalid option -> it loses).
@@ -206,7 +237,15 @@ def play_game(agent_p0, agent_p1, deck0=None, deck1=None,
     Careful: a game can be won without taking all 6 (bench-out, deckout), so
     the prize differential is NOT a disguised winrate: it measures something else.
     """
-    from cg import game
+    from cg.battle import Battle
+
+    if seed is not None and lib is None:
+        # A seed is meaningless on the shipped engine, which ignores it. Resolve
+        # the local build here rather than at the call site, so every caller
+        # that asks for a seed gets a genuinely reproducible game or an error --
+        # never an unseeded game silently reported as seeded.
+        import local_engine
+        lib = local_engine.load()
 
     deck = read_deck()
     deck0 = deck0 or deck
@@ -214,11 +253,8 @@ def play_game(agent_p0, agent_p1, deck0=None, deck1=None,
     _reset_si_aplica(agent_p0)
     _reset_si_aplica(agent_p1)
 
-    obs, sd = game.battle_start(list(deck0), list(deck1))
-    if obs is None:
-        raise RuntimeError(
-            f"battle_start fallo: errorPlayer={sd.errorPlayer} "
-            f"errorType={sd.errorType}")
+    battle = Battle(list(deck0), list(deck1), seed=seed, lib=lib)
+    obs = battle.obs
     # The prize peak per seat. In `battle_start` the piles are still 0
     # (they have not been dealt), so the initial value is discovered as we go.
     peak_prizes = [0, 0]
@@ -242,7 +278,7 @@ def play_game(agent_p0, agent_p1, deck0=None, deck1=None,
                 first_player = obs["current"]["firstPlayer"]
             try:
                 choice = agentes[yi].agent(obs)
-                obs = game.battle_select(choice)
+                obs = battle.select(choice)
             except Exception:
                 return {"result": f"error_p{yi}", "ganador": 1 - yi,
                         "pasos": steps, "primer_jugador": first_player,
@@ -261,7 +297,7 @@ def play_game(agent_p0, agent_p1, deck0=None, deck1=None,
                 if first_player == -1 else first_player,
                 "premios_tomados": prizes}
     finally:
-        game.battle_finish()
+        battle.finish()
 
 
 def wilson_95(victorias, n):
@@ -276,14 +312,9 @@ def wilson_95(victorias, n):
     return (max(0.0, centro - delta), min(1.0, centro + delta))
 
 
-def torneo(candidate, base, games, progress=None,
-           deck_candidate=None, deck_base=None):
-    """Pits the candidate against the base alternating seats. Returns stats.
-
-    deck_candidato/deck_base: lists of 60 ids; by default, deck.csv.
-    Each deck travels with its agent when the seat changes.
-    """
-    stats = {
+def new_stats(games):
+    """The empty accumulator. One shape, so sequential and parallel agree."""
+    return {
         "games": games, "candidate": 0, "base": 0, "limites": 0,
         "errores_candidato": 0, "errores_base": 0,
         "cand_j0": [0, 0], "cand_j1": [0, 0],  # [wins, played]
@@ -294,42 +325,86 @@ def torneo(candidate, base, games, progress=None,
         # candidate alternates seats on every game.
         "premios_candidato": 0, "premios_base": 0, "partidas_con_premios": 0,
     }
+
+
+def accumulate(stats, r, candidate_seat):
+    """Folds ONE game result into the accumulator.
+
+    Extracted so the sequential and the parallel tournament share it verbatim.
+    When `--jobs 1` and `--jobs 6` disagree the cause cannot be the bookkeeping,
+    which is exactly what phase A's acceptance test needs to be able to assume.
+    """
+    stats["pasos_totales"] += r["pasos"]
+    prizes = r.get("premios_tomados") or [None, None]
+    if prizes[0] is not None and prizes[1] is not None:
+        stats["premios_candidato"] += prizes[candidate_seat]
+        stats["premios_base"] += prizes[1 - candidate_seat]
+        stats["partidas_con_premios"] += 1
+    if isinstance(r["result"], str) and r["result"].startswith("error"):
+        asiento_err = int(r["result"][-1])
+        if asiento_err == candidate_seat:
+            stats["errores_candidato"] += 1
+        else:
+            stats["errores_base"] += 1
+    if r["ganador"] is None:
+        stats["limites"] += 1
+    else:
+        gano_cand = (r["ganador"] == candidate_seat)
+        stats["candidate" if gano_cand else "base"] += 1
+        seat = stats["cand_j0"] if candidate_seat == 0 else stats["cand_j1"]
+        seat[1] += 1
+        seat[0] += int(gano_cand)
+        if r["primer_jugador"] == candidate_seat:
+            stats["cand_primero"][1] += 1
+            stats["cand_primero"][0] += int(gano_cand)
+        elif r["primer_jugador"] == 1 - candidate_seat:
+            stats["cand_segundo"][1] += 1
+            stats["cand_segundo"][0] += int(gano_cand)
+    return stats
+
+
+def torneo(candidate, base, games, progress=None,
+           deck_candidate=None, deck_base=None, seeds=None):
+    """Pits the candidate against the base alternating seats. Returns stats.
+
+    deck_candidato/deck_base: lists of 60 ids; by default, deck.csv.
+    Each deck travels with its agent when the seat changes.
+
+    This is the IN-PROCESS tournament, kept because it takes agents that are
+    already loaded -- which the pool cannot, since a loaded module does not
+    pickle. `torneo_paralelo` is the one the command line drives.
+    """
+    stats = new_stats(games)
     for i in range(games):
         candidate_seat = i % 2
         if candidate_seat == 0:
             p0, p1, d0, d1 = candidate, base, deck_candidate, deck_base
         else:
             p0, p1, d0, d1 = base, candidate, deck_base, deck_candidate
-        r = play_game(p0, p1, deck0=d0, deck1=d1)
-        stats["pasos_totales"] += r["pasos"]
-        prizes = r.get("premios_tomados") or [None, None]
-        if prizes[0] is not None and prizes[1] is not None:
-            stats["premios_candidato"] += prizes[candidate_seat]
-            stats["premios_base"] += prizes[1 - candidate_seat]
-            stats["partidas_con_premios"] += 1
-        if isinstance(r["result"], str) and r["result"].startswith("error"):
-            asiento_err = int(r["result"][-1])
-            if asiento_err == candidate_seat:
-                stats["errores_candidato"] += 1
-            else:
-                stats["errores_base"] += 1
-        if r["ganador"] is None:
-            stats["limites"] += 1
-        else:
-            gano_cand = (r["ganador"] == candidate_seat)
-            stats["candidate" if gano_cand else "base"] += 1
-            seat = stats["cand_j0"] if candidate_seat == 0 else stats["cand_j1"]
-            seat[1] += 1
-            seat[0] += int(gano_cand)
-            if r["primer_jugador"] == candidate_seat:
-                stats["cand_primero"][1] += 1
-                stats["cand_primero"][0] += int(gano_cand)
-            elif r["primer_jugador"] == 1 - candidate_seat:
-                stats["cand_segundo"][1] += 1
-                stats["cand_segundo"][0] += int(gano_cand)
+        seed = None if seeds is None else seeds[i % len(seeds)]
+        r = play_game(p0, p1, deck0=d0, deck1=d1, seed=seed)
+        accumulate(stats, r, candidate_seat)
         if progress and (i + 1) % progress == 0:
             print(f"  ... {i + 1}/{games} "
                   f"({stats['candidate']}-{stats['base']})", flush=True)
+    return stats
+
+
+def torneo_paralelo(cand_spec, base_spec, games, jobs=None, progress=None,
+                    deck_candidate=None, deck_base=None, seeds=None):
+    """The same tournament, spread over processes. Same stats, same shape.
+
+    Agents arrive as SPECS (see `utils/parallel.py`), not as loaded modules: a
+    module object cannot be pickled to a worker, and loading it once per worker
+    is what makes the pool worth having anyway.
+    """
+    import parallel
+    jobs_list = parallel.build_jobs(games, deck_candidate, deck_base, seeds)
+    results = parallel.run_jobs(jobs_list, cand_spec, base_spec,
+                                jobs_n=jobs, progress=progress)
+    stats = new_stats(games)
+    for _tag, candidate_seat, r in results:
+        accumulate(stats, r, candidate_seat)
     return stats
 
 
@@ -395,24 +470,40 @@ def main(argv):
                     help="csv of an opponent deck: the opponent becomes the"
                          "                         GENERIC bot piloting it"
                          "                         (matchup mode)")
+    ap.add_argument("--jobs", type=int, default=None,
+                    help="worker processes (default: performance cores). "
+                         "--jobs 1 runs in-process, and is the control for the "
+                         "parallel path")
+    ap.add_argument("--seeds", default=None,
+                    help="engine seeds: 'N' for 1..N, or a comma list. Needs "
+                         "the local engine (utils/local_engine.py); makes the "
+                         "two arms replay the SAME games")
     args = ap.parse_args(argv)
 
-    cand_path = _ROOT / args.candidate
-    candidate = load_agent(cand_path, "agente_candidato")
+    seeds = parse_seeds(args.seeds)
+    if seeds:
+        # Fail here, not 400 games in, if the engine cannot honour a seed.
+        import local_engine
+        local_engine.load()
+
+    cand_spec = parallel.spec_file(_ROOT / args.candidate)
+
+    def _base_spec(ref):
+        return parallel.spec_tree(checkout_tree(ref, "agente_base"),
+                                  "agente_base")
 
     if args.opponent:
-        from opponent_bot import OpponentBot
         opponent_deck = read_deck(_ROOT / args.opponent)
-        bot = OpponentBot()
-        stats = torneo(candidate, bot, args.games,
-                       progress=args.progress or None,
-                       deck_base=opponent_deck)
+        stats = torneo_paralelo(cand_spec, parallel.spec_bot(), args.games,
+                                jobs=args.jobs,
+                                progress=args.progress or None,
+                                deck_base=opponent_deck, seeds=seeds)
         print(informe(stats, args.candidate, f"bot+{args.opponent}"))
         if args.base:
-            base = load_agent_from_git(args.base, "agente_base")
-            stats_base = torneo(base, bot, args.games,
-                                progress=args.progress or None,
-                                deck_base=opponent_deck)
+            stats_base = torneo_paralelo(
+                _base_spec(args.base), parallel.spec_bot(), args.games,
+                jobs=args.jobs, progress=args.progress or None,
+                deck_base=opponent_deck, seeds=seeds)
             print()
             print(informe(stats_base, f"{args.base} (git)",
                           f"bot+{args.opponent}"))
@@ -426,14 +517,14 @@ def main(argv):
         return 0
 
     if args.base:
-        base = load_agent_from_git(args.base, "agente_base")
+        base_spec = _base_spec(args.base)
         etiqueta_base = f"{args.base} (git)"
     else:
-        base = load_agent(cand_path, "agente_base_espejo")
+        base_spec = parallel.spec_file(_ROOT / args.candidate)
         etiqueta_base = f"{args.candidate} (espejo)"
 
-    stats = torneo(candidate, base, args.games,
-                   progress=args.progress or None)
+    stats = torneo_paralelo(cand_spec, base_spec, args.games, jobs=args.jobs,
+                            progress=args.progress or None, seeds=seeds)
     print(informe(stats, args.candidate, etiqueta_base))
     return 0
 

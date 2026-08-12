@@ -79,6 +79,13 @@ measurement.
             `# R10: <reason>` in the field's comment block; the reason is
             required.
 
+  R11 The measuring instrument never reaches the thing being submitted.
+            `utils/local_engine.py` loads a MODIFIED engine -- one that honours
+            the seed the official binary throws away -- so games can be
+            replayed. Tools may use it; `main.py` and `ptcg/` may not. What we
+            submit runs on `cg/libcg.*`, and the local binary is gitignored and
+            simply absent on Kaggle.
+
 Usage:
     python utils/lint_architecture.py          # exit 1 if there are violations
 """
@@ -668,6 +675,65 @@ def rule_10_data_has_a_consumer(carriers=None):
     return failures
 
 
+# ---------------------------------------------------------------------------
+# R11 -- the measuring instrument never reaches the thing being submitted
+# ---------------------------------------------------------------------------
+R11_FORBIDDEN = ("local_engine",)
+
+
+def rule_11_agent_never_loads_the_local_engine(archivos=None):
+    """Neither `main.py` nor `ptcg/` may import `utils/local_engine`.
+
+    `cg/build_local_engine.sh` produces a MODIFIED engine: it honours
+    `GameConfig::seed`, which the shipped one throws away, so a game can be
+    replayed exactly (phase B of `docs/engine-source-plan-2026-08-12.md`). That
+    is a measuring instrument, and it is only ever allowed to be one.
+
+    Two separate reasons, and either alone is enough:
+
+    * **What we submit must be the official engine.** The competition runs on
+      `cg/libcg.*`. An agent that imported the local build would behave one way
+      here and another way there, and the local measurement would be of
+      something we do not ship.
+    * **The binary is not in the repository and must not be.** The engine
+      package is competition-use-only (see `cg/build_local_engine.sh`), so
+      `cg/build/` is gitignored. An agent importing it would simply crash on
+      Kaggle, at import time, on the first game.
+
+    The rule is deliberately about the DIRECTION of the dependency, not about a
+    file's contents: tools may reach for the instrument freely, the agent never.
+    """
+    archivos = archivos if archivos is not None else (
+        ([MAIN_PY] if MAIN_PY.is_file() else []) + _package_files())
+    failures = []
+    for path in archivos:
+        path = Path(path)
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            names = []
+            if isinstance(node, ast.Import):
+                names = [a.name for a in node.names]
+            elif isinstance(node, ast.ImportFrom):
+                names = [node.module or ""]
+                names += [f"{node.module or ''}.{a.name}" for a in node.names]
+            # `from local_engine import load` yields both the module and the
+            # qualified name; one import line is one violation, not two.
+            culpables = sorted({
+                name for name in names
+                if set((name or "").split(".")) & set(R11_FORBIDDEN)})
+            if culpables:
+                for name in culpables[:1]:
+                    failures.append((
+                        "R11", _rel(path), node.lineno,
+                        f"`{name}` es el MOTOR LOCAL de medicion, no el que se "
+                        "envia: honra la semilla que el oficial tira, su "
+                        "binario esta fuera del repositorio (cg/build/) y en "
+                        "Kaggle no existe. Lo usan las herramientas de "
+                        "`utils/`; el agente juega siempre sobre `cg/`.",
+                    ))
+    return failures
+
+
 RULES = (
     rule_1_imported_mutables,
     rule_2_purity,
@@ -679,6 +745,7 @@ RULES = (
     rule_8_discard_reads_its_horizon,
     rule_9_scorers_do_not_write_state,
     rule_10_data_has_a_consumer,
+    rule_11_agent_never_loads_the_local_engine,
 )
 
 
