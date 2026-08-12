@@ -330,6 +330,37 @@ there is still walked around for free. An exclusion (`Acerola's Mischief`: their
 hand, their choice, one turn) has to carry its argument in `_EXCLUDED`, and a
 test enforces that.
 
+### `card_text_census.py` — the card texts the code has never heard of
+
+Fourth sibling, and the one that looks the other way round. The three above start
+from a table **we wrote** and check it against the printed text, so a card nobody
+ever thought about is in no table and therefore in no census. This one starts
+from the **card pool** — every id in `deck/opponents/`, `deck/real_opponents/`
+and `competitor_decks/` — and ends at the code, which is the only direction that
+finds a *hole* rather than a *mistake*.
+
+```bash
+python utils/card_text_census.py               # ranked by decks that play it
+python utils/card_text_census.py --band 1      # only what nothing mentions
+python utils/card_text_census.py --self-test   # the two halves
+```
+
+Three bands: **NUNCA REFERENCIADA** (no id, no attack id, no constant of
+`ids.py` appears anywhere under `main.py` or `ptcg/`), **SOLO NOMBRADA**
+(`ids.py` binds a name and no module reads it) and **MODELADA**. A bare integer
+in the source never promotes a card — `93` in a scorer is a score far more often
+than it is Dipplin — it is printed as `? 93` and ignored, because the only thing
+this instrument can do wrong is hide a hole.
+
+It exists for **Deluxe Bomb (1167)**, 120 damage to our own attacker, which
+`grep` found nowhere in the tree. On its first run over 408 lists it reported
+227 cards with printable text and **94 in band 1**, and the sharpest finding was
+not the card but its family: the same sentence is printed by **Spiky Energy (14,
+17 measurable lists)**, **Handheld Fan (1161, 8)** and **Punk Helmet (1176, 2)**
+— a cost on *who attacks* that the board does not show until after we commit.
+Deluxe Bomb itself is in **0** measurable lists, so the class is testable and the
+card that found it is not.
+
 ### `fodder_ladder_audit.py` — the cost paying with the fuel it is buying
 
 Counts, over the same capture, how often a Basic Grass is scored ABOVE an
