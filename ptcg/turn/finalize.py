@@ -13,7 +13,7 @@ from ptcg.calc.damage import _attacker_base_damage
 from ptcg.calc.energy import _grass_mult
 from ptcg.calc.opponent import _op_juega_crustle
 from ptcg.calc.board import _active_of
-from ptcg.cards.ids import Applin, BOSS_SCORE_PRIZE_RANK_BASE, DOOMED_SAC_WALL_PLAY_SCORE, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, KO_WINDOW_PLAY_IDS, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Pinsir, Poke_Pad, SCORE_USELESS_ATTACK, SCORE_VETO, SUPP_SCORE_LAST_RESORT_BAND, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Xerosic_Machinations
+from ptcg.cards.ids import Applin, BOSS_SCORE_PRIZE_RANK_BASE, DOOMED_SAC_WALL_PLAY_SCORE, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, KO_WINDOW_PLAY_IDS, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Pinsir, Poke_Pad, SCORE_CHARGE_DOOMED, SCORE_USELESS_ATTACK, SCORE_VETO, SUPP_SCORE_LAST_RESORT_BAND, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Xerosic_Machinations
 from ptcg.cards.scoring import SCORE_LD_SUPP_COMPROMETIDO, _SUPP_PLAY_IDS
 from ptcg.cards.tables import HAND_COST_ABILITY_IDS, HAND_RESET_PLAY_IDS, attack_table, card_table
 from ptcg.decision.ultra_ball import _matchup_allows_playing, _ub_cost_destroys_better_card, _ub_engine_waits_for_tomorrow
@@ -580,6 +580,67 @@ def finalizar(tc):
                 get_card(obs, _apa_o.area, _apa_o.index, my_index))
             for _apa_i, _apa_o in enumerate(select.option))
 
+        # THE ATTACHMENT ITS OWN SCORER CALLED A LAST RESORT DOES NOT TAKE THE
+        # TURN'S ORDER (user, registro_006 step 54 vs Marnie's Grimmsnarl ex,
+        # LOST). Turn 6, five prizes each, our Meganium just evolved:
+        #
+        #     US                                 RIVAL
+        #     active Teal Mask Ogerpon ex        active Marnie's Grimmsnarl ex
+        #            190/210, 4 effective               300/320
+        #     bench  Meganium 130/160 (1 of 5)   bench  2x Munkidori, 2x Froslass,
+        #     hand   ULTRA BALL, Applin,                Marnie's Impidimp
+        #            Basic {G} Energy            stadium Spikemuth Gym
+        #
+        # The menu and what the agent thought of it:
+        #
+        #     [0] Ultra Ball          score 11900   tier  0
+        #     [3] Grass -> Meganium   score    20   tier 10   <-- played
+        #     [5] stadium ability     score 29000   tier  0
+        #     [6] attack              score  1100   tier  0
+        #
+        # Twenty. `energy_score` had already answered the question out loud --
+        # `SCORE_CHARGE_DOOMED`, the ceiling it puts on a body the opponent can
+        # cash in before our next turn, whose own comment reads "if there is
+        # nothing better left, the energy still lands here". There WAS something
+        # better left, six hundred times better, and the tier played the Grass
+        # anyway: `_TIER_ENERGY` (10) is handed to every ATTACH without ever
+        # asking what the attachment is worth, and 10 > 0 decides before any
+        # score is compared.
+        #
+        # And the Grass was not merely wasted. Ultra Ball costs TWO cards from
+        # hand: with three in hand it was legal, and the attachment left two, so
+        # one action later the Ultra Ball was no longer on the menu at all. The
+        # turn attacked -- it did knock the Grimmsnarl ex out -- and ended with
+        # the Ultra Ball and the Applin dead in hand and four empty bench seats,
+        # instead of Ultra Ball -> Meowth ex -> Last-Ditch Catch ->
+        # Lillie's Determination -> six cards.
+        #
+        # THIS IS THE LAW THE SUPPORTERS ALREADY HAVE, and this is its fourth
+        # consumer. `SUPP_SCORE_LAST_RESORT_BAND` (20) is the height at which a
+        # scorer says "today I do nothing useful: play me only if nothing else
+        # scores", and `_supp_in_hand_takes_the_turn`, `_meowth_fetch_loses_the_turn`
+        # and `_lillie_play_order_veto` all read it. `SCORE_CHARGE_DOOMED` is the
+        # same sentence about energy and sits at the same 20 -- and it covers the
+        # band below it too (the Applin/Dipplin charge that yields nothing, 10).
+        # A play down there cannot USE the turn's order, it can only WASTE it.
+        #
+        # IT YIELDS THE ORDER, IT IS NOT CANCELLED, and that is the whole design.
+        # Turn-CLOSERS are excluded from the comparison on purpose: dropping the
+        # attachment flat into tier 0 would put it below the attack (1100 here)
+        # and the non-accumulating attachment of the turn would be lost outright
+        # -- the exact regression `_attach_park_beneficiary_alive` documents one
+        # paragraph above. The tier is recomputed every menu, so the demotion
+        # lasts only while a real play is still waiting: once they are all played
+        # nothing outscores the attachment any more, it returns to `_TIER_ENERGY`
+        # and goes down ahead of the attack, which is where it always belonged.
+        # Deck-agnostic and reason-agnostic -- it reads the agent's own number
+        # for the attachment, never who is being charged or against whom.
+        _best_non_closing_score = max(
+            [scores[_lra_i] for _lra_i, _lra_o in enumerate(select.option)
+             if _lra_i < len(scores) and scores[_lra_i] > 0
+             and _lra_o.type not in (OptionType.ATTACK, OptionType.END)],
+            default=SCORE_VETO)
+
         for _po_i, _po_o in enumerate(select.option):
             if _po_i >= len(scores) or scores[_po_i] <= 0:
                 continue
@@ -630,6 +691,22 @@ def finalizar(tc):
                     # stays in tier 0 next to the ability so the score decides
                     # (Teal Dance 7500 > capped attachment 7000). Only while that
                     # ability is ALIVE -- see `_attach_park_beneficiary_alive`.
+                    continue
+                if (not _po_is_ko_energy
+                        and scores[_po_i] < SCORE_CHARGE_DOOMED + 1
+                        and _best_non_closing_score > scores[_po_i]):
+                    # Priced at LAST RESORT with a real play still on the menu:
+                    # it stays in tier 0 so the score decides, and comes back to
+                    # `_TIER_ENERGY` in the menu where nothing outscores it. See
+                    # `_best_non_closing_score` above.
+                    #
+                    # `< BAND + 1`, not `<= BAND`: the ceiling is applied as
+                    # `SCORE_CHARGE_DOOMED + score / 1000000.0` so that the
+                    # relative order of two doomed bodies survives it, and that
+                    # tiebreak makes the real number 20.027, not 20. The
+                    # fraction cannot reach 1 (its numerator is capped by
+                    # `SCORE_CHARGE_LETHAL_FLOOR`, 41000), so this reads the
+                    # whole band and the one below it (10) and nothing else.
                     continue
                 _play_order_tier[_po_i] = (
                     _TIER_KO_ENERGY if _po_is_ko_energy else _TIER_ENERGY)

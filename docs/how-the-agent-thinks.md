@@ -163,6 +163,38 @@ because its cost would eat the wrong card, and become playable ten seconds later
 in the same turn once that card has been benched. What the engine does not offer
 at all is the only reliable sign that a card cannot be played today.
 
+### The tier decides before the score, so the tier has to know the score
+
+Ordering vetoes are not the only thing that orders a turn. Above the scores sits
+a small table of **play-order tiers** — the winning attack goes before any
+charge, an evolution before an Item, the turn's energy before the attack that
+ends it — and a tier is compared first, so a play in a higher tier beats a play
+worth six hundred times more.
+
+That is right exactly as long as a tier is a statement about the *kind* of play.
+It stops being right where a scorer has a band that means "this play is worth
+almost nothing". Supporters have had one for a long time,
+`SUPP_SCORE_LAST_RESORT_BAND` — twenty, the height at which a scorer says *today
+I do nothing useful: play me only if nothing else scores* — and three separate
+rules already read it rather than counting cards. Energy has the same band under
+another name: `SCORE_CHARGE_DOOMED`, the ceiling on charging a body the opponent
+can knock out before our next turn.
+
+Every attachment was handed the energy tier without anyone asking what the
+attachment was worth. On turn 6 of a game against Marnie's Grimmsnarl ex that
+put a Grass on a doomed Meganium — the agent's own number for it was 20 — ahead
+of an Ultra Ball it had scored 11900, and the Grass was one of the two cards the
+Ultra Ball discards to pay for itself, so one action later the search was not on
+the menu at all. The turn attacked and ended with the Ultra Ball dead in hand
+and four empty bench seats.
+
+The correction is that a play priced in the last-resort band yields its tier
+while any real play is still waiting. It **yields the order, it is not
+cancelled**: turn-closers are left out of that comparison on purpose, so once
+the real plays are gone nothing outscores the attachment any more, it takes its
+tier back and still goes down before the attack — where the energy of the turn,
+which does not accumulate, belongs.
+
 ### Turn state vs. permanent state
 
 Some things must survive between calls inside the same turn, and a few between
