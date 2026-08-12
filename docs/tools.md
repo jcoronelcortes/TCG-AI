@@ -330,6 +330,31 @@ there is still walked around for free. An exclusion (`Acerola's Mischief`: their
 hand, their choice, one turn) has to carry its argument in `_EXCLUDED`, and a
 test enforces that.
 
+### `tier_inversion_census.py` — every menu where an ORDER beat a NUMBER
+
+`max(range(len(scores)), key=lambda i: (_play_order_tier[i], scores[i]))`, at the
+bottom of `ptcg/turn/finalize.py`, is the only place in this project where a
+category decides before a value. On 12 August 2026 it produced two separate
+defects in one day (`74f85f1`, `fcfb17d`), and neither could have gone red: in
+both, the agent did exactly what its tiers say.
+
+```bash
+python utils/tier_inversion_census.py --corpus
+python utils/tier_inversion_census.py --corpus --games 200 --dump out.json
+```
+
+It plants a sink in the loaded agent's own `finalize` namespace
+(`TIER_CENSUS_SINK`, None in production) and, on every MAIN menu, compares the
+option the tiers play against the one the score alone would pick. Over the
+frozen corpus: **280 inversions in 2 097 MAIN menus (13.35 %)**, across 18 tier
+pairs, each row naming the record of its widest gap.
+
+**An inversion is not a defect** — it is the shape of every correct execution of
+a winning attack, and most rows are the tier doing its job. What is read is the
+GAP. The top row is `_TIER_DEVELOP` (40) over `_TIER_ENERGY` (10), **124 times,
+median gap 10 000**, worst case a Pokémon drop over a Teal Dance worth 33 000
+more — and there is a rule in this agent that says Teal Dance comes first.
+
 ### `card_text_census.py` — the card texts the code has never heard of
 
 Fourth sibling, and the one that looks the other way round. The three above start

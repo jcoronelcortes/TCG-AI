@@ -24,6 +24,16 @@ from ptcg.turn.ctx import TurnCtx  # noqa: F401
 from ptcg.turn.game_plan import plan_of
 
 
+# The census seam. `sorted(key=(tier, score))` at the bottom of this file is the
+# ONE place in the project where an order beats a number, and two of the defects
+# of 12 August 2026 were a row of that comparison -- an ATTACH the scorer itself
+# had priced at 20 outranking an Ultra Ball at 11 900, and a Pokemon drop taking
+# the last bench seat from the search that decides what the seat is for.
+# `utils/tier_inversion_census.py` sets this to a callable to count them; it is
+# None in production and costs one identity check per menu.
+TIER_CENSUS_SINK = None
+
+
 def finalizar(tc):
     """Returns the option indexes the agent plays this turn."""
     # Unpacking of the context: same names as in agent().
@@ -1613,6 +1623,8 @@ def finalizar(tc):
         enumerate(scores),
         key=lambda x: (_play_order_tier[x[0]], x[1]),
         reverse=True)]
+    if TIER_CENSUS_SINK is not None:
+        TIER_CENSUS_SINK(context, select, scores, _play_order_tier, obs, my_index)
     if DEBUG_DECISIONS and context == SelectContext.MAIN:
         # The sentence the turn is under, printed BEFORE the ranking: reading a
         # trace without it means guessing whether a play lost because its score
