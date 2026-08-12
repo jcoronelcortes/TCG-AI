@@ -16,7 +16,7 @@ from ptcg.cards.lines import _direct_evolution_ids
 from ptcg.cards.op_scaling import OP_SCALING_IGNORES_WEAKNESS, op_scaled_damage
 from cg.api import CardType, EnergyType
 from typing import NamedTuple
-from ptcg.cards.ids import Mega_Hawlucha_ex, OP_EVO_ENERGY_ON_PLAY, RETREAT_COST, SNIPE_ANY_TARGET_IDS, Survival_Brace
+from ptcg.cards.ids import ATTACKER_PUNISH_DAMAGE, ATTACKER_PUNISH_NEEDS_DARK, Mega_Hawlucha_ex, OP_EVO_ENERGY_ON_PLAY, RETREAT_COST, SNIPE_ANY_TARGET_IDS, Survival_Brace
 
 
 def _powerful_hand_projected(op_hand_count: int) -> int:
@@ -383,6 +383,57 @@ def _tiene_rule_box(card_id) -> bool:
     if _d is None:
         return True
     return bool(getattr(_d, 'ex', False) or getattr(_d, 'megaEx', False))
+
+
+def _defender_punish_damage(op_active):
+    """Damage the DEFENDER's own attachments put on OUR attacker when we hit it.
+
+    Every other projector in this file answers "what does this attack do to that
+    body". This one answers the question none of them ask: WHAT DOES ATTACKING
+    COST US. Four cards print the same sentence -- "if the Pokemon this card is
+    attached to is in the Active Spot and is damaged by an attack from your
+    opponent's Pokemon (even if this Pokemon is Knocked Out), put N damage
+    counters on the Attacking Pokemon" -- and until 12 August 2026 not one of
+    them existed anywhere in this tree.
+
+    It is read off the board, never guessed: the tools and the energy cards of
+    their active are in the observation. Three conditions come from the text and
+    all three are load-bearing:
+
+      * ACTIVE SPOT ONLY. The same tool on a benched body charges nothing, so
+        this takes the opposing ACTIVE and refuses to walk their bench.
+      * "IS DAMAGED BY AN ATTACK". An attack that deals zero -- a wall, an
+        immunity -- pays nothing either. The caller owns that condition, because
+        this function does not know what we are about to swing.
+      * THE TYPE QUALIFIER. Punk Helmet prints "{D} Pokemon"; a tool on a body
+        of the wrong type is cardboard. Spiky Energy and Deluxe Bomb name no
+        type.
+
+    They ADD UP: nothing in the text makes them exclusive, and two of them on
+    one body is a legal board. Summing is also the safe direction -- the number
+    only ever stops us from claiming a victory we do not have.
+
+    Handheld Fan (1161) is deliberately absent: it moves an ENERGY off the
+    attacker instead of damaging it. That is a real cost and for this deck
+    possibly the worst of the four -- Myriad Leaf Shower scales with energy --
+    but it is a different reading and inventing HP for it would be a lie.
+    """
+    if op_active is None:
+        return 0
+    total = 0
+    _is_dark = _has_energy_of_type(op_active, EnergyType.DARKNESS)
+    _data = card_table.get(op_active.id)
+    _type_ok = (getattr(_data, 'energyType', None) == EnergyType.DARKNESS
+                or _is_dark)
+    for _card in list(getattr(op_active, 'tools', None) or []) + \
+            list(getattr(op_active, 'energyCards', None) or []):
+        _punish = ATTACKER_PUNISH_DAMAGE.get(getattr(_card, 'id', None))
+        if _punish is None:
+            continue
+        if _card.id in ATTACKER_PUNISH_NEEDS_DARK and not _type_ok:
+            continue
+        total += _punish
+    return total
 
 
 def _has_energy_of_type(pokemon, energy_type):
@@ -1308,6 +1359,7 @@ __all__ = [
     '_snipe_targets',
     '_our_effective_damage',
     '_tiene_rule_box',
+    '_defender_punish_damage',
     '_has_energy_of_type',
     '_op_active_attack_damage_to',
     '_op_evolution_attack_damage_to',

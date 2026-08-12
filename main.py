@@ -7756,10 +7756,13 @@ def agent(obs_dict: dict) -> list[int]:
         return False
 
     _active_already_kos = False
+    # Hoisted out of the branch below: the DEFENDER's punish (see
+    # `_active_self_ko_now`) has to know whether our swing damages them at all,
+    # and "is damaged by an attack" is the condition those cards print.
+    _ak_dmg = 0
     if _active_pokemon is not None and _op_active_hp > 0:
 
         _ak_eff = len(_active_pokemon.energies)
-        _ak_dmg = 0
         if _active_pokemon.id == Teal_Mask_Ogerpon_ex and _ak_eff >= 3:
             _ak_op_e = (len(op_state.active[0].energies)
                         if (op_state.active and op_state.active[0] is not None) else 0)
@@ -7870,11 +7873,38 @@ def agent(obs_dict: dict) -> list[int]:
     #   * `_suicide_loses`       : the opponent reaches 0 and we do NOT -> a LOSS.
     # The self-damage is measured with the worst case (`incierto=True`): a finisher that
     # CAN kill us and close the opponent's count does not deserve absolute priority.
+    # THE PRICE THE DEFENDER CHARGES FOR BEING ATTACKED (user, episode 92355371
+    # vs Festival Lead, LOST; found as a class by `utils/card_text_census.py`).
+    # Four cards print "...is damaged by an attack from your opponent's Pokemon
+    # (even if this Pokemon is Knocked Out), put N damage counters on the
+    # ATTACKING Pokemon": Spiky Energy 20, Punk Helmet 40, Deluxe Bomb 120. That
+    # is recoil -- our body, our turn, the same instant as Wood Hammer's -- so it
+    # belongs in the same brake and nowhere else yet.
+    #
+    # It is charged only when our swing DAMAGES them (`_ak_dmg > 0`), because
+    # that is the condition the cards print: against a wall that reads our attack
+    # as zero, nothing comes back.
+    #
+    # What this does NOT do, deliberately: it does not make the defensive half
+    # fire more often. The body that took 120 in that episode did not die on our
+    # turn, it died on the reply -- and pricing that means telling
+    # `_opponent_reply` that our active's HP is lower than the board says, which
+    # is a change to the machinery that has measured negative three separate
+    # times when it was made to fire more often. That half is measured before it
+    # is written.
+    _defender_punish = (
+        _defender_punish_damage(op_state.active[0])
+        if (_active_pokemon is not None and can_attack and not is_confused
+            and _ak_dmg > 0
+            and op_state.active and op_state.active[0] is not None) else 0)
     _active_self_ko_now = (
         _active_pokemon is not None
         and can_attack
         and not is_confused
-        and _self_ko_by_own_attack(_active_pokemon, incierto=True))
+        and (_self_ko_by_own_attack(_active_pokemon, incierto=True)
+             or (_defender_punish > 0
+                 and (_self_damage_of_pokemon(_active_pokemon, incierto=True)
+                      + _defender_punish) >= (_active_pokemon.hp or 0))))
     _active_self_ko_prizes = (prize_count(_active_pokemon)
                               if _active_self_ko_now else 0)
     _suicide_hands_op_win = (_active_self_ko_now

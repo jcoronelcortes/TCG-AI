@@ -440,6 +440,44 @@ FESTIVAL_LEAD_IDS = {Dipplin}
 FESTIVAL_LEAD_MAX_WAVES = 2
 
 
+# --- the price of attacking that the DEFENDER charges ------------------------
+# "If the Pokemon this card is attached to is in the Active Spot and is damaged
+# by an attack from your opponent's Pokemon (EVEN IF THIS POKEMON IS KNOCKED
+# OUT), put N damage counters on the ATTACKING Pokemon."
+#
+# One sentence, four cards, and none of them was in this code until
+# `utils/card_text_census.py` went looking for texts the tree had never heard of
+# (12 August 2026). It is not damage to a target: it is a PRICE ON WHO ATTACKS,
+# it lands on our own body, and the board does not show it until after we have
+# committed. Deluxe Bomb's 120 sends every Dipplin, Applin and Chikorita we own
+# to die for free.
+#
+# The family is what makes it worth modelling. Deluxe Bomb is in ZERO of the
+# lists we can measure against -- it was found in a lost episode -- while Spiky
+# Energy is in 17 and Handheld Fan in 8, so the class is testable even though
+# the card that found it is not.
+Spiky_Energy = 14
+Handheld_Fan = 1161
+Deluxe_Bomb = 1167
+Punk_Helmet = 1176
+ATTACKER_PUNISH_DAMAGE = {
+    Spiky_Energy: 20,        # 2 counters, on any holder
+    Punk_Helmet: 40,         # 4 counters, {D} holders only (see below)
+    Deluxe_Bomb: 120,        # 12 counters, and it discards itself afterwards
+}
+# Punk Helmet prints "If the {D} Pokemon this card is attached to...": a tool on
+# a body of the wrong type charges nothing. The other two name no type.
+ATTACKER_PUNISH_NEEDS_DARK = frozenset({Punk_Helmet})
+# Handheld Fan MOVES AN ENERGY off the attacking Pokemon instead of damaging it.
+# It is deliberately NOT in the table above -- it is not damage and cannot be
+# added to a self-KO -- and it is named here because for THIS deck it may be the
+# worst of the four: Myriad Leaf Shower is 30 + 30 x (energy on both actives),
+# so an energy moved off our attacker is 30 damage gone from the next swing and
+# a body on their bench that did not pay for it. Modelling it is a separate
+# reading (the energy count, not the HP) and it is not attempted here.
+ATTACKER_PUNISH_MOVES_ENERGY = frozenset({Handheld_Fan})
+
+
 
 ALAKAZAM_LINE_IDS = (Abra, Kadabra, Alakazam_ex)
 # The bodies of the line that really ATTACK. Powerful Hand costs a SINGLE
@@ -1587,6 +1625,13 @@ __all__ = [
     'DO_THE_WAVE_ATTACK_ID',
     'FESTIVAL_LEAD_IDS',
     'FESTIVAL_LEAD_MAX_WAVES',
+    'Spiky_Energy',
+    'Handheld_Fan',
+    'Deluxe_Bomb',
+    'Punk_Helmet',
+    'ATTACKER_PUNISH_DAMAGE',
+    'ATTACKER_PUNISH_NEEDS_DARK',
+    'ATTACKER_PUNISH_MOVES_ENERGY',
     'ALAKAZAM_LINE_IDS',
     'ALAKAZAM_ATTACKER_IDS',
     'Buneary',
