@@ -1,8 +1,14 @@
-"""Context of `evaluate_supporters`: what it used to capture from the turn.
+"""Input of `evaluate_supporters`: the 41 turn facts that price the slot.
 
-Generated when the closure was lifted out of `agent()` (wave 5). There are 41
-fields: the ones the function read from `agent`'s scope without receiving them
-as parameters.
+Generated when that function was lifted out of `agent()`, where it read these
+names straight from the enclosing scope. They arrive as a context now, unpacked
+on entry under the SAME names, so the body of `ptcg/turn/supporters.py` is
+unchanged.
+
+Most of the list is the OPPOSING board (`op_has_*`, `op_is_*`), which is the
+honest summary of how Supporters are valued here: what the turn's single slot
+is worth depends far more on the matchup and on what they threaten than on what
+our own hand happens to hold.
 """
 
 from dataclasses import dataclass

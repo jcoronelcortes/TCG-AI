@@ -1,13 +1,21 @@
-"""`TurnoCtx`: the scratchpad that crosses the phases of `agent()`.
+"""`TurnCtx`: what the TAIL of the turn still needs, once scoring is done.
 
-Wave 5 of the refactor. `agent()` was a 15,471-line function whose phases talked
-to each other through local variables; splitting it means giving those variables
-an explicit home.
+`agent()` was one enormous function whose phases talked to each other through
+local variables. Splitting it meant giving those variables an explicit home,
+and this is the home for the last cut -- everything `finalize.py` reads after
+the scoring loop has run.
 
-They are not 1,756 fields, which is how many `agent()` ends up assigning: at
-each cut point only the ones read afterwards survive. At the `finalize` cut --
-right after the scoring loop -- there are 40. Choosing WHERE to cut by that
-number (and not by the order of the file) is what makes the wave tractable.
+WHY ONLY 40 FIELDS. `agent()` assigns some 1,756 names over its length, but at
+any given cut point only the ones READ AFTERWARDS have to survive. Choosing
+where to split the function by that number -- rather than by where the file
+happened to look divisible -- is what made the split tractable at all.
+
+Same shape and same filling convention as `ScoringCtx` (see
+`ptcg/turn/ctx_scoring.py`): flat `Any` fields defaulting to None, populated
+from `locals()` because some names are only bound on certain paths.
+
+This one needs no write-back at all. It feeds the TAIL of the turn, so nothing
+runs after `finalize.py` to read what it mutates.
 """
 
 from dataclasses import dataclass

@@ -1,3 +1,34 @@
+"""Replay a recorded game and ask the CURRENT agent what it would do now.
+
+The debugging tool for "why did it play that". It walks a stored game log,
+feeds each observation to `agent()` as it stands today, and compares the answer
+against the move that was actually made when the log was recorded.
+
+    python utils/log_replay.py <log.json>              # summary only
+    python utils/log_replay.py <log.json> --verbose    # every decision
+    python utils/log_replay.py <log.json> --interactive  # step through it
+
+WHAT A MISMATCH MEANS, and it is not "a bug". The comparison is against the
+PAST agent, so a mismatch is any behaviour change since the log was taken --
+which is usually a fix working as intended. What the tool gives you is the
+LOCATION: the step where today's agent diverges, which is where to point
+`PTCG_DEBUG` or `tests/rule_trace.py` next.
+
+AGE THE LOG BEFORE BLAMING THE AGENT. A recorded game accuses whatever the code
+looked like on the day it was recorded, so a divergence may be a defect that
+has already been fixed. Check the log's date against the change first.
+
+NOT EVERY STEP IS COMPARABLE. Observations with no `select` are skipped
+entirely, and `_canonical_action` handles the case where the log stored an
+empty action for a menu with a single forced option -- the engine records that
+as "nothing chosen" while the agent returns the index. Steps it cannot put in
+canonical form are counted as `ignored` rather than as mismatches: a
+disagreement the tool is not sure about must not be reported as a finding.
+
+Related tools: `utils/turn_explorer.py` searches for the line that WAS
+available on a board, and `tests/rule_trace.py` names the rule that decided.
+"""
+
 import argparse
 import json
 import sys
@@ -14,6 +45,7 @@ from main import agent  # noqa: E402  (after the sys.path line, on purpose)
 
 
 def load_log(path: str) -> list[Any]:
+    """Read a recorded game and return its `steps`. Raises if it is not one."""
     with open(path, "r", encoding="utf-8") as f:
         data = json.load(f)
     if not isinstance(data, dict) or "steps" not in data:
@@ -22,6 +54,7 @@ def load_log(path: str) -> list[Any]:
 
 
 def _is_valid_selection(action: list[int], select: dict) -> bool:
+    """Is `action` a usable list of indices into this menu's options?"""
     if not isinstance(action, list):
         return False
     if len(action) == 0:
@@ -32,6 +65,14 @@ def _is_valid_selection(action: list[int], select: dict) -> bool:
 
 
 def _canonical_action(action: list[int], select: dict) -> list[int] | None:
+    """The logged move in the same form the agent returns, or None.
+
+    None means NOT COMPARABLE, and the caller counts those as ignored rather
+    than as mismatches. The case that needs translating: a menu with a single
+    forced option, which the log stores as an empty action while the agent
+    returns the index -- comparing those raw would report a disagreement that
+    does not exist.
+    """
     if not isinstance(action, list):
         return None
     if len(action) > 0 and _is_valid_selection(action, select):
@@ -73,6 +114,13 @@ def _step_prompt() -> bool:
 
 
 def replay_log(path: str, max_items: int | None = None, verbose: bool = False, interactive: bool = False) -> dict:
+    """Replay the whole log through today's agent and tally the comparison.
+
+    Returns `{processed, compared, matched, mismatched, ignored}`. `compared`
+    is the honest denominator -- `processed` counts every decision replayed,
+    but only the steps `_canonical_action` could put in comparable form are
+    scored. Read `mismatched` against `compared`, never against `processed`.
+    """
     steps = load_log(path)
     processed = 0
     compared = 0

@@ -29,11 +29,17 @@ OUTPUT_EN = SCRIPT_DIR / "deck_en.jpg"
 
 
 def _first_existing(candidates, label):
+    """First path in `candidates` that exists. Raises, naming where it looked.
+
+    The official data files live in different places on different machines, so
+    the lookup is a fallback chain rather than one path -- and when it fails it
+    has to say which places it tried, or the error is unactionable.
+    """
     for p in candidates:
         if Path(p).exists():
             return Path(p)
     raise FileNotFoundError(
-        f"{label} no encontrado. Buscado en: " + ", ".join(str(c) for c in candidates))
+        f"{label} not found. Looked in: " + ", ".join(str(c) for c in candidates))
 
 
 # The challenge's official data: it is looked for in deck/, dataset/ and the
@@ -118,18 +124,26 @@ def load_unique_card_order(csv_path):
 
 def build_card_id_to_pdf_page_index(deck_unique_ids, card_id_to_order,
                                     pdf_card_start_page=PDF_CARD_START_PAGE):
+    """Map each deck card id to the PDF page that shows it.
+
+    The PDF has no index: cards appear in the same order as the unique ids of
+    the card CSV, starting at `pdf_card_start_page`. So the page is just that
+    ordinal plus the offset. Fails loudly on an id the CSV does not know --
+    silently skipping it would render a deck image quietly missing a card.
+    """
     missing = [cid for cid in deck_unique_ids if cid not in card_id_to_order]
     if missing:
-        raise ValueError("IDs del mazo no encontrados en el CSV de cartas: "
+        raise ValueError("Deck ids not found in the card CSV: "
                          + ", ".join(map(str, missing)))
     start_page_index = pdf_card_start_page - 1
     return {cid: start_page_index + card_id_to_order[cid] for cid in deck_unique_ids}
 
 
 def render_pdf_page_to_image(doc, page_index, zoom=PAGE_RENDER_ZOOM):
+    """Rasterise one PDF page. `zoom` trades output resolution for memory."""
     import fitz
     if page_index < 0 or page_index >= len(doc):
-        raise IndexError(f"Pagina {page_index} fuera de rango (el PDF tiene {len(doc)}).")
+        raise IndexError(f"Page {page_index} out of range (the PDF has {len(doc)}).")
     page = doc.load_page(page_index)
     pix = page.get_pixmap(matrix=fitz.Matrix(zoom, zoom), alpha=False)
     return Image.frombytes("RGB", (pix.width, pix.height), pix.samples)
@@ -309,7 +323,15 @@ def save_jpeg_under_size(image, output_path, max_bytes=MAX_OUTPUT_BYTES,
                          min_quality=JPEG_MIN_QUALITY,
                          downscale_step=JPEG_DOWNSCALE_STEP,
                          min_width=JPEG_MIN_WIDTH):
-    """It lowers the quality and, if that is not enough, reduces the size until it is under max_bytes."""
+    """Save as JPEG under `max_bytes`, degrading in two stages until it fits.
+
+    Quality first, down to `min_quality`; only when that is exhausted does it
+    shrink the image and start over. That order keeps the deck readable for as
+    long as possible -- a smaller sharp image beats a full-size blurry one.
+    Gives up at `min_width` and saves whatever it has rather than looping.
+
+    Returns `(image, quality, size_bytes)` as actually written.
+    """
     output_path = Path(output_path)
     resampling = getattr(Image, "Resampling", Image).LANCZOS
     working = image.convert("RGB")

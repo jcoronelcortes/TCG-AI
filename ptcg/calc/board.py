@@ -1,4 +1,25 @@
-"""Reading the board: active, evolvable bodies and hand options.
+"""Reading the board as a whole: the active, what can evolve, what can be played.
+
+Three readings that several unrelated decisions share. Each one is here rather
+than inlined for the same reason: when two rules compute the same fact
+separately they eventually disagree, and on this board that disagreement is a
+lost game rather than a failing test.
+
+  * `_active_of` -- the active Pokemon or None. Trivial, and centralised
+    because the raw pattern is three checks deep and was being written by hand
+    in dozens of places.
+  * `_evolvable_counts` -- which pre-evolutions can REALLY be evolved this
+    turn. The subtle one; its docstring carries the game it came from and,
+    more importantly, the measurement showing why the other four call sites
+    were deliberately left alone.
+  * `_count_hand_play_options` -- roughly how much the hand can still DO. A
+    coarse "am I flooded or stuck" number, not a plan.
+
+`_count_hand_play_options` is the one place in this package that is written
+against OUR deck list by name. That is a limit worth knowing about: it counts
+our four evolution links and our five Supporters, so against a different deck
+it would simply undercount. The rest of the file reads properties and works
+anywhere.
 
 Extracted VERBATIM from main.py by utils/extract_definitions.py
 (docs/project-history.md). Its purity is verified by
@@ -9,9 +30,13 @@ from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Chi
 
 
 def _active_of(state):
-    # Active Pokemon of `state`, or None if there is none. Centralises the repeated
-    # pattern `state.active[0] if state.active and state.active[0] is not None
-    # else None`.
+    """The active Pokemon of `state`, or None -- for either player.
+
+    There genuinely may not be one: between a knockout and its replacement the
+    active slot is empty, and that board reaches the scorers.
+    """
+    # Centralises the repeated pattern `state.active[0] if state.active and
+    # state.active[0] is not None else None`.
     if state is None:
         return None
     _act = getattr(state, "active", None)
@@ -70,6 +95,24 @@ def _evolvable_counts(field_counts, at_turn_start, forest_in_play_flag):
 
 
 def _count_hand_play_options(hand_counts, field_counts, bench_count, energy_attached):
+    """How much this hand can still DO. Returns (play_options, supporters).
+
+    A coarse liveness number, used to tell a hand that is out of moves from one
+    that is merely awkward -- which is what the refill and disruption rules turn
+    on. It is not a plan and nothing executes from it.
+
+    What counts as an option: an evolution whose body is already in play (worth
+    2, since it both spends a card and upgrades a body), each Supporter held, an
+    attachment if the turn's energy is unspent, and each Basic that could still
+    be benched while there is room.
+
+    `supporters` comes back separately because callers want it on its own; it is
+    already included in `play_options`.
+
+    Written against OUR deck by name -- our four evolution links, our five
+    Supporters, our three benchable Basics -- so it undercounts for any other
+    deck rather than failing.
+    """
     play_options = 0
 
     if hand_counts.get(Meganium, 0) >= 1 and field_counts.get(Bayleef, 0) >= 1:

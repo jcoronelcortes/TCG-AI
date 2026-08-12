@@ -1,4 +1,27 @@
-"""Assorted Supporters: Dawn, Lana's Aid and picking the best one in hand.
+"""Assorted Supporters -- Dawn, Lana's Aid -- and THE DECK AS A CLOCK.
+
+ONE SUPPORTER PER TURN. That single constraint is what makes this whole family
+of decisions competitive rather than independent: Boss's Orders, Xerosic's,
+Lillie's, Dawn and Lana's Aid are all bidding for the same slot, so each
+scorer's real question is not "is this good" but "is this the best use of the
+only Supporter we get". The values they produce share one scale
+(`SCORE_SUPPORTER_VALUE_BASE`) precisely so they can be compared.
+
+Dawn (search out an evolution line) and Lana's Aid (recover up to three
+non-Rule-Box Pokemon or basic Energy) are scored here. The heavier Supporters
+have their own modules -- `boss_orders.py`, `disruption.py` -- and Lillie's
+Determination is still in main.py.
+
+THE DECK CLOCK, which is this file's most reusable idea and is not about
+Supporters at all. Our own deck running out loses the game, and both hands of
+that clock are known: one card drawn per turn, at best one prize taken per
+turn. So the prizes we still need cost that many turns, and if the deck does
+not cover them the race is lost on time no matter how the board looks.
+`_deck_clock_runs_out` is that comparison, and `_refill_deck_delta` is the
+correction that keeps it honest -- a refill Supporter shuffles the hand back
+before drawing, so with a short hand it BURNS deck rather than netting it, and
+"play the refill to survive the clock" is only true when the arithmetic
+actually comes out positive.
 
 Extracted VERBATIM from main.py by utils/extract_definitions.py
 (docs/project-history.md). Its purity is verified by

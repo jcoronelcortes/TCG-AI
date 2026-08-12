@@ -1,4 +1,33 @@
-"""Evolution lines: stage, root, deck chains and missing links.
+"""EVOLUTION LINES: stage, root, chains, and whether a link can be used.
+
+Reasoning about lines -- Applin to Dipplin to Hydrapple ex -- is behind a large
+share of the agent's decisions: what to search for, what to recover, what to
+discard, what to bench. These are the functions that answer those questions
+about any card.
+
+DECK-AGNOSTIC BY CONSTRUCTION. Almost everything here reads the CARD DATABASE
+(`evolvesFrom`, the stage flags), not our own `EVO_LINES` table. `_line_root`
+walks up the chain link by link; `_evolution_stage` reads the printed stage. So
+the same functions describe the OPPONENT's lines as well as ours, which is what
+lets the gust and threat rules ask "is this the pre-evolution of something
+dangerous" without a hard-coded list per matchup. `_build_deck_chains` is the
+exception, and takes the deck as an argument rather than assuming one.
+
+THE USEFUL DISTINCTION: a card being IN HAND is not the same as being PLAYABLE.
+An evolution needs a body in play to go on top of; a Basic needs a free bench
+seat. The `_evo_copies_usable`, `_line_base_benchable`, `_pokemon_injugable`
+and `_evo_link_state` family answers the second question, and it is what stops
+searches from buying cards that arrive dead -- the recurring cost of confusing
+the two.
+
+`_evo_top_unlocked_by_the_search` is the forward-looking one: what a line could
+REACH if the search brought this link, which is how the searchers tell a
+missing middle from a dead end.
+
+`_validate_id_constants` is a startup self-check, not logic: it warns on stderr
+when a hard-coded id in `ptcg/cards/ids.py` no longer names the card it was
+written for -- the failure a card database update would otherwise cause
+silently, in the worst possible way.
 
 Extracted VERBATIM from main.py by utils/extract_definitions.py
 (docs/project-history.md). Its purity is verified by
@@ -13,6 +42,18 @@ from ptcg.cards.tables import _CARD_BY_NAME, _EVOLUTIONS_BY_NAME, card_table
 
 
 def _validate_id_constants():
+    """Check every hard-coded id still names the card it was written for.
+
+    The agent is full of constants like `Teal_Mask_Ogerpon_ex = 1234`, and if
+    the card database ever renumbers, those keep resolving -- to the WRONG
+    card. Every rule then silently applies to something else.
+
+    Compares each id against the name it is expected to carry
+    (`_ID_NAME_EXPECTATIONS`) and WARNS on stderr rather than raising: a
+    mismatch must be visible, but refusing to start would forfeit a live game
+    over a cosmetic rename. Returns the mismatches so a test can assert there
+    are none.
+    """
     mismatches = []
     for _cid, _expected in _ID_NAME_EXPECTATIONS.items():
         if _cid < 0:
@@ -24,8 +65,8 @@ def _validate_id_constants():
     if mismatches:
         import sys as _sys
         for _cid, _expected, _name in mismatches:
-            print(f"[WARN][ID-AUDIT] id={_cid} esperaba '{_expected}' "
-                  f"pero card_table dice '{_name}'", file=_sys.stderr)
+            print(f"[WARN][ID-AUDIT] id={_cid} expected '{_expected}' "
+                  f"but card_table says '{_name}'", file=_sys.stderr)
     return mismatches
 
 

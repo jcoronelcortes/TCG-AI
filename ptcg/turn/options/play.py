@@ -1,8 +1,35 @@
-"""Scoring of the `PLAY` options.
+"""Scoring the PLAY options: playing a card out of hand.
 
-The `o.type == OptionType.PLAY` branch of the `agent()` chain, extracted
-VERBATIM. It unpacks from the context the 87 fields it reads and returns the
-5 it reassigns; the rest stay as they were, just like before.
+Everything that leaves the hand for the board comes through here -- benching a
+Pokemon, an Item, a Supporter, a stadium -- so this branch is where most turns
+are actually spent. It is organised by CARD, one block per id.
+
+THE TWO BASE ANCHORS (`ptcg/cards/ids.py`) put the kinds on a common scale:
+`SCORE_DEVELOP_BASE` (20000) for putting a Pokemon down, `SCORE_ITEM_BASE`
+(10000) for everything else. Every score in the file reads as one of those plus
+or minus a nuance, which is what makes them comparable at a glance.
+
+WHERE THE HARD CARDS ARE. This branch does NOT contain the reasoning for the
+difficult cards: Ultra Ball, Boss's Orders, Night Stretcher, the disruption
+pair, Poke Pad and the rest each have a module in `ptcg/decision/`, and this
+file dispatches to their `_score_*` functions. What stays here is the
+development logic -- which body to bench, and in what order -- plus the
+per-card adjustments too small to move out.
+
+BENCHING IS THE DECISION WITH THE MOST RULES, because a benched body is both an
+asset and a liability: it develops a line, and it is a prize waiting to be
+taken. Hence the recurring shapes -- the caps ("at most two Ogerpon"), the
+matchup vetoes (do not put a Tapu Bulu down against Dragapult), the anti-donk
+exceptions on the opening turn, and the seat check before fetching anything.
+
+PROMISES FROM EARLIER MENUS ARE COLLECTED HERE. When a search decided to buy a
+body, the intention was written on `AGENT_STATE` (`_ub_meowth_pending`,
+`_ub_fez_pending`, `_poke_pad_target_id`) and this branch is where it is
+honoured: the card must actually be played, or the two cards the search cost
+were spent for nothing. Each of those flags is reset every turn.
+
+Extracted VERBATIM from the `agent()` chain: it unpacks from the context only
+the fields it reads and returns only the ones it reassigns.
 """
 
 from cg.api import AreaType, CardType, EnergyType

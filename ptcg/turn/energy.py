@@ -1,8 +1,44 @@
-"""`_energy_score_base`, extracted VERBATIM from `agent()` (wave 5).
+"""WHO GETS THE ENERGY: the ranking of bodies for this turn's Grass.
 
-It used to capture 61 variables of the turn; they now arrive in a context that
-is unpacked on entry, with the SAME names, so the body is exactly the one that
-was in main.py.
+`_energy_score_base` prices ONE body as a destination for one Grass. Every
+attachment decision in the turn is built on it -- the manual attach menu, Teal
+Dance, Ripening Charge and the retreat rules all ask this same function which
+body deserves the energy, so they cannot disagree about it.
+
+THE BANDS, which are the real structure of the file (constants in
+`ptcg/cards/ids.py`):
+
+    41900  SCORE_CHARGE_ACTIVE_FINISHER  this energy WINS the game today
+    41000  SCORE_CHARGE_LETHAL_FLOOR     floor of "takes or denies a prize today"
+    31300  SCORE_CHARGE_ACTIVE_ATTACK    it unlocks an attack from the front
+    31150  SCORE_BENCH_YIELDS_TO_RETREAT_UNLOCK   ceiling for any bench charge
+     ~8000 development: assembling an attacker for a later turn
+       20  SCORE_CHARGE_DOOMED           the body dies before it can spend it
+
+Read them as one sentence: energy that CASHES something today outranks energy
+that builds, and building a body the opponent knocks out tonight is just
+handing them the card.
+
+THE CEILINGS LIVE IN THE WRAPPER, NOT HERE. `energy_score` in main.py wraps
+this function and applies two caps afterwards. That placement is deliberate and
+worth understanding before adding a `return`: this body has some sixty exit
+points -- per-matchup caps, bench bands, pivots -- so a correction written at
+the end of the function would only ever reach the generic tail. The wrapper is
+the one point all sixty pass through.
+
+The two caps it applies:
+  * A DOOMED BODY is capped to the bottom band. Not vetoed, and only below the
+    lethal floor: above it the energy pays for itself the same turn.
+  * NO BENCH CHARGE MAY OUTRANK THE RETREAT UNLOCK. When the turn's only attack
+    depends on the active receiving the Grass that pays its retreat, the
+    per-matchup development branches -- which answer a question that only
+    matters when the energy has nothing better to do -- must not outbid it.
+
+Both caps preserve the relative order underneath by adding a millionth of the
+original score, so that if the whole board is doomed the same body still wins.
+
+Extracted VERBATIM from `agent()`: the 61 turn variables it used to close over
+now arrive in a context, unpacked on entry under the SAME names.
 """
 
 from cg.api import Pokemon
@@ -16,6 +52,18 @@ from ptcg.turn.energy_ctx import CtxEnergyScoreBase  # noqa: F401
 
 
 def _energy_score_base(tc, pokemon, active):
+    """How much ONE body deserves this turn's Grass. Higher wins the energy.
+
+    `active` says whether `pokemon` is the body in front, which changes the
+    answer entirely -- only energy on the active can still become a play this
+    same turn, since it can pay the retreat that promotes an attacker.
+
+    The result belongs to the bands documented at the top of this module, and
+    it is the BASE: two ceilings are applied afterwards by the `energy_score`
+    wrapper in main.py. Call that one, not this, unless you specifically want
+    the uncapped number -- this function has some sixty exit points and the
+    wrapper is the single place they all pass through.
+    """
     # Unpacking of the captures.
     _ability_unlock_retreat_attack = tc._ability_unlock_retreat_attack
     _ability_unlock_retreat_ko = tc._ability_unlock_retreat_ko

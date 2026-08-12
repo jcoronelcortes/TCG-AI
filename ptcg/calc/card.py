@@ -1,4 +1,37 @@
-"""Reading cards: access to the observation, prizes and body value.
+"""Reading a single card: fetching it, what it is worth, what it costs us.
+
+The bottom of the reading stack. Everything above -- damage, energy, the whole
+`decision/` layer -- asks its questions about one card through here, which is
+why these few functions are among the most-called in the agent.
+
+WHAT LIVES HERE, in the order the file is written:
+
+  * `get_card` -- the ONE way to turn an (area, index) menu reference into the
+    actual card. Every scorer starts with it.
+  * the PRIZE functions -- how many prizes a body hands over when it falls.
+    There are three of them and picking the wrong one is a real bug, so the
+    split is spelled out below.
+  * `pokemon_score` -- a generic "how valuable is this body", used for ranking
+    when no measured rule has an opinion.
+  * `is_one_prize_wall` -- the shield we want in front early, recognised by its
+    PROPERTIES rather than by name.
+
+THE THREE PRIZE FUNCTIONS, and which one to reach for:
+
+  * `prize_count` -- the printed truth for OUR bodies. What the opponent
+    collects when this one of ours is knocked out.
+  * `prize_count_op` -- the same question for THEIR bodies, with their prize
+    DENIAL applied (Pecharunt ex, Mega Gengar ex). Using `prize_count` on an
+    opposing body overstates what a knockout pays us.
+  * `ko_front_price_rung` -- not a count but a COMPARISON key, for ranking
+    which of our bodies should take the front seat. It clamps at their
+    remaining pile, because past that point a dearer corpse costs no more than
+    a cheap one.
+
+Purity, and why it is not quite absolute: `prize_count_op` reads the prize
+denial flags off `AGENT_STATE`. The flags are refreshed once per turn and read
+here as data, so `utils/purity.py` still passes the module -- but it is the one
+function in this file whose answer depends on the turn.
 
 Extracted VERBATIM from main.py by utils/extract_definitions.py
 (docs/project-history.md). Its purity is verified by
@@ -13,6 +46,20 @@ from ptcg.state.agent_state import AGENT_STATE
 
 
 def get_card(obs: Observation, area: AreaType, index: int, player_index: int) -> Pokemon | Card | None:
+    """Resolve an (area, index) reference into the card the option points at.
+
+    A menu option names its card by WHERE IT SITS, not by id, so this is the
+    lookup every scorer opens with. Returns a `Pokemon` for the in-play areas
+    and a `Card` for the rest; None when the reference does not resolve.
+
+    Two areas do not come from the player's own zones: DECK and LOOKING are
+    read off `obs.select`, since they only exist while a search or a reveal is
+    open.
+
+    Returning None rather than raising is deliberate -- a menu can offer an
+    index into a zone the observation renders differently, and a scorer that
+    cannot see the card should decline to score it, not crash a live game.
+    """
     ps = obs.current.players[player_index]
     try:
         match area:
@@ -39,6 +86,20 @@ def get_card(obs: Observation, area: AreaType, index: int, player_index: int) ->
 
 
 def prize_count(pokemon: Pokemon) -> int:
+    """How many prizes knocking this body out hands over. Use it on OUR side.
+
+    The base is the card's class -- 3 for a Mega ex, 2 for an ex, 1 otherwise
+    -- and then two ATTACHMENTS reduce it, which is why this reads the body in
+    play and not just the id: the same card is worth different prizes depending
+    on what is stuck to it.
+
+      * Legacy Energy (12) -- one prize less, for anything.
+      * Lillie's Pearl (1172) -- one prize less, but only on a Lillie's body,
+        which is what the name check enforces.
+
+    For an OPPOSING body use `prize_count_op` instead: their prize denial
+    applies there and is not modelled here.
+    """
     data = card_table[pokemon.id]
     count = 3 if data.megaEx else 2 if data.ex else 1
     for card in pokemon.energyCards:
@@ -105,6 +166,26 @@ def prize_count_op(pokemon: Pokemon) -> int:
 # own draws does not buy turns, and the energy tempo towards Myriad is
 # everything. Same criterion as the a8c8163 sweep (Cubchoo exemption).
 def pokemon_score(pokemon: Pokemon) -> int:
+    """A generic "how valuable is this body", for ranking with no better rule.
+
+    The FALLBACK valuation. Where a measured rule has an opinion about a body
+    it wins; this is what orders the rest, mostly when choosing a gust target
+    among opposing Pokemon that no named rule distinguishes.
+
+    What it adds up, in descending weight: the prizes it hands over (1000
+    each, so the class of the body dominates everything else), the investment
+    sunk into it (150 per energy, 100 per tool), its evolution stage, a per-card
+    correction, and finally its HP as the tie-break.
+
+    The per-card corrections are the ENGINE bodies -- Meganium, Gardevoir ex,
+    Typhlosion, Slowking, Dusknoir, Alakazam ex -- worth more than their class
+    suggests because they keep the opposing deck running. The penalised ids
+    (Kyurem, Lilligant, Nymble, Lugia EX) are the reverse: bodies whose printed
+    stats overstate what they actually do. Munkidori gets a bonus only once
+    charged, since it is the body that carries Adrena-Brain's damage.
+
+    The numbers are ordinal, not units of anything -- only their order matters.
+    """
     data = card_table[pokemon.id]
     score = prize_count(pokemon) * 1000
     score += len(pokemon.energies) * 150

@@ -1,4 +1,56 @@
-"""Scoring constants shared by several phases.
+"""Scoring constants shared by several phases -- and the BANDS they live in.
+
+Every decision the agent makes is a number, and the numbers are not arbitrary:
+they are arranged in BANDS, so that what matters more can never be outbid by
+what matters less. Read this before adding a constant anywhere, because the
+value you pick is a claim about priority, and picking it by eye is how a sound
+rule ends up vetoing a decisive one.
+
+THE GLOBAL SCALE (defined in `ptcg/cards/ids.py`, listed here because that is
+where the reasoning belongs):
+
+    50000   SCORE_WIN_GAME       ending the game beats everything
+    20000   SCORE_DEVELOP_BASE   base for benching a Pokemon
+    10000   SCORE_ITEM_BASE      base for playing a non-Pokemon card
+        -1  SCORE_VETO           do not play this
+      -100  SCORE_CANCEL         below the veto, so an index tie cannot pick it
+     -5000  SCORE_USELESS_ATTACK attacking into an immunity
+    -10000  SCORE_NEVER          never
+   -100000  SCORE_FORBID         illegal or self-harming; absolutely not
+
+Two properties of that scale carry most of the weight. The negatives are
+ORDERED rather than a single "no", so that vetoes of different strength do not
+collapse into a tie. And a tie is genuinely dangerous: when two options share a
+score the MENU ORDER decides, which is the engine's order and not ours -- the
+reason several constants below exist purely to keep two rungs apart.
+
+THE PROMOTION BAND, which is what most of this file defines. Choosing who takes
+the front seat after a knockout is the decision with the most competing
+opinions, so it has its own layered structure:
+
+    +20000  PROMO_KO_BONUS       whoever knocks their active out goes first
+     +1200  PROMO_KO_FRONT       ...and among knockers, who outlives whom
+      9450  PROMO_LAST_STAND     at their match point, who absorbs the reply
+     -6000  PROMO_DOOMED_PENALTY a body that dies anyway yields to a survivor
+     -1500  PROMO_PRIZE_PENALTY  per extra prize handed over
+    -30000  PROMO_MATCH_POINT_VETO   this promotion LOSES the game
+
+Each constant's own comment carries the game that set its value and, more
+usefully, the neighbouring numbers it had to clear or stay under. That
+arithmetic is the real specification: `PROMO_KO_FRONT` is 1200 because it must
+sit above every incidental adjustment in its branch and below every deliberate
+one, and the comment enumerates both sides.
+
+WHY A TIE-BREAK MUST STAY SMALL. A generic tie-break exists to order options
+that measured rules do not distinguish. Make it large and it starts overruling
+rules that were each written from a specific lost game -- which is exactly what
+happened when `PROMO_KO_FRONT` was first tried wider, and it moved corpus
+decisions onto bodies those matchups deliberately keep back.
+
+The two helpers here, `_SUPP_PLAY_IDS` and `_purchase_of_this_turn`, share one
+doctrine: the decision that SPENDS a resource and the decision that prices the
+result afterwards must not be able to contradict each other, so both consult
+the same source.
 
 Extracted VERBATIM from main.py by utils/extract_definitions.py
 (docs/project-history.md). Its purity is verified by

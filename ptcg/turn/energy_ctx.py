@@ -1,8 +1,16 @@
-"""Context of `_energy_score_base`: what it used to capture from the turn.
+"""Input of `_energy_score_base`: the 61 turn facts the ranking depends on.
 
-Generated when the closure was lifted out of `agent()` (wave 5). There are 61
-fields: the ones the function read from `agent`'s scope without receiving them
-as parameters.
+Generated when that function was lifted out of `agent()`, where it had been a
+closure reading these names straight from the enclosing scope. They arrive as a
+context now, unpacked on entry under the SAME names, so the body of
+`ptcg/turn/energy.py` is unchanged.
+
+The field list is also a useful census in its own right: it is the complete
+answer to "what can change which body gets the energy". Roughly three groups --
+what our own bodies can do right now (`_active_*`, `_bench_*`), what a charge
+would UNLOCK this turn (`_charge_active_finishes`, `_attach_enable_retreat_*`,
+`_ability_unlock_retreat_*`), and which matchup we are in (the `op_is_*` flags,
+which drive the per-deck caps).
 """
 
 from dataclasses import dataclass

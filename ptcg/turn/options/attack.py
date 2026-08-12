@@ -1,8 +1,34 @@
-"""Scoring of the `ATTACK` options.
+"""Scoring the ATTACK options -- and, mostly, deciding whether to attack AT ALL.
 
-The `o.type == OptionType.ATTACK` branch of the `agent()` chain, extracted
-VERBATIM. It unpacks from the context the 25 fields it reads and returns the
-2 it reassigns; the rest stay as they were, just like before.
+Attacking ENDS THE TURN, which is what makes this branch unusual: it is not
+competing on value with the other options so much as claiming the turn is over.
+So the scores here are extreme at both ends rather than finely graded.
+
+THE LADDER, from the top:
+
+  * 99000 -- the active's attack WINS THE GAME. Absolute priority; the tier in
+    `finalize.py` lifts it too, so nothing else can be played first.
+  * 8500+ -- a SNIPE that takes a prize past the wall in front. Free value: it
+    exposes nothing and beats every filler play.
+  * ~1000 -- an ordinary attack, nudged by whether the turn plan already
+    settled on one.
+  * VETO -- the attack must not be made at all.
+
+WHERE THE NUMBERS COME FROM. This branch does not compute damage; it reads
+`AGENT_STATE.plan` (see `ptcg/engine/plan.py`), the attack the turn already
+decided on. `plan.attacker == 0` throughout means "the ACTIVE's attack", which
+is the only case several of these flags were measured for.
+
+THE SUICIDAL FINISHER is the subtle veto and the reason to read this file
+carefully. Some attacks damage their own user, and if that self-knockout hands
+over the opponent's last prize, attacking LOSES a game we could have merely not
+won. The two brakes are deliberately different: an attack that loses is always
+vetoed, while one that only DRAWS is vetoed only if a benched body could win
+cleanly instead -- with no such relief, a draw is the best result on the table
+and we take it.
+
+Extracted VERBATIM from the `agent()` chain: it unpacks from the context only
+the fields it reads and returns only the ones it reassigns.
 """
 
 from cg.api import AreaType, OptionType

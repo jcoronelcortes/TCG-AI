@@ -1,4 +1,60 @@
-"""Damage: base damage of our attackers, unguaranteed KOs and sniping.
+"""The DAMAGE MODEL: how hard a hit lands, ours and theirs.
+
+The single most consequential module in the package. Nearly every decision the
+agent makes reduces to a damage question -- does this attack knock out, do we
+survive the reply, is that body worth gusting -- and all of them are answered
+here. An error in this file does not fail a test; it loses a game while every
+test stays green (see `_our_effective_damage`, whose docstring carries exactly
+such a loss).
+
+THE CANONICAL MODEL, AND WHY IT MATTERS. There is one implementation of the
+arithmetic and every consumer goes through it. That is a rule with a price
+attached: the last time a correction was added with a default that let existing
+callers ignore it, all 69 of them ignored it, four inline copies of the
+arithmetic quietly carried the fix, and the finishers over-read by 30 for a
+month. When something new modifies damage, it belongs INSIDE the functions
+here, not beside them.
+
+THE TWO HALVES
+
+  * OUR damage. `_attacker_base_damage` gives what the attack prints given the
+    energy on it; `_our_effective_damage` then RESOLVES that number against the
+    body receiving it. The order inside the resolver is the card rules' order
+    and is load-bearing: immunities first (they return 0 outright), then
+    weakness and resistance, then the stadium, then the survive-at-10 caps.
+    Anything inserted at the wrong rung comes out wrong by 30.
+
+  * THEIR damage. `_op_active_attack_damage_to` and its evolution counterpart
+    project what the opponent hits us for. Harder, because their board scales
+    their attacks in ways the printed number does not show -- their bench, our
+    hand, the prizes taken -- which is what `ptcg/cards/op_scaling.py` and the
+    `op_scale` on `AGENT_STATE` carry. A projector that reads only the attacker
+    silently reverts to the placeholder printed on the card.
+
+THE VOCABULARY the rest of the agent borrows from here:
+
+  * a GUARANTEED knockout is not simply "damage >= HP" -- `_ko_not_guaranteed`
+    is the veto for bodies that survive on a coin flip or a Tenacious Body, and
+    a route that closes the game may not be built on an unguaranteed one.
+  * the GIFT WINDOW (`_ventana_de_regalo`) is the damage a body will have taken
+    by the time the opponent next acts -- their attack plus the chip and the
+    movable damage they can aim. It is what "will this body still be alive"
+    means anywhere in the agent.
+  * the REPLY is their answer to our turn (`_promoted_reply_damage`,
+    `_promoted_lethal_reply`), which is the defensive half of the turn plan.
+  * a FINISHER is a body that closes a route; the `_bench_finisher_*` family
+    finds the one on our bench, including whether it survives long enough to
+    matter.
+  * SNIPE is damage aimed past the active at the bench, and it has its own
+    target-selection family because the best snipe target is rarely the
+    biggest body.
+
+WHAT THIS MODULE MAY NOT DO. It is pure: it reads cards, tables and the board
+passed to it, and writes nothing. Turn-scoped facts it cannot see -- the
+stadium, the opposing board scale -- reach it either as a parameter or as a
+read of the refreshed flags on `AGENT_STATE`. The `full_metal_lab=None`
+three-state switch in `_our_effective_damage` is the pattern for that, and the
+reason it is a three-state rather than a boolean is documented there.
 
 Extracted VERBATIM from main.py by utils/extract_definitions.py
 (docs/project-history.md). Its purity is verified by
@@ -797,6 +853,19 @@ def _attacker_base_damage(attacker_id, target, effective_energy,
 
 def _bench_attacker_can_ko(my_state, target, meganium_active, total_grass_field,
                            bench_count, retreat_grass_after, neutral_zone):
+    """Can ANY body on our bench knock `target` out, as things stand?
+
+    The existence question behind every promote route: before paying a retreat
+    to bring a body forward, something has to establish that the body it brings
+    up actually finishes the job. Walks the bench and stops at the first one
+    that does.
+
+    It reads each candidate with the energy ALREADY on it -- no projected
+    attachment -- so it answers "is the finisher ready", not "could one be made
+    ready". `retreat_grass_after` is the Grass still on the field once the
+    retreat is paid, which matters because our scaling attacks count the whole
+    field and paying a retreat can shrink the very number they scale on.
+    """
     if target is None:
         return False
     _thp = target.hp or 0

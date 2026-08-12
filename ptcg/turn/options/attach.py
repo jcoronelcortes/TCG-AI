@@ -1,8 +1,33 @@
-"""Scoring of the `ATTACH` options.
+"""Scoring the ATTACH options: WHERE this turn's one energy goes.
 
-The `o.type == OptionType.ATTACH` branch of the `agent()` chain, extracted
-VERBATIM. It unpacks from the context the 26 fields it reads and returns the
-2 it reassigns; the rest stay as they were, just like before.
+The manual attachment happens ONCE per turn, so this branch is not really
+choosing between energies -- it is choosing the body, and every option in the
+menu is the same card pointed at a different target.
+
+THE SCORE COMES FROM ELSEWHERE. The ranking of bodies is `energy_score` (see
+`ptcg/turn/energy.py`), which knows the caps, the matchups and who is worth
+feeding. What this branch adds is the situational corrections that only make
+sense at the moment of attaching:
+
+  * DOES THIS ATTACHMENT BUY SOMETHING TODAY -- it finishes the game, it
+    unlocks an attack, it pays a retreat that promotes a finisher. Those beat
+    any development charge.
+  * DOES A FREE ROUTE ALREADY COVER IT -- Teal Dance and Ripening Charge attach
+    energy without spending the turn's attachment. Where an ability can charge
+    this body, the manual attachment should go somewhere the abilities cannot
+    reach (`_attach_yields_to_teal_dance`).
+  * THE OPENING VETO -- on our first turn, energy poured into the starting
+    attacker is usually wasted. Note the exceptions written into it: a charge
+    that WINS today, one that pays the retreat fee to hide an ex behind a
+    one-prize wall, and Tapu Bulu against Crustle, where it is the only body
+    that can damage the wall at all.
+
+The recurring shape of all three: a general "do not spend it here" rule with
+NAMED exceptions, each carrying the game that produced it. When adding one,
+extend the exception list rather than weakening the rule.
+
+Extracted VERBATIM from the `agent()` chain: it unpacks from the context only
+the fields it reads and returns only the ones it reassigns.
 """
 
 from cg.api import AreaType

@@ -1,12 +1,25 @@
-"""`PuntuacionCtx`: what the scoring chain needs from the turn.
+"""`ScoringCtx`: everything the option-scoring chain reads from the turn.
 
-Wave 6 of the refactor. It is built ONCE before the loop over `select.option`,
-not once per option: there are 225 fields, and the loop can walk dozens of
-options.
+Built ONCE before the loop over `select.option`, not once per option -- there
+are 225 fields and a menu can hold dozens of options.
 
-The 23 fields that the chain REASSIGNS are handed back here when each option
-finishes (`escribir_de_vuelta`), because later iterations read them. The ones
-mutated in place need nothing: they are the same object.
+WHY IT IS A FLAT BAG OF `Any` FIELDS DEFAULTING TO None. This is not a designed
+interface; it is the set of local variables the phases of `agent()` used to
+share, given an explicit home so the function could be split. main.py fills it
+from `locals()` rather than by keyword, because some of these names are only
+bound on certain paths -- passing them explicitly would force their evaluation
+and raise on exactly the paths where the original code never read them.
+Anything unbound stays None, guarded by the same checks as before.
+
+REASSIGNED VS MUTATED, the one rule to respect when editing a branch. A branch
+that REASSIGNS a field must hand it back when it finishes, because later
+iterations of the option loop read it. A branch that MUTATES an object in place
+-- adding to a set, say -- needs to hand back nothing: it is the same object
+every option sees. Getting this backwards produces a value that silently
+reverts between two options of the same menu.
+
+The per-branch docstrings in `ptcg/turn/options/` state how many fields each
+one reads and reassigns.
 """
 
 from dataclasses import dataclass

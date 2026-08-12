@@ -1,4 +1,33 @@
-"""Grass plan: how many Grass energies the field can use and whether they unlock today.
+"""THE GRASS PLAN: does this board still want energy, and does it want it TODAY?
+
+One board reading, shared by every decision that trades a card for energy --
+whether to play a recovery Supporter, and what to bring back with it. Both used
+to answer it separately and both got it wrong; the game that produced this
+module is in `_grass_plan`'s docstring.
+
+THE DISTINCTION THAT MAKES IT USEFUL is between two kinds of demand:
+
+  * TODAY (`unlocks_today`, `cards_to_attack`) -- a new Grass puts a body in
+    attack range on THIS turn. Only the active counts, unless a switch is
+    available, since a charged body on the bench does not attack from there.
+  * PENDING (`pendiente`, `demanda`) -- what every attacker in play is short
+    of, whenever it fires. Recovered energy goes to the HAND and still works
+    next turn, so this is the number that says whether energy is worth anything
+    at all; when it reaches zero the deck stops wanting Grass.
+
+Answers come back as a `_PlanPlanta`, whose fields are documented on the
+dataclass. Read it, do not recompute it.
+
+TWO THINGS IT IS CAREFUL ABOUT. Demand is counted in physical CARDS, not
+energy symbols, because one Grass is worth two under Meganium and the ceiling
+division is where that conversion happens. And only `MAIN_ATTACKERS` bodies
+generate demand -- a benched Chikorita has an attack cost in the table but is
+not somebody we intend to attack with, so it must not invent a reason to keep
+drawing energy.
+
+`abilities_off` is the ability lock (Watchtower, Iron Thorns): with it on, both
+charging routes vanish and only the manual attachment is left. Ignoring it
+invents unlocks that cannot happen.
 
 Extracted VERBATIM from main.py by utils/extract_definitions.py
 (docs/project-history.md). Its purity is verified by

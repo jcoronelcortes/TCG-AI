@@ -1,10 +1,56 @@
-"""Closing the turn: play order by tiers, rescues and the final choice.
+"""CLOSING THE TURN: the tier ladder, the rescues, and the option we return.
 
-Extracted VERBATIM from the tail of `agent()` (wave 5). It receives a
-`TurnoCtx` and unpacks its fields into locals with the SAME names, so the body
-below is exactly the one that was in main.py -- without rewriting a single line
-of logic. It works because it is the TAIL of the function: nothing afterwards
-reads what it mutates, so no write-back is needed.
+Every option has a score by the time it gets here. This module decides which
+one we actually play, and the headline is that IT DOES NOT SIMPLY TAKE THE
+HIGHEST NUMBER.
+
+THE TIER LADDER (`_play_order_tier`, in the MAIN menu). Options are sorted into
+tiers first, and only inside the winning tier does the score decide:
+
+    70  WIN_ATTACK          the attack that ends the game
+    60  KO_ENERGY           the energy that turns this turn into a knockout
+    55  STADIUM_ABILITY     Grand Tree, BEFORE any stadium can bury it
+    50  STADIUM
+    45  FEZ_BEFORE_SEARCH   the free draw before the body that pays for a search
+    44  SEARCH_KEEPS_THE_SEAT   do not spend the last bench seat before the
+                                search that may need it
+    40  DEVELOP             benching a Pokemon
+    30  POKE_PAD
+    20  BUG_SET
+    15  DEVELOP_AFTER_BCS
+    10  ENERGY
+     5  SAC_WALL            the sacrificial shield goes down LAST
+     0  everything else
+
+WHY TIERS AT ALL. A tier is a claim about KIND, and it exists so a carefully
+tuned score in a lesser category can never outbid a decisive action. Scores are
+tuned per card and drift; the ORDER of the kinds is a strategic statement and
+should not be at the mercy of that tuning.
+
+WHICH MEANS THE TIER IS THE MORE DANGEROUS HALF. Most of the long comments
+below are games lost to an option that had the RIGHT SCORE and the wrong tier
+-- an Ultra Ball that was the highest number on the menu but sat in tier 0
+while a Pokemon play in tier 40 took the last bench seat the search needed. If
+a decision comes out wrong and the scores look right, look here.
+
+THE ORDERING PRINCIPLES the ladder encodes, in one line each: cash before you
+build; draw before you spend the card that pays for the draw; keep the scarce
+resource (the last bench seat) until you know what it is for; and put down the
+body that only exists to be sacrificed after everything that builds the turn.
+
+THE RESCUES. Before the ladder there is a pass that lifts options the scoring
+loop under-priced -- most importantly the COMMITMENT: a Supporter that a
+Last-Ditch Catch went and fetched must actually be played, or the two prizes
+that Meowth ex cost were given away for nothing. Note the exception written
+into it: a commitment may override a resource veto, but NOT a Boss's Orders
+scored at or below zero. A refill only moves our own cards, so a sunk cost can
+argue about it; Boss's rewrites the body we knock out, so its veto is a
+decision about PRIZES, and no sunk cost buys prizes back.
+
+Extracted VERBATIM from the tail of `agent()`. It receives a `TurnCtx` and
+unpacks its fields into locals with the SAME names, so the body below is
+exactly the one that was in main.py. That works precisely because this is the
+TAIL: nothing afterwards reads what it mutates, so no write-back is needed.
 """
 
 from cg.api import AreaType, CardType, OptionType, SelectContext

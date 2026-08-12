@@ -1,4 +1,48 @@
-"""Boss's Orders: how much playing it is worth and who to gust.
+"""BOSS'S ORDERS: drag one of their benched Pokemon into the active spot.
+
+The most decisive Supporter in the deck and the one with the most written
+rules, because "gust" is really two questions that get answered in different
+places: is playing this card the best use of the turn's only Supporter slot,
+and if so, WHICH body do we drag out.
+
+THE TWO HALVES OF THE FILE
+
+  * IS IT WORTH PLAYING -- the `_boss_*` predicates near the top, consumed by
+    `_score_boss_orders_play`. Mostly reasons to DECLINE: the gust that
+    achieves nothing because our active cannot attack anyway
+    (`_boss_empty_gust`), the one that yields to a refill or a dig, the one
+    that hands them their own evolution line back.
+  * WHO TO DRAG -- `_ctx_gust_target` builds a per-candidate reading and the
+    `_RULES_GUST_*` chains rank them, with `_ADJUST_GUST_*` correcting for the
+    rest of the board.
+
+WHAT A GUST IS ACTUALLY FOR. Three distinct purposes, and confusing them is the
+classic error here:
+
+  * THE PRIZE -- pull out something we can knock out. Ranked by what the
+    knockout PAYS (`prize_count_op`, so their prize denial is included), not by
+    how impressive the body is.
+  * THE TRAP -- with no knockout available, pull up a body that cannot answer
+    from the front. It costs them the turn or the energy to escape. This is
+    what `_op_body_is_harmless` in `ptcg/calc/opponent.py` is for.
+  * THE UNLOCK -- move their active out of the way because it is what is
+    blocking us: an ex-immune wall, an ability lock, a dodge.
+
+AND WHAT IT IS NOT FOR. A gust is also a FREE RETREAT WE GIVE THEM -- their
+active goes to the bench without paying. Against a deck with one attacking
+line, dragging up a pre-evolution just advances their plan; that is the
+Alakazam family of rules, and the reason `_alakazam_attacker_relief` asks
+whether the swap RELIEVES them instead.
+
+THE ORDERING TRAP, which is this card's recurring defect. Boss's Orders
+competes with every other Supporter, so its rules are full of "yields to X".
+Each of those is sound in the situation it was written for and WRONG on a turn
+that ends the game -- a resource-ordering veto has no business stopping a
+winning gust. That is what `ptcg/turn/game_plan.py` exists to arbitrate, and
+why rules here consult the turn plan rather than just the board.
+
+Several vetoes are ABSOLUTE (`SCORE_FORBID`): Dunsparce, and anything in
+`GUST_TRAP_IDS`. Those are not preferences to be outbid.
 
 Extracted VERBATIM from main.py by utils/extract_definitions.py
 (docs/project-history.md). Its purity is verified by
@@ -134,6 +178,12 @@ def _gust_is_basic(card_id):
 
 
 def _v_gust_net_stuck(c):
+    """How badly a TRAP gust jams them, when no knockout is on offer.
+
+    The measure is `stall_diff` -- their retreat cost minus the energy on the
+    body -- which is what it will actually cost them to undo the gust. A body
+    with an expensive retreat and nothing attached is the one that hurts.
+    """
     v = 500 + c.stall_diff * 100
     # Tie-break (user): between targets that jam things up EQUALLY, avoid bringing
     # up the PRE-EVOLUTION of the opponent's main attacker (it could evolve and
@@ -570,6 +620,22 @@ def _boss_gust_without_purpose(ctx):
 
 @dataclass
 class _CtxGustObjetivo:
+    """ONE candidate gust target, read against the whole board.
+
+    Built per opposing body by `_ctx_gust_target` and scored by the
+    `_RULES_GUST_*` chains. The fields group into the three purposes a gust can
+    serve, and reading them that way is the fastest way to understand the
+    chains: `prizes`/`can_ko`/`tier_ko`/`wins_now` are THE PRIZE,
+    `rc0`/`stall_diff`/`body_is_harmless` are THE TRAP, and
+    `wall_blocks_active`/`op_alakazam`/the line flags are the matchup reading
+    that decides whether dragging this body out helps us or helps them.
+
+    The defaulted fields at the bottom arrive from readings made elsewhere --
+    notably `op_wins_next`, which is taken from the turn plan and deliberately
+    NOT recomputed here, so the offensive and defensive halves of the turn
+    cannot disagree about whether we are about to lose.
+    """
+
     card_id: int
     energy: int
     rc0: int                 # RETREAT_COST.get(id, 0) (jams)
@@ -616,6 +682,18 @@ def _ctx_gust_target(card, o, my_state, op_state, state, hand_counts,
                        total_grass, bench_count, neutralization_zone_active,
                        op_is_alakazam, op_latias, op_dragapult_line,
                        op_typhlosion_line, my_prize=6):
+    """Read ONE opposing body as a gust candidate -> `_CtxGustObjetivo`.
+
+    Called once per body on their bench; the resulting contexts are what the
+    `_RULES_GUST_*` chains rank against each other. Everything expensive is
+    resolved here -- can we knock it out, what does that pay, what would it
+    cost them to escape -- so the rules themselves stay cheap comparisons.
+
+    Note the defensive `hasattr`/`getattr` reads: the candidate arrives from
+    `get_card()` and may be a shape this function did not expect. An exception
+    at this point would forfeit the game, so a missing field degrades to a
+    conservative default instead.
+    """
     tgt_data = card_table.get(card.id)
     energy = len(card.energies) if hasattr(card, 'energies') else 0
     hp = card.hp if hasattr(card, 'hp') else 999

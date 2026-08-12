@@ -1,4 +1,54 @@
-"""Effective energy: Wild Growth, Ogerpon caps and attack cost.
+"""ENERGY: how much a body has, how much it can still get, what that pays for.
+
+Energy is this deck's currency, and almost every wrong answer in this file
+shows up as a projected knockout that does not happen. Four ideas run through
+it; the rest is arithmetic on top of them.
+
+1. EFFECTIVE vs PHYSICAL energy -- the distinction to keep straight.
+
+   Meganium's Wild Growth makes each basic Grass count as {G}{G}, and the
+   OBSERVATION ALREADY APPLIES IT: a body with one Grass card under a Meganium
+   lists two entries in `energies`. So `len(energies)` is EFFECTIVE energy and
+   can be compared to an attack cost directly, while the number of CARDS is
+   `_physical_energy(len(energies))`.
+
+   Which one a question wants depends on what is being spent. Attack costs and
+   damage scaling are effective. Caps, retreat payment and anything that moves
+   cards to the discard are physical -- a retreat paid under Meganium discards
+   one card and removes TWO effective units, and confusing the two overstates
+   the damage left on the field by exactly that factor.
+
+   `_grass_attach_unit` is the bridge: what ONE freshly attached Grass is worth
+   in effective terms, 2 with Meganium and 1 without.
+
+2. THE THREE ATTACH ROUTES. Energy reaches a body by manual attachment (once a
+   turn, any target), Ripening Charge (Hydrapple ex, any target) or Teal Dance
+   (Ogerpon, itself only, and regardless of where it stands). The
+   `_grass_ability_slots*` and `_grass_attach_slots_for` family counts how many
+   of those are still open, per target. They estimate CONSERVATIVELY: an
+   overshoot merely means a play is not proposed, while an undershoot would
+   have the agent plan an attachment it cannot make.
+
+3. REACHABLE energy. "Available energy" used to mean a Grass in hand with the
+   attachment unspent, which cost a game -- energy in the DISCARD with a Night
+   Stretcher in hand is just as available, and so is the energy the retreat
+   under consideration is about to put there. The block introduced by
+   `_grass_attach_slots_for` documents that loss and is the single answer to
+   the question now.
+
+4. THE CAPS. Bodies have matchup-dependent ceilings on how much energy is worth
+   sinking into them (`_ogerpon_base_phys_cap`, `_ripen_energy_capped`). These
+   are measured judgements, not card rules, and they exist so the deck does not
+   pour its whole engine into a body that cannot convert it -- see the
+   `topes-energia` family in the project's decision history.
+
+STATE, NOT DATA: `AGENT_STATE.ATTACK_ENERGY_REQ` is the attack cost table FOR
+THIS TURN, rebuilt from the base each turn so Nighttime Mine's +1 on our Tera
+(`_aplicar_impuesto_tera`) cannot accumulate. It is also a CURATED list of the
+bodies we genuinely attack with, which is why `_can_attack_eff` is not derived
+from card data -- doing so would promote Meowth ex to an attacker in some
+twenty places. `_min_attack_cost` is the deck-agnostic fallback for cards the
+curated table has never heard of.
 
 Extracted VERBATIM from main.py by utils/extract_definitions.py
 (docs/project-history.md). Its purity is verified by
@@ -38,6 +88,13 @@ def _ogerpon_base_phys_cap(meganium, is_hop):
 
 
 def count_total_grass_energy(my_state) -> int:
+    """Grass energy across our WHOLE field, active and bench together.
+
+    The field total, not a per-body count, because our scaling attacks are
+    written against the whole board: Syrup Storm reads this number, which is
+    why paying a retreat anywhere can weaken an attack somewhere else.
+    Effective units -- Wild Growth is already applied in the observation.
+    """
     total = 0
     for pokemon in my_state.active + my_state.bench:
         if pokemon is None:
@@ -49,6 +106,17 @@ def count_total_grass_energy(my_state) -> int:
 
 
 def calc_syrup_storm_damage(my_state, has_meganium: bool) -> int:
+    """Syrup Storm's damage: 30, plus 30 per Grass on our whole field.
+
+    `has_meganium` IS DELIBERATELY INERT, and the empty branch below is what is
+    left of the correction it used to apply. Wild Growth is already reflected
+    in the observation, so the Grass count is effective before it gets here and
+    doubling again would be counting Meganium twice.
+
+    The parameter survives because ~all callers pass it positionally, and
+    `tests/test_main_units.py` pins both values to the same answer so nobody
+    re-introduces the double count. Do not delete it without that test.
+    """
     total_grass = count_total_grass_energy(my_state)
     if has_meganium:
 

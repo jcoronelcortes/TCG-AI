@@ -1,4 +1,49 @@
+"""THE ENTRY POINT. The competition calls `agent(obs_dict)` and we return a move.
 
+WHAT THE CONTRACT IS. The engine hands us an observation containing a MENU of
+legal options and asks which one we take; we return a list of indices into it.
+`agent()` is called many times per turn -- once per menu, including menus that
+open during the OPPONENT's turn for forced selections -- so "one call" is one
+decision, not one turn.
+
+WHERE THE LOGIC LIVES. Almost all of it is in the `ptcg/` package, imported
+with `import *` at the top: card data, the pure calculators, the per-card
+decision modules and the turn pipeline. What is left in this file is the
+ORCHESTRATION -- reading the observation into the several hundred flags the
+rules consult, and running the phases in order:
+
+    read the observation, refresh the belief and the per-turn state
+    build the TURN PLAN (what the prize count says the turn is for)
+    price the Supporters, rank the energy destinations
+    score every option in the menu       -> ptcg/turn/scoring.py
+    order by tier and choose             -> ptcg/turn/finalize.py
+
+...plus the handful of scorers not yet moved out (Boss's Orders, Lillie's,
+Night Stretcher's play branch, Ultra Ball's, Forest of Vitality's).
+
+FOUR CONSTRAINTS THIS FILE IS SHAPED BY, all enforced by
+`utils/lint_architecture.py`, and none of them obvious from reading the code:
+
+  * IT RUNS UNDER `exec()`, NOT `import`. The Kaggle container loads this file
+    into a bare dict, so there is no module object and `__name__` may not
+    exist. That is why the imports are at the very top (the agent's directory
+    is only on `sys.path` while this module runs, so a deferred import would
+    not resolve) and why the state bridge below installs itself only when a
+    module object is actually present.
+  * NOTHING BINDS A NEW NAME AFTER `def agent` (R3). Under `exec()` the
+    definition order is the only order there is.
+  * NO THIRD-PARTY DEPENDENCIES. The container installs nothing.
+  * NEVER IMPORT A MUTABLE BY NAME (R1). `from x import flag` binds a COPY, so
+    the importer keeps reading the value it had at import time. State goes
+    through `AGENT_STATE`, always.
+
+FAILING IS WORSE THAN DECIDING BADLY. An exception here forfeits the game,
+which is why the option scorers swallow their errors and fall back to a legal
+move rather than propagating.
+
+Start with docs/code-map.md for the layout and docs/how-the-agent-thinks.md for
+the reasoning; `ptcg/__init__.py` documents the package layers.
+"""
 
 import os
 import sys
@@ -3565,6 +3610,25 @@ _DAWN_FETCH_TABLE = {
 
 
 def agent(obs_dict: dict) -> list[int]:
+    """Answer ONE menu: read the board, score the options, return our choice.
+
+    The competition's entry point. `obs_dict` is the raw observation; the
+    return is a list of indices into `obs.select.option`.
+
+    THE ONE SPECIAL CASE comes first: when there is no `select`, the engine is
+    not asking us to choose -- it is asking for our DECK LIST at the start of
+    the game, so we return that instead.
+
+    Otherwise the phases run in the order documented at the top of this file,
+    and the last of them (`finalizar`) returns the choice. Everything between
+    is the reading of the board into the flags the rules consult.
+
+    CALLED MANY TIMES PER TURN, including during the OPPONENT's turn for forced
+    selections. Nothing may assume it is the first call of a turn; anything that
+    must survive from one menu to the next lives on `AGENT_STATE`, and anything
+    that must NOT is cleared here at the top -- the turn plan is the example
+    right below.
+    """
     obs = to_observation_class(obs_dict)
     if obs.select is None:
         return my_deck

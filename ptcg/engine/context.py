@@ -1,4 +1,42 @@
-"""DecisionContext: the snapshot of the turn the scorers receive.
+"""DecisionContext: the snapshot of the turn the card scorers receive.
+
+WHAT IT IS. One flat, read-only record of everything about the board that does
+NOT change while a single menu is being scored: the prize counts, which matchup
+we are in, which walls are up, what the turn plan says. It is built ONCE per
+decision, before the loop over the options, and every `_score_*` scorer reads
+the same instance.
+
+WHY IT IS FLAT. Every field is a fact somebody already computed. A scorer that
+recomputed "is their active immune to our ex" from the raw observation would
+drift away from the version the rest of the turn is using, and the two would
+disagree on the same board -- the failure this package spends most of its
+comments preventing. Precomputing it once, under a name, is what keeps a dozen
+rules answering the same question the same way.
+
+THE THREE KINDS OF FIELD, in the order they appear below:
+  * the shared STATE OBJECTS and count tables (`state`, `hand_counts`, ...) --
+    the raw material, passed through;
+  * BOARD and MATCHUP readings (`op_is_crustle_deck`, `bench_count`, ...) --
+    cheap facts derived from the observation;
+  * TURN FLAGS -- the expensive ones, each the conclusion of a rule that was
+    written because a real game was lost without it. These carry a comment
+    naming that game, and those comments are the actual documentation of this
+    file: the field name says what it holds, the comment says which loss taught
+    us to hold it.
+
+READ IT, DO NOT WRITE IT. The scorers treat it as immutable; anything that has
+to survive between turns lives in `AGENT_STATE` instead (see
+`ptcg/state/agent_state.py`), and rule R9 of `utils/lint_architecture.py`
+enforces that a scorer prices an option without writing state.
+
+THE DEFAULTED FIELDS ARE A TESTING AFFORDANCE. Everything from
+`boss_active_threat_dominates` down carries a default, and the repeated note
+"unit tests build the ctx directly" is why: a test that pins one rule should
+not have to supply eighty unrelated flags. In a real game main.py fills all of
+them. Two consequences worth knowing -- a new field must be added WITH a
+default or every hand-built test context breaks, and `turn_plan` must be read
+through `game_plan.plan_of(ctx)`, never directly, because in those hand-built
+contexts it is None.
 
 Extracted VERBATIM from main.py by utils/extract_definitions.py
 (docs/project-history.md). Its purity is verified by
@@ -9,19 +47,24 @@ from dataclasses import dataclass
 
 
 # =============================================================================
-# DecisionContext + extracted scorers (Priority 1 refactor)
+# DecisionContext + the extracted scorers
 # -----------------------------------------------------------------------------
-# `agent()` is a single ~11,800-line function whose scoring loop mixes dozens of
-# rules into one giant if/elif. To shrink that monolith, the scoring branches are
-# being extracted into PURE `_score_*(ctx)` functions that read a
-# `DecisionContext` built once per decision. Each extraction is an IDENTICAL
-# behaviour refactor, verified by the test suite.
+# The long-running shape change behind this class: `agent()` was one enormous
+# function whose scoring loop mixed every card's rules into a single if/elif
+# ladder. Branch by branch, those are being pulled out into `_score_*(ctx)`
+# functions that read this context and nothing else -- each extraction an
+# identical-behaviour refactor, held to that by the test suite and the golden
+# corpus.
 #
-# State of the refactor: PoC with the Boss's Orders branch
-# (`_score_boss_orders_play`). As more branches are extracted, the fields they
-# need are added here; the goal is for `agent()` to end up orchestrating (build
-# ctx -> map option to its scorer -> argmax) instead of containing all the logic
-# inline.
+# Pulled out so far: Boss's Orders, Night Stretcher, Forest of Vitality, Ultra
+# Ball and Lillie's Determination (still in main.py, awaiting a home in
+# `ptcg/decision/`), plus Bug Catching Set, Lana's Aid, Dawn, Unfair Stamp,
+# Xerosic's Machinations and Poke Pad (already moved). As a branch comes out,
+# the fields it needs are added here, which is why the list below grows from
+# the bottom.
+#
+# The target shape is `agent()` as an orchestrator -- build the context, map
+# each option to its scorer, take the argmax -- with no card logic left inline.
 @dataclass
 class DecisionContext:
     """Invariant inputs of a decision (built before the scoring loop). The

@@ -1,4 +1,33 @@
-"""Stadiums: Forest of Vitality and Grand Tree.
+"""STADIUMS: Forest of Vitality and Grand Tree.
+
+A stadium is SHARED -- there is one slot on the table and whoever plays one
+replaces what was there. Two consequences run through this file: playing ours
+is also REMOVING theirs (sometimes that is the entire reason), and any stadium
+in play helps whoever can use it, including a stadium THEY brought that happens
+to arm one of our bodies.
+
+FOREST OF VITALITY lifts the "came down this turn" restriction on evolving. The
+rules around it are mostly about TIMING and about not throwing it away: it is
+our counter-stadium against a hostile one, and replacing a stadium that is
+currently paying us buys next turn's safety with this turn's prize.
+
+GRAND TREE is an engine rather than a stadium effect: it evolves a Basic
+straight out of the deck, potentially two stages in one chain. That makes the
+decision a PLANNING problem, and `_GrandTreePlan` is the plan object -- one
+concrete execution, naming the body, the chain and what it is worth.
+
+Two design notes on that plan are worth keeping in mind, because both are the
+kind of thing a later edit would quietly undo:
+
+  * `value` ranks CHAINS and `body_bias` ranks BODIES, and they are kept apart
+    on purpose. Value moves in steps far larger than any body term, so folding
+    the bias into it would let the choice of body perturb the choice of chain.
+  * `_gt_body_value` scores a body by HP and whether it has an Ability, and
+    deliberately NOT by printed damage -- our scaling attacks print 0, so a
+    damage-based valuation would rank our best attackers last.
+
+`serial` rather than an index identifies the chosen body: indices shift as the
+board changes between menus, serials do not.
 
 Extracted VERBATIM from main.py by utils/extract_definitions.py
 (docs/project-history.md). Its purity is verified by

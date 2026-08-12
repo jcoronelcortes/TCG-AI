@@ -1,8 +1,40 @@
-"""`evaluate_supporters`, extracted VERBATIM from `agent()` (wave 5).
+"""WHAT EACH SUPPORTER IS WORTH ON THIS BOARD, priced once, for everyone.
 
-It used to capture 41 variables of the turn; they now arrive in a context that
-is unpacked on entry, with the SAME names, so the body is exactly the one that
-was in main.py.
+ONLY ONE SUPPORTER IS PLAYED PER TURN. `evaluate_supporters` returns a dict of
+`{card_id: value}` -- the price of that single slot, per candidate -- and it is
+computed ONCE, near the start of the turn, before any decision needs it.
+
+WHY UP FRONT, AND WHY SHARED. Several decisions must know which Supporter is
+going to win the slot BEFORE the slot is filled:
+
+  * the Ultra Ball weighing whether to dig for Meowth ex, whose only payment is
+    a Supporter -- so it needs to know whether the fetched one would beat what
+    is already in hand (`_best_supp_in_hand_val`);
+  * Meowth ex's Last-Ditch Catch, predicting its own fetch;
+  * Poke Pad, and the discard ladders deciding whether a Supporter in hand is
+    live or dead this turn.
+
+If any of them priced Supporters on its own, the decision to SPEND a resource
+and the later decision of which Supporter actually gets played could
+contradict each other -- two cards spent to fetch a card that then loses the
+slot. One table, consulted by all, is what forecloses that.
+
+THE VALUES ARE COMPARABLE, not absolute: they exist to be ranked against each
+other on this board. Their common anchor is `SCORE_SUPPORTER_VALUE_BASE`.
+
+A ZERO MEANS DEAD TODAY, not bad. The tail of this function does exactly that
+to Dawn when the bench is full and no evolution is missing -- the card would
+search for something there is no room or no need for. Reading a zero as
+"weak" rather than "unplayable" is the mistake to avoid.
+
+A KNOWN BLIND SPOT, relied upon elsewhere: this function never prices
+Xerosic's Machinations. Consumers that compare against "the best Supporter in
+hand" therefore see 0 for a hand holding only Xerosic, and treat that as the
+conservative reading -- the rule simply does not fire. See `hand_supp_val` in
+`ptcg/decision/meowth.py`.
+
+Extracted VERBATIM from `agent()`: the 41 turn variables it used to close over
+now arrive in a context, unpacked on entry under the SAME names.
 """
 
 from cg.api import EnergyType
@@ -21,6 +53,13 @@ from ptcg.turn.supporters_ctx import CtxEvaluateSupporters  # noqa: F401
 
 
 def evaluate_supporters(tc):
+    """Price every Supporter on this board. Returns `{card_id: value}`.
+
+    Called ONCE per turn, before anything needs the answer, so that every
+    consumer ranks the turn's single Supporter slot from the same table. See
+    the module docstring for who those consumers are and why a value of 0 means
+    "dead today" rather than "weak".
+    """
     # Unpacking of the captures.
     _active_cant_attack_this_turn = tc._active_cant_attack_this_turn
     _grass_plan = tc._grass_plan

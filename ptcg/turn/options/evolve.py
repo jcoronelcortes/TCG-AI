@@ -1,8 +1,35 @@
-"""Scoring of the `EVOLVE` options.
+"""Scoring the EVOLVE options: which body gets the stage, and is it worth it.
 
-The `o.type == OptionType.EVOLVE` branch of the `agent()` chain, extracted
-VERBATIM. It unpacks from the context the 41 fields it reads and returns the
-6 it reassigns; the rest stay as they were, just like before.
+Evolving is nearly always good -- it upgrades a body for one card -- so the
+base score is high (~9000) and the interesting content is which evolution wins
+and when the answer is "not this one".
+
+WHAT MOVES THE SCORE:
+
+  * THE CARD. Some evolutions are engines rather than upgrades and are scored
+    far above the base -- Meganium at 35000, because Wild Growth doubles every
+    Grass on the field and changes what the whole board can afford, not just
+    what one body can do.
+  * THE MATCHUP. Against an immune wall the question is not "is this body
+    better" but "can this body hit the thing in front", which is why the
+    Cornerstone and Crustle readings appear here at all.
+  * WHICH BODY. Given two copies of a Basic, the stage goes on the one that
+    GAINS from it -- the damaged one, since evolving heals nothing but the
+    fresh HP total is what buys a turn. See `evolution_body_bias` in
+    `ptcg/calc/damage.py`.
+  * WHETHER THE BODY CAN USE IT. A stage on a body that cannot then act is a
+    card spent for nothing.
+
+TWO SOURCES, ONE MENU. An evolution normally comes from HAND, but the Grand
+Tree ability pulls it out of the DECK. Those are scored by different logic --
+Grand Tree evolutions are ranked by the stadium's own plan (see
+`ptcg/decision/stadiums.py`), because the hand-evolution bands assume a card is
+being spent and that the body was already chosen. That branch appends its own
+score and returns `_SALTAR`. The area is read from the option rather than
+assumed to be the hand, which is what lets both paths share this module.
+
+Extracted VERBATIM from the `agent()` chain: it unpacks from the context only
+the fields it reads and returns only the ones it reassigns.
 """
 
 from cg.api import AreaType, OptionType

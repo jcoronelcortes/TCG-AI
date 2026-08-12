@@ -1,8 +1,40 @@
-"""Scoring of the `ABILITY` options.
+"""Scoring the ABILITY options: the free plays, and their hidden costs.
 
-The `o.type == OptionType.ABILITY` branch of the `agent()` chain, extracted
-VERBATIM. It unpacks from the context the 53 fields it reads and returns the
-2 it reassigns; the rest stay as they were, just like before.
+Abilities cost no card and do not end the turn, so most of them are close to
+free value. The decisions that matter here are about ORDER and about the
+resources an ability quietly consumes.
+
+THE ABILITIES THIS DECK ACTUALLY DECIDES ABOUT:
+
+  * TEAL DANCE (Ogerpon) -- attach a Grass from hand to ITSELF and draw. The
+    most-scored ability in the file, because it competes with the manual
+    attachment for the same card in hand: it is free in tempo but it SPENDS
+    the Grass. Where a body other than the Ogerpon needs that energy more, the
+    dance has to yield.
+  * RIPENING CHARGE (Hydrapple ex) -- attach to ANY of ours, which makes it the
+    flexible route and the one that should be saved for targets Teal Dance
+    cannot reach.
+  * GRAND TREE -- a free evolution chain out of the deck. Scored by whether an
+    executable plan exists at all, and vetoed when there is none: firing it
+    with no target only shuffles the deck.
+  * LAST-DITCH CATCH, FLIP THE SCRIPT and the rest -- once-per-turn effects
+    whose value is in what they fetch.
+
+TWO THINGS TO KNOW BEFORE EDITING:
+
+  * ORDER IS THE WHOLE GAME with the charging abilities. Attaching before
+    dancing, or dancing onto the wrong body, wastes the turn's only energy --
+    the tie between "the attachment" and "the ability" over the same body has
+    been measured more than once, and the current ordering is the measured one.
+  * AN ABILITY THAT ENABLES A KNOCKOUT IS NOT DEVELOPMENT. The Teal Dance
+    block computes damage BEFORE and AFTER the dance and treats "it becomes
+    lethal" as a different kind of play. Note it prices the attack through
+    `_our_effective_damage` rather than raw damage, so resistance and the
+    stadium are included -- the case that taught this was a Duraludon resisting
+    Grass, where the dance was exactly what closed the 30-point gap.
+
+Extracted VERBATIM from the `agent()` chain: it unpacks from the context only
+the fields it reads and returns only the ones it reassigns.
 """
 
 from cg.api import AreaType, Pokemon

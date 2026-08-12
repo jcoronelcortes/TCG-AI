@@ -1,4 +1,52 @@
-"""Ultra Ball: the search orchestrator and its vetoes.
+"""ULTRA BALL: the most expensive card in the deck, and the largest module here.
+
+Ultra Ball fetches any Pokemon from the deck and costs TWO CARDS from hand to
+do it. That cost is what makes it hard: the card is almost always playable and
+frequently should not be played, so most of this file is not about searching at
+all -- it is about knowing when the search is not worth what it burns.
+
+THE THREE QUESTIONS, in the order the file answers them:
+
+1. SHOULD WE PLAY IT? `_ub_derive_flags` reads the board once, and then the
+   `_ub_cancel_*` family votes. Each one is a specific reason to hold the card:
+   the discard would bury the Unfair Stamp, or the Xerosic we are about to
+   need, or the Supporter that is tomorrow's whole turn. They are separate
+   named functions rather than one condition because each came from its own
+   lost game, and a census can count how often each fires.
+
+2. WHAT DOES IT COST US? This is the part that is easy to get wrong. FODDER --
+   the two cards we throw away -- is a PROPERTY OF THE HAND, not a list of
+   card names: a card is cheap because this hand has no use for it today, and
+   the same card is expensive in another hand. `_ub_real_fodder` computes that,
+   and `_ub_cost_destroys_better_card` is the veto for when it comes out
+   negative. The related trap has its own rule: the cost may not eat the FUEL
+   of the thing the search is buying -- fetching an evolution and discarding
+   the energy that was going to power it is a net loss dressed as a play.
+
+3. WHAT DO WE FETCH? `_eval_ub_best_target` picks the body, and the per-target
+   `_RULES_UB_<BODY>` chains price each candidate. One chain per possible
+   target (Hydrapple, Meowth, Ogerpon, Meganium, Bayleef, Dipplin, Chikorita,
+   Applin, Tapu, Pinsir, Fez), each a priority list in the sense of
+   `ptcg/engine/rules.py`.
+
+FETCHING IS NOT PLAYING, and the split matters. The decision to play the Ultra
+Ball and the later decision of what it fetches happen at DIFFERENT MENUS, with
+the discard already resolved in between -- so by fetch time the conditions that
+justified the play may no longer be readable. That is why some intentions are
+written down on `AGENT_STATE` when the play is scored and consumed when the
+fetch happens (`_ub_meowth_pending`, `_ub_fez_pending`,
+`_ub_engine_pivot_turn`). Those are the only pieces of state this module
+writes, and each is reset every turn.
+
+A SEARCH MENU IS RECOGNISED BY ITS `effect`. A menu of cards with no `effect`
+attached is not a search, and treating it as one makes the agent answer a
+question nobody asked.
+
+BUYING A BODY IS NOT THE SAME AS BEING ABLE TO USE IT. Three vetoes exist for
+that gap: `_ub_target_has_no_seat` (a Basic with a full bench), and
+`_ub_target_cannot_be_worn` / `_ub_target_covered_by_hand` (an evolution with
+nothing to evolve from, or one the hand already holds). A fetched card that
+cannot be played is two cards spent for nothing.
 
 Extracted VERBATIM from main.py by utils/extract_definitions.py
 (docs/project-history.md). Its purity is verified by
@@ -1110,6 +1158,14 @@ def _ub_dig_meowth_gets_played(ctx) -> bool:
 
 @dataclass
 class _CtxUBHydrapple:
+    """What the "should the search fetch Hydrapple ex" chain is allowed to read.
+
+    One of the small per-decision contexts this package is built from: the
+    rules in `_RULES_UB_HYDRAPPLE` see this and nothing else. Narrowing the
+    input is what makes a rule testable -- a unit test builds one of these by
+    hand instead of staging a whole game.
+    """
+
     hand: dict            # hand_counts
     field: dict           # field_counts
     evolvable: dict       # _ub_evolvable (start-of-turn snapshot)
@@ -1121,6 +1177,20 @@ class _CtxUBHydrapple:
 
 @dataclass
 class _CtxUBMeowth:
+    """Input of the "should the search fetch Meowth ex" chain (`_RULES_UB_MEOWTH`).
+
+    The widest of these contexts, because Meowth ex is not fetched for its
+    body: it is fetched for Last-Ditch Catch, which brings a SUPPORTER. So the
+    chain has to reason about the turn's single Supporter slot -- who is going
+    to take it, whether one in hand already wins it, and whether anything we
+    fetch would survive to be played.
+
+    The defaulted fields at the bottom are the ways that plan dies between the
+    fetch and the play: the Last-Ditch already spent, our own Unfair Stamp
+    shuffling the fetched card away, a Supporter in hand that outranks it. Each
+    carries the note of what it reads and why.
+    """
+
     hand: dict                  # hand_counts
     field: dict                 # field_counts
     bench_count: int
@@ -1164,6 +1234,13 @@ class _CtxUBMeowth:
 
 @dataclass
 class _CtxUBFetch:
+    """Shared input of the per-body fetch chains (Ogerpon, Chikorita, Applin...).
+
+    Where the two contexts above are specific to one candidate, this is the
+    common reading every OTHER `_RULES_UB_*` chain scores against, so that all
+    the candidates are ranked from the same view of the board.
+    """
+
     hand: dict
     field: dict
     evolvable: dict            # _ub_evolvable (start-of-turn snapshot)
@@ -1179,7 +1256,24 @@ class _CtxUBFetch:
     no_attacker_prefer_meowth: bool = False
 
 
+# The `_v_ub_*` functions below are VALUE functions: the `value` half of a rule
+# in `_RULES_UB_*` (see `ptcg/engine/rules.py`). A rule's `when` decides that a
+# candidate applies; its `_v_` decides how badly we want it, and they exist as
+# named functions -- rather than inline lambdas -- so a census can attribute a
+# score to one of them and a test can call it directly.
+#
+# They share a shape: start from a base worth, raise it when the board makes
+# this body the missing piece, and COLLAPSE it (to ~200) when we already have
+# one in play. That collapse is the important half -- it is what stops the
+# search from fetching a second copy of something already doing its job.
+
+
 def _v_ub_ogerpon_t1_primeros(c):
+    """Opening-turn worth of fetching Teal Mask Ogerpon ex.
+
+    Highest with a Grass in hand -- the body and its fuel together are a turn
+    one that ends charged. Collapses if an Ogerpon is already down.
+    """
     v = 950
     if c.hand.get(Basic_Grass_Energy, 0) >= 1:
         v = 1000
@@ -1189,6 +1283,11 @@ def _v_ub_ogerpon_t1_primeros(c):
 
 
 def _v_ub_ogerpon_teal(c):
+    """Worth of fetching an Ogerpon for its Teal Dance charging ability.
+
+    Worth more when none is in play, and more again with spare Grass in hand:
+    the ability is only an engine if there is energy for it to move.
+    """
     v = 700
     if c.field.get(Teal_Mask_Ogerpon_ex, 0) == 0:
         v = 800
@@ -1198,6 +1297,12 @@ def _v_ub_ogerpon_teal(c):
 
 
 def _v_ub_chikorita_t1(c):
+    """Opening-turn worth of fetching Chikorita, the base of the Meganium line.
+
+    Rises when the OTHER line is already started -- a board with one line down
+    wants the second, not a duplicate -- and again with the next link in hand.
+    Collapses if a Chikorita is already in play.
+    """
     v = 850
     if (c.field.get(Applin, 0) >= 1
             or c.field.get(Teal_Mask_Ogerpon_ex, 0) >= 1):
@@ -1210,6 +1315,11 @@ def _v_ub_chikorita_t1(c):
 
 
 def _v_ub_applin_t1(c):
+    """Opening-turn worth of fetching Applin, the base of the Hydrapple line.
+
+    Same shape as the Chikorita rule and deliberately one rung below it, so the
+    two never tie and let the menu order pick our opening line.
+    """
     v = 800
     if (c.field.get(Chikorita, 0) >= 1
             or c.field.get(Teal_Mask_Ogerpon_ex, 0) >= 1):
@@ -1410,6 +1520,20 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
                          op_hand_count=None, op_state=None, cards_in_deck=None,
                          supp_in_hand_takes_the_turn=False, bench_max=5,
                          our_cap_already_spent=False):
+    """WHICH body the Ultra Ball should fetch, and how much that is worth.
+
+    Runs every candidate through its `_RULES_UB_<BODY>` chain and returns the
+    best. The long parameter list is the honest cost of being callable from two
+    places: the PLAY menu, where the answer decides whether the Ultra Ball is
+    worth its two cards at all, and the FETCH menu, where it picks the card for
+    real. Both must reach the same conclusion, so both go through here rather
+    than reasoning separately.
+
+    Free bench seats are counted off the board's own `benchMax`, matching the
+    fetch ladder in `ptcg/turn/options/card.py` exactly -- if the two menus
+    disagreed about whether there is room, the play branch would spend the Item
+    on a target the prompt then refuses.
+    """
     ub_best_target = 0
 
     _bench_full = (bench_count >= 5)

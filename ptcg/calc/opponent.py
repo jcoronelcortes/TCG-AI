@@ -1,4 +1,33 @@
-"""Reading the opponent: attack deficit, harmless bodies and hand.
+"""Reading the OPPONENT: what their bodies can do, and what their hand holds.
+
+The other side of the board, judged from the outside. Damage they deal lives in
+`ptcg/calc/damage.py`; what lives here is the cheaper structural reading that
+most gust and pivot decisions actually turn on -- can this body act at all, is
+it worth trapping, how much can their hand be holding.
+
+TWO PRINCIPLES run through the file, both learned the hard way.
+
+  * MEASURE BY COST, NEVER BY PRINTED DAMAGE. Several real attacks in this
+    environment are listed at 0 damage in `attack_table` -- Powerful Hand,
+    Cruel Arrow, both of Gardevoir ex's -- because their damage is computed by
+    an effect the table does not carry. Any rule keyed on printed damage
+    silently treats those bodies as harmless. Energy COST is honest, so
+    `_op_attack_deficit` and `_op_body_is_harmless` are written in terms of it.
+
+  * CONCLUDE NOTHING ON SUSPICION. Where the card data cannot answer, these
+    functions return None rather than guess, and the callers treat None as "no
+    finding". The asymmetry is deliberate: believing a dangerous body harmless
+    costs a game, while failing to notice a harmless one costs a small edge.
+
+WHAT A "HARMLESS" BODY IS, since several rules depend on the term: one that
+cannot attack on their next turn EVEN IF they attach an energy to it. That is
+the body worth gusting when no knockout is available, because bringing it up
+costs them the turn -- the trap gust.
+
+THEIR HAND is not observable, only its SIZE. `_op_hand_size` and
+`_op_disruption_belief` are how the agent reasons about it, and the standing
+policy is that a hand read is a BELIEF that expires: after we reset their hand,
+anything priced against the old one has to be asked again.
 
 Extracted VERBATIM from main.py by utils/extract_definitions.py
 (docs/project-history.md). Its purity is verified by
@@ -116,6 +145,11 @@ def _op_juega_crustle(op_state):
 
 
 def _op_hand_size(op_state):
+    """How many cards they hold. 0 if the observation will not say.
+
+    The only thing about their hand that is actually observable -- the contents
+    never are. Every other reading in the agent is built on this count.
+    """
     try:
         return len(op_state.hand) if op_state.hand else 0
     except (AttributeError, TypeError):
@@ -123,6 +157,17 @@ def _op_hand_size(op_state):
 
 
 def _op_disruption_belief(op_state, op_supporter_played):
+    """Rough odds their hand holds a disruption card, from its SIZE alone.
+
+    A crude model, and honest about it: assume roughly two live copies in a
+    forty-card unseen pool and ask for the chance that at least one is among
+    the cards they hold. The bigger the hand, the likelier the answer is yes.
+
+    CLAMPED to [0.05, 0.85] at both ends on purpose. Never 0, because an empty
+    read is not proof of safety and a rule that treated it as certainty would
+    walk into the one hand that has it; never 1, because no hand size makes it
+    sure. Consumers weight a decision with this -- none of them gate on it.
+    """
     h = _op_hand_size(op_state)
     if h <= 0:
         return 0.05
@@ -143,6 +188,11 @@ def _op_disruption_belief(op_state, op_supporter_played):
 # out on purpose.
 
 def _is_basic(card_id):
+    """Is this card a Basic? Unknown cards are not.
+
+    By ELIMINATION -- neither Stage 1 nor Stage 2 -- because the database marks
+    the stages but has no positive "basic" flag.
+    """
     data = card_table.get(card_id)
     if data is None:
         return False
@@ -150,6 +200,7 @@ def _is_basic(card_id):
 
 
 def _is_ex(card_id):
+    """Does this card carry an ex Rule Box (ex or Mega ex)? Unknown: no."""
     data = card_table.get(card_id)
     if data is None:
         return False
@@ -170,6 +221,12 @@ def _belongs_to(card_id, owner):
 
 
 def _damage_counters(pokemon):
+    """Damage counters already on this body: (maxHp - hp) / 10.
+
+    The unit several opposing attacks scale on, and the unit Adrena-Brain MOVES
+    -- counters on their board are the ammunition it can aim at ours, which is
+    why our own hit changes the number (`_movable_dmg_after_our_hit`).
+    """
     if pokemon is None:
         return 0
     return max(0, ((pokemon.maxHp or 0) - (pokemon.hp or 0)) // 10)

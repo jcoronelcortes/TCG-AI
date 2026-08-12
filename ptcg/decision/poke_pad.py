@@ -1,4 +1,29 @@
-"""Poke Pad: which Pokemon is worth searching for.
+"""POKE PAD: a free search, limited to Pokemon WITHOUT a Rule Box.
+
+The cheap counterpart to the Ultra Ball: it costs no cards, so there is almost
+no "should we play it" question -- the interesting part is what it can reach
+and when the item is going to be usable at all.
+
+WHAT IT CANNOT FETCH is the defining constraint. No ex, which rules out the
+Hydrapple ex line's top, Meowth ex, Fezandipiti ex and Ogerpon. What is left is
+`_PP_NON_RULEBOX_IDS`: the Meganium line, the lower half of the Hydrapple line,
+and Tapu Bulu. So the Pad is the card that ASSEMBLES LINES and finds the
+one-prize bodies, while the Ultra Ball is the one that buys finishers.
+
+TIMING IS MOST OF THE SCORE. Two situations dominate:
+
+  * THE OPENING (`_pp_es_t1`) -- the turn where getting a line started is worth
+    more than anything else in hand.
+  * AN INCOMING ITEM LOCK (`_pp_budew_dump`) -- Budew's Itchy Pollen blocks our
+    Items next turn, so THIS turn is the only one in which the Pads can be
+    used at all. When that is true, they all get played now. This is the
+    general principle the agent applies to Items under threat: a resource that
+    expires is not a resource to keep.
+
+It also supplies the body for the OPENING SACRIFICE -- when a two-prize ex is
+stuck in front on our first turn and there is no one-prize body to hand over,
+the Pad is what goes and finds one (`opening_sac_needs_body` in the decision
+context).
 
 Extracted VERBATIM from main.py by utils/extract_definitions.py
 (docs/project-history.md). Its purity is verified by
@@ -28,6 +53,13 @@ def _pp_buscables(c):
 
 
 def _pp_es_t1(c):
+    """Is this OUR first turn? Turn 1 going first, turn 2 going second.
+
+    `state.turn` counts both players' turns, so "our first" is a different
+    number depending on who opened. Written out here because several rules
+    across the package need it and getting the parity wrong silently applies
+    the opening rules on the wrong turn.
+    """
     return ((c.state.turn == 1 and c.we_go_first)
             or (c.state.turn == 2 and not c.we_go_first))
 

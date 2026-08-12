@@ -1,4 +1,37 @@
-"""Meowth ex: Last-Ditch Catch and the value prediction.
+"""MEOWTH EX: a 2-prize body benched to fetch ONE Supporter.
+
+Last-Ditch Catch searches the deck for a Supporter when the Meowth is put into
+play. That is the whole reason the card is in the deck -- nobody attacks with
+it -- and it makes the decision unusually expensive: benching a Meowth ex hands
+the opponent a two-prize target, and the only thing that pays for it is the
+Supporter it brings.
+
+WHICH MEANS THE FETCH HAS TO BE PREDICTED BEFORE IT HAPPENS. The agent decides
+to bench the Meowth at one menu and chooses the Supporter at another, so the
+question "is this worth two prizes" has to be answered against a Supporter we
+have not picked yet. `_RULES_MEOWTH_FETCH` is that prediction, and the same
+chain then runs for real at the fetch menu -- one chain used twice, so the two
+decisions cannot contradict each other.
+
+WHAT MAKES THE PLAY WORTHLESS, and each of these is a rule here:
+
+  * THE SLOT IS ALREADY TAKEN. Only one Supporter is played per turn. If the
+    hand already holds one worth more than anything the fetch could bring
+    (`hand_supp_val`), the fetched card arrives dead. This is the deck-agnostic
+    form of the rule -- it compares VALUES, not card names.
+  * THE ABILITY IS ALREADY SPENT. Once per turn, so a Meowth that came down
+    earlier this turn means the next one fetches nothing (`meowth_ld_free`).
+  * OUR OWN STAMP SHUFFLES IT AWAY. An Unfair Stamp we are going to play this
+    turn puts the fetched Supporter back in the deck unplayed.
+  * THE ABILITY IS LOCKED. Watchtower or Iron Thorns, and Last-Ditch simply
+    does not happen.
+
+THE COMMITMENT. When the play IS made, the Supporter it brought must actually
+be played -- otherwise two prizes were given away for nothing. That promise is
+recorded on `AGENT_STATE._ld_supp_comprometido` when the fetch resolves, and it
+keeps the turn's Supporter slot for that card while the slot is free. It only
+arms for a body PAID FOR this turn: the Last-Ditch of a Meowth from an earlier
+turn is free and owes nothing.
 
 Extracted VERBATIM from main.py by utils/extract_definitions.py
 (docs/project-history.md). Its purity is verified by
@@ -74,6 +107,14 @@ class _CtxMeowthFetch:
 
 
 def _v_meowth_fetch_value(c):
+    """Base worth of fetching this Supporter, before the situational rules.
+
+    Starts from the Supporter's own value on the shared scale (`sv`, from
+    `evaluate_supporters`) so the fetch and the later decision of which
+    Supporter to play are reading the same numbers, then nudges it for what
+    only the fetch knows -- the matchup, and which card best fills the gap this
+    hand has.
+    """
     score = c.sv
     if c.card_id == Boss_Orders and AGENT_STATE.op_is_crustle_deck:
         score += 100

@@ -1,4 +1,40 @@
-"""Night Stretcher: recovering from the discard.
+"""NIGHT STRETCHER: pull one Pokemon or one basic Energy out of the discard.
+
+An Item, so it is free in tempo terms -- the whole decision is about WHAT to
+recover and whether recovering anything helps THIS turn. Like the Ultra Ball,
+it is two decisions at two different menus: playing the card, and then choosing
+its target.
+
+THE SPLIT THAT ORGANISES THE FILE. The card can bring back a BODY or an
+ENERGY, and those are judged completely differently:
+
+  * ENERGY (`_ns_e_*`) -- worth it only if the Grass DOES something today, and
+    each `_ns_e_*` predicate is one concrete way it can: it makes the active's
+    attack lethal, it pays a retreat that unlocks a finisher, it charges the
+    body that will be promoted, it turns Syrup Storm into a knockout. If none
+    of them fires, a Grass in hand is just a card.
+  * A BODY (`_RULES_NS_<NAME>`) -- one rule chain per recoverable body, ranked
+    against the board: restart a line that got knocked out, replace an engine
+    piece, bring back the attacker the matchup needs.
+
+THE RETREAT THAT FEEDS THE STRETCHER. The subtlety worth knowing before
+touching this file: paying a retreat DISCARDS the energy off the retreating
+body, which puts a Grass in the discard for this card to recover. So a board
+with no Grass in the discard can still have a Stretcher line -- retreat first,
+recover the energy that the retreat just spent, attach it to the promoted body.
+Missing that cost a real game, and it is why `ptcg/calc/energy.py` counts
+REACHABLE energy rather than energy in hand.
+
+THE RECOVERED CARD MUST BE USABLE. Recovering an evolution with no body to
+evolve from, or a Basic with a full bench, produces a dead card in hand -- and
+worse, one our own Unfair Stamp may shuffle away the same turn. The
+`_evolvable_counts` reading (see `ptcg/calc/board.py`) is what guards that, and
+Night Stretcher is the one consumer measured to WANT its stricter form.
+
+A note on `_no_attack_today` and `_ns_charge_route_open`: several rules here
+turn on "can anybody attack at all this turn". That question is asked through
+the shared energy calculators, never re-derived locally, so this card and the
+turn plan cannot come to different conclusions about the same board.
 
 Extracted VERBATIM from main.py by utils/extract_definitions.py
 (docs/project-history.md). Its purity is verified by
@@ -49,11 +85,20 @@ class _CtxNSPlay:
 
 
 def _ns_useful_energy_without_grass(w):
+    """There is Grass in the DISCARD and none in hand -- so recovering is the
+    only way to get energy today. With a Grass already in hand the recovery
+    buys nothing this turn and the card is better kept."""
     return (w.energy >= 1
             and w.hand_counts.get(Basic_Grass_Energy, 0) == 0)
 
 
 def _ns_has_ogerpon_teal(w):
+    """An Ogerpon in play that is still short of Myriad's three energies.
+
+    Anywhere -- active or bench -- because Teal Dance charges its own bearer
+    regardless of where it stands. That body is a live destination for a
+    recovered Grass; a fully charged one is not.
+    """
     for bp in w.my_state.bench:
         if (bp is not None and bp.id == Teal_Mask_Ogerpon_ex
                 and len(bp.energies) < 3):
@@ -67,12 +112,25 @@ def _ns_has_ogerpon_teal(w):
 
 
 def _ns_crustle_allowed_basics(w):
+    """Which Basics are worth recovering against the immune-wall matchups.
+
+    Against a wall our ex cannot damage, the only recoveries that matter are
+    bodies that can actually hit it. Pure Cornerstone is the stricter case --
+    just the two manual attackers -- while Crustle still leaves the evolution
+    lines worth rebuilding.
+    """
     if w.op_is_cornerstone_deck and not w.op_is_crustle_deck:
         return (Tapu_Bulu, Pinsir)
     return (Tapu_Bulu, Pinsir, Applin, Chikorita)
 
 
 def _ns_crustle_evos_permitidas(w):
+    """Which evolutions are worth recovering in those same matchups.
+
+    None at all against pure Cornerstone: every one of them leads to an ex the
+    wall is immune to, so recovering the line spends a card on a body that
+    cannot answer.
+    """
     if w.op_is_cornerstone_deck and not w.op_is_crustle_deck:
         return ()
     return (Dipplin, Bayleef, Meganium)
@@ -478,6 +536,13 @@ def _ctx_ns_fetch(my_state, state, hand_counts, field_counts, bench_count,
                   dragapult_no_tapu=False, op_state=None,
                   neutralization_zone_active=False,
                   gust_over_immune_active=False):
+    """Build the board reading the `_RULES_NS_*` fetch chains score against.
+
+    One context, shared by every recoverable candidate, so the bodies and the
+    energy are ranked from the same view. Like the Ultra Ball's, it is reached
+    from both the PLAY decision and the later FETCH decision -- the two have to
+    agree about what the recovery is for.
+    """
     active = my_state.active[0] if my_state.active else None
     # An ACTIVE Ogerpon that does not attack yet (<3 effective) but that with ONE
     # Grass via Teal Dance (an ABILITY, independent of the manual attachment)

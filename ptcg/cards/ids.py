@@ -1,9 +1,38 @@
-"""Card data: IDs, groups and reference tables.
+"""Card data: IDs, groups and reference tables. The agent's vocabulary.
 
-Extracted VERBATIM from main.py in wave 1 of the refactor
-(docs/project-history.md). There is NO logic here: only constants that
-depend solely on literals. Nothing in this module may import state or
-touch the simulator -- utils/lint_architecture.py (R2) watches it.
+The bottom of the whole package. Every rule above is written in terms of the
+names defined here, and giving a card or a threat a NAME is what lets a rule
+say what it means -- `op_pokemon.id in EX_IMMUNE_IDS` reads as an idea, while
+the same test written against a bare number does not.
+
+FOUR KINDS OF CONSTANT live here, and telling them apart matters:
+
+  * CARD IDS -- one name per card (`Teal_Mask_Ogerpon_ex`, `Boss_Orders`).
+  * SETS AND GROUPS -- ids collected under the property that matters
+    (`EX_IMMUNE_IDS`, `THREAT_PREEVO_IDS`, `DUNSPARCE_IDS`). A rule keyed on a
+    set rather than a card is a rule that keeps working when the metagame
+    brings a new body with the same problem.
+  * CARD-DERIVED TABLES -- per-card numbers the database does not carry
+    (`RETREAT_COST`, the variable-damage families, the defender's punishment).
+  * SCORES AND THRESHOLDS -- the `SCORE_*` scale and the tuned constants of
+    individual rules. The band architecture they belong to is documented in
+    `ptcg/cards/scoring.py`; read that before choosing a value.
+
+HOW THE FILE IS ORGANISED. After the raw ids and tables, the rest is a sequence
+of NAMED SECTIONS, each one a strategic idea with its constants gathered under
+it -- the gift window, the evolution that arrives charged, the deck as a clock,
+when the Stamp deserves to be played. Those section headers are the reading
+order; the constants under one are only meaningful together.
+
+Most sections cite the game that produced them. That is the project's rule for
+comments -- the code says what, the comment says which loss taught us -- and
+here it is load-bearing, because a threshold with no game behind it is a guess.
+
+NO LOGIC, NO STATE. Only constants that depend on literals; nothing here may
+import state or touch the simulator, and rule R2 of `utils/lint_architecture.py`
+enforces it. The counterexample worth knowing is `ATTACK_ENERGY_REQ`, which
+looks exactly like a table in this file and is really TURN STATE -- it lives on
+`AGENT_STATE`, with only its untaxed base in `ptcg/cards/costs.py`.
 
 main.py re-exports it with `from ptcg.cartas.ids import *`, so the `__all__`
 below has to list ALL the names (including the ones starting with `_`, which

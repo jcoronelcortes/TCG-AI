@@ -1,4 +1,34 @@
-"""Hypergeometric probability of the draw.
+"""THE ONLY PLACE THE AGENT REASONS ABOUT CHANCE.
+
+Everywhere else the agent decides from the visible board -- a rule fires on
+what IS, not on what might be drawn. This module is the deliberate exception,
+and it is kept small and gated for that reason.
+
+WHERE THE NUMBERS COME FROM. The deck belief
+(`AGENT_STATE.ACTIVE_CARDS_IN_DECK`, see `ptcg/state/tracking.py`) knows how
+many copies of a card have not been seen. It cannot know which of those are in
+the deck and which are under a prize, so the population these functions draw
+from is deck PLUS prizes. That biases every estimate slightly DOWNWARD, which
+is the direction a gate should be wrong in.
+
+THE TWO QUESTIONS ASKED HERE:
+
+  * "will the draw bring me what I need" -- `_prob_al_menos` (exact
+    hypergeometric) and `_prob_draw_any` (the cheaper any-of-these variant).
+  * "is this card reachable at all" -- `_prob_card_accessible`, the chance that
+    not every remaining copy is buried under a prize.
+
+FINISHER FISHING is what those feed. `_FinisherFishing` describes a turn with
+NO attack available where the refill draw could still supply the energy that
+unlocks one, with the odds attached. It is the one plan in the agent built on a
+probability, and `_finisher_fishing_valid` is the gate that keeps it honest:
+it may only override the normal ordering when there is no attack today, no
+GUARANTEED finisher anywhere (a certainty always beats a probable knockout),
+and the odds clear `FISHING_PROB_MIN` for a plan worth at least
+`FISHING_PRIZES_MIN`.
+
+Prefer a certain line to a probable one wherever both exist. That is not a
+style preference -- it is what the gate above encodes.
 
 Extracted VERBATIM from main.py by utils/extract_definitions.py
 (docs/project-history.md). Its purity is verified by
@@ -65,6 +95,11 @@ class _FinisherFishing:
 
 
 def _belief_deck_and_prizes():
+    """Totals of the hidden half of our deck: (cards in deck, cards prized).
+
+    The two zones we cannot see, summed across every tracked card. Together
+    they are the population every draw estimate here samples from.
+    """
     deck = 0
     prize = 0
     for counts in AGENT_STATE.ACTIVE_CARDS_IN_DECK.values():
@@ -74,6 +109,15 @@ def _belief_deck_and_prizes():
 
 
 def _prob_draw_any(target_ids, draws=1):
+    """P(at least one of `target_ids` among the next `draws` cards).
+
+    The any-of-these shortcut, computed as one minus the chance of missing them
+    all. Unlike `_prob_al_menos` it samples the DECK alone, not deck plus
+    prizes: this one is asked about an imminent draw, where a prized copy
+    genuinely cannot come up.
+
+    `target_ids` may be a single id or a collection of them.
+    """
     if draws <= 0:
         return 0.0
     if isinstance(target_ids, int):
@@ -100,6 +144,16 @@ def _prob_draw_any(target_ids, draws=1):
 
 
 def _prob_card_accessible(card_id):
+    """P(this card is reachable at all -- not every copy buried in the prizes).
+
+    A different question from "will I draw it": a searcher can fetch anything
+    in the deck, so what matters is only whether at least one copy escaped the
+    prizes. Computed as one minus the chance that all remaining copies were
+    prized.
+
+    1.0 when nothing is prized, 0.0 when we hold no unseen copies. This is what
+    keeps the agent from planning a line whose next link it can never get.
+    """
     counts = AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(card_id)
     if not counts:
         return 0.0

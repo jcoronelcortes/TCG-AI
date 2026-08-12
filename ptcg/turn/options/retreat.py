@@ -1,8 +1,42 @@
-"""Scoring of the `RETREAT` options.
+"""Scoring the RETREAT options: swapping the body in front, and what it costs.
 
-The `o.type == OptionType.RETREAT` branch of the `agent()` chain, extracted
-VERBATIM. It unpacks from the context the 60 fields it reads and returns the
-11 it reassigns; the rest stay as they were, just like before.
+Retreating looks defensive and mostly is not. Three quite different plays wear
+the same option type, and separating them is the key to reading this file:
+
+  * THE RELAY -- retreat so a CHARGED body on the bench can come up and attack.
+    Offensive; often the whole turn. Most of the long comment blocks here are
+    about getting this one right.
+  * THE PIVOT -- get a doomed or useless body out of the front seat before
+    their turn. Defensive.
+  * THE FEE -- retreat purely to hide a two-prize ex behind a one-prize wall.
+    Costs energy and buys a cheaper corpse.
+
+THE COST IS NEVER JUST THE COST. Paying a retreat DISCARDS energy off the
+retreating body, and that has three consequences this file keeps re-learning:
+the attack we are retreating INTO may scale on the field's total Grass, so the
+payment can weaken the very attack it enables; the discarded Grass becomes
+recoverable by Night Stretcher, which is a route rather than a loss; and the
+body left behind keeps whatever was not spent.
+
+WHAT THE PROMOTED BODY MUST BE. A retreat that promotes a body which cannot act
+is worse than no retreat -- a mute survivor hands over the front seat and the
+tempo. So the rules ask what the promoted body DOES, not just whether it
+survives, and the promotion itself is scored in `card.py` under
+SelectContext.SWITCH; this branch decides whether to open that menu at all.
+
+READ THEIR REPLY, NOT ONLY OUR TURN. Several rules here turn on what happens
+AFTER we retreat -- what they promote, what it hits for, whether the relay we
+just brought up survives it. Those readings come from `ptcg/calc/damage.py`
+(`_promoted_reply_damage`, `_bench_finisher_that_survives`) and from the turn
+plan's defensive half, never recomputed locally.
+
+"THE ACTIVE CAN KNOCK OUT NOW" IS NOT A REASON TO STAY. It looks like one and
+was written as one, and the long block about the surviving relay is the record
+of that being wrong: a healthy body in front that can trade is still worth
+swapping when the relay takes the same prize and lives through the answer.
+
+Extracted VERBATIM from the `agent()` chain: it unpacks from the context only
+the fields it reads and returns only the ones it reassigns.
 """
 
 from cg.api import AreaType, CardType, OptionType, Pokemon

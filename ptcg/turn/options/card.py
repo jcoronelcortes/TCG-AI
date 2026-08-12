@@ -1,8 +1,45 @@
-"""Scoring of the `CARD` options.
+"""Scoring the CARD options: "pick a card" -- for a dozen different reasons.
 
-The `o.type == OptionType.CARD` branch of the `agent()` chain, extracted
-VERBATIM. It unpacks from the context the 113 fields it reads and returns the
-10 it reassigns; the rest stay as they were, just like before.
+The largest branch in the package, and its size is not one huge decision but
+MANY unrelated ones sharing an option type. Whenever the engine asks us to
+choose a card rather than to take an action, the option arrives here, and the
+first thing the code does is ask WHY it is being asked. That question is
+`select.context`, and it is the map of this file:
+
+    SWITCH / TO_ACTIVE          who takes the front seat (after a knockout, or
+                                as the target of a retreat). The biggest and
+                                most-argued section -- see the promotion band
+                                in `ptcg/cards/scoring.py`.
+    SETUP_ACTIVE_POKEMON        the opening: which body starts in front
+    SETUP_BENCH_POKEMON         the opening: what we bench behind it
+    TO_HAND                     what a recovery brings back (Lana's Aid,
+                                Night Stretcher)
+    DISCARD                     what we throw away to pay a cost. The ladders
+                                that price a card by what THIS hand needs.
+    DAMAGE                      where damage counters go
+    ATTACH_FROM                 which energy to move
+    RECOVER/AFFECT_SPECIAL_CONDITION    the small ones
+
+READ THE CONTEXT FIRST. The same card is worth completely different things
+under two of these -- a Chikorita is a fine promotion and terrible fodder --
+so a rule written without checking the context will fire in menus it was never
+meant for. That is the recurring defect in this file.
+
+SUB-SELECTIONS COME FIRST. A search or an ability can open its own card menu
+that shares a context with unrelated selections (the Grand Tree chain is the
+example handled at the top). Those are cut off before any generic handler
+runs, because otherwise the generic scorer answers a question it does not
+understand.
+
+THE DISCARD LADDERS deserve their own note, since they are the subtlest part.
+What a card costs is a PROPERTY OF THE HAND, not of the card: the right thing
+to throw away is whatever this hand cannot use today. Hence the named rungs --
+a spare copy of an evolution piece, a Supporter that is dead this turn, a body
+with nowhere to sit -- and the guard that the cost must not eat what an earlier
+search of the same turn just bought (`_purchase_of_this_turn`).
+
+Extracted VERBATIM from the `agent()` chain: it unpacks from the context only
+the fields it reads and returns only the ones it reassigns.
 """
 
 from cg.api import AreaType, CardType, Pokemon, SelectContext

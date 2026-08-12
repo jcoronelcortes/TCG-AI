@@ -1,4 +1,39 @@
-"""Belief about the deck: initial scan, zone movement and prizes.
+"""Belief about our own deck: where every one of our 60 cards currently is.
+
+WHY A BELIEF AT ALL. The observation shows our hand, our field and our discard,
+but the deck and the prizes are face down. Plenty of the agent's decisions need
+to know what is still reachable -- an Ultra Ball is only worth playing if the
+body it would fetch is in the DECK and not sitting under a prize, and the
+Meowth -> Lillie's engine asks the same of both of its halves. This module is
+what answers that, by tracking counts rather than cards.
+
+THE MODEL. `AGENT_STATE.ACTIVE_CARDS_IN_DECK[card_id][ZONE]` is a count per
+zone, seeded from `deck.csv` (all 60 in ZONE_DECK) and moved around from there.
+The five zones always sum to the number of copies of that card in the deck --
+that conservation is the invariant everything here maintains, and the one
+`utils/invariant_monitor.py` checks.
+
+THE TWO WAYS IT LEARNS, and they are deliberately different:
+
+  * INCREMENTALLY, from the logs -- `ptcg/state/logs.py` turns each DRAW and
+    MOVE_CARD into a `_move_card_state` call. Cheap, and the only way to see a
+    transition the observation does not spell out.
+  * BY RECONCILIATION -- `_sync_from_state` overwrites hand/bench/discard with
+    what the observation actually shows, every decision. This is the safety
+    net: the log stream can be missed or arrive in odd batches, and without a
+    periodic re-anchor the incremental half would drift for the rest of the
+    game.
+
+Between them, `_identify_prizes` handles the genuinely hidden part. It fires
+only on a COMPLETE reveal of the deck (a search) and infers the prizes by
+subtraction -- whatever we own and cannot find anywhere is face down. Because
+it re-runs on every reveal it is self-correcting, so an error here costs a few
+decisions rather than the game.
+
+WHAT IT DOES NOT TRACK. The OPPONENT's deck: see `ptcg/calc/opponent.py` and
+`ptcg/calc/probability.py` for what is inferred about their side. Nothing here
+is pure -- it reads and writes `AGENT_STATE` -- which is why it lives in
+`state/` and not in `calc/`.
 
 Extracted VERBATIM from main.py by utils/extract_definitions.py
 (docs/project-history.md). Its purity is verified by
@@ -12,6 +47,15 @@ from ptcg.state.zones import ZONE_BENCH, ZONE_DISCARD, ZONE_HAND, ZONE_DECK, ZON
 
 
 def _move_card_state(card_id, from_state, to_state):
+    """Move one copy of `card_id` between two zones. True if it happened.
+
+    The single write point of the belief, and it REFUSES to move a copy that
+    the source zone does not have (returning False). That refusal is what keeps
+    the per-card counts from going negative when a log is replayed twice or
+    arrives for a card we are not tracking -- the belief would rather miss a
+    move than invent a copy, since `_sync_from_state` repairs the first and
+    nothing repairs the second.
+    """
     if card_id in AGENT_STATE.ACTIVE_CARDS_IN_DECK:
         if AGENT_STATE.ACTIVE_CARDS_IN_DECK[card_id][from_state] > 0:
             AGENT_STATE.ACTIVE_CARDS_IN_DECK[card_id][from_state] -= 1
@@ -21,6 +65,21 @@ def _move_card_state(card_id, from_state, to_state):
 
 
 def _first_turn_scan(my_state):
+    """Seed the belief from the board we open on, exactly once per game.
+
+    The belief starts with all 60 cards in ZONE_DECK, but by the time we are
+    first asked to decide, the opening hand has been drawn and the setup bodies
+    are already down -- movements nobody logged to us. This walks what the
+    observation shows and books those cards out of the deck.
+
+    It goes down to the parts a Pokemon is made of -- pre-evolutions, attached
+    energy, tools -- because each of those is a separate card of our 60, and
+    leaving them in ZONE_DECK would have the agent planning to draw a Grass
+    that is already attached to its active.
+
+    Guarded by `_cards_first_scan_done`: running it twice would book the same
+    cards out a second time.
+    """
     if AGENT_STATE._cards_first_scan_done:
         return
 
@@ -45,6 +104,18 @@ def _first_turn_scan(my_state):
 
 
 def _identify_prizes(obs, my_state=None):
+    """Work out which of our cards are under the prizes, from a deck reveal.
+
+    Only meaningful when the whole deck is visible, which happens when a search
+    is resolving. The inference is a subtraction: a copy we own that is not in
+    hand, not in play, not in the discard and not in the revealed deck has to be
+    face down. No one-shot lock, so every later reveal recomputes and corrects
+    it.
+
+    The two long comments below are the two ways this went wrong in practice --
+    both about the card PAYING for the search, which is in flight and briefly in
+    no zone at all. Read them before touching the arithmetic.
+    """
     # Recomputed on EVERY COMPLETE reveal of the deck. The deck view during a
     # search (Ultra Ball, Poke Pad, etc.) shows ALL the cards of the deck in
     # select.deck, so it is the reference truth of what is in the DECK right now.
@@ -130,7 +201,21 @@ def _identify_prizes(obs, my_state=None):
 
 
 def _sync_from_state(my_state):
+    """Re-anchor the belief against what the observation actually shows.
 
+    Runs every decision. The three VISIBLE zones -- hand, field, discard -- are
+    not adjusted but OVERWRITTEN from the board, because the board is the truth
+    and the incremental log path is only an approximation of it. Whatever is
+    left over after that is what we cannot see, and it gets split between deck
+    and prizes.
+
+    That split keeps prize knowledge but never lets it exceed the leftover
+    (`min(entry[ZONE_PRIZE], remaining)`): a card we had filed as prized and
+    have since drawn must come off the prize count, or the belief would hold
+    more copies than the deck has. Everything not attributed to a prize is
+    assumed drawable -- the optimistic default, and the right one, since the
+    cost of missing a reachable card is a play never attempted.
+    """
     actual = defaultdict(lambda: {ZONE_HAND: 0, ZONE_BENCH: 0, ZONE_DISCARD: 0})
     if my_state.hand:
         for card in my_state.hand:

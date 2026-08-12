@@ -1,4 +1,28 @@
-"""Bug Catching Set: searching for Bug Pokemon.
+"""BUG CATCHING SET: look at the top 7 cards and take a Grass Pokemon or Energy.
+
+A cheap Item, so unlike the Ultra Ball there is barely any cost to weigh. The
+decision is almost entirely about ODDS and about the CLOCK.
+
+A PARTIAL REVEAL, not a search. It sees seven cards, not the deck, and that has
+a consequence beyond this file: the deck-belief reconciliation in
+`ptcg/state/tracking.py` must NOT treat this reveal as a full one, or every
+card outside those seven gets filed as prized.
+
+THE TWO THINGS THE SCORE TURNS ON:
+
+  * `p_find` -- the chance the seven cards actually contain something worth
+    taking, from the deck belief. The dominant adjustment, and negative when
+    the odds are poor: digging into a deck that cannot pay is worse than not
+    digging.
+  * THE DECK CLOCK -- this card THINS the deck by a card or two, and against a
+    stalling opponent the deck running out is how the game is lost. Below a
+    critical deck size the play is vetoed outright.
+
+THE DRY-ENERGY EXCEPTION is the one case that overrides the clock brake: no
+Grass in hand and the turn's attachment still unspent. Digging out an energy
+then buys an attack TODAY, and a turn spent attacking is worth more than the
+cards it costs. That exception is why the veto is written with the condition
+attached rather than as a bare deck-size test.
 
 Extracted VERBATIM from main.py by utils/extract_definitions.py
 (docs/project-history.md). Its purity is verified by
@@ -16,6 +40,13 @@ from ptcg.engine.rules import _Adjustment, _FixedRule
 
 
 def _v_bcs_base(w):
+    """Base worth of playing the Set, before the odds and value adjustments.
+
+    A flat starting value -- this card has no strong opinion of its own, and
+    almost all of its ranking comes from the `_AJUSTES_BCS_PLAY` corrections.
+    The small deduction covers the board that needs it least: an Ogerpon
+    already down with a Grass already in hand, where the dig is a luxury.
+    """
     v = 10500
     if (w.field_counts.get(Teal_Mask_Ogerpon_ex, 0) >= 1
             and w.hand_counts[Basic_Grass_Energy] >= 1):
