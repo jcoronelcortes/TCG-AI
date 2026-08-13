@@ -1328,6 +1328,37 @@ XEROSIC_SCORE_LAST_RESORT = 20       # no clear useful effect: only if no other 
 XEROSIC_BIG_HAND = 7                 # the opposing hand at which the generic cap starts paying. ONE number for the two scorers: `generic_very_big_hand` decides whether to PLAY it and `DISCARD_XEROSIC_CAPS_A_FAT_HAND` whether to KEEP it, and the card we keep cannot disagree with the card we would play
 DISCARD_XEROSIC_CAPS_A_FAT_HAND = 22  # outside the Alakazam matchup the cap was a FIXED 60 in the discard: fodder of middling price whatever the opposing hand held. With a hand at or above XEROSIC_BIG_HAND the play scorer prices it at XEROSIC_SCORE_GENERIC (3380), so it is not fodder -- protected here at the same height as a single Boss's Orders (22): kept, but the first Supporter to fall if one has to
 XEROSIC_SCORE_SOBRE_BOSS = 7000      # vs Alakazam with Boss's in hand: capping the hand beats ANY gust that does not WIN the game (above GUST_2PRIZE 6800); the winning gust (WIN_NOW 20000) is still higher
+# --- THE LAST CAP IS KEPT BEFORE ANY OTHER SUPPORTER ------------------------
+# (user, `records/registro_009_pasos_118_hasta_127.json`, episode 92413910,
+# step 124, turn 9 vs Alakazam.) Their Xerosic's Machinations cut our hand of
+# seven down to three, and the forced discard threw OUR Xerosic away: Applin
+# (83), Dipplin (55), Ultra Ball (38) and the cap (5), which was the fourth
+# highest because Boss's Orders and Lillie's Determination were both sitting on
+# the Supporter keep floor of 2.
+#
+# The two scorers of one card were contradicting each other AGAIN, and this
+# time in the matchup the card exists for. On that same board the PLAY scorer
+# ranked the cap `XEROSIC_SCORE_SOBRE_BOSS` + 300 = 7300, ABOVE the Boss's
+# Orders it was being sacrificed to (6800 at most, `BOSS_SCORE_GUST_2PRIZE`)
+# and far above the refill. It could not say so in the discard because the
+# card-agnostic Supporter block reads `_supp_values`, and the value layer never
+# prices Xerosic at all -- so the block skips it by design ("silence is not a
+# zero") and the ladder's own 5, written before that floor of 2 existed, was
+# what answered.
+#
+# WHAT THE 220 BUYS. Powerful Hand places 2 damage counters per card in THEIR
+# hand: with eleven cards it had just knocked a body out for 220, and the cap
+# leaves them at `XEROSIC_HAND_CAP` = 3, i.e. 60. No other card in the deck
+# touches that number, and this copy was the last one (the other in the
+# discard, none in the deck).
+#
+# 1, immediately BELOW `DISCARD_SUPPORTER_LIVE_KEEP` (2) and far above the
+# Unfair Stamp's `SCORE_NEVER`: the narrowest sentence that says what the board
+# says -- against the line it answers, the last cap is the Supporter that stays.
+# It is gated on `_xr_last_copy_locked_in_hand`, the SAME predicate that vetoes
+# the Lillie's which would shuffle it away, and it is LATCHED: a second copy in
+# hand cannot be the reason, and falls back to the branch's ordinary 5.
+DISCARD_XEROSIC_CAP_IS_THE_ANSWER = 1
 # The band every Supporter play scorer uses to say "I have NO useful effect
 # today: play me only because nothing else scores" -- BOSS_SCORE_EMPTY_GUST and
 # XEROSIC_SCORE_LAST_RESORT both sit exactly here. A Supporter at this height is
@@ -1812,6 +1843,7 @@ __all__ = [
     'XEROSIC_SCORE_GENERIC',
     'XEROSIC_SCORE_LAST_RESORT',
     'XEROSIC_SCORE_SOBRE_BOSS',
+    'DISCARD_XEROSIC_CAP_IS_THE_ANSWER',
     'SUPP_SCORE_LAST_RESORT_BAND',
     'DISCARD_SUPPORTER_LIVE_KEEP',
     'DISCARD_SUPPORTER_DEAD_DROP',

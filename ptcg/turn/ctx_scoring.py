@@ -71,6 +71,7 @@ class ScoringCtx:
     _charge_active_missing: Any = None
     _charge_active_enables_attack: Any = None
     _charge_active_finishes: Any = None
+    _cap_kept_once: Any = None
     _cf_refill_kept_once: Any = None
     _cm_use_ex: Any = None
     _conf_can_attack_pkmn: Any = None

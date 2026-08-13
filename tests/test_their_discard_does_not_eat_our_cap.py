@@ -241,10 +241,20 @@ def test_the_hand_that_survives_is_the_one_the_next_turn_can_use():
 
 
 def test_the_cap_keeps_the_matchup_score_of_its_own_branch():
-    """It is the ladder branch that decides again, not the Supporter block."""
+    """It is the ladder branch that decides again, not the Supporter block.
+
+    ITS SECOND RUNG IS WHAT ANSWERS ON THIS BOARD (registro_009, see
+    `DISCARD_XEROSIC_CAP_IS_THE_ANSWER`): the other copy of the cap is in the
+    discard pile and none is left in the deck, so letting this one go ends the
+    matchup's only answer to a Powerful Hand reading eighteen cards. The number
+    the branch gives it is 1 instead of 5, which changes no decision here -- the
+    two tests above pin the same four cards -- and the claim this test makes is
+    unchanged: the price comes from the ladder, below the band the Supporter
+    block would have used to declare it dead.
+    """
     _obs_, _choice, scores = _run()
-    assert scores[XEROSIC] == 5, (
-        f"vs Alakazam la rama del Xerosic vale 5; obtuvo {scores[XEROSIC]}")
+    assert scores[XEROSIC] == m.DISCARD_XEROSIC_CAP_IS_THE_ANSWER, (
+        f"vs Alakazam decide la rama del Xerosic; obtuvo {scores[XEROSIC]}")
     assert scores[XEROSIC] < m.DISCARD_SUPPORTER_DEAD_DROP
 
 
@@ -324,5 +334,7 @@ def test_the_guard_does_not_touch_our_own_costs():
                                "serial": 999}
     obs["select"]["minCount"] = obs["select"]["maxCount"] = 2
     _obs_, choice, scores = _run(obs)
-    assert scores[XEROSIC] == 5
+    # Same ladder branch as the forced discard above, and the same rung: our own
+    # cost puts the card in the same one-way pile.
+    assert scores[XEROSIC] == m.DISCARD_XEROSIC_CAP_IS_THE_ANSWER
     assert XEROSIC not in _discarded(_obs_, choice)

@@ -474,19 +474,51 @@ def _xr_gate_alakazam(c):
     return c.op_is_alakazam_deck and not _xr_below_the_alakazam_floor(c)
 
 
-def _xr_last_copy_locked_in_hand(c):
-    """The Xerosic in hand is the LAST access to the Powerful Hand cap: no
-    second copy in the deck and no Meowth ex left to re-search for it. Shared
-    predicate: it is the condition of Lillie's `do_not_shuffle_the_last_xerosic`
-    veto (Lillie's shuffles the hand into the deck and loses it forever), and
-    the Xerosic side reads it so its own first-turn yield does not step aside
-    for a Lillie's that is itself vetoed -- which would lose the Supporter slot
-    entirely (the mutual-yield failure of Lillie's <-> Boss's)."""
+def _xr_cap_lost_if_discarded(c):
+    """Is the Xerosic in hand our LAST access to the Powerful Hand cap ONCE IT
+    IS IN THE DISCARD PILE?
+
+    The half of `_xr_last_copy_locked_in_hand` that does NOT depend on the
+    Meowth ex, and it is a different question because the two ways of losing the
+    card are not the same loss:
+
+      * LILLIE'S SHUFFLES IT INTO THE DECK. The card is still ours -- it can be
+        drawn again, and Last-Ditch Catch ("search your deck for a supporter
+        card") can go and get it precisely BECAUSE the shuffle put it back
+        there. That is why the veto below asks about the Meowth route.
+      * A DISCARD PUTS IT IN THE PILE, and the deck carries nothing that
+        recovers a Supporter from it: Lana's Aid takes Pokemon without a Rule
+        Box and basic Energy, Night Stretcher a Pokemon or an Energy. For the
+        cap the pile is ONE WAY.
+
+    So on a forced discard (or on the cost of our own Ultra Ball) the Meowth
+    clauses do not apply and the deck-copy count is the whole question: with no
+    copy left in the deck, letting this one go ends the matchup's only answer to
+    an attack that reads 20 per card in their hand (user, `records/registro_009
+    _pasos_118_hasta_127.json`, episode 92413910, step 124, turn 9 vs Alakazam
+    -- their Xerosic cut our seven cards to three and ours was the fourth to
+    fall). See `DISCARD_XEROSIC_CAP_IS_THE_ANSWER`."""
     return (c.op_is_alakazam_deck
             and c.hand_counts.get(Xerosic_Machinations, 0) >= 1
             and c.op_hand_count >= 4
             and c.cards_in_deck.get(
-                Xerosic_Machinations, {}).get(ZONE_DECK, 0) == 0
+                Xerosic_Machinations, {}).get(ZONE_DECK, 0) == 0)
+
+
+def _xr_last_copy_locked_in_hand(c):
+    """The Xerosic in hand is the LAST access to the Powerful Hand cap: no
+    second copy in the deck and no Meowth ex left to re-search for it. Shared
+    predicate: it is the condition of Lillie's `do_not_shuffle_the_last_xerosic`
+    veto (Lillie's shuffles the hand into the deck, and only the Meowth route
+    gets it back out), and the Xerosic side reads it so its own first-turn yield
+    does not step aside for a Lillie's that is itself vetoed -- which would lose
+    the Supporter slot entirely (the mutual-yield failure of Lillie's <->
+    Boss's).
+
+    It is `_xr_cap_lost_if_discarded` PLUS the re-search route. Read that one
+    when the card is heading for the DISCARD PILE, where the route does not
+    exist."""
+    return (_xr_cap_lost_if_discarded(c)
             and c.hand_counts.get(Meowth_ex, 0) == 0
             and (c.field_counts.get(Meowth_ex, 0) >= 2
                  or c.cards_in_deck.get(Meowth_ex, {}).get(ZONE_DECK, 0) == 0))
@@ -703,6 +735,7 @@ __all__ = [
     '_xr_before_the_stamp',
     '_xr_below_the_alakazam_floor',
     '_xr_gate_alakazam',
+    '_xr_cap_lost_if_discarded',
     '_xr_last_copy_locked_in_hand',
     '_xr_ruta_a_lillie',
     '_xr_first_turn_yields_to_lillie',

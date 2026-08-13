@@ -48,13 +48,13 @@ from ptcg.calc.damage import _attacker_base_damage, _bench_attacker_can_ko, _ko_
 from ptcg.calc.energy import _can_attack_eff, _grass_attach_route_open, _grass_attach_unit, _grass_mult
 from ptcg.calc.board import _active_of, _count_hand_play_options
 from ptcg.cards.groups import EVO_LINES, GT_FETCH_BONUS
-from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, DISCARD_BODY_WITHOUT_SEAT, DISCARD_CF_HAND_RECYCLER, DISCARD_EVO_SPARE_COPY, DISCARD_LINK_THE_SEARCH_BUYS, DISCARD_SUPPORTER_DEAD_DROP, DISCARD_SUPPORTER_LIVE_KEEP, DISCARD_WHAT_THE_SEARCH_ALREADY_BOUGHT, DUNSPARCE_IDS, Dawn, Dipplin, Drednaw, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, LANA_SEL_INJUGABLE, LANA_SEL_GRASS_DEMAND, LANA_SEL_GRASS_UNLOCKS, LANA_SEL_GRASS_SURPLUS, LANA_SEL_GRASS_WINS, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, OUR_ABILITY_IDS, OUR_EX_IDS, Pinsir, Poke_Pad, RETREAT_COST, RIPEN_HEAL_TARGET_SCORE, SCORE_FORBID, SCORE_LOOKAHEAD_PROMOTE_KO, SCORE_LOOKAHEAD_PROMOTE_SAFE, SCORE_NEVER, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, XEROSIC_BIG_HAND, DISCARD_XEROSIC_CAPS_A_FAT_HAND, Xerosic_Machinations
+from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, DISCARD_XEROSIC_CAP_IS_THE_ANSWER, DISCARD_BODY_WITHOUT_SEAT, DISCARD_CF_HAND_RECYCLER, DISCARD_EVO_SPARE_COPY, DISCARD_LINK_THE_SEARCH_BUYS, DISCARD_SUPPORTER_DEAD_DROP, DISCARD_SUPPORTER_LIVE_KEEP, DISCARD_WHAT_THE_SEARCH_ALREADY_BOUGHT, DUNSPARCE_IDS, Dawn, Dipplin, Drednaw, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, LANA_SEL_INJUGABLE, LANA_SEL_GRASS_DEMAND, LANA_SEL_GRASS_UNLOCKS, LANA_SEL_GRASS_SURPLUS, LANA_SEL_GRASS_WINS, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, OUR_ABILITY_IDS, OUR_EX_IDS, Pinsir, Poke_Pad, RETREAT_COST, RIPEN_HEAL_TARGET_SCORE, SCORE_FORBID, SCORE_LOOKAHEAD_PROMOTE_KO, SCORE_LOOKAHEAD_PROMOTE_SAFE, SCORE_NEVER, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, XEROSIC_BIG_HAND, DISCARD_XEROSIC_CAPS_A_FAT_HAND, Xerosic_Machinations
 from ptcg.cards.lines import _evo_copies_usable, _evo_top_unlocked_by_the_search, _line_base_benchable, _pokemon_injugable
 from ptcg.cards.ids import OPENING_SAC_PROMOTE_ORDER, SETUP_ACTIVE_BASIC_ORDER, SETUP_ACTIVE_BASIC_TOP, SETUP_ACTIVE_EX_ORDER, SETUP_ACTIVE_EX_TOP, SETUP_ACTIVE_OTHER, SETUP_ACTIVE_OTHER_BASIC, SETUP_ACTIVE_STEP
 from ptcg.cards.scoring import MAIN_ATTACKERS, PROMO_DOOMED_PENALTY, PROMO_KO_BONUS, PROMO_KO_FRONT, PROMO_LAST_STAND, PROMO_MATCH_POINT_VETO, PROMO_PRIZE_PENALTY, OPENING_SAC_PROMOTE_STEP, OPENING_SAC_PROMOTE_TOP, _SUPP_PLAY_IDS, _purchase_of_this_turn
 from ptcg.cards.tables import HAND_TO_DECK_PLAY_IDS, card_table
 from ptcg.decision.boss_orders import _ADJUST_GUST_NUISANCE, _ADJUST_GUST_OFFENSIVE, _RULES_GUST_NUISANCE, _ctx_gust_target
-from ptcg.decision.disruption import _stamp_pendiente
+from ptcg.decision.disruption import _stamp_pendiente, _xr_cap_lost_if_discarded
 from ptcg.decision.meowth import _CtxMeowthFetch, _MEOWTH_FETCH_SUPPS, _RULES_MEOWTH_FETCH
 from ptcg.decision.night_stretcher import _RULES_NS_APPLIN, _RULES_NS_BAYLEEF, _RULES_NS_CHIKORITA, _RULES_NS_DIPPLIN, _RULES_NS_FEZ, _RULES_NS_GRASS, _RULES_NS_HYDRAPPLE, _RULES_NS_MEGANIUM, _RULES_NS_MEOWTH, _RULES_NS_OGERPON, _RULES_NS_PINSIR, _RULES_NS_TAPU, _ctx_ns_fetch, _ns_fez_engine_alive, _ns_meowth_engine_alive
 from ptcg.decision.poke_pad import _CtxPPFetch, _RULES_PP_FETCH
@@ -78,6 +78,7 @@ def score_play(tc, o, score):
     _best_supp_in_deck_val = tc._best_supp_in_deck_val
     _boss_gust_immune_active = tc._boss_gust_immune_active
     _bp = tc._bp
+    _cap_kept_once = tc._cap_kept_once
     _cf_refill_kept_once = tc._cf_refill_kept_once
     _cm_use_ex = tc._cm_use_ex
     _conf_is_matchup_attacker = tc._conf_is_matchup_attacker
@@ -2855,7 +2856,35 @@ def score_play(tc, o, score):
                         # read revived it, a Lillie's Determination that was the
                         # last refill against the Crustle wall started falling to
                         # a second Meowth ex scored at 2.
-                        if _protect_refresh_supporter:
+                        #
+                        # ...AND NOT WHEN IT IS THE CARD THAT BURIES THE CAP
+                        # (user, registro_009 step 124 vs Alakazam). Lillie's
+                        # SHUFFLES OUR HAND INTO THE DECK
+                        # (`HAND_TO_DECK_PLAY_IDS`), so while we are keeping the
+                        # last Xerosic (`_xr_cap_lost_if_discarded`) the two
+                        # cards are in conflict: playing the refill puts the
+                        # matchup's only answer back among seventeen cards, in
+                        # the matchup where their attack reads 20 per card in
+                        # their hand and grows every turn.
+                        #
+                        # Both had the SAME floor of 2 on that board and only
+                        # one could stay, so the tie was broken by menu order
+                        # and the Boss's Orders fell -- the gust the value layer
+                        # prices at 970, sacrificed to a refill it prices at
+                        # 450. That is the static proxy ("the last refill")
+                        # outranking a live reading, which is the very defect
+                        # `DISCARD_SUPPORTER_LIVE_KEEP` was written to end.
+                        #
+                        # It does not name a score: the branch below prices the
+                        # single copy it is (16 there), above every item and
+                        # below anything the turn can still use. With a Xerosic
+                        # still in the deck the predicate is false and the
+                        # refill keeps its floor.
+                        _lillie_buries_the_cap = (
+                            card.id in HAND_TO_DECK_PLAY_IDS
+                            and ctx is not None
+                            and _xr_cap_lost_if_discarded(ctx))
+                        if _protect_refresh_supporter and not _lillie_buries_the_cap:
 
                             score = 2
                         elif _protect_last_supporter:
@@ -2917,6 +2946,27 @@ def score_play(tc, o, score):
                     # disruption, a single copy).
                     if op_is_alakazam_deck:
                         score = 5
+                        # ...AND THE LAST COPY IS PROTECTED ABOVE EVERY OTHER
+                        # SUPPORTER (user, registro_009 step 124 vs Alakazam --
+                        # see `DISCARD_XEROSIC_CAP_IS_THE_ANSWER`). This 5 was
+                        # written when it was the strongest number in the
+                        # Supporter band; the keep floor of 2 arrived later and
+                        # left the matchup's own answer ranked BELOW a Boss's
+                        # Orders and a refill, so their Xerosic's Machinations
+                        # forced ours into the discard pile.
+                        #
+                        # The gate is `_xr_cap_lost_if_discarded`: no copy left
+                        # in the deck. It is the DISCARD half of the predicate
+                        # that vetoes the Lillie's which would shuffle this card
+                        # away, and it drops that veto's Meowth clauses on
+                        # purpose -- Last-Ditch Catch searches the DECK, so it
+                        # answers a shuffle and not a discard. From the pile the
+                        # deck recovers no Supporter at all.
+                        if (ctx is not None
+                                and card.id not in _cap_kept_once
+                                and _xr_cap_lost_if_discarded(ctx)):
+                            _cap_kept_once.add(card.id)
+                            score = DISCARD_XEROSIC_CAP_IS_THE_ANSWER
                     else:
                         score = 60
                         # THE FIXED 60 ASKED NOTHING (user, August 2026, found by

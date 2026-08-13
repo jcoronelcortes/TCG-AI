@@ -9486,6 +9486,14 @@ def agent(obs_dict: dict) -> list[int]:
     # reason; the copies after them keep whatever price the ladder gave.
     _supp_live_keep_once = set()
 
+    # And the same latch for the POWERFUL HAND CAP of the Alakazam matchup
+    # (`DISCARD_XEROSIC_CAP_IS_THE_ANSWER`). Being the last access to the cap is
+    # a claim about the DECK -- no copy left in it -- so every copy in hand
+    # answers it identically, and a floor below the best live Supporter said of
+    # two cards sacrifices two Supporters to keep one answer. The first copy
+    # evaluated is the answer; the rest keep the branch's ordinary price.
+    _cap_kept_once = set()
+
     # And the same latch for the HAND RECYCLER of the mill matchup
     # (`DISCARD_CF_HAND_RECYCLER`). The Comfey ladder replaces the ordinary
     # scores, so `_lillie_protected_once` -- which the ladder above has already

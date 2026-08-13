@@ -159,7 +159,19 @@ def test_sin_la_regla_el_cap_vuelve_a_valer_sesenta():
 def test_la_rama_alakazam_no_se_toca(agente):
     """The matchup the card exists for was already measured and pinned
     (`tests/test_their_discard_does_not_eat_our_cap.py`). This reading must not
-    have moved it: against Alakazam the cap stays at 5, fat hand or not."""
+    have moved it: against Alakazam the cap is priced by its OWN branch, fat
+    hand or not, and never by the generic one.
+
+    THE BRANCH HAS TWO RUNGS SINCE registro_009 (see
+    `DISCARD_XEROSIC_CAP_IS_THE_ANSWER`): the ordinary 5, and 1 when the copy in
+    hand is the last access to the cap -- there the discard pile is one way and
+    the cap is kept before any other Supporter. What this test is about is
+    WHICH branch answers, so it asserts the band and not one number: both rungs
+    are the matchup's, and the generic prices (22 and 60) are the failure it
+    watches for.
+    """
+    from ptcg.cards import ids
+    banda = {5, ids.DISCARD_XEROSIC_CAP_IS_THE_ANSWER}
     vistos = set()
     for captura in _menus(agente, "registro_001_alakazam"):
         for _, nombre, score in captura.opciones:
@@ -167,4 +179,5 @@ def test_la_rama_alakazam_no_se_toca(agente):
                 vistos.add(score)
     if not vistos:
         pytest.skip("ese registro no trae ningun menu con el cap en la mano")
-    assert vistos == {5}, f"la rama Alakazam cambio de precio: {sorted(vistos)}"
+    assert vistos <= banda, f"la rama Alakazam cambio de precio: {sorted(vistos)}"
+    assert not (vistos & {ids.DISCARD_XEROSIC_CAPS_A_FAT_HAND, 60})
