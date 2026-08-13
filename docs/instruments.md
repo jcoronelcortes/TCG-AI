@@ -136,8 +136,9 @@ The only question the ones above cannot answer, and the most expensive.
 `selfplay.py`, `matchup_matrix.py`, and the two-arm `gate_*.py` scripts written
 per candidate rule. What to know before trusting one of their numbers is in
 [Improving the agent](improving-the-agent.md); the bound that applies to all of
-them is in [Matchups](matchups.md) — **the reference bot takes the first turn,
-so nearly every figure on record describes the going-second half of the game.**
+them is in [Matchups](matchups.md) — **every figure recorded before August 2026
+describes the going-second half of the game, because the reference bot took the
+first turn; since our agent stopped declining it, the seat splits ~50/50.**
 
 ---
 

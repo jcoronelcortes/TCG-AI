@@ -152,12 +152,14 @@ player and does not try to be: because its policy is fixed and deterministic,
 the **difference** between two versions of our agent against it is signal, even
 though the bot's absolute level is not.
 
-**It takes the first turn every time, and that bounds every matchup number this
-project has.** Our agent vetoes going first on purpose
-(`ptcg/turn/options/minor.py`) and the bot answers YES to the `IS_FIRST` select
-like any other yes/no, so in matchup mode the bot went first in 60 of 60 games
-while the mirror ran 30/30. The matchup matrix, the Crustle axis and nearly every
-gate therefore describe only the going-**second** half of the game.
+**It answers YES to the `IS_FIRST` select like any other yes/no, and until
+August 2026 that bounded every matchup number this project has.** Our agent used
+to veto going first on purpose, so in matchup mode the bot went first in 60 of 60
+games while the mirror ran 30/30: the matchup matrix, the Crustle axis and nearly
+every gate on record describe only the going-**second** half of the game. Our
+agent now answers YES too (`ptcg/turn/options/minor.py`), and since the engine
+always offers that select to **seat 0** while `torneo` alternates seats, a
+matchup run now splits the first turn ~50/50 rather than holding it fixed.
 
 ```python
 OpponentBot()                        # unchanged: the historical measuring stick

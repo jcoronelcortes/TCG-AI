@@ -40,6 +40,21 @@ def score_play(tc, o, score):
                 if _meowth_skip_fetch:
                     score = SCORE_VETO
             elif context == SelectContext.IS_FIRST:
+                # THE POLICY IS TO GO FIRST (user, August 2026). We only get
+                # asked when we win the coin -- `firstPlayer` is still -1 here
+                # -- so this is the half of the seat we control: when the flip
+                # is ours, we take the first turn. It reverses the previous
+                # policy (going second, which buys an attack on our own first
+                # turn) on the deck owner's call: this list wants the tempo of
+                # setting up first. Measured before the switch, over 800 games
+                # a deck: +11.00 pts vs crustle_kangaskhan, +2.54 unweighted
+                # over six decks, and 0.0 on the weighted ladder (94.0% either
+                # way) with the prize differential moving +0.145. Note that
+                # every `we_go_first == True` branch in the tree -- the opening
+                # attachments, `_RULES_FOREST_PLAY[0] t1_going_first` -- had
+                # never run in self-play, because the reference bot answers YES
+                # to this same menu and used to take the seat every game.
+                #
                 # A SCORER PRICES AN OPTION; IT DOES NOT WRITE STATE (user,
                 # August 2026). These two branches used to set
                 # `AGENT_STATE.we_go_first` -- True here, False on the NO below
@@ -64,7 +79,7 @@ def score_play(tc, o, score):
                 # within this call the write was invisible).
                 #
                 # `utils/lint_architecture.py` R9 is what keeps it out.
-                score = SCORE_VETO
+                score = 2
             elif context == SelectContext.COIN_HEAD:
     
                 score = 2
@@ -73,10 +88,9 @@ def score_play(tc, o, score):
                 score = SCORE_VETO
             elif context == SelectContext.IS_FIRST:
                 # The other half of the same defect; see the YES branch above.
-                # Going second is the policy (in the current rules the second
-                # player may attack on its first turn and the first may not),
-                # and 2 over the vetoed YES is what says so.
-                score = 2
+                # Declining the first turn is vetoed: this deck takes the seat
+                # whenever the coin gives it to us.
+                score = SCORE_VETO
             elif context == SelectContext.ACTIVATE and _meowth_skip_fetch:
                 score = 10
         elif o.type == OptionType.END:

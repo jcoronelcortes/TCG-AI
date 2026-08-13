@@ -135,21 +135,29 @@ rather than an opposing deck, and it plays it badly, so they read as matchups we
 dominate. They are kept — people do play them — and flagged, so the aggregation
 can report the field with and without.
 
-### The bound on every number above: we always go second
+### The seat: we now take the first turn (August 2026)
 
-The reference bot answers YES to the "do you go first?" select, and our agent
-**vetoes going first deliberately** (`ptcg/turn/options/minor.py`), which is
-defensible under current rules, where the second player may attack on their
-first turn. Two policies multiply, and the result is that in matchup mode the
-bot went first in 60 of 60 games.
+**There is no coin flip in this engine.** The `IS_FIRST` select is offered to
+**seat 0, every game** — measured over 30 openings, `yourIndex` was 0 in all of
+them and the seat that answered became `firstPlayer` in all of them. Whoever
+sits at index 0 decides for both players; the randomisation lives in the seat
+assignment, not in the engine.
 
-That does not invalidate a winrate. It bounds its **scope**: the matrix above,
-the Crustle axis and nearly every `--opponent` gate in this repository describe
-only the going-second half of the game, and every branch reading
-`we_go_first == True` is code self-play does not execute.
+Our agent now answers **YES** (`ptcg/turn/options/minor.py`): when the prompt
+reaches us, this deck takes the first turn. It reverses the earlier policy of
+declining — defensible under current rules, where the second player may attack
+on their first turn — on the deck owner's call.
 
-`OpponentBot(first_choice="second")` makes the bot decline so the coin flip
-decides, inside a single run. 800 games per deck, six decks:
+**Every number recorded before that switch is the going-second half of the
+game.** The reference bot also answers YES, so with our old veto it took the
+first turn in 60 of 60 matchup games, and every branch reading
+`we_go_first == True` was code self-play never executed. Since `torneo`
+alternates seats, matchup runs now split the first turn ~50/50 instead — 100/100
+over 200 games against `crustle_wall_1` — so seat is no longer held constant
+across a comparison. Use `OpponentBot(first_choice="second")` to pin it.
+
+The reading that preceded the switch, with the bot declining so the seat was
+decided inside a single run. 800 games per deck, six decks:
 
 | Deck | Going first | Going second | Δ |
 | --- | ---: | ---: | ---: |
@@ -172,10 +180,13 @@ the ladder by weight; 31% of it is a single Marnie list where we already win 98%
 and there is no room. So this is a change to make for the hard matchups and to
 measure on the hard matchups — not a ladder-winrate play.
 
-One latent defect sits in the same lines and is worth knowing about:
-`AGENT_STATE.we_go_first` is assigned while each option is **scored**, not when
-one is chosen, so its value is whatever the last-scored option wrote. It is
-correct today only because the menu happens to list YES before NO.
+A latent defect used to sit in the same lines and is worth knowing about:
+`AGENT_STATE.we_go_first` was assigned while each option was **scored**, not
+when one was chosen, so its value was whatever the last-scored option wrote — it
+came out right only because the menu happens to list YES before NO. Both writes
+are gone, and `utils/lint_architecture.py` R9 keeps any scorer under
+`ptcg/turn/options/` from writing to `AGENT_STATE` again. The flag has exactly
+one honest writer: `agent()`, reading `firstPlayer` off the board.
 
 ### "We cannot attack" is not a rare board — hiding the ex is bounded to the opening
 

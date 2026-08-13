@@ -114,8 +114,11 @@ order the dependencies want and writes a report.
   Crustle — 10% of the field — moves the weighted mean by a fraction. A gain can
   be real and the meta not contain it. Measure hard-matchup changes on the hard
   matchups, and say which you are reporting.
-- **Every `--opponent` run is the going-second half of the game.** The reference
-  bot takes the first turn unless told otherwise. See [Matchups](matchups.md).
+- **Every `--opponent` run recorded before August 2026 is the going-second half
+  of the game**, because our agent declined the first turn and the reference bot
+  took it. Now that both answer YES, the seat splits ~50/50 within a run instead
+  of staying fixed — which adds variance to a comparison unless you pin it with
+  `OpponentBot(first_choice="second")`. See [Matchups](matchups.md).
 - **Suspect the gate first.** A gate that shares modules between its arms
   reports exactly zero, and zero orders a revert here. Run the instrument twice
   before believing it, and check that its self-test ran.

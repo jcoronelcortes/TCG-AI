@@ -87,14 +87,16 @@ def test_the_menu_is_the_opening_one_and_the_coin_is_undecided():
 
 
 # ---------------------------------------------------------------------------
-# 2. The policy is unchanged: we go second
+# 2. The policy: we take the first turn (user, August 2026)
 # ---------------------------------------------------------------------------
 
-def test_we_still_choose_to_go_second():
+def test_we_choose_to_go_first():
+    """Reversed from going second on the deck owner's call. This menu is only
+    shown to whoever won the coin, so it is the half of the seat we control."""
     obs = _obs()
     eleccion = m.agent(obs)
     assert len(eleccion) == 1
-    assert obs["select"]["option"][eleccion[0]]["type"] == int(OptionType.NO)
+    assert obs["select"]["option"][eleccion[0]]["type"] == int(OptionType.YES)
 
 
 # ---------------------------------------------------------------------------
@@ -118,7 +120,7 @@ def test_the_choice_survives_the_menu_being_listed_backwards():
     m.AGENT_STATE.reset()
     m._init_cards_tracking()
     b = _elegido(invertido)
-    assert a == b == int(OptionType.NO)
+    assert a == b == int(OptionType.YES)
 
 
 def test_the_flag_does_not_depend_on_the_order_either():
