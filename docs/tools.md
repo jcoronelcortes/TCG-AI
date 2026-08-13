@@ -261,6 +261,30 @@ about it". It was built for one question (when our attack knocks their active
 out, does the body they promote reply?) and its answer was to NOT write the rule:
 the actionable population is 0.08% of decisions.
 
+### `card_census.py` — what each of our sixty cards actually does
+
+Every other instrument here measures a decision; this one measures the **list**.
+It follows each of the sixty copies by its unique serial and records how it left
+our hand: played, attached, evolved, spent as fodder, shuffled back, left to die
+in hand, or looked at in a search and declined.
+
+```bash
+python utils/card_census.py --episodes log_analisys/                    # a recorded game
+python utils/card_census.py --games 900 --opponent deck/real_opponents_500/crustle_wall_1.csv
+python utils/card_census.py --games 80 --opponents deck/real_opponents_500 --allocation peso
+python utils/card_census.py --episodes log/real_games --opponents deck/real_opponents_500
+```
+
+Two things it does that are easy to get wrong. **It matches the control group on
+game length**: a lost game runs 31 turns against a won game's 13, so the raw
+wins-vs-losses split reports the clock as if it were fourteen findings about
+fourteen cards. And **it filters the event stream by `playerIndex`**, because both
+seats' events arrive in our own observation — without that the census prices our
+list using the opponent's plays.
+
+The full write-up, including the cross-check between simulated and real games, is
+in [the card census results](card-census-2026-08-13.md).
+
 ### `rule_census.py` — which named rules never fire
 
 Every scoring rule here carries a NAME and every chain resolves through one choke

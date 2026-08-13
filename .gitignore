@@ -105,6 +105,7 @@ dataset/Card_ID List_EN.pdf
 # and the raw replays (~4 MB each).
 competitor_decks/.decks_cache.json
 competitor_decks/.cache_replays/
+competitor_decks_500/
 
 # --- Local engine workspace ---
 # ptcg_engine/ is a local working copy, not part of the versioned project.

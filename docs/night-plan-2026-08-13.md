@@ -2,6 +2,28 @@
 
 [← Documentation index](README.md)
 
+> ## ⚠️ DISCARDED — this plan is NOT scheduled and must not be executed
+>
+> **Discarded 12 August 2026.** The night of 13 August runs
+> [night-plan-2026-08-13-b.md](night-plan-2026-08-13-b.md) instead — the 500
+> leaderboard decks and the piloting playbook. Both plans are CPU-bound on the
+> same six workers and only one fits a night.
+>
+> The file is kept for two reasons, neither of which is scheduling:
+>
+> * **§1's four Search-API facts (S1–S4) are measured and still true** — the API
+>   is already wrapped in `cg/api.py`, `search_begin` returns a root state, it is
+>   a tree rather than a line, and a full rollout to game end costs 0.02 s. They
+>   belong to [phase D of the engine-source plan](engine-source-plan-2026-08-12.md)
+>   and are the reason phase D is a night's work rather than a month's.
+> * **§3's argument for grading against the rules instead of against another
+>   heuristic stands**, and the plan that replaced it names it as the honest next
+>   step if its own failure classes come back empty (its §9).
+>
+> Everything below is the original text, unedited. **§0 must not be asked and no
+> block below may be started.** Reviving this plan means re-dating it and
+> re-checking its HEAD, which has moved since.
+
 **Status: written 12 August 2026 (evening), on branch `main`, HEAD `5b064f2`.
 Suite 2440 pass / 15 skip in 23 s, `lint_architecture` clean. The working tree
 carries the WHOLE of phases A, B and C of

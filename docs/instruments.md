@@ -62,6 +62,7 @@ cent of decisions. A census is minutes; 200 games is not.
 
 | Tool | Counts |
 | --- | --- |
+| `card_census.py` | **The list rather than a decision**: the fate of all sixty copies per game — played, attached, spent as fodder, dead in hand, or looked at in a search and put back. Pooled, per opponent archetype, and wins vs losses **against a control group matched on turn count**, because a lost game runs 31 turns to a won game's 13 and the raw split measures the clock. Reads simulated games and our own real ladder replays, and cross-checks the two. |
 | `rule_census.py` | Every named scoring rule: chain walked / evaluated / fired / decided. Sorts them into four bands of deadness. |
 | `turn_waste_census.py` | Resources that were legally playable and were declined, per turn and per plan mode. |
 | `promoted_reply_census.py` | The nested populations of one candidate rule, from "the situation happens" down to "and we had a choice about it". |

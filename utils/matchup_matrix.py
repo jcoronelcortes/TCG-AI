@@ -251,14 +251,36 @@ def _row(stem, stats):
         "forfeits": stats["errores_candidato"],
         "forfeits_bot": stats["errores_base"],
         "premios": pc, "premios_bot": pb, "dif_premios": prize_diff,
+        # The seat split. `accumulate` has always collected it; until 13 August
+        # 2026 nothing here printed it, which was harmless while the agent vetoed
+        # going first (every game was a going-second game, so the split was a
+        # constant). Since the IS_FIRST veto was reversed the seat splits ~50/50
+        # inside a single run, so a single mixed winrate now averages two
+        # different games -- and one of them, going first, is a branch no
+        # self-play had ever executed.
+        "primero": tuple(stats["cand_primero"]),
+        "segundo": tuple(stats["cand_segundo"]),
     }
+
+
+def _seat_text(f):
+    """`primero 54.0% (27/50) segundo 48.0% (24/50)`, or '' when a seat is empty."""
+    (w1, n1), (w2, n2) = f["primero"], f["segundo"]
+    if not n1 and not n2:
+        return ""
+    parts = []
+    for label, wins, played in (("primero", w1, n1), ("segundo", w2, n2)):
+        parts.append(f"{label} {100 * wins / played:.1f}% ({wins}/{played})"
+                     if played else f"{label} sin partidas")
+    return "  asiento: " + " ".join(parts)
 
 
 def _print_row(f):
     extra = "" if f["dif_premios"] is None else f" premios {f['dif_premios']:+.2f}"
     print(f"  {f['deck']}: {100 * f['wr']:.1f}% "
           f"[{100 * f['lo']:.1f}-{100 * f['hi']:.1f}]{extra} "
-          f"(n={f['decididas']}, forfeits nuestros {f['forfeits']})", flush=True)
+          f"(n={f['decididas']}, forfeits nuestros {f['forfeits']})"
+          f"{_seat_text(f)}", flush=True)
 
 
 def medir_paralelo(cand_spec, paths, reparto, bot_first_choice="first",
