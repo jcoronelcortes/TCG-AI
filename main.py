@@ -8932,10 +8932,62 @@ def agent(obs_dict: dict) -> list[int]:
     # focus sent the Grass to the OTHER Ogerpon "to make it lethal" -- a second
     # finisher just as trapped -- and the turn died without attacking. While the
     # retreat is not paid for, charging the bench promotes nobody.
+    # ...AND IT YIELDS TO THE FRONT IT IS TRAPPING (user, registro_004 step 71,
+    # episode 92595425 vs a Dragapult ex deck, LOST). The guard above is about
+    # the turn CHOOSING to pay the retreat; this one is about the turn being
+    # UNABLE to. Our active was a Hydrapple ex that had just evolved -- 330 HP,
+    # ZERO energy, retreat THREE -- and the focus armed a benched Ogerpon ex at
+    # two: lethal on their 90 HP Drakloak, and unreachable, because promoting it
+    # needed three cards the front did not have and the turn's one remaining
+    # Grass could not buy. The Grass went to a body that could not get to the
+    # spot the attack is thrown from; the turn ended without attacking, and
+    # their Drakloak evolved into the Dragapult ex whose Phantom Dive took 200
+    # off our 330.
+    #
+    # TWO HALVES, AND THE SECOND ONE IS WHAT KEEPS THIS NARROW. "The bench is
+    # trapped" alone is not enough to call the focus wrong: a benched Ogerpon
+    # charged to three is READY for whenever it does come up, and this band's
+    # job is to say WHICH Ogerpon to concentrate on, not to promise an attack
+    # today. What made it wrong here is WHICH body it was trapping. A front that
+    # prints its own per-turn attachment is ONE card from its cost every turn
+    # with nobody's help -- the Hydrapple ex was at 0 of 2, and its own Ripening
+    # Charge plus next turn's manual attachment close that on their own -- so
+    # the Grass the focus took was the first half of an attack, spent instead on
+    # a body with no route to the front at all.
+    #
+    # THAT IS ALSO THE LINE AGAINST THE BOARDS THAT MUST NOT MOVE, and the
+    # obvious horizon does not draw it. "Two attachments from its cost" reads
+    # TRUE for the Tapu Bulu of [[test_the_charge_in_flight_arms_the_active]]
+    # (0 of 4 with a Meganium doubling every Grass), where the record says the
+    # charge belongs on the bench. The Tapu does not charge itself: it needs the
+    # manual attachment of two consecutive turns, which is a hope and not a
+    # plan, while the self-charging front needs one. So the reach asked for here
+    # is the front's OWN ability (the same pair `_olf_active_viable` counts just
+    # above) plus one manual attachment, and the two Tapu boards --
+    # [[test_state_builder]]'s at 1 of 4 and the record's at 0 of 4 -- keep their
+    # focus untouched.
+    #
+    # The retreat is the other half, asked in CARDS through `_retreat_payable`
+    # (Wild Growth pays two symbols per Grass), whose docstring is this rule in
+    # one line: a route that cannot pay its first step is not a route. A front
+    # that CAN step aside is not trapping anybody and the focus stands.
+    _olf_front_being_armed = False
+    if (_olf_active is not None and _olf_active.id in MAIN_ATTACKERS
+            and not _retreat_payable(_olf_active)):
+        _olf_front_e = len(_olf_active.energies)
+        _olf_front_reach = _grass_attach_unit()
+        if _olf_active.id in (Hydrapple_ex, Teal_Mask_Ogerpon_ex):
+            _olf_front_reach += _grass_attach_unit()
+        if (not _can_attack_eff(_olf_active.id, _olf_front_e)
+                and _can_attack_eff(_olf_active.id,
+                                    _olf_front_e + _olf_front_reach)):
+            _olf_front_being_armed = True
+
     _ogerpon_lethal_focus_serial = None
     _olf_opa = _active_of(op_state)
     if (_olf_opa is not None and (_olf_opa.hp or 0) > 0
             and not _olf_active_viable
+            and not _olf_front_being_armed
             and not _ability_unlock_retreat_ko
             and not _ability_unlock_retreat_attack
             and not op_has_ex_immune_active
