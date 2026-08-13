@@ -616,6 +616,29 @@ hits — gust and attack really are alternatives. The one attack that is never
 delayed is the one that wins the game: nothing survives the turn if the turn is
 the last one.
 
+**What the hand pays goes before what spends the hand.** A play that empties the
+hand — any refill that shuffles it into the deck — destroys every card still
+sitting there, so whatever was going to spend one of those cards happens first.
+An Ultra Ball is the same destroyer with a smaller mouth: its cost is two cards
+it *chooses*, and a spare Basic Energy is exactly what a discard scorer reads as
+surplus. So the free ability that pays with a card from hand goes ahead of it —
+and Teal Dance is the case where the order is not even a trade-off, because it
+takes one card and draws one back. The hand is the same size afterwards, so the
+search is just as legal, is decided with one more card of information and one
+more candidate to pay its cost with, and the Grass lands on the attacker instead
+of in the discard pile. The draw can even be the card the search was digging
+for.
+
+The other half of that sentence is where the rule stops. Ripening Charge
+attaches and *heals*: it hands nothing back, so playing it first leaves the hand
+one card smaller, and an Ultra Ball with fewer than two cards to discard is an
+Ultra Ball that dies in hand — the failure that put the whole UB→Meowth→Lillie's
+engine ahead of the attachments in the first place. There the order buys a card
+on the board and pays for it in fodder, which is a trade-off, and this rule only
+claims the half that is free. Both halves are read off the printed text of every
+card in the environment, so they hold for whichever search and whichever
+charging ability a deck ends up running.
+
 **A rule and its own special case have an order too, and the general one goes
 first.** `_attach_enable_retreat_ko` -- energy onto the active so it can retreat
 towards a benched attacker that finishes the job -- generalises an older rule
@@ -626,6 +649,21 @@ the special case covers the lethal line scored below a routine bench *charge* an
 lost. The agent declined a knockout it had already found. When a rule is
 generalised, the general one takes the chain's first seat and the special case
 keeps its own band for whatever the general one does not claim.
+
+**And a reservation cannot veto the body it is reserving for.** *The active
+needs the energy and the hand holds one card of it, so don't spend it charging
+the bench* is a rule about where the card goes, and it was being applied to
+the active's own Teal Dance — the ability that attaches to *itself*. On the
+active that ability is not competing with the reservation, it *is* the
+reservation being honoured, with a card drawn on top. Meanwhile the manual
+attachment to that same body yields to the ability by an older rule, so between
+the two of them the energy every rule agreed belonged to the active had no way
+of reaching it: it sat in hand priced as a reserve, under the ceiling that
+decides play order, until an Ultra Ball discarded it as surplus. The guard is
+the one the sibling rule for Ripening Charge had carried all along, and it
+subsumes what used to be an opening-turn exception — the same sentence, gated
+on turn one. The bench half of the reservation stands: a benched body dancing
+really would eat what the active is waiting for.
 
 ---
 

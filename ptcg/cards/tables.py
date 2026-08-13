@@ -109,6 +109,72 @@ HAND_COST_ABILITY_IDS = frozenset(
     if c.cardType == CardType.POKEMON
     and re.search(r'cards? from your hand', _PRINTED_TEXT[cid]))
 
+# The subset that gives the hand back everything it takes from it.
+#
+# HOW MANY it takes: every one of them names the hand the same way ("...card
+# from your hand"), and the ones that take more than one say so with a digit --
+# "discard 2 cards from your hand" (Team Rocket's Porygon-Z), "attach up to 2
+# basic {R} energy cards from your hand" (Ethan's Ho-Oh ex, Clawitzer,
+# Bloodmoon Ursaluna). Everything else spends exactly one. The "up to N" ones
+# are priced at their MAXIMUM: the claim this set makes has to hold for the
+# worst case.
+#
+# HOW MANY it gives back: the cards it DRAWS in the same sentence. Teal Dance
+# ("draw a card"), N's Zoroark ex's Trade ("draw 2 cards") and Lunatone's
+# Moonlight Dance ("draw 3 cards") take one and hand at least one back;
+# Ripening Charge attaches and HEALS, and hands nothing back.
+#
+# WHY THE DISTINCTION EARNS ITS KEEP: an ability in this set leaves the hand
+# exactly as big as it found it, so it can be moved ahead of a play that pays
+# by discarding from hand WITHOUT ever costing that play its cost. One that is
+# not in it shrinks the hand, and a search left with fewer cards than its cost
+# is a search that dies in hand -- the failure `_ub_engine_refresh_pivot` was
+# written for. Order is free for the first family and a trade-off for the
+# second, which is why only the first is reordered (`ptcg/turn/finalize.py`).
+_HAND_COST_COUNT = re.compile(r'(?:up to )?(\d+)[^.]{0,40}? cards from your hand')
+_HAND_GIVES_BACK = re.compile(r'draw (\d+|a|another) cards?')
+
+
+def _cards_counted(match, default):
+    """The digit the clause names, `default` when it names none or is absent."""
+    if match is None:
+        return default
+    return int(match.group(1)) if match.group(1).isdigit() else 1
+
+
+HAND_NEUTRAL_ABILITY_IDS = frozenset(
+    cid for cid in HAND_COST_ABILITY_IDS
+    if _cards_counted(_HAND_GIVES_BACK.search(_PRINTED_TEXT[cid]), 0)
+    >= _cards_counted(_HAND_COST_COUNT.search(_PRINTED_TEXT[cid]), 1))
+
+# =============================================================================
+# THE SMALLER DESTROYER: the play that does not WIPE the hand, it PICKS from it
+# -----------------------------------------------------------------------------
+# `HAND_RESET_PLAY_IDS` above is the total destroyer -- it takes the whole hand
+# and nothing in it survives. This set is the partial one: a play whose COST is
+# discarding a FIXED NUMBER of cards from our hand, chosen by us.
+#
+#     Ultra Ball      "you can use this card only if you discard 2 other
+#                      cards from your hand"
+#     Secret Box      "...discard 3 other cards from your hand"
+#     Morty's Conviction / Iris's Fighting Spirit / Canari
+#                     "...discard another card from your hand"
+#
+# It destroys less than a reset does, and for the ORDER question that changes
+# nothing: the cards it takes are gone all the same, and the card an ability
+# was going to spend is one of the ones it may take -- a spare Basic Energy is
+# exactly what a discard scorer reads as surplus.
+#
+# Pokemon are excluded for the same reason as in `HAND_RESET_PLAY_IDS`: this
+# set answers "which PLAY from hand spends other cards in it", and a Pokemon's
+# ability text is read by `HAND_COST_ABILITY_IDS`.
+# =============================================================================
+HAND_DISCARD_COST_PLAY_IDS = frozenset(
+    cid for cid, c in card_table.items()
+    if c.cardType != CardType.POKEMON
+    and re.search(r'discard (?:\d+|another|a) (?:other )?cards? from your hand',
+                  _PRINTED_TEXT[cid]))
+
 # =============================================================================
 # THE HAND RECYCLER: the half of the reset that FEEDS THE DECK
 # -----------------------------------------------------------------------------
@@ -140,6 +206,8 @@ __all__ = [
     'HAND_RESET_PLAY_IDS',
     'HAND_TO_DECK_PLAY_IDS',
     'HAND_COST_ABILITY_IDS',
+    'HAND_NEUTRAL_ABILITY_IDS',
+    'HAND_DISCARD_COST_PLAY_IDS',
     '_CARD_BY_NAME',
     '_EVOLUTIONS_BY_NAME',
 ]

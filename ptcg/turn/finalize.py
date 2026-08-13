@@ -61,7 +61,7 @@ from ptcg.calc.opponent import _op_juega_crustle
 from ptcg.calc.board import _active_of
 from ptcg.cards.ids import Applin, BOSS_SCORE_PRIZE_RANK_BASE, DOOMED_SAC_WALL_PLAY_SCORE, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, KO_WINDOW_PLAY_IDS, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Pinsir, Poke_Pad, SCORE_CHARGE_DOOMED, SCORE_USELESS_ATTACK, SCORE_VETO, SUPP_SCORE_LAST_RESORT_BAND, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Xerosic_Machinations
 from ptcg.cards.scoring import SCORE_LD_SUPP_COMPROMETIDO, _SUPP_PLAY_IDS
-from ptcg.cards.tables import HAND_COST_ABILITY_IDS, HAND_RESET_PLAY_IDS, attack_table, card_table
+from ptcg.cards.tables import HAND_COST_ABILITY_IDS, HAND_DISCARD_COST_PLAY_IDS, HAND_NEUTRAL_ABILITY_IDS, HAND_RESET_PLAY_IDS, attack_table, card_table
 from ptcg.decision.ultra_ball import _matchup_allows_playing, _ub_cost_destroys_better_card, _ub_engine_waits_for_tomorrow
 from ptcg.state.agent_state import AGENT_STATE
 from ptcg.state.zones import ZONE_DECK
@@ -1664,6 +1664,106 @@ def finalizar(tc):
                 if _hr_delta > 0:
                     for _hr_i in _hr_payers:
                         scores[_hr_i] += _hr_delta
+
+    # =================================================================
+    # ...AND SO DOES THE HAND THAT IS ONLY PARTLY SPENT (user,
+    # `records/registro_004_pasos_038_hasta_059.json` step 39, turn 4 vs
+    # Marnie's Grimmsnarl ex -- episode 92486283, WON).
+    #
+    #     US (6 prizes)                     RIVAL (5 prizes)
+    #     active Teal Mask Ogerpon ex       active Marnie's Grimmsnarl ex
+    #            210/210, ONE Grass                320/320, 2 energies
+    #            (Myriad needs three)       bench  Morgrem, 2x Munkidori,
+    #     bench  Bayleef 80/110 (1 of 5)           2x Impidimp
+    #     hand   Lana's Aid, ONE Basic Grass,   stadium Spikemuth Gym
+    #            Meganium, Boss's Orders, ULTRA BALL
+    #
+    # The menu, and what the agent made of it:
+    #
+    #     [1] Grass -> active        score    -1   tier  0  (yields to the dance)
+    #     [2] Grass -> Bayleef       score  7000   tier  0
+    #     [4] ULTRA BALL             score 31450   tier 10   <-- played
+    #     [5] TEAL DANCE (active)    score  7500   tier  0
+    #
+    # The Ultra Ball was the right card -- `_ub_engine_refresh_pivot`, with the
+    # bench at one body and an active that cannot knock 320 HP out -- and it
+    # paid its cost with Boss's Orders and THE GRASS. That Grass was the only
+    # fuel Teal Dance had. Three actions later a Bug Catching Set happened to
+    # dig out two more and the dance was made after all; on the same board
+    # without that Bug Catching Set the turn loses the free attachment, the free
+    # draw, and leaves the attacker one energy further from its attack.
+    #
+    # IT IS THE SENTENCE THE BLOCK ABOVE ALREADY WRITES, with a weaker
+    # destroyer. A refill wipes the whole hand; the Ultra Ball takes two cards
+    # it CHOOSES, and what it chooses is surplus -- which is exactly what a
+    # spare Basic Energy looks like to a discard scorer. Either way the card an
+    # ability was going to spend is gone before the ability spends it.
+    #
+    # AND HERE THE ORDER THE OTHER WAY ROUND COSTS NOTHING, which is what makes
+    # this a rule and not a trade-off. Teal Dance takes one card and GIVES ONE
+    # BACK: the hand is exactly as big after it as before, so the
+    # discard-priced play is just as legal, is decided with one card MORE of
+    # information, and has one more candidate to pay its cost with. The card
+    # the ability spends lands on a body instead of in the discard pile, and
+    # the search may not be needed at all any more -- the draw can be the card
+    # it was digging for. Every argument points the same way.
+    #
+    # WHICH IS WHY ONLY THE HAND-NEUTRAL HALF IS REORDERED
+    # (`HAND_NEUTRAL_ABILITY_IDS`, derived from the same printed text: the
+    # ability gives back at least as many cards as it takes). Ripening Charge
+    # attaches and HEALS -- it hands nothing back -- so playing it first
+    # shrinks the hand by one, and an Ultra Ball left with fewer than two cards
+    # to discard is an Ultra Ball that dies in hand. That is the exact failure
+    # `_ub_engine_refresh_pivot` exists for (registro_008 step 58: the hand went
+    # from four to [UB, Boss's] and the search was never made), and it stays
+    # decided the way it was measured. There the order is a real trade-off --
+    # a card on the board against fodder for the search -- and this rule has
+    # nothing to say about trade-offs. It only claims the free half.
+    #
+    # IT IS AN INSERTION, NOT A BOOST. The payers are moved to the spender's
+    # tier with a SHARED delta that puts the lowest of them one point above it,
+    # so their order among themselves is untouched, everything that already beat
+    # the spender still beats it, and the only thing that changes is that the
+    # ability now happens immediately BEFORE the play that could have eaten its
+    # fuel. It cannot be done by score: on this board the two plays were in
+    # different tiers, and the tier decides first.
+    #
+    # Deck-agnostic on both halves and read off the PRINTED TEXT, like its
+    # sibling: any play whose cost is discarding from hand (Ultra Ball, Secret
+    # Box, Morty's Conviction, Iris's Fighting Spirit, Canari) yields to any
+    # ability that pays with a card from it and replaces it (Teal Dance, N's
+    # Zoroark ex's Trade, Lunatone's Moonlight Dance...). A VETOED ability is
+    # left alone for the same reason as above: there the scorer is refusing the
+    # attachment, not saving the card.
+    # =================================================================
+    if context == SelectContext.MAIN and scores:
+        _hp_spender = None
+        for _hp_i, _hp_o in enumerate(select.option):
+            if (_hp_i >= len(scores) or scores[_hp_i] <= 0
+                    or _hp_o.type != OptionType.PLAY):
+                continue
+            _hp_c = get_card(obs, AreaType.HAND, _hp_o.index, my_index)
+            if _hp_c is None or _hp_c.id not in HAND_DISCARD_COST_PLAY_IDS:
+                continue
+            _hp_key = (_play_order_tier[_hp_i], scores[_hp_i])
+            if _hp_spender is None or _hp_key > _hp_spender:
+                _hp_spender = _hp_key
+        if _hp_spender is not None:
+            _hp_payers = []
+            for _hp_i, _hp_o in enumerate(select.option):
+                if (_hp_i >= len(scores) or scores[_hp_i] <= 0
+                        or _hp_o.type != OptionType.ABILITY
+                        or (_play_order_tier[_hp_i], scores[_hp_i]) >= _hp_spender):
+                    continue
+                _hp_c = get_card(obs, _hp_o.area, _hp_o.index, my_index)
+                if _hp_c is not None and _hp_c.id in HAND_NEUTRAL_ABILITY_IDS:
+                    _hp_payers.append(_hp_i)
+            if _hp_payers:
+                _hp_delta = max(
+                    0, _hp_spender[1] + 1 - min(scores[_i] for _i in _hp_payers))
+                for _hp_i in _hp_payers:
+                    _play_order_tier[_hp_i] = _hp_spender[0]
+                    scores[_hp_i] += _hp_delta
 
     desc_indices = [i for i, _ in sorted(
         enumerate(scores),

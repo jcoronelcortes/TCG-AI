@@ -388,13 +388,34 @@ def score_play(tc, o, score):
                 elif _active_hydra_ready:
         
                     score = 31300
-                elif (_active_needs_energy and not _enough_for_both and AGENT_STATE.plan.attacker < 1
-                        and not (
-                            ((state.turn == 1 and AGENT_STATE.we_go_first) or
-                             (state.turn == 2 and not AGENT_STATE.we_go_first))
-                            and o.area == AreaType.ACTIVE
-                            and card.id in (Teal_Mask_Ogerpon_ex, Tapu_Bulu))):
-        
+                elif (_active_needs_energy and not _enough_for_both
+                        and AGENT_STATE.plan.attacker < 1
+                        # A RESERVATION CANNOT VETO THE BODY IT IS RESERVING FOR
+                        # (user, registro_004 step 39 vs Marnie's Grimmsnarl ex).
+                        # The band below is "the ACTIVE needs the Grass and the
+                        # hand holds only one, so do not spend it dancing" -- and
+                        # it was being applied to the ACTIVE's OWN dance. Teal
+                        # Dance attaches to ITSELF: on the active it IS the
+                        # reservation being honoured, and with a card drawn on
+                        # top. The manual attachment to that same active is
+                        # vetoed by the Teal Dance precedence, so between the two
+                        # of them the Grass had no way of reaching the body every
+                        # rule agreed it belonged to -- it sat in hand at 7500,
+                        # under the tier-0 ceiling, until an Ultra Ball discarded
+                        # it for fodder.
+                        #
+                        # The guard is the one the Ripening Charge sibling below
+                        # has carried all along (`o.area != AreaType.ACTIVE`), and
+                        # it SUBSUMES the exception that used to hang here: an
+                        # opening-turn carve-out for `o.area == ACTIVE`, which is
+                        # this same sentence gated on turn 1. See
+                        # `la-regla-general-va-antes-que-su-caso-especial`: when a
+                        # rule is generalised, the general one takes the seat.
+                        #
+                        # The BENCH keeps the band, and that half is not
+                        # cosmetic: a benched Ogerpon dancing really would eat
+                        # the Grass the active is waiting for.
+                        and o.area != AreaType.ACTIVE):
                     score = 7500
                 elif _reserve_hydra_active_charge and o.area != AreaType.ACTIVE:
         

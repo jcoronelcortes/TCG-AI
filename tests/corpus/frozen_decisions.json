@@ -997,10 +997,10 @@
     "accion": 3,
     "contexto": 0,
     "detalle": [
-     "PLAY Ultra Ball(1121)"
+     "ABILITY Teal Mask Ogerpon ex(96)"
     ],
     "eleccion": [
-     2
+     5
     ],
     "paso": null,
     "turno": 2
@@ -2873,10 +2873,10 @@
     "accion": 1,
     "contexto": 0,
     "detalle": [
-     "PLAY Ultra Ball(1121)"
+     "ABILITY Teal Mask Ogerpon ex(96)"
     ],
     "eleccion": [
-     1
+     5
     ],
     "paso": null,
     "turno": 2
@@ -16311,10 +16311,10 @@
     "accion": 2,
     "contexto": 0,
     "detalle": [
-     "PLAY Ultra Ball(1121)"
+     "ABILITY Teal Mask Ogerpon ex(96)"
     ],
     "eleccion": [
-     2
+     3
     ],
     "paso": null,
     "turno": 2
@@ -16541,10 +16541,10 @@
     "accion": 7,
     "contexto": 0,
     "detalle": [
-     "PLAY Ultra Ball(1121)"
+     "ABILITY Teal Mask Ogerpon ex(96)"
     ],
     "eleccion": [
-     0
+     3
     ],
     "paso": null,
     "turno": 4
@@ -18183,10 +18183,10 @@
     "accion": 3,
     "contexto": 0,
     "detalle": [
-     "ATTACH->Applin(92)"
+     "ABILITY Teal Mask Ogerpon ex(96)"
     ],
     "eleccion": [
-     3
+     7
     ],
     "paso": null,
     "turno": 4
@@ -22943,10 +22943,10 @@
     "accion": 2,
     "contexto": 0,
     "detalle": [
-     "ATTACH->Applin(92)"
+     "ABILITY Teal Mask Ogerpon ex(96)"
     ],
     "eleccion": [
-     4
+     8
     ],
     "paso": null,
     "turno": 4
@@ -24715,10 +24715,10 @@
     "accion": 3,
     "contexto": 0,
     "detalle": [
-     "ATTACH->Applin(92)"
+     "ABILITY Teal Mask Ogerpon ex(96)"
     ],
     "eleccion": [
-     1
+     5
     ],
     "paso": null,
     "turno": 12
@@ -32365,10 +32365,10 @@
     "accion": 4,
     "contexto": 0,
     "detalle": [
-     "PLAY Ultra Ball(1121)"
+     "ABILITY Teal Mask Ogerpon ex(96)"
     ],
     "eleccion": [
-     3
+     5
     ],
     "paso": null,
     "turno": 2
@@ -37647,10 +37647,10 @@
     "accion": 4,
     "contexto": 0,
     "detalle": [
-     "PLAY Ultra Ball(1121)"
+     "ABILITY Teal Mask Ogerpon ex(96)"
     ],
     "eleccion": [
-     5
+     6
     ],
     "paso": null,
     "turno": 2
@@ -38719,10 +38719,10 @@
     "accion": 3,
     "contexto": 0,
     "detalle": [
-     "ATTACH->Dipplin(93)"
+     "ABILITY Teal Mask Ogerpon ex(96)"
     ],
     "eleccion": [
-     4
+     7
     ],
     "paso": null,
     "turno": 4
