@@ -107,6 +107,16 @@ competitor_decks/.decks_cache.json
 competitor_decks/.cache_replays/
 competitor_decks_500/
 
+# The 500-deck corpus is DERIVED data, not source: 137 lists plus four weight
+# tables, all of them written by `utils/real_opponents.py` out of the raw
+# replays above. The other corpora here (`deck/opponents/`,
+# `deck/real_opponents/`) stay versioned because they are small and stable;
+# this one is a snapshot of a leaderboard that moves, so a checkout that
+# re-downloads gets a DIFFERENT meta and the numbers in
+# docs/playbook-vs-meta-2026-08-13.md are not reproducible from it. The
+# snapshot that produced them is described in docs/history/.
+deck/real_opponents_500/
+
 # --- Local engine workspace ---
 # ptcg_engine/ is a local working copy, not part of the versioned project.
 ptcg_engine/
