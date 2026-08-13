@@ -507,6 +507,29 @@ ATTACKER_PUNISH_NEEDS_DARK = frozenset({Punk_Helmet})
 ATTACKER_PUNISH_MOVES_ENERGY = frozenset({Handheld_Fan})
 
 
+# --- the opponent's hand-cutters ---------------------------------------------
+# "Each player discards cards from their hand until they have 5 cards in their
+# hand. Your opponent discards first." An ITEM, in 37 of the 303 harvested
+# opponent lists, and the second card in the format that hands us a forced
+# DISCARD menu on THEIR turn -- the first was Xerosic's Machinations, which is
+# where the whole horizon reading of that menu comes from (`_forced_discard`,
+# lint rule R8).
+#
+# It is named here and NOWHERE ELSE IN THE TREE on purpose. The discard ladder
+# asks WHOSE card is making us discard, never WHICH, so it already answers this
+# one exactly as it answers the Supporter -- measured, rung for rung, in
+# `tests/test_their_hand_trimmer_is_the_forced_discard_of_their_xerosic.py`.
+# The constant exists so the card the equivalence was measured on has a name,
+# and so the next reader can see that the second instance of the family needed
+# no second rule.
+#
+# The one thing it does NOT share with Xerosic's: it is an Item, so the turn it
+# arrives on may still have its Supporter unspent. That is precisely why the
+# discriminator cannot be `state.supporterPlayed` and has to be the owner of the
+# effect.
+Hand_Trimmer = 1087
+HAND_CUT_TO = 5                      # the hand size it leaves both players on
+
 
 ALAKAZAM_LINE_IDS = (Abra, Kadabra, Alakazam_ex)
 # The bodies of the line that really ATTACK. Powerful Hand costs a SINGLE
@@ -1692,6 +1715,8 @@ __all__ = [
     'ATTACKER_PUNISH_DAMAGE',
     'ATTACKER_PUNISH_NEEDS_DARK',
     'ATTACKER_PUNISH_MOVES_ENERGY',
+    'Hand_Trimmer',
+    'HAND_CUT_TO',
     'ALAKAZAM_LINE_IDS',
     'ALAKAZAM_ATTACKER_IDS',
     'Buneary',

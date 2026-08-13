@@ -2509,6 +2509,26 @@ def score_play(tc, o, score):
                 # discriminator names no card -- it asks whose card is making us
                 # discard -- so it holds for any opposing hand-cutter, and with no
                 # effect at all it falls back to today's reading.
+                #
+                # THE SECOND CUTTER, AND WHY IT NEEDED NO SECOND RULE (user,
+                # `registro_001_pasos_005_hasta_017.json`, episode 92489131, step
+                # 16, turn 1 vs Mega Lopunny ex / Mega Froslass ex -- LOST). Their
+                # HAND TRIMMER ("each player discards until they have 5 cards;
+                # your opponent discards first") cut our hand of eight down to
+                # five, and the ask was that we answer it exactly as we answer
+                # their Xerosic's. We already do, and by construction: the whole
+                # block below prices the CARDS IN OUR HAND and reads `select.effect`
+                # once -- here, for the owner -- so both cutters walk the same
+                # ladder. Measured on that record and on the Alakazam board of
+                # `alakazam_t9_...step124.json`, the two menus come out identical
+                # rung for rung, while the same menu as OUR OWN cost does not:
+                # `tests/test_their_hand_trimmer_is_the_forced_discard_of_their_xerosic.py`.
+                #
+                # It is also what stops the R8 story hardening into a rule about
+                # Supporters. Xerosic's is one, so `supporterPlayed` was True on
+                # every forced discard we had ever seen; Hand Trimmer is an ITEM
+                # and their Supporter slot may still be unspent when it fires.
+                # Whose card it is survives that. Which card it is would not.
                 _forced_discard = (
                     select.effect is not None
                     and getattr(select.effect, 'playerIndex', my_index) != my_index)
