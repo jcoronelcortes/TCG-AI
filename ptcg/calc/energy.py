@@ -378,6 +378,39 @@ def _retreat_payable(pokemon):
     return _physical_energy(len(getattr(pokemon, 'energies', []) or [])) >= needed
 
 
+def _retreat_cards_missing(pokemon):
+    """PHYSICAL Grass cards `pokemon` still has to receive before it can retreat.
+
+    THE COST IS PRINTED IN SYMBOLS AND PAID IN CARDS, and subtracting one from
+    the other is the mistake this function exists to stop. Every rule that
+    finances a retreat -- "the charge goes to the active until it can step
+    aside" -- has to know how many CARDS are missing, and the obvious
+    `RETREAT_COST[id] - physical_energy(...)` answers in neither unit: it
+    subtracts cards from symbols. Without Meganium the two agree and the error
+    is invisible; with Wild Growth in play each Grass pays for TWO symbols, so
+    the wrong arithmetic asks for twice the Grass the retreat needs and the rule
+    goes silent on a board it was written for.
+
+    User, registro_008 step 105 vs Team Rocket (LOST, episode 92484395): active
+    Hydrapple ex at 150/330 with one Grass (2 of its 3 retreat symbols), a
+    healthy 330 twin on the bench that takes the same knockout, and exactly ONE
+    Grass in hand. `_hydra_fragile_pivot` matched the board and its
+    completability check demanded 3 - 1 = 2 Grass; the retreat needed
+    ceil(3/2) - 1 = ONE. The pivot never fired, the wounded body stayed in
+    front, attacked, and died to the reply for two prizes.
+
+    0 when it can already pay -- the mirror of `_retreat_payable`, which is the
+    same question asked as a yes/no.
+    """
+    if pokemon is None:
+        return 0
+    needed = _retreat_cards(RETREAT_COST.get(getattr(pokemon, 'id', 0), 0))
+    if needed <= 0:
+        return 0
+    carried = _physical_energy(len(getattr(pokemon, 'energies', []) or []))
+    return max(0, needed - carried)
+
+
 def _reachable_grass_for(pokemon, state, my_state, hand_counts, field_counts,
                          extra_discard_grass=0, abilities_off=False):
     """PHYSICAL Basic Grass cards we can still ATTACH to `pokemon` this turn.
@@ -484,5 +517,6 @@ __all__ = [
     '_grass_attach_slots_for',
     '_retreat_grass_to_discard',
     '_retreat_payable',
+    '_retreat_cards_missing',
     '_reachable_grass_for',
 ]

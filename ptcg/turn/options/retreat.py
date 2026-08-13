@@ -875,14 +875,40 @@ def score_play(tc, o, score):
         # ALREADY wins the game this turn (my_prize <= the opposing active's
         # prizes): there is no future turn to protect there, we attack directly.
         # The pivot does NOT apply when the active is NON-ex (retreating it to
-        # expose a 2-prize ex would be worse) nor when the active is already the
-        # Hydrapple ex itself.
+        # expose a 2-prize ex would be worse).
+        #
+        # "FRAGILE" IS A READING OF THE BOARD, NOT A CARD CONSTANT (user,
+        # registro_008 step 105 vs Team Rocket, LOST -- episode 92484395).
+        #
+        #   US                                    RIVAL       (three prizes left)
+        #   active Hydrapple ex 150/330 (1G)      active TR Spidops 130
+        #          Syrup Storm -> 510, lethal            Rocket Rush -> 180
+        #   bench  Hydrapple ex 330/330 (3G)      bench  TR Mewtwo ex 280, ...
+        #          the SAME Syrup Storm, lethal
+        #
+        # The two clauses this replaces -- "not Hydrapple ex" and "maxHp < 330"
+        # -- are one statement written twice: in our deck the only ex printing
+        # 330 IS the Hydrapple. They say "the body in front is the small card",
+        # and the question the pivot is actually about is "the body in front is
+        # the SPENT one". On this board the small-card reading answered no --
+        # both bodies are the same 330 HP card -- while the board answered yes by
+        # 180 points of HP. We attacked from the wounded copy, their Rocket Rush
+        # took it for two prizes, and the healthy twin watched from the bench.
+        # It is the same trap `_pdx_act_margin` names from the other side and the
+        # same one the loop below already fell into: an ex at 150 of its 330 is
+        # the fragile body, whatever the card prints.
+        #
+        # Dropping them does not widen the pivot to boards it did not cover,
+        # because the STRICT current-HP comparison in the loop below is what
+        # decides who goes in front, and it was already there: with the active
+        # at full HP its twin can never beat it, so a healthy Hydrapple ex still
+        # never steps aside for another. What changes is only the case those two
+        # constants could not express -- the wounded copy of the biggest card we
+        # own.
         _active_ex_fragile_pivot = (
             _active_reloc is not None
             and _active_can_ko_now
             and _active_reloc.id in OUR_EX_IDS
-            and _active_reloc.id != Hydrapple_ex
-            and (_active_reloc.maxHp or 0) < 330
             and op_state.active and op_state.active[0] is not None
             and not (my_prize <= prize_count_op(op_state.active[0])))
         _hydra_lethal_promote = False

@@ -42,7 +42,7 @@ from ptcg.calc.card import get_card
 from ptcg.calc.damage import _our_effective_damage
 from ptcg.calc.energy import _grass_attach_unit, _grass_mult, _ogerpon_base_phys_cap, _physical_energy
 from ptcg.cards.groups import GT_SCORE_FULL_CHAIN, GT_SCORE_STAGE1_ONLY
-from ptcg.cards.ids import Basic_Grass_Energy, Dipplin, FEZ_DRAW_ABILITY_SCORE, Fezandipiti_ex, Grand_Tree, Hydrapple_ex, Lillie_Determination, Meganium, Meowth_ex, Pinsir, RETREAT_COST, RIPEN_HEAL_ABILITY_SCORE, RIPEN_HEAL_EX_ABILITY_SCORE, SCORE_CHARGE_ACTIVE_ATTACK, SCORE_CHARGE_ACTIVE_FINISHER, SCORE_VETO, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Unfair_Stamp
+from ptcg.cards.ids import Basic_Grass_Energy, Dipplin, FEZ_DRAW_ABILITY_SCORE, Fezandipiti_ex, Grand_Tree, Hydrapple_ex, Lillie_Determination, Meganium, Meowth_ex, Pinsir, RETREAT_COST, RIPEN_HEAL_ABILITY_SCORE, RIPEN_HEAL_EX_ABILITY_SCORE, SCORE_CHARGE_ACTIVE_ATTACK, SCORE_CHARGE_ACTIVE_FINISHER, SCORE_CHARGE_LETHAL_FLOOR, SCORE_VETO, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Unfair_Stamp
 from ptcg.state.agent_state import AGENT_STATE
 
 
@@ -69,6 +69,7 @@ def score_play(tc, o, score):
     _grass_anywhere_enables_syrup_ko = tc._grass_anywhere_enables_syrup_ko
     _gt_plan = tc._gt_plan
     _gust_2prize_via_boss = tc._gust_2prize_via_boss
+    _hydra_fragile_pivot = tc._hydra_fragile_pivot
     _hydrapple_bench_needs_energy = tc._hydrapple_bench_needs_energy
     _lillie_blocks_fez_ability = tc._lillie_blocks_fez_ability
     _ogerpon_lethal_focus_serial = tc._ogerpon_lethal_focus_serial
@@ -476,6 +477,33 @@ def score_play(tc, o, score):
                     score = 31600
                 elif _ripen_wasted_vs_crustle:
                     score = SCORE_VETO
+                elif _hydra_fragile_pivot and o.area == AreaType.ACTIVE:
+                    # THE WOUNDED TWIN PAYS ITS RETREAT WITH THE FREE ROUTE, not
+                    # with the turn's manual attachment (user, registro_008 step
+                    # 105 vs Team Rocket, LOST). `_hydra_fragile_pivot` is the
+                    # detector of the whole line: an active Hydrapple ex too
+                    # damaged to stay in front, a healthy twin on the bench that
+                    # takes the SAME knockout, and the retreat one Grass away
+                    # from being payable. `energy_score` already prices the
+                    # ACTIVE as that Grass's target at 41000, and with nothing
+                    # of the same size on the ability the manual attachment won
+                    # the tier and did the job -- same energy on the field,
+                    # minus the free attachment AND minus the 30 points
+                    # Ripening Charge heals on the way. On that board the active
+                    # went from 150 to 180 for free, which is exactly the kind
+                    # of margin the pivot exists to protect.
+                    #
+                    # Same band as `_ability_unlock_retreat_ko` below -- the
+                    # same line with the reply read from their hand instead of
+                    # from the wounded body itself -- and one notch ABOVE the
+                    # floor, which is what the manual attachment scores for this
+                    # very target. On a tie the play order falls back to the
+                    # menu index, and the menu happens to list the attachment
+                    # first; the notch says out loud what the tie was deciding
+                    # by accident, and says it the right way round. Same device
+                    # as `_ripen_retreat_ko_pivot` at 31600 over Teal Dance's
+                    # 31500, one band up.
+                    score = SCORE_CHARGE_LETHAL_FLOOR + 100
                 elif _ability_unlock_retreat_ko:
                     # Ripening Charge that UNLOCKS THE RETREAT towards a
                     # LETHAL benched attacker (user, registro_014 step 137 vs

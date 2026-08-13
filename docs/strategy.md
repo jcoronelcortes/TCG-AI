@@ -297,7 +297,12 @@ as a scored option like any other:
 - retreat a fragile ex to give up one prize instead of two;
 - put the body that **endures** in front, not the one that merely looks strong;
 - retreating costs cards, so the energy budget must cover it — sometimes the
-  attachment for the turn exists purely to pay a retreat;
+  attachment for the turn exists purely to pay a retreat, and the bill is
+  counted in **cards**: the cost is printed in energy symbols but paid by
+  discarding whole energies, so while our accelerator is doubling every Grass
+  one card settles two symbols. A rule that finances a retreat by subtracting
+  cards from symbols asks for twice the energy it needs, and goes quiet on
+  exactly the boards it was written for;
 - play the Supporter **before** retreating when the retreat would end the turn;
 - don't swap an ex for a worse body, and don't pivot into a body that is doomed
   anyway — but "worse body" is measured against a body that is doing something.
@@ -306,6 +311,13 @@ as a scored option like any other:
   relay that can actually hit is an improvement on both counts. Getting that
   backwards costs the whole turn, because it vetoes the attachment that pays
   the retreat **and** the retreat itself.
+- **Two copies of the same card are not the same body.** When the one in front
+  and the one on the bench take the *same* knockout, the front spot goes to the
+  one with more life **left** — printed HP says nothing about the damage already
+  on it. The rule that used to decide this asked "is the active the small card",
+  which is the right answer for four of our five ex and silently wrong for the
+  fifth: the wounded copy of the biggest card we own reads as the wall it no
+  longer is.
 - **The retreat chooses who pays the prize the opponent is about to collect.**
   Handing the front spot to a body that hands over *more* prizes only makes
   sense if the body buys something with them: a hit this turn, or enough HP to

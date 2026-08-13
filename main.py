@@ -4942,6 +4942,10 @@ def agent(obs_dict: dict) -> list[int]:
                  or _op_active_attack_damage_to(
                      _hwp_op_active, _hwp_active, _flw_op_hand)
                  >= (_hwp_active.hp or 0))):
+        # Cards against symbols again (see `_retreat_cards_missing`): this one
+        # is UNDER-permissive, never over-, so it is left as measured -- the
+        # note in ptcg/turn/energy.py explains why the family is migrated one
+        # site at a time.
         _flw_ret_phys = _physical_energy(len(_hwp_active.energies))
         _flw_ret_cost = RETREAT_COST.get(_hwp_active.id, 1)
         if _flw_ret_phys >= _flw_ret_cost:
@@ -4974,13 +4978,18 @@ def agent(obs_dict: dict) -> list[int]:
     # ready for a LETHAL Syrup Storm, the correct line is to RETREAT the fragile one to
     # protect it (if it stays active they knock it out next turn = 2 prizes) and
     # BRING UP the healthy one to finish (the same KO, but from the healthy body). The engine only
-    # offers a retreat if the active has PHYSICAL energy >= its retreat cost
-    # (3 for Hydrapple ex); that is why this turn's energy (the manual attachment
+    # offers a retreat when the energy on the active covers its retreat cost;
+    # that is why this turn's energy (the manual attachment
     # + Ripening Charge) has to be ROUTED to the fragile ACTIVE until that cost is reached
     # instead of leaving it on the benched Hydrapple (which is already charged). This flag
     # enables that charge in `energy_score`; the later retreat+promotion is covered by
     # `_hydra_lethal_promote` (a retreat with score 9000) once can_switch becomes
     # True.
+    #
+    # HOW MUCH IS MISSING IS A COUNT OF CARDS, not of printed symbols
+    # (`_retreat_payable` / `_retreat_cards_missing`). Asking it in symbols
+    # doubled the bill under Wild Growth and switched this pivot off on the very
+    # board it describes -- user, registro_008 step 105 vs Team Rocket, LOST.
     _hydra_fragile_pivot = False
     _hfp_active = my_state.active[0] if my_state.active else None
     _hfp_opa = _active_of(op_state)
@@ -4988,9 +4997,7 @@ def agent(obs_dict: dict) -> list[int]:
             and _hfp_opa is not None and (_hfp_opa.hp or 0) > 0
             and (active_ko_likely
                  or (_hfp_active.hp or 0) <= (_hfp_active.maxHp or 1) * 0.5)):
-        _hfp_rc = RETREAT_COST.get(Hydrapple_ex, 3)
-        _hfp_phys = _physical_energy(len(_hfp_active.energies))
-        if _hfp_phys < _hfp_rc:
+        if not _retreat_payable(_hfp_active):
             for _hfp_bp in (my_state.bench or []):
                 if (_hfp_bp is not None and _hfp_bp.id == Hydrapple_ex
                         and (_hfp_bp.hp or 0) > (_hfp_active.hp or 0)

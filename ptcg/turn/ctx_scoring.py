@@ -123,6 +123,7 @@ class ScoringCtx:
     _gt_vetoes_ex_stage: Any = None
     _gust_2prize_via_boss: Any = None
     _has_bench_attacker: Any = None
+    _hydra_fragile_pivot: Any = None
     _hydra_pivot_active: Any = None
     _hydra_wall_pivot: Any = None
     _hydrapple_bench_needs_energy: Any = None

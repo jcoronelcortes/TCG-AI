@@ -43,7 +43,7 @@ now arrive in a context, unpacked on entry under the SAME names.
 
 from cg.api import Pokemon
 from ptcg.calc.damage import _our_effective_damage
-from ptcg.calc.energy import _can_attack_eff, _grass_ability_slots, _grass_attach_unit, _grass_mult, _ogerpon_base_phys_cap, _physical_energy
+from ptcg.calc.energy import _can_attack_eff, _grass_ability_slots, _grass_attach_unit, _grass_mult, _ogerpon_base_phys_cap, _physical_energy, _retreat_cards_missing, _retreat_payable
 from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Chikorita, Dipplin, FEE_OVER_INERT_DEVELOPMENT, Fezandipiti_ex, Hydrapple_ex, Meganium, Meowth_ex, NON_ATTACKER_ENERGY_WASTE_IDS, OUR_EX_IDS, Pinsir, RETREAT_COST, SCORE_CHARGE_ACTIVE_ATTACK, SCORE_CHARGE_ACTIVE_FINISHER, SCORE_CHARGE_DOOMED, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex
 from ptcg.cards.scoring import MAIN_ATTACKERS
 from ptcg.cards.tables import card_table
@@ -507,20 +507,33 @@ def _energy_score_base(tc, pokemon, active):
             return SCORE_VETO
 
     # Retreat status of our own ACTIVE: to promote a LETHAL Hydrapple ex from the
-    # BENCH the active has to RETREAT, which requires PHYSICAL energy on the
-    # active >= its retreat cost. len(energies) is EFFECTIVE (Meganium's Wild
-    # Growth DOUBLES every Grass), but the retreat is paid with PHYSICAL cards, so
-    # physical = effective // 2 when Meganium is in play. If the active CANNOT
-    # retreat yet, the charge must go to the ACTIVE to start paying the retreat,
-    # not to the benched Hydrapple (which does not attack from the bench).
+    # BENCH the active has to RETREAT, and these two rules ask whether it can by
+    # comparing its PHYSICAL cards against the retreat cost in SYMBOLS. If the
+    # active CANNOT retreat yet, the charge must go to the ACTIVE to start paying
+    # the retreat, not to the benched Hydrapple (which does not attack from the
+    # bench).
+    #
+    # THAT COMPARISON IS NOT THE HONEST ONE AND IS LEFT HERE ON PURPOSE. The
+    # engine offers a retreat when the energy ON the body covers the cost, and
+    # with Meganium's Wild Growth one Grass card covers TWO symbols:
+    # `_retreat_payable` / `_retreat_cards_missing` are the arithmetic that says
+    # so (see their docstrings). Swapping them in here is a strictly WIDER
+    # reading -- an active that used to read "cannot retreat" starts reading
+    # "can" -- which opens the lethal 41000 band of the two blocks below on
+    # boards nobody measured. The frozen corpus says what happens: 7 decisions
+    # flip, and every one of them hands the turn's MANUAL attachment a job a free
+    # Ripening Charge was already doing. That is a play-ORDER defect of its own,
+    # not what this reading is about, so migrating these two is a separate change
+    # with its own measurement. `_hydra_fragile_pivot` below -- the one the
+    # losing board named -- already asks in cards, and its own free-route
+    # ordering is settled in ptcg/turn/options/ability.py.
     _hls_my_act = (my_state.active[0]
                    if (my_state.active and my_state.active[0] is not None)
                    else None)
     _hls_act_phys = 0
     _hls_act_rc = 1
     if _hls_my_act is not None:
-        _hls_act_eff = len(_hls_my_act.energies)
-        _hls_act_phys = _physical_energy(_hls_act_eff)
+        _hls_act_phys = _physical_energy(len(_hls_my_act.energies))
         _hls_act_rc = RETREAT_COST.get(_hls_my_act.id, 1)
     # The shortcut "if the active is a Hydrapple ex, treat the promotion as good"
     # only holds when that Hydrapple CAN ALREADY ATTACK: there the Grass is
@@ -570,7 +583,8 @@ def _energy_score_base(tc, pokemon, active):
     # promotion of the Hydrapple -> lethal Syrup Storm. Only if the retreat is
     # COMPLETABLE this turn: (cost - current physical) Grass are needed and we have
     # at least that many in hand and enough attachments (1 manual + one Ripening
-    # Charge per benched Hydrapple).
+    # Charge per benched Hydrapple). See the note above on why this count is left
+    # in symbols.
     if (active and _hls_my_act is not None
             and not _hls_act_retreatable
             and _hls_my_act.id != Hydrapple_ex
@@ -603,7 +617,7 @@ def _energy_score_base(tc, pokemon, active):
     # Rule (user, log 86027506 step 81, vs Abomasnow, WON): if the ACTIVE is a
     # FRAGILE Hydrapple ex and there is a healthy, lethal Hydrapple ex on the bench
     # (`_hydra_fragile_pivot`), this turn's energy must go to the fragile ACTIVE to
-    # reach its retreat cost (3 physical) and be able to RETREAT it (protecting it)
+    # reach its retreat cost and be able to RETREAT it (protecting it)
     # -> promote the healthy one -> lethal Syrup Storm. It covers the MANUAL
     # attachment (OptionType.ATTACH) and the target of Ripening Charge
     # (SelectContext.ATTACH_FROM). Only if the retreat is COMPLETABLE this turn:
@@ -612,8 +626,12 @@ def _energy_score_base(tc, pokemon, active):
     if (active and _hydra_fragile_pivot
             and _hls_my_act is not None
             and _hls_my_act.id == Hydrapple_ex
-            and _hls_act_phys < _hls_act_rc):
-        _hfp_need = _hls_act_rc - _hls_act_phys
+            and not _retreat_payable(_hls_my_act)):
+        # In CARDS, which is what the retreat is paid with -- the two rules
+        # above are the ones still asking in symbols, and the note there says
+        # why. This is the block registro_008 step 105 named: the Grass in hand
+        # was one and the symbol arithmetic asked for two.
+        _hfp_need = _retreat_cards_missing(_hls_my_act)
         _hfp_grass_hand = sum(
             1 for _c in (my_state.hand or [])
             if _c.id == Basic_Grass_Energy)
