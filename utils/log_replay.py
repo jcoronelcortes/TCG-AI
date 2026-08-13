@@ -14,6 +14,22 @@ which is usually a fix working as intended. What the tool gives you is the
 LOCATION: the step where today's agent diverges, which is where to point
 `PTCG_DEBUG` or `tests/rule_trace.py` next.
 
+THE ANSWER TO A MENU IS STORED ON THE NEXT STEP (user, records/registro_004
+step 56, August 2026). A step of a Kaggle log carries the observation the agent
+was given AND the `action` field -- but that action is the one that PRODUCED
+this observation, not the one chosen from it. `_logged_answer` is the shift, and
+until it existed this tool lined up every answer with the previous menu, so its
+`mismatched` count was noise and its `--verbose` output accused the wrong step.
+
+The records prove the alignment on their own, with no appeal to the engine.
+Take any menu that demands exactly two picks (`minCount == 2`): its own step
+stores a ONE-element action, which that menu could not have accepted, while the
+next step stores a two-element one that matches the discard the log then writes
+down. Across the fourteen records every such menu -- and only the shifted
+reading -- fits. The first step of a file therefore stores an answer to a menu
+that is not in the file, and the last menu of a file has no answer yet: both
+count as `ignored`, which is what "not comparable" is for.
+
 AGE THE LOG BEFORE BLAMING THE AGENT. A recorded game accuses whatever the code
 looked like on the day it was recorded, so a divergence may be a defect that
 has already been fixed. Check the log's date against the change first.
@@ -83,6 +99,26 @@ def _canonical_action(action: list[int], select: dict) -> list[int] | None:
     return None
 
 
+def _logged_answer(steps: list[Any], step_index: int, item_index: int) -> Any:
+    """The action that answered the menu at `steps[step_index][item_index]`.
+
+    IT IS THE ONE STORED ON THE NEXT STEP -- see the module note. Same
+    `item_index`, because each seat answers its own menus.
+
+    `None` means the log does not hold the answer: the menu is the last one of
+    the file, or that seat is not present on the following step. The caller
+    hands it to `_canonical_action`, which returns `None` in turn, and the step
+    is counted as ignored rather than as a disagreement.
+    """
+    nxt = step_index + 1
+    if nxt >= len(steps):
+        return None
+    step = steps[nxt]
+    if not isinstance(step, list) or item_index >= len(step):
+        return None
+    return step[item_index].get("action")
+
+
 def _format_option(option: dict, index: int) -> str:
     keys = [k for k in ("type", "area", "index", "playerIndex", "attackId", "number") if k in option]
     props = ", ".join(f"{k}={option[k]}" for k in keys)
@@ -142,7 +178,7 @@ def replay_log(path: str, max_items: int | None = None, verbose: bool = False, i
                 continue
 
             processed += 1
-            action = item.get("action")
+            action = _logged_answer(steps, step_index, item_index)
             agent_choice = agent(obs)
             logged_choice = _canonical_action(action, select)
             current_turn = current.get("turn")
@@ -155,7 +191,7 @@ def replay_log(path: str, max_items: int | None = None, verbose: bool = False, i
                 print("options:")
                 print(f"    {_format_options(select)}")
                 print(f"agent choice: {agent_choice}")
-                print(f"logged action: {action}")
+                print(f"logged action (stored on step {step_index + 1}): {action}")
                 print(f"logged choice: {logged_choice}")
                 print()
 
