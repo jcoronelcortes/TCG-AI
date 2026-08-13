@@ -1898,11 +1898,39 @@ def score_play(tc, o, score):
                                 if len(_hp.energies) > _ub_best_dip_e:
                                     _ub_best_dip_e = len(_hp.energies)
                         if _ub_best_dip_e >= 0:
-                            _ub_hdip_can_attach = (
-                                not state.energyAttached
-                                and hand_counts.get(Basic_Grass_Energy, 0) >= 1)
-                            _ub_hdip_after = _ub_best_dip_e + (
-                                _grass_attach_unit() if _ub_hdip_can_attach else 0)
+                            # THE BODY WE ARE FETCHING BRINGS ITS OWN
+                            # ATTACHMENT WITH IT (user, episode 92595425, turn 4
+                            # vs a Dragapult ex deck, LOST). This used to count
+                            # the Dipplin's energy plus the turn's manual
+                            # attachment and stop, which is one short of the
+                            # truth and always in the same direction: Syrup
+                            # Storm costs TWO and the Hydrapple ex prints
+                            # Ripening Charge, so the copy coming out of the
+                            # deck arrives carrying one of the two. It has not
+                            # spent that ability -- it is not on the board yet
+                            # -- and the record shows the engine offering it the
+                            # same turn the body evolves (step 69 evolves, step
+                            # 70 is the charge's own target select).
+                            #
+                            # It is the mirror of `OP_EVO_ENERGY_ON_PLAY`
+                            # (ptcg/cards/ids.py), which exists because the same
+                            # arithmetic under-read an Archaludon ex's Assemble
+                            # Alloy by a whole attack cost. We modelled it for
+                            # THEM and not for us.
+                            #
+                            # AND THE BUDGET IS THE HAND: two routes are two
+                            # CARDS, so one Grass buys one attachment however
+                            # many routes are open. Without the cap every gapped
+                            # line would read as alive.
+                            _ub_hdip_routes = 1
+                            if not state.energyAttached:
+                                _ub_hdip_routes += 1
+                            _ub_hdip_attaches = min(
+                                hand_counts.get(Basic_Grass_Energy, 0),
+                                _ub_hdip_routes)
+                            _ub_hdip_after = (
+                                _ub_best_dip_e
+                                + _ub_hdip_attaches * _grass_attach_unit())
                             if _ub_hdip_after >= AGENT_STATE.ATTACK_ENERGY_REQ.get(Hydrapple_ex, 2):
                                 _ub_hydra_can_attack_now = True
                     _ub_hydra_dead_prefer_meowth = (
