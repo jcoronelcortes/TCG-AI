@@ -67,10 +67,28 @@ def paquetes_locales_de(py_path, raiz=PROJECT_ROOT):
     return [encontrados[k] for k in sorted(encontrados)]
 
 
+# The local engine (rule R11): `cg/build_local_engine.sh` produces a MODIFIED
+# binary under `cg/build/` -- one that honours the seed the official one throws
+# away -- from the competition's C++ source. That is a MEASURING INSTRUMENT, and
+# it never reaches what we submit: the container runs the official `cg/libcg.*`,
+# the dylib is macOS-only dead weight there, and the source and the patch that
+# edits it are competition-use-only and must not be redistributed. They are
+# gitignored, so nothing else was catching them.
+EXCLUDED_PREFIXES = (
+    ("cg", "build"),
+    ("cg", "engine_patches"),
+)
+EXCLUDED_NAMES = ("build_local_engine.sh",)
+
+
 def _filter_without_pycache(tarinfo):
-    """Excludes __pycache__ and compiled files from the package."""
+    """Excludes __pycache__, compiled files and the local engine from the package."""
     name = Path(tarinfo.name)
     if "__pycache__" in name.parts or name.suffix in (".pyc", ".pyo"):
+        return None
+    if any(name.parts[: len(pref)] == pref for pref in EXCLUDED_PREFIXES):
+        return None
+    if name.name in EXCLUDED_NAMES:
         return None
     return tarinfo
 
