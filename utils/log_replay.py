@@ -103,13 +103,24 @@ def _logged_answer(steps: list[Any], step_index: int, item_index: int) -> Any:
     """The action that answered the menu at `steps[step_index][item_index]`.
 
     IT IS THE ONE STORED ON THE NEXT STEP -- see the module note. Same
-    `item_index`, because each seat answers its own menus.
+    `item_index`, because each seat answers its own menus. Unless the record is
+    a DENSE one written by `utils/record_corpus.py`, which puts it on its own
+    step under `chosen`: a key that means what it says, so no reader has to know
+    which of the two file shapes they are holding.
 
     `None` means the log does not hold the answer: the menu is the last one of
     the file, or that seat is not present on the following step. The caller
     hands it to `_canonical_action`, which returns `None` in turn, and the step
     is counted as ignored rather than as a disagreement.
     """
+    # A DENSE RECORD SAYS SO, and then there is no shift to make.
+    # `utils/record_corpus.py` writes the answer to a menu on that menu's own
+    # step, under `chosen` -- a different key precisely so the two conventions
+    # cannot be read as one. If it is there, it is the answer, full stop.
+    own = steps[step_index][item_index]
+    if "chosen" in own:
+        return own["chosen"]
+
     nxt = step_index + 1
     if nxt >= len(steps):
         return None

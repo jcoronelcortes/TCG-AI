@@ -25,29 +25,25 @@ HOW IT ANSWERS THE TWO HALVES.
     turn, with `respetar_menu` on so the root actions are the ones the simulator
     really offered.
 
-WHAT IT SAID THE FIRST TIME (13-ago-2026, the 50 games of the frozen corpus,
-378 of our turns):
+WHAT IT SAID THE FIRST TIME (13-ago-2026, 24 dense games, 180 of our turns):
 
-    attacked                                     191
-    sterile (ended with no attack)               187
-       ...with an attacking line available        33
-       ...with a line that takes a PRIZE           4
+    attacked                                     101
+    sterile (ended with no attack)                79
+       ...with an attacking line available         6
+       ...with a line that takes a PRIZE           2
 
-Four turns in 378 is one in 95, against the waste axis's one in 1017 -- and the
-currency is prizes, which is what decides games. That is the whole case for this
-tool: it has resolution where the winrate has none.
+Two turns in 180 is one in ninety, against the waste axis's one in 1017 -- and
+the currency is prizes, which is what decides games. That is the whole case for
+this tool: it has resolution where the winrate has none.
 
-AND THAT FOUR IS AN UPPER BOUND, because of the corpus it was read from. The
-frozen records are SPARSE -- one game that reached turn 18 is stored in 78
-steps, where a dense record spends 26 on a single turn -- so an observation's
-`logs` cover everything since the PREVIOUS RECORDED one, which can span turns.
-An attack thrown on turn 12 is then credited to the next turn that has a menu,
-and turn 12 reads sterile when it was not. The count can only be too high.
-
-The fix is not in this file: it is a recorder that stores every step and the
-action taken, which is also what `utils/log_replay.py` needs to compare against
-anything but the fourteen hand-split records. Until then, treat the candidates
-as a reading queue and the number as a ceiling that only falls.
+READ IT FROM A DENSE SOURCE. The same census over the frozen bundle answered 4
+in 378 -- the same rate, and a CEILING rather than a number, because that bundle
+stores no answers and the attack has to be inferred from the engine's logs. An
+observation's `logs` cover everything since the previous RECORDED step, so where
+the bundle skips, an attack thrown on turn 12 is credited to turn 14 and turn 12
+reads sterile when it was not: it over-counted the sterile turns by a fifth and
+the candidates by three times. `utils/record_corpus.py` now writes each step's
+own answer under `chosen`, which is what makes the dense reading exact.
 
 READ THE FOUR, DO NOT TRUST THEM. The explorer is a v1 MODEL and it is
 optimistic by construction: after the first transition legality goes back to its
@@ -66,6 +62,7 @@ import argparse
 import copy
 import gzip
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -82,6 +79,31 @@ FROZEN = _ROOT / "tests" / "corpus" / "frozen_records.json.gz"
 # 'serial': 23, 'attackId': 1326}` -- the only entry that says an attack was
 # thrown, and the only witness available in a record that stores no actions.
 ATTACK_LOG = 15
+
+# Menu option type of an attack, which is what a DENSE record lets us read
+# directly off the answer instead of inferring it.
+ATTACK_OPTION = 13
+
+
+def load_records(path):
+    """`{name: {"seat": int, "steps": [...]}}` from either shape of record.
+
+    A DIRECTORY is a set of dense records from `utils/record_corpus.py`: every
+    step, and every step's own answer under `chosen`. A `.json.gz` is the frozen
+    bundle, which carries the seat but no answers at all. The difference decides
+    how `our_turns` can tell whether the turn attacked, and it is the whole
+    reason this tool has two readings of the same question.
+    """
+    p = Path(path)
+    if p.is_dir():
+        out = {}
+        for f in sorted(p.glob("registro_*.json")):
+            seat = re.search(r"_asiento(\d)", f.stem)
+            out[f.name] = {"seat": int(seat.group(1)) if seat else 0,
+                           "steps": json.loads(f.read_text())["steps"]}
+        return out
+    with gzip.open(p) as fh:
+        return json.load(fh)
 
 
 def our_turns(records):
@@ -108,6 +130,15 @@ def our_turns(records):
                     if (rec["first"] is None
                             and obs["select"].get("context") == 0):
                         rec["first"] = obs
+                    # DENSE: the answer to this very menu is on this very step,
+                    # so "did the turn attack" stops being an inference.
+                    options = obs["select"].get("option") or []
+                    for i in item.get("chosen") or []:
+                        if (isinstance(i, int) and i < len(options)
+                                and options[i].get("type") == ATTACK_OPTION):
+                            rec["attacked"] = True
+                if "chosen" in item:
+                    continue          # a dense record needs no log-reading
                 for log in obs.get("logs") or []:
                     if (log.get("type") == ATTACK_LOG
                             and log.get("playerIndex") == seat and last):
@@ -143,27 +174,34 @@ def census(records, max_nodes=3000):
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--records", default=str(FROZEN),
-                    help="a .json.gz of records (default: the frozen corpus)")
+                    help="a .json.gz bundle or a FOLDER of dense records from "
+                         "utils/record_corpus.py (default: the frozen corpus)")
     ap.add_argument("--max-nodes", type=int, default=3000,
                     help="explorer budget per turn (turn_explorer's own is 30000)")
     ap.add_argument("--detail", action="store_true",
                     help="print every candidate line, not just the counts")
     args = ap.parse_args(argv)
 
-    with gzip.open(args.records) as fh:
-        records = json.load(fh)
+    records = load_records(args.records)
+    dense = any("chosen" in step[0] for game in records.values()
+                for step in game["steps"][:1])
     out = census(records, args.max_nodes)
+    shape = ("DENSE -- the answer is read, not inferred" if dense
+             else "no answers stored, the attack is inferred from the logs")
+    print(f"source: {args.records}  ({shape})")
 
     print(f"our turns with a main menu : {out['turns']}")
     print(f"  attacked                 : {out['attacked']}")
     print(f"  STERILE                  : {out['sterile']}")
     print(f"    ...an attacking line was available : {len(out['with_attack'])}")
-    print(f"    ...and it took a PRIZE             : {len(out['with_prize'])}"
-          "   <- UPPER BOUND, see the module note")
-    print("\nTwo reasons every candidate is a board to READ and not a finding: "
-          "the explorer is a\nv1 model and optimistic by construction, and a "
-          "sparse record credits an attack to a\nlater turn than the one that "
-          "threw it.")
+    bound = "" if dense else "   <- UPPER BOUND, see the module note"
+    print(f"    ...and it took a PRIZE             : {len(out['with_prize'])}{bound}")
+    print("\nEvery candidate is a board to READ and not a finding: the explorer "
+          "is a v1 model\nand optimistic by construction.")
+    if not dense:
+        print("And on this source the attack is inferred from the logs, which "
+              "credits it to a\nlater turn whenever the bundle skips steps: "
+              "the count can only be too high.")
     for key, score, line in out["with_prize"]:
         print(f"  {key[0]} turn {key[1]}  prizes={score[1]} damage={score[2]}")
         print(f"      {' -> '.join(line)}")

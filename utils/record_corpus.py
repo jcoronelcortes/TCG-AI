@@ -49,7 +49,22 @@ MAX_STEPS = 3000
 
 
 def _record_game(agent_state, bot, deck_nuestro, opponent_deck, our_seat):
-    """Plays a game and returns its `steps` in replay format."""
+    """Plays a game and returns its `steps` in replay format.
+
+    EACH STEP ALSO CARRIES THE ANSWER TO ITS OWN MENU, under `chosen`. It is a
+    different key from the replays' `action` ON PURPOSE, because it holds a
+    different thing: a Kaggle replay stores under `action` the move that
+    PRODUCED that observation -- the answer to the PREVIOUS menu -- and reading
+    the two conventions as one is a bug this project has already paid for
+    (`utils/log_replay.py`, which compared every answer against the wrong step
+    until August 2026). Naming the key after what it means is what stops the
+    next reader from having to know which file they are holding.
+
+    What it buys: any census that has to say WHAT THE AGENT DID -- and not
+    merely what the board looked like -- can read it off the record instead of
+    inferring it from the engine's logs, which is guesswork the moment a bundle
+    is thinned (`utils/sterile_turn_census.py`).
+    """
     from cg import game
 
     sp._reset_si_aplica(agent_state)
@@ -67,9 +82,12 @@ def _record_game(agent_state, bot, deck_nuestro, opponent_deck, our_seat):
         # It is ALWAYS recorded, including the bot's turns: the corpus filters by
         # seat when replaying, and saving the whole stream makes it possible to reconstruct
         # the context of a decision when reviewing a flip.
-        steps.append([{"status": "ACTIVE", "observation": json.loads(json.dumps(obs))}])
+        paso = {"status": "ACTIVE", "observation": json.loads(json.dumps(obs))}
+        steps.append([paso])
         try:
-            obs = game.battle_select(agentes[yi].agent(obs))
+            eleccion = agentes[yi].agent(obs)
+            paso["chosen"] = list(eleccion) if eleccion is not None else None
+            obs = game.battle_select(eleccion)
         except Exception as e:
             return steps, f"error_p{yi}: {type(e).__name__}: {e}"
         n_steps += 1
@@ -84,6 +102,10 @@ def main():
     ap.add_argument("--seed", type=int, default=0,
                     help="which opponent to start dealing from (rotates the selection)")
     ap.add_argument("--main", default="main.py")
+    ap.add_argument("--out", default=str(RECORDS),
+                    help="destination folder (default: records/). It DELETES the "
+                         "registro_*.json already in it, so point it elsewhere to "
+                         "keep the hand-split replays")
     args = ap.parse_args()
 
     opponents = sorted(Path(args.opponents).glob("*.csv"))
@@ -101,8 +123,9 @@ def main():
     bot = OpponentBot()
     deck_nuestro = sp.read_deck()
 
-    RECORDS.mkdir(exist_ok=True)
-    for viejo in RECORDS.glob("registro_*.json"):
+    destino = Path(args.out)
+    destino.mkdir(parents=True, exist_ok=True)
+    for viejo in destino.glob("registro_*.json"):
         viejo.unlink()
 
     total_steps = 0
@@ -113,12 +136,12 @@ def main():
         steps, result = _record_game(
             agent_state, bot, deck_nuestro, sp.read_deck(opponent), seat)
         name = f"registro_{i:03d}_{opponent.stem}_asiento{seat}.json"
-        (RECORDS / name).write_text(
+        (destino / name).write_text(
             json.dumps({"steps": steps}, ensure_ascii=False), encoding="utf-8")
         total_steps += len(steps)
         print(f"  {name}  {len(steps):4d} pasos  resultado={result}")
 
-    print(f"\n{len(chosen_ones)} registros, {total_steps} pasos en {RECORDS}")
+    print(f"\n{len(chosen_ones)} registros, {total_steps} pasos en {destino}")
     print("Ahora: python tests/golden_corpus.py --update")
     return 0
 
