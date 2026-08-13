@@ -33,7 +33,7 @@ the fields it reads and returns only the ones it reassigns.
 from cg.api import AreaType
 from ptcg.calc.card import get_card
 from ptcg.calc.energy import _can_attack_eff, _grass_ability_slots, _grass_attach_unit
-from ptcg.cards.ids import Applin, Basic_Grass_Energy, Chikorita, Dipplin, Fezandipiti_ex, Hydrapple_ex, Lillie_Determination, Meowth_ex, Pinsir, RETREAT_COST, SCORE_CHARGE_FUTURE_OGERPON, SCORE_VETO, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball
+from ptcg.cards.ids import Applin, Basic_Grass_Energy, Chikorita, Dipplin, Fezandipiti_ex, Hydrapple_ex, Lillie_Determination, Meowth_ex, Pinsir, RETREAT_COST, SCORE_BENCH_YIELDS_TO_RETREAT_UNLOCK, SCORE_CHARGE_FUTURE_OGERPON, SCORE_VETO, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball
 from ptcg.cards.scoring import MAIN_ATTACKERS
 from ptcg.state.agent_state import AGENT_STATE
 
@@ -80,6 +80,7 @@ def score_play(tc, o, score):
     _attach_yields_to_teal_dance = tc._attach_yields_to_teal_dance
     _attach_enable_retreat_attack = tc._attach_enable_retreat_attack
     _attach_enable_retreat_ko = tc._attach_enable_retreat_ko
+    _attach_reaches_no_cost = tc._attach_reaches_no_cost
     _bcs_playable_in_hand = tc._bcs_playable_in_hand
     _charge_active_enables_attack = tc._charge_active_enables_attack
     _charge_active_finishes = tc._charge_active_finishes
@@ -355,6 +356,64 @@ def score_play(tc, o, score):
                                  pokemon.id,
                                  len(pokemon.energies)
                                  + _grass_attach_unit()))):
+                score = min(score, 7000)
+                _attach_yields_to_teal_dance.add(len(scores))
+
+            # AND THE SAME YIELD ABOVE THE DEVELOPMENT BAND, WHEN THE
+            # ATTACHMENT REACHES NO COST AT ALL (user, registro_006 step 55 vs
+            # a Dragapult ex deck, LOST -- the board is drawn out in
+            # `_attach_reaches_no_cost`, main.py).
+            #
+            # The block above only looks at `0 < score < 9000` because that is
+            # where DEVELOPMENT lives, and its comment says why: above it sit
+            # the strategic overrides -- a charge that pays a retreat, unlocks
+            # an attack, takes a prize -- and yielding there would break lethal
+            # lines. What the record found is a third kind of number in
+            # between: the per-body "future attacker" bands of
+            # `_energy_score_base` (15000 for a Tapu Bulu under four energies,
+            # 23200 with Meganium in play, and their siblings), which are
+            # neither development nor a play for today. On that board one of
+            # them priced at 23010 an energy going onto an active Tapu Bulu at
+            # 0 of 4 -- three attachments from its attack, three from its own
+            # retreat -- and it beat everything else in the menu.
+            #
+            # `_attach_reaches_no_cost` is the honest test for those bands, and
+            # it is the same arithmetic asked of the WHOLE field: if not one
+            # body of ours reaches an attack or a retreat with this energy,
+            # then no attachment in this menu is buying anything today, so the
+            # promise the band is priced on ("it will attack later") is not
+            # this turn's business and a Teal Dance -- same Grass, plus a card
+            # -- is strictly better. The ceiling is the same 7000 as above, so
+            # the ability (7500) decides inside tier 0.
+            #
+            # It stops BELOW `SCORE_BENCH_YIELDS_TO_RETREAT_UNLOCK` (31150),
+            # the floor of every band that buys something today. By
+            # construction the flag cannot be true while one of those is
+            # justified -- they all require a cost to be reached -- and the
+            # guard is kept anyway: a flag is cheaper to trust when it cannot
+            # reach the lethal lines even if it is wrong.
+            #
+            # AND IT ONLY OPENS WHERE THE DANCE WOULD OTHERWISE BE VETOED,
+            # which is what keeps it from being a second, wider copy of the
+            # block above. The board it was written for is the one where the
+            # Ogerpon ALREADY covers its cost: there the ability branch answers
+            # "do not overcharge" and the two of them left the Grass to a body
+            # that could not cash it. Where the Ogerpon is still short the
+            # dance is a normal live play, the block above already parks the
+            # attachment next to it, and this clause has nothing to add --
+            # measured, it fired 26 times in 174 games against the meta decks
+            # and moved the weighted matrix by +0.00. Narrowed to its own
+            # board it stops paying for decisions it was not written from.
+            _anc_dance_is_full = False
+            for _anc_area, _anc_index in _teal_dance_slots:
+                _anc_card = get_card(obs, _anc_area, _anc_index, my_index)
+                if (_anc_card is not None
+                        and _can_attack_eff(_anc_card.id,
+                                            len(_anc_card.energies))):
+                    _anc_dance_is_full = True
+                    break
+            if (_attach_reaches_no_cost and _anc_dance_is_full
+                    and 0 < score < SCORE_BENCH_YIELDS_TO_RETREAT_UNLOCK):
                 score = min(score, 7000)
                 _attach_yields_to_teal_dance.add(len(scores))
 

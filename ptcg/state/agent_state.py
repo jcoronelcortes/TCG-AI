@@ -113,6 +113,16 @@ class AgentState:
         # changes). It tells how many charging ABILITIES (Teal Dance / Ripening Charge)
         # are still alive once the MANUAL attachment has been spent.
         self._grass_attaches_this_turn = 0
+        # ...and WHICH of our bodies received them: the serial of every Pokemon
+        # that took a Grass this turn. The bare counter above says how many
+        # charges are gone but not WHICH ability spent them, and the two
+        # charging abilities do not reach the same places: Teal Dance attaches
+        # ONLY to the Ogerpon that used it, Ripening Charge to anybody. A Grass
+        # sitting on a benched Ogerpon is therefore explained by that Ogerpon's
+        # own dance -- a route that never could have charged the ACTIVE -- and
+        # `_grass_ability_slots_active` uses these serials so it does not bill
+        # it to the Ripening Charge that is still live.
+        self._grass_attach_targets_this_turn = set()
         # OUR OWN Xerosic's Machinations has already been played THIS TURN, so the
         # opposing hand is already capped at `XEROSIC_HAND_CAP` and those cards are
         # in the discard FOREVER. Read by `_stamp_worth_playing`: after our own cap

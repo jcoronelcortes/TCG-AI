@@ -220,16 +220,44 @@ def _grass_ability_slots_active(state, my_state, field_counts):
     A subset of `_grass_ability_slots`: Ripening Charge (Hydrapple ex) attaches
     to ANY of our Pokemon, so every bearer in play counts; Teal Dance (Teal Mask
     Ogerpon ex) attaches ONLY to itself, so it only counts when the Ogerpon IS
-    the active. Same conservative estimate of already-used abilities as the
-    general function (subtracting every ability charge of the turn from this
-    subset can fall short, never long: in the worst case the play is not
-    proposed)."""
+    the active.
+
+    EACH CHARGE IS BILLED TO THE CAPACITY THAT SPENT IT (user, registro_004
+    step 56, episode 92558163 vs a Marnie deck, LOST). The capacity above is a
+    SUBSET -- only the routes that reach the active -- and the count of charges
+    already used was the WHOLE set, so abilities that were never in this
+    capacity were being subtracted from it. Two benched Teal Dances were enough
+    to make a live Ripening Charge invisible: the function answered 0 while the
+    engine was, at that very moment, asking us where to put that Ripening
+    Charge's Grass. With the active Tapu Bulu one attachment short of Wood
+    Hammer and their active at 70 HP, `_charge_active_finishes` never looked and
+    the turn ended without attacking.
+
+    So a Grass that landed on a BENCHED Teal Mask Ogerpon ex is credited to that
+    Ogerpon's own dance -- at most one per body, and a route that could never
+    have charged the active anyway -- and only the remainder is billed here.
+    Deck-agnostic: it reads which of OUR bodies took a Grass this turn and what
+    each of our two charging abilities can reach, nothing about the opponent.
+
+    The estimate stays conservative in the same direction as before, capped by
+    the total charges still alive (`_grass_ability_slots`). It can still run
+    long in one ambiguous board -- a Ripening Charge aimed AT a benched Ogerpon
+    reads exactly like that Ogerpon's dance -- and there it claims a route that
+    is gone; what it can buy with it is nothing, since with no route left the
+    engine offers no attachment for the preference to steer."""
     capacidad = field_counts.get(Hydrapple_ex, 0)
     _act = _active_of(my_state)
     if _act is not None and _act.id == Teal_Mask_Ogerpon_ex:
         capacidad += 1
     usadas = AGENT_STATE._grass_attaches_this_turn - (1 if state.energyAttached else 0)
-    return max(0, capacidad - max(0, usadas))
+    danced = sum(
+        1 for _bp in (my_state.bench or [])
+        if _bp is not None and _bp.id == Teal_Mask_Ogerpon_ex
+        and getattr(_bp, 'serial', None)
+        in AGENT_STATE._grass_attach_targets_this_turn)
+    usadas = max(0, usadas) - danced
+    return min(max(0, capacidad - max(0, usadas)),
+               _grass_ability_slots(state, field_counts))
 
 
 def _grass_attach_route_open(state, field_counts, abilities_off=False):

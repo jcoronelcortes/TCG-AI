@@ -3674,6 +3674,7 @@ def agent(obs_dict: dict) -> list[int]:
         # Counter of Grass energies put on the field this turn (see
         # `_grass_ability_slots`): it is PER TURN.
         AGENT_STATE._grass_attaches_this_turn = 0
+        AGENT_STATE._grass_attach_targets_this_turn = set()
 
         # Our own Xerosic cap (see `_our_cap_already_spent`): PER TURN too. The
         # Stamp it holds back is held back for THIS turn only; on the next one
@@ -3897,6 +3898,11 @@ def agent(obs_dict: dict) -> list[int]:
                 and getattr(_ga_log, 'playerIndex', None) == my_index
                 and getattr(_ga_log, 'cardId', None) == Basic_Grass_Energy):
             AGENT_STATE._grass_attaches_this_turn += 1
+            # ...and WHERE it landed, which is what tells the two charging
+            # abilities apart afterwards (see `_grass_attach_targets_this_turn`).
+            _ga_target = getattr(_ga_log, 'serialTarget', None)
+            if _ga_target is not None:
+                AGENT_STATE._grass_attach_targets_this_turn.add(_ga_target)
         # ...and, off the same batch and with the same turn boundary, whether OUR
         # OWN Xerosic's Machinations has already capped their hand this turn. It
         # cannot be read off the board: `supporterPlayed` does not say WHICH
@@ -8185,6 +8191,22 @@ def agent(obs_dict: dict) -> list[int]:
             # Charges that can still land on the ACTIVE, limited by the hand.
             _dig_routes = ((0 if state.energyAttached else 1)
                           + _grass_ability_slots_active(state, my_state, field_counts))
+            # ...AND A CHARGE ALREADY IN FLIGHT IS NOT AN ESTIMATE (user,
+            # registro_004 step 56, episode 92558163 vs a Marnie deck, LOST).
+            # The count above projects which abilities are still alive from the
+            # turn's logs, and a projection can be wrong -- it was, and the turn
+            # ended without attacking with the knockout on the table. But when
+            # the menu we are answering IS a charging ability's own target
+            # select and the ACTIVE is one of the bodies it offers, there is
+            # nothing left to project: that Grass is landing on whichever body
+            # we point at. The engine is holding the route open, so the floor of
+            # one is a fact and cannot invent a charge that does not exist.
+            # Deck-agnostic: it reads the shape of the menu in front of us.
+            if (context == SelectContext.ATTACH_FROM
+                    and select.effect is not None
+                    and any(getattr(_dig_o, 'area', None) == AreaType.ACTIVE
+                            for _dig_o in select.option)):
+                _dig_routes = max(1, _dig_routes)
             _cav_disp = min(hand_counts.get(Basic_Grass_Energy, 0), _dig_routes)
             if _cav_e < _cav_req:
                 # Grass needed to reach the cost (rounded up).
@@ -12042,6 +12064,103 @@ def agent(obs_dict: dict) -> list[int]:
                 _tds_card = get_card(obs, _tds_o.area, _tds_o.index, my_index)
                 if _tds_card is not None and _tds_card.id == Teal_Mask_Ogerpon_ex:
                     _teal_dance_slots.add((_tds_o.area, _tds_o.index))
+
+    # DOES THE TURN'S ATTACHMENT REACH ANY COST AT ALL? (user, registro_006
+    # step 55, episode 92493855 vs a Dragapult ex deck, LOST). Turn 6, six
+    # prizes each, no matchup flag on -- this is the generic board:
+    #
+    #     US                                    THEM
+    #     active Tapu Bulu 140/140, 0 of 4      active Munkidori 110/110
+    #     bench  Teal Mask Ogerpon ex 210/210   bench  Dragapult ex 320 with TWO
+    #            with THREE Grass -- READY             (ready), Fezandipiti ex,
+    #     hand   ONE Basic {G} Energy, Boss's,         Drakloak, Dreepy, Budew
+    #            Lillie's, Xerosic, Night
+    #            Stretcher, 2x Meganium, Bayleef, Hydrapple ex
+    #
+    # The whole energy question of the turn was where that ONE Grass went, and
+    # the hand's evolutions were all dead (Meganium needs a Bayleef in play,
+    # Hydrapple ex a Dipplin, and there was neither). Two places for it: the
+    # ACTIVE Tapu Bulu, or the benched Ogerpon's own Teal Dance.
+    #
+    # The agent charged the Tapu Bulu (23010: the "+15000 future attacker"
+    # band of `_energy_score_base` for a Tapu under four energies), and Teal
+    # Dance came back VETOED because the Ogerpon already covered its cost
+    # ("do not overcharge"). Both readings are wrong on the SAME board, and
+    # for the same reason: THAT ENERGY WAS NEVER GOING TO BE PAID OUT. Wood
+    # Hammer costs four and the Tapu was at zero; its retreat costs three, so
+    # it could not even step aside for the Ogerpon that WAS ready; and with no
+    # Meganium in play each Grass counts once, so the body was three
+    # attachments away from doing anything. Their Dragapult ex was going to
+    # knock it over with our Grass still on it -- which is exactly what
+    # happened. Teal Dance would have spent the SAME card on the body that was
+    # going to attack (Myriad Leaf Shower scales with the energy on it: a
+    # fourth Grass is +30) AND DRAWN A CARD.
+    #
+    # So the question this asks is not "who deserves the energy" -- that is
+    # `energy_score`'s job and it is not touched -- but the one before it: is
+    # there ANY body of ours that one more energy brings to a cost it can
+    # actually pay? Nothing but our own arithmetic goes into it: the attack
+    # cost of each body of ours and the retreat cost of the one in front. No
+    # matchup list, no card names, so it reads the same against every deck.
+    #
+    # Two answers count as "it reaches a cost":
+    #   * a REAL attacker (MAIN_ATTACKERS) that cannot attack yet and would be
+    #     able to -- the chip attacks of Chikorita/Applin/Bayleef are not
+    #     attacks, the same exclusion the yield rule already makes; and
+    #   * the ACTIVE crossing its RETREAT cost, which is what buys the pivot to
+    #     a bench that can attack.
+    #
+    # AND THE HORIZON IS TWO ATTACHMENTS, NOT ONE, which is the line between
+    # this rule and the one it must not swallow. A body one attachment short
+    # today is READY NEXT TURN off the turn's own energy, so the charge is a
+    # plan and not a hope; a body two or more short is waiting on cards nobody
+    # has promised. The board that draws the line is
+    # [[test_the_parked_attachment_yields_to_nobody]]'s: an ACTIVE Ogerpon ex
+    # at 1 of 3 with a benched one already at 3. There the attachment IS the
+    # first of the two steps that arm the body in front, and the dance would
+    # only pile a fourth Grass on a body sitting at the back -- so the veto
+    # this rule lifts has to keep standing. In the record's board the same
+    # arithmetic says the opposite: Tapu Bulu at 0 of 4, four steps from Wood
+    # Hammer and three from its own retreat, is not a plan.
+    #
+    # AND THE TURN HAS TO HAVE NOTHING ELSE TO SPEND EITHER. "Save the Grass"
+    # is a real answer whenever the board is still doing something with the
+    # turn, so the rule only opens on a turn with NO ATTACK IN THE MENU. The
+    # boundary case is [[test_state_builder]]'s Myriad combo: an active Ogerpon
+    # ex at four energies that already knocks the opposing active out, one
+    # Grass in hand and an Applin on the bench. No attachment reaches a cost
+    # there either -- but the turn is cashing a prize, the extra Grass changes
+    # nothing about it, and the card is worth more in hand for the Applin line
+    # than as a fourth-and-a-half energy. The menu is the honest test of
+    # "is there an attack today", the same way `_teal_dance_slots` is the
+    # honest test of "is the dance available from here".
+    _attach_reaches_no_cost = False
+    _arnc_attack_in_menu = any(_o.type == OptionType.ATTACK
+                               for _o in select.option)
+    if (context == SelectContext.MAIN and not state.energyAttached
+            and not _arnc_attack_in_menu):
+        # Two attachments' worth of EFFECTIVE energy (Wild Growth doubles each
+        # physical Grass, so the horizon is read in the same units the costs
+        # are).
+        _arnc_reach = 2 * _grass_attach_unit()
+        _arnc_cashes = False
+        for _arnc_active, _arnc_p in (
+                [(True, _p) for _p in (my_state.active or [])]
+                + [(False, _p) for _p in (my_state.bench or [])]):
+            if _arnc_p is None:
+                continue
+            _arnc_e = len(_arnc_p.energies)
+            if (_arnc_p.id in MAIN_ATTACKERS
+                    and not _can_attack_eff(_arnc_p.id, _arnc_e)
+                    and _can_attack_eff(_arnc_p.id, _arnc_e + _arnc_reach)):
+                _arnc_cashes = True
+                break
+            if _arnc_active:
+                _arnc_rc = RETREAT_COST.get(_arnc_p.id, 1)
+                if _arnc_e < _arnc_rc <= _arnc_e + _arnc_reach:
+                    _arnc_cashes = True
+                    break
+        _attach_reaches_no_cost = not _arnc_cashes
 
     # Is the Ultra Ball OFFERED at all in this menu? It is the only honest test
     # of "can it still be played this turn", and it is not the same as its score.

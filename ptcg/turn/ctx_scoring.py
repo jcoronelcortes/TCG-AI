@@ -53,6 +53,7 @@ class ScoringCtx:
     _attach_yields_to_teal_dance: Any = None
     _attach_enable_retreat_attack: Any = None
     _attach_enable_retreat_ko: Any = None
+    _attach_reaches_no_cost: Any = None
     _b: Any = None
     _bcs_playable_in_hand: Any = None
     _bdg_retreat_ko: Any = None

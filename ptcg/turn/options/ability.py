@@ -57,6 +57,7 @@ def score_play(tc, o, score):
     _active_needs_energy = tc._active_needs_energy
     _attach_enable_retreat_attack = tc._attach_enable_retreat_attack
     _attach_enable_retreat_ko = tc._attach_enable_retreat_ko
+    _attach_reaches_no_cost = tc._attach_reaches_no_cost
     _bench_attacker_ready = tc._bench_attacker_ready
     _bench_has_chargeable = tc._bench_has_chargeable
     _bp = tc._bp
@@ -381,8 +382,36 @@ def score_play(tc, o, score):
                         score = 31050
                     elif (o.area == AreaType.ACTIVE and _bench_attacker_ready
                             and not _active_already_kos):
-        
+
                         score = 31050
+                    elif _attach_reaches_no_cost:
+                        # NOTHING ELSE ON THE FIELD CAN CASH THIS GRASS (user,
+                        # registro_006 step 55 vs a Dragapult ex deck, LOST --
+                        # the board is drawn out in `_attach_reaches_no_cost`,
+                        # main.py). The veto below is "it already covers its
+                        # cost, save the energy", and saving it is a real
+                        # answer only while there is somewhere better for it to
+                        # go. On that board there was not: the only other
+                        # target was an active Tapu Bulu at 0 of 4 that could
+                        # reach neither its attack nor its own retreat, so the
+                        # Grass was going to sit on a body that never paid it
+                        # out. "Overcharging" the one that IS ready costs
+                        # nothing and buys two things -- Myriad Leaf Shower
+                        # scales with the energy on it, and the dance DRAWS.
+                        #
+                        # It is the LAST rung of the block on purpose: every
+                        # per-matchup cap (Cubchoo, Alakazam/Hop's, Crustle,
+                        # Cornerstone) is asked far above and still rules. This
+                        # only speaks where no cap said no and the alternative
+                        # was a dead attachment.
+                        #
+                        # 7500 is the DEGRADED Teal Dance band the file already
+                        # uses (`_crustle_atk_needs_grass`,
+                        # `_reserve_energy_for_hydra_evolve`): free value, below
+                        # anything that plays for today, and just above the 7000
+                        # the attachment is capped to when it yields -- which is
+                        # how the two are made to decide by score inside tier 0.
+                        score = 7500
                     else:
                         score = SCORE_VETO
                 elif _active_hydra_ready:

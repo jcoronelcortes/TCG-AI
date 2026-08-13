@@ -33040,7 +33040,7 @@
      "ABILITY Teal Mask Ogerpon ex(96)"
     ],
     "eleccion": [
-     22
+     21
     ],
     "paso": null,
     "turno": 10
@@ -36387,10 +36387,10 @@
     "accion": 13,
     "contexto": 21,
     "detalle": [
-     "CARTA Teal Mask Ogerpon ex(96)"
+     "CARTA Meganium(710)"
     ],
     "eleccion": [
-     4
+     0
     ],
     "paso": null,
     "turno": 15
@@ -38121,10 +38121,10 @@
     "accion": 7,
     "contexto": 21,
     "detalle": [
-     "CARTA Hydrapple ex(150)"
+     "CARTA Meganium(710)"
     ],
     "eleccion": [
-     5
+     0
     ],
     "paso": null,
     "turno": 8
