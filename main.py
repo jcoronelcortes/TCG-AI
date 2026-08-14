@@ -4814,7 +4814,8 @@ def agent(obs_dict: dict) -> list[int]:
             else:
                 _has_dry_munkidori = True
 
-    AGENT_STATE._op_chip_per_round = (FREEZING_SHROUD_COUNTER * _n_froslass
+    AGENT_STATE._op_chip_per_checkup = FREEZING_SHROUD_COUNTER * _n_froslass
+    AGENT_STATE._op_chip_per_round = (AGENT_STATE._op_chip_per_checkup
                           * CHECKUPS_PER_ROUND)
 
     # A Munkidori WITHOUT energy that is already on the field is worth one more activation: the
@@ -5592,6 +5593,24 @@ def agent(obs_dict: dict) -> list[int]:
                                 damage = op_pokemon.hp - 10
                                 effective_ko_hp = op_pokemon.hp + 1
 
+                        # THE HP THAT DECIDES THE KNOCKOUT, which is not always
+                        # the printed one (user, registro_006 step 90 vs
+                        # Marnie's Grimmsnarl ex -- see `_op_hp_for_our_ko`).
+                        # Their Froslass drips onto THEIR OWN bodies with an
+                        # Ability too, and the counters land BETWEEN turns: a
+                        # hit that falls short by no more than one checkup still
+                        # cashes the prize, before they can heal it, retreat it
+                        # or move the damage off it. ONE checkup, because the
+                        # one that opened this turn is already inside the HP we
+                        # are reading and the attack we are pricing ends the
+                        # turn.
+                        #
+                        # Every test below is `<= damage`, i.e. "is this a
+                        # knockout", and they all read this. Without a Froslass
+                        # on their field it IS `op_pokemon.hp`, so nothing that
+                        # was calibrated on the printed number moves.
+                        _ko_hp_now = _op_hp_for_our_ko(op_pokemon, 1)
+
                         prize = 0
                         score = pokemon_score(op_pokemon)
                         if damage <= 0 and op_pokemon.id in EX_IMMUNE_IDS:
@@ -5605,7 +5624,7 @@ def agent(obs_dict: dict) -> list[int]:
                             score = SCORE_USELESS_ATTACK
                         elif damage <= 0 and neutralization_zone_active and my_is_ex:
                             score = SCORE_USELESS_ATTACK
-                        elif op_pokemon.hp <= damage:
+                        elif _ko_hp_now <= damage:
                             prize = prize_count_op(op_pokemon)
                         else:
                             score *= damage / max(1, op_pokemon.hp)
@@ -5615,36 +5634,36 @@ def agent(obs_dict: dict) -> list[int]:
                         # body does it is noted (current HP and its own prizes) so it can be
                         # compared against afterwards. `prize_count`, not
                         # `prize_count_op`: it measures a Pokemon of OURS.
-                        if i == 0 and damage > 0 and op_pokemon.hp <= damage:
+                        if i == 0 and damage > 0 and _ko_hp_now <= damage:
                             _atk_act_ko[j] = ((my_pokemon.hp or 0),
                                               prize_count(my_pokemon))
 
                         if op_pokemon.id == Budew:
-                            if op_pokemon.hp <= damage:
+                            if _ko_hp_now <= damage:
                                 score += 8000
                             else:
                                 score += 3000
 
                         elif op_pokemon.id == Froslass:
-                            if op_pokemon.hp <= damage:
+                            if _ko_hp_now <= damage:
                                 score += 9000
                             else:
                                 score += 4000
 
                         elif op_pokemon.id == Munkidori:
-                            if op_pokemon.hp <= damage:
+                            if _ko_hp_now <= damage:
                                 score += 7500
                             else:
                                 score += 2500
 
                         elif op_pokemon.id == Snorunt:
-                            if op_pokemon.hp <= damage:
+                            if _ko_hp_now <= damage:
                                 score += 7000
                             else:
                                 score += 2500
 
                         elif op_pokemon.id in (Dreepy, Drakloak):
-                            if op_pokemon.hp <= damage:
+                            if _ko_hp_now <= damage:
                                 # vs the Dragapult line, cutting off a Drakloak
                                 # (a charged Stage 1 one step from Dragapult ex, a
                                 # 2-prize attacker that spreads damage) with the
@@ -5665,107 +5684,107 @@ def agent(obs_dict: dict) -> list[int]:
                                 score += 2000
 
                         elif op_pokemon.id in (Dwebble_Grass, Dwebble_Fighting):
-                            if op_pokemon.hp <= damage:
+                            if _ko_hp_now <= damage:
                                 score += 6000
                             else:
                                 score += 2000
 
                         elif op_pokemon.id in EX_IMMUNE_IDS and not my_is_ex and damage > 0:
-                            if op_pokemon.hp <= damage:
+                            if _ko_hp_now <= damage:
                                 score += 7000
                             else:
                                 score += 4000
 
                         elif op_pokemon.id == Crustle_Fighting and op_pokemon.hp < op_pokemon.maxHp:
-                            if op_pokemon.hp <= damage:
+                            if _ko_hp_now <= damage:
                                 score += 5000
 
                         elif op_pokemon.id in (Ralts, Kirlia):
-                            if op_pokemon.hp <= damage:
+                            if _ko_hp_now <= damage:
                                 score += 6000
                             else:
                                 score += 1500
                         elif op_pokemon.id == Gardevoir_ex:
-                            if op_pokemon.hp <= damage:
+                            if _ko_hp_now <= damage:
                                 score += 7500
                             else:
                                 score += 3000
 
                         elif op_pokemon.id in (Abra, Kadabra):
-                            if op_pokemon.hp <= damage:
+                            if _ko_hp_now <= damage:
                                 score += 5500
                             else:
                                 score += 1500
                         elif op_pokemon.id == Alakazam_ex:
-                            if op_pokemon.hp <= damage:
+                            if _ko_hp_now <= damage:
                                 score += 7000
                             else:
                                 score += 2500
 
                         elif op_pokemon.id == Slowking:
-                            if op_pokemon.hp <= damage:
+                            if _ko_hp_now <= damage:
                                 score += 7500
                             else:
                                 score += 3000
                         elif op_pokemon.id == Slowpoke:
-                            if op_pokemon.hp <= damage:
+                            if _ko_hp_now <= damage:
                                 score += 5500
                             else:
                                 score += 1500
 
                         elif op_pokemon.id in (Duskull, Dusclops):
-                            if op_pokemon.hp <= damage:
+                            if _ko_hp_now <= damage:
                                 score += 5500
                             else:
                                 score += 1500
                         elif op_pokemon.id == Dusknoir:
-                            if op_pokemon.hp <= damage:
+                            if _ko_hp_now <= damage:
                                 score += 7000
                             else:
                                 score += 2500
 
                         elif op_pokemon.id == Zoroark_N:
-                            if op_pokemon.hp <= damage:
+                            if _ko_hp_now <= damage:
                                 score += 6500
                             else:
                                 score += 2000
                         elif op_pokemon.id == Zorua_N:
-                            if op_pokemon.hp <= damage:
+                            if _ko_hp_now <= damage:
                                 score += 5000
                             else:
                                 score += 1200
 
                         elif op_pokemon.id == Typhlosion:
-                            if op_pokemon.hp <= damage:
+                            if _ko_hp_now <= damage:
                                 score += 6500
                             else:
                                 score += 2000
                         elif op_pokemon.id in (Cyndaquil, Quilava):
-                            if op_pokemon.hp <= damage:
+                            if _ko_hp_now <= damage:
                                 score += 5000
                             else:
                                 score += 1200
 
                         elif op_pokemon.id == Chewtle:
-                            if op_pokemon.hp <= damage:
+                            if _ko_hp_now <= damage:
                                 score += 7000
                             else:
                                 score += 2500
 
                         elif op_pokemon.id == Drednaw and damage > 0:
-                            if op_pokemon.hp <= damage:
+                            if _ko_hp_now <= damage:
                                 score += 8000
                             else:
                                 score += 3000
 
                         elif op_pokemon.id in EEVEE_IDS:
-                            if op_pokemon.hp <= damage:
+                            if _ko_hp_now <= damage:
                                 score += 7500
                             else:
                                 score += 2500
 
                         elif op_pokemon.id == Sylveon and damage > 0:
-                            if op_pokemon.hp <= damage:
+                            if _ko_hp_now <= damage:
                                 score += 9000
                             else:
                                 score += 4000
@@ -5775,7 +5794,7 @@ def agent(obs_dict: dict) -> list[int]:
                             _is_stage2 = (_op_data and getattr(_op_data, 'stage2', False))
                             _is_stage1 = (_op_data and getattr(_op_data, 'stage1', False))
                             _is_ex = (_op_data and getattr(_op_data, 'ex', False))
-                            if op_pokemon.hp <= damage:
+                            if _ko_hp_now <= damage:
 
                                 if _is_stage2:
                                     score += 5000
@@ -5796,7 +5815,7 @@ def agent(obs_dict: dict) -> list[int]:
                         # the prizes (user, registro_016 p138 vs Crustle).
                         _ko_wins_no_bench = (
                             j == 0
-                            and op_pokemon.hp <= damage
+                            and _ko_hp_now <= damage
                             and not any(b is not None
                                         for b in (op_state.bench or [])))
                         # GUARANTEED KO (P0.1): vs Tenacious Body (a coin flip) or
@@ -5892,7 +5911,7 @@ def agent(obs_dict: dict) -> list[int]:
                             AGENT_STATE.plan.attacker = i
                             AGENT_STATE.plan.target = j
                             AGENT_STATE.plan.attack_index = attack_idx
-                            AGENT_STATE.plan.remain_hp = op_pokemon.hp - damage
+                            AGENT_STATE.plan.remain_hp = _ko_hp_now - damage
                             AGENT_STATE.plan.energy = more_energy
 
             _op_act_main = op_state.active[0] if op_state.active else None
@@ -9861,7 +9880,16 @@ def agent(obs_dict: dict) -> list[int]:
                          if _op_prom_active is not None else None)
         _op_prom_weak = getattr(_op_prom_data, 'weakness', None) if _op_prom_data else None
         _op_prom_en = len(_op_prom_active.energies) if _op_prom_active is not None else 0
-        _op_prom_remain = (getattr(_op_prom_active, 'hp', 0)
+        # THE HP THE PROMOTED BODY HAS TO COVER, not the printed one: their own
+        # Freezing Shroud pays the difference (user, registro_006 step 90 vs
+        # Marnie's Grimmsnarl ex, episode 92871474, LOST -- see
+        # `_op_hp_for_our_ko`). This promotion resolves at the END of their
+        # turn, so TWO checkups fall on their active before they can answer:
+        # the one that opens our turn and the one that follows our attack.
+        # Their 320 HP Grimmsnarl ex is 280 to us, which is exactly what the
+        # benched Meganium's Solar Beam does through their Darkness weakness.
+        # Without a Froslass on their field this is the printed HP, unchanged.
+        _op_prom_remain = (_op_hp_for_our_ko(_op_prom_active, CHECKUPS_PER_ROUND)
                            if _op_prom_active is not None else 0)
         _prom_bench_after = max(0, bench_count - 1)
         _prom_can_attach = (
@@ -9893,6 +9921,17 @@ def agent(obs_dict: dict) -> list[int]:
                     _op_prom_active, _pb, getattr(op_state, 'handCount', None))
                 if _pb_hit_now >= (getattr(_pb, 'hp', 0) or 0):
                     continue  # it dies before it can attack: not a candidate
+            # THE SAME SENTENCE, WITH THE DRIP AS THE SECOND HIT. This block now
+            # discounts their own Freezing Shroud from the body in front
+            # (`_op_prom_remain`), and the counters do not fall on one side of
+            # the table: the candidate we bring up takes the checkup that opens
+            # our turn BEFORE it swings. A body the drip removes never attacks,
+            # so it is not a knocker -- it is a free prize. The record's
+            # Meganium reaches our turn at 30 of its 50 and swings; at 20 it
+            # would not be here. Only ONE checkup, the one before our attack,
+            # and 0 without a Froslass on their field.
+            if _shroud_damage_to(_pb, 1) >= (getattr(_pb, 'hp', 0) or 0):
+                continue
             _pb_req = AGENT_STATE.ATTACK_ENERGY_REQ.get(_pb.id)
             if _pb_req is None:
                 continue
@@ -10725,6 +10764,23 @@ def agent(obs_dict: dict) -> list[int]:
         and (not state.energyAttached
              or not (my_state.active and my_state.active[0] is not None)))
 
+    # HOW MANY CHECKUPS OF THEIR OWN DRIP FALL ON THEIR ACTIVE before the body
+    # we are choosing has attacked and they get to answer. The same split as the
+    # line above, and for the same reason -- WHOSE turn this menu belongs to:
+    #
+    #   * the spot is EMPTY: the promotion is forced and resolves at the end of
+    #     THEIR turn, so ours comes next. TWO checkups, the one that opens our
+    #     turn and the one that follows our attack (`CHECKUPS_PER_ROUND`).
+    #   * the spot is FULL: this is our voluntary retreat, on our own turn. The
+    #     checkup that opened it is already inside the HP we can see, so only
+    #     ONE remains, between our attack and their turn.
+    #
+    # 0 without a Froslass on their field, where `_op_hp_for_our_ko` is the
+    # printed HP whatever this says.
+    _promo_shroud_checkups = (
+        1 if (my_state.active and my_state.active[0] is not None)
+        else CHECKUPS_PER_ROUND)
+
     def _promo_kos_op(_pk):
         """The candidate TAKES A PRIZE once promoted (with its current energy
         plus the manual attachment if it is still available).
@@ -10748,6 +10804,17 @@ def agent(obs_dict: dict) -> list[int]:
         """
         if _pk is None:
             return False
+        # THE DRIP FALLS ON THE CANDIDATE TOO. This predicate now reads their
+        # active through `_op_hp_for_our_ko`, so the same checkups have to be
+        # spent on our side of the table: a body their Freezing Shroud removes
+        # before our attack never takes the prize it is being credited with.
+        # One checkup fewer than the target gets -- the last one lands AFTER we
+        # have swung -- and none at all on the voluntary retreat, where the
+        # promoted body attacks today.
+        if (_promo_shroud_checkups > 1
+                and _shroud_damage_to(_pk, _promo_shroud_checkups - 1)
+                >= (_pk.hp or 0)):
+            return False
         _pe = len(_pk.energies) * _grass_mult()
         if _promo_attach_open:
             _pe += _grass_attach_unit()
@@ -10759,7 +10826,8 @@ def agent(obs_dict: dict) -> list[int]:
                 _peff = _our_effective_damage(
                     _pk, _promo_op_act, _pbase, AGENT_STATE.meganium_in_play,
                     neutralization_zone_active)
-                if _peff >= (_promo_op_act.hp or 0):
+                if _peff >= _op_hp_for_our_ko(_promo_op_act,
+                                              _promo_shroud_checkups):
                     return True
         return _snipe_best_target(
             _pk, op_state, _pe, AGENT_STATE.meganium_in_play,
