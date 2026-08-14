@@ -2,6 +2,26 @@
 
 [← Documentation index](README.md) · [the plan that produced it](night-plan-2026-08-13-b.md)
 
+> ### ⚠️ Superseded in three places by [the night of 14 August](history/night-2026-08-14.md)
+>
+> **Every number below was measured on the list of 13 August**, before
+> `deck.csv` went to one Tapu Bulu, one Night Stretcher, two Poké Pad and
+> fourteen Grass. Re-measured on the new sixty, the headline is **95.4 % ±0.17,
+> prizes +4.172** (against 94.50 % / +4.063 here): the four cards are worth
+> **+0.59 pp [+0.34, +0.84]** and the day's thirteen rule commits a further
+> **+0.36 pp [+0.10, +0.63]**. The per-archetype rows below move with them;
+> Ogerpon Verde by +1.54 pp, and **Mega Lopunny / Mega Froslass the wrong way,
+> −0.90 pp at 7.2 % of the meta**.
+>
+> * **§6's "someone in the top-500 plays our exact list" is false.** The 60/60
+>   mirror is now 58/60. The mirror CLASS is unchanged — 7 Festival Lead lists,
+>   2.8 % of the meta — and `festival_lead_1` moved *toward* us, 56 → 58.
+> * **§7's P5 is closed, with no rule.** The negative Festival Lead seat gap is
+>   the mirror class and not the archetype: the mirrors alone are −1.78 pp
+>   ±1.64, and Festival Lead without them is indistinguishable from zero.
+> * **Going first is worth half of what it says here** under the new list:
+>   +1.04 pp ±0.37 against +2.08 pp ±0.37, two intervals that do not overlap.
+
 **What this is.** The measured answer to *how do we pilot our list against the
 500 decks at the top of the leaderboard*. Every number here comes from
 `log/noche-2026-08-13-b/`, at HEAD **`8192c22`**, against **133 real lists**

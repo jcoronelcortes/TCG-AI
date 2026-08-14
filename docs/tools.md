@@ -145,6 +145,61 @@ them are archetypes that do not exist in the current meta, and measuring against
 them spent half the budget on imaginary opponents. They remain useful for
 exercising **mechanics** the real meta does not offer (item lock, mill).
 
+**⚠️ It cannot A/B two LISTS, and the obvious way to make it do so is wrong.**
+`main.py:165` reads `deck.csv` from the process's working directory at import,
+and the agent derives its whole deck belief from there. Handing the engine a
+different list through `selfplay.torneo(deck_candidate=…)` changes what is
+*dealt* and not what the agent *believes*, so the arm plays one deck while
+thinking it holds another — the same mismatch that made seven tests go red on
+14 August, where the belief placed eight cards in six prizes. `checkout_tree`
+says so in its own docstring: it deliberately does not take the deck from the
+ref, which is what makes `--base` a code comparison. **A `--our-deck` flag on
+this tool is mis-specified and is not built.**
+
+The harness that does work needs no new code — one exported tree per list, each
+with its own `deck.csv` on disk, and the matrix run from inside it:
+
+```bash
+D=log/noche-XXXX
+git archive HEAD | (mkdir -p $D/tree_a && tar -x -C $D/tree_a)   # the old list
+git archive HEAD | (mkdir -p $D/tree_b && tar -x -C $D/tree_b)
+cp deck.csv $D/tree_b/deck.csv                                   # the new one
+ln -sfn "$PWD/cg/build" $D/tree_a/cg/build                       # gitignored, and --seeds needs it
+cd $D/tree_a && python utils/matchup_matrix.py --opponents /ABS/deck/real_opponents_500 ...
+```
+
+`deck/real_opponents_500/` is gitignored, so `--opponents` takes an **absolute**
+path; `cg/build/` and `ptcg_engine/` are too, and a seeded run loads the engine
+from the tree it lives in, so both need a symlink.
+
+### `compare_runs.py` — the paired delta between two saved runs
+
+```bash
+python utils/compare_runs.py BASE.txt CAND.txt --weights deck/real_opponents_500/pesos.csv
+```
+
+Two arms measured with the same `--seeds` played the same games, so the honest
+comparison is **paired**: the per-matchup difference and its weighted mean, not
+the overlap of the two headline intervals. It prints prizes first (18 of 22
+archetypes are above 92 % winrate and the winrate cannot rank them), how many
+matchups moved at all — a delta carried by three decks is a different object
+from one carried by all — and the delta **aggregated by archetype**, which is
+the view that ranks: twenty Crustle lists moving +1 each is a finding, twenty
+rows of +1 at 0.2 % weight is not visibly anything.
+
+### `holdout_classify.py` — what the 370 unlabelled extras are
+
+```bash
+python utils/holdout_classify.py --out log/.../holdout.csv
+```
+
+Labels `competitor_decks_500/adicionales/` by nearest neighbour against the
+admitted corpus, counting copies, and reports anything under 40/60 as
+`desconocido` rather than forcing it into the closest bucket. Run 14 August
+2026: the holdout is the same meta as the 500 (Marnie 32.7 % against 37.4 %,
+Alakazam 20.3 % against 17.8 %) and only **5.9 % falls outside the corpus**, so
+a recommendation fitted to the 500 is not fitted to 500 particular lists.
+
 ### `opponent_bot.py` — the reference opponent
 
 The generic bot that pilots any deck legally and consistently. It is not a good

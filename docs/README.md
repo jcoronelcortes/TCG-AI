@@ -76,6 +76,7 @@ spending the same week.
 
 | Page | What it found |
 | --- | --- |
+| ⭐ [The night of 14 Aug 2026](history/night-2026-08-14.md) | The night the sixty cards moved. Seven tests went red and not one was a regression: **a replay is a game of the list of its day**, and the plan's own recommendation — re-freeze the corpus — would have written a false belief into the golden snapshot for good. The day's thirteen commits measure **+0.36 pp [+0.10, +0.63]**, the first measurement the Cornerstone merge has ever had. And the list is not a proposal: the census's own alarm found **90 real ladder games already played with it**. |
 | [The night of 12 Aug 2026](history/night-2026-08-12.md) | The most recent: four detectors built for the eight defect classes of the day, three of which found something on their first run — a four-card family the code had never heard of, 280 menus where an order beat a number, and a lint rule calibrated against the exact field that lost a game. |
 | [The night of 11 Aug 2026](history/night-2026-08-11.md) | Three defects nobody had read, two detectors that caught their own authors, and a gain that was real while the meta did not contain it. |
 | [The night of 10 Aug 2026 (c)](history/night-2026-08-10-c.md) | The session that produced the corpus rebuild and the corpus bridge. |

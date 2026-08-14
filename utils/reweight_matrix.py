@@ -62,9 +62,13 @@ def parse_run(path):
     """[{deck, wr, n, prem, ff, seat1, seat2}] from a saved matrix run."""
     rows, seen = [], set()
     for line in Path(path).read_text(encoding="utf-8").splitlines():
-        if line.startswith("==="):
+        if line.startswith("===") and rows:
             # The sorted table repeats every deck in a different format; the
             # per-matchup lines above it are the ones carrying the seat split.
+            # Only a `===` AFTER the table ends it: a run saved with a banner of
+            # its own on top (which arm of the night this is) would otherwise
+            # parse as zero matchups, and the comparison would report that the
+            # two runs share nothing rather than that it could not read them.
             break
         m = _ROW.match(line)
         if not m or m.group("deck") in seen:
