@@ -13,7 +13,7 @@ utils/purity.py: nothing here touches mutable state or the runtime tables.
 from ptcg.calc.board import _active_of, _evolvable_counts
 from ptcg.cards.groups import EVO_LINES, POKEMON_SEARCH_SUPPORTER_IDS
 from ptcg.cards.ids import OUR_EX_IDS
-from ptcg.cards.ids import Abra, Alakazam_ex, Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Hydrapple_ex, Kadabra, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, Poke_Pad, SCORE_VETO, STAMP_MAX_HAND_SACRIFICED, STAMP_MIN_OP_HAND, STAMP_MIN_OP_HAND_VS_REFILL, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, XEROSIC_BIG_HAND, XEROSIC_SCORE_ALAKAZAM, XEROSIC_SCORE_GENERIC, XEROSIC_SCORE_LAST_RESORT, XEROSIC_SCORE_SOBRE_BOSS, XEROSIC_STAMP_ORDEN_MIN_OP_HAND, Xerosic_Machinations
+from ptcg.cards.ids import Abra, Alakazam_ex, Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Hydrapple_ex, Kadabra, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, Poke_Pad, SCORE_VETO, STAMP_MAX_HAND_SACRIFICED, STAMP_MIN_OP_HAND, STAMP_MIN_OP_HAND_VS_REFILL, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, XEROSIC_ALAKAZAM_EARLY_PRIZES, XEROSIC_ALAKAZAM_FLOOR_EARLY, XEROSIC_ALAKAZAM_FLOOR_LATE, XEROSIC_BIG_HAND, XEROSIC_SCORE_ALAKAZAM, XEROSIC_SCORE_GENERIC, XEROSIC_SCORE_LAST_RESORT, XEROSIC_SCORE_SOBRE_BOSS, XEROSIC_STAMP_ORDEN_MIN_OP_HAND, Xerosic_Machinations
 from ptcg.state.zones import ZONE_DECK
 from ptcg.engine.context import DecisionContext
 from ptcg.engine.rules import _Adjustment, _FixedRule, _resolve_with_trace
@@ -449,21 +449,54 @@ def _score_unfair_stamp_play(ctx: DecisionContext) -> int:
                                _AJUSTES_STAMP_PLAY, ctx, default=7500)
 
 
+def _xr_alakazam_floor(c) -> int:
+    """How many cards the opposing hand has to hold, vs Alakazam, before the cap
+    is worth the turn's only Supporter. It is not ONE number: it moves with OUR
+    prize counter.
+
+    CARD RULE (user, august 2026, `records/registro_003_pasos_025_hasta_031
+    .json`, episode 92856565, step 29, turn 3 vs Alakazam -- LOST): with FIVE OR
+    MORE of our prizes still up the floor is EIGHT cards; with fewer than five
+    left it is SIX, the floor as it was written.
+
+    The two halves are the same sentence read from the two ends of the game.
+    EARLY, six cards is not an inflated hand, it is the hand a player HAS after
+    drawing: on the record's turn 3 the opponent held exactly six, the cap
+    discarded three, and their deck handed them back over the next two turns
+    while the matchup's only answer to Powerful Hand (20 x card in their hand)
+    was already in our discard pile. There is a whole game left for that card to
+    be worth 200+ of cap, so early it waits for a hand that is genuinely
+    inflated. LATE -- from the fifth prize on -- there is no "later" left to save
+    it for: the cap only has to buy the turns that remain, and six pays.
+
+    `getattr` on the prize count for the same reason as
+    `_our_cap_already_spent` above: the unit tests build stub contexts
+    with only the fields their predicate reads. The default is SIX, the opening
+    board -- a stub that does not carry the prize counter is answered as the
+    start of a game, which is where the strict floor belongs."""
+    return (XEROSIC_ALAKAZAM_FLOOR_EARLY
+            if getattr(c, 'my_prize', 6) >= XEROSIC_ALAKAZAM_EARLY_PRIZES
+            else XEROSIC_ALAKAZAM_FLOOR_LATE)
+
+
 def _xr_below_the_alakazam_floor(c):
-    """vs Alakazam, is the opposing hand still BELOW the six cards the cap
-    needs? The floor of `_xr_gate_alakazam`, written on its own because it is
-    also read as a hard veto (`alakazam_needs_six_cards`) and by the Last-Ditch
-    fetch: the rule has to be answered BEFORE the card is searched for, not only
-    when it is already in hand."""
-    return c.op_is_alakazam_deck and c.op_hand_count < 6
+    """vs Alakazam, is the opposing hand still BELOW the cards the cap needs
+    (`_xr_alakazam_floor`: eight with five or more of our prizes up, six after
+    that)? The floor of `_xr_gate_alakazam`, written on its own because it is
+    also read as a hard veto (`alakazam_needs_the_hand_floor`) and by the
+    Last-Ditch fetch: the rule has to be answered BEFORE the card is searched
+    for, not only when it is already in hand."""
+    return c.op_is_alakazam_deck and c.op_hand_count < _xr_alakazam_floor(c)
 
 
 def _xr_gate_alakazam(c):
-    """vs Alakazam (the card's reason to exist): opposing hand >= 6, i.e.
-    Powerful Hand already projecting 20 x (6 + 2) = 160.
+    """vs Alakazam (the card's reason to exist): the opposing hand at or above
+    `_xr_alakazam_floor` -- eight while five or more of our prizes are up, six
+    from there on -- i.e. Powerful Hand already projecting 20 x (8 + 2) = 200
+    early, 20 x (6 + 2) = 160 late.
 
     CARD RULE (user, august 2026, records/registro_003 step 17 -- episode
-    91176376 vs Alakazam, LOST): SIX cards is a floor and it has no exceptions.
+    91176376 vs Alakazam, LOST): the floor has no exceptions.
     On that turn the opponent held FOUR cards, the gate let the play through on
     its "a backup copy is left in the deck" branch, and the turn's Supporter was
     spent to discard ONE single card (4 -> 3): Powerful Hand went from 120 to
@@ -697,10 +730,12 @@ _RULES_XEROSIC_PLAY = [
     _FixedRule("opponent_hand_already_short",
                lambda c: c.op_hand_count <= 3,
                lambda c: SCORE_VETO),
-    # THE FLOOR OF SIX CARDS vs ALAKAZAM (user, august 2026, records/registro_003
-    # step 17 -- episode 91176376, LOST). Against the deck the card exists for,
-    # the cap is NOT played until the opposing hand reaches six. See
-    # `_xr_gate_alakazam` for the record.
+    # THE HAND FLOOR vs ALAKAZAM (user, august 2026, records/registro_003
+    # step 17 -- episode 91176376, LOST; and step 29 -- episode 92856565, LOST).
+    # Against the deck the card exists for, the cap is NOT played until the
+    # opposing hand reaches `_xr_alakazam_floor`: EIGHT cards while five or more
+    # of our prizes are still up, SIX once the race is under way. See
+    # `_xr_alakazam_floor` and `_xr_gate_alakazam` for the two records.
     #
     # It is a VETO and not a fall-through to the last-resort band, and that is
     # the whole point of writing it as a rule of its own: below the floor the
@@ -711,12 +746,15 @@ _RULES_XEROSIC_PLAY = [
     # Below the floor the Xerosic is a card we are HOLDING for later, not a play
     # we are short of alternatives for.
     #
-    # It goes ahead of every `_xr_gate_alakazam` branch below (which now cannot
-    # fire under six anyway) and, deliberately, ahead of `generic_very_big_hand`
-    # too: that branch needs >= 7 and is unreachable here, so the order costs
-    # nothing and the floor reads as absolute. Only the Alakazam matchup is
-    # touched; against every other deck the ladder is unchanged.
-    _FixedRule("alakazam_needs_six_cards",
+    # It goes ahead of every `_xr_gate_alakazam` branch below (which cannot fire
+    # under the floor anyway) and, deliberately, ahead of
+    # `generic_very_big_hand`. That order used to be free -- the generic branch
+    # needs >= 7 and the floor was 6, so it was unreachable here -- and with the
+    # early floor at EIGHT it is load-bearing: at seven cards on a six-prize
+    # board the generic branch would price the cap at 3380 and spend it one card
+    # short of the floor. Inside the Alakazam matchup the floor is the whole
+    # answer; against every other deck the generic branch decides as ever.
+    _FixedRule("alakazam_needs_the_hand_floor",
                _xr_below_the_alakazam_floor,
                lambda c: SCORE_VETO),
     # With a KO last turn and the Stamp in hand, the Stamp goes FIRST (it is an
@@ -773,10 +811,11 @@ _RULES_XEROSIC_PLAY = [
     # the ONE constant the play scorer (`generic_very_big_hand`) and the discard
     # scorer (`DISCARD_XEROSIC_CAPS_A_FAT_HAND`) already share to say "at this
     # size the cap is worth its Supporter". A card we would refuse to throw away
-    # cannot be a card we refuse to play. With `_xr_gate_alakazam` imposing a
-    # floor of six, the yield now lives in exactly one window -- an opposing
-    # hand of six, where the cap discards three cards -- and above it the cap
-    # takes the turn and the Lillie's waits.
+    # cannot be a card we refuse to play. With `_xr_gate_alakazam` imposing its
+    # floor, the yield lives in exactly one window -- an opposing hand of six,
+    # where the cap discards three cards, on a board with fewer than five of our
+    # prizes left (above five the floor is eight and the gate is already shut) --
+    # and above it the cap takes the turn and the Lillie's waits.
     _FixedRule("alakazam_yields_to_lillie_short_hand",
                lambda c: (_xr_gate_alakazam(c) and c.active_cant_attack
                           and c.op_hand_count < XEROSIC_BIG_HAND
@@ -850,6 +889,7 @@ def _score_xerosic_play(ctx: DecisionContext) -> int:
 
 __all__ = [
     '_xr_before_the_stamp',
+    '_xr_alakazam_floor',
     '_xr_below_the_alakazam_floor',
     '_xr_gate_alakazam',
     '_xr_cap_lost_if_discarded',

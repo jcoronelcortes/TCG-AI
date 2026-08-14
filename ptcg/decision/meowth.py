@@ -38,6 +38,7 @@ Extracted VERBATIM from main.py by utils/extract_definitions.py
 utils/purity.py: nothing here touches mutable state or the runtime tables.
 """
 
+from ptcg.decision.disruption import _xr_alakazam_floor
 from ptcg.engine.rules import _FixedRule
 from ptcg.cards.ids import Boss_Orders, Lillie_Determination, Xerosic_Machinations
 from ptcg.state.agent_state import AGENT_STATE
@@ -59,7 +60,17 @@ class _CtxMeowthFetch:
                  devel_lillie, alakazam, first_turn=False,
                  lillie_alcanzable=False, gust_over_immune_active=False,
                  recovery_ko=False, hand_supp_val=0,
-                 a_body_can_attack=True):
+                 a_body_can_attack=True, my_prize=6):
+        # OUR prizes REMAINING. The fetch reads it for one question only -- how
+        # big the opposing hand has to be before the Xerosic cap is worth a
+        # two-prize body, `_xr_alakazam_floor` -- and it has to read the SAME
+        # number the play side reads, or the Last-Ditch brings a Supporter the
+        # play scorer then refuses to play.
+        #
+        # It DEFAULTS TO SIX, the opening board, exactly as the floor itself
+        # defaults: a caller that does not carry the prize counter is answered
+        # as the start of a game, which is the strict end of the floor.
+        self.my_prize = my_prize
         # Can ANY body of ours pay for an attack before this turn ends -- the
         # active, a bench body the active can step aside for, or one that
         # evolves into an attacker? Computed once in agent() over
@@ -185,25 +196,26 @@ _RULES_MEOWTH_FETCH = [
                lambda c: (c.hand.get(c.card_id, 0) >= 1
                           and not c.first_turn),
                lambda c: 40),
-    # THE FLOOR OF SIX CARDS, ASKED BEFORE THE SEARCH (user, august 2026,
-    # records/registro_003 step 17 vs Alakazam, LOST). The play side now vetoes
-    # the cap while the opposing hand is under six
-    # (`alakazam_needs_six_cards`), and a Supporter we are not going to play is
-    # not a Supporter worth spending the Last-Ditch Catch on: the Meowth ex is a
-    # 2-prize body on the bench and the fetch only gets one card. The two
-    # Xerosic branches below already ask for `op_hand_count >= 6`, so under the
-    # floor they are silent -- what this rule closes is the ladder's TAIL, where
-    # `supporter_value` would still let a Xerosic through on its raw value if
-    # every other candidate scored lower.
+    # THE HAND FLOOR, ASKED BEFORE THE SEARCH (user, august 2026,
+    # records/registro_003 step 17 and step 29 vs Alakazam, LOST). The play side
+    # vetoes the cap while the opposing hand is under `_xr_alakazam_floor` --
+    # eight cards while five or more of our prizes are up, six from there on
+    # (`alakazam_needs_the_hand_floor`) -- and a Supporter we are not going to
+    # play is not a Supporter worth spending the Last-Ditch Catch on: the Meowth
+    # ex is a 2-prize body on the bench and the fetch only gets one card. The two
+    # Xerosic branches below read the same floor, so under it they are silent --
+    # what this rule closes is the ladder's TAIL, where `supporter_value` would
+    # still let a Xerosic through on its raw value if every other candidate
+    # scored lower.
     # 40 and not a veto, for the same reason as `copy_already_in_hand` above:
     # the prompt forces us to pick a card, so if every candidate were vetoed we
     # would still have to keep one. It fires only vs Alakazam; against any other
     # deck the generic branch (`xerosic_generico`, opposing hand >= 7) decides
     # as before.
-    _FixedRule("alakazam_xerosic_needs_six_cards",
+    _FixedRule("alakazam_xerosic_needs_the_hand_floor",
                lambda c: (c.card_id == Xerosic_Machinations
                           and c.alakazam
-                          and c.op_hand_count < 6),
+                          and c.op_hand_count < _xr_alakazam_floor(c)),
                lambda c: 40),
     # Winning finisher / 2 prizes via a Boss's Orders from the DECK.
     _FixedRule("winning_boss",
@@ -366,7 +378,7 @@ _RULES_MEOWTH_FETCH = [
                lambda c: (c.card_id == Xerosic_Machinations
                           and not c.win_via_boss
                           and c.alakazam
-                          and c.op_hand_count >= 6
+                          and c.op_hand_count >= _xr_alakazam_floor(c)
                           and (c.hand_size >= 3 or c.strong_attacker)),
                lambda c: 1310),
     # Xerosic vs Alakazam (user): with a fat opposing hand (Powerful Hand =
@@ -402,7 +414,7 @@ _RULES_MEOWTH_FETCH = [
     _FixedRule("xerosic_alakazam",
                lambda c: (c.card_id == Xerosic_Machinations
                           and c.alakazam
-                          and c.op_hand_count >= 6
+                          and c.op_hand_count >= _xr_alakazam_floor(c)
                           and (c.hand_size >= 3 or c.strong_attacker)),
                lambda c: 1260 if c.strong_attacker else 1200),
     # GENERIC Xerosic in the Last-Ditch fetch (Meowth engine plan, improvement

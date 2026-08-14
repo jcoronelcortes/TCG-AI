@@ -69,7 +69,7 @@ from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug
 from ptcg.state.zones import ZONE_DECK
 from ptcg.cards.lines import _evo_body_in_play, _evo_copies_usable, _evolution_stage, _line_base_benchable
 from ptcg.cards.scoring import _SUPP_PLAY_IDS
-from ptcg.decision.disruption import _score_xerosic_play, _xr_gate_alakazam
+from ptcg.decision.disruption import _score_xerosic_play, _xr_below_the_alakazam_floor, _xr_gate_alakazam
 from ptcg.decision.poke_pad import _pp_es_t1
 from ptcg.turn.game_plan import plan_of
 
@@ -1092,15 +1092,22 @@ def _alakazam_dig_xerosic_engine(c) -> bool:
     DecisionContext or the _CtxLillie (both expose these fields, the latter by
     delegation).
 
-    Threshold of opposing hand >= 7 (not >= 6 like the gate for PLAYING
-    Xerosic): digging for the disruption consumes a whole turn (Ultra Ball +
-    Meowth + Supporter, without refilling), an investment that is only justified
-    with the opposing hand clearly inflated -- aligned with the fetch's
-    `xerosic_generico`. With 6 cards (the base hand at turn 3-4) the Lillie's
-    refill can be worth more than the disruption, so there it is neither vetoed
-    nor is the Ultra Ball prioritised."""
+    Threshold of opposing hand >= 7, and NEVER below the floor for PLAYING
+    Xerosic (`_xr_below_the_alakazam_floor`): digging for the disruption
+    consumes a whole turn (Ultra Ball + Meowth + Supporter, without refilling),
+    an investment that is only justified with the opposing hand clearly inflated
+    -- aligned with the fetch's `xerosic_generico`. With 6 cards (the base hand
+    at turn 3-4) the Lillie's refill can be worth more than the disruption, so
+    there it is neither vetoed nor is the Ultra Ball prioritised.
+
+    The two conditions are not the same one written twice: the play floor now
+    moves with our prize counter (EIGHT while five or more of our prizes are up,
+    six after that), so at seven cards on a six-prize board this engine would
+    otherwise spend the turn assembling a cap the play side vetoes -- the whole
+    chain exists to PLAY that Xerosic."""
     if not (getattr(c, 'op_is_alakazam_deck', False)
             and c.op_hand_count >= 7
+            and not _xr_below_the_alakazam_floor(c)
             and not c.state.supporterPlayed):
         return False
     # NEVER on OUR first turn (user, log 88461779 step 16 vs Alakazam,
