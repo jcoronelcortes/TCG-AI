@@ -162,7 +162,10 @@ def _scenario(hand, supporter_played=True):
     return (Scenario(turn=4, step=16, tac=3, first_player=1,
                       supporter_played=supporter_played)
             .my_active(pk(TAPU))
-            .my_bench(pk(TAPU), pk(OGERPON))
+            # The record had a second Tapu Bulu on the bench; deck.csv holds one,
+            # so the third body is a Chikorita. It is still a body with no energy
+            # that argues nothing about the Ultra Ball, which is the point.
+            .my_bench(pk(CHIKORITA), pk(OGERPON))
             .my_hand(*hand)
             .op_active(pk(ABRA))
             .op_zones(hand=3, deck=45, prizes=6)

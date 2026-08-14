@@ -91,13 +91,17 @@ def _scenario_step69(op_active="kangaskhan", dipplin_energy=2):
            .op_zones(hand=9, deck=37, prizes=2)
            .op_discard(m.Xerosic_Machinations, m.Lillie_Determination,
                         m.Lillie_Determination, 1264)
-           # The visible deck: the real composition of the select.deck of step 69.
+           # The visible deck: the real composition of the select.deck of step 69,
+           # with the SECOND Night Stretcher replaced by a Poke Pad -- the record
+           # was played with a list that held two, and deck.csv now holds one
+           # Night Stretcher and two Poke Pads. Same kind of card (an Item that
+           # buys a body) and the same 22 cards visible.
            .deck(m.Hydrapple_ex, m.Tapu_Bulu, m.Lillie_Determination,
                  m.Basic_Grass_Energy, m.Basic_Grass_Energy,
                  m.Basic_Grass_Energy, m.Basic_Grass_Energy,
                  m.Basic_Grass_Energy, m.Basic_Grass_Energy,
                  m.Teal_Mask_Ogerpon_ex, m.Hydrapple_ex, m.Chikorita,
-                 m.Bug_Catching_Set, m.Night_Stretcher, m.Night_Stretcher,
+                 m.Bug_Catching_Set, m.Night_Stretcher, m.Poke_Pad,
                  m.Ultra_Ball, m.Boss_Orders, m.Xerosic_Machinations,
                  m.Lillie_Determination, m.Lillie_Determination,
                  m.Forest_of_Vitality, m.Forest_of_Vitality)
@@ -1148,7 +1152,11 @@ def _scenario_t2_going_second(hand):
             .my_hand(*hand)
             .op_active(pk(103, hp=60, max_hp=60))
             .op_zones(hand=6, deck=40, prizes=6)
-            .deck(m.Meowth_ex, m.Lillie_Determination, m.Tapu_Bulu,
+            # The Tapu Bulu is ACTIVE here, and deck.csv holds a single copy, so
+            # the body that fills its slot in the search universe is a Bayleef:
+            # what the fetch must pass over is another Pokemon that is not the
+            # Meowth engine, and its species is not what is being measured.
+            .deck(m.Meowth_ex, m.Lillie_Determination, m.Bayleef,
                   m.Hydrapple_ex, m.Applin, m.Teal_Mask_Ogerpon_ex)
             .fetch_ultra_ball()
             .rest_to_discard()

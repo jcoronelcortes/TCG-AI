@@ -70,6 +70,7 @@ APPLIN = m.Applin
 CHIKORITA = m.Chikorita
 DIPPLIN = m.Dipplin
 TAPU_BULU = m.Tapu_Bulu
+OGERPON = m.Teal_Mask_Ogerpon_ex
 GRASS = m.Basic_Grass_Energy
 
 TUMBLING_ATTACK = 114        # Applin: 10 damage for one energy
@@ -227,12 +228,17 @@ def test_control_a_twin_already_damaged_still_takes_the_front():
 
 
 def test_control_a_twin_that_knocks_the_opponent_out_still_takes_the_front():
-    """PRIZE gate (the user's first exception). A bare Tapu Bulu in front and
-    its twin on four Grass behind it: 220 through a 70 HP body is a prize the
-    active cannot take, and the fee buys it."""
-    chosen = _chosen(_twin_board(pk(TAPU_BULU, energies=[G], fisicas=1),
+    """PRIZE gate (the user's first exception). A bare Ogerpon ex in front and
+    its twin on four Grass behind it: Myriad Leaf Shower through a 70 HP body is
+    a prize the active cannot take, and the fee buys it.
+
+    It was a pair of Tapu Bulu until deck.csv went down to one copy. The gate
+    is about TWINS, not about that species, and the pair still measures it:
+    with the benched twin on one Grass -- no prize behind it -- the same board
+    stops retreating."""
+    chosen = _chosen(_twin_board(pk(OGERPON, energies=[G], fisicas=1),
                                  pk(CHIKORITA),
-                                 pk(TAPU_BULU, energies=[G] * 4, fisicas=4)))
+                                 pk(OGERPON, energies=[G] * 4, fisicas=4)))
     assert chosen["type"] == int(OptionType.RETREAT), chosen
 
 

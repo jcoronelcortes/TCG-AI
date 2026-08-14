@@ -199,13 +199,30 @@ def _recovery_board(op_active_id):
     Bulu holds TWO physical Grass and a Bayleef waits on the bench, so the
     Meganium in the discard is not a development piece -- it is this turn's
     attack: Wild Growth doubles those two into the four Wood Hammer costs. The
-    second Tapu Bulu next to it in the discard is the card the old whitelist
-    preferred, and it would arrive in hand needing four energies of its own."""
+    Applin next to it in the discard is the body the old whitelist reached for
+    instead, and it would arrive in hand as a Basic that does nothing this turn.
+
+    It used to be the SECOND Tapu Bulu -- the whitelist's own first choice --
+    but deck.csv now holds ONE, and that copy is the active this board needs.
+    (Pinsir, the whitelist's other member, is not in the list at all, so against
+    pure Cornerstone that whitelist reaches exactly one card: this active.)
+
+    WEAKER THAN IT WAS, and it is written down rather than left to be
+    discovered: with the second Tapu Bulu the competitor was the card the old
+    whitelist PREFERRED. An Applin is not. Forcing
+    `_ns_crustle_allowed_basics` back to `(Tapu_Bulu, Pinsir)` and
+    `_ns_crustle_evos_permitidas` to `()` still recovers the Meganium on this
+    board, so the Cornerstone case below no longer separates the whitelist from
+    the generic scorer -- it now says the same thing as its own control. Making
+    it sharp again needs a competitor the whitelist ranks above Meganium, and
+    with a 1-of Tapu Bulu and no Pinsir the deck no longer holds one."""
     return (Scenario(turn=8, step=1, tac=1)
             .my_active(pk(m.Tapu_Bulu, energies=[G, G]))
             .my_bench(pk(m.Bayleef, pre_evo=[m.Chikorita]))
-            .my_hand(m.Night_Stretcher)
-            .my_discard(m.Meganium, m.Tapu_Bulu)
+            # The hand is empty: the single Night Stretcher of deck.csv is the
+            # one already IN EFFECT below, resolving its own selection.
+            .my_hand()
+            .my_discard(m.Meganium, m.Applin)
             .op_active(pk(op_active_id, hp=210, max_hp=210))
             .op_zones(hand=4, deck=40, prizes=4)
             .fetch_discard(m.Night_Stretcher)

@@ -11,18 +11,18 @@ do, so this page is the reference for the rest of the documentation.
 
 ## The list
 
-**Pokémon (21)**
+**Pokémon (20)**
 
 | Count | Card | Role |
 | ---: | --- | --- |
 | 4 | **Teal Mask Ogerpon ex** | Attacker and tank. Ability *Teal Dance* attaches a Grass energy from hand and draws a card. Its attack *Myriad Leaf Shower* scales with the energy on **both** actives. |
 | 2 | **Applin → Dipplin → Hydrapple ex** (2 of each) | The big ex attacker. *Syrup Storm* scales with the Grass energy across our field; *Ripening Charge* moves energy around; 330 HP makes it the body we pivot to when the active is doomed. |
 | 2 | **Chikorita → Bayleef → Meganium** (2 of each) | The accelerator. Meganium's *Wild Growth* makes **every Grass energy count double**, and it attacks for 140 while only giving up one prize. |
-| 2 | **Tapu Bulu** | Heavy one-prize attacker: *Wood Hammer* for 220. |
+| 1 | **Tapu Bulu** | Heavy one-prize attacker: *Wood Hammer* for 220. |
 | 2 | **Meowth ex** | The hand engine. *Last-Ditch Catch* searches a Supporter out of the deck when it comes down. |
 | 1 | **Fezandipiti ex** | Draw engine and sniper. *Flip the Script* draws 3 if one of our Pokémon was knocked out last turn; *Cruel Arrow* can hit anything on the board. |
 
-**Trainers (26)**
+**Trainers (22)**
 
 | Count | Card | Role |
 | ---: | --- | --- |
@@ -31,18 +31,18 @@ do, so this page is the reference for the rest of the documentation.
 | 4 | Bug Catching Set | Bug-type search. |
 | 2 | Boss's Orders | Drag a benched opponent Pokémon into the active spot. |
 | 2 | Xerosic's Machinations | The opponent discards down to three cards. |
-| 2 | Night Stretcher | Recover a Pokémon or an energy from the discard. |
+| 1 | Night Stretcher | Recover a Pokémon or an energy from the discard. |
 | 1 | Unfair Stamp | Both players shuffle their hand back and draw a new one — the opponent draws fewer. |
 | 1 | Lana's Aid | Recover non-ex Pokémon and energy. |
 | 1 | Dawn | Supporter draw. |
-| 1 | Poké Pad | Small Pokémon search. |
+| 2 | Poké Pad | Small Pokémon search. |
 
-**Stadium and energy (17)**
+**Stadium and energy (18)**
 
 | Count | Card | Role |
 | ---: | --- | --- |
 | 4 | Forest of Vitality | Accelerates Grass energy. Also the card we use to remove hostile stadiums. |
-| 13 | Basic Grass Energy | All of our energy. |
+| 14 | Basic Grass Energy | All of our energy. |
 
 ## The engines the agent is built around
 

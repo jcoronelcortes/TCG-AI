@@ -240,11 +240,13 @@ def test_step49_fishes_two_cards_for_two_prizes(monkeypatch):
     assert plan.cards_needed == 2, "faltan DOS Plantas (adjunte manual + Teal Dance)"
     assert plan.lethal and plan.prizes == 2
     assert plan.damage == 360
-    # The belief counts what is UNSEEN (deck 38 + 6 prizes): 11 Grass in 48
+    # The belief counts what is UNSEEN (deck 38 + 6 prizes): 12 Grass in 48
     # cards after shuffling the 4 from hand. A conservative estimate of the real
-    # 0.63 (10 live Grass in the 42-card deck).
-    assert plan.draws == 8 and plan.outs == 11 and plan.universe == 48
-    assert plan.prob == pytest.approx(0.5976, abs=1e-4)
+    # 0.69 (11 live Grass in the 42-card deck). Both numbers follow deck.csv:
+    # they were 11 outs / 0.5976 while the list held 13 Basic Grass, and they
+    # are 12 / 0.6543 with 14.
+    assert plan.draws == 8 and plan.outs == 12 and plan.universe == 48
+    assert plan.prob == pytest.approx(0.6543, abs=1e-4)
 
 
 def test_step49_plays_lillie_to_fish_not_boss():
