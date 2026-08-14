@@ -59,7 +59,7 @@ from ptcg.calc.damage import _attacker_base_damage
 from ptcg.calc.energy import _grass_mult
 from ptcg.calc.opponent import _op_juega_crustle
 from ptcg.calc.board import _active_of
-from ptcg.cards.ids import Applin, BOSS_SCORE_PRIZE_RANK_BASE, DOOMED_SAC_WALL_PLAY_SCORE, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, KO_WINDOW_PLAY_IDS, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Pinsir, Poke_Pad, SCORE_CHARGE_DOOMED, SCORE_USELESS_ATTACK, SCORE_VETO, SUPP_SCORE_LAST_RESORT_BAND, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Xerosic_Machinations
+from ptcg.cards.ids import Applin, BOSS_SCORE_PRIZE_RANK_BASE, DOOMED_SAC_WALL_PLAY_SCORE, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, KO_WINDOW_PLAY_IDS, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, OP_HAND_PRICED_PLAY_IDS, Pinsir, Poke_Pad, SCORE_CHARGE_DOOMED, SCORE_USELESS_ATTACK, SCORE_VETO, SUPP_SCORE_LAST_RESORT_BAND, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, XEROSIC_FREE_SLOT_HAND, Xerosic_Machinations
 from ptcg.cards.groups import GRASS_DOUBLER_LINE_IDS
 from ptcg.cards.scoring import SCORE_LD_SUPP_COMPROMETIDO, _SUPP_PLAY_IDS
 from ptcg.cards.tables import HAND_COST_ABILITY_IDS, HAND_DISCARD_COST_PLAY_IDS, HAND_NEUTRAL_ABILITY_IDS, HAND_RESET_PLAY_IDS, attack_table, card_table
@@ -79,6 +79,33 @@ from ptcg.turn.game_plan import plan_of
 # `utils/tier_inversion_census.py` sets this to a callable to count them; it is
 # None in production and costs one identity check per menu.
 TIER_CENSUS_SINK = None
+
+# The seam the census of `utils/census_the_cap_cashes_a_dying_slot.py` hangs on:
+# a callable that is handed every board where the exception below decides. None
+# in production.
+DYING_SLOT_CENSUS_SINK = None
+
+
+def _sba_price_is_theirs(card_id, op_state):
+    """Is this a play whose whole price hangs on THEIR side of the table, and is
+    their hand big enough right now for it to pay?
+
+    The one exception to the last-resort guard of the net below. See
+    `OP_HAND_PRICED_PLAY_IDS` for why "it keeps its value for tomorrow" is not
+    an argument about this card, and `XEROSIC_FREE_SLOT_HAND` for the size.
+
+    `getattr` on the count for the same reason the rest of the estate uses it:
+    the unit tests build stub states carrying only the fields their predicate
+    reads. A state with no hand count is answered as a hand of zero -- the
+    exception does not fire, and the old guard decides, which is the safe way
+    round for a rule that SPENDS a card.
+    """
+    if card_id not in OP_HAND_PRICED_PLAY_IDS:
+        return False
+    fires = getattr(op_state, 'handCount', 0) >= XEROSIC_FREE_SLOT_HAND
+    if DYING_SLOT_CENSUS_SINK is not None:
+        DYING_SLOT_CENSUS_SINK(card_id, getattr(op_state, 'handCount', 0), fires)
+    return fires
 
 
 def finalizar(tc):
@@ -1521,6 +1548,51 @@ def finalizar(tc):
     #     height a scorer is saying "I have NO useful effect today, play me only
     #     because nothing else scores" -- and the slot being free is not a reason
     #     to spend the CARD, which keeps its value for tomorrow.
+    #
+    #     ...UNLESS TOMORROW'S PRICE IS THEIRS TO SET (user, `records/
+    #     registro_005_pasos_062_hasta_068.json`, episode 92866795, turn 5 vs
+    #     Mega Lopunny ex / Mega Froslass ex -- LOST). At step 68 the turn had
+    #     spent itself developing: Poke Pad, Bug Catching Set, Chikorita and a
+    #     Teal Mask Ogerpon ex to the bench. What was left on the menu was
+    #     {play XEROSIC'S MACHINATIONS, attack, end turn}, the Supporter slot was
+    #     UNSPENT, and their hand held SIX cards -- which the replay names: two
+    #     Mega Froslass ex, two Wally's Compassion, a Pokegear and a Boss's
+    #     Orders. Capping it would have sent THREE of those six to the discard
+    #     for good, the second Mega among them. The agent attacked, and both the
+    #     cap and the slot went into the bin with the turn.
+    #
+    #     The guard above is what skipped it, and its premise is the half that
+    #     does not survive the reading. Against a deck that is not Alakazam a
+    #     hand of six is one card under `XEROSIC_BIG_HAND`, so the ladder falls
+    #     to its default (`XEROSIC_SCORE_LAST_RESORT`, 20) -- and 20 does not
+    #     mean "worthless", it means "do not spend the SLOT on me". Here the slot
+    #     is not being spent, it is EXPIRING. What the guard then protects is the
+    #     card, on the promise that it keeps its value for tomorrow; but this
+    #     card's value is the size of THEIR hand, and what that is tomorrow is
+    #     the opponent's decision, not ours. Our own discard scorer agrees out
+    #     loud: on this exact board it prices the same Xerosic at 60, the most
+    #     throwable Supporter band there is, cheap Ultra Ball fodder. We were
+    #     refusing to cash for three of their cards a card we would have binned
+    #     face-down to pay for a search.
+    #
+    #     And the guard was never consistent with itself: at 20 the card IS
+    #     spent by elimination whenever the menu is {play it, END} (END scores 0
+    #     -- see the note in `alakazam_needs_the_hand_floor`, which had to be
+    #     written as a hard veto for exactly that reason). Whether the last
+    #     resort gets played was therefore decided by whether our active happened
+    #     to have an attack available, which is nothing to do with keeping a card
+    #     for tomorrow. Both menus end the turn.
+    #
+    #     So the exception is scoped to the property that breaks the premise --
+    #     `OP_HAND_PRICED_PLAY_IDS`, a play priced by a resource the opponent
+    #     owns -- and to a hand big enough for the cap to pay,
+    #     `XEROSIC_FREE_SLOT_HAND`: it has to discard at least as many cards as
+    #     it leaves. It cannot resurrect a veto (`scores[_sbai] <= _sba_best`
+    #     starts at 0 and drops every negative), and it cannot steal the slot
+    #     from the card the ladder yielded it to, because a live Lillie's / Dawn
+    #     scores in the thousands and wins this same loop -- when that card is
+    #     NOT on the menu the attack was going to bury it anyway. See
+    #     `_sba_price_is_theirs`.
     #   * BOSS'S ORDERS is excluded. It is the one Supporter that rewrites the
     #     board the attack acts on: gusting changes WHO is in the active spot and
     #     therefore what the attack does, so gust and attack ARE alternatives and
@@ -1607,7 +1679,8 @@ def finalizar(tc):
                     _sbad = card_table.get(_sbac.id)
                     if _sbad is None or _sbad.cardType != CardType.SUPPORTER:
                         continue
-                    if scores[_sbai] <= SUPP_SCORE_LAST_RESORT_BAND:
+                    if (scores[_sbai] <= SUPP_SCORE_LAST_RESORT_BAND
+                            and not _sba_price_is_theirs(_sbac.id, op_state)):
                         continue
                 _sba_i = _sbai
                 _sba_best = scores[_sbai]
