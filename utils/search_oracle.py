@@ -169,6 +169,23 @@ def _ids_seen(obs, seat):
     for card in (stadium if isinstance(stadium, list) else [stadium]):
         if card and card.get("playerIndex") == seat:
             take(card)
+
+    # THE CARDS IN FLIGHT, and they are the reason this used to come up two
+    # short. A card being looked at (`current.looking`) or the card whose effect
+    # is resolving right now (`select.effect`) is in NO zone: it has left the
+    # hand and has not reached the discard. `ptcg/state/tracking.py` documents
+    # the same hole from the other side -- an unaccounted copy there gets filed
+    # as a PRIZE. Here it simply went missing, and `determinize` refused to
+    # close, which is the guard doing its job: 3 of 15 boards on a self-play
+    # workload, every one of them mid-effect.
+    looking = (obs.get("current") or {}).get("looking")
+    for card in (looking if isinstance(looking, list) else [looking]):
+        if card and card.get("playerIndex") == seat:
+            take(card)
+    effect = (obs.get("select") or {}).get("effect")
+    for card in (effect if isinstance(effect, list) else [effect]):
+        if card and card.get("playerIndex") == seat:
+            take(card)
     return seen
 
 
@@ -195,26 +212,41 @@ def determinize(obs, opponent_obs, our_deck, their_deck, rng=None):
 
     out = {}
     for seat, deck_list, source in ((us, our_deck, obs), (them, their_deck, opponent_obs)):
-        seen = _ids_seen(obs if seat == us else obs, seat)
-        if seat == them and opponent_obs is not None:
-            # Their own observation shows more of their board than ours does --
-            # above all the hand -- so it is the better reader for their side.
-            seen = _ids_seen(opponent_obs, them)
+        # ALWAYS the CURRENT observation, for both seats. The opponent's board --
+        # active, bench, discard, stadium -- is PUBLIC and is right here; the
+        # only thing their own view adds is the hand. Reading their whole side
+        # from THEIR last observation instead mixes a stale board with current
+        # counts, and `determinize` then refuses to close: 3 of 15 boards on a
+        # self-play workload, first two cards short and then two cards over.
+        seen = _ids_seen(obs, seat)
         hand = []
         hand_sampled = False
         n_hand = int(state["players"][them].get("handCount") or 0) if seat == them else 0
         if seat == them and opponent_obs is not None:
             src = opponent_obs["current"]
-            hand = [c["id"] for c in (src["players"][them].get("hand") or [])
-                    if c and c.get("id") is not None]
-            for cid in hand:
-                seen[cid] -= 1           # the hand is accounted separately below
-            seen += Counter()            # drop the zeros
+            leido = [c["id"] for c in (src["players"][them].get("hand") or [])
+                     if c and c.get("id") is not None]
+            # ⚠️ THE OPPONENT'S VIEW IS THE LAST ONE THEY WERE HANDED, NOT THIS
+            # INSTANT. Between their turn and this decision they draw, and the
+            # hand read from that stale observation is then SHORTER than the
+            # `handCount` this observation reports. Mixing the two is what made
+            # `determinize` come up two cards short on 3 of 15 boards -- the
+            # guard caught it, which is the whole reason the guard exists. If
+            # the two do not agree, the view is stale and the hand is sampled
+            # like everything else rather than half-believed.
+            # And it is ADDITIVE, not a correction. `seen` now comes from the
+            # current observation, which does not show their hand at all, so
+            # subtracting the read hand from it -- as this did while `seen` came
+            # from THEIR view, where the hand IS included -- deletes board cards
+            # that merely share an id with something they are holding. That is
+            # what turned "two cards short" into "four cards short".
+            if len(leido) == n_hand:
+                hand = leido
         rest = list((Counter(deck_list) - seen).elements())
         if seat == them:
             rest = list((Counter(rest) - Counter(hand)).elements())
         rng.shuffle(rest)
-        if seat == them and opponent_obs is None and n_hand:
+        if seat == them and not hand and n_hand:
             # No opponent view: their hand is drawn from what is left, exactly
             # like their prizes. It is a legal world, not the true one.
             hand, rest = rest[:n_hand], rest[n_hand:]

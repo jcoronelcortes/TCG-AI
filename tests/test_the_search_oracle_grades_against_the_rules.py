@@ -28,27 +28,48 @@ for _p in (ROOT, ROOT / "utils"):
 import search_oracle as so  # noqa: E402
 
 
+def _card(cid):
+    return {"id": cid, "serial": None}
+
+
+def _player(hand, deck_count, prize, active, bench, hand_count=None):
+    return {"hand": [_card(c) for c in hand],
+            "deckCount": deck_count,
+            "prize": [None] * prize,
+            "handCount": len(hand) if hand_count is None else hand_count,
+            "discard": [],
+            "active": active,
+            "bench": bench}
+
+
 def _board(hand_us, deck_count_us, prize_us, seen_us,
            hand_them, deck_count_them, prize_them, seen_them):
-    """A minimal observation: only the fields the determinizer reads."""
-    def card(cid):
-        return {"id": cid, "serial": None}
+    """OUR observation — and it does not show their hand, because none does.
 
-    def player(hand, deck_count, prize, active, bench):
-        return {"hand": [card(c) for c in hand],
-                "deckCount": deck_count,
-                "prize": [None] * prize,
-                "handCount": len(hand),
-                "discard": [],
-                "active": active,
-                "bench": bench}
-
+    An earlier version of this helper listed the opponent's hand cards in our
+    own view and then passed the same object as both observations. That board
+    cannot exist, and it hid a real defect: with `seen` read from the current
+    observation, the opponent's hand is purely ADDITIVE, while a fixture that
+    shows their hand in our view makes it a correction. The two disagree by
+    exactly the cards they hold that also sit on their board.
+    """
     return {"current": {
         "yourIndex": 0,
         "stadium": [],
-        "players": [player([], deck_count_us, prize_us, seen_us, []),
-                    player(hand_them, deck_count_them, prize_them, seen_them, [])],
+        "players": [_player([], deck_count_us, prize_us, seen_us, []),
+                    _player([], deck_count_them, prize_them, seen_them, [],
+                            hand_count=len(hand_them))],
     }}
+
+
+def _their_view(obs, hand_them):
+    """The opponent's OWN observation: the one place their hand is legible."""
+    import copy
+
+    theirs = copy.deepcopy(obs)
+    theirs["current"]["yourIndex"] = 1
+    theirs["current"]["players"][1]["hand"] = [_card(c) for c in hand_them]
+    return theirs
 
 
 def _body(cid, energies=(), tools=(), pre=()):
@@ -67,7 +88,7 @@ def test_the_determinization_closes_on_sixty_per_seat():
     obs = _board(hand_us=[], deck_count_us=53, prize_us=6, seen_us=[_body(1)],
                  hand_them=[3, 3], deck_count_them=51, prize_them=6,
                  seen_them=[_body(4)])
-    det = so.determinize(obs, obs, DECK_A, DECK_B)
+    det = so.determinize(obs, _their_view(obs, [3, 3]), DECK_A, DECK_B)
     assert len(det["your_deck"]) == 53
     assert len(det["your_prize"]) == 6
     assert len(det["opponent_deck"]) == 51
@@ -125,8 +146,9 @@ def test_the_same_seed_gives_the_same_determinization():
                  seen_them=[_body(4)])
     import random
 
-    a = so.determinize(obs, obs, DECK_A, DECK_B, rng=random.Random(7))
-    b = so.determinize(obs, obs, DECK_A, DECK_B, rng=random.Random(7))
+    theirs = _their_view(obs, [3])
+    a = so.determinize(obs, theirs, DECK_A, DECK_B, rng=random.Random(7))
+    b = so.determinize(obs, theirs, DECK_A, DECK_B, rng=random.Random(7))
     for key in ("your_deck", "your_prize", "opponent_deck", "opponent_prize"):
         assert a[key] == b[key]
 
@@ -138,3 +160,41 @@ def test_the_oracle_says_out_loud_that_it_cannot_be_a_policy():
     assert "NEVER BE A PLAY-TIME POLICY" in head, (
         "the warning has to be at the TOP, where somebody opening the file "
         "reads it before deciding what to do with the module")
+
+
+def test_their_hand_is_added_and_not_subtracted():
+    """The defect that took three tries to find, pinned so it cannot come back.
+
+    `seen` comes from OUR observation, which does not show their hand. So the
+    hand read from their own view is purely ADDITIVE. Subtracting it -- which is
+    what the code did while `seen` came from THEIR view, where the hand IS
+    included -- deletes board cards that merely share an id with something they
+    are holding, and the determinization then comes up short by exactly that
+    many. Here their board shows two copies of card 4 and their hand holds two
+    more: the deck must lose four, not two.
+    """
+    obs = _board(hand_us=[], deck_count_us=54, prize_us=6, seen_us=[],
+                 hand_them=[4, 4], deck_count_them=50, prize_them=6,
+                 seen_them=[_body(4), _body(4)])
+    det = so.determinize(obs, _their_view(obs, [4, 4]), DECK_A, DECK_B)
+    assert det["opponent_hand"] == [4, 4]
+    assert len(det["opponent_deck"]) == 50
+    assert 2 + len(det["opponent_hand"]) + len(det["opponent_prize"]) + \
+        len(det["opponent_deck"]) == 60
+
+
+def test_a_stale_opponent_view_is_not_half_believed():
+    """Their view is the LAST one they were handed, not this instant.
+
+    Between their turn and this decision they draw, so a hand read from that
+    stale observation is shorter than the `handCount` this one reports. Mixing
+    the two is how the determinization came up two cards short on a fifth of the
+    boards. When they disagree, the hand is sampled rather than half-believed.
+    """
+    obs = _board(hand_us=[], deck_count_us=54, prize_us=6, seen_us=[],
+                 hand_them=[3, 3, 3, 3, 3], deck_count_them=49, prize_them=6,
+                 seen_them=[])
+    stale = _their_view(obs, [3, 3])            # they have drawn three since
+    det = so.determinize(obs, stale, DECK_A, DECK_B)
+    assert len(det["opponent_hand"]) == 5, "the COUNT is current even if the ids are not"
+    assert len(det["opponent_deck"]) == 49
