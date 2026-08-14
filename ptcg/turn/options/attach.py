@@ -124,7 +124,22 @@ def score_play(tc, o, score):
                 # charged a benched Applin instead of the active Tapu Bulu). Only
                 # Tapu Bulu is exempted; Ogerpon ex stays vetoed (it does not
                 # damage the wall).
-                _ft_veto_ids = ((Teal_Mask_Ogerpon_ex,) if AGENT_STATE.op_is_crustle_deck
+                #
+                # THE SAME SENTENCE, THE OTHER WALL (user, ago 2026). Cornerstone
+                # Mask Ogerpon ex blanks the bodies that carry an ABILITY instead
+                # of the ones that carry a rule box, and in this deck that is a
+                # STRICTLY WORSE list: Teal Mask Ogerpon ex, Hydrapple ex,
+                # Meganium, Dipplin, Meowth ex and Fezandipiti ex are all in
+                # `OUR_ABILITY_IDS`, so the only body left that removes the wall
+                # is Tapu Bulu again -- and against a {G}-weak 210 HP ex its Wood
+                # Hammer is 440, a two-prize knockout the turn it can pay for it.
+                # The half of the rule that lifts the veto read `op_is_crustle_deck`
+                # only, so on the opening turn against Cornerstone the active Tapu
+                # was still being denied the turn's Grass. Same exemption, same
+                # reason; Ogerpon ex stays vetoed against BOTH walls.
+                _ft_veto_ids = ((Teal_Mask_Ogerpon_ex,)
+                                if (AGENT_STATE.op_is_crustle_deck
+                                    or AGENT_STATE.op_is_cornerstone_deck)
                                 else (Teal_Mask_Ogerpon_ex, Tapu_Bulu))
                 if (((state.turn == 1 and AGENT_STATE.we_go_first) or
                         (state.turn == 2 and not AGENT_STATE.we_go_first))

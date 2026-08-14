@@ -295,6 +295,29 @@ def score_play(tc, o, score):
                         # (Dipplin->Hydrapple = 33000). The final Meganium is already
                         # worth 35000 (> this 34000).
                         score = 34000
+                    if (AGENT_STATE.op_is_cornerstone_deck
+                            or op_has_ability_immune_active):
+                        # THE RUNG WAS MISSING UNDER THE PRIZE (user, ago 2026).
+                        # Against Cornerstone Mask Ogerpon ex the top of this line
+                        # was already treated as a matchup priority -- Meganium is
+                        # bumped to 35500 a few branches above -- but the STEP that
+                        # gets there was not: a benched Chikorita evolving into
+                        # Bayleef stayed at 32000, BELOW the Dipplin -> Hydrapple ex
+                        # of the other line (33000). So the turn that had both
+                        # evolutions on the menu spent itself assembling a body that
+                        # does ZERO to that wall (Ripening Charge is an Ability) and
+                        # deferred the one that halves the price of the body that
+                        # does: Wild Growth turns each Basic {G} into {G}{G}, so with
+                        # Meganium in play Wood Hammer costs TWO physical Grass
+                        # instead of four -- the difference between Tapu Bulu
+                        # attacking on the turn it lands and two turns later.
+                        # A ladder is worth what its lowest unclimbed rung is worth;
+                        # scoring the summit and not the step is scoring nothing.
+                        # Same number and same reasoning as the Cubchoo branch, and
+                        # it deliberately does NOT veto the Hydrapple line -- the
+                        # 330 HP body still absorbs the wall's Demolish; it only
+                        # stops going FIRST.
+                        score = 34000
         
             elif card.id == Dipplin:
         

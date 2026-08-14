@@ -1698,7 +1698,28 @@ def score_play(tc, o, score):
                         # Bulu that was dead in hand (50). The Grass also charges
                         # the Tapu itself, the attacker of these matchups.
                         if AGENT_STATE.op_is_cornerstone_deck and not AGENT_STATE.op_is_crustle_deck:
-                            _cc_sel_valid = (Tapu_Bulu, Pinsir,
+                            # THE LIST WAS DRAWN FROM THE WRONG PROPERTY (user,
+                            # ago 2026). The Cornerstone whitelist kept only the
+                            # two bodies that hit the wall THEMSELVES and dropped
+                            # Chikorita, Bayleef and Meganium -- and on both
+                            # halves of that reading it is the Crustle list, not
+                            # this one, that is right here.
+                            #
+                            # Chikorita and Bayleef carry NO Ability, so unlike
+                            # every ex in this deck they are not blanked by
+                            # Cornerstone Stance: through the {G} weakness a
+                            # Bayleef's Push Down is 100 to the wall's face. And
+                            # Meganium, which really does do zero to it, is the
+                            # card the matchup is BUILT around: Wild Growth is
+                            # what drops Wood Hammer from four physical Grass to
+                            # two. Recovering the piece that halves the price of
+                            # the win condition is not off-plan, it IS the plan --
+                            # the same argument `mega_line_enables_tapu_vs_cornerstone`
+                            # already makes on the Ultra Ball side of the deck.
+                            # Applin and Dipplin stay out: both lead only to
+                            # bodies the wall switches off.
+                            _cc_sel_valid = (Tapu_Bulu, Pinsir, Chikorita,
+                                             Bayleef, Meganium,
                                              Basic_Grass_Energy)
                         else:
                             _cc_sel_valid = (Tapu_Bulu, Pinsir, Applin, Chikorita,
