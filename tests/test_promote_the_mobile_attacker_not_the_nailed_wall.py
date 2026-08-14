@@ -189,14 +189,49 @@ def test_it_promotes_the_ogerpon_with_more_life():
 # 3. The limits of the rule
 # ---------------------------------------------------------------------------
 
-def test_with_no_fezandipiti_there_is_no_engine_and_the_wall_returns():
-    """Control: with the Fezandipiti ex removed from hand there is no route left to
-    get the Grass, and the promotion goes back to the cheap-wall logic."""
-    o = _obs()
+def _sin_fez(o):
     yo = o["current"]["yourIndex"]
     mio = o["current"]["players"][yo]
     mio["hand"] = [c for c in mio["hand"] if c["id"] != FEZ]
     mio["handCount"] = len(mio["hand"])
+    return o
+
+
+def _sin_planta_oculta(o):
+    """Every Grass of the list already VISIBLE: the deck has none left to draw."""
+    yo = o["current"]["yourIndex"]
+    mio = o["current"]["players"][yo]
+    total = sum(m.AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(
+        m.Basic_Grass_Energy, {}).values())
+    visible = sum(1 for c in mio["hand"] + mio["discard"]
+                  if c["id"] == m.Basic_Grass_Energy)
+    for pk in list(mio["active"]) + list(mio["bench"]):
+        visible += sum(1 for e in (pk.get("energyCards") or [])
+                       if e["id"] == m.Basic_Grass_Energy)
+    for i in range(max(0, total - visible)):
+        mio["discard"].append({"id": m.Basic_Grass_Energy,
+                               "playerIndex": yo, "serial": 900 + i})
+    return o
+
+
+def test_without_the_fezandipiti_the_turns_own_draw_still_pays_for_the_bet():
+    """The Flip the Script draw is not the only blind route any more.
+
+    This control used to expect the wall back as soon as the Fezandipiti ex left
+    the hand. Route (f) (user, registro_006 step 94 vs Marnie's Grimmsnarl ex)
+    says the three cards of Flip the Script were never what paid for the bet --
+    the EXIT was: with the Grass still in the deck and an Ogerpon that retreats
+    for one carrying two, the top card of the deck is worth trying and a failed
+    draw costs a card the mute wall was going to cost anyway. So route (d) is
+    the special case and this board keeps promoting the Ogerpon.
+    """
+    o = _sin_fez(_obs())
+    assert m.agent(o) != [_opt_de(o, lambda b: b["id"] == TAPU)]
+
+
+def test_with_no_grass_left_to_draw_the_wall_returns():
+    """Control: no engine AND no copy unseen -- there is no route at all."""
+    o = _sin_planta_oculta(_sin_fez(_obs()))
     assert m.agent(o) == [_opt_de(o, lambda b: b["id"] == TAPU)]
 
 

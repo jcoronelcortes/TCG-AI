@@ -36,6 +36,9 @@ is written line by line. It is meant to stay readable as the code changes.
 | --- | --- |
 | [Strategy](strategy.md) | The principles the agent encodes: attacking, energy, retreating, hand refills, disruption. |
 | [Matchups](matchups.md) | The opposing archetypes, how we handle each, and where we currently lose. |
+| ⭐ [The reversible bet (Marnie, step 94)](marnie-the-reversible-bet-2026-08-14.md) | **The promotion that gave a turn away, and the rule that came out of it.** With no engine in hand the agent promoted a Tapu Bulu at 0/4 with a retreat of 3 over an Ogerpon ex one attachment from a 420 through the Grass weakness — and drew the energy the very next turn. Route (f) bets the turn's own draw whenever the body can walk back: invisible to the winrate (2 795 vs 2 796 in 3 000 paired games) and worth **+15 pp / +1.03 margin** under the rules oracle on the board it was written from. |
+| ⭐ [The veto that walks back (Archaludon, step 77)](archaludon-the-veto-that-walks-back-2026-08-14.md) | **The same promotion, vetoed one rung further down.** The selector correctly named an Ogerpon ex one attachment from finishing their Archaludon — with the Lillie's to find the Grass and the Grass to pay its own retreat — and the match-point veto overwrote it with −30000 because a 2-prize ex is their whole remaining pile. Their blow arrives a turn of ours later, so a body that can step aside is not there to receive it: **+14 pp / +1.09 margin** under the rules oracle, 0 flips on the frozen fifty. |
+| [The harvest off the table (Marnie, step 150)](marnie-la-cosecha-fuera-de-mesa-2026-08-14.md) | The other Marnie autopsy: the four prizes their board takes with no attack at all, and why the retreat had already lost the game. |
 
 ## Working on the project
 

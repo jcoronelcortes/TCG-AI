@@ -34263,10 +34263,10 @@
     "accion": 11,
     "contexto": 4,
     "detalle": [
-     "CARTA Hydrapple ex(150)"
+     "CARTA Teal Mask Ogerpon ex(96)"
     ],
     "eleccion": [
-     3
+     0
     ],
     "paso": null,
     "turno": 9
@@ -36231,10 +36231,10 @@
     "accion": 3,
     "contexto": 4,
     "detalle": [
-     "CARTA Tapu Bulu(920)"
+     "CARTA Meganium(710)"
     ],
     "eleccion": [
-     2
+     1
     ],
     "paso": null,
     "turno": 14
