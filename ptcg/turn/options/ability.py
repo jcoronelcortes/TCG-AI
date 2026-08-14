@@ -127,16 +127,35 @@ def score_play(tc, o, score):
         
                 _ogerpon_energy = len(card.energies) if isinstance(card, Pokemon) else 0
         
-                _crustle_atk_needs_grass = False
-                if AGENT_STATE.op_is_crustle_deck and hand_counts.get(Basic_Grass_Energy, 0) == 1:
+                # THE LAST GRASS BELONGS TO THE BODY THAT CAN STILL HIT THE WALL.
+                # Teal Dance attaches from HAND, so with a single Grass left it is
+                # not a free charge: it is that Grass spent on a body the wall has
+                # already switched off, and the deck's real attacker in the matchup
+                # goes without. Demoted (7500), not vetoed -- the draw is still
+                # worth something once nobody else needs the card.
+                #
+                # Extended to Cornerstone (user, ago 2026): Cornerstone Stance
+                # blanks this very Ogerpon ex (Teal Dance is an Ability), so the
+                # argument is identical -- and the list of bodies still owed the
+                # Grass is SHORTER there, not longer. Dipplin also carries an
+                # Ability (Festival Lead), so against Cornerstone only Tapu Bulu is
+                # asking, which is exactly why the reservation matters more.
+                _wall_atk_needs_grass = False
+                _cng_wall_ids = None
+                if AGENT_STATE.op_is_crustle_deck:
+                    _cng_wall_ids = (Tapu_Bulu, Dipplin, Pinsir)
+                elif (AGENT_STATE.op_is_cornerstone_deck
+                        or op_has_ability_immune_active):
+                    _cng_wall_ids = (Tapu_Bulu, Pinsir)
+                if _cng_wall_ids and hand_counts.get(Basic_Grass_Energy, 0) == 1:
                     for _cng in (list(my_state.active or []) + list(my_state.bench or [])):
-                        if _cng is None:
+                        if _cng is None or _cng.id not in _cng_wall_ids:
                             continue
                         _cng_e = len(_cng.energies)
                         if ((_cng.id == Tapu_Bulu and _cng_e < 4) or
                                 (_cng.id == Dipplin and _cng_e < 1) or
                                 (_cng.id == Pinsir and _cng_e < 2)):
-                            _crustle_atk_needs_grass = True
+                            _wall_atk_needs_grass = True
                             break
         
                 _td_ko_on_active = False
@@ -348,7 +367,7 @@ def score_play(tc, o, score):
                     # _td_ko_on_active exception (above) still covers the attackable
                     # opposing active of the mixed deck (Cubchoo/Beartic in front).
                     score = SCORE_VETO
-                elif _crustle_atk_needs_grass:
+                elif _wall_atk_needs_grass:
         
                     score = 7500
                 elif _reserve_energy_for_hydra_evolve and o.area != AreaType.ACTIVE:
@@ -406,7 +425,7 @@ def score_play(tc, o, score):
                         # was a dead attachment.
                         #
                         # 7500 is the DEGRADED Teal Dance band the file already
-                        # uses (`_crustle_atk_needs_grass`,
+                        # uses (`_wall_atk_needs_grass`,
                         # `_reserve_energy_for_hydra_evolve`): free value, below
                         # anything that plays for today, and just above the 7000
                         # the attachment is capped to when it yields -- which is
