@@ -268,6 +268,35 @@ with Teal Dance, a card — payable at all:
   damage the wall: there the Chikorita is the first rung of the Meganium line,
   Tapu Bulu is the plan, and the energy belongs to the bench.
 
+**And "Tapu Bulu is the plan" is a claim about THIS turn, not about the plan in
+the abstract.** Two ordering rules written with no matchup inside them were
+deferring it, and each one was invisible from the other's file:
+
+- **the body waited behind the items.** "Tapu Bulu is only put down once every
+  worthwhile item is played" is right in an ordinary game and wrong in front of
+  the wall, where it dropped the matchup's only attacker from 22000 to 8900 —
+  under everything else on the menu. The turn after a knockout that handed the
+  bench slot to **Fezandipiti ex**: two prizes, and it cannot damage Crustle
+  either. The wait is now lifted for the whole wall family. Only the clamp is
+  lifted, not the ordering: an item the turn genuinely values above Tapu's own
+  band still goes first;
+- **the charge only knew about the ACTIVE Tapu.** The Crustle band that says
+  "every turn its climb to four energies is deferred is a turn the wall lives"
+  was gated on being the active, because that is the board it was measured on. A
+  benched Tapu below four is the same answer to the same wall, one retreat away,
+  and it was losing the turn's energy to the Applin line. It earns the band too,
+  while no Tapu in play can already swing.
+
+Together they are one turn: Tapu comes down, the manual attachment goes to it,
+Hydrapple ex's **Ripening Charge** — whose target is decided by the same
+`energy_score` — goes to it as well, and under Wild Growth those two Grass are
+the four effective Wood Hammer needs. Today, instead of a Grass held in hand for
+a Tapu that is still in there with it.
+
+Measured over the 22 `crustle_wall` lists with paired seeds at 1500 games each:
+mean **+0.21 points**, 15 up / 2 flat / 5 down (sign test p=0.041), prize
+differential flat, and ten non-wall lists at delta *exactly* zero.
+
 ## 8. Evolving is not healing: which body takes the evolution
 
 Damage carries over when a Pokemon evolves — only the maximum goes up. That

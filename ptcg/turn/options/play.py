@@ -1291,9 +1291,53 @@ def score_play(tc, o, score):
                     # worth it (a higher score) are played first and, when only
                     # worthless items are left (a low score), Tapu Bulu wins again
                     # and comes down. It applies ONLY to Tapu Bulu.
+                    #
+                    # THE WAIT IS NOT PAID IN FRONT OF THE WALL (user, ago 2026).
+                    # Every branch above exempts the wall matchups by hand
+                    # because vs Crustle / Cornerstone / Sylveon / Iron Thorns
+                    # our ex do ZERO and Tapu Bulu is the ONLY body that removes
+                    # the thing in front -- and then this clamp, written with no
+                    # matchup in it at all, undid all of them: with any item in
+                    # hand it dropped THE attacker of the matchup from 22000+ to
+                    # 8900, under everything else on the menu.
+                    #
+                    # What it loses is not the order, it is the body. On the turn
+                    # after a knockout `ko_last_turn` opens Fezandipiti ex's own
+                    # branch at 22000 (22500 with a hand of three), so the clamp
+                    # handed the bench slot to a TWO-PRIZE body that cannot
+                    # damage the wall either, while Tapu waited in hand:
+                    #
+                    #   vs Crustle, ko_last_turn, hand = Tapu + Fez + Grass
+                    #       -> Tapu Bulu           (no item: the clamp is asleep)
+                    #   vs Crustle, ko_last_turn, hand = Tapu + Fez + UB + Grass
+                    #       -> Fezandipiti ex      (the clamp fires, Fez wins)
+                    #
+                    # Putting Tapu down first costs nothing it was going to keep:
+                    # the items are still played later in the same turn (this is
+                    # an ORDER rule, not a budget), and Tapu on the bench is a
+                    # body the turn's attachment and Hydrapple ex's Ripening
+                    # Charge can both reach TODAY -- two Grass, four effective
+                    # under Wild Growth, Wood Hammer online -- instead of a Grass
+                    # kept in hand for a Tapu that is still in there with it.
+                    #
+                    # MEASURED with the other half of this change (the band the
+                    # BENCHED Tapu earns, ptcg/turn/energy.py) -- the two are one
+                    # turn and were measured as one. Paired seeds, n=1500 per
+                    # matchup, 22 crustle_wall lists: mean +0.21 points, 15 up /
+                    # 2 flat / 5 down (sign test p=0.041), prize differential
+                    # flat (-0.005). The two weakest lists in the table do not
+                    # get worse: crustle_wall_7 (74.1%, the floor) +0.5 and
+                    # crustle_wall_6 +0.1; best crustle_wall_8 +1.2 (dprem
+                    # +0.07), worst crustle_wall_4 -0.5. Rest of the wall family:
+                    # cornerstone +0.1, comfey +0.0. COLLATERAL: ten non-wall
+                    # lists (alakazam, dragapult, marnie, festival lead, cynthia,
+                    # chandelure, archaludon) at delta EXACTLY 0.0 and dprem
+                    # 0.00 -- the change is closed behind the matchup and
+                    # behaves like it.
                     _tapu_items_pending = any(
                         hand_counts.get(_it_id, 0) >= 1 for _it_id in DECK_ITEM_IDS)
-                    if _tapu_items_pending and score > TAPU_WAIT_FOR_ITEMS_SCORE:
+                    if (_tapu_items_pending and not _op_is_crustle_like
+                            and score > TAPU_WAIT_FOR_ITEMS_SCORE):
                         score = TAPU_WAIT_FOR_ITEMS_SCORE
                 elif card.id == Pinsir:
         

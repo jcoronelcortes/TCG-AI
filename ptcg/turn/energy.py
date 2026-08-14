@@ -866,8 +866,51 @@ def _energy_score_base(tc, pokemon, active):
                 # non-negative in all five (+0.00/+0.04/+0.09/+0.01/+0.09),
                 # which is the finer signal the harness itself recommends when
                 # the winrate saturates. Control alakazam_1 +0.3.
-                if _ctm_chikorita_bench or (active and
-                                            AGENT_STATE.op_is_crustle_deck):
+                #
+                # THE BENCHED TAPU EARNS IT TOO, AND FOR THE SAME REASON (user,
+                # ago 2026). The paragraph above says why the band is paid --
+                # "every turn its climb to four energies is deferred is a turn
+                # the wall lives" -- and nothing in that sentence is about being
+                # the ACTIVE. It was written `active` because the board it was
+                # measured on had Tapu in front; a Tapu Bulu on the BENCH at
+                # three effective is the same answer to the same wall, one
+                # retreat away, and it was losing the turn's energy to exactly
+                # the body the paragraph names:
+                #
+                #   vs Crustle, benched Tapu at 0, bench = Tapu + Applin
+                #       -> the APPLIN (28500 = 22000 + 6500) took it
+                #   vs Crustle, benched Tapu at 0, bench = Tapu + Dipplin
+                #       -> the DIPPLIN took it
+                #
+                # and with a Chikorita/Bayleef/Meganium anywhere on the bench the
+                # old clause paid the band anyway, which is why the hole only
+                # shows on the Applin-line boards -- the same accident that hid
+                # it for the active Tapu.
+                #
+                # THE GUARD IS THE ONE THE REASON IMPLIES: the band is owed while
+                # the wall has NO answer on our board -- no Tapu Bulu anywhere in
+                # play that can already swing. Once one is charged, the wall does
+                # have its answer, and `_ctm_dipplin_low` / the surplus rules
+                # above own the question of what the next energy is for; a second
+                # Tapu does not outrank the engine just for existing. Our list
+                # carries ONE Tapu Bulu, so in practice the guard reads "our
+                # Tapu is not charged yet, wherever it is standing".
+                #
+                # MEASURED together with the half that puts the body down
+                # (`_tapu_items_pending`, ptcg/turn/options/play.py): the two are
+                # one turn and there is no reading them apart. Paired seeds,
+                # n=1500, 22 crustle_wall lists: mean +0.21 points, 15 up / 2
+                # flat / 5 down (sign test p=0.041), prize differential flat.
+                # Ten non-wall lists at delta EXACTLY 0.0. The full numbers are
+                # written where the other half is.
+                _ctm_tapu_answer_missing = not any(
+                    _tp is not None and _tp.id == Tapu_Bulu
+                    and len(_tp.energies) * _grass_mult() >= 4
+                    for _tp in (([my_state.active[0]] if my_state.active else [])
+                                + list(my_state.bench or [])))
+                if _ctm_chikorita_bench or (
+                        AGENT_STATE.op_is_crustle_deck
+                        and (active or _ctm_tapu_answer_missing)):
 
                     score += 11000
                 if active:
