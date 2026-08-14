@@ -14431,10 +14431,10 @@
     "accion": 5,
     "contexto": 0,
     "detalle": [
-     "PLAY Chikorita(917)"
+     "PLAY Tapu Bulu(920)"
     ],
     "eleccion": [
-     2
+     1
     ],
     "paso": null,
     "turno": 2
@@ -14443,10 +14443,10 @@
     "accion": 6,
     "contexto": 0,
     "detalle": [
-     "PLAY Teal Mask Ogerpon ex(96)"
+     "PLAY Tapu Bulu(920)"
     ],
     "eleccion": [
-     0
+     1
     ],
     "paso": null,
     "turno": 2
@@ -15861,10 +15861,10 @@
     "accion": 1,
     "contexto": 0,
     "detalle": [
-     "PLAY Applin(92)"
+     "PLAY Tapu Bulu(920)"
     ],
     "eleccion": [
-     1
+     0
     ],
     "paso": null,
     "turno": 14
@@ -16421,10 +16421,10 @@
     "accion": 11,
     "contexto": 0,
     "detalle": [
-     "PLAY Applin(92)"
+     "PLAY Tapu Bulu(920)"
     ],
     "eleccion": [
-     0
+     6
     ],
     "paso": null,
     "turno": 2
@@ -16445,10 +16445,10 @@
     "accion": 13,
     "contexto": 0,
     "detalle": [
-     "ATTACH->Applin(92)"
+     "ATTACH->Tapu Bulu(920)"
     ],
     "eleccion": [
-     2
+     3
     ],
     "paso": null,
     "turno": 2
@@ -17119,10 +17119,10 @@
     "accion": 11,
     "contexto": 0,
     "detalle": [
-     "PLAY Chikorita(917)"
+     "PLAY Tapu Bulu(920)"
     ],
     "eleccion": [
-     2
+     1
     ],
     "paso": null,
     "turno": 2
@@ -19315,10 +19315,10 @@
     "accion": 8,
     "contexto": 0,
     "detalle": [
-     "PLAY Teal Mask Ogerpon ex(96)"
+     "PLAY Tapu Bulu(920)"
     ],
     "eleccion": [
-     0
+     2
     ],
     "paso": null,
     "turno": 8
@@ -19829,10 +19829,10 @@
     "accion": 1,
     "contexto": 0,
     "detalle": [
-     "PLAY Applin(92)"
+     "PLAY Tapu Bulu(920)"
     ],
     "eleccion": [
-     2
+     3
     ],
     "paso": null,
     "turno": 22
@@ -20405,10 +20405,10 @@
     "accion": 2,
     "contexto": 0,
     "detalle": [
-     "PLAY Fezandipiti ex(140)"
+     "PLAY Tapu Bulu(920)"
     ],
     "eleccion": [
-     0
+     2
     ],
     "paso": null,
     "turno": 10
@@ -22967,10 +22967,10 @@
     "accion": 4,
     "contexto": 0,
     "detalle": [
-     "PLAY Chikorita(917)"
+     "PLAY Tapu Bulu(920)"
     ],
     "eleccion": [
-     1
+     0
     ],
     "paso": null,
     "turno": 4
@@ -22979,10 +22979,10 @@
     "accion": 5,
     "contexto": 0,
     "detalle": [
-     "PLAY Teal Mask Ogerpon ex(96)"
+     "PLAY Tapu Bulu(920)"
     ],
     "eleccion": [
-     1
+     0
     ],
     "paso": null,
     "turno": 4
