@@ -6784,7 +6784,7 @@ def agent(obs_dict: dict) -> list[int]:
             (hand_counts.get(Basic_Grass_Energy, 0) >= 1
              and not state.energyAttached),
             total_grass, bench_count, AGENT_STATE.meganium_in_play,
-            neutralization_zone_active)
+            neutralization_zone_active, op_state=op_state)
     _win_ko_active_via_promote = (_boss_active_prizes_via_promote >= my_prize
                                   and _boss_active_prizes_via_promote > 0)
 
@@ -8096,6 +8096,22 @@ def agent(obs_dict: dict) -> list[int]:
         and not _suicide_hands_op_win
         and (my_prize <= prize_count_op(op_state.active[0])
              or _op_bench_empty))
+
+    # THE SECOND WAVE CLOSES IT FROM THE FRONT TOO. Everything above reads the
+    # prizes of the body in front and stops there, which is the right count for
+    # every attack we own except one: under Festival Grounds our Dipplin throws
+    # Do the Wave TWICE, so the turn cashes that body AND the one they promote.
+    # `_festival_active_wave_prizes` is the promote route's reading taken from
+    # the Active spot -- and it also supplies the damage, because the inline copy
+    # feeding `_active_already_kos` above does not know Dipplin at all. The
+    # suicide brake still applies: a finisher that hands them their last prize
+    # draws, whatever cashed it.
+    _festival_active_wave_prizes_now = _festival_active_wave_prizes(
+        my_state, op_state, bench_count, AGENT_STATE.meganium_in_play,
+        neutralization_zone_active)
+    if (can_attack and not is_confused and not _suicide_hands_op_win
+            and _festival_active_wave_prizes_now >= my_prize > 0):
+        _active_attack_wins_now = True
 
     # The SNIPE can also close the game: if Cruel Arrow knocks out a body
     # on the opposing BENCH whose prizes are enough for us, attacking WINS just like the finisher
