@@ -2107,6 +2107,60 @@ def _ub_score_before_overrides(ctx, _ubf) -> int:
     return ub_score
 
 
+def _ub_engine_cost_bites(ctx) -> bool:
+    """Would the Ultra Ball's cost of TWO eat a card that phase C protects?
+
+    THE ROUTE THAT NAMES THE PRIZE HAS TO ASK THE PRICE (user,
+    `records/registro_006_pasos_066_hasta_076.json`, step 68 = turn 6 action 3,
+    episode 92863087 vs Alakazam -- LOST). Turn 6, six prizes to four, our
+    Dipplin knocked out the turn before, so the Unfair Stamp was legal EXACTLY
+    that turn:
+
+        US (6 prizes)                        OPPONENT (4 prizes)
+        active  Teal Mask Ogerpon ex, 2 {G}  active  Teal Mask Ogerpon ex 210
+        bench   Meowth ex (Last-Ditch free)  hand    8 cards
+        hand    Boss's Orders, ULTRA BALL, UNFAIR STAMP
+
+        [0] Boss's Orders    -1    `yields_to_unfair_stamp` -- it DOES step aside
+        [2] Unfair Stamp   3100
+        [1] Ultra Ball     5950                                      <-- played
+
+    The cost of two came out of a hand of three: it discarded the Boss's Orders
+    AND the Unfair Stamp -- an ACE SPEC, one copy, no Trainer recovery in the
+    list, and legal only on the turn after a knock-out -- to dig out a second
+    Meowth ex whose Last-Ditch fetched Xerosic's Machinations. Xerosic left them
+    with the THREE cards they chose; the Stamp would have left them two at
+    random and refilled us to five, without spending the turn's Supporter (the
+    Stamp is an Item). We ended the turn holding nothing.
+
+    Both halves of the defence were downstream of the destruction. The discard
+    scorer prices Unfair Stamp at -10000 and never lets it go -- but the prompt
+    it answers was `minCount=2` over the two cards left, a FORCED menu, and a
+    protection in a forced menu protects nothing. The fetch ladder refuses to
+    buy a body under a pending Stamp (`the_stamp_shuffles_the_last_ditch_
+    supporter`) -- but by then the Stamp was already in the discard pile.
+
+    The price was asked, and by two vetoes at once: on that board
+    `_ub_cancel_stamp` (real fodder next to the Stamp = 1, two are needed) and
+    `_ub_cancel_no_surplus` were both True. Neither ran. They live in
+    `_ub_score_before_overrides`, and the two engine routes of
+    `_score_ultra_ball_play` return their score ABOVE it -- a shortcut that
+    names what the Ultra Ball BUYS and never what it COSTS. This is the toll
+    they now pay: the same eight questions the ordinary route asks, asked before
+    the shortcut fires. A route that does not pass keeps its Ultra Ball scored
+    by the ordinary pipeline, which vetoes it -- or lifts it in survival mode,
+    which is why this returns a predicate instead of a score.
+
+    See [[el-atajo-del-motor-tambien-paga-el-precio-de-la-ultra-ball]].
+    """
+    return bool(_ub_cancel_stamp(ctx)
+                or _ub_cancel_fez(ctx)
+                or _ub_cancel_lillie(ctx)
+                or _ub_cancel_meowth(ctx)
+                or _ub_cancel_xerosic(ctx)
+                or _ub_cancel_tomorrow_supporter(ctx)
+                or _ub_cancel_engine_supporters(ctx)
+                or _ub_cancel_no_surplus(ctx))
 
 
 def _score_ultra_ball_play(ctx) -> int:
@@ -2126,7 +2180,11 @@ def _score_ultra_ball_play(ctx) -> int:
     # beats the manual attachment (~31410) and Ripening Charge without a pivot (30000),
     # and stays BELOW the ability pivots with a KO/retreat (31500-31600).
     # It arms `_ub_engine_pivot_turn` so the FETCH of this UB chooses Meowth.
-    if _ub_engine_refresh_pivot(ctx):
+    # ...paying the cost toll first (`_ub_engine_cost_bites`): this pivot already
+    # counts its own surplus, so the toll is a second reading of the same
+    # question here -- it is applied to BOTH shortcuts because the invariant is
+    # "no engine route skips the price", not "the Alakazam one does not".
+    if _ub_engine_refresh_pivot(ctx) and not _ub_engine_cost_bites(ctx):
         AGENT_STATE._ub_engine_pivot_turn = True
         return 31450
     # vs Alakazam with a fat opposing hand (Powerful Hand): assembling the Xerosic
@@ -2139,8 +2197,11 @@ def _score_ultra_ball_play(ctx) -> int:
     # winning finishers and the 2-prize gust. Only when Meowth has to be DUG for (not
     # in hand). It arms `_ub_engine_pivot_turn` so the FETCH chooses Meowth ex and
     # continues the chain (its Last-Ditch searches for Xerosic through `xerosic_alakazam`).
+    # ...and it does not assemble the cap out of the cards the cost would eat:
+    # the toll goes LAST so the two cheap board checks short-circuit first.
     if (_alakazam_dig_xerosic_engine(ctx)
-            and ctx.hand_counts.get(Meowth_ex, 0) == 0):
+            and ctx.hand_counts.get(Meowth_ex, 0) == 0
+            and not _ub_engine_cost_bites(ctx)):
         AGENT_STATE._ub_engine_pivot_turn = True
         return 5950
     _ubf = _ub_derive_flags(ctx)
