@@ -1309,6 +1309,15 @@ def score_play(tc, o, score):
         _relay_earns_the_front_spot = (
             not _plan_relay_is_inert or bool(_conf_should_retreat))
 
+        # A SMALLER CORPSE DENIES NOTHING WHEN THEY DO NOT NEED THE ATTACK
+        # (user, registro_009 vs Marnie's Grimmsnarl ex, LOST). The two prize
+        # sacrifices further down are the only branches of this ladder that pay
+        # tempo -- and, in the generalised one, the attack -- for the single
+        # purpose `TurnPlan.they_close_it_without_attacking` empties. The plan
+        # carries the reading; here it only decides.
+        _they_close_it_without_attacking = getattr(
+            AGENT_STATE.turn_plan, 'they_close_it_without_attacking', False)
+
         if _suicide_swap_win_promote:
             # RELIEF OF THE SUICIDAL FINISHER (user, registro_016 step 184 vs
             # Marnie's Grimmsnarl, DRAW): the active's attack knocks out but
@@ -1464,7 +1473,7 @@ def score_play(tc, o, score):
             # "the active can attack" (_grd_prefer_attack), which here would
             # be a mistake: attacking without knocking out gives away 2 prizes.
             score = 6540
-        elif _prize_denial_pivot:
+        elif _prize_denial_pivot and not _they_close_it_without_attacking:
             # Prize denial (user): retreat the DOOMED active ex (2
             # prizes) which, if we attacked, would die next turn anyway giving
             # the opponent the prizes to WIN, and bring up a 1-prize body that
@@ -1472,7 +1481,7 @@ def score_play(tc, o, score):
             # game. The plan points at that body (plan.attacker>=1), so ATTACKING
             # with the doomed active is suppressed.
             score = 6550
-        elif _doomed_ex_sac_pivot:
+        elif _doomed_ex_sac_pivot and not _they_close_it_without_attacking:
             # Generalised mismatch (user, registro_004 step 37 vs Mega
             # Lucario ex): the active ex can attack but does NOT knock out and the
             # opponent finishes it next turn, with no ready benched attacker.

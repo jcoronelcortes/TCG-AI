@@ -44,7 +44,7 @@ from ptcg.calc.card import prize_count, prize_count_op
 from ptcg.calc.damage import (_attacker_base_damage, _festival_double_wave,
                               _festival_second_wave_prizes,
                               _ko_not_guaranteed,
-                              _op_active_attack_damage_to,
+                              _op_active_attack_damage_to, _op_prize_harvest,
                               _our_effective_damage, _promoted_reply_damage)
 from ptcg.calc.energy import (_grass_attach_slots_for, _grass_attach_unit,
                               _grass_mult, _reachable_grass_for,
@@ -112,6 +112,15 @@ class TurnPlan:
 
     mode: str
 
+    # Prizes they take WITHOUT attacking anything: the Freezing Shroud drip and
+    # the counters Adrena-Brain aims. `op_prizes_next` cannot see them -- it
+    # projects one attack onto one body -- and they are what makes a Marnie
+    # board lost a turn before the agent notices. They also survive our own
+    # knockout, which is why they are not folded into that field: the body that
+    # stops replying is not the one placing the counters. See
+    # `_op_prize_harvest`.
+    op_prizes_offboard: int = 0
+
     # --- defence, the half that only exists once we take the knockout -----
     # Prizes the body they PROMOTE takes from our active, when our own attack
     # knocks their active out this turn. `op_prizes_next` is zero on exactly
@@ -159,6 +168,29 @@ class TurnPlan:
         the reply, not on the boards where the reply merely hurts.
         """
         return self.mode == MODE_DENY
+
+    @property
+    def they_close_it_without_attacking(self) -> bool:
+        """Their remaining prizes are already within reach of the sources that
+        need NO attack: the Freezing Shroud drip and the counters Adrena-Brain
+        aims.
+
+        The sentence that empties a prize sacrifice. Every pivot that hands over
+        a smaller corpse is paying tempo -- and sometimes the attack -- for one
+        thing: that the knockout they take next turn should not be the one that
+        closes their count. When they close it whatever is standing in front,
+        that purchase is worth nothing and the turn is better spent on anything
+        with a chance.
+
+        `op_prize >= 1` because a prize pile of zero is not that board: it is a
+        board with no plan on it yet (the setup observations, where
+        `len(op_state.prize)` is 0), and `0 >= 0` would empty the pivots on
+        1.96% of the frozen corpus for nothing.
+
+        Rare where it matters: `op_prizes_offboard` is non-zero on 6 of the 3580
+        decisions of the frozen corpus, all of them in the two Marnie games.
+        """
+        return self.op_prize >= 1 and self.op_prizes_offboard >= self.op_prize
 
     @property
     def lethal_gust(self) -> bool:
@@ -889,6 +921,31 @@ def build_turn_plan(*, my_prize, op_prize, my_state, op_state, state,
     else:
         op_prizes_next, op_kos_our_active = _opponent_reply(
             my_state, op_state, op_hand_count)
+
+    # THE PRIZES THAT DO NOT COME FROM AN ATTACK (user, registro_009 step 150 vs
+    # Marnie's Grimmsnarl ex, LOST). `_opponent_reply` reads one attack onto one
+    # body, and on that board it answered 2 prizes and `op_wins_next=False` --
+    # while a benched Meowth ex at 40 HP was dying to the Freezing Shroud drip
+    # on its own, for two more. The agent believed it had a tomorrow it did not
+    # have, and spent the turn developing for it.
+    #
+    # The drip and the moved counters need no attack, so THEY DO NOT CARE
+    # whether we knock their active out: the off-board half of the harvest is
+    # the one that survives our own knockout, and it is the one published here.
+    #
+    # IT IS DATA AND IT DOES NOT MOVE `op_wins_next`, which is a decision and
+    # not an oversight. Folding the whole harvest into that flag was written,
+    # and censused on the frozen corpus first: it takes `op_wins_next` from 18
+    # of 3580 decisions (0.50%) to 88 (2.46%). That 0.50% is the LICENCE
+    # `do_or_die` states in its own docstring -- the defensive machinery of this
+    # agent has been measured negative three separate times when it was made to
+    # fire more often -- and a projection that is newly correct is not a licence
+    # to repeat that on the strength of one record. So the reading goes in as a
+    # field with one guarded consumer, the same treatment `_op_attack_deficit`
+    # and `denial_saves_the_game` got, and widening `do_or_die` stays a separate
+    # change with its own measurement to make.
+    harvest = _op_prize_harvest(my_state, op_state, op_hand_count)
+    op_prizes_offboard = harvest.off_board
     op_wins_next = op_kos_our_active and op_prize <= op_prizes_next
     op_wins_after_ko = (op_kos_after_promotion
                         and op_prize <= op_prizes_after_ko)
@@ -910,6 +967,7 @@ def build_turn_plan(*, my_prize, op_prize, my_state, op_state, state,
         prizes_today=prizes_today,
         op_prizes_next=op_prizes_next,
         op_wins_next=op_wins_next,
+        op_prizes_offboard=op_prizes_offboard,
         mode=mode,
         op_prizes_after_ko=op_prizes_after_ko,
         op_wins_after_ko=op_wins_after_ko,

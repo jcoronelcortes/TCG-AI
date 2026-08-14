@@ -67,12 +67,13 @@ from ptcg.calc.card import prize_count, prize_count_op
 from ptcg.state.agent_state import AGENT_STATE
 from ptcg.cards.tables import attack_table, card_table
 from ptcg.cards.ids import ABILITY_IMMUNE_IDS, Alakazam_ex, EVO_BODY_DAMAGE, EVO_BODY_EXPOSURE, EVO_BODY_RESCUE, OP_ACTIVE_ABILITY_DAMAGE, OP_BENCH_SNIPE_DAMAGE, RAINBOW_ENERGY_TYPE, Brave_Bangle, DO_THE_WAVE_ATTACK_ID, Dipplin, Drednaw, EX_IMMUNE_IDS, FULL_HP_SURVIVE_IDS, Farigiraf_ex, Fezandipiti_ex, Hydrapple_ex, Maximum_Belt, Meganium, OUR_ABILITY_IDS, OUR_BASIC_EX_IDS, OUR_EX_IDS, POWERFUL_HAND_ATTACK_ID, Pinsir, Tapu_Bulu, Teal_Mask_Ogerpon_ex, WAVE_BENCH_BODY_IDS
-from ptcg.calc.energy import _grass_attach_unit, _grass_mult, _retreat_grass_units
+from ptcg.calc.energy import _grass_attach_slots_for, _grass_attach_unit, _grass_mult, _retreat_grass_units
 from ptcg.cards.lines import _direct_evolution_ids
 from ptcg.cards.op_scaling import OP_SCALING_IGNORES_WEAKNESS, op_scaled_damage
 from cg.api import CardType, EnergyType
 from typing import NamedTuple
-from ptcg.cards.ids import ATTACKER_PUNISH_DAMAGE, ATTACKER_PUNISH_NEEDS_DARK, Mega_Hawlucha_ex, OP_EVO_ENERGY_ON_PLAY, RETREAT_COST, SNIPE_ANY_TARGET_IDS, Survival_Brace
+from ptcg.cards.ids import ADRENA_BRAIN_MOVE, ATTACKER_PUNISH_DAMAGE, ATTACKER_PUNISH_NEEDS_DARK, Basic_Grass_Energy, FREEZING_SHROUD_COUNTER, GRASS_DIGGER_REACH, GRASS_DIGGER_SUPPORTERS, Mega_Hawlucha_ex, OP_EVO_ENERGY_ON_PLAY, RETREAT_COST, SNIPE_ANY_TARGET_IDS, Survival_Brace
+from ptcg.state.zones import ZONE_DECK, ZONE_DISCARD
 
 
 def _powerful_hand_projected(op_hand_count: int) -> int:
@@ -352,6 +353,236 @@ def _movable_dmg_after_our_hit(our_damage):
     """
     return min(AGENT_STATE._op_movable_cap,
                AGENT_STATE._op_movable_ammo + max(0, our_damage or 0))
+
+
+class OpHarvest(NamedTuple):
+    """What `_op_prize_harvest` answers. See that function."""
+    # Prizes they collect before we act again, from every source together.
+    prizes: int
+    # ... of those, the ones taken WITHOUT an attack: the Freezing Shroud drip
+    # and the counters Adrena-Brain aims. They survive our own knockout, which
+    # is the whole reason the field exists apart from `prizes`.
+    off_board: int
+    # Their attack finishes our ACTIVE.
+    kills_active: bool
+    # Serials of our bodies in the harvest, so a test or the debug dump can say
+    # WHICH ones rather than how many.
+    victims: tuple
+
+
+def _op_prize_harvest(my_state, op_state, op_hand_count, our_damage=0):
+    """Prizes the opponent can collect before our next turn -- ALL of them, and
+    off ALL of our bodies.
+
+    THE HOLE IT FILLS (user, registro_009 step 150 vs Marnie's Grimmsnarl ex,
+    episode 92844329, LOST). `_opponent_reply` projects exactly one thing: their
+    ACTIVE hitting OUR ACTIVE. On that board it answered 2 prizes and
+    `op_wins_next=False`, so the agent believed it had a tomorrow, pivoted into
+    a wall and spent the turn developing. The truth was that it had no tomorrow
+    at all: our benched Meowth ex stood at 40 HP with two Froslass on the field,
+    so it died to the drip alone -- two prizes with no attack, on top of the two
+    their Grimmsnarl ex was about to take from the active. Four prizes against
+    the three they needed. The only correct play was the one that ended the game
+    that turn, and the plan had no way to say so.
+
+    The three sources of `THE GIFT WINDOW`, put together and aimed the way an
+    opponent aims them:
+
+      * the FREEZING SHROUD drip, which every body in `OUR_ABILITY_IDS` pays
+        twice a round and which nothing can be done about;
+      * their ATTACK on our active, and the automatic SNIPE it carries to ONE
+        benched body (the opponent picks which, so every seat is tried);
+      * ADRENA-BRAIN, which is neither of those two: a POOL of moves (up to 3
+        counters each, one body per move) that they spend wherever it buys the
+        most. `_ventana_de_regalo` prices it as if it could only ever finish one
+        body, which is the honest reading for "is THIS body doomed" and the
+        wrong one for "how many prizes is the board worth": two charged
+        Munkidori finish two different bodies in the same turn.
+
+    THE OPPONENT MAXIMISES PRIZES, which is why the allocation is searched and
+    not greedy. Our board is at most six bodies, so every subset is tried
+    against the two budgets (moves, and the counters their board can actually
+    supply) and the best one wins -- ties going to the cheaper allocation. That
+    is what "they concentrate on the lowest HP, or on whatever hands over two
+    prizes" means once it is written down as arithmetic rather than as a
+    preference.
+
+    `our_damage` is the damage OUR attack is about to leave on their board,
+    because that is Adrena-Brain's ammunition -- the same correction
+    `_movable_dmg_after_our_hit` exists for. It defaults to 0, which reads the
+    board as it stands.
+
+    IT IS A PROJECTION AND IT REFUSES TO INVENT. Their gusts, their bench swaps
+    and whatever their hand holds are not modelled here for the reason
+    `_opponent_reply` states: a projection that assumes the hand we cannot see
+    makes every turn look lost.
+    """
+    ours = ([p for p in (getattr(my_state, 'active', None) or []) if p is not None]
+            + [p for p in (getattr(my_state, 'bench', None) or []) if p is not None])
+    if not ours:
+        return OpHarvest(0, 0, False, ())
+    op_active = (op_state.active[0]
+                 if op_state is not None and getattr(op_state, 'active', None)
+                 else None)
+    my_active = (my_state.active[0]
+                 if getattr(my_state, 'active', None) else None)
+
+    chip = AGENT_STATE._op_chip_per_round
+    attack = 0
+    if op_active is not None and my_active is not None:
+        attack = _op_active_attack_damage_to(op_active, my_active, op_hand_count,
+                                             scaled=True)
+    snipe = AGENT_STATE._op_bench_snipe_dmg
+
+    # The pool, in the two units it is spent in: MOVES (one body each, up to
+    # three counters) and the COUNTERS those moves have to carry, which their
+    # own board has to be holding.
+    per_move = ADRENA_BRAIN_MOVE // FREEZING_SHROUD_COUNTER
+    moves = AGENT_STATE._op_movable_cap // ADRENA_BRAIN_MOVE
+    ammo = min(AGENT_STATE._op_movable_cap,
+               _movable_dmg_after_our_hit(our_damage)) // FREEZING_SHROUD_COUNTER
+    bench = [b for b in ours if b is not my_active]
+
+    def _reap(with_attack):
+        """(prizes, victims) for the best way they can spend the turn.
+
+        `with_attack=False` is the same board with their attack and its snipe
+        switched off: what the drip and the moved counters take on their own.
+        """
+        best_prizes, best_victims = 0, ()
+        for aimed in ([None] + bench if (with_attack and snipe > 0) else [None]):
+            free, pending = [], []
+            for body in ours:
+                taken = chip if getattr(body, 'id', 0) in OUR_ABILITY_IDS else 0
+                if with_attack:
+                    if body is my_active:
+                        taken += attack
+                    elif body is aimed and getattr(body, 'id', 0) != Teal_Mask_Ogerpon_ex:
+                        # The Tera of a benched Teal Mask Ogerpon ex stops damage
+                        # from ATTACKS, which is what a snipe is -- and nothing else.
+                        taken += snipe
+                left = (getattr(body, 'hp', 0) or 0) - taken
+                if left <= 0:
+                    free.append(body)
+                    continue
+                need = -(-left // FREEZING_SHROUD_COUNTER)   # ceil, in counters
+                if moves > 0 and need <= moves * per_move:
+                    pending.append((body, need, -(-need // per_move)))
+            # THE OPPONENT MAXIMISES: every subset of what the pool can still
+            # finish is tried against both budgets. At most six bodies.
+            take_prizes, take_cost, taken_bodies = 0, 0, ()
+            for mask in range(1 << len(pending)):
+                counters = spent = gained = 0
+                picked = []
+                for i, (body, need, cost) in enumerate(pending):
+                    if mask & (1 << i):
+                        counters += need
+                        spent += cost
+                        gained += prize_count(body)
+                        picked.append(body)
+                if spent > moves or counters > ammo:
+                    continue
+                if gained > take_prizes or (gained == take_prizes
+                                            and counters < take_cost):
+                    take_prizes, take_cost = gained, counters
+                    taken_bodies = tuple(picked)
+            total = sum(prize_count(b) for b in free) + take_prizes
+            if total > best_prizes:
+                best_prizes = total
+                best_victims = tuple(getattr(b, 'serial', None)
+                                     for b in list(free) + list(taken_bodies))
+        return best_prizes, best_victims
+
+    prizes, victims = _reap(True)
+    off_board, _ = _reap(False)
+    return OpHarvest(
+        prizes=prizes,
+        off_board=off_board,
+        kills_active=(my_active is not None and attack >= (my_active.hp or 0)),
+        victims=victims)
+
+
+def _active_closes_with_one_charge(my_state, op_state, state, hand_counts,
+                                   field_counts, my_prize, total_grass,
+                                   bench_count, meganium_active, neutral_zone,
+                                   grass_left_in_deck, abilities_off=False):
+    """The body standing in FRONT is one Basic Grass away from the knockout that
+    ENDS the game, and the turn can still find that Grass.
+
+    THE RETREAT THAT THREW THE GAME AWAY (user, registro_009 step 150 vs
+    Marnie's Grimmsnarl ex, episode 92844329, LOST). Two prizes left, their
+    Grimmsnarl ex at 300 of 320 -- and weak to Grass, so our active Teal Mask
+    Ogerpon ex at two Grass needed exactly one more to hit for 360 and win on
+    the spot. The Grass was not in hand, so `_doomed_mute_pivot` read the active
+    as MUTE, retreated it, PAID one of its two Grass for the retreat, and put a
+    fresh Fezandipiti ex in front. Four actions later the turn drew the Grass it
+    had just declared unreachable -- and attached it to a benched body, because
+    by then the attacker was on the bench and could not come back.
+
+    WHY "ONE CHARGE" AND NOT "IT CAN ATTACK". The mute reading is not wrong
+    about the board it can see: the Grass really is not in hand. What it is
+    wrong about is the PRICE of being wrong. On any other turn a pivot that
+    guesses badly costs a little tempo; on the turn where the body in front is
+    the win condition it costs the game, and the retreat also burns the very
+    energy the attack was going to count. So the veto is written where that
+    asymmetry lives -- the knockout has to CLOSE the game (`my_prize <=` the
+    prizes their active hands over), not merely be available.
+
+    THE TURN HAS TO BE ABLE TO FIND IT, which is the other half and the reason
+    this is not simply "the active is one energy short". Two things have to be
+    true: a ROUTE that can still put a Grass on that body
+    (`_grass_attach_slots_for` -- the turn's attachment, Teal Dance, Ripening
+    Charge), and a Grass we can still get into HAND -- already there, or
+    reachable by a card that digs for one. `GRASS_FROM_DECK_IDS` and
+    `GRASS_FROM_DISCARD_IDS` name those cards and where each reaches; the
+    Supporters among them only count while the Supporter slot is still free.
+
+    Deck-agnostic: it reads our own attack costs, our own dig cards and the two
+    prize counts. Against a deck whose active is a 1-prize body it needs us at
+    exactly one prize, which is as rare as it sounds -- that rarity is the
+    licence, the same one `do_or_die` carries.
+    """
+    active = (my_state.active[0]
+              if getattr(my_state, 'active', None) else None)
+    op_active = (op_state.active[0]
+                 if op_state is not None and getattr(op_state, 'active', None)
+                 else None)
+    if active is None or op_active is None:
+        return False
+    if my_prize > prize_count_op(op_active):
+        return False            # the knockout does not close the game
+    if _ko_not_guaranteed(op_active):
+        return False            # a route that ends the game may not be a coin flip
+    if _grass_attach_slots_for(active, state, field_counts, abilities_off) < 1:
+        return False            # no route left to put it on that body
+
+    eff_after = len(getattr(active, 'energies', []) or []) + _grass_attach_unit()
+    base = _attacker_base_damage(active.id, op_active, eff_after,
+                                 grass_scale=total_grass + 1,
+                                 teal_self_energy=eff_after,
+                                 bench_count=bench_count)
+    if base <= 0:
+        return False
+    damage = _our_effective_damage(active, op_active, base, meganium_active,
+                                   neutral_zone)
+    if damage < (op_active.hp or 0):
+        return False
+
+    if (hand_counts or {}).get(Basic_Grass_Energy, 0) >= 1:
+        return True
+    supporter_free = not getattr(state, 'supporterPlayed', False)
+    grass_in_discard = sum(1 for c in (getattr(my_state, 'discard', None) or [])
+                           if getattr(c, 'id', 0) == Basic_Grass_Energy)
+    for _cid, _reach in GRASS_DIGGER_REACH.items():
+        if (hand_counts or {}).get(_cid, 0) < 1:
+            continue
+        if _cid in GRASS_DIGGER_SUPPORTERS and not supporter_free:
+            continue
+        if _reach == ZONE_DISCARD and grass_in_discard > 0:
+            return True
+        if _reach == ZONE_DECK and max(0, grass_left_in_deck) > 0:
+            return True
+    return False
 
 
 def _bench_cashable_after_retreat(pokemon, op_active, our_damage=0):
@@ -1491,6 +1722,9 @@ __all__ = [
     '_bench_snipe_can_ko',
     '_snipe_target_score',
     '_ventana_de_regalo',
+    'OpHarvest',
+    '_op_prize_harvest',
+    '_active_closes_with_one_charge',
     'evolution_body_bias',
     '_movable_dmg_after_our_hit',
     '_bench_cashable_after_retreat',

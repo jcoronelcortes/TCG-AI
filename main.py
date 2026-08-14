@@ -5013,6 +5013,40 @@ def agent(obs_dict: dict) -> list[int]:
                                 _hwp_active, _hwp_op_active):
                             _hydra_wall_pivot = True
 
+    # THE WALL IS WORTH NOTHING WHEN THE BODY IN FRONT IS THE WIN (user,
+    # registro_009 step 150 vs Marnie's Grimmsnarl ex, episode 92844329, LOST).
+    #
+    # The three flags above are one sentence written three ways: the active is
+    # doomed and cannot finish, so hand the front spot to something that lasts
+    # longer. Every one of them prices the retreat against the turns that come
+    # after it -- and on that board there were none. Two prizes left, their
+    # Grimmsnarl ex at 300 and weak to Grass: our active Teal Mask Ogerpon ex
+    # was ONE Basic Grass from 360 damage and the game. `_doomed_mute_pivot`
+    # read it as mute because the Grass was not in hand, retreated it, PAID one
+    # of its two Grass for the retreat -- and the same turn drew the Grass, four
+    # actions later, with the attacker stranded on the bench.
+    #
+    # So the veto is not "the pivot misread the board": the Grass really was not
+    # in hand. It is that the pivot answers a question that has no meaning on
+    # this turn. A wall buys turns; when the knockout in front of us ENDS the
+    # game there is no turn to buy, and the retreat also burns the energy the
+    # attack was going to count. `_active_closes_with_one_charge` carries the
+    # whole reading, including whether the turn can still find that Grass; the
+    # ladder above it (the lethal promotions, the sacrifice pivots that take the
+    # SAME prize with another body) is untouched -- those cash the prize, they
+    # do not hide from it.
+    if _teal_wall_pivot or _doomed_mute_pivot or _hydra_wall_pivot:
+        if _active_closes_with_one_charge(
+                my_state, op_state, state, hand_counts, field_counts,
+                my_prize, total_grass, bench_count,
+                AGENT_STATE.meganium_in_play, neutralization_zone_active,
+                AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(
+                    Basic_Grass_Energy, {}).get(ZONE_DECK, 0),
+                meowth_ability_lock):
+            _teal_wall_pivot = False
+            _doomed_mute_pivot = False
+            _hydra_wall_pivot = False
+
     # FRAGILE Hydrapple ex pivot: retreat the active with low HP and promote the
     # healthy one (user, log 86027506 step 81, vs Abomasnow, WON). If the ACTIVE is a
     # Hydrapple ex with low HP (at risk of a KO) and on the BENCH there is ANOTHER

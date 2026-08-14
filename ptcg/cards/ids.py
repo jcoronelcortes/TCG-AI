@@ -917,6 +917,28 @@ FREEZING_SHROUD_COUNTER = 10   # damage per Freezing Shroud counter
 CHECKUPS_PER_ROUND = 2         # Pokemon checkups between two of our turns
 ADRENA_BRAIN_MOVE = 30         # counters moved by ONE charged Munkidori
 
+# CARDS IN HAND THAT CAN STILL PUT A BASIC GRASS IN IT, and the zone each one
+# reaches. `_reachable_grass_for` answers "Grass we can attach", counting only
+# what is already in hand plus Night Stretcher, because on an ordinary turn a
+# dig is a gamble and a rule built on one fires on boards that do not have the
+# card. This table is for the ONE question where the gamble is the only play
+# left: `_active_closes_with_one_charge`, where standing still is a loss and the
+# dig is free (user, registro_009 step 150 -- the turn drew the Grass four
+# actions after declaring it unreachable, with the attacker already retreated).
+#
+# Only the cards whose text can really produce a BASIC ENERGY are in here. Dawn
+# and Poke Pad search the deck too and are OUT: they take Pokemon and nothing
+# else. Ultra Ball is out for the same reason.
+GRASS_DIGGER_REACH = {
+    Bug_Catching_Set: "DECK",      # up to 2 {G} Pokemon / Basic {G} of the top 7
+    Unfair_Stamp: "DECK",          # a fresh hand of 5
+    Lillie_Determination: "DECK",  # a fresh hand of 6 (8 at six prizes)
+    Night_Stretcher: "DISCARD",
+    Lanas_Aid: "DISCARD",          # up to 3 non-Rule-Box bodies / Basic Energy
+}
+# ... of those, the ones that need the turn's Supporter slot to still be free.
+GRASS_DIGGER_SUPPORTERS = frozenset({Lillie_Determination, Lanas_Aid})
+
 # Ripening Charge (Hydrapple ex) healing on the Pokemon that receives the Grass.
 RIPENING_HEAL = 30
 # Score of the Ripening Charge TARGET when the ability is used to heal.
@@ -1836,6 +1858,8 @@ __all__ = [
     'FREEZING_SHROUD_COUNTER',
     'CHECKUPS_PER_ROUND',
     'ADRENA_BRAIN_MOVE',
+    'GRASS_DIGGER_REACH',
+    'GRASS_DIGGER_SUPPORTERS',
     'RIPENING_HEAL',
     'RIPEN_HEAL_TARGET_SCORE',
     'RIPEN_HEAL_ABILITY_SCORE',
