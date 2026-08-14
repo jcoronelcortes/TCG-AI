@@ -60,17 +60,21 @@ Measured on this machine, `policy="random"`, one core:
 which is *cheaper* than the plan's S4 estimate of 0.02 s. K=20 rollouts on two
 options is 0.37 s, so 280 ties cost under two minutes.
 
-⚠️ **And the noise floor says which number to read.** Two independent batches of
-K=30 rollouts of the SAME option:
+⚠️ **And the noise floor sets K.** It is measured as a distribution and not as
+one number, because the first attempt here quoted a single pair of batches
+(17 pp / 0.03) and the very next run of the same test returned 7 pp / 0.33 --
+the instrument catching its own author in exactly the error it exists to
+prevent. Six independent pairs of batches of the SAME option, same board:
 
-    winrate     5/30 against 10/30      -> a floor of 17 pp
-    margin      -0.63 against -0.60     -> a floor of 0.03 prizes
+    K= 20   winrate floor  median  7.5 pp (worst 30.0)   margin floor  0.28 (worst 0.70)
+    K= 50   winrate floor  median  6.0 pp (worst  8.0)   margin floor  0.10 (worst 0.36)
+    K=100   winrate floor  median  4.0 pp (worst  6.0)   margin floor  0.09 (worst 0.24)
 
-**The win flag is unusable at this K and the prize margin is not.** Any
-preference this oracle reports must be read on the margin, and a winrate
-difference under ~17 pp at K=30 is the instrument talking to itself. It is the
-same lesson the matchup matrix already carries -- prizes rank, winrate does not
-([[el-playbook-del-meta-de-500-mazos]]) -- arriving through a third door.
+**K=20 is not enough for anything**: its worst pair disagrees by 30 pp on two
+batches of the same option. K=50 is where the floor becomes usable and K=100 is
+where it stops improving much. At 9.3 ms a rollout, K=100 on two options is
+**1.9 s per decision** — so use it, and quote the WORST floor rather than the
+median when deciding whether a preference is real.
 
 Sensitivity, same board, same K: our agent as the rollout policy scores **18/30
 with a margin of +0.80** against a coin-flipper's **5/30 and −0.63**. The oracle
