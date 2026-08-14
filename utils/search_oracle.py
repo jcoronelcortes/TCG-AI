@@ -180,7 +180,13 @@ def determinize(obs, opponent_obs, our_deck, their_deck, rng=None):
     prize sets and both deck remainders -- is SAMPLED from what is left, because
     (see the module docstring) prizes are face down even to their owner.
 
-    Returns the six lists `search_begin` wants, plus `diag` for the report.
+    **`opponent_obs=None` is legitimate and is the common case.** The frozen
+    corpus and every recorded episode keep ONE seat's observations, so there is
+    no opponent view to read: their hand is then sampled from their unseen
+    multiset like everything else. The result is a fully legal world rather than
+    a partly true one, and `diag["hand_sampled"]` says which of the two a run
+    was, because a grade computed against a guessed hand is a weaker claim than
+    one computed against the real one and the report has to be able to tell.
     """
     rng = rng or random.Random()
     state = obs["current"]
@@ -195,8 +201,10 @@ def determinize(obs, opponent_obs, our_deck, their_deck, rng=None):
             # above all the hand -- so it is the better reader for their side.
             seen = _ids_seen(opponent_obs, them)
         hand = []
-        if seat == them:
-            src = (opponent_obs or obs)["current"]
+        hand_sampled = False
+        n_hand = int(state["players"][them].get("handCount") or 0) if seat == them else 0
+        if seat == them and opponent_obs is not None:
+            src = opponent_obs["current"]
             hand = [c["id"] for c in (src["players"][them].get("hand") or [])
                     if c and c.get("id") is not None]
             for cid in hand:
@@ -206,6 +214,11 @@ def determinize(obs, opponent_obs, our_deck, their_deck, rng=None):
         if seat == them:
             rest = list((Counter(rest) - Counter(hand)).elements())
         rng.shuffle(rest)
+        if seat == them and opponent_obs is None and n_hand:
+            # No opponent view: their hand is drawn from what is left, exactly
+            # like their prizes. It is a legal world, not the true one.
+            hand, rest = rest[:n_hand], rest[n_hand:]
+            hand_sampled = True
         n_prize = len(state["players"][seat].get("prize") or [])
         n_deck = int(state["players"][seat].get("deckCount") or 0)
         prize = rest[:n_prize]
@@ -219,7 +232,8 @@ def determinize(obs, opponent_obs, our_deck, their_deck, rng=None):
         if len(deck) != n_deck:
             raise DeterminizationError(
                 f"seat {seat}: {len(deck)} cards left for a deck of {n_deck}")
-        out[seat] = {"deck": deck, "prize": prize, "hand": hand}
+        out[seat] = {"deck": deck, "prize": prize, "hand": hand,
+                     "hand_sampled": hand_sampled}
 
     their_active = (state["players"][them].get("active") or [])
     op_active = []
@@ -234,7 +248,9 @@ def determinize(obs, opponent_obs, our_deck, their_deck, rng=None):
         "opponent_prize": out[them]["prize"],
         "opponent_hand": out[them]["hand"],
         "opponent_active": op_active,
-        "diag": {"seat": us, "prizes_sampled": len(out[us]["prize"]) + len(out[them]["prize"])},
+        "diag": {"seat": us,
+                 "prizes_sampled": len(out[us]["prize"]) + len(out[them]["prize"]),
+                 "hand_sampled": out[them]["hand_sampled"]},
     }
 
 
