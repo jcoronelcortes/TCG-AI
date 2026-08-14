@@ -359,8 +359,15 @@ now an excluded-on-purpose list rather than an accident.
 
 ### Not done
 
-* **Phase D (the Search API)** — untouched, exactly as planned; it is weeks of
-  research and the plan puts it after A+B, which have only just landed.
+* **Phase D (the Search API)** — ⭐ **D0 and D1 shipped 14 August**:
+  `utils/search_oracle.py`, both halves passing, **9.3 ms per full rollout**
+  (cheaper than S4's 0.02 s estimate). Three of the plan's own assumptions
+  did not survive contact: the prizes are unreadable even to their owner so
+  the determinization must be part sampled; `search_begin` silently accepts
+  a determinization with too many cards; and **the API is not seeded**, so
+  the oracle is an estimator whose noise floor is measured (K=20 is
+  unusable, K≥50 is not). D2 (the tie census) and D3 (`op_wins_after_ko`)
+  are what is left.
 * **Phase E (tracing builds)** — deliberately deferred until an investigation
   needs one.
 
