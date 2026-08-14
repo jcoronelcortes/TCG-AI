@@ -209,12 +209,20 @@ def _festival_second_wave_prizes(op_state, damage, knocked_out=None) -> int:
                   and (_koed is None or getattr(p, 'serial', None) != _koed)]
     if not candidates:
         return 0            # no body comes up: the game already ended with the KO
-    best = 0
+    worst = None
     for body in candidates:
         if _ko_not_guaranteed(body) or damage < (body.hp or 0):
             return 0        # they promote this one and the second wave takes nothing
-        best = max(best, prize_count_op(body))
-    return best
+        # THE CHEAPEST CORPSE, not the dearest. Every body dies to the wave, so
+        # what the second one is WORTH is still their choice, and they make it
+        # against us: a bench of one Thwackey and one ex pays ONE prize, because
+        # the Thwackey is what comes up. The line above already refuses the whole
+        # prize when a single body survives; this line refuses to invent the
+        # difference between two that do not. Reading the maximum here is how a
+        # route that takes one prize gets to call itself lethal for two.
+        _p = prize_count_op(body)
+        worst = _p if worst is None else min(worst, _p)
+    return worst or 0
 
 
 class _ProjTarget(NamedTuple):
@@ -1156,9 +1164,134 @@ def _bench_attacker_can_ko(my_state, target, meganium_active, total_grass_field,
     return False
 
 
+def _festival_active_wave_prizes(my_state, op_state, bench_count,
+                                 meganium_active, neutral_zone):
+    """Prizes the double *Do the Wave* takes with the Dipplin **already in the
+    Active spot**: the body in front plus the one that replaces it. 0 otherwise.
+
+    The same law as `_festival_promote_wave_prizes` read from the other route,
+    and it needs its own function for a reason the record makes plain. The
+    inline damage copy that feeds `_active_already_kos` knows Ogerpon, Hydrapple,
+    Tapu Bulu, Meganium and Fezandipiti -- and not Dipplin -- so from the front
+    our own wave reads as ZERO and no "does the active already finish it?" rule
+    can see it at all. Rather than widen that copy (`_active_already_kos` is read
+    by a dozen rules that were measured without it), this answers the one
+    question the stadium changes, through the canonical model, and its only
+    consumer is `_active_attack_wins_now`.
+
+    What it claims is not new damage, it is a PRIORITY: the turn where our
+    charged Dipplin's two waves close our prize count is a turn no gust, no
+    Supporter and no defensive pivot may divert. See
+    [[el-doble-ataque-del-estadio-tambien-es-nuestro]].
+    """
+    act = (my_state.active or [None])[0] if my_state.active else None
+    if act is None or op_state is None or not _festival_double_wave(act.id):
+        return 0
+    target = (op_state.active or [None])[0] if op_state.active else None
+    if target is None or (target.hp or 0) <= 0 or _ko_not_guaranteed(target):
+        return 0
+    _e = len(act.energies)
+    _eff = _e * _grass_mult()
+    _base = _attacker_base_damage(act.id, target, _eff, grass_scale=0,
+                                  teal_self_energy=_e, bench_count=bench_count)
+    if _base <= 0:
+        return 0
+    _dmg = _our_effective_damage(act, target, _base, meganium_active,
+                                 neutral_zone)
+    if _dmg <= 0 or _dmg < (target.hp or 0):
+        return 0
+    return prize_count_op(target) + _festival_second_wave_prizes(
+        op_state, _dmg, target)
+
+
+def _festival_promote_wave_prizes(my_state, op_state, op_active, bench_count,
+                                  can_attach_grass, retreat_grass_after,
+                                  meganium_active, neutral_zone):
+    """Prizes the PROMOTE route takes when the body it brings up is a **Dipplin
+    under Festival Grounds**: the first Do the Wave on their Active plus the
+    second one on whatever they promote. 0 when that route does not exist.
+
+    THE ONE ROUTE WHOSE PRIZE COUNT IS NOT THE TARGET'S (user, registro_020
+    step 146 vs Festival Lead, episode 92849968 -- WON, and won late). At two
+    prizes, with their Applin (40 HP) in front and two Thwackey (100 HP) behind
+    it, our bench held an Applin and our hand two Grass. Evolving it, charging
+    it and retreating the Teal Mask Ogerpon ex into it is Do the Wave for
+    20 x 5 = 100: the Applin dies, they promote a Thwackey, the stadium throws
+    the SAME wave again and the Thwackey dies too. Two prizes, two of two,
+    game over on turn 20. The agent evolved the Applin, spent both Grass on
+    Teal Dance and finished the 40 HP Applin with a 210-damage Myriad -- one
+    prize for a turn that had two in it.
+
+    **Why nothing saw it.** Everything this agent had learned about the shared
+    stadium was written for a different question. `_festival_sac_pivot` is this
+    exact swap, but it is DEFENSIVE: it only fires when the ex in front is
+    already doomed (`active_ko_likely`), and here the ex sat at 150/210 in front
+    of a 40 HP Applin with nothing to fear. `festival_lead_pays_us_now` only
+    stops us discarding the stadium that is paying us. And `prizes_today` in the
+    turn plan DID count the second wave -- it read 2 on this very board -- but
+    `prizes_today` labels a turn, it does not execute one. The flag that
+    executes is `_win_ko_active_via_promote`, and it is fed by
+    `_promote_ko_active_prizes`, which answered `prize_count_op(op_active)`:
+    ONE. So the plan said RACE, and a RACE turn takes the prize it can see.
+
+    Two readings the generic promote route cannot make, which is why this is a
+    function and not a branch:
+
+      * THE PRIZES ARE NOT THE TARGET'S. Every other promote route cashes the
+        body it knocks out; this one cashes that body **and** the one that
+        replaces it, and only `_festival_second_wave_prizes` knows when the
+        second one is real.
+      * THE FINISHER MAY STILL BE EMPTY. `_bench_attacker_can_ko` reads each
+        candidate with the energy ALREADY on it, on purpose -- it answers "is
+        the finisher ready", not "could one be made ready". Do the Wave costs
+        ONE Grass and its damage does not scale with energy, so for this body
+        alone the distinction collapses: the turn's attachment is the whole
+        difference between a route and no route, and the record's Dipplin was
+        sitting on zero.
+
+    The bench the wave counts is the one the RETREAT leaves behind, and a
+    retreat SWAPS bodies -- the ex goes down as the Dipplin comes up -- so
+    `bench_count` is the same number before and after
+    ([[la-retirada-intercambia-cuerpos-la-banca-no-encoge]]). The retreat fee is
+    paid by the ACTIVE and cannot charge the relay, which is why the attachment
+    is spent here without discount.
+    """
+    if op_active is None or op_state is None:
+        return 0
+    _thp = op_active.hp or 0
+    if _thp <= 0 or _ko_not_guaranteed(op_active):
+        return 0
+    req = AGENT_STATE.ATTACK_ENERGY_REQ
+    best = 0
+    for bp in (my_state.bench or []):
+        if bp is None or not _festival_double_wave(bp.id):
+            continue
+        _e = len(bp.energies)
+        _eff = _e * _grass_mult()
+        if _eff < req.get(bp.id, 1):
+            if not can_attach_grass:
+                continue
+            _eff += _grass_attach_unit()
+            if _eff < req.get(bp.id, 1):
+                continue
+        _base = _attacker_base_damage(bp.id, op_active, _eff,
+                                      grass_scale=retreat_grass_after,
+                                      teal_self_energy=_e,
+                                      bench_count=bench_count)
+        if _base <= 0:
+            continue
+        _dmg = _our_effective_damage(bp, op_active, _base, meganium_active,
+                                     neutral_zone)
+        if _dmg <= 0 or _dmg < _thp:
+            continue
+        best = max(best, prize_count_op(op_active)
+                   + _festival_second_wave_prizes(op_state, _dmg, op_active))
+    return best
+
+
 def _promote_ko_active_prizes(my_state, op_active, can_switch, has_switch_card,
                               can_attach_grass, total_grass, bench_count,
-                              meganium_active, neutral_zone):
+                              meganium_active, neutral_zone, op_state=None):
     """Prizes the KO on the opposing ACTIVE is worth **through the retreat**;
     0 when that route does not exist.
 
@@ -1196,10 +1329,10 @@ def _promote_ko_active_prizes(my_state, op_active, can_switch, has_switch_card,
                                   grass_scale=total_grass,
                                   teal_self_energy=_e + (1 if can_attach_grass else 0),
                                   bench_count=bench_count)
-    if (_base > 0
-            and _our_effective_damage(act, op_active, _base, meganium_active,
-                                      neutral_zone) >= (op_active.hp or 0)):
-        return 0
+    _active_already_kos = (
+        _base > 0
+        and _our_effective_damage(act, op_active, _base, meganium_active,
+                                  neutral_zone) >= (op_active.hp or 0))
 
     _cost = 0 if has_switch_card else RETREAT_COST.get(act.id, 1)
     if not has_switch_card and len(act.energies) < _cost:
@@ -1208,11 +1341,23 @@ def _promote_ko_active_prizes(my_state, op_active, can_switch, has_switch_card,
     # Hydrapple is measured AFTER paying it.
     _grass_after = max(0, total_grass - (0 if has_switch_card
                                          else _retreat_grass_units(_cost)))
+    # THE SHARED STADIUM PAYS THIS ROUTE TWICE. Asked BEFORE the "the active
+    # already knocks it out" guard below, because that guard's premise is that
+    # the two routes cash the same prize and the front one is free -- true of
+    # every route but this one. Under Festival Grounds the promotion cashes the
+    # body it kills AND the body that replaces it, so an active that finishes
+    # the same target for ONE prize is not an answer to a swap that takes TWO.
+    # See `_festival_promote_wave_prizes` for the record this comes from.
+    _fest = _festival_promote_wave_prizes(
+        my_state, op_state, op_active, bench_count, can_attach_grass,
+        _grass_after, meganium_active, neutral_zone)
+    if _active_already_kos and _fest <= prize_count_op(op_active):
+        return 0            # attacking is the play, and `_bo_can_ko_active` reads it
     if not _bench_attacker_can_ko(my_state, op_active, meganium_active,
                                   total_grass, bench_count, _grass_after,
                                   neutral_zone):
-        return 0
-    return prize_count_op(op_active)
+        return _fest
+    return max(_fest, prize_count_op(op_active))
 
 
 def _hand_revealed_lethal_reply(op_active, target, op_hand_count):
@@ -1696,6 +1841,8 @@ __all__ = [
     '_festival_double_wave',
     '_festival_wave_bench',
     '_festival_second_wave_prizes',
+    '_festival_active_wave_prizes',
+    '_festival_promote_wave_prizes',
     '_snipe_targets',
     '_our_effective_damage',
     '_tiene_rule_box',

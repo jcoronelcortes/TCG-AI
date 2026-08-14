@@ -44,7 +44,7 @@ the fields it reads and returns only the ones it reassigns.
 
 from cg.api import AreaType, CardType, Pokemon, SelectContext
 from ptcg.calc.card import get_card, prize_count, prize_count_op
-from ptcg.calc.damage import _attacker_base_damage, _bench_attacker_can_ko, _ko_not_guaranteed, _our_effective_damage, _snipe_target_score
+from ptcg.calc.damage import _attacker_base_damage, _bench_attacker_can_ko, _festival_double_wave, _festival_second_wave_prizes, _ko_not_guaranteed, _our_effective_damage, _snipe_target_score
 from ptcg.calc.energy import _can_attack_eff, _grass_attach_route_open, _grass_attach_unit, _grass_mult
 from ptcg.calc.board import _active_of, _count_hand_play_options
 from ptcg.cards.groups import EVO_LINES, GT_FETCH_BONUS
@@ -456,12 +456,28 @@ def score_play(tc, o, score):
                         _wp_opa = _active_of(op_state)
                         _wp_opa_hp = (_wp_opa.hp or 0) if _wp_opa is not None else 0
                         _wp_e = energy_count
+                        # THE ROUTE PAID THE RETREAT; THIS MENU HAS TO CASH IT.
+                        # The prize test below is the same sentence as
+                        # `_promote_ko_active_prizes`, and under Festival Grounds
+                        # it was wrong here for the same reason: our Dipplin
+                        # throws Do the Wave TWICE, so the promotion cashes the
+                        # body in front AND the one they put up to replace it.
+                        # Without this the fix upstream is worse than no fix at
+                        # all -- the turn plan reads ROUTE_PROMOTE, the retreat
+                        # gets chosen, and then this menu brings up the biggest
+                        # tank instead of the attacker the route was for: the
+                        # fee is paid and never cashed (measured on
+                        # registro_020 with `utils/search_oracle.py`, which is
+                        # how the hole was found at all).
+                        _wp_double = _festival_double_wave(card.id)
+                        _wp_op_bench_empty = not any(
+                            b is not None for b in (op_state.bench or []))
                         if (_wp_opa is not None and _wp_opa_hp > 0
                                 and (_can_attack_now or _can_attack_with_attach)
                                 and not _ko_not_guaranteed(_wp_opa)
                                 and (my_prize <= prize_count_op(_wp_opa)
-                                     or not any(b is not None
-                                                for b in (op_state.bench or [])))
+                                     or _wp_double
+                                     or _wp_op_bench_empty)
                                 and not (_self_ko_by_own_attack(card, incierto=True)
                                          and op_prize <= prize_count(card))):
                             if not _can_attack_now:
@@ -470,9 +486,22 @@ def score_play(tc, o, score):
                                 card.id, _wp_opa, _wp_e * _grass_mult(),
                                 grass_scale=total_grass, teal_self_energy=_wp_e,
                                 bench_count=bench_count)
-                            if (_wp_base > 0 and _our_effective_damage(
-                                    card, _wp_opa, _wp_base, AGENT_STATE.meganium_in_play,
-                                    neutralization_zone_active) >= _wp_opa_hp):
+                            _wp_dmg = (_our_effective_damage(
+                                card, _wp_opa, _wp_base,
+                                AGENT_STATE.meganium_in_play,
+                                neutralization_zone_active)
+                                if _wp_base > 0 else 0)
+                            _wp_prizes = (prize_count_op(_wp_opa)
+                                          if _wp_dmg >= _wp_opa_hp else 0)
+                            if _wp_prizes and _wp_double:
+                                _wp_prizes += _festival_second_wave_prizes(
+                                    op_state, _wp_dmg, _wp_opa)
+                            # The recomputed test is the outer one verbatim for
+                            # every body that is not throwing two waves, so
+                            # nothing outside the stadium changes score here.
+                            if (_wp_base > 0 and _wp_dmg >= _wp_opa_hp
+                                    and (my_prize <= _wp_prizes
+                                         or _wp_op_bench_empty)):
                                 # With the energy ALREADY on it the finisher is certain;
                                 # if it depends on a pending attachment, it is worth
                                 # slightly less (but still above every wall/development
