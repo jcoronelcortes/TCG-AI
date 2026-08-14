@@ -139,6 +139,7 @@ def score_play(tc, o, score):
     _promo_survivors = tc._promo_survivors
     _promo_wall_relief = tc._promo_wall_relief
     _promote_setup_ko_attacker = tc._promote_setup_ko_attacker
+    _promo_bet_walks_back = tc._promo_bet_walks_back
     _refresh_promote_prefer_basic = tc._refresh_promote_prefer_basic
     _ripen_heal_serial = tc._ripen_heal_serial
     _sel_active_cant_attack = tc._sel_active_cant_attack
@@ -1263,6 +1264,21 @@ def score_play(tc, o, score):
                     #     turn, ours comes next and this body attacks FIRST --
                     #     and the guard makes it unambiguous: our prize is the
                     #     last one, so their reply never happens.
+                    # AND NOT `_promo_bet_walks_back` HERE, ON PURPOSE. The
+                    # sibling veto at the bottom of this chain lets the named
+                    # finisher through when it can pay its own retreat (user,
+                    # registro_006 step 77 vs Archaludon ex), and the same
+                    # sentence reads true of this one -- their reply lands a
+                    # whole turn of OURS later, and a body that can step aside
+                    # is not there to receive it. It is not written here because
+                    # this veto asks for something that one does not:
+                    # `_promo_survivors > 0`, a body that ENDURES their blow.
+                    # That is a different board -- the alternative to the bet is
+                    # a tank that lives, not a mute wall that dies anyway -- and
+                    # no record in either corpus produces it, so the trade has
+                    # never been measured. The mutation gate says the same
+                    # thing out loud: written here, the term is a line no test
+                    # in the repository can kill.
                     #
                     # With the opposing damage unreadable (a projection of 0) EVERYBODY
                     # "survives" and this does not fire: with no evidence nothing is
@@ -1377,6 +1393,19 @@ def score_play(tc, o, score):
                     # this branch of the chain is about is the one that is a
                     # single attachment from lethal ON OUR TURN, which comes
                     # first (see `_promo_ko_wins_the_game`).
+                    #
+                    # AND THE SAME FINISHER IS EXEMPT WHEN IT CAN WALK BACK
+                    # (`_promo_bet_walks_back`, user, registro_006 step 77 vs
+                    # Archaludon ex, episode 92848103, LOST). This is the veto
+                    # that fired on that board: six prizes to TWO, so our
+                    # knockout was nowhere near ending the game and the
+                    # exemption above stayed shut, while the Ogerpon ex it
+                    # removed was one attachment from finishing their
+                    # Archaludon and carried the Grass that pays its own
+                    # retreat. What this veto prices -- "their blow takes this
+                    # body and with it their last prize" -- is a reply that
+                    # arrives a whole turn of OURS later, and a body that can
+                    # step aside is not there to receive it. See `agent()`.
                     if (isinstance(card, Pokemon)
                             and _promo_op_act is not None
                             and _mp_cheaper_candidate
@@ -1384,7 +1413,8 @@ def score_play(tc, o, score):
                             and _mp_price_ends_the_game(card)
                             and not (_promo_kos_op(card)
                                      and my_prize <= prize_count_op(_promo_op_act))
-                            and not (_promo_ko_wins_the_game
+                            and not ((_promo_ko_wins_the_game
+                                      or _promo_bet_walks_back)
                                      and _promote_setup_ko_attacker is not None
                                      and card is _promote_setup_ko_attacker)):
                         score = PROMO_MATCH_POINT_VETO

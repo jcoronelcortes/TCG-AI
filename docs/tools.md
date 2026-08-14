@@ -593,6 +593,38 @@ for it:
 Cost: **9.3 ms per full rollout**, 143 steps to game end — cheaper than the plan's
 own estimate, so two options at K=100 cost 1.9 s per decision.
 
+### `oracle_the_promotion_bets_when_it_can_walk_back.py` — one rule, graded by the rules
+
+```bash
+python utils/oracle_the_promotion_bets_when_it_can_walk_back.py        # K=100
+```
+
+The pattern to copy when a rule is too RARE for a winrate. Route (f) of the
+promotion (`PROMOTE_REVERSIBLE_BET`) changes one decision in 210 forced
+promotions, which is invisible to a scoreboard that saturates at 93 % against
+the bot. So the tree is loaded twice with the flag rebound to `False` in one
+arm, both corpora are replayed side by side, and every decision the two arms
+disagree on becomes a board for `search_oracle.rollout`: K=100 per option, plus
+a second batch of the SAME option at different seeds as that board's own noise
+floor. A preference that does not clear its board's floor is not a preference.
+Its first run: **3 boards, 3 in favour of the bet, 0 against**
+([the write-up](marnie-the-reversible-bet-2026-08-14.md)).
+
+### `oracle_the_veto_yields_to_the_body_that_walks_back.py` — the same pattern, one rung down
+
+```bash
+python utils/oracle_the_veto_yields_to_the_body_that_walks_back.py     # K=100
+python utils/gate_the_veto_yields_to_the_body_that_walks_back.py --census
+```
+
+A copy of the file above with `PROMOTE_BET_OUTLIVES_MATCH_POINT` as the switch:
+the exemption that stops the match-point veto removing a finisher which can pay
+its own retreat. Even rarer than its sibling — **zero** flips on the frozen
+fifty and one on the harvested records — so the gate beside it reports a
+**firing census** (473 forced promotions over 750 games, 8 changed) and the
+oracle does the grading: **+14 pp / +1.09 margin** and **+13 pp / +0.86** on two
+independent runs ([the write-up](archaludon-the-veto-that-walks-back-2026-08-14.md)).
+
 ### `differential_oracle.py` — what the plan predicted vs. what the engine resolved
 
 The agent's attack plan states, before the attack, what it expects to happen. The
@@ -739,7 +771,9 @@ that are not simply "run the suite".
 The rest of the `gate_*.py` family is written **per candidate rule**, not per
 project: `gate_the_engine_waits.py`, `gate_the_cap_reads_their_hand.py`,
 `gate_promoted_relay.py`, `gate_what_the_search_bought.py`,
-`gate_the_search_buys.py` and so on. Each one exports two trees, loads an agent
+`gate_the_search_buys.py`,
+`gate_the_veto_yields_to_the_body_that_walks_back.py` and so on. Each one
+exports two trees, loads an agent
 from each, and plays the same matchups with both, so the change under test is
 the only difference between the arms.
 

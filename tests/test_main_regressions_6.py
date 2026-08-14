@@ -579,7 +579,8 @@ def test_promote_near_ready_ko_attacker_over_cheap_wall():
     assert result != [tapu_opt], (
         "no promover un muro que no puede atacar en varios turnos")
 
-def _promote_near_ready_obs(without_lillie=False, without_fez=False):
+def _promote_near_ready_obs(without_lillie=False, without_fez=False,
+                            without_hidden_grass=False):
     with open(_PROMOTE_NEAR_READY_FIXTURE, encoding="utf-8") as f:
         obs = json.loads(json.dumps(json.load(f)["observation"]))
     yi = obs["current"]["yourIndex"]; me = obs["current"]["players"][yi]
@@ -590,6 +591,21 @@ def _promote_near_ready_obs(without_lillie=False, without_fez=False):
         obs["select"]["option"] = [
             {"area": 5, "index": i, "playerIndex": yi, "type": 3}
             for i in range(len(me["bench"]))]
+    if without_hidden_grass:
+        # Exhaust the deck: every Grass of the list already VISIBLE (hand,
+        # discard or attached) leaves `_ps_grass_reachable` False, which is the
+        # premise the BLIND routes -- the Flip the Script draw (d) and the
+        # turn's own draw (f) -- bet on. Without it there is nothing to draw.
+        total = sum(m.AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(
+            m.Basic_Grass_Energy, {}).values())
+        visible = sum(1 for c in me["hand"] + me["discard"]
+                      if c["id"] == m.Basic_Grass_Energy)
+        for pk in list(me["active"]) + list(me["bench"]):
+            visible += sum(1 for e in (pk.get("energyCards") or [])
+                           if e["id"] == m.Basic_Grass_Energy)
+        for i in range(max(0, total - visible)):
+            me["discard"].append({"id": m.Basic_Grass_Energy,
+                                  "playerIndex": yi, "serial": 900 + i})
     return obs
 
 def test_promote_near_ready_defers_without_draw_engine():
@@ -616,7 +632,17 @@ def test_promote_near_ready_defers_without_draw_engine():
     # `tests/test_the_last_stand_takes_the_front_spot.py` (`_mp_last_stand`).
     # The two rules reach the same body for different reasons, so the override
     # is now read directly rather than through who was promoted.
-    obs = _promote_near_ready_obs(without_lillie=True, without_fez=True)
+    #
+    # AND THE DECK HAS TO BE EMPTY OF GRASS, not just the hand of engines
+    # (registro_006 step 94 vs Marnie's Grimmsnarl ex). Route (f) bets the
+    # turn's own draw whenever a copy is still unseen and the candidate keeps
+    # its exit, so "no draw engine" stopped being the same sentence as "no way
+    # to the energy": with Grass still in the deck the override is right to
+    # exist. What this control measures -- there is NO route -- now needs the
+    # third engine switched off too, and switching it off is exhausting the
+    # copies. See `tests/test_the_promotion_bets_when_the_bet_is_reversible.py`.
+    obs = _promote_near_ready_obs(without_lillie=True, without_fez=True,
+                                  without_hidden_grass=True)
 
     seen = {}
     _original = m.score_option

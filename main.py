@@ -549,6 +549,19 @@ PROMO_KO_BONUS = 20000
 # would leave the tie-break to the random order of the options, exactly between
 # the body that endures and the one that makes us lose.
 PROMO_MATCH_POINT_VETO = -30000
+# Route (f) of `_promote_setup_ko_attacker`: promote the body that is ONE
+# attachment from a knockout on the strength of the turn's own draw, as long as
+# the bet stays REVERSIBLE (the body can pay its own retreat). A named switch
+# rather than an inline condition so the gates and the rules oracle can measure
+# the rule as the only difference between two arms
+# ([[la-noche-del-12-de-agosto-cuatro-detectores-y-lo-que-encontraron]]).
+PROMOTE_REVERSIBLE_BET = True
+# The same sentence, one rung further down, against THEIR match point: the two
+# vetoes that remove a body whose price is their remaining pile are priced on a
+# reply that only lands if the body is still in front when it comes -- and a
+# finisher that can pay its own retreat does not have to be. See
+# `_promo_bet_walks_back`. A named switch for the same reason as its sibling.
+PROMOTE_BET_OUTLIVES_MATCH_POINT = True
 
 
 
@@ -10470,8 +10483,9 @@ def agent(obs_dict: dict) -> list[int]:
             and not neutralization_zone_active
             and op_state.active and op_state.active[0] is not None):
         _ps_opa = op_state.active[0]
-        _ps_opa_data = card_table.get(_ps_opa.id)
-        _ps_weak = getattr(_ps_opa_data, 'weakness', None) if _ps_opa_data else None
+        # Their weakness is no longer read here: `_our_effective_damage` resolves
+        # the whole matchup of types below -- weakness, resistance and the
+        # stadium -- instead of the half of it this block used to inline.
         _ps_opa_en = len(_ps_opa.energies or [])
         _ps_remain = getattr(_ps_opa, 'hp', 0) or 0
         _ps_unit = _grass_attach_unit()
@@ -10583,15 +10597,24 @@ def agent(obs_dict: dict) -> list[int]:
         def _ps_keeps_its_way_out(_pk):
             """The candidate can PAY ITS RETREAT with the energy it already carries.
 
-            It is the half that makes route (d) safe (user, registro_008 step
-            122): bringing up the almost-attacker is NOT a blind bet as long as
-            it stays reversible. If the draw fails and the Grass does not appear,
-            next turn we retreat it and bring up the 1-prize wall THEN --
-            the sacrifice is a DEFERRABLE decision; being nailed down is
-            not. A body at 0 energies with a retreat cost of 3 (Tapu Bulu) gives away
-            the whole turn: it neither attacks nor can switch out.
+            It is the half that makes the BLIND routes (d) and (f) safe (user,
+            registro_008 step 122): bringing up the almost-attacker is NOT a
+            blind bet as long as it stays reversible. If the draw fails and the
+            Grass does not appear, next turn we retreat it and bring up the
+            1-prize wall THEN -- the sacrifice is a DEFERRABLE decision; being
+            nailed down is not. A body at 0 energies with a retreat cost of 3
+            (Tapu Bulu) gives away the whole turn: it neither attacks nor can
+            switch out.
+
+            THE BILL IS PAID IN CARDS (`_retreat_payable`), not in symbols. With
+            Meganium's Wild Growth in play each Grass pays for two, so the raw
+            `len(energies) >= RETREAT_COST` reading -- symbols against symbols --
+            asks a body carrying one physical Grass for a cost it does not owe
+            and calls a candidate nailed down that can walk. Same correction the
+            rest of the retreat family already carries
+            ([[la-factura-de-la-retirada-se-cuenta-en-cartas-no-en-simbolos]]).
             """
-            return len(_pk.energies) >= RETREAT_COST.get(_pk.id, 1)
+            return _retreat_payable(_pk)
 
         # ROUTE (e), OUR MATCH POINT ONLY: THE TURN'S OWN DRAW. Routes (a)-(d)
         # all ask the board to GUARANTEE the missing Grass, because on an
@@ -10609,8 +10632,57 @@ def agent(obs_dict: dict) -> list[int]:
         # a nailed-down body costs nothing extra.
         _ps_last_prize_bet = (_promo_ko_wins_the_game and _ps_grass_reachable)
 
+        # ROUTE (f), THE REVERSIBLE BET: THE TURN'S OWN DRAW, ON AN ORDINARY
+        # BOARD (user, registro_006 step 94 vs Marnie's Grimmsnarl ex, episode
+        # 93022181, LOST).
+        #
+        # Their Grimmsnarl ex knocked out our Ogerpon ex and the menu offered a
+        # Meganium at 0/4, TWO Teal Mask Ogerpon ex at 2/3 effective and a Tapu
+        # Bulu at 0/4. Grimmsnarl ex is WEAK TO GRASS: one attachment puts an
+        # Ogerpon at four and Myriad Leaf Shower is 30+30x(4+2) = 210, doubled =
+        # 420 over its 310. The hand held no Grass and no draw Supporter, so
+        # routes (a)-(d) were all dead and `_ko_prefer_basic_general` promoted
+        # the Tapu Bulu -- 8514 against -1314 -- a body that needs four energy,
+        # carries none and costs three to retreat. Turn 7 opened by drawing a
+        # Bug Catching Set that fetched TWO Grass; we spent them on the bench,
+        # attacked with nothing, and lost.
+        #
+        # Routes (a)-(d) all ask the board to GUARANTEE the missing Grass and
+        # route (e) drops that only at our own match point. What this one says
+        # is that the guarantee was never the thing being paid for: with the
+        # EXIT intact the failed bet costs nothing that the wall was not already
+        # costing. The promotion resolves at the end of THEIR turn, so nothing
+        # can touch the promoted body before we act; next turn we either draw
+        # the Grass and take the prize, or we retreat -- one card, cost already
+        # on board -- and the wall comes up THEN, before their reply. What we
+        # are choosing between is a lottery ticket that is free if it loses and
+        # a body that is mute either way.
+        #
+        # Its two guards are the ones its neighbours already use:
+        # `_ps_grass_reachable` (a copy is still unseen -- with every Grass in
+        # the discard and no recovery nothing fires) and the wall matchup of
+        # route (d) (against a deck that structurally blanks our ex the prize
+        # the finisher buys pays little and the 2-prize body is paid for
+        # anyway). The exit itself is demanded of the candidate in the loop
+        # below, which is what makes this route reversible and route (d) its
+        # special case (the Fezandipiti draw is three cards instead of one).
+        #
+        # A THIRD GUARD WAS WRITTEN AND THEN REMOVED: "a body still on the
+        # bench after the promotion, or there is nothing to retreat INTO". It
+        # is true and it can never change a decision -- the only board it
+        # excludes is a bench of ONE, where the menu offers a single option and
+        # the answer is forced whatever anything here scores. The mutation gate
+        # is what said so out loud (two survivors on that line, no test in the
+        # repository able to watch it), and an unreachable condition is
+        # decoration that the next reader has to disprove.
+        _ps_reversible_draw_bet = (
+            PROMOTE_REVERSIBLE_BET
+            and _ps_grass_reachable
+            and not _ps_wall_matchup)
+
         if _ps_remain > 0 and (_ps_can_find_energy or _ps_fez_draw_engine
-                               or _ps_last_prize_bet):
+                               or _ps_last_prize_bet
+                               or _ps_reversible_draw_bet):
             _ps_best_key = None
             for _psb in my_state.bench:
                 if _psb is None or not isinstance(_psb, Pokemon):
@@ -10618,13 +10690,14 @@ def agent(obs_dict: dict) -> list[int]:
                 _ps_req = AGENT_STATE.ATTACK_ENERGY_REQ.get(_psb.id)
                 if _ps_req is None:
                     continue
-                # With ONLY route (d) alive -- the blind draw of Flip the
-                # Script --, the candidate has to keep its exit: if the
-                # Grass does not appear, it retreats and the wall comes up the
-                # following turn. With any of the SEARCH routes (a/b/c) the
-                # energy is practically assured and it is not needed, and at our
-                # match point (route (e)) there is no following turn to keep the
-                # exit for.
+                # With only a BLIND route alive -- the Flip the Script draw (d)
+                # or the turn's own draw (f) -- the candidate has to keep its
+                # exit: if the Grass does not appear, it retreats and the wall
+                # comes up the following turn. That reversibility IS what pays
+                # for the bet. With any of the SEARCH routes (a/b/c) the energy
+                # is practically assured and it is not needed, and at our match
+                # point (route (e)) there is no following turn to keep the exit
+                # for.
                 if (not _ps_can_find_energy and not _promo_ko_wins_the_game
                         and not _ps_keeps_its_way_out(_psb)):
                     continue
@@ -10649,10 +10722,28 @@ def agent(obs_dict: dict) -> list[int]:
                     _ps_dmg = 100
                 else:
                     _ps_dmg = 10
-                _ps_bd = card_table.get(_psb.id)
-                if (_ps_bd is not None and _ps_weak is not None
-                        and getattr(_ps_bd, 'energyType', None) == _ps_weak):
-                    _ps_dmg *= 2
+                # RESOLVED AGAINST THE BODY THAT RECEIVES IT, not just doubled
+                # (user, registro_006 step 77 vs Archaludon ex). This was the
+                # fifth inline copy of the arithmetic and it only knew half of
+                # it -- `x2 if our type is their weakness` -- so against the one
+                # archetype in the meta that RESISTS us it over-read every
+                # candidate by 30. `_our_effective_damage` is the canonical
+                # model the `_evk_*` branch below already calls, and it is the
+                # same over-read its own docstring was written from (episode
+                # 91627381 vs Archaludon: "every finisher kept over-reading by
+                # 30"). Weakness still doubles, resistance now subtracts, and
+                # Full Metal Lab takes its 30 after it.
+                #
+                # It can only ever LOWER a candidate's damage, so it never
+                # invents a finisher: all it does is stop this rule promising a
+                # knockout that lands 30 short. On the record it was written
+                # from the promotion is unchanged -- 270 resisted is exactly the
+                # 240 their Archaludon had left -- which is why the control that
+                # watches it takes one energy off their active.
+                _ps_dmg = _our_effective_damage(
+                    _psb, _ps_opa, _ps_dmg,
+                    meganium_active=AGENT_STATE.meganium_in_play,
+                    neutralization_zone=neutralization_zone_active)
                 if _ps_dmg < _ps_remain:
                     continue  # even completed it does not finish the opposing active
                 _ps_hp = getattr(_psb, 'hp', 0) or 0
@@ -11000,6 +11091,69 @@ def agent(obs_dict: dict) -> list[int]:
     _mp_cheaper_candidate = any(
         _pb is not None and prize_count(_pb) < op_prize
         for _pb in (my_state.bench or []))
+
+    # --- THE VETO IS PRICED ON A REPLY THIS BODY DOES NOT HAVE TO WAIT FOR
+    # (user, registro_006 step 77 vs Archaludon ex, episode 92848103, LOST --
+    # deck-agnostic) ---------------------------------------------------------
+    #
+    # Turn 6, SIX prizes to two. Their Archaludon ex knocked our Teal Mask
+    # Ogerpon ex out with 220 and the menu offered a Meganium 160 at 0/4, a Teal
+    # Mask Ogerpon ex 210 at 2/3 carrying one physical Grass, a Meowth ex 170, a
+    # Dipplin 80 and a Tapu Bulu 140 at 0/4. Their Archaludon stood at 240 of
+    # its 400: one attachment puts that Ogerpon at four effective and Myriad
+    # Leaf Shower is 30+30x(4+4) = 270, which even through their Grass
+    # RESISTANCE is exactly 240 -- their main attacker, two prizes, on OUR turn.
+    # And the hand held a Lillie's Determination to go looking for the Grass.
+    #
+    # `_promote_setup_ko_attacker` saw all of it and named that Ogerpon: route
+    # (a), a draw Supporter in hand with Grass still unseen, +9500. Then
+    # `_mp_price_ends_the_game` overwrote it with -30000 -- their pile is at TWO
+    # and a 2-prize ex their 220 removes IS their last two prizes -- and the
+    # front went to the Tapu Bulu at 8514: four energy needed, none carried,
+    # three to retreat. It could not attack, could not step aside, and the game
+    # went with it.
+    #
+    # THE VETO IS RIGHT ABOUT THE ARITHMETIC AND WRONG ABOUT WHEN IT HAPPENS.
+    # This promotion resolves at the END of their turn, so between the body
+    # going up and their reply there is a whole turn of ours. Their blow only
+    # collects those two prizes if the Ogerpon is still standing there when it
+    # arrives, and that is not a fact about the board -- it is a choice we still
+    # hold. Next turn we either complete the finisher and take the prize before
+    # the reply exists, or the Grass does not come and we RETREAT (cost 1, and
+    # it carries two effective) and the cheap body takes the front THEN.
+    #
+    # So it is the same sentence route (f) is built on, one rung further down:
+    # what pays for the bet is not a guarantee of the energy, it is the EXIT.
+    # The guards are the ones that sentence needs and no others:
+    #
+    #   * the candidate is the finisher `_promote_setup_ko_attacker` already
+    #     named -- this only ever lifts a veto off that one body, never promotes
+    #     anything on its own;
+    #   * it can pay its own retreat out of the energy it ALREADY carries
+    #     (`_retreat_payable`, the bill in CARDS -- with Wild Growth one Grass
+    #     pays two);
+    #   * not against a deck that PUNISHES the retreat (`op_is_cubchoo_deck`):
+    #     an exit that gets taxed on the way out is not free, and free is the
+    #     whole argument.
+    #
+    # "AND THERE IS SOMEWHERE TO WALK BACK INTO" IS NOT WRITTEN HERE, and the
+    # reason is the one route (f)'s own deleted third guard records: it is true,
+    # and it can never change a decision. The single consumer of this flag is
+    # `_mp_price_ends_the_game`'s veto, which already asks
+    # `_mp_cheaper_candidate` of the whole menu before it fires at all -- with
+    # nothing cheaper on the bench that veto stays shut and the finisher keeps
+    # its +9500 with this rule switched off as well. Repeating the term here
+    # would be a line no test can kill (the mutation gate says so), and an
+    # unkillable condition is decoration the next reader has to disprove.
+    #
+    # Nothing here names a card or a matchup: it reads the promoted body's own
+    # retreat cost, and the veto it lifts reads the prize piles.
+    _promo_bet_walks_back = (
+        PROMOTE_BET_OUTLIVES_MATCH_POINT
+        and _forced_ko_promote
+        and _promote_setup_ko_attacker is not None
+        and _retreat_payable(_promote_setup_ko_attacker)
+        and not op_is_cubchoo_deck)
 
     # THE BLOW IS PRICED ON A HAND WE ARE ABOUT TO TAKE AWAY (user,
     # registro_009 step 118 vs Alakazam, LOST -- episode 92106273,

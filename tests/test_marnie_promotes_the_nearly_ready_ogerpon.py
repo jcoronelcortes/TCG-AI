@@ -109,6 +109,19 @@ def _obs(**mut):
                           if c["id"] != m.Basic_Grass_Energy]
         for cid in (m.Lillie_Determination, m.Dawn):
             mio["discard"].append({"id": cid, "playerIndex": yo, "serial": 999})
+    if mut.get("sin_planta_oculta"):
+        # Every Grass of the list already VISIBLE: nothing left in the deck for
+        # the turn's own draw to find (route (f)).
+        total = sum(m.AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(
+            m.Basic_Grass_Energy, {}).values())
+        visible = sum(1 for c in mio["hand"] + mio["discard"]
+                      if c["id"] == m.Basic_Grass_Energy)
+        for pk in list(mio["active"]) + list(mio["bench"]):
+            visible += sum(1 for e in (pk.get("energyCards") or [])
+                           if e["id"] == m.Basic_Grass_Energy)
+        for i in range(max(0, total - visible)):
+            mio["discard"].append({"id": m.Basic_Grass_Energy,
+                                   "playerIndex": yo, "serial": 900 + i})
     return o
 
 
@@ -176,14 +189,30 @@ def test_it_promotes_the_nearly_ready_ogerpon_not_the_nailed_down_tapu():
 
 
 # ---------------------------------------------------------------------------
-# 3. The limits: with no energy engine, the cheap wall is still right
+# 3. The limits: with no route to the energy, the cheap wall is still right
+#
+# WHAT "NO ROUTE" MEANS MOVED (registro_006 step 94 vs Marnie's Grimmsnarl ex).
+# These two controls used to switch off the SEARCH engine and expect the wall
+# back, because every route then demanded a guarantee of the missing Grass.
+# Route (f) added the turn's own draw for a candidate that keeps its exit -- a
+# bet that costs nothing when it fails -- so removing the Meowth ex no longer
+# leaves the board without a route: the Ogerpon ex at 2/3 (retreat 1, carrying
+# two) is still the right body while a Grass is unseen. The wall comes back
+# when the COPIES are gone, which is what these now switch off as well.
 # ---------------------------------------------------------------------------
 
-def test_with_no_meowth_there_is_no_energy_route_and_the_1_prize_wall_returns():
-    obs = _obs(sin_meowth=True)
+def test_with_the_grass_exhausted_the_1_prize_wall_returns():
+    obs = _obs(sin_meowth=True, sin_planta_oculta=True)
     assert _elegido(obs, m.agent(obs))["id"] == TAPU
 
 
 def test_with_no_useful_supporter_to_fetch_the_meowth_is_not_an_engine():
+    """The Meowth fetch is dead here, and that is what this pins: the promotion
+    that follows is the blind bet of route (f), not the search of route (c) --
+    the Grass is still in the deck and the Ogerpon can walk back if it does not
+    come. Exhaust the copies as well and the wall takes the slot."""
     obs = _obs(sin_supporter_alcanzable=True)
+    assert _elegido(obs, m.agent(obs))["id"] == OGERPON
+    obs = _obs(sin_supporter_alcanzable=True, sin_meowth=True,
+               sin_planta_oculta=True)
     assert _elegido(obs, m.agent(obs))["id"] == TAPU
