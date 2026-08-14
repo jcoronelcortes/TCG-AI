@@ -562,6 +562,11 @@ PROMOTE_REVERSIBLE_BET = True
 # finisher that can pay its own retreat does not have to be. See
 # `_promo_bet_walks_back`. A named switch for the same reason as its sibling.
 PROMOTE_BET_OUTLIVES_MATCH_POINT = True
+# The evolution-survivor promotion (`_ev_*`) counting the evolutions the hand
+# can BUY as well as the ones it already holds: a Pokemon-search Supporter plus
+# a copy still in the deck is a route to tomorrow's body exactly like the card
+# in hand is. A named switch for the same reason as its two siblings above.
+PROMOTE_SEAT_THE_SEARCH_COMPLETES = True
 
 
 
@@ -10197,9 +10202,46 @@ def agent(obs_dict: dict) -> list[int]:
                 if _sb_hit > 0 and _sb_hit < (getattr(_sb, 'hp', 0) or 0):
                     _ev_survivor_asis = True
                     break
+            # ...AND THE EVOLUTION MAY BE ONE SEARCH AWAY, NOT ONE CARD AWAY
+            # (user, registro_004 step 59 vs Mega Lucario ex, episode 92943959,
+            # LOST -- deck-agnostic). Bench: Dipplin, two Teal Mask Ogerpon ex
+            # (one at three energy) and an Applin; hand: **Dawn**, two Grass and
+            # a Bayleef; in front, a 440 HP Mega Lucario ex whose blow projects
+            # 270. Nothing on the bench survives that 270, so this block DID
+            # open -- and then found no evolution in hand, because the Hydrapple
+            # ex was in the DECK and what the hand held was the tutor that
+            # reaches it. The charged Ogerpon came up, fell short of the 440
+            # (Myriad at 3+1 energy is 150), died, and paid two prizes plus the
+            # three energies invested in it. The Dipplin was the seat: our turn
+            # resolves first, Dawn buys the Stage 2, and what the opponent finds
+            # in front of them is 330 HP their 270 falls short of.
+            #
+            # So the routes to tomorrow's body are TWO, and the hand holds both
+            # kinds: the evolution itself, and the SLOT that buys it. The
+            # promotion resolves at the end of THEIR turn, so next turn's
+            # Supporter slot is free by construction -- the same claim
+            # `_xr_the_slot_belongs_to_the_search` already makes about that slot.
+            # Deck-agnostic: the stages come from `_direct_evolution_ids` and the
+            # tutors from `POKEMON_SEARCH_SUPPORTER_IDS`, so the sentence holds
+            # for any line and any list that carries one.
+            #
+            # THE DECK IS THE ONLY ZONE A SEARCH REACHES, exactly as
+            # `_evo_top_unlocked_by_the_search` says it: a copy in the discard is
+            # not a route. And a card in hand is a certainty while a search is a
+            # belief, so the route in hand wins every tie -- the search only ever
+            # ADDS candidates, it never displaces one.
+            _ev_search_in_hand = (
+                PROMOTE_SEAT_THE_SEARCH_COMPLETES
+                # Under Festival Lead they attack again the moment we promote,
+                # so the turn that would spend the Supporter never happens. The
+                # guard is on the NEW route only: the route in hand keeps
+                # whatever behaviour it had.
+                and not op_double_attack_pending
+                and any(hand_counts.get(_sid, 0) >= 1
+                        for _sid in POKEMON_SEARCH_SUPPORTER_IDS))
             if not _ev_survivor_asis:
                 _ev_best = None
-                _ev_best_hp = -1
+                _ev_best_key = (-1, -1)
                 for _ev_pb in my_state.bench:
                     if _ev_pb is None or not isinstance(_ev_pb, Pokemon):
                         continue
@@ -10209,33 +10251,45 @@ def agent(obs_dict: dict) -> list[int]:
                     _ev_pb_name = getattr(_ev_pb_data, 'name', None)
                     if _ev_pb_name is None:
                         continue
-                    # A DIRECT evolution in hand whose pre-evolution is this body.
-                    _ev_to_id = None
+                    # A DIRECT evolution whose pre-evolution is this body, and
+                    # the two ways next turn can be holding it. Each route is
+                    # `(evolution id, 1 if it is already in hand else 0)`.
+                    _ev_routes = []
                     for _hid, _hn in hand_counts.items():
                         if _hn <= 0:
                             continue
                         _hd = card_table.get(_hid)
                         if (_hd is not None
                                 and getattr(_hd, 'evolvesFrom', None) == _ev_pb_name):
-                            _ev_to_id = _hid
+                            _ev_routes.append((_hid, 1))
                             break
-                    if _ev_to_id is None:
+                    if _ev_search_in_hand:
+                        for _ev_buy in _direct_evolution_ids(_ev_pb.id):
+                            if any(_ev_buy == _r[0] for _r in _ev_routes):
+                                continue
+                            if AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(
+                                    _ev_buy, {}).get(ZONE_DECK, 0) >= 1:
+                                _ev_routes.append((_ev_buy, 0))
+                    if not _ev_routes:
                         continue
-                    _ev_to_data = card_table.get(_ev_to_id)
-                    # CardData exposes the base HP as `.hp` (not `.maxHp`); the
-                    # Pokemon on the BOARD do have `.maxHp`/`.hp` (current).
-                    _ev_max = getattr(_ev_to_data, 'hp', 0) or 0
-                    # The damage already taken by the pre-evolution is kept when evolving.
+                    # The damage already taken by the pre-evolution is kept when
+                    # evolving, whichever route brings the evolution.
                     _ev_dmg_taken = ((getattr(_ev_pb, 'maxHp', 0) or 0)
                                      - (getattr(_ev_pb, 'hp', 0) or 0))
-                    _ev_survive_hp = _ev_max - max(0, _ev_dmg_taken)
-                    _ev_op_hit = _op_active_attack_damage_to(
-                        _ev_op_act, _ProjTarget(_ev_to_id), _ev_hand)
-                    if _ev_op_hit <= 0 or _ev_op_hit >= _ev_survive_hp:
-                        continue  # the evolution does not survive either
-                    if _ev_survive_hp > _ev_best_hp:
-                        _ev_best_hp = _ev_survive_hp
-                        _ev_best = _ev_pb
+                    for _ev_to_id, _ev_sure in _ev_routes:
+                        _ev_to_data = card_table.get(_ev_to_id)
+                        # CardData exposes the base HP as `.hp` (not `.maxHp`); the
+                        # Pokemon on the BOARD do have `.maxHp`/`.hp` (current).
+                        _ev_max = getattr(_ev_to_data, 'hp', 0) or 0
+                        _ev_survive_hp = _ev_max - max(0, _ev_dmg_taken)
+                        _ev_op_hit = _op_active_attack_damage_to(
+                            _ev_op_act, _ProjTarget(_ev_to_id), _ev_hand)
+                        if _ev_op_hit <= 0 or _ev_op_hit >= _ev_survive_hp:
+                            continue  # the evolution does not survive either
+                        _ev_key = (_ev_survive_hp, _ev_sure)
+                        if _ev_key > _ev_best_key:
+                            _ev_best_key = _ev_key
+                            _ev_best = _ev_pb
                 if _ev_best is not None:
                     _best_promote_card = _ev_best
 

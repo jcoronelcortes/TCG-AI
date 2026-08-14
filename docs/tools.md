@@ -625,6 +625,22 @@ fifty and one on the harvested records — so the gate beside it reports a
 oracle does the grading: **+14 pp / +1.09 margin** and **+13 pp / +0.86** on two
 independent runs ([the write-up](archaludon-the-veto-that-walks-back-2026-08-14.md)).
 
+### `oracle_the_promotion_is_the_seat_the_search_completes.py` — the third of the family
+
+```bash
+python utils/oracle_the_promotion_is_the_seat_the_search_completes.py --k 500
+python utils/gate_the_promotion_is_the_seat_the_search_completes.py --census
+```
+
+The same file again with `PROMOTE_SEAT_THE_SEARCH_COMPLETES` as the switch: the
+evolution-survivor promotion counting the evolutions a Pokémon-search Supporter
+can still buy out of the deck, not only the ones already in hand. The rarest of
+the three — **zero** flips on the frozen fifty and one on the harvested records,
+**1 in 3 685 decisions** — and the one that shows why **K matters**: at K=100
+both options win 100/100 and the board says nothing; at **K=500** it separates,
+**+1 pp / +0.17 margin** against a per-board floor of **0.07**
+([the write-up](lucario-the-seat-the-search-completes-2026-08-14.md)).
+
 ### `differential_oracle.py` — what the plan predicted vs. what the engine resolved
 
 The agent's attack plan states, before the attack, what it expects to happen. The
