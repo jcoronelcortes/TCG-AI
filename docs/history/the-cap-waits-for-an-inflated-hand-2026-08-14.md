@@ -105,6 +105,51 @@ Two readings, and both were written before the numbers:
 What the gate did earn: the change **costs nothing measurable**, and the corpus
 is clean — the seven flips are all the one board the rule was written about.
 
+## The second instrument: the oracle, on the record's own board
+
+The gate cannot answer "was this the better play" — it can only count wins
+against a bot we beat 99.5 % of the time. So the question was asked again with
+`utils/oracle_the_cap_waits_for_an_inflated_hand.py`, which rolls the boards out
+to the end under the ENGINE'S rules (`utils/search_oracle.py`, phase D): force
+one option, play to the end with our agent driving both seats, K rollouts.
+
+**The record's board, step 29, K=100** — and the list was detected rather than
+assumed: the fixture closes on sixty per seat under today's `deck.csv`, so that
+game was played with the current sixty.
+
+| option | rollouts won | prize margin |
+| --- | --- | --- |
+| with the rule (hold the cap, play Lillie's) | 100/100 | **+4.88** |
+| without it (play the cap) | 100/100 | **+4.75** |
+| delta | +0 pp | **+0.13** |
+| the board's own floor (same option, other seeds) | 3 pp | **0.20** |
+
+**Inside the floor.** At K=5 the margin looked like +0.60 for holding the cap; at
+K=100 it shrinks to +0.13 against a floor of 0.20 measured on that same board.
+The oracle killed the hunch by itself, which is exactly what a per-board floor
+is for — and it is the module's own warning made concrete: *K=20 is not enough
+for anything*.
+
+The winrate saturates here too (100/100 both ways), so the prize margin is the
+only column with resolution left. Two readings survive:
+
+* **the rule is not a mistake on the board it was written for** — no option
+  loses ground, and holding the cap is, if anything, marginally ahead;
+* **and it is not provably better either.** A card rule from a lost record
+  ships on the record, not on this number.
+
+### What is still ungradeable, and it is said out loud
+
+Two of the seven corpus boards cannot be graded at all: no Alakazam list we hold
+lets their side close on sixty (`seat 1: 24 seen + 0 hand + 6 prize + 31 deck =
+61`). The fifty frozen records are fifty different games against different
+builds, and the determinization guard refuses a world the engine would have
+accepted while playing a different game. They are reported as NOT GRADEABLE
+rather than skipped in silence. The remaining five are queued for a night run at
+K=100 (~30 min):
+
+    python utils/oracle_the_cap_waits_for_an_inflated_hand.py --k 100
+
 See [[el-suelo-del-tope-vs-alakazam-son-dos-numeros-y-los-separa-nuestro-marcador-de-premios]],
 [[un-override-del-usuario-no-es-una-excepcion-de-la-politica]] and
 [[el-censo-de-disparo-decide-si-neutro-obliga]].
