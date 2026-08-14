@@ -135,7 +135,11 @@ class _Ctx:
 
     def __init__(self, hand_counts, *, op_hand_count=10,
                  op_is_alakazam_deck=True, supporter_played=True,
-                 field_counts=None, bench_count=2, turn_plan=None):
+                 field_counts=None, bench_count=2, turn_plan=None,
+                 my_prize=6):
+        # OUR prizes remaining: `_xr_gate_alakazam` reads it for the hand floor
+        # (eight while five or more are up, six after that).
+        self.my_prize = my_prize
         self.hand_counts = hand_counts
         self.op_hand_count = op_hand_count
         self.op_is_alakazam_deck = op_is_alakazam_deck
@@ -251,13 +255,20 @@ def test_the_generic_fat_hand_protects_it_in_any_deck():
     assert m._ub_cancel_engine_supporters(_fat)
 
 
-def test_the_alakazam_floor_is_the_gate_below_seven():
-    """vs Alakazam the cap is an engine from its own floor of six, one card
-    below the generic threshold: `_xr_gate_alakazam`, not a number of its own."""
-    _six = _Ctx({XEROSIC: 1, ULTRA_BALL: 1, MEGANIUM: 1}, op_hand_count=6)
-    assert m._ub_engine_supporters_held(_six) == [XEROSIC]
-    _five = _Ctx({XEROSIC: 1, ULTRA_BALL: 1, MEGANIUM: 1}, op_hand_count=5)
-    assert m._ub_engine_supporters_held(_five) == []
+def test_the_alakazam_floor_is_the_gate_and_it_moves_with_our_prizes():
+    """vs Alakazam the cap is an engine from its own floor -- `_xr_gate_alakazam`,
+    not a number of its own -- and that floor is EIGHT while five or more of our
+    prizes are up, six once the race is under way. A cap the play side would
+    veto is not an engine: on a six-prize board with their hand at six the Ultra
+    Ball may pay with it."""
+    _hand = {XEROSIC: 1, ULTRA_BALL: 1, MEGANIUM: 1}
+    assert m._ub_engine_supporters_held(_Ctx(_hand, op_hand_count=6)) == []
+    assert m._ub_engine_supporters_held(_Ctx(_hand, op_hand_count=8)) == [XEROSIC]
+    # ...and from the fifth prize on, six is the floor again.
+    assert m._ub_engine_supporters_held(
+        _Ctx(_hand, op_hand_count=6, my_prize=4)) == [XEROSIC]
+    assert m._ub_engine_supporters_held(
+        _Ctx(_hand, op_hand_count=5, my_prize=4)) == []
 
 
 def test_the_refill_needs_no_such_test():

@@ -23,11 +23,19 @@ keep the second for the late cap"). The replay of the record puts a number on
 it -- `[reglas xerosic->play] alakazam_cap_the_hand=5900`, at an opposing hand
 of 4.
 
-CARD RULE (user, august 2026): against Alakazam the cap needs SIX cards in the
-opposing hand, and that floor has no exceptions -- not a backup copy in the
-deck, not the early trigger that fired at 4-5 when the Alakazam was already
+CARD RULE (user, august 2026): against Alakazam the cap needs a FLOOR of cards
+in the opposing hand, and that floor has no exceptions -- not a backup copy in
+the deck, not the early trigger that fired at 4-5 when the Alakazam was already
 active projecting a lethal Powerful Hand. Both branches existed to play the cap
 BELOW the floor, and both are gone.
+
+The floor itself was later split in two by OUR prize counter (user, august 2026,
+`records/registro_003_pasos_025_hasta_031.json` step 29): EIGHT cards while five
+or more of our prizes are still up, SIX from there on. This file pins the rule's
+shape -- veto, asked before the search, one matchup only -- and
+`tests/test_the_cap_waits_for_a_hand_that_is_inflated.py` pins the two numbers
+and the record that bought them. The board below is a six-prize board, so the
+floor it measures against is eight.
 
 Two things make the rule bite, and they are what this file pins:
 
@@ -145,21 +153,23 @@ def test_the_cap_is_not_played_with_four_cards_in_their_hand():
         "sin otra jugada en el menu, el turno termina con el Xerosic en mano")
 
 
-@pytest.mark.parametrize("op_hand", [4, 5])
-def test_the_floor_holds_under_six(op_hand):
+@pytest.mark.parametrize("op_hand", [4, 5, 6, 7])
+def test_the_floor_holds_under_it(op_hand):
+    """Six prizes up on this board, so the floor is EIGHT."""
     o = _obs(op_hand)
     assert _played(o, m.agent(o)) != XEROSIC, (
-        f"mano rival {op_hand} < 6: por debajo del suelo no se juega")
+        f"mano rival {op_hand} < 8 con 6 premios: por debajo del suelo no se "
+        f"juega")
 
 
-@pytest.mark.parametrize("op_hand", [6, 7])
-def test_at_six_the_cap_is_played_exactly_as_before(op_hand):
+@pytest.mark.parametrize("op_hand", [8, 9])
+def test_at_the_floor_the_cap_is_played_exactly_as_before(op_hand):
     """The boundary in the other direction: the rule is a floor, not a new
-    preference. At six -- Powerful Hand already projecting 20 x (6 + 2) = 160 --
-    the same board plays the same card."""
+    preference. At eight -- Powerful Hand already projecting 20 x (8 + 2) = 200
+    -- the same board plays the same card."""
     o = _obs(op_hand)
     assert _played(o, m.agent(o)) == XEROSIC, (
-        f"mano rival {op_hand} >= 6: el tope se juega como siempre")
+        f"mano rival {op_hand} >= 8: el tope se juega como siempre")
 
 
 # ---------------------------------------------------------------------------
@@ -172,19 +182,20 @@ class _CtxFloor:
     class _S:
         supporterPlayed = False
 
-    def __init__(self, op_hand_count, alakazam=True):
+    def __init__(self, op_hand_count, alakazam=True, my_prize=6):
         self.state = self._S()
         self.op_hand_count = op_hand_count
         self.op_is_alakazam_deck = alakazam
+        self.my_prize = my_prize
 
 
-@pytest.mark.parametrize("op_hand", [4, 5])
+@pytest.mark.parametrize("op_hand", [4, 5, 6, 7])
 def test_below_the_floor_the_score_is_a_veto_and_not_the_last_resort_band(op_hand):
     """`XEROSIC_SCORE_LAST_RESORT` would still have won the record's menu.
 
-    The distinction is the whole reason `alakazam_needs_six_cards` exists as a
-    rule of its own instead of simply letting the gate fail: a Supporter at 20
-    is played whenever nothing else scores, and on that turn nothing else did.
+    The distinction is the whole reason `alakazam_needs_the_hand_floor` exists
+    as a rule of its own instead of simply letting the gate fail: a Supporter at
+    20 is played whenever nothing else scores, and on that turn nothing else did.
     """
     value, trace = m._resolve_rules(
         m._RULES_XEROSIC_PLAY, [], _CtxFloor(op_hand),
@@ -192,7 +203,7 @@ def test_below_the_floor_the_score_is_a_veto_and_not_the_last_resort_band(op_han
     assert value == m.SCORE_VETO, (
         f"por debajo del suelo el tope esta VETADO, no en la banda de ultimo "
         f"recurso ({m.XEROSIC_SCORE_LAST_RESORT}); obtuvo {value} ({trace})")
-    assert any("alakazam_needs_six_cards" in t for t in trace), (
+    assert any("alakazam_needs_the_hand_floor" in t for t in trace), (
         f"y lo veta la regla del suelo, no otra: {trace}")
 
 
@@ -207,7 +218,7 @@ def _fetch_score(card_id, **kw):
                  active_cant_attack=False, win_via_boss=False,
                  gust2_via_boss=False, deny_evo_via_boss=False,
                  devel_lillie=False, alakazam=True, first_turn=False,
-                 lillie_alcanzable=True)
+                 lillie_alcanzable=True, my_prize=6)
     field.update(kw)
     ctx = m._CtxMeowthFetch(
         card_id, field["sv"], field["hand_counts"], field["supp_values"],
@@ -215,26 +226,35 @@ def _fetch_score(card_id, **kw):
         field["active_cant_attack"], field["win_via_boss"],
         field["gust2_via_boss"], field["deny_evo_via_boss"],
         field["devel_lillie"], field["alakazam"], field["first_turn"],
-        field["lillie_alcanzable"])
+        field["lillie_alcanzable"], my_prize=field["my_prize"])
     value, _ = m._resolve_rules(m._RULES_MEOWTH_FETCH, [], ctx, 50)
     return value
 
 
-@pytest.mark.parametrize("op_hand", [4, 5])
+@pytest.mark.parametrize("op_hand", [4, 5, 6, 7])
 def test_the_last_ditch_does_not_search_for_a_cap_it_cannot_play(op_hand):
     """The Meowth ex is a two-prize body and the fetch brings ONE card: it does
-    not spend either on a Supporter the play side has already vetoed."""
+    not spend either on a Supporter the play side has already vetoed. Six
+    prizes on this board, so the floor the fetch reads is EIGHT."""
     assert _fetch_score(XEROSIC, op_hand_count=op_hand) <= 40, (
-        f"mano rival {op_hand} < 6: el Xerosic no es objetivo de la busqueda")
+        f"mano rival {op_hand} < 8: el Xerosic no es objetivo de la busqueda")
     assert _fetch_score(LILLIE, op_hand_count=op_hand,
                         devel_lillie=True) == 1250, (
         "y el refill sigue siendo un objetivo normal: no se veta la busqueda "
         "entera, solo la carta que no se puede jugar")
 
 
-def test_at_six_the_last_ditch_searches_for_the_cap_again():
-    assert _fetch_score(XEROSIC, op_hand_count=6) >= 1260, (
-        "mano rival 6: `xerosic_alakazam` vuelve a mandar sobre el refill")
+def test_at_the_floor_the_last_ditch_searches_for_the_cap_again():
+    assert _fetch_score(XEROSIC, op_hand_count=8) >= 1260, (
+        "mano rival 8: `xerosic_alakazam` vuelve a mandar sobre el refill")
+
+
+def test_the_fetch_reads_the_same_floor_the_play_side_reads():
+    """The two halves of one rule: with the prize race under way (four prizes
+    left) the floor drops to six for the search exactly as it drops for the
+    play."""
+    assert _fetch_score(XEROSIC, op_hand_count=6, my_prize=4) >= 1260
+    assert _fetch_score(XEROSIC, op_hand_count=5, my_prize=4) <= 40
 
 
 def test_outside_the_alakazam_matchup_the_ladder_is_untouched():

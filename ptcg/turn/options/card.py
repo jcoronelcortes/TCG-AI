@@ -2352,7 +2352,12 @@ def score_play(tc, o, score):
                                 default=0),
                             # Is there an attack behind the gust at all? See
                             # `boss_beats_the_untouchable_active`.
-                            bool(_gust_finds_an_attacker))
+                            bool(_gust_finds_an_attacker),
+                            # OUR prizes remaining: the fetch reads the SAME
+                            # Xerosic floor the play side reads
+                            # (`_xr_alakazam_floor`), so it cannot bring a cap
+                            # that `alakazam_needs_the_hand_floor` then vetoes.
+                            my_prize=my_prize)
                         score = _resolve_with_trace(
                             "meowth->fetch", _RULES_MEOWTH_FETCH, [],
                             _mf_ctx, default=50)

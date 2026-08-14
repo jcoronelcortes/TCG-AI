@@ -1301,10 +1301,10 @@
     "accion": 10,
     "contexto": 7,
     "detalle": [
-     "CARTA Xerosic’s Machinations(1197)"
+     "CARTA Lillie's Determination(1227)"
     ],
     "eleccion": [
-     3
+     0
     ],
     "paso": null,
     "turno": 4
@@ -1313,10 +1313,10 @@
     "accion": 11,
     "contexto": 0,
     "detalle": [
-     "PLAY Xerosic’s Machinations(1197)"
+     "ATTACK id120"
     ],
     "eleccion": [
-     1
+     2
     ],
     "paso": null,
     "turno": 4
@@ -4697,10 +4697,10 @@
     "accion": 5,
     "contexto": 0,
     "detalle": [
-     "PLAY Xerosic’s Machinations(1197)"
+     "END"
     ],
     "eleccion": [
-     0
+     1
     ],
     "paso": null,
     "turno": 4
@@ -5701,10 +5701,10 @@
     "accion": 4,
     "contexto": 0,
     "detalle": [
-     "PLAY Ultra Ball(1121)"
+     "PLAY Lillie's Determination(1227)"
     ],
     "eleccion": [
-     1
+     2
     ],
     "paso": null,
     "turno": 4
@@ -5727,10 +5727,10 @@
     "accion": 6,
     "contexto": 7,
     "detalle": [
-     "CARTA Meowth ex(1071)"
+     "CARTA Applin(92)"
     ],
     "eleccion": [
-     0
+     6
     ],
     "paso": null,
     "turno": 4
@@ -5763,10 +5763,10 @@
     "accion": 9,
     "contexto": 7,
     "detalle": [
-     "CARTA Xerosic’s Machinations(1197)"
+     "CARTA Dawn(1231)"
     ],
     "eleccion": [
-     0
+     2
     ],
     "paso": null,
     "turno": 4
@@ -5775,10 +5775,10 @@
     "accion": 10,
     "contexto": 0,
     "detalle": [
-     "PLAY Xerosic’s Machinations(1197)"
+     "PLAY Lillie's Determination(1227)"
     ],
     "eleccion": [
-     2
+     0
     ],
     "paso": null,
     "turno": 4

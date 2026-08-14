@@ -34,12 +34,17 @@ which pays 3380 for the cap from seven cards up) and the discard scorer
 same seven) already share. A card we refuse to throw away cannot be a card we
 refuse to play.
 
-With `_xr_gate_alakazam` imposing its floor of six, the yield now lives in
-exactly ONE window -- an opposing hand of six, where the cap discards three
-cards and the refill really is worth more -- and above it the cap takes the turn
-while the Lillie's waits for the next one. It is the same blind spot that got
+With `_xr_gate_alakazam` imposing its floor, the yield now lives in exactly ONE
+window -- an opposing hand of six, where the cap discards three cards and the
+refill really is worth more, on a board with FEWER THAN FIVE of our prizes left
+(above that the floor is eight and the gate is already shut, so the yield is
+unreachable) -- and above it the cap takes the turn while the Lillie's waits for
+the next one. It is the same blind spot that got
 `alakazam_yields_to_lillie_tiny_opponent_hand` removed in August 2026, read from
 the other end of the same axis.
+
+See `tests/test_the_cap_waits_for_a_hand_that_is_inflated.py` for the
+prize-dependent floor itself.
 """
 
 import copy
@@ -108,11 +113,17 @@ class _Ctx:
     a predicate test (`plan_of` answers `NO_PLAN` for a context without one)."""
 
     def __init__(self, *, op_hand_count, hand_counts, active_cant_attack=True,
-                 op_is_alakazam_deck=True):
+                 op_is_alakazam_deck=True, my_prize=4):
         self.op_hand_count = op_hand_count
         self.hand_counts = hand_counts
         self.active_cant_attack = active_cant_attack
         self.op_is_alakazam_deck = op_is_alakazam_deck
+        # FOUR prizes left by default: this rule's only window is an opposing
+        # hand of six, and six only clears `_xr_alakazam_floor` once fewer than
+        # five of our prizes are up. With the six of an opening board the gate
+        # above (floor eight) closes first and the yield is unreachable -- which
+        # is `test_the_window_is_shut_while_the_game_is_young` below.
+        self.my_prize = my_prize
 
 
 # ---------------------------------------------------------------------------
@@ -135,10 +146,26 @@ def test_the_record_spends_the_supporter_on_the_cap():
 # ---------------------------------------------------------------------------
 
 def test_the_yield_survives_at_the_floor_of_six():
-    """The window the rule was written for is untouched: at six cards the cap
-    discards three and the refill really is the better turn."""
+    """The window the rule was written for is untouched: at six cards -- with
+    the prize race already under way, where six IS the floor -- the cap discards
+    three and the refill really is the better turn."""
     assert _rule("alakazam_yields_to_lillie_short_hand").when(
         _Ctx(op_hand_count=6, hand_counts={XEROSIC: 1, LILLIE: 1, MEGANIUM: 1}))
+
+
+def test_the_window_is_shut_while_the_game_is_young():
+    """And with five or more of our prizes still up the yield never gets asked:
+    at six cards the gate above it (floor of EIGHT) has already vetoed the cap,
+    so there is no Supporter to hand over. The rule is not wrong there, it is
+    unreachable."""
+    _hand = {XEROSIC: 1, LILLIE: 1, MEGANIUM: 1}
+    for _prizes in (5, 6):
+        ctx = _Ctx(op_hand_count=6, hand_counts=_hand, my_prize=_prizes)
+        assert _rule("alakazam_needs_the_hand_floor").when(ctx), (
+            f"con {_prizes} premios nuestros y su mano en 6 manda el suelo "
+            f"(veto), no la cesion al refill")
+        assert not _rule("alakazam_yields_to_lillie_short_hand").when(ctx), (
+            "y la cesion ni siquiera se pregunta: su puerta es el gate")
 
 
 def test_the_yield_stops_at_the_shared_constant():

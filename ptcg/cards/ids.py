@@ -1419,6 +1419,25 @@ XEROSIC_SCORE_LAST_RESORT = 20       # no clear useful effect: only if no other 
 XEROSIC_BIG_HAND = 7                 # the opposing hand at which the generic cap starts paying. ONE number for the two scorers: `generic_very_big_hand` decides whether to PLAY it and `DISCARD_XEROSIC_CAPS_A_FAT_HAND` whether to KEEP it, and the card we keep cannot disagree with the card we would play
 DISCARD_XEROSIC_CAPS_A_FAT_HAND = 22  # outside the Alakazam matchup the cap was a FIXED 60 in the discard: fodder of middling price whatever the opposing hand held. With a hand at or above XEROSIC_BIG_HAND the play scorer prices it at XEROSIC_SCORE_GENERIC (3380), so it is not fodder -- protected here at the same height as a single Boss's Orders (22): kept, but the first Supporter to fall if one has to
 XEROSIC_SCORE_SOBRE_BOSS = 7000      # vs Alakazam with Boss's in hand: capping the hand beats ANY gust that does not WIN the game (above GUST_2PRIZE 6800); the winning gust (WIN_NOW 20000) is still higher
+# --- THE FLOOR THE CAP WAITS FOR, AND THE PRIZE THAT LOWERS IT --------------
+# (user, august 2026, `records/registro_003_pasos_025_hasta_031.json`, episode
+# 92856565, step 29, turn 3 vs Alakazam -- LOST.) The floor of six let the cap
+# through on the OPENING board: six prizes each, turn 3, their hand at exactly
+# six -- the size a hand simply IS after the draw -- and the turn's Supporter
+# went on discarding three cards that their deck gives straight back.
+#
+# So the floor is not one number, it is two, and what picks between them is OUR
+# prize counter: while five or more of our prizes are still up there is a whole
+# game left for the cap to be worth more later, and it waits for a hand that is
+# INFLATED (eight) rather than merely dealt. From the fifth prize on -- fewer
+# than five left -- the game is short enough that the cap only has to buy the
+# turns that remain, and six is again the price.
+#
+# `my_prize` is OUR prizes REMAINING (six at the start), the same reading as
+# `_lillie_draw_count` and `_deck_clock_runs_out`.
+XEROSIC_ALAKAZAM_FLOOR_EARLY = 8     # opposing hand the cap needs while we still hold >= XEROSIC_ALAKAZAM_EARLY_PRIZES prizes
+XEROSIC_ALAKAZAM_FLOOR_LATE = 6      # ...and once the prize race is under way (fewer than that left)
+XEROSIC_ALAKAZAM_EARLY_PRIZES = 5    # OUR prizes remaining at or above which the board is still "early"
 # --- THE LAST CAP IS KEPT BEFORE ANY OTHER SUPPORTER ------------------------
 # (user, `records/registro_009_pasos_118_hasta_127.json`, episode 92413910,
 # step 124, turn 9 vs Alakazam.) Their Xerosic's Machinations cut our hand of
