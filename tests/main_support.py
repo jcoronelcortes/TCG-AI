@@ -251,6 +251,39 @@ def _played_card(obs, result):
     hand = obs["current"]["players"][obs["current"]["yourIndex"]]["hand"]
     return hand[opt["index"]]["id"]
 
+def spend_the_supporter_slot(obs, card_id):
+    """The SAME board one action later, with `card_id` already played as the
+    turn's Supporter: the card leaves the hand, its option leaves the menu and
+    `supporterPlayed` goes up.
+
+    The net of `finalizar` reorders rather than replaces -- a Supporter whose
+    slot is about to expire is played BEFORE the attack that closes the turn,
+    and the attack fires on the next menu. A test whose claim is about the
+    ATTACK therefore has to ask on the menu where the reorder is already done,
+    or it is pinning the order of two plays instead of the claim it was written
+    for. See `OP_HAND_PRICED_PLAY_IDS`.
+    """
+    nxt = copy.deepcopy(obs)
+    cur = nxt["current"]
+    hand = cur["players"][cur["yourIndex"]]["hand"]
+    gone = next(i for i, c in enumerate(hand) if c["id"] == card_id)
+    del hand[gone]
+    cur["players"][cur["yourIndex"]]["handCount"] = len(hand)
+    cur["supporterPlayed"] = True
+    menu = []
+    for o in nxt["select"]["option"]:
+        if o.get("type") != int(OptionType.PLAY):
+            menu.append(o)
+            continue
+        if o["index"] == gone:
+            continue
+        o = dict(o)
+        if o["index"] > gone:
+            o["index"] -= 1
+        menu.append(o)
+    nxt["select"]["option"] = menu
+    return nxt
+
 _FOREST_DISCARD_FIXTURE = (
     ROOT / "tests" / "fixtures" / "cubchoo_step61_protect_forest_forced_discard.json")
 
@@ -295,6 +328,7 @@ __all__ = [
     'OptionType',
     'SelectContext',
     'reset_main_state',
+    'spend_the_supporter_slot',
     'make_pokemon',
     'make_card',
     'copy',

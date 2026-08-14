@@ -1702,6 +1702,40 @@ STAMP_OUR_HAND_AFTER = 5
 # opposing deck. Any future card with the same clause belongs here.
 KO_WINDOW_PLAY_IDS = frozenset({Unfair_Stamp})
 
+# PLAYS WHOSE PRICE IS A RESOURCE THE OPPONENT OWNS.
+#
+# The last-resort band of the Supporter block means "I have no useful effect
+# today, play me only because nothing else scores", and the net that plays the
+# slot before the attack refuses to lift it with one sentence: the free slot is
+# not a reason to spend the CARD, WHICH KEEPS ITS VALUE FOR TOMORROW. That
+# sentence is true of every Supporter whose value is read off OUR board -- a
+# Lana's Aid is worth more tomorrow, because the discard pile only grows -- and
+# it is false for a card that is priced by the size of THEIR hand: how much this
+# card is worth tomorrow is the opponent's decision, not ours, and between now
+# and then they take a whole turn to make it.
+#
+# So the "keep it" half of the argument does not hold for this set, and the
+# board says as much out loud: outside the Alakazam matchup and under
+# `XEROSIC_BIG_HAND` the DISCARD scorer prices the very same card at 60 -- the
+# most throwable Supporter band there is, cheerful Ultra Ball fodder. A card we
+# are willing to bin face-down to pay for a search cannot be a card we refuse to
+# cash for a slot that is dying anyway (the doctrine of `XEROSIC_BIG_HAND`: the
+# card we KEEP and the card we would PLAY cannot disagree).
+#
+# `finalizar` reads this set, and only in the net that fires when the turn is
+# already closing. It is a property of the card's printed effect -- its price
+# tag hangs on their side of the table -- not a matchup list.
+OP_HAND_PRICED_PLAY_IDS = frozenset({Xerosic_Machinations})
+
+# ...AND HOW BIG THEIR HAND HAS TO BE FOR THAT TO PAY. The cap has to send to
+# the discard AT LEAST AS MANY CARDS AS IT LEAVES BEHIND: it is the printed
+# number read twice, not a tuned threshold, and it lands one card below
+# `XEROSIC_BIG_HAND` -- which is the right distance, because the difference
+# between the two is exactly the price of the Supporter slot, and here the slot
+# is free. Below it the cap takes one or two cards for a card that still has a
+# turn to be worth more, and the old guard keeps deciding.
+XEROSIC_FREE_SLOT_HAND = 2 * XEROSIC_HAND_CAP
+
 
 __all__ = [
     'RETREAT_COST',
@@ -1981,4 +2015,6 @@ __all__ = [
     'STAMP_OP_HAND_AFTER',
     'STAMP_OUR_HAND_AFTER',
     'KO_WINDOW_PLAY_IDS',
+    'OP_HAND_PRICED_PLAY_IDS',
+    'XEROSIC_FREE_SLOT_HAND',
 ]

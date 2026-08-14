@@ -391,8 +391,15 @@ def test_a_bench_that_cannot_answer_leaves_the_prize_in_front():
         b["maxHp"] = b["hp"] = 70
         b["energies"] = [3]
         b["energyCards"] = b["energyCards"][:1]
-    i_attack = _index_of(obs, m.OptionType.ATTACK)
+    # El hueco de Supporter del turno esta libre y la mano rival esta en seis:
+    # la red de `finalizar` cobra el Xerosic antes del ataque que cierra el
+    # turno (`OP_HAND_PRICED_PLAY_IDS`). Eso reordena, no sustituye -- la
+    # afirmacion de este test es sobre la RETIRADA, asi que se comprueba en el
+    # menu con el hueco ya gastado, donde el premio se cobra desde delante.
+    from main_support import spend_the_supporter_slot
+    despues = spend_the_supporter_slot(obs, m.Xerosic_Machinations)
+    i_attack = _index_of(despues, m.OptionType.ATTACK)
 
-    assert m.agent(obs) == [i_attack], (
+    assert m.agent(despues) == [i_attack], (
         "si el cuerpo que sube no mata al nuestro, el premio se cobra desde "
         "delante y no se paga la retirada")

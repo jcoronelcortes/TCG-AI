@@ -25,12 +25,28 @@ def _dragapult_s138_replay(observation_key=None):
     return m.agent(obs), obs, data
 
 def test_dragapult_step138_attacks_with_tapu_bulu():
-    result, obs, _ = _dragapult_s138_replay()
-    opt = obs["select"]["option"][result[0]]
+    # El hueco de Supporter de este turno esta LIBRE y en la mano hay un
+    # Xerosic's Machinations con la mano rival en seis: la red de `finalizar`
+    # lo juega ANTES del ataque que cierra el turno (OP_HAND_PRICED_PLAY_IDS),
+    # asi que la afirmacion del registro -- con el Tapu Bulu cargado se ATACA --
+    # se comprueba en el menu siguiente, con el hueco ya gastado.
+    _, obs, _ = _dragapult_s138_replay()
+    despues = spend_the_supporter_slot(obs, m.Xerosic_Machinations)
+    result = m.agent(despues)
+    opt = despues["select"]["option"][result[0]]
     assert opt.get("type") == int(OptionType.ATTACK), (
         f"con el Tapu Bulu activo ya cargado y el Hydrapple ex de banca "
         f"condenado (70/330 frente a Phantom Dive), lo correcto es ATACAR; "
         f"obtuvo {result} -> {opt}")
+
+def test_dragapult_step138_cashes_the_dying_supporter_slot_first():
+    """La otra mitad del mismo turno: el hueco de Supporter muere con el ataque
+    y la mano rival esta en seis, asi que el cap se cobra primero. No es un
+    cambio de plan -- el ataque sale en el menu siguiente (test de arriba)."""
+    result, obs, _ = _dragapult_s138_replay()
+    assert _played_card(obs, result) == m.Xerosic_Machinations, (
+        f"con el hueco libre y su mano en 6, el cap se juega antes del ataque; "
+        f"obtuvo {result} -> {obs['select']['option'][result[0]]}")
 
 def test_dragapult_step138_does_not_retreat_to_promote_hydra():
     result, obs, _ = _dragapult_s138_replay()

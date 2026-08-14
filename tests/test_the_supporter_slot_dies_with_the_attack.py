@@ -277,17 +277,10 @@ def test_a_boss_orders_alone_does_not_delay_the_snipe():
     assert _play(obs, m.agent(obs)) == ("ATTACK", CRUEL_ARROW)
 
 
-def test_a_last_resort_supporter_is_not_burned_by_the_net():
-    """A Supporter scoring in `SUPP_SCORE_LAST_RESORT_BAND` is saying "I have
-    no useful effect today". The free slot is not a reason to spend the CARD:
-    below and at that band the net does not lift anything."""
-    obs = _obs_step111()
-    xerosic_i = next(i for i, o in enumerate(obs["select"]["option"])
-                     if o["type"] == int(OptionType.PLAY)
-                     and obs["current"]["players"][
-                         obs["current"]["yourIndex"]]["hand"][
-                         o["index"]]["id"] == XEROSIC)
-
+def _choice_with_every_supporter_at_the_band(obs):
+    """`agent(obs)` with every live PLAY forced down to
+    `SUPP_SCORE_LAST_RESORT_BAND`: the band is what is under test, so it is
+    imposed rather than looked for on a board that happens to produce it."""
     import ptcg.turn.finalize as fin
     original = fin.finalizar
 
@@ -303,12 +296,79 @@ def test_a_last_resort_supporter_is_not_burned_by_the_net():
     fin.finalizar = cap_the_supporters
     m.finalizar = cap_the_supporters
     try:
-        choice = m.agent(obs)
+        return m.agent(obs)
     finally:
         fin.finalizar = original
         m.finalizar = original
-    assert choice != [xerosic_i]
-    assert _play(obs, choice) == ("ATTACK", CRUEL_ARROW)
+
+
+def _without_the_cap(obs):
+    """The same board with the Xerosic gone from hand and from the menu: what
+    is left is the half of the band the exception does not reach."""
+    cur = obs["current"]
+    mine = cur["players"][cur["yourIndex"]]
+    gone = next(i for i, c in enumerate(mine["hand"]) if c["id"] == XEROSIC)
+    del mine["hand"][gone]
+    mine["handCount"] = len(mine["hand"])
+    menu = []
+    for o in obs["select"]["option"]:
+        if o["type"] != int(OptionType.PLAY):
+            menu.append(o)
+            continue
+        if o["index"] == gone:
+            continue
+        o = dict(o)
+        if o["index"] > gone:
+            o["index"] -= 1
+        menu.append(o)
+    obs["select"]["option"] = menu
+    return obs
+
+
+def test_a_last_resort_supporter_is_not_burned_by_the_net():
+    """A Supporter scoring in `SUPP_SCORE_LAST_RESORT_BAND` is saying "I have
+    no useful effect today". The free slot is not a reason to spend the CARD:
+    below and at that band the net does not lift anything.
+
+    Read on the board WITHOUT the Xerosic, which is the one card of the estate
+    whose price is not ours to keep (`OP_HAND_PRICED_PLAY_IDS`) and which the
+    two tests below cover. What is left in hand -- Lana's Aid, Dawn -- is worth
+    at least as much tomorrow as today, so the guard still decides."""
+    obs = _without_the_cap(_obs_step111())
+    assert _play(obs, _choice_with_every_supporter_at_the_band(obs)) == (
+        "ATTACK", CRUEL_ARROW)
+
+
+def test_the_cap_is_cashed_because_tomorrows_price_is_theirs():
+    """The exception (user, `records/registro_005_pasos_062_hasta_068.json`,
+    episode 92866795, step 68 vs Mega Lopunny / Mega Froslass -- LOST).
+
+    "It keeps its value for tomorrow" is the whole argument of the guard above,
+    and it is an argument about OUR board. Xerosic's Machinations is priced by
+    the size of THEIR hand, and what that is tomorrow is the opponent's
+    decision. With the slot expiring on the attack and their hand at or above
+    `XEROSIC_FREE_SLOT_HAND`, the cap is cashed even down in the band -- here
+    their nineteen cards go to three."""
+    obs = _obs_step111()
+    xerosic_i = next(i for i, o in enumerate(obs["select"]["option"])
+                     if o["type"] == int(OptionType.PLAY)
+                     and obs["current"]["players"][
+                         obs["current"]["yourIndex"]]["hand"][
+                         o["index"]]["id"] == XEROSIC)
+    assert _choice_with_every_supporter_at_the_band(obs) == [xerosic_i]
+
+
+def test_the_cap_is_not_cashed_when_it_takes_less_than_it_leaves():
+    """The floor of the exception. `XEROSIC_FREE_SLOT_HAND` asks the cap to
+    discard at least as many cards as it leaves behind; one card under it the
+    slot is still free, the card is still in the band, and the guard decides as
+    ever -- the free slot is not a reason to spend a card for two cards."""
+    obs = _obs_step111()
+    cur = obs["current"]
+    cur["players"][1 - cur["yourIndex"]]["handCount"] = (
+        m.XEROSIC_FREE_SLOT_HAND - 1)
+    assert _play(obs, _choice_with_every_supporter_at_the_band(obs)) == (
+        "ATTACK", CRUEL_ARROW)
 
 
 def test_the_winning_finisher_is_not_delayed_by_a_supporter():
