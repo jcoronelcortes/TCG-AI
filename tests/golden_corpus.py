@@ -233,7 +233,27 @@ def replay_data(m, data):
     because it keeps only one seat's observations and `our_index` decides by
     counting visible cards of ours on BOTH seats -- a vote whose input that
     bundle has deliberately thrown half of away.
+
+    THE REPLAY RUNS UNDER THE LIST OF THE RECORD, not under today's `deck.csv`.
+    Every record here was played before 14 August 2026, and the agent seeds its
+    deck belief from the sixty cards on disk: replayed against a later list, the
+    copies that list holds and the recorded one did not are filed as PRIZES, and
+    decisions move without a rule having changed. It happened the day the list
+    changed -- `registro_035_dragapult_3` turn 6 flipped its Ultra Ball target
+    on nothing but the extra Basic {G} Energy. A corpus that reports that as a
+    behaviour change is a corpus that cries wolf; re-freezing to silence it
+    would have written the wrong belief into the snapshot for good.
+
+    A record harvested AFTER a list change must carry its own list, and this is
+    the seam where that would go.
     """
+    from recorded_deck import deck_of_record
+
+    with deck_of_record():
+        return _replay_data(m, data)
+
+
+def _replay_data(m, data):
     yo = data.get("seat")
     if yo not in (0, 1):
         yo = our_index(data)

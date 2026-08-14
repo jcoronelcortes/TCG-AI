@@ -58,16 +58,34 @@ is kept in the fixture and in the first two, because the board is the finding.
 import json
 from pathlib import Path
 
+import pytest
+
 import main as m
 from golden_corpus import reset_agent
 from ptcg.state.zones import (ZONE_BENCH, ZONE_DECK, ZONE_DISCARD,
                               ZONE_HAND, ZONE_PRIZE)
+from recorded_deck import deck_of_record
 
 FIXTURE = (Path(__file__).parent / "fixtures"
            / "the_ultra_ball_in_flight_becomes_a_prize.json")
 
 ULTRA_BALL = 1121
 COPIES_IN_THE_DECK = 4
+
+
+@pytest.fixture(autouse=True)
+def played_with_its_own_list():
+    """The board is a real one from before 14 August 2026, so it is replayed
+    under the list of that day.
+
+    The invariant here -- never believe more prizes than there are face down --
+    is a property of the agent piloting ITS OWN sixty. Against today's list the
+    same board believes eight in six before the agent has decided anything,
+    because the belief counts copies the recorded deck did not hold. That is a
+    fact about replaying a stale record, not about the tracker, and asserting it
+    here would pin the wrong thing. See `recorded_deck`."""
+    with deck_of_record():
+        yield
 
 
 def _board():

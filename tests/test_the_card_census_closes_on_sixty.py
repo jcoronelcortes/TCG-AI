@@ -56,6 +56,17 @@ from cg.api import AreaType, LogType  # noqa: E402
 DECK = [c for c in range(1, 16) for _ in range(4)]
 US, THEM = 0, 1
 
+# The recorded episodes on disk were all played before 14 August 2026, and a
+# replay is a game of the list of its day: censused against today's sixty they
+# grow rows for copies that list never held (62 fates for a 60-card deck) and
+# every closure assertion below stops being about the resolver. See
+# `recorded_deck` and [[el-corpus-grabado-es-de-la-lista-vieja]].
+from recorded_deck import PRE_2026_08_14  # noqa: E402
+
+
+def _recorded_list():
+    return cc.read_deck(PRE_2026_08_14)
+
 
 def ev(kind, serial, card_id, *, seat=US, src=None, dst=None):
     event = {"type": int(kind), "playerIndex": seat, "serial": serial,
@@ -304,7 +315,7 @@ def test_the_dead_in_hand_set_is_exactly_the_final_hand():
     path, data = _an_episode()
     if path is None:
         pytest.skip("no recorded episode on disk")
-    deck = cc.read_deck()
+    deck = _recorded_list()
     census = cc.census_of_episode(path, deck)
     rows, diag = census["rows"], census["diag"]
 
@@ -334,7 +345,7 @@ def test_every_face_down_event_is_one_of_the_two_we_can_name():
     path, _data = _an_episode()
     if path is None:
         pytest.skip("no recorded episode on disk")
-    diag = cc.census_of_episode(path, cc.read_deck())["diag"]
+    diag = cc.census_of_episode(path, _recorded_list())["diag"]
     unexplained = diag["cara_abajo"] - diag["reparto_premios"] - diag["mano_revelada"]
     assert unexplained == 0, (
         f"{path.name}: {unexplained} face-down events that are neither the prize "

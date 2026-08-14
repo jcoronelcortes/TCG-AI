@@ -1115,6 +1115,12 @@ def main(argv=None):
     ap.add_argument("--only-submission", default=None,
                     help="Census ONE submission's games (two submissions can be "
                          "two different 60-card lists).")
+    ap.add_argument("--our-deck", default=None, metavar="CSV",
+                    help="The list the games were played with (default deck.csv). "
+                         "A REPLAY is a game of the list of its day: censusing an "
+                         "August 13th episode against today's sixty invents rows "
+                         "for copies that list never held, and the fates stop "
+                         "closing on 60. Simulated games always play deck.csv.")
     ap.add_argument("--games", type=int, default=0, help="Simulated games (Track S).")
     ap.add_argument("--opponent", default=None, help="One opposing deck CSV.")
     ap.add_argument("--opponents", default=None, help="A corpus folder of deck CSVs.")
@@ -1139,7 +1145,7 @@ def main(argv=None):
             print_cross_check(sim, real, key=key)
         return 0
 
-    deck_ids = read_deck()
+    deck_ids = read_deck(args.our_deck)
     games = []
 
     if args.episodes:

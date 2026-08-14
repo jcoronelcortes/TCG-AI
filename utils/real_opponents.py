@@ -183,6 +183,69 @@ def overlap_with(deck, reference):
     return sum(min(a[cid], b[cid]) for cid in set(a) | set(b))
 
 
+def refresh_overlap(output, reference):
+    """Recomputes ONLY `solape_propio` in an existing corpus, in place.
+
+    The column answers "how much of this list is our own list", so it is a
+    function of `deck.csv` and goes stale the day the sixty cards change -- as
+    they did on 14 August 2026, when the recorded column still described a list
+    with two Tapu Bulu. Rebuilding the corpus to refresh it would spend the
+    screening games again and, worse, would re-decide admissions that were
+    measured on another day.
+
+    Nothing else in the file is touched: the weights, the admissions and their
+    reasons are the corpus's own history and are not derived from our deck.
+    """
+    directory = Path(output)
+    weights = directory / "pesos.csv"
+    if not weights.exists():
+        print(f"ERROR: there is no pesos.csv in {directory}", file=sys.stderr)
+        return 1
+    import selfplay as sp
+
+    ref = sp.read_deck(str(reference))
+    with weights.open(encoding="utf-8-sig", newline="") as fh:
+        rows = list(csv.DictReader(fh))
+    if not rows or "solape_propio" not in rows[0]:
+        print(f"ERROR: {weights} has no solape_propio column", file=sys.stderr)
+        return 1
+
+    moved = []
+    for row in rows:
+        path = directory / row["archivo"]
+        if not path.exists():
+            path = directory / "no_pilotables" / row["archivo"]
+        if not path.exists():
+            print(f"  MISSING {row['archivo']}, left as it was")
+            continue
+        deck = [int(x) for x in path.read_text().split() if x.strip().isdigit()]
+        before = row["solape_propio"]
+        after = overlap_with(deck, ref)
+        if str(before) != str(after):
+            moved.append((row["archivo"], before, after))
+        row["solape_propio"] = after
+
+    tmp = weights.with_suffix(".csv.tmp")
+    with tmp.open("w", encoding="utf-8-sig", newline="") as fh:
+        escritor = csv.DictWriter(fh, fieldnames=list(rows[0].keys()))
+        escritor.writeheader()
+        escritor.writerows(rows)
+    tmp.replace(weights)
+
+    print(f"{len(rows)} rows, {len(moved)} moved  ({weights})")
+    for name, before, after in sorted(moved, key=lambda r: -int(r[2]))[:15]:
+        print(f"  {name:<28} {before} -> {after}")
+    mirrors = [r for r in rows if int(r["solape_propio"]) >= MIRROR_OVERLAP]
+    peso = sum(float(r["peso_meta"]) for r in mirrors
+               if r.get("estado") == "admitido")
+    print(f"\nNear-copies of our own list ({MIRROR_OVERLAP}+/60): {len(mirrors)}, "
+          f"{100 * peso:.1f}% of the meta")
+    for r in sorted(mirrors, key=lambda r: -int(r["solape_propio"])):
+        print(f"  {r['archivo']:<28} overlap {r['solape_propio']}/60  "
+              f"weight {100 * float(r['peso_meta']):4.1f}%  [{r['arquetipo']}]")
+    return 0
+
+
 def write_out(groups, output):
     output.mkdir(parents=True, exist_ok=True)
     rechazados = output / "no_pilotables"
@@ -237,7 +300,14 @@ def main(argv):
                     help="deduplicate only, without measuring pilotability")
     ap.add_argument("--top", type=int, default=None,
                     help="screen only the N heaviest lists (the rest are skipped)")
+    ap.add_argument("--refresh-overlap", action="store_true",
+                    help="recompute solape_propio in --output against --reference "
+                         "and write it back; no games, no re-screening. What to run "
+                         "the day deck.csv changes")
     args = ap.parse_args(argv)
+
+    if args.refresh_overlap:
+        return refresh_overlap(Path(args.output), args.reference)
 
     source_path = Path(args.source_path)
     if not source_path.is_dir():

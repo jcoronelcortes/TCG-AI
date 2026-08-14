@@ -60,6 +60,7 @@ if str(ROOT) not in sys.path:
 
 import main as m
 from patching import instalar
+from recorded_deck import deck_of_record
 from state_builder import C, G, Scenario, pk
 
 MEOWTH = m.Meowth_ex
@@ -82,6 +83,22 @@ _FIXTURE = (ROOT / "tests" / "fixtures"
 
 @pytest.fixture(autouse=True)
 def reset_main_state():
+    """Every test here replays episode 88786171, played with the list of before
+    14 August 2026, so the whole module runs under THAT list.
+
+    It is not a detail of bookkeeping. The record's Last-Ditch reveals all 41
+    remaining cards and no Meowth ex is among them, so the second copy is
+    provably in the prizes -- and only the recorded list reaches that belief.
+    Against today's sixty the tracker files seven cards in six prizes, the
+    in-flight arbiter moves the Meowth out of them, and
+    `do_not_shuffle_the_last_xerosic` stops firing: the control half of this
+    module would then be measuring the gap between two decks instead of the
+    commitment rule it exists for. See `recorded_deck`."""
+    with deck_of_record():
+        yield from _reset_and_restore()
+
+
+def _reset_and_restore():
     m._init_cards_tracking()
     m._cards_first_scan_done = False
     m._cards_prizes_identified = False
