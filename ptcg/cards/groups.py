@@ -10,7 +10,7 @@ ALL the names, including the ones starting with `_` (which `import *` would
 otherwise skip).
 """
 
-from ptcg.cards.ids import Applin, Bayleef, Chikorita, Dipplin, GRASS_DOUBLER_IDS, Hydrapple_ex, Meganium, Teal_Mask_Ogerpon_ex
+from ptcg.cards.ids import Applin, Bayleef, Chikorita, Dawn, Dipplin, GRASS_DOUBLER_IDS, Hydrapple_ex, Meganium, Teal_Mask_Ogerpon_ex
 
 
 
@@ -108,8 +108,21 @@ Nighttime_Mine = 1266
 OUR_TERA_IDS = {Teal_Mask_Ogerpon_ex}
 
 
+# The Supporters whose effect is to BUY A POKEMON OUT OF THE DECK -- in this
+# deck only Dawn ("search your deck for a Basic, a Stage 1 and a Stage 2").
+#
+# It is a GROUP and not a card name because the rules that read it are about the
+# SLOT, not about Dawn: with one Supporter per turn, "does the turn's Supporter
+# have a body to buy" is a question any deck asks, and only the list of cards
+# that can answer it changes. Swap the contents here and every such rule keeps
+# saying the same sentence. See `_xr_the_slot_belongs_to_the_search` in
+# `ptcg/decision/disruption.py`, the first reader.
+POKEMON_SEARCH_SUPPORTER_IDS = frozenset({Dawn})
+
+
 __all__ = [
     'EVO_LINES',
+    'POKEMON_SEARCH_SUPPORTER_IDS',
     'GRASS_DOUBLER_LINE_IDS',
     'GT_SCORE_FULL_CHAIN',
     'GT_SCORE_STAGE1_ONLY',

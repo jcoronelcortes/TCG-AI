@@ -20,10 +20,26 @@
 
 name: gates
 
+# DESACTIVADO A PROPOSITO (usuario, 14-ago-2026). Los disparadores automaticos
+# -- `push` sobre main y `pull_request` -- estan comentados abajo: subir codigo
+# no ejecuta NADA en GitHub. El workflow sigue existiendo y se puede lanzar a
+# mano desde la pestana Actions ("Run workflow"), que es para lo que queda
+# `workflow_dispatch`.
+#
+# PARA REACTIVARLO: descomenta las cuatro lineas de `push`/`pull_request`. No
+# hace falta tocar nada mas -- los jobs no cambiaron.
+#
+# LO QUE ESTO NO HACE: no sustituye correr las puertas EN LOCAL antes de
+# integrar. Lo que dejaba de mirar un revisor sin esto es, sobre todo, el
+# flip-diff del corpus congelado (`tests/corpus/`), que es el artefacto de
+# revision mas util del proyecto. En local:
+#     python -m pytest -q -rs && python utils/lint_architecture.py
+# Ver CONTRIBUTING.md para el resto.
 on:
-  push:
-    branches: [main]
-  pull_request:
+  workflow_dispatch:
+  # push:
+  #   branches: [main]
+  # pull_request:
 
 permissions:
   contents: read
