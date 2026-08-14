@@ -243,13 +243,14 @@ def test_without_the_wall_the_recovery_keeps_its_own_criterion():
 # Hammer. The reservation existed against Crustle and read only that flag.
 # =====================================================================
 
-def _last_grass_board(op_active_id):
+def _last_grass_board(op_active_id, tapu_energy):
     """One Grass in hand, an active Ogerpon ex at one physical (below its cap of
-    two, so the cap is NOT what decides here) and a benched Tapu Bulu two
-    effective short of Wood Hammer."""
+    two, so the cap is NOT what decides here) and a benched Tapu Bulu carrying
+    `tapu_energy` EFFECTIVE energy against Wood Hammer's four."""
     return (Scenario(turn=6, step=1, tac=1)
             .my_active(pk(m.Teal_Mask_Ogerpon_ex, energies=[G], fisicas=1))
-            .my_bench(pk(m.Tapu_Bulu, energies=[G, G], fisicas=2))
+            .my_bench(pk(m.Tapu_Bulu, energies=[G] * tapu_energy,
+                         fisicas=tapu_energy))
             .my_hand(m.Basic_Grass_Energy)
             .op_active(pk(op_active_id, hp=210, max_hp=210))
             .op_zones(hand=4, deck=40, prizes=6)
@@ -257,17 +258,29 @@ def _last_grass_board(op_active_id):
             .build())
 
 
-def test_vs_cornerstone_the_last_grass_goes_to_tapu_not_to_the_dance():
-    obs = _last_grass_board(CORNERSTONE)
+def test_vs_cornerstone_the_last_grass_goes_to_the_tapu_it_completes():
+    # Tapu at three of the four Wood Hammer wants: this Grass IS the attack.
+    obs = _last_grass_board(CORNERSTONE, 3)
     assert _attach_target_id(obs, m.agent(obs)) == m.Tapu_Bulu, (
-        "con una sola Planta en mano, bailar la carga sobre el Ogerpon ex "
-        "—anulado por Cornerstone Stance— deja al unico atacante del matchup "
-        "sin llegar a su coste")
+        "con una sola Planta en mano y el Tapu a un adjunte de su coste, "
+        "bailar la carga sobre el Ogerpon ex —anulado por Cornerstone "
+        "Stance— tira el ataque del turno")
+
+
+def test_a_tapu_the_grass_cannot_finish_does_not_take_the_dance_away():
+    # THE MEASURED BOUNDARY (n=4000): reserving on "Tapu is short" rather than
+    # on "this card makes Tapu ready" scored -0.9 on its own. From two of four
+    # the attachment finishes nothing and the refused dance costs a whole card
+    # -- the draw that finds the next Grass. Here the dance keeps its priority.
+    obs = _last_grass_board(CORNERSTONE, 2)
+    assert _chosen_option(obs, m.agent(obs))["type"] == int(m.OptionType.ABILITY), (
+        "si la Planta no lleva al Tapu a su coste, negarle el baile paga una "
+        "carta por un cuerpo que sigue sin poder atacar")
 
 
 def test_without_the_wall_teal_dance_still_takes_the_last_grass():
     # The boundary: off the wall the dance also DRAWS a card, and the Ogerpon
     # is a real attacker. Nothing about that changes.
-    obs = _last_grass_board(NEUTRAL)
+    obs = _last_grass_board(NEUTRAL, 3)
     assert _chosen_option(obs, m.agent(obs))["type"] == int(m.OptionType.ABILITY), (
         "sin muro, Teal Dance conserva su prioridad: adjunta y roba")

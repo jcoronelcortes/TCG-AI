@@ -152,11 +152,37 @@ def score_play(tc, o, score):
                         if _cng is None or _cng.id not in _cng_wall_ids:
                             continue
                         _cng_e = len(_cng.energies)
-                        if ((_cng.id == Tapu_Bulu and _cng_e < 4) or
-                                (_cng.id == Dipplin and _cng_e < 1) or
-                                (_cng.id == Pinsir and _cng_e < 2)):
-                            _wall_atk_needs_grass = True
-                            break
+                        _cng_req = (4 if _cng.id == Tapu_Bulu
+                                    else 1 if _cng.id == Dipplin else 2)
+                        if _cng_e >= _cng_req:
+                            continue
+                        if (_cng_wall_ids is not None and Dipplin not in _cng_wall_ids
+                                and _cng_e + _grass_attach_unit() < _cng_req):
+                            # AND THE GRASS HAS TO ACTUALLY FINISH SOMETHING.
+                            # Measured (n=4000 vs otro_cornerstone_mask_ogerpon_ex_1,
+                            # ago 2026): the Cornerstone half of this reservation
+                            # alone scored -0.9 against the branch's other three
+                            # changes at +0.1/+0.4/-0.2, and the reason is a real
+                            # difference between the two walls rather than variance.
+                            # Against Crustle the creditors are cheap -- a Dipplin
+                            # wants ONE energy, a Pinsir two -- so the single Grass
+                            # in hand almost always completes a cost. Against
+                            # Cornerstone the only creditor left is Tapu Bulu at
+                            # FOUR, and "Tapu is short" is not the same question as
+                            # "this card makes Tapu ready": from zero or one energy
+                            # the attachment finishes nothing, and refusing the
+                            # dance there pays a whole card -- the draw that finds
+                            # the next Grass and the Meganium line -- for a body
+                            # that still cannot attack this turn.
+                            #
+                            # So the reservation is asked ONE step later: reserve
+                            # the Grass when it puts the attacker AT its cost, not
+                            # merely when the attacker is under it. The Crustle
+                            # list keeps its old, looser reading, which is the one
+                            # its own measurements were taken against.
+                            continue
+                        _wall_atk_needs_grass = True
+                        break
         
                 _td_ko_on_active = False
                 if (o.area == AreaType.ACTIVE
