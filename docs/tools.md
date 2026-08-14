@@ -559,6 +559,40 @@ can be replayed and turned into a fixture; `--kinds ABILITY,ATTACH` narrows the
 dump to one class of tie. The percentage alone is not a finding — a board nobody
 can reopen cannot be arbitrated.
 
+### `search_oracle.py` — grading a decision against THE RULES
+
+```bash
+python utils/search_oracle.py --self-test --k 50    # both halves, ~5 s
+python utils/search_oracle.py --cost 20             # ms per rollout on this machine
+```
+
+Phase D of [the engine-source plan](engine-source-plan-2026-08-12.md). Opens a
+search from a real observation, forces one option as the first selection, plays
+to the end under a policy, and reports who won and by how many prizes. Every
+other instrument here grades the agent against another heuristic; this one rolls
+the engine's own rules forward.
+
+**It reads the opponent's hand and can never be a play-time policy.** It is a
+grader for games we already hold both sides of; wiring it into `main.py` would be
+cheating.
+
+Three things it measured about itself, each of which edits the plan that asked
+for it:
+
+* **the prizes are unknowable**, even to their owner — a seat's own prize cards
+  come back `None` in that seat's observation — so the determinization is part
+  omniscient (their hand) and part **sampled**, and K averages over the sampling;
+* **`search_begin` accepts a determinization that does not add up**: it validates
+  only `len(...) < count`, so too many cards is silently tolerated. `determinize`
+  closes its own arithmetic per seat and raises;
+* **the API is not seeded**, so the oracle is an estimator, not a replay. Its
+  noise floor is measured rather than assumed: at **K=20 the worst pair of
+  batches of the same option disagrees by 30 pp**, at K=50 by 8, at K=100 by 6.
+  Use K≥50, quote the worst floor, and read the prize margin before the win flag.
+
+Cost: **9.3 ms per full rollout**, 143 steps to game end — cheaper than the plan's
+own estimate, so two options at K=100 cost 1.9 s per decision.
+
 ### `differential_oracle.py` — what the plan predicted vs. what the engine resolved
 
 The agent's attack plan states, before the attack, what it expects to happen. The
