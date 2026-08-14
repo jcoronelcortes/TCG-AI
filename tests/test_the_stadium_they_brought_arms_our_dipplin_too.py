@@ -328,24 +328,50 @@ def test_a_healthy_ex_does_not_hand_over_the_front_spot():
 
 
 def test_the_counter_stadium_waits_the_turn_the_wave_is_cashing():
-    """`switch_off_festival_lead` fires on their line and stands down on the turn
-    our own Dipplin's wave is already lethal."""
+    """The counter-stadium fires on their line and stands down on the turn our
+    own Dipplin's wave is already lethal.
+
+    IT MOVED, AND THAT IS THE POINT (user, registro_004 step 61). This used to
+    read the GUARD of `switch_off_festival_lead`, and a guard on one rung
+    forbids nothing: a ladder answers with the first rung that matches, so with
+    that one silenced the Forest went down anyway at `enables_the_evolution_chain`
+    (22000). The stand-down is now `their_stadium_is_paying_us_today` at the TOP
+    of the ladder, so the assertion is about the ladder's ANSWER -- which is what
+    the sentence was always about -- and not about which rung holds the clause.
+    """
     names = [r.name for r in m._RULES_FOREST_PLAY]
     assert "switch_off_festival_lead" in names
-    rule = next(r for r in m._RULES_FOREST_PLAY
-                if r.name == "switch_off_festival_lead")
+    assert "their_stadium_is_paying_us_today" in names
+    # And it is a VETO ABOVE every reason to play the card, not a clause inside
+    # one of them: every rung that could play the Forest comes after it.
+    assert (names.index("their_stadium_is_paying_us_today")
+            < min(names.index(n) for n in ("switch_off_festival_lead",
+                                           "enables_the_evolution_chain",
+                                           "replace_the_opponent_stadium",
+                                           "early_development")))
 
-    # The rule only reads two fields of the ctx: a stand-in carries them and
-    # keeps the test out of DecisionContext's 60-odd required arguments.
+    # The two rungs read three fields of the ctx between them; a stand-in
+    # carries them and keeps the test out of DecisionContext's 60-odd
+    # required arguments.
     def ctx(hostile, paying):
         return SimpleNamespace(festival_lead_hostil=hostile,
-                               festival_lead_pays_us_now=paying)
+                               festival_lead_pays_us_now=paying,
+                               we_go_first=False,
+                               state=SimpleNamespace(turn=6))
 
-    assert rule.when(ctx(True, False)) is True
-    assert rule.when(ctx(True, True)) is False
-    # It is not a matchup switch: with no hostile line it was already off.
-    assert rule.when(ctx(False, False)) is False
-    assert rule.when(ctx(False, True)) is False
+    veto = next(r for r in m._RULES_FOREST_PLAY
+                if r.name == "their_stadium_is_paying_us_today")
+    counter = next(r for r in m._RULES_FOREST_PLAY
+                   if r.name == "switch_off_festival_lead")
+
+    # Their line, our wave not cashing: the counter-stadium is played.
+    assert veto.when(ctx(True, False)) is False
+    assert counter.when(ctx(True, False)) is True
+    # The turn it cashes: the veto answers first and the Forest stays in hand.
+    assert veto.when(ctx(True, True)) is True
+    assert m._score_forest_of_vitality_play(ctx(True, True)) == m.SCORE_VETO
+    # It is not a matchup switch: with no hostile line the counter was already off.
+    assert counter.when(ctx(False, False)) is False
 
 
 def test_the_new_reading_travels_in_the_ctx_and_defaults_to_off():

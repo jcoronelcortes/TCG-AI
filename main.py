@@ -88,7 +88,7 @@ from ptcg.decision.supporters import *  # noqa: F401,F403
 from ptcg.decision.ultra_ball import *  # noqa: F401,F403
 from ptcg.cards.scoring import *  # noqa: F401,F403
 from ptcg.engine.debug import *  # noqa: F401,F403
-from ptcg.turn.game_plan import build_turn_plan, _recovery_creates_the_ko  # noqa: F401
+from ptcg.turn.game_plan import build_turn_plan, plan_of, _recovery_creates_the_ko  # noqa: F401
 from ptcg.turn.ctx import TurnCtx  # noqa: F401
 from ptcg.turn.finalize import finalizar  # noqa: F401
 from ptcg.turn.ctx_scoring import ScoringCtx  # noqa: F401
@@ -908,6 +908,21 @@ _RULES_BOSS_PLAY = [
                lambda c: (c.win_ko_active_via_promote
                           and not c.win_via_boss_gust),
                lambda c: SCORE_VETO),
+    # THE FIELD ABILITY ALREADY WINS ON THE ACTIVE (user, registro_010 step 133
+    # vs Mega Lucario ex, episode 92720952). Exactly the same shape as the rule
+    # above, from the other route: their ACTIVE is already worth every prize we
+    # are missing, and assembling the Grass doubler makes our swing lethal on
+    # it. Gusting swaps that body for one worth FEWER prizes and throws the
+    # winning turn away -- which is what the record did, spending the Supporter
+    # on a 150 HP Hariyama and then hitting it for 450.
+    #
+    # The gust is not even an alternative here: this route spends no Supporter,
+    # so the Boss's is still in hand next turn either way. It yields to
+    # `winning_gust` above, which already won with the board as it stands.
+    _FixedRule("the_field_ability_wins_on_the_active",
+               lambda c: (plan_of(c).win_needs_assembly
+                          and not c.win_via_boss_gust),
+               lambda c: SCORE_VETO),
     # THE EX-IMMUNE WALL FIRST (user, registro_006 step 47 vs Crustle,
     # LOST): with a Crustle/Sylveon as the opposing ACTIVE and our active able to
     # KNOCK IT OUT this turn, Boss's is NOT played. Gusting changes the opposing
@@ -1477,6 +1492,32 @@ _RULES_FOREST_PLAY = [
     _FixedRule("t1_going_first",
                lambda c: c.we_go_first and c.state.turn == 1,
                lambda c: SCORE_VETO),
+    # NOT ON THE TURN THEIR STADIUM IS PAYING US (user, registro_004 step 61 vs
+    # Festival Lead, episode 92669047 -- LOST). Festival Grounds is SHARED: while
+    # it is on the field OUR Dipplin throws Do the Wave twice too, and on that
+    # board the wave was already lethal on their 80 HP Active. Replacing it
+    # cancels our own knockout to buy a defence.
+    #
+    # WHY THIS IS A VETO ON THE LADDER AND NOT A GUARD ON A RUNG. That is
+    # exactly what it was, and it did not work. `switch_off_festival_lead` (the
+    # rung below) already stood aside on this board -- `festival_lead_pays_us_now`
+    # was True and the trace proves it -- and the very next rung,
+    # `enables_the_evolution_chain` (22000), played the same card for a
+    # completely different reason with the identical consequence. A ladder
+    # answers with the FIRST rung that matches, so silencing one rung of it
+    # forbids nothing: the ones underneath inherit the play. Below this rung
+    # there are three more that would each have done it (the chain, replacing
+    # the opposing stadium, early development).
+    #
+    # And the Forest is not even lost: nothing discards it, it is played the
+    # turn the wave stops cashing. What IS lost by playing it is the prize,
+    # every turn. See [[el-doble-ataque-del-estadio-tambien-es-nuestro]] and
+    # `_festival_lead_pays_us_now`, whose one job is to date this to a single
+    # turn -- deciding whether the counter-stadium is worth FETCHING is still
+    # `festival_lead_hostil`'s question and is untouched.
+    _FixedRule("their_stadium_is_paying_us_today",
+               lambda c: c.festival_lead_pays_us_now,
+               lambda c: SCORE_VETO),
     # A REDUNDANT copy of Forest on the first turn going second
     # (cornerstone_cubchoo autopsy p004, jul 2026 plan): with >=2 Forest in
     # HAND and an evolution chain that Forest helps (Applin/Chikorita
@@ -1568,18 +1609,12 @@ _RULES_FOREST_PLAY = [
     # NOT MEASURED in self-play: the generic OpponentBot cannot pilot the Festival Lead
     # deck (98.9% in both arms), so the gate has no signal.
     #
-    # ... AND NOT ON THE TURN THE STADIUM IS PAYING US (user, registro_006 steps
-    # 81-86). The card is SHARED: with a Dipplin of ours able to attack and its
-    # Do the Wave already knocking their Active out, Festival Grounds is worth a
-    # prize TODAY -- twice over, since the same Dipplin throws the attack again
-    # (`_festival_double_wave`). Replacing it that turn spends the prize to buy a
-    # defence, and the Forest is still there to be played the turn the wave stops
-    # cashing. It is the narrowest possible guard on purpose: `festival_lead_hostil`
-    # keeps deciding whether the counter-stadium is worth FETCHING, and this only
-    # holds back the turn it would cost a knockout.
+    # THE TURN THE STADIUM PAYS US is NOT this rung's exception any more: it is
+    # `their_stadium_is_paying_us_today` at the top of this ladder, because the
+    # rungs BELOW this one were playing the Forest anyway (user, registro_004
+    # step 61). One veto, one place, for every reason the card could be played.
     _FixedRule("switch_off_festival_lead",
-               lambda c: (c.festival_lead_hostil
-                          and not c.festival_lead_pays_us_now),
+               lambda c: c.festival_lead_hostil,
                lambda c: 26000),
     _FixedRule("enables_the_evolution_chain",
                _fv_evolution_chain,
@@ -6223,6 +6258,14 @@ def agent(obs_dict: dict) -> list[int]:
             # knocks their Active out is cashing a prize that only exists while
             # Festival Grounds is on the field. The counter-stadium rule reads it
             # so it does not buy next turn's safety with this turn's prize.
+            #
+            # THE WAVE COUNTS THE BENCH IT WILL SEE, not the one on the board
+            # (user, registro_004 step 61). `_festival_wave_bench` adds the
+            # 1-prize Basics still in hand that have a free seat, because a
+            # Pokemon drop happens in `_TIER_DEVELOP` and the retreat in tier 0:
+            # the body is down before the attack. Both halves below read this
+            # one number so the detector and the pivot cannot disagree.
+            _festival_wave_dmg = 20 * _festival_wave_bench(my_state, hand_counts)
             if AGENT_STATE._festival_grounds_in_play and _op_act_main is not None:
                 _flpn_op_hp = _op_act_main.hp or 0
                 for _flpn_i, _flpn_pk in enumerate(my_cards):
@@ -6242,7 +6285,7 @@ def agent(obs_dict: dict) -> list[int]:
                         if _flpn_eff + _grass_attach_unit() < AGENT_STATE.ATTACK_ENERGY_REQ.get(Dipplin, 1):
                             continue
                     _flpn_dmg = _our_effective_damage(
-                        _flpn_pk, _op_act_main, 20 * bench_count,
+                        _flpn_pk, _op_act_main, _festival_wave_dmg,
                         AGENT_STATE.meganium_in_play, neutralization_zone_active)
                     if _flpn_dmg > 0 and _flpn_dmg >= _flpn_op_hp:
                         _festival_lead_pays_us_now = True
@@ -6261,7 +6304,9 @@ def agent(obs_dict: dict) -> list[int]:
                 # comes up, so the count does not change
                 # ([[la-retirada-intercambia-cuerpos-la-banca-no-encoge]]). The
                 # promotion after a knockout is the other case and discounts one;
-                # that is not this route.
+                # that is not this route. What it DOES grow by is a body still in
+                # hand: `_festival_wave_dmg` counts it, and the tier order puts
+                # that drop before this retreat.
                 for _fsac_i, _fsac_pk in enumerate(my_cards):
                     if _fsac_i == 0 or _fsac_pk is None or _fsac_pk.id != Dipplin:
                         continue
@@ -6278,7 +6323,7 @@ def agent(obs_dict: dict) -> list[int]:
                         if _fsac_eff < AGENT_STATE.ATTACK_ENERGY_REQ.get(Dipplin, 1):
                             continue
                     _fsac_dmg = _our_effective_damage(
-                        _fsac_pk, _op_act_main, 20 * bench_count,
+                        _fsac_pk, _op_act_main, _festival_wave_dmg,
                         AGENT_STATE.meganium_in_play, neutralization_zone_active)
                     if _fsac_dmg <= 0 or _fsac_dmg < _fsac_op_hp:
                         continue
@@ -11172,6 +11217,12 @@ def agent(obs_dict: dict) -> list[int]:
         field_counts=field_counts,
         can_switch=can_switch,
         abilities_off=meowth_ability_lock,
+        # ... and the ASSEMBLE route needs the two facts that decide whether a
+        # line in hand can really be built TODAY: which bodies were already in
+        # play when the turn started, and whether Forest of Vitality lifts the
+        # "it came down this turn" restriction on evolving.
+        field_at_turn_start=AGENT_STATE._field_at_turn_start,
+        forest_in_play=AGENT_STATE.forest_in_play,
     )
     if AGENT_STATE.turn_plan_open is None and context == SelectContext.MAIN:
         AGENT_STATE.turn_plan_open = AGENT_STATE.turn_plan

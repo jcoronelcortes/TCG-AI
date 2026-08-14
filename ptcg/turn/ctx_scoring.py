@@ -104,6 +104,7 @@ class ScoringCtx:
     _ex_stuck_promo_ready: Any = None
     _extra_energy_enables_ko: Any = None
     _festival_lead_hostil: Any = None
+    _festival_lead_pays_us_now: Any = None
     _forced_ko_promote: Any = None
     _ft_hold_lone_meowth: Any = None
     _ft_wall_body: Any = None

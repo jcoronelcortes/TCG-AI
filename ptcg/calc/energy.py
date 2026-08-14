@@ -60,7 +60,7 @@ from ptcg.cards.tables import attack_table, card_table
 from ptcg.cards.ids import (Applin, Basic_Grass_Energy, Chikorita,
                             GRASS_DOUBLER_IDS, Hydrapple_ex, Night_Stretcher,
                             RETREAT_COST, Tapu_Bulu, Teal_Mask_Ogerpon_ex)
-from ptcg.cards.groups import Nighttime_Mine, OUR_TERA_IDS
+from ptcg.cards.groups import EVO_LINES, Nighttime_Mine, OUR_TERA_IDS
 from ptcg.cards.costs import ATTACK_ENERGY_REQ_BASE
 from ptcg.calc.board import _active_of
 from cg.api import EnergyType
@@ -129,6 +129,98 @@ def _grass_attach_unit():
     # hand or recovered). With Meganium's Wild Growth in play one physical Grass
     # provides {G}{G} = 2 effective; without Meganium, 1.
     return 2 if AGENT_STATE.meganium_in_play else 1
+
+
+def _physical_basic_grass_on_field(my_state):
+    """Basic Grass CARDS across our whole field, active and bench.
+
+    The physical twin of `count_total_grass_energy`, which returns the
+    EFFECTIVE count. They only differ once a doubler is in play -- and the one
+    caller that needs them apart is the projection of a doubler that is not in
+    play yet.
+    """
+    total = 0
+    for pokemon in (list(getattr(my_state, 'active', None) or [])
+                    + list(getattr(my_state, 'bench', None) or [])):
+        if pokemon is None:
+            continue
+        total += sum(1 for card in (getattr(pokemon, 'energyCards', None) or [])
+                     if getattr(card, 'id', 0) == Basic_Grass_Energy)
+    return total
+
+
+def field_grass_after_doubler(my_state, total_grass):
+    """EFFECTIVE Grass on our whole field ONCE a Wild Growth doubler is in play.
+
+    Syrup Storm is 30 + 30 per Grass on the field, so this number IS the damage
+    of our Stage 2, and putting Meganium down is not development: it is the
+    attack. With seven Grass on the board the swing goes from 30+30x7 = 240 to
+    30+30x14 = 450 the instant the doubler arrives, which is the difference
+    between chipping a Mega ex and taking the three prizes it is worth.
+
+    Idempotent on purpose. With a doubler ALREADY in play the observation has
+    applied Wild Growth itself (see `_grass_mult`) and `total_grass` is the
+    answer; doubling it again is the mistake `calc_syrup_storm_damage` carries a
+    pinned test against.
+    """
+    if AGENT_STATE.meganium_in_play:
+        return total_grass
+    return total_grass + _physical_basic_grass_on_field(my_state)
+
+
+def grass_doubler_arrives(hand_counts, field_counts, field_at_turn_start,
+                          forest_in_play, bench_free):
+    """Can THIS TURN still put a Grass doubler into play?
+
+    The three routes, cheapest first, and each one is a rule of the game rather
+    than a preference:
+
+      * the Stage 2 is in hand and its Stage 1 is on the board and EVOLVABLE
+        (it was there when the turn started, or Forest of Vitality lifts that
+        restriction) -- one action;
+      * the Stage 2 and its Stage 1 are both in hand on top of a Basic already
+        in play -- two actions, and only under FOREST, because the Stage 1 the
+        first evolution creates came into play this turn;
+      * the whole line is in hand and there is a free bench seat -- three
+        actions, Forest again, and it is the line the record was lost on.
+
+    `field_at_turn_start` empty means "no snapshot yet" (the first menu of the
+    turn): the current field rules, which is the same convention
+    `_evolvable_counts` uses and for the same reason.
+
+    Deck-agnostic: the lines come from `EVO_LINES` and which of them ends in a
+    doubler from `GRASS_DOUBLER_IDS`. It answers False when a doubler is
+    already in play -- there is nothing left to arrive, and Wild Growth does
+    not stack.
+    """
+    if AGENT_STATE.meganium_in_play:
+        return False
+    field_at_turn_start = field_at_turn_start or {}
+
+    def _evolvable(card_id):
+        if field_counts.get(card_id, 0) < 1:
+            return False
+        return bool(forest_in_play) or field_at_turn_start.get(card_id, 0) >= 1
+
+    for line in EVO_LINES:
+        if len(line) < 3 or line[-1] not in GRASS_DOUBLER_IDS:
+            continue
+        basic, middle, doubler = line[0], line[-2], line[-1]
+        if hand_counts.get(doubler, 0) < 1:
+            continue
+        if _evolvable(middle):
+            return True
+        if not forest_in_play:
+            # Every remaining route creates the body it then evolves, and only
+            # Forest lets a body that arrived this turn evolve again.
+            continue
+        if hand_counts.get(middle, 0) < 1:
+            continue
+        if field_counts.get(basic, 0) >= 1:
+            return True
+        if hand_counts.get(basic, 0) >= 1 and bench_free >= 1:
+            return True
+    return False
 
 
 def energy_after_evolution(pokemon, evo_card_id, grass_to_attach=0):
@@ -530,6 +622,9 @@ __all__ = [
     'count_total_grass_energy',
     'calc_syrup_storm_damage',
     '_grass_attach_unit',
+    '_physical_basic_grass_on_field',
+    'field_grass_after_doubler',
+    'grass_doubler_arrives',
     'energy_after_evolution',
     '_pending_grass_extra_eff',
     '_grass_ability_slots',

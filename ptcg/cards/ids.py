@@ -468,6 +468,20 @@ FESTIVAL_LEAD_IDS = {Dipplin}
 # turn against this number before believing a second hit is coming.
 FESTIVAL_LEAD_MAX_WAVES = 2
 
+# THE BENCH IS THE ATTACK (user, registro_004 step 61 vs Festival Lead, episode
+# 92669047). Do the Wave is 20 x OUR benched Pokemon and the stadium throws it
+# TWICE, so a body still in HAND with a free seat waiting for it is worth twenty
+# damage on each wave -- FORTY, for one card, no energy and no Supporter. On
+# that board it is the difference between a wave that only reaches their 80 HP
+# Active and one that also buries the 100 HP body they promote after it.
+#
+# These are the bodies we are willing to bench for that alone: our 1-PRIZE
+# Basics. An ex would buy the same twenty and leave a second prize sitting on
+# our bench, which is the trade the whole `_festival_sac_pivot` exists to
+# refuse. Read by `_festival_wave_bench` (which counts them) and by the envelope
+# in `ptcg/turn/options/play.py` (which makes sure they actually go down).
+WAVE_BENCH_BODY_IDS = {Applin, Chikorita, Tapu_Bulu}
+
 
 # --- the price of attacking that the DEFENDER charges ------------------------
 # "If the Pokemon this card is attached to is in the Active Spot and is damaged
@@ -1071,6 +1085,38 @@ SCORE_CHARGE_ACTIVE_FINISHER = 41900
 # drawing still rules over chip damage. Without a KO there is no hurry: the
 # turn's attachment is still alive after those plays.
 SCORE_CHARGE_ACTIVE_ATTACK = 31300
+
+# THE BODY THAT IS THE ATTACK (`ROUTE_ASSEMBLE`, user registro_010 step 133 vs
+# Mega Lucario ex). Each play of the line whose Stage 2 doubles every Grass on
+# the field, on a turn where putting it down makes our active's attack lethal
+# for every prize we still need.
+#
+# It sits ABOVE every other band because it is not comparable with any of them:
+# the alternatives are development plays priced for a game that continues, and
+# this one ends it. 44000 clears the winning finisher via Boss's (42000), the
+# 1-prize attacker vs Alakazam (43000) and the whole lethal-charge family
+# (41000+) -- it never competes with those, since a route that already wins
+# with the board as it stands is chosen BEFORE this one in `build_turn_plan`.
+#
+# It only ever LIFTS a score, and only for the cards of that one line, so the
+# development ladders that price the same cards on every other board are
+# untouched.
+SCORE_ASSEMBLE_WINS_THE_GAME = 44000
+
+# THE BODY THAT IS TWENTY DAMAGE, TWICE (user, registro_004 step 61 vs Festival
+# Lead). Its smaller sibling: benching a 1-prize Basic on the turn Festival
+# Grounds is paying US is not development either -- it is +20 on each of the two
+# waves -- but it does not claim to END the game, so it does not get to sit in
+# the 44000 band with the route that does.
+#
+# 22800 is chosen against its OWN branch and nothing else: the Pokemon-play
+# ladder prices the same bodies between 16000 and 22500 by matchup (and vetoes
+# Tapu Bulu outright with no Meganium on the field, which is the number this had
+# to beat on the record's board). Above all of them, below `SCORE_DEVELOP_BASE +
+# 3000` so it never approaches the charge family (41000+), and it only ever
+# LIFTS -- the ordering that puts a Pokemon drop before the retreat is
+# `_TIER_DEVELOP`'s job, not this number's.
+SCORE_WAVE_BODY_IS_DAMAGE = 22800
 
 NON_ATTACKER_ENERGY_WASTE_IDS = {Meowth_ex, Fezandipiti_ex}
 
@@ -1708,6 +1754,7 @@ __all__ = [
     'DO_THE_WAVE_ATTACK_ID',
     'FESTIVAL_LEAD_IDS',
     'FESTIVAL_LEAD_MAX_WAVES',
+    'WAVE_BENCH_BODY_IDS',
     'Spiky_Energy',
     'Handheld_Fan',
     'Deluxe_Bomb',
@@ -1805,6 +1852,8 @@ __all__ = [
     'FEZ_DRAW_ABILITY_SCORE',
     'SCORE_CHARGE_ACTIVE_FINISHER',
     'SCORE_CHARGE_ACTIVE_ATTACK',
+    'SCORE_ASSEMBLE_WINS_THE_GAME',
+    'SCORE_WAVE_BODY_IS_DAMAGE',
     'NON_ATTACKER_ENERGY_WASTE_IDS',
     'FEE_OVER_INERT_DEVELOPMENT',
     'SCORE_CHARGE_FUTURE_OGERPON',

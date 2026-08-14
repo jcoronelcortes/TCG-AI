@@ -48,7 +48,8 @@ from ptcg.calc.damage import (_attacker_base_damage, _festival_double_wave,
                               _our_effective_damage, _promoted_reply_damage)
 from ptcg.calc.energy import (_grass_attach_slots_for, _grass_attach_unit,
                               _grass_mult, _reachable_grass_for,
-                              _retreat_grass_to_discard)
+                              _retreat_grass_to_discard,
+                              field_grass_after_doubler, grass_doubler_arrives)
 from ptcg.cards.ids import (Basic_Grass_Energy, Boss_Orders, LANAS_AID_RECOVERS,
                             Lanas_Aid, SNIPE_ANY_TARGET_IDS)
 from ptcg.state.agent_state import AGENT_STATE
@@ -67,6 +68,7 @@ MODE_DEVELOP = 'DEVELOP'    # nothing decisive today: build the board
 # Supporter nor the turn's attachment cannot be broken by a bad draw.
 ROUTE_ACTIVE = 'ACTIVE'              # attack the opposing active as it stands
 ROUTE_PROMOTE = 'PROMOTE'            # retreat -> promote the bench finisher -> attack
+ROUTE_ASSEMBLE = 'ASSEMBLE'          # put the field ABILITY into play -> attack
 ROUTE_GUST = 'GUST'                  # Boss's Orders on a bench target -> attack
 ROUTE_RECOVER = 'RECOVER'            # Lana's Aid recovers Grass -> charge twice -> attack
 
@@ -177,6 +179,19 @@ class TurnPlan:
         return self.lethal_gust and not self.win_needs_charge
 
     @property
+    def win_needs_assembly(self) -> bool:
+        """The winning route is to BUILD the body whose ability makes our
+        attack lethal, and then attack with the active.
+
+        The sentence every consumer of this route reads. It says two things at
+        once: the knockout does NOT exist yet (so nothing may attack, gust or
+        end the turn before the body is down) and the Supporter slot is NOT
+        spoken for (so a gust that would swap the target away is a mistake, not
+        an alternative).
+        """
+        return self.win_route == ROUTE_ASSEMBLE
+
+    @property
     def lethal_recovery(self) -> bool:
         """The winning route goes through Lana's Aid: the Supporter slot of this
         turn belongs to the RECOVERY, not to a gust and not to a refill.
@@ -242,7 +257,8 @@ NO_PLAN = TurnPlan(
 
 
 def _our_damage_to(attacker, target, extra_attach, total_grass, bench_count,
-                   meganium_in_play, neutralization_zone):
+                   meganium_in_play, neutralization_zone,
+                   doubler_arrives=False):
     """EFFECTIVE damage our `attacker` does to `target` counting `extra_attach`
     Grass still to be attached this turn.
 
@@ -252,11 +268,24 @@ def _our_damage_to(attacker, target, extra_attach, total_grass, bench_count,
     weakness, the Sturdy cap and the Neutralization Zone. Never reimplement the
     second step: `can_ko` flags that skipped it used to declare KOs that the
     simulator refused.
+
+    `doubler_arrives` prices the ATTACKER on the board a Wild Growth doubler is
+    about to create: every basic Grass already on it counts twice, and so does
+    every one this turn still attaches. `grass_scale` is the caller's to
+    correct (`field_grass_after_doubler`), exactly as it already is for the
+    pending attachment -- this function has never owned that number. The
+    default is the board as it stands, so every existing caller is untouched.
     """
     if attacker is None or target is None:
         return 0
-    effective = (len(attacker.energies) * _grass_mult()
-                 + extra_attach * _grass_attach_unit())
+    if doubler_arrives:
+        effective = (len(attacker.energies)
+                     + sum(1 for _c in (getattr(attacker, 'energyCards', None) or [])
+                           if getattr(_c, 'id', 0) == Basic_Grass_Energy)
+                     + extra_attach * 2)
+    else:
+        effective = (len(attacker.energies) * _grass_mult()
+                     + extra_attach * _grass_attach_unit())
     base = _attacker_base_damage(
         attacker.id, target, effective, grass_scale=total_grass,
         teal_self_energy=effective, bench_count=bench_count)
@@ -581,6 +610,90 @@ def _recovery_creates_the_ko(my_state, op_state, state, hand_counts,
     return now < hp <= after
 
 
+def _win_via_field_ability(my_state, op_state, state, hand_counts, field_counts,
+                           my_prize, total_grass, bench_count,
+                           meganium_in_play, neutralization_zone,
+                           field_at_turn_start, forest_in_play, abilities_off):
+    """Does putting a GRASS DOUBLER into play this turn turn our active's
+    attack into the knockout that ENDS the game?
+
+    Why this route exists (user, registro_010 step 133, episode 92720952 vs
+    Mega Lucario ex, WON later and by luck). Board at our turn 10, three prizes
+    left for us and ONE for them -- their next knockout ends it:
+
+        US (3 prizes)                        THEM (1 prize)
+        active Hydrapple ex, 2 Grass         active MEGA LUCARIO ex 340/340
+        bench  Ogerpon ex 3, Ogerpon ex 2,          -- a Mega ex, THREE prizes
+               Meowth ex, Fezandipiti ex
+        hand   Chikorita, Bayleef, MEGANIUM, Boss's Orders x2, ...
+        field  Forest of Vitality, bench 4/5
+
+    Seven Grass on our board, so Syrup Storm was 30 + 30x7 = 240 against 340:
+    no knockout, and the plan printed `win_route=''`, `prizes_today=1`,
+    mode RACE. But Wild Growth makes every basic Grass count as {G}{G}, and
+    Forest of Vitality lifts the "it came down this turn" restriction, so
+    Chikorita -> Bayleef -> Meganium was three actions out of the same hand and
+    the field went to FOURTEEN: 30 + 30x14 = 450 >= 340, three prizes, the
+    game. The agent spent the Supporter gusting a 150 HP Hariyama instead,
+    assembled the Meganium anyway, and threw those same 450 at a body worth ONE
+    prize.
+
+    THE HOLE IS GENERAL, and it is not about Meganium. Every "can we knock this
+    out" reading in this agent prices the attack against the field AS IT
+    STANDS. None of them asks whether a body still in HAND changes how hard
+    WE hit -- and for an attack that scales with the whole board, a card in
+    hand is damage, not development.
+
+    Confined exactly like `_win_via_energy_recovery`, and for the same reasons:
+
+      * only the ACTIVE, never the promote route -- a retreat on top of a
+        three-card assembly is a line too long to trust;
+      * only when it WINS, that is when the target is worth every prize we are
+        missing. It never feeds `prizes_today`, which governs the mode of the
+        whole turn;
+      * only when the doubler is what CREATES the knockout: the floor is
+        everything the turn already reaches without it, so an attack that was
+        already lethal does not get its turn rewritten.
+
+    It spends no Supporter, no attachment and no retreat -- only cards and a
+    bench seat -- which is why it is the CHEAPEST of the routes that have to
+    make something happen first, and why it is placed above the gust.
+    """
+    attacker = my_state.active[0] if my_state.active else None
+    target = op_state.active[0] if op_state.active else None
+    if attacker is None or target is None or _ko_not_guaranteed(target):
+        return False
+    if prize_count_op(target) < my_prize:
+        return False              # it knocks out, but it does not END the game
+    hp = target.hp or 0
+    if hp <= 0:
+        return False
+    bench_free = max(0, (getattr(my_state, 'benchMax', 5) or 5)
+                     - len([b for b in (my_state.bench or []) if b is not None]))
+    if not grass_doubler_arrives(hand_counts, field_counts or {},
+                                 field_at_turn_start, forest_in_play,
+                                 bench_free):
+        return False
+    # The floor is what the turn ALREADY reaches -- the same discipline as
+    # `_recovery_creates_the_ko`. A knockout the board was paying for anyway is
+    # not a reason to commit three cards and the bench seat.
+    already = _charge_this_turn(attacker, state, my_state, hand_counts,
+                                field_counts, abilities_off=abilities_off)
+    now = _our_damage_to(attacker, target, already,
+                         total_grass + already * _grass_attach_unit(),
+                         bench_count, meganium_in_play, neutralization_zone)
+    # ... and afterwards EVERY Grass on the field counts twice: the attacker's
+    # own (which is what the attack cost is read against), the whole field
+    # (which is what Syrup Storm scales on) and the one the turn is still going
+    # to attach, now worth {G}{G}.
+    after = _our_damage_to(attacker, target, already,
+                           field_grass_after_doubler(my_state, total_grass)
+                           + already * 2,
+                           bench_count, meganium_in_play, neutralization_zone,
+                           doubler_arrives=True)
+    return now < hp <= after
+
+
 def _we_knock_out_their_active(my_state, op_state, state, hand_counts,
                                field_counts, total_grass, bench_count,
                                meganium_in_play, neutralization_zone,
@@ -692,7 +805,8 @@ def build_turn_plan(*, my_prize, op_prize, my_state, op_state, state,
                     neutralization_zone, op_hand_count,
                     active_attack_wins_now, win_via_boss_gust,
                     win_ko_active_via_promote,
-                    field_counts=None, can_switch=True, abilities_off=False):
+                    field_counts=None, can_switch=True, abilities_off=False,
+                    field_at_turn_start=None, forest_in_play=False):
     """Builds the plan for the CURRENT observation of our turn.
 
     It is rebuilt on every call to `agent()` and not frozen at the first one: the
@@ -716,6 +830,19 @@ def build_turn_plan(*, my_prize, op_prize, my_state, op_state, state,
         win_route = ROUTE_ACTIVE
     elif win_ko_active_via_promote:
         win_route = ROUTE_PROMOTE
+    elif _win_via_field_ability(my_state, op_state, state, hand_counts,
+                                field_counts, my_prize, total_grass,
+                                bench_count, meganium_in_play,
+                                neutralization_zone, field_at_turn_start,
+                                forest_in_play, abilities_off):
+        # THIRD, AND ABOVE THE GUST ON PURPOSE. Both routes close the game, so
+        # "cheapest" decides -- and this one spends no Supporter, which makes it
+        # the only one of the two that can be tried and abandoned. If the
+        # assembly falls apart the plan is rebuilt on the next menu and the gust
+        # is still in hand; if the gust goes first it swaps the opposing active
+        # away from the very body worth all our remaining prizes, and the
+        # assembly route is gone for good. See `_win_via_field_ability`.
+        win_route = ROUTE_ASSEMBLE
     elif win_via_boss_gust and boss_playable:
         win_route = ROUTE_GUST
     elif _win_via_energy_recovery(my_state, op_state, state, hand_counts,
@@ -729,8 +856,13 @@ def build_turn_plan(*, my_prize, op_prize, my_state, op_state, state,
     else:
         win_route = ''
 
+    # ROUTE_ASSEMBLE is in here for what the flag MEANS -- "the finisher does
+    # not exist on the board yet, something has to happen before the attack" --
+    # which is exactly the question `gust_closes_it_now` and the ordering rules
+    # ask it. What has to happen is a body and not a charge; the route name is
+    # what tells the two apart.
     win_needs_charge = (
-        win_route == ROUTE_RECOVER
+        win_route in (ROUTE_RECOVER, ROUTE_ASSEMBLE)
         or (win_route == ROUTE_GUST
             and not _gust_is_lethal_without_charging(
                 my_state, op_state, my_prize, total_grass, bench_count,
@@ -796,7 +928,8 @@ def plan_of(ctx):
 
 __all__ = [
     'MODE_WIN_NOW', 'MODE_DENY', 'MODE_RACE', 'MODE_DEVELOP',
-    'ROUTE_ACTIVE', 'ROUTE_PROMOTE', 'ROUTE_GUST', 'ROUTE_RECOVER',
+    'ROUTE_ACTIVE', 'ROUTE_PROMOTE', 'ROUTE_ASSEMBLE', 'ROUTE_GUST',
+    'ROUTE_RECOVER',
     'TurnPlan', 'NO_PLAN', 'build_turn_plan', 'plan_of',
-    '_recovery_creates_the_ko',
+    '_recovery_creates_the_ko', '_win_via_field_ability',
 ]

@@ -10,7 +10,7 @@ ALL the names, including the ones starting with `_` (which `import *` would
 otherwise skip).
 """
 
-from ptcg.cards.ids import Applin, Bayleef, Chikorita, Dipplin, Hydrapple_ex, Meganium, Teal_Mask_Ogerpon_ex
+from ptcg.cards.ids import Applin, Bayleef, Chikorita, Dipplin, GRASS_DOUBLER_IDS, Hydrapple_ex, Meganium, Teal_Mask_Ogerpon_ex
 
 
 
@@ -20,6 +20,21 @@ EVO_LINES = (
     (Applin, Dipplin, Hydrapple_ex),
     (Chikorita, Bayleef, Meganium),
 )
+
+
+# Every card of every line that ENDS in a Grass doubler -- in this deck
+# Chikorita, Bayleef and Meganium, because Meganium is the one that prints Wild
+# Growth. It is DERIVED and not written out, so a deck whose doubler sits on a
+# different line gets the same answer without editing this file.
+#
+# Why the whole line and not just the doubler: assembling it is a THREE-card
+# play (bench the Basic, evolve, evolve again) and the three halves have to be
+# recognisable to whatever decides that the assembly is the turn. See
+# `ROUTE_ASSEMBLE` in `ptcg/turn/game_plan.py`.
+GRASS_DOUBLER_LINE_IDS = frozenset(
+    card_id
+    for _line in EVO_LINES if _line and _line[-1] in GRASS_DOUBLER_IDS
+    for card_id in _line)
 
 
 
@@ -95,6 +110,7 @@ OUR_TERA_IDS = {Teal_Mask_Ogerpon_ex}
 
 __all__ = [
     'EVO_LINES',
+    'GRASS_DOUBLER_LINE_IDS',
     'GT_SCORE_FULL_CHAIN',
     'GT_SCORE_STAGE1_ONLY',
     'GT_FETCH_BONUS',

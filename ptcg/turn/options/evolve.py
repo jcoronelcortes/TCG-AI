@@ -39,7 +39,8 @@ from ptcg.calc.damage import (_op_window_against_evolution,
 from ptcg.calc.energy import (_can_attack_eff, _grass_attach_unit, _grass_mult,
                               energy_after_evolution)
 from ptcg.calc.board import _active_of
-from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Chikorita, Dipplin, Grand_Tree, Hydrapple_ex, Lillie_Determination, Meganium, RETREAT_COST, SCORE_EVO_BODY_WITHOUT_A_JOB, SCORE_EVO_CONDITION_UNLOCK, SCORE_VETO, Tapu_Bulu
+from ptcg.cards.groups import GRASS_DOUBLER_LINE_IDS
+from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Chikorita, Dipplin, Grand_Tree, SCORE_ASSEMBLE_WINS_THE_GAME, Hydrapple_ex, Lillie_Determination, Meganium, RETREAT_COST, SCORE_EVO_BODY_WITHOUT_A_JOB, SCORE_EVO_CONDITION_UNLOCK, SCORE_VETO, Tapu_Bulu
 from ptcg.cards.tables import card_table
 from ptcg.state.agent_state import AGENT_STATE
 
@@ -466,6 +467,52 @@ def score_play(tc, o, score):
 
             if has_condition and _is_active and score > 0:
                 score += condition_urgency
+
+            # ── THE EVOLUTION THAT IS THE ATTACK ───────────────────────
+            # (user, registro_010 step 133 vs Mega Lucario ex.) The twin of
+            # the envelope at the end of `ptcg/turn/options/play.py`, and the
+            # other two thirds of the same play: with `ROUTE_ASSEMBLE` the plan
+            # has established that the Grass doubler reaching the board makes
+            # our active's swing lethal for every prize we still need, so each
+            # link of that line is a piece of the winning attack and not a
+            # development choice.
+            #
+            # Meganium already scores 35000 here, which is high -- and high is
+            # not the same as decisive: the number was measured for the play
+            # that BUILDS AN ENGINE, so any veto above it (the Stage on a body
+            # with no job, an active that cannot then act) is free to overrule
+            # it, and on a turn that ends the game none of those reasons apply.
+            # Hence LAST, above everything, and only lifting.
+            if (getattr(AGENT_STATE.turn_plan, 'win_needs_assembly', False)
+                    and card.id in GRASS_DOUBLER_LINE_IDS
+                    and score < SCORE_ASSEMBLE_WINS_THE_GAME):
+                score = SCORE_ASSEMBLE_WINS_THE_GAME
+
+            # ── DO NOT EVOLVE THE BODY THAT IS THE ATTACK ──────────────
+            # (user, registro_004 step 61 vs Festival Lead, episode 92669047 --
+            # LOST.) With Festival Grounds on the field our Dipplin uses Do the
+            # Wave TWICE, and `_festival_lead_pays_us_now` says that wave already
+            # knocks their Active out. Hydrapple ex on top of that Dipplin is a
+            # bigger body and a smaller turn: it throws the attack ONCE, it is
+            # worth TWO prizes in the front spot instead of one, and it needs a
+            # retreat the Dipplin does not.
+            #
+            # The record measured the difference exactly. It evolved, retreated
+            # the ex anyway and hit an 80 HP Dipplin with Syrup Storm for 390 --
+            # one prize, 310 damage on the floor and no second wave. The Dipplin
+            # was throwing 100 twice: the same prize, plus a hundred into the
+            # body they promote after it.
+            #
+            # It is written as the LAST word of this branch because everything
+            # above it is right in general -- evolving is nearly always an
+            # upgrade -- and wrong for exactly one turn. `_festival_grounds_in_play`
+            # closes it: no other deck in `deck/rivales/` puts that stadium on
+            # the field, so on every other board this line does not exist.
+            if (AGENT_STATE._festival_grounds_in_play
+                    and tc._festival_lead_pays_us_now
+                    and pokemon is not None and pokemon.id == Dipplin
+                    and score > SCORE_VETO):
+                score = SCORE_VETO
         return score
     finally:
         tc._atk = _atk

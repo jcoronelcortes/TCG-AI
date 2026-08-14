@@ -36,8 +36,8 @@ from cg.api import AreaType, CardType, EnergyType
 from ptcg.calc.card import get_card, prize_count
 from ptcg.calc.damage import _powerful_hand_projected, _ventana_de_regalo
 from ptcg.calc.energy import _grass_mult
-from ptcg.cards.groups import GT_PLAY_BASICO_BONUS
-from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Budew, Bug_Catching_Set, CUBCHOO_ALLOWED_PLAY_IDS, Chikorita, DECK_ITEM_IDS, DOOMED_SAC_WALL_PLAY_SCORE, Dawn, Dipplin, Dragapult_ex, FIRST_TURN_WALL_PLAY_SCORE, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, OUR_EX_IDS, Pinsir, Poke_Pad, RETREAT_COST, SCORE_DEVELOP_BASE, SCORE_FORBID, SCORE_ITEM_BASE, SCORE_VETO, TAPU_WAIT_FOR_ITEMS_SCORE, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, Xerosic_Machinations
+from ptcg.cards.groups import GRASS_DOUBLER_LINE_IDS, GT_PLAY_BASICO_BONUS
+from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Budew, Bug_Catching_Set, SCORE_ASSEMBLE_WINS_THE_GAME, CUBCHOO_ALLOWED_PLAY_IDS, Chikorita, DECK_ITEM_IDS, DOOMED_SAC_WALL_PLAY_SCORE, Dawn, Dipplin, Dragapult_ex, FIRST_TURN_WALL_PLAY_SCORE, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, OUR_EX_IDS, Pinsir, Poke_Pad, RETREAT_COST, SCORE_DEVELOP_BASE, SCORE_FORBID, SCORE_ITEM_BASE, SCORE_VETO, SCORE_WAVE_BODY_IS_DAMAGE, TAPU_WAIT_FOR_ITEMS_SCORE, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, WAVE_BENCH_BODY_IDS, Xerosic_Machinations
 from ptcg.cards.tables import card_table
 from ptcg.decision.bug_catching_set import _score_bug_catching_set_play
 from ptcg.decision.disruption import _score_unfair_stamp_play, _score_xerosic_play
@@ -65,6 +65,7 @@ def score_play(tc, o, score):
     _prize_mismatch_matchup = tc._prize_mismatch_matchup
     _dragapult_no_tapu = tc._dragapult_no_tapu
     _festival_lead_hostil = tc._festival_lead_hostil
+    _festival_lead_pays_us_now = tc._festival_lead_pays_us_now
     _ft_hold_lone_meowth = tc._ft_hold_lone_meowth
     _ft_wall_in_hand = tc._ft_wall_in_hand
     _opening_sac_wall_in_hand = tc._opening_sac_wall_in_hand
@@ -2060,6 +2061,55 @@ def score_play(tc, o, score):
                 and not _dragapult_no_tapu
                 and score < DOOMED_SAC_WALL_PLAY_SCORE):
             score = DOOMED_SAC_WALL_PLAY_SCORE
+
+        # THE BODY THAT IS NOT DEVELOPMENT, IT IS THE ATTACK (user,
+        # registro_010 step 133 vs Mega Lucario ex). With `ROUTE_ASSEMBLE` the
+        # plan has already done the arithmetic: putting the Grass doubler in
+        # play turns our active's swing into the knockout that ends the game,
+        # for every prize we still need. The Basic at the foot of that line is
+        # the first of the three actions.
+        #
+        # The envelope is needed and not decoration: on the record's board the
+        # Chikorita scored -1. Every ladder above prices it as development --
+        # the last bench seat is worth more than a spare body, and normally
+        # that is right -- and a vetoed option never even reaches the tier that
+        # would order it. Same shape as its three siblings above: last, so
+        # nothing can be added after it, and it only LIFTS.
+        if (card is not None
+                and getattr(AGENT_STATE.turn_plan, 'win_needs_assembly', False)
+                and card.id in GRASS_DOUBLER_LINE_IDS
+                and bench_count < 5
+                and score < SCORE_ASSEMBLE_WINS_THE_GAME):
+            score = SCORE_ASSEMBLE_WINS_THE_GAME
+
+        # THE BENCH IS THE ATTACK (user, registro_004 step 61 vs Festival Lead,
+        # episode 92669047). The same sentence as the envelope above, one band
+        # down. On the turn Festival Grounds is paying US
+        # (`_festival_lead_pays_us_now`) our Dipplin throws Do the Wave twice and
+        # the wave is 20 x our bench -- so a 1-prize Basic going into a free seat
+        # is +20 on each wave, forty damage for one card, no energy and no
+        # Supporter.
+        #
+        # The envelope is needed and not decoration: on the record's board Tapu
+        # Bulu scored -1, vetoed by "no Tapu until Meganium is on the field",
+        # which is a sound rule about a body that has to ATTACK and simply does
+        # not describe a body that is being benched to make somebody else's
+        # attack bigger. The wave went 80 instead of 100, and 100 is what buries
+        # the 100 HP Thwackey they promote after the first knockout.
+        #
+        # `WAVE_BENCH_BODY_IDS` is the same set `_festival_wave_bench` COUNTS, and
+        # the two have to stay identical: that detector already priced the
+        # knockout as if these bodies were down, so anything it counts has to be
+        # something this envelope actually plays. Only 1-prize Basics are in it
+        # -- an ex would buy the same twenty and leave a second prize on our own
+        # bench.
+        if (card is not None
+                and AGENT_STATE._festival_grounds_in_play
+                and _festival_lead_pays_us_now
+                and card.id in WAVE_BENCH_BODY_IDS
+                and bench_count < 5
+                and score < SCORE_WAVE_BODY_IS_DAMAGE):
+            score = SCORE_WAVE_BODY_IS_DAMAGE
         return score
     finally:
         tc.b = b

@@ -60,6 +60,7 @@ from ptcg.calc.energy import _grass_mult
 from ptcg.calc.opponent import _op_juega_crustle
 from ptcg.calc.board import _active_of
 from ptcg.cards.ids import Applin, BOSS_SCORE_PRIZE_RANK_BASE, DOOMED_SAC_WALL_PLAY_SCORE, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, KO_WINDOW_PLAY_IDS, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Pinsir, Poke_Pad, SCORE_CHARGE_DOOMED, SCORE_USELESS_ATTACK, SCORE_VETO, SUPP_SCORE_LAST_RESORT_BAND, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Xerosic_Machinations
+from ptcg.cards.groups import GRASS_DOUBLER_LINE_IDS
 from ptcg.cards.scoring import SCORE_LD_SUPP_COMPROMETIDO, _SUPP_PLAY_IDS
 from ptcg.cards.tables import HAND_COST_ABILITY_IDS, HAND_DISCARD_COST_PLAY_IDS, HAND_NEUTRAL_ABILITY_IDS, HAND_RESET_PLAY_IDS, attack_table, card_table
 from ptcg.decision.ultra_ball import _matchup_allows_playing, _ub_cost_destroys_better_card, _ub_engine_waits_for_tomorrow
@@ -750,6 +751,33 @@ def finalizar(tc):
              and _lra_o.type not in (OptionType.ATTACK, OptionType.END)],
             default=SCORE_VETO)
 
+        # THE THREE ACTIONS THAT ARE ONE ATTACK (`ROUTE_ASSEMBLE`, user
+        # registro_010 step 133 vs Mega Lucario ex). When the plan's winning
+        # route is to put the Grass doubler on the board, benching the Basic
+        # and the two evolutions on top of it are not development plays that
+        # happen to score high -- they are the first three quarters of the
+        # attack that ends the game, and nothing may go before them.
+        #
+        # The score envelopes in `options/play.py` and `options/evolve.py`
+        # already lift these options above every band; the TIER is the other
+        # half and it is the half that decides first. Without it a Bug Catching
+        # Set (tier BUG_SET) or a Teal Dance (tier ENERGY) would still take the
+        # turn's actions ahead of the line, which is the same failure the
+        # winning gust was given `_TIER_WIN_ATTACK` for.
+        _assembly_is_the_turn = plan_of(ctx).win_needs_assembly
+
+        def _po_assembly_card(_opt):
+            """The option is a play of the line the assembly route needs."""
+            if _opt.type == OptionType.PLAY:
+                _c = get_card(obs, AreaType.HAND, _opt.index, my_index)
+            elif _opt.type == OptionType.EVOLVE:
+                _c = get_card(obs,
+                              _opt.area if _opt.area is not None else AreaType.HAND,
+                              _opt.index, my_index)
+            else:
+                return False
+            return _c is not None and _c.id in GRASS_DOUBLER_LINE_IDS
+
         for _po_i, _po_o in enumerate(select.option):
             if _po_i >= len(scores) or scores[_po_i] <= 0:
                 continue
@@ -757,6 +785,8 @@ def finalizar(tc):
                     and _active_attack_wins_now and AGENT_STATE.plan.attacker == 0):
                 # Winning finisher with the active: MAXIMUM tier so it is executed
                 # before any charge/development and closes the game (step 125).
+                _play_order_tier[_po_i] = _TIER_WIN_ATTACK
+            elif _assembly_is_the_turn and _po_assembly_card(_po_o):
                 _play_order_tier[_po_i] = _TIER_WIN_ATTACK
             elif (_po_o.type == OptionType.RETREAT
                     and (_suicide_swap_win_promote

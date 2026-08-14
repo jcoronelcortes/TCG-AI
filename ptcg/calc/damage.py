@@ -66,7 +66,7 @@ from dataclasses import replace
 from ptcg.calc.card import prize_count, prize_count_op
 from ptcg.state.agent_state import AGENT_STATE
 from ptcg.cards.tables import attack_table, card_table
-from ptcg.cards.ids import ABILITY_IMMUNE_IDS, Alakazam_ex, EVO_BODY_DAMAGE, EVO_BODY_EXPOSURE, EVO_BODY_RESCUE, OP_ACTIVE_ABILITY_DAMAGE, OP_BENCH_SNIPE_DAMAGE, RAINBOW_ENERGY_TYPE, Brave_Bangle, DO_THE_WAVE_ATTACK_ID, Dipplin, Drednaw, EX_IMMUNE_IDS, FULL_HP_SURVIVE_IDS, Farigiraf_ex, Fezandipiti_ex, Hydrapple_ex, Maximum_Belt, Meganium, OUR_ABILITY_IDS, OUR_BASIC_EX_IDS, OUR_EX_IDS, POWERFUL_HAND_ATTACK_ID, Pinsir, Tapu_Bulu, Teal_Mask_Ogerpon_ex
+from ptcg.cards.ids import ABILITY_IMMUNE_IDS, Alakazam_ex, EVO_BODY_DAMAGE, EVO_BODY_EXPOSURE, EVO_BODY_RESCUE, OP_ACTIVE_ABILITY_DAMAGE, OP_BENCH_SNIPE_DAMAGE, RAINBOW_ENERGY_TYPE, Brave_Bangle, DO_THE_WAVE_ATTACK_ID, Dipplin, Drednaw, EX_IMMUNE_IDS, FULL_HP_SURVIVE_IDS, Farigiraf_ex, Fezandipiti_ex, Hydrapple_ex, Maximum_Belt, Meganium, OUR_ABILITY_IDS, OUR_BASIC_EX_IDS, OUR_EX_IDS, POWERFUL_HAND_ATTACK_ID, Pinsir, Tapu_Bulu, Teal_Mask_Ogerpon_ex, WAVE_BENCH_BODY_IDS
 from ptcg.calc.energy import _grass_attach_unit, _grass_mult, _retreat_grass_units
 from ptcg.cards.lines import _direct_evolution_ids
 from ptcg.cards.op_scaling import OP_SCALING_IGNORES_WEAKNESS, op_scaled_damage
@@ -135,6 +135,45 @@ def _festival_double_wave(attacker_id) -> bool:
     of the same card was invisible: see [[el-doble-ataque-del-estadio-tambien-es-nuestro]].
     """
     return bool(attacker_id == Dipplin and AGENT_STATE._festival_grounds_in_play)
+
+
+def _festival_wave_bench(my_state, hand_counts=None) -> int:
+    """How many benched bodies *Do the Wave* counts THIS TURN: the bench as it
+    stands, PLUS the 1-prize Basics still in hand that have a free seat waiting.
+
+    THE ONE NUMBER (user, registro_004 step 61 vs Festival Lead, episode
+    92669047). Do the Wave is 20 x our bench, so on the turn the stadium is ours
+    the bench is not the board, it is the ATTACK -- and a body in hand with a
+    seat free is twenty damage on each of the two waves. Reading the wave off
+    `bench_count` prices it as if the hand were empty, which is the same
+    blindness `_win_via_field_ability` was written for on the other line: a card
+    in hand that changes how hard WE hit is damage, not development.
+
+    It has to be ONE function because two decisions read it and they must not be
+    able to disagree: `_festival_lead_pays_us_now` (which forbids replacing the
+    stadium and evolving the body) and `_festival_sac_pivot` (which commits the
+    retreat). If the detector counted the body and the pivot did not, the pivot
+    would decline a knockout that is there; the other way round it would retreat
+    into a wave that never grew.
+
+    THE COUNT IS ONLY HONEST BECAUSE THE PLAY IS GUARANTEED. `WAVE_BENCH_BODY_IDS`
+    is exactly the set the envelope at the end of `ptcg/turn/options/play.py`
+    lifts to `SCORE_WAVE_BODY_IS_DAMAGE` on this same flag, and a Pokemon drop
+    sits in `_TIER_DEVELOP` (40) while the retreat sits in tier 0 -- so the body
+    is on the bench before the wave is thrown. Widening this set without
+    widening that one puts back the disagreement.
+
+    With no hand (`hand_counts` empty or None) it degrades to the bench as it
+    stands, which is what every caller read before this existed.
+    """
+    bench = [b for b in (getattr(my_state, 'bench', None) or []) if b is not None]
+    if not hand_counts:
+        return len(bench)
+    free = max(0, (getattr(my_state, 'benchMax', 5) or 5) - len(bench))
+    if free <= 0:
+        return len(bench)
+    in_hand = sum(hand_counts.get(_id, 0) for _id in WAVE_BENCH_BODY_IDS)
+    return len(bench) + min(free, in_hand)
 
 
 def _festival_second_wave_prizes(op_state, damage, knocked_out=None) -> int:
@@ -1424,6 +1463,7 @@ __all__ = [
     '_ProjTarget',
     '_ko_not_guaranteed',
     '_festival_double_wave',
+    '_festival_wave_bench',
     '_festival_second_wave_prizes',
     '_snipe_targets',
     '_our_effective_damage',
