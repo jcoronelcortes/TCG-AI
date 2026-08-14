@@ -56,16 +56,56 @@ from cg.api import AreaType, LogType  # noqa: E402
 DECK = [c for c in range(1, 16) for _ in range(4)]
 US, THEM = 0, 1
 
-# The recorded episodes on disk were all played before 14 August 2026, and a
-# replay is a game of the list of its day: censused against today's sixty they
-# grow rows for copies that list never held (62 fates for a 60-card deck) and
-# every closure assertion below stops being about the resolver. See
-# `recorded_deck` and [[el-corpus-grabado-es-de-la-lista-vieja]].
+# A replay is a game of the list of ITS day: censused against the wrong sixty it
+# grows rows for copies that list never held and every closure assertion below
+# stops being about the resolver. See `recorded_deck` and
+# [[el-corpus-grabado-es-de-la-lista-vieja]].
 from recorded_deck import PRE_2026_08_14  # noqa: E402
 
+# ...and WHICH day is detected, not assumed. `log_analisys/` is swapped by the
+# nightly tools, so the episode sitting there is whatever was harvested last:
+# these tests were pinned to the pre-14-August list and broke the morning a game
+# played with TODAY'S list landed in the folder (`92866795.json`: 61 fates
+# against the old sixty, 60 against the new one -- the list gained a Poke Pad and
+# a Basic {G} Energy and lost a Tapu Bulu and a Night Stretcher). The episode did
+# not change, and neither did the resolver; only the calendar did.
+#
+# The detector is the one `utils/oracle_the_cap_waits_for_an_inflated_hand.py`
+# uses on its own fixture: whichever known list makes the board CLOSE is the one
+# it was played with.
+#
+# WHAT THIS DOES NOT DO, and it is the reason it fails instead of skipping. The
+# closure on sixty used to be asserted in the body of the test; asked of a list
+# chosen BECAUSE it closes, that assertion would be a tautology. So it moves
+# here, to the end of the search: a resolver that has really drifted closes on
+# nothing, no candidate answers, and the failure names every list tried with the
+# count it produced. The content of the tests -- the resolver's alarm, the
+# surplus copies, the stream agreeing with the board card for card -- is
+# untouched and still graded.
+_KNOWN_LISTS = (
+    ("deck.csv", ROOT / "deck.csv"),
+    ("tests/fixtures/deck_2026-08-13.csv", PRE_2026_08_14),
+)
 
-def _recorded_list():
-    return cc.read_deck(PRE_2026_08_14)
+
+def _list_of_episode(path):
+    """The list `path` was played with: the first known one whose census closes
+    on sixty. Fails the calling test -- never skips -- when none does."""
+    tried = []
+    for label, csv in _KNOWN_LISTS:
+        try:
+            deck = cc.read_deck(csv)
+        except (OSError, ValueError):
+            continue
+        filas = cc.census_of_episode(path, deck)["diag"]["filas"]
+        if filas == cc.DECK_SIZE:
+            return deck
+        tried.append(f"{label}: {filas}")
+    pytest.fail(
+        f"{path.name}: the fates close on sixty under NO list we hold "
+        f"({'; '.join(tried) or 'no list could be read'}). Either this game was "
+        "played with a list that is not on disk, or the fate order has drifted "
+        "from what the engine does.")
 
 
 def ev(kind, serial, card_id, *, seat=US, src=None, dst=None):
@@ -311,15 +351,17 @@ def test_the_dead_in_hand_set_is_exactly_the_final_hand():
     The fate comes from the event stream; the hand comes from the observation.
     They have to agree card for card, and if they ever stop agreeing the fate
     order has drifted from what the engine does.
+
+    Graded under the list the episode was PLAYED with -- see `_list_of_episode`,
+    which is also where "the fates close on sixty" is now enforced.
     """
     path, data = _an_episode()
     if path is None:
         pytest.skip("no recorded episode on disk")
-    deck = _recorded_list()
+    deck = _list_of_episode(path)
     census = cc.census_of_episode(path, deck)
     rows, diag = census["rows"], census["diag"]
 
-    assert diag["filas"] == cc.DECK_SIZE, f"{path.name}: the fates must close on sixty"
     assert diag["otro"] == 0, f"{path.name}: the resolver's alarm went off"
     assert diag["sobrantes"] == 0, f"{path.name}: more copies seen than the deck holds"
 
@@ -345,7 +387,7 @@ def test_every_face_down_event_is_one_of_the_two_we_can_name():
     path, _data = _an_episode()
     if path is None:
         pytest.skip("no recorded episode on disk")
-    diag = cc.census_of_episode(path, _recorded_list())["diag"]
+    diag = cc.census_of_episode(path, _list_of_episode(path))["diag"]
     unexplained = diag["cara_abajo"] - diag["reparto_premios"] - diag["mano_revelada"]
     assert unexplained == 0, (
         f"{path.name}: {unexplained} face-down events that are neither the prize "
