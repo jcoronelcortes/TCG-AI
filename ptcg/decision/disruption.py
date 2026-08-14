@@ -469,6 +469,18 @@ def _xr_alakazam_floor(c) -> int:
     inflated. LATE -- from the fifth prize on -- there is no "later" left to save
     it for: the cap only has to buy the turns that remain, and six pays.
 
+    MEASURED NEUTRAL, AND IT SHIPS MARKED (14 aug 2026,
+    `utils/gate_the_cap_waits_for_an_inflated_hand.py`, 5000 games per arm):
+    -0.06 pts on the Alakazam list against a noise floor of +0.12 pts measured
+    in the same session with the SAME code in both arms; prizes 3.48 vs 3.46
+    against +0.05 of noise. Neither reading clears zero. The exposure says why
+    -- 0.20 % of the frozen corpus, 7 decisions in 3 of 50 records -- and the
+    winrate against the reference bot is saturated at 99.5 %, so that column has
+    no headroom left to price a card rule. It is a USER OVERRIDE, not a
+    measured improvement: the criterion written before the number said neutral
+    orders the marking and not a revert, and this paragraph is the mark. Full
+    report in `docs/history/the-cap-waits-for-an-inflated-hand-2026-08-14.md`.
+
     `getattr` on the prize count for the same reason as
     `_our_cap_already_spent` above: the unit tests build stub contexts
     with only the fields their predicate reads. The default is SIX, the opening
