@@ -11,6 +11,8 @@ utils/purity.py: nothing here touches mutable state or the runtime tables.
 """
 
 from ptcg.calc.board import _active_of, _evolvable_counts
+from ptcg.cards.groups import EVO_LINES, POKEMON_SEARCH_SUPPORTER_IDS
+from ptcg.cards.ids import OUR_EX_IDS
 from ptcg.cards.ids import Abra, Alakazam_ex, Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Hydrapple_ex, Kadabra, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, Poke_Pad, SCORE_VETO, STAMP_MAX_HAND_SACRIFICED, STAMP_MIN_OP_HAND, STAMP_MIN_OP_HAND_VS_REFILL, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, XEROSIC_BIG_HAND, XEROSIC_SCORE_ALAKAZAM, XEROSIC_SCORE_GENERIC, XEROSIC_SCORE_LAST_RESORT, XEROSIC_SCORE_SOBRE_BOSS, XEROSIC_STAMP_ORDEN_MIN_OP_HAND, Xerosic_Machinations
 from ptcg.state.zones import ZONE_DECK
 from ptcg.engine.context import DecisionContext
@@ -581,6 +583,102 @@ def _xr_first_turn_yields_to_lillie(c):
             and not _xr_last_copy_locked_in_hand(c))
 
 
+def _the_search_buys_an_evolution_today(c):
+    """Is there an evolution that a POKEMON SEARCH would buy and that a body
+    already in play could WEAR THIS TURN?
+
+    The twin of `_us_evo_jugable`, read from the other side. That one asks
+    whether the evolution ALREADY IN HAND has a body that can take it today;
+    this one asks the same about the copy that is still IN THE DECK -- the half
+    a search is for. Three conditions, and all three are needed:
+
+      * the pre-evolution is EVOLVABLE today -- `_evolvable_counts`, not the raw
+        field: a body that came down or evolved during this turn cannot evolve
+        again unless Forest of Vitality is on the field, and it is precisely
+        under Forest that this question gets interesting (the Applin benched
+        this turn becomes a Stage 2 before the turn ends);
+      * the evolution is NOT in hand, or no search is needed at all;
+      * there is still a copy in the DECK, the only zone a search reaches.
+
+    Deck-agnostic: the stages come from `EVO_LINES`, nothing is named here.
+
+    THE ex CLAMP is the same one `_ub_evolve_now_search` spells out for Ultra
+    Ball: against a board immune to our ex Pokemon (Crustle, Cornerstone) an ex
+    evolution is not an attacker, it is a dead card, so buying it does not earn
+    the turn's Supporter.
+    """
+    # `getattr` for the same reason as `_xr_first_turn_yields_to_lillie`: the
+    # unit tests build stub contexts carrying only the fields their own
+    # predicate reads, and a board with no field table is a board with nothing
+    # to evolve -- the answer is False, not a crash.
+    _ex_is_dead = (getattr(c, 'op_is_crustle_deck', False)
+                   or getattr(c, 'op_has_ex_immune_active', False)
+                   or getattr(c, 'op_has_ex_immune_bench', False))
+    _field = getattr(c, 'field_counts', None) or {}
+    _deck = getattr(c, 'cards_in_deck', None) or {}
+    _evolvable = _evolvable_counts(_field,
+                                   getattr(c, 'field_at_turn_start', None) or {},
+                                   getattr(c, 'forest_in_play', False))
+    for _line in EVO_LINES:
+        for _pre, _evo in zip(_line, _line[1:]):
+            if _ex_is_dead and _evo in OUR_EX_IDS:
+                continue
+            if (_evolvable.get(_pre, 0) >= 1
+                    and c.hand_counts.get(_evo, 0) == 0
+                    and _deck.get(_evo, {}).get(ZONE_DECK, 0) > 0):
+                return True
+    return False
+
+
+def _xr_the_slot_belongs_to_the_search(c):
+    """Does the turn's ONE Supporter belong to the search that puts a body on
+    the board today, rather than to the cap on their hand?
+
+    THE DEFECT THIS ANSWERS (user, records/registro_003 step 26, turn 3 vs
+    Marnie). Board: Dipplin just evolved in the active spot, Meganium and a
+    charged Teal Mask Ogerpon ex on the bench, **Forest of Vitality on the
+    field** -- so a Pokemon that came down this turn may still evolve -- and in
+    hand {Dawn, Ultra Ball, Xerosic's Machinations, Chikorita}. The opponent
+    held eight cards, so `generic_very_big_hand` priced the cap at
+    `XEROSIC_SCORE_GENERIC` (3380) and took the slot by ONE point over Dawn
+    (3379). Dawn would have bought Hydrapple ex out of the deck -- its own fetch
+    table already prices exactly this piece at `immediate_evo`, the top of the
+    ladder -- put it on the Dipplin under Forest, and attacked with a 330 HP
+    body that stays in the front for the next turn as well. The cap moved five
+    of their cards and not one of ours.
+
+    WHY IT IS NOT ABOUT THIS MATCHUP, and the sentence worth keeping: the two
+    scorers were reading DIFFERENT boards. `generic_very_big_hand` is a FLAT
+    number that reads one fact -- how many cards THEY hold -- and never asks
+    what our own board would do with the slot; Dawn's play value is a four-rung
+    ladder that reads two booleans about our board and never asks what its own
+    fetch would BUY. Disruption that only touches their hand cannot outbid a
+    search that converts into a body the same turn, whatever deck is across the
+    table, because the cap takes no prize and builds nothing -- and it keeps:
+    their hand will be big again next turn, while the evolution window that
+    Forest of Vitality opens closes when the stadium is replaced.
+
+    THE LAW ALREADY EXISTED FOR THE ITEM SEARCH. `_ub_evolve_now_search` says
+    the same thing for Ultra Ball -- "a search that develops the line NOW must
+    not be postponed in favour of the refill" -- and was never written for the
+    SUPPORTER search, which is the one that actually competes for a slot.
+
+    SCOPE. It sits immediately above `generic_very_big_hand` and below every
+    `_xr_gate_alakazam` branch: against the deck the card exists for, capping
+    Powerful Hand IS the board play and keeps its priority. The guard is the
+    exact negation of Dawn's own vetoes (`_score_dawn_play`), so the cap only
+    steps aside for a search that is really going to be played -- otherwise the
+    slot would be lost by both.
+    """
+    if c.state.supporterPlayed or _stamp_pendiente(c):
+        return False
+    _values = getattr(c, 'supp_values', None) or {}
+    _search_live = any(
+        c.hand_counts.get(_sid, 0) >= 1 and _values.get(_sid, 0) > 0
+        for _sid in POKEMON_SEARCH_SUPPORTER_IDS)
+    return _search_live and _the_search_buys_an_evolution_today(c)
+
+
 _RULES_XEROSIC_PLAY = [
     # IT NEVER FIRES, AND IT IS KEPT ON PURPOSE (user, August 2026,
     # `utils/rule_census.py`: this veto and its two twins in the other Supporter
@@ -714,6 +812,25 @@ _RULES_XEROSIC_PLAY = [
                lambda c: (XEROSIC_SCORE_ALAKAZAM
                           + min(300, 50 * (c.op_hand_count - 4))
                           + c.supporter_boost)),
+    # THE SLOT BELONGS TO THE SEARCH THAT BUILDS THE BODY (user,
+    # records/registro_003 step 26 vs Marnie). The generic cap below reads ONE
+    # fact -- the size of THEIR hand -- and never asks what our own board would
+    # do with the turn's only Supporter. When the Supporter beside it BUYS an
+    # evolution that a body in play can wear the same turn, the cap is not the
+    # best use of the slot: it takes no prize, builds nothing, and keeps (their
+    # hand refills), while the evolution window does not. Full record in
+    # `_xr_the_slot_belongs_to_the_search`.
+    #
+    # It yields to `XEROSIC_SCORE_LAST_RESORT` and not to a veto, on purpose:
+    # that band means "play me only if nothing else scores", which is exactly
+    # what the cap is on this board -- if the search falls for a reason we did
+    # not foresee, the Supporter is still spent rather than lost.
+    #
+    # BELOW every `_xr_gate_alakazam` branch: against the deck the card is in
+    # the list for, capping Powerful Hand IS the board play.
+    _FixedRule("yields_to_the_search_that_evolves_today",
+               _xr_the_slot_belongs_to_the_search,
+               lambda c: XEROSIC_SCORE_LAST_RESORT),
     # Generic: taking 4+ cards away is real value, but without Powerful Hand it goes
     # below a useful Lillie's/Lana's/Boss's. Only with an opposing hand >= 7.
     _FixedRule("generic_very_big_hand",
@@ -739,6 +856,8 @@ __all__ = [
     '_xr_last_copy_locked_in_hand',
     '_xr_ruta_a_lillie',
     '_xr_first_turn_yields_to_lillie',
+    '_the_search_buys_an_evolution_today',
+    '_xr_the_slot_belongs_to_the_search',
     '_score_xerosic_play',
     '_RULES_XEROSIC_PLAY',
     '_op_bodies',
