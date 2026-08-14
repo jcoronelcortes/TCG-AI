@@ -1,0 +1,548 @@
+{
+ "source": "episode 92492874, turn 8, step 51 vs Crustle (LOST)",
+ "observation": {
+  "current": {
+   "energyAttached": false,
+   "firstPlayer": 1,
+   "looking": null,
+   "players": [
+    {
+     "active": [
+      {
+       "appearThisTurn": false,
+       "energies": [],
+       "energyCards": [],
+       "hp": 90,
+       "id": 96,
+       "maxHp": 210,
+       "playerIndex": 0,
+       "preEvolution": [],
+       "serial": 4,
+       "tools": []
+      }
+     ],
+     "asleep": false,
+     "bench": [
+      {
+       "appearThisTurn": false,
+       "energies": [],
+       "energyCards": [],
+       "hp": 40,
+       "id": 92,
+       "maxHp": 40,
+       "playerIndex": 0,
+       "preEvolution": [],
+       "serial": 13,
+       "tools": []
+      },
+      {
+       "appearThisTurn": false,
+       "energies": [],
+       "energyCards": [],
+       "hp": 160,
+       "id": 710,
+       "maxHp": 160,
+       "playerIndex": 0,
+       "preEvolution": [
+        {
+         "id": 917,
+         "playerIndex": 0,
+         "serial": 8
+        },
+        {
+         "id": 709,
+         "playerIndex": 0,
+         "serial": 9
+        }
+       ],
+       "serial": 12,
+       "tools": []
+      },
+      {
+       "appearThisTurn": false,
+       "energies": [],
+       "energyCards": [],
+       "hp": 210,
+       "id": 96,
+       "maxHp": 210,
+       "playerIndex": 0,
+       "preEvolution": [],
+       "serial": 5,
+       "tools": []
+      },
+      {
+       "appearThisTurn": true,
+       "energies": [],
+       "energyCards": [],
+       "hp": 170,
+       "id": 1071,
+       "maxHp": 170,
+       "playerIndex": 0,
+       "preEvolution": [],
+       "serial": 20,
+       "tools": []
+      }
+     ],
+     "benchMax": 5,
+     "burned": false,
+     "confused": false,
+     "deckCount": 37,
+     "discard": [
+      {
+       "id": 1227,
+       "playerIndex": 0,
+       "serial": 24
+      },
+      {
+       "id": 1,
+       "playerIndex": 0,
+       "serial": 59
+      },
+      {
+       "id": 1,
+       "playerIndex": 0,
+       "serial": 53
+      },
+      {
+       "id": 1121,
+       "playerIndex": 0,
+       "serial": 39
+      },
+      {
+       "id": 1097,
+       "playerIndex": 0,
+       "serial": 40
+      },
+      {
+       "id": 1261,
+       "playerIndex": 0,
+       "serial": 46
+      },
+      {
+       "id": 917,
+       "playerIndex": 0,
+       "serial": 7
+      },
+      {
+       "id": 709,
+       "playerIndex": 0,
+       "serial": 10
+      },
+      {
+       "id": 150,
+       "playerIndex": 0,
+       "serial": 18
+      },
+      {
+       "id": 1121,
+       "playerIndex": 0,
+       "serial": 37
+      }
+     ],
+     "hand": [],
+     "handCount": 0,
+     "paralyzed": false,
+     "poisoned": false,
+     "prize": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ]
+    },
+    {
+     "active": [
+      {
+       "appearThisTurn": false,
+       "energies": [
+        6,
+        0,
+        1
+       ],
+       "energyCards": [
+        {
+         "id": 20,
+         "playerIndex": 1,
+         "serial": 77
+        },
+        {
+         "id": 11,
+         "playerIndex": 1,
+         "serial": 68
+        },
+        {
+         "id": 18,
+         "playerIndex": 1,
+         "serial": 74
+        }
+       ],
+       "hp": 170,
+       "id": 345,
+       "maxHp": 170,
+       "playerIndex": 1,
+       "preEvolution": [
+        {
+         "id": 344,
+         "playerIndex": 1,
+         "serial": 80
+        }
+       ],
+       "serial": 85,
+       "tools": []
+      }
+     ],
+     "asleep": false,
+     "bench": [
+      {
+       "appearThisTurn": false,
+       "energies": [
+        1
+       ],
+       "energyCards": [
+        {
+         "id": 18,
+         "playerIndex": 1,
+         "serial": 76
+        }
+       ],
+       "hp": 170,
+       "id": 345,
+       "maxHp": 170,
+       "playerIndex": 1,
+       "preEvolution": [
+        {
+         "id": 344,
+         "playerIndex": 1,
+         "serial": 83
+        }
+       ],
+       "serial": 86,
+       "tools": []
+      },
+      {
+       "appearThisTurn": false,
+       "energies": [],
+       "energyCards": [],
+       "hp": 70,
+       "id": 344,
+       "maxHp": 70,
+       "playerIndex": 1,
+       "preEvolution": [],
+       "serial": 82,
+       "tools": []
+      }
+     ],
+     "benchMax": 5,
+     "burned": false,
+     "confused": false,
+     "deckCount": 37,
+     "discard": [
+      {
+       "id": 1225,
+       "playerIndex": 1,
+       "serial": 115
+      },
+      {
+       "id": 1227,
+       "playerIndex": 1,
+       "serial": 119
+      },
+      {
+       "id": 1182,
+       "playerIndex": 1,
+       "serial": 106
+      }
+     ],
+     "hand": null,
+     "handCount": 5,
+     "paralyzed": false,
+     "poisoned": false,
+     "prize": [
+      null,
+      null,
+      null,
+      null,
+      null
+     ]
+    }
+   ],
+   "result": -1,
+   "retreated": false,
+   "stadium": [
+    {
+     "id": 1264,
+     "playerIndex": 1,
+     "serial": 122
+    }
+   ],
+   "stadiumPlayed": false,
+   "supporterPlayed": false,
+   "turn": 8,
+   "turnActionCount": 6,
+   "yourIndex": 0
+  },
+  "logs": [],
+  "remainingOverageTime": 598.1215769999999,
+  "search_begin_input": "CAFYAKQAEEAKQAJBAHBAMBwAMIIACEAIB-UB7QADBQADD3AKMBADBAKMAJFAEPcAZ3wEAHB4AOD4AgVQAC3wEATF6-pEQQEDQwFFAHBg-zCCUAELEykkEDQ5GRccIjYGHzo9HSsDHjM8MBYtFS8aKg8yGz43DiMgAkCgADBg7NScoLgcKEiU-+DgAEgJ-eDFVABlZSAKU-ZBBQ-ZBl-aBMADBzd2o-RBBAEE1ESkw-rCIADBQUw-tCB-VEQ-VBL-+BI-UBBCw-3BGAFD-WBE-3BBgAE0wAOeA/eAGEBQ-vBCAGYAEMI-VBBQQ-tBCACgAFGAFG-WBE-3BCVABwAC6-WBDB-3BlQMACM8ADC7-QBCgU-2BMUCACDRAEuw-QBoF-2BDFABgAC8w-VBDABg-2BxgIADs-WBQ-3BMYCACC7-WBUC-uBgABIAFBcAEng-VBFB-uBIABCAGXAF4-WBQ-3BF0AEP-WBE-3BBdAErw-VBBABg-LFJYADD0-WBMC-3BvBADEw-VBB-4BLwQACPc-VBBQIA2QA2CACgAFIwAEV-WBE-3BCYABwACFg-VBB-4BmABMACBc-WBQ-3BMsEACC5-WBMN-2BDLBADGQ-VBB-4BywQACJE-WBQI-2BMsEADb-WBE-3BCeBADH-WBB-4BngQACB0-WBQ-3BKABEADe-WBE-3BDPBADHw-VBB-4BRgQACC-XBQ-MFBGBADIg-VBB-4BRgQACCM-WBQ-3BGEEADk-WBE-3BBhBAD9g-VBDDQ-LFGEEACDB-WBMN-2BBJBADxQ-VBDDQ-2BSQQACCk-WBQ-3BDgEADq-WBE-3BCtBADKw-VBB-NFO0EADt-WBE-3BDtBAD5g-VBDBw-2B7QQACC8-WBQ-3BO0EADw-WBE-OFQADK4-WBQI-3BEADCT-WBEC-3BBAEN-WBB-5BQADL4-WBwI-3BEAE2-WBE-4BBAENw-VBB-OFEAE5-WBE-4BBAEOg-VBB-5BQADLw-WBwg-3BEAE8-WBE-4BBAEPQ-VBB-4BrQQACJU-WBQI-hSCwADMcADCJ-PBBCABI-hSEgADNUADCJ-PBBCABI-MFSAE7gADKY-PBEIABg-2BFAEKgADCJ-PBBCABI-hIWABEACMwADCJ-PBBCgQ-LFBYABQAC5Q-UBEFABg-tBIAIWABEACOwADCm-PBBCgU-LFBZABQACiQ-UBEEABg-BBUAqgBAIWQEACKY-UBBBQI-BBFAqIC-d/CeBAD8-VBEDDQ-gcDJBADyw-UBEDDQ-2LywQACOQ-UBBABw0-hI8ABQACOc-UBBBwI-hSCQAEMACQABHAKMACQABJAKMACQABNAKMACQABQAKMACQABRAKMACQABTAKMACQABbAKMACQABfAKMACQABgAUCQADBkAEZAEHAEBwAEfAEHwADB0AEdAEKwADCsAEeAEHgADBoADCRAEGwADBsAE+AElQAZCAEGwEACO0AUFAELwAVBABCEWAWEACBwAUBABQACBAWFBCFJAWEABJQAF=",
+  "select": {
+   "context": 7,
+   "contextCard": null,
+   "deck": [
+    {
+     "id": 710,
+     "playerIndex": 0,
+     "serial": 11
+    },
+    {
+     "id": 1071,
+     "playerIndex": 0,
+     "serial": 19
+    },
+    {
+     "id": 1097,
+     "playerIndex": 0,
+     "serial": 41
+    },
+    {
+     "id": 1121,
+     "playerIndex": 0,
+     "serial": 36
+    },
+    {
+     "id": 93,
+     "playerIndex": 0,
+     "serial": 16
+    },
+    {
+     "id": 1,
+     "playerIndex": 0,
+     "serial": 52
+    },
+    {
+     "id": 1,
+     "playerIndex": 0,
+     "serial": 57
+    },
+    {
+     "id": 1227,
+     "playerIndex": 0,
+     "serial": 25
+    },
+    {
+     "id": 920,
+     "playerIndex": 0,
+     "serial": 23
+    },
+    {
+     "id": 1182,
+     "playerIndex": 0,
+     "serial": 28
+    },
+    {
+     "id": 1094,
+     "playerIndex": 0,
+     "serial": 34
+    },
+    {
+     "id": 1,
+     "playerIndex": 0,
+     "serial": 54
+    },
+    {
+     "id": 96,
+     "playerIndex": 0,
+     "serial": 6
+    },
+    {
+     "id": 1231,
+     "playerIndex": 0,
+     "serial": 31
+    },
+    {
+     "id": 1,
+     "playerIndex": 0,
+     "serial": 58
+    },
+    {
+     "id": 1,
+     "playerIndex": 0,
+     "serial": 61
+    },
+    {
+     "id": 1182,
+     "playerIndex": 0,
+     "serial": 29
+    },
+    {
+     "id": 1197,
+     "playerIndex": 0,
+     "serial": 43
+    },
+    {
+     "id": 96,
+     "playerIndex": 0,
+     "serial": 3
+    },
+    {
+     "id": 1184,
+     "playerIndex": 0,
+     "serial": 30
+    },
+    {
+     "id": 1,
+     "playerIndex": 0,
+     "serial": 51
+    },
+    {
+     "id": 1,
+     "playerIndex": 0,
+     "serial": 60
+    },
+    {
+     "id": 1261,
+     "playerIndex": 0,
+     "serial": 48
+    },
+    {
+     "id": 920,
+     "playerIndex": 0,
+     "serial": 22
+    },
+    {
+     "id": 1261,
+     "playerIndex": 0,
+     "serial": 45
+    },
+    {
+     "id": 140,
+     "playerIndex": 0,
+     "serial": 21
+    },
+    {
+     "id": 1261,
+     "playerIndex": 0,
+     "serial": 47
+    },
+    {
+     "id": 1227,
+     "playerIndex": 0,
+     "serial": 26
+    },
+    {
+     "id": 1080,
+     "playerIndex": 0,
+     "serial": 42
+    },
+    {
+     "id": 93,
+     "playerIndex": 0,
+     "serial": 15
+    },
+    {
+     "id": 1,
+     "playerIndex": 0,
+     "serial": 50
+    },
+    {
+     "id": 1227,
+     "playerIndex": 0,
+     "serial": 27
+    },
+    {
+     "id": 1197,
+     "playerIndex": 0,
+     "serial": 62
+    },
+    {
+     "id": 1,
+     "playerIndex": 0,
+     "serial": 55
+    },
+    {
+     "id": 92,
+     "playerIndex": 0,
+     "serial": 14
+    },
+    {
+     "id": 1094,
+     "playerIndex": 0,
+     "serial": 35
+    },
+    {
+     "id": 1094,
+     "playerIndex": 0,
+     "serial": 32
+    }
+   ],
+   "effect": {
+    "id": 1071,
+    "playerIndex": 0,
+    "serial": 20
+   },
+   "maxCount": 1,
+   "minCount": 0,
+   "option": [
+    {
+     "area": 1,
+     "index": 7,
+     "playerIndex": 0,
+     "type": 3
+    },
+    {
+     "area": 1,
+     "index": 9,
+     "playerIndex": 0,
+     "type": 3
+    },
+    {
+     "area": 1,
+     "index": 13,
+     "playerIndex": 0,
+     "type": 3
+    },
+    {
+     "area": 1,
+     "index": 16,
+     "playerIndex": 0,
+     "type": 3
+    },
+    {
+     "area": 1,
+     "index": 17,
+     "playerIndex": 0,
+     "type": 3
+    },
+    {
+     "area": 1,
+     "index": 19,
+     "playerIndex": 0,
+     "type": 3
+    },
+    {
+     "area": 1,
+     "index": 27,
+     "playerIndex": 0,
+     "type": 3
+    },
+    {
+     "area": 1,
+     "index": 31,
+     "playerIndex": 0,
+     "type": 3
+    },
+    {
+     "area": 1,
+     "index": 32,
+     "playerIndex": 0,
+     "type": 3
+    }
+   ],
+   "remainDamageCounter": 0,
+   "remainEnergyCost": 0,
+   "type": 1
+  },
+  "step": 51
+ }
+}

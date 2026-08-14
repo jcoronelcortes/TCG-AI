@@ -77,6 +77,7 @@ def score_play(tc, o, score):
     _best_supp_in_hand_val = tc._best_supp_in_hand_val
     _best_supp_in_deck_val = tc._best_supp_in_deck_val
     _boss_gust_immune_active = tc._boss_gust_immune_active
+    _gust_finds_an_attacker = tc._gust_finds_an_attacker
     _bp = tc._bp
     _cap_kept_once = tc._cap_kept_once
     _cf_refill_kept_once = tc._cf_refill_kept_once
@@ -2298,7 +2299,10 @@ def score_play(tc, o, score):
                             max((_supp_values.get(_hsv_id, 0)
                                  for _hsv_id in _MEOWTH_FETCH_SUPPS
                                  if hand_counts.get(_hsv_id, 0) >= 1),
-                                default=0))
+                                default=0),
+                            # Is there an attack behind the gust at all? See
+                            # `boss_beats_the_untouchable_active`.
+                            bool(_gust_finds_an_attacker))
                         score = _resolve_with_trace(
                             "meowth->fetch", _RULES_MEOWTH_FETCH, [],
                             _mf_ctx, default=50)

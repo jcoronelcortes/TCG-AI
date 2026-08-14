@@ -61,6 +61,7 @@ from ptcg.cards.ids import (Applin, Basic_Grass_Energy, Chikorita,
                             GRASS_DOUBLER_IDS, Hydrapple_ex, Night_Stretcher,
                             RETREAT_COST, Tapu_Bulu, Teal_Mask_Ogerpon_ex)
 from ptcg.cards.groups import EVO_LINES, Nighttime_Mine, OUR_TERA_IDS
+from ptcg.cards.scoring import MAIN_ATTACKERS
 from ptcg.cards.costs import ATTACK_ENERGY_REQ_BASE
 from ptcg.calc.board import _active_of
 from cg.api import EnergyType
@@ -592,6 +593,85 @@ def _can_attack_eff(card_id, raw_energy):
     return _req is not None and raw_energy >= _req
 
 
+def _a_body_can_attack_this_turn(my_state, state, hand_counts, field_counts,
+                                 abilities_off=False):
+    """Is there ANY body of ours that can pay for an attack before this turn ends?
+
+    The question every "and then we attack it" route has to answer BEFORE it
+    spends the turn on the setup half. A gust, a pivot, a relay: each of them is
+    only worth what the attack behind it is worth, and on a board where nothing
+    of ours can pay a cost that attack does not exist.
+
+    Nothing but our own arithmetic goes into it -- the attack costs of our
+    bodies, the retreat cost of the one in front, and whether the turn still has
+    a Grass AND a route to put it down. No card names beyond the tables the rest
+    of this module already reads, so it answers the same against every deck.
+
+    THREE WAYS TO HAVE AN ATTACK, and the third is the one that is easy to
+    forget:
+      * the ACTIVE pays a cost, now or with the turn's attachment;
+      * a body on the BENCH pays one AND the active can step aside for it -- a
+        charged body that cannot reach the front is not an attacker
+        (`_retreat_payable`, the same reading three other routes already make);
+      * a body EVOLVES into one, carrying its energy up with it
+        (`energy_after_evolution`, which also switches on a doubler arriving
+        this turn).
+
+    IT LEANS PERMISSIVE ON PURPOSE. Its callers use it as a GUARD that switches
+    a route off, so a wrong `True` costs nothing -- the route stays exactly as
+    it was -- while a wrong `False` silently kills a rule on a board it was
+    written for. That is why the two halves of a two-attachment line (attach to
+    retreat AND attach to arm) are both allowed to read the same single Grass:
+    over-counting here can only fail safe.
+    """
+    unit = _grass_attach_unit()
+    # The turn's attachment is only a source if there is a CARD to attach and a
+    # route still open for it (the manual attachment, or a live charging
+    # ability). Both Teal Dance and Ripening Charge take their Grass FROM HAND,
+    # so an empty hand closes every route at once.
+    seed = (hand_counts.get(Basic_Grass_Energy, 0) >= 1
+            and _grass_attach_route_open(state, field_counts,
+                                         abilities_off=abilities_off))
+    reach = unit if seed else 0
+
+    active = _active_of(my_state)
+    bench = [p for p in (getattr(my_state, 'bench', None) or []) if p is not None]
+
+    def _pays(pokemon):
+        if pokemon is None:
+            return False
+        if (pokemon.id in MAIN_ATTACKERS
+                and _can_attack_eff(pokemon.id, len(pokemon.energies) + reach)):
+            return True
+        # The body that is the attack is still in HAND: a pre-evolution in play
+        # whose evolution we hold arrives carrying the energy underneath it.
+        for line in EVO_LINES:
+            for _i, _stage in enumerate(line[:-1]):
+                if pokemon.id != _stage:
+                    continue
+                evo = line[_i + 1]
+                if hand_counts.get(evo, 0) < 1 or evo not in MAIN_ATTACKERS:
+                    continue
+                if _can_attack_eff(evo, energy_after_evolution(
+                        pokemon, evo, grass_to_attach=(1 if seed else 0))):
+                    return True
+        return False
+
+    if _pays(active):
+        return True
+    if not bench:
+        return False
+    # A body at the back only attacks if the front can step aside for it. With
+    # no active at all the board is mid-promotion and the question does not
+    # apply -- answer permissively, as the docstring says.
+    if active is None:
+        return True
+    if not (_retreat_payable(active)
+            or (seed and _retreat_cards_missing(active) <= 1)):
+        return False
+    return any(_pays(p) for p in bench)
+
+
 def _min_attack_cost(card_id):
     """Minimum energy `card_id` needs in order to attack, DERIVED FROM THE
     CARD DATA (`card_table` -> attack ids -> `attack_table`).
@@ -632,6 +712,7 @@ __all__ = [
     '_grass_attach_route_open',
     '_physical_energy',
     '_can_attack_eff',
+    '_a_body_can_attack_this_turn',
     '_aplicar_impuesto_tera',
     '_min_attack_cost',
     '_ripen_energy_capped',

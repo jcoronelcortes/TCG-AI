@@ -3337,7 +3337,7 @@ def _meowth_fetch_prediction(hand_counts, supp_values, hand_size,
                              deny_evo_via_boss, devel_lillie, alakazam,
                              cards_in_deck, first_turn=False,
                              gust_over_immune_active=False,
-                             recovery_ko=False):
+                             recovery_ko=False, a_body_can_attack=True):
     """(id, value) of the Supporter Last-Ditch Catch would bring RIGHT NOW.
 
     It reproduces the REAL fetch (`_RULES_MEOWTH_FETCH`, the same board) over
@@ -3362,7 +3362,8 @@ def _meowth_fetch_prediction(hand_counts, supp_values, hand_size,
             hand_size, strong_attacker, op_hand_count, active_cant_attack,
             win_via_boss, gust2_via_boss, deny_evo_via_boss, devel_lillie,
             alakazam, first_turn, _lillie_alcanzable,
-            gust_over_immune_active, recovery_ko, _hand_supp_val)
+            gust_over_immune_active, recovery_ko, _hand_supp_val,
+            a_body_can_attack)
         _val, _ = _resolve_rules(_RULES_MEOWTH_FETCH, [], _ctx, 50)
         if _val > best_val:
             best_id, best_val = _sid, _val
@@ -7399,6 +7400,22 @@ def agent(obs_dict: dict) -> list[int]:
                 and _can_attack_eff(_rac_p.id, len(_rac_p.energies))):
             _ready_attacker_count += 1
 
+    # IS THERE AN ATTACK BEHIND THE SETUP? The count above asks who is ready
+    # RIGHT NOW; this asks the wider question the "and then we attack it"
+    # routes actually depend on -- can ANY body of ours pay a cost before the
+    # turn ends, counting the one Grass the turn can still put down, the
+    # retreat that brings a charged body to the front, and the evolution that
+    # arrives carrying its energy.
+    #
+    # It exists because `strong_attacker` -- the reading the Last-Ditch fetch
+    # was using -- is a SPECIES check ("is a Hydrapple ex or a Teal Mask
+    # Ogerpon ex in play"), so it says yes on a board of four bodies at zero
+    # energy. See `boss_beats_the_untouchable_active` in
+    # ptcg/decision/meowth.py for the record that measured the difference.
+    _gust_finds_an_attacker = _a_body_can_attack_this_turn(
+        my_state, state, hand_counts, field_counts,
+        abilities_off=meowth_ability_lock)
+
     # Is there ANY path to a SECOND attacker (besides the active) without refilling
     # the hand? It is used for the Meowth->Lillie's engine when the bench has no
     # spare attacker (user, registro_006 step 78). There is a path if:
@@ -9397,7 +9414,8 @@ def agent(obs_dict: dict) -> list[int]:
         _win_via_boss_gust, _gust_2prize_via_boss, _deny_evo_via_boss,
         _meowth_devel_lillie, op_is_alakazam_deck,
         AGENT_STATE.ACTIVE_CARDS_IN_DECK, _our_first_action_turn,
-        _boss_gust_immune_active, _meowth_recovery_ko)
+        _boss_gust_immune_active, _meowth_recovery_ko,
+        _gust_finds_an_attacker)
     _meowth_fetch_redundante = (
         _meowth_fetch_id is not None
         and hand_counts.get(_meowth_fetch_id, 0) >= 1)

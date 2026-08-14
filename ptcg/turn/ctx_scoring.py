@@ -59,6 +59,7 @@ class ScoringCtx:
     _bdg_retreat_ko: Any = None
     _bench_attacker_ready: Any = None
     _boss_gust_immune_active: Any = None
+    _gust_finds_an_attacker: Any = None
     _bench_has_chargeable: Any = None
     _best_promote_card: Any = None
     _best_promote_key: Any = None

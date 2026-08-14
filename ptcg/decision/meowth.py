@@ -58,7 +58,21 @@ class _CtxMeowthFetch:
                  win_via_boss, gust2_via_boss, deny_evo_via_boss,
                  devel_lillie, alakazam, first_turn=False,
                  lillie_alcanzable=False, gust_over_immune_active=False,
-                 recovery_ko=False, hand_supp_val=0):
+                 recovery_ko=False, hand_supp_val=0,
+                 a_body_can_attack=True):
+        # Can ANY body of ours pay for an attack before this turn ends -- the
+        # active, a bench body the active can step aside for, or one that
+        # evolves into an attacker? Computed once in agent() over
+        # `ptcg/calc/energy.py::_a_body_can_attack_this_turn`, because the
+        # answer needs the whole board (every attack cost, the retreat in front,
+        # whether a Grass and a route to attach it both still exist) and this
+        # ctx only carries counts.
+        #
+        # It DEFAULTS TO TRUE, and the direction is the point: this field only
+        # ever switches a rule OFF, so the default has to be the value that
+        # leaves the ladder exactly as it was. A caller that forgets to pass it
+        # keeps the old behaviour instead of silently losing a rule.
+        self.a_body_can_attack = a_body_can_attack
         # The best Supporter ALREADY IN HAND, on this same scale (`supp_values`).
         # It is the price of the turn's only Supporter slot: whatever the
         # Last-Ditch brings has to beat it to be played TODAY. See
@@ -269,8 +283,53 @@ _RULES_MEOWTH_FETCH = [
     # wall-agnostic: `gust_over_immune_active` is the same
     # `_boss_gust_immune_active` that already feeds the Meowth engine, so a
     # Cornerstone or a Crustle in front reads exactly like the coin.
+    #
+    # AND IT ASKS WHETHER THERE IS AN ATTACK BEHIND THE GUST (user,
+    # `records/registro_008_pasos_046_hasta_054.json` step 51 -- episode
+    # 92492874, turn 8 vs Crustle, LOST). The rule above is written around the
+    # sentence "the only Supporter that turns this turn into damage is Boss's
+    # Orders", and on that board the sentence was simply false:
+    #
+    #     US                                    THEM
+    #     active Teal Mask Ogerpon ex 90/210,   active Crustle 170/170 (our ex
+    #            ZERO energy                           cannot touch it)
+    #     bench  Applin, Meganium, Ogerpon ex,  bench  Crustle, Dwebble
+    #            ALL at ZERO energy
+    #     hand   EMPTY -- the Ultra Ball that fetched the Meowth spent the
+    #            last two cards paying for it
+    #
+    # Nothing of ours could pay a cost, this turn or with anything the turn
+    # could still reach: no Grass in hand, so neither the attachment nor Teal
+    # Dance nor Ripening Charge had a card to move. The fetch brought the
+    # Boss's at 1270 over the Lillie's Determination that `lillie_development`
+    # priced at 1250, the Boss's gusted their benched Crustle -- and the very
+    # next menu of the record offers exactly ONE option, END TURN. Two prizes
+    # of Meowth ex, an Ultra Ball, two discards and the turn's only Supporter
+    # slot, all spent to rearrange the opponent's bench. Their reply knocked the
+    # active over for two more prizes.
+    #
+    # The blindness is the same shape as the one this rule was written to fix,
+    # pointing the other way. `strong_attacker` is a SPECIES reading -- "is
+    # there a Hydrapple ex or a Teal Mask Ogerpon ex in play" -- so it was TRUE
+    # on a board with four bodies at zero energy, and every "no attacker" cap
+    # below stayed silent. The rule that fires needs its own reading of whether
+    # an attack exists, and `a_body_can_attack` is that reading: our own
+    # arithmetic over every attack cost, the retreat of the body in front and
+    # the one Grass the turn can still put down. Deck-agnostic; a charged board
+    # answers TRUE and the rule is untouched, which is the record it came from
+    # (episode 90325863, a charged Hydrapple ex whose Syrup Storm was resolving
+    # for zero against the Marill).
+    #
+    # WHY A GUARD HERE AND NOT A NARROWER `_boss_gust_immune_active`. The same
+    # flag also scores PUTTING THE MEOWTH DOWN (`_meowth_immune_boss_engine`),
+    # exempts it from the fourth-ex veto and feeds the Ultra Ball and Night
+    # Stretcher fetches. Those are different questions with different horizons
+    # -- a Meowth benched today can gust tomorrow -- and this correction has
+    # nothing to say about them. The new reading is asked SECOND, where the
+    # wrong answer was given, and it does not replace the old one.
     _FixedRule("boss_beats_the_untouchable_active",
                lambda c: (c.gust_over_immune_active
+                          and c.a_body_can_attack
                           and c.card_id == Boss_Orders),
                lambda c: 1270),
     _FixedRule("lillie_development",
