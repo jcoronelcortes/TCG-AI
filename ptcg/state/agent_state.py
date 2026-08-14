@@ -224,6 +224,13 @@ class AgentState:
         # our turns: FREEZING_SHROUD_COUNTER x Froslass in play x the TWO checks of the
         # round. 0 without Froslass. (See "THE GIFT WINDOW".)
         self._op_chip_per_round = 0
+        # The same drip in the unit ONE CHECKUP, which is the unit the mirror of
+        # the window is measured in: Freezing Shroud says "each Pokemon in play
+        # that has an Ability", and THEIR board is in play too. A hit that falls
+        # short of their active by no more than this cashes the prize anyway, at
+        # the checkup, before they get to answer. 0 without Froslass.
+        # (See `_shroud_damage_to` / `_op_hp_for_our_ko` in ptcg/calc/damage.py.)
+        self._op_chip_per_checkup = 0
         # Damage Adrena-Brain can AIM at any of our Pokemon this turn.
         self._op_movable_dmg = 0
         # The two halves of the line above, published apart because our OWN

@@ -72,7 +72,7 @@ from ptcg.cards.lines import _direct_evolution_ids
 from ptcg.cards.op_scaling import OP_SCALING_IGNORES_WEAKNESS, op_scaled_damage
 from cg.api import CardType, EnergyType
 from typing import NamedTuple
-from ptcg.cards.ids import ADRENA_BRAIN_MOVE, ATTACKER_PUNISH_DAMAGE, ATTACKER_PUNISH_NEEDS_DARK, Basic_Grass_Energy, FREEZING_SHROUD_COUNTER, GRASS_DIGGER_REACH, GRASS_DIGGER_SUPPORTERS, Mega_Hawlucha_ex, OP_EVO_ENERGY_ON_PLAY, RETREAT_COST, SNIPE_ANY_TARGET_IDS, Survival_Brace
+from ptcg.cards.ids import ADRENA_BRAIN_MOVE, ATTACKER_PUNISH_DAMAGE, ATTACKER_PUNISH_NEEDS_DARK, Basic_Grass_Energy, FREEZING_SHROUD_COUNTER, Froslass, GRASS_DIGGER_REACH, GRASS_DIGGER_SUPPORTERS, Mega_Hawlucha_ex, OP_EVO_ENERGY_ON_PLAY, RETREAT_COST, SNIPE_ANY_TARGET_IDS, Survival_Brace
 from ptcg.state.zones import ZONE_DECK, ZONE_DISCARD
 
 
@@ -211,7 +211,7 @@ def _festival_second_wave_prizes(op_state, damage, knocked_out=None) -> int:
         return 0            # no body comes up: the game already ended with the KO
     worst = None
     for body in candidates:
-        if _ko_not_guaranteed(body) or damage < (body.hp or 0):
+        if _ko_not_guaranteed(body) or damage < _op_hp_for_our_ko(body, 1):
             return 0        # they promote this one and the second wave takes nothing
         # THE CHEAPEST CORPSE, not the dearest. Every body dies to the wave, so
         # what the second one is WORTH is still their choice, and they make it
@@ -275,6 +275,103 @@ def _ventana_de_regalo(pokemon, is_active, projected_hit, include_movable=True):
         else max(0, projected_hit or 0)
     chip = AGENT_STATE._op_chip_per_round if pid in OUR_ABILITY_IDS else 0
     return golpe + chip + (AGENT_STATE._op_movable_dmg if include_movable else 0)
+
+
+# --- THE OTHER HALF OF THE DRIP: IT ALSO FALLS ON THEIR BOARD ----------------
+# (user, registro_006 step 90 vs Marnie's Grimmsnarl ex, episode 92871474, LOST.)
+#
+# `_ventana_de_regalo` above prices Freezing Shroud as a THREAT, because that is
+# the half that kills us. The card does not say "your opponent's Pokemon": it
+# says "each Pokemon in play that has an Ability", and their Grimmsnarl ex has
+# one (Punk Up). The whole estate knew it -- the note next to
+# FREEZING_SHROUD_COUNTER says the counters reload "onto each Munkidori AND onto
+# the Grimmsnarl ex (they all have an ability)" -- and used it only to work out
+# how much ammunition Adrena-Brain has.
+#
+# WHAT IT COST. Their Grimmsnarl ex at 320/320, our Meganium on the bench with
+# four effective Grass: Solar Beam is 140, doubled by their Darkness weakness =
+# 280. Read against the printed 320 that is not a knockout, so the veto "the
+# Meganium line does not go active" stood and a mute Meowth ex took the front.
+# Read against the HP their own two Froslass leave -- one checkup before our
+# turn, one after our attack, 40 in all -- it is 280 against 280: EXACTLY
+# lethal, two prizes, cashed at the checkup before they could answer.
+#
+# WHY THE PRIZE IS SAFE. The counters land BETWEEN turns, so the body is gone
+# before their turn starts: they cannot heal it, retreat it, or move the damage
+# off it with Adrena-Brain (which they only get to use on their own turn). The
+# one thing that can take it away is the Froslass leaving the field, which is
+# not something they do to themselves.
+#
+# THE UNIT IS THE CHECKUP, and how many of them there are depends on WHEN the
+# question is asked -- this is the whole subtlety:
+#
+#   * on OUR turn (the attack we are about to make): the checkup that opened
+#     this turn has already happened and is inside the HP we can see, so ONE
+#     checkup remains between our attack and their turn;
+#   * at the FORCED PROMOTION after a knockout, which resolves at the end of
+#     THEIR turn: TWO, the one that opens our turn and the one that follows our
+#     attack -- `CHECKUPS_PER_ROUND`.
+#
+# IT IS A NO-OP WITHOUT FROSLASS. `_op_chip_per_checkup` is 0 unless one is in
+# play, so `_op_hp_for_our_ko` returns the printed HP and every threshold
+# downstream reads exactly the number it was calibrated on. That is what lets
+# this be wired into the knockout tests themselves instead of being asked as a
+# second question beside them.
+def _has_ability(card_id) -> bool:
+    """The card PRINTS an Ability, which is the condition Freezing Shroud names.
+
+    Read off the card database (`skills`) rather than a hand-kept list: the
+    counters have to be projected onto THEIR board, and their board is whatever
+    deck we drew. The one list we do keep, `OUR_ABILITY_IDS`, agrees with this
+    reading on all six of its entries, and the record agrees on theirs -- the
+    checkups of registro_006 put counters on Munkidori and on nothing else of
+    theirs (Marnie's Impidimp, with no Ability, was untouched).
+    """
+    _d = card_table.get(card_id)
+    return bool(getattr(_d, 'skills', None))
+
+
+# THE GATE'S HANDLE. Rebinding this to False in THIS module's globals switches
+# the whole reading off, everywhere, in one assignment: `_op_hp_for_our_ko` is
+# the same function object main.py imported with its star import, so both arms
+# of `utils/gate_their_own_drip_finishes_the_body.py` stay structurally
+# identical -- same code, same order, one flag.
+SHROUD_KO_READING = True
+
+
+def _shroud_damage_to(pokemon, checkups=1) -> int:
+    """Damage their own Freezing Shroud puts on `pokemon` over `checkups`.
+
+    0 when there is no Froslass in play, when the body prints no Ability, and
+    on Froslass itself -- the card excludes its own kind, which the record
+    confirms: two of them stood at 90/90 through every checkup of the game.
+    """
+    if pokemon is None or checkups <= 0 or not SHROUD_KO_READING:
+        return 0
+    per = AGENT_STATE._op_chip_per_checkup
+    if per <= 0:
+        return 0
+    cid = getattr(pokemon, 'id', 0)
+    if cid == Froslass or not _has_ability(cid):
+        return 0
+    return per * checkups
+
+
+def _op_hp_for_our_ko(target, checkups=1) -> int:
+    """The HP OUR attack actually has to cover to knock `target` out.
+
+    The printed HP minus what their own drip takes off it before they can
+    answer. Floored at 1: a body their Froslass would finish on its own is
+    still not knocked out by an attack that does nothing to it, and every
+    knockout test downstream is `damage >= this`.
+
+    Returns the printed HP untouched whenever there is no drip on that body,
+    which is every board without a Froslass on it.
+    """
+    hp = getattr(target, 'hp', 0) or 0
+    if hp <= 0:
+        return hp
+    return max(1, hp - _shroud_damage_to(target, checkups))
 
 
 def _prizes_of_id(card_id):
@@ -573,7 +670,7 @@ def _active_closes_with_one_charge(my_state, op_state, state, hand_counts,
         return False
     damage = _our_effective_damage(active, op_active, base, meganium_active,
                                    neutral_zone)
-    if damage < (op_active.hp or 0):
+    if damage < _op_hp_for_our_ko(op_active, 1):
         return False
 
     if (hand_counts or {}).get(Basic_Grass_Energy, 0) >= 1:
@@ -1146,9 +1243,9 @@ def _bench_attacker_can_ko(my_state, target, meganium_active, total_grass_field,
     """
     if target is None:
         return False
-    _thp = target.hp or 0
-    if _thp <= 0:
+    if (target.hp or 0) <= 0:
         return False
+    _thp = _op_hp_for_our_ko(target, 1)
     for bp in (my_state.bench or []):
         if bp is None:
             continue
@@ -1198,7 +1295,7 @@ def _festival_active_wave_prizes(my_state, op_state, bench_count,
         return 0
     _dmg = _our_effective_damage(act, target, _base, meganium_active,
                                  neutral_zone)
-    if _dmg <= 0 or _dmg < (target.hp or 0):
+    if _dmg <= 0 or _dmg < _op_hp_for_our_ko(target, 1):
         return 0
     return prize_count_op(target) + _festival_second_wave_prizes(
         op_state, _dmg, target)
@@ -1258,9 +1355,9 @@ def _festival_promote_wave_prizes(my_state, op_state, op_active, bench_count,
     """
     if op_active is None or op_state is None:
         return 0
-    _thp = op_active.hp or 0
-    if _thp <= 0 or _ko_not_guaranteed(op_active):
+    if (op_active.hp or 0) <= 0 or _ko_not_guaranteed(op_active):
         return 0
+    _thp = _op_hp_for_our_ko(op_active, 1)
     req = AGENT_STATE.ATTACK_ENERGY_REQ
     best = 0
     for bp in (my_state.bench or []):
@@ -1332,7 +1429,7 @@ def _promote_ko_active_prizes(my_state, op_active, can_switch, has_switch_card,
     _active_already_kos = (
         _base > 0
         and _our_effective_damage(act, op_active, _base, meganium_active,
-                                  neutral_zone) >= (op_active.hp or 0))
+                                  neutral_zone) >= _op_hp_for_our_ko(op_active, 1))
 
     _cost = 0 if has_switch_card else RETREAT_COST.get(act.id, 1)
     if not has_switch_card and len(act.energies) < _cost:
@@ -1578,9 +1675,9 @@ def _bench_finisher_that_survives(my_state, target, meganium_active, bench_count
     """
     if target is None:
         return False
-    _thp = target.hp or 0
-    if _thp <= 0:
+    if (target.hp or 0) <= 0:
         return False
+    _thp = _op_hp_for_our_ko(target, 1)
     for bp in (my_state.bench or []):
         if bp is None:
             continue
@@ -1639,9 +1736,9 @@ def _bench_finisher_upgrade(my_state, active, target, meganium_active,
     """
     if active is None or target is None:
         return ''
-    _thp = target.hp or 0
-    if _thp <= 0:
+    if (target.hp or 0) <= 0:
         return ''
+    _thp = _op_hp_for_our_ko(target, 1)
     if incoming_damage <= 0 or incoming_damage < (active.hp or 0):
         return ''             # nothing is being traded: nothing to choose
     _act_prizes = prize_count(active)
@@ -1757,7 +1854,8 @@ def _snipe_best_target(attacker, op_state, effective_energy, meganium_active,
             best, best_dmg, best_score = tgt, dmg, sc
     if best is None:
         return None, 0, False
-    return best, best_dmg, (best_dmg > 0 and best_dmg >= (best.hp or 0))
+    return best, best_dmg, (best_dmg > 0
+                            and best_dmg >= _op_hp_for_our_ko(best, 1))
 
 
 def _bench_snipe_best(my_state, op_state, meganium_active, bench_count,
@@ -1828,7 +1926,7 @@ def _snipe_target_score(damage, target):
     _hp = target.hp or 0
     if damage <= 0:
         return 1
-    if damage >= _hp:
+    if damage >= _op_hp_for_our_ko(target, 1):
         return (10000 + 1000 * prize_count_op(target)
                 + 10 * len(getattr(target, 'energies', []) or [])
                 + _hp // 10)
@@ -1869,6 +1967,10 @@ __all__ = [
     '_bench_snipe_can_ko',
     '_snipe_target_score',
     '_ventana_de_regalo',
+    'SHROUD_KO_READING',
+    '_has_ability',
+    '_shroud_damage_to',
+    '_op_hp_for_our_ko',
     'OpHarvest',
     '_op_prize_harvest',
     '_active_closes_with_one_charge',
