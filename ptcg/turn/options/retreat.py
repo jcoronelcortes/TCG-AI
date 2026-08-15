@@ -64,6 +64,7 @@ def score_play(tc, o, score):
     _conf_should_retreat = tc._conf_should_retreat
     _cubchoo_lock_stuck = tc._cubchoo_lock_stuck
     _cubchoo_mute_cashes_prize = tc._cubchoo_mute_cashes_prize
+    _cubchoo_mute_rotates = tc._cubchoo_mute_rotates
     _doomed_mute_pivot = tc._doomed_mute_pivot
     _doomed_sac_context = tc._doomed_sac_context
     _ft_wall_pivot = tc._ft_wall_pivot
@@ -2428,9 +2429,16 @@ def score_play(tc, o, score):
         # investment and there is nothing to conserve, while a benched attacker
         # knocks out the opposing active. See the flag in main.py: it is separate
         # from `_cubchoo_lock_stuck` so that it exempts ONLY here.
+        # `_cubchoo_mute_rotates` (user, registro_010 p81) is the same shape read
+        # one question further out: what exempts is not the SPECIES in front but
+        # the fee of the rotation the lock will force next turn, so a muted body
+        # whose prize is cashed by a benched attacker at the same retreat cost or
+        # cheaper swaps and takes the prize. The PASS of p47 -- where the only
+        # body that knocks out is the Hydrapple ex at cost 3 -- still stands.
         if (op_is_cubchoo_deck and score > 0 and not active_ko_likely
                 and not _cubchoo_lock_stuck
                 and not _cubchoo_mute_cashes_prize
+                and not _cubchoo_mute_rotates
                 and not _cc_cashes_dead_body
                 and not _ex_stuck_promo_ready
                 and not _suicide_swap_win_promote

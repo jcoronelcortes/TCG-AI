@@ -567,6 +567,11 @@ PROMOTE_BET_OUTLIVES_MATCH_POINT = True
 # a copy still in the deck is a route to tomorrow's body exactly like the card
 # in hand is. A named switch for the same reason as its two siblings above.
 PROMOTE_SEAT_THE_SEARCH_COMPLETES = True
+# The anti-Cubchoo conservation veto reading the fee of the ROTATION and not
+# the species of the body in front (`_cubchoo_mute_rotates`). A named switch
+# for the same reason as the three above: it is the only difference the gate
+# and the rules oracle put between two arms.
+CUBCHOO_MUTE_ROTATION = True
 
 
 
@@ -9091,8 +9096,11 @@ def agent(obs_dict: dict) -> list[int]:
     # which are hand engines and do not attack at all: every energy on them is dead
     # the moment it lands. The charged Teal Mask Ogerpon ex of
     # [[anti-cubchoo-no-retirada-pivote-conservar-energia]] (registro_004 p47) stays
-    # OUT on purpose: its Myriad Leaf Shower scales with its OWN energy, those Grass
-    # ARE investment, and the PASS still stands.
+    # OUT of THIS flag on purpose: its Myriad Leaf Shower scales with its OWN
+    # energy, those Grass ARE investment, and the PASS still stands.
+    # It is reached instead by `_cubchoo_mute_rotates` below, which does not ask
+    # whose energy it is but what the ROTATION costs -- and which keeps p47's PASS
+    # for the reason p47 gives, that the body it would promote is the expensive one.
     _cubchoo_mute_cashes_prize = False
     if (op_is_cubchoo_deck and not can_attack
             and _my_active_pk is not None
@@ -9104,6 +9112,68 @@ def agent(obs_dict: dict) -> list[int]:
         _cubchoo_mute_cashes_prize = _bench_attacker_can_ko(
             my_state, op_state.active[0], AGENT_STATE.meganium_in_play, total_grass,
             bench_count, _cmcp_grass_after, neutralization_zone_active)
+
+    # THE LOCK CHARGES THE ROTATION, NOT THE RETREAT (user, registro_010 step
+    # 81, episode 93149196 vs a Cubchoo/Dunsparce stall deck, WON). The two
+    # exemptions above are closed BY CARD ID -- Hydrapple ex for one, Meowth ex
+    # and Fezandipiti ex for the other -- and the body they exclude on purpose,
+    # the charged Teal Mask Ogerpon ex, is the body that is in front most of the
+    # time. Census over that episode: 18 menus with the mute on and the retreat
+    # legal, 13 of them with a benched body that KNOCKS OUT and the retreat at
+    # SCORE_VETO. Turns 10, 12, 14, 16 and 18 are the same frozen board -- our
+    # Ogerpon ex muted with 4 Grass on it, a second Ogerpon ex charged to 4
+    # effective on the bench, a 70 HP Cubchoo in front that Myriad Leaf Shower
+    # does 180 to -- and the turn was handed over five times, prizes stuck at
+    # 3-6. The board only unfroze on turn 20, when a Meowth ex happened to be
+    # the one in front and `_cubchoo_mute_cashes_prize` finally matched an id.
+    #
+    # WHAT SEPARATES IT FROM THE PASS OF registro_004 p47, which stands. There
+    # the muted active was ALSO a charged Teal Mask Ogerpon ex, so no reading of
+    # the body in front can tell the two boards apart. What tells them apart is
+    # the body the retreat PROMOTES:
+    #
+    #   * p47 -- the only bench body that knocks out is the Hydrapple ex,
+    #     retreat cost 3. Promoting it jams our most expensive body into a lock
+    #     that mutes whatever is in front, so next turn's forced rotation costs
+    #     3 more energy. That is the bleed the user objected to, and it is why
+    #     the PASS is right there.
+    #   * p81 -- the body that knocks out is a second Teal Mask Ogerpon ex,
+    #     retreat cost 1, the same as the body leaving. The swap is a 1-for-1
+    #     rotation between twins: one Grass for a prize today, and next turn the
+    #     same fee swaps them back.
+    #
+    # So the question is not whose energy it is, it is what the ROTATION costs:
+    # against a deck whose whole plan is to re-mute our Active every turn, the
+    # fee that decides is the one the lock will charge NEXT turn. It exempts
+    # only when the cheapest body that cashes the prize is no more expensive to
+    # rotate out than the one we are retreating -- `<=`, not `<`, because the
+    # twin swap is exactly the equality case.
+    #
+    # Its own flag, like its two siblings, so that it reaches ONLY the veto: the
+    # 6000 rung of the RETREAT branch and the 24000 charge-to-pay-the-retreat of
+    # `energy_score` read `_cubchoo_lock_stuck`, and widening those as well
+    # triples the blast radius for decisions this board never asked about
+    # ([[anti-cubchoo-no-retirada-pivote-conservar-energia]]).
+    #
+    # ONE READING, TWO DECISIONS. `_cubchoo_ko_rotation_min` is the same number
+    # the promotion reads (`PROMO_KO_ROTATION` in ptcg/turn/options/card.py):
+    # the retreat is only worth paying because a body that rotates cheaply
+    # cashes the prize, so the menu that PAYS it and the menu that then picks
+    # who goes to the front must not be able to disagree about which body that
+    # is. Computed here once, consumed by both.
+    _cubchoo_ko_rotation_min = None
+    _cubchoo_mute_rotates = False
+    if (CUBCHOO_MUTE_ROTATION and op_is_cubchoo_deck and not can_attack
+            and _my_active_pk is not None
+            and op_state.active and op_state.active[0] is not None):
+        _cmr_rc = RETREAT_COST.get(_my_active_pk.id, 1)
+        _cmr_grass_after = max(
+            0, total_grass - _retreat_grass_units(_cmr_rc))
+        _cubchoo_ko_rotation_min = _bench_ko_cheapest_retreat(
+            my_state, op_state.active[0], AGENT_STATE.meganium_in_play,
+            bench_count, _cmr_grass_after, neutralization_zone_active)
+        _cubchoo_mute_rotates = (_cubchoo_ko_rotation_min is not None
+                                 and _cubchoo_ko_rotation_min <= _cmr_rc)
 
     _ripen_retreat_ko_pivot = False
     if ((_ex_stuck_promo_ready or _fragile_ex_sac_pivot or _cubchoo_lock_stuck)

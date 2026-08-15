@@ -143,6 +143,27 @@ PROMO_KO_BONUS = 20000
 PROMO_KO_FRONT = 1200
 
 
+# THE FRONT SPOT UNDER A LOCK THAT MUTES IT (user, registro_010 step 81 vs a
+# Cubchoo stall deck). The tie-break above orders knockers by who OUTLIVES whom,
+# and against Cubchoo that question has no content: *Snotted Up* does 10 damage,
+# every candidate outlives it, and HP decided the seat. What decides it there is
+# MOBILITY -- the lock mutes whatever we put in front, so the body promoted today
+# has to buy its way out again tomorrow, and Hydrapple ex pays 3 (two whole Grass
+# cards under Wild Growth) where Teal Mask Ogerpon ex pays 1. On the board that
+# produced this the two of them knocked out the same 70 HP Cubchoo and the HP
+# tie-break handed the seat to the Hydrapple by 1272 points.
+#
+# 1800 is set by the two numbers it sits between: ABOVE `PROMO_KO_FRONT` (1200)
+# plus the -300 of the anti-Cubchoo nail penalty it completes, because those two
+# are exactly what it has to overrule; and BELOW the +2000 of the matchup
+# attacker when confused, the first of the deliberate rules this must still yield
+# to. Like its neighbour it is a penalty on the dominated knocker and never a
+# bonus, so it only ever reorders INSIDE the +20000 band: stacked with everything
+# that can hit the same body (20000 - 1800 - 1200 - 6000 = 11000) it is still
+# above the 9500 of the highest body that takes no prize.
+PROMO_KO_ROTATION = 1800
+
+
 # MATCH POINT: the opponent only needs to knock this body out to take the last
 # prize. That is not a bad trade, it is losing the game -> veto, not a penalty.
 # It goes BELOW SCORE_NEVER (-10000) on purpose: other promotion vetoes use that
@@ -196,6 +217,7 @@ __all__ = [
     'PROMO_DOOMED_PENALTY',
     'PROMO_KO_BONUS',
     'PROMO_KO_FRONT',
+    'PROMO_KO_ROTATION',
     'PROMO_LAST_STAND',
     'PROMO_MATCH_POINT_VETO',
     'PROMO_PRIZE_PENALTY',

@@ -1375,6 +1375,46 @@ def _bench_attacker_can_ko(my_state, target, meganium_active, total_grass_field,
     return False
 
 
+def _bench_ko_cheapest_retreat(my_state, target, meganium_active,
+                               bench_count, retreat_grass_after, neutral_zone):
+    """Of the bench bodies that knock `target` out, the SMALLEST retreat cost.
+
+    `_bench_attacker_can_ko` answers whether the promote route exists; this
+    answers what the route costs to UNDO. The two are the same walk over the
+    bench with the same damage model -- deliberately, so that a body can never
+    be lethal for one and invisible to the other -- and it returns None when no
+    body finishes the job.
+
+    The question only makes sense against a lock that mutes whatever we put in
+    front (Cubchoo's *Snotted Up*, Beartic's *Sheer Cold*): there the fee that
+    decides is not this turn's retreat but NEXT turn's, the one the lock will
+    force on the body we are about to promote. See `_cubchoo_mute_rotates` in
+    main.py, which is this helper's only consumer.
+    """
+    if target is None:
+        return None
+    if (target.hp or 0) <= 0:
+        return None
+    _thp = _op_hp_for_our_ko(target, 1)
+    _cheapest = None
+    for bp in (my_state.bench or []):
+        if bp is None:
+            continue
+        e = len(bp.energies)
+        eff = e * _grass_mult()
+        base = _attacker_base_damage(bp.id, target, eff,
+                                     grass_scale=retreat_grass_after,
+                                     teal_self_energy=e, bench_count=bench_count)
+        if base <= 0:
+            continue
+        if _our_effective_damage(bp, target, base, meganium_active, neutral_zone) < _thp:
+            continue
+        _cost = RETREAT_COST.get(bp.id, 1)
+        if _cheapest is None or _cost < _cheapest:
+            _cheapest = _cost
+    return _cheapest
+
+
 def _festival_active_wave_prizes(my_state, op_state, bench_count,
                                  meganium_active, neutral_zone):
     """Prizes the double *Do the Wave* takes with the Dipplin **already in the
@@ -2067,6 +2107,7 @@ __all__ = [
     '_op_window_against_evolution',
     '_attacker_base_damage',
     '_bench_attacker_can_ko',
+    '_bench_ko_cheapest_retreat',
     '_promote_ko_active_prizes',
     '_bench_finisher_that_survives',
     '_bench_finisher_upgrade',
