@@ -75,6 +75,7 @@ def score_play(tc, o, score):
     _hydrapple_bench_needs_energy = tc._hydrapple_bench_needs_energy
     _lillie_blocks_fez_ability = tc._lillie_blocks_fez_ability
     _ogerpon_lethal_focus_serial = tc._ogerpon_lethal_focus_serial
+    _festival_wave_needs_the_grass = tc._festival_wave_needs_the_grass
     _reserve_energy_for_hydra_evolve = tc._reserve_energy_for_hydra_evolve
     _reserve_hydra_active_charge = tc._reserve_hydra_active_charge
     _ripen_bench_ready_pivot = tc._ripen_bench_ready_pivot
@@ -467,7 +468,40 @@ def score_play(tc, o, score):
         
                     score = 7500
                 elif _reserve_energy_for_hydra_evolve and o.area != AreaType.ACTIVE:
-        
+
+                    score = 7500
+                elif (_festival_wave_needs_the_grass
+                        and o.area != AreaType.ACTIVE):
+                    # THE GRASS THE WAVE IS COUNTING IS NOT SURPLUS (user,
+                    # registro_010 step 103 vs Festival Lead). Under Festival
+                    # Grounds our Dipplin throws Do the Wave twice, and
+                    # `_festival_lead_pays_us_now` says that wave is already
+                    # lethal on their Active -- but the Dipplin it read is
+                    # sitting on zero energy and the card that charges it is the
+                    # one in hand.
+                    #
+                    # The rung this stands in front of (`_active_already_kos`
+                    # and not the Active spot, 31050) is a DEVELOPMENT charge:
+                    # our active can finish it anyway, so the Grass is banked on
+                    # a benched Ogerpon for tomorrow. Banking it is right when
+                    # the alternative is nothing; here the alternative is the
+                    # second prize the stadium hands us today, and the record
+                    # measured what banking it costs -- the Dipplin went
+                    # uncharged, and the following action evolved it, because
+                    # the detector that had vetoed exactly that evolution had
+                    # gone False with the Grass.
+                    #
+                    # 7500, the same band as the reserve above it, so it sits
+                    # BELOW the manual attachment (~28000) that puts the card on
+                    # the body which cashes it. It does not veto the dance: with
+                    # a second Grass in hand `_festival_wave_needs_the_grass` is
+                    # still true and this pays for the wave first -- the dance is
+                    # a charge, and a charge waits its turn behind the one that
+                    # is the attack ([[lo-que-la-mano-paga-va-antes-que-lo-que-gasta-la-mano]]).
+                    # The ACTIVE spot is exempt for the same reason
+                    # `_reserve_energy_for_hydra_evolve` exempts it: a dance on
+                    # the body in front may be paying the retreat fee this very
+                    # route needs, and the pivots that buy it (31600) rule above.
                     score = 7500
                 elif _ogerpon_energy >= 3:
         

@@ -110,6 +110,8 @@ class ScoringCtx:
     _extra_energy_enables_ko: Any = None
     _festival_lead_hostil: Any = None
     _festival_lead_pays_us_now: Any = None
+    _festival_wave_outprizes_the_front: Any = None
+    _festival_wave_needs_the_grass: Any = None
     _forced_ko_promote: Any = None
     _ft_hold_lone_meowth: Any = None
     _ft_wall_body: Any = None

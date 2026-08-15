@@ -5360,7 +5360,13 @@ def agent(obs_dict: dict) -> list[int]:
     _tapu_sac_pivot = False
     _tapu_sac_enable_retreat = False
     _festival_sac_pivot = False
+    # The pivot fired on its OFFENSIVE arm: the retreat is not running from
+    # anything, it is cashing the prize the second wave adds. Read by the
+    # charge (`ptcg/turn/options/ability.py`), which otherwise banks the one
+    # Grass in hand on a benched Ogerpon that already has enough.
+    _festival_wave_outprizes_the_front = False
     _festival_lead_pays_us_now = False
+    _festival_wave_needs_the_grass = False
     _prize_denial_pivot = False
 
     _bo_active_attack_sufficient = False
@@ -6521,7 +6527,9 @@ def agent(obs_dict: dict) -> list[int]:
                     if _flpn_i >= 1 and not can_switch:
                         continue
                     _flpn_eff = len(_flpn_pk.energies) * _grass_mult()
-                    if _flpn_eff < AGENT_STATE.ATTACK_ENERGY_REQ.get(Dipplin, 1):
+                    _flpn_needs_grass = (
+                        _flpn_eff < AGENT_STATE.ATTACK_ENERGY_REQ.get(Dipplin, 1))
+                    if _flpn_needs_grass:
                         if state.energyAttached or hand_counts.get(Basic_Grass_Energy, 0) < 1:
                             continue
                         if _flpn_eff + _grass_attach_unit() < AGENT_STATE.ATTACK_ENERGY_REQ.get(Dipplin, 1):
@@ -6531,14 +6539,84 @@ def agent(obs_dict: dict) -> list[int]:
                         AGENT_STATE.meganium_in_play, neutralization_zone_active)
                     if _flpn_dmg > 0 and _flpn_dmg >= _flpn_op_hp:
                         _festival_lead_pays_us_now = True
+                        # THE GRASS THIS DETECTOR IS COUNTING IS SPOKEN FOR
+                        # (user, registro_010 step 103). The Dipplin whose wave
+                        # cashes the prize is sitting on ZERO, so the reading
+                        # above is only true while the card in hand reaches it
+                        # -- and until this flag existed nothing said so: the
+                        # evolve veto protected the BODY and Teal Dance walked
+                        # off with the ENERGY, banking it on a benched Ogerpon
+                        # that already carried four. One turn later the same
+                        # detector read False (no Grass in hand), the veto
+                        # lifted, and the body it had protected was evolved.
+                        # A reserve that does not hold the thing it is reserving
+                        # is not a reserve. Read by the Teal Dance ladder in
+                        # `ptcg/turn/options/ability.py`.
+                        #
+                        # ONLY WHILE THE HAND CANNOT PAY BOTH. With a second
+                        # Grass in hand the dance takes one and the manual
+                        # attachment still reaches the Dipplin with the other,
+                        # so there is nothing to reserve and the development
+                        # charge keeps its say
+                        # ([[una-reserva-no-puede-vetar-al-cuerpo-para-el-que-reserva]]).
+                        _festival_wave_needs_the_grass = (
+                            _flpn_needs_grass
+                            and hand_counts.get(Basic_Grass_Energy, 0) <= 1)
                         break
 
+            # THE SECOND WAVE IS A REASON OF ITS OWN (user, registro_010 step
+            # 103, episode 93242395 vs *Festival Lead* -- WON, and won three
+            # turns later than it had to be).
+            #
+            #     US (3 prizes)                       RIVAL (3 prizes)
+            #     active Teal Mask Ogerpon ex         active Applin   40/40
+            #            210/210, 2 {G} cards         bench  Dipplin 100, Dipplin 100,
+            #     bench  Meganium 160                        Applin   40, Applin 70
+            #            Teal Mask Ogerpon ex 210
+            #            **Dipplin 80, 0 {G}**       stadium **Festival Grounds** (theirs)
+            #            Chikorita 70, Meowth ex 170
+            #     hand   Hydrapple ex, 1 {G}, ...
+            #
+            # The whole turn was one Grass away. The Grass goes onto the benched
+            # Dipplin, the ex retreats (cost 1, it carries 2 cards), and Do the
+            # Wave is 20 x 5 = 100: their 40 HP Applin dies, and because the
+            # stadium is on the field the SAME wave lands again on whatever they
+            # promote -- every body they hold is 100 HP or less. TWO prizes, from
+            # three down to one, with a ONE-prize body left in the front spot.
+            #
+            # What the agent played: Teal Dance banked that Grass on a benched
+            # Ogerpon that already carried four, the Dipplin -- with no Grass
+            # left to charge it -- was evolved into Hydrapple ex, and Syrup Storm
+            # hit the 40 HP Applin for 330. ONE prize, 290 damage on the floor,
+            # a 2-prize ex in front and no second wave.
+            #
+            # EVERY READING WAS ALREADY RIGHT; none of them was allowed to spend
+            # the turn. `prizes_today` said **2** on this very board (it counts
+            # the second wave through `_prizes_via_promote`), the evolve veto
+            # below `_festival_lead_pays_us_now` scored the Hydrapple at
+            # SCORE_VETO, and `_promote_ko_active_prizes` answered 2. But the
+            # only flag that EXECUTES a promote route is
+            # `_win_ko_active_via_promote`, and it asks the route to close the
+            # game (2 >= 3 is false). The turn read RACE, and a RACE turn cashes
+            # the prize the body in front can already see.
+            #
+            # So this pivot -- which is exactly the swap the board wanted --
+            # stops being purely defensive. `active_ko_likely` (the ex in front
+            # is doomed) was the ONLY door in, and the doomed ex is not what
+            # makes the wave worth the retreat: the SECOND WAVE is. The gate
+            # below keeps that arm untouched and adds the offensive one, on the
+            # criterion `_promote_ko_active_prizes` already uses to overrule
+            # "the active can finish it itself": the swap has to cash STRICTLY
+            # more than the body in front is worth, which under this stadium
+            # means `_festival_second_wave_prizes` really closes a second body.
+            # A bench of theirs with one survivor in it scores zero there and
+            # this arm stays shut. See
+            # [[el-doble-ataque-del-estadio-tambien-es-nuestro]].
             if (not _hydra_pivot_active and not _tapu_sac_pivot
                     and can_switch
                     and AGENT_STATE._festival_grounds_in_play
                     and _op_act_main is not None and _ret_active is not None
                     and _ret_active.id in OUR_EX_IDS
-                    and active_ko_likely
                     and my_prize > prize_count_op(_op_act_main)):
                 _fsac_op_hp = _op_act_main.hp or 0
                 # The bench the wave counts is the one the RETREAT leaves behind,
@@ -6569,10 +6647,36 @@ def agent(obs_dict: dict) -> list[int]:
                         AGENT_STATE.meganium_in_play, neutralization_zone_active)
                     if _fsac_dmg <= 0 or _fsac_dmg < _fsac_op_hp:
                         continue
+                    # THE DOOR THE OFFENSIVE ARM COMES IN THROUGH. With the ex in
+                    # front already doomed the swap pays for itself (that is the
+                    # defensive arm, and it is untouched). With the ex healthy
+                    # the retreat has to BUY something, and the only thing that
+                    # buys it is the prize the front body is not worth: the
+                    # second wave. `_festival_second_wave_prizes` answers 0
+                    # unless EVERY body they can promote dies to the same wave,
+                    # so a survivor on their bench closes this arm.
+                    _fsac_second = _festival_second_wave_prizes(
+                        op_state, _fsac_dmg, _op_act_main)
+                    if not active_ko_likely and _fsac_second < 1:
+                        continue
+                    # ...AND THE BODY WE LEAVE IN FRONT MUST NOT CLOSE THEIR
+                    # COUNT. The defensive arm hands over a 1-prize corpse
+                    # instead of a 2-prize one because the ex was dying anyway;
+                    # this arm hands over a healthy ex's SEAT, and an 80 HP
+                    # Dipplin in front of an opponent at MATCH POINT is a prize
+                    # they were not otherwise going to reach -- the reading
+                    # `_prize_denial_pivot` was written for, from the other
+                    # side. When the two prizes we are cashing WIN the game the
+                    # question does not arise: that route is
+                    # `_win_ko_active_via_promote`, and it outranks this one.
+                    if (not active_ko_likely
+                            and op_prize <= prize_count(_fsac_pk)):
+                        continue
                     # The relay must not hand over MORE than the body it replaces
                     # ([[la-retirada-elige-quien-paga-el-premio]]).
                     if prize_count(_fsac_pk) >= prize_count(_ret_active):
                         continue
+                    _festival_wave_outprizes_the_front = _fsac_second >= 1
                     AGENT_STATE.plan.attacker = _fsac_i
                     AGENT_STATE.plan.target = 0
                     AGENT_STATE.plan.attack_index = 0
