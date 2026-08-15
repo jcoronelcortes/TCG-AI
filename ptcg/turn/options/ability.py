@@ -39,7 +39,7 @@ the fields it reads and returns only the ones it reassigns.
 
 from cg.api import AreaType, Pokemon
 from ptcg.calc.card import get_card
-from ptcg.calc.damage import _nz_mutes_our_ex, _our_effective_damage
+from ptcg.calc.damage import _our_effective_damage, _wall_mutes_our_ex
 from ptcg.calc.energy import _grass_attach_unit, _grass_mult, _ogerpon_base_phys_cap, _physical_energy
 from ptcg.cards.groups import GT_SCORE_FULL_CHAIN, GT_SCORE_STAGE1_ONLY
 from ptcg.cards.ids import Basic_Grass_Energy, Dipplin, FEZ_DRAW_ABILITY_SCORE, Fezandipiti_ex, Grand_Tree, Hydrapple_ex, Lillie_Determination, Meganium, Meowth_ex, Pinsir, RETREAT_COST, RIPEN_HEAL_ABILITY_SCORE, RIPEN_HEAL_EX_ABILITY_SCORE, SCORE_CHARGE_ACTIVE_ATTACK, SCORE_CHARGE_ACTIVE_FINISHER, SCORE_CHARGE_LETHAL_FLOOR, SCORE_VETO, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Unfair_Stamp
@@ -160,9 +160,21 @@ def score_play(tc, o, score):
                 # the other two lists never had to name (against Crustle and
                 # Cornerstone it is the doubler, here it is the attacker).
                 #
-                # `_nz_mutes_our_ex` asks the CURRENT opposing active, not the
-                # matchup: the same stadium is harmless the moment they promote
-                # an ex, and then this reservation must stop being owed.
+                # AND THE FOURTH WALL IS A CARD IN THEIR HAND (user, episode
+                # 93163758 vs Comfey/Chandelure, turns 13-19, LOST at one
+                # prize). Acerola's Mischief says the same sentence as the
+                # stadium -- our ex do zero to the body it protects, effects
+                # included -- for one turn and on one body, and it leaves
+                # nothing on the board to read it off (`_shield_mutes_our_ex`).
+                # The creditor list is the stadium's, unchanged, because the
+                # question the reservation asks is the same one: which of our
+                # bodies can still knock something out today.
+                #
+                # `_wall_mutes_our_ex` asks the CURRENT opposing active and not
+                # the matchup: the stadium is harmless the moment they promote
+                # an ex, the shield the moment its turn is over or the body it
+                # was pinned on leaves the front -- and then this reservation
+                # must stop being owed.
                 _wall_atk_needs_grass = False
                 _cng_wall_ids = None
                 # Cornerstone only: the Grass must FINISH a cost, not merely
@@ -174,7 +186,7 @@ def score_play(tc, o, score):
                         or op_has_ability_immune_active):
                     _cng_wall_ids = (Tapu_Bulu, Pinsir)
                     _cng_needs_completion = True
-                elif _nz_mutes_our_ex(
+                elif _wall_mutes_our_ex(
                         op_state.active[0] if op_state.active else None,
                         neutralization_zone_active):
                     _cng_wall_ids = (Tapu_Bulu, Dipplin, Pinsir, Meganium)

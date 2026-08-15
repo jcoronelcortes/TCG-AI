@@ -387,6 +387,9 @@ STICKY = [
      "matchup memory: the Staryu announces the deck long before the ex lands"),
     ("op_has_mega_kangaskhan",
      "matchup memory: seen once is known for the rest of the game"),
+    ("op_has_ex_shield",
+     "matchup memory: their Acerola's Mischief is a property of the list, and "
+     "the decisions that answer it are taken before the next copy comes down"),
     ("_cards_first_scan_done",
      "the deck scan happens once per game and cannot un-happen"),
     ("_cards_prizes_identified",
