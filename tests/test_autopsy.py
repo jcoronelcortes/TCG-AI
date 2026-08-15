@@ -104,3 +104,73 @@ def test_the_finding_carries_the_key_the_explorer_reads():
     assert turn_explorer.turn_of({"turn": 7}) == 7
     # And a record with neither degrades instead of crashing.
     assert turn_explorer.turn_of({}) == "?"
+
+
+# ---------------------------------------------------------------------------
+# THE HALF `letal_perdido` DID NOT ASK: what taking the knockout COSTS
+# ---------------------------------------------------------------------------
+
+def _obs_lethal(their_prizes_left, our_active, their_active, our_bench=()):
+    """A MAIN-menu observation for `_ko_hands_them_the_game` (seat 0)."""
+    yo = {
+        "active": [our_active], "bench": list(our_bench),
+        "deckCount": 20, "handCount": 3, "hand": [],
+        "prize": [None] * 5,
+    }
+    op = {
+        "active": [their_active], "bench": [],
+        "deckCount": 20, "handCount": 3, "hand": [],
+        "prize": [None] * their_prizes_left,
+    }
+    return {"current": {"players": [yo, op], "yourIndex": 0, "turn": 24}}
+
+
+def _pk(cid, hp, maxhp, energies=0):
+    return {"id": cid, "hp": hp, "maxHp": maxhp,
+            "energies": [1] * energies,
+            "energyCards": [{"id": 1}] * energies, "tools": []}
+
+
+def test_the_lethal_that_hands_them_the_game_is_marked():
+    """Game 275 vs mega_lopunny_mega_froslass_1, turn 24, in miniature.
+
+    Their pile is at TWO and our active is an ex: the knockout is real and
+    taking it from the front closes THEIR count, not ours. The agent declines
+    it on purpose (`PROMO_MATCH_POINT_VETO`), so the detector must not file the
+    board under "missed prize" without saying what it would have cost.
+    """
+    import main as m
+    from autopsy import _ko_hands_them_the_game
+
+    obs = _obs_lethal(
+        their_prizes_left=2,
+        our_active=_pk(m.Teal_Mask_Ogerpon_ex, 50, 210, energies=3),
+        their_active=_pk(849, 180, 330, energies=2))          # Mega Lopunny ex
+    assert _ko_hands_them_the_game(m, obs) is True
+
+
+def test_the_same_lethal_with_their_pile_out_of_reach_is_not_marked():
+    """The boundary, and it is the one that keeps the reading honest: the same
+    board with their pile at THREE. Two prizes no longer close their count, so
+    the knockout costs nothing that the detector may charge it for."""
+    import main as m
+    from autopsy import _ko_hands_them_the_game
+
+    obs = _obs_lethal(
+        their_prizes_left=3,
+        our_active=_pk(m.Teal_Mask_Ogerpon_ex, 50, 210, energies=3),
+        their_active=_pk(849, 180, 330, energies=2))
+    assert _ko_hands_them_the_game(m, obs) is False
+
+
+def test_a_one_prize_body_in_front_is_not_marked():
+    """A body worth ONE prize does not close a pile of two, whatever their
+    active does to it."""
+    import main as m
+    from autopsy import _ko_hands_them_the_game
+
+    obs = _obs_lethal(
+        their_prizes_left=2,
+        our_active=_pk(m.Meganium, 30, 150, energies=4),
+        their_active=_pk(849, 180, 330, energies=2))
+    assert _ko_hands_them_the_game(m, obs) is False

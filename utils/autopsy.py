@@ -186,6 +186,58 @@ def _lethal_damage_to_active(m, obs):
     return m._our_effective_damage(a, o, base, meganium, False), o
 
 
+def _ko_hands_them_the_game(m, obs):
+    """Does taking the knockout FROM THE FRONT hand the opponent the game?
+
+    THE HALF `letal_perdido` DID NOT ASK, and without it the detector's own
+    worklist is misleading. It answers "there was a knockout on the table and
+    the turn ended without taking it", which sounds like a missed prize every
+    time -- and on 15 August 2026 the first board it ranked (game 275 vs
+    mega_lopunny_mega_froslass_1, turn 24) was not one.
+
+    There, Myriad Leaf Shower read 210 over a Mega Lopunny ex at 180 of 330:
+    three prizes, taking our pile from five to two. But attacking leaves the
+    SAME 50 HP Teal Mask Ogerpon ex in front, their pile is at TWO, and an ex is
+    worth exactly two: their reply closes their count before we ever get back to
+    ours. The agent declined it, and `PROMO_MATCH_POINT_VETO` -- a rule written
+    from a lost game of its own -- is what declined it. A detector that files
+    that under "missed lethal" sends the next reader to a board where the agent
+    was right.
+
+    So the question here is the price, in the same arithmetic the agent uses:
+    the body that STAYS in front after we attack, what their active does to it,
+    and whether the prizes it hands over close their count. `False` whenever the
+    projection cannot see their damage -- an unmodelled attack reads 0, and a
+    detector must not invent a cost it cannot compute.
+    """
+    yo, op = _mi_lado(obs)
+    if not (yo.get("active") and yo["active"][0]
+            and op.get("active") and op["active"][0]):
+        return False
+    their_prizes = sum(1 for p in (op.get("prize") or []) if p is None)
+    if their_prizes <= 0:
+        return False
+
+    class _P:                      # the same minimal adapter as above
+        def __init__(self, d):
+            self.id = d["id"]
+            self.hp = d.get("hp")
+            self.maxHp = d.get("maxHp")
+            self.energies = list(d.get("energies") or [])
+
+            class _C:
+                def __init__(self, dd):
+                    self.id = dd["id"]
+            self.energyCards = [_C(c) for c in (d.get("energyCards") or [])]
+            self.tools = [_C(c) for c in (d.get("tools") or [])]
+
+    ours, theirs = _P(yo["active"][0]), _P(op["active"][0])
+    if m.prize_count(ours) < their_prizes:
+        return False               # our body does not close their count
+    reply = m._op_active_attack_damage_to(theirs, ours, op.get("handCount"))
+    return reply >= (ours.hp or 0) > 0
+
+
 def turn_census(m, decisiones):
     """A COMPACT row per turn of ours, for ALL games -- wins
     included.
@@ -353,13 +405,19 @@ def detectar(m, decisiones):
                     my_prizes = sum(1 for p in yo.get("prize") or []
                                       if p is None)
                     gana = m.prize_count(opa) >= my_prizes
+                    entrega = _ko_hands_them_the_game(m, d["obs"])
                     findings.append({
                         "detector": "letal_perdido",
                         "critico": bool(gana),
+                        "entrega_la_partida": bool(entrega),
                         "turno": turn, "paso": d["paso"],
                         "detalle": (f"KO disponible ({damage} >= "
                                     f"{opa.hp}) y el turno cerro "
-                                    f"sin atacar"),
+                                    f"sin atacar"
+                                    + (" -- PERO cobrarlo de frente entrega "
+                                       "la partida: el cuerpo que se queda "
+                                       "delante cierra su cuenta"
+                                       if entrega else "")),
                         "eleccion": d["eleccion"],
                         "observation": d["obs"],
                     })
