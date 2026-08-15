@@ -486,6 +486,23 @@ FESTIVAL_LEAD_MAX_WAVES = 2
 # in `ptcg/turn/options/play.py` (which makes sure they actually go down).
 WAVE_BENCH_BODY_IDS = {Applin, Chikorita, Tapu_Bulu}
 
+# --- THE REFILL BUYS THE WAVE THE EVOLUTION WOULD DELETE ---------------------
+# Episode 93378353, step 61, turn 6 vs Festival Lead (LOST). The board is drawn
+# out in `tests/test_the_refill_buys_the_wave.py`: their stadium on the field,
+# our Dipplin on the bench at zero energy, no Grass in hand, and Hydrapple ex in
+# hand next to an unplayed Lillie's Determination. The turn evolved.
+#
+# Both readings that protect that Dipplin ask the board as it STANDS -- is the
+# wave already charged, does it already reach their Active -- and on this board
+# the answer to both is "not until the hand is drawn". `_festival_refill_buys_the_wave`
+# is the same sentence one turn earlier: the refill is still in hand, the bench
+# still has seats, and with those seats full the wave buries their Active AND
+# everything they could promote behind it. On -> the evolution that cannot act
+# today does not get to delete that body, and the Lillie's ladder stops keeping
+# the hand for it. Off -> the two detectors above are the only guard and the
+# Dipplin is evolved, which is the recorded game.
+THE_REFILL_BUYS_THE_WAVE = True
+
 
 # --- the price of attacking that the DEFENDER charges ------------------------
 # "If the Pokemon this card is attached to is in the Active Spot and is damaged
@@ -2032,6 +2049,7 @@ __all__ = [
     'FESTIVAL_LEAD_IDS',
     'FESTIVAL_LEAD_MAX_WAVES',
     'WAVE_BENCH_BODY_IDS',
+    'THE_REFILL_BUYS_THE_WAVE',
     'Spiky_Energy',
     'Handheld_Fan',
     'Deluxe_Bomb',

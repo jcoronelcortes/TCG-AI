@@ -2730,6 +2730,27 @@ _RULES_LILLIE_PLAY = [
     _FixedRule("fish_energy_for_the_finisher",
                _finisher_fishing_valid,
                lambda c: LILLIE_SCORE_FISHING + c.supporter_boost),
+    # THE REFILL BUYS THE WAVE THE EVOLUTION WOULD DELETE (user, registro_006
+    # step 61 vs Festival Lead, episode 93378353 -- LOST). The same sentence as
+    # the fishing right above it, and the same class of turn: the draw is not
+    # digging just in case, it is the only thing that turns this turn's ONE
+    # prize into TWO. Under their Festival Grounds our Dipplin throws Do the
+    # Wave twice; what it is missing -- a Grass to charge it and the bodies the
+    # wave counts -- is what EIGHT cards buy, and `_festival_refill_buys_the_wave`
+    # has already checked that the wave then buries their Active and everything
+    # they could promote behind it.
+    #
+    # It has to sit ABOVE `line_pending`, because that veto is precisely what
+    # kept the hand on that board: "there is a Stage 2 in hand for a body in
+    # play, evolve first and refill later". The evolution it was saving the hand
+    # for is the one the evolve branch now refuses -- it deletes the attacker
+    # and does nothing today -- so keeping the hand for it keeps the hand for
+    # nothing. ONE flag decides both, so the two cannot disagree and lose the
+    # Supporter slot between them (the asymmetry `yields_to_executable_boss`
+    # documents from the other side).
+    _FixedRule("the_refill_buys_the_wave",
+               lambda c: c.festival_refill_buys_the_wave,
+               lambda c: LILLIE_SCORE_FISHING + c.supporter_boost),
     # Lillie's > Boss's priority with a charged Hydrapple ex in the active spot.
     # It scores ABOVE the maximum Boss's that does not win the game (~5600);
     # `_boss_win_via_bench` (a lethal gust to the bench) is exempted so as not
@@ -5374,6 +5395,10 @@ def agent(obs_dict: dict) -> list[int]:
     _festival_wave_outprizes_the_front = False
     _festival_lead_pays_us_now = False
     _festival_wave_needs_the_grass = False
+    # The wave is not armed YET and the only thing missing is a hand: the
+    # Supporter slot still holds the refill that buys it. See
+    # `_festival_refill_buys_the_wave`.
+    _festival_refill_buys_the_wave = False
     _prize_denial_pivot = False
 
     _bo_active_attack_sufficient = False
@@ -6570,6 +6595,97 @@ def agent(obs_dict: dict) -> list[int]:
                             _flpn_needs_grass
                             and hand_counts.get(Basic_Grass_Energy, 0) <= 1)
                         break
+
+            # =================================================================
+            # THE REFILL BUYS THE WAVE THE EVOLUTION WOULD DELETE (user,
+            # registro_006 step 61, episode 93378353 vs *Festival Lead* --
+            # LOST).
+            #
+            #     US (6 prizes)                       RIVAL (5 prizes)
+            #     active Teal Mask Ogerpon ex         active Dipplin 80/80, 1 {G}
+            #            210/210, 3 {G}                      (Brave Bangle)
+            #     bench  Fezandipiti ex 210           bench  Thwackey 100, Thwackey 100,
+            #            **Dipplin 80, 0 {G}**               Applin 40, Applin 40,
+            #            Meowth ex 170                       Grookey 70
+            #     hand   Hydrapple ex, LILLIE'S,      stadium **Festival Grounds** (theirs)
+            #            Lana's Aid, Meganium,
+            #            Boss's Orders -- NO Grass
+            #
+            # The turn evolved that Dipplin into Hydrapple ex, and the whole
+            # board says why it should not have. THE EVOLUTION DOES NOTHING
+            # TODAY: on the bench, at zero energy, with no Grass in hand,
+            # Hydrapple ex can neither attack nor even use Ripening Charge --
+            # it is a 330 HP body parked for later. What it DOES do is delete
+            # the one card whose price their own stadium changes: under
+            # Festival Grounds our Dipplin throws Do the Wave TWICE, and every
+            # body they own is 100 HP or less.
+            #
+            # WHY THE TWO DETECTORS ABOVE STAY SILENT, and both for the same
+            # reason: they read the hand as it stands. `_festival_lead_pays_us_now`
+            # wants the Grass to charge the Dipplin (there is none) and the wave
+            # to already reach their Active (20 x 3 benched = 60 against 80 HP).
+            # Both shortages are the HAND's, and the hand is exactly what this
+            # turn had not spent yet: Lillie's Determination, Supporter slot
+            # free, at SIX prizes -- it draws EIGHT. The recorded game drew four
+            # Grass and two bodies with it, benched them and still had the
+            # Ogerpon's attack.
+            #
+            # And the refill costs nothing the board already had: a Supporter
+            # does not end the turn, so the Ogerpon in front still attacks
+            # afterwards for the same prize. What is at risk is the Hydrapple
+            # that gets shuffled back -- which is the trade being made, not an
+            # oversight ([[el-descarte-y-la-baraja-no-son-la-misma-perdida]]).
+            #
+            # THE BOUND IS THE FULL BENCH, and it is the honest one to use: the
+            # refill can only buy seats we HAVE, so the wave is priced at
+            # `benchMax` and has to close TWO bodies there -- their Active plus
+            # every body they could promote after it
+            # (`_festival_second_wave_prizes`, which answers 0 the moment one
+            # survivor stands). On a board of 100 HP bodies that is true; one
+            # 130 HP body on their bench and this flag never lights.
+            # Measured on the board it comes from (40 determinised worlds,
+            # forcing each first move and letting the agent finish the turn):
+            # the refill takes **1.45 prizes** against the evolution's **1.00**,
+            # better in 18 worlds and worse in NONE -- and it ends the turn with
+            # the 1-prize Dipplin in front instead of a 2-prize ex in 18 of them.
+            #
+            # Read by the evolve branch (which stops burying the Dipplin) and by
+            # the Lillie's ladder (whose `line_pending` veto was keeping the
+            # hand for exactly that evolution). ONE flag, because the two must
+            # not be able to disagree -- the same reason `_festival_wave_bench`
+            # is one function. See [[el-doble-ataque-del-estadio-tambien-es-nuestro]].
+            # =================================================================
+            if (THE_REFILL_BUYS_THE_WAVE
+                    and AGENT_STATE._festival_grounds_in_play
+                    and not _festival_lead_pays_us_now
+                    and _op_act_main is not None
+                    and not state.supporterPlayed
+                    and hand_counts.get(Lillie_Determination, 0) >= 1):
+                _frbw_bench = [b for b in (my_state.bench or []) if b is not None]
+                _frbw_free = max(0, (getattr(my_state, 'benchMax', 5) or 5)
+                                 - len(_frbw_bench))
+                for _frbw_i, _frbw_pk in enumerate(my_cards):
+                    if _frbw_pk is None or _frbw_pk.id != Dipplin:
+                        continue
+                    # The body has to be able to TAKE the front spot this turn:
+                    # already there, or a retreat away from it.
+                    if _frbw_i >= 1 and not can_switch:
+                        continue
+                    # A bench with no free seat cannot grow, and a wave that
+                    # already reaches is `_festival_lead_pays_us_now`'s business.
+                    if _frbw_free <= 0:
+                        continue
+                    _frbw_dmg = _our_effective_damage(
+                        _frbw_pk, _op_act_main,
+                        20 * (getattr(my_state, 'benchMax', 5) or 5),
+                        AGENT_STATE.meganium_in_play, neutralization_zone_active)
+                    if _frbw_dmg <= 0 or _frbw_dmg < (_op_act_main.hp or 0):
+                        continue
+                    if _festival_second_wave_prizes(
+                            op_state, _frbw_dmg, _op_act_main) < 1:
+                        continue
+                    _festival_refill_buys_the_wave = True
+                    break
 
             # THE SECOND WAVE IS A REASON OF ITS OWN (user, registro_010 step
             # 103, episode 93242395 vs *Festival Lead* -- WON, and won three
@@ -12795,6 +12911,7 @@ def agent(obs_dict: dict) -> list[int]:
         watchtower_in_play=watchtower_in_play,
         festival_lead_hostil=_festival_lead_hostil,
         festival_lead_pays_us_now=_festival_lead_pays_us_now,
+        festival_refill_buys_the_wave=_festival_refill_buys_the_wave,
         meowth_ability_lock=meowth_ability_lock,
         neutralization_zone_active=neutralization_zone_active,
         mega_line_active=_mega_line_active,

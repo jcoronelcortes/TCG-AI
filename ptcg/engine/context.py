@@ -205,6 +205,15 @@ class DecisionContext:
     # turn's prize. See `_festival_lead_pays_us_now`.
     # Default False: unit tests build the ctx directly.
     festival_lead_pays_us_now: bool = False
+    # ...and the same stadium ONE TURN EARLIER: our Dipplin is in play, the wave
+    # does NOT reach yet -- no Grass in hand for it, too few bodies on the bench
+    # -- but with the bench full it would knock their Active out AND close every
+    # body they could promote after it, and the turn still holds the refill that
+    # buys both. The evolve branch stops burying that Dipplin and the Lillie's
+    # ladder stops keeping the hand for the evolution.
+    # See `_festival_refill_buys_the_wave`.
+    # Default False: unit tests build the ctx directly.
+    festival_refill_buys_the_wave: bool = False
     # MATCH POINT against the opposing ACTIVE: knocking it out WINS the game (it is
     # worth at least the prizes we are missing) and the finisher is on the BENCH --
     # retreat -> promote -> attack, with the retreat payable. The
