@@ -51,7 +51,7 @@ from ptcg.cards.groups import EVO_LINES, GT_FETCH_BONUS
 from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, DISCARD_SHIELD_KEEP_THE_GUST, DISCARD_SHIELD_KEEP_THE_NONEX, DISCARD_SHIELD_MUTES_THE_EX, DISCARD_SHIELD_SEARCH_FODDER, DISCARD_SHIELD_STADIUM_FODDER, OP_EX_SHIELD_MAX_PRIZES, DISCARD_XEROSIC_CAP_IS_THE_ANSWER, DISCARD_BODY_WITHOUT_SEAT, DISCARD_CF_HAND_RECYCLER, DISCARD_EVO_SPARE_COPY, DISCARD_LINK_THE_SEARCH_BUYS, DISCARD_SUPPORTER_DEAD_DROP, DISCARD_SUPPORTER_LIVE_KEEP, DISCARD_WHAT_THE_SEARCH_ALREADY_BOUGHT, DUNSPARCE_IDS, Dawn, Dipplin, Drednaw, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, LANA_SEL_INJUGABLE, LANA_SEL_GRASS_DEMAND, LANA_SEL_GRASS_UNLOCKS, LANA_SEL_GRASS_SURPLUS, LANA_SEL_GRASS_WINS, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, OUR_ABILITY_IDS, OUR_EX_IDS, Pinsir, Poke_Pad, RETREAT_COST, RIPEN_HEAL_TARGET_SCORE, SCORE_FORBID, SCORE_LOOKAHEAD_PROMOTE_KO, SCORE_LOOKAHEAD_PROMOTE_SAFE, SCORE_NEVER, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, XEROSIC_BIG_HAND, DISCARD_XEROSIC_CAPS_A_FAT_HAND, Xerosic_Machinations
 from ptcg.cards.lines import _evo_copies_usable, _evo_top_unlocked_by_the_search, _line_base_benchable, _pokemon_injugable
 from ptcg.cards.ids import OPENING_SAC_PROMOTE_ORDER, SETUP_ACTIVE_BASIC_ORDER, SETUP_ACTIVE_BASIC_TOP, SETUP_ACTIVE_EX_ORDER, SETUP_ACTIVE_EX_TOP, SETUP_ACTIVE_OTHER, SETUP_ACTIVE_OTHER_BASIC, SETUP_ACTIVE_STEP
-from ptcg.cards.scoring import MAIN_ATTACKERS, PROMO_DOOMED_PENALTY, PROMO_KO_BONUS, PROMO_KO_FRONT, PROMO_LAST_STAND, PROMO_MATCH_POINT_VETO, PROMO_PRIZE_PENALTY, OPENING_SAC_PROMOTE_STEP, OPENING_SAC_PROMOTE_TOP, _SUPP_PLAY_IDS, _purchase_of_this_turn
+from ptcg.cards.scoring import MAIN_ATTACKERS, PROMO_DOOMED_PENALTY, PROMO_KO_BONUS, PROMO_KO_FRONT, PROMO_KO_ROTATION, PROMO_LAST_STAND, PROMO_MATCH_POINT_VETO, PROMO_PRIZE_PENALTY, OPENING_SAC_PROMOTE_STEP, OPENING_SAC_PROMOTE_TOP, _SUPP_PLAY_IDS, _purchase_of_this_turn
 from ptcg.cards.tables import HAND_TO_DECK_PLAY_IDS, card_table
 from ptcg.decision.boss_orders import _ADJUST_GUST_NUISANCE, _ADJUST_GUST_OFFENSIVE, _RULES_GUST_NUISANCE, _ctx_gust_target
 from ptcg.decision.disruption import _stamp_pendiente, _xr_cap_lost_if_discarded
@@ -124,6 +124,7 @@ def score_play(tc, o, score):
     _op_counter_threat_vs = tc._op_counter_threat_vs
     _our_first_action_turn = tc._our_first_action_turn
     _ko_front_outranked = tc._ko_front_outranked
+    _cubchoo_ko_rotation_min = tc._cubchoo_ko_rotation_min
     _mp_cheaper_candidate = tc._mp_cheaper_candidate
     _mp_front_survivors = tc._mp_front_survivors
     _mp_last_stand = tc._mp_last_stand
@@ -1366,6 +1367,44 @@ def score_play(tc, o, score):
                             and callable(_ko_front_outranked)
                             and _ko_front_outranked(card)):
                         score -= PROMO_KO_FRONT
+
+                    # THE FRONT SPOT UNDER A LOCK THAT MUTES IT (user,
+                    # registro_010 step 81, episode 93149196 vs a Cubchoo stall
+                    # deck, WON). The rule right above orders the knockers by who
+                    # OUTLIVES whom, and against this deck that question is
+                    # empty: *Snotted Up* does 10, everybody outlives it, so the
+                    # seat went to the body with the most HP. The seat's real
+                    # price here is MOBILITY. The lock mutes whatever is in
+                    # front, so the body promoted today is the body that has to
+                    # buy its way out tomorrow, and it pays in whole Grass cards.
+                    #
+                    # On that board two of ours finished the same 70 HP Cubchoo
+                    # -- a Hydrapple ex at 330/330, retreat 3, and a Teal Mask
+                    # Ogerpon ex at 210/210, retreat 1 -- and the HP tie-break
+                    # handed the seat to the Hydrapple by 1272 points: the same
+                    # prize today, three times the fee tomorrow.
+                    #
+                    # It completes the -300 thirty lines up, which reads the same
+                    # matchup one question short: that one demotes a body that
+                    # CANNOT pay its retreat, and the Hydrapple could pay -- with
+                    # two of the four Grass cards on our field.
+                    #
+                    # `_cubchoo_ko_rotation_min` is the cheapest retreat among
+                    # the bench bodies that knock out, the SAME number the
+                    # retreat that gets us here was priced with
+                    # (`_cubchoo_mute_rotates` in agent()): the decision that
+                    # pays for the pivot and the decision that spends it must not
+                    # be able to disagree about which body it was for. A penalty
+                    # on the dominated knocker and never a bonus, so it reorders
+                    # inside the +20000 band and can never promote a body that
+                    # takes no prize.
+                    if (isinstance(card, Pokemon) and score > 0
+                            and _promo_op_act is not None
+                            and _cubchoo_ko_rotation_min is not None
+                            and _promo_kos_op(card)
+                            and RETREAT_COST.get(card.id, 1)
+                            > _cubchoo_ko_rotation_min):
+                        score -= PROMO_KO_ROTATION
 
                     # THEIR MATCH POINT, READ WITH THE ATTACK'S REAL SCALE
                     # (self-play mirror, game 90 turn 17; see
