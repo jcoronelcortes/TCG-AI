@@ -24,6 +24,31 @@ measurement tooling can do what it does:
 | `battle.py` | A battle as an **object**, so one process can run several. `game.py` keeps the whole battle in module state — `Battle.battle_ptr` in `sim.py` is a class attribute, so starting a second game overwrites the first. That was a limit of the *Python wrapper*, never of the engine: every C entry point already takes the pointer as its first argument, and two concurrent battles return two distinct pointers and play without interfering. This is what `--jobs` stands on. It adds the handle without touching `game.py`, which some twenty tools and tests import. |
 | `build_local_engine.sh`, `engine_patches/` | The **seeded** build. The shipped binary sets `deviceRand = true`, so every shuffle and both coin paths draw from a fresh `std::random_device` and the seed is ignored — games cannot be replayed. The patches add a seeded entry point; `utils/local_engine.py` loads the result, and rule R11 keeps it away from anything we submit. |
 
+### The Search API — the engine will play the game forward for you
+
+The vendored wrapper exposes an entry point nothing used for months: given an
+observation and a **determinization** of the hidden information, the engine will
+run the game to its end. `utils/search_oracle.py` is built on it, and it is what
+lets a decision be graded against the rules rather than against another
+heuristic — see [The instruments](instruments.md).
+
+Four properties of it, each of which changed how the tool around it is written:
+
+- **a full rollout to game end costs about 9.3 ms**, roughly 143 steps, so
+  grading two options at K=100 is under two seconds per decision;
+- **the prizes are unknowable even to their owner.** A seat's own prize cards
+  come back `None` in that seat's observation, so any determinization is part
+  omniscient (the hand, if you hold both sides) and part **sampled**;
+- **`search_begin` accepts a determinization that does not add up.** It validates
+  only that a zone holds fewer cards than its count, so *too many* is silently
+  tolerated. Close the arithmetic per seat yourself and raise;
+- **it is not seeded**, so a search is an estimator and not a replay. The same
+  option graded twice disagrees with itself, and the disagreement is the floor
+  any verdict has to clear.
+
+It reads the opponent's hand, which is why it can never become a play-time
+policy: it is a grader for games we already hold both sides of.
+
 ## The two things worth understanding
 
 **The decision context tells you what is being asked.** The same agent function
@@ -80,7 +105,8 @@ above were settled, and it takes minutes.
 | `deck/real_opponents/` | The measurable meta: 87 real leaderboard lists, deduplicated and screened for whether the generic bot can pilot them, plus `pesos.csv` giving each list its meta frequency, its archetype and how many cards it shares with our own sixty. Lists the bot cannot pilot go to `no_pilotables/` — not a failure, but the part of the meta the harness cannot measure yet. |
 | `deck/real_opponents_2026-08-07/` | The corpus this one replaced, kept rather than deleted. A finding is only reproducible while the list it was written against exists, and a rebuild moves sixty of them. `utils/corpus_bridge.py` carries a finding across the gap. |
 | `deck/opponents/` | Hand-built synthetic archetype decks, kept for exercising mechanics the current meta does not offer (item lock, mill). No longer the default target of the matchup matrix. |
-| `competitor_decks/` | The raw download: 60-card lists from the top of the leaderboard, plus an index classifying each by archetype, position and score. **300 files, 88 distinct decks** — see below. |
+| `deck/real_opponents_500/` | **The current corpus**: the 12 August top-500 sweep, 133 admitted lists. Git-ignored because of its size, so tools want an absolute path to it. It carries three weight files rather than one — the field, the top-100 and an allocation column that is *not* a meta model. See [Matchups](matchups.md) for why both weightings are always reported. |
+| `competitor_decks/`, `competitor_decks_500/` | The raw downloads: 60-card lists from the top of the leaderboard, plus an index classifying each by archetype, position and score. The top-300 sweep is **300 files, 88 distinct decks** — see below; the top-500 one is 500 files, 135 unique lists, one of which is 32.4 % of the whole field. |
 
 ### The top-300 is 88 decks, and `deck/real_opponents/` already is them
 

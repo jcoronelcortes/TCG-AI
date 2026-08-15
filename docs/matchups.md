@@ -41,13 +41,79 @@ another, so most of them are gated on these flags.
 | **Dragapult** | Item lock. Our search cards stop being playable. | Spend the search **before** the lock, digging for what we will play next turn. |
 | **Mega Lucario / Mega Lopunny / Mega Kangaskhan / Mega Starmie** | High-prize attackers that kill our ex bodies in one hit. | Trade with one-prize bodies; pivot the fragile ex out. |
 | **Mega Starmie**, specifically | The body they show is a 70 HP Staryu that threatens nothing; the body it becomes prints **Nebula Beam 210**, the exact HP of our Teal Mask Ogerpon ex. The damage projector only ever sees Jetting Blow (120), because three energies is more than a Staryu with one can pay — so no "is my active doomed?" reading fires in time. | Named as a **matchup**, not as an arithmetic threshold: on **our first turn**, with no attack available and a 2-prize ex in front, retreat it and put a one-prize body up (`STARMIE_SAC_PROMOTE_ORDER`). Bounded to the opening — see below. |
-| **Comfey (mill)** | Wins by decking us out rather than on prizes. | Stop spending draw, commit to a single attacker plan. |
+| **Comfey (mill) / Chandelure** | Wins by decking us out rather than on prizes — **and buys a wall that is not on the board.** Acerola's Mischief makes one of their bodies immune to our ex for one turn, on a precondition ("2 or fewer Prize cards remaining") that lands it exactly on the turns that end the game. | Stop spending draw, commit to a single attacker plan; and read the shield off the `PLAY` log of their turn, pinned to a **serial**, so the answer is to gust the protected body away. See [Strategy §12.3](strategy.md). |
+| **Mesprit / Uxie / Azelf (Neutralization Zone)** | A bench of 70 HP bodies with no Rule Box under a stadium that makes every ex of ours do zero to them. The wall is the *absence* of something, so it comes and goes with their promotion. | Route the energy to a non-ex that can still take a prize — the Meganium line above all. See [Strategy §12.2](strategy.md). |
 | **Iron Thorns / ability lock** | Turns off our engines entirely. | Play around the lock and treat it as a deck-size limit, not an ability question. |
 | **Festival Lead** | 4.3% of the field across 11 lists, and several of them are near-copies of our own sixty. The shared stadium that evolves for free arms *both* sides. | We beat it 97.5%. The rule worth knowing is that the stadium they brought also arms our Dipplin. |
 | **Team Rocket Mewtwo** | New in the August corpus: 5 lists, 2% of the field. | No dedicated plan; 95.3% on the general machinery. |
-| **Cynthia Garchomp, Archaludon, Zoroark, Gardevoir, Greninja, Raging Bolt, Abomasnow, Chandelure…** | Individually rarer. | Targeted rules only where they were measured to matter. |
+| **Mega Lopunny / Mega Froslass** | Their Froslass drips a damage counter onto **every** Pokémon with an ability at each checkup — including their own Grimmsnarl ex, which is why the drip is also *ours* to count. | Count the checkups into the HP the attack has to cover ([Strategy §2.1](strategy.md)). Its remaining losses are **starvation, not misplay** — 12 000 games per arm put the code's contribution at ±0.1 pp. |
+| **Archaludon** | A body big enough that our answer to it is a single charged ex, which their pile then makes a match-point target. | The match-point veto yields to a finisher that can pay its own retreat: their blow arrives a turn of ours later, so a body that can step aside is not there to receive it. |
+| **Cynthia Garchomp, Zoroark, Gardevoir, Greninja, Raging Bolt, Abomasnow…** | Individually rarer. | Targeted rules only where they were measured to matter. |
 
-## Where we stand (11 August 2026)
+## Where we stand (14 August 2026)
+
+Measured against the **500 leaderboard decks** harvested on 12 August
+(`deck/real_opponents_500/`, 133 admitted lists carrying their meta weight), with
+the seeded engine and the game budget spread by meta share:
+
+| Weighting | Ladder winrate | Prize differential | Lists carrying weight |
+| --- | ---: | ---: | ---: |
+| **The field** (all 500) | **95.4 %** ±0.17 | +4.172 | 133 |
+| The field, on the 13 Aug list | 94.50 % ±0.19 | +4.063 | 133 |
+| The top-100, on the 13 Aug list | 95.81 % ±0.25 | +4.179 | 38 |
+
+**We do better at the top of the ladder than in the field**, which is not a
+paradox: the field is weighted toward the two matchups we struggle in, while the
+top-100 is weighted toward decks we beat almost freely. Climbing and holding are
+different problems, and a field average quietly answers the second one. Both
+weightings are reported for every headline; `utils/top100_weights.py` builds the
+second one and `utils/reweight_matrix.py` applies it to a saved run without
+replaying a game.
+
+**Two things moved on 13–14 August and they are measured apart.** `deck.csv`
+changed (−1 Tapu Bulu, −1 Night Stretcher, +1 Poké Pad, +1 Basic Grass) and the
+day shipped thirteen rule commits. The four cards are worth **+0.59 pp
+[+0.34, +0.84]** and the thirteen commits a further **+0.36 pp [+0.10, +0.63]** —
+never added together, because they were measured in three arms for exactly that
+reason.
+
+The two hard matchups, and they are hard the same way. These rows and everything
+below them were measured on the **13 August** list, so the winrates move a little
+with the four cards above and the ranking does not:
+
+| | Field share | Winrate | Prizes | Going first | Going second | Seat gap |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| **crustle_wall** | 8.23 % | **80.0 %** | **+2.32** | 83.2 % | 76.8 % | **+6.4 pp** |
+| **ogerpon_verde** | 6.22 % | **85.4 %** | **+2.14** | 88.1 % | 82.8 % | **+5.3 pp** |
+| *everything else* | — | 92–99 % | +2.7…+5.3 | — | — | ≈ +1 pp |
+
+Lowest winrate, lowest prize differential and the largest seat dependence are
+**the same two archetypes on all three axes**: these are the matchups where the
+game is decided by tempo, and tempo is what the seat buys. Where the winrate is
+saturated the seat is worth about a point; where the game is contested it is
+worth five or six. Which of the two to work on depends on the goal — Crustle Wall
+is the field's biggest leak and nearly absent from the top-100 (8.23 % → 2.02 %),
+while **Ogerpon Verde does not shrink** (6.22 % → 6.06 %) and is the top-100's
+biggest leak.
+
+**Zero forfeits in 53 181 games**, including the ~26 590 games' worth of
+`we_go_first == True` branches that no self-play had ever executed before the
+seat policy reversed.
+
+**What the 500 decks bought, and what they did not.** The same code against the
+old 87-list corpus and the new 133-list one reads 94.6 % / +4.063 and 94.50 % /
++4.063 — the headline did not move and the prize differential is identical to
+three decimals. For *how good are we*, the 500 bought a slightly tighter
+interval and nothing else, and no past verdict needs relabelling on corpus
+grounds. For *what should we work on*, it changed the answer: the old corpus did
+not under-measure Crustle Wall, it **fragmented the archetype** across too few
+lists to see its total weight.
+
+The full playbook, including how to pilot each matchup, is
+[Playbook against the meta](playbook-vs-meta-2026-08-13.md) — read its own
+superseded-in-three-places banner first.
+
+### The previous reading (11 August 2026), kept for comparison
 
 Measured against the **87 real leaderboard decks** in `deck/real_opponents/`,
 rebuilt from the 9 August top-300 harvest, 400 games per matchup, weighted by how
@@ -95,7 +161,11 @@ as the only other attacker. Against those lists `utils/healing_census.py` report
 that a large majority of the damage we deal is healed back before it becomes a
 prize; on the worst list of the previous corpus it was **83%**.
 
-### Reading the table
+#### Reading that table
+
+The conclusion below survived the corpus rebuild — Crustle Wall is still the
+biggest leak, and the archetype-level aggregation of the 500 made it *larger*,
+not smaller.
 
 **Crustle wall is the real weakness, not Marnie.** Marnie is 36% of the field
 and we beat it 98%. Crustle is 10% and we win 77%. Three independent signals
@@ -172,6 +242,10 @@ decided inside a single run. 800 games per deck, six decks:
 And then the weighted matrix said no. At matched n over the 87 real lists, the
 same flag is worth **+1.0 point unweighted and +0.2 weighted**, with the prize
 differential moving +3.882 → +3.998.
+
+Re-measured on the list of 14 August the seat is worth **+1.04 pp ±0.37**, half
+of the +2.08 pp ±0.37 the previous list read — two intervals that do not
+overlap. The direction is unchanged and so is the reading below.
 
 Both readings are the same fact from two directions, and it is the one this
 project keeps having to relearn: **the gain is real and the meta does not contain

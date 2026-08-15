@@ -49,10 +49,18 @@ Two corollaries the same period produced:
   to any rule measured exactly zero — and in this project neutral orders a
   revert. It is now **R7** in the architecture lint: a `utils/gate_*.py` that
   loads two arms must define **and call** `provenance()`.
+- **A control arm that cannot run the measurement is not a control arm.** On
+  15 August a test was red on `main` and a worktree at the previous commit
+  reported it green — because `records/` is git-ignored, the worktree had no
+  records, the test skipped itself, and `1 skipped` in a summary line reads
+  exactly like a pass. With the records copied in, the "good" commit failed
+  identically and the regression turned out to be a *new board*, cut into the
+  corpus by a tool hours earlier. Before believing a green control, check that
+  its stage actually ran.
 
 ---
 
-## The four questions, and what answers each
+## The five questions, and what answers each
 
 ### 1. "Does this situation even happen?" — the censuses
 
@@ -74,6 +82,15 @@ cent of decisions. A census is minutes; 200 games is not.
 | `duplicate_protection_audit.py` | Menus where two copies of a card came out with the same "this is our only out" score. |
 | `blind_window_census.py` | Per guard, how much of the turn it **cannot see**. A rule opening with `not state.supporterPlayed` arbitrates until the slot is spent and is unreachable afterwards; a guard near 100% blind is dead code that reads like a live rule. |
 | `tier_inversion_census.py` | Every menu where an **order** beat a **number** — the one line in the project where a category decides before a value. Load-bearing and, on the day it was written, the source of two separate defects. |
+| `sterile_turn_census.py` | Turns that ended **without attacking** while a line that attacked was available. It exists because the winrate cannot arbitrate turn quality against a saturated bot, and because its sibling `turn_waste_census.py` had exhausted the other axis: the agent is not leaving resources unspent, so what is left to gain is *which* legal, scored play it picks. This one counts outcomes, and it reads "did it attack" off the engine's own log rather than off the agent. |
+| `tie_census.py` | Where the agent's own scorer says it has no opinion — the top two options sharing a tier with scores within ε — so the rules oracle can be pointed at the population that most deserves it. |
+
+Since 14 August a candidate rule usually arrives with a **census of its own**,
+named after the rule (`census_the_last_bridge_is_not_fodder.py` and its
+siblings). It wraps the very predicate the rule adds and counts how often it
+would fire per game, on lists that carry the card and on lists that cannot — the
+second half is what shows there is no leakage. That number is what decides
+whether a winrate-neutral change is worth shipping at all.
 
 A zero from a census is a statement about the **workload**, not only about the
 rule. The rule census at three loads makes that visible: 120 rules never fire
@@ -140,6 +157,52 @@ per candidate rule. What to know before trusting one of their numbers is in
 them is in [Matchups](matchups.md) — **every figure recorded before August 2026
 describes the going-second half of the game, because the reference bot took the
 first turn; since our agent stopped declining it, the seat splits ~50/50.**
+
+### 5. "Do the RULES agree?" — the rules oracle
+
+The newest class, and the only one here that does not grade the agent against
+another heuristic. `search_oracle.py` opens a search from a real observation,
+forces one option as the first selection, plays to the end under a policy and
+reports who won and by how many prizes. It arrived with phase D of
+[the engine-source plan](engine-source-plan-2026-08-12.md) on 14 August 2026 and
+immediately became the deciding instrument for a whole class of change.
+
+**Why it was needed.** Question 4 saturates. The reference bot loses about one
+game in twenty however we spend the turn, so a rule that throws away a knockout
+and a rule that cashes it measure the same, and a change that alters one decision
+in 3 685 cannot be separated from noise by any affordable number of games. Six
+neutral changes in a row in August 2026 were exactly that. The oracle answers a
+different question — *was this the better play under the rules?* — on the single
+board the rule was written from.
+
+**What using it looks like.** A per-rule `oracle_*.py` loads the tree twice with
+the switch rebound in one arm, replays both corpora, and every decision the two
+arms disagree on becomes a board: K rollouts per option, plus **a second batch of
+the same option at different seeds as that board's own noise floor**. A
+preference that does not clear its board's floor is not a preference. The family
+that exists today — the four promotion and wall readings of 14 August — is
+catalogued in [Tools](tools.md).
+
+**Four properties that are part of the instrument, not caveats around it:**
+
+- **it reads the opponent's hand and can never be a play-time policy.** It is a
+  grader for games we already hold both sides of; wiring it into `main.py` would
+  be cheating;
+- **it is an estimator, not a replay.** The API is not seeded, so the same option
+  graded twice disagrees with itself: at K=20 the worst pair of batches differs
+  by 30 pp, at K=50 by 8, at K=100 by 6. Use K≥50, quote the worst floor, and
+  read the **prize margin** before the win flag;
+- **K is a resolution setting, not a cost setting.** The rarest of the promotion
+  rules had both options winning 100/100 at K=100 — the board saying nothing —
+  and separated only at K=500;
+- **it is blind to anything that does not change a number.** The shield that
+  makes our attacks do zero moves no HP, so the differential detectors miss it by
+  construction and the oracle's own verdict is what carried it. Knowing *which*
+  instrument can see a defect is part of proposing the rule.
+
+A change graded this way ships marked: **neutral in winrate, positive under the
+rules, with a census showing the population is real.** All three halves are
+required — the oracle grades one board, and one board is not a population.
 
 ---
 

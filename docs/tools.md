@@ -187,6 +187,34 @@ from one carried by all — and the delta **aggregated by archetype**, which is
 the view that ranks: twenty Crustle lists moving +1 each is a finding, twenty
 rows of +1 at 0.2 % weight is not visibly anything.
 
+### `reweight_matrix.py` and `top100_weights.py` — the same run under a second meta
+
+```bash
+python utils/top100_weights.py --corpus deck/real_opponents_500 --top 100
+python utils/reweight_matrix.py log/.../matrix.txt
+```
+
+The expensive part of the matchup matrix is the per-matchup winrates; the
+weighted summary on top of them is arithmetic, so a second meta model costs
+nothing. `top100_weights.py` writes the weights of the **top of the leaderboard**
+beside the field ones, because the two are different metas: positions 1–100 are
+Marnie 21 %, Lopunny/Froslass 16 %, Alakazam 15 %, Dragapult 14 %, while
+positions 401–500 are Marnie 42 %, Alakazam 14 %, Crustle 13 %, Dragapult 5 %.
+With 400 of the 500 rows below position 100, a field-weighted average quietly
+answers "how well do I beat the players I already outrank".
+
+It writes three files. `pesos_top100.csv` and `pesos_campo.csv` sit side by side
+so a report can never be ambiguous about which weighting it used; the third,
+`pesos_alloc.csv` (per-list max of the two, renormalised), is **not a meta model
+and must never be used as a summary** — it exists to spread the game budget.
+
+`reweight_matrix.py` then re-reads a saved matrix and prints it under every
+`pesos*.csv` beside the corpus, plus the one summary the matrix cannot produce:
+the **seat split aggregated across the meta**, which is what says whether going
+first is worth anything at all rather than against one deck. Its interval assumes
+the matchups are independent (they are) but does **not** include the uncertainty
+of the weights themselves.
+
 ### `holdout_classify.py` — what the 370 unlabelled extras are
 
 ```bash
@@ -241,6 +269,22 @@ how we lost — prizes, bench-out, deck-out.
 python utils/autopsy.py --opponent deck/real_opponents/<deck>.csv --games 40
 python utils/autopsy.py --census ...        # census with a control group
 ```
+
+**A missed lethal is not a finding until the price of cashing it is read.** The
+`letal_perdido` detector used to report every knockout the turn declined, which
+put boards at the top of a worklist that the agent was right to decline: taking
+the prize from the front leaves a body their reply removes, and if those are
+their last prizes the "missed" lethal loses the game. Each hit now carries
+`entrega_la_partida`, and the reading it uses is the one the agent itself uses —
+**the reply comes off the body they promote, not off the corpse.** The knockout
+being priced *removes their active*, so on three of the four boards on disk the
+old reading asked what a body on its way to the discard would do; with the
+promotion read instead, all four turn out to hand the game over.
+
+A trap worth knowing if you extend it: the projection needs complete cards and a
+complete player state, and without them it **raises inside the detector**, which
+swallows the exception and answers with the poorer reading. A fixture that cannot
+be parsed makes a detector look conservative when it is simply blind.
 
 **40 games collects records; it does not compare matchups.** At that size the
 winrate swings enormously: two 60-game runs on a matched pair of Crustle lists
@@ -546,6 +590,49 @@ neither in play nor in hand) — the energy leaves and the dead card stays. On t
 frozen corpus: **12 of 118 discard menus**, five of them dropping the last energy
 in hand.
 
+### `sterile_turn_census.py` — turns that ended without attacking
+
+```bash
+python utils/sterile_turn_census.py --games 200 --opponent deck/real_opponents/<deck>.csv
+```
+
+The number that **moves when turn quality moves**, which the winrate does not:
+the bot loses about one game in twenty however we spend the turn, so a rule that
+throws away a knockout and a rule that cashes it measure the same. Six neutral
+changes in a row in August 2026 were exactly that.
+
+It is deliberately not what `turn_waste_census.py` already exhausted. That one
+counts resources **offered and declined** and its own docstring records the
+negative result — the agent is not leaving resources unspent, and three rules
+written on that axis came back neutral. This one counts **outcomes**: did the
+turn end with an attack, and if not, was there a line that attacked? "Did it
+attack" is read off the engine's own log (a `type: 15` entry with our
+`playerIndex`), not off the agent, because the frozen corpus stores observations
+without actions.
+
+### `tie_census.py` — where the scorer has no opinion
+
+```bash
+python utils/tie_census.py
+```
+
+D2 of phase D, and the cheapest first job for the rules oracle: it does not have
+to replace the scorer, it only has to break the ties the scorer cannot. A tie
+here is **the top two options sharing a tier with scores within ε** — the tier
+decides first, so two options in different tiers are not tied however close their
+numbers are.
+
+Two bounds it prints with every result, both inherent to the corpus it runs on:
+the corpus keeps **one seat's** observations, so the opponent's hand is sampled
+rather than read and every grade is against a legal world rather than the true
+one; and the corpus was played with the list of before 14 August, so the replay
+runs under **that** list.
+
+Its verdict on 240 of 279 ties: the scorer says they are worth the same and the
+rules agree — the ties are ties. The one class with an opinion is the axis that
+was measured neutral and reverted, and three independent populations say the
+revert was right.
+
 ### `permutation_probe.py` — does the menu's order decide?
 
 Plays games with two agent instances: the driver sees the real menu, the shadow
@@ -661,6 +748,48 @@ Read the entry below with this one: the differential oracle is **blind to this
 defect by construction**, because it attributes a prediction to the body whose hp
 changed and an attack the shield zeroes changes nothing.
 
+### The rest of the oracle family, and their gates
+
+Same file, a different switch each time. Listed with what each one measured, so
+the pattern's range is visible without opening five near-identical scripts:
+
+| Pair | The switch, and what its evidence looked like |
+| --- | --- |
+| `oracle_the_cap_waits_for_an_inflated_hand.py` | The hand-cap's floor. Notable as the run where **the oracle killed the hunch it was built to test**: the record's own board graded inside its own noise floor. |
+| `oracle_the_cap_cashes_a_dying_slot.py` | The cap that was being saved for a hand we do not own. The slot dies with the turn, so tomorrow's price is theirs: neutral in winrate, **+12 pp** under the rules. |
+| `oracle_their_own_drip_finishes_the_body.py` | Freezing Shroud counted on both sides of the table. **77/100 against 56/100**, prize margin +1.00 against −0.78, over a per-board floor of 4 pp / 0.25. One flip in 3 687 corpus decisions. |
+| `oracle_the_stadium_that_mutes_our_ex.py` | Neutralization Zone. The one case where the oracle **argues with the shipped choice** rather than confirming it: 3–3, with no real opposing list available. It shipped on the census instead (3.10–10.75 mute readings per game on the five lists that get the card down, exactly 0 on the three that never do). |
+| `gate_the_seat_unlocks_its_charge.py` | The promoted body's own Teal Dance. Corpus 1 flip in 79, census 0.23 per game, gate +0.00 pp against a 0.00 floor. |
+| `gate_the_lock_charges_the_rotation.py` | The anti-Cubchoo exemptions read by rotation cost rather than by card ID. 6 corpus flips, all inside the episode it came from. |
+| `gate_the_last_bridge_is_not_fodder.py` | The evolution bridge a cost may not eat. The one entry here whose **winrate half came back negative and is recorded rather than hidden**: the split refutes the loss the first row showed, so it entered marked NEUTRAL. |
+| `gate_the_grass_goes_to_the_body_that_needs_it.py` | The three readings of "the turn that takes the prize leaves nothing ready for the next one", measured together because they are one turn. Its `--control` plays the flags **against themselves**, so any candidate row smaller than the control row is noise. |
+| `census_the_dwebble_the_gust_may_not_take.py` | A rule that was **not** written. See below. |
+
+A note on the arms, from the gate above: the flags are constants imported **by
+value** into the module that reads them, so rebinding them on `ptcg.cards.ids`
+changes nothing. Each one has to be set on its consumer, reached through the
+`__globals__` of a function that arm exported — the arm's own namespace, not the
+ambient one.
+
+### `census_the_dwebble_the_gust_may_not_take.py` — scoping a rule instead of writing one
+
+```bash
+python utils/census_the_dwebble_the_gust_may_not_take.py --games 200
+```
+
+The shape worth copying: **a census whose job is to close a question, with its
+criterion written before it runs.** A lost game showed a turn ending in `END`
+with nine cards in hand, behind a 400 HP body nothing of ours can dent, while a
+70 HP Dwebble on their bench was a prize a gust would have taken — and the gust
+was vetoed, because the exclusion of the Dwebble as a target is deliberate and
+unconditional.
+
+Rather than argue with the veto, the census scoped the board it was not written
+for. The strict criterion — a turn **closed with END**, a removable Dwebble, no
+prize in front — reads **0.03 and 0.01 per game** across two Crustle lists,
+fifteen to fifty times under the 0.5 it was written against. Nothing shipped, and
+a question open since 12 August is closed.
+
 ### `differential_oracle.py` — what the plan predicted vs. what the engine resolved
 
 The agent's attack plan states, before the attack, what it expects to happen. The
@@ -722,6 +851,7 @@ using: it asks whether the test you just wrote watches the code you just wrote.
 | Tool | Purpose |
 | --- | --- |
 | `download_competitor_decks.py` | Downloads the exact 60-card lists of the top leaderboard competitors from their public replays. Resumable. `--top 100` |
+| `download_player_games.py` | The other direction: takes **one** leaderboard player and saves the full log of every public game they have played, so their games can be read turn by turn. A team's two submissions are not the same agent, so both are swept and the episodes deduplicated by id. Writes `episode-<id>-replay.json` plus an `index.csv` (date, seat, opponent, result) per player, and is resumable. `--player ANDPAD` |
 | `real_opponents.py` | Turns those lists into *measurable* opponents: deduplicates them (300 decks are ~93 unique lists), keeps each one's meta weight, and screens out lists the generic bot cannot pilot — an unpilotable list measures the bot getting stuck, not the matchup, and returns a falsely high winrate. It also marks the lists that are near-copies of our own 60 (`solape_propio` in `pesos.csv`): the bot pilots those legally but pilots *our* engine, badly, so they read as a matchup we dominate. They are kept, because people play them, and flagged so the aggregation can report the field with and without. |
 | `build_meta_decks.py` | Hand-built synthetic archetype decks, for mechanics the real meta does not currently offer. |
 | `harvest_opponent_deck.py` | Rebuilds a plausible 60-card opponent list from what was visible in local game records. |
@@ -738,6 +868,7 @@ using: it asks whether the test you just wrote watches the code you just wrote.
 | `log_replay.py` | Replays a recorded game through the agent and compares its choices with what was actually played. `--verbose`, `--interactive`, `--max-items N` |
 | `split_turns.py` | Splits a game log into one record per turn, into `records/`. Takes no arguments. |
 | `record_corpus.py` | Records fresh games against the real leaderboard decks, in the same format, so the golden corpus can be regenerated without depending on downloaded replays. |
+| `diag_the_reading_spread_step098.py` | The worked example of **why a corpus test went red**, kept as a script rather than a paragraph. It asks three questions in the order that lets each one close the file on its own: is it the list the record was played with, is it a board somebody has read, and is the new decision actually worse? Its own first answer was wrong, and the script says so — see [Testing](testing.md) on the control worktree that had no records. |
 
 See [Debugging a decision](debugging.md) for how these fit together.
 

@@ -48,7 +48,7 @@ If you are here to read the agent rather than to run it, start with
 
 ```bash
 python -m pip install -r requirements-dev.txt   # test runner only; the agent needs nothing
-python -m pytest -q                             # run the test suite (~2 440 tests, ~23 s)
+python -m pytest -q                             # run the test suite (~2 865 tests, ~25 s)
 python tests/golden_corpus.py                   # replay the frozen games: which decisions moved
 python utils/selfplay.py --games 100            # play 100 games locally
 python utils/package_project.py                 # build submission.tar.gz

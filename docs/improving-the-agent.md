@@ -87,7 +87,9 @@ Run the gates in this order — cheapest first.
 | Golden corpus | `python tests/golden_corpus.py` | **Which historical decisions your change flipped**, with an explicit diff. |
 | Mutation of your own lines | `python utils/gate_mutation.py --changed HEAD~1` | Whether the test you just wrote watches the code you just wrote. |
 | Self-play | `python utils/selfplay.py --games 200 --base HEAD~1` | Does it win more games than the previous version. |
+| A census for the rule | `python utils/census_<your_rule>.py` | **How often the board even happens** — per game, on lists that carry the card and on lists that cannot. Cheaper than every row below it, and the row that most often ends the exercise. |
 | A two-arm gate for the rule | `python utils/gate_<your_rule>.py` | The same, with the change as the *only* difference between the arms — and a control the rule cannot fire against. |
+| A rules-oracle grade | `python utils/oracle_<your_rule>.py --k 100` | Whether the rules agree, on the board the rule was written from — the only instrument here that does not grade the agent against another heuristic. Quote the board's own noise floor with the verdict. |
 | Matchup matrix | `python utils/matchup_matrix.py --games 400 --weights --base <ref>` | Whether a gain in one matchup is paid for by a loss in another. |
 | Equivalence (refactors only) | `python utils/shadow.py <before.py> <after.py>` | A refactor that was supposed to change nothing but did. |
 
@@ -98,9 +100,19 @@ order the dependencies want and writes a report.
 
 - **First measure whether the decision changed at all.** If the agent picks the
   same options as before, no winrate result is meaningful — you measured noise.
-- **Neutral gets reverted.** A change that does not move the needle is removed,
-  unless it corrects a value that was demonstrably *wrong* (an illegal cost, a
-  misread HP). Neutral-but-correct is kept; neutral-and-speculative is not.
+- **Neutral gets reverted, with one documented exception.** A change that does
+  not move the needle is removed, unless it corrects a value that was
+  demonstrably *wrong* (an illegal cost, a misread HP). Neutral-but-correct is
+  kept; neutral-and-speculative is not. Since 14 August 2026 there is a third
+  case: a change too **rare** for the winrate to resolve at any affordable N may
+  ship if a census shows the population is real *and* the rules oracle grades it
+  positive over that board's own floor. It ships marked NEUTRAL, so it stays a
+  candidate for reversal instead of becoming folklore. The three requirements are
+  in [Contributing](../CONTRIBUTING.md).
+- **A control arm that cannot run the measurement is not a control arm.** A
+  worktree at the previous commit has no `records/` — the folder is git-ignored —
+  so the local-corpus tests skip themselves and report green. Copy the records in
+  before you trust a baseline.
 - **Sample size decides what you can see.** At 200 games a matchup delta swings
   several points on noise alone. Only large, consistent deltas are signal.
 - **The opponent must be able to execute the mechanism you are testing.** If the
