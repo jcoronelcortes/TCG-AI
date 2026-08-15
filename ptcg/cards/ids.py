@@ -163,6 +163,10 @@ Lillie_Determination = 1227
 Boss_Orders = 1182
 Lanas_Aid = 1184
 Xerosic_Machinations = 1197
+# Acerola's Mischief (1228): their Supporter that switches OUR ex off for one
+# turn, on one body of their choosing. See `OP_EX_SHIELD_IDS` below for what it
+# says and why it cannot be read off the board.
+Acerolas_Mischief = 1228
 
 Dawn = 1231
 Bug_Catching_Set = 1094
@@ -773,6 +777,30 @@ CRUSTLE_LINE_IDS = {Crustle_Grass, Crustle_Fighting,
 
 
 ABILITY_IMMUNE_IDS = {Cornerstone_Mask_Ogerpon_ex}
+
+# THE WALL THEY PLAY OUT OF THEIR HAND, FOR ONE TURN, ONTO ONE BODY.
+# Acerola's Mischief (1228): "You can use this card only if your opponent has 2
+# or fewer Prize cards remaining. Choose 1 of your Pokemon in play. During your
+# opponent's next turn, prevent all damage from and effects of attacks done to
+# that Pokemon by your opponent's Pokemon ex."
+#
+# It is the FOURTH shape of a wall this agent already knows -- Crustle
+# (`EX_IMMUNE_IDS`), Cornerstone (`ABILITY_IMMUNE_IDS`) and Neutralization Zone
+# (the missing Rule Box, `_nz_mutes_our_ex`) -- and the only one that is not on
+# the board at all. Nothing in the observation says it is up: not a stadium, not
+# a tool, not an ability on the body it protects. The ONLY evidence is the PLAY
+# log of their turn, which is why the reading lives on `AgentState` and not in a
+# table (`_op_ex_shield_serial`, main.py).
+#
+# Its own text says when it arrives: at 2 prizes or fewer it is legal, so it
+# lands exactly on the turns where the game is one knockout from over -- which
+# is what makes a turn spent swinging into it the most expensive turn there is
+# (user, episode 93163758 turns 13-19 vs Comfey/Chandelure, LOST at ONE prize).
+#
+# A set and not an `==` because the sentence is a card family, not a card: the
+# tables of ids in this file rot silently and `utils/op_immunity_census.py` is
+# what finds the next one.
+OP_EX_SHIELD_IDS = frozenset({Acerolas_Mischief})
 
 OUR_ABILITY_IDS = {Teal_Mask_Ogerpon_ex, Hydrapple_ex, Meganium, Fezandipiti_ex, Meowth_ex, Dipplin}
 
@@ -1600,6 +1628,46 @@ DISCARD_BODY_WITHOUT_SEAT = 46
 # their Xerosic comes back every turn and the hand it cuts is the hand that was
 # supposed to draw one.
 DISCARD_CF_HAND_RECYCLER = 60
+
+# --- THE HAND THEIR CAP LEAVES US HAS TO HOLD THE ANSWER TO THE SHIELD -------
+# (user, August 2026, episode 93163758 vs Comfey/Chandelure -- LOST at one
+# prize.) The same deck runs both halves: Xerosic's Machinations cuts our hand
+# to three, and Acerola's Mischief (`OP_EX_SHIELD_IDS`) switches our ex off for
+# the turn that follows. The Comfey ladder above prices a hand for the DECK-OUT
+# race and knows nothing about the second half, so it sent Boss's Orders, the
+# Applin and the Dipplin to the generic bucket (850, first out) and KEPT the
+# Teal Mask Ogerpon ex at 120 -- the exact inverse of the turn that was coming.
+#
+# Under the shield the hand splits in two by one question: CAN THIS CARD PUT
+# DAMAGE ON THEIR BOARD NEXT TURN?
+#
+#   * Boss's Orders can, and cheapest of all: the shield is pinned to ONE body,
+#     so gusting up any other one leaves our ex free to knock it out with
+#     nothing else spent. It is the only card here that answers the shield
+#     without building anything, which is why it sits at the top of the keeps,
+#     just under the mill recycler that answers the other half of their plan.
+#   * the Applin and the Dipplin can: the card silences our ex and says nothing
+#     about anything else, and Do the Wave scales with OUR bench rather than
+#     with energy. That is the answer when the Boss's is not there.
+#   * our ex CANNOT. Every one of them reads zero into the shielded body, and
+#     each one benched is two prizes for a deck that only needs to stall.
+#
+# The three fodder rungs sit ABOVE the generic 850 so the cap eats them first,
+# in the order the user gave: the ex, then the stadium, then the search.
+DISCARD_SHIELD_MUTES_THE_EX = 900
+DISCARD_SHIELD_STADIUM_FODDER = 880
+DISCARD_SHIELD_SEARCH_FODDER = 860
+# ...and the two keeps, below the energy (80) and above the recycler (60).
+DISCARD_SHIELD_KEEP_THE_GUST = 70
+DISCARD_SHIELD_KEEP_THE_NONEX = 90
+
+# Their shield is legal only while WE hold this many prizes or fewer -- it is
+# printed on the card ("you can use this card only if your opponent has 2 or
+# fewer Prize cards remaining"), not a tuned threshold. Above it the shield
+# cannot come down on our next turn and the ladders that reorder a hand around
+# it have nothing to reorder.
+OP_EX_SHIELD_MAX_PRIZES = 2
+
 # --- FINISHER FISHING (see `_finisher_fishing`) ------------------------------
 # Lillie's Determination when the turn has no attack available and the draw may
 # bring the energy that unlocks a KO. It is placed above the whole Boss's ladder
@@ -1755,6 +1823,8 @@ __all__ = [
     'Boss_Orders',
     'Lanas_Aid',
     'Xerosic_Machinations',
+    'Acerolas_Mischief',
+    'OP_EX_SHIELD_IDS',
     'Dawn',
     'Bug_Catching_Set',
     'Ultra_Ball',
@@ -1994,6 +2064,12 @@ __all__ = [
     'XEROSIC_SCORE_GENERIC',
     'XEROSIC_SCORE_LAST_RESORT',
     'XEROSIC_SCORE_SOBRE_BOSS',
+    'DISCARD_SHIELD_MUTES_THE_EX',
+    'DISCARD_SHIELD_STADIUM_FODDER',
+    'DISCARD_SHIELD_SEARCH_FODDER',
+    'DISCARD_SHIELD_KEEP_THE_GUST',
+    'DISCARD_SHIELD_KEEP_THE_NONEX',
+    'OP_EX_SHIELD_MAX_PRIZES',
     'DISCARD_XEROSIC_CAP_IS_THE_ANSWER',
     'SUPP_SCORE_LAST_RESORT_BAND',
     'DISCARD_SUPPORTER_LIVE_KEEP',

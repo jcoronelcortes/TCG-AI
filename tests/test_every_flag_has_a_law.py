@@ -1,5 +1,10 @@
 """Sixteen boolean flags nobody had written a law for.
 
+(Seventeen since `op_has_ex_shield` joined the STICKY list in August 2026: it is
+matchup memory of exactly the shape the third bullet below describes -- their
+Acerola's Mischief leaves nothing on the board once its turn is over, so the
+only law that can be checked about it is that it never falls.)
+
 The invariant monitor watched three promises and printed, on every run, how many
 boolean flags on `AGENT_STATE` it could NOT watch. The number was **16**, and
 one of them was `we_go_first` -- the flag that the same night turned out to be
@@ -104,11 +109,11 @@ def test_the_sixteen_are_where_the_triage_put_them():
         "_op_prize_denial_pecharunt", "_op_prize_denial_gengar"}
     assert pegajosas == {
         "op_is_crustle_deck", "op_is_cornerstone_deck", "op_is_starmie_deck",
-        "op_has_mega_kangaskhan", "_cards_first_scan_done",
+        "op_has_mega_kangaskhan", "op_has_ex_shield", "_cards_first_scan_done",
         "_cards_prizes_identified"}
     assert set(SIN_PREMISA) == {
         "_xerosic_played_this_turn", "_ko_detected_this_turn", "ko_last_turn"}
-    assert len(espejos | pegajosas | set(SIN_PREMISA)) == 16
+    assert len(espejos | pegajosas | set(SIN_PREMISA)) == 17
     # and the three that already had one are untouched
     assert {n for n, _w, _p in PROMISES} == {
         "_ub_engine_pivot_turn", "_ub_meowth_pending", "_ub_fez_pending"}

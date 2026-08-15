@@ -641,6 +641,26 @@ both options win 100/100 and the board says nothing; at **K=500** it separates,
 **+1 pp / +0.17 margin** against a per-board floor of **0.07**
 ([the write-up](lucario-the-seat-the-search-completes-2026-08-14.md)).
 
+### `oracle_the_shield_they_buy_for_one_turn.py` — the wall that is not on the board
+
+```bash
+python utils/gate_the_shield_they_buy_for_one_turn.py --census
+python utils/oracle_the_shield_they_buy_for_one_turn.py --k 100
+```
+
+The same file once more with `OP_EX_SHIELD_ROUTING` as the switch: Acerola's
+Mischief pinning a shield on one of their Pokémon so that our ex do zero to it —
+damage and effects — for our whole next turn. Unlike the three above the board is
+**not rare** (50–94 mute readings per game on the lists that carry the card, 0 on
+the controls), and unlike them the winrate still cannot see it: 94–98 % against
+the reference bot, `+0.08 pp` at n=1000 against a control run that spread to
+`−1.90 pp` on one of the same lists. **3 boards in favour, 0 against**, 4 inside
+their own floor ([the write-up](comfey-the-shield-they-buy-for-one-turn-2026-08-14.md)).
+
+Read the entry below with this one: the differential oracle is **blind to this
+defect by construction**, because it attributes a prediction to the body whose hp
+changed and an attack the shield zeroes changes nothing.
+
 ### `differential_oracle.py` — what the plan predicted vs. what the engine resolved
 
 The agent's attack plan states, before the attack, what it expects to happen. The

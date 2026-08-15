@@ -152,6 +152,46 @@ class AgentState:
         # next -- and reset when the turn changes.
         self._op_attack_waves_this_turn = {}
 
+        # --- THE WALL THAT IS NOT ON THE BOARD --------------------------------
+        # Acerola's Mischief (`OP_EX_SHIELD_IDS`): "during your opponent's next
+        # turn, prevent all damage from and effects of attacks done to that
+        # Pokemon by your opponent's Pokemon ex". Every other wall this agent
+        # knows is READABLE -- a card in the active spot, a stadium on the
+        # field. This one leaves nothing behind: the body it protects looks
+        # exactly like the body it was, and the only evidence that our ex are
+        # mute against it is the PLAY log of the turn it went down. Hence the
+        # three fields, and hence they live here: a fact that has to survive
+        # from the log batch that carries it to every menu of the turn it
+        # governs is state, not a reading of the board.
+        #
+        # THE SERIAL, NOT THE SPOT. The shield is pinned to a body and travels
+        # with it: gust that body to the bench and it is still shielded, while
+        # whatever comes up in its place is not. A reading that said "their
+        # active" would follow the SPOT and would mute the wrong body one action
+        # after our own Boss's Orders -- which is precisely the answer to the
+        # card.
+        self._op_ex_shield_serial = None
+        # The `state.turn` the shield applies to. Their Supporter buys ONE of
+        # our turns, so this is a single turn number and not a window: read
+        # during their turn it is the next one, read from the batch that already
+        # carries their TURN_END it is the current one.
+        self._op_ex_shield_turn = -99
+        # ...and the resolved answer for the observation being answered: the
+        # serial the shield covers RIGHT NOW, or None. Refreshed on every call
+        # to agent() once the logs have been read, because `ptcg/calc/damage.py`
+        # cannot see `state.turn` from where it stands -- the same arrangement
+        # `full_metal_lab_in_play` and `_op_bench_count` already use.
+        self.op_ex_shield_serial = None
+        # ...and that this opponent HOLDS the card at all. STICKY for the rest
+        # of the game, exactly like `op_is_crustle_deck` and for the same
+        # reason: a shield we forget the turn it expires is a shield we re-learn
+        # one wasted turn later, and the decisions that depend on it are taken
+        # BEFORE it comes down -- which cards survive their hand cap, which body
+        # the turn charges. Lists that play it play three or four copies (the
+        # episode above shows serials 120, 121 and 122), so one sighting really
+        # is a property of the deck and not of the turn.
+        self.op_has_ex_shield = False
+
         # --- KOs and the prize window ----------------------------------------
         self.ko_last_turn = False
         self._ko_detected_this_turn = False

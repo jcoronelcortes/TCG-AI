@@ -33,7 +33,8 @@ the fields it reads and returns only the ones it reassigns.
 
 from cg.api import AreaType, OptionType
 from ptcg.calc.card import get_card, prize_count_op
-from ptcg.cards.ids import Applin, Basic_Grass_Energy, Chikorita, Fezandipiti_ex, Hydrapple_ex, Lillie_Determination, Meowth_ex, Pinsir, RETREAT_COST, SCORE_VETO, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball
+from ptcg.calc.damage import _shield_mutes_our_ex
+from ptcg.cards.ids import Applin, Basic_Grass_Energy, Chikorita, Fezandipiti_ex, Hydrapple_ex, Lillie_Determination, Meowth_ex, OUR_EX_IDS, Pinsir, RETREAT_COST, SCORE_VETO, SNIPE_ANY_TARGET_IDS, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball
 from ptcg.state.agent_state import AGENT_STATE
 from ptcg.state.zones import ZONE_DECK
 
@@ -224,6 +225,30 @@ def score_play(tc, o, score):
             score = SCORE_VETO
         
         if op_active_dodge_immune:
+            score = SCORE_VETO
+
+        # ...AND THE SAME SENTENCE BOUGHT OUT OF THEIR HAND (user, episode
+        # 93163758 step 136, vs Comfey/Chandelure -- LOST at one prize). Their
+        # Acerola's Mischief pins a shield on one body and our ex do ZERO to it
+        # (`_shield_mutes_our_ex`), effects included. The coin dodge above is
+        # already vetoed for exactly this reason, and the cost is identical: an
+        # attack ENDS THE TURN, so swinging into the shield does not merely fail
+        # to knock anything out, it throws away every card still in hand. On that
+        # step the agent attacked as its FIRST action holding thirteen of them.
+        #
+        # It reads OUR ACTIVE and not the matchup, because the card only silences
+        # our ex: a Dipplin, a Meganium, a Tapu Bulu or a Pinsir in the same spot
+        # goes through the shield untouched and this veto must not touch them.
+        #
+        # SNIPERS ARE EXEMPT. Cruel Arrow (`SNIPE_ANY_TARGET_IDS`) chooses its
+        # own target, so a shield on the body in FRONT says nothing about the
+        # attack it is about to make -- and `_active_snipe_ko_now` above has
+        # already priced that prize.
+        _atk_front = op_state.active[0] if op_state.active else None
+        if (_atk_active is not None
+                and _atk_active.id in OUR_EX_IDS
+                and _atk_active.id not in SNIPE_ANY_TARGET_IDS
+                and _shield_mutes_our_ex(_atk_front)):
             score = SCORE_VETO
         return score
     finally:

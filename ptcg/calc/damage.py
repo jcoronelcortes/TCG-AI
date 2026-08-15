@@ -767,6 +767,14 @@ def _our_effective_damage(my_pokemon, op_pokemon, base_damage,
     if neutralization_zone and my_is_ex and not _op_has_rule_box:
         return 0
 
+    # ...and the same zero bought out of their hand for one turn, on one body.
+    # It sits on this line because it IS the line above with a different source:
+    # `neutralization_zone` is a stadium anyone can read off the observation and
+    # this one is a Supporter that left no trace on the board. See
+    # `_shield_mutes_our_ex`.
+    if my_is_ex and _shield_mutes_our_ex(op_pokemon):
+        return 0
+
     if op_pokemon.id in ABILITY_IMMUNE_IDS and my_has_ability:
         return 0
 
@@ -855,6 +863,71 @@ def _nz_mutes_our_ex(op_active, neutralization_zone) -> bool:
     if not neutralization_zone or op_active is None:
         return False
     return not _tiene_rule_box(op_active.id)
+
+
+# The switch the two-arm gate flips (`utils/gate_the_shield_they_buy_for_one_turn.py`),
+# sibling of `NZ_MUTE_ROUTING` above and with the same scope: it governs the
+# WHOLE reading, model included, because unlike the stadium there is no board to
+# fall back on -- with this False the agent simply does not know the card, which
+# is exactly the behaviour the gate's baseline arm has to reproduce.
+OP_EX_SHIELD_ROUTING = True
+
+
+def _shield_mutes_our_ex(op_pokemon) -> bool:
+    """Is `op_pokemon` the body their Acerola's Mischief is protecting from our
+    ex THIS turn?
+
+    Why it exists (user, episode 93163758, `records/registro_013_pasos_107_...`
+    step 107 onward, vs a Comfey/Chandelure deck -- LOST at ONE prize). Their
+    board was a 70 HP Comfey in front and two Chandelure on the bench; our
+    active Teal Mask Ogerpon ex carried three Grass, its twin on the bench
+    carried seven, and Boss's Orders sat in hand. Myriad Leaf Shower reads
+    30 + 30 x energy, so every projection in this agent said the Comfey died and
+    `prizes_today` said 1. The engine logged `value: 0`, turn after turn:
+
+        turn 13  attack -> 0     turn 15  attack -> 0     turn 19  attack -> 0
+
+    Seven turns of a stalled prize pile against an opponent who never left six,
+    because the ONE number the whole turn hangs on was wrong and nothing on the
+    board said so. The line was in hand the entire time: Boss's Orders on a
+    Chandelure (130 HP, and the shield stays on the Comfey it was pinned to) is
+    one prize with the active as it stood, the game with the twin promoted.
+
+    THE READING IS A SERIAL AND A TURN, AND BOTH COME FROM THE LOGS. main.py
+    pins them when it sees their PLAY (`_op_ex_shield_serial`), and publishes
+    the resolved answer for the observation being answered
+    (`AGENT_STATE.op_ex_shield_serial`) because this module cannot see
+    `state.turn`. A body with no serial -- the synthetic Pokemon of a unit test
+    -- answers False: on data we cannot read we do not switch off our own
+    attackers, the same direction `_nz_mutes_our_ex` takes.
+
+    It says nothing about our NON-ex bodies, and that is the whole point of the
+    card: Dipplin, Meganium, Tapu Bulu and Pinsir go through it untouched.
+    """
+    if not OP_EX_SHIELD_ROUTING:
+        return False
+    if op_pokemon is None:
+        return False
+    _shielded = AGENT_STATE.op_ex_shield_serial
+    if _shielded is None:
+        return False
+    _serial = getattr(op_pokemon, 'serial', None)
+    return _serial is not None and _serial == _shielded
+
+
+def _wall_mutes_our_ex(op_active, neutralization_zone) -> bool:
+    """Do our ex do ZERO to the body in front, by stadium or by their Supporter?
+
+    The one question the ENERGY ROUTING asks, and it has two answers that mean
+    the same thing to it: under Neutralization Zone with a Rule-Box-less body in
+    front (`_nz_mutes_our_ex`), and under the shield their Acerola's Mischief
+    pinned on that same body (`_shield_mutes_our_ex`). What follows from either
+    is identical -- the turn's Grass belongs to a body of ours that is not an ex
+    -- so the routing reads them through one name and the two predicates keep
+    their own, each with its own switch and its own gate.
+    """
+    return (_nz_mutes_our_ex(op_active, neutralization_zone)
+            or _shield_mutes_our_ex(op_active))
 
 
 def _defender_punish_damage(op_active):
@@ -1985,6 +2058,8 @@ __all__ = [
     '_snipe_targets',
     '_our_effective_damage',
     '_tiene_rule_box',
+    '_shield_mutes_our_ex',
+    '_wall_mutes_our_ex',
     '_defender_punish_damage',
     '_has_energy_of_type',
     '_op_active_attack_damage_to',

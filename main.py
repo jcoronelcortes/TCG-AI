@@ -4063,6 +4063,57 @@ def agent(obs_dict: dict) -> list[int]:
                 AGENT_STATE._op_attack_waves_this_turn.get(_ga_log.serial, 0)
                 + 1)
 
+    # --- THE WALL THAT LEAVES NOTHING ON THE BOARD ---------------------------
+    # Their Acerola's Mischief (`OP_EX_SHIELD_IDS`): "during your opponent's
+    # next turn, prevent all damage from and effects of attacks done to that
+    # Pokemon by your opponent's Pokemon ex". Nothing about the protected body
+    # changes -- no tool, no ability, no stadium -- so this PLAY log is the only
+    # evidence there is, and it goes past exactly once, in the batch that closes
+    # their turn. Missing it costs the whole turn: every projection in the agent
+    # keeps reading the printed damage and the engine keeps logging `value: 0`
+    # (user, episode 93163758, turns 13-19 vs Comfey/Chandelure, LOST at one
+    # prize; see `_shield_mutes_our_ex`).
+    #
+    # IT SCANS THE WHOLE BATCH and not the post-boundary slice above, because by
+    # construction the play belongs to the turn BEFORE the one it governs: the
+    # `_ga_from` cut, which is right for everything counted per turn, would
+    # throw away the only line that matters.
+    #
+    # WHAT IS PINNED IS A SERIAL: their ACTIVE as it stands the moment we read
+    # the play. It is the body they shield -- it is the one our attack reaches
+    # without spending a card -- and pinning the body rather than the SPOT is
+    # what keeps the answer to the card working: gust the shielded body to the
+    # bench and the mute goes with it, while the Pokemon that comes up in its
+    # place is fair game.
+    #
+    # AND A TURN: the card buys ONE of our turns. If their TURN_END is already
+    # in this batch the shield governs `state.turn`; if it is not, we are being
+    # asked for a forced selection inside their turn and it governs the next
+    # one.
+    for _sh_i, _sh_log in enumerate(obs.logs):
+        if (getattr(_sh_log, 'type', None) != LogType.PLAY
+                or getattr(_sh_log, 'playerIndex', None) == my_index
+                or getattr(_sh_log, 'cardId', None) not in OP_EX_SHIELD_IDS):
+            continue
+        _sh_their_turn_ended = any(
+            getattr(_l, 'type', None) == LogType.TURN_END
+            and getattr(_l, 'playerIndex', None) != my_index
+            for _l in obs.logs[_sh_i + 1:])
+        AGENT_STATE._op_ex_shield_turn = (state.turn if _sh_their_turn_ended
+                                          else state.turn + 1)
+        AGENT_STATE._op_ex_shield_serial = (
+            op_state.active[0].serial if op_state.active else None)
+        # ...and that this deck holds the card, which outlives the turn it
+        # bought: see `op_has_ex_shield`.
+        AGENT_STATE.op_has_ex_shield = True
+
+    # ...and the resolved answer for THIS observation, which is what the damage
+    # model reads (it cannot see `state.turn` from where it stands). Recomputed
+    # on every call so an expired shield can never survive into a later turn.
+    AGENT_STATE.op_ex_shield_serial = (
+        AGENT_STATE._op_ex_shield_serial
+        if AGENT_STATE._op_ex_shield_turn == state.turn else None)
+
     # The turn window of OUR KOs (see `_rastrear_ventana_de_ko`): it has to be
     # tracked in EVERY observation, including the forced selections
     # during the opponent's turn, because the TURN_END and the KO can arrive in
