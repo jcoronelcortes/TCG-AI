@@ -303,6 +303,14 @@ A card-by-card audit of the top archetypes (August 2026) found:
 - **Crustle's package** (extra-HP tools, healing, effect-blocking energy) is not
   a blind spot: the HP we read already includes the buffs, and the effect-blocker
   stops effects, not damage. The matchup is hard by construction.
+- **The wall is a BODY, not the deck list it came in.** `op_is_crustle_deck` and
+  `op_is_cornerstone_deck` are the right reading for *which body is worth
+  recovering or searching for* against a wall, and the wrong one for *is this
+  particular knockout available* — a Crustle list spends most of its turns with
+  something else in front, and the damage model already returns 0 when the wall
+  really is in the way. One archetype guard of that second kind cost a game:
+  [The prize the wall does not own](crustle-the-prize-the-wall-does-not-own-2026-08-15.md).
+  Worth checking whenever a new `op_is_*_deck` branch is added.
 - **Cynthia's Roserade** was reviewed and skipped once, on the grounds that we
   already won 98% of the archetype — and then a real game showed a Gabite whose
   Dragonslice prints 40 taking 70 off a Tapu Bulu that had 70 left. The extra 30
