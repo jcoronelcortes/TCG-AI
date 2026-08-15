@@ -37,7 +37,7 @@ from ptcg.calc.card import get_card, prize_count
 from ptcg.calc.damage import _powerful_hand_projected, _ventana_de_regalo
 from ptcg.calc.energy import _grass_mult
 from ptcg.cards.groups import GRASS_DOUBLER_LINE_IDS, GT_PLAY_BASICO_BONUS
-from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Budew, Bug_Catching_Set, SCORE_ASSEMBLE_WINS_THE_GAME, CUBCHOO_ALLOWED_PLAY_IDS, Chikorita, DECK_ITEM_IDS, DOOMED_SAC_WALL_PLAY_SCORE, Dawn, Dipplin, Dragapult_ex, FIRST_TURN_WALL_PLAY_SCORE, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, OUR_EX_IDS, Pinsir, Poke_Pad, RETREAT_COST, SCORE_DEVELOP_BASE, SCORE_FORBID, SCORE_ITEM_BASE, SCORE_VETO, SCORE_WAVE_BODY_IS_DAMAGE, TAPU_WAIT_FOR_ITEMS_SCORE, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, WAVE_BENCH_BODY_IDS, Xerosic_Machinations
+from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, FEZ_ABILITY_BEFORE_THE_KNOCKOUT, FEZ_BENCH_FOR_TOMORROWS_DRAW, Budew, Bug_Catching_Set, SCORE_ASSEMBLE_WINS_THE_GAME, CUBCHOO_ALLOWED_PLAY_IDS, Chikorita, DECK_ITEM_IDS, DOOMED_SAC_WALL_PLAY_SCORE, Dawn, Dipplin, Dragapult_ex, FIRST_TURN_WALL_PLAY_SCORE, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, OUR_EX_IDS, Pinsir, Poke_Pad, RETREAT_COST, SCORE_DEVELOP_BASE, SCORE_FORBID, SCORE_ITEM_BASE, SCORE_VETO, SCORE_WAVE_BODY_IS_DAMAGE, TAPU_WAIT_FOR_ITEMS_SCORE, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, WAVE_BENCH_BODY_IDS, Xerosic_Machinations
 from ptcg.cards.tables import card_table
 from ptcg.decision.bug_catching_set import _score_bug_catching_set_play
 from ptcg.decision.disruption import _score_unfair_stamp_play, _score_xerosic_play
@@ -1177,7 +1177,49 @@ def score_play(tc, o, score):
                             # (ko_last_turn) the 22000 route is kept.
                             if _all_bench_basics and not op_is_lucario_deck:
                                 fez_score = max(fez_score, 15000)
-        
+
+                        # THE ABILITY THAT PAYS AFTER THEIR KNOCKOUT HAS TO BE
+                        # ON THE BOARD BEFORE IT LANDS (user,
+                        # `records/registro_005_pasos_061_hasta_077.json` step
+                        # 75, episode 93173834 turn 5 vs Marnie, LOST). Bench of
+                        # four with one seat left, Fezandipiti ex in hand, and
+                        # the active Teal Mask Ogerpon ex at 30 of 210 in front
+                        # of a body that had just hit for 180. Flip the Script
+                        # reads OUR LAST TURN, so `ko_last_turn` was false and
+                        # every rung above priced the card as a 2-prize body
+                        # with a dead ability: `SCORE_VETO`. The agent attacked,
+                        # the turn ended, they knocked the Ogerpon out -- and
+                        # the ability that would have drawn 3 on the turn we
+                        # needed rebuilding was still in hand, where the seat it
+                        # wanted was now gone with the promotion.
+                        #
+                        # The condition of the ability is not "it is alive now",
+                        # it is "it will be alive on our next turn", and a
+                        # doomed active is exactly the board that says so:
+                        # `_active_doomed_real` is the honest projection of
+                        # their damage (the scaled attacks plus the team buff),
+                        # the same reading the charge branches consume. Playing
+                        # it costs a bench seat and nothing else -- if a better
+                        # body wants that seat it is priced higher (a Basic
+                        # ~20000) and goes down first; when the bench fills, the
+                        # `bench_count >= 5` veto above closes the door.
+                        #
+                        # Written against the board and not against a matchup:
+                        # the branch above already refuses the bench itself
+                        # where the bench is unsafe (Lucario, Crustle,
+                        # Cornerstone, Sylveon, Froslass) and this one never
+                        # runs there. The remaining guard is our own: with
+                        # abilities switched off there is no draw to wait for.
+                        _fez_ko_is_coming = (
+                            FEZ_ABILITY_BEFORE_THE_KNOCKOUT
+                            and not AGENT_STATE.ko_last_turn
+                            and _active_doomed_real
+                            and not meowth_ability_lock
+                            and bench_count < 5)
+                        if _fez_ko_is_coming:
+                            fez_score = max(fez_score,
+                                            FEZ_BENCH_FOR_TOMORROWS_DRAW)
+
                         score = fez_score
                 elif card.id == Tapu_Bulu:
         

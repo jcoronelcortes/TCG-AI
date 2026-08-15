@@ -44,7 +44,7 @@ now arrive in a context, unpacked on entry under the SAME names.
 from cg.api import Pokemon
 from ptcg.calc.damage import _nz_mutes_our_ex, _our_effective_damage
 from ptcg.calc.energy import _can_attack_eff, _grass_ability_slots, _grass_attach_unit, _grass_mult, _ogerpon_base_phys_cap, _physical_energy, _retreat_cards_missing, _retreat_payable
-from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Chikorita, Dipplin, FEE_OVER_INERT_DEVELOPMENT, Fezandipiti_ex, Hydrapple_ex, Meganium, Meowth_ex, NON_ATTACKER_ENERGY_WASTE_IDS, OUR_EX_IDS, Pinsir, RETREAT_COST, SCORE_CHARGE_ACTIVE_ATTACK, SCORE_CHARGE_ACTIVE_FINISHER, SCORE_CHARGE_DOOMED, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex
+from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, CHARGE_ALREADY_KOS_COMPLETES_STEP, CHARGE_ALREADY_KOS_PARTIAL_STEP, CHARGE_THE_BODY_THAT_NEEDS_IT, Chikorita, Dipplin, FEE_OVER_INERT_DEVELOPMENT, Fezandipiti_ex, Hydrapple_ex, Meganium, Meowth_ex, NON_ATTACKER_ENERGY_WASTE_IDS, OUR_EX_IDS, Pinsir, RETREAT_COST, SCORE_CHARGE_ACTIVE_ATTACK, SCORE_CHARGE_ACTIVE_FINISHER, SCORE_CHARGE_DOOMED, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex
 from ptcg.cards.scoring import MAIN_ATTACKERS
 from ptcg.cards.tables import card_table
 from ptcg.state.agent_state import AGENT_STATE
@@ -1190,18 +1190,83 @@ def _energy_score_base(tc, pokemon, active):
 
         return 8000 if energy_count < 1 else -1
 
-    if _active_already_kos and not active and energy_count == 0 \
+    if _active_already_kos and not active \
             and not AGENT_STATE.op_is_crustle_deck and not AGENT_STATE.op_is_cornerstone_deck \
             and not neutralization_zone_active:
         if pokemon.id in NON_ATTACKER_ENERGY_WASTE_IDS:
-            return SCORE_VETO
-        return {
-            Hydrapple_ex: 30000,
-            Teal_Mask_Ogerpon_ex: 29000,
-            Dipplin: 28000,
-            Meganium: 27000,
-            Tapu_Bulu: 26000,
-        }.get(pokemon.id, 25000)
+            if energy_count == 0:
+                return SCORE_VETO
+        else:
+            _dev_rung = {
+                Hydrapple_ex: 30000,
+                Teal_Mask_Ogerpon_ex: 29000,
+                Dipplin: 28000,
+                Meganium: 27000,
+                Tapu_Bulu: 26000,
+            }.get(pokemon.id, 25000)
+            if energy_count == 0:
+                return _dev_rung
+            # AN EMPTY BODY IS NOT THE SAME AS A BODY THAT NEEDS THE ENERGY
+            # (user, `records/registro_005_pasos_061_hasta_077.json` step 70,
+            # episode 93173834 turn 5 vs Marnie, LOST). The active Ogerpon ex
+            # already had the knockout, so the Grass was pure development, and
+            # the bench held a Bayleef at 0, an Applin at 0 and a SECOND
+            # Ogerpon ex at 2 of the 3 that Myriad Leaf Shower costs. This band
+            # only looked at bodies with `energy_count == 0`, so the Ogerpon
+            # never entered it: it fell through to the generic development tail
+            # (8250) and lost to the Bayleef, which the table pays 25000 for
+            # being empty. Neither Bayleef nor Applin can attack at any amount
+            # of energy; the Ogerpon was ONE Grass from being the attacker that
+            # takes the front the moment the 30 HP body in front dies. It got
+            # nothing, and the next turn opened with no charged attacker.
+            #
+            # "Empty" was standing in for "still needs it", and the two only
+            # agree on a bench that has never been charged. Asked honestly --
+            # `_can_attack_eff`, the body's own cost -- the band ranks the same
+            # way it always did among empty bodies and stops being blind to the
+            # one that is half built:
+            #
+            #   * the attachment leaves it AT its cost -> tomorrow's attacker,
+            #     finished: its own rung plus a step;
+            #   * it leaves it still short -> its own rung minus a step.
+            #
+            # Both steps are half a rung, so WHICH SPECIES deserves the energy
+            # is decided exactly as the band was measured; what the steps decide
+            # is the copy, and the flat 25000 that a body which cannot attack at
+            # any amount of energy is worth.
+            #
+            # A body already AT its cost is not admitted: charging it further is
+            # the overcharge every per-matchup cap in this file exists to stop,
+            # so it keeps falling through exactly as before.
+            #
+            # AND FINISHING THE SECOND COPY IS NOT FINISHING THE FIRST. If a
+            # TWIN of this body is already sitting on the bench at its cost,
+            # tomorrow's attacker exists: the half-built copy is not what this
+            # band is about and it falls through to the generic tail, exactly as
+            # it did before this reading existed. That is the board of
+            # `tests/fixtures/alakazam_manual_attach_dipplin_not_ready_tapu.json`:
+            # with one Ogerpon ex already at four, the third energy belongs to
+            # the Dipplin that adds a ONE-prize attacker, not to a second copy
+            # of an attacker we already have. Redundancy is the same thing the
+            # per-matchup caps and the `two_in_play` rungs refuse elsewhere.
+            #
+            # Deck-agnostic: `MAIN_ATTACKERS` is the deck's own list of bodies
+            # worth feeding (a chip attack in `ATTACK_ENERGY_REQ` does not make
+            # an attacker of an Applin) and the rest is the card's own cost.
+            if (CHARGE_THE_BODY_THAT_NEEDS_IT
+                    and pokemon.id in MAIN_ATTACKERS
+                    and not _can_attack_eff(pokemon.id, energy_count)):
+                _twin_ready = any(
+                    _tw is not None and _tw.id == pokemon.id
+                    and getattr(_tw, 'serial', None) != getattr(
+                        pokemon, 'serial', None)
+                    and _can_attack_eff(_tw.id, len(_tw.energies))
+                    for _tw in (my_state.bench or []))
+                if not _twin_ready:
+                    if _can_attack_eff(pokemon.id,
+                                       energy_count + _grass_attach_unit()):
+                        return _dev_rung + CHARGE_ALREADY_KOS_COMPLETES_STEP
+                    return _dev_rung - CHARGE_ALREADY_KOS_PARTIAL_STEP
 
     _bench_hydra_pre_target = any(
         bp is not None and bp.id in (Dipplin, Applin) and len(bp.energies) < 1

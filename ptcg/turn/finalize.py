@@ -59,7 +59,7 @@ from ptcg.calc.damage import _attacker_base_damage
 from ptcg.calc.energy import _grass_mult
 from ptcg.calc.opponent import _op_juega_crustle
 from ptcg.calc.board import _active_of
-from ptcg.cards.ids import Applin, BOSS_SCORE_PRIZE_RANK_BASE, DOOMED_SAC_WALL_PLAY_SCORE, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, KO_WINDOW_PLAY_IDS, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, OP_HAND_PRICED_PLAY_IDS, Pinsir, Poke_Pad, SCORE_CHARGE_DOOMED, SCORE_USELESS_ATTACK, SCORE_VETO, SUPP_SCORE_LAST_RESORT_BAND, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, XEROSIC_FREE_SLOT_HAND, Xerosic_Machinations
+from ptcg.cards.ids import Applin, BOSS_SCORE_PRIZE_RANK_BASE, DOOMED_SAC_WALL_PLAY_SCORE, FEZ_BENCH_FOR_TOMORROWS_DRAW, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, KO_WINDOW_PLAY_IDS, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, OP_HAND_PRICED_PLAY_IDS, Pinsir, Poke_Pad, SCORE_CHARGE_DOOMED, SCORE_USELESS_ATTACK, SCORE_VETO, SUPP_SCORE_LAST_RESORT_BAND, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, XEROSIC_FREE_SLOT_HAND, Xerosic_Machinations
 from ptcg.cards.groups import GRASS_DOUBLER_LINE_IDS
 from ptcg.cards.scoring import SCORE_LD_SUPP_COMPROMETIDO, _SUPP_PLAY_IDS
 from ptcg.cards.tables import HAND_COST_ABILITY_IDS, HAND_DISCARD_COST_PLAY_IDS, HAND_NEUTRAL_ABILITY_IDS, HAND_RESET_PLAY_IDS, attack_table, card_table
@@ -957,6 +957,24 @@ def finalizar(tc):
                         # (its own ladder scores in the thousands), and there it
                         # keeps the development tier it earned.
                         _play_order_tier[_po_i] = _TIER_SAC_WALL
+                    elif (_po_card.id == Fezandipiti_ex
+                            and scores[_po_i] == FEZ_BENCH_FOR_TOMORROWS_DRAW):
+                        # THE SEAT TAKEN FOR TOMORROW IS NOT DEVELOPMENT
+                        # (registro_005 step 75; see the branch in
+                        # `ptcg/turn/options/play.py`). This body is not going
+                        # down for anything the turn does -- it is going down so
+                        # that Flip the Script is ALIVE after the knockout that
+                        # is already coming -- so it must not take
+                        # `_TIER_DEVELOP` and crush, by ORDER, the Supporter or
+                        # the search this turn still has to make. It keeps tier
+                        # 0, where its own score (above the attack that ENDS the
+                        # turn, below every Supporter) decides.
+                        #
+                        # Recognised BY ITS SCORE, the same idiom as the
+                        # sacrifice's shield above: on any other board the same
+                        # card is priced by its ordinary ladder and keeps the
+                        # development tier it earned there.
+                        pass
                     elif _po_data is not None and _po_data.cardType == CardType.POKEMON:
                         # Putting a Pokemon down yields to a pending Bug Catching
                         # Set (see the block header): with the 2 new cards in hand

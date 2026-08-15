@@ -1131,6 +1131,22 @@ SCORE_BENCH_YIELDS_TO_RETREAT_UNLOCK = 31150
 # it by ORDER).
 FEZ_DRAW_ABILITY_SCORE = 31700
 
+# THE ABILITY THAT PAYS AFTER THEIR KNOCKOUT HAS TO BE ON THE BOARD BEFORE IT
+# LANDS. A NAMED SWITCH for the bench rung of the same card (see the branch in
+# `ptcg/turn/options/play.py`, registro_005 step 75): with it off, a
+# Fezandipiti ex only reaches the bench once the knockout has already happened.
+FEZ_ABILITY_BEFORE_THE_KNOCKOUT = True
+
+# ...and what that seat is worth. The body is not being put down for anything
+# this turn does -- it is being put down so the ability is ALIVE on the next
+# one -- so it is the LAST thing the turn does: above ending it with the attack
+# (the non-lethal attack branch scores around 1100) and below the cheapest
+# Supporter (Lillie's `refresh_short_hand`, 5000) and every development rung
+# (15000+). A turn that still has real work to do does that work first and
+# comes back to this seat afterwards; a turn that has none takes the seat
+# instead of throwing it away with the promotion.
+FEZ_BENCH_FOR_TOMORROWS_DRAW = 3000
+
 # --- ATTACKING WITH THE ACTIVE COMES FIRST ----------------------------------
 # Bands of the `_carga_activo_*` family (see the flags of the same name in
 # agent()): charging the ACTIVE up to its ATTACK COST using ALL the charging
@@ -1155,6 +1171,33 @@ SCORE_CHARGE_ACTIVE_FINISHER = 41900
 # drawing still rules over chip damage. Without a KO there is no hurry: the
 # turn's attachment is still alive after those plays.
 SCORE_CHARGE_ACTIVE_ATTACK = 31300
+
+# --- THE GRASS THAT FINISHES TOMORROW'S ATTACKER ----------------------------
+# A NAMED SWITCH, like `LAST_BRIDGE_IS_NOT_FODDER` in `ptcg/cards/lines.py` and
+# the `PROMOTE_*` family in main.py: the ONE difference the census, the gate and
+# the rules oracle are allowed to put between their two arms. With it off, the
+# already-KO development band goes back to looking only at empty bodies.
+CHARGE_THE_BODY_THAT_NEEDS_IT = True
+
+# When the active ALREADY takes the prize, this turn's Grass buys nothing today
+# and the whole question becomes "who attacks NEXT turn". The band that answers
+# it (25000-30000 in `_energy_score_base`) ranks the bodies BY SPECIES, one rung
+# each and a thousand apart, and it only ever looked at the empty ones. A body
+# that is half built is not out of the question -- it is the one closest to
+# being an attacker -- so it enters the band on the rung of its own species,
+# one STEP either side of the same species with nothing on it:
+#
+#   +500  this very Grass leaves it AT its attack cost: tomorrow's attacker,
+#         finished, and the best thing a development energy can buy;
+#   -500  it leaves it still short: real progress, but less than starting the
+#         next body of the same rung.
+#
+# Both steps are HALF the distance between two rungs, on purpose: the order the
+# band was measured with -- which SPECIES deserves the energy -- is preserved
+# exactly, and the step only ever decides between copies of the same rung and
+# against the flat 25000 that a body which cannot attack at all is worth.
+CHARGE_ALREADY_KOS_COMPLETES_STEP = 500
+CHARGE_ALREADY_KOS_PARTIAL_STEP = 500
 
 # THE BODY THAT IS THE ATTACK (`ROUTE_ASSEMBLE`, user registro_010 step 133 vs
 # Mega Lucario ex). Each play of the line whose Stage 2 doubles every Grass on
@@ -2045,6 +2088,11 @@ __all__ = [
     'FEZ_DRAW_ABILITY_SCORE',
     'SCORE_CHARGE_ACTIVE_FINISHER',
     'SCORE_CHARGE_ACTIVE_ATTACK',
+    'CHARGE_ALREADY_KOS_COMPLETES_STEP',
+    'CHARGE_ALREADY_KOS_PARTIAL_STEP',
+    'CHARGE_THE_BODY_THAT_NEEDS_IT',
+    'FEZ_ABILITY_BEFORE_THE_KNOCKOUT',
+    'FEZ_BENCH_FOR_TOMORROWS_DRAW',
     'SCORE_ASSEMBLE_WINS_THE_GAME',
     'SCORE_WAVE_BODY_IS_DAMAGE',
     'NON_ATTACKER_ENERGY_WASTE_IDS',
