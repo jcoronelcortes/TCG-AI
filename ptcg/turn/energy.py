@@ -42,7 +42,7 @@ now arrive in a context, unpacked on entry under the SAME names.
 """
 
 from cg.api import Pokemon
-from ptcg.calc.damage import _our_effective_damage
+from ptcg.calc.damage import _nz_mutes_our_ex, _our_effective_damage
 from ptcg.calc.energy import _can_attack_eff, _grass_ability_slots, _grass_attach_unit, _grass_mult, _ogerpon_base_phys_cap, _physical_energy, _retreat_cards_missing, _retreat_payable
 from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Chikorita, Dipplin, FEE_OVER_INERT_DEVELOPMENT, Fezandipiti_ex, Hydrapple_ex, Meganium, Meowth_ex, NON_ATTACKER_ENERGY_WASTE_IDS, OUR_EX_IDS, Pinsir, RETREAT_COST, SCORE_CHARGE_ACTIVE_ATTACK, SCORE_CHARGE_ACTIVE_FINISHER, SCORE_CHARGE_DOOMED, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex
 from ptcg.cards.scoring import MAIN_ATTACKERS
@@ -1029,6 +1029,35 @@ def _energy_score_base(tc, pokemon, active):
         return score
 
     if neutralization_zone_active:
+        # THE BENCH IS NOT DEVELOPMENT WHEN THE FRONT IS MUTE (user,
+        # `records/registro_010_pasos_070_hasta_080` step 70, vs a
+        # Mesprit/Uxie/Azelf deck). The four bands below already say that under
+        # this stadium the non-ex bodies are the ones that attack -- which is why
+        # the ACTIVE ones are priced at 23200/23000/15000 -- but their BENCH
+        # halves were left in the development band (600/400/380/300, i.e. ~8300
+        # on top of the base 8000). On a board where every body of theirs is
+        # Rule-Box-less that reading is wrong twice over: the bench non-ex is not
+        # a promise for later, it is the ONLY body of ours that can knock
+        # anything out, and at ~8300 it loses the turn's Grass twice -- to the
+        # mute active ex (7810) and to the 7000 cap the attachment takes when it
+        # yields to a Teal Dance (`_attach_yields_to_teal_dance`), a dance that
+        # on this board is itself demoted for the very same reason.
+        #
+        # So the creditor is promoted while the front is mute, by a FIXED amount
+        # that keeps the four in their existing order (Tapu > Dipplin > Pinsir >
+        # Meganium) and keeps the whole bench BELOW every one of the active bands
+        # above: 30600 at the top against 31010 at the bottom of the active ones.
+        # The body in front still gets the energy first when it can use it; the
+        # bench only takes it when the front cannot. 22000 is the band the
+        # Cornerstone sibling already pays the attacker of a matchup whose wall
+        # switched our ex off (`energy_score`: "cornerstone -> Tapu +22000").
+        #
+        # It is asked of THEIR CURRENT ACTIVE, not of the matchup: the stadium
+        # goes quiet the moment they promote an ex, and then these bodies go back
+        # to being the development they were.
+        _nz_front_is_mute = _nz_mutes_our_ex(
+            op_state.active[0] if op_state.active else None, True)
+        _nz_promo = 22000 if (_nz_front_is_mute and not active) else 0
         if pokemon.id == Tapu_Bulu:
             effective_energy = energy_count * _grass_mult()
             if active:
@@ -1039,7 +1068,7 @@ def _energy_score_base(tc, pokemon, active):
                     score -= 50
             else:
                 if effective_energy < 4:
-                    score += 600
+                    score += 600 + _nz_promo
                 else:
                     score -= 80
             return score
@@ -1052,7 +1081,7 @@ def _energy_score_base(tc, pokemon, active):
                     score -= 30
             else:
                 if energy_count < 1:
-                    score += 400
+                    score += 400 + _nz_promo
                 else:
                     score -= 50
             return score
@@ -1067,7 +1096,7 @@ def _energy_score_base(tc, pokemon, active):
                     score -= 40
             else:
                 if effective_energy < 2:
-                    score += 380
+                    score += 380 + _nz_promo
                 else:
                     score -= 60
             return score
@@ -1082,7 +1111,7 @@ def _energy_score_base(tc, pokemon, active):
                     score -= 100
             else:
                 if effective_energy < 4:
-                    score += 300
+                    score += 300 + _nz_promo
                 else:
                     score -= 100
             return score
