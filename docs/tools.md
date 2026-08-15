@@ -816,6 +816,40 @@ against, and above it on two of the five lists — with the card then really
 played on about half of them. The [write-up](crustle-the-prize-the-wall-does-not-own-2026-08-15.md)
 has the numbers per list and the winrate half.
 
+### `census_meganium_is_an_attacker.py` — the same shape, and the leakage half that matters
+
+```bash
+python utils/census_meganium_is_an_attacker.py --games 200
+python utils/census_meganium_is_an_attacker.py --games 200 \
+    --opponent deck/real_opponents/marnie_grimmsnarl_1.csv    # the leakage half
+```
+
+Counts decisions that *change*, not board traits: the candidate arm drives the
+game and a **neutralised copy of the same tree** is asked on every frame, the way
+`shadow.py` does, so both see the identical stream and their tracking evolves
+together. Against the wall lists it reports **0.58–0.84 flips per game**, three
+to four times the 0.20 it was written against; against three lists with no
+Crustle in them it reports **0.00**, which is the half that shows a matchup rule
+staying inside its matchup. The [write-up](crustle-meganium-is-an-attacker-not-the-doubler-2026-08-15.md)
+has the rest.
+
+### `gate_meganium_is_an_attacker_not_the_doubler.py` and `oracle_meganium_is_an_attacker.py`
+
+```bash
+python utils/gate_meganium_is_an_attacker_not_the_doubler.py --games 1500 \
+    --opponent deck/real_opponents/crustle_wall_1.csv --half ladder
+python utils/oracle_meganium_is_an_attacker.py --k 100 --half reserve
+```
+
+Two arms of one tree with `MEGANIUM_IS_OWED_THE_LAST_GRASS` and
+`MEGANIUM_OUTRANKS_THE_DIPPLIN_LINE` rebound on their consumers, and `--half` on
+**both** instruments because the two readings move different menus — the
+reservation one with a single Grass in hand, the ladder one with six — so a
+combined row cannot say which of them paid. Worth copying for the shape: here the
+split is what separated a reading the oracle carries (+18 pp on its board, five
+runs agreeing) from one it cannot resolve at all (a sign that moves with the
+seed), and the combined row said neither.
+
 ### `differential_oracle.py` — what the plan predicted vs. what the engine resolved
 
 The agent's attack plan states, before the attack, what it expects to happen. The

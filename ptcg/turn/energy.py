@@ -44,7 +44,7 @@ now arrive in a context, unpacked on entry under the SAME names.
 from cg.api import Pokemon
 from ptcg.calc.damage import _nz_mutes_our_ex, _our_effective_damage
 from ptcg.calc.energy import _can_attack_eff, _grass_ability_slots, _grass_attach_unit, _grass_mult, _ogerpon_base_phys_cap, _physical_energy, _retreat_cards_missing, _retreat_payable
-from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, CHARGE_ALREADY_KOS_COMPLETES_STEP, CHARGE_ALREADY_KOS_PARTIAL_STEP, CHARGE_THE_BODY_THAT_NEEDS_IT, Chikorita, Dipplin, FEE_OVER_INERT_DEVELOPMENT, Fezandipiti_ex, Hydrapple_ex, Meganium, Meowth_ex, NON_ATTACKER_ENERGY_WASTE_IDS, OUR_EX_IDS, Pinsir, RETREAT_COST, SCORE_CHARGE_ACTIVE_ATTACK, SCORE_CHARGE_ACTIVE_FINISHER, SCORE_CHARGE_DOOMED, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex
+from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, CHARGE_ALREADY_KOS_COMPLETES_STEP, CHARGE_ALREADY_KOS_PARTIAL_STEP, CHARGE_THE_BODY_THAT_NEEDS_IT, Chikorita, Dipplin, FEE_OVER_INERT_DEVELOPMENT, Fezandipiti_ex, Hydrapple_ex, MEGANIUM_IS_OWED_THE_LAST_GRASS, MEGANIUM_OUTRANKS_THE_DIPPLIN_LINE, Meganium, Meowth_ex, NON_ATTACKER_ENERGY_WASTE_IDS, OUR_EX_IDS, Pinsir, RETREAT_COST, SCORE_CHARGE_ACTIVE_ATTACK, SCORE_CHARGE_ACTIVE_FINISHER, SCORE_CHARGE_DOOMED, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex
 from ptcg.cards.scoring import MAIN_ATTACKERS
 from ptcg.cards.tables import card_table
 from ptcg.state.agent_state import AGENT_STATE
@@ -90,6 +90,7 @@ def _energy_score_base(tc, pokemon, active):
     _ctm_charge_active_dipplin = tc._ctm_charge_active_dipplin
     _ctm_chikorita_bench = tc._ctm_chikorita_bench
     _ctm_tapu_high = tc._ctm_tapu_high
+    _ctm_wall_in_the_way = tc._ctm_wall_in_the_way
     _cubchoo_lock_stuck = tc._cubchoo_lock_stuck
     _ex_stuck_promo_ready = tc._ex_stuck_promo_ready
     _extra_energy_enables_ko = tc._extra_energy_enables_ko
@@ -781,9 +782,20 @@ def _energy_score_base(tc, pokemon, active):
         # effective) it can attack as it is, so this turn's manual attachment
         # must not be wasted overcharging it. It is redirected in priority
         # order: (1) another benched Tapu Bulu that does not reach 4 effective
-        # yet, (2) a Dipplin with no energy, (3) a Meganium short of its 4
-        # effective. If none of them needs it, the energy is KEPT (a negative
+        # yet, (2) a Meganium short of its 4 effective, (3) a Dipplin with no
+        # energy. If none of them needs it, the energy is KEPT (a negative
         # score -> the agent does not play it).
+        #
+        # The order is the order of the ATTACK, and it is the one written out
+        # under `Meganium` below: Wood Hammer 220 > Solar Beam 140 > Do the Wave
+        # (20 per benched body, 100 at a full bench). Meganium and Dipplin used
+        # to sit the other way round here.
+        # THE ONE CONDITION BOTH HALVES OF THE LADDER ASK, resolved once so the
+        # surplus redirect below and the `Meganium` band far below cannot drift
+        # apart: the switch is on AND the wall is actually in the way.
+        _ctm_meg_up = (MEGANIUM_OUTRANKS_THE_DIPPLIN_LINE
+                       and _ctm_wall_in_the_way)
+
         _ctm_act_te = my_state.active[0] if my_state.active else None
         _ctm_active_tapu_full = (
             _ctm_act_te is not None
@@ -793,10 +805,12 @@ def _energy_score_base(tc, pokemon, active):
             if (pokemon.id == Tapu_Bulu and not active
                     and energy_count * _grass_mult() < 4):
                 return 40000
-            if pokemon.id == Dipplin and energy_count < 1:
-                return 39000
+            _ctm_meg_first = 39000 if _ctm_meg_up else 38000
+            _ctm_dip_first = 38000 if _ctm_meg_up else 39000
             if pokemon.id == Meganium and energy_count * _grass_mult() < 4:
-                return 38000
+                return _ctm_meg_first
+            if pokemon.id == Dipplin and energy_count < 1:
+                return _ctm_dip_first
             return SCORE_VETO
 
         if pokemon.id == Tapu_Bulu:
@@ -952,7 +966,15 @@ def _energy_score_base(tc, pokemon, active):
 
                 score = SCORE_VETO
             elif energy_count < 1:
-                score += 23000
+                # 22500, BELOW Meganium's 23000 and above Applin's 22000: the
+                # ladder is the order of the attack, and the argument is under
+                # `Meganium`. What keeps the chip plan intact is the rung above:
+                # a Dipplin that is going to SWING is the ACTIVE one, and that
+                # one is `_ctm_charge_active_dipplin` at 50000. A Dipplin on the
+                # BENCH is a promise for another turn, exactly like the Meganium
+                # it now yields to, and between two promises the bigger attack
+                # goes first.
+                score += 22500 if _ctm_meg_up else 23000
                 if active:
                     score += 100
             else:
@@ -982,19 +1004,68 @@ def _energy_score_base(tc, pokemon, active):
                      len(bp.energies) * _grass_mult() >= 2))
                 for bp in (my_state.bench or []))
 
-            _tapu_in_play_meg = field_counts.get(Tapu_Bulu, 0) >= 1
-            _dipplin_in_play_meg = any(
-                bp is not None and bp.id == Dipplin
-                for bp in (list(my_state.active or []) + list(my_state.bench)))
-
+            # MEGANIUM IS THE SECOND ATTACKER OF THIS MATCHUP, NOT THE LAST
+            # RESORT (user, `records/registro_020_pasos_136_hasta_141.json` step
+            # 137, turn 20, LOST). The band used to be `19000` and it was only
+            # paid `if not _tapu_in_play_meg and not _dipplin_in_play_meg` --
+            # i.e. Meganium was read as the doubler that gets an energy when
+            # nobody better is on the field. Against this wall it is an ATTACKER:
+            # Crustle switches off our ex and Meganium is not one, so Solar Beam
+            # puts 140 into it like Wood Hammer puts 220.
+            #
+            # The order is the order of the attack, which is the order the user
+            # spelled out -- Tapu Bulu, Meganium, Dipplin -- and every number
+            # behind it agrees:
+            #
+            #   Tapu Bulu  Wood Hammer  220   4 units   140 HP
+            #   Meganium   Solar Beam   140   4 units   160 HP
+            #   Dipplin    Do the Wave   20 per benched body (100 at a full
+            #                                bench)     1 unit    80 HP
+            #
+            # and the HP column decides the tie the damage column leaves: their
+            # Superb Scissors does a flat 120 that "isn't affected by any effects
+            # on your opponent's Active Pokemon", so a Meganium survives the
+            # answer and attacks twice while a Dipplin gives a prize back after
+            # one swing. Neither one-shots a 150 HP Crustle; only the one that
+            # lives to swing again removes it.
+            #
+            # On that board the old reading cost the turn's energy outright: our
+            # Tapu Bulu had just been knocked out by that same Superb Scissors,
+            # the bench held a Meganium at 0 of 4 and an APPLIN benched on this
+            # very turn -- so it could not evolve until the next one, and its
+            # Dipplin dies to one Scissors when it does -- and the Applin took
+            # the Grass at 30000 against the Meganium's 27000, on a board where
+            # we were one prize from winning.
+            #
             # len(energies) is ALREADY the EFFECTIVE energy (Wild Growth already
             # applied in the observation): Solar Beam needs 4.
+            # AND ONLY WHILE THE WALL IS ACTUALLY IN THE WAY
+            # (`_ctm_wall_in_the_way`, main.py). Same narrowing as the
+            # reservation's, from the same rules-oracle split: with our Tapu
+            # Bulu at six units in front of a 150 HP Crustle the wall is not an
+            # obstacle, it is a prize, and the turn's Grass goes back to the
+            # ladder the matchup was measured under.
+            # THE GATE AND THE BAND MOVE TOGETHER. They were split once, in the
+            # first version of this narrowing, and the bug is worth naming: the
+            # gate asked `_ctm_meg_up` and the band asked the switch alone, so
+            # on a board where the wall was NOT in the way Meganium fell back to
+            # the old "only while no Tapu and no Dipplin are in play" gate and
+            # then collected the NEW 23000 anyway -- the loosest reading of the
+            # two, which is neither of the two the oracle graded.
             _meg_eff = energy_count * _grass_mult()
+            _meg_owed = _meg_eff < 4
+            if not _ctm_meg_up:
+                _meg_owed = (_meg_owed
+                             and field_counts.get(Tapu_Bulu, 0) < 1
+                             and not any(
+                                 bp is not None and bp.id == Dipplin
+                                 for bp in (list(my_state.active or [])
+                                            + list(my_state.bench))))
             if active and energy_count == 0 and _meg_promo_ready:
                 score += 24000
                 score += 100
-            elif not _tapu_in_play_meg and not _dipplin_in_play_meg and _meg_eff < 4:
-                score += 19000
+            elif _meg_owed:
+                score += 23000 if _ctm_meg_up else 19000
                 if active:
                     score += 100
             elif _meg_eff < 4:

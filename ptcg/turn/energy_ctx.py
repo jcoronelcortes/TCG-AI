@@ -46,6 +46,7 @@ class CtxEnergyScoreBase:
     _ctm_charge_active_dipplin: Any = None
     _ctm_chikorita_bench: Any = None
     _ctm_tapu_high: Any = None
+    _ctm_wall_in_the_way: Any = None
     _cubchoo_lock_stuck: Any = None
     _ex_stuck_promo_ready: Any = None
     _extra_energy_enables_ko: Any = None

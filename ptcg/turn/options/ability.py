@@ -42,7 +42,7 @@ from ptcg.calc.card import get_card
 from ptcg.calc.damage import _our_effective_damage, _wall_mutes_our_ex
 from ptcg.calc.energy import _grass_attach_unit, _grass_mult, _ogerpon_base_phys_cap, _physical_energy
 from ptcg.cards.groups import GT_SCORE_FULL_CHAIN, GT_SCORE_STAGE1_ONLY
-from ptcg.cards.ids import Basic_Grass_Energy, Dipplin, FEZ_DRAW_ABILITY_SCORE, Fezandipiti_ex, Grand_Tree, Hydrapple_ex, Lillie_Determination, Meganium, Meowth_ex, Pinsir, RETREAT_COST, RIPEN_HEAL_ABILITY_SCORE, RIPEN_HEAL_EX_ABILITY_SCORE, SCORE_CHARGE_ACTIVE_ATTACK, SCORE_CHARGE_ACTIVE_FINISHER, SCORE_CHARGE_LETHAL_FLOOR, SCORE_VETO, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Unfair_Stamp
+from ptcg.cards.ids import Basic_Grass_Energy, Dipplin, MEGANIUM_IS_OWED_THE_LAST_GRASS, FEZ_DRAW_ABILITY_SCORE, Fezandipiti_ex, Grand_Tree, Hydrapple_ex, Lillie_Determination, Meganium, Meowth_ex, Pinsir, RETREAT_COST, RIPEN_HEAL_ABILITY_SCORE, RIPEN_HEAL_EX_ABILITY_SCORE, SCORE_CHARGE_ACTIVE_ATTACK, SCORE_CHARGE_ACTIVE_FINISHER, SCORE_CHARGE_LETHAL_FLOOR, SCORE_VETO, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Unfair_Stamp
 from ptcg.state.agent_state import AGENT_STATE
 
 
@@ -61,6 +61,7 @@ def score_play(tc, o, score):
     _bench_attacker_ready = tc._bench_attacker_ready
     _bench_has_chargeable = tc._bench_has_chargeable
     _bp = tc._bp
+    _ctm_wall_in_the_way = tc._ctm_wall_in_the_way
     _charge_active_missing = tc._charge_active_missing
     _charge_active_enables_attack = tc._charge_active_enables_attack
     _charge_active_finishes = tc._charge_active_finishes
@@ -154,11 +155,29 @@ def score_play(tc, o, score):
                 #
                 # It is the same sentence as the two walls above, so it is the
                 # same rung: the last Grass belongs to the body that can still
-                # hit. The creditor list is the WIDEST of the three because this
-                # wall filters by Rule Box and not by our abilities -- every
-                # non-ex of ours still hits, Meganium included, which is the one
-                # the other two lists never had to name (against Crustle and
-                # Cornerstone it is the doubler, here it is the attacker).
+                # hit. This list and Crustle's are the WIDE ones, because both
+                # walls filter by something Meganium does not carry -- a Rule
+                # Box here, a Rule Box there -- so Meganium still hits and is
+                # owed the Grass. Only Cornerstone's list drops it, and that is
+                # not an oversight: Cornerstone Stance blanks the bodies WITH an
+                # Ability, and Wild Growth is one.
+                #
+                # MEGANIUM WAS MISSING FROM THE CRUSTLE LIST (user,
+                # `records/registro_014_pasos_090_hasta_096.json` step 92, turn
+                # 14, LOST). The tuple read `(Tapu_Bulu, Dipplin, Pinsir)` and
+                # the note above justified the absence with "against Crustle and
+                # Cornerstone it is the doubler" -- true of Cornerstone, false of
+                # Crustle. Crustle's Mysterious Rock Inn switches off our ex, and
+                # Meganium is not one: Solar Beam does its 140 into the wall like
+                # any other non-ex of ours. On that board the omission cost the
+                # whole turn: ONE Grass in hand (a Night Stretcher had just
+                # recovered it), a Meganium on our bench at 0 of 4, two Crustle
+                # waiting on theirs -- one already at three energies -- and the
+                # only body of ours that could ever answer them went without,
+                # because the reservation did not name it and the benched Teal
+                # Mask Ogerpon ex's dance took the card at 31500 against the
+                # attachment's 27000. A SECOND ex charged against the wall that
+                # blanks ex, while the one attacker sat at zero.
                 #
                 # AND THE FOURTH WALL IS A CARD IN THEIR HAND (user, episode
                 # 93163758 vs Comfey/Chandelure, turns 13-19, LOST at one
@@ -181,7 +200,15 @@ def score_play(tc, o, score):
                 # advance one (the measurement is quoted below).
                 _cng_needs_completion = False
                 if AGENT_STATE.op_is_crustle_deck:
-                    _cng_wall_ids = (Tapu_Bulu, Dipplin, Pinsir)
+                    # ...AND MEGANIUM ONLY WHILE THE WALL IS ACTUALLY IN THE WAY
+                    # (`_ctm_wall_in_the_way`, main.py -- the rules-oracle split
+                    # that pinned it is written out there). The other three
+                    # creditors keep the archetype reading they were measured
+                    # under; what the oracle graded is the name that was added.
+                    _cng_wall_ids = ((Tapu_Bulu, Dipplin, Pinsir, Meganium)
+                                     if (MEGANIUM_IS_OWED_THE_LAST_GRASS
+                                         and _ctm_wall_in_the_way)
+                                     else (Tapu_Bulu, Dipplin, Pinsir))
                 elif (AGENT_STATE.op_is_cornerstone_deck
                         or op_has_ability_immune_active):
                     _cng_wall_ids = (Tapu_Bulu, Pinsir)

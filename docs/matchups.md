@@ -310,7 +310,18 @@ A card-by-card audit of the top archetypes (August 2026) found:
   something else in front, and the damage model already returns 0 when the wall
   really is in the way. One archetype guard of that second kind cost a game:
   [The prize the wall does not own](crustle-the-prize-the-wall-does-not-own-2026-08-15.md).
-  Worth checking whenever a new `op_is_*_deck` branch is added.
+  Worth checking whenever a new `op_is_*_deck` branch is added — and a second
+  archetype guard of that kind cost the *charging* rules a rules-oracle grade of
+  3 for / 6 against before being narrowed to `_ctm_wall_in_the_way`:
+  [Meganium is an attacker, not the doubler](crustle-meganium-is-an-attacker-not-the-doubler-2026-08-15.md).
+- **Against this wall the charging order is the order of the ATTACK**: Tapu Bulu
+  (Wood Hammer 220), then **Meganium** (Solar Beam 140, and 160 HP survives their
+  Superb Scissors), then Dipplin (20 per benched body, 80 HP). Meganium used to
+  sit last on the grounds that it is the Wild Growth doubler — true against
+  Cornerstone, which blanks the bodies *with an Ability*, and false against
+  Crustle, which blanks the ones with a *rule box*. And the corollary the same
+  write-up records: **a second ex charged against the wall that blanks ex buys
+  nothing**, while the one non-ex we own sits at zero.
 - **Cynthia's Roserade** was reviewed and skipped once, on the grounds that we
   already won 98% of the archetype — and then a real game showed a Gabite whose
   Dragonslice prints 40 taking 70 off a Tapu Bulu that had 70 left. The extra 30
