@@ -31,6 +31,7 @@ utils/purity.py: nothing here touches mutable state or the runtime tables.
 from ptcg.state.agent_state import AGENT_STATE
 from ptcg.cards.ids import Forest_of_Vitality
 from ptcg.cards.ids import Basic_Grass_Energy, Dawn, LANA_SCORE_WIN_NOW, Lanas_Aid, Lillie_Determination, SCORE_SUPPORTER_VALUE_BASE, SCORE_VETO
+from ptcg.cards.tables import card_table
 from ptcg.engine.context import DecisionContext
 from ptcg.engine.rules import _Adjustment, _FixedRule, _resolve_with_trace
 from ptcg.decision.disruption import _stamp_pendiente
@@ -188,6 +189,83 @@ def _score_dawn_play(ctx: DecisionContext) -> int:
 def _dawn_forest_avail(c):
     return AGENT_STATE.forest_in_play or c.hand.get(Forest_of_Vitality, 0) >= 1
 
+
+# --- THE SEAT THAT IS NOT FREE UNTIL TOMORROW -------------------------------
+# Ceiling for a Dawn candidate whose body cannot wear it this turn. It is one
+# rung BELOW the cheapest evolution the fetch table pays for a seat that is free
+# TODAY (the Dipplin's `immediate_evo`, 880) and ABOVE every rung it pays for a
+# line it is only STARTING (the Chikorita's `rush_with_bayleef`, 850). So a
+# piece that has to wait a turn never outbids one that can be played now, and
+# still beats everything that is not a body at all.
+DAWN_SEAT_TOMORROW_CAP = 870
+
+# A NAMED SWITCH, like `LAST_BRIDGE_IS_NOT_FODDER` in `ptcg/cards/lines.py`: the
+# ONE difference the census, the gate and the rules oracle put between their two
+# arms. Off, the fetch table's `immediate_evo` rungs go back to reading "the
+# body is there" instead of "the body can wear it today".
+DAWN_SEAT_WAITS_A_TURN = True
+
+
+def _dawn_seat_waits_a_turn(card_id, c):
+    """Is this Dawn candidate an EVOLUTION whose only seat cannot wear it until
+    the NEXT turn?
+
+    (user, `records/registro_005_pasos_061_hasta_077.json` step 74, episode
+    93173834 turn 5 vs Marnie, LOST.) Dawn searches out a Basic, a Stage 1 and a
+    Stage 2. For the Stage 2 the board offered a Meganium -- Bayleef on the
+    bench -- and a Hydrapple ex -- Dipplin on the bench -- and the table scored
+    them 1000 and 980, both under the name `immediate_evo`. Only one of them was
+    immediate: that Bayleef had been evolved out of a Chikorita THIS VERY TURN,
+    so nothing could go on top of it until tomorrow, while the Dipplin had been
+    sitting there since before the turn began. The agent took the Meganium, it
+    slept in hand, and the turn ended with one attacker where it could have had
+    two -- a 330 HP Hydrapple ex on the board, ready to take the front when the
+    30 HP Ogerpon in front died.
+
+    `immediate_evo` was reading `field_counts`, which answers "is the body
+    there", and the question the rung claims to ask is "can the body wear it
+    this turn". `evolvable_ns` is the second one already computed
+    (`_evolvable_counts`: present now AND present when the turn started, with a
+    Forest of Vitality in play lifting the restriction altogether), so the fix
+    is to consult it -- and to consult it HERE, once, rather than in each of the
+    table's per-card rungs.
+
+    Deck-agnostic by construction: the pre-evolution comes from the card data
+    (`evolvesFrom`, which stores a NAME, so two printings of the same Pokemon
+    both count as a seat), never from our own line table. A deck whose engine
+    sits on another line gets the same answer without editing this file.
+
+    It says nothing about a piece whose pre-evolution is not in play at all --
+    that is the orphan question, and the table's own `rush_*` rungs (which all
+    require a Forest) are the ones that answer it.
+    """
+    if not DAWN_SEAT_WAITS_A_TURN:
+        return False
+    # A FOREST IN HAND IS A FOREST (registro_008 turn 2, frozen corpus): with
+    # Forest of Vitality available the "did not come down this turn" restriction
+    # disappears, so nothing waits. `evolvable_ns` only lifts it for a Forest
+    # already IN PLAY; the table's own `rush_*` rungs count the copy in hand too
+    # -- it is one Item away -- and this ceiling has to read the board the same
+    # way they do, or it caps the very chains they price. Same reading as
+    # `_ub_wearable_bodies` and `_forest_disponible`.
+    if _dawn_forest_avail(c):
+        return False
+    data = card_table.get(card_id)
+    pre = getattr(data, 'evolvesFrom', None) if data is not None else None
+    if not pre:
+        return False
+    in_play = wearable = 0
+    for cid, n in (getattr(c, 'field', None) or {}).items():
+        if not n:
+            continue
+        cd = card_table.get(cid)
+        if cd is None or getattr(cd, 'name', None) != pre:
+            continue
+        in_play += n
+        wearable += (getattr(c, 'evolvable_ns', None) or {}).get(cid, 0)
+    return in_play >= 1 and wearable <= 0
+
+
 __all__ = [
     '_lillie_draw_count',
     '_refill_deck_delta',
@@ -199,4 +277,7 @@ __all__ = [
     '_RULES_LANA_PLAY',
     '_AJUSTES_LANA_PLAY',
     '_dawn_forest_avail',
+    '_dawn_seat_waits_a_turn',
+    'DAWN_SEAT_TOMORROW_CAP',
+    'DAWN_SEAT_WAITS_A_TURN',
 ]

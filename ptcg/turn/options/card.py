@@ -58,6 +58,7 @@ from ptcg.decision.disruption import _stamp_pendiente, _xr_cap_lost_if_discarded
 from ptcg.decision.meowth import _CtxMeowthFetch, _MEOWTH_FETCH_SUPPS, _RULES_MEOWTH_FETCH
 from ptcg.decision.night_stretcher import _RULES_NS_APPLIN, _RULES_NS_BAYLEEF, _RULES_NS_CHIKORITA, _RULES_NS_DIPPLIN, _RULES_NS_FEZ, _RULES_NS_GRASS, _RULES_NS_HYDRAPPLE, _RULES_NS_MEGANIUM, _RULES_NS_MEOWTH, _RULES_NS_OGERPON, _RULES_NS_PINSIR, _RULES_NS_TAPU, _ctx_ns_fetch, _ns_fez_engine_alive, _ns_meowth_engine_alive
 from ptcg.decision.poke_pad import _CtxPPFetch, _RULES_PP_FETCH
+from ptcg.decision.supporters import DAWN_SEAT_TOMORROW_CAP, _dawn_seat_waits_a_turn
 from ptcg.decision.ultra_ball import _AJUSTES_UB_HYDRAPPLE, _CtxUBFetch, _ub_target_cannot_be_worn, _ub_wearable_bodies, _ub_target_covered_by_hand, _ub_target_has_no_seat, _RULES_UB_APPLIN, _RULES_UB_BAYLEEF, _RULES_UB_CHIKORITA, _RULES_UB_DIPPLIN, _RULES_UB_FEZ, _RULES_UB_HYDRAPPLE, _RULES_UB_MEGANIUM, _RULES_UB_MEOWTH, _RULES_UB_OGERPON, _RULES_UB_PINSIR, _RULES_UB_TAPU, _counter_stadium_urgent, _ctx_ub_fetch_hydrapple, _ctx_ub_fetch_meowth
 from ptcg.state.agent_state import AGENT_STATE
 from ptcg.state.zones import ZONE_BENCH, ZONE_DECK, ZONE_HAND, ZONE_PRIZE
@@ -2456,6 +2457,15 @@ def score_play(tc, o, score):
                             default=_dawn_defecto)
                     else:
                         score = 50 - hand_counts.get(card.id, 0) * 30
+                    # THE SEAT THAT IS NOT FREE UNTIL TOMORROW. The table's
+                    # `immediate_evo` rungs read the field, which says the body
+                    # is THERE and not that it can be evolved today; a body that
+                    # came down this turn cannot wear anything. One ceiling
+                    # here, over every candidate, instead of the same condition
+                    # repeated in each per-card rung. See
+                    # `_dawn_seat_waits_a_turn` (registro_005 step 74).
+                    if _dawn_seat_waits_a_turn(card.id, _dawn_ctx):
+                        score = min(score, DAWN_SEAT_TOMORROW_CAP)
         
                 else:
         
