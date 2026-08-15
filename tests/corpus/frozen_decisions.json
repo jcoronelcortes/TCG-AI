@@ -1768,15 +1768,15 @@
      "CARTA Meganium(710)",
      "CARTA Tapu Bulu(920)",
      "CARTA Teal Mask Ogerpon ex(96)",
-     "CARTA Dipplin(93)",
-     "CARTA Hydrapple ex(150)"
+     "CARTA Hydrapple ex(150)",
+     "CARTA Dipplin(93)"
     ],
     "eleccion": [
      3,
      5,
      6,
-     4,
-     1
+     1,
+     4
     ],
     "paso": null,
     "turno": 13

@@ -66,8 +66,8 @@ from ptcg.calc.energy import count_total_grass_energy
 from dataclasses import dataclass
 from typing import NamedTuple
 from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, CUBCHOO_ALLOWED_PLAY_IDS, Chikorita, Dawn, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Hydrapple_ex, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, Pinsir, SCORE_CANCEL, SCORE_VETO, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, XEROSIC_BIG_HAND, XEROSIC_SCORE_LAST_RESORT, Xerosic_Machinations
-from ptcg.state.zones import ZONE_DECK
-from ptcg.cards.lines import _evo_body_in_play, _evo_copies_usable, _evolution_stage, _line_base_benchable
+from ptcg.state.zones import ZONE_BENCH, ZONE_DECK, ZONE_HAND, ZONE_PRIZE
+from ptcg.cards.lines import _evo_body_in_play, _evo_bridge_last_copies, _evo_copies_usable, _evolution_stage, _line_base_benchable
 from ptcg.cards.scoring import _SUPP_PLAY_IDS
 from ptcg.decision.disruption import _score_xerosic_play, _xr_below_the_alakazam_floor, _xr_gate_alakazam
 from ptcg.decision.poke_pad import _pp_es_t1
@@ -434,6 +434,17 @@ def _ub_real_fodder(ctx, protegida) -> int:
     _ub_bench_max = getattr(getattr(ctx, 'my_state', None), 'benchMax', 5) or 5
     _ub_free_bench = max(0, _ub_bench_max - bench_count)
 
+    # EVERY ZONE A SEARCH OR A DRAW STILL REACHES: the belief minus the discard,
+    # which is the only zone this search cannot get a card back out of. It is
+    # what `_evo_bridge_last_copies` needs below; with no belief attached (the
+    # lightweight contexts the fetch rules build) it falls back to what the
+    # board itself shows, and the protection simply stays silent.
+    _ub_cards = getattr(ctx, 'cards_in_deck', None) or {}
+    _ub_reachable = {
+        _rid: (_rz.get(ZONE_DECK, 0) + _rz.get(ZONE_HAND, 0)
+               + _rz.get(ZONE_BENCH, 0) + _rz.get(ZONE_PRIZE, 0))
+        for _rid, _rz in _ub_cards.items()}
+
     _ub_discardable_without_lillie = 0
     for _ub_llid, _ub_llcnt in hand_counts.items():
         if _ub_llid in (Ultra_Ball, Unfair_Stamp) or _ub_llid in _ub_protegidas:
@@ -548,6 +559,42 @@ def _ub_real_fodder(ctx, protegida) -> int:
                     and (hand_counts.get(Lillie_Determination, 0)
                          + hand_counts.get(Dawn, 0)) <= 1):
                 _ub_ll_fodder = False
+
+        # THE COST MAY NOT EAT THE ONLY BRIDGE OF A LINE WE CAN STILL ASSEMBLE
+        # (user, `records/registro_006_pasos_047_hasta_073.json` step 47,
+        # episode 93159383 vs Marnie -- LOST). Our turn 6, prizes 6-6, hand
+        # {Bayleef, Bayleef, Ultra Ball} and a menu of exactly two options: play
+        # the Ultra Ball or end. Both Bayleef were the deck's only bridge
+        # between the Chikorita and the Meganium, the search's cost of two could
+        # be paid with nothing else, and it took them -- to fetch a Meowth ex.
+        # They sat in the discard from step 49 to step 190, the last one of the
+        # game. A Meganium reached hand 14 steps later and stayed there for 127
+        # of the game's 191 steps; the Chikorita it was waiting for was benched
+        # on that same turn 6 under our own Forest of Vitality (which lets a
+        # Grass Pokemon evolve the turn it is played, so Chikorita -> Bayleef ->
+        # Meganium was one turn's work) and was still sitting unevolved on the
+        # bench when the game ended. Wild Growth never came on: turn 6 ended
+        # with the Tapu Bulu on two Grass and no attack, and every turn after it
+        # paid the physical price for its energy.
+        #
+        # The branches above ask the board ("is there a Chikorita in play to
+        # wear it"), which is the right question about a copy the DECK CAN
+        # REPLACE and the wrong one about the last copies there are: the missing
+        # seat is a card a search still buys, the discarded bridge is not. This
+        # is NOT the circularity `_line_base_benchable` refuses -- that one
+        # vetoed the very search that would un-orphan the piece, and a search
+        # cannot un-orphan what it has just thrown away.
+        #
+        # `_evo_bridge_last_copies` names no card: the stages come from
+        # `EVO_LINES`, so it protects the Dipplin of the Applin line on the same
+        # terms. It only ever PROTECTS, and it protects ONE copy -- the `else`
+        # arm below releases the surplus through `_evo_copies_usable`, so a hand
+        # holding more bridges than the line can ever wear still pays the cost
+        # with them.
+        if _ub_ll_fodder and _evo_bridge_last_copies(
+                _ub_llid, hand_counts, field_counts, _ub_reachable):
+            _ub_ll_fodder = False
+
         if _ub_ll_fodder:
             _ub_discardable_without_lillie += _ub_llcnt
         else:
