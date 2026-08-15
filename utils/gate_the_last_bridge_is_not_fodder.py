@@ -59,10 +59,43 @@ THE CRITERION, WRITTEN BEFORE THE NUMBER EXISTS.
     confirms (ONE flip, and it is two cards swapping places inside a single
     discard ranking that takes both).
 
+WHAT IT MEASURED (15 August 2026, n=1000 on each of the four lists, so 4000
+games an arm). The winrate half of this question is NOT RESOLVABLE at this
+exposure, and the four rows are what says so rather than any one of them:
+
+    regla completa        -1.10 pp   (z=-1.78 p=0.075)
+    solo el descarte      -0.20 pp   (z=-0.34 p=0.736)
+    solo la Ultra Ball    -0.10 pp   (z=-0.16 p=0.869)
+    --control             -0.35 pp   (z=-0.57 p=0.572)
+
+Read alone, the first row looks like a loss with the sign consistent across all
+four lists, and the honest first reading of it was exactly that. THE SPLIT
+REFUTES IT. Neither half reproduces the whole, and on two lists they do not even
+point the same way as it:
+
+    marnie_grimmsnarl     completa -1.70   descarte +1.50   busqueda +2.00
+    crustle_kangaskhan    completa -1.70   descarte -2.60   busqueda -2.80
+
+The halves are nested inside the whole -- every board the discard arm changes,
+the full arm changes too -- so a whole that sits 3.2 points BELOW one half on
+Marnie, and 1.1 points ABOVE both halves on Crustle, is not measuring the rule.
+It is measuring the run. That is the wall
+[[el-suelo-de-ruido-de-marnie-son-punto-cinco-puntos-y-parece-significativo]]
+describes: on Marnie identical code has read 1.50 points at z=3.13.
+
+So the pre-registered criterion resolves to NEUTRAL -> MARK, not to the revert
+the first row on its own would have ordered. What the change enters on is the
+census (1.55 last-bridge boards a game, 0.11 of them cancelling a play) and the
+corpus (one flip, and it is two cards swapping places in a menu that takes
+both). A LOSS still orders the revert here -- the rule genuinely spends tempo
+for a card -- but this gate did not find one, and the four rows are kept
+together so nobody re-reads the first one alone.
+
 Usage:
     python utils/gate_the_last_bridge_is_not_fodder.py --census
     python utils/gate_the_last_bridge_is_not_fodder.py --games 1000
     python utils/gate_the_last_bridge_is_not_fodder.py --games 1000 --control
+    python utils/gate_the_last_bridge_is_not_fodder.py --games 1000 --half discard
 """
 
 import argparse
