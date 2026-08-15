@@ -51,7 +51,7 @@ from ptcg.cards.groups import EVO_LINES, GT_FETCH_BONUS
 from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, DISCARD_SHIELD_KEEP_THE_GUST, DISCARD_SHIELD_KEEP_THE_NONEX, DISCARD_SHIELD_MUTES_THE_EX, DISCARD_SHIELD_SEARCH_FODDER, DISCARD_SHIELD_STADIUM_FODDER, OP_EX_SHIELD_MAX_PRIZES, DISCARD_XEROSIC_CAP_IS_THE_ANSWER, DISCARD_BODY_WITHOUT_SEAT, DISCARD_CF_HAND_RECYCLER, DISCARD_EVO_SPARE_COPY, DISCARD_LINK_LAST_BRIDGE, DISCARD_LINK_THE_SEARCH_BUYS, DISCARD_SUPPORTER_DEAD_DROP, DISCARD_SUPPORTER_LIVE_KEEP, DISCARD_WHAT_THE_SEARCH_ALREADY_BOUGHT, DUNSPARCE_IDS, Dawn, Dipplin, Drednaw, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, LANA_SEL_INJUGABLE, LANA_SEL_GRASS_DEMAND, LANA_SEL_GRASS_UNLOCKS, LANA_SEL_GRASS_SURPLUS, LANA_SEL_GRASS_WINS, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, OUR_ABILITY_IDS, OUR_EX_IDS, Pinsir, Poke_Pad, RETREAT_COST, RIPEN_HEAL_TARGET_SCORE, SCORE_FORBID, SCORE_LOOKAHEAD_PROMOTE_KO, SCORE_LOOKAHEAD_PROMOTE_SAFE, SCORE_NEVER, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, XEROSIC_BIG_HAND, DISCARD_XEROSIC_CAPS_A_FAT_HAND, Xerosic_Machinations
 from ptcg.cards.lines import _evo_bridge_last_copies, _evo_copies_usable, _evo_top_unlocked_by_the_search, _line_base_benchable, _pokemon_injugable
 from ptcg.cards.ids import OPENING_SAC_PROMOTE_ORDER, SETUP_ACTIVE_BASIC_ORDER, SETUP_ACTIVE_BASIC_TOP, SETUP_ACTIVE_EX_ORDER, SETUP_ACTIVE_EX_TOP, SETUP_ACTIVE_OTHER, SETUP_ACTIVE_OTHER_BASIC, SETUP_ACTIVE_STEP
-from ptcg.cards.scoring import MAIN_ATTACKERS, PROMO_DOOMED_PENALTY, PROMO_KO_BONUS, PROMO_KO_FRONT, PROMO_KO_ROTATION, PROMO_LAST_STAND, PROMO_MATCH_POINT_VETO, PROMO_PRIZE_PENALTY, OPENING_SAC_PROMOTE_STEP, OPENING_SAC_PROMOTE_TOP, _SUPP_PLAY_IDS, _purchase_of_this_turn
+from ptcg.cards.scoring import MAIN_ATTACKERS, PROMOTE_TERA_PAYS_FOR_ITS_COVER, PROMO_TERA_COVER_PRICE, PROMO_DOOMED_PENALTY, PROMO_KO_BONUS, PROMO_KO_FRONT, PROMO_KO_ROTATION, PROMO_LAST_STAND, PROMO_MATCH_POINT_VETO, PROMO_PRIZE_PENALTY, OPENING_SAC_PROMOTE_STEP, OPENING_SAC_PROMOTE_TOP, _SUPP_PLAY_IDS, _purchase_of_this_turn
 from ptcg.cards.tables import HAND_TO_DECK_PLAY_IDS, card_table
 from ptcg.decision.boss_orders import _ADJUST_GUST_NUISANCE, _ADJUST_GUST_OFFENSIVE, _RULES_GUST_NUISANCE, _ctx_gust_target
 from ptcg.decision.disruption import _stamp_pendiente, _xr_cap_lost_if_discarded
@@ -1236,6 +1236,34 @@ def score_play(tc, o, score):
                             score -= (PROMO_PRIZE_PENALTY
                                       * (prize_count(card) - _promo_min_prize))
         
+                    # THE COVER THE SEAT LEAVES BEHIND (user, pending written
+                    # 12 August 2026 from episode 92355371 step 62 vs Festival
+                    # Lead, LOST). While it sits on the BENCH the Tera of a Teal
+                    # Mask Ogerpon ex prevents all damage from attacks, so the
+                    # promotion is not free even when the body survives the blow
+                    # it is being measured against: it hands over an untouchable
+                    # seat and puts two prizes in front of an engine that spreads
+                    # knockouts. In the record it came up, took 120, and the next
+                    # wave took it with both prizes.
+                    #
+                    # It is charged where the cover is REAL and the choice is
+                    # ours: the forced promotion after a knockout. On a voluntary
+                    # retreat the body is being asked for something it can only do
+                    # from the front, and the turn is paying a fee to ask.
+                    #
+                    # `PROMO_TERA_COVER_PRICE` is 500 and the size is the point:
+                    # it cannot reach the knockout bonus (+20000), the doomed
+                    # penalty (-6000) or the prize band (-1500 each), all three
+                    # measured rules of their own. It reaches exactly the band
+                    # where the only argument for the ex is that it is the
+                    # biggest body left.
+                    if (PROMOTE_TERA_PAYS_FOR_ITS_COVER
+                            and _forced_ko_promote
+                            and isinstance(card, Pokemon)
+                            and card.id == Teal_Mask_Ogerpon_ex
+                            and score > 0):
+                        score -= PROMO_TERA_COVER_PRICE
+
                     # MATCH POINT (user, log 88971843 step 117). When the
                     # opponent only needs to knock THIS body out to take
                     # the last prize, bringing up a doomed body is not a bad
