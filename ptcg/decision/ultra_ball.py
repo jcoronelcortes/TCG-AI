@@ -62,7 +62,9 @@ from ptcg.state.agent_state import AGENT_STATE
 from ptcg.decision.disruption import _op_refill_engine, _stamp_buries_the_last_xerosic, _stamp_worth_playing
 from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Chikorita, Dawn, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Hydrapple_ex, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Pinsir, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Unfair_Stamp
 from ptcg.calc.board import _active_of
-from ptcg.calc.energy import count_total_grass_energy
+from ptcg.calc.energy import _a_body_can_attack_this_turn, count_total_grass_energy
+from ptcg.cards.groups import POKEMON_SEARCH_SUPPORTER_IDS
+from ptcg.cards.ids import GRASS_DIGGER_REACH, GRASS_DIGGER_SUPPORTERS
 from dataclasses import dataclass
 from typing import NamedTuple
 from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, CUBCHOO_ALLOWED_PLAY_IDS, Chikorita, Dawn, Dipplin, Fezandipiti_ex, Forest_of_Vitality, Hydrapple_ex, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, Pinsir, SCORE_CANCEL, SCORE_VETO, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, XEROSIC_BIG_HAND, XEROSIC_SCORE_LAST_RESORT, Xerosic_Machinations
@@ -390,6 +392,137 @@ def _ub_cancel_fez(ctx) -> bool:
     return _ub_cancel_for_fez
 
 
+# A NAMED SWITCH, like `DAWN_SEAT_WAITS_A_TURN` in `ptcg/decision/supporters.py`
+# and `LAST_BRIDGE_IS_NOT_FODDER` in `ptcg/cards/lines.py`: the ONE difference
+# the census, the gate and the rules oracle put between their two arms. Off, the
+# Supporter that only buys BODIES goes back to being protected as "the last
+# refill" on a turn whose only shortage is ENERGY.
+THE_BODY_SEARCH_DOES_NOT_UNBLOCK_AN_ENERGYLESS_TURN = True
+
+
+def _the_body_search_cannot_buy_the_energy(ctx, ub_in_hand=None) -> bool:
+    """Is the Supporter in hand one that buys BODIES on a turn blocked by ENERGY
+    -- with the route that DOES reach an energy still walkable today?
+
+    (user, `records/registro_009_pasos_116_hasta_120.json` step 116, episode
+    93210930 turn 9 vs Festival Lead -- WON in spite of this.) Prizes 3-3:
+
+        US                                     RIVAL
+        active  Hydrapple ex 190/330, **0 e**  active  Thwackey 100/100
+        bench   Meganium 160/160, 0 e          bench   Dipplin (1 e), Thwackey x2,
+                Teal Mask Ogerpon ex x2, 0 e           Dipplin, Applin
+        hand    Bayleef, DAWN, ULTRA BALL      stadium Forest of Vitality (ours)
+
+        [0] DAWN         2680   <-- played
+        [2] END             0
+        [1] ULTRA BALL     -1   `_ub_cancel_no_surplus`
+
+    NOT ONE ENERGY on the whole board and not one in hand, so no body of ours
+    could attack whatever we did with the turn. The turn's Supporter went into
+    Dawn -- "search your deck for a Basic, a Stage 1 and a Stage 2" -- which
+    fetched a Tapu Bulu and a second Hydrapple ex, benched the Tapu and ended:
+    zero energy attached, zero damage, three Pokemon cards in hand.
+
+    Dawn CANNOT produce an energy. It is not in `GRASS_DIGGER_REACH` for exactly
+    that reason, and the ladder that played it never asked the question the
+    board was asking. Worse, playing it CLOSES the only door: one Supporter per
+    turn, and the deck held three Lillie's Determination -- a fresh hand of six
+    out of a deck with eight Basic {G} still in it -- one Meowth ex away
+    (Last-Ditch Catch fetches a Supporter), which is one Ultra Ball away.
+
+    WHY IT IS THE FODDER COUNT AND NOT DAWN'S PLAY SCORE. The Ultra Ball was
+    ALREADY worth more than the Dawn on that board (12400 against 2680): the
+    only thing standing between the two was `_ub_cancel_no_surplus`, which
+    counted ONE card of real fodder in a hand of three because `_ub_real_fodder`
+    protects a lone refill Supporter. So the agent protected, as tomorrow's
+    refill, the very card whose printed text cannot answer today's question --
+    and paid for it with the turn. Its own DISCARD scorer did not agree: with
+    Meganium and Hydrapple ex both already in play that same Dawn is priced at
+    75, ordinary fodder, because there is nothing left for it to buy.
+
+    DECK-AGNOSTIC BY CONSTRUCTION. `POKEMON_SEARCH_SUPPORTER_IDS` is the group
+    of Supporters that buy bodies, `GRASS_DIGGER_REACH` the group that can put a
+    Basic Energy in hand and `GRASS_DIGGER_SUPPORTERS` the refills among them:
+    the sentence is "the slot cannot go to a card that cannot buy what the turn
+    is missing", and it names no opponent. It fires against Festival Lead the
+    same way it fires against a wall deck.
+
+    THE ROUTE HAS TO BE WALKABLE TODAY, or the rule is just a way of throwing
+    the Dawn away. Every step is checked: an Ultra Ball to play, a Meowth ex
+    left in the deck, a bench seat for it, its Last-Ditch unspent and unlocked
+    (Watchtower cancels it), the Items not shut off (Budew), and a refill
+    Supporter still in the deck -- Lana's Aid only counting when there is a
+    Basic {G} in the discard for it to bring back.
+
+    `ub_in_hand` overrides the "an Ultra Ball to play" reading for the one menu
+    where the card is no longer in hand: its OWN discard, where the cost is
+    being paid and `select.effect` is the Ultra Ball itself.
+
+    IT LEANS SILENT. Every uncertainty answers False -- a permissive
+    `_a_body_can_attack_this_turn`, a context too light to carry the belief, a
+    Night Stretcher in hand that might yet find a Grass -- because a wrong True
+    spends a Supporter that had a use and a wrong False only leaves the agent
+    exactly where it was.
+    """
+    if not THE_BODY_SEARCH_DOES_NOT_UNBLOCK_AN_ENERGYLESS_TURN:
+        return False
+    state = getattr(ctx, 'state', None)
+    my_state = getattr(ctx, 'my_state', None)
+    if state is None or my_state is None:
+        return False
+    # The slot is the whole subject of the sentence: with the Supporter already
+    # played there is nothing to yield and nothing to yield to.
+    if getattr(state, 'supporterPlayed', False):
+        return False
+    hand_counts = getattr(ctx, 'hand_counts', None) or {}
+    field_counts = getattr(ctx, 'field_counts', None) or {}
+
+    # 1. THE HAND CANNOT UNBLOCK ITSELF. A Basic {G} already in hand, or any
+    #    card whose text still reaches one, and this is not an energyless turn:
+    #    it is a turn with an energy plan, and the Supporter is free to buy a
+    #    body for it.
+    if hand_counts.get(Basic_Grass_Energy, 0) >= 1:
+        return False
+    if any(hand_counts.get(_gid, 0) >= 1 for _gid in GRASS_DIGGER_REACH):
+        return False
+
+    # 2. AND NOTHING ON THE BOARD ATTACKS TODAY EITHER -- the same reading four
+    #    other routes make, and permissive on purpose (see its note): a body we
+    #    over-count as an attacker leaves this rule silent.
+    if _a_body_can_attack_this_turn(my_state, state, hand_counts, field_counts):
+        return False
+
+    # 3. THE ROUTE THE COST BUYS, step by step.
+    if ub_in_hand is None:
+        ub_in_hand = hand_counts.get(Ultra_Ball, 0) >= 1
+    if not ub_in_hand:
+        return False
+    if getattr(ctx, 'itchy_pollen_active', False):
+        return False           # Budew: the Item cannot be played at all
+    if getattr(ctx, 'meowth_ability_lock', False):
+        return False           # Watchtower: Last-Ditch Catch fetches nothing
+    if not getattr(ctx, 'meowth_ld_free', True):
+        return False           # a Meowth benched this turn already spent it
+    if field_counts.get(Meowth_ex, 0) >= 2:
+        return False
+    _bs_bench_max = getattr(my_state, 'benchMax', 5) or 5
+    if getattr(ctx, 'bench_count', 0) >= _bs_bench_max:
+        return False           # no seat: the body the search buys cannot land
+    _bs_cards = getattr(ctx, 'cards_in_deck', None) or {}
+    if _bs_cards.get(Meowth_ex, {}).get(ZONE_DECK, 0) < 1:
+        return False
+    _bs_grass_in_discard = any(
+        getattr(_c, 'id', 0) == Basic_Grass_Energy
+        for _c in (getattr(my_state, 'discard', None) or []))
+    for _bs_sid in GRASS_DIGGER_SUPPORTERS:
+        if _bs_cards.get(_bs_sid, {}).get(ZONE_DECK, 0) < 1:
+            continue
+        if _bs_sid == Lanas_Aid and not _bs_grass_in_discard:
+            continue           # it recovers from the discard, and there is none
+        return True
+    return False
+
+
 def _ub_real_fodder(ctx, protegida) -> int:
     """How many cards from hand the DISCARD scorer would REALLY let go before
     touching `protegida` (the "real fodder" the Ultra Ball's cost of 2 is paid
@@ -559,6 +692,15 @@ def _ub_real_fodder(ctx, protegida) -> int:
                     and (hand_counts.get(Lillie_Determination, 0)
                          + hand_counts.get(Dawn, 0)) <= 1):
                 _ub_ll_fodder = False
+                # ...UNLESS IT IS A REFILL THAT CANNOT REFILL WHAT THE TURN IS
+                # MISSING. The protection above is about the card that replaces
+                # the hand this cost is emptying; a Supporter that only buys
+                # BODIES replaces nothing on a turn with no energy anywhere, and
+                # holding it spends the slot that the route to an energy needs.
+                # Full record in `_the_body_search_cannot_buy_the_energy`.
+                if (_ub_llid in POKEMON_SEARCH_SUPPORTER_IDS
+                        and _the_body_search_cannot_buy_the_energy(ctx)):
+                    _ub_ll_fodder = True
 
         # THE COST MAY NOT EAT THE ONLY BRIDGE OF A LINE WE CAN STILL ASSEMBLE
         # (user, `records/registro_006_pasos_047_hasta_073.json` step 47,
@@ -2756,6 +2898,8 @@ __all__ = [
     '_ub_terminal_overrides',
     '_ub_cancel_stamp',
     '_ub_cancel_fez',
+    'THE_BODY_SEARCH_DOES_NOT_UNBLOCK_AN_ENERGYLESS_TURN',
+    '_the_body_search_cannot_buy_the_energy',
     '_ub_real_fodder',
     '_ub_target_covered_by_hand',
     '_ub_cancel_xerosic',
