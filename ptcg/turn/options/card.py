@@ -48,6 +48,7 @@ from ptcg.calc.damage import _attacker_base_damage, _bench_attacker_can_ko, _fes
 from ptcg.calc.energy import _can_attack_eff, _grass_attach_route_open, _grass_attach_unit, _grass_mult
 from ptcg.calc.board import _active_of, _count_hand_play_options
 from ptcg.cards.groups import EVO_LINES, GT_FETCH_BONUS
+from ptcg.cards.ids import THE_COST_KEEPS_THE_SUPPORTER_THE_TURN_PLAYS
 from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, DISCARD_SHIELD_KEEP_THE_GUST, DISCARD_SHIELD_KEEP_THE_NONEX, DISCARD_SHIELD_MUTES_THE_EX, DISCARD_SHIELD_SEARCH_FODDER, DISCARD_SHIELD_STADIUM_FODDER, OP_EX_SHIELD_MAX_PRIZES, DISCARD_XEROSIC_CAP_IS_THE_ANSWER, DISCARD_BODY_WITHOUT_SEAT, DISCARD_CF_HAND_RECYCLER, DISCARD_EVO_SPARE_COPY, DISCARD_LINK_LAST_BRIDGE, DISCARD_LINK_THE_SEARCH_BUYS, DISCARD_SUPPORTER_DEAD_DROP, DISCARD_SUPPORTER_LIVE_KEEP, DISCARD_WHAT_THE_SEARCH_ALREADY_BOUGHT, DUNSPARCE_IDS, Dawn, Dipplin, Drednaw, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, LANA_SEL_INJUGABLE, LANA_SEL_GRASS_DEMAND, LANA_SEL_GRASS_UNLOCKS, LANA_SEL_GRASS_SURPLUS, LANA_SEL_GRASS_WINS, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, OUR_ABILITY_IDS, OUR_EX_IDS, Pinsir, Poke_Pad, RETREAT_COST, RIPEN_HEAL_TARGET_SCORE, SCORE_FORBID, SCORE_LOOKAHEAD_PROMOTE_KO, SCORE_LOOKAHEAD_PROMOTE_SAFE, SCORE_NEVER, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, XEROSIC_BIG_HAND, DISCARD_XEROSIC_CAPS_A_FAT_HAND, Xerosic_Machinations
 from ptcg.cards.lines import _evo_bridge_last_copies, _evo_copies_usable, _evo_top_unlocked_by_the_search, _line_base_benchable, _pokemon_injugable
 from ptcg.cards.ids import OPENING_SAC_PROMOTE_ORDER, SETUP_ACTIVE_BASIC_ORDER, SETUP_ACTIVE_BASIC_TOP, SETUP_ACTIVE_EX_ORDER, SETUP_ACTIVE_EX_TOP, SETUP_ACTIVE_OTHER, SETUP_ACTIVE_OTHER_BASIC, SETUP_ACTIVE_STEP
@@ -148,6 +149,7 @@ def score_play(tc, o, score):
     _sel_active_cant_attack = tc._sel_active_cant_attack
     _self_ko_by_own_attack = tc._self_ko_by_own_attack
     _supp_values = tc._supp_values
+    _supp_that_takes_the_turn = tc._supp_that_takes_the_turn
     # Mutated in place (`.add`), so it needs no write-back: it is the same set
     # every option of this menu sees. See `REASIGNADAS` in ctx_scoring.py.
     _supp_live_keep_once = tc._supp_live_keep_once
@@ -2187,7 +2189,9 @@ def score_play(tc, o, score):
                         has_hydrapple=has_hydrapple,
                         op_ex_immune_active=op_has_ex_immune_active,
                         op_ex_immune_bench=op_has_ex_immune_bench,
-                        no_attacker_prefer_meowth=_ub_no_attacker_prefer_meowth)
+                        no_attacker_prefer_meowth=_ub_no_attacker_prefer_meowth,
+                        supp_in_hand_takes_the_turn=bool(
+                            tc._ub_supp_in_hand_turn))
         
                     if card.id == Meowth_ex:
                         _ub_meo_ctx = _ctx_ub_fetch_meowth(
@@ -3603,6 +3607,35 @@ def score_play(tc, o, score):
                 # And it stays inside the Supporter band on purpose (see the
                 # constants): it changes WHICH Supporter is sacrificed, never
                 # how many non-Supporters are.
+                # ...AND THE SCALE IT RANKS THEM ON IS THE ONE THAT RESOLVES THE
+                # SLOT (user, `records/registro_004_pasos_040_hasta_055.json`
+                # step 44, episode 93428975 vs Mega Lucario ex -- LOST). The
+                # board and the whole cascade are written out in
+                # `THE_COST_KEEPS_THE_SUPPORTER_THE_TURN_PLAYS`.
+                #
+                # `_supp_values` is a FETCH scale: it prices the slot for the
+                # searchers, which have to guess what a card still in the deck
+                # would be worth. On that board it read Dawn 900 over Lillie's
+                # Determination 750 -- correctly by its own lights, since with a
+                # Forest of Vitality on the field a search for bodies assembles a
+                # whole chain in one turn. The PLAY scorers, asked in the same
+                # tick, said Lillie's 5000. So this block handed its keep floor to
+                # the card the turn would not play, and the Ultra Ball's cost
+                # took the one it would.
+                #
+                # `_supp_that_takes_the_turn` is `_best_supporter_in_hand` -- the
+                # same PLAY scale `_supp_in_hand_takes_the_turn` already insists
+                # on for exactly this reason ("the fetch scale orders the same
+                # pair the other way round"). It answers the KEEP half only. The
+                # DROP half below still reads `_supp_values`, and deliberately:
+                # "this card is dead today" is a statement about the board, the
+                # two scales do not disagree about it, and a card the play
+                # scorers merely rank second is not dead.
+                #
+                # It is None while the slot is spent, and then this reads exactly
+                # as it did before. Nothing else changes: the floor stays inside
+                # the Supporter band, so it still decides WHICH Supporter is
+                # sacrificed and never how many.
                 if card.id in _SUPP_PLAY_IDS and card.id in _supp_values:
                     _dsv_live = _supp_values.get(card.id, 0) or 0
                     _dsv_rivals = [_supp_values.get(_sid, 0) or 0
@@ -3610,7 +3643,17 @@ def score_play(tc, o, score):
                                    if _sid != card.id
                                    and hand_counts.get(_sid, 0) >= 1]
                     if _dsv_rivals:
-                        if _dsv_live > 0 and _dsv_live > max(_dsv_rivals):
+                        # The KEEP verdict, and ONLY it: the play scale names the
+                        # card that holds the job, the value layer decides
+                        # nothing about it. The `elif` below is left byte for
+                        # byte as it was.
+                        _dsv_takes_the_turn = (_dsv_live > 0
+                                               and _dsv_live > max(_dsv_rivals))
+                        if (THE_COST_KEEPS_THE_SUPPORTER_THE_TURN_PLAYS
+                                and _supp_that_takes_the_turn is not None):
+                            _dsv_takes_the_turn = (
+                                card.id == _supp_that_takes_the_turn)
+                        if _dsv_takes_the_turn:
                             # AND ONLY THE FIRST COPY GETS IT (user, August
                             # 2026, found by `utils/duplicate_protection_audit
                             # .py` over the 118 discard menus of the frozen

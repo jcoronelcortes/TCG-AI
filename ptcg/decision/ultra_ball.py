@@ -1450,6 +1450,14 @@ class _CtxUBFetch:
     op_ex_immune_active: bool
     op_ex_immune_bench: bool
     no_attacker_prefer_meowth: bool = False
+    # Does the Supporter ALREADY IN HAND beat anything the deck could bring?
+    # (`_supp_in_hand_takes_the_turn`, measured on the PLAY scale.) The Meowth
+    # chain reads the same flag off `_CtxUBMeowth`; it lives here too because
+    # `_RULES_UB_FEZ` asks the identical question about the identical purchase
+    # -- a body bought for the cards it draws. It defaults to False, so the
+    # lightweight contexts the tests build read as "we know of no such
+    # Supporter" and the rung stays silent.
+    supp_in_hand_takes_the_turn: bool = False
 
 
 # The `_v_ub_*` functions below are VALUE functions: the `value` half of a rule
@@ -2875,6 +2883,31 @@ _RULES_UB_PINSIR = [
 
 
 _RULES_UB_FEZ = [
+    # THE TURN'S REFILL IS ALREADY IN HAND (user, `records/registro_004_pasos
+    # _040_hasta_055.json` step 45, episode 93428975 vs Mega Lucario ex --
+    # LOST). The same sentence `_RULES_UB_MEOWTH` spells out one ladder over,
+    # and for the same reason: BOTH bodies are bought for CARDS, so both are
+    # redundant when the hand already holds the Supporter that draws more.
+    #
+    # The branch below says so itself -- "Lillie's rebuilds the WHOLE hand (up
+    # to 8 cards), opening many more options than Fezandipiti's 3-card draw" --
+    # but it can only act on it through `no_attacker_prefer_meowth`, which is
+    # gated on the Lillie's being in the DECK. With the refill already IN HAND
+    # that yield goes silent and this rung wins by default, which is how a turn
+    # holding a Lillie's Determination at exactly six prizes (draw 8, for free,
+    # for no prize) spent an Ultra Ball and two cards on a 2-prize body that
+    # draws three. On that board it beat the Bayleef (950) that completes
+    # Chikorita -> Bayleef -> Meganium under our own Forest of Vitality.
+    #
+    # `supp_in_hand_takes_the_turn` is the deck-agnostic form: it names no card
+    # and asks the real PLAY scorers whether the Supporter in hand beats
+    # ANYTHING the deck could still bring (`_supp_in_hand_takes_the_turn`). It
+    # goes FIRST, above `refill_after_a_ko`, exactly where the twin sits in the
+    # Meowth ladder -- a body whose only product is cards we already have is not
+    # a search, whatever else is true of the board.
+    _FixedRule("the_turns_refill_is_already_in_hand",
+               lambda c: c.supp_in_hand_takes_the_turn,
+               lambda c: 10),
     # Refill after a KO with Flip the Script (a benched Fezandipiti ex draws 3 when
     # we are knocked out). It is a good search IF we already have a usable attacker
     # or if the Meowth ex -> Last-Ditch -> Lillie's engine is NOT available. But if

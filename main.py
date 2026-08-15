@@ -13020,6 +13020,21 @@ def agent(obs_dict: dict) -> list[int]:
     # so it is computed with no context gate. See `_supp_in_hand_takes_the_turn`.
     _ub_supp_in_hand_turn = _supp_in_hand_takes_the_turn(ctx)
 
+    # WHICH Supporter of the hand takes the turn, on the PLAY scale -- the id,
+    # not the verdict `_ub_supp_in_hand_turn` reduces it to. The discard ladder
+    # needs the name: a cost may not eat the card the turn is about to play, and
+    # only one card per turn can hold that job. Read by
+    # `THE_COST_KEEPS_THE_SUPPORTER_THE_TURN_PLAYS` in
+    # `ptcg/turn/options/card.py`, where the alternative was `_supp_values` --
+    # the fetch scale, which orders the same pair the other way round.
+    #
+    # It is None once the slot is spent: with no Supporter left to play there is
+    # no job to protect, and the ladder's own "guaranteed playable next turn"
+    # branch (`_protect_last_supporter`) is what speaks then.
+    _supp_that_takes_the_turn = None
+    if not state.supporterPlayed:
+        _supp_that_takes_the_turn, _ = _best_supporter_in_hand(ctx)
+
     _meowth_supp_turn_id, _meowth_supp_turn_val = None, 0
     _meowth_fetch_play_val = 0
     _meowth_fetch_loses_the_turn = False
