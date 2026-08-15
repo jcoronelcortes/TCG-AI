@@ -1685,6 +1685,40 @@ DISCARD_EVO_SPARE_COPY = 55
 # so a piece we are still only BUYING never outranks a card that is already
 # doing its job, and far below every band the cost really eats.
 DISCARD_LINK_THE_SEARCH_BUYS = 3
+
+# --- THE COST KEEPS THE SUPPORTER THE TURN WOULD PLAY -----------------------
+# Episode 93428975, `records/registro_004_pasos_040_hasta_055.json` step 44,
+# turn 4 vs Mega Lucario ex -- LOST. Six prizes each, our own Forest of Vitality
+# on the field, hand {Boss's Orders, Hydrapple ex, Meganium, Dawn, Lillie's
+# Determination} and the Supporter slot still free. The Ultra Ball's cost took
+# the Boss's Orders (36) and the LILLIE'S DETERMINATION (8), keeping the Dawn at
+# the floor of 2. The turn then played neither: the slot went to a Lana's Aid
+# the Meowth ex had just fetched.
+#
+# The two scales disagreed about the same question, which is the defect
+# `DISCARD_SUPPORTER_LIVE_KEEP` exists to end and could not end here. The block
+# ranks the Supporters of the hand on `_supp_values`, and on that board the
+# value layer read Dawn 900 over Lillie's 750 -- because with the Forest in play
+# it lifts Dawn 50 ABOVE the refill, a search for bodies being worth more than
+# cards when the whole chain can be assembled the same turn. The PLAY scale, the
+# one that actually resolves the slot, said the opposite in the very same tick:
+# `_score_lillie_determination_play` 5000 (`refresh_short_hand`) against a Dawn
+# that never came near it. So the block granted its keep floor to the card the
+# turn would NOT play and left the card it WOULD play on the ladder's generic
+# "turn <= 5 and the slot is free" rung, which is 8 -- the second cheapest thing
+# in the hand.
+#
+# `_best_supporter_in_hand` is the same answer measured on the PLAY scale, the
+# reading `_supp_in_hand_takes_the_turn` already documents ("the fetch scale
+# orders the same pair the other way round"). On -> the keep floor goes to the
+# Supporter that takes the turn and the OTHER refill drops to its own ladder
+# rung, which is where the cost finds it. Off -> `_supp_values` keeps the last
+# word and the recorded game is what happens.
+#
+# It changes WHICH Supporter is sacrificed, never how many: both readings live
+# inside the same band, exactly as the constants above require.
+THE_COST_KEEPS_THE_SUPPORTER_THE_TURN_PLAYS = True
+
 # --- THE LAST BRIDGE OF A LINE (see `_evo_bridge_last_copies`) --------------
 # The constant above prices a link the search is about to BUY BACK. This one
 # prices the opposite card: a middle link whose copies in hand are the last ones
@@ -2236,6 +2270,7 @@ __all__ = [
     'DISCARD_EVO_SPARE_COPY',
     'DISCARD_LINK_LAST_BRIDGE',
     'DISCARD_LINK_THE_SEARCH_BUYS',
+    'THE_COST_KEEPS_THE_SUPPORTER_THE_TURN_PLAYS',
     'DISCARD_WHAT_THE_SEARCH_ALREADY_BOUGHT',
     'DISCARD_BODY_WITHOUT_SEAT',
     'DISCARD_CF_HAND_RECYCLER',

@@ -230,6 +230,7 @@ class ScoringCtx:
     _teal_wall_pivot: Any = None
     _ub_meowth_for_tomorrow: Any = None
     _ub_supp_in_hand_turn: Any = None
+    _supp_that_takes_the_turn: Any = None
     _wall_ko_promote: Any = None
     _win_ko_active_via_promote: Any = None
     _win_via_boss_gust: Any = None
