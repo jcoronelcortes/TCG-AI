@@ -21167,10 +21167,10 @@
     "accion": 18,
     "contexto": 0,
     "detalle": [
-     "RETREAT"
+     "ATTACK id120"
     ],
     "eleccion": [
-     2
+     1
     ],
     "paso": null,
     "turno": 4

@@ -1202,6 +1202,27 @@ MEGANIUM_IS_OWED_THE_LAST_GRASS = True
 #   old gate come back.
 MEGANIUM_OUTRANKS_THE_DIPPLIN_LINE = True
 
+# --- THE ANSWER TO THE WALL IS A RESERVE, NOT TODAY'S ATTACKER --------------
+# The other half of the same reading, and the one that says WHEN that attacker
+# is spent. Episode 93210034 vs Crustle / Mega Kangaskhan ex (WON), step 58:
+# their Crustle on the BENCH, a Mega Kangaskhan ex 300/300 in front, our Teal
+# Mask Ogerpon ex active with 4 effective energies (Myriad Leaf Shower 150) and
+# a Meganium freshly evolved on our bench with its own 4 (Solar Beam 140). The
+# agent retreated the Ogerpon -- discarding energy -- to attack with the
+# Meganium for TEN LESS, and left the only body of ours that can hurt a Crustle
+# in front of a 200-damage attack that kills it, having just pulled back the
+# 210 HP body that survives that same blow.
+#
+# The two retreat branches that promote the anti-wall attacker
+# (`ptcg/turn/options/retreat.py`) were guarded by the ARCHETYPE plus "the
+# active does not knock out", which is equally true of every board where our ex
+# can damage what is in front and simply cannot finish it. On -> the body coming
+# up must do MORE to their active this turn than the one going down (with the
+# wall actually in front our ex does 0, so the promotion still fires by
+# construction). Off -> the old guard, and the reserve takes the front spot on
+# the archetype's word.
+THE_RESERVE_DOES_NOT_TAKE_THE_FRONT = True
+
 # When the active ALREADY takes the prize, this turn's Grass buys nothing today
 # and the whole question becomes "who attacks NEXT turn". The band that answers
 # it (25000-30000 in `_energy_score_base`) ranks the bodies BY SPECIES, one rung
@@ -2116,6 +2137,7 @@ __all__ = [
     'CHARGE_THE_BODY_THAT_NEEDS_IT',
     'MEGANIUM_IS_OWED_THE_LAST_GRASS',
     'MEGANIUM_OUTRANKS_THE_DIPPLIN_LINE',
+    'THE_RESERVE_DOES_NOT_TAKE_THE_FRONT',
     'FEZ_ABILITY_BEFORE_THE_KNOCKOUT',
     'FEZ_BENCH_FOR_TOMORROWS_DRAW',
     'SCORE_ASSEMBLE_WINS_THE_GAME',

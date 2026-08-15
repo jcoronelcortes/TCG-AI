@@ -44,7 +44,7 @@ from ptcg.calc.card import get_card, prize_count, prize_count_op
 from ptcg.calc.damage import UPGRADE_PRIZE, _attacker_base_damage, _bench_finisher_that_survives, _bench_finisher_upgrade, _ex_active_is_a_wall, _hand_revealed_lethal_reply, _op_active_attack_damage_to, _our_effective_damage, _promoted_lethal_reply, _promoted_reply_damage, _reply_reaches_match_point
 from ptcg.calc.energy import _can_attack_eff, _grass_attach_route_open, _grass_attach_unit, _grass_mult, _physical_energy, _reachable_grass_for, _retreat_grass_to_discard, _retreat_grass_units
 from ptcg.calc.board import _active_of
-from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Chikorita, Cornerstone_Mask_Ogerpon_ex, Crustle_Fighting, Crustle_Grass, Cubchoo, Dawn, Dipplin, Drednaw, Dwebble_Fighting, Dwebble_Grass, EEVEE_IDS, Fezandipiti_ex, Hydrapple_ex, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, OP_BENCH_SNIPE_DAMAGE, OUR_ABILITY_IDS, OUR_EX_IDS, Pinsir, RETREAT_COST, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex
+from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Chikorita, Cornerstone_Mask_Ogerpon_ex, Crustle_Fighting, Crustle_Grass, Cubchoo, Dawn, Dipplin, Drednaw, Dwebble_Fighting, Dwebble_Grass, EEVEE_IDS, Fezandipiti_ex, Hydrapple_ex, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, OP_BENCH_SNIPE_DAMAGE, OUR_ABILITY_IDS, OUR_EX_IDS, Pinsir, RETREAT_COST, SCORE_VETO, Sylveon, THE_RESERVE_DOES_NOT_TAKE_THE_FRONT, Tapu_Bulu, Teal_Mask_Ogerpon_ex
 from ptcg.cards.scoring import MAIN_ATTACKERS
 from ptcg.cards.tables import card_table
 from ptcg.state.agent_state import AGENT_STATE
@@ -1595,6 +1595,74 @@ def score_play(tc, o, score):
                 bp is not None and bp.id in _BASIC_OR_STAGE1_NONEX
                 for bp in my_state.bench)
         
+            # THE ANSWER TO THE WALL IS A RESERVE, NOT THIS TURN'S ATTACKER
+            # (user, registro_006 step 58 vs Crustle/Mega Kangaskhan, WON --
+            # episode 93210034). Their ACTIVE was a Mega Kangaskhan ex 300/300
+            # and their Crustle waited on the BENCH. Our Teal Mask Ogerpon ex
+            # was in front with 4 effective energies (Myriad Leaf Shower = 30 +
+            # 30*(4+0) = 150) and a Meganium had just evolved on the bench with
+            # its 4 (Solar Beam = 140). The agent RETREATED the Ogerpon --
+            # burning an energy card -- to attack with the Meganium: 10 damage
+            # LESS, and it put in front the only body of ours that can hurt a
+            # Crustle (Mysterious Rock Inn zeroes our {ex}) right where
+            # Rapid-Fire Combo's 200 kills it, while the 210 HP Ogerpon it had
+            # just pulled back would have SURVIVED that same blow.
+            #
+            # The retreat branches below were written for the board where the
+            # wall is IN FRONT -- there our ex does 0 and handing the spot to
+            # the non-ex is the whole game. Their guard, though, was the
+            # ARCHETYPE (`op_is_crustle_deck`) plus "the active does not knock
+            # out", which is also true of every board where the ex simply
+            # cannot finish a 300 HP body it is perfectly able to damage. Same
+            # confusion as [[el-muro-es-un-cuerpo-no-una-lista-de-mazo]]: the
+            # deck flag is not the body in front.
+            #
+            # So the swap is asked the only question that pays for it: does the
+            # body coming up do MORE to their active THIS TURN than the one
+            # going down? With the wall in front the answer is yes by
+            # construction (our ex does 0). With anything else in front the
+            # reserve stays on the bench, which is where it is worth something.
+            # Deck-agnostic: it names no card, it compares two damages.
+            _rsv_opa = _active_of(op_state)
+
+            def _rsv_damage(_rsv_pk, _rsv_promoted):
+                """Effective damage `_rsv_pk` does to their active this turn.
+
+                `_rsv_promoted` discounts the Grass the retreat burns: paying
+                the cost erases whole CARDS from the field and the scaling
+                attacks (Syrup Storm) read the field total.
+                """
+                if _rsv_pk is None or _rsv_opa is None:
+                    return 0
+                _rsv_e = len(_rsv_pk.energies)
+                _rsv_grass = total_grass
+                if _rsv_promoted:
+                    _rsv_grass = max(0, total_grass - _retreat_grass_units(
+                        RETREAT_COST.get(active.id, 1)))
+                _rsv_base = _attacker_base_damage(
+                    _rsv_pk.id, _rsv_opa, _rsv_e,
+                    grass_scale=_rsv_grass,
+                    teal_self_energy=_rsv_e,
+                    bench_count=bench_count)
+                if _rsv_base <= 0:
+                    return 0
+                return _our_effective_damage(
+                    _rsv_pk, _rsv_opa, _rsv_base,
+                    AGENT_STATE.meganium_in_play, neutralization_zone_active)
+
+            _rsv_front_dmg = _rsv_damage(active, False) if can_attack else 0
+
+            def _rsv_worth_the_front(_rsv_bp):
+                """The body coming up must beat the one going down, strictly.
+
+                Strictly, because the retreat is not free: it discards energy
+                from the body that steps back. A tie is the swap paying a card
+                for nothing.
+                """
+                if not THE_RESERVE_DOES_NOT_TAKE_THE_FRONT:
+                    return True
+                return _rsv_damage(_rsv_bp, True) > _rsv_front_dmg
+
             _meg_only_attacker_retreat = False
             if ((AGENT_STATE.op_is_crustle_deck or AGENT_STATE.op_is_cornerstone_deck) and
                     can_switch and active.id != Meganium):
@@ -1685,6 +1753,10 @@ def score_play(tc, o, score):
                         _tmo_attacker_ready = False
                         for bp in my_state.bench:
                             if bp is None:
+                                continue
+                            if not _rsv_worth_the_front(bp):
+                                # It does not beat the ex that is already in
+                                # front: the front spot is not for it today.
                                 continue
                             _bp_e = len(bp.energies)
                             _bp_eff = _bp_e * _grass_mult()
@@ -1825,6 +1897,11 @@ def score_play(tc, o, score):
                     _crustle_bench_atk = False
                     for bp in my_state.bench:
                         if bp is None:
+                            continue
+                        if not _rsv_worth_the_front(bp):
+                            # The same question as the twin branch above: the
+                            # reserve only takes the front spot when it does
+                            # MORE than the ex it replaces.
                             continue
                         _ce_eff = len(bp.energies) * _grass_mult()
                         if ((bp.id == Tapu_Bulu and _ce_eff >= 4) or
