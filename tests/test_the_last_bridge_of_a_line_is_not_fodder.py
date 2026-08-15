@@ -64,6 +64,14 @@ same outcome. Golden corpus: the two decisions of this board. Census
 (`utils/census_the_last_bridge_is_not_fodder.py`): 1.55 last-bridge boards per
 self-play game, of which 0.11 per game cross the Ultra Ball's threshold of two
 and cancel a play.
+
+The WINRATE is not resolvable at that exposure, and the gate says so with four
+rows rather than one (`utils/gate_the_last_bridge_is_not_fodder.py`, n=1000 on
+each of four lists): the whole reads -1.10 pp, the discard half alone -0.20, the
+Ultra Ball half alone -0.10, and `--control` -- the same code twice -- -0.35. The
+halves are NESTED inside the whole, so a whole that sits 3.2 points below one
+half on Marnie and 1.1 points above both on Crustle is measuring the run, not the
+rule. The change therefore enters MARKED NEUTRAL, on the census and the corpus.
 """
 
 import copy
