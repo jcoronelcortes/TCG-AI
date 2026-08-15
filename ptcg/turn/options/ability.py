@@ -39,7 +39,7 @@ the fields it reads and returns only the ones it reassigns.
 
 from cg.api import AreaType, Pokemon
 from ptcg.calc.card import get_card
-from ptcg.calc.damage import _our_effective_damage
+from ptcg.calc.damage import _nz_mutes_our_ex, _our_effective_damage
 from ptcg.calc.energy import _grass_attach_unit, _grass_mult, _ogerpon_base_phys_cap, _physical_energy
 from ptcg.cards.groups import GT_SCORE_FULL_CHAIN, GT_SCORE_STAGE1_ONLY
 from ptcg.cards.ids import Basic_Grass_Energy, Dipplin, FEZ_DRAW_ABILITY_SCORE, Fezandipiti_ex, Grand_Tree, Hydrapple_ex, Lillie_Determination, Meganium, Meowth_ex, Pinsir, RETREAT_COST, RIPEN_HEAL_ABILITY_SCORE, RIPEN_HEAL_EX_ABILITY_SCORE, SCORE_CHARGE_ACTIVE_ATTACK, SCORE_CHARGE_ACTIVE_FINISHER, SCORE_CHARGE_LETHAL_FLOOR, SCORE_VETO, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Unfair_Stamp
@@ -140,23 +140,54 @@ def score_play(tc, o, score):
                 # Grass is SHORTER there, not longer. Dipplin also carries an
                 # Ability (Festival Lead), so against Cornerstone only Tapu Bulu is
                 # asking, which is exactly why the reservation matters more.
+                # AND NEUTRALIZATION ZONE IS THE THIRD WALL (user,
+                # `records/registro_010_pasos_070_hasta_080` step 70, vs a
+                # Mesprit/Uxie/Azelf deck). Their stadium prevents all damage
+                # done to bodies WITHOUT a Rule Box by attacks from our ex, and
+                # their whole board was Rule-Box-less 70 HP basics: the active
+                # Hydrapple ex and both Ogerpon ex were mute, and the only body
+                # of ours that could still knock anything out was a Meganium on
+                # the bench at ZERO energy. The turn's only Grass went to a
+                # benched Ogerpon via Teal Dance (31300, the `_active_hydra_ready`
+                # rung: "the active covers Syrup Storm's cost, so the surplus
+                # goes to the bench" -- true of the cost and false of the board).
+                #
+                # It is the same sentence as the two walls above, so it is the
+                # same rung: the last Grass belongs to the body that can still
+                # hit. The creditor list is the WIDEST of the three because this
+                # wall filters by Rule Box and not by our abilities -- every
+                # non-ex of ours still hits, Meganium included, which is the one
+                # the other two lists never had to name (against Crustle and
+                # Cornerstone it is the doubler, here it is the attacker).
+                #
+                # `_nz_mutes_our_ex` asks the CURRENT opposing active, not the
+                # matchup: the same stadium is harmless the moment they promote
+                # an ex, and then this reservation must stop being owed.
                 _wall_atk_needs_grass = False
                 _cng_wall_ids = None
+                # Cornerstone only: the Grass must FINISH a cost, not merely
+                # advance one (the measurement is quoted below).
+                _cng_needs_completion = False
                 if AGENT_STATE.op_is_crustle_deck:
                     _cng_wall_ids = (Tapu_Bulu, Dipplin, Pinsir)
                 elif (AGENT_STATE.op_is_cornerstone_deck
                         or op_has_ability_immune_active):
                     _cng_wall_ids = (Tapu_Bulu, Pinsir)
+                    _cng_needs_completion = True
+                elif _nz_mutes_our_ex(
+                        op_state.active[0] if op_state.active else None,
+                        neutralization_zone_active):
+                    _cng_wall_ids = (Tapu_Bulu, Dipplin, Pinsir, Meganium)
                 if _cng_wall_ids and hand_counts.get(Basic_Grass_Energy, 0) == 1:
                     for _cng in (list(my_state.active or []) + list(my_state.bench or [])):
                         if _cng is None or _cng.id not in _cng_wall_ids:
                             continue
                         _cng_e = len(_cng.energies)
-                        _cng_req = (4 if _cng.id == Tapu_Bulu
+                        _cng_req = (4 if _cng.id in (Tapu_Bulu, Meganium)
                                     else 1 if _cng.id == Dipplin else 2)
                         if _cng_e >= _cng_req:
                             continue
-                        if (_cng_wall_ids is not None and Dipplin not in _cng_wall_ids
+                        if (_cng_needs_completion
                                 and _cng_e + _grass_attach_unit() < _cng_req):
                             # AND THE GRASS HAS TO ACTUALLY FINISH SOMETHING.
                             # Measured (n=4000 vs otro_cornerstone_mask_ogerpon_ex_1,

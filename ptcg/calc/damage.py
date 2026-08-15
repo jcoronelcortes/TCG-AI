@@ -816,6 +816,47 @@ def _tiene_rule_box(card_id) -> bool:
     return bool(getattr(_d, 'ex', False) or getattr(_d, 'megaEx', False))
 
 
+# The switch the two-arm gate flips (`utils/gate_the_stadium_that_mutes_our_ex.py`),
+# and it governs the ROUTING only: `_our_effective_damage` reads the stadium
+# straight from its own argument and is never switched off, so with this False
+# the agent still projects the zero correctly and merely goes back to charging
+# as if the stadium were not there -- which is exactly the behaviour the gate's
+# baseline arm has to reproduce.
+NZ_MUTE_ROUTING = True
+
+
+def _nz_mutes_our_ex(op_active, neutralization_zone) -> bool:
+    """Neutralization Zone with a Rule-Box-less body in front: every ex of ours
+    does ZERO to it.
+
+    The same sentence `_our_effective_damage` already enforces two rungs above
+    the weakness (`neutralization_zone and my_is_ex and not _op_has_rule_box ->
+    0`), lifted out so the ROUTING can ask it before it spends a card. The
+    damage model knew the stadium and the energy routing did not, which is a
+    whole class of wasted turn: the agent kept charging bodies that could not
+    reach the board in front (user, `records/registro_010_pasos_070_hasta_080`
+    step 70, vs a Mesprit/Uxie/Azelf deck -- their five bodies all 70 HP and
+    none with a Rule Box, our Hydrapple ex and both Ogerpon ex mute, and the
+    turn's only Grass went to a benched Ogerpon via Teal Dance while Meganium,
+    the one body of ours that could still knock anything out, sat at zero).
+
+    It is the THIRD shape of the same wall the agent already knows -- Crustle
+    (`EX_IMMUNE_IDS`) and Cornerstone (`ABILITY_IMMUNE_IDS`) -- and the one that
+    reads backwards: here the wall is not a body of theirs, it is the ABSENCE
+    of a Rule Box on the body in front. Which is why it also comes and goes with
+    THEIR promotion, and has to be asked of the current active rather than of
+    the matchup.
+
+    Unknown card -> `_tiene_rule_box` answers True -> this answers False: on
+    data we cannot read we do not switch off our own attackers.
+    """
+    if not NZ_MUTE_ROUTING:
+        return False
+    if not neutralization_zone or op_active is None:
+        return False
+    return not _tiene_rule_box(op_active.id)
+
+
 def _defender_punish_damage(op_active):
     """Damage the DEFENDER's own attachments put on OUR attacker when we hit it.
 
