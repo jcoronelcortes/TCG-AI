@@ -64,6 +64,17 @@ Steps 1–5 are the *reasoning*; step 6 is where that reasoning turns into
 numbers. Most of the strategy lives in step 5: flags computed **once** before
 scoring, so that every later branch agrees on the same reading of the turn.
 
+**Step 1 reads more than the board, because some of the board is not on it.**
+Two of the effects that matter most to this agent leave no marker anywhere: a
+coin flip that made their active untouchable for one turn, and a card that pins a
+one-turn shield on a body of theirs. The only evidence for either is in the log
+of **their** turn — an `ATTACK` followed by a `COIN_FLIP`, or a `PLAY` — and it
+goes past exactly once, in the batch that closes that turn. So the read happens
+in `agent()` before anything is scored, and what it stores is the **serial** of
+the body it applies to rather than "their active": the shield travels with the
+body, and gusting it away is the answer to the card. See
+[Strategy §12](strategy.md).
+
 ## Three ideas that explain most of the code
 
 ### The belief

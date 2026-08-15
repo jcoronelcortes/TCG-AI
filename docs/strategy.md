@@ -63,6 +63,34 @@ Outside them the pivots already measured against those boards keep deciding.
   has to take the same knockout, so the prize is never given up — only the corpse
   left behind changes.
 
+### 2.1 The HP the attack has to cover is not always the HP printed on the card
+
+A hit that falls short is only short of the number the body will still be
+carrying when the knockout is checked, and something on the board can pay the
+rest. Their own Froslass is the case in our meta: *Freezing Shroud* puts one
+damage counter on **every** Pokémon with an ability, "both yours and your
+opponent's", and their own 320 HP Grimmsnarl ex has one — so two Froslass on
+their bench make that body 280 to us, which is exactly what our Solar Beam does
+through their Darkness weakness.
+
+Two things make this a rule rather than an arithmetic trick:
+
+- **the unit is the checkup, and how many there are depends on whose turn the
+  menu belongs to.** One for our own attack (the checkup that opened the turn is
+  already inside the HP we can see), **two** for the forced promotion after a
+  knockout, because it resolves at the end of *their* turn, one for a voluntary
+  retreat. The drip is also the safest damage there is: it lands between turns,
+  where they can neither heal it off nor move it with Adrena-Brain;
+- **the body we promote eats the same checkup before it swings.** A Meganium at
+  20 HP is removed by the very counter that softens their Grimmsnarl. It never
+  attacks, so it is not a knocker — it is a free prize.
+
+Where it deliberately stops: "this attack wins the game" still reads printed HP.
+With a deferred knockout both deaths land on the same checkup, and if the drip
+also closes their count the result is a **draw**, not a win. Without a Froslass
+in play the reading returns the printed HP unchanged, which is what makes it safe
+to wire into every knockout test in the agent.
+
 ## 3. Prizes are the currency, not damage
 
 Every body is priced in prizes. A two-prize ex trading with a one-prize
@@ -239,6 +267,19 @@ retreat" only rescues a turn when somebody on the bench can attack once it is up
 with every body short of its own cost, paying a retreat changes which Pokémon is
 standing still.
 
+**"The body is there" is not "the body can wear it today."** A Supporter that
+fetches a Stage 2 has to pick between the tops of two lines, and both look
+immediate while the pre-evolution of each is on the bench. Only one of them is:
+a Bayleef that was evolved out of a Chikorita *this turn* cannot take a Meganium
+until tomorrow, so the search that names it buys a card that sleeps in hand,
+while the Hydrapple ex over a Dipplin that has been there since last turn would
+have been on the board the same turn. Reading a field count answers "is the body
+there"; what the rung claims to ask is whether the evolution lands today, and it
+is one ceiling over every candidate rather than a condition repeated per card.
+The exception is the stadium that lifts the restriction — and **a Forest in hand
+is a Forest**, because the one-turn chains the same table prices are exactly the
+ones it enables.
+
 ## 7. Energy goes where it changes something
 
 Energy attachment is the scarcest resource of the turn — one per turn plus what
@@ -296,6 +337,22 @@ a Tapu that is still in there with it.
 Measured over the 22 `crustle_wall` lists with paired seeds at 1500 games each:
 mean **+0.21 points**, 15 up / 2 flat / 5 down (sign test p=0.041), prize
 differential flat, and ten non-wall lists at delta *exactly* zero.
+
+**A half-built body is not an empty body.** The development band that hands out
+the attachment on a turn whose attack is already decided used to look only at
+bodies with *zero* energy, on the reasoning that an empty body is the one that
+needs starting. What that misses is the body one card from its own cost — the
+second Teal Mask Ogerpon ex on two Grass, which is also the body that takes the
+front the moment the one in front dies. Priced as "not empty" it fell to the
+generic tail and lost the Grass to a Bayleef that cannot attack at any amount of
+energy. Asked honestly — through the body's own effective cost — the band keeps
+its measured order between species and gains a step in each direction for the
+copy: up if this Grass leaves it *at* its cost, down if it does not. Both steps
+are half a rung, so **which species** deserves the energy is still decided
+exactly as before; what the steps decide is **which copy**. A body already at its
+cost is still refused (that is the overcharge every cap in the file exists to
+stop) and so is one whose twin already sits on the bench charged — tomorrow's
+attacker exists, and finishing the second copy is not finishing the first.
 
 ## 8. Evolving is not healing: which body takes the evolution
 
@@ -396,6 +453,56 @@ that does twenty damage per benched Pokémon is the one in our deck — has to u
 the right number, or an attacker that really does finish the job looks like one
 that falls short.
 
+### 10.1 What the promotion is actually buying
+
+Four autopsies in two days all landed on the same sentence from different sides:
+**the promotion is not a card, it is a seat**, and what the seat is worth is
+everything the body can still do once it is in it. Each of the four is a switch
+of its own, each was invisible to the winrate, and each was graded by the rules
+oracle instead — see [The instruments](instruments.md).
+
+- **The seat brings its ability.** *Teal Dance* reads "if this Pokémon is in the
+  Active Spot": on the bench it is dead wood, and the promotion is the act that
+  switches it on. A Teal Mask Ogerpon ex two Grass short of Myriad Leaf Shower
+  is **one** short the moment it takes the seat — attach by hand, dance the
+  other — so a body every projection priced as mute was in fact a 240 over a 210
+  HP ex. Read with one route it never reaches its cost, damage returns zero by
+  contract, and the menu falls through to ordinary survival points where a 40 HP
+  basic conceding one prize outranks a 210 HP ex conceding two. Two guards keep
+  it from becoming an investment rule: the charge is claimed only while the body
+  is still mute without it, and only on the **forced** promotion, because a
+  voluntary retreat happens mid-turn where the Grass in hand may be owed to a
+  play this projection cannot see.
+- **The seat is what a search completes.** When nothing on the bench survives
+  their next hit, the block that looks for an evolution to promote used to read
+  the hand as a set of cards. The hand can also be a **route**: with the
+  evolution still in the deck and a Pokémon-search Supporter in hand, the seat is
+  one Supporter away. The correction is narrow on purpose — the cheapest body is
+  not the answer, the cheapest body that is a *seat* is.
+- **The promotion can bet the turn's own draw, if the body can walk back.** With
+  no energy in hand the agent promoted a 0/4 body with a retreat of 3 over an ex
+  one attachment from a lethal through weakness. What was being paid was never a
+  guarantee, it was the **exit**: a body that can pay its own retreat costs a
+  turn's tempo if the draw misses and wins the game if it hits. The same reading
+  is why the match-point veto yields — that veto removes a 2-prize ex because it
+  is their whole remaining pile, but their blow arrives a turn of ours later, and
+  a body that can step aside is not there to receive it.
+- **The fee that decides is next turn's rotation, not this turn's retreat.**
+  Against a lock that re-mutes whatever is in front of it every turn, promoting
+  the knocker that costs three to rotate out buys the same prize today for three
+  times the fee tomorrow. The retreat veto and the promotion tie-break now read
+  **the same number** — the cheapest body that cashes the prize — so the menu
+  that pays the fee and the menu that picks who receives it cannot disagree about
+  which body they are paying for.
+
+**And the turn that takes the prize still owes the turn after it.** When our
+attack knocks their body out, everything else the turn does is buying the turn
+our nearly dead active will not see: the last bench seat belongs to the body
+whose ability draws on *that* turn. The condition for playing it is not "the
+ability is live now" but "it will be live on our next turn", and an active that
+is doomed is exactly the board that says so — after the promotion the seat it
+wanted is gone.
+
 ## 11. Disrupt on the right order
 
 Hand disruption is cheap value against decks that hoard cards, but the order
@@ -459,13 +566,49 @@ and only one of them can be the out. The fix shape is a latch — protect once,
 then let the second copy be priced on its own merits — and
 `utils/duplicate_protection_audit.py` finds where it is missing.
 
+**The last bridge of a line is not fodder, and the asymmetry is the whole rule.**
+Every reader of an evolution piece in hand prices it against the board: a link
+with no body under it has zero usable copies, and once there is more than one
+copy the surplus band makes them the cheapest cards in the hand. Both readings
+are right about a copy **the deck can replace** and wrong about the last ones. A
+missing seat is a card a search still buys; a bridge in the discard is beyond
+every search in the deck, and the top of its line becomes cardboard in every zone
+at once. So a cost paid in cards — the Ultra Ball's two, a forced discard —
+refuses to price the last bridge as fodder, and keeps exactly one copy while the
+surplus falls. The four questions that separate the two cases are: is it a middle
+link, is it still unworn, are its copies in hand the last ones any zone a draw or
+a search reaches, and are the line's top and Basic both still live. No card is
+named — the stages come from the evolution table, so the Dipplin of the Applin
+line is covered on identical terms.
+
+This is not the circularity the search rules already refuse ("the deck is not a
+seat"): that one vetoes the search that would un-orphan a piece, and no search
+un-orphans what it has just thrown away.
+
 The full analysis, the criterion meant to replace the price list, and which
 waves have shipped, are in [Discarding well](discard-plan-2026-08.md).
 
 ## 12. Walls: the immune body in front
 
 Several meta decks put a body in front that our ex attackers simply cannot
-damage. This is the strategic problem the agent invests most in:
+damage. This is the strategic problem the agent invests most in.
+
+**The agent knows five shapes of wall, and only the first two are a body of
+theirs that is simply immune.** They are listed in the order the agent learned
+them, because what separates them is not the play — that is the same for all
+five — but **where the board is read from**, and the later ones read backwards
+from the first two:
+
+| Wall | Where the agent reads it |
+| --- | --- |
+| Crustle | Their card's own ability: an ex-immune body, by card ID. |
+| Cornerstone | Same shape, a different ability list. |
+| Neutralization Zone | A **stadium anyone can see**, plus the **absence** of a Rule Box on the body in front — so it comes and goes with *their* promotion. |
+| Acerola's Mischief | Nothing on the board at all. The only evidence is the `PLAY` log of their previous turn, and what it pins is a **serial**. |
+| The coin dodge (§12.1) | Their previous turn's `ATTACK` log followed by a `COIN_FLIP`. |
+
+Recognising the board is where each of them cost us a game. Once recognised, the
+plays are the same for all five:
 
 - promote a **non-ex** attacker that can hit it;
 - a wounded wall is not a wall — the agent reads current HP, not printed HP;
@@ -511,6 +654,53 @@ The failure this was written from is worth keeping: with a Lillie's in hand the
 agent refilled, drew the Boss's Orders one card too late — the Supporter slot
 already spent — and then attacked the hidden body for zero. A refill is not an
 answer to a body that cannot be touched.
+
+### 12.2 Neutralization Zone: the wall is the missing Rule Box
+
+Under their Neutralization Zone every ex of ours does **zero** to a body without
+a Rule Box. The damage model always knew this; what did not ask was the **energy
+routing**, and that is where the turn is given away: against five 70 HP bodies
+with no Rule Box between them, both our Teal Mask Ogerpon ex and our Hydrapple ex
+are mute, and the only body that can still take a prize is the Meganium sitting
+at zero energy on the bench. The single Grass in hand went to a mute ex.
+
+Every per-matchup cap that would have caught it — Cubchoo, Alakazam, Crustle,
+Cornerstone — is keyed to a matchup or to a body of theirs, and this wall is
+neither, so the question has to be asked of the **current active** every turn.
+
+**The turn is two halves and there is no shipping one of them.** Teal Dance joins
+the wall rung it already had for the other walls, with the widest creditor list
+of the three (this wall filters by Rule Box, not by our abilities, so every
+non-ex of ours is owed, Meganium included); and the **bench** halves of the
+stadium's own energy bands stop counting as development while the front is mute.
+Without the second half the Grass simply moves from the mute benched ex to the
+mute *active* one, which is not a fix.
+
+### 12.3 The shield they buy for one turn, which is not on the board
+
+Acerola's Mischief says the same sentence the Neutralization Zone says — our ex
+do zero to the body it protects, effects included — for **one turn**, on **one
+body**, and it leaves nothing behind to read it off. No tool, no ability, no
+stadium: the protected body looks exactly like the body it was, and the only
+evidence is a `PLAY` entry in the log batch of *their* turn, which goes past
+once. Its own precondition ("only if your opponent has 2 or fewer Prize cards
+remaining") means it lands exactly on the turns that end the game: the loss it
+was found in was held at one prize while the opponent never left six, our ex
+attacking into a zero every turn from turn 13 to the end.
+
+**It is a serial, not a spot.** The shield travels with the body — gust it to the
+bench and the mute goes with it, while whatever comes up in its place is fair
+game. A reading keyed on "their active" would mute the wrong body one action
+after our own Boss's Orders, which is precisely the answer to the card. Four
+places read that serial: the damage model, the veto on swinging into it (an
+attack **ends the turn**, and snipers that pick their own target are exempt),
+Teal Dance's wall rung, and the forced discard, where the hand stops being priced
+for the deck-out race alone.
+
+It is also the clearest case of an instrument being blind by construction: the
+differential oracle attributes a prediction to the opposing body whose HP
+**changed**, and an attack the shield zeroes changes nothing. Pointed at the deck
+that runs the card it reports nothing at all, with the reading on or off.
 
 ## 13. The first turn: the body that costs one prize
 
@@ -710,5 +900,13 @@ affordable number of games — the confidence interval is two orders of magnitud
 wider than the effect. There the call is made on correctness, not on the
 winrate, and the census that measured how rare the change is has to be run
 *before* the games, not after. See [The instruments](instruments.md).
+
+Since 14 August 2026 that call has a second instrument behind it rather than a
+judgement call alone. The **rules oracle** rolls the engine's own rules forward
+from the disputed board and reports who wins and by how many prizes, so a change
+the scoreboard cannot resolve can still be graded against something other than
+another heuristic. Most of §10.1 and §12 above entered on exactly that evidence:
+**neutral in winrate, positive under the rules, and a census showing the board is
+not a corner case.** Every one of them is marked as such where it shipped.
 
 Next: [Matchups](matchups.md) · [Improving the agent](improving-the-agent.md) · [The instruments](instruments.md)

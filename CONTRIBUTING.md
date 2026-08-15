@@ -14,7 +14,7 @@ cannot: it takes minutes and answers a different question. All four are cheap,
 and a change is not ready until all four are green.
 
 ```bash
-python -m pytest -q                      # 2440 tests, ~23 s
+python -m pytest -q                      # 2865 tests, ~25 s
 python tests/golden_corpus.py            # replays the frozen games, ~0.5 s
 python utils/lint_architecture.py        # R1-R11: Kaggle safety, the instruments, the scorers
 python -m pytest -q tests/test_submission.py   # loads main.py the way the container does
@@ -96,13 +96,39 @@ Three things worth knowing before you trust a number:
   resolution left — the weighted ladder figure cannot move for a change that
   only helps the close matchups, because 31% of the field is a matchup we
   already win 97% of;
-- every `--opponent` run measures the **going-second** half of the game. The
-  reference bot takes the first turn unless you pass
-  `OpponentBot(first_choice="second")`.
+- **check which seat you measured.** Every figure recorded before 13 August 2026
+  describes the **going-second** half of the game, because our agent vetoed
+  going first and the reference bot did not. Since `8192c22` both answer YES and
+  `torneo` alternates seats, so a run now mixes the two roughly 50/50 and the
+  seat is no longer held constant across a comparison. Pin it with
+  `OpponentBot(first_choice="second")` when that matters. The seat is worth about
+  a point where the winrate is saturated and **five or six** in the two contested
+  matchups, so an unpinned seat can carry a delta on its own.
 
-If a change measures NEUTRAL, revert it. The project has a written history of
-plausible ideas that measured flat or negative, and keeping them would have
-made the code harder to reason about for nothing.
+If a change measures NEUTRAL, the default is to revert it. The project has a
+written history of plausible ideas that measured flat or negative, and keeping
+them would have made the code harder to reason about for nothing.
+
+**The one way past that default, and it is not an opinion.** "Neutral" sometimes
+means "below the instrument's resolution" rather than "no effect": a change that
+alters one decision in 3 685 cannot be separated from noise by any affordable
+number of games. Since 14 August 2026 such a change may ship, and only with all
+three of these in the commit message:
+
+1. a **census** showing the population is real — how often the new predicate
+   fires per game, on lists that carry the card *and* on lists that cannot, the
+   second half being what shows there is no leakage;
+2. a **rules-oracle** grade on the board the rule was written from, quoting that
+   board's own noise floor (a second batch of the same option at different
+   seeds), not just the win rate;
+3. the winrate result **stated as measured**, including when it came back
+   negative. Two changes in August shipped marked NEUTRAL with a negative first
+   row that the split refuted; both say so where they shipped.
+
+Anything that ships this way is marked NEUTRAL in the commit and in the memory
+index, so a later session can revisit it as a candidate for reversal rather than
+mistaking it for a measured win. See
+[docs/instruments.md](docs/instruments.md).
 
 **Before that, ask whether the behaviour happens at all.** A census is cheaper
 than a game, and several rules in this repository were written, measured neutral
@@ -134,6 +160,10 @@ Ask for the four gates. Then ask the three questions that the gates cannot:
    prove it can fail?** Four detectors in this repository have reported their
    own bugs as defects of the agent. A measurement from a tool that did not run
    its self-test in the same run is not a smaller finding — it is not a finding.
+4. **Did the control arm actually run the measurement?** `records/` is
+   git-ignored, so a worktree or a clean checkout has no records and the local
+   corpus tests **skip themselves** — and `1 skipped` reads exactly like a pass.
+   A green baseline that never executed the check is not a baseline.
 
 For a change that only moves names around, there is a stronger check than
 reading the diff: `python utils/rename_code.py verify <map.tsv>` proves that

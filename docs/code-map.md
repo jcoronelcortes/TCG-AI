@@ -14,9 +14,10 @@ and flags are English throughout; what is still Spanish is *stored data*, and
 | `ptcg/` | The agent's own package: data, calculators, state, per-card decisions and the phases of a turn. |
 | `cg/` | The competition simulator, vendored. See [The simulator layer](simulator.md). |
 | `deck.csv` | Our 60-card deck: one card ID per line. |
-| `deck/` | Deck-adjacent assets: opponent deck lists and the deck-image renderer. |
+| `deck/` | Deck-adjacent assets: opponent deck lists and the deck-image renderer. The measurable corpora live here — `real_opponents/` (the 87 admitted lists of the top-300 harvest), `real_opponents_500/` (the 133 admitted lists of the top-500 one, git-ignored, so tools want an absolute path to it) and the dated retirement of an earlier one. Each carries its own `pesos*.csv` weights. |
 | `dataset/` | Official card reference data for the challenge. |
-| `competitor_decks/` | Real 60-card lists downloaded from the leaderboard, with an index by archetype and score. |
+| `competitor_decks/`, `competitor_decks_500/` | Real 60-card lists downloaded from the leaderboard, with an index by archetype and score. The `_500` sweep of 12 August is the current one; the earlier top-300 harvest is kept because a finding written against a list is only reproducible while that list exists. |
+| `ptcg_engine/`, `cg/build/` | The simulator's own C++ source and the locally built, **seedable** engine. Git-ignored, and the architecture lint (R11) keeps both unreachable from `main.py` and `ptcg/` — the competition binary is the only engine the agent may ever see. See [The simulator layer](simulator.md). |
 | `tests/` | The safety nets, including the committed frozen corpus. See [Testing](testing.md). |
 | `utils/` | Command-line tools: play games, measure matchups, audit tables, autopsy losses, package the submission. See [Tools](tools.md) and [The instruments](instruments.md). |
 | `records/`, `log/`, `log_analisys/` | Local, throwaway game data (git-ignored, the folders kept via `.gitkeep`). Recorded games, per-turn records, and everything the gates and the nightly pipeline write. |
