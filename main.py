@@ -1438,6 +1438,39 @@ _ESC_NS_CRUSTLE = [
     _E("energia_cargar_banca", _ns_e_charge_bench_crustle, 850),
 ]
 
+
+# THE PRIZE TODAY IS NOT AN ARCHETYPE'S TO VETO (user, registro_017 step 123 vs
+# Crustle / Mega Kangaskhan ex, episode 93232495, LOST -- see
+# `_ns_e_finisher_with_active`).
+#
+# `_ESC_NS_CRUSTLE` REPLACES the recovery list, it does not extend it: against a
+# wall deck the whitelist is the whole ballot. That is right for the question it
+# was written for -- WHICH BODY is worth recovering when our ex cannot touch the
+# thing in front -- and wrong for the one it silently swallowed with it: whether
+# an ENERGY from the discard takes a prize THIS turn. Those scenarios all live
+# in `_ESC_NS_RECUPERACION`, so against Crustle they never got a vote.
+#
+# The asymmetry is what proves it is a defect and not a judgement: the FETCH
+# half of this same card already scores that Grass at 1400, its top band
+# (`_RULES_NS_GRASS.grass_makes_the_active_ko`), with no archetype guard at all.
+# The two halves of Night Stretcher were reading the same board and disagreeing
+# about it -- so the card was never played, and the fetch table's answer was
+# never asked for.
+#
+# These are the scenarios whose predicate is a PROVEN knockout on the body
+# actually standing in the opposing active spot: each one ends in
+# `_our_effective_damage`, which already models the Crustle/Cornerstone
+# immunity, Neutralization Zone, weakness and resistance. They are safe to let
+# vote in every matchup precisely because they never take the deck list's word
+# for anything. They are resolved ALONGSIDE whichever list the archetype picks,
+# never instead of it: the whitelist keeps its veto over which BODY comes back.
+_ESC_NS_REMATE_HOY = [
+    _E("energia_syrup_letal", _ns_e_syrup_letal, 950),
+    _E("energia_remate_con_el_activo", _ns_e_finisher_with_active, 950),
+    _E("energia_remate_via_promocion", _ns_e_finisher_via_promotion, 950),
+    _E("energia_retirada_letal", _ns_e_retreat_lethal, 950),
+]
+
 def _ns_full_bench_keep(w, ns_score):
     """Full-bench cut-off (like UB/Poke Pad) with exceptions: useful
     energy or a pre-evolution in play whose evolution is in the discard."""
@@ -1493,11 +1526,16 @@ def _score_night_stretcher_play(ctx: DecisionContext) -> int:
     """Scores playing Night Stretcher (it recovers a Pokemon or Energy from the
     discard). Body migrated to the RULES ENGINE (phase 4) with the ARGMAX mode
     (_resolve_max): ~30 recovery scenarios compete and the best one is
-    mapped to score tiers; vs Crustle/Cornerstone ONLY the whitelist competes
-    (the original replaces the accumulator)."""
+    mapped to score tiers; vs Crustle/Cornerstone only the whitelist competes
+    for the BODY (the original replaces the accumulator), plus the scenarios of
+    `_ESC_NS_REMATE_HOY`, which prove a knockout on the real target and
+    therefore vote in every matchup."""
     w = _CtxNSPlay(ctx)
     if ctx.op_is_crustle_deck or ctx.op_is_cornerstone_deck:
         best, traza_max = _resolve_max(_ESC_NS_CRUSTLE, w)
+        remate, traza_remate = _resolve_max(_ESC_NS_REMATE_HOY, w)
+        if remate > best:
+            best, traza_max = remate, traza_remate
     else:
         best, traza_max = _resolve_max(_ESC_NS_RECUPERACION, w)
     if best >= 900:

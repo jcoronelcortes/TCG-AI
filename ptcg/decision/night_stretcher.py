@@ -339,9 +339,12 @@ def _ns_e_active_pays_retreat(w):
 
 def _ns_e_syrup_letal(w):
     """The recovered energy turns the ACTIVE Hydrapple's Syrup Storm LETHAL on
-    the opposing active (it was not lethal without it)."""
-    if not (_ns_useful_energy_without_grass(w)
-            and not w.op_is_crustle_deck and not w.op_is_cornerstone_deck):
+    the opposing active (it was not lethal without it).
+
+    NO ARCHETYPE GUARD -- see `_ns_e_finisher_with_active`: the wall is a BODY
+    in the active spot, not a deck list, and `_our_effective_damage` below
+    already answers that question for the body actually standing there."""
+    if not _ns_useful_energy_without_grass(w):
         return False
     act = w.my_state.active[0] if w.my_state.active else None
     opp = (w.op_state.active[0]
@@ -370,9 +373,24 @@ def _ns_e_finisher_with_active(w):
     against an Archaludon ex 300/300 with 3 energies and NO bench. Myriad did
     30+30x(6+3) = 300 - 30 resistance = 270: it fell 30 short. With one Grass
     from the discard via Teal Dance it goes up to 30+30x(8+3) = 360 - 30 = 330
-    >= 300 and, with the opposing bench empty, that KO WINS the game."""
-    if not (_ns_useful_energy_without_grass(w)
-            and not w.op_is_crustle_deck and not w.op_is_cornerstone_deck):
+    >= 300 and, with the opposing bench empty, that KO WINS the game.
+
+    THE ARCHETYPE IS NOT THE WALL (user, registro_017 step 123 vs Crustle /
+    Mega Kangaskhan ex, episode 93232495, LOST). This rule used to carry
+    `not op_is_crustle_deck and not op_is_cornerstone_deck`, which reads a DECK
+    LIST when the question is about the BODY in front of us. There the Crustle
+    was on their BENCH and the active was a Mega Kangaskhan ex at 80 of 300
+    with our Tapu Bulu at 2 of Wood Hammer's 4 units, six Grass in the discard
+    and the attachment unspent: one recovered Grass = 220 damage = three
+    prizes. The guard switched the whole line off because of a card that was
+    not even in the way, and the turn ended with the Night Stretcher in hand.
+
+    The guard was also redundant, and provably so: `_grass_on_active_enables_ko`
+    routes every number through `_our_effective_damage`, which applies the
+    Crustle/Cornerstone immunity to the target actually standing there. If the
+    wall IS the active, the damage comes back 0 and this predicate stays False
+    on its own -- which is what its docstring has always promised."""
+    if not _ns_useful_energy_without_grass(w):
         return False
     if not _ns_charge_route_to_active(w):
         return False
@@ -394,9 +412,12 @@ def _ns_e_finisher_via_promotion(w):
     Stretcher + Teal Dance, which is still alive even if the manual attachment
     has been spent) the count goes back to 10 -> 330 - 30 = 300 >= 270 and the
     KO hands over TWO prizes. Without modelling it, Night Stretcher never
-    entered the analysis of the finisher."""
-    if not (_ns_useful_energy_without_grass(w)
-            and not w.op_is_crustle_deck and not w.op_is_cornerstone_deck):
+    entered the analysis of the finisher.
+
+    NO ARCHETYPE GUARD -- see `_ns_e_finisher_with_active`. `_remata` prices
+    every candidate through `_our_effective_damage`, so an immune active can
+    never make this fire and the deck list adds nothing."""
+    if not _ns_useful_energy_without_grass(w):
         return False
     if not _ns_charge_route_open(w):
         return False

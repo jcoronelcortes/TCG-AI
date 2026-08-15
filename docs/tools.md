@@ -764,6 +764,7 @@ the pattern's range is visible without opening five near-identical scripts:
 | `gate_the_last_bridge_is_not_fodder.py` | The evolution bridge a cost may not eat. The one entry here whose **winrate half came back negative and is recorded rather than hidden**: the split refutes the loss the first row showed, so it entered marked NEUTRAL. |
 | `gate_the_grass_goes_to_the_body_that_needs_it.py` | The three readings of "the turn that takes the prize leaves nothing ready for the next one", measured together because they are one turn. Its `--control` plays the flags **against themselves**, so any candidate row smaller than the control row is noise. |
 | `census_the_dwebble_the_gust_may_not_take.py` | A rule that was **not** written. See below. |
+| `census_the_prize_the_wall_does_not_own.py` | The wall archetype vetoing a knockout that was not the wall's. Scopes how often the Night Stretcher's lethal-energy scenarios beat the Crustle whitelist they used to be replaced by: **0.06 per game** over 600 games on five Crustle lists, below its own 0.10 criterion, with the play actually made on about half of them. See below. |
 
 A note on the arms, from the gate above: the flags are constants imported **by
 value** into the module that reads them, so rebinding them on `ptcg.cards.ids`
@@ -789,6 +790,31 @@ for. The strict criterion — a turn **closed with END**, a removable Dwebble, n
 prize in front — reads **0.03 and 0.01 per game** across two Crustle lists,
 fifteen to fifty times under the 0.5 it was written against. Nothing shipped, and
 a question open since 12 August is closed.
+
+### `census_the_prize_the_wall_does_not_own.py` — the veto that was reading a deck list
+
+```bash
+python utils/census_the_prize_the_wall_does_not_own.py --games 200
+```
+
+Same shape as the census above, pointed at a defect rather than at a hunch.
+`_score_night_stretcher_play` **replaces** its scenario list against a wall
+archetype — `_ESC_NS_CRUSTLE` instead of `_ESC_NS_RECUPERACION` — and every
+scenario that prices a recovered energy by *does it take a prize today* lives in
+the list that gets replaced. Against a Crustle or Cornerstone list the card
+therefore could not be played for a lethal energy, whoever was standing in the
+active spot. In `registro_017` step 123 the Crustle was on their **bench** and
+the active was a Mega Kangaskhan ex at 80 of 300; one Grass out of six in the
+discard was 220 damage and three prizes, and the turn ended with the Night
+Stretcher in hand.
+
+The census wraps the scorer in the loaded agent's own module and resolves both
+ballots on every board it sees, so it counts decisions that *change*, not board
+traits. Over 600 games on the five Crustle lists that match the record's
+opponent it reports **0.06 flips per game** — below the 0.10 it was written
+against, and above it on two of the five lists — with the card then really
+played on about half of them. The [write-up](crustle-the-prize-the-wall-does-not-own-2026-08-15.md)
+has the numbers per list and the winrate half.
 
 ### `differential_oracle.py` — what the plan predicted vs. what the engine resolved
 
