@@ -190,13 +190,86 @@ should look like.
 
 ---
 
+## The second board: it is not about an empty table (15 August, the same day)
+
+The user brought a board of **another game and another archetype** — episode
+**93224301**, turn 5 vs **Dragapult**, also won — with the same complaint. It is
+the board that says what the rule actually means.
+
+**Step 35** — `records/registro_005_pasos_035_hasta_044.json`
+
+```
+US (6 prizes)                            THEM (6 prizes)
+active  Hydrapple ex 330/330, 0 energy   active  Fezandipiti ex 210
+bench   Bayleef 110, 0                   bench   Drakloak, Dreepy x2, Munkidori
+        Teal Mask Ogerpon ex, 1 {G}      stadium Forest of Vitality (OURS)
+        Teal Mask Ogerpon ex, 1 {G}
+hand    ULTRA BALL, Forest of Vitality (dead: ours is already in play), DAWN
+```
+
+**There are two energies on the table**, and the turn is blocked all the same:
+Hydrapple ex is at 0 of the 2 it needs, each Ogerpon ex at 1 of 3, and there is
+no Basic {G} in hand for the attachment — nor for *Teal Dance* or *Ripening
+Charge*, which both take their Grass from hand. What decides is
+`_a_body_can_attack_this_turn`, **not a count of energies**, and reading the
+first board alone invites the wrong sentence ("the rule is for empty boards").
+
+What the recorded Dawn did: fetched Applin + Bayleef + Meganium, evolved the
+Meganium, benched the Applin, spent the Ultra Ball afterwards on a Tapu Bulu,
+and **ended the turn with nothing attached, nothing attacked and two cards in
+hand**. What the rule does instead — walked with the engine's own rules, not
+argued:
+
+```
+ULTRA BALL (discard Forest + Dawn) → MEOWTH EX → Last-Ditch Catch → LILLIE'S
+DETERMINATION → at SIX prizes it draws EIGHT → Bug Catching Set, a third
+Ogerpon ex, Teal Dance, Meganium, the attachment, Ripening Charge → ATTACK
+```
+
+**Turn yield** (`utils/turn_yield_the_body_search_cannot_buy_the_energy.py`, 50
+determinised worlds per arm, the agent finishing the turn in both, same seeds):
+
+| | prizes | energy attached | hand at end | attacked |
+| --- | --- | --- | --- | --- |
+| with the reading (Ultra Ball) | **1.72** | **+3.06** | 6.88 | **94 %** |
+| without it (the recorded Dawn) | 0.00 | +0.00 | 1.84 | 0 % |
+
+**43 of 50 worlds take more prizes, 0 take fewer.**
+
+The winrate oracle is **blind here and says so**: both arms win **100/100**
+because the position is already won (margin +5.94 against +5.96, the board's own
+floor 0.06 → *inside the floor*). That is an instrument at its ceiling, not a
+tie, and it is why the turn-yield tool exists.
+
+**Census vs the archetype the first table never ran** (500 games,
+`dragapult_1`): 6 flips, **3 of them this sentence** (0.006/game); a first run
+of the same size gave 1. Still below the 0.01 criterion, and now the sentence
+has been seen on **two lists**, not one.
+
+**And a column that was understating its own population.** The census reported
+"boards with no energy at all", which is the shape of the *first* board, not the
+rule's condition; this second board would not have been counted by it. The
+honest population — slot free and nothing able to attack — is now printed beside
+it and is several times larger:
+
+| list | no energy at all | slot free and nothing attacks |
+| --- | --- | --- |
+| festival_lead_1 | 4.8/game | **34.1/game** |
+| dragapult_1 | 15.6/game | **59.3/game** |
+
+The `bought` column, the one the criterion is written on, is unchanged: it was
+never gated by that population.
+
+---
+
 ## Status
 
-Carried by the **board** and by the **oracle** (+8 pp over a 5 pp floor); the
-census is honestly **below its own criterion** and the winrate is **neutral**,
-both stated above. What keeps it is the contradiction it removes: a count whose
-whole job is to mirror the discard scorer was protecting a card that same scorer
-prices as fodder.
+Carried by the **boards** — two of them now, on two archetypes — and by the
+oracle on the first (+8 pp over a 5 pp floor) and the turn yield on the second
+(1.72 prizes against 0.00, 43/50 worlds); the census is honestly **below its own
+criterion** and the winrate is **neutral**, both stated above. What keeps it is
+the contradiction it removes: a count whose whole job is to mirror the discard
+scorer was protecting a card that same scorer prices as fodder.
 
 The switch to flip is `THE_BODY_SEARCH_DOES_NOT_UNBLOCK_AN_ENERGYLESS_TURN` in
 [ptcg/decision/ultra_ball.py](../ptcg/decision/ultra_ball.py); the board it comes
@@ -206,3 +279,8 @@ whose middle section is the half that must not move: with a Grass in hand, with
 no Meowth ex left in the deck, with no refill left, with the Last-Ditch already
 spent or with the Supporter already played, the rule stays silent and Dawn keeps
 its slot.
+
+The second board is pinned in
+[tests/test_dragapult_the_body_search_cannot_buy_the_energy.py](../tests/test_dragapult_the_body_search_cannot_buy_the_energy.py),
+and its first test is the one to read before touching any of this: **energy on
+the table and the turn blocked anyway**.
