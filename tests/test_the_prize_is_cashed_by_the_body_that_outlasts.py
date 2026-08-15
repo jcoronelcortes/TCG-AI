@@ -348,6 +348,7 @@ def test_the_reading_is_confined_to_the_board_it_was_written_for():
         for path in records:
             with open(path, encoding="utf-8") as f:
                 data = json.load(f)
+            episode = (data.get("info") or {}).get("EpisodeId")
             for step in data.get("steps", []):
                 for item in step:
                     obs = item.get("observation") or {}
@@ -357,28 +358,45 @@ def test_the_reading_is_confined_to_the_board_it_was_written_for():
                         continue
                     seen += 1
                     if _decide(obs, original) != _decide(obs, off):
-                        changed.append((path.name, obs.get("step")))
+                        changed.append((episode, obs.get("step")))
     finally:
         R._promoted_lethal_reply = original
 
     assert seen > 0, "el corpus de registros no aporto ninguna decision nuestra"
-    # THE NAME OF A RECORD IS TRANSIENT DATA, THE PROPERTY IS NOT. `records/` is
-    # re-harvested (the guard at the top of this test says so out loud), and the
-    # foundational board -- `registro_006_pasos_054_hasta_056.json` step 54 --
-    # left the corpus in one of those harvests. Pinning the filename turned a
-    # guard against the reading SPREADING into a bet on which games happen to be
-    # on disk today, and it broke without anything about the rule changing. What
-    # is asserted is the property: the reading may change AT MOST the board it
-    # was written for, whichever games are present.
-    _foundational = ("registro_006_pasos_054_hasta_056.json", 54)
-    if any(p.name == _foundational[0] for p in records):
-        assert changed == [_foundational], (
-            f"la lectura del cuerpo que sube debe tocar SOLO el tablero "
-            f"fundacional; cambio {len(changed)} de {seen} decisiones: {changed}")
-    else:
-        assert changed == [], (
-            f"sin el registro fundacional en el corpus la lectura no debe tocar "
-            f"NADA; cambio {len(changed)} de {seen} decisiones: {changed}")
+    # THE NAME OF A RECORD IS TRANSIENT DATA, THE PROPERTY IS NOT -- AND SO IS
+    # THE SPLIT. `records/` is re-harvested (the guard at the top of this test
+    # says so out loud) and `utils/split_turns.py` re-cuts the same episode into
+    # different files with every run, so a filename is twice a bet: on which
+    # game is on disk and on where the knife fell. What identifies a board is
+    # the EPISODE and the STEP, and neither moves.
+    #
+    # What is asserted is the property: the reading may change only boards that
+    # have been READ, and every one of them is written down here with what it
+    # decided. A board that is not on this list failing the test is the point of
+    # the test -- it means the reading reached somewhere nobody looked.
+    #
+    #   91693960 / 54  the foundational board (the docstring above). Their Mega
+    #                  Starmie ex answers a 210 HP active from the bench, so the
+    #                  prize is cashed by the 330 HP body instead.
+    #   93173834 / 98  vs Marnie, turn 7, read 15 August 2026. Same shape, and
+    #                  the reading is right for the same reason: our active is a
+    #                  Teal Mask Ogerpon ex at 20 of 210 carrying three Grass,
+    #                  and Myriad Leaf Shower (30 + 30 per Energy on both
+    #                  Actives) reads 120 over their 70 HP Marnie's Impidimp --
+    #                  the prize is there for the taking from the front. The
+    #                  RETREAT takes the same prize with the twin: one Grass off
+    #                  the front, the 200 HP Ogerpon with four Grass comes up
+    #                  and its own 150 knocks the same body out, while the 20 HP
+    #                  ex ends the turn on the bench where its Tera prevents all
+    #                  damage from attacks. Leaving it in front hands over TWO
+    #                  prizes to anything at all -- their Froslass alone drips a
+    #                  counter on it at every checkup. It is the line the game
+    #                  actually played (steps 99-102).
+    _read = {(91693960, 54), (93173834, 98)}
+    assert set(changed) <= _read, (
+        f"la lectura del cuerpo que sube toco un tablero que nadie ha leido; "
+        f"cambio {len(changed)} de {seen} decisiones: "
+        f"{sorted(set(changed) - _read)}")
 
 
 def test_a_bench_that_cannot_answer_leaves_the_prize_in_front():
@@ -403,3 +421,81 @@ def test_a_bench_that_cannot_answer_leaves_the_prize_in_front():
     assert m.agent(despues) == [i_attack], (
         "si el cuerpo que sube no mata al nuestro, el premio se cobra desde "
         "delante y no se paga la retirada")
+
+
+# ---------------------------------------------------------------------------
+# THE SECOND BOARD THE READING REACHED, and it is not a regression
+#
+# Found 15 August 2026 by the spread guard above, on a corpus that had just
+# rotated to episode 93173834 (vs Marnie, LOST). Verified at `2442f27` as well,
+# so nothing that day's merges shipped put it there: the board simply arrived.
+#
+# Turn 7, step 98, and the shape is the foundational one with different cards:
+#
+#     US (seat 0)                                RIVAL
+#     active  Teal Mask Ogerpon ex  20/210 (3G)  active  Marnie's Impidimp 70/70
+#     bench   Teal Mask Ogerpon ex 200/210 (4G)  bench   Munkidori 100/110 (1D)
+#             Dipplin 70/80 (1G)                         Froslass 90/90
+#             Bayleef 80/110 (1G)                        Munkidori 100/110 (1D)
+#             Applin 40/40                               Marnie's Morgrem 100
+#     hand    Bayleef, Xerosic's                         Marnie's Impidimp 70
+#     prizes  3 - 6            stadium  Forest of Vitality (ours)
+#
+# Myriad Leaf Shower is 30 + 30 per Energy on BOTH Actives: 120 from the front
+# over 70 HP, so the prize is there without moving. The retreat takes the SAME
+# prize -- one Grass off the front, the twin comes up with four Grass and its
+# own 150 knocks the same Impidimp out -- and ends the turn with 200 HP in front
+# instead of 20, with the wounded ex on the bench where its Tera prevents all
+# damage from attacks. It is the line the game played (steps 99-102).
+#
+# These three tests are the durable half: `records/` is transient, the fixture
+# is not.
+# ---------------------------------------------------------------------------
+
+_FIX_MARNIE = ROOT / "tests" / "fixtures" / \
+    "marnie_step098_the_body_that_outlasts_the_reply.json"
+
+
+def _obs_marnie():
+    with open(_FIX_MARNIE, encoding="utf-8") as f:
+        return json.load(f)["observation"]
+
+
+def test_marnie_step98_the_prize_is_there_from_the_front():
+    """Without this the swap measures nothing: attacking already wins a prize."""
+    obs = _obs_marnie()
+    _st, mine, theirs = _sides(obs)
+
+    assert mine.active[0].id == OGERPON and mine.active[0].hp == 20
+    assert len(mine.active[0].energies) == 3
+    assert theirs.active[0].hp == 70
+    # 30 + 30 x (3 on ours + 0 on theirs) = 120, over 70. The front takes it,
+    # and it is the agent's own calculator that says so.
+    base = m._attacker_base_damage(
+        OGERPON, theirs.active[0], len(mine.active[0].energies),
+        grass_scale=0, teal_self_energy=len(mine.active[0].energies),
+        bench_count=len(mine.bench))
+    assert m._our_effective_damage(mine.active[0], theirs.active[0], base) >= 70
+    assert _index_of(obs, m.OptionType.ATTACK) == 0
+
+
+def test_marnie_step98_the_twin_takes_the_same_prize_and_outlasts_the_reply():
+    obs = _obs_marnie()
+    assert m.agent(obs) == [_index_of(obs, m.OptionType.RETREAT)], (
+        "el premio lo cobra el gemelo de 200 que sigue en pie, no el cuerpo de "
+        "20 que entrega dos premios a cualquier cosa")
+
+
+def test_marnie_step98_it_is_the_promoted_reading_that_decides_it():
+    """The attribution, pinned: with the reading off, the board attacks."""
+    from ptcg.turn.options import retreat as R
+
+    original = R._promoted_lethal_reply
+    R._promoted_lethal_reply = lambda *a, **k: 0
+    try:
+        m.AGENT_STATE.reset()
+        m._init_cards_tracking()
+        sin = m.agent(_obs_marnie())
+    finally:
+        R._promoted_lethal_reply = original
+    assert sin == [_index_of(_obs_marnie(), m.OptionType.ATTACK)]
