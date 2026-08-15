@@ -572,6 +572,15 @@ PROMOTE_SEAT_THE_SEARCH_COMPLETES = True
 # for the same reason as the three above: it is the only difference the gate
 # and the rules oracle put between two arms.
 CUBCHOO_MUTE_ROTATION = True
+# The forced promotion counting the charging ability THE ACTIVE SPOT UNLOCKS on
+# the body it brings up -- *Teal Dance* is only legal "if this Pokemon is in the
+# Active Spot", so on the bench it is dead wood and the promotion is the act that
+# switches it on. Without it every promotion projection stopped at ONE
+# attachment and a body two Grass from its cost read as mute
+# (`_promoted_grass_charges_eff`; user, registro_004 step 47). A named switch for
+# the same reason as the four above: it is the only difference the census, the
+# gate and the rules oracle put between two arms.
+PROMOTE_SEAT_UNLOCKS_ITS_CHARGE = True
 
 
 
@@ -10031,10 +10040,18 @@ def agent(obs_dict: dict) -> list[int]:
         _op_prom_remain = (_op_hp_for_our_ko(_op_prom_active, CHECKUPS_PER_ROUND)
                            if _op_prom_active is not None else 0)
         _prom_bench_after = max(0, bench_count - 1)
-        _prom_can_attach = (
-            hand_counts.get(Basic_Grass_Energy, 0) >= 1
-            or (hand_counts.get(Night_Stretcher, 0) >= 1
-                and discard_counts.get(Basic_Grass_Energy, 0) >= 1))
+        # PHYSICAL basic Grass this promotion can still get into our hand: the
+        # copies already there, plus the one a Night Stretcher pulls back out of
+        # the discard. Counted in CARDS, because that is the currency both
+        # charging routes below are paid in and the `min` that stops one Grass
+        # being spent twice needs a number, not a boolean
+        # ([[la-factura-de-la-retirada-se-cuenta-en-cartas-no-en-simbolos]]).
+        _prom_grass_avail = (
+            hand_counts.get(Basic_Grass_Energy, 0)
+            + (1 if (hand_counts.get(Night_Stretcher, 0) >= 1
+                     and discard_counts.get(Basic_Grass_Energy, 0) >= 1)
+               else 0))
+        _prom_can_attach = _prom_grass_avail >= 1
         _best_promote_dmg = -1
         _best_promote_key = None
         # Under Festival Lead the candidate has to SURVIVE the second hit
@@ -10074,9 +10091,24 @@ def agent(obs_dict: dict) -> list[int]:
             _pb_req = AGENT_STATE.ATTACK_ENERGY_REQ.get(_pb.id)
             if _pb_req is None:
                 continue
+            # THE SEAT COMES WITH ITS ABILITY (user, registro_004 step 47 vs a
+            # Teal Mask Ogerpon ex deck, LOST -- episode 93166555). This used to
+            # add ONE unit, the manual attachment, and that is only half of what
+            # the promotion buys: *Teal Dance* attaches a second Grass from hand
+            # and it only works FROM THE ACTIVE SPOT, which is precisely the spot
+            # this menu hands out. Read with one route the benched Ogerpon ex at
+            # 1/3 is two short of Myriad Leaf Shower and drops out of the loop as
+            # mute; with the seat it is at three, and 30+30x(3 ours + 4 theirs) =
+            # 240 buries the 210 HP ex in front on OUR turn. A 40 HP Applin took
+            # the slot. `_promoted_grass_charges_eff` is the one reading, shared
+            # with `_promo_kos_op` / `_promo_damage_to_op` below so that the
+            # halves of this question cannot disagree again.
             _pb_en_eff = len(_pb.energies)
-            if _pb_en_eff < _pb_req and _prom_can_attach:
-                _pb_en_eff += _grass_attach_unit()
+            if _pb_en_eff < _pb_req:
+                _pb_en_eff += _promoted_grass_charges_eff(
+                    _pb, _prom_grass_avail, True, meowth_ability_lock,
+                    seat_unlocks=PROMOTE_SEAT_UNLOCKS_ITS_CHARGE,
+                    deficit=_pb_req - _pb_en_eff)
             if _pb_en_eff < _pb_req:
                 continue  # it cannot attack this turn
             if _pb.id == Hydrapple_ex:
@@ -10084,8 +10116,15 @@ def agent(obs_dict: dict) -> list[int]:
             elif _pb.id == Teal_Mask_Ogerpon_ex:
                 # Myriad counts the energy of BOTH actives: the promoted body
                 # will attack the CURRENT opposing active, whose energy is known.
+                # OURS is the energy it will be CARRYING when it swings -- the
+                # charges above included -- and not the energy it sits on today:
+                # the body attacks after paying them, which is the same
+                # projection the cost gate one line up has just made. Reading the
+                # bare `len(energies)` here priced the finisher at 180 while
+                # letting it through as an attacker, so it lost the slot to a
+                # basic on survival points.
                 _pb_dmg = 30 + 30 * (
-                    len(_pb.energies)
+                    _pb_en_eff
                     + len(getattr(_active_of(op_state), 'energies', []) or []))
             elif _pb.id == Dipplin:
                 _pb_dmg = 20 * _prom_bench_after
@@ -11025,10 +11064,61 @@ def agent(obs_dict: dict) -> list[int]:
     # `_prom_can_attach` uses inside `_best_promote_card` -- which is why that
     # selector DID see the Ogerpon and marked it: the two halves of the same
     # question disagreed, and the half with the veto behind it was the blind one.
-    _promo_attach_open = (
-        hand_counts.get(Basic_Grass_Energy, 0) >= 1
-        and (not state.energyAttached
-             or not (my_state.active and my_state.active[0] is not None)))
+    #
+    # THE ATTACHMENT WAS ONLY HALF THE CHARGE, and the other half is why this is
+    # now two names instead of one: `_promo_manual_open` is the sentence above --
+    # does the turn this body attacks on still own its attachment -- and the
+    # PHYSICAL Grass that pays for it is counted apart, because a second route
+    # (*Teal Dance*, which the promotion itself unlocks) draws on the very same
+    # hand. See `_promo_charge_eff` right below.
+    _promo_manual_open = (
+        not state.energyAttached
+        or not (my_state.active and my_state.active[0] is not None))
+    _promo_hand_grass = hand_counts.get(Basic_Grass_Energy, 0)
+
+    def _promo_charge_eff(_pk):
+        """EFFECTIVE Grass the candidate puts on ITSELF before it swings.
+
+        The manual attachment above, PLUS the charging ability the active spot
+        unlocks -- *Teal Dance* only reads "if this Pokemon is in the Active
+        Spot", so on the bench it is dead wood and the promotion is what turns it
+        on. Counting only the attachment left a body two Grass from its cost
+        looking mute when it was one Grass from lethal (user, registro_004 step
+        47; the whole story is in `_promoted_grass_charges_eff`).
+
+        Both charges come out of the same hand, so two routes with one Grass are
+        still one energy -- the helper's `min` -- and the ability lock
+        (Watchtower / Iron Thorns) takes the second route away, never the first.
+
+        THE SEAT'S CHARGE IS CLAIMED ONLY ON THE **FORCED** PROMOTION, and the
+        restriction is deliberate. With the spot EMPTY the body we pick attacks
+        on a turn that has not started yet: nothing of it is spent, the ability
+        is fresh, and the hand we can see is the hand that pays. On the VOLUNTARY
+        retreat the dance is legal too -- it is still our turn and the body that
+        comes up has not used its own -- but that turn is half spent by the time
+        this menu appears: the fee has just eaten energy off the board, the
+        active that is leaving may already have danced, and the Grass in hand may
+        be owed to a play this projection cannot see. Claiming a second charge
+        there would promise damage out of a hand that is already committed. It is
+        the same split `_promo_manual_open` makes one line up, for the same
+        reason -- WHOSE turn this menu belongs to -- and it is conservative in the
+        direction the SWITCH scope guard in
+        `tests/test_the_promotion_counts_next_turns_attachment.py` asks for.
+
+        And it is claimed only while the body is still MUTE without it, which is
+        what `deficit` carries: a candidate that already reaches its attack cost
+        is projected EXACTLY as it was before. The helper's docstring holds the
+        board that says why.
+        """
+        _pc_req = AGENT_STATE.ATTACK_ENERGY_REQ.get(getattr(_pk, 'id', None))
+        _pc_deficit = (
+            0 if _pc_req is None
+            else max(0, _pc_req - len(getattr(_pk, 'energies', None) or [])))
+        return _promoted_grass_charges_eff(
+            _pk, _promo_hand_grass, _promo_manual_open, meowth_ability_lock,
+            seat_unlocks=(_forced_ko_promote
+                          and PROMOTE_SEAT_UNLOCKS_ITS_CHARGE),
+            deficit=_pc_deficit)
 
     # HOW MANY CHECKUPS OF THEIR OWN DRIP FALL ON THEIR ACTIVE before the body
     # we are choosing has attacked and they get to answer. The same split as the
@@ -11081,9 +11171,7 @@ def agent(obs_dict: dict) -> list[int]:
                 and _shroud_damage_to(_pk, _promo_shroud_checkups - 1)
                 >= (_pk.hp or 0)):
             return False
-        _pe = len(_pk.energies) * _grass_mult()
-        if _promo_attach_open:
-            _pe += _grass_attach_unit()
+        _pe = len(_pk.energies) * _grass_mult() + _promo_charge_eff(_pk)
         if _promo_op_act is not None:
             _pbase = _attacker_base_damage(
                 _pk.id, _promo_op_act, _pe, grass_scale=total_grass,
@@ -11104,16 +11192,15 @@ def agent(obs_dict: dict) -> list[int]:
         """Effective damage the candidate deals to the opposing active once promoted.
 
         The SAME projection as `_promo_kos_op` -- current energy, plus the manual
-        attachment if it is still available (`_promo_attach_open`), and the bench
+        attachment if it is still available plus the charge the seat unlocks
+        (`_promo_charge_eff`), and the bench
         as it stands after the promotion -- read as a QUANTITY instead of as a
         threshold. Against a wall the question is not whether the body finishes
         the wall off; it is whether it touches it AT ALL.
         """
         if _promo_op_act is None or _pk is None:
             return 0
-        _pe = len(_pk.energies) * _grass_mult()
-        if _promo_attach_open:
-            _pe += _grass_attach_unit()
+        _pe = len(_pk.energies) * _grass_mult() + _promo_charge_eff(_pk)
         _pbase = _attacker_base_damage(
             _pk.id, _promo_op_act, _pe, grass_scale=total_grass,
             teal_self_energy=_pe, bench_count=_promo_bench_after)

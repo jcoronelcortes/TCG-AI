@@ -57,7 +57,8 @@ utils/purity.py: nothing here touches mutable state or the runtime tables.
 
 from ptcg.state.agent_state import AGENT_STATE
 from ptcg.cards.tables import attack_table, card_table
-from ptcg.cards.ids import (Applin, Basic_Grass_Energy, Chikorita,
+from ptcg.cards.ids import (ACTIVE_SEAT_GRASS_CHARGER_IDS, Applin,
+                            Basic_Grass_Energy, Chikorita,
                             GRASS_DOUBLER_IDS, Hydrapple_ex, Night_Stretcher,
                             RETREAT_COST, Tapu_Bulu, Teal_Mask_Ogerpon_ex)
 from ptcg.cards.groups import EVO_LINES, Nighttime_Mine, OUR_TERA_IDS
@@ -284,11 +285,92 @@ def _pending_grass_extra_eff(active, hand_grass, energy_attached):
     if active is None or hand_grass < 1:
         return 0
     manual = 1 if not energy_attached else 0
-    teal = 1 if (getattr(active, 'id', None) == Teal_Mask_Ogerpon_ex
+    teal = 1 if (getattr(active, 'id', None) in ACTIVE_SEAT_GRASS_CHARGER_IDS
                  and AGENT_STATE._td_ability_serial is not None
                  and getattr(active, 'serial', None)
                  == AGENT_STATE._td_ability_serial) else 0
     return min(hand_grass, manual + teal) * _grass_attach_unit()
+
+
+def _promoted_grass_charges_eff(candidate, hand_grass, manual_open,
+                                abilities_off=False, seat_unlocks=True,
+                                deficit=0):
+    """EFFECTIVE Grass the body we are about to PROMOTE can still put on itself
+    before it swings.
+
+    THE TWIN OF `_pending_grass_extra_eff`, FOR A BODY THAT IS NOT THE ACTIVE
+    YET. That one reads the Pokemon already in the spot and can therefore ask
+    the menu whether the ability was offered (`_td_ability_serial`). The body
+    this one prices is on the BENCH, where the menu never offers Teal Dance and
+    never will -- and that is the whole point: the promotion is the act that
+    puts it in the seat, so the ability arrives WITH the seat.
+
+    WHY IT EXISTS (user, `records/registro_004_pasos_038_hasta_047.json` step
+    47, episode 93166555 vs a Teal Mask Ogerpon ex deck, LOST). Their Ogerpon ex
+    knocked out our Tapu Bulu and the menu offered an Applin (40 HP, bare), a
+    Chikorita (70 HP, bare) and our own Teal Mask Ogerpon ex at 210 HP with ONE
+    energy, with TWO basic Grass in hand and their active carrying FOUR. Promote
+    the Ogerpon, attach one Grass by hand and dance the other: three energy,
+    which is exactly Myriad Leaf Shower's cost, and the attack counts the energy
+    on BOTH actives ([[ogerpon-myriad-cuenta-ambos-activos]]) -- 30 + 30 x (3 +
+    4) = 240 over its 210 HP, on OUR turn, two prizes, before they can answer.
+    The agent brought up the Applin.
+
+    Every projection of a promotion counted ONE attachment, the manual one, and
+    the Ogerpon reads as two short of its cost with one route to pay it: mute.
+    `_attacker_base_damage` returns 0 by contract below the requirement, so a
+    240-damage finisher was priced at zero and the 40 HP basic won the slot on
+    ordinary survival points.
+
+    THE THREE ARGUMENTS, and why none of them names a card:
+      * `hand_grass` -- PHYSICAL basic Grass we can attach from hand. Both
+        routes come out of the same hand, hence the `min`: with one Grass the
+        dance and the attachment are the same energy, not two.
+      * `manual_open` -- whether the turn this body attacks on still has its
+        attachment. On a FORCED promotion (empty active spot) that turn is the
+        NEXT one and it always does, whatever `state.energyAttached` says about
+        the turn in progress, which is theirs
+        ([[la-promocion-cuenta-la-carga-del-turno-que-viene]]).
+      * `abilities_off` -- the ability lock (Watchtower / Iron Thorns). With it
+        on, only the manual attachment is left. It can only ever LOWER the
+        answer, so the lock never invents a charge.
+      * `seat_unlocks` -- whether the seat this promotion hands out really is a
+        FRESH one. True on the forced promotion, where the body attacks on a turn
+        that has not started; the callers pass False for the voluntary retreat,
+        whose turn is already half spent (see `_promo_charge_eff` in main.py).
+      * `deficit` -- EFFECTIVE energy the candidate is still missing to reach its
+        attack cost, BEFORE any charge. It is what gates the seat's route; see
+        below.
+
+    THE SEAT'S CHARGE IS CLAIMED ONLY WHEN IT IS THE DIFFERENCE BETWEEN MUTE AND
+    ARMED, which is the whole reason this function exists and the line that keeps
+    it honest. The manual attachment behaves exactly as it always has; the dance
+    is added on top only while the body STILL cannot attack without it
+    (`deficit > what the manual route already gives`). Spending the rest of the
+    hand on the same body to make an attack that already exists hit harder is a
+    different claim -- an investment decision, which belongs to the turn that
+    actually plays the cards and not to a menu that only picks a body -- and
+    projecting it here promises damage out of a hand that may be owed elsewhere.
+    Measured: without this gate the promotion flips a board where a Teal Mask
+    Ogerpon ex already at six energy reads as lethal at ten and takes the seat
+    from the Dipplin whose Hydrapple ex kills the same Mega Lopunny ex with no
+    attachment at all -- a promise with three dependencies beating one with none
+    (`tests/test_the_evolution_that_knocks_out_at_its_boundaries.py`).
+
+    Returns EFFECTIVE energy (Wild Growth already applied by
+    `_grass_attach_unit`), which is what `_attacker_base_damage` expects.
+    """
+    if candidate is None or hand_grass < 1:
+        return 0
+    unit = _grass_attach_unit()
+    routes = 1 if manual_open else 0
+    gained = min(hand_grass, routes) * unit
+    if (seat_unlocks and not abilities_off
+            and deficit > gained
+            and hand_grass > routes
+            and getattr(candidate, 'id', None) in ACTIVE_SEAT_GRASS_CHARGER_IDS):
+        gained = min(hand_grass, routes + 1) * unit
+    return gained
 
 
 def _grass_ability_slots(state, field_counts):
@@ -707,6 +789,7 @@ __all__ = [
     'grass_doubler_arrives',
     'energy_after_evolution',
     '_pending_grass_extra_eff',
+    '_promoted_grass_charges_eff',
     '_grass_ability_slots',
     '_grass_ability_slots_active',
     '_grass_attach_route_open',
