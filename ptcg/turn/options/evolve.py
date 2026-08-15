@@ -536,6 +536,32 @@ def score_play(tc, o, score):
                     and pokemon is not None and pokemon.id == Dipplin
                     and score > SCORE_VETO):
                 score = SCORE_VETO
+
+            # ── NOR THE BODY THE REFILL IS ABOUT TO ARM ────────────────
+            # (user, registro_006 step 61 vs Festival Lead, episode 93378353 --
+            # LOST.) The rule right above needs the wave to ALREADY knock their
+            # Active out; one turn earlier the same board only needs a hand.
+            # `_festival_refill_buys_the_wave` is that reading: their stadium on
+            # the field, our Dipplin in play, and a bench that -- once the
+            # Supporter slot buys the bodies and the Grass -- throws a wave that
+            # buries their Active AND everything they can promote behind it.
+            #
+            # AND THE EVOLUTION HAS TO BE INERT for this to be a trade at all.
+            # A Hydrapple ex that reaches Syrup Storm today is cashing a prize
+            # today and outranks a wave that still has to be bought; the one on
+            # that board could not attack (0 energy, no Grass in hand), could
+            # not even use Ripening Charge, and sat on the bench being 330 HP
+            # for later. Same gate as `_evo_can_attack` above and read the same
+            # way, so a charged body is never the one being refused.
+            if (AGENT_STATE._festival_grounds_in_play
+                    and tc._festival_refill_buys_the_wave
+                    and pokemon is not None and pokemon.id == Dipplin
+                    and score > SCORE_VETO
+                    and not _can_attack_eff(
+                        card.id,
+                        energy_after_evolution(
+                            pokemon, card.id, 1 if _has_energy_in_hand else 0))):
+                score = SCORE_VETO
         return score
     finally:
         tc._atk = _atk
