@@ -16,7 +16,12 @@ tracking evolves together. Per one of OUR decisions:
 
     ours        decisions the agent took (the denominator)
     dry         ...taken with NO energy anywhere on our side of the table and
-                none in hand: the population the rule can even look at
+                none in hand: the shape the FIRST board of this sentence had
+    blocked     ...taken with the Supporter slot still free and NOTHING of ours
+                able to attack this turn: the population the rule ACTUALLY
+                looks at, which is strictly larger than `dry` and is the one to
+                read. The second board (`registro_005` step 35, vs Dragapult)
+                has two Ogerpon ex carrying a Grass each and is still blocked
     flip        ...where the neutralised copy would have played something ELSE.
                 These are the boards where the rule changes a decision at all
     bought      ...and the flip is exactly this rule's sentence: the baseline
@@ -84,6 +89,44 @@ def _dry_board(obs):
                    for c in (mine.get("hand") or []))
 
 
+def _blocked_board(driver, obs):
+    """The population the RULE actually looks at: the Supporter slot still free
+    and NOTHING of ours able to attack this turn.
+
+    It is not `_dry_board`, and the difference is a real board rather than a
+    quibble -- `records/registro_005_pasos_035_hasta_044.json` step 35 (episode
+    93224301, turn 5 vs Dragapult) carries TWO Teal Mask Ogerpon ex with a Grass
+    each and is still a turn where nothing can attack: the active Hydrapple ex
+    is at 0 of the 2 it needs, the Ogerpon at 1 of 3, and there is no Grass in
+    hand to move the numbers. The rule fired there and `dry` would not have
+    counted the board, so a table that reports only `dry` UNDERSTATES the
+    population its own sentence speaks about.
+
+    Read with the driver's own `_a_body_can_attack_this_turn`, the same reading
+    the rule makes, so the column cannot drift away from what it describes.
+    """
+    from collections import defaultdict
+
+    cur = obs["current"]
+    if cur.get("supporterPlayed"):
+        return False
+    seat = cur["yourIndex"]
+    mine = cur["players"][seat]
+    try:
+        cls = driver.to_observation_class(obs).current
+    except Exception:                   # noqa: BLE001 - a column, not a verdict
+        return False
+    hand_counts = defaultdict(int)
+    for c in (mine.get("hand") or []):
+        hand_counts[c.get("id")] += 1
+    field_counts = defaultdict(int)
+    for p in (list(mine.get("active") or []) + list(mine.get("bench") or [])):
+        if p:
+            field_counts[p.get("id")] += 1
+    return not driver._a_body_can_attack_this_turn(
+        cls.players[seat], cls, hand_counts, field_counts)
+
+
 def _played_card(obs, choice):
     """The id of the card a PLAY choice puts down, or None."""
     if not choice:
@@ -117,6 +160,8 @@ def census_game(driver, shadow, deck0, deck1, counts, max_steps=3000):
         counts['ours'] += 1
         if _dry_board(obs):
             counts['dry'] += 1
+        if _blocked_board(driver, obs):
+            counts['blocked'] += 1
         if list(mirror) != list(choice):
             counts['flip'] += 1
             if (_played_card(obs, mirror) in POKEMON_SEARCH_SUPPORTER_IDS
@@ -157,6 +202,8 @@ def main(argv=None):
           f"({counts['ours'] / n:7.2f}/game)")
     print(f"  ...with NO energy in play or hand   {counts['dry']:6d} "
           f"({counts['dry'] / n:7.2f}/game)")
+    print(f"  ...slot free and NOTHING can attack {counts['blocked']:6d} "
+          f"({counts['blocked'] / n:7.2f}/game)   <- the rule's real population")
     print(f"  ...the neutral arm played OTHERWISE {counts['flip']:6d} "
           f"({counts['flip'] / n:7.2f}/game)")
     print(f"  ...and it was the body search we did{counts['bought']:6d} "
