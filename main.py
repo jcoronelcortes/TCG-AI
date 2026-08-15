@@ -581,6 +581,13 @@ CUBCHOO_MUTE_ROTATION = True
 # the same reason as the four above: it is the only difference the census, the
 # gate and the rules oracle put between two arms.
 PROMOTE_SEAT_UNLOCKS_ITS_CHARGE = True
+# `_bcs_playable_in_hand` reading the ITEM LOCK, so "playable" means playable
+# THIS TURN. The Bug Catching Set is an Item: under Budew's Itchy Pollen (or any
+# other source `itchy_pollen_active` collects) it cannot be played at all, and a
+# flag that says otherwise makes every consumer defer to a card the engine will
+# not accept. A named switch for the same reason as the five above: it is the
+# only difference the census, the gate and the rules oracle put between two arms.
+AN_ITEM_UNDER_A_LOCK_IS_NOT_A_PLAYABLE_CARD = True
 
 
 
@@ -8022,8 +8029,23 @@ def agent(obs_dict: dict) -> list[int]:
             if len(_active_pokemon.energies) + _grass_attach_unit() >= 2:
                 _reserve_energy_for_hydra_evolve = True
 
+    # PLAYABLE MEANS PLAYABLE THIS TURN, AND THE BUG CATCHING SET IS AN ITEM
+    # (user, episode 93229766 turn 14 vs Budew/Dragapult, LOST). The flag only
+    # asked "is there a Set in hand and something in the deck for it to find",
+    # so under an item lock it kept claiming the Set as the better play. Its
+    # consumer at `play.py` then vetoed the Meowth ex -- "play the Set first" --
+    # on a turn where the Set could not be played at all, and four branches
+    # below sat the dead-turn rule (`_active_cant_attack_this_turn`, 21800) that
+    # would have put the Meowth ex down to fetch a Supporter. The turn ended
+    # with nine cards in hand, none of them playable, and no attack.
+    # The item lock belongs in the FLAG, not in each reader: the other two
+    # consumers of the pair already carry it by hand (`attach.py`, and
+    # `bug_catching_set.py` for `pp_playable_in_hand`), and the one that forgot
+    # is the one that cost the game.
     _bcs_playable_in_hand = False
-    if hand_counts.get(Bug_Catching_Set, 0) >= 1:
+    if (hand_counts.get(Bug_Catching_Set, 0) >= 1
+            and not (itchy_pollen_active
+                     and AN_ITEM_UNDER_A_LOCK_IS_NOT_A_PLAYABLE_CARD)):
         for _bcs_cid, _bcs_states in AGENT_STATE.ACTIVE_CARDS_IN_DECK.items():
             if _bcs_states[ZONE_DECK] <= 0:
                 continue
