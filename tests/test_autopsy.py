@@ -112,23 +112,43 @@ def test_the_finding_carries_the_key_the_explorer_reads():
 
 def _obs_lethal(their_prizes_left, our_active, their_active, our_bench=()):
     """A MAIN-menu observation for `_ko_hands_them_the_game` (seat 0)."""
-    yo = {
-        "active": [our_active], "bench": list(our_bench),
-        "deckCount": 20, "handCount": 3, "hand": [],
-        "prize": [None] * 5,
-    }
-    op = {
-        "active": [their_active], "bench": [],
-        "deckCount": 20, "handCount": 3, "hand": [],
-        "prize": [None] * their_prizes_left,
-    }
-    return {"current": {"players": [yo, op], "yourIndex": 0, "turn": 24}}
+    def _side(active, bench, prizes):
+        # Complete enough for `cg.api.to_observation_class`: the detector parses
+        # the board to read the reply off the body they PROMOTE, and a partial
+        # player state makes that parse raise where the detector swallows it.
+        return {
+            "active": [active], "bench": list(bench), "benchMax": 5,
+            "deckCount": 20, "handCount": 3, "hand": [], "discard": [],
+            "prize": [None] * prizes,
+            "poisoned": False, "burned": False, "asleep": False,
+            "paralyzed": False, "confused": False,
+        }
+
+    return {"current": {
+        "players": [_side(our_active, our_bench, 5),
+                    _side(their_active, [], their_prizes_left)],
+        "yourIndex": 0, "turn": 24, "firstPlayer": 0, "result": -1,
+        "energyAttached": False, "retreated": False, "supporterPlayed": False,
+        "stadiumPlayed": False, "stadium": [], "looking": None,
+        "turnActionCount": 1,
+    }, "select": None, "logs": []}
 
 
-def _pk(cid, hp, maxhp, energies=0):
-    return {"id": cid, "hp": hp, "maxHp": maxhp,
+def _pk(cid, hp, maxhp, energies=0, tools=()):
+    """A Pokemon complete enough for `cg.api.to_observation_class` to parse.
+
+    The serial/playerIndex are not decoration: `Card` requires them, and a
+    fixture without them makes the projection raise inside the detector, which
+    swallows it and answers with the poorer reading. The first version of this
+    helper omitted them and the test it fed passed for the wrong reason.
+    """
+    def _card(cid_):
+        return {"id": cid_, "serial": 9000 + cid_, "playerIndex": 1}
+    return {"id": cid, "hp": hp, "maxHp": maxhp, "serial": 8000 + cid,
+            "playerIndex": 1, "appearThisTurn": False, "preEvolution": [],
             "energies": [1] * energies,
-            "energyCards": [{"id": 1}] * energies, "tools": []}
+            "energyCards": [_card(1) for _ in range(energies)],
+            "tools": [_card(t) for t in tools]}
 
 
 def test_the_lethal_that_hands_them_the_game_is_marked():
@@ -173,4 +193,32 @@ def test_a_one_prize_body_in_front_is_not_marked():
         their_prizes_left=2,
         our_active=_pk(m.Meganium, 30, 150, energies=4),
         their_active=_pk(849, 180, 330, energies=2))
+    assert _ko_hands_them_the_game(m, obs) is False
+
+
+def test_the_reply_comes_off_the_body_they_promote_not_the_corpse():
+    """crustle_wall_2 game 98 turn 18, in miniature -- and the reason the
+    reading needed a second question.
+
+    Their ACTIVE is a Dwebble at 70 that our attack is about to remove, and it
+    replies for nothing. What answers is the Mega Kangaskhan ex one slot behind
+    it. Reading the reply off the body in front reads it off a corpse, which is
+    the exact blindness `_promoted_lethal_reply` exists for: with only the first
+    reading this board came back False and went to the top of a worklist it does
+    not belong at.
+    """
+    import main as m
+    from autopsy import _ko_hands_them_the_game
+
+    obs = _obs_lethal(
+        their_prizes_left=2,
+        our_active=_pk(m.Teal_Mask_Ogerpon_ex, 90, 210, energies=2),
+        their_active=_pk(344, 70, 70))                     # Dwebble, no energy
+    obs["current"]["players"][1]["bench"] = [
+        _pk(756, 180, 400, energies=3, tools=(1159,))]     # Mega Kangaskhan ex
+    assert _ko_hands_them_the_game(m, obs) is True
+
+    # The control of the same reading: with their bench EMPTY the corpse is all
+    # that answers, and the price is not charged.
+    obs["current"]["players"][1]["bench"] = []
     assert _ko_hands_them_the_game(m, obs) is False

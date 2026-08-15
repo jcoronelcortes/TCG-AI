@@ -234,7 +234,22 @@ def _ko_hands_them_the_game(m, obs):
     ours, theirs = _P(yo["active"][0]), _P(op["active"][0])
     if m.prize_count(ours) < their_prizes:
         return False               # our body does not close their count
+
+    # THE BODY THAT REPLIES IS THE ONE THEY PROMOTE. The knockout we are pricing
+    # removes the body in front, so reading the reply off their ACTIVE reads it
+    # off a corpse -- the exact blindness `_promoted_lethal_reply` was written
+    # for. On crustle_wall_2 game 98 that is the whole board: their Dwebble at 70
+    # replies for nothing, and the Mega Kangaskhan ex one slot behind it is what
+    # actually answers.
     reply = m._op_active_attack_damage_to(theirs, ours, op.get("handCount"))
+    try:
+        parsed = m.to_observation_class(obs).current
+        mine_st = parsed.players[parsed.yourIndex]
+        theirs_st = parsed.players[1 - parsed.yourIndex]
+        reply = max(reply, m._promoted_lethal_reply(
+            mine_st, theirs_st, op.get("handCount")))
+    except Exception:              # noqa: BLE001 -- a projection, never a crash
+        pass
     return reply >= (ours.hp or 0) > 0
 
 
