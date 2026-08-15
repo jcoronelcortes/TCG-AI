@@ -37,6 +37,7 @@ class ScoringCtx:
     _ability_unlock_retreat_attack: Any = None
     _ability_unlock_retreat_ko: Any = None
     _active_already_kos: Any = None
+    _ctm_wall_in_the_way: Any = None
     _active_attack_wins_now: Any = None
     _active_cant_attack_this_turn: Any = None
     _active_doomed_real: Any = None

@@ -1179,6 +1179,29 @@ SCORE_CHARGE_ACTIVE_ATTACK = 31300
 # already-KO development band goes back to looking only at empty bodies.
 CHARGE_THE_BODY_THAT_NEEDS_IT = True
 
+# --- MEGANIUM IS AN ATTACKER AGAINST THE ex-IMMUNE WALL, NOT THE DOUBLER ----
+# Two named switches of the same family, and TWO of them because the reading
+# has two independent halves that a single number could not tell apart. Both
+# come from episode 93251328 vs Crustle / Mega Kangaskhan ex, LOST; the boards
+# are drawn out in `tests/test_meganium_is_an_attacker_not_the_doubler.py`.
+#
+# Crustle's Mysterious Rock Inn switches off our Pokemon ex. Meganium has no
+# rule box, so Solar Beam does its 140 into the wall like anything else of ours
+# that is not an ex -- and the deck's two charging rules were both reading it as
+# the Wild Growth engine instead.
+#
+#   THE RESERVATION (`ptcg/turn/options/ability.py`). "With a single Grass in
+#   hand the last one belongs to the body that can still hit the wall" already
+#   existed; its Crustle creditor list did not name Meganium. Off -> the list
+#   goes back to (Tapu Bulu, Dipplin, Pinsir).
+MEGANIUM_IS_OWED_THE_LAST_GRASS = True
+#   THE LADDER (`ptcg/turn/energy.py`). Against this wall the charging order is
+#   the order of the ATTACK -- Wood Hammer 220, Solar Beam 140, Do the Wave 100
+#   at a full bench -- and Meganium sat under Dipplin and Applin, on a band paid
+#   only while neither of those two was in play. Off -> the old order and the
+#   old gate come back.
+MEGANIUM_OUTRANKS_THE_DIPPLIN_LINE = True
+
 # When the active ALREADY takes the prize, this turn's Grass buys nothing today
 # and the whole question becomes "who attacks NEXT turn". The band that answers
 # it (25000-30000 in `_energy_score_base`) ranks the bodies BY SPECIES, one rung
@@ -2091,6 +2114,8 @@ __all__ = [
     'CHARGE_ALREADY_KOS_COMPLETES_STEP',
     'CHARGE_ALREADY_KOS_PARTIAL_STEP',
     'CHARGE_THE_BODY_THAT_NEEDS_IT',
+    'MEGANIUM_IS_OWED_THE_LAST_GRASS',
+    'MEGANIUM_OUTRANKS_THE_DIPPLIN_LINE',
     'FEZ_ABILITY_BEFORE_THE_KNOCKOUT',
     'FEZ_BENCH_FOR_TOMORROWS_DRAW',
     'SCORE_ASSEMBLE_WINS_THE_GAME',

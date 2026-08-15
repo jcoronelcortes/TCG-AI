@@ -8174,6 +8174,51 @@ def agent(obs_dict: dict) -> list[int]:
                 AGENT_STATE.meganium_in_play, neutralization_zone_active)
         _active_already_kos = (_ak_dmg >= _op_active_hp)
 
+    # --- IS THE WALL ACTUALLY IN THE WAY? -------------------------------------
+    # `op_is_crustle_deck` says they BROUGHT a wall; it does not say the wall is
+    # the obstacle right now, and the two Meganium readings
+    # (`MEGANIUM_IS_OWED_THE_LAST_GRASS`, `MEGANIUM_OUTRANKS_THE_DIPPLIN_LINE`)
+    # were asking the archetype. Graded by the rules oracle over the fifteen
+    # boards where those readings change a decision, that is where they pay and
+    # where they cost, and the split is clean:
+    #
+    #   the wall in front and MUTE to us   Crustle 190/190, our Ogerpon ex does
+    #                                      0 to it            -> +17 pp, +2 pp
+    #   the wall in front and ALREADY DEAD our Tapu Bulu at 6 units in front of
+    #                                      a 150 HP Crustle, our Dipplin in
+    #                                      front of one at 40 -> -7, -5, -1 pp
+    #   no wall in front at all            their Mega Kangaskhan ex at 400/400,
+    #                                      which our ex hit perfectly well
+    #                                                          -> -8, -2 pp
+    #
+    # So the reservation is owed under exactly the condition its own sentence
+    # names -- there is a body we cannot damage standing between us and the
+    # prizes -- and that is two questions, not one:
+    #
+    #   * THE WALL IS IN FRONT. Then it is in the way while it still STANDS. A
+    #     wall this turn's attack already removes is a wall that is answered,
+    #     and the Grass goes back to being ordinary development. Same reading as
+    #     the `_teal_wall_pivot` guard: a fee is worth paying while it is owed.
+    #   * SOMETHING ELSE IS IN FRONT. Then the wall is only what we face NEXT if
+    #     that something falls to our attack today and a wall is waiting on
+    #     their bench. That is the board the whole finding came from
+    #     (`registro_014` step 92: a Mega Kangaskhan ex at 150 of 300 that our
+    #     Ogerpon knocks out, and two Crustle behind it).
+    #
+    # `_active_already_kos` is the right instrument for both halves and not a
+    # new one: it prices our active's swing through `_our_effective_damage`, so
+    # the ex-immunity of the wall is already inside it -- an ex in front of a
+    # Crustle reads False because it really does zero.
+    _ctm_wall_in_the_way = False
+    if AGENT_STATE.op_is_crustle_deck:
+        _ctm_wiw_act = op_state.active[0] if op_state.active else None
+        if _ctm_wiw_act is not None and _ctm_wiw_act.id in EX_IMMUNE_IDS:
+            _ctm_wall_in_the_way = not _active_already_kos
+        else:
+            _ctm_wall_in_the_way = _active_already_kos and any(
+                _wiw_bp is not None and _wiw_bp.id in EX_IMMUNE_IDS
+                for _wiw_bp in (op_state.bench or []))
+
     # --- THE ACTIVE'S SNIPE: the best target is not always the opposing active ----
     # (user, registro_004 step 54 vs Alakazam.) Fezandipiti ex's Cruel Arrow
     # hits ANY Pokemon of the opponent's for a fixed 100. `_active_already_kos`
@@ -9438,6 +9483,7 @@ def agent(obs_dict: dict) -> list[int]:
             _ctm_charge_active_dipplin=_ctm_charge_active_dipplin,
             _ctm_chikorita_bench=_ctm_chikorita_bench,
             _ctm_tapu_high=_ctm_tapu_high,
+            _ctm_wall_in_the_way=_ctm_wall_in_the_way,
             _cubchoo_lock_stuck=_cubchoo_lock_stuck,
             _ex_stuck_promo_ready=_ex_stuck_promo_ready,
             _extra_energy_enables_ko=_extra_energy_enables_ko,

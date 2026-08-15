@@ -18451,10 +18451,10 @@
     "accion": 3,
     "contexto": 0,
     "detalle": [
-     "ATTACH->Dipplin(93)"
+     "ATTACH->Meganium(710)"
     ],
     "eleccion": [
-     5
+     2
     ],
     "paso": null,
     "turno": 6
@@ -20261,10 +20261,10 @@
     "accion": 15,
     "contexto": 0,
     "detalle": [
-     "ATTACH->Applin(92)"
+     "ATTACH->Meganium(710)"
     ],
     "eleccion": [
-     5
+     4
     ],
     "paso": null,
     "turno": 4
@@ -20309,10 +20309,10 @@
     "accion": 3,
     "contexto": 0,
     "detalle": [
-     "ABILITY Teal Mask Ogerpon ex(96)"
+     "ATTACH->Meganium(710)"
     ],
     "eleccion": [
-     10
+     5
     ],
     "paso": null,
     "turno": 6
@@ -22167,10 +22167,10 @@
     "accion": 13,
     "contexto": 0,
     "detalle": [
-     "ABILITY Teal Mask Ogerpon ex(96)"
+     "ATTACH->Meganium(710)"
     ],
     "eleccion": [
-     31
+     2
     ],
     "paso": null,
     "turno": 6
@@ -22191,10 +22191,10 @@
     "accion": 15,
     "contexto": 0,
     "detalle": [
-     "ATTACH->Applin(92)"
+     "ATTACH->Meganium(710)"
     ],
     "eleccion": [
-     5
+     2
     ],
     "paso": null,
     "turno": 6
@@ -22313,10 +22313,10 @@
     "accion": 3,
     "contexto": 0,
     "detalle": [
-     "ABILITY Teal Mask Ogerpon ex(96)"
+     "ATTACH->Meganium(710)"
     ],
     "eleccion": [
-     11
+     4
     ],
     "paso": null,
     "turno": 8
@@ -25513,10 +25513,10 @@
     "accion": 12,
     "contexto": 0,
     "detalle": [
-     "ABILITY Teal Mask Ogerpon ex(96)"
+     "RETREAT"
     ],
     "eleccion": [
-     3
+     5
     ],
     "paso": null,
     "turno": 12
