@@ -804,6 +804,26 @@ OP_EX_SHIELD_IDS = frozenset({Acerolas_Mischief})
 
 OUR_ABILITY_IDS = {Teal_Mask_Ogerpon_ex, Hydrapple_ex, Meganium, Fezandipiti_ex, Meowth_ex, Dipplin}
 
+# CHARGING ABILITIES THAT ONLY WORK FROM THE ACTIVE SPOT, and that attach a
+# basic Grass FROM HAND TO THEMSELVES. In this deck that is *Teal Dance* on Teal
+# Mask Ogerpon ex ("Once during your turn, IF THIS POKEMON IS IN THE ACTIVE
+# SPOT, you may attach a Basic Grass Energy from your hand to it").
+#
+# The set exists because of what the SEAT is worth. Every other charging route
+# we own is seat-independent -- the manual attachment goes anywhere, Ripening
+# Charge (Hydrapple ex) goes anywhere -- so it makes no difference to the choice
+# of WHICH body to bring up. This one does: on the bench the ability is dead
+# wood, and the promotion is exactly the act that switches it on. A body sitting
+# two Grass short of its attack is one Grass short the moment it takes the seat,
+# and the projections that price a promotion have to count it or they price a
+# finisher at zero (user, registro_004 step 47 vs Teal Mask Ogerpon ex, LOST --
+# see `_promoted_grass_charges_eff`).
+#
+# A set and not an `==` for the same reason as its neighbours: the sentence is
+# "an ability the active spot unlocks", not a card name. Swap the contents and
+# every rule that reads it keeps saying the same thing in another deck.
+ACTIVE_SEAT_GRASS_CHARGER_IDS = frozenset({Teal_Mask_Ogerpon_ex})
+
 # ATTACKS THAT CHOOSE THEIR TARGET (SNIPE). Cruel Arrow (Fezandipiti ex) does a
 # fixed 100 to ANY ONE of the opponent's Pokemon, active or bench. Every other
 # attack of ours reaches their BENCH only behind a Boss's Orders, which is why
@@ -1958,6 +1978,7 @@ __all__ = [
     'CRUSTLE_LINE_IDS',
     'ABILITY_IMMUNE_IDS',
     'OUR_ABILITY_IDS',
+    'ACTIVE_SEAT_GRASS_CHARGER_IDS',
     'GUST_TRAP_IDS',
     'Pikachu_ex_Resolute',
     'FULL_HP_SURVIVE_IDS',
