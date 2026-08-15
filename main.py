@@ -9938,6 +9938,15 @@ def agent(obs_dict: dict) -> list[int]:
     # already protected.
     _evo_spare_seen = {}
 
+    # And the same latch for the LAST BRIDGE of an evolution line
+    # (`DISCARD_LINK_LAST_BRIDGE`). Being the last copy anywhere a search still
+    # reaches is a claim about the DECK, not about a serial, so every copy in
+    # hand answers it identically -- and a floor applied to all of them would
+    # sacrifice the rest of the hand to keep bridges the line can never wear.
+    # The first copy the menu offers is the line; the rest keep the ladder's
+    # ordinary price.
+    _bridge_kept_once = set()
+
     # The same latch again, for the copies OUR OWN searches bought this turn
     # (`DISCARD_WHAT_THE_SEARCH_ALREADY_BOUGHT`). Copies of one card are
     # interchangeable, so the purchase is not a SERIAL, it is a COUNT: the first

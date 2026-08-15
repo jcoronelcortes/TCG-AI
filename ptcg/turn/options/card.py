@@ -48,8 +48,8 @@ from ptcg.calc.damage import _attacker_base_damage, _bench_attacker_can_ko, _fes
 from ptcg.calc.energy import _can_attack_eff, _grass_attach_route_open, _grass_attach_unit, _grass_mult
 from ptcg.calc.board import _active_of, _count_hand_play_options
 from ptcg.cards.groups import EVO_LINES, GT_FETCH_BONUS
-from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, DISCARD_SHIELD_KEEP_THE_GUST, DISCARD_SHIELD_KEEP_THE_NONEX, DISCARD_SHIELD_MUTES_THE_EX, DISCARD_SHIELD_SEARCH_FODDER, DISCARD_SHIELD_STADIUM_FODDER, OP_EX_SHIELD_MAX_PRIZES, DISCARD_XEROSIC_CAP_IS_THE_ANSWER, DISCARD_BODY_WITHOUT_SEAT, DISCARD_CF_HAND_RECYCLER, DISCARD_EVO_SPARE_COPY, DISCARD_LINK_THE_SEARCH_BUYS, DISCARD_SUPPORTER_DEAD_DROP, DISCARD_SUPPORTER_LIVE_KEEP, DISCARD_WHAT_THE_SEARCH_ALREADY_BOUGHT, DUNSPARCE_IDS, Dawn, Dipplin, Drednaw, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, LANA_SEL_INJUGABLE, LANA_SEL_GRASS_DEMAND, LANA_SEL_GRASS_UNLOCKS, LANA_SEL_GRASS_SURPLUS, LANA_SEL_GRASS_WINS, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, OUR_ABILITY_IDS, OUR_EX_IDS, Pinsir, Poke_Pad, RETREAT_COST, RIPEN_HEAL_TARGET_SCORE, SCORE_FORBID, SCORE_LOOKAHEAD_PROMOTE_KO, SCORE_LOOKAHEAD_PROMOTE_SAFE, SCORE_NEVER, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, XEROSIC_BIG_HAND, DISCARD_XEROSIC_CAPS_A_FAT_HAND, Xerosic_Machinations
-from ptcg.cards.lines import _evo_copies_usable, _evo_top_unlocked_by_the_search, _line_base_benchable, _pokemon_injugable
+from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, DISCARD_SHIELD_KEEP_THE_GUST, DISCARD_SHIELD_KEEP_THE_NONEX, DISCARD_SHIELD_MUTES_THE_EX, DISCARD_SHIELD_SEARCH_FODDER, DISCARD_SHIELD_STADIUM_FODDER, OP_EX_SHIELD_MAX_PRIZES, DISCARD_XEROSIC_CAP_IS_THE_ANSWER, DISCARD_BODY_WITHOUT_SEAT, DISCARD_CF_HAND_RECYCLER, DISCARD_EVO_SPARE_COPY, DISCARD_LINK_LAST_BRIDGE, DISCARD_LINK_THE_SEARCH_BUYS, DISCARD_SUPPORTER_DEAD_DROP, DISCARD_SUPPORTER_LIVE_KEEP, DISCARD_WHAT_THE_SEARCH_ALREADY_BOUGHT, DUNSPARCE_IDS, Dawn, Dipplin, Drednaw, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, LANA_SEL_INJUGABLE, LANA_SEL_GRASS_DEMAND, LANA_SEL_GRASS_UNLOCKS, LANA_SEL_GRASS_SURPLUS, LANA_SEL_GRASS_WINS, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, OUR_ABILITY_IDS, OUR_EX_IDS, Pinsir, Poke_Pad, RETREAT_COST, RIPEN_HEAL_TARGET_SCORE, SCORE_FORBID, SCORE_LOOKAHEAD_PROMOTE_KO, SCORE_LOOKAHEAD_PROMOTE_SAFE, SCORE_NEVER, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, XEROSIC_BIG_HAND, DISCARD_XEROSIC_CAPS_A_FAT_HAND, Xerosic_Machinations
+from ptcg.cards.lines import _evo_bridge_last_copies, _evo_copies_usable, _evo_top_unlocked_by_the_search, _line_base_benchable, _pokemon_injugable
 from ptcg.cards.ids import OPENING_SAC_PROMOTE_ORDER, SETUP_ACTIVE_BASIC_ORDER, SETUP_ACTIVE_BASIC_TOP, SETUP_ACTIVE_EX_ORDER, SETUP_ACTIVE_EX_TOP, SETUP_ACTIVE_OTHER, SETUP_ACTIVE_OTHER_BASIC, SETUP_ACTIVE_STEP
 from ptcg.cards.scoring import MAIN_ATTACKERS, PROMO_DOOMED_PENALTY, PROMO_KO_BONUS, PROMO_KO_FRONT, PROMO_KO_ROTATION, PROMO_LAST_STAND, PROMO_MATCH_POINT_VETO, PROMO_PRIZE_PENALTY, OPENING_SAC_PROMOTE_STEP, OPENING_SAC_PROMOTE_TOP, _SUPP_PLAY_IDS, _purchase_of_this_turn
 from ptcg.cards.tables import HAND_TO_DECK_PLAY_IDS, card_table
@@ -60,7 +60,7 @@ from ptcg.decision.night_stretcher import _RULES_NS_APPLIN, _RULES_NS_BAYLEEF, _
 from ptcg.decision.poke_pad import _CtxPPFetch, _RULES_PP_FETCH
 from ptcg.decision.ultra_ball import _AJUSTES_UB_HYDRAPPLE, _CtxUBFetch, _ub_target_cannot_be_worn, _ub_wearable_bodies, _ub_target_covered_by_hand, _ub_target_has_no_seat, _RULES_UB_APPLIN, _RULES_UB_BAYLEEF, _RULES_UB_CHIKORITA, _RULES_UB_DIPPLIN, _RULES_UB_FEZ, _RULES_UB_HYDRAPPLE, _RULES_UB_MEGANIUM, _RULES_UB_MEOWTH, _RULES_UB_OGERPON, _RULES_UB_PINSIR, _RULES_UB_TAPU, _counter_stadium_urgent, _ctx_ub_fetch_hydrapple, _ctx_ub_fetch_meowth
 from ptcg.state.agent_state import AGENT_STATE
-from ptcg.state.zones import ZONE_DECK, ZONE_PRIZE
+from ptcg.state.zones import ZONE_BENCH, ZONE_DECK, ZONE_HAND, ZONE_PRIZE
 from ptcg.engine.rules import _resolve_with_trace
 
 
@@ -90,6 +90,7 @@ def score_play(tc, o, score):
     _evo_huerfanos = tc._evo_huerfanos
     _counter_stadium_kept_once = tc._counter_stadium_kept_once
     _evo_spare_seen = tc._evo_spare_seen
+    _bridge_kept_once = tc._bridge_kept_once
     _bought_spare_seen = tc._bought_spare_seen
     _evo_necesarios = tc._evo_necesarios
     _festival_lead_hostil = tc._festival_lead_hostil
@@ -3382,6 +3383,54 @@ def score_play(tc, o, score):
                 # to the spare-copy band -- the very band the Hydrapple branch
                 # already uses when one is in play. It names no card: the stages
                 # come from `EVO_LINES`.
+                # ...AND THE ONE LINK THE SEARCH CAN NEVER BUY BACK IS THE LAST
+                # BRIDGE (user, `records/registro_006_pasos_047_hasta_073.json`
+                # step 47, episode 93159383 vs Marnie -- LOST). Turn 6, prizes
+                # 6-6, hand {Bayleef, Bayleef, Ultra Ball}. Both Bayleef are the
+                # deck's only bridge between the Chikorita and the Meganium, and
+                # this ladder priced them at 75 -- `hand_counts[Bayleef] > 1`,
+                # the surplus band -- which made them the two cheapest cards in
+                # the hand and exactly what the cost of two took. They stayed in
+                # the discard from step 49 to step 190, the last one of the
+                # game; a Meganium reached hand on that same turn and sat there
+                # for 127 of the game's 191 steps, with the Chikorita it needed
+                # benched under our own Forest of Vitality and never evolved.
+                #
+                # The branch is the same defect the counter-stadium comment
+                # above names in as many words: "spare copies are cheap" is true
+                # and "so throw away the only out too" is not. Holding two
+                # copies is not surplus when two is ALL THERE IS -- the branch
+                # never even reached its own `ZONE_DECK` test, which is
+                # unreachable while `hand_counts > 1`.
+                #
+                # It names no card (`EVO_LINES` supplies the stages, so the
+                # Dipplin of the Applin line is covered on the same terms), it
+                # only ever PROTECTS, and it protects ONE copy: a line wears one
+                # bridge per body, and `_bridge_kept_once` lets every copy after
+                # the first keep the ladder's price. Unlike
+                # `DISCARD_LINK_THE_SEARCH_BUYS` it is NOT gated on our own
+                # Ultra Ball -- a discard forced by their Xerosic's Machinations
+                # buries the bridge just as permanently.
+                if (score > DISCARD_LINK_LAST_BRIDGE
+                        and card.id not in _bridge_kept_once
+                        and _evo_bridge_last_copies(
+                            card.id, hand_counts, field_counts,
+                            # Every zone a draw or a search still reaches: the
+                            # belief minus the discard. The BELIEF and not
+                            # `field_counts`, because a link already spent
+                            # UNDER a body -- the Dipplin beneath a Hydrapple ex
+                            # -- is in play without being a body, so the field
+                            # count reads 0 for it and the copy in hand would
+                            # look like the last one on a board whose line is
+                            # already finished.
+                            {_bk: sum(AGENT_STATE.ACTIVE_CARDS_IN_DECK
+                                      .get(_bk, {}).get(_bz, 0)
+                                      for _bz in (ZONE_DECK, ZONE_HAND,
+                                                  ZONE_BENCH, ZONE_PRIZE))
+                             for _line in EVO_LINES for _bk in _line})):
+                    _bridge_kept_once.add(card.id)
+                    score = DISCARD_LINK_LAST_BRIDGE
+
                 if score < DISCARD_EVO_SPARE_COPY:
                     _evo_seats = _evo_copies_usable(
                         card.id, hand_counts, field_counts,
@@ -3679,6 +3728,7 @@ def score_play(tc, o, score):
         tc._dc = _dc
         tc._counter_stadium_kept_once = _counter_stadium_kept_once
         tc._evo_spare_seen = _evo_spare_seen
+        tc._bridge_kept_once = _bridge_kept_once
         tc._bought_spare_seen = _bought_spare_seen
         tc._has_bench_attacker = _has_bench_attacker
         tc._lillie_protected_once = _lillie_protected_once

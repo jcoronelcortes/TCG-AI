@@ -1581,6 +1581,31 @@ DISCARD_EVO_SPARE_COPY = 55
 # so a piece we are still only BUYING never outranks a card that is already
 # doing its job, and far below every band the cost really eats.
 DISCARD_LINK_THE_SEARCH_BUYS = 3
+# --- THE LAST BRIDGE OF A LINE (see `_evo_bridge_last_copies`) --------------
+# The constant above prices a link the search is about to BUY BACK. This one
+# prices the opposite card: a middle link whose copies in hand are the last ones
+# left in any zone a draw or a search still reaches, on a line whose top and
+# whose Basic are both still live. Buying is reversible, this is not -- once the
+# bridge is in the discard the top of the line is cardboard in every zone at
+# once, and no Pokemon tutor in the deck reaches it.
+#
+# The branches it overrides ask the BOARD ("is there a Chikorita in play to wear
+# this Bayleef?") and, failing that, hand the surplus band to EVERY copy --
+# `hand_counts[Bayleef] > 1 -> 75`, which is the same "spare copies are cheap"
+# reading the counter-stadium comment already names as a recurring bug. The
+# surplus is what is cheap; the FIRST copy is the line.
+#
+# 5, immediately above `DISCARD_WHAT_THE_SEARCH_ALREADY_BOUGHT` (4): a card we
+# can never get back outranks the two bands that price cards a search still
+# reaches, and it stays above the untouchable floor (2) so the last refill
+# Supporter and the critical counter-stadium still outrank it. It is the same
+# height as the Xerosic the Alakazam matchup protects, and for the same reason:
+# both are the deck's last access to something.
+#
+# ONE copy, like `_lillie_protected_once` and `_counter_stadium_kept_once`: the
+# line needs one bridge per body it will ever wear, and the copies after it keep
+# whatever price the ladder gave them.
+DISCARD_LINK_LAST_BRIDGE = 5
 # --- WHAT AN EARLIER SEARCH OF THIS TURN ALREADY BOUGHT ---------------------
 # (see `AGENT_STATE._bought_this_turn`). The constant above covers the card the
 # CURRENT search is about to buy. This one covers the other half of the same
@@ -2096,6 +2121,7 @@ __all__ = [
     'DISCARD_SUPPORTER_LIVE_KEEP',
     'DISCARD_SUPPORTER_DEAD_DROP',
     'DISCARD_EVO_SPARE_COPY',
+    'DISCARD_LINK_LAST_BRIDGE',
     'DISCARD_LINK_THE_SEARCH_BUYS',
     'DISCARD_WHAT_THE_SEARCH_ALREADY_BOUGHT',
     'DISCARD_BODY_WITHOUT_SEAT',

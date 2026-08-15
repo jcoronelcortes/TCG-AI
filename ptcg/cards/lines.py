@@ -308,6 +308,90 @@ def _evo_top_unlocked_by_the_search(card_id, hand_counts, field_counts,
     return False
 
 
+# The reading of `_evo_bridge_last_copies` below: the last middle link of a line
+# we can still assemble is not fodder for a cost and not the card a forced
+# discard lets go. A NAMED SWITCH, like `NZ_MUTE_ROUTING` in `ptcg/calc/damage.py`
+# and the `PROMOTE_*` family in main.py -- it is the only difference the census,
+# the gate and the rules oracle are allowed to put between their two arms, and
+# both of this rule's call sites read it through this one name.
+LAST_BRIDGE_IS_NOT_FODDER = True
+
+
+def _evo_bridge_last_copies(card_id, hand_counts, field_counts,
+                            reachable_counts):
+    """Are the copies of `card_id` in HAND the last BRIDGE a line we can still
+    assemble has left?
+
+    A BRIDGE is a middle link: not the Basic the bench seats, not the top the
+    line is played for, but the link the top can only be reached THROUGH. In
+    this deck it is the Bayleef between the Chikorita and the Meganium, and the
+    Dipplin between the Applin and the Hydrapple ex; the stages come from
+    `EVO_LINES`, so a deck whose engine sits on another line gets the same
+    answer without editing this file.
+
+    A SEAT CAN BE SEARCHED FOR, A DISCARDED CARD CANNOT. That asymmetry is the
+    whole rule. Every other reader of an evolution piece in hand prices it
+    against the BOARD -- `_evo_copies_usable` calls a link with no body under it
+    zero usable copies, `_line_base_benchable` refuses to count a Basic that is
+    only in the deck ("THE DECK IS NOT A SEAT") -- and both are right, because
+    the missing seat is a card the deck still holds and a search buys it back.
+    The bridge is the other case: once it is in the discard no search reaches
+    it, and the top of the line becomes cardboard in every zone at once. So the
+    reading "nothing on the board can wear it, therefore it is cheap" is
+    correct about the copies the deck can replace and false about the LAST
+    ones.
+
+    Four questions, all of them read off the same counts:
+
+      * `card_id` is a middle link of one of our lines (a Basic and a top are
+        somebody else's question);
+      * it is not already IN PLAY -- with the bridge worn the line is under way
+        and the copy in hand is a spare;
+      * the copies in HAND are all that is left anywhere a draw or a search
+        still reaches, so paying with them is paying with the line;
+      * and the line is still worth having: something ABOVE the bridge and
+        something BELOW it are still reachable too. A bridge to a top that is
+        already in the discard leads nowhere, and one with no Basic left has
+        nothing to stand on.
+
+    `reachable_counts` is a plain `{card_id: copies}` of every zone a draw or a
+    search still reaches -- deck, hand, play and prizes, i.e. ALL OF THEM
+    EXCEPT THE DISCARD -- so the function stays pure and the caller owns the
+    belief. A recovery card (Night Stretcher, Lana's Aid) can undo a discard and
+    is deliberately NOT modelled here: it costs a whole card and, unlike the
+    bridge itself, it is one the search can still buy.
+
+    It answers a question about the CARD, not about a menu: it says the copy is
+    load-bearing, and each caller decides what that is worth -- the Ultra Ball's
+    cost count refuses to treat it as fodder, the forced-discard scorer keeps
+    one copy and lets the surplus fall.
+    """
+    if not LAST_BRIDGE_IS_NOT_FODDER:
+        return False
+    for line in EVO_LINES:
+        if card_id not in line:
+            continue
+        idx = line.index(card_id)
+        if idx == 0 or idx == len(line) - 1:
+            continue                     # a Basic and a top are not bridges
+        if (field_counts or {}).get(card_id, 0) >= 1:
+            continue                     # already worn: the line is under way
+        _in_hand = (hand_counts or {}).get(card_id, 0)
+        if _in_hand < 1:
+            continue
+        if (reachable_counts or {}).get(card_id, 0) > _in_hand:
+            continue                     # the deck can still replace them
+        if not any((reachable_counts or {}).get(_top, 0) >= 1
+                   for _top in line[idx + 1:]):
+            continue                     # the bridge leads nowhere
+        if not any((reachable_counts or {}).get(_base, 0) >= 1
+                   or (field_counts or {}).get(_base, 0) >= 1
+                   for _base in line[:idx]):
+            continue                     # nothing left to stand on
+        return True
+    return False
+
+
 def _pokemon_injugable(card_id, field_counts, bench_count, bench_max):
     """True if bringing `card_id` to hand brings a DEAD card: a Pokemon that
     cannot be put into play today or on the next turn.
@@ -454,8 +538,10 @@ def _evo_body_in_play(card_id, field_counts):
 
 
 __all__ = [
+    'LAST_BRIDGE_IS_NOT_FODDER',
     '_direct_evolution_ids',
     '_evo_body_in_play',
+    '_evo_bridge_last_copies',
     '_evo_copies_usable',
     '_evo_top_unlocked_by_the_search',
     '_line_base_benchable',
