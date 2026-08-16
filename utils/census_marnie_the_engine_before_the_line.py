@@ -55,6 +55,22 @@ WHAT IT MEASURED (16 agosto 2026, n=300 per row):
                            exacta (linea -> motor). El septimo es un knock-on.
     vs crustle_wall_1      39 781 decisiones, 0 con el flag, 0 flips. FUGA CERO.
 
+RE-MEASURED the same day, after the rung was given to the JAM chain as well
+(`_ADJUST_GUST_NUISANCE`, together with the bracket that keeps a bigger prize
+above it). The reading used to hold only while our active happened to be able to
+attack, because that is what decides which chain resolves the menu; now it holds
+on both, and the exposure roughly doubled:
+
+    vs marnie_grimmsnarl   36 673 decisiones, 201 menus de gusteo,
+                           11 flips = 0.04/partida, y 10 de los 11 son la frase
+                           exacta (antes 6 de 7).
+    vs crustle_wall_1      39 840 decisiones, 0 con el flag, 0 flips. FUGA CERO.
+
+Not a strict A/B of the jam half alone -- the two runs are different games, not
+the same seeds with one rung moved -- so read the doubling as an order of
+magnitude and not as a delta. What it does settle is that the jam chain was
+never a rare corner of this matchup: it was carrying about half of it.
+
 ...and the three complete Marnie games in `records/marnie/` flip NOTHING across
 their 296 decisions, which is the same answer from the other side: the three
 conditions rarely coincide. At 0.02 flips a game the winrate cannot resolve this

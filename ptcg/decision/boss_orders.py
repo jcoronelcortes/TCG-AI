@@ -60,7 +60,7 @@ from ptcg.calc.board import _active_of
 from ptcg.calc.energy import _grass_mult
 from ptcg.calc.damage import _ko_not_guaranteed
 from dataclasses import dataclass
-from ptcg.cards.ids import ALAKAZAM_ATTACKER_IDS, ALAKAZAM_LINE_IDS, Abra, Alakazam_ex, BOSS_SCORE_MARNIE_ENGINE_FIRST, Boss_Orders, Budew, Cyndaquil, DARKNESS_ENERGY_TYPE, Dragapult_ex, Drakloak, Dreepy, Dwebble_Fighting, Dwebble_Grass, EX_PREEVO_IDS, Froslass, GUST_TRAP_IDS, Grimmsnarl_ex, Hydrapple_ex, Iron_Thorns_ex, Kadabra, Latias_ex, Lillie_Determination, MARNIE_ENGINE_BEFORE_THE_LINE, MARNIE_ENGINE_GUST_RANK, MARNIE_LINE_IDS, Meowth_ex, Munkidori, Quilava, SCORE_FORBID, Snorunt, THREAT_PREEVO_IDS, Teal_Mask_Ogerpon_ex, Typhlosion
+from ptcg.cards.ids import ALAKAZAM_ATTACKER_IDS, ALAKAZAM_LINE_IDS, Abra, Alakazam_ex, BOSS_SCORE_MARNIE_ENGINE_FIRST, Boss_Orders, Budew, Cyndaquil, DARKNESS_ENERGY_TYPE, Dragapult_ex, Drakloak, Dreepy, Dwebble_Fighting, Dwebble_Grass, EX_PREEVO_IDS, Froslass, GUST_TRAP_IDS, Grimmsnarl_ex, Hydrapple_ex, Iron_Thorns_ex, Kadabra, Latias_ex, Lillie_Determination, MARNIE_ENGINE_BEFORE_THE_LINE, MARNIE_ENGINE_BIGGER_PRIZE, MARNIE_ENGINE_BIGGER_PRIZE_STEP, MARNIE_ENGINE_DRY_MUNKIDORI, MARNIE_ENGINE_GUST_RANK, MARNIE_ENGINE_HP_TIEBREAK_CEIL, MARNIE_ENGINE_HP_TIEBREAK_MAX, MARNIE_ENGINE_READS_THE_ENERGY, MARNIE_LINE_IDS, Meowth_ex, Munkidori, Quilava, SCORE_FORBID, Snorunt, THREAT_PREEVO_IDS, Teal_Mask_Ogerpon_ex, Typhlosion
 from ptcg.cards.tables import card_table
 from ptcg.engine.rules import _Adjustment, _FixedRule
 
@@ -215,6 +215,117 @@ def _v_gust_relay_seat(c):
     return 20000 + c.prizes * 2000
 
 
+# THE ENGINE BEFORE THE LINE, and only in the Marnie matchup (user,
+# `records/registro_008_pasos_108_hasta_114.json` step 110, episode 93525290,
+# turn 8 vs Marnie's Grimmsnarl ex -- LOST).
+#
+#     US (seat 1, 4 prizes)                RIVAL (5 prizes)
+#     active Hydrapple ex 270/330, 2G      active Marnie's Impidimp 70/70, 2D
+#     bench  Ogerpon ex 4G, Meowth ex,     bench  Froslass, **Morgrem 2D**,
+#            Ogerpon ex 3G, Ogerpon ex 2G,        Froslass, Impidimp 1D,
+#            Fezandipiti ex                       **Munkidori 1D**
+#
+# The agent played Boss's Orders on the MORGREM and knocked it out: one prize
+# for the highest link of the ex line, which is what `ex_preevo_takes_priority`
+# is written to do (12000 of `tier_ko` lifted to 19500, plus 700 of the line
+# band -> 20200, over 6450 for the Munkidori). They rebuilt the line and won.
+# Every recorded loss to this list ends the same way, and never to the
+# Grimmsnarl ex: it is the two abilities behind it that take the game.
+#
+# THE PREMISE OF CUTTING THE LINE DOES NOT HOLD HERE. That rule pays 19500
+# because a two-prize ex attacker we cannot answer decides the game by itself;
+# Marnie's Grimmsnarl ex is 320 HP and WEAK TO GRASS, so Myriad Leaf Shower
+# doubles into it -- the benched Teal Mask Ogerpon ex on four Grass reads
+# 300-420 against an effective 300 (their own Freezing Shroud takes 20 off a
+# body that prints an Ability). The answer was already parked on our bench. What
+# was NOT answered is the pair of abilities that had been grinding us down all
+# game and that no evolution step gates:
+#
+#   * Froslass, "Freezing Shroud" -- 20 per round onto EVERY body of ours,
+#     because every body of ours prints an Ability;
+#   * Munkidori, "Adrena-Brain" -- 30 counters MOVED, once per turn per copy,
+#     onto whichever of our Pokemon it closes a knockout on, with their own
+#     Froslass reloading its ammunition every checkup.
+#
+# Munkidori is the more dangerous of the two because it AIMS: the drip is
+# arithmetic we can plan around, the move is what turns a body we had counted as
+# surviving into a corpse. Hence Munkidori, then the Froslass that feeds it,
+# then the Snorunt that becomes the next Froslass (MARNIE_ENGINE_GUST_RANK).
+#
+# AND THE MUNKIDORI SPLITS IN TWO (user, episode 93680377 step 173 vs Marnie --
+# WON, and the gust still went to the wrong body):
+#
+#     US (seat 1, 2 prizes)                RIVAL (4 prizes)
+#     active Hydrapple ex 280/330, 2G      active Munkidori 90/110, 1D
+#     bench  Ogerpon ex 4G, Hydrapple ex,  bench  **Munkidori 100/110, 0e**,
+#            Ogerpon ex 2G, Ogerpon ex 1G,        **Munkidori 100/110, 1D**,
+#            Fezandipiti ex                       Morgrem 1D, Froslass,
+#                                                 Morgrem 1D
+#
+# The two Munkidori scored the SAME 15600 -- same species, same 100/110 -- and
+# the argmax took the first one on their bench, which is the BARE one. A charged
+# Munkidori is the copy that also attacks out of the seat we are selling it and
+# the one their turn is already built around; a bare one is a body they still
+# have to pay for. So the species splits and the Froslass rung sits between the
+# halves, which is the user's rule read in both directions: Munkidori beats
+# Froslass while at least one Munkidori carries energy, and with only bare
+# Munkidori on the field the Froslass goes first. `_marnie_engine_rung` is the
+# whole ladder, tiebreak included.
+#
+# AND ONLY WITH THE RESERVE ON THE BENCH. `marnie_engine_first` is False while
+# our ACTIVE is the only body that covers a Grimmsnarl ex: there the line rule
+# keeps its 19500 and its reason, because the active can be knocked out and then
+# nothing covers it. `can_ko` gates each rung for the reason the whole file
+# repeats -- a gust that takes no prize is a free retreat we hand them -- so a
+# Munkidori we cannot finish yields to the Froslass we can.
+#
+# `max` and not `+`: the floor is BOSS_SCORE_MARNIE_ENGINE_FIRST, so that
+# whatever tier the engine bodies happen to sit in, the order between them is
+# the user's and not the stage table's -- a Stage 1 Froslass outranks a Basic
+# Munkidori by 3000 on tier alone. Anything that already scored ABOVE the floor
+# keeps its score untouched, which is how `gust_wins_the_game` survives it.
+#
+# ONE OBJECT IN BOTH LADDERS, and that is the point of it living here.
+# `ptcg/turn/options/card.py` routes the candidates by OUR ACTIVE: when it
+# cannot attack this turn, the same menu is resolved by the JAM chain instead of
+# the offensive one. The matchup does not change with our active, and neither
+# does which of their bodies is winning the game -- but the jam chain read this
+# board exactly backwards, and worse than the offensive one ever did:
+#
+#     Marnie's Morgrem   9050   `opponent_line_higher_evolution` (Stage 1 + 1 e)
+#     Froslass           9000   the same rung -- Froslass is a Stage 1 too
+#     Munkidori, bare    ~2100  `net_stuck` 600 + the harmless bonus 1500
+#     Munkidori, charged  -200  it pays its own retreat: the default
+#
+# That is the line rule this sentence exists to override, plus the engine order
+# inverted on top of it, plus the charged Munkidori -- the body of the record --
+# LAST of the five. A rule that only holds while our active happens to be usable
+# is not a matchup reading, it is an accident of which chain ran.
+#
+# THE BAND IS THE SAME NUMBER IN BOTH CHAINS, which is what makes one object
+# honest. 15000 clears `opponent_line_higher_evolution` (6000 + 2 x 3000 + the
+# energy and tool trim, ~12550 at its ceiling) and stays under BOTH readings the
+# jam chain puts above everything: `the_relay_inherits_the_seat` (20000 + 2000
+# per prize -- when their knockout is the only key to our own seat, that trade
+# outranks the matchup) and `gust_wins_the_game` (100000 -- a gust that ends the
+# game ends the game). Exactly the bracket it already occupies in the offensive
+# chain, between the one-prize KO tiers and a genuine two-prize one.
+#
+# `s > SCORE_FORBID` GUARDS IT, and only the jam chain can ever need the guard:
+# its FORBIDs are `_FixedRule`s that run BEFORE the adjustments, so without this
+# a `max()` would resurrect a vetoed target. It is inert on every board this rung
+# can reach -- all four engine bodies have a retreat cost of 1, so `free_retreat`
+# never touches them, and none of them is the Iron Thorns -- and it stays because
+# a veto we have not measured is not ours to overturn from here.
+_MARNIE_ENGINE_BEFORE_THE_LINE = _Adjustment(
+    "marnie_the_engine_before_the_line",
+    lambda c, s: (c.marnie_engine_first and c.can_ko
+                  and c.card_id in MARNIE_ENGINE_GUST_RANK
+                  and s > SCORE_FORBID),
+    lambda c, s: max(s, BOSS_SCORE_MARNIE_ENGINE_FIRST
+                     + _marnie_engine_rung(c)))
+
+
 _RULES_GUST_NUISANCE = [
     # FREE retreat cost: the opponent sends it back to the bench without paying
     # anything; it does not get in the way at all (e.g. Budew). Discarded.
@@ -338,6 +449,37 @@ _ADJUST_GUST_NUISANCE = [
             lambda c, s: (c.op_alakazam and not c.can_ko
                           and c.card_id in ALAKAZAM_ATTACKER_IDS),
             lambda c, s: SCORE_FORBID),
+    # THE BIGGER PRIZE STILL OUTRANKS THE ENGINE, and this chain is the only one
+    # that has to say so out loud. The engine ladder's own band has always ended
+    # "...and BELOW a genuine two-prize knockout: if the Grimmsnarl ex is itself
+    # on their bench and we can finish it, two prizes beat cutting the engine".
+    # In the offensive chain `tier_ko` enforces that for free (a charged
+    # two-prize ex is 24000 against the engine's 16639 ceiling). HERE THERE IS NO
+    # SUCH RUNG: a knockout is priced by `opponent_line_higher_evolution`, which
+    # reads the STAGE and is blind to what the body pays -- the Marnie's
+    # Grimmsnarl ex of `registro_008` step 72, 310/320 on five energies and worth
+    # TWO prizes, comes out at 6000 + 2 x 3000 + 250 = 12250, under the engine
+    # floor. Adding the engine rung to this chain without this one would make a
+    # one-prize Munkidori outrank it.
+    #
+    # Gated on `marnie_engine_first` on purpose: it is the missing half of THIS
+    # ladder's bracket, not a general repair of the jam chain's prize-blindness
+    # (the defect `gust_wins_the_game` documents right below). Widening it to
+    # every matchup is a different change with a different measurement.
+    _Adjustment("the_bigger_prize_outranks_the_engine",
+            lambda c, s: (c.marnie_engine_first and c.can_ko and c.prizes >= 2
+                          and s > SCORE_FORBID),
+            lambda c, s: max(s, BOSS_SCORE_MARNIE_ENGINE_FIRST
+                             + MARNIE_ENGINE_BIGGER_PRIZE
+                             + c.prizes * MARNIE_ENGINE_BIGGER_PRIZE_STEP)),
+    # THE ENGINE BEFORE THE LINE, the SAME object the offensive chain carries:
+    # the matchup does not change with whether our active can attack, and the
+    # record, the ladder and the band are all written where it is defined above.
+    # It goes AFTER the two line rungs because what it overrides is their
+    # reading, after the bracket above because that one must survive it (both are
+    # `max`, and the bigger prize's floor is the higher of the two), and BEFORE
+    # `gust_wins_the_game`, which still outranks everything.
+    _MARNIE_ENGINE_BEFORE_THE_LINE,
     # Same criterion as in OFFENSIVE mode (see there), and here it weighs more: in
     # nuisance mode our active CANNOT attack, so the body we bring up hits us with
     # no answer. `net_stuck` only looks at who cannot pay their RETREAT; this looks
@@ -578,6 +720,46 @@ def _marnie_bench_answers_the_grimmsnarl(my_state, op_state, total_grass,
     return _bench_attacker_can_ko(
         my_state, target, AGENT_STATE.meganium_in_play, total_grass,
         bench_count, total_grass, neutralization_zone)
+
+
+def _marnie_engine_rung(c):
+    """Where ONE engine body sits on the Marnie hunting ladder.
+
+    Four rungs and a tiebreak, and the order between them is the user's
+    (episode 93680377 step 173):
+
+        Munkidori WITH energy  >  Froslass  >  Munkidori WITHOUT energy  >  Snorunt
+
+    ENERGY, NOT HP, IS WHAT SPLITS THE MUNKIDORI. Adrena-Brain is an Ability and
+    a bare Munkidori still fires it, but the charged copy is the one that also
+    attacks from the seat the gust sells it, and the one their turn is already
+    built around; the bare one is a body they have yet to pay for. That is the
+    same sentence as "Munkidori outranks Froslass when at least one Munkidori
+    has energy" and "with only bare Munkidori on the field the Froslass goes
+    first" -- one ladder answers both, with the Froslass rung sitting between
+    the two halves of the species.
+
+    THE HP TERM IS A TIEBREAK AND IS BOUNDED TO STAY ONE. It is worth at most
+    `MARNIE_ENGINE_HP_TIEBREAK_MAX` (39), well under the 400 that separates two
+    rungs, so it can never lift a bare Munkidori over a Froslass or a Froslass
+    over a charged Munkidori however damaged it is. What it does is decide
+    between two bodies that already share a rung -- the board of the record had
+    two Munkidori at exactly 100/110 -- in favour of the one closest to dying,
+    instead of leaving that to the argmax's "whichever is first on their bench".
+
+    Caller contract: only reached for `c.card_id in MARNIE_ENGINE_GUST_RANK`.
+    """
+    base = MARNIE_ENGINE_GUST_RANK[c.card_id]
+    if not MARNIE_ENGINE_READS_THE_ENERGY:
+        # The flat ladder this replaced: one number per species, no split and no
+        # tiebreak, so two copies of the same card scored identically and the
+        # argmax kept whichever came first on their bench. It is kept reachable
+        # because it is the baseline arm of the census.
+        return base
+    if c.card_id == Munkidori and c.energy < 1:
+        base = MARNIE_ENGINE_DRY_MUNKIDORI
+    tiebreak = (MARNIE_ENGINE_HP_TIEBREAK_CEIL - (c.hp or 0)) // 10
+    return base + max(0, min(MARNIE_ENGINE_HP_TIEBREAK_MAX, tiebreak))
 
 
 def _gust_relieves_the_attacker(op_state):
@@ -912,6 +1094,14 @@ class _CtxGustObjetivo:
     # candidate of the same decision; it rides on the candidate context because
     # that is the only thing the rule chains can see.
     marnie_engine_first: bool = False
+    # CURRENT HP of the body, and it is a TIEBREAK and nothing else. No rung of
+    # any chain may read it to choose WHICH body is worth the Supporter -- the
+    # size of a body is not what it does to us -- but two candidates that have
+    # already tied on everything the chains do read have to be separated by
+    # something, and the argmax's "first on their bench" is not a reason. See
+    # `_marnie_engine_rung`. The 999 default is the conservative one: a shape
+    # without `hp` sorts last inside its rung instead of jumping the queue.
+    hp: int = 999
 
 
 def _gust_relay_cashes_the_seat(card, my_state, op_state, state, hand_counts,
@@ -1195,7 +1385,8 @@ def _ctx_gust_target(card, o, my_state, op_state, state, hand_counts,
         op_wins_next=bool(getattr(AGENT_STATE.turn_plan, 'op_wins_next', False)),
         traps_their_turn=traps_their_turn,
         relay_cashes_the_seat=relay_cashes_the_seat,
-        marnie_engine_first=marnie_engine_first)
+        marnie_engine_first=marnie_engine_first,
+        hp=hp)
 
 
 _ADJUST_GUST_OFFENSIVE = [
@@ -1247,62 +1438,13 @@ _ADJUST_GUST_OFFENSIVE = [
     _Adjustment("opponent_line",
             lambda c, s: True,
             lambda c, s: s + _gust_opponent_line(c)),
-    # THE ENGINE BEFORE THE LINE, and only in the Marnie matchup (user,
-    # `records/registro_008_pasos_108_hasta_114.json` step 110, episode 93525290,
-    # turn 8 vs Marnie's Grimmsnarl ex -- LOST).
-    #
-    #     US (seat 1, 4 prizes)                RIVAL (5 prizes)
-    #     active Hydrapple ex 270/330, 2G      active Marnie's Impidimp 70/70, 2D
-    #     bench  Ogerpon ex 4G, Meowth ex,     bench  Froslass, **Morgrem 2D**,
-    #            Ogerpon ex 3G, Ogerpon ex 2G,        Froslass, Impidimp 1D,
-    #            Fezandipiti ex                       **Munkidori 1D**
-    #
-    # The agent played Boss's Orders on the MORGREM and knocked it out: one prize
-    # for the highest link of the ex line, which is what `ex_preevo_takes_priority`
-    # is written to do (12000 of `tier_ko` lifted to 19500, plus 700 of the line
-    # band -> 20200, over 6450 for the Munkidori). They rebuilt the line and won.
-    # Every recorded loss to this list ends the same way, and never to the
-    # Grimmsnarl ex: it is the two abilities behind it that take the game.
-    #
-    # THE PREMISE OF CUTTING THE LINE DOES NOT HOLD HERE. That rule pays 19500
-    # because a two-prize ex attacker we cannot answer decides the game by
-    # itself; Marnie's Grimmsnarl ex is 320 HP and WEAK TO GRASS, so Myriad Leaf
-    # Shower doubles into it -- the benched Teal Mask Ogerpon ex on four Grass
-    # reads 300-420 against an effective 300 (their own Freezing Shroud takes 20
-    # off a body that prints an Ability). The answer was already parked on our
-    # bench. What was NOT answered is the pair of abilities that had been
-    # grinding us down all game and that no evolution step gates:
-    #
-    #   * Froslass, "Freezing Shroud" -- 20 per round onto EVERY body of ours,
-    #     because every body of ours prints an Ability;
-    #   * Munkidori, "Adrena-Brain" -- 30 counters MOVED, once per turn per copy,
-    #     onto whichever of our Pokemon it closes a knockout on, with their own
-    #     Froslass reloading its ammunition every checkup.
-    #
-    # Munkidori is the more dangerous of the two because it AIMS: the drip is
-    # arithmetic we can plan around, the move is what turns a body we had counted
-    # as surviving into a corpse. Hence Munkidori, then the Froslass that feeds
-    # it, then the Snorunt that becomes the next Froslass
-    # (MARNIE_ENGINE_GUST_RANK).
-    #
-    # AND ONLY WITH THE RESERVE ON THE BENCH. `marnie_engine_first` is False
-    # while our ACTIVE is the only body that covers a Grimmsnarl ex: there the
-    # line rule keeps its 19500 and its reason, because the active can be knocked
-    # out and then nothing covers it. `can_ko` gates each rung for the reason the
-    # whole file repeats -- a gust that takes no prize is a free retreat we hand
-    # them -- so a Munkidori we cannot finish yields to the Froslass we can.
-    #
-    # `max` and not `+`: the floor is BOSS_SCORE_MARNIE_ENGINE_FIRST, so that
-    # whatever tier the three engine bodies happen to sit in, the order between
-    # them is the user's and not the stage table's -- a Stage 1 Froslass outranks
-    # a Basic Munkidori by 3000 on tier alone. Anything that already scored
-    # ABOVE the floor keeps its score untouched, which is how `gust_wins_the_game`
-    # survives this rung.
-    _Adjustment("marnie_the_engine_before_the_line",
-            lambda c, s: (c.marnie_engine_first and c.can_ko
-                          and c.card_id in MARNIE_ENGINE_GUST_RANK),
-            lambda c, s: max(s, BOSS_SCORE_MARNIE_ENGINE_FIRST
-                             + MARNIE_ENGINE_GUST_RANK[c.card_id])),
+    # THE ENGINE BEFORE THE LINE, and only in the Marnie matchup. The rung is
+    # THE SAME OBJECT the jam ladder carries -- one sentence, one place: the
+    # record, the ladder and the band are all written where it is defined, above
+    # `_RULES_GUST_NUISANCE`. It goes here, after `opponent_line`, for the reason
+    # the sentence exists: what it overrides is the line band that rung just
+    # added.
+    _MARNIE_ENGINE_BEFORE_THE_LINE,
     # WITHOUT a KO what rules is WHO COMES UP to the active spot, not which is the
     # biggest piece on their bench. The two bands of `_gust_opponent_line` score it
     # backwards: `_gust_evolution_line` gives 800 to the FINAL EVOLUTION (Dragapult
@@ -1388,6 +1530,7 @@ __all__ = [
     '_ProjectedBody',
     '_marnie_grimmsnarl_projection',
     '_marnie_bench_answers_the_grimmsnarl',
+    '_marnie_engine_rung',
     '_RULES_GUST_NUISANCE',
     '_ADJUST_GUST_NUISANCE',
     '_gust_relieves_the_attacker',
