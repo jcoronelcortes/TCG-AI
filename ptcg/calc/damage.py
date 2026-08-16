@@ -69,7 +69,7 @@ from ptcg.cards.tables import attack_table, card_table
 from ptcg.cards.ids import ABILITY_IMMUNE_IDS, Alakazam_ex, EVO_BODY_DAMAGE, EVO_BODY_EXPOSURE, EVO_BODY_RESCUE, OP_ACTIVE_ABILITY_DAMAGE, OP_BENCH_SNIPE_DAMAGE, RAINBOW_ENERGY_TYPE, Brave_Bangle, DO_THE_WAVE_ATTACK_ID, Dipplin, Drednaw, EX_IMMUNE_IDS, FULL_HP_SURVIVE_IDS, Farigiraf_ex, Fezandipiti_ex, Hydrapple_ex, Maximum_Belt, Meganium, OUR_ABILITY_IDS, OUR_BASIC_EX_IDS, OUR_EX_IDS, POWERFUL_HAND_ATTACK_ID, Pinsir, Tapu_Bulu, Teal_Mask_Ogerpon_ex, WAVE_BENCH_BODY_IDS
 from ptcg.cards.ids import TERA_IMMUNE_IDS
 from ptcg.cards.groups import OUR_TERA_IDS
-from ptcg.calc.energy import _grass_attach_slots_for, _grass_attach_unit, _grass_mult, _retreat_grass_units
+from ptcg.calc.energy import _grass_attach_slots_for, _grass_attach_unit, _grass_mult, _retreat_grass_units, _retreat_payable
 from ptcg.cards.lines import _direct_evolution_ids
 from ptcg.cards.op_scaling import OP_SCALING_IGNORES_WEAKNESS, op_scaled_damage
 from cg.api import CardType, EnergyType
@@ -1854,6 +1854,80 @@ def _reply_reaches_match_point(my_active, op_state, op_active):
     return op_left >= 1 and prize_count(my_active) >= op_left - 1
 
 
+def _wall_that_outlasts_the_losing_reply(my_state, op_state,
+                                         op_hand_count=None):
+    """The benched body that OUTLASTS a reply which otherwise ENDS the game.
+
+    The body standing in front is not a trade and not even a match point: the
+    prizes it hands over are the whole of what they have left, so their next
+    knockout IS the game. This asks whether the bench holds anything that walks
+    away from the same attack, and returns it (the one with the widest margin)
+    or None. `None` means "there is nothing to retreat towards", which is the
+    only answer that leaves the turn where it was.
+
+    WHY THIS ONE READS THE ACCURATE PROJECTION (`scaled=True`). Every other
+    consumer of `_op_active_attack_damage_to` reads the blind one, and the
+    docstring there explains why with three measured samples: the defensive
+    machinery downstream was calibrated against a projection that under-reads,
+    and handing it the true number turns the agent passive from turn 4 (-0.10 /
+    -0.08 / -0.05 prizes, three of three). None of that applies here, and the
+    reason is the predicate itself: this function only speaks when NOT moving
+    loses the game on their next turn. There is no over-defensive failure mode
+    to trade against -- the alternative it is being compared with is losing --
+    so it is the one site where the true number costs nothing and the blind one
+    costs everything.
+
+    And it cost everything (user, registro_009 step 110 vs Mega Froslass ex,
+    episode 93638940, LOST). Resentful Refrain prints damage 0 and does 50 per
+    card in OUR hand: entry 1240 of `ptcg/cards/op_scaling.py` has read it
+    correctly since the table was written, and no defensive rule was allowed to
+    look. So the projector answered 0 on a board where their attack was about to
+    do 150 to a Tapu Bulu sitting at 90, with a 330 Hydrapple ex on the bench
+    and their pile at ONE prize.
+
+    A MUTE SURVIVOR IS STILL THE PLAY HERE, which is where this parts company
+    with every other pivot in the family ("surviving is not enough if the
+    survivor is mute"). Those buy a better turn and are right to refuse a body
+    that gives the front spot away for nothing. This one buys the NEXT TURN
+    itself: a wall that cannot attack still has to be knocked out before they
+    win, and the body that stays instead does not have to be.
+    """
+    if my_state is None or op_state is None:
+        return None
+    active = (getattr(my_state, 'active', None) or [None])[0]
+    op_active = (getattr(op_state, 'active', None) or [None])[0]
+    if active is None or op_active is None:
+        return None
+
+    # Their knockout on this body ENDS it -- not "reaches match point" (see
+    # `_reply_reaches_match_point`, whose boundary is one knockout earlier and
+    # buys a turn rather than a game).
+    op_left = len(getattr(op_state, 'prize', None) or [])
+    if op_left < 1 or prize_count(active) < op_left:
+        return None
+    if not _retreat_payable(active):
+        return None
+    if _op_active_attack_damage_to(op_active, active, op_hand_count,
+                                   scaled=True) < (active.hp or 0):
+        return None
+
+    # ...and the body we tuck away has to survive DOWN THERE, the shared guard
+    # of the whole family: with their pile at one prize a corpse on the bench
+    # ends the game exactly like a corpse in front.
+    if _bench_cashable_after_retreat(active, op_active):
+        return None
+
+    best, best_margin = None, 0
+    for bp in (getattr(my_state, 'bench', None) or []):
+        if bp is None:
+            continue
+        margin = (bp.hp or 0) - _op_active_attack_damage_to(
+            op_active, bp, op_hand_count, scaled=True)
+        if margin > best_margin:
+            best, best_margin = bp, margin
+    return best
+
+
 def _relay_reading(bp, target, bench_count, retreat_grass_after,
                    reachable_grass=None):
     """(base damage, effective energy) of a benched body used as a RELAY, with
@@ -2221,4 +2295,5 @@ __all__ = [
     'evolution_body_bias',
     '_movable_dmg_after_our_hit',
     '_bench_cashable_after_retreat',
+    '_wall_that_outlasts_the_losing_reply',
 ]

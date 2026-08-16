@@ -692,6 +692,59 @@ THE_PIVOT_NEEDS_A_CORPSE_THEY_CAN_TAKE = True
 # siguen teniendo la ultima palabra.
 THE_PIVOT_PROMOTES_THE_BODY_IT_PAYS_FOR = True
 
+# EL ASIENTO QUE ENTREGA LA PARTIDA NO SE DEFIENDE CON UN ATAQUE QUE NO NOQUEA
+# (user, `records/registro_009_pasos_088_hasta_110.json` paso 110, episodio
+# 93638940 vs Mega Froslass ex / Mega Starmie ex, PERDIDA).
+#
+# EL TABLERO. Su monton a UN premio. Nuestro activo un Tapu Bulu de 90/140 con
+# cuatro simbolos; su Mega Froslass ex de 310/310 delante. Wood Hammer pega 220:
+# no noquea. En la banca, un Hydrapple ex de 330/330 con dos simbolos y la
+# retirada del Tapu ya pagada (dos Grass fisicos = cuatro simbolos contra un
+# coste de tres). Su Resentful Refrain son 50 por carta de NUESTRA mano, y la
+# mano eran tres: 150 sobre un cuerpo de 90. Quedarse delante era entregar el
+# ultimo premio; retirarse y subir el muro de 330 era sobrevivir a ese mismo
+# ataque. El agente ataco.
+#
+# POR QUE, y son DOS agujeros que se tapan el uno al otro:
+#
+#   1. LA LECTURA. `_op_active_attack_damage_to` devolvia **0** para Resentful
+#      Refrain: la tabla `ptcg/cards/op_scaling.py` la lee bien desde que existe
+#      (entrada 1240, `50 * s.my_hand`) pero es OPT-IN, y ninguna regla defensiva
+#      la pide. Con su respuesta proyectada en cero, `active_ko_likely` es False
+#      y NINGUN pivote del fichero puede ver venir el noqueo.
+#
+#   2. LA REGLA. Aun con el numero, no habia frase que hablara de este tablero.
+#      La familia de pivotes que cede el frente esta escrita cuerpo a cuerpo --
+#      `_hydra_wall_pivot` y `_teal_wall_pivot` exigen un Teal Mask Ogerpon ex
+#      delante y un Hydrapple ex detras, `_doomed_mute_pivot` exige un activo
+#      MUDO, `_prize_denial_pivot` y `_doomed_ex_sac_pivot` exigen un ex de dos
+#      premios al que abaratar. Aqui delante hay un cuerpo de UN premio que SI
+#      puede atacar, y a su monton de un premio no hay nada que abaratar.
+#
+# Y encima de los dos, el guard que se lo llevaba todo: `_grd_prefer_attack`
+# ("el activo puede atacar y nadie noquea -> ataca") vetaba la retirada desde un
+# peldaño POR ENCIMA del que el propio plan del turno ya habia decidido -- el
+# plan apuntaba al Hydrapple (`plan.attacker=4`, 150 de Syrup Storm) y por eso el
+# menu de ATAQUE tambien se vetaba a si mismo. Los dos menus se cedieron el paso
+# y el turno se quedo sin jugada: ataque -1, retirada -1, fin -10000, y el argmax
+# cayo sobre el ataque vetado por orden de menu.
+#
+# LA FRASE, y es de mazo cualquiera porque no nombra ninguna carta: si su
+# respuesta sobre el cuerpo de delante SE LLEVA LA PARTIDA y en la banca hay uno
+# que la aguanta, el asiento es de ese. No compra un turno mejor: compra que haya
+# turno. Por eso va por encima de `_grd_prefer_attack` y por eso es el unico
+# sitio donde se lee la proyeccion exacta (`scaled=True`) -- ver
+# `_wall_that_outlasts_the_losing_reply`.
+#
+# Y SON DOS MENUS. Abrir la retirada no compra nada si el de PROMOCION -- otro
+# `agent()`, otra escalera -- sienta a un cuerpo que cae al mismo golpe; el censo
+# lo pillo haciendolo en 2 de 19 promociones vs `crustle_wall_1`, con el UNICO
+# superviviente vetado a SCORE_NEVER por la reserva que guarda el Wild Growth en
+# la banca. La misma bandera gobierna esa mitad -- `_losing_seat_survivor` y
+# `PROMO_LOSING_SEAT_WALL` -- porque es la misma frase: una reserva es un
+# argumento sobre los turnos que vienen, y a su match point no vienen.
+THE_SEAT_THAT_LOSES_THE_GAME_YIELDS_TO_THE_WALL = True
+
 
 
 
@@ -11974,6 +12027,65 @@ def agent(obs_dict: dict) -> list[int]:
                 and not any(_promo_survives(_pb) for _pb in _pw_hitters))
     # ------------------------------------------------------------------
 
+    # LA MISMA FRASE EN EL OTRO MENU: EL ASIENTO QUE ENTREGA LA PARTIDA
+    # (`THE_SEAT_THAT_LOSES_THE_GAME_YIELDS_TO_THE_WALL`, la mitad de la
+    # PROMOCION -- la de la retirada esta en `_losing_seat_pivot`).
+    #
+    # EL TABLERO (self-play vs `crustle_wall_1`, turno 23, su monton a UNO). Su
+    # Cornerstone Mask Ogerpon ex pegando 140. Nuestra banca: Meganium 160/160
+    # con cuatro Grass, Teal Mask Ogerpon ex a 70 de 210, Dipplin 80/80,
+    # Fezandipiti ex 210/210 y una Chikorita de 70. El UNICO que sobrevive a
+    # esos 140 es el Meganium -- y estaba vetado a SCORE_NEVER por "la linea del
+    # Meganium no sube a activo", cuya unica exencion esta escrita para la
+    # promocion FORZADA (`_forced_ko_promote`), que aqui es False porque el menu
+    # lo abrio una retirada nuestra. Con el unico superviviente en -10100, el
+    # asiento se lo llevo el Dipplin de 80 con -4745: el menos malo de una mesa
+    # entera de negativos, y muerto en su turno con el ultimo premio dentro.
+    #
+    # POR QUE ES LA MISMA FRASE. La reserva del motor -- y el veto de precio, y
+    # los desempates de adorno -- son argumentos sobre LOS TURNOS QUE VIENEN: el
+    # doblador vale lo que valga el tablero de mañana. A su match point sobre el
+    # cuerpo que sentamos no hay mañana. Es, palabra por palabra, lo que ya
+    # desplazo a `_grd_prefer_attack` en el menu de al lado.
+    #
+    # SE LEE CON LA PROYECCION EXACTA (`scaled=True`), y por la misma razon: el
+    # filtro que ya existe (`_promo_survives` / `_mp_outlasts`) lee la ciega A
+    # PROPOSITO -- ensancharla midio peor dos veces, 47,8 % contra 50,5 % y tres
+    # promociones movidas de 350 vs `crustle_wall_6` -- porque esos consumidores
+    # gradúan y estaban calibrados contra el numero bajo. Esta lectura no gradúa
+    # nada: solo habla cuando NO sentar al superviviente pierde la partida, y lo
+    # unico que puede hacer es levantar un suelo. Es tambien la unica manera de
+    # que la frase vea a un Mega Froslass ex, cuyo ataque imprime 0.
+    #
+    # EVIDENCIA POSITIVA, como todos sus vecinos: hace falta que ALGUIEN muera y
+    # que ALGUIEN sobreviva. Con la respuesta ilegible (proyeccion 0) nadie muere
+    # y la regla calla.
+    _losing_seat_survivor = None
+    _losing_seat_choice = False
+    if (THE_SEAT_THAT_LOSES_THE_GAME_YIELDS_TO_THE_WALL
+            and context in (SelectContext.SWITCH, SelectContext.TO_ACTIVE)
+            and _promo_op_act is not None):
+        _lss_hand = getattr(op_state, 'handCount', None)
+
+        def _lss_reply(_pk):
+            """Su respuesta sobre `_pk`, con la escala real de su ataque."""
+            return _op_active_attack_damage_to(
+                _promo_op_act, _pk, op_hand_count=_lss_hand,
+                scaled=True, scale=AGENT_STATE.op_scale)
+
+        def _losing_seat_survivor(_pk):        # noqa: F811
+            """`_pk` aguanta una respuesta que, sobre el, cerraria la partida."""
+            if _pk is None or op_prize > prize_count(_pk):
+                return False
+            return _lss_reply(_pk) < (_pk.hp or 0)
+
+        _lss_bench = [_pb for _pb in (my_state.bench or []) if _pb is not None]
+        _losing_seat_choice = (
+            any(op_prize <= prize_count(_pb)
+                and _lss_reply(_pb) >= (_pb.hp or 0) > 0
+                for _pb in _lss_bench)
+            and any(_losing_seat_survivor(_pb) for _pb in _lss_bench))
+
     # THE FRONT SPOT GOES TO THE ATTACKER, AND THE SACRIFICE IS DEFERRED (user,
     # registro_008 step 109 vs Archaludon ex, episode 93497723, LOST).
     #
@@ -13982,6 +14094,41 @@ def agent(obs_dict: dict) -> list[int]:
             if (_akp_can_retreat and _akp_bench_ko_1prize and not _akp_win_now
                     and op_prize > 1 and not _akp_seat_is_safe):
                 _alakazam_pivot_1prize = True
+
+    # EL ASIENTO QUE ENTREGA LA PARTIDA CEDE AL CUERPO QUE AGUANTA LA RESPUESTA
+    # (`THE_SEAT_THAT_LOSES_THE_GAME_YIELDS_TO_THE_WALL`, arriba, lleva el
+    # registro entero). La lectura -- quien sobrevive a una respuesta que se
+    # lleva la partida -- vive en `_wall_that_outlasts_the_losing_reply`, que es
+    # tambien el unico sitio del agente que pide la proyeccion exacta de sus
+    # ataques que escalan. Aqui solo se le ponen las dos condiciones que son del
+    # TURNO y no del tablero:
+    #
+    #   * `_active_already_kos`: si el cuerpo de delante YA noquea, la respuesta
+    #     que teme esta regla viene de otro cuerpo -- el que promuevan -- y esa
+    #     es otra pregunta. Ademas los peldaños que cobran el premio HOY estan
+    #     por encima de este en la escalera de `retreat.py` y siguen mandando.
+    #   * `_active_closes_with_one_charge`: el mismo veto que ya cancela a los
+    #     tres pivotes de muro (ver "THE WALL IS WORTH NOTHING WHEN THE BODY IN
+    #     FRONT IS THE WIN"). Un muro compra turnos; cuando el noqueo de delante
+    #     TERMINA la partida no hay turno que comprar, y la retirada ademas
+    #     quema la energia con la que se contaba.
+    #
+    # `can_switch` es la ultima: sin banca a la que ir no hay frase.
+    _losing_seat_pivot = False
+    if (THE_SEAT_THAT_LOSES_THE_GAME_YIELDS_TO_THE_WALL
+            and context == SelectContext.MAIN
+            and can_switch and not _active_already_kos
+            and _wall_that_outlasts_the_losing_reply(
+                my_state, op_state, getattr(op_state, 'handCount', None))
+            is not None
+            and not _active_closes_with_one_charge(
+                my_state, op_state, state, hand_counts, field_counts,
+                my_prize, total_grass, bench_count,
+                AGENT_STATE.meganium_in_play, neutralization_zone_active,
+                AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(
+                    Basic_Grass_Energy, {}).get(ZONE_DECK, 0),
+                meowth_ability_lock)):
+        _losing_seat_pivot = True
 
     # Indexes of manual attachments that YIELD to a pending Teal Dance
     # (see the rule in the OptionType.ATTACH branch): besides the score cap,

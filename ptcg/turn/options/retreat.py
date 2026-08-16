@@ -77,6 +77,7 @@ def score_play(tc, o, score):
     _has_bench_attacker = tc._has_bench_attacker
     _hydra_pivot_active = tc._hydra_pivot_active
     _hydra_wall_pivot = tc._hydra_wall_pivot
+    _losing_seat_pivot = tc._losing_seat_pivot
     _lucario_sac_available = tc._lucario_sac_available
     _lucario_sac_pivot = tc._lucario_sac_pivot
     _nonex_active_hits_wall = tc._nonex_active_hits_wall
@@ -1513,8 +1514,44 @@ def score_play(tc, o, score):
             # (active Crustle). It NEVER retreats: retreating would only
             # promote a benched ex that does 0 to the wall. It must ATTACK.
             score = SCORE_VETO
+        elif _losing_seat_pivot:
+            # THE SEAT THAT LOSES THE GAME YIELDS TO THE BODY THAT OUTLASTS THE
+            # REPLY (user, registro_009 step 110 vs Mega Froslass ex, episode
+            # 93638940, LOST). Their reply on the body in front takes the LAST
+            # prize they need, and the bench holds one that walks away from the
+            # same attack. See `THE_SEAT_THAT_LOSES_THE_GAME_YIELDS_TO_THE_WALL`
+            # in main.py for the board and `_wall_that_outlasts_the_losing_reply`
+            # for the reading, which is the one place in the agent that asks the
+            # opposing scaling attacks for their real number.
+            #
+            # IT SITS EXACTLY HERE, one rung above `_grd_prefer_attack`, and
+            # that position is the whole fix. Everything above still rules: the
+            # lethal relief against the wall, every prize sacrifice, the
+            # promotions that cash a prize TODAY -- those take the game rather
+            # than surviving it. What was eating this board is the rung
+            # immediately below, whose sentence is "the active can attack and
+            # nobody knocks out, so attack": true about the damage, blind to the
+            # fact that the corpse it leaves in front is the opponent's win.
+            #
+            # 6750: above the whole sacrifice/wall family (6400-6700) because it
+            # is the same play with the one reason none of them can claim. The
+            # others price the retreat against the turns that come after it;
+            # this one is about whether there are any. Still far below the
+            # winning attack (99000) and the snipe that takes a prize (8500+),
+            # which end the game before the reply exists.
+            #
+            # AND OPENING THE RETREAT IS ONLY HALF THE TURN: who comes UP is the
+            # SWITCH menu in `card.py`, with its own ladder, and the census
+            # caught it seating a body that dies to the same reply in 2 of 19
+            # simulated promotions vs `crustle_wall_1`. That half is
+            # `PROMO_LOSING_SEAT_WALL`, written with this same sentence -- see
+            # `_losing_seat_survivor` in main.py. The two menus now answer the
+            # same question with the same reading, which is the failure mode
+            # this file keeps recording: "fixing one branch of a pair and
+            # leaving its twin alone is how this very turn was lost".
+            score = 6750
         elif _grd_prefer_attack:
-        
+
             score = SCORE_VETO
         elif _active_can_ko_now:
         
