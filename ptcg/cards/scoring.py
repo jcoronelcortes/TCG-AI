@@ -30,6 +30,8 @@ opinions, so it has its own layered structure:
 
     +20000  PROMO_KO_BONUS       whoever knocks their active out goes first
      +1200  PROMO_KO_FRONT       ...and among knockers, who outlives whom
+     15000  PROMO_CLOSER_SEAT    at OUR match point, the body one attachment
+                                 from the knockout that ENDS the game
       9450  PROMO_LAST_STAND     at their match point, who absorbs the reply
      -6000  PROMO_DOOMED_PENALTY a body that dies anyway yields to a survivor
      -1500  PROMO_PRIZE_PENALTY  per extra prize handed over
@@ -259,6 +261,55 @@ PROMO_LAST_STAND = 9450
 PROMO_DEFERRED_ATTACKER = 9200
 
 
+# EL ASIENTO QUE CIERRA LA PARTIDA NO SE DESEMPATA (user, registro_013 step 174
+# vs Alakazam, episode 93579160, PERDIDA -- deck-agnostic).
+#
+# Su Alakazam estaba a 140/140 y nuestro monton era de UN premio: ese cuerpo ES
+# el resto de nuestra cuenta. En la banca, un Meganium con un Grass fisico -- dos
+# simbolos bajo su propio Wild Growth -- a UNA carta de los cuatro de Solar Beam,
+# cuyos 140 entierran al Alakazam; y en la mano, la Lana's Aid que saca ese Grass
+# del descarte (la ruta (b) de `_promote_setup_ko_attacker`). El selector lo vio y
+# lo nombro. Y aun asi el asiento se decidio por TRESCIENTOS puntos:
+#
+#     Meganium   9500 (finalizador) + 350 de desempate generico = 9850
+#     Fezandipiti ex  9450 (`PROMO_LAST_STAND`) + 100           = 9550
+#
+# Trescientos puntos de un desempate que ordena "a cuantas cargas estas" y "cuantos
+# premios cuestas" es TODO lo que separaba la jugada que gana la partida de un muro
+# de 210 sin energias que no ataca nunca. `PROMO_KO_BONUS` dice en su propio
+# comentario por que eso no vale: el cuerpo que noquea va arriba "so that it is a
+# GUARANTEE and does not depend on the knocker scoring higher base than the tank".
+# El finalizador a una carga de distancia no tenia esa garantia, y en nuestro
+# propio match point es la misma jugada un turno antes.
+#
+# Y NO ES SOLO EL MARGEN: los tres descuentos que quedan por debajo pueden
+# hundirlo del todo, porque los tres son argumentos sobre SOBREVIVIR A SU
+# RESPUESTA y en nuestro match point esa respuesta no existe -- nuestro noqueo
+# resuelve primero, en nuestro turno, y se lleva el ultimo premio:
+#
+#     -500   PROMO_TERA_COVER_PRICE   (si el finalizador es un Teal Mask Ogerpon
+#                                     ex: 9500 -> 9000, POR DEBAJO del last stand)
+#     -6000  el doomed de "match point entre los que noquean" (su guard exime al
+#            que noquea HOY, `_promo_kos_op`, que es justo lo que este cuerpo no
+#            hace todavia: 9500 -> 3500)
+#     -1200  PROMO_KO_FRONT
+#
+# 15000 esta fijado por los dos lados. POR ENCIMA de 9500 + el maximo del
+# desempate de supervivientes (450) y de cualquier otro peldaño de la banda, para
+# que la eleccion deje de depender de adornos. POR DEBAJO de `PROMO_KO_BONUS`
+# (+20000), que es este mismo cuerpo un turno mas temprano: el que noquea HOY
+# tambien cierra la partida -- si `_promo_ko_wins_the_game` es cierto, cualquier
+# noqueo del activo rival vale el monton entero -- y no necesita ni la carga ni el
+# robo, asi que sigue teniendo la ultima palabra.
+PROMO_CLOSER_SEAT = 15000
+
+
+# Un interruptor con nombre en vez de una condicion en linea, para que un censo,
+# un gate y el oraculo de reglas puedan medir esta frase como la UNICA diferencia
+# entre dos brazos ([[la-noche-del-12-de-agosto-cuatro-detectores-y-lo-que-encontraron]]).
+THE_SEAT_THAT_CLOSES_THE_GAME_IS_A_GUARANTEE = True
+
+
 def _purchase_of_this_turn(card_id, hand, bought_serials):
     """How many copies of `card_id` in `hand` OUR OWN searches bought today.
 
@@ -287,6 +338,8 @@ __all__ = [
     '_SUPP_PLAY_IDS',
     '_purchase_of_this_turn',
     'MAIN_ATTACKERS',
+    'PROMO_CLOSER_SEAT',
+    'THE_SEAT_THAT_CLOSES_THE_GAME_IS_A_GUARANTEE',
     'PROMO_DEFERRED_ATTACKER',
     'PROMO_DOOMED_PENALTY',
     'PROMO_KO_BONUS',
