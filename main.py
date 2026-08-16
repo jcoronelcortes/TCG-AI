@@ -630,6 +630,68 @@ PROMOTION_READS_THE_KNOCKOUT_NOT_THE_ATTACK = True
 # deferring the sacrifice, it is skipping it.
 PROMOTE_DEFER_MAX_STEPS = 1
 
+# EL PIVOTE NECESITA UN CADAVER QUE SE PUEDAN COBRAR (user, episode 93519870
+# step 113 vs Alakazam, GANADA -- el patron que el usuario trajo: el cuerpo de
+# dos premios con MAS vida, entero y listo para atacar, retirado para dejar el
+# frente a uno mas pequeño que sigue costando dos premios).
+#
+# `_alakazam_pivot_1prize` es una frase de contabilidad de premios: "retiro el
+# ex y subo un cuerpo de UN premio; si nos lo noquean entregamos 1 en vez de 2".
+# La frase PRESUPONE el noqueo. En el registro nuestro Hydrapple ex estaba a
+# 330/330 con cuatro Grass, ya noqueaba al Kadabra de 80 de enfrente, y su mano
+# eran DOS cartas: su Powerful Hand proyectado son 20 x (2 + 2) = 80, contra 330.
+# El cadaver de dos premios que el pivote evita no estaba en oferta y no iba a
+# estarlo. Se cobro igual (6000 contra los 1100 del ataque), tiro dos Grass de
+# retirada -- el Hydrapple bajo a la banca a CERO energias --, cedio el ataque
+# del turno y dejo delante un Teal Mask Ogerpon ex de 210 con seis Grass: DOS
+# premios expuestos igual, 120 de vida menos, y esta vez SI dentro del rango que
+# su mano alcanza en cuanto crece.
+#
+# LA LECTURA ES LA DEL MATCHUP, NO LA DE SU BANCA. La primera version de este
+# guard preguntaba por la respuesta inmediata (`_promoted_reply_damage`) y
+# apagaba `registro_005` paso 56, que es un hallazgo ya medido y con test
+# propio: alli la respuesta inmediata de su banca es de **10** y aun asi retirar
+# es lo bueno, porque lo que teme es el Powerful Hand que la linea Abra ->
+# Kadabra -> Alakazam monta DESPUES. `_powerful_hand_projected` es exactamente
+# esa lectura -- 20 x (mano + 2), su robo del turno y su Psychic Draw -- y su
+# docstring dice por que se proyecta SIEMPRE en este matchup: el Alakazam que
+# nos remata puede estar todavia en su banca.
+#
+# Sobre los cinco tableros de la familia el numero decide solo:
+#
+#   ep93519870 p113   330 PV, mano  2 ->  80  no llega -> el asiento se queda
+#   ep92849042 p68    300 PV, mano  5 -> 140  no llega -> el asiento se queda
+#   frozen r008 t16   330 PV, mano  8 -> 200  no llega -> el asiento se queda
+#   registro_005 p56  200 PV, mano  9 -> 220  EN OFERTA -> pivote
+#   frozen r001 t12   210 PV, mano 14 -> 320  EN OFERTA -> pivote
+#
+# Solo habla cuando el cuerpo de delante YA noquea (`_active_already_kos`): si
+# no noquea, retirar hacia el cuerpo que si lo hace es ganar el turno, y eso no
+# es lo que esta regla juzga.
+THE_PIVOT_NEEDS_A_CORPSE_THEY_CAN_TAKE = True
+
+# Y LA SEGUNDA MITAD: EL PIVOTE PROMUEVE EL CUERPO QUE PAGA (user, la otra cara
+# del mismo hallazgo). El guard de arriba decide si el pivote se cobra; este
+# decide que, cuando se cobra, el asiento acabe en el cuerpo por el que se pago.
+#
+# El retiro y la promocion son dos menus y solo el primero conoce la frase. El
+# pivote acepta CUALQUIER cuerpo de un premio que noquee -- el ensanchado de
+# `registro_005` paso 56 metio ahi al Dipplin -- pero la escalera de promocion
+# solo levanta por su nombre al Meganium en este matchup
+# (`_meg_designated_attacker`) y al Tapu Bulu que noquea. Con un Dipplin y un ex
+# cargado detras, los dos candidatos entran en la misma banda (+PROMO_KO_BONUS)
+# y el ex gana por los adornos: en el tablero del usuario, **20557 contra
+# 20525** -- treinta y dos puntos.
+#
+# Por eso la correccion es del tamaño de un desempate y no de una banda:
+# `PROMO_PIVOT_PAYS_FOR_THE_SEAT` (2000) va POR ENCIMA de los desempates de
+# orden que ya viven ahi dentro (PROMO_KO_FRONT 1200, "quien sobrevive a quien"
+# -- que es justo el argumento que el pivote esta comprando en contra: el cuerpo
+# barato viene a morir; PROMO_KO_ROTATION 1800) y MUY POR DEBAJO de las reglas
+# deliberadas (PROMO_DOOMED_PENALTY 6000, PROMO_MATCH_POINT_VETO -30000), que
+# siguen teniendo la ultima palabra.
+THE_PIVOT_PROMOTES_THE_BODY_IT_PAYS_FOR = True
+
 
 
 
@@ -13268,6 +13330,56 @@ def agent(obs_dict: dict) -> list[int]:
     # strategy, stated for a reason the gate cannot see: the bot opponent does
     # not reliably assemble the second-turn knockout that the rule is insurance
     # against, so what it costs is measurable and what it buys is not.
+    def _alk_koers():
+        """Los cuerpos de la banca que pueden atacar hoy y NOQUEAN a su activo.
+
+        La lectura que el pivote vs Alakazam usa para justificar la retirada
+        (`_alakazam_pivot_1prize`, por su mitad de UN premio) y la que la
+        promocion usa para saber a quien sentar (`_alakazam_pivot_promote`, que
+        ademas mira la mitad de DOS para saber que asiento se esta cambiando).
+        Vive en UN sitio a proposito: el hallazgo de episode 93519870 step 113
+        es exactamente las dos mitades de esta pregunta contestandose distinto
+        -- el pivote apuntaba al Dipplin y el asiento se lo llevo un Ogerpon ex.
+
+        Cualquier cuerpo sirve, no una lista de nombres: el ensanchado de
+        `registro_005` paso 56 metio aqui al Dipplin, cuyo Do the Wave (20 x
+        banca) entierra al Abra de delante. Los cuerpos sin ataque modelado caen
+        por `_base <= 0`.
+        """
+        _op_act_k = op_state.active[0] if op_state.active else None
+        if _op_act_k is None:
+            return []
+        _op_hp_k = _op_act_k.hp or 0
+        _koers = []
+        for _bp_k in (my_state.bench or []):
+            if _bp_k is None or not isinstance(_bp_k, Pokemon):
+                continue
+            _e_k = len(_bp_k.energies)
+            if not _can_attack_eff(_bp_k.id, _e_k):
+                continue
+            # `grass_scale` es el Grass del CAMPO, que es lo que escala el Syrup
+            # Storm del Hydrapple ex. El bucle original del pivote pasaba 0
+            # porque solo miraba cuerpos de un premio -- Dipplin (20 x banca),
+            # Meganium 140, Tapu 220, Pinsir 100 -- y a ninguno le afecta. Aqui
+            # tambien se leen los de DOS, y con 0 un Hydrapple ex cargado se
+            # lee en 30: en `registro_010` turno 10 eso lo dejaba fuera de la
+            # lista de los que noquean y la promocion le quitaba el asiento.
+            _base_k = _attacker_base_damage(
+                _bp_k.id, _op_act_k, _e_k * _grass_mult(),
+                grass_scale=total_grass, teal_self_energy=_e_k,
+                bench_count=bench_count)
+            if _base_k <= 0:
+                continue
+            if _our_effective_damage(_bp_k, _op_act_k, _base_k,
+                                     AGENT_STATE.meganium_in_play,
+                                     neutralization_zone_active) >= _op_hp_k:
+                _koers.append(_bp_k)
+        return _koers
+
+    def _alk_1prize_koers():
+        """Solo los que valen UN premio, que es lo que el pivote compra."""
+        return frozenset(_k.id for _k in _alk_koers() if prize_count(_k) == 1)
+
     _opening_sac_safe_matchup = (AGENT_STATE.op_is_crustle_deck
                                  or AGENT_STATE.op_is_cornerstone_deck
                                  or op_is_sylveon_deck
@@ -13388,6 +13500,48 @@ def agent(obs_dict: dict) -> list[int]:
         # energy that is LEFT instead of the energy that paid. With `retreated`
         # set the question is already answered.
         _opening_sac_promote = _opening_sac_pivot or bool(state.retreated)
+
+    # EL ASIENTO ES DEL CUERPO QUE PAGO LA RETIRADA (user, la segunda mitad del
+    # hallazgo de episode 93519870 step 113). Ver
+    # `THE_PIVOT_PROMOTES_THE_BODY_IT_PAYS_FOR`: el pivote vs Alakazam retira el
+    # ex "para subir un cuerpo de UN premio", y la promocion que viene despues
+    # es otro menu que no conoce esa frase. Aqui se le pasa: los ids de la banca
+    # que la justifican, leidos con `_alk_1prize_koers` -- la MISMA lectura que
+    # usa el pivote, en una sola copia, que es lo que impide que las dos mitades
+    # de la pregunta se contradigan otra vez.
+    #
+    # `state.retreated` es la misma doctrina que la linea de arriba: cuando este
+    # menu llega la tasa ya esta pagada, asi que no se vuelve a preguntar si se
+    # podia pagar. Y SOLO en SWITCH: la promocion FORZADA tras un noqueo tiene su
+    # propia rama vs Alakazam dentro de `_best_promote_card`.
+    #
+    # Y EL DESCUENTO SE MIDE TAMBIEN AQUI, no solo en el menu de la retirada
+    # (user, `registro_010` turno 10: alli la retirada la pago OTRA regla -- la
+    # que sube el Hydrapple ex de 330 al frente -- y una primera version de esta
+    # bandera le robaba el asiento para un Dipplin de 80 que su mano de 3 mata
+    # con 100 y el Hydrapple no). El cambio solo es un cambio si el cadaver
+    # barato sustituye a uno que TAMBIEN se iban a cobrar: si su Powerful Hand
+    # proyectado mata al cuerpo de un premio pero NO al asiento de dos que
+    # tendria enfrente, el "descuento" es un premio regalado. La misma lectura
+    # que decide si el pivote se cobra (`_powerful_hand_projected`), aplicada al
+    # cuerpo que se queda.
+    _alakazam_pivot_promote = frozenset()
+    if (THE_PIVOT_PROMOTES_THE_BODY_IT_PAYS_FOR
+            and op_is_alakazam_deck
+            and context == SelectContext.SWITCH
+            and bool(state.retreated)):
+        _app_koers = _alk_koers()
+        _app_ids = frozenset(_k.id for _k in _app_koers if prize_count(_k) == 1)
+        if _app_ids:
+            # El asiento de dos premios que el barato viene a sustituir: el que
+            # mas aguanta de los que TAMBIEN noquean. Sin ninguno no hay nada
+            # que comparar y el cuerpo de un premio se sienta por si solo.
+            _app_alt_hp = max(
+                [(_k.hp or 0) for _k in _app_koers if prize_count(_k) >= 2] or [0])
+            if (_app_alt_hp <= 0
+                    or _powerful_hand_projected(getattr(op_state, 'handCount', 0) or 0)
+                    >= _app_alt_hp):
+                _alakazam_pivot_promote = _app_ids
 
     # The decision context (Priority 1 refactor): invariant inputs that
     # the extracted `_score_*` scorers consume. It is built a single time.
@@ -13776,30 +13930,12 @@ def agent(obs_dict: dict) -> list[int]:
             _akp_op_hp = _akp_op.hp or 0
             _akp_rc = RETREAT_COST.get(_akp_act.id, 1)
             _akp_can_retreat = len(_akp_act.energies) >= _akp_rc
-            _akp_bench_ko_1prize = False
-            for _akp_bp in (my_state.bench or []):
-                # Any ONE-prize body (non-ex) that knocks out will do for the
-                # pivot: Dipplin/Meganium/Tapu Bulu/... (user, registro_005
-                # step 56 vs Alakazam, LOST: a charged Dipplin with Do the Wave
-                # 20 x bench knocks out the active Abra -- before, the whitelist
-                # (Meganium, Tapu_Bulu) excluded it and we attacked with the Ogerpon
-                # ex, exposing 2 prizes to Powerful Hand). Bodies with no
-                # modelled attack fall through `_akp_base <= 0`.
-                if _akp_bp is None or prize_count(_akp_bp) != 1:
-                    continue
-                _akp_be = len(_akp_bp.energies)
-                if not _can_attack_eff(_akp_bp.id, _akp_be):
-                    continue
-                _akp_base = _attacker_base_damage(
-                    _akp_bp.id, _akp_op, _akp_be * _grass_mult(),
-                    grass_scale=0, teal_self_energy=_akp_be, bench_count=bench_count)
-                if _akp_base <= 0:
-                    continue
-                if _our_effective_damage(_akp_bp, _akp_op, _akp_base,
-                                         AGENT_STATE.meganium_in_play,
-                                         neutralization_zone_active) >= _akp_op_hp:
-                    _akp_bench_ko_1prize = True
-                    break
+            # QUIENES son, no solo si los hay: la promocion que viene despues
+            # tiene que sentar a uno de ELLOS (`_alakazam_pivot_promote`), y esa
+            # lista se lee UNA vez, aqui (`_alk_1prize_koers`), para que las dos
+            # mitades de la pregunta no puedan volver a contradecirse.
+            _akp_ko_1prize_ids = _alk_1prize_koers()
+            _akp_bench_ko_1prize = bool(_akp_ko_1prize_ids)
             _akp_prizes_from_ko = prize_count_op(_akp_op)
             _akp_my_left = len([p for p in (my_state.prize or []) if p is None])
             _akp_win_now = _akp_my_left <= _akp_prizes_from_ko
@@ -13812,8 +13948,27 @@ def agent(obs_dict: dict) -> list[int]:
             # nothing. At match point the front spot is decided by who OUTLASTS
             # their reply, which is `_mp_outlasts`'s business, not by the price
             # tag. See [[el-puesto-activo-lo-ocupa-el-cuerpo-que-paga-menos]].
+            # Y EL CADAVER TIENE QUE ESTAR EN OFERTA (user, episode 93519870
+            # step 113 vs Alakazam, GANADA). Ver
+            # `THE_PIVOT_NEEDS_A_CORPSE_THEY_CAN_TAKE`: el pivote cambia dos
+            # premios por uno, y ese cambio solo existe si los dos premios se
+            # los iban a llevar. Si el ex que esta delante YA noquea y su
+            # Powerful Hand proyectado NO alcanza sus puntos de vida, no hay
+            # cadaver de dos premios que abaratar: la retirada tira su energia,
+            # cede el ataque del turno y deja delante un cuerpo mas pequeño.
+            _akp_seat_is_safe = False
+            if (THE_PIVOT_NEEDS_A_CORPSE_THEY_CAN_TAKE
+                    and _active_already_kos):
+                # 20 x (mano + 2): la proyeccion canonica de Powerful Hand, con
+                # su robo del turno y su Psychic Draw. Se lee SIEMPRE en este
+                # matchup -- el Alakazam que nos remata puede estar todavia en su
+                # banca -- que es justo lo que una lectura de la respuesta
+                # inmediata no ve.
+                _akp_seat_is_safe = (
+                    _powerful_hand_projected(getattr(op_state, 'handCount', 0) or 0)
+                    < (_akp_act.hp or 0))
             if (_akp_can_retreat and _akp_bench_ko_1prize and not _akp_win_now
-                    and op_prize > 1):
+                    and op_prize > 1 and not _akp_seat_is_safe):
                 _alakazam_pivot_1prize = True
 
     # Indexes of manual attachments that YIELD to a pending Teal Dance

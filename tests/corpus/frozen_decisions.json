@@ -7835,10 +7835,10 @@
     "accion": 8,
     "contexto": 0,
     "detalle": [
-     "RETREAT"
+     "ATTACK id195"
     ],
     "eleccion": [
-     2
+     1
     ],
     "paso": null,
     "turno": 16

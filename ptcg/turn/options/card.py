@@ -52,7 +52,7 @@ from ptcg.cards.ids import THE_COST_KEEPS_THE_SUPPORTER_THE_TURN_PLAYS
 from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, DISCARD_SHIELD_KEEP_THE_GUST, DISCARD_SHIELD_KEEP_THE_NONEX, DISCARD_SHIELD_MUTES_THE_EX, DISCARD_SHIELD_SEARCH_FODDER, DISCARD_SHIELD_STADIUM_FODDER, OP_EX_SHIELD_MAX_PRIZES, DISCARD_XEROSIC_CAP_IS_THE_ANSWER, DISCARD_BODY_WITHOUT_SEAT, DISCARD_CF_HAND_RECYCLER, DISCARD_EVO_SPARE_COPY, DISCARD_LINK_LAST_BRIDGE, DISCARD_LINK_THE_SEARCH_BUYS, DISCARD_SUPPORTER_DEAD_DROP, DISCARD_SUPPORTER_LIVE_KEEP, DISCARD_WHAT_THE_SEARCH_ALREADY_BOUGHT, DUNSPARCE_IDS, Dawn, Dipplin, Drednaw, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, LANA_SEL_INJUGABLE, LANA_SEL_GRASS_DEMAND, LANA_SEL_GRASS_UNLOCKS, LANA_SEL_GRASS_SURPLUS, LANA_SEL_GRASS_WINS, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, OUR_ABILITY_IDS, OUR_EX_IDS, Pinsir, Poke_Pad, RETREAT_COST, RIPEN_HEAL_TARGET_SCORE, SCORE_FORBID, SCORE_LOOKAHEAD_PROMOTE_KO, SCORE_LOOKAHEAD_PROMOTE_SAFE, SCORE_NEVER, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, XEROSIC_BIG_HAND, DISCARD_XEROSIC_CAPS_A_FAT_HAND, Xerosic_Machinations
 from ptcg.cards.lines import _evo_bridge_last_copies, _evo_copies_usable, _evo_top_unlocked_by_the_search, _line_base_benchable, _pokemon_injugable
 from ptcg.cards.ids import OPENING_SAC_PROMOTE_ORDER, SETUP_ACTIVE_BASIC_ORDER, SETUP_ACTIVE_BASIC_TOP, SETUP_ACTIVE_EX_ORDER, SETUP_ACTIVE_EX_TOP, SETUP_ACTIVE_OTHER, SETUP_ACTIVE_OTHER_BASIC, SETUP_ACTIVE_STEP
-from ptcg.cards.scoring import MAIN_ATTACKERS, PROMO_DEFERRED_ATTACKER, PROMO_DOOMED_PENALTY, PROMO_KO_BONUS, PROMO_KO_FRONT, PROMO_KO_ROTATION, PROMO_LAST_STAND, PROMO_MATCH_POINT_VETO, PROMO_PRIZE_PENALTY, OPENING_SAC_PROMOTE_STEP, OPENING_SAC_PROMOTE_TOP, _SUPP_PLAY_IDS, _purchase_of_this_turn, PROMOTE_TERA_PAYS_FOR_ITS_COVER, PROMO_TERA_COVER_PRICE
+from ptcg.cards.scoring import MAIN_ATTACKERS, PROMO_DEFERRED_ATTACKER, PROMO_PIVOT_PAYS_FOR_THE_SEAT, PROMO_DOOMED_PENALTY, PROMO_KO_BONUS, PROMO_KO_FRONT, PROMO_KO_ROTATION, PROMO_LAST_STAND, PROMO_MATCH_POINT_VETO, PROMO_PRIZE_PENALTY, OPENING_SAC_PROMOTE_STEP, OPENING_SAC_PROMOTE_TOP, _SUPP_PLAY_IDS, _purchase_of_this_turn, PROMOTE_TERA_PAYS_FOR_ITS_COVER, PROMO_TERA_COVER_PRICE
 from ptcg.cards.tables import HAND_TO_DECK_PLAY_IDS, card_table
 from ptcg.decision.boss_orders import _ADJUST_GUST_NUISANCE, _ADJUST_GUST_OFFENSIVE, _RULES_GUST_NUISANCE, _ctx_gust_target
 from ptcg.decision.disruption import _stamp_pendiente, _xr_cap_lost_if_discarded
@@ -121,6 +121,7 @@ def score_play(tc, o, score):
     _opening_sac_needs_body = tc._opening_sac_needs_body
     _doomed_sac_needs_body = tc._doomed_sac_needs_body
     _opening_sac_promote = tc._opening_sac_promote
+    _alakazam_pivot_promote = tc._alakazam_pivot_promote or frozenset()
     _mega_line_active = tc._mega_line_active
     _meowth_devel_lillie = tc._meowth_devel_lillie
     _meowth_recovery_ko = tc._meowth_recovery_ko
@@ -1447,6 +1448,28 @@ def score_play(tc, o, score):
                             and callable(_ko_front_outranked)
                             and _ko_front_outranked(card)):
                         score -= PROMO_KO_FRONT
+
+                    # EL ASIENTO ES DEL CUERPO QUE PAGO LA RETIRADA (user,
+                    # episode 93519870 step 113 vs Alakazam). Este menu lo ha
+                    # abierto una retirada, y contra Alakazam esa retirada tiene
+                    # una frase detras: `_alakazam_pivot_1prize` la paga "para
+                    # subir un cuerpo de UN premio y entregar 1 en vez de 2".
+                    # Este menu no la conocia. En el registro los dos candidatos
+                    # entraron en la misma banda -- el Dipplin que noquea a 20525
+                    # y un Teal Mask Ogerpon ex con seis Grass a 20557 -- y el ex
+                    # se llevo el asiento por treinta y dos puntos de adornos,
+                    # con lo que la retirada quedo pagada por nada: dos premios
+                    # expuestos igual, 120 de vida menos delante.
+                    #
+                    # `_alakazam_pivot_promote` es la lista de esos cuerpos, leida
+                    # en `main.py` con `_alk_1prize_koers` -- la MISMA lectura que
+                    # justifica el retiro, en una sola copia. Y es un BONUS solo
+                    # para ellos: no baja a nadie, asi que no puede invertir un
+                    # orden que otra regla haya fijado. Ver
+                    # `PROMO_PIVOT_PAYS_FOR_THE_SEAT` para por que 2200.
+                    if (isinstance(card, Pokemon) and score > 0
+                            and card.id in _alakazam_pivot_promote):
+                        score += PROMO_PIVOT_PAYS_FOR_THE_SEAT
 
                     # THE FRONT SPOT UNDER A LOCK THAT MUTES IT (user,
                     # registro_010 step 81, episode 93149196 vs a Cubchoo stall

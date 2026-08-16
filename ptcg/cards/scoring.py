@@ -164,6 +164,32 @@ PROMO_KO_FRONT = 1200
 PROMO_KO_ROTATION = 1800
 
 
+# EL ASIENTO ES DEL CUERPO QUE PAGO LA RETIRADA (user, episode 93519870 step 113
+# vs Alakazam). El pivote de este matchup retira nuestro ex diciendo "subo un
+# cuerpo de UN premio y entrego 1 en vez de 2", y la promocion que viene despues
+# es otro menu que no conoce esa frase: los dos candidatos entran en la misma
+# banda (+PROMO_KO_BONUS) y el ex gana por los adornos. En el tablero del
+# usuario, un Teal Mask Ogerpon ex con seis Grass a 20557 contra el Dipplin a
+# 20525 -- TREINTA Y DOS puntos, y con ellos la premisa entera de la retirada.
+#
+# Por eso es del tamaño de un desempate, como sus dos vecinos de arriba, y no de
+# una banda. 2200 lo fijan los numeros entre los que va: POR ENCIMA de
+# `PROMO_KO_FRONT` (1200) -- "quien sobrevive a quien", que es justamente el
+# argumento que el pivote compra en contra, porque el cuerpo barato viene a
+# morir --, de `PROMO_KO_ROTATION` (1800) y del +2000 del atacante del matchup
+# confundido, para no empatar con ninguno (un empate deja decidir al ORDEN DEL
+# MENU, que es el del motor y no el nuestro); y MUY POR DEBAJO de
+# `PROMO_DOOMED_PENALTY` (6000) y de `PROMO_MATCH_POINT_VETO` (-30000), las
+# reglas deliberadas que siguen teniendo la ultima palabra. Apilado con todo lo
+# que puede caer sobre el mismo cuerpo sigue dentro de su banda:
+# 20000 + 2200 - 6000 - 1800 - 1200 = 13200, por encima de los 9500 del cuerpo
+# mas alto que no se lleva ningun premio.
+#
+# Solo es un BONUS, y solo para el cuerpo de un premio que noquea: nunca baja a
+# nadie, asi que no puede invertir un orden que otra regla haya fijado.
+PROMO_PIVOT_PAYS_FOR_THE_SEAT = 2200
+
+
 # THE SEAT COSTS THE COVER IT LEAVES BEHIND (user, pending written 12 August
 # 2026 from episode 92355371 step 62 vs Festival Lead, LOST). The Tera of a
 # benched Teal Mask Ogerpon ex prevents ALL damage from attacks while it is on
@@ -268,6 +294,7 @@ __all__ = [
     'PROMO_KO_ROTATION',
     'PROMO_LAST_STAND',
     'PROMO_MATCH_POINT_VETO',
+    'PROMO_PIVOT_PAYS_FOR_THE_SEAT',
     'PROMO_TERA_COVER_PRICE',
     'PROMOTE_TERA_PAYS_FOR_ITS_COVER',
     'PROMO_PRIZE_PENALTY',
