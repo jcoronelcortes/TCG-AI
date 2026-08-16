@@ -1713,6 +1713,82 @@ def _ub_target_cannot_be_worn(cid, evolvable_counts) -> bool:
     return not _evo_body_in_play(cid, evolvable_counts)
 
 
+# A copy of a line's TOP already in play does not close that line. What closes it
+# is having no body left to wear a second one -- and that question is already
+# asked, per target, by the three gates of `_offer` just above: a card the hand
+# holds is refused (`_ub_target_covered_by_hand`), a Basic with no seat is
+# refused (`_ub_target_has_no_seat`) and an evolution nothing on the board can
+# wear TODAY is refused (`_ub_target_cannot_be_worn`). The two species gates that
+# open the evolution ladders below -- `meganium_in_play` and `has_hydrapple` --
+# add exactly one refusal on top of those: the SECOND copy, on a board that has a
+# body standing ready to wear it.
+#
+# (user, `records/registro_007_pasos_060_hasta_074.json` step 72, episode
+# 93493222 vs Marnie -- WON in spite of this.) Turn 7, bench FULL, our Forest of
+# Vitality in play, Hydrapple ex active and a **Dipplin at 2 effective energies**
+# on the bench with the second Hydrapple ex still in the deck. Both Ultra Balls
+# in hand scored **-100** (`SCORE_CANCEL`) and not for their price -- every
+# `_ub_cancel_*` came back False -- because this gate left `_eval_ub_best_target`
+# with no target at all, and with the bench full an evolution was the only thing
+# an Ultra Ball could still buy. The same call with `has_hydrapple=False` returns
+# 950. Note the gate does not only refuse the second TOP: it wraps the whole
+# ladder, so it equally refuses the Dipplin an Applin is waiting for while a
+# Hydrapple ex sits elsewhere on the board.
+#
+# WHAT IS DELIBERATELY NOT TOUCHED. The last `elif` of each ladder -- putting a
+# fresh Basic down to START the line -- keeps the original flag: that branch is
+# about a line that does not exist yet, which is not what the census counted, and
+# opening it would move a second thing at once. Neither are the VALUES: a second
+# copy is offered at the same tier as the first, so the gate measures one
+# variable.
+#
+# A NAMED SWITCH, like `LAST_BRIDGE_IS_NOT_FODDER` in `ptcg/cards/lines.py` and
+# `NZ_MUTE_ROUTING` in `ptcg/calc/damage.py`: it is the only difference the
+# census, the gate and the rules oracle are allowed to put between their arms.
+# Exposure, `utils/census_the_top_in_play_does_not_close_the_line.py`: 0.09-0.16
+# turns a game in which an Ultra Ball dies to it, and 29 of the frozen corpus's
+# 32 such pricings have a FULL bench, where nothing else could have taken the
+# target's place.
+# MEASURED AND NOT ADOPTED (16 August 2026), which is why it ships OFF. The gate
+# `utils/gate_the_top_in_play_does_not_close_the_line.py` at n=1000 on each of
+# four lists: **-0.70 pp** (z=-1.91 p=0.057) for the reading, against a
+# `--control` arm -- the same code twice -- of **+0.25 pp**. The total does not
+# clear its own floor, but the sign does not wobble the way the control's does:
+# every list is negative or flat with the reading (-1.20, -1.20, 0.00, -0.40)
+# while the control run came out positive on three of the four. Prize
+# differential moves with it (-0.08 and -0.09 on the two lists that lose).
+# ELEVEN curated boards disagree with it as well -- see the gate's docstring for
+# the list -- and each is a menu where the Ultra Ball now goes ahead of a play
+# that was already taking the turn.
+#
+# The exposure is real and stays documented
+# (`utils/census_the_top_in_play_does_not_close_the_line.py`: 0.09-0.16 turns a
+# game, 29 of the frozen corpus's 32 dead pricings with a FULL bench). What is
+# not established is that lifting the gate is worth what it costs, and the
+# suspect is not the sentence but the BAND: a live Ultra Ball is worth
+# 10000-12500, above prize-taking plays that score lower (`_wall_ko_promote`,
+# 6700). Whoever picks this up next should measure that inversion first.
+TOP_IN_PLAY_DOES_NOT_CLOSE_THE_LINE = False
+
+
+def _line_closed_by_its_top() -> bool:
+    """Does a copy of a line's TOP in play still close that line's search?
+
+    A function and not the flag itself because the FETCH menu lives in another
+    module (`ptcg/turn/options/card.py`), and the two menus have to answer this
+    with ONE value: a `from ... import TOP_IN_PLAY_DOES_NOT_CLOSE_THE_LINE`
+    would copy the flag at import time, so a gate flipping it here would move
+    the PLAY menu and leave the FETCH menu buying the Item for a target the
+    prompt then refuses -- which is the very disagreement `_offer` and the fetch
+    ladder are written to keep closed. Read through this call the switch has one
+    home. The third consumer of the same sentence, the DISCARD fodder count
+    ("a Meganium in hand is spare when a Meganium is in play"), is deliberately
+    NOT routed through here: it ranks a discard, it never cancels a search, and
+    it is not what the census measured.
+    """
+    return not TOP_IN_PLAY_DOES_NOT_CLOSE_THE_LINE
+
+
 def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrapple,
                          forest_in_play, op_has_ex_immune_active, op_has_ex_immune_bench,
                          op_prize, bench_count, state, ko_last_turn,
@@ -1963,137 +2039,165 @@ def _eval_ub_best_target(field_counts, hand_counts, meganium_in_play, has_hydrap
                 val += 50
             _offer(Teal_Mask_Ogerpon_ex, val)
 
-    if not meganium_in_play:
-        if _evolvable.get(Bayleef, 0) >= 1:
-            # Same criterion as the Bayleef / Dipplin branches below (and as
-            # `_ub_evolve_needs_search`): if the evolution is ALREADY in hand, the
-            # line evolves WITHOUT Ultra Ball and searching for a 2nd copy adds
-            # nothing -- it only burns the card and 2 discards (user, registro_004 step
-            # 35 vs Cynthia's Garchomp: Meganium in hand and it dug for it anyway).
-            if (AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Meganium, {}).get(ZONE_DECK, 0) > 0
-                    and hand_counts.get(Meganium, 0) == 0):
-                _offer(Meganium, 1000)
-        elif _evolvable.get(Chikorita, 0) >= 1 and field_counts.get(Bayleef, 0) >= 1:
+    def _evolution_ladders(mega_open, hydra_open):
+        """The rungs that put a body ALREADY on the board into a higher stage.
 
-            if AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Meganium, {}).get(ZONE_DECK, 0) > 0:
-                if forest_in_play:
+        Extracted verbatim so it can be asked TWICE with different gates: once
+        for the line whose top is not in play (its original reading) and, only
+        if that leaves the Ultra Ball with no target at all, once more for the
+        line whose top IS in play. See
+        `TOP_IN_PLAY_DOES_NOT_CLOSE_THE_LINE`.
 
+        The last `elif` of each ladder -- putting a fresh Basic down to START
+        a line -- keeps its own `not meganium_in_play` / `not has_hydrapple`
+        guard, so the second pass is a strict no-op there: this reading is
+        about a body already waiting, never about opening a new line.
+        """
+        if mega_open:
+            if _evolvable.get(Bayleef, 0) >= 1:
+                # Same criterion as the Bayleef / Dipplin branches below (and as
+                # `_ub_evolve_needs_search`): if the evolution is ALREADY in hand, the
+                # line evolves WITHOUT Ultra Ball and searching for a 2nd copy adds
+                # nothing -- it only burns the card and 2 discards (user, registro_004 step
+                # 35 vs Cynthia's Garchomp: Meganium in hand and it dug for it anyway).
+                if (AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Meganium, {}).get(ZONE_DECK, 0) > 0
+                        and hand_counts.get(Meganium, 0) == 0):
                     _offer(Meganium, 1000)
-                else:
-                    # A Bayleef just evolved THIS turn (there was a Chikorita at the
-                    # start of the turn) and WITHOUT Forest: it will not be able to evolve
-                    # into Meganium until the NEXT turn. Searching for Meganium now is only
-                    # preparation, it adds nothing this turn, so the priority is lowered so
-                    # as not to spend an Ultra Ball + 2 discards on an unusable piece if
-                    # there are better targets or few safe discards (with >=2 safe discards
-                    # and no better target it is still searched for).
-                    _offer(Meganium, 280)
-        elif _evolvable.get(Chikorita, 0) >= 1:
+            elif _evolvable.get(Chikorita, 0) >= 1 and field_counts.get(Bayleef, 0) >= 1:
 
-            if (AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Bayleef, {}).get(ZONE_DECK, 0) > 0
-                    and hand_counts.get(Bayleef, 0) == 0):
-                # It is only worth searching for a Bayleef if we do not already have one
-                # in hand: with a Chikorita in play, a single Bayleef is enough to
-                # evolve it. If we already have it, the Ultra Ball adds nothing for
-                # this line (and would spend 2 discarded cards on a duplicate).
-                _offer(Bayleef, 850)
+                if AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Meganium, {}).get(ZONE_DECK, 0) > 0:
+                    if forest_in_play:
 
-            elif (AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Meganium, {}).get(ZONE_DECK, 0) > 0 and
-                  (forest_in_play or hand_counts.get(Forest_of_Vitality, 0) >= 1) and
-                  hand_counts.get(Bayleef, 0) >= 1):
-                _prot = 1
-                if not forest_in_play:
-                    _prot += 1
-                if _hand_total - 1 - _prot >= 2:
-                    _offer(Meganium, 900)
-
-        elif not _bench_full and field_counts.get(Chikorita, 0) + field_counts.get(Bayleef, 0) == 0:
-            if AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Chikorita, {}).get(ZONE_DECK, 0) > 0:
-                _has_mega_evo_in_deck = (AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Bayleef, {}).get(ZONE_DECK, 0) > 0 or
-                                         AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Meganium, {}).get(ZONE_DECK, 0) > 0)
-                _has_mega_evo_in_hand = (hand_counts.get(Bayleef, 0) >= 1 or hand_counts.get(Meganium, 0) >= 1)
-                _forest_available = (forest_in_play or hand_counts.get(Forest_of_Vitality, 0) >= 1)
-
-                _can_chain_mega = False
-                if _forest_available and hand_counts.get(Bayleef, 0) >= 1:
-                    _prot = 1
-                    if not forest_in_play:
-                        _prot += 1
-                    if _hand_total - 1 - _prot >= 2:
-                        _can_chain_mega = True
-                        _offer(Chikorita, 700)
-                if not _can_chain_mega:
-                    if _has_mega_evo_in_deck or _has_mega_evo_in_hand:
-                        _offer(Chikorita, 500)
+                        _offer(Meganium, 1000)
                     else:
-                        _offer(Chikorita, 200)
+                        # A Bayleef just evolved THIS turn (there was a Chikorita at the
+                        # start of the turn) and WITHOUT Forest: it will not be able to evolve
+                        # into Meganium until the NEXT turn. Searching for Meganium now is only
+                        # preparation, it adds nothing this turn, so the priority is lowered so
+                        # as not to spend an Ultra Ball + 2 discards on an unusable piece if
+                        # there are better targets or few safe discards (with >=2 safe discards
+                        # and no better target it is still searched for).
+                        _offer(Meganium, 280)
+            elif _evolvable.get(Chikorita, 0) >= 1:
 
-    if not has_hydrapple:
-        if _evolvable.get(Dipplin, 0) >= 1:
-            # With the Hydrapple ex ALREADY in hand the line evolves without Ultra
-            # Ball (see the twin Meganium branch above).
-            if (AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(
-                    Hydrapple_ex, {}).get(ZONE_DECK, 0) > 0
-                    and hand_counts.get(Hydrapple_ex, 0) == 0):
-                _offer(Hydrapple_ex, 950)
-        elif _evolvable.get(Applin, 0) >= 1 and field_counts.get(Dipplin, 0) >= 1:
+                if (AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Bayleef, {}).get(ZONE_DECK, 0) > 0
+                        and hand_counts.get(Bayleef, 0) == 0):
+                    # It is only worth searching for a Bayleef if we do not already have one
+                    # in hand: with a Chikorita in play, a single Bayleef is enough to
+                    # evolve it. If we already have it, the Ultra Ball adds nothing for
+                    # this line (and would spend 2 discarded cards on a duplicate).
+                    _offer(Bayleef, 850)
 
-            if AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Hydrapple_ex, {}).get(ZONE_DECK, 0) > 0:
-                if forest_in_play:
-                    _offer(Hydrapple_ex, 950)
-                else:
-                    # A Dipplin just evolved THIS turn (there was an Applin at the start
-                    # of the turn) and WITHOUT Forest: it will not be able to evolve into
-                    # Hydrapple ex until the NEXT turn. Searching for Hydrapple now is only
-                    # preparation; the priority is lowered so as not to spend an Ultra Ball +
-                    # 2 discards on an unusable piece if there are better targets or few safe
-                    # discards (with >=2 safe discards and no better target it is still
-                    # searched for).
-                    _offer(Hydrapple_ex, 280)
-        elif _evolvable.get(Applin, 0) >= 1:
-
-            if (AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Dipplin, {}).get(ZONE_DECK, 0) > 0
-                    and hand_counts.get(Dipplin, 0) == 0):
-                # Same criterion as Bayleef: do not search for a Dipplin if there is
-                # already one in hand (a single Dipplin is enough to evolve the only Applin).
-                _offer(Dipplin, 800)
-
-            elif (AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Hydrapple_ex, {}).get(ZONE_DECK, 0) > 0 and
-                  (forest_in_play or hand_counts.get(Forest_of_Vitality, 0) >= 1) and
-                  hand_counts.get(Dipplin, 0) >= 1):
-                _prot = 1
-                if not forest_in_play:
-                    _prot += 1
-                if _hand_total - 1 - _prot >= 2:
-                    _offer(Hydrapple_ex, 850)
-        elif not _bench_full and field_counts.get(Applin, 0) + field_counts.get(Dipplin, 0) == 0:
-            if AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Applin, {}).get(ZONE_DECK, 0) > 0:
-                _has_hydra_evo_in_deck = (AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Dipplin, {}).get(ZONE_DECK, 0) > 0 or
-                                           AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Hydrapple_ex, {}).get(ZONE_DECK, 0) > 0)
-                _has_hydra_evo_in_hand = (hand_counts.get(Dipplin, 0) >= 1 or hand_counts.get(Hydrapple_ex, 0) >= 1)
-                _forest_available = (forest_in_play or hand_counts.get(Forest_of_Vitality, 0) >= 1)
-
-                _can_chain_hydra = False
-                if _forest_available and hand_counts.get(Dipplin, 0) >= 1:
+                elif (AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Meganium, {}).get(ZONE_DECK, 0) > 0 and
+                      (forest_in_play or hand_counts.get(Forest_of_Vitality, 0) >= 1) and
+                      hand_counts.get(Bayleef, 0) >= 1):
                     _prot = 1
                     if not forest_in_play:
                         _prot += 1
-                    if hand_counts.get(Hydrapple_ex, 0) >= 1:
-                        _prot += 1
                     if _hand_total - 1 - _prot >= 2:
-                        _can_chain_hydra = True
-                        if hand_counts.get(Hydrapple_ex, 0) >= 1:
+                        _offer(Meganium, 900)
 
-                            _offer(Applin, 950)
+            elif (not meganium_in_play and not _bench_full
+                    and field_counts.get(Chikorita, 0) + field_counts.get(Bayleef, 0) == 0):
+                if AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Chikorita, {}).get(ZONE_DECK, 0) > 0:
+                    _has_mega_evo_in_deck = (AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Bayleef, {}).get(ZONE_DECK, 0) > 0 or
+                                             AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Meganium, {}).get(ZONE_DECK, 0) > 0)
+                    _has_mega_evo_in_hand = (hand_counts.get(Bayleef, 0) >= 1 or hand_counts.get(Meganium, 0) >= 1)
+                    _forest_available = (forest_in_play or hand_counts.get(Forest_of_Vitality, 0) >= 1)
+
+                    _can_chain_mega = False
+                    if _forest_available and hand_counts.get(Bayleef, 0) >= 1:
+                        _prot = 1
+                        if not forest_in_play:
+                            _prot += 1
+                        if _hand_total - 1 - _prot >= 2:
+                            _can_chain_mega = True
+                            _offer(Chikorita, 700)
+                    if not _can_chain_mega:
+                        if _has_mega_evo_in_deck or _has_mega_evo_in_hand:
+                            _offer(Chikorita, 500)
                         else:
+                            _offer(Chikorita, 200)
 
-                            _offer(Applin, 600)
-                if not _can_chain_hydra:
-                    if _has_hydra_evo_in_deck or _has_hydra_evo_in_hand:
-                        _offer(Applin, 450)
+        if hydra_open:
+            if _evolvable.get(Dipplin, 0) >= 1:
+                # With the Hydrapple ex ALREADY in hand the line evolves without Ultra
+                # Ball (see the twin Meganium branch above).
+                if (AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(
+                        Hydrapple_ex, {}).get(ZONE_DECK, 0) > 0
+                        and hand_counts.get(Hydrapple_ex, 0) == 0):
+                    _offer(Hydrapple_ex, 950)
+            elif _evolvable.get(Applin, 0) >= 1 and field_counts.get(Dipplin, 0) >= 1:
+
+                if AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Hydrapple_ex, {}).get(ZONE_DECK, 0) > 0:
+                    if forest_in_play:
+                        _offer(Hydrapple_ex, 950)
                     else:
-                        _offer(Applin, 180)
+                        # A Dipplin just evolved THIS turn (there was an Applin at the start
+                        # of the turn) and WITHOUT Forest: it will not be able to evolve into
+                        # Hydrapple ex until the NEXT turn. Searching for Hydrapple now is only
+                        # preparation; the priority is lowered so as not to spend an Ultra Ball +
+                        # 2 discards on an unusable piece if there are better targets or few safe
+                        # discards (with >=2 safe discards and no better target it is still
+                        # searched for).
+                        _offer(Hydrapple_ex, 280)
+            elif _evolvable.get(Applin, 0) >= 1:
 
+                if (AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Dipplin, {}).get(ZONE_DECK, 0) > 0
+                        and hand_counts.get(Dipplin, 0) == 0):
+                    # Same criterion as Bayleef: do not search for a Dipplin if there is
+                    # already one in hand (a single Dipplin is enough to evolve the only Applin).
+                    _offer(Dipplin, 800)
+
+                elif (AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Hydrapple_ex, {}).get(ZONE_DECK, 0) > 0 and
+                      (forest_in_play or hand_counts.get(Forest_of_Vitality, 0) >= 1) and
+                      hand_counts.get(Dipplin, 0) >= 1):
+                    _prot = 1
+                    if not forest_in_play:
+                        _prot += 1
+                    if _hand_total - 1 - _prot >= 2:
+                        _offer(Hydrapple_ex, 850)
+            elif (not has_hydrapple and not _bench_full
+                    and field_counts.get(Applin, 0) + field_counts.get(Dipplin, 0) == 0):
+                if AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Applin, {}).get(ZONE_DECK, 0) > 0:
+                    _has_hydra_evo_in_deck = (AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Dipplin, {}).get(ZONE_DECK, 0) > 0 or
+                                               AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Hydrapple_ex, {}).get(ZONE_DECK, 0) > 0)
+                    _has_hydra_evo_in_hand = (hand_counts.get(Dipplin, 0) >= 1 or hand_counts.get(Hydrapple_ex, 0) >= 1)
+                    _forest_available = (forest_in_play or hand_counts.get(Forest_of_Vitality, 0) >= 1)
+
+                    _can_chain_hydra = False
+                    if _forest_available and hand_counts.get(Dipplin, 0) >= 1:
+                        _prot = 1
+                        if not forest_in_play:
+                            _prot += 1
+                        if hand_counts.get(Hydrapple_ex, 0) >= 1:
+                            _prot += 1
+                        if _hand_total - 1 - _prot >= 2:
+                            _can_chain_hydra = True
+                            if hand_counts.get(Hydrapple_ex, 0) >= 1:
+
+                                _offer(Applin, 950)
+                            else:
+
+                                _offer(Applin, 600)
+                    if not _can_chain_hydra:
+                        if _has_hydra_evo_in_deck or _has_hydra_evo_in_hand:
+                            _offer(Applin, 450)
+                        else:
+                            _offer(Applin, 180)
+
+
+    _evolution_ladders(not meganium_in_play, not has_hydrapple)
+
+    # THE SECOND COPY IS A LAST RESORT, never a competitor. The ladders are
+    # asked again for the line whose top is already in play ONLY when the first
+    # pass left the Ultra Ball with nothing at all -- the state that prices it
+    # at `SCORE_CANCEL` and hands the turn to the attack. Asked unconditionally
+    # instead, a second Meganium at 1000 would outrank targets the board wanted
+    # more, and thirteen curated boards said so out loud the first time it was
+    # tried. Here it can only ever turn a dead Item into a live one.
+    if ub_best_target == 0 and TOP_IN_PLAY_DOES_NOT_CLOSE_THE_LINE:
+        _evolution_ladders(meganium_in_play, has_hydrapple)
     if not _bench_full and not has_energy_for_teal and field_counts.get(Teal_Mask_Ogerpon_ex, 0) < 2:
         if AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Teal_Mask_Ogerpon_ex, {}).get(ZONE_DECK, 0) > 0:
             if field_counts.get(Teal_Mask_Ogerpon_ex, 0) == 0 and bench_count <= 2:
@@ -2739,7 +2843,8 @@ _RULES_UB_OGERPON = [
 
 _RULES_UB_MEGANIUM = [
     _FixedRule("meganium_already_in_play",
-               lambda c: AGENT_STATE.meganium_in_play,
+               lambda c: (AGENT_STATE.meganium_in_play
+                          and _line_closed_by_its_top()),
                lambda c: 25),
     # vs Cornerstone: Wild Growth doubles every Grass and lowers the cost of
     # Tapu Bulu -- the ONLY attacker that damages Cornerstone -- from 4 physical
@@ -2769,7 +2874,8 @@ _RULES_UB_MEGANIUM = [
 
 _RULES_UB_BAYLEEF = [
     _FixedRule("meganium_already_in_play",
-               lambda c: AGENT_STATE.meganium_in_play,
+               lambda c: (AGENT_STATE.meganium_in_play
+                          and _line_closed_by_its_top()),
                lambda c: 20),
     _FixedRule("bayleef_already_on_field",
                lambda c: c.field.get(Bayleef, 0) >= 1,
@@ -2798,7 +2904,7 @@ _RULES_UB_BAYLEEF = [
 
 _RULES_UB_DIPPLIN = [
     _FixedRule("hydrapple_already_in_play",
-               lambda c: c.has_hydrapple,
+               lambda c: c.has_hydrapple and _line_closed_by_its_top(),
                lambda c: 20),
     _FixedRule("dipplin_already_on_field",
                lambda c: c.field.get(Dipplin, 0) >= 1,
