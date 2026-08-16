@@ -619,16 +619,17 @@ waves have shipped, are in [Discarding well](discard-plan-2026-08.md).
 Several meta decks put a body in front that our ex attackers simply cannot
 damage. This is the strategic problem the agent invests most in.
 
-**The agent knows five shapes of wall, and only the first two are a body of
+**The agent knows six shapes of wall, and only the first three are a body of
 theirs that is simply immune.** They are listed in the order the agent learned
 them, because what separates them is not the play — that is the same for all
-five — but **where the board is read from**, and the later ones read backwards
-from the first two:
+six — but **where the board is read from**, and the later ones read backwards
+from the first ones:
 
 | Wall | Where the agent reads it |
 | --- | --- |
 | Crustle | Their card's own ability: an ex-immune body, by card ID. |
 | Cornerstone | Same shape, a different ability list. |
+| Milotic ex | Same shape again, and a **third question about the attacker**: not “is it an ex” nor “does it have an Ability” but **“is it Tera”**. It blanks exactly one body of ours — the Teal Mask Ogerpon ex — and lets our other two ex through. See [The wall that reads our Tera](milotic-the-wall-that-reads-our-tera-2026-08-16.md). |
 | Neutralization Zone | A **stadium anyone can see**, plus the **absence** of a Rule Box on the body in front — so it comes and goes with *their* promotion. |
 | Acerola's Mischief | Nothing on the board at all. The only evidence is the `PLAY` log of their previous turn, and what it pins is a **serial**. |
 | The coin dodge (§12.1) | Their previous turn's `ATTACK` log followed by a `COIN_FLIP`. |

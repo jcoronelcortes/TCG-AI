@@ -67,6 +67,8 @@ from ptcg.calc.card import prize_count, prize_count_op
 from ptcg.state.agent_state import AGENT_STATE
 from ptcg.cards.tables import attack_table, card_table
 from ptcg.cards.ids import ABILITY_IMMUNE_IDS, Alakazam_ex, EVO_BODY_DAMAGE, EVO_BODY_EXPOSURE, EVO_BODY_RESCUE, OP_ACTIVE_ABILITY_DAMAGE, OP_BENCH_SNIPE_DAMAGE, RAINBOW_ENERGY_TYPE, Brave_Bangle, DO_THE_WAVE_ATTACK_ID, Dipplin, Drednaw, EX_IMMUNE_IDS, FULL_HP_SURVIVE_IDS, Farigiraf_ex, Fezandipiti_ex, Hydrapple_ex, Maximum_Belt, Meganium, OUR_ABILITY_IDS, OUR_BASIC_EX_IDS, OUR_EX_IDS, POWERFUL_HAND_ATTACK_ID, Pinsir, Tapu_Bulu, Teal_Mask_Ogerpon_ex, WAVE_BENCH_BODY_IDS
+from ptcg.cards.ids import TERA_IMMUNE_IDS
+from ptcg.cards.groups import OUR_TERA_IDS
 from ptcg.calc.energy import _grass_attach_slots_for, _grass_attach_unit, _grass_mult, _retreat_grass_units
 from ptcg.cards.lines import _direct_evolution_ids
 from ptcg.cards.op_scaling import OP_SCALING_IGNORES_WEAKNESS, op_scaled_damage
@@ -781,6 +783,15 @@ def _our_effective_damage(my_pokemon, op_pokemon, base_damage,
     # Farigiraf ex ("Armor Tail"): immune to attack damage from BASIC ex. Only
     # Hydrapple ex (Stage 2) and the non-ex damage it (jul 2026 plan, P1.6).
     if op_pokemon.id == Farigiraf_ex and my_pokemon.id in OUR_BASIC_EX_IDS:
+        return 0
+
+    # Milotic ex ("Sparkling Scales"): immune to attack damage from our TERA.
+    # Teal Mask Ogerpon ex is the only one we own, and it is the body four
+    # copies of this deck are built to charge -- so this single line is the
+    # difference between "our best attacker" and "a mute two-prize body" (user,
+    # episode 93490495, `registro_009` step 74). Every other attacker of ours,
+    # ex or not, hits it for full: see `TERA_IMMUNE_IDS`.
+    if op_pokemon.id in TERA_IMMUNE_IDS and my_pokemon.id in OUR_TERA_IDS:
         return 0
 
     if not is_fez:
