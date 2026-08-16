@@ -125,3 +125,6 @@ ptcg_engine/
 # Built from ptcg_engine/ by cg/build_local_engine.sh. The PATCH is versioned;
 # the source and the binary are not (competition-use-only, and it never ships).
 cg/build/
+
+# Old measurement-arm snapshots, moved out of the root (night of 16 Aug 2026)
+/attic/
