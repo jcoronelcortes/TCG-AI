@@ -52,7 +52,7 @@ from ptcg.cards.ids import THE_COST_KEEPS_THE_SUPPORTER_THE_TURN_PLAYS
 from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, DISCARD_SHIELD_KEEP_THE_GUST, DISCARD_SHIELD_KEEP_THE_NONEX, DISCARD_SHIELD_MUTES_THE_EX, DISCARD_SHIELD_SEARCH_FODDER, DISCARD_SHIELD_STADIUM_FODDER, OP_EX_SHIELD_MAX_PRIZES, DISCARD_XEROSIC_CAP_IS_THE_ANSWER, DISCARD_BODY_WITHOUT_SEAT, DISCARD_CF_HAND_RECYCLER, DISCARD_EVO_SPARE_COPY, DISCARD_LINK_LAST_BRIDGE, DISCARD_LINK_THE_SEARCH_BUYS, DISCARD_SUPPORTER_DEAD_DROP, DISCARD_SUPPORTER_LIVE_KEEP, DISCARD_WHAT_THE_SEARCH_ALREADY_BOUGHT, DUNSPARCE_IDS, Dawn, Dipplin, Drednaw, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, LANA_SEL_INJUGABLE, LANA_SEL_GRASS_DEMAND, LANA_SEL_GRASS_UNLOCKS, LANA_SEL_GRASS_SURPLUS, LANA_SEL_GRASS_WINS, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, OUR_ABILITY_IDS, OUR_EX_IDS, Pinsir, Poke_Pad, RETREAT_COST, RIPEN_HEAL_TARGET_SCORE, SCORE_FORBID, SCORE_LOOKAHEAD_PROMOTE_KO, SCORE_LOOKAHEAD_PROMOTE_SAFE, SCORE_NEVER, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, XEROSIC_BIG_HAND, DISCARD_XEROSIC_CAPS_A_FAT_HAND, Xerosic_Machinations
 from ptcg.cards.lines import _evo_bridge_last_copies, _evo_copies_usable, _evo_top_unlocked_by_the_search, _line_base_benchable, _pokemon_injugable
 from ptcg.cards.ids import OPENING_SAC_PROMOTE_ORDER, SETUP_ACTIVE_BASIC_ORDER, SETUP_ACTIVE_BASIC_TOP, SETUP_ACTIVE_EX_ORDER, SETUP_ACTIVE_EX_TOP, SETUP_ACTIVE_OTHER, SETUP_ACTIVE_OTHER_BASIC, SETUP_ACTIVE_STEP
-from ptcg.cards.scoring import MAIN_ATTACKERS, PROMO_DEFERRED_ATTACKER, PROMO_PIVOT_PAYS_FOR_THE_SEAT, PROMO_DOOMED_PENALTY, PROMO_KO_BONUS, PROMO_KO_FRONT, PROMO_KO_ROTATION, PROMO_LAST_STAND, PROMO_MATCH_POINT_VETO, PROMO_PRIZE_PENALTY, OPENING_SAC_PROMOTE_STEP, OPENING_SAC_PROMOTE_TOP, _SUPP_PLAY_IDS, _purchase_of_this_turn, PROMOTE_TERA_PAYS_FOR_ITS_COVER, PROMO_TERA_COVER_PRICE
+from ptcg.cards.scoring import MAIN_ATTACKERS, PROMO_CLOSER_SEAT, THE_SEAT_THAT_CLOSES_THE_GAME_IS_A_GUARANTEE, PROMO_DEFERRED_ATTACKER, PROMO_PIVOT_PAYS_FOR_THE_SEAT, PROMO_DOOMED_PENALTY, PROMO_KO_BONUS, PROMO_KO_FRONT, PROMO_KO_ROTATION, PROMO_LAST_STAND, PROMO_MATCH_POINT_VETO, PROMO_PRIZE_PENALTY, OPENING_SAC_PROMOTE_STEP, OPENING_SAC_PROMOTE_TOP, _SUPP_PLAY_IDS, _purchase_of_this_turn, PROMOTE_TERA_PAYS_FOR_ITS_COVER, PROMO_TERA_COVER_PRICE
 from ptcg.cards.tables import HAND_TO_DECK_PLAY_IDS, card_table
 from ptcg.decision.boss_orders import _ADJUST_GUST_NUISANCE, _ADJUST_GUST_OFFENSIVE, _RULES_GUST_NUISANCE, _ctx_gust_target
 from ptcg.decision.disruption import _stamp_pendiente, _xr_cap_lost_if_discarded
@@ -1123,13 +1123,37 @@ def score_play(tc, o, score):
                             and score > 0):
                         score = PROMO_LAST_STAND
 
+                    # EL ASIENTO QUE CIERRA LA PARTIDA NO SE DESEMPATA (user,
+                    # registro_013 step 174 vs Alakazam, episode 93579160,
+                    # PERDIDA -- deck-agnostic). `_promo_ko_wins_the_game` es la
+                    # lectura de los dos montones: nuestro premio restante lo
+                    # paga entero el activo rival, asi que el noqueo que este
+                    # cuerpo tiene a UNA carga de distancia no "cambia bien",
+                    # TERMINA LA PARTIDA. Y termina en NUESTRO turno, que va
+                    # primero: la promocion resuelve al final del suyo.
+                    #
+                    # Todo lo que compite con el en esta cadena es un argumento
+                    # sobre llegar vivo a un turno POSTERIOR -- el last stand
+                    # (9450), el muro barato (8500+hp/10), el atacante que puede
+                    # retirarse (9200), el peaje del Tera (-500), el doomed de
+                    # match point (-6000), el frente entre los que noquean
+                    # (-1200) -- y en nuestro propio match point no hay turno
+                    # posterior que comprar. Ver `PROMO_CLOSER_SEAT` para de
+                    # donde salen los 15000 y por que el que noquea HOY
+                    # (+PROMO_KO_BONUS) sigue por encima.
+                    _promo_closer_seat = (
+                        THE_SEAT_THAT_CLOSES_THE_GAME_IS_A_GUARANTEE
+                        and _promo_ko_wins_the_game
+                        and _promote_setup_ko_attacker is not None
+                        and card is _promote_setup_ko_attacker)
+
                     # Promote the ALMOST ready attacker that finishes next
                     # turn (user, registro_009 p111): it dominates the basic wall
                     # and any other promotion branch. See
                     # `_promote_setup_ko_attacker`.
                     if (_promote_setup_ko_attacker is not None
                             and card is _promote_setup_ko_attacker):
-                        score = 9500
+                        score = PROMO_CLOSER_SEAT if _promo_closer_seat else 9500
 
                     # THE OTHER HALF OF THE FIRST-TURN WALL PIVOT (user,
                     # registro_002 step 14 vs Marnie, LOST). The retreat is
@@ -1308,10 +1332,20 @@ def score_play(tc, o, score):
                     # measured rules of their own. It reaches exactly the band
                     # where the only argument for the ex is that it is the
                     # biggest body left.
+                    #
+                    # NO SE LE COBRA AL CUERPO QUE CIERRA LA PARTIDA
+                    # (`_promo_closer_seat`). La cobertura que se paga aqui es
+                    # un cuerpo intocable EN LA BANCA para los turnos que vienen,
+                    # y en nuestro match point no vienen: su noqueo se lleva el
+                    # ultimo premio en nuestro turno. Con el peaje puesto, un
+                    # Teal Mask Ogerpon ex a una carga del letal caia a 9000 --
+                    # por debajo del last stand (9450) -- y el asiento se lo
+                    # llevaba un muro que no ataca.
                     if (PROMOTE_TERA_PAYS_FOR_ITS_COVER
                             and _forced_ko_promote
                             and isinstance(card, Pokemon)
                             and card.id == Teal_Mask_Ogerpon_ex
+                            and not _promo_closer_seat
                             and score > 0):
                         score -= PROMO_TERA_COVER_PRICE
 
@@ -1408,12 +1442,23 @@ def score_play(tc, o, score):
                     # counting their HAND, which is where this family of cards
                     # prints 0 damage; with an unreadable attack nobody is
                     # penalised. See the block in `agent()`.
+                    #
+                    # Y LA EXENCION LLEGA AL FINALIZADOR QUE CIERRA LA PARTIDA
+                    # (`_promo_closer_seat`, user, registro_013 step 174 vs
+                    # Alakazam). La que ya estaba escrita -- "a menos que
+                    # nuestro propio noqueo la cierre PRIMERO" -- pregunta por
+                    # `_promo_kos_op`, que mide la energia de HOY, y este cuerpo
+                    # es exactamente el que esta a una carga: falla la lectura y
+                    # se comia 6000 de la unica jugada que gana. Es la misma
+                    # correccion que `PROMO_MATCH_POINT_VETO` ya lleva treinta
+                    # lineas mas abajo, por la misma razon.
                     if (isinstance(card, Pokemon) and score > 0
                             and _promo_op_act is not None
                             and op_prize <= prize_count(card)
                             and (_mp_front_survivors or 0) > 0
                             and callable(_mp_outlasts)
                             and not _mp_outlasts(card)
+                            and not _promo_closer_seat
                             and not (_promo_kos_op(card)
                                      and my_prize <= prize_count_op(_promo_op_act))):
                         score -= PROMO_DOOMED_PENALTY
@@ -1443,8 +1488,14 @@ def score_play(tc, o, score):
                     # never promote a body that takes no prize, and it is sized
                     # (`PROMO_KO_FRONT`) to beat the flavour bonuses of the base
                     # score and to yield to every rule that scores in thousands.
+                    #
+                    # Con la misma exencion que su vecino de arriba: este
+                    # desempate ordena a los que noquean por quien sobrevive a
+                    # quien, y el cuerpo que cierra la partida no tiene a nadie a
+                    # quien sobrevivir (`_promo_closer_seat`).
                     if (isinstance(card, Pokemon) and score > 0
                             and _promo_op_act is not None
+                            and not _promo_closer_seat
                             and callable(_ko_front_outranked)
                             and _ko_front_outranked(card)):
                         score -= PROMO_KO_FRONT
