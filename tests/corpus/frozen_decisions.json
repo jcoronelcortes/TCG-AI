@@ -43035,10 +43035,10 @@
     "accion": 9,
     "contexto": 0,
     "detalle": [
-     "ABILITY Teal Mask Ogerpon ex(96)"
+     "END"
     ],
     "eleccion": [
-     0
+     1
     ],
     "paso": null,
     "turno": 6

@@ -398,7 +398,7 @@ class Scenario:
         return self
 
     def menu_hand(self, with_retreat=False, with_attachment=False,
-                  with_attack=False):
+                  with_attack=False, with_stadium_ability=False):
         """A generic MAIN select: one PLAY option per card in hand, plus
         (optionally) the ATTACH of the 1st Basic Grass, RETREAT and/or the ATTACK
         options of the active, plus END.
@@ -407,9 +407,20 @@ class Scenario:
         the noise of a complete simulator menu. `with_attack` emits one ATTACK
         per attack of the active whose energy cost it can ALREADY pay (the same
         criterion as the simulator), so attack-vs-retreat can be measured.
+
+        `with_stadium_ability` emits the ABILITY of the stadium on the field over
+        the STADIUM area, which is how the simulator offers a stadium ability to
+        EITHER player -- the menu that had us feed a Lillie's Determination to
+        their Academy at Night.
         """
         options = [{"type": int(OptionType.PLAY), "index": i}
                     for i in range(len(self._my_hand))]
+        if with_stadium_ability:
+            if self._stadium is None:
+                raise InconsistentState(
+                    "menu_mano(con_habilidad_estadio=True) requiere estadio(...)")
+            options.append({"type": int(OptionType.ABILITY),
+                             "area": int(AreaType.STADIUM), "index": 0})
         if with_attachment:
             idx_energy = next((i for i, c in enumerate(self._my_hand)
                           if c["id"] == BASIC_GRASS), None)
