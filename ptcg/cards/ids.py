@@ -444,6 +444,40 @@ MARNIE_ENGINE_BIGGER_PRIZE_STEP = 1000
 # `utils/gate_marnie_the_engine_before_the_line.py` the same tree with one name
 # rebound.
 MARNIE_ENGINE_BEFORE_THE_LINE = True
+# ...AND A LINE AT ZERO ENERGY IS NOT YET THE THING THE RESERVE ANSWERS (user,
+# episode 93683313 step 49, vs Marnie -- WON, and the gust still went to the
+# Morgrem). Turn 7, five prizes to six:
+#
+#     US (seat 0, 5 prizes)                RIVAL (6 prizes)
+#     active Teal Mask Ogerpon ex, 3G      active Marnie's Impidimp 70/70, 0e
+#     bench  Bayleef, Meowth ex,           bench  Snorunt, Snorunt,
+#            **Teal Mask Ogerpon ex, 2G**         **Marnie's Morgrem 100/100, 0e**,
+#                                                 **Munkidori 110/110, 1D**,
+#                                                 Munkidori 110/110, 0e
+#
+# `_marnie_bench_answers_the_grimmsnarl` reads False -- the reserve Ogerpon ex
+# holds two Grass, under its own attack cost, so it prices at zero against a
+# projected 320 -- and with `marnie_engine_first` false the whole engine ladder
+# stands down. The gust took the Morgrem on the plain stage tier (9000) and left
+# the charged Munkidori (6450) on their bench.
+#
+# BUT THE RULE THE RESERVE DEFERS TO WAS NOT PAYING ANYTHING. The bench premise
+# exists so that `ex_preevo_takes_priority` keeps its 19500 when our active is
+# the only body covering a Grimmsnarl ex -- and that rung demands `energy >= 1`,
+# a CHARGED pre-evolution. Here every body of their line is at ZERO: the Stage 2
+# is two steps and an attachment away, nothing on their board is the "two-prize
+# ex attacker we cannot answer" the 19500 is priced for, and the engine was
+# yielding the gust to a premise that had not been made. So the question about
+# our bench is only asked once their line is actually carrying energy.
+#
+# It reads THEIR line and not ours, and it is the same projection the reserve
+# question already uses (`_marnie_grimmsnarl_projection` inherits the energy of
+# the most-charged body of the line): bare projection, no premise, engine first.
+# False restores the previous behaviour -- the reserve question asked on every
+# board -- which is what makes the arms of
+# `utils/census_the_bare_line_asks_nothing_of_the_reserve.py` one tree with one
+# name rebound.
+MARNIE_ENGINE_BARE_LINE_NEEDS_NO_RESERVE = True
 Latias_ex = 184
 Cornerstone_Mask_Ogerpon_ex = 117
 # NON-ex Cornerstone Mask Ogerpon (no ability, attackable): it does not grant
@@ -2278,6 +2312,7 @@ __all__ = [
     'MARNIE_ENGINE_BIGGER_PRIZE',
     'MARNIE_ENGINE_BIGGER_PRIZE_STEP',
     'MARNIE_ENGINE_BEFORE_THE_LINE',
+    'MARNIE_ENGINE_BARE_LINE_NEEDS_NO_RESERVE',
     'Latias_ex',
     'Cornerstone_Mask_Ogerpon_ex',
     'Cornerstone_Mask_Ogerpon',
