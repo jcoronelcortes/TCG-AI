@@ -7,24 +7,27 @@ but the agent worse is not an improvement here.
 
 ## The gates
 
-Four checks before you propose a change. Three of them now run in CI on every
-push and pull request ([.github/workflows/gates.yml](.github/workflows/gates.yml))
-— the suite, the architecture lint and the golden corpus. The fourth, self-play,
-cannot: it takes minutes and answers a different question. All four are cheap,
-and a change is not ready until all four are green.
+Four checks before you propose a change. **CI is switched off on purpose**
+(user, 14 August 2026): the automatic triggers in
+[.github/workflows/gates.yml](.github/workflows/gates.yml) are commented out,
+so pushing runs NOTHING on GitHub — the jobs still exist and can be launched
+by hand from the Actions tab, and turning CI back on is four uncommented
+lines in that file. Until then every gate runs locally, and a change is not
+ready until all four are green.
 
 ```bash
-python -m pytest -q                      # 2865 tests, ~25 s
+python -m pytest -q                      # 3000+ tests, ~40 s
 python tests/golden_corpus.py            # replays the frozen games, ~0.5 s
-python utils/lint_architecture.py        # R1-R11: Kaggle safety, the instruments, the scorers
+python utils/lint_architecture.py        # R1-R12: Kaggle safety, the instruments, the scorers
 python -m pytest -q tests/test_submission.py   # loads main.py the way the container does
 ```
 
-CI runs two more jobs beyond those: a **coverage ratchet** that fails when a
-module loses the watch it had (`utils/gate_coverage.py --check`), and a
-**mutation gate** on pull requests that mutates only the lines the diff adds and
-asks whether any test goes red (`utils/gate_mutation.py --changed <base>`). The
-mutation job is `continue-on-error` on purpose — it reports before it blocks.
+The workflow defines two more jobs (hand-launched only, while CI stays off):
+a **coverage ratchet** that fails when a module loses the watch it had
+(`utils/gate_coverage.py --check`), and a **mutation gate** that mutates only
+the lines a diff adds and asks whether any test goes red
+(`utils/gate_mutation.py --changed <base>`). The mutation job is
+`continue-on-error` on purpose — it reports before it blocks.
 
 What each one is actually for:
 
