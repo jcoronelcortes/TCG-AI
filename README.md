@@ -72,6 +72,47 @@ container where nothing gets installed.
 | `docs/` | The documentation. |
 | `log/`, `log_analisys/`, `records/` | Local, throwaway game data. Git-ignored; the folders are kept, the content is not. |
 
+## How this agent is developed
+
+Every rule in here came from a game that was lost. The method is a single loop,
+run one board at a time, and the discipline around it is the reason the rules
+can be trusted:
+
+```text
+FIND  →  DESCRIBE  →  REPRODUCE  →  DIAGNOSE  →  DESIGN  →  PIN  →  MEASURE  →  DECIDE
+```
+
+Four things about it are worth knowing before reading any number in this
+repository:
+
+- **The discovery channel is a person reading a lost game.** Measured on 12
+  August 2026: all thirteen defects fixed that day came from someone reading the
+  JSON of a defeat. Zero came from the test suite, the frozen corpus, the
+  oracles or self-play — those are **regression** nets, and they answer "did
+  this change what we already knew", never "what is wrong that we do not know
+  yet".
+- **The winrate cannot be the referee.** Against the reference bot the agent
+  wins about nineteen games in twenty however it spends a turn, so a rule that
+  moves one decision in 3 685 is invisible at any affordable sample size. The
+  verdict comes instead from three cheaper, sharper places: a **census** (does
+  this board even happen?), the **corpus** (which historical decisions did it
+  flip?), and the **rules oracle** (was it the better play, rolled out to the
+  end?).
+- **Neutral gets reverted** — unless a census proves the population is real and
+  the oracle grades it positive over that board's own noise floor, in which case
+  it ships **marked NEUTRAL** so a later session can revisit it instead of
+  mistaking it for a measured win.
+- **No detector reports a number until it has proved, in the same run, that it
+  can catch a planted defect and stay quiet without one.** Five detectors in
+  this repository have reported their own bugs as defects of the agent, and each
+  time the output looked exactly like a finding.
+
+➡️ **[The method](docs/the-method.md)** is the whole process written out: the
+anatomy of a board write-up, how a decision is reproduced, a taxonomy of the
+causes that recur, the finite menu of shapes a fix can take, the measurement
+ladder cheapest-first, and what has to be rebuilt to run the same process on a
+different deck.
+
 ## Documentation
 
 **Start at [docs/README.md](docs/README.md).**
@@ -81,26 +122,9 @@ container where nothing gets installed.
 - [Strategy](docs/strategy.md) · [Matchups](docs/matchups.md) — what the agent knows about playing well
 - [Code map](docs/code-map.md) — where everything lives
 - [Improving the agent](docs/improving-the-agent.md) — how a change is measured before it is kept
+- [The method](docs/the-method.md) — the whole development process end to end, written to be reproduced on any deck
 - [The instruments](docs/instruments.md) — the measuring tools, and the rule that keeps their numbers honest
 - [Tools](docs/tools.md) · [Testing](docs/testing.md) · [Debugging a decision](docs/debugging.md)
-
-## Current results
-
-Against the **87 real leaderboard decks** in `deck/real_opponents/`, 400 games
-each, weighted by how often each list actually appears:
-
-| | |
-| --- | --- |
-| Expected ladder winrate (weighted) | **94.0%**, over 99.5% of the meta |
-| Unweighted mean | 91.4% |
-| Prize differential (weighted) | **+3.853** per game |
-| Forfeits | 1 in 34 800 games |
-| Weakest matchup | `crustle_wall_5`, 69.8% |
-
-Measured 10–11 August 2026 (`utils/matchup_matrix.py --games 400 --weights`).
-One bound applies to every figure in this repository: the reference bot takes
-the first turn, so these numbers describe the **going-second** half of the game.
-Details, the per-archetype table and that bound in [Matchups](docs/matchups.md).
 
 ## Contributing and licence
 
