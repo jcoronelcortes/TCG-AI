@@ -909,6 +909,17 @@ stadium, then evolutions and development, then searching, then ordinary energy,
 then the rest. Ordering never overrides a veto — it only sorts plays that were
 already worth making.
 
+**And a play the scorer never learned is not "worth making" by default.** The
+ABILITY scorer dispatches by card id and gives everything it does not name a
+generic 29000 — the band of a real play. Stadiums are **shared**, so the
+simulator offers us the ability of *their* stadium too, and each of those landed
+on that fallback above the Supporter in hand: on one turn it beat playing a
+Lillie's Determination, fired, and its sub-selection buried that same Lillie's in
+our deck. An unscored effect must not be paid for with a card from hand, so the
+stadium slot is vetoed by **area** with the one ability this deck actually
+plans around (Grand Tree) decided above it by id. See [the
+write-up](academy-at-night-a-stadium-ability-nobody-scored-is-not-a-free-play-2026-08-16.md).
+
 **The attack goes last, because it is the play that ends the turn.** When the
 attack and something else are both worth doing, comparing what they are worth
 is the wrong question: the attack does not consume the supporter, the ability or
