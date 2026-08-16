@@ -43,7 +43,8 @@ from ptcg.calc.damage import _attacker_base_damage, _bench_attacker_can_ko, _our
 from ptcg.calc.energy import _grass_attach_unit, _grass_mult, _retreat_grass_units
 from ptcg.calc.opponent import _op_body_is_harmless
 from ptcg.cards.groups import EVO_LINES
-from ptcg.cards.ids import ABILITY_IMMUNE_IDS, Abra, Alakazam_ex, Applin, BOSS_PRIORITY_CRUSTLE_GUST, Basic_Grass_Energy, Bayleef, Boss_Orders, Chikorita, Crustle_Fighting, Crustle_Grass, DUNSPARCE_IDS, Dawn, Dipplin, Drednaw, Dusclops, Duskull, Dwebble_Fighting, Dwebble_Grass, EX_IMMUNE_IDS, EX_PREEVO_IDS, Fezandipiti_ex, Froslass, GUST_TRAP_IDS, HIGH_PRIORITY_BENCH_TARGETS, Hydrapple_ex, KEY_BENCH_ATTACKER_IDS, Kadabra, Kirlia, LANA_PLAY_BASE_RECUPERABLE, LANA_PLAY_NO_DEMAND, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Munkidori, NONEX_FINAL_PREEVO_IDS, OUR_ABILITY_IDS, OUR_EX_IDS, Pinsir, RETREAT_COST, Ralts, Slowpoke, THREAT_PREEVO_IDS, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Zorua_N
+from ptcg.cards.groups import OUR_TERA_IDS
+from ptcg.cards.ids import ABILITY_IMMUNE_IDS, TERA_IMMUNE_IDS, Abra, Alakazam_ex, Applin, BOSS_PRIORITY_CRUSTLE_GUST, Basic_Grass_Energy, Bayleef, Boss_Orders, Chikorita, Crustle_Fighting, Crustle_Grass, DUNSPARCE_IDS, Dawn, Dipplin, Drednaw, Dusclops, Duskull, Dwebble_Fighting, Dwebble_Grass, EX_IMMUNE_IDS, EX_PREEVO_IDS, Fezandipiti_ex, Froslass, GUST_TRAP_IDS, HIGH_PRIORITY_BENCH_TARGETS, Hydrapple_ex, KEY_BENCH_ATTACKER_IDS, Kadabra, Kirlia, LANA_PLAY_BASE_RECUPERABLE, LANA_PLAY_NO_DEMAND, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Munkidori, NONEX_FINAL_PREEVO_IDS, OUR_ABILITY_IDS, OUR_EX_IDS, Pinsir, RETREAT_COST, Ralts, Slowpoke, THREAT_PREEVO_IDS, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Zorua_N
 from ptcg.cards.lines import _pokemon_injugable, _preevo_of_ex_line, _is_more_evolved_than
 from ptcg.cards.tables import card_table
 from ptcg.decision.boss_orders import _gust_relay_seat_on_their_bench, _gust_relieves_the_attacker
@@ -1021,6 +1022,13 @@ def evaluate_supporters(tc):
                     _eff_dmg = 0
 
                 if _op_bp.id in ABILITY_IMMUNE_IDS and _atk_p.id in OUR_ABILITY_IDS:
+                    _eff_dmg = 0
+
+                # Sparkling Scales (Milotic ex) prices the GUST too: buying a
+                # Milotic ex out of their bench with a Boss's Orders while our
+                # only loaded attacker is the Teal Mask Ogerpon ex spends the
+                # Supporter on a target we cannot touch.
+                if _op_bp.id in TERA_IMMUNE_IDS and _atk_p.id in OUR_TERA_IDS:
                     _eff_dmg = 0
 
                 if _op_bp.id == Drednaw and _eff_dmg >= 200:

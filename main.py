@@ -4732,6 +4732,9 @@ def agent(obs_dict: dict) -> list[int]:
     op_has_ex_immune_active = False
     op_has_ex_immune_bench = False
     op_has_ability_immune_active = False
+    # Milotic ex's Sparkling Scales in the ACTIVE spot: our Teal Mask Ogerpon ex
+    # does zero to it and every other body of ours hits it for full.
+    op_has_tera_immune_active = False
     op_has_sturdy_crustle = False
     op_has_dwebble_bench = False
     op_has_crustle_bench = False
@@ -4785,6 +4788,8 @@ def agent(obs_dict: dict) -> list[int]:
             op_has_ex_immune_active = True
         if op_active_id in ABILITY_IMMUNE_IDS:
             op_has_ability_immune_active = True
+        if op_active_id in TERA_IMMUNE_IDS:
+            op_has_tera_immune_active = True
         if op_active_id in (Cornerstone_Mask_Ogerpon_ex,
                             Cornerstone_Mask_Ogerpon):
             AGENT_STATE.op_is_cornerstone_deck = True
@@ -5805,6 +5810,16 @@ def agent(obs_dict: dict) -> list[int]:
                         if op_pokemon.id in ABILITY_IMMUNE_IDS and my_has_ability:
                             damage = 0
 
+                        # Milotic ex "Sparkling Scales": immune to our TERA, and
+                        # our Tera is the Teal Mask Ogerpon ex the deck runs
+                        # four of. Without this line the ATTACK menu prices
+                        # Myriad Leaf Shower at its full number against a body
+                        # that takes zero from it, and the turn goes into the
+                        # swing instead of into the retreat.
+                        if (op_pokemon.id in TERA_IMMUNE_IDS
+                                and my_pokemon.id in OUR_TERA_IDS):
+                            damage = 0
+
                         # Farigiraf ex "Armor Tail" (P1.6): immune to our
                         # BASIC ex; only Hydrapple ex and the non-ex damage it.
                         if (op_pokemon.id == Farigiraf_ex
@@ -5866,6 +5881,9 @@ def agent(obs_dict: dict) -> list[int]:
                             score = SCORE_USELESS_ATTACK
                         elif (damage <= 0 and op_pokemon.id == Farigiraf_ex
                                 and my_pokemon.id in OUR_BASIC_EX_IDS):
+                            score = SCORE_USELESS_ATTACK
+                        elif (damage <= 0 and op_pokemon.id in TERA_IMMUNE_IDS
+                                and my_pokemon.id in OUR_TERA_IDS):
                             score = SCORE_USELESS_ATTACK
                         elif damage <= 0 and neutralization_zone_active and my_is_ex:
                             score = SCORE_USELESS_ATTACK
@@ -9237,8 +9255,20 @@ def agent(obs_dict: dict) -> list[int]:
     # first has to be charged up to its retreat cost. `_ex_stuck_promo_ready` =
     # our active is blocked by the wall AND on the bench there is an attacker that is NOT
     # blocked and is READY to hit the wall this turn.
+    #
+    # THE THIRD QUESTION A WALL ASKS ABOUT THE ATTACKER IS THE TERA (user,
+    # episode 93490495 vs Milotic ex, and the first two questions are the two
+    # lines above). Sparkling Scales reads the attacker's Tera and nothing else, so it
+    # blocks exactly ONE of our bodies -- the Teal Mask Ogerpon ex -- and lets
+    # the other six through, including the two ex the Crustle reading would have
+    # written off. That is why it enters as its own term in all three sentences
+    # below (`_op_wall_active`, `_dmg_vs_wall`, `_active_blocked_by_wall`)
+    # instead of widening `op_has_ex_immune_active`: swapping our ex out is the
+    # answer to Crustle, and here it is the answer to nothing -- the answer is
+    # swapping our TERA out.
     _op_wall_active = None
-    if op_has_ex_immune_active or op_has_ability_immune_active:
+    if (op_has_ex_immune_active or op_has_ability_immune_active
+            or op_has_tera_immune_active):
         _op_wall_active = _active_of(op_state)
 
     def _dmg_vs_wall(_p):
@@ -9249,6 +9279,8 @@ def agent(obs_dict: dict) -> list[int]:
         if op_has_ex_immune_active and _p.id in OUR_EX_IDS:
             return 0
         if op_has_ability_immune_active and _p.id in OUR_ABILITY_IDS:
+            return 0
+        if op_has_tera_immune_active and _p.id in OUR_TERA_IDS:
             return 0
         _e = len(_p.energies)
         _eff = _e * _grass_mult()
@@ -9265,7 +9297,8 @@ def agent(obs_dict: dict) -> list[int]:
     _active_blocked_by_wall = (
         _op_wall_active is not None and _my_active_pk is not None
         and ((op_has_ex_immune_active and _my_active_pk.id in OUR_EX_IDS)
-             or (op_has_ability_immune_active and _my_active_pk.id in OUR_ABILITY_IDS)))
+             or (op_has_ability_immune_active and _my_active_pk.id in OUR_ABILITY_IDS)
+             or (op_has_tera_immune_active and _my_active_pk.id in OUR_TERA_IDS)))
     _wall_bench_attacker_ready = any(
         _dmg_vs_wall(_bp) > 0 for _bp in (my_state.bench or []))
 
@@ -9380,6 +9413,8 @@ def agent(obs_dict: dict) -> list[int]:
                 if op_has_ex_immune_active and _wkp_bp.id in OUR_EX_IDS:
                     continue  # the wall makes it immune: 0 damage
                 if op_has_ability_immune_active and _wkp_bp.id in OUR_ABILITY_IDS:
+                    continue
+                if op_has_tera_immune_active and _wkp_bp.id in OUR_TERA_IDS:
                     continue
                 _wkp_e = len(_wkp_bp.energies)
                 _wkp_base = _attacker_base_damage(

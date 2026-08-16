@@ -795,6 +795,42 @@ CRUSTLE_LINE_IDS = {Crustle_Grass, Crustle_Fighting,
 
 ABILITY_IMMUNE_IDS = {Cornerstone_Mask_Ogerpon_ex}
 
+# THE WALL THAT READS THE ATTACKER'S TERA. It is the THIRD QUESTION a wall
+# can ask about the attacker -- after "is it an ex" (`EX_IMMUNE_IDS`) and
+# "does it have an Ability" (`ABILITY_IMMUNE_IDS`) -- and the sixth shape of
+# wall the agent knows (docs/strategy.md 12).
+# Milotic ex (207) prints *Sparkling Scales*: "Prevent all damage from
+# and effects of attacks from your opponent's TERA Pokemon done to this
+# Pokemon."
+#
+# What makes it a wall for THIS deck is a coincidence of one card: Teal Mask
+# Ogerpon ex is our ONLY Tera (`OUR_TERA_IDS`, and the deck runs four of them),
+# so a Milotic ex in the active spot switches off the body the whole deck is
+# built to charge -- and leaves Dipplin, Meganium, Bayleef, Hydrapple ex, Tapu
+# Bulu, Meowth ex and Fezandipiti ex untouched. It is NOT an anti-ex wall: our
+# other ex hit it for full. The attacker property it reads is the Tera, nothing
+# else.
+#
+# The record it was written from (user, episode 93490495, `registro_009` step
+# 74, game WON): our Tapu Bulu knocked their Milotic ex down to 50 HP and died
+# to its own Wood Hammer recoil. The forced promotion offered a Dipplin at 2
+# effective energy -- Do the Wave, 20 x 4 benched = 80, lethal on the spot --
+# and the agent brought up a Teal Mask Ogerpon ex with 4 energy because
+# `_our_effective_damage` read Myriad Leaf Shower at 150 against a body that
+# takes ZERO from it. The prize was there and the promotion could not see it.
+#
+# WHY IT IS ITS OWN TABLE and not a line in `EX_IMMUNE_IDS`: those two tables
+# are read as "the attacker is an ex" and "the attacker has an Ability", and
+# both answers are the WRONG one here. Hydrapple ex is an ex and damages it;
+# Dipplin has an Ability and damages it. Only the Tera flag decides.
+#
+# `utils/op_immunity_census.py` now carries a fourth claim for this shape, and
+# an `--all-cards` sweep, which is what will find the next card that prints it:
+# Milotic ex was in 0 of the 408 opposing lists the corpus held before this game
+# was harvested, and the user still met it on the ladder.
+Milotic_ex = 207
+TERA_IMMUNE_IDS = {Milotic_ex}
+
 # THE WALL THEY PLAY OUT OF THEIR HAND, FOR ONE TURN, ONTO ONE BODY.
 # Acerola's Mischief (1228): "You can use this card only if your opponent has 2
 # or fewer Prize cards remaining. Choose 1 of your Pokemon in play. During your
@@ -2197,6 +2233,8 @@ __all__ = [
     'EX_IMMUNE_IDS',
     'CRUSTLE_LINE_IDS',
     'ABILITY_IMMUNE_IDS',
+    'Milotic_ex',
+    'TERA_IMMUNE_IDS',
     'OUR_ABILITY_IDS',
     'ACTIVE_SEAT_GRASS_CHARGER_IDS',
     'GUST_TRAP_IDS',
