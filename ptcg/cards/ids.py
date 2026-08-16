@@ -216,6 +216,25 @@ Festival_Grounds = 1245
 # Vitality never coexist: Forest does NOT lift the "came down this turn" veto
 # here.
 Grand_Tree = 1249
+# Academy at Night (SFA 54): "Once during EACH player's turn, that player may
+# put a card from their hand on top of their deck." Like Grand Tree it is a
+# SHARED stadium, so the simulator offers US its ability whenever the OPPONENT
+# has it on the field -- and that offer is a trap for this deck: our hand is
+# our whole turn, and the ability's only effect is to REMOVE a card from it.
+#
+# WE NEVER USE IT (user, `records/registro_007_pasos_098_hasta_105.json` step
+# 101, turn 7 vs Slowking, LOST). The menu was {PLAY Lillie's Determination,
+# ability of the stadium, attack, end}: the Supporter that refills the hand and
+# fixes the bench was in hand with the Supporter still unplayed, and the
+# unmodelled stadium ability took the generic 29000 of the ABILITY fallback --
+# above the Supporter -- fired, and the sub-selection then fed it that very
+# Lillie's. The turn's one real play was buried in the deck by our own hand.
+#
+# `Academy_at_Night` is not read by any rule on purpose: the veto below is by
+# AREA (any stadium ability that is not Grand Tree), so an unmodelled stadium
+# printed tomorrow cannot repeat this through the same fallback. The constant
+# exists so the case has a name in the tests.
+Academy_at_Night = 1248
 # Maximum Belt (Ace Spec): the opponent's tool that adds +50 damage against our
 # active ex Pokemon (before weakness). Modelled in _op_best_damage_vs and
 # _op_active_attack_damage_to.
@@ -2271,6 +2290,7 @@ __all__ = [
     'Full_Metal_Lab',
     'Festival_Grounds',
     'Grand_Tree',
+    'Academy_at_Night',
     'Maximum_Belt',
     'Brave_Bangle',
     'Basic_Grass_Energy',

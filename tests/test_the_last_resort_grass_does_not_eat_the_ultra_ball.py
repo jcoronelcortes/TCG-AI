@@ -18,6 +18,15 @@ handed out:
     [5] stadium ability     score 29000   tier  0
     [6] attack              score  1100   tier  0
 
+That 29000 is now a VETO, and the note belongs here because this menu is where
+the number was first written down. The stadium was their Spikemuth Gym --
+"search your deck for a Marnie's Pokemon" -- and this deck has none: firing it
+shuffles our deck and does nothing else. It scored 29000 for the same reason
+Academy at Night did (see `tests/test_their_academy_at_night_does_not_eat_our_supporter.py`):
+the ABILITY scorer priced every stadium it had never been taught at the band of
+a real play. The ORDER argument below is unchanged -- the Ultra Ball at 11900
+was always the play the tier was burying.
+
 Twenty. `energy_score` had already answered out loud: `SCORE_CHARGE_DOOMED` is
 the ceiling it puts on a body the opponent can cash in before our next turn, and
 its own comment reads "if there is nothing better left, the energy still lands
@@ -147,9 +156,12 @@ def test_the_attachment_is_priced_in_the_last_resort_band():
     assert 0 < scores[attach[0]] < SCORE_CHARGE_DOOMED + 1, (
         "`energy_score` caps a doomed body at SCORE_CHARGE_DOOMED (20) -- "
         f"it scored {scores[attach[0]]}")
-    assert max(scores) > 1000 * scores[attach[0]], (
-        "and the same menu holds a play the same agent priced three orders of "
-        "magnitude higher")
+    ultra = next(i for i, o in enumerate(obs["select"]["option"])
+                 if o.get("type") == int(m.OptionType.PLAY)
+                 and _hand_ids(obs)[o["index"]] == ULTRA_BALL)
+    assert scores[ultra] == max(scores) > 100 * scores[attach[0]], (
+        "and the same menu holds a play the same agent priced two orders of "
+        "magnitude higher: the Ultra Ball")
 
 
 def _scores_of(obs):
@@ -187,7 +199,7 @@ def test_the_last_resort_grass_does_not_take_the_turns_order():
     opt = obs["select"]["option"][choice[0]]
     assert opt.get("type") != int(m.OptionType.ATTACH), (
         "an attachment its own scorer priced at 20 cannot outrank an 11900 "
-        "Ultra Ball and a 29000 ability by ORDER alone")
+        "Ultra Ball by ORDER alone")
 
 
 def test_the_ultra_ball_survives_the_menu_that_used_to_eat_it():

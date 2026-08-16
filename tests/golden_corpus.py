@@ -140,6 +140,17 @@ def describe_option(m, obs, idx):
         if t == 10:  # ABILITY
             if o.get("area") == 4:
                 return f"ABILITY {_name(m, me['active'][0]['id'])}"
+            # THE STADIUM SLOT IS NOT A BENCH SEAT, and this label used to say it
+            # was: an ABILITY over area 7 fell through to `me['bench'][index]`
+            # and came out named after whatever body sat in that seat. That is
+            # how eleven decisions to fire the OPPONENT'S Academy at Night --
+            # every one of them "put a card from OUR hand on top of our deck" --
+            # sat in the snapshot for weeks reading `ABILITY Hydrapple ex`,
+            # `ABILITY Meowth ex`, `ABILITY Latias ex`. A corpus is a diagnostic:
+            # a wrong name here does not flip a decision, it hides one.
+            if o.get("area") == 7:
+                stadium = obs["current"].get("stadium") or []
+                return f"ABILITY {_name(m, stadium[o['index']]['id'])}"
             return f"ABILITY {_name(m, me['bench'][o['index']]['id'])}"
         if t == 13:
             return f"ATTACK id{o.get('attackId')}"

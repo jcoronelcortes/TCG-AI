@@ -849,6 +849,30 @@ def score_play(tc, o, score):
                 score = 30000
             elif card.id == 1267:
                 score = 1
+            elif o.area == AreaType.STADIUM:
+                # A STADIUM ABILITY WE DO NOT MODEL IS NOT A FREE PLAY (user,
+                # `records/registro_007_pasos_098_hasta_105.json` step 101, turn
+                # 7 vs Slowking, LOST). Stadiums are SHARED: the simulator
+                # offers us the ability of whatever stadium is on the field,
+                # including the opponent's, and every one of those options
+                # landed here on the generic 29000 of the fallback -- the band
+                # of a real play, above the Supporter in hand.
+                #
+                # That turn the field had their Academy at Night ("put a card
+                # from your hand on top of your deck") and our hand was two
+                # cards, one of them the Lillie's Determination that refills the
+                # hand and fixes the bench, with the Supporter still unplayed.
+                # The 29000 beat playing it, the ability fired, and the
+                # sub-selection put the Lillie's back into the deck. The only
+                # play of the turn was spent deleting itself.
+                #
+                # The veto is by AREA and not by card id on purpose: the ONE
+                # stadium ability this deck wants is Grand Tree, and it is
+                # decided above by id with a plan behind it (`_gt_plan`).
+                # Anything else on the stadium slot -- theirs today, a card
+                # printed tomorrow -- is an effect nobody scored, and an
+                # unscored effect must not be paid for with a card from hand.
+                score = SCORE_VETO
             else:
                 score = 29000
         return score
