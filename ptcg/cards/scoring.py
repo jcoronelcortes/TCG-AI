@@ -164,6 +164,36 @@ PROMO_KO_FRONT = 1200
 PROMO_KO_ROTATION = 1800
 
 
+# THE SEAT COSTS THE COVER IT LEAVES BEHIND (user, pending written 12 August
+# 2026 from episode 92355371 step 62 vs Festival Lead, LOST). The Tera of a
+# benched Teal Mask Ogerpon ex prevents ALL damage from attacks while it is on
+# the BENCH -- `_projected_incoming` returns 0 for it there -- so promoting it
+# does two things at once that no rung was charging for: it gives up an
+# untouchable body, and it stands TWO prizes in front of an engine that spreads
+# knockouts. In the record it came up, ate 120 and sat at 90 of 210, where the
+# next Do the Wave took it and the two prizes with it.
+#
+# A PRICE, NOT A VETO, and deliberately small. The body that KNOCKS OUT still
+# goes first (+20000), a body that dies anyway still yields to a survivor
+# (-6000) and the prize band still speaks when nobody endures (-1500 each): all
+# three are measured rules written from their own lost games, and 500 cannot
+# reach any of them. What it does reach is the band where the only argument for
+# the ex is that it has the most HP -- on the record's board the Ogerpon scored
+# 334 against the Applin's -78, and 412 is the whole distance between "the
+# biggest body" and "the cheapest one".
+#
+# It is charged ONLY on the FORCED promotion, which is where the cover is real:
+# on a voluntary retreat we are choosing to spend the turn moving, and the body
+# that leaves the bench is being asked for something it can only do in front.
+PROMO_TERA_COVER_PRICE = 500
+
+
+# A named switch rather than an inline condition, so a census, a gate and the
+# rules oracle can each measure this price as the ONLY difference between two
+# arms.
+PROMOTE_TERA_PAYS_FOR_ITS_COVER = True
+
+
 # MATCH POINT: the opponent only needs to knock this body out to take the last
 # prize. That is not a bad trade, it is losing the game -> veto, not a penalty.
 # It goes BELOW SCORE_NEVER (-10000) on purpose: other promotion vetoes use that
@@ -238,6 +268,8 @@ __all__ = [
     'PROMO_KO_ROTATION',
     'PROMO_LAST_STAND',
     'PROMO_MATCH_POINT_VETO',
+    'PROMO_TERA_COVER_PRICE',
+    'PROMOTE_TERA_PAYS_FOR_ITS_COVER',
     'PROMO_PRIZE_PENALTY',
     'OPENING_SAC_PROMOTE_TOP',
     'OPENING_SAC_PROMOTE_STEP',
