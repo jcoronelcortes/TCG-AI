@@ -251,6 +251,15 @@ class AgentState:
         # forgotten the turn the Staryu retreats to the bench is a matchup we
         # would re-learn one KO too late.
         self.op_is_starmie_deck = False
+        # The Marnie's Grimmsnarl ex line. STICKY, for the same reason as the
+        # three above and one of its own: the rule that reads it
+        # (`marnie_the_engine_before_the_line` in ptcg/decision/boss_orders.py)
+        # reorders the gust AWAY from the line that names the deck and TOWARDS
+        # the Munkidori/Froslass engine, so it has to stay on precisely on the
+        # turns when no Marnie's body happens to be in sight. main.py already
+        # infers the archetype from their DISCARD as well as from the board;
+        # this only keeps the answer once it has been reached.
+        self.op_is_marnie_deck = False
         # Per-turn flags (P0.2): prize denial active on the OPPONENT's field.
         # They are refreshed at the start of agent() together with meganium_in_play.
         self._op_prize_denial_pecharunt = False   # Pecharunt ex (141) on the opposing field

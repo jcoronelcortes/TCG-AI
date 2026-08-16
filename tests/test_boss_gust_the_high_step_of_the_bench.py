@@ -64,6 +64,22 @@ list -- pinned by `test_the_helper_is_a_superset_of_the_curated_list` -- and it 
 three cards across the whole meta: Frillish (jellicent_lock, with its Jellicent ex IN ITS
 OWN DECK), Applin/Dipplin (festival_lead) and Snorunt (marnie).
 
+AMENDED FOR THE MARNIE MATCHUP (user, agosto 2026)
+--------------------------------------------------
+The rule above is right about which body is worth cutting; it was wrong about
+what beats us in THIS matchup. Marnie's Grimmsnarl ex is 320 HP and WEAK TO
+GRASS, so a benched Teal Mask Ogerpon ex on four Grass -- which is exactly what
+this fixture has -- takes it off the board on its own. When that reserve exists,
+the premise of `ex_preevo_takes_priority` ("a two-prize ex attacker we cannot
+answer") is false, and the gust goes to the Munkidori/Froslass engine instead:
+see `ptcg/decision/boss_orders.py::marnie_the_engine_before_the_line` and
+`tests/test_marnie_the_engine_before_the_line.py`.
+
+What that amendment does NOT touch is everything else in this file: the Boss's
+is still PLAYED and not the Dawn, and the KO still pays the same one prize. Only
+the target moved, and only while the reserve is on the bench -- the control
+below strips it and the Morgrem comes back.
+
 That second part is NEUTRAL in winrate and the gate cannot measure it: with 2500
 games per branch, jellicent_lock 94.2% vs 94.9%, festival_lead 99.0% = 99.0% and
 the CONTROL GROUP -- mega_lucario, where both branches execute exactly the
@@ -232,13 +248,42 @@ def test_the_boss_is_played_not_the_dawn():
         "escalon mas arriba y retrasa dos turnos a Marnie's Grimmsnarl ex")
 
 
-def test_the_gust_target_is_the_morgrem():
+def test_the_gust_target_is_the_munkidori_because_the_bench_answers_the_ex():
+    """SUPERSEDED for the Marnie matchup (agosto 2026, ver
+    `tests/test_marnie_the_engine_before_the_line.py`).
+
+    On this same board our bench carries a Teal Mask Ogerpon ex on FOUR Grass,
+    and Marnie's Grimmsnarl ex is weak to Grass: the reserve already answers the
+    Stage 2 the line is building towards. With the premise of
+    `ex_preevo_takes_priority` gone, the gust goes to the ability engine that
+    actually took this game -- the Munkidori -- for the SAME one prize the
+    Morgrem paid.
+
+    The rest of this file is untouched and still measures what it measured: the
+    Boss's is PLAYED and not the Dawn, and the stage/line helpers behind that
+    decision are deck-agnostic. Only WHICH body it drags out moved."""
     o = _menu_of_gust(_obs())
     riv = o["current"]["players"][1 - o["current"]["yourIndex"]]
     chosen = m.agent(o)
+    assert riv["bench"][chosen[0]]["id"] == MUNKIDORI, (
+        "con la respuesta al Grimmsnarl ex ya en banca, el gusteo va al motor "
+        "de habilidades (Munkidori), no a la Fase 1 de la linea")
+
+
+def test_without_the_answer_on_the_bench_the_gust_is_the_morgrem_again():
+    """The CONTROL, and the original rule: strip the reserve and the line rung
+    comes straight back. `ex_preevo_takes_priority` only stands down while some
+    body OTHER than our active covers the Grimmsnarl ex -- with the active as
+    the only answer, cutting the line is still what keeps us alive."""
+    o = _menu_of_gust(_obs())
+    mio = o["current"]["players"][o["current"]["yourIndex"]]
+    for b in mio["bench"]:
+        b["energies"], b["energyCards"] = [], []
+    riv = o["current"]["players"][1 - o["current"]["yourIndex"]]
+    chosen = m.agent(o)
     assert riv["bench"][chosen[0]]["id"] == MORGREM, (
-        "el gusteo va a la Fase 1 energizada, no a las Froslass ni a los "
-        "Munkidori de soporte")
+        "sin reserva que responda al Grimmsnarl ex, el gusteo vuelve a la Fase "
+        "1 energizada de la linea")
 
 
 def test_with_the_stage_1_already_active_the_boss_is_kept():

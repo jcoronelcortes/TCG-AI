@@ -387,6 +387,10 @@ STICKY = [
      "matchup memory: the Staryu announces the deck long before the ex lands"),
     ("op_has_mega_kangaskhan",
      "matchup memory: seen once is known for the rest of the game"),
+    ("op_is_marnie_deck",
+     "matchup memory: the gust ladder it feeds hunts the Munkidori/Froslass "
+     "engine instead of the line, so it must hold on the turns when no "
+     "Marnie's body is in sight"),
     ("op_has_ex_shield",
      "matchup memory: their Acerola's Mischief is a property of the list, and "
      "the decisions that answer it are taken before the next copy comes down"),
