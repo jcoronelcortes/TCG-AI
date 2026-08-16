@@ -1,0 +1,193 @@
+{
+  "_source": "episode 93495939 vs Budew/Dragapult (won), step 22, turn 3. Taken from records/registro_003_pasos_019_hasta_029.json, which is git-ignored transient data and was re-harvested away on 15 Aug 2026; pinned here because the board is the evidence for tests/test_the_seat_the_search_buys_is_evolvable_today.py -- see the note on transient record names in the memory index.",
+  "observation": {
+    "current": {
+      "energyAttached": false,
+      "firstPlayer": 0,
+      "looking": null,
+      "players": [
+        {
+          "active": [
+            {
+              "appearThisTurn": false,
+              "energies": [1, 1],
+              "energyCards": [
+                {"id": 1, "playerIndex": 0, "serial": 61},
+                {"id": 1, "playerIndex": 0, "serial": 54}
+              ],
+              "hp": 200,
+              "id": 96,
+              "maxHp": 210,
+              "playerIndex": 0,
+              "preEvolution": [],
+              "serial": 4,
+              "tools": []
+            }
+          ],
+          "asleep": false,
+          "bench": [
+            {
+              "appearThisTurn": false,
+              "energies": [],
+              "energyCards": [],
+              "hp": 210,
+              "id": 96,
+              "maxHp": 210,
+              "playerIndex": 0,
+              "preEvolution": [],
+              "serial": 3,
+              "tools": []
+            },
+            {
+              "appearThisTurn": false,
+              "energies": [],
+              "energyCards": [],
+              "hp": 210,
+              "id": 96,
+              "maxHp": 210,
+              "playerIndex": 0,
+              "preEvolution": [],
+              "serial": 5,
+              "tools": []
+            }
+          ],
+          "benchMax": 5,
+          "burned": false,
+          "confused": false,
+          "deckCount": 41,
+          "discard": [
+            {"id": 1094, "playerIndex": 0, "serial": 33}
+          ],
+          "hand": [
+            {"id": 1080, "playerIndex": 0, "serial": 40},
+            {"id": 1227, "playerIndex": 0, "serial": 26},
+            {"id": 1197, "playerIndex": 0, "serial": 42},
+            {"id": 93, "playerIndex": 0, "serial": 15},
+            {"id": 150, "playerIndex": 0, "serial": 18},
+            {"id": 1152, "playerIndex": 0, "serial": 44}
+          ],
+          "handCount": 6,
+          "paralyzed": false,
+          "poisoned": false,
+          "prize": [null, null, null, null, null, null]
+        },
+        {
+          "active": [
+            {
+              "appearThisTurn": false,
+              "energies": [],
+              "energyCards": [],
+              "hp": 30,
+              "id": 235,
+              "maxHp": 30,
+              "playerIndex": 1,
+              "preEvolution": [],
+              "serial": 76,
+              "tools": []
+            }
+          ],
+          "asleep": false,
+          "bench": [
+            {
+              "appearThisTurn": false,
+              "energies": [5],
+              "energyCards": [
+                {"id": 5, "playerIndex": 1, "serial": 120}
+              ],
+              "hp": 70,
+              "id": 119,
+              "maxHp": 70,
+              "playerIndex": 1,
+              "preEvolution": [],
+              "serial": 65,
+              "tools": []
+            },
+            {
+              "appearThisTurn": false,
+              "energies": [],
+              "energyCards": [],
+              "hp": 70,
+              "id": 119,
+              "maxHp": 70,
+              "playerIndex": 1,
+              "preEvolution": [],
+              "serial": 66,
+              "tools": []
+            },
+            {
+              "appearThisTurn": false,
+              "energies": [],
+              "energyCards": [],
+              "hp": 70,
+              "id": 119,
+              "maxHp": 70,
+              "playerIndex": 1,
+              "preEvolution": [],
+              "serial": 64,
+              "tools": []
+            },
+            {
+              "appearThisTurn": false,
+              "energies": [],
+              "energyCards": [],
+              "hp": 70,
+              "id": 119,
+              "maxHp": 70,
+              "playerIndex": 1,
+              "preEvolution": [],
+              "serial": 63,
+              "tools": []
+            }
+          ],
+          "benchMax": 5,
+          "burned": false,
+          "confused": false,
+          "deckCount": 39,
+          "discard": [
+            {"id": 1086, "playerIndex": 1, "serial": 83},
+            {"id": 1120, "playerIndex": 1, "serial": 91},
+            {"id": 1227, "playerIndex": 1, "serial": 110}
+          ],
+          "hand": null,
+          "handCount": 6,
+          "paralyzed": false,
+          "poisoned": false,
+          "prize": [null, null, null, null, null, null]
+        }
+      ],
+      "result": -1,
+      "retreated": false,
+      "stadium": [
+        {"id": 1261, "playerIndex": 0, "serial": 48}
+      ],
+      "stadiumPlayed": true,
+      "supporterPlayed": false,
+      "turn": 3,
+      "turnActionCount": 4,
+      "yourIndex": 0
+    },
+    "logs": [
+      {"cardId": 1, "cardIdTarget": 96, "playerIndex": 0, "serial": 54, "serialTarget": 4, "type": 11},
+      {"cardId": 1152, "playerIndex": 0, "serial": 44, "type": 4}
+    ],
+    "remainingOverageTime": 598.9943610000001,
+    "select": {
+      "context": 0,
+      "contextCard": null,
+      "deck": null,
+      "effect": null,
+      "maxCount": 1,
+      "minCount": 1,
+      "option": [
+        {"index": 1, "type": 7},
+        {"index": 2, "type": 7},
+        {"type": 12},
+        {"type": 14}
+      ],
+      "remainDamageCounter": 0,
+      "remainEnergyCost": 0,
+      "type": 0
+    },
+    "step": 22
+  }
+}

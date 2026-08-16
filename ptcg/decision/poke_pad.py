@@ -35,6 +35,10 @@ from ptcg.state.agent_state import AGENT_STATE
 from ptcg.cards.ids import Applin, Bayleef, Chikorita, Dipplin, Meganium
 from ptcg.cards.ids import Applin, Bayleef, Chikorita, DOOMED_SAC_BENCH_ORDER, Dipplin, Hydrapple_ex, Meganium, SCORE_VETO, SETUP_ACTIVE_BASIC_ORDER, Tapu_Bulu
 from ptcg.state.zones import ZONE_DECK
+from ptcg.cards.groups import GRASS_DOUBLER_LINE_IDS
+from ptcg.cards.ids import Forest_of_Vitality
+from ptcg.cards.lines import (_evolution_stage, _line_climb_from_hand,
+                              _line_in_play_from)
 from ptcg.engine.context import DecisionContext
 from ptcg.engine.rules import _Adjustment, _FixedRule, _resolve_with_trace
 
@@ -87,6 +91,73 @@ def _v_pp_t1(c):
     return SCORE_VETO
 
 
+def _pp_forest_this_turn(hand_counts):
+    """Can a body that comes down this turn still evolve this turn?
+
+    `_forest_disponible` word for word -- on the field OR still in hand, the
+    reading `_v_ub_applin_arrancar` already buys the bottom of a line with --
+    but asked of a plain `{card_id: copies}` instead of a context, because the
+    Pad's two halves carry the hand under different names (`hand_counts` on the
+    PLAY context, `hand` on the fetch one). ONE function, both call sites: the
+    alternative is the pair of readings `_ld_supp_comprometido` documents, where
+    two halves of the same rule quietly disagree about the board.
+    """
+    return (AGENT_STATE.forest_in_play
+            or (hand_counts or {}).get(Forest_of_Vitality, 0) >= 1)
+
+
+def _pp_seat_the_hand_completes(c):
+    """The BASIC still in the DECK that the HAND would finish the moment it is
+    benched, as `(steps, basic_id)` -- `(0, None)` when there is none.
+
+    THE SEAT A SEARCH BUYS IS EVOLVABLE TODAY, and this is the only rung of the
+    Pad that says so. Every other "rush" in the package asks for the
+    pre-evolution to be ON THE BOARD already (`c.field.get(Applin, 0) >= 1`),
+    which is the right question for the Ultra Ball's `applin_evolvable` and the
+    wrong one here: with Forest of Vitality out, a Basic bought out of the deck
+    goes down and evolves in the SAME turn, so a hand holding the Stage 1 and
+    the Stage 2 of a line whose Basic is still in the deck is one Pad away from
+    that Stage 2 -- and the Pad, which cannot fetch a Rule Box card, is often
+    the only card in hand that can buy the bottom of an ex line at all.
+
+    `_line_climb_from_hand` does the reading and knows nothing about the turn;
+    the three conditions that make it a play TODAY are asked here:
+
+      * the stadium lifts the "came down this turn" veto
+        (`_pp_forest_this_turn`: on the field, or still in hand);
+      * there is a BENCH SEAT for the Basic to land on;
+      * NOTHING of that line is on the board yet (`_line_in_play_from`) -- with
+        a body already standing, the pieces in hand have a seat without the
+        search and buying a second Basic is development, not the turn. It is
+        the guard `_RULES_BCS_APPLIN.line_from_scratch_rush` writes by hand.
+
+    Deck-agnostic: the candidates come from `_pp_buscables` (what is left in the
+    deck and has no Rule Box) and the chain from the card data, so the Meganium
+    line, the Hydrapple line and a line neither of them is written for all get
+    the same answer. The FIRST turn is excluded by the ladder above it, which is
+    also what the stadium's own text says ("except during their first turn").
+    """
+    if not _pp_forest_this_turn(c.hand_counts) or c.bench_count >= 5:
+        return 0, None
+    best = (0, None)
+    for cid in _pp_buscables(c):
+        if _evolution_stage(cid) != 0:
+            continue
+        if _line_in_play_from(cid, c.field_counts):
+            continue
+        steps, _ = _line_climb_from_hand(cid, c.hand_counts)
+        if steps < 1:
+            continue
+        # Ties go to the line that ends in the Grass doubler, the same order
+        # `rush_seat_the_hand_completes` states on the fetch side. The two
+        # halves have to name the SAME line or the play and the pick disagree.
+        rank = (steps, 1 if cid in GRASS_DOUBLER_LINE_IDS else 0)
+        best_rank = (best[0], 1 if best[1] in GRASS_DOUBLER_LINE_IDS else 0)
+        if rank > best_rank:
+            best = (steps, cid)
+    return best
+
+
 def _pp_evo_value(c):
     """Best evolution enabled THIS turn by a Poke Pad search (0 = none). The
     evolvable snapshot is the start-of-turn one when there is no Forest."""
@@ -114,6 +185,15 @@ def _pp_evo_value(c):
             v = max(v, 950)
             if c.forest_in_play and h.get(Hydrapple_ex, 0) >= 1:
                 v = max(v, 1100)
+    # ...and the same evolution bought from the BOTTOM: the Basic out of the
+    # deck, the rest of the line already in hand. Two steps is a Stage 2 today
+    # and prices with the rung above it; one step is a Stage 1, which is what
+    # the `950` band is for.
+    _seat_steps, _ = _pp_seat_the_hand_completes(c)
+    if _seat_steps >= 2:
+        v = max(v, 1100)
+    elif _seat_steps == 1:
+        v = max(v, 950)
     return v
 
 
@@ -302,6 +382,28 @@ class _CtxPPFetch:
         self.has_evo = has_evo
 
 
+def _pp_fetch_seat_steps(c):
+    """Steps the HAND would climb from THIS candidate the turn it is benched, or
+    0 if it is not that purchase.
+
+    The fetch-side mirror of `_pp_seat_the_hand_completes`, written separately
+    for the reason `_pp_fetch_osac_rank` already documents: the two contexts are
+    different objects -- the PLAY one carries the whole DecisionContext, this one
+    only the candidate and the counts -- and threading a chosen id from one
+    decision into the other is how two halves of one rule end up disagreeing
+    about the board.
+    """
+    if (not _pp_forest_this_turn(c.hand) or c.bench_count >= 5
+            or c.first_turn):
+        return 0
+    if _evolution_stage(c.card_id) != 0:
+        return 0
+    if _line_in_play_from(c.card_id, c.field):
+        return 0
+    steps, _ = _line_climb_from_hand(c.card_id, c.hand)
+    return steps
+
+
 def _pp_fetch_osac_rank(c):
     """Rung of this candidate in the opening-sacrifice order, or None.
 
@@ -411,6 +513,32 @@ _RULES_PP_FETCH = [
                           and c.hand.get(Dipplin, 0) == 0
                           and c.field.get(Applin, 0) >= 1),
                lambda c: 800),
+    # (2b) THE SEAT THE HAND ALREADY FINISHES. Every rung above buys a link for
+    # a body that is already on the board; this one buys the BODY, for links the
+    # hand is already holding, on the turn Forest of Vitality lets it evolve the
+    # moment it lands. Without it the ladder fell through to `fb_applin` (650)
+    # and lost the fetch to `fb_chikorita` (800) -- a lone Basic that starts
+    # nothing this turn beating the Basic that becomes a Stage 2 before the turn
+    # ends. The band sits just under `evo_bayleef_rush` (950), which reaches the
+    # same Stage 2 without spending a bench seat or three plays to do it, and
+    # above every `fb_*` fallback, which reach nothing today.
+    #
+    # THE TIE-BREAK IS STATED, NOT INHERITED FROM THE MENU. Two complete lines
+    # in one hand is not a rare board -- the frozen corpus has one
+    # (`registro_001_alakazam_10_asiento1`, turn 8: Dipplin + Hydrapple ex AND
+    # Bayleef + Meganium in hand, one bench seat, Applin and Chikorita both in
+    # the deck) -- and on a bare `steps` tie the winner would be whichever the
+    # simulator listed first. The line that ends in the GRASS DOUBLER goes
+    # first, which is the order `chikorita_combo_completo` (990) already states
+    # over `applin_combo_completo` (980) one ladder over: Wild Growth pays for
+    # every other body on the board, and the other Stage 2 does not.
+    # `GRASS_DOUBLER_LINE_IDS` is derived, so the deck whose doubler sits on
+    # another line gets the same order without editing this file.
+    _FixedRule("rush_seat_the_hand_completes",
+               lambda c: _pp_fetch_seat_steps(c) >= 1,
+               lambda c: (790 + 70 * _pp_fetch_seat_steps(c)
+                          + (12 if c.card_id in GRASS_DOUBLER_LINE_IDS
+                             else 0))),
     _FixedRule("evo_otro",
                lambda c: c.has_evo,
                lambda c: 10),
@@ -446,6 +574,9 @@ __all__ = [
     '_pp_budew_dump',
     '_v_pp_t1',
     '_pp_evo_value',
+    '_pp_forest_this_turn',
+    '_pp_seat_the_hand_completes',
+    '_pp_fetch_seat_steps',
     '_pp_evolution_pending_search',
     '_pp_opening_sac_target',
     '_pp_fetch_osac_rank',
