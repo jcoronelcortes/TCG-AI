@@ -58,6 +58,35 @@ Requires Python 3.10+ (CI runs 3.10 and 3.12). **The agent itself has no
 third-party dependencies**, and that is deliberate: it runs in a competition
 container where nothing gets installed.
 
+## Architecture
+
+**[Diagrams: the three views of this repository →](images/architecture.md)**
+
+Three ideas explain the shape of everything here.
+
+**The agent is one function scoring a menu.** There is no game loop of our own
+and no search tree in the shipped code: the simulator hands over the state plus
+the options that are legal right now, and `agent()` returns indexes into that
+list. So every strategic idea in the project ends up in the same form — a score
+attached to an option — and the turn is decided in one pass: what the prize
+count says the turn is FOR, then a score per option, then the final choice with
+its ordering vetoes lifted or confirmed.
+
+**`ptcg/` is split by what a module is allowed to touch, not by feature.**
+Bottom to top: `cards/` is data, `calc/` reads the board and writes nothing,
+`engine/` is the rule machinery, `state/` is the only thing that survives
+between turns, `decision/` is one module per card that has real strategy, and
+`turn/` is the phases of the turn itself. Dependencies point downward only, and
+an architecture linter enforces it rather than trusting anyone to remember.
+
+**What ships and what measures are kept apart on purpose.** The submission is
+built by walking `main.py`'s imports, so a package the agent does not import
+cannot reach the competition container — which is what lets the rollout
+arbiter, the opponent prior and the seedable local engine live in this
+repository without ever being in the thing we submit. The linter guards that
+direction too (rules R11 and R12): the instrument never touches the thing being
+measured.
+
 ## Where things are
 
 | Path | What it is |
@@ -120,7 +149,8 @@ different deck.
 - [How the agent thinks](docs/how-the-agent-thinks.md) — the decision loop in one page
 - [Our deck and its engines](docs/deck-and-engines.md) — the cards and combos everything is built around
 - [Strategy](docs/strategy.md) · [Matchups](docs/matchups.md) — what the agent knows about playing well
-- [Code map](docs/code-map.md) — where everything lives
+- [Code map](docs/code-map.md) — where everything lives, in prose
+- [Architecture diagrams](images/architecture.md) — the same map drawn: the layers, one decision at runtime, and how a change earns its place
 - [Improving the agent](docs/improving-the-agent.md) — how a change is measured before it is kept
 - [The method](docs/the-method.md) — the whole development process end to end, written to be reproduced on any deck
 - [The instruments](docs/instruments.md) — the measuring tools, and the rule that keeps their numbers honest
