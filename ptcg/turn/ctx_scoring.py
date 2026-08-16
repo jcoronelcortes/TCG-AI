@@ -48,6 +48,7 @@ class ScoringCtx:
     _active_snipe_ko_now: Any = None
     _active_snipe_ko_prizes: Any = None
     _alakazam_pivot_1prize: Any = None
+    _alakazam_pivot_promote: Any = None
     _alk_ld_engine_alive: Any = None
     _ara_act: Any = None
     _atk: Any = None

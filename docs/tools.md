@@ -872,6 +872,32 @@ Crustle in them it reports **0.00**, which is the half that shows a matchup rule
 staying inside its matchup. The [write-up](crustle-meganium-is-an-attacker-not-the-doubler-2026-08-15.md)
 has the rest.
 
+### `census_the_pivot_promotes_the_body_it_pays_for.py` — la exposición de las dos mitades del pivote vs Alakazam
+
+```bash
+python utils/census_the_pivot_promotes_the_body_it_pays_for.py
+python utils/census_the_pivot_promotes_the_body_it_pays_for.py \
+    --only THE_PIVOT_PROMOTES_THE_BODY_IT_PAYS_FOR
+python utils/census_the_pivot_promotes_the_body_it_pays_for.py --outside --games 60
+```
+
+Contesta cada decisión nuestra de los replays reales **dos veces** — los
+interruptores encendidos y apagados, en dos copias del árbol vía
+`selfplay.load_agent` — y cuenta las que cambian. Sobre las **32** partidas
+contra la línea de Alakazam: **7 decisiones de 2 416** en 6 partidas, de las
+cuales **1** es la segunda mitad (`--only`, que existe justamente porque las dos
+son una frase pero no un mecanismo).
+
+**`--outside` es el que mide la fuga, y `--all-matchups` no**: éste último
+incluye el matchup propio, así que sus números son la regla hablando donde debe.
+Fuera de Alakazam: **0 de 3 940** en 60 partidas.
+
+A esa exposición un winrate **no puede resolver nada** — el mismo caso que el
+gate de «el frente lo toma el cuerpo que puede atacar», que lo dice en su propia
+cabecera: ahí un gate es una comprobación de daño, no la evidencia. La evidencia
+son este censo, los corpus (local 0 flips, congelado 1 revisado) y los once
+tests con sus controles.
+
 ### `gate_meganium_is_an_attacker_not_the_doubler.py` and `oracle_meganium_is_an_attacker.py`
 
 ```bash
