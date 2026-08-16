@@ -120,6 +120,23 @@ This is the body of what used to be one enormous function, split by phase.
 | `finalize.py` | The close of the turn: play-order tiers, last-second rescues, the filed ordering vetoes being lifted or confirmed, and the final choice. |
 | `ctx.py`, `ctx_scoring.py`, `energy_ctx.py`, `supporters_ctx.py` | The context objects that carry the turn's facts between those phases, so each phase reads one snapshot instead of recomputing the board. |
 
+### `ptcg/opponent/` and `ptcg/search/` — the shadow instruments
+
+Added on the night of 16 August 2026 as part of [the search plan](plan-la-busqueda-en-juego-2026-08-15.md),
+and **not part of the agent**. `main.py` never imports either package, so the AST
+packer keeps both out of `submission.tar.gz` — the shipped agent is exactly what
+it was before they existed.
+
+| Module | Purpose |
+| --- | --- |
+| `opponent/prior.py` | A **posterior over the 133 real lists** rather than the archetype flags it replaces: which deck are we actually playing against, given what they have shown. Its census passes the four criteria that were pre-registered before it ran. |
+| `search/arbiter.py` | Rollouts breaking the ties the scorer has no honest opinion about. **Pure control flow** — the rollout machinery is injected — and its most common answer is `None`, *no opinion*: a verdict has to clear **that board's own** noise floor, measured in the same call by a second batch of the same best option, never a tabulated global one. Runs in shadow: its disagreements are recorded and nothing it says changes a played decision. |
+| `search/fast_policy.py` | The policy the rollouts are played out with: stateless, a few lines, strictly better than random. The obvious candidate — `main.agent` — measured **43 ms per rollout and LOST to random**, because it writes to `AGENT_STATE` (a rollout corrupts the belief of the live game that called it) and because the oracle drives **both** seats with the policy it is given. Rule **R12** makes the statelessness structural, enforced by the linter. |
+
+Read them beside [the night write-up](history/night-2026-08-16.md), which carries
+the first numbers: 600 frozen decisions consulted, 160 disagreements, **64
+endorsed by the true-deck grader at +0.60 prizes mean against 36 misses**.
+
 ## Inside `tests/`
 
 Most of `tests/` is one file per lesson learned; those are described in

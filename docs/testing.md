@@ -7,7 +7,7 @@ python -m pytest -q                                  # the whole suite, ~27 s
 python -m pytest -q --cov=main --cov=ptcg --cov-report=term-missing
 ```
 
-The suite is large — **2 865 tests across 257 files** as of 15 August 2026 — and
+The suite is large — **3 271 tests across 287 files** as of 16 August 2026 — and
 fast. It is the first gate for any change. What follows is **what each kind of
 test protects**, because they are not interchangeable.
 
@@ -144,7 +144,7 @@ breaking the real submission:
 
 ## 7. Architecture rules
 
-`tests/test_architecture.py` runs the **eleven** AST rules of
+`tests/test_architecture.py` runs the **twelve** AST rules of
 `utils/lint_architecture.py` with the suite. Like the submission test, they cover
 failures that never show up as a red test.
 
@@ -175,7 +175,8 @@ instrument, but a shape that reads as correct and is not:
 | R9 | A per-option scorer prices an option; it does not write state. Modules under `ptcg/turn/options/` run **once per option**, over a list whose order belongs to the simulator, so anything they write is a function of that order. `we_go_first` was assigned while scoring the first-turn menu and survived as the value of the *last* option priced. |
 | R10 | A field of `TurnPlan` or `AgentState` that nobody outside its module reads. A computed field with no consumer is a question the agent asked and then ignored, and from the outside it reads exactly like a fact in use — `op_wins_after_ko` was computed every turn and read by nobody for two days. Properties resolve back to the fields they touch, and `getattr(x, 'f', d)` counts as a read; without both, the rule accuses four load-bearing fields. Exempt with `# R10: <reason>` in the field's comment block — the reason is required. |
 
-**R11 keeps the instruments away from the submission**:
+**R11–R12 keep the instruments away from the submission, and the rollout side
+away from the live game**:
 
 | | |
 | --- | --- |
