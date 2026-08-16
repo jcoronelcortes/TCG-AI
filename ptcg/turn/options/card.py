@@ -80,6 +80,8 @@ def score_play(tc, o, score):
     _best_supp_in_deck_val = tc._best_supp_in_deck_val
     _boss_gust_immune_active = tc._boss_gust_immune_active
     _gust_finds_an_attacker = tc._gust_finds_an_attacker
+    _ready_attacker_count = tc._ready_attacker_count
+    _active_doomed_real = tc._active_doomed_real
     _bp = tc._bp
     _cap_kept_once = tc._cap_kept_once
     _cf_refill_kept_once = tc._cf_refill_kept_once
@@ -2432,7 +2434,13 @@ def score_play(tc, o, score):
                             # Xerosic floor the play side reads
                             # (`_xr_alakazam_floor`), so it cannot bring a cap
                             # that `alakazam_needs_the_hand_floor` then vetoes.
-                            my_prize=my_prize)
+                            my_prize=my_prize,
+                            # The two halves of the refill engine's own
+                            # reading: the body in front dies next turn and it
+                            # is the only charged one we own. See
+                            # `the_gust_without_a_reason_yields_to_the_second_wave`.
+                            lone_ready_attacker=(_ready_attacker_count <= 1),
+                            active_doomed=bool(_active_doomed_real))
                         score = _resolve_with_trace(
                             "meowth->fetch", _RULES_MEOWTH_FETCH, [],
                             _mf_ctx, default=50)

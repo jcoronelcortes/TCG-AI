@@ -60,7 +60,26 @@ class _CtxMeowthFetch:
                  devel_lillie, alakazam, first_turn=False,
                  lillie_alcanzable=False, gust_over_immune_active=False,
                  recovery_ko=False, hand_supp_val=0,
-                 a_body_can_attack=True, my_prize=6):
+                 a_body_can_attack=True, my_prize=6,
+                 lone_ready_attacker=False, active_doomed=False):
+        # Is the body that attacks TODAY the only charged body we own? It is
+        # `_ready_attacker_count <= 1`, the same count the PLAY side of this very
+        # engine already reads to decide whether benching a Meowth ex for a
+        # refill is worth two prizes (`ptcg/turn/options/play.py`, the 21450 and
+        # 21600 arms). See
+        # `the_gust_without_a_reason_yields_to_the_second_wave`.
+        #
+        # It DEFAULTS TO FALSE, the value that leaves the ladder exactly as it
+        # was: a caller that does not carry the count gets the old behaviour
+        # instead of silently gaining a rule.
+        self.lone_ready_attacker = lone_ready_attacker
+        # Does their attacker KNOCK OUT the body in front next turn? It is
+        # `_active_doomed_real` -- the REAL finisher resolved through
+        # `attack_table` with the board scaling and their bench buffs applied,
+        # not the `active_ko_likely` heuristic -- and it is the OTHER half of the
+        # same reading the PLAY side of this engine makes before spending two
+        # prizes of Meowth ex on a refill. Same default and same reason.
+        self.active_doomed = active_doomed
         # OUR prizes REMAINING. The fetch reads it for one question only -- how
         # big the opposing hand has to be before the Xerosic cap is worth a
         # two-prize body, `_xr_alakazam_floor` -- and it has to read the SAME
@@ -348,6 +367,87 @@ _RULES_MEOWTH_FETCH = [
                lambda c: (c.devel_lillie
                           and c.card_id == Lillie_Determination),
                lambda c: 1250),
+    # A FULL BENCH IS NOT A SECOND ATTACKER (user, 15 August 2026, turn 9 vs a
+    # Marnie's / Froslass board). The Last-Ditch Catch brought a **Boss's
+    # Orders** while the board looked like this:
+    #
+    #     US                                     THEM
+    #     active Teal Mask Ogerpon ex 140/210,   a charged attacker in front,
+    #            CHARGED -- it attacks today     two Froslass on the bench
+    #     bench  Bayleef       (needs Meganium)     dripping 10 a turn onto
+    #            Applin        (needs Dipplin)      every body of ours with an
+    #            Teal Mask Ogerpon ex, ONE {G}      ability
+    #            (of the three it needs)
+    #            Meowth ex, just benched
+    #
+    # Four bodies behind the front and not one of them can attack: two are
+    # waiting for an evolution, the third is a third of the way to its cost. Our
+    # attacker was one hit from being knocked out and there was nothing to take
+    # over -- which is the definition of the board a refill is for.
+    #
+    # TWO PREMISES, AND THE PLAY SIDE ALREADY READS BOTH. This engine decides
+    # twice: `ptcg/turn/options/play.py` decides whether to spend two prizes
+    # benching the Meowth ex for a refill, and this chain decides what the
+    # Last-Ditch then brings. That first half fires on
+    # `_active_doomed_real and _ready_attacker_count <= 1` -- the body in front
+    # dies next turn and it is the only charged one we own -- so the fetch has to
+    # answer the same board with the same reading, or the two halves of one
+    # engine contradict each other. With a healthy active, or with a second
+    # charged body waiting, the ladder is exactly as it was.
+    #
+    # WHAT SAID OTHERWISE WAS A HEAD COUNT. `lillie_development` above is fed by
+    # `_meowth_devel_lillie`, which asks `bodies_in_play <= 3` (four if the hand
+    # is down to two cards). It measures how FULL the bench is, and on this board
+    # it read four bodies and answered "already developed" -- so the refill lost
+    # its 1250, the chain fell through to `supporter_value`, and there the raw
+    # scale prices Boss's Orders 850 against Lillie's Determination 650. The gust
+    # won a comparison the board never asked for.
+    #
+    # This is the same blindness `boss_beats_the_untouchable_active` documents
+    # from the other side, and the same one `_a_body_can_attack_this_turn` was
+    # written for: LISTO IS NOT UTILIZABLE. A body on the bench is a card, not an
+    # attack. What the refill competes with is the SECOND WAVE, so the second
+    # wave is what has to be counted -- `_ready_attacker_count`, the number of
+    # bodies that can pay an attack cost right now. At `<= 1` the only charged
+    # body we own is the one already in front.
+    #
+    # IT TAKES THE GUST OUT, IT DOES NOT CROWN THE REFILL, and the difference is
+    # a control that caught the first version of this rule
+    # (`test_with_the_slot_free_the_dawn_wins_again`, on the board of
+    # registro_005 step 52). Lifting the refill to the development band also beat
+    # the **Dawn**, and with a Forest of Vitality on the field the Dawn is the
+    # candidate that assembles a line and evolves it THE SAME TURN -- it buys the
+    # second attacker more directly than eight cards do. The claim of this
+    # correction is about the GUST, so the gust is what it prices: the rest of
+    # the ladder goes on deciding among the cards that build our own board, and
+    # `_v_meowth_fetch_value` -- which already prices the Dawn's rush by whether
+    # the Forest is really in play -- is left to do it.
+    #
+    # IT NEVER TALKS OVER A GUST THAT HAS A REASON, and that is the whole of its
+    # safety: every reason a Boss's can have returns ABOVE this rung -- the gust
+    # that ENDS the game (`winning_boss` 1300), the one that takes two prizes,
+    # the one that cuts a charged ex line (`boss_deny_evo` 1280), the one that
+    # reaches a bench behind an untouchable active (1270). Reaching here means
+    # the ladder itself found none of them, so what is left is a gust that was
+    # winning on raw value alone (850 against the refill's 650 on this board).
+    #
+    # 40 and not a veto, for the same reason as `copy_already_in_hand` and
+    # `the_slot_is_taken_so_bring_what_survives`: the prompt forces us to pick a
+    # card, so if the gust were the only Supporter left in the deck we would
+    # still have to bring it.
+    #
+    # Deck-agnostic: the premise is a count of OUR OWN charged bodies plus their
+    # attacker's real damage on the body in front, and the card it prices is the
+    # one Supporter that rewrites THEIR board instead of building ours -- the
+    # same reading `finalize.py` makes when it refuses to let a commitment
+    # resurrect a vetoed gust. No opposing archetype is named: the Froslass drip
+    # is why the board mattered, not why the rule fires.
+    _FixedRule("the_gust_without_a_reason_yields_to_the_second_wave",
+               lambda c: (c.lone_ready_attacker
+                          and c.active_doomed
+                          and not c.first_turn
+                          and c.card_id == Boss_Orders),
+               lambda c: min(c.sv, 40)),
     # THE CAP OUTRANKS THE GUST (user, registro_006 step 62 vs Alakazam, LOST).
     # Same board, same turn and the same two cards as the play scorer's
     # `alakazam_priority_over_boss` -- only here they are still in the DECK and

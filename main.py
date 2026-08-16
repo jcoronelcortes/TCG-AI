@@ -3497,7 +3497,8 @@ def _meowth_fetch_prediction(hand_counts, supp_values, hand_size,
                              cards_in_deck, first_turn=False,
                              gust_over_immune_active=False,
                              recovery_ko=False, a_body_can_attack=True,
-                             my_prize=6):
+                             my_prize=6, lone_ready_attacker=False,
+                             active_doomed=False):
     """(id, value) of the Supporter Last-Ditch Catch would bring RIGHT NOW.
 
     It reproduces the REAL fetch (`_RULES_MEOWTH_FETCH`, the same board) over
@@ -3510,6 +3511,10 @@ def _meowth_fetch_prediction(hand_counts, supp_values, hand_size,
     Xerosic hand floor, `_xr_alakazam_floor` -- and it defaults to six, the
     opening board, so a caller that does not know the prize counter is answered
     at the strict end of that floor.
+
+    `lone_ready_attacker` (`_ready_attacker_count <= 1`) and `active_doomed`
+    (`_active_doomed_real`) are carried for `the_gust_without_a_reason_yields_to_the_second_wave`
+    and both default to False, the values that leave the ladder as it was.
     """
     best_id, best_val = None, 0
     _lillie_alcanzable = (cards_in_deck.get(
@@ -3528,7 +3533,8 @@ def _meowth_fetch_prediction(hand_counts, supp_values, hand_size,
             win_via_boss, gust2_via_boss, deny_evo_via_boss, devel_lillie,
             alakazam, first_turn, _lillie_alcanzable,
             gust_over_immune_active, recovery_ko, _hand_supp_val,
-            a_body_can_attack, my_prize)
+            a_body_can_attack, my_prize, lone_ready_attacker,
+            active_doomed)
         _val, _ = _resolve_rules(_RULES_MEOWTH_FETCH, [], _ctx, 50)
         if _val > best_val:
             best_id, best_val = _sid, _val
@@ -10025,7 +10031,11 @@ def agent(obs_dict: dict) -> list[int]:
         _meowth_devel_lillie, op_is_alakazam_deck,
         AGENT_STATE.ACTIVE_CARDS_IN_DECK, _our_first_action_turn,
         _boss_gust_immune_active, _meowth_recovery_ko,
-        _gust_finds_an_attacker, my_prize)
+        _gust_finds_an_attacker, my_prize,
+        # The two halves of the refill engine's own reading: the body in
+        # front dies next turn and it is the only charged one we own. See
+        # `the_gust_without_a_reason_yields_to_the_second_wave`.
+        _ready_attacker_count <= 1, _active_doomed_real)
     _meowth_fetch_redundante = (
         _meowth_fetch_id is not None
         and hand_counts.get(_meowth_fetch_id, 0) >= 1)
