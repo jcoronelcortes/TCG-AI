@@ -310,6 +310,45 @@ PROMO_CLOSER_SEAT = 15000
 THE_SEAT_THAT_CLOSES_THE_GAME_IS_A_GUARANTEE = True
 
 
+# EL MISMO ASIENTO VISTO DESDE EL OTRO LADO DEL TABLERO: SU match point.
+#
+# `PROMO_CLOSER_SEAT` (arriba) es NUESTRO match point -- el cuerpo que cierra la
+# partida no se desempata. Este es su reflejo: cuando el cadaver del cuerpo que
+# va a sentarse paga TODO lo que les queda de monton, el asiento es del que
+# AGUANTA su respuesta, y esa eleccion tampoco puede depender de un adorno ni de
+# una reserva.
+#
+# LO QUE TIENE QUE SUPERAR, y esto es lo que fija el numero por abajo. En el
+# tablero que lo trajo (self-play vs `crustle_wall_1`, turno 23, su monton a UNO)
+# el UNICO cuerpo que sobrevivia a sus 140 era un Meganium de 160 -- y estaba
+# **vetado a SCORE_NEVER (-10000)** por "la linea del Meganium no sube a activo",
+# la reserva que protege el Wild Growth desde la banca. El asiento se lo llevo un
+# Dipplin de 80 con -4745, el menos malo de una mesa entera de negativos.
+#
+# Esa reserva, como los tres descuentos que `PROMO_CLOSER_SEAT` exime, es un
+# argumento sobre LOS TURNOS QUE VIENEN: el doblador vale lo que valga el tablero
+# de mañana. En su match point no hay mañana si el cuerpo que sentamos cae. Lo
+# mismo vale para el veto de precio (`PROMO_MATCH_POINT_VETO`, -30000), que a su
+# match point condena a TODOS los candidatos y deja la decision en manos del
+# argmax de lo menos negativo.
+#
+# 12000 esta fijado por los dos lados:
+#   POR ENCIMA de SCORE_NEVER (-10000), de PROMO_MATCH_POINT_VETO (-30000) y de
+#   toda la banda ordinaria de promocion (base ~150-250, muro barato 8500+hp/10,
+#   last stand 9450, finalizador nombrado 9500).
+#   POR DEBAJO de PROMO_CLOSER_SEAT (15000) y de PROMO_KO_BONUS (20000): si
+#   NUESTRO noqueo cierra la partida primero, su respuesta no llega a existir y
+#   sobrevivir a ella no es un argumento. Se aplica como SUELO (`max`), asi que
+#   esos dos conservan la ultima palabra sin necesidad de una exencion escrita.
+PROMO_LOSING_SEAT_WALL = 12000
+
+# Y el orden ENTRE supervivientes no se pierde: al suelo se le suma la puntuacion
+# que el candidato traia, recortada a 0..999. Asi la reserva del motor sigue
+# decidiendo cuando hay DOS que aguantan (que es cuando esa reserva si tiene algo
+# que decir), y solo deja de decidir cuando el que protege es el unico que vive.
+PROMO_LOSING_SEAT_RANK = 999
+
+
 def _purchase_of_this_turn(card_id, hand, bought_serials):
     """How many copies of `card_id` in `hand` OUR OWN searches bought today.
 
@@ -346,6 +385,8 @@ __all__ = [
     'PROMO_KO_FRONT',
     'PROMO_KO_ROTATION',
     'PROMO_LAST_STAND',
+    'PROMO_LOSING_SEAT_RANK',
+    'PROMO_LOSING_SEAT_WALL',
     'PROMO_MATCH_POINT_VETO',
     'PROMO_PIVOT_PAYS_FOR_THE_SEAT',
     'PROMO_TERA_COVER_PRICE',

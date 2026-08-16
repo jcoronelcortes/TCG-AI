@@ -172,6 +172,9 @@ class ScoringCtx:
     _our_first_action_turn: Any = None
     _our_first_turn: Any = None
     _p: Any = None
+    _losing_seat_choice: Any = None
+    _losing_seat_pivot: Any = None
+    _losing_seat_survivor: Any = None
     _prize_denial_pivot: Any = None
     _promo_damage_to_op: Any = None
     _promo_kos_op: Any = None

@@ -68,7 +68,10 @@ Coverage:
   * each of the two parts on its own, through the score;
   * the boundaries -- away from match point the cheap basic keeps its board, a
     reply that removes nobody leaves the ordinary criteria alone, an unreadable
-    reply chooses nothing, a vetoed body is not resurrected, and the ordering
+    reply chooses nothing, a body that dies anyway is not resurrected -- and the
+    one point of HP where that flips, because a body that OUTLASTS a reply which
+    ends the game takes the seat over the engine reservation
+    (`PROMO_LOSING_SEAT_WALL`) -- and the ordering
     against the branches that act first.
 """
 
@@ -301,20 +304,58 @@ def test_a_reply_that_removes_nobody_leaves_the_ordinary_criteria_alone():
         m.score_option = original
 
 
-def test_it_never_resurrects_a_vetoed_body():
+def test_it_never_resurrects_a_body_that_dies_anyway():
     """`score > 0`. The Meganium line does not go to the active spot -- that
     veto is protecting the Wild Growth multiplier -- and a tank that costs us
-    the engine is not a last stand. Given the biggest body on the bench it is
-    STILL not promoted."""
+    the engine is not a last stand. Bigger than every other candidate and STILL
+    removed by their 340, it is not promoted: a last stand that does not stand
+    is only the engine thrown away one turn earlier."""
     obs = _obs()
     mine = obs["current"]["players"][obs["current"]["yourIndex"]]
     for b in mine["bench"]:
         if b["id"] == MEGANIUM:
-            b["hp"] = b["maxHp"] = 400
+            b["hp"] = b["maxHp"] = 340        # exactamente su respuesta: cae
 
     scores = _scores(obs)
     assert scores[MEGANIUM] < 0, "the veto keeps its word"
     assert m.agent(copy.deepcopy(obs)) != [_bench_index(obs, MEGANIUM)]
+
+
+def test_the_engine_yields_when_it_is_the_only_body_that_OUTLASTS_the_reply():
+    """EL LIMITE SE MOVIO UN PUNTO DE VIDA, y esta es su frase.
+
+    Este test decia "un tanque que nos cuesta el motor no es un last stand", y lo
+    probaba con un Meganium de 400 -- es decir, con el UNICO cuerpo del banquillo
+    que sobrevive a sus 340. Esa version mezclaba dos tableros: el que la regla
+    del last stand ordena (todos caen, elige quien cae mejor) y el que
+    `THE_SEAT_THAT_LOSES_THE_GAME_YIELDS_TO_THE_WALL` reclama desde
+    `PROMO_LOSING_SEAT_WALL` (uno aguanta, y con su monton a UNO ese es el unico
+    que deja que haya turno siguiente).
+
+    La reserva del motor es un argumento sobre los turnos que vienen: el doblador
+    vale lo que valga el tablero de mañana. Con su monton a uno y un solo cuerpo
+    que aguanta, mañana existe si y solo si sube ese. El test de arriba conserva
+    la frase original en el tablero donde SI significa algo -- el tanque que cae
+    igual -- y este fija la frontera: **340 cae y sigue vetado, 341 aguanta y se
+    lleva el asiento**. Un punto de vida, que es exactamente donde la pregunta
+    cambia.
+
+    El tablero real que lo trajo no es este sino uno de self-play vs
+    `crustle_wall_1` (turno 23, su monton a UNO): alli el Meganium de 160/160 con
+    cuatro Grass era el unico que aguantaba los 140 de su Cornerstone Mask
+    Ogerpon ex, estaba vetado a SCORE_NEVER, y el asiento se lo llevo un Dipplin
+    de 80 que murio con el ultimo premio dentro. Ver
+    `tests/test_the_seat_that_loses_the_game_yields_to_the_wall.py`.
+    """
+    obs = _obs()
+    mine = obs["current"]["players"][obs["current"]["yourIndex"]]
+    for b in mine["bench"]:
+        if b["id"] == MEGANIUM:
+            b["hp"] = b["maxHp"] = 341        # un punto por encima: aguanta
+
+    scores = _scores(obs)
+    assert scores[MEGANIUM] >= m.PROMO_LOSING_SEAT_WALL, scores
+    assert m.agent(copy.deepcopy(obs)) == [_bench_index(obs, MEGANIUM)]
 
 
 def test_acting_first_still_outranks_tanking():
