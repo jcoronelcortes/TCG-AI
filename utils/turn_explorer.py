@@ -13,9 +13,13 @@ LIMITS of the model (v1, documented on purpose):
     real simulator). No draws: the Teal Dance draw / the hand refills
     (Lillie's) are not modelled because their outcome is chance.
   - Modelled actions: the manual attachment, Teal Dance, Ripening Charge, retreat
-    +promotion, evolution, Night Stretcher (recovering Grass), Boss's Orders
-    (a gust), Forest of Vitality, the ACTIVE's attack (via main's own
-    calculators) and ending the turn.
+    +promotion, evolution, Night Stretcher and Lana's Aid (recovering Grass),
+    Boss's Orders (a gust), Forest of Vitality, the ACTIVE's attack (via main's
+    own calculators) and ending the turn. Lana's Aid and Boss's Orders share the
+    turn's single Supporter slot, which is a real choice and branches as one.
+  - The attachment is worth what Meganium's Wild Growth makes it worth: the
+    observation lists EFFECTIVE energy, so one Grass card is TWO entries with the
+    doubler in play (`_attach`).
   - The damage uses main._attacker_base_damage/_our_effective_damage: exact for
     our main attackers; the chip attacks that are not modelled count as 0.
 
@@ -157,8 +161,20 @@ def _remove_from_hand(yo, card_id):
     return card
 
 
-def _attach(p, card):
-    p["energies"] = list(p.get("energies") or []) + [1]
+def _attach(p, card, obs=None):
+    """Attach ONE physical Grass card, in EFFECTIVE symbols.
+
+    WILD GROWTH WAS MISSING, and this deck is the one that prints it. The
+    observation lists EFFECTIVE energy -- a body carrying one Grass card under a
+    Meganium shows TWO entries in `energies` (`ptcg/calc/energy.py`, idea 1) --
+    so a simulated attachment that appends a single entry describes a board the
+    engine never produces: every projected line was short by one symbol per
+    attachment for exactly the boards where the doubler is the plan. It is the
+    same `_grass_attach_unit()` the agent uses, read off this state instead of
+    off AGENT_STATE so the explorer stays a pure function of the observation.
+    """
+    unit = 2 if (obs is not None and _meganium_in_play(obs)) else 1
+    p["energies"] = list(p.get("energies") or []) + [1] * unit
     p["energyCards"] = list(p.get("energyCards") or []) + [card]
 
 
@@ -222,7 +238,7 @@ def acciones_legales(obs):
                 y2 = _yo(o2)
                 card = _remove_from_hand(y2, m.Basic_Grass_Energy)
                 tgt = dict(_slots(y2))[_n]
-                _attach(tgt, card)
+                _attach(tgt, card, o2)
                 o2["current"]["energyAttached"] = True
                 return o2
             acciones.append((f"ATTACH->{m.card_table[p['id']].name}", ap))
@@ -238,7 +254,7 @@ def acciones_legales(obs):
                     o2 = copy.deepcopy(obs)
                     y2 = _yo(o2)
                     card = _remove_from_hand(y2, m.Basic_Grass_Energy)
-                    _attach(dict(_slots(y2))[_n], card)
+                    _attach(dict(_slots(y2))[_n], card, o2)
                     o2["_td_usadas"] = tuple(obs.get("_td_usadas", ())) + (_s,)
                     return o2
                 acciones.append(("TEAL DANCE", ap))
@@ -255,7 +271,7 @@ def acciones_legales(obs):
                         o2 = copy.deepcopy(obs)
                         y2 = _yo(o2)
                         card = _remove_from_hand(y2, m.Basic_Grass_Energy)
-                        _attach(dict(_slots(y2))[_n], card)
+                        _attach(dict(_slots(y2))[_n], card, o2)
                         o2["_rc_usadas"] = tuple(
                             obs.get("_rc_usadas", ())) + (_s,)
                         return o2
@@ -340,6 +356,45 @@ def acciones_legales(obs):
             y2["handCount"] = len(y2["hand"])
             return o2
         acciones.append(("NS->PLANTA", ap))
+
+    # Lana's Aid: up to THREE cards back from the discard (v1: energy only).
+    #
+    # IT WAS THE HOLE THAT MADE THIS DECK'S LAST TURN UNREADABLE (user,
+    # registro_013 step 174 vs Alakazam). Night Stretcher was the only recovery
+    # the model knew, so on a board whose ONLY route to the missing Grass is a
+    # Lana's Aid the explorer answered "no line" and blamed the agent for a turn
+    # the model could not have played either. It is a SUPPORTER, so it shares the
+    # single slot with Boss's Orders -- which is a real choice on those boards and
+    # the branching now shows it.
+    #
+    # Three at once and no smaller amounts: within this model a recovered card
+    # costs nothing (the hand is not a resource here), so taking fewer is
+    # dominated and the extra branches would only widen the tree. The Pokemon
+    # half of the card (non-ex bodies back to hand) is NOT modelled, same v1
+    # limit Night Stretcher already carries.
+    _lana_grass = [i for i, c in enumerate(yo.get("discard") or [])
+                   if c["id"] == m.Basic_Grass_Energy]
+    if (m.Lanas_Aid in hand_ids and not cur.get("supporterPlayed")
+            and _play_ok(m.Lanas_Aid) and _lana_grass):
+        _lana_n = min(3, len(_lana_grass))
+
+        def ap(obs, _n=_lana_n):
+            o2 = copy.deepcopy(obs)
+            y2 = _yo(o2)
+            lana = _remove_from_hand(y2, m.Lanas_Aid)
+            discard = list(y2["discard"]) + [lana]
+            taken, rest = [], []
+            for c in discard:
+                if len(taken) < _n and c["id"] == m.Basic_Grass_Energy:
+                    taken.append(c)
+                else:
+                    rest.append(c)
+            y2["discard"] = rest
+            y2["hand"] = list(y2["hand"]) + taken
+            y2["handCount"] = len(y2["hand"])
+            o2["current"]["supporterPlayed"] = True
+            return o2
+        acciones.append((f"LANA->{_lana_n} PLANTA", ap))
 
     # Boss's Orders: bringing up a target from the opposing bench
     if (m.Boss_Orders in hand_ids and not cur.get("supporterPlayed")
