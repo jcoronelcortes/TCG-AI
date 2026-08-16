@@ -91,6 +91,17 @@ internal discipline. `docs/testing.md` carries the same list in prose.
             submit runs on `cg/libcg.*`, and the local binary is gitignored and
             simply absent on Kaggle.
 
+  R12 The rollout side is stateless: nothing under `ptcg/search/` or
+            `ptcg/opponent/` may import `AGENT_STATE` (or any `ptcg.state`
+            module) or import `main`. The defect it pins: a rollout policy
+            with state drives BOTH seats of the simulation out of ONE belief
+            -- `search_oracle._choose(policy="agent")` measured 43 ms, lost to
+            random on the sensitivity board, and two independent oracles
+            (the pivot wall, the setup seat) showed the opponent's rollout
+            policy alone can invert the sign of a verdict. A search that can
+            corrupt the live game's belief is not a search, it is a bug with
+            a budget.
+
 Usage:
     python utils/lint_architecture.py          # exit 1 if there are violations
 """
@@ -739,6 +750,68 @@ def rule_11_agent_never_loads_the_local_engine(archivos=None):
     return failures
 
 
+# --------------------------------------------------------------------------
+# R12 -- the rollout side is stateless
+
+R12_DIRS = ("search", "opponent")
+R12_FORBIDDEN_MODULES = ("main", "ptcg.state")
+R12_FORBIDDEN_NAME = "AGENT_STATE"
+
+
+def rule_12_the_rollout_side_is_stateless(archivos=None):
+    """Nothing under `ptcg/search/` or `ptcg/opponent/` touches the belief.
+
+    These packages exist to be called from INSIDE a rollout while a real game
+    is open in the same process. `main.agent` writes to `AGENT_STATE`, so a
+    rollout that reaches either corrupts the belief of the live game that
+    asked for the search -- and `search_oracle._choose` drives BOTH seats
+    with the policy it is given, so a stateful policy also pilots the
+    opponent's deck with our belief. Measured twice (the pivot wall, the
+    setup seat): the opponent's rollout policy alone can invert a verdict's
+    sign. The rule is the same shape as R11: about the DIRECTION of the
+    dependency, not the file's contents.
+    """
+    if archivos is None:
+        archivos = []
+        for sub in R12_DIRS:
+            root = PACKAGE / sub
+            if root.is_dir():
+                archivos += sorted(root.rglob("*.py"))
+    failures = []
+    for path in archivos:
+        path = Path(path)
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            names = []
+            if isinstance(node, ast.Import):
+                names = [a.name for a in node.names]
+            elif isinstance(node, ast.ImportFrom):
+                names = [node.module or ""]
+                names += [f"{node.module or ''}.{a.name}" for a in node.names]
+            elif isinstance(node, ast.Name) and node.id == R12_FORBIDDEN_NAME:
+                failures.append((
+                    "R12", _rel(path), node.lineno,
+                    f"`{R12_FORBIDDEN_NAME}` es la creencia de la partida "
+                    "VIVA: un rollout que la toca corrompe el juego que pidio "
+                    "la busqueda.",
+                ))
+                continue
+            culpables = sorted({
+                name for name in names
+                if any(name == mod or name.startswith(mod + ".")
+                       for mod in R12_FORBIDDEN_MODULES)
+                or name.rsplit(".", 1)[-1] == R12_FORBIDDEN_NAME})
+            if culpables:
+                failures.append((
+                    "R12", _rel(path), node.lineno,
+                    f"`{culpables[0]}` no puede importarse bajo ptcg/search/ "
+                    "ni ptcg/opponent/: el lado de los rollouts es apatrida "
+                    "(la politica con estado conduce los DOS asientos e "
+                    "invierte el signo del veredicto).",
+                ))
+    return failures
+
+
 RULES = (
     rule_1_imported_mutables,
     rule_2_purity,
@@ -751,6 +824,7 @@ RULES = (
     rule_9_scorers_do_not_write_state,
     rule_10_data_has_a_consumer,
     rule_11_agent_never_loads_the_local_engine,
+    rule_12_the_rollout_side_is_stateless,
 )
 
 
