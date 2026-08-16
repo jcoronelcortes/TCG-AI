@@ -212,3 +212,53 @@ def score_option(state, context, select):
 
 def test_r8_esta_limpia_en_card_py():
     assert lint.rule_8_discard_reads_its_horizon() == []
+
+
+# --------------------------------------------------------------------------
+# R12 -- the rollout side is stateless (night of 16 August)
+
+
+def test_r12_acusa_el_import_de_agent_state(tmp_path):
+    archivo = _escribir(tmp_path, "arbiter.py", """
+from ptcg.state.agent_state import AGENT_STATE
+
+def decide(obs):
+    return AGENT_STATE.plan
+""")
+    fallos = lint.rule_12_the_rollout_side_is_stateless([archivo])
+    assert fallos and fallos[0][0] == "R12"
+
+
+def test_r12_acusa_el_import_de_main(tmp_path):
+    archivo = _escribir(tmp_path, "fast_policy.py", """
+import main
+
+def politica(obs, rng):
+    return main.agent(obs)
+""")
+    fallos = lint.rule_12_the_rollout_side_is_stateless([archivo])
+    assert fallos and fallos[0][0] == "R12"
+
+
+def test_r12_acusa_el_nombre_suelto(tmp_path):
+    archivo = _escribir(tmp_path, "arbiter.py", """
+def decide(obs, estado=None):
+    return AGENT_STATE
+""")
+    fallos = lint.rule_12_the_rollout_side_is_stateless([archivo])
+    assert fallos and fallos[0][0] == "R12"
+
+
+def test_r12_calla_con_el_modulo_apatrida(tmp_path):
+    archivo = _escribir(tmp_path, "fast_policy.py", """
+OPTION_ATTACK = 13
+
+def politica(obs, rng):
+    opciones = (obs.get("select") or {}).get("option") or []
+    return [0] if opciones else None
+""")
+    assert lint.rule_12_the_rollout_side_is_stateless([archivo]) == []
+
+
+def test_r12_esta_limpia_en_el_arbol():
+    assert lint.rule_12_the_rollout_side_is_stateless() == []

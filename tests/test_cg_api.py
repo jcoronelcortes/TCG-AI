@@ -138,7 +138,12 @@ def test_search_begin_validates_inputs_and_calls_library(monkeypatch):
         captured["args"] = (agent_ptr, sbi_bytes, length, your_deck, your_prize, opp_deck, opp_prize, opp_hand, opp_active, manual_coin)
         return json.dumps({"state": {"observation": {"select": None, "logs": [], "current": None}, "searchId": 42}, "error": 0}).encode("utf-8")
 
-    monkeypatch.setattr(api.lib, "AgentStart", lambda: 77)
+    # The fake pointer must live and DIE with this test: `search_begin` caches
+    # `agent_ptr` as a module global, so a bare `lib.AgentStart` patch leaks a
+    # poisoned pointer into every later REAL `search_begin` of the same
+    # process -- measured the night of 16 August as a segfault in the first
+    # test that ever called the real search API after this one.
+    monkeypatch.setattr(api, "agent_ptr", 77, raising=False)
     monkeypatch.setattr(api.lib, "SearchBegin", fake_search_begin)
 
     obs = SimpleNamespace(
@@ -160,7 +165,8 @@ def test_search_begin_validates_inputs_and_calls_library(monkeypatch):
     assert captured["args"][2] == 3
 
 
-def test_search_begin_raises_for_invalid_lengths():
+def test_search_begin_raises_for_invalid_lengths(monkeypatch):
+    monkeypatch.setattr(api, "agent_ptr", 77, raising=False)
     obs = SimpleNamespace(
         search_begin_input="abc",
         current=SimpleNamespace(
@@ -182,6 +188,7 @@ def test_search_step_maps_error_codes(monkeypatch):
         return json.dumps({"state": None, "error": 4}).encode("utf-8")
 
     monkeypatch.setattr(api.lib, "SearchStep", fake_search_step)
+    monkeypatch.setattr(api, "agent_ptr", 5, raising=False)
 
     with pytest.raises(ValueError, match="Must be"):
         api.search_step(1, [0])
@@ -198,7 +205,10 @@ def test_search_end_and_release_delegate_to_library(monkeypatch):
 
     monkeypatch.setattr(api.lib, "SearchEnd", fake_search_end)
     monkeypatch.setattr(api.lib, "SearchRelease", fake_search_release)
-    monkeypatch.setattr(api.lib, "AgentStart", lambda: 5)
+    # Before the agent_ptr hygiene fix this test silently DEPENDED on the
+    # pointer another test leaked: `search_end` reads the module global and
+    # nothing here created it.
+    monkeypatch.setattr(api, "agent_ptr", 5, raising=False)
 
     api.search_end()
     api.search_release(7)

@@ -180,6 +180,7 @@ instrument, but a shape that reads as correct and is not:
 | | |
 | --- | --- |
 | R11 | `utils/local_engine.py` loads a **modified** engine — one that honours the seed the official binary throws away, so games can be replayed. Tools may use it; `main.py` and `ptcg/` may not. What we submit runs on the shipped `cg/libcg.*`, and the local binary is git-ignored and simply absent on Kaggle. |
+| R12 | The rollout side is stateless: nothing under `ptcg/search/` or `ptcg/opponent/` may import `AGENT_STATE` (or any `ptcg.state` module) or `main`. These packages are called from inside a rollout while a real game is open in the same process; a stateful policy corrupts the live game's belief **and** pilots both seats of the simulation with it — measured twice (the pivot wall, the setup seat), the opponent's rollout policy alone can invert a verdict's sign. |
 
 `tests/test_the_linter_learned_the_days_bugs.py` is the linter's own suite: it
 plants each violation and confirms the rule catches it.
