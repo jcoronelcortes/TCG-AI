@@ -4175,6 +4175,60 @@ def agent(obs_dict: dict) -> list[int]:
                 AGENT_STATE._op_attack_waves_this_turn.get(_ga_log.serial, 0)
                 + 1)
 
+    # --- THE SEAT THE SETUP GAVE AWAY IS NOT A PLAY --------------------------
+    # WHICH OF OUR BODIES REACHED PLAY WITHOUT BEING PLAYED (user,
+    # `records/registro_001_pasos_005_hasta_010.json` steps 5-10, episode
+    # 93488655 vs Zoroark ex -- LOST). A come-into-play ability fires when the
+    # card is PLAYED FROM HAND, and the engine says so in the log: the body we
+    # play is a PLAY entry, while the SETUP deals the starting active with a
+    # MOVE_CARD from the hand into the active spot, and an effect that puts a
+    # body down straight from the deck is a MOVE_CARD too. The two never
+    # coincide on the same serial, which is what makes this readable at all.
+    #
+    # It is what `appearThisTurn` alone cannot say, and the whole first turn
+    # rode on it: our starting active WAS the Meowth ex, it carried
+    # `appearThisTurn` on turn 1 like everything the setup put down, and
+    # `_meowth_ld_free` read that as "the turn's Last-Ditch Catch is already
+    # spent". It never fired -- nothing was searched at setup. So the fetch
+    # ladder scored `ub->meowth` 10 through `last_ditch_produces_nothing`, the
+    # Ultra Ball bought a Chikorita for 1050 instead, and the turn ended with a
+    # lone Basic on the bench and a hand of four cards that could not be played
+    # -- when the same two cards buy the SECOND Meowth ex, whose Last-Ditch
+    # brings Lillie's Determination and refills the hand.
+    #
+    # IT SCANS THE WHOLE BATCH, not the post-boundary slice above: the setup
+    # lines are logged BEFORE the first TURN_START, and the `_ga_from` cut --
+    # right for everything counted per turn -- would throw away the only
+    # evidence there is. It is also a fact of the GAME and not of the turn, so
+    # nothing resets it.
+    #
+    # `fromArea` DECIDES, not `toArea`. A promotion after a knockout and a
+    # retreat are MOVE_CARD entries INTO the active spot as well, and a body
+    # that walks from the bench to the front did not get a new seat -- it
+    # already had one, and it already fired whatever it fires when it took it.
+    # Counting those would say the Last-Ditch of a Meowth ex we played and then
+    # promoted this very turn was never spent, which is the expensive direction
+    # of the mistake: two prizes given away for an ability that does not run.
+    for _sp_log in obs.logs:
+        if getattr(_sp_log, 'playerIndex', None) != my_index:
+            continue
+        _sp_serial = getattr(_sp_log, 'serial', None)
+        if _sp_serial is None:
+            continue
+        _sp_type = getattr(_sp_log, 'type', None)
+        if _sp_type == LogType.PLAY:
+            # A card PLAYED from hand: its abilities had their chance. The
+            # discard is defensive -- the same serial should never arrive by
+            # both routes -- and it resolves the collision in the safe
+            # direction.
+            AGENT_STATE._in_play_without_a_play.discard(_sp_serial)
+        elif (_sp_type == LogType.MOVE_CARD
+                and getattr(_sp_log, 'toArea', None) in (AreaType.ACTIVE,
+                                                         AreaType.BENCH)
+                and getattr(_sp_log, 'fromArea', None) not in (AreaType.ACTIVE,
+                                                               AreaType.BENCH)):
+            AGENT_STATE._in_play_without_a_play.add(_sp_serial)
+
     # --- THE WALL THAT LEAVES NOTHING ON THE BOARD ---------------------------
     # Their Acerola's Mischief (`OP_EX_SHIELD_IDS`): "during your opponent's
     # next turn, prevent all damage from and effects of attacks done to that
@@ -7836,9 +7890,21 @@ def agent(obs_dict: dict) -> list[int]:
     # search for a Supporter. If the Meowth in play are from previous turns
     # (appearThisTurn False), the ability is available and playing a new one DOES
     # search for a Supporter. With no Meowth in play, it is also available.
+    #
+    # ...AND ARRIVING IS NOT BEING PLAYED (user, registro_001 steps 5-10 vs
+    # Zoroark ex, LOST). `appearThisTurn` is true of every body the SETUP dealt
+    # into the active spot on turn 1, and the setup plays nothing: no ability
+    # fires there, so a Meowth ex that STARTED the game in front has its
+    # Last-Ditch Catch untouched. Read on `appearThisTurn` alone, the opening
+    # turn of every game that begins with the ability body in the active spot
+    # believed the turn's ability was spent and vetoed the whole engine that
+    # buys the Supporter. `_in_play_without_a_play` is the seat that was given
+    # rather than played -- the setup's, and any body an effect puts down from
+    # the deck -- and it is written from the log that says so.
     _meowth_ld_free = not any(
         _mlf_p is not None and _mlf_p.id == Meowth_ex
         and getattr(_mlf_p, 'appearThisTurn', False)
+        and getattr(_mlf_p, 'serial', None) not in AGENT_STATE._in_play_without_a_play
         for _mlf_p in (list(my_state.active or []) + list(my_state.bench or [])))
 
     # Is this turn's Last-Ditch engine still ALIVE? That is: is there a Meowth

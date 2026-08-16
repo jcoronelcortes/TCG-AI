@@ -151,6 +151,22 @@ class AgentState:
         # selections, so the count has to survive from one of those menus to the
         # next -- and reset when the turn changes.
         self._op_attack_waves_this_turn = {}
+        # Serials of OUR bodies that REACHED PLAY WITHOUT BEING PLAYED: the
+        # opening SETUP (hand -> active spot before the first turn) and anything
+        # an effect puts down straight from the deck or the discard. The engine
+        # logs those as MOVE_CARD; a card played from hand is a PLAY log, and
+        # the two are disjoint. It is a fact about the GAME, not the turn, so it
+        # is never reset in between: a serial that got its seat for free never
+        # stops having got it for free.
+        #
+        # WHY IT HAS TO BE STATE. `appearThisTurn` says the body arrived this
+        # turn and nothing else -- it cannot tell a Meowth ex we PLAYED (its
+        # come-into-play ability spent) from the one the setup dealt into the
+        # active spot (no ability ever fired). The only evidence of the
+        # difference is a log line that goes past ONCE, in the first batch of
+        # the game, so it has to be written down when it does. Read by
+        # `_meowth_ld_free`; see [[el-cuerpo-que-el-setup-sienta-no-gasto-su-habilidad]].
+        self._in_play_without_a_play = set()
 
         # --- THE WALL THAT IS NOT ON THE BOARD --------------------------------
         # Acerola's Mischief (`OP_EX_SHIELD_IDS`): "during your opponent's next
