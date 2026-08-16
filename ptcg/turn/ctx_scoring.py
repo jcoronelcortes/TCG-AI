@@ -182,6 +182,7 @@ class ScoringCtx:
     _mp_outlasts: Any = None
     _mp_price_ends_the_game: Any = None
     _promo_bet_walks_back: Any = None
+    _promo_deferred_attacker: Any = None
     _promo_ko_wins_the_game: Any = None
     _promo_op_act: Any = None
     _promo_survives: Any = None

@@ -588,6 +588,47 @@ PROMOTE_SEAT_UNLOCKS_ITS_CHARGE = True
 # not accept. A named switch for the same reason as the five above: it is the
 # only difference the census, the gate and the rules oracle put between two arms.
 AN_ITEM_UNDER_A_LOCK_IS_NOT_A_PLAYABLE_CARD = True
+# THE FRONT SPOT GOES TO THE ATTACKER; THE SACRIFICE IS DECIDED AT THE END OF
+# OUR TURN (user, registro_008 step 109 vs Archaludon ex, LOST).
+#
+# The forced promotion resolves at the END of their turn: a WHOLE turn of ours
+# happens before their reply lands. Every rule that hands the front spot to a
+# cheap wall is priced on that reply -- "their blow takes this body and with it
+# their pile" -- and prices it as if it arrived immediately. It does not. As
+# long as the promoted body can PAY ITS OWN RETREAT the choice is not final:
+# next turn we either charge it and attack, or we retreat and the wall goes up
+# THEN, before their reply. The sacrifice is a DEFERRABLE decision; being
+# nailed down in front of them is not.
+#
+# `PROMOTE_DEFERS_THE_SACRIFICE` is the promotion half: the slot goes to the
+# best attacker we have and, failing that, to the best attacker we can still
+# BUILD this coming turn, instead of to a body that can neither attack nor step
+# aside. `SACRIFICE_WAITS_FOR_THE_TURN` is the other half and the price of the
+# first: the retreat that cashes the sacrifice must not fire while the turn can
+# still turn that body into an attacker.
+#
+# Two named switches rather than inline conditions, for the same reason as the
+# six above: they are the only difference the census, the gate and the rules
+# oracle can put between two arms.
+PROMOTE_DEFERS_THE_SACRIFICE = True
+SACRIFICE_WAITS_FOR_THE_TURN = True
+# The third and, on the record that started this, the decisive one: the
+# almost-ready finisher (`_promote_setup_ko_attacker`) is offered the boards
+# where NOBODY KNOCKS OUT, instead of only the boards where nobody can attack at
+# all. A body already able to swing for less than lethal is the same almost-ready
+# body one attachment earlier, and reading it as "an attacker" skipped the whole
+# selector -- with it, the match-point veto and the cheap-wall family. A named
+# switch, again so the gate and the rules oracle can put exactly this sentence
+# between two arms.
+PROMOTION_READS_THE_KNOCKOUT_NOT_THE_ATTACK = True
+# How far from its requirement a body may be and still count as "the attacker we
+# can build". ONE attachment, measured in ATTACHMENTS and not in energies --
+# under Meganium's Wild Growth one Grass is worth two -- which is the same
+# distance `_promote_setup_ko_attacker` calls "almost ready" (`_ps_deficit <=
+# _ps_unit`) and the same unit the promotion tie-break counts in. Two steps
+# would be a body that cannot attack next turn either, and promoting that is not
+# deferring the sacrifice, it is skipping it.
+PROMOTE_DEFER_MAX_STEPS = 1
 
 
 
@@ -5354,6 +5395,42 @@ def agent(obs_dict: dict) -> list[int]:
             _teal_wall_pivot = False
             _doomed_mute_pivot = False
             _hydra_wall_pivot = False
+
+    # THE SACRIFICE IS TAKEN AT THE END OF THE TURN, NOT AT THE START OF IT
+    # (user, registro_008 step 109 vs Archaludon ex, LOST -- the other half of
+    # `PROMOTE_DEFERS_THE_SACRIFICE`).
+    #
+    # The veto right above is this same sentence, narrowed to the one board
+    # anyone had measured: the retreat waits only when the body in front is the
+    # WIN. That narrowness was affordable while the promotion never brought up a
+    # body it knew to be one attachment short. It does now, on purpose, and the
+    # whole justification for doing so is that the retreat is still available
+    # LATER -- so a pivot that fires before the turn has played the card that
+    # digs for the energy is not cashing a sacrifice, it is stealing the choice
+    # the promotion deferred. The record it is written from is the same one that
+    # taught the lethal case: registro_009 step 150, where the pivot retreated a
+    # body, PAID one of its two Grass to do it, and drew the missing Grass four
+    # actions later with the attacker stranded on the bench.
+    #
+    # `_doomed_mute_pivot` only. Its two neighbours are not defined by the
+    # active being MUTE -- `_hydra_wall_pivot` fires on a body that CAN attack
+    # and does not knock out, `_teal_wall_pivot` on a named pair whose Teal
+    # Dance is already spent -- so "it might stop being mute" is not a question
+    # about them, and widening a measured pivot into a region no measurement
+    # covers is not something a generalisation gets to do for free.
+    #
+    # The wait ends by itself. `_active_can_still_be_charged` reads the board,
+    # not our intentions: once the digger has been played, or the Supporter slot
+    # is spent, or the attachment is gone, it goes False and the pivot fires
+    # with the turn's last actions -- which is exactly "at the end of the turn",
+    # expressed as something the board can answer.
+    if SACRIFICE_WAITS_FOR_THE_TURN and _doomed_mute_pivot:
+        if _active_can_still_be_charged(
+                my_state, state, field_counts, hand_counts,
+                AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(
+                    Basic_Grass_Energy, {}).get(ZONE_DECK, 0),
+                meowth_ability_lock):
+            _doomed_mute_pivot = False
 
     # FRAGILE Hydrapple ex pivot: retreat the active with low HP and promote the
     # healthy one (user, log 86027506 step 81, vs Abomasnow, WON). If the ACTIVE is a
@@ -10663,11 +10740,25 @@ def agent(obs_dict: dict) -> list[int]:
             # attackers that depend on an ability are blocked -> 0.
             if op_has_ability_immune_active and _pb.id in OUR_ABILITY_IDS:
                 _pb_dmg = 0
-            # The opposing active's weakness to our type -> x2.
-            _pb_data = card_table.get(_pb.id)
-            if (_pb_data is not None and _op_prom_weak is not None
-                    and getattr(_pb_data, 'energyType', None) == _op_prom_weak):
-                _pb_dmg *= 2
+            # RESOLVED AGAINST THE BODY THAT RECEIVES IT (user, registro_008
+            # step 109 vs Archaludon ex). This was the SIXTH inline copy of the
+            # arithmetic and the last one that still only knew half of it --
+            # `x2 if our type is their weakness` -- so against the one archetype
+            # in the meta that RESISTS us it over-read every candidate by 30.
+            # On that record a Teal Mask Ogerpon ex at four effective Grass was
+            # priced at 300 against a 300 HP Archaludon and flagged as a
+            # KNOCKOUT; its real hit is 240. `_our_effective_damage` is the
+            # canonical model `_ps_dmg` and the `_evk_*` branch already call,
+            # and it is the same over-read its own docstring was written from
+            # (episode 91627381: "every finisher kept over-reading by 30").
+            #
+            # The two structural mutes stay by hand above: the ex wall and the
+            # ability wall are not something the canonical model knows.
+            if _pb_dmg > 0:
+                _pb_dmg = _our_effective_damage(
+                    _pb, _op_prom_active, _pb_dmg,
+                    meganium_active=AGENT_STATE.meganium_in_play,
+                    neutralization_zone=neutralization_zone_active)
             if _pb_dmg <= 0:
                 continue  # immune / no useful attack: it cannot defeat the opponent
             # Rule: ALWAYS bring up the one with the MOST HP that can defeat the opponent.
@@ -11198,8 +11289,31 @@ def agent(obs_dict: dict) -> list[int]:
     # ([[la-regla-general-va-antes-que-su-caso-especial]]). It only LIFTS the
     # veto; if no candidate is one attachment from a lethal hit, this stays
     # None and the basic wall keeps the slot exactly as before.
+    # ... AND IT IS GATED ON "NOBODY KNOCKS OUT TODAY", NOT ON "NOBODY CAN
+    # ATTACK TODAY" (user, registro_008 step 109 vs Archaludon ex, episode
+    # 93497723, LOST). The guard was written as `_best_promote_card is None`
+    # because the rule was born on boards where the bench was silent, and the
+    # sentence it enforces never said that: what makes a body worth the front
+    # spot here is that ONE attachment turns it into a KNOCKOUT, and a body
+    # already able to swing for less than lethal is no less almost-ready than a
+    # body that cannot swing at all -- it is the SAME body one attachment
+    # earlier. Their Archaludon ex sat at 300 with our Ogerpon ex on four
+    # effective Grass: 240 today, 360 with one more Grass. Because 240 counted
+    # as "can attack", this whole selector was skipped, the match-point veto
+    # removed the Ogerpon at -30000 and the slot went to a Tapu Bulu at 0/4 that
+    # could neither attack nor pay its own retreat.
+    #
+    # A body that already knocks out today does not come through here: it has
+    # `PROMO_KO_BONUS` and needs nothing from this rule. That is exactly what
+    # the guard now asks -- `_best_promote_key[0] == 0`, no candidate is a
+    # knockout -- and it reads the key AFTER the damage model was corrected to
+    # subtract their resistance, without which that same 240 read as a knockout.
     _promote_setup_ko_attacker = None
-    if (_forced_ko_promote and _best_promote_card is None
+    if (_forced_ko_promote
+            and (_best_promote_card is None
+                 or (PROMOTION_READS_THE_KNOCKOUT_NOT_THE_ATTACK
+                     and _best_promote_key is not None
+                     and _best_promote_key[0] == 0))
             and (not _lucario_ko_prefer_basic or _promo_ko_wins_the_game)
             and not op_has_ex_immune_active
             and not op_has_ability_immune_active
@@ -11426,9 +11540,22 @@ def agent(obs_dict: dict) -> list[int]:
                     continue
                 _ps_cur = len(_psb.energies)
                 _ps_deficit = _ps_req - _ps_cur
-                # ONE single attachment away from its requirement (the normal loop already covers
-                # the ones that attack right now). Further away = it is not "almost ready".
-                if _ps_deficit <= 0 or _ps_deficit > _ps_unit:
+                # ONE single attachment away from the KNOCKOUT. Further away =
+                # it is not "almost ready".
+                #
+                # A body ALREADY at its cost (`_ps_deficit <= 0`) belongs here
+                # too, and used to be thrown out on the grounds that "the normal
+                # loop already covers the ones that attack right now". It covers
+                # them as ATTACKERS; this rule is about knockouts, and the outer
+                # guard has just established that none of them is one. The
+                # Ogerpon ex of registro_008 is the case: at four Grass it
+                # attacks for 240 and at six it buries a 300 HP Archaludon ex.
+                # Its deficit is negative and the distance that matters -- one
+                # attachment from lethal -- is the same as its neighbours'.
+                if (_ps_deficit <= 0
+                        and not PROMOTION_READS_THE_KNOCKOUT_NOT_THE_ATTACK):
+                    continue
+                if _ps_deficit > _ps_unit:
                     continue
                 _ps_after = _ps_cur + _ps_unit
                 if _psb.id == Hydrapple_ex:
@@ -11477,7 +11604,12 @@ def agent(obs_dict: dict) -> list[int]:
                 # risked is the prize. Consistent with
                 # [[alakazam-atacar-con-1-premio-no-ex]] and
                 # [[promover-supervivencia-y-menos-premios]].
-                _ps_key = (-_ps_deficit, -prize_count(_psb), _ps_hp, _ps_dmg)
+                # `max(0, ...)`: a body already at its cost is ZERO
+                # attachments from attacking, not a negative number of them, and
+                # an unclamped deficit would rank it above a genuine tie on a
+                # difference that means nothing.
+                _ps_key = (-max(0, _ps_deficit), -prize_count(_psb),
+                           _ps_hp, _ps_dmg)
                 if _ps_best_key is None or _ps_key > _ps_best_key:
                     _ps_best_key = _ps_key
                     _promote_setup_ko_attacker = _psb
@@ -11766,6 +11898,201 @@ def agent(obs_dict: dict) -> list[int]:
             _promo_wall_relief = (
                 bool(_pw_hitters)
                 and not any(_promo_survives(_pb) for _pb in _pw_hitters))
+    # ------------------------------------------------------------------
+
+    # THE FRONT SPOT GOES TO THE ATTACKER, AND THE SACRIFICE IS DEFERRED (user,
+    # registro_008 step 109 vs Archaludon ex, episode 93497723, LOST).
+    #
+    # Their Archaludon ex, 300 HP and five Metal, had just knocked out our
+    # Hydrapple ex, and the menu offered: a Meganium at 2/4, a Teal Mask
+    # Ogerpon ex at FOUR effective Grass -- ready to swing, 240 through their
+    # Grass resistance --, a second Ogerpon ex at 2/3, a Tapu Bulu at 0/4 and a
+    # Fezandipiti ex at 0/3. Their pile was at TWO, so `_mp_price_ends_the_game`
+    # vetoed every 2-prize body at -30000 and the slot went to the Tapu Bulu on
+    # a bare base score of 142: a body that needs four energy, carries none, and
+    # whose retreat cost it cannot pay. It neither attacked nor stepped aside.
+    # The charged Ogerpon was ONE Basic Grass -- two symbols under our own
+    # Meganium -- from 30+30x(6+5) = 360, which buries the Archaludon and takes
+    # the two prizes that put us at one.
+    #
+    # THE PREMISE THE VETOES GET WRONG. This promotion resolves at the END of
+    # their turn. What the veto prices -- "their blow takes this body and with
+    # it their last prize" -- is a reply that arrives a WHOLE TURN OF OURS
+    # later. If the promoted body can pay its own retreat, it does not have to
+    # be standing there when the reply comes: next turn we either charge it and
+    # attack, or we retreat and the cheap wall goes up THEN. The sacrifice is a
+    # DEFERRABLE decision; being nailed down is not. That sentence is already
+    # written twice in this file -- `_ps_keeps_its_way_out` and
+    # `_promo_bet_walks_back` -- and both times it was bolted onto
+    # `_promote_setup_ko_attacker`, which only ever runs when NO body can attack
+    # today and only ever names a body whose completed attack KNOCKS OUT. On
+    # this board neither held: a body could attack, so that whole selector was
+    # skipped, and 240 was not a knockout. The rule was right and its reach was
+    # an accident.
+    #
+    # SO IT IS LIFTED OUT AS ITS OWN CLAIM, deck-agnostically:
+    #   * If some body can attack TODAY, that is the one, and it is already
+    #     chosen with survival and prize prudence by `_best_promote_card`. If
+    #     one attachment turns a body into a KNOCKOUT, that is the one, and
+    #     `_promote_setup_ko_attacker` -- widened to the boards where nobody
+    #     knocks out -- already names it and carries the exemptions.
+    #   * What is left for THIS rule is the body we can still BUILD when neither
+    #     of those exists: one attachment from its requirement, ordered by the
+    #     damage it will do, then by prizes, then by HP. Note what is NOT
+    #     required, and it is the whole difference with the finisher above: the
+    #     completed attack does not have to be lethal, and the energy does not
+    #     have to be guaranteed. With the exit intact a failed bet costs nothing
+    #     the wall was not already costing -- the same arithmetic route (f) is
+    #     written on.
+    #
+    # WHERE IT SPEAKS, and it is a narrow band on purpose. Two boards were tried
+    # first and both were wrong, each for its own reason:
+    #   * "the best attacker we have, exempt because it can walk back" cost
+    #     registro_005 step 64: the exit is only worth something if it is TAKEN,
+    #     and a body that can attack WILL attack -- there, for 270 into a 400 HP
+    #     Archaludon, dying for two prizes instead of hiding behind the one body
+    #     that survived. So this rule never speaks while something can attack.
+    #   * "the body closest to attacking, whatever it costs" cost registro_005
+    #     step 99: it promoted a 2-prize ex over a 1-prize Dipplin against a
+    #     Mega Lucario that one-shots everything, to buy a swing of 180 into 340.
+    #     "The turn can improve the situation" is not a licence to pay for the
+    #     improvement in advance.
+    #
+    # What is left is the band where the measured rules run out of things to
+    # say: NOBODY endures their blow (`_promo_survivors == 0`), so survival is
+    # settled, and among the bodies that cost the FEWEST prizes -- which is what
+    # that band then orders by -- the tie falls to raw HP. That is where a body
+    # which will never attack outranks one that attacks next turn. Among
+    # survivors the ladder already prefers the body closest to attacking
+    # (`+300 - 100 x steps` in `score_play`); this is that same sentence for the
+    # band where nothing survives, and it is a pure tie-break: no prizes are
+    # paid for it and no survivor is passed over, because there is none.
+    #
+    # THE EXIT IS STILL DEMANDED (`_retreat_payable`, in CARDS and not in
+    # symbols, [[la-factura-de-la-retirada-se-cuenta-en-cartas-no-en-simbolos]]).
+    # Everything on the bench dies in FRONT of their active; a body that can
+    # step aside does not have to be there. Without the exit there is no second
+    # decision to defer TO -- which is exactly how the Tapu Bulu of registro_008
+    # failed, at 0/4 with a retreat cost of four.
+    #
+    # A body that does 0 to the opposing active is not an attacker and defers
+    # nothing: the ex wall (Crustle/Sylveon), the ability wall (Cornerstone) and
+    # the Neutralization Zone are read off the effective damage, exactly as the
+    # `_best_promote_card` loop reads them.
+    #
+    # It stands DOWN for `_promote_setup_ko_attacker`, which is the same
+    # sentence with a knockout attached and carries its own measured band.
+    _promo_deferred_attacker = None
+    if (PROMOTE_DEFERS_THE_SACRIFICE
+            and _forced_ko_promote
+            and _promote_setup_ko_attacker is None
+            and _promo_survivors == 0
+            and op_state.active and op_state.active[0] is not None):
+        _pda_opa = op_state.active[0]
+        _pda_unit = max(1, _grass_attach_unit())
+        _pda_bench_after = max(0, bench_count - 1)
+        _pda_op_hand = getattr(op_state, 'handCount', None)
+        # A COPY OF THE ENERGY HAS TO STILL EXIST. This is the one guard route
+        # (f) carries that the deferral cannot do without: the bet is priced on
+        # "if the card turns up we attack, and if it does not we retreat", and
+        # with every Grass already on the board or in the discard beyond
+        # recovery the first half is not a chance, it is a certainty of nothing.
+        # There the promoted body would never attack, we would pay the retreat's
+        # energy for the privilege of arriving where the wall was already
+        # standing, and the sacrifice rules are right.
+        #
+        # REACHABLE, NOT GUARANTEED, and that is the whole difference with
+        # routes (a)-(d): no search Supporter is demanded in hand. A copy still
+        # unseen -- in the deck or under a prize -- is enough, because the exit
+        # pays for the times it does not come. Measured the same observational
+        # way as `_ps_grass_hidden`: the deck total minus what we can SEE (hand,
+        # discard, and everything attached on our side), so it does not depend
+        # on the per-zone counter that goes out of sync in records which do not
+        # start on turn 1.
+        _pda_grass_visible = (hand_counts.get(Basic_Grass_Energy, 0)
+                              + discard_counts.get(Basic_Grass_Energy, 0))
+        for _pda_p in ([_active_of(my_state)] + list(my_state.bench or [])):
+            if _pda_p is not None:
+                _pda_grass_visible += sum(
+                    1 for _e in (getattr(_pda_p, 'energyCards', None) or [])
+                    if getattr(_e, 'id', 0) == Basic_Grass_Energy)
+        _pda_grass_hidden = sum(
+            AGENT_STATE.ACTIVE_CARDS_IN_DECK.get(Basic_Grass_Energy, {}).values()
+        ) - _pda_grass_visible
+        _pda_grass_reachable = (
+            hand_counts.get(Basic_Grass_Energy, 0) >= 1
+            or _pda_grass_hidden >= 1
+            or (hand_counts.get(Lanas_Aid, 0) >= 1
+                and discard_counts.get(Basic_Grass_Energy, 0) >= 1))
+
+        def _pda_effective(_cand, _eff_after, _steps):
+            """What the candidate really does to the body in front once ready.
+
+            Through the canonical model, not a sixth inline copy of the
+            arithmetic: weakness doubles, their resistance subtracts and the
+            stadium takes its cut. The two structural mutes -- the ex wall and
+            the ability wall -- are the same two the `_best_promote_card` loop
+            applies by hand, because `_our_effective_damage` does not know them.
+            """
+            if op_has_ex_immune_active and _cand.id in OUR_EX_IDS:
+                return 0
+            if op_has_ability_immune_active and _cand.id in OUR_ABILITY_IDS:
+                return 0
+            _base = _attacker_base_damage(
+                _cand.id, _pda_opa, _eff_after,
+                grass_scale=total_grass + _steps,
+                teal_self_energy=_eff_after,
+                bench_count=_pda_bench_after)
+            if _base <= 0:
+                return 0
+            return _our_effective_damage(
+                _cand, _pda_opa, _base,
+                meganium_active=AGENT_STATE.meganium_in_play,
+                neutralization_zone=neutralization_zone_active)
+
+        # ONLY WHEN NOTHING CAN ATTACK TODAY. The fork this rule is paid for --
+        # charge it and swing, or retreat and put the wall up -- only exists for
+        # a body that cannot swing yet. When one can, it swings, and survival
+        # and prizes govern.
+        if _best_promote_card is None:
+            _pda_best_key = None
+            for _pdb in (my_state.bench or []):
+                if _pdb is None or not isinstance(_pdb, Pokemon):
+                    continue
+                _pda_req = AGENT_STATE.ATTACK_ENERGY_REQ.get(_pdb.id)
+                if _pda_req is None:
+                    continue            # it is not an attacker at all
+                if not _retreat_payable(_pdb):
+                    continue            # no exit: the bet stops being reversible
+                _pda_missing = _pda_req - len(_pdb.energies)
+                if _pda_missing <= 0:
+                    continue            # `_best_promote_card` owns this case
+                _pda_steps = -(-_pda_missing // _pda_unit)
+                if _pda_steps > PROMOTE_DEFER_MAX_STEPS:
+                    continue            # not "one attachment away": still mute
+                if not _pda_grass_reachable:
+                    continue            # the energy it waits for does not exist
+                # IT NEVER BUYS THE FRONT SPOT WITH PRIZES (user, registro_005
+                # step 99 vs Mega Lucario ex, the control of the
+                # evolution-survivor promotion). Without this the rule promoted
+                # a Teal Mask Ogerpon ex at 2/3 -- two prizes -- over a 1-prize
+                # Dipplin, to buy a swing of 180 into a 340 HP body. It breaks a
+                # tie among the bodies the prize band already considers equal;
+                # it does not reopen the band.
+                if (_promo_min_prize is not None
+                        and prize_count(_pdb) > _promo_min_prize):
+                    continue            # it costs prizes the wall does not
+                _pda_after = len(_pdb.energies) + _pda_steps * _pda_unit
+                _pda_dmg = _pda_effective(_pdb, _pda_after, _pda_steps)
+                if _pda_dmg <= 0:
+                    continue            # mute against the body in front
+                # Damage first -- the point of the bet is the attack it buys --
+                # then the price of being wrong, then the body that lasts
+                # longer. Same order as `_ps_key` once distance is settled.
+                _pda_key = (_pda_dmg, -prize_count(_pdb), _pdb.hp or 0)
+                if _pda_best_key is None or _pda_key > _pda_best_key:
+                    _pda_best_key = _pda_key
+                    _promo_deferred_attacker = _pdb
     # ------------------------------------------------------------------
 
     # --- MATCH POINT ON THE ACTIVE SPOT (user, registro_014 step 130 vs

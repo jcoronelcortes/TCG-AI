@@ -186,6 +186,23 @@ PROMO_MATCH_POINT_VETO = -30000
 PROMO_LAST_STAND = 9450
 
 
+# THE ATTACKER THAT CAN STILL WALK BACK (`_promo_deferred_attacker`). The front
+# spot goes to the body that attacks -- today, or after this coming turn's
+# attachment -- instead of to a cheap corpse, because the promotion resolves at
+# the END of their turn and a body that can pay its own retreat is not obliged
+# to be standing there when their reply lands.
+#
+# 9200 is fixed from both sides. ABOVE the whole cheap-wall family (9000 for an
+# Applin, 8500 + hp/10 for a sturdy basic, 6100 for the refill wall), which is
+# the family this rule exists to outrank: those hand over the slot to a body
+# chosen for how little it costs when it dies, and this one says the dying is
+# not settled yet. BELOW the two branches that promise something this one does
+# not -- the last stand (9450), where nothing cheaper is left to defer to, and
+# the guaranteed finisher (9500), which is this same sentence with a knockout
+# attached -- and far below the body that knocks out today (+PROMO_KO_BONUS).
+PROMO_DEFERRED_ATTACKER = 9200
+
+
 def _purchase_of_this_turn(card_id, hand, bought_serials):
     """How many copies of `card_id` in `hand` OUR OWN searches bought today.
 
@@ -214,6 +231,7 @@ __all__ = [
     '_SUPP_PLAY_IDS',
     '_purchase_of_this_turn',
     'MAIN_ATTACKERS',
+    'PROMO_DEFERRED_ATTACKER',
     'PROMO_DOOMED_PENALTY',
     'PROMO_KO_BONUS',
     'PROMO_KO_FRONT',

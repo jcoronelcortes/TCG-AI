@@ -675,6 +675,24 @@ def _active_closes_with_one_charge(my_state, op_state, state, hand_counts,
     if damage < _op_hp_for_our_ko(op_active, 1):
         return False
 
+    return _grass_still_reachable_into_hand(my_state, state, hand_counts,
+                                            grass_left_in_deck)
+
+
+def _grass_still_reachable_into_hand(my_state, state, hand_counts,
+                                     grass_left_in_deck):
+    """A Basic Grass this turn can still get into our HAND.
+
+    Already there, or fetchable by a card we are holding: `GRASS_DIGGER_REACH`
+    names those cards and the zone each one reaches, and the Supporters among
+    them only count while the Supporter slot is still free.
+
+    Extracted from `_active_closes_with_one_charge` so that
+    `_active_can_still_be_charged` asks the identical question. The two are the
+    same half of one sentence -- "the turn has not run out of ways to find it"
+    -- and letting them drift apart is how a rule ends up deciding that the
+    Grass is unreachable on one line and reachable on the next.
+    """
     if (hand_counts or {}).get(Basic_Grass_Energy, 0) >= 1:
         return True
     supporter_free = not getattr(state, 'supporterPlayed', False)
@@ -690,6 +708,62 @@ def _active_closes_with_one_charge(my_state, op_state, state, hand_counts,
         if _reach == ZONE_DECK and max(0, grass_left_in_deck) > 0:
             return True
     return False
+
+
+def _active_can_still_be_charged(my_state, state, field_counts, hand_counts,
+                                 grass_left_in_deck, abilities_off=False):
+    """The turn can still turn the ACTIVE into an attacker.
+
+    THE SACRIFICE IS DECIDED AT THE END OF THE TURN, NOT AT THE START OF IT
+    (user, registro_008 step 109 vs Archaludon ex). The promotion after a
+    knockout now deliberately brings up a body that may be one attachment short
+    of attacking (`_promo_deferred_attacker`), on the strength of a retreat we
+    can still make LATER if the attachment never turns up. That bet is only
+    honest if the retreat waits: a pivot that fires before the turn has played
+    the card that digs for the energy cashes a sacrifice the turn had not
+    finished trying to avoid.
+
+    It is the generalisation of a veto this file already carries.
+    `_active_closes_with_one_charge` was written from registro_009 step 150,
+    where `_doomed_mute_pivot` read the active as mute because the Grass was not
+    in HAND, retreated it -- paying one of its two Grass for the privilege --
+    and drew that Grass four actions later with the attacker stranded on the
+    bench. That veto only fires when the knockout ENDS the game, because that is
+    the only asymmetry anyone had measured. The promotion change makes the same
+    misreading routine rather than exceptional, so the wait is asked for on its
+    own terms and the lethal case keeps its stricter guard on top.
+
+    Two things have to be true, and they are the two halves of "not finished
+    yet": a ROUTE that can still put a Grass on that body (the turn's
+    attachment, Teal Dance, Ripening Charge -- `_grass_attach_slots_for`), and a
+    Grass we can still get into hand (`_grass_still_reachable_into_hand`). And
+    the attachment has to be worth waiting for: one unit must actually REACH the
+    body's attack cost, or the body stays mute either way and the turn is not
+    waiting for anything.
+
+    ONE unit and not `slots x unit`, deliberately: each further slot needs
+    another Grass card and only one has been proved reachable. The conservative
+    reading makes the wait as short as it can honestly be.
+
+    Deck-agnostic: it reads our own attack costs, our own charging routes and
+    our own dig cards.
+    """
+    active = (my_state.active[0]
+              if getattr(my_state, 'active', None) else None)
+    if active is None:
+        return False
+    req = AGENT_STATE.ATTACK_ENERGY_REQ.get(getattr(active, 'id', 0))
+    if req is None:
+        return False                # it has no attack: nothing to charge it for
+    have = len(getattr(active, 'energies', []) or [])
+    if have >= req:
+        return False                # it already attacks: not waiting on energy
+    if have + _grass_attach_unit() < req:
+        return False                # one attachment does not get it there
+    if _grass_attach_slots_for(active, state, field_counts, abilities_off) < 1:
+        return False                # no route left to put it on that body
+    return _grass_still_reachable_into_hand(my_state, state, hand_counts,
+                                            grass_left_in_deck)
 
 
 def _bench_cashable_after_retreat(pokemon, op_active, our_damage=0):
@@ -2141,7 +2215,9 @@ __all__ = [
     '_op_hp_for_our_ko',
     'OpHarvest',
     '_op_prize_harvest',
+    '_active_can_still_be_charged',
     '_active_closes_with_one_charge',
+    '_grass_still_reachable_into_hand',
     'evolution_body_bias',
     '_movable_dmg_after_our_hit',
     '_bench_cashable_after_retreat',

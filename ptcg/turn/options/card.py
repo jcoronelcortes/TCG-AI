@@ -52,7 +52,7 @@ from ptcg.cards.ids import THE_COST_KEEPS_THE_SUPPORTER_THE_TURN_PLAYS
 from ptcg.cards.ids import Applin, Basic_Grass_Energy, Bayleef, Boss_Orders, Bug_Catching_Set, Chikorita, DISCARD_SHIELD_KEEP_THE_GUST, DISCARD_SHIELD_KEEP_THE_NONEX, DISCARD_SHIELD_MUTES_THE_EX, DISCARD_SHIELD_SEARCH_FODDER, DISCARD_SHIELD_STADIUM_FODDER, OP_EX_SHIELD_MAX_PRIZES, DISCARD_XEROSIC_CAP_IS_THE_ANSWER, DISCARD_BODY_WITHOUT_SEAT, DISCARD_CF_HAND_RECYCLER, DISCARD_EVO_SPARE_COPY, DISCARD_LINK_LAST_BRIDGE, DISCARD_LINK_THE_SEARCH_BUYS, DISCARD_SUPPORTER_DEAD_DROP, DISCARD_SUPPORTER_LIVE_KEEP, DISCARD_WHAT_THE_SEARCH_ALREADY_BOUGHT, DUNSPARCE_IDS, Dawn, Dipplin, Drednaw, Fezandipiti_ex, Forest_of_Vitality, Grand_Tree, Hydrapple_ex, LANA_SEL_INJUGABLE, LANA_SEL_GRASS_DEMAND, LANA_SEL_GRASS_UNLOCKS, LANA_SEL_GRASS_SURPLUS, LANA_SEL_GRASS_WINS, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Night_Stretcher, OUR_ABILITY_IDS, OUR_EX_IDS, Pinsir, Poke_Pad, RETREAT_COST, RIPEN_HEAL_TARGET_SCORE, SCORE_FORBID, SCORE_LOOKAHEAD_PROMOTE_KO, SCORE_LOOKAHEAD_PROMOTE_SAFE, SCORE_NEVER, SCORE_VETO, Sylveon, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Unfair_Stamp, XEROSIC_BIG_HAND, DISCARD_XEROSIC_CAPS_A_FAT_HAND, Xerosic_Machinations
 from ptcg.cards.lines import _evo_bridge_last_copies, _evo_copies_usable, _evo_top_unlocked_by_the_search, _line_base_benchable, _pokemon_injugable
 from ptcg.cards.ids import OPENING_SAC_PROMOTE_ORDER, SETUP_ACTIVE_BASIC_ORDER, SETUP_ACTIVE_BASIC_TOP, SETUP_ACTIVE_EX_ORDER, SETUP_ACTIVE_EX_TOP, SETUP_ACTIVE_OTHER, SETUP_ACTIVE_OTHER_BASIC, SETUP_ACTIVE_STEP
-from ptcg.cards.scoring import MAIN_ATTACKERS, PROMO_DOOMED_PENALTY, PROMO_KO_BONUS, PROMO_KO_FRONT, PROMO_KO_ROTATION, PROMO_LAST_STAND, PROMO_MATCH_POINT_VETO, PROMO_PRIZE_PENALTY, OPENING_SAC_PROMOTE_STEP, OPENING_SAC_PROMOTE_TOP, _SUPP_PLAY_IDS, _purchase_of_this_turn
+from ptcg.cards.scoring import MAIN_ATTACKERS, PROMO_DEFERRED_ATTACKER, PROMO_DOOMED_PENALTY, PROMO_KO_BONUS, PROMO_KO_FRONT, PROMO_KO_ROTATION, PROMO_LAST_STAND, PROMO_MATCH_POINT_VETO, PROMO_PRIZE_PENALTY, OPENING_SAC_PROMOTE_STEP, OPENING_SAC_PROMOTE_TOP, _SUPP_PLAY_IDS, _purchase_of_this_turn
 from ptcg.cards.tables import HAND_TO_DECK_PLAY_IDS, card_table
 from ptcg.decision.boss_orders import _ADJUST_GUST_NUISANCE, _ADJUST_GUST_OFFENSIVE, _RULES_GUST_NUISANCE, _ctx_gust_target
 from ptcg.decision.disruption import _stamp_pendiente, _xr_cap_lost_if_discarded
@@ -146,6 +146,7 @@ def score_play(tc, o, score):
     _promo_wall_relief = tc._promo_wall_relief
     _promote_setup_ko_attacker = tc._promote_setup_ko_attacker
     _promo_bet_walks_back = tc._promo_bet_walks_back
+    _promo_deferred_attacker = tc._promo_deferred_attacker
     _refresh_promote_prefer_basic = tc._refresh_promote_prefer_basic
     _ripen_heal_serial = tc._ripen_heal_serial
     _sel_active_cant_attack = tc._sel_active_cant_attack
@@ -1080,6 +1081,29 @@ def score_play(tc, o, score):
                         elif card.id == Dipplin:
                             score = 8000
         
+                    # THE ATTACKER THAT CAN STILL WALK BACK (user, registro_008
+                    # step 109 vs Archaludon ex, LOST -- episode 93497723,
+                    # deck-agnostic). The front spot goes to the body that
+                    # attacks -- today, or after this coming turn's attachment
+                    # -- over the cheap wall the three rules above hand it to,
+                    # because this promotion resolves at the END of their turn
+                    # and a body that can pay its own retreat does not have to
+                    # be standing there when their reply lands. See
+                    # `_promo_deferred_attacker` in `agent()` for the board and
+                    # the two guards that make the deferral real.
+                    #
+                    # `score > 0` for the same reason the last stand below
+                    # carries it: it must not resurrect a body some veto has
+                    # already removed -- "the Meganium line does not go active"
+                    # (SCORE_NEVER) is protecting the Wild Growth multiplier,
+                    # and an attacker bought with the engine that feeds it is
+                    # not a bet, it is a trade.
+                    if (_forced_ko_promote and isinstance(card, Pokemon)
+                            and _promo_deferred_attacker is not None
+                            and card is _promo_deferred_attacker
+                            and score > 0):
+                        score = PROMO_DEFERRED_ATTACKER
+
                     # THE LAST STAND (user, registro_011 step 130 vs Alakazam,
                     # LOST -- episode 91532527, deck-agnostic). At their match
                     # point every body on our bench pays at least their
@@ -1196,6 +1220,28 @@ def score_play(tc, o, score):
                         # -- with no attack and a retreat cost of 3 -- instead of the
                         # Ogerpon ex at 2/3 that finished the Grimmsnarl ex through
                         # weakness.
+                        pass
+                    elif (_promo_deferred_attacker is not None
+                            and card is _promo_deferred_attacker
+                            and _promo_gets_to_attack):
+                        # THE ATTACKER THAT CAN STILL WALK BACK (user,
+                        # registro_008 step 109 vs Archaludon ex): the same
+                        # exemption as the finisher above, reached by the other
+                        # road. That one is spared because it knocks out first,
+                        # so their blow never comes; this one is spared because
+                        # it can RETREAT first, so their blow does not find it.
+                        # Both price a reply that lands a whole turn of ours
+                        # later, and both are sunk by the same arithmetic if the
+                        # exemption is missing: -6000 doomed, or -1500 per extra
+                        # prize, takes the 9200 of `PROMO_DEFERRED_ATTACKER`
+                        # below the 8500 + hp/10 of the very basic wall the rung
+                        # was written to outrank.
+                        #
+                        # Under Festival Lead `_promo_gets_to_attack` is already
+                        # False for a body that does not survive, and rightly:
+                        # there the opponent attacks again the instant we choose,
+                        # so there is no turn of ours to defer anything to and
+                        # the exit is worth nothing.
                         pass
                     elif (score > 0 and isinstance(card, Pokemon)
                             and _promo_op_act is not None):
@@ -1451,6 +1497,31 @@ def score_play(tc, o, score):
                     # body and with it their last prize" -- is a reply that
                     # arrives a whole turn of OURS later, and a body that can
                     # step aside is not there to receive it. See `agent()`.
+                    #
+                    # THE EXEMPTION REACHES FURTHER NOW, AND STILL ONLY TO A
+                    # FINISHER (user, registro_008 step 109 vs Archaludon ex,
+                    # episode 93497723, LOST). On that board the clause above
+                    # stayed shut for a reason that had nothing to do with the
+                    # trade it prices: our Teal Mask Ogerpon ex sat on four
+                    # effective Grass, one attachment from burying their 300 HP
+                    # Archaludon, and carried the Grass that pays its own
+                    # retreat -- but because it could already swing for 240,
+                    # `_promote_setup_ko_attacker` never even ran and could not
+                    # name it. The veto removed it at -30000 and the slot went to
+                    # a Tapu Bulu at 0/4 that could neither attack nor step
+                    # aside. The fix is in that selector's guard, not here.
+                    #
+                    # AND IT IS DELIBERATELY NOT WIDENED TO EVERY ATTACKER THAT
+                    # CAN WALK BACK. `_promo_deferred_attacker` names the best
+                    # body we can put in front when nobody knocks out, and it
+                    # outranks the cheap-wall family for exactly the reason
+                    # written there -- but the exit only saves us if we USE it,
+                    # and a body that can attack without knocking out will
+                    # attack. At their match point that is not a deferred
+                    # sacrifice, it is the game: we swing for less than lethal,
+                    # their reply lands and takes their last prize. What earns
+                    # the exemption here is the knockout that means their reply
+                    # never comes.
                     if (isinstance(card, Pokemon)
                             and _promo_op_act is not None
                             and _mp_cheaper_candidate
