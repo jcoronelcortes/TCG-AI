@@ -1592,6 +1592,16 @@ BOSS_SCORE_UNLOCK_GUST = 2600        # gust to UN-LOCK abilities (Iron Thorns ex
 # (2400 + 1.4 x its value): the play is real, but it takes no prize and must not
 # outrank a refill (Lillie's, 5000) nor any branch with a prize behind it.
 BOSS_SCORE_TRAP_GUST = 3700
+# THE SEAT THE RELAY INHERITS, one rung ABOVE the trap and for the reason the
+# trap misses: with our active locked in the front spot -- it neither attacks
+# this turn nor can pay its way out -- their knockout is the only thing that
+# empties the seat, and freezing them freezes us behind it. So the two are the
+# same board read opposite ways, and the one with a prize at the end of it wins.
+# It stays UNDER `BOSS_SCORE_PRIZE_RANK_BASE` (5200) because the prize it counts
+# lands a turn later than that one's, and under a refill (Lillie's, 5000) for the
+# same reason the trap does: a hand that can still rebuild is worth more than an
+# exchange arranged for next turn.
+BOSS_SCORE_RELAY_SEAT_GUST = 3900
 BOSS_SCORE_EMPTY_GUST = 20           # a NON-executable gust: yield to Lillie's
 XEROSIC_SCORE_ALAKAZAM = 5900        # Xerosic vs Alakazam: cap Powerful Hand (20 x opposing hand). Above a hydra-charged Lillie's (5800); below GUST_2PRIZE (6800) and the defensive pivots (~6600). It yields to boss_win_via_bench through its own guard
 XEROSIC_SCORE_GENERIC = 3380         # generic Xerosic with a very large opposing hand (>=7): disruption value, below a typical Lillie's (~3450)
@@ -1746,6 +1756,24 @@ DISCARD_LINK_THE_SEARCH_BUYS = 3
 # It changes WHICH Supporter is sacrificed, never how many: both readings live
 # inside the same band, exactly as the constants above require.
 THE_COST_KEEPS_THE_SUPPORTER_THE_TURN_PLAYS = True
+
+# --- THE RELAY INHERITS THE SEAT (see `the_relay_inherits_the_seat`) --------
+# The neutralisation switch of the gust-target rule that reads the THIRD knockout
+# route: our active is locked in the front spot (it neither attacks this turn nor
+# can pay its way out), so the only thing that empties the seat is THEIR
+# knockout, and the body we gust is the one our promoted attacker will face.
+#
+# Off -> the nuisance ladder decides, which prices the candidates by what it
+# would cost the opponent to ESCAPE them and answers the bare body that cannot
+# attack. That is the recorded game (registro_008 step 72 vs Marnie's Grimmsnarl
+# ex): the trap froze a turn we could not spend and, by never letting their
+# knockout come, kept three charged Ogerpon ex stuck behind a 20 HP Tapu Bulu.
+#
+# On -> among the bodies that OPEN the seat (their attack knocks our active out)
+# and that a benched attacker of ours cashes from the seat it inherits, the one
+# worth the most prizes wins. It changes WHICH body is gusted, never whether the
+# Boss's is played: the play half of the card is scored elsewhere.
+THE_RELAY_INHERITS_THE_SEAT = True
 
 # --- THE LAST BRIDGE OF A LINE (see `_evo_bridge_last_copies`) --------------
 # The constant above prices a link the search is about to BUY BACK. This one
@@ -2281,6 +2309,7 @@ __all__ = [
     'BOSS_SCORE_DEFENSIVE_GUST',
     'BOSS_SCORE_UNLOCK_GUST',
     'BOSS_SCORE_TRAP_GUST',
+    'BOSS_SCORE_RELAY_SEAT_GUST',
     'BOSS_SCORE_EMPTY_GUST',
     'XEROSIC_SCORE_ALAKAZAM',
     'XEROSIC_SCORE_GENERIC',
@@ -2300,6 +2329,7 @@ __all__ = [
     'DISCARD_LINK_LAST_BRIDGE',
     'DISCARD_LINK_THE_SEARCH_BUYS',
     'THE_COST_KEEPS_THE_SUPPORTER_THE_TURN_PLAYS',
+    'THE_RELAY_INHERITS_THE_SEAT',
     'DISCARD_WHAT_THE_SEARCH_ALREADY_BOUGHT',
     'DISCARD_BODY_WITHOUT_SEAT',
     'DISCARD_CF_HAND_RECYCLER',

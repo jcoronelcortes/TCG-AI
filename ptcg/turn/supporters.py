@@ -46,7 +46,7 @@ from ptcg.cards.groups import EVO_LINES
 from ptcg.cards.ids import ABILITY_IMMUNE_IDS, Abra, Alakazam_ex, Applin, BOSS_PRIORITY_CRUSTLE_GUST, Basic_Grass_Energy, Bayleef, Boss_Orders, Chikorita, Crustle_Fighting, Crustle_Grass, DUNSPARCE_IDS, Dawn, Dipplin, Drednaw, Dusclops, Duskull, Dwebble_Fighting, Dwebble_Grass, EX_IMMUNE_IDS, EX_PREEVO_IDS, Fezandipiti_ex, Froslass, GUST_TRAP_IDS, HIGH_PRIORITY_BENCH_TARGETS, Hydrapple_ex, KEY_BENCH_ATTACKER_IDS, Kadabra, Kirlia, LANA_PLAY_BASE_RECUPERABLE, LANA_PLAY_NO_DEMAND, Lanas_Aid, Lillie_Determination, Meganium, Meowth_ex, Munkidori, NONEX_FINAL_PREEVO_IDS, OUR_ABILITY_IDS, OUR_EX_IDS, Pinsir, RETREAT_COST, Ralts, Slowpoke, THREAT_PREEVO_IDS, Tapu_Bulu, Teal_Mask_Ogerpon_ex, Ultra_Ball, Zorua_N
 from ptcg.cards.lines import _pokemon_injugable, _preevo_of_ex_line, _is_more_evolved_than
 from ptcg.cards.tables import card_table
-from ptcg.decision.boss_orders import _gust_relieves_the_attacker
+from ptcg.decision.boss_orders import _gust_relay_seat_on_their_bench, _gust_relieves_the_attacker
 from ptcg.state.agent_state import AGENT_STATE
 from ptcg.state.zones import ZONE_DECK
 from ptcg.turn.supporters_ctx import CtxEvaluateSupporters  # noqa: F401
@@ -1048,9 +1048,45 @@ def evaluate_supporters(tc):
                 if _op_active_diff >= 2:
                     _op_active_stuck = True
 
+            # THE SEAT THE RELAY INHERITS -- the PLAY half of the same board the
+            # jam branches below read (user, registro_008 step 72 vs Marnie's
+            # Grimmsnarl ex, LOST -- deck-agnostic).
+            #
+            # It sits ABOVE the `_op_active_stuck` split on purpose, because both
+            # sides of that split make the same assumption and this is the state
+            # where it fails. Both ask what it costs the OPPONENT to escape: one
+            # answers "their active is already jammed, do not spend the Supporter",
+            # the other goes looking for the body that jams them hardest. Either
+            # answer is a purchase, and a purchase only pays if we can SPEND the
+            # turn it buys.
+            #
+            # The state this reads is the one where we cannot: our active neither
+            # attacks this turn nor can pay its way out of the front. There the jam
+            # is a lock on our OWN door -- their knockout is the only thing that
+            # lets the charged body behind it reach the seat -- so the question
+            # turns over. It stops being "what costs them most to escape" and
+            # becomes "is there a body worth SELLING them the seat for": one that
+            # OPENS it (its attack knocks our active out) and that an attacker
+            # already charged on our bench cashes from the seat it inherits.
+            #
+            # The prize floor is inside the reading -- their knockout must not take
+            # their last prizes -- and it is the SAME function the target selector
+            # asks per candidate, so the reason to play the card and the body it
+            # aims at cannot come apart.
+            #
+            # It is read even when a trap exists, and its rung scores above the
+            # trap's (`BOSS_SCORE_RELAY_SEAT_GUST`): on the recorded board BOTH
+            # were true and the trap is what the agent played.
+            if _gust_relay_seat_on_their_bench(
+                    my_state, op_state, state, hand_counts, total_grass,
+                    bench_count, neutralization_zone_active, op_prize):
+                values[Boss_Orders] = max(values.get(Boss_Orders, 0), 890)
+                values['_boss_relay_seat'] = True
+
             if _op_active_stuck:
 
-                if values.get(Boss_Orders, 0) <= 0:
+                if (values.get(Boss_Orders, 0) <= 0
+                        and not values.get('_boss_relay_seat')):
                     values[Boss_Orders] = 0
             else:
 

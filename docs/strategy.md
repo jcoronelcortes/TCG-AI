@@ -169,6 +169,32 @@ body, so putting it in front of us is doing their work. The walls and the abilit
 lockers read as harmless for the same reason and are excluded for a worse one:
 from the active spot they cancel our attackers.
 
+**And the third thing that stops it: a trap can be a lock on our own door.** The
+whole denial above is a purchase, and a purchase only pays if we can spend the
+turn it buys. There is a state where we cannot — the active neither attacks this
+turn nor can pay its way out of the front — and there the seat does not change
+hands until *they* knock it out. Freeze them and we freeze ourselves behind a body
+that will not move, with the real attackers stranded on the bench.
+
+So in that state the question turns over. It stops being *what costs them most to
+escape* and becomes **what is the seat worth selling for**: a body whose attack
+knocks our doomed active out — that is what opens the seat — and that an attacker
+already charged on our bench kills from the seat it inherits. That is a knockout
+route the usual reading has no name for, because both of the usual ones need an
+active that can act: attack from the front, or retreat and hit with the bench.
+This is the third, and it is the only one alive here.
+
+Among the bodies that qualify, take the one worth the **most prizes**. Their
+two-prize attacker spends its turn knocking out our one-prize corpse and our relay
+takes two back — the race goes 1 for 2 and keeps that shape. The floor that keeps
+it a trade: the knockout we are handing over must not be the one that ends the
+game for them.
+
+Note what makes the biggest body the softest one here. Our scaling attacks count
+the energy on **both** actives, so a heavily charged target pays for the attack
+that kills it; and the alternative is not free for them either, because retreating
+that body out discards the energy the retreat costs.
+
 ## 5. Don't waste turns — the hand engine exists for this
 
 A turn where nothing can attack and nothing develops is worth less than the

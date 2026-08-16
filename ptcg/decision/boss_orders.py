@@ -55,7 +55,7 @@ from ptcg.calc.energy import _can_attack_eff, _grass_attach_unit, _pending_grass
 from ptcg.calc.damage import _attacker_base_damage, _bench_attacker_best_damage, _bench_attacker_can_ko, _bench_finisher_that_survives, _bench_snipe_can_ko, _ex_active_is_a_wall, _hand_revealed_lethal_reply, _op_active_attack_damage_to, _our_effective_damage, _reply_reaches_match_point
 from ptcg.calc.card import prize_count, prize_count_op
 from ptcg.state.agent_state import AGENT_STATE
-from ptcg.cards.ids import Basic_Grass_Energy, Bayleef, DUNSPARCE_IDS, Dipplin, EX_PREEVO_IDS, Fezandipiti_ex, Hydrapple_ex, Meganium, OUR_EX_IDS, RETREAT_COST, THREAT_PREEVO_IDS, Tapu_Bulu, Teal_Mask_Ogerpon_ex
+from ptcg.cards.ids import Basic_Grass_Energy, Bayleef, DUNSPARCE_IDS, Dipplin, EX_PREEVO_IDS, Fezandipiti_ex, Hydrapple_ex, Meganium, OUR_EX_IDS, RETREAT_COST, THE_RELAY_INHERITS_THE_SEAT, THREAT_PREEVO_IDS, Tapu_Bulu, Teal_Mask_Ogerpon_ex
 from ptcg.calc.board import _active_of
 from ptcg.calc.energy import _grass_mult
 from ptcg.calc.damage import _ko_not_guaranteed
@@ -159,12 +159,22 @@ def _boss_reason_with_prize(ctx):
     through `boss_prize_rank`), the line cuts with a KO (`deny_evo`,
     `deny_alakazam_line`, `gust_key_bench`, `ko_threat_preevo`), the dodge
     (`dodge_redirect`), the DEFENSIVE gust (avoiding the opponent's finisher)
-    and the walls that cancel our attacker from the front."""
+    and the walls that cancel our attacker from the front.
+
+    THE RELAY SEAT IS ON THIS LIST and belongs on it literally: it is a knockout,
+    with its prizes already counted, that lands one turn later because the seat it
+    is taken from does not open until then. Leaving it off would let the two
+    deck-agnostic vetoes below kill it for the reason they were written to catch
+    -- a gust that achieves nothing -- on the one board where the gust is the only
+    thing the turn achieves. `gust_without_purpose` in particular reads THEIR
+    CURRENT ACTIVE, and the body that opens our seat is the one we are about to
+    put there."""
     v = ctx.supp_values
     return (ctx.win_via_boss_gust or ctx.gust_2prize_via_boss
             or ctx.boss_win_via_bench or ctx.boss_deny_alakazam_line
             or ctx.boss_prize_rank >= 1 or ctx.boss_ko_threat_preevo
             or ctx.boss_dodge_redirect or ctx.boss_defensive_gust
+            or ctx.boss_relay_seat
             or ctx.op_has_ability_immune_active or ctx.op_has_ex_immune_active
             or bool(v.get('_boss_deny_evo'))
             or bool(v.get('_boss_gust_key_bench')))
@@ -193,6 +203,18 @@ def _v_gust_net_stuck(c):
     return v
 
 
+def _v_gust_relay_seat(c):
+    """The band of THE RELAY INHERITING THE SEAT, ordered by what it PAYS.
+
+    20000 clears the whole nuisance ladder (`net_stuck` tops out around 2100
+    with the harmless bonus, and `opponent_line_higher_evolution` reaches
+    ~12000 but needs a retreat this state does not have) and the 2000 per prize
+    is wider than any tie-break that runs after it, so the prize order cannot be
+    inverted by an adjustment.
+    """
+    return 20000 + c.prizes * 2000
+
+
 _RULES_GUST_NUISANCE = [
     # FREE retreat cost: the opponent sends it back to the bench without paying
     # anything; it does not get in the way at all (e.g. Budew). Discarded.
@@ -217,6 +239,66 @@ _RULES_GUST_NUISANCE = [
     _FixedRule("nuisance_creates_the_iron_thorns_lock",
                lambda c: c.card_id == Iron_Thorns_ex,
                lambda c: SCORE_FORBID),
+    # THE RELAY INHERITS THE SEAT (user, registro_008 step 72 vs Marnie's
+    # Grimmsnarl ex, LOST -- deck-agnostic). Above the whole jam ladder, and it
+    # has to be, because in this state the jam is not a currency: it is a lock we
+    # put on our OWN door.
+    #
+    # Turn 8, six prizes each. Our active a Tapu Bulu at 20 of its 140 HP with no
+    # energy: Wood Hammer costs four, its retreat costs three, there was no Grass
+    # and no Switch in hand. It could not attack, it could not step aside, and the
+    # three Teal Mask Ogerpon ex behind it -- two of them already at their three
+    # energies -- could not reach the front while it stood there. On their bench:
+    # two Munkidori, a Froslass and a Marnie's Grimmsnarl ex at 310 HP carrying
+    # FIVE energies.
+    #
+    # The nuisance ladder priced the four candidates by what it would cost the
+    # opponent to escape them, and answered the bare Munkidori: retreat cost one,
+    # no energy, Mind Bend unpayable -- a body that cannot attack and cannot
+    # leave, 500 + 100 for the net jam and +1500 for being harmless. The
+    # Grimmsnarl ex, five energies against a retreat cost of two, jammed nothing
+    # and fell to the default: -200, last of the four.
+    #
+    # Both halves of that reading are wrong on this board, and for the same
+    # reason. A trap costs the opponent a turn, which is only worth something if
+    # WE can spend the turn it buys -- and we could not: our active neither
+    # attacked nor retreated, and the hand was two Meganium with no Bayleef under
+    # them. What the trap really bought was that their knockout never came, and
+    # THEIR KNOCKOUT WAS THE ONLY KEY TO OUR OWN SEAT. Freezing them freezes us
+    # behind a body that will not move until it dies.
+    #
+    # Read the other way round it is a route the target scorer never had.
+    # `can_ko` asks two questions -- can the ACTIVE knock this out today, can a
+    # benched body knock it out after we RETREAT today -- and both need an active
+    # that is usable. There is a third, and when the seat is locked it is the only
+    # one alive: they knock our active out, we PROMOTE, and the body we promote
+    # attacks whatever we gusted. Down that route every candidate on the board was
+    # lethal, so the choice collapses to what the knockout PAYS: the Grimmsnarl ex
+    # is worth two prizes and takes 540 from a benched Ogerpon that was already
+    # charged -- Myriad Leaf Shower counts the energy on BOTH actives, so their
+    # own five energies pay for it, and their Grass weakness doubles it.
+    #
+    # And that is the prize race the user names: their two-prize body spends its
+    # attack on our one-prize corpse (6->5), our relay cashes two (6->4), and the
+    # exchange keeps that shape. The bare Munkidori sells the same seat for one
+    # prize; the Froslass and the other Munkidori do not open it at all.
+    #
+    # THE THREE CONDITIONS, all read per candidate in `_ctx_gust_target`: the
+    # seat is LOCKED (our active neither attacks this turn nor can pay its way
+    # out), THIS body opens it (its attack from the active spot knocks our active
+    # out -- the bare Munkidori does not, which is exactly why trapping with it
+    # keeps our door shut), and our BENCH cashes it with the energy it already
+    # carries. Ordered by prizes, because once every candidate is lethal that is
+    # the only thing left to choose by.
+    #
+    # `op_wins_next` vetoes it: handing over a knockout is only a trade while
+    # there is a game left after it. The narrower half of that guard --
+    # their knockout on our active taking their LAST prizes -- is inside the
+    # reading itself, measured against this very body.
+    _FixedRule("the_relay_inherits_the_seat",
+               lambda c: (THE_RELAY_INHERITS_THE_SEAT
+                          and c.relay_cashes_the_seat and not c.op_wins_next),
+               _v_gust_relay_seat),
     # The nuisance is proportional to the NET retreat cost (the part the opponent
     # cannot pay with their energy): the higher the unpaid cost, the more it jams.
     _FixedRule("net_stuck",
@@ -676,12 +758,99 @@ class _CtxGustObjetivo:
     # retreat to get back to the bench. The three together are what makes the gust
     # a denial and not just a nuisance.
     traps_their_turn: bool = False
+    # THE THIRD KO ROUTE, the only one alive when the seat is locked: our active
+    # can neither attack this turn nor pay its way out of the front, THIS body
+    # knocks it out from the active spot (so their turn hands us the promotion),
+    # and a body already on our bench knocks THIS one out from the seat it
+    # inherits. `can_ko` cannot see it -- its two routes both need a usable
+    # active. It also carries the prize floor: it is only True while their
+    # knockout on our active leaves them prizes to take afterwards.
+    relay_cashes_the_seat: bool = False
+
+
+def _gust_relay_cashes_the_seat(card, my_state, op_state, state, hand_counts,
+                                total_grass, bench_count,
+                                neutralization_zone_active, op_prize):
+    """Does gusting `card` sell a locked seat for a knockout our RELAY takes?
+
+    THE THIRD KNOCKOUT ROUTE, and the only one alive when the seat is locked.
+    `can_ko` asks whether our ACTIVE finishes the target today, and whether a
+    benched body finishes it after we RETREAT today; both need an active that is
+    usable. When ours neither attacks nor can leave, there is one route left --
+    they knock it out, we PROMOTE, and the promoted body attacks what we gusted
+    -- and this is the function that reads it.
+
+    ONE FUNCTION FOR BOTH HALVES OF THE CARD, deliberately. The play half asks it
+    as an EXISTENCE question over their bench ("is there a reason to spend the
+    Supporter"), the target half asks it PER CANDIDATE ("which body"). Two models
+    of the same question is exactly how this card came to justify a play with one
+    reading and then aim it with another -- see `without_a_ko_prefer_the_dead_body`
+    and the defensive gust it used to contradict.
+
+    Three readings, in the order that makes the cheap one cut first, plus the
+    prize floor that keeps it a trade. Nothing here names a card or a matchup: it
+    is our active's attack and retreat costs, their body's attack, our bench's
+    damage and the two prize counts.
+    """
+    atk = my_state.active[0] if (my_state.active and card is not None) else None
+    if atk is None:
+        return False
+    # (1) THE SEAT IS LOCKED. Our active does not attack this turn even with the
+    # attachment still to come, and it cannot pay its way out of the front -- no
+    # Switch in hand and not enough energy for its retreat. So the only thing
+    # that empties the seat is their knockout.
+    _rs_e = len(atk.energies)
+    _rs_attach = (_grass_attach_unit()
+                  if (hand_counts.get(Basic_Grass_Energy, 0) >= 1
+                      and not state.energyAttached) else 0)
+    if (_can_attack_eff(atk.id, _rs_e + _rs_attach)
+            or hand_counts.get(1123, 0) >= 1
+            or _rs_e >= RETREAT_COST.get(atk.id, 1)):
+        return False
+    # (2) THEIR KNOCKOUT STILL LEAVES A GAME. Selling the body in front is a
+    # trade only while the prizes it pays are not their last ones.
+    if op_prize <= prize_count(atk):
+        return False
+    # (3) THIS body opens the seat, and our bench cashes what sits in it. The
+    # promoted body pays no retreat -- the seat comes free -- but the knockout
+    # takes our active's energy off the field with it, and the bench it leaves is
+    # one body smaller.
+    if _op_active_attack_damage_to(
+            card, atk, getattr(op_state, 'handCount', None),
+            scaled=True, team_buff=True) < (atk.hp or 0):
+        return False
+    return _bench_attacker_can_ko(
+        my_state, card, AGENT_STATE.meganium_in_play, total_grass,
+        max(0, bench_count - 1), max(0, total_grass - _rs_e),
+        neutralization_zone_active)
+
+
+def _gust_relay_seat_on_their_bench(my_state, op_state, state, hand_counts,
+                                    total_grass, bench_count,
+                                    neutralization_zone_active, op_prize):
+    """The EXISTENCE half: is there any body on their bench worth the trade?
+
+    What the PLAY half of Boss's Orders needs. The exclusions are the ones every
+    other bench walk in this file already makes -- a Dunsparce is a forbidden
+    target, a free-retreat body goes straight back, and the walls and the ability
+    locker are the last bodies we want in front however good the trade looks.
+    """
+    for _b in (op_state.bench or []):
+        if _b is None or _b.id in DUNSPARCE_IDS or _b.id in GUST_TRAP_IDS:
+            continue
+        if RETREAT_COST.get(_b.id, 0) <= 0:
+            continue
+        if _gust_relay_cashes_the_seat(
+                _b, my_state, op_state, state, hand_counts, total_grass,
+                bench_count, neutralization_zone_active, op_prize):
+            return True
+    return False
 
 
 def _ctx_gust_target(card, o, my_state, op_state, state, hand_counts,
                        total_grass, bench_count, neutralization_zone_active,
                        op_is_alakazam, op_latias, op_dragapult_line,
-                       op_typhlosion_line, my_prize=6):
+                       op_typhlosion_line, my_prize=6, op_prize=6):
     """Read ONE opposing body as a gust candidate -> `_CtxGustObjetivo`.
 
     Called once per body on their bench; the resulting contexts are what the
@@ -842,6 +1011,10 @@ def _ctx_gust_target(card, o, my_state, op_state, state, hand_counts,
                         and RETREAT_COST.get(card.id, 0) - energy >= 1
                         and card.id not in GUST_TRAP_IDS)
 
+    relay_cashes_the_seat = _gust_relay_cashes_the_seat(
+        card, my_state, op_state, state, hand_counts, total_grass, bench_count,
+        neutralization_zone_active, op_prize)
+
     return _CtxGustObjetivo(
         card_id=card.id, energy=energy,
         rc0=RETREAT_COST.get(card.id, 0), rc1=RETREAT_COST.get(card.id, 1),
@@ -863,7 +1036,8 @@ def _ctx_gust_target(card, o, my_state, op_state, state, hand_counts,
         wall_blocks_active=wall_blocks_active,
         body_is_harmless=body_harmless,
         op_wins_next=bool(getattr(AGENT_STATE.turn_plan, 'op_wins_next', False)),
-        traps_their_turn=traps_their_turn)
+        traps_their_turn=traps_their_turn,
+        relay_cashes_the_seat=relay_cashes_the_seat)
 
 
 _ADJUST_GUST_OFFENSIVE = [
@@ -982,6 +1156,9 @@ __all__ = [
     '_boss_reason_with_prize',
     '_gust_is_basic',
     '_v_gust_net_stuck',
+    '_v_gust_relay_seat',
+    '_gust_relay_cashes_the_seat',
+    '_gust_relay_seat_on_their_bench',
     '_gust_evolution_line',
     '_gust_generic_tiers',
     '_gust_opponent_line',
