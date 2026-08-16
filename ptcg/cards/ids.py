@@ -373,15 +373,68 @@ MARNIE_LINE_IDS = frozenset({Marnies_Impidimp, Marnies_Morgrem, Grimmsnarl_ex})
 # order of the hunt is Munkidori first, then the Froslass that feeds it, then the
 # Snorunt that becomes another Froslass.
 #
+# ...BUT A MUNKIDORI IS ONLY THAT THREAT WHILE IT IS ARMED (user, episode
+# 93680377 step 173, vs Marnie -- WON). Adrena-Brain is an Ability and costs no
+# energy, but the Munkidori that carries a Darkness is the one that can also
+# ATTACK from the seat the gust sells it, and it is the copy their turn is
+# already built around. The bare one is a body they still have to pay for. So
+# the ladder splits the species in two and the Froslass goes BETWEEN the halves:
+#
+#     Munkidori WITH energy  >  Froslass  >  Munkidori WITHOUT energy  >  Snorunt
+#
+# which is the user's sentence read in both directions at once -- "Munkidori
+# outranks Froslass when at least one Munkidori has energy", and "with only bare
+# Munkidori on the field the Froslass goes first".
+#
 # The numbers are the SPACING of that ladder, not its height: the height comes
-# from BOSS_SCORE_MARNIE_ENGINE_FIRST and they only order the three engine
-# bodies among themselves.
+# from BOSS_SCORE_MARNIE_ENGINE_FIRST and they only order the four engine rungs
+# among themselves. The dict is keyed by CARD and holds the TOP rung of each
+# species; `MARNIE_ENGINE_DRY_MUNKIDORI` is the demoted one.
 MARNIE_ENGINE_GUST_RANK = {
-    Munkidori: 600,
-    Froslass: 400,
-    Snorunt: 200,
-    Snorunt_Ice: 200,
+    Munkidori: 1600,
+    Froslass: 1200,
+    Snorunt: 400,
+    Snorunt_Ice: 400,
 }
+# The rung of a Munkidori with NO energy: one step below the Froslass that feeds
+# it and one step above the Snorunt that is not a Froslass yet.
+MARNIE_ENGINE_DRY_MUNKIDORI = 800
+# HP DOES NOT CHOOSE THE RUNG -- IT ONLY BREAKS TIES INSIDE ONE. The record that
+# forced this ladder had TWO Munkidori sitting at exactly 100/110, one charged
+# and one bare: they tied at the same score and the argmax took the first one on
+# their bench, which is the bare one. Nothing about the size of a body may
+# outrank what that body DOES, so the tiebreak is bounded to less than one rung
+# of spacing (400) and is only ever consulted between two bodies that already
+# share a rung: among equals, the one closest to dying goes first, because it is
+# the one our attack can still finish if the gust is answered.
+MARNIE_ENGINE_HP_TIEBREAK_CEIL = 400   # above any printed HP (the Mega ceiling is 340)
+MARNIE_ENGINE_HP_TIEBREAK_MAX = 39     # < the 400 that separates two rungs
+# A NAMED SWITCH for the ladder INSIDE the engine, the way
+# `MARNIE_ENGINE_BEFORE_THE_LINE` is one for the engine-vs-line question. The two
+# are deliberately separate: that one decides WHETHER the gust goes to the
+# engine at all, this one decides WHICH engine body once it does. False restores
+# the flat per-species ranking (`MARNIE_ENGINE_GUST_RANK` read straight, no
+# energy split and no tiebreak), which is exactly the tree that let the argmax
+# choose by bench position -- and that is what makes the arms of
+# `utils/census_the_gust_reads_the_energy_not_the_hp.py` one tree with one name
+# rebound.
+MARNIE_ENGINE_READS_THE_ENERGY = True
+# THE BRACKET THAT KEEPS A BIGGER PRIZE ABOVE THE ENGINE, and it only has to be
+# written for the JAM chain. The offensive chain gets it from `tier_ko`, which
+# prices a two-prize ex knockout at 21000-24000 against the engine's 16639
+# ceiling; the jam chain has no prize-aware knockout rung at all -- its only
+# knockout-aware rung, `opponent_line_higher_evolution`, tops out near 12550 and
+# is blind to what the body pays. Without this the engine ladder would outrank a
+# Marnie's Grimmsnarl ex we can actually finish, which is the one thing the
+# ladder's own band says it must never do.
+#
+# `BOSS_SCORE_MARNIE_ENGINE_FIRST + 3000 + 1000 per prize` = 20000 at two prizes
+# and 21000 at three: above the engine ceiling and below
+# `_v_gust_relay_seat` (20000 + 2000 per prize, from 22000 up), which stays on
+# top because when their knockout is the only key to our own seat that trade
+# outranks the matchup.
+MARNIE_ENGINE_BIGGER_PRIZE = 3000
+MARNIE_ENGINE_BIGGER_PRIZE_STEP = 1000
 # A NAMED SWITCH for the whole reading, like `LAST_BRIDGE_IS_NOT_FODDER` and the
 # rest: it gates BOTH halves of the change at once -- the new rung
 # (`marnie_the_engine_before_the_line`) and the stand-down of
@@ -2218,6 +2271,12 @@ __all__ = [
     'Marnies_Morgrem',
     'MARNIE_LINE_IDS',
     'MARNIE_ENGINE_GUST_RANK',
+    'MARNIE_ENGINE_DRY_MUNKIDORI',
+    'MARNIE_ENGINE_HP_TIEBREAK_CEIL',
+    'MARNIE_ENGINE_HP_TIEBREAK_MAX',
+    'MARNIE_ENGINE_READS_THE_ENERGY',
+    'MARNIE_ENGINE_BIGGER_PRIZE',
+    'MARNIE_ENGINE_BIGGER_PRIZE_STEP',
     'MARNIE_ENGINE_BEFORE_THE_LINE',
     'Latias_ex',
     'Cornerstone_Mask_Ogerpon_ex',
