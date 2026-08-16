@@ -60,7 +60,7 @@ from ptcg.calc.board import _active_of
 from ptcg.calc.energy import _grass_mult
 from ptcg.calc.damage import _ko_not_guaranteed
 from dataclasses import dataclass
-from ptcg.cards.ids import ALAKAZAM_ATTACKER_IDS, ALAKAZAM_LINE_IDS, Abra, Alakazam_ex, BOSS_SCORE_MARNIE_ENGINE_FIRST, Boss_Orders, Budew, Cyndaquil, DARKNESS_ENERGY_TYPE, Dragapult_ex, Drakloak, Dreepy, Dwebble_Fighting, Dwebble_Grass, EX_PREEVO_IDS, Froslass, GUST_TRAP_IDS, Grimmsnarl_ex, Hydrapple_ex, Iron_Thorns_ex, Kadabra, Latias_ex, Lillie_Determination, MARNIE_ENGINE_BEFORE_THE_LINE, MARNIE_ENGINE_BIGGER_PRIZE, MARNIE_ENGINE_BIGGER_PRIZE_STEP, MARNIE_ENGINE_DRY_MUNKIDORI, MARNIE_ENGINE_GUST_RANK, MARNIE_ENGINE_HP_TIEBREAK_CEIL, MARNIE_ENGINE_HP_TIEBREAK_MAX, MARNIE_ENGINE_READS_THE_ENERGY, MARNIE_LINE_IDS, Meowth_ex, Munkidori, Quilava, SCORE_FORBID, Snorunt, THREAT_PREEVO_IDS, Teal_Mask_Ogerpon_ex, Typhlosion
+from ptcg.cards.ids import ALAKAZAM_ATTACKER_IDS, ALAKAZAM_LINE_IDS, Abra, Alakazam_ex, BOSS_SCORE_MARNIE_ENGINE_FIRST, Boss_Orders, Budew, Cyndaquil, DARKNESS_ENERGY_TYPE, Dragapult_ex, Drakloak, Dreepy, Dwebble_Fighting, Dwebble_Grass, EX_PREEVO_IDS, Froslass, GUST_TRAP_IDS, Grimmsnarl_ex, Hydrapple_ex, Iron_Thorns_ex, Kadabra, Latias_ex, Lillie_Determination, MARNIE_ENGINE_BARE_LINE_NEEDS_NO_RESERVE, MARNIE_ENGINE_BEFORE_THE_LINE, MARNIE_ENGINE_BIGGER_PRIZE, MARNIE_ENGINE_BIGGER_PRIZE_STEP, MARNIE_ENGINE_DRY_MUNKIDORI, MARNIE_ENGINE_GUST_RANK, MARNIE_ENGINE_HP_TIEBREAK_CEIL, MARNIE_ENGINE_HP_TIEBREAK_MAX, MARNIE_ENGINE_READS_THE_ENERGY, MARNIE_LINE_IDS, Meowth_ex, Munkidori, Quilava, SCORE_FORBID, Snorunt, THREAT_PREEVO_IDS, Teal_Mask_Ogerpon_ex, Typhlosion
 from ptcg.cards.tables import card_table
 from ptcg.engine.rules import _Adjustment, _FixedRule
 
@@ -278,6 +278,26 @@ def _v_gust_relay_seat(c):
 # nothing covers it. `can_ko` gates each rung for the reason the whole file
 # repeats -- a gust that takes no prize is a free retreat we hand them -- so a
 # Munkidori we cannot finish yields to the Froslass we can.
+#
+# ...UNLESS THEIR LINE IS BARE, and then the reserve is owed to nobody (user,
+# episode 93683313 step 49 vs Marnie -- WON, and the gust took the Morgrem):
+#
+#     US (seat 0, 5 prizes)                RIVAL (6 prizes)
+#     active Teal Mask Ogerpon ex, 3G      active Marnie's Impidimp 70/70, 0e
+#     bench  Bayleef, Meowth ex,           bench  Snorunt, Snorunt,
+#            Teal Mask Ogerpon ex, 2G             **Morgrem 100/100, 0e**,
+#                                                 **Munkidori 110/110, 1D**,
+#                                                 Munkidori 110/110, 0e
+#
+# Our reserve Ogerpon ex held two Grass, under its own attack cost, so it priced
+# at zero against a projected 320 and the bench premise read false -- and the
+# whole engine ladder stood down. But the rung it was standing down FOR never
+# fired either: `ex_preevo_takes_priority` demands `c.energy >= 1` and their
+# every body was at zero, so the Morgrem won on the plain stage tier (9000) and
+# the charged Munkidori (6450) stayed on their bench. The premise the reserve
+# question defends is "a two-prize ex attacker we cannot answer"; a line at zero
+# energy is not that yet. `_marnie_line_is_bare` is that half, read off the same
+# projection so the two cannot drift apart.
 #
 # `max` and not `+`: the floor is BOSS_SCORE_MARNIE_ENGINE_FIRST, so that
 # whatever tier the engine bodies happen to sit in, the order between them is
@@ -720,6 +740,34 @@ def _marnie_bench_answers_the_grimmsnarl(my_state, op_state, total_grass,
     return _bench_attacker_can_ko(
         my_state, target, AGENT_STATE.meganium_in_play, total_grass,
         bench_count, total_grass, neutralization_zone)
+
+
+def _marnie_line_is_bare(op_state):
+    """Is their Marnie's line carrying NO energy at all?
+
+    THE QUESTION THAT SAYS WHETHER THE RESERVE QUESTION IS EVEN OWED (user,
+    episode 93683313 step 49, vs Marnie -- WON, and the gust took the Morgrem
+    over a charged Munkidori). `_marnie_bench_answers_the_grimmsnarl` is asked so
+    that `ex_preevo_takes_priority` can keep its 19500 when our active is the
+    only body covering the Stage 2 -- but that rung demands a CHARGED
+    pre-evolution (`c.energy >= 1`). With their whole line at zero it never
+    fires, the 19500 does not exist, and the engine ladder was standing down for
+    a premise nobody had made: on the record their Impidimp and their Morgrem
+    both sat on no energy while a Munkidori carried a Darkness.
+
+    THE SAME PROJECTION AND NOT A SECOND READING. `_marnie_grimmsnarl_projection`
+    already inherits the energy of the most-charged body of the line -- the real
+    Grimmsnarl ex's own when it is on the board, the floor Punk Up arrives with
+    otherwise -- so "bare" is that projection at zero, and the two questions
+    cannot drift apart. No line in play is not bare: there is nothing to project
+    and nothing to gust, and the caller's other half already reads False.
+    """
+    if not MARNIE_ENGINE_BARE_LINE_NEEDS_NO_RESERVE:
+        return False
+    target = _marnie_grimmsnarl_projection(op_state)
+    if target is None:
+        return False
+    return len(getattr(target, 'energies', []) or []) == 0
 
 
 def _marnie_engine_rung(c):
@@ -1355,12 +1403,20 @@ def _ctx_gust_target(card, o, my_state, op_state, state, hand_counts,
     # both consumers ask this field (the new rung and the stand-down of
     # `ex_preevo_takes_priority`), so `MARNIE_ENGINE_BEFORE_THE_LINE = False`
     # restores the previous behaviour in both at once.
+    #
+    # ...OR THEIR LINE IS BARE, which is the same premise read from the other
+    # end. The reserve question is owed to `ex_preevo_takes_priority`, and that
+    # rung needs a CHARGED pre-evolution; with their whole line at zero energy
+    # there is no 19500 to protect and the engine owes the gust to nobody. It
+    # stays inside this ONE field, and therefore inside one switch, for the same
+    # reason the rest of it does: both chains and both consumers read it here.
     marnie_engine_first = (
         MARNIE_ENGINE_BEFORE_THE_LINE
         and AGENT_STATE.op_is_marnie_deck
-        and _marnie_bench_answers_the_grimmsnarl(
-            my_state, op_state, total_grass, bench_count,
-            neutralization_zone_active))
+        and (_marnie_bench_answers_the_grimmsnarl(
+                my_state, op_state, total_grass, bench_count,
+                neutralization_zone_active)
+             or _marnie_line_is_bare(op_state)))
 
     return _CtxGustObjetivo(
         card_id=card.id, energy=energy,
@@ -1530,6 +1586,7 @@ __all__ = [
     '_ProjectedBody',
     '_marnie_grimmsnarl_projection',
     '_marnie_bench_answers_the_grimmsnarl',
+    '_marnie_line_is_bare',
     '_marnie_engine_rung',
     '_RULES_GUST_NUISANCE',
     '_ADJUST_GUST_NUISANCE',
