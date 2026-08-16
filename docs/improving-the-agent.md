@@ -169,4 +169,5 @@ The write-ups already there are indexed from the
 
 ---
 
-Next: [The instruments](instruments.md) · [Tools](tools.md) · [Testing](testing.md) · [Debugging a decision](debugging.md)
+Next: [The method](the-method.md) — this loop in long form, with the anatomy of a
+finding and what it takes to run it on a different deck · [The instruments](instruments.md) · [Tools](tools.md) · [Testing](testing.md) · [Debugging a decision](debugging.md)

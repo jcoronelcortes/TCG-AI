@@ -23,6 +23,61 @@ is written line by line. It is meant to stay readable as the code changes.
 | [Glossary](glossary.md) | Card-game terms and project vocabulary, defined once. |
 | [Naming](naming.md) | The vocabulary the code itself uses: reach for the word already in use rather than a synonym. |
 
+## The deck we pilot
+
+The agent plays **one fixed list of sixty cards**, and almost every rule in the
+project only makes sense against it. This picture is generated from `deck.csv`
+itself — `python deck/render_deck_image.py` — so it cannot drift away from what
+the agent actually plays.
+
+![The 60-card list the agent pilots](../deck/deck_en.jpg)
+
+### Pokémon — 20
+
+| Count | Card | ID | What it is for |
+| ---: | --- | ---: | --- |
+| 4 | Teal Mask Ogerpon ex | 96 | Attacker and tank. *Teal Dance* attaches a Grass from hand and draws; *Myriad Leaf Shower* scales with the energy on **both** actives. |
+| 2 | Chikorita | 917 | Bottom of the accelerator line. |
+| 2 | Bayleef | 709 | The only bridge to Meganium — the deck runs no Rare Candy. |
+| 2 | Meganium | 710 | *Wild Growth* makes every Grass count **double**; attacks for 140 while costing one prize. |
+| 2 | Applin | 92 | Bottom of the big-ex line. |
+| 2 | Dipplin | 93 | *Festival Lead* doubles the attack under Festival Grounds; *Do the Wave* scales with our bench. |
+| 2 | Hydrapple ex | 150 | 330 HP. *Ripening Charge* moves energy; the body we pivot to when the active is doomed. |
+| 2 | Meowth ex | 1071 | The hand engine. *Last-Ditch Catch* searches a Supporter out of the deck when it comes down. |
+| 1 | Fezandipiti ex | 140 | Draw off a knockout, plus *Cruel Arrow* to hit anything on the board. |
+| 1 | Tapu Bulu | 920 | Heavy one-prize attacker: *Wood Hammer* for 220. The answer to the immune walls. |
+
+### Trainers — 22
+
+| Count | Card | ID | What it is for |
+| ---: | --- | ---: | --- |
+| 4 | Lillie's Determination | 1227 | Supporter. The main way out of a dead turn — eight cards at exactly six prizes. |
+| 4 | Ultra Ball | 1121 | Item. Any Pokémon, at the cost of two cards out of hand. |
+| 4 | Bug Catching Set | 1094 | Item. Bug-type and Grass search off the top seven. |
+| 2 | Boss's Orders | 1182 | Supporter. Drags a benched body into the active spot. |
+| 2 | Xerosic's Machinations | 1197 | Supporter. Cuts their hand to three. |
+| 2 | Poké Pad | 1152 | Item. Searches a Pokémon with no Rule Box. |
+| 1 | Night Stretcher | 1097 | Item. Recovers a Pokémon **or** an energy from the discard. |
+| 1 | Lana's Aid | 1184 | Supporter. Recovers non-ex bodies and energy together. |
+| 1 | Dawn | 1231 | Supporter. Fetches a Basic, a Stage 1 and a Stage 2 at once. |
+| 1 | Unfair Stamp | 1080 | Item, ACE SPEC (one copy allowed). Both hands reset; theirs comes back smaller. |
+
+### Stadium and energy — 18
+
+| Count | Card | ID | What it is for |
+| ---: | --- | ---: | --- |
+| 4 | Forest of Vitality | 1261 | Lets a Pokémon evolve the turn it is played — and removes a hostile stadium. |
+| 14 | Basic {G} Energy | 1 | All of our energy. |
+
+The list last moved on **13 August 2026** (−1 Tapu Bulu, −1 Night Stretcher,
++1 Poké Pad, +1 Basic Grass), a change measured as worth more than the thirteen
+rule commits of the same day — see [the night of 14 Aug](history/night-2026-08-14.md)
+and [Searching the list](list-search-2026-08-14.md), which also records why no
+further swap earned its slot.
+
+➡️ [Our deck and its engines](deck-and-engines.md) explains the combos these
+sixty cards exist to produce, and why several decision modules exist at all.
+
 ## The code
 
 | Page | What you get |
@@ -72,6 +127,7 @@ is written line by line. It is meant to stay readable as the code changes.
 
 | Page | What you get |
 | --- | --- |
+| ⭐ [The method](the-method.md) | **The long form of how work gets done here, written to be rebuilt from scratch for a different deck.** The anatomy of one finding end to end: how a board is described, reproduced, diagnosed against a taxonomy of recurring causes, fixed from a finite menu of shapes, pinned, measured cheapest-first, and recorded — including the reverts. Also what is portable to another list and what has to be rebuilt. |
 | [Improving the agent](improving-the-agent.md) | The measurement workflow: how a strategy change is proposed, measured, and kept or reverted. |
 | [The instruments](instruments.md) | The measuring apparatus as a whole — the four questions it answers, and the rule that decides whether a number may be believed. |
 | [Tools](tools.md) | Catalogue of the scripts in `utils/`: what each one is for and how to run it. |
