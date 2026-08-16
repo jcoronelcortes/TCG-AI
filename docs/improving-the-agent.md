@@ -134,6 +134,26 @@ order the dependencies want and writes a report.
 - **Suspect the gate first.** A gate that shares modules between its arms
   reports exactly zero, and zero orders a revert here. Run the instrument twice
   before believing it, and check that its self-test ran.
+- **Age the log before accusing the agent.** A record is played by whatever
+  submission was live that day, and this repository merges a dozen rule commits a
+  day. Before writing a rule for a defect you read in a record, **replay it
+  against the current tree** — and if it is already fixed, bisect over the record
+  itself to find out by what. On 16 August 2026 a promotion defect read off
+  `registro_013` had been repaired hours earlier by an unrelated commit; what was
+  still broken was not the choice but **what that choice depended on**, which is a
+  different and smaller rule. See [the write-up](alakazam-the-seat-that-closes-the-game-is-not-a-tie-break-2026-08-16.md).
+- **When the fix deletes its own population, each arm plays its own games.**
+  Counting the situation on the fixed agent returns zero and proves nothing —
+  the rule's whole job is to make the board stop happening. Run the baseline as
+  its own arm over its own games, and report both rows: the baseline row is what
+  demonstrates the instrument **can** fail before it reports the candidate's
+  zero. An instrument that has never been seen to produce a non-zero is not
+  evidence of a zero.
+- **An instrument that answers "was there a better line?" has to model the
+  deck's own engines.** `turn_explorer.py` said *no better line* about a turn the
+  agent itself plays, because it was missing the Grass doubler in its simulated
+  charge and one of the two recovery Supporters. A negative from a model that
+  cannot see the plan is a statement about the model.
 
 ## 6. Keep or revert
 

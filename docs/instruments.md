@@ -97,6 +97,32 @@ rule. The rule census at three loads makes that visible: 120 rules never fire
 over the frozen corpus alone, 38 over the corpus plus 2 400 games. What survives
 the widest load is what deserves reading.
 
+Three refinements the 16 August 2026 batch added to that pattern, each from a
+census that would have lied without it:
+
+- **Count the right unit.** `census_the_top_in_play_does_not_close_the_line.py`
+  counts **distinct turns, not valuations**: the board it came from is priced
+  eleven times inside a single turn, and a per-valuation rate would have inflated
+  the exposure by an order of magnitude.
+- **Neutralise the switch on the census itself**, so it always measures the
+  *exposure* — the world the rule was written for — and never the post-fix world
+  where the population no longer exists. When that is impossible because the fix
+  deletes the population outright, give the baseline **its own games** and print
+  both rows, as `census_the_ko_that_ends_the_game.py` does.
+- **Report the denominator, and split the flips.** A flip count with no shape row
+  cannot tell *never happens* from *never measured*, and a flip total with no
+  breakdown lets a rule that moved for some other reason hide inside it. The
+  Marnie engine censuses split theirs into "line → engine" (the sentence),
+  "engine → engine" (the ladder's own reordering) and "other" (a knock-on), and
+  the leakage row against a list the rule cannot legally touch is what proves it
+  stayed inside its matchup.
+
+And one census **found half of its own rule**:
+`census_the_seat_that_loses_the_game.py` was written to measure a retreat, and
+its `doomed` counter reported 2 of 19 simulated promotions giving the seat away —
+a second menu no human had read. A counter for the *state* the rule is about,
+next to the counter for the rule firing, is what makes that possible.
+
 ### 2. "Is the table still true?" — the audits
 
 A table of card IDs rots silently: the cards it describes are outside the

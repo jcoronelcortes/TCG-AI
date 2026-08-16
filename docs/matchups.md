@@ -34,8 +34,8 @@ another, so most of them are gated on these flags.
 
 | Archetype | What makes it dangerous | Our answer |
 | --- | --- | --- |
-| **Marnie Grimmsnarl** | Bench damage that snipes our developing line, plus chip damage between turns. | Heal or evolve out of the snipe range; watch the window where a benched body becomes a free prize. |
-| **Alakazam** | Damage that scales with the opponent's hand size, and ability pressure. | Strip their hand before the hit lands; keep a one-prize attacker ready; reserve a bench slot. |
+| **Marnie Grimmsnarl** | Bench damage that snipes our developing line, plus chip damage between turns. **And the threat is not the ex.** Marnie's Grimmsnarl ex is 320 HP and **weak to Grass**, so a charged Teal Mask Ogerpon ex on our bench already reads 300–420 against it; what nothing answers is the two abilities no evolution step controls — Froslass's *Freezing Shroud* (20 a round to our whole board, because every body of ours has an ability) and **Munkidori's *Adrena-Brain*, worse because it aims**: 30 counters moved wherever they close a knockout, reloaded every checkup by their own Froslass. | Heal or evolve out of the snipe range; watch the window where a benched body becomes a free prize. And when the bench already covers the Stage 2, **gust the engine and not the line** — charged Munkidori first, then Froslass, then a bare Munkidori. Three pages, three switches: [the engine before its line](marnie-the-engine-goes-before-its-line-2026-08-16.md), [the energy and not the HP](marnie-the-gust-reads-the-energy-not-the-hp-2026-08-16.md), [the bare line](marnie-the-bare-line-asks-nothing-of-the-reserve-2026-08-16.md). |
+| **Alakazam** | Damage that scales with the opponent's hand size, and ability pressure. **The threat is deferred**: with their hand small the *Powerful Hand* projection can be 80 against a 330 HP body, and what to fear is the hit the Abra → Kadabra → Alakazam line assembles afterwards. | Strip their hand before the hit lands; keep a one-prize attacker ready; reserve a bench slot. The defensive pivot is priced off the **canonical projection**, not the immediate reply — and it only pays when the corpse it avoids is actually on offer; then the promotion that follows gets the same list that justified the retreat. See [The front seat vs Alakazam](alakazam-the-pivot-promotes-the-body-it-pays-for-2026-08-16.md). |
 | **Crustle Wall** | A front body our ex attackers cannot damage, healed and buffed. | Bring up a non-ex attacker that can hit it; kill the wall before spending resources behind it. |
 | **Cornerstone / Cubchoo** | Same immunity problem, plus a body that punishes retreating. | Same relief attacker, with different energy caps — the two plans collide and are tuned together. |
 | **Milotic ex / Sylveon** | **Two walls in one list, and they blank different bodies.** Sylveon cancels our *ex*; Milotic ex's Sparkling Scales cancels our *Tera* — the Teal Mask Ogerpon ex the deck is built to charge — and nothing else. In **0 of the 408** corpus lists, and met on ladder. | Read the wall off the **attacker property**, not the archetype: against the Milotic every non-Tera body of ours hits for full, so retreat the Ogerpon and promote whatever is loaded. See [The wall that reads our Tera](milotic-the-wall-that-reads-our-tera-2026-08-16.md). |
@@ -47,7 +47,7 @@ another, so most of them are gated on these flags.
 | **Iron Thorns / ability lock** | Turns off our engines entirely. | Play around the lock and treat it as a deck-size limit, not an ability question. |
 | **Festival Lead** | 4.3% of the field across 11 lists, and several of them are near-copies of our own sixty. The shared stadium that evolves for free arms *both* sides. | We beat it 97.5%. The rule worth knowing is that the stadium they brought also arms our Dipplin. |
 | **Team Rocket Mewtwo** | New in the August corpus: 5 lists, 2% of the field. | No dedicated plan; 95.3% on the general machinery. |
-| **Mega Lopunny / Mega Froslass** | Their Froslass drips a damage counter onto **every** Pokémon with an ability at each checkup — including their own Grimmsnarl ex, which is why the drip is also *ours* to count. | Count the checkups into the HP the attack has to cover ([Strategy §2.1](strategy.md)). Its remaining losses are **starvation, not misplay** — 12 000 games per arm put the code's contribution at ±0.1 pp. |
+| **Mega Lopunny / Mega Froslass** | Their Froslass drips a damage counter onto **every** Pokémon with an ability at each checkup — including their own Grimmsnarl ex, which is why the drip is also *ours* to count. **And Mega Froslass ex prints 0**: *Resentful Refrain* is 50 per card of **our** hand, so the body that looks harmless on the card is the one that ends the game. | Count the checkups into the HP the attack has to cover ([Strategy §2.1](strategy.md)). Its remaining losses are **starvation, not misplay** — 12 000 games per arm put the code's contribution at ±0.1 pp. At **their** match point, read the scaled reply and give the seat to a body that survives it: [The seat that hands the game over](froslass-the-seat-that-loses-the-game-yields-to-the-wall-2026-08-16.md). |
 | **Archaludon** | A body big enough that our answer to it is a single charged ex, which their pile then makes a match-point target. | The match-point veto yields to a finisher that can pay its own retreat: their blow arrives a turn of ours later, so a body that can step aside is not there to receive it. |
 | **Cynthia Garchomp, Zoroark, Gardevoir, Greninja, Raging Bolt, Abomasnow…** | Individually rarer. | Targeted rules only where they were measured to matter. |
 
@@ -346,7 +346,16 @@ A card-by-card audit of the top archetypes (August 2026) found:
 
 ## Abilities that change what their attack does
 
-Attacks that scale with the board live in `ptcg/cards/op_scaling.py`. A second,
+Attacks that scale with the board live in `ptcg/cards/op_scaling.py`. **The table
+being right is not the same as the agent reading it**: the scaled read is
+**opt-in**, and on 16 August 2026 a game was lost because no defensive rule asked
+for it — *Resentful Refrain* projected as **zero**, so `active_ko_likely` was
+False and no pivot in the file could see the knockout coming. When a rule only
+speaks because not moving loses the game, it reads `scaled=True`; the same flag
+measured **negative** in the ninety-odd places whose failure mode is going
+passive, and that split is deliberate. See [the write-up](froslass-the-seat-that-loses-the-game-yields-to-the-wall-2026-08-16.md).
+
+A second,
 smaller family changes the damage without touching the attack at all: an
 **ability on the attacker** that adds a flat amount while some visible condition
 holds. These are modelled inline in the opponent-damage projector, next to the

@@ -195,6 +195,30 @@ the energy on **both** actives, so a heavily charged target pays for the attack
 that kills it; and the alternative is not free for them either, because retreating
 that body out discards the energy the retreat costs.
 
+**And the highest link of an ex line is only the threat while it IS one.** The
+rung that lifts a charged pre-evolution above everything else is paid for by "a
+two-prize ex attacker we cannot answer decides the game on its own", and that
+premise has to be checked rather than assumed. It fails two ways, and both send
+the gust to their **engine** instead:
+
+- **Their Stage 2 is already answered.** If a body on our *bench* — not the board:
+  an answer that has to be in the active spot to exist is not a reserve — already
+  knocks the evolved threat out, then cutting the line buys a body they rebuild,
+  while the abilities no evolution step controls keep working. Between engine
+  bodies, take the copy that already has its turn assembled: the charged one
+  attacks from the seat we are selling it, the bare one is a body they still have
+  to pay for.
+- **Their line is carrying no energy at all.** The rung demands a *charged*
+  pre-evolution, so at zero it never fires — there is nothing to protect, and the
+  engine is owed the gust by nobody.
+
+Two shape rules come out of building that ladder, and they outlive the matchup.
+**`max` and not `+`**, because a stage table summed on top of a band eats any
+spacing that fits inside it. And **the ladder belongs in the field, not in a
+chain**: the menu is routed by whether *our own* active can attack, and a matchup
+reading that only holds while that happens to be true is an accident of which
+chain ran, not a reading. One object, both lists, identity pinned by test.
+
 ## 5. Don't waste turns — the hand engine exists for this
 
 A turn where nothing can attack and nothing develops is worth less than the
@@ -520,6 +544,45 @@ oracle instead — see [The instruments](instruments.md).
   **the same number** — the cheapest body that cashes the prize — so the menu
   that pays the fee and the menu that picks who receives it cannot disagree about
   which body they are paying for.
+
+### 10.2 The seat at match point — either pile
+
+Everything in §10.1 is an argument about the turns that come **after** the
+promotion. At match point there are none, and four boards in one day showed the
+ordinary reading losing to that:
+
+- **When our own pile is at one, the seat that closes the game is not a
+  tie-break.** The body one charge from the finish beat a last-stand tank by 300
+  points of *ornament* — out of an adornment bounded to 0..450 whose own comment
+  says it stays far below any decisive rule — and three discounts further down
+  could have sunk it, all three arguments about surviving a reply that never
+  arrives, because the promotion resolves at the end of *their* turn and ours
+  goes first. The rung that guarantees it is bounded on both sides: above the
+  last stand plus its whole tie-break, below the body that knocks out **today**.
+- **When their pile is at one, the seat goes to whoever survives the reply.** If
+  their answer onto the body in front takes the game and the bench holds one that
+  outlasts it, the seat belongs to that one. It does not buy a better turn: it
+  buys that there **is** a turn — and a reserve rule that vetoes the survivor is
+  an argument about turns that are not coming. This is a floor and not an
+  assignment, so a knockout of ours still keeps the last word.
+- **A body that CAN attack, WILL attack.** The deferred-sacrifice doctrine —
+  promote the body closest to attacking that keeps its exit — only covers the
+  body that cannot attack *today*. If it can, it attacks, and the exit is never
+  used; two wider versions were written and each loses a board already paid for.
+  The deferred attacker is therefore never bought with prizes and never steps
+  over a survivor.
+- **And the almost-ready finisher is offered where nobody KNOCKS OUT**, not only
+  where nobody can attack. A body that already hits for less than lethal is the
+  same almost-ready body, one charge earlier.
+
+**One more thing at match point, and it is about the plan rather than the
+menu.** A pivot that trades the winning blow for a tougher body is arguing about
+a turn that does not exist. Durability, prize denial and mismatch all belong to
+the **next** turn, so the winning attack is captured before the pivots run and
+restored after them — for **both** ways a turn closes a game: their bench empty,
+*and* the ordinary one where the knockout simply cashes the prizes we are short
+of. With two brakes kept: the knockout must be guaranteed, and it must not be the
+suicidal finisher that hands them their last prize.
 
 **And the turn that takes the prize still owes the turn after it.** When our
 attack knocks their body out, everything else the turn does is buying the turn
