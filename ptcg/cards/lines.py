@@ -537,10 +537,89 @@ def _evo_body_in_play(card_id, field_counts):
     return False
 
 
+def _line_in_play_from(card_id, field_counts):
+    """Is any body of `card_id`'s chain, from `card_id` UP, already on the board?
+
+    The guard every "line from scratch" rung needs and each one used to spell
+    out by hand (`field.get(Applin) + field.get(Dipplin) + field.get(Hydrapple_ex)
+    == 0`). Written once, and read off the card data instead of a per-deck sum,
+    so a deck with a line nobody enumerated gets the same guard.
+
+    WHY FROM `card_id` UP AND NOT THE WHOLE CHAIN: what it answers is "would
+    buying this Basic be starting the line, or doubling it". A body already
+    standing anywhere at or above the candidate means the evolution pieces in
+    hand have a seat WITHOUT the search, so the search would be buying a second
+    copy -- development, not the turn.
+
+    Matching is by NAME, like `_evo_body_in_play`: two printings of the same
+    Pokemon carry different ids and are the same body on the board.
+    """
+    names, seen = set(), set()
+    stack = [card_id]
+    while stack:
+        cur = stack.pop()
+        if cur in seen:
+            continue
+        seen.add(cur)
+        data = card_table.get(cur)
+        name = getattr(data, 'name', None) if data is not None else None
+        if name:
+            names.add(name)
+        stack.extend(_direct_evolution_ids(cur))
+    for cid, n in (field_counts or {}).items():
+        if not n:
+            continue
+        cd = card_table.get(cid)
+        if cd is not None and getattr(cd, 'name', None) in names:
+            return True
+    return False
+
+
+def _line_climb_from_hand(card_id, hand_counts):
+    """How far up its own chain the HAND alone could carry `card_id` the moment
+    it reaches the board: `(steps, top_id)`, `(0, card_id)` when it carries it
+    nowhere.
+
+    THE MIRROR IMAGE OF `_evo_body_in_play`. That one asks what a card in hand
+    can be worn BY; this one asks what a body can be dressed IN. Both are needed
+    to price a search, and until August 2026 only the first one was: every
+    "rush" rung in the package tests `field.get(<the Basic>) >= 1` -- the seat
+    must already be on the board -- and none of them asks the same question of a
+    seat the search itself is about to buy out of the DECK.
+
+    It matters only where a card lifts the "a body played this turn cannot
+    evolve" veto (Forest of Vitality here), and there it is the whole play: the
+    hand holding the Stage 1 and the Stage 2 of a line whose Basic is still in
+    the deck is one search away from that Stage 2 TODAY, and a `steps == 2`
+    answer is exactly that sentence. THE CALLER OWNS THE STADIUM QUESTION --
+    this function knows nothing about turns or vetoes, it only reads the chain.
+
+    Deck-agnostic and environment-wide: the links come from `_direct_evolution_ids`
+    (the reverse index of `evolvesFrom`), never from `EVO_LINES`, so a deck built
+    on another line -- or an opposing one -- is read by the same code. A branching
+    chain (two printings of the same Stage 1) takes the branch that climbs
+    HIGHEST, ties broken by id so the answer never depends on dict order, and
+    every step consumes its copy from the hand, so a chain that loops or a hand
+    that holds one card twice cannot spin.
+    """
+    best = (0, card_id)
+    for evo in sorted(_direct_evolution_ids(card_id)):
+        if hand_counts.get(evo, 0) < 1:
+            continue
+        rest = dict(hand_counts)
+        rest[evo] -= 1
+        steps, top = _line_climb_from_hand(evo, rest)
+        if steps + 1 > best[0]:
+            best = (steps + 1, top)
+    return best
+
+
 __all__ = [
     'LAST_BRIDGE_IS_NOT_FODDER',
     '_direct_evolution_ids',
     '_evo_body_in_play',
+    '_line_climb_from_hand',
+    '_line_in_play_from',
     '_evo_bridge_last_copies',
     '_evo_copies_usable',
     '_evo_top_unlocked_by_the_search',
