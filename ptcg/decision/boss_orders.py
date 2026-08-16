@@ -347,6 +347,58 @@ _ADJUST_GUST_NUISANCE = [
             lambda c, s: (s > 0 and not c.can_ko and c.body_is_harmless
                           and c.card_id not in GUST_TRAP_IDS),
             lambda c, s: s + 1500),
+    # THE GUST THAT ENDS THE GAME IS NOT A JAM (user, registro_010 step 131 vs
+    # Dragapult, WON with one prize instead of two -- deck-agnostic).
+    #
+    # Turn 10, two prizes to five. Our active a Meganium at two of the four
+    # energies Petal Dance costs -- so it did not attack -- but with a retreat
+    # cost of two it could step aside, and behind it sat a Teal Mask Ogerpon ex
+    # at EIGHT effective energies. On their bench: a Drakloak with one energy,
+    # a Dreepy, and a **Fezandipiti ex** at 210 HP and no energy. Myriad Leaf
+    # Shower counts the energy on both actives, so that Ogerpon read 270 on the
+    # bare Fezandipiti: two prizes, our last two, the game.
+    #
+    # The agent gusted the Drakloak, cashed one prize, and played on.
+    #
+    # BOTH HALVES OF THE CARD HAD THE ANSWER AND NEITHER SPENT IT. The PLAY half
+    # priced the Supporter at `win_via_bench` (990 -> 5600): its
+    # retreat-and-promote detector walked their bench with the same
+    # `_bench_attacker_can_ko`, found the body whose knockout wins, and then
+    # `break`s without recording WHICH body it was. The TARGET half rebuilt the
+    # reading correctly too -- `_ctx_gust_target` came out of that board with
+    # `can_ko=True, prizes=2, wins_now=True` on the Fezandipiti ex -- and then
+    # resolved it in the ladder that has no rung for winning.
+    #
+    # WHICH LADDER RUNS IS DECIDED BY OUR ACTIVE, AND THAT IS THE WHOLE DEFECT.
+    # `ptcg/turn/options/card.py` sends the candidates to NUISANCE mode when the
+    # active cannot attack this turn, which is a sound proxy for "no knockout is
+    # on offer" only while the knockout has to come from the front. It does not:
+    # `can_ko` has always had a second route -- retreat, promote, attack -- and
+    # that route is at its STRONGEST precisely when the active is stuck, because
+    # a stuck active is what makes retreating free of opportunity cost.
+    #
+    # So on this board the jam ladder priced three bodies by what it would cost
+    # the opponent to escape them, and it is prize-blind by construction: its
+    # only knockout-aware rung, `opponent_line_higher_evolution`, is gated on
+    # `line_rank >= 1` and therefore cannot see a BASIC at all. The Drakloak --
+    # a Stage 1 of their line we could also knock out -- took 6000 + 3000 + 50 =
+    # 9050; the Fezandipiti ex, a Basic, fell through to `net_stuck` for 500 +
+    # 100 = 600. One prize outranked the game by 8450 points.
+    #
+    # `wins_now` is not a preference to be outbid, and the offensive chain
+    # already says so with `gust_wins_the_game`. This is the same sentence in
+    # the other ladder, and it must be `max()` rather than `+`: the rules above
+    # hand out SCORE_FORBID for free retreat, for Latias freeing the basics and
+    # for the Iron Thorns lock, and every one of those is an argument about the
+    # board we get to keep AFTER the gust. There is no such board. The prize
+    # tie-break only orders WINNERS against each other.
+    #
+    # It names no card and no matchup: the reading is our bench's damage, their
+    # body's HP, `prize_count_op` and our own prize count, so any deck whose
+    # active is stuck with a charged finisher behind it gets the same answer.
+    _Adjustment("gust_wins_the_game",
+            lambda c, s: c.wins_now,
+            lambda c, s: max(s, 100000 + c.tier_ko * 3000 + c.prizes * 100)),
 ]
 
 
