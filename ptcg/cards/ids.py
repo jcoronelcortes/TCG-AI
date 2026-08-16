@@ -333,6 +333,13 @@ Brambleghast = 818
 Munkidori = 112
 Froslass = 104
 Snorunt = 103
+# Second print of Snorunt (70 HP) -- the one the Marnie's Grimmsnarl ex lists
+# actually play: in `records/registro_008_pasos_108_hasta_114.json` both Froslass
+# on their bench carry it as `preEvolution`. `Snorunt` (103, 60 HP) is a
+# different card with the same name, so any rule that means "the body that
+# becomes a Froslass" has to name BOTH prints.
+Snorunt_Ice = 860
+SNORUNT_IDS = frozenset({Snorunt, Snorunt_Ice})
 Dragapult_ex = 121
 Dreepy = 119
 Drakloak = 120
@@ -345,6 +352,45 @@ Marnies_Morgrem = 647
 # (`op_is_marnie_deck`), which is one of the openings that does NOT make us hide
 # an ex behind a one-prize body -- see OPENING_SAC_SAFE_MATCHUPS below.
 MARNIE_LINE_IDS = frozenset({Marnies_Impidimp, Marnies_Morgrem, Grimmsnarl_ex})
+
+# --- WHAT THE MARNIE DECK ACTUALLY WINS WITH --------------------------------
+# The Grimmsnarl ex line is the deck's NAME, not its clock. Every recorded loss
+# to this list is the same two abilities grinding us down while the line sits
+# behind them:
+#
+#   * Froslass, "Freezing Shroud": 1 damage counter on EVERY Pokemon that has an
+#     Ability, at BOTH checkups, except Froslass itself. Our whole board has
+#     abilities, so a single copy is 20 per round on each of our bodies and two
+#     copies are 40 -- see OP_CHIP_PER_CHECKUP / `_shroud_damage_to`.
+#   * Munkidori, "Adrena-Brain": once per turn per copy it MOVES up to 3 damage
+#     counters from one of THEIR Pokemon onto any one of OURS, active or bench.
+#     30 aimed wherever it closes a knockout, and its ammunition self-renews --
+#     their own Froslass loads the counters onto it.
+#
+# Munkidori is the more dangerous of the two because it CHOOSES where the damage
+# lands: the Froslass drip is arithmetic we can plan around, the Munkidori move
+# is what turns a body we had calculated as surviving into a knockout. So the
+# order of the hunt is Munkidori first, then the Froslass that feeds it, then the
+# Snorunt that becomes another Froslass.
+#
+# The numbers are the SPACING of that ladder, not its height: the height comes
+# from BOSS_SCORE_MARNIE_ENGINE_FIRST and they only order the three engine
+# bodies among themselves.
+MARNIE_ENGINE_GUST_RANK = {
+    Munkidori: 600,
+    Froslass: 400,
+    Snorunt: 200,
+    Snorunt_Ice: 200,
+}
+# A NAMED SWITCH for the whole reading, like `LAST_BRIDGE_IS_NOT_FODDER` and the
+# rest: it gates BOTH halves of the change at once -- the new rung
+# (`marnie_the_engine_before_the_line`) and the stand-down of
+# `ex_preevo_takes_priority` on the Marnie line -- because they are one decision
+# and a gate that moved only one of them would measure a board nobody plays.
+# False restores exactly the previous behaviour, which is what makes the arms of
+# `utils/gate_marnie_the_engine_before_the_line.py` the same tree with one name
+# rebound.
+MARNIE_ENGINE_BEFORE_THE_LINE = True
 Latias_ex = 184
 Cornerstone_Mask_Ogerpon_ex = 117
 # NON-ex Cornerstone Mask Ogerpon (no ability, attackable): it does not grant
@@ -1639,6 +1685,32 @@ BOSS_SCORE_TRAP_GUST = 3700
 # exchange arranged for next turn.
 BOSS_SCORE_RELAY_SEAT_GUST = 3900
 BOSS_SCORE_EMPTY_GUST = 20           # a NON-executable gust: yield to Lillie's
+
+# --- ...and one rung of the TARGET ladder, which is a different scale --------
+# Everything above prices WHETHER to play Boss's Orders. This one prices WHICH
+# body to drag out, so it lives in the band of `_ADJUST_GUST_OFFENSIVE`, where
+# the knockout tiers are 3000 per tier: a one-prize Basic is 3000-6000, a
+# one-prize Stage 1 is 9000-12000, and a real ex worth TWO prizes starts at
+# 21000 (tier 7, no energy).
+#
+# 15000 is the gap between those last two, and it is chosen to be exactly that:
+#
+#   * ABOVE every one-prize body of the Marnie line once
+#     `ex_preevo_takes_priority` has stood down (a charged Morgrem is 12700),
+#     which is the whole point of the rule;
+#   * BELOW a genuine two-prize knockout (21000). If the Grimmsnarl ex is itself
+#     sitting on their bench and we can finish it, two prizes beat cutting the
+#     engine and the ladder must not say otherwise;
+#   * below `under_denial_the_trap_beats_the_small_ko` (+40000: when their reply
+#     closes the game, surviving the turn outranks the matchup) and far below
+#     `gust_wins_the_game` (+100000: a gust that ends the game ends the game).
+#
+# It is applied with `max`, not `+`, because among the three engine bodies the
+# order has to be ABSOLUTE: added, the 3000-per-tier difference between a
+# Stage 1 Froslass and a Basic Munkidori would swamp any spacing small enough to
+# stay inside the band. MARNIE_ENGINE_GUST_RANK only breaks the tie the floor
+# creates.
+BOSS_SCORE_MARNIE_ENGINE_FIRST = 15000
 XEROSIC_SCORE_ALAKAZAM = 5900        # Xerosic vs Alakazam: cap Powerful Hand (20 x opposing hand). Above a hydra-charged Lillie's (5800); below GUST_2PRIZE (6800) and the defensive pivots (~6600). It yields to boss_win_via_bench through its own guard
 XEROSIC_SCORE_GENERIC = 3380         # generic Xerosic with a very large opposing hand (>=7): disruption value, below a typical Lillie's (~3450)
 XEROSIC_SCORE_LAST_RESORT = 20       # no clear useful effect: only if no other supporter scores
@@ -2134,6 +2206,8 @@ __all__ = [
     'Munkidori',
     'Froslass',
     'Snorunt',
+    'Snorunt_Ice',
+    'SNORUNT_IDS',
     'Dragapult_ex',
     'Dreepy',
     'Drakloak',
@@ -2143,6 +2217,8 @@ __all__ = [
     'Marnies_Impidimp',
     'Marnies_Morgrem',
     'MARNIE_LINE_IDS',
+    'MARNIE_ENGINE_GUST_RANK',
+    'MARNIE_ENGINE_BEFORE_THE_LINE',
     'Latias_ex',
     'Cornerstone_Mask_Ogerpon_ex',
     'Cornerstone_Mask_Ogerpon',
@@ -2349,6 +2425,7 @@ __all__ = [
     'BOSS_SCORE_TRAP_GUST',
     'BOSS_SCORE_RELAY_SEAT_GUST',
     'BOSS_SCORE_EMPTY_GUST',
+    'BOSS_SCORE_MARNIE_ENGINE_FIRST',
     'XEROSIC_SCORE_ALAKAZAM',
     'XEROSIC_SCORE_GENERIC',
     'XEROSIC_SCORE_LAST_RESORT',

@@ -60,7 +60,7 @@ from ptcg.calc.board import _active_of
 from ptcg.calc.energy import _grass_mult
 from ptcg.calc.damage import _ko_not_guaranteed
 from dataclasses import dataclass
-from ptcg.cards.ids import ALAKAZAM_ATTACKER_IDS, ALAKAZAM_LINE_IDS, Abra, Alakazam_ex, Boss_Orders, Budew, Cyndaquil, Dragapult_ex, Drakloak, Dreepy, Dwebble_Fighting, Dwebble_Grass, EX_PREEVO_IDS, Froslass, GUST_TRAP_IDS, Hydrapple_ex, Iron_Thorns_ex, Kadabra, Latias_ex, Lillie_Determination, Meowth_ex, Munkidori, Quilava, SCORE_FORBID, Snorunt, THREAT_PREEVO_IDS, Teal_Mask_Ogerpon_ex, Typhlosion
+from ptcg.cards.ids import ALAKAZAM_ATTACKER_IDS, ALAKAZAM_LINE_IDS, Abra, Alakazam_ex, BOSS_SCORE_MARNIE_ENGINE_FIRST, Boss_Orders, Budew, Cyndaquil, DARKNESS_ENERGY_TYPE, Dragapult_ex, Drakloak, Dreepy, Dwebble_Fighting, Dwebble_Grass, EX_PREEVO_IDS, Froslass, GUST_TRAP_IDS, Grimmsnarl_ex, Hydrapple_ex, Iron_Thorns_ex, Kadabra, Latias_ex, Lillie_Determination, MARNIE_ENGINE_BEFORE_THE_LINE, MARNIE_ENGINE_GUST_RANK, MARNIE_LINE_IDS, Meowth_ex, Munkidori, Quilava, SCORE_FORBID, Snorunt, THREAT_PREEVO_IDS, Teal_Mask_Ogerpon_ex, Typhlosion
 from ptcg.cards.tables import card_table
 from ptcg.engine.rules import _Adjustment, _FixedRule
 
@@ -494,6 +494,92 @@ def _gust_opponent_line(c):
     return _gust_generic_tiers(c)
 
 
+@dataclass(frozen=True)
+class _ProjectedBody:
+    """A body that is NOT on the board yet, shaped like one that is.
+
+    The damage model in `ptcg/calc/damage.py` reads bodies through `id`, `hp`,
+    `maxHp`, `energies`, `tools` and `serial`, and it is the only model in this
+    project allowed to answer "does this knock out". A question about a body
+    still in their deck -- the Grimmsnarl ex the line in front of us is going to
+    become -- therefore has to be asked as a body and not as a second copy of the
+    arithmetic. `serial=None` is deliberate: `_shield_mutes_our_ex` documents
+    that a body with no serial answers False, which is the right answer about a
+    card that has not been played.
+    """
+
+    id: int
+    hp: int
+    maxHp: int
+    energies: tuple = ()
+    tools: tuple = ()
+    serial: object = None
+
+
+def _marnie_grimmsnarl_projection(op_state):
+    """The Marnie's Grimmsnarl ex we have to be able to answer.
+
+    The one ON THE BOARD if they have already evolved -- its real HP, its real
+    energy -- and otherwise the one their line is one Punk Up away from playing:
+    full HP, carrying the energy the most-charged body of the line already holds.
+
+    That energy is the CONSERVATIVE floor and not a guess. Punk Up searches up to
+    five Basic {D} Energy out of the deck when the evolution lands, so the real
+    body arrives with at least what its pre-evolution was holding and usually
+    more -- and more energy on their active is MORE damage from our Teal Mask
+    Ogerpon ex (Myriad Leaf Shower counts both actives), never less. Reading the
+    floor can only make us answer "no, our bench does not cover it".
+
+    Returns None when there is no Marnie's body in play to project from.
+    """
+    line = [b for b in ([_active_of(op_state)] + list(op_state.bench or []))
+            if b is not None and b.id in MARNIE_LINE_IDS]
+    if not line:
+        return None
+    for b in line:
+        if b.id == Grimmsnarl_ex:
+            return b
+    data = card_table.get(Grimmsnarl_ex)
+    if data is None:
+        return None
+    energy = max(len(getattr(b, 'energies', []) or []) for b in line)
+    return _ProjectedBody(id=Grimmsnarl_ex, hp=data.hp, maxHp=data.hp,
+                          energies=tuple([DARKNESS_ENERGY_TYPE] * energy))
+
+
+def _marnie_bench_answers_the_grimmsnarl(my_state, op_state, total_grass,
+                                         bench_count, neutralization_zone):
+    """Does a body on OUR BENCH knock a Marnie's Grimmsnarl ex out?
+
+    THE QUESTION THAT DECIDES WHETHER CUTTING THE LINE IS STILL WORTH IT. Boss's
+    Orders hunts the highest link of an ex line (`ex_preevo_takes_priority`)
+    because a 320 HP two-prize attacker we cannot answer decides the game on its
+    own. Against Marnie's Grimmsnarl ex that premise is often false: the card is
+    WEAK TO GRASS, so Myriad Leaf Shower doubles into it and a Teal Mask Ogerpon
+    ex sitting on four Grass takes it off the board by itself.
+
+    When that answer is already parked on our bench, spending the gust on the
+    Morgrem buys a body they rebuild next turn and leaves the engine that is
+    actually beating us -- Froslass's drip and Munkidori's aimed 30 -- untouched
+    for another round. When it is NOT there, and our active is the only thing
+    that covers the Grimmsnarl, cutting the line is still the play: our active
+    can be knocked out, and then nothing covers it.
+
+    The BENCH and not the whole board, which is the user's wording and also the
+    only reading that means anything: an answer that has to stay in the active
+    spot to exist is not a reserve.
+    """
+    target = _marnie_grimmsnarl_projection(op_state)
+    if target is None:
+        return False
+    # No retreat is simulated and the field's Grass is not discounted: the
+    # question is whether the reserve EXISTS, not what it costs to bring it
+    # forward this turn -- the Grimmsnarl ex is not even on the board yet.
+    return _bench_attacker_can_ko(
+        my_state, target, AGENT_STATE.meganium_in_play, total_grass,
+        bench_count, total_grass, neutralization_zone)
+
+
 def _gust_relieves_the_attacker(op_state):
     """Deck-agnostic: does the gust swap an ATTACKER for a dead body?
 
@@ -818,6 +904,14 @@ class _CtxGustObjetivo:
     # active. It also carries the prize floor: it is only True while their
     # knockout on our active leaves them prizes to take afterwards.
     relay_cashes_the_seat: bool = False
+    # THE MARNIE MATCHUP, and the one condition that switches its ladder on: the
+    # opponent plays Marnie's Grimmsnarl ex AND a body on OUR BENCH already
+    # answers that Grimmsnarl ex, so cutting the line is no longer the only
+    # thing keeping us alive and the gust can go after the Munkidori/Froslass
+    # engine instead. It is a property of the BOARD, identical for every
+    # candidate of the same decision; it rides on the candidate context because
+    # that is the only thing the rule chains can see.
+    marnie_engine_first: bool = False
 
 
 def _gust_relay_cashes_the_seat(card, my_state, op_state, state, hand_counts,
@@ -1067,6 +1161,17 @@ def _ctx_gust_target(card, o, my_state, op_state, state, hand_counts,
         card, my_state, op_state, state, hand_counts, total_grass, bench_count,
         neutralization_zone_active, op_prize)
 
+    # ONE point for the whole reading, and therefore one point for the switch:
+    # both consumers ask this field (the new rung and the stand-down of
+    # `ex_preevo_takes_priority`), so `MARNIE_ENGINE_BEFORE_THE_LINE = False`
+    # restores the previous behaviour in both at once.
+    marnie_engine_first = (
+        MARNIE_ENGINE_BEFORE_THE_LINE
+        and AGENT_STATE.op_is_marnie_deck
+        and _marnie_bench_answers_the_grimmsnarl(
+            my_state, op_state, total_grass, bench_count,
+            neutralization_zone_active))
+
     return _CtxGustObjetivo(
         card_id=card.id, energy=energy,
         rc0=RETREAT_COST.get(card.id, 0), rc1=RETREAT_COST.get(card.id, 1),
@@ -1089,7 +1194,8 @@ def _ctx_gust_target(card, o, my_state, op_state, state, hand_counts,
         body_is_harmless=body_harmless,
         op_wins_next=bool(getattr(AGENT_STATE.turn_plan, 'op_wins_next', False)),
         traps_their_turn=traps_their_turn,
-        relay_cashes_the_seat=relay_cashes_the_seat)
+        relay_cashes_the_seat=relay_cashes_the_seat,
+        marnie_engine_first=marnie_engine_first)
 
 
 _ADJUST_GUST_OFFENSIVE = [
@@ -1113,9 +1219,18 @@ _ADJUST_GUST_OFFENSIVE = [
     # KNOCKED OUT, a CHARGED pre-evolution of an ex line (Duraludon ->
     # Archaludon ex) erases a future 2-prize ex attacker. Effective tier
     # 6.5 (19500): above any non-ex, below a real ex.
+    # ...UNLESS the line is Marnie's and our bench already answers what it grows
+    # into. See `marnie_the_engine_before_the_line` below for the record and the
+    # reasoning: this rung pays 19500 for the premise "a two-prize ex attacker we
+    # cannot answer", and that premise is what `marnie_engine_first` reports
+    # false. The line then falls back to its plain knockout tier (a charged
+    # Morgrem: 12700) instead of being suppressed outright, so it still outranks
+    # the bodies that threaten nothing -- it just stops outbidding the engine.
     _Adjustment("ex_preevo_takes_priority",
             lambda c, s: (c.can_ko and c.energy >= 1 and not c.is_exmega
-                          and c.card_id in EX_PREEVO_IDS),
+                          and c.card_id in EX_PREEVO_IDS
+                          and not (c.marnie_engine_first
+                                   and c.card_id in MARNIE_LINE_IDS)),
             lambda c, s: s + max(0, 19500 - c.tier_ko * 3000)),
     # No KO possible: gust as a nuisance (the highest NET retreat cost) with the
     # anti threat pre-evolution tie-break.
@@ -1132,6 +1247,62 @@ _ADJUST_GUST_OFFENSIVE = [
     _Adjustment("opponent_line",
             lambda c, s: True,
             lambda c, s: s + _gust_opponent_line(c)),
+    # THE ENGINE BEFORE THE LINE, and only in the Marnie matchup (user,
+    # `records/registro_008_pasos_108_hasta_114.json` step 110, episode 93525290,
+    # turn 8 vs Marnie's Grimmsnarl ex -- LOST).
+    #
+    #     US (seat 1, 4 prizes)                RIVAL (5 prizes)
+    #     active Hydrapple ex 270/330, 2G      active Marnie's Impidimp 70/70, 2D
+    #     bench  Ogerpon ex 4G, Meowth ex,     bench  Froslass, **Morgrem 2D**,
+    #            Ogerpon ex 3G, Ogerpon ex 2G,        Froslass, Impidimp 1D,
+    #            Fezandipiti ex                       **Munkidori 1D**
+    #
+    # The agent played Boss's Orders on the MORGREM and knocked it out: one prize
+    # for the highest link of the ex line, which is what `ex_preevo_takes_priority`
+    # is written to do (12000 of `tier_ko` lifted to 19500, plus 700 of the line
+    # band -> 20200, over 6450 for the Munkidori). They rebuilt the line and won.
+    # Every recorded loss to this list ends the same way, and never to the
+    # Grimmsnarl ex: it is the two abilities behind it that take the game.
+    #
+    # THE PREMISE OF CUTTING THE LINE DOES NOT HOLD HERE. That rule pays 19500
+    # because a two-prize ex attacker we cannot answer decides the game by
+    # itself; Marnie's Grimmsnarl ex is 320 HP and WEAK TO GRASS, so Myriad Leaf
+    # Shower doubles into it -- the benched Teal Mask Ogerpon ex on four Grass
+    # reads 300-420 against an effective 300 (their own Freezing Shroud takes 20
+    # off a body that prints an Ability). The answer was already parked on our
+    # bench. What was NOT answered is the pair of abilities that had been
+    # grinding us down all game and that no evolution step gates:
+    #
+    #   * Froslass, "Freezing Shroud" -- 20 per round onto EVERY body of ours,
+    #     because every body of ours prints an Ability;
+    #   * Munkidori, "Adrena-Brain" -- 30 counters MOVED, once per turn per copy,
+    #     onto whichever of our Pokemon it closes a knockout on, with their own
+    #     Froslass reloading its ammunition every checkup.
+    #
+    # Munkidori is the more dangerous of the two because it AIMS: the drip is
+    # arithmetic we can plan around, the move is what turns a body we had counted
+    # as surviving into a corpse. Hence Munkidori, then the Froslass that feeds
+    # it, then the Snorunt that becomes the next Froslass
+    # (MARNIE_ENGINE_GUST_RANK).
+    #
+    # AND ONLY WITH THE RESERVE ON THE BENCH. `marnie_engine_first` is False
+    # while our ACTIVE is the only body that covers a Grimmsnarl ex: there the
+    # line rule keeps its 19500 and its reason, because the active can be knocked
+    # out and then nothing covers it. `can_ko` gates each rung for the reason the
+    # whole file repeats -- a gust that takes no prize is a free retreat we hand
+    # them -- so a Munkidori we cannot finish yields to the Froslass we can.
+    #
+    # `max` and not `+`: the floor is BOSS_SCORE_MARNIE_ENGINE_FIRST, so that
+    # whatever tier the three engine bodies happen to sit in, the order between
+    # them is the user's and not the stage table's -- a Stage 1 Froslass outranks
+    # a Basic Munkidori by 3000 on tier alone. Anything that already scored
+    # ABOVE the floor keeps its score untouched, which is how `gust_wins_the_game`
+    # survives this rung.
+    _Adjustment("marnie_the_engine_before_the_line",
+            lambda c, s: (c.marnie_engine_first and c.can_ko
+                          and c.card_id in MARNIE_ENGINE_GUST_RANK),
+            lambda c, s: max(s, BOSS_SCORE_MARNIE_ENGINE_FIRST
+                             + MARNIE_ENGINE_GUST_RANK[c.card_id])),
     # WITHOUT a KO what rules is WHO COMES UP to the active spot, not which is the
     # biggest piece on their bench. The two bands of `_gust_opponent_line` score it
     # backwards: `_gust_evolution_line` gives 800 to the FINAL EVOLUTION (Dragapult
@@ -1214,6 +1385,9 @@ __all__ = [
     '_gust_evolution_line',
     '_gust_generic_tiers',
     '_gust_opponent_line',
+    '_ProjectedBody',
+    '_marnie_grimmsnarl_projection',
+    '_marnie_bench_answers_the_grimmsnarl',
     '_RULES_GUST_NUISANCE',
     '_ADJUST_GUST_NUISANCE',
     '_gust_relieves_the_attacker',

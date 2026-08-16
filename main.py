@@ -962,6 +962,7 @@ def _update_cards_tracking(obs, my_index, my_state):
         AGENT_STATE.op_is_cornerstone_deck = False
         AGENT_STATE.op_has_mega_kangaskhan = False
         AGENT_STATE.op_is_starmie_deck = False
+        AGENT_STATE.op_is_marnie_deck = False
     AGENT_STATE._cards_last_turn = obs.current.turn
 
     if not AGENT_STATE._cards_first_scan_done and obs.current is not None:
@@ -5114,6 +5115,17 @@ def agent(obs_dict: dict) -> list[int]:
             # POSITIONAL wall flag (op_has_ability_immune_active) still
             # depends only on the board.
             AGENT_STATE.op_is_cornerstone_deck = True
+
+    # ...and the Marnie archetype is PUBLISHED, sticky, for the modules that
+    # cannot see this function's locals (`ptcg/decision/boss_orders.py`). The
+    # local above is rebuilt from scratch on every observation and is left
+    # exactly as it is -- the opening-sacrifice reading that consumes it wants
+    # the board of the moment. This flag only ever goes UP: the gust ladder it
+    # feeds decides which of their bodies to hunt, and a matchup we forget the
+    # turn their last Impidimp evolves is a matchup we re-learn one Munkidori
+    # too late.
+    if op_is_marnie_deck:
+        AGENT_STATE.op_is_marnie_deck = True
 
     # Eevee ex (id 249) is NOT the Sylveon wall: it is an attackable ex. If the opponent
     # follows the Eevee ex line and there is no real immune wall (Sylveon) in

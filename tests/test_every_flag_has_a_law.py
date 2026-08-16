@@ -3,7 +3,10 @@
 (Seventeen since `op_has_ex_shield` joined the STICKY list in August 2026: it is
 matchup memory of exactly the shape the third bullet below describes -- their
 Acerola's Mischief leaves nothing on the board once its turn is over, so the
-only law that can be checked about it is that it never falls.)
+only law that can be checked about it is that it never falls. Eighteen since
+`op_is_marnie_deck` joined it for the same reason: the gust ladder it feeds
+reorders the target AWAY from the line that names the deck, so it has to hold
+on the turns when no Marnie's body is on the board at all.)
 
 The invariant monitor watched three promises and printed, on every run, how many
 boolean flags on `AGENT_STATE` it could NOT watch. The number was **16**, and
@@ -109,11 +112,11 @@ def test_the_sixteen_are_where_the_triage_put_them():
         "_op_prize_denial_pecharunt", "_op_prize_denial_gengar"}
     assert pegajosas == {
         "op_is_crustle_deck", "op_is_cornerstone_deck", "op_is_starmie_deck",
-        "op_has_mega_kangaskhan", "op_has_ex_shield", "_cards_first_scan_done",
-        "_cards_prizes_identified"}
+        "op_has_mega_kangaskhan", "op_has_ex_shield", "op_is_marnie_deck",
+        "_cards_first_scan_done", "_cards_prizes_identified"}
     assert set(SIN_PREMISA) == {
         "_xerosic_played_this_turn", "_ko_detected_this_turn", "ko_last_turn"}
-    assert len(espejos | pegajosas | set(SIN_PREMISA)) == 17
+    assert len(espejos | pegajosas | set(SIN_PREMISA)) == 18
     # and the three that already had one are untouched
     assert {n for n, _w, _p in PROMISES} == {
         "_ub_engine_pivot_turn", "_ub_meowth_pending", "_ub_fez_pending"}
