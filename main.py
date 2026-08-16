@@ -6393,6 +6393,40 @@ def agent(obs_dict: dict) -> list[int]:
                     _piv_dmg = _our_effective_damage(
                         _piv_pk, _op_act_main, 30 + 30 * _piv_grass_after,
                         AGENT_STATE.meganium_in_play, neutralization_zone_active)
+                    # A WALL THAT FALLS TO THE SAME HIT IS NOT A WALL, IT IS A
+                    # DEARER CORPSE (user, registro_011 step 119 vs Alakazam,
+                    # LOST). Active Meganium 160/160 with its four effective
+                    # energies -- Solar Beam 140 against an Alakazam of exactly
+                    # 140 HP, the prize already ours for free -- and a benched
+                    # Hydrapple ex at 330/330 with two. The pivot read "the
+                    # active is doomed" (Powerful Hand with 19 cards in their
+                    # hand) plus "the Hydrapple knocks out from the bench" and
+                    # fired: it pointed `plan.attacker` at the bench, which
+                    # SUPPRESSED the attack (scored -1 against the retreat's
+                    # 6500), burned both Grass cards off the Meganium paying the
+                    # retreat and handed the front seat over. That same Powerful
+                    # Hand projects 420, so the 330 HP "wall" was never going to
+                    # stand either: the whole trade was a one-prize corpse
+                    # swapped for a two-prize one, with the free KO given up on
+                    # top.
+                    #
+                    # The guard already exists twenty lines above, on the OTHER
+                    # promotion of the same Hydrapple ex (`_promote_hydra`,
+                    # learned from registro_011 step 138 vs Dragapult, also
+                    # LOST) -- word for word, "the pivot is only allowed if it
+                    # SURVIVES the projected hit or if its own KO already wins
+                    # the game". This twin never got it. Same escape hatch: when
+                    # the KO it delivers ENDS the game, nothing after it needs a
+                    # body left standing.
+                    if THE_PIVOT_WALL_MUST_SURVIVE_THE_REPLY:
+                        _piv_ends_game = (_piv_dmg > 0 and _piv_dmg >= _piv_op_hp
+                                          and my_prize <= prize_count_op(_op_act_main))
+                        if not _piv_ends_game:
+                            _piv_reply = _op_active_attack_damage_to(
+                                _op_act_main, _piv_pk,
+                                getattr(op_state, 'handCount', None))
+                            if _piv_reply >= (_piv_pk.hp or 0):
+                                continue
                     if _piv_dmg > 0 and _piv_dmg >= _piv_op_hp:
                         AGENT_STATE.plan.attacker = _piv_i
                         AGENT_STATE.plan.target = 0

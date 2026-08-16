@@ -1240,6 +1240,34 @@ MEGANIUM_OUTRANKS_THE_DIPPLIN_LINE = True
 # the archetype's word.
 THE_RESERVE_DOES_NOT_TAKE_THE_FRONT = True
 
+# --- A WALL THAT FALLS TO THE SAME HIT IS NOT A WALL ------------------------
+# Episode 93430769 vs Alakazam (LOST), `registro_011` step 119. Our Meganium
+# active at 160/160 with four effective energies: Solar Beam does 140 into an
+# Alakazam of exactly 140 HP, so the prize was already ours, for free, from a
+# body that concedes ONE when it falls. On the bench a Hydrapple ex at 330/330
+# with two energies. The defensive pivot to Hydrapple ex (`_hydra_pivot_active`,
+# main.py) fired on its two conditions -- "the active is doomed" (their Powerful
+# Hand, 19 cards in hand) and "the benched Hydrapple knocks out from there" --
+# pointed `plan.attacker` at the bench, which SUPPRESSES the attack of the
+# active (it scored -1 against the retreat's 6500), and retreated: both Grass
+# cards burned off the Meganium to pay for it, the free knockout given up, and
+# the front seat handed over. The promotion that followed then read the same
+# projection correctly and put up a Bayleef, because their reply kills whatever
+# we promote -- 20 x (19 + 2) = 420 against 330 HP.
+#
+# That is the hole: the pivot's ONLY justification is the wall, and it never
+# asked whether the wall stands. The guard is not new -- the OTHER promotion of
+# the same Hydrapple ex twenty lines above (`_promote_hydra`) has carried it
+# since registro_011 step 138 vs Dragapult, also lost, and phrases it exactly:
+# allowed only if it SURVIVES the projected hit, or if its own knockout already
+# wins the game. The twin never got it.
+#
+# On -> the defensive pivot to Hydrapple ex must leave a body their projected
+# attack does NOT knock out, unless the knockout it delivers ends the game.
+# Off -> the pivot fires on "the active is fragile and the bench knocks out"
+# alone, and a 330 HP corpse worth two prizes replaces a 160 HP one worth one.
+THE_PIVOT_WALL_MUST_SURVIVE_THE_REPLY = True
+
 # When the active ALREADY takes the prize, this turn's Grass buys nothing today
 # and the whole question becomes "who attacks NEXT turn". The band that answers
 # it (25000-30000 in `_energy_score_base`) ranks the bodies BY SPECIES, one rung
@@ -2190,6 +2218,7 @@ __all__ = [
     'MEGANIUM_IS_OWED_THE_LAST_GRASS',
     'MEGANIUM_OUTRANKS_THE_DIPPLIN_LINE',
     'THE_RESERVE_DOES_NOT_TAKE_THE_FRONT',
+    'THE_PIVOT_WALL_MUST_SURVIVE_THE_REPLY',
     'FEZ_ABILITY_BEFORE_THE_KNOCKOUT',
     'FEZ_BENCH_FOR_TOMORROWS_DRAW',
     'SCORE_ASSEMBLE_WINS_THE_GAME',
