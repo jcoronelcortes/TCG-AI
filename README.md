@@ -44,6 +44,23 @@ is visible in the code:
 If you are here to read the agent rather than to run it, start with
 [docs/how-the-agent-thinks.md](docs/how-the-agent-thinks.md).
 
+## The deck it pilots
+
+Sixty cards, the same ones every game. Almost every rule in the project only
+makes sense against this list, so it is worth seeing before reading any of them.
+The picture is generated from [deck.csv](deck.csv) itself —
+`python deck/render_deck_image.py` — so it cannot drift away from what the agent
+actually plays.
+
+![The 60-card list the agent pilots](deck/deck_en.jpg)
+
+Twenty Pokémon around two engines — Teal Mask Ogerpon ex attaching Grass off
+*Teal Dance*, Meganium making every Grass count double — and a Hydrapple ex to
+pivot into when the active is doomed. The list last moved on 13 August 2026.
+[Our deck and its engines](docs/deck-and-engines.md) is the card-by-card
+reference; [docs/README.md](docs/README.md#the-deck-we-pilot) has the same list
+as a table, with what each card is for.
+
 ## Quick start
 
 ```bash
