@@ -41301,10 +41301,10 @@
     "accion": 1,
     "contexto": 0,
     "detalle": [
-     "PLAY Night Stretcher(1097)"
+     "ATTACK id120"
     ],
     "eleccion": [
-     2
+     3
     ],
     "paso": null,
     "turno": 16
@@ -41325,10 +41325,10 @@
     "accion": 3,
     "contexto": 0,
     "detalle": [
-     "EVOLVE"
+     "ATTACK id120"
     ],
     "eleccion": [
-     2
+     3
     ],
     "paso": null,
     "turno": 16
@@ -41337,10 +41337,10 @@
     "accion": 4,
     "contexto": 0,
     "detalle": [
-     "RETREAT"
+     "ATTACK id120"
     ],
     "eleccion": [
-     3
+     2
     ],
     "paso": null,
     "turno": 16

@@ -597,9 +597,18 @@ _HYDRA_PIVOT_TANQUE_KO_FIXTURE = (
 def test_archaludon_pivot_when_the_tank_really_knocks_out():
     """The same board with ONE more Grass (14 units): after the retreat 10 are
     left -> Syrup 330 - 30 = 300 >= 300, the tank DOES finish, and then the
-    defensive pivot (knocking out with the body that survives) rules again."""
+    defensive pivot (knocking out with the body that survives) rules again.
+
+    THE PIVOT IS AN ARGUMENT ABOUT THE NEXT TURN, so the board it is asked on has
+    to HAVE one. The fixture is at MATCH POINT (2 prizes, and their Archaludon ex
+    is worth exactly 2), where the fragile active's KO ends the game on the spot
+    and `_active_win_plan` pins the attack -- see the test below, which is that
+    same board untouched. Two prizes are added here so the KO leaves the game
+    alive and the question the pivot answers ("who is standing when they reply?")
+    is a question again."""
     with open(_HYDRA_PIVOT_TANQUE_KO_FIXTURE, encoding="utf-8") as f:
         obs = json.load(f)["observation"]
+    obs["current"]["players"][0]["prize"] += [None, None]
 
     options = obs["select"]["option"]
     attack_opt = next(i for i, o in enumerate(options)
@@ -613,6 +622,39 @@ def test_archaludon_pivot_when_the_tank_really_knocks_out():
         f"con el tanque REALMENTE letal tras retirar, debe RETIRAR "
         f"(opt {retreat_opt}) y no atacar con el fragil; obtuvo {result}")
     assert result != [attack_opt]
+
+
+def test_archaludon_at_match_point_the_fragile_active_finishes_instead_of_pivoting():
+    """The KO that ENDS the game is not a pivot's to trade away.
+
+    The fixture above, untouched: our active Hydrapple ex at 110/330 with 4
+    energies knocks their Archaludon ex (300 HP, 2 prizes) out by 120, and we are
+    at 2 prizes -- that swing IS the game. The defensive pivot wanted to retreat
+    it and finish with the healthy 330 HP twin instead, which wins the same game
+    one retreat later while paying two cards for the privilege and needing the
+    retreat to be legal at all.
+
+    The same sentence as episode 93675887 p173 vs Alakazam, where it cost more
+    than a retreat: with `plan.attacker` moved off the active the ATTACK menu
+    never reaches its finisher tier and Boss's Orders won the turn outright."""
+    with open(_HYDRA_PIVOT_TANQUE_KO_FIXTURE, encoding="utf-8") as f:
+        obs = json.load(f)["observation"]
+
+    # The premise: it is match point and the KO is worth exactly what we need.
+    assert len(obs["current"]["players"][0]["prize"]) == 2
+    assert m.card_table[obs["current"]["players"][1]["active"][0]["id"]].ex
+
+    options = obs["select"]["option"]
+    attack_opt = next(i for i, o in enumerate(options)
+                      if o.get("type") == int(OptionType.ATTACK))
+
+    result = m.agent(obs)
+
+    assert result == [attack_opt], (
+        f"a match point, el KO del activo ES la partida: debe ATACAR "
+        f"(opt {attack_opt}) y no pagar una retirada por ganarla igual; "
+        f"obtuvo {result}")
+    assert m.AGENT_STATE.plan.attacker == 0
 
 _BOSS_OVER_LILLIE_DURALUDON_FIXTURE = ROOT / "tests" / "fixtures" / "archaludon_boss_over_lillie_duraludon_step78.json"
 

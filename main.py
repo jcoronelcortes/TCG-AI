@@ -6385,13 +6385,58 @@ def agent(obs_dict: dict) -> list[int]:
             _ret_active = my_cards[0] if my_cards else None
 
             # FINISHER with the ACTIVE: if the loop chose to attack with the active
-            # (attacker 0) KNOCKING OUT the opposing active and the opponent has no bench,
-            # that attack WINS the game. It is captured here, BEFORE the
-            # mismatch/prize-sacrifice pivots, to restore it afterwards (those
-            # pivots would retreat the lethal active to bring up a 1-prize body, throwing
-            # away the immediate victory; user, registro_016 p138 vs Crustle).
-            if (_op_bench_empty and AGENT_STATE.plan.attacker == 0
-                    and AGENT_STATE.plan.remain_hp is not None and AGENT_STATE.plan.remain_hp <= 0):
+            # (attacker 0) and that KNOCKOUT ENDS THE GAME, nothing below may divert
+            # it. It is captured here, BEFORE the mismatch/prize-sacrifice pivots, to
+            # restore it afterwards (those pivots would retreat the lethal active to
+            # bring up another body, throwing away the immediate victory; user,
+            # registro_016 p138 vs Crustle).
+            #
+            # THE GAME ENDS ON OUR TURN IN TWO WAYS AND ONLY ONE WAS READ HERE (user,
+            # episode 93675887 p173 vs Alakazam, WON in spite of it). The one that was
+            # read is the rare one: the opponent with an EMPTY BENCH cannot promote a
+            # replacement. The one that was missing is the ordinary one -- the KO takes
+            # the prizes we were missing -- so on a board at ONE prize, with our active
+            # Meganium knocking out their 70 HP Dunsparce for the game, the Hydrapple ex
+            # pivot took the plan (`attacker 0 -> 1`) on the argument that the benched
+            # 330 HP wall ENDURES MORE. With `plan.attacker != 0` the attack menu never
+            # reaches its finisher tier (99000, `_active_attack_wins_now`), the winning
+            # swing fell to 1100 and Boss's Orders (`win_via_bench`, 5600) won the turn:
+            # the game was handed a whole extra turn for nothing.
+            #
+            # Durability, prize denial and mismatch are all arguments about the NEXT
+            # turn, and a turn that closes the game has no next turn. The sentence is
+            # deck-agnostic on purpose -- it reads prizes and the target's own HP, never
+            # an archetype -- and it is the same one the Boss's ladder already states
+            # twice from the other side (`winning_finisher_on_the_active_after_
+            # retreating`, `the_field_ability_wins_on_the_active`).
+            #
+            # Two brakes, the same ones the later `_active_attack_wins_now` carries:
+            # the KO must be GUARANTEED (`_ko_not_guaranteed`: a coin-flip finisher is
+            # not pinned, the same test the loop uses for SCORE_WIN_GAME), and it must
+            # not be SUICIDAL -- if our own attack knocks our body out and that corpse
+            # hands the opponent their last prize the game DRAWS, and the benched relief
+            # that wins cleanly has to stay reachable (registro_016 p184 vs Marnie).
+            _awp_target = None
+            if (AGENT_STATE.plan.attacker == 0
+                    and AGENT_STATE.plan.remain_hp is not None
+                    and AGENT_STATE.plan.remain_hp <= 0
+                    and 0 <= AGENT_STATE.plan.target < len(op_cards)):
+                _awp_target = op_cards[AGENT_STATE.plan.target]
+            _awp_suicidal = False
+            if _awp_target is not None and _ret_active is not None:
+                _awp_punish = _defender_punish_damage(_awp_target)
+                _awp_self_ko = (
+                    _self_ko_by_own_attack(_ret_active, incierto=True)
+                    or (_awp_punish > 0
+                        and (_self_damage_of_pokemon(_ret_active, incierto=True)
+                             + _awp_punish) >= (_ret_active.hp or 0)))
+                _awp_suicidal = (_awp_self_ko
+                                 and op_prize <= prize_count(_ret_active))
+            if (_awp_target is not None
+                    and not _awp_suicidal
+                    and not _ko_not_guaranteed(_awp_target)
+                    and (_op_bench_empty
+                         or my_prize <= prize_count_op(_awp_target))):
                 _active_win_plan = (
                     AGENT_STATE.plan.attacker, AGENT_STATE.plan.target, AGENT_STATE.plan.attack_index,
                     AGENT_STATE.plan.remain_hp, AGENT_STATE.plan.energy)
@@ -7369,9 +7414,9 @@ def agent(obs_dict: dict) -> list[int]:
                             AGENT_STATE.plan.energy = False
                             _prize_denial_pivot = True
 
-            # It restores the winning finisher with the active if some mismatch pivot
-            # diverted it: no prize consideration matters
-            # when the KO on the opposing active (with no bench) WINS the game.
+            # It restores the winning finisher with the active if some pivot diverted
+            # it: no prize, durability or mismatch consideration matters when the KO
+            # already ENDS the game (see the capture above for the two ways it does).
             if _active_win_plan is not None and AGENT_STATE.plan.attacker != 0:
                 (AGENT_STATE.plan.attacker, AGENT_STATE.plan.target, AGENT_STATE.plan.attack_index,
                  AGENT_STATE.plan.remain_hp, AGENT_STATE.plan.energy) = _active_win_plan
