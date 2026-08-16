@@ -1076,6 +1076,32 @@ _RULES_BOSS_PLAY = [
     # deck-agnostic vetoes, which is what keeps it from handing over the
     # pre-evolution of their only attacking line or from paying their retreat for
     # an active that was not going to hit us anyway. See `_boss_trap_gust`.
+    # THE SEAT THE RELAY INHERITS (user, registro_008 step 72 vs Marnie's
+    # Grimmsnarl ex, LOST -- deck-agnostic), one rung ABOVE the trap because it is
+    # the same board read the other way round and this reading has a prize at the
+    # end of it.
+    #
+    # The trap below answers the dead turn by buying a turn off them. That is a
+    # purchase only if we can SPEND the turn it buys, and the state this rule
+    # reads is the one where we cannot: our active neither attacks nor can pay its
+    # way out of the front. There their knockout is the only thing that empties
+    # the seat, so jamming them jams US -- on the recorded board it kept three
+    # charged Teal Mask Ogerpon ex behind a 20 HP Tapu Bulu and the trap is
+    # exactly what the agent played.
+    #
+    # What it buys instead is an exchange: a body that OPENS the seat (its attack
+    # knocks our active out) and that an attacker already charged on our bench
+    # cashes from the seat it inherits. Their two-prize body spends its attack on
+    # our one-prize corpse and the relay takes two back. The prize floor that
+    # keeps it a trade lives inside the reading (`_gust_relay_cashes_the_seat`),
+    # which is the SAME function the target selector asks per candidate.
+    #
+    # Below every branch with a prize TODAY and below the yields to Lillie's, for
+    # the reason the trap is: a hand that can still rebuild outranks an exchange
+    # arranged for next turn.
+    _FixedRule("gust_sells_the_locked_seat",
+               lambda c: c.boss_relay_seat,
+               lambda c: BOSS_SCORE_RELAY_SEAT_GUST + c.supporter_boost),
     _FixedRule("gust_traps_their_turn",
                lambda c: c.boss_trap_gust,
                lambda c: BOSS_SCORE_TRAP_GUST + c.supporter_boost),
@@ -7406,6 +7432,9 @@ def agent(obs_dict: dict) -> list[int]:
     _boss_trap_gust = (bool(_supp_values.get('_boss_trap_gust'))
                        and _supp_values.get(Boss_Orders, 0) > 0)
 
+    _boss_relay_seat = (bool(_supp_values.get('_boss_relay_seat'))
+                        and _supp_values.get(Boss_Orders, 0) > 0)
+
     _best_supp_in_deck_val = 0
     _best_supp_in_deck_id = None
     for sid in (Boss_Orders, Dawn, Lillie_Determination, Lanas_Aid):
@@ -13006,6 +13035,7 @@ def agent(obs_dict: dict) -> list[int]:
         boss_defensive_gust=_boss_defensive_gust,
         boss_deny_alakazam_line=_boss_deny_alakazam_line,
         boss_trap_gust=_boss_trap_gust,
+        boss_relay_seat=_boss_relay_seat,
         boss_low_value_gust=_boss_low_value_gust,
         boss_active_threat_dominates=_bo_act_threat_dom,
         boss_prize_rank=_boss_prize_rank,

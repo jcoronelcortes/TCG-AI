@@ -1525,7 +1525,7 @@ def score_play(tc, o, score):
                             op_is_alakazam_deck, op_has_latias_ex,
                             (op_has_dragapult or op_has_dreepy_line),
                             (op_has_typhlosion or op_has_ethan_preevo),
-                            my_prize=my_prize)
+                            my_prize=my_prize, op_prize=op_prize)
                         # NOTE (jul 2026 cycle, MEASURED AND REVERTED): an attempt
                         # was made to decide the mode PER CANDIDATE (with
                         # `not _gt_ctx.can_ko` in this condition) so that

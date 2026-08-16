@@ -156,6 +156,14 @@ class DecisionContext:
     # them either the turn or the energy they attach to get it out.
     # Default False: unit tests build the ctx directly.
     boss_trap_gust: bool = False
+    # THE SEAT THE RELAY INHERITS: our active is locked in the front spot (it
+    # neither attacks this turn nor can pay its way out), so only their knockout
+    # empties it -- and there is a body on their bench that both opens the seat
+    # and dies from it to an attacker already charged on our bench. The EXISTENCE
+    # half of `_gust_relay_cashes_the_seat`, which the target selector then asks
+    # per candidate: one function, so the play and the aim cannot disagree.
+    # Default False: unit tests build the ctx directly.
+    boss_relay_seat: bool = False
     # A REAL opposing finisher on our active, resolved via attack_table
     # (`_op_active_attack_damage_to` >= the active's HP). The `active_ko_likely`
     # heuristic leans on `_op_best_damage_vs`, which reads the damage of an attack
