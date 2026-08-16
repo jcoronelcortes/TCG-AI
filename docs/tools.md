@@ -680,6 +680,41 @@ for it:
 Cost: **9.3 ms per full rollout**, 143 steps to game end — cheaper than the plan's
 own estimate, so two options at K=100 cost 1.9 s per decision.
 
+### `opponent_prior_census.py` — does the posterior beat the flags?
+
+```bash
+python utils/opponent_prior_census.py --records records/ --out log/<night>/t2_censo.json
+python utils/opponent_prior_census.py --flat     # census the fallback instead
+```
+
+Phase S1 of [the play-time search plan](plan-la-busqueda-en-juego-2026-08-15.md).
+Walks the frozen corpus — the record names carry the true opponent list — and
+asks, per decision, what `ptcg/opponent/prior.py` believes. Four pre-registered
+criteria printed as PASA/FALLA: the posterior's first stable-correct turn
+against the earliest a signature-card flag could fire (a card unique to the
+true archetype becoming visible); ≥90 % archetype accuracy at and after that
+turn; confident-and-wrong under 5 %; and zero exceptions with 100 % parity
+between the engine-free `ids_seen` port and `search_oracle._ids_seen`.
+First run (night of 16 August): **PASA 4/4** — stable at median turn 2.0,
+100 % at/after the proxy, 0/2761 confident-wrong.
+
+### `shadow_arbiter.py` — the arbiter consulted, nothing played
+
+```bash
+python utils/shadow_arbiter.py --n 600 --k 50 --k-grade 100 --out log/<night>/shadow
+python utils/shadow_arbiter.py --selftest    # the mixed policy must beat random
+```
+
+Phase S2 §5.3 of the same plan. For each sampled frozen decision it runs the
+real play-time machinery — `determinize(opponent_obs=None)`, the opponent's
+deck resampled per rollout from the S1 posterior, the MIXED rollout policy
+(`fast_policy.as_mixed_agent`; the symmetric form measured worse than random),
+and `ptcg.search.arbiter`'s verdict with the board's own floor. Disagreements
+with the historical choice are graded at higher K under the TRUE deck the
+record names, with the grader's own floor; the ranked `desacuerdos.json` is a
+reading list, not a change. The arbiter answers `None` unless the best option
+clears the floor, and that abstention is the honest common case.
+
 ### `oracle_the_promotion_bets_when_it_can_walk_back.py` — one rule, graded by the rules
 
 ```bash
